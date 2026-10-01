@@ -63,3 +63,19 @@ A bare `except:` also catches `KeyboardInterrupt`, `SystemExit` and `GeneratorEx
 propagate instead of being swallowed. Plan G3.P3 policy. Each converted site is checked for a
 code path that relies on catching those three (listed in the G3.P3 ledger row). Not visible to
 the oracle (no toml block).
+
+## IC-0005: implicit Optional made explicit (G3.P3, RUF013)
+
+`def f(x: str = None)` becomes `def f(x: str | None = None)`: the annotation now states what the
+default already allowed. No call behaves differently. In annotation-sensitive modules O5 shows
+`annot:` items; the MCP protocol module (ai_setup_mcp.py) has no RUF013 finding, so O4c (tool
+input schemas) is unaffected and must stay EQUAL.
+
+```toml
+id = "IC-0005"
+component = "O5"
+key = "annot:*"
+reason = "implicit Optional made explicit (ruff RUF013, plan G3.P3); O4c stays EQUAL"
+goal = "G3"
+```
+

@@ -378,6 +378,9 @@ select = [
 ignore = ["E501", "ISC001", "Q000", "Q001", "Q002", "Q003", "COM812"]
 # The ratchet families' `# noqa` comments still matter to their counts: RUF100 keeps them.
 external = ["PTH", "BLE", "T20", "S", "N"]
+# Typographic characters used on purpose in docstrings, strings and comments (en dash, set union,
+# multiplication sign, angle quote, sigma, apostrophe). RUF001-RUF003 still flag every other confusable.
+allowed-confusables = ["–", "∪", "×", "›", "σ", "’"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S101"]  # pytest asserts are the point

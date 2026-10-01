@@ -78,4 +78,11 @@ file, re-run `uv run python tooling-upgrade/certify.py <last DONE goal>`, then c
   T20, S and N into the stretch ratchet with D, ANN, ARG, FBT, TRY, PL (IC-0003). The zero
   set is the rest of the target set. RUF100 keeps the ratchet families' existing `noqa`s via
   `lint.external`.
+- **D-G3-2 (when the ratchet is set).** tooling-upgrade/ratchet.json was first written at the
+  start of G3 (e7319838) with G2-HEAD counts. Plan G3.P4 sets the stretch counts from Ruff's
+  `--statistics` at the end of G3, and zero-set fixes move them: lambda->def (E731) adds ANN/D/
+  N802/ARG findings for the new defs, f-strings from UP031 add TRY003, explicit `X as X`
+  re-exports add PLC0414, contextlib.suppress lowers BLE001/S110. So the P4 values replace the
+  e7319838 values, and the ledger's G3.P4 row lists the per-rule delta from G2 HEAD with its
+  cause. From G3.P4 on they never rise.
 
