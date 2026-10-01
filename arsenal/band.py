@@ -155,10 +155,13 @@ import random
 import re
 import struct
 import sys
-from collections.abc import Iterable, Sequence
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from . import nashville as nv
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Sequence
 
 
 def _pyl() -> str:
@@ -488,9 +491,7 @@ def parse_loop(text: str, key: str | None = None, meter=(4, 4)) -> list[dict]:
             if toks:
                 groups.append((toks, True))
     else:
-        for tok in re.split(r"\s+-\s+|\s+", text):
-            if tok and tok != "-":
-                groups.append(([tok], False))
+        groups.extend(([tok], False) for tok in re.split(r"\s+-\s+|\s+", text) if tok and tok != "-")
     cycle, beat, previous = [], 0.0, None
     for toks, is_bar in groups:
         items = [_split_duration(t) for t in toks]
@@ -565,7 +566,7 @@ def _segments(timeline: list[dict], bpb: float, total: float) -> list[tuple[floa
         s, e = c["beat"], c["beat"] + c["dur"]
         cuts = [s] + [
             q(b * bpb)
-            for b in range(int(math.ceil(s / bpb + 1e-9)), int(math.floor(e / bpb - 1e-9)) + 1)
+            for b in range(math.ceil(s / bpb + 1e-9), math.floor(e / bpb - 1e-9) + 1)
             if s + 1e-9 < b * bpb < e - 1e-9
         ]
         for i, cs in enumerate(cuts):
@@ -598,7 +599,7 @@ def normalize_notes(notes: Iterable[dict], length: float) -> list[dict]:
             "beat": b,
             "len": q(max(0.0, min(float(n["len"]), length - b))),
             "note": pitch,
-            "vel": max(1, min(127, int(round(n["vel"])))),
+            "vel": max(1, min(127, round(n["vel"]))),
         }
         prev = last.get(pitch)
         if prev is not None:
@@ -625,7 +626,7 @@ class Humanizer:
         self._bars: dict[int, random.Random] = {}
 
     def bar_of(self, beat: float) -> int:
-        return int(math.floor(q(beat) / self.bpb + 1e-9))
+        return math.floor(q(beat) / self.bpb + 1e-9)
 
     def rng(self, beat: float) -> random.Random:
         bar = self.bar_of(beat)
@@ -634,7 +635,7 @@ class Humanizer:
         return self._bars[bar]
 
     def vel(self, beat: float, vel: float, spread: int) -> int:
-        return max(1, min(127, int(round(vel)) + self.rng(beat).randint(-spread, spread)))
+        return max(1, min(127, round(vel) + self.rng(beat).randint(-spread, spread)))
 
 
 def _place(pc: int, prev: int | None, lo: int = BASS_RANGE[0], hi: int = BASS_RANGE[1], center: float = 35.5) -> int:
@@ -719,7 +720,7 @@ def _bass_pass(
 ) -> tuple[list[dict], int | None]:
     lo, hi = BASS_RANGE
     notes: list[dict] = []
-    bars_total = max(1, int(round(total / bpb)))
+    bars_total = max(1, round(total / bpb))
     phrase = 4 if bars_total >= 8 and bars_total % 4 == 0 else 2 if bars_total % 2 == 0 else 1
 
     def add(beat, length, note, vel, spread=5, tie=None):
@@ -732,7 +733,7 @@ def _bass_pass(
         """A bar line that opens a phrase (every 4 bars in a loop of 8 or more, else every 2), the loop top included:
         where the key drops and where the loop turns around."""
         bars = beat / bpb
-        return abs(bars - round(bars)) < 1e-9 and (int(round(bars)) % bars_total) % phrase == 0
+        return abs(bars - round(bars)) < 1e-9 and (round(bars) % bars_total) % phrase == 0
 
     def step_into(target: int, p0: int) -> int:
         """A half step below a rising target (above a falling one), kept inside E1..G2."""
@@ -791,7 +792,7 @@ def _bass_pass(
             if seventh in (p0, fifth):
                 seventh = p0 + 12 if p0 + 12 <= hi else fifth
             step = step_into(target, p0) if changes else fifth
-            bar_index = int(math.floor(s / bpb + 1e-9))
+            bar_index = math.floor(s / bpb + 1e-9)
             if d >= 4 - 1e-9 and bpb == 4 and bar_index % 2 == 0:  # bar A
                 add(s, 0.7, p0, 102)
                 add(s + 0.75, 0.15, p0, 42, 3)
@@ -820,7 +821,7 @@ def _bass_pass(
                     last = step
                 prev = last
         elif style == "walking":
-            n = int(math.floor(d + 1e-9))
+            n = math.floor(d + 1e-9)
             if n < 2:
                 add(s, d - GAP, p0, accent)
                 prev = p0
@@ -984,7 +985,7 @@ def _tile(notes: list[dict], cycle_len: float, total: float, human: Humanizer) -
     """Repeat one pass of a line to fill the loop, cutting the last pass at `total`; repeats get a light new
     velocity shading (drawn from the repeat's own bars) so the copies do not sound stamped."""
     out = []
-    for k in range(int(math.ceil(total / cycle_len - 1e-9))):
+    for k in range(math.ceil(total / cycle_len - 1e-9)):
         for n in notes:
             beat = n["beat"] + k * cycle_len
             if beat < total - 1e-9:
@@ -1060,7 +1061,7 @@ def drum_lane(
     if style not in DRUM_STYLES:
         raise BandError(f"unknown drum style {style!r}; one of {', '.join(DRUM_STYLES)}")
     notes: list[dict] = []
-    bars = int(round(total / bpb))
+    bars = round(total / bpb)
     swing = NEO_SOUL_SWING if (swing is None and style == "neo-soul") else (0.5 if swing is None else swing)
     soft = style in ("ballad", "brushes", "ambient")
 
@@ -1079,7 +1080,7 @@ def drum_lane(
                 add(b, CRASH, 76, min(3.5, bpb * phrase - 0.5), 3)
             if bar % phrase == phrase - 1 or bar == bars - 1:
                 start = max(0.0, bpb - 2)
-                steps = int(round((bpb - start) / 0.25))
+                steps = round((bpb - start) / 0.25)
                 for i in range(steps):
                     add(b + start + i * 0.25, RIDE, 18 + (88 - 18) * i / max(1, steps - 1), 0.1, 2)
             continue
@@ -1309,7 +1310,7 @@ def _comp_strikes(timeline: list[dict], style: str, bpb: float, total: float, sw
             if d >= 4 - 1e-9:
                 strikes.append([s + 2.5, min(1.25, d - 2.5 - GAP), 62, 0, i])
             continue
-        bar = int(math.floor(s / bpb + 1e-9))
+        bar = math.floor(s / bpb + 1e-9)
         variant = COMP_RHYTHMS[style][bar % len(COMP_RHYTHMS[style])]
         start = bar * bpb
         hits = []
@@ -1394,11 +1395,11 @@ def _rest_bars(notes: list[dict], rests: Sequence[int], bpb: float, total: float
     plays whole. Any other note sounding into a rest bar is cut at its bar line. With sustain (comp, pad) the part
     of a silenced note that would ring past its rest bar is struck again on the bar after."""
     rest = set(rests)
-    bars = max(1, int(round(total / bpb)))
+    bars = max(1, round(total / bpb))
     out = []
     for n in notes:
         start, end = q(n["beat"]), q(n["beat"] + n["len"])
-        bar = int(math.floor(start / bpb + 1e-9))
+        bar = math.floor(start / bpb + 1e-9)
         line = q((bar + 1) * bpb)
         push = line - start <= 0.5 + 1e-9 and end > line + 1e-9
         owner = (bar + 1) % bars if push else bar
@@ -1463,7 +1464,7 @@ def make_pattern_set(
     cycle = parse_loop(loop, key_name, meter)
     if key_name is None:
         key_name = estimate_key(cycle)
-    cycle_bars = int(round((cycle[-1]["beat"] + cycle[-1]["dur"]) / bpb))
+    cycle_bars = round((cycle[-1]["beat"] + cycle[-1]["dur"]) / bpb)
     bars = cycle_bars if bars is None else int(bars)
     if not 1 <= bars <= MAX_BARS:
         raise BandError(f"--bars runs from 1 to {MAX_BARS}")
@@ -1471,7 +1472,6 @@ def make_pattern_set(
     bpm = float(BPM_BY_DRUMS[drums] if bpm is None else bpm)
     if not 20 <= bpm <= 300:
         raise BandError("--bpm runs from 20 to 300")
-    tonic_name = key_name.split()[0]
     title = title or f"{key_name} {drums}, {bass} bass"
     pid = pid or slug(title)
     if not ID_RE.match(pid):
@@ -1528,9 +1528,7 @@ def validate_pattern_set(ps) -> dict:
         problems.append(f"version must be {VERSION}")
     if not (isinstance(ps.get("id"), str) and ID_RE.match(ps["id"])):
         problems.append("id must be lowercase letters, digits and dashes")
-    for field in ("title", "key"):
-        if not isinstance(ps.get(field), str):
-            problems.append(f"{field} must be a string")
+    problems.extend(f"{field} must be a string" for field in ("title", "key") if not isinstance(ps.get(field), str))
     bpm = ps.get("bpm_hint")
     if not (isinstance(bpm, (int, float)) and not isinstance(bpm, bool) and bpm > 0):
         problems.append("bpm_hint must be a number above 0")
@@ -1564,9 +1562,7 @@ def validate_pattern_set(ps) -> dict:
     if not isinstance(lanes, dict):
         problems.append("lanes must be an object")
     else:
-        for lane in lanes:
-            if lane not in LANES:
-                problems.append(f"unknown lane {lane!r}")
+        problems.extend(f"unknown lane {lane!r}" for lane in lanes if lane not in LANES)
         for lane in LANES:
             body = lanes.get(lane)
             if not (isinstance(body, dict) and isinstance(body.get("notes"), list)):
@@ -1803,11 +1799,11 @@ class PatternStore:
                     data.pop(GENERATOR_KEY, None)
                 return validate_pattern_set(data)
             except ValueError as exc:
-                raise BandError(f"{path} is not a valid pattern set: {exc}")
+                raise BandError(f"{path} is not a valid pattern set: {exc}") from exc
         try:
             return seed(pid)
-        except KeyError:
-            raise BandError(f"no pattern set {pid!r}; try: {_pyl()} -m arsenal.band list")
+        except KeyError as err:
+            raise BandError(f"no pattern set {pid!r}; try: {_pyl()} -m arsenal.band list") from err
 
     def exists(self, pid: str) -> bool:
         return self.path(pid).is_file() or any(s["id"] == pid for s in SEEDS)
@@ -1902,7 +1898,7 @@ def key_signature(key: str) -> tuple[int, int]:
 
 def _conductor_events(ps: dict, markers: bool) -> list[tuple[int, int, bytes]]:
     n, d = ps["meter"]
-    usec = max(1, min(0xFFFFFF, int(round(60_000_000 / float(ps["bpm_hint"])))))
+    usec = max(1, min(0xFFFFFF, round(60_000_000 / float(ps["bpm_hint"]))))
     sf, mi = key_signature(ps["key"])
     ev = [
         (0, 0, _meta(0x51, usec.to_bytes(3, "big"))),
@@ -1910,16 +1906,15 @@ def _conductor_events(ps: dict, markers: bool) -> list[tuple[int, int, bytes]]:
         (0, 0, _meta(0x59, struct.pack(">bB", sf, mi))),
     ]
     if markers:
-        for c in ps["chords"]:
-            ev.append((int(round(c["beat"] * PPQ)), 0, _meta(0x06, c["name"].encode("utf-8"))))
+        ev.extend((round(c["beat"] * PPQ), 0, _meta(0x06, c["name"].encode("utf-8"))) for c in ps["chords"])
     return ev
 
 
 def _note_events(notes: list[dict], channel: int) -> list[tuple[int, int, bytes]]:
     ev = []
     for n in notes:
-        on = int(round(n["beat"] * PPQ))
-        off = max(on + 1, int(round((n["beat"] + n["len"]) * PPQ)))
+        on = round(n["beat"] * PPQ)
+        off = max(on + 1, round((n["beat"] + n["len"]) * PPQ))
         ev.append((on, 2, bytes((0x90 | channel, n["note"], n["vel"]))))
         ev.append((off, 1, bytes((0x80 | channel, n["note"], 64))))
     return ev
@@ -1928,7 +1923,7 @@ def _note_events(notes: list[dict], channel: int) -> list[tuple[int, int, bytes]
 def midi_bytes(ps: dict, lane: str | None = None) -> bytes:
     """A Standard MIDI File, type 1 at 480 PPQ. lane=None: a conductor track (name, tempo, meter, key, chord
     markers) and one track per lane. lane="bass": one track holding the tempo, meter, key and that lane's notes."""
-    end = int(round(ps["length_beats"] * PPQ))
+    end = round(ps["length_beats"] * PPQ)
     if lane is None:
         tracks = [_track([(0, 0, _meta(3, ps["title"].encode("utf-8"))), *_conductor_events(ps, True)], end)]
         for name in LANES:
@@ -2060,9 +2055,9 @@ def render_grid(ps: dict, bars_per_line: int = 4) -> str:
     sit in their nearest 16th."""
     meter = ps["meter"]
     bpb = beats_per_bar(meter)
-    per_bar = int(round(bpb * 4))
-    total_cells = int(round(ps["length_beats"] * 4))
-    bars = int(round(ps["length_beats"] / bpb))
+    per_bar = round(bpb * 4)
+    total_cells = round(ps["length_beats"] * 4)
+    bars = round(ps["length_beats"] / bpb)
     flats = _flats(ps["key"])
     lines = [
         f"{ps['id']}: {ps['title']}  ({ps['key']}, {ps['bpm_hint']} BPM, {bars} bars of {meter[0]}/{meter[1]})",
@@ -2070,7 +2065,7 @@ def render_grid(ps: dict, bars_per_line: int = 4) -> str:
     ]
 
     def cell(beat: float) -> int:
-        return min(total_cells - 1, max(0, int(round(beat * 4))))
+        return min(total_cells - 1, max(0, round(beat * 4)))
 
     def row_blank() -> list[str]:
         return ["."] * total_cells
@@ -2094,7 +2089,7 @@ def render_grid(ps: dict, bars_per_line: int = 4) -> str:
     if bass:
         r = [" "] * total_cells
         for n in bass:
-            s, e = cell(n["beat"]), max(cell(n["beat"]) + 1, int(round((n["beat"] + n["len"]) * 4)))
+            s, e = cell(n["beat"]), max(cell(n["beat"]) + 1, round((n["beat"] + n["len"]) * 4))
             for k in range(s + 1, min(e, total_cells)):
                 if r[k] == " ":
                     r[k] = "-"
@@ -2119,7 +2114,7 @@ def render_grid(ps: dict, bars_per_line: int = 4) -> str:
             continue
         r = row_blank()
         for n in notes:
-            s, e = cell(n["beat"]), int(round((n["beat"] + n["len"]) * 4))
+            s, e = cell(n["beat"]), round((n["beat"] + n["len"]) * 4)
             for k in range(s + 1, min(e, total_cells)):
                 if r[k] == ".":
                     r[k] = "-"
@@ -2183,7 +2178,7 @@ def _range_text(notes: list[dict], flats: bool) -> str:
 
 def summary_lines(ps: dict) -> list[str]:
     flats = _flats(ps["key"])
-    bars = int(round(ps["length_beats"] / beats_per_bar(ps["meter"])))
+    bars = round(ps["length_beats"] / beats_per_bar(ps["meter"]))
     out = [
         (
             f'{ps["id"]}: "{ps["title"]}" ({ps["key"]}, {ps["bpm_hint"]} BPM, {bars} bars of '
@@ -2336,7 +2331,7 @@ def main(argv=None, out=None) -> int:
             for line in summary_lines(ps):
                 print(line, file=out)
             if args.dropout:
-                bars = int(round(ps["length_beats"] / beats_per_bar(ps["meter"])))
+                bars = round(ps["length_beats"] / beats_per_bar(ps["meter"]))
                 rests = dropout_bars(ps["id"], bars, args.dropout)
                 print(
                     "  dropout "

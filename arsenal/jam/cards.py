@@ -16,20 +16,23 @@ Card ids: seeds and Claude's cards are slugs; page saves are t-YYYYMMDD-HHMMSS-x
 
 from __future__ import annotations
 
-import builtins
 import copy
 import json
 import re
 import secrets
 import threading
 import time
-from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from arsenal import nashville
 from arsenal.jam import CARD_API, DECK_API
 from arsenal.jam import schemas as S
+
+if TYPE_CHECKING:
+    import builtins
+    from collections.abc import Callable
 
 PACKAGE = Path(__file__).resolve().parent
 DEFAULT_ROOT = PACKAGE.parents[1] / "state" / "arsenal" / "jam"
@@ -460,7 +463,7 @@ class DeckStore:
             and isinstance(t0, (int, float))
             and perf >= t0
         ):
-            t_ms = int(round(perf - t0))
+            t_ms = round(perf - t0)
             source.update(log_session=session, log_t_ms=t_ms)
             card["moments"] = [
                 {"session": session, "at": clock_text(t_ms), "until": None, "label": "saved from the page"}

@@ -31,7 +31,6 @@ Behaviour worth knowing (5.2):
 
 from __future__ import annotations
 
-import builtins
 import copy
 import json
 import math
@@ -40,6 +39,7 @@ import secrets
 import threading
 import time
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from arsenal.jam import RUN_API
 from arsenal.jam import align as jam_align
@@ -48,6 +48,9 @@ from arsenal.jam import schemas as S
 from arsenal.jam import tempomap as T
 from arsenal.jam.cards import DeckError, DeckStore, now_iso
 from arsenal.jam.resolve import BridgeUnavailable, ResolveError, Resolver, parse_line
+
+if TYPE_CHECKING:
+    import builtins
 
 ENGINE = "groove/1"
 LEASE_MS = 30000
@@ -1500,9 +1503,7 @@ def insert_settings(settings: list[dict], bar: int, partial: dict) -> list[dict]
         if s["from_bar"] <= bar:
             continue
         entry = dict(s)
-        for k, v in partial.items():
-            if s.get(k) == old_prev.get(k):
-                entry[k] = v
+        entry.update({k: v for k, v in partial.items() if s.get(k) == old_prev.get(k)})
         old_prev = s
         if same(entry, out[-1]):
             continue

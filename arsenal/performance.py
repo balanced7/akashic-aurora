@@ -15,7 +15,6 @@ from those numbers, ending with questions for Daniel that are generated from the
 
 from __future__ import annotations
 
-import builtins
 import itertools
 import json
 import math
@@ -28,6 +27,10 @@ from bisect import bisect_left, bisect_right
 from datetime import UTC, datetime
 from fractions import Fraction
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import builtins
 
 API = "arsenal.performance/v0"
 SUMMARY_API = "arsenal.performance.summary/v0"
@@ -659,7 +662,7 @@ def numbering_key(weights: list[float], key: dict | None, homes: dict | None = N
         return out
     if out["key"] not in points_to:
         # The rule counted the key the notes weigh most like lower, but the key that won is not the one the rule points
-        # to: F# minor's missing E# points to A major, and D major fitted better than A major (verifier, 2026-09-14: the
+        # to: here F# minor's missing E# points to A major, and D major fitted better than A major (verifier, 2026-09-14: the
         # summary said the missing raised 7th made the numbers count from D major). Named "next best", with its cause.
         out["rule"] = dict(out["rule"], name="next best", because=out["rule"]["name"])
     return out
@@ -1772,7 +1775,7 @@ def _secs(seconds: float) -> str:
     seconds = float(seconds or 0)
     if seconds < 60:
         return f"{seconds:.1f} s"
-    return f"{int(seconds // 60)} min {int(round(seconds % 60))} s"
+    return f"{int(seconds // 60)} min {round(seconds % 60)} s"
 
 
 def questions(s: dict) -> list[str]:
@@ -2522,8 +2525,10 @@ def _glossary(
     ):
         if mark in marks:
             out.append((mark, words))
-    for ext in extensions:
-        out.append((ext, _EXTENSIONS.get(ext, "extra stacked notes, named by their distance above the root.")))
+    out.extend(
+        (ext, _EXTENSIONS.get(ext, "extra stacked notes, named by their distance above the root."))
+        for ext in extensions
+    )
     if "^" in marks:
         out.append(("^", "only a joiner, so a chord's shape does not run into its number: 5^7 is a 7 chord on 5."))
     if "/" in marks:

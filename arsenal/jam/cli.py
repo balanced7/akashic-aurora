@@ -115,7 +115,7 @@ class Client:
                     f"the server on 127.0.0.1:{self.port} predates the jam routes - restart "
                     f"{_pyl()} -m arsenal serve --port {self.port}",
                     NO_SERVER,
-                )
+                ) from exc
             return exc.code, payload or {}
         except (urllib.error.URLError, ConnectionError, TimeoutError, OSError) as exc:
             if not self.offline_ok:
@@ -124,7 +124,7 @@ class Client:
                     f"({getattr(exc, 'reason', exc)}) - start it with {_pyl()} -m arsenal serve --port "
                     f"{self.port}",
                     NO_SERVER,
-                )
+                ) from exc
             self.offline = True
             from arsenal.jam.cards import DEFAULT_ROOT
 
@@ -201,7 +201,7 @@ def _target(client: Client, text: str, key: str | None) -> dict:
     try:
         items = parse_line(text)
     except ValueError as exc:
-        raise CliError(f"{text!r} is no card and no chord line: {exc}")
+        raise CliError(f"{text!r} is no card and no chord line: {exc}") from exc
     if not key:
         raise CliError(f'{text!r} is a chord line, which needs --key (e.g. --key "Eb major")')
     return {"chords": items, "key": key}
@@ -243,8 +243,7 @@ def _slot_rows(d: dict, backing: str | None = None, loop: bool = False) -> list[
             f"  {where:<11} {s['name'] or '':<{name_w}}  {s['n'] or 'notes':<{num_w}}  "
             f"{label}{_names(notes):<24}  {reads}"
         )
-        for w in s["warnings"]:
-            rows.append(f"              note: {w}")
+        rows.extend(f"              note: {w}" for w in s["warnings"])
     return rows
 
 
@@ -288,8 +287,8 @@ def _hold(text: str):
         return text
     try:
         return float(text) if "." in text else int(text)
-    except ValueError:
-        raise CliError(f"--hold takes legato, detached or a number of beats (got {text!r})")
+    except ValueError as exc:
+        raise CliError(f"--hold takes legato, detached or a number of beats (got {text!r})") from exc
 
 
 def _check_flag(text: str, i: int) -> dict:
@@ -342,7 +341,7 @@ def _apply_line_flags(chords: list[dict], args) -> None:
         try:
             items[i]["notes"] = parse_notes(notes.strip().strip('"'))
         except ValueError as exc:
-            raise CliError(f"--notes-for slot {i + 1}: {exc}")
+            raise CliError(f"--notes-for slot {i + 1}: {exc}") from exc
     for slot in args.upper_same or []:
         i = _one_based(slot, "--upper-same")
         if i >= len(items):
@@ -408,7 +407,7 @@ def _card_from_flags(args, base: dict | None = None) -> dict:
         elif getattr(args, "notes", None):
             card["chords"] = [{"n": None, "beats": 4, "notes": parse_notes(args.notes)}]
     except ValueError as exc:
-        raise CliError(f"--{sources[0]}: {exc}")
+        raise CliError(f"--{sources[0]}: {exc}") from exc
     if card.get("chords") is not None and (getattr(args, "notes_for", None) or getattr(args, "upper_same", None)):
         _apply_line_flags(card["chords"], args)
     variants = {v["id"]: v for v in card.get("variants") or []}
@@ -419,7 +418,7 @@ def _card_from_flags(args, base: dict | None = None) -> dict:
         try:
             v = {"id": m.group(1), "chords": parse_line(m.group(3))}
         except ValueError as exc:
-            raise CliError(f"--variant {m.group(1)}: {exc}")
+            raise CliError(f"--variant {m.group(1)}: {exc}") from exc
         if m.group(2):
             v["label"] = m.group(2).strip()
         variants[m.group(1)] = v
@@ -474,7 +473,7 @@ def _cmd_card(args, client: Client, out) -> int:
             try:
                 base = json.loads(Path(args.from_json).read_text(encoding="utf-8"))
             except (OSError, ValueError) as exc:
-                raise CliError(f"--from-json: {exc}")
+                raise CliError(f"--from-json: {exc}") from exc
         card = _card_from_flags(args, base)
         card.setdefault("created_by", args.by)
         if args.dry_run:
@@ -595,8 +594,7 @@ def _edit_patch(card: dict, args) -> dict:
     if tags != (card.get("tags") or []):
         patch["tags"] = tags
     moments = list(patch.get("moments", card.get("moments") or []))
-    for m in args.add_moment or []:
-        moments.append(_moment_flag(m))
+    moments.extend(_moment_flag(m) for m in args.add_moment or [])
     for n in sorted((_one_based(x, "--rm-moment") for x in args.rm_moment or []), reverse=True):
         if n >= len(moments):
             raise CliError(f"--rm-moment {n + 1}: the card has {len(moments)} moments")
@@ -611,14 +609,18 @@ def _edit_patch(card: dict, args) -> dict:
             patch[field] = json.loads(raw)
         except ValueError:
             patch[field] = raw
-    for flag, field, value in (
-        ("favorite", "favorite", True),
-        ("unfavorite", "favorite", False),
-        ("archive", "archived", True),
-        ("unarchive", "archived", False),
-    ):
-        if getattr(args, flag, False):
-            patch[field] = value
+    patch.update(
+        {
+            field: value
+            for flag, field, value in (
+                ("favorite", "favorite", True),
+                ("unfavorite", "favorite", False),
+                ("archive", "archived", True),
+                ("unarchive", "archived", False),
+            )
+            if getattr(args, flag, False)
+        }
+    )
     return patch
 
 
@@ -750,9 +752,9 @@ def _show(args, client: Client, out) -> int:
         try:
             d = Resolver().resolve_chords(target["chords"], target["key"], slot=slot)
         except ResolveError as exc:
-            raise CliError(str(exc))
+            raise CliError(str(exc)) from exc
         except BridgeUnavailable as exc:
-            raise CliError(str(exc), NO_SERVER)
+            raise CliError(str(exc), NO_SERVER) from exc
     s = d["slots"][0]
     cue = {
         "type": "hover",
@@ -760,7 +762,7 @@ def _show(args, client: Client, out) -> int:
         "label": s["name"],
         "detail": f"{s['n']} in {s['key']}" if s["n"] else s["key"],
         "source": "claude",
-        "hold_ms": int(round((args.hold or 0) * 1000)),
+        "hold_ms": round((args.hold or 0) * 1000),
     }
     reply = _check(*client.call("POST", "/api/piano/cue", {"cue": cue}))
     print(
@@ -842,8 +844,8 @@ def _cmd_loop(args, client: Client, out) -> int:
 def _float(text: str, flag: str) -> float:
     try:
         value = float(text)
-    except ValueError:
-        raise CliError(f"{flag} must be a number or +N / -N (got {text!r})")
+    except ValueError as exc:
+        raise CliError(f"{flag} must be a number or +N / -N (got {text!r})") from exc
     return int(value) if value.is_integer() else value
 
 
@@ -954,7 +956,7 @@ def _cmd_deck(args, client: Client, out) -> int:
         try:
             body["moments"] = json.loads(Path(args.moments).read_text(encoding="utf-8"))
         except (OSError, ValueError) as exc:
-            raise CliError(f"--moments: {exc}")
+            raise CliError(f"--moments: {exc}") from exc
     reply = _check(*client.call("POST", "/api/piano/deck/seed", body))
     if args.json:
         print(json.dumps(reply, indent=2), file=out)
@@ -990,9 +992,9 @@ def _cmd_template(args, client: Client, out) -> int:
             last=args.template_verb == "save-last",
         )
     except PerformanceError as exc:
-        raise CliError(f"cannot read session {session}: {exc}")
+        raise CliError(f"cannot read session {session}: {exc}") from exc
     except ValueError as exc:
-        raise CliError(str(exc))
+        raise CliError(str(exc)) from exc
     if args.title:
         moment["title"] = args.title
     if getattr(args, "id", None):

@@ -11,14 +11,17 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-from collections.abc import Callable
 from fractions import Fraction
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import av
 import numpy as np
 from av.codec.hwaccel import HWAccel
 from numpy.lib.stride_tricks import sliding_window_view
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 # state/arsenal/ lives next to this file's package, not at the process cwd, so this module
 # behaves the same whether it's run from E:\AI-Setup or imported from anywhere else.
@@ -295,12 +298,9 @@ def audio_features(path: str, *, progress: Callable[[float], None] | None = None
 
         samples = np.concatenate(chunks) if chunks else np.zeros(0, dtype=np.float32)
 
-        if first_pts is None:
-            start_ticks = 0
-        else:
-            # Exact rational rescale to 1/48000 ticks -- Fraction arithmetic throughout,
-            # round() on a Fraction is exact (no float ever enters this computation).
-            start_ticks = round(Fraction(first_pts) * first_tb * FEATURE_SAMPLE_RATE)
+        # Exact rational rescale to 1/48000 ticks -- Fraction arithmetic throughout,
+        # round() on a Fraction is exact (no float ever enters this computation).
+        start_ticks = 0 if first_pts is None else round(Fraction(first_pts) * first_tb * FEATURE_SAMPLE_RATE)
 
         rows = _extract_features(samples, lambda v: report(0.5 + 0.5 * v))
 

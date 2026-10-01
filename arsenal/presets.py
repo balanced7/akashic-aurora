@@ -151,9 +151,11 @@ def _check_source(body: str, problems: list[str]) -> None:
                 problems.append(f"uniform {name} is not in the Play Night uniform list")
             elif wanted != declared_type:
                 problems.append(f"uniform {name} must be {wanted}, not {declared_type}")
-    for match in _FOR_CONDITION.finditer(body):
-        if re.search(r"\bu_\w+", match.group(1)):
-            problems.append(f"a loop bound uses a uniform ({match.group(1).strip()}); bounds must be constant")
+    problems.extend(
+        f"a loop bound uses a uniform ({match.group(1).strip()}); bounds must be constant"
+        for match in _FOR_CONDITION.finditer(body)
+        if re.search(r"\bu_\w+", match.group(1))
+    )
 
 
 def list_presets(directory=None) -> list[dict]:

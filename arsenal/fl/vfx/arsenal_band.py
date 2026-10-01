@@ -209,7 +209,7 @@ def parse_pattern_set(d, where="pattern"):
         raise PatternError(where + ": length_beats must be a positive number")
     bars = length / bar_beats
     if bars < 1 or abs(bars - round(bars)) > 1e-9:
-        raise PatternError(where + ": length_beats %r is not whole bars of %d/%d" % (length, meter[0], meter[1]))
+        raise PatternError(where + f": length_beats {length!r} is not whole bars of {int(meter[0])}/{int(meter[1])}")
     chords = d.get("chords", [])
     if not isinstance(chords, list):
         raise PatternError(where + ": chords must be a list")
@@ -229,10 +229,10 @@ def parse_pattern_set(d, where="pattern"):
         if not isinstance(notes, list):
             raise PatternError(where + f": lanes.{lane} must be an object with a notes list")
         if len(notes) > MAX_NOTES_PER_LANE:
-            raise PatternError(where + ": lanes.%s has more than %d notes" % (lane, MAX_NOTES_PER_LANE))
+            raise PatternError(where + f": lanes.{lane!s} has more than {MAX_NOTES_PER_LANE} notes")
         out = []
         for i, n in enumerate(notes):
-            w = "%s: lanes.%s.notes[%d]" % (where, lane, i)
+            w = f"{where!s}: lanes.{lane!s}.notes[{i}]"
             if not isinstance(n, dict):
                 raise PatternError(w + " must be an object")
             beat, ln, note, vel = n.get("beat"), n.get("len"), n.get("note"), n.get("vel")
@@ -281,8 +281,8 @@ def parse_playlist(doc, where="playlist"):
     if not isinstance(items, list) or not items:
         raise PatternError(where + ": patterns must be a non-empty list")
     if len(items) > MAX_PATTERNS:
-        raise PatternError(where + ": at most %d patterns" % MAX_PATTERNS)
-    patterns = [parse_pattern_set(p, "%s: patterns[%d]" % (where, i)) for i, p in enumerate(items)]
+        raise PatternError(where + f": at most {MAX_PATTERNS} patterns")
+    patterns = [parse_pattern_set(p, f"{where!s}: patterns[{i}]") for i, p in enumerate(items)]
     return {"patterns": patterns, "current": min(current, len(patterns) - 1), "rev": rev}
 
 
@@ -307,7 +307,7 @@ def parse_drum_maps(obj, where="DRUM_MAPS"):
 def placeholder_pattern(message, index):
     """A silent 4/4 bar standing in for a refused baked pattern, so the Pattern knob's indexes stay put."""
     return {
-        "id": "invalid-%d" % index,
+        "id": f"invalid-{int(index)}",
         "title": "INVALID: " + message[:120],
         "meter": (4, 4),
         "bar_beats": 4.0,
@@ -319,7 +319,7 @@ def placeholder_pattern(message, index):
 def swing_beat(beat, amount, grid):
     """Delay notes on the off positions of the swing grid by amount * grid / 3 (amount 1 = triplet feel)."""
     g = beat / grid
-    k = int(round(g))
+    k = round(g)
     if k % 2 == 1 and abs(g - k) < 1e-6:
         return beat + amount * grid / 3.0
     return beat
@@ -336,7 +336,7 @@ def _hash32(a, b):
 def humanize_velocity(vel, eid, loop_n, amount):
     """Velocity nudged by up to amount * HUMANIZE_SPAN, fixed for a given note and loop so a take can be replayed."""
     r = _hash32(eid, loop_n & 0xFFFF) / 2147483647.5 - 1.0
-    v = int(round(vel + r * amount * HUMANIZE_SPAN))
+    v = round(vel + r * amount * HUMANIZE_SPAN)
     return 1 if v < 1 else (127 if v > 127 else v)
 
 
@@ -386,8 +386,8 @@ class Compiled:
     def __init__(self, pattern, ppq, swing=0.0, grid=0.25):
         self.ppq = ppq
         length = pattern["length_beats"]
-        self.bar = max(1, int(round(pattern["bar_beats"] * ppq)))
-        self.loop = self.bar * max(1, int(round(length / pattern["bar_beats"])))
+        self.bar = max(1, round(pattern["bar_beats"] * ppq))
+        self.loop = self.bar * max(1, round(length / pattern["bar_beats"]))
         self.read_at = self.bar - min(ppq, self.bar)  # the live file is read one beat before each bar line
         at = {}
         held = []
@@ -397,8 +397,8 @@ class Compiled:
                 b = beat % length
                 if swing > 0.0:
                     b = swing_beat(b, swing, grid)
-                tick = int(round(b * ppq)) % self.loop
-                ticks = max(1, int(round(ln * ppq)))
+                tick = round(b * ppq) % self.loop
+                ticks = max(1, round(ln * ppq))
                 at.setdefault(tick, []).append((eid, lane_i, note, vel, ticks))
                 if lane_i in HELD_LANES:
                     held.append((tick, eid, lane_i, note, vel, ticks))
@@ -514,7 +514,7 @@ class Band:
         refused = 0
         for i, p in enumerate(list(patterns)[:MAX_PATTERNS]):
             try:
-                baked.append(parse_pattern_set(p, "PATTERNS[%d]" % i))
+                baked.append(parse_pattern_set(p, f"PATTERNS[{i}]"))
             except PatternError as exc:
                 refused += 1
                 baked.append(placeholder_pattern(str(exc), i))
@@ -530,10 +530,8 @@ class Band:
             except PatternError as exc:
                 self._log("refused " + _ascii(str(exc)))
         self.drum_maps = maps
-        self.module_status = "%d patterns from %s%s" % (
-            len(baked),
-            PATTERN_MODULE,
-            (" (%d refused)" % refused) if refused else "",
+        self.module_status = (
+            f"{len(baked)} patterns from {PATTERN_MODULE!s}{(f' ({refused} refused)') if refused else ''}"
         )
         self._log(self.module_status)
         return True
@@ -545,13 +543,12 @@ class Band:
 
     def describe(self):
         lines = [
-            "Arsenal band v%d. Plays Claude's patterns on FL's clock; pattern switches land on bar lines."
-            % BAND_VERSION,
+            f"Arsenal band v{BAND_VERSION}. Plays Claude's patterns on FL's clock; pattern switches land on bar lines.",
             "",
             _ascii(self.module_status),
         ]
         for i, p in enumerate(self.baked[:16]):
-            lines.append("%d  %s" % (i, _ascii(p["title"])))
+            lines.append(f"{i}  {_ascii(p['title'])!s}")
         if self.live_path:
             lines.append("Live file: " + _ascii(self.live_path))
         return "\r\n".join(lines)
@@ -572,11 +569,8 @@ class Band:
                 sig = (st.st_mtime_ns, st.st_size)
                 if sig == self.live_sig:
                     return
-            f = open(path, encoding="utf-8")
-            try:
+            with open(path, encoding="utf-8") as f:
                 text = f.read()
-            finally:
-                f.close()
         except Exception as exc:
             self._live_problem("cannot read the live file: " + _short(exc))
             return
@@ -592,8 +586,8 @@ class Band:
         self.live = playlist
         self.live_error = None
         self._log(
-            "live file: %d patterns, current %d, rev %r"
-            % (len(playlist["patterns"]), playlist["current"], playlist["rev"])
+            f"live file: {len(playlist['patterns'])} patterns, current {int(playlist['current'])}, "
+            f"rev {playlist['rev']!r}"
         )
         self.request(playlist["current"], defer, force=True, reflect=True)
 
@@ -650,7 +644,7 @@ class Band:
         self.current = index
         self.pattern = new
         self.compiled = None
-        self._log("pattern %d: %s" % (index, _ascii(new["title"])))
+        self._log(f"pattern {int(index)}: {_ascii(new['title'])!s}")
 
     # -- voices -------------------------------------------------------------------------------------------------
 
@@ -863,9 +857,7 @@ class Band:
         return min(self.ppq, tight), min(self.ppq, 2 * tight + 1)
 
     def bar_ticks(self):
-        return (
-            self.compiled.bar if self.compiled is not None else max(1, int(round(self.pattern["bar_beats"] * self.ppq)))
-        )
+        return self.compiled.bar if self.compiled is not None else max(1, round(self.pattern["bar_beats"] * self.ppq))
 
     def wrap_info(self, d):
         """(gap, exact) when FL's ticks fell by -d between two onTicks and the fall is a loop wrap; None for a seek.
@@ -958,7 +950,7 @@ class Band:
             if self.clock == CLOCK_SONG:
                 return [ticks - 1, ticks] if ticks >= 1 else [0]
             # Keep counting starts at bar 1 in step with FL's bar grid: Play from mid-bar joins bar 1 at that beat.
-            bar = max(1, int(round(self.pattern["bar_beats"] * self.ppq)))
+            bar = max(1, round(self.pattern["bar_beats"] * self.ppq))
             b0 = ticks % bar
             self.band_t = -1
             return [b0 - 1, b0] if b0 >= 1 else [0]

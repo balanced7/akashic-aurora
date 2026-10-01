@@ -27,9 +27,12 @@ import math
 import os
 import re
 import threading
-from collections.abc import Mapping
 from pathlib import Path
+from typing import TYPE_CHECKING
 from urllib.parse import urlsplit
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 API = "arsenal.piano.looks/v1"
 PATH = "/api/piano/looks"

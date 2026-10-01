@@ -33,13 +33,16 @@ import shutil
 import subprocess
 import threading
 from collections import OrderedDict
-from collections.abc import Callable, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from arsenal import nashville
 from arsenal.jam import DEF_API
 from arsenal.jam import schemas as S
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Sequence
 
 BRIDGE = Path(__file__).resolve().parents[1] / "pianocue_voicing.mjs"
 BRIDGE_TIMEOUT_S = 60
@@ -159,11 +162,11 @@ def run_bridge(request: dict) -> list[dict]:
             timeout=BRIDGE_TIMEOUT_S,
         )
     except (OSError, subprocess.TimeoutExpired) as exc:
-        raise BridgeUnavailable(f"the voicing bridge did not answer ({type(exc).__name__}: {exc})")
+        raise BridgeUnavailable(f"the voicing bridge did not answer ({type(exc).__name__}: {exc})") from exc
     try:
         reply = json.loads(proc.stdout)
-    except ValueError:
-        raise BridgeUnavailable(f"the voicing bridge failed: {(proc.stderr or proc.stdout).strip()[:300]}")
+    except ValueError as err:
+        raise BridgeUnavailable(f"the voicing bridge failed: {(proc.stderr or proc.stdout).strip()[:300]}") from err
     if not reply.get("ok"):
         raise ResolveError("", reply.get("error") or "the voicing bridge refused the request")
     return reply["results"]
@@ -685,7 +688,7 @@ def stub_band(facts: Sequence[dict]) -> list[dict]:
         if semis:
             full_roles, comp_roles = _upper_order(semis, f["root_pc"] != bass_pc)
 
-            def pick(roles, fill):
+            def pick(roles, fill, tones: dict = tones, bass_pc: int = bass_pc):
                 chosen, seen = [], set()
                 for role in roles + fill:
                     pc = tones.get(role)
@@ -778,7 +781,7 @@ class Resolver:
         try:
             S._chord_line(items, "chords")
         except S.JamSchemaError as exc:
-            raise ResolveError(exc.field, str(exc)[len(exc.field) :].strip())
+            raise ResolveError(exc.field, str(exc)[len(exc.field) :].strip()) from exc
         if backing not in S.BACKINGS:
             raise ResolveError("backing", f"must be one of {', '.join(S.BACKINGS)} (got {backing!r})")
         pseudo = {

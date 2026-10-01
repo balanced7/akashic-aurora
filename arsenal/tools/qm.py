@@ -13,6 +13,7 @@ command; this helper never starts long-lived listeners.
 from __future__ import annotations
 
 import argparse
+import contextlib
 import os
 import re
 import subprocess
@@ -127,7 +128,7 @@ def cmd_commit(args) -> int:
             argv, cwd=REPO, env=env, capture_output=True, text=True, encoding="utf-8", errors="replace"
         )
         if done.returncode != 0:
-            lines = [l for l in (done.stdout + done.stderr).splitlines() if "LF will be replaced" not in l]
+            lines = [ln for ln in (done.stdout + done.stderr).splitlines() if "LF will be replaced" not in ln]
             print("\n".join(lines[-15:]))
             return done.returncode
     head = subprocess.run(["git", "log", "-1", "--format=%h %an | %s"], cwd=REPO, capture_output=True, text=True)
@@ -159,7 +160,7 @@ def cmd_receipts(args) -> int:
             # /T takes the test Chrome down with node, so no orphan keeps the debug port.
             subprocess.run(["taskkill", "/T", "/F", "/PID", str(proc.pid)], capture_output=True)
             out, _ = proc.communicate()
-            tail = [l for l in out.splitlines() if l.strip()][-6:]
+            tail = [ln for ln in out.splitlines() if ln.strip()][-6:]
             print(f"{name}: TIMED OUT after {args.timeout} s, process tree killed")
             print("  last output: " + " | ".join(t[:160] for t in tail))
             worst = max(worst, 1)
@@ -173,10 +174,8 @@ def cmd_receipts(args) -> int:
 
 
 def main(argv=None) -> int:
-    try:
+    with contextlib.suppress(AttributeError):
         sys.stdout.reconfigure(errors="replace")  # agent mail can carry characters a cp1252 console lacks
-    except AttributeError:
-        pass
     ap = argparse.ArgumentParser(prog="qm", description="Quartermaster: Vandor's chores for the arsenal lane")
     sub = ap.add_subparsers(dest="cmd", required=True)
     mail = sub.add_parser("mail", help="consume the work lane, one line per message")

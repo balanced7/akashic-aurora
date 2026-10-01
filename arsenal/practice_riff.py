@@ -52,9 +52,9 @@ import subprocess
 import sys
 import time
 from bisect import bisect_left, bisect_right
-from collections.abc import Sequence
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from . import nashville
 from . import practice as pr
@@ -62,6 +62,9 @@ from .jam import DEF_API, RIFF_API, schemas
 from .jam import tempomap as tm
 from .jam.resolve import tone_name
 from .performance import PerformanceError, PerformanceStore
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 
 def _pyl() -> str:
@@ -713,7 +716,7 @@ def grid_of(beat: float, meter: int) -> tuple[str, float]:
     """(grid class, metric weight w_m) of a beat position inside a bar (11.3 step 3)."""
     p = beat - math.floor(beat)
     if p <= GRID_TOL or p >= 1 - GRID_TOL:
-        whole = int(round(beat)) % meter
+        whole = round(beat) % meter
         if whole == 0:
             return "beat", METRIC_WEIGHTS["downbeat"]
         return "beat", METRIC_WEIGHTS["beat3"] if meter == 4 and whole == 2 else METRIC_WEIGHTS["beat"]
@@ -1674,15 +1677,14 @@ def _bridge_onsets(tl, node: str | None = None) -> tuple[list[tuple[float, int]]
         return None, f"{type(exc).__name__}: {exc}"
     if not isinstance(answer, dict) or not answer.get("ok") or not isinstance(answer.get("notes"), list):
         return None, (answer.get("error") if isinstance(answer, dict) else None) or f"exit {proc.returncode}, no notes"
-    onsets = []
-    for e in answer["notes"]:
-        if (
-            isinstance(e, dict)
-            and isinstance(e.get("midi"), int)
-            and _num(e.get("epoch_ms"))
-            and e["epoch_ms"] < tl.end_epoch
-        ):
-            onsets.append((tl.clock.t_of(e["epoch_ms"]), e["midi"]))
+    onsets = [
+        (tl.clock.t_of(e["epoch_ms"]), e["midi"])
+        for e in answer["notes"]
+        if isinstance(e, dict)
+        and isinstance(e.get("midi"), int)
+        and _num(e.get("epoch_ms"))
+        and e["epoch_ms"] < tl.end_epoch
+    ]
     return onsets, None
 
 
@@ -2868,10 +2870,7 @@ def wording_problems(doc: dict, text: str | None = None) -> list[str]:
     """The wording guard (11.4): no forbidden word or % anywhere in the render; every number in our sentences is a
     field of the JSON; theory names only in brackets after the plain words."""
     text = render(doc) if text is None else text
-    problems = []
-    for word in FORBIDDEN_WORDS:
-        if re.search(rf"\b{word}\b", text, re.I):
-            problems.append(f"forbidden word {word!r}")
+    problems = [f"forbidden word {word!r}" for word in FORBIDDEN_WORDS if re.search(rf"\b{word}\b", text, re.I)]
     if "%" in text:
         problems.append("forbidden token '%'")
     strings, numbers = set(), set()
@@ -2882,9 +2881,7 @@ def wording_problems(doc: dict, text: str | None = None) -> list[str]:
             if tok and not _backed(tok, strings, numbers):
                 problems.append(f"{tok!r} in {s!r} is not a field of the JSON")
         bare = re.sub(r"\([^)]*\)", "", s)
-        for word in THEORY_WORDS:
-            if word in bare:
-                problems.append(f"theory name {word!r} outside brackets in {s!r}")
+        problems.extend(f"theory name {word!r} outside brackets in {s!r}" for word in THEORY_WORDS if word in bare)
     return problems
 
 

@@ -138,7 +138,7 @@ def _mk(kind: str, a: int, b: int, scores: list[float], times: list[float]) -> S
         kind=kind,
         start_s=round(t0, 3),
         end_s=round(t1, 3),
-        duration_ms=int(round((t1 - t0) * 1000)),
+        duration_ms=round((t1 - t0) * 1000),
         peak_score=round(max(window), 6),
         frames=b - a + 1,
     )
@@ -288,7 +288,7 @@ def analyse(
         stream = container.streams.video[0]
         stream.thread_type = "AUTO"
         rate = float(stream.average_rate or 25)
-        stride = max(1, int(round(rate / max(0.5, fps))))
+        stride = max(1, round(rate / max(0.5, fps)))
         for i, frame in enumerate(container.decode(stream)):
             if i % stride:
                 continue
@@ -352,7 +352,7 @@ def storyboard(
     if keep:
         with av.open(str(path)) as container:
             stream = container.streams.video[0]
-            stride = max(1, int(round(float(stream.average_rate or 25) / max(0.5, fps))))
+            stride = max(1, round(float(stream.average_rate or 25) / max(0.5, fps)))
             for i, frame in enumerate(container.decode(stream)):
                 if i % stride or (i // stride) not in keep:
                     continue

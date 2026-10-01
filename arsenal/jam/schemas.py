@@ -37,19 +37,22 @@ import copy
 import json
 import math
 import re
-from collections.abc import Iterable, Sequence
+from typing import TYPE_CHECKING
 
 from arsenal import nashville
 from arsenal.jam import CARD_API, DEF_API, RUN_API, SEED_API, SEED_MOMENTS_API, tempomap
 from arsenal.performance import SESSION_PATTERN
 
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Sequence
+
 # ================================================================================================= vocabulary
 GROUPS = ("moves", "try", "kept")
 KINDS = ("chord", "progression", "loop", "concept", "moment")
 GROOVES_V1 = ("hold", "ballad", "pulse")
-GROOVES = GROOVES_V1 + ("swell", "arp", "gospel")  # a v2 groove on a v1 page plays ballad (4.1)
+GROOVES = (*GROOVES_V1, "swell", "arp", "gospel")  # a v2 groove on a v1 page plays ballad (4.1)
 BACKINGS_V1 = ("full", "comp", "bass")
-BACKINGS = BACKINGS_V1 + ("pad",)  # pad is v2
+BACKINGS = (*BACKINGS_V1, "pad")  # pad is v2
 VOICING_STYLES = ("close", "open", "spread", "drop2", "shell")
 FEELS = ("straight", "rubato", "half-time")  # v1 always plays straight
 HOLDS = ("legato", "detached")  # or a number of beats
@@ -712,12 +715,13 @@ def validate_card(card, stored: bool = False) -> dict:
                 raise JamSchemaError(_path(at, "id"), f"repeats variant {vid!r}")
             seen.add(vid)
             _text(v, "label", at, VARIANT_LABEL_MAX)
-            if "key" in v and v["key"] is not None:
-                if not isinstance(v["key"], str) or not KEY_ITEM_RE.match(v["key"]):
-                    raise JamSchemaError(
-                        _path(at, "key"),
-                        f'must be a degree of the card key and a mode, like "b7 major" (got {v["key"]!r:.60})',
-                    )
+            if ("key" in v and v["key"] is not None) and (
+                not isinstance(v["key"], str) or not KEY_ITEM_RE.match(v["key"])
+            ):
+                raise JamSchemaError(
+                    _path(at, "key"),
+                    f'must be a degree of the card key and a mode, like "b7 major" (got {v["key"]!r:.60})',
+                )
             _chord_line(_need(v, "chords", at), _path(at, "chords"))
             if "tempo" in v:
                 _tempo(v["tempo"], _path(at, "tempo"), partial=True)
@@ -901,9 +905,7 @@ def wording_problems(card: dict, forbidden: Sequence[str] = CARD_WORDING_FORBIDD
     """(field path, word) for every forbidden word (whole word, any case) in the card's texts."""
     out = []
     for path, text in card_texts(card):
-        for word in forbidden:
-            if re.search(rf"\b{re.escape(word)}\b", text, re.I):
-                out.append((path, word))
+        out.extend((path, word) for word in forbidden if re.search(rf"\b{re.escape(word)}\b", text, re.I))
     return out
 
 

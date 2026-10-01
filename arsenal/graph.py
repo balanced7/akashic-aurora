@@ -99,8 +99,10 @@ class Graph:
                     f"but {dst} needs {in_port['type']}"
                 )
                 continue
-            for reason in check_caps(out_port.get("caps"), in_port.get("caps")):
-                problems.append(f"edge {src} -> {dst}: caps {reason}")
+            problems.extend(
+                f"edge {src} -> {dst}: caps {reason}"
+                for reason in check_caps(out_port.get("caps"), in_port.get("caps"))
+            )
         for dst, sources in feeds.items():
             if len(sources) > 1:
                 problems.append(f"input {dst} is connected more than once (from {', '.join(sources)})")
@@ -241,9 +243,11 @@ def load_graph(obj) -> Graph:
     if not isinstance(nodes, dict):
         problems.append("nodes must map a name to {use, with}")
         nodes = {}
-    for name in nodes:
-        if not _NAME_RE.match(str(name)):
-            problems.append(f"node name {name!r} must start with a letter and use letters, digits, _ or -")
+    problems.extend(
+        f"node name {name!r} must start with a letter and use letters, digits, _ or -"
+        for name in nodes
+        if not _NAME_RE.match(str(name))
+    )
     edges: list[tuple[str, str]] = []
     for edge in obj.get("edges") or []:
         if isinstance(edge, (list, tuple)) and len(edge) == 2 and all(isinstance(x, str) for x in edge):

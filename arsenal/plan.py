@@ -7,11 +7,14 @@ measurements.
 from __future__ import annotations
 
 import re
+from typing import TYPE_CHECKING
 
-from .graph import Graph
 from .mediatypes import MEDIA_PORT_TYPES
-from .registry import Registry
 from .timebase import MASTER_BY_MODE
+
+if TYPE_CHECKING:
+    from .graph import Graph
+    from .registry import Registry
 
 #: GPL-family copyleft (GPL, AGPL). The leading word boundary keeps LGPL out, because LGPL used
 #: dynamically stays in arsenal-core (contract F8).
@@ -111,8 +114,10 @@ def render_plan(plan: dict) -> str:
         "NODES",
     ]
     width = max((len(n["name"]) for n in plan["nodes"]), default=4)
-    for n in plan["nodes"]:
-        lines.append(f"  {n['name']:<{width}}  {n['module']:<24} {n['engine']:<9} {n['isolation']:<12} {n['licence']}")
+    lines.extend(
+        f"  {n['name']:<{width}}  {n['module']:<24} {n['engine']:<9} {n['isolation']:<12} {n['licence']}"
+        for n in plan["nodes"]
+    )
     lines += ["", "EDGES"]
     for e in plan["edges"]:
         flag = "!" if e["copy"] else " "

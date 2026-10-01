@@ -62,7 +62,7 @@ def render(scene: dict, out_dir, width: int = DEFAULT_WIDTH, slide: str | None =
         slides = [s for s in slides if s.get("id") == slide]
         if not slides:
             raise ValueError(f"no slide {slide!r} in the scene")
-    written: list[Path] = []
-    for s in slides:
-        written.append(C.write_bytes(out / f"{s['id']}.html", fragment(scene, s, int(width), tk) + "\n"))
+    written: list[Path] = [
+        C.write_bytes(out / f"{s['id']}.html", fragment(scene, s, int(width), tk) + "\n") for s in slides
+    ]
     return written

@@ -23,9 +23,11 @@ from __future__ import annotations
 
 import json
 import re
-from collections.abc import Iterator
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 SCHEMA = "present.scene.v1"
 
@@ -274,19 +276,18 @@ def validate(scene: Any) -> list[str]:
             problems.append("deck: E06 order must be a list of slide ids")
         else:
             known = set(ids)
-            for name in order:
-                if name not in known:
-                    problems.append(
-                        f"deck: E06 order names an unknown slide {name!r}; add the slide or drop it from order"
-                    )
-            for sid in ids:
-                if sid not in order:
-                    problems.append(
-                        f"deck: E06 slide {sid!r} is not in order, so no target would render it; add it or delete the slide"
-                    )
+            problems.extend(
+                f"deck: E06 order names an unknown slide {name!r}; add the slide or drop it from order"
+                for name in order
+                if name not in known
+            )
+            problems.extend(
+                f"deck: E06 slide {sid!r} is not in order, so no target would render it; add it or delete the slide"
+                for sid in ids
+                if sid not in order
+            )
             dup = {n for n in order if order.count(n) > 1}
-            for name in sorted(dup):
-                problems.append(f"deck: E06 order lists {name!r} more than once")
+            problems.extend(f"deck: E06 order lists {name!r} more than once" for name in sorted(dup))
     sections = scene.get("sections")
     if sections is not None:
         if not isinstance(sections, dict):
@@ -365,11 +366,11 @@ def lint(scene: Any) -> list[str]:
                     out.append(
                         f"slide {sid}: W05 duration_s {d} is shorter than the note's {need:.0f} s at 2.5 words per second"
                     )
-                for cue in a.get("cues") or []:
-                    if isinstance(cue, dict) and cue.get("atom_id") not in ids:
-                        out.append(
-                            f"slide {sid}: W06 note cue names {cue.get('atom_id')!r}, which is no atom, node, lane or label on this slide"
-                        )
+                out.extend(
+                    f"slide {sid}: W06 note cue names {cue.get('atom_id')!r}, which is no atom, node, lane or label on this slide"
+                    for cue in a.get("cues") or []
+                    if isinstance(cue, dict) and cue.get("atom_id") not in ids
+                )
     return out
 
 
@@ -488,9 +489,11 @@ def _slide_ids(slide: dict) -> list[str]:
             ids.append(atom["id"])
         if atom.get("kind") == "diagram":
             for key in ("nodes", "lanes", "labels", "paths"):
-                for item in atom.get(key) or []:
-                    if isinstance(item, dict) and isinstance(item.get("id"), str):
-                        ids.append(item["id"])
+                ids.extend(
+                    item["id"]
+                    for item in atom.get(key) or []
+                    if isinstance(item, dict) and isinstance(item.get("id"), str)
+                )
     return ids
 
 
@@ -512,11 +515,11 @@ def _check_slide(slide: dict, sid: str) -> list[str]:
     d = slide.get("duration_s")
     if d is not None and (not isinstance(d, (int, float)) or d <= 0):
         out.append(f"{pre}: E03 duration_s must be a positive number of seconds, got {d!r}")
-    for key in slide:
-        if key in _FORBIDDEN_KEYS - {"background"}:
-            out.append(
-                f"{pre}: E03 slide carries {key!r}; a slide names its template and its atoms, nothing a renderer owns"
-            )
+    out.extend(
+        f"{pre}: E03 slide carries {key!r}; a slide names its template and its atoms, nothing a renderer owns"
+        for key in slide
+        if key in _FORBIDDEN_KEYS - {"background"}
+    )
 
     atoms = slide.get("atoms")
     if not isinstance(atoms, list) or not atoms:
@@ -576,19 +579,17 @@ def _atom_ids(atom: dict) -> list[str]:
         ids.append(atom["id"])
     if atom.get("kind") == "diagram":
         for key in ("nodes", "lanes", "labels", "paths"):
-            for item in atom.get(key) or []:
-                if isinstance(item, dict) and isinstance(item.get("id"), str):
-                    ids.append(item["id"])
+            ids.extend(
+                item["id"] for item in atom.get(key) or [] if isinstance(item, dict) and isinstance(item.get("id"), str)
+            )
     elif atom.get("kind") == "group":
-        for item in atom.get("items") or []:
-            if isinstance(item, dict) and isinstance(item.get("id"), str):
-                ids.append(item["id"])
+        ids.extend(
+            item["id"] for item in atom.get("items") or [] if isinstance(item, dict) and isinstance(item.get("id"), str)
+        )
     elif atom.get("kind") == "comparison":
         for side in ("left", "right"):
             body = (atom.get(side) or {}).get("body") if isinstance(atom.get(side), dict) else None
-            for item in body or []:
-                if isinstance(item, dict) and isinstance(item.get("id"), str):
-                    ids.append(item["id"])
+            ids.extend(item["id"] for item in body or [] if isinstance(item, dict) and isinstance(item.get("id"), str))
     return ids
 
 
@@ -830,12 +831,11 @@ def _inside(x: Any, y: Any, w: Any = 0, h: Any = 0) -> bool:
 
 
 def _check_diagram(atom: dict, where: str) -> list[str]:
-    out: list[str] = []
-    for key in atom:
-        if key in _PICTURE_KEYS:
-            out.append(
-                f"{where}: E04 diagram carries {key!r}; a diagram is geometry (lanes, nodes, edges, buses, paths, labels), never a picture"
-            )
+    out: list[str] = [
+        f"{where}: E04 diagram carries {key!r}; a diagram is geometry (lanes, nodes, edges, buses, paths, labels), never a picture"
+        for key in atom
+        if key in _PICTURE_KEYS
+    ]
     host = atom.get("host")
     if host != DIAGRAM_HOST:
         out.append(f"{where}: E03 diagram host must be {DIAGRAM_HOST} (logical units), got {host!r}")

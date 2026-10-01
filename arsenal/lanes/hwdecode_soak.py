@@ -35,7 +35,7 @@ def _load_analysis():
     """arsenal/__init__.py may not exist yet (another agent owns it); fall back to loading
     analysis.py directly by path so this script works either way."""
     try:
-        from arsenal import analysis  # type: ignore
+        from arsenal import analysis  # type: ignore[import-not-found]
 
         return analysis
     except ImportError:

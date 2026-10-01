@@ -247,7 +247,7 @@ def _r(x, places: int = 3):
 
 def clock(ms: float) -> str:
     """m:ss from the first note, as summary.md writes times."""
-    s = int(round(ms / 1000))
+    s = round(ms / 1000)
     return f"{s // 60}:{s % 60:02d}"
 
 
@@ -824,7 +824,11 @@ def _run_length(n: dict, ctx: dict) -> int:
     def walk(sign: int, later: bool) -> int:
         count, cur = 0, n
         while True:
-            dt = (lambda m: m["on_ms"] - cur["on_ms"]) if later else (lambda m: cur["on_ms"] - m["on_ms"])
+            dt = (
+                (lambda m, cur=cur: m["on_ms"] - cur["on_ms"])
+                if later
+                else (lambda m, cur=cur: cur["on_ms"] - m["on_ms"])
+            )
             nxt = [
                 m
                 for m in pool
@@ -1157,9 +1161,11 @@ def _facts(w: dict, ctx: dict) -> None:
         if bass is not None and n["note"] > bass and pc in chord_pcs and (pc not in above or n["note"] < above[pc]):
             above[pc] = n["note"]
     voicing = [bass] if bass is not None else []
-    for pc in chord_pcs:
-        if bass is None or pc != bass % 12:
-            voicing.append(above.get(pc, (bass if bass is not None else 48) + (pc - (bass or 0)) % 12))
+    voicing.extend(
+        above.get(pc, (bass if bass is not None else 48) + (pc - (bass or 0)) % 12)
+        for pc in chord_pcs
+        if bass is None or pc != bass % 12
+    )
     if bass is not None and bass % 12 in above:
         voicing.append(above[bass % 12])
     vels = [n["vel"] for n in hits if n["vel"] is not None]
@@ -1558,7 +1564,7 @@ def split_returns(areas: list[dict], windows: list[dict]) -> list[dict]:
         cuts: list[tuple] = []
         state = {"since": area["start_ms"], "first": None, "last": None, "tonic_ms": 0.0, "last_tonic_ms": 0.0}
 
-        def flush(ending: bool = False):
+        def flush(ending: bool = False, state: dict = state, cuts: list[tuple] = cuts):
             tonic_ms = state["tonic_ms"] - (state["last_tonic_ms"] if ending else 0.0)
             if (
                 state["first"] is not None
@@ -3472,8 +3478,10 @@ def render_harmony(doc: dict) -> str:
             + (f", a new section after a {a['after_pause_s']} s pause" if a.get("after_pause_s") else "")
             + (", too short to call" if a.get("too_short") else "")
         )
-    for a in doc["keys"]["absorbed"]:
-        lines.append(f"- ({a['at']} to {a['until']} read {a['key']} but kept in {a['into']}: {a['why']})")
+    lines.extend(
+        f"- ({a['at']} to {a['until']} read {a['key']} but kept in {a['into']}: {a['why']})"
+        for a in doc["keys"]["absorbed"]
+    )
     lines += ["", "## Lydian 4 (back-to-back windows on one root and bass are one moment)"]
     lines += [
         f"- {m['at']} ({m['seconds']} s"
@@ -3869,7 +3877,7 @@ def _note_midi(name: str) -> int:
 
 
 def clock_tenths(ms: float) -> str:
-    tenths = max(0, int(round(ms / 100)))
+    tenths = max(0, round(ms / 100))
     return f"{tenths // 600}:{tenths % 600 / 10:04.1f}"
 
 
@@ -5325,32 +5333,31 @@ def moment_data(sess: dict, t_ms: float, half_ms: float) -> dict:
     areas = doc["keys"]["areas"] if doc["notes"] else []
     area = _area_at(areas, t_ms)
     key = area["key"] if area else None
-    windows = []
-    for w in doc["windows"]:
-        if w["end_ms"] > lo and w["start_ms"] < hi:
-            windows.append(
-                {
-                    "at": w["at"],
-                    "until": clock(w["end_ms"]),
-                    "start_ms": w["start_ms"],
-                    "seconds": w["seconds"],
-                    "chord": w["name"],
-                    "analysed_as": w["analysed_as"],
-                    "label": w.get("label"),
-                    "texture": w.get("texture"),
-                    "reading": w["reading"]["text"] if w["reading"] else None,
-                    "number": w["number"],
-                    "key": w["key"],
-                    "class": w["class"],
-                    "detail": w["class_detail"],
-                    "pcs": w["pcs"],
-                    "bass": w["bass"],
-                    "in_home_key": w.get("in_home_key"),
-                    "live": w["live"],
-                    "merged_windows": w["merged_windows"],
-                    "heard_as": w.get("heard_as"),
-                }
-            )
+    windows = [
+        {
+            "at": w["at"],
+            "until": clock(w["end_ms"]),
+            "start_ms": w["start_ms"],
+            "seconds": w["seconds"],
+            "chord": w["name"],
+            "analysed_as": w["analysed_as"],
+            "label": w.get("label"),
+            "texture": w.get("texture"),
+            "reading": w["reading"]["text"] if w["reading"] else None,
+            "number": w["number"],
+            "key": w["key"],
+            "class": w["class"],
+            "detail": w["class_detail"],
+            "pcs": w["pcs"],
+            "bass": w["bass"],
+            "in_home_key": w.get("in_home_key"),
+            "live": w["live"],
+            "merged_windows": w["merged_windows"],
+            "heard_as": w.get("heard_as"),
+        }
+        for w in doc["windows"]
+        if w["end_ms"] > lo and w["start_ms"] < hi
+    ]
     groups: list[dict] = []
     for n in sorted((n for n in snd["notes"] if lo <= n["on_ms"] < hi), key=lambda n: (n["on_ms"], n["note"])):
         if not groups or n["on_ms"] - groups[-1]["t_ms"] > ONSET_GROUP_MS:
@@ -5734,15 +5741,13 @@ def caveats(sess: dict) -> list[str]:
                 f"{doubt['four']}-rooted chords hold {doubt['four_s']} s against {doubt['tonic']}'s "
                 f"{doubt['tonic_s']} s, and {doubt['four']} is in the bass longer too"
             )
-    for a in areas:
-        if a.get("too_short"):
-            out.append(f"{a['at']}-{a['until']} {a['key']} is too short to call a key")
-    for a in doc["keys"]["absorbed"]:
-        if a.get("fragment"):
-            out.append(
-                f"{a['at']}-{a['until']} reads {a['key']} by pitch content, but it is a short passage after a "
-                f"pause, so it is numbered in its own centre, {a['into']}"
-            )
+    out.extend(f"{a['at']}-{a['until']} {a['key']} is too short to call a key" for a in areas if a.get("too_short"))
+    out.extend(
+        f"{a['at']}-{a['until']} reads {a['key']} by pitch content, but it is a short passage after a "
+        f"pause, so it is numbered in its own centre, {a['into']}"
+        for a in doc["keys"]["absorbed"]
+        if a.get("fragment")
+    )
     if doc["naming"].get("numbered_from_parts"):
         out.append(
             f"{doc['naming']['numbered_from_parts']} numbers were put together from their parts (the shared "
@@ -6717,14 +6722,14 @@ def render_compare(data: dict) -> str:
         row("length, notes", f"{a['length']}, {a['notes']}", f"{b['length']}, {b['notes']}"),
         row("home key", a["home_key"] or "-", b["home_key"] or "-"),
     ]
-    for i in range(max(len(a["areas"]), len(b["areas"]))):
-        lines.append(
-            row(
-                "key areas" if i == 0 else "",
-                a["areas"][i] if i < len(a["areas"]) else "",
-                b["areas"][i] if i < len(b["areas"]) else "",
-            )
+    lines.extend(
+        row(
+            "key areas" if i == 0 else "",
+            a["areas"][i] if i < len(a["areas"]) else "",
+            b["areas"][i] if i < len(b["areas"]) else "",
         )
+        for i in range(max(len(a["areas"]), len(b["areas"])))
+    )
     lines += [
         row("chord seconds", a["chord_seconds"], b["chord_seconds"]),
         row("chord time by class", top(a["classes"], 4), top(b["classes"], 4)),
@@ -6879,10 +6884,10 @@ def history_data(
 
 def render_history(data: dict) -> str:
     lines = [f"History: {data['sessions']} sessions started since {data['since']} (the last {data['days']:g} days)"]
-    for s in data.get("unreadable", []):
-        lines.append(
-            f"(left out, unreadable: {s['error'] if s['session'] in s['error'] else s['session'] + ': ' + s['error']})"
-        )
+    lines.extend(
+        f"(left out, unreadable: {s['error'] if s['session'] in s['error'] else s['session'] + ': ' + s['error']})"
+        for s in data.get("unreadable", [])
+    )
     if not data["growth"]:
         return "\n".join([*lines, "", "No sessions in that time."])
     lines += [

@@ -15,11 +15,13 @@ from __future__ import annotations
 import html
 import math
 import re
-from collections.abc import Sequence
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from .. import scene as sc
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 # ---------------------------------------------------------------- the family's defaults by role
 DEFAULT_PALETTE: dict[str, str] = {
@@ -424,8 +426,7 @@ def bus_parts(bus: dict, nodes: dict[str, dict]) -> list[dict]:
         k_centres = [x + w / 2 for x, _, w, _ in k_boxes]
         if len(sources) == 1 and len(sinks) == 1 and abs(s_centres[0] - k_centres[0]) < 1:
             return [_conn(s_centres[0], p_edge, k_centres[0], c_edge, **stub_kw(sinks[0]), kind="bus")]
-        for cx in s_centres:
-            parts.append(_conn(cx, p_edge, cx, bar, head="none", dashed=dashed, tone=tone, kind="bus"))
+        parts.extend(_conn(cx, p_edge, cx, bar, head="none", dashed=dashed, tone=tone, kind="bus") for cx in s_centres)
         lo, hi = min(s_centres + k_centres), max(s_centres + k_centres)
         parts.append(_conn(lo, bar, hi, bar, head="none", dashed=dashed, tone=tone, kind="bus"))
         for sink, cx in zip(sinks, k_centres, strict=False):
@@ -440,8 +441,7 @@ def bus_parts(bus: dict, nodes: dict[str, dict]) -> list[dict]:
     k_centres = [y + h / 2 for _, y, _, h in k_boxes]
     if len(sources) == 1 and len(sinks) == 1 and abs(s_centres[0] - k_centres[0]) < 1:
         return [_conn(p_edge, s_centres[0], c_edge, k_centres[0], **stub_kw(sinks[0]), kind="bus")]
-    for cy in s_centres:
-        parts.append(_conn(p_edge, cy, bar, cy, head="none", dashed=dashed, tone=tone, kind="bus"))
+    parts.extend(_conn(p_edge, cy, bar, cy, head="none", dashed=dashed, tone=tone, kind="bus") for cy in s_centres)
     lo, hi = min(s_centres + k_centres), max(s_centres + k_centres)
     parts.append(_conn(bar, lo, bar, hi, head="none", dashed=dashed, tone=tone, kind="bus"))
     for sink, cy in zip(sinks, k_centres, strict=False):
@@ -475,24 +475,23 @@ def diagram_geometry(diagram: dict) -> dict:
     for b in diagram.get("buses") or []:
         if isinstance(b, dict):
             connectors.extend(bus_parts(b, nodes))
-    paths = []
-    for p in diagram.get("paths") or []:
-        if isinstance(p, dict) and isinstance(p.get("points"), list):
-            paths.append(
-                {
-                    "id": p.get("id"),
-                    "points": [(float(x), float(y)) for x, y in p["points"]],
-                    "head": p.get("head") or "none",
-                    "dashed": bool(p.get("dashed")),
-                    "tone": p.get("tone"),
-                }
-            )
+    paths = [
+        {
+            "id": p.get("id"),
+            "points": [(float(x), float(y)) for x, y in p["points"]],
+            "head": p.get("head") or "none",
+            "dashed": bool(p.get("dashed")),
+            "tone": p.get("tone"),
+        }
+        for p in diagram.get("paths") or []
+        if isinstance(p, dict) and isinstance(p.get("points"), list)
+    ]
     return {
-        "lanes": [l for l in diagram.get("lanes") or [] if isinstance(l, dict)],
+        "lanes": [lane for lane in diagram.get("lanes") or [] if isinstance(lane, dict)],
         "nodes": list(nodes.values()),
         "connectors": connectors,
         "paths": paths,
-        "labels": [l for l in diagram.get("labels") or [] if isinstance(l, dict)],
+        "labels": [label for label in diagram.get("labels") or [] if isinstance(label, dict)],
         "aria_label": diagram.get("aria_label"),
     }
 

@@ -16,11 +16,13 @@ Ops (short keys keep the page small):
 
 from __future__ import annotations
 
-from collections.abc import Sequence
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from .. import scene as sc
 from . import _core as C
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 CANVAS_W, CANVAS_H = sc.CANVAS["w"], sc.CANVAS["h"]
 L = sc.MARGIN
@@ -168,7 +170,7 @@ def _number(p: Painter, a: dict, x, y, w) -> float:
 
 def _list(p: Painter, a: dict, x, y, w, nested: bool) -> float:
     width = w if nested else min(w, 1400)
-    size = p.size("body")
+    p.size("body")
     total = 0.0
     for i, item in enumerate(a.get("items") or [], 1):
         bullet = f"{i}." if a.get("ordered") else "•"

@@ -27,8 +27,10 @@ two implementations of a format drift, which is a lesson this repo has paid for 
 
 from __future__ import annotations
 
-from collections.abc import Iterable
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 API = "roll/1"
 

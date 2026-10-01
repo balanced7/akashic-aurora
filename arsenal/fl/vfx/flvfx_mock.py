@@ -163,7 +163,7 @@ class ScriptDialog:
             inp.value = inp.lo + n * (inp.hi - inp.lo)
         elif inp.kind in ("knob_int", "combo"):
             x = inp.lo + stored_normalized(n, self.knob_store) * (inp.hi - inp.lo)
-            inp.value = int(math.floor(x)) if self.knob_read == "floor" else int(round(x))
+            inp.value = math.floor(x) if self.knob_read == "floor" else round(x)
         elif inp.kind == "checkbox":
             inp.value = 1 if n >= 0.5 else 0
 
@@ -376,7 +376,7 @@ class Host:
             sys.path.insert(0, str(self.patterns_dir))
             self._path_added = True
         try:
-            spec = importlib.util.spec_from_file_location("arsenal_band_sim_%d" % next(_ids), self.script)
+            spec = importlib.util.spec_from_file_location(f"arsenal_band_sim_{next(_ids)}", self.script)
             module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(module)
             self.module = module
@@ -583,7 +583,7 @@ def load_band_parsers():
     """arsenal_band.py loaded outside FL (no flvfx): its parse functions only."""
     saved = sys.modules.pop("flvfx", _ABSENT)
     try:
-        spec = importlib.util.spec_from_file_location("arsenal_band_parsers_%d" % next(_ids), BAND_SCRIPT)
+        spec = importlib.util.spec_from_file_location(f"arsenal_band_parsers_{next(_ids)}", BAND_SCRIPT)
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
         return module
@@ -593,7 +593,7 @@ def load_band_parsers():
 
 
 def load_patterns_module(path):
-    spec = importlib.util.spec_from_file_location("%s_checked_%d" % (PATTERN_MODULE, next(_ids)), path)
+    spec = importlib.util.spec_from_file_location(f"{PATTERN_MODULE!s}_checked_{next(_ids)}", path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
@@ -619,10 +619,10 @@ def check(path, out=print):
             problems.append("PATTERNS must be a non-empty list")
             patterns = []
         if len(patterns) > band.MAX_PATTERNS:
-            problems.append("at most %d PATTERNS" % band.MAX_PATTERNS)
+            problems.append(f"at most {int(band.MAX_PATTERNS)} PATTERNS")
         for i, p in enumerate(patterns):
             try:
-                titles.append(band.parse_pattern_set(p, "PATTERNS[%d]" % i)["title"])
+                titles.append(band.parse_pattern_set(p, f"PATTERNS[{i}]")["title"])
             except band.PatternError as exc:
                 problems.append(str(exc))
         if getattr(module, "DRUM_MAPS", None):
@@ -635,9 +635,9 @@ def check(path, out=print):
     for p in problems:
         out("refused: " + p)
     if not problems:
-        out("ok: %d pattern sets" % len(titles))
+        out(f"ok: {len(titles)} pattern sets")
         for i, t in enumerate(titles):
-            out("  %d  %s" % (i, t))
+            out(f"  {i}  {t!s}")
     return 1 if problems else 0
 
 
@@ -683,22 +683,14 @@ def simulate(
         host.run_ticks(int(bars * host.band.pattern["bar_beats"] * ppq))
         host.stop()
         host.run(1)
-        bar_ticks = int(round(host.band.pattern["bar_beats"] * ppq))
+        bar_ticks = round(host.band.pattern["bar_beats"] * ppq)
         for e in host.events:
             bar, rest = divmod(e["tick"], bar_ticks)
             beat, tick = divmod(rest, ppq)
             out(
-                "%3d.%d.%03d  %-3s  out %d  note %3d  vel %3d%s"
-                % (
-                    bar + 1,
-                    beat + 1,
-                    tick,
-                    e["kind"],
-                    e["output"],
-                    e["note"],
-                    round(e["velocity"] * 127),
-                    "  (FL length)" if e["auto"] else "",
-                )
+                f"{int(bar + 1):3d}.{int(beat + 1)}.{int(tick):03d}  {e['kind']!s:<3}  out {int(e['output'])}  "
+                f"note {int(e['note']):3d}  vel {round(e['velocity'] * 127):3d}"
+                f"{'  (FL length)' if e['auto'] else ''}"
             )
         for a in host.anomalies:
             out(f"ANOMALY: {a!r}")

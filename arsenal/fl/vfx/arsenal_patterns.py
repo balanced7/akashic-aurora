@@ -6,7 +6,7 @@
 # [User Data Folder]/VFX Script/Python/arsenal_patterns.py. Keep it ASCII.
 #
 # Format (version 1):
-#   VERSION   = 1
+#   VERSION   is 1
 #   PATTERNS  = [pattern set, ...]   index = the band's Pattern knob (0-63)
 #   LIVE_PATH = None or r"C:\...\arsenal_live.json"   the playlist the "Live file" checkbox follows
 #   DRUM_MAPS = {}   optional extra drum maps: {"name": {gm_note: target_note}}; unmapped notes are dropped

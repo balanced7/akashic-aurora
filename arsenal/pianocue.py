@@ -363,9 +363,9 @@ def parse_clock(text: str) -> int:
     m = re.fullmatch(r"(?:(\d+):)?(\d+):(\d{1,2}(?:\.\d+)?)", t)
     if m:
         hours = int(m.group(1) or 0)
-        return int(round((hours * 3600 + int(m.group(2)) * 60 + float(m.group(3))) * 1000))
+        return round((hours * 3600 + int(m.group(2)) * 60 + float(m.group(3))) * 1000)
     if re.fullmatch(r"\d+(?:\.\d+)?", t):
-        return int(round(float(t) * 1000))
+        return round(float(t) * 1000)
     raise ValueError(f"not a time: {text!r} (use m:ss, like 5:22)")
 
 
@@ -445,7 +445,7 @@ def build_replay_cue(
         raise ValueError("--seconds must be positive")
     if speed <= 0:
         raise ValueError("--speed must be positive")
-    end_ms = start_ms + int(round(seconds * 1000))
+    end_ms = start_ms + round(seconds * 1000)
     marks = _chord_marks(events)
     mark_times = [m["t_ms"] for m in marks]
 
@@ -461,8 +461,8 @@ def build_replay_cue(
         if span["t_ms"] < start_ms < span["end_ms"]:
             carried.append(span)
         elif start_ms <= span["t_ms"] < end_ms:
-            at = int(round((span["t_ms"] - start_ms) / speed))
-            hold = int(round((min(span["end_ms"], end_ms) - span["t_ms"]) / speed))
+            at = round((span["t_ms"] - start_ms) / speed)
+            hold = round((min(span["end_ms"], end_ms) - span["t_ms"]) / speed)
             mark = chord_at(span["t_ms"])
             steps.append(
                 {
@@ -493,7 +493,7 @@ def build_replay_cue(
                     "type": "play",
                     "notes": sorted({s["note"] for s in group}),
                     "velocity": max(1, min(127, round(sum(s["vel"] for s in group) / len(group)))),
-                    "hold_ms": max(1, int(round((end - start_ms) / speed))),
+                    "hold_ms": max(1, round((end - start_ms) / speed)),
                     "arpeggio_ms": 0,
                     "label": mark["chord"] if mark else None,
                     "detail": f"already sounding at {at_text}",
@@ -542,8 +542,8 @@ def voice(
         raise VoicingError(f"the voicing bridge failed: {proc.stderr.strip() or proc.returncode}")
     try:
         reply = json.loads(proc.stdout)
-    except ValueError:
-        raise VoicingError(f"the voicing bridge answered something that is not JSON: {proc.stdout[:300]!r}")
+    except ValueError as exc:
+        raise VoicingError(f"the voicing bridge answered something that is not JSON: {proc.stdout[:300]!r}") from exc
     if not reply.get("ok"):
         raise VoicingError(reply.get("error") or "the voicing bridge refused the request")
     return reply["results"]
@@ -631,13 +631,13 @@ def _request(port: int, method: str, path: str, body: dict | None = None, timeou
             raise ServerError(
                 f"the server on 127.0.0.1:{port} has no piano cue channel; it predates it - restart "
                 f"{_pyl()} -m arsenal serve --port {port}"
-            )
+            ) from err
         return err.code, payload
     except (urllib.error.URLError, ConnectionError, TimeoutError, OSError) as err:
         raise ServerError(
             f"no arsenal server answers on 127.0.0.1:{port} ({getattr(err, 'reason', err)}) - start it "
             f"with {_pyl()} -m arsenal serve --port {port}"
-        )
+        ) from err
 
 
 def send_cue(port: int, cue: dict) -> dict:
@@ -673,8 +673,7 @@ def _format_result(r: dict, key: str | None) -> list[str]:
         lines.append(f"    page   reads {page} ({rt.get('match')}{extra})")
         if rt.get("omits"):
             lines.append(f"    omits  {', '.join(rt['omits'])}")
-    for w in r.get("warnings") or []:
-        lines.append(f"    note   {w}")
+    lines.extend(f"    note   {w}" for w in r.get("warnings") or [])
     return lines
 
 
@@ -735,7 +734,7 @@ def _cmd_play(args, hover: bool, out) -> int:
     if args.vel is not None:
         cue["velocity"] = args.vel
     if args.hold is not None:
-        cue["hold_ms"] = int(round(args.hold * 1000))
+        cue["hold_ms"] = round(args.hold * 1000)
     if args.arp is not None:
         cue["arpeggio_ms"] = args.arp
     if not hover:
@@ -768,7 +767,7 @@ def _cmd_play_several(args, items: list[str], hover: bool, out) -> int:
     results = _voiced(args, items)
     if results is None:
         return 2
-    each = int(round(args.hold * 1000)) if args.hold is not None else DEFAULTS["hold_ms"]
+    each = round(args.hold * 1000) if args.hold is not None else DEFAULTS["hold_ms"]
     steps = []
     for i, r in enumerate(results):
         step = {
@@ -823,14 +822,14 @@ def _cmd_progression(args, out) -> int:
     beat_ms = 60000.0 / args.bpm
     starts, at = [], 0.0
     for b in beats:
-        starts.append(int(round(at)))
+        starts.append(round(at))
         at += b * beat_ms
-    starts.append(int(round(at)))
+    starts.append(round(at))
     steps = []
     for i, r in enumerate(results):
         length = starts[i + 1] - starts[i]
         if args.hold is not None:
-            hold = int(round(args.hold * 1000))
+            hold = round(args.hold * 1000)
         elif args.hover:
             hold = max(1, length)  # a hover lasts until the next begins, so the ghost keys never blink between chords
         else:

@@ -37,7 +37,7 @@ import statistics
 import subprocess
 import sys
 import threading
-from collections.abc import Sequence
+from collections.abc import Sequence  # noqa: TC003  # runtime-evaluated annotations (inventory annotation_sensitive)
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import NamedTuple
@@ -130,7 +130,7 @@ NO_FFMPEG = (
 def _bundled_ffmpeg() -> str | None:
     """imageio-ffmpeg's bundled binary, if that package is installed (it is optional)."""
     try:
-        import imageio_ffmpeg  # type: ignore
+        import imageio_ffmpeg  # type: ignore[import-not-found]
     except ImportError:
         return None
     try:
@@ -1525,8 +1525,7 @@ def format_report(r: dict) -> str:
             f"  note      a real run writes '{r['partial'].name}' first and renames it to "
             f"'{r['output'].name}' when the encode finishes"
         )
-    for note in r["warnings"]:
-        lines.append(f"  warning   {note}")
+    lines.extend(f"  warning   {note}" for note in r["warnings"])
     return "\n".join(lines)
 
 

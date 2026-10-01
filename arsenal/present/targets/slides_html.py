@@ -322,9 +322,7 @@ def _comparison(a: dict, ctx: _Ctx) -> str:
         parts.append(
             f'<h3 style="font-size:{ctx.size("h3")}px; font-weight:600; line-height:1.2">{esc(s.get("title"))}</h3>'
         )
-        for item in s.get("body") or []:
-            if isinstance(item, dict):
-                parts.append(_atom(item, ctx, "body", nested=True))
+        parts.extend(_atom(item, ctx, "body", nested=True) for item in s.get("body") or [] if isinstance(item, dict))
         sides.append(f'<div style="{_card_style(ctx, tone)}">{"".join(parts)}</div>')
     return f'<div{ctx.attrs(a)} style="flex:1; display:flex; gap:32px">{"".join(sides)}</div>'
 
@@ -520,11 +518,11 @@ def _diagram(a: dict, ctx: _Ctx) -> str:
     svg = _svg(g, ctx, include_connectors=(ctx.mode != "artifact"))
     if svg:
         parts.append(svg)
-    parts.extend(_lane(l, ctx) for l in g["lanes"])
+    parts.extend(_lane(lane, ctx) for lane in g["lanes"])
     parts.extend(_node(n, ctx) for n in g["nodes"])
     if ctx.mode == "artifact":
         parts.extend(_xconnector(c, ctx) for c in g["connectors"])
-    parts.extend(_dlabel(l, ctx) for l in g["labels"])
+    parts.extend(_dlabel(label, ctx) for label in g["labels"])
     st = _style("position:relative", f"width:{sc.DIAGRAM_HOST['w']}px", f"height:{sc.DIAGRAM_HOST['h']}px")
     return f'<div{ctx.attrs(a)} style="{st}">\n' + "\n".join(parts) + "\n</div>"
 

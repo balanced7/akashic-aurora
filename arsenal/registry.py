@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Iterable
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from . import MODULE_PROTOCOL
 from .mediatypes import MEMORY_DOMAINS, PORT_TYPES
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 DEFAULT_DIR = Path(__file__).resolve().parent / "modules"
 ENGINES = ("arsenal", "browser", "ffmpeg", "gstreamer", "mpv", "external")
@@ -20,10 +23,7 @@ class ManifestError(ValueError):
 
 
 def validate_manifest(m: dict, source: str = "manifest") -> list[str]:
-    problems = []
-    for key in ("id", "version", "protocol", "engine"):
-        if not m.get(key):
-            problems.append(f"{source}: missing {key}")
+    problems = [f"{source}: missing {key}" for key in ("id", "version", "protocol", "engine") if not m.get(key)]
     if m.get("protocol") and m["protocol"] != MODULE_PROTOCOL:
         problems.append(f"{source}: protocol {m['protocol']!r} is not {MODULE_PROTOCOL!r}")
     if m.get("engine") and m["engine"] not in ENGINES:
