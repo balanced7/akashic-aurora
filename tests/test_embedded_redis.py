@@ -234,3 +234,16 @@ def test_no_redis_anywhere_decides_embedded(monkeypatch, tmp_path):
     monkeypatch.setattr(E, "_marker", lambda: tmp_path / "redis-backend")
     monkeypatch.setattr(E, "_has_redis_container", lambda: False)
     assert E.record_backend(reachable=False) == "embedded"
+
+
+def test_incomplete_range_end_covers_the_whole_millisecond(server):
+    """Redis reads a bare-ms UPPER bound as <ms>-<max seq>; fakeredis read it as <ms>-0 and
+    dropped every later entry in that millisecond (it broke the bus's lane-twin windows)."""
+    start, _ = server
+    r = start()
+    for s in range(3):
+        r.xadd("ix", {"s": str(s)}, id=f"1000-{s}")
+    r.xadd("ix", {"s": "x"}, id="1001-0")
+    assert [i for i, _ in r.xrevrange("ix", max="1000", min="1000")] == ["1000-2", "1000-1", "1000-0"]
+    assert [i for i, _ in r.xrange("ix", min="1000", max="1000")] == ["1000-0", "1000-1", "1000-2"]
+    assert [i for i, _ in r.xrange("ix", min="1000-1", max="1001-0")] == ["1000-1", "1000-2", "1001-0"]
