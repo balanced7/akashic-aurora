@@ -41,9 +41,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # make `core`/`a
 # a peer agent's em-dash rendered as U+FFFD mojibake at every boot (2026-07-02 friction log).
 # Authored output stays ASCII (module docstring); this keeps STORED text faithful in transit.
 for _stream in (sys.stdout, sys.stderr):
-    with contextlib.suppress(
-        Exception
-    ):  # non-reconfigurable stream (exotic wrapper/capture) -> old behavior, still safe
+    # non-reconfigurable stream (exotic wrapper/capture) -> old behavior, still safe
+    with contextlib.suppress(Exception):
         _stream.reconfigure(encoding="utf-8", errors="replace")
 
 # T119 (one clock, G5): every rendered timestamp goes through THE display door and names
