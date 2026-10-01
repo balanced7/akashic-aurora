@@ -199,7 +199,8 @@ def test_p4_git_refuses_the_marker_at_its_own_commit_and_passes_the_clean_succes
         "a marker-naming message must be refused AT ITS OWN commit -- at HEAD it passed, "
         "because pre-commit scanned the previous one:\n" + a.stdout + a.stderr
     )
-    assert "commit-msg BLOCKED" in a.stderr and MARKER in a.stderr, a.stderr
+    assert "commit-msg BLOCKED" in a.stderr, a.stderr
+    assert MARKER in a.stderr, a.stderr
     assert "Traceback" not in a.stderr, "refused by the guard, not by a crash"
     assert _subjects(repo, env) == ["root: hook module under test"], "nothing may land"
 
@@ -231,7 +232,8 @@ def test_p4b_a_linked_worktree_hands_the_guard_a_path_it_can_open(plane, tmp_pat
     _git(repo, "worktree", "add", "-q", str(wt), "-b", "side", env=env)
     a = _git(wt, "commit", "-q", "--allow-empty", "-m", f"wt: mentions {MARKER}", env=env, check=False)
     assert a.returncode != 0, a.stdout + a.stderr
-    assert "commit-msg BLOCKED" in a.stderr and "Traceback" not in a.stderr, a.stderr
+    assert "commit-msg BLOCKED" in a.stderr, a.stderr
+    assert "Traceback" not in a.stderr, a.stderr
     b = _git(wt, "commit", "-q", "--allow-empty", "-m", "wt: clean", env=env, check=False)
     assert b.returncode == 0, b.stdout + b.stderr
     assert _subjects(wt, env)[0] == "wt: clean"
@@ -243,11 +245,13 @@ def test_p5_the_tracked_shim_delegates_the_live_message_path():
     assert shim.is_file(), "no commit-msg hook is tracked: the message guard has no stage to run in"
     # splitlines() tolerates the CRLF working copy core.autocrlf=true produces here
     lines = shim.read_text(encoding="utf-8", errors="replace").splitlines()
-    assert lines and lines[0] == "#!/bin/sh", "git runs hooks through sh; the sibling shims do the same"
+    assert lines, "git runs hooks through sh; the sibling shims do the same"
+    assert lines[0] == "#!/bin/sh", "git runs hooks through sh; the sibling shims do the same"
     body = "\n".join(lines)
-    assert "scripts/githooks/commit_msg.py" in body and '"$1"' in body, (
+    assert "scripts/githooks/commit_msg.py" in body, (
         "the shim must hand git's argv[1] -- the LIVE message path -- to the module"
     )
+    assert '"$1"' in body, "the shim must hand git's argv[1] -- the LIVE message path -- to the module"
 
 
 def test_p5b_the_installer_knows_every_stage(tmp_path):
@@ -265,7 +269,8 @@ def test_p6_a_guard_that_cannot_run_fails_open_and_says_so(tmp_path, capsys):
     rc = _hook().main(["commit_msg.py", str(tmp_path / "no-such-message-file")])
     err = capsys.readouterr().err
     assert rc == 0, "a broken guard must never brick every commit"
-    assert "WARNING" in err and "not protecting" in err, "absence must never look like success"
+    assert "WARNING" in err, "absence must never look like success"
+    assert "not protecting" in err, "absence must never look like success"
 
 
 def test_p6b_no_message_path_fails_open_loudly(capsys):

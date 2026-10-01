@@ -272,7 +272,8 @@ def test_loop_verbs_need_a_jam_page_then_drive_the_run(srv, capsys):
         )
         assert status == 200, reply
         code, out, err = run(["loop", "tempo", "-4", "--port", port], capsys)
-        assert code == 0 and "version 2: tempo -4 from bar" in out, err
+        assert code == 0, err
+        assert "version 2: tempo -4 from bar" in out, err
         code, out, _ = run(["loop", "set", "--groove", "pulse", "--port", port], capsys)
         assert code == 0
         assert "version 3: set groove=pulse" in out
@@ -311,7 +312,9 @@ def test_try_and_play_take_chord_lines_and_slots(srv, capsys):
         assert code == 2
         assert "--key" in err
         code, out, err = run(["try", "1maj9:4 | 4maj7#11:4", "--key", "F major", "--now", "--port", port], capsys)
-        assert code == 0 and 'try "chords" in F major' in out and "bass backing, 2 passes" in out, err
+        assert code == 0, err
+        assert 'try "chords" in F major' in out, err
+        assert "bass backing, 2 passes" in out, err
         assert "starts in" in out
         st = srv.app.jam.handle("GET", "/api/piano/jam", {}, None)[1]
         assert st["run"]["mode"] == "try"
@@ -320,7 +323,9 @@ def test_try_and_play_take_chord_lines_and_slots(srv, capsys):
         assert st["run"]["state"] == "running"
         assert [s["name"] for s in st["def"]["slots"]] == ["Fmaj9", "Bbmaj7#11"]
         code, out, err = run(["card", "play", "lament", "--slot", "3", "--vel", "40", "--now", "--port", port], capsys)
-        assert code == 0 and 'play "Walking bass under a held chord"' in out and "Bbm11/Gb" in out, err
+        assert code == 0, err
+        assert 'play "Walking bass under a held chord"' in out, err
+        assert "Bbm11/Gb" in out, err
         play = srv.app.jam.handle("GET", "/api/piano/jam", {}, None)[1]["play"]
         assert play["mode"] == "play"
         assert play["slot"] == 2
@@ -339,7 +344,8 @@ def test_card_show_and_open_reach_the_page(srv, capsys):
     page = Page(port)  # a fresh page gets no backlog, so its first event is the show below
     try:
         code, out, err = run(["card", "show", "lament", "--slot", "2", "--port", port], capsys)
-        assert code == 0 and "show Bbm11/Ab" in out, err
+        assert code == 0, err
+        assert "show Bbm11/Ab" in out, err
         kind, data = page.event()
         assert kind == "cue"
         assert data["cue"]["type"] == "hover"
@@ -402,7 +408,8 @@ def test_deck_seed_and_order_through_the_server(srv, tmp_path, capsys):
     srv.app.jam.seed_path = seed
     port = srv.port
     code, out, err = run(["deck", "seed", "--dry-run", "--port", port], capsys)
-    assert code == 0 and "would install 2" in out, err
+    assert code == 0, err
+    assert "would install 2" in out, err
     code, out, _ = run(["deck", "seed", "--port", port], capsys)
     assert code == 0
     assert "installed 2, updated 0, kept 0" in out
@@ -444,7 +451,8 @@ def test_template_save_from_moment_keeps_his_voicing(tmp_path, capsys):
     assert moment["session"] == session
     assert moment["at_ms"] <= 3000 < moment["until_ms"]
     code, out, err = run(["template", "save-from-moment", session, "0:03", "--title", "The held sus", *common], capsys)
-    assert code == 0 and "The held sus" in out, err
+    assert code == 0, err
+    assert "The held sus" in out, err
     cards = list((tmp_path / "jam" / "deck" / "cards").glob("t-*.json"))
     assert len(cards) == 1
     c = json.loads(cards[0].read_text(encoding="utf-8"))
@@ -454,4 +462,5 @@ def test_template_save_from_moment_keeps_his_voicing(tmp_path, capsys):
     assert c["group"] == "kept"
     assert c["moments"][0]["session"] == session
     code, out, err = run(["template", "save-last", "--dry-run", *common], capsys)
-    assert code == 0 and json.loads(out)["moment"]["notes"] == later, err
+    assert code == 0, err
+    assert json.loads(out)["moment"]["notes"] == later, err

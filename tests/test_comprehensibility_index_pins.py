@@ -143,9 +143,8 @@ def test_guard_fails_loud_when_the_index_cannot_be_read(tmp_path, monkeypatch):
     monkeypatch.setattr(cm, "ROOT", str(norepo))
     monkeypatch.setattr(cm, "REF_ALLOWLIST", {})
     got, crash = cm._run("F stale-refs", cm._stale_refs)
-    assert crash is not None and "CRASHED" in crash, (
-        f"no index -> no verdict: expected a loud broken-check FAIL, got got={got} crash={crash}"
-    )
+    assert crash is not None, f"no index -> no verdict: expected a loud broken-check FAIL, got got={got} crash={crash}"
+    assert "CRASHED" in crash, f"no index -> no verdict: expected a loud broken-check FAIL, got got={got} crash={crash}"
 
 
 # ------------------------------------------------ 3. the map's name-matched columns, same law

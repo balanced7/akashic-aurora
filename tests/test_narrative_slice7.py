@@ -171,7 +171,8 @@ def test_boot_includes_narrative():
     )
     c.chronicle_all(now="2026-06-27T12:00:00")
     nav = load_recent_narrative_for_boot(store=s)
-    assert nav is not None and nav.get("chapters"), "narrative loader should return chapters"
+    assert nav is not None, "narrative loader should return chapters"
+    assert nav.get("chapters"), "narrative loader should return chapters"
 
     class _LS:
         @staticmethod

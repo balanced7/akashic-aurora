@@ -90,7 +90,11 @@ def test_p1_a_page_carries_its_identity(fake):
 
     pager.page("kimi", "stalled", c=fake, key="kimi:lane_stall")
     items = pager.unread_pages(c=fake)
-    assert items and items[0].get("key") == "kimi:lane_stall", (
+    assert items, (
+        "a page with no key cannot be retracted individually -- only fleet-wide ack, "
+        "which discards other agents' live pages"
+    )
+    assert items[0].get("key") == "kimi:lane_stall", (
         "a page with no key cannot be retracted individually -- only fleet-wide ack, "
         "which discards other agents' live pages"
     )
@@ -103,7 +107,8 @@ def test_p2_clearing_one_key_leaves_the_others(fake):
     pager.page("deepseek", "stalled", c=fake, key="deepseek:lane_stall")
     pager.clear_key("kimi:lane_stall", c=fake)
     left = pager.unread_pages(c=fake)
-    assert len(left) == 1 and left[0]["agent"] == "deepseek", "retracting a resolved page must never discard a live one"
+    assert len(left) == 1, "retracting a resolved page must never discard a live one"
+    assert left[0]["agent"] == "deepseek", "retracting a resolved page must never discard a live one"
 
 
 def test_p3_the_doctor_retracts_a_finding_that_is_gone(fake):

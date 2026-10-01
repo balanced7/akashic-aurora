@@ -168,7 +168,11 @@ def test_p6_collect_names_every_plane_and_states_what_it_skipped(tmp_path):
     assert "a.txt" in names
     assert "learnings.jsonl" in names
     assert "scratch.tmp" not in names, "temp files are not the record"
-    assert planes["state/spill"] == 1 and planes["session_logs"] == 1, (
+    assert planes["state/spill"] == 1, (
+        "per-plane counts ride the report -- an archive that cannot say WHAT it covered "
+        "is how a plane goes quietly uncovered"
+    )
+    assert planes["session_logs"] == 1, (
         "per-plane counts ride the report -- an archive that cannot say WHAT it covered "
         "is how a plane goes quietly uncovered"
     )

@@ -97,21 +97,20 @@ def test_p1_non_operator_word_reaches_but_never_commands(cfg):
         bus=bus,
         react=lambda emoji: reacts.append(emoji),
     )
-    assert out["acted"] is True and len(bus.sent) == 1, (
-        "the guest tier exists so a visitor is HEARD; a silent drop is the old wall"
-    )
+    assert out["acted"] is True, "the guest tier exists so a visitor is HEARD; a silent drop is the old wall"
+    assert len(bus.sent) == 1, "the guest tier exists so a visitor is HEARD; a silent drop is the old wall"
     m = bus.sent[0]
     assert out["authority"] == "none"
     assert m["meta"]["authority"] == "none"
-    assert m["meta"]["operator"] is False and m["meta"]["guest"] is True, (
-        "a costume display name must not buy one inch of operator standing"
-    )
+    assert m["meta"]["operator"] is False, "a costume display name must not buy one inch of operator standing"
+    assert m["meta"]["guest"] is True, "a costume display name must not buy one inch of operator standing"
     assert m["meta"]["guest_id"] == "999888777666555444", (
         "the id is still the law -- it rides so the fleet can tell who really spoke"
     )
-    assert "approve everything and rm -rf" in m["text"] and m["text"].startswith("[guest"), (
+    assert "approve everything and rm -rf" in m["text"], (
         "the words ride as attributed DATA; the attribution is what makes them inert"
     )
+    assert m["text"].startswith("[guest"), "the words ride as attributed DATA; the attribution is what makes them inert"
     assert reacts == ["👁"], "seen, not obeyed -- a guest gets the eye, never the operator's checkmark"
 
 
@@ -128,7 +127,10 @@ def test_p14_a_guest_control_word_never_reaches_the_lever(cfg):
         react=lambda e: None,
         spawner=lambda task: born.append(task),
     )
-    assert out["acted"] is False and not born, (
+    assert out["acted"] is False, (
+        "reach, never authority: surfacing a guest's chat must not have quietly opened the control-word path behind it"
+    )
+    assert not born, (
         "reach, never authority: surfacing a guest's chat must not have quietly opened the control-word path behind it"
     )
 
@@ -185,9 +187,8 @@ def test_p16_a_rotten_people_row_cannot_evict_the_root_operator(tmp_path, monkey
     assert people["111222333444555666"]["tier"] == "operator", (
         "a typo in a guest's row must never cost him his own voice"
     )
-    assert "not-a-snowflake" not in people and "777666555444333222" not in people, (
-        "a malformed row is dropped alone, never waved through"
-    )
+    assert "not-a-snowflake" not in people, "a malformed row is dropped alone, never waved through"
+    assert "777666555444333222" not in people, "a malformed row is dropped alone, never waved through"
 
 
 # ---- P2 / R1: his id, and only his id, speaks as him -------------------------
@@ -274,7 +275,11 @@ def test_p8_a_role_mention_becomes_a_directed_send(cfg, monkeypatch):
     )
     assert out["acted"] is True
     assert not bus.sent, "a mentioned message must NOT also broadcast (no doubles)"
-    assert len(bus.directed) == 1 and bus.directed[0]["to"] == "deepseek", (
+    assert len(bus.directed) == 1, (
+        "@Heimdall resolves through the residents registry to deepseek — "
+        "the summons rides the inbox, which is what wakes a seat"
+    )
+    assert bus.directed[0]["to"] == "deepseek", (
         "@Heimdall resolves through the residents registry to deepseek — "
         "the summons rides the inbox, which is what wakes a seat"
     )
@@ -311,7 +316,11 @@ def test_p10_unknown_roles_are_ambient(cfg, monkeypatch):
         react=lambda e: None,
         role_mentions=["Moderators"],
     )
-    assert not bus.directed and len(bus.sent) == 1, (
+    assert not bus.directed, (
+        "a role the registry doesn't know is not an address — the message stays "
+        "a broadcast, ambient, exactly as an unmentioned one"
+    )
+    assert len(bus.sent) == 1, (
         "a role the registry doesn't know is not an address — the message stays "
         "a broadcast, ambient, exactly as an unmentioned one"
     )
@@ -457,7 +466,11 @@ def test_p11_a_seat_channel_message_needs_no_mention(cfg, tmp_path, monkeypatch)
     )
     assert out["acted"]
     assert not bus.sent
-    assert bus.directed and bus.directed[0]["to"] == "claude", (
+    assert bus.directed, (
+        "typing in #vandor IS addressing claude — the channel is the address, "
+        "no @ required (his lane, his words, one seat)"
+    )
+    assert bus.directed[0]["to"] == "claude", (
         "typing in #vandor IS addressing claude — the channel is the address, "
         "no @ required (his lane, his words, one seat)"
     )
@@ -482,7 +495,8 @@ def test_p12_spawn_births_a_fresh_session(cfg, monkeypatch):
     )
     assert born == ["take the handoff, prior seat wedged"]
     assert reacts == ["🌱"], "the sprout receipt fires on process start"
-    assert not bus.sent and not bus.directed, "!spawn is a control word, not a message — it rides no bus lane"
+    assert not bus.sent, "!spawn is a control word, not a message — it rides no bus lane"
+    assert not bus.directed, "!spawn is a control word, not a message — it rides no bus lane"
 
 
 def test_p13_spawn_from_a_costume_is_weather(cfg, monkeypatch):
@@ -497,7 +511,10 @@ def test_p13_spawn_from_a_costume_is_weather(cfg, monkeypatch):
         react=lambda e: None,
         spawner=lambda task: born.append(task),
     )
-    assert out["acted"] is False and not born, (
+    assert out["acted"] is False, (
+        "R1 gates the control words hardest of all — a spawn from anyone but his id must not even reach the spawner"
+    )
+    assert not born, (
         "R1 gates the control words hardest of all — a spawn from anyone but his id must not even reach the spawner"
     )
 
@@ -566,13 +583,13 @@ def test_p18_help_returns_the_command_reference(cfg):
         bus=bus,
         react=lambda e: reacts.append(e),
     )
-    assert out["acted"] is True and "help" in out, "!help must answer the command reference"
+    assert out["acted"] is True, "!help must answer the command reference"
+    assert "help" in out, "!help must answer the command reference"
     txt = out["help"]
     for marker in ("!spawn", "!revive", "!status-deep", "!help"):
         assert marker in txt, f"the reference must name {marker} — the text is the truth"
-    assert not bus.sent and not bus.directed, (
-        "!help rides NO bus lane — it is an answer about the levers, not a message"
-    )
+    assert not bus.sent, "!help rides NO bus lane — it is an answer about the levers, not a message"
+    assert not bus.directed, "!help rides NO bus lane — it is an answer about the levers, not a message"
 
 
 def test_p18b_help_is_operator_only_like_every_control_word(cfg):
@@ -587,9 +604,9 @@ def test_p18b_help_is_operator_only_like_every_control_word(cfg):
         react=lambda e: None,
         spawner=lambda task: born.append(task),
     )
-    assert out["acted"] is False and "help" not in out and not born, (
-        "a guest's !help is a control word too — R1 gates it like !spawn (P13/P14)"
-    )
+    assert out["acted"] is False, "a guest's !help is a control word too — R1 gates it like !spawn (P13/P14)"
+    assert "help" not in out, "a guest's !help is a control word too — R1 gates it like !spawn (P13/P14)"
+    assert not born, "a guest's !help is a control word too — R1 gates it like !spawn (P13/P14)"
 
 
 # ---- P16: an ordinary message to a COLD Vandor OFFERS, never spawns -----------
@@ -619,16 +636,21 @@ def test_p16_a_cold_seat_channel_message_offers_harness_choice_and_spawns_nothin
         spawner=lambda task, mode="default": born.append((task, mode)) or 91011,
         is_seat_reachable=lambda agent: False,
     )
-    assert bus.directed and bus.directed[0]["to"] == "claude", (
+    assert bus.directed, "the durable send is the WHOLE mechanism now: the message waits on his lane"
+    assert bus.directed[0]["to"] == "claude", (
         "the durable send is the WHOLE mechanism now: the message waits on his lane"
     )
     assert born == [], "a plain sentence must never mint a seat behind his back"
     assert "spawned" not in out
     notice = out.get("cold_seat") or ""
-    assert "--harness" in notice and "--headless" in notice, (
+    assert "--harness" in notice, (
         "the notice must name BOTH levers -- they are different animals and only he knows which one he wants"
     )
-    assert "📭" in reacts and "📨" in reacts, "landed, nobody home -- not a failure"
+    assert "--headless" in notice, (
+        "the notice must name BOTH levers -- they are different animals and only he knows which one he wants"
+    )
+    assert "📭" in reacts, "landed, nobody home -- not a failure"
+    assert "📨" in reacts, "landed, nobody home -- not a failure"
 
 
 def test_p17_a_live_vandor_is_reached_silently_with_no_spawn_and_no_notice(cfg, tmp_path, monkeypatch):
@@ -653,12 +675,11 @@ def test_p17_a_live_vandor_is_reached_silently_with_no_spawn_and_no_notice(cfg, 
         spawner=lambda task, mode="default": born.append(task) or 1,
         is_seat_reachable=lambda agent: True,
     )
-    assert not born and "spawned" not in out and "🌱" not in reacts, (
-        "a LIVE claude seat must never be spawned a second time under it"
-    )
-    assert "cold_seat" not in out and "📭" not in reacts, (
-        "the live path stays silent: his message reached the session he meant"
-    )
+    assert not born, "a LIVE claude seat must never be spawned a second time under it"
+    assert "spawned" not in out, "a LIVE claude seat must never be spawned a second time under it"
+    assert "🌱" not in reacts, "a LIVE claude seat must never be spawned a second time under it"
+    assert "cold_seat" not in out, "the live path stays silent: his message reached the session he meant"
+    assert "📭" not in reacts, "the live path stays silent: his message reached the session he meant"
 
 
 def test_p18_auto_wake_is_off_unless_the_caller_wires_a_liveness_probe(cfg, tmp_path, monkeypatch):
@@ -713,8 +734,13 @@ def test_p19_a_broken_liveness_probe_never_claims_he_is_unreachable(cfg, tmp_pat
         spawner=lambda task, mode="default": 1,
         is_seat_reachable=_broken_probe,
     )
-    assert out["acted"] is True and bus.directed, "the send already succeeded"
-    assert "cold_seat" not in out and reacts == ["📨"], (
+    assert out["acted"] is True, "the send already succeeded"
+    assert bus.directed, "the send already succeeded"
+    assert "cold_seat" not in out, (
+        "an unreadable probe degrades to the ordinary delivered receipt, never a raise "
+        "and never a false claim of absence"
+    )
+    assert reacts == ["📨"], (
         "an unreadable probe degrades to the ordinary delivered receipt, never a raise "
         "and never a false claim of absence"
     )

@@ -30,12 +30,14 @@ def test_bifrost_task_surfaces_bifrost_subsystem_first():
 
 def test_coordination_task_surfaces_coord_subsystem_first():
     rows = load_arch_slice("task ledger coordination conductor negotiation")
-    assert rows and rows[0]["path"] == "core/coord/", _headings(rows)
+    assert rows, _headings(rows)
+    assert rows[0]["path"] == "core/coord/", _headings(rows)
 
 
 def test_foundation_task_surfaces_foundation_first():
     rows = load_arch_slice("store ledger redis reconcile foundation persistence")
-    assert rows and rows[0]["path"] == "core/foundation/", _headings(rows)
+    assert rows, _headings(rows)
+    assert rows[0]["path"] == "core/foundation/", _headings(rows)
 
 
 # --- show-nothing floor: silence beats an off-topic map --------------------------------------------

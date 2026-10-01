@@ -65,9 +65,8 @@ def test_broken_door_keeps_core_fleet_available(monkeypatch, capsys):
         "core fleet rides the bootstrap floor through a broken door (availability bar)"
     )
     err = capsys.readouterr().err
-    assert "may_run_runner" in err and "RuntimeError" in err, (
-        "the broken door + the decision are LOUD on stderr (heal_report precedent)"
-    )
+    assert "may_run_runner" in err, "the broken door + the decision are LOUD on stderr (heal_report precedent)"
+    assert "RuntimeError" in err, "the broken door + the decision are LOUD on stderr (heal_report precedent)"
 
 
 @pytest.mark.skipif(not _A21, reason="A2-1 pre-registered; bootstrap-floor except pending")

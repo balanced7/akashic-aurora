@@ -46,7 +46,8 @@ def test_dead_drainer_on_live_child_raises_flag(monkeypatch):
     proc = AgentProcess(agent_id="x", pid=123, status="running", drainers=[_dead_thread()])
     l._flag_dead_drainers(proc)
     assert proc.drainer_dead is True, "dead drainer + live child = the risk state, flagged"
-    assert len(notes) == 1 and "drain" in notes[0], "exactly one supervisor note"
+    assert len(notes) == 1, "exactly one supervisor note"
+    assert "drain" in notes[0], "exactly one supervisor note"
     l._flag_dead_drainers(proc)
     assert len(notes) == 1, "flag is once-only -- no note spam on later ticks"
 

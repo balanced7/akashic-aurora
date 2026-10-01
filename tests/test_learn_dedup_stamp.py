@@ -37,13 +37,16 @@ def test_mark_related_stamps_edge():
     twin = dict(base, experiment_name="seam_fix_b")
     ls.persist_learning_derived_from_experiment(twin)
     related = find_related(twin, ls.load_all_learnings_from_store(), exclude_name="seam_fix_b")
-    assert related and related[0]["experiment_name"] == "seam_fix_a", (
+    assert related, f"the twin must be found before it can be stamped, got {related}"
+    assert related[0]["experiment_name"] == "seam_fix_a", (
         f"the twin must be found before it can be stamped, got {related}"
     )
     assert ls.mark_related("seam_fix_b", related) is True
     rec = ls._load_experiment("seam_fix_b")
     edges = json.loads(rec.get("related_to") or "[]")
-    assert edges and edges[0]["experiment_name"] == "seam_fix_a" and edges[0]["dims"] >= 2, edges
+    assert edges, edges
+    assert edges[0]["experiment_name"] == "seam_fix_a", edges
+    assert edges[0]["dims"] >= 2, edges
     assert rec.get("related_stamped"), "stamp time must land with the edge"
     print("--- edge stamped ---\n  twin lesson carries related_to -> seam_fix_a durable OK")
 

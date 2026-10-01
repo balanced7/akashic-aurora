@@ -70,7 +70,8 @@ def test_p1_collapsed_tool_fields_are_refused_before_the_store(monkeypatch, caps
     assert rc == 2
     assert store.recorded == [], "a collapsed multi-field payload must never reach storage"
     out = capsys.readouterr().out
-    assert "tool-protocol" in out and "separate" in out, out
+    assert "tool-protocol" in out, out
+    assert "separate" in out, out
 
 
 def test_p2_one_literal_protocol_token_in_prose_is_not_a_false_positive(monkeypatch):

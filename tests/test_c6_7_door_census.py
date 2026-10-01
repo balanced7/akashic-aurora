@@ -269,9 +269,8 @@ def test_b2_work_kinds_are_lane_first():
         legacy_key, _ = legacy_write
         assert ":work:inbox:peer" in lane_key, f"kind={kind}: first write should be lane key, got {lane_key}"
         assert lane_key.startswith(f"{ns}:work:"), f"kind={kind}: lane key should be {ns}:work:..., got {lane_key}"
-        assert legacy_key.endswith(":inbox:peer") and ":work:" not in legacy_key, (
-            f"kind={kind}: legacy key should be inbox:peer, got {legacy_key}"
-        )
+        assert legacy_key.endswith(":inbox:peer"), f"kind={kind}: legacy key should be inbox:peer, got {legacy_key}"
+        assert ":work:" not in legacy_key, f"kind={kind}: legacy key should be inbox:peer, got {legacy_key}"
         # Clear for next kind
         b._client.xadd_keys.clear()
 

@@ -407,7 +407,8 @@ def test_landings_on_1_pass_over_notes_octaves_and_find_an_unnamed_5():
     for name, (kind, arrival) in want.items():
         assert found.get(times[name]) == (kind, arrival), (name, times[name], found)
     unnamed = next(c for c in doc["findings"]["cadences"] if c["start_ms"] == times["unnamed_5_1"])
-    assert unnamed["numbers"][0] == "5" and unnamed["bass"][0] == "A1", unnamed
+    assert unnamed["numbers"][0] == "5", unnamed
+    assert unnamed["bass"][0] == "A1", unnamed
     line = next(x for x in brief_text("landings").splitlines() if x.startswith("Cadences: "))
     assert line.startswith("Cadences: 5 -> 1 x4"), line  # the three here and the context's A7 -> Dm
     assert "none of them from the 5 chord" not in line

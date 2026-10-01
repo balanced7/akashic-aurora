@@ -72,7 +72,9 @@ def test_a2_the_relevance_judgment_case_matches_no_rule():
 # --------------------------------------------------------------- A3 the receipt hash
 def test_a3_the_table_exposes_a_stable_hash():
     h1, h2 = G.table_hash(), G.table_hash()
-    assert h1 and h1 == h2 and len(h1) >= 12, "sol's receipt needs rule_table_hash -- a name alone is mutable semantics"
+    assert h1, "sol's receipt needs rule_table_hash -- a name alone is mutable semantics"
+    assert h1 == h2, "sol's receipt needs rule_table_hash -- a name alone is mutable semantics"
+    assert len(h1) >= 12, "sol's receipt needs rule_table_hash -- a name alone is mutable semantics"
 
 
 # --------------------------------------------------------------- B1/B2/B3 the bar

@@ -101,7 +101,8 @@ def test_p3_a_short_body_is_byte_identical_to_today(tmp_path):
 
     small = "a short note that fits comfortably"
     text, meta = packet_spec.spill_tool_text(small)
-    assert text == small and meta == {}, "under the bound, nothing may change"
+    assert text == small, "under the bound, nothing may change"
+    assert meta == {}, "under the bound, nothing may change"
 
 
 def test_p5_the_new_caller_degrades_to_the_clip_when_the_blob_store_fails(monkeypatch, tmp_path):
@@ -129,7 +130,8 @@ def test_p5_the_new_caller_degrades_to_the_clip_when_the_blob_store_fails(monkey
     assert not meta.get("spilled"), "a failed store must not claim a spill happened"
     assert not meta.get("spill_ref"), "and must not advertise a ref that resolves to nothing"
     assert len(text) < len(BIG), "the degraded path must still BOUND the body"
-    assert text != BIG and text.strip(), "and must return something, never drop the message"
+    assert text != BIG, "and must return something, never drop the message"
+    assert text.strip(), "and must return something, never drop the message"
     # RB-5: the bound confesses even when the better mechanism is unavailable.
     assert any(w in text.lower() for w in ("clip", "truncat", "chars", "...")), (
         f"a bound must confess in the degraded branch too; got tail: {text[-160:]!r}"

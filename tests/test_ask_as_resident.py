@@ -180,7 +180,10 @@ def test_p4_a_blind_ask_is_stamped_blind_and_carries_no_identity(resident_kimi):
         "tier 0 must be LABELLED too -- unlabelled control arms stop being control arms"
     )
     system = " ".join(m.get("content", "") for m in fake.requests[0]["messages"] if m.get("role") == "system")
-    assert "Navi" not in system and "t261_kimi_cursor_lesson" not in system, (
+    assert "Navi" not in system, (
+        "a blind branch must stay blind -- injection into tier 0 destroys the only uncorrelated arm"
+    )
+    assert "t261_kimi_cursor_lesson" not in system, (
         "a blind branch must stay blind -- injection into tier 0 destroys the only uncorrelated arm"
     )
 

@@ -118,9 +118,8 @@ def test_decide_still_spawns_a_gateway_that_is_genuinely_absent():
         "gateway": {"healthy": False, "repairable": True, "detail": "0 gateway process(es)"},
     }
     plan = revive.decide(observed, target="gateway")
-    assert len(plan) == 1 and plan[0]["organ"] == "gateway", (
-        f"a genuinely dead gateway must still be planned, got: {plan}"
-    )
+    assert len(plan) == 1, f"a genuinely dead gateway must still be planned, got: {plan}"
+    assert plan[0]["organ"] == "gateway", f"a genuinely dead gateway must still be planned, got: {plan}"
 
 
 def test_observe_marks_process_rungs_unrepairable_when_the_probe_is_blind(monkeypatch):

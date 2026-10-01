@@ -785,7 +785,8 @@ def test_a11_mode_naming_gate_and_its_twin():
     assert "the D, its #11, came 9 times" in t2[0]["text"]
     twin = fixture_doc("riff_lydian_d4")
     sc = slot(twin["runs"][0], 1)["scale"]
-    assert sc["own_note"] == "D" and 0.03 <= sc["own_share"] < 0.05, sc
+    assert sc["own_note"] == "D", sc
+    assert 0.03 <= sc["own_share"] < 0.05, sc
     assert sc["named"] is False
     assert sc["say"] == "the notes of Eb major"
     assert "T2" not in [p["type"] for p in twin["talking_points"]]
@@ -1131,7 +1132,8 @@ def test_latest_and_session_forms_and_the_filters(capsys):
     for flags in (["--pass", "3"], ["--bars", "5-6"]):
         assert riff.main([RUN_ID, *flags, *base]) == 0
         b = json.loads(capsys.readouterr().out)["runs"][0]
-        assert b["coverage"]["passes"] == 1 and b["coverage"]["bars"] == 2, flags
+        assert b["coverage"]["passes"] == 1, flags
+        assert b["coverage"]["bars"] == 2, flags
         assert sum(s["classes"]["rub"] for s in b["slots"]) == 1
         assert sum(s["classes"]["passing"] for s in b["slots"]) == 0
         assert {x["pass"] for x in b["notes"]} == {3}
@@ -1168,9 +1170,11 @@ def test_passes_he_did_not_play_are_not_growth_or_misses(tmp_path):
         if point["type"] == "T13":
             ev = point["evidence"]
             assert set(ev["passes"] + ev["to_passes"]) <= set(held), ev
-            assert ev["from_notes"] >= riff.T13_MIN_NOTES and ev["to_notes"] >= riff.T13_MIN_NOTES, ev
+            assert ev["from_notes"] >= riff.T13_MIN_NOTES, ev
+            assert ev["to_notes"] >= riff.T13_MIN_NOTES, ev
     ld = b["card_landing"]
-    assert ld is not None and (ld["instances"], ld["instances_all"]) == (6, 8), ld
+    assert ld is not None, ld
+    assert (ld["instances"], ld["instances_all"]) == (6, 8), ld
     text = riff.render(doc)
     assert f"of the {ld['instances']} times you played over it" in text
     assert riff.wording_problems(doc, text) == []

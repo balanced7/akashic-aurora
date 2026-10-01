@@ -150,6 +150,5 @@ def test_p5_recall_agent_flag_scopes_the_cli(corpus):
 def test_p5b_recall_without_the_flag_is_unchanged(corpus):
     rc, out, _ = run("recall", "convergence")
     assert rc == 0
-    assert "scope_kimi_pools" in out and "scope_claude_ledger" in out, (
-        "unscoped recall must keep returning the whole fleet's matches"
-    )
+    assert "scope_kimi_pools" in out, "unscoped recall must keep returning the whole fleet's matches"
+    assert "scope_claude_ledger" in out, "unscoped recall must keep returning the whole fleet's matches"

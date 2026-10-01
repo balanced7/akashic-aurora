@@ -308,7 +308,8 @@ def test_presence_offline_declares_departure_not_a_beat():
 
         rows = roster.roster(ns)
         mine = [r for r in rows if r.get("seat") == "dsh_agent#seat-000"]
-        assert mine and mine[0]["state"] == "OFFLINE", f"presence offline must render OFFLINE via go_offline: {mine}"
+        assert mine, f"presence offline must render OFFLINE via go_offline: {mine}"
+        assert mine[0]["state"] == "OFFLINE", f"presence offline must render OFFLINE via go_offline: {mine}"
         assert not [r for r in rows if r.get("state") == "LIVE"], (
             f"an offline declaration must not leave a LIVE row behind: {rows}"
         )

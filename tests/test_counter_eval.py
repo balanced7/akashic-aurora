@@ -337,7 +337,8 @@ def test_dataset_integrity():
             f"{c['id']}: the thesis cannot be its own counter"
         )
         if c["counter_exists"]:
-            assert c["counter_sources"] and c["kind"], f"{c['id']}: has-counter case needs sources+kind"
+            assert c["counter_sources"], f"{c['id']}: has-counter case needs sources+kind"
+            assert c["kind"], f"{c['id']}: has-counter case needs sources+kind"
         else:
             assert not c["counter_sources"], f"{c['id']}: no-counter case must have empty counter_sources"
     print(
@@ -384,7 +385,8 @@ def test_counter_density_metric_is_correct():
         L("C", "yes", "unrelated gitignore comment placement rule"),
     ]
     cov = counter_density(tiny)
-    assert cov["n_success"] == 2 and cov["n_with_counter"] == 1, cov
+    assert cov["n_success"] == 2, cov
+    assert cov["n_with_counter"] == 1, cov
     assert abs(cov["density"] - 0.5) < 1e-9, f"1 of 2 successes has a counter -> 0.5, got {cov['density']}"
     print("--- density metric ---\n  tiny set: 1/2 successes has a discoverable counter -> 0.500 OK")
 
@@ -440,9 +442,9 @@ def test_dissent_fires_only_on_explicit_contradiction():
         "text": "never expose internal capabilities on the shared door agents use",
     }
     got = find_counter(thesis, [link])
-    assert got and got["source"] == "c" and got["kind"] == "explicit_link", (
-        f"an explicit contradicts link should fire, got {got}"
-    )
+    assert got, f"an explicit contradicts link should fire, got {got}"
+    assert got["source"] == "c", f"an explicit contradicts link should fire, got {got}"
+    assert got["kind"] == "explicit_link", f"an explicit contradicts link should fire, got {got}"
     print(
         "--- dissent explicit-only ---\n  opposite-outcome + on-topic anti_pattern -> silent; "
         "explicit contradicts link -> counter OK"

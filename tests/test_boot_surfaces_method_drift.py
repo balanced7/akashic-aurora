@@ -37,7 +37,8 @@ def test_p1_drift_speaks(monkeypatch):
 
     monkeypatch.setattr(method_drift, "_stats", lambda n: {"total": 30, "clean": 9, "violations": 21, "pct": 30.0})
     line = method_drift.boot_line(threshold=80.0)
-    assert line and "30" in line, f"drift must name the measured rate, got {line!r}"
+    assert line, f"drift must name the measured rate, got {line!r}"
+    assert "30" in line, f"drift must name the measured rate, got {line!r}"
     assert "9/30" in line or "9 of 30" in line
 
 

@@ -164,7 +164,11 @@ def test_s2_global_failure_increments_the_failed_counter(silent_wired, monkeypat
     )
     # HALF 2 (RED today): the pump's receipt must agree with the confession, not
     # report a dead post as forwarded.
-    assert "failed=1" in ref and "forwarded=0" in ref, (
+    assert "failed=1" in ref, (
+        f"a global post died but the pump's own ref says {ref!r} -- the receipt "
+        f"claims a delivery that stderr says did not happen (T220/T149, global surface)"
+    )
+    assert "forwarded=0" in ref, (
         f"a global post died but the pump's own ref says {ref!r} -- the receipt "
         f"claims a delivery that stderr says did not happen (T220/T149, global surface)"
     )

@@ -26,7 +26,8 @@ wl = liveness.worklive(A)
 
 wl.set("idle")
 r = liveness.read(A)
-assert r and r["phase"] == "idle", r
+assert r, r
+assert r["phase"] == "idle", r
 since1 = r["since_ts"]
 print(f"idle -> phase={r['phase']} since_ts={since1} turn={r['turn']}")
 
@@ -40,7 +41,8 @@ print(f"same-phase re-stamp -> since_ts unchanged ({r['since_ts']}), beat_ts mov
 time.sleep(0.05)
 wl.set("thinking")
 r = liveness.read(A)
-assert r["phase"] == "thinking" and r["since_ts"] > since1, r
+assert r["phase"] == "thinking", r
+assert r["since_ts"] > since1, r
 print(f"phase change -> since_ts advanced to {r['since_ts']}  [PASS]")
 
 t0 = wl._turn

@@ -50,7 +50,8 @@ def test_canonical_surface_complete():
     )
 
     assert len(TOOLS) >= 30, "tool schema roster went missing in the move"
-    assert MAX_FILE_BYTES == 120_000 and MAX_CMD_OUT == 16_000, "caps drifted in the move"
+    assert MAX_FILE_BYTES == 120_000, "caps drifted in the move"
+    assert MAX_CMD_OUT == 16_000, "caps drifted in the move"
 
 
 def test_agent_loop_not_extracted():

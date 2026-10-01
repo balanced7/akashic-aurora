@@ -112,7 +112,8 @@ def test_run_pass_end_to_end_stamps_proposal():
         )
 
     rows = run_pass(propose, store=use, learning_store=ls, events=EVENTS, injections=INJECTIONS, min_relevance=0.05)
-    assert len(rows) == 1 and rows[0]["verdict"] == "PASS", rows
+    assert len(rows) == 1, rows
+    assert rows[0]["verdict"] == "PASS", rows
     assert rows[0]["outcome"] == "queued for human review"
     props = pending_proposals(learning_store=ls)
     assert len(props) == 1
@@ -146,7 +147,8 @@ def test_run_pass_drops_malformed_and_buffers_fails():
     rows2 = run_pass(
         lambda p: hollow, store=use, learning_store=ls, events=EVENTS, injections=INJECTIONS, min_relevance=0.05
     )
-    assert rows2[0]["verdict"] == "FAIL" and "rejected by gate" in rows2[0]["outcome"], rows2
+    assert rows2[0]["verdict"] == "FAIL", rows2
+    assert "rejected by gate" in rows2[0]["outcome"], rows2
     buf = json.loads(ls._load_experiment("seam_guard").get("forge_rejected") or "[]")
     assert buf, "gate FAIL must land in the durable rejected buffer"
     assert pending_proposals(learning_store=ls) == [], "FAILs never queue for the human"

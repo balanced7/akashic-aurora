@@ -60,9 +60,8 @@ def test_sender_is_inferred_not_positional(monkeypatch):
 
     params = list(inspect.signature(OR.reply).parameters.values())
     positional = [p for p in params if p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD)]
-    assert len(positional) == 1 and positional[0].name == "text", (
-        "exactly ONE positional -- the body. Adding a second reopens the trap."
-    )
+    assert len(positional) == 1, "exactly ONE positional -- the body. Adding a second reopens the trap."
+    assert positional[0].name == "text", "exactly ONE positional -- the body. Adding a second reopens the trap."
 
 
 def test_an_empty_body_refuses_rather_than_posting_a_header():

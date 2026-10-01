@@ -202,7 +202,9 @@ def test_door_degrade_shape_under_foreign_holder(agent):
 def test_same_session_reclaim_refreshes_not_refuses(agent):
     ok1, g1, _ = runner_lock.claim_consumer(agent, "session:pin-a")
     ok2, g2, _ = runner_lock.claim_consumer(agent, "session:pin-a")
-    assert ok1 and ok2 and g2 == g1, "re-entrant for the own token: refresh TTL, keep the tenure generation"
+    assert ok1, "re-entrant for the own token: refresh TTL, keep the tenure generation"
+    assert ok2, "re-entrant for the own token: refresh TTL, keep the tenure generation"
+    assert g2 == g1, "re-entrant for the own token: refresh TTL, keep the tenure generation"
 
 
 # --- P11 (post-review registration, deepseek Q3/Option A, added pre-impl at gate GREEN):
@@ -235,7 +237,8 @@ def test_cross_process_refresh_preserves_generation(agent):
     runner_lock._TENURE_GEN.clear()  # simulate a FRESH process (the stop hook)
     assert runner_lock.refresh_consumer(agent, "session:pin-a")
     ok2, g2, _ = runner_lock.claim_consumer(agent, "session:pin-a")  # next consume
-    assert ok2 and g2 == g1, "the refresher preserved the tenure generation"
+    assert ok2, "the refresher preserved the tenure generation"
+    assert g2 == g1, "the refresher preserved the tenure generation"
     assert Bus(agent).advance_to(inbox="2-1", generation=g2) == "OK", (
         "a session must never fence ITSELF via its own hook refresh"
     )

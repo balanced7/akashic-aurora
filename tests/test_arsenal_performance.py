@@ -719,7 +719,8 @@ def test_the_home_chord_rule_leaves_loops_without_that_evidence_alone():
     and C major, the key it is in, is the best of that minor chord's pair already."""
     for chords, want in ((["D", "C", "G", "D"], "D major"), (["Am", "Dm", "G", "C"], "C major")):
         nv = perf.summarize(triad_loop(chords, want))["nashville"]
-        assert nv["key"]["key"] == want and nv["key"]["rule"] is None, chords
+        assert nv["key"]["key"] == want, chords
+        assert nv["key"]["rule"] is None, chords
 
 
 def test_home_chords_counts_a_minor_triad_over_the_bass_under_any_name():
@@ -1380,11 +1381,14 @@ def test_the_glossary_gives_extended_shapes_their_own_meanings():
         "13",
         "m13",
     ):
-        assert term in terms and terms[term] != fallback, term
-        assert terms[term].count(".") == 1 and len(terms[term]) < 120, "one line each"
+        assert term in terms, term
+        assert terms[term] != fallback, term
+        assert terms[term].count(".") == 1, "one line each"
+        assert len(terms[term]) < 120, "one line each"
     assert "m" in terms
     assert "^" in terms
-    assert "/" not in terms and "6" not in terms, "6/9 is one shape, not a 6 chord over the 9"
+    assert "/" not in terms, "6/9 is one shape, not a 6 chord over the 9"
+    assert "6" not in terms, "6/9 is one shape, not a 6 chord over the 9"
     over = dict(perf._glossary(nkey, [("4^6/9/5", "F6/9/C")], set()))
     assert "6/9" in over
     assert "/" in over

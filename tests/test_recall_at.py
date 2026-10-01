@@ -65,14 +65,16 @@ def test_relevant_command_surfaces_the_matching_lesson():
 
 def test_show_nothing_when_irrelevant():
     res = recall_at(command="run the bbbbb qqqqq zzzzz widget", learning_store=_STORE)
-    assert res["lessons"] == [] and res["shown"] == 0, f"should surface nothing, got {res}"
+    assert res["lessons"] == [], f"should surface nothing, got {res}"
+    assert res["shown"] == 0, f"should surface nothing, got {res}"
     print("--- show-nothing ---\n  no relevant lesson -> silence (no padding) OK")
 
 
 def test_never_pads_to_limit():
     # query matches exactly one lesson ('memoization'); limit=3 must still return only the 1 match.
     res = recall_at(command="apply memoization to the hot loop", limit=3, learning_store=_STORE)
-    assert len(res["lessons"]) == 1 and res["lessons"][0]["source"] == "learn:experiment:perf_memo", res
+    assert len(res["lessons"]) == 1, res
+    assert res["lessons"][0]["source"] == "learn:experiment:perf_memo", res
     print("--- no padding ---\n  one match under limit=3 -> exactly 1 surfaced OK")
 
 
@@ -133,11 +135,13 @@ def test_render_n_of_m_escape_line():
         "total": 4,
     }
     out = render(res)
-    assert "1 of 4 relevant lesson(s) shown" in out and "recall --full <source>" in out, out
+    assert "1 of 4 relevant lesson(s) shown" in out, out
+    assert "recall --full <source>" in out, out
     # total == shown (nothing hidden) -> no escape line
     res["total"] = 1
     out2 = render(res)
-    assert "of 4" not in out2 and "shown" not in out2, f"no hidden lessons -> no escape line, got {out2}"
+    assert "of 4" not in out2, f"no hidden lessons -> no escape line, got {out2}"
+    assert "shown" not in out2, f"no hidden lessons -> no escape line, got {out2}"
     print("--- N-of-M escape ---\n  hidden lessons -> escape line; nothing hidden -> silent OK")
 
 
@@ -160,7 +164,8 @@ def test_full_record_pulls_the_whole_record():
         }
     )
     rec = full_record("learn:experiment:pull_test", learning_store=ls)
-    assert rec.get("what_tried") == "tried X" and rec.get("root_cause") == "because X causes Y", rec
+    assert rec.get("what_tried") == "tried X", rec
+    assert rec.get("root_cause") == "because X causes Y", rec
     assert rec.get("recommendation") == "do X", "the full record must carry fields the summary drops"
     print("--- full_record ---\n  one-hop pull returns the whole record (what_tried/root_cause/...) OK")
 
@@ -181,7 +186,8 @@ def test_query_builder_drops_noise():
     q = _query_from("core/primitives/faithfulness.py", None)
     assert "faithfulness" in q
     assert "primitives" in q
-    assert "core" not in q.split() and "py" not in q.split(), f"generic/short tokens leaked: {q}"
+    assert "core" not in q.split(), f"generic/short tokens leaked: {q}"
+    assert "py" not in q.split(), f"generic/short tokens leaked: {q}"
     print(f"--- query builder ---\n  '{q}' (dropped core/py) OK")
 
 
@@ -195,7 +201,8 @@ def test_warm_cache_and_prune():
     aa._SEEN_DIR = os.path.join(d, "seen")
     try:
         n = aa.warm_cache(learning_store=_STORE)
-        assert n == 3 and os.path.exists(aa._CACHE_FILE), f"warm_cache should write 3 items, got {n}"
+        assert n == 3, f"warm_cache should write 3 items, got {n}"
+        assert os.path.exists(aa._CACHE_FILE), f"warm_cache should write 3 items, got {n}"
         os.makedirs(aa._SEEN_DIR, exist_ok=True)
         oldf = os.path.join(aa._SEEN_DIR, "old.txt")
         newf = os.path.join(aa._SEEN_DIR, "new.txt")
@@ -203,9 +210,9 @@ def test_warm_cache_and_prune():
         open(newf, "w").close()
         os.utime(oldf, (time.time() - 10 * 86400, time.time() - 10 * 86400))  # 10 days stale
         removed = aa.prune_state(max_age_days=7)
-        assert removed == 1 and not os.path.exists(oldf) and os.path.exists(newf), (
-            "prune should drop only the stale file"
-        )
+        assert removed == 1, "prune should drop only the stale file"
+        assert not os.path.exists(oldf), "prune should drop only the stale file"
+        assert os.path.exists(newf), "prune should drop only the stale file"
         print("--- warm cache + prune ---\n  warm wrote 3 items; prune dropped the 10-day-old seen file OK")
     finally:
         aa._CACHE_DIR, aa._CACHE_FILE, aa._SEEN_DIR = old
@@ -230,7 +237,8 @@ def test_record_feedback_counters():
     assert record_feedback("learn:experiment:x", "useful", store=st) is True
     assert record_feedback("learn:experiment:x", "noise", store=st) is True
     use = _load_use(st, "learn:experiment:x")
-    assert use.get("useful") == 2 and use.get("noise") == 1, f"counters should accumulate, got {use}"
+    assert use.get("useful") == 2, f"counters should accumulate, got {use}"
+    assert use.get("noise") == 1, f"counters should accumulate, got {use}"
     assert record_feedback("", "useful", store=st) is False, "empty source rejected"
     assert record_feedback("y", "bogus", store=st) is False, "bad kind rejected"
     print("--- record_feedback ---\n  votes accumulate; bad input rejected OK")
@@ -252,7 +260,8 @@ def test_usefulness_reranks_equally_relevant():
     aa._cached_items = lambda ls: items  # both equally relevant to "consolidator"; B is proven-useful
     try:
         out, total = aa._lessons("consolidator", None, 2, 0.0)
-        assert out and out[0]["source"] == "learn:experiment:B", (
+        assert out, f"proven-useful lesson should rank first: {[o['source'] for o in out]}"
+        assert out[0]["source"] == "learn:experiment:B", (
             f"proven-useful lesson should rank first: {[o['source'] for o in out]}"
         )
         assert total == 2, f"total should count both candidates, got {total}"
@@ -422,7 +431,8 @@ def test_render_staleness_cue_only_when_old():
 
     old_ts = (datetime.utcnow() - timedelta(days=45)).isoformat()
     out = render({"lessons": [{"text": "t", "source": "learn:experiment:x", "timestamp": old_ts}], "locks": []})
-    assert "[age]" in out and ("~45d" in out or "~44d" in out), out
+    assert "[age]" in out, out
+    assert "~45d" in out or "~44d" in out, out
     assert "verify named files/flags still exist" in out
     fresh_ts = datetime.utcnow().isoformat()
     assert "[age]" not in render(

@@ -64,9 +64,8 @@ def test_source_with_parens_resolves():
     skeleton = _real_skeleton()
     rep = faithfulness_report(_ITEMS, skeleton)
     paren_lines = [p for p in rep["per_line"] if p.get("src", "").endswith("(prior art)")]
-    assert paren_lines and all(p["resolves"] for p in paren_lines), (
-        f"paren source was truncated/unresolved: {paren_lines}"
-    )
+    assert paren_lines, f"paren source was truncated/unresolved: {paren_lines}"
+    assert all(p["resolves"] for p in paren_lines), f"paren source was truncated/unresolved: {paren_lines}"
     print("--- paren-safe ---\n  source containing ')' resolves whole OK")
 
 
@@ -74,7 +73,8 @@ def test_catches_fabricated_pointer():
     """An LLM writer that cites a source not among the inputs must be caught (citation hallucination)."""
     bad = "- some plausible but invented lesson  (source: learn:experiment:ghost_999)"
     ok, notes = faithfulness_critic(_ITEMS, bad)
-    assert ok is False and any("fabricated" in n or "unresolvable" in n for n in notes), notes
+    assert ok is False, notes
+    assert any("fabricated" in n or "unresolvable" in n for n in notes), notes
     print("--- fabricated pointer ---\n  unresolvable source -> unfaithful OK")
 
 
@@ -82,14 +82,16 @@ def test_catches_fabricated_number():
     """A line citing a real source but introducing a number absent from it = fabricated figure."""
     bad = "- probe reachability first; a filtered port hangs connect for 999s  (source: learn:experiment:redis_probe)"
     ok, notes = faithfulness_critic(_ITEMS, bad)
-    assert ok is False and any("number" in n for n in notes), notes
+    assert ok is False, notes
+    assert any("number" in n for n in notes), notes
     print("--- fabricated number ---\n  number absent from source -> unfaithful OK")
 
 
 def test_untraceable_line_caught():
     """A content claim with no source pointer can't be traced -> unfaithful."""
     ok, notes = faithfulness_critic(_ITEMS, "- a claim with no pointer at all")
-    assert ok is False and any("no source pointer" in n for n in notes), notes
+    assert ok is False, notes
+    assert any("no source pointer" in n for n in notes), notes
     print("--- untraceable ---\n  claim without a pointer -> unfaithful OK")
 
 

@@ -122,12 +122,10 @@ def test_watch_stays_quiet_through_ledger_markers(capsys):
         # 'quiet' -> 'self-cycle' (near-deadline chunk exit + re-arm trigger).
         # The semantic pinned HERE is unchanged and now asserted directly:
         # the watcher SAW both markers and still ended benign, not woken.
-        assert rc == 0 and ("self-cycle" in out or "quiet" in out), (
-            "ledger control-plane markers must never wake an armed watcher"
-        )
-        assert "alice:resolved" in out and "alice:ledger_update" in out, (
-            "the benign exit's provenance must show it sat THROUGH the markers"
-        )
+        assert rc == 0, "ledger control-plane markers must never wake an armed watcher"
+        assert "self-cycle" in out or "quiet" in out, "ledger control-plane markers must never wake an armed watcher"
+        assert "alice:resolved" in out, "the benign exit's provenance must show it sat THROUGH the markers"
+        assert "alice:ledger_update" in out, "the benign exit's provenance must show it sat THROUGH the markers"
     finally:
         keys = c.keys(f"{ns}:*")
         if keys:

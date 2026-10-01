@@ -102,6 +102,7 @@ def test_q5_search_finds_a_lesson_once_reindexed(ls):
     ls.store.delete(rli.INDEX)
     ls.store.rpush(rli.INDEX, *union)
     hits = ls.search_learnings_by_keyword("gamma_lesson")
-    assert hits and any(h.get("id") == "gamma_lesson" or h.get("experiment_name") == "gamma_lesson" for h in hits), (
+    assert hits, "findable by its own name after repair"
+    assert any(h.get("id") == "gamma_lesson" or h.get("experiment_name") == "gamma_lesson" for h in hits), (
         "findable by its own name after repair"
     )

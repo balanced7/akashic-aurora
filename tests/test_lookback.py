@@ -146,9 +146,8 @@ def test_match_excerpt_shows_the_matching_passage():
         f"# Grand Title Of The Document\n{filler}\nthe notes supersession rationale: write-once beats editing\n{filler}"
     )
     out = _match_excerpt(text, "why are notes write-once and superseding instead of editing")
-    assert "supersession" in out and out.startswith("..."), (
-        "excerpt centers the deep matching passage, flagged as mid-doc"
-    )
+    assert "supersession" in out, "excerpt centers the deep matching passage, flagged as mid-doc"
+    assert out.startswith("..."), "excerpt centers the deep matching passage, flagged as mid-doc"
     assert "Grand Title" not in out
     assert _match_excerpt("no relevant terms here at all", "zebra query").startswith("no relevant terms"), (
         "no match -> head fallback"

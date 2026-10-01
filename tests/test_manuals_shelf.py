@@ -177,7 +177,8 @@ def test_chunker_merges_tiny_sections_and_splits_long_ones():
     long_parts = [c for c in chunks if c.breadcrumb.endswith("B")]
     assert len(long_parts) >= 2, "a long section must be split at paragraph boundaries"
     merged = [c for c in chunks if "short one." in c.text]
-    assert len(merged) == 1 and "short two." in merged[0].text, "tiny siblings merge into one chunk"
+    assert len(merged) == 1, "tiny siblings merge into one chunk"
+    assert "short two." in merged[0].text, "tiny siblings merge into one chunk"
 
 
 # ---- the shelf -------------------------------------------------------------------
@@ -243,7 +244,8 @@ def test_zero_hits_say_what_was_searched(tmp_path):
     res = sh.search("quantum chromodynamics")
     assert res.hits == []
     note = res.render()
-    assert "0 of" in note and "chunks" in note, f"a zero must name its denominator: {note}"
+    assert "0 of" in note, f"a zero must name its denominator: {note}"
+    assert "chunks" in note, f"a zero must name its denominator: {note}"
 
 
 def test_mirrored_pages_with_the_same_file_name_keep_their_own_urls(tmp_path):
@@ -272,7 +274,8 @@ def test_underscore_html_pages_are_content_but_underscore_json_files_are_metadat
     (corpus / "_manifest.json").write_text("[]", encoding="utf-8")
     sh = shelf_mod.Shelf(tmp_path / "manuals.db")
     rep = sh.ingest("home", corpus)
-    assert rep.docs_added == 4 and not rep.failed, rep.render()
+    assert rep.docs_added == 4, rep.render()
+    assert not rep.failed, rep.render()
     assert sh.search("zebra").hits, "the underscore-named HTML page must be shelved"
 
 
@@ -370,7 +373,8 @@ def test_hybrid_finds_a_paraphrase_that_shares_no_words(tmp_path):
     question = "how big should tappable things be"
     assert sh.search(question, mode="bm25").hits == [], "keywords alone cannot bridge this wording gap"
     hits = sh.search(question, mode="hybrid").hits
-    assert hits and "Touch areas" in hits[0].breadcrumb, [h.breadcrumb for h in hits]
+    assert hits, [h.breadcrumb for h in hits]
+    assert "Touch areas" in hits[0].breadcrumb, [h.breadcrumb for h in hits]
 
 
 def test_hybrid_without_an_embedder_falls_back_to_keywords_and_says_so(tmp_path):

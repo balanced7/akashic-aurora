@@ -59,7 +59,8 @@ def test_port_is_stable_across_processes():
 
 def test_ping_answers(chan):
     reply = cc.send("testagent", "ping", port=chan.port)
-    assert reply and reply.startswith("pong"), f"got {reply!r}"
+    assert reply, f"got {reply!r}"
+    assert reply.startswith("pong"), f"got {reply!r}"
     assert f"pid={os.getpid()}" in reply, "ping must identify the process it reached"
 
 
@@ -72,7 +73,8 @@ def test_silence_is_distinguishable_from_refusal():
 
 def test_unknown_verb_is_refused_not_ignored(chan):
     reply = cc.send("testagent", "definitely-not-a-verb", port=chan.port)
-    assert reply and reply.startswith("ERR"), f"got {reply!r}"
+    assert reply, f"got {reply!r}"
+    assert reply.startswith("ERR"), f"got {reply!r}"
     assert "help" in reply, "a refusal should teach the caller what IS available"
 
 
@@ -145,7 +147,8 @@ def test_answers_while_the_main_thread_is_blocked(chan):
     assert blocked.wait(5), "setup: the victim thread never reached its blocking read"
 
     reply = cc.send("testagent", "ping", port=chan.port)
-    assert reply and reply.startswith("pong"), (
+    assert reply, "the control channel went silent while another thread was blocked -- it is not actually out-of-band"
+    assert reply.startswith("pong"), (
         "the control channel went silent while another thread was blocked -- it is not actually out-of-band"
     )
     dead.close()

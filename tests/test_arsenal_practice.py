@@ -866,7 +866,11 @@ def test_readings_take_the_chord_rooted_on_the_bass_and_keep_real_inversions():
         ("C3 Eb4 G4 Bb4", "Eb major"),
     ):
         data = pr.name_data(notes.split(), key)  # an inversion of a chord with its 3rd keeps detect's name
-        assert data["analysed"]["from"] == "detect" and data["analysed"]["name"] == data["detect"]["name"], (
+        assert data["analysed"]["from"] == "detect", (
+            notes,
+            data,
+        )
+        assert data["analysed"]["name"] == data["detect"]["name"], (
             notes,
             data,
         )
@@ -915,7 +919,8 @@ def test_a_treble_arpeggio_has_no_bass():
     events = perform(acts)
     doc = pr.analyze(events)
     chords = [w for w in doc["windows"] if pr.is_chord(w)]
-    assert chords and all(w["bass"]["motion"] == "figure" and w["bass"]["low"] is False for w in chords), [
+    assert chords, [(w["at"], w["name"], w["bass"]) for w in doc["windows"]]
+    assert all(w["bass"]["motion"] == "figure" and w["bass"]["low"] is False for w in chords), [
         (w["at"], w["name"], w["bass"]) for w in doc["windows"]
     ]
     assert doc["findings"]["pedal_points"] == []
@@ -941,7 +946,8 @@ def test_a_pedal_point_is_measured_on_the_bass_notes_own_sound():
     assert doc["findings"]["pedal_points"] == []
     assert not [d for d in doc["findings"]["dominants"]["windows"] if d["form"] == "suspended"]
     long = max(doc["windows"], key=lambda w: w["seconds"])
-    assert long["analysed_as"] == "Ebsus4(9)" and long["bass"]["low"] is False, long
+    assert long["analysed_as"] == "Ebsus4(9)", long
+    assert long["bass"]["low"] is False, long
 
 
 @needs_node
@@ -1019,9 +1025,12 @@ def test_a_minor_turn_keeps_its_raised_7th_in_the_plain_words():
     assert [a["key"] for a in doc["keys"]["areas"]] == ["Eb major", "Eb minor"]
     sess = _sess(events, doc)
     change = pr.key_evidence(doc, sess["snd"])["changes"][0]
-    assert "D" in change["stayed"] and "D" not in change["gone"] and "G" in change["gone"], change
+    assert "D" in change["stayed"], change
+    assert "D" not in change["gone"], change
+    assert "G" in change["gone"], change
     ask = next(m for m in pr.brief_data(sess)["ask"] if m["category"] == "key change")
-    assert "D still sounds" in ask["plain"] and "raised 7th" in ask["plain"], ask["plain"]
+    assert "D still sounds" in ask["plain"], ask["plain"]
+    assert "raised 7th" in ask["plain"], ask["plain"]
 
 
 def test_recoloured_harmony_is_one_step_in_the_moves():
@@ -1100,7 +1109,8 @@ def test_moves_do_not_count_a_minor_chord_renamed_over_its_bass():
     fm9_ab = ["Ab2", "F3", "G3", "C4", "Eb4"]
     doc = _analyze(pedalled_progression([EB, fm_add9, abmaj13_f, fm9_ab, BB7], seconds=2.0, repeats=4)[0])
     moves = {tuple(g["numbers"]) for g in pr.progression_data(doc, (2,), 1)["moves"]["2"]}
-    assert ("2m", "4") not in moves and ("4", "2m") not in moves, moves
+    assert ("2m", "4") not in moves, moves
+    assert ("4", "2m") not in moves, moves
 
 
 @needs_node
@@ -1109,7 +1119,8 @@ def test_labels_keep_a_missing_3rd():
     events = perform(acts)
     doc = pr.analyze(events)
     open5 = [w for w in doc["windows"] if sorted(w["pcs"]) == ["Bb", "D", "Eb"]]
-    assert open5 and all(w["label"] == "Ebmaj7(no3)" for w in open5), [(w["at"], w["label"]) for w in doc["windows"]]
+    assert open5, [(w["at"], w["label"]) for w in doc["windows"]]
+    assert all(w["label"] == "Ebmaj7(no3)" for w in open5), [(w["at"], w["label"]) for w in doc["windows"]]
     assert all(w["label"] == w["analysed_as"] for w in doc["windows"] if w["analysed_as"] in ("Eb", "Ab", "Bb7"))
     sess = _sess(events, doc)
     assert "Ebmaj7(no3)~" in pr.render_brief(sess, pr.brief_data(sess))
@@ -1139,19 +1150,26 @@ def test_a_broken_log_is_read_as_far_as_it_goes(tmp_path, capsys):
         text + json.dumps({"kind": "off", "note": 60}) + "\n",
     )  # an event without t_ms
     code, out, err = _run(capsys, "brief", "20260102-100000-0000000a", "--root", root)
-    assert code == 0 and "1 unreadable log line skipped" in out and "Home key: Eb major" in out, err
+    assert code == 0, err
+    assert "1 unreadable log line skipped" in out, err
+    assert "Home key: Eb major" in out, err
     code, out, err = _run(capsys, "brief", "20260102-100100-0000000b", "--root", root)
-    assert code == 0 and "No notes logged yet." in out and "events.jsonl could not be read" in out, err
+    assert code == 0, err
+    assert "No notes logged yet." in out, err
+    assert "events.jsonl could not be read" in out, err
     code, out, err = _run(capsys, "chords", "20260102-100200-0000000c", "--root", root)
-    assert code == 0 and "Chords by time" in out, err
+    assert code == 0, err
+    assert "Chords by time" in out, err
     for verb in ("sessions", "history"):
         code, out, err = _run(capsys, verb, "--root", root)
-        assert code == 0 and "Traceback" not in err, (verb, err)
+        assert code == 0, (verb, err)
+        assert "Traceback" not in err, (verb, err)
     bad = root / "20260102-100300-0000000d"
     bad.mkdir()
     (bad / "session.json").write_text("{not json", encoding="utf-8")
     code, out, err = _run(capsys, "brief", "20260102-100300-0000000d", "--root", root)
-    assert code == 2 and "20260102-100300-0000000d" in err, err
+    assert code == 2, err
+    assert "20260102-100300-0000000d" in err, err
 
 
 @needs_node
@@ -1161,13 +1179,17 @@ def test_notes_still_held_when_the_log_ends(tmp_path, capsys):
     events = [{"t_ms": t, "kind": "on", "note": m, "vel": 60} for t, m in ((0, 60), (5, 64), (9, 67))]
     _store(root, "20260103-100000-0000000a", events, now - timedelta(hours=1), closed=True)
     code, out, _ = _run(capsys, "brief", "20260103-100000-0000000a", "--root", root)
-    assert code == 0 and "Home key: none yet" in out and "3 notes were still sounding when the log ends" in out, out
+    assert code == 0, out
+    assert "Home key: none yet" in out, out
+    assert "3 notes were still sounding when the log ends" in out, out
     assert "Key areas: none yet" in out
     assert "0:00-0:00" not in out
     assert "notes a minute" not in out  # nor a rate for a session of a few milliseconds
     _store(root, "20260103-100100-0000000b", events, now - timedelta(seconds=6), closed=False)
     code, out, _ = _run(capsys, "brief", "20260103-100100-0000000b", "--root", root)
-    assert code == 0 and "Home key: C major" in out and "counted up to now" in out, out
+    assert code == 0, out
+    assert "Home key: C major" in out, out
+    assert "counted up to now" in out, out
 
 
 @needs_node
@@ -1186,7 +1208,8 @@ def test_cli_refuses_times_and_numbers_that_make_no_sense(store, capsys):
     ]
     for argv in bad:
         code, _, err = _run(capsys, *argv, "--root", root)
-        assert code == 2 and err.strip(), argv
+        assert code == 2, argv
+        assert err.strip(), argv
     assert _run(capsys, "moment", ids["rich"], "1:29", "--root", root)[0] == 0
 
 
@@ -1252,7 +1275,8 @@ def test_brief_fits_in_80_lines_with_many_key_areas():
             counts.setdefault(area, 0)
         counts[area] += len(re.findall(r"(?:^|\| )\d+:\d\d ", line.strip()))
     long_areas = {a["key"] for a in doc["keys"]["areas"] if a["seconds"] >= pr.ASK_MIN_AREA_S}
-    assert long_areas and all(counts.get(k, 0) >= 3 for k in long_areas), counts
+    assert long_areas, counts
+    assert all(counts.get(k, 0) >= 3 for k in long_areas), counts
 
 
 # ================================================================================ round-2 verifier must-fix items
@@ -1272,7 +1296,8 @@ def test_one_chord_built_under_one_pedal_is_not_a_key_change():
     f_windows = [w for w in late if w["root"] == "F"]
     assert len(f_windows) == 1, [(w["at"], w["name"], w["pcs"]) for w in late]
     w = f_windows[0]
-    assert w["number"].startswith("2") and w["class"] == "secondary dominant", w
+    assert w["number"].startswith("2"), w
+    assert w["class"] == "secondary dominant", w
     assert w["class_detail"] == "5 of 5, not followed by its target", w["class_detail"]
     assert not [m for m in doc["findings"]["lydian_4"] if m["start_ms"] >= t - 100]
 
@@ -1294,9 +1319,11 @@ def test_grace_notes_crushes_and_notes_that_stopped_are_not_chord_tones():
     acts += [(t + 2750, "down", 0, 0), (t + 5500, "up", 0, 0)]
     doc = _analyze(acts)
     late = [w for w in doc["windows"] if w["start_ms"] >= t + 1200]
-    assert late and not any({"Db", "C#"} & set(w["pcs"]) for w in late), [(w["at"], w["name"], w["pcs"]) for w in late]
+    assert late, [(w["at"], w["name"], w["pcs"]) for w in late]
+    assert not any({"Db", "C#"} & set(w["pcs"]) for w in late), [(w["at"], w["name"], w["pcs"]) for w in late]
     struck = next(w for w in late if w["start_ms"] <= t + 1500 < w["end_ms"])  # G2 G3 Eb5 Bb4 with the grace and crush
-    assert not {"Cb", "B", "Db", "C#"} & set(struck["pcs"]) and struck["root"] == "Eb", (struck["name"], struck["pcs"])
+    assert not {"Cb", "B", "Db", "C#"} & set(struck["pcs"]), (struck["name"], struck["pcs"])
+    assert struck["root"] == "Eb", (struck["name"], struck["pcs"])
     assert not [w for w in doc["windows"] if w["class"] == "secondary dominant"]
     acts = []
     block(acts, 0, ["C3", "E4", "G4"], 2000)
@@ -1320,7 +1347,8 @@ def test_a_pedalled_treble_run_is_a_line_not_a_progression():
     acts.append((t, "up", 0, 0))
     doc = _analyze(acts)
     shown = [(w["at"], w["name"], w["kind"]) for w in doc["windows"]]
-    assert pr.progression_data(doc)["chords"] == 0 and pr.progression_data(doc)["loops"] == [], shown
+    assert pr.progression_data(doc)["chords"] == 0, shown
+    assert pr.progression_data(doc)["loops"] == [], shown
     assert any(w["kind"] == "line" and " run " in w["name"] for w in doc["windows"]), shown
     assert doc["findings"]["outside_key"] == []
     assert doc["findings"]["pedal_points"] == []
@@ -1376,9 +1404,12 @@ def test_lydian_4_counts_moments_and_the_5_chord_over_the_4_bass_is_a_dominant()
     doc = _analyze(acts)
     f = doc["findings"]
     lyd = f["lydian_4"]
-    assert len(lyd) == 1 and lyd[0]["seconds"] >= 2.9, [(m["at"], m["label"], m["seconds"]) for m in lyd]
+    assert len(lyd) == 1, [(m["at"], m["label"], m["seconds"]) for m in lyd]
+    assert lyd[0]["seconds"] >= 2.9, [(m["at"], m["label"], m["seconds"]) for m in lyd]
     heard = [d for d in f["dominants"]["windows"] if d["over"] == "4"]
-    assert heard and heard[0]["label"] == "Bb7/Ab" and heard[0]["number"] == "5^7/4", f["dominants"]["windows"]
+    assert heard, f["dominants"]["windows"]
+    assert heard[0]["label"] == "Bb7/Ab", f["dominants"]["windows"]
+    assert heard[0]["number"] == "5^7/4", f["dominants"]["windows"]
     kinds = [(c["kind"], c["chords"][0]) for c in f["cadences"]]
     assert any(k == "5 over a 1 pedal -> 1" and first.startswith("Bb") for k, first in kinds), kinds
 
@@ -1443,9 +1474,13 @@ def test_an_impossible_event_time_is_dropped_not_allocated(tmp_path, capsys):
     sid = _store(root, "20260104-100000-0000000a", bad, now - timedelta(minutes=5))
     started = time.monotonic()
     code, out, err = _run(capsys, "sessions", "--root", root)
-    assert code == 0 and "impossible time" in out and sid in out, (out, err)
+    assert code == 0, (out, err)
+    assert "impossible time" in out, (out, err)
+    assert sid in out, (out, err)
     code, out, _ = _run(capsys, "brief", sid, "--root", root)
-    assert code == 0 and "Home key: Eb major" in out and "impossible time" in out, out
+    assert code == 0, out
+    assert "Home key: Eb major" in out, out
+    assert "impossible time" in out, out
     assert _run(capsys, "history", "--days", 30, "--root", root)[0] == 0
     assert time.monotonic() - started < 30
     doc = pr.analyze(bad)
@@ -1460,13 +1495,15 @@ def test_a_short_phrase_after_a_long_pause_stays_its_own_section():
     more, _ = pedalled_progression([["D3", "F4", "A4", "C5"]], seconds=3.0, start=t + 600000)
     events = perform(acts + more)
     doc = pr.analyze(events)
-    assert len(doc["sections"]) == 2 and doc["sections"][1]["pause_before_s"] >= 590, doc["sections"]
+    assert len(doc["sections"]) == 2, doc["sections"]
+    assert doc["sections"][1]["pause_before_s"] >= 590, doc["sections"]
     assert doc["keys"]["areas"][-1]["after_pause_s"] >= 590
     sess = _sess(events, doc)
     text = pr.render_brief(sess, pr.brief_data(sess))
     timeline = text.split("Held harmony", 1)[1].split("\n\n", 1)[0]
     areas_line = re.split(r"\n\S|\n  \d", text.split("Key areas", 1)[1], maxsplit=1)[0]  # with its wrapped lines
-    assert "after a 600 s pause" in timeline and "after a 600 s pause" in areas_line, text
+    assert "after a 600 s pause" in timeline, text
+    assert "after a 600 s pause" in areas_line, text
 
 
 @needs_node
@@ -1502,7 +1539,8 @@ def test_cli_session_paths_and_bad_options(store, capsys, tmp_path):
         ("moment", ids["rich"], "0:30", "--window", "nan"),
     ):
         code, _, err = _run(capsys, *argv, "--root", root)
-        assert code == 2 and "Traceback" not in err, argv
+        assert code == 2, argv
+        assert "Traceback" not in err, argv
 
 
 def test_glossary_examples_follow_the_home_key():
@@ -1511,7 +1549,8 @@ def test_glossary_examples_follow_the_home_key():
     assert "(Db minor for Db major)" in text
     assert "D over Ab in Eb major" in "\n".join(pr.glossary("the Lydian 4"))  # Eb major without a home key
     folded = pr.glossary("numbers, Lydian, velocity, semitone, runner-up, new section after a pause", "C major", 6)
-    assert "- Lydian: " in "\n".join(folded) and any(line.startswith("- also: ") for line in folded), folded
+    assert "- Lydian: " in "\n".join(folded), folded
+    assert any(line.startswith("- also: ") for line in folded), folded
 
 
 @needs_node
@@ -1539,7 +1578,9 @@ def test_a_chromatic_bass_line_under_held_notes_is_one_finding():
     doc = _analyze(acts + more)
     lines = doc["findings"]["bass_lines"]
     walk = [b for b in lines if b["start_ms"] >= t - 100]
-    assert walk and walk[0]["direction"] == "falling" and walk[0]["chromatic"], lines
+    assert walk, lines
+    assert walk[0]["direction"] == "falling", lines
+    assert walk[0]["chromatic"], lines
     assert [pr._sp_pc(pr._parse_name(re.sub(r"-?\d+$", "", x))) for x in walk[0]["notes"]][:5] == [7, 6, 5, 4, 3]
 
 
@@ -1642,7 +1683,8 @@ def test_a_minor_chord_over_its_3rd_is_heard_from_its_held_bass_unless_its_root_
     chords = [["F2", "A3", "C4", "F4"], ["Bb2", "D4", "F4", "A4"], fmaj, ["C3", "E4", "G4", "Bb4"]]
     doc = _analyze(pedalled_progression(chords, seconds=3.0, repeats=3)[0])
     home = [w for w in doc["windows"] if w["bass"]["note"] == "F2" and "D" in w["pcs"] and "E" in w["pcs"]]
-    assert home and all(w["analysed_as"] == "Fmaj7(13)" and w["number"] == "1maj7(13)" for w in home), [
+    assert home, [(w["at"], w["name"], w["analysed_as"]) for w in home]
+    assert all(w["analysed_as"] == "Fmaj7(13)" and w["number"] == "1maj7(13)" for w in home), [
         (w["at"], w["name"], w["analysed_as"]) for w in home
     ]
     kinds = [(c["kind"], c["chords"][-1]) for c in doc["findings"]["cadences"]]
@@ -1650,7 +1692,8 @@ def test_a_minor_chord_over_its_3rd_is_heard_from_its_held_bass_unless_its_root_
     gm_add9, gm9_bb = ["G2", "A3", "Bb3", "D4"], ["Bb2", "G3", "A3", "D4", "F4"]
     doc = _analyze(pedalled_progression([chords[0], gm_add9, gm9_bb, chords[3]], seconds=2.0, repeats=3)[0])
     over3 = [w for w in doc["windows"] if w["bass"]["note"] == "Bb2"]
-    assert over3 and all(w["analysed_as"] == "Gm9/Bb" for w in over3), [(w["at"], w["analysed_as"]) for w in over3]
+    assert over3, [(w["at"], w["analysed_as"]) for w in over3]
+    assert all(w["analysed_as"] == "Gm9/Bb" for w in over3), [(w["at"], w["analysed_as"]) for w in over3]
     assert (
         pr.name_data(["Bb2", "G3", "A3", "D4", "F4"], "F major")["analysed"]["name"] == "Bbmaj7(13)"
     )  # alone: from its bass
@@ -1658,7 +1701,8 @@ def test_a_minor_chord_over_its_3rd_is_heard_from_its_held_bass_unless_its_root_
         pedalled_progression([chords[0], ["G2", "Bb3", "F4"], chords[3], chords[0]], seconds=2.0, repeats=2)[0]
     )
     shells = [w for w in doc["windows"] if w["analysed_as"] == "Gm7"]
-    assert shells and all(w["label"] == "Gm7(no5)" for w in shells), [(w["at"], w["label"]) for w in doc["windows"]]
+    assert shells, [(w["at"], w["label"]) for w in doc["windows"]]
+    assert all(w["label"] == "Gm7(no5)" for w in shells), [(w["at"], w["label"]) for w in doc["windows"]]
     a = pr.name_data(["C3", "G3", "Eb4", "E4", "F5", "A5", "Bb5"], "F major")["analysed"]
     assert (a["name"], a["from"], a["number"]) == ("C13#9(11)", "reading", "5^13#9(11)"), a
 
@@ -1753,9 +1797,13 @@ def test_days_of_held_sound_cost_what_the_playing_costs(tmp_path, capsys):
     assert _run(capsys, "sessions", "--root", root)[0] == 0
     assert _run(capsys, "history", "--days", 30, "--root", root)[0] == 0
     code, out, _ = _run(capsys, "brief", b, "--root", root)
-    assert code == 0 and "nothing was struck for" in out and "while notes kept sounding" in out, out
+    assert code == 0, out
+    assert "nothing was struck for" in out, out
+    assert "while notes kept sounding" in out, out
     code, out, _ = _run(capsys, "brief", a, "--root", root)
-    assert code == 0 and "Home key: C major" in out and "while notes kept sounding" in out, out
+    assert code == 0, out
+    assert "Home key: C major" in out, out
+    assert "while notes kept sounding" in out, out
     assert time.monotonic() - started < 30
     doc = pr.analyze(pedal)
     assert len(doc["sections"]) == 165
@@ -1786,6 +1834,8 @@ def test_outside_groups_leave_out_only_the_times_that_ride_a_bass_line():
     doc = {"notes": 10, "home_key": "F major", "windows": [row("0:50", None), row("1:19", "1:15"), row("2:40", None)]}
     groups = pr.borrowed_data(doc)["groups"]
     by = {bool(g["on_bass_line"]): g for g in groups}
-    assert len(groups) == 2 and by[False]["times"] == ["0:50", "2:40"] and by[False]["seconds"] == 2.0, groups
+    assert len(groups) == 2, groups
+    assert by[False]["times"] == ["0:50", "2:40"], groups
+    assert by[False]["seconds"] == 2.0, groups
     assert by[True]["times"] == ["1:19"]
     assert by[True]["on_bass_line"] == "1:15"

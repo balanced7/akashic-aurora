@@ -199,7 +199,9 @@ def test_a_domain_is_a_triple_not_a_tag():
 
     for name in ("system", "vfx"):
         d = DOMAINS[name]
-        assert d["triggers"] and d["keys"] and d["evidence"], name
+        assert d["triggers"], name
+        assert d["keys"], name
+        assert d["evidence"], name
     assert "render" in DOMAINS["vfx"]["evidence"].lower()
     assert "test" in DOMAINS["system"]["evidence"].lower()
 

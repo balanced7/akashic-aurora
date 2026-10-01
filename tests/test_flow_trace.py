@@ -55,9 +55,8 @@ def test_f1_answers_chain_builds_the_waterfall():
     assert root["kind"] == "request"
     assert len(root["children"]) == 1
     child = root["children"][0]
-    assert child["kind"] == "reply" and child["offset_ms"] == 4000, (
-        f"reply offset must be child_ms - root_ms, got {child.get('offset_ms')}"
-    )
+    assert child["kind"] == "reply", f"reply offset must be child_ms - root_ms, got {child.get('offset_ms')}"
+    assert child["offset_ms"] == 4000, f"reply offset must be child_ms - root_ms, got {child.get('offset_ms')}"
     print("--- F1 answers chain ---\n  reply nested under ask, offset 4000ms OK")
 
 

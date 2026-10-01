@@ -562,7 +562,9 @@ def test_a_change_may_land_before_one_already_waiting_later(jam):
     assert status == 200
     assert (key["at"], key["effective_bar"]) == ("pass", 2)
     status, tempo = post(jam, control, {"op": "tempo", "bpm": "+4"})
-    assert status == 200 and tempo["effective_bar"] == 1 and tempo["bpm"] == 70, tempo
+    assert status == 200, tempo
+    assert tempo["effective_bar"] == 1, tempo
+    assert tempo["bpm"] == 70, tempo
     run = get(jam, f"/api/piano/jam/runs/{rid}")[1]["run"]
     S.validate_run(run)
     segs = run["segments"]
@@ -614,7 +616,8 @@ def test_a_change_during_the_count_in_lands_on_bar_0_and_the_run_stays_whole(jam
         {"op": "set", "settings": {"humanize": 0, "dropout": 0.25}},
     ):
         status, reply = post(jam, control, body)
-        assert status == 200 and reply["effective_bar"] == 0, (body, reply)
+        assert status == 200, (body, reply)
+        assert reply["effective_bar"] == 0, (body, reply)
         replies.append(reply)
     assert [r.get("bpm") for r in replies[:2]] == [70, 74]
     assert "count-in" in replies[0]["note"]
@@ -644,7 +647,8 @@ def test_a_change_during_the_count_in_lands_on_bar_0_and_the_run_stays_whole(jam
     jam.epoch.t += 5
     for body in ({"op": "tempo", "bpm": "+4"}, {"op": "next", "key": "F major", "at": "bar"}):
         status, reply = post(jam, f"/api/piano/jam/runs/{fast['run']}/control", body)
-        assert status == 200 and reply["effective_bar"] == 0, (body, reply)
+        assert status == 200, (body, reply)
+        assert reply["effective_bar"] == 0, (body, reply)
     run = get(jam, f"/api/piano/jam/runs/{fast['run']}")[1]["run"]
     S.validate_run(run)
     assert run["bar0_epoch_ms"] == fast["bar0_epoch_ms"]
@@ -661,7 +665,9 @@ def test_a_refused_change_leaves_the_run_exactly_as_it_was(jam, monkeypatch):
         RUNS, "insert_segment", lambda segs, m, bar, bpm=None, def_version=None: [dict(segs[0], def_from_bar=5)]
     )
     status, reply = post(jam, control, {"op": "tempo", "bpm": 80})
-    assert status == 409 and reply["field"] == "segments[0].def_from_bar" and "unchanged" in reply["error"], reply
+    assert status == 409, reply
+    assert reply["field"] == "segments[0].def_from_bar", reply
+    assert "unchanged" in reply["error"], reply
     monkeypatch.undo()
     assert get(jam, f"/api/piano/jam/runs/{rid}")[1] == before
     assert (jam.root / "runs" / rid / "run.json").read_bytes() == disk
@@ -669,7 +675,8 @@ def test_a_refused_change_leaves_the_run_exactly_as_it_was(jam, monkeypatch):
     assert status == 200
     assert reply["version"] == 2
     status, reply = post(jam, control, {"op": "set", "settings": {"dropout": 1.5}})
-    assert status == 400 and reply["field"].endswith("dropout"), reply
+    assert status == 400, reply
+    assert reply["field"].endswith("dropout"), reply
 
 
 # ============================================================================================ time passing, restart

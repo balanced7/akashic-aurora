@@ -74,7 +74,8 @@ L._reviving.discard(aid)
 t0 = time.time()
 L._auto_revive_run(tag, aid, {"phase": "thinking", "stuck_seconds": 400})
 dt = time.time() - t0
-assert len(revives) == 1 and dt < 5, (revives, dt)
+assert len(revives) == 1, (revives, dt)
+assert dt < 5, (revives, dt)
 print(f"[PASS] jitter applied, revive still fires (dt={dt:.2f}s)")
 
 for k in ("deepseek", "l3bh_probe"):

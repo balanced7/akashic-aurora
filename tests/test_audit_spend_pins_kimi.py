@@ -98,7 +98,8 @@ def test_s1_brief_refuse_disagrees_with_config(tmp_path):
     )  # operator believes the line is 90
     rows2 = d2.run()
     s1b = [r for r in rows2 if r.rule == "brief-vs-config"]
-    assert s1b and s1b[0].verdict == "DRIFT", "operator belief ($90) vs config ($95) must photograph as DRIFT"
+    assert s1b, "operator belief ($90) vs config ($95) must photograph as DRIFT"
+    assert s1b[0].verdict == "DRIFT", "operator belief ($90) vs config ($95) must photograph as DRIFT"
 
 
 # ---------------------------------------------------------------------------
@@ -115,7 +116,8 @@ def test_s2_meter_budget_below_refuse_line_is_drift(tmp_path):
     d = SpendDomain(meter_path=meter, warn_at=80.0, refuse_at=95.0)
     rows = d.run()
     s2 = [r for r in rows if r.rule == "config-vs-meter"]
-    assert s2 and s2[0].verdict == "DRIFT", (
+    assert s2, f"budget ($90) < refuse ($95) must DRIFT, got {[(r.rule, r.verdict) for r in rows]}"
+    assert s2[0].verdict == "DRIFT", (
         f"budget ($90) < refuse ($95) must DRIFT, got {[(r.rule, r.verdict) for r in rows]}"
     )
     # and the founding live shape: budget $124.58 >= refuse $95 -> NO drift on S2
@@ -137,7 +139,8 @@ def test_s3_stale_reconcile_fires(tmp_path):
     meter = _meter(tmp_path, last_reconcile_ts=old)
     d = SpendDomain(meter_path=meter, warn_at=80.0, refuse_at=95.0)
     s3 = [r for r in d.run() if r.rule == "reconcile-hygiene"]
-    assert s3 and s3[0].verdict in ("DRIFT", "UNKNOWN"), "48h without a reconcile must photograph"
+    assert s3, "48h without a reconcile must photograph"
+    assert s3[0].verdict in ("DRIFT", "UNKNOWN"), "48h without a reconcile must photograph"
     fresh = _meter(tmp_path / "b")
     d2 = SpendDomain(meter_path=fresh, warn_at=80.0, refuse_at=95.0)
     assert not [r for r in d2.run() if r.rule == "reconcile-hygiene"], "a reconcile 100s ago must not fire"
@@ -154,7 +157,8 @@ def test_s4_unseeded_spend_confesses(tmp_path):
     meter = _meter(tmp_path, seeded=False, spent_usd=3.21)
     d = SpendDomain(meter_path=meter, warn_at=80.0, refuse_at=95.0)
     s4 = [r for r in d.run() if r.rule == "seeded-honesty"]
-    assert s4 and s4[0].verdict == "UNKNOWN", "unseeded meter with spend must read UNKNOWN (a floor, not a figure)"
+    assert s4, "unseeded meter with spend must read UNKNOWN (a floor, not a figure)"
+    assert s4[0].verdict == "UNKNOWN", "unseeded meter with spend must read UNKNOWN (a floor, not a figure)"
 
 
 # ---------------------------------------------------------------------------
@@ -167,6 +171,5 @@ def test_s5_missing_meter_is_unknown_not_crash(tmp_path):
 
     d = SpendDomain(meter_path=str(tmp_path / "nope.json"), warn_at=80.0, refuse_at=95.0)
     rows = d.run()
-    assert rows and all(r.verdict == "UNKNOWN" for r in rows), (
-        "missing sidecar must degrade to UNKNOWN rows, never raise"
-    )
+    assert rows, "missing sidecar must degrade to UNKNOWN rows, never raise"
+    assert all(r.verdict == "UNKNOWN" for r in rows), "missing sidecar must degrade to UNKNOWN rows, never raise"

@@ -205,7 +205,8 @@ def test_present_manifests_load_and_cover_every_kind():
         assert sc.coverage(full, m) == []
         for kind in sc.ATOM_KINDS:  # I6 for the whole family, not just this scene
             row = m["atoms"].get(kind)
-            assert row and (row.get("preserves") or row.get("degrades") or row.get("drops")), (mid, kind)
+            assert row, (mid, kind)
+            assert row.get("preserves") or row.get("degrades") or row.get("drops"), (mid, kind)
         if m["status"] == "exists":
             assert m["receipts"], f"{mid}: exists needs a receipt (a module without one is presumed broken)"
 

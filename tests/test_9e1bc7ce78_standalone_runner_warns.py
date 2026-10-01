@@ -97,7 +97,8 @@ def test_p1_kimi_hint_names_its_own_runner_script():
     fn = getattr(ds, "standalone_warning", None)
     assert callable(fn), "P1: daemon_state.standalone_warning does not exist yet"
     text = fn("kimi", c=FakeRedis(), ns="bifrost", runner_script="bifrost_runner_kimi.py")
-    assert text and "--runner-script bifrost_runner_kimi.py" in text, (
+    assert text, "P1: a kimi relaunch without --runner-script spawns the DEEPSEEK runner (daemon default)"
+    assert "--runner-script bifrost_runner_kimi.py" in text, (
         "P1: a kimi relaunch without --runner-script spawns the DEEPSEEK runner (daemon default)"
     )
 

@@ -148,7 +148,8 @@ def test_the_walk_does_not_descend_the_same_real_directory_twice(monkeypatch, tm
     monkeypatch.setattr(ev, "_WALK_ROOTS", (str(real), str(real)))  # same root twice
 
     res = ev.search("target.bin")
-    assert res.ok and res.paths, "the duplicated root broke the search entirely"
+    assert res.ok, "the duplicated root broke the search entirely"
+    assert res.paths, "the duplicated root broke the search entirely"
     assert len(res.paths) == 1, (
         f"the same real directory was walked twice and the file reported {len(res.paths)} times: {res.paths}"
     )

@@ -74,7 +74,9 @@ def test_full_assembly():
     # all the expected sections assembled
     assert "briefing" in s
     assert s["briefing"]["task"] == "build the aggregator"
-    assert s["decisions"] and s["learnings"] and s["blockers"], "ranked sections present"
+    assert s["decisions"], "ranked sections present"
+    assert s["learnings"], "ranked sections present"
+    assert s["blockers"], "ranked sections present"
     assert s["project_state"]["current_work"]["task"] == "building aggregator"
     # source pointers preserved through assembly (traceability)
     assert all(d["source"] for d in s["decisions"])
@@ -86,7 +88,8 @@ def test_full_assembly():
     assert ctx["approx_tokens"] > 0
     assert {"decisions", "learnings", "blockers", "project_state", "briefing"}.issubset(set(ctx["coverage"]))
     # the distilled skeleton (progressive disclosure): compact, traceable, critic-ok
-    assert isinstance(ctx["skeleton"], str) and ctx["skeleton"], "should have a compact skeleton"
+    assert isinstance(ctx["skeleton"], str), "should have a compact skeleton"
+    assert ctx["skeleton"], "should have a compact skeleton"
     assert ctx["skeleton_ok"] is True, f"skeleton critic should pass: {ctx}"
     assert all(e["source"] for e in ctx["skeleton_entries"]), "every skeleton entry keeps a source pointer"
     # the briefing handoff leads the skeleton

@@ -114,7 +114,8 @@ def test_slides_html_obeys_the_artifact_subset(rendered, slide_ids):
     for sid in slide_ids:
         html = _read(out_dir / "slides" / f"{sid}.html")
         sizes = [int(m) for m in re.findall(r"font-size:\s*(\d+)px", html)]
-        assert sizes and min(sizes) >= 24, (sid, sorted(set(sizes)))
+        assert sizes, (sid, sorted(set(sizes)))
+        assert min(sizes) >= 24, (sid, sorted(set(sizes)))
         for forbidden in ("class=", "margin:", "<script", "<text", "var(", "<style", "z-index"):
             assert forbidden not in html, (sid, forbidden)
         assert not re.search(r"\d(?:em|rem|vw|vh)\b", html), sid

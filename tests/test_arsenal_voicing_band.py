@@ -233,14 +233,18 @@ def test_band_registers_spacing_and_the_bass(seed):
                 v = r["band"][backing]
                 notes = v["notes"]
                 assert notes == sorted(set(notes)), where
-                assert 28 <= notes[0] <= 50 and notes[0] % 12 == r["bass_pc"], (where, backing, notes)
-                assert len(v["roles"]) == len(notes) and v["roles"][0] == "bass", (where, backing, v)
+                assert 28 <= notes[0] <= 50, (where, backing, notes)
+                assert notes[0] % 12 == r["bass_pc"], (where, backing, notes)
+                assert len(v["roles"]) == len(notes), (where, backing, v)
+                assert v["roles"][0] == "bass", (where, backing, v)
                 pairs = [(a, b) for a, b in itertools.pairwise(notes) if b - a in LIL and a < LIL[b - a]]
                 assert not pairs, (where, backing, notes, pairs)
             assert r["band"]["bass"]["notes"] == [r["band"]["full"]["notes"][0]], where
             full, comp = r["band"]["full"]["notes"], r["band"]["comp"]["notes"]
-            assert full[-1] <= 69 and comp[-1] <= 64, (where, full, comp)
-            assert 3 <= len(full) <= 7 and 2 <= len(comp) <= 7, (where, full, comp)
+            assert full[-1] <= 69, (where, full, comp)
+            assert comp[-1] <= 64, (where, full, comp)
+            assert 3 <= len(full) <= 7, (where, full, comp)
+            assert 2 <= len(comp) <= 7, (where, full, comp)
             # Loosening the seed deck may need where nothing else fits, always said in a warning: a minor 2nd on top, or
             # an inner comp voice over B3 (never a broken low-interval limit or a wider span)
             loose = [w for w in r["warnings"] if w.startswith("nothing else fits")]
@@ -256,14 +260,16 @@ def test_band_registers_spacing_and_the_bass(seed):
                 if w.startswith("nothing else fits")
             ]
             for backing, notes in (("full", full), ("comp", comp)):
-                assert notes[1] - notes[0] >= 7 and notes[-1] - notes[1] <= 24, (where, notes)
+                assert notes[1] - notes[0] >= 7, (where, notes)
+                assert notes[-1] - notes[1] <= 24, (where, notes)
                 if notes[-1] - notes[-2] == 1:
                     assert any(f"the {backing} voicing" in w and "minor 2nd" in w for w in group_loose), (
                         where,
                         backing,
                         notes,
                     )
-            assert full[1] >= 50 and comp[1] >= 48, (where, full, comp)
+            assert full[1] >= 50, (where, full, comp)
+            assert comp[1] >= 48, (where, full, comp)
             # comp's inner voices sit in C3-B3; only the top voice or an altered colour reaches up to E4
             for note, role in zip(comp[1:-1], r["band"]["comp"]["roles"][1:-1], strict=False):
                 if note > 59 and not any("comp voicing" in w and "inner voice" in w for w in group_loose):
@@ -273,7 +279,8 @@ def test_band_registers_spacing_and_the_bass(seed):
             in_run = r["upper_same"] or (i + 1 < len(results) and results[i + 1]["upper_same"])
             doubled = [n for n in full[1:] if n % 12 == r["bass_pc"]]
             if doubled and not in_run:
-                assert r["bass_pc"] == root and len(full) <= 4, (where, full)
+                assert r["bass_pc"] == root, (where, full)
+                assert len(full) <= 4, (where, full)
             checked += 1
     assert checked == 12 * sum(len(items_for(c, v, 0)) for c in SEED for v in c["lines"])
 
@@ -287,7 +294,8 @@ def test_full_band_reads_back_as_itself_except_the_three_reads_as_chords(seed):
                 assert r["reads_as"] is None, r
                 continue
             misses.add((cid, variant, i + 1))
-            assert r["reads_as"] and any("reads it as" in w or "reads this one as" in w for w in r["warnings"]), r
+            assert r["reads_as"], r
+            assert any("reads it as" in w or "reads this one as" in w for w in r["warnings"]), r
     assert misses == READS_AS
 
 

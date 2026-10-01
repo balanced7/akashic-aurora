@@ -37,7 +37,8 @@ def test_superseded_requires_target(tmp_path):
     assert v == "superseded"
     assert target.startswith("docs/x.md")
     v, target = _classify(tmp_path, "# T\nStatus: superseded\n")
-    assert v == "superseded" and target == "", "no target -> guard fails it upstream"
+    assert v == "superseded", "no target -> guard fails it upstream"
+    assert target == "", "no target -> guard fails it upstream"
 
 
 def test_historical_parses(tmp_path):

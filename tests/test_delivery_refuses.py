@@ -94,7 +94,8 @@ def test_a_real_body_still_posts_normally():
         force=True,
         post=_sent(calls),
     )
-    assert out.ok and not out.partial, out
+    assert out.ok, out
+    assert not out.partial, out
     assert len(calls) == 1
     assert "a real body" in calls[0][1]
 
@@ -185,11 +186,13 @@ def test_a_fallback_to_global_is_ANNOUNCED_never_silent():
 def test_no_target_at_all_REFUSES_rather_than_returning_something_falsy_and_quiet():
     url, _source, note = DF.send_target("claude", seat_url="", global_url="")
     assert not url
-    assert note and ("not configured" in note.lower() or "no " in note.lower()), note
+    assert note, note
+    assert "not configured" in note.lower() or "no " in note.lower(), note
 
 
 def test_the_happy_path_says_WHERE_it_is_going():
     """Yesterday's whole arc: a receipt must name what it proved. 'posted' is not a
     receipt if it cannot tell you which room."""
     _, source, _ = DF.send_target("claude", seat_url="https://lane/vandor", global_url="https://global/hook")
-    assert source and source.strip(), "the target must be nameable in the receipt"
+    assert source, "the target must be nameable in the receipt"
+    assert source.strip(), "the target must be nameable in the receipt"

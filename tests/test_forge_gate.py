@@ -106,7 +106,8 @@ def test_good_edit_passes_with_axis2_improvement():
     rep = _gate("seam_guard", GOOD_EDIT)
     assert rep["verdict"] == "PASS", rep
     assert rep["axis1"]["kept"] == rep["axis1"]["credited_contexts"] == 1
-    assert rep["axis2"]["improved"] and not rep["axis2"]["regressed"], rep["axis2"]
+    assert rep["axis2"]["improved"], rep["axis2"]
+    assert not rep["axis2"]["regressed"], rep["axis2"]
     assert rep["axis2"]["incumbent_hits"] > rep["axis2"]["variant_hits"]
     print("--- good edit ---\n  keeps credited match, stops noise match -> PASS OK")
 
@@ -120,9 +121,11 @@ def test_equal_rewrite_is_churn_not_progress():
 
 def test_floor_checks_budget_and_trigger():
     rep = _gate("seam_guard", BLOATED_EDIT)
-    assert rep["verdict"] == "FAIL" and not rep["checks"]["budget"]["ok"], rep["checks"]
+    assert rep["verdict"] == "FAIL", rep["checks"]
+    assert not rep["checks"]["budget"]["ok"], rep["checks"]
     rep2 = _gate("seam_guard", NO_TRIGGER_EDIT)
-    assert rep2["verdict"] == "FAIL" and not rep2["checks"]["trigger"]["ok"], rep2["checks"]
+    assert rep2["verdict"] == "FAIL", rep2["checks"]
+    assert not rep2["checks"]["trigger"]["ok"], rep2["checks"]
     print("--- floors ---\n  40% token budget + trigger-clause parseability enforced OK")
 
 
@@ -141,10 +144,10 @@ def test_rehab_class_vacuous_axis1_axis2_carries():
     rep = gate_edit("noisy_lesson", tightened, learning_store=_corpus(), events=[], injections=inj, min_relevance=FLOOR)
     assert rep["axis1"]["vacuous"] is True
     assert rep["axis1"]["credited_contexts"] == 0
-    assert rep["checks"]["grounding"]["ok"] and "schedule" in rep["checks"]["grounding"]["shared"], rep["checks"][
-        "grounding"
-    ]
-    assert rep["verdict"] == "PASS" and rep["axis2"]["improved"], rep
+    assert rep["checks"]["grounding"]["ok"], rep["checks"]["grounding"]
+    assert "schedule" in rep["checks"]["grounding"]["shared"], rep["checks"]["grounding"]
+    assert rep["verdict"] == "PASS", rep
+    assert rep["axis2"]["improved"], rep
     print("--- rehab class ---\n  vacuous axis 1; grounded tightening sheds the stray -> PASS OK")
 
 
@@ -184,7 +187,8 @@ def test_variant_adding_noise_hits_still_fails_regressed():
         "every source through the one seam. Don't when prototyping."
     )
     rep = _gate("seam_guard", grabby, events=[], injections=stale_inj)
-    assert rep["verdict"] == "FAIL" and rep["axis2"]["regressed"], rep
+    assert rep["verdict"] == "FAIL", rep
+    assert rep["axis2"]["regressed"], rep
     print("--- regression guard ---\n  variant grabbing new noise contexts -> FAIL OK")
 
 
@@ -212,7 +216,8 @@ def test_body_hollowing_rejected():
     destroying the lesson's value. The body floor counts the advice, not the trigger."""
     hollow = "Use when editing the consolidator seam pipeline, before refactoring: ok. Don't when prototyping."
     rep = _gate("seam_guard", hollow)
-    assert rep["verdict"] == "FAIL" and not rep["checks"]["body"]["ok"], rep["checks"]
+    assert rep["verdict"] == "FAIL", rep["checks"]
+    assert not rep["checks"]["body"]["ok"], rep["checks"]
     assert any("hollowed" in r for r in rep["reasons"]), rep["reasons"]
     print("--- body floor ---\n  gutted advice behind an intact trigger -> FAIL OK")
 
@@ -258,7 +263,8 @@ def test_reject_stamp_and_apply_rollback_roundtrip():
     assert rep["verdict"] == "FAIL"
     assert rep.get("rejected_stamped") is True
     buf = json.loads(ls._load_experiment("seam_guard").get("forge_rejected") or "[]")
-    assert buf and DEGRADED_EDIT[:60] in buf[0]["draft"], buf
+    assert buf, buf
+    assert DEGRADED_EDIT[:60] in buf[0]["draft"], buf
     # PASS + apply swaps the text reversibly
     rep2 = gate_edit(
         "seam_guard", GOOD_EDIT, learning_store=ls, events=EVENTS, injections=INJECTIONS, min_relevance=FLOOR

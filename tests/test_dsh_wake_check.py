@@ -81,7 +81,9 @@ def test_p2_persists_local_watermark(patched, tmp_path, capsys):
 def test_p3_non_wake_worthy_is_silent(patched, monkeypatch, capsys):
     _Bus.msgs = [_Msg("note", "kimi"), _Msg("trace", "claude"), _Msg("status", "claude")]
     rc, out = _run(capsys)
-    assert rc == 0 and out["count"] == 0 and out["has_wake_worthy"] is False, (
+    assert rc == 0, "note/status/trace must never wake an idle seat -- silent-by-default ratchet"
+    assert out["count"] == 0, "note/status/trace must never wake an idle seat -- silent-by-default ratchet"
+    assert out["has_wake_worthy"] is False, (
         "note/status/trace must never wake an idle seat -- silent-by-default ratchet"
     )
 
@@ -92,7 +94,9 @@ def test_p4_fails_open_on_bus_error(patched, monkeypatch, capsys):
 
     monkeypatch.setattr("core.comm.bus.Bus", boom)
     rc, out = _run(capsys)
-    assert rc == 0 and out.get("count") == 0 and "error" in out, "a dead bus is a fail-open shape, never a traceback"
+    assert rc == 0, "a dead bus is a fail-open shape, never a traceback"
+    assert out.get("count") == 0, "a dead bus is a fail-open shape, never a traceback"
+    assert "error" in out, "a dead bus is a fail-open shape, never a traceback"
 
 
 def test_p5_plugin_wake_organ_is_wired():

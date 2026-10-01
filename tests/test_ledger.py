@@ -25,7 +25,9 @@ def _exercise_ledger(ledger: Ledger, label: str) -> None:
     id1 = ledger.emit(stream, {"n": 1, "msg": "first"})
     id2 = ledger.emit(stream, {"n": 2, "msg": "second"})
     id3 = ledger.emit(stream, {"n": 3, "msg": "third"})
-    assert id1 and id2 and id3, "emit must return ids"
+    assert id1, "emit must return ids"
+    assert id2, "emit must return ids"
+    assert id3, "emit must return ids"
 
     events = ledger.consume(stream, after_id="0")
     assert [e["n"] for _id, e in events] == [1, 2, 3], f"replay order wrong: {events}"

@@ -269,7 +269,10 @@ def test_restart_listener_never_targets_its_own_process_tree(monkeypatch):
     monkeypatch.setattr(subprocess, "run", _fake_run_speaking_both_dialects(rows, calls))
     out = BS._restart_listener()
     aimed = [c[2] for c in calls if len(c) > 2 and c[0].lower().startswith("taskkill")]
-    assert str(me) not in aimed and str(parent) not in aimed, (
+    assert str(me) not in aimed, (
+        f"taskkill was aimed at the caller's own process tree: {aimed} (me={me}, parent={parent}); outcome={out}"
+    )
+    assert str(parent) not in aimed, (
         f"taskkill was aimed at the caller's own process tree: {aimed} (me={me}, parent={parent}); outcome={out}"
     )
     assert out.ok, f"a refusal is a report, not an exception: {out.why}"
@@ -340,7 +343,8 @@ def test_restart_listener_selects_the_listener_process_not_any_mention_of_its_na
     )
     assert out.ok, out.why
     why = out.why or ""
-    assert "109" in why and "pytest" in why.lower(), (
+    assert "109" in why, f"a listener-shaped process running under pytest must be refused BY PID in the report: {why!r}"
+    assert "pytest" in why.lower(), (
         f"a listener-shaped process running under pytest must be refused BY PID in the report: {why!r}"
     )
 
@@ -377,4 +381,5 @@ def test_restart_listener_reports_a_kill_that_failed_as_not_stopped():
     out = BS._restart_listener(process_table=lambda: table, kill=lambda pid: pid == 301)
     assert out.ok, out.why
     why = out.why or ""
-    assert "stopped [301]" in why and "failed to stop [302]" in why, why
+    assert "stopped [301]" in why, why
+    assert "failed to stop [302]" in why, why

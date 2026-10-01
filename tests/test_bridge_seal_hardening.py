@@ -46,7 +46,8 @@ def test_a_forged_tombstone_is_refused(alice, bob):
 
 def test_a_real_tombstone_still_verifies_after_the_body_is_gone(alice, bob):
     tomb = seal.tombstone(_env(alice, bob, seq=2, prev="m1"))
-    assert "ct" not in tomb and "sig" not in tomb, "the body must not survive retirement"
+    assert "ct" not in tomb, "the body must not survive retirement"
+    assert "sig" not in tomb, "the body must not survive retirement"
     got = seal.verify_tombstone(tomb, sender_public=alice["verify_public"])
     assert got["seq"] == 2
     assert got["prev"] == "m1"

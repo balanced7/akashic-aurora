@@ -160,7 +160,8 @@ def test_the_late_merges_stop_at_a_lift():
         "the same chord twice, touching at the lift: two chords (merge_same stops at the lift)"
     )
     joined = pr.analyze(twice_session(), boundary="notes")["windows"]
-    assert len(joined) == 1 and joined[0]["name"] == "C", "notes mode joins them as before"
+    assert len(joined) == 1, "notes mode joins them as before"
+    assert joined[0]["name"] == "C", "notes mode joins them as before"
     built = pr.analyze(build_session(), boundary="pedal")["windows"]
     assert [(w["start_ms"], w["end_ms"]) for w in built] == [(0, 350), (350, 3000)], (
         "a build across a quick lift-and-repress is two chords (merge_built stops at the lift)"

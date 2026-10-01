@@ -124,7 +124,8 @@ def test_require_cap_refuses_unknown_id():
 
 def test_decide_and_act_dry_run_returns_without_emitting():
     v = decide_and_act(agent_self="kimi", reap_fn=reap_orphan, att_fn=att_mix, op_present_fn=op_absent, dry_run=True)
-    assert v.activate and v.successor == "deepseek", v.reason
+    assert v.activate, v.reason
+    assert v.successor == "deepseek", v.reason
 
 
 # The REAL operator-presence read path (streams, not lists) -- exercised against a fake

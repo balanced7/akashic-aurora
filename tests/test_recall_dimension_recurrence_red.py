@@ -107,7 +107,8 @@ def test_p3_every_emission_carries_its_denominator():
     assert report["signatures_observed"] == 3, report
     assert report["events_observed"] == 5, report
     for row in report["rows"]:
-        assert "count" in row and "signatures_observed" in row, (
+        assert "count" in row, f"a count rendered without the population it was drawn from is a naked counter: {row}"
+        assert "signatures_observed" in row, (
             f"a count rendered without the population it was drawn from is a naked counter: {row}"
         )
         assert row["signatures_observed"] == 3, row
@@ -124,7 +125,12 @@ def test_p4_below_threshold_signatures_are_explicit_rows_not_absence():
     report = observe(stream, window=100, now=6, threshold=3)
 
     by_sig = {r["signature"]: r for r in report["rows"]}
-    assert "A" in by_sig and "B" in by_sig, (
+    assert "A" in by_sig, (
+        "a signature observed below threshold must still produce a ROW -- dropping it makes "
+        "'not enough evidence' indistinguishable from 'never seen', which is the exact failure "
+        "this house keeps paying for"
+    )
+    assert "B" in by_sig, (
         "a signature observed below threshold must still produce a ROW -- dropping it makes "
         "'not enough evidence' indistinguishable from 'never seen', which is the exact failure "
         "this house keeps paying for"
@@ -169,7 +175,8 @@ def test_p5_site_definition_is_variable_not_hardcoded():
     assert fine["signatures_observed"] == 2, f"under a tool+flags definition --no-verify is its own site -- got {fine}"
 
     coarse_row = coarse["rows"][0]
-    assert coarse_row["count"] == 3 and coarse_row["crossed"] is True, coarse_row
+    assert coarse_row["count"] == 3, coarse_row
+    assert coarse_row["crossed"] is True, coarse_row
     assert all(r["crossed"] is False for r in fine["rows"]), (
         "splitting the site must split the evidence -- neither fine site reaches 3"
     )
@@ -410,7 +417,8 @@ def test_p12_recurrence_resets_at_episode_boundary_frequency_does_not():
     ra, rb = a["rows"][0], b["rows"][0]
 
     # RECURRENCE is a position within one run progress -- it RESETS
-    assert ra["count"] == 3 and ra["crossed"] is True, ra
+    assert ra["count"] == 3, ra
+    assert ra["crossed"] is True, ra
     assert rb["count"] == 1, (
         f"recurrence must reset at the episode boundary -- the third loop of this toolcall is a "
         f"position in THIS run, not a lifetime tally: {rb}"
@@ -418,7 +426,10 @@ def test_p12_recurrence_resets_at_episode_boundary_frequency_does_not():
     assert rb["crossed"] is False, rb
 
     # FREQUENCY is a rate ACROSS runs -- it does not reset
-    assert ra["frequency"] == 3 and rb["frequency"] == 3, (
+    assert ra["frequency"] == 3, (
+        f"frequency must be identical for both arrangements -- it counts occurrences, not positions: {ra} vs {rb}"
+    )
+    assert rb["frequency"] == 3, (
         f"frequency must be identical for both arrangements -- it counts occurrences, not positions: {ra} vs {rb}"
     )
 
@@ -455,7 +466,8 @@ def test_p13_every_result_carries_its_arm_contract_hash():
     coarse = observe(stream, window=100, now=4, threshold=3, site=site_tool)
     fine = observe(stream, window=100, now=4, threshold=3, site=site_tool_flags)
 
-    assert coarse["arm_hash"] and fine["arm_hash"], "every result must carry an arm hash"
+    assert coarse["arm_hash"], "every result must carry an arm hash"
+    assert fine["arm_hash"], "every result must carry an arm hash"
     assert coarse["arm_hash"] != fine["arm_hash"], (
         "two runs differing ONLY in site definition MUST NOT share an arm hash -- this is the "
         "collision Sunshine found in the shelf evaluation_id, reproduced one layer down"

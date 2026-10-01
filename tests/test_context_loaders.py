@@ -83,7 +83,8 @@ def test_briefing_loader():
         {"agent_id": "A", "signal_type": "handoff", "signal_number": 2, "target_agent": "OTHER", "task": "not for B"}
     )
     b = load_briefing_from_previous_handoff("B", signal_ledger=sl)
-    assert b is not None and b["task"] == "latest task", f"should get most recent handoff to B, got {b}"
+    assert b is not None, f"should get most recent handoff to B, got {b}"
+    assert b["task"] == "latest task", f"should get most recent handoff to B, got {b}"
     assert b["from_agent"] == "C"
     assert b["blockers"] == ["x"]
     assert b["source"]

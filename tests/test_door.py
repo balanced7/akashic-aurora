@@ -25,9 +25,11 @@ def test_every_verb_has_a_purpose():
 
 def test_discover_includes_itself_and_filters():
     names = [n for n, _ in list_verbs()]
-    assert "discover" in names and "recall-at" in names, "discover must list itself and siblings"
+    assert "discover" in names, "discover must list itself and siblings"
+    assert "recall-at" in names, "discover must list itself and siblings"
     filtered = list_verbs("recall")
-    assert filtered and all("recall" in (n + h).lower() for n, h in filtered), "filter should match on name/purpose"
+    assert filtered, "filter should match on name/purpose"
+    assert all("recall" in (n + h).lower() for n, h in filtered), "filter should match on name/purpose"
     assert not list_verbs("zzzznomatchzzzz"), "no spurious matches"
     print("--- discover filter ---\n  substring filter works; discover lists itself OK")
 
@@ -35,7 +37,8 @@ def test_discover_includes_itself_and_filters():
 def test_build_parser_is_deterministic():
     a = [n for n, _ in list_verbs()]
     b = [n for n, _ in list_verbs()]
-    assert a == b and a, "build_parser() must be pure/deterministic (cmd_discover calls it at runtime)"
+    assert a == b, "build_parser() must be pure/deterministic (cmd_discover calls it at runtime)"
+    assert a, "build_parser() must be pure/deterministic (cmd_discover calls it at runtime)"
     print("--- build_parser pure ---\n  deterministic OK")
 
 

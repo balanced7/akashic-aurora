@@ -98,9 +98,8 @@ def test_p4_scoping_keeps_the_added_only_filter(guard, monkeypatch):
     guard.main([MINE])
     cmd = seen["cmd"]
     assert "--diff-filter=A" in cmd, f"scoped query lost the added-only filter: {cmd}"
-    assert "--" in cmd and MINE in cmd[cmd.index("--") + 1 :], (
-        f"scoped query did not pathspec-limit to the named paths: {cmd}"
-    )
+    assert "--" in cmd, f"scoped query did not pathspec-limit to the named paths: {cmd}"
+    assert MINE in cmd[cmd.index("--") + 1 :], f"scoped query did not pathspec-limit to the named paths: {cmd}"
 
 
 def test_p5_mirror_passes_the_scoped_list_to_rule_13():

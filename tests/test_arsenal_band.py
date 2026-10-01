@@ -541,7 +541,8 @@ def test_pocket_bass_is_root_on_1_ghosts_anticipations_and_space():
         bar = [n for n in notes if b * 4 <= n["beat"] < b * 4 + 4]
         offs = [round(n["beat"] - b * 4, 6) for n in bar]
         first = at(notes, b * 4)
-        assert first and first[0]["note"] % 12 == root_pc[b], f"bar {b + 1} has no root on 1"
+        assert first, f"bar {b + 1} has no root on 1"
+        assert first[0]["note"] % 12 == root_pc[b], f"bar {b + 1} has no root on 1"
         assert 1.5 in offs
         assert offs != [0, 1, 2, 3]
         assert at(notes, b * 4 + 2.5)
@@ -960,7 +961,9 @@ def test_a_shell_comp_is_two_guide_tones_below_e4():
     for beat, notes in groups.items():
         chord = band.parse_chord_token(band._chord_at(ps["chords"], beat)["name"], None)
         guide = {(chord["root"] + chord["tones"][r]) % 12 for r in ("3", "4", "7") if r in chord["tones"]}
-        assert len(notes) == 2 and all(48 <= p <= 64 for p in notes) and {p % 12 for p in notes} == guide, beat
+        assert len(notes) == 2, beat
+        assert all(48 <= p <= 64 for p in notes), beat
+        assert {p % 12 for p in notes} == guide, beat
     loop = "1maj9 - 4maj9#11 - 6m11 - 5sus"
     full = band.make_pattern_set(loop, key="Eb major", comp=True, pad=True, bass="walking", pid="x")
     shell = band.make_pattern_set(loop, key="Eb major", comp=True, pad=True, bass="walking", shell=True, pid="x")

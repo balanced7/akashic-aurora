@@ -118,7 +118,8 @@ def test_below_threshold_preview_declares_n_of_m_and_never_a_bare_ellipsis():
     body = "w" * 5000
     r = _clip().clip(body, surface="inbox_preview", limit=220)
     assert not r.spilled, "a 220-char preview must not mint a blob"
-    assert "of" in r.render and "5000" in r.render.replace(",", ""), r.render
+    assert "of" in r.render, r.render
+    assert "5000" in r.render.replace(",", ""), r.render
     assert not r.render.rstrip().endswith(("...", "…")), "a bare ellipsis is no address"
 
 

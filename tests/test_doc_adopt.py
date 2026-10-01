@@ -59,7 +59,8 @@ def test_p1_title_is_slugged_and_dates_stripped(stem, expected):
 def test_p2_title_never_returns_empty():
     """A file named only with a date must still get a usable title, not ''."""
     out = agent_cli._adopt_title("2026-07-31")
-    assert out and out.strip("-"), f"degenerate title: {out!r}"
+    assert out, f"degenerate title: {out!r}"
+    assert out.strip("-"), f"degenerate title: {out!r}"
 
 
 # ---------------------------------------------------------------- type inference

@@ -50,7 +50,8 @@ def test_supersession_excluded():
     active = {"text": "x", "timestamp": NOW}
     retired = {"text": "x", "timestamp": NOW, "superseded": True}
     out = r.rank([active, retired], query="x", now=NOW)
-    assert len(out) == 1 and out[0].item is active, "superseded item must be excluded"
+    assert len(out) == 1, "superseded item must be excluded"
+    assert out[0].item is active, "superseded item must be excluded"
     print("--- supersession ---\n  superseded item excluded OK")
 
 

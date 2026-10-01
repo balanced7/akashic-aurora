@@ -35,7 +35,8 @@ def test_source_required_and_kind_coerced():
     log = _log()
     assert log.emit("learning", "no source", "") is None, "source-less beat must be refused"
     b = log.emit("bogus_kind", "x", "git:abc123")
-    assert b is not None and b.kind == "note", "unknown kind coerces to 'note'"
+    assert b is not None, "unknown kind coerces to 'note'"
+    assert b.kind == "note", "unknown kind coerces to 'note'"
     assert log.count() == 1
     print("  source required + kind coercion OK")
 

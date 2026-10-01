@@ -123,10 +123,11 @@ def test_over_cap_note_confesses_in_result_and_in_band(monkeypatch, tmp_path):
         stored = _stored(f.mem, "clip-probe-overcap")
     assert rc == 0
     assert "[OK] noted" in out
-    assert "[CLIPPED]" in out and "note body" in out and ("spilled to" in out or "resend" in out.lower()), (
-        f"over-cap store did not confess in the result: {out!r}"
-    )
-    assert stored.startswith("x" * 100) and "...[clipped at" in stored, "stored text lacks the in-band clip marker"
+    assert "[CLIPPED]" in out, f"over-cap store did not confess in the result: {out!r}"
+    assert "note body" in out, f"over-cap store did not confess in the result: {out!r}"
+    assert "spilled to" in out or "resend" in out.lower(), f"over-cap store did not confess in the result: {out!r}"
+    assert stored.startswith("x" * 100), "stored text lacks the in-band clip marker"
+    assert "...[clipped at" in stored, "stored text lacks the in-band clip marker"
     spills = os.listdir(str(tmp_path))
     assert spills, "T064: the full original must spill to a file"
     with open(os.path.join(str(tmp_path), spills[0]), encoding="utf-8") as fh:
@@ -142,9 +143,8 @@ def test_json_mode_carries_confession():
     doc = json.loads(out)
     assert rc == 0
     assert doc["recorded"] is True
-    assert doc["clipped"] and any("note body" in c for c in doc["clipped"]), (
-        f"--json result lacks the clip confession: {doc}"
-    )
+    assert doc["clipped"], f"--json result lacks the clip confession: {doc}"
+    assert any("note body" in c for c in doc["clipped"]), f"--json result lacks the clip confession: {doc}"
     print("  --json result carries the confession OK")
 
 

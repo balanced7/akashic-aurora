@@ -98,7 +98,8 @@ def test_a_stand_down_leaves_a_heartbeat(prov):
     impossible to tell a correct stand-down from a gate that never ran."""
     v = cg.notice_conductor_absence(agent_self="kimi")
     assert not v.activate, "precondition: the conductor is alive in this environment"
-    assert prov.exists() and prov.read_text(encoding="utf-8").strip(), (
+    assert prov.exists(), "a stand-down must leave a heartbeat -- otherwise absence proves nothing"
+    assert prov.read_text(encoding="utf-8").strip(), (
         "a stand-down must leave a heartbeat -- otherwise absence proves nothing"
     )
 
@@ -171,7 +172,8 @@ def test_isolation_is_ACTIVE_in_a_test_that_never_asked_for_it():
 
     # And the write must actually follow the redirect, not merely be configured to.
     cg.append_provenance("autouse isolation probe")
-    assert os.path.exists(active) and "autouse isolation probe" in open(active, encoding="utf-8").read(), (
+    assert os.path.exists(active), "the redirect is set but writes are not following it"
+    assert "autouse isolation probe" in open(active, encoding="utf-8").read(), (
         "the redirect is set but writes are not following it"
     )
 

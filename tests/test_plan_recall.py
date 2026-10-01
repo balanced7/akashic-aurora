@@ -45,7 +45,8 @@ def test_plan_recall_surfaces_with_plan_header(monkeypatch):
     assert out.startswith("Plan-time recall (Akashic)")
     assert "learn:experiment:x" in out
     assert seen_log == ["learn:experiment:x"], "plan-time surfacing feeds the shared anti-repeat"
-    assert inj_log and inj_log[0][1] == "plan", "ledgered at plan altitude"
+    assert inj_log, "ledgered at plan altitude"
+    assert inj_log[0][1] == "plan", "ledgered at plan altitude"
 
 
 def test_plan_recall_silent_when_nothing_clears_floor(monkeypatch):
@@ -118,9 +119,8 @@ def test_bus_silent_at_zero_and_recall_kill_leaves_mail_cue(monkeypatch, capsys)
     _wire(monkeypatch, [{"text": "t", "source": "learn:experiment:x"}], unread=1)
     monkeypatch.setenv("AKASHIC_PLAN_RECALL", "0")
     ctx = _main_ctx(monkeypatch, capsys)
-    assert "Plan-time recall" not in ctx and "1 unread" in ctx, (
-        "the kill switch silences lesson injection only, never the mail cue"
-    )
+    assert "Plan-time recall" not in ctx, "the kill switch silences lesson injection only, never the mail cue"
+    assert "1 unread" in ctx, "the kill switch silences lesson injection only, never the mail cue"
 
 
 def test_bus_line_fail_soft(monkeypatch, capsys):

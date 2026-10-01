@@ -100,7 +100,8 @@ def test_bounded_growth_evicts_oldest_in_lockstep():
     # the 5 survivors are the NEWEST; the evicted payload keys are gone (no byid leak)
     survivors = idx.window("2026-01-01T00:00:00", "2026-01-01T01:00:00")
     assert [e["summary"] for e in survivors] == [f"e{i}" for i in range(7, 12)]
-    assert idx.get("id00") is None and idx.get("id06") is None, "evicted payloads deleted"
+    assert idx.get("id00") is None, "evicted payloads deleted"
+    assert idx.get("id06") is None, "evicted payloads deleted"
     assert idx.get("id11") is not None
 
 
@@ -153,7 +154,8 @@ def test_flat_latency_at_scale():
     t0 = time.perf_counter()
     got = idx.window(iso, iso)  # 1-event-wide window deep in the middle
     dt = time.perf_counter() - t0
-    assert len(got) == 1 and got[0]["summary"] == "needle", f"exactly the one in-window event, got {got}"
+    assert len(got) == 1, f"exactly the one in-window event, got {got}"
+    assert got[0]["summary"] == "needle", f"exactly the one in-window event, got {got}"
     assert dt < 1.0, f"range-scan must stay fast at 100k (took {dt:.3f}s)"
 
 

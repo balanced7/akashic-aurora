@@ -149,6 +149,9 @@ def test_thinking_trace_is_bounded():
     agent._stream_turn()
 
     thinking = [t for k, t in traces if k == "thinking"]
-    assert thinking and len(thinking[0]) <= 600, (
+    assert thinking, (
+        f"unbounded thinking trace ({len(thinking[0]) if thinking else 0} chars) -- the bus is not a transcript"
+    )
+    assert len(thinking[0]) <= 600, (
         f"unbounded thinking trace ({len(thinking[0]) if thinking else 0} chars) -- the bus is not a transcript"
     )

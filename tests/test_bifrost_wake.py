@@ -104,9 +104,8 @@ def test_wait_blocks_past_the_fast_socket_timeout():
         time.sleep(4.5)  # well past the ~3s fail-fast socket timeout
         a.send("bob", "chat", "late but here")
         t.join(9)
-        assert result.get("m") and result["m"][0].content == "late but here", (
-            "wait() must keep blocking past the fast socket timeout"
-        )
+        assert result.get("m"), "wait() must keep blocking past the fast socket timeout"
+        assert result["m"][0].content == "late but here", "wait() must keep blocking past the fast socket timeout"
     finally:
         _cleanup(c, ns)
 

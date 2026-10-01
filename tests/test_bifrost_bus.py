@@ -85,9 +85,9 @@ def test_broadcast_reaches_all_but_not_sender():
         alice.broadcast("announce", {"news": "ship it"})
         for agent in (bob, dave):
             got = agent.inbox()
-            assert len(got) == 1 and got[0].kind == "announce" and got[0].to == "*", (
-                "EVERY agent must see the broadcast (the fan-out fix)"
-            )
+            assert len(got) == 1, "EVERY agent must see the broadcast (the fan-out fix)"
+            assert got[0].kind == "announce", "EVERY agent must see the broadcast (the fan-out fix)"
+            assert got[0].to == "*", "EVERY agent must see the broadcast (the fan-out fix)"
         assert alice.inbox() == [], "the sender must not receive its own broadcast"
     finally:
         _cleanup(c, ns)

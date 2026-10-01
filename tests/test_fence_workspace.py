@@ -77,7 +77,8 @@ def test_unknown_slot_is_unrepresentable():
 
 def test_brief_seal_requires_m1_brief_sections():
     ok, problems = _mk("f_brief_bad", brief="# brief\n## 1. CHARTER\nonly a charter\n")
-    assert not ok and any("INPUTS" in p or "QUESTION" in p or "OUTPUT" in p for p in problems), (
+    assert not ok, f"missing sections must be named, got {problems}"
+    assert any("INPUTS" in p or "QUESTION" in p or "OUTPUT" in p for p in problems), (
         f"missing sections must be named, got {problems}"
     )
     ok, problems = _mk("f_brief_ok")
@@ -89,7 +90,8 @@ def test_half_seal_requires_cf_tags():
     _mk("f_cf")
     write_slot("f_cf", "half_a", "V1. the walk terminates, trust me\n", by="claude")
     ok, problems = seal("f_cf", "half_a", by="claude")
-    assert not ok and any("tag" in p.lower() for p in problems), (
+    assert not ok, f"an untagged verdict must refuse seal with a tag complaint, got {problems}"
+    assert any("tag" in p.lower() for p in problems), (
         f"an untagged verdict must refuse seal with a tag complaint, got {problems}"
     )
     write_slot("f_cf", "half_a", HALF_TAGGED, by="claude")
@@ -108,9 +110,8 @@ def test_reconciliation_order_and_pv_are_mandatory():
     write_slot("f_order", "half_b", HALF_TAGGED, by="deepseek")
     seal("f_order", "half_b", by="deepseek")
     ok, problems = seal("f_order", "reconciliation", by="cursor")
-    assert not ok and any("pv" in p.lower() for p in problems), (
-        f"PV must be required before reconciliation seals, got {problems}"
-    )
+    assert not ok, f"PV must be required before reconciliation seals, got {problems}"
+    assert any("pv" in p.lower() for p in problems), f"PV must be required before reconciliation seals, got {problems}"
     run_pv("f_order")
     ok, problems = seal("f_order", "reconciliation", by="cursor")
     assert ok, f"order satisfied -> seal, got {problems}"
@@ -130,7 +131,8 @@ def test_pv_flags_fabricated_citation_and_demands_acknowledgement():
     )
     write_slot("f_pv", "reconciliation", "## M1-PV verification pass\nall good\n", by="cursor")
     ok, problems = seal("f_pv", "reconciliation", by="cursor")
-    assert not ok and any("ghost_module" in p for p in problems), (
+    assert not ok, f"an unacknowledged MISSING citation must block the seal BY NAME, got {problems}"
+    assert any("ghost_module" in p for p in problems), (
         f"an unacknowledged MISSING citation must block the seal BY NAME, got {problems}"
     )
     write_slot(
@@ -153,7 +155,8 @@ def test_author_independence():
     run_pv("f_authors")
     write_slot("f_authors", "reconciliation", "## M1-PV verification pass\nnone missing\n", by="claude")
     ok, problems = seal("f_authors", "reconciliation", by="claude")
-    assert not ok and any("author" in p.lower() or "independen" in p.lower() for p in problems), (
+    assert not ok, f"same author on both halves must refuse, got {problems}"
+    assert any("author" in p.lower() or "independen" in p.lower() for p in problems), (
         f"same author on both halves must refuse, got {problems}"
     )
     st = fence_status("f_authors")

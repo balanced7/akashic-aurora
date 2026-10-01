@@ -80,7 +80,11 @@ def test_non_429_failure_is_not_retried():
         return _FakeResponse(500)
 
     out = post_with_rate_limit_retry(post_fn, sleep=lambda _s: None)
-    assert out.status_code == 500 and calls["n"] == 1, (
+    assert out.status_code == 500, (
+        "a real server error is not a coordination collision -- retrying it here "
+        "would just turn a fast failure into a slow one"
+    )
+    assert calls["n"] == 1, (
         "a real server error is not a coordination collision -- retrying it here "
         "would just turn a fast failure into a slow one"
     )

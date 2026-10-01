@@ -94,7 +94,8 @@ def test_pin1_mtu_bounds_triple_and_refuse_loud():
         mid2 = a.send("b", "chat", oversize)
         assert mid2, "P2 default auto-frag must send (not refuse)"
         got = b.inbox()
-        assert got and got[0].content == oversize, "P2 auto-frag must round-trip byte-identical"
+        assert got, "P2 auto-frag must round-trip byte-identical"
+        assert got[0].content == oversize, "P2 auto-frag must round-trip byte-identical"
     finally:
         _cleanup(c, ns)
 
@@ -180,10 +181,12 @@ def test_pin4_integrity_killswitch():
         buf = io.StringIO()
         with redirect_stderr(buf):
             got = b.inbox()
-        assert len(got) == 1 and got[0].content == "HELLO world", (
-            "with integrity disabled, delivery is degraded (not dropped)"
+        assert len(got) == 1, "with integrity disabled, delivery is degraded (not dropped)"
+        assert got[0].content == "HELLO world", "with integrity disabled, delivery is degraded (not dropped)"
+        assert "DEGRADED" in buf.getvalue(), (
+            "degraded mode must be LOUD, never silent (deepseek GATE RED fix, defect 1)"
         )
-        assert "DEGRADED" in buf.getvalue() and "UNVERIFIED" in buf.getvalue(), (
+        assert "UNVERIFIED" in buf.getvalue(), (
             "degraded mode must be LOUD, never silent (deepseek GATE RED fix, defect 1)"
         )
         os.environ["PACKET_INTEGRITY_ENABLED"] = "true"
@@ -226,9 +229,8 @@ def test_frag_reassembly_survives_restart_loud_timeout():
             time.sleep(0.02)
             b2.inbox()  # idle drain on the NEW instance -> sweep fires
         out = buf.getvalue()
-        assert "fragment_timeout" in out and "3" in out, (
-            f"after restart the partial must time out LOUD, not vanish silently: {out!r}"
-        )
+        assert "fragment_timeout" in out, f"after restart the partial must time out LOUD, not vanish silently: {out!r}"
+        assert "3" in out, f"after restart the partial must time out LOUD, not vanish silently: {out!r}"
         assert c.hlen(f"{ns}:reasm:b") == 0, "the timed-out durable slot is cleaned up"
     finally:
         _reset_dials()
@@ -329,11 +331,12 @@ def test_pin6_missing_fragment_times_out_naming_seq():
             first = b.inbox()  # buffers the partial set
             time.sleep(0.02)  # let the TTL(=0) elapse
             second = b.inbox()  # sweep fires the timeout
-        assert first == [] and second == [], "an incomplete whole is never delivered"
+        assert first == [], "an incomplete whole is never delivered"
+        assert second == [], "an incomplete whole is never delivered"
         out = buf.getvalue()
-        assert "fragment_timeout" in out and "missing seq" in out and "2" in out, (
-            f"timeout must NAME the missing seq: {out!r}"
-        )
+        assert "fragment_timeout" in out, f"timeout must NAME the missing seq: {out!r}"
+        assert "missing seq" in out, f"timeout must NAME the missing seq: {out!r}"
+        assert "2" in out, f"timeout must NAME the missing seq: {out!r}"
     finally:
         _reset_dials()
         _cleanup(c, ns)
@@ -452,7 +455,8 @@ def test_pin10_unknown_envelope_keys_preserved():
         env["v3_future_field"] = "some-v3-thing"  # a field this consumer never heard of
         sid = c.xadd(f"{ns}:inbox:b", env)
         got = b.inbox()
-        assert len(got) == 1 and got[0].content == "hi from the future", (
+        assert len(got) == 1, "an unknown envelope key must NOT cause the message to be dropped (forward-compat floor)"
+        assert got[0].content == "hi from the future", (
             "an unknown envelope key must NOT cause the message to be dropped (forward-compat floor)"
         )
         raw = c.xrange(f"{ns}:inbox:b", sid, sid)[0][1]
@@ -482,12 +486,14 @@ def test_drill_three_real_clip_payloads_zero_silent_loss():
             mid = a.send("b", "handoff", body)
             assert mid, f"{name} P2 auto-frag must send"
             got = b.inbox()
-            assert len(got) == 1 and got[0].content == body, f"{name} lost/altered bytes on P2 auto-frag"
+            assert len(got) == 1, f"{name} lost/altered bytes on P2 auto-frag"
+            assert got[0].content == body, f"{name} lost/altered bytes on P2 auto-frag"
             # 2) explicit refusal: allow_frag=False still REFUSES loud, nothing written
             buf = io.StringIO()
             with redirect_stderr(buf):
                 mid2 = a.send("b", "handoff", body, allow_frag=False)
-            assert mid2 is None and "REFUSED" in buf.getvalue(), f"{name} must refuse on allow_frag=False"
+            assert mid2 is None, f"{name} must refuse on allow_frag=False"
+            assert "REFUSED" in buf.getvalue(), f"{name} must refuse on allow_frag=False"
             assert b.inbox() == [], f"{name}: nothing silently delivered after refusal"
     finally:
         _cleanup(c, ns)

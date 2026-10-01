@@ -470,7 +470,8 @@ def test_loudnorm_output_has_no_audio_timestamp_jump(tmp_path):
         capture_output=True,
     )
     jumps, end = _audio_jumps(out)
-    assert jumps == [] and abs(end - 6.0) < 0.03, (jumps, end)
+    assert jumps == [], (jumps, end)
+    assert abs(end - 6.0) < 0.03, (jumps, end)
 
 
 def _sound_onsets(path):
@@ -552,7 +553,8 @@ def test_audio_dropout_in_the_source_does_not_pull_later_sounds_early(tmp_path, 
     )
     subprocess.run(cmd, check=True, capture_output=True)
     onsets = _sound_onsets(out)[:4]
-    assert len(onsets) == 4 and all(abs(a - b) < 0.02 for a, b in zip(onsets, expected, strict=False)), onsets
+    assert len(onsets) == 4, onsets
+    assert all(abs(a - b) < 0.02 for a, b in zip(onsets, expected, strict=False)), onsets
 
 
 NOTES = (1.0, 2.0, 3.0, 4.0, 5.0)  # each 0.25 s, with the picture flashing white for as long
@@ -692,7 +694,8 @@ def _note_times(path):
 
 def _assert_notes_on_flashes(path):
     flashes, notes = _flash_times(path), _note_times(path)
-    assert len(flashes) == len(NOTES) and len(notes) == len(NOTES), (flashes, notes)
+    assert len(flashes) == len(NOTES), (flashes, notes)
+    assert len(notes) == len(NOTES), (flashes, notes)
     offsets_ms = [round((n - f) * 1000, 1) for f, n in zip(flashes, notes, strict=False)]
     assert all(abs(ms) <= 20 for ms in offsets_ms), offsets_ms
 
@@ -764,7 +767,8 @@ def test_audio_that_starts_after_the_video_is_silence_until_its_first_sample(tmp
     )
     assert abs(float(first.group(1)) - 0.3) < 0.02, first.group(1)  # the audio really starts late
     trim = tiktok.process(src, tiktok.Options(dry_run=True, out=str(tmp_path)), ffmpeg=FFMPEG)["trim"]
-    assert abs(trim.first_sound - 1.0) < 0.05 and abs(trim.start - 0.5) < 0.05, trim
+    assert abs(trim.first_sound - 1.0) < 0.05, trim
+    assert abs(trim.start - 0.5) < 0.05, trim
 
 
 # =================================================================================================
@@ -1045,7 +1049,9 @@ def test_latest_with_a_broken_serve_module_is_one_sentence(monkeypatch, capsys):
     monkeypatch.setattr(sys, "meta_path", [BrokenServe(), *sys.meta_path])
     assert main(["tiktok", "--latest", "--dry-run"]) == 2
     err = capsys.readouterr().err
-    assert "serve.py" in err and "SyntaxError" in err and "--folder" in err, err
+    assert "serve.py" in err, err
+    assert "SyntaxError" in err, err
+    assert "--folder" in err, err
 
 
 def test_dry_run_prints_the_final_name_and_notes_the_partial_file(tmp_path, capsys):
@@ -1054,7 +1060,8 @@ def test_dry_run_prints_the_final_name_and_notes_the_partial_file(tmp_path, caps
     assert main(["tiktok", str(src), "--dry-run"]) == 0
     report = capsys.readouterr().out
     command = next(ln for ln in report.splitlines() if ln.startswith("  command"))
-    assert command.endswith('take tiktok.mp4"') and "tiktok.partial" not in command, command
+    assert command.endswith('take tiktok.mp4"'), command
+    assert "tiktok.partial" not in command, command
     assert " -n " in command  # a copy-pasted command does not replace a copy
     assert "a real run writes 'take tiktok.partial.mp4' first and renames it to 'take tiktok.mp4'" in report
     assert sorted(p.name for p in tmp_path.iterdir()) == ["take.mkv"]
@@ -1190,7 +1197,8 @@ def test_end_to_end_makes_a_tiktok_ready_copy(tmp_path, capsys):
     expected = source_info.duration - (1.5 - 0.5)
     assert abs(info.duration - expected) <= 0.15, (info.duration, expected)
     jumps, audio_end = _audio_jumps(out)
-    assert jumps == [] and abs(audio_end - info.duration) <= 0.05, (jumps, audio_end, info.duration)
+    assert jumps == [], (jumps, audio_end, info.duration)
+    assert abs(audio_end - info.duration) <= 0.05, (jumps, audio_end, info.duration)
 
     # no black border columns: the picture reaches every edge
     frame = tiktok.grab_gray_frame(FFMPEG, out, 2.5, info.video.index, 1080, 1920)
@@ -1400,7 +1408,8 @@ def test_window_errors_are_one_sentence(window_clip, capsys):
     assert main(["tiktok", "a.mp4", "--to", "0"]) == 2  # no --from: the start is 0:00
     assert main(["tiktok", "a.mp4", "--from", "0", "--to", "0"]) == 2
     err = capsys.readouterr().err
-    assert err.count("tiktok:") == 6 and "Traceback" not in err, err
+    assert err.count("tiktok:") == 6, err
+    assert "Traceback" not in err, err
     assert "--from: cannot read the time 'abc'" in err
     assert "28:52" in err
     assert "--to: -5 is a negative time" in err
@@ -1442,7 +1451,8 @@ def test_window_trim_on_and_off_and_the_fade_in_only_inside_sound(window_clip, c
         == "  fades     in over the first 0.4 s (the copy starts inside sound); out over the last 0.3 s (it ends inside sound)"
     )
     command = _report_line(report, "command")
-    assert " -ss 1.000 " in command and " -t 9.000 " in command, command
+    assert " -ss 1.000 " in command, command
+    assert " -t 9.000 " in command, command
     assert "afade=t=in:st=0:d=0.4" in command
     assert "afade=t=out:st=8.700:d=0.3" in command
     assert _report_line(report, "output").endswith("take tiktok 0-01-0-10.mp4")
@@ -1477,7 +1487,8 @@ def test_window_trim_on_and_off_and_the_fade_in_only_inside_sound(window_clip, c
     report = dry("--from", "1", "--to", "1.5")
     assert _report_line(report, "fades") == "  fades     out over the last 0.3 s (it ends inside sound)"
     command = _report_line(report, "command")
-    assert "afade=t=in" not in command and "afade=t=out:st=0.200:d=0.3" in command, command
+    assert "afade=t=in" not in command, command
+    assert "afade=t=out:st=0.200:d=0.3" in command, command
     assert " -t 0.500 " in command
     assert "about 0:00.50 long" in report
 
@@ -1491,7 +1502,8 @@ def test_window_trim_on_and_off_and_the_fade_in_only_inside_sound(window_clip, c
     # --from alone runs to the end of the recording, which stops inside the last note (OBS stopped
     # while it rang): the copy is cut at the audio's end so it can fade out there, not stop dead
     report = dry("--from", "1", "--no-trim")
-    assert " -ss 1.000 " in report and re.search(r" -t 1[01]\.\d\d\d ", _report_line(report, "command")), report
+    assert " -ss 1.000 " in report, report
+    assert re.search(r" -t 1[01]\.\d\d\d ", _report_line(report, "command")), report
     assert (
         _report_line(report, "fades")
         == "  fades     in over the first 0.4 s (the copy starts inside sound); out over the last 0.3 s (it ends inside sound)"
@@ -1566,7 +1578,8 @@ def test_box_is_sampled_inside_the_window(tmp_path, capsys):
     )
     assert main(["tiktok", str(src), "--dry-run"]) == 0
     whole = capsys.readouterr().out
-    assert "box 202x360 at x=220" not in whole and "crop=202:360:220:0" not in whole, whole
+    assert "box 202x360 at x=220" not in whole, whole
+    assert "crop=202:360:220:0" not in whole, whole
     assert main(["tiktok", str(src), "--dry-run", "--from", "6", "--to", "10"]) == 0
     windowed = capsys.readouterr().out
     assert "box 202x360 at x=220, y=0 (found in 5 of 5 sample frames)" in windowed, windowed
@@ -1595,7 +1608,8 @@ def test_end_to_end_window_copy_starts_on_the_frame_at_four_seconds(window_clip,
     assert abs(info.duration - 6.0) <= 0.15, info.duration
     assert _grey_mean(out, 0.0, 1080, 1920) > 160  # the first frame is the frame at 4 s
     jumps, audio_end = _audio_jumps(out)
-    assert jumps == [] and abs(audio_end - 6.0) <= 0.05, (jumps, audio_end)
+    assert jumps == [], (jumps, audio_end)
+    assert abs(audio_end - 6.0) <= 0.05, (jumps, audio_end)
     # the same window again refuses to replace its copy; the whole-recording name is a different file
     assert main(["tiktok", str(window_clip), "--from", "4", "--to", "10", "--out", str(out_dir)]) == 1
     assert "--force" in capsys.readouterr().err

@@ -107,7 +107,8 @@ def test_newborn_ack_refused_as_quarantined():
     """ack_verdict refuses a quarantined acker BEFORE it even looks at addressee -- the
     stranger cannot settle any ask, real or invented."""
     allowed, reason = ack_verdict(NEWBORN, "1783000000000-0")
-    assert not allowed and "quarantined" in reason, (
+    assert not allowed, "quarantined id refused at the ack door (the first gate, before promoted-record lookup)"
+    assert "quarantined" in reason, (
         "quarantined id refused at the ack door (the first gate, before promoted-record lookup)"
     )
 
@@ -151,7 +152,10 @@ def test_toolbox_send_refuses_quarantined_before_redis():
     tb = _newborn_toolbox()
     for kind in ("chat", "note", "request", "handoff"):
         out = tb.bifrost_send("claude", "let me in", kind)
-        assert out.startswith("ERROR:") and "deny-by-default" in out, (
+        assert out.startswith("ERROR:"), (
+            f"ToolBox bifrost_send({kind}) from a quarantined id must be refused, got: {out!r}"
+        )
+        assert "deny-by-default" in out, (
             f"ToolBox bifrost_send({kind}) from a quarantined id must be refused, got: {out!r}"
         )
 
@@ -160,7 +164,8 @@ def test_toolbox_nudge_and_steer_refuse_quarantined():
     tb = _newborn_toolbox()
     for door, txt in ((tb.bifrost_nudge, "wake up"), (tb.bifrost_steer, "change course")):
         out = door("claude", txt)
-        assert out.startswith("ERROR:") and ("capability" in out or "deny-by-default" in out), (
+        assert out.startswith("ERROR:"), f"quarantined {door.__name__} must be refused at the door, got: {out!r}"
+        assert "capability" in out or "deny-by-default" in out, (
             f"quarantined {door.__name__} must be refused at the door, got: {out!r}"
         )
 
@@ -169,9 +174,8 @@ def test_toolbox_hint_send_refuses_quarantined():
     """Defense-in-depth: RB-1 already drops the hint at the FOLD door; now the SEND door
     refuses it too, so a quarantined id cannot even emit it."""
     out = _newborn_toolbox().bifrost_hint("claude", "k", "authoritative")
-    assert out.startswith("ERROR:") and "deny-by-default" in out, (
-        f"quarantined bifrost_hint must be refused at the send door, got: {out!r}"
-    )
+    assert out.startswith("ERROR:"), f"quarantined bifrost_hint must be refused at the send door, got: {out!r}"
+    assert "deny-by-default" in out, f"quarantined bifrost_hint must be refused at the send door, got: {out!r}"
 
 
 def test_toolbox_admin_still_allowed_through_acl_gate():
@@ -201,7 +205,8 @@ def test_toolbox_admin_still_allowed_through_acl_gate():
         lambda: tb.bifrost_hint("claude", "k", "v"),
     ):
         out = door()
-        assert "deny-by-default" not in out and "capability" not in out, (
+        assert "deny-by-default" not in out, (
             f"admin must pass the ACL gate (only the offline guard may stop it): {out!r}"
         )
+        assert "capability" not in out, f"admin must pass the ACL gate (only the offline guard may stop it): {out!r}"
         assert "not on a Bifrost bus" in out, "admin reached _bus() past the gate (stubbed offline here)"

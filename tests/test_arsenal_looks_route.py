@@ -273,7 +273,8 @@ def test_setting_values_must_be_strings_numbers_or_booleans(looks, settings):
 def test_malformed_bodies_are_refused_with_400(looks, raw):
     port, _, folder = looks
     status, reply = call(port, "PUT", raw)
-    assert status == 400 and reply["error"], reply
+    assert status == 400, reply
+    assert reply["error"], reply
     assert not folder.exists()
 
 
@@ -383,7 +384,9 @@ def test_a_request_hidden_in_an_unread_body_is_never_parsed(looks):
             except TimeoutError:
                 kept_open = True
         statuses = re.findall(rb"HTTP/1\.[01] (\d{3}) ", data)  # (a body ends without a newline: not anchored)
-        assert statuses == [b"404"] and not kept_open and b"Connection: close" in data, (method, path, data)
+        assert statuses == [b"404"], (method, path, data)
+        assert not kept_open, (method, path, data)
+        assert b"Connection: close" in data, (method, path, data)
     assert not folder.exists()
     assert call(port, "GET")[1]["presets"] == []
     # a body the route reads in full leaves the keep-alive connection usable

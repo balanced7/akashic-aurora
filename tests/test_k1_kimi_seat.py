@@ -44,7 +44,8 @@ def test_request_shape_and_no_knobs(tmp_path):
     kw = ag.request_kwargs()
     assert kw["messages"][0] == {"role": "system", "content": "SYSTEM-BLOCK"}
     assert "max_completion_tokens" in kw
-    assert "temperature" not in kw and "top_p" not in kw, "sampling knobs are fixed server-side"
+    assert "temperature" not in kw, "sampling knobs are fixed server-side"
+    assert "top_p" not in kw, "sampling knobs are fixed server-side"
     assert "extra_body" not in kw, "effort=max is the server default -- omit (cache-friendly)"
     ag2 = _agent(tmp_path, effort="low")
     assert ag2.request_kwargs()["extra_body"] == {"reasoning_effort": "low"}

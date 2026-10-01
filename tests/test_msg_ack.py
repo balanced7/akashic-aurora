@@ -93,7 +93,8 @@ def test_promoted_flags_old_unacked_asks_and_annotates_acked():
     by_id = {str(e["refs"][0]).split("bifrost:", 1)[-1]: e for e in out}
     assert by_id["old-1"].get("unhandled") is True, "30h unacked ask -> UNHANDLED"
     assert by_id["new-1"].get("unhandled") is False, "1h old -> not yet"
-    assert by_id["done-1"].get("acks") and not by_id["done-1"].get("unhandled"), "acked -> never flagged"
+    assert by_id["done-1"].get("acks"), "acked -> never flagged"
+    assert not by_id["done-1"].get("unhandled"), "acked -> never flagged"
 
 
 def test_flag_scoping_directed_window_and_fire_and_forget_kinds():
@@ -110,9 +111,8 @@ def test_flag_scoping_directed_window_and_fire_and_forget_kinds():
     by_id = {str(e["refs"][0]).split("bifrost:", 1)[-1]: e for e in out}
     assert by_id["d-3h"].get("unhandled") is True, "directed past 2h flags"
     assert by_id["b-3h"].get("unhandled") is False, "broadcast under 6h does not"
-    assert not by_id["c-30h"].get("unhandled") and not by_id["dec-30h"].get("unhandled"), (
-        "fire-and-forget kinds never flag"
-    )
+    assert not by_id["c-30h"].get("unhandled"), "fire-and-forget kinds never flag"
+    assert not by_id["dec-30h"].get("unhandled"), "fire-and-forget kinds never flag"
 
 
 def test_closed_ledger_task_suppresses_the_flag(monkeypatch):
@@ -198,7 +198,8 @@ def test_ack_refused_when_message_not_promoted():
 def test_ack_verdict_reasons_teach():
     q = FakeQuery([_promoted_rec("m1", frm="alice", to="claude")])
     ok, why = promoter.ack_verdict("deepseek", "m1", event_query=q)
-    assert not ok and "claude" in why, "the refusal names the addressee"
+    assert not ok, "the refusal names the addressee"
+    assert "claude" in why, "the refusal names the addressee"
     ok, why = promoter.ack_verdict("claude", "m1", event_query=q)
     assert ok
 

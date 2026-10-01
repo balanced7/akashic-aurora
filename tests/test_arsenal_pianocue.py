@@ -70,7 +70,9 @@ class SSE:
         self.status = int(head[0].split()[1])
         self.headers = {k.strip().lower(): v.strip() for k, v in (line.split(":", 1) for line in head[1:] if line)}
         opening = self.block().split("\n")
-        assert opening[0] == "retry: 1000" and len(opening) == 2 and opening[1].startswith("id: "), opening
+        assert opening[0] == "retry: 1000", opening
+        assert len(opening) == 2, opening
+        assert opening[1].startswith("id: "), opening
         self.cursor = int(opening[1][4:])
 
     def _until(self, sep):
@@ -403,7 +405,8 @@ def test_malformed_cues_answer_400_and_keep_the_connection(server, body, message
     conn = http.client.HTTPConnection("127.0.0.1", server.port, timeout=10)
     try:
         status, reply = _request(server.port, "POST", "/api/piano/cue", body, conn=conn)
-        assert status == 400 and message in reply["error"], reply
+        assert status == 400, reply
+        assert message in reply["error"], reply
         assert _request(server.port, "GET", "/api/piano/cues/status", conn=conn) == (
             200,
             {"listeners": 0, "last_id": 0, "caps": {"jam1": 0, "deck1": 0}, "pages": []},
@@ -727,7 +730,9 @@ def test_slash_basses_sit_at_c2_or_above_with_room_above_them(style):
     ]
     for r in _voice(chords, key="Eb major", voicing=style):
         n = r["notes"]
-        assert n[0] >= 36 and n[1] - n[0] >= 5 and _crowding(n[:2]) == 0, (style, r["name"], r["names"])
+        assert n[0] >= 36, (style, r["name"], r["names"])
+        assert n[1] - n[0] >= 5, (style, r["name"], r["names"])
+        assert _crowding(n[:2]) == 0, (style, r["name"], r["names"])
 
 
 @needs_node
@@ -781,11 +786,14 @@ def test_drop2_triads_double_the_root_on_top_over_a_root_bass():
         for r in _voice([root + suffix for root in PCS], voicing="drop2"):
             n, root = r["notes"], PCS.index(r["input"][: -len(suffix)] if suffix else r["input"])
             upper = n[1:]
-            assert n[0] % 12 == root and 41 <= n[0] <= 52, r  # a root bass between F2 and E3
-            assert len(upper) == upper_count and upper[-1] % 12 == root, r  # the doubled root on top
+            assert n[0] % 12 == root, r
+            assert 41 <= n[0] <= 52, r  # a root bass between F2 and E3
+            assert len(upper) == upper_count, r
+            assert upper[-1] % 12 == root, r  # the doubled root on top
             # not an octave too high: the top root is F4..E5, except where the bass's tritone would crowd (Fdim..Adim
             # over F2..A2 lift the upper voices an octave, as a m7b5 drop 2 there does)
-            assert upper[0] - n[0] >= 5 and upper[-1] - upper[0] <= 18, r
+            assert upper[0] - n[0] >= 5, r
+            assert upper[-1] - upper[0] <= 18, r
             assert upper[-1] <= (81 if suffix == "dim" else 76), r
             assert r["roundtrip"]["match"] in ("exact", "enharmonic"), r
 
@@ -894,11 +902,8 @@ def test_a_number_whose_suffix_starts_with_an_accidental_keeps_its_root_and_tone
         assert not r.get("error"), r
         assert _root_pc(r["name"]) == (tonic + root) % 12, (key, item, r["name"], r["names"])
         pcs, full = {n % 12 for n in r["notes"]}, {(tonic + t) % 12 for t in tones}
-        assert pcs <= full and full - pcs <= {(tonic + root + 7) % 12}, (
-            key,
-            item,
-            r["names"],
-        )  # (a natural 5th may be left out)
+        assert pcs <= full, (key, item, r["names"])
+        assert full - pcs <= {(tonic + root + 7) % 12}, (key, item, r["names"])  # (a natural 5th may be left out)
         assert not any("reads back as" in w for w in r["warnings"]), (key, item, r["warnings"])
     if key == "C major":
         assert [rs[i]["name"] for i in ("5b9", "1b5", "4#11", "5#5", "6b13", "5^7b9")] == [
@@ -909,10 +914,12 @@ def test_a_number_whose_suffix_starts_with_an_accidental_keeps_its_root_and_tone
             "A(b13)",
             "G7b9",
         ]
-        assert rs["7b5/1"]["notes"][0] % 12 == 0 and rs["7b5/1"]["name"] == "B(b5)/C", rs["7b5/1"]
+        assert rs["7b5/1"]["notes"][0] % 12 == 0, rs["7b5/1"]
+        assert rs["7b5/1"]["name"] == "B(b5)/C", rs["7b5/1"]
         assert any("no name for b9" in w for w in rs["5b9"]["warnings"]), rs["5b9"]
     if key == "Eb major":
-        assert rs["5b9"]["name"] == "Bb(b9)" and rs["1b5"]["name"] == "Eb(b5)", rs
+        assert rs["5b9"]["name"] == "Bb(b9)", rs
+        assert rs["1b5"]["name"] == "Eb(b5)", rs
 
 
 @needs_node
@@ -923,7 +930,8 @@ def test_minor_keys_follow_the_pages_relative_numbering_when_asked():
     assert (tonic["1m"]["name"], tonic["Am"]["number"], tonic["C"]["number"]) == ("Am", "1m", "b3"), tonic
     assert (rel["6m"]["name"], rel["1"]["name"], rel["1m"]["name"]) == ("Am", "C", "Cm"), rel
     assert (rel["Am"]["number"], rel["C"]["number"], rel["Am"]["roundtrip"]["page_number"]) == ("6m", "1", "6m"), rel
-    assert rel["6m"]["number_typed"] == "6m" and not rel["6m"]["warnings"], rel["6m"]
+    assert rel["6m"]["number_typed"] == "6m", rel["6m"]
+    assert not rel["6m"]["warnings"], rel["6m"]
     with pytest.raises(pianocue.VoicingError, match="minor must be tonic or relative"):
         _voice(["Am"], key="A minor", minor="dorian")
 
@@ -931,26 +939,33 @@ def test_minor_keys_follow_the_pages_relative_numbering_when_asked():
 @needs_node
 def test_minor_flag_on_the_cli(capsys):
     code, out, _ = _run(["voicing", "Am", "--key", "A minor", "--minor", "relative", "--json"], capsys)
-    assert code == 0 and json.loads(out)[0]["number"] == "6m", out
+    assert code == 0, out
+    assert json.loads(out)[0]["number"] == "6m", out
     code, out, _ = _run(["voicing", "Am", "--key", "A minor", "--json"], capsys)
-    assert code == 0 and json.loads(out)[0]["number"] == "1m", out
+    assert code == 0, out
+    assert json.loads(out)[0]["number"] == "1m", out
 
 
 @needs_node
 def test_an_off_keyboard_token_that_looks_like_a_number_says_so():
     keyed, bare, plain = _voice(["17"], key="Eb major")[0], _voice(["17"])[0], _voice(["13"], key="Eb major")[0]
-    assert "off the keyboard" in keyed["error"] and 'did you mean the Nashville number "1^7"?' in keyed["error"], keyed
-    assert '"1^7"' in bare["error"] and "needs --key" in bare["error"], bare
-    assert "off the keyboard" in plain["error"] and "did you mean" not in plain["error"], plain
+    assert "off the keyboard" in keyed["error"], keyed
+    assert 'did you mean the Nashville number "1^7"?' in keyed["error"], keyed
+    assert '"1^7"' in bare["error"], bare
+    assert "needs --key" in bare["error"], bare
+    assert "off the keyboard" in plain["error"], plain
+    assert "did you mean" not in plain["error"], plain
     assert _voice(["1^7"], key="Eb major")[0]["name"] == "Eb7"
 
 
 @needs_node
 def test_drop2_slash_bass_with_an_octave_is_the_dropped_voice_not_two_octaves_under():
     cg, c, g7d = _voice(["C/G", "C", "G7/D"], voicing="drop2", octave=3)
-    assert cg["names"] == ["G2", "C3", "E3", "C4"] and cg["roundtrip"]["match"] == "exact", cg  # was G1 G2 C3 E3 C4
+    assert cg["names"] == ["G2", "C3", "E3", "C4"], cg  # was G1 G2 C3 E3 C4
+    assert cg["roundtrip"]["match"] == "exact", cg
     assert c["names"] == ["C2", "G2", "C3", "E3", "C4"], c  # (the --octave help's own example, unchanged)
-    assert g7d["notes"][0] == 38 and g7d["notes"].count(38) == 1, g7d  # D2: a bass in octave N-1 keeps its place
+    assert g7d["notes"][0] == 38, g7d  # D2: a bass in octave N-1 keeps its place
+    assert g7d["notes"].count(38) == 1, g7d
 
 
 # ---------------------------------------------------------------------------------------- cues.js player
@@ -1023,13 +1038,20 @@ def test_cue_player_never_bursts_after_a_freeze_or_a_pagehide_and_a_replay_keeps
     out = json.loads(proc.stdout)
 
     freeze = out["freeze"]
-    assert freeze["before"] == 5 and freeze["burst"] <= 2, freeze  # at most one step's worth, never ten at once
-    assert freeze["state"]["lateDropped"] == 10 and freeze["ons"] == 24 - 10, freeze
-    assert max(freeze["late"]) <= 250 and freeze["state"]["pending"] == 0, freeze
+    assert freeze["before"] == 5, freeze
+    assert freeze["burst"] <= 2, freeze  # at most one step's worth, never ten at once
+    assert freeze["state"]["lateDropped"] == 10, freeze
+    assert freeze["ons"] == 24 - 10, freeze
+    assert max(freeze["late"]) <= 250, freeze
+    assert freeze["state"]["pending"] == 0, freeze
 
     ph = out["pagehide"]
-    assert ph["hidden"]["pending"] == 0 and ph["hidden"]["sounding"] == [] and ph["hidden"]["pageHides"] == 1, ph
-    assert ph["ons"] == 5 and ph["after"]["noteOns"] == 5 and ph["reasons"][-1] == "pagehide", ph
+    assert ph["hidden"]["pending"] == 0, ph
+    assert ph["hidden"]["sounding"] == [], ph
+    assert ph["hidden"]["pageHides"] == 1, ph
+    assert ph["ons"] == 5, ph
+    assert ph["after"]["noteOns"] == 5, ph
+    assert ph["reasons"][-1] == "pagehide", ph
     assert ph["after_dispose"] == 0  # a disposed player stops listening
 
     # replay: the sequence caption stays on top from 0 to its end, and the newest step's caption sits under it
@@ -1233,13 +1255,20 @@ def test_cue_player_spaces_cues_that_arrive_together_and_only_drops_steps_someth
     out = json.loads(proc.stdout)
 
     b = out["backlog"]  # ages 2400, 1700, 1000: they play in order, as far apart as they were sent
-    assert b["first"] == [50, 750, 1450] and b["within40"] == 1 and b["spaced"] == 2 and b["ons"] == 9, b
+    assert b["first"] == [50, 750, 1450], b
+    assert b["within40"] == 1, b
+    assert b["spaced"] == 2, b
+    assert b["ons"] == 9, b
     assert out["jitter"] == {"spaced": 0, "delay": [0, 0, 0, 0, 0, 0]}, out["jitter"]
     assert out["loneLate"] == {"spaced": 0, "delay": [0]}, out["loneLate"]  # a late cue alone delays nothing after it
 
     c = out["clear"]  # a clear acts at once, backlog or not: A (before it) never sounds, B (after it) does
-    assert [x[0] for x in c["ons"]] == [23, 23, 23] and {x[2] for x in c["ons"]} == {50}, c
-    assert c["offs"] == [] and c["sounding"] == [50, 53, 57] and c["clears"] == 1 and c["after"] == [], c
+    assert [x[0] for x in c["ons"]] == [23, 23, 23], c
+    assert {x[2] for x in c["ons"]} == {50}, c
+    assert c["offs"] == [], c
+    assert c["sounding"] == [50, 53, 57], c
+    assert c["clears"] == 1, c
+    assert c["after"] == [], c
     through, hidden = out["clears"]  # two clears among a backlog, each at once; then the same with a pagehide at 800 ms
     assert through == {"clears": 2, "ons": [[64, 50]], "offs": [], "sounding": [52], "pending": 0}, through
     assert hidden == {
@@ -1258,23 +1287,21 @@ def test_cue_player_spaces_cues_that_arrive_together_and_only_drops_steps_someth
     }, out["jank"]
 
     s = out["stall"]
-    assert s["walkAtResume"] <= 2 and s["padAtResume"] == 3 and s["lateDropped"] >= 14, s
+    assert s["walkAtResume"] <= 2, s
+    assert s["padAtResume"] == 3, s
+    assert s["lateDropped"] >= 14, s
 
     d = out["double"]
     assert d["first"][:2] == [["on", 36, 100, False, 1], ["on", 48, 50, True, 2]], d  # the bass, then its octave
-    assert (
-        [c[1] for c in d["first"] if c[0] == "on"] == [36, 48, 52, 55, 60]
-        and ["release", 1] in d["first"]
-        and ["release", 2] in d["first"]
-    ), d
+    assert [c[1] for c in d["first"] if c[0] == "on"] == [36, 48, 52, 55, 60], d
+    assert ["release", 1] in d["first"], d
+    assert ["release", 2] in d["first"], d
     assert d["none"] == 0, d  # the octave already there, two notes, a bass at C3 or above: no double
-    assert (
-        sum(1 for c in d["cleared"] if c[0] == "on" and c[3]) == 1
-        and len([c for c in d["cleared"] if c[0] == "release"]) == 4
-    ), d
-    assert d["off"] == 0 and d["keys"] == [36, 52, 55, 60] and d["doubled"] == 2, (
-        d
-    )  # the octave is never a key; off stops it
+    assert sum(1 for c in d["cleared"] if c[0] == "on" and c[3]) == 1, d
+    assert len([c for c in d["cleared"] if c[0] == "release"]) == 4, d
+    assert d["off"] == 0, d  # off stops it
+    assert d["keys"] == [36, 52, 55, 60], d  # the octave is never a key
+    assert d["doubled"] == 2, d
 
     st = out["stream"]  # the first live cue drops the two backlog cues still waiting; every live cue starts on arrival
     assert st == {"backlog": [50, None, None], "live": [50] * 6, "dropped": 2, "spaced": 2, "sounding": []}, st
@@ -1412,23 +1439,40 @@ def test_only_one_tab_sounds_claudes_voice_and_a_frozen_page_closes_its_stream()
     )
     assert proc.returncode == 0, proc.stderr
     out = json.loads(proc.stdout)
-    assert out["newest"] == [False, True] and out["clicked"] == [True, False] and out["visible"] == [False, True], out
-    assert out["afterPagehide"] is True and out["afterPageshow"] == [True, False], out
+    assert out["newest"] == [False, True], out
+    assert out["clicked"] == [True, False], out
+    assert out["visible"] == [False, True], out
+    assert out["afterPagehide"] is True, out
+    assert out["afterPageshow"] == [True, False], out
     assert out["synthOnlySkipsMidi"] == [None, 0], out  # no audio in node and no MIDI for a synth-only strike: silent
-    assert out["silentPeer"] is True and out["stats"]["midiA"] and out["stats"]["midiB"], out
-    assert out["stats"]["yieldedA"] == 2 and out["stats"]["yieldedB"] == 2, out  # each strike sounded in one tab only
+    assert out["silentPeer"] is True, out
+    assert out["stats"]["midiA"], out
+    assert out["stats"]["midiB"], out
+    assert out["stats"]["yieldedA"] == 2, out  # each strike sounded in one tab only
+    assert out["stats"]["yieldedB"] == 2, out
     assert out["frozen"] == {"status": "paused", "open": 0}, out
-    assert out["resumed"]["status"] == "listening" and out["resumed"]["made"] == 2 and out["resumed"]["open"] == 1, out
+    assert out["resumed"]["status"] == "listening", out
+    assert out["resumed"]["made"] == 2, out
+    assert out["resumed"]["open"] == 1, out
     assert "lastEventId" not in out["resumed"]["url"], out  # what was sent while frozen is not replayed
-    assert out["cacheResume"] == 0 and out["cacheShown"]["made"] == 1 and out["cacheShown"]["open"] == 1, out
-    assert out["cacheShown"]["status"] == "listening" and out["cacheShown"]["pauses"] == 2, out
+    assert out["cacheResume"] == 0, out
+    assert out["cacheShown"]["made"] == 1, out
+    assert out["cacheShown"]["open"] == 1, out
+    assert out["cacheShown"]["status"] == "listening", out
+    assert out["cacheShown"]["pauses"] == 2, out
 
     pc = out["perCue"]  # round 6: the voice never passes mid-cue to a tab that does not have the cue
-    assert pc["keysAgree"] and pc["start"] == [True, False], pc
-    assert pc["newTabClicked"] == [True, False] and pc["newTabLeadsNewCues"] == [False, False, True], pc
+    assert pc["keysAgree"], pc
+    assert pc["start"] == [True, False], pc
+    assert pc["newTabClicked"] == [True, False], pc
+    assert pc["newTabLeadsNewCues"] == [False, False, True], pc
     assert pc["nextCue"] == [False, False, True], pc
-    assert pc["leaderLeft"] == [True] and pc["backWithNewId"] and pc["afterReturn"] == [True], pc
-    assert pc["local"] == [True, True] and pc["noKey"] == [True, False] and pc["firstLoadKeepsId"], pc
+    assert pc["leaderLeft"] == [True], pc
+    assert pc["backWithNewId"], pc
+    assert pc["afterReturn"] == [True], pc
+    assert pc["local"] == [True, True], pc
+    assert pc["noKey"] == [True, False], pc
+    assert pc["firstLoadKeepsId"], pc
 
 
 LABELS_SCRIPT = r"""
@@ -1500,7 +1544,8 @@ def test_labels_in_a_key_match_the_pages_real_spellforkey(own_spelling, minor):
     )
     assert proc.returncode == 0, proc.stderr
     out = json.loads(proc.stdout)
-    assert out["notes"] == out["keys"] * 12 * 14 and out["chords"] > out["keys"] * 100, out
+    assert out["notes"] == out["keys"] * 12 * 14, out
+    assert out["chords"] > out["keys"] * 100, out
     assert out["mismatches"] == [], out["mismatches"][:20]
 
 
@@ -1508,14 +1553,18 @@ def test_labels_in_a_key_match_the_pages_real_spellforkey(own_spelling, minor):
 def test_typed_chords_notes_and_power_chords_are_labelled_as_the_page_shows_them():
     by = {r["input"]: r for r in _voice(["Ab7", "Db7", "Bbm", "Cbmaj7"], key="C# minor")}
     assert (by["Ab7"]["name"], by["Ab7"]["number"]) == ("G#7", "5^7"), by["Ab7"]  # beside 5^7 the page writes G#7
-    assert by["Db7"]["name"] == "C#7" and by["Bbm"]["name"] == "A#m" and by["Cbmaj7"]["name"] == "Bmaj7", by
+    assert by["Db7"]["name"] == "C#7", by
+    assert by["Bbm"]["name"] == "A#m", by
+    assert by["Cbmaj7"]["name"] == "Bmaj7", by
     assert _voice(["Db7"], key="E major")[0]["name"] == "C#7"
     assert _voice(["Fb"], key="Eb major")[0]["name"] == "E"
     assert _voice(["Cbmaj7"])[0]["name"] == "Cbmaj7"  # no key: Claude's own spelling stays
     notes = _voice(["Db4 F4", "C4"], key="A major") + _voice(["C4"], key="C# minor")
     assert [r["name"] for r in notes] == ["C#-E#", "C4", "B#3"], notes  # (every interval: the spellForKey sweep test)
     for r in _voice(["C5", "G5", "F#5", "5^5"], key="C major"):
-        assert not r.get("error") and r["warnings"] == [] and r["roundtrip"]["match"] == "exact", r
+        assert not r.get("error"), r
+        assert r["warnings"] == [], r
+        assert r["roundtrip"]["match"] == "exact", r
     shell = {r["input"]: r for r in _voice(["C7#11", "C7b9", "C9sus4", "Cmaj7"], voicing="shell")}
     assert any("reads this shell voicing as C7b5" in w and "close" in w for w in shell["C7#11"]["warnings"]), shell
     assert any("not C7b9" in w for w in shell["C7b9"]["warnings"])
@@ -1619,7 +1668,8 @@ def test_details_carry_the_typed_number_and_what_explicit_notes_read_as(server, 
             _run(["play", *notes.split(), "--label", "Abmaj9#11", "--key", "Eb major", "--port", port], capsys)[0] == 0
         )
         cue = listener.cue()["cue"]
-        assert cue["label"] == "Abmaj9#11" and cue["detail"] == f"{r['name']} · {r['number']} in Eb major", cue
+        assert cue["label"] == "Abmaj9#11", cue
+        assert cue["detail"] == f"{r['name']} · {r['number']} in Eb major", cue
         assert _run(["play", *notes.split(), "--key", "Eb major", "--port", port], capsys)[0] == 0
         cue = listener.cue()["cue"]
         assert (cue["label"], cue["detail"]) == (r["name"], f"{r['number']} in Eb major")
@@ -1689,10 +1739,12 @@ def test_progression_bars_of_chords_that_look_like_notes_voice_as_those_chords(s
             code, out, err = _run(
                 ["progression", text, "--bpm", "120", "--beats", "2", "--port", str(server.port)], capsys
             )
-            assert code == 0 and "cannot" not in err, (text, out, err)
+            assert code == 0, (text, out, err)
+            assert "cannot" not in err, (text, out, err)
             assert [s["label"] for s in listener.cue()["cue"]["steps"]] == labels, text
         code, out, err = _run(["progression", "Ab2 Eb3 G3 | Bb2 F3 Ab3", "--port", str(server.port)], capsys)
-        assert code == 0 and [s["notes"] for s in listener.cue()["cue"]["steps"]] == [[44, 51, 55], [46, 53, 56]], err
+        assert code == 0, err
+        assert [s["notes"] for s in listener.cue()["cue"]["steps"]] == [[44, 51, 55], [46, 53, 56]], err
     finally:
         listener.close()
 
@@ -1704,9 +1756,11 @@ def test_play_and_hover_several_chords_go_one_after_another(server, capsys):
     try:
         for argv in (["F#m7b5 Bbmaj7#11"], ["F#m7b5", "Bbmaj7#11"]):  # one quoted argument, or two
             code, out, err = _run(["hover", *argv, "--port", port], capsys)
-            assert code == 0 and "2 chords one after another, 2.5 s each" in out, (out, err)
+            assert code == 0, (out, err)
+            assert "2 chords one after another, 2.5 s each" in out, (out, err)
             cue = listener.cue()["cue"]
-            assert cue["type"] == "sequence" and cue["label"] == "F#m7b5 | Bbmaj7#11", cue
+            assert cue["type"] == "sequence", cue
+            assert cue["label"] == "F#m7b5 | Bbmaj7#11", cue
             assert [(s["at_ms"], s["hold_ms"], s["type"], s["label"]) for s in cue["steps"]] == [
                 (0, 2500, "hover", "F#m7b5"),
                 (2500, 2500, "hover", "Bbmaj7#11"),
@@ -1728,7 +1782,9 @@ def test_play_and_hover_several_chords_go_one_after_another(server, capsys):
         ]
 
         code, out, err = _run(["hover", "F#m7b5", "Bbmaj7#11", "--hold", "0", "--port", port], capsys)
-        assert code == 2 and "each needs a length" in err and 'progression "F#m7b5 | Bbmaj7#11" --hover' in err, err
+        assert code == 2, err
+        assert "each needs a length" in err, err
+        assert 'progression "F#m7b5 | Bbmaj7#11" --hover' in err, err
 
         # notes stay one chord: a voicing, MIDI numbers, notes in octave 5
         for argv, notes in (
@@ -1738,7 +1794,8 @@ def test_play_and_hover_several_chords_go_one_after_another(server, capsys):
         ):
             assert _run(["hover", *argv, "--port", port], capsys)[0] == 0
             cue = listener.cue()["cue"]
-            assert cue["type"] == "hover" and cue["notes"] == notes, (argv, cue)
+            assert cue["type"] == "hover", (argv, cue)
+            assert cue["notes"] == notes, (argv, cue)
     finally:
         listener.close()
 

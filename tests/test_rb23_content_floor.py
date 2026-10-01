@@ -186,7 +186,8 @@ def test_resend_exception_confesses_not_marker():
         "(deepseek produced no final answer)", resend, agent_id="deepseek", promise_bounce_fired=False, pulse=pulse
     )
     assert out.startswith("(deepseek --"), "fail-closed: confession, not the marker"
-    assert pulse.calls and "content_floor_failed" in pulse.calls[0][1], (
+    assert pulse.calls, "broken resend channel pulses 'failed', not 'exhausted' (deepseek caught-table)"
+    assert "content_floor_failed" in pulse.calls[0][1], (
         "broken resend channel pulses 'failed', not 'exhausted' (deepseek caught-table)"
     )
 
@@ -249,7 +250,8 @@ def test_corpus_dev_half_meets_bounds():
     assert ds_bad <= 1, "ds-27 arrived clipped; the fresh sealed batch supersedes it"
     rows = cl + ds  # ds-01..27 reclassified DEV after the seal incident (spec, M8 record)
     tp, fp, p_hit, p_tot, s_hit, s_tot, o_tot = _grade(rows)
-    assert s_tot and s_hit == s_tot, "stall recall on empty|marker forms must be 1.0"
+    assert s_tot, "stall recall on empty|marker forms must be 1.0"
+    assert s_hit == s_tot, "stall recall on empty|marker forms must be 1.0"
     assert p_tot
     assert p_hit / p_tot >= BOUND_PROMISE_RECALL
     assert tp

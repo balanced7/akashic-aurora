@@ -96,7 +96,8 @@ def test_p2_sampling_is_deterministic(tmp_path):
     d = _ledger(tmp_path, ROWS * 20)
     a = [i["action"] for i in pa.sample(pa.harvest(imp_dir=d), n=5, seed=7)]
     b = [i["action"] for i in pa.sample(pa.harvest(imp_dir=d), n=5, seed=7)]
-    assert a == b and len(a) == 5, "the same seed must re-draw the same sample, or no audit is re-auditable"
+    assert a == b, "the same seed must re-draw the same sample, or no audit is re-auditable"
+    assert len(a) == 5, "the same seed must re-draw the same sample, or no audit is re-auditable"
 
 
 def test_p3_the_pack_is_blind(tmp_path):
@@ -150,7 +151,11 @@ def test_p6_precision_never_travels_without_its_coverage():
     labels = {"claude": {"1:a": "on", "2:a": "off"}}  # 2 of 5 surfaced items labelled
     r = pa.score(labels, total_surfaced=5)
     assert r["label_coverage"] == 0.4
-    assert r["labelled"] == 2 and r["precision"] == 0.5, (
+    assert r["labelled"] == 2, (
+        "precision must be computed over LABELLED items only -- counting the 3 unlabelled as "
+        "off-point would report 20% and be a lie"
+    )
+    assert r["precision"] == 0.5, (
         "precision must be computed over LABELLED items only -- counting the 3 unlabelled as "
         "off-point would report 20% and be a lie"
     )
@@ -167,7 +172,11 @@ def test_p7_the_score_carries_a_recall_arm():
         {"claude": {"1:a": "on"}}, total_surfaced=1, misses={"claude": {"1": ["learn:experiment:should_have_fired"]}}
     )
     assert r["misses_named"] == 1
-    assert "recall" in r and r["recall"] is not None, (
+    assert "recall" in r, (
+        "no recall arm -- a precision-only audit is blind to the missing-item failure by "
+        "construction, which is the selection half of the question"
+    )
+    assert r["recall"] is not None, (
         "no recall arm -- a precision-only audit is blind to the missing-item failure by "
         "construction, which is the selection half of the question"
     )

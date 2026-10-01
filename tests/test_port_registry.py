@@ -62,7 +62,8 @@ def test_p1_the_registry_is_data_not_prose():
     import config
 
     reg = getattr(config, "PORT_REGISTRY", None)
-    assert isinstance(reg, dict) and reg, "config.PORT_REGISTRY must exist and be non-empty"
+    assert isinstance(reg, dict), "config.PORT_REGISTRY must exist and be non-empty"
+    assert reg, "config.PORT_REGISTRY must exist and be non-empty"
     for port, entry in reg.items():
         assert isinstance(port, int), f"registry keys are ports, got {port!r}"
         for field in ("world", "what", "bound_by"):
@@ -109,7 +110,8 @@ def test_p3_the_canonical_app_ports_survive_verbatim():
 def test_p4_the_checker_exists_and_reports_a_map():
     rc, out = run_checker("--report")
     assert rc == 0, f"--report is a READ and must always exit 0: {out[:400]}"
-    assert "11434" in out and "16379" in out, "the report must render the actual map"
+    assert "11434" in out, "the report must render the actual map"
+    assert "16379" in out, "the report must render the actual map"
 
 
 def test_p5_a_declared_port_that_is_not_listening_renders_UNKNOWN_never_stale():

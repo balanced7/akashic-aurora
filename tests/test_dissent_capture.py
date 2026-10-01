@@ -36,8 +36,11 @@ def _store():
 def test_draft_anti_pattern_slug():
     # derives a snake_case slug from salient content tokens; generic failure-verbs are dropped
     s = draft_anti_pattern_slug(what_tried="used a blocking synchronous flush on every write")
-    assert s and " " not in s and s == s.lower(), s
-    assert "blocking" in s and "synchronous" in s, f"salient tokens should survive: {s}"
+    assert s, s
+    assert " " not in s, s
+    assert s == s.lower(), s
+    assert "blocking" in s, f"salient tokens should survive: {s}"
+    assert "synchronous" in s, f"salient tokens should survive: {s}"
     # prefers root_cause (it names WHY it failed) over what_tried
     assert draft_anti_pattern_slug(what_tried="did a thing", root_cause="widget cache corrupted state").startswith(
         "widget"

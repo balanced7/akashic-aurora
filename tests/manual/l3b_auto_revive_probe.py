@@ -65,7 +65,8 @@ set_worklive("thinking", 400)  # 400s > 300 default
 L._reviving.discard(aid)
 L._check_auto_revive()
 time.sleep(0.25)
-assert len(revives) == 1 and revives[0][1] == "auto-wedge", ("armed + wedged must auto-revive", revives)
+assert len(revives) == 1, ("armed + wedged must auto-revive", revives)
+assert revives[0][1] == "auto-wedge", ("armed + wedged must auto-revive", revives)
 print(f"[PASS] armed + wedged -> auto-revive fired ({revives[0]})")
 
 # NOT armed -> no auto-revive even when wedged

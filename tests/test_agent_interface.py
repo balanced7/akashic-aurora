@@ -84,7 +84,8 @@ def test_full_loop_agent_a_to_b():
         "verification",
     )
     rc, out, _ = run("recall", "iface_loop_exp")
-    assert rc == 0 and "iface_loop_exp" in out, "recall must find the new lesson"
+    assert rc == 0, "recall must find the new lesson"
+    assert "iface_loop_exp" in out, "recall must find the new lesson"
     rc, out, _ = run("boot", "agentB", "--task", "verification work")
     assert "agent B should see this" in out, "agent B's boot must surface agent A's lesson"
     ok("full loop: agent A learns -> agent B boots and sees it")
@@ -92,7 +93,9 @@ def test_full_loop_agent_a_to_b():
 
 def test_learn_validation():
     rc, out, _ = run("learn", "agent_x", "--experiment", "no_body")  # no --tried/--result
-    assert rc == 2 and "ERROR" in out and "Example" in out, "must reject + show usage"
+    assert rc == 2, "must reject + show usage"
+    assert "ERROR" in out, "must reject + show usage"
+    assert "Example" in out, "must reject + show usage"
     ok("learn rejects empty body with a helpful error + exit 2")
 
 
@@ -179,7 +182,8 @@ def test_bad_invocation():
 def test_status_and_recall_ascii():
     for args in (("status",), ("recall", "anything")):
         rc, out, _ = run(*args)
-        assert rc == 0 and out.isascii(), f"{args} must succeed + be ASCII"
+        assert rc == 0, f"{args} must succeed + be ASCII"
+        assert out.isascii(), f"{args} must succeed + be ASCII"
     ok("status + recall are ASCII-safe and succeed")
 
 

@@ -93,9 +93,8 @@ def test_p2_second_post_reuses_the_room(env):
     m.post_to_room(_msg(), post=spy)
     m.post_to_room(_msg(body="second beat"), post=spy)
     c2 = spy.calls[1]
-    assert c2["thread_id"] == "789012345678" and c2["thread_name"] is None, (
-        "a known ask must post into its existing thread, never mint a twin room"
-    )
+    assert c2["thread_id"] == "789012345678", "a known ask must post into its existing thread, never mint a twin room"
+    assert c2["thread_name"] is None, "a known ask must post into its existing thread, never mint a twin room"
 
 
 # ---- P3: seats post as Callsign (vendor) — the Species-A kill ----------------
@@ -115,7 +114,11 @@ def test_p3_username_teaches_both_names(env, monkeypatch):
 def test_p4_unknown_kind_does_not_forward(env):
     spy = _Spy()
     out = _mod().post_to_room(_msg(kind="trace"), post=spy)
-    assert not out.ok and not spy.calls, (
+    assert not out.ok, (
+        "rooms inherit the bridge's allowlist — the firehose stays out, and a "
+        "second hand-kept kind list is the fork this repo keeps paying for"
+    )
+    assert not spy.calls, (
         "rooms inherit the bridge's allowlist — the firehose stays out, and a "
         "second hand-kept kind list is the fork this repo keeps paying for"
     )
@@ -146,7 +149,10 @@ def test_p8_persona_wears_the_registry_face(env, monkeypatch):
     _mod().post_to_room(_msg(frm="deepseek"), post=spy)
     c = spy.calls[0]
     assert c["username"] == "Heimdall (deepseek)", "no icon until Heimdall picks one"
-    assert c["avatar_url"] and c["avatar_url"].endswith("/heimdall.png"), (
+    assert c["avatar_url"], (
+        "the avatar is the designation made visible — Onyx disc, Blue ring, served from the public repo"
+    )
+    assert c["avatar_url"].endswith("/heimdall.png"), (
         "the avatar is the designation made visible — Onyx disc, Blue ring, served from the public repo"
     )
 
@@ -170,9 +176,8 @@ def test_p9_ratified_name_does_not_wait_for_placement(env, monkeypatch):
     )
 
     unknown = _mod().persona("somebot")
-    assert unknown["username"] == "somebot" and unknown["avatar_url"] is None, (
-        "an unregistered seat still keeps its honest bare id and no face"
-    )
+    assert unknown["username"] == "somebot", "an unregistered seat still keeps its honest bare id and no face"
+    assert unknown["avatar_url"] is None, "an unregistered seat still keeps its honest bare id and no face"
 
 
 def test_p10_a_selected_icon_rides_the_name(env, tmp_path, monkeypatch):
@@ -203,7 +208,11 @@ def test_p5_rooms_expose_no_inbound_door():
 def test_p6_unconfigured_is_a_state_not_a_failure(env, monkeypatch):
     monkeypatch.delenv("AKASHIC_DISCORD_FORUM_WEBHOOK")
     out = _mod().post_to_room(_msg(), post=_Spy())
-    assert not out.ok and "not configured" in str(out.why).lower(), (
+    assert not out.ok, (
+        "an unconfigured room webhook is opt-in-and-unset, distinguishable from "
+        "a delivery failure (T170 vocabulary, carried from the bridge)"
+    )
+    assert "not configured" in str(out.why).lower(), (
         "an unconfigured room webhook is opt-in-and-unset, distinguishable from "
         "a delivery failure (T170 vocabulary, carried from the bridge)"
     )
@@ -236,7 +245,11 @@ def test_p11_text_mode_creates_threads_through_the_bot(env, monkeypatch, tmp_pat
     assert out.ok, out
     assert minted == ["ask-42 — T362 fence"], "text mode mints the thread via the bot"
     c = spy.calls[0]
-    assert c["thread_id"] == "777000111" and c["thread_name"] is None, (
+    assert c["thread_id"] == "777000111", (
+        "the webhook posts INTO the minted thread; thread_name never leaves the "
+        "house in text mode (it is a 400 on non-forum channels)"
+    )
+    assert c["thread_name"] is None, (
         "the webhook posts INTO the minted thread; thread_name never leaves the "
         "house in text mode (it is a 400 on non-forum channels)"
     )

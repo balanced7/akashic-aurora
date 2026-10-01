@@ -119,14 +119,16 @@ def test_p2_a_floor_silent_call_records_floor_silent(fake_store, _isolated_outco
         "SILENT AND INVISIBLE: a floor-silent call left no record. This is the exact "
         "gap -- 27%-should-be-silent is unverifiable when silence writes nothing."
     )
-    assert rows[-1]["outcome"] == "silent" and rows[-1]["reason"] == "floor_silent", rows[-1]
+    assert rows[-1]["outcome"] == "silent", rows[-1]
+    assert rows[-1]["reason"] == "floor_silent", rows[-1]
 
 
 # --------------------------------------------------------------- P3
 def test_p3_an_empty_query_records_empty_query(fake_store, _isolated_outcomes):
     A.recall_at(command="", path=None, learning_store=fake_store)
     rows = _outcomes(_isolated_outcomes)
-    assert rows and rows[-1]["outcome"] == "silent", rows[-1] if rows else None
+    assert rows, rows[-1] if rows else None
+    assert rows[-1]["outcome"] == "silent", rows[-1] if rows else None
     assert rows[-1]["reason"] == "empty_query", (
         f"nothing was even RANKABLE -- that is a different fact from 'ranked and "
         f"nothing cleared', and conflating them hides query-construction bugs: {rows[-1]}"
@@ -145,7 +147,8 @@ def test_p4_the_error_path_records_error_empty(_isolated_outcomes, monkeypatch):
     r = A.recall_at(command="anything at all here", learning_store=None)
     assert not r.get("lessons"), "contract: fail-soft returns empty"
     rows = _outcomes(_isolated_outcomes)
-    assert rows and rows[-1]["reason"] == "error_empty", (
+    assert rows, f"a crash-empty must be distinguishable from a judged-empty: {rows[-1] if rows else None}"
+    assert rows[-1]["reason"] == "error_empty", (
         f"a crash-empty must be distinguishable from a judged-empty: {rows[-1] if rows else None}"
     )
 
@@ -158,7 +161,9 @@ def test_p5_silence_rate_is_a_query(fake_store, _isolated_outcomes):
     A.recall_at(command="frobnicate the r2 pin", learning_store=fake_store, min_relevance=99.0)  # floor_silent
     A.recall_at(command="", learning_store=fake_store)  # empty_query
     stats = A.silence_rate()
-    assert stats["calls"] == 3 and stats["fired"] == 1 and stats["silent"] == 2, stats
+    assert stats["calls"] == 3, stats
+    assert stats["fired"] == 1, stats
+    assert stats["silent"] == 2, stats
     assert stats["by_reason"].get("floor_silent") == 1, stats
     assert stats["by_reason"].get("empty_query") == 1, stats
 

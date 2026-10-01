@@ -224,9 +224,8 @@ def test_b2_retirement_records_why_and_when(tmp_path):
     rec = LearningStore(store=store)._load_experiment(name) or {}
     when = str(rec.get("benched") or rec.get("valid_to") or "")
     why = str(rec.get("bench_reason") or rec.get("superseded_by") or "")
-    assert when and when.lower() not in ("true", "1"), (
-        f"retirement must record WHEN, not a bare boolean -- got {when!r}"
-    )
+    assert when, f"retirement must record WHEN, not a bare boolean -- got {when!r}"
+    assert when.lower() not in ("true", "1"), f"retirement must record WHEN, not a bare boolean -- got {when!r}"
     assert why, "retirement must record WHY -- a reasonless flag can be obeyed but not reviewed"
 
 

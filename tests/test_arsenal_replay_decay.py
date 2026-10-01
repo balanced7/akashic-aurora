@@ -90,7 +90,8 @@ def test_a_chord_over_ringing_notes_plays_them_as_they_sounded_when_it_was_whole
     cue = pianocue.build_replay_cue(events(), 0, 14)
     windows = harmony(cue)
     first, later = window_from(windows, 0), window_from(windows, 8000)
-    assert first["velocities"][BASS] == 80 and TREBLE in first["notes"], "at the strike everything is fresh"
+    assert first["velocities"][BASS] == 80, "at the strike everything is fresh"
+    assert TREBLE in first["notes"], "at the strike everything is fresh"
     assert later["at_ms"] == 8000, "the chord is whole the instant its three notes land"
     assert all(later["velocities"][n] == 80 for n in CHORD), "the chord just struck is fresh"
     # the bass, 8 s old: 10^(-3*8/20) = -24 dB -- audible, but quieter than the voice can play: velocity 1
@@ -112,7 +113,9 @@ def test_an_unfolding_arpeggio_is_aged_from_the_instant_it_is_whole_not_the_wind
     ev.append({"kind": "pedal", "t_ms": 2600, "down": False, "value": 0})
     w = harmony(pianocue.build_replay_cue(ev, 0, 2.6))[0]
     assert w["at_ms"] == 800, "whole when the third note lands, not at the window start"
-    assert w["db"][48] < 0 and w["db"][64] < 0 and w["db"][67] == 0.0, "the earlier notes have aged, the last is fresh"
+    assert w["db"][48] < 0, "the earlier notes have aged, the last is fresh"
+    assert w["db"][64] < 0, "the earlier notes have aged, the last is fresh"
+    assert w["db"][67] == 0.0, "the earlier notes have aged, the last is fresh"
     # through the voice curve, -3.5 dB of amplitude (C3 at 0.8 s) is velocity 60 of 80; E4 at 0.4 s is 63
     assert w["velocities"][67] == 80 > w["velocities"][64] > w["velocities"][48] > 50, w["velocities"]
 
@@ -126,9 +129,8 @@ def test_notes_carried_into_an_excerpt_bring_their_real_age():
     with_age = window_from(harmony(cue, 1, None, "notes", carried), 3000)
     assert abs(without["db"][BASS] - db_of(amplitude_at(3000, BASS))) < 0.05, "the cue alone thinks the bass is 3 s old"
     assert abs(with_age["db"][BASS] - db_of(amplitude_at(8000, BASS))) < 0.05, "with its real age it is 8 s old"
-    assert without["velocities"][BASS] > 20 and with_age["velocities"][BASS] == 1, (
-        "3 s old plays; 8 s old is at the floor"
-    )
+    assert without["velocities"][BASS] > 20, "3 s old plays; 8 s old is at the floor"
+    assert with_age["velocities"][BASS] == 1, "3 s old plays; 8 s old is at the floor"
     assert TREBLE in with_age["faded"]
 
 

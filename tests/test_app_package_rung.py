@@ -229,7 +229,8 @@ def test_verifier_passes_a_genuinely_intact_payload(tmp_path):
     proof = ap.verify_payload(str(loc))
     assert proof.error is None, proof.error
     assert proof.mismatches == [], proof.mismatches
-    assert proof.complete and proof.blocks == 3, ap.proof_receipt(proof)
+    assert proof.complete, ap.proof_receipt(proof)
+    assert proof.blocks == 3, ap.proof_receipt(proof)
 
 
 def test_F1_EXECUTED_one_flipped_byte_is_caught_and_refuses(tmp_path):

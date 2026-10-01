@@ -67,9 +67,9 @@ def test_forward_walk_reaches_edge_only_lesson():
     nb = {n["id"]: n for n in m["neighborhood"]}
     assert "launcher_singleton_lock" in nb, "B must be WALKED to via the edge (the whole point)"
     via = nb["launcher_singleton_lock"]["via"]
-    assert via["from"] == "cursor_wedge_detect" and via["type"] == "related_to" and via["direction"] == "out", (
-        f"edge must be annotated out from A, got {via}"
-    )
+    assert via["from"] == "cursor_wedge_detect", f"edge must be annotated out from A, got {via}"
+    assert via["type"] == "related_to", f"edge must be annotated out from A, got {via}"
+    assert via["direction"] == "out", f"edge must be annotated out from A, got {via}"
     print("--- forward walk ---\n  edge-only lesson reached + annotated OK")
 
 

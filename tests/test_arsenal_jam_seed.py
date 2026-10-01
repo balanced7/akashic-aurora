@@ -739,7 +739,8 @@ def test_every_chord_reads_the_way_section_12_says():
             seen_spelled.add(where)
         if "notes" in item:
             read = results[(section, style)][notes_text(item["notes"])]
-            assert not read.get("error") and read["notes"] == item["notes"], where
+            assert not read.get("error"), where
+            assert read["notes"] == item["notes"], where
             assert read["name"] == READS[where], (where, read["name"])
             if READS[where] == CLOUD_LETTERS:
                 assert read["number"] is None

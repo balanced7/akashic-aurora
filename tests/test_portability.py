@@ -114,9 +114,8 @@ def test_p1_repo_root_derives_with_no_env_var(monkeypatch):
     """The load-bearing property: a fresh clone works with nothing configured."""
     monkeypatch.delenv("AI_SETUP", raising=False)
     got = repo_root(use_env=False)
-    assert (got / "agent_cli.py").exists() and (got / "core").is_dir(), (
-        f"repo_root() did not find a real repo root without AI_SETUP: {got}"
-    )
+    assert (got / "agent_cli.py").exists(), f"repo_root() did not find a real repo root without AI_SETUP: {got}"
+    assert (got / "core").is_dir(), f"repo_root() did not find a real repo root without AI_SETUP: {got}"
 
 
 def test_p2_a_wrong_env_override_is_reported_not_silently_ignored(monkeypatch):
@@ -183,9 +182,8 @@ def test_p4_config_py_root_is_derived():
 
     cfg = importlib.import_module("config")
     base = getattr(cfg, "BASE_DIR", None)
-    assert base is not None and (base / "agent_cli.py").exists(), (
-        f"config.BASE_DIR does not point at a real repo root: {base}"
-    )
+    assert base is not None, f"config.BASE_DIR does not point at a real repo root: {base}"
+    assert (base / "agent_cli.py").exists(), f"config.BASE_DIR does not point at a real repo root: {base}"
 
 
 def test_p5_doctor_reports_deploy_readiness():

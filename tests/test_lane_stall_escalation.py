@@ -105,9 +105,8 @@ def test_p2_a_fresh_pulse_does_not_silence_the_stall():
     )
     assert any(x["state"] == "working" for x in f), "the fresh-pulse row still renders"
     stall = next((x for x in f if x["state"] == "lane_stall"), None)
-    assert stall is not None and stall["grade"] == "page", (
-        "a fresh pulse must NOT silence progress age -- this is exactly how 45h passed"
-    )
+    assert stall is not None, "a fresh pulse must NOT silence progress age -- this is exactly how 45h passed"
+    assert stall["grade"] == "page", "a fresh pulse must NOT silence progress age -- this is exactly how 45h passed"
 
 
 def test_p3_quiet_lane_never_pages():

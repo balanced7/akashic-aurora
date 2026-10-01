@@ -128,7 +128,10 @@ def test_p6_the_respawn_carries_argv_and_the_lane_env(monkeypatch):
     ok = SR.respawn_self(argv=["scripts/bifrost_runner_deepseek.py", "--agent", "deepseek", "--session", "abc123"])
     assert ok, "respawn must report success when the spawn succeeded"
     assert captured["argv"][0] == sys.executable
-    assert "--session" in captured["argv"] and "abc123" in captured["argv"], (
+    assert "--session" in captured["argv"], (
+        f"SAME argv or the incarnation changes and the per-incarnation cursor forks: {captured['argv']}"
+    )
+    assert "abc123" in captured["argv"], (
         f"SAME argv or the incarnation changes and the per-incarnation cursor forks: {captured['argv']}"
     )
     assert captured["env"].get("BIFROST_CONSUME_LANE") == "work", (
@@ -167,7 +170,11 @@ def test_p9_the_head_the_ceremony_compares_against_is_fresh(monkeypatch):
     first = SR.fresh_head_sha()
     SR._HEAD_CACHE["at"] = 0.0  # force TTL expiry
     second = SR.fresh_head_sha()
-    assert first == "e" * 12 and second == "f" * 12, (
+    assert first == "e" * 12, (
+        f"HEAD must MOVE for a long-lived process: {first!r} -> {second!r}. A "
+        f"process-lifetime cache freezes the ceremony at boot and it never fires."
+    )
+    assert second == "f" * 12, (
         f"HEAD must MOVE for a long-lived process: {first!r} -> {second!r}. A "
         f"process-lifetime cache freezes the ceremony at boot and it never fires."
     )

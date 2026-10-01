@@ -155,7 +155,11 @@ def test_menu_and_hop_describe_the_same_set(tmp_path):
     assert m, "menu lost the exact 'recall' label:\n" + menu
     hop = _run(fx, "--theme", "recall").stdout
     h = re.search(r"\[digests\] (\d+) of (\d+)", hop)
-    assert h and h.group(2) == m.group(1), (
+    assert h, (
+        f"menu says {m.group(1)} but the hop's total is {h.group(2) if h else '?'} -- "
+        "two surfaces, two different sets:\n" + hop
+    )
+    assert h.group(2) == m.group(1), (
         f"menu says {m.group(1)} but the hop's total is {h.group(2) if h else '?'} -- "
         "two surfaces, two different sets:\n" + hop
     )
@@ -177,7 +181,8 @@ def test_no_surface_prints_unbounded_by_default(tmp_path):
     p = tmp_path / "digests.jsonl"
     p.write_text("\n".join(json.dumps(x) for x in rows) + "\n", encoding="utf-8")
     out = _run(p, "--theme", "bulk").stdout
-    assert "40 of 55" in out and "TRUNCATED" in out, "no default budget:\n" + out[:500]
+    assert "40 of 55" in out, "no default budget:\n" + out[:500]
+    assert "TRUNCATED" in out, "no default budget:\n" + out[:500]
     assert "--offset" in out, "truncation offered no continuation mechanism:\n" + out[:500]
     out_all = _run(p, "--theme", "bulk", "--all").stdout
     assert "55 of 55" in out_all, "--all did not lift the cap"
@@ -242,7 +247,8 @@ def test_artifact_resolves_to_its_chapter(tmp_path):
     fx, ch = _joined(tmp_path)
     r = _runj(fx, ch, "--chapter-of", "docs/late.md")
     assert r.returncode == 0, r.stdout + r.stderr
-    assert "chapter_bbb" in r.stdout and "beta arc" in r.stdout, r.stdout
+    assert "chapter_bbb" in r.stdout, r.stdout
+    assert "beta arc" in r.stdout, r.stdout
     assert "chapter_aaa" not in r.stdout, "matched a chapter whose span does not contain it"
 
 
@@ -251,7 +257,8 @@ def test_chapter_resolves_to_its_artifacts(tmp_path):
     fx, ch = _joined(tmp_path)
     r = _runj(fx, ch, "--in-chapter", "chapter_aaa")
     assert r.returncode == 0, r.stdout + r.stderr
-    assert "docs/early.md" in r.stdout and "docs/late.md" not in r.stdout, r.stdout
+    assert "docs/early.md" in r.stdout, r.stdout
+    assert "docs/late.md" not in r.stdout, r.stdout
 
 
 def test_undated_digests_are_reported_never_silently_dropped(tmp_path):

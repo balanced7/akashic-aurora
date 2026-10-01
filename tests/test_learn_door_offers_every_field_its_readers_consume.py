@@ -108,7 +108,11 @@ def test_the_anti_pattern_slug_helper_actually_receives_root_cause():
 
     slug = draft_anti_pattern_slug("banana pancake syrup", "socket timeout wedge", "zebra")
     assert slug, "helper returned nothing for a real root_cause"
-    assert "banana" not in slug and "zebra" not in slug, (
+    assert "banana" not in slug, (
+        f"slug {slug!r} came from the FALLBACK inputs -- root_cause was ignored, which is "
+        f"what a hardcoded '' at the call site looks like from the outside"
+    )
+    assert "zebra" not in slug, (
         f"slug {slug!r} came from the FALLBACK inputs -- root_cause was ignored, which is "
         f"what a hardcoded '' at the call site looks like from the outside"
     )

@@ -159,4 +159,5 @@ def test_emit_survives_a_reader_holding_the_file_open(tmp_path):
         for i in range(1, 6):
             led.emit("held", {"i": i}, maxlen=3)
     got = [e["i"] for _id, e in led.consume("held", after_id="0", count=100)]
-    assert got[-1] == 5 and 5 in got, f"the newest row was lost while a reader held the file: {got}"
+    assert got[-1] == 5, f"the newest row was lost while a reader held the file: {got}"
+    assert 5 in got, f"the newest row was lost while a reader held the file: {got}"

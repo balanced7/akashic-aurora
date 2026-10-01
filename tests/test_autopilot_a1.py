@@ -113,7 +113,8 @@ def test_p3_rearm_write_consume_clear(tmp_path):
     ds.write_rearm_trigger("otheragent", SID, tmp=tmp)  # foreign trigger stays
     spawned = []
     n = ds.consume_rearms(AGENT, lambda sid: spawned.append(sid) or True, tmp=tmp)
-    assert n == 1 and spawned == [SID], "P3: exactly own agent's triggers consumed"
+    assert n == 1, "P3: exactly own agent's triggers consumed"
+    assert spawned == [SID], "P3: exactly own agent's triggers consumed"
     assert not os.path.exists(ds.rearm_path(AGENT, SID, tmp=tmp)), "P3: consumed -> cleared"
     assert os.path.exists(ds.rearm_path("otheragent", SID, tmp=tmp)), "P3: another agent's trigger untouched"
 

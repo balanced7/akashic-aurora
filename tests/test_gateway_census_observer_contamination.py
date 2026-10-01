@@ -238,7 +238,11 @@ def test_restart_waits_for_the_daemon_lease_not_a_fixed_socket_sleep():
     """The contended resource is DaemonLock (TTL 120s, released only on clean exit),
     not the socket. A 1-second sleep races the corpse's lease and loses."""
     src = _restart_source()
-    assert "daemon" in src.lower() and ("lease" in src.lower() or "DaemonLock" in src or "bifrost:daemon:" in src), (
+    assert "daemon" in src.lower(), (
+        "restart still does not consult the daemon lock before relaunching; it sleeps a "
+        "fixed interval sized for a socket and is refused by the singleton guard"
+    )
+    assert "lease" in src.lower() or "DaemonLock" in src or "bifrost:daemon:" in src, (
         "restart still does not consult the daemon lock before relaunching; it sleeps a "
         "fixed interval sized for a socket and is refused by the singleton guard"
     )

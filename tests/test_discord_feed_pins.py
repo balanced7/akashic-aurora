@@ -105,7 +105,8 @@ def test_p2_new_mail_forwards_to_both_and_advances(wired):
     glob, rooms = [], []
     out = F.pump(bus, post=lambda m, **k: glob.append(m), room_post=lambda m, **k: rooms.append(m))
     assert out.detail["forwarded"] == 1
-    assert len(glob) == 1 and len(rooms) == 1, "every new message offers to BOTH surfaces"
+    assert len(glob) == 1, "every new message offers to BOTH surfaces"
+    assert len(rooms) == 1, "every new message offers to BOTH surfaces"
     assert glob[0]["content"] == "fresh verdict — with a newline\nbelow", (
         "content must arrive DECODED — no wrapping quotes, no raw \\u2014, real "
         "newlines; the envelope json-encodes every field and the phone is not a "

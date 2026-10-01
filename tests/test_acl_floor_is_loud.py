@@ -180,9 +180,8 @@ def test_f6_doctor_shows_the_floor_and_the_restore_drill(floor_state, monkeypatc
     floor_state.write_text(json.dumps(VALID), encoding="utf-8")
     monkeypatch.setattr(REG, "_CACHE", _fresh_cache())
     out = _doctor_stdout(monkeypatch, capsys)
-    assert "## ACL" not in out and "BOOTSTRAP FLOOR" not in out, (
-        f"a valid ACL must not raise a doctor row (no crying wolf):\n{out}"
-    )
+    assert "## ACL" not in out, f"a valid ACL must not raise a doctor row (no crying wolf):\n{out}"
+    assert "BOOTSTRAP FLOOR" not in out, f"a valid ACL must not raise a doctor row (no crying wolf):\n{out}"
 
 
 def test_f7_recovery_then_loss_warns_again(floor_state, capsys):
@@ -211,9 +210,10 @@ def _drill_never_offers_the_example_copy_alone(text):
     assert "acl.example.json AND add your own root" in text, (
         "the drill must bind the example copy to adding a root record: " + text
     )
-    assert "or copy security/acl.example.json;" not in text and "(or copy" not in text, (
+    assert "or copy security/acl.example.json;" not in text, (
         "the drill must never offer the example copy as a standalone recovery: " + text
     )
+    assert "(or copy" not in text, "the drill must never offer the example copy as a standalone recovery: " + text
 
 
 def test_f8_the_restore_drill_never_offers_the_empty_example_alone(floor_state, capsys, monkeypatch):

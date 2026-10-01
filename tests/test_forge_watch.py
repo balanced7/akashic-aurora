@@ -85,7 +85,8 @@ def test_confirm_after_quiet_window():
 def test_young_provisional_is_left_alone():
     ls, use = _fixture(baseline={"surfaced": 10}, use_now={"surfaced": 13}, forged_days_ago=0.5)
     rep = curation_report(store=use, learning_store=ls)
-    assert not rep["forge_rollback"] and not rep["forge_confirm"], rep
+    assert not rep["forge_rollback"], rep
+    assert not rep["forge_confirm"], rep
     print("--- patience ---\n  young provisional with thin data -> no action OK")
 
 

@@ -152,9 +152,8 @@ def test_replay_runs_live_pipeline_sessionless():
 def test_fidelity_check_agrees_by_construction():
     fid = fidelity_check(sample=_INJECTIONS, learning_store=_STORE)
     assert fid["checked"] == 2, fid
-    assert fid["agreed"] == 2 and fid["rate"] == 1.0, (
-        f"fresh ledger entries must re-surface on replay (same pipeline!), got {fid}"
-    )
+    assert fid["agreed"] == 2, f"fresh ledger entries must re-surface on replay (same pipeline!), got {fid}"
+    assert fid["rate"] == 1.0, f"fresh ledger entries must re-surface on replay (same pipeline!), got {fid}"
     empty = fidelity_check(sample=[], learning_store=_STORE)
     assert empty["checked"] == 0
     assert empty["rate"] is None
