@@ -47,7 +47,7 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.comm import kinds as K
+from core.comm import kinds as K  # noqa: E402
 
 
 # ---------------------------------------------------------------- P1: totality

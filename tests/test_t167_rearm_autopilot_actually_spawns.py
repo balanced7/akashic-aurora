@@ -43,7 +43,7 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from core.comm import daemon_state as DS
+from core.comm import daemon_state as DS  # noqa: E402
 
 DAEMON = os.path.join(ROOT, "scripts", "bifrost_daemon.py")
 

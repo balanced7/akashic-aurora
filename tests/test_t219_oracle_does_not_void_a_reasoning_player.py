@@ -49,7 +49,7 @@ REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 sys.path.insert(0, str(REPO / "scripts"))
 
-import canary_oracle as CO
+import canary_oracle as CO  # noqa: E402
 
 
 def _manifest():

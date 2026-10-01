@@ -30,7 +30,7 @@ import pytest
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from core.outcome import BoundaryOutcome
+from core.outcome import BoundaryOutcome  # noqa: E402
 
 
 def test_o1_a_failure_without_a_reason_cannot_be_built():

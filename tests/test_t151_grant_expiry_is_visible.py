@@ -35,7 +35,7 @@ from datetime import UTC, datetime, timedelta
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from core.trust import registry as REG
+from core.trust import registry as REG  # noqa: E402
 
 
 def _iso(dt):

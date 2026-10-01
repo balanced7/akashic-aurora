@@ -49,7 +49,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 sys.path.insert(0, os.path.join(ROOT, "scripts", "checkers"))
 
-import check_wiring
+import check_wiring  # noqa: E402
 
 
 def _mod(tmp_path, name, text):

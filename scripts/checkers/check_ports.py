@@ -45,7 +45,7 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, ROOT)
 
-import config
+import config  # noqa: E402
 
 BASELINE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "port_baseline.json")
 

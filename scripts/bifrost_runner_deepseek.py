@@ -36,7 +36,7 @@ if _os.path.isdir(
     if _qd not in _sys.path:
         _sys.path.insert(0, _qd)
     try:  # noqa: SIM105  # runs before every other import (contextlib included): Popen is patched first
-        import sitecustomize as _quiet_sitecustomize
+        import sitecustomize as _quiet_sitecustomize  # noqa: F401  (patches subprocess.Popen)
     except Exception:
         pass
 

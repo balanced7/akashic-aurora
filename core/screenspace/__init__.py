@@ -26,18 +26,18 @@ results) when the OS has no interactive desktop or the substrate is unpinned.
 """
 
 from core.screenspace import (
-    canary,
-    capture,
-    foreground,
-    shadow,
+    canary,  # noqa: F401  (§1 amended ruling: positive canary read) — imported FIRST: leaf-most (no package-internal imports), consumed by engine/shadow
+    capture,  # noqa: F401  (module attribute, deep substrate)
+    foreground,  # noqa: F401  (WinEventHook foreground source, §1.1)
+    shadow,  # noqa: F401  (L0 pulse, F2-gated)
 )
-from core.screenspace.engine import (
+from core.screenspace.engine import (  # noqa: F401  (flat verb seam)
     delta,
     peek,
     read_text,
     refs,
 )
-from core.screenspace.foreground import ForegroundTracker
+from core.screenspace.foreground import ForegroundTracker  # noqa: F401  (the §1.1 source)
 
 __all__ = [
     "ForegroundTracker",

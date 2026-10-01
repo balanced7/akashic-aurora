@@ -90,8 +90,8 @@ os.environ["AKASHIC_REMOTE_BRIDGE_INBOUND_KEY"] = SECRET.decode()
 os.environ["AKASHIC_REMOTE_BRIDGE_OUTBOUND_KEY"] = SECRET.decode()
 os.environ["AKASHIC_REMOTE_BRIDGE_PEER_URL"] = URL
 
-from core.comm import remote_relay as RR
-from scripts import remote_bridge_listener as L
+from core.comm import remote_relay as RR  # noqa: E402
+from scripts import remote_bridge_listener as L  # noqa: E402
 
 
 def main() -> int:

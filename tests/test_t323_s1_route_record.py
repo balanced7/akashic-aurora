@@ -33,7 +33,7 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.eye import routes as RT
+from core.eye import routes as RT  # noqa: E402
 
 STEPS = [
     {"type": "anchor", "target": "sess-a:100", "receipt": "sess-a:100", "note": "the handoff that opened the day"},

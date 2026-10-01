@@ -432,9 +432,7 @@ if __name__ == "__main__":
         meter = SpendMeter()
         meter.reconcile(force=True)
         print("pre :", meter.status_line())
-        ag = geminiAgent(
-            instructions="You are gemini, smoke-testing your seat transport.", meter=meter
-        )  # LATENT ADV-034: `geminiAgent` is undefined here; fixed with a regression test in G4.P2
+        ag = geminiAgent(instructions="You are gemini, smoke-testing your seat transport.", meter=meter)  # noqa: F821  # LATENT ADV-034: `geminiAgent` is undefined here; fixed with a regression test in G4.P2
         print("text=", repr(ag.send("Reply with exactly: gemini TRANSPORT LIVE")))
         calc = [
             {
@@ -446,7 +444,7 @@ if __name__ == "__main__":
                 },
             }
         ]
-        ag2 = geminiAgent(  # LATENT ADV-034: `geminiAgent` is undefined here; fixed with a regression test in G4.P2
+        ag2 = geminiAgent(  # noqa: F821  # LATENT ADV-034: `geminiAgent` is undefined here; fixed with a regression test in G4.P2
             instructions="Use tools when asked.", tools_schemas=calc, dispatch=lambda n, a: "42", meter=meter
         )
         print("tool round-trip:", repr(ag2.send("What is 6*7? Use the calc tool, then answer.")))

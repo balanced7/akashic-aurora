@@ -13,7 +13,7 @@ import pytest
 os.environ.setdefault("_AISETUP_TEST_ISOLATED", "1")
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.comm.bus import Bus
+from core.comm.bus import Bus  # noqa: E402
 
 
 def _client():

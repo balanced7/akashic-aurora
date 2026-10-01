@@ -66,7 +66,7 @@ def test_s2_explicit_stdin_and_piped_input_still_work():
     subprocess.run(input=...) sets stdin=PIPE itself, so the door's script helpers
     (_run_script feeds prompts to scripts/gemini_web.py this way) keep working.
     """
-    import ai_setup_mcp
+    import ai_setup_mcp  # noqa: F401  -- installs the membrane
 
     r = subprocess.run(
         [sys.executable, "-c", "import sys; sys.stdout.write(sys.stdin.read().upper())"],

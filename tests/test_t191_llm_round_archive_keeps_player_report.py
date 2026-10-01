@@ -24,7 +24,7 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from scripts import season_dryrun as D
+from scripts import season_dryrun as D  # noqa: E402
 
 
 def _manifest():

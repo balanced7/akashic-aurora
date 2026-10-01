@@ -9,8 +9,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from arsenal.presets import list_presets, parse_preset
-from arsenal.serve import App, Server
+from arsenal.presets import list_presets, parse_preset  # noqa: E402
+from arsenal.serve import App, Server  # noqa: E402
 
 VALID = """#version 300 es
 //! {"id": "demo-one", "name": "Demo One", "author": "Vandor", "tags": ["test"], "params": [{"k": 1, "name": "trails", "default": 0.5}, {"k": 3, "name": "zoom", "default": 0}]}

@@ -21,7 +21,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-import isolate_canonical
+import isolate_canonical  # noqa: F401 -- db 15 + temp AI_SETUP, flushed (child inherits via env)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)

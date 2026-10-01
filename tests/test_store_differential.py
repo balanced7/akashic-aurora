@@ -23,7 +23,7 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.foundation.store import DictStore, RedisStore
+from core.foundation.store import DictStore, RedisStore  # noqa: E402
 
 NS = "w3diff:" + uuid.uuid4().hex[:8] + ":"
 

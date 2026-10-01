@@ -31,7 +31,7 @@ from pathlib import Path
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from core.comm import door_probe as dp
+from core.comm import door_probe as dp  # noqa: E402
 
 #: Measured 2026-07-26 by mutation-testing the probe against the reproduced bug.
 HEALTHY_BASELINE_S = 1.3

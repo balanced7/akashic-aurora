@@ -51,9 +51,9 @@ REPO = Path(__file__).resolve().parents[1]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
-import agent_cli
-from core.comm import ask as ask_mod
-from core.comm import runner_lib as _runner_lib
+import agent_cli  # noqa: E402  (the door under test)
+from core.comm import ask as ask_mod  # noqa: E402
+from core.comm import runner_lib as _runner_lib  # noqa: E402
 
 # ABSOLUTE on purpose: build_context resolves a relative path against the process cwd, and an
 # in-process pin must not care where pytest was launched from. Both stay inside the repo root,

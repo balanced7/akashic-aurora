@@ -61,8 +61,8 @@ import pytest
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from core.comm import kinds as K
-from core.comm import packet_spec
+from core.comm import kinds as K  # noqa: E402
+from core.comm import packet_spec  # noqa: E402
 
 # ============================================================ RULING 1: the three questions
 

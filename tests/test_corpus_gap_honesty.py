@@ -33,7 +33,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from core.recall.at_action import build_learn_nudge
+from core.recall.at_action import build_learn_nudge  # noqa: E402
 
 
 def test_credited_flip_is_unchanged():

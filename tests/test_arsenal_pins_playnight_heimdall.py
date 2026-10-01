@@ -20,7 +20,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from arsenal import presets
+from arsenal import presets  # noqa: E402
 
 # The exact set of uniforms a preset body may declare, and their GLSL types.
 UNIFORM_TYPES = {
@@ -370,7 +370,7 @@ def test_list_presets_only_frag_files(tmp_path):
 
 @pytest.fixture
 def presets_server(tmp_path):
-    from arsenal.serve import App, Server
+    from arsenal.serve import App, Server  # noqa: E402 (same pattern as test_arsenal_serve)
 
     pdir = tmp_path / "presets"
     pdir.mkdir()

@@ -51,7 +51,7 @@ import uuid
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from core.comm import doctor, liveness, roster, runner_lib
+from core.comm import doctor, liveness, roster, runner_lib  # noqa: E402
 
 AGENT = "deepseek-probe"  # never a live seat's id: no shared-Redis side effects
 SESSION = "3708-deepseek"  # the receipt's derivation: f"{pid}-{agent}"

@@ -25,7 +25,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.comm import peer_ready as PR
+from core.comm import peer_ready as PR  # noqa: E402
 
 REGISTRY = [
     {"tag": "deepseek", "agent_id": "deepseek"},

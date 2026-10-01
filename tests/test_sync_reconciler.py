@@ -18,7 +18,7 @@ os.environ.setdefault("REDIS_DB", "15")
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.foundation.store import (  # AI_SETUP env (mkdtemp) must exist before import
+from core.foundation.store import (  # noqa: E402  # AI_SETUP env (mkdtemp) must exist before import
     FileStore,
     HybridStore,
     RedisStore,

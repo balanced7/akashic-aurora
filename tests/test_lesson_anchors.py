@@ -41,7 +41,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from core.recall import anchors
+from core.recall import anchors  # noqa: E402
 
 
 # --------------------------------------------------------------------------

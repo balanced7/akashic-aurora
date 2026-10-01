@@ -55,7 +55,7 @@ os.makedirs(os.path.join(RAM_DISK, "temp"), exist_ok=True)
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from config import get_redis_config  # sys.path bootstrap (after the RAM-disk makedirs)
+from config import get_redis_config  # noqa: E402  # sys.path bootstrap (after the RAM-disk makedirs)
 
 # Try to connect to Redis (fail-fast: this runs at import, so it must never
 # stall ~48s when Redis is down — gate on a raw-socket reachability probe).

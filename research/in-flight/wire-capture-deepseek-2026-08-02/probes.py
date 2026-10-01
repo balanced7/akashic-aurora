@@ -21,8 +21,8 @@ if not API_KEY:
     print("FATAL: no DEEPSEEK_API_KEY", file=sys.stderr)
     sys.exit(1)
 
-import httpx  # fail fast on a missing key before importing the SDK
-from openai import OpenAI  # fail fast on a missing key before importing the SDK
+import httpx  # noqa: E402  # fail fast on a missing key before importing the SDK
+from openai import OpenAI  # noqa: E402  # fail fast on a missing key before importing the SDK
 
 SDK = OpenAI(api_key=API_KEY, base_url=BASE_URL, timeout=httpx.Timeout(120, connect=15), max_retries=1)
 HTTPX = httpx.Client(timeout=httpx.Timeout(120, connect=15))

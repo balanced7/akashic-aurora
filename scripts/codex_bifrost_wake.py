@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from agent.harness.codex_bifrost_wake import (
+from agent.harness.codex_bifrost_wake import (  # noqa: E402
     DIRECT_ACTION_KINDS,
     CodexBifrostWake,
     WakeError,
@@ -23,7 +23,7 @@ from agent.harness.codex_bifrost_wake import (
     default_runtime_paths,
     install_signal_stops,
 )
-from core.comm.bus import Bus
+from core.comm.bus import Bus  # noqa: E402
 
 
 def build_parser() -> argparse.ArgumentParser:

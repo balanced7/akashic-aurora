@@ -18,7 +18,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 
-from core.comm import discord_bridge as DB
+from core.comm import discord_bridge as DB  # noqa: E402
 
 
 # ---------------------------------------------------------------- the chunker

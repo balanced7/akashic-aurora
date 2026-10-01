@@ -32,7 +32,7 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from core.events import event_log as EL
+from core.events import event_log as EL  # noqa: E402
 
 
 class _Ledger:

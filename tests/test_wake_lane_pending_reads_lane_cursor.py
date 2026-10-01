@@ -46,8 +46,8 @@ os.environ.setdefault("_AISETUP_TEST_ISOLATED", "1")
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from core.comm.bifrost_api import BifrostAPI
-from core.comm.bus import Bus
+from core.comm.bifrost_api import BifrostAPI  # noqa: E402
+from core.comm.bus import Bus  # noqa: E402
 
 
 def _client():

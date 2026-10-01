@@ -28,11 +28,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-import redis
+import redis  # noqa: E402
 
-from core.coord import world_diff as WD
-from core.world import WORLDS, checkout_of, current
-from core.world_seed import read_manifest
+from core.coord import world_diff as WD  # noqa: E402
+from core.world import WORLDS, checkout_of, current  # noqa: E402
+from core.world_seed import read_manifest  # noqa: E402
 
 #: Where each world's checkout lives, so the CODE plane can be read without guessing.
 #: Derived from this checkout's location (siblings sharing a base name), never a drive letter.

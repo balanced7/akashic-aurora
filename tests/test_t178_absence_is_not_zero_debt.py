@@ -38,7 +38,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 sys.path.insert(0, os.path.join(ROOT, "scripts", "githooks"))
 
-import pre_commit as pc
+import pre_commit as pc  # noqa: E402
 
 BASELINE_REL = "state/ci/guardrail_baseline.json"
 

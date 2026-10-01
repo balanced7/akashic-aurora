@@ -158,9 +158,7 @@ def initialize():
         from session_logger import SESSION_ID, SESSION_UNIQUE
 
         # Detect role from session or default to general
-        role = os.environ.get(
-            "OPENCODE_AGENT_ROLE", "general"
-        )  # LATENT ADV-034: `os` is undefined here; fixed with a regression test in G4.P2
+        role = os.environ.get("OPENCODE_AGENT_ROLE", "general")  # noqa: F821  # LATENT ADV-034: `os` is undefined here; fixed with a regression test in G4.P2
 
         ma_result = initialize_multi_agent(session_id=SESSION_ID, session_unique=SESSION_UNIQUE, role=role)
 

@@ -35,7 +35,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.comm import friction
+from core.comm import friction  # noqa: E402
 
 
 def _ev(kind, ask_id, peer, *, at_ask=None, at_death=None, created=1000.0, at="2026-08-06T00:00:10Z"):

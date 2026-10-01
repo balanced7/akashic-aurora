@@ -16,7 +16,7 @@ import os
 import sys
 import uuid
 
-import isolate_canonical
+import isolate_canonical  # noqa: F401  (side-effect: isolate + flush db15)
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))

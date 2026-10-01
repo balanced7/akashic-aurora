@@ -163,7 +163,7 @@ class ForegroundTracker:
             wintypes = ctypes.wintypes
         else:
             try:
-                import ctypes.wintypes as wintypes
+                import ctypes.wintypes as wintypes  # noqa: F811
             except Exception:  # noqa: BLE001
                 wintypes = None
         msg = wintypes.MSG() if wintypes is not None else None

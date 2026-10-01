@@ -17,8 +17,8 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from arsenal.jam import API, schemas, tempomap
-from arsenal.jam.schemas import (
+from arsenal.jam import API, schemas, tempomap  # noqa: E402
+from arsenal.jam.schemas import (  # noqa: E402
     JamSchemaError,
     card_settings,
     chord_count,
@@ -33,7 +33,7 @@ from arsenal.jam.schemas import (
     validate_seed_moments,
     wording_problems,
 )
-from arsenal.performance import PerformanceStore, validate_events
+from arsenal.performance import PerformanceStore, validate_events  # noqa: E402
 
 FIX = ROOT / "tests" / "fixtures" / "jam"
 RUN_DIR = FIX / "run_loop_l1"

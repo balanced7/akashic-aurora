@@ -274,4 +274,4 @@ def search(query: str, *, count: int = 8, seat: str | None = None) -> dict:
     }
 
 
-import urllib.parse
+import urllib.parse  # noqa: E402  (used by search)

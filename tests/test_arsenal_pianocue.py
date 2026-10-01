@@ -25,10 +25,10 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from arsenal import pianocue
-from arsenal.performance import PerformanceStore
-from arsenal.pianocue import CueError, CueHub, build_replay_cue, parse_clock, validate_cue
-from arsenal.serve import App, Server
+from arsenal import pianocue  # noqa: E402
+from arsenal.performance import PerformanceStore  # noqa: E402
+from arsenal.pianocue import CueError, CueHub, build_replay_cue, parse_clock, validate_cue  # noqa: E402
+from arsenal.serve import App, Server  # noqa: E402
 
 NODE = shutil.which("node")
 needs_node = pytest.mark.skipif(NODE is None, reason="the voicing bridge needs node")
@@ -280,7 +280,7 @@ def test_ids_stay_unique_across_a_restart_so_the_new_server_replays_to_an_old_pa
     seen = old.publish({"type": "clear"})["id"]  # 1001: the last id the page saw
     new = CueHub(clock=clock, id_base=2_000)
     new.publish({"type": "clear"})  # posted as soon as the restarted server answered, before the page is back
-    ids = lambda frames: [int(f.split(b"\n")[0][4:]) for f in frames]
+    ids = lambda frames: [int(f.split(b"\n")[0][4:]) for f in frames]  # noqa: E731
     assert ids(new.subscribe(seen)[2]) == [2001]
     assert ids(new.subscribe(2001)[2]) == []
     assert ids(new.subscribe(2000)[2]) == [2001]
@@ -760,7 +760,7 @@ def test_voice_leading_moves_less():
     chords = ["Dm9", "G13", "Cmaj9", "Fmaj7#11", "Bm7b5", "E7b9", "Am9"]
     plain = _voice(chords, voicing="close")
     led = _voice(chords, voicing="close", voice_lead=True)
-    total = lambda rs: sum(r["movement"] for r in rs[1:])
+    total = lambda rs: sum(r["movement"] for r in rs[1:])  # noqa: E731
     assert total(led) < total(plain)
     for a, b in zip(plain, led, strict=False):
         assert a["notes"][0] % 12 == b["notes"][0] % 12  # the bass stays the bass
@@ -825,7 +825,7 @@ def test_no_number_in_any_page_key_gets_a_name_the_page_would_not_show():
         f"{k} minor" for k in ["C", "C#", "D", "Eb", "E", "F", "F#", "G", "G#", "A", "Bb", "B"]
     ]
     items = [acc + str(d) + sfx for acc in ("", "b", "#") for d in range(1, 8) for sfx in ("", "m", "^7", "/5")]
-    root_of = lambda name: re.match(r"[A-G](#{1,2}|b{1,2})?", name or "").group(0) if name else None
+    root_of = lambda name: re.match(r"[A-G](#{1,2}|b{1,2})?", name or "").group(0) if name else None  # noqa: E731
     checked = 0
     for key in keys:
         for r in _voice(items, key=key):

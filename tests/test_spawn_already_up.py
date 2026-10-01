@@ -23,7 +23,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 
-from core.comm import discord_inbound as DI
+from core.comm import discord_inbound as DI  # noqa: E402
 
 RILL_LOG = REPO / "state" / "spawn-logs" / "launch-rill-1787760845.log"
 

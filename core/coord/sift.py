@@ -44,7 +44,7 @@ from __future__ import annotations
 import hashlib
 import os
 import re
-from collections.abc import (  # runtime-evaluated annotations (annotation_sensitive module)
+from collections.abc import (  # noqa: TC003  # runtime-evaluated annotations (annotation_sensitive module)
     Iterable,
     Sequence,
 )

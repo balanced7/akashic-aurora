@@ -38,7 +38,7 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from core.comm.roster import by_agent
+from core.comm.roster import by_agent  # noqa: E402
 
 
 def _row(agent, state, age, sid8="aaaa1111", seq=0):

@@ -28,7 +28,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import pytest
 
-from core.comm.bus import Bus
+from core.comm.bus import Bus  # noqa: E402
 
 
 @pytest.fixture(autouse=True)

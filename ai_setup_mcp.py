@@ -494,14 +494,14 @@ async def recall_at(path: str = "", command: str = "", agent: str = "", limit: i
 @mcp.tool()
 async def find(
     query: str,
-    limit: int = None,  # MCP tool input schema (O4c) must stay byte-identical
+    limit: int = None,  # noqa: RUF013  # MCP tool input schema (O4c) must stay byte-identical
     offset: int = 0,
     path: bool = False,
     no_sort: bool = False,
-    timeout: float = 15.0,  # MCP tool parameter (input schema O4c)
+    timeout: float = 15.0,  # noqa: ASYNC109  # MCP tool parameter (input schema O4c)
     sort: str = "",
     columns: str = "",
-    format: str = "json",  # public API name (MCP tool parameter)
+    format: str = "json",  # noqa: A002  # public API name (MCP tool parameter)
     regex: bool = False,
     case: bool = False,
     word: bool = False,
@@ -974,7 +974,7 @@ async def capture(
     as_doc: bool = False,
     title: str = "",
     cites: str = "",
-    type: str = "chronicle",  # public API name (MCP tool parameter)
+    type: str = "chronicle",  # noqa: A002  # public API name (MCP tool parameter)
     arc: str = "",
     per_stream: int = 1000,
 ) -> str:
@@ -1682,9 +1682,7 @@ async def assign(agent: str, role: str, by: str, side: str = "", exercise: str =
 
 
 @mcp.tool()
-async def adopt(
-    path: str, type: str = "", title: str = "", seats: str = ""
-) -> str:  # public API name (MCP tool parameter)
+async def adopt(path: str, type: str = "", title: str = "", seats: str = "") -> str:  # noqa: A002  # public API name (MCP tool parameter)
     """[doc adopt] Mint an EXISTING loose .md as a typed atom -- NON-DESTRUCTIVE by
     construction: read, mint, leave the original exactly where it is. Type/title/seats are
     inferred when absent (override with flags). Daniil approved this write 2026-08-26."""

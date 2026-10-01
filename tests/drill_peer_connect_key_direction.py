@@ -47,7 +47,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 
-from core.comm import remote_relay as RR
+from core.comm import remote_relay as RR  # noqa: E402
 
 KEY_A = b"drill-key-A-what-the-peer-verifies-with"
 KEY_B = b"drill-key-B-the-other-direction"
@@ -143,7 +143,7 @@ def main() -> int:
         "observed: accept() admitted the INBOUND_KEY_FILE value and refused the other",
     )
 
-    import peer_connect as PC
+    import peer_connect as PC  # noqa: E402
 
     check(
         "peer_connect.SEND_KEY == remote_bridge_outbound.key",

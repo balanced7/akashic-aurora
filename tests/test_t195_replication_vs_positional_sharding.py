@@ -28,7 +28,7 @@ import pytest
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from scripts import season_fan_calibration as F
+from scripts import season_fan_calibration as F  # noqa: E402
 
 
 def _fixture():

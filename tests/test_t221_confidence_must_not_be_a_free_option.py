@@ -44,9 +44,9 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 
-import pytest
+import pytest  # noqa: E402
 
-from core.season import scoring as S
+from core.season import scoring as S  # noqa: E402
 
 #: The proposal that satisfies these properties. The DEFAULTS are marked xfail(strict=True)
 #: rather than deleted: the exploit is real in both of them and the ruling is Daniil's, so

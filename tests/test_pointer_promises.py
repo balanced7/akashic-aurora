@@ -42,7 +42,7 @@ sys.path.insert(0, str(ROOT))
 # NOT importorskip. A pin that SKIPS when its subject is missing reads as green and is
 # exactly the fails-open genus this checker exists to catch (see the door-parity parser:
 # 0 verbs seen, 66 phantom passes). These fail loudly until the checker lands.
-from scripts.checkers import check_pointer_promises as cpp
+from scripts.checkers import check_pointer_promises as cpp  # noqa: E402
 
 
 def _doc(tmp_path: Path, name: str, text: str) -> Path:

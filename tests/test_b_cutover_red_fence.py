@@ -16,9 +16,9 @@ from typing import TYPE_CHECKING
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.foundation import migrate_to_sqlite as migration
-from core.foundation.sqlite_store import SqliteStore
-from core.foundation.store import FileStore, HybridStore, RedisStore, create_store
+from core.foundation import migrate_to_sqlite as migration  # noqa: E402
+from core.foundation.sqlite_store import SqliteStore  # noqa: E402
+from core.foundation.store import FileStore, HybridStore, RedisStore, create_store  # noqa: E402
 
 if TYPE_CHECKING:
     from pathlib import Path

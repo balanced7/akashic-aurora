@@ -30,7 +30,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-import core.recall.at_action as aa
+import core.recall.at_action as aa  # noqa: E402
 
 
 def _force_failure(monkeypatch):

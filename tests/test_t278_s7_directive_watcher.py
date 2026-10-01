@@ -48,8 +48,8 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.eye import directives as DIR
-from core.eye import index as EYE
+from core.eye import directives as DIR  # noqa: E402
+from core.eye import index as EYE  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 FIX = ROOT / "tests" / "fixtures" / "eye"

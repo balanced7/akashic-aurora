@@ -48,7 +48,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 
 import contextlib
 
-from core.foundation.store import FileStore, RedisStore
+from core.foundation.store import FileStore, RedisStore  # noqa: E402
 
 
 def _target(backend: str):

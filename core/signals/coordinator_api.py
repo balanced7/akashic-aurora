@@ -149,7 +149,7 @@ class SignalEmitter:
             self.signal_ledger.append_signal(signal)
             return True
         except Exception as e:
-            logging.error("Failed to emit signal: %s", e)  # root-logger routing kept as-is
+            logging.error("Failed to emit signal: %s", e)  # noqa: LOG015  # root-logger routing kept as-is
             return False
 
     def emit_action_triggering_work(self, action_name: str, details: dict[str, Any] | None = None) -> None:

@@ -42,7 +42,7 @@ import pytest
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from core.comm import toolbox as TB
+from core.comm import toolbox as TB  # noqa: E402
 
 
 @pytest.fixture

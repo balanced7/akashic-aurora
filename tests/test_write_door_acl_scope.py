@@ -45,9 +45,9 @@ os.environ.setdefault("_AISETUP_TEST_ISOLATED", "1")
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from core.comm import toolbox as tb_mod
-from core.trust.capabilities import Cap
-from core.trust.registry import Grant
+from core.comm import toolbox as tb_mod  # noqa: E402
+from core.trust.capabilities import Cap  # noqa: E402
+from core.trust.registry import Grant  # noqa: E402
 
 
 def _box(tmp_path: Path, agent_id="deepseek-red", allow_write=True):

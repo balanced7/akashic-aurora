@@ -22,7 +22,7 @@ import pytest
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from core.comm.discord_bridge import post_with_rate_limit_retry
+from core.comm.discord_bridge import post_with_rate_limit_retry  # noqa: E402
 
 
 class _FakeResponse:

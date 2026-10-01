@@ -137,7 +137,7 @@ def punctuate_model(text: str) -> str:
     first use, then cached."""
     global _RP
     try:
-        from deepmultilingualpunctuation import PunctuationModel
+        from deepmultilingualpunctuation import PunctuationModel  # noqa: PLC0415
     except ImportError as e:
         raise RuntimeError(MODEL_PUNCT_HINT) from e
     if _RP is None:

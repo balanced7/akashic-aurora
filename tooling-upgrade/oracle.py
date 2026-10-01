@@ -1076,7 +1076,7 @@ def compare_o1(a, b, partial=False) -> list:
     volatile = volatile_bases(a) | volatile_bases(b)
     ra, rb = _per_run(a), _per_run(b)
     for base in sorted(volatile):
-        cnt = lambda runs, base=base: min((len(r.get(base, {})) for r in runs), default=0)
+        cnt = lambda runs, base=base: min((len(r.get(base, {})) for r in runs), default=0)  # noqa: E731
 
         def ok(runs, base=base):
             return min(
@@ -1096,13 +1096,13 @@ def compare_o1(a, b, partial=False) -> list:
             diffs.append(("id:" + nid, "no longer collected"))
         elif t["class"] == "stable-pass" and fails_reproducibly(nb):
             diffs.append(("regressed:" + nid, "stable-pass now fails reproducibly"))
-    skips = lambda s: max((r["counts"].get("skipped", 0) for r in s["runs"]), default=0)
+    skips = lambda s: max((r["counts"].get("skipped", 0) for r in s["runs"]), default=0)  # noqa: E731
     if skips(b) > skips(a):
         diffs.append(("skips", f"skip count {skips(b):d} > baseline {skips(a):d}"))
-    cerr = lambda s: max((len(r["collect_errors"]) for r in s["runs"]), default=0)
+    cerr = lambda s: max((len(r["collect_errors"]) for r in s["runs"]), default=0)  # noqa: E731
     if cerr(b) > cerr(a):
         diffs.append(("collect-errors", f"collection errors {cerr(b):d} > baseline {cerr(a):d}"))
-    ran = lambda s: min((o1_ran(r) for r in s["runs"]), default=0)
+    ran = lambda s: min((o1_ran(r) for r in s["runs"]), default=0)  # noqa: E731
     if ran(b) < ran(a):
         diffs.append(("run-count", f"tests run {ran(b):d} < baseline {ran(a):d} (T7)"))
     return diffs
@@ -1678,7 +1678,7 @@ def assertion_count(fn) -> int:
     return n
 
 
-def test_strength(tree_root: Path, files=None) -> dict:  # not a pytest test: the O9 capture
+def test_strength(tree_root: Path, files=None) -> dict:  # noqa: PT028  # not a pytest test: the O9 capture
     files = files or [f for f in tracked_files(tree_root) if f.startswith("tests/") and f.endswith(".py")]
     out = {}
     for f in files:

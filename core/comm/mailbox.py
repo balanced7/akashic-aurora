@@ -861,9 +861,7 @@ def _resolve_or_refuse(ns: str, agent: str, sha: str, client) -> tuple[str | Non
     return None, _refusal(r, sha)
 
 
-def open(
-    ns: str, agent: str, sha: str, *, incarnation: str, client=None
-) -> dict[str, Any]:  # public API name (mailbox.open)
+def open(ns: str, agent: str, sha: str, *, incarnation: str, client=None) -> dict[str, Any]:  # noqa: A001  # public API name (mailbox.open)
     """Say SEEN, once, and hand back the full body. Writes exactly one receipt and nothing else.
 
     Idempotent per (message, incarnation): the field key IS the identity, so a retry, a redelivery,

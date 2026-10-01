@@ -17,7 +17,7 @@ from pathlib import Path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 os.environ["AKASHIC_WIRE_DIR"] = tempfile.mkdtemp(prefix="wirebench-")
 
-from scripts.wire_journal import WireJournal
+from scripts.wire_journal import WireJournal  # noqa: E402
 
 SAMPLE = {
     "model": "deepseek-chat",

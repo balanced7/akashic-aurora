@@ -37,7 +37,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.comm import ask as ask_mod
+from core.comm import ask as ask_mod  # noqa: E402
 
 
 class _Usage:

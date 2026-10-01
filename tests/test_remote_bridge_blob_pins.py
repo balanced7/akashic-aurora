@@ -46,9 +46,9 @@ import pytest
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 
-from core.comm import remote_relay as RR
-from core.comm.blobs import BlobStore
-from scripts import remote_bridge_listener as L
+from core.comm import remote_relay as RR  # noqa: E402
+from core.comm.blobs import BlobStore  # noqa: E402
+from scripts import remote_bridge_listener as L  # noqa: E402
 
 KEY = b"blob-transport-test-key-aaaaaaaa"
 

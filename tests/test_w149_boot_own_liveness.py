@@ -110,7 +110,7 @@ def wired(monkeypatch):
     """Drill-matrix harness (deepseek measure 1): construct the world, render, assert
     the line names the state we constructed. Defaults: in-session, daemon down,
     no consumer-seat holder; each pin overrides what it drills."""
-    import agent_cli
+    import agent_cli  # noqa: F401 -- import before patching its collaborators
 
     monkeypatch.setattr("core.comm.runner_lock.session_holder_token", lambda: f"session:{SID}")
     monkeypatch.setattr("core.comm.runner_lock.holder", lambda agent: None)

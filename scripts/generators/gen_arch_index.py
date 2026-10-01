@@ -19,7 +19,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 # the working tree. os.listdir here emitted rows for untracked modules and red-lined CI for
 # 15+ runs (see scripts/generators/_tracked.py).
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _tracked import is_tracked_dir, tracked_py
+from _tracked import is_tracked_dir, tracked_py  # noqa: E402
 
 
 def _pyl() -> str:

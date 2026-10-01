@@ -34,8 +34,8 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from arsenal import practice as pr
-from arsenal.performance import PerformanceStore
+from arsenal import practice as pr  # noqa: E402
+from arsenal.performance import PerformanceStore  # noqa: E402
 
 FIX = ROOT / "tests" / "fixtures" / "practice_sounding"
 NODE = shutil.which("node")

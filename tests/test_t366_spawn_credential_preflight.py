@@ -25,8 +25,8 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 
-from core.comm import discord_inbound as DI
-from core.comm import secret_intake as SI
+from core.comm import discord_inbound as DI  # noqa: E402
+from core.comm import secret_intake as SI  # noqa: E402
 
 DAY_MS = 86_400_000
 NOW = 1_787_100_000_000  # a fixed clock: pins do not ask the wall what time it is

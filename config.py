@@ -9,7 +9,7 @@ from pathlib import Path
 
 # Root DERIVED, never hardcoded: this file previously pinned one machine's absolute
 # path, so a copy of the repo anywhere else resolved every path under it to nothing.
-from core.paths import repo_root as _repo_root
+from core.paths import repo_root as _repo_root  # noqa: E402
 
 BASE_DIR = _repo_root()
 COORD_DIR = BASE_DIR / "blackboard_data" / "agent_coordination"
@@ -243,7 +243,7 @@ BACKUP_DIR.mkdir(parents=True, exist_ok=True)
 # Unset -> [] and the archiver REFUSES to run (a backup with nowhere to go is not a clean run).
 # These were drive-letter literals; on Linux a literal like that is a RELATIVE path, so the
 # archiver would have mkdir'd it inside the cwd -- unredacted transcripts in the public repo.
-from core.paths import env_paths as _env_paths
+from core.paths import env_paths as _env_paths  # noqa: E402
 
 TRANSCRIPT_ARCHIVE_ROOTS = _env_paths("AKASHIC_TRANSCRIPT_ARCHIVE_ROOTS")
 

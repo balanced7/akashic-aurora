@@ -25,7 +25,7 @@ REPO = r"E:\AI-Setup"
 sys.path.insert(0, REPO)
 os.chdir(REPO)
 
-from core.comm.bus import Bus  # sys.path bootstrap + os.chdir(REPO) must precede it
+from core.comm.bus import Bus  # noqa: E402  # sys.path bootstrap + os.chdir(REPO) must precede it
 
 TOTAL_DEADLINE_S = 1800  # 30 min, then re-arm even if idle
 INNER_BLOCK_MS = 120_000  # 2-min inner blocks; loop if a batch is all noise

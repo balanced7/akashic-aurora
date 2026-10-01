@@ -34,7 +34,7 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from scripts.checkers import check_kind_policy as C
+from scripts.checkers import check_kind_policy as C  # noqa: E402
 
 
 # --- synthetic fixtures: the pins test the MECHANISM, not today's tree -------------------
@@ -125,7 +125,7 @@ def test_k8_the_ratchet_can_actually_COUNT_this_checkers_output():
     import io
 
     sys.path.insert(0, os.path.join(ROOT, "scripts", "githooks"))
-    import pre_commit
+    import pre_commit  # noqa: E402
 
     buf = io.StringIO()
     with contextlib.redirect_stdout(buf):

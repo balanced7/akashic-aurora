@@ -33,7 +33,7 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from scripts.ops import archive_ephemeral as EPH
+from scripts.ops import archive_ephemeral as EPH  # noqa: E402
 
 
 class FakeRedis:
@@ -52,7 +52,7 @@ class FakeRedis:
     def xlen(self, k):
         return len(self._s.get(k, []))
 
-    def xrange(self, k, min="-", max="+", count=None):  # mirrors the redis-py xrange(min=, max=) keyword API
+    def xrange(self, k, min="-", max="+", count=None):  # noqa: A002  # mirrors the redis-py xrange(min=, max=) keyword API
         rows = self._s.get(k, [])
         if min != "-":
             floor = min[1:] if min.startswith("(") else min

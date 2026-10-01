@@ -23,9 +23,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from core.coord import world_savepoint as SP
-from core.paths import repo_root
-from core.world import current
+from core.coord import world_savepoint as SP  # noqa: E402
+from core.paths import repo_root  # noqa: E402
+from core.world import current  # noqa: E402
 
 ROOT = repo_root()
 STORE = ROOT / ".aurora-savepoints.json"

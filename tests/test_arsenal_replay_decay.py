@@ -19,10 +19,10 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "tests"))
 
-from test_arsenal_replay import take
+from test_arsenal_replay import take  # noqa: E402,F401  (the fixture: a synthetic store)
 
-from arsenal import pianocue, replay
-from arsenal.replay_harmony import (
+from arsenal import pianocue, replay  # noqa: E402
+from arsenal.replay_harmony import (  # noqa: E402
     DECAY_T60_S,
     SILENT_DB,
     VOICE_FLOOR,
@@ -144,7 +144,7 @@ def test_densest_instant_prefers_the_first_moment_of_maximum_sound():
     assert densest_instant(sounding, 0, 3000) == 800, "three sound at 800; only two again at 2000"
 
 
-def test_excerpt_reports_what_was_carried_in(take):  # pytest injects the imported fixture by name
+def test_excerpt_reports_what_was_carried_in(take):  # noqa: F811  # pytest injects the imported fixture by name
     store, session = take
     data = replay.excerpt(store, session, "0:01", seconds=2)
     assert data["carried"] == {48: {"age_ms": 1000, "vel": 55}}, "struck at 0, pedal-held to 3 s: 1 s old at 0:01"

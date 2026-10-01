@@ -114,7 +114,7 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 if os.path.dirname(_HERE) not in sys.path:
     sys.path.insert(0, os.path.dirname(_HERE))
 
-from core.comm.toolbox import (
+from core.comm.toolbox import (  # noqa: F401,E402  (compat re-export)
     BINARY_SUFFIXES,
     CLARIFY_MAX_PER_TASK,
     CLARIFY_TIMEOUT_S,

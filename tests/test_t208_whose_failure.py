@@ -43,7 +43,7 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.coord import suite_baseline as SB
+from core.coord import suite_baseline as SB  # noqa: E402
 
 
 @pytest.fixture

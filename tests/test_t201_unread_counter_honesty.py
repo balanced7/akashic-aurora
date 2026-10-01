@@ -41,7 +41,7 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from agent.harness import context as ctx
+from agent.harness import context as ctx  # noqa: E402
 
 
 def _m(kind, frm="conductor", content="x"):

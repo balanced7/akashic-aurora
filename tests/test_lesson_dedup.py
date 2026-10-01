@@ -8,7 +8,7 @@ import tempfile
 import types
 from contextlib import redirect_stdout
 
-import isolate_canonical
+import isolate_canonical  # noqa: F401
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 

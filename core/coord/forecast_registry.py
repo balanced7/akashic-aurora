@@ -155,7 +155,7 @@ class ForecastRegistry:
     def register(
         self,
         *,
-        id: str,  # public API name
+        id: str,  # noqa: A002  # public API name
         task_ref: str,
         registered_by: str,
         expectation: dict[str, Any],

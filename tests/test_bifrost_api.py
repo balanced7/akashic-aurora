@@ -16,7 +16,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.comm.bifrost_api import BifrostAPI
 from core.comm.bus import Bus
-from core.paths import python_launcher as _python_launcher
+from core.paths import python_launcher as _python_launcher  # noqa: E402
 
 _PYL = _python_launcher()  # `py` on Windows, `uv run` elsewhere
 

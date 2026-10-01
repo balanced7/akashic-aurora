@@ -27,7 +27,7 @@ import urllib.request
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from core.comm import failsafe as F
+from core.comm import failsafe as F  # noqa: E402
 
 
 def _webhook() -> str:

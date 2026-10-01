@@ -10,12 +10,12 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from arsenal.graph import GraphError, load_graph, parse_text
-from arsenal.mediatypes import check_caps
-from arsenal.plan import make_plan, render_plan
-from arsenal.registry import DEFAULT_DIR, load_registry
-from arsenal.take import TakeLedger
-from arsenal.timebase import (
+from arsenal.graph import GraphError, load_graph, parse_text  # noqa: E402
+from arsenal.mediatypes import check_caps  # noqa: E402
+from arsenal.plan import make_plan, render_plan  # noqa: E402
+from arsenal.registry import DEFAULT_DIR, load_registry  # noqa: E402
+from arsenal.take import TakeLedger  # noqa: E402
+from arsenal.timebase import (  # noqa: E402
     Clock,
     ClockMap,
     ClockMismatch,

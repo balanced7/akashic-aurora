@@ -33,7 +33,7 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from scripts.checkers import check_secrets as CS
+from scripts.checkers import check_secrets as CS  # noqa: E402
 
 # Synthetic, never-valid credentials. Shaped to match, deliberately not real.
 FAKE_OPENAI = "sk-" + "A1b2C3d4E5f6G7h8J9k0L1m2N3o4P5q6R7s8T9u0"

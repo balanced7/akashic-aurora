@@ -45,10 +45,10 @@ os.environ.setdefault("_AISETUP_TEST_ISOLATED", "1")
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from core.comm import bus as _bus_mod
-from core.comm import packet_spec
-from core.comm.bifrost_api import BifrostAPI
-from core.comm.bus import Bus
+from core.comm import bus as _bus_mod  # noqa: E402
+from core.comm import packet_spec  # noqa: E402
+from core.comm.bifrost_api import BifrostAPI  # noqa: E402
+from core.comm.bus import Bus  # noqa: E402
 
 BROADCAST = getattr(_bus_mod, "BROADCAST_TO", "*")
 

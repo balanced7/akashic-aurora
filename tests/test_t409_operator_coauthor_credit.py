@@ -25,7 +25,7 @@ os.environ.setdefault("AI_SETUP", tempfile.mkdtemp())
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from scripts.githooks import coauthor
+from scripts.githooks import coauthor  # noqa: E402
 
 
 def _fake_run(email):

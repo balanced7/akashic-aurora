@@ -16,7 +16,7 @@ import sys
 import tempfile
 import uuid
 
-import isolate_canonical
+import isolate_canonical  # noqa: F401
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
