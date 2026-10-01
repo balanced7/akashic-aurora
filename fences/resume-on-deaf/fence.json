@@ -8,11 +8,19 @@
     "brief": {
       "by": "claude",
       "at": "2026-10-01T18:05:37.674992+00:00"
+    },
+    "half_a": {
+      "by": "",
+      "at": "2026-10-01T18:14:31.581572+00:00"
     }
   },
-  "pv": null,
+  "pv": {
+    "ran_at": "2026-10-01T18:14:48.477625+00:00",
+    "missing_count": 0
+  },
   "authors": {
     "brief": "claude",
-    "half_a": "deepseek"
+    "half_a": "deepseek",
+    "reconciliation": "claude"
   }
 }
