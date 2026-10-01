@@ -104,6 +104,19 @@ torch = "2026-10-01T12:00:00Z"                 # keeps 2.14.1; remove on or afte
 transformers = "2026-10-01T12:00:00Z"          # keeps 5.18.0; remove on or after 2026-10-08
 uvicorn = "2026-10-01T12:00:00Z"               # keeps 0.54.0; remove on or after 2026-10-03
 
+[tool.pytest.ini_options]
+# The standard test runner for this repo:  uv run pytest   (Windows fallback without uv:
+# py -m pytest). Collects both styles (pytest test_* functions AND the older banner-style
+# files, whose test_* functions pytest discovers automatically). Moved from pytest.ini in G1.P7
+# with the same meaning, plus --strict-markers and --strict-config.
+testpaths = ["tests"]
+# pytest-randomly is installed with the dev tools (G1) but stays off until the G5.P1
+# experiment adopts it on evidence: -p no:randomly keeps today's file order and seeding.
+addopts = ["-q", "-p", "no:randomly", "--strict-markers", "--strict-config"]
+# A test that `return`s a value (instead of asserting) is almost always a mistake;
+# make it an error so the convention stays clean going forward.
+filterwarnings = ["error::pytest.PytestReturnNotNoneWarning"]
+
 [tool.deptry]
 # Scope (plan G1.P1): [project].dependencies must equal what RUNTIME and SCRIPT code imports.
 # tests/ stays out (deptry's default exclude: test code imports dev tools). docs/ and research/
