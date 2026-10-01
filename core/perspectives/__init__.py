@@ -21,14 +21,14 @@ from core.perspectives.schema import (
 )
 
 __all__ = [
-    "Lens",
-    "Map",
-    "valid_relationship",
-    "VALID_DOMAINS",
     "BUILTIN_LENSES",
     "BUILTIN_MAPS",
-    "lens_key",
-    "map_key",
+    "VALID_DOMAINS",
+    "Lens",
+    "Map",
     "ReinforcedGraph",
     "get_reinforced_graph",
+    "lens_key",
+    "map_key",
+    "valid_relationship",
 ]

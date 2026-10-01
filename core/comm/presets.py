@@ -30,7 +30,7 @@ from dataclasses import dataclass
 from typing import Any
 from collections.abc import Callable
 
-__all__ = ["Preset", "register", "get", "known", "build_prompts", "read_lens_file"]
+__all__ = ["Preset", "build_prompts", "get", "known", "read_lens_file", "register"]
 
 
 @dataclass(frozen=True)

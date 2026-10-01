@@ -1062,11 +1062,11 @@ def replay_fixture(root: os.PathLike[str] | str, **_: Any) -> dict[str, Any]:
 
 
 __all__ = [
-    "CategoryContract",
-    "ContractAliasRefused",
     "DEFAULT_BACKLOG_MULTIPLIER",
     "DEFAULT_WAL_PAUSE_BYTES",
     "ENVELOPE_CAP",
+    "CategoryContract",
+    "ContractAliasRefused",
     "JudgmentStore",
     "ObservationStore",
     "ShadowShelfReader",

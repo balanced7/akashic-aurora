@@ -6649,7 +6649,7 @@ def render_compare(data: dict) -> str:
     width = 44
 
     def row(label, x, y):
-        return f"{label:<26} {str(x):<{width}} {y}"
+        return f"{label:<26} {x!s:<{width}} {y}"
 
     def top(d, n=6, fmt=_pct):
         return ", ".join(f"{k} {fmt(v)}" for k, v in list(d.items())[:n]) or "-"

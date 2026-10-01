@@ -253,7 +253,7 @@ def enterprise_fetch(
                 time.sleep(INITIAL_BACKOFF * (2**attempt))
 
             except Exception as e:
-                last_error = f"Error: {type(e).__name__}: {str(e)}"
+                last_error = f"Error: {type(e).__name__}: {e!s}"
                 time.sleep(INITIAL_BACKOFF * (2**attempt))
 
     # All retries exhausted

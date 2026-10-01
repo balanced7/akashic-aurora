@@ -81,7 +81,7 @@ _ABSENT = object()
 
 
 class _Input:
-    __slots__ = ("kind", "lo", "hi", "options", "value")
+    __slots__ = ("hi", "kind", "lo", "options", "value")
 
     def __init__(self, kind, lo, hi, options, value):
         self.kind, self.lo, self.hi, self.options, self.value = kind, lo, hi, options, value

@@ -189,8 +189,7 @@ def delete_file_from_ram_disk(filename: str, subdir: str = "cache") -> bool:
     try:
         if os.path.exists(filepath):
             os.remove(filepath)
-        if filename in _ramdisk_cache:
-            del _ramdisk_cache[filename]
+        _ramdisk_cache.pop(filename, None)
         return True
     except:
         return False

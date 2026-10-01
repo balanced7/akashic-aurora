@@ -46,10 +46,8 @@ def cli_verbs():
     verbs = {}
     seen = set()
     for name, sub in subaction.choices.items():
-        if (
-            id(sub) in seen
-            or name not in helps
-            and any(id(s) == id(sub) for n, s in subaction.choices.items() if n in helps)
+        if id(sub) in seen or (
+            name not in helps and any(id(s) == id(sub) for n, s in subaction.choices.items() if n in helps)
         ):
             # skip aliases: keep the name that carries a help entry
             if name not in helps:

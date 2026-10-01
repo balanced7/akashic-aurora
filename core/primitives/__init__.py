@@ -16,4 +16,4 @@ from . import supersession
 from .distiller import Distillation, Distiller
 from .ranker import Ranker, Scored, keyword_relevance
 
-__all__ = ["Ranker", "Scored", "keyword_relevance", "Distiller", "Distillation", "supersession"]
+__all__ = ["Distillation", "Distiller", "Ranker", "Scored", "keyword_relevance", "supersession"]

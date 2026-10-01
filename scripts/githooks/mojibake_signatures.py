@@ -88,7 +88,7 @@ def check_file(path: Path) -> list[str]:
             start = max(0, idx - 20)
             end = min(len(raw), idx + len(pattern) + 20)
             context = raw[start:end].decode("utf-8", errors="replace")
-            problems.append(f"S1/{name}: {desc} at byte {idx} (context: …{repr(context)}…)")
+            problems.append(f"S1/{name}: {desc} at byte {idx} (context: …{context!r}…)")
 
     # Truncated UTF-8 at EOL
     for lineno, desc in _truncated_utf8_sig(raw):

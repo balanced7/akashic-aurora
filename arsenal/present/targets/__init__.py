@@ -59,4 +59,4 @@ def resolve(name: str) -> str:
     raise ValueError(f"no built target {name!r}; choose one of {', '.join(sorted(ALIASES))}")
 
 
-__all__ = ["TARGETS", "ALIASES", "SUBDIR", "resolve"]
+__all__ = ["ALIASES", "SUBDIR", "TARGETS", "resolve"]

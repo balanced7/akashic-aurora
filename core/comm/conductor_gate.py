@@ -491,7 +491,7 @@ def grant_mandate_caps(successor_grant: registry.Grant, *, requested_caps, reque
         outside = [
             s
             for s in scope
-            if not any(s.startswith(p) or p.endswith("/") and s.startswith(p) for p in MANDATE_MAX_SCOPE)
+            if not any(s.startswith(p) or (p.endswith("/") and s.startswith(p)) for p in MANDATE_MAX_SCOPE)
         ]
         if outside:
             raise PermissionError(

@@ -101,7 +101,7 @@ def transcribe_audio(audio_bytes):
         return text.strip() if text else "Could not understand audio"
     except Exception as e:
         print(f"[STT] Error: {e}")
-        return f"Error: {str(e)}"
+        return f"Error: {e!s}"
 
 
 def query_ollama(prompt, model="gemma2:2b", system_prompt=None):
@@ -121,7 +121,7 @@ def query_ollama(prompt, model="gemma2:2b", system_prompt=None):
         resp = requests.post(f"{OLLAMA_URL}/api/generate", json=payload, timeout=120)
         return resp.json().get("response", "No response")
     except Exception as e:
-        return f"Ollama error: {str(e)}"
+        return f"Ollama error: {e!s}"
 
 
 def execute_code(code):

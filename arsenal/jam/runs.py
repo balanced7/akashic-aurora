@@ -814,7 +814,7 @@ class RunStore:
             key = (a["page_id"], a["version"], a["bar"])
             if key in rec["acks"]:
                 return {"ok": True, "duplicate": True}, frames
-            if not self.owner(now) and a["role"] == "owner" or not self.owner(now) and run["owner_page_id"] is None:
+            if (not self.owner(now) and a["role"] == "owner") or (not self.owner(now) and run["owner_page_id"] is None):
                 _, owner_frames = self.claim(a["page_id"], True, now)
                 frames += owner_frames
             self._append(rec, {"kind": "ack", "recorded_epoch_ms": now, "by": "page", **a})

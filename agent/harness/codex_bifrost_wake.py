@@ -1219,8 +1219,8 @@ def install_signal_stops(watcher: CodexBifrostWake) -> None:
 
 
 __all__ = [
-    "CodexBifrostWake",
     "DIRECT_ACTION_KINDS",
+    "CodexBifrostWake",
     "SubjectIdentity",
     "WakeError",
     "WakePolicy",

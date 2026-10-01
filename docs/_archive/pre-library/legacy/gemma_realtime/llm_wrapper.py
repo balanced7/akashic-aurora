@@ -131,7 +131,7 @@ class StreamingLLM:
 
         except Exception as e:
             print(f"[LLM] Error: {e}")
-            yield f"Error: {str(e)}"
+            yield f"Error: {e!s}"
         finally:
             self.is_generating = False
 

@@ -201,9 +201,9 @@ class DeckStore:
     def list(self, group=None, kind=None, tag=None, by=None, archived: bool = False) -> builtins.list[dict]:
         out = []
         for c in self.all():
-            if group and c.get("group") != group or kind and c.get("kind") != kind:
+            if (group and c.get("group") != group) or (kind and c.get("kind") != kind):
                 continue
-            if tag and tag not in (c.get("tags") or []) or by and c.get("created_by") != by:
+            if (tag and tag not in (c.get("tags") or [])) or (by and c.get("created_by") != by):
                 continue
             if c.get("archived") and not archived:
                 continue

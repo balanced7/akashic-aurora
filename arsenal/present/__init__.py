@@ -45,4 +45,4 @@ from .scene import (  # noqa: E402  (re-exported for convenience; scene.py stays
     validate,
 )
 
-__all__ = ["SCHEMA", "ATOM_KINDS", "TEMPLATES", "TOKEN_ROLES", "coverage", "lint", "load", "used_kinds", "validate"]
+__all__ = ["ATOM_KINDS", "SCHEMA", "TEMPLATES", "TOKEN_ROLES", "coverage", "lint", "load", "used_kinds", "validate"]

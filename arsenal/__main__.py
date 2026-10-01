@@ -341,7 +341,7 @@ def main(argv=None) -> int:
                 for p in profiles:
                     name = str(p["source"] or "(unknown source)").replace("\\", "/").split("/")[-1]
                     print(
-                        f"  [{str(p['read']):<7}] {name:<30} {p['transitions']:>3} transition(s) "
+                        f"  [{p['read']!s:<7}] {name:<30} {p['transitions']:>3} transition(s) "
                         f"in {p['duration_s']}s -> {p['transitions_per_min']}/min, "
                         f"longest calm {p['longest_calm_s']}s"
                     )

@@ -256,7 +256,7 @@ def reap(
                     _release_claim(client, claim, token)
                     cursor_blocked = True
                     _loud(
-                        f"[reaper] FAILED to re-home {str(f.get('kind') or 'note')} "
+                        f"[reaper] FAILED to re-home {f.get('kind') or 'note'!s} "
                         f"{mid} from dead seat {agent}#{sid8}; retry remains eligible"
                     )
                     continue

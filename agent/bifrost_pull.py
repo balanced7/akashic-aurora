@@ -673,7 +673,7 @@ def render_collapsed(messages, *, show_traces: bool = False, max_len: int = 2000
         # site would repeat T219 (a correction that reached one of two callers).
         full = _content_str(_mget(m, "content"))
         tail = clip_pointer(m, clipped=len(full) > max_len)
-        return f"[{str(_mget(m, 'kind', '?'))}] from {str(_mget(m, 'frm', '?'))}: {_clip(full, max_len)}{tail}"
+        return f"[{_mget(m, 'kind', '?')!s}] from {_mget(m, 'frm', '?')!s}: {_clip(full, max_len)}{tail}"
 
     def _twin_key(m):
         """W84: logical identity for dual-write twin detection. (frm, kind, first 200 chars

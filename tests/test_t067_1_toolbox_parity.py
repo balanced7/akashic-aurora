@@ -63,7 +63,7 @@ def _schema_names():
 def test_b1_knowledge_map_returns_graph():
     tb = _toolbox()
     seen = {}
-    tb._agent_cli = lambda args, timeout=90: seen.setdefault("args", list(args)) and "ok" or "ok"
+    tb._agent_cli = lambda args, timeout=90: (seen.setdefault("args", list(args)) and "ok") or "ok"
     out = tb.knowledge_map("lanes")
     assert out == "ok"
     assert seen["args"] == ["knowledge-map", "lanes", "--per-layer", "6", "--json"], (
@@ -97,7 +97,7 @@ def test_b2_ack_marks_handled(monkeypatch):
 def test_b3_delta_returns_changes():
     tb = _toolbox()
     seen = {}
-    tb._agent_cli = lambda args, timeout=90: seen.setdefault("args", list(args)) and "ok" or "ok"
+    tb._agent_cli = lambda args, timeout=90: (seen.setdefault("args", list(args)) and "ok") or "ok"
     out = tb.delta()
     assert out == "ok"
     assert seen["args"] == ["delta", "testseek"], (

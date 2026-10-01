@@ -380,7 +380,7 @@ class Compiled:
     """One pattern laid out in ticks: loop and bar length, the events starting at each tick of the loop, and the
     comp and pad events in start order (held, for striking a chord again after a dropout bar)."""
 
-    __slots__ = ("ppq", "loop", "bar", "read_at", "at", "count", "held")
+    __slots__ = ("at", "bar", "count", "held", "loop", "ppq", "read_at")
 
     def __init__(self, pattern, ppq, swing=0.0, grid=0.25):
         self.ppq = ppq
@@ -412,7 +412,7 @@ class _Entry:
     """The band's own record of one voice it triggered: which note on which output, from which band tick to which,
     and in which onTick call."""
 
-    __slots__ = ("voice", "lane", "output", "note", "start", "end", "alive", "call", "vel")
+    __slots__ = ("alive", "call", "end", "lane", "note", "output", "start", "vel", "voice")
 
     def __init__(self, voice, lane, output, note, start, end, call=0, vel=0):
         self.voice, self.lane, self.output, self.note = voice, lane, output, note

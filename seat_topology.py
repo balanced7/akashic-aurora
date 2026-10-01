@@ -205,7 +205,7 @@ def main(argv=None) -> int:
         from core.comm.bus import Bus
 
         for row in Bus("topology-probe").presence():
-            say(f"  {str(row.get('agent', '?')):14s} phase={row.get('phase', '?'):10s} beat={row.get('age_s', '?')}s")
+            say(f"  {row.get('agent', '?')!s:14s} phase={row.get('phase', '?'):10s} beat={row.get('age_s', '?')}s")
         say(
             "  NOTE: presence ages out on a live-but-IDLE DSH seat. Absence here is not "
             "death; probe the PROCESS in [1]."

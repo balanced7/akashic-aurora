@@ -166,7 +166,7 @@ if __name__ == "__main__":
         ok = v == p["contradicts"]
         hits += ok
         tot += 1
-        print(f"  {'OK ' if ok else 'XX '} pred={str(v):5} gold={str(p['contradicts']):5} A~{p['a'][:44]}")
+        print(f"  {'OK ' if ok else 'XX '} pred={v!s:5} gold={p['contradicts']!s:5} A~{p['a'][:44]}")
     if tot:
         print(f"  -> LLM judge sample accuracy: {hits}/{tot} (early signal on whether an LLM gate clears the bar)")
     print("\nOK -- `py -m pytest tests/test_semantic_eval.py -q` for the hermetic asserts.")

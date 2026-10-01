@@ -97,7 +97,7 @@ def _cmd_targets(args) -> int:
         for r in rows:
             receipt = f"{r['receipts']} receipt(s)" if r["receipts"] else "no receipt (presumed broken until one lands)"
             built = "renderer built" if r["built"] else "no renderer"
-            print(f"{r['id']:<22} {str(r['engine']):<9} {r['status']:<9} {built:<15} {receipt}")
+            print(f"{r['id']:<22} {r['engine']!s:<9} {r['status']:<9} {built:<15} {receipt}")
             for p in r.get("coverage") or []:
                 print(f"    REFUSED {p}")
     return 0

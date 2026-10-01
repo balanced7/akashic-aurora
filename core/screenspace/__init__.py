@@ -40,13 +40,13 @@ from core.screenspace.engine import (  # noqa: F401  (flat verb seam)
 from core.screenspace.foreground import ForegroundTracker  # noqa: F401  (the §1.1 source)
 
 __all__ = [
+    "ForegroundTracker",
     "canary",
     "capture",
-    "foreground",
-    "shadow",
-    "ForegroundTracker",
-    "peek",
     "delta",
-    "refs",
+    "foreground",
+    "peek",
     "read_text",
+    "refs",
+    "shadow",
 ]

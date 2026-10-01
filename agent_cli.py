@@ -6220,7 +6220,7 @@ def cmd_promoted(args):
         )
         for e in flagged:
             print(
-                f"     {str(e.get('refs', [''])[0])}  ({e.get('age_hours', 0):.0f}h)  "
+                f"     {e.get('refs', [''])[0]!s}  ({e.get('age_hours', 0):.0f}h)  "
                 f"{_clip(str(e.get('summary', '')), 90)}"
             )
     return 0
@@ -6831,7 +6831,7 @@ def cmd_grant(args):
         print(f"## GRANTS ({len(rows)}) -- source of truth: security/acl.json")
         for g in rows:
             exp = g.get("expires_at") or "permanent"
-            print(f"  {str(g.get('agent_id')):<22} {str(g.get('role')):<12} {exp:<22} by={g.get('granted_by')}")
+            print(f"  {g.get('agent_id')!s:<22} {g.get('role')!s:<12} {exp:<22} by={g.get('granted_by')}")
             if g.get("reason"):
                 print(f"      {str(g['reason'])[:110]}")
         return 0

@@ -70,8 +70,7 @@ def render() -> str:
     _redis = " · ".join(
         f"`{p}` {e['world']}"
         for p, e in sorted(config.PORT_REGISTRY.items())
-        if e.get("bound_by") == "container"
-        and "knowledge store" in e.get("what", "")
+        if (e.get("bound_by") == "container" and "knowledge store" in e.get("what", ""))
         or (p in (config.REDIS_PORT, config.REDIS_PORT_BETA, config.REDIS_PORT_ALPHA))
     )
     L.append(f"Redis mirrors the same worlds: {_redis} · **db 15** on prod = test isolation")

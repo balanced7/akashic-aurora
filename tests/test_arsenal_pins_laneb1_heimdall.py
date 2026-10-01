@@ -156,7 +156,7 @@ def test_calibration_detected_drops_true(receipt):
 def test_calibration_stall_recorded_not_erased(receipt):
     cal = receipt["calibration"]
     assert cal["completed"] is False
-    assert "stall" in cal and cal["stall"]
+    assert cal.get("stall")
     assert "timed_out" in cal["stall"]
     assert cal["stall"]["eos_received"] is False
 
@@ -182,7 +182,7 @@ def test_verdict_calibration_mirrors_top_level(receipt):
 
 
 def test_amendments_present(receipt):
-    assert "amendments" in receipt and receipt["amendments"]
+    assert receipt.get("amendments")
 
 
 def test_amendment_keeps_earlier_fail_verdict(receipt):

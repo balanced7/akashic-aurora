@@ -12,17 +12,17 @@ from dataclasses import dataclass
 from fractions import Fraction
 
 __all__ = [
-    "ClockMismatch",
-    "StaleEpoch",
-    "tb",
-    "parse_tb",
-    "format_tb",
-    "TimeRef",
-    "TimeSpan",
-    "Clock",
-    "ClockMap",
     "CLOCK_DOMAINS",
     "MASTER_BY_MODE",
+    "Clock",
+    "ClockMap",
+    "ClockMismatch",
+    "StaleEpoch",
+    "TimeRef",
+    "TimeSpan",
+    "format_tb",
+    "parse_tb",
+    "tb",
 ]
 
 

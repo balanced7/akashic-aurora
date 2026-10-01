@@ -11,7 +11,7 @@ All systems use semantic naming: subject_relationship_object()
 """
 
 __version__ = "1.0.0"
-__all__ = ["foundation", "signals", "state", "learning"]
+__all__ = ["foundation", "learning", "signals", "state"]
 
 
 def _quiet_bootstrap() -> None:

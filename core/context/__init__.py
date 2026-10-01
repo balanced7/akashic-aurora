@@ -35,10 +35,10 @@ from .project_context import (  # noqa: F401
 
 __all__ = [
     "ProjectContextManager",
+    "assemble_context",
     "get_project_context_manager_instance",
-    "load_learnings_ranked_by_relevance",
-    "load_decisions_applicable_to_task",
     "load_blockers_preventing_progress",
     "load_briefing_from_previous_handoff",
-    "assemble_context",
+    "load_decisions_applicable_to_task",
+    "load_learnings_ranked_by_relevance",
 ]

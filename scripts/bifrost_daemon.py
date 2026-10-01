@@ -599,7 +599,7 @@ def main(argv=None) -> int:
         "door": "scripts/bifrost_daemon.py",
         "slice": (
             "M1-delta"
-            if (spawn_runner and not idle_mode or manage_listener)
+            if ((spawn_runner and not idle_mode) or manage_listener)
             else "W102-idle"
             if idle_mode
             else "M1-alpha"

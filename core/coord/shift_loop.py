@@ -143,6 +143,6 @@ def next_beat(
 __all__ = [
     "SHIFT_STATE_TITLE",
     "new_shift_state",
-    "shift_state_is_complete",
     "next_beat",
+    "shift_state_is_complete",
 ]

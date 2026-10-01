@@ -116,7 +116,7 @@ def test_a_seat_record_reads_as_the_seat_not_the_operator():
         "timestamp": "2026-08-19T00:00:00Z",
     }
     try:
-        ev = EYE._event_from(rec, seat="kimi")  # noqa: CALL001 -- the door under test
+        ev = EYE._event_from(rec, seat="kimi")
     except TypeError:
         pytest.fail(
             "_event_from has no seat-provenance door -- a seat transcript ingested today is "

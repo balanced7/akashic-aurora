@@ -28,11 +28,11 @@ from .consolidation import (
 from .learning_store import LearningStore, get_learning_store
 
 __all__ = [
-    "LearningStore",
-    "get_learning_store",
     "AgentMemory",
-    "get_agent_memory",
+    "LearningStore",
     "consolidate_into_chronicle",
-    "consolidate_memory_into_chronicle",
     "consolidate_learnings_into_chronicle",
+    "consolidate_memory_into_chronicle",
+    "get_agent_memory",
+    "get_learning_store",
 ]

@@ -77,7 +77,7 @@ def test_hard_wedge_pages_when_pulse_is_dead():
     )
     wedge = next(x for x in f if x["state"] == "hard_wedge")
     assert wedge["grade"] == "page"
-    assert "drill" in wedge and wedge["drill"], "every finding carries its drill-down"
+    assert wedge.get("drill"), "every finding carries its drill-down"
 
 
 def test_long_legit_work_with_fresh_pulse_is_dashboard_only():

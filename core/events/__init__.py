@@ -23,16 +23,16 @@ from core.events.event_log import (
 from core.events.event_query import EventQuery, get_event_query
 
 __all__ = [
-    "EventLog",
-    "get_event_log",
-    "reset_event_log_singleton",
-    "capture_event",
-    "per_agent_stream",
-    "event_ref",
-    "RAW_STREAM",
     "CANONICAL_MAXLEN",
-    "PER_AGENT_MAXLEN",
     "EVENT_KINDS",
+    "PER_AGENT_MAXLEN",
+    "RAW_STREAM",
+    "EventLog",
     "EventQuery",
+    "capture_event",
+    "event_ref",
+    "get_event_log",
     "get_event_query",
+    "per_agent_stream",
+    "reset_event_log_singleton",
 ]

@@ -2523,7 +2523,7 @@ class ToolBox:
         # cross-verify fix (claude 2026-07-16): dropped a dead self-import of this class via the
         # 'scripts.' package path -- unused, and importing the SAME file under a second module
         # name is the dual-module-instance trap.
-        prefixed = f"research:web:{str(experiment)}"
+        prefixed = f"research:web:{experiment!s}"
         return self.knowledge_learn(prefixed, str(tried), str(result), str(recommend))
 
     def ask_clarification(self, question, context=""):
