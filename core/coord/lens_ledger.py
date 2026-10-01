@@ -182,9 +182,7 @@ def gate(scores: dict[str, LensScore], floor: float = EXPLORATION_FLOOR, keep_ab
     """
     plan: dict[str, str] = {}
     for lens, s in scores.items():
-        if s.verdict != "RATED" or s.hit_rate is None:
-            plan[lens] = "run"
-        elif s.hit_rate >= keep_above:
+        if s.verdict != "RATED" or s.hit_rate is None or s.hit_rate >= keep_above:
             plan[lens] = "run"
         elif floor > 0:
             plan[lens] = "explore"

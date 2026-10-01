@@ -74,7 +74,7 @@ def test_p4_get_bus_isolated_never_caches(monkeypatch):
     before = dict(busmod._INSTANCES)
     a, b = busmod.get_bus("t069iso"), busmod.get_bus("t069iso")
     assert a is not b, "isolated mode must never serve a cached Bus"
-    assert busmod._INSTANCES == before, "isolated calls must not write the bus cache"
+    assert before == busmod._INSTANCES, "isolated calls must not write the bus cache"
 
 
 def test_p5_door_touch_cannot_pin_stores_for_isolated_consumers(monkeypatch):

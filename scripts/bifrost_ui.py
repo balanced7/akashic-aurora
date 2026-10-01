@@ -233,15 +233,13 @@ def _vfx_lease(worker, visible):
         holder_visible = bool(cur.get("visible"))
         # RULE 1, and it outranks everything: a tab that can actually draw displaces one that
         # cannot. Nothing else may promote a hidden tab over a visible one.
-        if visible and not holder_visible:
-            pass
-        # RULE 2, and only BETWEEN EQUALS. A page from before the lease existed identifies as
-        # 'legacy'; it still renders (a deploy must not stop a working bench) but its claim is weak,
-        # so a reloaded tab takes the farm rather than waiting behind a holder that cannot be asked
-        # about. Ordering this rule ABOVE rule 1 is a bug that reproduced immediately and loudly:
-        # a hidden pane and a visible legacy tab traded the lease twice a second, so every render
-        # was a coin flip on whether it landed in a tab that composites.
-        elif visible == holder_visible and cur["worker"] == "legacy" and worker != "legacy":
+        if (
+            visible
+            and not holder_visible
+            or visible == holder_visible
+            and cur["worker"] == "legacy"
+            and worker != "legacy"
+        ):
             pass
         else:
             return False

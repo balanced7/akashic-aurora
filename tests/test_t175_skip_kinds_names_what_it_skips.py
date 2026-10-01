@@ -67,6 +67,6 @@ def test_k4_the_wake_side_is_untouched():
     from core.comm import bifrost_api
     from scripts import bifrost_wake as bw
 
-    assert bw.SKIP_KINDS == {"trace", "steer", "resolved", "ledger_update"}
-    assert bw.SKIP_KINDS_LANE == bw.SKIP_KINDS | {"note", "status"}
+    assert {"trace", "steer", "resolved", "ledger_update"} == bw.SKIP_KINDS
+    assert bw.SKIP_KINDS | {"note", "status"} == bw.SKIP_KINDS_LANE
     assert bifrost_api.PENDING_SKIP_KINDS == bw.SKIP_KINDS_LANE, "L7 parity still holds"

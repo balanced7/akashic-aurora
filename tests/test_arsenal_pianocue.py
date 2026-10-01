@@ -557,11 +557,11 @@ DANIEL = [
 def test_daniels_chords_voice_with_the_bass_lowest_and_read_back(style):
     results = _voice(DANIEL, key="Eb major", voicing=style)
     by_name = {r["input"]: r for r in results}
-    names = "C Db D Eb E F Gb G Ab A Bb B".split()
+    names = ["C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"]
     for r in results:
         assert not r.get("error"), r
         notes = r["notes"]
-        assert notes == sorted(set(notes)) and 21 <= notes[0] and notes[-1] <= 108 and len(notes) >= 3
+        assert notes == sorted(set(notes)) and notes[0] >= 21 and notes[-1] <= 108 and len(notes) >= 3
         if "/" in r["name"]:
             assert names[notes[0] % 12] == r["name"].split("/")[1].replace("Cb", "B"), (style, r)
         assert r["roundtrip"]["match"] in ("exact", "enharmonic", "equivalent"), (style, r)
@@ -706,7 +706,9 @@ def test_drop2_over_a_slash_bass_keeps_the_tension_that_names_the_chord():
     pcs = [{n % 12 for n in r["notes"]} for r in rs]
     assert 9 in pcs[0] and 4 in pcs[1] and 5 in pcs[2] and 7 in pcs[3]  # A, E (13ths); F, G (11ths)
     for r in rs[:4]:
-        assert r["notes"][0] % 12 == "C Db D Eb E F Gb G Ab A Bb B".split().index(r["name"].split("/")[1])
+        assert r["notes"][0] % 12 == ["C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"].index(
+            r["name"].split("/")[1]
+        )
         assert not {"thirteenth", "eleventh"} & set(r["roundtrip"]["omits"]), r
     assert any("leaves out the ninth" in w for w in rs[4]["warnings"]), rs[4]  # maj9#11 names its 9th
     c11 = _voice(["C11/G"], voicing="drop2")[0]  # a dominant 11 keeps its 11th and 9th and leaves out the 3rd
@@ -726,7 +728,7 @@ def test_voice_leading_moves_less():
         assert b["roundtrip"]["match"] == a["roundtrip"]["match"]
 
 
-PCS = "C Db D Eb E F Gb G Ab A Bb B".split()
+PCS = ["C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"]
 
 
 @needs_node
@@ -776,7 +778,7 @@ def test_no_number_in_any_page_key_gets_a_name_the_page_would_not_show():
     import re
 
     keys = [f"{k} major" for k in PCS[:6] + ["F#"] + PCS[7:]] + [
-        f"{k} minor" for k in "C C# D Eb E F F# G G# A Bb B".split()
+        f"{k} minor" for k in ["C", "C#", "D", "Eb", "E", "F", "F#", "G", "G#", "A", "Bb", "B"]
     ]
     items = [acc + str(d) + sfx for acc in ("", "b", "#") for d in range(1, 8) for sfx in ("", "m", "^7", "/5")]
     root_of = lambda name: re.match(r"[A-G](#{1,2}|b{1,2})?", name or "").group(0) if name else None  # noqa: E731

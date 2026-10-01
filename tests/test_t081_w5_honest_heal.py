@@ -86,6 +86,6 @@ def test_counts_are_lossless_and_ordered_most_severe_first():
     text = "\n".join(lines)
     assert "2 UNKNOWN" in text and "3 durable-family" in text and "4 expected Redis-only" in text
     # 2 + 3 + 4 == 9 == len(orphans): nothing dropped
-    assert 2 + 3 + 4 == len(orphans)
+    assert len(orphans) == 2 + 3 + 4
     # most-severe first: unknown line precedes durable precedes ephemeral
     assert text.index("UNKNOWN") < text.index("durable-family") < text.index("expected Redis-only")

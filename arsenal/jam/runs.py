@@ -791,9 +791,7 @@ class RunStore:
     def _bpm(value, current: float) -> float:
         if isinstance(value, str) and re.fullmatch(r"[+-]\d+(\.\d+)?", value.strip()):
             bpm = current + float(value)
-        elif isinstance(value, str) and re.fullmatch(r"\d+(\.\d+)?", value.strip()):
-            bpm = float(value)
-        elif _is_num(value):
+        elif isinstance(value, str) and re.fullmatch(r"\d+(\.\d+)?", value.strip()) or _is_num(value):
             bpm = float(value)
         else:
             raise RunError(f'bpm must be a number or a relative "+N" / "-N" (got {value!r})', 400, "bpm")

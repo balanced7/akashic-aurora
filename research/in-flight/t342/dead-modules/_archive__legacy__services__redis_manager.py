@@ -515,9 +515,8 @@ def create_backup() -> BackupMetadata | None:
 
         # Copy to secondary (redundancy)
         try:
-            with open(primary_path, "rb") as src:
-                with open(secondary_path, "wb") as dst:
-                    shutil.copyfileobj(src, dst)
+            with open(primary_path, "rb") as src, open(secondary_path, "wb") as dst:
+                shutil.copyfileobj(src, dst)
         except Exception as e:
             log(f"Secondary backup failed: {e}", LogLevel.WARN)
             secondary_path = None

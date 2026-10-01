@@ -93,28 +93,27 @@ def test_stdio_mcp_advertises_and_calls_glance_end_to_end():
             cwd=str(ROOT),
             env={**os.environ, "_AISETUP_TEST_ISOLATED": "1", "REDIS_DB": "15"},
         )
-        async with stdio_client(params) as (read, write):
-            async with ClientSession(read, write) as session:
-                await session.initialize()
-                names = {tool.name for tool in (await session.list_tools()).tools}
-                assert "glance" in names
-                result = await asyncio.wait_for(
-                    session.call_tool(
-                        "glance",
-                        {
-                            "projection": "program",
-                            "max_items": 1,
-                            "brief": True,
-                            "compact": True,
-                        },
-                    ),
-                    timeout=10.0,
-                )
-                text = "".join(getattr(block, "text", "") for block in result.content)
-                payload = json.loads(text)
-                assert payload["schema_version"] == "operational-brief/v1"
-                assert payload["identity_authority"] == "none"
-                assert payload["bounds"]["returned_items"] <= 1
+        async with stdio_client(params) as (read, write), ClientSession(read, write) as session:
+            await session.initialize()
+            names = {tool.name for tool in (await session.list_tools()).tools}
+            assert "glance" in names
+            result = await asyncio.wait_for(
+                session.call_tool(
+                    "glance",
+                    {
+                        "projection": "program",
+                        "max_items": 1,
+                        "brief": True,
+                        "compact": True,
+                    },
+                ),
+                timeout=10.0,
+            )
+            text = "".join(getattr(block, "text", "") for block in result.content)
+            payload = json.loads(text)
+            assert payload["schema_version"] == "operational-brief/v1"
+            assert payload["identity_authority"] == "none"
+            assert payload["bounds"]["returned_items"] <= 1
 
     import asyncio
 

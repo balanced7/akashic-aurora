@@ -67,7 +67,7 @@ def _rec(lens, outcome, fan=None):
 
 def test_v1_the_four_outcomes_are_distinct_states():
     """confirmed/refuted are the SCORED pair; abstained and unverified are neither."""
-    assert L.SCORED == frozenset({"confirmed", "refuted"})
+    assert frozenset({"confirmed", "refuted"}) == L.SCORED
     assert "abstained" not in L.SCORED and "unverified" not in L.SCORED
 
 

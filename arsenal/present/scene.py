@@ -822,8 +822,8 @@ def _check_bars(atom: dict, where: str) -> list[str]:
 def _inside(x: Any, y: Any, w: Any = 0, h: Any = 0) -> bool:
     return (
         all(isinstance(v, (int, float)) for v in (x, y, w, h))
-        and 0 <= x
-        and 0 <= y
+        and x >= 0
+        and y >= 0
         and x + w <= DIAGRAM_HOST["w"]
         and y + h <= DIAGRAM_HOST["h"]
     )

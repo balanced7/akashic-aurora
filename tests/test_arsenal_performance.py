@@ -1341,7 +1341,7 @@ def test_the_glossary_gives_extended_shapes_their_own_meanings():
 
 def test_clock_and_loop_helpers():
     assert [perf._clock(ms) for ms in (0, 59_999, 192_000, 3_723_000)] == ["0:00", "0:59", "3:12", "1:02:03"]
-    labels = "5 1 4 5 1 4 5 1 4 6m 2m 6m 2m".split()
+    labels = ["5", "1", "4", "5", "1", "4", "5", "1", "4", "6m", "2m", "6m", "2m"]
     runs = [{"label": label, "first": {"t_ms": i * 1000, "chord": label}} for i, label in enumerate(labels)]
     # one cycle shown once, in the rotation played most; a two-chord vamp and non-repeating runs are not loops
     assert perf._loops(runs) == [

@@ -784,12 +784,66 @@ def _continue_answer(client, model, system, prompt, partial, max_tokens, budget,
 COLLAPSE_AT = float(os.getenv("AKASHIC_ASK_COLLAPSE_AT", "0.85"))
 DISTINCT_AT = float(os.getenv("AKASHIC_ASK_DISTINCT_AT", "0.05"))
 _STOPWORDS = frozenset(
-    """
-that this these those with from into onto upon which where when what whom whose
-have will would could should must been being were where there their they them then than
-your yours ours only also just very much more most some such each other another
-about above after again against because before below between during under while
-""".split()
+    [
+        "that",
+        "this",
+        "these",
+        "those",
+        "with",
+        "from",
+        "into",
+        "onto",
+        "upon",
+        "which",
+        "where",
+        "when",
+        "what",
+        "whom",
+        "whose",
+        "have",
+        "will",
+        "would",
+        "could",
+        "should",
+        "must",
+        "been",
+        "being",
+        "were",
+        "where",
+        "there",
+        "their",
+        "they",
+        "them",
+        "then",
+        "than",
+        "your",
+        "yours",
+        "ours",
+        "only",
+        "also",
+        "just",
+        "very",
+        "much",
+        "more",
+        "most",
+        "some",
+        "such",
+        "each",
+        "other",
+        "another",
+        "about",
+        "above",
+        "after",
+        "again",
+        "against",
+        "because",
+        "before",
+        "below",
+        "between",
+        "during",
+        "under",
+        "while",
+    ]
 )
 
 

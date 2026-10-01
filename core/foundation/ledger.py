@@ -309,14 +309,13 @@ class FileLedger(Ledger):
     @staticmethod
     def _head_id(path: Path) -> int | None:
         """Id of the oldest complete record, from the first lines only; None if unknown."""
-        with contextlib.suppress(OSError):
-            with open(path, "rb") as f:
-                for _ in range(32):
-                    raw = f.readline(_TAIL_CHUNK * 16)
-                    if not raw:
-                        break
-                    with contextlib.suppress(ValueError, KeyError, TypeError):
-                        return int(json.loads(raw.strip())["id"])
+        with contextlib.suppress(OSError), open(path, "rb") as f:
+            for _ in range(32):
+                raw = f.readline(_TAIL_CHUNK * 16)
+                if not raw:
+                    break
+                with contextlib.suppress(ValueError, KeyError, TypeError):
+                    return int(json.loads(raw.strip())["id"])
         return None
 
     def _maybe_trim(self, path: Path, maxlen: int, newest_id: int) -> None:
@@ -346,16 +345,15 @@ class FileLedger(Ledger):
     @staticmethod
     def _parse_file(path: Path) -> list[dict[str, Any]]:
         records = []
-        with contextlib.suppress(FileNotFoundError):
-            with open(path, encoding="utf-8") as f:
-                for line in f:
-                    line = line.strip()
-                    if not line:
-                        continue
-                    try:
-                        records.append(json.loads(line))
-                    except json.JSONDecodeError:
-                        continue
+        with contextlib.suppress(FileNotFoundError), open(path, encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    records.append(json.loads(line))
+                except json.JSONDecodeError:
+                    continue
         return records
 
     def consume(self, stream, after_id="0", count=100, block_ms=0):

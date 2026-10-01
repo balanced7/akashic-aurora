@@ -145,7 +145,7 @@ def get_image_output(history: dict, node_id: str) -> bytes | None:
 
 
 def prompt_id_from_history(history: dict) -> str | None:
-    for key in history.keys():
+    for key in history:
         return key
     return None
 

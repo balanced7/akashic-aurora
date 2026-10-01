@@ -185,9 +185,7 @@ class SessionMonitor:
 
                         # Get entry count from Redis
                         entry_count = 0
-                        if key.endswith(":log"):
-                            entry_count = self.redis_client.llen(key)
-                        elif key.endswith(":actions"):
+                        if key.endswith(":log") or key.endswith(":actions"):
                             entry_count = self.redis_client.llen(key)
 
                         sessions[session_id] = SessionInfo(

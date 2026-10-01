@@ -87,24 +87,23 @@ def test_fresh_stdio_mcp_log_returns_without_second_frame(tmp_path):
                 "AKASHIC_EMBED_THEMES": "0",
             },
         )
-        async with stdio_client(params) as (read, write):
-            async with ClientSession(read, write) as session:
-                await session.initialize()
-                out = await asyncio.wait_for(
-                    session.call_tool(
-                        "log",
-                        {
-                            "agent": "mcp-log-single-frame",
-                            "kind": "note",
-                            "summary": "single-frame transport pin",
-                            "source": "test:mcp-log-single-frame",
-                            "category": "test",
-                            "task": "T060",
-                        },
-                    ),
-                    timeout=5.0,
-                )
-                text = "".join(getattr(item, "text", "") for item in out.content)
-                assert "[OK] note: single-frame transport pin" in text
+        async with stdio_client(params) as (read, write), ClientSession(read, write) as session:
+            await session.initialize()
+            out = await asyncio.wait_for(
+                session.call_tool(
+                    "log",
+                    {
+                        "agent": "mcp-log-single-frame",
+                        "kind": "note",
+                        "summary": "single-frame transport pin",
+                        "source": "test:mcp-log-single-frame",
+                        "category": "test",
+                        "task": "T060",
+                    },
+                ),
+                timeout=5.0,
+            )
+            text = "".join(getattr(item, "text", "") for item in out.content)
+            assert "[OK] note: single-frame transport pin" in text
 
     asyncio.run(flow())

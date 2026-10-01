@@ -157,7 +157,7 @@ KILLPOINT = os.environ.get("AKASHIC_KILLPOINT", "")
 
 
 def _killpoint(name: str) -> None:
-    if KILLPOINT and KILLPOINT == name:
+    if KILLPOINT and name == KILLPOINT:
         print(f"[gemini-runner] KILLPOINT {name} -- dying (drill)", flush=True)
         os._exit(137)
 

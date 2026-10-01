@@ -361,7 +361,24 @@ def test_band_output_is_byte_identical_on_repeat_and_inside_a_batch():
 def test_a_sixteen_slot_band_line_costs_little_over_a_plain_voicing():
     items = [
         {"text": t, "key": "Eb major"}
-        for t in "1m11 1m11 b6maj7#11 5^7sus4 5^7 b3maj9 b3maj9 4m6 1maj9 4maj9 5^11/4 1/3 1maj9 2m9 5^13 1maj9".split()
+        for t in [
+            "1m11",
+            "1m11",
+            "b6maj7#11",
+            "5^7sus4",
+            "5^7",
+            "b3maj9",
+            "b3maj9",
+            "4m6",
+            "1maj9",
+            "4maj9",
+            "5^11/4",
+            "1/3",
+            "1maj9",
+            "2m9",
+            "5^13",
+            "1maj9",
+        ]
     ]
     assert len(items) == 16
 

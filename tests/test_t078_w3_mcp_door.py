@@ -59,17 +59,16 @@ def test_p1_to_p4_handshake_roster_roundtrip_task():
         from mcp import ClientSession
 
         client = await _session()
-        async with client as (read, write):
-            async with ClientSession(read, write) as s:
-                await s.initialize()  # P1
-                tools = {t.name for t in (await s.list_tools()).tools}
-                core = {"boot", "notes", "status", "handoff", "bifrost_send", "bifrost_sync", "learn", "recall"}
-                missing = core - tools
-                assert not missing, f"P2: core roster missing {missing}"  # P2
-                out = await s.call_tool("status", {})
-                text = "".join(getattr(c, "text", "") for c in out.content)
-                assert text.strip(), "P3: status round-trip returned nothing"  # P3
-                assert "task" in tools, "P4: the task ledger verb must be an MCP tool (the missing verb)"
+        async with client as (read, write), ClientSession(read, write) as s:
+            await s.initialize()  # P1
+            tools = {t.name for t in (await s.list_tools()).tools}
+            core = {"boot", "notes", "status", "handoff", "bifrost_send", "bifrost_sync", "learn", "recall"}
+            missing = core - tools
+            assert not missing, f"P2: core roster missing {missing}"  # P2
+            out = await s.call_tool("status", {})
+            text = "".join(getattr(c, "text", "") for c in out.content)
+            assert text.strip(), "P3: status round-trip returned nothing"  # P3
+            assert "task" in tools, "P4: the task ledger verb must be an MCP tool (the missing verb)"
 
     _run(flow())
 
@@ -92,35 +91,34 @@ def test_p6_boot_returns_without_a_second_inbound_frame(tmp_path):
                 "AKASHIC_RECALL_STATE_DIR": str(tmp_path / "recall"),
             }
         )
-        async with client as (read, write):
-            async with ClientSession(read, write) as s:
-                await s.initialize()
-                for state in ("cold", "warm"):
-                    out = await asyncio.wait_for(
-                        s.call_tool(
-                            "boot",
-                            {
-                                "agent": agent,
-                                "task": f"C7-4 {state} single-frame response pin",
-                            },
-                        ),
-                        timeout=5.0,
-                    )
-                    text = "".join(getattr(c, "text", "") for c in out.content)
-                    assert f"# CONTEXT for {agent}" in text
-                    assert "door: MCP-native" in text
-
-                audit = await s.call_tool(
-                    "events",
-                    {
-                        "search": agent,
-                        "agent": agent,
-                        "kind": "boot",
-                        "limit": 10,
-                    },
+        async with client as (read, write), ClientSession(read, write) as s:
+            await s.initialize()
+            for state in ("cold", "warm"):
+                out = await asyncio.wait_for(
+                    s.call_tool(
+                        "boot",
+                        {
+                            "agent": agent,
+                            "task": f"C7-4 {state} single-frame response pin",
+                        },
+                    ),
+                    timeout=5.0,
                 )
-                audit_text = "".join(getattr(c, "text", "") for c in audit.content)
-                assert "# 2 event(s) matching" in audit_text, audit_text
+                text = "".join(getattr(c, "text", "") for c in out.content)
+                assert f"# CONTEXT for {agent}" in text
+                assert "door: MCP-native" in text
+
+            audit = await s.call_tool(
+                "events",
+                {
+                    "search": agent,
+                    "agent": agent,
+                    "kind": "boot",
+                    "limit": 10,
+                },
+            )
+            audit_text = "".join(getattr(c, "text", "") for c in audit.content)
+            assert "# 2 event(s) matching" in audit_text, audit_text
 
     _run(flow())
 

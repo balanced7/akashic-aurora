@@ -379,7 +379,7 @@ def test_suite_runs_with_isolated_recall_state():
     import core.recall.at_action as aa
 
     env = os.environ.get("AKASHIC_RECALL_STATE_DIR", "")
-    assert env and aa._CACHE_DIR == env
+    assert env and env == aa._CACHE_DIR
     assert "akashic_recall_test_" in aa._CACHE_DIR
 
 

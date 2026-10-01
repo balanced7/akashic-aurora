@@ -81,7 +81,7 @@ def _default_base() -> int:
     connection to 16379, refusing the bind. There the base moves below the range."""
     lo, hi = _ephemeral_range()
     top = _WINDOWS_BASE + 10 * _PORT_SPAN  # tests use base+900.., leave headroom
-    return _LOW_BASE if (_WINDOWS_BASE <= hi and top >= lo) else _WINDOWS_BASE
+    return _LOW_BASE if (hi >= _WINDOWS_BASE and top >= lo) else _WINDOWS_BASE
 
 
 CONTROL_PORT_BASE = int(os.getenv("AKASHIC_CONTROL_PORT_BASE", "") or _default_base())

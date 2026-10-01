@@ -274,18 +274,17 @@ def test_fresh_stdio_mcp_registers_route_tools_and_returns_single_frame():
             cwd=str(ROOT),
             env={**os.environ, "PYTHONUTF8": "1", "PYTHONUNBUFFERED": "1"},
         )
-        async with stdio_client(params) as (read, write):
-            async with ClientSession(read, write) as session:
-                await session.initialize()
-                listed = await session.list_tools()
-                names = {tool.name for tool in listed.tools}
-                assert {"packet_route", "packet_route_stats"} <= names
-                result = await asyncio.wait_for(
-                    session.call_tool("packet_route", {"kind": "handoff"}),
-                    timeout=5.0,
-                )
-                text = "".join(getattr(item, "text", "") for item in result.content)
-                assert json.loads(text) == _router().route("handoff").as_dict()
+        async with stdio_client(params) as (read, write), ClientSession(read, write) as session:
+            await session.initialize()
+            listed = await session.list_tools()
+            names = {tool.name for tool in listed.tools}
+            assert {"packet_route", "packet_route_stats"} <= names
+            result = await asyncio.wait_for(
+                session.call_tool("packet_route", {"kind": "handoff"}),
+                timeout=5.0,
+            )
+            text = "".join(getattr(item, "text", "") for item in result.content)
+            assert json.loads(text) == _router().route("handoff").as_dict()
 
     asyncio.run(flow())
 

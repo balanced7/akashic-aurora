@@ -900,7 +900,7 @@ def _cmd_replay(args, out) -> int:
         f"label {cue['label']!r}",
         file=out,
     )
-    names = "C Db D Eb E F F# G Ab A Bb B".split()
+    names = ["C", "Db", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"]
     for step in cue["steps"]:
         notes = " ".join(f"{names[n % 12]}{n // 12 - 1}" for n in step["notes"])
         tag = f"  {step['label']}" if step["label"] else ""

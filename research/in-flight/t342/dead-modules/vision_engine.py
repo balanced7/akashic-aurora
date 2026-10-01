@@ -237,9 +237,12 @@ class VisionEngine:
                 # DirectML has compatibility bugs with Florence-2
                 if hasattr(self, "_model_device"):
                     compute_device = self._model_device
-                elif isinstance(self.device, str) and self._dml_available and self.device != "cpu":
-                    compute_device = self.device
-                elif isinstance(self.device, str):
+                elif (
+                    isinstance(self.device, str)
+                    and self._dml_available
+                    and self.device != "cpu"
+                    or isinstance(self.device, str)
+                ):
                     compute_device = self.device
                 else:
                     compute_device = "cpu"

@@ -152,7 +152,7 @@ def test_tone_steps_are_the_templates_letter_steps():
     for suffix, tones in re.findall(r'T\("([^"]*)",\s*\[\[(.*?)\]\]', block):
         for semis, steps in re.findall(r"(\d+),\s*(\d+)", tones):
             want.setdefault(suffix, {})[int(semis)] = 6 if (suffix, semis) == ("dim7", "9") else int(steps)
-    assert nv.TONE_STEPS == want
+    assert want == nv.TONE_STEPS
 
 
 def test_a_slash_chords_bass_is_read_from_its_chord_not_its_letters():

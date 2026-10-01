@@ -118,7 +118,7 @@ def test_resolve_tag_is_pure():
     and cannot drift behind an I/O failure."""
     before = list(REGISTRY)
     PR.resolve_tag("deepseek", REGISTRY)
-    assert REGISTRY == before
+    assert before == REGISTRY
 
 
 # --------------------------------------------------------------------------------------

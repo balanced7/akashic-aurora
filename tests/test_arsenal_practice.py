@@ -798,8 +798,8 @@ def test_readings_take_the_chord_rooted_on_the_bass_and_keep_real_inversions():
         assert (a["name"], a["from"], bool(a.get("no3"))) == (name, "reading", no3), (notes, a)
         if number:
             assert a["number"] == number, (notes, a)
-    assert "Lydian 4" in pr.name_data("Bb2 F3 Bb3 D4 F5 C6 E6".split(), "F major")["analysed"]["note"]
-    out = pr.render_name(pr.name_data("F2 C3 F3 G5 C6 E6".split(), "F major"))
+    assert "Lydian 4" in pr.name_data(["Bb2", "F3", "Bb3", "D4", "F5", "C6", "E6"], "F major")["analysed"]["note"]
+    out = pr.render_name(pr.name_data(["F2", "C3", "F3", "G5", "C6", "E6"], "F major"))
     assert "Analysed as: Fmaj9 (reading, no 3rd) = 1maj9" in out
     for notes, key in (
         ("D3 Bb3 F4 A4 C5", "Bb major"),
@@ -1580,14 +1580,14 @@ def test_a_minor_chord_over_its_3rd_is_heard_from_its_held_bass_unless_its_root_
     over3 = [w for w in doc["windows"] if w["bass"]["note"] == "Bb2"]
     assert over3 and all(w["analysed_as"] == "Gm9/Bb" for w in over3), [(w["at"], w["analysed_as"]) for w in over3]
     assert (
-        pr.name_data("Bb2 G3 A3 D4 F4".split(), "F major")["analysed"]["name"] == "Bbmaj7(13)"
+        pr.name_data(["Bb2", "G3", "A3", "D4", "F4"], "F major")["analysed"]["name"] == "Bbmaj7(13)"
     )  # alone: from its bass
     doc = _analyze(
         pedalled_progression([chords[0], ["G2", "Bb3", "F4"], chords[3], chords[0]], seconds=2.0, repeats=2)[0]
     )
     shells = [w for w in doc["windows"] if w["analysed_as"] == "Gm7"]
     assert shells and all(w["label"] == "Gm7(no5)" for w in shells), [(w["at"], w["label"]) for w in doc["windows"]]
-    a = pr.name_data("C3 G3 Eb4 E4 F5 A5 Bb5".split(), "F major")["analysed"]
+    a = pr.name_data(["C3", "G3", "Eb4", "E4", "F5", "A5", "Bb5"], "F major")["analysed"]
     assert (a["name"], a["from"], a["number"]) == ("C13#9(11)", "reading", "5^13#9(11)"), a
 
 

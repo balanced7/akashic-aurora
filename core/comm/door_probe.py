@@ -223,62 +223,58 @@ def _child_flow(timeout_s: float) -> dict:
         t0 = time.time()
         stage = "spawn"
         try:
-            async with stdio_client(params) as (read, write):
-                async with ClientSession(read, write) as s:
-                    stage = "initialize"
-                    await asyncio.wait_for(s.initialize(), timeout=timeout_s)
+            async with stdio_client(params) as (read, write), ClientSession(read, write) as s:
+                stage = "initialize"
+                await asyncio.wait_for(s.initialize(), timeout=timeout_s)
 
-                    stage = "tools_list"
-                    listed = await asyncio.wait_for(s.list_tools(), timeout=timeout_s)
-                    names = {t.name for t in listed.tools}
-                    missing = [v for v in CORE_VERBS if v not in names]
-                    if missing:
-                        return _verdict(
-                            RED,
-                            stage,
-                            time.time() - t0,
-                            "roster_drift",
-                            f"tools/list is missing: {', '.join(missing)}",
-                            "The server answers but its verb roster drifted. Check the "
-                            "@mcp.tool() registrations in ai_setup_mcp.py and .mcp.json.",
-                        )
-
-                    # The one that matters: a verb whose body spawns a child.
-                    stage = "boot"
-                    out = await asyncio.wait_for(
-                        s.call_tool(
-                            "boot", {"agent": "door-probe", "task": "door probe -- single-frame response check"}
-                        ),
-                        timeout=timeout_s,
+                stage = "tools_list"
+                listed = await asyncio.wait_for(s.list_tools(), timeout=timeout_s)
+                names = {t.name for t in listed.tools}
+                missing = [v for v in CORE_VERBS if v not in names]
+                if missing:
+                    return _verdict(
+                        RED,
+                        stage,
+                        time.time() - t0,
+                        "roster_drift",
+                        f"tools/list is missing: {', '.join(missing)}",
+                        "The server answers but its verb roster drifted. Check the "
+                        "@mcp.tool() registrations in ai_setup_mcp.py and .mcp.json.",
                     )
-                    text = "".join(getattr(c, "text", "") for c in out.content)
-                    if "# CONTEXT for door-probe" not in text:
-                        return _verdict(
-                            RED,
-                            stage,
-                            time.time() - t0,
-                            "boot_render_broken",
-                            f"boot returned {len(text)} chars without its CONTEXT header",
-                            "The door answered but boot's render is wrong. Compare against "
-                            f"`{_pyl()} agent_cli.py boot <you>`, which shares the code path.",
-                        )
 
-                    el = time.time() - t0
-                    if el > SLOW_BUDGET_S:
-                        return _verdict(
-                            RED,
-                            stage,
-                            el,
-                            "response_path_slow",
-                            f"boot answered, but in {el:.1f}s against a ~1.3s healthy "
-                            f"baseline (budget {SLOW_BUDGET_S}s)",
-                            "The door ANSWERS but is parked -- this is C7-4 in its bounded "
-                            "form, where a reply waits behind some child's own timeout "
-                            "rather than forever. Treat it as red: run "
-                            "tests/test_subprocess_stdin_sever.py (S3 names the offending "
-                            "file:line). If it passes, your server is stale -- restart it.",
-                        )
-                    return _verdict(GREEN, "complete", el, "", f"boot returned {len(text)} chars", "MCP path healthy.")
+                # The one that matters: a verb whose body spawns a child.
+                stage = "boot"
+                out = await asyncio.wait_for(
+                    s.call_tool("boot", {"agent": "door-probe", "task": "door probe -- single-frame response check"}),
+                    timeout=timeout_s,
+                )
+                text = "".join(getattr(c, "text", "") for c in out.content)
+                if "# CONTEXT for door-probe" not in text:
+                    return _verdict(
+                        RED,
+                        stage,
+                        time.time() - t0,
+                        "boot_render_broken",
+                        f"boot returned {len(text)} chars without its CONTEXT header",
+                        "The door answered but boot's render is wrong. Compare against "
+                        f"`{_pyl()} agent_cli.py boot <you>`, which shares the code path.",
+                    )
+
+                el = time.time() - t0
+                if el > SLOW_BUDGET_S:
+                    return _verdict(
+                        RED,
+                        stage,
+                        el,
+                        "response_path_slow",
+                        f"boot answered, but in {el:.1f}s against a ~1.3s healthy baseline (budget {SLOW_BUDGET_S}s)",
+                        "The door ANSWERS but is parked -- this is C7-4 in its bounded "
+                        "form, where a reply waits behind some child's own timeout "
+                        "rather than forever. Treat it as red: run "
+                        "tests/test_subprocess_stdin_sever.py (S3 names the offending "
+                        "file:line). If it passes, your server is stale -- restart it.",
+                    )
+                return _verdict(GREEN, "complete", el, "", f"boot returned {len(text)} chars", "MCP path healthy.")
         except TimeoutError:
             el = time.time() - t0
             if stage == "boot":

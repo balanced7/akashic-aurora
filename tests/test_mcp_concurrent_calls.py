@@ -82,23 +82,22 @@ def test_c1_concurrent_batch_returns_intact():
         from mcp import ClientSession
 
         client = await _open_session()
-        async with client as (read, write):
-            async with ClientSession(read, write) as s:
-                await asyncio.wait_for(s.initialize(), timeout=CALL_CAP)
-                (slow_txt, slow_dt), (fast_txt, fast_dt) = await asyncio.wait_for(
-                    asyncio.gather(
-                        _call(s, "SLOW", SLOW_S),
-                        _call(s, "FAST", 0.1),
-                    ),
-                    timeout=CALL_CAP,
-                )
-                # each response carries its own payload, never the sibling's
-                assert "DIAG[SLOW]" in slow_txt and "DIAG[FAST]" not in slow_txt
-                assert "DIAG[FAST]" in fast_txt and "DIAG[SLOW]" not in fast_txt
-                # session survives the batch (the wedge symptom = it would not)
-                after, _ = await _call(s, "AFTER", 0.05)
-                assert "DIAG[AFTER]" in after
-                return slow_dt, fast_dt
+        async with client as (read, write), ClientSession(read, write) as s:
+            await asyncio.wait_for(s.initialize(), timeout=CALL_CAP)
+            (slow_txt, slow_dt), (fast_txt, fast_dt) = await asyncio.wait_for(
+                asyncio.gather(
+                    _call(s, "SLOW", SLOW_S),
+                    _call(s, "FAST", 0.1),
+                ),
+                timeout=CALL_CAP,
+            )
+            # each response carries its own payload, never the sibling's
+            assert "DIAG[SLOW]" in slow_txt and "DIAG[FAST]" not in slow_txt
+            assert "DIAG[FAST]" in fast_txt and "DIAG[SLOW]" not in fast_txt
+            # session survives the batch (the wedge symptom = it would not)
+            after, _ = await _call(s, "AFTER", 0.05)
+            assert "DIAG[AFTER]" in after
+            return slow_dt, fast_dt
 
     slow_dt, fast_dt = _run(flow())
     # diagnosis receipt, printed either way: serialized dispatch shows fast_dt ~= SLOW_S
@@ -115,14 +114,13 @@ def test_c2_fast_call_not_starved_by_slow():
         from mcp import ClientSession
 
         client = await _open_session()
-        async with client as (read, write):
-            async with ClientSession(read, write) as s:
-                await asyncio.wait_for(s.initialize(), timeout=CALL_CAP)
-                slow_task = asyncio.create_task(_call(s, "SLOW", SLOW_S))
-                await asyncio.sleep(0.2)  # slow is in flight first
-                _, fast_dt = await _call(s, "FAST", 0.1)
-                await asyncio.wait_for(slow_task, timeout=CALL_CAP)
-                return fast_dt
+        async with client as (read, write), ClientSession(read, write) as s:
+            await asyncio.wait_for(s.initialize(), timeout=CALL_CAP)
+            slow_task = asyncio.create_task(_call(s, "SLOW", SLOW_S))
+            await asyncio.sleep(0.2)  # slow is in flight first
+            _, fast_dt = await _call(s, "FAST", 0.1)
+            await asyncio.wait_for(slow_task, timeout=CALL_CAP)
+            return fast_dt
 
     fast_dt = _run(flow())
     assert fast_dt < FAST_BUDGET, (
@@ -135,16 +133,15 @@ def test_c3_ping_answered_under_load():
         from mcp import ClientSession
 
         client = await _open_session()
-        async with client as (read, write):
-            async with ClientSession(read, write) as s:
-                await asyncio.wait_for(s.initialize(), timeout=CALL_CAP)
-                slow_task = asyncio.create_task(_call(s, "SLOW", SLOW_S))
-                await asyncio.sleep(0.2)
-                t0 = time.monotonic()
-                await asyncio.wait_for(s.send_ping(), timeout=CALL_CAP)
-                ping_dt = time.monotonic() - t0
-                await asyncio.wait_for(slow_task, timeout=CALL_CAP)
-                return ping_dt
+        async with client as (read, write), ClientSession(read, write) as s:
+            await asyncio.wait_for(s.initialize(), timeout=CALL_CAP)
+            slow_task = asyncio.create_task(_call(s, "SLOW", SLOW_S))
+            await asyncio.sleep(0.2)
+            t0 = time.monotonic()
+            await asyncio.wait_for(s.send_ping(), timeout=CALL_CAP)
+            ping_dt = time.monotonic() - t0
+            await asyncio.wait_for(slow_task, timeout=CALL_CAP)
+            return ping_dt
 
     ping_dt = _run(flow())
     assert ping_dt < 1.0, f"ping took {ping_dt:.2f}s under a running sync tool"
@@ -158,16 +155,15 @@ def test_c4_twenty_way_mixed_batch_intact():
         from mcp import ClientSession
 
         client = await _open_session()
-        async with client as (read, write):
-            async with ClientSession(read, write) as s:
-                await asyncio.wait_for(s.initialize(), timeout=CALL_CAP)
-                jobs = [_call(s, f"T{i}", 1.0 if i % 5 == 0 else 0.05) for i in range(N)]
-                results = await asyncio.wait_for(asyncio.gather(*jobs), timeout=60)
-                for i, (text, _dt) in enumerate(results):
-                    assert f"DIAG[T{i}]" in text, f"call {i} lost its own payload"
-                    others = sum(1 for j in range(N) if j != i and f"DIAG[T{j}]" in text)
-                    assert others == 0, f"call {i} contains {others} sibling payload(s)"
-                after, _ = await _call(s, "FINAL", 0.05)
-                assert "DIAG[FINAL]" in after
+        async with client as (read, write), ClientSession(read, write) as s:
+            await asyncio.wait_for(s.initialize(), timeout=CALL_CAP)
+            jobs = [_call(s, f"T{i}", 1.0 if i % 5 == 0 else 0.05) for i in range(N)]
+            results = await asyncio.wait_for(asyncio.gather(*jobs), timeout=60)
+            for i, (text, _dt) in enumerate(results):
+                assert f"DIAG[T{i}]" in text, f"call {i} lost its own payload"
+                others = sum(1 for j in range(N) if j != i and f"DIAG[T{j}]" in text)
+                assert others == 0, f"call {i} contains {others} sibling payload(s)"
+            after, _ = await _call(s, "FINAL", 0.05)
+            assert "DIAG[FINAL]" in after
 
     _run(flow())

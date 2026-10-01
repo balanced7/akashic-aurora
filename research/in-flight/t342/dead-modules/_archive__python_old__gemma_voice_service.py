@@ -152,9 +152,8 @@ def execute_code(code):
             "print": lambda *args: captured.write(" ".join(map(str, args))),
         }
 
-        with contextlib.redirect_stdout(captured):
-            with contextlib.redirect_stderr(captured):
-                exec(code, exec_globals)
+        with contextlib.redirect_stdout(captured), contextlib.redirect_stderr(captured):
+            exec(code, exec_globals)
 
         result["success"] = True
         result["output"] = "\n".join(captured.outputs) if captured.outputs else "Code executed successfully (no output)"
