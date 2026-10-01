@@ -14,8 +14,6 @@ The test harness: we call the render functions directly with controlled inputs
 and assert the output contains the bounds markers.
 """
 
-import json
-import os
 import sys
 from pathlib import Path
 
@@ -135,7 +133,6 @@ def test_inbox_render_collapsed_has_count_info():
 
 def test_peek_inbox_provides_pending_at_least():
     """Every message from peek_inbox carries pending_at_least, the true unread depth."""
-    from agent.bifrost_pull import peek_inbox
 
     # peek_inbox requires a live bus; in test mode, it returns [] gracefully.
     # The contract: when messages ARE returned, each carries pending_at_least.

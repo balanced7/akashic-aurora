@@ -66,7 +66,6 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.foundation.timeutil import now_iso  # noqa: E402
 
 try:
     from core.comm import expectations, friction

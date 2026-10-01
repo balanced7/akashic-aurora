@@ -152,7 +152,7 @@ def initialize():
     # 8. Initialize multi-agent system
     print("\n[8/9] Initializing multi-agent system...")
     try:
-        from multi_agent import get_agent_registry, initialize_multi_agent
+        from multi_agent import initialize_multi_agent
 
         # Get session info from session_logger
         from session_logger import SESSION_ID, SESSION_UNIQUE
@@ -202,7 +202,7 @@ def initialize():
     # 10. Run directives compliance check
     print("\n[10/10] Checking directives compliance...")
     try:
-        from directives_checker import check_compliance, print_directives_report
+        from directives_checker import check_compliance
 
         compliance = check_compliance()
         if compliance["compliant"]:

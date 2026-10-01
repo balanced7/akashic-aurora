@@ -40,7 +40,6 @@ import secrets
 import threading
 import time
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
 
 from arsenal.jam import RUN_API
 from arsenal.jam import align as jam_align
@@ -48,7 +47,7 @@ from arsenal.jam import cards as jam_cards
 from arsenal.jam import schemas as S
 from arsenal.jam import tempomap as T
 from arsenal.jam.cards import DeckError, DeckStore, now_iso
-from arsenal.jam.resolve import BridgeUnavailable, ResolveError, Resolver, key_of, parse_line
+from arsenal.jam.resolve import BridgeUnavailable, ResolveError, Resolver, parse_line
 
 ENGINE = "groove/1"
 LEASE_MS = 30000

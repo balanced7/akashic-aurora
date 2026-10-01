@@ -31,7 +31,6 @@ import pytest
 os.environ.setdefault("_AISETUP_TEST_ISOLATED", "1")
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.comm import packet_spec as ps
 from core.comm.bus import Bus
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -268,7 +267,7 @@ def test_b2_work_kinds_are_lane_first():
         legacy_write = keys[-1]
         lane_key, lane_kind = lane_write
         legacy_key, _ = legacy_write
-        assert f":work:inbox:peer" in lane_key, f"kind={kind}: first write should be lane key, got {lane_key}"
+        assert ":work:inbox:peer" in lane_key, f"kind={kind}: first write should be lane key, got {lane_key}"
         assert lane_key.startswith(f"{ns}:work:"), f"kind={kind}: lane key should be {ns}:work:..., got {lane_key}"
         assert legacy_key.endswith(":inbox:peer") and ":work:" not in legacy_key, (
             f"kind={kind}: legacy key should be inbox:peer, got {legacy_key}"
@@ -289,7 +288,7 @@ def test_b2_sig_kinds_are_lane_first():
         keys = b._client.xadd_keys
         assert len(keys) >= 2
         lane_key, _ = keys[-2]
-        assert f":sig:inbox:peer" in lane_key, f"kind={kind}: should be sig lane, got {lane_key}"
+        assert ":sig:inbox:peer" in lane_key, f"kind={kind}: should be sig lane, got {lane_key}"
         b._client.xadd_keys.clear()
 
     print("B2 OK: sig kinds are lane-first.")
@@ -305,7 +304,7 @@ def test_b2_trace_kinds_are_lane_first():
         keys = b._client.xadd_keys
         assert len(keys) >= 2
         lane_key, _ = keys[-2]
-        assert f":trace" in lane_key, f"kind={kind}: should be trace lane, got {lane_key}"
+        assert ":trace" in lane_key, f"kind={kind}: should be trace lane, got {lane_key}"
         b._client.xadd_keys.clear()
 
     print("B2 OK: trace kinds are lane-first.")
@@ -402,7 +401,7 @@ def test_b3_reply_still_lane_first_via_send_reply():
     # send_reply writes lane xadd first, then legacy xadd
     assert len(keys) >= 2
     lane_key, _ = keys[-2]
-    assert f":work:inbox:peer" in lane_key, f"send_reply lane write: got {lane_key}"
+    assert ":work:inbox:peer" in lane_key, f"send_reply lane write: got {lane_key}"
     legacy_key, _ = keys[-1]
     assert legacy_key.endswith(":inbox:peer") and ":work:" not in legacy_key
     print("B3 OK: send_reply still lane-first, unchanged.")

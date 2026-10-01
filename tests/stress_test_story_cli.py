@@ -6,24 +6,19 @@ corruption, concurrency, partial matches, and boundary conditions.
 import json
 import os
 import random
-import string
 import sys
 import tempfile
 import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from datetime import datetime, timedelta
 
 from core.foundation.store import FileStore
-from core.narrative.beat_log import TIMELINE, BeatLog
+from core.narrative.beat_log import BeatLog
 from core.narrative.chronicler import Chronicler
 from core.narrative.schema import (
-    STORY_FORMAT_VERSION,
     Atlas,
-    Beat,
     Chapter,
-    Edge,
     Track,
     beat_key,
     chapter_key,
@@ -36,7 +31,6 @@ from core.primitives.ranker import Ranker
 
 def _run_cli(args, store=None):
     """Simulate `py agent_cli.py story <args>` and return (stdout, returncode)."""
-    import io
 
     from agent_cli import cmd_story
 
@@ -150,7 +144,7 @@ def stress_large_beat_count():
     out, rc = _run_cli([f"--beat={ch.beats[0]}"], store=s)
     assert rc == 0
 
-    print(f"  stress-large-beats: 1000 beats OK")
+    print("  stress-large-beats: 1000 beats OK")
 
 
 def stress_many_tracks():
@@ -184,7 +178,7 @@ def stress_many_tracks():
     assert rc == 0
     for t in tracks[:3]:
         assert t in out
-    print(f"  stress-many-tracks: 25 tracks in atlas OK")
+    print("  stress-many-tracks: 25 tracks in atlas OK")
 
 
 # =========================== Corrupted / edge data ===========================
@@ -211,7 +205,7 @@ def stress_corrupt_chapter_json():
     # Atlas should still work
     out2, rc2 = _run_cli([], store=s)
     assert rc2 == 0
-    print(f"  stress-corrupt-chapter: corrupt chapter handled OK")
+    print("  stress-corrupt-chapter: corrupt chapter handled OK")
 
 
 def stress_corrupt_beat_json():
@@ -227,7 +221,7 @@ def stress_corrupt_beat_json():
     out, rc = _run_cli(["--beat=corrupt_beat_1"], store=s)
     # Should say not found (we check beat_key first, then bare narr:beat:)
     assert rc == 2 or "ERROR" in out or "not found" in out
-    print(f"  stress-corrupt-beat: corrupt beat handled OK")
+    print("  stress-corrupt-beat: corrupt beat handled OK")
 
 
 def stress_empty_track():
@@ -247,7 +241,7 @@ def stress_empty_track():
     out, rc = _run_cli([], store=s)
     assert rc == 0
     assert "empty_track" in out
-    print(f"  stress-empty-track: empty track rendered OK")
+    print("  stress-empty-track: empty track rendered OK")
 
 
 def stress_unicode_in_beats():
@@ -266,7 +260,7 @@ def stress_unicode_in_beats():
     out2, rc2 = _run_cli(["--json"], store=s)
     assert rc2 == 0
     data = json.loads(out2)
-    print(f"  stress-unicode: Unicode non-breaking OK")
+    print("  stress-unicode: Unicode non-breaking OK")
 
 
 def stress_chapter_with_no_beats():
@@ -297,7 +291,7 @@ def stress_chapter_with_no_beats():
     assert rc2 == 0
     out3, rc3 = _run_cli(["--chapter=chapter_empty"], store=s)
     assert rc3 == 0
-    print(f"  stress-empty-chapter: ghost chapter handled OK")
+    print("  stress-empty-chapter: ghost chapter handled OK")
 
 
 # =========================== Partial / ambiguous matches ===========================
@@ -326,7 +320,7 @@ def stress_at_partial_match():
     # At a time exactly between the two chapters
     out2, rc2 = _run_cli(["--at=2026-06-27T15:00:00"], store=s)
     assert rc2 == 1 or "No chapter" in out2
-    print(f"  stress-partial-match: boundary edge cases OK")
+    print("  stress-partial-match: boundary edge cases OK")
 
 
 def stress_at_bad_formats():
@@ -336,7 +330,7 @@ def stress_at_bad_formats():
         out, rc = _run_cli([f"--at={bad}"], store=s)
         # Should report error without crashing
         assert rc == 2 or "ERROR" in out
-    print(f"  stress-bad-at: malformed timestamps all error OK")
+    print("  stress-bad-at: malformed timestamps all error OK")
 
 
 def stress_track_case_sensitivity():
@@ -352,7 +346,7 @@ def stress_track_case_sensitivity():
     assert rc == 2  # case-sensitive, should fail
     out2, rc2 = _run_cli(["--track=ai-setup"], store=s)
     assert rc2 == 0
-    print(f"  stress-case: case-sensitive matching (expected behavior) OK")
+    print("  stress-case: case-sensitive matching (expected behavior) OK")
 
 
 # =========================== Concurrency / idempotence ===========================
@@ -375,7 +369,7 @@ def stress_concurrent_reads():
     first = list(results.values())[0][0]
     for i, (out, rc) in results.items():
         assert out == first, f"run {i} output differs"
-    print(f"  stress-concurrent: 20 concurrent reads -> identical output OK")
+    print("  stress-concurrent: 20 concurrent reads -> identical output OK")
 
 
 # =========================== Performance ===========================

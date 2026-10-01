@@ -15,7 +15,6 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.narrative.schema import Beat
 from core.narrative.tagging import (
-    BASIS_CONFIDENCE,
     TagEntry,
     TagHistory,
     _as_unit_confidence,

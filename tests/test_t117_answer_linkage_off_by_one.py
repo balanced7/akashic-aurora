@@ -176,7 +176,6 @@ def test_p6_the_reply_settles_the_ASK_IT_NAMES_not_the_fifo_oldest(sender, monke
     The fix must resolve by EVIDENCE (the dual-id alias captured at _emit, where
     both ids are actually known), never by id arithmetic -- Sol's words: independent
     streams can share or differ in ms, and adjacent sends collide."""
-    from core.comm.bus import Bus as _Bus
 
     s = sender
     c = E._client()

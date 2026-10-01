@@ -27,9 +27,7 @@ B. RETIREMENT MUST NOT SELF-SEAL.
 """
 
 import time
-from typing import Any, Dict, List
-
-import pytest
+from typing import Any
 
 from core.foundation.store import FileStore
 
@@ -288,7 +286,6 @@ def test_b3_a_benched_lesson_can_still_earn_its_way_back(tmp_path):
     )
 
     # (ii) benched long ago -> gets one more look, WITHOUT a human intervening.
-    from core.learning.learning_store import LearningStore as _LS
 
     store.hset(f"learn:experiment:{name}", mapping={"benched": "2020-01-01T00:00:00"})
     assert any(name in n for n in _surfaced_names(store)), (

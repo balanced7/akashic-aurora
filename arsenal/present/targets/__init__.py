@@ -11,7 +11,6 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from pathlib import Path
-from typing import Dict, List
 
 from . import print_html, slides_html, three_js, ui_element
 

@@ -6,13 +6,9 @@ Multi-format file analysis (code, images, PDFs, docs, DB, audio, video)
 
 import asyncio
 import io
-import json
-import os
-import subprocess
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-import torch
 from PIL import Image
 
 # Code file extensions
@@ -184,7 +180,7 @@ First 500 chars: {text[:500]}"""
                 "mode": img.mode,
             }
             result["summary"] = f"Image: {filename}, {img.size[0]}x{img.size[1]}, {img.format}"
-        except Exception as e:
+        except Exception:
             result["summary"] = f"Image file: {filename} ({len(data)} bytes)"
 
         # Try vision if available

@@ -22,14 +22,12 @@ that motivated it.
 Run: py -m pytest tests/test_domain_recall_triggers.py -q
 """
 
-import json
 import os
 import sys
 import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import pytest
 
 from core.foundation.store import FileStore
 from core.learning.learning_store import LearningStore
@@ -165,7 +163,7 @@ def test_credit_in_two_domains_promotes():
 def test_promotion_does_not_destroy_the_ordinary_counters():
     """The funnel's existing fields must survive -- promotion reads the same record the value
     measurement reads, and a promotion that reset `useful` would corrupt the gauge it depends on."""
-    from core.recall.at_action import _load_use, _store, credit_useful
+    from core.recall.at_action import _load_use, credit_useful
 
     store = FileStore(os.path.join(tempfile.mkdtemp(prefix="use_"), "s.json"))
     credit_useful("learn:experiment:x", "vfx", store=store)

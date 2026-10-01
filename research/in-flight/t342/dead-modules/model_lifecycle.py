@@ -29,7 +29,6 @@ Usage:
 
 import gc
 import json
-import os
 import subprocess
 import sys
 import time
@@ -37,14 +36,19 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import torch
 
 # Import config for GPU provider settings
 sys.path.insert(0, r"E:\AI-Setup")
 try:
-    from config import HARDWARE, VRAM_BUDGET, GPUProvider, get_base_url, get_config, get_provider
+    from config import HARDWARE
+    from config import VRAM_BUDGET as VRAM_BUDGET
+    from config import GPUProvider as GPUProvider
+    from config import get_base_url as get_base_url
+    from config import get_config as get_config
+    from config import get_provider as get_provider
 
     USE_CONFIG = True
 except ImportError:

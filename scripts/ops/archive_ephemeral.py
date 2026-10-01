@@ -37,17 +37,13 @@ import argparse
 import json
 import os
 import sys
-import time
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_REPO_ROOT))
 
-from scripts.ops.archive_transcripts import (  # noqa: E402
-    DEFAULT_DESTS as _T_DESTS,
-)
 from scripts.ops.archive_transcripts import (
     _render as _render_copy,
 )

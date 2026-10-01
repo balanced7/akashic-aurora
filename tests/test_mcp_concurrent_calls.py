@@ -37,8 +37,6 @@ import os
 import sys
 import time
 
-import pytest
-
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
@@ -50,7 +48,7 @@ CALL_CAP = 25.0  # hard per-await cap: a wedge fails loud here
 
 
 async def _open_session():
-    from mcp import ClientSession, StdioServerParameters
+    from mcp import StdioServerParameters
     from mcp.client.stdio import stdio_client
 
     params = StdioServerParameters(

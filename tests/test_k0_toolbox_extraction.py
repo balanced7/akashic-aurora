@@ -23,16 +23,30 @@ def test_compat_reexport_is_identity():
 
 def test_canonical_surface_complete():
     from core.comm.toolbox import (
-        BINARY_SUFFIXES,
-        EXCLUDE_DIRS,
+        BINARY_SUFFIXES as BINARY_SUFFIXES,
+    )
+    from core.comm.toolbox import (
+        EXCLUDE_DIRS as EXCLUDE_DIRS,
+    )
+    from core.comm.toolbox import (
         MAX_CMD_OUT,
-        MAX_CMD_TIMEOUT,
         MAX_FILE_BYTES,
-        MAX_LIST,
-        MAX_MATCHES,
         TOOLS,
-        ToolBox,
-        _fn,
+    )
+    from core.comm.toolbox import (
+        MAX_CMD_TIMEOUT as MAX_CMD_TIMEOUT,
+    )
+    from core.comm.toolbox import (
+        MAX_LIST as MAX_LIST,
+    )
+    from core.comm.toolbox import (
+        MAX_MATCHES as MAX_MATCHES,
+    )
+    from core.comm.toolbox import (
+        ToolBox as ToolBox,
+    )
+    from core.comm.toolbox import (
+        _fn as _fn,
     )
 
     assert len(TOOLS) >= 30, "tool schema roster went missing in the move"

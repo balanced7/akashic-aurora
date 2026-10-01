@@ -10,13 +10,10 @@ Pin 4 (guess-honesty): GUESS+tested_against -> DRIFT
 import os
 import sys
 
-import pytest
-
 # Ensure project root on path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.toolbelt.audit import (
-    Row,
     VerbsDomain,
     _all_agents,
     _detect_argparse_eaten_tokens,
@@ -25,7 +22,6 @@ from core.toolbelt.audit import (
     _parse_kata_ts,
     json_result,
     render,
-    run,
 )
 
 # ---------------------------------------------------------------------------

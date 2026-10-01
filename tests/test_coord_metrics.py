@@ -3,7 +3,6 @@
 import pytest
 
 from core.coord.metrics import (
-    ApproachVector,
     _run_diversity,
     assess,
     is_flat,

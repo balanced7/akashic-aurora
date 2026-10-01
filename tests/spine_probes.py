@@ -1,6 +1,5 @@
 # Root DERIVED from this file, never hardcoded: the literal pinned one machine's disk,
 # so a copy of the repo anywhere else resolved every path under it to nothing.
-import os as _os
 import pathlib as _pl
 
 _here = _pl.Path(__file__).resolve()
@@ -25,8 +24,8 @@ from core.foundation.ledger import FileLedger
 from core.foundation.store import FileStore
 from core.narrative.beat_log import BeatLog
 from core.narrative.chronicler import Chronicler
-from core.narrative.event_promoter import promote_salient, salience
-from core.narrative.schema import Beat, beat_key
+from core.narrative.event_promoter import promote_salient
+from core.narrative.schema import Beat
 from core.narrative.tagging import TagHistory
 from core.narrative.track_router import RouteHint, TrackRouter
 
@@ -67,7 +66,7 @@ bl.emit("commit", "naive C", "git:c", at="2026-01-01T03:00:00", hint=RouteHint(p
 try:
     rep = Chronicler(beat_log=bl, store=st).chronicle_all(now="2026-01-02T00:00:00")
     print(f"  did NOT crash. chapters={rep['chapters']} faithful={rep['faithful']} coverage={rep['coverage']}")
-    print(f"  -> note: best-effort swallows errors; check if all 3 beats landed in a chapter")
+    print("  -> note: best-effort swallows errors; check if all 3 beats landed in a chapter")
     idx = json.loads((st.get("does-not")) or "{}") if False else None
     # count beats represented
     total = (
@@ -89,7 +88,7 @@ for i in range(8):
     el.capture("command", f"event {i}", at=f"2026-01-01T0{i}:00:00")
 eq = EventQuery(event_log=el, scan=3)  # only the newest 3 are scanned
 got = eq.events_in_window("2026-01-01T00:00:00", "2026-01-01T09:00:00")
-print(f"  8 events captured; window covers ALL of them; scan=3")
+print("  8 events captured; window covers ALL of them; scan=3")
 print(f"  events_in_window returned {len(got)} (claims 'recall=100%')")
 print(f"  -> {'VULNERABLE: silent recall loss' if len(got) < 8 else 'ok'}  (missing {8 - len(got)} old events)")
 
@@ -97,7 +96,6 @@ print(f"  -> {'VULNERABLE: silent recall loss' if len(got) < 8 else 'ok'}  (miss
 hr("PROBE D — Chronicler orphan-chapter accumulation across re-runs")
 st = store()
 bl = BeatLog(st)
-import time
 
 for i in range(4):
     bl.emit("commit", f"commit {i}", f"git:c{i}", at=f"2026-01-0{i + 1}T01:00:00", hint=RouteHint(paths=["core/x.py"]))
@@ -138,7 +136,7 @@ raw = h.to_list() + [
 ]
 h2 = TagHistory.from_list(raw)
 cur = h2.current()
-print(f"  entries: ai-setup@0.95 + stemroller@NaN")
+print("  entries: ai-setup@0.95 + stemroller@NaN")
 print(f"  current() = {cur.value if cur else None} @ conf={cur.confidence if cur else None}")
 print(
     f"  -> {'VULNERABLE: NaN entry hijacked/blocked the resolver' if (cur is None or cur.value != 'ai-setup') else 'ok: NaN ignored, ai-setup wins'}"
@@ -175,7 +173,7 @@ def lying_writer(items, budget, instruction):
 
 chl = Chronicler(beat_log=bl, store=st, distiller=Distiller(writer=lying_writer))
 rep = chl.chronicle_all(now="2026-02-01T00:00:00")
-print(f"  injected writer emits (source: git:HALLUCINATED) not in any chapter")
+print("  injected writer emits (source: git:HALLUCINATED) not in any chapter")
 print(f"  faithful = {rep['faithful']}")
 print(
     f"  -> {'GOOD: gate caught the hallucination' if rep['faithful'] is False else 'VULNERABLE: gate did NOT catch a fabricated source pointer'}"

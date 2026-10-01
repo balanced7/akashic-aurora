@@ -14,7 +14,7 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.foundation.store import FileStore, HybridStore, RedisStore, Store, create_store
+from core.foundation.store import FileStore, HybridStore, Store, create_store
 
 
 def _exercise_all_structures(store: Store, label: str) -> None:

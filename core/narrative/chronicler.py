@@ -25,11 +25,10 @@ Read-only on beat raw data. Best-effort: failures never raise into caller.
 
 import hashlib
 import json
-import os
 import re
 from collections import defaultdict
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from core.foundation.store import Store, create_store
 from core.foundation.timeutil import hours_between, to_epoch
@@ -49,12 +48,8 @@ from core.narrative.schema import (
     Chapter,
     Edge,
     Theme,
-    Track,
     beat_key,
-    chapter_key,
     theme_key,
-    track_key,
-    validate_beat,
 )
 from core.paths import data_root
 from core.primitives.consolidator import Consolidator

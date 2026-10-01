@@ -13,7 +13,7 @@ import tempfile
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.foundation.store import FileStore
-from core.narrative.beat_log import TIMELINE, BeatLog
+from core.narrative.beat_log import BeatLog
 from core.narrative.schema import Edge
 
 

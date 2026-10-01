@@ -20,12 +20,10 @@ from core.narrative.schema import (
     Atlas,
     Beat,
     Chapter,
-    Edge,
     Track,
     beat_key,
     chapter_key,
     track_key,
-    validate_beat,
 )
 from core.primitives.distiller import Distiller
 from core.primitives.ranker import Ranker

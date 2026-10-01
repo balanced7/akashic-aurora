@@ -9,7 +9,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.primitives.ranker import Ranker, Scored, keyword_relevance
+from core.primitives.ranker import Ranker
 
 NOW = 1_750_000_000.0  # fixed "now" for deterministic recency
 DAY = 86400.0

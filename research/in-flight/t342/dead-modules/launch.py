@@ -20,7 +20,6 @@ import os
 import subprocess
 import sys
 import time
-from datetime import datetime
 
 sys.path.insert(0, r"E:\AI-Setup")
 
@@ -119,7 +118,7 @@ def run_initialization(role="general"):
 
     from multi_agent import initialize_multi_agent
     from session_logger import SESSION_ID, SESSION_UNIQUE
-    from session_manager import check_and_reprime, get_session_manager
+    from session_manager import check_and_reprime
 
     state = check_and_reprime(SESSION_ID, SESSION_UNIQUE)
 
@@ -350,7 +349,7 @@ def option_status():
     print(f"\nRedis: {'OK' if redis_ok else 'NOT AVAILABLE'}")
 
     if redis_ok:
-        print(f"\nActive Agents:")
+        print("\nActive Agents:")
         print_active_agents()
 
         # Check blackboard state
@@ -364,7 +363,7 @@ def option_status():
             proposal_ready = r.get("blackboard:proposal_ready")
             verdict_ready = r.get("blackboard:verdict_ready")
 
-            print(f"\nBlackboard:")
+            print("\nBlackboard:")
             print(f"  State: {state.decode() if state else 'IDLE'}")
             print(f"  Turn: {turn.decode() if turn else '0'}")
             print(f"  Proposal Ready: {proposal_ready == b'1' if proposal_ready else False}")
@@ -379,7 +378,7 @@ def option_status():
             r = redis.Redis(host="localhost", port=6379, db=0, decode_responses=True)
 
             broadcast_len = r.llen("msg:broadcast")
-            print(f"\nMessage Bus:")
+            print("\nMessage Bus:")
             print(f"  Broadcast messages: {broadcast_len}")
         except:
             pass

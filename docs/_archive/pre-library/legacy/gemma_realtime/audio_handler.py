@@ -8,9 +8,7 @@ import asyncio
 import io
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Optional
 
-import numpy as np
 import torch
 import torchaudio
 

@@ -19,17 +19,15 @@ Usage:
 """
 
 import json
-import os
-import re
 import sys
 import time
 import urllib.error
 import urllib.request
-from typing import Any, Dict, Optional
+from typing import Any
 
 # Optional imports
 try:
-    import websocket
+    import websocket as websocket
 
     WEBSOCKET_AVAILABLE = True
 except ImportError:
@@ -38,7 +36,7 @@ except ImportError:
 
 try:
     from selenium import webdriver
-    from selenium.common.exceptions import WebDriverException
+    from selenium.common.exceptions import WebDriverException as WebDriverException
     from selenium.webdriver.chrome.options import Options
     from selenium.webdriver.chrome.service import Service
     from selenium.webdriver.common.by import By
@@ -81,12 +79,12 @@ class CDPBridge:
                 if "gemini.google.com" in page.get("url", ""):
                     self.ws_url = page.get("webSocketDebuggerUrl")
                     if self.ws_url:
-                        print(f"[cdp_bridge] Found Gemini page")
+                        print("[cdp_bridge] Found Gemini page")
                         return True
 
             if pages:
                 self.ws_url = pages[0].get("webSocketDebuggerUrl")
-                print(f"[cdp_bridge] Using first available page")
+                print("[cdp_bridge] Using first available page")
                 return bool(self.ws_url)
 
             return False
@@ -151,7 +149,7 @@ class CDPBridge:
                     "id": 3,
                     "method": "Runtime.evaluate",
                     "params": {
-                        "expression": f"document.querySelector('div[role=\"textbox\"]')?.focus()",
+                        "expression": "document.querySelector('div[role=\"textbox\"]')?.focus()",
                         "returnByValue": True,
                     },
                 }
@@ -240,7 +238,7 @@ class CDPBridge:
                         if text and len(text) > 20:
                             ws.close()
                             return text
-                except Exception as e:
+                except Exception:
                     pass
 
             ws.close()

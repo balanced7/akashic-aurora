@@ -32,7 +32,6 @@ Contract frozen here:
 Run: py -m pytest tests/test_t196a_friction.py -q
 """
 
-import json
 import os
 import re
 import sys
@@ -44,7 +43,6 @@ import pytest
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-from core.foundation.timeutil import now_iso, to_epoch  # noqa: E402
 
 try:
     from core.comm import expectations

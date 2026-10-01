@@ -13,7 +13,7 @@ import isolate_canonical  # noqa: F401 -- isolates file store (AI_SETUP) + Redis
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.foundation.ledger import FileLedger, HybridLedger, Ledger, RedisLedger, create_ledger
+from core.foundation.ledger import FileLedger, HybridLedger, Ledger, create_ledger
 from core.signals.agent_signal_ledger import AgentSignalLedger
 
 

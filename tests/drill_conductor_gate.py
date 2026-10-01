@@ -11,7 +11,6 @@ import pytest
 from core.comm.conductor_gate import (
     MANDATE_MAX_HOURS,
     MANDATE_MAX_ROLE,
-    MANDATE_MAX_SCOPE,
     acting_conduct_grant,
     decide_and_act,
     evaluate_succession,

@@ -8,19 +8,14 @@ Supports code execution and Redis memory.
 
 import base64
 import contextlib
-import io
 import json
 import os
-import ssl
 import subprocess
-import sys
-import threading
-import wave
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 
 import redis
-from flask import Flask, jsonify, request, send_file
+from flask import Flask, jsonify, request
 from flask_cors import CORS
 
 app = Flask(__name__)
@@ -170,7 +165,7 @@ def save_to_memory(key, value):
     if r:
         try:
             r.set(f"learnings:{key}", json.dumps(value))
-            r.set(f"learnings:last_updated", datetime.now().isoformat())
+            r.set("learnings:last_updated", datetime.now().isoformat())
             return True
         except:
             pass

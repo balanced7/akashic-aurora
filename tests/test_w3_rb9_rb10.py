@@ -30,9 +30,11 @@ try:
     from core.learning.agent_memory import (
         AgentMemory,
         Decision,
-        SupersedeRaceError,
         SupersedeTargetError,
         normalize_title,
+    )
+    from core.learning.agent_memory import (
+        SupersedeRaceError as SupersedeRaceError,
     )
 
     _BUILT = hasattr(AgentMemory, "get_retired_titles") and hasattr(AgentMemory, "find_normalization_collisions")

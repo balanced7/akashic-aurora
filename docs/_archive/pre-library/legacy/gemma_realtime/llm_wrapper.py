@@ -10,9 +10,7 @@ import sys
 from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional
 
-import redis
 import requests
 
 sys.path.insert(0, r"E:\AI-Setup")

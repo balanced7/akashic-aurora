@@ -21,7 +21,7 @@ import json
 from core.foundation.store import FileStore
 from core.narrative.beat_log import BeatLog
 from core.narrative.chronicler import BoundaryDetector, Chronicler
-from core.narrative.schema import BEAT_KINDS, Beat, beat_key
+from core.narrative.schema import BEAT_KINDS, Beat
 from core.narrative.session import SESSION_OPEN_KEY, end_session, start_session
 
 

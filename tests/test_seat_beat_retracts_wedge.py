@@ -34,7 +34,6 @@ Run::
 
 from __future__ import annotations
 
-import io
 from pathlib import Path
 
 import pytest
@@ -98,7 +97,7 @@ def test_a_fresh_seat_beat_suppresses_the_page_and_a_stale_one_does_not():
     Both halves are asserted on purpose. A fix that simply made the pager unable to fire would be
     worse than the false positive it replaced -- the whole value of a wedge page is that a real
     wedge still reaches somebody."""
-    from core.comm import doctor, liveness
+    from core.comm import liveness
 
     src = open(ROOT / "core" / "comm" / "doctor.py", encoding="utf-8").read()
 

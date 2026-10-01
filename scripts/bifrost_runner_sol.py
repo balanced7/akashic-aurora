@@ -74,7 +74,6 @@ from sol_chat import (
     DEFAULT_VERBOSITY,
     EFFORTS,
     MAX_OUTPUT_TOKENS,
-    SOL,
     VERBOSITIES,
     SolAgent,
     SolTransport,

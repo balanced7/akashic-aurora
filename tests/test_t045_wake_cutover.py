@@ -33,7 +33,6 @@ os.environ.setdefault("_AISETUP_TEST_ISOLATED", "1")
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts"))
 
-from core.comm import packet_spec as ps
 from core.comm.bifrost_api import BifrostAPI
 from core.comm.bus import Bus
 

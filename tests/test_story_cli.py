@@ -12,17 +12,14 @@ import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from datetime import datetime
 
 from core.foundation.store import FileStore
-from core.narrative.beat_log import TIMELINE, BeatLog
+from core.narrative.beat_log import BeatLog
 from core.narrative.chronicler import Chronicler
 from core.narrative.schema import (
-    STORY_FORMAT_VERSION,
     Atlas,
     Beat,
     Chapter,
-    Edge,
     Track,
     beat_key,
     chapter_key,

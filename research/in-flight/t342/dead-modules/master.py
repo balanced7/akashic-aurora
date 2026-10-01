@@ -15,9 +15,7 @@ import os
 import subprocess
 import sys
 import time
-from datetime import datetime
 from enum import Enum
-from typing import Dict, Optional
 
 sys.path.insert(0, r"E:\AI-Setup")
 
@@ -29,11 +27,10 @@ from blackboard import (
     PHASE_PLANNING,
     PHASE_REVIEW,
     PHASE_VERIFYING,
-    Blackboard,
     init_blackboard,
 )
 from escalation import Tier, get_escalation_manager
-from model_lifecycle import ModelLifecycleManager, Priority
+from model_lifecycle import ModelLifecycleManager
 from session_logger import log
 
 # Complexity thresholds for Analyst "Co-Sign"
@@ -391,7 +388,7 @@ class Master:
         active_buffer = r"E:\AI-Setup\blackboard_data\active_buffer.json"
 
         try:
-            from vision_engine import capture_active_window, encode_image_base64, get_screen_context_for_analyst
+            from vision_engine import capture_active_window, get_screen_context_for_analyst
 
             # Capture screen
             screenshot = capture_active_window()
@@ -435,7 +432,7 @@ class Master:
                 },
             )
 
-            print(f"[master] Vision context saved to active_buffer.json")
+            print("[master] Vision context saved to active_buffer.json")
 
         except Exception as e:
             log("vision_capture_failed", str(e), source="master")

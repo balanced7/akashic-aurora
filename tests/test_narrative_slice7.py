@@ -24,7 +24,7 @@ from core.narrative.chapter_lifecycle import (
     write_learning_chapter_backlinks,
 )
 from core.narrative.chronicler import Chronicler
-from core.narrative.schema import ATLAS_KEY, Chapter, Track, chapter_key, track_key
+from core.narrative.schema import Chapter
 from core.primitives.distiller import Distiller
 from core.primitives.ranker import Ranker
 

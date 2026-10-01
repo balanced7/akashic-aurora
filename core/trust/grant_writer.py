@@ -31,10 +31,10 @@ from __future__ import annotations
 import json
 import os
 import tempfile
-from datetime import UTC, datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from core.trust import registry
-from core.trust.capabilities import DEFAULT_ROLE, ROLE_TEMPLATES, Cap, caps_from
+from core.trust.capabilities import ROLE_TEMPLATES, Cap, caps_from
 
 #: A time box longer than this is almost certainly a typo for something shorter. It is not a
 #: security limit -- --permanent exists one line away -- it is a guard against `--hours 24000`.

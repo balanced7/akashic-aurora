@@ -4,21 +4,16 @@ Gemma Realtime - Main Server
 FastAPI + WebSocket server for real-time voice chat
 """
 
-import asyncio
 import base64
-import io
-import json
-import os
 from datetime import datetime
-from pathlib import Path
 
 import uvicorn
 
 # Import our modules
-from audio_handler import VADProcessor, audio_handler, init_audio
-from fastapi import FastAPI, File, Form, Query, UploadFile, WebSocket, WebSocketDisconnect
+from audio_handler import audio_handler, init_audio
+from fastapi import FastAPI, File, Form, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, StreamingResponse
+from fastapi.responses import HTMLResponse
 from file_analyzer import file_analyzer, init_analyzer
 from llm_wrapper import init_llm, llm
 from stt_processor import init_stt, stt_processor

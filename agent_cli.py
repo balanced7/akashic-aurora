@@ -1022,7 +1022,7 @@ def cmd_recall_counters(args):
     except Exception:
         pass
     if not args.fold:
-        print(f"# COUNTER HYGIENE (S2a)  -- report only; apply with --fold")
+        print("# COUNTER HYGIENE (S2a)  -- report only; apply with --fold")
         print(f"  bare-slug counters to merge : {len(bare)}   {bare[:6]}")
         print(f"  zero-credit ghosts to prune : {len(ghosts_zero)}   {ghosts_zero[:6]}")
         print(f"  credited ghosts (KEPT; S2 adjudicates): {len(ghosts_credited)}   {ghosts_credited[:6]}")
@@ -2894,7 +2894,7 @@ def cmd_eye(args):
             f"{_cov['subagent_transcripts']} subagent)"
         )
         if not rep["manifest_complete"]:
-            print(f"[eye] COVERAGE GAP -- the index may NOT be read as whole:")
+            print("[eye] COVERAGE GAP -- the index may NOT be read as whole:")
             for f in rep["files_failed"]:
                 print(f"    {f['path']}: {f['why']}")
         return 0 if rep["manifest_complete"] else 1
@@ -3736,13 +3736,13 @@ def cmd_discord(args):
             return 0
         if not url:
             print("# discord bridge: NOT CONFIGURED (this is a state, not a failure)")
-            print(f"#   1. private Discord channel -> Integrations -> Webhooks -> New -> Copy URL")
+            print("#   1. private Discord channel -> Integrations -> Webhooks -> New -> Copy URL")
             print(f"#   2. save it to {url_file}")
             print(f"#   3. {_pyl()} agent_cli.py discord test")
             return 0
         print(f"# discord bridge: CONFIGURED via {out['source']}")
         print(f"#   forwards: {', '.join(sorted(DB.FORWARD_KINDS))}")
-        print(f"#   plus ANY message from a human sender; trace is deliberately excluded")
+        print("#   plus ANY message from a human sender; trace is deliberately excluded")
         print(f"#   direction: {out['direction']}")
         return 0
 
@@ -4644,7 +4644,7 @@ def cmd_note(args, *, mem=None):
                 )
                 return 1
             if not head:
-                print(f"ERROR: no existing note for this title; drop --supersedes for a fresh first note.")
+                print("ERROR: no existing note for this title; drop --supersedes for a fresh first note.")
                 return 1
             # Explicit target (migration verbs): single attempt; a lost race is a
             # teaching error, not a retry -- the caller named a specific prior.
@@ -4996,7 +4996,7 @@ def _wrap_route(args):
         body = "ROUTED TARGETS for the next window (T268). The night shift pre-chews these.\n\n" + "\n".join(lines)
         try:
             get_agent_memory().decide_with_retry("next-routing", _clip(body, 4000), curated=True)
-            print(f"\n[OK] routing recorded -> note 'next-routing'; the next boot renders it.")
+            print("\n[OK] routing recorded -> note 'next-routing'; the next boot renders it.")
         except Exception as e:
             print(f"WARN: routing note not recorded ({type(e).__name__}: {e})")
 
@@ -5468,7 +5468,7 @@ def cmd_story(args, store=None):
 
     from core.foundation.store import create_store
     from core.narrative.chronicler import Chronicler
-    from core.narrative.schema import Atlas, Beat, Chapter, Edge, Track, beat_key, chapter_key, track_key
+    from core.narrative.schema import Atlas, Beat, Chapter, Track, beat_key, chapter_key, track_key
     from core.narrative.track_router import RouteHint
 
     if store is None:
@@ -5738,9 +5738,9 @@ def _print_atlas(atlas, store) -> None:
     """Print atlas overview to stdout."""
     import json
 
-    from core.narrative.schema import Track, chapter_key, track_key
+    from core.narrative.schema import Track, track_key
 
-    print(f"# Story Atlas")
+    print("# Story Atlas")
     print(f"Generated: {atlas.generated_at}")
     print(f"Tracks: {', '.join(atlas.tracks)}")
     for t in atlas.tracks:
@@ -5762,7 +5762,6 @@ def _print_chapter_summary(ch) -> None:
 
 def _print_chapter(ch, store) -> None:
     """Full chapter detail."""
-    from core.narrative.schema import chapter_key
 
     print(f"# Chapter: {ch.id}")
     print(f"Track: {ch.track}")
@@ -5779,13 +5778,12 @@ def _print_chapter(ch, store) -> None:
         print("\nDrill into a beat:")
         print(f"  {_pyl()} agent_cli.py story --beat {ch.beats[0]}")
     if ch.id:
-        print(f"\nRaw JSON:")
+        print("\nRaw JSON:")
         print(f"  {_pyl()} agent_cli.py story --chapter {ch.id} --json")
 
 
 def _print_beat(beat) -> None:
     """Full beat detail."""
-    from core.narrative.schema import chapter_key
 
     print(f"# Beat: {beat.id}")
     print(f"Kind: {beat.kind}  |  Track: {beat.track}  |  Weight: {beat.weight}")
@@ -6020,7 +6018,7 @@ def cmd_handoff(args):
         )
     else:
         print(f"[{'OK' if ok else 'FAIL'}] handoff {args.agent_id} -> {to_agent}: {_clip(task, 80)}")
-        print(f"  (the target's next `boot` will surface this as its briefing)")
+        print("  (the target's next `boot` will surface this as its briefing)")
         for c in clipped:  # RB-5: the door's RESULT carries the clip, never silent
             print(c)
         _warn_unmirrored()  # session-end: don't hand off on top of unmirrored work
@@ -6206,7 +6204,7 @@ def cmd_promoted(args):
         return 0
     print(format_promoted_events(evs, json_out=False))
     if more:  # RB-5: a full page confesses the window instead of under-reporting
-        print(f"  (+ older salient records beyond this page -- raise --limit)")
+        print("  (+ older salient records beyond this page -- raise --limit)")
     flagged = [e for e in evs if e.get("unhandled")]
     acked = [e for e in evs if e.get("acks")]
     for e in acked:
@@ -7257,7 +7255,6 @@ def cmd_bifrost_sync(args):
         collect_boot_bifrost,
         consume_inbox,
         format_digest_line,
-        format_inbox_line,
         print_boot_bifrost_section,
         print_boot_locks_section,
         render_collapsed,
@@ -7413,7 +7410,7 @@ def cmd_forecast(args):
     score them at review against outcome artifacts, render calibration."""
     import time
 
-    from core.coord.forecast_registry import VERDICTS, ForecastRegistry, RegistryRefusal
+    from core.coord.forecast_registry import ForecastRegistry, RegistryRefusal
 
     path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "state", "coord", "forecasts.jsonl")
     reg = ForecastRegistry(path=path)
@@ -8746,7 +8743,7 @@ def cmd_mailbox(args):
             f"  seen by: {readers}"
             f"{'  (first open by this incarnation)' if out['first_open_by_this_incarnation'] else ''}"
         )
-        print(f"  SEEN only -- not consumed, not handled, not settled. Cursor untouched.")
+        print("  SEEN only -- not consumed, not handled, not settled. Cursor untouched.")
         if not out.get("body_available"):
             print(f"  !! NO BODY STORED: {out['body_unavailable_reason']}")
             return 0
@@ -8925,7 +8922,7 @@ def cmd_status(args):
     if args.json:
         print(json.dumps(info, default=str))
         return 0
-    print(f"# system status")
+    print("# system status")
     print(f"  backend     : {backend}")
     print(f"  learnings   : {learn if learn is not None else 'n/a (see session_logs/)'}")
     print(f"  agent memory: {mem if mem is not None else 'n/a'}")
@@ -8934,7 +8931,7 @@ def cmd_status(args):
         flag = "  [!] errors present" if errors else ""
         print(f"  spine health: {health}{flag}")
     else:
-        print(f"  spine health: (no counters yet)")
+        print("  spine health: (no counters yet)")
     return 0
 
 
@@ -11924,7 +11921,6 @@ def cmd_secret(args):
     else:
         try:
             import tkinter as tk
-            from tkinter import messagebox
         except Exception as e:  # noqa: BLE001
             print(
                 f"[vault] no window available ({type(e).__name__}) -- use --stdin: "

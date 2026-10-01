@@ -25,8 +25,6 @@ import json
 import os
 import sys
 
-import pytest
-
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
@@ -35,7 +33,7 @@ MCPJSON = os.path.join(ROOT, ".mcp.json")
 
 
 async def _session(extra_env=None):
-    from mcp import ClientSession, StdioServerParameters
+    from mcp import StdioServerParameters
     from mcp.client.stdio import stdio_client
 
     params = StdioServerParameters(

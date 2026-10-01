@@ -7,11 +7,6 @@ Speech-to-text using Faster-Whisper
 import asyncio
 import io
 from dataclasses import dataclass
-from typing import List, Optional
-
-import numpy as np
-import torch
-import torchaudio
 
 
 @dataclass

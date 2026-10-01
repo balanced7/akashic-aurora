@@ -11,7 +11,6 @@ import pytest
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.library import atoms as at
-from core.library import taxonomy as tx
 from core.library.projection import frontmatter
 from tests.test_atoms import FakeStore
 

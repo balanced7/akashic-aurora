@@ -18,12 +18,11 @@ narrative spine and land in a later slice.
 from __future__ import annotations
 
 import json
-import re
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-from core.eye.index import _connect, get_event
+from core.eye.index import _connect
 
 
 def _first_sentence(text: str, cap: int = 220) -> str:

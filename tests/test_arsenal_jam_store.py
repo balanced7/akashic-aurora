@@ -21,7 +21,6 @@ sys.path.insert(0, str(ROOT))
 from arsenal import nashville  # noqa: E402
 from arsenal.jam import align as A  # noqa: E402
 from arsenal.jam import schemas as S  # noqa: E402
-from arsenal.jam import tempomap as T  # noqa: E402
 from arsenal.jam.cards import DeckError, DeckStore, merge_patch  # noqa: E402
 from arsenal.jam.resolve import (
     STUB_WARNING,

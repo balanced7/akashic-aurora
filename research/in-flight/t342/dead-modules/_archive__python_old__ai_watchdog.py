@@ -22,9 +22,9 @@ import signal
 import subprocess
 import sys
 import time
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
@@ -153,7 +153,6 @@ def _legacy_opencode_log_hints(r) -> dict[str, Any]:
 
 
 def _port_section(sync_ports: bool) -> dict[str, Any]:
-    from stack_manager.config import SERVICES
     from stack_manager.ports import PortManager
 
     pm = PortManager()

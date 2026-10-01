@@ -41,14 +41,10 @@ import base64
 import io
 import json
 import os
-import sys
-import time
 from datetime import datetime
-from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import torch
-import yaml
 from PIL import Image, ImageGrab
 
 # Paths
@@ -128,7 +124,7 @@ class VisionEngine:
                 # but keep DirectML flag for future when bug is fixed
                 device_for_model = "cpu"
                 print(
-                    f"[vision] DirectML detected but using CPU (DirectML has tensor compatibility bug with Florence-2)"
+                    "[vision] DirectML detected but using CPU (DirectML has tensor compatibility bug with Florence-2)"
                 )
             elif isinstance(self.device, str) and self.device == "cuda":
                 device_for_model = "cuda"
@@ -151,7 +147,7 @@ class VisionEngine:
                     torch_dtype=torch.float16 if device_for_model in ("cuda", "hip") else torch.float32,
                 )
                 self._use_pipeline = True
-                print(f"[vision] Model loaded via pipeline")
+                print("[vision] Model loaded via pipeline")
             except Exception as e:
                 print(f"[vision] Pipeline failed: {e}, trying explicit loading...")
                 self._use_pipeline = False
@@ -175,7 +171,7 @@ class VisionEngine:
                 print(f"[vision] Model loaded explicitly on {device_for_model}")
 
             self._loaded = True
-            print(f"[vision] Model loaded successfully")
+            print("[vision] Model loaded successfully")
             return True
 
         except Exception as e:

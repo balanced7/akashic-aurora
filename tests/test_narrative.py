@@ -26,7 +26,7 @@ _TESTS = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(_TESTS))
 sys.path.insert(0, _TESTS)
 
-from fixtures.narrative_fixture import GOLD_THEME_VOCAB, GOLD_TRACKS, gold_qa, gold_rows
+from fixtures.narrative_fixture import GOLD_TRACKS, gold_qa, gold_rows
 from narrative_metrics import (
     accuracy,
     ari,

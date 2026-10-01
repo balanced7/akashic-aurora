@@ -34,10 +34,9 @@ by "L0 <5ms" in the abstract.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
 
 from core.screenspace import canary  # §1 amended ruling: positive canary read
-from core.screenspace.engine import ObservationStream, _current_focus, _stream
+from core.screenspace.engine import _current_focus, _stream
 
 
 @dataclass

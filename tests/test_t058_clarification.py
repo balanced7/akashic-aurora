@@ -78,7 +78,6 @@ def test_b3_directed_to_user_with_clarify_meta(monkeypatch):
 
 # ------------------------------------------------ B4: waiting state armed
 def test_b4_waiting_state_and_deadline_armed(monkeypatch):
-    import deepseek_chat as dc
 
     box, _ = _box(monkeypatch)
     box.ask_clarification("well?")

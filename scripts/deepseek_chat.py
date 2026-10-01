@@ -42,11 +42,8 @@ NOTE: everything (files, command output, KB results) is sent to DeepSeek's API. 
 from __future__ import annotations
 
 import argparse
-import fnmatch
 import json
 import os
-import re
-import subprocess
 import sys
 import time
 from pathlib import Path
@@ -766,7 +763,7 @@ def main() -> int:
         print("NO_KEY: set DEEPSEEK_API_KEY or put it in .secrets/deepseek.key", file=sys.stderr)
         return 2
     try:
-        from openai import OpenAI
+        pass
     except Exception:
         print(f"MISSING_DEP: {_pyl()} -m pip install openai", file=sys.stderr)
         return 2

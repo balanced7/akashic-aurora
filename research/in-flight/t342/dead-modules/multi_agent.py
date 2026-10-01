@@ -32,24 +32,23 @@ USAGE:
     results = bus.search_messages("review code", top_k=5)
 """
 
-import hashlib
 import json
 import os
 import sys
-import time
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Optional
 
 sys.path.insert(0, r"E:\AI-Setup")
 
-import numpy as np
 import redis
 
 try:
-    from vector_store import VectorStore, _text_to_embedding, get_vector_store
+    from vector_store import VectorStore as VectorStore
+    from vector_store import _text_to_embedding as _text_to_embedding
+    from vector_store import get_vector_store
 
     VECTOR_STORE_AVAILABLE = True
 except ImportError:
@@ -736,7 +735,7 @@ class SharedWorkspace:
             SharedItem if successful
         """
         if not self._available or not self._agent_id:
-            print(f"[shared_workspace] Cannot put - not connected")
+            print("[shared_workspace] Cannot put - not connected")
             return None
 
         try:
@@ -959,7 +958,7 @@ class SharedWorkspace:
                 "status": "active",
             }
 
-            self._redis.hset(f"spaces:", space_name, json.dumps(space_data))
+            self._redis.hset("spaces:", space_name, json.dumps(space_data))
 
             if self._vector_store:
                 self._vector_store.add_entry(
@@ -1189,7 +1188,6 @@ def spawn_helper_agent(help_type: str, description: str, context: dict = None, a
 
     if auto_launch:
         import subprocess
-        import sys
 
         opencode_paths = [
             r"C:\Users\L5\AppData\Local\Programs\OpenCode\opencode.exe",
@@ -1381,7 +1379,7 @@ if __name__ == "__main__":
 
     if registry.is_available:
         result = initialize_multi_agent(session_id="test_session", session_unique="test_001", role="generator")
-        print(f"\nInitialization result:")
+        print("\nInitialization result:")
         print(f"  Initialized: {result['initialized']}")
         print(f"  Agent ID: {result['agent_id']}")
         print(f"  Other agents: {len(result['active_agents'])}")

@@ -47,7 +47,6 @@ import sys
 import threading
 import time
 from pathlib import Path
-from typing import Dict, Optional
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(HERE))
@@ -74,7 +73,7 @@ try:
 except Exception:
     pass
 
-from ask_deepseek import BASE_URL, DEFAULT_MODEL, load_key
+from ask_deepseek import DEFAULT_MODEL, load_key
 
 from core.comm import (
     context_hints,
@@ -1627,10 +1626,10 @@ def main() -> int:
     if lane_mode:
         if bus.lane_flip_if_migrating():
             print(
-                f"[deepseek-runner] lane flip: cursor seeded at lane tails (A4 ritual); "
-                f"unconsumed legacy backlog rides the straggler net"
+                "[deepseek-runner] lane flip: cursor seeded at lane tails (A4 ritual); "
+                "unconsumed legacy backlog rides the straggler net"
             )
-        print(f"[deepseek-runner] CONSUME LANE: work (T045 stage 2 cutover live)")
+        print("[deepseek-runner] CONSUME LANE: work (T045 stage 2 cutover live)")
     print(
         f"[deepseek-runner] {args.agent} online (model={args.model}, think={'on' if args.think else 'off'}, "
         f"{mode}, max_hops={control.MAX_HOPS}). Waiting for messages... (Ctrl-C to stop)"

@@ -19,7 +19,6 @@ os.environ.setdefault("AI_SETUP", tempfile.mkdtemp())
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.recall.actions import _EMPTY, recall_context
-from core.recall.at_action import recall_at as _engine
 
 
 class _FakeStore:

@@ -46,22 +46,19 @@ _BASE = Path(__file__).resolve().parent
 sys.path.insert(0, str(_BASE))
 
 import uvicorn
-from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse
 from stack_manager import (
     SERVICES,
     MemoryMonitor,
     PortManager,
     ResourceTracker,
     RoutingTable,
-    _run_cmd,
     _run_ps,
     _run_wsl,
-    c,
     check_health,
     launch_service,
-    log,
     resolve_tiers,
     wait_for_healthy,
 )
@@ -960,7 +957,7 @@ def main():
     print(f"  AI Console -> http://{args.host}:{args.port}/")
     print(f"  Stack Status -> http://{args.host}:{args.port}/dashboard")
     print("  " + "=" * 48)
-    print(f"  Stack panels: Dashboard | Launcher | Metrics | Troubleshoot | Moderation")
+    print("  Stack panels: Dashboard | Launcher | Metrics | Troubleshoot | Moderation")
     print(f"  API docs: http://{args.host}:{args.port}/api/docs")
     print()
 

@@ -9,8 +9,6 @@ import json
 import sys
 from pathlib import Path
 
-import pytest
-
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
@@ -20,7 +18,6 @@ from core.comm.bus import Bus
 from tests.test_t095_m0_mailbox_shadow import (
     NS,
     _advance_cursor,
-    _FakeRedis,
     _mk,
 )
 

@@ -30,7 +30,7 @@ sys.path.insert(0, str(REPO))
 
 
 def test_now_iso_is_aware_utc():
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     from core.foundation.timeutil import now_iso
 
@@ -66,7 +66,7 @@ def test_render_iso_labels_local_frame():
 
 
 def test_render_iso_same_instant_both_frames():
-    from core.foundation.timeutil import render_iso, to_epoch
+    from core.foundation.timeutil import render_iso
 
     src = "2026-07-28T20:41:26+00:00"
     u = render_iso(src, tz="utc")

@@ -29,7 +29,7 @@ import os
 import time
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
 import numpy as np
 
@@ -226,8 +226,6 @@ class VectorStore:
         # Add to FAISS index
         if self.faiss_index is not None:
             try:
-                import faiss
-
                 self.faiss_index.add_with_ids(
                     np.array([vector], dtype=np.float32), np.array([self._next_id], dtype=np.int64)
                 )
@@ -300,8 +298,6 @@ class VectorStore:
 
         if self.faiss_index is not None and len(self._id_to_key) > 0:
             try:
-                import faiss
-
                 # Search FAISS
                 D, I = self.faiss_index.search(
                     np.array([query_vector], dtype=np.float32),

@@ -16,11 +16,9 @@ from core.foundation.store import FileStore
 from core.narrative.beat_log import BeatLog
 from core.narrative.chronicler import Chronicler
 from core.narrative.schema import (
-    STORY_FORMAT_VERSION,
     Atlas,
     Beat,
     Chapter,
-    Edge,
     Theme,
     Track,
     beat_key,
@@ -28,7 +26,7 @@ from core.narrative.schema import (
     theme_key,
     track_key,
 )
-from core.narrative.theme_assigner import THEME_KEYWORDS, ThemeAssigner
+from core.narrative.theme_assigner import ThemeAssigner
 from core.narrative.track_router import RouteHint
 from core.primitives.distiller import Distiller
 from core.primitives.ranker import Ranker
