@@ -1,0 +1,17 @@
+{
+  "id": "identity-grounded-boot",
+  "question": "Does every boot door assert the session's own identity before serving any registry record, refuse a foreign subject by naming both ids, say when no stamp exists, allow one explicit named override, and does the ToolBox boot as its own seat instead of a hardcoded one?",
+  "tier": "lite",
+  "opened_by": "claude",
+  "opened_at": "2026-10-01T19:12:17.261129+00:00",
+  "seals": {
+    "brief": {
+      "by": "claude",
+      "at": "2026-10-01T19:12:17.888921+00:00"
+    }
+  },
+  "pv": null,
+  "authors": {
+    "brief": "claude"
+  }
+}
