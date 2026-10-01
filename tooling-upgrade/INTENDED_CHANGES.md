@@ -68,8 +68,8 @@ the oracle (no toml block).
 
 `def f(x: str = None)` becomes `def f(x: str | None = None)`: the annotation now states what the
 default already allowed. No call behaves differently. In annotation-sensitive modules O5 shows
-`annot:` items; the MCP protocol module (ai_setup_mcp.py) has no RUF013 finding, so O4c (tool
-input schemas) is unaffected and must stay EQUAL.
+`annot:` items; the MCP protocol module (ai_setup_mcp.py) keeps its one implicit Optional (`find(limit)`,
+suppressed with a reason), so O4c (tool input schemas) is unaffected and must stay EQUAL.
 
 ```toml
 id = "IC-0005"

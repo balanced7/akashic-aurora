@@ -2065,7 +2065,7 @@ def _continuity_drift(notes=None) -> str:
         from datetime import datetime as _dt
 
         if notes is None:
-            notes = get_agent_memory().get_decisions(days=90)
+            notes = get_agent_memory().get_decisions(days=90)  # noqa: F821  # LATENT ADV-033: `get_agent_memory` is undefined here; fixed with a regression test in G4.P2
         stale = []
         for title in ("where-we-are", "next-focus", "grounding-pointer"):
             n = next((d for d in notes if d.title == title and not d.superseded), None)
@@ -2577,7 +2577,7 @@ def cmd_wish_curate(args):
     path.write_text(new_doc, encoding="utf-8")
     print(msg)
     with contextlib.suppress(Exception):
-        capture_event(
+        capture_event(  # noqa: F821  # LATENT ADV-033: `capture_event` is undefined here; fixed with a regression test in G4.P2
             "wish",
             f"{args.agent_id} curated {args.wish_id}: {action}",
             agent_id=args.agent_id,
@@ -2644,7 +2644,7 @@ def cmd_wish(args):
     path.write_text(text, encoding="utf-8")
     print(f"[wish] filed W{n:02d} ({args.agent_id}) -> {path.name} -- cite W{n:02d} at the next gate curation")
     with contextlib.suppress(Exception):
-        capture_event(
+        capture_event(  # noqa: F821  # LATENT ADV-033: `capture_event` is undefined here; fixed with a regression test in G4.P2
             "wish",
             f"{args.agent_id} filed W{n:02d}: {body[:120]}",
             agent_id=args.agent_id,
@@ -6741,7 +6741,7 @@ def cmd_season_score(args):
 
     claims, verifications, uptime, fixed = [], [], {}, set()
     if args.round_file:
-        doc = json.loads(io.open(args.round_file, encoding="utf-8").read())
+        doc = json.loads(io.open(args.round_file, encoding="utf-8").read())  # noqa: F821  # LATENT ADV-033: `io` is undefined here; fixed with a regression test in G4.P2
         claims = doc.get("claims", [])
         verifications = doc.get("verifications", [])
         uptime = doc.get("uptime", {}) or {}
@@ -8625,7 +8625,7 @@ def cmd_locks(args):
         try:
             from core.foundation.timeutil import to_epoch
 
-            secs = max(0, int(time.time() - to_epoch(lk.get("ts"))))
+            secs = max(0, int(time.time() - to_epoch(lk.get("ts"))))  # noqa: F821  # LATENT ADV-033: `time` is undefined here; fixed with a regression test in G4.P2
             ttl = int(lk.get("ttl") or 0)
             age = f"  [{secs}s old, ttl {ttl}s]"
         except Exception:
@@ -11708,7 +11708,7 @@ def cmd_tool_run(args):
         print(f"[tool] running {args.ref} UNSANDBOXED (operator override -- caveat emptor)")
         import subprocess as sp
 
-        r = sp.run([sys.executable, path] + (args.args or []), cwd=REPO)
+        r = sp.run([sys.executable, path] + (args.args or []), cwd=REPO)  # noqa: F821  # LATENT ADV-033: `REPO` is undefined here; fixed with a regression test in G4.P2
         print(f"[tool] exit {r.returncode} (unsandboxed — no receipt)")
         return r.returncode
     rec = sandboxed_run(agent, tool, path, args=args.args, timeout_s=timeout)
