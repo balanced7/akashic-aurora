@@ -186,8 +186,8 @@ def test_outcome_block_threads_explicit_agent_to_event_and_nudge(monkeypatch):
 
 
 def test_outcome_block_fails_open(monkeypatch):
-    from agent.harness.actions import outcome_block
     import core.recall.at_action as at
+    from agent.harness.actions import outcome_block
 
     def _boom(sid, t, ok, **kw):
         raise RuntimeError("boom")

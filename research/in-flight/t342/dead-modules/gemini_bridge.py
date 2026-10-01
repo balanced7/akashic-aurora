@@ -18,14 +18,14 @@ Usage:
     response = query_active_session({"problem": "OCR failing"})
 """
 
+import json
 import os
+import re
 import sys
 import time
-import json
-import re
-import urllib.request
 import urllib.error
-from typing import Optional, Dict, Any
+import urllib.request
+from typing import Any, Dict, Optional
 
 # Optional imports
 try:
@@ -38,12 +38,12 @@ except ImportError:
 
 try:
     from selenium import webdriver
-    from selenium.webdriver.chrome.service import Service
-    from selenium.webdriver.chrome.options import Options
-    from selenium.webdriver.common.by import By
-    from selenium.webdriver.support.ui import WebDriverWait
-    from selenium.webdriver.support import expected_conditions as EC
     from selenium.common.exceptions import WebDriverException
+    from selenium.webdriver.chrome.options import Options
+    from selenium.webdriver.chrome.service import Service
+    from selenium.webdriver.common.by import By
+    from selenium.webdriver.support import expected_conditions as EC
+    from selenium.webdriver.support.ui import WebDriverWait
 
     SELENIUM_AVAILABLE = True
 except ImportError:

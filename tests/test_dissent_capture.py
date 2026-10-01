@@ -24,8 +24,8 @@ import tempfile
 os.environ.setdefault("AI_SETUP", tempfile.mkdtemp())
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.learning.learning_store import LearningStore, draft_anti_pattern_slug
 from core.foundation.store import FileStore
+from core.learning.learning_store import LearningStore, draft_anti_pattern_slug
 from core.recall.at_action import recall_at
 
 

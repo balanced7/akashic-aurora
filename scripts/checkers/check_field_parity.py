@@ -134,6 +134,7 @@ def _records():
     out = {}
     try:
         import redis
+
         from core.foundation.redis_connection import ensure_redis_server
 
         _host = os.environ.get("AKASHIC_REDIS_HOST", "localhost")

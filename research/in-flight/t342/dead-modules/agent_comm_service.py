@@ -12,22 +12,22 @@ Author: Senior Systems Architect
 Version: 2.0 Real-Time with Heartbeat
 """
 
-import os
-import sys
-import json
-import time
-import socket
-import threading
-import subprocess
-import signal
 import hashlib
-import uuid
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any, Callable
-from enum import Enum
-from dataclasses import dataclass, asdict
-from collections import defaultdict
+import json
+import os
 import queue
+import signal
+import socket
+import subprocess
+import sys
+import threading
+import time
+import uuid
+from collections import defaultdict
+from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta
+from enum import Enum
+from typing import Any, Callable, Dict, List, Optional
 
 # ============================================================================
 # CONFIGURATION
@@ -497,6 +497,7 @@ class AgentCommService:
         state_file = os.path.join(STATE_DIR, f"{self.agent_id}.json")
 
         import platform
+
         import psutil
 
         try:

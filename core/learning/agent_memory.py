@@ -37,9 +37,9 @@ import json
 import logging
 import unicodedata
 import uuid
+from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
-from typing import List, Dict, Optional, Any
-from dataclasses import dataclass, asdict
+from typing import Any, Dict, List, Optional
 
 from core.foundation.store import CASConflict, Store, create_store
 

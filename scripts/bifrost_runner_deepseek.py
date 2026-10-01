@@ -27,7 +27,8 @@ Key: env DEEPSEEK_API_KEY else .secrets/deepseek.key (reused from ask_deepseek.p
 # children spawn is CREATE_NO_WINDOW. Does NOT depend on PYTHONPATH being wired into the
 # launch env -- that missing wiring was the original gap. Idempotent; honors
 # AKASHIC_SHOW_CONSOLES (the sitecustomize's own escape hatch). ---
-import os as _os, sys as _sys
+import os as _os
+import sys as _sys
 
 _qd = _os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))), "scripts", "quiet")
 if _os.path.isdir(_qd):
@@ -52,10 +53,9 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(HERE))
 sys.path.insert(0, HERE)
 
-from core.comm.bus import Bus
-from core.comm import control
+from core.comm import control, liveness, roster
 from core.comm import shift_turn as _shift_turn  # noqa: E402  (turn boundary)
-from core.comm import liveness, roster
+from core.comm.bus import Bus
 
 # T150: make this runner WATCHABLE. Python block-buffers stdout when it is not a TTY -- exactly the
 # case when an orchestrator captures it -- so a five-seat round on 2026-08-03 ran with every log at
@@ -74,16 +74,22 @@ try:
 except Exception:
     pass
 
-from core.comm import nudge
-from core.comm import runner_lock
-from core.comm import daemon_state  # 9e1bc7ce78: a bare runner says so at startup
-from core.comm import self_restart
+from ask_deepseek import BASE_URL, DEFAULT_MODEL, load_key
+
+from core.comm import (
+    context_hints,
+    cursor_admin,
+    daemon_state,  # 9e1bc7ce78: a bare runner says so at startup
+    lane_depths,
+    nudge,
+    packet_spec,
+    runner_lock,
+    self_restart,
+    storm_detect,
+    triage_park,
+)
 from core.comm.conductor_gate import notice_conductor_absence
-from core.comm import context_hints
-from core.comm import packet_spec, triage_park
-from core.comm import storm_detect, lane_depths, cursor_admin
 from core.coord import cognitive_metrics as cog
-from ask_deepseek import load_key, BASE_URL, DEFAULT_MODEL
 
 CARD = {
     "runtime_class": "api",
@@ -603,9 +609,9 @@ def onboarding_context(root: Path, agent_id: str, task: str, budget_chars: int =
 
     W6-P3 (T081): stamps AKASHIC_SEAT_DOOR=toolbox + _DETAIL so the boot transport line renders.
     W6-P2 (T081): passes --sources-json so the caller can read structured boot sources."""
+    import json as _json
     import subprocess
     import tempfile
-    import json as _json
 
     env = dict(os.environ)
     env["AKASHIC_SEAT_DOOR"] = "toolbox"
@@ -1345,7 +1351,7 @@ def main() -> int:
     args = ap.parse_args()
     # T160: wire records must name the seat that made the call. Imported at the call site so a
     # telemetry import can never keep a runner from starting.
-    from core.comm.runner_lib import set_seat_agent, seat_session_id, retire_seat
+    from core.comm.runner_lib import retire_seat, seat_session_id, set_seat_agent
 
     set_seat_agent(args.agent)
 

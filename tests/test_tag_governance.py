@@ -20,9 +20,9 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.foundation.store import FileStore
 from core.narrative.beat_log import BeatLog
-from core.narrative.track_router import RouteHint
-from core.narrative.tag_governance import TagGovernor
 from core.narrative.schema import beat_key
+from core.narrative.tag_governance import TagGovernor
+from core.narrative.track_router import RouteHint
 
 TRACKS = ["ai-setup", "research", "stemroller", "vision", "voice"]
 LOW = ["persist", "generic", "unknown"]

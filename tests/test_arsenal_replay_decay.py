@@ -19,6 +19,8 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "tests"))
 
+from test_arsenal_replay import take  # noqa: E402,F401  (the fixture: a synthetic store)
+
 from arsenal import pianocue, replay  # noqa: E402
 from arsenal.replay_harmony import (
     DECAY_T60_S,
@@ -32,7 +34,6 @@ from arsenal.replay_harmony import (
     t60_s,
     velocity_for_peak,
 )
-from test_arsenal_replay import take  # noqa: E402,F401  (the fixture: a synthetic store)
 
 BASS, TREBLE = 36, 86  # C2 and D6, struck at 0 under the pedal and left to ring. D6, because the namer
 # represents each pitch class once: a G5 would fold into the chord's own G4

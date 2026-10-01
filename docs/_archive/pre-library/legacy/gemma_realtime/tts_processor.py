@@ -4,14 +4,14 @@ Gemma Realtime - TTS Processor
 Text-to-speech using Kokoro and espeak-ng
 """
 
-import io
 import asyncio
-import subprocess
 import base64
-from typing import Optional, Callable, AsyncIterator
-from dataclasses import dataclass
+import io
 import json
+import subprocess
+from dataclasses import dataclass
 from pathlib import Path
+from typing import AsyncIterator, Callable, Optional
 
 
 @dataclass
@@ -84,7 +84,7 @@ class KokoroTTS:
             return
 
         try:
-            from kokoro_tts import TextToAudioStream, KokoroEngine
+            from kokoro_tts import KokoroEngine, TextToAudioStream
 
             engine = KokoroEngine(voice=self.config.voice, default_speed=self.config.speed)
 

@@ -16,13 +16,14 @@ import tempfile
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts"))
 
+from migrate_time_scores import TIMELINE, TINDEX, migrate_time_scores
+
+from core.events.event_log import EventLog
+from core.foundation.ledger import FileLedger
 from core.foundation.store import FileStore
 from core.foundation.timeutil import to_epoch
 from core.narrative.beat_log import BeatLog
 from core.narrative.track_router import RouteHint
-from core.events.event_log import EventLog
-from core.foundation.ledger import FileLedger
-from migrate_time_scores import migrate_time_scores, TIMELINE, TINDEX
 
 
 def _store():
@@ -38,8 +39,8 @@ def test_to_epoch_numeric_passthrough():
 
 def test_all_copies_collapsed_to_one_fn():
     """The six modules must now share the SAME function object (no parallel _epoch copies)."""
-    from core.events.event_query import _epoch as eq
     from core.events.event_index import _epoch as ei
+    from core.events.event_query import _epoch as eq
     from core.narrative.beat_log import _epoch as bl
     from core.narrative.tag_governance import _epoch as tg
     from core.perspectives.reinforce import _epoch as rf
@@ -63,8 +64,9 @@ def test_migration_rescores_to_unified_epoch():
     rep = migrate_time_scores(store)
     assert rep["timeline"] == 2
     # every score now equals to_epoch(beat.at)
-    from core.narrative.schema import beat_key, Beat
     import json
+
+    from core.narrative.schema import Beat, beat_key
 
     for bid, score in store.zrange(TIMELINE, 0, -1, withscores=True):
         b = Beat.from_dict(json.loads(store.get(beat_key(bid))))

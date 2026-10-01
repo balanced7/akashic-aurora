@@ -19,7 +19,7 @@ from typing import Any, Callable, Dict, List
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from fixtures.semantic_eval_fixture import contradiction_pairs, action_applicability_cases
+from fixtures.semantic_eval_fixture import action_applicability_cases, contradiction_pairs
 
 Judge = Callable[[Dict[str, Any]], bool]
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

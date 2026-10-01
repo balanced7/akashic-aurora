@@ -16,6 +16,7 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "scripts"))
 
 import bifrost_daemon as bd  # noqa: E402
+
 from core.comm import runner_lock  # noqa: E402
 
 

@@ -27,8 +27,8 @@ NOTHING-CHECKED line, the FileStore preservation-failure branch, and the anchor 
 STARVED state -- report what was checked, never imply what was not.
 """
 
-from pathlib import Path
 import sys
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))

@@ -4,19 +4,20 @@ Tests for context.aggregator.assemble_context — the full Context pillar assemb
 Run: py tests/test_aggregator.py
 """
 
-import sys
 import os
+import sys
 import tempfile
+
 import isolate_canonical  # noqa: F401 -- isolates file store (AI_SETUP) + Redis db 15 BEFORE foundation import
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.foundation.store import FileStore
+from core.context.aggregator import assemble_context
 from core.foundation.ledger import FileLedger
+from core.foundation.store import FileStore
 from core.learning.agent_memory import AgentMemory
 from core.learning.learning_store import LearningStore
 from core.signals.agent_signal_ledger import AgentSignalLedger
-from core.context.aggregator import assemble_context
 
 
 def _isolated_sources():

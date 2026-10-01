@@ -66,7 +66,7 @@ from dataclasses import dataclass, field
 from typing import Callable, Dict, List, Optional
 
 from core.trust import registry
-from core.trust.capabilities import Cap, ROLE_TEMPLATES, caps_from
+from core.trust.capabilities import ROLE_TEMPLATES, Cap, caps_from
 
 # ---------------------------------------------------------------- configuration
 # Succession order: who becomes acting conductor when the conductor is provably absent.

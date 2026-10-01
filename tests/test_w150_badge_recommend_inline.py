@@ -19,7 +19,6 @@ import pytest
 
 from core.fleet import residents
 
-
 RECEIPTS = ["wake_drain_the_lane_you_ARMED_not_the_one_docs_name", "operator_speech_hides_in_queue_operation_records"]
 
 REC1 = (

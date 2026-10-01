@@ -13,6 +13,7 @@ sys.path.insert(0, os.path.join(REPO, "scripts"))
 
 def test_compat_reexport_is_identity():
     import deepseek_chat
+
     from core.comm import toolbox
 
     assert deepseek_chat.ToolBox is toolbox.ToolBox, "compat ToolBox must BE the canonical class"
@@ -22,16 +23,16 @@ def test_compat_reexport_is_identity():
 
 def test_canonical_surface_complete():
     from core.comm.toolbox import (
-        ToolBox,
-        TOOLS,
-        _fn,
-        EXCLUDE_DIRS,
         BINARY_SUFFIXES,
-        MAX_FILE_BYTES,
-        MAX_MATCHES,
-        MAX_LIST,
+        EXCLUDE_DIRS,
         MAX_CMD_OUT,
         MAX_CMD_TIMEOUT,
+        MAX_FILE_BYTES,
+        MAX_LIST,
+        MAX_MATCHES,
+        TOOLS,
+        ToolBox,
+        _fn,
     )
 
     assert len(TOOLS) >= 30, "tool schema roster went missing in the move"

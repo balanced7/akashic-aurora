@@ -46,20 +46,20 @@ backend -- consumers should treat them as opaque cursors and dedup downstream if
 a backend switch replays (the coordinator already dedups by agent_id:signal_number).
 """
 
-import os
-from core.paths import data_root
-import re
-import json
-import time
-import threading
-import logging
 import contextlib
+import json
+import logging
+import os
+import re
+import threading
+import time
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-from core.foundation.redis_connection import DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT, DEFAULT_REDIS_DB
 from core.foundation import filelock
+from core.foundation.redis_connection import DEFAULT_REDIS_DB, DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT
+from core.paths import data_root
 
 logger = logging.getLogger("ledger")
 

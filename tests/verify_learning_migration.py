@@ -5,9 +5,9 @@ on-disk learnings, with Redis DOWN (File fallback path).
 Run: py -u tests/verify_learning_migration.py
 """
 
-import sys
-import os
 import json
+import os
+import sys
 import tempfile
 
 # NOTE: deliberately NOT isolated via isolate_canonical: this test injects its own

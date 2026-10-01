@@ -8,9 +8,9 @@ mailbox cursor, or peer process is touched.
 from __future__ import annotations
 
 import json
-from pathlib import Path
 import sys
 import threading
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -35,7 +35,6 @@ from agent.harness.codex_bifrost_wake import (
 from core.comm import packet_spec
 from core.comm.bus import Bus
 from core.toolbelt.registry import Toolbelt
-
 
 FAKE_SERVER = r"""
 import json
@@ -270,8 +269,8 @@ def test_dynamic_tools_require_explicit_experimental_api_negotiation(tmp_path):
 
 def test_wake_exec_is_double_gated_and_dynamic_tool_input_is_structured(tmp_path, monkeypatch):
     """RED: launch opt-in and the live ACL both matter; raw shell is never exposed."""
-    from core.trust.capabilities import Cap
     from core.trust import registry
+    from core.trust.capabilities import Cap
 
     class Grant:
         role = "member"
@@ -376,8 +375,8 @@ def test_wake_exec_is_double_gated_and_dynamic_tool_input_is_structured(tmp_path
 
 def test_wake_exec_advertises_only_safe_subject_combos_and_preflights_every_step(tmp_path, monkeypatch):
     """RED: native sugar crosses the bridge only after whole-combo read preflight."""
-    from core.trust.capabilities import Cap
     from core.trust import registry
+    from core.trust.capabilities import Cap
 
     class Grant:
         role = "member"

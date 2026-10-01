@@ -117,6 +117,7 @@ def test_kimi_carries_a_longer_read_timeout():
 def test_core_does_not_import_scripts_for_credentials():
     """The boundary _load_key's docstring states. Mirrored conventions, never a scripts import."""
     import inspect
+
     from core.comm import ask as ask_mod
 
     src = inspect.getsource(ask_mod)

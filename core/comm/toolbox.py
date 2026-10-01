@@ -1089,6 +1089,7 @@ class ToolBox:
         qs = str(query or "").strip()
         if qs:
             import re as _re
+
             from core.recall.at_action import TITLE_SHAPED_RE
 
             _looks_like_title = bool(_re.match(TITLE_SHAPED_RE, qs, _re.IGNORECASE))
@@ -1279,6 +1280,7 @@ class ToolBox:
         identity must name the subject; it never borrows another resident's callsign.
         """
         import json
+
         from core.comm.awareness import build_snapshot
 
         target = str(agent or self.agent_id or "").strip()
@@ -1289,6 +1291,7 @@ class ToolBox:
     def glance(self, max_items=64, brief=True):
         """Read the program projection for this ToolBox's bound workspace."""
         import json
+
         from core.context.world_snapshot import (
             build_program_world_snapshot,
             project_operational_brief,
@@ -1310,6 +1313,7 @@ class ToolBox:
         CURRENT / TRANSLATED / DROPPED / AMBIGUOUS / UNKNOWN, with the hops that got there.
         """
         import json
+
         from core.git.rewrite_map import Resolver
 
         r = Resolver(repo=str(self.root))
@@ -1335,6 +1339,7 @@ class ToolBox:
     def orient(self, target="", density="compact", depth="surface", per_stream=1000):
         """Compose native structured reads for this ToolBox's bound identity."""
         import json
+
         from core.coord.orient import build_orientation
 
         who = str(self.agent_id or "").strip()
@@ -1352,6 +1357,7 @@ class ToolBox:
     def shadow(self, target, arguments=None):
         """Preview one proposed ToolBox action for this bound identity; never act."""
         import json
+
         from core.coord.intent_shadow import build_intent_shadow
 
         who = str(self.agent_id or "").strip()
@@ -1363,6 +1369,7 @@ class ToolBox:
     def college(self, action, course, data=None):
         """Use the native College provider under this ToolBox's bound identity."""
         import json
+
         from core.library.college import run_college
 
         who = str(self.agent_id or "").strip()
@@ -1386,6 +1393,7 @@ class ToolBox:
     def ground(self, target, subject=None, continuity=False):
         """Native typed grounding for this ToolBox's bound identity."""
         import json
+
         from core.coord.ground import ground as _ground
 
         who = str(subject or self.agent_id or "").strip()
@@ -1407,6 +1415,7 @@ class ToolBox:
     def capture(self, thread, as_doc=False, title="", cites=None, type="chronicle", arc="", per_stream=1000):
         """Native, subject-bound thread capture; never shells through the CLI."""
         import json
+
         from core.comm import thread_capture as _tc
 
         who = str(self.agent_id or "").strip()

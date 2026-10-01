@@ -174,6 +174,7 @@ def test_lazy_bootstrap_pre_head_corpus(mem):
     import json as _json
     from dataclasses import asdict
     from datetime import datetime
+
     from core.learning.agent_memory import Decision
 
     # forge a legacy chain written before head keys existed: old superseded, new active

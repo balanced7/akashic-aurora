@@ -34,7 +34,7 @@ import tempfile
 from datetime import datetime, timedelta, timezone
 
 from core.trust import registry
-from core.trust.capabilities import Cap, ROLE_TEMPLATES, DEFAULT_ROLE, caps_from
+from core.trust.capabilities import DEFAULT_ROLE, ROLE_TEMPLATES, Cap, caps_from
 
 #: A time box longer than this is almost certainly a typo for something shorter. It is not a
 #: security limit -- --permanent exists one line away -- it is a guard against `--hours 24000`.

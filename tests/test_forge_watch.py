@@ -17,9 +17,9 @@ from datetime import datetime, timedelta
 os.environ.setdefault("AI_SETUP", tempfile.mkdtemp())
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.recall.curator import curation_report, apply_curation
-from core.learning.learning_store import LearningStore
 from core.foundation.store import FileStore
+from core.learning.learning_store import LearningStore
+from core.recall.curator import apply_curation, curation_report
 
 OLD_TEXT = "Use when editing the seam, before refactoring: route through it. Don't when prototyping."
 NEW_TEXT = "Use when editing the seam, before refactoring: route every source through it. Don't when prototyping."

@@ -12,10 +12,9 @@ exemptions SEPARATELY from passes and failures.
 
 from __future__ import annotations
 
+import av
 import numpy as np
 import pytest
-
-import av
 
 from arsenal import floors as F
 

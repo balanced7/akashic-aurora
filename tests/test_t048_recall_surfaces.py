@@ -26,8 +26,9 @@ os.environ.setdefault("_AISETUP_TEST_ISOLATED", "1")
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts"))
 
-from core.recall.at_action import render
 import deepseek_chat as dc
+
+from core.recall.at_action import render
 
 
 def _repo_root():

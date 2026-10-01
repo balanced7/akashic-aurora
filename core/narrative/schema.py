@@ -22,7 +22,7 @@ Store namespace (later slices persist here as JSON on the Store):
 Render target (Slice 3): chronicles/story.md (Obsidian-compatible) + chronicles/story.index.json.
 """
 
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from typing import Any, Dict, List, Optional
 
 from core.foundation.relationship_types import get_relationship_by_name

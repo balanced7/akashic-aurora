@@ -4,8 +4,8 @@ Tests for the Ranker shared primitive.
 Run: py tests/test_ranker.py
 """
 
-import sys
 import os
+import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 

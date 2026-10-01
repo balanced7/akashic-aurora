@@ -28,8 +28,8 @@ from types import SimpleNamespace
 os.environ.setdefault("AI_SETUP", tempfile.mkdtemp())
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.foundation.store import FileStore
 import agent_cli
+from core.foundation.store import FileStore
 
 
 class _quiet_fanout:
@@ -39,8 +39,8 @@ class _quiet_fanout:
 
     def __enter__(self):
         import core.events.event_log as ev
-        import core.narrative.beat_log as bl
         import core.learning.agent_memory as am
+        import core.narrative.beat_log as bl
 
         self._ev, self._bl, self._am = ev, bl, am
         # T069 (repaired 2026-07-15): under _AISETUP_TEST_ISOLATED the doors

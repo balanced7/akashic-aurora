@@ -16,7 +16,6 @@ from pathlib import Path
 
 from scripts.bifrost_ui import _fmt
 
-
 ROOT = Path(__file__).resolve().parent.parent
 UI = ROOT / "scripts" / "bifrost_ui.py"
 

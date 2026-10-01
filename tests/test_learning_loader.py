@@ -4,8 +4,8 @@ Tests for context.learning_loader — the Ranker surfacing LearningStore records
 Run: py tests/test_learning_loader.py
 """
 
-import sys
 import os
+import sys
 import tempfile
 
 # Isolate: AI_SETUP -> temp so the LearningStore does NOT import the real legacy
@@ -14,9 +14,9 @@ os.environ["AI_SETUP"] = tempfile.mkdtemp()
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from core.context.learning_loader import load_learnings_ranked_by_relevance
 from core.foundation.store import FileStore
 from core.learning.learning_store import LearningStore
-from core.context.learning_loader import load_learnings_ranked_by_relevance
 
 NOW = 1_750_000_000.0
 DAY = 86400.0

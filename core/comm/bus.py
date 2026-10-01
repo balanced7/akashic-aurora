@@ -77,6 +77,7 @@ def _loads(s: Any) -> Any:
 # alone. A word made ONLY of hex digits ('deadbeef-...') is a hex HEAD, not a scheme word --
 # the derivation must never discard entropy, so the negative lookahead keeps it.
 from core.comm.seat_identity import sid8  # noqa: E402  -- THE incarnation discriminator
+
 # lives in seat_identity (the lowest layer, no bus dependency); the bus re-exports it so
 # every key builder and compare on the bus plane speaks the one derivation (7e2670d54e).
 
@@ -85,9 +86,9 @@ def _connect():
     """The canonical Redis client (correct host/port, decode_responses). None if unreachable."""
     try:
         from core.foundation.redis_connection import (
-            connect_to_redis_with_fail_fast,
             DEFAULT_REDIS_HOST,
             DEFAULT_REDIS_PORT,
+            connect_to_redis_with_fail_fast,
         )
 
         return connect_to_redis_with_fail_fast(
@@ -958,9 +959,9 @@ class Bus:
         timeout). block_ms of 0 (block 'forever') -> a day. Falls back to the shared client on error."""
         try:
             from core.foundation.redis_connection import (
-                connect_to_redis_with_fail_fast,
                 DEFAULT_REDIS_HOST,
                 DEFAULT_REDIS_PORT,
+                connect_to_redis_with_fail_fast,
             )
 
             socket_timeout = (block_ms / 1000.0 + 5) if block_ms else 86400.0

@@ -18,7 +18,6 @@ sys.path.insert(0, os.path.join(os.path.dirname(_TESTS), "scripts", "checkers"))
 
 import check_comprehensibility as cm
 
-
 # --- green baseline: the guard passes on the real repo (trustworthy = green for the RIGHT reason) ----
 
 

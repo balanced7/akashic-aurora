@@ -15,9 +15,9 @@ the pulse column; doctor should tri-state:
   P5  live census: retired ghost reads offline, not stalled
 """
 
-import time
 import os
 import sys
+import time
 
 import pytest
 

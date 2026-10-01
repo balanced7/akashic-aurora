@@ -13,10 +13,10 @@ Exit 0 = pass; exit 1 = the gate holds the ship.
 """
 
 import argparse
+import os
 import re
 import subprocess
 import sys
-import os
 
 
 def _pyl() -> str:

@@ -51,7 +51,6 @@ sys.path.insert(0, ROOT)
 
 from core.eye import routes as R  # noqa: E402
 
-
 STEPS = [
     {"type": "anchor", "target": "sess:1", "note": "the charter"},
     {"type": "dead-end", "target": "sess:2", "note": "the paraphrase trap", "is_not": ["the-phrase-is-the-key"]},

@@ -16,15 +16,15 @@ Author: Enterprise Systems
 Version: 1.0
 """
 
-import os
-import time
-import random
 import hashlib
-import urllib.request
+import os
+import random
+import time
 import urllib.error
-from datetime import datetime, timedelta
-from typing import Optional, Tuple, Dict
+import urllib.request
 from dataclasses import dataclass
+from datetime import datetime, timedelta
+from typing import Dict, Optional, Tuple
 
 # ============================================================================
 # CONFIGURATION

@@ -13,7 +13,7 @@ import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from agent.harness.hooks.claude_stop import final_paragraph, promise_shaped, last_assistant_text, _promise_block
+from agent.harness.hooks.claude_stop import _promise_block, final_paragraph, last_assistant_text, promise_shaped
 
 
 def test_promise_positive_cases():

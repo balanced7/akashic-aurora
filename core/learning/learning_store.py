@@ -35,18 +35,18 @@ Usage:
     recommendations = load_recommendations_from_store("code_optimization")
 """
 
-import uuid
 import json
 import logging
+import os
 import re
-from typing import Dict, List, Optional, Any
+import uuid
 from datetime import datetime
 from pathlib import Path
-import os
-from core.paths import data_root
+from typing import Any, Dict, List, Optional
 
 from core.foundation.store import Store, create_store
 from core.learning.domains import DEFAULT_DOMAIN, infer_domain
+from core.paths import data_root
 
 # ---- RETRIEVAL VOCABULARY ----------------------------------------------------------------------
 # The flood, measured 2026-08-02: asking the corpus a shader question returned 77, 707 and 675 rows,
@@ -281,7 +281,7 @@ class LearningStore:
             self.store = store
         elif redis_client is not None:
             # Back-compat: wrap a passed-in client, keep file durability.
-            from core.foundation.store import RedisStore, FileStore, HybridStore
+            from core.foundation.store import FileStore, HybridStore, RedisStore
 
             self.store = HybridStore(RedisStore(redis_client), FileStore())
         else:

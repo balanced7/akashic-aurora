@@ -15,11 +15,11 @@ import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.foundation.store import FileStore
 from core.codex import lifecycle
-from core.codex.schema import Resource, new_resource, resource_key, new_resource_id, version_hash
-from core.primitives.supersession import is_active as ranker_is_active
+from core.codex.schema import Resource, new_resource, new_resource_id, resource_key, version_hash
+from core.foundation.store import FileStore
 from core.primitives.ranker import Ranker
+from core.primitives.supersession import is_active as ranker_is_active
 
 
 def _store():

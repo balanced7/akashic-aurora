@@ -1,11 +1,16 @@
 """L3b-auto proof: monitor auto-revives ARMED + wedged agents (opt-in), with a storm guard that
 disarms after the cap. No real processes: revive() is stubbed."""
 
-import os, ast, sys, json, time
+import ast
+import json
+import os
 
 # Root DERIVED from this file, never hardcoded: the literal pinned one machine's disk,
 # so a copy of the repo anywhere else resolved every path under it to nothing.
-import os as _os, pathlib as _pl
+import os as _os
+import pathlib as _pl
+import sys
+import time
 
 _here = _pl.Path(__file__).resolve()
 ROOT = str(
@@ -16,8 +21,8 @@ print("parse OK: launcher.py")
 
 sys.path.insert(0, ROOT)
 import core.comm.launcher as LM
-from core.comm.launcher import Launcher, AgentSpec, AgentProcess
 from core.comm import liveness
+from core.comm.launcher import AgentProcess, AgentSpec, Launcher
 
 LM.RESTART_MAX_ATTEMPTS = 3
 LM.RESTART_BACKOFF_BASE = 0.05

@@ -59,8 +59,8 @@ def _dec(title, body, hours_ago=2.0, curated=None):
 
 # ---------------------------------------------------------------- W14-P1 DIRECTIVE
 def test_p1_directive_from_next_focus_with_age(monkeypatch):
-    from core.learning import agent_memory as am
     from core.foundation.store import FileStore
+    from core.learning import agent_memory as am
 
     mem = am.AgentMemory(store=FileStore(os.path.join(tempfile.mkdtemp(), "m.json")))
     mem.decide("next-focus", "T074 Phase 4 runner fold", curated=True)
@@ -72,8 +72,8 @@ def test_p1_directive_from_next_focus_with_age(monkeypatch):
 
 
 def test_p1_directive_fallback_when_no_next_focus(monkeypatch):
-    from core.learning import agent_memory as am
     from core.foundation.store import FileStore
+    from core.learning import agent_memory as am
 
     mem = am.AgentMemory(store=FileStore(os.path.join(tempfile.mkdtemp(), "m.json")))
     monkeypatch.setattr(am, "get_agent_memory", lambda: mem)
@@ -118,8 +118,8 @@ def test_p2_siblings_live(tmp_path, monkeypatch):
 
 # ---------------------------------------------------------------- W14-P3 AGE STAMPS + F1 fix
 def test_p3_private_notes_carry_age_stamps(monkeypatch):
-    from core.learning import agent_memory as am
     from core.foundation.store import FileStore
+    from core.learning import agent_memory as am
 
     mem = am.AgentMemory(store=FileStore(os.path.join(tempfile.mkdtemp(), "m.json")))
     mem.decide("scratch:deepseek:ergonomics-retro", "Retro note body text here", session_id="", curated=None)
@@ -133,8 +133,8 @@ def test_p3_private_notes_carry_age_stamps(monkeypatch):
 
 
 def test_p3_age_stamps_survive_empty_store(monkeypatch):
-    from core.learning import agent_memory as am
     from core.foundation.store import FileStore
+    from core.learning import agent_memory as am
 
     mem = am.AgentMemory(store=FileStore(os.path.join(tempfile.mkdtemp(), "m.json")))
     monkeypatch.setattr(am, "get_agent_memory", lambda: mem)

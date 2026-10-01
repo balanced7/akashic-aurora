@@ -126,7 +126,7 @@ def _task_events(ledger_path: Optional[str]) -> List[Tuple[str, str, float]]:
     """Task-ledger history -> trigger events. Lateral coord read (see module docstring); fail-soft
     to [] so a missing/broken ledger only degrades these two triggers."""
     try:
-        from core.coord.task_ledger import read_ledger, LEDGER_PATH
+        from core.coord.task_ledger import LEDGER_PATH, read_ledger
 
         led = read_ledger(ledger_path or LEDGER_PATH, client=None)  # git file = truth; no Redis dep
         out: List[Tuple[str, str, float]] = []

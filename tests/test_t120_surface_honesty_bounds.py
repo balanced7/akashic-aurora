@@ -14,9 +14,9 @@ The test harness: we call the render functions directly with controlled inputs
 and assert the output contains the bounds markers.
 """
 
+import json
 import os
 import sys
-import json
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
@@ -191,6 +191,7 @@ def test_title_miss_regex_matches_lesson_slugs():
     Imports the CANONICAL pattern — a hardcoded copy here would be the two-derivations
     defect this whole charter round exists to kill."""
     import re
+
     from core.recall.at_action import TITLE_SHAPED_RE as pat
 
     # Should match: experiment names with underscores, source prefixes, multi-word slugs

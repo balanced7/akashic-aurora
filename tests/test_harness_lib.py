@@ -11,9 +11,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from agent.harness import capture as capmod
-from agent.harness import guards, nudge, registry, seen
-from agent.harness import scope
-
+from agent.harness import guards, nudge, registry, scope, seen
 
 # --- scope: one policy, every adapter ---------------------------------------------------------
 

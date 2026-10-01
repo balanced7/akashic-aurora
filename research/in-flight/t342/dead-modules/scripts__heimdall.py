@@ -14,7 +14,11 @@ wakeable) and clears it on exit. Re-arm by launching it again.
   py scripts/heimdall.py deepseek   # watch for any agent -> the onboarding template
 """
 
-import sys, os, json, time, tempfile
+import json
+import os
+import sys
+import tempfile
+import time
 
 REPO = r"E:\AI-Setup"
 sys.path.insert(0, REPO)

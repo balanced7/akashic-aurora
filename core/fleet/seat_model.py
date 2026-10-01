@@ -25,9 +25,10 @@ from __future__ import annotations
 import json
 import os
 import time
-from core.comm.seat_identity import sid8 as _sid8
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+
+from core.comm.seat_identity import sid8 as _sid8
 
 ROOT = Path(__file__).resolve().parents[2]
 #: The pin. Instance-scoped operator preference; small, and the durable record of his choice.

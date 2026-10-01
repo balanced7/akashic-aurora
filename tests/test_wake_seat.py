@@ -16,7 +16,6 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.comm import wake_seat as ws
 
-
 AGENT = "tclaude"  # never collides with a real agent's tempdir files
 
 

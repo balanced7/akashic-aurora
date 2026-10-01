@@ -358,6 +358,7 @@ def _write_commands() -> Set[str]:
     """Every command Redis flags `write`, from fakeredis's own copy of the command table
     (names as fakeredis spells them: 'xgroup create' for subcommands)."""
     import json
+
     import fakeredis
 
     table = json.loads((Path(fakeredis.__file__).parent / "commands.json").read_text("utf-8"))
@@ -396,10 +397,12 @@ def _seed_from_file_tier(fake_server, port: int, path: Path) -> int:
 
         if current().redis_port != port:
             return 0
-        from core.paths import data_root
-        from core.foundation.redis_connection import DEFAULT_REDIS_DB
         import json
+
         import fakeredis
+
+        from core.foundation.redis_connection import DEFAULT_REDIS_DB
+        from core.paths import data_root
 
         state_file = data_root() / "session_logs" / "store_state.json"
         n = 0

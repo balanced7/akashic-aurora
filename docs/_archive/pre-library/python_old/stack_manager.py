@@ -32,20 +32,21 @@ Architecture tiers:
   Tier 4: session-compressor
 """
 
-import os
-import sys
 import json
-import time
+import os
+import shutil
 import signal
 import socket
-import shutil
-import psutil
-import threading
 import subprocess
-from collections import defaultdict, deque, OrderedDict
+import sys
+import threading
+import time
+from collections import OrderedDict, defaultdict, deque
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from typing import Any
+
+import psutil
 
 # ── Platform setup ──
 if sys.platform == "win32":

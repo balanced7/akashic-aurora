@@ -30,15 +30,16 @@ Usage:
     data = load_data_from_ram_disk("temp.json")
 """
 
+import hashlib
+import json
 import os
 import sys
-import json
-import redis
 import time
-import hashlib
-from typing import Any, Callable, Optional
-from functools import wraps
 from datetime import datetime
+from functools import wraps
+from typing import Any, Callable, Optional
+
+import redis
 
 # Storage configuration
 RAM_DISK = "X:\\"
@@ -573,7 +574,7 @@ def execute_code_without_file_io(code: str, globals_dict: dict = None, timeout: 
         Dictionary with success status, result, and stdout
     """
     import io
-    from contextlib import redirect_stdout, redirect_stderr
+    from contextlib import redirect_stderr, redirect_stdout
 
     if globals_dict is None:
         globals_dict = {

@@ -163,10 +163,12 @@ def test_frozen_fleet_is_banner_not_page():
 def test_pulse_primitives_round_trip():
     """RB-27a contract: pulse writes value {generation, detail} with a TTL; the reader
     returns age; a trigger value self-reports. Redis-backed; skips offline."""
+    import uuid
+
     import pytest
+
     from core.comm import liveness
     from core.comm.bus import Bus
-    import uuid
 
     agent = f"t-pulse-{uuid.uuid4().hex[:8]}"
     if not Bus(agent).online:

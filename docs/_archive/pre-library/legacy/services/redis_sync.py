@@ -18,17 +18,17 @@ Usage:
     python redis_sync.py --reset    # Reset sync positions
 """
 
-import os
-import sys
-import json
-import time
-import signal
-import threading
 import hashlib
+import json
+import os
+import signal
+import sys
+import threading
+import time
+from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Any, Optional, Set
-from dataclasses import dataclass, asdict
+from typing import Any, Dict, List, Optional, Set
 
 try:
     import redis

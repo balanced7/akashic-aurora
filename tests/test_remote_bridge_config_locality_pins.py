@@ -76,8 +76,9 @@ def test_the_template_carries_no_instance_values():
 def test_the_reader_still_works_with_no_config_at_all():
     """Absent config must be a configuration STATE, not a crash and not a guess — the
     inert-until-keyed property the whole bridge leans on."""
-    from core.comm import remote_relay as RR
     import os
+
+    from core.comm import remote_relay as RR
 
     old = os.environ.pop("AKASHIC_REMOTE_BRIDGE_PEER_URL", None)
     try:
@@ -91,8 +92,9 @@ def test_the_reader_still_works_with_no_config_at_all():
 def test_env_override_beats_the_file():
     """The escape hatch that makes per-instance routing possible without ANY file edit —
     which is what a service or a container needs."""
-    from core.comm import remote_relay as RR
     import os
+
+    from core.comm import remote_relay as RR
 
     old = os.environ.get("AKASHIC_REMOTE_BRIDGE_PEER_URL")
     os.environ["AKASHIC_REMOTE_BRIDGE_PEER_URL"] = "https://override.invalid/xfer"

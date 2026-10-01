@@ -5,8 +5,8 @@ Centralized Configuration - Akashic Aurora
 Single source of truth for all configuration values.
 """
 
-from pathlib import Path
 from dataclasses import dataclass
+from pathlib import Path
 
 # Root DERIVED, never hardcoded: this file previously pinned one machine's absolute
 # path, so a copy of the repo anywhere else resolved every path under it to nothing.

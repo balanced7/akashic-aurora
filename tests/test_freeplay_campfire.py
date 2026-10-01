@@ -10,9 +10,11 @@ The ritual:
   3. story --chapter         # current chapter
 """
 
-from core.toolbelt.registry import Toolbelt
+import os
+import tempfile
+
 import agent_cli
-import tempfile, os
+from core.toolbelt.registry import Toolbelt
 
 
 def test_campfire_mint_and_kata():

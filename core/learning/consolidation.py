@@ -19,12 +19,12 @@ Key rules (docs/library/design/20260620_research-context-handling-compaction-and
 """
 
 import os
-from core.paths import data_root
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Optional, Sequence
 
 from core.learning.agent_memory import AgentMemory, get_agent_memory
+from core.paths import data_root
 from core.primitives.consolidator import Consolidator
 from core.primitives.distiller import Distiller
 from core.primitives.ranker import Ranker

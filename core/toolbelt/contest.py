@@ -39,9 +39,9 @@ from typing import Any, Callable, Dict, Optional
 
 # toast's verifier is the shared truth: a contest proves itself the same way a toast does.
 try:
-    from core.toolbelt.toast import verify_receipt, note_title, NOTE_TITLE_PREFIX
+    from core.toolbelt.toast import NOTE_TITLE_PREFIX, note_title, verify_receipt
 except Exception:  # pragma: no cover - toast is a sibling module; same package in prod
-    from toast import verify_receipt, note_title, NOTE_TITLE_PREFIX  # type: ignore
+    from toast import NOTE_TITLE_PREFIX, note_title, verify_receipt  # type: ignore
 
 MAX_BODY = 240  # a second voice is shorter than the first; chorus, not solo.
 

@@ -26,39 +26,40 @@ Read-only on beat raw data. Best-effort: failures never raise into caller.
 import hashlib
 import json
 import os
-from core.paths import data_root
 import re
 from collections import defaultdict
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from core.foundation.store import Store, create_store
-from core.foundation.timeutil import to_epoch, hours_between, now_iso as _now_iso
+from core.foundation.timeutil import hours_between, to_epoch
+from core.foundation.timeutil import now_iso as _now_iso
 from core.narrative.beat_log import BeatLog, get_beat_log
-from core.narrative.schema import (
-    Beat,
-    Chapter,
-    Track,
-    Theme,
-    Atlas,
-    Edge,
-    beat_key,
-    chapter_key,
-    track_key,
-    theme_key,
-    ATLAS_KEY,
-    validate_beat,
-    STORY_FORMAT_VERSION,
-    BOUNDARY_KINDS,
-)
 from core.narrative.chapter_lifecycle import (
     persist_chapter_in_place,
     rebuild_track_chapter_list,
     write_learning_chapter_backlinks,
 )
-from core.primitives.ranker import Ranker
-from core.primitives.distiller import Distiller
+from core.narrative.schema import (
+    ATLAS_KEY,
+    BOUNDARY_KINDS,
+    STORY_FORMAT_VERSION,
+    Atlas,
+    Beat,
+    Chapter,
+    Edge,
+    Theme,
+    Track,
+    beat_key,
+    chapter_key,
+    theme_key,
+    track_key,
+    validate_beat,
+)
+from core.paths import data_root
 from core.primitives.consolidator import Consolidator
+from core.primitives.distiller import Distiller
+from core.primitives.ranker import Ranker
 
 TIMELINE = "narr:beats:timeline"
 ROUTER_ACTIVE = "narr:router:active"

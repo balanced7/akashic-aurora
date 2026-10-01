@@ -42,7 +42,7 @@ NS = f"connreuse{uuid.uuid4().hex[:6]}"
 
 
 def _client():
-    from core.foundation.redis_connection import connect_to_redis_with_fail_fast, DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT
+    from core.foundation.redis_connection import DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT, connect_to_redis_with_fail_fast
 
     return connect_to_redis_with_fail_fast(
         host=DEFAULT_REDIS_HOST, port=DEFAULT_REDIS_PORT, timeout_seconds=3, decode_responses=True
@@ -182,6 +182,7 @@ def test_conductor_gate_pass_cost_does_not_grow_with_the_fleet():
     not get more expensive precisely when the fleet is in trouble.
     """
     import time as _time
+
     from core.comm import conductor_gate, roster
     from core.comm.liveness import _ns
 

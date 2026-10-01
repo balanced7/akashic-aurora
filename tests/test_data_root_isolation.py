@@ -98,9 +98,9 @@ def test_p3_legacy_learnings_jsonl_is_read_from_the_data_root_not_the_code_root(
     data dir. The isolated store must stay empty: the legacy file belongs to the code root,
     and a bare AI_SETUP says instance state lives elsewhere.
     """
+    import core.paths as paths
     from core.foundation.store import FileStore
     from core.learning.learning_store import LearningStore
-    import core.paths as paths
 
     code = _fake_code_root_with_legacy_corpus(tmp_path)
     bare = _bare_data_dir(tmp_path)

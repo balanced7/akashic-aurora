@@ -12,19 +12,19 @@ Techniques (no external deps; deterministic via a fixed seed):
 Run: py tests/test_robustness.py
 """
 
-import sys
-import os
 import json
+import os
 import random
 import string
+import sys
 import tempfile
 import threading
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.foundation.store import FileStore, HybridStore
-from core.primitives.ranker import Ranker
 from core.primitives.distiller import Distiller
+from core.primitives.ranker import Ranker
 
 random.seed(20260620)  # reproducible
 

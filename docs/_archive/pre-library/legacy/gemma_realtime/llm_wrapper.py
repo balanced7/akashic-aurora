@@ -7,11 +7,12 @@ Streaming Ollama integration with interrupt handling
 import asyncio
 import json
 import sys
-from typing import Optional, AsyncIterator, Callable
 from dataclasses import dataclass
+from datetime import datetime
+from typing import AsyncIterator, Callable, Optional
+
 import redis
 import requests
-from datetime import datetime
 
 sys.path.insert(0, r"E:\AI-Setup")
 

@@ -21,10 +21,11 @@ sys.path.insert(0, os.path.dirname(_TESTS))
 sys.path.insert(0, _TESTS)
 sys.path.insert(0, os.path.join(_TESTS, "fixtures"))
 
-from core.foundation.ledger import FileLedger
+from events_fixture import build_events_fixture
+
 from core.events.event_log import EventLog
 from core.events.event_query import EventQuery
-from events_fixture import build_events_fixture
+from core.foundation.ledger import FileLedger
 
 
 def _fixture():

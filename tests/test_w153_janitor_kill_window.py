@@ -31,7 +31,6 @@ import pytest
 
 from core.comm import wake_seat as ws
 
-
 SID = "aaaabbbb-cccc-dddd-eeee-ffff00001111"
 AGENT = "claude"
 

@@ -18,12 +18,13 @@ Usage:
     capture_tagged("reason_for_screenshot", tag="debug")
 """
 
-import os
-import time
-import mss
-import sys
-import redis
 import json
+import os
+import sys
+import time
+
+import mss
+import redis
 
 SESSION_ID = os.environ.get("OPENCODE_SESSION", f"session_{time.strftime('%Y%m%d_%H%M%S')}")
 SCREENSHOT_DIR = r"E:\AI-Setup\session_screenshots"

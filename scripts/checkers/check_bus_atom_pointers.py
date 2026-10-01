@@ -100,6 +100,7 @@ def scan_live(per_stream: int = 100, hours: float = 0.0) -> List[str]:
     hours > 0 bounds the window (stream ids are ms timestamps) -- the wrap-gate mode:
     history stays a one-time census; the gate judges only fresh sends."""
     import time as _time
+
     from core.comm.bus import get_bus
 
     bus = get_bus("claude")

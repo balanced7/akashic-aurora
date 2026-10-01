@@ -20,8 +20,8 @@ Run: py -m pytest tests/test_recall_agent_scope.py -q
 """
 
 import os
-import sys
 import subprocess
+import sys
 
 import isolate_canonical  # noqa: F401 -- db 15 + temp AI_SETUP, flushed (child inherits via env)
 

@@ -20,7 +20,7 @@ import pytest
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 pytest.importorskip("numpy")  # optional embedding subsystem -> skip cleanly when numpy is absent
-from core.primitives.clusterer import Clusterer, Cluster, Clustering
+from core.primitives.clusterer import Cluster, Clusterer, Clustering
 
 
 def _unit(v):

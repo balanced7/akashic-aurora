@@ -369,7 +369,7 @@ class DeckStore:
     def keep(self, card_id: str, by: str = "daniel", key: Optional[str] = None) -> dict:
         """A copy in Daniel's Kept group, with source {kind: kept, from: {id, rev}}; key moves it (numbers move with
         the key, exact notes shift by the nearest interval)."""
-        from arsenal.jam.resolve import key_of, shift_notes, shift_of, ResolveError
+        from arsenal.jam.resolve import ResolveError, key_of, shift_notes, shift_of
 
         src = self.get(card_id)
         c = copy.deepcopy(src)

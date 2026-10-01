@@ -4,7 +4,7 @@ import sys
 
 sys.path.insert(0, ".")
 
-from core.toolbelt.audit import run, render, VerbsDomain
+from core.toolbelt.audit import VerbsDomain, render, run
 
 # Run VERBS domain only
 domain = VerbsDomain()

@@ -203,7 +203,7 @@ def test_w4_p8_offline_error_unchanged():
 def test_w4_integration_real_bus_traces_collapse():
     """End-to-end: send real trace messages, then peek through bifrost_inbox. Redis-backed;
     skip if Redis is down. Uses a throwaway namespace."""
-    from core.foundation.redis_connection import connect_to_redis_with_fail_fast, DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT
+    from core.foundation.redis_connection import DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT, connect_to_redis_with_fail_fast
 
     c = connect_to_redis_with_fail_fast(
         host=DEFAULT_REDIS_HOST, port=DEFAULT_REDIS_PORT, timeout_seconds=3, decode_responses=True
@@ -249,7 +249,8 @@ def test_w4_integration_real_bus_traces_collapse():
 
 
 if __name__ == "__main__":
-    import pytest
     import sys
+
+    import pytest
 
     sys.exit(pytest.main([__file__, "-q"]))

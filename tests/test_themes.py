@@ -16,22 +16,22 @@ from core.foundation.store import FileStore
 from core.narrative.beat_log import BeatLog
 from core.narrative.chronicler import Chronicler
 from core.narrative.schema import (
+    STORY_FORMAT_VERSION,
+    Atlas,
     Beat,
     Chapter,
-    Track,
-    Theme,
-    Atlas,
     Edge,
+    Theme,
+    Track,
     beat_key,
     chapter_key,
-    track_key,
     theme_key,
-    STORY_FORMAT_VERSION,
+    track_key,
 )
-from core.narrative.theme_assigner import ThemeAssigner, THEME_KEYWORDS
-from core.primitives.ranker import Ranker
-from core.primitives.distiller import Distiller
+from core.narrative.theme_assigner import THEME_KEYWORDS, ThemeAssigner
 from core.narrative.track_router import RouteHint
+from core.primitives.distiller import Distiller
+from core.primitives.ranker import Ranker
 
 
 def _make_store():
@@ -40,6 +40,7 @@ def _make_store():
 
 def _run_cli(args, store=None):
     import io
+
     from agent_cli import cmd_story
 
     class FakeArgs:

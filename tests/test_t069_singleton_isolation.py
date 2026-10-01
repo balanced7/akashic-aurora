@@ -137,12 +137,12 @@ def test_p9_census_all_store_binding_factories_honor_isolation(monkeypatch):
     returns fresh instances under the flag. A new offender joins this list or trips the
     check_boundaries singleton rule -- the class cannot silently return."""
     monkeypatch.setenv("_AISETUP_TEST_ISOLATED", "1")
-    from core.learning.agent_memory import get_agent_memory
-    from core.learning.learning_store import get_learning_store_instance
     from core.comm.bus import get_bus
-    from core.perspectives.reinforce import get_reinforced_graph
     from core.events.event_log import get_event_log
     from core.events.event_query import get_event_query
+    from core.learning.agent_memory import get_agent_memory
+    from core.learning.learning_store import get_learning_store_instance
+    from core.perspectives.reinforce import get_reinforced_graph
 
     factories = [
         get_agent_memory,

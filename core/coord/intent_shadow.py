@@ -13,15 +13,14 @@ coordination; this module does not overload that separate authority region.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
 import hashlib
 import inspect
 import json
 import math
+from datetime import datetime, timezone
 from typing import Any, Callable, Dict, Mapping, Optional, Tuple
 
 from core.primitives.epistemic import derive_epistemic_view
-
 
 _SUPPORTED = ("bifrost_send", "bifrost_nudge", "bifrost_steer")
 _SEND_KINDS = {"chat", "note", "request", "handoff", "nudge", "hint"}

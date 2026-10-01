@@ -2,7 +2,12 @@
 # session transcripts. Pre-chew stage for a deepseek fan: cast a WIDE regex net here; the
 # fan branches judge relevance. Reads BOTH user turns AND queue-operation records per
 # lesson operator_speech_hides_in_queue_operation_records.
-import json, re, glob, os, sys, hashlib
+import glob
+import hashlib
+import json
+import os
+import re
+import sys
 
 ROOT = os.path.expanduser("~/.claude/projects")
 OUT_MD = sys.argv[1] if len(sys.argv) > 1 else "candidates.md"

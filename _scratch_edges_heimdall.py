@@ -1,4 +1,6 @@
-import json, re, collections
+import collections
+import json
+import re
 
 d = json.load(open("state/coord/tasks.json", encoding="utf-8"))
 tasks = d.get("tasks", d) if isinstance(d, dict) else d

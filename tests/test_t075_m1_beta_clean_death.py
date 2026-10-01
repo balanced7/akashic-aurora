@@ -39,8 +39,7 @@ except ImportError:
     session_exit = None
 
 from core.comm import incarnation as inc
-from core.comm import runner_lock
-from core.comm import wake_seat
+from core.comm import runner_lock, wake_seat
 
 SID = "aaaabbbb-1111-2222-3333-444455556666"
 SID2 = "ccccdddd-7777-8888-9999-000011112222"

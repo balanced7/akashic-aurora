@@ -133,7 +133,9 @@ def test_a_lock_timeout_returns_the_newest_id_not_zero(tmp_path, monkeypatch):
     """Found by the DeepSeek fence on de217307: a LockTimeout before the tail read returned
     "0", which a caller would use as a cursor and replay the whole stream from."""
     import contextlib
-    from core.foundation import filelock, ledger as ledger_mod
+
+    from core.foundation import filelock
+    from core.foundation import ledger as ledger_mod
 
     led = FileLedger(str(tmp_path))
     for i in range(3):

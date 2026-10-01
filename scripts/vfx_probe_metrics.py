@@ -23,7 +23,6 @@ import zlib
 from collections import defaultdict
 from pathlib import Path
 
-
 REPO = Path(__file__).resolve().parent.parent
 SNAPS = REPO / "design" / "vfx-snaps"
 THUMBS = REPO / "design" / "vfx-thumbs"

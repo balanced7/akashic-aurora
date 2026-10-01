@@ -25,10 +25,10 @@ This module handles:
 - Graceful error handling and degradation
 """
 
+import logging
 import sys
 import time
-import logging
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
 
 from core.foundation.redis_connection import DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT
 
@@ -99,10 +99,10 @@ def derive_agent_context_from_startup_sources(
     try:
         # Import required modules. agent/ is the top (application) layer, so it may
         # import the Context pillar (System 4) — lower layers never import upward.
+        from core.context.aggregator import assemble_context
+        from core.infrastructure.health_check import create_startup_diagnostics
         from core.signals.coordinator_api import initialize
         from core.state.session_checkpoint import SessionState
-        from core.infrastructure.health_check import create_startup_diagnostics
-        from core.context.aggregator import assemble_context
 
         logger.info(f"Initializing agent: {agent_id}")
 

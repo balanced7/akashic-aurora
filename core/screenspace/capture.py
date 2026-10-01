@@ -119,9 +119,9 @@ def _resize_to_budget(pixels: bytes, width: int, height: int, budget: int):
     long_edge = max(width, height)
     if long_edge <= budget:
         return pixels, width, height, False
-    from PIL import Image  # type: ignore
-
     import io
+
+    from PIL import Image  # type: ignore
 
     scale = budget / float(long_edge)
     nw = max(1, int(round(width * scale)))

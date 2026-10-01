@@ -22,7 +22,7 @@ sys.path.insert(0, str(ROOT))
 
 from arsenal.jam import runs as RUNS  # noqa: E402
 from arsenal.jam import schemas as S  # noqa: E402
-from arsenal.jam.runs import JamApi, LEASE_MS, PENDING_EXPIRE_MS  # noqa: E402
+from arsenal.jam.runs import LEASE_MS, PENDING_EXPIRE_MS, JamApi  # noqa: E402
 from arsenal.pianocue import CueHub  # noqa: E402
 from arsenal.serve import App, Server  # noqa: E402
 

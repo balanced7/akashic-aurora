@@ -14,16 +14,16 @@ Usage:
     esc.escalate(tier=Tier.GEMINI, context=my_context)
 """
 
-import os
-import sys
-import json
-import time
-import re
-from enum import Enum
-from typing import Optional, Dict, Any, List
-from dataclasses import dataclass, field, asdict
-from datetime import datetime
 import hashlib
+import json
+import os
+import re
+import sys
+import time
+from dataclasses import asdict, dataclass, field
+from datetime import datetime
+from enum import Enum
+from typing import Any, Dict, List, Optional
 
 # Paths
 ESCALATION_DIR = r"E:\AI-Setup\blackboard_data\escalations"
@@ -329,8 +329,8 @@ Provide a strategic breakthrough plan.
             return None
 
         try:
-            import urllib.request
             import urllib.error
+            import urllib.request
 
             headers = {"Content-Type": "application/json", "Authorization": f"Bearer {self.api_keys['opencode']}"}
 
@@ -359,8 +359,8 @@ Provide a strategic breakthrough plan.
             return None
 
         try:
-            import urllib.request
             import urllib.error
+            import urllib.request
 
             url = f"{GEMINI_API_URL}/gemini-2.0-flash:generateContent?key={self.api_keys['gemini']}"
 

@@ -103,8 +103,8 @@ def test_ungated_ceiling_holds_the_second_exception(tmp_path, monkeypatch):
         def search(self, q, kind=None, since=None, top_k=5):
             return list(events)
 
-    import core.events.event_query as eq_mod
     import core.events.event_log as el_mod
+    import core.events.event_query as eq_mod
 
     monkeypatch.setattr(eq_mod, "get_event_query", lambda: FakeEQ())
     monkeypatch.setattr(el_mod, "capture_event", lambda *a, **k: events.append(k) or None)
@@ -118,6 +118,7 @@ def test_ungated_ceiling_holds_the_second_exception(tmp_path, monkeypatch):
 
 def test_ship_plan_wires_the_gate_before_tests():
     from argparse import Namespace
+
     import ship
 
     args = Namespace(

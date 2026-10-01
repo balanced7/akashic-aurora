@@ -27,8 +27,8 @@ Contract frozen here:
 Run: py -m pytest tests/test_t196d_ask_state.py -q
 """
 
-import re
 import os
+import re
 import sys
 import time
 import uuid

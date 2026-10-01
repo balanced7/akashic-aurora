@@ -24,12 +24,12 @@ Usage:
   python stack_gui.py --no-browser    # Don't open browser
 """
 
+import base64
+import json
 import os
 import sys
-import json
-import time
 import threading
-import base64
+import time
 import urllib.error
 import urllib.request
 from datetime import datetime
@@ -45,26 +45,25 @@ if sys.platform == "win32":
 _BASE = Path(__file__).resolve().parent
 sys.path.insert(0, str(_BASE))
 
-from fastapi import FastAPI, HTTPException, Query, Request
-from fastapi.responses import HTMLResponse, JSONResponse
-from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
-
+from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse, JSONResponse
 from stack_manager import (
     SERVICES,
-    resolve_tiers,
+    MemoryMonitor,
+    PortManager,
+    ResourceTracker,
+    RoutingTable,
+    _run_cmd,
+    _run_ps,
+    _run_wsl,
+    c,
     check_health,
     launch_service,
-    wait_for_healthy,
-    PortManager,
-    RoutingTable,
-    ResourceTracker,
-    MemoryMonitor,
-    _run_wsl,
-    _run_ps,
-    _run_cmd,
-    c,
     log,
+    resolve_tiers,
+    wait_for_healthy,
 )
 
 # ──────────────────────────────────────────────────────────────
@@ -441,6 +440,7 @@ def _redis():
             _redis_conn = None
     try:
         import redis as redis_lib
+
         from config import get_redis_config
 
         r = redis_lib.Redis(**get_redis_config())

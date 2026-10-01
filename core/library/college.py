@@ -30,7 +30,6 @@ from typing import Any, Dict, Iterable, List, Mapping, Optional, Tuple
 from core.foundation import filelock
 from core.paths import repo_root
 
-
 SCHEMA = "college.record.v1"
 EVENT_SCHEMA = "college.event.v1"
 ROOT_ENV = "AURORA_COLLEGE_ROOT"

@@ -136,8 +136,8 @@ def test_w8_a_full_current_file_must_not_eat_history(tmp_path):
     to make room for a write is the opposite of a forensic store -- the oldest records are exactly
     what an investigation reaches for.
     """
-    from scripts.wire_journal import WireJournal
     import scripts.wire_journal as WJ
+    from scripts.wire_journal import WireJournal
 
     d = str(tmp_path)
     for i in range(1, 15):  # 14 days of history already on disk

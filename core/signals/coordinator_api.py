@@ -17,20 +17,20 @@ Signal Types:
 """
 
 import json
-import time
-import uuid
-from datetime import datetime
-from typing import Optional, Dict, Any, List
-from enum import Enum
 import logging
 
 # Persistence goes through the AgentSignalLedger (Redis Streams when up, File
 # always); this module never touches redis directly.
 import os
-from core.paths import data_root
+import time
+import uuid
+from datetime import datetime
+from enum import Enum
 from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 from core.foundation.redis_connection import DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT
+from core.paths import data_root
 
 
 class SignalType(Enum):

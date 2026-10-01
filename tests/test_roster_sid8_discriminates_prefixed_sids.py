@@ -33,8 +33,8 @@ Namespace-isolated (T039 precedent); throwaway namespaces are swept at teardown 
 24h seatseen witnesses do not outlive the run on the shared Redis.
 """
 
-import re
 import os
+import re
 import sys
 import uuid
 
@@ -211,8 +211,8 @@ def test_p6_one_derivation_lives_in_seat_identity_and_bus_reexports_it():
     seat_identity is the lowest layer (no bus dependency), so the rule lives there; bus.sid8
     IS that function, and the fallback id a hook mints for an unbound DSH seat carries the
     hex head, never the scheme word (two unbound web seats must not share 'unknown-session-')."""
-    from core.comm import seat_identity as si
     from core.comm import bus as busmod
+    from core.comm import seat_identity as si
 
     assert busmod.sid8 is si.sid8
     uid = si.unknown_id("session-7ed91e83-1111-2222-3333-444444444444")

@@ -36,8 +36,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from agent.harness import context as ctx
 from agent.harness.scope import repo_root
-from core.learning.agent_memory import AgentMemory, Decision
 from core.foundation.store import FileStore
+from core.learning.agent_memory import AgentMemory, Decision
 
 _REPO = repo_root()
 

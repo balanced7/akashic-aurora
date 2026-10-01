@@ -18,13 +18,12 @@ from __future__ import annotations
 
 import json
 import os
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import List, Optional
 
-import numpy as np
-
 import av
+import numpy as np
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 STATE_ROOT = _REPO_ROOT / "state" / "arsenal"

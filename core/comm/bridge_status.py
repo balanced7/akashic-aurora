@@ -42,8 +42,8 @@ import re
 import time
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
-from core.outcome import BoundaryOutcome
 from core.comm import remote_relay as RR
+from core.outcome import BoundaryOutcome
 
 
 def _reachable(url: str, timeout: float = 4.0) -> Optional[bool]:

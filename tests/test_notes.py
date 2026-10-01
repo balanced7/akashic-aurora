@@ -11,9 +11,9 @@ import tempfile
 os.environ.setdefault("AI_SETUP", tempfile.mkdtemp())
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+import agent_cli
 from core.foundation.store import FileStore
 from core.learning.agent_memory import AgentMemory
-import agent_cli
 
 
 def _mem():

@@ -215,7 +215,11 @@ def main(argv=None) -> int:
 
     if a.report:
         try:
-            import base64, time, urllib.request, urllib.error
+            import base64
+            import time
+            import urllib.error
+            import urllib.request
+
             from core.comm import remote_relay as RR
 
             k = RR._secret(RR.OUTBOUND_KEY_FILE)

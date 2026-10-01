@@ -5,24 +5,24 @@ FastAPI + WebSocket server for real-time voice chat
 """
 
 import asyncio
-import io
-import os
-import json
 import base64
-from pathlib import Path
+import io
+import json
+import os
 from datetime import datetime
+from pathlib import Path
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File, Form, Query
-from fastapi.responses import HTMLResponse, StreamingResponse
-from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
 # Import our modules
-from audio_handler import audio_handler, init_audio, VADProcessor
-from stt_processor import stt_processor, init_stt
-from tts_processor import tts_processor, init_tts
-from llm_wrapper import llm, init_llm
+from audio_handler import VADProcessor, audio_handler, init_audio
+from fastapi import FastAPI, File, Form, Query, UploadFile, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse, StreamingResponse
 from file_analyzer import file_analyzer, init_analyzer
+from llm_wrapper import init_llm, llm
+from stt_processor import init_stt, stt_processor
+from tts_processor import init_tts, tts_processor
 
 app = FastAPI(title="Gemma Realtime")
 

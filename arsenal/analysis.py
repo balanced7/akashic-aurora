@@ -15,11 +15,10 @@ from fractions import Fraction
 from pathlib import Path
 from typing import Callable, Optional
 
-import numpy as np
-from numpy.lib.stride_tricks import sliding_window_view
-
 import av
+import numpy as np
 from av.codec.hwaccel import HWAccel
+from numpy.lib.stride_tricks import sliding_window_view
 
 # state/arsenal/ lives next to this file's package, not at the process cwd, so this module
 # behaves the same whether it's run from E:\AI-Setup or imported from anywhere else.

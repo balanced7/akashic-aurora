@@ -4,10 +4,9 @@ are evidence, not fixtures, so regenerating them never breaks the suite."""
 
 from __future__ import annotations
 
+import av
 import numpy as np
 import pytest
-
-import av
 
 from arsenal import floors as F
 

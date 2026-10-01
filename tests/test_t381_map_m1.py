@@ -23,7 +23,7 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from scripts.map_generator import build_map, MapRefusal  # noqa: E402
+from scripts.map_generator import MapRefusal, build_map  # noqa: E402
 
 
 def _data(page_grades=0):

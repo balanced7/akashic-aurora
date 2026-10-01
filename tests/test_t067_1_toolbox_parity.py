@@ -38,8 +38,8 @@ os.environ.setdefault("_AISETUP_TEST_ISOLATED", "1")
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-import scripts.deepseek_chat as dc
 import scripts.checkers.check_door_parity as cdp
+import scripts.deepseek_chat as dc
 
 
 def _runner():

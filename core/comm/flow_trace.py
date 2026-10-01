@@ -176,7 +176,7 @@ def flow_trace(
     drops narration chatter BEFORE the walk -- pre-lane trace copies in legacy inboxes
     would otherwise flood the render with singleton flows. Read-only; fail-soft per
     stream. Accrues a funnel count (the lookback pattern)."""
-    from core.comm.bus import _connect, NS
+    from core.comm.bus import NS, _connect
 
     ns = namespace or os.environ.get("BIFROST_NAMESPACE", NS)
     r = client if client is not None else _connect()

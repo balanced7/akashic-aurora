@@ -8,12 +8,11 @@ explicit transport/thread links; body-text resemblance is never a link.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
 import hashlib
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
-
 
 _ROOT = Path(__file__).resolve().parents[2]
 _LINK_FIELDS = (

@@ -336,6 +336,7 @@ def test_a_bad_waiver_key_is_caught_at_the_GATE_not_only_here(tmp_path):
     reason, which is exactly the bug that let two invented hash tails through. The guard now
     lives on the runtime path; this pin proves the runtime path rejects them."""
     import json
+
     import scripts.checkers.check_rewrite_maps as chk
 
     bad = {

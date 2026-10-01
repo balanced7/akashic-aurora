@@ -55,12 +55,13 @@ reads UNCHECKABLE (blindness), never RESOLVED and never MISSING (absence).
 from __future__ import annotations
 
 import os
-from core.paths import repo_root
 import re
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+
+from core.paths import repo_root
 
 ROOT = repo_root()
 

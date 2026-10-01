@@ -14,7 +14,7 @@ import pytest
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.fleet import model_roster as roster
-from core.fleet.caller import call, FleetCallError
+from core.fleet.caller import FleetCallError, call
 
 
 # ------------------------------------------------------------------ fake transport

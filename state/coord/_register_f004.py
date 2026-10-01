@@ -1,4 +1,5 @@
 import time
+
 from core.coord.forecast_registry import ForecastRegistry
 
 path = "state/coord/forecasts.jsonl"

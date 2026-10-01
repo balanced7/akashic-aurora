@@ -39,8 +39,8 @@ import pytest
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from scripts.wire_journal import WireJournal  # noqa: E402
 import scripts.wire_journal as WJ  # noqa: E402
+from scripts.wire_journal import WireJournal  # noqa: E402
 
 
 def _j(tmp_path, sub="j"):

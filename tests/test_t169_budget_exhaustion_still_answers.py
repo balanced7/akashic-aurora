@@ -42,7 +42,6 @@ sys.path.insert(0, os.path.join(ROOT, "scripts"))
 
 import deepseek_chat as DC  # noqa: E402
 
-
 TEST_TOOL_ROUNDS = 3
 
 

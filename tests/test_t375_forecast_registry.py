@@ -41,12 +41,11 @@ import pytest
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.coord.forecast_registry import (  # noqa: E402
+    VERDICTS,
     ForecastRegistry,
     RegistryRefusal,
-    VERDICTS,
     fold,
 )
-
 
 T0 = 1_700_000_000.0  # fixture epoch, seconds
 

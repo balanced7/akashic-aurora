@@ -18,9 +18,9 @@ import tempfile
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.foundation.store import FileStore
-from core.narrative.beat_log import BeatLog
 from core.narrative import episode as ep
 from core.narrative import episode_suggester as sg
+from core.narrative.beat_log import BeatLog
 
 
 def _store():

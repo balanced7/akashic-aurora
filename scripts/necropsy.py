@@ -60,9 +60,10 @@ def census(agent: str = "claude", window_h: float = WINDOW_H_DEFAULT, now: Optio
     Transcript universe: the eye's corpus (live harness dirs + rescued archive --
     the definition that survived the 08-11 rebuild lesson), minus the archive
     copies themselves (they are preservation, not sessions to autopsy)."""
+    import os
+
     from core.comm import wake_seat as ws
     from core.eye.index import default_corpus
-    import os
 
     now_f = float(now if now is not None else time.time())
     out: List[dict] = []
@@ -149,7 +150,8 @@ def _write_note(agent: str, title: str, body: str) -> bool:
     """The note-door write, seam-shaped for tests (n8 monkeypatches it). Subprocess
     argv list, never shell -- the prime session's backtick lesson, standing."""
     try:
-        import subprocess, sys
+        import subprocess
+        import sys
 
         r = subprocess.run(
             [sys.executable, "agent_cli.py", "note", agent, "--title", title, "--category", "save", "--note", body],

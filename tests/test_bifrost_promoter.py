@@ -14,10 +14,10 @@ import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.foundation.ledger import FileLedger
+from core.comm.promoter import PROMOTED_KIND, is_salient, promote, promoted
 from core.events.event_log import EventLog
 from core.events.event_query import EventQuery
-from core.comm.promoter import promote, promoted, is_salient, PROMOTED_KIND
+from core.foundation.ledger import FileLedger
 
 
 def _log():

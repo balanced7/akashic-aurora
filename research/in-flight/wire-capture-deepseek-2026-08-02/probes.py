@@ -4,12 +4,19 @@ Run: py research/in-flight/wire-capture-deepseek-2026-08-02/probes.py
 """
 
 from __future__ import annotations
-import json, os, sys, time, pathlib, pprint, itertools
+
+import itertools
+import json
+import os
+import pathlib
+import pprint
+import sys
+import time
 
 # --- setup: key and client ------------------------------------------------
 ROOT = pathlib.Path(__file__).resolve().parent.parent.parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
-from deepseek_chat import load_key, BASE_URL, PRO
+from deepseek_chat import BASE_URL, PRO, load_key
 
 API_KEY = load_key()
 if not API_KEY:

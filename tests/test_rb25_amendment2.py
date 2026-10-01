@@ -36,8 +36,8 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.trust import registry
 from core.comm.bus import Bus
+from core.trust import registry
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 

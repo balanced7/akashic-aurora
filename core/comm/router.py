@@ -9,14 +9,13 @@ turn untrusted kind strings into unbounded Redis cardinality.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from datetime import datetime, timezone
 import hashlib
 import json
+from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Any, Dict, Optional, Tuple
 
 from core.comm import packet_spec
-
 
 MODE = "shadow"
 UNKNOWN_RULE = "_unknown"

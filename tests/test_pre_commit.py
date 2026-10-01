@@ -12,9 +12,9 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from scripts.githooks import pre_commit
 import core.comm.locks as L
 import core.trust.private_plane as PP  # the leak guard main() imports at call time
+from scripts.githooks import pre_commit
 
 
 def _patch_locks(monkeypatch, locked_by):

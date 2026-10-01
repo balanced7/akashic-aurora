@@ -34,12 +34,12 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts"))
 
 from core.comm import packet_spec as ps
-from core.comm.bus import Bus
 from core.comm.bifrost_api import BifrostAPI
+from core.comm.bus import Bus
 
 
 def _client():
-    from core.foundation.redis_connection import connect_to_redis_with_fail_fast, DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT
+    from core.foundation.redis_connection import DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT, connect_to_redis_with_fail_fast
 
     c = connect_to_redis_with_fail_fast(
         host=DEFAULT_REDIS_HOST, port=DEFAULT_REDIS_PORT, timeout_seconds=3, decode_responses=True
@@ -165,8 +165,9 @@ def test_pending_check_not_trapped_by_legacy_junk(monkeypatch):
 
 
 def test_pending_skip_parity_with_lane_skip_set():
-    from core.comm import bifrost_api
     import bifrost_wake as bw
+
+    from core.comm import bifrost_api
 
     assert bifrost_api.PENDING_SKIP_KINDS == bw.SKIP_KINDS_LANE, (
         "drift here either traps the pending check on junk or wakes idle seats on noise"

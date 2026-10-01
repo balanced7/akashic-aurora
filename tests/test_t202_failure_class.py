@@ -54,7 +54,6 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.comm import failure_class as FC  # noqa: E402
 
-
 # --------------------------------------------------------------------------------------
 # The four classes, each keyed to a real row from the measurement above.
 # --------------------------------------------------------------------------------------

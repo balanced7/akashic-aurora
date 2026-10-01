@@ -257,8 +257,8 @@ def _probe_lane_wrongtype(agent: str) -> List[Dict[str, str]]:
     (type 'none'); anything else non-stream is a finding. Never raises."""
     out: List[Dict[str, str]] = []
     try:
-        from core.comm.bus import Bus
         from core.comm import packet_spec as ps
+        from core.comm.bus import Bus
 
         b = Bus(agent)
         if not b.online:
@@ -847,8 +847,8 @@ def unwedge(agent: str) -> Dict[str, Any]:
         pass
     # 4) Runner status
     try:
-        from core.comm.runner_lock import holder
         from core.comm.incarnation import daemon_runtimes
+        from core.comm.runner_lock import holder
 
         h = holder(agent) or {}
         rt = daemon_runtimes(agent)
@@ -1043,8 +1043,8 @@ def pulse(agents: Optional[List[str]] = None) -> Dict[str, Any]:
     zones: Dict[str, List[str]] = {"critical": [], "elevated": [], "normal": [], "absent": []}
     readings: Dict[str, Dict[str, Any]] = {}
     try:
-        from core.comm.lane_depths import work_backlog
         from core.comm.bus import Bus
+        from core.comm.lane_depths import work_backlog
 
         for a in agents:
             try:
@@ -1256,8 +1256,9 @@ def flightdeck(agent: Optional[str] = None, *, commit_hours: float = 6.0) -> Dic
     # lens that separates "runner alive" from "answers actually landing".
     asks_rows: Dict[str, Any] = {}
     try:
-        from core.comm.expectations import snapshot as _snapshot
         import time as _time
+
+        from core.comm.expectations import snapshot as _snapshot
 
         _now = _time.time()
         for a_row in out["agents"]:
@@ -1485,8 +1486,8 @@ def _stale_code_line(agent: str) -> Optional[Dict[str, Any]]:
 
 
 def _token_cost_line(agent: str, journal_dir: str = "") -> Optional[Dict[str, Any]]:
-    import os as _os
     import json as _json
+    import os as _os
     import time as _time
 
     today = _time.strftime("%Y-%m-%d")

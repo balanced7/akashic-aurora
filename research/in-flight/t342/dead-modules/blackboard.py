@@ -12,14 +12,15 @@ Key improvements:
 - Lightweight Master state machine (not an LLM)
 """
 
+import hashlib
 import json
 import os
+import threading
 import time
 import uuid
-import hashlib
-import threading
 from datetime import datetime
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict, List, Optional
+
 import redis
 
 # Paths

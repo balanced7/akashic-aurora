@@ -33,10 +33,11 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, List, Optional
 
-from core.screenspace import capture
-from core.screenspace import canary  # §1 amended ruling: positive canary read (uia_available)
+from core.screenspace import (
+    canary,  # §1 amended ruling: positive canary read (uia_available)
+    capture,
+)
 from core.screenspace.foreground import ForegroundTracker
-
 
 # --------------------------------------------------------------------------- result types
 

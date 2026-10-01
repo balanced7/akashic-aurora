@@ -18,12 +18,12 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-from core.paths import repo_root as _repo_root
 import re
 import time
 from typing import Any, Dict, List, Optional
 
 from core.library import taxonomy as tx
+from core.paths import repo_root as _repo_root
 
 # Doc-plane types only (LIBRARY.md canon); machine/file-plane kinds (skill, pin,
 # receipt, machine:*) stay files. `fossil` is a STATUS here, not a type.

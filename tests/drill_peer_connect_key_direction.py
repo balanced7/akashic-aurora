@@ -83,7 +83,8 @@ def main() -> int:
     print("PART 1 — the local pins pass in BOTH worlds (so they cannot discriminate)")
     print("=" * 78)
 
-    import tempfile, os
+    import os
+    import tempfile
 
     tmp = tempfile.mkdtemp(prefix="key-direction-")
     os.environ["AKASHIC_REMOTE_BRIDGE_INBOX"] = str(Path(tmp) / "in.jsonl")

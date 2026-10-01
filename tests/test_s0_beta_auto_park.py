@@ -46,8 +46,9 @@ def test_auto_park_on_d2_stale_partition(monkeypatch):
     _ns_env(monkeypatch)
     if not _online():
         pytest.skip("redis not available")
-    from core.comm import triage_park
     from dataclasses import dataclass
+
+    from core.comm import triage_park
 
     @dataclass
     class M:
@@ -92,7 +93,7 @@ def test_stale_non_ask_not_parked(monkeypatch):
     _ns_env(monkeypatch)
     if not _online():
         pytest.skip("redis not available")
-    from core.comm import triage_park, packet_spec
+    from core.comm import packet_spec, triage_park
 
     bench_before = triage_park.count("deepseek")
     # Inform is NOT an ask kind — should never be parked

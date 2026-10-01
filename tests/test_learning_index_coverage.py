@@ -25,10 +25,10 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, REPO)
 sys.path.insert(0, os.path.join(REPO, "scripts"))
 
+import repair_learning_index as rli
+
 from core.foundation.store import DictStore
 from core.learning.learning_store import LearningStore
-
-import repair_learning_index as rli
 
 
 @pytest.fixture()

@@ -21,9 +21,10 @@ Usage:
 import json
 import os
 import time
-import redis
-from datetime import datetime
 from collections import defaultdict
+from datetime import datetime
+
+import redis
 
 ERROR_LOG = r"E:\AI-Setup\session_logs\errors_and_faults.jsonl"
 

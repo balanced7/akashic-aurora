@@ -33,8 +33,8 @@ DESIGN, reconciled from a fenced two-seat round (deepseek mechanism / kimi adver
 Per docs/method-baseline-2026-07.md, these pins commit BEFORE the code they gate.
 """
 
-from pathlib import Path
 import sys
+from pathlib import Path
 
 import pytest
 

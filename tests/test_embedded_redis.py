@@ -174,8 +174,9 @@ def test_external_backend_never_starts_a_server(monkeypatch):
 
 
 def test_first_boot_seeds_the_file_store_once(tmp_path, monkeypatch):
-    import fakeredis
     from types import SimpleNamespace
+
+    import fakeredis
 
     data = tmp_path / "data"
     (data / "session_logs").mkdir(parents=True)
@@ -212,6 +213,7 @@ def test_first_boot_seeds_the_file_store_once(tmp_path, monkeypatch):
 
 def test_ledger_backfills_file_history_on_the_embedded_backend(tmp_path, monkeypatch):
     import fakeredis
+
     from core.foundation import ledger as L
 
     fl = L.FileLedger(str(tmp_path))
@@ -230,6 +232,7 @@ def test_ledger_backfills_file_history_on_the_embedded_backend(tmp_path, monkeyp
 
 def test_ledger_never_backfills_an_external_redis(tmp_path, monkeypatch):
     import fakeredis
+
     from core.foundation import ledger as L
 
     fl = L.FileLedger(str(tmp_path))

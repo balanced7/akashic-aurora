@@ -93,7 +93,7 @@ def start_session(store: Optional[Store] = None, *, now: Optional[str] = None, c
         # leak otherwise -- DeepSeek review Q5), which opens a fresh episode for THIS session; else
         # open one. Best-effort -- a bookend hiccup never blocks boot.
         try:
-            from core.narrative.episode import close_episode, open_episode, _load_open
+            from core.narrative.episode import _load_open, close_episode, open_episode
 
             if _load_open(store):
                 close_episode(store, now=now_iso)  # drafts prior span + opens the next episode

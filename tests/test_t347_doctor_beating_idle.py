@@ -33,8 +33,10 @@ import time
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from core.comm import doctor  # noqa: E402
-from core.comm import liveness  # noqa: E402
+from core.comm import (
+    doctor,  # noqa: E402
+    liveness,  # noqa: E402
+)
 
 RUNNER_ID = "deepseek#23444-de"  # the receipt's exact shape
 SEAT_ID = "docpin#abcd1234"  # 8-hex sid = true seat contract

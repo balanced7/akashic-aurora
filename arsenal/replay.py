@@ -15,7 +15,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlencode, urlsplit
 
 from .performance import PerformanceError, PerformanceStore
-from .pianocue import build_replay_cue, clock_text, parse_clock, validate_cue, _utf8_streams, _note_spans
+from .pianocue import _note_spans, _utf8_streams, build_replay_cue, clock_text, parse_clock, validate_cue
 from .replay_harmony import harmony, theory_module
 
 DEFAULT_PORT = 8796

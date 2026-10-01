@@ -16,7 +16,6 @@ import pytest
 
 from core import world_seed as S
 
-
 # ---------------------------------------------------------------- direction
 
 

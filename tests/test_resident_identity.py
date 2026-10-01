@@ -34,8 +34,8 @@ Run: py -m pytest tests/test_resident_identity.py -q
 """
 
 import os
-import sys
 import subprocess
+import sys
 
 import isolate_canonical  # noqa: F401 -- db 15 + temp AI_SETUP, flushed (child inherits via env)
 
@@ -228,8 +228,8 @@ def test_p9_a_store_fault_is_unknown_not_a_verdict_about_the_receipt(seeded, mon
     'this receipt does not resolve' and REFUSES the nomination. So a store outage silently
     became a verdict about someone's callsign evidence -- absence vs UNKNOWN, inside a door
     built to be strict about exactly that distinction."""
-    from core.fleet import residents as R
     import core.learning.learning_store as LS
+    from core.fleet import residents as R
 
     # Fail THE STORE, not the function -- the realistic outage. A bug inside _receipt_author
     # should crash loudly instead; only a store fault may be converted to UNKNOWN, or the

@@ -134,8 +134,8 @@ def test_work_backlog_is_cursor_relative(monkeypatch):
     monkeypatch.setenv("BIFROST_NAMESPACE", ns)
     if not _online():
         pytest.skip("redis not available")
-    from core.comm.bus import Bus
     from core.comm import lane_depths
+    from core.comm.bus import Bus
 
     agent = f"t-wb-{_uuid.uuid4().hex[:6]}"
     b = Bus(agent)

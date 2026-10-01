@@ -40,9 +40,9 @@ import argparse
 import hashlib
 import json
 import os
-import tempfile
 import shutil
 import sys
+import tempfile
 import time
 from datetime import datetime, timezone
 from pathlib import Path

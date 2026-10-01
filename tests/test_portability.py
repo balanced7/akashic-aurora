@@ -233,6 +233,7 @@ def test_p7_archiver_refuses_no_destinations_instead_of_reporting_ok(tmp_path):
 
 def test_p8_archiver_refuses_a_relative_destination(tmp_path, monkeypatch):
     from pathlib import Path
+
     from scripts.ops import archive_transcripts as arch
 
     monkeypatch.chdir(tmp_path)

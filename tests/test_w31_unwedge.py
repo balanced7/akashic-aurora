@@ -16,7 +16,7 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.comm.doctor import unwedge, format_unwedge
+from core.comm.doctor import format_unwedge, unwedge
 
 
 def _patch_deps(

@@ -22,7 +22,7 @@ import time
 os.environ.setdefault("AI_SETUP", tempfile.mkdtemp())
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.recall.at_action import recall_at, render, _query_from
+from core.recall.at_action import _query_from, recall_at, render
 
 
 class _FakeStore:
@@ -141,9 +141,9 @@ def test_render_n_of_m_escape_line():
 
 
 def test_full_record_pulls_the_whole_record():
-    from core.recall.at_action import full_record
-    from core.learning.learning_store import LearningStore
     from core.foundation.store import FileStore
+    from core.learning.learning_store import LearningStore
+    from core.recall.at_action import full_record
 
     ls = LearningStore(store=FileStore(os.path.join(tempfile.mkdtemp(), "learn.json")))
     ls.persist_learning_derived_from_experiment(
@@ -165,9 +165,9 @@ def test_full_record_pulls_the_whole_record():
 
 
 def test_full_record_fails_soft():
-    from core.recall.at_action import full_record
-    from core.learning.learning_store import LearningStore
     from core.foundation.store import FileStore
+    from core.learning.learning_store import LearningStore
+    from core.recall.at_action import full_record
 
     empty = LearningStore(store=FileStore(os.path.join(tempfile.mkdtemp(), "empty.json")))
     assert full_record("") == {}
@@ -220,8 +220,8 @@ def test_usefulness_factor():
 
 
 def test_record_feedback_counters():
-    from core.recall.at_action import record_feedback, _load_use
     from core.foundation.store import FileStore
+    from core.recall.at_action import _load_use, record_feedback
 
     st = FileStore(os.path.join(tempfile.mkdtemp(), "use.json"))
     assert record_feedback("learn:experiment:x", "useful", store=st) is True

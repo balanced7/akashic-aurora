@@ -81,6 +81,7 @@ def test_p6_boot_returns_without_a_second_inbound_frame(tmp_path):
     async def flow():
         import asyncio
         import uuid
+
         from mcp import ClientSession
 
         agent = f"mcp-boot-regression-{uuid.uuid4().hex[:12]}"

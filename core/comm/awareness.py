@@ -14,7 +14,6 @@ from typing import Any, Callable, Dict, Mapping, Optional, Sequence
 
 from core.coord.observations import Observation, Snapshot
 
-
 DEFAULT_ORDER = ("bus", "bench", "route", "moved")
 
 
@@ -367,7 +366,7 @@ def observe_route(subject: str) -> Observation:
 
 
 def observe_moved(subject: str) -> Observation:
-    from agent.harness.delta import DeltaMark, FIELDS, current_positions
+    from agent.harness.delta import FIELDS, DeltaMark, current_positions
 
     mark = DeltaMark(subject).read()
     current = current_positions(subject)

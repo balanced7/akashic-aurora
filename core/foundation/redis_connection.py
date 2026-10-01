@@ -21,11 +21,11 @@ This is the canonical connector. All backends and stores build on it so the
 fail-fast guarantee lives in exactly one place.
 """
 
-import os
-import time
-import socket
 import logging
-from typing import Optional, Any, Tuple
+import os
+import socket
+import time
+from typing import Any, Optional, Tuple
 
 logger = logging.getLogger("redis_connection")
 
@@ -68,7 +68,8 @@ def _resolve_default_redis_endpoint() -> Tuple[str, int]:
     # Base = config.py (the SSOT); env vars override PER FIELD, so setting just
     # REDIS_PORT (or just REDIS_HOST) works. Fallback if config is unimportable.
     try:
-        from config import REDIS_HOST as host, REDIS_PORT as port
+        from config import REDIS_HOST as host
+        from config import REDIS_PORT as port
     except Exception:
         host, port = "localhost", 6380
 

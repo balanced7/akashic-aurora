@@ -17,8 +17,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.foundation.store import FileStore
 from core.narrative.schema import Beat, beat_key
-from core.narrative.tagging import TagHistory
 from core.narrative.tag_audit import TagAuditor
+from core.narrative.tagging import TagHistory
 
 
 def _epoch(iso):

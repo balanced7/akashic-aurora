@@ -27,13 +27,10 @@ from pathlib import Path
 
 import pytest
 
-from arsenal import timebase
-from arsenal import mediatypes
-from arsenal import registry
 from arsenal import graph as graphmod
+from arsenal import mediatypes, registry, timebase
 from arsenal import plan as planmod
 from arsenal import take as takemod
-
 
 # ---------------------------------------------------------------- timebase
 

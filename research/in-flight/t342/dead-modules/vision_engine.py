@@ -37,19 +37,19 @@ Usage:
     result = engine.phrase_grounding(screenshot, "error")
 """
 
-import os
-import sys
-import json
 import base64
 import io
+import json
+import os
+import sys
 import time
-from pathlib import Path
-from typing import Optional, Dict, Any, List
 from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 import torch
-from PIL import Image, ImageGrab
 import yaml
+from PIL import Image, ImageGrab
 
 # Paths
 VISION_CACHE = r"E:\AI-Setup\models\vision"

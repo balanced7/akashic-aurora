@@ -37,7 +37,7 @@ def select_targets(limit: int = MAX_TARGETS_PER_PASS, *, store=None, learning_st
     desc (the biggest surface-cost first). Fail-soft to []."""
     out: List[Dict[str, Any]] = []
     try:
-        from core.learning.learning_store import get_learning_store, is_graduated, is_benched
+        from core.learning.learning_store import get_learning_store, is_benched, is_graduated
         from core.recall.at_action import _load_use, _store
         from core.recall.curator import _credit
 
@@ -68,8 +68,9 @@ def _proposal_pending(rec: Dict[str, Any]) -> bool:
         return False
     if not isinstance(prop, dict) or not prop.get("draft"):
         return False
-    from core.foundation.timeutil import to_epoch
     import time
+
+    from core.foundation.timeutil import to_epoch
 
     at = to_epoch(prop.get("at") or 0)
     return bool(at and (time.time() - at) / 86400.0 <= PROPOSAL_TTL_DAYS)
@@ -170,9 +171,9 @@ def run_pass(
     """One optimizer pass: select -> prompt -> propose_fn (the injected model call) ->
     parse -> Tier-0 gate -> stamp pending proposal (PASS / UNMEASURABLE only; FAIL is
     closed by the gate's rejected buffer). Returns a row per target for the operator."""
-    from core.recall.forge import gate_edit
-    from core.recall.at_action import _load_use, _store, _cached_items
     from core.learning.learning_store import get_learning_store
+    from core.recall.at_action import _cached_items, _load_use, _store
+    from core.recall.forge import gate_edit
 
     ls = learning_store or get_learning_store()
     st = store or _store()

@@ -13,14 +13,14 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from core.narrative.schema import Beat
 from core.narrative.tagging import (
+    BASIS_CONFIDENCE,
     TagEntry,
     TagHistory,
-    confidence_for,
-    BASIS_CONFIDENCE,
     _as_unit_confidence,
+    confidence_for,
 )
-from core.narrative.schema import Beat
 
 INF, NINF, NAN = float("inf"), float("-inf"), float("nan")
 

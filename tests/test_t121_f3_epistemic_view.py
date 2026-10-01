@@ -32,7 +32,6 @@ from core.primitives.epistemic import (
     epistemic_view_from_bus,
 )
 
-
 AXIS_NAMES = (
     "authority",
     "claim_kind",

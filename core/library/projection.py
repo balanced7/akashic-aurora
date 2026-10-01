@@ -14,9 +14,10 @@ the full-corpus walk + maps.
 from __future__ import annotations
 
 import os
-from core.paths import repo_root as _repo_root
 import time
 from typing import Any, Dict
+
+from core.paths import repo_root as _repo_root
 
 DEFAULT_LIBRARY_DIR = os.path.join("docs", "library")
 

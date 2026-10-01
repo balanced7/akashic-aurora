@@ -11,6 +11,8 @@ import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from core.context.aggregator import assemble_context
+from core.context.narrative_loader import load_recent_narrative_for_boot
 from core.foundation.store import FileStore
 from core.narrative.beat_log import BeatLog, reset_beat_log_singleton
 from core.narrative.chapter_lifecycle import (
@@ -22,11 +24,9 @@ from core.narrative.chapter_lifecycle import (
     write_learning_chapter_backlinks,
 )
 from core.narrative.chronicler import Chronicler
-from core.narrative.schema import Chapter, Track, ATLAS_KEY, chapter_key, track_key
-from core.primitives.ranker import Ranker
+from core.narrative.schema import ATLAS_KEY, Chapter, Track, chapter_key, track_key
 from core.primitives.distiller import Distiller
-from core.context.narrative_loader import load_recent_narrative_for_boot
-from core.context.aggregator import assemble_context
+from core.primitives.ranker import Ranker
 
 
 def _store():

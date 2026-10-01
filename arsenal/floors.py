@@ -20,9 +20,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-import numpy as np
-
 import av
+import numpy as np
 
 API = "arsenal.floors/v0"
 

@@ -20,8 +20,8 @@ sys.path.insert(0, ROOT)
 from scripts.bifrost_child import (
     DaemonLock,
     ManagedChild,
-    read_summary,
     format_summary_for_prompt,
+    read_summary,
 )
 
 
@@ -354,7 +354,8 @@ def test_p5r_daemon_spawns_runner_child_on_start(tmp_path):
     home = str(tmp_path)
     daemon_lock_key = f"{ns}:daemon:t075p5r"
     try:
-        import subprocess, time as _time
+        import subprocess
+        import time as _time
 
         daemon_path = os.path.join(ROOT, "scripts", "bifrost_daemon.py")
         env = dict(os.environ)
@@ -414,7 +415,8 @@ def test_p9_daemon_starts_in_spawn_runner_mode(tmp_path):
     home = str(tmp_path)
     daemon_lock_key = f"{ns}:daemon:t075p9"
     try:
-        import subprocess, time as _time
+        import subprocess
+        import time as _time
 
         daemon_path = os.path.join(ROOT, "scripts", "bifrost_daemon.py")
         env = dict(os.environ)

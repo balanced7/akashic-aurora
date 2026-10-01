@@ -7,9 +7,10 @@ Pin 3 (argparse-eaten): ask-peer's step 2 fires Rule 2 -> DRIFT
 Pin 4 (guess-honesty): GUESS+tested_against -> DRIFT
 """
 
-import pytest
-import sys
 import os
+import sys
+
+import pytest
 
 # Ensure project root on path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -17,16 +18,15 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from core.toolbelt.audit import (
     Row,
     VerbsDomain,
-    run,
-    render,
-    json_result,
-    _parse_kata_ts,
-    _parse_iso_ts,
+    _all_agents,
     _detect_argparse_eaten_tokens,
     _load_registry,
-    _all_agents,
+    _parse_iso_ts,
+    _parse_kata_ts,
+    json_result,
+    render,
+    run,
 )
-
 
 # ---------------------------------------------------------------------------
 # Unit: helpers

@@ -28,14 +28,14 @@ Usage:
     get_project_context_manager_instance().mark_milestone_as_completed("Redis HA Deployed")
 """
 
-import os
-import sys
 import json
+import os
 import random
+import sys
+from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Any, Optional
-from dataclasses import dataclass, asdict
+from typing import Any, Dict, List, Optional
 
 
 @dataclass

@@ -53,7 +53,7 @@ from core.foundation.timeutil import render_iso
 # W169 slice 1: the three recall verbs that owe agent_cli nothing live in core/recall/surface.py.
 # Top-level import ON PURPOSE -- build_parser's set_defaults(fn=...) binds these very objects, so
 # the verbs stay reachable through the same names the parser has always bound (pins: test_w169_*).
-from core.recall.surface import cmd_recall_at, cmd_recall_feedback, cmd_recall_curate, cmd_recall_prevention
+from core.recall.surface import cmd_recall_at, cmd_recall_curate, cmd_recall_feedback, cmd_recall_prevention
 
 
 def _pyl() -> str:
@@ -308,8 +308,8 @@ def _warn_unmirrored(soft=False, status=None):
 
 # --------------------------------------------------------------------------- boot
 def cmd_boot(args):
-    from agent.initializer import derive_agent_context_from_startup_sources
     from agent.bifrost_pull import collect_boot_bifrost, print_boot_bifrost_section, print_boot_locks_section
+    from agent.initializer import derive_agent_context_from_startup_sources
 
     res = derive_agent_context_from_startup_sources(args.agent_id, args.task, verbose=False)
     bifrost = collect_boot_bifrost(args.agent_id, limit=8)
@@ -337,7 +337,7 @@ def cmd_boot(args):
     # W09 (kimi F2): print the ARMED line so downstream silence reads as CALIBRATED (the surface
     # is live, nothing was relevant), never as a suspected-dead hook (kimi mis-diagnosed absence).
     try:
-        from core.recall.at_action import warm_cache, prune_state
+        from core.recall.at_action import prune_state, warm_cache
 
         _warm_n = warm_cache()
         prune_state()
@@ -382,7 +382,7 @@ def cmd_boot(args):
     # RB-25 Drill 2 (H2b): heal_report() surfaces BOTH the File->Redis backfill AND any Redis-only
     # orphan gap the unidirectional reconciler leaves behind -- boot was silent about the latter.
     try:
-        from core.foundation.store import create_store, HybridStore
+        from core.foundation.store import HybridStore, create_store
 
         _st = create_store(prefer_redis=True)
         if isinstance(_st, HybridStore) and _st.redis_available:
@@ -476,6 +476,7 @@ def cmd_boot(args):
         # RB-5: pages + thresholds through the same seams as the promoted CLI verb, so
         # boot and CLI can never disagree; a full page confesses the older records.
         import time as _t2
+
         from core.comm.promoter import promoted_page, unhandled_threshold_hours
 
         evs, more = promoted_page(limit=5, with_acks=True, now=_t2.time(), unhandled_hours=unhandled_threshold_hours())
@@ -582,7 +583,7 @@ def cmd_boot(args):
 def cmd_delta(args):
     """The delta door (T052/R1): what moved since this agent's last boot. --ack advances
     the seen mark to current positions (the explicit commit surface; boot auto-commits)."""
-    from agent.harness.delta import render_full, delta_boot_block
+    from agent.harness.delta import delta_boot_block, render_full
 
     print(render_full(args.agent_id))
     if getattr(args, "ack", False):
@@ -889,6 +890,7 @@ def cmd_recall(args):
     # results include the thing it named.
     if query:
         import re as _re
+
         from core.recall.at_action import TITLE_SHAPED_RE
 
         _looks_like_title = bool(_re.match(TITLE_SHAPED_RE, query.strip(), _re.IGNORECASE))
@@ -997,8 +999,8 @@ def cmd_recall_counters(args):
     bare slugs merge into their canonical key, and ZERO-credit ghosts are deleted. A ghost that
     carries credit (useful/helped/noise) is earned history and is KEPT + reported for S2 to fold
     into the superseding lesson -- never auto-dropped (that would silently discard a real signal)."""
-    from core.recall.at_action import merge_use_counters, prune_ghost_counters, canonicalize_source, _store, _USE_PREFIX
     from core.learning.learning_store import get_learning_store
+    from core.recall.at_action import _USE_PREFIX, _store, canonicalize_source, merge_use_counters, prune_ghost_counters
 
     ls = get_learning_store()
     store = _store()
@@ -1115,7 +1117,7 @@ def cmd_fleet(args):
         if not args.model or not args.prompt:
             print("ERROR: fleet call needs --model TAG and --prompt TEXT")
             return 2
-        from core.fleet.caller import call, FleetCallError
+        from core.fleet.caller import FleetCallError, call
 
         try:
             out = call(
@@ -1202,7 +1204,7 @@ def cmd_injections(args):
     """The injection ledger: everything recall PUSHED into agent contexts recently -- when,
     at which altitude (action/plan), for which target, which lessons, and what it cost.
     Injected context must never be hidden state; this is the inspection window."""
-    from core.recall.at_action import recent_injections, injections_by_family
+    from core.recall.at_action import injections_by_family, recent_injections
 
     hours = float(args.hours or 24)
     inj = recent_injections(hours)
@@ -1462,6 +1464,7 @@ def cmd_timeline(args):
     looks exactly like a view where nothing happened in it.
     """
     import time as _t
+
     from core.coord import timeline as tl
 
     since = _t.time() - float(args.hours) * 3600.0 if args.hours else None
@@ -1645,7 +1648,7 @@ def _boot_you_line(agent_id: str) -> str:
     confident claim in either direction. A live twin holding the consumer seat is
     NAMED (S3b: the daemon wakes the seat-holder, not necessarily this session)."""
     try:
-        from core.comm.runner_lock import session_holder_token, holder
+        from core.comm.runner_lock import holder, session_holder_token
 
         tok = session_holder_token() or ""
         if not tok:
@@ -1711,8 +1714,9 @@ def _boot_world_line() -> str:
     lineage = "origin unrecorded -- no seed manifest, so this memory is either native or was copied in by hand"
     try:
         import redis as _redis
-        from core.world_seed import read_manifest
+
         from core.foundation.redis_connection import probe_redis_reachable
+        from core.world_seed import read_manifest
 
         # PREFLIGHT, or this line costs 48 SECONDS against a stopped world. Measured 2026-09-27,
         # right after alpha and beta were retired.
@@ -2314,6 +2318,7 @@ def _orientation_header(agent_id: str, primer_aware: bool = False) -> str:
     lines.append(PRECEDENCE_DOCTRINE)
     try:
         import time as _time
+
         from core.coord.task_ledger import state_view
 
         v = state_view(now=_time.time())
@@ -2847,6 +2852,7 @@ def cmd_eye(args):
     """THE EYE's door (T278). S0: ingest / find / get. The grammar's facets land S1 on
     these same subcommands -- one door, growing verbs, never a second surface."""
     import json as _json
+
     from core.eye import index as _EYE
 
     if args.eye_cmd == "ingest":
@@ -3233,7 +3239,8 @@ def cmd_ask(args):
     without the caller -- an answer needs none of it.
     """
     from core.comm import ask as ask_mod
-    from core.comm.ask import ask as ask_helper, ask_many
+    from core.comm.ask import ask as ask_helper
+    from core.comm.ask import ask_many
 
     # T196d: `ask --status <id>` -- the transaction readout. A state is a successful
     # READ whatever it says: even UNKNOWN is an answer (the spec's forgotten state),
@@ -3421,6 +3428,7 @@ def cmd_ask(args):
     # report different shapes; the parent exits immediately and the answer waits in a file.
     if getattr(args, "bg", False):
         import subprocess
+
         from core.comm import ask_bg as _bg
 
         handle = _bg.new_handle()
@@ -3793,10 +3801,10 @@ def cmd_gateway(args):
     arbitrary process kill+relaunch should need an approver, not ride a read verb.
     """
     import subprocess
-    from pathlib import Path
-    from core.comm import wake_seat as _WS
-
     import time as _t
+    from pathlib import Path
+
+    from core.comm import wake_seat as _WS
 
     _ROOT = Path(__file__).resolve().parent
     runner = _ROOT / "scripts" / "bifrost_runner_discord.py"
@@ -3979,8 +3987,8 @@ def cmd_sift(args):
     rate on evidence identity. Adjudication stops here on purpose -- T207 measured that
     step as the one a helper gets confidently wrong.
     """
-    from core.coord import sift as S
     from core.comm.ask import ask_many
+    from core.coord import sift as S
 
     hats = [h.strip() for h in args.hats.split(",") if h.strip()] or list(S.DEFAULT_HATS)
     planes = tuple(p.strip() for p in args.planes.split(",") if p.strip())
@@ -4390,8 +4398,8 @@ def cmd_doc(args):
     """
     sub = getattr(args, "sub", "new")
     if sub == "arc":
-        from core.library.atoms import AtomFamily
         from core.foundation.store import create_store
+        from core.library.atoms import AtomFamily
 
         repo = str(Path(__file__).resolve().parent)
         return _doc_arc(
@@ -4475,10 +4483,10 @@ def cmd_doc(args):
         arc = _ledger_claim_arc(seats[0])
         arc_src = "ledger claim" if arc else "(none inferable)"
 
-    from core.library import taxonomy as _tx
-    from core.library.atoms import AtomFamily, AtomError
-    from core.library.projection import render_atom
     from core.foundation.store import create_store
+    from core.library import taxonomy as _tx
+    from core.library.atoms import AtomError, AtomFamily
+    from core.library.projection import render_atom
 
     flag_cats = [c.strip() for c in (getattr(args, "category", None) or []) if c.strip()]
     auto_cats = _tx.classify(f"{title} {body[:500]}")
@@ -4616,7 +4624,7 @@ def cmd_note(args, *, mem=None):
             f"[CLIPPED] title: {len(str(args.title))} chars exceeds the 200-char cap -- "
             f"stored (and supersede-matched) as {title!r}"
         )
-    from core.learning.agent_memory import SupersedeRaceError, normalize_title, HEAD_KEY_PREFIX
+    from core.learning.agent_memory import HEAD_KEY_PREFIX, SupersedeRaceError, normalize_title
 
     body = _intake(args.note, _MAX_NOTE, "note body", clipped)
     ctx = _intake(args.context or "", 1000, "context", clipped)
@@ -4998,6 +5006,7 @@ def cmd_wrap(args):
     where-we-are, so you APPROVE/correct instead of authoring blank. Preview by default; --commit
     records the draft as a note (supersede-by-title) so it surfaces at the next boot."""
     from datetime import datetime
+
     from core.learning.agent_memory import get_agent_memory
 
     # STANDING PRACTICE (2026-08-01): land any new corpus digests before distilling. A 59-agent
@@ -5304,7 +5313,7 @@ def cmd_stats(args):
             print("  (no rows -- calls==0 is 'nothing recorded', NOT '0% silent')")
         print(f"  pack replay (frozen-30 vs the reconciled bar): {_pyl()} -m core.recall.pack_replay")
         return 0
-    from core.recall.funnel import snapshot, trend, TARGET_LESSONS_30D
+    from core.recall.funnel import TARGET_LESSONS_30D, snapshot, trend
 
     hours = float(args.hours or 24)
     out = snapshot(hours=hours)
@@ -5455,11 +5464,12 @@ def cmd_story(args, store=None):
       py agent_cli.py story --beat ID      -> full beat detail
       py agent_cli.py story --json         -> any of the above as JSON
     """
-    from core.narrative.chronicler import Chronicler
-    from core.narrative.schema import Beat, Chapter, Track, Atlas, Edge, beat_key, chapter_key, track_key
-    from core.foundation.store import create_store
-    from core.narrative.track_router import RouteHint
     import json as _json
+
+    from core.foundation.store import create_store
+    from core.narrative.chronicler import Chronicler
+    from core.narrative.schema import Atlas, Beat, Chapter, Edge, Track, beat_key, chapter_key, track_key
+    from core.narrative.track_router import RouteHint
 
     if store is None:
         store = create_store()
@@ -5726,8 +5736,9 @@ def cmd_story(args, store=None):
 
 def _print_atlas(atlas, store) -> None:
     """Print atlas overview to stdout."""
-    from core.narrative.schema import Track, track_key, chapter_key
     import json
+
+    from core.narrative.schema import Track, chapter_key, track_key
 
     print(f"# Story Atlas")
     print(f"Generated: {atlas.generated_at}")
@@ -6177,8 +6188,9 @@ def cmd_promoted(args):
     P6 (T026): each message shows who HANDLED it; salient-and-unacked past the threshold
     renders an UNHANDLED flag -- promoted-and-forgotten was the disease."""
     import time as _time
-    from core.comm.promoter import promoted_page, unhandled_threshold_hours
+
     from agent.bifrost_pull import format_promoted_events
+    from core.comm.promoter import promoted_page, unhandled_threshold_hours
 
     hours = unhandled_threshold_hours()  # RB-5: the ONE seam; boot reads the same one
     evs, more = promoted_page(
@@ -6222,7 +6234,7 @@ def cmd_doctor_deploy() -> int:
     scatter of unrelated tracebacks rather than one legible answer. A fresh machine should be
     able to ASK what is wrong instead of discovering it one failure at a time.
     """
-    from core.paths import repo_root, env_override_is_wrong
+    from core.paths import env_override_is_wrong, repo_root
 
     root = repo_root()
     bad = []
@@ -6309,7 +6321,7 @@ def cmd_doctor(args):
     """L2 (T030): the fleet doctor -- reads worklive + the progress pulse + backlogs and
     grades findings per the reconciled paging table (page: hard_wedge, aged stall;
     banner: frozen; dashboard: the rest). Healthy fleet = one line."""
-    from core.comm.doctor import examine_fleet, known_agents, examine_services
+    from core.comm.doctor import examine_fleet, examine_services, known_agents
 
     agents = [a.strip() for a in (args.agents or "").split(",") if a.strip()] or None
     rep = examine_fleet(agents, page_notes=bool(args.page))
@@ -6714,8 +6726,8 @@ def cmd_bifrost_ack(args):
 
 def cmd_console_log(args):
     """Query durable console control-plane events (interjection/bus_control/file_drop -> Ledger)."""
-    from core.comm.promoter import console_events
     from agent.bifrost_pull import format_console_events
+    from core.comm.promoter import console_events
 
     evs = console_events(limit=args.limit or 20, since=args.since, until=args.until)
     print(format_console_events(evs, json_out=bool(args.json)))
@@ -7205,8 +7217,8 @@ def cmd_report(args):
 
 def cmd_roster(args):
     """S2: the lobby -- every seat's proven liveness + inventory pointers (W84 render)."""
-    from core.comm.roster import roster, render_roster, by_agent, render_by_agent
     from core.comm.bus import NS as DEFAULT_NS
+    from core.comm.roster import by_agent, render_by_agent, render_roster, roster
 
     ns = os.environ.get("BIFROST_NAMESPACE", DEFAULT_NS)
     if getattr(args, "reap", False):
@@ -7244,8 +7256,8 @@ def cmd_bifrost_sync(args):
     from agent.bifrost_pull import (
         collect_boot_bifrost,
         consume_inbox,
-        format_inbox_line,
         format_digest_line,
+        format_inbox_line,
         print_boot_bifrost_section,
         print_boot_locks_section,
         render_collapsed,
@@ -7400,7 +7412,8 @@ def cmd_forecast(args):
     """T375: the engineering forecast registry door -- register bets at gates,
     score them at review against outcome artifacts, render calibration."""
     import time
-    from core.coord.forecast_registry import ForecastRegistry, RegistryRefusal, VERDICTS
+
+    from core.coord.forecast_registry import VERDICTS, ForecastRegistry, RegistryRefusal
 
     path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "state", "coord", "forecasts.jsonl")
     reg = ForecastRegistry(path=path)
@@ -7871,8 +7884,8 @@ def cmd_bifrost_nudge(args):
     --mode steer:               SOFT -- queue a fact (kind=steer) its runner folds into its CURRENT
                                  task between rounds; it keeps going, adjusted.
     --mode inform:              AMBIENT -- kind=inform; the peer adopts it at its next turn, no disruption."""
-    from core.comm.bus import Bus
     from core.comm import nudge
+    from core.comm.bus import Bus
 
     if not args.to:
         print('ERROR: bifrost-nudge needs --to <agent>. e.g. bifrost-nudge claude --to deepseek "look at X"')
@@ -7991,6 +8004,7 @@ def cmd_captions(args):
     network half stays yt-dlp's contract. Named captions, never transcript: the eye
     owns that word, and load-bearing vocabulary does not fork for recreation."""
     from pathlib import Path as _P
+
     from scripts.yt_captions import fetch
 
     out = args.out or str(_P.home() / "Desktop" / "captions")
@@ -8147,7 +8161,7 @@ def cmd_college(args):
             "source_ids": args.source_ids,
         }
     try:
-        from core.library.college import run_college, render_college
+        from core.library.college import render_college, run_college
 
         result = run_college(action, str(args.course), data, actor=actor)
     except (ValueError, OSError, RuntimeError) as exc:
@@ -8167,7 +8181,8 @@ def cmd_ground(args):
         print("ERROR: ground subject is required: pass --agent <id> or set AKASHIC_AGENT_ID")
         return 2
     try:
-        from core.coord.ground import ground as _ground, render as _render_ground
+        from core.coord.ground import ground as _ground
+        from core.coord.ground import render as _render_ground
 
         result = _ground(str(args.target), subject=subject, continuity=bool(getattr(args, "continuity", False)))
     except ValueError as exc:
@@ -8293,13 +8308,13 @@ def cmd_find(args):
     returns the plain path list. The full grammar (--sort/--regex/--dirs/--scope/...) stays
     as the expert escape hatch."""
     from core.tools.everything import (
-        search_page,
-        format_result,
-        format_hits,
-        format_result_json,
-        format_csv,
-        resolve_preset,
         PRESETS,
+        format_csv,
+        format_hits,
+        format_result,
+        format_result_json,
+        resolve_preset,
+        search_page,
     )
 
     query = str(getattr(args, "query", "") or "")
@@ -8366,6 +8381,7 @@ def cmd_manual(args):
     A zero names its denominator (how many chunks, which shelves) -- absence of a match is
     not absence of the subject."""
     import json as _json
+
     from core.manuals.shelf import Shelf
 
     cmd = str(getattr(args, "manual_cmd", "") or "")
@@ -8669,8 +8685,8 @@ def cmd_mailbox(args):
     state?' -- evidence ladder acked > replied/auto_acked > consumed > unhandled,
     derived read-only from the streams (docs/library/design/20260701_comms-mailbox-over-the-log-t095-governin_06357f.md sec 2).
     Observation only: touches no cursor, ack, wake, or delivery state."""
-    from core.comm.bus import Bus
     from core.comm import mailbox
+    from core.comm.bus import Bus
 
     bus = Bus("mailbox-observer", promote=False)
 
@@ -8877,7 +8893,7 @@ def _durable_backend_name(store) -> str:
 
 
 def cmd_status(args):
-    from core.foundation.redis_connection import connect_to_redis_with_fail_fast, DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT
+    from core.foundation.redis_connection import DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT, connect_to_redis_with_fail_fast
 
     client = connect_to_redis_with_fail_fast(host=DEFAULT_REDIS_HOST, port=DEFAULT_REDIS_PORT, timeout_seconds=2)
     learn = mem = total = None
@@ -11488,8 +11504,9 @@ def cmd_capture(args):
 
 
 def cmd_alias(args):
-    from core.toolbelt.registry import Toolbelt
     import shlex
+
+    from core.toolbelt.registry import Toolbelt
 
     tb = Toolbelt(args.agent_id)
     try:
@@ -11532,6 +11549,7 @@ def cmd_run(args):
     """Execute an authored alias. Steps re-enter THIS door as subprocesses -- sugar-only by
     construction; the alias can do nothing an agent couldn't type at the CLI itself."""
     import subprocess
+
     from core.toolbelt.registry import Toolbelt
 
     tb = Toolbelt(args.agent_id)
@@ -11677,7 +11695,7 @@ def cmd_tool_list(args):
 
 def cmd_tool_run(args):
     """Play-tier sandbox: run one draft tool with sandbox bounds + receipt."""
-    from core.toolbelt.play_sandbox import find_tool, sandboxed_run, DEFAULT_TIMEOUT_S
+    from core.toolbelt.play_sandbox import DEFAULT_TIMEOUT_S, find_tool, sandboxed_run
 
     try:
         agent, tool, path = find_tool(args.ref)
@@ -11882,7 +11900,7 @@ def cmd_secret(args):
     window is the whole point: the paste travels clipboard -> window -> file and never
     touches a transcript, which is how this house's two standing credential wounds
     happened. Every printed line here is transcript-safe by construction."""
-    from core.comm.secret_intake import IntakeError, TARGETS, inventory, save_secret
+    from core.comm.secret_intake import TARGETS, IntakeError, inventory, save_secret
 
     if not args.target:
         inv = inventory()
@@ -11966,7 +11984,8 @@ def cmd_pulse(args):
     """pulse [agent]: fleet pressure-map — where is pressure building? READ-only v1
     (W25, deepseek design, LIFEWORKERS caste). Companion to vitals: vitals tells you
     who is alive/dying; pulse tells you where pressure is building."""
-    from core.comm.doctor import pulse as pulse_fn, format_pulse
+    from core.comm.doctor import format_pulse
+    from core.comm.doctor import pulse as pulse_fn
 
     agents = [args.agent] if args.agent else None
     p = pulse_fn(agents)
@@ -11978,7 +11997,8 @@ def cmd_flightdeck(args):
     """flightdeck [--agent <a>]: the cockpit one-pager — fleet at a glance. READ-only
     v1 (deepseek design, LIFEWORKERS caste). Composes doctor + pulse + lane-health +
     locks + recent commits into one view. --agent drills one seat."""
-    from core.comm.doctor import flightdeck as flightdeck_fn, format_flightdeck
+    from core.comm.doctor import flightdeck as flightdeck_fn
+    from core.comm.doctor import format_flightdeck
 
     fd = flightdeck_fn(agent=getattr(args, "agent", None))
     print(format_flightdeck(fd, json_mode=getattr(args, "json", False)))
@@ -12016,7 +12036,7 @@ def cmd_unwedge(args):
     """unwedge <agent>: one-verb diagnosis -- why is this agent stuck. READ-only v1
     (W31, deepseek design). Synthesizes doctor + lane health + depths + locks + runner
     into one verdict and recommendation. Returns exit 0 healthy, 1 if page-grade."""
-    from core.comm.doctor import unwedge, format_unwedge
+    from core.comm.doctor import format_unwedge, unwedge
 
     r = unwedge(args.agent)
     print(format_unwedge(r, json_mode=getattr(args, "json", False)))

@@ -6,8 +6,8 @@ wired into cold-start boot, agent_cli cmd_boot).
 Run: py tests/test_sync_reconciler.py
 """
 
-import sys
 import os
+import sys
 import tempfile
 
 # Full test isolation BEFORE any foundation import: FILE store -> throwaway AI_SETUP dir, REDIS -> db 15.
@@ -18,7 +18,7 @@ os.environ.setdefault("REDIS_DB", "15")
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.foundation.store import FileStore, RedisStore, HybridStore
+from core.foundation.store import FileStore, HybridStore, RedisStore
 
 
 def test_reconcile_redis_down():

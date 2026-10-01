@@ -21,9 +21,9 @@ Usage:
     rel = get_relationship_by_name("derives_from")
 """
 
-from enum import Enum
-from typing import Optional, List, Dict
 from dataclasses import dataclass
+from enum import Enum
+from typing import Dict, List, Optional
 
 
 @dataclass

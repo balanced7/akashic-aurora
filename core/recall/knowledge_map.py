@@ -36,10 +36,10 @@ from typing import Any, Callable, Dict, List, Optional
 from core.recall.lookback import (
     MIN_RELEVANCE,
     _build_idf_relevance,
-    _stem_relevance,
-    _match_excerpt,
     _docs_items,
+    _match_excerpt,
     _note_items,
+    _stem_relevance,
 )
 
 # statuses that mean "on topic but not live": routed to the archive layer, off the surface

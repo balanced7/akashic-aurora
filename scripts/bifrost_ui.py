@@ -20,20 +20,18 @@ import os
 import sys
 import threading
 import time
-from pathlib import Path
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(HERE)
 sys.path.insert(0, REPO)
 
+from core.comm import control, promoter, room_feed
 from core.comm.bus import Bus
-from core.comm import control
-from core.comm import promoter
 from core.comm.launcher import get_launcher
-from core.comm import room_feed
-from core.trust import registry
 from core.primitives.epistemic import epistemic_view_from_bus
+from core.trust import registry
 
 DROPBOX = os.path.join(REPO, "dropbox")
 BUS = Bus("user")  # the console posts to the bus as 'user'; also registers 'user' presence
@@ -44,9 +42,9 @@ def _client(block_ms: int = 20000):
     """A Redis client with a long socket timeout, for the SSE blocking tail (mirrors bus._blocking_client)."""
     try:
         from core.foundation.redis_connection import (
-            connect_to_redis_with_fail_fast,
             DEFAULT_REDIS_HOST,
             DEFAULT_REDIS_PORT,
+            connect_to_redis_with_fail_fast,
         )
 
         return connect_to_redis_with_fail_fast(
@@ -799,6 +797,7 @@ class Handler(BaseHTTPRequestHandler):
         # has no write door, which is what keeps the private shelf private.
         if path in ("/reports", "/api/reports", "/api/report", "/api/reports/compare"):
             import urllib.parse as _up
+
             from scripts import bifrost_reports as _reports
 
             _q = _up.parse_qs(self.path.split("?", 1)[1]) if "?" in self.path else {}
@@ -842,7 +841,7 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/vfx/clips":
             return self._json({"names": _vfx_clips_list()})
         if path == "/vfx/job/next":
-            from urllib.parse import urlparse, parse_qs
+            from urllib.parse import parse_qs, urlparse
 
             q = parse_qs(urlparse(self.path).query)
             return self._json(_vfx_job_next((q.get("worker") or [""])[0], (q.get("visible") or ["1"])[0] != "0") or {})
@@ -874,7 +873,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send_error(404)
             return self._static("design/vfx-snaps/" + safe, "image/png")
         if path == "/vfx/feed":
-            from urllib.parse import urlparse, parse_qs
+            from urllib.parse import parse_qs, urlparse
 
             q = parse_qs(urlparse(self.path).query)
             return self._json(_vfx_feed_since((q.get("since") or ["0"])[0]))
@@ -885,7 +884,7 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/vfx/graphs":
             return self._json(_vfx_graphs_read())
         if path.startswith("/vfx/sketch"):
-            from urllib.parse import urlparse, parse_qs
+            from urllib.parse import parse_qs, urlparse
 
             q = parse_qs(urlparse(self.path).query)
             return self._json(_vfx_sketch_read((q.get("name") or [""])[0]))
@@ -1023,8 +1022,8 @@ class Handler(BaseHTTPRequestHandler):
         tokens + pages + daemon_live + lane depths + fence phase). Polled at 2s."""
         try:
             from core.comm.engine_vitals import gauge_snapshot
-            from core.comm.lane_depths import lane_depths
             from core.comm.fence_phase import fence_phase
+            from core.comm.lane_depths import lane_depths
 
             known = {"claude": None, "deepseek": None}  # default agents
             try:
@@ -1074,7 +1073,7 @@ class Handler(BaseHTTPRequestHandler):
             # ---- vitals half (engine-room gauges, per-agent) ---------------------
             vitals = self._vitals()
             # ---- seat-class honesty: per-agent seat type for honest vocab -------
-            from core.comm import runner_lock, daemon_state
+            from core.comm import daemon_state, runner_lock
 
             daemon_live = {}
             seat_class = {}
@@ -1118,6 +1117,7 @@ class Handler(BaseHTTPRequestHandler):
             dsh_card = None
             try:
                 import os as _os
+
                 from core.comm import roster as _roster
 
                 _ns = _os.environ.get("BIFROST_NAMESPACE", "bifrost")
@@ -1241,8 +1241,8 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def _events(self):
-        import urllib.parse
         import os as _os
+        import urllib.parse
 
         default_ns = _os.environ.get("BIFROST_NAMESPACE", "bifrost")
         qs = urllib.parse.parse_qs(self.path.split("?", 1)[-1] if "?" in self.path else "")

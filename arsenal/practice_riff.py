@@ -57,8 +57,7 @@ from typing import Dict, List, Optional, Sequence, Tuple
 
 from . import nashville
 from . import practice as pr
-from .jam import DEF_API, RIFF_API
-from .jam import schemas
+from .jam import DEF_API, RIFF_API, schemas
 from .jam import tempomap as tm
 from .jam.resolve import tone_name
 from .performance import PerformanceError, PerformanceStore

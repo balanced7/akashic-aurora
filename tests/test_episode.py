@@ -12,9 +12,9 @@ import tempfile
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.foundation.store import FileStore
+from core.narrative import episode as ep
 from core.narrative.beat_log import BeatLog
 from core.narrative.chapter_lifecycle import load_chapter_from_store
-from core.narrative import episode as ep
 
 
 def _store():
@@ -166,7 +166,7 @@ def test_close_open_next_false_leaves_no_open_episode():
 
 
 def test_session_end_force_closes_open_episode():
-    from core.narrative.session import start_session, end_session
+    from core.narrative.session import end_session, start_session
 
     s = _store()
     start_session(s, now="2026-07-07T10:00:00", chronicle=False)  # opens an episode

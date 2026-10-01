@@ -27,23 +27,23 @@ Usage:
     mgr.unload_vision_model()
 """
 
+import gc
+import json
 import os
+import subprocess
 import sys
 import time
-import subprocess
-import json
-import gc
-from enum import Enum
-
-import torch
-from typing import Optional, Dict, Any, List, Callable
 from dataclasses import dataclass, field
 from datetime import datetime
+from enum import Enum
+from typing import Any, Callable, Dict, List, Optional
+
+import torch
 
 # Import config for GPU provider settings
 sys.path.insert(0, r"E:\AI-Setup")
 try:
-    from config import get_provider, get_base_url, get_config, HARDWARE, VRAM_BUDGET, GPUProvider
+    from config import HARDWARE, VRAM_BUDGET, GPUProvider, get_base_url, get_config, get_provider
 
     USE_CONFIG = True
 except ImportError:

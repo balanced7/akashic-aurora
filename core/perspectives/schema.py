@@ -13,7 +13,7 @@ substrate -> a different surfaced view. Everything validates against the REAL 66
 vocabulary (no invented relation names). See docs/library/design/20260709_perspectives-maps-build-plan-the-interpr_5a5e0a.md.
 """
 
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from typing import Any, Dict, List, Optional
 
 from core.foundation.relationship_types import RelationshipType, get_relationship_by_name

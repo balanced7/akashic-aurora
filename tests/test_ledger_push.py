@@ -90,7 +90,7 @@ def test_bus_failure_never_blocks_a_transition(tmp_path, monkeypatch):
 
 # ---------------------------------------------------------- wake side (redis-backed)
 def _client():
-    from core.foundation.redis_connection import connect_to_redis_with_fail_fast, DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT
+    from core.foundation.redis_connection import DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT, connect_to_redis_with_fail_fast
 
     c = connect_to_redis_with_fail_fast(
         host=DEFAULT_REDIS_HOST, port=DEFAULT_REDIS_PORT, timeout_seconds=3, decode_responses=True
@@ -101,9 +101,9 @@ def _client():
 
 
 def test_watch_stays_quiet_through_ledger_markers(capsys):
-    from core.comm.bus import Bus
-    from core.comm.bifrost_api import BifrostAPI
     import scripts.bifrost_wake as bw
+    from core.comm.bifrost_api import BifrostAPI
+    from core.comm.bus import Bus
 
     c = _client()
     ns = f"bifrost_test_{uuid.uuid4().hex[:8]}"

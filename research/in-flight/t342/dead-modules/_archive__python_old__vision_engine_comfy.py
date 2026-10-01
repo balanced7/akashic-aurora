@@ -12,19 +12,19 @@ Usage:
     result = engine.analyze_screen(task="ocr")
 """
 
-import os
-import json
-import hashlib
 import base64
+import hashlib
 import io
-import time
-import uuid
+import json
+import os
 import shutil
-from pathlib import Path
-from typing import Optional, Dict, Any, List, Tuple
-from datetime import datetime
-from urllib import request, parse
+import time
 import urllib.error
+import uuid
+from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
+from urllib import parse, request
 
 try:
     import redis

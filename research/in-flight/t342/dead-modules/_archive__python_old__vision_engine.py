@@ -19,15 +19,15 @@ Usage:
     result = get_cached_analysis(cache_key)
 """
 
-import os
-import json
-import hashlib
 import base64
+import hashlib
 import io
+import json
+import os
 import time
-from pathlib import Path
-from typing import Optional, Dict, Any, List
 from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 import torch
 from PIL import Image, ImageGrab

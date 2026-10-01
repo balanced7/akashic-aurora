@@ -2,11 +2,16 @@
 launch time) and _restart() exponential backoff with a hard cap. No real processes spawned:
 launch()/kill() are stubbed to record calls."""
 
-import os, ast, sys, json, time
+import ast
+import json
+import os
 
 # Root DERIVED from this file, never hardcoded: the literal pinned one machine's disk,
 # so a copy of the repo anywhere else resolved every path under it to nothing.
-import os as _os, pathlib as _pl
+import os as _os
+import pathlib as _pl
+import sys
+import time
 
 _here = _pl.Path(__file__).resolve()
 ROOT = str(
@@ -18,8 +23,8 @@ for f in ("core/comm/launcher.py", "core/comm/runner_lock.py"):
 
 sys.path.insert(0, ROOT)
 import core.comm.launcher as LM
-from core.comm.launcher import Launcher, AgentSpec, AgentProcess
 from core.comm import runner_lock
+from core.comm.launcher import AgentProcess, AgentSpec, Launcher
 
 # --- clear_if_pid: frees only the matching pid, never a different holder ---
 A = "l3b_probe"

@@ -103,7 +103,7 @@ def test_adapter_status_contract_timestamps_not_booleans():
     """The store stamps benched/graduated with ISO TIMESTAMPS (mark_benched/mark_graduated),
     never booleans. The adapter must read them through the store's canonical predicates --
     a truthy-string compare read all four live benched lessons as current (2026-07-14)."""
-    from core.recall.knowledge_map import _lesson_status, ARCHIVE_STATUS
+    from core.recall.knowledge_map import ARCHIVE_STATUS, _lesson_status
 
     assert _lesson_status({"benched": "2026-07-08T05:38:53.822519"}) == "benched"
     assert _lesson_status({"graduated": "2026-07-12T10:00:00"}) == "graduated"

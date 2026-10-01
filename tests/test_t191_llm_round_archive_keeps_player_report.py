@@ -38,9 +38,9 @@ def _manifest():
 
 def _isolate(monkeypatch):
     """Replace every outward seam; retain only player -> run -> archive data flow."""
+    from core.season import scoring as S
     from scripts import canary_oracle as C
     from scripts import round_archive as A
-    from core.season import scoring as S
 
     monkeypatch.setattr(D, "_fresh_worktree", lambda _path: None)
     monkeypatch.setattr(C, "plant", lambda *_a, **_k: _manifest())

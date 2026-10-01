@@ -16,12 +16,13 @@ _TESTS = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(_TESTS))
 sys.path.insert(0, _TESTS)
 
+import json
+
 from core.foundation.store import FileStore
 from core.narrative.beat_log import BeatLog
-from core.narrative.chronicler import Chronicler, BoundaryDetector
-from core.narrative.schema import Beat, BEAT_KINDS, beat_key
-from core.narrative.session import start_session, end_session, SESSION_OPEN_KEY
-import json
+from core.narrative.chronicler import BoundaryDetector, Chronicler
+from core.narrative.schema import BEAT_KINDS, Beat, beat_key
+from core.narrative.session import SESSION_OPEN_KEY, end_session, start_session
 
 
 def _store():
@@ -109,7 +110,7 @@ def test_mark_titles_its_chapter():
     for k in s.keys("narr:chapter:*") if hasattr(s, "keys") else []:
         pass
     # load chapters via atlas/track listing
-    from core.narrative.schema import Atlas, Track, track_key, chapter_key, ATLAS_KEY
+    from core.narrative.schema import ATLAS_KEY, Atlas, Track, chapter_key, track_key
 
     atlas = Atlas.from_dict(json.loads(s.get(ATLAS_KEY)))
     found = False

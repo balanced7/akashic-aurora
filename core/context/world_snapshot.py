@@ -18,14 +18,13 @@ from __future__ import annotations
 
 import argparse
 import copy
-from datetime import datetime, timezone
 import hashlib
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Sequence
 
 from core.primitives.epistemic import derive_epistemic_view
-
 
 SCHEMA_VERSION = "world-snapshot/v1"
 PROJECTION_VERSION = "subject-attention/v1"

@@ -24,8 +24,8 @@ UNAVAILABLE -- not True, not 1.0. Silence that means "nothing relevant" and sile
 "I could not look" are different facts and must not share a rendering.
 """
 
-from pathlib import Path
 import sys
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))

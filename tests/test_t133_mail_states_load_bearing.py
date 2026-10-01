@@ -198,9 +198,9 @@ def _bus(monkeypatch, beat_age, pulse_age):
     much more confusing version of the exact defect this file is about: a surface reporting
     something that is not true.
     """
-    from core.comm.bus import Bus
-    import core.comm.roster as _roster
     import core.comm.liveness as _liveness
+    import core.comm.roster as _roster
+    from core.comm.bus import Bus
 
     b = Bus.__new__(Bus)
     b.ns, b._client, b.UNATTENDED_S = "test-ns", None, 300.0

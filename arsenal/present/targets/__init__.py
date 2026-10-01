@@ -9,8 +9,8 @@ plane_gap, verify_cdn, slide, created_at).
 
 from __future__ import annotations
 
-from typing import Callable, Dict, List
 from pathlib import Path
+from typing import Callable, Dict, List
 
 from . import print_html, slides_html, three_js, ui_element
 

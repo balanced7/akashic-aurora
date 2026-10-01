@@ -4,29 +4,29 @@ Tests for the narrative schema (Slice 0). Pure data shapes — no behavior yet.
 Run: py tests/test_narrative_schema.py
 """
 
-import sys
 import os
+import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.narrative.schema import (
-    Beat,
-    Chapter,
-    Track,
-    Theme,
-    Atlas,
-    Edge,
+    ATLAS_KEY,
     BEAT_KINDS,
     DEFAULT_WEIGHT,
+    Atlas,
+    Beat,
+    Chapter,
+    Edge,
+    Theme,
+    Track,
+    beat_key,
+    chapter_key,
     clamp_weight,
+    theme_key,
+    track_key,
     valid_relationship,
     validate_beat,
     validate_edge,
-    beat_key,
-    chapter_key,
-    track_key,
-    theme_key,
-    ATLAS_KEY,
 )
 
 

@@ -424,7 +424,7 @@ def _rec_name(rec: Dict[str, Any]) -> str:
 
 def _project_items(recs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     try:
-        from core.learning.learning_store import is_graduated, is_benched
+        from core.learning.learning_store import is_benched, is_graduated
     except Exception:
 
         def is_graduated(_):

@@ -9,32 +9,32 @@ Features:
 - Automatic garbage collection on resource pressure
 """
 
+import gc
 import json
 import os
+import subprocess
 import sys
 import time
-import subprocess
-import gc
+from datetime import datetime
 from enum import Enum
 from typing import Dict, Optional
-from datetime import datetime
 
 sys.path.insert(0, r"E:\AI-Setup")
 
 from blackboard import (
-    Blackboard,
-    init_blackboard,
+    PHASE_DONE,
+    PHASE_ERROR,
+    PHASE_EXECUTING,
     PHASE_IDLE,
     PHASE_PLANNING,
     PHASE_REVIEW,
-    PHASE_EXECUTING,
     PHASE_VERIFYING,
-    PHASE_DONE,
-    PHASE_ERROR,
+    Blackboard,
+    init_blackboard,
 )
-from session_logger import log
+from escalation import Tier, get_escalation_manager
 from model_lifecycle import ModelLifecycleManager, Priority
-from escalation import get_escalation_manager, Tier
+from session_logger import log
 
 # Complexity thresholds for Analyst "Co-Sign"
 COMPLEXITY_STEPS_THRESHOLD = 5  # If > 5 steps, mark as complex
@@ -391,7 +391,7 @@ class Master:
         active_buffer = r"E:\AI-Setup\blackboard_data\active_buffer.json"
 
         try:
-            from vision_engine import capture_active_window, get_screen_context_for_analyst, encode_image_base64
+            from vision_engine import capture_active_window, encode_image_base64, get_screen_context_for_analyst
 
             # Capture screen
             screenshot = capture_active_window()

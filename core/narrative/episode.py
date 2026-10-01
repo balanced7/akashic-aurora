@@ -18,8 +18,9 @@ import random
 from typing import Any, Callable, Dict, List, Optional
 
 from core.foundation.store import Store, create_store
-from core.foundation.timeutil import now_iso as _now_iso, to_epoch as _epoch
-from core.narrative.beat_log import BeatLog, ROUTER_ACTIVE
+from core.foundation.timeutil import now_iso as _now_iso
+from core.foundation.timeutil import to_epoch as _epoch
+from core.narrative.beat_log import ROUTER_ACTIVE, BeatLog
 from core.narrative.chapter_lifecycle import load_chapter_from_store, persist_chapter_in_place
 from core.narrative.schema import Chapter
 from core.narrative.track_router import RouteHint

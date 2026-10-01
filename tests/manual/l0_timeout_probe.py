@@ -8,8 +8,11 @@ A worker thread runs the call with a hard outer cap; if the thread is still aliv
 the SDK timeout did NOT work (real-world wedge unrecoverable in-process).
 """
 
-import json, time, threading
+import json
+import threading
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
 from openai import OpenAI
 
 MODE = {"v": "nodata"}  # "nodata" | "midstream"

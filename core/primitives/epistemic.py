@@ -22,9 +22,9 @@ implicit promotion.
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, replace
 from enum import Enum
-import json
 from typing import Any, Dict, Generic, Mapping, Optional, Tuple, Type, TypeVar
 
 

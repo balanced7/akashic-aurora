@@ -19,7 +19,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
-from core.trust.capabilities import Cap, ROLE_TEMPLATES, DEFAULT_ROLE, caps_from
+from core.trust.capabilities import DEFAULT_ROLE, ROLE_TEMPLATES, Cap, caps_from
 
 
 def _pyl() -> str:

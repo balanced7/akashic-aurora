@@ -20,13 +20,12 @@ from __future__ import annotations
 import time
 from typing import Any, Dict, List, Optional
 
-from core.foundation.timeutil import to_epoch
-
 # Same-package reuse: snapshot is the public read-only record view; ANSWER_KINDS is the
 # settle vocabulary; _client/_ns are the coordination-plane accessors (private by
 # underscore, shared by design inside core/comm -- expectations owns the plane, its
 # siblings read it).
 from core.comm.expectations import ANSWER_KINDS, _client, _ns, snapshot
+from core.foundation.timeutil import to_epoch
 
 TERMINAL_TO_STATE = {
     "expectation_settled_answered": "CLOSED.ANSWERED",

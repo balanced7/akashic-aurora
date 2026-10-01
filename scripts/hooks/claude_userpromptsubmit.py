@@ -73,8 +73,8 @@ def build_plan_recall(prompt: str, session_id: str, agent_id: str) -> str:
         return ""
     if not (prompt or "").strip():
         return ""
-    from core.recall.at_action import recall_at, render, log_injection
     from agent.harness.seen import load_seen, mark_seen
+    from core.recall.at_action import log_injection, recall_at, render
 
     res = recall_at(
         command=prompt, agent_id=agent_id, limit=2, exclude_sources=load_seen(session_id), count_surface=True

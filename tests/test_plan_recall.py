@@ -16,8 +16,8 @@ _PYL = _python_launcher()  # `py` on Windows, `uv run` elsewhere
 
 def _wire(monkeypatch, lessons, seen=None, seen_log=None, inj_log=None, unread=0):
     import core.recall.at_action as aa
-    from agent.harness import seen as seenmod
     from agent.harness import context as ctx
+    from agent.harness import seen as seenmod
 
     monkeypatch.setattr(
         aa,

@@ -7,8 +7,8 @@ Semantic Relationship: NarrativeSummary loaded_from ChronicleStore (active chapt
 import json
 from typing import Any, Dict, List, Optional
 
-from core.narrative.schema import ATLAS_KEY, Atlas, Chapter, Track, chapter_key, track_key
 from core.narrative.chapter_lifecycle import is_active_chapter, load_chapter_from_store
+from core.narrative.schema import ATLAS_KEY, Atlas, Chapter, Track, chapter_key, track_key
 
 
 def load_recent_narrative_for_boot(

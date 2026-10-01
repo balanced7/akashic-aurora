@@ -27,9 +27,9 @@ recorded a single turn in production, because nothing pinned that a runner actua
 it. So the last pin here asserts the counters are wired to the real accumulation path.
 """
 
-from pathlib import Path
 import ast
 import sys
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))

@@ -82,7 +82,7 @@ def test_p11_other_incarnations_mail_skipped():
 
 
 def test_p10_sends_stamp_frm_incarnation():
-    from core.foundation.redis_connection import connect_to_redis_with_fail_fast, DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT
+    from core.foundation.redis_connection import DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT, connect_to_redis_with_fail_fast
 
     if (
         connect_to_redis_with_fail_fast(
@@ -92,6 +92,7 @@ def test_p10_sends_stamp_frm_incarnation():
     ):
         pytest.skip("redis not available")
     import json
+
     from core.comm.bus import Bus
 
     ns = f"bifrost_t073_{uuid.uuid4().hex[:8]}"
@@ -104,7 +105,7 @@ def test_p10_sends_stamp_frm_incarnation():
 
 
 def test_to_incarnation_flag_reaches_meta():
-    from core.foundation.redis_connection import connect_to_redis_with_fail_fast, DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT
+    from core.foundation.redis_connection import DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT, connect_to_redis_with_fail_fast
 
     if (
         connect_to_redis_with_fail_fast(
@@ -114,6 +115,7 @@ def test_to_incarnation_flag_reaches_meta():
     ):
         pytest.skip("redis not available")
     import json
+
     from core.comm.bus import Bus
 
     ns = f"bifrost_t073_{uuid.uuid4().hex[:8]}"
@@ -134,8 +136,9 @@ def test_operator_sender_wakes_regardless_of_kind(monkeypatch):
     broadcast (frm=user, kind=inform, the ladder's quiet tier) slept every idle
     claude seat while the always-consuming runner answered. A sender dimension,
     not a kind: the ratchet's silent-by-default law for agent kinds stands."""
-    import scripts.bifrost_wake as bw
     from types import SimpleNamespace
+
+    import scripts.bifrost_wake as bw
 
     m = SimpleNamespace(kind="inform", frm="user", to="*", meta={})
     assert bw.wake_worthy(m, agent="claude", incarnation="sess0000"), "operator inform must wake"
@@ -159,8 +162,9 @@ def test_operator_ambient_chat_broadcast_does_not_wake_everyone():
     ride the 2026-07-15 override; a DIRECTED chat (seat channel, @mention, or
     @everyone's per-seat fan-out -- all bus.send, never broadcast) still must, and
     every OTHER operator broadcast kind (inform, etc.) is untouched."""
-    import scripts.bifrost_wake as bw
     from types import SimpleNamespace
+
+    import scripts.bifrost_wake as bw
 
     lounge = SimpleNamespace(kind="chat", frm="daniil", to="*", meta={})
     assert not bw.wake_worthy(lounge, agent="claude", incarnation="sess0000"), (

@@ -15,8 +15,8 @@ import tempfile
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.foundation.store import FileStore
-from core.narrative.health import bump, snapshot, reset, HEALTH_KEY
 from core.narrative.beat_log import BeatLog
+from core.narrative.health import HEALTH_KEY, bump, reset, snapshot
 from core.narrative.track_router import RouteHint
 
 

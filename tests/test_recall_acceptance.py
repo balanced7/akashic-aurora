@@ -307,7 +307,7 @@ def test_b4_probing_is_bounded_so_it_cannot_starve_the_active_corpus(tmp_path):
     benched lessons meant fifty probes competing with the active corpus. That reintroduces
     the slot starvation the probe was written to cure. The probe must be capped.
     """
-    from core.recall.at_action import _bench_probe_set, _BENCH_PROBE_MAX
+    from core.recall.at_action import _BENCH_PROBE_MAX, _bench_probe_set
 
     def benched(r):
         return bool(r.get("benched"))

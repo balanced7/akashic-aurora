@@ -115,8 +115,8 @@ def test_k8_the_ratchet_can_actually_COUNT_this_checkers_output():
     the colon form -- so the hook parsed TWO real violations as ZERO. A guard against silent
     omission, silently omitted. Green in isolation, useless when wired.
     """
-    import io
     import contextlib
+    import io
 
     sys.path.insert(0, os.path.join(ROOT, "scripts", "githooks"))
     import pre_commit  # noqa: E402

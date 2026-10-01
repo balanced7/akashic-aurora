@@ -19,7 +19,7 @@ import pytest
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.comm.blobs import BlobStore
-from core.comm.bus import Bus, Part, text_part, json_part, media_part
+from core.comm.bus import Bus, Part, json_part, media_part, text_part
 
 
 def _blobs():
@@ -76,7 +76,7 @@ def test_part_resolve_inline_and_ref():
 
 # ----------------------------------------------------------------- message carries Parts (real Redis)
 def _client():
-    from core.foundation.redis_connection import connect_to_redis_with_fail_fast, DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT
+    from core.foundation.redis_connection import DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT, connect_to_redis_with_fail_fast
 
     c = connect_to_redis_with_fail_fast(
         host=DEFAULT_REDIS_HOST, port=DEFAULT_REDIS_PORT, timeout_seconds=3, decode_responses=True

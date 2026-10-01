@@ -21,13 +21,13 @@ _TESTS = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(_TESTS))
 sys.path.insert(0, _TESTS)
 
-from core.foundation.store import FileStore
-from core.foundation.ledger import FileLedger
 from core.events.event_log import EventLog
 from core.events.event_query import EventQuery
+from core.foundation.ledger import FileLedger
+from core.foundation.store import FileStore
 from core.narrative.beat_log import BeatLog
-from core.narrative.event_promoter import salience, promote_salient, PROMOTED_SET
 from core.narrative.event_bridge import raw_for_beat
+from core.narrative.event_promoter import PROMOTED_SET, promote_salient, salience
 
 
 def _ctx():

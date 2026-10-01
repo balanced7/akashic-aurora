@@ -24,10 +24,11 @@ os.environ.setdefault("_AISETUP_TEST_ISOLATED", "1")
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts"))
 
+from pathlib import Path
+
 import bifrost_runner_deepseek as runner
 import bifrost_wake
 import deepseek_chat as dc
-from pathlib import Path
 
 
 def _repo_root():

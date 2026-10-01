@@ -18,8 +18,8 @@ import pytest
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import agent_cli
-from core.toolbelt import followup
 from core.coord import defer_queue as dq
+from core.toolbelt import followup
 
 
 class Ns:

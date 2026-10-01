@@ -127,6 +127,7 @@ def test_p4_unknown_kind_does_not_forward(env):
 # mechanism, not the roster.
 def _fake_registry(monkeypatch, callsign="Heimdall"):
     from pathlib import Path
+
     from core.fleet import residents as _R
 
     monkeypatch.setattr(_R, "get", lambda a: {"callsign": callsign} if a == "deepseek" else None)
@@ -152,6 +153,7 @@ def test_p8_persona_wears_the_registry_face(env, monkeypatch):
 
 def test_p9_ratified_name_does_not_wait_for_placement(env, monkeypatch):
     from pathlib import Path
+
     from core.fleet import residents as _R
 
     monkeypatch.setattr(_R, "get", lambda a: {"callsign": "Sunshine"} if a == "sol" else None)

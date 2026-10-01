@@ -117,7 +117,8 @@ def _restore_sqlite(src: Path, dst: Path) -> bool:
 # The fix is not only "use the resolver" -- it is to REFUSE when the two planes disagree,
 # because any future plane added to this script will have the same failure mode.
 try:
-    from core.foundation.redis_connection import DEFAULT_REDIS_HOST as REDIS_HOST, DEFAULT_REDIS_PORT as REDIS_PORT
+    from core.foundation.redis_connection import DEFAULT_REDIS_HOST as REDIS_HOST
+    from core.foundation.redis_connection import DEFAULT_REDIS_PORT as REDIS_PORT
 except Exception:
     try:
         from config import REDIS_HOST, REDIS_PORT
@@ -176,7 +177,7 @@ def _assert_planes_agree():
     Destructive by nature (restore flushes db0), so it fails closed and names both sides.
     """
     try:
-        from core.world import resolve, owner_of_port
+        from core.world import owner_of_port, resolve
     except Exception:
         return  # world module absent: nothing to compare
     file_world = resolve(root=BASE).name
@@ -197,6 +198,7 @@ def _assert_planes_agree():
 def _redis():
     try:
         import redis
+
         from core.foundation.redis_connection import ensure_redis_server
 
         ensure_redis_server(REDIS_HOST, REDIS_PORT)  # starts the embedded server if that is ours

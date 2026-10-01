@@ -65,7 +65,7 @@ def cmd_recall_feedback(args):
     """Teach recall what's load-bearing: mark a surfaced lesson 'useful' (it changed what you did) or
     'noise' (off-target). Boosts/decays it in future recall ranking. Source = the lesson's pointer,
     e.g. learn:experiment:NAME."""
-    from core.recall.at_action import record_feedback, is_general
+    from core.recall.at_action import is_general, record_feedback
 
     kind = "noise" if args.noise else "useful"
     dom = getattr(args, "domain", None)
@@ -106,7 +106,7 @@ def cmd_recall_curate(args):
         except Exception as e:
             print(f"ERROR reading draft file: {type(e).__name__}: {e}")
             return 2
-        from core.recall.forge import gate_edit, apply_edit
+        from core.recall.forge import apply_edit, gate_edit
 
         rep = gate_edit(exp, draft)
         if getattr(args, "json", False):
@@ -158,7 +158,7 @@ def cmd_recall_curate(args):
             import sys as _sys
 
             _sys.path.insert(0, str(_REPO_ROOT / "scripts"))
-            from ask_deepseek import load_key, DEFAULT_MODEL
+            from ask_deepseek import DEFAULT_MODEL, load_key
             from deepseek_chat import make_client
 
             if not load_key():
@@ -245,7 +245,7 @@ def cmd_recall_curate(args):
         for k, v in rep["verdicts"].items():
             print(f"  {k}: {v}")
         return 0
-    from core.recall.curator import curation_report, apply_curation
+    from core.recall.curator import apply_curation, curation_report
 
     rep = curation_report()
     if getattr(args, "json", False):
@@ -303,6 +303,7 @@ def cmd_recall_prevention(args):
     benches, never retires; adjudication is operator-only (fence r2 H-C1).
     """
     import json as _json
+
     from core.recall import prevention
 
     rep = prevention.report()

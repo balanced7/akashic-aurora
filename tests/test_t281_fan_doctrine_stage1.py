@@ -27,11 +27,10 @@ Run: py -m pytest tests/test_t281_fan_doctrine_stage1.py -q
 
 from __future__ import annotations
 
-import re
-
 import io
 import json
 import os
+import re
 import sys
 from pathlib import Path
 

@@ -65,8 +65,8 @@ def _recall_block(sid: str, path: str, command: str) -> str:
     if not path and not command:
         return ""
     try:
-        from core.recall.at_action import recall_at, render, mark_impression, normalize_target, log_injection
         from agent.harness.seen import load_seen, mark_seen
+        from core.recall.at_action import log_injection, mark_impression, normalize_target, recall_at, render
 
         res = recall_at(
             path=path or None,
@@ -115,7 +115,7 @@ def main() -> int:
     try:
         if not _in_scope(data, command, path):
             return 0
-        from core.recall.at_action import normalize_target, resolve_action_outcome, build_learn_nudge
+        from core.recall.at_action import build_learn_nudge, normalize_target, resolve_action_outcome
 
         target = normalize_target(path or None, command or None)
         if not target:
@@ -139,7 +139,7 @@ def main() -> int:
                 )
             except Exception:
                 pass
-            from agent.harness.nudge import nudge_allowed, mark_nudged
+            from agent.harness.nudge import mark_nudged, nudge_allowed
 
             if nudge_allowed(_NUDGE_DIR, sid, target):
                 _emit_context(

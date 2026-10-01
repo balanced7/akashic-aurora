@@ -33,8 +33,8 @@ def _pyl() -> str:
 # and every canvas.toDataURL image here is filter 2 (Up) on every row. Pillow was installed
 # the whole time. The lesson is filed; we use Pillow.
 try:
-    from PIL import Image
     import numpy as np
+    from PIL import Image
 except ImportError:
     print(f"Pillow + numpy required: {_pyl()} -m pip install Pillow numpy", file=sys.stderr)
     sys.exit(1)

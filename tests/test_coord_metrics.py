@@ -1,19 +1,19 @@
 """Tests for core/coord/metrics.py — the Solution-Space-Shrinkage Tracker."""
 
 import pytest
+
 from core.coord.metrics import (
     ApproachVector,
-    vector_from_run,
-    shannon_entropy,
-    uniqueness_ratio,
-    is_monotonic_decreasing,
-    is_flat,
-    is_rising,
     _run_diversity,
     assess,
+    is_flat,
+    is_monotonic_decreasing,
+    is_rising,
     run_metrics,
+    shannon_entropy,
+    uniqueness_ratio,
+    vector_from_run,
 )
-
 
 # --- _run_diversity (per-run signal) ---
 
@@ -261,8 +261,8 @@ class TestAssessCollapse:
 class TestRunMetricsIntegration:
     def test_smoke_run_metrics(self):
         """run_metrics returns vectors and scores for a real scenario+policy."""
-        from core.coord.experiment import mixed as scenario_fn
         from core.coord.experiment import intent_gate as policy_fn
+        from core.coord.experiment import mixed as scenario_fn
 
         vectors, scores = run_metrics(scenario_fn, policy_fn, n_runs=3)
         assert len(vectors) == 3
@@ -281,8 +281,8 @@ class TestRunMetricsIntegration:
 
     def test_lock_gate_blocks_parallel_useful(self):
         """lock_gate on parallel_useful: blocks same-resource-different-intent, reducing vectors."""
-        from core.coord.experiment import parallel_useful as scenario_fn
         from core.coord.experiment import lock_gate as policy_fn
+        from core.coord.experiment import parallel_useful as scenario_fn
 
         vectors, scores = run_metrics(scenario_fn, policy_fn, n_runs=1)
         # parallel_useful: 6 actions on api.py with 6 different intents
@@ -292,8 +292,8 @@ class TestRunMetricsIntegration:
     def test_intent_beats_lock_on_approach_diversity(self):
         """THE falsifiable claim: intent_gate produces richer approach vectors than lock_gate
         on the same parallel_useful scenario — the whole argument that metrics.py measures."""
-        from core.coord.experiment import parallel_useful as scenario_fn
         from core.coord.experiment import intent_gate, lock_gate
+        from core.coord.experiment import parallel_useful as scenario_fn
 
         iv, is_ = run_metrics(scenario_fn, intent_gate, n_runs=3)
         lv, ls = run_metrics(scenario_fn, lock_gate, n_runs=3)

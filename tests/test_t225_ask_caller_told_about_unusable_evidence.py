@@ -37,7 +37,6 @@ the same fact never reaches the human who is about to conclude something from th
 from __future__ import annotations
 
 import re
-
 import sys
 from pathlib import Path
 

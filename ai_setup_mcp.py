@@ -843,6 +843,7 @@ async def sweep(agent: str) -> str:
 
     def _body():
         import json as _json
+
         from core.comm.awareness import build_snapshot
 
         return _json.dumps(build_snapshot(agent).as_dict(), indent=2, default=str)
@@ -863,6 +864,7 @@ async def orient(
 
     def _body():
         import json as _json
+
         from core.coord.orient import build_orientation
 
         return _json.dumps(
@@ -886,6 +888,7 @@ async def shadow(agent: str, target: str, arguments: dict | None = None) -> str:
 
     def _body():
         import json as _json
+
         from core.coord.intent_shadow import build_intent_shadow
 
         return _json.dumps(
@@ -954,6 +957,7 @@ async def ground(target: str, agent: str, continuity: bool = False) -> str:
 
     def _body():
         import json as _json
+
         from core.coord.ground import ground as _ground
 
         return _json.dumps(
@@ -983,6 +987,7 @@ async def capture(
 
     def _body():
         import json as _json
+
         from core.comm import thread_capture as _tc
 
         if as_doc:
@@ -1056,8 +1061,8 @@ async def bifrost_nudge(from_agent: str, to: str, text: str = "", mode: str = "i
     CURRENT task, no restart), or inform (AMBIENT — adopted next turn). Unlike pause, it targets one peer."""
 
     def _body():
-        from core.comm.bus import Bus
         from core.comm import nudge as _nudge
+        from core.comm.bus import Bus
 
         m = (mode or "interrupt").lower()
         if m not in ("interrupt", "steer", "inform"):

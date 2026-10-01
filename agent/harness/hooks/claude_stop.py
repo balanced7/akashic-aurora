@@ -26,7 +26,13 @@ bounding any misfire to a single nudge, NOT an ever-growing stopword list.
 Both checks fail OPEN (never wedge the session).
 """
 
-import json, os, re, subprocess, sys, tempfile, time
+import json
+import os
+import re
+import subprocess
+import sys
+import tempfile
+import time
 
 
 def _pyl() -> str:
@@ -290,8 +296,8 @@ def _draft_keepalive() -> None:
         sys.path.insert(
             0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
         )
-        from agent.harness import draft_keepalive
         import agent_cli
+        from agent.harness import draft_keepalive
 
         def _write():
             from core.learning.agent_memory import get_agent_memory
@@ -429,7 +435,8 @@ def main():
             sys.path.insert(
                 0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
             )
-            from core.comm import runner_lock as _rl, wake_seat as _ws3
+            from core.comm import runner_lock as _rl
+            from core.comm import wake_seat as _ws3
 
             _tok = str((_rl.holder(AGENT) or {}).get("token") or "")
             if (

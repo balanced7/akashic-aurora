@@ -14,9 +14,9 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.narrative.track_router import TrackRouter, RouteHint
-from core.narrative.theme_assigner import ThemeAssigner
 from core.narrative.schema import Beat
+from core.narrative.theme_assigner import ThemeAssigner
+from core.narrative.track_router import RouteHint, TrackRouter
 
 R = TrackRouter()
 TH = ThemeAssigner()

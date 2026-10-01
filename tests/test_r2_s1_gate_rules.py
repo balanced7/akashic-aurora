@@ -220,6 +220,7 @@ def test_e1_the_pack_renderer_never_clips_an_action():
     disease inside the evaluation instrument itself. A pack renderer either shows
     the whole action or says LOUDLY that it could not."""
     import inspect
+
     from core.recall import precision_audit as PA
 
     src = inspect.getsource(PA)

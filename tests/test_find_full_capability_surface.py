@@ -20,11 +20,11 @@ red-fence discipline: these land RED and get observed RED BEFORE any GREEN imple
 from __future__ import annotations
 
 import os
+
 import pytest
 
 from core.tools import everything as e
 from core.tools.everything import SearchResult
-
 
 # --------------------------------------------------------------------------- (1) metadata half
 

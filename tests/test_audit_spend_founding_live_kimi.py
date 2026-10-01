@@ -11,8 +11,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 def test_founding_live_spend_run():
-    from core.toolbelt.audit_spend import SpendDomain
     from core.toolbelt.audit import render
+    from core.toolbelt.audit_spend import SpendDomain
 
     # The night brief's belief: refuse $95 (warn $80). No --expect-refuse
     # disagreement to inject: brief and config agree on 95. The founding row
@@ -34,14 +34,14 @@ def test_founding_live_spend_run():
 
     # The founding CLAIMS to verify live:
     #  (a) config refuse default parses to 95.0 from scripts/kimi_chat.py
-    from core.toolbelt.audit_spend import _read_config_defaults, DEFAULT_CONFIG
+    from core.toolbelt.audit_spend import DEFAULT_CONFIG, _read_config_defaults
 
     cfg = _read_config_defaults(DEFAULT_CONFIG)
     print(f"  [config] parsed defaults: {cfg}")
     assert cfg["REFUSE_AT"] == 95.0, f"config parse drifted: {cfg}"
     assert cfg["WARN_AT"] == 80.0, f"config parse drifted: {cfg}"
     #  (b) meter sidecar reads its known live values (budget raised by credits)
-    from core.toolbelt.audit_spend import _read_meter, DEFAULT_METER
+    from core.toolbelt.audit_spend import DEFAULT_METER, _read_meter
 
     meter = _read_meter(DEFAULT_METER)
     assert meter is not None, "live meter unreadable"

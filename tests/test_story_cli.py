@@ -12,24 +12,25 @@ import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from datetime import datetime
+
 from core.foundation.store import FileStore
-from core.narrative.beat_log import BeatLog, TIMELINE
+from core.narrative.beat_log import TIMELINE, BeatLog
 from core.narrative.chronicler import Chronicler
 from core.narrative.schema import (
+    STORY_FORMAT_VERSION,
+    Atlas,
     Beat,
     Chapter,
-    Track,
-    Atlas,
     Edge,
+    Track,
     beat_key,
     chapter_key,
     track_key,
-    STORY_FORMAT_VERSION,
 )
-from core.primitives.ranker import Ranker
-from core.primitives.distiller import Distiller
 from core.narrative.track_router import RouteHint
-from datetime import datetime
+from core.primitives.distiller import Distiller
+from core.primitives.ranker import Ranker
 
 
 def _setup_story():
@@ -56,6 +57,7 @@ def _setup_story():
 def _run_cli(args, store=None):
     """Simulate `py agent_cli.py story <args>` and return (stdout, returncode)."""
     import io
+
     from agent_cli import cmd_story
 
     class FakeArgs:

@@ -56,7 +56,8 @@ import pytest
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from core.comm import reaper, roster as R  # noqa: E402
+from core.comm import reaper  # noqa: E402
+from core.comm import roster as R
 
 NS = f"t147{uuid.uuid4().hex[:8]}"
 AGENT = "deepseek-probe"

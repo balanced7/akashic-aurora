@@ -22,8 +22,8 @@ from types import SimpleNamespace
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import agent_cli
-from core.learning import agent_memory as am
 from core.foundation.store import FileStore
+from core.learning import agent_memory as am
 
 
 def _isolated_mem(monkeypatch):

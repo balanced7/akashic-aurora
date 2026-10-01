@@ -60,8 +60,8 @@ from __future__ import annotations
 import glob
 import json
 import os
-import tempfile
 import random
+import tempfile
 from typing import Any, Dict, List, Optional
 
 # Same root the recall hooks WRITE to (agent/harness/*): a reader on a different temp dir reads nothing.

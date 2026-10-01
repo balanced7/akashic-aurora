@@ -8,16 +8,16 @@ Only an allowlisted peer and an explicit message class can spend a Codex turn.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
 import json
 import os
-from pathlib import Path
-import signal
 import shlex
+import signal
 import threading
 import time
 import uuid
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any, Callable, Dict, FrozenSet, List, Mapping, Optional
 
 from agent.harness.codex_app_server import (
@@ -31,7 +31,6 @@ from core.comm.bus import Bus, Message
 from core.comm.toolbox import ToolBox
 from core.fleet import residents
 from core.toolbelt.registry import Toolbelt
-
 
 DIRECT_ACTION_KINDS = frozenset({"request", "question", "handoff", "blocker"})
 ANSWER_KINDS = frozenset({"response", "reply", "answer", "completion"})

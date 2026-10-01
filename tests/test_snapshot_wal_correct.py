@@ -10,8 +10,8 @@ These two tests pin the properties a file copy does not have.
 """
 
 import importlib.util
-import sqlite3
 import shutil
+import sqlite3
 import sys
 from pathlib import Path
 

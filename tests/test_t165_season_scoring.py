@@ -49,6 +49,7 @@ sys.path.insert(0, ROOT)
 
 def _s():
     import importlib
+
     from core.season import scoring
 
     return importlib.reload(scoring)

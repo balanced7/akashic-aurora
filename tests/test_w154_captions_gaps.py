@@ -12,8 +12,7 @@ hard-depend on it -- a missing package raises the teaching error.
 
 import pytest
 
-from scripts.yt_captions import punctuate_gaps, punctuate_model, punctuate_hybrid, MODEL_PUNCT_HINT
-
+from scripts.yt_captions import MODEL_PUNCT_HINT, punctuate_gaps, punctuate_hybrid, punctuate_model
 
 VTT_GAPS = """WEBVTT
 

@@ -14,14 +14,15 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
+import importlib as _il
+
 from core.comm.bus import Bus
 from tests.test_t095_m0_mailbox_shadow import (
+    NS,
+    _advance_cursor,
     _FakeRedis,
     _mk,
-    _advance_cursor,
-    NS,
 )
-import importlib as _il
 
 
 def _mailbox():

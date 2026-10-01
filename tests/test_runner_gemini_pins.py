@@ -4,10 +4,10 @@ PINS FIRST — bifrost_runner_gemini.py birth tier, quarantine shape.
 Run:  py -m pytest tests/test_runner_gemini_pins.py -v
 """
 
-import os
-import sys
 import json
+import os
 import subprocess
+import sys
 import tempfile
 import time
 from pathlib import Path

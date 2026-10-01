@@ -10,11 +10,11 @@ Bridge units use explicit injection (store + EventQuery); CLI tests drive the re
 agent_cli verbs on the isolated default backend.
 """
 
+import json
 import os
 import sys
-import json
-import uuid
 import tempfile
+import uuid
 
 import isolate_canonical  # noqa: F401
 
@@ -22,14 +22,14 @@ _TESTS = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(_TESTS))
 sys.path.insert(0, _TESTS)
 
-from core.foundation.store import FileStore
-from core.foundation.ledger import FileLedger
+import agent_cli
 from core.events.event_log import EventLog, get_event_log
 from core.events.event_query import EventQuery
+from core.foundation.ledger import FileLedger
+from core.foundation.store import FileStore
 from core.narrative.beat_log import BeatLog
+from core.narrative.event_bridge import events_around, parse_window, raw_for_beat, resolve_span
 from core.narrative.schema import Beat, Chapter, beat_key, chapter_key
-from core.narrative.event_bridge import parse_window, resolve_span, events_around, raw_for_beat
-import agent_cli
 
 
 class FakeArgs:

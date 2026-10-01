@@ -25,8 +25,8 @@ These pins are STATIC so they cannot themselves go quiet: a runtime test needs a
 turn, and a test you cannot run in CI is a test that stops running.
 """
 
-from pathlib import Path
 import ast
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 RUNNERS = sorted(p for p in (ROOT / "scripts").glob("bifrost_runner*.py") if p.suffix == ".py")

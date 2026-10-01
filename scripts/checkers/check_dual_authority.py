@@ -49,8 +49,9 @@ def _repo_root_str() -> str:
     every call here silently used that literal and the repo only ran from one
     directory on one disk.
     """
-    from core.paths import root_str
     import os as _os
+
+    from core.paths import root_str
 
     return (_os.getenv("AI_SETUP") or "").strip() or root_str()
 

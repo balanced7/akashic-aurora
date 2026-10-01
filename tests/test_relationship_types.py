@@ -14,9 +14,9 @@ from collections import Counter
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.foundation.relationship_types import (
+    RELATIONSHIP_TYPES,
     RelationshipType,
     RelationshipTypeDefinition,
-    RELATIONSHIP_TYPES,
     get_relationship_by_name,
     get_relationships_by_domain,
     list_all_domains,

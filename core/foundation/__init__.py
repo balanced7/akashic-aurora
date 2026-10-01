@@ -16,13 +16,13 @@ classic store+ledger pairing):
 - Ledger -> "what HAPPENED, in order?"  (events you append and replay)
 """
 
-from .relationship_types import RelationshipType, get_relationship_by_name
-from .store import Store, RedisStore, FileStore, HybridStore, create_store
-from .ledger import Ledger, RedisLedger, FileLedger, HybridLedger, create_ledger
+from .ledger import FileLedger, HybridLedger, Ledger, RedisLedger, create_ledger
 from .redis_connection import (
     connect_to_redis_with_fail_fast,
     probe_redis_reachable,
 )
+from .relationship_types import RelationshipType, get_relationship_by_name
+from .store import FileStore, HybridStore, RedisStore, Store, create_store
 
 __all__ = [
     # Vocabulary

@@ -25,8 +25,8 @@ from arsenal.jam import tempomap as T  # noqa: E402
 from arsenal.jam.cards import DeckError, DeckStore, merge_patch  # noqa: E402
 from arsenal.jam.resolve import (
     STUB_WARNING,
-    Resolver,
     ResolveError,
+    Resolver,
     chord_facts,
     degree_key,  # noqa: E402
     parse_line,

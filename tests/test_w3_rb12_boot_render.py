@@ -26,10 +26,9 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+import agent_cli
 from core.foundation.store import DictStore
 from core.learning.agent_memory import AgentMemory, Decision
-
-import agent_cli
 
 
 @pytest.fixture()

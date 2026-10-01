@@ -15,8 +15,7 @@ after, and a correctly-converted module still returns the scoped prefix.
 
 import pytest
 
-from core.comm import expectations, runner_lock, liveness, nudge, doctor, turn_metrics
-from core.comm import locks, launcher
+from core.comm import doctor, expectations, launcher, liveness, locks, nudge, runner_lock, turn_metrics
 from core.coord import intent, task_ledger
 
 # The authoritative allowlist of modules whose bifrost:* keys are DELIBERATELY global (cross-namespace

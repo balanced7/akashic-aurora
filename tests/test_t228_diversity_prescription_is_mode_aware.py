@@ -110,6 +110,7 @@ def test_a_heterogeneous_fan_is_detected_without_being_declared():
 def test_ask_many_grew_no_new_caller_facing_parameter():
     """The adversary's objection, pinned: no taxonomy for anyone to buy into."""
     import inspect
+
     from core.comm.ask import ask_many
 
     params = inspect.signature(ask_many).parameters

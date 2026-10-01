@@ -35,7 +35,6 @@ import pytest
 
 from core.coord import world_diff as WD
 
-
 # ------------------------------------------------------------------ the oracle
 
 

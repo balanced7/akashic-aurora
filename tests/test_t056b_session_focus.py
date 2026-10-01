@@ -31,7 +31,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 def _client():
-    from core.foundation.redis_connection import connect_to_redis_with_fail_fast, DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT
+    from core.foundation.redis_connection import DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT, connect_to_redis_with_fail_fast
 
     c = connect_to_redis_with_fail_fast(
         host=DEFAULT_REDIS_HOST, port=DEFAULT_REDIS_PORT, timeout_seconds=3, decode_responses=True
@@ -46,8 +46,8 @@ def env(monkeypatch, tmp_path):
     """A throwaway namespace, a throwaway ledger, and SF pointed at both."""
     ns = f"t056b_{uuid.uuid4().hex[:8]}"
     monkeypatch.setenv("BIFROST_NAMESPACE", ns)
-    from core.coord.task_ledger import TaskLedger
     from core.coord import session_focus as SF
+    from core.coord.task_ledger import TaskLedger
 
     # TaskLedger.load() reads `tasks` as a LIST and keys it by id itself (task_ledger.py:283).
     tasks = [

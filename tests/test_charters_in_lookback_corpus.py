@@ -19,6 +19,7 @@ prepending a layer would silently corrupt the counter.
 """
 
 import os
+
 import pytest
 
 from core.recall import lookback as lb

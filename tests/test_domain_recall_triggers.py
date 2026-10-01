@@ -165,7 +165,7 @@ def test_credit_in_two_domains_promotes():
 def test_promotion_does_not_destroy_the_ordinary_counters():
     """The funnel's existing fields must survive -- promotion reads the same record the value
     measurement reads, and a promotion that reset `useful` would corrupt the gauge it depends on."""
-    from core.recall.at_action import credit_useful, _load_use, _store
+    from core.recall.at_action import _load_use, _store, credit_useful
 
     store = FileStore(os.path.join(tempfile.mkdtemp(prefix="use_"), "s.json"))
     credit_useful("learn:experiment:x", "vfx", store=store)
@@ -177,7 +177,7 @@ def test_promotion_does_not_destroy_the_ordinary_counters():
 
 def test_a_general_lesson_surfaces_in_every_domain():
     """The payoff: a law learned in one domain reaches the other, without being declared general."""
-    from core.recall.at_action import recall_at, credit_useful
+    from core.recall.at_action import credit_useful, recall_at
 
     ls = _ls()
     _lesson(

@@ -28,7 +28,7 @@ from core.comm.bus import Bus
 
 
 def _redis_up():
-    from core.foundation.redis_connection import connect_to_redis_with_fail_fast, DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT
+    from core.foundation.redis_connection import DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT, connect_to_redis_with_fail_fast
 
     return (
         connect_to_redis_with_fail_fast(

@@ -4,18 +4,18 @@ Tests for Supersession: the primitive + AgentMemory integration + Ranker honorin
 Run: py tests/test_supersession.py
 """
 
-import sys
 import os
+import sys
 import tempfile
 
 os.environ["AI_SETUP"] = tempfile.mkdtemp()
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.primitives import supersession as S
-from core.primitives.ranker import Ranker
 from core.foundation.store import FileStore
 from core.learning.agent_memory import AgentMemory
+from core.primitives import supersession as S
+from core.primitives.ranker import Ranker
 
 
 def test_primitive():

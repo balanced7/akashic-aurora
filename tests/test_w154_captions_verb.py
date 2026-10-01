@@ -15,8 +15,7 @@ passthrough, deliberately unpinned (their contract, not ours).
 
 import pytest
 
-from scripts.yt_captions import clean_vtt_text, MISSING_YTDLP_HINT
-
+from scripts.yt_captions import MISSING_YTDLP_HINT, clean_vtt_text
 
 VTT = """WEBVTT
 Kind: captions

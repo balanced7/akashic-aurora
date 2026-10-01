@@ -35,9 +35,10 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "scripts" / "generators"))  # T104-M1: generators moved
 
-from gen_library import walk_docs, _extract, _relpath  # noqa: E402
+from gen_library import _extract, _relpath, walk_docs  # noqa: E402
+
 from core.library import taxonomy as tx  # noqa: E402
-from core.library.atoms import AtomFamily, DOC_TYPES, AtomError  # noqa: E402
+from core.library.atoms import DOC_TYPES, AtomError, AtomFamily  # noqa: E402
 from core.library.projection import render_atom  # noqa: E402
 
 MAP_PATH = ROOT / "state" / "migration_map.json"

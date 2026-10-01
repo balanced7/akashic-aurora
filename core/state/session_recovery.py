@@ -23,10 +23,10 @@ Usage:
 
 import json
 import sys
-from pathlib import Path
+from collections import Counter, defaultdict
 from datetime import datetime
+from pathlib import Path
 from typing import Dict, List, Optional
-from collections import defaultdict, Counter
 
 # Root DERIVED, never hardcoded: this file previously pinned one machine's absolute
 # path, so a copy of the repo anywhere else resolved every path under it to nothing.

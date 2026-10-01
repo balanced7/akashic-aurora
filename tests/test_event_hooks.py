@@ -27,7 +27,7 @@ sys.path.insert(0, os.path.join(_ROOT, "scripts"))
 import agent_cli
 from core.events import event_log
 from core.events.event_log import get_event_log
-from core.narrative.session import start_session, end_session
+from core.narrative.session import end_session, start_session
 
 
 class _Args:
@@ -106,6 +106,7 @@ def test_commit_hook_captures():
 
 def test_session_hooks_capture():
     import tempfile
+
     from core.foundation.store import FileStore
 
     s = FileStore(os.path.join(tempfile.mkdtemp(), "s.json"))

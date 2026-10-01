@@ -41,7 +41,9 @@ import time
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-from arsenal.jam import RUN_API, align as jam_align, cards as jam_cards
+from arsenal.jam import RUN_API
+from arsenal.jam import align as jam_align
+from arsenal.jam import cards as jam_cards
 from arsenal.jam import schemas as S
 from arsenal.jam import tempomap as T
 from arsenal.jam.cards import DeckError, DeckStore, now_iso

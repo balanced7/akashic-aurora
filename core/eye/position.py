@@ -35,8 +35,8 @@ import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from core.eye.connectome import _group, _steps
 from core.eye.index import _connect, get_event
-from core.eye.connectome import _steps, _group
 
 
 def whoami(agent: str = "claude") -> str:

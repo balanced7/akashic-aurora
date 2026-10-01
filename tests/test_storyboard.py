@@ -7,10 +7,9 @@ A detector that cannot find that has no business segmenting anything subtler.
 
 from __future__ import annotations
 
+import av
 import numpy as np
 import pytest
-
-import av
 
 from arsenal import storyboard as sb
 

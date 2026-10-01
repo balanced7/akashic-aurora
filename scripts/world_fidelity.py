@@ -75,8 +75,9 @@ def main() -> int:
     seeded_from = None
     try:
         import redis
-        from core.world_seed import read_manifest
+
         from core.foundation.redis_connection import probe_redis_reachable
+        from core.world_seed import read_manifest
 
         # Same 48s trap as agent_cli._boot_world_line(). A connect timeout does NOT fix it --
         # measured 2026-09-27: socket_connect_timeout=2 still cost 47.95s and =1 cost 26.13s,

@@ -964,9 +964,9 @@ def ask_peer(
                 "why": f"ensure_peer raised ({e.__class__.__name__})",
             }
     try:
-        from core.comm.bus import Bus
-        from core.comm.expectations import arm, sweep, _answers_since
         from core.comm.ask_state import state_of
+        from core.comm.bus import Bus
+        from core.comm.expectations import _answers_since, arm, sweep
 
         b = Bus(sender)
         anchor = b.tail().get("inbox", "0")

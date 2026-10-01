@@ -5,14 +5,15 @@ AgentSignalLedger that runs on top of it.
 Run: py tests/test_ledger.py
 """
 
-import sys
 import os
+import sys
 import tempfile
+
 import isolate_canonical  # noqa: F401 -- isolates file store (AI_SETUP) + Redis db 15 BEFORE foundation import
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.foundation.ledger import Ledger, FileLedger, RedisLedger, HybridLedger, create_ledger
+from core.foundation.ledger import FileLedger, HybridLedger, Ledger, RedisLedger, create_ledger
 from core.signals.agent_signal_ledger import AgentSignalLedger
 
 

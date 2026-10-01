@@ -110,7 +110,7 @@ def test_projects_glob_reaches_nested_transcripts():
     `for d in root.iterdir() if d.is_dir() for p in d.glob('*.jsonl')` cannot see a transcript in
     projects/<x>/subagents/. The recorded instance of this class is THE EYE reporting
     '83/83 manifest_complete' while seeing 82 of 443 files on disk."""
-    from core.eye.index import default_corpus, corpus_coverage
+    from core.eye.index import corpus_coverage, default_corpus
 
     live = Path.home() / ".claude" / "projects"
     if not live.is_dir():

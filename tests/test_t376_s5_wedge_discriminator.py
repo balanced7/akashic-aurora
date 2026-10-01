@@ -37,7 +37,6 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.comm.wedge_discriminator import classify
 
-
 # ---- the two live receipts from half_a §2.2, rendered as stack texts ----
 # deepseek receipt: MainThread blocked in streams.py write, worker in flush.
 _WEDGED_STACK = """\

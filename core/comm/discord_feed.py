@@ -26,9 +26,9 @@ from __future__ import annotations
 import json
 from typing import Any, Callable, Dict, List, Optional
 
-from core.outcome import BoundaryOutcome
 from core.comm import discord_bridge as DB
 from core.comm import discord_rooms as ROOMS
+from core.outcome import BoundaryOutcome
 
 CURSOR_KEY = "bifrost:discord:feed_cursor"
 

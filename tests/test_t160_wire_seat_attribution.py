@@ -51,6 +51,7 @@ sys.path.insert(0, ROOT)
 
 def _wj():
     import importlib
+
     from scripts import wire_journal
 
     return importlib.reload(wire_journal)

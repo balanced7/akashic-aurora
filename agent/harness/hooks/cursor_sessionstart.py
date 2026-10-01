@@ -38,7 +38,7 @@ def main() -> int:
     except Exception:
         pass
     try:
-        from core.recall.at_action import warm_cache, prune_state
+        from core.recall.at_action import prune_state, warm_cache
 
         warm_cache()
         prune_state()

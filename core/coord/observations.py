@@ -12,7 +12,6 @@ from typing import Any, Dict, Mapping, Optional, Tuple
 
 from core.foundation.timeutil import now_iso
 
-
 _TOTAL_RELATIONS = {"exact", "at_least", "unknown"}
 
 

@@ -4,12 +4,12 @@ Tests for the Distiller shared primitive.
 Run: py tests/test_distiller.py
 """
 
-import sys
 import os
+import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.primitives.distiller import Distiller, Distillation
+from core.primitives.distiller import Distillation, Distiller
 
 
 def test_distills_within_budget():

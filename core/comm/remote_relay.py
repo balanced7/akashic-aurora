@@ -51,9 +51,9 @@ import time
 from pathlib import Path
 from typing import Any, Callable, Dict, Optional, Tuple
 
-from core.outcome import BoundaryOutcome
 from core.comm import discord_bridge
 from core.foundation import filelock
+from core.outcome import BoundaryOutcome
 
 
 def _pyl() -> str:
@@ -387,6 +387,7 @@ def file_announcement(path, *, blobs=None) -> Dict[str, Any]:
     admits the loss, because it looks like the data is reachable.
     """
     from pathlib import Path as _P
+
     from core.comm.blobs import get_blob_store
 
     p = _P(path)

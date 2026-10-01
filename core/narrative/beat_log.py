@@ -22,12 +22,12 @@ from typing import List, Optional
 
 from core.foundation.store import Store, create_store
 from core.narrative.schema import (
+    BEAT_KINDS,
+    DEFAULT_WEIGHT,
     Beat,
     Edge,
     beat_key,
     clamp_weight,
-    DEFAULT_WEIGHT,
-    BEAT_KINDS,
     validate_beat,
 )
 
@@ -35,7 +35,8 @@ TIMELINE = "narr:beats:timeline"
 ROUTER_ACTIVE = "narr:router:active"
 
 
-from core.foundation.timeutil import now_iso, to_epoch as _epoch  # unified tz-safe epoch (S5)
+from core.foundation.timeutil import now_iso  # unified tz-safe epoch (S5)
+from core.foundation.timeutil import to_epoch as _epoch
 
 
 class BeatLog:
@@ -123,8 +124,8 @@ class BeatLog:
         """Assign the Beat to a Track (Slice 2). Best-effort -- an unrouted Beat is
         still a valid Beat, so a routing hiccup never blocks logging."""
         try:
-            from core.narrative.track_router import get_track_router, RouteHint
-            from core.narrative.schema import track_key, Track
+            from core.narrative.schema import Track, track_key
+            from core.narrative.track_router import RouteHint, get_track_router
 
             active = self.store.get(ROUTER_ACTIVE)
             res = get_track_router().route_one(beat, hint or RouteHint(), active)

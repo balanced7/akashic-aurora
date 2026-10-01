@@ -416,7 +416,7 @@ def cited_shas(root):
 
 
 def cmd_census(args):
-    from core.git.rewrite_map import Resolver, CURRENT, TRANSLATED, DROPPED, AMBIGUOUS
+    from core.git.rewrite_map import AMBIGUOUS, CURRENT, DROPPED, TRANSLATED, Resolver
 
     root = repo(args)
     cand = cited_shas(root)

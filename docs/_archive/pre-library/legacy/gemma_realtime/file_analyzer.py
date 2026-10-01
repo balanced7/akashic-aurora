@@ -4,13 +4,14 @@ Gemma Realtime - File Analyzer
 Multi-format file analysis (code, images, PDFs, docs, DB, audio, video)
 """
 
-import io
-import os
-import json
 import asyncio
+import io
+import json
+import os
 import subprocess
-from typing import Optional, Dict, Any, List
 from pathlib import Path
+from typing import Any, Dict, List, Optional
+
 import torch
 from PIL import Image
 

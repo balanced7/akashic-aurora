@@ -419,7 +419,8 @@ def watch(
     _roster_beat = None
     if session_id:
         try:
-            from core.comm import roster as _R, liveness as _L
+            from core.comm import liveness as _L
+            from core.comm import roster as _R
 
             _roster_beat = (_R, _L._ns())
             _R.heartbeat(_roster_beat[1], agent, session_id, phase="idle")

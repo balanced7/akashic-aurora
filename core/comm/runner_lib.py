@@ -62,8 +62,8 @@ def make_openai_compat_client(
     computed timeout, and every fallback below keeps it too. An instrumented but wedge-prone seat
     is a worse trade than a blind one, so if capture cannot be set up, capture is what we drop.
     """
-    from openai import OpenAI
     import httpx
+    from openai import OpenAI
 
     timeout = httpx.Timeout(read_timeout, connect=connect_timeout)
 

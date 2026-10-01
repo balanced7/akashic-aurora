@@ -24,11 +24,12 @@ Usage:
     kb.vector_search("semantic query")        # Vector similarity search
 """
 
-import redis
 import json
 import os
 from datetime import datetime
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict, List, Optional
+
+import redis
 
 # Connection pool - reuse connections across instances
 _redis_pool = None

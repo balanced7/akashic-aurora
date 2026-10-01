@@ -49,10 +49,13 @@ sys.path.insert(0, str(REPO))
 os.environ.setdefault("BIFROST_NAMESPACE", "rb25soak")
 
 import psutil  # noqa: E402
+
+from core.comm import (
+    expectations,  # noqa: E402
+    runner_lock,  # noqa: E402
+    wake_seat,  # noqa: E402
+)
 from core.comm.bus import Bus  # noqa: E402
-from core.comm import expectations  # noqa: E402
-from core.comm import wake_seat  # noqa: E402
-from core.comm import runner_lock  # noqa: E402
 
 PY = sys.executable
 LEDGER = REPO / "research" / "reviewed" / "rb25-drill4-soak-ledger.json"

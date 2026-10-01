@@ -22,8 +22,8 @@ item is active, so this is safe now and "just works" later.
 See docs/library/design/20260619_shared-primitives-interface-spec_03e098.md and docs/library/design/20260620_research-context-handling-compaction-and_e5960c.md.
 """
 
-import re
 import math
+import re
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional

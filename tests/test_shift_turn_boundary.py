@@ -55,8 +55,8 @@ def test_fails_closed_to_idle_when_the_ledger_raises():
 
 def test_fails_closed_to_idle_when_the_decision_core_raises():
     """THE BLAST-RADIUS PIN: next_beat itself blowing up must not wedge four runners."""
-    from core.comm import shift_turn
     import core.coord.shift_loop as sl
+    from core.comm import shift_turn
 
     orig = sl.next_beat
     sl.next_beat = lambda **k: (_ for _ in ()).throw(ValueError("bad view"))

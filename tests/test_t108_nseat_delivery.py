@@ -27,9 +27,9 @@ import uuid
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.comm.bus import Bus  # noqa: E402
-
 import pytest
+
+from core.comm.bus import Bus  # noqa: E402
 
 
 @pytest.fixture(autouse=True)
@@ -113,7 +113,8 @@ def test_pin2_dead_seat_directed_mail_rehomes():
         print("SKIPPED (Redis not running)")
         return
 
-    from core.comm import roster as ro, reaper
+    from core.comm import reaper
+    from core.comm import roster as ro
 
     sid8 = SEAT_A[:8]  # roster/seat keys use sid8
     ro.heartbeat(ns, AGENT, sid8, phase="building")  # A lives, registers its witness

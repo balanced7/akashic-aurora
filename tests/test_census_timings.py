@@ -1,6 +1,11 @@
 """System census timing probes — v2, capture stdout."""
 
-import os, sys, time, json, io, contextlib
+import contextlib
+import io
+import json
+import os
+import sys
+import time
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(REPO, "temp", "census_timings.txt")

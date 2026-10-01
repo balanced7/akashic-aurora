@@ -294,7 +294,8 @@ def _beat_seat(data) -> None:
         # W4 IS PRESERVED DELIBERATELY: when nothing is bound and no env is set the identity is
         # genuinely unknown, and we still emit NO ROW rather than a phantom -- a beat naming
         # unknown-<sid8> would be honest but would still invent a seat.
-        from core.comm.seat_identity import resolve as _resolve, resolved_from as _resolved_from
+        from core.comm.seat_identity import resolve as _resolve
+        from core.comm.seat_identity import resolved_from as _resolved_from
 
         if _resolved_from(sid) == "unknown":
             return
@@ -380,7 +381,7 @@ def main() -> int:
         return 0
     _capture(data)
     try:
-        from core.recall.at_action import normalize_target, resolve_action_outcome, build_learn_nudge
+        from core.recall.at_action import build_learn_nudge, normalize_target, resolve_action_outcome
 
         ti = data.get("tool_input") or {}
         target = normalize_target(ti.get("file_path") or None, ti.get("command") or None)

@@ -60,6 +60,7 @@ def _compressor_running() -> bool:
 def _redis_client():
     try:
         import redis
+
         from config import get_redis_config
 
         r = redis.Redis(**get_redis_config())
@@ -152,8 +153,8 @@ def _legacy_opencode_log_hints(r) -> Dict[str, Any]:
 
 
 def _port_section(sync_ports: bool) -> Dict[str, Any]:
-    from stack_manager.ports import PortManager
     from stack_manager.config import SERVICES
+    from stack_manager.ports import PortManager
 
     pm = PortManager()
     section: Dict[str, Any] = {

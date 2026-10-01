@@ -15,9 +15,9 @@ import tempfile
 os.environ.setdefault("AI_SETUP", tempfile.mkdtemp())
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.recall.forge_optimizer import select_targets, build_prompt, parse_reply, run_pass, pending_proposals
-from core.learning.learning_store import LearningStore
 from core.foundation.store import FileStore
+from core.learning.learning_store import LearningStore
+from core.recall.forge_optimizer import build_prompt, parse_reply, pending_proposals, run_pass, select_targets
 
 INCUMBENT = (
     "Use when editing the consolidator seam pipeline, before refactoring: route "

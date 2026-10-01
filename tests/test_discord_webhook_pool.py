@@ -40,7 +40,6 @@ sys.path.insert(0, ROOT)
 from core.comm import discord_bridge as DB  # noqa: E402
 from core.comm import discord_feed as F  # noqa: E402
 
-
 # ============================================================================ webhook_urls()
 
 

@@ -11,9 +11,8 @@ import inspect
 
 import pytest
 
-from core.coord.observations import Observation, Snapshot
 from core.comm import awareness
-
+from core.coord.observations import Observation, Snapshot
 
 SUBJECT = "synthetic-seat-t084"
 

@@ -21,9 +21,9 @@ Semantic Relationship: Summary consolidated_from Items (ranked, distilled, point
 
 from typing import Any, Dict, List, Optional
 
-from core.primitives.ranker import Ranker
-from core.primitives.distiller import Distiller, Distillation
+from core.primitives.distiller import Distillation, Distiller
 from core.primitives.faithfulness import faithfulness_critic
+from core.primitives.ranker import Ranker
 
 
 class Consolidator:

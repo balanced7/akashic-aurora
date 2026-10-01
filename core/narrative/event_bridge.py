@@ -17,9 +17,9 @@ import json
 from datetime import datetime, timedelta
 from typing import Any, Dict, Optional, Tuple
 
+from core.events.event_query import EventQuery, get_event_query
 from core.foundation.store import Store, create_store
 from core.foundation.timeutil import now_iso
-from core.events.event_query import EventQuery, get_event_query
 
 DEFAULT_WINDOW_SECONDS = 1800  # +/- 30 min around a point (Beat / timestamp)
 
@@ -53,7 +53,7 @@ def resolve_span(ref: str, *, store: Store, window_seconds: int = DEFAULT_WINDOW
     - ISO ts     -> ts +/- window
     Returns None if `ref` resolves to none of these.
     """
-    from core.narrative.schema import Chapter, Beat, chapter_key, beat_key
+    from core.narrative.schema import Beat, Chapter, beat_key, chapter_key
 
     raw = store.get(chapter_key(ref))
     if raw:

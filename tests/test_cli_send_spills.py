@@ -27,8 +27,8 @@ Run: py -m pytest tests/test_cli_send_spills.py -q
 
 import os
 import re
-import sys
 import subprocess
+import sys
 
 import isolate_canonical  # noqa: F401 -- db 15 + temp AI_SETUP, flushed (child inherits via env)
 
@@ -119,7 +119,7 @@ def test_p5_the_new_caller_degrades_to_the_clip_when_the_blob_store_fails(monkey
     the body still carries a bound-and-confessed clip, and RB-5 (a bound always confesses)
     holds in the degraded branch too.
     """
-    from core.comm import packet_spec, blobs
+    from core.comm import blobs, packet_spec
 
     def _dead_put(self, data):
         raise OSError("blob store unavailable")

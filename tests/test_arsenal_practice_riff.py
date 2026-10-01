@@ -34,8 +34,10 @@ sys.path.insert(0, str(ROOT))
 from arsenal import nashville  # noqa: E402
 from arsenal import practice as pr  # noqa: E402
 from arsenal import practice_riff as riff  # noqa: E402
-from arsenal.jam import RIFF_API  # noqa: E402
-from arsenal.jam import schemas  # noqa: E402
+from arsenal.jam import (
+    RIFF_API,  # noqa: E402
+    schemas,  # noqa: E402
+)
 from arsenal.jam import tempomap as tm  # noqa: E402
 from arsenal.performance import PerformanceStore  # noqa: E402
 
@@ -1133,6 +1135,7 @@ def test_landing_and_check_notes_are_spelled_from_the_chord():
     'Eb major') is B), where the card and jam-rulings say Cb, the b3 of Abm(add9). Both are spelled from the chord's own
     tones now, also for a def recorded before resolve carried landing.note."""
     from types import SimpleNamespace
+
     from arsenal.jam.resolve import tone_name
 
     slot = {

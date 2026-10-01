@@ -24,8 +24,8 @@ Contract frozen here:
 Run: py -m pytest tests/test_t196c_ask_peer.py -q
 """
 
-import re
 import os
+import re
 import sys
 import threading
 import time
@@ -182,6 +182,7 @@ def test_empty_prompt_fails():
 @needs_built
 def test_cli_render_partial_is_not_echo(monkeypatch, capsys):
     import types
+
     import agent_cli
     from core.outcome import BoundaryOutcome
 

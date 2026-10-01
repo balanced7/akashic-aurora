@@ -48,8 +48,8 @@ def test_governing_arc_prefers_active_match_over_newest(monkeypatch):
         ),
         _fake_note("where-we-are", "shipped a bunch; next P3"),
     ]
-    import core.learning.agent_memory as am
     import core.coord.task_ledger as tl
+    import core.learning.agent_memory as am
 
     monkeypatch.setattr(am, "get_agent_memory", lambda: SimpleNamespace(get_decisions=lambda days=90: notes))
     monkeypatch.setattr(
@@ -81,8 +81,8 @@ def test_governing_arc_prefers_active_match_over_newest(monkeypatch):
 
 def test_governing_arc_falls_back_to_newest_when_nothing_active_matches(monkeypatch):
     notes = [_fake_note("solo-arc-status", "doc: docs/solo-arc.md")]
-    import core.learning.agent_memory as am
     import core.coord.task_ledger as tl
+    import core.learning.agent_memory as am
 
     monkeypatch.setattr(am, "get_agent_memory", lambda: SimpleNamespace(get_decisions=lambda days=90: notes))
     monkeypatch.setattr(

@@ -4,11 +4,11 @@ Onboarding Test v2: Compare old vs new initialization approach
 Measures: decision reuse, token efficiency, context availability, startup time
 """
 
+import json
 import sys
 import time
-import json
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 
 sys.path.insert(0, ".")
 

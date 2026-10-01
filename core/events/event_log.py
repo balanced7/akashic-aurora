@@ -30,9 +30,9 @@ Best-effort by design: capture() never raises into the caller's main flow, so ho
 into hot paths (commits, CLI verbs, sessions) can never break them.
 """
 
-import os
 import json
 import logging
+import os
 from typing import Any, Dict, List, Optional
 
 from core.foundation.ledger import Ledger, create_ledger

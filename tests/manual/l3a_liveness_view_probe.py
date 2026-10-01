@@ -1,10 +1,14 @@
 """L3a proof: observe-only wedge_view + launcher.registry() carries per-agent liveness."""
 
-import os, ast, sys, time
+import ast
+import os
 
 # Root DERIVED from this file, never hardcoded: the literal pinned one machine's disk,
 # so a copy of the repo anywhere else resolved every path under it to nothing.
-import os as _os, pathlib as _pl
+import os as _os
+import pathlib as _pl
+import sys
+import time
 
 _here = _pl.Path(__file__).resolve()
 ROOT = str(

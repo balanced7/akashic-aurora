@@ -24,10 +24,10 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.trust.registry import resolve
-from core.trust.capabilities import Cap
 from core.comm import context_hints
 from core.comm.promoter import ack_verdict
+from core.trust.capabilities import Cap
+from core.trust.registry import resolve
 
 NEWBORN = "newborn-gauntlet-1"  # the pre-registered stranger: unknown to acl.json + bootstrap
 

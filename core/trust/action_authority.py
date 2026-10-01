@@ -15,7 +15,6 @@ from __future__ import annotations
 
 from typing import Any, Dict, Mapping, Tuple
 
-
 # Values, not enum member names: these are also the strings rendered by ground
 # and security/acl.json.  Nudge/steer require BUS_SEND as well as their special
 # capability because the real door checks both the special gate and kind gate.

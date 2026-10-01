@@ -15,7 +15,7 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.comm.doctor import pulse, format_pulse
+from core.comm.doctor import format_pulse, pulse
 
 
 @pytest.fixture()

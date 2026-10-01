@@ -5,20 +5,21 @@ Tests for the Context pillar loaders: decision, blocker, briefing.
 Run: py tests/test_context_loaders.py
 """
 
-import sys
 import os
+import sys
 import tempfile
+
 import isolate_canonical  # noqa: F401 -- isolates file store (AI_SETUP) + Redis db 15 BEFORE foundation import
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.foundation.store import FileStore
-from core.foundation.ledger import FileLedger
-from core.learning.agent_memory import AgentMemory
-from core.signals.agent_signal_ledger import AgentSignalLedger
-from core.context.decision_loader import load_decisions_applicable_to_task
 from core.context.blocker_loader import load_blockers_preventing_progress
 from core.context.briefing_loader import load_briefing_from_previous_handoff
+from core.context.decision_loader import load_decisions_applicable_to_task
+from core.foundation.ledger import FileLedger
+from core.foundation.store import FileStore
+from core.learning.agent_memory import AgentMemory
+from core.signals.agent_signal_ledger import AgentSignalLedger
 
 
 def test_decision_loader():

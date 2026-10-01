@@ -22,8 +22,8 @@ See docs/library/design/20260709_context-pillar-system-4-design-consolida_89733b
 import os
 from typing import Any, Dict, List, Optional
 
-from core.primitives.ranker import Ranker
 from core.learning.learning_store import LearningStore, get_learning_store_instance, is_graduated
+from core.primitives.ranker import Ranker
 
 
 def load_learnings_for_boot(

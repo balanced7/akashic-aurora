@@ -48,9 +48,11 @@ os.environ["AKASHIC_DRILL_ECHO"] = "1"
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO))
 
+from core.comm import (
+    control,  # noqa: E402  (pause-guard, 2026-07-12 finding)
+    runner_lock,  # noqa: E402
+)
 from core.comm.bus import Bus  # noqa: E402
-from core.comm import runner_lock  # noqa: E402
-from core.comm import control  # noqa: E402  (pause-guard, 2026-07-12 finding)
 
 PY = sys.executable
 TAG_RE = re.compile(r"(storm-[0-9a-f]+-(?:request|handoff|steer|trace|chat)-\d{3})")

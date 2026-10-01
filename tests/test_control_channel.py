@@ -43,7 +43,8 @@ def test_port_is_stable_across_processes():
     """The killer detail: Python's hash() is randomised per process (PYTHONHASHSEED), so a
     hash()-based port would make two processes disagree about where one agent listens. That is
     exactly the stale-mapping failure this design exists to avoid, so it must be pinned."""
-    import subprocess, sys
+    import subprocess
+    import sys
 
     src = (
         "import sys; sys.path.insert(0, r'%s'); "

@@ -86,6 +86,7 @@ def seat():
 
 def _seat_doc(agent, sid8):
     import json as _json
+
     from core.comm import liveness
 
     return _json.loads(liveness._client().get(f"{NS}:worklive:{agent}#{sid8}") or "{}")
@@ -93,6 +94,7 @@ def _seat_doc(agent, sid8):
 
 def _set_seat_sha(agent, sid8, sha):
     import json as _json
+
     from core.comm import liveness
 
     d = _seat_doc(agent, sid8)
@@ -108,6 +110,7 @@ def test_p1_a_process_stamps_the_commit_it_is_running(seat):
     (bare-agent key) while the roster renders SEATS (#sid8 key). Stamping only the one
     I happened to be looking at would leave the actual offenders invisible."""
     import json as _json
+
     from core.comm import liveness
 
     agent, sid8, wl = seat
@@ -172,9 +175,9 @@ def test_p5_the_human_render_says_it(seat):
 def test_p7_the_version_probe_never_breaks_a_heartbeat(monkeypatch):
     """Liveness is load-bearing. A version probe that can kill a heartbeat is worse than
     no version probe -- it converts an observability nicety into an outage."""
-    from core.comm import liveness
-
     import json as _json
+
+    from core.comm import liveness
 
     def _boom():
         raise RuntimeError("git is gone")

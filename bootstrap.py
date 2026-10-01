@@ -16,11 +16,11 @@ Usage:
     python bootstrap.py --start-session  # ALSO open a narrative session (mutates)
 """
 
-import sys
-import os
-import json
-import shutil
 import argparse
+import json
+import os
+import shutil
+import sys
 from datetime import datetime
 
 
@@ -53,9 +53,9 @@ def emit_agent_init():
     host, port, reachable, lessons = "localhost", None, False, None
     try:
         from core.foundation.redis_connection import (
-            connect_to_redis_with_fail_fast,
             DEFAULT_REDIS_HOST,
             DEFAULT_REDIS_PORT,
+            connect_to_redis_with_fail_fast,
         )
 
         host, port = DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT
@@ -98,9 +98,9 @@ def check_redis():
     """Redis reachable via the fail-fast connector? Returns (ok, detail)."""
     try:
         from core.foundation.redis_connection import (
-            connect_to_redis_with_fail_fast,
             DEFAULT_REDIS_HOST,
             DEFAULT_REDIS_PORT,
+            connect_to_redis_with_fail_fast,
         )
 
         client = connect_to_redis_with_fail_fast(host=DEFAULT_REDIS_HOST, port=DEFAULT_REDIS_PORT, timeout_seconds=3)
@@ -117,7 +117,7 @@ def check_redis():
 def check_foundation():
     """Are the Pillar 0 primitives importable? Returns (ok, detail)."""
     try:
-        from core.foundation import Store, Ledger, create_store, create_ledger  # noqa: F401
+        from core.foundation import Ledger, Store, create_ledger, create_store  # noqa: F401
 
         return True, "Store + Ledger present"
     except Exception as e:
@@ -141,9 +141,9 @@ def report_memory_counts():
     """Count what's actually stored, in the real namespaces (learn: / mem:)."""
     try:
         from core.foundation.redis_connection import (
-            connect_to_redis_with_fail_fast,
             DEFAULT_REDIS_HOST,
             DEFAULT_REDIS_PORT,
+            connect_to_redis_with_fail_fast,
         )
 
         client = connect_to_redis_with_fail_fast(host=DEFAULT_REDIS_HOST, port=DEFAULT_REDIS_PORT, timeout_seconds=3)

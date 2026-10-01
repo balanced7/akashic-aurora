@@ -23,9 +23,9 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
 from core.foundation.store import create_store
-from core.narrative.beat_log import BeatLog, TIMELINE
-from core.narrative.schema import Beat, beat_key, track_key, Track
-from core.narrative.track_router import get_track_router, RouteHint
+from core.narrative.beat_log import TIMELINE, BeatLog
+from core.narrative.schema import Beat, Track, beat_key, track_key
+from core.narrative.track_router import RouteHint, get_track_router
 
 
 def _git(*args):

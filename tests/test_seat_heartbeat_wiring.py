@@ -141,7 +141,7 @@ def test_w2_beat_survives_the_target_scope_gate(which, ns):
     A beat placed anywhere at or below claude_posttooluse.py:253 cannot fire here. This is the
     regression that would silently return the fleet to zero-live for home-rooted seats.
     """
-    from agent.harness.scope import shell_in_scope, session_in_scope
+    from agent.harness.scope import session_in_scope, shell_in_scope
 
     # Establish the premise rather than assume it: this payload really is out of target scope
     # and really is in session scope. If that ever stops being true the pin is meaningless.

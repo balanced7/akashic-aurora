@@ -20,13 +20,13 @@ os.environ.setdefault("AI_SETUP", tempfile.mkdtemp())
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.recall.replay import (
-    flip_events,
+    audit,
     credited_contexts,
-    surfaced_contexts,
+    fidelity_check,
+    flip_events,
     parse_target,
     replay,
-    fidelity_check,
-    audit,
+    surfaced_contexts,
 )
 
 

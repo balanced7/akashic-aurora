@@ -26,26 +26,27 @@ _TESTS = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(_TESTS))
 sys.path.insert(0, _TESTS)
 
+from fixtures.narrative_fixture import GOLD_THEME_VOCAB, GOLD_TRACKS, gold_qa, gold_rows
+from narrative_metrics import (
+    accuracy,
+    ari,
+    boundaries,
+    boundary_f1,
+    jaccard_multilabel,
+    multilabel_prf,
+    nmi,
+    purity,
+    windowdiff,
+)
+
 from core.foundation.store import FileStore
 from core.narrative.beat_log import BeatLog
 from core.narrative.chronicler import Chronicler
 from core.narrative.schema import Atlas, Beat, Chapter, beat_key, chapter_key, track_key
-from core.narrative.track_router import TrackRouter, RouteHint
 from core.narrative.theme_assigner import ThemeAssigner
-from core.primitives.ranker import Ranker
+from core.narrative.track_router import RouteHint, TrackRouter
 from core.primitives.distiller import Distiller
-from narrative_metrics import (
-    ari,
-    nmi,
-    purity,
-    accuracy,
-    boundaries,
-    windowdiff,
-    boundary_f1,
-    multilabel_prf,
-    jaccard_multilabel,
-)
-from fixtures.narrative_fixture import gold_rows, gold_qa, GOLD_TRACKS, GOLD_THEME_VOCAB
+from core.primitives.ranker import Ranker
 
 # ---- acceptance bars (docs/library/design/20260709_narrative-spine-test-verification-plan-b_cc061e.md) ----
 ARI_BAR = 0.70

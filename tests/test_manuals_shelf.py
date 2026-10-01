@@ -19,8 +19,8 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from core.manuals import convert, chunk, shelf as shelf_mod  # noqa: E402
-
+from core.manuals import chunk, convert  # noqa: E402
+from core.manuals import shelf as shelf_mod
 
 # ---- conversion ------------------------------------------------------------------
 

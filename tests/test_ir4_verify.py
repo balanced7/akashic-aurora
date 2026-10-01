@@ -4,8 +4,9 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from scripts.deepseek_chat import ToolBox
 from pathlib import Path
+
+from scripts.deepseek_chat import ToolBox
 
 
 def test_ir4_mirror_family_present():

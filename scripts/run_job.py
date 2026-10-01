@@ -24,20 +24,19 @@ from __future__ import annotations
 
 import argparse
 import base64
-from contextlib import contextmanager
 import ctypes
 import errno
 import json
 import os
-from pathlib import Path
 import re
 import signal
 import subprocess
 import sys
 import time
 import uuid
+from contextlib import contextmanager
+from pathlib import Path
 from typing import Any, Dict, Iterable, Optional
-
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_STATE_DIR = ROOT / "state" / "jobs"

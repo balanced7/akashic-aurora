@@ -14,8 +14,8 @@ import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.learning.learning_store import LearningStore, find_related
 from core.foundation.store import FileStore
+from core.learning.learning_store import LearningStore, find_related
 
 
 def _store():

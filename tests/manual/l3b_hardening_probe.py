@@ -1,11 +1,15 @@
 """L3b-auto hardening proof: armed set PERSISTS in Redis (survives restart + shared), storm-disarm
 persists, jitter doesn't break the flow. _bus_note mocked so no test notes hit the live bus."""
 
-import os, ast, sys, time
+import ast
+import os
 
 # Root DERIVED from this file, never hardcoded: the literal pinned one machine's disk,
 # so a copy of the repo anywhere else resolved every path under it to nothing.
-import os as _os, pathlib as _pl
+import os as _os
+import pathlib as _pl
+import sys
+import time
 
 _here = _pl.Path(__file__).resolve()
 ROOT = str(
@@ -16,7 +20,7 @@ print("parse OK: launcher.py")
 
 sys.path.insert(0, ROOT)
 import core.comm.launcher as LM
-from core.comm.launcher import Launcher, AgentSpec, AUTO_REVIVE_KEY, _bus_redis
+from core.comm.launcher import AUTO_REVIVE_KEY, AgentSpec, Launcher, _bus_redis
 
 r = _bus_redis()
 for k in ("deepseek", "l3bh_probe"):

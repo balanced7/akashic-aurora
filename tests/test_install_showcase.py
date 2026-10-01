@@ -3,9 +3,10 @@ INSTALL: mint parse-gate, toast, muse into the REAL deepseek toolbelt.
 Uses Toolbelt (sugar-only validated, supersession-safe) — never hand-edits JSON.
 """
 
-from core.toolbelt.registry import Toolbelt
-import agent_cli
 import sys
+
+import agent_cli
+from core.toolbelt.registry import Toolbelt
 
 tb = Toolbelt("deepseek")
 

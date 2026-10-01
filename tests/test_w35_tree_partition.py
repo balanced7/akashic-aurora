@@ -19,7 +19,6 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import agent_cli
 
-
 PORCELAIN = [
     " M core/comm/toolbox.py",
     " M scripts/bifrost_ui.py",

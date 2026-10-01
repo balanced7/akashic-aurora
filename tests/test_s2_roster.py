@@ -146,6 +146,7 @@ def test_p7_have_summary_reads_through_the_bus_door():
     successor diffs against (T1). The seat-cursor half must agree with the Bus's own
     door-derived read after a real slice-1 consume."""
     import os as _os
+
     from core.comm.bus import Bus
 
     ro = _ro()

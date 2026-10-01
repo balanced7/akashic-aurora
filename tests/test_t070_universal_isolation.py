@@ -79,6 +79,7 @@ def test_isolation_is_idempotent():
     before = os.environ.get("AI_SETUP")
     sys.path.insert(0, str(ROOT / "tests"))
     import importlib
+
     import isolate_canonical
 
     importlib.reload(isolate_canonical)

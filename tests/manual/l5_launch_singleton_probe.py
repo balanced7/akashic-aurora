@@ -2,11 +2,15 @@
 acquires-and-holds the lock itself (which starved the child it spawned). No real process spawned:
 the refusal returns before Popen."""
 
-import os, ast, sys, re
+import ast
+import os
 
 # Root DERIVED from this file, never hardcoded: the literal pinned one machine's disk,
 # so a copy of the repo anywhere else resolved every path under it to nothing.
-import os as _os, pathlib as _pl
+import os as _os
+import pathlib as _pl
+import re
+import sys
 
 _here = _pl.Path(__file__).resolve()
 ROOT = str(

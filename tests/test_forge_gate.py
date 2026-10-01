@@ -20,7 +20,7 @@ import tempfile
 os.environ.setdefault("AI_SETUP", tempfile.mkdtemp())
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.recall.forge import gate_edit, apply_edit
+from core.recall.forge import apply_edit, gate_edit
 
 FLOOR = 0.05  # explicit floor for determinism (the calibrated default is env-tunable)
 
@@ -151,8 +151,8 @@ def test_unmeasurable_abstains_without_poisoning_the_buffer():
     """Red-team drill finding (2026-07-09): a never-credited lesson whose recorded contexts
     all pre-date the current matcher regime gives the gate NOTHING to judge with (incumbent
     0 hits). That is an abstention, not a refutation -- verdict UNMEASURABLE, no reject stamp."""
-    from core.learning.learning_store import LearningStore
     from core.foundation.store import FileStore
+    from core.learning.learning_store import LearningStore
 
     ls = LearningStore(store=FileStore(os.path.join(tempfile.mkdtemp(), "learn.json")))
     ls.persist_learning_derived_from_experiment(
@@ -235,8 +235,8 @@ def test_unknown_lesson_fails_closed():
 
 
 def test_reject_stamp_and_apply_rollback_roundtrip():
-    from core.learning.learning_store import LearningStore
     from core.foundation.store import FileStore
+    from core.learning.learning_store import LearningStore
 
     ls = LearningStore(store=FileStore(os.path.join(tempfile.mkdtemp(), "learn.json")))
     ls.persist_learning_derived_from_experiment(

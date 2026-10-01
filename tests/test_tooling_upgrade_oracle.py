@@ -347,6 +347,7 @@ def test_drill_verdicts(tmp_path, monkeypatch, presence, clean, faulty, expected
     """A drill BITes only when its gate exists, is green on the clean tree, and goes red on the
     fault -- so a later BIT means the gate caught the fault, not that it was absent or broken."""
     import contextlib
+
     import certify
 
     state = {"faulted": False}

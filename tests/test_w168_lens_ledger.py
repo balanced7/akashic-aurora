@@ -45,7 +45,6 @@ import pytest
 
 from core.coord import lens_ledger as L
 
-
 _FAN_SEQ = [0]
 
 

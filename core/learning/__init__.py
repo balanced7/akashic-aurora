@@ -19,13 +19,13 @@ Two complementary stores, kept distinct (different names + Redis namespaces):
 - AgentMemory   -> decisions/experiences/reflections/approaches (the `mem:` namespace)
 """
 
-from .learning_store import LearningStore, get_learning_store
 from .agent_memory import AgentMemory, get_agent_memory
 from .consolidation import (
     consolidate_into_chronicle,
-    consolidate_memory_into_chronicle,
     consolidate_learnings_into_chronicle,
+    consolidate_memory_into_chronicle,
 )
+from .learning_store import LearningStore, get_learning_store
 
 __all__ = [
     "LearningStore",

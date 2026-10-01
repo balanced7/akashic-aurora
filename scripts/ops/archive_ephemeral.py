@@ -47,8 +47,12 @@ sys.path.insert(0, str(_REPO_ROOT))
 
 from scripts.ops.archive_transcripts import (  # noqa: E402
     DEFAULT_DESTS as _T_DESTS,
-    archive,
+)
+from scripts.ops.archive_transcripts import (
     _render as _render_copy,
+)
+from scripts.ops.archive_transcripts import (
+    archive,
 )
 
 # The engine, re-exported so callers (and the pins) can see it is the SAME one.

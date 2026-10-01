@@ -33,10 +33,11 @@ Usage:
 
 import json
 import logging
-from typing import Dict, Any, Optional, List
-from pathlib import Path
-from datetime import datetime
 import os
+from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
 from core.paths import data_root
 
 log_dir = data_root() / "session_logs"

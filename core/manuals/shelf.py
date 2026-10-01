@@ -458,6 +458,7 @@ class Shelf:
     def _by_meaning(self, c: sqlite3.Connection, fn, query: str, shelf: Optional[str], n: int):
         """[(chunk_id, cosine)] best first, above VECTOR_FLOOR only; [] when nothing is embedded."""
         import heapq
+
         import numpy as np
 
         tag = self._model_tag(fn)

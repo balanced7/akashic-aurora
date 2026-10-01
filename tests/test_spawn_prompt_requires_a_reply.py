@@ -25,7 +25,6 @@ Run:  py -m pytest tests/test_spawn_prompt_requires_a_reply.py -v
 from __future__ import annotations
 
 import re
-
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]

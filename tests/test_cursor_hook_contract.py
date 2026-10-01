@@ -122,8 +122,8 @@ def _wire_credit(monkeypatch, calls):
 
 
 def test_posttooluse_failure_then_success_credit_sequence(monkeypatch, capsys):
-    from core.recall.at_action import normalize_target
     from agent.harness.scope import repo_root
+    from core.recall.at_action import normalize_target
 
     calls = []
     _wire_credit(monkeypatch, calls)

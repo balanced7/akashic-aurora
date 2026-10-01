@@ -9,8 +9,9 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts"))
 
-import deepseek_chat as dc
 from pathlib import Path
+
+import deepseek_chat as dc
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 

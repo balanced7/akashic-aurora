@@ -159,6 +159,7 @@ def _ghost_page(fake, age_s: float, agent="claude#dead1234", state="hard_wedge")
     """Plant a page whose subject has left the examinable universe, aged as given."""
     import json
     import time
+
     from core.comm import pager
 
     fake.lpush(

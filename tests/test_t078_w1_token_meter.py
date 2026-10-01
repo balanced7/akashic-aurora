@@ -9,8 +9,8 @@ Three parts built:
   3. Doctor line: examine() reads the journal and renders a cost finding
 """
 
-import json
 import inspect
+import json
 import os
 import sys
 import time
@@ -20,9 +20,9 @@ import pytest
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from scripts.runner_token_journal import TokenJournal
-from core.comm import turn_metrics as tm
 from core.comm import doctor
+from core.comm import turn_metrics as tm
+from scripts.runner_token_journal import TokenJournal
 
 
 # --------------------------------------------------------------- W1-P1 TokenJournal

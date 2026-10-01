@@ -108,7 +108,7 @@ def test_doctor_renders_the_bench(monkeypatch):
     _ns_env(monkeypatch)
     if not _online():
         pytest.skip("redis not available")
-    from core.comm import triage_park, doctor
+    from core.comm import doctor, triage_park
 
     msg = {
         "id": "4000-0",

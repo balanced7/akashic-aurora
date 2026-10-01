@@ -25,12 +25,12 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 os.environ["AKASHIC_FENCE_ROOT"] = tempfile.mkdtemp(prefix="fences_")
 
 from core.coord.fence_workspace import (
+    fence_status,
     open_fence,
+    run_pv,
+    seal,
     slot_path,
     write_slot,
-    seal,
-    run_pv,
-    fence_status,
 )
 
 BRIEF_OK = """# fence brief

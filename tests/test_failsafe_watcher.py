@@ -35,6 +35,7 @@ sys.path.insert(0, str(REPO))
 sys.path.insert(0, str(REPO / "scripts" / "ops"))
 
 import failsafe_watcher as W  # noqa: E402
+
 from core.comm import failsafe as F  # noqa: E402
 
 NOW = 1_787_240_000.0

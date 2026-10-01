@@ -20,20 +20,21 @@ Author: Senior Systems Architect
 Version: 2.0 Vectorized
 """
 
-import os
-import sys
+import hashlib
 import json
+import os
+import platform
+import socket
+import sys
 import time
 import uuid
-import socket
-import platform
-import psutil
-import hashlib
+from dataclasses import asdict, dataclass
 from datetime import datetime
-from typing import Dict, List, Optional, Any, Tuple
 from enum import Enum
-from dataclasses import dataclass, asdict
 from threading import Lock
+from typing import Any, Dict, List, Optional, Tuple
+
+import psutil
 
 # ============================================================================
 # PATHS

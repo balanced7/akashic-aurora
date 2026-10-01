@@ -115,9 +115,9 @@ def test_s5_c1_sigterm_daemon_children_terminated_within_5s():
     # Cleanup Redis keys from the throwaway namespace
     try:
         from core.foundation.redis_connection import (
-            connect_to_redis_with_fail_fast,
             DEFAULT_REDIS_HOST,
             DEFAULT_REDIS_PORT,
+            connect_to_redis_with_fail_fast,
         )
 
         c = connect_to_redis_with_fail_fast(

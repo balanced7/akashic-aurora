@@ -71,7 +71,7 @@ def _emit(obj) -> int:
 def _import_actions():
     """The shared orchestration module. Raises until claude lands it."""
     sys.path.insert(0, _repo())
-    from agent.harness.actions import recall_block, outcome_block, plan_block  # noqa: F401
+    from agent.harness.actions import outcome_block, plan_block, recall_block  # noqa: F401
 
     return recall_block, outcome_block, plan_block
 
@@ -348,8 +348,8 @@ def _keepalive_run() -> dict:
     try:
         repo = _repo()
         sys.path.insert(0, repo)
-        from agent.harness import draft_keepalive
         import agent_cli
+        from agent.harness import draft_keepalive
 
         def _write():
             old = os.getcwd()

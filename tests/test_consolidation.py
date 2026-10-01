@@ -4,8 +4,8 @@ Tests for memory consolidation -> chronicle (AgentMemory Phase D).
 Run: py tests/test_consolidation.py
 """
 
-import sys
 import os
+import sys
 import tempfile
 
 os.environ["AI_SETUP"] = tempfile.mkdtemp()

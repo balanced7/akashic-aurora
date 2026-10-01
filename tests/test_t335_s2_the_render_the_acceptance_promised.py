@@ -54,8 +54,8 @@ import pytest
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from core.eye import routes as R  # noqa: E402
 import agent_cli  # noqa: E402
+from core.eye import routes as R  # noqa: E402
 
 # A name no source file in this repo contains, so a render assertion can never pass by
 # matching some other route's output that happened to be printed.

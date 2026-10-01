@@ -42,8 +42,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(HERE))
 sys.path.insert(0, HERE)
 
-from core.comm.bus import Bus
 from core.comm import context_hints
+from core.comm.bus import Bus
 
 CARD_API = {
     "runtime_class": "api",

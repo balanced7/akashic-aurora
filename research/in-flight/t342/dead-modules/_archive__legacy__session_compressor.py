@@ -22,9 +22,9 @@ import time
 import requests
 from redis import Redis
 from redis.exceptions import RedisError
+from session_canonical import envelope_to_plaintext
 
 from config import SESSION_EVENTS_STREAM
-from session_canonical import envelope_to_plaintext
 
 # Config
 WSL_HOST = "127.0.0.1"

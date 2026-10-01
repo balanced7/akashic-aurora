@@ -24,8 +24,8 @@ import pytest
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 try:
-    from core.comm import lane_depths as ld
     from core.comm import fence_phase as fp
+    from core.comm import lane_depths as ld
 except ImportError:
     ld = fp = None
 

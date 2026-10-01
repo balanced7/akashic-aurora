@@ -32,9 +32,9 @@ Contract frozen here:
 Run: py -m pytest tests/test_t196a_friction.py -q
 """
 
-import re
 import json
 import os
+import re
 import sys
 import time
 import uuid

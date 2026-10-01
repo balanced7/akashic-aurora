@@ -22,10 +22,10 @@ Pin labeling: [observed RED] = I verified the current code fails this.
                                  runner restart).
 """
 
-import os
-import sys
-import re
 import json
+import os
+import re
+import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent

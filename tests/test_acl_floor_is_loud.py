@@ -222,7 +222,10 @@ def test_f8_the_restore_drill_never_offers_the_empty_example_alone(floor_state, 
     err = capsys.readouterr().err
     assert "BOOTSTRAP FLOOR" in err, err
     _drill_never_offers_the_example_copy_alone(err)
-    import contextlib, io, sys as _sys
+    import contextlib
+    import io
+    import sys as _sys
+
     import agent_cli
 
     monkeypatch.setattr(_sys, "argv", ["agent_cli.py", "doctor"])

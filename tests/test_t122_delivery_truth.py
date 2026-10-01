@@ -148,6 +148,7 @@ def test_p5_unmapped_by_design_kinds_have_comment_in_table():
     """Every unmapped-by-design kind has an inline comment in KIND_LANE naming WHY
     it stays unmapped. The comment must contain the word 'unmapped' or 'by-design'."""
     import inspect
+
     from core.comm import packet_spec as ps
 
     # Read the source of the KIND_LANE dict
@@ -252,6 +253,7 @@ def test_straggler_report_names_sender_and_ids():
     # report format in bifrost_api.py:369-372.
     import ast
     import inspect
+
     from core.comm import bifrost_api
 
     src = inspect.getsource(bifrost_api.BifrostAPI.work_drain)
@@ -266,6 +268,7 @@ def test_straggler_report_uses_getattr_for_safe_access():
     message objects — never direct subscript that could crash on a
     malformed straggler."""
     import inspect
+
     from core.comm import bifrost_api
 
     src = inspect.getsource(bifrost_api.BifrostAPI.work_drain)

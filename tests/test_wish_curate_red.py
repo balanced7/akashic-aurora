@@ -40,7 +40,6 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import agent_cli
 
-
 DOC = """# Wishlist
 
 **Convention:** file a wish the moment friction is felt.

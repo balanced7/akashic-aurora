@@ -237,7 +237,7 @@ def _rehab_candidates(*, store=None, learning_store=None) -> List[str]:
     (Age-independent here: the audit asks about DATA coverage, not bench timing.)"""
     out: List[str] = []
     try:
-        from core.learning.learning_store import get_learning_store, is_graduated, is_benched
+        from core.learning.learning_store import get_learning_store, is_benched, is_graduated
         from core.recall.at_action import _load_use, _store
         from core.recall.curator import _credit
 
@@ -284,8 +284,9 @@ def audit(
     # ledger retention span (criterion 4 evidence)
     retention_days = None
     try:
-        from core.recall.at_action import recent_injections
         import time as _time
+
+        from core.recall.at_action import recent_injections
 
         window = injections if injections is not None else recent_injections(24.0 * 365)
         ats = [float(i.get("at", 0) or 0) for i in (window or []) if isinstance(i, dict)]

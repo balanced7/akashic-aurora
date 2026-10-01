@@ -7,14 +7,14 @@ surface, and that HybridStore degrades gracefully when Redis is down.
 Run: py tests/test_store.py
 """
 
-import sys
 import os
-import time
+import sys
 import tempfile
+import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.foundation.store import Store, FileStore, RedisStore, HybridStore, create_store
+from core.foundation.store import FileStore, HybridStore, RedisStore, Store, create_store
 
 
 def _exercise_all_structures(store: Store, label: str) -> None:

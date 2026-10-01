@@ -30,7 +30,6 @@ import textwrap
 
 import pytest
 
-
 # ---------------------------------------------------------------- the probe (P1-P5)
 
 
@@ -220,8 +219,9 @@ def test_p13_render_calls_no_writer_static():
     """A5 structural (deepseek's static assert, via ast per the L7 lesson): the
     render helper's call graph names no writer. Comments/docstrings can say what
     they like; calls cannot."""
-    import agent_cli
     import inspect
+
+    import agent_cli
 
     src = textwrap.dedent(inspect.getsource(agent_cli._boot_you_line))
     calls = set()

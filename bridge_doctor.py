@@ -89,7 +89,9 @@ def main() -> int:
 
     # ---- your listener ---------------------------------------------------------
     try:
-        import os, shutil, subprocess
+        import os
+        import shutil
+        import subprocess
 
         exe = shutil.which("tailscale") or os.path.join(
             os.environ.get("ProgramFiles", ""), "Tailscale", "tailscale.exe"

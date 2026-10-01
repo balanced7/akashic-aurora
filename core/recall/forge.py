@@ -361,8 +361,8 @@ def apply_edit(
         try:  # a text change alters what may surface -- expire the warm cache (curator
             # idiom), then re-warm so the next hook call reads ~1ms file, not the store
             # (DeepSeek review F2 polish)
-            from core.recall.curator import _invalidate_surface_cache
             from core.recall.at_action import warm_cache
+            from core.recall.curator import _invalidate_surface_cache
 
             _invalidate_surface_cache()
             warm_cache()

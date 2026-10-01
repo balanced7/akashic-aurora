@@ -19,8 +19,8 @@ from pathlib import Path
 
 import pytest
 
-from core.foundation.store import FileStore
 from core.foundation.sqlite_store import SqliteStore
+from core.foundation.store import FileStore
 
 
 @pytest.fixture()

@@ -12,17 +12,16 @@ from __future__ import annotations
 
 import json
 import os
-from pathlib import Path
 import subprocess
 import sys
 import time
 import uuid
+from pathlib import Path
 
 import pytest
 
 from scripts import run_job
 from scripts import ship as ship_module
-
 
 ROOT = Path(__file__).resolve().parents[1]
 RUN_JOB = ROOT / "scripts" / "run_job.py"

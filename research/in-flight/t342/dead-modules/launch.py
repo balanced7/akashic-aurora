@@ -15,11 +15,11 @@ USAGE:
 """
 
 import argparse
-import os
-import sys
-import subprocess
-import time
 import json
+import os
+import subprocess
+import sys
+import time
 from datetime import datetime
 
 sys.path.insert(0, r"E:\AI-Setup")
@@ -117,9 +117,9 @@ def run_initialization(role="general"):
     """Run initialization sequence"""
     os.environ["OPENCODE_AGENT_ROLE"] = role
 
-    from session_manager import check_and_reprime, get_session_manager
-    from session_logger import SESSION_ID, SESSION_UNIQUE
     from multi_agent import initialize_multi_agent
+    from session_logger import SESSION_ID, SESSION_UNIQUE
+    from session_manager import check_and_reprime, get_session_manager
 
     state = check_and_reprime(SESSION_ID, SESSION_UNIQUE)
 

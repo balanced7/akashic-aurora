@@ -32,24 +32,24 @@ USAGE:
     results = bus.search_messages("review code", top_k=5)
 """
 
-import json
-import time
-import uuid
 import hashlib
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any, Set
-from dataclasses import dataclass, field
-from enum import Enum
+import json
 import os
 import sys
+import time
+import uuid
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta
+from enum import Enum
+from typing import Any, Dict, List, Optional, Set
 
 sys.path.insert(0, r"E:\AI-Setup")
 
-import redis
 import numpy as np
+import redis
 
 try:
-    from vector_store import get_vector_store, VectorStore, _text_to_embedding
+    from vector_store import VectorStore, _text_to_embedding, get_vector_store
 
     VECTOR_STORE_AVAILABLE = True
 except ImportError:

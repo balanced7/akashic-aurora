@@ -26,7 +26,6 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(
 
 import vfx_ingest as V
 
-
 SHADERTOY = """\
 // A tunnel. iTime drives the march.
 #define PI 3.14159

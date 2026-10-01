@@ -18,9 +18,9 @@ from datetime import datetime, timedelta
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from agent.harness import context as ctx
+from agent.harness.hooks import claude_sessionstart as hook
 from agent.harness.scope import repo_root
 from core.learning.agent_memory import Decision
-from agent.harness.hooks import claude_sessionstart as hook
 
 _REPO = repo_root()
 _HOME = os.path.expanduser("~")

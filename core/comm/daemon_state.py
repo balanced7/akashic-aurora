@@ -204,8 +204,8 @@ def rearm_backlog_state(agent, tmp=None, tolerance_s=REARM_STALE_S):
     which is how duplicates breed.
     """
     import os as _os
-    import time as _time
     import tempfile as _tempfile
+    import time as _time
 
     base = tmp or _tempfile.gettempdir()
     try:

@@ -27,7 +27,6 @@ from __future__ import annotations
 
 from typing import Any, Dict, Optional
 
-
 # ---------------------------------------------------------------- shift-state note
 # One durable title, supersedes on re-write. NOT append-only: "current shift state" is one
 # thing, and fifty historical "shift-state" notes is how you get a re-orient instead of a

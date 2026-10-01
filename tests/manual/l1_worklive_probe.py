@@ -1,11 +1,15 @@
 """L1 proof: worklive round-trips, since_ts semantics, turn count, and a stuck-timer that
 can BOTH rise (wedge visible) and reset on a phase change (metric not pinned)."""
 
-import os, ast, sys, time
+import ast
+import os
 
 # Root DERIVED from this file, never hardcoded: the literal pinned one machine's disk,
 # so a copy of the repo anywhere else resolved every path under it to nothing.
-import os as _os, pathlib as _pl
+import os as _os
+import pathlib as _pl
+import sys
+import time
 
 _here = _pl.Path(__file__).resolve()
 ROOT = str(

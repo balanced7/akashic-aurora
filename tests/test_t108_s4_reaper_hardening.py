@@ -38,7 +38,6 @@ from core.comm import packet_spec, reaper, roster
 from core.comm.bus import Bus
 from scripts.bifrost_runner import should_answer
 
-
 AGENT = "s4hardening"
 SID = "deadbeef-0000-0000-0000-000000000000"
 

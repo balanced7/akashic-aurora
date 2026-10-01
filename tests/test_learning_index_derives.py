@@ -38,8 +38,9 @@ INDEX = "learn:experiments:all"
 
 
 def _fresh_store():
-    from core.foundation.store import FileStore
     import tempfile
+
+    from core.foundation.store import FileStore
 
     d = tempfile.mkdtemp(prefix="lidx-")
     return FileStore(base_dir=d) if "base_dir" in FileStore.__init__.__code__.co_varnames else FileStore()
@@ -49,8 +50,8 @@ def _fresh_store():
 def ls(monkeypatch, tmp_path):
     monkeypatch.setenv("_AISETUP_TEST_ISOLATED", "1")
     monkeypatch.setenv("AI_SETUP", str(tmp_path))
-    from core.learning.learning_store import LearningStore
     from core.foundation.store import FileStore
+    from core.learning.learning_store import LearningStore
 
     store = FileStore()
     s = LearningStore(store=store)
@@ -79,8 +80,8 @@ def test_p1_an_orphaned_hash_returns_on_the_next_write():
     exist, the index is truncated. Under the old is_new gate every subsequent write saw
     is_new=False and the orphans stayed dark forever."""
     pytest.importorskip("core.learning.learning_store")
-    from core.learning.learning_store import LearningStore
     from core.foundation.store import FileStore
+    from core.learning.learning_store import LearningStore
 
     s = LearningStore(store=FileStore())
     for n in ("orphan_a", "orphan_b", "orphan_c"):
@@ -99,8 +100,8 @@ def test_p2_membership_equals_the_hash_plane():
     """The invariant, stated once: every discoverable record is a member. No exceptions,
     no anchor gate, no quality predicate -- membership is INTEGRITY, and filtering belongs
     to the surface (the settled claude/deepseek synthesis, round 2)."""
-    from core.learning.learning_store import LearningStore
     from core.foundation.store import FileStore
+    from core.learning.learning_store import LearningStore
 
     s = LearningStore(store=FileStore())
     for n in ("m_one", "m_two", "m_three"):
@@ -118,8 +119,8 @@ def test_p3_order_is_newest_first_by_record_timestamp():
     """The list's documented semantic (learning_store.py:19) is 'experiment ids, newest
     first'. Membership derives, but ORDER is the list's remaining job -- if the rebuild
     loses ordering it silently changes what every ranked read returns first."""
-    from core.learning.learning_store import LearningStore
     from core.foundation.store import FileStore
+    from core.learning.learning_store import LearningStore
 
     s = LearningStore(store=FileStore())
     _record(s, "older", timestamp="2026-01-01T00:00:00")
@@ -133,8 +134,8 @@ def test_p4_a_record_the_rebuild_cannot_see_is_kept_not_dropped():
     """repair_learning_index.py's union-only guarantee, preserved in the derived rebuild:
     'a repair that can lose data is worse than the defect.' An index entry whose record is
     undiscoverable must survive the rebuild."""
-    from core.learning.learning_store import LearningStore
     from core.foundation.store import FileStore
+    from core.learning.learning_store import LearningStore
 
     s = LearningStore(store=FileStore())
     _record(s, "has_a_record")
@@ -151,8 +152,8 @@ def test_p5_no_reader_sees_a_partial_index_during_rebuild():
     """Rebuild must not expose an empty window. Today's repair does DELETE+RPUSH; at 464
     the window is microseconds, but the hot path reads this list on EVERY tool call, so a
     reader landing mid-rebuild gets zero lessons and silently recalls nothing."""
-    from core.learning.learning_store import LearningStore
     from core.foundation.store import FileStore
+    from core.learning.learning_store import LearningStore
 
     s = LearningStore(store=FileStore())
     for i in range(5):

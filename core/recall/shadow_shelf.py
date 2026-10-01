@@ -9,15 +9,14 @@ that adapter is explicitly outside this module and outside Slice 0.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field, replace
-from datetime import datetime, timezone
 import hashlib
 import json
 import os
 import sqlite3
 import time
+from dataclasses import dataclass, field, replace
+from datetime import datetime, timezone
 from typing import Any, Callable, Iterable, Mapping, Optional
-
 
 ENVELOPE_CAP = 8 * 1024
 DEFAULT_WAL_PAUSE_BYTES = 100 * 1024 * 1024

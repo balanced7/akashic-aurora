@@ -78,6 +78,7 @@ def _grant_for(p, agent):
 
 def _mod():
     import importlib
+
     from core.trust import grant_writer
 
     return importlib.reload(grant_writer)

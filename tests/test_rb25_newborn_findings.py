@@ -30,8 +30,8 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.trust.registry import resolve
 from core.comm.bus import Bus
+from core.trust.registry import resolve
 
 try:
     from core.trust.registry import may_run_runner

@@ -48,7 +48,7 @@ from typing import Any, Callable, Dict, List, Tuple
 # under pytest, conftest.py already does this. tests/ is on path either way, so `fixtures.*` works.
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from fixtures.counter_fixture import gold_cases, sample_corpus, L
+from fixtures.counter_fixture import L, gold_cases, sample_corpus
 
 Detector = Callable[[Dict[str, Any], List[Dict[str, Any]]], Tuple[bool, List[str]]]
 
@@ -496,7 +496,7 @@ if __name__ == "__main__":
         print("      Slice 1 (a stance/semantic counter-finder) exists to close.")
         # The Slice 1 finder on the SAME corpus: it requires an explicit stance signal, so it refuses
         # those collisions. With 0 anti-patterns in the corpus it surfaces ~0 — the HONEST result.
-        from core.recall.dissent import find_counter, document_frequencies, _idf
+        from core.recall.dissent import _idf, document_frequencies, find_counter
 
         adapted = [
             {

@@ -16,7 +16,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.comm import locks as L
-from core.comm.locks import LockManager, path_conflict, normalize_path
+from core.comm.locks import LockManager, normalize_path, path_conflict
 
 
 class FakeRedis:

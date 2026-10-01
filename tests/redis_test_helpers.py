@@ -15,13 +15,13 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from config import REDIS_TEST_DB
+from core.foundation.ledger import RedisLedger
 from core.foundation.redis_connection import (
     DEFAULT_REDIS_HOST,
     DEFAULT_REDIS_PORT,
     probe_redis_reachable,
 )
 from core.foundation.store import RedisStore
-from core.foundation.ledger import RedisLedger
 
 
 def redis_up() -> bool:

@@ -204,6 +204,7 @@ def test_p7_the_bus_records_the_dual_id_alias_at_emit():
     and legacy writes both return. Everywhere else is reconstruction; here it is a
     fact. Redis-ephemeral with a TTL, same lifecycle as the expectation itself."""
     import uuid as _uuid
+
     from core.comm.bus import Bus as _Bus
 
     ns = "t117p7"

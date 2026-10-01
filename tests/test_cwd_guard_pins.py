@@ -74,8 +74,8 @@ def hook():
     spec = importlib.util.spec_from_file_location("_cwd_guard_pin_live_pretooluse", LIVE_HOOK)
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
-    import agent.harness.scope  # noqa: F401  -- _in_scope
     import agent.harness.guards  # noqa: F401  -- _check_bash
+    import agent.harness.scope  # noqa: F401  -- _in_scope
     import agent.policy.git_guard  # noqa: F401  -- git_veto
 
     return mod

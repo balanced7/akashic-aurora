@@ -46,12 +46,12 @@ os.environ.setdefault("_AISETUP_TEST_ISOLATED", "1")
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from core.comm.bus import Bus  # noqa: E402
 from core.comm.bifrost_api import BifrostAPI  # noqa: E402
+from core.comm.bus import Bus  # noqa: E402
 
 
 def _client():
-    from core.foundation.redis_connection import connect_to_redis_with_fail_fast, DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT
+    from core.foundation.redis_connection import DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT, connect_to_redis_with_fail_fast
 
     c = connect_to_redis_with_fail_fast(
         host=DEFAULT_REDIS_HOST, port=DEFAULT_REDIS_PORT, timeout_seconds=3, decode_responses=True

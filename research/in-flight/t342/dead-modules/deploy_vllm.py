@@ -24,10 +24,10 @@ Usage:
     python deploy_vllm.py --model deepseek-ai/deepseek-coder-v2-16b
 """
 
-import os
-import sys
 import argparse
+import os
 import subprocess
+import sys
 from typing import Optional
 
 # Configuration
@@ -212,8 +212,8 @@ def deploy_direct(model: str, port: int = API_PORT) -> int:
 
 def test_connection(port: int = API_PORT) -> bool:
     """Test if vLLM server is responding"""
-    import urllib.request
     import json
+    import urllib.request
 
     try:
         # Check models endpoint

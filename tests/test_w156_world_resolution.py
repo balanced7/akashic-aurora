@@ -43,7 +43,6 @@ import pytest
 
 from core import world as W
 
-
 # --------------------------------------------------------------------------
 # S1 -- the world is DERIVED from where you stand, with nothing to remember
 # --------------------------------------------------------------------------

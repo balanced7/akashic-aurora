@@ -6,20 +6,21 @@ Local voice-enabled AI using Gemma, faster-whisper STT, and TTS.
 Supports code execution and Redis memory.
 """
 
-import os
-import sys
-import json
-import contextlib
-import redis
-import subprocess
-import threading
 import base64
+import contextlib
 import io
-import wave
+import json
+import os
 import ssl
-from datetime import datetime
+import subprocess
+import sys
+import threading
+import wave
 from concurrent.futures import ThreadPoolExecutor
-from flask import Flask, request, jsonify, send_file
+from datetime import datetime
+
+import redis
+from flask import Flask, jsonify, request, send_file
 from flask_cors import CORS
 
 app = Flask(__name__)

@@ -122,6 +122,7 @@ class _FakeEventLog:
 
 def test_trend_buckets_lessons_and_flip_events_by_utc_day():
     from datetime import datetime, timedelta
+
     from core.recall.funnel import trend
 
     now = datetime(2026, 7, 2, 12, 0, 0)
@@ -147,6 +148,7 @@ def test_trend_buckets_lessons_and_flip_events_by_utc_day():
 
 def test_trend_flags_a_capped_event_scan():
     from datetime import datetime
+
     from core.recall import funnel
 
     events = [{"kind": "boot", "at": "2026-07-02T00:00:00", "detail": {}}] * funnel.EVENT_SCAN_LIMIT

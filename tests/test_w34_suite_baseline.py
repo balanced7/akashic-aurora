@@ -26,7 +26,6 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.coord import suite_baseline as sb
 
-
 PYTEST_TAIL = """
 =========================== short test summary info ===========================
 FAILED tests/test_agent_interface.py::test_messy_input_is_sanitized - Asserti...

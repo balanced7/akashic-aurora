@@ -1,7 +1,9 @@
 """Second census pass: extract title + first content lines per CURRENT-stamped file
 so the megaread classifies from evidence, not filenames. Output is the megaread corpus."""
 
-import os, re, sys
+import os
+import re
+import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STATUS_RE = re.compile(r"^Status:\s*(\w+)", re.M)

@@ -4,13 +4,14 @@ Gemma Realtime - STT Processor
 Speech-to-text using Faster-Whisper
 """
 
+import asyncio
 import io
+from dataclasses import dataclass
+from typing import List, Optional
+
 import numpy as np
 import torch
 import torchaudio
-from typing import Optional, List
-from dataclasses import dataclass
-import asyncio
 
 
 @dataclass

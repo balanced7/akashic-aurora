@@ -242,6 +242,7 @@ def test_p11_the_sender_learns_it_was_collapsed_not_just_stderr():
     The Bus records the collapse on itself so the calling door can report it in the string
     the model actually reads."""
     import uuid as _uuid
+
     from core.comm.bus import Bus as _Bus
 
     a, rcv = f"snd{_uuid.uuid4().hex[:6]}", f"rcv{_uuid.uuid4().hex[:6]}"

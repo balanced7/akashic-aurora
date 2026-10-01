@@ -30,11 +30,9 @@ import json
 from typing import Optional, Tuple
 
 from core.foundation.store import Store, create_store
+from core.foundation.timeutil import to_epoch as _epoch  # unified tz-safe epoch (S5)
 from core.narrative.schema import Beat, Track, beat_key, track_key
 from core.narrative.tagging import TagHistory
-
-
-from core.foundation.timeutil import to_epoch as _epoch  # unified tz-safe epoch (S5)
 
 
 class TagGovernor:

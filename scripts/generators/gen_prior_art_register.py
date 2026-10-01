@@ -34,7 +34,7 @@ ROOT = Path(__file__).resolve().parents[2]
 # Tracked content only -- see scripts/generators/_tracked.py. The tests-module count here
 # was inflated by 10 untracked files, which is what made PRIOR_ART.md read stale in CI.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from _tracked import tracked_py_count, is_tracked_dir  # noqa: E402
+from _tracked import is_tracked_dir, tracked_py_count  # noqa: E402
 
 
 def _pyl() -> str:

@@ -41,10 +41,10 @@ import os
 import sys
 import time
 import traceback
-from datetime import datetime
-from typing import Dict, List, Optional, Any, Callable
-from enum import Enum
 from collections import defaultdict
+from datetime import datetime
+from enum import Enum
+from typing import Any, Callable, Dict, List, Optional
 
 # ============================================================================
 # PATHS

@@ -245,8 +245,8 @@ def consume_inbox(agent_id: str, limit: int = 20) -> Dict[str, Any]:
        "peeked": [msg, ...], "teach": "..."}                             -- degraded to peek
     Mail is ALWAYS visible; it is never eaten by a session that lost the seat."""
     try:
-        from core.comm.bus import Bus
         from core.comm import runner_lock
+        from core.comm.bus import Bus
 
         # S3 INVALID SESSION, named (pin P2): a tombstoned self must hear "you ended", never
         # the contention teach that blames a phantom holder. Ends the masquerade.
@@ -337,6 +337,7 @@ def consume_inbox(agent_id: str, limit: int = 20) -> Dict[str, Any]:
         if msgs:
             try:
                 import time as _time
+
                 from core.comm import packet_spec
 
                 now_ms = int(_time.time() * 1000)

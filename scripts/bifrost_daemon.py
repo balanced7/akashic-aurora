@@ -34,7 +34,8 @@ from __future__ import annotations
 # children spawn is CREATE_NO_WINDOW. Does NOT depend on PYTHONPATH being wired into the
 # launch env -- that missing wiring was the original gap. Idempotent; honors
 # AKASHIC_SHOW_CONSOLES (the sitecustomize's own escape hatch). ---
-import os as _os, sys as _sys
+import os as _os
+import sys as _sys
 
 _qd = _os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))), "scripts", "quiet")
 if _os.path.isdir(_qd):
@@ -59,9 +60,9 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # Top-level so check_wiring's reachability graph SEES the edge — the feed beat below is the
 # production caller that makes the T223 bridge real (built != wired was this exact feature's
 # recurring wound, and an import hidden inside the loop body re-created it at the graph layer).
-from core.comm.seat_identity import git_identity_env as _GIT_ID  # noqa: E402  (t384: author=seat)
 from core.comm import discord_feed as _DFEED  # noqa: E402
 from core.comm import self_restart as _SELF_RESTART  # noqa: E402  (t376 S2: daemon stale-code arm)
+from core.comm.seat_identity import git_identity_env as _GIT_ID  # noqa: E402  (t384: author=seat)
 
 
 def _pyl() -> str:
@@ -347,13 +348,14 @@ def managed_runner_env(
 def main(argv=None) -> int:
     args = build_parser().parse_args(argv)
 
+    from typing import Dict, Optional
     from typing import Optional as _Opt
+
+    from core.comm import daemon_state as _ds
     from core.comm import runner_lock
     from core.comm.bus import Bus
     from core.comm.timescale import scaled
-    from typing import Dict, Optional
-    from scripts.bifrost_child import DaemonLock, ManagedChild, read_summary, format_summary_for_prompt
-    from core.comm import daemon_state as _ds
+    from scripts.bifrost_child import DaemonLock, ManagedChild, format_summary_for_prompt, read_summary
 
     agent = str(args.agent)
     ttl = int(args.ttl) if args.ttl else _env_int("AKASHIC_DAEMON_LOCK_TTL_S", scaled(60))

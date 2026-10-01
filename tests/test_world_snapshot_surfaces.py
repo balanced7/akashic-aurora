@@ -9,13 +9,12 @@ from __future__ import annotations
 
 import json
 import os
-from pathlib import Path
 import subprocess
 import sys
+from pathlib import Path
 
 import agent_cli
 from core.comm.toolbox import TOOLS, ToolBox
-
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -84,6 +83,7 @@ def test_stdio_mcp_advertises_and_calls_glance_end_to_end():
 
     async def flow():
         import asyncio
+
         from mcp import ClientSession, StdioServerParameters
         from mcp.client.stdio import stdio_client
 

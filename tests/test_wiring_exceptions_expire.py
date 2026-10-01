@@ -28,6 +28,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(
 
 def _mod():
     import importlib
+
     import check_wiring
 
     return importlib.reload(check_wiring)

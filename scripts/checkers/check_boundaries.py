@@ -37,8 +37,8 @@ Run: py scripts/checkers/check_boundaries.py     (exit 0 = clean, 1 = new violat
 import os
 import re
 import sys
-from pathlib import Path
 from collections import defaultdict
+from pathlib import Path
 
 # W161 (2026-08-14): DERIVED, not defaulted. This read the AI_SETUP env var with a hardcoded
 # fallback -- the exact pattern core/paths.py exists to delete, and whose docstring already

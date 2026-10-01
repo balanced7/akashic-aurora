@@ -20,7 +20,6 @@ from agent.harness.hooks import codex_common as common
 from agent.harness.hooks import codex_posttooluse as post
 from agent.harness.hooks import codex_pretooluse as pre
 
-
 ROOT = Path(__file__).resolve().parents[1]
 FIX = ROOT / "tests" / "fixtures" / "codex_payloads"
 

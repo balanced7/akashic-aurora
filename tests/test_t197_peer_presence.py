@@ -215,6 +215,7 @@ def test_ask_peer_is_durable_but_still_not_a_seat():
     has stopped being a call and become a seat, which is the whole T171 claim.
     """
     import ast
+
     from core.comm import ask as ask_mod
 
     tree = ast.parse(open(ask_mod.__file__, encoding="utf-8").read())
@@ -401,8 +402,8 @@ def test_ask_peer_reports_the_verdict_at_t0_without_waiting(monkeypatch):
     then a handle, then a forensic dig 30 minutes later. The verdict must be in the
     outcome the caller already receives -- at t=0, on the same object, with no extra
     command."""
-    from core.comm.ask import ask_peer
     import core.comm.liveness as _lv
+    from core.comm.ask import ask_peer
 
     monkeypatch.setattr(
         _lv, "attendance", lambda a, **kw: _lv.Attendance("UNATTENDED", "no beat, pulse, or worklive", None, a)

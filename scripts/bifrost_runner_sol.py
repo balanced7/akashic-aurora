@@ -47,10 +47,9 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(HERE))
 sys.path.insert(0, HERE)
 
-from core.comm.bus import Bus
-from core.comm import control
+from core.comm import control, liveness, roster
 from core.comm import shift_turn as _shift_turn  # noqa: E402  (turn boundary)
-from core.comm import liveness, roster
+from core.comm.bus import Bus
 
 # T150: make this runner WATCHABLE. Python block-buffers stdout when it is not a TTY -- exactly the
 # case when an orchestrator captures it -- so a five-seat round on 2026-08-03 ran with every log at
@@ -69,24 +68,21 @@ try:
 except Exception:
     pass
 
-from core.comm import nudge
-from core.comm import runner_lock
-from core.comm import self_restart
-from core.comm import context_hints
-from core.comm.timescale import scaled as _scaled
-
 from sol_chat import (
-    SOL,
-    DEFAULT_MODEL,
     DEFAULT_EFFORT,
+    DEFAULT_MODEL,
     DEFAULT_VERBOSITY,
     EFFORTS,
-    VERBOSITIES,
     MAX_OUTPUT_TOKENS,
+    SOL,
+    VERBOSITIES,
     SolAgent,
     SolTransport,
     load_key,
 )
+
+from core.comm import context_hints, nudge, runner_lock, self_restart
+from core.comm.timescale import scaled as _scaled
 
 CARD = {
     "runtime_class": "api",
@@ -444,8 +440,8 @@ def make_one_shot_replier(model: str, system: str, effort: str, verbosity: str, 
 def _process_one(m, bus, args, responder, rate) -> None:
     """Process ONE incoming message: filter chain, model turn, reply, sentinel.
     Cursor commit stays in the main loop (spec section 2.2)."""
-    from core.coord import cognitive_metrics as cog
     from core.comm import turn_metrics as _tm
+    from core.coord import cognitive_metrics as cog
 
     # [1] R7/T058: a user's clarify-answer routes to the steer queue (the Agent polls for it)
     if str(m.kind) == "reply" and str(m.frm) == "user":
@@ -764,7 +760,7 @@ def main() -> int:
     args = build_parser().parse_args()
     # T160: wire records must name the seat that made the call. Imported at the call site so a
     # telemetry import can never keep a runner from starting.
-    from core.comm.runner_lib import set_seat_agent, seat_session_id, retire_seat
+    from core.comm.runner_lib import retire_seat, seat_session_id, set_seat_agent
 
     set_seat_agent(args.agent)
     # Hardening slice 1: continuity is AUTOMATIC -- explicit flags stay as overrides.

@@ -10,9 +10,9 @@ Three layers: shape (capture/recent/count/get) -> robustness (fuzz, corruption,
 bad input, cross-backend) -> isolation (never touches canonical db 0 / real AI_SETUP).
 """
 
+import json
 import os
 import sys
-import json
 import tempfile
 
 import isolate_canonical  # noqa: F401  (side-effect: isolate + flush db15)
@@ -22,17 +22,17 @@ sys.path.insert(0, os.path.dirname(_TESTS))
 sys.path.insert(0, _TESTS)
 
 import pytest
-
-from core.foundation.ledger import FileLedger
-from core.events.event_log import (
-    EventLog,
-    get_event_log,
-    reset_event_log_singleton,
-    per_agent_stream,
-    event_ref,
-    RAW_STREAM,
-)
 from redis_test_helpers import fresh_test_ledger
+
+from core.events.event_log import (
+    RAW_STREAM,
+    EventLog,
+    event_ref,
+    get_event_log,
+    per_agent_stream,
+    reset_event_log_singleton,
+)
+from core.foundation.ledger import FileLedger
 
 
 def _log() -> EventLog:

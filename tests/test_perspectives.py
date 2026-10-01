@@ -16,16 +16,16 @@ import tempfile
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.foundation.store import FileStore
+from core.perspectives.reinforce import MAX_STRENGTH, ReinforcedGraph
 from core.perspectives.schema import (
-    Lens,
-    Map,
     BUILTIN_LENSES,
     BUILTIN_MAPS,
+    VALID_DOMAINS,
+    Lens,
+    Map,
     lens_key,
     map_key,
-    VALID_DOMAINS,
 )
-from core.perspectives.reinforce import ReinforcedGraph, MAX_STRENGTH
 
 
 def _graph(half_life_seconds=30 * 24 * 3600):

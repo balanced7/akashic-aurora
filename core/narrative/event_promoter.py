@@ -30,8 +30,8 @@ HERE, not in core/events.
 import json
 from typing import Any, Dict, List, Optional, Tuple
 
-from core.foundation.store import Store, create_store
 from core.events.event_query import EventQuery, get_event_query
+from core.foundation.store import Store, create_store
 
 PROMOTED_SET = "narr:promoted:refs"  # dedup: refs already promoted to a Beat
 DEFAULT_THRESHOLD = 3  # salience >= this is worth a Beat

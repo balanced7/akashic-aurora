@@ -32,12 +32,11 @@ finding that it routes to no moment. If a later slice wants frequency to fire an
 a new dimension with its own gate, not an extension of this one.
 """
 
+import ast
 import importlib
 import inspect
-import ast
 
 import pytest
-
 
 MODULE = "core.recall.dimensions.recurrence"
 

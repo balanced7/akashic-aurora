@@ -31,6 +31,7 @@ sys.path.insert(0, str(REPO))
 
 def test_now_iso_is_aware_utc():
     from datetime import datetime, timezone
+
     from core.foundation.timeutil import now_iso
 
     s = now_iso()

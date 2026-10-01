@@ -20,6 +20,7 @@ remains the out-of-band enumerator's job (Wake Doctrine T1/S1, operator-gated).
 from __future__ import annotations
 
 import os
+
 import pytest
 
 

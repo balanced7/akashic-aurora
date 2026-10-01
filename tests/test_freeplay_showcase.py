@@ -9,9 +9,12 @@ TOOLS HUNT LEADERBOARD → DEEPSEEK TOOLBELT:
 Every verb: MINT (GUESS) → KATA (grammar-prove) → LEVEL UP (VERIFIED).
 """
 
-from core.toolbelt.registry import Toolbelt
+import os
+import shutil
+import tempfile
+
 import agent_cli
-import tempfile, os, shutil
+from core.toolbelt.registry import Toolbelt
 
 
 def _toolbelt(tmp):

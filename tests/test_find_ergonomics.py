@@ -23,7 +23,6 @@ sys.path.insert(0, str(ROOT))
 
 from core.tools import everything as ev  # noqa: E402
 
-
 # --------------------------------------------------------------------------- presets
 
 

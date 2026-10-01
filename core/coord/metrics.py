@@ -21,8 +21,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from math import log2
-from typing import Dict, List, FrozenSet, Tuple
-
+from typing import Dict, FrozenSet, List, Tuple
 
 # --- approach vectors ---
 

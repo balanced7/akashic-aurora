@@ -14,8 +14,8 @@ Run: py -m pytest tests/test_t297_done_receipt_hex.py -q
 
 import os
 import re
-import sys
 import subprocess
+import sys
 
 import isolate_canonical  # noqa: F401 -- db 15 + temp AI_SETUP, flushed
 

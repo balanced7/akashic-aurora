@@ -160,7 +160,9 @@ def _is_seat_reachable(agent: str) -> bool:
     because those are determinations rather than an absence of one.
     """
     try:
-        from core.comm import roster as _roster, liveness as _liveness, wake_seat as _seat
+        from core.comm import liveness as _liveness
+        from core.comm import roster as _roster
+        from core.comm import wake_seat as _seat
 
         rows = _roster.roster(_liveness._ns())
         mine = [r for r in rows if r.get("agent") == agent and r.get("state") == "LIVE"]
@@ -358,6 +360,7 @@ def main(argv=None) -> int:
         return 2
 
     import discord
+
     from core.comm.bus import Bus
 
     # T160: the ear says WHO IT IS before anything it writes can be attributed --
@@ -383,8 +386,9 @@ def main(argv=None) -> int:
     # ever opens a socket. TTL-bounded like every other lock in this house (F5
     # precedent): a crash that skips release self-heals once the TTL lapses, never a
     # permanent wedge.
-    from scripts.bifrost_child import DaemonLock
     import atexit
+
+    from scripts.bifrost_child import DaemonLock
 
     _dlock = DaemonLock(bus._client, bus.ns, GATEWAY_AGENT_ID, ttl=max(30, int(HEARTBEAT_S) * 6))
     if not _dlock.acquire():
@@ -743,7 +747,7 @@ def main(argv=None) -> int:
     # exit path can JOIN it before deleting the card it writes. This closes REJECT defect
     # (3): the OLD code computed _inc INSIDE _pulse, so the card the retraction deleted and
     # the card the pulse beat could diverge (two different key planes).
-    from core.comm.runner_lib import seat_session_id, retire_seat
+    from core.comm.runner_lib import retire_seat, seat_session_id
 
     _inc = seat_session_id(GATEWAY_AGENT_ID)
     stop_pulse = threading.Event()
@@ -926,8 +930,8 @@ def main(argv=None) -> int:
             pass
 
     async def _guest_reply_loop():
-        from core.comm.discord_guest_reply import GuestReplyTracker
         from core.comm.bus import Bus as _Bus
+        from core.comm.discord_guest_reply import GuestReplyTracker
 
         tracker = GuestReplyTracker()
         client._guest_tracker = tracker  # on_message tracks through this

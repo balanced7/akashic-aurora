@@ -6,8 +6,8 @@ DOWN, via the File backend -- the durability the old Redis-only version lacked.
 Run: py tests/test_agent_memory.py
 """
 
-import sys
 import os
+import sys
 import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))

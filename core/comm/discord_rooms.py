@@ -27,8 +27,8 @@ import os
 from pathlib import Path
 from typing import Any, Callable, Dict, Optional
 
-from core.outcome import BoundaryOutcome
 from core.comm.discord_bridge import DISCORD_MAX, _content_str, chunk, redact, should_forward
+from core.outcome import BoundaryOutcome
 
 _ROOT = Path(__file__).resolve().parents[2]
 
@@ -196,6 +196,7 @@ def _default_post(
     Returns the thread id Discord minted (wait=true => the created forum post's
     channel_id IS the thread id), or None when the response carries none."""
     import requests
+
     from core.comm.discord_bridge import post_with_rate_limit_retry
 
     params: Dict[str, str] = {"wait": "true"}

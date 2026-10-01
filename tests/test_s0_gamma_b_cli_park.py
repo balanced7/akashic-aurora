@@ -67,8 +67,8 @@ def test_stale_asks_parked_fresh_returned(monkeypatch):
     ns = _ns_env(monkeypatch)
     if not _online():
         pytest.skip("redis not available")
-    from core.comm.bus import Bus
     from core.comm import triage_park
+    from core.comm.bus import Bus
 
     agent = f"t-gamma-b-{uuid.uuid4().hex[:6]}"
     stale_id = f"s0g-{uuid.uuid4().hex[:4]}-stale"

@@ -24,8 +24,8 @@ def initialize():
     # 1. Session detection and re-prime check
     print("[1/6] Checking session state...")
     try:
-        from session_manager import check_and_reprime, get_session_manager
         from session_logger import SESSION_ID, SESSION_UNIQUE
+        from session_manager import check_and_reprime, get_session_manager
 
         state = check_and_reprime(SESSION_ID, SESSION_UNIQUE)
 
@@ -152,7 +152,7 @@ def initialize():
     # 8. Initialize multi-agent system
     print("\n[8/9] Initializing multi-agent system...")
     try:
-        from multi_agent import initialize_multi_agent, get_agent_registry
+        from multi_agent import get_agent_registry, initialize_multi_agent
 
         # Get session info from session_logger
         from session_logger import SESSION_ID, SESSION_UNIQUE
@@ -180,7 +180,7 @@ def initialize():
     # 9. Initialize real-time communication service
     print("\n[9/10] Initializing real-time communication...")
     try:
-        from agent_comm_service import get_comm_service, TerminalWaker
+        from agent_comm_service import TerminalWaker, get_comm_service
 
         # Get comm service (auto-initializes)
         comm = get_comm_service()

@@ -111,6 +111,7 @@ if not _already_redirected():
     # Start from an empty test DB so Redis-backed state can't accumulate across runs.
     try:
         import redis
+
         from config import REDIS_HOST, REDIS_PORT
 
         redis.Redis(

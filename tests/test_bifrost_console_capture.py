@@ -15,18 +15,18 @@ import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.foundation.ledger import FileLedger
-from core.events.event_log import EventLog
-from core.events.event_query import EventQuery
 from core.comm.promoter import (
-    promote_interjection,
-    promote_control,
-    promote_drop,
-    console_events,
-    INTERJECTION_KIND,
     CONTROL_KIND,
     DROP_KIND,
+    INTERJECTION_KIND,
+    console_events,
+    promote_control,
+    promote_drop,
+    promote_interjection,
 )
+from core.events.event_log import EventLog
+from core.events.event_query import EventQuery
+from core.foundation.ledger import FileLedger
 
 
 def _log():

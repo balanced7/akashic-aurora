@@ -94,9 +94,9 @@ def _client():
     """
     try:
         from core.foundation.redis_connection import (
-            connect_to_redis_with_fail_fast,
             DEFAULT_REDIS_HOST,
             DEFAULT_REDIS_PORT,
+            connect_to_redis_with_fail_fast,
         )
 
         return connect_to_redis_with_fail_fast(

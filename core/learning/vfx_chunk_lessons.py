@@ -26,8 +26,9 @@ import hashlib
 import io
 import json
 import os
-from core.paths import repo_root
 from typing import Any, Dict, List, Optional
+
+from core.paths import repo_root
 
 # A note that tells you what NOT to do is a disconfirmer, and recall treats those differently from
 # advice. Detected from the author's own emphasis rather than from a model's opinion of the text.
@@ -140,6 +141,7 @@ def adopt_chunk_lessons(learning_store, chunk_dir: str, force: bool = False) -> 
 
 def main(argv: Optional[List[str]] = None) -> int:
     import argparse
+
     from core.learning.learning_store import get_learning_store_instance
 
     repo = str(repo_root())

@@ -70,8 +70,9 @@ def _forge_watch_rows(recs, store, now: float) -> Dict[str, List[Dict[str, Any]]
     CONFIRM: the window passes (days or impressions) with no trigger -> the variant earned
     its keep; clear the provisional flag, keep the text, keep previous_text for history."""
     import json as _json
-    from core.recall.at_action import _load_use
+
     from core.foundation.timeutil import to_epoch
+    from core.recall.at_action import _load_use
 
     rows: Dict[str, List[Dict[str, Any]]] = {"rollback": [], "confirm": [], "expire": []}
     for rec in recs:
@@ -141,7 +142,7 @@ def curation_report(
         "forge_expire": [],
     }
     try:
-        from core.learning.learning_store import get_learning_store, is_graduated, is_benched
+        from core.learning.learning_store import get_learning_store, is_benched, is_graduated
         from core.recall.at_action import _load_use, _store
 
         learning_store = learning_store or get_learning_store()
@@ -197,7 +198,7 @@ def apply_curation(report: Optional[Dict[str, Any]] = None, *, store=None, learn
     Recomputes the report when not given (apply-what-you-see is the CLI's job: it passes one)."""
     try:
         from core.learning.learning_store import get_learning_store
-        from core.recall.at_action import prune_ghost_counters, _store
+        from core.recall.at_action import _store, prune_ghost_counters
 
         learning_store = learning_store or get_learning_store()
         store = store or _store()
@@ -260,6 +261,7 @@ def _invalidate_surface_cache() -> None:
     (otherwise a benched lesson keeps riding the warm cache for up to the TTL)."""
     try:
         import os
+
         from core.recall.at_action import _CACHE_FILE
 
         if os.path.exists(_CACHE_FILE):

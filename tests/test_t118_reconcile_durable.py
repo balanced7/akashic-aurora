@@ -17,7 +17,11 @@ import pytest
 
 from core.foundation.durable_reconcile import (
     ReconcileHalt,
+)
+from core.foundation.durable_reconcile import (
     apply as reconcile_apply,
+)
+from core.foundation.durable_reconcile import (
     plan as reconcile_plan,
 )
 from core.foundation.store import FileStore

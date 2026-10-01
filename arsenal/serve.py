@@ -21,11 +21,10 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 from urllib.parse import parse_qs, unquote, urlsplit
 
-from . import __version__
+from . import __version__, pianolooks
 from .graph import GraphError, load_graph
-from .performance import SESSION_PATTERN, PerformanceError, PerformanceStore
 from .jam.runs import JamApi
-from . import pianolooks
+from .performance import SESSION_PATTERN, PerformanceError, PerformanceStore
 from .pianocue import MAX_CUE_BODY, CueError, CueHub, validate_cue
 from .plan import make_plan, render_plan
 from .presets import list_presets

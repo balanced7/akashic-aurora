@@ -1,6 +1,7 @@
 # Root DERIVED from this file, never hardcoded: the literal pinned one machine's disk,
 # so a copy of the repo anywhere else resolved every path under it to nothing.
-import os as _os, pathlib as _pl
+import os as _os
+import pathlib as _pl
 
 _here = _pl.Path(__file__).resolve()
 ROOT = str(
@@ -11,20 +12,23 @@ Adversarial probes against the REAL narrative-spine code (isolated FileStore/Fil
 Each probe tries to surface a defect. Prints VULNERABLE / ok / robust with evidence.
 Run: py spine_probes.py
 """
-import json, os, sys, tempfile
+import json
+import os
+import sys
+import tempfile
 
 sys.path.insert(0, ROOT)
 
-from core.foundation.store import FileStore
-from core.foundation.ledger import FileLedger
-from core.narrative.beat_log import BeatLog
-from core.narrative.track_router import TrackRouter, RouteHint
-from core.narrative.chronicler import Chronicler
-from core.narrative.schema import Beat, beat_key
-from core.narrative.tagging import TagHistory
 from core.events.event_log import EventLog
 from core.events.event_query import EventQuery
+from core.foundation.ledger import FileLedger
+from core.foundation.store import FileStore
+from core.narrative.beat_log import BeatLog
+from core.narrative.chronicler import Chronicler
 from core.narrative.event_promoter import promote_salient, salience
+from core.narrative.schema import Beat, beat_key
+from core.narrative.tagging import TagHistory
+from core.narrative.track_router import RouteHint, TrackRouter
 
 
 def store():
@@ -150,7 +154,7 @@ print(
 
 # ----------------------------------------------------------------------
 hr("PROBE F — Faithfulness gate vs an adversarial (hallucinating) writer")
-from core.primitives.distiller import Distiller, Distillation
+from core.primitives.distiller import Distillation, Distiller
 
 st = store()
 bl = BeatLog(st)

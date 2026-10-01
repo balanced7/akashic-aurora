@@ -75,6 +75,7 @@ def test_ir6_p1_research_note_registered():
 def test_ir6_p2_research_note_delegates_to_knowledge_learn():
     """research_note must prefix the experiment with research:web:."""
     from pathlib import Path
+
     from scripts.deepseek_chat import ToolBox
 
     tb = ToolBox(
@@ -113,6 +114,7 @@ def test_ir6_p2_research_note_delegates_to_knowledge_learn():
 def test_ir6_p3_research_note_fields_preserved():
     """All four fields must reach knowledge_learn intact."""
     from pathlib import Path
+
     from scripts.deepseek_chat import ToolBox
 
     tb = ToolBox(

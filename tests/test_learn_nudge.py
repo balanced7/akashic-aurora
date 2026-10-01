@@ -9,9 +9,9 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+import agent_cli
 import core.recall.at_action as aa
 from agent.harness.hooks import claude_posttooluse as hook
-import agent_cli
 from core.paths import python_launcher as _python_launcher  # noqa: E402
 
 _PYL = _python_launcher()  # `py` on Windows, `uv run` elsewhere

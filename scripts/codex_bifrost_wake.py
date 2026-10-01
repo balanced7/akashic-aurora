@@ -6,17 +6,16 @@ from __future__ import annotations
 import argparse
 import json
 import os
-from pathlib import Path
 import sys
-
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from agent.harness.codex_bifrost_wake import (  # noqa: E402
-    CodexBifrostWake,
     DIRECT_ACTION_KINDS,
+    CodexBifrostWake,
     WakeError,
     WakePolicy,
     WakeState,

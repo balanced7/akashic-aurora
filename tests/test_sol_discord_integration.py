@@ -8,14 +8,13 @@ from __future__ import annotations
 
 import json
 import os
-from pathlib import Path
 import subprocess
 import sys
+from pathlib import Path
 
+import scripts.discord_setup as SETUP
 from core.comm import discord_feed as FEED
 from core.comm import secret_intake as VAULT
-import scripts.discord_setup as SETUP
-
 
 ROOT = Path(__file__).resolve().parents[1]
 

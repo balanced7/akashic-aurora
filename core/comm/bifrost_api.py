@@ -22,8 +22,8 @@ import logging
 import os
 from typing import Any, Dict, List, Optional, Tuple
 
-from core.comm.bus import Bus
 from core.comm import control, nudge
+from core.comm.bus import Bus
 
 
 def _pyl() -> str:
@@ -210,8 +210,9 @@ class BifrostAPI:
             # sig/shadow auto-advance makes it consume-shaped -- wrong tool for a peek).
             # Revisit at T047 when legacy retires.
             return self.bus.inbox(advance=False)
-        from core.comm import runner_lock
         import os
+
+        from core.comm import runner_lock
 
         token = runner_lock.session_holder_token() or f"session:api:{os.getpid()}"
         ok, gen, info = runner_lock.claim_consumer(self.agent, token)

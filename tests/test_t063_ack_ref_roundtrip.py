@@ -44,7 +44,7 @@ def test_mailbox_sha_prefix_resolves_and_acks():
     assert hit.get("available") and hit.get("found"), f"mailbox must index the handoff: {hit}"
     sha_ref = str(hit["sha"])[:10]  # exactly what the mailbox renders
 
-    from core.comm.promoter import resolve_ack_ref, ack_verdict, ack
+    from core.comm.promoter import ack, ack_verdict, resolve_ack_ref
 
     resolved = resolve_ack_ref(AGENT, sha_ref)
     assert resolved, (

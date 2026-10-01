@@ -71,6 +71,7 @@ TEST_STREAMS = ["agent:events", "agent:recon_test_agent:events"]
 
 def _redis():
     import redis
+
     from core.foundation.redis_connection import ensure_redis_server
 
     ensure_redis_server("localhost", REDIS_PORT)  # starts the embedded server if that is ours

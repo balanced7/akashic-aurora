@@ -61,8 +61,8 @@ def test_p1_resume_marker_reported_after_gap():
 
 
 def test_p2_tombstoned_consume_names_invalid_session():
-    from core.comm import wake_seat
     from agent.bifrost_pull import consume_inbox
+    from core.comm import wake_seat
 
     sid = f"deadsess-{uuid.uuid4().hex[:8]}"
     os.environ["CLAUDE_CODE_SESSION_ID"] = sid

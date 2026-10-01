@@ -71,8 +71,8 @@ def recall_block(
     if not path and not command:
         return ""
     try:
-        from core.recall.at_action import recall_at, render, mark_impression, normalize_target, log_injection
         from agent.harness.seen import load_seen, mark_seen
+        from core.recall.at_action import log_injection, mark_impression, normalize_target, recall_at, render
 
         res = recall_at(
             path=path or None,
@@ -99,7 +99,7 @@ def outcome_block(session_key: str, seen_key: str, target: str, success: bool, a
     if not target:
         return ""
     try:
-        from core.recall.at_action import resolve_action_outcome, build_learn_nudge
+        from core.recall.at_action import build_learn_nudge, resolve_action_outcome
 
         rep = resolve_action_outcome(session_key, target, bool(success), agent_id=_agent(agent_id))
         if not success or not rep.get("flipped"):
@@ -115,7 +115,7 @@ def outcome_block(session_key: str, seen_key: str, target: str, success: bool, a
             )
         except Exception:
             pass
-        from agent.harness.nudge import nudge_allowed, mark_nudged
+        from agent.harness.nudge import mark_nudged, nudge_allowed
 
         if nudge_allowed(_nudge_dir(), seen_key, target):
             text = build_learn_nudge(target, rep.get("credited", 0), rep.get("sources"), _agent(agent_id))
@@ -134,8 +134,8 @@ def plan_block(prompt: str, session_key: str, seen_key: str, agent_id: Optional[
     if not (prompt or "").strip():
         return ""
     try:
-        from core.recall.at_action import recall_at, render, log_injection
         from agent.harness.seen import load_seen, mark_seen
+        from core.recall.at_action import log_injection, recall_at, render
 
         res = recall_at(
             command=prompt, agent_id=_agent(agent_id), limit=2, exclude_sources=load_seen(seen_key), count_surface=True

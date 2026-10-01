@@ -12,11 +12,11 @@ from core.comm.conductor_gate import (
     MANDATE_MAX_HOURS,
     MANDATE_MAX_ROLE,
     MANDATE_MAX_SCOPE,
+    acting_conduct_grant,
     decide_and_act,
     evaluate_succession,
     grant_mandate_caps,
     require_cap,
-    acting_conduct_grant,
 )
 from core.trust.capabilities import Cap
 
@@ -132,6 +132,7 @@ def test_decide_and_act_dry_run_returns_without_emitting():
 # bus client so the pin deps on no live Redis.
 def test_operator_present_reads_streams_correctly():
     import time as _t
+
     from core.comm.conductor_gate import _operator_recently_present
 
     class FakeClient:

@@ -24,10 +24,10 @@ THE CLAUSES IN THESE CONTRACTS ARE NOT STYLE. Each was measured this week:
     should/better question came back confidently wrong WITH accurate citations.
 """
 
-from dataclasses import dataclass
-from typing import Any, Callable, Dict, List, Optional
 import os
 import re
+from dataclasses import dataclass
+from typing import Any, Callable, Dict, List, Optional
 
 __all__ = ["Preset", "register", "get", "known", "build_prompts", "read_lens_file"]
 

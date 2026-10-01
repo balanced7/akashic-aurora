@@ -20,7 +20,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 
 # Tracked content only -- a derived doc describes the repo, not this box.
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _tracked import tracked_py, is_tracked_dir, _tracked_paths  # noqa: E402
+from _tracked import _tracked_paths, is_tracked_dir, tracked_py  # noqa: E402
 
 OUT = os.path.join(ROOT, "docs", "MAP.md")
 sys.path.insert(0, ROOT)

@@ -10,14 +10,15 @@ Collects timing metrics for each startup phase, tracks failures, and generates
 health report with recommendations for optimization.
 """
 
-import time
+import json
 import logging
-from typing import Dict, Any, List, Optional
+import os
+import time
 from datetime import datetime
 from pathlib import Path
-import os
+from typing import Any, Dict, List, Optional
+
 from core.paths import data_root
-import json
 
 log_dir = data_root() / "session_logs"
 log_dir.mkdir(parents=True, exist_ok=True)

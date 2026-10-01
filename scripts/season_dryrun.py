@@ -128,8 +128,8 @@ def run(
     check_wiring names -- so it measures the MACHINERY and not a player's judgment. An LLM
     player can claim bait, which is the precision question a twenty-player round lives on.
     """
-    from scripts import canary_oracle as C
     from core.season import scoring as S
+    from scripts import canary_oracle as C
 
     tmp = tempfile.mkdtemp(prefix="season_dryrun_")
     shadow = shadow or os.path.join(tmp, "shadow")

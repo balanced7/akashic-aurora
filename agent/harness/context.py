@@ -135,7 +135,7 @@ def _draft_fresh() -> bool:
 def _delta_count(agent_id: str) -> int:
     """T052 delta door count. The whisper NEVER commits the mark -- only delivered
     full boots do, per the mark-lag contract."""
-    from agent.harness.delta import DeltaMark, current_positions, _moved, FIELDS
+    from agent.harness.delta import FIELDS, DeltaMark, _moved, current_positions
 
     mk = DeltaMark(agent_id).read()
     if not mk:

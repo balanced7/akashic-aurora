@@ -34,7 +34,7 @@ def should_escalate(notice: Dict[str, Any]) -> bool:
 def _default_peek(agent: str) -> List[str]:
     """Non-consuming digest peek (cursor unchanged) -> compact lines. Never raises."""
     try:
-        from agent.bifrost_pull import peek_inbox, format_digest_line
+        from agent.bifrost_pull import format_digest_line, peek_inbox
 
         return [format_digest_line(m) for m in peek_inbox(agent, limit=8)]
     except Exception:
