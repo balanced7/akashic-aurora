@@ -22,12 +22,12 @@ from arsenal import nashville  # noqa: E402
 from arsenal.jam import align as A  # noqa: E402
 from arsenal.jam import schemas as S  # noqa: E402
 from arsenal.jam.cards import DeckError, DeckStore, merge_patch  # noqa: E402
-from arsenal.jam.resolve import (
+from arsenal.jam.resolve import (  # noqa: E402
     STUB_WARNING,
     ResolveError,
     Resolver,
     chord_facts,
-    degree_key,  # noqa: E402
+    degree_key,
     parse_line,
     parse_notes,
     run_bridge,

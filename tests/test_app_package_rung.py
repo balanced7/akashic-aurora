@@ -24,6 +24,8 @@ Written BEFORE the implementation (M3 pre-registration). They are RED on arrival
 
 from __future__ import annotations
 
+import base64 as _b64
+import hashlib as _hl
 import re
 from pathlib import Path
 
@@ -197,8 +199,6 @@ def test_converge_names_what_it_cannot_reach_instead_of_reporting_a_boring_run()
 # agreement is not external truth, so the claim is checked against an oracle that can
 # say no: a package with a byte deliberately flipped.
 # ============================================================================
-import base64 as _b64
-import hashlib as _hl
 
 _BM_NS = "http://schemas.microsoft.com/appx/2010/blockmap"
 

@@ -44,18 +44,19 @@ Enter to resume.
 """
 
 import argparse
+import contextlib
 import json
 import os
 import sys
 import time
 import uuid
 
-REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, REPO)
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import contextlib
 
 from core.comm.bus import Bus
+
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 STORM_KINDS = [
     # (kind, count, to_target, description)

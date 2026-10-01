@@ -16,10 +16,11 @@ import sys
 import uuid
 from types import SimpleNamespace
 
-REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, REPO)
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import agent_cli
+
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def test_precedence_doctrine_is_exactly_three_lines_with_ordered_tiers():

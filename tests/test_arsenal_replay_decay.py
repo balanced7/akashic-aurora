@@ -22,12 +22,12 @@ sys.path.insert(0, str(ROOT / "tests"))
 from test_arsenal_replay import take  # noqa: E402,F401  (the fixture: a synthetic store)
 
 from arsenal import pianocue, replay  # noqa: E402
-from arsenal.replay_harmony import (
+from arsenal.replay_harmony import (  # noqa: E402
     DECAY_T60_S,
     SILENT_DB,
     VOICE_FLOOR,
     VOICE_LEVEL,
-    amplitude_at,  # noqa: E402
+    amplitude_at,
     densest_instant,
     harmony,
     peak_of,

@@ -11,17 +11,29 @@ import pathlib as _pl
 import sys
 import time
 
+sys.path.insert(
+    0,
+    str(
+        next(
+            (
+                p
+                for p in (_pl.Path(__file__).resolve(), *_pl.Path(__file__).resolve().parents)
+                if (p / "agent_cli.py").exists() and (p / "core").is_dir()
+            ),
+            _pl.Path(__file__).resolve().parent,
+        )
+    ),
+)
+import core.comm.launcher as LM
+from core.comm import liveness
+from core.comm.launcher import AgentProcess, AgentSpec, Launcher
+
 _here = _pl.Path(__file__).resolve()
 ROOT = str(
     next((p for p in (_here, *_here.parents) if (p / "agent_cli.py").exists() and (p / "core").is_dir()), _here.parent)
 )
 ast.parse(open(os.path.join(ROOT, "core/comm/launcher.py"), encoding="utf-8").read())
 print("parse OK: launcher.py")
-
-sys.path.insert(0, ROOT)
-import core.comm.launcher as LM
-from core.comm import liveness
-from core.comm.launcher import AgentProcess, AgentSpec, Launcher
 
 LM.RESTART_MAX_ATTEMPTS = 3
 LM.RESTART_BACKOFF_BASE = 0.05

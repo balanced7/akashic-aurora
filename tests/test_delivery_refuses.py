@@ -29,6 +29,7 @@ Written before the implementation (M3). RED on arrival.
 from __future__ import annotations
 
 from core.comm import discord_bridge as DB
+from core.comm import discord_feed as DF
 
 
 def _sent(calls):
@@ -163,7 +164,6 @@ def test_the_house_vocabulary_is_expressible_from_the_outcome():
 # arrival. The guard is not "remember to pass a lane" -- it is that the target is chosen
 # BY CONSTRUCTION and any fallback is SAID OUT LOUD.
 # ============================================================================
-from core.comm import discord_feed as DF
 
 
 def test_send_prefers_the_callers_own_seat_lane():

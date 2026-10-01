@@ -18,16 +18,17 @@ import uuid
 
 import isolate_canonical  # noqa: F401  (side-effect: isolate + flush db15)
 
-_TESTS = os.path.dirname(os.path.abspath(__file__))
-_ROOT = os.path.dirname(_TESTS)
-sys.path.insert(0, _ROOT)
-sys.path.insert(0, _TESTS)
-sys.path.insert(0, os.path.join(_ROOT, "scripts"))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts"))
 
 import agent_cli
 from core.events import event_log
 from core.events.event_log import get_event_log
 from core.narrative.session import end_session, start_session
+
+_TESTS = os.path.dirname(os.path.abspath(__file__))
+_ROOT = os.path.dirname(_TESTS)
 
 
 class _Args:

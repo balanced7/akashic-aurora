@@ -1,5 +1,6 @@
 """System census timing probes — v2, capture stdout."""
 
+import argparse as _ap
 import contextlib
 import io
 import os
@@ -55,7 +56,6 @@ m("Bus.send", lambda: _b().send("census", "chat", "ping"))
 m("Bus.inbox peek 5", lambda: len(_b().inbox(advance=False, limit=5)))
 
 # Recall (json output to avoid render time)
-import argparse as _ap
 
 m(
     "recall empty",

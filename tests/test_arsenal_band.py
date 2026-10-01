@@ -7,6 +7,7 @@ Everything writes under pytest's tmp_path: nothing here touches state/, arsenal/
 
 import hashlib
 import io
+import itertools
 import json
 import struct
 import sys
@@ -17,7 +18,6 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-import itertools
 
 from arsenal import band  # noqa: E402
 from arsenal.band import BandError  # noqa: E402

@@ -32,6 +32,7 @@ Subcommands:
 """
 
 import argparse
+import contextlib
 import glob
 import json
 import os
@@ -48,14 +49,13 @@ sys.path.insert(0, str(REPO))
 # control plane off the live bus. K4 still probes the LIVE firehose explicitly (see _firehose_len).
 os.environ.setdefault("BIFROST_NAMESPACE", "rb25soak")
 
-import contextlib
 
 import psutil  # noqa: E402
 
-from core.comm import (
-    expectations,  # noqa: E402
-    runner_lock,  # noqa: E402
-    wake_seat,  # noqa: E402
+from core.comm import (  # noqa: E402
+    expectations,
+    runner_lock,
+    wake_seat,
 )
 from core.comm.bus import Bus  # noqa: E402
 

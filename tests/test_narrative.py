@@ -22,9 +22,8 @@ import os
 import sys
 import tempfile
 
-_TESTS = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.dirname(_TESTS))
-sys.path.insert(0, _TESTS)
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from fixtures.narrative_fixture import GOLD_TRACKS, gold_qa, gold_rows
 from narrative_metrics import (
@@ -47,6 +46,8 @@ from core.narrative.theme_assigner import ThemeAssigner
 from core.narrative.track_router import RouteHint, TrackRouter
 from core.primitives.distiller import Distiller
 from core.primitives.ranker import Ranker
+
+_TESTS = os.path.dirname(os.path.abspath(__file__))
 
 # ---- acceptance bars (docs/library/design/20260709_narrative-spine-test-verification-plan-b_cc061e.md) ----
 ARI_BAR = 0.70

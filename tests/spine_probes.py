@@ -1,22 +1,28 @@
-# Root DERIVED from this file, never hardcoded: the literal pinned one machine's disk,
-# so a copy of the repo anywhere else resolved every path under it to nothing.
-import pathlib as _pl
-
-_here = _pl.Path(__file__).resolve()
-ROOT = str(
-    next((p for p in (_here, *_here.parents) if (p / "agent_cli.py").exists() and (p / "core").is_dir()), _here.parent)
-)
 """
 Adversarial probes against the REAL narrative-spine code (isolated FileStore/FileLedger).
 Each probe tries to surface a defect. Prints VULNERABLE / ok / robust with evidence.
 Run: py spine_probes.py
 """
+
 import json
 import os
+import pathlib as _pl
 import sys
 import tempfile
 
-sys.path.insert(0, ROOT)
+sys.path.insert(
+    0,
+    str(
+        next(
+            (
+                p
+                for p in (_pl.Path(__file__).resolve(), *_pl.Path(__file__).resolve().parents)
+                if (p / "agent_cli.py").exists() and (p / "core").is_dir()
+            ),
+            _pl.Path(__file__).resolve().parent,
+        )
+    ),
+)
 
 from core.events.event_log import EventLog
 from core.events.event_query import EventQuery
@@ -25,9 +31,17 @@ from core.foundation.store import FileStore
 from core.narrative.beat_log import BeatLog
 from core.narrative.chronicler import Chronicler
 from core.narrative.event_promoter import promote_salient
-from core.narrative.schema import Beat
+from core.narrative.schema import Beat, track_key
 from core.narrative.tagging import TagHistory
 from core.narrative.track_router import RouteHint, TrackRouter
+from core.primitives.distiller import Distillation, Distiller
+
+# Root DERIVED from this file, never hardcoded: the literal pinned one machine's disk,
+# so a copy of the repo anywhere else resolved every path under it to nothing.
+_here = _pl.Path(__file__).resolve()
+ROOT = str(
+    next((p for p in (_here, *_here.parents) if (p / "agent_cli.py").exists() and (p / "core").is_dir()), _here.parent)
+)
 
 
 def store():
@@ -117,8 +131,6 @@ bl.emit("milestone", "inserted salient", "git:mid", at="2026-01-02T12:00:00", hi
 ch.chronicle_all(now="2026-02-02T00:00:00")
 n2 = len(chapter_keys(st))
 # how many are actually referenced by the track list now?
-from core.narrative.schema import track_key
-
 tr = st.get(track_key("ai-setup"))
 active = len(json.loads(tr)["chapters"]) if tr else 0
 print(f"  chapter:* keys after run1={n1}, after run2(with insert)={n2}; track lists {active} active")
@@ -154,7 +166,6 @@ print(
 
 # ----------------------------------------------------------------------
 hr("PROBE F — Faithfulness gate vs an adversarial (hallucinating) writer")
-from core.primitives.distiller import Distillation, Distiller
 
 st = store()
 bl = BeatLog(st)

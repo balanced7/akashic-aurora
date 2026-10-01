@@ -16,16 +16,17 @@ import tempfile
 
 import isolate_canonical  # noqa: F401
 
-_TESTS = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.dirname(_TESTS))
-sys.path.insert(0, _TESTS)
-sys.path.insert(0, os.path.join(_TESTS, "fixtures"))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "fixtures"))
 
 from events_fixture import build_events_fixture
 
 from core.events.event_log import EventLog
 from core.events.event_query import EventQuery
 from core.foundation.ledger import FileLedger
+
+_TESTS = os.path.dirname(os.path.abspath(__file__))
 
 
 def _fixture():

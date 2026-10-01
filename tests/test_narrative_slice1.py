@@ -8,21 +8,22 @@ These guard the three things finished in Slice 1's tail:
   - a `mark` Beat forces a chapter boundary AND names the chapter (explicit intent).
 """
 
+import json
 import os
 import sys
 import tempfile
 
-_TESTS = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.dirname(_TESTS))
-sys.path.insert(0, _TESTS)
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-import json
 
 from core.foundation.store import FileStore
 from core.narrative.beat_log import BeatLog
 from core.narrative.chronicler import BoundaryDetector, Chronicler
 from core.narrative.schema import BEAT_KINDS, Beat
 from core.narrative.session import SESSION_OPEN_KEY, end_session, start_session
+
+_TESTS = os.path.dirname(os.path.abspath(__file__))
 
 
 def _store():

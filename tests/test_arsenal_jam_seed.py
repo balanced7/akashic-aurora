@@ -32,11 +32,11 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from arsenal.jam import SEED_API, SEED_MOMENTS_API  # noqa: E402
-from arsenal.jam.schemas import (
+from arsenal.jam.schemas import (  # noqa: E402
     BACKINGS_V1,
     CARD_WORDING_FORBIDDEN,
     GROOVES_V1,
-    JamSchemaError,  # noqa: E402
+    JamSchemaError,
     card_settings,
     card_texts,
     chord_count,

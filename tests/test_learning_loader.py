@@ -4,6 +4,7 @@ Tests for context.learning_loader — the Ranker surfacing LearningStore records
 Run: py tests/test_learning_loader.py
 """
 
+import datetime as _dt
 import os
 import sys
 import tempfile
@@ -20,7 +21,6 @@ from core.learning.learning_store import LearningStore
 
 NOW = 1_750_000_000.0
 DAY = 86400.0
-import datetime as _dt
 
 
 def _iso(ts):

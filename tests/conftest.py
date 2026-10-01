@@ -16,6 +16,8 @@ import os
 import sys
 import tempfile
 
+import pytest as _pytest
+
 _TESTS = os.path.dirname(os.path.abspath(__file__))
 _ROOT = os.path.dirname(_TESTS)
 for _p in (_ROOT, _TESTS):
@@ -148,7 +150,6 @@ if sys.platform == "win32" and not os.environ.get("AKASHIC_TEST_SHOW_CONSOLES"):
 # the same reason the console-quieting above is: isolation that depends on the
 # next author remembering is isolation that will lapse. A new gate drill added
 # by any seat is now safe by default.
-import pytest as _pytest
 
 
 @_pytest.fixture(autouse=True)

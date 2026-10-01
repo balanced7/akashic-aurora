@@ -10,11 +10,12 @@ Design: docs/library/design/20260701_the-comprehensibility-immune-system-desi_33
 import os
 import sys
 
-_TESTS = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.dirname(_TESTS))
-sys.path.insert(0, os.path.join(os.path.dirname(_TESTS), "scripts", "checkers"))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts", "checkers"))
 
 import check_comprehensibility as cm
+
+_TESTS = os.path.dirname(os.path.abspath(__file__))
 
 # --- green baseline: the guard passes on the real repo (trustworthy = green for the RIGHT reason) ----
 

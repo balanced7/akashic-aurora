@@ -18,9 +18,8 @@ import uuid
 
 import isolate_canonical  # noqa: F401
 
-_TESTS = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.dirname(_TESTS))
-sys.path.insert(0, _TESTS)
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import agent_cli
 from core.events.event_log import EventLog, get_event_log
@@ -30,6 +29,8 @@ from core.foundation.store import FileStore
 from core.narrative.beat_log import BeatLog
 from core.narrative.event_bridge import events_around, parse_window, raw_for_beat, resolve_span
 from core.narrative.schema import Beat, Chapter, beat_key, chapter_key
+
+_TESTS = os.path.dirname(os.path.abspath(__file__))
 
 
 class FakeArgs:

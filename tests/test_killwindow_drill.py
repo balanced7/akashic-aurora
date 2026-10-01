@@ -16,6 +16,7 @@ SETUP -> EXECUTION (kill) -> CHECK (invariants) -> METRICS (seed line).
 Redis-backed + subprocess; skips offline. Run: py -m pytest tests/test_killwindow_drill.py -q
 """
 
+import contextlib
 import os
 import subprocess
 import sys
@@ -23,12 +24,12 @@ import uuid
 
 import pytest
 
-REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, REPO)
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import contextlib
 
 from core.comm.bus import Bus
+
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 RUNNER = os.path.join(REPO, "scripts", "bifrost_runner_deepseek.py")
 

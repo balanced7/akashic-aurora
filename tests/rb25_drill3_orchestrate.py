@@ -29,6 +29,7 @@ Usage:  py tests/rb25_drill3_orchestrate.py [--pause-at 20]
 """
 
 import argparse
+import contextlib
 import json
 import os
 import queue
@@ -48,11 +49,10 @@ os.environ["AKASHIC_DRILL_ECHO"] = "1"
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO))
 
-import contextlib
 
-from core.comm import (
-    control,  # noqa: E402  (pause-guard, 2026-07-12 finding)
-    runner_lock,  # noqa: E402
+from core.comm import (  # noqa: E402  # pause-guard, 2026-07-12 finding
+    control,
+    runner_lock,
 )
 from core.comm.bus import Bus  # noqa: E402
 

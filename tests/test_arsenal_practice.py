@@ -5,6 +5,7 @@ pedal, and a sound_end for every note (release, pedal lift, re-strike). Tests th
 Theory.detect through node and are skipped when node is missing.
 """
 
+import itertools
 import json
 import re
 import shutil
@@ -17,7 +18,6 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-import itertools
 
 from arsenal import practice as pr  # noqa: E402
 

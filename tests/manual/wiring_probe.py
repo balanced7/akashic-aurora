@@ -4,9 +4,12 @@ NEW unwired core module. Membrane slice 2 proof."""
 import os
 import sys
 
-_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-sys.path.insert(0, os.path.join(_ROOT, "scripts"))
+sys.path.insert(
+    0, os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "scripts")
+)
 import check_wiring as w
+
+_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 _, reachable, unwired = w.analyze()
 assert reachable, "reachability graph should find SOME wired modules"

@@ -34,9 +34,9 @@ sys.path.insert(0, str(ROOT))
 from arsenal import nashville  # noqa: E402
 from arsenal import practice as pr  # noqa: E402
 from arsenal import practice_riff as riff  # noqa: E402
-from arsenal.jam import (
-    RIFF_API,  # noqa: E402
-    schemas,  # noqa: E402
+from arsenal.jam import (  # noqa: E402
+    RIFF_API,
+    schemas,
 )
 from arsenal.jam import tempomap as tm  # noqa: E402
 from arsenal.performance import PerformanceStore  # noqa: E402

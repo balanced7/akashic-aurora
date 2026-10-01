@@ -9,6 +9,22 @@ import pathlib as _pl
 import sys
 import time
 
+sys.path.insert(
+    0,
+    str(
+        next(
+            (
+                p
+                for p in (_pl.Path(__file__).resolve(), *_pl.Path(__file__).resolve().parents)
+                if (p / "agent_cli.py").exists() and (p / "core").is_dir()
+            ),
+            _pl.Path(__file__).resolve().parent,
+        )
+    ),
+)
+from core.comm import liveness
+from core.comm.launcher import get_launcher
+
 _here = _pl.Path(__file__).resolve()
 ROOT = str(
     next((p for p in (_here, *_here.parents) if (p / "agent_cli.py").exists() and (p / "core").is_dir()), _here.parent)
@@ -16,10 +32,6 @@ ROOT = str(
 for f in ("core/comm/liveness.py", "core/comm/launcher.py"):
     ast.parse(open(os.path.join(ROOT, f), encoding="utf-8").read())
     print("parse OK:", f)
-
-sys.path.insert(0, ROOT)
-from core.comm import liveness
-from core.comm.launcher import get_launcher
 
 A = "l3a_probe"
 c = liveness._client()

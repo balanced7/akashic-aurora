@@ -4,9 +4,12 @@ shared regression). The first membrane slice's proof."""
 import os
 import sys
 
-_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # tests/manual -> ROOT
-sys.path.insert(0, os.path.join(_ROOT, "scripts"))
+sys.path.insert(
+    0, os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "scripts")
+)
 import check_door_parity as c
+
+_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # tests/manual -> ROOT
 
 fails, gaps, cli, mcp = c.check()
 assert not fails, ("must PASS on current reality", fails)

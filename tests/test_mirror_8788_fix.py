@@ -17,10 +17,11 @@ import os
 import sys
 from pathlib import Path
 
-REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, REPO)
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import core.comm.toolbox as tbmod
+
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def test_unattended_mirror_is_refused_in_the_real_repo(monkeypatch):

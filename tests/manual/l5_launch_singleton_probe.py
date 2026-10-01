@@ -10,6 +10,22 @@ import os
 import pathlib as _pl
 import sys
 
+sys.path.insert(
+    0,
+    str(
+        next(
+            (
+                p
+                for p in (_pl.Path(__file__).resolve(), *_pl.Path(__file__).resolve().parents)
+                if (p / "agent_cli.py").exists() and (p / "core").is_dir()
+            ),
+            _pl.Path(__file__).resolve().parent,
+        )
+    ),
+)
+from core.comm import runner_lock
+from core.comm.launcher import get_launcher
+
 _here = _pl.Path(__file__).resolve()
 ROOT = str(
     next((p for p in (_here, *_here.parents) if (p / "agent_cli.py").exists() and (p / "core").is_dir()), _here.parent)
@@ -17,16 +33,11 @@ ROOT = str(
 src = open(os.path.join(ROOT, "core/comm/launcher.py"), encoding="utf-8").read()
 ast.parse(src)
 print("parse OK: core/comm/launcher.py")
-
 # regression guard: the stray acquire-and-hold in launch() is gone (that token was never
 # heartbeat/released, so the child could never acquire its own lock -> died on startup).
 assert "acquire(spec.agent_id, token)" not in src, "the starving acquire() must be removed from launch()"
 assert "runner_lock.holder(spec.agent_id)" in src, "launch() must now CHECK the holder, not acquire"
 print("[PASS] starving acquire() removed; launch() now checks holder() only")
-
-sys.path.insert(0, ROOT)
-from core.comm import runner_lock
-from core.comm.launcher import get_launcher
 
 TAG = "deepseek"  # a python_runner spec
 tok = runner_lock.instance_token(TAG)

@@ -41,6 +41,7 @@ a richer Redis list and replacing it with a File subset is not a heal, it is dat
 reassuring log line ("[heal] Redis was behind -- backfilled N key-structure(s)").
 """
 
+import contextlib
 import os
 import sys
 import tempfile
@@ -54,7 +55,6 @@ os.environ.setdefault("REDIS_DB", "15")
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import contextlib
 
 from core.foundation.store import FileStore, HybridStore, RedisStore  # noqa: E402
 

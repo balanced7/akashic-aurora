@@ -18,12 +18,12 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from arsenal.jam import API, schemas, tempomap  # noqa: E402
-from arsenal.jam.schemas import (
+from arsenal.jam.schemas import (  # noqa: E402
     JamSchemaError,
     card_settings,
     chord_count,
     line_beats,
-    pair_problems,  # noqa: E402
+    pair_problems,
     validate_ack,
     validate_card,
     validate_def,

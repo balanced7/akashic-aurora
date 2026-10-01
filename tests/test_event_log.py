@@ -16,12 +16,11 @@ import sys
 import tempfile
 
 import isolate_canonical  # noqa: F401  (side-effect: isolate + flush db15)
-
-_TESTS = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.dirname(_TESTS))
-sys.path.insert(0, _TESTS)
-
 import pytest
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from redis_test_helpers import fresh_test_ledger
 
 from core.events.event_log import (
@@ -33,6 +32,8 @@ from core.events.event_log import (
     reset_event_log_singleton,
 )
 from core.foundation.ledger import FileLedger
+
+_TESTS = os.path.dirname(os.path.abspath(__file__))
 
 
 def _log() -> EventLog:
