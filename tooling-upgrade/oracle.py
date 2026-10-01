@@ -737,6 +737,19 @@ def scratch_tree(ref: str, prefix: str = "aurora-scratch-"):
         git("worktree", "prune", check=False)
 
 
+def _owner_alive(o: dict) -> bool:
+    """Is the process that owns the fixed run tree still alive? POSIX: signal 0. Windows has no
+    harmless probe in the stdlib (os.kill terminates there), so a tree younger than the longest
+    snapshot (6 h) counts as owned."""
+    if os.name == "posix":
+        try:
+            os.kill(int(o.get("pid", 0)), 0)
+            return True
+        except (OSError, ValueError):
+            return False
+    return time.time() - float(o.get("started", 0)) < 6 * 3600
+
+
 @contextlib.contextmanager
 def run_tree(ref: str):
     """A detached throwaway worktree of `ref` with its own frozen venv. Removed afterwards by
@@ -747,10 +760,15 @@ def run_tree(ref: str):
     one snapshot runs at a time; a leftover tree from a crashed run is the oracle's own and is
     removed first."""
     base = Path(tempfile.gettempdir()) / "aurora-oracle-run"
+    owner = base / "owner.json"
     if base.exists():
-        _rmtree(base)
+        if owner.exists() and _owner_alive(load_json(owner)):
+            raise RuntimeError("another snapshot is running in %s (owner %s); one at a time"
+                               % (base, owner.read_text(encoding="utf-8").strip()))
+        _rmtree(base)   # a crashed run's leftover: the oracle's own scratch
         git("worktree", "prune", check=False)
     base.mkdir(parents=True)
+    dump_json(owner, {"pid": os.getpid(), "started": time.time()})
     tree = base / "aurora-oracle"
     git("worktree", "add", "--detach", str(tree), ref)
     try:
@@ -1690,7 +1708,7 @@ def cmd_selftest_d14(args) -> int:
 
     label = "_selftest_d14"
     commit = git("rev-parse", "HEAD").strip()
-    with run_tree(commit) as t:
+    with scratch_tree(commit, "aurora-d14-") as t:
         mutate(t)
         graph = RepoGraph(t, [f for f in tracked_files(t) if f.endswith(".py")])
         raw = SNAPSHOTS / label / "raw"
@@ -1707,7 +1725,7 @@ def cmd_selftest_d14(args) -> int:
 
 def cmd_mcp_stdio(args) -> int:
     commit = git("rev-parse", "HEAD").strip()
-    with run_tree(commit) as t:
+    with scratch_tree(commit, "aurora-mcp-") as t:
         tools = mcp_tools_stdio(t)
     print("MCP stdio: %d tools: %s" % (len(tools), ", ".join(sorted(x["name"] for x in tools))))
     return 0 if tools else 1
