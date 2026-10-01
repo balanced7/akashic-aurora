@@ -25,6 +25,7 @@ Run: py -m pytest tests/test_rb25_newborn_findings.py -q
 import os
 import sys
 import uuid
+from pathlib import Path
 
 import pytest
 
@@ -71,7 +72,7 @@ def test_runner_startup_wired_to_the_check():
     # coverage gap deepseek's F1/F2 fence review caught (same reply/trace lanes, no guard).
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     for runner in ("bifrost_runner_deepseek.py", "bifrost_runner.py"):
-        src = open(os.path.join(root, "scripts", runner), encoding="utf-8").read()
+        src = Path(os.path.join(root, "scripts", runner)).read_text(encoding="utf-8")
         assert "may_run_runner" in src, f"{runner} self-refuses at startup (built != wired)"
         # The offline-drill escape exists and is gated on the never-in-production signal, so
         # throwaway-id kill-window drills still run while production stays airtight.

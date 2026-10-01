@@ -90,7 +90,7 @@ def child_env():
 
 def spawn(argv, log_path, **kw):
     """Launch a child python process, stdout+stderr -> log_path. Returns Popen."""
-    f = open(log_path, "w", encoding="utf-8")
+    f = open(log_path, "w", encoding="utf-8")  # noqa: SIM115  # handle outlives this function: the child writes to it; kept on p._logf
     p = subprocess.Popen(
         [PY, *argv], cwd=str(REPO), env=child_env(), stdout=f, stderr=subprocess.STDOUT, text=True, **kw
     )

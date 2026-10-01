@@ -86,7 +86,7 @@ try:
     total = (
         sum(
             len(c["beats"])
-            for c in json.loads(open(os.path.join(ROOT, "chronicles/story.index.json")).read())["chapters"]
+            for c in json.loads(_pl.Path(os.path.join(ROOT, "chronicles/story.index.json")).read_text())["chapters"]
         )
         if False
         else rep["total_beats"]

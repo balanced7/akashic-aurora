@@ -9,6 +9,7 @@ import json
 import os
 import sys
 import tempfile
+from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -348,11 +349,11 @@ def test_chronicler_md_and_json_rendered():
     assert os.path.exists(report["story_md"]), "story.md must exist"
     assert os.path.exists(report["story_json"]), "story.index.json must exist"
 
-    md = open(report["story_md"], encoding="utf-8").read()
+    md = Path(report["story_md"]).read_text(encoding="utf-8")
     assert "Story" in md
     assert "Atlas" in md
 
-    idx = json.loads(open(report["story_json"], encoding="utf-8").read())
+    idx = json.loads(Path(report["story_json"]).read_text(encoding="utf-8"))
     assert idx["version"] == STORY_FORMAT_VERSION
     assert "atlas" in idx
     assert "chapters" in idx

@@ -29,6 +29,7 @@ Run: py -m pytest tests/test_learning_index_derives.py -q
 import contextlib
 import os
 import sys
+from pathlib import Path
 
 import pytest
 
@@ -180,7 +181,7 @@ def test_p6_the_detector_is_wired_to_a_gate():
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     hook = os.path.join(root, "scripts", "githooks", "pre-push")
     assert os.path.isfile(hook), "pre-push gate missing"
-    src = open(hook, encoding="utf-8").read()
+    src = Path(hook).read_text(encoding="utf-8")
     assert "repair_learning_index" in src, (
         "the lesson-index detector is not wired to the blocking gate -- this defect has "
         "already recurred once behind an unwired --check"
@@ -197,7 +198,7 @@ def test_p7_the_one_time_migration_cannot_run_by_accident():
     p = os.path.join(root, "scripts", "harmonize_knowledge.py")
     if not os.path.isfile(p):
         pytest.skip("harmonize_knowledge.py already retired")
-    src = open(p, encoding="utf-8").read()
+    src = Path(p).read_text(encoding="utf-8")
     assert "AKASHIC_ALLOW_HARMONIZE" in src, (
         "a destructive one-time migration that rewrites the live lesson index from a "
         "hardcoded 6-record set is still runnable without an explicit override"

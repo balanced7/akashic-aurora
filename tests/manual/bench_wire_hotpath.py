@@ -12,6 +12,7 @@ import sys
 import tempfile
 import threading
 import time
+from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 os.environ["AKASHIC_WIRE_DIR"] = tempfile.mkdtemp(prefix="wirebench-")
@@ -91,6 +92,6 @@ for th in (1, 4, 8, 20):
 # Does the allowlist actually hold under a real header set?
 j = WireJournal(journal_dir=tempfile.mkdtemp(prefix="wirebench-"))
 j.record(**SAMPLE)
-raw = "".join(open(p, encoding="utf-8").read() for p in j.files())
+raw = "".join(Path(p).read_text(encoding="utf-8") for p in j.files())
 print("\nauthorization header leaked to disk:", "SHOULD-NEVER-BE-KEPT" in raw)
 print("x-ds-trace-id kept:", "7d0a37b8dcabac6f7fa679e94984f73e" in raw)

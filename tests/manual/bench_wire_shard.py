@@ -104,14 +104,13 @@ _cdropped = [0]
 
 
 def _c_writer():
-    f = open(os.path.join(_cdir, "wire.jsonl"), "a", encoding="utf-8")
-    while not (_cstop.is_set() and _cq.empty()):
-        try:
-            rec = _cq.get(timeout=0.05)
-        except queue.Empty:
-            continue
-        f.write(json.dumps(rec, ensure_ascii=False) + "\n")
-    f.close()
+    with open(os.path.join(_cdir, "wire.jsonl"), "a", encoding="utf-8") as f:
+        while not (_cstop.is_set() and _cq.empty()):
+            try:
+                rec = _cq.get(timeout=0.05)
+            except queue.Empty:
+                continue
+            f.write(json.dumps(rec, ensure_ascii=False) + "\n")
 
 
 _ct = threading.Thread(target=_c_writer, daemon=True)
@@ -135,15 +134,14 @@ _dstop = threading.Event()
 
 
 def _d_writer(k):
-    f = open(os.path.join(_ddir, f"wire-{k}.jsonl"), "a", encoding="utf-8")
-    q = _dqs[k]
-    while not (_dstop.is_set() and q.empty()):
-        try:
-            rec = q.get(timeout=0.05)
-        except queue.Empty:
-            continue
-        f.write(json.dumps(rec, ensure_ascii=False) + "\n")
-    f.close()
+    with open(os.path.join(_ddir, f"wire-{k}.jsonl"), "a", encoding="utf-8") as f:
+        q = _dqs[k]
+        while not (_dstop.is_set() and q.empty()):
+            try:
+                rec = q.get(timeout=0.05)
+            except queue.Empty:
+                continue
+            f.write(json.dumps(rec, ensure_ascii=False) + "\n")
 
 
 _dts = [threading.Thread(target=_d_writer, args=(k,), daemon=True) for k in range(NW)]

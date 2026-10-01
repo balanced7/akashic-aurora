@@ -17,6 +17,7 @@ Run: py -m pytest tests/test_k0_gauge_truth.py -q
 import json
 import os
 import sys
+from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -25,7 +26,7 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 def _hook_count(settings_path) -> int:
     if not os.path.exists(settings_path):
         return 0
-    doc = json.load(open(settings_path, encoding="utf-8"))
+    doc = json.loads(Path(settings_path).read_text(encoding="utf-8"))
     blocks = (doc.get("hooks") or {}).get("PreToolUse") or []
     n = 0
     for b in blocks:

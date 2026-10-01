@@ -21,6 +21,7 @@ import contextlib
 import os
 import sys
 import time
+from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -192,7 +193,7 @@ def test_pulse_primitives_round_trip():
 def test_runner_wires_the_pulse_at_progress_points():
     """Structural: the runner pulses at on_trace (every tool call / thinking chunk --
     the REAL progress points) and flags starting/error worklive phases."""
-    src = open(os.path.join(REPO, "scripts", "bifrost_runner_deepseek.py"), encoding="utf-8").read()
+    src = Path(os.path.join(REPO, "scripts", "bifrost_runner_deepseek.py")).read_text(encoding="utf-8")
     assert "liveness.pulse(" in src, "the pulse rides the trace callback"
     assert "pulse_error(" in src, "caught-fatal self-reports (WATCHDOG=trigger equivalent)"
     assert '"starting"' in src, "boot-time wedge is distinguishable (starting phase)"

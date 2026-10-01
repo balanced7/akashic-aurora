@@ -7,6 +7,7 @@ Run: py tests/test_consolidation.py
 import os
 import sys
 import tempfile
+from pathlib import Path
 
 os.environ["AI_SETUP"] = tempfile.mkdtemp()
 
@@ -37,7 +38,7 @@ def test_consolidates_to_chronicle():
     # every lesson is traceable back to a raw record (lossy + lossless pointer)
     assert report["included_sources"], "lessons must carry source pointers"
     # the chronicle file was generated and is readable
-    text = open(report["chronicle"], encoding="utf-8").read()
+    text = Path(report["chronicle"]).read_text(encoding="utf-8")
     assert "auto-generated from memory" in text
     assert "use the node manager" in text or "probe reachability first" in text
     assert "(source:" in text, "skeleton lines carry source pointers"

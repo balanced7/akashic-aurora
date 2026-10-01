@@ -30,7 +30,7 @@ ROOT = str(
     next((p for p in (_here, *_here.parents) if (p / "agent_cli.py").exists() and (p / "core").is_dir()), _here.parent)
 )
 for f in ("core/comm/liveness.py", "core/comm/launcher.py"):
-    ast.parse(open(os.path.join(ROOT, f), encoding="utf-8").read())
+    ast.parse(_pl.Path(os.path.join(ROOT, f)).read_text(encoding="utf-8"))
     print("parse OK:", f)
 
 A = "l3a_probe"

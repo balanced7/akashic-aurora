@@ -13,6 +13,7 @@ Run: py -m pytest tests/test_evicted_payload_honesty.py -q
 
 import os
 import sys
+from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -90,5 +91,5 @@ def test_query_layer_shares_the_honest_door(tmp_path, monkeypatch):
 def test_cli_drill_door_resolves_honestly():
     """Structural guard: the `events --get` drill door goes through resolve() so a miss
     prints the confession, never a bare 'no event' that reads as never-existed."""
-    src = open(os.path.join(REPO, "agent_cli.py"), encoding="utf-8").read()
+    src = Path(os.path.join(REPO, "agent_cli.py")).read_text(encoding="utf-8")
     assert ".resolve(args.get)" in src, "cmd_events --get must resolve through the honest door (RB-7)"

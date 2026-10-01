@@ -19,6 +19,7 @@ Run: py tests/test_agent_interface.py
 import os
 import subprocess
 import sys
+from pathlib import Path
 
 import isolate_canonical  # noqa: F401 -- db 15 + temp AI_SETUP, flushed (child inherits via env)
 
@@ -48,7 +49,7 @@ def ok(name):
 # --------------------------------------------------------------------------------
 def test_agents_md_front_loaded():
     """A 50-line reader must get the whole contract from the top of AGENTS.md."""
-    head = "\n".join(open(os.path.join(ROOT, "AGENTS.md"), encoding="utf-8").read().splitlines()[:40])
+    head = "\n".join(Path(os.path.join(ROOT, "AGENTS.md")).read_text(encoding="utf-8").splitlines()[:40])
     assert "agent_cli.py boot" in head, "boot command must be in the first 40 lines"
     assert "agent_cli.py learn" in head, "learn command must be in the first 40 lines"
     ok("AGENTS.md contract is in the first 40 lines (50-line-reader safe)")

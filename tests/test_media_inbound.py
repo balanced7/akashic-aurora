@@ -42,9 +42,8 @@ class _Bus:
 
 
 def _tmp_png():
-    f = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
-    f.write(b"\x89PNG\r\n\x1a\nfakepixels")
-    f.close()
+    with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as f:
+        f.write(b"\x89PNG\r\n\x1a\nfakepixels")
     return f.name
 
 

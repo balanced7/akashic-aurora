@@ -29,6 +29,7 @@ Run: py -m pytest tests/test_m3_compliance_is_measured.py -q
 import os
 import subprocess
 import sys
+from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -105,7 +106,7 @@ def test_p4_the_scorecard_reports_the_measured_rate(tmp_path, capsys):
     import importlib
 
     sc = importlib.import_module("scripts.arc_scorecard")
-    src = open(os.path.join(ROOT, "scripts", "arc_scorecard.py"), encoding="utf-8").read()
+    src = Path(os.path.join(ROOT, "scripts", "arc_scorecard.py")).read_text(encoding="utf-8")
     assert "audit_stats" in src, (
         "the scorecard still renders M3 from self-report (commits whose MESSAGE mentions "
         "registration) instead of the measured audit -- it counts what we said, not what we did"

@@ -116,7 +116,7 @@ def _spawn_detached(argv, log_path):
     """Launch a subject process that OUTLIVES this harness invocation (so the monitor can be a
     separate, re-armable process). Returns pid."""
     LOGDIR.mkdir(parents=True, exist_ok=True)
-    f = open(log_path, "a", encoding="utf-8")
+    f = open(log_path, "a", encoding="utf-8")  # noqa: SIM115  # handle outlives this function: inherited by the detached child as stdout
     flags = 0
     if os.name == "nt":
         flags = subprocess.CREATE_NEW_PROCESS_GROUP | 0x00000008  # DETACHED_PROCESS
@@ -133,7 +133,7 @@ def _seat_orphans() -> int:
     seat_dir = os.path.dirname(wake_seat.seat_path(WATCHER_ID, SESSION))
     for f in glob.glob(os.path.join(seat_dir, "bifrost_wake_rb25-soak-*.pid")):
         try:
-            pid = int(open(f).read().strip() or "0")
+            pid = int(Path(f).read_text().strip() or "0")
             if pid and not _alive(pid):
                 orphans += 1
         except Exception:

@@ -28,6 +28,7 @@ W111 · lesson mirror_refusal_leaves_tree_staged. Shares the blanket-stage genus
 
 import importlib.util
 import os
+from pathlib import Path
 
 import pytest
 
@@ -105,7 +106,7 @@ def test_p4_scoping_keeps_the_added_only_filter(guard, monkeypatch):
 def test_p5_mirror_passes_the_scoped_list_to_rule_13():
     """The integration point: mirror must hand rule-13 its scoped list, as it already does
     for rule-8. Without this the fix exists but nothing calls it."""
-    src = open(os.path.join(ROOT, "scripts", "mirror.py"), encoding="utf-8").read()
+    src = Path(os.path.join(ROOT, "scripts", "mirror.py")).read_text(encoding="utf-8")
     assert "hook13" in src, "mirror.py no longer references hook13"
     # Anchor on the INVOCATION, not on a byte window -- a comment above the call site must
     # not be able to break this pin (it did, first cut).

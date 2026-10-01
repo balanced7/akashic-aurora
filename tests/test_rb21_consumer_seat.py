@@ -27,6 +27,7 @@ import os
 import sys
 import time
 import uuid
+from pathlib import Path
 
 import pytest
 
@@ -249,7 +250,7 @@ def test_cross_process_refresh_preserves_generation(agent):
 
 def test_mcp_door_peek_default():
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    tree = ast.parse(open(os.path.join(root, "ai_setup_mcp.py"), encoding="utf-8").read())
+    tree = ast.parse(Path(os.path.join(root, "ai_setup_mcp.py")).read_text(encoding="utf-8"))
     # O1 (2026-07-23): MCP tools are async now -> AsyncFunctionDef, not FunctionDef.
     # The peek-default guarantee this test pins is unchanged; accept both node types.
     fn = next(

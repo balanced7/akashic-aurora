@@ -30,7 +30,7 @@ _here = _pl.Path(__file__).resolve()
 ROOT = str(
     next((p for p in (_here, *_here.parents) if (p / "agent_cli.py").exists() and (p / "core").is_dir()), _here.parent)
 )
-ast.parse(open(os.path.join(ROOT, "core/comm/launcher.py"), encoding="utf-8").read())
+ast.parse(_pl.Path(os.path.join(ROOT, "core/comm/launcher.py")).read_text(encoding="utf-8"))
 print("parse OK: launcher.py")
 
 r = _bus_redis()

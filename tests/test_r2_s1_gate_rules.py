@@ -32,6 +32,7 @@ Behaviour pins run the REAL pack actions through the rules (pack = tripwire):
 import os
 import re
 import sys
+from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -48,7 +49,7 @@ def _pack_cases():
 
 # --------------------------------------------------------------- A1 anti-fitting
 def test_a1_the_module_names_no_case_numbers():
-    src = open(os.path.join(ROOT, "core", "recall", "gate_rules.py"), encoding="utf-8").read()
+    src = Path(os.path.join(ROOT, "core", "recall", "gate_rules.py")).read_text(encoding="utf-8")
     hits = re.findall(r"\bcase[ _]?(\d+)\b", src, re.I)
     assert not hits, (
         f"FITTING SURFACE: the rule module references census case number(s) {hits}. "

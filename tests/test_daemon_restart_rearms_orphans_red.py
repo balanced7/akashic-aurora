@@ -20,11 +20,12 @@ remains the out-of-band enumerator's job (Wake Doctrine T1/S1, operator-gated).
 from __future__ import annotations
 
 import os
+from pathlib import Path
 
 
 def _alive(tmp, agent, sid):
     p = os.path.join(tmp, f"bifrost_wake_{agent}_{sid}.alive")
-    open(p, "w").write("1")
+    Path(p).write_text("1")
     return p
 
 
@@ -49,7 +50,7 @@ def test_a_seated_session_is_left_alone(tmp_path):
     _alive(tmp, "claude", "sess-seated")
     seat = wake_seat.seat_path("claude", "sess-seated", tmp)
     os.makedirs(os.path.dirname(seat), exist_ok=True)
-    open(seat, "w").write("4242")
+    Path(seat).write_text("4242")
     n = ds.rearm_orphaned_sessions("claude", tmp=tmp)
     assert n == 0, "a seated session already has a live watcher -- re-arming would double-arm"
     assert not os.path.exists(os.path.join(tmp, "bifrost_wake_claude_sess-seated.rearm"))

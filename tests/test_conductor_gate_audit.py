@@ -32,6 +32,8 @@ Written before the implementation (M3). RED on arrival.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from core.comm import conductor_gate as cg
@@ -173,7 +175,7 @@ def test_isolation_is_ACTIVE_in_a_test_that_never_asked_for_it():
     # And the write must actually follow the redirect, not merely be configured to.
     cg.append_provenance("autouse isolation probe")
     assert os.path.exists(active), "the redirect is set but writes are not following it"
-    assert "autouse isolation probe" in open(active, encoding="utf-8").read(), (
+    assert "autouse isolation probe" in Path(active).read_text(encoding="utf-8"), (
         "the redirect is set but writes are not following it"
     )
 

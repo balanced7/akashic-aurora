@@ -7,6 +7,7 @@ Run: py tests/test_notes.py   (or via pytest)
 import os
 import sys
 import tempfile
+from pathlib import Path
 
 os.environ.setdefault("AI_SETUP", tempfile.mkdtemp())
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -39,7 +40,7 @@ def test_project_notes_renders_active_only():
     mem.decide(title="alpha", decision="second state", supersedes=a)  # supersede first
     mem.decide(title="beta", decision="another note")
     path = agent_cli.project_notes(memory=mem, chronicle_dir=tempfile.mkdtemp())
-    text = open(path, encoding="utf-8").read()
+    text = Path(path).read_text(encoding="utf-8")
     assert "auto-generated from notes" in text
     assert "second state" in text, "active notes are present"
     assert "another note" in text, "active notes are present"

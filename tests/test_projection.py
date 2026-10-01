@@ -1,6 +1,7 @@
 """Pins for core.library.projection (A1 -- one atom, one read-only render)."""
 
 import os
+from pathlib import Path
 
 from core.library import atoms as at
 from core.library import projection as pj
@@ -30,7 +31,7 @@ def test_relpath_is_type_and_id_only():
 def test_render_writes_frontmatter_sha_and_guard(tmp_path):
     _fam, a = _mint(tmp_path)
     path = pj.render_atom(a, repo_root=str(tmp_path))
-    text = open(path, encoding="utf-8").read()
+    text = Path(path).read_text(encoding="utf-8")
     assert text.startswith("---\n")
     assert f"akashic_id: {a['id']}" in text
     assert f"akashic_sha: {a['body_sha']}" in text
@@ -45,7 +46,7 @@ def test_superseded_render_carries_banner(tmp_path):
     old = fam.mint("design", "v1", "old", now=1.0)
     new = fam.supersede(old["id"], body="new", now=2.0)
     flipped = fam.get(old["id"])
-    text = open(pj.render_atom(flipped, repo_root=str(tmp_path)), encoding="utf-8").read()
+    text = Path(pj.render_atom(flipped, repo_root=str(tmp_path))).read_text(encoding="utf-8")
     assert "SUPERSEDED" in text
     assert new["id"] in text
 
@@ -53,8 +54,8 @@ def test_superseded_render_carries_banner(tmp_path):
 def test_draft_and_live_conversation_banners(tmp_path):
     fam = at.AtomFamily(FakeStore(), jsonl_dir=str(tmp_path / "j"))
     d = fam.mint("report", "wip", "b", status="draft", now=1.0)
-    assert "DRAFT" in open(pj.render_atom(d, repo_root=str(tmp_path)), encoding="utf-8").read()
+    assert "DRAFT" in Path(pj.render_atom(d, repo_root=str(tmp_path))).read_text(encoding="utf-8")
     c = fam.mint("chronicle", "thread", "b", origin="conversation", settled="live", now=2.0)
-    text = open(pj.render_atom(c, repo_root=str(tmp_path)), encoding="utf-8").read()
+    text = Path(pj.render_atom(c, repo_root=str(tmp_path))).read_text(encoding="utf-8")
     assert "LIVE DISCUSSION" in text
     assert "no ruling yet" in text

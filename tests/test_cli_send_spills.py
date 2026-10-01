@@ -29,6 +29,7 @@ import os
 import re
 import subprocess
 import sys
+from pathlib import Path
 
 import isolate_canonical  # noqa: F401 -- db 15 + temp AI_SETUP, flushed (child inherits via env)
 
@@ -148,7 +149,7 @@ def test_p4_the_cli_door_actually_calls_the_spill(tmp_path):
     """
     import ast
 
-    src = open(os.path.join(ROOT, "agent_cli.py"), encoding="utf-8").read()
+    src = Path(os.path.join(ROOT, "agent_cli.py")).read_text(encoding="utf-8")
     tree = ast.parse(src)
     fn = next((n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef) and n.name == "cmd_bifrost_send"), None)
     assert fn is not None, "cmd_bifrost_send must exist for this pin to mean anything"

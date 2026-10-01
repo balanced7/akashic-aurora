@@ -26,6 +26,7 @@ Run: py -m pytest tests/test_door_probe.py -q
 import ast
 import os
 import sys
+from pathlib import Path
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
@@ -110,7 +111,7 @@ def test_b4_every_non_green_verdict_teaches_a_recovery():
     non-empty recovery. Checked in the source rather than at runtime because most of
     these branches only fire when the door is genuinely broken.
     """
-    tree = ast.parse(open(dp.__file__, encoding="utf-8").read())
+    tree = ast.parse(Path(dp.__file__).read_text(encoding="utf-8"))
     bad = []
     for node in ast.walk(tree):
         if not (isinstance(node, ast.Call) and getattr(node.func, "id", "") == "_verdict"):
