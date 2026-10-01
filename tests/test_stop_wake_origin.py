@@ -165,7 +165,8 @@ def test_unstamped_listener_launch_is_unknown_and_blocks(tmp_path):
     env.pop("BIFROST_WAKE_ORIGIN", None)
     subprocess.run([sys.executable, os.path.join(REPO, "scripts", "bifrost_wake.py"),
                     "--agent", AGENT, "--session", sid, "--deadline", "1", "--block", "100"],
-                   capture_output=True, text=True, timeout=120, cwd=REPO, env=env)
+                   capture_output=True, text=True, encoding="utf-8", errors="replace",
+                   timeout=120, cwd=REPO, env=env)
     # the listener has exited; its own cleanup removed the files only if it still held them,
     # so re-create the seat with a live pid and ONLY the stamp the launch produced
     origin, _ = ws.read_origin(AGENT, sid, str(tmp_path))
