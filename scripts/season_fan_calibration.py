@@ -135,13 +135,13 @@ def make_packets(
 def render_packet(packet) -> str:
     """Render only model-visible fields.  Hidden ids/classes never cross this boundary."""
     parts = [_PROMPT_HEAD.format(n=len(packet))]
-    for item in packet:
-        parts.append(
-            f"### {item['item_id']}\n"
-            f"function: {item['name']}\n"
-            f"source: {item['file']}:{item['line']}\n"
-            f"```python\n{item['window']}\n```\n"
-        )
+    parts.extend(
+        f"### {item['item_id']}\n"
+        f"function: {item['name']}\n"
+        f"source: {item['file']}:{item['line']}\n"
+        f"```python\n{item['window']}\n```\n"
+        for item in packet
+    )
     return "\n".join(parts)
 
 
@@ -418,7 +418,7 @@ def adjudicate(
     }
 
 
-def archive_calibration(record: dict, *, archive_dir: str = None) -> str:
+def archive_calibration(record: dict, *, archive_dir: str | None = None) -> str:
     """Write a verbatim hidden record outside every git worktree."""
     from scripts.round_archive import _tracked_by_git
 
@@ -452,7 +452,7 @@ def _finalize_archive(path: str, protocol: dict) -> None:
     os.replace(tmp, path)
 
 
-def prepare_field(*, seed: int = 20260805, k: int = 32, shadow: str = None, key_path: str = None) -> dict:
+def prepare_field(*, seed: int = 20260805, k: int = 32, shadow: str | None = None, key_path: str | None = None) -> dict:
     """Create one committed-HEAD shadow, plant/seal the hidden field, and enumerate windows."""
     from scripts import canary_oracle as C
     from scripts.season_dryrun import _fresh_worktree
@@ -492,9 +492,9 @@ def run(
     max_tokens: int = 9000,
     workers: int = 8,
     ask_fn=None,
-    archive_dir: str = None,
-    shadow: str = None,
-    key_path: str = None,
+    archive_dir: str | None = None,
+    shadow: str | None = None,
+    key_path: str | None = None,
 ) -> dict:
     """Execute one combined matched fan and return a key-safe aggregate receipt."""
     from scripts import canary_oracle as C

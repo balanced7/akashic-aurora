@@ -35,16 +35,15 @@ def search(query: str, host: str, n: int):
         " ".join(str(x) for x in e) if isinstance(e, (list, tuple)) else str(e)
         for e in (data.get("unresponsive_engines") or [])
     ]
-    out = []
-    for r in (data.get("results") or [])[:n]:
-        out.append(
-            {
-                "title": (r.get("title") or "").strip(),
-                "url": r.get("url") or "",
-                "snippet": " ".join(((r.get("content") or "").strip()).split())[:240],
-                "engine": r.get("engine") or "",
-            }
-        )
+    out = [
+        {
+            "title": (r.get("title") or "").strip(),
+            "url": r.get("url") or "",
+            "snippet": " ".join(((r.get("content") or "").strip()).split())[:240],
+            "engine": r.get("engine") or "",
+        }
+        for r in (data.get("results") or [])[:n]
+    ]
     return out, unresponsive
 
 

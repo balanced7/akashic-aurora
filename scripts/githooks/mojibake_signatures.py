@@ -38,7 +38,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent.parent
 
 # --- Pure byte signatures (are these bytes present in the raw file?) ---
-# Each is (name, byte_pattern, human_description)
+# Each entry is a tuple of name, byte_pattern and human_description
 BYTE_SIGNATURES = [
     ("REPLACEMENT-CHAR", b"\xef\xbf\xbd", "U+FFFD replacement character — a codec round-trip corrupted this byte"),
     ("NULL-BYTES", b"\x00", "null byte — binary contamination, not valid text"),

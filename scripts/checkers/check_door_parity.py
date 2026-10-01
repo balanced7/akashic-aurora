@@ -42,22 +42,26 @@ def _norm(n):
 
 
 def cli_verbs():
-    src = open(os.path.join(ROOT, "agent_cli.py"), encoding="utf-8").read()
+    with open(os.path.join(ROOT, "agent_cli.py"), encoding="utf-8") as fh:
+        src = fh.read()
     return sorted({_norm(m) for m in re.findall(r'add_parser\(\s*["\']([a-zA-Z0-9_-]+)["\']', src)})
 
 
 def mcp_tools():
-    tree = ast.parse(open(os.path.join(ROOT, "ai_setup_mcp.py"), encoding="utf-8").read())
-    out = []
-    for node in ast.walk(tree):
-        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            if any("mcp.tool" in ast.unparse(d) for d in node.decorator_list):
-                out.append(_norm(node.name))
+    with open(os.path.join(ROOT, "ai_setup_mcp.py"), encoding="utf-8") as fh:
+        tree = ast.parse(fh.read())
+    out = [
+        _norm(node.name)
+        for node in ast.walk(tree)
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+        and any("mcp.tool" in ast.unparse(d) for d in node.decorator_list)
+    ]
     return sorted(set(out))
 
 
 def bus_methods():
-    tree = ast.parse(open(os.path.join(ROOT, "core/comm/bifrost_api.py"), encoding="utf-8").read())
+    with open(os.path.join(ROOT, "core/comm/bifrost_api.py"), encoding="utf-8") as fh:
+        tree = ast.parse(fh.read())
     out = []
     for node in ast.walk(tree):
         if isinstance(node, ast.ClassDef) and "BifrostAPI" in node.name:
@@ -79,7 +83,8 @@ def toolbox_verbs():
     # A guard that cannot find its subject must SAY SO, not report a clean empty set --
     # so the missing-class case now fails loudly instead of cascading phantom failures.
     src = os.path.join(ROOT, "core/comm/toolbox.py")
-    tree = ast.parse(open(src, encoding="utf-8").read())
+    with open(src, encoding="utf-8") as fh:
+        tree = ast.parse(fh.read())
     out = []
     found = False
     for node in ast.walk(tree):
@@ -617,9 +622,11 @@ def check():
                 f"TOOLBOX_ALIASES points '{shared_v}' at '{tb_name}' which is NOT on the ToolBox "
                 f"-> the alias covers nothing"
             )
-    for shared_v in sorted(TOOLBOX_EXEMPT):
-        if MANIFEST.get(shared_v) != "shared":
-            fails.append(f"TOOLBOX_EXEMPT lists '{shared_v}' but it is not a shared verb -> prune the exemption")
+    fails.extend(
+        f"TOOLBOX_EXEMPT lists '{shared_v}' but it is not a shared verb -> prune the exemption"
+        for shared_v in sorted(TOOLBOX_EXEMPT)
+        if MANIFEST.get(shared_v) != "shared"
+    )
     # 2. manifest expectations vs reality
     for v, cat in sorted(MANIFEST.items()):
         mcp_name = CLI_MCP_ALIASES.get(v, v)

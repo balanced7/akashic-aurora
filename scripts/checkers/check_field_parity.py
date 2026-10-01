@@ -44,6 +44,7 @@ Run:  py scripts/checkers/check_field_parity.py            # gate (exit 1 on NEW
       py scripts/checkers/check_field_parity.py --report   # full per-field table
 """
 
+import contextlib
 import json
 import os
 import sys
@@ -158,12 +159,8 @@ def _records():
         return out
 
     lessons = []
-    try:
-        for k in r.scan_iter("learn:experiment:*", count=4000):
-            if r.type(k) == "hash":
-                lessons.append(r.hgetall(k))
-    except Exception:
-        pass
+    with contextlib.suppress(Exception):
+        lessons.extend(r.hgetall(k) for k in r.scan_iter("learn:experiment:*", count=4000) if r.type(k) == "hash")
     if lessons:
         out["learn:experiment"] = lessons
 

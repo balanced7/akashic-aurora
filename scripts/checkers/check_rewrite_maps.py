@@ -103,11 +103,11 @@ def unarchived_map(maps):
 
 # --------------------------------------------------------------- 2. the unmapped rewrite
 def rewrite_refs():
-    out = []
-    for line in git("for-each-ref", "--format=%(refname)").splitlines():
-        if any(p in line for p in REWRITE_REF_PATTERNS):
-            out.append(line.strip())
-    return out
+    return [
+        line.strip()
+        for line in git("for-each-ref", "--format=%(refname)").splitlines()
+        if any(p in line for p in REWRITE_REF_PATTERNS)
+    ]
 
 
 def awaiting_push():

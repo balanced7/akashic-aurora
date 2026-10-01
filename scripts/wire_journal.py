@@ -48,6 +48,7 @@ reports them. Fail-open is only honest when the failures are visible.
 """
 
 import atexit
+import contextlib
 import hashlib
 import json
 import os
@@ -164,7 +165,9 @@ class _Shard:
 class WireJournal:
     """Append-only JSONL of API round trips. One record per HTTP request, retries included."""
 
-    def __init__(self, journal_dir: str = None, agent: str = "", writer: str = None, queue_size: int = None):
+    def __init__(
+        self, journal_dir: str | None = None, agent: str = "", writer: str | None = None, queue_size: int | None = None
+    ):
         self._journal_dir = journal_dir or os.getenv("AKASHIC_WIRE_DIR") or DEFAULT_DIR
         self.agent = agent or os.getenv("BIFROST_AGENT") or "unknown"
         self.dropped = 0  # W5: swallowed failures are counted, never silent
@@ -222,7 +225,7 @@ class WireJournal:
             self.dropped += 1  # W4 + W5: swallow for the caller, but COUNT it
             return False
 
-    # ------------------------------------------------------------ shards (T157)
+    # ------------------------------------------------------------ shards - T157
     def _shard_for(self, agent: str) -> "_Shard":
         """The shard owning `agent`, created on demand and CAPPED.
 
@@ -388,10 +391,8 @@ class WireJournal:
         # is always one a caller may append to. Costs the same stat the write path already paid,
         # and without it _segment_path() hands back a path inside a directory that does not exist
         # yet -- which is exactly how it broke the D1 regression pin when shards landed.
-        try:
+        with contextlib.suppress(OSError):  # unwritable dir is the write path's problem to count
             os.makedirs(shard.dir, exist_ok=True)
-        except OSError:
-            pass  # unwritable dir is the write path's problem to count
         day = time.strftime("%Y%m%d")
         if shard.day != day:  # new day -> restart the cursor
             shard.day, shard.n = day, 1
@@ -447,7 +448,7 @@ class WireJournal:
         except Exception:
             return []
 
-    def files(self, agent: str = None):
+    def files(self, agent: str | None = None):
         """Every segment: shard directories PLUS pre-T157 segments at the journal root.
 
         Legacy files are included deliberately. A telemetry store that loses its history on
@@ -476,7 +477,7 @@ class WireJournal:
             return []
         return out
 
-    def read_all(self, limit: int = 0, agent: str = None):
+    def read_all(self, limit: int = 0, agent: str | None = None):
         """`agent` scopes to one seat's records.
 
         Needed the moment a reader iterates a fleet: doctor examines every agent, so an unscoped
@@ -513,7 +514,7 @@ class WireJournal:
             rows = [r for r in rows if str(r.get("agent") or "") == str(agent)]
         return rows[-limit:] if limit else rows
 
-    def summarize(self, limit: int = 0, agent: str = None) -> dict:
+    def summarize(self, limit: int = 0, agent: str | None = None) -> dict:
         """THE READER (W6). Ships with the writer, because `cognitive_metrics` is the standing
         proof of what happens otherwise: five runners feeding an accumulator nothing reads.
 
@@ -559,7 +560,7 @@ class WireJournal:
             out["cache_hit_rate"] = UNKNOWN
         return out
 
-    def expert(self, limit: int = 0, agent: str = None):
+    def expert(self, limit: int = 0, agent: str | None = None):
         """Expert Info: the wrong things, named. Wireshark's real value is not the packet list.
 
         Each finding below is the LLM analogue of a transport diagnostic -- truncation is a cut

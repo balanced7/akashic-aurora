@@ -145,7 +145,8 @@ def gather_map_data() -> dict[str, Any]:
     except Exception:
         data["head_sha"] = "unknown"
 
-    ledger = json.load(open(os.path.join(ROOT, "state", "coord", "tasks.json"), encoding="utf-8"))
+    with open(os.path.join(ROOT, "state", "coord", "tasks.json"), encoding="utf-8") as fh:
+        ledger = json.load(fh)
     tasks = ledger.get("tasks") or []
     landmarks = [
         {
@@ -183,7 +184,8 @@ def gather_map_data() -> dict[str, Any]:
             fj = os.path.join(fdir, name, "fence.json")
             if os.path.exists(fj):
                 try:
-                    doc = json.load(open(fj, encoding="utf-8"))
+                    with open(fj, encoding="utf-8") as fh:
+                        doc = json.load(fh)
                     seals = doc.get("seals") or {}
                     status = "sealed" if "reconciliation" in seals else f"{len(seals)}/4 sealed"
                 except Exception:
@@ -234,17 +236,18 @@ def gather_map_data() -> dict[str, Any]:
     if os.path.exists(rp):
         try:
             now = datetime.now(UTC).timestamp()
-            for line in open(rp, encoding="utf-8", errors="replace"):
-                line = line.strip()
-                if not line:
-                    continue
-                routes_n += 1
-                try:
-                    ts = json.loads(line).get("ts")
-                    if ts and (now - float(ts)) < 86400:
-                        last24 += 1
-                except Exception:
-                    continue
+            with open(rp, encoding="utf-8", errors="replace") as fh:
+                for line in fh:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    routes_n += 1
+                    try:
+                        ts = json.loads(line).get("ts")
+                        if ts and (now - float(ts)) < 86400:
+                            last24 += 1
+                    except Exception:
+                        continue
         except Exception:
             pass
     data["trails"] = {"routes": routes_n, "last24h": last24}

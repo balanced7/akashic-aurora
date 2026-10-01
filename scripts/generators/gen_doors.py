@@ -46,12 +46,12 @@ def cli_verbs():
     verbs = {}
     seen = set()
     for name, sub in subaction.choices.items():
-        if id(sub) in seen or (
-            name not in helps and any(id(s) == id(sub) for n, s in subaction.choices.items() if n in helps)
-        ):
-            # skip aliases: keep the name that carries a help entry
-            if name not in helps:
-                continue
+        # skip aliases: keep the name that carries a help entry
+        if (
+            id(sub) in seen
+            or (name not in helps and any(id(s) == id(sub) for n, s in subaction.choices.items() if n in helps))
+        ) and name not in helps:
+            continue
         seen.add(id(sub))
         args = []
         for a in sub._actions:
@@ -120,9 +120,10 @@ def main():
     text = render(verbs)
     if "--check" in sys.argv:
         try:
-            if open(OUT, encoding="utf-8").read() == text:
-                print("DOORS.md current")
-                return 0
+            with open(OUT, encoding="utf-8") as fh:
+                if fh.read() == text:
+                    print("DOORS.md current")
+                    return 0
         except OSError:
             pass
         print(f"DOORS.md STALE vs code -- regenerate ({_pyl()} scripts/generators/gen_doors.py)")

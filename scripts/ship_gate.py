@@ -34,6 +34,7 @@ So this is a RATCHET, not an amnesty, and the ratchet is the whole design:
 
 from __future__ import annotations
 
+import contextlib
 import os
 import sys
 import time
@@ -121,10 +122,8 @@ def evaluate(
     # whole arc is about (kimi's blocking objection, verified from the code).
     if tighten and rec and fixed:
         remaining = sorted(set(_baseline_nodes()) - set(fixed))
-        try:
+        with contextlib.suppress(Exception):  # a failed tighten must never block a ship
             sb.record(remaining, seat=seat, sha=sha)
-        except Exception:
-            pass  # a failed tighten must never block a ship
 
     age = _age_s(rec, now)
     expired = bool(inherited) and age is not None and age > float(ttl_s)
@@ -244,12 +243,12 @@ def main() -> int:
         collected = [ln.strip() for ln in (cr.stdout or "").splitlines() if "::" in ln and not ln.startswith(" ")]
 
     sha = ""
-    try:  # provenance (kimi): an empty sha renders the boot line as 'baseline @' with nothing
+    with contextlib.suppress(
+        Exception
+    ):  # provenance (kimi): an empty sha renders the boot line as 'baseline @' with nothing
         sha = subprocess.run(
             ["git", "rev-parse", "--short", "HEAD"], capture_output=True, text=True, timeout=15
         ).stdout.strip()
-    except Exception:
-        pass
     v = evaluate_pytest_output(out, tighten=a.tighten, collected=collected, seat="ship_gate", sha=sha)
     print(v["report"])
     if v["blocked"]:

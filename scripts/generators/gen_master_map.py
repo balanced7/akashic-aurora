@@ -166,7 +166,8 @@ def main():
     text = render(build())
     if "--check" in sys.argv:
         try:
-            old = open(OUT, encoding="utf-8").read()
+            with open(OUT, encoding="utf-8") as fobj:
+                old = fobj.read()
         except OSError:
             print("MAP.md missing -- regenerate")
             return 1

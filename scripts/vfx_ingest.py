@@ -164,5 +164,5 @@ def summary(result):
     else:
         bits.append("translated from Shadertoy")
     if result.get("warnings"):
-        bits.append("%d warning(s)" % len(result["warnings"]))
+        bits.append(f"{len(result['warnings'])} warning(s)")
     return "; ".join(bits)

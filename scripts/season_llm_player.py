@@ -89,7 +89,8 @@ def candidates(shadow_root: str, *, with_excluded: bool = False):
     texts = {}
     for f in files:
         try:
-            texts[f] = open(f, encoding="utf-8", errors="replace").read()
+            with open(f, encoding="utf-8", errors="replace") as fh:
+                texts[f] = fh.read()
         except OSError:
             continue
     blob = "\n".join(texts.values())
@@ -126,8 +127,7 @@ def candidates(shadow_root: str, *, with_excluded: bool = False):
 
 def _batch_prompt(batch):
     parts = [_PROMPT_HEAD.format(n=len(batch))]
-    for c in batch:
-        parts.append(f"### {c['name']}   ({c['file']}:{c['line']})\n```python\n{c['window']}\n```\n")
+    parts.extend(f"### {c['name']}   ({c['file']}:{c['line']})\n```python\n{c['window']}\n```\n" for c in batch)
     return "\n".join(parts)
 
 

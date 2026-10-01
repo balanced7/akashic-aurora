@@ -56,7 +56,8 @@ CORE_ORDER = [
 
 def first_doc(path):
     try:
-        d = ast.get_docstring(ast.parse(open(path, encoding="utf-8").read()))
+        with open(path, encoding="utf-8") as fh:
+            d = ast.get_docstring(ast.parse(fh.read()))
         if d:
             return " ".join(d.strip().splitlines()[0].split())[:110]
     except Exception:
@@ -90,18 +91,15 @@ def render():
         new = "  ⚠️ NOT in ARCHITECTURE.md layer order — add it there" if sub not in CORE_ORDER else ""
         mods = modules(f"core/{sub}")
         lines.append(f"## core/{sub}/  ({len(mods)} modules){new}")
-        for m in mods:
-            lines.append(f"- `{m}` — {first_doc(os.path.join(ROOT, 'core', sub, m))}")
+        lines.extend(f"- `{m}` — {first_doc(os.path.join(ROOT, 'core', sub, m))}" for m in mods)
         lines.append("")
     # top-level entry points
     lines.append("## entry points (repo root)")
-    for f in tracked_py(""):
-        lines.append(f"- `{f}` — {first_doc(os.path.join(ROOT, f))}")
+    lines.extend(f"- `{f}` — {first_doc(os.path.join(ROOT, f))}" for f in tracked_py(""))
     lines.append("")
     # scripts/
     lines.append("## scripts/")
-    for m in modules("scripts"):
-        lines.append(f"- `{m}` — {first_doc(os.path.join(ROOT, 'scripts', m))}")
+    lines.extend(f"- `{m}` — {first_doc(os.path.join(ROOT, 'scripts', m))}" for m in modules("scripts"))
     lines.append("")
     return "\n".join(lines)
 
@@ -109,7 +107,10 @@ def render():
 def main():
     body = render()
     if "--check" in sys.argv:
-        current = open(OUT, encoding="utf-8").read() if os.path.exists(OUT) else ""
+        current = ""
+        if os.path.exists(OUT):
+            with open(OUT, encoding="utf-8") as fh:
+                current = fh.read()
         if current.strip() != body.strip():
             print(f"STALE: docs/MODULE_INDEX.md is out of date -- run `{_pyl()} scripts/generators/gen_arch_index.py`")
             return 1

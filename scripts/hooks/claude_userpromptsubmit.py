@@ -82,7 +82,7 @@ def build_plan_recall(prompt: str, session_id: str, agent_id: str) -> str:
     out = render(res, header="Plan-time recall (Akashic) - corpus knowledge relevant to this request:")
     if not out:
         return ""
-    srcs = [l.get("source") for l in res.get("lessons", [])]
+    srcs = [lesson.get("source") for lesson in res.get("lessons", [])]
     mark_seen(session_id, srcs)
     log_injection(session_id, "plan", "", srcs, len(out))
     return out

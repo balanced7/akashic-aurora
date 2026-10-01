@@ -176,4 +176,4 @@ if __name__ == "__main__":
         raise SystemExit(main())
     except (WakeError, OSError, ValueError) as exc:
         print(f"ERROR: {exc}", file=sys.stderr, flush=True)
-        raise SystemExit(2)
+        raise SystemExit(2) from exc

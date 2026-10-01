@@ -23,9 +23,7 @@ import os
 import sys
 from datetime import UTC, datetime
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-REPO = os.path.dirname(os.path.dirname(HERE))
-sys.path.insert(0, REPO)
+sys.path.insert(0, REPO := os.path.dirname(os.path.dirname(HERE := os.path.dirname(os.path.abspath(__file__)))))
 
 from core.comm.bus import Bus
 

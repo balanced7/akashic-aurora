@@ -76,13 +76,13 @@ def _git(world: str) -> dict:
     def g(*args):
         return subprocess.run(["git", "-C", root, *args], capture_output=True, text=True).stdout.strip()
 
-    dirty = [l for l in g("status", "--porcelain").splitlines() if l and not l.startswith("??")]
+    dirty = [ln for ln in g("status", "--porcelain").splitlines() if ln and not ln.startswith("??")]
     return {
         "ok": True,
         "head": g("rev-parse", "--short", "HEAD"),
         "subject": g("log", "-1", "--format=%s")[:60],
         "uncommitted": len(dirty),
-        "untracked": len([l for l in g("status", "--porcelain").splitlines() if l.startswith("??")]),
+        "untracked": len([ln for ln in g("status", "--porcelain").splitlines() if ln.startswith("??")]),
     }
 
 

@@ -121,9 +121,11 @@ def digest_transcript_text(text: str, asst_clip: int = 400, user_clip: int = 150
             if isinstance(content, str):
                 rows.append((ts, "USER", clip(content, user_clip)))
             elif isinstance(content, list):
-                for b in content:
-                    if isinstance(b, dict) and b.get("type") == "text":
-                        rows.append((ts, "USER", clip(b.get("text", ""), user_clip)))
+                rows.extend(
+                    (ts, "USER", clip(b.get("text", ""), user_clip))
+                    for b in content
+                    if isinstance(b, dict) and b.get("type") == "text"
+                )
         elif t == "assistant":
             for b in content or []:
                 if not isinstance(b, dict):

@@ -321,7 +321,8 @@ def module_map():
 def imports_of(rel, modmap):
     out = set()
     try:
-        tree = ast.parse(open(os.path.join(ROOT, rel), encoding="utf-8").read())
+        with open(os.path.join(ROOT, rel), encoding="utf-8") as fobj:
+            tree = ast.parse(fobj.read())
     except Exception:
         return out
     for node in ast.walk(tree):
@@ -433,7 +434,8 @@ def shell_invoked_modules(dirs=None) -> set:
             for dirpath, _dirnames, filenames in os.walk(root):
                 for fn in filenames:
                     try:
-                        text = open(os.path.join(dirpath, fn), encoding="utf-8", errors="replace").read()
+                        with open(os.path.join(dirpath, fn), encoding="utf-8", errors="replace") as fobj:
+                            text = fobj.read()
                     except OSError:
                         continue
                     for mod in dash_m.findall(text):
@@ -505,7 +507,8 @@ def public_defs(rel, root=ROOT):
     """
     out = []
     try:
-        tree = ast.parse(open(os.path.join(root, rel), encoding="utf-8", errors="replace").read())
+        with open(os.path.join(root, rel), encoding="utf-8", errors="replace") as fobj:
+            tree = ast.parse(fobj.read())
     except Exception:
         return out
 
@@ -526,9 +529,9 @@ def public_defs(rel, root=ROOT):
                     found.append(item)
                 elif isinstance(item, ast.AST):  # ExceptHandler, match_case, ...
                     for _f2, val2 in ast.iter_fields(item):
-                        for it2 in val2 if isinstance(val2, list) else [val2]:
-                            if isinstance(it2, ast.stmt):
-                                found.append(it2)
+                        found.extend(
+                            it2 for it2 in (val2 if isinstance(val2, list) else [val2]) if isinstance(it2, ast.stmt)
+                        )
         return found
 
     def _walk(stmts, in_class=False):
@@ -553,7 +556,8 @@ def reference_sites(rel, root=ROOT):
     """
     out = []
     try:
-        tree = ast.parse(open(os.path.join(root, rel), encoding="utf-8", errors="replace").read())
+        with open(os.path.join(root, rel), encoding="utf-8", errors="replace") as fobj:
+            tree = ast.parse(fobj.read())
     except Exception:
         return out
     # T145: lines belonging to an `__all__` assignment. An export list DECLARES a surface; it does

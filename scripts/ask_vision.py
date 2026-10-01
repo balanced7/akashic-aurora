@@ -148,15 +148,14 @@ def main() -> int:
     if not args.no_cache:
         hit = cache_lookup(key)
         if hit:
-            text, err, cached, attempts_used = hit.get("answer"), None, True, 0
+            text, err, cached, _attempts_used = hit.get("answer"), None, True, 0
         else:
-            text, err, cached, attempts_used = None, None, False, 0
+            text, err, cached, _attempts_used = None, None, False, 0
     else:
-        text, err, cached, attempts_used = None, None, False, 0
+        text, err, cached, _attempts_used = None, None, False, 0
 
     if text is None:
         text, err = ask(subject, args.question, args.model, args.attempts)
-        attempts_used = args.attempts if err else 1
         if text is not None and not args.no_cache:
             cache_store(
                 {

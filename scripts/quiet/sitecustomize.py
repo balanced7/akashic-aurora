@@ -56,7 +56,7 @@ if sys.platform == "win32" and not (
             # Respect an explicit opinion, whichever way it points:
             #   CREATE_NEW_CONSOLE -> the caller WANTS a window; never override intent.
             #   DETACHED_PROCESS   -> already console-less, AND mutually exclusive with
-            #                         CREATE_NO_WINDOW in Win32 (ERROR_INVALID_PARAMETER),
+            #                         CREATE_NO_WINDOW in Win32 with ERROR_INVALID_PARAMETER,
             #                         so adding it would break the spawn outright.
             #   CREATE_NO_WINDOW   -> already correct.
             _INTENT = _NEW_CONSOLE | _DETACHED | _NO_WINDOW

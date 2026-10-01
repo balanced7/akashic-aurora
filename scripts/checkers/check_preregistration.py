@@ -48,7 +48,8 @@ def _is_new_in_git(path: str) -> bool:
 
 def _declares_prereg(path: str) -> bool:
     try:
-        head = open(os.path.join(ROOT, path), encoding="utf-8", errors="replace").read(2000)
+        with open(os.path.join(ROOT, path), encoding="utf-8", errors="replace") as fh:
+            head = fh.read(2000)
         return bool(PREREG_RE.search(head))
     except OSError:
         return False
@@ -79,10 +80,10 @@ def audit_stats(n: int, root: str = "") -> dict:
     total = viol = 0
     offenders = []
     for block in log.split("\x01"):
-        lines = [l.strip() for l in block.strip().splitlines() if l.strip()]
+        lines = [ln.strip() for ln in block.strip().splitlines() if ln.strip()]
         if not lines:
             continue
-        header, files = lines[0], [_norm(l) for l in lines[1:]]
+        header, files = lines[0], [_norm(ln) for ln in lines[1:]]
         added_tests = [f for f in files if f.startswith("tests/test_") and f.endswith(".py")]
         if not added_tests:
             continue

@@ -55,11 +55,11 @@ def real_tools(path=TOOLBOX, mcp=None):
     There are two tool doors; a name that resolves at either one is advertised truthfully.
     """
     names = set()
-    with contextlib.suppress(OSError):
-        names |= set(_TOOL_DEF.findall(open(path, encoding="utf-8", errors="replace").read()))
+    with contextlib.suppress(OSError), open(path, encoding="utf-8", errors="replace") as fh:
+        names |= set(_TOOL_DEF.findall(fh.read()))
     mcp = mcp if mcp is not None else os.path.join(ROOT, "ai_setup_mcp.py")
-    with contextlib.suppress(OSError):
-        names |= set(_MCP_DEF.findall(open(mcp, encoding="utf-8", errors="replace").read()))
+    with contextlib.suppress(OSError), open(mcp, encoding="utf-8", errors="replace") as fh:
+        names |= set(_MCP_DEF.findall(fh.read()))
     return names  # fail open: no tool list, nothing to enforce
 
 
@@ -96,7 +96,8 @@ def scan(docs, toolbox=TOOLBOX, mcp=None):
     out = []
     for d in docs:
         try:
-            text = open(d, encoding="utf-8", errors="replace").read()
+            with open(d, encoding="utf-8", errors="replace") as fh:
+                text = fh.read()
         except OSError:
             continue  # fail open: an unreadable doc promises nothing
         for i, line in enumerate(text.splitlines(), 1):

@@ -19,8 +19,7 @@ import os
 import subprocess
 import sys
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, ROOT)
+sys.path.insert(0, ROOT := os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.foundation.store import create_store
 from core.narrative.beat_log import TIMELINE, BeatLog

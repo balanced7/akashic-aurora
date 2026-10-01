@@ -77,7 +77,7 @@ def untracked_docs():
             text=True,
             timeout=15,
         ).stdout
-        return [l.strip() for l in out.splitlines() if l.strip()]
+        return [ln.strip() for ln in out.splitlines() if ln.strip()]
     except Exception:
         return []
 

@@ -166,7 +166,7 @@ def cmd_capture(args):
     text = src.read_text(encoding="utf-8", errors="replace")
     (dest / "commit-map").write_text(text, encoding="utf-8")
 
-    rows = [l.split() for l in text.splitlines()]
+    rows = [ln.split() for ln in text.splitlines()]
     pairs = [p for p in rows if len(p) == 2 and len(p[0]) == 40 == len(p[1])]
     dropped = [p for p in pairs if p[1] == "0" * 40]
     meta = {

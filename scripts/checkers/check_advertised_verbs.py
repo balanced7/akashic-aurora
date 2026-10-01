@@ -56,7 +56,8 @@ VERB_RE = re.compile(r"agent_cli\.py\s+([a-z][a-z0-9_-]*)")
 def registered_verbs() -> set:
     """The subcommands argparse actually knows -- read from the AST, so the checker
     cannot drift from the parser it is checking."""
-    tree = ast.parse(open(os.path.join(ROOT, "agent_cli.py"), encoding="utf-8").read())
+    with open(os.path.join(ROOT, "agent_cli.py"), encoding="utf-8") as fh:
+        tree = ast.parse(fh.read())
     return {
         n.args[0].value
         for n in ast.walk(tree)
@@ -93,7 +94,8 @@ def scan():
         if os.path.abspath(path) == os.path.abspath(__file__):
             continue
         try:
-            lines = open(path, encoding="utf-8", errors="replace").read().splitlines()
+            with open(path, encoding="utf-8", errors="replace") as fh:
+                lines = fh.read().splitlines()
         except Exception:
             continue
         for i, line in enumerate(lines, 1):

@@ -52,7 +52,7 @@ def _check_raw_hex(lines: list[str]) -> list[str]:
     ALLOWS: --name:#hex (token definitions), var(--name, #fallback)
     FLAGS: standalone #hex at CSS property call sites and JS color literals."""
     problems: list[str] = []
-    # Pattern: a #hex that is NOT part of a --custom-property definition
+    # The pattern is a #hex that is NOT part of a --custom-property definition
     # and NOT inside a var(...) fallback
     in_css = False
     for i, line in enumerate(lines, 1):
@@ -282,7 +282,7 @@ def check_file(path: Path, *, baseline: bool = False) -> int:
 
     # No baseline: M-L3 never drives exit-1. M-L8 + M-L1a do.
     ship_problems = 0
-    for name, count, ship_grade in hits_by_law:
+    for _name, count, ship_grade in hits_by_law:
         if ship_grade and count:
             ship_problems += count
     if ship_problems:

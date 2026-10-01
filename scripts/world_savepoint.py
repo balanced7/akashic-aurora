@@ -51,7 +51,7 @@ def _status_lines():
 
 def _dirty_split():
     """(authored, generated) counts. Only authored dirt is work a restore would destroy."""
-    paths = [l[2:].strip() for l in _status_lines() if l and not l.lstrip().startswith("??")]
+    paths = [ln[2:].strip() for ln in _status_lines() if ln and not ln.lstrip().startswith("??")]
     authored = SP.authored_dirt(paths)
     return len(authored), len(paths) - len(authored)
 

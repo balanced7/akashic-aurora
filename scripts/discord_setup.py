@@ -159,7 +159,7 @@ def main() -> int:
         print(f"[setup] webhook on #{channel['name']}: in the vault ({receipt['bytes']}B -> .secrets/{vault_target})")
 
     ensure_webhook(rooms, "discord_forum_webhook.url")
-    for chan_name, agent in SEAT_CHANNELS:
+    for chan_name, _agent in SEAT_CHANNELS:
         c = by_name.get(chan_name)
         if c:
             ensure_webhook(c, f"discord_channel_{chan_name}.url")

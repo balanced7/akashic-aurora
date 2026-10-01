@@ -23,9 +23,7 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-REPO = os.path.dirname(HERE)
-sys.path.insert(0, REPO)
+sys.path.insert(0, REPO := os.path.dirname(HERE := os.path.dirname(os.path.abspath(__file__))))
 
 import contextlib
 
@@ -200,7 +198,7 @@ _VFX_SEQ = [0]
 
 def _vfx_job_add(op, args):
     _VFX_SEQ[0] += 1
-    jid = "j%d" % _VFX_SEQ[0]
+    jid = f"j{int(_VFX_SEQ[0])}"
     _VFX_JOBS[jid] = {"id": jid, "op": str(op or ""), "args": args or {}, "state": "pending", "result": None}
     # Keep the table small; a bench left open for a day should not accumulate a thousand records.
     if len(_VFX_JOBS) > 200:
@@ -667,7 +665,7 @@ def _vfx_ingest(name, src):
 
 
 # ---- WHAT THE BENCH IS CURRENTLY SHOWING -------------------------------------------------------
-# Daniil: "If I refresh the page your buffered demo gets lost."
+# Daniil said, "If I refresh the page your buffered demo gets lost."
 #
 # Exactly so, and it was worse than a nuisance: claude loads a shader into the open bench, Daniil
 # reloads for any reason, and the bench boots back to the default avatar with no trace of what was
@@ -995,7 +993,7 @@ class Handler(BaseHTTPRequestHandler):
                         "number": r.get("number"),
                         "state": r.get("state"),
                         # the schema line as the boot block renders it, so one spelling
-                        # travels: "Anthropic | Amber | Blue | 1 - Vandor"
+                        # travels, e.g. "Anthropic | Amber | Blue | 1 - Vandor"
                         "schema": f"{r.get('vendor')} | {r.get('family')} | "
                         f"{r.get('team')} | {r.get('number')} - {r.get('callsign')}",
                     }

@@ -214,5 +214,5 @@ def main(argv=None) -> int:
 if __name__ == "__main__":
     try:
         raise SystemExit(main())
-    except KeyboardInterrupt:
-        raise SystemExit(130)
+    except KeyboardInterrupt as exc:
+        raise SystemExit(130) from exc

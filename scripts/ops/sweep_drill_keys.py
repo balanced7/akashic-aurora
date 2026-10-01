@@ -50,10 +50,7 @@ SWEEP_PATTERNS = ("t-*", "t056_*", "t117dbg:*", "census_test")
 
 
 def _doomed(store) -> list[str]:
-    out = []
-    for key in store.keys("*"):
-        if any(fnmatch.fnmatch(str(key), p) for p in SWEEP_PATTERNS):
-            out.append(str(key))
+    out = [str(key) for key in store.keys("*") if any(fnmatch.fnmatch(str(key), p) for p in SWEEP_PATTERNS)]
     return sorted(out)
 
 

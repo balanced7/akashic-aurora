@@ -138,7 +138,7 @@ PLANES = {
     "_TARGET_KINDS": NOT_A_MESSAGE_KIND,  # orient.py:49 -- what you can orient TOWARD
     # (verb / seat / thread), not what you can send
     "SOURCE_KINDS": NOT_A_MESSAGE_KIND,  # college.py:503 -- evidence provenance
-    # (primary / secondary / measurement / analysis)
+    # i.e. primary, secondary, measurement or analysis
 }
 
 # A cross-plane name collision with a WRITTEN rationale is a recorded decision, not drift.
@@ -216,7 +216,8 @@ def _scan(root: str):
     found, unresolved = {}, []
     for path in _python_files(root):
         try:
-            tree = ast.parse(open(path, encoding="utf-8").read())
+            with open(path, encoding="utf-8") as fh:
+                tree = ast.parse(fh.read())
         except (OSError, SyntaxError):
             continue
         rel, seen = os.path.relpath(path, root).replace("\\", "/"), {}
@@ -320,13 +321,13 @@ def main(argv):
     for name, paths, disagreement in conflicts:
         fails.append(f"[same-name-different-membership] {name} in {paths} -- disagree on {disagreement}")
 
-    for name in unassigned_sets(sets):
-        fails.append(
-            f"[unassigned-plane] {name} declares no plane -- add it to PLANES "
-            f"(bus / event / beat), or NOT_A_MESSAGE_KIND if it is a different "
-            f"taxonomy that merely ends in _KINDS, so nobody has to REMEMBER to "
-            f"classify it"
-        )
+    fails.extend(
+        f"[unassigned-plane] {name} declares no plane -- add it to PLANES "
+        f"(bus / event / beat), or NOT_A_MESSAGE_KIND if it is a different "
+        f"taxonomy that merely ends in _KINDS, so nobody has to REMEMBER to "
+        f"classify it"
+        for name in unassigned_sets(sets)
+    )
 
     for kind, planes_hit in cross_plane_collisions(sets):
         fails.append(

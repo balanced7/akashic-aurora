@@ -34,6 +34,7 @@ has since trimmed stays readable forever. That is the whole point.
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import os
 import sys
@@ -41,8 +42,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-_REPO_ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(_REPO_ROOT))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from scripts.ops.archive_transcripts import (
     _render as _render_copy,
@@ -51,6 +51,8 @@ from scripts.ops.archive_transcripts import (
     archive,
 )
 
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+
 # The engine, re-exported so callers (and the pins) can see it is the SAME one.
 archive = archive
 
@@ -58,8 +60,6 @@ BUS_EXPORT_DIR = _REPO_ROOT / "state" / "bus-export"
 DEFAULT_CURSORS = BUS_EXPORT_DIR / ".cursors.json"
 DEFAULT_RECEIPTS = _REPO_ROOT / "state" / "archive" / "receipts-ephemeral"
 # Machine-specific (separate physical disks), so from the environment -- see core.paths.env_paths.
-import contextlib
-
 from core.paths import env_paths as _env_paths  # noqa: E402
 
 DEFAULT_DESTS: list[Path] = _env_paths("AKASHIC_EPHEMERAL_ARCHIVE_ROOTS")

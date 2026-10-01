@@ -234,13 +234,13 @@ def default_deadline_s() -> int:
     return 14400
 
 
-def rearm_trigger_path(agent: str, session_id: str = "", tmp: str = None) -> str:
+def rearm_trigger_path(agent: str, session_id: str = "", tmp: str | None = None) -> str:
     """The deadline self-cycle's note to the waking session (P8). Mirrors seat naming."""
     name = f"bifrost_wake_{agent}_{session_id}.rearm" if session_id else f"bifrost_wake_{agent}.rearm"
     return os.path.join(tmp or tempfile.gettempdir(), name)
 
 
-def write_rearm_trigger(agent: str, session_id: str = "", tmp: str = None) -> None:
+def write_rearm_trigger(agent: str, session_id: str = "", tmp: str | None = None) -> None:
     """R18: written ONLY on a deadline self-cycle -- never on mail exits (the session is
     already waking for work) and never on stand-downs (the seat owner re-arms via the
     stop-hook backstop; a trigger there would double-arm)."""
@@ -257,7 +257,7 @@ def write_rearm_trigger(agent: str, session_id: str = "", tmp: str = None) -> No
         pass
 
 
-def clear_rearm_trigger(agent: str, session_id: str = "", tmp: str = None) -> None:
+def clear_rearm_trigger(agent: str, session_id: str = "", tmp: str | None = None) -> None:
     """R19: arming IS the requested re-arm -- the trigger clears at arm time."""
     with contextlib.suppress(Exception):
         os.remove(rearm_trigger_path(agent, session_id, tmp))
@@ -281,7 +281,7 @@ def clear_rearm_trigger(agent: str, session_id: str = "", tmp: str = None) -> No
 SEEN_CAP = 1000  # newest-last trim on save; a session outliving 1000 wakes re-earns a twin wake
 
 
-def seen_path(agent: str, session_id: str = "", tmp: str = None) -> str:
+def seen_path(agent: str, session_id: str = "", tmp: str | None = None) -> str:
     """The dedup sidecar's path. Mirrors seat naming; removed on tombstone stand-down."""
     name = f"bifrost_wake_{agent}_{session_id}.seen" if session_id else f"bifrost_wake_{agent}.seen"
     return os.path.join(tmp or tempfile.gettempdir(), name)
@@ -374,10 +374,10 @@ def watch(
     inner_block_ms: int,
     *,
     api=None,
-    hb_path: str = None,
-    my_pid: int = None,
+    hb_path: str | None = None,
+    my_pid: int | None = None,
     session_id: str = "",
-    seen_file: str = None,
+    seen_file: str | None = None,
     min_tier: int = 3,
 ) -> int:  # 3 == wake_tiers.AMBIENT (literal: T050 Q6 keeps core.comm lazy)
     from core.comm.bifrost_api import BifrostAPI
@@ -463,10 +463,8 @@ def watch(
                 from core.comm import wake_seat as _ws
 
                 if _ws.is_tombstoned(session_id):
-                    try:
+                    with contextlib.suppress(OSError):
                         os.remove(sf)  # S0-gamma P7: dead-by-record -> no orphan sidecar
-                    except OSError:
-                        pass
                     print(
                         f"BIFROST_WAKE: standing down for {lane} (session tombstoned -- "
                         f"ended by record, T086 S1) -- benign"

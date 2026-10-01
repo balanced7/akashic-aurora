@@ -202,7 +202,7 @@ _STATUS_ORDER = {"current": 0, "unmarked": 5}
 _BADGE = {"current": "🟢", "superseded": "🟠", "fossil": "⚫", "unmarked": "⚪", "unreadable": "🔴"}
 
 
-# ---------------------------------------------------------------- SHELVES (v1, unchanged)
+# ---------------------------------------------------------------- SHELVES - v1, unchanged
 def build_census(entries):
     by_type: dict[str, list] = {}
     for p, h in entries:
@@ -322,8 +322,7 @@ def _render_zone_readme(zone: str, zone_entries: list, now_str: str) -> str:
         "",
     ]
     if canon:
-        for c in canon:
-            lines.append(c)
+        lines.extend(canon)
         lines.append("")
     lines.extend(
         [
@@ -368,7 +367,7 @@ def _render_zone_readme(zone: str, zone_entries: list, now_str: str) -> str:
     if unclassified:
         lines.append("### Unclassified")
         lines.append("")
-        for p, h in unclassified:
+        for p, _h in unclassified:
             rel = _relpath(p)
             lines.append(f"- `{rel}` — no parseable header")
         lines.append("")
@@ -379,7 +378,7 @@ def _render_zone_readme(zone: str, zone_entries: list, now_str: str) -> str:
     return "\n".join(lines)
 
 
-# ---------------------------------------------------------------- ARCS (v2)
+# ---------------------------------------------------------------- ARCS - v2
 def _build_arc_census(entries):
     by_arc: dict[str, list] = {}
     for p, h in entries:

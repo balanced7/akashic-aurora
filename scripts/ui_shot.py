@@ -39,11 +39,11 @@ DEFAULT_VIEWPORTS = ["1280x860", "900x820"]
 def _launcher():
     """Patchright first (repo default, stealth-patched), plain Playwright as fallback."""
     try:
-        from patchright.sync_api import sync_playwright  # type: ignore
+        from patchright.sync_api import sync_playwright  # type: ignore[import-not-found]
 
         return sync_playwright, "patchright"
     except Exception:
-        from playwright.sync_api import sync_playwright  # type: ignore
+        from playwright.sync_api import sync_playwright  # type: ignore[import-not-found]
 
         return sync_playwright, "playwright"
 
@@ -127,7 +127,7 @@ def main() -> int:
 
                 # console errors are free evidence while we are here
                 errs = []
-                page.on("console", lambda m: errs.append(m.text) if m.type == "error" else None)
+                page.on("console", lambda m, errs=errs: errs.append(m.text) if m.type == "error" else None)
                 path = os.path.join(a.out, f"{tag}{vp}_{stamp}.png")
                 page.screenshot(path=path, full_page=a.full)
                 entry["path"] = path

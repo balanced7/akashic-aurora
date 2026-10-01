@@ -60,9 +60,9 @@ def _pyl() -> str:
 
 try:
     import psutil
-except ImportError:  # pragma: no cover - environment guard
+except ImportError as err:  # pragma: no cover - environment guard
     print(f"mem_watch: psutil is required ({_pyl()} -m pip install psutil)", file=sys.stderr)
-    raise SystemExit(2)
+    raise SystemExit(2) from err
 
 DEFAULT_LOG = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),

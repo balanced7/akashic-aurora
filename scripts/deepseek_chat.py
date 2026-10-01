@@ -42,6 +42,7 @@ NOTE: everything (files, command output, KB results) is sent to DeepSeek's API. 
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import os
 import sys
@@ -111,7 +112,6 @@ def make_client(api_key=None, base_url=BASE_URL):
 _HERE = os.path.dirname(os.path.abspath(__file__))
 if os.path.dirname(_HERE) not in sys.path:
     sys.path.insert(0, os.path.dirname(_HERE))
-import contextlib
 
 from core.comm.toolbox import (  # noqa: F401,E402  (compat re-export)
     BINARY_SUFFIXES,
@@ -171,10 +171,8 @@ def clip_tool_result(result: str, limit: int = MAX_TOOL_RESULT_CHARS) -> str:
 
 def _enable_utf8_and_ansi() -> bool:
     for stream in (sys.stdout, sys.stdin, sys.stderr):
-        try:
+        with contextlib.suppress(Exception):
             stream.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[attr-defined]
-        except Exception:
-            pass
     try:
         color = sys.stdout.isatty()
     except Exception:

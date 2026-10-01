@@ -37,11 +37,12 @@ from __future__ import annotations
 import os as _os
 import sys as _sys
 
-_qd = _os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))), "scripts", "quiet")
-if _os.path.isdir(_qd):
+if _os.path.isdir(
+    _qd := _os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))), "scripts", "quiet")
+):
     if _qd not in _sys.path:
         _sys.path.insert(0, _qd)
-    try:
+    try:  # noqa: SIM105  # runs before every other import (contextlib included): Popen is patched first
         import sitecustomize as _quiet_sitecustomize  # noqa: F401  (patches subprocess.Popen)
     except Exception:
         pass
@@ -62,9 +63,9 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # recurring wound, and an import hidden inside the loop body re-created it at the graph layer).
 import contextlib
 
-from core.comm import discord_feed as _DFEED  # noqa: E402
-from core.comm import self_restart as _SELF_RESTART  # noqa: E402  (t376 S2: daemon stale-code arm)
-from core.comm.seat_identity import git_identity_env as _GIT_ID  # noqa: E402  (t384: author=seat)
+from core.comm import discord_feed as _DFEED
+from core.comm import self_restart as _SELF_RESTART  # t376 S2: daemon stale-code arm
+from core.comm.seat_identity import git_identity_env as _GIT_ID  # t384: author=seat
 
 
 def _pyl() -> str:
@@ -302,7 +303,7 @@ def managed_runner_argv(
     return command
 
 
-def foreign_holder_after_exit(agent: str, exited_pid) -> Optional[dict]:
+def foreign_holder_after_exit(agent: str, exited_pid) -> dict | None:
     """R9 (watcher-controls, 2026-09-29): the runner child has just exited. If the runner lock is now held by a
     runner this daemon did not spawn -- a bare token, i.e. the child's own stale-code successor after a push, or a
     hand-launched runner -- the seat is manned and a respawn would only fail the lock, count as a crash, trip the

@@ -47,6 +47,7 @@ would publish other authors' commits | 5 refused: the push was not confirmed
 """
 
 import argparse
+import contextlib
 import os
 import subprocess
 import sys
@@ -483,10 +484,8 @@ def _push(args, branch, committed):
 
 
 def main(argv=None):
-    try:
+    with contextlib.suppress(AttributeError):
         sys.stdout.reconfigure(errors="replace")  # commit subjects can carry characters a cp1252 console lacks
-    except AttributeError:
-        pass
     parser = build_parser()
     args = parser.parse_intermixed_args(argv)
 

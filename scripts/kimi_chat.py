@@ -36,8 +36,7 @@ import sys
 import time
 from pathlib import Path
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.dirname(HERE))
+sys.path.insert(0, os.path.dirname(HERE := os.path.dirname(os.path.abspath(__file__))))
 
 import contextlib
 

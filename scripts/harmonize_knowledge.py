@@ -125,8 +125,10 @@ def phase_backup():
         rh = r.hgetall(f"learn:experiment:{name}")
         if rh and rh != h:
             q.append({"kind": "test_learning", "source": "redis:16379", "record": rh})
-    for b in d.get("list", {}).get("blockers:escalated", []):
-        q.append({"kind": "test_blocker", "source": "store_state.json", "record": b})
+    q.extend(
+        {"kind": "test_blocker", "source": "store_state.json", "record": b}
+        for b in d.get("list", {}).get("blockers:escalated", [])
+    )
     for s in TEST_STREAMS:
         ent = r.xrange(s)
         if ent:

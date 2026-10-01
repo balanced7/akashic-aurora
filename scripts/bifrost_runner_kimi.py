@@ -36,14 +36,13 @@ import threading
 import time
 from pathlib import Path
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.dirname(HERE))
+sys.path.insert(0, os.path.dirname(HERE := os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, HERE)
 
 import contextlib
 
 from core.comm import control, liveness, roster
-from core.comm import shift_turn as _shift_turn  # noqa: E402  (turn boundary)
+from core.comm import shift_turn as _shift_turn  # turn boundary
 from core.comm.bus import Bus
 
 # T150: make this runner WATCHABLE. Python block-buffers stdout when it is not a TTY -- exactly the
@@ -379,10 +378,8 @@ def make_kimi_replier(
             # gives a transient failure exactly one retry before it confesses.
             answer = f"(kimi agentic runner error: {type(e).__name__}: {e})"
         answer = _rb23_gates(answer, ag.send, agent_id)
-        try:
+        with contextlib.suppress(Exception):
             toolbox.release_written_locks()  # T048: task end = lock end
-        except Exception:
-            pass
         return answer or "(kimi produced no final answer)"
 
     return respond

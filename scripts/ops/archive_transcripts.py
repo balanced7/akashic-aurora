@@ -37,6 +37,7 @@ drive is one failure domain wearing a disguise.
 from __future__ import annotations
 
 import argparse
+import contextlib
 import hashlib
 import json
 import os
@@ -58,7 +59,6 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 # wrote to the rolling dirs (102). Ninety archived sessions were unreachable by the indexer for
 # as long as nobody compared the two lists. One declaration, one pin asserting they agree.
 sys.path.insert(0, str(_REPO_ROOT))
-import contextlib
 
 from config import TRANSCRIPT_ARCHIVE_ROOTS  # noqa: E402
 

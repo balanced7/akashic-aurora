@@ -78,7 +78,8 @@ def decide(message: str, paths, root: str = "") -> dict:
             problems.append(f"cited {rel} does not exist")
             continue
         try:
-            text = open(full, encoding="utf-8", errors="replace").read()
+            with open(full, encoding="utf-8", errors="replace") as fh:
+                text = fh.read()
         except OSError as e:
             problems.append(f"cited {rel} unreadable ({e})")
             continue
@@ -120,7 +121,7 @@ def audit_stats(n: int, root: str = "") -> dict:
             sha, msg, files = block.split("\x02", 2)
         except ValueError:
             continue
-        paths = [l.strip() for l in files.splitlines() if l.strip()]
+        paths = [ln.strip() for ln in files.splitlines() if ln.strip()]
         v = decide(msg, paths, root=cwd)
         if v["status"] == "NOT_APPLICABLE":
             continue
@@ -206,7 +207,8 @@ def main() -> int:
             problems.append(f"cited {rel} does not exist")
             continue
         try:
-            text = open(full, encoding="utf-8", errors="replace").read()
+            with open(full, encoding="utf-8", errors="replace") as fh:
+                text = fh.read()
         except OSError as e:
             problems.append(f"cited {rel} unreadable ({e})")
             continue

@@ -27,8 +27,10 @@ import subprocess
 import threading
 import time
 import uuid
-from collections.abc import Callable
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 # ---------------------------------------------------------------- DaemonLock

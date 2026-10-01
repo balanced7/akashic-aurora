@@ -28,8 +28,8 @@ SCRIPTS = os.path.join(REPO, "scripts")
 sys.path.insert(0, REPO)
 sys.path.insert(0, SCRIPTS)
 
-import deepseek_chat as dc
-from ask_deepseek import load_key
+import deepseek_chat as dc  # noqa: E402  # sys.path bootstrap (streams reconfigured first)
+from ask_deepseek import load_key  # noqa: E402  # sys.path bootstrap (streams reconfigured first)
 
 OUT = os.path.join(REPO, "research", "reviewed", "renew-deepseek-2026-07-07.md")
 

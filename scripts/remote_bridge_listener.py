@@ -38,6 +38,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import contextlib
 import ipaddress
 import json
 import sys
@@ -49,8 +50,6 @@ from typing import Any
 REPO = Path(__file__).resolve().parents[1]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
-
-import contextlib
 
 from core.comm import remote_relay as RR  # noqa: E402
 

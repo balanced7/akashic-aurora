@@ -116,7 +116,7 @@ def ingest(ns):
         print(f"  . {n}", file=sys.stderr)
     for w in r.get("warnings", []):
         print(f"  ! {w}", file=sys.stderr)
-    print("stored design/vfx-sketches/%s.frag (%d bytes)" % (r["name"], r["bytes"]), file=sys.stderr)
+    print(f"stored design/vfx-sketches/{r['name']!s}.frag ({int(r['bytes'])} bytes)", file=sys.stderr)
 
     if ns.no_preview:
         return say("ingested `{}` -- {}".format(r["name"], r.get("summary", "")))

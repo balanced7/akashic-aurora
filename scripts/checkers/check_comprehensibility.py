@@ -29,8 +29,14 @@ import subprocess
 import sys
 from datetime import datetime
 
-ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # T104-M1 depth
-sys.path.insert(0, os.path.join(ROOT, "scripts", "generators"))  # T104-M1
+sys.path.insert(
+    0,
+    os.path.join(
+        ROOT := os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),  # T104-M1 depth
+        "scripts",
+        "generators",
+    ),
+)  # T104-M1
 import gen_arch_index as gen  # reuse the same module survey (single source of truth)
 
 
@@ -149,7 +155,8 @@ def _core_docstring_sources():
             try:
                 import ast
 
-                doc = ast.get_docstring(ast.parse(open(p, encoding="utf-8").read())) or ""
+                with open(p, encoding="utf-8") as fh:
+                    doc = ast.get_docstring(ast.parse(fh.read())) or ""
             except Exception:
                 doc = ""
             if doc:
@@ -392,7 +399,7 @@ def _derived_docs_current():
         import gen_physics_sheet as phys
 
         def strip(t):
-            return "\n".join(l for l in t.splitlines() if not l.startswith("> Derived at "))
+            return "\n".join(ln for ln in t.splitlines() if not ln.startswith("> Derived at "))
 
         if strip(_read("docs/PHYSICS.md")) != strip(phys.render(*phys.scan(), sha="_")):
             out.append(f"docs/PHYSICS.md is stale -> run `{_pyl()} scripts/generators/gen_physics_sheet.py`")

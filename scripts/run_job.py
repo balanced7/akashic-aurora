@@ -34,10 +34,12 @@ import subprocess
 import sys
 import time
 import uuid
-from collections.abc import Iterable
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_STATE_DIR = ROOT / "state" / "jobs"
@@ -702,8 +704,7 @@ def _win_tree_members(rows: dict[int, int], root_pid: int) -> list[tuple[int, in
         seen.add(parent)
         if parent == root_pid or parent in rows:
             members.append((parent, depth))
-        for child in children.get(parent, []):
-            stack.append((child, depth + 1))
+        stack.extend((child, depth + 1) for child in children.get(parent, []))
     return members
 
 

@@ -88,13 +88,10 @@ def _signature(fn):
     filetypes'; for a Python component the honest mechanical answer is the parameter list with its
     annotations, plus the return annotation."""
     a = fn.args
-    parts = []
-    for arg in list(a.posonlyargs) + list(a.args):
-        parts.append({"name": arg.arg, "type": _annot(arg.annotation)})
+    parts = [{"name": arg.arg, "type": _annot(arg.annotation)} for arg in list(a.posonlyargs) + list(a.args)]
     if a.vararg:
         parts.append({"name": "*" + a.vararg.arg, "type": _annot(a.vararg.annotation)})
-    for arg in a.kwonlyargs:
-        parts.append({"name": arg.arg, "type": _annot(arg.annotation)})
+    parts.extend({"name": arg.arg, "type": _annot(arg.annotation)} for arg in a.kwonlyargs)
     if a.kwarg:
         parts.append({"name": "**" + a.kwarg.arg, "type": _annot(a.kwarg.annotation)})
     return {"params": parts, "returns": _annot(fn.returns)}
@@ -103,7 +100,8 @@ def _signature(fn):
 def _parse(rel):
     path = os.path.join(ROOT, rel)
     try:
-        src = open(path, encoding="utf-8").read()
+        with open(path, encoding="utf-8") as fh:
+            src = fh.read()
     except Exception as e:
         return None, f"unreadable: {type(e).__name__}"
     try:
@@ -297,11 +295,12 @@ def build():
         s["depended_on_by"] = sorted(set(s["depended_on_by"]))
 
     # Tests naming the module by dotted path -- precise, not a stem heuristic.
-    for rel, s in sheets.items():
+    for rel in sheets:
         if not rel.startswith("tests/"):
             continue
         try:
-            src = open(os.path.join(ROOT, rel), encoding="utf-8").read()
+            with open(os.path.join(ROOT, rel), encoding="utf-8") as fh:
+                src = fh.read()
         except Exception:
             continue
         for mod, target in by_module.items():

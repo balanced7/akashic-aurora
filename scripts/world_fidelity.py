@@ -68,7 +68,7 @@ def main() -> int:
         # fidelity. Measuring the wrong tree here would invert the finding.
         st = _git(source, "status", "--porcelain")
         if st is not None:
-            dirty = len([l for l in st.splitlines() if l and not l.lstrip().startswith("??")])
+            dirty = len([ln for ln in st.splitlines() if ln and not ln.lstrip().startswith("??")])
     elif w.name == "prod":
         dirty = 0  # prod IS the source; nothing lags it
 
@@ -94,7 +94,7 @@ def main() -> int:
     tracked_ok = None
     tracked = _git(ROOT, "ls-files", "state/")
     if tracked is not None:
-        wanted = [l for l in tracked.splitlines() if l.strip()]
+        wanted = [ln for ln in tracked.splitlines() if ln.strip()]
         tracked_ok = bool(wanted) and all((ROOT / w).exists() for w in wanted)
 
     rows = F.assess(

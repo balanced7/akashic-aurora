@@ -119,12 +119,12 @@ def run(
     k: int = 9,
     seed: int = 20260804,
     policy: str = "v1_doc",
-    shadow: str = None,
-    key_path: str = None,
+    shadow: str | None = None,
+    key_path: str | None = None,
     player=None,
     player_name: str = "mechanical",
     archive: bool = True,
-    player_config: dict = None,
+    player_config: dict | None = None,
 ) -> dict:
     """T184: `player` is injectable so the loop can be driven by something other than a gate.
 

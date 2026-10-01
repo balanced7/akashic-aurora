@@ -21,10 +21,11 @@ import argparse
 import sys
 from pathlib import Path
 
-HERE = Path(__file__).resolve().parent
-sys.path.insert(0, str(HERE))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from kimi_chat import DEFAULT_MODEL, SpendMeter, load_key, make_client
+
+HERE = Path(__file__).resolve().parent
 
 
 def main():

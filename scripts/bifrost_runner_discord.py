@@ -24,6 +24,7 @@ import subprocess
 import sys
 import threading
 import time
+from pathlib import Path
 
 # T150/T152 runner-family law (regressed out in the ear-v2 rewrite, caught by the
 # census guards via the 2026-08-22 baseline delta): line-buffered utf-8 streams
@@ -36,8 +37,6 @@ with contextlib.suppress(Exception):
 with contextlib.suppress(Exception):
     sys.stderr.reconfigure(encoding="utf-8", errors="replace", line_buffering=True)
 
-NL = chr(10)  # newline, spelled out: an escape in this file got eaten once
-
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # THE RECEIPT MUST NOT KILL THE LISTENER (2026-08-19, measured): this runner prints 🌱/⚠️
@@ -48,14 +47,10 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # trusting the launch environment (a launcher flag is one forgotten env away from this
 # recurring); errors="replace" so an exotic glyph degrades to a mark instead of a crash.
 for _stream in (sys.stdout, sys.stderr):
-    try:
+    with contextlib.suppress(Exception):  # older/odd streams: keep going, the bus is the record
         _stream.reconfigure(encoding="utf-8", errors="replace")
-    except Exception:  # noqa: BLE001
-        pass  # older/odd streams: keep going, the bus is the record
 
-from pathlib import Path
-
-from core.comm.discord_inbound import (
+from core.comm.discord_inbound import (  # noqa: E402  # streams are forced to UTF-8 before the import
     EarConfigError,
     build_config,
     credential_horizon_days,
@@ -66,6 +61,8 @@ from core.comm.discord_inbound import (
     spawn_credential_refusal,
     spawn_stillborn_reason,
 )
+
+NL = chr(10)  # newline, spelled out: an escape in this file got eaten once
 
 
 def _pyl() -> str:
@@ -247,15 +244,13 @@ class Tee:
         try:
             dest = Path(path)
             dest.parent.mkdir(parents=True, exist_ok=True)
-            self._fh = open(dest, "a", encoding="utf-8", errors="replace")
+            self._fh = open(dest, "a", encoding="utf-8", errors="replace")  # noqa: SIM115  # handle outlives this function: stored on the Tee for the process lifetime
         except Exception:  # noqa: BLE001
             self._fh = None  # lose the record, keep the bridge
 
     def write(self, text):
-        try:
+        with contextlib.suppress(Exception):
             self._stream.write(text)
-        except Exception:  # noqa: BLE001
-            pass
         if self._fh is not None:
             try:
                 self._fh.write(text)
@@ -758,19 +753,15 @@ def main(argv=None) -> int:
             # dc6200d491: refresh the singleton lock on the same tick as the worklive
             # beat -- a twin that raced in and lost acquire() must keep losing for as
             # long as this process is actually alive.
-            try:
+            with contextlib.suppress(Exception):  # the beat must never kill the beater
                 _dlock.heartbeat()
-            except Exception:
-                pass  # the beat must never kill the beater
             # T147: the roster reads a PER-INCARNATION key; the worklive beat above
             # writes the bare one. Without this line a live gateway renders DEAD to
             # the reaper's only sensor (same defect, same fix as the kimi runner).
-            try:
+            with contextlib.suppress(Exception):  # the beat must never kill the beater
                 roster.heartbeat(
                     os.environ.get("BIFROST_NAMESPACE", "bifrost"), GATEWAY_AGENT_ID, _inc, phase="running"
                 )
-            except Exception:
-                pass  # the beat must never kill the beater
 
     pulse_thread = threading.Thread(target=_pulse, name="discord-gateway-beat", daemon=True)
     pulse_thread.start()
@@ -807,17 +798,13 @@ def main(argv=None) -> int:
                 out = f"revive FAILED to launch: {type(e).__name__}: {e}"
 
             async def _say(txt):
-                try:
+                with contextlib.suppress(Exception):  # the socket too can die; log remains
                     await message.channel.send(txt)
-                except Exception:  # noqa: BLE001
-                    pass  # the socket too can die; log remains
 
             print(f"[discord-in] revive lever ran (target={target}, observe={observe_only})", flush=True)
             for i in range(0, len(out), 1800):
-                try:
+                with contextlib.suppress(Exception):
                     asyncio.run_coroutine_threadsafe(_say(out[i : i + 1800]), client.loop)
-                except Exception:  # noqa: BLE001
-                    pass
 
         _th.Thread(target=_work, name="revive-lever", daemon=True).start()
 
@@ -861,10 +848,8 @@ def main(argv=None) -> int:
                     # applied, then add the next stage. The remove targets our
                     # own reaction only (no manage_messages needed).
                     if current:
-                        try:
+                        with contextlib.suppress(Exception):  # removing our own badge is best-effort
                             await msg.remove_reaction(current, client.user)
-                        except Exception:  # noqa: BLE001
-                            pass  # removing our own badge is best-effort
                     await msg.add_reaction(emoji)
                     if op["op"] in ("answered", "replied", "dead"):
                         _ladder_msgs.pop(op["discord_msg_id"], None)  # terminal
@@ -897,15 +882,13 @@ def main(argv=None) -> int:
     # restart (the _tracked map is in-process only), or a post-restart reply still
     # drops -- loud, finally, but still dropped.
     def _drop_loud(drop: dict):
-        try:
+        with contextlib.suppress(Exception):
             print(
                 f"[discord-in] guest reply DROPPED ({drop.get('reason', '?')}) "
                 f"frm={drop.get('frm')} reply_to={drop.get('reply_to') or '(none)'} "
                 f"kind={drop.get('kind')}",
                 flush=True,
             )
-        except Exception:  # noqa: BLE001
-            pass
         try:
             from core.events.event_log import capture_event
 
@@ -991,20 +974,18 @@ def main(argv=None) -> int:
         warn = credential_warning(_credential_horizon())
         if warn:  # the recovery path's own expiry, said BEFORE it bites
             print(f"[discord-in] CREDENTIAL: {warn}", flush=True)
-        try:
+        with contextlib.suppress(Exception):  # presence is garnish, never load-bearing
             await client.change_presence(
                 activity=discord.Activity(type=discord.ActivityType.watching, name="the Bifrost")
             )
-        except Exception:  # noqa: BLE001
-            pass  # presence is garnish, never load-bearing
         # T380: one ladder loop per process (on_ready refires on RESUME -- guard)
         if not getattr(client, "_ladder_started", False):
             client._ladder_started = True
-            asyncio.create_task(_ladder_loop())
+            client._ladder_task = asyncio.create_task(_ladder_loop())
         # 2026-08-26: one guest-reply loop per process, same guard discipline.
         if not getattr(client, "_guest_loop_started", False):
             client._guest_loop_started = True
-            asyncio.create_task(_guest_reply_loop())
+            client._guest_reply_task = asyncio.create_task(_guest_reply_loop())
 
     @client.event
     async def on_message(message):
@@ -1069,10 +1050,8 @@ def main(argv=None) -> int:
             # A landed-receipt (📨) on a dead send would be the T149 lie with an
             # emoji on it -- and ✅ is the ladder's word for ANSWERED now (T380).
             print(f"[discord-in] send FAILED ({type(e).__name__}: {e})", flush=True)
-            try:
+            with contextlib.suppress(Exception):
                 await message.add_reaction("⚠️")
-            except Exception:  # noqa: BLE001
-                pass
             return
         for emoji in reactions:
             try:
@@ -1096,29 +1075,33 @@ def main(argv=None) -> int:
                 )
         beat(wl, RESTING_PHASE, "idle")
         if out.get("spawned"):
-            try:
+            with contextlib.suppress(TypeError, ValueError):  # no pid to watch is not a reason to die
                 _watch_spawn(int(out["spawned"]), message)
-            except (TypeError, ValueError):
-                pass  # no pid to watch is not a reason to die
         # T380: enter the ladder -- directed operator relays only (ambient
         # broadcasts and guest words get their landed emote and stop there).
         # reversed(): out["id"] is the LAST target's stream id, so that agent
         # leads the list the tracker resolves the identity sha from.
         try:
             _t = getattr(client, "_ladder_tracker", None)
-            if _t is not None and out.get("acted") and out.get("id") and out.get("to") and not out.get("guest"):
-                if _t.track(
+            if (
+                _t is not None
+                and out.get("acted")
+                and out.get("id")
+                and out.get("to")
+                and not out.get("guest")
+                and _t.track(
                     str(out["id"]),
                     to_agents=[str(a) for a in reversed(out["to"])],
                     channel_id=str(message.channel.id),
                     discord_msg_id=str(message.id),
-                ):
-                    # [message, current badge] -- the ladder is ONE evolving
-                    # badge, not an accumulation (Daniil 2026-08-22: "have mail
-                    # update to something once it reaches the agent, and the
-                    # reply be the checkmark"). 📨 was just added by the react
-                    # loop below; the applier swaps it forward stage by stage.
-                    _ladder_msgs[str(message.id)] = [message, "📨"]
+                )
+            ):
+                # [message, current badge] -- the ladder is ONE evolving
+                # badge, not an accumulation (Daniil 2026-08-22: "have mail
+                # update to something once it reaches the agent, and the
+                # reply be the checkmark"). 📨 was just added by the react
+                # loop below; the applier swaps it forward stage by stage.
+                _ladder_msgs[str(message.id)] = [message, "📨"]
         except Exception as e:  # noqa: BLE001
             print(f"[discord-in] ladder track failed ({type(e).__name__}: {e})", flush=True)
         if out.get("acted"):

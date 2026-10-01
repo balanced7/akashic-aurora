@@ -75,8 +75,7 @@ def scan_message(path, root=None):
 
 def refusal(findings):
     out = ["commit-msg BLOCKED: the commit message carries PRIVATE-PLANE identifiers.\n"]
-    for f in findings[:6]:
-        out.append(f"  {f['path']} -- marker {f['marker']!r}\n    {f['remedy']}\n")
+    out.extend(f"  {f['path']} -- marker {f['marker']!r}\n    {f['remedy']}\n" for f in findings[:6])
     out.append(
         "  Existence metadata is a leak: an id or title alone is enough, no body "
         "required.\n  Nothing was committed and the index is untouched: rewrite the "
@@ -94,11 +93,9 @@ def _say(text):
 
 def main(argv=None, root=None):
     argv = sys.argv if argv is None else argv
-    try:
+    with contextlib.suppress(Exception):
         # a marker the console's codepage cannot print must not turn a refusal into a crash
         sys.stderr.reconfigure(errors="replace")
-    except Exception:
-        pass
     if len(argv) < 2 or not argv[1]:
         _say(
             "commit-msg WARNING: git passed no message path, so the private-plane message "

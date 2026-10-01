@@ -404,7 +404,7 @@ def ratchet_ok(baseline=None, live=None):
         if is_now == -1:
             worse.append(f"{name}: the guardrail did not RUN (crash/missing) -- absence is not a pass")
         elif is_now > was:
-            worse.append("%s: %d -> %d violation(s)" % (name, was, is_now))
+            worse.append(f"{name!s}: {int(was)} -> {int(is_now)} violation(s)")
     if worse:
         return False, (
             "guardrail debt INCREASED:\n    "
@@ -552,7 +552,7 @@ def main():
         # a dead gate look like a passing one: the whole cost of this defect was its silence.
         sys.stderr.write(
             "pre-commit WARNING: the comprehensibility gate did not run "
-            "(rc=%d). Commit allowed; the gate is not protecting you.\n%s" % (rc, out)
+            f"(rc={int(rc)}). Commit allowed; the gate is not protecting you.\n{out!s}"
         )
     return 0
 

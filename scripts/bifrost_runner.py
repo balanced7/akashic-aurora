@@ -35,8 +35,7 @@ with contextlib.suppress(Exception):
 with contextlib.suppress(Exception):
     sys.stderr.reconfigure(encoding="utf-8", errors="replace", line_buffering=True)
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.dirname(HERE))
+sys.path.insert(0, os.path.dirname(HERE := os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, HERE)
 
 from core.comm import context_hints

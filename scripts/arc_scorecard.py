@@ -48,7 +48,7 @@ def _commits(days: float):
 
 def _added_files(days: float, prefix: str) -> list:
     raw = _git("log", f"--since={_since_iso(days)}", "--diff-filter=A", "--name-only", "--format=")
-    return sorted({l.strip() for l in raw.splitlines() if l.strip().replace("\\", "/").startswith(prefix)})
+    return sorted({ln.strip() for ln in raw.splitlines() if ln.strip().replace("\\", "/").startswith(prefix)})
 
 
 # A guard is a CHECKER SCRIPT. Both locations count: T104 moved them from scripts/ to
@@ -71,7 +71,7 @@ def is_guard_path(path: str) -> bool:
 
 def _added_guards(days: float) -> list:
     raw = _git("log", f"--since={_since_iso(days)}", "--diff-filter=A", "--name-only", "--format=")
-    return sorted({l.strip() for l in raw.splitlines() if is_guard_path(l.strip())})
+    return sorted({ln.strip() for ln in raw.splitlines() if is_guard_path(ln.strip())})
 
 
 # Detectors that read commit PROSE. They measure what we SAY, and they render green silence the
@@ -169,7 +169,6 @@ def main() -> int:
         rx = re.compile(pattern, flags)
         return sum(1 for m in msgs if rx.search(m))
 
-    gated = sum(1 for m in msgs if CITE_RE.search(m))
     prereg = count(r"pre-?registered|committed BEFORE impl|registration")
     drills = count(r"\bdrill")
     live = count(r"\blive[- ](?:drill|drill:|exercis|prov|incident|finding)")

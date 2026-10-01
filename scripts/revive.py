@@ -28,15 +28,15 @@ tests/test_t382_revive.py; the I/O lives in observe()/_heal_step()/_verify().
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import subprocess
-
-_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)  # windowless: never flash a console (2026-09-05, cmd-spam fix)
-import contextlib
 import sys
 import time
 from typing import Any
+
+_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)  # windowless: never flash a console (2026-09-05, cmd-spam fix)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT not in sys.path:
@@ -455,7 +455,7 @@ def _heal_step(step: dict[str, Any]) -> bool:
             return r.returncode == 0
         if kind == "detached-spawn":
             os.makedirs(os.path.join(ROOT, "state", "logs"), exist_ok=True)
-            log = open(
+            log = open(  # noqa: SIM115  # handle outlives the block: the detached child's stdout/stderr (GC closes the parent copy)
                 os.path.join(ROOT, "state", "logs", f"revive-{step['organ']}-{int(time.time())}.log"),
                 "a",
                 encoding="utf-8",
@@ -500,29 +500,30 @@ def _take_lock() -> None:
     try:
         # Atomic create-and-write: succeeds iff the file did NOT already exist.
         fd = os.open(LOCK_PATH, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o644)
-    except FileExistsError:
+    except FileExistsError as exc:
         age = time.time() - os.path.getmtime(LOCK_PATH)
         if age < LOCK_TTL_S:
             try:
-                holder = open(LOCK_PATH, encoding="utf-8").read().strip()
+                with open(LOCK_PATH, encoding="utf-8") as fh:
+                    holder = fh.read().strip()
             except OSError:
                 holder = "?"
             raise ReviveLocked(
                 f"revive already in progress (holder pid {holder}, "
                 f"{age:.0f}s old) -- follow its confession; the lock "
                 f"expires in {LOCK_TTL_S - age:.0f}s"
-            )
+            ) from exc
         # Stale lock: a prior converger crashed before dropping. Reclaim it
         # (remove + retry the atomic create once).
         with contextlib.suppress(OSError):
             os.remove(LOCK_PATH)
         try:
             fd = os.open(LOCK_PATH, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o644)
-        except FileExistsError:
+        except FileExistsError as exc:
             raise ReviveLocked(
                 "revive already in progress (a concurrent converger re-took the "
                 "lock before this one could reclaim the stale holder)"
-            )
+            ) from exc
     with os.fdopen(fd, "w", encoding="utf-8") as f:
         f.write(str(os.getpid()))
 

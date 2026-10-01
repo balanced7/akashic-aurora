@@ -78,8 +78,8 @@ def ensure_operator_coauthor(msg_path, *, run=subprocess.run) -> str | None:
         # git's own comment lines are stripped later; a trailer must sit above them, so
         # split them off, append, and put them back exactly as they were.
         lines = text.splitlines(keepends=True)
-        body = [l for l in lines if not l.startswith("#")]
-        comments = [l for l in lines if l.startswith("#")]
+        body = [ln for ln in lines if not ln.startswith("#")]
+        comments = [ln for ln in lines if ln.startswith("#")]
         joined = "".join(body)
         if not needs_credit(joined, author_email(run=run)):
             return None

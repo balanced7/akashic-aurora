@@ -186,7 +186,8 @@ def _pid_alive(pid):
 
 def wake_armed(session_id: str = ""):
     try:
-        pid = int(open(_seat_path(session_id)).read().strip())
+        with open(_seat_path(session_id)) as fh:
+            pid = int(fh.read().strip())
     except Exception:
         return False
     return _pid_alive(pid)
@@ -220,15 +221,16 @@ def _promise_block(payload: dict):
     except Exception:
         return None
     try:
-        if open(PROMISE_LATCH).read().strip() == session_id:
-            return None  # already bounced this session -- once is a nudge, twice is a wedge
+        with open(PROMISE_LATCH) as fh:
+            if fh.read().strip() == session_id:
+                return None  # already bounced this session -- once is a nudge, twice is a wedge
     except Exception:
         pass
     excerpt = promise_shaped(final_paragraph(last_assistant_text(transcript)))
     if not excerpt:
         return None
-    with contextlib.suppress(Exception):
-        open(PROMISE_LATCH, "w").write(session_id)
+    with contextlib.suppress(Exception), open(PROMISE_LATCH, "w") as fh:
+        fh.write(session_id)
     return (
         f"Turn-ending check: your final paragraph reads as a promise of future work "
         f'("{excerpt}..."). Do that work NOW with tool calls, or end on the outcome and '
@@ -427,12 +429,13 @@ def main():
         guard = _loop_guard_path(session_id)
         now = time.time()
         try:
-            last = float(open(guard).read().strip())
+            with open(guard) as fh:
+                last = float(fh.read().strip())
         except Exception:
             last = 0.0
         if now - last >= 25:  # loop guard: never block twice within 25s
-            with contextlib.suppress(Exception):
-                open(guard, "w").write(str(now))
+            with contextlib.suppress(Exception), open(guard, "w") as fh:
+                fh.write(str(now))
             # ABSOLUTE path on purpose: the seat's cwd drifts off the repo root (observed
             # repeatedly at E:\ instead of E:\AI-Setup), and a relative script path then
             # resolves to a file that does not exist. The arm backgrounds cleanly and only

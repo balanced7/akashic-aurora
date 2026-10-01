@@ -146,7 +146,8 @@ def scan(root_files=None):
     for path in root_files or _py_files():
         rel = _rel(path)
         try:
-            text = open(path, encoding="utf-8", errors="replace").read()
+            with open(path, encoding="utf-8", errors="replace") as fobj:
+                text = fobj.read()
         except OSError:
             continue
         # Sites cite the FILE, not file:line.
@@ -231,14 +232,15 @@ def main():
     text = render(flags, bounds, _head_sha())
     if "--check" in sys.argv:
         try:
-            old = open(OUT, encoding="utf-8").read()
+            with open(OUT, encoding="utf-8") as fobj:
+                old = fobj.read()
         except OSError:
             print("PHYSICS.md missing -- regenerate")
             return 1
 
         # compare bodies minus the derived-at line (sha churn is not staleness)
         def strip(t):
-            return "\n".join(l for l in t.splitlines() if not l.startswith("> Derived at "))
+            return "\n".join(ln for ln in t.splitlines() if not ln.startswith("> Derived at "))
 
         if strip(old) != strip(text):
             print(f"PHYSICS.md STALE vs code -- regenerate ({_pyl()} scripts/generators/gen_physics_sheet.py)")

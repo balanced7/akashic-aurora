@@ -73,7 +73,7 @@ def round_id(record: dict) -> str:
     return f"{stamp}_seed{seed}_{player}_{digest}"
 
 
-def archive_round(record: dict, *, round_dir: str = None) -> str:
+def archive_round(record: dict, *, round_dir: str | None = None) -> str:
     """Write one round record outside git and return its path. Refuses a tracked directory."""
     target_dir = os.path.abspath(round_dir or DEFAULT_ROUND_DIR)
     if _tracked_by_git(target_dir):
@@ -144,7 +144,7 @@ def replay_round(path: str, *, score_fn=None) -> dict:
     }
 
 
-def list_rounds(round_dir: str = None):
+def list_rounds(round_dir: str | None = None):
     d = os.path.abspath(round_dir or DEFAULT_ROUND_DIR)
     if not os.path.isdir(d):
         return []

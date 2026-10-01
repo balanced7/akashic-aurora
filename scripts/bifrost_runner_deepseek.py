@@ -30,11 +30,12 @@ Key: env DEEPSEEK_API_KEY else .secrets/deepseek.key (reused from ask_deepseek.p
 import os as _os
 import sys as _sys
 
-_qd = _os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))), "scripts", "quiet")
-if _os.path.isdir(_qd):
+if _os.path.isdir(
+    _qd := _os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))), "scripts", "quiet")
+):
     if _qd not in _sys.path:
         _sys.path.insert(0, _qd)
-    try:
+    try:  # noqa: SIM105  # runs before every other import (contextlib included): Popen is patched first
         import sitecustomize as _quiet_sitecustomize  # noqa: F401  (patches subprocess.Popen)
     except Exception:
         pass
@@ -48,14 +49,13 @@ import threading
 import time
 from pathlib import Path
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.dirname(HERE))
+sys.path.insert(0, os.path.dirname(HERE := os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, HERE)
 
 import contextlib
 
 from core.comm import control, liveness, roster
-from core.comm import shift_turn as _shift_turn  # noqa: E402  (turn boundary)
+from core.comm import shift_turn as _shift_turn  # turn boundary
 from core.comm.bus import Bus
 
 # T150: make this runner WATCHABLE. Python block-buffers stdout when it is not a TTY -- exactly the
@@ -86,6 +86,7 @@ from core.comm import (
     triage_park,
 )
 from core.comm.conductor_gate import notice_conductor_absence
+from core.comm.timescale import scaled as _scaled
 from core.coord import cognitive_metrics as cog
 
 CARD = {
@@ -100,9 +101,6 @@ ANSWERABLE = frozenset({"chat", "request", "question", "handoff", "nudge", "info
 # T014: reply timeout guard -- a hung API call must not wedge the runner forever.
 # The API client already has a socket timeout (L0), but we add a wall-clock deadline
 # via threading so even a stuck stream can't block the main loop beyond this window.
-import contextlib
-
-from core.comm.timescale import scaled as _scaled
 
 
 def _pyl() -> str:
@@ -384,9 +382,9 @@ def content_floor_check(answer, resend, agent_id="deepseek", promise_bounce_fire
     attempts = 1 + (1 if promise_bounce_fired else 0) + (1 if resent else 0)
     last = " ".join(((second if second else answer) or "").strip().split())[:80]
     confession = (
-        "(%s -- no substantive reply after %d attempts; reason: %s%s; "
+        f"({agent_id!s} -- no substantive reply after {attempts} attempts; reason: {reason!s}"
+        f"{(f' [last: {last}]') if last else ''}; "
         "see streamed trace / runner logs for any partial work)"
-        % (agent_id, attempts, reason, (f" [last: {last}]") if last else "")
     )
     try:
         # deepseek's caught-table distinguishes the broken-resend path from a resend that
@@ -475,7 +473,7 @@ def make_agentic_replier(
     system = (
         f"[session capabilities] write_mode: "
         f"{'ENABLED (guarded write_file/edit_file live; locks self-release at reply)' if allow_write else 'READ-ONLY -- write_file/edit_file will refuse; investigate and report'}"
-        f" | tool budget: {('%d rounds per task' % dc.MAX_TOOL_ROUNDS) if dc._ROUNDS_CAPPED else 'UNLIMITED (Daniil 2026-08-24)'}, running counter [hop N] rides every result"
+        f" | tool budget: {(f'{dc.MAX_TOOL_ROUNDS} rounds per task') if dc._ROUNDS_CAPPED else 'UNLIMITED (Daniil 2026-08-24)'}, running counter [hop N] rides every result"
         f" | recall-at: {'on' if os.environ.get('DEEPSEEK_RECALL_AT') else 'off'}\n" + system
     )
     toolbox = dc.ToolBox(
@@ -588,10 +586,8 @@ def make_agentic_replier(
         answer = content_floor_check(
             answer, ag.send, agent_id=agent_id, promise_bounce_fired=(answer is not pre)
         )  # RB-23
-        try:
+        with contextlib.suppress(Exception):
             toolbox.release_written_locks()  # T048: task end = lock end (3 leak receipts 2026-07-14)
-        except Exception:
-            pass
         return answer or "(deepseek produced no final answer)"
 
     return respond
@@ -832,7 +828,7 @@ def _interiority_sidecar(agent_id: str, repo_root: str) -> str:
     all_secs = [m.group(0) for m in re.finditer(r"^(#{2,3})\s+([^\n]+)$", text, re.MULTILINE)]
 
     # ── Extract the STATUS / provenance line ──
-    # "Status: INNER-REPORT (G4: self-reported inner state — this glows, it never wears VERIFIED)"
+    # e.g. "Status: INNER-REPORT (G4: self-reported inner state — this glows, it never wears VERIFIED)"
     status_pat = re.compile(r"\*Status:\s*(INNER-REPORT[^\n]*)", re.IGNORECASE)
     status_m = status_pat.search(text)
     provenance = status_m.group(1).strip() if status_m else "INNER-REPORT (G4)"
@@ -840,7 +836,7 @@ def _interiority_sidecar(agent_id: str, repo_root: str) -> str:
     # ── Extract the 'Standing' block ──
     # Capture from "## Standing:" / "### STANDING —" through to the next heading at
     # the SAME or HIGHER level (a ## heading, or a ### heading when the standing
-    # heading is also ###). Stop before "For future", "How to work", date entries,
+    # heading is ### too), stopping before "For future", "How to work", date entries,
     # or another "Standing" section.
     # Groups: 1=heading line, 2=hash markers (for backreference), 3=body text
     standing_pat = re.compile(

@@ -219,11 +219,11 @@ def main() -> int:
         "| Group | Component | Images | Source |",
         "|---|---|---|---|",
     ]
-    for r in rows:
-        lines.append(
-            f"| {r['group']} | [{r['title']}](text/{r['slug']}.md) | {r['images']} | "
-            f"{BASE}/design/human-interface-guidelines/{r['slug']} |"
-        )
+    lines.extend(
+        f"| {r['group']} | [{r['title']}](text/{r['slug']}.md) | {r['images']} | "
+        f"{BASE}/design/human-interface-guidelines/{r['slug']} |"
+        for r in rows
+    )
     (ROOT / "INDEX.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
     print(f"[hig] DONE: {len(rows)} pages, {sum(r['images'] for r in rows)} images, {len(misses)} miss(es) -> {ROOT}")
     return 0

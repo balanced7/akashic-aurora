@@ -75,10 +75,11 @@ def crib_text(prefix="  "):
 
 def render(title: str, eyebrow: str) -> str:
     try:
-        kit = open(KIT, encoding="utf-8").read()
+        with open(KIT, encoding="utf-8") as fobj:
+            kit = fobj.read()
     except Exception as e:
         print(f"FAIL: cannot read {os.path.relpath(KIT, ROOT)}: {e}", file=sys.stderr)
-        raise SystemExit(1)
+        raise SystemExit(1) from e
     return f"""<title>{title}</title>
 
 <style>
