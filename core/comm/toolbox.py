@@ -780,7 +780,23 @@ class ToolBox:
         return self._agent_cli(["note", self.agent_id or "deepseek", "--title", str(title), "--note", str(note)])
 
     def knowledge_boot(self, task):
-        return self._agent_cli(["boot", "deepseek", "--task", task])
+        # T418 (2026-10-01): a ToolBox boots as ITS OWN seat. This line read `boot deepseek`
+        # for every ToolBox for months, so Sunshine's knowledge_boot answered "YOU ARE:
+        # Deepseek | Heimdall" and served him Heimdall's deferred work, notes and mail (the
+        # 09:20 receipt). The seat id is the one this box was constructed with; with none,
+        # the door's own subject check decides from the process stamp, never a default name.
+        who = str(self.agent_id or "").strip()
+        if not who:
+            try:
+                from core.comm.seat_identity import resolve as _resolve
+                who = _resolve(os.getenv("CLAUDE_CODE_SESSION_ID") or "")
+            except Exception:
+                who = ""
+        if not who or who.startswith("unknown-"):
+            return ("REFUSED: this ToolBox has no seat identity to boot as (no agent_id, no "
+                    "AKASHIC_AGENT_ID stamp) -- a boot without a subject would be served someone "
+                    "else's record (T418)")
+        return self._agent_cli(["boot", who, "--task", task])
 
     def knowledge_map(self, topic, per_layer=6):
         """T067-1 B1: walk the knowledge graph from a topic -- connected lessons, notes and

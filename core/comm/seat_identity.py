@@ -145,6 +145,51 @@ def resolve(session_id: str, binding_dir: Optional[str] = None,
     return unknown_id(session_id)
 
 
+def subject_check(requested: str, session_id: str = "", binding_dir: Optional[str] = None,
+                  env: Optional[dict] = None, env_var: str = "AKASHIC_AGENT_ID",
+                  override_var: str = "AKASHIC_BOOT_AS_OTHER") -> dict:
+    """T418 (2026-10-01): may THIS process boot as `requested`?
+
+    The identity law: the house's own organ must never hand a resident another resident's
+    identity or history. Two receipts in one day said the boot door answered as whoever the
+    caller claimed to be (Sunshine served as Heimdall through a hardcoded id; Rill served as
+    Heimdall through a typed one) while the session's own stamp sat in the environment.
+
+    Returns {ok, requested, resolved, source, override, why}. PURE: takes its environment.
+      ok=True   requested == the session's resolved identity, OR no stamp exists anywhere
+                (source 'unknown': the honest case, said so), OR the explicit override is set.
+      ok=False  a stamp exists (binding or env) and names someone else.
+    """
+    e = os.environ if env is None else env
+    req = str(requested or "").strip()
+    got = declared(session_id, binding_dir) if session_id else None
+    source = "binding" if got else ""
+    if not got:
+        try:
+            envv = (e.get(env_var) or "").strip()
+        except Exception:
+            envv = ""
+        if valid(envv):
+            got, source = envv, "env"
+    if not got:
+        return {"ok": True, "requested": req, "resolved": "", "source": "unknown", "override": False,
+                "why": f"no stamp anywhere (no binding for this session, {env_var} unset) -- "
+                       f"booting as the typed id {req!r}, unverified"}
+    if got == req:
+        return {"ok": True, "requested": req, "resolved": got, "source": source, "override": False,
+                "why": f"subject {req!r} matches the session's {source} stamp"}
+    if str(e.get(override_var) or "").strip() == "1":
+        return {"ok": True, "requested": req, "resolved": got, "source": source, "override": True,
+                "why": f"{override_var}=1: booting as {req!r} while this session is {got!r} "
+                       f"({source}) -- an explicit, named override"}
+    return {"ok": False, "requested": req, "resolved": got, "source": source, "override": False,
+            "why": (f"REFUSED: this session is {got!r} (from its {source} stamp) and asked to boot "
+                    f"as {req!r}. The boot door serves a resident its OWN record only; a packet for "
+                    f"{req!r} would hand you another resident's identity, mail and history (T418). "
+                    f"Boot as {got!r}. If you really mean to read {req!r}'s packet, set "
+                    f"{override_var}=1 for that one call.")}
+
+
 def resolved_from(session_id: str, binding_dir: Optional[str] = None,
                   env_var: str = "AKASHIC_AGENT_ID") -> str:
     """Which branch answered: 'binding' | 'env' | 'unknown'. For doors that must SHOW their

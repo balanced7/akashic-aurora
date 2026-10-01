@@ -276,6 +276,30 @@ def _warn_unmirrored(soft=False, status=None):
 def cmd_boot(args):
     from agent.initializer import derive_agent_context_from_startup_sources
     from agent.bifrost_pull import collect_boot_bifrost, print_boot_bifrost_section, print_boot_locks_section
+    # T418 (2026-10-01): the SUBJECT CHECK runs before any registry record is served. Every
+    # boot door funnels here (CLI, MCP boot(), the ToolBox's knowledge_boot), so one gate
+    # covers all three. A session whose stamp names someone else is refused by name.
+    try:
+        from core.comm import seat_identity as _si
+        _sid = os.getenv("CLAUDE_CODE_SESSION_ID") or os.getenv("CLAUDE_SESSION_ID") or ""
+        _chk = _si.subject_check(args.agent_id, session_id=_sid,
+                                 binding_dir=os.getenv("AKASHIC_SEAT_BINDING_DIR") or None)
+    except Exception:
+        _chk = {"ok": True, "why": "subject check unavailable (fail-open)"}
+    if not _chk.get("ok"):
+        print(_chk["why"])
+        print(_chk["why"], file=sys.stderr)
+        try:
+            from core.events.event_log import capture_event
+            capture_event("boot_refused", f"{_chk.get('resolved')} asked to boot as {args.agent_id}",
+                          agent_id=str(_chk.get("resolved") or args.agent_id),
+                          detail={"requested": args.agent_id, "resolved": _chk.get("resolved"),
+                                  "source": _chk.get("source")})
+        except Exception:
+            pass
+        return 2
+    if _chk.get("override"):
+        print(f"# boot subject: {_chk['why']}")
     res = derive_agent_context_from_startup_sources(args.agent_id, args.task, verbose=False)
     bifrost = collect_boot_bifrost(args.agent_id, limit=8)
     ctx = res.get("context") or {}
