@@ -42,7 +42,7 @@ from agent_cli import load_fan_prompts
 )
 def test_a_falsy_prompt_is_refused_not_stringified(raw, label):
     """Every one of these was ACCEPTED and sent to a paid helper as its repr."""
-    with pytest.raises(ValueError) as e:
+    with pytest.raises(ValueError, match="no usable 'prompt'") as e:
         load_fan_prompts(raw)
     assert "0" in str(e.value), (
         f"{label}: the refusal must name the offending INDEX -- in a fan of twenty, "
@@ -52,7 +52,7 @@ def test_a_falsy_prompt_is_refused_not_stringified(raw, label):
 
 def test_the_refusal_names_the_offending_value():
     """So the caller can see WHICH of their entries is wrong without bisecting the file."""
-    with pytest.raises(ValueError) as e:
+    with pytest.raises(ValueError, match="no usable 'prompt': None") as e:
         load_fan_prompts('[{"prompt": "fine"}, {"prompt": null}]')
     msg = str(e.value)
     assert "1" in msg, f"must name index 1, not index 0: {msg}"
@@ -61,7 +61,7 @@ def test_the_refusal_names_the_offending_value():
 
 def test_a_non_string_prompt_is_refused_even_when_truthy():
     """42 is not a question. str(42) is truthy, which is exactly why this needs saying."""
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="no usable 'prompt': 42"):
         load_fan_prompts('[{"prompt": 42}]')
 
 

@@ -36,7 +36,7 @@ from core.outcome import BoundaryOutcome  # noqa: E402
 def test_o1_a_failure_without_a_reason_cannot_be_built():
     with pytest.raises(ValueError, match="why"):
         BoundaryOutcome(ok=False)
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="require a `why`"):
         BoundaryOutcome(ok=False, why="   ")
     assert BoundaryOutcome.failed("spawn refused: lock held").why
 
@@ -44,7 +44,7 @@ def test_o1_a_failure_without_a_reason_cannot_be_built():
 def test_o2_a_partial_without_a_reason_cannot_be_built():
     """The state that did not exist. deepseek-red produced 109KB of correct analysis and returned
     "" because there was no way to say 'I did some of it'."""
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="require a `why`"):
         BoundaryOutcome(ok=True, partial=True)
     o = BoundaryOutcome.partially("budget exhausted after 30 tool rounds", ref="msg-1")
     assert o.partial

@@ -80,7 +80,7 @@ def test_p2_done_to_abandoned_is_gated_on_an_operator_ruling(tmp_path, monkeypat
     TL.done(led, tid, commit="deadbee2", verified_by="pin", by="pin")
 
     # without a ruling: REFUSED (the gate is the point)
-    with pytest.raises(Exception):
+    with pytest.raises(Exception, match="requires an explicit --operator-ruling"):
         TL.abandon(led, tid, reason="cleanup", by="pin")
 
     # with a ruling: legal, and the ruling is in the history entry

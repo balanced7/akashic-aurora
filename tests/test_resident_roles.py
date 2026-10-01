@@ -77,9 +77,9 @@ def residents():
 def test_p1_assign_refuses_a_missing_role_and_a_missing_assigner(residents):
     from core.fleet import residents as R
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="assign needs an agent, a role and an assigner"):
         R.assign(agent="kimi", role="", by="claude")
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="assign needs an agent, a role and an assigner"):
         R.assign(agent="kimi", role="Jester", by="")
 
 
@@ -90,7 +90,7 @@ def test_p1b_assign_refuses_a_non_resident(residents):
     """
     from core.fleet import residents as R
 
-    with pytest.raises(ValueError) as e:
+    with pytest.raises(ValueError, match="is not a resident") as e:
         R.assign(agent="unregistered_seat", role="Jester", by="claude")
     assert "resident" in str(e.value).lower(), "the refusal must say WHY: not a resident"
     assert "nominate" in str(e.value).lower(), "and point at the ceremony that fixes it"

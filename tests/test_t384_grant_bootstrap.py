@@ -125,7 +125,7 @@ def test_p3_refuses_on_corrupt_and_touches_nothing(acl_file):
 
     corrupt = "{ not json"
     acl_file.write_text(corrupt, encoding="utf-8")
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="Expecting property name"):
         grant_writer.bootstrap()
     assert acl_file.read_text(encoding="utf-8") == corrupt, "P3: a corrupt ACL must survive the refusal byte-for-byte"
 

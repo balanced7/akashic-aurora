@@ -88,7 +88,7 @@ def test_p3_a_nomination_is_never_a_self_nomination(seeded):
     """Rule 1, structural. You do not name yourself -- and the door refuses, not the etiquette."""
     from core.fleet import residents as R
 
-    with pytest.raises(ValueError) as e:
+    with pytest.raises(ValueError, match="cannot nominate itself") as e:
         R.nominate(nominee="kimi", callsign="Snooze", receipts=[seeded["kimi"]], by="kimi")
     msg = str(e.value).lower()
     assert "kimi" in msg, "the refusal must name the offending party"
@@ -103,7 +103,7 @@ def test_p4_a_receipt_must_be_authored_by_the_nominee(seeded):
     """
     from core.fleet import residents as R
 
-    with pytest.raises(ValueError) as e:
+    with pytest.raises(ValueError, match="was authored by 'claude', not by the nominee 'kimi'") as e:
         R.nominate(nominee="kimi", callsign="Snooze", receipts=[seeded["claude"]], by="claude")
     msg = str(e.value)
     assert seeded["claude"] in msg, "the refusal must NAME the offending receipt"
@@ -126,7 +126,7 @@ def test_p4c_an_unknown_receipt_is_refused_not_assumed(seeded):
     """
     from core.fleet import residents as R
 
-    with pytest.raises(ValueError) as e:
+    with pytest.raises(ValueError, match="does not resolve to any lesson") as e:
         R.nominate(nominee="kimi", callsign="Snooze", receipts=["no_such_lesson_exists_anywhere"], by="claude")
     assert "no_such_lesson_exists_anywhere" in str(e.value), "the refusal must name the receipt it could not resolve"
 
@@ -239,7 +239,7 @@ def test_p9_a_store_fault_is_unknown_not_a_verdict_about_the_receipt(seeded, mon
         raise RuntimeError("redis is on fire")
 
     monkeypatch.setattr(LS, "get_learning_store", _explode)
-    with pytest.raises(ValueError) as e:
+    with pytest.raises(ValueError, match="the archive is UNAVAILABLE") as e:
         R.nominate(nominee="kimi", callsign="Outage", receipts=[seeded["kimi"]], by="claude")
     msg = str(e.value).lower()
     assert "unknown" in msg or "could not verify" in msg or "unavailable" in msg, (
@@ -254,7 +254,7 @@ def test_p9b_a_genuinely_missing_receipt_still_refuses_as_before(seeded):
     """The mirror: distinguishing UNKNOWN from ABSENT must not weaken the absent case."""
     from core.fleet import residents as R
 
-    with pytest.raises(ValueError) as e:
+    with pytest.raises(ValueError, match="does not resolve to any lesson") as e:
         R.nominate(nominee="kimi", callsign="Ghost", receipts=["no_such_lesson_exists_anywhere"], by="claude")
     assert "no_such_lesson_exists_anywhere" in str(e.value)
 
@@ -296,7 +296,7 @@ def test_p6b_a_wrong_callsign_refusal_names_the_open_drafts(seeded):
     from core.fleet import residents as R
 
     R.nominate(nominee="kimi", callsign="Snooze", receipts=[seeded["kimi"]], by="claude")
-    with pytest.raises(ValueError) as e:
+    with pytest.raises(ValueError, match="was never nominated for 'kimi'") as e:
         R.ratify(nominee="kimi", callsign="NoSuchName", by="daniil")
     assert "Snooze" in str(e.value), "a wrong-callsign refusal must NAME the drafts that are actually open"
 

@@ -52,7 +52,7 @@ def test_a_full_model_id_is_accepted_verbatim(store):
 
 
 def test_unknown_alias_refuses_and_teaches(store):
-    with pytest.raises(ValueError) as e:
+    with pytest.raises(ValueError, match="unknown model 'gpt-4'") as e:
         SM.pin("gpt-4", by="daniil")
     msg = str(e.value)
     assert "gpt-4" in msg
@@ -65,7 +65,7 @@ def test_resolve_model_id_is_the_same_resolver_pin_uses():
     # same way `pin` does, or the two planes could disagree on what "sonnet" means.
     assert SM.resolve_model_id("sonnet") == "claude-sonnet-5"
     assert SM.resolve_model_id("claude-opus-5") == "claude-opus-5"
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="unknown model 'gpt-4'"):
         SM.resolve_model_id("gpt-4")
 
 

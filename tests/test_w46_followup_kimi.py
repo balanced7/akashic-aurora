@@ -189,12 +189,12 @@ def test_p6_replayed_ask_is_idempotent(stage):
 def test_p7_door_hygiene_refusals(stage, tmp_path):
     outside = tmp_path.parent / "outside_root.md"
     outside.write_text("# x\n", encoding="utf-8")
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="verdict file must live inside the repo root"):
         fq.file_followup(str(outside), by="kimi", to="deepseek", ask="q")
     _write(stage, "v.md", "# V\n")
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="followup needs the question itself"):
         fq.file_followup("v.md", by="kimi", to="deepseek", ask="   ")
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="followup needs --to"):
         fq.file_followup("v.md", by="kimi", to="", ask="q")
     assert dq.pending() == [], "every refusal leaves the queue untouched"
 

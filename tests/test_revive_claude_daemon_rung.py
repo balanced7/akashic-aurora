@@ -166,5 +166,5 @@ def test_spawn_runner_agent_without_a_script_entry_refuses_to_plan(monkeypatch):
     )
     import pytest
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="has no RUNNER_SCRIPT entry"):
         revive.decide(obs, target="daemon")

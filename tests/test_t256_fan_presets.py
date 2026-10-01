@@ -40,7 +40,7 @@ def test_a_preset_cannot_be_registered_without_a_parser():
     caller silently goes back to hand-rolling a regex, which is the defect this task exists
     to remove.
     """
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="a contract MUST ship with its parser"):
         presets.register("halfbaked", contract="ANSWER: something", parse=None)
 
 
@@ -134,7 +134,7 @@ def test_an_empty_lens_file_is_refused_by_name(tmp_path):
     than returning zero branches that read like 'nothing found'."""
     f = tmp_path / "empty.txt"
     f.write_text("# only comments\n\n", encoding="utf-8")
-    with pytest.raises(ValueError) as e:
+    with pytest.raises(ValueError, match="contains no lenses") as e:
         presets.read_lens_file(str(f))
     assert "empty.txt" in str(e.value)
 

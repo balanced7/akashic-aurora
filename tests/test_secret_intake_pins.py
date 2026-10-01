@@ -48,7 +48,7 @@ def vault(tmp_path, monkeypatch):
 def test_p1_target_is_an_allowlist_not_a_path(vault):
     m = _mod()
     for evil in ("../../evil", "..\\evil", "x/../../y", "nope.txt", "unknown_target"):
-        with pytest.raises(Exception):
+        with pytest.raises(Exception, match="the vault takes an allowlisted NAME, never a path"):
             m.save_secret(evil, "value123456")
     assert not list(vault.glob("**/*evil*")), "traversal must write NOTHING"
 
@@ -73,7 +73,7 @@ def test_p3_the_receipt_never_carries_the_bytes(vault):
 
 def test_p4_empty_paste_refuses(vault):
     m = _mod()
-    with pytest.raises(Exception):
+    with pytest.raises(Exception, match="empty paste for 'discord_operator_id'"):
         m.save_secret("discord_operator_id", "   \n ")
     assert not (vault / "discord_operator_id").exists(), (
         "a blank credential file authenticates as garbage downstream — refuse "

@@ -99,7 +99,7 @@ def test_c2_fold_marks_in_place_and_names_the_task():
 
 
 def test_c2_fold_without_a_task_refuses():
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="fold needs --task"):
         _apply(DOC, "W05", "fold", seat="claude", today="09-23")
 
 
@@ -115,7 +115,7 @@ def test_c3_keep_stays_open_but_stops_being_silent():
 
 # ------------------------------------------------------------------ C5/C6 refusals
 def test_c5_unknown_id_refuses_loudly():
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="no wish W999 in the ledger"):
         _apply(DOC, "W999", "decline", reason="r", seat="claude", today="09-23")
 
 
@@ -123,7 +123,7 @@ def test_c6_a_colliding_id_refuses_rather_than_guessing():
     """The live ledger's id space has collided: W00 and W57..W69 each appear twice. Curating
     'W57' cannot know which one is meant, and picking one silently is how a ledger starts
     lying about its own history."""
-    with pytest.raises(ValueError) as e:
+    with pytest.raises(ValueError, match="W57 is AMBIGUOUS") as e:
         _apply(DOC, "W57", "decline", reason="r", seat="claude", today="09-23")
     assert "collid" in str(e.value).lower() or "ambiguous" in str(e.value).lower()
 

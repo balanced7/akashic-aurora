@@ -48,7 +48,7 @@ def test_p1_defer_files_item(qfile):
 
 def test_p2_done_requires_receipt(qfile):
     item = dq.add("kimi", "run the thing", needs="exec")
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="discharge needs a receipt"):
         dq.mark_done(item["id"], seat="claude", receipt="")
     done = dq.mark_done(item["id"], seat="claude", receipt="ran GREEN 6/6, commit abc123")
     assert done["done_by"] == "claude"

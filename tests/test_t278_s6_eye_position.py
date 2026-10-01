@@ -119,7 +119,7 @@ def test_p4_look_renders_the_standpoint_with_numeric_heat(db):
 
 
 def test_p4b_look_without_a_position_teaches_instead_of_guessing(db):
-    with pytest.raises(ValueError) as e:
+    with pytest.raises(ValueError, match="has no position") as e:
         POS.look("claude#cccccccc", db_path=db)
     assert "no position" in str(e.value).lower()
     assert "eye go" in str(e.value), "the refusal names the verb that fixes it"
@@ -165,7 +165,7 @@ def test_p6_succession_is_explicit_and_recorded(db):
 
 
 def test_p6b_inheriting_from_a_seat_with_no_position_refuses(db):
-    with pytest.raises(ValueError) as e:
+    with pytest.raises(ValueError, match="has no position to inherit") as e:
         POS.inherit("claude#dddddddd", "claude#zzzzzzzz", db_path=db)
     assert "no position" in str(e.value).lower()
 
@@ -173,7 +173,7 @@ def test_p6b_inheriting_from_a_seat_with_no_position_refuses(db):
 # ---------------------------------------------------------------- P7: the grammar's 422
 def test_p7_go_to_a_bad_address_refuses_with_the_shape(db):
     """The grammar's 422 rule at this door: a bad selector never silent-empties."""
-    with pytest.raises(ValueError) as e:
+    with pytest.raises(ValueError, match="cannot go to 'not-an-address'") as e:
         POS.go("claude#aaaaaaaa", "not-an-address", db_path=db)
     msg = str(e.value)
     assert "session:line" in msg, "the refusal states the expected shape"

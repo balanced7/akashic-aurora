@@ -54,7 +54,7 @@ def test_k2_the_live_tree_is_never_written(tmp_path):
     c = _mod()
     import pytest
 
-    with pytest.raises(Exception):
+    with pytest.raises(Exception, match="refusing to plant inside the live repository"):
         c.plant(ROOT, k=3, seed=1)  # the real repo root must be refused outright
 
 

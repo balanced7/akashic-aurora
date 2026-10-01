@@ -63,7 +63,7 @@ def test_p1_unique_prefix_resolves(db):
 
 
 def test_p2_ambiguous_prefix_refuses_naming_candidates(db):
-    with pytest.raises(ValueError) as exc:
+    with pytest.raises(ValueError, match="ambiguous session prefix 'feed0001'") as exc:
         eye.get_event("feed0001:1", db_path=db)
     msg = str(exc.value)
     assert SESS_A in msg, (

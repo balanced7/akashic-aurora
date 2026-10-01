@@ -118,13 +118,13 @@ def test_v3_cannot_grant_what_you_do_not_hold(acl):
 
 def test_v4_time_boxed_by_default(acl):
     g = _mod()
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="must be time-boxed"):
         g.grant("newbie", role="member", by="claude", reason="r")  # neither hours nor permanent
 
     rec = g.grant("newbie", role="member", by="claude", reason="r", hours=4)
     assert rec["expires_at"], "a time-boxed grant has no expiry"
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="--hours must be in"):
         g.grant("newbie2", role="member", by="claude", reason="r", hours=10**6)
 
     perm = g.grant("newbie3", role="member", by="claude", reason="r", permanent=True)
@@ -142,7 +142,7 @@ def test_v5_audit_by_construction(acl):
     rec = g.grant("newbie", role="member", by="claude", reason="onboarding the seat", hours=2)
     for f in ("granted_by", "granted_at", "reason"):
         assert rec.get(f), f"a written grant is missing {f}"
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="grant needs a reason"):
         g.grant("newbie4", role="member", by="claude", reason="", hours=2)
 
 
@@ -166,7 +166,7 @@ def test_v6_a_failed_write_never_corrupts_the_acl(acl, monkeypatch):
         raise OSError(28, "No space left on device")
 
     monkeypatch.setattr(os, "replace", boom)
-    with pytest.raises(Exception):
+    with pytest.raises(Exception, match="No space left on device"):
         g.grant("newbie", role="member", by="claude", reason="r", hours=1)
     monkeypatch.setattr(os, "replace", real)
 

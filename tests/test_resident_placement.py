@@ -131,7 +131,7 @@ def test_p3_placement_never_touches_the_callsign_or_mints_a_formerly(posted):
 def test_p4_placing_a_non_resident_refuses_and_points_at_the_ceremony(posted):
     from core.fleet import residents as R
 
-    with pytest.raises(ValueError) as e:
+    with pytest.raises(ValueError, match="is not a resident") as e:
         R.place(agent="nobody_here", family="Onyx", team="Blue", number=9, by="daniil_pin")
     msg = str(e.value).lower()
     assert "resident" in msg, f"the refusal must say why AND name the fix: {e.value}"
@@ -141,7 +141,7 @@ def test_p4_placing_a_non_resident_refuses_and_points_at_the_ceremony(posted):
 def test_p4b_placement_needs_an_actor(posted):
     from core.fleet import residents as R
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="place needs an agent and an actor"):
         R.place(agent="kimi", family="Onyx", team="Blue", number=2, by="")
 
 

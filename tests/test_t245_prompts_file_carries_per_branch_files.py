@@ -55,7 +55,7 @@ def test_a_dict_without_a_prompt_is_refused_by_index(tmp_path):
     nothing, indistinguishable in the results from a helper that found nothing.
     """
     raw = json.dumps([{"prompt": "fine", "files": []}, {"files": ["x.py"]}])
-    with pytest.raises(ValueError) as e:
+    with pytest.raises(ValueError, match="no usable 'prompt'") as e:
         load_fan_prompts(raw)
     assert "1" in str(e.value), f"the message must name the offending index: {e.value}"
 

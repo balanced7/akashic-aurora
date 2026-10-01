@@ -124,7 +124,7 @@ def test_p1_same_name_two_tuples_is_a_version_conflict_refused():
     }
     b = dict(a, comparison="score_comparable")  # differs ONLY in comparison semantics
     ss.register_contract("rank", **a)
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="already points at different semantics"):
         ss.register_contract("rank", **b)
 
 

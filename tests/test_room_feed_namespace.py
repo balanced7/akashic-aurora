@@ -115,7 +115,7 @@ def test_wildcards_and_junk_are_refused(bad):
     rf = _mod()
     fake = _FakeRedis(ROOMS_KEYSPACE)
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="refusing namespace"):
         rf.streams_for(fake, bad)
 
     assert fake.patterns == [], f"a rejected namespace still reached Redis as pattern {fake.patterns}"

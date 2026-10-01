@@ -103,7 +103,7 @@ def test_k2_the_record_carries_the_claims(tmp_path):
 def test_k3_it_refuses_to_write_anywhere_git_tracks():
     """By construction, matching canary_oracle.seal's own rule. A round record carries
     dedupe_key canary::<name>, so committing one leaks name->class for that seed."""
-    with pytest.raises(ValueError) as e:
+    with pytest.raises(ValueError, match="refusing to archive a round inside a git working tree") as e:
         A.archive_round(_record(), round_dir=os.path.join(ROOT, "research", "rounds"))
     assert "repositor" in str(e.value).lower() or "git" in str(e.value).lower()
 
@@ -141,7 +141,7 @@ def test_k6_a_record_without_claims_is_a_named_failure(tmp_path):
     path = os.path.join(str(tmp_path), "broken.json")
     with open(path, "w", encoding="utf-8") as fh:
         fh.write(json.dumps(bad))
-    with pytest.raises(ValueError) as e:
+    with pytest.raises(ValueError, match="records no `claims`") as e:
         A.replay_round(path)
     assert "claim" in str(e.value).lower(), (
         "a round with no claims recorded and a round where the player found nothing are "

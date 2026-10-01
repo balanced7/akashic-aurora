@@ -171,7 +171,7 @@ def test_s7_the_policy_is_swappable_data():
     assert isinstance(a["totals"], dict)
     assert isinstance(b["totals"], dict)
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="unknown policy 'not_a_policy'"):
         s.score_round(c, policy="not_a_policy")
 
 

@@ -75,7 +75,7 @@ def test_v1_the_four_outcomes_are_distinct_states():
 
 def test_v2_an_unknown_outcome_is_refused_not_coerced():
     """A silent coercion to 'unverified' would hide a caller bug as a coverage gap."""
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="unknown outcome 'probably-fine'"):
         L.LensRun(lens="x", geometry="lens", outcome="probably-fine", fan_id="f", note="")
 
 

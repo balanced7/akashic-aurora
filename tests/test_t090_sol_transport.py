@@ -31,7 +31,7 @@ def test_tool_conversion_flat_passthrough_and_hosted_untouched():
 
 
 def test_tool_conversion_rejects_garbage():
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="unrecognized tool schema"):
         to_responses_tools([{"type": "function", "nonsense": True}])
 
 
@@ -61,9 +61,9 @@ def test_preview_401_retry_exhausts_loudly():
 
 
 def test_transport_validates_knobs():
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="effort 'max' not in"):
         SolTransport(effort="max")  # aggregator fiction must fail loud
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="verbosity 'terse' not in"):
         SolTransport(verbosity="terse")
 
 

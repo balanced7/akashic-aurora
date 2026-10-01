@@ -95,7 +95,7 @@ def test_a_repeat_captures_what_recall_did_at_that_moment(store):
 
 def test_a_repeat_of_an_unknown_lesson_is_refused_by_name(store):
     """An unresolvable pointer is how a ledger fills with claims nobody can check."""
-    with pytest.raises(ValueError) as e:
+    with pytest.raises(ValueError, match="no such lesson") as e:
         store.record_repeat(of="no_such_lesson_exists", agent_id="claude", what="x")
     assert "no_such_lesson_exists" in str(e.value)
 

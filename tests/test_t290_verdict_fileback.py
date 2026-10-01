@@ -77,7 +77,7 @@ def test_p1_file_verdict_appends_and_teaches_vocabulary():
     assert len(rows) == 1
     assert rows[0]["ask_id"] == "a1"
 
-    with pytest.raises(ValueError) as e:
+    with pytest.raises(ValueError, match="unknown question_shape 'vibes'") as e:
         V.file_verdict(agent="deepseek", ask_id="a2", question_shape="vibes", gist="x")
     for shape in V.SHAPES:
         assert shape in str(e.value), (
@@ -95,7 +95,7 @@ def test_p1_file_verdict_appends_and_teaches_vocabulary():
 # ---------------------------------------------------------------- P2: idempotency
 def test_p2_duplicate_ask_id_refuses():
     V.file_verdict(agent="kimi", ask_id="dup1", question_shape="descriptive", gist="first")
-    with pytest.raises(ValueError) as e:
+    with pytest.raises(ValueError, match="already filed") as e:
         V.file_verdict(agent="kimi", ask_id="dup1", question_shape="descriptive", gist="again")
     assert "dup1" in str(e.value), "P2: the refusal names the colliding ask_id"
 
@@ -104,7 +104,7 @@ def test_p2_duplicate_ask_id_refuses():
 def test_p3_adjudication_refusals():
     V.file_verdict(agent="deepseek", ask_id="j1", question_shape="normative", gist="claim")
 
-    with pytest.raises(ValueError) as e:
+    with pytest.raises(ValueError, match="'deepseek' is not in the adjudicator set") as e:
         V.adjudicate(ask_id="j1", outcome="confirmed", by="deepseek")
     assert "adjudicat" in str(e.value).lower(), (
         "P3: a resident outside the operator set is refused BY NAME -- H-C1, operator-only "
@@ -115,18 +115,18 @@ def test_p3_adjudication_refusals():
         "is the default, not the fallback"
     )
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="'nobody_at_all' is not in the adjudicator set"):
         V.adjudicate(ask_id="j1", outcome="confirmed", by="nobody_at_all")
 
     # Sock-puppet direct case: even an operator may not adjudicate its OWN verdict.
     V.file_verdict(agent="conductor_x", ask_id="j2", question_shape="descriptive", gist="own")
-    with pytest.raises(ValueError) as e2:
+    with pytest.raises(ValueError, match="may not adjudicate their own answer") as e2:
         V.adjudicate(ask_id="j2", outcome="confirmed", by="conductor_x")
     assert "own" in str(e2.value).lower() or "self" in str(e2.value).lower(), (
         "P3: author==adjudicator refused even inside the operator set"
     )
 
-    with pytest.raises(ValueError) as e3:
+    with pytest.raises(ValueError, match="no filed verdict for ask 'never_filed'") as e3:
         V.adjudicate(ask_id="never_filed", outcome="confirmed", by="daniil")
     assert "never_filed" in str(e3.value), (
         "P3: an adjudication with no verdict to join is a record about nothing -- refused, "
@@ -142,7 +142,7 @@ def test_p4_operator_adjudication_lands():
     assert rec["outcome"] == "refuted"
     assert rec["by"] == "daniil"
 
-    with pytest.raises(ValueError) as e:
+    with pytest.raises(ValueError, match="unknown outcome 'maybe'") as e:
         V.adjudicate(ask_id="k1", outcome="maybe", by="daniil")
     assert "confirmed" in str(e.value), "P4: outcome vocabulary refused WITH the vocabulary"
     assert "refuted" in str(e.value), "P4: outcome vocabulary refused WITH the vocabulary"
