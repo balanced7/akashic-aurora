@@ -14,9 +14,8 @@ dependencies = [
     "redis>=5,<9",
     "fakeredis>=2.30",
     "lupa>=2",
-    # fleet health, tests
+    # fleet health
     "psutil>=5",
-    "pytest>=8",
     # the MCP door (ai_setup_mcp.py)
     "mcp>=1,<2",          # ai_setup_mcp.py uses the 1.x FastMCP API (renamed in 2.x)
     "anyio>=4",
@@ -43,8 +42,6 @@ dependencies = [
     # the console
     "rich>=13",
     "prompt_toolkit>=3",
-    # git hooks
-    "pre-commit>=3",
     # Windows-only UI automation (core/screenspace); absent elsewhere by design
     "uiautomation>=2; sys_platform == 'win32'",
 ]
@@ -61,6 +58,22 @@ browser = [
     "playwright>=1.44",
     "patchright>=1.44",
     "playwright-stealth>=1.0",
+]
+# Development tools (plan G1.P1). `uv sync` installs this group by default ([tool.uv]
+# default-groups), which matters: runtime code shells out to pytest (agent_cli.py
+# suite-baseline, scripts/ship_gate.py, scripts/check_fresh_clone.py, core/comm/toolbox.py).
+# prek replaces pre-commit as the hook-config runner.
+dev = [
+    "basedpyright>=1.40.1",
+    "deptry>=0.25.1",
+    "poethepoet>=0.48.0",
+    "prek>=0.5.4",
+    "pytest>=9.1.1",
+    "pytest-cov>=7.1.0",
+    "pytest-randomly>=5.0.0",
+    "pytest-xdist>=3.8.0",
+    "ruff>=0.16.9",
+    "ty>=0.0.84",
 ]
 
 [tool.uv]
