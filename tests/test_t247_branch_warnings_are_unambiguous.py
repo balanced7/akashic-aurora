@@ -119,9 +119,6 @@ def test_a_clean_branch_in_a_damaged_fan_stays_clean(big_and_small):
     assert not by_prompt["clean"].get("warnings"), (
         f"a branch with its own clean evidence inherited another's damage: {by_prompt['clean'].get('warnings')!r}"
     )
-    assert not [], (
-        f"a branch with its own clean evidence inherited another's damage: {by_prompt['clean'].get('warnings')!r}"
-    )
     assert by_prompt["damag"].get("warnings"), "the damaged branch must still be named"
 
 
@@ -151,4 +148,3 @@ def test_a_fan_with_no_evidence_at_all_says_so(big_and_small):
     b = (out.detail or {})["branches"][0]
     assert b.get("evidence") == "none", f"expected 'none', got {b.get('evidence')!r}"
     assert not b.get("warnings"), "no evidence requested is not a warning"
-    assert not [], "no evidence requested is not a warning"
