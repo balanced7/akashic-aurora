@@ -36,7 +36,7 @@ HERE = oracle.HERE
 ROOT = oracle.ROOT
 CHECKS = HERE / "checks"
 BRANCH = oracle.BRANCH
-GOALS = tuple("G%d" % i for i in range(8))
+GOALS = tuple(f"G{i:d}" for i in range(8))
 
 # T-rules start to bind when the goal that creates their subject begins (pytest.ini is deleted
 # in G1, Ruff arrives in G2/G3, basedpyright in G4). Before that a rule is measured and reported,
@@ -92,7 +92,7 @@ def run_check(c: dict):
         ok = re.search(c["expect_stdout"], r.stdout, flags=re.M) is not None
         if not ok:
             return False, "stdout lacks /{}/".format(c["expect_stdout"]), out
-    return ok, "exit %d (expect %d)" % (r.returncode, c.get("expect", 0)), out
+    return ok, "exit {:d} (expect {:d})".format(r.returncode, c.get("expect", 0)), out
 
 
 def checks_history_problems() -> list:
@@ -186,9 +186,13 @@ def current_snapshot(require_o1=True):
     )
     for d in cands:
         meta = oracle.load_json(d / "meta.json")
-        if meta.get("digest") == head and not meta.get("dirty") and (not require_o1 or (d / "O1.json").exists()):
-            if not oracle.verify_snapshot(d.name, 1):
-                return d
+        if (
+            meta.get("digest") == head
+            and not meta.get("dirty")
+            and (not require_o1 or (d / "O1.json").exists())
+            and not oracle.verify_snapshot(d.name, 1)
+        ):
+            return d
     return None
 
 
@@ -243,15 +247,15 @@ def t2():
     missing, extra = must - shown, shown - allowed
     msg = []
     if missing:
-        msg.append("ruff skips %d in-scope files (e.g. %s)" % (len(missing), sorted(missing)[0]))
+        msg.append(f"ruff skips {len(missing):d} in-scope files (e.g. {sorted(missing)[0]})")
     if extra:
-        msg.append("ruff analyses %d non-scope files" % len(extra))
+        msg.append(f"ruff analyses {len(extra):d} non-scope files")
     if pyproject().get("tool", {}).get("basedpyright") is not None:
         r = run(["uv", "run", "--frozen", "basedpyright", "-p", "pyproject.toml", "--outputjson"])
         try:
             n = json.loads(r.stdout)["summary"]["filesAnalyzed"]
             if n < len(must):
-                msg.append("basedpyright analysed %d < %d in-scope files" % (n, len(must)))
+                msg.append(f"basedpyright analysed {n:d} < {len(must):d} in-scope files")
         except (ValueError, KeyError):
             msg.append("basedpyright --outputjson unreadable")
     return not msg, "; ".join(msg) or "scope equals inventory"
@@ -301,12 +305,10 @@ def t3(goal: int):
         if is_type and goal < 4:
             continue
         if blanket(form):
-            bad.append("%s:%d blanket %r" % (f, i, form))
+            bad.append(f"{f}:{i:d} blanket {form!r}")
         elif not reason and not low.startswith("pyright:strict"):
-            bad.append("%s:%d %r without a reason" % (f, i, form))
-    return not bad, (
-        "%d violations, e.g. %s" % (len(bad), bad[0])
-    ) if bad else "every suppression has a rule and a reason"
+            bad.append(f"{f}:{i:d} {form!r} without a reason")
+    return not bad, (f"{len(bad):d} violations, e.g. {bad[0]}") if bad else "every suppression has a rule and a reason"
 
 
 def t4():
@@ -317,11 +319,8 @@ def t4():
         encoding="utf-8"
     ) == render_suppressions()
     ok = len(sup) <= budget and report_ok
-    return ok, "%d suppressions / budget %d (%d LOC); SUPPRESSIONS.md %s" % (
-        len(sup),
-        budget,
-        loc,
-        "current" if report_ok else "STALE or missing",
+    return ok, "{:d} suppressions / budget {:d} ({:d} LOC); SUPPRESSIONS.md {}".format(
+        len(sup), budget, loc, "current" if report_ok else "STALE or missing"
     )
 
 
@@ -339,7 +338,7 @@ def t5():
         line = next((ln for ln in text.splitlines() if ln.strip().startswith(f'"{pat}"')), "")
         if "#" not in line:
             bad.append(f"{pat} has no comment")
-    return not bad, "; ".join(bad) or "%d structural per-file ignores, all commented" % len(pfi)
+    return not bad, "; ".join(bad) or f"{len(pfi):d} structural per-file ignores, all commented"
 
 
 def t6():
@@ -366,7 +365,7 @@ def t7():
     ran = lambda s: min(oracle.o1_ran(r) for r in s["runs"])  # noqa: E731
     skp = lambda s: max(r["counts"].get("skipped", 0) for r in s["runs"])  # noqa: E731
     ok = ran(b) >= ran(a) and skp(b) <= skp(a)
-    return ok, "ran %d (g0 %d), skipped %d (g0 %d) [%s]" % (ran(b), ran(a), skp(b), skp(a), cur.name)
+    return ok, f"ran {ran(b):d} (g0 {ran(a):d}), skipped {skp(b):d} (g0 {skp(a):d}) [{cur.name}]"
 
 
 def tamper(goal: str):
@@ -390,7 +389,8 @@ def render_suppressions() -> str:
         "|---|---|---|---|",
     ]
     rows += [
-        "| %s | %d | `%s` | %s |" % (f, i, form, reason.replace("|", "\\|")) for f, i, form, reason in suppressions()
+        "| {} | {:d} | `{}` | {} |".format(f, i, form, reason.replace("|", "\\|"))
+        for f, i, form, reason in suppressions()
     ]
     return "\n".join(rows) + "\n"
 
@@ -400,7 +400,7 @@ def cmd_suppressions(args) -> int:
     p = HERE / "SUPPRESSIONS.md"
     if args.write:
         p.write_text(text, encoding="utf-8", newline="\n")
-        print("wrote %s (%d rows)" % (p.relative_to(ROOT), text.count("\n") - 4))
+        print("wrote {} ({:d} rows)".format(p.relative_to(ROOT), text.count("\n") - 4))
         return 0
     ok = p.exists() and p.read_text(encoding="utf-8") == text
     print("SUPPRESSIONS.md: %s" % ("current" if ok else "STALE"))
@@ -639,8 +639,8 @@ def cmd_drills(args) -> int:
     res = run_drills(args.goal)
     missed = sum(1 for v in res.values() if v.startswith("MISSED"))
     bit = sum(1 for v in res.values() if v == "BIT")
-    print("DRILLS: %d/%d BIT" % (bit, len(res)))
-    print("DRILLS-MISSED %d/%d" % (missed, len(res)))
+    print(f"DRILLS: {bit:d}/{len(res):d} BIT")
+    print(f"DRILLS-MISSED {missed:d}/{len(res):d}")
     if args.expect_missed:
         return 0 if missed == len(res) else 1
     return 0 if bit == len(res) else 1
@@ -663,7 +663,7 @@ def cmd_fresh_clone(args) -> int:
         for cmd in steps:
             r = run(cmd, cwd=clone if cmd[0] == "uv" else base, env=oracle.oracle_env(), timeout=7200)
             tail = "\n".join((r.stdout + r.stderr).strip().splitlines()[-8:])
-            print("$ %s\n%s\n[exit %d]" % (" ".join(cmd), tail, r.returncode))
+            print("$ {}\n{}\n[exit {:d}]".format(" ".join(cmd), tail, r.returncode))
             if r.returncode != 0:
                 print("FRESH-CLONE: FAIL")
                 return 1
@@ -679,7 +679,7 @@ def cmd_fresh_clone(args) -> int:
 def _report(name, problems) -> int:
     for p in problems[:30]:
         print("  ", p)
-    print("{}: {}".format(name, "PASS" if not problems else "FAIL (%d)" % len(problems)))
+    print("{}: {}".format(name, "PASS" if not problems else f"FAIL ({len(problems):d})"))
     return 1 if problems else 0
 
 
@@ -721,7 +721,7 @@ def cmd_assert_mechanical_commits(args) -> int:
         finally:
             oracle._rmtree(base)
             git("worktree", "prune", check=False)
-    print("replayed %d mechanical commit(s)" % n)
+    print(f"replayed {n:d} mechanical commit(s)")
     return _report("MECHANICAL COMMITS", problems)
 
 
@@ -759,11 +759,11 @@ def cmd_assert_python_agrees(args) -> int:
                 text = f.read_text(encoding="utf-8")
             except (OSError, UnicodeDecodeError):
                 continue
-            for m in pat.finditer(text):
-                if m.group(1) != pin_mm:
-                    problems.append(
-                        f"{f.relative_to(ROOT).as_posix()} says {m.group(1)}, .python-version says {pin_mm}"
-                    )
+            problems.extend(
+                f"{f.relative_to(ROOT).as_posix()} says {m.group(1)}, .python-version says {pin_mm}"
+                for m in pat.finditer(text)
+                if m.group(1) != pin_mm
+            )
     rp = pyproject().get("project", {}).get("requires-python", "")
     floor = re.search(r">=\s*(3\.\d+)", rp)
     if not floor or tuple(map(int, floor.group(1).split("."))) > tuple(map(int, pin_mm.split("."))):
@@ -780,18 +780,20 @@ def cmd_assert_no_bare_py(args) -> int:
             continue
         for i, ln in enumerate(f.read_text(encoding="utf-8").splitlines(), 1):
             if re.match(r"\s*py\s", ln):
-                problems.append("%s:%d %s" % (f.relative_to(ROOT).as_posix(), i, ln.strip()[:80]))
+                problems.append(f"{f.relative_to(ROOT).as_posix()}:{i:d} {ln.strip()[:80]}")
     for rel in (".mcp.json", ".claude/settings.json"):
         p = ROOT / rel
         if not p.exists():
             continue
-        for m in re.finditer(r'"command"\s*:\s*"([^"]*)"', p.read_text(encoding="utf-8")):
-            if re.search(r"(^|&&\s*|;\s*)py\s", m.group(1)) or m.group(1) == "py":
-                problems.append(f"{rel} command {m.group(1)[:80]!r}")
+        problems.extend(
+            f"{rel} command {m.group(1)[:80]!r}"
+            for m in re.finditer(r'"command"\s*:\s*"([^"]*)"', p.read_text(encoding="utf-8"))
+            if re.search(r"(^|&&\s*|;\s*)py\s", m.group(1)) or m.group(1) == "py"
+        )
     for wf in sorted((ROOT / ".github" / "workflows").glob("*.y*ml")):
         for i, ln in enumerate(wf.read_text(encoding="utf-8").splitlines(), 1):
             if re.search(r"(run:\s*|^\s*)py\s", ln):
-                problems.append("%s:%d %s" % (wf.relative_to(ROOT).as_posix(), i, ln.strip()[:80]))
+                problems.append(f"{wf.relative_to(ROOT).as_posix()}:{i:d} {ln.strip()[:80]}")
     return _report("NO BARE PY", problems)
 
 
@@ -892,9 +894,7 @@ def sha_pin_problems(root: Path) -> list:
                 continue
             ref = m.group(1).rpartition("@")[2] if "@" in m.group(1) else ""
             if not re.fullmatch(r"[0-9a-f]{40}", ref):
-                problems.append(
-                    "%s:%d %s is not pinned to a commit SHA" % (wf.relative_to(root).as_posix(), i, m.group(1))
-                )
+                problems.append(f"{wf.relative_to(root).as_posix()}:{i:d} {m.group(1)} is not pinned to a commit SHA")
     return problems
 
 
@@ -935,7 +935,7 @@ def cmd_assert_ratchet(args) -> int:
         fam = max((f for f in limits if code.startswith(f)), key=len, default=None)
         if fam:
             counts[fam] += 1
-    problems = ["%s: %d > ratchet %d" % (f, counts[f], limits[f]) for f in sorted(limits) if counts[f] > limits[f]]
+    problems = [f"{f}: {counts[f]:d} > ratchet {limits[f]:d}" for f in sorted(limits) if counts[f] > limits[f]]
     print(f"counts: {counts}")
     return _report("RATCHET", problems)
 
@@ -974,7 +974,7 @@ def cmd_assert_latent_regressions(args) -> int:
             finally:
                 oracle._rmtree(base)
                 git("worktree", "prune", check=False)
-    print("latent-bug entries checked: %d" % n)
+    print(f"latent-bug entries checked: {n:d}")
     return _report("LATENT REGRESSIONS", problems)
 
 
@@ -992,13 +992,13 @@ def cmd_assert_docs_uv(args) -> int:
         if not p.exists():
             continue
         t = p.read_text(encoding="utf-8")
-        for needle in ("uv sync", "uv run"):
-            if needle not in t:
-                problems.append(f"{doc} never mentions `{needle}`")
+        problems.extend(f"{doc} never mentions `{needle}`" for needle in ("uv sync", "uv run") if needle not in t)
     t = (ROOT / "CONTRIBUTING.md").read_text(encoding="utf-8") if (ROOT / "CONTRIBUTING.md").exists() else ""
-    for needle in ("uv run poe gate", "uv run poe test", "--no-verify"):
-        if needle not in t:
-            problems.append(f"CONTRIBUTING.md lacks `{needle}`")
+    problems.extend(
+        f"CONTRIBUTING.md lacks `{needle}`"
+        for needle in ("uv run poe gate", "uv run poe test", "--no-verify")
+        if needle not in t
+    )
     return _report("DOCS UV-PRIMARY", problems)
 
 
@@ -1015,7 +1015,7 @@ def cmd_assert_ci_replay(args) -> int:
 
 def prior_goal_certified(n: int) -> bool:
     text = (HERE / "LEDGER.md").read_text(encoding="utf-8") if (HERE / "LEDGER.md").exists() else ""
-    return re.search(r"(?m)^\|\s*G%d\s*\|\s*(CERTIFIED|NO-GO|SKIPPED)\s*\|" % (n - 1), text) is not None
+    return re.search(rf"(?m)^\|\s*G{n - 1:d}\s*\|\s*(CERTIFIED|NO-GO|SKIPPED)\s*\|", text) is not None
 
 
 def certify(goal: str, phase=None, drills=False, tamper_only=False) -> int:
@@ -1035,15 +1035,15 @@ def certify(goal: str, phase=None, drills=False, tamper_only=False) -> int:
         # executed before its predecessor is certified (they would only measure work that does
         # not exist yet). Drills still run -- that is the G0.P5 self-test `certify.py G7 --drills`.
         print(
-            "CHECKS skipped: G%d is not CERTIFIED in tooling-upgrade/LEDGER.md, so %s has not "
-            "started; only the drills run." % (n - 1, goal)
+            f"CHECKS skipped: G{n - 1:d} is not CERTIFIED in tooling-upgrade/LEDGER.md, so {goal} has not "
+            "started; only the drills run."
         )
         if drills:
             res = run_drills(goal)
             missed = sum(1 for v in res.values() if v.startswith("MISSED"))
-            print("DRILLS: %d/%d BIT" % (len(res) - missed, len(res)))
-            print("DRILLS-MISSED %d/%d" % (missed, len(res)))
-        print("RESULT: %s NOT CERTIFIED: G%d not certified; %s not started" % (goal, n - 1, goal))
+            print(f"DRILLS: {len(res) - missed:d}/{len(res):d} BIT")
+            print(f"DRILLS-MISSED {missed:d}/{len(res):d}")
+        print(f"RESULT: {goal} NOT CERTIFIED: G{n - 1:d} not certified; {goal} not started")
         return 1
     for c in checks:
         ok, why, out = run_check(c)
@@ -1057,8 +1057,9 @@ def certify(goal: str, phase=None, drills=False, tamper_only=False) -> int:
         # Phase self-check (plan 9: "certify.py G<n> --phase <id>"): that phase's pre-registered
         # checks only. T1-T7, the drills and the oracle belong to the goal-end certificate.
         print(
-            "PHASE %s: %d/%d PASS (worktree clean: %s, branch ok: %s)"
-            % (phase, passed, len(checks), "yes" if worktree_clean() else "no", "yes" if on_branch() else "no")
+            "PHASE {}: {:d}/{:d} PASS (worktree clean: {}, branch ok: {})".format(
+                phase, passed, len(checks), "yes" if worktree_clean() else "no", "yes" if on_branch() else "no"
+            )
         )
         return 0 if checks and passed == len(checks) and worktree_clean() and on_branch() else 1
     res = tamper(goal)
@@ -1068,7 +1069,7 @@ def certify(goal: str, phase=None, drills=False, tamper_only=False) -> int:
             "{} {}{} -- {}".format(
                 t,
                 "PASS" if ok else "FAIL",
-                "" if active else " (not yet active: binds from G%d)" % T_ACTIVE_FROM[t],
+                "" if active else f" (not yet active: binds from G{T_ACTIVE_FROM[t]:d})",
                 msg,
             )
         )
@@ -1079,7 +1080,7 @@ def certify(goal: str, phase=None, drills=False, tamper_only=False) -> int:
     if drills:
         drill_res = run_drills(goal)
         missed = sum(1 for v in drill_res.values() if v.startswith("MISSED"))
-        print("DRILLS-MISSED %d/%d" % (missed, len(drill_res)))
+        print(f"DRILLS-MISSED {missed:d}/{len(drill_res):d}")
     elif required:
         drill_res = run_drills(goal, required)
     bit_count = sum(1 for d in required if drill_res.get(d) == "BIT")
@@ -1117,7 +1118,7 @@ def certify(goal: str, phase=None, drills=False, tamper_only=False) -> int:
             "yes" if pushed() else "no",
         )
     )
-    print("CHECKS %d/%d PASS" % (passed, len(checks)))
+    print(f"CHECKS {passed:d}/{len(checks):d} PASS")
     print(
         "TAMPER T1-T7 {}{}".format(
             "PASS" if not t_fail else "FAIL ({})".format(", ".join(t_fail)),
@@ -1128,13 +1129,13 @@ def certify(goal: str, phase=None, drills=False, tamper_only=False) -> int:
             else "",
         )
     )
-    print("DRILLS %d/%d BIT" % (bit_count, len(required)))
-    print("ORACLE %d/10 EQUAL" % k)
+    print(f"DRILLS {bit_count:d}/{len(required):d} BIT")
+    print(f"ORACLE {k:d}/10 EQUAL")
     failure = (
         first_fail
         or (("tamper " + t_fail[0]) if t_fail else None)
-        or ("drills %d/%d BIT" % (bit_count, len(required)) if bit_count < len(required) else None)
-        or (None if oracle_ok else "oracle %d/10 EQUAL" % k)
+        or (f"drills {bit_count:d}/{len(required):d} BIT" if bit_count < len(required) else None)
+        or (None if oracle_ok else f"oracle {k:d}/10 EQUAL")
         or (refusals[0] if refusals else None)
     )
     print("RESULT: {} {}".format(goal, "CERTIFIED" if failure is None else "NOT CERTIFIED: " + failure))

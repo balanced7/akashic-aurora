@@ -129,7 +129,7 @@ def run(cmd, cwd=ROOT, env=None, timeout=None, check=False, capture=True):
     )
     if check and r.returncode != 0:
         raise RuntimeError(
-            "command failed (%d): %s\n%s%s" % (r.returncode, " ".join(map(str, cmd)), r.stdout, r.stderr)
+            "command failed ({:d}): {}\n{}{}".format(r.returncode, " ".join(map(str, cmd)), r.stdout, r.stderr)
         )
     return r
 
@@ -151,7 +151,7 @@ def run_logged(cmd, log: Path, cwd=ROOT, env=None, timeout=None):
             p.wait()
             raise
     text = log.read_text(encoding="utf-8", errors="replace")
-    progress("step finished: exit %d, %d log lines" % (rc, text.count("\n")))
+    progress("step finished: exit {:d}, {:d} log lines".format(rc, text.count("\n")))
     return subprocess.CompletedProcess(cmd, rc, text, "")
 
 
@@ -505,7 +505,7 @@ class RepoGraph:
         return rev
 
 
-# ----------------------------------------------------------------------------- inventory (G0.P2)
+# ----------------------------------------------------------------------------- inventory, G0.P2
 
 _PATH_TOKEN = re.compile(r"[A-Za-z0-9_./\\-]+\.py\b")
 _DOTTED_TOKEN = re.compile(r"\b[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)+\b")
@@ -790,12 +790,12 @@ def cmd_inventory(args) -> int:
             for f in changed[:20]:
                 print("   file differs:", f)
             return 1
-        print("INVENTORY CURRENT: %d files, %s" % (len(inv["files"]), inv["counts"]))
+        print("INVENTORY CURRENT: {:d} files, {}".format(len(inv["files"]), inv["counts"]))
         return 0
     if args.verify_proofs:
         return verify_proofs(load_json(INVENTORY))
     dump_json(INVENTORY, inv)
-    print("inventory: %d files %s -> %s" % (len(inv["files"]), inv["counts"], INVENTORY.relative_to(ROOT)))
+    print("inventory: {:d} files {} -> {}".format(len(inv["files"]), inv["counts"], INVENTORY.relative_to(ROOT)))
     return 0
 
 
@@ -813,7 +813,7 @@ def verify_proofs(inv: dict) -> int:
         ):
             bad.append(f)
     n = sum(1 for e in inv["files"].values() if e["class"] == "ARCHIVAL")
-    print("ARCHIVAL PROOFS: %d/%d complete" % (n - len(bad), n))
+    print(f"ARCHIVAL PROOFS: {n - len(bad):d}/{n:d} complete")
     for f in bad[:20]:
         print("  missing/failed proof:", f)
     return 1 if bad else 0
@@ -945,10 +945,10 @@ def _pytest(tree: Path, args, out_json: Path, timeout, log: Path | None = None):
 def suite_runs(tree: Path, raw: Path, runs: int, reruns: int, select=()) -> dict:
     run_data, side_effects = [], []
     for i in range(1, runs + 1):
-        out = raw / ("O1-run%d.json" % i)
+        out = raw / (f"O1-run{i:d}.json")
         before = git_status_set(tree)
-        progress("O1 suite run %d/%d" % (i, runs))
-        r, data = _pytest(
+        progress(f"O1 suite run {i:d}/{runs:d}")
+        _r, data = _pytest(
             tree,
             [
                 "-q",
@@ -956,12 +956,12 @@ def suite_runs(tree: Path, raw: Path, runs: int, reruns: int, select=()) -> dict
                 "-p",
                 "no:cacheprovider",
                 "--continue-on-collection-errors",
-                "--junitxml=%s" % (raw / ("O1-run%d.xml" % i)),
+                "--junitxml=%s" % (raw / (f"O1-run{i:d}.xml")),
                 *select,
             ],
             out,
             SUITE_TIMEOUT_S,
-            log=raw / ("O1-run%d.log" % i),
+            log=raw / (f"O1-run{i:d}.log"),
         )
         run_data.append(data)
         # what the suite does to the checkout it runs in (informational; never compared)
@@ -973,14 +973,14 @@ def suite_runs(tree: Path, raw: Path, runs: int, reruns: int, select=()) -> dict
     # Every id that did not pass somewhere is rerun alone, twice, so "fails reproducibly" is a
     # measured fact rather than a single-run accident.
     todo = [n for n, t in tests.items() if not all(o in ("passed", "skipped", "xfailed") for o in t["outcomes"] if o)]
-    progress("O1 isolated reruns: %d ids x %d" % (len(todo), reruns))
+    progress(f"O1 isolated reruns: {len(todo):d} ids x {reruns:d}")
     for k, nid in enumerate(sorted(todo)):
         t = tests[nid]
         if k % 10 == 0:
-            progress("  rerun %d/%d" % (k + 1, len(todo)))
+            progress(f"  rerun {k + 1:d}/{len(todo):d}")
         t["reruns"] = []
         for k in range(reruns):
-            out = raw / "rerun" / ("%s-%d.json" % (sha256_bytes(nid.encode())[:16], k))
+            out = raw / "rerun" / (f"{sha256_bytes(nid.encode())[:16]}-{k:d}.json")
             out.parent.mkdir(parents=True, exist_ok=True)
             _r, d = _pytest(tree, [nid, "-q", "-p", "no:cacheprovider", "-p", "no:randomly"], out, 600)
             t["reruns"].append(_final_outcome(d["results"].get(nid, {})))
@@ -1076,18 +1076,18 @@ def compare_o1(a, b, partial=False) -> list:
     volatile = volatile_bases(a) | volatile_bases(b)
     ra, rb = _per_run(a), _per_run(b)
     for base in sorted(volatile):
-        cnt = lambda runs: min((len(r.get(base, {})) for r in runs), default=0)  # noqa: E731
+        cnt = lambda runs, base=base: min((len(r.get(base, {})) for r in runs), default=0)  # noqa: E731
 
-        def ok(runs):
+        def ok(runs, base=base):
             return min(
-                (sum(o == "passed" for o in r.get(base, {}).values()) for r in runs),  # noqa: E731
+                (sum(o == "passed" for o in r.get(base, {}).values()) for r in runs),
                 default=0,
             )
 
         if cnt(rb) < cnt(ra):
-            diffs.append(("volatile:" + base, "collects %d < baseline %d per run" % (cnt(rb), cnt(ra))))
+            diffs.append(("volatile:" + base, f"collects {cnt(rb):d} < baseline {cnt(ra):d} per run"))
         elif ok(rb) < ok(ra):
-            diffs.append(("volatile:" + base, "passes %d < baseline %d per run" % (ok(rb), ok(ra))))
+            diffs.append(("volatile:" + base, f"passes {ok(rb):d} < baseline {ok(ra):d} per run"))
     for nid, t in sorted(a["tests"].items()):
         if id_base(nid) in volatile:
             continue
@@ -1098,13 +1098,13 @@ def compare_o1(a, b, partial=False) -> list:
             diffs.append(("regressed:" + nid, "stable-pass now fails reproducibly"))
     skips = lambda s: max((r["counts"].get("skipped", 0) for r in s["runs"]), default=0)  # noqa: E731
     if skips(b) > skips(a):
-        diffs.append(("skips", "skip count %d > baseline %d" % (skips(b), skips(a))))
+        diffs.append(("skips", f"skip count {skips(b):d} > baseline {skips(a):d}"))
     cerr = lambda s: max((len(r["collect_errors"]) for r in s["runs"]), default=0)  # noqa: E731
     if cerr(b) > cerr(a):
-        diffs.append(("collect-errors", "collection errors %d > baseline %d" % (cerr(b), cerr(a))))
+        diffs.append(("collect-errors", f"collection errors {cerr(b):d} > baseline {cerr(a):d}"))
     ran = lambda s: min((o1_ran(r) for r in s["runs"]), default=0)  # noqa: E731
     if ran(b) < ran(a):
-        diffs.append(("run-count", "tests run %d < baseline %d (T7)" % (ran(b), ran(a))))
+        diffs.append(("run-count", f"tests run {ran(b):d} < baseline {ran(a):d} (T7)"))
     return diffs
 
 
@@ -1115,9 +1115,9 @@ def cmd_rekey_o1(args) -> int:
     before = len(data["tests"])
     data["tests"] = {public_id(k): v for k, v in data["tests"].items()}
     if len(data["tests"]) != before:
-        raise RuntimeError("rekey collided: %d -> %d ids" % (before, len(data["tests"])))
+        raise RuntimeError("rekey collided: {:d} -> {:d} ids".format(before, len(data["tests"])))
     dump_json(p, data)
-    print("rekeyed %s: %d ids" % (p.relative_to(ROOT), before))
+    print(f"rekeyed {p.relative_to(ROOT)}: {before:d} ids")
     return 0
 
 
@@ -1166,7 +1166,7 @@ def cmd_ast_equal(args) -> int:
     for path, ok, why in res:
         print("{} {}{}".format("EQUAL" if ok else "DIFF ", path, (" (" + why + ")") if why else ""))
     n_ok = sum(1 for _, ok, _ in res if ok)
-    print("AST: %d/%d EQUAL" % (n_ok, len(res)))
+    print(f"AST: {n_ok:d}/{len(res):d} EQUAL")
     return 0 if n_ok == len(res) else 1
 
 
@@ -1320,7 +1320,7 @@ def probe_modules(tree: Path, inv: dict, graph: RepoGraph, raw: Path, modules=No
             res = {"status": "timeout"}
         return key, f, res, static, tree_ast
 
-    progress("O3/O5 probing %d modules" % len(targets))
+    progress(f"O3/O5 probing {len(targets):d} modules")
     with ThreadPoolExecutor(max_workers=min(12, (os.cpu_count() or 4))) as pool:
         results = list(pool.map(one, targets))
     o3, o5 = {}, {}
@@ -1358,8 +1358,7 @@ def compare_o5(a, b, partial=False) -> list:
             if not partial:
                 diffs.append(("module:" + mod, "module surface gone"))
             continue
-        for n in sorted(set(s["names"]) - set(sb["names"])):
-            diffs.append((f"name:{mod}.{n}", "public name disappeared"))
+        diffs.extend((f"name:{mod}.{n}", "public name disappeared") for n in sorted(set(s["names"]) - set(sb["names"])))
         if s.get("mode") != sb.get("mode"):
             continue
         for n, sig in sorted(s["sigs"].items()):
@@ -1492,7 +1491,7 @@ def surface_o4(tree: Path, inv: dict, graph: RepoGraph, raw: Path) -> dict:
     clis = inv["entry_points"]["argparse_cli"]
     for k, f in enumerate(clis):
         if k % 25 == 0:
-            progress("O4 --help %d/%d" % (k + 1, len(clis)))
+            progress(f"O4 --help {k + 1:d}/{len(clis):d}")
         try:
             r = run([venv_python(tree), f, "--help"], cwd=tree, env=oracle_env(), timeout=HELP_TIMEOUT_S)
             item = {"rc": r.returncode, "text": normalize_text(r.stdout, tree)}
@@ -1595,7 +1594,7 @@ def compare_o6(a, b, partial=False) -> list:
         if rb["crashed"] and not r["crashed"]:
             diffs.append(("checker:" + name, "now crashes"))
         elif rb["rc"] > r["rc"]:
-            diffs.append(("checker:" + name, "exit %d > baseline %d" % (rb["rc"], r["rc"])))
+            diffs.append(("checker:" + name, "exit {:d} > baseline {:d}".format(rb["rc"], r["rc"])))
     return diffs
 
 
@@ -1630,7 +1629,7 @@ def compare_o7(a, b, partial=False) -> list:
         if rb["rc"] != r["rc"]:
             diffs.append(("cmd:" + key, "exit {} -> {}".format(r["rc"], rb["rc"])))
         if abs(rb["lines"] - r["lines"]) > max(1, 0.1 * r["lines"]):
-            diffs.append(("cmd:" + key, "output %d -> %d lines (>10%%)" % (r["lines"], rb["lines"])))
+            diffs.append(("cmd:" + key, "output {:d} -> {:d} lines (>10%)".format(r["lines"], rb["lines"])))
         if rb["headings"] != r["headings"]:
             diffs.append(("cmd:" + key, "headings changed"))
     return diffs
@@ -1679,7 +1678,7 @@ def assertion_count(fn) -> int:
     return n
 
 
-def test_strength(tree_root: Path, files=None) -> dict:
+def test_strength(tree_root: Path, files=None) -> dict:  # noqa: PT028  # not a pytest test: the O9 capture
     files = files or [f for f in tracked_files(tree_root) if f.startswith("tests/") and f.endswith(".py")]
     out = {}
     for f in files:
@@ -1703,9 +1702,9 @@ def compare_o9(a, b, partial=False) -> list:
         if nb is None:
             diffs.append(("test:" + k, "test function gone"))
         elif nb < n:
-            diffs.append(("test:" + k, "assertions %d -> %d" % (n, nb)))
+            diffs.append(("test:" + k, f"assertions {n:d} -> {nb:d}"))
     if b["total"] < a["total"]:
-        diffs.append(("total", "total assertions %d -> %d" % (a["total"], b["total"])))
+        diffs.append(("total", "total assertions {:d} -> {:d}".format(a["total"], b["total"])))
     return diffs
 
 
@@ -1921,10 +1920,10 @@ def compare_dirs(a: Path, b: Path, components=None, partial=False, intended=None
             for sha in commits:
                 bad += [p for p, ok, _ in ast_equal(sha + "^", sha) if not ok]
             if bad:
-                lines.append("O2 DIFF %d %s" % (len(bad), ", ".join(bad[:5])))
+                lines.append("O2 DIFF {:d} {}".format(len(bad), ", ".join(bad[:5])))
             else:
                 equal += 1
-                lines.append("O2 EQUAL (%d format commits)" % len(commits))
+                lines.append(f"O2 EQUAL ({len(commits):d} format commits)")
             continue
         fa, fb = a / (c + ".json"), b / (c + ".json")
         if not fa.exists() or not fb.exists():
@@ -1948,8 +1947,8 @@ def compare_dirs(a: Path, b: Path, components=None, partial=False, intended=None
             lines.append("{} EQUAL{}".format(c, " (intended: {})".format(", ".join(ids)) if ids else ""))
         else:
             summary = "; ".join("{}: {}".format(*d) for d in open_[:3])
-            lines.append("%s DIFF %d %s" % (c, len(open_), summary))
-    lines.append("ORACLE: %d/%d EQUAL" % (equal, len(comps)))
+            lines.append(f"{c} DIFF {len(open_):d} {summary}")
+    lines.append(f"ORACLE: {equal:d}/{len(comps):d} EQUAL")
     return lines, equal == len(comps)
 
 
@@ -1994,7 +1993,7 @@ def verify_snapshot(label: str, suite_runs: int) -> list:
         if m.get("select"):
             problems.append(f"{c} ran a test SELECTION, not the full suite")
     if (d / "O1.json").exists() and len(load_json(d / "O1.json")["runs"]) < suite_runs:
-        problems.append("O1 has fewer than %d suite runs" % suite_runs)
+        problems.append(f"O1 has fewer than {suite_runs:d} suite runs")
     if not meta.get("raw_digests"):
         problems.append("meta.json has no raw-log digests")
     return problems
@@ -2050,7 +2049,7 @@ def cmd_impacted(args) -> int:
 def cmd_test_fast(args) -> int:
     """`poe test-fast`: the impacted selection (smoke set when nothing changed), REDIS_DB=15."""
     tests = worktree_impacted()
-    progress("test-fast: %d test files: %s" % (len(tests), " ".join(tests)[:300]))
+    progress("test-fast: {:d} test files: {}".format(len(tests), " ".join(tests)[:300]))
     r = subprocess.run(
         [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", *tests],
         cwd=str(ROOT),
@@ -2076,10 +2075,11 @@ def cmd_guardrails(args) -> int:
         b = base["checkers"].get(name, {})
         verdict = "WORSE: " + worse["checker:" + name] if "checker:" + name in worse else "ok"
         print(
-            "%-28s exit %-3s (g0 %s)%s  %s"
-            % (name, r["rc"], b.get("rc", "-"), " N/A: " + r["na"] if r.get("na") else "", verdict)
+            "{!s:<28} exit {!s:<3} (g0 {}){}  {}".format(
+                name, r["rc"], b.get("rc", "-"), " N/A: " + r["na"] if r.get("na") else "", verdict
+            )
         )
-    print("GUARDRAILS: %s" % ("PASS (no checker worse than g0)" if not worse else "FAIL (%d worse)" % len(worse)))
+    print("GUARDRAILS: %s" % ("PASS (no checker worse than g0)" if not worse else f"FAIL ({len(worse):d} worse)"))
     return 1 if worse else 0
 
 
@@ -2141,7 +2141,7 @@ def cmd_mcp_stdio(args) -> int:
     commit = git("rev-parse", "HEAD").strip()
     with scratch_tree(commit, "aurora-mcp-") as t:
         tools = mcp_tools_stdio(t)
-    print("MCP stdio: %d tools: %s" % (len(tools), ", ".join(sorted(x["name"] for x in tools))))
+    print("MCP stdio: {:d} tools: {}".format(len(tools), ", ".join(sorted(x["name"] for x in tools))))
     return 0 if tools else 1
 
 
@@ -2168,7 +2168,7 @@ def cmd_assert_stdlib(args) -> int:
     return 1 if bad else 0
 
 
-# ----------------------------------------------------------------------------- measurements (G0.P4)
+# ----------------------------------------------------------------------------- measurements, G0.P4
 
 MEASURE_TOOLS = {"ruff": "0.16.9", "basedpyright": "1.40.1", "ty": "0.0.84"}
 TARGET_SELECT = [
@@ -2212,11 +2212,12 @@ def _uvx(tool, args, cwd, timeout=3600):
 
 
 def _ruff_cfg(d: Path, select, target="py311", line_length=100) -> Path:
-    cfg = d / ("ruff-%s-%d.toml" % ("-".join(select)[:20], line_length))
+    cfg = d / ("ruff-{}-{:d}.toml".format("-".join(select)[:20], line_length))
     cfg.write_text(
-        'target-version = "%s"\nline-length = %d\n[lint]\nselect = %s\nignore = %s\n'
-        '[lint.per-file-ignores]\n"tests/**" = ["S101"]\n"scripts/**" = ["T20"]\n'
-        % (target, line_length, json.dumps(select), json.dumps(TARGET_IGNORE)),
+        (
+            f'target-version = "{target}"\nline-length = {line_length:d}\n[lint]\nselect = {json.dumps(select)}\nignore = {json.dumps(TARGET_IGNORE)}\n'
+            '[lint.per-file-ignores]\n"tests/**" = ["S101"]\n"scripts/**" = ["T20"]\n'
+        ),
         encoding="utf-8",
     )
     return cfg
@@ -2305,7 +2306,7 @@ def measure(ref: str) -> dict:
                     t,
                 )
                 text = r.stdout + r.stderr
-                out["ruff_format"]["line_length_%d" % ll] = {
+                out["ruff_format"][f"line_length_{ll:d}"] = {
                     "would_reformat": len(re.findall(r"(?m): unformatted: File would be reformatted$", text)),
                     "errors": [ln for ln in text.splitlines() if ln.startswith("error")][:20],
                     "exit": r.returncode,
@@ -2362,9 +2363,10 @@ def suite_measurements(label: str) -> dict:
     res = {}
     xml_path = d / "raw" / "O1-run1.xml"
     if xml_path.exists():
-        cases = []
-        for tc in ET.parse(xml_path).getroot().iter("testcase"):
-            cases.append((float(tc.get("time", 0)), "{}::{}".format(tc.get("classname"), tc.get("name"))))
+        cases = [
+            (float(tc.get("time", 0)), "{}::{}".format(tc.get("classname"), tc.get("name")))
+            for tc in ET.parse(xml_path).getroot().iter("testcase")
+        ]
         cases.sort(reverse=True)
         res["slowest_50"] = [{"s": round(t, 2), "test": n} for t, n in cases[:50]]
     if (d / "O1.json").exists():
