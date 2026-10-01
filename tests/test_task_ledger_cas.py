@@ -16,8 +16,11 @@ test_filestore_coherence.py, and asserts the REFUSED contract.
 Run: py -m pytest tests/test_task_ledger_cas.py -v
 """
 
+import json
 import os
+import subprocess
 import sys
+import time
 
 import pytest
 
@@ -98,9 +101,6 @@ def test_same_instance_sequential_proposes_still_succeed(path):
 # Pins below are deterministic: the interleaving is sequenced by hand, like the T270 pins above.
 # =================================================================================================
 
-import json
-import subprocess
-import time
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 

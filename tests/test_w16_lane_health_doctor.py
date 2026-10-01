@@ -73,7 +73,7 @@ def test_p2_legacy_only_returns_none(monkeypatch, agents):
     from core.comm.doctor import _probe_lane_health
 
     agent = f"t-w16-legacy-{uuid.uuid4().hex[:6]}"
-    b = Bus(agent)
+    _b = Bus(agent)
     # Legacy consumer has all-zero lane hash (virgin, never flipped)
     lh = _probe_lane_health(agent)
     assert lh is None, "legacy-only consumer must not show lane health row"

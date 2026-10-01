@@ -18,7 +18,11 @@ os.environ.setdefault("REDIS_DB", "15")
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.foundation.store import FileStore, HybridStore, RedisStore
+from core.foundation.store import (  # noqa: E402  # AI_SETUP env (mkdtemp) must exist before import
+    FileStore,
+    HybridStore,
+    RedisStore,
+)
 
 
 def test_reconcile_redis_down():

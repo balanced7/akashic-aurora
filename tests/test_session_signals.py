@@ -145,7 +145,7 @@ def test_parse_drops_unresulted_calls(tmp_path):
             "timestamp": "2026-07-02T02:19:04.000Z",
         },
     ]
-    p.write_text("\n".join(json.dumps(l) for l in lines), encoding="utf-8")
+    p.write_text("\n".join(json.dumps(ln) for ln in lines), encoding="utf-8")
     calls, _ = hook.parse_transcript_calls(str(p))
     assert [(c["tool"], c["target"], c["ok"]) for c in calls] == [("Grep", "", True)]
 

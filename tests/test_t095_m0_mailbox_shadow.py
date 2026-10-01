@@ -326,7 +326,7 @@ def test_concurrent_readers_identical_and_writeless():
 def test_nudge_marked_consumed_not_unhandled_forever():
     mbx = _mailbox()
     fake, bus = _mk()
-    mid = bus.send("deepseek", "nudge", "look now")
+    bus.send("deepseek", "nudge", "look now")
     sid = (
         fake.streams[f"{NS}:sig:inbox:deepseek"][-1][0]
         if f"{NS}:sig:inbox:deepseek" in fake.streams

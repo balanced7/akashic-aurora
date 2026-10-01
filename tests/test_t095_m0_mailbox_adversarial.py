@@ -9,8 +9,7 @@ import json
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import importlib as _il
 
@@ -20,6 +19,8 @@ from tests.test_t095_m0_mailbox_shadow import (
     _advance_cursor,
     _mk,
 )
+
+ROOT = Path(__file__).resolve().parents[1]
 
 
 def _mailbox():

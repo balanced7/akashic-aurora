@@ -259,7 +259,7 @@ def test_every_committed_inferred_row_is_corroborated():
         meta = json.loads((d / "meta.json").read_text(encoding="utf-8"))
         if meta.get("method") != "reconstructed":
             continue
-        rows = [l.split() for l in (d / "commit-map").read_text(encoding="utf-8").splitlines()]
+        rows = [ln.split() for ln in (d / "commit-map").read_text(encoding="utf-8").splitlines()]
         pairs = [(a, b) for a, b in (r for r in rows if len(r) == 2)]
         assert pairs, f"{d.name} is an empty reconstructed map"
         info = rr.commit_rows(ROOT, "--all")

@@ -175,9 +175,9 @@ def test_w4_p7_work_shown_first_and_verbatim():
     out = _render(msgs)
     lines = out.split("\n")
     # Work messages must appear before traces
-    chat_idx = next(i for i, l in enumerate(lines) if "chat" in l)
-    handoff_idx = next(i for i, l in enumerate(lines) if "handoff" in l)
-    trace_idx = next(i for i, l in enumerate(lines) if "trace" in l)
+    chat_idx = next(i for i, ln in enumerate(lines) if "chat" in ln)
+    handoff_idx = next(i for i, ln in enumerate(lines) if "handoff" in ln)
+    trace_idx = next(i for i, ln in enumerate(lines) if "trace" in ln)
     assert chat_idx < trace_idx, "chat must appear before traces"
     assert handoff_idx < trace_idx, "handoff must appear before traces"
     # Both work lines must be verbatim

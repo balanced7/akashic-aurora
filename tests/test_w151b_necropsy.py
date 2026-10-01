@@ -113,10 +113,10 @@ def test_n9_distill_folds_in_subagent_tails(monkeypatch, tmp_path):
     def fake_ask(prompt, **kw):
         captured["prompt"] = prompt
 
-        class O:
+        class Reply:
             detail = {"answer": "DEATH-DELTA: believed the docs page was safe"}
 
-        return O()
+        return Reply()
 
     import core.comm.ask as ask_mod
 
@@ -148,10 +148,10 @@ def test_n10_death_delta_needs_the_coroners_report(monkeypatch, tmp_path):
     def fake_ask(prompt, **kw):
         captured["prompt"] = prompt
 
-        class O:
+        class Reply:
             detail = {"answer": "DEATH-DELTA: believed the pane was safe"}
 
-        return O()
+        return Reply()
 
     import core.comm.ask as ask_mod
 

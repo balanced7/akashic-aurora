@@ -100,7 +100,7 @@ def test_p1_find_counters_matches_naming_files_only(tmp_path):
     os.makedirs(os.path.join(research, "drafts"))
     os.makedirs(os.path.join(research, "reviewed"))
     opening = _write(os.path.join(research, "drafts"), OPENING_NAME, OPENING_TEXT)
-    counter = _write(
+    _write(
         os.path.join(research, "reviewed"),
         "kimi-seat-zero-counter-2026-07-21.md",
         "Counter to: research/drafts/" + OPENING_NAME + "\n**B1: KEEP**\n",

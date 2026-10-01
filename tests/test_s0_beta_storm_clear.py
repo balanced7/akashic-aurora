@@ -193,7 +193,7 @@ def test_storm_clear_pause_skip_resume_with_receipt(monkeypatch):
 def test_storm_clear_fails_open_on_broken_bus(monkeypatch):
     """A degraded clear (bad agent) returns ok=False rather than raising --
     the runner's try/except plus this contract keep a stuck clear from wedging."""
-    ns = _ns_env(monkeypatch)
+    _ns_env(monkeypatch)
     if not _online():
         pytest.skip("redis not available")
     from core.comm import control, cursor_admin

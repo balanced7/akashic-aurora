@@ -38,7 +38,7 @@ def test_live_twin_holds_seat_no_listen(monkeypatch):
     assert res["decision"] == "twin-holds-seat"
     assert not res["listened"]
     assert not called
-    assert any("NOT listening" in l for l in res["report"])
+    assert any("NOT listening" in ln for ln in res["report"])
 
 
 def test_clean_drain_then_listen(monkeypatch):
@@ -54,8 +54,8 @@ def test_clean_drain_then_listen(monkeypatch):
     assert res["decision"] == "listen"
     assert res["listened"]
     assert res["listen_rc"] == 0
-    drain_idx = next(i for i, l in enumerate(res["report"]) if "drained: 1" in l)
-    listen_idx = next(i for i, l in enumerate(res["report"]) if "handing off" in l)
+    drain_idx = next(i for i, ln in enumerate(res["report"]) if "drained: 1" in ln)
+    listen_idx = next(i for i, ln in enumerate(res["report"]) if "handing off" in ln)
     assert drain_idx < listen_idx  # consume-THEN-arm, structurally
 
 
@@ -65,7 +65,7 @@ def test_report_only_when_no_listener(monkeypatch):
     res = bp.standby("claude", "s1", listen=None)
     assert res["decision"] == "report-only"
     assert not res["listened"]
-    assert any("already clean" in l for l in res["report"])
+    assert any("already clean" in ln for ln in res["report"])
 
 
 def test_drained_mail_rides_the_report_collapsed(monkeypatch):
@@ -88,4 +88,4 @@ def test_expect_lines_surface(monkeypatch):
         bp, "collect_boot_bifrost", lambda a, limit=1: {"expect_lines": ["EXPECTATION redrive #2: deepseek"]}
     )
     res = bp.standby("claude", "s1", listen=None)
-    assert any("redrive" in l for l in res["report"])  # RB-29 stays visible at turn end
+    assert any("redrive" in ln for ln in res["report"])  # RB-29 stays visible at turn end

@@ -152,7 +152,7 @@ def test_p5_unmapped_by_design_kinds_have_comment_in_table():
     from core.comm import packet_spec as ps
 
     # Read the source of the KIND_LANE dict
-    src = inspect.getsource(ps)
+    inspect.getsource(ps)
     # Find KIND_LANE and look for the unmapped-by-design entries
     # This is a design assertion; we verify by consulting the table directly
     # via lane_for and then checking the source.

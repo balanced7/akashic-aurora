@@ -54,11 +54,13 @@ from pathlib import Path
 
 import pytest
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, ROOT)
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.comm import reaper  # noqa: E402
+from core.comm import reaper
 from core.comm import roster as R
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
 
 NS = f"t147{uuid.uuid4().hex[:8]}"
 AGENT = "deepseek-probe"

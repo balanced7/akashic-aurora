@@ -262,7 +262,7 @@ def test_recall_at_floor_gates_weak_matches():
     assert res["lessons"] == []
     # a genuine trigger hit clears it
     res2 = aa.recall_at(command="frobnicating the zorbulator carefully", learning_store=ls)
-    assert [l["source"] for l in res2["lessons"]] == ["learn:experiment:weak"]
+    assert [lesson["source"] for lesson in res2["lessons"]] == ["learn:experiment:weak"]
 
 
 # ---------- 3. credit loop ---------------------------------------------------------------------

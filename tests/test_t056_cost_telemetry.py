@@ -120,7 +120,7 @@ def test_k3_finalize_stamps_and_deletes(monkeypatch, tmp_path):
     for _ in range(3):
         tc.attribute_turn("alice", _row(duration=1.0, tools=2), ledger=led)
     t = led.tasks["T900"]
-    stamped = tc.finalize("T900", t)
+    tc.finalize("T900", t)
     assert t.get("cost_turns") == 3
     assert t.get("cost_tool_calls") == 6
     assert not c.exists(f"{ns}:task_cost:T900"), "K3: accumulator deleted after finalize"

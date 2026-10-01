@@ -366,7 +366,7 @@ def test_cli_mcp_and_toolbox_are_native_and_toolbox_cannot_borrow_a_seat(monkeyp
     from core.coord import ground as ground_module
 
     parser = agent_cli.build_parser()
-    subs = next(a for a in parser._actions if isinstance(a, argparse._SubParsersAction))
+    next(a for a in parser._actions if isinstance(a, argparse._SubParsersAction))
     args = parser.parse_args(["ground", "seat:sol", "--continuity", "--agent", "sol"])
     assert args.target == "seat:sol"
     assert args.continuity is True

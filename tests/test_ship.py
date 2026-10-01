@@ -47,7 +47,7 @@ def test_full_plan_order():
     assert labels[0] == "guard: boundaries", labels
     assert labels[1] == "guard: doc-freshness", labels
     assert labels[-3:] == ["tests (full suite)", "commit + push", "snapshot"], labels
-    assert all("guard" in l for l in labels[: labels.index("tests (full suite)")]), labels
+    assert all("guard" in ln for ln in labels[: labels.index("tests (full suite)")]), labels
     commit = dict(plan)["commit + push"]
     assert "scripts/mirror.py" in commit, commit
     assert "a.py" in commit, commit
@@ -58,7 +58,7 @@ def test_full_plan_order():
 
 def test_no_test_skips_gate():
     labels = _labels(ship.build_plan(_args(no_test=True)))
-    assert not any("guard" in l or "tests" in l for l in labels), labels
+    assert not any("guard" in ln or "tests" in ln for ln in labels), labels
     assert "commit + push" in labels
     print("--- --no-test ---\n  gate skipped, commit still present OK")
 

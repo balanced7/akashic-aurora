@@ -74,7 +74,6 @@ def test_s6_d3_mark_reply_sent_writes_both(monkeypatch):
     """_mark_reply_sent writes to Redis AND Store."""
     r = _runner_module()
     redis_written = {}
-    store_written = {}
 
     class FakeBus:
         class _client:

@@ -70,13 +70,13 @@ def test_render_iso_same_instant_both_frames():
 
     src = "2026-07-28T20:41:26+00:00"
     u = render_iso(src, tz="utc")
-    l = render_iso(src, tz="local")
+    loc = render_iso(src, tz="local")
     # Frames differ in label/wall-clock but must name the same instant: re-parsing
     # each rendered string (strip label -> not required parseable) is out of scope;
     # the door must at minimum not raise and not return identical strings on a
     # non-UTC box unless local IS utc.
     assert u, "both frames must render"
-    assert l, "both frames must render"
+    assert loc, "both frames must render"
 
 
 # -- (3) the naive-LOCAL stamper class is retired -----------------------------

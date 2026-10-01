@@ -134,6 +134,6 @@ def test_runner_wired():
         src = fh.read()
     assert "BusLossGuard" in src, "the runner loop runs the dead-beat guard"
     lines = src.splitlines()
-    idx = next(i for i, l in enumerate(lines) if "hit reply rate limit" in l)
+    idx = next(i for i, ln in enumerate(lines) if "hit reply rate limit" in ln)
     stmt = " ".join(lines[max(0, idx - 1) : idx + 2])
     assert "ttl=" in stmt, "the rate-limit auto-pause carries a ttl (self-healing backstop)"

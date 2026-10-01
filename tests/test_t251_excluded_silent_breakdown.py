@@ -192,7 +192,6 @@ def test_the_two_rules_increment_separate_counters():
     text-scanning assertion here would pass on the comment that explains the fix.
     """
     stats = {}
-    item = {"source": "learn:experiment:x", "text": "t", "trigger": "", "trigger_terms": []}
     AA._note_exclusion(stats, "antirepeat")
     AA._note_exclusion(stats, "self_echo")
     AA._note_exclusion(stats, "antirepeat")

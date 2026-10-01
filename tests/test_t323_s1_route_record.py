@@ -87,7 +87,7 @@ def test_p1_save_writes_journal_and_projection(env):
     assert rid.startswith("r_")
 
     lines = [json.loads(x) for x in journal.read_text(encoding="utf-8").splitlines()]
-    assert any(l.get("route_id") == rid for l in lines), "journal holds the authored truth"
+    assert any(row.get("route_id") == rid for row in lines), "journal holds the authored truth"
 
     con = sqlite3.connect(str(db))
     row = con.execute("SELECT name, status, walk_count FROM routes WHERE route_id=?", (rid,)).fetchone()

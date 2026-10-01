@@ -215,7 +215,7 @@ def test_p12_license_line_is_the_load_bearing_one():
 def test_p13_missing_stretch_renders_a_named_gap(monkeypatch):
     """Unrecorded must read as a GAP, not as a silent zero -- tonight's whole theme."""
     monkeypatch.setattr(agent_cli, "_charter_stretch", lambda a: None)
-    line = [l for l in agent_cli._stance_block("kimi") if "stretch" in l][0]
+    line = [ln for ln in agent_cli._stance_block("kimi") if "stretch" in ln][0]
     assert "GAP" in line
     assert "CHARTER.md" in line
 

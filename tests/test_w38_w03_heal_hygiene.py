@@ -36,7 +36,7 @@ def test_p2_mailbox_keys_render_quiet():
     lines = HybridStore._render_orphans(orphans, file_fams=set())
     joined = "\n".join(lines)
     assert "UNKNOWN" not in joined, "a regenerable projection is never the loud signal"
-    assert any("transport/control/telemetry" in l and "mailbox" in l for l in lines), (
+    assert any("transport/control/telemetry" in ln and "mailbox" in ln for ln in lines), (
         "mailbox keys land in the quiet ephemeral line"
     )
 
@@ -53,4 +53,6 @@ def test_p4_heal_lines_carry_scope_tag():
     orphans = ["bifrost:genuinely_new_thing:x", "bifrost:mailbox:answered"]
     lines = HybridStore._render_orphans(orphans, file_fams=set())
     assert lines, "W03: heal lines are fleet-hygiene, never the fresh seat's task"
-    assert all("[fleet-hygiene]" in l for l in lines), "W03: heal lines are fleet-hygiene, never the fresh seat's task"
+    assert all("[fleet-hygiene]" in ln for ln in lines), (
+        "W03: heal lines are fleet-hygiene, never the fresh seat's task"
+    )

@@ -26,15 +26,14 @@ import sys
 import time
 import uuid
 
+import pytest
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 NS = f"t108ro{uuid.uuid4().hex[:6]}"
 AGENT = "claude"
 SEAT_A = "aaaa1111"
 SEAT_B = "bbbb2222"
-
-
-import pytest
 
 
 @pytest.fixture(autouse=True)

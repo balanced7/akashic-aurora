@@ -329,7 +329,7 @@ def test_new_mail_on_shared_cursor_between_calls_missed_by_lane_watcher(monkeypa
     monkeypatch.setattr(api_old, "_lane_tails", lambda: {"work": "0-0"}, raising=False)
     monkeypatch.setattr(api_old, "_lane_streams", lambda: {"inbox": "s"}, raising=False)
     # Simulate old code: never seed _lane_since
-    original_block_lane = api_old._wake_block_lane
+    _original_block_lane = api_old._wake_block_lane
 
     def old_wake_block_lane(timeout_ms):
         if api_old._lane_since is None:

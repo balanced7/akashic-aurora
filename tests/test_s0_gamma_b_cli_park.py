@@ -156,7 +156,7 @@ def test_sender_notified_on_cli_auto_park(monkeypatch):
 
 
 def test_fresh_mail_returned_normally(monkeypatch):
-    ns = _ns_env(monkeypatch)
+    _ns_env(monkeypatch)
     if not _online():
         pytest.skip("redis not available")
     from core.comm.bus import Bus

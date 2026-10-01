@@ -77,7 +77,7 @@ def test_p4_capability_aware_render(qfile):
     assert "not you" in dim, "a read-only seat gets one dim line, never a shouted work list"
     assert "5" in dim, "a read-only seat gets one dim line, never a shouted work list"
     assert dq.render_boot_section(agent_caps=set()) == dim
-    empty = dq.render_boot_section(agent_caps={"exec"})
+    dq.render_boot_section(agent_caps={"exec"})
     # a queue with only-discharged items renders nothing for anyone
     for it in list(dq.pending()):
         dq.mark_done(it["id"], seat="claude", receipt="swept")

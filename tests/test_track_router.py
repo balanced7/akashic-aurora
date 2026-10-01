@@ -9,9 +9,8 @@ import os
 import sys
 import tempfile
 
-_TESTS = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.dirname(_TESTS))
-sys.path.insert(0, _TESTS)
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from fixtures.narrative_fixture import gold_rows
 from narrative_metrics import accuracy, ari, boundaries, boundary_f1, nmi, purity, windowdiff
@@ -20,6 +19,8 @@ from core.foundation.store import FileStore
 from core.narrative.beat_log import BeatLog
 from core.narrative.schema import Beat
 from core.narrative.track_router import RouteHint, TrackRouter
+
+_TESTS = os.path.dirname(os.path.abspath(__file__))
 
 ARI_BAR = 0.70
 WINDOWDIFF_BAR = 0.30

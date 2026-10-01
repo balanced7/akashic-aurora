@@ -27,6 +27,7 @@ import uuid
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import pytest
+import pytest as _pytest
 
 from core.comm.bus import Bus  # noqa: E402
 
@@ -170,9 +171,6 @@ def test_pin3_never_beaten_orphan_stream_still_reaped():
         "reaped -- the discrimination that protects a seat whose mail arrived before its "
         "first boot-beat is missing"
     )
-
-
-import pytest as _pytest
 
 
 @_pytest.mark.xfail(

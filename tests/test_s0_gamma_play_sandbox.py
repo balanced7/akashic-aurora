@@ -95,7 +95,6 @@ def test_sandboxed_run_captures_output():
 def test_receipt_persisted_to_runs():
     """After sandboxed_run(), a receipt JSON exists in the runs directory."""
 
-    monkeypatch_setenv = os.environ.get("PYTEST_CURRENT_TEST")  # just verify we're in pytest
     # Use the REAL PLAY directory for this test (data/play) — sandboxed_run writes to it
     from core.toolbelt.play_sandbox import PLAY, sandboxed_run
 
@@ -107,7 +106,7 @@ def test_receipt_persisted_to_runs():
     try:
         with open(tool_path, "w") as f:
             f.write("print('receipt me')\n")
-        rec = sandboxed_run("test-gamma", "meep", tool_path)
+        sandboxed_run("test-gamma", "meep", tool_path)
         # Check that a receipt JSON was written
         recs = [f for f in os.listdir(runs_sub) if f.startswith("meep-") and f.endswith(".json")]
         assert len(recs) >= 1, "receipt JSON was written to runs/"

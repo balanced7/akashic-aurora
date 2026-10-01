@@ -27,11 +27,12 @@ from pathlib import Path
 
 import pytest
 
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from core.comm import packet_spec
 from core.comm.bus import Bus
+
+ROOT = Path(__file__).resolve().parents[1]
 
 
 def _router():

@@ -73,7 +73,7 @@ def _forge(mem, dec_id, title, body, created, superseded=False, supersedes=None)
 
 
 def test_trailing_space_renote_supersedes_clean_title(mem):
-    a = mem.decide_with_retry("where-we-are", "clean")
+    mem.decide_with_retry("where-we-are", "clean")
     b = mem.decide_with_retry("where-we-are  ", "dirty-authored re-note")
     active = list(mem.get_decisions(days=3650))
     assert [d.id for d in active] == [b], "NFC+strip: one chain, one active"
@@ -85,14 +85,14 @@ def test_nfc_equals_nfd(mem):
     nfc = "café-status"
     nfd = unicodedata.normalize("NFD", nfc)
     assert nfc != nfd, "sanity: the two encodings differ pre-normalization"
-    a = mem.decide_with_retry(nfc, "one")
-    b = mem.decide_with_retry(nfd, "two")
+    mem.decide_with_retry(nfc, "one")
+    mem.decide_with_retry(nfd, "two")
     assert len(mem.get_decisions(days=3650)) == 1, "NFC==NFD: same chain"
 
 
 def test_case_distinct_titles_not_merged(mem):
-    a = mem.decide_with_retry("LEXICON-status", "upper")
-    b = mem.decide_with_retry("lexicon-status", "lower")
+    mem.decide_with_retry("LEXICON-status", "upper")
+    mem.decide_with_retry("lexicon-status", "lower")
     assert len(mem.get_decisions(days=3650)) == 2, (
         "no case folding: case-distinct titles stay distinct (precision first)"
     )
@@ -144,7 +144,7 @@ def test_superseded_target_refused_with_head_named(mem):
 def test_all_retired_title_listed_active_title_not(mem):
     a = mem.decide_with_retry("vanished-arc-status", "done")
     mem.retire_decision(a)
-    keep = mem.decide_with_retry("live-title", "active")
+    mem.decide_with_retry("live-title", "active")
     gone = mem.get_retired_titles()
     titles = {g.get("title") for g in gone}
     assert "vanished-arc-status" in titles

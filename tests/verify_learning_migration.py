@@ -127,7 +127,9 @@ def main():
 
         # 9) success vocabulary is canonical (no stray "True"/"False"/synonyms)
         canonical = {"yes", "partial", "no"}
-        bad = [l["experiment_name"] for l in ls.load_all_learnings_from_store() if l.get("success") not in canonical]
+        bad = [
+            rec["experiment_name"] for rec in ls.load_all_learnings_from_store() if rec.get("success") not in canonical
+        ]
         print(f"\n[9] success vocabulary check -> {len(bad)} non-canonical")
         assert not bad, f"non-canonical success values: {bad}"
         # normalizer maps the messy inputs we've actually seen

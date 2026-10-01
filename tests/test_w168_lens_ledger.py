@@ -1,5 +1,3 @@
-from pathlib import Path
-
 """W168 pins: score fan lenses by what SURVIVED, not by whether the model replied.
 
 Daniil asked for this on 2026-08-11 -- the route journal's own docstring says so: "the
@@ -41,6 +39,9 @@ FOUR THINGS THIS MUST NOT DO, each earned:
 And it RECOMMENDS, never enforces (instrument_proposes_never_self_ratifies): a structural
 scorer has no business silencing a lens until a human has read its ledger.
 """
+
+from pathlib import Path
+
 import pytest
 
 from core.coord import lens_ledger as L

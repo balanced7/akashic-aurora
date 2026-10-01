@@ -117,21 +117,21 @@ def test_w1_no_next_focus_teaches_the_ledger(monkeypatch):
 # ---------------------------------------------------------------- W2 WHERE + curated flag
 def test_w2_where_carries_age_and_curated_flag(monkeypatch):
     out = _full(monkeypatch)
-    where = next(l for l in out.splitlines() if "WHERE:" in l)
+    where = next(ln for ln in out.splitlines() if "WHERE:" in ln)
     assert "curated" in where, f"W2: expected '(curated, Nh ago)', got: {where}"
     assert "h ago" in where, f"W2: expected '(curated, Nh ago)', got: {where}"
 
 
 def test_w2_mechanical_note_renders_auto(monkeypatch):
     out = _full(monkeypatch, notes=[_dec("where-we-are", "auto-distilled state", hours_ago=2, curated=False)])
-    where = next(l for l in out.splitlines() if "WHERE:" in l)
+    where = next(ln for ln in out.splitlines() if "WHERE:" in ln)
     assert "auto" in where
     assert "curated" not in where
 
 
 def test_w2_refinement_r1_legacy_note_renders_age_only(monkeypatch):
     out = _full(monkeypatch, notes=[_dec("where-we-are", "legacy pre-flag note", hours_ago=2, curated=None)])
-    where = next(l for l in out.splitlines() if "WHERE:" in l)
+    where = next(ln for ln in out.splitlines() if "WHERE:" in ln)
     assert "h ago" in where
     assert "curated" not in where, "R1: an absent flag must not be inferred either way"
     assert "auto" not in where, "R1: an absent flag must not be inferred either way"
@@ -140,13 +140,13 @@ def test_w2_refinement_r1_legacy_note_renders_age_only(monkeypatch):
 # ---------------------------------------------------------------- W3 SIBLINGS
 def test_w3_solo_when_no_siblings(monkeypatch):
     out = _full(monkeypatch, siblings=[])
-    sib = next(l for l in out.splitlines() if "SIBLINGS:" in l)
+    sib = next(ln for ln in out.splitlines() if "SIBLINGS:" in ln)
     assert "solo" in sib
 
 
 def test_w3_sibling_line_names_the_incarnation(monkeypatch):
     out = _full(monkeypatch)
-    sib = next(l for l in out.splitlines() if "SIBLINGS:" in l)
+    sib = next(ln for ln in out.splitlines() if "SIBLINGS:" in ln)
     assert "1 live sibling" in sib
     assert "claude#b0b7771d" in sib
     assert "45m idle" in sib
@@ -157,11 +157,11 @@ def test_w4_note_lines_stamped_live_lines_not(monkeypatch):
     out = _full(monkeypatch)
     lines = out.splitlines()
     for probe in ("DIRECTIVE:", "WHERE:", "THEMES:"):
-        l = next(x for x in lines if probe in x)
-        assert "ago" in l, f"W4: note-derived line lacks an age stamp: {l}"
+        line = next(x for x in lines if probe in x)
+        assert "ago" in line, f"W4: note-derived line lacks an age stamp: {line}"
     for probe in ("mail:", "delta:", "SIBLINGS:"):
-        l = next(x for x in lines if probe in x)
-        assert "ago" not in l, f"W4: live line must NOT carry an age stamp: {l}"
+        line = next(x for x in lines if probe in x)
+        assert "ago" not in line, f"W4: live line must NOT carry an age stamp: {line}"
 
 
 # ---------------------------------------------------------------- W5 staleness
@@ -174,8 +174,8 @@ def test_w5_stale_note_gains_stale_prefix(monkeypatch):
         ],
     )
     lines = out.splitlines()
-    assert any("[STALE]" in l and "DIRECTIVE:" in l for l in lines), "W5: 12d-old directive must be [STALE]"
-    assert any("[STALE]" in l and "WHERE:" in l for l in lines)
+    assert any("[STALE]" in ln and "DIRECTIVE:" in ln for ln in lines), "W5: 12d-old directive must be [STALE]"
+    assert any("[STALE]" in ln and "WHERE:" in ln for ln in lines)
 
 
 def test_w5_fresh_note_is_not_stale(monkeypatch):
@@ -198,14 +198,14 @@ def test_w6_drop_order_protects_the_orienting_core(monkeypatch):
     for core in ("DIRECTIVE:", "WHERE:", "SIBLINGS:"):
         assert core in joined, f"drop order must protect {core}"
     # probe the SECTIONS, not raw substrings (the delta line legitimately says "last boot ->")
-    assert not any(l.strip().startswith("funnel:") for l in lines), "R6: FUNNEL drops before the orienting core"
-    assert not any(l.strip().startswith("boot:") for l in lines), "R6: BOOT drops first under budget pressure"
+    assert not any(ln.strip().startswith("funnel:") for ln in lines), "R6: FUNNEL drops before the orienting core"
+    assert not any(ln.strip().startswith("boot:") for ln in lines), "R6: BOOT drops first under budget pressure"
 
 
 # ---------------------------------------------------------------- R2 THEMES window
 def test_r2_themes_line_renders_fresh_and_absent_when_old(monkeypatch):
     out = _full(monkeypatch)
-    assert any("THEMES:" in l for l in out.splitlines())
+    assert any("THEMES:" in ln for ln in out.splitlines())
     out2 = _full(
         monkeypatch,
         notes=[
@@ -214,13 +214,13 @@ def test_r2_themes_line_renders_fresh_and_absent_when_old(monkeypatch):
             _dec("session-themes", "old themes", hours_ago=35 * 24),
         ],
     )
-    assert not any("THEMES:" in l for l in out2.splitlines()), "R2: themes >30d old stay off the whisper"
+    assert not any("THEMES:" in ln for ln in out2.splitlines()), "R2: themes >30d old stay off the whisper"
 
 
 # ---------------------------------------------------------------- R3 STORY spill
 def test_r3_story_spill_line_when_room(monkeypatch):
     out = _full(monkeypatch, unread=0, draft=False, delta=0)
-    assert any("STORY:" in l and "JOURNEY" in l for l in out.splitlines()), (
+    assert any("STORY:" in ln and "JOURNEY" in ln for ln in out.splitlines()), (
         "R3: quiet whisper has room -> the story pointer rides the spill"
     )
 
@@ -228,7 +228,7 @@ def test_r3_story_spill_line_when_room(monkeypatch):
 def test_r3_story_yields_under_budget_pressure(monkeypatch):
     monkeypatch.setenv("AKASHIC_WHISPER_LINES", "6")
     out = _full(monkeypatch)
-    assert not any("STORY:" in l for l in out.splitlines())
+    assert not any("STORY:" in ln for ln in out.splitlines())
 
 
 # ---------------------------------------------------------------- curated flag round-trip

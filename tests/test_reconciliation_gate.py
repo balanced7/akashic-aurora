@@ -136,8 +136,8 @@ def test_ship_plan_wires_the_gate_before_tests():
         dry_run=False,
     )
     plan = ship.build_plan(args)
-    labels = [l for l, _ in plan]
-    gate = next((l for l in labels if "reconciliation" in l), None)
+    labels = [label for label, _ in plan]
+    gate = next((ln for ln in labels if "reconciliation" in ln), None)
     assert gate, f"gate step present as a guard: {labels}"
     assert "guard" in gate, f"gate step present as a guard: {labels}"
     assert labels.index(gate) < labels.index("tests (full suite)"), "gate runs BEFORE the suite"

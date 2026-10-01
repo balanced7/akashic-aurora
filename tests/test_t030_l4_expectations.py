@@ -172,7 +172,7 @@ def test_linked_reply_clears_exactly_and_survives_consumption(pair):
 def test_nonanswer_note_does_not_clear(pair):
     s, r = pair
     t0 = time.time()
-    orig = _arm(s, r, within=60)
+    _arm(s, r, within=60)
     Bus(r).send(s, "note", "(runner timed out -- api call abandoned)")
     res = expectations.sweep(s, now=t0 + 10)
     assert res["cleared"] == [], "kind=note is a NON-answer: the expectation stays armed and the redrive will fire"

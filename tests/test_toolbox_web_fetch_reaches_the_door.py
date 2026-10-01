@@ -182,7 +182,7 @@ def test_the_receipt_names_the_seat_that_fetched(tmp_path):
     assert "FETCH FAILED" in out
 
     assert ledger.exists(), "a failed fetch wrote NO receipt -- the error path is unaudited"
-    lines = [l for l in ledger.read_text(encoding="utf-8").splitlines() if l.strip()]
+    lines = [ln for ln in ledger.read_text(encoding="utf-8").splitlines() if ln.strip()]
     assert lines, "receipt file created but empty"
     row = json.loads(lines[-1])
     assert row.get("seat") == "pin-seat", (

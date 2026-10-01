@@ -39,7 +39,7 @@ def _online():
 
 
 def test_p1_legacy_only_byte_identical(monkeypatch):
-    ns = _ns_env(monkeypatch)
+    _ns_env(monkeypatch)
     if not _online():
         pytest.skip("redis not available")
     from core.comm.bus import Bus
@@ -49,7 +49,7 @@ def test_p1_legacy_only_byte_identical(monkeypatch):
 
 
 def test_p2_lane_shadow_wins_when_ahead(monkeypatch):
-    ns = _ns_env(monkeypatch)
+    _ns_env(monkeypatch)
     if not _online():
         pytest.skip("redis not available")
     from core.comm.bus import Bus
@@ -62,7 +62,7 @@ def test_p2_lane_shadow_wins_when_ahead(monkeypatch):
 
 
 def test_p3_doctor_backlog_zero_for_lane_drained(monkeypatch):
-    ns = _ns_env(monkeypatch)
+    _ns_env(monkeypatch)
     if not _online():
         pytest.skip("redis not available")
     from core.comm.bus import Bus
@@ -78,7 +78,7 @@ def test_p3_doctor_backlog_zero_for_lane_drained(monkeypatch):
 
 
 def test_p4_real_unread_still_counts(monkeypatch):
-    ns = _ns_env(monkeypatch)
+    _ns_env(monkeypatch)
     if not _online():
         pytest.skip("redis not available")
     from core.comm.bus import Bus
@@ -90,7 +90,7 @@ def test_p4_real_unread_still_counts(monkeypatch):
 
 
 def test_p5_pending_per_stream_floors(monkeypatch):
-    ns = _ns_env(monkeypatch)
+    _ns_env(monkeypatch)
     if not _online():
         pytest.skip("redis not available")
     from core.comm.bus import Bus

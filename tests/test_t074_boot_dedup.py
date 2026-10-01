@@ -48,9 +48,9 @@ def _fake_mem(monkeypatch, wwa_chars=500):
 def test_w13_primer_aware_head_carries_full_where_we_are(monkeypatch):
     _fake_mem(monkeypatch, wwa_chars=500)
     head = agent_cli._orientation_header("claude", primer_aware=True)
-    wwa_lines = [l for l in head.splitlines() if "where-we-are" in l.lower()]
+    wwa_lines = [ln for ln in head.splitlines() if "where-we-are" in ln.lower()]
     assert wwa_lines, "head must still carry where-we-are"
-    assert sum(len(l) for l in wwa_lines) > 300, (
+    assert sum(len(ln) for ln in wwa_lines) > 300, (
         "W13: primer-aware head carries the FULL body (resume anchor), not the 120-clip"
     )
 
@@ -58,7 +58,7 @@ def test_w13_primer_aware_head_carries_full_where_we_are(monkeypatch):
 def test_w13_legacy_head_keeps_the_one_liner(monkeypatch):
     _fake_mem(monkeypatch, wwa_chars=500)
     head = agent_cli._orientation_header("claude", primer_aware=False)
-    wwa_lines = [l for l in head.splitlines() if l.startswith("# where-we-are:")]
+    wwa_lines = [ln for ln in head.splitlines() if ln.startswith("# where-we-are:")]
     assert wwa_lines, "legacy boot keeps the compact one-liner"
     assert len(wwa_lines[0]) < 160, "legacy boot keeps the compact one-liner"
 

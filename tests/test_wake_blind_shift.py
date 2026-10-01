@@ -143,7 +143,6 @@ def test_b4_the_probe_never_runs_on_the_mail_path(tmp_path, monkeypatch, capsys)
     """An arriving message exits on mail; the liveness probe is for EMPTY returns only."""
     clock = FakeClock()
     api = FakeApi(clock, chunk_s=120, offline_after_s=None, mail_at=clock.now + 120, mail=[_msg()])
-    probes_at_arm = None
 
     rc = _watch(api, tmp_path, monkeypatch, clock, deadline_s=36_000)
     capsys.readouterr()

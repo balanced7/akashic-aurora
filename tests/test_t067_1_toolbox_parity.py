@@ -33,11 +33,12 @@ from pathlib import Path
 from types import SimpleNamespace
 
 os.environ.setdefault("_AISETUP_TEST_ISOLATED", "1")
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, ROOT)
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import scripts.checkers.check_door_parity as cdp
 import scripts.deepseek_chat as dc
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def _runner():

@@ -10,8 +10,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import importlib as _il
 
@@ -20,6 +19,8 @@ from tests.test_t095_m0_mailbox_shadow import (
     _advance_cursor,
     _mk,
 )
+
+ROOT = Path(__file__).resolve().parents[1]
 
 
 def _mailbox():
@@ -33,7 +34,7 @@ def test_lane_flip_no_double_count():
     fake, bus = _mk()
 
     # First copy: normal bus.send into work lane
-    mid = bus.send("deepseek", "handoff", "dual test")
+    bus.send("deepseek", "handoff", "dual test")
     # Get the sha from the mailbox after first catch_up
     mbx.catch_up(NS, "deepseek", client=fake)
     r1 = mbx.query(NS, "deepseek", client=fake, catch_up_budget=0)
@@ -63,7 +64,7 @@ def test_legacy_only_straggler_detected_as_consumed():
     mbx = _mailbox()
     fake, bus = _mk()
 
-    mid = bus.send("deepseek", "chat", "legacy alone")
+    bus.send("deepseek", "chat", "legacy alone")
     mbx.catch_up(NS, "deepseek", client=fake)
     r = mbx.query(NS, "deepseek", client=fake, catch_up_budget=0)
     tiers = {e["kind"]: e["tier"] for e in r["entries"]}
@@ -122,7 +123,7 @@ def test_legacy_stream_retirement_preserves_existing_entries():
     mbx = _mailbox()
     fake, bus = _mk()
 
-    mid = bus.send("deepseek", "handoff", "old legacy entry")
+    bus.send("deepseek", "handoff", "old legacy entry")
     mbx.catch_up(NS, "deepseek", client=fake)
 
     r = mbx.query(NS, "deepseek", client=fake, catch_up_budget=0)

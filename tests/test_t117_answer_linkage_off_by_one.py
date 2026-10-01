@@ -311,7 +311,7 @@ def test_p11_a_reply_to_the_redrive_settles_the_original(sender, monkeypatch):
     expectation redrove again -- the T117 disease reborn one generation down.
     The redrive branch must alias its new ids back to the ORIGINAL ask."""
     s = sender
-    c = E._client()
+    E._client()
     _arm(s, "1785226575154-0", "kimi", "1785226472805-0", 1785226575.19, deadline_past=True, redrives=2)
 
     sent = {}

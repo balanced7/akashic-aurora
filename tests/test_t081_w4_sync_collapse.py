@@ -79,7 +79,7 @@ def test_show_traces_expands_in_original_order():
 def test_work_shown_before_traces():
     out = bp.render_collapsed([_m("trace", content="t1"), _m("handoff", frm="claude", content="H")])
     assert out[0] == "[handoff] from claude: H"
-    assert any("t1" in l for l in out)
+    assert any("t1" in ln for ln in out)
 
 
 def test_display_only_meta_folds_even_work_kind():
@@ -102,5 +102,5 @@ def test_accepts_message_objects_not_just_dicts():
 
 def test_lossless_expand_shows_every_message():
     msgs = [_m("handoff"), _m("reply"), _m("inform")] + [_m("trace", content=f"t{i}") for i in range(4)]
-    assert any("3 more trace(s)" in l for l in bp.render_collapsed(msgs))
+    assert any("3 more trace(s)" in ln for ln in bp.render_collapsed(msgs))
     assert len(bp.render_collapsed(msgs, show_traces=True)) == 7  # nothing dropped

@@ -135,7 +135,7 @@ def test_k8_catchable_canaries_land_in_the_detectors_universe(tmp_path):
 
 
 def test_k7_planting_is_deterministic_under_a_seed(tmp_path):
-    c = _mod()
+    _mod()
     out = []
     for n in ("a", "b"):
         shadow = tmp_path / n
