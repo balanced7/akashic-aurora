@@ -1,0 +1,29 @@
+# G2 -- format the whole repo (class B). Registered in G0. Append-only.
+goal = "G2"
+required_drills = ["D01", "D05"]
+
+[[check]]
+id = "G2.fmt-check"
+phase = "G2.P3"
+cmd = ["uv", "run", "--frozen", "poe", "fmt-check"]
+expect = 0
+
+[[check]]
+id = "G2.ast-equal-and-replay"
+phase = "G2.P4"
+cmd = ["{python}", "tooling-upgrade/certify.py", "assert-mechanical-commits"]
+expect = 0
+timeout_s = 7200
+
+[[check]]
+id = "G2.blame-ignore-revs"
+phase = "G2.P3"
+cmd = ["{python}", "tooling-upgrade/certify.py", "assert-blame-ignore-revs"]
+expect = 0
+
+[[check]]
+id = "G2.oracle"
+phase = "G2.P4"
+cmd = ["{python}", "tooling-upgrade/oracle.py", "compare", "g0", "head"]
+expect = 0
+expect_stdout = "^ORACLE: 10/10 EQUAL$"
