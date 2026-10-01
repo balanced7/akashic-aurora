@@ -44,6 +44,7 @@ import struct
 import sys
 import types
 from pathlib import Path
+import contextlib
 
 HERE = Path(__file__).resolve().parent
 BAND_SCRIPT = HERE / "arsenal_band.py"
@@ -121,9 +122,9 @@ class ScriptDialog:
         self._group = None
 
     def _add(self, name, inp):
-        full = "%s: %s" % (self._group, name) if self._group else name
+        full = "{}: {}".format(self._group, name) if self._group else name
         if full in self._inputs:
-            raise ValueError("duplicate input %r" % full)
+            raise ValueError("duplicate input {!r}".format(full))
         self._inputs[full] = inp
 
     def addInputKnob(self, name, default, lo, hi, hint=""):
@@ -138,7 +139,7 @@ class ScriptDialog:
     def addInputCombo(self, name, options, default, hint=""):
         opts = options.split(",") if isinstance(options, str) else list(options)
         if not opts:
-            raise ValueError("combo %r has no options" % name)
+            raise ValueError("combo {!r} has no options".format(name))
         self._add(name, _Input("combo", 0, len(opts) - 1, opts, int(min(max(default, 0), len(opts) - 1))))
 
     def addInputText(self, name, default="", hint=""):
@@ -152,7 +153,7 @@ class ScriptDialog:
         try:
             return self._inputs[name].value
         except KeyError:
-            raise KeyError("no input named %r (inputs: %s)" % (name, ", ".join(self._inputs))) from None
+            raise KeyError("no input named {!r} (inputs: {})".format(name, ", ".join(self._inputs))) from None
 
     def setNormalizedValue(self, name, value):
         inp = self._inputs[name]
@@ -250,7 +251,7 @@ def make_flvfx(host):
 
         def __setattr__(self, name, value):
             if type(self) is Voice and name not in VOICE_DEFAULTS:
-                raise AttributeError("vfx.Voice has no attribute %r (subclass it to add fields)" % name)
+                raise AttributeError("vfx.Voice has no attribute {!r} (subclass it to add fields)".format(name))
             object.__setattr__(self, name, value)
 
         def copyFrom(self, other):
@@ -268,7 +269,7 @@ def make_flvfx(host):
 
     def setOutputController(name, value):
         if name not in host.controllers:
-            raise KeyError("no output controller named %r" % name)
+            raise KeyError("no output controller named {!r}".format(name))
         host.controllers[name].append(value)
 
     class Dialog(ScriptDialog):
@@ -316,7 +317,7 @@ class Host:
             if not gaps or any(not isinstance(g, int) or g < 0 for g in gaps) or not any(gaps):
                 raise ValueError("gaps are whole tick counts, not all 0")
         if knob_store not in KNOB_STORES or knob_read not in KNOB_READS:
-            raise ValueError("knob_store is one of %s, knob_read one of %s" % (KNOB_STORES, KNOB_READS))
+            raise ValueError("knob_store is one of {}, knob_read one of {}".format(KNOB_STORES, KNOB_READS))
         self.tick_step = tick_step
         self.gaps = gaps
         self.buffer_samples = buffer_samples
@@ -394,10 +395,8 @@ class Host:
                 sys.modules[name] = value
         self._saved = {}
         if self._path_added:
-            try:
+            with contextlib.suppress(ValueError):
                 sys.path.remove(str(self.patterns_dir))
-            except ValueError:
-                pass
             self._path_added = False
 
     @property
@@ -702,7 +701,7 @@ def simulate(
                 )
             )
         for a in host.anomalies:
-            out("ANOMALY: %r" % (a,))
+            out("ANOMALY: {!r}".format(a))
         return 1 if host.anomalies else 0
 
 

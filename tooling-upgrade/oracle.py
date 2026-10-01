@@ -139,7 +139,7 @@ def run_logged(cmd, log: Path, cwd=ROOT, env=None, timeout=None):
     the log's tail shows a suite moving -- a stuck run and a slow one are told apart by watching
     it grow. Returns a CompletedProcess whose stdout is the whole log."""
     log.parent.mkdir(parents=True, exist_ok=True)
-    progress("step started: %s  (tail -f %s)" % (" ".join(map(str, cmd))[:120], log))
+    progress("step started: {}  (tail -f {})".format(" ".join(map(str, cmd))[:120], log))
     with open(log, "w", encoding="utf-8") as fh:
         p = subprocess.Popen(
             [str(c) for c in cmd], cwd=str(cwd), env=env, stdin=subprocess.DEVNULL, stdout=fh, stderr=subprocess.STDOUT
@@ -156,7 +156,7 @@ def run_logged(cmd, log: Path, cwd=ROOT, env=None, timeout=None):
 
 
 def progress(msg: str) -> None:
-    print("[%s] %s" % (time.strftime("%H:%M:%S"), msg), flush=True)
+    print("[{}] {}".format(time.strftime("%H:%M:%S"), msg), flush=True)
 
 
 def git(*args, cwd=ROOT, check=True):
@@ -218,10 +218,7 @@ def normalize_text(s: str, tree: Path | None = None) -> str:
 
 
 def tracked_files(cwd=ROOT, ref=None):
-    if ref:
-        out = git("ls-tree", "-r", "-z", "--name-only", ref, cwd=cwd)
-    else:
-        out = git("ls-files", "-z", cwd=cwd)
+    out = git("ls-tree", "-r", "-z", "--name-only", ref, cwd=cwd) if ref else git("ls-files", "-z", cwd=cwd)
     return sorted(p for p in out.split("\0") if p)
 
 
@@ -300,12 +297,12 @@ def import_safe(tree) -> tuple[bool, str]:
                 name = ast.unparse(node.value.func)
                 if _SAFE_TOPLEVEL_CALLS.match(name):
                     continue
-                return False, "top-level call %s()" % name
+                return False, "top-level call {}()".format(name)
             if isinstance(node.value, (ast.Await, ast.Yield)):
                 return False, "top-level await"
             continue
         if isinstance(node, (ast.For, ast.AsyncFor, ast.While, ast.With, ast.AsyncWith)):
-            return False, "top-level %s block" % type(node).__name__
+            return False, "top-level {} block".format(type(node).__name__)
     return True, ""
 
 
@@ -367,16 +364,16 @@ def static_signatures(tree) -> dict:
     sigs = {}
     for node in tree.body if tree else ():
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and not node.name.startswith("_"):
-            full = "(%s)" % ast.unparse(node.args)
+            full = "({})".format(ast.unparse(node.args))
             if node.returns is not None:
                 full += " -> " + ast.unparse(node.returns)
-            bare_args = ast.parse("def f(%s): pass" % ast.unparse(node.args)).body[0].args
+            bare_args = ast.parse("def f({}): pass".format(ast.unparse(node.args))).body[0].args
             for a in bare_args.posonlyargs + bare_args.args + bare_args.kwonlyargs:
                 a.annotation = None
             for a in (bare_args.vararg, bare_args.kwarg):
                 if a is not None:
                     a.annotation = None
-            sigs[node.name] = {"full": full, "bare": "(%s)" % ast.unparse(bare_args)}
+            sigs[node.name] = {"full": full, "bare": "({})".format(ast.unparse(bare_args))}
     return sigs
 
 
@@ -414,7 +411,7 @@ def annotation_triggers(tree) -> list[str]:
             for d in node.decorator_list:
                 d = d.func if isinstance(d, ast.Call) else d
                 if isinstance(d, ast.Attribute) and d.attr in ("tool", "resource", "prompt"):
-                    found.add("@*.%s decorator" % d.attr)
+                    found.add("@*.{} decorator".format(d.attr))
     return sorted(found)
 
 
@@ -842,7 +839,7 @@ def verify_checkout(tree: Path) -> None:
     run(["git", "update-index", "-q", "--really-refresh"], cwd=tree)
     bad = run(["git", "status", "--porcelain", "--untracked-files=no"], cwd=tree).stdout.strip()
     if bad:
-        raise RuntimeError("run tree %s does not match its commit after checkout:\n%s" % (tree, bad[:2000]))
+        raise RuntimeError("run tree {} does not match its commit after checkout:\n{}".format(tree, bad[:2000]))
 
 
 @contextlib.contextmanager
@@ -887,8 +884,9 @@ def run_tree(ref: str, python: str | None = None):
     if base.exists():
         if owner.exists() and _owner_alive(load_json(owner)):
             raise RuntimeError(
-                "another snapshot is running in %s (owner %s); one at a time"
-                % (base, owner.read_text(encoding="utf-8").strip())
+                "another snapshot is running in {} (owner {}); one at a time".format(
+                    base, owner.read_text(encoding="utf-8").strip()
+                )
             )
         _rmtree(base)  # a crashed run's leftover: the oracle's own scratch
         git("worktree", "prune", check=False)
@@ -998,7 +996,7 @@ def suite_runs(tree: Path, raw: Path, runs: int, reruns: int, select=()) -> dict
                 "counts": _counts(d),
                 "tree_side_effects": fx,
             }
-            for d, fx in zip(run_data, side_effects)
+            for d, fx in zip(run_data, side_effects, strict=False)
         ],
         "tests": tests,
     }
@@ -1047,7 +1045,7 @@ def public_id(nid: str) -> str:
     files check_secrets allowlists. Hashing keeps matching exact and the values where they are."""
     if "[" in nid and nid.endswith("]") and "[#" not in nid:
         base, params = nid.split("[", 1)
-        return "%s[#%s]" % (base, sha256_bytes(params[:-1].encode("utf-8"))[:12])
+        return "{}[#{}]".format(base, sha256_bytes(params[:-1].encode("utf-8"))[:12])
     return nid
 
 
@@ -1079,10 +1077,13 @@ def compare_o1(a, b, partial=False) -> list:
     ra, rb = _per_run(a), _per_run(b)
     for base in sorted(volatile):
         cnt = lambda runs: min((len(r.get(base, {})) for r in runs), default=0)  # noqa: E731
-        ok = lambda runs: min(
-            (sum(o == "passed" for o in r.get(base, {}).values()) for r in runs),  # noqa: E731
-            default=0,
-        )
+
+        def ok(runs):
+            return min(
+                (sum(o == "passed" for o in r.get(base, {}).values()) for r in runs),  # noqa: E731
+                default=0,
+            )
+
         if cnt(rb) < cnt(ra):
             diffs.append(("volatile:" + base, "collects %d < baseline %d per run" % (cnt(rb), cnt(ra))))
         elif ok(rb) < ok(ra):
@@ -1148,22 +1149,22 @@ def ast_equal(parent: str, commit: str, cwd=ROOT):
     for line in out.splitlines():
         status, path = line.split("\t", 1)
         if status != "M":
-            results.append((path, False, "status %s (a format commit only modifies)" % status))
+            results.append((path, False, "status {} (a format commit only modifies)".format(status)))
             continue
-        a = run(["git", "show", "%s:%s" % (parent, path)], cwd=cwd).stdout.encode("utf-8")
-        b = run(["git", "show", "%s:%s" % (commit, path)], cwd=cwd).stdout.encode("utf-8")
+        a = run(["git", "show", "{}:{}".format(parent, path)], cwd=cwd).stdout.encode("utf-8")
+        b = run(["git", "show", "{}:{}".format(commit, path)], cwd=cwd).stdout.encode("utf-8")
         try:
             ok = ast_fingerprint(a) == ast_fingerprint(b)
             results.append((path, ok, "" if ok else "AST differs"))
         except SyntaxError as e:
-            results.append((path, False, "unparseable: %s" % e))
+            results.append((path, False, "unparseable: {}".format(e)))
     return results
 
 
 def cmd_ast_equal(args) -> int:
     res = ast_equal(args.parent, args.commit)
     for path, ok, why in res:
-        print("%s %s%s" % ("EQUAL" if ok else "DIFF ", path, (" (" + why + ")") if why else ""))
+        print("{} {}{}".format("EQUAL" if ok else "DIFF ", path, (" (" + why + ")") if why else ""))
     n_ok = sum(1 for _, ok, _ in res if ok)
     print("AST: %d/%d EQUAL" % (n_ok, len(res)))
     return 0 if n_ok == len(res) else 1
@@ -1173,7 +1174,7 @@ def format_commits(a_commit: str, b_commit: str, cwd=ROOT):
     """Class-B commits between two snapshots: subject `style: ...` (not `style(lint): ...`)."""
     if not a_commit or not b_commit or a_commit == b_commit:
         return []
-    out = git("log", "--format=%H %s", "%s..%s" % (a_commit, b_commit), cwd=cwd, check=False)
+    out = git("log", "--format=%H %s", "{}..{}".format(a_commit, b_commit), cwd=cwd, check=False)
     return [ln.split(" ", 1)[0] for ln in out.splitlines() if ln.split(" ", 1)[1].startswith("style:")]
 
 
@@ -1300,7 +1301,7 @@ def probe_modules(tree: Path, inv: dict, graph: RepoGraph, raw: Path, modules=No
         ext = sorted(n for n in graph.ext_names.get(f, ()) if not n.startswith("_"))
         static = {"ext": ext, "defined": defined, "optional": optional}
         if not e["import_safe"]:
-            return key, f, {"status": "SKIPPED(%s)" % e.get("import_unsafe_reason", "unsafe")}, static, tree_ast
+            return key, f, {"status": "SKIPPED({})".format(e.get("import_unsafe_reason", "unsafe"))}, static, tree_ast
         h = sha256_bytes(f.encode())[:16]
         names_path, out_path = work / (h + ".names.json"), work / (h + ".out.json")
         names_path.write_text(json.dumps(static), encoding="utf-8")
@@ -1344,7 +1345,7 @@ def compare_o3(a, b, partial=False) -> list:
             if not partial:
                 diffs.append(("import:" + mod, "module no longer probed"))
         elif r["status"] == "OK" and rb["status"] != "OK":
-            diffs.append(("import:" + mod, "OK -> %s" % rb["status"]))
+            diffs.append(("import:" + mod, "OK -> {}".format(rb["status"])))
     return diffs
 
 
@@ -1358,7 +1359,7 @@ def compare_o5(a, b, partial=False) -> list:
                 diffs.append(("module:" + mod, "module surface gone"))
             continue
         for n in sorted(set(s["names"]) - set(sb["names"])):
-            diffs.append(("name:%s.%s" % (mod, n), "public name disappeared"))
+            diffs.append(("name:{}.{}".format(mod, n), "public name disappeared"))
         if s.get("mode") != sb.get("mode"):
             continue
         for n, sig in sorted(s["sigs"].items()):
@@ -1366,9 +1367,9 @@ def compare_o5(a, b, partial=False) -> list:
             if sgb is None:
                 continue
             if sig["bare"] != sgb["bare"]:
-                diffs.append(("sig:%s.%s" % (mod, n), "%s -> %s" % (sig["bare"], sgb["bare"])))
+                diffs.append(("sig:{}.{}".format(mod, n), "{} -> {}".format(sig["bare"], sgb["bare"])))
             elif sig["full"] != sgb["full"] and mod in sensitive:
-                diffs.append(("annot:%s.%s" % (mod, n), "annotation changed in an annotation-sensitive module"))
+                diffs.append(("annot:{}.{}".format(mod, n), "annotation changed in an annotation-sensitive module"))
     return diffs
 
 
@@ -1478,7 +1479,7 @@ def mcp_tools_stdio(tree: Path, timeout=IMPORT_TIMEOUT_S):
                     cursor_msgs += 1
                 break
         if tools is None:
-            raise RuntimeError("no tools/list response within %ss" % timeout)
+            raise RuntimeError("no tools/list response within {}s".format(timeout))
         return tools
     finally:
         p.kill()
@@ -1499,7 +1500,7 @@ def surface_o4(tree: Path, inv: dict, graph: RepoGraph, raw: Path) -> dict:
                 err = normalize_text(r.stderr, tree).splitlines()
                 item["stderr_last"] = err[-1] if err else ""
         except subprocess.TimeoutExpired:
-            item = {"rc": None, "text": "", "na": "timeout under --help (%ss)" % HELP_TIMEOUT_S}
+            item = {"rc": None, "text": "", "na": "timeout under --help ({}s)".format(HELP_TIMEOUT_S)}
         after = git_status_set(tree)
         if after - before:
             item = {
@@ -1560,7 +1561,7 @@ def surface_o6(tree: Path, raw: Path, python=None) -> dict:
     for p in sorted((tree / "scripts" / "checkers").glob("*.py")):
         if p.name.startswith("_"):
             continue
-        progress("O6 %s" % p.stem)
+        progress("O6 {}".format(p.stem))
         try:
             r = run(
                 [python or venv_python(tree), p.relative_to(tree).as_posix()],
@@ -1577,7 +1578,7 @@ def surface_o6(tree: Path, raw: Path, python=None) -> dict:
             }
             if r.returncode == 2 and "usage:" in text and "required" in text:
                 item["na"] = "needs arguments"
-            (raw / ("O6-%s.log" % p.stem)).write_text(text, encoding="utf-8")
+            (raw / ("O6-{}.log".format(p.stem))).write_text(text, encoding="utf-8")
         except subprocess.TimeoutExpired:
             item = {"rc": 999, "crashed": True, "lines": 0, "digest": "", "na": "timeout"}
         out[p.stem] = item
@@ -1627,7 +1628,7 @@ def compare_o7(a, b, partial=False) -> list:
             diffs.append(("cmd:" + key, "command not captured"))
             continue
         if rb["rc"] != r["rc"]:
-            diffs.append(("cmd:" + key, "exit %s -> %s" % (r["rc"], rb["rc"])))
+            diffs.append(("cmd:" + key, "exit {} -> {}".format(r["rc"], rb["rc"])))
         if abs(rb["lines"] - r["lines"]) > max(1, 0.1 * r["lines"]):
             diffs.append(("cmd:" + key, "output %d -> %d lines (>10%%)" % (r["lines"], rb["lines"])))
         if rb["headings"] != r["headings"]:
@@ -1687,11 +1688,11 @@ def test_strength(tree_root: Path, files=None) -> dict:
             continue
         for node in tree.body:
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name.startswith("test"):
-                out["%s::%s" % (f, node.name)] = assertion_count(node)
+                out["{}::{}".format(f, node.name)] = assertion_count(node)
             elif isinstance(node, ast.ClassDef) and node.name.startswith("Test"):
                 for sub in node.body:
                     if isinstance(sub, (ast.FunctionDef, ast.AsyncFunctionDef)) and sub.name.startswith("test"):
-                        out["%s::%s::%s" % (f, node.name, sub.name)] = assertion_count(sub)
+                        out["{}::{}::{}".format(f, node.name, sub.name)] = assertion_count(sub)
     return {"tests": dict(sorted(out.items())), "total": sum(out.values())}
 
 
@@ -1779,7 +1780,7 @@ def compare_o10(a, b, partial=False) -> list:
     for pkg, p in sorted(a["packages"].items()):
         pb = b["packages"].get(pkg)
         if pb is None or pb < p - 0.5:
-            diffs.append(("cov:" + pkg, "%.2f -> %s (drop > 0.5 pp)" % (p, pb)))
+            diffs.append(("cov:" + pkg, "{:.2f} -> {} (drop > 0.5 pp)".format(p, pb)))
     return diffs
 
 
@@ -1822,7 +1823,7 @@ def snapshot(
         def put(comp, data):
             data["_meta"] = dict(common, partial_modules=sorted(modules) if modules else None)
             dump_json(dest / (comp + ".json"), data)
-            progress("%s captured" % comp)
+            progress("{} captured".format(comp))
 
         if "O8" in components:
             put("O8", surface_o8(commit))
@@ -1927,7 +1928,7 @@ def compare_dirs(a: Path, b: Path, components=None, partial=False, intended=None
             continue
         fa, fb = a / (c + ".json"), b / (c + ".json")
         if not fa.exists() or not fb.exists():
-            lines.append("%s MISSING (%s)" % (c, fa if not fa.exists() else fb))
+            lines.append("{} MISSING ({})".format(c, fa if not fa.exists() else fb))
             continue
         diffs = COMPARATORS[c](load_json(fa), load_json(fb), partial)
         covered = [
@@ -1944,9 +1945,9 @@ def compare_dirs(a: Path, b: Path, components=None, partial=False, intended=None
                     if e["component"] == c and fnmatch.fnmatchcase(d[0], e["key"])
                 }
             )
-            lines.append("%s EQUAL%s" % (c, " (intended: %s)" % ", ".join(ids) if ids else ""))
+            lines.append("{} EQUAL{}".format(c, " (intended: {})".format(", ".join(ids)) if ids else ""))
         else:
-            summary = "; ".join("%s: %s" % d for d in open_[:3])
+            summary = "; ".join("{}: {}".format(*d) for d in open_[:3])
             lines.append("%s DIFF %d %s" % (c, len(open_), summary))
     lines.append("ORACLE: %d/%d EQUAL" % (equal, len(comps)))
     return lines, equal == len(comps)
@@ -1961,7 +1962,7 @@ def cmd_snapshot(args) -> int:
     mods = set(args.modules.split(",")) if args.modules else None
     sel = tuple(args.select.split(",")) if args.select else ()
     dest = snapshot(args.label, args.ref, args.runs, args.reruns, comps, mods, select=sel, python=args.python)
-    print("snapshot written: %s" % dest.relative_to(ROOT))
+    print("snapshot written: {}".format(dest.relative_to(ROOT)))
     return 0
 
 
@@ -1976,22 +1977,22 @@ def verify_snapshot(label: str, suite_runs: int) -> list:
     d = snapshot_dir(label)
     problems = []
     if not (d / "meta.json").exists():
-        return ["no meta.json in %s" % d]
+        return ["no meta.json in {}".format(d)]
     meta = load_json(d / "meta.json")
     for c in COMPONENTS:
         p = d / (c + ".json")
         if not p.exists():
-            problems.append("%s missing" % c)
+            problems.append("{} missing".format(c))
             continue
         m = load_json(p).get("_meta", {})
         if m.get("digest") != meta["digest"]:
-            problems.append("%s taken at a different tree than meta.json" % c)
+            problems.append("{} taken at a different tree than meta.json".format(c))
         if m.get("partial_modules"):
-            problems.append("%s is a partial (module-restricted) capture" % c)
+            problems.append("{} is a partial (module-restricted) capture".format(c))
         if m.get("dirty"):
-            problems.append("%s taken in a dirty tree" % c)
+            problems.append("{} taken in a dirty tree".format(c))
         if m.get("select"):
-            problems.append("%s ran a test SELECTION, not the full suite" % c)
+            problems.append("{} ran a test SELECTION, not the full suite".format(c))
     if (d / "O1.json").exists() and len(load_json(d / "O1.json")["runs"]) < suite_runs:
         problems.append("O1 has fewer than %d suite runs" % suite_runs)
     if not meta.get("raw_digests"):
@@ -2003,7 +2004,7 @@ def cmd_verify_snapshot(args) -> int:
     problems = verify_snapshot(args.label, args.suite_runs)
     for p in problems:
         print("  ", p)
-    print("SNAPSHOT %s: %s" % (args.label, "COMPLETE" if not problems else "INCOMPLETE"))
+    print("SNAPSHOT {}: {}".format(args.label, "COMPLETE" if not problems else "INCOMPLETE"))
     return 1 if problems else 0
 
 
@@ -2117,7 +2118,7 @@ def cmd_selftest_d14(args) -> int:
 
     def mutate(tree):
         picked["mod"], picked["fn"] = _drop_function(tree, inv, base_o5)
-        print("D14 self-test: removed %s.%s in a scratch worktree" % (picked["mod"], picked["fn"]))
+        print("D14 self-test: removed {}.{} in a scratch worktree".format(picked["mod"], picked["fn"]))
 
     label = "_selftest_d14"
     commit = git("rev-parse", "HEAD").strip()
@@ -2130,8 +2131,8 @@ def cmd_selftest_d14(args) -> int:
     diffs = compare_o5(base_o5, o5, partial=True)
     _rmtree(SNAPSHOTS / label)
     for k, why in diffs:
-        print("O5 DIFF %s (%s)" % (k, why))
-    hit = any(k == "name:%s.%s" % (picked["mod"], picked["fn"]) for k, _ in diffs)
+        print("O5 DIFF {} ({})".format(k, why))
+    hit = any(k == "name:{}.{}".format(picked["mod"], picked["fn"]) for k, _ in diffs)
     print("D14 SELF-TEST: %s" % ("O5 DIFF DETECTED" if hit else "MISSED"))
     return 0 if hit else 1
 
@@ -2159,10 +2160,10 @@ def cmd_assert_stdlib(args) -> int:
     for name in ("oracle.py", "certify.py"):
         p = HERE / name
         if not p.exists():
-            bad.append("%s missing" % name)
+            bad.append("{} missing".format(name))
             continue
         extra = imported_top_modules(p) - set(sys.stdlib_module_names) - {"__future__", "oracle"}
-        bad += ["%s imports %s" % (name, m) for m in sorted(extra)]
+        bad += ["{} imports {}".format(name, m) for m in sorted(extra)]
     print("STDLIB-ONLY: %s" % ("PASS" if not bad else "FAIL " + "; ".join(bad)))
     return 1 if bad else 0
 
@@ -2207,7 +2208,7 @@ STRETCH = ["D", "ANN", "ARG", "FBT", "TRY", "PL"]
 
 
 def _uvx(tool, args, cwd, timeout=3600):
-    return run(["uvx", "%s@%s" % (tool, MEASURE_TOOLS[tool]), *args], cwd=cwd, env=oracle_env(), timeout=timeout)
+    return run(["uvx", "{}@{}".format(tool, MEASURE_TOOLS[tool]), *args], cwd=cwd, env=oracle_env(), timeout=timeout)
 
 
 def _ruff_cfg(d: Path, select, target="py311", line_length=100) -> Path:
@@ -2363,7 +2364,7 @@ def suite_measurements(label: str) -> dict:
     if xml_path.exists():
         cases = []
         for tc in ET.parse(xml_path).getroot().iter("testcase"):
-            cases.append((float(tc.get("time", 0)), "%s::%s" % (tc.get("classname"), tc.get("name"))))
+            cases.append((float(tc.get("time", 0)), "{}::{}".format(tc.get("classname"), tc.get("name"))))
         cases.sort(reverse=True)
         res["slowest_50"] = [{"s": round(t, 2), "test": n} for t, n in cases[:50]]
     if (d / "O1.json").exists():

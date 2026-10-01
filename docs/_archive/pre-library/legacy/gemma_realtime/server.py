@@ -86,9 +86,7 @@ async def upload_file(file: UploadFile = File(...)):
     content = await file.read()
 
     # Analyze file
-    result = await file_analyzer.analyze(content, file.filename)
-
-    return result
+    return await file_analyzer.analyze(content, file.filename)
 
 
 @app.post("/chat")
@@ -262,7 +260,7 @@ def get_gui_html() -> str:
         h1 { font-size: 1.2rem; }
         .status { display: flex; align-items: center; gap: 0.5rem; font-size: 0.8rem; color: #888; }
         .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #00ff00; }
-        
+
         #chat { flex: 1; overflow-y: auto; padding: 1rem; display: flex; flex-direction: column; gap: 1rem; }
         .message { max-width: 80%; padding: 0.8rem 1rem; border-radius: 12px; line-height: 1.5; }
         .message.user { align-self: flex-end; background: #0066ff; }
@@ -273,7 +271,7 @@ def get_gui_html() -> str:
             display: flex; align-items: center; gap: 0.5rem;
         }
         .attachment .remove { cursor: pointer; color: #ff6666; }
-        
+
         #input-area { 
             padding: 1rem; background: #1a1a1a; border-top: 1px solid #333;
         }
@@ -285,12 +283,12 @@ def get_gui_html() -> str:
         #message-box:focus { border-color: #0066ff; }
         #message-box.dragover { border-color: #00ff00; background: #1a1a1a; }
         #message-box::placeholder { color: #666; }
-        
+
         .attached { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.5rem; }
-        
+
         .buttons { display: flex; gap: 0.5rem; margin-top: 0.5rem; justify-content: space-between; }
         .buttons-left, .buttons-right { display: flex; gap: 0.5rem; }
-        
+
         button {
             padding: 0.6rem 1.2rem; border: none; border-radius: 6px; cursor: pointer;
             font-size: 0.9rem; display: flex; align-items: center; gap: 0.5rem;
@@ -301,9 +299,9 @@ def get_gui_html() -> str:
         button.secondary { background: #333; color: #fff; }
         button.secondary:hover { background: #444; }
         button.recording { background: #ff3333; color: #fff; animation: pulse 1s infinite; }
-        
+
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
-        
+
         #controls {
             padding: 0.5rem 1rem; background: #151515; border-top: 1px solid #333;
             display: flex; gap: 1rem; flex-wrap: wrap;
@@ -313,7 +311,7 @@ def get_gui_html() -> str:
         select {
             background: #222; color: #fff; border: 1px solid #444; padding: 0.3rem; border-radius: 4px;
         }
-        
+
         .speaking { color: #00ff00; }
     </style>
 </head>
@@ -325,12 +323,12 @@ def get_gui_html() -> str:
             <span>Connected</span>
         </div>
     </header>
-    
+
     <div id="chat"></div>
-    
+
     <div id="input-area">
         <div id="message-box" contenteditable="true" placeholder="Drop files here or type your message..."></div>
-        
+
         <div class="buttons">
             <div class="buttons-left">
                 <button id="mic-btn" class="secondary">🎤</button>
@@ -341,7 +339,7 @@ def get_gui_html() -> str:
             </div>
         </div>
     </div>
-    
+
     <div id="controls">
         <div class="control-group">
             <label>TTS:</label>
@@ -383,7 +381,7 @@ def get_gui_html() -> str:
         let isRecording = false;
         let mediaRecorder = null;
         let audioChunks = [];
-        
+
         // WebSocket
         function connect() {
             ws = new WebSocket(`ws://${location.host}/ws`);
@@ -395,7 +393,7 @@ def get_gui_html() -> str:
             };
         }
         connect();
-        
+
         // Handle incoming messages
         function handleMessage(data) {
             if (data.type === 'text' || data.type === 'transcript') {
@@ -406,7 +404,7 @@ def get_gui_html() -> str:
                 // Response complete
             }
         }
-        
+
         // Add message to chat
         function addMessage(role, text) {
             const div = document.createElement('div');
@@ -415,13 +413,13 @@ def get_gui_html() -> str:
             chat.appendChild(div);
             chat.scrollTop = chat.scrollHeight;
         }
-        
+
         // Play audio from base64
         function playAudio(base64) {
             const audio = new Audio('data:audio/wav;base64,' + base64);
             audio.play();
         }
-        
+
         // Drag and drop
         messageBox.addEventListener('dragover', (e) => {
             e.preventDefault();
@@ -443,29 +441,29 @@ def get_gui_html() -> str:
                 const result = await resp.json();
             }
         });
-        
+
         function addFileChip(name) {
             // Add file chip display
         }
-        
+
         // Send message
         sendBtn.onclick = async () => {
             const text = messageBox.textContent.trim();
             if (!text && attachedFiles.length === 0) return;
-            
+
             addMessage('user', text);
             messageBox.textContent = '';
-            
+
             const formData = new FormData();
             formData.append('message', text);
-            
+
             const resp = await fetch('/chat', { method: 'POST', body: formData });
             const result = await resp.json();
-            
+
             addMessage('gemma', result.response);
             if (result.audio) playAudio(result.audio);
         };
-        
+
         // Voice recording
         micBtn.onclick = async () => {
             if (isRecording) {
@@ -474,27 +472,27 @@ def get_gui_html() -> str:
                 startRecording();
             }
         };
-        
+
         async function startRecording() {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
             audioChunks = [];
-            
+
             mediaRecorder.ondataavailable = (e) => {
                 audioChunks.push(e.data);
             };
-            
+
             mediaRecorder.onstop = async () => {
                 const audio = new Blob(audioChunks);
                 const base64 = await blobToBase64(audio);
                 ws.send(JSON.stringify({ type: 'audio', data: base64 }));
             };
-            
+
             mediaRecorder.start();
             isRecording = true;
             micBtn.classList.add('recording');
         }
-        
+
         function stopRecording() {
             if (mediaRecorder) {
                 mediaRecorder.stop();
@@ -502,7 +500,7 @@ def get_gui_html() -> str:
                 micBtn.classList.remove('recording');
             }
         }
-        
+
         function blobToBase64(blob) {
             return new Promise((resolve) => {
                 const reader = new FileReader();
@@ -510,7 +508,7 @@ def get_gui_html() -> str:
                 reader.readAsDataURL(blob);
             });
         }
-        
+
         // Test audio
         testAudioBtn.onclick = async () => {
             const resp = await fetch('/tts/speak?text=Hello+I+am+Gemma');

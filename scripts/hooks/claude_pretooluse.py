@@ -308,10 +308,7 @@ def main() -> int:
         if drift:
             _emit_context(drift)
         return 0  # outside this repo -> silent no-op (safe for user-level / global registration)
-    if tool in _SHELL_TOOLS:
-        reason = _check_bash(data)
-    else:
-        reason = _check_write(data)
+    reason = _check_bash(data) if tool in _SHELL_TOOLS else _check_write(data)
     if reason:
         _deny(reason)
         return 0

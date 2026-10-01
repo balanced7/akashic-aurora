@@ -23,6 +23,7 @@ import subprocess
 import sys
 import threading
 import time
+import contextlib
 
 # T150/T152 runner-family law (regressed out in the ear-v2 rewrite, caught by the
 # census guards via the 2026-08-22 baseline delta): line-buffered utf-8 streams
@@ -30,14 +31,10 @@ import time
 # an exotic wrapper) degrades to old behaviour, never takes the ear down. This is
 # also the fix for the lazy-banner symptom (ARMED lines sitting unflushed in a
 # block buffer) that bit the operator's seat twice today.
-try:
+with contextlib.suppress(Exception):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace", line_buffering=True)
-except Exception:
-    pass
-try:
+with contextlib.suppress(Exception):
     sys.stderr.reconfigure(encoding="utf-8", errors="replace", line_buffering=True)
-except Exception:
-    pass
 
 NL = chr(10)  # newline, spelled out: an escape in this file got eaten once
 

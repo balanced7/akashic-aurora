@@ -54,6 +54,7 @@ os.makedirs(os.path.join(RAM_DISK, "temp"), exist_ok=True)
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from config import get_redis_config
+import contextlib
 
 # Try to connect to Redis (fail-fast: this runs at import, so it must never
 # stall ~48s when Redis is down — gate on a raw-socket reachability probe).
@@ -305,10 +306,8 @@ def cache_function_results_with_multi_layer_priority(ttl: int = CACHE_TTL, prefi
             _ram_cache[cache_key] = {"value": result, "time": time.time()}
             _ramdisk_cache[cache_key] = {"value": result, "time": time.time()}
             if _redis_available:
-                try:
+                with contextlib.suppress(BaseException):
                     _redis.setex(cache_key, ttl, json.dumps(result))
-                except:
-                    pass
 
             return result
 
@@ -390,10 +389,8 @@ def store_value_in_cache_hierarchy(key: str, value: Any, ttl: int = CACHE_TTL):
     write_data_to_ram_disk(f"{key}.json", {"value": value, "time": timestamp, "ttl": ttl})
 
     if _redis_available:
-        try:
+        with contextlib.suppress(BaseException):
             _redis.setex(f"{CACHE_PREFIX}{key}", ttl, json.dumps(value))
-        except:
-            pass
 
 
 # Backward compatibility alias
@@ -587,7 +584,7 @@ def execute_code_without_file_io(code: str, globals_dict: dict = None, timeout: 
             "cache_function_results_with_multi_layer_priority": cache_function_results_with_multi_layer_priority,
             "time": time,
             "datetime": datetime,
-            "fast_cache": sys.modules[__name__] if __name__ in sys.modules else None,
+            "fast_cache": sys.modules.get(__name__, None),
             "write_data_to_ram_disk": write_data_to_ram_disk,
             "load_data_from_ram_disk": load_data_from_ram_disk,
             "list_files_in_ram_disk_directory": list_files_in_ram_disk_directory,

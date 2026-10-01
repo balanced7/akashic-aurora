@@ -137,7 +137,7 @@ class ModelLifecycleManager:
             )
             if result.returncode == 0:
                 data = json.loads(result.stdout)
-                for gpu_id, info in data.items():
+                for info in data.values():
                     if "vram_used" in info:
                         return float(info["vram_used"].replace("MB", "")) / 1024
         except:
@@ -297,8 +297,7 @@ class ModelLifecycleManager:
         loaded = self.load_vision_model()
 
         try:
-            result = func(*args, **kwargs)
-            return result
+            return func(*args, **kwargs)
         finally:
             # Always unload after use
             if loaded:

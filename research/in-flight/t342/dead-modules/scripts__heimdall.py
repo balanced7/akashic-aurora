@@ -24,6 +24,7 @@ REPO = r"E:\AI-Setup"
 sys.path.insert(0, REPO)
 os.chdir(REPO)
 from core.comm.bus import Bus
+import contextlib
 
 TOTAL_DEADLINE_S = 1800  # 30 min, then re-arm even if idle
 INNER_BLOCK_MS = 120_000  # 2-min inner blocks; loop if a batch is all noise
@@ -42,10 +43,8 @@ def _write_heartbeat():
 
 
 def _clear_heartbeat():
-    try:
+    with contextlib.suppress(Exception):
         os.remove(HEARTBEAT)
-    except Exception:
-        pass
 
 
 def watch():

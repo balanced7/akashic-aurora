@@ -411,9 +411,8 @@ class AgentCoordinator:
 
                 # Check heartbeat
                 last_hb = datetime.fromisoformat(info["last_heartbeat"]).timestamp()
-                if last_hb > cutoff:
-                    if include_self or info["agent_id"] != self.agent_id:
-                        agents.append(info)
+                if last_hb > cutoff and (include_self or info["agent_id"] != self.agent_id):
+                    agents.append(info)
             except:
                 pass
 
@@ -519,9 +518,7 @@ class AgentCoordinator:
         """
 
         def filter_fn(entry):
-            if from_agent and entry["metadata"].get("from_agent") != from_agent:
-                return False
-            return True
+            return not (from_agent and entry["metadata"].get("from_agent") != from_agent)
 
         results = self.vector_store.search(query, top_k=top_k * 2, filter_fn=filter_fn)
 
@@ -625,10 +622,7 @@ class AgentCoordinator:
         if expires < time.time():
             return False  # Expired
 
-        if by_self and lock.get("agent_id") != self.agent_id:
-            return False
-
-        return True
+        return not (by_self and lock.get("agent_id") != self.agent_id)
 
     # =========================================================================
     # LEARNINGS SHARING

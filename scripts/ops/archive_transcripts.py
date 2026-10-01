@@ -59,6 +59,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 # as long as nobody compared the two lists. One declaration, one pin asserting they agree.
 sys.path.insert(0, str(_REPO_ROOT))
 from config import TRANSCRIPT_ARCHIVE_ROOTS  # noqa: E402
+import contextlib
 
 DEFAULT_DESTS: list[Path] = list(TRANSCRIPT_ARCHIVE_ROOTS)
 DEFAULT_RECEIPTS = _REPO_ROOT / "state" / "archive" / "receipts"
@@ -187,10 +188,8 @@ def _archive_one_dest(sources: list[Path], dest: Path, verify: bool, rel_root: P
     # LAW 1: nothing here removes files. The count is reported so the pin can assert on it
     # and so a reader never has to infer the absence of a delete path from silence.
     rec["deleted"] = 0
-    try:
+    with contextlib.suppress(Exception):
         rec["present_total"] = sum(1 for _ in dest.rglob("*") if _.is_file())
-    except Exception:
-        pass
     return rec
 
 

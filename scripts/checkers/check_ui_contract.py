@@ -151,13 +151,13 @@ def _check_earned_accent(lines: list[str]) -> list[str]:
 
         stripped = line.strip()
         # Allow: Python comments + docstring prose (English verb uses)
-        if stripped.startswith("#") or stripped.startswith("//"):
+        if stripped.startswith(("#", "//")):
             continue
         # Allow: CSS class definitions like .tripped { ... }
         if any("." + t in stripped and "{" in stripped for t in tokens):
             continue
         # Allow: CSS comment blocks
-        if stripped.startswith("/*") or stripped.startswith("*"):
+        if stripped.startswith(("/*", "*")):
             continue
 
         # Check this line AND the previous line for a state predicate

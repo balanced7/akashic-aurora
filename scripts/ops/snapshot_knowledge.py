@@ -246,9 +246,9 @@ def _restore_redis(r, dump):
                 r.sadd(k, *v)
         elif t == "zset":
             if v:
-                r.zadd(k, {m: s for m, s in v})
+                r.zadd(k, dict(v))
         elif t == "stream":
-            for eid, fields in v:
+            for _eid, fields in v:
                 r.xadd(k, fields)
 
 

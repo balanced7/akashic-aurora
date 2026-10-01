@@ -469,9 +469,7 @@ class AgentCoordinator:
         lock = self._get_resource_lock(resource)
         if not lock:
             return False
-        if by_self and lock.agent_id != self.agent_id:
-            return False
-        return True
+        return not (by_self and lock.agent_id != self.agent_id)
 
     def _broadcast_lock(self, lock_data: dict, action: str):
         """Broadcast lock change"""
@@ -569,7 +567,7 @@ class AgentCoordinator:
                 # Update our manifest to show we're blocked
                 self.update_manifest(status=AgentStatus.BLOCKED, waiting_for=[help_type])
 
-                msg_id = comm.send_broadcast(
+                return comm.send_broadcast(
                     msg_type="help_request",
                     content={
                         "requesting_agent": self.agent_id,
@@ -580,7 +578,6 @@ class AgentCoordinator:
                         "manifest": self._manifest.to_dict(),
                     },
                 )
-                return msg_id
         except:
             pass
 

@@ -22,6 +22,7 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from enum import Enum
 from typing import Any
+import contextlib
 
 # Paths
 ESCALATION_DIR = r"E:\AI-Setup\blackboard_data\escalations"
@@ -155,16 +156,12 @@ class EscalationManager:
             )
 
         # Additional scrubbing for file paths (Windows)
-        try:
+        with contextlib.suppress(re.error):
             scrubbed = re.sub(r"[A-Za-z]:\\\\[^,\s]+", "[FILE_PATH_REDACTED]", scrubbed)
-        except re.error:
-            pass
 
         # Scrub IP addresses (but keep localhost references)
-        try:
+        with contextlib.suppress(re.error):
             scrubbed = re.sub(r"(\d{1,3}\.\d{1,3}\.\d{1,3}\.)(\d{1,3})", r"\1***", scrubbed)
-        except re.error:
-            pass
 
         return scrubbed
 
@@ -202,10 +199,7 @@ class EscalationManager:
             return True
 
         # Count-based escalation
-        if retry_count >= tier_threshold:
-            return True
-
-        return False
+        return retry_count >= tier_threshold
 
     def create_review_request(
         self,

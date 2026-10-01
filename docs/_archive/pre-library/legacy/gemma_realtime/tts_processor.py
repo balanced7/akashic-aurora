@@ -68,8 +68,7 @@ class KokoroTTS:
 
         try:
             # Run in thread to not block
-            result = await asyncio.to_thread(self.engine.speak, text, speed=self.config.speed, voice=self.config.voice)
-            return result
+            return await asyncio.to_thread(self.engine.speak, text, speed=self.config.speed, voice=self.config.voice)
         except Exception as e:
             print(f"[TTS] Speak error: {e}")
             return b""

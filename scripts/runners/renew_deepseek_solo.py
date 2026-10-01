@@ -14,14 +14,13 @@ import os
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
+import contextlib
 
 # The Agent streams DeepSeek's thinking/tool-calls (which contain emoji) to stdout; on Windows the
 # default cp1252 console encoding crashes on them. Force UTF-8 so a background run can't die on an emoji.
 for _s in (sys.stdout, sys.stderr):
-    try:
+    with contextlib.suppress(Exception):
         _s.reconfigure(encoding="utf-8", errors="replace")
-    except Exception:
-        pass
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(os.path.dirname(HERE))

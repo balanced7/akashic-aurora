@@ -51,6 +51,7 @@ if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
 from core.comm import remote_relay as RR  # noqa: E402
+import contextlib
 
 
 def _pyl() -> str:
@@ -302,10 +303,8 @@ class _Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(raw)))
         self.end_headers()
-        try:
+        with contextlib.suppress(OSError):
             self.wfile.write(raw)
-        except OSError:
-            pass
         print(f"[{time.strftime('%H:%M:%S')}] {self.client_address[0]} {log}", flush=True)
 
     def _respond_bytes(self, status: int, raw: bytes, log: str) -> None:
@@ -313,10 +312,8 @@ class _Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", "application/octet-stream")
         self.send_header("Content-Length", str(len(raw)))
         self.end_headers()
-        try:
+        with contextlib.suppress(OSError):
             self.wfile.write(raw)
-        except OSError:
-            pass
         print(f"[{time.strftime('%H:%M:%S')}] {self.client_address[0]} {log}", flush=True)
 
     def do_POST(self) -> None:  # noqa: N802

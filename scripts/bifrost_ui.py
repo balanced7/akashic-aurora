@@ -32,6 +32,7 @@ from core.comm.bus import Bus
 from core.comm.launcher import get_launcher
 from core.primitives.epistemic import epistemic_view_from_bus
 from core.trust import registry
+import contextlib
 
 DROPBOX = os.path.join(REPO, "dropbox")
 BUS = Bus("user")  # the console posts to the bus as 'user'; also registers 'user' presence
@@ -883,6 +884,7 @@ class Handler(BaseHTTPRequestHandler):
             q = parse_qs(urlparse(self.path).query)
             return self._json(_vfx_sketch_read((q.get("name") or [""])[0]))
         self.send_error(404)
+        return None
 
     def _html(self):
         body = PAGE.encode("utf-8")
@@ -1410,6 +1412,7 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/episode/accept":
             return self._episode_accept(data)
         self.send_error(404)
+        return None
 
     # --- session bookends (S4): the episode panel's backend --------------------------------------
     # Thin adapters over core/narrative/episode(_suggester) emitting the locked contract
@@ -1636,7 +1639,7 @@ def _reexec():
         sys.stderr.flush()
     except Exception:
         pass
-    os.execv(sys.executable, [sys.executable] + sys.argv)
+    os.execv(sys.executable, [sys.executable, *sys.argv])
 
 
 def _reload_watcher():
@@ -1681,10 +1684,8 @@ def main():
     print(
         f"[bifrost-ui] live at {url}   ({'auto-reload ON' if args.auto_reload else 'manual reload button'} - Ctrl-C to stop)"
     )
-    try:
+    with contextlib.suppress(KeyboardInterrupt):
         srv.serve_forever()
-    except KeyboardInterrupt:
-        pass
     print("[bifrost-ui] stopped.")
 
 

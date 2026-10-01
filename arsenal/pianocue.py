@@ -40,6 +40,7 @@ import urllib.error
 import urllib.request
 from collections import deque
 from pathlib import Path
+import contextlib
 
 
 def _pyl() -> str:
@@ -583,9 +584,7 @@ def _reads_as_chords(tokens: list[str]) -> bool:
     readings = [_token_readings(t) for t in tokens]
     if not all(chord for _, chord in readings):
         return False
-    if all(note for note, _ in readings) and all(_BEATS.sub("", t)[-1] in "56" for t in tokens):
-        return False
-    return True
+    return not (all(note for note, _ in readings) and all(_BEATS.sub("", t)[-1] in "56" for t in tokens))
 
 
 def split_progression(text: str) -> list[str]:
@@ -801,7 +800,7 @@ def _cmd_play_several(args, items: list[str], hover: bool, out) -> int:
         f"{each / 1000:g} s each: label {cue['label']!r}",
         file=out,
     )
-    for step, r in zip(cue["steps"], results):
+    for step, r in zip(cue["steps"], results, strict=False):
         print(f"  @{step['at_ms']:>6} ms  hold {step['hold_ms']:>5}", file=out)
         for line in _format_result(r, args.key):
             print("  " + line, file=out)
@@ -866,7 +865,7 @@ def _cmd_progression(args, out) -> int:
         f"({'voice-led ' if args.voice_lead else ''}{args.voicing}), {at / 1000:.2f} s:",
         file=out,
     )
-    for step, r in zip(cue["steps"], results):
+    for step, r in zip(cue["steps"], results, strict=False):
         print(f"  @{step['at_ms']:>6} ms  hold {step['hold_ms']:>5}", file=out)
         for line in _format_result(r, args.key):
             print("  " + line, file=out)
@@ -1037,10 +1036,8 @@ def _utf8_streams() -> None:
     for stream in (sys.stdout, sys.stderr):
         encoding = (getattr(stream, "encoding", None) or "").lower().replace("-", "")
         if encoding != "utf8" and hasattr(stream, "reconfigure"):
-            try:
+            with contextlib.suppress(ValueError, OSError):
                 stream.reconfigure(encoding="utf-8", errors="replace")
-            except (ValueError, OSError):
-                pass
 
 
 def main(argv=None, out=None) -> int:

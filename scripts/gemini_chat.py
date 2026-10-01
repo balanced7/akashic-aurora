@@ -36,6 +36,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(HERE))
 
 from core.comm.runner_lib import make_openai_compat_client
+import contextlib
 
 KEY_FILE = Path(__file__).resolve().parent.parent / ".secrets" / "gemini.key"
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -329,17 +330,13 @@ class GeminiAgent:
 
     def _trace(self, kind, text):
         if self.on_trace and text:
-            try:
+            with contextlib.suppress(Exception):
                 self.on_trace(kind, str(text))
-            except Exception:
-                pass
 
     def _activity(self, state, detail=""):
         if self.on_activity:
-            try:
+            with contextlib.suppress(Exception):
                 self.on_activity(state, detail)
-            except Exception:
-                pass
 
     def reset(self):
         self.history = []
@@ -349,7 +346,7 @@ class GeminiAgent:
         offline. reasoning_effort rides extra_body only when it differs from the server default."""
         kw = {
             "model": self.model,
-            "messages": [{"role": "system", "content": self._system}] + self.history,
+            "messages": [{"role": "system", "content": self._system}, *self.history],
             "max_completion_tokens": self.max_completion_tokens,
         }
         if self._tools:

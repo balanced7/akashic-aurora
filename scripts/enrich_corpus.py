@@ -76,7 +76,7 @@ _HDR_BLOCK = re.compile(r"^(#[^\n]*\n)?\s*(Status:[^\n]*\n)(Type:[^\n]*\n)?([^\n
 
 def skip_reason(rel: str) -> str | None:
     p = rel.replace("\\", "/")
-    if p.startswith("docs/library/") or p.startswith("docs/_archive/"):
+    if p.startswith(("docs/library/", "docs/_archive/")):
         return "projection/archive"
     if p.startswith("charters/"):
         return "agent-contract (stays file)"
@@ -100,7 +100,7 @@ def derive(rel: str, header: dict, text: str) -> dict:
         status = "current"
     elif status_raw.startswith("superseded"):
         status = "superseded"
-    elif status_raw.startswith("fossil") or status_raw.startswith("historical"):
+    elif status_raw.startswith(("fossil", "historical")):
         status = "fossil"
     else:
         status = "draft"  # unmarked = uncurated; honest, and the lint sweeps drafts

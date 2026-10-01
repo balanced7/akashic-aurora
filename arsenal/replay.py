@@ -17,6 +17,7 @@ from urllib.parse import parse_qs, urlencode, urlsplit
 from .performance import PerformanceError, PerformanceStore
 from .pianocue import _note_spans, _utf8_streams, build_replay_cue, clock_text, parse_clock, validate_cue
 from .replay_harmony import harmony, theory_module
+import contextlib
 
 DEFAULT_PORT = 8796
 WEB = Path(__file__).resolve().parent / "web"
@@ -161,10 +162,8 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Referrer-Policy", "no-referrer")
         self.send_header("X-Content-Type-Options", "nosniff")
         self.end_headers()
-        try:
+        with contextlib.suppress(BrokenPipeError, ConnectionResetError):
             self.wfile.write(body)
-        except (BrokenPipeError, ConnectionResetError):
-            pass
 
     def do_GET(self):
         url = urlsplit(self.path)
@@ -187,7 +186,10 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(404, {"error": str(exc)})
         if url.path == "/api/piano/replay":
             q = parse_qs(url.query)
-            get = lambda key, default="": q.get(key, [default])[0]
+
+            def get(key, default=""):
+                return q.get(key, [default])[0]
+
             try:
                 result = excerpt(
                     self.server.performance,
@@ -212,6 +214,7 @@ class Handler(BaseHTTPRequestHandler):
             except (ValueError, OSError) as exc:
                 return self._send(400, {"error": str(exc)})
         self._send(404, {"error": "no such replay resource"})
+        return None
 
     def do_POST(self):
         if urlsplit(self.path).path != "/api/conversation/responses":
@@ -287,10 +290,8 @@ def main(argv=None):
             return 2
     with Server(args.port, args.root, args.conversation_root) as server:
         print(f"Replay player: http://127.0.0.1:{server.server_address[1]}/", flush=True)
-        try:
+        with contextlib.suppress(KeyboardInterrupt):
             server.serve_forever()
-        except KeyboardInterrupt:
-            pass
     return 0
 
 

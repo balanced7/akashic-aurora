@@ -144,33 +144,23 @@ class EscapeDetector:
         """
         if log_count == 0 and action_count > 5:
             return True
-        if action_count > log_count * 3 and action_count > 10:
-            return True
-        return False
+        return bool(action_count > log_count * 3 and action_count > 10)
 
     def detect_skip_kb_search(self, edit_count: int, kb_search_count: int) -> bool:
         """If making edits without searching KB first"""
-        if edit_count > 3 and kb_search_count == 0:
-            return True
-        return False
+        return bool(edit_count > 3 and kb_search_count == 0)
 
     def detect_skip_testing(self, run_count: int, verify_count: int) -> bool:
         """If running commands without verifying results"""
-        if run_count > 5 and verify_count == 0:
-            return True
-        return False
+        return bool(run_count > 5 and verify_count == 0)
 
     def detect_rapid_exit(self, session_duration: float, action_count: int) -> bool:
         """If session is very short with few actions"""
-        if session_duration < 60 and action_count < 3:
-            return True
-        return False
+        return bool(session_duration < 60 and action_count < 3)
 
     def detect_session_mismatch(self, stored_id: str, current_id: str) -> bool:
         """Detect if session ID changed without proper re-prime"""
-        if stored_id and current_id and stored_id != current_id:
-            return True
-        return False
+        return bool(stored_id and current_id and stored_id != current_id)
 
     def get_escape_risk(self) -> str:
         """Return overall escape risk level"""
@@ -353,30 +343,27 @@ class HarnessEnforcer:
             return False
 
         # ========== ENFORCEMENT 2: KB Search Before Building ==========
-        if action_type in ["edit", "create", "build"]:
-            if self.edit_count > 2 and self.kb_search_count == 0:
-                self._log_escape(
-                    EscapeCondition.SKIP_KB_SEARCH, {"action": action_type, "edit_count": self.edit_count}, "HIGH"
-                )
-                self._handle_kb_skip(action_type)
+        if action_type in ["edit", "create", "build"] and self.edit_count > 2 and self.kb_search_count == 0:
+            self._log_escape(
+                EscapeCondition.SKIP_KB_SEARCH, {"action": action_type, "edit_count": self.edit_count}, "HIGH"
+            )
+            self._handle_kb_skip(action_type)
 
         # ========== ENFORCEMENT 3: Blackboard Workflow ==========
-        if action_type in ["execute", "run", "subprocess", "deploy"]:
-            if not self._check_workflow_compliance():
-                self._log_escape(
-                    EscapeCondition.SKIP_BLACKBOARD_WORKFLOW,
-                    {"action": action_type, "current_phase": self.current_phase},
-                    "HIGH",
-                )
-                self._handle_workflow_skip(action_type)
-                return False
+        if action_type in ["execute", "run", "subprocess", "deploy"] and not self._check_workflow_compliance():
+            self._log_escape(
+                EscapeCondition.SKIP_BLACKBOARD_WORKFLOW,
+                {"action": action_type, "current_phase": self.current_phase},
+                "HIGH",
+            )
+            self._handle_workflow_skip(action_type)
+            return False
 
         # ========== ENFORCEMENT 4: Health Checks Before Deploy ==========
-        if action_type == "deploy":
-            if not self._check_health_checks_done():
-                self._log_escape(EscapeCondition.SKIP_HEALTH_CHECKS, {"action": action_type}, "CRITICAL")
-                self._handle_health_skip(action_type)
-                return False
+        if action_type == "deploy" and not self._check_health_checks_done():
+            self._log_escape(EscapeCondition.SKIP_HEALTH_CHECKS, {"action": action_type}, "CRITICAL")
+            self._handle_health_skip(action_type)
+            return False
 
         return True
 
@@ -469,10 +456,7 @@ class HarnessEnforcer:
             stored_id = state.session_id if hasattr(state, "session_id") else None
 
             # Check for mismatch
-            if stored_id and current_id and stored_id != current_id:
-                return False
-
-            return True
+            return not (stored_id and current_id and stored_id != current_id)
 
         except Exception:
             # If can't check, don't block - just warn

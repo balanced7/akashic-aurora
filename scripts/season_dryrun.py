@@ -102,12 +102,16 @@ def claim_evidence(name: str, *, player_name: str, gate_named: bool) -> list:
         # Should be unreachable: this player only reports what the gate named. If it fires,
         # the two are disagreeing and that is the finding, not something to paper over.
         return [
-            f"{name} was reported by the mechanical player but check_wiring did NOT "
-            f"name it on re-ask -- the player and the gate disagree"
+            (
+                f"{name} was reported by the mechanical player but check_wiring did NOT "
+                f"name it on re-ask -- the player and the gate disagree"
+            )
         ]
     return [
-        f"{name} judged dead by {player_name} analysis; check_wiring did NOT name it "
-        f"(so this is the player's own find, not an echo of the gate)"
+        (
+            f"{name} judged dead by {player_name} analysis; check_wiring did NOT name it "
+            f"(so this is the player's own find, not an echo of the gate)"
+        )
     ]
 
 

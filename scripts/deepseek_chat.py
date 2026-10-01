@@ -125,6 +125,7 @@ from core.comm.toolbox import (  # noqa: F401,E402  (compat re-export)
     ToolBox,
     _fn,
 )
+import contextlib
 
 # CLARIFY_TIMEOUT_S was missing from this list while the clarification-TIMEOUT branch below
 # uses it -- so the runner died with a NameError precisely when a clarification went
@@ -348,19 +349,15 @@ class Agent:
 
     def _activity(self, state, detail=""):
         if self.on_activity:
-            try:
+            with contextlib.suppress(Exception):
                 self.on_activity(state, detail)
-            except Exception:
-                pass
 
     def _trace(self, kind, text):
         """Stream a step (a tool call, or a chunk of thinking) OUT of the loop -- the runner posts these
         to the bus so the console shows DeepSeek's live reasoning + tool use, not just the final answer."""
         if self.on_trace and text:
-            try:
+            with contextlib.suppress(Exception):
                 self.on_trace(kind, str(text))
-            except Exception:
-                pass
 
     def reset(self):
         self.messages = self.messages[:1] if self.messages[:1] and self.messages[0]["role"] == "system" else []

@@ -55,7 +55,7 @@ def compressor_pids() -> list[dict]:
         "| Where-Object { $_.CommandLine -match 'session_compressor' } "
         "| Select-Object ProcessId, CommandLine | ConvertTo-Json -Compress"
     )
-    code, out, err = _sub(["powershell", "-NoProfile", "-Command", ps_cmd], timeout=20)
+    code, out, _err = _sub(["powershell", "-NoProfile", "-Command", ps_cmd], timeout=20)
     rows: list[dict] = []
     if code != 0 or not out.strip():
         return rows
@@ -177,7 +177,7 @@ def redis_checks() -> dict:
             idx_docs = None
             try:
                 info = r.execute_command("FT.INFO", "session_text_idx")
-                di = dict(zip(info[::2], info[1::2]))
+                di = dict(zip(info[::2], info[1::2], strict=False))
                 idx_docs = di.get(b"num_docs", di.get("num_docs"))
                 if isinstance(idx_docs, bytes):
                     idx_docs = idx_docs.decode()

@@ -34,13 +34,12 @@ import urllib.error
 import urllib.request
 from datetime import datetime
 from pathlib import Path
+import contextlib
 
 # Fix Windows console encoding for Unicode box-drawing chars
 if sys.platform == "win32":
-    try:
+    with contextlib.suppress(Exception):
         sys.stdout.reconfigure(encoding="utf-8")
-    except Exception:
-        pass
 
 _BASE = Path(__file__).resolve().parent
 sys.path.insert(0, str(_BASE))

@@ -54,6 +54,7 @@ from core.foundation.timeutil import render_iso
 # Top-level import ON PURPOSE -- build_parser's set_defaults(fn=...) binds these very objects, so
 # the verbs stay reachable through the same names the parser has always bound (pins: test_w169_*).
 from core.recall.surface import cmd_recall_at, cmd_recall_curate, cmd_recall_feedback, cmd_recall_prevention
+import contextlib
 
 
 def _pyl() -> str:
@@ -256,7 +257,7 @@ def _bucket_tree(porcelain_lines: list) -> dict:
     modified = untracked = 0
     dirs: dict = {}
     for ln in porcelain_lines:
-        code, _, path = str(ln).partition(" ") if str(ln).startswith("??") else (str(ln)[:2], "", str(ln)[3:])
+        _code, _, path = str(ln).partition(" ") if str(ln).startswith("??") else (str(ln)[:2], "", str(ln)[3:])
         path = path.strip().strip('"')
         if str(ln).startswith("??"):
             untracked += 1
@@ -459,9 +460,9 @@ def cmd_boot(args):
             print("\n## RECENT NOTES (durable project memory)")
             _budgets = [900, 500, 500, 220, 220, 220]  # by recency: resume-anchor first, then taper
             shown = notes[: len(_budgets)]
-            for d, budget in zip(shown, _budgets):
+            for d, budget in zip(shown, _budgets, strict=False):
                 print(f"  [{d.created_at[:10]}] {d.title}: {_clip(d.decision, budget)}")
-            if len(notes) > len(shown) or any(len(d.decision or "") > b for d, b in zip(shown, _budgets)):
+            if len(notes) > len(shown) or any(len(d.decision or "") > b for d, b in zip(shown, _budgets, strict=False)):
                 # M1 (kimi seat-zero counter): the verb shipped, the teaching text must
                 # retire the old dance in the same breath -- one hop, no JSON pipe.
                 print(f"  (clipped; ONE full body: {_pyl()} agent_cli.py note <you> --get <title>)")
@@ -1436,7 +1437,7 @@ def cmd_compare(args):
     print(f"# {a['name']} ({a['n']}) vs {b['name']} ({b['n']})  keys={r['key_type']}")
     if not r["reliable"]:
         print(f"  UNRELIABLE: {r['why']}", file=sys.stderr)
-    for label, side, other in (("only in", "only_a", a), ("only in", "only_b", b)):
+    for label, side, _other in (("only in", "only_a", a), ("only in", "only_b", b)):
         rows = r[side]
         who = a["name"] if side == "only_a" else b["name"]
         print(f"\n{label} {who} ({len(rows)}):")
@@ -1856,8 +1857,10 @@ def _heal_render(lines, verbose: bool = False) -> list:
     if not kept or verbose:
         return list(kept)
     return [
-        f"[heal][fleet-hygiene] {len(kept)} drift line(s) folded -- unowned fleet "
-        f"drift, not this seat's task (AKASHIC_HEAL_VERBOSE=1 for the full render)"
+        (
+            f"[heal][fleet-hygiene] {len(kept)} drift line(s) folded -- unowned fleet "
+            f"drift, not this seat's task (AKASHIC_HEAL_VERBOSE=1 for the full render)"
+        )
     ]
 
 
@@ -2104,13 +2107,17 @@ def _stance_block(agent_id: str) -> list:
     """
     stretch = _charter_stretch(agent_id)
     return [
-        f"# STANCE ({CONDUCT_VERSION}, docs/CONDUCT.md): intent before task | Daniel's "
-        "words verbatim | one calibrated question per ask | red is a gem (credit the "
-        "finder, help the lane, never blame) | 'no' is information | own, don't assign",
-        "# LICENSE: the laws are a FLOOR, not a ceiling -- exceed them, and file "
-        "divergences that WORK as wishes/lessons to be amended in at a gate (the "
-        "anti-fossil clause). Inheriting the forms WITHOUT this license is the known "
-        "failure mode; the forms alone are a compliance checklist, not a culture.",
+        (
+            f"# STANCE ({CONDUCT_VERSION}, docs/CONDUCT.md): intent before task | Daniel's "
+            "words verbatim | one calibrated question per ask | red is a gem (credit the "
+            "finder, help the lane, never blame) | 'no' is information | own, don't assign"
+        ),
+        (
+            "# LICENSE: the laws are a FLOOR, not a ceiling -- exceed them, and file "
+            "divergences that WORK as wishes/lessons to be amended in at a gate (the "
+            "anti-fossil clause). Inheriting the forms WITHOUT this license is the known "
+            "failure mode; the forms alone are a compliance checklist, not a culture."
+        ),
         (
             f"# stretch ({agent_id}): {stretch}"
             if stretch
@@ -2382,10 +2389,8 @@ def _orientation_header(agent_id: str, primer_aware: bool = False) -> str:
     # ahead of the map and pushed "RULE: DONE is closed" out of the window -- the P2 gate
     # caught it immediately. A new organ earns its way in without displacing a proven one;
     # what deepseek's finding actually requires is PRESENCE in the folded head, not primacy.
-    try:
+    with contextlib.suppress(Exception):
         lines.extend(_stance_block(agent_id))
-    except Exception:
-        pass
     try:  # continuity drift -- silent unless the notes lag HEAD; placed here, not in the
         # head-16, per new_boot_organ_must_not_spend_head16 (a lesson learned the hard way
         # a few hours before this line was written).
@@ -2423,7 +2428,7 @@ def _wish_find_block(doc, wid):
     head = _re.compile(r"^- \[[ x~]\] " + _re.escape(wid) + r"\b")
     starts = [i for i, ln in enumerate(lines) if head.match(ln)]
     if not starts:
-        raise ValueError("no wish %s in the ledger -- refusing rather than silently doing nothing" % wid)
+        raise ValueError("no wish {} in the ledger -- refusing rather than silently doing nothing".format(wid))
     if len(starts) > 1:
         where = ", ".join(str(i + 1) for i in starts)
         raise ValueError(
@@ -2435,7 +2440,7 @@ def _wish_find_block(doc, wid):
     j = i + 1
     while j < len(lines):
         ln = lines[j]
-        if ln.startswith("- [") or ln.startswith("## ") or ln.startswith("---"):
+        if ln.startswith(("- [", "## ", "---")):
             break
         j += 1
     while j > i + 1 and not lines[j - 1].strip():
@@ -2463,7 +2468,7 @@ def _wish_curate_apply(doc, wid, action, *, reason=None, task=None, seat=None, t
     from datetime import datetime as _dt
 
     if action not in _WISH_ACTIONS:
-        raise ValueError("action must be one of %s, not %r" % (_WISH_ACTIONS, action))
+        raise ValueError("action must be one of {}, not {!r}".format(_WISH_ACTIONS, action))
     if action == "fold" and not (task or "").strip():
         raise ValueError(
             "fold needs --task: a wish folds INTO something, and an unnamed "
@@ -2471,7 +2476,9 @@ def _wish_curate_apply(doc, wid, action, *, reason=None, task=None, seat=None, t
         )
     if action in ("decline", "keep") and not (reason or "").strip():
         raise ValueError(
-            "%s needs --reason: an undeclared %s is exactly the silent state this verb exists to end" % (action, action)
+            "{} needs --reason: an undeclared {} is exactly the silent state this verb exists to end".format(
+                action, action
+            )
         )
     today = today or _dt.now().strftime("%m-%d")
     seat = seat or "unknown"
@@ -2481,19 +2488,21 @@ def _wish_curate_apply(doc, wid, action, *, reason=None, task=None, seat=None, t
     if action == "fold":
         block[0] = block[0].replace("- [ ] ", "- [x] ", 1)
         extra = (" " + reason.strip()) if (reason or "").strip() else ""
-        block.append("  FOLDED %s (%s) -> %s.%s" % (today, seat, task.strip(), extra))
+        block.append("  FOLDED {} ({}) -> {}.{}".format(today, seat, task.strip(), extra))
         out = lines[:i] + block + lines[j:]
-        return "\n".join(out), "[wish-curate] %s FOLDED -> %s" % (wid, task.strip())
+        return "\n".join(out), "[wish-curate] {} FOLDED -> {}".format(wid, task.strip())
 
     if action == "keep":
-        block.append("  STILL OPEN %s (%s): %s" % (today, seat, reason.strip()))
+        block.append("  STILL OPEN {} ({}): {}".format(today, seat, reason.strip()))
         out = lines[:i] + block + lines[j:]
         return "\n".join(out), (
-            "[wish-curate] %s stays OPEN with a dated reason -- 'open' is now a decision rather than a default" % wid
+            "[wish-curate] {} stays OPEN with a dated reason -- 'open' is now a decision rather than a default".format(
+                wid
+            )
         )
 
     block[0] = block[0].replace("- [ ] ", "- [~] ", 1)
-    block.append("  DECLINED %s (%s): %s" % (today, seat, reason.strip()))
+    block.append("  DECLINED {} ({}): {}".format(today, seat, reason.strip()))
     rest = lines[:i] + lines[j:]
     doc2 = "\n".join(rest)
     if "## Declined" not in doc2:
@@ -2507,8 +2516,8 @@ def _wish_curate_apply(doc, wid, action, *, reason=None, task=None, seat=None, t
     body = "\n".join(block)
     doc2 = head + "## Declined\n\n" + body + "\n" + tail.lstrip("\n")
     return doc2, (
-        "[wish-curate] %s DECLINED -- and that is the loop WORKING, not a loss. The charter "
-        "keeps it so it can still teach." % wid
+        "[wish-curate] {} DECLINED -- and that is the loop WORKING, not a loss. The charter "
+        "keeps it so it can still teach.".format(wid)
     )
 
 
@@ -2528,7 +2537,7 @@ def cmd_wish_curate(args):
 
     path = Path(os.getenv("AKASHIC_WISHLIST_FILE", str(Path(__file__).resolve().parent / "docs" / "WISHLIST.md")))
     if not path.exists():
-        print("[wish-curate] REFUSED: %s missing -- the ledger is git-tracked; restore it first" % path)
+        print("[wish-curate] REFUSED: {} missing -- the ledger is git-tracked; restore it first".format(path))
         return 2
     doc = path.read_text(encoding="utf-8")
 
@@ -2565,14 +2574,14 @@ def cmd_wish_curate(args):
             seat=args.agent_id,
         )
     except ValueError as e:
-        print("[wish-curate] REFUSED: %s" % e)
+        print("[wish-curate] REFUSED: {}".format(e))
         return 2
     path.write_text(new_doc, encoding="utf-8")
     print(msg)
-    try:
+    with contextlib.suppress(Exception):
         capture_event(
             "wish",
-            "%s curated %s: %s" % (args.agent_id, args.wish_id, action),
+            "{} curated {}: {}".format(args.agent_id, args.wish_id, action),
             agent_id=args.agent_id,
             detail={
                 "wish": args.wish_id,
@@ -2581,8 +2590,6 @@ def cmd_wish_curate(args):
                 "task": getattr(args, "task", "") or "",
             },
         )
-    except Exception:
-        pass
     return 0
 
 
@@ -2638,15 +2645,13 @@ def cmd_wish(args):
     text = text.replace(marker, f"{block}\n{marker}", 1)
     path.write_text(text, encoding="utf-8")
     print(f"[wish] filed W{n:02d} ({args.agent_id}) -> {path.name} -- cite W{n:02d} at the next gate curation")
-    try:
+    with contextlib.suppress(Exception):
         capture_event(
             "wish",
             f"{args.agent_id} filed W{n:02d}: {body[:120]}",
             agent_id=args.agent_id,
             detail={"wish": f"W{n:02d}", "body": body[:500]},
         )
-    except Exception:
-        pass
     return 0
 
 
@@ -4040,7 +4045,7 @@ def cmd_sift(args):
     branches = (fan.detail or {}).get("branches", [])
 
     analyses = {}
-    for (t, h), b in zip(index, branches):
+    for (t, h), b in zip(index, branches, strict=False):
         if b.get("ok") and b.get("answer"):
             analyses.setdefault(t, []).append({"hat": h, "answer": b["answer"]})
     fd = fan.detail or {}
@@ -4079,7 +4084,7 @@ def cmd_sift(args):
     if cur_prompts:
         print(f"# tier 2: {len(cur_prompts)} curators over {len(analyses)} term(s) ...")
         cur = ask_many(cur_prompts, max_workers=args.workers)
-        for meta, b in zip(cur_index, (cur.detail or {}).get("branches", [])):
+        for meta, b in zip(cur_index, (cur.detail or {}).get("branches", []), strict=False):
             if not b.get("ok"):
                 continue
             ans = b.get("answer") or ""
@@ -4457,7 +4462,7 @@ def cmd_doc(args):
         frm, kind, text = msg
         me = os.environ.get("AKASHIC_AGENT_ID", "claude")
         typ = typ or _BUS_KIND_TYPE.get(kind, "report")
-        conv_kwargs = dict(origin="conversation", speakers=[frm, me], source_thread=from_bus, settled="live")
+        conv_kwargs = {"origin": "conversation", "speakers": [frm, me], "source_thread": from_bus, "settled": "live"}
 
     if not typ or not title:
         print("[doc] REFUSED: --type and --title are required (--from-bus infers type from the message kind)")
@@ -4527,7 +4532,7 @@ def cmd_doc(args):
     rel = str(Path(path).relative_to(Path(__file__).resolve().parent)).replace("\\", "/")
     print(f"[doc] atom {atom['id']}  ({typ}, status: {status})")
     print(f"  arc: {arc or '(none)'}  [{arc_src}]")
-    cat_render = ", ".join(f"{c}[{s}]" for c, s in zip(merged, cat_srcs)) or "(none)"
+    cat_render = ", ".join(f"{c}[{s}]" for c, s in zip(merged, cat_srcs, strict=False)) or "(none)"
     print(f"  categories: {cat_render}")
     print(f"  body_type: {atom['header'].get('body_type', 'markdown')}[{atom.get('body_type_source', 'unstated')}]")
     print(f"  projection: {rel}  (read-only render; the atom is the truth)")
@@ -4604,10 +4609,8 @@ def cmd_note(args, *, mem=None):
             )
         except Exception:
             pass
-        try:
+        with contextlib.suppress(Exception):
             project_notes()
-        except Exception:
-            pass
         if args.json:
             print(json.dumps({"retired": True, "id": dec.id, "title": dec.title}))
             return 0
@@ -4954,10 +4957,8 @@ def _wrap_route(args):
         return
 
     led = TaskLedger()
-    try:
+    with contextlib.suppress(Exception):
         led.load()
-    except Exception:
-        pass
     good, bad, lines = [], [], []
     for tid in ids:
         rec = None
@@ -5098,10 +5099,8 @@ def cmd_wrap(args):
         except Exception as e:
             print(f"WARN: --focus note lost a title race and gave up: {e}")
             f_id = ""
-        try:
+        with contextlib.suppress(Exception):
             project_notes()
-        except Exception:
-            pass
         print(
             f"[OK] current directive set -> note 'next-focus' (id {f_id}); boot renders it ABOVE the NEXT list."
             if f_id
@@ -5211,10 +5210,8 @@ def cmd_wrap(args):
     if not dec_id:
         print("ERROR recording the wrapped note")
         return 1
-    try:
+    with contextlib.suppress(Exception):
         project_notes()
-    except Exception:
-        pass
     # W36 (the stale-directive ROOT CAUSE; claude+kimi consensus 2026-07-21): a landed
     # where-we-are RETIRES a next-focus OLDER than this wrap's own look-back window --
     # presumptively consumed by the session just wrapped. One set WITHIN the window is
@@ -5228,26 +5225,25 @@ def cmd_wrap(args):
             nf = next((d for d in mem.get_decisions(days=3650) if d.title == "next-focus" and not d.superseded), None)
             if nf is not None:
                 cutoff = datetime.now() - __import__("datetime").timedelta(hours=max(1, args.hours or 12))
-                if datetime.fromisoformat(str(nf.created_at)) < cutoff:
-                    if mem.retire_decision(nf.id):
-                        try:
-                            from core.events.event_log import capture_event
+                if datetime.fromisoformat(str(nf.created_at)) < cutoff and mem.retire_decision(nf.id):
+                    try:
+                        from core.events.event_log import capture_event
 
-                            capture_event(
-                                "decision",
-                                f"stale next-focus retired by wrap (W36): superseded by where-we-are {dec_id}",
-                                agent_id="wrap",
-                                refs=[f"mem:decision:{nf.id}", f"mem:decision:{dec_id}"],
-                                detail={"retired": True, "successor": dec_id},
-                            )
-                        except Exception:
-                            pass
-                        print(
-                            f"[wrap] retired stale next-focus (id {nf.id}, "
-                            f"{str(nf.created_at)[:10]}) -- consumed by this session; "
-                            f"directive slot now empty. Set fresh intent: "
-                            f'{_pyl()} agent_cli.py wrap --focus "..."'
+                        capture_event(
+                            "decision",
+                            f"stale next-focus retired by wrap (W36): superseded by where-we-are {dec_id}",
+                            agent_id="wrap",
+                            refs=[f"mem:decision:{nf.id}", f"mem:decision:{dec_id}"],
+                            detail={"retired": True, "successor": dec_id},
                         )
+                    except Exception:
+                        pass
+                    print(
+                        f"[wrap] retired stale next-focus (id {nf.id}, "
+                        f"{str(nf.created_at)[:10]}) -- consumed by this session; "
+                        f"directive slot now empty. Set fresh intent: "
+                        f'{_pyl()} agent_cli.py wrap --focus "..."'
+                    )
         except Exception:
             pass  # the retire is a courtesy; the wrap itself already landed
     # W37 (kimi (b)): the kept-pointer rule is SPELLED, never silent -- a fresh pointer
@@ -6238,22 +6234,22 @@ def cmd_doctor_deploy() -> int:
     bad = []
     env_set = bool((os.getenv("AI_SETUP") or "").strip())
     print("# DEPLOY CHECK")
-    print("  repo root      : %s" % root)
+    print("  repo root      : {}".format(root))
     print("  derived from   : %s" % ("AI_SETUP env" if env_set else "this file (nothing to configure)"))
 
     warn = env_override_is_wrong()
     if warn:
         bad.append(
-            "AI_SETUP is set but wrong -- %s. It is being IGNORED (the root above was "
+            "AI_SETUP is set but wrong -- {}. It is being IGNORED (the root above was "
             "derived instead), so anything reading AI_SETUP directly disagrees with "
-            "everything reading core.paths." % warn
+            "everything reading core.paths.".format(warn)
         )
 
     for name in ("agent_cli.py", "core", "scripts", "tests", "AGENTS.md"):
         ok = (root / name).exists()
         print("  %-14s : %s" % (name, "ok" if ok else "MISSING"))
         if not ok and name != "AGENTS.md":
-            bad.append("%s missing from the repo root -- this is not a complete checkout" % name)
+            bad.append("{} missing from the repo root -- this is not a complete checkout".format(name))
 
     try:
         from core.comm.bus import get_bus
@@ -6261,7 +6257,7 @@ def cmd_doctor_deploy() -> int:
         get_bus("control")._client.ping()
         print("  redis          : reachable")
     except Exception as e:
-        print("  redis          : UNREACHABLE (%s)" % type(e).__name__)
+        print("  redis          : UNREACHABLE ({})".format(type(e).__name__))
         bad.append(
             "Redis unreachable -- bus, roster, mailbox and locks are all dead without "
             "it. Start it before judging anything else on this list."
@@ -6299,8 +6295,8 @@ def cmd_doctor_deploy() -> int:
     if (quiet / "sitecustomize.py").exists() and not on_path:
         bad.append(
             "scripts/quiet is not on PYTHONPATH, so child processes pop console windows "
-            "that steal focus. Add PYTHONPATH=%s to the env block of BOTH "
-            ".claude/settings.json files (repo AND user-level)." % quiet
+            "that steal focus. Add PYTHONPATH={} to the env block of BOTH "
+            ".claude/settings.json files (repo AND user-level).".format(quiet)
         )
 
     print("")
@@ -6309,7 +6305,7 @@ def cmd_doctor_deploy() -> int:
         return 0
     print("%d PROBLEM(S):" % len(bad))
     for b in bad:
-        print("  - %s" % b)
+        print("  - {}".format(b))
     return 1
 
 
@@ -7561,10 +7557,8 @@ def cmd_bifrost_send(args):
             # STDIN -- `... | py agent_cli.py bifrost-send claude --to X --kind reply` just works,
             # making the safe path the effortless one. A TTY with no pipe still refuses loudly.
             piped = False
-            try:
+            with contextlib.suppress(Exception):
                 piped = not sys.stdin.isatty()
-            except Exception:
-                pass
             if piped:
                 text = sys.stdin.read().strip()
                 if text:
@@ -10950,7 +10944,7 @@ def build_parser():
         "--formed-via",
         dest="formed_via",
         default="",
-        choices=("",) + CONNECTOME_FORMED_VIA,
+        choices=("", *CONNECTOME_FORMED_VIA),
         help="filter to edges formed this way; pre-contract edges cannot "
         "be evaluated against it and are COUNTED in the envelope, "
         "never silently dropped",
@@ -10976,27 +10970,35 @@ def build_parser():
     for _name, _help in (
         (
             "look",
-            "S6: the standpoint rendered -- this node, neighbours as silhouettes, "
-            "exits, and heat as NUMBERS (a gauge this plane cannot populate reads "
-            "UNKNOWN, never 0). The default verb; kept cheap",
+            (
+                "S6: the standpoint rendered -- this node, neighbours as silhouettes, "
+                "exits, and heat as NUMBERS (a gauge this plane cannot populate reads "
+                "UNKNOWN, never 0). The default verb; kept cheap"
+            ),
         ),
         (
             "go",
-            "S6: move the seat's position (per INCARNATION, never per agent -- two "
-            "live sessions of one agent must not share a standpoint)",
+            (
+                "S6: move the seat's position (per INCARNATION, never per agent -- two "
+                "live sessions of one agent must not share a standpoint)"
+            ),
         ),
         ("back", "S6: pop the trail; at the origin it says so rather than pretending to move"),
         (
             "since",
-            "S6: the ambient delta -- what became KNOWABLE while this seat was "
-            "away (known_at, not world time: a week-old transcript ingested "
-            "today is new today)",
+            (
+                "S6: the ambient delta -- what became KNOWABLE while this seat was "
+                "away (known_at, not world time: a week-old transcript ingested "
+                "today is new today)"
+            ),
         ),
         (
             "inherit",
-            "S6: succession -- take a predecessor's standpoint EXPLICITLY, "
-            "recorded on the row, so the interval since= measures is known "
-            "to have begun at the handover",
+            (
+                "S6: succession -- take a predecessor's standpoint EXPLICITLY, "
+                "recorded on the row, so the interval since= measures is known "
+                "to have begun at the handover"
+            ),
         ),
     ):
         _p = eye_sub.add_parser(_name, help=_help)
@@ -11570,7 +11572,7 @@ def cmd_run(args):
         # buffering mode, or who launched agent_cli.py. rc still governs stop-at-first-failure.
         print(f"[run:{args.name}] -> {' '.join(argv)}", flush=True)
         r = subprocess.run(
-            [sys.executable, here] + list(argv), capture_output=True, text=True, encoding="utf-8", errors="replace"
+            [sys.executable, here, *list(argv)], capture_output=True, text=True, encoding="utf-8", errors="replace"
         )
         if r.stdout:
             sys.stdout.write(r.stdout)

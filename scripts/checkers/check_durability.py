@@ -94,7 +94,7 @@ def _git(root: Any, *args: str) -> str:
     """Run git, or raise NotARepo. The distinction is the whole point of this module: a git
     that cannot answer must not look like a git that answered 'nothing'."""
     try:
-        p = subprocess.run(["git", "-C", str(root)] + list(args), capture_output=True, text=True, timeout=60)
+        p = subprocess.run(["git", "-C", str(root), *list(args)], capture_output=True, text=True, timeout=60)
     except (OSError, subprocess.SubprocessError) as e:  # pragma: no cover - host dependent
         raise NotARepo(f"git could not run: {e}") from e
     if p.returncode != 0:

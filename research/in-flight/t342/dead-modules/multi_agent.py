@@ -44,6 +44,7 @@ from typing import Any, Optional
 sys.path.insert(0, r"E:\AI-Setup")
 
 import redis
+import contextlib
 
 try:
     from vector_store import VectorStore as VectorStore
@@ -383,10 +384,8 @@ class AgentRegistry:
 
                 data = self._redis.hget(AGENT_REGISTRY_KEY, agent_id)
                 if data:
-                    try:
+                    with contextlib.suppress(BaseException):
                         agents.append(AgentInfo.from_dict(json.loads(data)))
-                    except:
-                        pass
 
             return agents
         except:
@@ -574,10 +573,8 @@ class MessageBus:
 
             messages = []
             for msg_json in messages_raw:
-                try:
+                with contextlib.suppress(BaseException):
                     messages.append(Message.from_dict(json.loads(msg_json)))
-                except:
-                    pass
             return messages
         except:
             return []
@@ -596,10 +593,8 @@ class MessageBus:
 
             messages = []
             for msg_json in broadcasts_raw:
-                try:
+                with contextlib.suppress(BaseException):
                     messages.append(Message.from_dict(json.loads(msg_json)))
-                except:
-                    pass
             return messages
         except:
             return []
@@ -672,8 +667,7 @@ class MessageBus:
 
         try:
             messages = self.get_messages(limit=100)
-            unread = sum(1 for m in messages if not self.is_message_read(m.msg_id))
-            return unread
+            return sum(1 for m in messages if not self.is_message_read(m.msg_id))
         except:
             return 0
 
@@ -903,10 +897,8 @@ class SharedWorkspace:
 
             items = []
             for item_json in history_raw:
-                try:
+                with contextlib.suppress(BaseException):
                     items.append(SharedItem.from_dict(json.loads(item_json)))
-                except:
-                    pass
             return items
         except:
             return []
@@ -982,11 +974,9 @@ class SharedWorkspace:
         try:
             spaces_data = self._redis.hgetall("spaces:")
             spaces = []
-            for name, data in spaces_data.items():
-                try:
+            for data in spaces_data.values():
+                with contextlib.suppress(BaseException):
                     spaces.append(json.loads(data))
-                except:
-                    pass
             return spaces
         except:
             return []
@@ -1124,10 +1114,8 @@ def get_pending_help_requests(limit: int = 20) -> list[HelpRequest]:
 
         requests = []
         for req_json in requests_raw:
-            try:
+            with contextlib.suppress(BaseException):
                 requests.append(HelpRequest.from_dict(json.loads(req_json)))
-            except:
-                pass
 
         return [r for r in requests if r.status == "pending"]
     except:
@@ -1224,7 +1212,7 @@ def spawn_helper_agent(help_type: str, description: str, context: dict = None, a
 def _redis_connection_available() -> bool:
     """Check if Redis connection is available"""
     try:
-        r, available = _get_redis_connection()
+        _r, available = _get_redis_connection()
         return available
     except:
         return False

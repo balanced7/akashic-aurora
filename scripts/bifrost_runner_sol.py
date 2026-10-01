@@ -50,6 +50,7 @@ sys.path.insert(0, HERE)
 from core.comm import control, liveness, roster
 from core.comm import shift_turn as _shift_turn  # noqa: E402  (turn boundary)
 from core.comm.bus import Bus
+import contextlib
 
 # T150: make this runner WATCHABLE. Python block-buffers stdout when it is not a TTY -- exactly the
 # case when an orchestrator captures it -- so a five-seat round on 2026-08-03 ran with every log at
@@ -59,14 +60,10 @@ from core.comm.bus import Bus
 # The same call pins the ENCODING, which closes a real crash: a check-mark in a trace line raises
 # UnicodeEncodeError under Windows cp1252. Guarded -- a stream that cannot be reconfigured (pytest
 # capture, an exotic wrapper) must degrade to the old behaviour, never take the runner down.
-try:
+with contextlib.suppress(Exception):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace", line_buffering=True)
-except Exception:
-    pass
-try:
+with contextlib.suppress(Exception):
     sys.stderr.reconfigure(encoding="utf-8", errors="replace", line_buffering=True)
-except Exception:
-    pass
 
 from sol_chat import (
     DEFAULT_EFFORT,
@@ -82,6 +79,7 @@ from sol_chat import (
 
 from core.comm import context_hints, nudge, runner_lock, self_restart
 from core.comm.timescale import scaled as _scaled
+import contextlib
 
 CARD = {
     "runtime_class": "api",
@@ -158,10 +156,8 @@ def _reply_already_sent(bus, mid) -> bool:
 
 def _mark_reply_sent(bus, mid) -> None:
     """Set AFTER the reply sends, BEFORE the cursor commits. Both writes best-effort."""
-    try:
+    with contextlib.suppress(Exception):
         bus._client.set(REPLY_SENT_PREFIX + str(mid), "1", ex=REPLY_TIMEOUT_SEC + 60, nx=True)
-    except Exception:
-        pass
     try:
         from core.foundation.store import create_store
 
@@ -341,17 +337,18 @@ def make_sol_replier(
     def on_trace(kind, text):
         prefix = "🔧" if kind == "tool" else "💭"
         liveness.pulse(agent_id, f"{kind}:{str(text)[:60]}", generation=PULSE_GEN[0])
-        try:
+        with contextlib.suppress(Exception):
             trace_bus.broadcast(
                 "trace",
                 f"{prefix} {text}",
                 meta={"via": f"{agent_id}-runner", "hops": 0, "trace": kind, "display_only": True},
             )
-        except Exception:
-            pass
 
-    interrupt = lambda: control.is_halted(agent_id) or nudge.is_nudged(agent_id)
-    inject = lambda: nudge.steer_drain(agent_id)
+    def interrupt():
+        return control.is_halted(agent_id) or nudge.is_nudged(agent_id)
+
+    def inject():
+        return nudge.steer_drain(agent_id)
 
     def _dispatch(name, args):
         fn = getattr(toolbox, name, None)
@@ -415,7 +412,7 @@ def make_one_shot_replier(model: str, system: str, effort: str, verbosity: str, 
     )
 
     def _one(prompt: str) -> str:
-        text, _calls, reasoning, _items = SolTransport.extract(
+        text, _calls, _reasoning, _items = SolTransport.extract(
             transport.respond(system, [{"role": "user", "content": prompt}])
         )
         return text or "(sol produced no final answer)"
@@ -425,9 +422,12 @@ def make_one_shot_replier(model: str, system: str, effort: str, verbosity: str, 
             answer = _one(prompt)
         except Exception as e:
             answer = f"(sol runner error: {type(e).__name__}: {e})"
+
         # RB-23 stateless path: the resend re-embeds the original ask (a context-free
         # reprompt cannot possibly deliver -- deepseek runner precedent).
-        resend = lambda reprompt: _one(prompt + "\n\n[system bounce] " + reprompt)
+        def resend(reprompt):
+            return _one(prompt + "\n\n[system bounce] " + reprompt)
+
         return _rb23_gates(answer, resend, agent_id)
 
     return respond
@@ -883,7 +883,10 @@ def main() -> int:
 
     if os.environ.get("AKASHIC_DRILL_ECHO"):
         args.agentic = False
-        responder = lambda prompt: f"[drill-echo] {str(prompt)[:120]}"
+
+        def responder(prompt):
+            return f"[drill-echo] {str(prompt)[:120]}"
+
         mode = "drill-echo (offline)"
 
     bus.register(card=CARD)
@@ -1005,15 +1008,13 @@ def main() -> int:
                 except Exception as e:
                     print(f"[sol-runner] !! unhandled error on message from {m.frm}: {type(e).__name__}: {e}")
                     liveness.pulse_error(args.agent, f"{type(e).__name__}: {e}", generation=lock_gen)
-                    try:
+                    with contextlib.suppress(Exception):
                         bus.send(
                             m.frm,
                             "note",
                             f"[error] sol runner hit an unhandled error: {type(e).__name__}: {e}",
                             meta={"via": f"{args.agent}-runner"},
                         )
-                    except Exception:
-                        pass
                 _killpoint("post-sentinel-pre-advance")
                 # Cursor law (RB-26): advance AFTER processing; lane filter: non-work stream ids
                 # never advance work fields (their cursors advanced inside work_drain).

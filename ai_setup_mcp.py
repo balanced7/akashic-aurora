@@ -68,6 +68,7 @@ os.environ.setdefault("AKASHIC_SEAT_DOOR", "mcp")
 from mcp.server.fastmcp import FastMCP
 
 import agent_cli
+import contextlib
 
 
 def _pyl() -> str:
@@ -115,10 +116,8 @@ class _ThreadLocalStdout:
     def flush(self):
         buf = getattr(self._tl, "buf", None)
         if buf is None:
-            try:
+            with contextlib.suppress(Exception):
                 sys.stderr.flush()
-            except Exception:
-                pass
 
     def __getattr__(self, name):  # buffer/encoding/isatty/... -> the real stream
         return getattr(self._real, name)
@@ -186,152 +185,152 @@ async def _athread(fn, *args, lock: bool = False, **kwargs):
 # Defaults for EVERY attribute any cmd_* reads off its argparse Namespace. A tool
 # overrides only the fields it cares about; everything else falls back to these, so a
 # cmd_* never trips over a missing attribute. Keep in sync with agent_cli's parsers.
-_ARG_DEFAULTS = dict(
-    json=False,
-    agent_id="",
-    task=None,
-    query="",
-    experiment=None,
-    tried="",
-    result="",
-    expected="",
-    recommend="",
-    category="",
-    success=None,
-    confidence=None,
-    kind="note",
-    summary="",
-    source="",
+_ARG_DEFAULTS = {
+    "json": False,
+    "agent_id": "",
+    "task": None,
+    "query": "",
+    "experiment": None,
+    "tried": "",
+    "result": "",
+    "expected": "",
+    "recommend": "",
+    "category": "",
+    "success": None,
+    "confidence": None,
+    "kind": "note",
+    "summary": "",
+    "source": "",
     # story
-    chronicle=False,
-    mark=None,
-    session_end=False,
-    track=None,
-    theme=None,
-    themes=False,
-    at=None,
-    chapter=None,
-    beat=None,
-    raw=False,
+    "chronicle": False,
+    "mark": None,
+    "session_end": False,
+    "track": None,
+    "theme": None,
+    "themes": False,
+    "at": None,
+    "chapter": None,
+    "beat": None,
+    "raw": False,
     # events
-    search=None,
-    around=None,
-    window=None,
-    get=None,
-    capture=False,
-    promote=False,
-    threshold=None,
-    detail_json=None,
-    refs=None,
-    agent=None,
-    since=None,
-    until=None,
-    limit=None,
-    consume=False,
+    "search": None,
+    "around": None,
+    "window": None,
+    "get": None,
+    "capture": False,
+    "promote": False,
+    "threshold": None,
+    "detail_json": None,
+    "refs": None,
+    "agent": None,
+    "since": None,
+    "until": None,
+    "limit": None,
+    "consume": False,
     # handoff
-    to=None,
-    note=None,
-    blocker=None,
-    list=False,
+    "to": None,
+    "note": None,
+    "blocker": None,
+    "list": False,
     # stats
-    hours=None,
-    days=None,
+    "hours": None,
+    "days": None,
     # graduate
-    enforced_by=None,
-    undo=False,
+    "enforced_by": None,
+    "undo": False,
     # note / notes / locks (membrane slice 1b: MCP twins for shell-less agents)
-    title=None,
-    context="",
-    supersedes=None,
-    session="",
-    project=False,
-    path=None,
-    ttl=None,
-    body_file=None,
-    outcome=None,
-    receipt=None,
-    name="",
-    reason="",
+    "title": None,
+    "context": "",
+    "supersedes": None,
+    "session": "",
+    "project": False,
+    "path": None,
+    "ttl": None,
+    "body_file": None,
+    "outcome": None,
+    "receipt": None,
+    "name": "",
+    "reason": "",
     # T083 C7-1 (sol day-one receipt): cmd_notes reads args.all, cmd_note reads args.retire --
     # both were missing here, so the MCP twins raised AttributeError while CLI worked.
     # Keep-in-sync rule is now PINNED: tests/test_mcp_arg_defaults_parity.py walks every
     # cmd_* attribute read against this dict.
-    all=False,
-    retire=None,
+    "all": False,
+    "retire": None,
     # ...and the pin's first catch, minutes after it was written: cmd_boot reads
     # args.sources_json (T081-W6 sidecar flag) -- a THIRD latent MCP-twin AttributeError,
     # masked until now by C7-4 (boot's response never returned for other reasons).
-    sources_json=None,
+    "sources_json": None,
     # T200: ask + friction twins (paying down the two `gap` entries check_door_parity has
     # carried since T171/T196a). cmd_ask reads a wide namespace and cmd_friction one extra
     # field; every attribute either reads must live here or the twin raises
     # AttributeError while the CLI works -- the C7-1 failure shape, now pinned by
     # tests/test_mcp_arg_defaults_parity.py.
-    status=None,
-    as_agent=None,
-    text=None,
-    prompt_file=None,
-    peer=None,
-    fan=0,
-    prompts_file=None,
-    wait=120.0,
-    poll=2.0,
-    launch=False,
-    launch_wait=60.0,
-    system="",
-    model="",
-    max_tokens=None,
-    workers=None,
-    window_h=168.0,
+    "status": None,
+    "as_agent": None,
+    "text": None,
+    "prompt_file": None,
+    "peer": None,
+    "fan": 0,
+    "prompts_file": None,
+    "wait": 120.0,
+    "poll": 2.0,
+    "launch": False,
+    "launch_wait": 60.0,
+    "system": "",
+    "model": "",
+    "max_tokens": None,
+    "workers": None,
+    "window_h": 168.0,
     # cmd_mailbox's seven, which the parity pin has been failing on independently of this
     # slice (verified pre-existing by stash). Same latent defect the T200 twins were built
     # to avoid: the MCP mailbox twin raises AttributeError while the CLI works. Costs seven
     # lines to close, and leaving a red pin red next to a green one it shares a mechanism
     # with is how the next reader learns to skim past it.
-    intent_kind=None,
-    intent_note=None,
-    intent_sha=None,
-    intent_to=None,
-    limit_scan=None,
-    open_sha=None,
-    state_sha=None,
+    "intent_kind": None,
+    "intent_note": None,
+    "intent_sha": None,
+    "intent_to": None,
+    "limit_scan": None,
+    "open_sha": None,
+    "state_sha": None,
     # 2026-08-16 parity-pin catch, same C7-1 shape a fifth time: cmd_ask grew lens_file
     # (T256 lens work) and cmd_learn grew repeat_of (the twin's morning `repeat` verb,
     # e2b722f1) -- both CLI-only args the MCP twins would AttributeError on.
-    lens_file=None,
-    repeat_of="",
+    "lens_file": None,
+    "repeat_of": "",
     # cmd_web's search branch reads args.count; keep every delegated cmd_* field in this
     # membrane or the MCP twin AttributeErrors (C7-1 shape, catch #6; check_door_parity pins it).
-    count=None,
+    "count": None,
     # T079/T060 WorldSnapshot read twin. _run's Namespace is the membrane
     # contract for every delegated cmd_* even when today's tool supplies these.
-    glance_projection="program",
-    max_items=64,
-    brief=False,
-    compact=False,
-    ledger_path=None,
+    "glance_projection": "program",
+    "max_items": 64,
+    "brief": False,
+    "compact": False,
+    "ledger_path": None,
     # find (Search Everything seam). cmd_find reads args.query / args.limit /
     # args.path / args.no_sort / args.timeout -- query/limit/path are already
     # covered above; these two are the new reads.
-    no_sort=False,
-    timeout=15.0,
+    "no_sort": False,
+    "timeout": 15.0,
     # find ergonomic surface (2026-09-25): cmd_find reads args.preset (intent goals)
     # + args.bare (force the bare path list). Both must live here or the MCP twin
     # raises AttributeError while the CLI works -- the C7-1 shape, already pinned.
-    preset="",
-    bare=False,
+    "preset": "",
+    "bare": False,
     # manual (the manuals shelf, 2026-09-24): cmd_manual reads these five on top of the
     # shared query/limit/json.
     # mode stays None here: cmd_nudge also reads args.mode (default "interrupt"), so a shared
     # default of "bm25" would leak the shelf's vocabulary into the nudge twin. Each cmd_*
     # supplies its own default for None.
-    manual_cmd="",
-    words=None,
-    shelf="",
-    max_chars=6000,
-    selector="",
-    mode=None,
-)
+    "manual_cmd": "",
+    "words": None,
+    "shelf": "",
+    "max_chars": 6000,
+    "selector": "",
+    "mode": None,
+}
 
 
 def _run(fn, **overrides) -> str:

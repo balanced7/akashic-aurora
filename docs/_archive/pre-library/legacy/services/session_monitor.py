@@ -175,17 +175,14 @@ class SessionMonitor:
                         full_session = parts[1]
 
                         # Extract just the session ID part
-                        if ":" in full_session:
-                            session_id = full_session
-                        else:
-                            session_id = full_session
+                        session_id = full_session if ":" in full_session else full_session
 
                         # Determine if OpenCode
                         is_opencode = "opencode" in session_id.lower()
 
                         # Get entry count from Redis
                         entry_count = 0
-                        if key.endswith(":log") or key.endswith(":actions"):
+                        if key.endswith((":log", ":actions")):
                             entry_count = self.redis_client.llen(key)
 
                         sessions[session_id] = SessionInfo(

@@ -64,10 +64,7 @@ def needs_credit(text: str, email: str) -> bool:
     """
     if not email or email == OPERATOR_EMAIL.lower():
         return False
-    for existing in _TRAILER_RE.findall(text):
-        if OPERATOR_EMAIL.lower() in existing.lower():
-            return False
-    return True
+    return all(OPERATOR_EMAIL.lower() not in existing.lower() for existing in _TRAILER_RE.findall(text))
 
 
 def ensure_operator_coauthor(msg_path, *, run=subprocess.run) -> str | None:

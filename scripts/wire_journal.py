@@ -332,7 +332,7 @@ class WireJournal:
         usage = kw.get("usage") or {}
         details = (usage.get("completion_tokens_details") or {}) if isinstance(usage, dict) else {}
         prompt_details = (usage.get("prompt_tokens_details") or {}) if isinstance(usage, dict) else {}
-        rec = {
+        return {
             "ts": kw.get("ts") or time.time(),
             "agent": kw.get("agent") or self.agent,
             "model": kw.get("model"),
@@ -362,7 +362,6 @@ class WireJournal:
             "response_sha": _sha(kw["response_text"]) if kw.get("response_text") is not None else None,
             "headers": {k: v for k, v in (kw.get("headers") or {}).items() if str(k).lower() in KEEP_HEADERS},
         }
-        return rec
 
     def _segment_path(self, shard: "_Shard" = None) -> str:
         """The segment currently being appended to, ROLLING when it exceeds MAX_BYTES.
@@ -607,8 +606,10 @@ class WireJournal:
                 (
                     "error",
                     "system_fingerprint CHANGED mid-capture",
-                    f"{s['fingerprints']} -- the provider may have swapped the model "
-                    f"behind the endpoint; any A/B comparison spanning this is invalid",
+                    (
+                        f"{s['fingerprints']} -- the provider may have swapped the model "
+                        f"behind the endpoint; any A/B comparison spanning this is invalid"
+                    ),
                 )
             )
         if s.get("cache_hit_rate") == UNKNOWN:
@@ -620,8 +621,10 @@ class WireJournal:
                 (
                     "warn",
                     f"cache hit rate {s['cache_hit_rate']:.0%}",
-                    "cached prompt tokens bill ~10x cheaper; a low rate is the largest "
-                    "cost lever available -- compare prompt_prefix_sha across turns",
+                    (
+                        "cached prompt tokens bill ~10x cheaper; a low rate is the largest "
+                        "cost lever available -- compare prompt_prefix_sha across turns"
+                    ),
                 )
             )
         if s.get("dropped_captures"):

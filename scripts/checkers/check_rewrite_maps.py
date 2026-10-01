@@ -207,10 +207,10 @@ def stranded_citations(resolver, waived, local=frozenset()):
     out = subprocess.run(
         ["git", "-C", str(ROOT), "cat-file", "--batch-check"], input=probe, capture_output=True, text=True
     ).stdout.splitlines()
-    real = [sha for line, sha in zip(out, cand) if " commit " in line]
+    real = [sha for line, sha in zip(out, cand, strict=False) if " commit " in line]
 
     full = {}
-    for line, sha in zip(out, cand):
+    for line, sha in zip(out, cand, strict=False):
         q = line.split()
         if len(q) == 3 and q[1] == "commit":
             full[sha] = q[0]

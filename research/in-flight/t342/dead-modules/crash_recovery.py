@@ -13,6 +13,7 @@ import json
 import os
 
 import redis
+import contextlib
 
 LOG_DIR = r"E:\AI-Setup\session_logs"
 
@@ -70,10 +71,8 @@ def get_summary():
         if error_keys:
             last_error = r.lrange(error_keys[0], -1, -1)
             if last_error:
-                try:
+                with contextlib.suppress(BaseException):
                     summary["last_error"] = json.loads(last_error[0])
-                except:
-                    pass
 
         # Get recent learnings using pipeline
         pipe = r.pipeline()

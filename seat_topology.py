@@ -148,7 +148,7 @@ def main(argv=None) -> int:
         from core.comm import runner_lock as RL
 
         found = False
-        for agent in sorted(set(list(seen_agents) + ["zadkiel", "dsh_agent", "chronos", "deepseek", "claude"])):
+        for agent in sorted({*list(seen_agents), "zadkiel", "dsh_agent", "chronos", "deepseek", "claude"}):
             try:
                 h = RL.holder(agent)
             except Exception:  # noqa: BLE001

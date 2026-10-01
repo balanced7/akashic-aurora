@@ -204,7 +204,7 @@ def palette(rgb: np.ndarray) -> tuple:
 
 
 def palette_delta(a: tuple, b: tuple) -> float:
-    return max(abs(x - y) for x, y in zip(a, b))
+    return max(abs(x - y) for x, y in zip(a, b, strict=False))
 
 
 def dedupe(

@@ -61,9 +61,8 @@ def pack_events(events: Iterable[dict[str, Any]], session: str = "", keep_chords
             elif not e.get("down") and pdown is not None:
                 pedal.append((pdown, t))
                 pdown = None
-        elif kind == "chord" and keep_chords and e.get("chord"):
-            if not chords or chords[-1][1] != e["chord"]:
-                chords.append((t, str(e["chord"]), str(e.get("key") or "")))
+        elif kind == "chord" and keep_chords and e.get("chord") and (not chords or chords[-1][1] != e["chord"]):
+            chords.append((t, str(e["chord"]), str(e.get("key") or "")))
     for n, rest in ons.items():  # held at session end -- real, not dropped
         for t0, v in rest:
             notes.append((t0, int(n), max(tmax - t0, 1), v))

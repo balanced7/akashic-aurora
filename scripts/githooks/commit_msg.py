@@ -25,6 +25,7 @@ Install once per clone/worktree:  py scripts/githooks/install_git_hooks.py
 
 import os
 import sys
+import contextlib
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, ROOT)
@@ -87,10 +88,8 @@ def refusal(findings):
 
 def _say(text):
     """Best-effort stderr. Printing must never decide the outcome."""
-    try:
+    with contextlib.suppress(Exception):
         sys.stderr.write(text)
-    except Exception:
-        pass
 
 
 def main(argv=None, root=None):
@@ -110,8 +109,8 @@ def main(argv=None, root=None):
         findings = scan_message(argv[1], root=root)
     except Exception as exc:
         _say(
-            "commit-msg WARNING: the private-plane message guard did not run (%s: %s). "
-            "Commit allowed; the gate is not protecting you.\n" % (type(exc).__name__, exc)
+            "commit-msg WARNING: the private-plane message guard did not run ({}: {}). "
+            "Commit allowed; the gate is not protecting you.\n".format(type(exc).__name__, exc)
         )
         return 0
     if not findings:

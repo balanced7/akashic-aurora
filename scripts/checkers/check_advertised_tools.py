@@ -25,6 +25,7 @@ Run:  py scripts/checkers/check_advertised_tools.py           # gate over the co
 import os
 import re
 import sys
+import contextlib
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 TOOLBOX = os.path.join(ROOT, "core", "comm", "toolbox.py")
@@ -54,15 +55,11 @@ def real_tools(path=TOOLBOX, mcp=None):
     There are two tool doors; a name that resolves at either one is advertised truthfully.
     """
     names = set()
-    try:
+    with contextlib.suppress(OSError):
         names |= set(_TOOL_DEF.findall(open(path, encoding="utf-8", errors="replace").read()))
-    except OSError:
-        pass
     mcp = mcp if mcp is not None else os.path.join(ROOT, "ai_setup_mcp.py")
-    try:
+    with contextlib.suppress(OSError):
         names |= set(_MCP_DEF.findall(open(mcp, encoding="utf-8", errors="replace").read()))
-    except OSError:
-        pass
     return names  # fail open: no tool list, nothing to enforce
 
 
@@ -83,7 +80,7 @@ def _file_stems():
     global _FILE_STEMS
     if _FILE_STEMS is None:
         _FILE_STEMS = set()
-        for dp, dn, fn in os.walk(ROOT):
+        for _dp, dn, fn in os.walk(ROOT):
             dn[:] = [d for d in dn if d not in ("__pycache__", ".git", "node_modules", "ComfyUI-Zluda")]
             for f in fn:
                 _FILE_STEMS.add(os.path.splitext(f)[0])

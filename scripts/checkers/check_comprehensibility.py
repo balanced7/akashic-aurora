@@ -391,7 +391,9 @@ def _derived_docs_current():
     try:
         import gen_physics_sheet as phys
 
-        strip = lambda t: "\n".join(l for l in t.splitlines() if not l.startswith("> Derived at "))
+        def strip(t):
+            return "\n".join(l for l in t.splitlines() if not l.startswith("> Derived at "))
+
         if strip(_read("docs/PHYSICS.md")) != strip(phys.render(*phys.scan(), sha="_")):
             out.append(f"docs/PHYSICS.md is stale -> run `{_pyl()} scripts/generators/gen_physics_sheet.py`")
     except Exception as e:
@@ -460,8 +462,10 @@ def _living_docs_indexed():
     ]
     return (
         [
-            f"living doc(s) not in the docs map (INDEX.md): {', '.join(unlisted)} "
-            f"-> add them, or rename to lowercase if they're just history"
+            (
+                f"living doc(s) not in the docs map (INDEX.md): {', '.join(unlisted)} "
+                f"-> add them, or rename to lowercase if they're just history"
+            )
         ]
         if unlisted
         else []
@@ -497,7 +501,8 @@ def main():
             ("A subpackages", _subpackages_in_arch, arch),
             ("B index-current", _index_current),
             ("B2 derived-docs-current", _derived_docs_current),
-        ] + fail_checks
+            *fail_checks,
+        ]
     for label, fn, *a in fail_checks:
         got, crash = _run(label, fn, *a)
         (broken.append(crash) if crash else fails.extend(got))

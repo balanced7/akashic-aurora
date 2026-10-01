@@ -104,7 +104,7 @@ def rewrite(src, name=""):
     out_names = _OUT_DECL.findall(body)
     if out_names:
         body = _OUT_DECL.sub("", body)
-        notes.append("removed a duplicate out declaration (%s); the bench writes outColor" % ", ".join(out_names))
+        notes.append("removed a duplicate out declaration ({}); the bench writes outColor".format(", ".join(out_names)))
 
     if _CHANNEL.search(body):
         warnings.append(
@@ -134,13 +134,13 @@ def rewrite(src, name=""):
             "warnings": warnings,
         }
 
-    shim = "\n".join("#define %s %s" % (k, v) for k, v in SHIMS)
-    used = [k for k, _ in SHIMS if re.search(r"\b%s\b" % k, body)]
+    shim = "\n".join("#define {} {}".format(k, v) for k, v in SHIMS)
+    used = [k for k, _ in SHIMS if re.search(r"\b{}\b".format(k), body)]
     if used:
         notes.append("mapped " + ", ".join(used) + " onto the bench's uniforms")
     notes.append("wrapped mainImage in a main() that writes outColor")
 
-    tag = ("// ingested: %s\n" % name) if name else ""
+    tag = ("// ingested: {}\n".format(name)) if name else ""
     out = (
         PREAMBLE
         + "\n"

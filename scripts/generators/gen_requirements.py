@@ -34,8 +34,8 @@ def render(extra):
     body = subprocess.run([uv, *cmd[1:]], cwd=ROOT, check=True, capture_output=True, text=True, encoding="utf-8").stdout
     header = (
         "# GENERATED — do not edit. Source: pyproject.toml + uv.lock.\n"
-        "# Regenerate: uv run poe lock   (runs: %s)\n"
-        "# pip consumers: pip install -r <this file>. uv users: uv sync.\n" % " ".join(cmd)
+        "# Regenerate: uv run poe lock   (runs: {})\n"
+        "# pip consumers: pip install -r <this file>. uv users: uv sync.\n".format(" ".join(cmd))
     )
     return header + body
 
@@ -59,9 +59,11 @@ def main(argv):
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, "w", encoding="utf-8", newline="\n") as fh:
             fh.write(want)
-        print("wrote %s" % rel)
+        print("wrote {}".format(rel))
     if stale:
-        print("STALE (hand-edited or not regenerated after uv lock): %s -- run: uv run poe lock" % ", ".join(stale))
+        print(
+            "STALE (hand-edited or not regenerated after uv lock): {} -- run: uv run poe lock".format(", ".join(stale))
+        )
         return 1
     if check:
         print("requirement files match uv.lock")

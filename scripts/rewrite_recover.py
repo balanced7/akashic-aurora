@@ -202,7 +202,7 @@ def cited_orphans(root, new):
         ["git", "-C", str(root), "cat-file", "--batch-check"], input=probe, capture_output=True, text=True
     ).stdout.splitlines()
     oids = set()
-    for line, _sha in zip(out, cand):
+    for line, _sha in zip(out, cand, strict=False):
         p = line.split()
         if len(p) == 3 and p[1] == "commit" and p[0] not in new:
             oids.add(p[0])
@@ -318,7 +318,7 @@ def cmd_reconstruct(args):
             continue
         for old, new in matched.items():
             recorded = m.rows.get(old)
-            if not recorded or recorded == old or recorded == new:
+            if not recorded or recorded in (old, new):
                 continue
             if res.visible(recorded):
                 contradictions.append((old, recorded, new, m.label))
@@ -425,7 +425,7 @@ def cmd_census(args):
         ["git", "-C", str(root), "cat-file", "--batch-check"], input=probe, capture_output=True, text=True
     ).stdout.splitlines()
     real = {}
-    for line, sha in zip(out, cand):
+    for line, sha in zip(out, cand, strict=False):
         p = line.split()
         if len(p) == 3 and p[1] == "commit":
             real[sha] = p[0]

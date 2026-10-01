@@ -19,7 +19,7 @@ Usage:
         --model deepseek-ai/deepseek-coder-v2-16b \
         --gpu-memory-utilization 0.90 \
         --max-model-len 16384
-    
+
     # Option 2: Use this script
     python deploy_vllm.py --model deepseek-ai/deepseek-coder-v2-16b
 """
@@ -74,11 +74,10 @@ def get_gpu_vram() -> float | None:
             import json
 
             data = json.loads(result.stdout)
-            for gpu_id, info in data.items():
+            for info in data.values():
                 if "vram_used" in info:
                     vram_str = info.get("vram_total", "16384MB")
-                    vram_gb = float(vram_str.replace("MB", "")) / 1024
-                    return vram_gb
+                    return float(vram_str.replace("MB", "")) / 1024
     except:
         pass
     return None
@@ -102,9 +101,7 @@ def calculate_memory_fraction(model_name: str, vram_gb: float) -> float:
     # Use 90% of available VRAM minus a small buffer
     buffer = 0.5  # GB buffer for system
     available = vram_gb - buffer
-    fraction = min(0.95, available / vram_gb)
-
-    return fraction
+    return min(0.95, available / vram_gb)
 
 
 def generate_docker_run(model: str, port: int = API_PORT, tensor_parallel: int = 1, enforce_eager: bool = False) -> str:
@@ -141,7 +138,7 @@ def generate_docker_compose(model: str, port: int = API_PORT) -> str:
     """
     Generate docker-compose.yml for vLLM with AMD ROCm.
     """
-    compose = f'''version: '3.8'
+    return f'''version: '3.8'
 
 services:
   vllm:
@@ -174,7 +171,6 @@ services:
               count: all
               capabilities: [gpu, rocm]
 '''
-    return compose
 
 
 def deploy_direct(model: str, port: int = API_PORT) -> int:

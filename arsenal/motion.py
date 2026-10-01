@@ -72,15 +72,21 @@ def profile(manifest) -> dict:
 
     blind = [
         "audio: the change score is visual only",
-        "transitions_per_min is a RATE, so a SHORT take inflates it: one cut in a 7.8 s clip "
-        "reads 7.7/min and bands as 'active' beside a 90 s take with three cuts (2/min). Read "
-        "duration_s beside the rate, and treat 'read' as a hint on a whole bank, never a verdict "
-        "on one short clip",
-        "settle depth INSIDE a transition is not measurable from a stored manifest -- the "
-        "segment table carries peaks and durations, not the curve per segment (the fix, when "
-        "someone wants it, belongs in storyboard.analyse(), where the per-frame times live)",
-        "a strobe can read as one very short transition and a slow fade as one very long one, "
-        "so duration_ms is not by itself a violence measure -- read it beside peak_median",
+        (
+            "transitions_per_min is a RATE, so a SHORT take inflates it: one cut in a 7.8 s clip "
+            "reads 7.7/min and bands as 'active' beside a 90 s take with three cuts (2/min). Read "
+            "duration_s beside the rate, and treat 'read' as a hint on a whole bank, never a verdict "
+            "on one short clip"
+        ),
+        (
+            "settle depth INSIDE a transition is not measurable from a stored manifest -- the "
+            "segment table carries peaks and durations, not the curve per segment (the fix, when "
+            "someone wants it, belongs in storyboard.analyse(), where the per-frame times live)"
+        ),
+        (
+            "a strobe can read as one very short transition and a slow fade as one very long one, "
+            "so duration_ms is not by itself a violence measure -- read it beside peak_median"
+        ),
     ]
     if duration is None:
         blind.insert(

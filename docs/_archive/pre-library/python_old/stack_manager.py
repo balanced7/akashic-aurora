@@ -43,6 +43,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 
 import psutil
+import contextlib
 
 # ── Platform setup ──
 if sys.platform == "win32":
@@ -750,7 +751,7 @@ class MemoryMonitor:
                 # Store in Redis
                 r = _redis()
                 if r:
-                    try:
+                    with contextlib.suppress(Exception):
                         r.hset(
                             f"service:{name}:memory",
                             mapping={
@@ -760,8 +761,6 @@ class MemoryMonitor:
                                 "timestamp": datetime.now().isoformat(),
                             },
                         )
-                    except Exception:
-                        pass
         return samples
 
     def _sample_service(self, name: str, cfg: dict) -> dict | None:
@@ -836,15 +835,11 @@ class MemoryMonitor:
                         if parts:
                             # MemUsage is like "50MiB / 1GiB"
                             mem_str = parts[0].replace("MiB", "").replace("GiB", "*1024")
-                            try:
+                            with contextlib.suppress(Exception):
                                 total_rss += float(eval(mem_str) if "*" in mem_str else mem_str)
-                            except Exception:
-                                pass
                             if len(parts) > 1:
-                                try:
+                                with contextlib.suppress(Exception):
                                     total_cpu += float(parts[-1].replace("%", ""))
-                                except Exception:
-                                    pass
                     return {"rss_mb": round(total_rss, 1), "vms_mb": 0, "cpu_pct": round(total_cpu, 1)}
 
         except Exception:
@@ -1127,7 +1122,7 @@ def cmd_stop():
                 if runtime == "wsl":
                     out, ok = _run_wsl(stop_cmd, timeout=10)
                 else:
-                    out, ok = _run_ps(stop_cmd, timeout=10)
+                    _out, ok = _run_ps(stop_cmd, timeout=10)
                 icon = "\u2713" if ok else "\u26a0"
                 log(icon, name, "Stopped", "G" if ok else "Y")
             except Exception as e:

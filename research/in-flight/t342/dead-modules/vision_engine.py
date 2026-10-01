@@ -203,9 +203,8 @@ class VisionEngine:
         Compatible with transformers 5.x via explicit prompt construction
         and post-processing.
         """
-        if not self._loaded:
-            if not self.load():
-                return {"error": "Failed to load vision model"}
+        if not self._loaded and not self.load():
+            return {"error": "Failed to load vision model"}
 
         try:
             # Task prompts for Florence-2
@@ -324,9 +323,8 @@ class VisionEngine:
         Returns:
             Dict with bounding boxes and confidence for found elements
         """
-        if not self._loaded:
-            if not self.load():
-                return {"error": "Failed to load vision model"}
+        if not self._loaded and not self.load():
+            return {"error": "Failed to load vision model"}
 
         try:
             # Build grounding prompt
@@ -383,8 +381,7 @@ def capture_active_window() -> Image.Image | None:
         if active:
             bbox = active.bbox
             if bbox:
-                screenshot = ImageGrab.grab(bbox=bbox, include_layered_windows=False)
-                return screenshot
+                return ImageGrab.grab(bbox=bbox, include_layered_windows=False)
     except Exception as e:
         print(f"[vision] pygetwindow failed: {e}")
 
@@ -468,9 +465,7 @@ def encode_image_base64(image: Image.Image, max_size: int = 2048) -> str:
     # Encode
     buffer = io.BytesIO()
     image.save(buffer, format="JPEG", quality=85)
-    encoded = base64.b64encode(buffer.getvalue()).decode("utf-8")
-
-    return encoded
+    return base64.b64encode(buffer.getvalue()).decode("utf-8")
 
 
 def quick_error_detection(image: Image.Image) -> dict[str, Any]:
@@ -497,7 +492,7 @@ def quick_error_detection(image: Image.Image) -> dict[str, Any]:
 
     detected_errors = [p for p in error_patterns if p in text]
 
-    result = {
+    return {
         "has_error": len(detected_errors) > 0,
         "error_keywords": detected_errors,
         "text_preview": text[:500] if text else "",
@@ -505,8 +500,6 @@ def quick_error_detection(image: Image.Image) -> dict[str, Any]:
         "confidence": "high" if len(detected_errors) > 2 else ("medium" if detected_errors else "low"),
         "timestamp": datetime.now().isoformat(),
     }
-
-    return result
 
 
 def get_screen_context_for_analyst(image: Image.Image) -> dict[str, Any]:
@@ -530,7 +523,7 @@ def get_screen_context_for_analyst(image: Image.Image) -> dict[str, Any]:
     screenshot_path = save_screenshot(image, "analyst_context")
 
     # Compile context
-    context = {
+    return {
         "screenshot_path": screenshot_path,
         "screenshot_b64": encode_image_base64(image),
         "error_detection": error_check,
@@ -540,8 +533,6 @@ def get_screen_context_for_analyst(image: Image.Image) -> dict[str, Any]:
         "timestamp": datetime.now().isoformat(),
         "vision_model": engine.model_name,
     }
-
-    return context
 
 
 def create_vision_signal_payload(context: dict[str, Any]) -> str:

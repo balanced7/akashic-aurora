@@ -263,7 +263,7 @@ def summarize(manifest: dict, call_plan, branches) -> dict:
         assigned = set()
         judged = set()
         claimed = set()
-        arm_calls = [(call, branch) for call, branch in zip(call_plan, branches) if call["arm"] == arm]
+        arm_calls = [(call, branch) for call, branch in zip(call_plan, branches, strict=False) if call["arm"] == arm]
         for call, branch in arm_calls:
             parsed = parse_answer(branch.get("answer"), call["packet"])
             branch_assigned = {item["_canary_id"] for item in call["packet"]}
@@ -387,8 +387,10 @@ def adjudicate(
         return {
             "ruling": "SHARDING",
             "reasons": [
-                f"calls 2-4 added {shard_gain} unique true findings versus {rep_gain}, "
-                "without exceeding the registered precision tolerance"
+                (
+                    f"calls 2-4 added {shard_gain} unique true findings versus {rep_gain}, "
+                    "without exceeding the registered precision tolerance"
+                )
             ],
         }
     if (
@@ -399,15 +401,19 @@ def adjudicate(
         return {
             "ruling": "REPLICATION",
             "reasons": [
-                f"calls 2-4 recovered {rep_gain} anchor findings versus {shard_gain}, "
-                "without exceeding the registered precision tolerance"
+                (
+                    f"calls 2-4 recovered {rep_gain} anchor findings versus {shard_gain}, "
+                    "without exceeding the registered precision tolerance"
+                )
             ],
         }
     return {
         "ruling": "INCONCLUSIVE",
         "reasons": [
-            f"marginal true findings tie or precision trade-off is unresolved "
-            f"(replication={rep_gain}, sharding={shard_gain})"
+            (
+                f"marginal true findings tie or precision trade-off is unresolved "
+                f"(replication={rep_gain}, sharding={shard_gain})"
+            )
         ],
     }
 

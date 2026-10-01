@@ -396,7 +396,7 @@ def suffix_tones(suffix: str) -> dict[str, int]:
         third, s = 3, s[1:]
     elif s.startswith("dim"):
         third, fifth, dim, s = 3, 6, True, s[3:]
-    elif s.startswith("aug") or s.startswith("+"):
+    elif s.startswith(("aug", "+")):
         fifth, s = 8, s[3:] if s.startswith("aug") else s[1:]
     if s.startswith("maj"):
         major7, s = True, s[3:]
@@ -634,8 +634,8 @@ def _upper_order(semis: dict[str, int], slash: bool) -> tuple[list[str], list[st
         )
     ]
     named = [r for r in ("ninth", "eleventh", "thirteenth") if r in semis and r not in altered]
-    full = [r for r in [third, seventh] + altered + named if r]
-    comp = [r for r in [third, seventh] + altered[:1] if r]
+    full = [r for r in [third, seventh, *altered, *named] if r]
+    comp = [r for r in [third, seventh, *altered[:1]] if r]
     if slash:
         full.append("root")
         comp.append("root")
@@ -646,7 +646,7 @@ def _place(pcs_roles: list[tuple[int, str]], low: int) -> tuple[list[int], list[
     placed = sorted((low + (pc - low) % 12, role) for pc, role in pcs_roles)
     if len(placed) >= 3 and placed[-1][0] - placed[-2][0] == 1:  # never a minor 2nd between the top two voices
         top = placed.pop()
-        placed = sorted(placed + [(top[0] - 12, top[1])])
+        placed = sorted([*placed, (top[0] - 12, top[1])])
     return [n for n, _ in placed], [r for _, r in placed]
 
 
@@ -669,11 +669,11 @@ def stub_band(facts: Sequence[dict]) -> list[dict]:
             bass = min(options, key=lambda p: (abs(p - prev["bass"]), p)) if options else 36 + bass_pc
             v = {
                 "bass": bass,
-                "full": [bass] + prev["full"][1:],
-                "comp": [bass] + prev["comp"][1:],
+                "full": [bass, *prev["full"][1:]],
+                "comp": [bass, *prev["comp"][1:]],
                 "roles": {
-                    "full": ["bass"] + prev["roles"]["full"][1:],
-                    "comp": ["bass"] + prev["roles"]["comp"][1:],
+                    "full": ["bass", *prev["roles"]["full"][1:]],
+                    "comp": ["bass", *prev["roles"]["comp"][1:]],
                     "bass": ["bass"],
                 },
             }
@@ -713,9 +713,9 @@ def stub_band(facts: Sequence[dict]) -> list[dict]:
         cn, cr = _place(comp, 52)
         v = {
             "bass": bass,
-            "full": [bass] + fn,
-            "comp": [bass] + cn,
-            "roles": {"full": ["bass"] + fr, "comp": ["bass"] + cr, "bass": ["bass"]},
+            "full": [bass, *fn],
+            "comp": [bass, *cn],
+            "roles": {"full": ["bass", *fr], "comp": ["bass", *cr], "bass": ["bass"]},
         }
         out.append(v)
         prev = v
@@ -801,7 +801,7 @@ class Resolver:
             d = self.resolve(dict(card, rev=None, page_reads=[]), variant=variant)
             items = _line_items(card, variant)
             chords = [it for it in items if "key" not in it and "rest" not in it]
-            for sl, it in zip(d["slots"], chords):
+            for sl, it in zip(d["slots"], chords, strict=False):
                 entry = {
                     "variant": variant,
                     "slot": sl["i"],
@@ -951,7 +951,7 @@ class Resolver:
         band_future = _pool().submit(self._bridge, self._band_request(raw, sections)) if band else None
         for jk, fut in futures.items():
             results = fut.result()
-            for i, res in zip(jobs[jk], results):
+            for i, res in zip(jobs[jk], results, strict=False):
                 if res.get("error"):
                     field = f"{raw[i]['at']}.{'n' if jk[0] == 'n' else 'notes'}"
                     raise ResolveError(field, f"cannot be voiced: {res['error']}")
@@ -1138,7 +1138,7 @@ class Resolver:
                 raise ResolveError("def", f"came out malformed ({exc}); this is a resolver bug") from None
             # the bridge's band voicings broke the frozen def contract (registers, upper same): the stand-in voices
             # the line instead, and the def says why, so a bridge change never takes Loop and Try down
-            for sl, r, v in zip(d["slots"], raw, stub_band(facts_list)):
+            for sl, r, v in zip(d["slots"], raw, stub_band(facts_list), strict=False):
                 sl["voicings"].update(full=v["full"], comp=v["comp"], bass=[v["bass"]])
                 sl["roles"] = v["roles"]
                 sl.pop("reads_as", None)
@@ -1180,7 +1180,7 @@ class Resolver:
         try:
             results = future.result()
             out = []
-            for f, res in zip(facts, results):
+            for f, res in zip(facts, results, strict=False):
                 if res.get("error"):
                     return None
                 b = res["band"]

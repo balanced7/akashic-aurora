@@ -428,7 +428,7 @@ def bus_parts(bus: dict, nodes: dict[str, dict]) -> list[dict]:
             parts.append(_conn(cx, p_edge, cx, bar, head="none", dashed=dashed, tone=tone, kind="bus"))
         lo, hi = min(s_centres + k_centres), max(s_centres + k_centres)
         parts.append(_conn(lo, bar, hi, bar, head="none", dashed=dashed, tone=tone, kind="bus"))
-        for sink, cx in zip(sinks, k_centres):
+        for sink, cx in zip(sinks, k_centres, strict=False):
             parts.append(_conn(cx, bar, cx, c_edge, **stub_kw(sink), kind="bus"))
         return parts
     p_edge = max(x + w for x, _, w, _ in s_boxes) if right else min(x for x, _, _, _ in s_boxes)
@@ -444,7 +444,7 @@ def bus_parts(bus: dict, nodes: dict[str, dict]) -> list[dict]:
         parts.append(_conn(p_edge, cy, bar, cy, head="none", dashed=dashed, tone=tone, kind="bus"))
     lo, hi = min(s_centres + k_centres), max(s_centres + k_centres)
     parts.append(_conn(bar, lo, bar, hi, head="none", dashed=dashed, tone=tone, kind="bus"))
-    for sink, cy in zip(sinks, k_centres):
+    for sink, cy in zip(sinks, k_centres, strict=False):
         parts.append(_conn(bar, cy, c_edge, cy, **stub_kw(sink), kind="bus"))
     return parts
 

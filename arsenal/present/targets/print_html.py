@@ -65,7 +65,7 @@ def footnote_scale(scene: dict) -> float:
 def footnote_overflow(scene: dict) -> str | None:
     """A sentence naming the slide whose note cannot fit its footnote even at MIN_SCALE, or
     None when every note fits (by the estimate)."""
-    who, longest, lines, rows, need = _footnote_need(scene)
+    who, longest, lines, _rows, need = _footnote_need(scene)
     room = sc.CANVAS["h"] - round(sc.CANVAS["h"] * MIN_SCALE) - FOOT_GAP - 24
     if need <= room + 48:  # the same 48 the estimate reserves
         return None

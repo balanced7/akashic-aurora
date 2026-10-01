@@ -74,8 +74,7 @@ def speak_text(text):
         subprocess.run(cmd, capture_output=True)
 
         with open("/tmp/tts_output.wav", "rb") as f:
-            audio_data = base64.b64encode(f.read()).decode()
-        return audio_data
+            return base64.b64encode(f.read()).decode()
     except Exception as e:
         print(f"[TTS] Error: {e}")
         return None

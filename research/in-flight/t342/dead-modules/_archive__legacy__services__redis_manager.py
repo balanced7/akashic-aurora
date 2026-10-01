@@ -32,6 +32,7 @@ import time
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from enum import Enum
+import contextlib
 
 # ============================================================================
 # CONFIGURATION - Enterprise Grade
@@ -211,10 +212,8 @@ class BackupCatalog:
             except Exception as e:
                 log(f"Failed to save catalog: {e}", LogLevel.ERROR)
                 if os.path.exists(tmp_file):
-                    try:
+                    with contextlib.suppress(BaseException):
                         os.remove(tmp_file)
-                    except:
-                        pass
 
     def add(self, metadata: BackupMetadata):
         """Add new backup to catalog."""
@@ -319,7 +318,7 @@ class BackupCatalog:
 
 def run_wsl(command: str, timeout: int = 30) -> tuple[str, int]:
     """Execute command in WSL2 with timeout."""
-    cmd = ["wsl.exe", "-d", WSL_DISTRO, "-e"] + command.split()
+    cmd = ["wsl.exe", "-d", WSL_DISTRO, "-e", *command.split()]
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
         return result.stdout.strip(), result.returncode
@@ -336,7 +335,7 @@ def run_wsl(command: str, timeout: int = 30) -> tuple[str, int]:
 
 def check_redis_connection() -> bool:
     """Check Redis PING response."""
-    output, code = run_wsl(f"docker exec {CONTAINER_NAME} redis-cli PING")
+    output, _code = run_wsl(f"docker exec {CONTAINER_NAME} redis-cli PING")
     return output == "PONG"
 
 
@@ -359,7 +358,7 @@ def get_redis_info() -> dict:
 
 def get_redis_keys_count() -> int:
     """Get key count."""
-    output, code = run_wsl(f"docker exec {CONTAINER_NAME} redis-cli DBSIZE")
+    output, _code = run_wsl(f"docker exec {CONTAINER_NAME} redis-cli DBSIZE")
     try:
         return int(output) if output.isdigit() else 0
     except:
@@ -411,7 +410,7 @@ def get_key_value(key: str, key_type: str) -> any:
 
 def get_container_status() -> dict:
     """Get Docker container status."""
-    output, code = run_wsl(f"docker ps -a --filter name={CONTAINER_NAME}")
+    output, _code = run_wsl(f"docker ps -a --filter name={CONTAINER_NAME}")
     if not output or "wsl-ai-redis" not in output:
         return {"running": False, "exists": False}
 
@@ -617,10 +616,9 @@ def restore_redis(backup_path: str, verify_first: bool = True) -> bool:
     """
     log(f"Starting restore from: {backup_path}")
 
-    if verify_first:
-        if not verify_backup_integrity(backup_path):
-            log("Pre-restore verification failed, aborting", LogLevel.ERROR)
-            return False
+    if verify_first and not verify_backup_integrity(backup_path):
+        log("Pre-restore verification failed, aborting", LogLevel.ERROR)
+        return False
 
     try:
         # Load backup
@@ -790,11 +788,11 @@ def start_redis_if_needed() -> bool:
         f"redis:alpine redis-server --appendonly yes --dir /data"
     )
 
-    output, code = run_wsl(cmd)
+    _output, code = run_wsl(cmd)
 
     if code == 0:
         # Wait for health
-        for i in range(10):
+        for _i in range(10):
             time.sleep(1)
             if check_redis_connection():
                 log("Redis started and healthy")

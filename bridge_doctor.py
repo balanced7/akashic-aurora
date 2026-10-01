@@ -52,7 +52,8 @@ def main() -> int:
     print("BRIDGE DOCTOR — your side, reported across the bridge")
     print("=" * 74)
 
-    fp = lambda b: hashlib.sha256(b).hexdigest()[:12] if b else "(absent)"
+    def fp(b):
+        return hashlib.sha256(b).hexdigest()[:12] if b else "(absent)"
 
     # ---- keys ------------------------------------------------------------------
     # PER-PEER, because a machine can host several identities. This read hardcoded
@@ -136,10 +137,7 @@ def main() -> int:
         t = datetime.datetime.fromtimestamp(int(r.get("admitted_at") or 0)).strftime("%H:%M:%S")
         skew = int(r.get("sent_at") or 0) - int(r.get("admitted_at") or 0)
         line(f"  parked {str(r.get('id'))[:26]}", f"frm={r.get('frm')} claimed={r.get('claimed_frm')} skew={skew:+d}s")
-        if str(r.get("frm", "")).startswith("remote:"):
-            prov_ok = True if prov_ok is None else prov_ok
-        else:
-            prov_ok = False
+        prov_ok = (True if prov_ok is None else prov_ok) if str(r.get("frm", "")).startswith("remote:") else False
     if peer_mail:
         line(
             "PROVENANCE REWRITE",

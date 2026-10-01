@@ -304,7 +304,7 @@ class VectorStore:
                     min(top_k * 2, len(self._id_to_key)),  # Over-fetch for filtering
                 )
 
-                for i, (dist, idx) in enumerate(zip(D[0], I[0])):
+                for _i, (dist, idx) in enumerate(zip(D[0], I[0], strict=False)):
                     if idx < 0:
                         continue
 
@@ -350,7 +350,7 @@ class VectorStore:
         query_lower = query.lower()
         scores = []
 
-        for entry_id, entry in self.entries.items():
+        for entry in self.entries.values():
             if model_filter and entry.model != model_filter:
                 continue
 
@@ -383,11 +383,10 @@ class VectorStore:
     def get_by_key(self, key: str, model: str = None) -> dict | None:
         """Get entry by key"""
         for entry in self.entries.values():
-            if entry.key == key:
-                if model is None or entry.model == model:
-                    result = entry.to_dict()
-                    result["score"] = 1.0
-                    return result
+            if entry.key == key and (model is None or entry.model == model):
+                result = entry.to_dict()
+                result["score"] = 1.0
+                return result
         return None
 
     def get_recent(self, limit: int = 10, model_filter: str = None) -> list[dict]:
@@ -408,8 +407,8 @@ class VectorStore:
             "total_entries": len(self.entries),
             "faiss_available": self.faiss_index is not None,
             "embedding_dim": EMBEDDING_DIM,
-            "models": list(set(e.model for e in self.entries.values())),
-            "categories": list(set(e.metadata.get("category", "unknown") for e in self.entries.values())),
+            "models": list({e.model for e in self.entries.values()}),
+            "categories": list({e.metadata.get("category", "unknown") for e in self.entries.values()}),
         }
 
     def sync_from_knowledge_base(self, kb):
@@ -436,10 +435,7 @@ class VectorStore:
 
                 for key, data in learnings.items():
                     # Extract value
-                    if isinstance(data, dict):
-                        value = data.get("value", str(data))
-                    else:
-                        value = str(data)
+                    value = data.get("value", str(data)) if isinstance(data, dict) else str(data)
 
                     # Embed
                     self.embed_learning(model, key, value, data.get("category", "general"))

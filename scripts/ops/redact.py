@@ -143,7 +143,7 @@ def apply(root: Path | None = None, manifest: dict[str, Any] | None = None) -> d
     root = Path(root) if root else _REPO_ROOT
     man = manifest or load_manifest()
     pre = scan(root, man)
-    ok_patterns = [t for t, s in zip(man["targets"], pre["targets"]) if not s["refused"]]
+    ok_patterns = [t for t, s in zip(man["targets"], pre["targets"], strict=False) if not s["refused"]]
     files = _tracked(root)
     changed, replacements = 0, 0
     for rel in files:

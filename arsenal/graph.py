@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from . import GRAPH_API
 from .mediatypes import PRODUCER_TYPES, check_caps
 from .registry import Registry, load_registry
+import itertools
 
 MODES = ("live_audio", "live_silent", "offline", "edit")
 
@@ -213,7 +214,7 @@ class Graph:
             stack.append(n)
             for m in succ[n]:
                 if state.get(m) == 1:
-                    return stack[stack.index(m) :] + [m]
+                    return [*stack[stack.index(m) :], m]
                 if m not in state:
                     found = visit(m)
                     if found:
@@ -334,7 +335,7 @@ def parse_text(src: str, registry: Registry | None = None) -> dict:
             graph["edges"].append([m.group(1), m.group(2)])
         elif "|" in line:
             chain = [p.strip() for p in line.split("|")]
-            for a, b in zip(chain, chain[1:]):
+            for a, b in itertools.pairwise(chain):
                 graph["edges"].append(_chain_link(a, b, graph, registry, lineno))
         else:
             raise GraphError([f"line {lineno}: cannot read {raw.strip()!r}"])

@@ -32,6 +32,7 @@ from core.comm.bus import Bus, Message
 from core.comm.toolbox import ToolBox
 from core.fleet import residents
 from core.toolbelt.registry import Toolbelt
+import contextlib
 
 DIRECT_ACTION_KINDS = frozenset({"request", "question", "handoff", "blocker"})
 ANSWER_KINDS = frozenset({"response", "reply", "answer", "completion"})
@@ -308,10 +309,8 @@ def _atomic_json(path: Path, payload: Mapping[str, Any]) -> None:
             os.fsync(handle.fileno())
         os.replace(temporary, path)
     finally:
-        try:
+        with contextlib.suppress(OSError):
             temporary.unlink(missing_ok=True)
-        except OSError:
-            pass
 
 
 def _append_jsonl(path: Path, payload: Mapping[str, Any]) -> None:
@@ -735,8 +734,10 @@ class CodexBifrostWake:
             )
         admitted = sum(1 for row in rows if row["admitted"])
         lines = [
-            f"# combo admission: {self.policy.agent} -- active={len(rows)} "
-            f"admitted={admitted} omitted={len(rows) - admitted}",
+            (
+                f"# combo admission: {self.policy.agent} -- active={len(rows)} "
+                f"admitted={admitted} omitted={len(rows) - admitted}"
+            ),
         ]
         if not rows:
             lines.append("  no active subject-authored combos")
@@ -1190,10 +1191,8 @@ class CodexBifrostWake:
                     # Do not process later rows and leapfrog the blocked conversation.
                     self._stop.wait(retry_delay)
         finally:
-            try:
+            with contextlib.suppress(Exception):
                 blocking_client.close()
-            except Exception:
-                pass
             self.close()
             self._log("stopped", handled=handled, last_seen=self.state.last_seen)
         return handled
@@ -1212,10 +1211,8 @@ def install_signal_stops(watcher: CodexBifrostWake) -> None:
     for name in ("SIGINT", "SIGTERM", "SIGBREAK"):
         sig = getattr(signal, name, None)
         if sig is not None:
-            try:
+            with contextlib.suppress(OSError, ValueError):
                 signal.signal(sig, stop)
-            except (OSError, ValueError):
-                pass
 
 
 __all__ = [

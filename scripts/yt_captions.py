@@ -23,6 +23,7 @@ import re
 import subprocess
 import sys
 from pathlib import Path
+import contextlib
 
 MISSING_YTDLP_HINT = (
     "yt-dlp is not importable from this interpreter. Install it into the fleet python:\n"
@@ -238,17 +239,13 @@ def fetch(url: str, out_dir: str, langs: str = "en.*", keep_vtt: bool = False, p
         txt.write_text(text + "\n", encoding="utf-8")
         txts.append(txt)
         if not keep_vtt:
-            try:
+            with contextlib.suppress(OSError):
                 vtt.unlink()
-            except OSError:
-                pass
     # drop the -orig twins we skipped converting, unless the caller wants raw vtt kept
     if not keep_vtt:
         for stray in set(out.glob("*.en-orig.vtt")):
-            try:
+            with contextlib.suppress(OSError):
                 stray.unlink()
-            except OSError:
-                pass
     return txts
 
 

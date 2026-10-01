@@ -101,7 +101,7 @@ def board():
             rows.append((votes * 2 + distinct + len(th) * 0.1, ref, e, th, votes, distinct))
     rows.sort(reverse=True)
     print(f"# \U0001f3c6 verb board -- {len(rows)} verbs, threads weighted by votes x distinct voices")
-    for score, ref, e, th, votes, distinct in rows:
+    for _score, ref, e, th, votes, distinct in rows:
         heat = "\U0001f525" * min(3, len(th))
         print(f"  {ref:<32} v{e['version']} [{e['evidence']:<8}] ⭐{votes} \U0001f5e3️{distinct} {heat}")
         latest = [c for c in th if c["kind"] in ("suggest", "praise")][-1:]

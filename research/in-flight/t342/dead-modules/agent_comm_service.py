@@ -22,6 +22,7 @@ import uuid
 from collections import defaultdict
 from collections.abc import Callable
 from datetime import datetime, timedelta
+import contextlib
 
 # ============================================================================
 # CONFIGURATION
@@ -210,10 +211,8 @@ class RedisPubSub:
                 if msg and msg.get("type") == "message":
                     data = json.loads(msg.get("data", "{}"))
                     for cb in self._callbacks["*"]:
-                        try:
+                        with contextlib.suppress(BaseException):
                             cb(data)
-                        except:
-                            pass
             except:
                 pass
 
@@ -315,10 +314,8 @@ class MessageBroker:
         msg_type = msg.get("type", "*")
 
         for cb in self._callbacks.get(msg_type, []) + self._callbacks.get("*", []):
-            try:
+            with contextlib.suppress(BaseException):
                 cb(msg)
-            except:
-                pass
 
     def publish(self, msg_type: str, content: dict, to_agent: str = "broadcast") -> str:
         """Publish a message"""
@@ -405,10 +402,8 @@ class HeartbeatManager:
     def _heartbeat_loop(self):
         """Heartbeat sending loop"""
         while self._running:
-            try:
+            with contextlib.suppress(BaseException):
                 self._send_heartbeat()
-            except:
-                pass
             time.sleep(self._interval)
 
     def _send_heartbeat(self):
@@ -657,7 +652,7 @@ class NotificationServer:
         """Main server loop"""
         while self.running:
             try:
-                client, addr = self._sock.accept()
+                client, _addr = self._sock.accept()
                 self._handle_client(client)
             except TimeoutError:
                 continue
@@ -695,10 +690,8 @@ class NotificationServer:
         """Stop the server"""
         self.running = False
         if self._sock:
-            try:
+            with contextlib.suppress(BaseException):
                 self._sock.close()
-            except:
-                pass
 
 
 # ============================================================================

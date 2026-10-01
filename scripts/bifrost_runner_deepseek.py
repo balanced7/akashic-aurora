@@ -55,6 +55,7 @@ sys.path.insert(0, HERE)
 from core.comm import control, liveness, roster
 from core.comm import shift_turn as _shift_turn  # noqa: E402  (turn boundary)
 from core.comm.bus import Bus
+import contextlib
 
 # T150: make this runner WATCHABLE. Python block-buffers stdout when it is not a TTY -- exactly the
 # case when an orchestrator captures it -- so a five-seat round on 2026-08-03 ran with every log at
@@ -64,14 +65,10 @@ from core.comm.bus import Bus
 # The same call pins the ENCODING, which closes a real crash: a check-mark in a trace line raises
 # UnicodeEncodeError under Windows cp1252. Guarded -- a stream that cannot be reconfigured (pytest
 # capture, an exotic wrapper) must degrade to the old behaviour, never take the runner down.
-try:
+with contextlib.suppress(Exception):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace", line_buffering=True)
-except Exception:
-    pass
-try:
+with contextlib.suppress(Exception):
     sys.stderr.reconfigure(encoding="utf-8", errors="replace", line_buffering=True)
-except Exception:
-    pass
 
 from ask_deepseek import DEFAULT_MODEL, load_key
 
@@ -103,6 +100,7 @@ ANSWERABLE = frozenset({"chat", "request", "question", "handoff", "nudge", "info
 # The API client already has a socket timeout (L0), but we add a wall-clock deadline
 # via threading so even a stuck stream can't block the main loop beyond this window.
 from core.comm.timescale import scaled as _scaled
+import contextlib
 
 
 def _pyl() -> str:
@@ -168,10 +166,8 @@ def _reply_already_sent(bus, mid) -> bool:
 def _mark_reply_sent(bus, mid) -> None:
     """Write the dedup sentinel to Redis (fast path) AND the durable Store (backstop).
     Both best-effort: a skip is cheaper than a double-reply."""
-    try:
+    with contextlib.suppress(Exception):
         bus._client.set(REPLY_SENT_PREFIX + str(mid), "1", ex=REPLY_TIMEOUT_SEC + 60, nx=True)
-    except Exception:
-        pass
     # S6: durable backstop — survives Redis restart (with TTL for cleanup)
     try:
         from core.foundation.store import create_store
@@ -388,14 +384,14 @@ def content_floor_check(answer, resend, agent_id="deepseek", promise_bounce_fire
     confession = (
         "(%s -- no substantive reply after %d attempts; reason: %s%s; "
         "see streamed trace / runner logs for any partial work)"
-        % (agent_id, attempts, reason, (" [last: %s]" % last) if last else "")
+        % (agent_id, attempts, reason, (" [last: {}]".format(last)) if last else "")
     )
     try:
         # deepseek's caught-table distinguishes the broken-resend path from a resend that
         # returned junk: 'failed' = the retry channel itself is down, 'exhausted' = the
         # model had its chances. Different doctor signals.
         kind = "content_floor_failed" if resend_raised else "content_floor_exhausted"
-        pulse(agent_id, "%s:%s" % (kind, reason))
+        pulse(agent_id, "{}:{}".format(kind, reason))
     except Exception:
         pass
     return confession
@@ -438,15 +434,15 @@ def make_replier(model: str, system: str, think: bool, agent_id: str = "deepseek
 
     def respond(prompt: str) -> str:
         answer = _complete(prompt)
+
         # RB-23: the stateless path's resend must re-embed the original ask, or the reprompt
         # arrives context-free and the retry cannot possibly deliver.
-        resend = lambda reprompt: _complete(prompt + "\n\n[system bounce] " + reprompt)
+        def resend(reprompt):
+            return _complete(prompt + "\n\n[system bounce] " + reprompt)
+
         pre = answer
         answer = bounce_promise(answer, resend)  # T018: a promise is not a deliverable
-        answer = content_floor_check(
-            answer, resend, agent_id=agent_id, promise_bounce_fired=(answer is not pre)
-        )  # RB-23
-        return answer
+        return content_floor_check(answer, resend, agent_id=agent_id, promise_bounce_fired=(answer is not pre))  # RB-23
 
     return respond
 
@@ -508,21 +504,23 @@ def make_agentic_replier(
         # RB-27a: every tool call / thinking chunk IS a progress point -- the pulse that
         # lets the doctor tell long-legit-work from a worker dead inside the turn.
         liveness.pulse(agent_id, f"{kind}:{str(text)[:60]}", generation=PULSE_GEN[0])
-        try:
+        with contextlib.suppress(Exception):
             trace_bus.broadcast(
                 "trace",
                 f"{prefix} {text}",
                 meta={"via": f"{agent_id}-runner", "hops": 0, "trace": kind, "display_only": True},
             )
-        except Exception:
-            pass
 
     # Barge-in: a HALT aimed at me (global pause OR my per-agent halt flag) OR a nudge TARGETED at me both
     # stop work mid-tool-loop (DeepSeek's insight, now extended to per-agent halt/nudge). The nudge flag is
     # cleared by the runner loop before it hands me the nudge message, so answering it is never self-interrupted.
-    interrupt = lambda: control.is_halted(agent_id) or nudge.is_nudged(agent_id)
+    def interrupt():
+        return control.is_halted(agent_id) or nudge.is_nudged(agent_id)
+
     # STEER: between rounds, fold any queued facts into the LIVE task without restarting (soft fidelity).
-    inject = lambda: nudge.steer_drain(agent_id)
+    def inject():
+        return nudge.steer_drain(agent_id)
+
     convos: dict = {}
 
     def respond(frm: str, prompt: str) -> str:
@@ -565,10 +563,8 @@ def make_agentic_replier(
             # T078 W1b: per-TURN peak, so reset the running max before the turn runs.
             hit_before = getattr(ag, "cache_hit_tokens", 0)
             miss_before = getattr(ag, "cache_miss_tokens", 0)
-            try:
+            with contextlib.suppress(Exception):
                 ag.context_high_water = 0
-            except Exception:
-                pass
             answer = ag.send(prompt)  # streams to the runner window; returns final text
             prompt_after = ag.prompt_tokens
             comp_after = ag.completion_tokens
@@ -783,7 +779,7 @@ def _runner_continuity_header(agent_id: str, directive_override: str = "", sibli
     or incarnation. W14-P4: DIRECTIVE must be the first line."""
     directive = directive_override or _directive_line(agent_id)
     siblings = siblings_override or _siblings_for_runner(agent_id)
-    return "\n".join(["## YOUR CONTINUITY (this runner's last known state)", directive, siblings])
+    return f"## YOUR CONTINUITY (this runner's last known state)\n{directive}\n{siblings}"
 
 
 # ---------------------------------------------------------------- T124: interiority sidecar
@@ -1556,7 +1552,10 @@ def main() -> int:
         # L1 kill-window drills: a deterministic offline responder -- the drill proves the
         # CONSUME->COMMIT pipeline, not the model. Never set in production.
         args.agentic = False
-        responder = lambda prompt: f"[drill-echo] {str(prompt)[:120]}"
+
+        def responder(prompt):
+            return f"[drill-echo] {str(prompt)[:120]}"
+
         mode = "drill-echo (offline)"
 
     bus.register(card=CARD)
@@ -1821,7 +1820,7 @@ def main() -> int:
                 except Exception:
                     pass  # fail-open: ttl=120 self-heals any orphaned pause (C1-9)
                 if _cleared:
-                    try:
+                    with contextlib.suppress(Exception):
                         bus.broadcast(
                             "note",
                             f"[storm-clear] {args.agent}-runner auto-cleared "
@@ -1832,8 +1831,6 @@ def main() -> int:
                             + ". Receipt: standby-hard graduates to auto-detected.",
                             meta={"via": "storm-auto-clear", "display_only": True},
                         )
-                    except Exception:
-                        pass
                     _storm.reset()
                     continue  # cursors already at tail via skip_to_now
                 # ceremony aborted (skip refused/raised): fall through -- process the
@@ -1850,15 +1847,13 @@ def main() -> int:
                     # RB-27a: self-confess (WATCHDOG=trigger equivalent) -- the doctor
                     # renders the reason instead of inferring a silent wedge.
                     liveness.pulse_error(args.agent, f"{type(e).__name__}: {e}", generation=lock_gen)
-                    try:
+                    with contextlib.suppress(Exception):
                         bus.send(
                             m.frm,
                             "note",
                             f"[error] deepseek runner hit an unhandled error: {type(e).__name__}: {e}",
                             meta={"via": f"{args.agent}-runner"},
                         )
-                    except Exception:
-                        pass
                 killpoint("post-sentinel-pre-advance")
                 if lane_mode and (m.meta or {}).get("_lane_src") != "work":
                     continue  # sig/legacy stream ids must NEVER advance the work fields;

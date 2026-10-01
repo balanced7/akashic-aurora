@@ -28,6 +28,7 @@ import time
 import uuid
 from collections.abc import Callable
 from typing import Any
+import contextlib
 
 
 # ---------------------------------------------------------------- DaemonLock
@@ -251,10 +252,8 @@ class ManagedChild:
             self._drainer_done.wait(timeout=5)
         tail = "\n".join(list(self._ring)) if self._ring else ""
         if self.on_exit:
-            try:
+            with contextlib.suppress(Exception):
                 self.on_exit(code, tail)
-            except Exception:
-                pass
         self._handle_exit(code or 0)
         return code
 
@@ -310,10 +309,8 @@ class ManagedChild:
             self._tripped = True
             self._tripped_at = now
             if self._on_blocker:
-                try:
+                with contextlib.suppress(Exception):
                     self._on_blocker()
-                except Exception:
-                    pass
             return
         # F2: non-blocking backoff -- schedule, don't sleep
         delay = self._backoffs[min(self._backoff_idx, len(self._backoffs) - 1)]

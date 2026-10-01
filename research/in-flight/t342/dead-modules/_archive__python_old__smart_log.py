@@ -26,6 +26,7 @@ from collections import defaultdict
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
+import contextlib
 
 BASE_DIR = Path(r"E:\AI-Setup")
 ARCHIVE_DIR = BASE_DIR / "sessions"
@@ -398,10 +399,8 @@ class SmartLog:
                 pass
 
         if self._redis_available:
-            try:
+            with contextlib.suppress(BaseException):
                 self._redis.rpush(f"session:{self.session_id}:log", entry_json)
-            except:
-                pass
 
     def _auto_tag(self, content: str) -> list[str]:
         suggested = self._vocab.suggest(content)
@@ -723,7 +722,7 @@ class SmartLog:
             for e in self.entries:
                 if e.type in ["action", "success", "partial"] and e.content in digest.actions:
                     key_actions.append(f"- [{e.action_type}] {e.content}")
-            lines.extend(["## Key Actions"] + key_actions[:8] + [""])
+            lines.extend(["## Key Actions", *key_actions[:8], ""])
 
         if digest.learnings:
             lines.extend(["## Decisions"] + [f"- {l}" for l in digest.learnings] + [""])

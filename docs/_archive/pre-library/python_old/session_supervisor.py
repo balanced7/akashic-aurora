@@ -27,6 +27,7 @@ from config import (
     get_docker_redis_config,
     get_redis_config,
 )
+import contextlib
 
 ALLOW_INFRA_ENV = "BREAKTHROUGH_ALLOW_INFRA_START"
 
@@ -113,10 +114,8 @@ def infra_status() -> dict[str, Any]:
         r.ping()
         out["wsl_redis_6380"] = True
         out["session_events_stream_length"] = int(r.xlen(SESSION_EVENTS_STREAM))
-        try:
+        with contextlib.suppress(Exception):
             out["learning_decisions_count"] = int(r.zcard("learn:decisions:idx"))
-        except Exception:
-            pass
     except Exception as e:
         out["wsl_redis_error"] = str(e)
 

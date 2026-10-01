@@ -20,6 +20,7 @@ import uuid
 from datetime import datetime
 
 import redis
+import contextlib
 
 # Paths
 BLACKBOARD_DIR = r"E:\AI-Setup\blackboard_data"
@@ -86,10 +87,8 @@ class Blackboard:
     def _set_redis_flag(self, key: str, value: str, ex: int = 3600):
         """Set Redis flag (best effort)"""
         if self._redis:
-            try:
+            with contextlib.suppress(BaseException):
                 self._redis.set(key, value, ex=ex)
-            except:
-                pass
 
     def _get_redis_flag(self, key: str) -> str | None:
         """Get Redis flag"""
@@ -383,10 +382,8 @@ class Blackboard:
         if os.path.exists(fault_file):
             with open(fault_file) as f:
                 for line in f:
-                    try:
+                    with contextlib.suppress(BaseException):
                         faults.append(json.loads(line.strip()))
-                    except:
-                        pass
 
         return faults[-20:]
 

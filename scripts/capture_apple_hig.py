@@ -209,8 +209,10 @@ def main() -> int:
     lines = [
         "# Apple HIG components capture — INDEX",
         "",
-        f"Captured {len(rows)} page(s), {sum(r['images'] for r in rows)} image file(s) "
-        f"(variants counted); misses: {misses or 'none'}.",
+        (
+            f"Captured {len(rows)} page(s), {sum(r['images'] for r in rows)} image file(s) "
+            f"(variants counted); misses: {misses or 'none'}."
+        ),
         "Assets live beside this index (raw/, text/, images/) and are GITIGNORED —",
         "copyrighted material stays local; rerun scripts/capture_apple_hig.py to refetch.",
         "",

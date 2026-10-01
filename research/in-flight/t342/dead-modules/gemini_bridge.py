@@ -24,6 +24,7 @@ import time
 import urllib.error
 import urllib.request
 from typing import Any
+import contextlib
 
 # Optional imports
 try:
@@ -113,9 +114,8 @@ class CDPBridge:
         try:
             import websocket
 
-            if not self.ws_url:
-                if not self.connect():
-                    return None
+            if not self.ws_url and not self.connect():
+                return None
 
             ws = websocket.create_connection(self.ws_url, timeout=10)
 
@@ -167,16 +167,16 @@ class CDPBridge:
                     (function() {{
                         var input = document.querySelector('div[role=\"textbox\"]');
                         if (!input) return 'no_input';
-                        
+
                         // Create a paste event with the text
                         var text = `{escaped_prompt}`;
                         navigator.clipboard.writeText(text);
                         input.focus();
-                        
+
                         // Simulate Ctrl+V
                         var pasteEvent = new KeyboardEvent('keydown', {{key: 'v', keyCode: 86, ctrlKey: true}});
                         input.dispatchEvent(pasteEvent);
-                        
+
                         return 'pasted';
                     }})()
                 """,
@@ -251,10 +251,8 @@ class CDPBridge:
     def disconnect(self):
         """Close websocket if open"""
         if self.ws:
-            try:
+            with contextlib.suppress(BaseException):
                 self.ws.close()
-            except:
-                pass
             self.ws = None
 
 
@@ -312,9 +310,8 @@ class GeminiBridgeRemote:
 
         This prevents getting stuck waiting for a response that never comes.
         """
-        if not self.driver:
-            if not self.connect():
-                return False
+        if not self.driver and not self.connect():
+            return False
 
         start = time.time()
         try:
@@ -398,9 +395,8 @@ class GeminiBridgeRemote:
         Returns:
             Gemini's response text or None if failed
         """
-        if not self.driver:
-            if not self.connect():
-                return None
+        if not self.driver and not self.connect():
+            return None
 
         try:
             # Find or navigate to Gemini tab
@@ -530,19 +526,16 @@ class GeminiBridgeNew:
     def disconnect(self):
         """Close the browser we opened"""
         if self.driver:
-            try:
+            with contextlib.suppress(BaseException):
                 self.driver.quit()
-            except:
-                pass
             self.driver = None
 
     def health_check(self, timeout: int = DEFAULT_TIMEOUT) -> bool:
         """
         Fast health check - verifies bridge is responsive within N seconds.
         """
-        if not self.driver:
-            if not self.connect():
-                return False
+        if not self.driver and not self.connect():
+            return False
 
         start = time.time()
         try:
@@ -560,9 +553,8 @@ class GeminiBridgeNew:
 
     def query(self, prompt: str, timeout: int = 30, fast_fail: int = DEFAULT_TIMEOUT) -> str | None:
         """Send query - same interface as GeminiBridgeRemote"""
-        if not self.driver:
-            if not self.connect():
-                return None
+        if not self.driver and not self.connect():
+            return None
 
         try:
             self.driver.get(GEMINI_URL)

@@ -41,6 +41,7 @@ try:
 except ImportError:  # outside FL the pattern parsers below still work; the tests inject a mock flvfx
     vfx = None
 import sys
+import contextlib
 
 try:
     import os
@@ -185,7 +186,7 @@ def parse_pattern_set(d, where="pattern"):
     if not isinstance(d, dict):
         raise PatternError(where + ": a pattern set must be an object")
     if d.get("version") != PATTERN_FORMAT_VERSION:
-        raise PatternError(where + ": version must be 1, got %r" % (d.get("version"),))
+        raise PatternError(where + ": version must be 1, got {!r}".format(d.get("version")))
     pid = d.get("id")
     if not isinstance(pid, str) or not pid:
         raise PatternError(where + ": id must be a non-empty string")
@@ -201,7 +202,7 @@ def parse_pattern_set(d, where="pattern"):
         or meter[0] < 1
         or meter[1] not in (1, 2, 4, 8, 16, 32)
     ):
-        raise PatternError(where + ": meter must be [beats, 1|2|4|8|16|32], got %r" % (meter,))
+        raise PatternError(where + ": meter must be [beats, 1|2|4|8|16|32], got {!r}".format(meter))
     bar_beats = meter[0] * 4.0 / meter[1]
     length = d.get("length_beats")
     if not _is_number(length) or length <= 0:
@@ -217,7 +218,7 @@ def parse_pattern_set(d, where="pattern"):
         raise PatternError(where + ": lanes must be an object")
     for name in lanes:
         if name not in LANES:
-            raise PatternError(where + ": unknown lane %r (lanes are bass, drums, comp, pad)" % (name,))
+            raise PatternError(where + ": unknown lane {!r} (lanes are bass, drums, comp, pad)".format(name))
     parsed = {}
     for lane in LANES:
         spec = lanes.get(lane)
@@ -226,7 +227,7 @@ def parse_pattern_set(d, where="pattern"):
             continue
         notes = spec.get("notes") if isinstance(spec, dict) else None
         if not isinstance(notes, list):
-            raise PatternError(where + ": lanes.%s must be an object with a notes list" % lane)
+            raise PatternError(where + ": lanes.{} must be an object with a notes list".format(lane))
         if len(notes) > MAX_NOTES_PER_LANE:
             raise PatternError(where + ": lanes.%s has more than %d notes" % (lane, MAX_NOTES_PER_LANE))
         out = []
@@ -269,7 +270,7 @@ def parse_playlist(doc, where="playlist"):
         items = doc
     elif isinstance(doc, dict):
         if doc.get("version") != PATTERN_FORMAT_VERSION:
-            raise PatternError(where + ": version must be 1, got %r" % (doc.get("version"),))
+            raise PatternError(where + ": version must be 1, got {!r}".format(doc.get("version")))
         items = doc.get("patterns")
         current = doc.get("current", 0)
         rev = doc.get("rev")
@@ -297,7 +298,7 @@ def parse_drum_maps(obj, where="DRUM_MAPS"):
         for k, v in table.items():
             key = int(k) if isinstance(k, str) and k.isdigit() else k
             if not _is_int(key) or not _is_int(v) or not 0 <= key <= 127 or not 0 <= v <= 127:
-                raise PatternError(where + ": map %r must map notes 0-127 to notes 0-127" % (name,))
+                raise PatternError(where + ": map {!r} must map notes 0-127 to notes 0-127".format(name))
             clean[key] = v
         out.append((name, clean, False))
     return out
@@ -311,7 +312,7 @@ def placeholder_pattern(message, index):
         "meter": (4, 4),
         "bar_beats": 4.0,
         "length_beats": 4.0,
-        "lanes": dict((lane, []) for lane in LANES),
+        "lanes": {lane: [] for lane in LANES},
     }
 
 
@@ -373,7 +374,7 @@ def _ascii(text):
 
 
 def _short(exc):
-    return _ascii("%s: %s" % (type(exc).__name__, exc))[:160]
+    return _ascii("{}: {}".format(type(exc).__name__, exc))[:160]
 
 
 class Compiled:
@@ -476,10 +477,8 @@ class Band:
     def _log(self, message):
         self.log.append(message)
         del self.log[:-50]
-        try:
+        with contextlib.suppress(Exception):
             print("[arsenal band] " + message)
-        except Exception:
-            pass
 
     def load_module(self):
         """Import (or re-import) arsenal_patterns. A missing or broken module leaves the band playing something."""
@@ -497,7 +496,7 @@ class Band:
         except Exception as exc:
             mod = sys.modules.get(PATTERN_MODULE)
             if mod is None:
-                self.module_status = "%s not importable (%s); playing the fallback groove" % (
+                self.module_status = "{} not importable ({}); playing the fallback groove".format(
                     PATTERN_MODULE,
                     _short(exc),
                 )
@@ -510,7 +509,7 @@ class Band:
             or not isinstance(patterns, (list, tuple))
             or not patterns
         ):
-            self.module_status = "%s has no version 1 PATTERNS list; playing the fallback groove" % PATTERN_MODULE
+            self.module_status = "{} has no version 1 PATTERNS list; playing the fallback groove".format(PATTERN_MODULE)
             self._log(self.module_status)
             self.baked = [parse_pattern_set(FALLBACK_PATTERN, "fallback")]
             return False
@@ -684,10 +683,8 @@ class Band:
                 self.deferred.append(e)
             return
         e.alive = False
-        try:
+        with contextlib.suppress(ValueError):
             self.sounding.remove(e)
-        except ValueError:
-            pass
         x = self.listed_voice(e)
         if x is not None:
             x.release()
@@ -913,7 +910,7 @@ class Band:
             end = head.start + span
             if 0 <= end - self.last_ticks - 1 < gap:
                 tail = list(range(self.last_ticks + 1, end))
-        return tail + [WRAP] + list(head)
+        return [*tail, WRAP, *list(head)]
 
     def jump_window(self, ticks, gap):
         """The ticks to play at once after FL moved the playhead to ticks, having passed at most gap ticks since it

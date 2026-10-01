@@ -168,7 +168,7 @@ class SessionCompressor:
                     for i in range(1, len(res), 2):
                         if i + 1 < len(res):
                             doc = res[i + 1]
-                            results.append(dict(zip(doc[::2], doc[1::2])))
+                            results.append(dict(zip(doc[::2], doc[1::2], strict=False)))
             except Exception as e:
                 logger.error("Search failed in %s: %s", name, e)
         return results[:limit]
@@ -177,10 +177,7 @@ class SessionCompressor:
         if not buf.strip():
             return
         combined = self._gather_raw_log(session_id)
-        if combined.strip():
-            merged = buf.rstrip() + "\n\n--- list/string log ---\n" + combined
-        else:
-            merged = buf
+        merged = buf.rstrip() + "\n\n--- list/string log ---\n" + combined if combined.strip() else buf
         self.compress_body_to_summaries(session_id, merged)
 
     def _stream_consumer_loop(self):

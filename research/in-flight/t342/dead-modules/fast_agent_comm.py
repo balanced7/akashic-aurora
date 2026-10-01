@@ -326,7 +326,7 @@ class FastAgentComm:
                 block=timeout if block else None,
             )
 
-            for stream, msgs in results or []:
+            for _stream, msgs in results or []:
                 for msg_id, fields in msgs:
                     try:
                         msg_data = json.loads(fields["data"])
@@ -362,7 +362,7 @@ class FastAgentComm:
         try:
             results = self._redis.xrevrange(STREAM_KEY, "+", "-", count=count)
 
-            for msg_id, fields in results or []:
+            for _msg_id, fields in results or []:
                 try:
                     msg_data = json.loads(fields["data"])
                     msg = FastMessage.from_dict(msg_data)

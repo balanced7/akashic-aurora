@@ -1492,9 +1492,10 @@ def insert_settings(settings: list[dict], bar: int, partial: dict) -> list[dict]
     out = [dict(s) for s in settings if s["from_bar"] < bar]
     out.append({**in_effect, **partial, "from_bar": bar})
     old_prev = in_effect
-    same = lambda a, b: (
-        {k: v for k, v in a.items() if k != "from_bar"} == {k: v for k, v in b.items() if k != "from_bar"}
-    )  # noqa: E731
+
+    def same(a, b):
+        return {k: v for k, v in a.items() if k != "from_bar"} == {k: v for k, v in b.items() if k != "from_bar"}  # noqa: E731
+
     for s in settings:
         if s["from_bar"] <= bar:
             continue

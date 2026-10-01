@@ -33,6 +33,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import contextlib
 
 # LEGACY, no-session paths only (below). Session-scoped paths resolve via _seat().
 # Default is NOT a peer name: a session with no env previously wrote bifrost_wake_claude.pid
@@ -226,10 +227,8 @@ def _promise_block(payload: dict):
     excerpt = promise_shaped(final_paragraph(last_assistant_text(transcript)))
     if not excerpt:
         return None
-    try:
+    with contextlib.suppress(Exception):
         open(PROMISE_LATCH, "w").write(session_id)
-    except Exception:
-        pass
     return (
         f"Turn-ending check: your final paragraph reads as a promise of future work "
         f'("{excerpt}..."). Do that work NOW with tool calls, or end on the outcome and '
@@ -303,7 +302,7 @@ def _draft_keepalive() -> None:
             )
 
         out = draft_keepalive.refresh(agent_cli.last_session_draft_path(), write=_write)
-        print("[stop-hook] draft keepalive: wrote=%s (%s)" % (out["wrote"], out["reason"]), file=sys.stderr)
+        print("[stop-hook] draft keepalive: wrote={} ({})".format(out["wrote"], out["reason"]), file=sys.stderr)
     except Exception:
         pass  # a keepalive must never alter the stop verdict
 
@@ -432,10 +431,8 @@ def main():
         except Exception:
             last = 0.0
         if now - last >= 25:  # loop guard: never block twice within 25s
-            try:
+            with contextlib.suppress(Exception):
                 open(guard, "w").write(str(now))
-            except Exception:
-                pass
             # ABSOLUTE path on purpose: the seat's cwd drifts off the repo root (observed
             # repeatedly at E:\ instead of E:\AI-Setup), and a relative script path then
             # resolves to a file that does not exist. The arm backgrounds cleanly and only

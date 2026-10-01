@@ -30,6 +30,7 @@ import glob
 import json
 import os
 import sys
+import contextlib
 
 
 def _pyl() -> str:
@@ -370,10 +371,8 @@ def main(argv=None):
     # did not author is a reading surface that refuses to read -- so degrade the glyph, never
     # the record. No pin caught this because the fixture was pure ASCII; the real corpus is not.
     for stream in (sys.stdout, sys.stderr):
-        try:
+        with contextlib.suppress(Exception):
             stream.reconfigure(encoding="utf-8", errors="replace")
-        except Exception:
-            pass
 
     ap = argparse.ArgumentParser()
     ap.add_argument("--stats", action="store_true", help="report on landed digests, write nothing")

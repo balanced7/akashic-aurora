@@ -141,9 +141,8 @@ class VisionEngine:
 
     def _analyze_raw(self, image: Image.Image, task: str) -> dict[str, Any]:
         """Internal analysis without caching"""
-        if not self._loaded:
-            if not self.load():
-                return {"error": "Model not loaded"}
+        if not self._loaded and not self.load():
+            return {"error": "Model not loaded"}
 
         prompts = {
             "caption": "<CAPTION>",

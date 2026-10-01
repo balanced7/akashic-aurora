@@ -436,7 +436,7 @@ if __name__ == "__main__":
         runner.status()
     elif args.reset:
         runner.poller.reset_positions()
-    elif args.daemon or True:  # Default to daemon mode
+    elif True:  # Default to daemon mode
         runner.start()
 
         # Keep main thread alive

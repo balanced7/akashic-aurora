@@ -90,7 +90,7 @@ def harmony(cue, speed=1, lifts_ms=None, boundary="notes", carried=None, theory_
     # Ends precede re-strikes at the same instant. Key release is deliberately not
     # used: a replay's hold_ms already includes the original sustain pedal.
     down_at = 0
-    for lift in sorted(set(int(round(t * speed)) for t in (lifts_ms or []) if t >= 0)):
+    for lift in sorted({int(round(t * speed)) for t in (lifts_ms or []) if t >= 0}):
         if lift <= down_at:
             continue
         events.append({"kind": "pedal", "t_ms": down_at, "down": True, "value": 100})

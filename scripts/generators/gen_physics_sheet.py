@@ -160,7 +160,7 @@ def scan(root_files=None):
         #
         # A line number in a committed derived doc is also a lying pointer the moment anyone
         # edits above it. File-level citation is stable, honest, and one grep from precise.
-        for i, line in enumerate(text.splitlines(), 1):
+        for _i, line in enumerate(text.splitlines(), 1):
             for m in _FLAG_RE.finditer(line):
                 name, default = m.group(1), (m.group(2) or "").strip().rstrip(",")
                 flags.setdefault(name, []).append((rel, default))
@@ -235,8 +235,11 @@ def main():
         except OSError:
             print("PHYSICS.md missing -- regenerate")
             return 1
+
         # compare bodies minus the derived-at line (sha churn is not staleness)
-        strip = lambda t: "\n".join(l for l in t.splitlines() if not l.startswith("> Derived at "))
+        def strip(t):
+            return "\n".join(l for l in t.splitlines() if not l.startswith("> Derived at "))
+
         if strip(old) != strip(text):
             print(f"PHYSICS.md STALE vs code -- regenerate ({_pyl()} scripts/generators/gen_physics_sheet.py)")
             return 1

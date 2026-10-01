@@ -124,7 +124,7 @@ def log(level: str, component: str, message: str, details: dict = None):
 
 def run_wsl(cmd: list[str], timeout: int = 30) -> tuple[str, int]:
     """Execute command in WSL2 with timeout."""
-    full_cmd = ["wsl.exe", "-d", WSL_DISTRO, "-e"] + cmd
+    full_cmd = ["wsl.exe", "-d", WSL_DISTRO, "-e", *cmd]
     try:
         result = subprocess.run(full_cmd, capture_output=True, text=True, timeout=timeout)
         return result.stdout.strip(), result.returncode
@@ -136,7 +136,7 @@ def run_wsl(cmd: list[str], timeout: int = 30) -> tuple[str, int]:
 
 def run_docker(cmd: list[str], timeout: int = 30) -> tuple[str, int]:
     """Run docker command in WSL2."""
-    return run_wsl(["docker"] + cmd, timeout)
+    return run_wsl(["docker", *cmd], timeout)
 
 
 # ============================================================================
@@ -182,7 +182,7 @@ def check_redis_health() -> HealthCheckResult:
         key_count = int(output) if output.isdigit() else 0
 
         # Check last save time
-        output, code = run_docker(["exec", CONTAINER_NAME, "redis-cli", "LASTSAVE"])
+        output, _code = run_docker(["exec", CONTAINER_NAME, "redis-cli", "LASTSAVE"])
         last_save = int(output) if output.isdigit() else 0
 
         # Verify backup exists
@@ -233,7 +233,7 @@ def check_gpu_rocminfo() -> HealthCheckResult:
             "rocminfo",
         ]
 
-        output, code = run_wsl(cmd, timeout=60)
+        output, _code = run_wsl(cmd, timeout=60)
         duration_ms = (time.time() - start) * 1000
 
         # Check for GPU agent
@@ -299,7 +299,7 @@ def check_gpu_clinfo() -> HealthCheckResult:
             "clinfo",
         ]
 
-        output, code = run_wsl(cmd, timeout=60)
+        output, _code = run_wsl(cmd, timeout=60)
         duration_ms = (time.time() - start) * 1000
 
         if "AMD Radeon RX 9070 XT" in output or "gfx1201" in output:
@@ -645,9 +645,9 @@ class FaultInjector:
         output, code = run_docker(["start", "wsl-ai-redis"])
 
         # Wait for recovery
-        for i in range(10):
+        for _i in range(10):
             time.sleep(1)
-            output, code = run_docker(["exec", "wsl-ai-redis", "redis-cli", "PING"])
+            output, _code = run_docker(["exec", "wsl-ai-redis", "redis-cli", "PING"])
             if output == "PONG":
                 log("INFO", "fault_injection", "Redis recovered successfully")
                 return HealthCheckResult(

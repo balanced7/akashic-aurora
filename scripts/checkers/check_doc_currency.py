@@ -50,7 +50,7 @@ def classify(path):
         if low.startswith("superseded"):
             target = re.search(r"superseded[- ]by:?\s*(\S+)", low)
             return ("superseded", target.group(1)) if target else ("superseded", "")
-        if low.startswith("historical") or low.startswith("archived"):
+        if low.startswith(("historical", "archived")):
             return "historical", value
         if low.startswith("current"):
             return "current", value

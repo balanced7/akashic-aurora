@@ -582,11 +582,10 @@ def _edit_patch(card: dict, args) -> dict:
             continue
         if card.get(key) != value:
             patch[key] = value
-    if args.notes_for or args.upper_same:
-        if not args.chords:
-            chords = json.loads(json.dumps(card.get("chords") or []))
-            _apply_line_flags(chords, args)
-            patch["chords"] = chords
+    if (args.notes_for or args.upper_same) and not args.chords:
+        chords = json.loads(json.dumps(card.get("chords") or []))
+        _apply_line_flags(chords, args)
+        patch["chords"] = chords
     tags = list(patch.get("tags", card.get("tags") or []))
     for t in args.add_tag or []:
         if t not in tags:
@@ -1064,7 +1063,7 @@ def moment_from_log(
         raise ValueError(f"nothing sounds for half of the window at {practice.clock(w0)}")
     if len(notes) > TEMPLATE_MAX_NOTES:
         keep = sorted(notes[1:], key=lambda n: (-heard[n], -n))[: TEMPLATE_MAX_NOTES - 1]
-        notes = sorted([notes[0]] + keep)
+        notes = sorted([notes[0], *keep])
     return {
         "session": session,
         "at_ms": int(w0),

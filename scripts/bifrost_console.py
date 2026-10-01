@@ -27,6 +27,7 @@ from datetime import datetime
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.comm.bus import NS, Bus, _loads
+import contextlib
 
 # ---- look: per-agent colors (Akashic Aurora palette) ---------------------------------------
 _FIXED = {
@@ -63,10 +64,8 @@ def parse_input(text: str):
 def format_message(frm, to, kind, content, ts):
     """A message -> prompt_toolkit FormattedText (list of (style, text)). Pure (testable)."""
     when = ""
-    try:
+    with contextlib.suppress(ValueError, TypeError):
         when = datetime.fromisoformat(str(ts)).strftime("%H:%M")
-    except (ValueError, TypeError):
-        pass
     arrow = "all" if to in ("*", "") else to
     body = content if isinstance(content, str) else str(content)
     head_style = f"fg:{color_for(frm)} bold"
@@ -82,10 +81,10 @@ def format_message(frm, to, kind, content, ts):
 def _streams(client):
     keys = []
     try:
-        keys = [k for k in client.keys(f"{NS}:inbox:*")]
+        keys = list(client.keys(f"{NS}:inbox:*"))
     except Exception:
         keys = []
-    return keys + [f"{NS}:broadcast"]
+    return [*keys, f"{NS}:broadcast"]
 
 
 def _render(pft):

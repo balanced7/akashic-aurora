@@ -42,6 +42,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+import contextlib
 
 ROOT = Path(__file__).resolve().parent.parent
 CACHE = ROOT / "state" / "coord" / "vision_answers.jsonl"
@@ -171,10 +172,8 @@ def main() -> int:
             )
 
     if tmp is not None:
-        try:
+        with contextlib.suppress(OSError):
             tmp.unlink()
-        except OSError:
-            pass
 
     if text is None:
         # The whole point: a look that did not happen must never read as "nothing there".

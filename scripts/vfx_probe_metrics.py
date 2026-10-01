@@ -159,7 +159,7 @@ def pixel_delta(pixels_a, pixels_b):
         return None
     diff_count = 0
     total = 0
-    for (ra, ga, ba, aa), (rb, gb, bb, ab) in zip(pixels_a, pixels_b):
+    for (ra, ga, ba, aa), (rb, gb, bb, ab) in zip(pixels_a, pixels_b, strict=False):
         if aa < 64 or ab < 64:
             continue
         total += 1

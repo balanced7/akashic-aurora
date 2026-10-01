@@ -50,7 +50,7 @@ def get_vram_usage():
         )
         if result.returncode == 0:
             data = json.loads(result.stdout)
-            for gpu_id, info in data.items():
+            for info in data.values():
                 if "vram_used" in info:
                     return float(info["vram_used"].replace("MB", "")) / 1024  # Convert to GB
     except:

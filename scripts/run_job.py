@@ -902,16 +902,20 @@ def _wmi_create_pair(commands: Iterable[list[str]]) -> list[int]:
     lines = [
         "$ErrorActionPreference = 'Stop'",
         "$out = @()",
-        "$startup = New-CimInstance -ClassName Win32_ProcessStartup "
-        "-Property @{ShowWindow=[uint16]0; CreateFlags=[uint32]8} -ClientOnly",
+        (
+            "$startup = New-CimInstance -ClassName Win32_ProcessStartup "
+            "-Property @{ShowWindow=[uint16]0; CreateFlags=[uint32]8} -ClientOnly"
+        ),
     ]
     for argv in commands:
         command_line = subprocess.list2cmdline([str(x) for x in argv])
         lines.extend(
             [
                 f"$cmd = {_powershell_quote(command_line)}",
-                "$r = Invoke-CimMethod -ClassName Win32_Process -MethodName Create "
-                "-Arguments @{CommandLine=$cmd; ProcessStartupInformation=$startup}",
+                (
+                    "$r = Invoke-CimMethod -ClassName Win32_Process -MethodName Create "
+                    "-Arguments @{CommandLine=$cmd; ProcessStartupInformation=$startup}"
+                ),
                 'if ([int]$r.ReturnValue -ne 0) { throw "Win32_Process.Create rc=$($r.ReturnValue)" }',
                 "$out += @{ ReturnValue=[int]$r.ReturnValue; ProcessId=[int]$r.ProcessId }",
             ]

@@ -326,8 +326,10 @@ def summarise(receipts: list[dict]) -> dict:
         "blind": [
             "frames not matched by the pattern are not in this census",
             "a pass means no floor fired, never that the frame is good",
-            "an exemption hides a red, never the measurement: the number is still in the "
-            "receipt, and a declaration whose reason has expired keeps silencing its "
-            "floor -- all this census can see is that it stopped matching anything",
+            (
+                "an exemption hides a red, never the measurement: the number is still in the "
+                "receipt, and a declaration whose reason has expired keeps silencing its "
+                "floor -- all this census can see is that it stopped matching anything"
+            ),
         ],
     }

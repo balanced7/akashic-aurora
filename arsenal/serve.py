@@ -30,6 +30,7 @@ from .presets import list_presets
 from .registry import load_registry
 from .take import TakeLedger
 from .timebase import StaleEpoch
+import contextlib
 
 HOST = "127.0.0.1"
 PACKAGE = Path(__file__).resolve().parent
@@ -69,9 +70,8 @@ def _is_jam_path(path: str) -> bool:
     return (
         path == "/api/piano/replay"
         or path == "/api/piano/deck"
-        or path.startswith("/api/piano/deck/")
+        or path.startswith(("/api/piano/deck/", "/api/piano/jam/"))
         or path == "/api/piano/jam"
-        or path.startswith("/api/piano/jam/")
     )
 
 
@@ -387,10 +387,8 @@ class Handler(BaseHTTPRequestHandler):
         except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError):
             return None  # the browser cancelled, usually a seek
         except Exception as exc:
-            try:
+            with contextlib.suppress(OSError):
                 self._json(500, {"error": f"{type(exc).__name__}: {exc}"})
-            except OSError:
-                pass
 
     # --------------------------------------------------------------------- static
     def _static(self, file: Path) -> None:
@@ -406,6 +404,7 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         if self.command != "HEAD":
             self.wfile.write(body)
+        return None
 
     def _static_under(self, rel: str) -> None:
         target = (WEB / rel).resolve()
@@ -455,6 +454,7 @@ class Handler(BaseHTTPRequestHandler):
                     break
                 self.wfile.write(chunk)
                 remaining -= len(chunk)
+        return None
 
     def _unsatisfiable(self, size: int) -> None:
         self.send_response(416)

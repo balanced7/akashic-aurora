@@ -71,8 +71,8 @@ def goal_num(goal: str) -> int:
 
 
 def load_checks(goal: str, ref: str | None = None) -> dict:
-    rel = "tooling-upgrade/checks/%s.toml" % goal
-    text = git("show", "%s:%s" % (ref, rel)) if ref else (ROOT / rel).read_text(encoding="utf-8")
+    rel = "tooling-upgrade/checks/{}.toml".format(goal)
+    text = git("show", "{}:{}".format(ref, rel)) if ref else (ROOT / rel).read_text(encoding="utf-8")
     return tomllib.loads(text)
 
 
@@ -91,7 +91,7 @@ def run_check(c: dict):
     if ok and c.get("expect_stdout"):
         ok = re.search(c["expect_stdout"], r.stdout, flags=re.M) is not None
         if not ok:
-            return False, "stdout lacks /%s/" % c["expect_stdout"], out
+            return False, "stdout lacks /{}/".format(c["expect_stdout"]), out
     return ok, "exit %d (expect %d)" % (r.returncode, c.get("expect", 0)), out
 
 
@@ -100,14 +100,14 @@ def checks_history_problems() -> list:
     expect_stdout from the commit that registered it; required_drills only grows."""
     problems = []
     for goal in GOALS:
-        rel = "tooling-upgrade/checks/%s.toml" % goal
+        rel = "tooling-upgrade/checks/{}.toml".format(goal)
         shas = git("log", "--format=%H", "--reverse", "--", rel, check=False).split()
         prev = None
-        for sha in shas + ["WORKTREE"]:
+        for sha in [*shas, "WORKTREE"]:
             try:
                 cur = load_checks(goal, None if sha == "WORKTREE" else sha)
             except (subprocess.SubprocessError, RuntimeError, OSError, tomllib.TOMLDecodeError) as e:
-                problems.append("%s at %s unreadable: %s" % (rel, sha[:9], str(e).splitlines()[0][:80]))
+                problems.append("{} at {} unreadable: {}".format(rel, sha[:9], str(e).splitlines()[0][:80]))
                 break
             if prev is not None:
                 new = {c["id"]: c for c in cur.get("check", [])}
@@ -115,25 +115,27 @@ def checks_history_problems() -> list:
                     n = new.get(c["id"])
                     keys = ("cmd", "expect", "phase", "expect_stdout")
                     if n is None:
-                        problems.append("%s: check %s removed at %s" % (goal, c["id"], sha[:9]))
+                        problems.append("{}: check {} removed at {}".format(goal, c["id"], sha[:9]))
                     elif any(c.get(k) != n.get(k) for k in keys):
-                        problems.append("%s: check %s changed at %s" % (goal, c["id"], sha[:9]))
+                        problems.append("{}: check {} changed at {}".format(goal, c["id"], sha[:9]))
                 if not set(prev.get("required_drills", [])) <= set(cur.get("required_drills", [])):
-                    problems.append("%s: required_drills shrank at %s" % (goal, sha[:9]))
+                    problems.append("{}: required_drills shrank at {}".format(goal, sha[:9]))
             prev = cur
     return problems
 
 
 def cmd_assert_checks_files(args) -> int:
     tracked = set(git("ls-files", "tooling-upgrade/checks").split())
-    problems = ["%s not committed" % g for g in GOALS if "tooling-upgrade/checks/%s.toml" % g not in tracked]
+    problems = [
+        "{} not committed".format(g) for g in GOALS if "tooling-upgrade/checks/{}.toml".format(g) not in tracked
+    ]
     for g in GOALS:
         try:
             data = load_checks(g)
             if not data.get("check"):
-                problems.append("%s has no checks" % g)
+                problems.append("{} has no checks".format(g))
         except (OSError, tomllib.TOMLDecodeError) as e:
-            problems.append("%s unparseable: %s" % (g, e))
+            problems.append("{} unparseable: {}".format(g, e))
     problems += checks_history_problems()
     for p in problems:
         print("  ", p)
@@ -166,8 +168,9 @@ def pushed() -> bool:
 def cmd_assert_branch(args) -> int:
     ok = on_branch() and is_linked_worktree()
     print(
-        "BRANCH: %s (on %s: %s, linked worktree: %s, path %s)"
-        % ("PASS" if ok else "FAIL", BRANCH, on_branch(), is_linked_worktree(), ROOT)
+        "BRANCH: {} (on {}: {}, linked worktree: {}, path {})".format(
+            "PASS" if ok else "FAIL", BRANCH, on_branch(), is_linked_worktree(), ROOT
+        )
     )
     return 0 if ok else 1
 
@@ -215,9 +218,9 @@ def t1():
     for name, task in poe_tasks().items():
         t = task_text(task)
         if re.search(r"\bruff (check|format)\b", t) and "--config pyproject.toml" not in t:
-            bad.append("poe task %s runs ruff without --config pyproject.toml" % name)
+            bad.append("poe task {} runs ruff without --config pyproject.toml".format(name))
         if "basedpyright" in t and "-p pyproject.toml" not in t:
-            bad.append("poe task %s runs basedpyright without -p pyproject.toml" % name)
+            bad.append("poe task {} runs basedpyright without -p pyproject.toml".format(name))
     return not bad, "; ".join(bad[:6]) or "one config home"
 
 
@@ -334,10 +337,10 @@ def t5():
     for pat, codes in pfi.items():
         allowed = ALLOWED_PER_FILE.get(pat)
         if allowed is None or not set(codes) <= allowed:
-            bad.append("%s = %s not a section-16 structural pattern" % (pat, codes))
-        line = next((ln for ln in text.splitlines() if ln.strip().startswith('"%s"' % pat)), "")
+            bad.append("{} = {} not a section-16 structural pattern".format(pat, codes))
+        line = next((ln for ln in text.splitlines() if ln.strip().startswith('"{}"'.format(pat))), "")
         if "#" not in line:
-            bad.append("%s has no comment" % pat)
+            bad.append("{} has no comment".format(pat))
     return not bad, "; ".join(bad) or "%d structural per-file ignores, all commented" % len(pfi)
 
 
@@ -346,13 +349,13 @@ def t6():
     bad = []
     for name in GATE_TASKS:
         if name not in tasks:
-            bad.append("task %s missing" % name)
+            bad.append("task {} missing".format(name))
             continue
         t = task_text(tasks[name])
-        bad += ["task %s contains %r" % (name, f) for f in GATE_FORBIDDEN if f in t]
+        bad += ["task {} contains {!r}".format(name, f) for f in GATE_FORBIDDEN if f in t]
         r = run(["uv", "run", "--frozen", "poe", "-d", name])
         if r.returncode != 0:
-            bad.append("poe -d %s failed" % name)
+            bad.append("poe -d {} failed".format(name))
     return not bad, "; ".join(bad[:6]) or "gate tasks run the tools"
 
 
@@ -375,7 +378,7 @@ def tamper(goal: str):
         try:
             ok, msg = fn()
         except Exception as e:  # a crashing rule is a failing rule, never a passing one
-            ok, msg = False, "crashed: %s: %s" % (type(e).__name__, e)
+            ok, msg = False, "crashed: {}: {}".format(type(e).__name__, e)
         active = n >= T_ACTIVE_FROM[t]
         results[t] = (active, ok, msg)
     return results
@@ -610,14 +613,14 @@ def _exec(spec, t, goal):
 
 
 def run_drill(did: str, goal: str) -> str:
-    desc, fault, gate, presence = DRILLS[did]
+    _desc, fault, gate, presence = DRILLS[did]
     with drill_tree() as t:
         pres = presence(t) if callable(presence) else presence
         if _exec(pres, t, goal) != 0:
             return "MISSED (gate absent)"
         clean_rc = _exec(gate, t, goal)
         if clean_rc != 0:
-            return "MISSED (gate red before the fault: rc=%s)" % clean_rc
+            return "MISSED (gate red before the fault: rc={})".format(clean_rc)
         fault(t)
         rc = _exec(gate, t, goal)
         return "BIT" if rc != 0 else "MISSED"
@@ -629,8 +632,8 @@ def run_drills(goal: str, ids=None):
         try:
             out[did] = run_drill(did, goal)
         except Exception as e:  # a drill that cannot run proves nothing about the gate
-            out[did] = "MISSED (drill error: %s: %s)" % (type(e).__name__, str(e)[:120])
-        print("%s %s  -- %s" % (did, out[did], DRILLS[did][0]), flush=True)
+            out[did] = "MISSED (drill error: {}: {})".format(type(e).__name__, str(e)[:120])
+        print("{} {}  -- {}".format(did, out[did], DRILLS[did][0]), flush=True)
     return out
 
 
@@ -678,12 +681,12 @@ def cmd_fresh_clone(args) -> int:
 def _report(name, problems) -> int:
     for p in problems[:30]:
         print("  ", p)
-    print("%s: %s" % (name, "PASS" if not problems else "FAIL (%d)" % len(problems)))
+    print("{}: {}".format(name, "PASS" if not problems else "FAIL (%d)" % len(problems)))
     return 1 if problems else 0
 
 
 def commits_since_base():
-    out = git("log", "--reverse", "--format=%H%x1f%s%x1f%b%x1e", "%s..HEAD" % oracle.g0_base())
+    out = git("log", "--reverse", "--format=%H%x1f%s%x1f%b%x1e", "{}..HEAD".format(oracle.g0_base()))
     for rec in out.split("\x1e"):
         rec = rec.strip("\n")
         if rec:
@@ -702,9 +705,9 @@ def cmd_assert_mechanical_commits(args) -> int:
         if subject.startswith("style:"):
             bad = [p for p, ok, _ in oracle.ast_equal(sha + "^", sha) if not ok]
             if bad:
-                problems.append("%s %s: AST differs in %s" % (sha[:9], subject, ", ".join(bad[:3])))
+                problems.append("{} {}: AST differs in {}".format(sha[:9], subject, ", ".join(bad[:3])))
             if not m:
-                problems.append("%s %s: class-B commit without Replay:" % (sha[:9], subject))
+                problems.append("{} {}: class-B commit without Replay:".format(sha[:9], subject))
         if not m:
             continue
         n += 1
@@ -716,7 +719,7 @@ def cmd_assert_mechanical_commits(args) -> int:
             run(shlex.split(m.group(1)), cwd=t, env=env, timeout=3600)
             run(["git", "add", "-A"], cwd=t)
             if run(["git", "diff", "--cached", "--quiet", sha], cwd=t).returncode != 0:
-                problems.append("%s %s: replay differs from the commit" % (sha[:9], subject))
+                problems.append("{} {}: replay differs from the commit".format(sha[:9], subject))
         finally:
             oracle._rmtree(base)
             git("worktree", "prune", check=False)
@@ -733,7 +736,7 @@ def cmd_assert_blame_ignore_revs(args) -> int:
     for sha in shas:
         subj = git("log", "-1", "--format=%s", sha, check=False).strip()
         if not subj.startswith("style:"):
-            problems.append("%s is not a style: commit (%r)" % (sha[:9], subj))
+            problems.append("{} is not a style: commit ({!r})".format(sha[:9], subj))
     if not shas:
         problems.append("no revisions listed")
     return _report("BLAME-IGNORE-REVS", problems)
@@ -761,13 +764,13 @@ def cmd_assert_python_agrees(args) -> int:
             for m in pat.finditer(text):
                 if m.group(1) != pin_mm:
                     problems.append(
-                        "%s says %s, .python-version says %s" % (f.relative_to(ROOT).as_posix(), m.group(1), pin_mm)
+                        "{} says {}, .python-version says {}".format(f.relative_to(ROOT).as_posix(), m.group(1), pin_mm)
                     )
     rp = pyproject().get("project", {}).get("requires-python", "")
     floor = re.search(r">=\s*(3\.\d+)", rp)
     if not floor or tuple(map(int, floor.group(1).split("."))) > tuple(map(int, pin_mm.split("."))):
-        problems.append("requires-python %r is not a floor at or below the pin %s" % (rp, pin_mm))
-    return _report("PYTHON AGREES (pin %s)" % pin_mm, problems)
+        problems.append("requires-python {!r} is not a floor at or below the pin {}".format(rp, pin_mm))
+    return _report("PYTHON AGREES (pin {})".format(pin_mm), problems)
 
 
 def cmd_assert_no_bare_py(args) -> int:
@@ -786,7 +789,7 @@ def cmd_assert_no_bare_py(args) -> int:
             continue
         for m in re.finditer(r'"command"\s*:\s*"([^"]*)"', p.read_text(encoding="utf-8")):
             if re.search(r"(^|&&\s*|;\s*)py\s", m.group(1)) or m.group(1) == "py":
-                problems.append("%s command %r" % (rel, m.group(1)[:80]))
+                problems.append("{} command {!r}".format(rel, m.group(1)[:80]))
     for wf in sorted((ROOT / ".github" / "workflows").glob("*.y*ml")):
         for i, ln in enumerate(wf.read_text(encoding="utf-8").splitlines(), 1):
             if re.search(r"(run:\s*|^\s*)py\s", ln):
@@ -815,10 +818,10 @@ def _req_name(spec: str) -> str:
 def dev_group_problems(pp: dict) -> list:
     groups = pp.get("dependency-groups", {})
     dev = {_req_name(s) for s in groups.get("dev", []) if isinstance(s, str)}
-    problems = ["dev lacks %s" % n for n in DEV_GROUP if n not in dev]
-    problems += ["dev has %s (not in the plan's list)" % n for n in sorted(dev - set(DEV_GROUP))]
+    problems = ["dev lacks {}".format(n) for n in DEV_GROUP if n not in dev]
+    problems += ["dev has {} (not in the plan's list)".format(n) for n in sorted(dev - set(DEV_GROUP))]
     runtime = {_req_name(s) for s in pp.get("project", {}).get("dependencies", [])}
-    problems += ["[project].dependencies still has tool %s" % n for n in sorted(runtime & set(DEV_GROUP))]
+    problems += ["[project].dependencies still has tool {}".format(n) for n in sorted(runtime & set(DEV_GROUP))]
     problems += [
         "pre-commit is still declared (replaced by prek)"
         for g in [runtime] + [{_req_name(s) for s in v if isinstance(s, str)} for v in groups.values()]
@@ -826,7 +829,7 @@ def dev_group_problems(pp: dict) -> list:
     ]
     for g in ("ml", "browser"):
         if g not in groups:
-            problems.append("optional group %s missing" % g)
+            problems.append("optional group {} missing".format(g))
     return problems
 
 
@@ -841,11 +844,13 @@ def uv_settings_problems(pp: dict) -> list:
         problems.append("tool.uv.package is not false")
     m = re.fullmatch(r">=\s*0\.(\d+)(\.\d+)?", str(uv.get("required-version", "")))
     if not m or int(m.group(1)) < 12:
-        problems.append("tool.uv.required-version %r is not >=0.12 (the G0 uv minor)" % uv.get("required-version"))
+        problems.append(
+            "tool.uv.required-version {!r} is not >=0.12 (the G0 uv minor)".format(uv.get("required-version"))
+        )
     if uv.get("exclude-newer") != "7 days":
-        problems.append("tool.uv.exclude-newer %r != '7 days'" % uv.get("exclude-newer"))
+        problems.append("tool.uv.exclude-newer {!r} != '7 days'".format(uv.get("exclude-newer")))
     if uv.get("default-groups") != ["dev"]:
-        problems.append("tool.uv.default-groups %r != ['dev']" % uv.get("default-groups"))
+        problems.append("tool.uv.default-groups {!r} != ['dev']".format(uv.get("default-groups")))
     return problems
 
 
@@ -861,11 +866,11 @@ def gate_problems(tasks: dict, members: list) -> list:
     if not isinstance(seq, list):
         return ["gate is not a sequence task"]
     names = [s if isinstance(s, str) else s.get("ref", "") if isinstance(s, dict) else "" for s in seq]
-    problems = ["gate step %r is not a plan gate task" % n for n in names if n not in GATE_TASKS]
+    problems = ["gate step {!r} is not a plan gate task".format(n) for n in names if n not in GATE_TASKS]
     order = [n for n in GATE_TASKS if n in names]
     if names != order:
-        problems.append("gate order %s differs from plan order %s" % (names, order))
-    problems += ["gate lacks %s" % m for m in members if m not in names]
+        problems.append("gate order {} differs from plan order {}".format(names, order))
+    problems += ["gate lacks {}".format(m) for m in members if m not in names]
     if isinstance(gate, dict) and gate.get("ignore_fail"):
         problems.append("gate sets ignore_fail")
     return problems
@@ -933,7 +938,7 @@ def cmd_assert_ratchet(args) -> int:
         if fam:
             counts[fam] += 1
     problems = ["%s: %d > ratchet %d" % (f, counts[f], limits[f]) for f in sorted(limits) if counts[f] > limits[f]]
-    print("counts: %s" % counts)
+    print("counts: {}".format(counts))
     return _report("RATCHET", problems)
 
 
@@ -964,7 +969,9 @@ def cmd_assert_latent_regressions(args) -> int:
                 )
                 if (r.returncode != 0) != want_fail:
                     problems.append(
-                        "%s: %s %s on %s" % (e["id"], e["regression_test"], "passed" if want_fail else "failed", ref)
+                        "{}: {} {} on {}".format(
+                            e["id"], e["regression_test"], "passed" if want_fail else "failed", ref
+                        )
                     )
             finally:
                 oracle._rmtree(base)
@@ -975,9 +982,9 @@ def cmd_assert_latent_regressions(args) -> int:
 
 def cmd_assert_ledger_entry(args) -> int:
     text = (HERE / "LEDGER.md").read_text(encoding="utf-8")
-    rows = [ln for ln in text.splitlines() if ln.startswith("| %s" % args.phase)]
+    rows = [ln for ln in text.splitlines() if ln.startswith("| {}".format(args.phase))]
     ok = any(re.search(r"\|\s*(DONE|CERTIFIED|NO-GO|SKIPPED)\s*\|", r) for r in rows)
-    return _report("LEDGER %s" % args.phase, [] if ok else ["no DONE/CERTIFIED/NO-GO/SKIPPED row"])
+    return _report("LEDGER {}".format(args.phase), [] if ok else ["no DONE/CERTIFIED/NO-GO/SKIPPED row"])
 
 
 def cmd_assert_docs_uv(args) -> int:
@@ -989,11 +996,11 @@ def cmd_assert_docs_uv(args) -> int:
         t = p.read_text(encoding="utf-8")
         for needle in ("uv sync", "uv run"):
             if needle not in t:
-                problems.append("%s never mentions `%s`" % (doc, needle))
+                problems.append("{} never mentions `{}`".format(doc, needle))
     t = (ROOT / "CONTRIBUTING.md").read_text(encoding="utf-8") if (ROOT / "CONTRIBUTING.md").exists() else ""
     for needle in ("uv run poe gate", "uv run poe test", "--no-verify"):
         if needle not in t:
-            problems.append("CONTRIBUTING.md lacks `%s`" % needle)
+            problems.append("CONTRIBUTING.md lacks `{}`".format(needle))
     return _report("DOCS UV-PRIMARY", problems)
 
 
@@ -1019,7 +1026,7 @@ def certify(goal: str, phase=None, drills=False, tamper_only=False) -> int:
         res = tamper(goal)
         failed = [t for t, (active, ok, _m) in res.items() if active and not ok]
         for t, (active, ok, msg) in res.items():
-            print("%s %s%s -- %s" % (t, "PASS" if ok else "FAIL", "" if active else " (not yet active)", msg))
+            print("{} {}{} -- {}".format(t, "PASS" if ok else "FAIL", "" if active else " (not yet active)", msg))
         return 1 if failed else 0
 
     data = load_checks(goal)
@@ -1043,10 +1050,10 @@ def certify(goal: str, phase=None, drills=False, tamper_only=False) -> int:
     for c in checks:
         ok, why, out = run_check(c)
         passed += ok
-        print("%s %s -- %s" % ("PASS" if ok else "FAIL", c["id"], why), flush=True)
+        print("{} {} -- {}".format("PASS" if ok else "FAIL", c["id"], why), flush=True)
         if not ok:
             print("    " + "\n    ".join(out.strip().splitlines()[-6:]))
-            first_fail = first_fail or "check %s (%s)" % (c["id"], why)
+            first_fail = first_fail or "check {} ({})".format(c["id"], why)
 
     if phase:
         # Phase self-check (plan 9: "certify.py G<n> --phase <id>"): that phase's pre-registered
@@ -1060,8 +1067,7 @@ def certify(goal: str, phase=None, drills=False, tamper_only=False) -> int:
     t_fail = [t for t, (active, ok, _m) in res.items() if active and not ok]
     for t, (active, ok, msg) in res.items():
         print(
-            "%s %s%s -- %s"
-            % (
+            "{} {}{} -- {}".format(
                 t,
                 "PASS" if ok else "FAIL",
                 "" if active else " (not yet active: binds from G%d)" % T_ACTIVE_FROM[t],
@@ -1094,7 +1100,7 @@ def certify(goal: str, phase=None, drills=False, tamper_only=False) -> int:
     if not worktree_clean():
         refusals.append("worktree dirty")
     if not on_branch():
-        refusals.append("HEAD not on %s" % BRANCH)
+        refusals.append("HEAD not on {}".format(BRANCH))
     hist = checks_history_problems()
     if hist:
         refusals.append("checks files changed after registration: " + hist[0])
@@ -1104,10 +1110,9 @@ def certify(goal: str, phase=None, drills=False, tamper_only=False) -> int:
         refusals.append("HEAD is on a remote branch (pushed)")
 
     head = git("rev-parse", "HEAD").strip()
-    print("=== CERTIFICATE %s%s ===" % (goal, (" " + phase) if phase else ""))
+    print("=== CERTIFICATE {}{} ===".format(goal, (" " + phase) if phase else ""))
     print(
-        "HEAD %s | branch %s | worktree clean: %s | pushed: %s"
-        % (
+        "HEAD {} | branch {} | worktree clean: {} | pushed: {}".format(
             head[:12],
             git("rev-parse", "--abbrev-ref", "HEAD").strip(),
             "yes" if worktree_clean() else "no",
@@ -1116,10 +1121,11 @@ def certify(goal: str, phase=None, drills=False, tamper_only=False) -> int:
     )
     print("CHECKS %d/%d PASS" % (passed, len(checks)))
     print(
-        "TAMPER T1-T7 %s%s"
-        % (
-            "PASS" if not t_fail else "FAIL (%s)" % ", ".join(t_fail),
-            " (binding: %s; not yet active: %s)" % (", ".join(t for t in res if t not in pending), ", ".join(pending))
+        "TAMPER T1-T7 {}{}".format(
+            "PASS" if not t_fail else "FAIL ({})".format(", ".join(t_fail)),
+            " (binding: {}; not yet active: {})".format(
+                ", ".join(t for t in res if t not in pending), ", ".join(pending)
+            )
             if pending
             else "",
         )
@@ -1133,7 +1139,7 @@ def certify(goal: str, phase=None, drills=False, tamper_only=False) -> int:
         or (None if oracle_ok else "oracle %d/10 EQUAL" % k)
         or (refusals[0] if refusals else None)
     )
-    print("RESULT: %s %s" % (goal, "CERTIFIED" if failure is None else "NOT CERTIFIED: " + failure))
+    print("RESULT: {} {}".format(goal, "CERTIFIED" if failure is None else "NOT CERTIFIED: " + failure))
     print("=== END CERTIFICATE ===")
     return 0 if failure is None else 1
 

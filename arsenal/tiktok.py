@@ -40,6 +40,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import NamedTuple
+import contextlib
 
 
 def _pyl() -> str:
@@ -279,7 +280,7 @@ def parse_media_info(text: str) -> MediaInfo:
         rot = _ROTATION_RE.search(line)
         if rot and current is not None and current.kind == "video":
             current.rotation = float(rot.group(1))
-        elif line.startswith("Input #") or line.startswith("Output #"):
+        elif line.startswith(("Input #", "Output #")):
             current = None
     return info
 
@@ -969,7 +970,8 @@ def silence_command(ffmpeg: str, source, audio_index: int, window: Window | None
     cmd += ["-i", str(source)]
     if window is not None and window.end is not None:
         cmd += ["-t", f"{window.length:.3f}"]
-    return cmd + [
+    return [
+        *cmd,
         "-map",
         f"0:{audio_index}",
         "-af",
@@ -1207,10 +1209,8 @@ def _encode(cmd: list[str], seconds: float, output: Path) -> None:
 
 
 def _remove(path: Path) -> None:
-    try:
+    with contextlib.suppress(OSError):
         path.unlink()
-    except OSError:
-        pass
 
 
 def process(source, opts: Options, ffmpeg: str | None = None, many: bool = False) -> dict:

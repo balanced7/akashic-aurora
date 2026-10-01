@@ -25,6 +25,7 @@ import time
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+import contextlib
 
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
@@ -198,10 +199,8 @@ def collect_report(
     report["logging"]["legacy_opencode_hints"] = _legacy_opencode_log_hints(r)
 
     if r is not None:
-        try:
+        with contextlib.suppress(Exception):
             r.close()
-        except Exception:
-            pass
 
     if ensure_infra:
         if allow_infra_start():
@@ -236,10 +235,8 @@ def _persist(report: dict[str, Any]) -> None:
     except Exception:
         pass
     finally:
-        try:
+        with contextlib.suppress(Exception):
             r.close()
-        except Exception:
-            pass
 
 
 def run_daemon(interval: float, sync_ports: bool, ensure_on_start: bool) -> None:

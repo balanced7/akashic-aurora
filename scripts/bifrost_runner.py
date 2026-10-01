@@ -17,6 +17,7 @@ import argparse
 import os
 import subprocess
 import sys
+import contextlib
 
 # T152 (T150's fifth runner). T150 made every bifrost_runner_<provider>.py watchable but
 # enumerated by the prefix `bifrost_runner_`, which cannot see the member whose name IS the
@@ -29,14 +30,10 @@ import sys
 # UnicodeEncodeError under Windows cp1252. Guarded: a stream that cannot be reconfigured
 # (pytest capture, an exotic wrapper) must degrade to the old behaviour, never take the runner
 # down at import.
-try:
+with contextlib.suppress(Exception):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace", line_buffering=True)
-except Exception:
-    pass
-try:
+with contextlib.suppress(Exception):
     sys.stderr.reconfigure(encoding="utf-8", errors="replace", line_buffering=True)
-except Exception:
-    pass
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(HERE))
@@ -75,7 +72,7 @@ def should_answer(kind: str, frm: str, self_id: str) -> bool:
 
 
 def _run_bridge(script: str, prompt: str, extra_args: list[str], timeout: int = 180) -> str:
-    cmd = [sys.executable, os.path.join(HERE, script)] + extra_args
+    cmd = [sys.executable, os.path.join(HERE, script), *extra_args]
     try:
         p = subprocess.run(cmd, input=prompt, capture_output=True, text=True, timeout=timeout)
         return p.stdout.strip() or p.stderr.strip() or "(no output from provider)"
@@ -127,7 +124,7 @@ def provider_reply(
     if not web_failed(web_out):
         return web_out
     api_out = provider_reply_api(prompt, model, system)
-    if api_out.startswith("NO_KEY") or api_out.startswith("GEMINI_ERROR"):
+    if api_out.startswith(("NO_KEY", "GEMINI_ERROR")):
         return f"{web_out}\n\n--- API fallback also failed ---\n{api_out}"
     return api_out
 

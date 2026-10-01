@@ -184,7 +184,7 @@ class DirectivesComplianceChecker:
                     content = f.read().lower()
 
                 # Check if fallback patterns exist in recent logs
-                for component, fallbacks in required_fallbacks.items():
+                for fallbacks in required_fallbacks.values():
                     has_fallback = any(fb in content for fb in fallbacks)
                     if not has_fallback:
                         # Just a warning - not a violation unless component failed

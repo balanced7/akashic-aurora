@@ -23,6 +23,7 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+import contextlib
 
 
 class CodexAppServerError(RuntimeError):
@@ -387,10 +388,8 @@ class CodexAppServer:
         with self._pending_lock:
             queues = list(self._pending.values())
         for response_queue in queues:
-            try:
+            with contextlib.suppress(queue.Full):
                 response_queue.put_nowait(exc)
-            except queue.Full:
-                pass
 
     # ------------------------------------------------------------------ notification joins
     @property

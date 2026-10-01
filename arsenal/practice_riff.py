@@ -61,6 +61,7 @@ from .jam import DEF_API, RIFF_API, schemas
 from .jam import tempomap as tm
 from .jam.resolve import tone_name
 from .performance import PerformanceError, PerformanceStore
+import contextlib
 
 
 def _pyl() -> str:
@@ -1582,7 +1583,7 @@ def apply_readings(blocks: list[dict], theory_source=None, node: str | None = No
         b["readings"] = "piano.js Theory.detect via node" if answer else f"unavailable ({why})"
     if not answer:
         return
-    for (b, inst, notes, first), info in zip(where, answer["results"]):
+    for (b, inst, notes, first), info in zip(where, answer["results"], strict=False):
         f = inst["facts"]
         spelled = pr.spell_detect(info, f["key"])
         if not spelled or spelled["kind"] != "chord" or not spelled.get("root"):
@@ -2928,10 +2929,8 @@ def main(argv=None) -> int:
     args = parser.parse_args(argv)
     for stream in (sys.stdout, sys.stderr):
         if (getattr(stream, "encoding", "") or "").lower().replace("-", "") != "utf8":
-            try:
+            with contextlib.suppress(AttributeError, ValueError, OSError):
                 stream.reconfigure(encoding="utf-8")
-            except (AttributeError, ValueError, OSError):
-                pass
     try:
         if args.out and Path(args.out).is_dir():
             raise ValueError(f"--out {args.out} is a directory; give a file path")

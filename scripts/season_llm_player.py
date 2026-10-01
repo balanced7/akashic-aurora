@@ -165,7 +165,7 @@ def llm_player(shadow_root: str, *, batch_size: int = 20, workers: int = 6, max_
     o = ask_many([_batch_prompt(b) for b in batches], system=_SYSTEM, max_tokens=max_tokens, max_workers=workers)
 
     verdicts, judged = {}, 0
-    for b, branch in zip(batches, o.detail.get("branches", [])):
+    for b, branch in zip(batches, o.detail.get("branches", []), strict=False):
         if not branch.get("ok"):
             continue
         got = _parse(branch.get("answer"))

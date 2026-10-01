@@ -37,9 +37,11 @@ CRIB = [
     (".tiles > .tile > .v + .k", "3-6 headline NUMBERS. Never prose. Digits are tabular by default."),
     (
         ".card[.go|.hold|.stop] > .head + .paths > .path > .plabel[.a|.b] + .ptext, then .rec",
-        "A DECISION WITH REAL COSTS ON BOTH SIDES. .plabel.a names the path you lean toward, "
-        ".plabel.b the one you do not; .rec carries the recommendation. If one path is obviously "
-        "wrong it is rhetoric wearing a choice's clothes -- use .rows instead.",
+        (
+            "A DECISION WITH REAL COSTS ON BOTH SIDES. .plabel.a names the path you lean toward, "
+            ".plabel.b the one you do not; .rec carries the recommendation. If one path is obviously "
+            "wrong it is rhetoric wearing a choice's clothes -- use .rows instead."
+        ),
     ),
     (
         ".timeline > .tl > .when + .what",
@@ -47,8 +49,10 @@ CRIB = [
     ),
     (
         ".versus > .side  (+ .synth)",
-        "A GENUINE DISAGREEMENT, both sides stated fairly. NOT a pro/con list. Pair with "
-        ".synth when a reconciliation exists.",
+        (
+            "A GENUINE DISAGREEMENT, both sides stated fairly. NOT a pro/con list. Pair with "
+            ".synth when a reconciliation exists."
+        ),
     ),
     ("blockquote > mark + .who", "Someone's words verbatim. mark highlights the phrase that actually matters."),
     (".rows > .row > .rt + .rd", "A flat list where each item has a label and a consequence."),

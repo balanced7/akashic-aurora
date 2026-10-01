@@ -29,6 +29,7 @@ import threading
 from collections.abc import Mapping
 from pathlib import Path
 from urllib.parse import urlsplit
+import contextlib
 
 API = "arsenal.piano.looks/v1"
 PATH = "/api/piano/looks"
@@ -228,8 +229,6 @@ class LooksStore:
                 os.fsync(fh.fileno())
             os.replace(tmp, self.path)
         except BaseException:
-            try:
+            with contextlib.suppress(OSError):
                 tmp.unlink()
-            except OSError:
-                pass
             raise

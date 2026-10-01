@@ -32,6 +32,7 @@ import time
 from collections import deque
 from datetime import UTC, datetime
 from pathlib import Path
+import contextlib
 
 GST_ROOT = Path(r"C:\Users\L5\AppData\Local\Programs\gstreamer\1.0\msvc_x86_64")
 GST_LAUNCH = GST_ROOT / "bin" / "gst-launch-1.0.exe"
@@ -262,7 +263,7 @@ def linear_slope(xs: list[float], ys: list[float]) -> float | None:
     sxx = sum((x - mean_x) ** 2 for x in xs)
     if sxx == 0:
         return None
-    return sum((x - mean_x) * (y - mean_y) for x, y in zip(xs, ys)) / sxx
+    return sum((x - mean_x) * (y - mean_y) for x, y in zip(xs, ys, strict=False)) / sxx
 
 
 def luid_instance_key(luid: int) -> str:
@@ -460,10 +461,8 @@ def sample_until_exit(proc: subprocess.Popen, t0: float, timeout_s: float) -> di
             if gpu:
                 sample["gpu_dedicated_by_luid"] = gpu.sample(proc.pid)
             samples.append(sample)
-            try:
+            with contextlib.suppress(subprocess.TimeoutExpired):
                 proc.wait(timeout=1.0)
-            except subprocess.TimeoutExpired:
-                pass
     finally:
         if memory:
             memory.close()
@@ -980,21 +979,27 @@ PRIOR_FORCED_DROP_PROBE = {
 }
 
 NOTES = [
-    "Earlier numbers for this lane counted no drops by construction. The 2026-09-13 smoke run "
-    "(fpsdisplaysink video-sink=fakesink sync=false: rendered 786, dropped 0) used fakesink, whose "
-    "defaults on this install are qos=false and max-lateness=-1, so it never drops a late frame; "
-    "and with sync=false no frame is ever late. The QoS-message counts in this receipt are the "
-    "lane's first real drop counts.",
-    "fpsdisplaysink's dropped figure only sees sink-side drops (and only as of its last 1000 ms "
-    "report). In the forced-drop probe the decoder dropped 288 frames while fpsdisplaysink "
-    "reported 5, so the verdict gates on QoS bus messages from the decoder and the sink.",
+    (
+        "Earlier numbers for this lane counted no drops by construction. The 2026-09-13 smoke run "
+        "(fpsdisplaysink video-sink=fakesink sync=false: rendered 786, dropped 0) used fakesink, whose "
+        "defaults on this install are qos=false and max-lateness=-1, so it never drops a late frame; "
+        "and with sync=false no frame is ever late. The QoS-message counts in this receipt are the "
+        "lane's first real drop counts."
+    ),
+    (
+        "fpsdisplaysink's dropped figure only sees sink-side drops (and only as of its last 1000 ms "
+        "report). In the forced-drop probe the decoder dropped 288 frames while fpsdisplaysink "
+        "reported 5, so the verdict gates on QoS bus messages from the decoder and the sink."
+    ),
 ]
 
 KNOWN_WARNINGS = [
     (
         "d3d11debuglayer",
-        "D3D11 debug-layer report while D3D11 devices are disposed, before the "
-        "pipeline starts; seen in every probe run on this machine",
+        (
+            "D3D11 debug-layer report while D3D11 devices are disposed, before the "
+            "pipeline starts; seen in every probe run on this machine"
+        ),
     ),
     (
         "qtdemux_parse_segments",
@@ -1230,16 +1235,20 @@ def measured_lists(passes: list[dict]) -> tuple[list[str], list[str]]:
         "negotiated caps on the decoder src pad and on the innermost sink pad (gst-launch -v), per pass",
         "the decoder's D3D12 device: adapter LUID, vendor and device id, description",
         "fpsdisplaysink reports every 1000 ms: rendered, dropped, current and average fps",
-        "drops per source: QoS bus messages from decoder and sink (gst-launch -m), decoder "
-        "'Dropping frame due to QoS' WARN lines, and fpsdisplaysink's figure",
+        (
+            "drops per source: QoS bus messages from decoder and sink (gst-launch -m), decoder "
+            "'Dropping frame due to QoS' WARN lines, and fpsdisplaysink's figure"
+        ),
         "a forced-drop calibration pass showing the gated drop count registers drops",
         "GStreamer ERROR/WARN debug lines (GST_DEBUG=*:2) and gst-launch ERROR:/WARNING: reports",
         "working set and private bytes of each gst-launch process at 1 Hz (GetProcessMemoryInfo)",
         "exit code, wall time and time in PLAYING per pass",
     ]
     not_measured = [
-        "GPU-side copies: D3D12Memory caps at the sink rule out a download to system memory, not "
-        "a texture copy inside the GPU (for example a decoder output copy)",
+        (
+            "GPU-side copies: D3D12Memory caps at the sink rule out a download to system memory, not "
+            "a texture copy inside the GPU (for example a decoder output copy)"
+        ),
         "presentation: frames end in fakevideosink, not a D3D12 swapchain (d3d12videosink opens a window)",
         "frames rendered after each pass's last fpsdisplaysink report (under 1 s per pass)",
         "memory growth across loops inside one long-lived process: every pass is a fresh gst-launch process",

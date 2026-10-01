@@ -63,6 +63,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from core.comm import discord_feed as _DFEED  # noqa: E402
 from core.comm import self_restart as _SELF_RESTART  # noqa: E402  (t376 S2: daemon stale-code arm)
 from core.comm.seat_identity import git_identity_env as _GIT_ID  # noqa: E402  (t384: author=seat)
+import contextlib
 
 
 def _pyl() -> str:
@@ -114,10 +115,8 @@ def _install_signals() -> None:
         sig = getattr(signal, name, None)
         if sig is None:
             continue
-        try:
+        with contextlib.suppress(ValueError, OSError):
             signal.signal(sig, _handle)
-        except (ValueError, OSError):
-            pass
 
 
 def _env_int(name: str, fallback: int) -> int:

@@ -26,6 +26,7 @@ import os
 import sys
 import tempfile
 import time
+import contextlib
 
 
 def _pyl() -> str:
@@ -159,9 +160,8 @@ def wake_worthy(m, *, agent: str, incarnation: str = "") -> bool:
     # the operator sends -- a DIRECTED chat (seat channel, @mention, @everyone's
     # per-seat fan-out all use bus.send, never broadcast) or any non-chat broadcast --
     # still outranks the allowlist exactly as the 2026-07-15 fix requires.
-    if str(getattr(m, "frm", "")) in _operator_ids():
-        if not (kind == "chat" and str(getattr(m, "to", "")) == "*"):
-            return True
+    if str(getattr(m, "frm", "")) in _operator_ids() and not (kind == "chat" and str(getattr(m, "to", "")) == "*"):
+        return True
     if kind not in WAKE_WORTHY_KINDS:
         return False
     if str(getattr(m, "frm", "")) == agent:
@@ -259,10 +259,8 @@ def write_rearm_trigger(agent: str, session_id: str = "", tmp: str = None) -> No
 
 def clear_rearm_trigger(agent: str, session_id: str = "", tmp: str = None) -> None:
     """R19: arming IS the requested re-arm -- the trigger clears at arm time."""
-    try:
+    with contextlib.suppress(Exception):
         os.remove(rearm_trigger_path(agent, session_id, tmp))
-    except Exception:
-        pass
 
 
 # ------------------------------------------------------------- S0-gamma: wake-detection dedup
@@ -508,15 +506,11 @@ def watch(
         # worse than the blind spot it replaces. Best-effort throughout: a heartbeat must never
         # be able to take down the listener it describes.
         if _beat is not None:
-            try:
+            with contextlib.suppress(Exception):
                 _beat.refresh()
-            except Exception:
-                pass
         if _roster_beat is not None:
-            try:
+            with contextlib.suppress(Exception):
                 _roster_beat[0].heartbeat(_roster_beat[1], agent, session_id, phase="idle")
-            except Exception:
-                pass
         try:
             msgs = api.wake_block(timeout_ms=inner_block_ms)
         except Exception as e:

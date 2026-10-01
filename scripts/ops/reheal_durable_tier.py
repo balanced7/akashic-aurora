@@ -47,6 +47,7 @@ from collections import Counter
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from core.foundation.store import FileStore, RedisStore  # noqa: E402
+import contextlib
 
 
 def _target(backend: str):
@@ -129,7 +130,7 @@ def reheal(pattern: str, backend: str, dry_run: bool, overwrite: bool) -> int:
                         skipped["present"] += 1
                         continue
                     if not dry_run:
-                        dst.zadd(k, {m: s for m, s in pairs})
+                        dst.zadd(k, dict(pairs))
                     moved["zset"] += 1
             else:
                 skipped[f"type:{kind}"] += 1
@@ -145,10 +146,8 @@ def reheal(pattern: str, backend: str, dry_run: bool, overwrite: bool) -> int:
             print(f"    {k}: {e}")
 
     if not dry_run:
-        try:
+        with contextlib.suppress(AttributeError):
             dst.checkpoint()
-        except AttributeError:
-            pass
         after = len(dst.keys(pattern))
         print(f"[reheal] target now holds {after} key(s) matching {pattern!r} (redis has {len(keys)})")
         if after < len(keys):

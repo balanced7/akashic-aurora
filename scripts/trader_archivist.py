@@ -27,7 +27,7 @@ import sys
 import time
 from datetime import UTC, datetime
 from pathlib import Path
-from xml.etree import ElementTree
+from xml.etree import ElementTree as ET
 
 import requests
 
@@ -76,8 +76,8 @@ def _seen_urls() -> set:
 def _parse_feed(xml_text: str):
     """RSS 2.0 and Atom, stdlib-only. Yields {url, title, published_claim}."""
     try:
-        root = ElementTree.fromstring(xml_text)
-    except ElementTree.ParseError:
+        root = ET.fromstring(xml_text)
+    except ET.ParseError:
         return
     # RSS 2.0
     for item in root.iter("item"):

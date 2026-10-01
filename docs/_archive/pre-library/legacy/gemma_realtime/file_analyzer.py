@@ -217,7 +217,7 @@ First 500 chars: {text[:500]}"""
 
                 # Extract text from first few pages
                 text_parts = []
-                for i, page in enumerate(pdf.pages[:3]):
+                for _i, page in enumerate(pdf.pages[:3]):
                     text = page.extract_text()
                     if text:
                         text_parts.append(text[:500])
@@ -281,17 +281,15 @@ Sample data (first 3 rows):"""
 
     async def _analyze_audio(self, filename: str) -> dict[str, Any]:
         """Analyze audio files"""
-        result = {
+        return {
             "type": "audio",
             "filename": filename,
             "summary": f"Audio file: {filename}\n- Needs audio transcription service for content analysis.",
         }
 
-        return result
-
     async def _analyze_video(self, filename: str) -> dict[str, Any]:
         """Analyze video files"""
-        result = {
+        return {
             "type": "video",
             "filename": filename,
             "needs_processing": True,
@@ -308,8 +306,6 @@ Which would you prefer?""",
                 {"id": "both", "label": "Both"},
             ],
         }
-
-        return result
 
     async def _analyze_generic(self, data: bytes, filename: str) -> dict[str, Any]:
         """Generic file analysis"""

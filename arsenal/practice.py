@@ -57,11 +57,12 @@ import subprocess
 import sys
 from bisect import bisect_left, bisect_right
 from datetime import date, datetime, timedelta
-from itertools import combinations
+from itertools import combinations, pairwise
 from pathlib import Path
 
 from . import nashville
 from .performance import PerformanceError, PerformanceStore, estimate_key
+import contextlib
 
 
 def _pyl() -> str:
@@ -291,7 +292,7 @@ def _parse_name(name: str) -> tuple | None:
 def _pearson(xs, ys) -> float:
     n = len(xs)
     mx, my = sum(xs) / n, sum(ys) / n
-    sxy = sum((x - mx) * (y - my) for x, y in zip(xs, ys))
+    sxy = sum((x - mx) * (y - my) for x, y in zip(xs, ys, strict=False))
     sxx = sum((x - mx) ** 2 for x in xs)
     syy = sum((y - my) ** 2 for y in ys)
     return sxy / math.sqrt(sxx * syy) if sxx > 0 and syy > 0 else 0.0
@@ -630,16 +631,16 @@ def _cut_at_lifts(ph: dict, lifts: list[int]) -> list[dict]:
     cuts = [t for t in lifts if ph["start_ms"] < t < ph["end_ms"]]
     if not cuts:
         return [ph]
-    edges = [ph["start_ms"]] + cuts + [ph["end_ms"]]
+    edges = [ph["start_ms"], *cuts, ph["end_ms"]]
     pieces = []
-    for a, b in zip(edges, edges[1:]):
+    for a, b in pairwise(edges):
         groups = [g for g in ph["groups"] if a < g < b]
         # attacked: a note was struck inside this piece (at its lift or after it). Such a piece is the whole of what
         # was played between two lifts, however short, and harmonic_windows never files it as a transient: Heimdall
         # measured 8 real chords of 350-396 ms, struck and released between two lifts, dropped that way (2026-09-29).
         # A piece with no attack of its own (the pedal pumped over ringing notes) is residue and stays a transient.
         attacked = any(a <= g < b for g in ph["groups"])
-        pieces.append({"start_ms": a, "end_ms": b, "groups": [a] + groups, "cut": True, "attacked": attacked})
+        pieces.append({"start_ms": a, "end_ms": b, "groups": [a, *groups], "cut": True, "attacked": attacked})
     return pieces
 
 
@@ -1091,7 +1092,7 @@ def _facts(w: dict, ctx: dict) -> None:
         else:
             groups.append([n["on_ms"], [n["note"]]])
     singles = [g[1][0] for g in groups if len(g[1]) == 1]
-    moves = [abs(x - y) for x, y in zip(singles, singles[1:]) if x != y]
+    moves = [abs(x - y) for x, y in pairwise(singles) if x != y]
     steps = sum(1 for m in moves if m <= 2)
     sim_share = together / (b - a) if b > a else 0.0
     low_bass = bass is not None and bass < BASS_MAX_MIDI
@@ -1438,8 +1439,10 @@ def consolidate_areas(
             if not _established(areas, i, windows):
                 weak = (
                     i,
-                    "no tonic chord of its own, and no two chords that the key next to it lacks (beyond a "
-                    "chord's own 3rd): one chord's colour, not a new key",
+                    (
+                        "no tonic chord of its own, and no two chords that the key next to it lacks (beyond a "
+                        "chord's own 3rd): one chord's colour, not a new key"
+                    ),
                 )
                 break
         if weak is None:
@@ -2050,7 +2053,7 @@ def name_windows(windows: list[dict], theory_source=None, node: str | None = Non
     items = [{"notes": w["detect_notes"], "bias": (bias_for(w) if bias_for else 0)} for w in windows]
     answer, naming_error = run_theory(items, theory_source, node)
     templates = answer["templates"] if answer else []
-    for w, info in zip(windows, answer["results"] if answer else [None] * len(windows)):
+    for w, info in zip(windows, answer["results"] if answer else [None] * len(windows), strict=False):
         _analyse(w, info, templates)
     resolve_over_third(windows)
     return naming_error
@@ -2211,7 +2214,7 @@ def analyze(
         items.append({"notes": w["detect_notes"], "bias": nashville.bias_of(*KEYS[area["state"]]) if area else 0})
     answer, naming_error = run_theory(items, theory_source, node) if items else ({"templates": [], "results": []}, None)
     templates = answer["templates"] if answer else []
-    for w, info in zip(windows, answer["results"] if answer else [None] * len(windows)):
+    for w, info in zip(windows, answer["results"] if answer else [None] * len(windows), strict=False):
         _analyse(w, info, templates)
     resolve_over_third(windows)
     grown_windows = len(windows)
@@ -2482,7 +2485,7 @@ def _row(idx: int, w: dict, area: dict | None, home_area: dict | None, nxt: dict
         marks = [m for m, on in (("no 3rd", r["no3"]), ("no 5th", r["no5"])) if on]
         reading = {
             "name": name,
-            "text": f"{name} ({', '.join(marks + ['reading'])})",
+            "text": f"{name} ({', '.join([*marks, 'reading'])})",
             "suffix": r["suffix"],
             "tensions": r["tensions"],
             "no3": r["no3"],
@@ -2976,7 +2979,7 @@ def _chord_tone_intervals(w: dict) -> set:
     tones.add(6 if ("dim" in s or "b5" in s) else 8 if ("aug" in s or "#5" in s) else 7)
     if s.startswith("maj") or "(maj" in s:
         tones.add(11)
-    elif re.search(r"(^|[^a-z(])(7|9|11|13)", s) or s.startswith("m7") or s.startswith("m9") or s.startswith("m1"):
+    elif re.search(r"(^|[^a-z(])(7|9|11|13)", s) or s.startswith(("m7", "m9", "m1")):
         tones.add(9 if s.startswith("dim7") else 10)
     return tones
 
@@ -3134,7 +3137,7 @@ def _bass_lines(ws: list[dict]) -> list[dict]:
     def emit(seq: list[dict], sign: int) -> None:
         if len(seq) < BASS_LINE_MIN_NOTES:
             return
-        moves = [_signed(b["pc"] - a["pc"]) for a, b in zip(seq, seq[1:])]
+        moves = [_signed(b["pc"] - a["pc"]) for a, b in pairwise(seq)]
         if sum(1 for m in moves if abs(m) == 1) < 2:
             return
         key = seq[0]["w"]["key"]
@@ -3177,7 +3180,7 @@ def _bass_lines(ws: list[dict]) -> list[dict]:
             if notes:
                 step = _signed(pc - notes[-1]["pc"])
                 leap = abs(m - notes[-1]["midi"]) > 2  # the step taken with an octave jump (E3 to Eb2)
-                jumps = sum(1 for x, y in zip(notes, notes[1:]) if abs(y["midi"] - x["midi"]) > 2)
+                jumps = sum(1 for x, y in pairwise(notes) if abs(y["midi"] - x["midi"]) > 2)
                 if (
                     abs(step) > 2
                     or (direction and (step > 0) != (direction > 0))
@@ -3298,7 +3301,7 @@ def _findings(ws: list[dict], areas: list[dict], ctx: dict) -> dict:
     for c in cadences:
         c.pop("_before", None)
     run: list[dict] = []
-    for w in ws + [None]:
+    for w in [*ws, None]:
         if run and (
             w is None
             or not w["_low_bass"]
@@ -3353,7 +3356,7 @@ def _findings(ws: list[dict], areas: list[dict], ctx: dict) -> dict:
                 "to": b["key"],
                 "after_pause_s": b.get("after_pause_s"),
             }
-            for a, b in zip(areas, areas[1:])
+            for a, b in pairwise(areas)
         ],
         "lydian_4": lydian,
         "dominants": {
@@ -3408,10 +3411,12 @@ def render_windows(doc: dict, limit: int | None = None, start_ms: float = 0, end
     lines = [
         f"# Harmonic windows ({len(doc['windows'])})",
         "",
-        f"{seg['live_chord_events']} live chord events merged into {seg['windows']} windows "
-        f"({seg['live_events_per_window']} per window; {seg['windows_before_merge']} before same-chord merging); "
-        f"{seg['transients_dropped']} isolated transients dropped ({seg['transient_seconds']} s). "
-        f"Home key {doc['home_key']}.",
+        (
+            f"{seg['live_chord_events']} live chord events merged into {seg['windows']} windows "
+            f"({seg['live_events_per_window']} per window; {seg['windows_before_merge']} before same-chord merging); "
+            f"{seg['transients_dropped']} isolated transients dropped ({seg['transient_seconds']} s). "
+            f"Home key {doc['home_key']}."
+        ),
         "",
         "| at | s | chord | number | key | class | bass | live | notes | spread | vel | pedal |",
         "| ---: | ---: | :--- | :--- | :--- | :--- | :--- | ---: | ---: | ---: | ---: | ---: |",
@@ -3452,8 +3457,10 @@ def render_harmony(doc: dict) -> str:
     lines = [
         "# Harmony",
         "",
-        f"{doc['duration_s']} s, {doc['notes']} notes, {seg['windows']} harmonic windows "
-        f"(from {seg['live_chord_events']} live chord events). Home key {doc['home_key']}.",
+        (
+            f"{doc['duration_s']} s, {doc['notes']} notes, {seg['windows']} harmonic windows "
+            f"(from {seg['live_chord_events']} live chord events). Home key {doc['home_key']}."
+        ),
         "",
         "## Keys",
     ]
@@ -3547,9 +3554,11 @@ def render_harmony(doc: dict) -> str:
     lines += [
         "",
         "## Pedal",
-        f"Down {p['percent_down']}% of the session, {p['presses']} presses ({p['mean_down_s']} s each). "
-        f"{_pct(p['harmony_changes_with_a_lift'])} of harmony changes come with a pedal lift; "
-        f"{_pct(p['lifts_at_a_harmony_change'])} of lifts land on a harmony change.",
+        (
+            f"Down {p['percent_down']}% of the session, {p['presses']} presses ({p['mean_down_s']} s each). "
+            f"{_pct(p['harmony_changes_with_a_lift'])} of harmony changes come with a pedal lift; "
+            f"{_pct(p['lifts_at_a_harmony_change'])} of lifts land on a harmony change."
+        ),
     ]
     return "\n".join(lines) + "\n"
 
@@ -3641,24 +3650,30 @@ GLOSSARY = (
     (
         "numbers",
         r"\bnumbers?\b",
-        "chords named by their place in the key: 1 is the home chord, 4 the chord on the "
-        "scale's 4th note, b7 a half step below the scale's 7th; m is minor, and X/Y (1/3 in "
-        "numbers) puts chord X over the bass note Y.",
+        (
+            "chords named by their place in the key: 1 is the home chord, 4 the chord on the "
+            "scale's 4th note, b7 a half step below the scale's 7th; m is minor, and X/Y (1/3 in "
+            "numbers) puts chord X over the bass note Y."
+        ),
         "chords by their place in the key (1 home, m minor, X/Y chord X over bass Y)",
     ),
     (
         "home key, key area",
         r"\bhome key\b|\bkey areas?\b|\bkey change\b",
-        "the home key has the most chord time; a key area is a stretch with one key as home, and moving to a new one is "
-        "a modulation.",
+        (
+            "the home key has the most chord time; a key area is a stretch with one key as home, and moving to a new one is "
+            "a modulation."
+        ),
         "home key = most chord time; key area = a stretch with its own home",
     ),
     ("diatonic", r"\bdiatonic\b", "built only from the notes of the key.", "only the key's notes"),
     (
         "borrowed",
         r"\bborrowed\b|\bparallel (?:minor|major|key)",
-        "from the parallel key, the same home note in the other mode ({parallel} for {home}): outside the key, but still "
-        "at home.",
+        (
+            "from the parallel key, the same home note in the other mode ({parallel} for {home}): outside the key, but still "
+            "at home."
+        ),
         "from the parallel key ({parallel})",
     ),
     (
@@ -3670,15 +3685,19 @@ GLOSSARY = (
     (
         "Lydian",
         r"\bLydian\b",
-        "the major scale with its 4th raised: bright, floating. The Lydian 4 is the 4 chord with "
-        "its #11 ({sharp11} over {four} in {mkey}), a note the key already has (its 7th).",
+        (
+            "the major scale with its 4th raised: bright, floating. The Lydian 4 is the 4 chord with "
+            "its #11 ({sharp11} over {four} in {mkey}), a note the key already has (its 7th)."
+        ),
         "the 4 chord with its #11 ({sharp11} over {four})",
     ),
     (
         "modal",
         r"\bmodal\b|Mixolydian|Dorian|Phrygian",
-        "a colour from a mode on the home note: Mixolydian lowers the major scale's 7th ({b7} in {mtonic}), Dorian raises "
-        "the minor scale's 6th, Phrygian lowers its 2nd.",
+        (
+            "a colour from a mode on the home note: Mixolydian lowers the major scale's 7th ({b7} in {mtonic}), Dorian raises "
+            "the minor scale's 6th, Phrygian lowers its 2nd."
+        ),
         "a mode's colour on the home note",
     ),
     ("chromatic", r"\bchromatic\b", "outside both the key and its parallel key.", "outside the key and its parallel"),
@@ -3691,9 +3710,11 @@ GLOSSARY = (
     (
         "sus",
         r"\bsus|\bsuspended\b|\bresolv",
-        "sus4 and sus2 put the 4th or the 2nd where the 3rd would be, neither "
-        "major nor minor; the suspension resolves when the 3rd comes in "
-        "({sus_from} -> {sus_to}).",
+        (
+            "sus4 and sus2 put the 4th or the 2nd where the 3rd would be, neither "
+            "major nor minor; the suspension resolves when the 3rd comes in "
+            "({sus_from} -> {sus_to})."
+        ),
         "the 4th or 2nd in place of the 3rd",
     ),
     (
@@ -3711,37 +3732,47 @@ GLOSSARY = (
     (
         "bass line",
         r"\bbass lines?\b",
-        "the lowest notes walking by step while the notes above hold or follow them; heard "
-        "as a line, not as one chord.",
+        (
+            "the lowest notes walking by step while the notes above hold or follow them; heard "
+            "as a line, not as one chord."
+        ),
         "the bass walking by step",
     ),
     (
         "extensions",
         EXTENSION_RE,
-        "notes stacked on a chord: 9, 11, 13 are the 2nd, 4th and 6th an octave up; add9 adds "
-        "the 9th without a 7th; #11 is the raised 4th ({sharp11} over {four}); maj7 is a half "
-        "step below the root ({maj7} in {mtonic}), a plain 7 a whole step ({b7}).",
+        (
+            "notes stacked on a chord: 9, 11, 13 are the 2nd, 4th and 6th an octave up; add9 adds "
+            "the 9th without a 7th; #11 is the raised 4th ({sharp11} over {four}); maj7 is a half "
+            "step below the root ({maj7} in {mtonic}), a plain 7 a whole step ({b7})."
+        ),
         "9, 11, 13 = the 2nd, 4th, 6th an octave up; maj7 a half step under the root",
     ),
     (
         "inversion",
         r"\binversion\b|other bass note",
-        "an inversion puts the chord's 3rd, 5th or 7th in the bass instead "
-        "of its root; any other bass note is a tension or a pedal.",
+        (
+            "an inversion puts the chord's 3rd, 5th or 7th in the bass instead "
+            "of its root; any other bass note is a tension or a pedal."
+        ),
         "the 3rd, 5th or 7th in the bass",
     ),
     (
         "reading",
         r"\breadings?\b",
-        "a best-fit name worked out from every sounding note, where the page's namer left "
-        "the notes unnamed or put them over an odd bass.",
+        (
+            "a best-fit name worked out from every sounding note, where the page's namer left "
+            "the notes unnamed or put them over an odd bass."
+        ),
         "a best-fit name from every note",
     ),
     (
         "cadence",
         r"\bcadences?\b",
-        "a move that lands on the home chord: 5 -> 1 is authentic (the strongest), 4 -> 1 "
-        "plagal (the 'amen'); a deceptive cadence sets up 1 and lands on 6m instead.",
+        (
+            "a move that lands on the home chord: 5 -> 1 is authentic (the strongest), 4 -> 1 "
+            "plagal (the 'amen'); a deceptive cadence sets up 1 and lands on 6m instead."
+        ),
         "a landing on 1 (5 -> 1 authentic, 4 -> 1 plagal)",
     ),
     (
@@ -3754,16 +3785,20 @@ GLOSSARY = (
     (
         "power chord, no 3rd",
         r"power chord|\^5\b|no 3rd|\(no3\)|no 5th|\(no5\)",
-        "a power chord (^5) is root and 5th only; 'no 3rd' (no3) means the name's major or minor is implied, not played; "
-        "'no 5th' (no5) means the chord's 5th was left out.",
+        (
+            "a power chord (^5) is root and 5th only; 'no 3rd' (no3) means the name's major or minor is implied, not played; "
+            "'no 5th' (no5) means the chord's 5th was left out."
+        ),
         "^5 root and 5th; (no3), (no5): that note not played",
     ),
     (
         "^ in numbers",
         r"\d\^(?!5\b)[\dm]",
-        "in a number, ^ joins the degree to a chord type that starts with a digit, "
-        "so the two do not run together: 5^7 is the 5 chord with a 7th, 1^6/9 the 1 "
-        "chord with a 6th and 9th.",
+        (
+            "in a number, ^ joins the degree to a chord type that starts with a digit, "
+            "so the two do not run together: 5^7 is the 5 chord with a 7th, 1^6/9 the 1 "
+            "chord with a 6th and 9th."
+        ),
         "5^7 = the 5 chord with a 7th",
     ),
     (
@@ -3775,18 +3810,22 @@ GLOSSARY = (
     (
         "line, broken chord",
         r"\bline\b|broken chord|\bruns?\b",
-        "a line (or run) is notes one at a time, mostly by step (a melody or a scale run, even when the pedal rings it on); "
-        "a broken chord is a chord's notes one or two at a time. Neither was held as a chord, so neither counts as one "
-        "here.",
+        (
+            "a line (or run) is notes one at a time, mostly by step (a melody or a scale run, even when the pedal rings it on); "
+            "a broken chord is a chord's notes one or two at a time. Neither was held as a chord, so neither counts as one "
+            "here."
+        ),
         "notes one at a time, not counted as chords",
     ),
     (
         "section, pause",
         r"\bnew section\b|\bpause\b",
-        "a section is a stretch of playing; a pause of "
-        f"{SECTION_GAP_MS // 1000} s or more (nothing sounding, pedal up) "
-        "starts a new one, and keys, cadences and moves never reach across "
-        "it.",
+        (
+            "a section is a stretch of playing; a pause of "
+            f"{SECTION_GAP_MS // 1000} s or more (nothing sounding, pedal up) "
+            "starts a new one, and keys, cadences and moves never reach across "
+            "it."
+        ),
         f"a pause of {SECTION_GAP_MS // 1000} s or more starts a new section",
     ),
     ("velocity", r"\bvelocity\b", "how hard a key was struck, 1 (softest) to 127.", "key force, 1 to 127"),
@@ -4293,16 +4332,18 @@ def vocabulary(doc: dict, min_seconds: float = 0.0) -> dict:
 def render_chords(sess: dict, data: dict) -> str:
     lines = [headline(sess), ""]
     if not sess["doc"]["notes"]:
-        return "\n".join(lines + ["No notes logged yet."])
+        return "\n".join([*lines, "No notes logged yet."])
     home = data["home_key"]
     held = f"; chords held at least {data['min_seconds']} s" if data["min_seconds"] else ""
     lines += [
         f"Chords by time (home key {home}; numbers are in each chord's own key area{held})",
-        f"{data['chord_seconds']} s of chords in {data['chord_windows']} harmonies; {data['other_seconds']} s "
-        f"more of single notes, two-note shapes, lines and broken chords (notes never held together).",
+        (
+            f"{data['chord_seconds']} s of chords in {data['chord_windows']} harmonies; {data['other_seconds']} s "
+            f"more of single notes, two-note shapes, lines and broken chords (notes never held together)."
+        ),
     ]
     if not data["chords"]:
-        return "\n".join(lines + ["No chords held."])
+        return "\n".join([*lines, "No chords held."])
     lines.append("Chord time by class: " + ", ".join(f"{c} {_pct(s)}" for c, s in data["classes"].items()) + ".")
     lines += ["", f"{'secs':>6} {'share':>5} {'times':>5} {'first':>5}  {'chord':<24} number and class"]
     for c in data["chords"]:
@@ -4539,7 +4580,7 @@ def progression_data(doc: dict, ns=(2, 3, 4), min_count: int = 2, exact: bool = 
 def render_progressions(sess: dict, data: dict) -> str:
     lines = [headline(sess), ""]
     if not sess["doc"]["notes"]:
-        return "\n".join(lines + ["No notes logged yet."])
+        return "\n".join([*lines, "No notes logged yet."])
     home = data["home_key"]
     level = (
         "full numbers, bass left out"
@@ -4548,8 +4589,10 @@ def render_progressions(sess: dict, data: dict) -> str:
     )
     lines += [
         f"Moves and loops ({level}; each in its own key area, home key {home})",
-        f"{data['chords']} chords held {data['min_seconds']} s or more (repeats merged), in {data['sequences']} runs "
-        f"(a gap over {PROG_GAP_MS // 1000} s or a key change starts a new run; arpeggios already merged).",
+        (
+            f"{data['chords']} chords held {data['min_seconds']} s or more (repeats merged), in {data['sequences']} runs "
+            f"(a gap over {PROG_GAP_MS // 1000} s or a key change starts a new run; arpeggios already merged)."
+        ),
     ]
     for n, rows in data["moves"].items():
         lines += ["", f"{n}-chord moves played at least {data['min_count']} times ({len(rows)}):"]
@@ -4677,7 +4720,7 @@ def key_evidence(doc: dict, snd: dict) -> dict:
         row["returns"] = _parallel_returns(a, windows)
         row["after_pause_s"] = a.get("after_pause_s")
         rows.append(row)
-    for prev, nxt in zip(areas, areas[1:]):
+    for prev, nxt in pairwise(areas):
         t = nxt["start_ms"]
         before = pc_profile(heard_pc, max(prev["start_ms"], min(t, prev["end_ms"]) - EVIDENCE_MS), prev["end_ms"])
         after = pc_profile(heard_pc, t, min(nxt["end_ms"], t + EVIDENCE_MS))
@@ -4937,7 +4980,7 @@ def _notes_text(notes: list[dict]) -> str:
 def render_borrowed(sess: dict, data: dict) -> str:
     lines = [headline(sess), ""]
     if not sess["doc"]["notes"]:
-        return "\n".join(lines + ["No notes logged yet."])
+        return "\n".join([*lines, "No notes logged yet."])
     home = data["home_key"]
     lines.append(
         f"Outside the key (chords of three or more notes; each number is in the chord's own key area, home key {home})"
@@ -5117,7 +5160,7 @@ def _dominant_lines(dom: dict, home: str | None = None, split: bool = False, top
 def render_colors(sess: dict, data: dict) -> str:
     lines = [headline(sess), ""]
     if not sess["doc"]["notes"]:
-        return "\n".join(lines + ["No notes logged yet."])
+        return "\n".join([*lines, "No notes logged yet."])
     lines.append(
         f"Colour habits (share of {data['chord_seconds']} s of chords; a chord can count under several colours)"
     )
@@ -5134,8 +5177,10 @@ def render_colors(sess: dict, data: dict) -> str:
     if v:
         lines += [
             "",
-            f"Voicing: chords average {v['mean_notes']} different notes over {v['mean_spread']} semitones; "
-            f"{_pct(v['wide_share'])} of chord time spans two octaves or more.",
+            (
+                f"Voicing: chords average {v['mean_notes']} different notes over {v['mean_spread']} semitones; "
+                f"{_pct(v['wide_share'])} of chord time spans two octaves or more."
+            ),
         ]
     lyd = data["lydian_4"]
     lines += ["", f"Lydian 4 (the 4 chord with its #11): {len(lyd)} times, {sum(m['seconds'] for m in lyd):.1f} s"]
@@ -5240,9 +5285,11 @@ def _touch_items(t: dict) -> list[str]:
     if v:
         per = v["per_minute"]
         items = [
-            f"velocity mean {v['mean']} (middle 80% {v['p10']}-{v['p90']}, loudest {v['max']} at "
-            f"{v['loudest_at']}); mean by minute {' '.join(str(x) if x is not None else '-' for x in per[:20])}"
-            f"{' ...' if len(per) > 20 else ''}"
+            (
+                f"velocity mean {v['mean']} (middle 80% {v['p10']}-{v['p90']}, loudest {v['max']} at "
+                f"{v['loudest_at']}); mean by minute {' '.join(str(x) if x is not None else '-' for x in per[:20])}"
+                f"{' ...' if len(per) > 20 else ''}"
+            )
         ]
     else:
         items = ["no velocities logged"]
@@ -5357,7 +5404,7 @@ def render_moment(sess: dict, data: dict) -> str:
         )
     )
     if not sess["doc"]["notes"]:
-        return "\n".join(lines + ["No notes logged yet."])
+        return "\n".join([*lines, "No notes logged yet."])
     lines += ["", "Harmony windows:"]
     for w in data["windows"]:
         name = w["chord"] or "-"
@@ -5391,8 +5438,10 @@ def render_moment(sess: dict, data: dict) -> str:
         lines.append("  none (silence)")
     lines += [
         "",
-        f"Sounding at {data['at']}: {' '.join(data['sounding_at']) or 'nothing'}; pedal "
-        f"{'down' if data['pedal_down_at'] else 'up'}.",
+        (
+            f"Sounding at {data['at']}: {' '.join(data['sounding_at']) or 'nothing'}; pedal "
+            f"{'down' if data['pedal_down_at'] else 'up'}."
+        ),
     ]
     if data["pedal"]:
         lines.append("Pedal: " + ", ".join(f"{p['pedal']} {p['at']}" for p in data["pedal"]))
@@ -5568,7 +5617,7 @@ def render_name(data: dict) -> str:
         marks = [m for m, on in (("no 3rd", a.get("no3")), ("no 5th", a.get("no5"))) if on]
         lines.append(
             f"Analysed as: {a['name']}"
-            + (f" ({', '.join(['reading'] + marks)})" if a["from"] == "reading" else "")
+            + (f" ({', '.join(['reading', *marks])})" if a["from"] == "reading" else "")
             + (f" = {a['number']}" if a.get("number") else "")
             + (f"; {'; '.join(extra)}" if extra else "")
         )
@@ -5584,7 +5633,7 @@ def render_name(data: dict) -> str:
             tail = "".join(f"  {x}" for x in (r.get("number"), r.get("class"), r.get("note")) if x)
             lines.append(f"{n:>3}. {r['name']:<22} cost {r['cost']:<5}{' (' + marks + ')' if marks else ''}{tail}")
     if data["fits_keys"]:
-        lines += _wrap("", ["Every note fits these keys: " + data["fits_keys"][0]] + data["fits_keys"][1:], sep=", ")
+        lines += _wrap("", ["Every note fits these keys: " + data["fits_keys"][0], *data["fits_keys"][1:]], sep=", ")
     elif not k:
         lines.append("No single major or natural minor key holds every note.")
     return "\n".join(lines)
@@ -5613,7 +5662,7 @@ def caveats(sess: dict) -> list[str]:
             )
         )
     if not doc["notes"]:
-        return out + ["no notes logged yet"]
+        return [*out, "no notes logged yet"]
     seg, areas = doc["segmentation"], doc["keys"]["areas"]
     held = [s for s in doc.get("sections", []) if s.get("sounding_before_s")]
     tail = doc.get("sounding_after_s")
@@ -5718,7 +5767,7 @@ def caveats(sess: dict) -> list[str]:
             f"while notes unfold); names here come from whole windows"
         )
     shown = [e.get("key") for e in events if e.get("kind") == "chord" and e.get("key")]
-    flips = sum(1 for a, b in zip(shown, shown[1:]) if a != b)
+    flips = sum(1 for a, b in pairwise(shown) if a != b)
     if flips >= 4:
         out.append(f"the page's key display changed {flips} times; the key areas here come from the whole session")
     if seg["transients_dropped"]:
@@ -5800,8 +5849,10 @@ CADENCE_ASK = {  # a cadence kind's start -> (score, plain words, question); the
     ),
     "5 over a 1 pedal": (
         24,
-        "the 5 chord's notes sound over the home note in the bass, then settle into the 1 chord "
-        "above it: home arrives over a bass that never left.",
+        (
+            "the 5 chord's notes sound over the home note in the bass, then settle into the 1 chord "
+            "above it: home arrives over a bass that never left."
+        ),
         "Did you keep that bass note down on purpose while the top resolved?",
     ),
     "5 -> 6m": (
@@ -6389,7 +6440,7 @@ def _brief_with_words(sess: dict, data: dict, budget: dict) -> str:
 def _brief_text(sess: dict, data: dict, budget: dict) -> str:
     lines = [f"Brief: {headline(sess)}"]
     if data["empty"]:
-        return "\n".join(lines + ["", "No notes logged yet.", "", f"Data caveats: {'; '.join(data['caveats'])}."])
+        return "\n".join([*lines, "", "No notes logged yet.", "", f"Data caveats: {'; '.join(data['caveats'])}."])
     home = data["home_key"]
     other = f"{data['other_seconds']} s of single notes, two-note shapes, lines and broken chords"
     if not data["chord_seconds"]:
@@ -6401,8 +6452,10 @@ def _brief_text(sess: dict, data: dict, budget: dict) -> str:
     else:
         lines += [
             "",
-            f"Home key: {home} ({_pct(data['home_share'])} of chord time). {data['chord_seconds']} s of "
-            f"chords, {other}.",
+            (
+                f"Home key: {home} ({_pct(data['home_share'])} of chord time). {data['chord_seconds']} s of "
+                f"chords, {other}."
+            ),
         ]
         area_items = []
         for a in data["areas"]:
@@ -6434,8 +6487,10 @@ def _brief_text(sess: dict, data: dict, budget: dict) -> str:
     tl, hidden = _timeline_lines(data, budget["per_area"])
     lines += [
         "",
-        f"Held harmony (each key area's longest chords in time order, {hidden} more left out; * outside the "
-        f"key, ~ a reading):",
+        (
+            f"Held harmony (each key area's longest chords in time order, {hidden} more left out; * outside the "
+            f"key, ~ a reading):"
+        ),
     ]
     lines += tl or ["  none: no chords held that long"]
 
@@ -6568,7 +6623,7 @@ def _brief_text(sess: dict, data: dict, budget: dict) -> str:
             items.insert(0, f"{landings} landings on 1, none of them from the 5 chord")
         lines += _wrap("Cadences: ", items, max_lines=budget["cadences"])
     if data["touch"]:
-        lines += [""] + _wrap("Touch: ", _touch_items(data["touch"]), max_lines=budget["touch"])
+        lines += ["", *_wrap("Touch: ", _touch_items(data["touch"]), max_lines=budget["touch"])]
 
     lines += ["", "Ask Daniel about:"]
     for n, m in enumerate(data["ask"], 1):
@@ -6576,7 +6631,7 @@ def _brief_text(sess: dict, data: dict, budget: dict) -> str:
         lines.append(f"   In plain words: {m['plain'][0].upper() + m['plain'][1:]} Ask: {m['ask']}")
     if not data["ask"]:
         lines.append("  nothing stood out enough to ask about")
-    lines += [""] + _wrap("Data caveats: ", data["caveats"], max_lines=budget["caveats"])
+    lines += ["", *_wrap("Data caveats: ", data["caveats"], max_lines=budget["caveats"])]
     return "\n".join(lines)
 
 
@@ -6690,8 +6745,10 @@ def render_compare(data: dict) -> str:
     n = data["numbers"]
     lines += [
         "",
-        f"Numbers (quality only; share of each session's chord time). Overlap {_pct(n['overlap'])}: the chord "
-        f"time the two sessions spend on the same numbers.",
+        (
+            f"Numbers (quality only; share of each session's chord time). Overlap {_pct(n['overlap'])}: the chord "
+            f"time the two sessions spend on the same numbers."
+        ),
     ]
     lines += _wrap("  both: ", [f"{t} {_pct(x)}/{_pct(y)}" for t, x, y in n["shared"]], max_lines=3, sep=", ")
     lines += _wrap("  only A: ", [f"{t} {_pct(x)}" for t, x in n["only_a"]] or ["-"], max_lines=2, sep=", ")
@@ -6827,13 +6884,17 @@ def render_history(data: dict) -> str:
             f"(left out, unreadable: {s['error'] if s['session'] in s['error'] else s['session'] + ': ' + s['error']})"
         )
     if not data["growth"]:
-        return "\n".join(lines + ["", "No sessions in that time."])
+        return "\n".join([*lines, "", "No sessions in that time."])
     lines += [
         "",
-        "Growth, oldest first (qualities: different chord types; outside: share of chord time outside the "
-        "key area's key):",
-        f"{'played':<17} {'length':>6} {'home key':<10} {'chord s':>7} {'qualities':>9} {'numbers':>7} "
-        f"{'outside':>7} {'Lydian 4':>8} {'notes/min':>9} {'spread':>6}  new qualities",
+        (
+            "Growth, oldest first (qualities: different chord types; outside: share of chord time outside the "
+            "key area's key):"
+        ),
+        (
+            f"{'played':<17} {'length':>6} {'home key':<10} {'chord s':>7} {'qualities':>9} {'numbers':>7} "
+            f"{'outside':>7} {'Lydian 4':>8} {'notes/min':>9} {'spread':>6}  new qualities"
+        ),
     ]
     for g in data["growth"]:
         lines.append(
@@ -6854,7 +6915,7 @@ def render_history(data: dict) -> str:
         landings = sum(sum(v) for k, v in kinds.items() if k.endswith("-> 1"))
         if landings >= 3 and not any(k in kinds for k in DOMINANT_ARRIVALS):
             items.append(f"none of the {landings} landings on 1 comes from the 5 chord")
-        lines += [""] + _wrap("Cadences by kind: ", items, max_lines=3)
+        lines += ["", *_wrap("Cadences by kind: ", items, max_lines=3)]
     lines += ["", "Numbers by total time (bass left out; each in its own key area):"]
     for n in data["numbers"][:25]:
         lines.append(
@@ -6867,9 +6928,15 @@ def render_history(data: dict) -> str:
             f"  {q['quality']:<18} first {q['first_played']} at {q['at']} ({q['chord']}); "
             f"{q['seconds']} s in {len(q['sessions'])} session{'s' if len(q['sessions']) != 1 else ''}"
         )
-    lines += [""] + _wrap(
-        "Chords (letters) by total time: ", [f"{c} {s:.1f} s" for c, s in data["letters"][:20]], max_lines=3, sep=", "
-    )
+    lines += [
+        "",
+        *_wrap(
+            "Chords (letters) by total time: ",
+            [f"{c} {s:.1f} s" for c, s in data["letters"][:20]],
+            max_lines=3,
+            sep=", ",
+        ),
+    ]
     return "\n".join(lines)
 
 
@@ -6897,7 +6964,7 @@ def _finish(args, payload, text: str) -> int:
             if isinstance(payload, list)
             else None
         )
-        text = text.rstrip("\n") + "\n".join([""] + glossary(text, home))
+        text = text.rstrip("\n") + "\n".join(["", *glossary(text, home)])
     text = text.rstrip("\n") + "\n"
     if getattr(args, "out", None):
         out = Path(args.out)
@@ -7022,10 +7089,8 @@ def main(argv=None) -> int:
     args = parser.parse_args(argv)
     for stream in (sys.stdout, sys.stderr):  # piped on Windows the console code page would mangle names like C°7
         if (getattr(stream, "encoding", "") or "").lower().replace("-", "") != "utf8":
-            try:
+            with contextlib.suppress(AttributeError, ValueError, OSError):
                 stream.reconfigure(encoding="utf-8")
-            except (AttributeError, ValueError, OSError):
-                pass
     try:
         global BOUNDARY_DEFAULT
         BOUNDARY_DEFAULT = getattr(args, "boundary", None) or BOUNDARY_DEFAULT

@@ -135,7 +135,7 @@ def canary_events_kind_filter():
         return UNCHECKED, "no events returned; nothing to judge"
     wrong = [r.get("kind") for r in rows if r.get("kind") != want]
     if wrong:
-        seen = sorted(set(k for k in wrong if k))[:6]
+        seen = sorted({k for k in wrong if k})[:6]
         return DEAD, (
             f"--kind {want} returned {len(wrong)} of {len(rows)} rows of other kinds "
             f"({', '.join(seen)}) -- the filter does not filter (T413)"
@@ -264,23 +264,31 @@ def canary_approved_rows_age():
 CANARIES = {
     "lookback answers a known question": (
         canary_lookback,
-        "retire when lookback is retired as a verb, or when its rationale role is taken over by "
-        "an organ with its own canary here",
+        (
+            "retire when lookback is retired as a verb, or when its rationale role is taken over by "
+            "an organ with its own canary here"
+        ),
     ),
     "events --kind actually filters": (
         canary_events_kind_filter,
-        "retire when the events read path is replaced by a typed query layer whose filter is "
-        "enforced by its schema rather than by a branch",
+        (
+            "retire when the events read path is replaced by a typed query layer whose filter is "
+            "enforced by its schema rather than by a branch"
+        ),
     ),
     "the connectome holds edges": (
         canary_connectome_has_edges,
-        "retire when eye trace is retired, or when the connectome is rebuilt on every ingest by "
-        "construction so an empty table is unrepresentable",
+        (
+            "retire when eye trace is retired, or when the connectome is rebuilt on every ingest by "
+            "construction so an empty table is unrepresentable"
+        ),
     ),
     "done rows name reachable code": (
         canary_ledger_receipts_resolve,
-        "retire when the ledger's commit field is validated at write time against a reachable "
-        "object, which makes an unreachable receipt unrepresentable",
+        (
+            "retire when the ledger's commit field is validated at write time against a reachable "
+            "object, which makes an unreachable receipt unrepresentable"
+        ),
     ),
     "approved rows are visibly ageing": (
         canary_approved_rows_age,
@@ -311,7 +319,7 @@ def _baseline():
 def report(gate=False, only=None):
     print("[organ-canaries] does each organ still answer a question whose answer we know?\n")
     dead, unchecked, alive = [], [], []
-    for name, (fn, retire_when) in CANARIES.items():
+    for name, (fn, _retire_when) in CANARIES.items():
         if only and only not in name:
             continue
         verdict, detail = fn()

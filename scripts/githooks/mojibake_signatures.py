@@ -91,7 +91,7 @@ def check_file(path: Path) -> list[str]:
             problems.append(f"S1/{name}: {desc} at byte {idx} (context: …{context!r}…)")
 
     # Truncated UTF-8 at EOL
-    for lineno, desc in _truncated_utf8_sig(raw):
+    for _lineno, desc in _truncated_utf8_sig(raw):
         problems.append(f"S4/TRUNCATED-UTF8: {desc}")
 
     # Text-level signatures (decode once)
@@ -150,7 +150,7 @@ def main(argv=None) -> int:
 
     all_problems = 0
     for p in paths:
-        if not p.suffix == ".md":
+        if p.suffix != ".md":
             continue
         if not p.exists():
             print(f"[mojibake] SKIP {p}: not found")

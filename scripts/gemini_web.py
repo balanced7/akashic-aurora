@@ -34,6 +34,7 @@ import time
 import urllib.parse
 from pathlib import Path
 from typing import Literal
+import contextlib
 
 
 def _pyl() -> str:
@@ -52,10 +53,8 @@ def _pyl() -> str:
 # charmap failures through the MCP door).
 for _stream in (sys.stdout, sys.stderr):
     if _stream is not None and hasattr(_stream, "reconfigure"):
-        try:
+        with contextlib.suppress(ValueError, OSError):
             _stream.reconfigure(encoding="utf-8", errors="replace")
-        except (ValueError, OSError):
-            pass
 
 ROOT = Path(__file__).resolve().parent.parent
 PROFILE = ROOT / ".secrets" / "gemini_web_profile"
@@ -522,10 +521,8 @@ def _ask_ai_mode(page, prompt: str, timeout_ms: int) -> str:
         return _login_hint()
 
     body = ""
-    try:
+    with contextlib.suppress(Exception):
         body = page.locator("body").inner_text(timeout=3000)
-    except Exception:
-        pass
     if "AI Mode is not currently available" in body:
         return (
             "AI_MODE_UNAVAILABLE: Google AI Mode is not enabled for this account, "

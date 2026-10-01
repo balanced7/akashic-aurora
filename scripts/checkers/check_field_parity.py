@@ -59,8 +59,10 @@ MANIFEST = {
     "learn:experiment": {
         "root_cause": (
             "ZERO",
-            "FIXED 2026-08-26 (--root-cause added); stays listed until "
-            "backfill or until fresh records move it off zero",
+            (
+                "FIXED 2026-08-26 (--root-cause added); stays listed until "
+                "backfill or until fresh records move it off zero"
+            ),
         ),
         "files_affected": ("ZERO", "FIXED 2026-08-26 (--files-affected added); same note"),
         "expected": ("ZERO", "4% fill, near-dead; door offers --expected. low priority"),
@@ -78,9 +80,11 @@ MANIFEST = {
         # inside_the_live_tree: present, reachable, and silently inert.
         "forge_proposal": (
             "ZERO",
-            "DORMANT: writer + reader both exist, 0 instances ever. "
-            "The forge has never stamped a proposal. Decide whether "
-            "to run it or retire it -- not a field defect",
+            (
+                "DORMANT: writer + reader both exist, 0 instances ever. "
+                "The forge has never stamped a proposal. Decide whether "
+                "to run it or retire it -- not a field defect"
+            ),
         ),
     },
     "mem:decisions": {
@@ -90,16 +94,20 @@ MANIFEST = {
         # nothing, so adding a door flag is only half the fix.
         "rationale": (
             "SHELL",
-            "1355 written, 0 real -- always []. READ by "
-            "decision_loader._text_of, which builds the text the "
-            "Ranker scores. OPEN DEFECT: no --rationale on the door",
+            (
+                "1355 written, 0 real -- always []. READ by "
+                "decision_loader._text_of, which builds the text the "
+                "Ranker scores. OPEN DEFECT: no --rationale on the door"
+            ),
         ),
         "alternatives": ("SHELL", "always [] -- no readers found; dead schema, harmless"),
         "consequences": ("SHELL", "always {'negative': [], 'positive': []}; no readers"),
         "session_id": (
             "ZERO",
-            "0/1355 DESPITE the door offering --session. Writer with "
-            "no users -- a false affordance, not an output defect",
+            (
+                "0/1355 DESPITE the door offering --session. Writer with "
+                "no users -- a false affordance, not an output defect"
+            ),
         ),
         "status": ("MONO", "'accepted' on all 1355"),
     },
@@ -176,7 +184,7 @@ def _records():
 def analyse(records):
     """Per-field stats and a variant verdict. Pure, so it is testable without a store."""
     n = len(records)
-    fields = sorted({k for rec in records for k in rec.keys()})
+    fields = sorted({k for rec in records for k in rec})
     rows = []
     for f in fields:
         vals = [rec.get(f) for rec in records]

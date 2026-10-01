@@ -141,7 +141,7 @@ def _path_refs(tree):
     round is about: an instrument reporting a fact about the world when it only has a fact about its
     own reach. Unanchored refs are dropped here and counted as unresolved in the manifest.
     """
-    roots = INTERNAL_ROOTS + ("tests", "docs", "research")
+    roots = (*INTERNAL_ROOTS, "tests", "docs", "research")
     refs, unresolved = set(), 0
     for node in ast.walk(tree):
         if isinstance(node, ast.Call):
@@ -315,7 +315,7 @@ def build():
     # A test naming `core/x.py` is a FIXTURE, not a defect -- guards are tested by feeding them
     # paths that deliberately do not exist. Counting those as breakage would bury the real hits
     # (27 raw -> 3 live), which is how a guard trains people to ignore it.
-    universe = set(f.replace("\\", "/") for f in files)
+    universe = {f.replace("\\", "/") for f in files}
     for rel, s in sheets.items():
         bucket = "fixture_path_refs" if rel.startswith("tests/") else "broken_path_refs"
         for ref in s["path_refs"]:

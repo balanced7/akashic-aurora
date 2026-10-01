@@ -74,7 +74,10 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--url", default=os.environ.get("AKASHIC_UI_URL", "http://localhost:8787"))
     ap.add_argument(
-        "--viewport", action="append", default=None, help="WxH; repeatable. Default: %s" % " ".join(DEFAULT_VIEWPORTS)
+        "--viewport",
+        action="append",
+        default=None,
+        help="WxH; repeatable. Default: {}".format(" ".join(DEFAULT_VIEWPORTS)),
     )
     ap.add_argument("--label", default="", help="tag for the filename set (e.g. before/after)")
     ap.add_argument("--out", default=OUT_DIR)

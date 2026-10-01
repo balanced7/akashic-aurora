@@ -68,7 +68,7 @@ MATCHES = (
     "notes",
 )  # ... and for exact notes: the page's own name, no chord to compare
 TONE_ROLES = ("root", "third", "fifth", "sixth", "seventh", "ninth", "eleventh", "thirteenth", "sus")
-VOICE_ROLES = ("bass",) + TONE_ROLES
+VOICE_ROLES = ("bass", *TONE_ROLES)
 SLOT_CLASSES = ("diatonic", "secondary dominant", "borrowed", "modal", "chromatic")  # practice.classify
 MODES = ("play", "loop", "try")
 ROUTES = ("page",)  # v2 adds FL as the clock

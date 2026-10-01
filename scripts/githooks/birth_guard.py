@@ -47,7 +47,7 @@ def classify(relpath: str) -> str:
     p = relpath.replace("\\", "/")
     if not p.endswith(".md"):
         return "allow"
-    if p.startswith("docs/library/") or p.startswith("docs/_archive/"):
+    if p.startswith(("docs/library/", "docs/_archive/")):
         return "allow"
     if p.endswith("/README.md") or p == "README.md":
         return "allow"

@@ -36,6 +36,7 @@ _NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)  # windowless: never fla
 import sys
 import time
 from typing import Any
+import contextlib
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT not in sys.path:
@@ -137,8 +138,10 @@ def _cmdlines() -> str | None:
                 "powershell",
                 "-NoProfile",
                 "-Command",
-                "Get-CimInstance Win32_Process -Filter \"Name like '%python%'\" "
-                "| Select-Object -ExpandProperty CommandLine",
+                (
+                    "Get-CimInstance Win32_Process -Filter \"Name like '%python%'\" "
+                    "| Select-Object -ExpandProperty CommandLine"
+                ),
             ],
             capture_output=True,
             text=True,
@@ -377,7 +380,7 @@ def unreachable_report(
     """
     planned = {s.get("organ") for s in plan}
     lines: list[str] = []
-    for organ in _ORDER + ("runners",):
+    for organ in (*_ORDER, "runners"):
         if target and organ != target:
             continue
         row = observed.get(organ) or {}
@@ -511,10 +514,8 @@ def _take_lock() -> None:
             )
         # Stale lock: a prior converger crashed before dropping. Reclaim it
         # (remove + retry the atomic create once).
-        try:
+        with contextlib.suppress(OSError):
             os.remove(LOCK_PATH)
-        except OSError:
-            pass
         try:
             fd = os.open(LOCK_PATH, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o644)
         except FileExistsError:
@@ -527,10 +528,8 @@ def _take_lock() -> None:
 
 
 def _drop_lock() -> None:
-    try:
+    with contextlib.suppress(OSError):
         os.remove(LOCK_PATH)
-    except OSError:
-        pass
 
 
 def converge(target: str | None = None, observe_only: bool = False) -> dict[str, Any]:

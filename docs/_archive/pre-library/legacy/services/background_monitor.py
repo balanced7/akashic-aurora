@@ -218,10 +218,7 @@ class MessageInbox:
             with open(unread_file) as f:
                 unread = json.load(f)
 
-            if msg_ids:
-                unread = [u for u in unread if u not in msg_ids]
-            else:
-                unread = []
+            unread = [u for u in unread if u not in msg_ids] if msg_ids else []
 
             with open(unread_file, "w") as f:
                 json.dump(unread, f, indent=2)

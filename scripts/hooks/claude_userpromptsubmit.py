@@ -132,7 +132,8 @@ def main() -> int:
         pieces = [
             build_plan_recall(data.get("prompt") or "", data.get("session_id") or "", agent_id),
             build_bus_line(agent_id),
-        ] + build_page_lines()
+            *build_page_lines(),
+        ]
         ctx = "\n".join(p for p in pieces if p)
         if ctx:
             print(

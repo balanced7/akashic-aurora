@@ -158,6 +158,7 @@ from collections.abc import Iterable, Sequence
 from pathlib import Path
 
 from . import nashville as nv
+import contextlib
 
 
 def _pyl() -> str:
@@ -1201,12 +1202,12 @@ def voicing_pcs(chord: dict, size: int) -> list[int]:
 
 def is_muddy(v: Sequence[int]) -> bool:
     """A minor second stacked with its lower note below G3 (MUD_FLOOR): refused in every keys voicing."""
-    return any(b - a == 1 and a < MUD_FLOOR for a, b in zip(v, v[1:]))
+    return any(b - a == 1 and a < MUD_FLOOR for a, b in itertools.pairwise(v))
 
 
 def _roughness(v: Sequence[int], chord: dict) -> float:
     pen = 0.0
-    for a, b in zip(v, v[1:]):
+    for a, b in itertools.pairwise(v):
         iv = b - a
         if iv in LIL and a < LIL[iv]:
             pen += 8.0
@@ -1219,7 +1220,7 @@ def _roughness(v: Sequence[int], chord: dict) -> float:
 
 def _movement(prev: Sequence[int], cur: Sequence[int]) -> float:
     if len(prev) == len(cur):
-        return float(sum(abs(a - b) for a, b in zip(prev, cur)))
+        return float(sum(abs(a - b) for a, b in zip(prev, cur, strict=False)))
     there = sum(min(abs(c - p) for p in prev) for c in cur)
     back = sum(min(abs(p - c) for c in cur) for p in prev)
     return (there + back) / 2.0
@@ -1283,7 +1284,7 @@ def voice_lead(chords: list[dict], lane: str, ring: bool = True) -> list[list[in
                 j = min(range(len(cands[i])), key=lambda j: (cost[j] + edges[i][j][k], j))
                 nxt_cost.append(cost[j] + edges[i][j][k] + cands[i + 1][k][0])
                 nxt_back.append(j)
-            cost, back = nxt_cost, back + [nxt_back]
+            cost, back = nxt_cost, [*back, nxt_back]
         for k in range(len(cands[-1])):
             total = cost[k] + (seam[k][j0] if ring else 0.0)
             path = [k]
@@ -1929,12 +1930,12 @@ def midi_bytes(ps: dict, lane: str | None = None) -> bytes:
     markers) and one track per lane. lane="bass": one track holding the tempo, meter, key and that lane's notes."""
     end = int(round(ps["length_beats"] * PPQ))
     if lane is None:
-        tracks = [_track([(0, 0, _meta(0x03, ps["title"].encode("utf-8")))] + _conductor_events(ps, True), end)]
+        tracks = [_track([(0, 0, _meta(3, ps["title"].encode("utf-8"))), *_conductor_events(ps, True)], end)]
         for name in LANES:
-            ev = [(0, 0, _meta(0x03, name.encode("utf-8")))] + _note_events(ps["lanes"][name]["notes"], CHANNELS[name])
+            ev = [(0, 0, _meta(3, name.encode("utf-8"))), *_note_events(ps["lanes"][name]["notes"], CHANNELS[name])]
             tracks.append(_track(ev, end))
     else:
-        ev = [(0, 0, _meta(0x03, f"{ps['title']} - {lane}".encode()))] + _conductor_events(ps, False)
+        ev = [(0, 0, _meta(3, f"{ps['title']} - {lane}".encode())), *_conductor_events(ps, False)]
         tracks = [_track(ev + _note_events(ps["lanes"][lane]["notes"], CHANNELS[lane]), end)]
     header = b"MThd" + struct.pack(">IHHH", 6, 1, len(tracks), PPQ)
     return header + b"".join(tracks)
@@ -2169,10 +2170,8 @@ def _utf8_streams() -> None:
     for stream in (sys.stdout, sys.stderr):
         encoding = (getattr(stream, "encoding", None) or "").lower().replace("-", "")
         if encoding != "utf8" and hasattr(stream, "reconfigure"):
-            try:
+            with contextlib.suppress(ValueError, OSError):
                 stream.reconfigure(encoding="utf-8", errors="replace")
-            except (ValueError, OSError):
-                pass
 
 
 def _range_text(notes: list[dict], flats: bool) -> str:
@@ -2186,8 +2185,10 @@ def summary_lines(ps: dict) -> list[str]:
     flats = _flats(ps["key"])
     bars = int(round(ps["length_beats"] / beats_per_bar(ps["meter"])))
     out = [
-        f'{ps["id"]}: "{ps["title"]}" ({ps["key"]}, {ps["bpm_hint"]} BPM, {bars} bars of '
-        f"{ps['meter'][0]}/{ps['meter'][1]})"
+        (
+            f'{ps["id"]}: "{ps["title"]}" ({ps["key"]}, {ps["bpm_hint"]} BPM, {bars} bars of '
+            f"{ps['meter'][0]}/{ps['meter'][1]})"
+        )
     ]
     seen, chart = set(), []
     for c in ps["chords"]:

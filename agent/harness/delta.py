@@ -24,6 +24,7 @@ import os
 import subprocess
 import time
 from collections.abc import Callable
+import contextlib
 
 
 def _pyl() -> str:
@@ -68,7 +69,7 @@ def _git(*args: str) -> str | None:
         # C7-4: sever stdin -- a child inheriting the door's stdin wedges the MCP boot
         # path (the class the stdin-sever pin guards); close_fds per the same pin.
         r = subprocess.run(
-            ["git", "-C", REPO] + list(args),
+            ["git", "-C", REPO, *list(args)],
             capture_output=True,
             text=True,
             timeout=10,
@@ -144,10 +145,8 @@ def _notes_head() -> str:
         mem = get_agent_memory()
         stamps: list[str] = []
         for pull in (lambda: mem.get_decisions(days=90), lambda: mem.get_experiences(days=90)):
-            try:
+            with contextlib.suppress(Exception):
                 stamps += [str(x.created_at) for x in (pull() or [])]
-            except Exception:
-                pass
         return max(stamps) if stamps else "0"
     except Exception:
         return "?"
@@ -289,7 +288,7 @@ def delta_boot_block(agent: str, budget: int = BUDGET_DEFAULT) -> tuple[str, Cal
     if not any(_moved(mark[f], cur[f]) for f in FIELDS):
         return "", commit  # P6: silence is free
     head = f"[delta {agent}] since your last boot ({mark['git_commit'][:7]} -> {cur['git_commit'][:7]}):"
-    text = "\n".join([head] + parts)
+    text = "\n".join([head, *parts])
     if len(text) > budget:
         counts = (
             f"[delta truncated: {len(parts)} section(s), {len(text)} chars -- "
@@ -297,12 +296,12 @@ def delta_boot_block(agent: str, budget: int = BUDGET_DEFAULT) -> tuple[str, Cal
         )
         keep: list[str] = [head]
         for p in parts:
-            if len("\n".join(keep + [p, counts])) > budget:
+            if len("\n".join([*keep, p, counts])) > budget:
                 break
             keep.append(p)
-        text = "\n".join(keep + [counts])
+        text = "\n".join([*keep, counts])
         if len(text) > budget:  # even one section overflows: counts only
-            text = "\n".join([head, counts])[:budget]
+            text = f"{head}\n{counts}"[:budget]
     return text, commit
 
 
@@ -329,10 +328,8 @@ def render_full(agent: str) -> str:
     cur = current_positions(agent)
     parts = _sections(agent, mark, cur)
     head = f"[delta {agent}] since your last boot ({mark['git_commit'][:7]} -> {cur['git_commit'][:7]}):"
-    text = "\n".join([head] + parts) if parts else f"[delta {agent}] no changes since your last boot"
+    text = "\n".join([head, *parts]) if parts else f"[delta {agent}] no changes since your last boot"
     if c is not None:
-        try:
+        with contextlib.suppress(Exception):
             c.set(ckey, text, ex=RENDER_TTL_S)
-        except Exception:
-            pass
     return text

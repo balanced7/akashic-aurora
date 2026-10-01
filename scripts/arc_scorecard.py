@@ -277,7 +277,7 @@ def main() -> int:
                 f"MEASURED {g['passed'] + g['ungated']}/{g['applied']} SUBSTRATE ship(s) "
                 f"gated ({g['pct']:.0f}%)" + (f", {g['ungated']} ungated-with-reason" if g["ungated"] else "")
             )
-            for sha, subj, why in g["offenders"][:3]:
+            for sha, subj, _why in g["offenders"][:3]:
                 print(f"       ungated substrate: {sha} {subj}")
         else:
             print(

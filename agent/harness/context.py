@@ -34,6 +34,7 @@ import time
 from datetime import datetime
 
 from agent.harness.scope import repo_root, session_in_scope
+import contextlib
 
 
 def _pyl() -> str:
@@ -303,10 +304,8 @@ def build_autoboot_context(cwd: str, agent_id: str, session_id: str = "") -> str
     home_or_repo = session_in_scope(cwd)
 
     unread = 0
-    try:
+    with contextlib.suppress(Exception):
         unread = _unread_count(agent_id)
-    except Exception:
-        pass
     fresh_draft = _draft_fresh()
 
     if not home_or_repo:
@@ -323,25 +322,17 @@ def build_autoboot_context(cwd: str, agent_id: str, session_id: str = "") -> str
         )
 
     notes: list = []
-    try:
+    with contextlib.suppress(Exception):
         notes = _fetch_notes()
-    except Exception:
-        pass
     siblings: list[dict] = []
-    try:
+    with contextlib.suppress(Exception):
         siblings = _live_siblings(agent_id, session_id)
-    except Exception:
-        pass
     delta_n = 0
-    try:
+    with contextlib.suppress(Exception):
         delta_n = _delta_count(agent_id)
-    except Exception:
-        pass
     funnel = ""
-    try:
+    with contextlib.suppress(Exception):
         funnel = _funnel_line() or ""
-    except Exception:
-        pass
 
     directive = _find_note(notes, "next-focus")
     where = _find_note(notes, "where-we-are")
@@ -373,8 +364,10 @@ def build_autoboot_context(cwd: str, agent_id: str, session_id: str = "") -> str
             w_lines.append("  " + _clip(rest, _LINE_CLAMP))
     else:
         w_lines = [
-            "WHERE: (no where-we-are note yet -- record one: "
-            f"{_pyl()} agent_cli.py note {agent_id} --title where-we-are)"
+            (
+                "WHERE: (no where-we-are note yet -- record one: "
+                f"{_pyl()} agent_cli.py note {agent_id} --title where-we-are)"
+            )
         ]
     sections.append(("where", w_lines))
 
@@ -425,8 +418,10 @@ def build_autoboot_context(cwd: str, agent_id: str, session_id: str = "") -> str
             (
                 "draft",
                 [
-                    "draft: chronicles/last-session-draft.md -> review; promote with "
-                    f"`{_pyl()} agent_cli.py wrap --commit`"
+                    (
+                        "draft: chronicles/last-session-draft.md -> review; promote with "
+                        f"`{_pyl()} agent_cli.py wrap --commit`"
+                    )
                 ],
             )
         )
@@ -438,7 +433,10 @@ def build_autoboot_context(cwd: str, agent_id: str, session_id: str = "") -> str
 
     # ---- budget: drop bottom-up, orienting core last (W6) -------------------------
     budget = _budget_lines()
-    total = lambda: sum(len(body) for _, body in sections)
+
+    def total():
+        return sum(len(body) for _, body in sections)
+
     for key in _DROP_ORDER:
         if total() <= budget:
             break

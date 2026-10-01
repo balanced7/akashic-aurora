@@ -17,6 +17,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 from vision_engine import capture_active_window, get_screen_context_for_analyst
+import contextlib
 
 CHROMEDRIVER_PATH = r"C:\Users\L5\.chromedriver-autoinstaller\chromedriver-win64\chromedriver.exe"
 DEBUGGING_PORT = "127.0.0.1:9222"
@@ -102,8 +103,7 @@ class GeminiBridgeMonitor:
         """Capture current browser state for diagnosis"""
         try:
             screenshot = capture_active_window()
-            context = get_screen_context_for_analyst(screenshot)
-            return context
+            return get_screen_context_for_analyst(screenshot)
         except Exception as e:
             print(f"[monitor] Failed to capture state: {e}")
             return {"error": str(e)}
@@ -115,9 +115,8 @@ class GeminiBridgeMonitor:
         Returns:
             tuple: (response_text or None, crash_detected: bool)
         """
-        if not self.driver:
-            if not self.connect():
-                return None, False
+        if not self.driver and not self.connect():
+            return None, False
 
         # Find or create Gemini tab
         if not self.find_or_create_gemini_tab():
@@ -192,10 +191,8 @@ class GeminiBridgeMonitor:
     def disconnect(self):
         """Disconnect from browser (don't close tabs)"""
         if self.driver:
-            try:
+            with contextlib.suppress(BaseException):
                 self.driver.quit()
-            except:
-                pass
             self.driver = None
 
 

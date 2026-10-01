@@ -79,7 +79,7 @@ class RedisHAManager:
 
     def _run_wsl(self, cmd: list[str], timeout: int = 30) -> tuple[str, int]:
         """Execute command in WSL2"""
-        full_cmd = ["wsl.exe", "-d", WSL_DISTRO, "-e"] + cmd
+        full_cmd = ["wsl.exe", "-d", WSL_DISTRO, "-e", *cmd]
         try:
             result = subprocess.run(full_cmd, capture_output=True, text=True, timeout=timeout)
             return result.stdout.strip(), result.returncode
@@ -118,7 +118,7 @@ class RedisHAManager:
             if role == RedisRole.SENTINEL:
                 output, code = self._sentinel_command(host, port, "PING")
             else:
-                output, code = self._redis_command(host, port, "PING")
+                output, _code = self._redis_command(host, port, "PING")
 
             if output == "PONG":
                 return True

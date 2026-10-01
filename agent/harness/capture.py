@@ -14,6 +14,7 @@ Callers own their directory (one per harness) so per-harness pinning stays trivi
 import json
 import os
 import time
+import contextlib
 
 _CAP_MAX = 200
 _CAP_STR = 400
@@ -44,9 +45,7 @@ def capture(data, cap_dir: str, label: str = "unknown") -> None:
             json.dump(truncated(data), f, indent=1)
         stale = sorted(os.listdir(cap_dir))[:-_CAP_MAX]  # ms-epoch prefix -> lexical sort = oldest first
         for n in stale:
-            try:
+            with contextlib.suppress(Exception):
                 os.remove(os.path.join(cap_dir, n))
-            except Exception:
-                pass
     except Exception:
         pass

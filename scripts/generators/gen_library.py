@@ -405,9 +405,11 @@ def render_arcs(by_arc):
         "",
         f"**Generated:** {now} · **Source:** `scripts/generators/gen_library.py` · **Never hand-edit.**",
         "",
-        "Every file declaring an `Arc:` header, grouped by arc. Current files first; "
-        "archived files collapsed. Use this to trace an arc's artifacts across zones — "
-        "the same arc may span `docs/`, `research/`, and `charters/`.",
+        (
+            "Every file declaring an `Arc:` header, grouped by arc. Current files first; "
+            "archived files collapsed. Use this to trace an arc's artifacts across zones — "
+            "the same arc may span `docs/`, `research/`, and `charters/`."
+        ),
         "",
         "---",
         "",

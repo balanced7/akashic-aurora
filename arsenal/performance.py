@@ -27,6 +27,7 @@ from bisect import bisect_left, bisect_right
 from datetime import UTC, datetime
 from fractions import Fraction
 from pathlib import Path
+import itertools
 
 API = "arsenal.performance/v0"
 SUMMARY_API = "arsenal.performance.summary/v0"
@@ -468,7 +469,7 @@ def _r(x, places: int = 4):
 def _pearson(xs: list[float], ys: list[float]) -> float:
     n = len(xs)
     mx, my = sum(xs) / n, sum(ys) / n
-    sxy = sum((x - mx) * (y - my) for x, y in zip(xs, ys))
+    sxy = sum((x - mx) * (y - my) for x, y in zip(xs, ys, strict=False))
     sxx = sum((x - mx) ** 2 for x in xs)
     syy = sum((y - my) ** 2 for y in ys)
     return sxy / math.sqrt(sxx * syy) if sxx > 0 and syy > 0 else 0.0
@@ -525,7 +526,7 @@ def home_chords(chord_events: list[dict], duration_ms: int, reader=None) -> dict
         reader = _numbers_reader()[0]
     out = {"chord_ms": 0, "minor_ms": [0] * 12}
     evs = sorted(chord_events, key=lambda e: e["t_ms"])
-    for e, nxt in zip(evs, evs[1:] + [None]):
+    for e, nxt in zip(evs, [*evs[1:], None], strict=False):
         name = e.get("chord")
         if name is None:
             continue
@@ -706,8 +707,8 @@ def _area_scores(hist: list[float]) -> list[float]:
     r = {}
     for t in range(12):
         rotated = hist[t:] + hist[:t]
-        r[(t, "major")] = sum(h * z for h, z in zip(rotated, _KK_MAJOR_Z)) / spread
-        r[(t, "minor")] = sum(h * z for h, z in zip(rotated, _KK_MINOR_Z)) / spread
+        r[(t, "major")] = sum(h * z for h, z in zip(rotated, _KK_MAJOR_Z, strict=False)) / spread
+        r[(t, "minor")] = sum(h * z for h, z in zip(rotated, _KK_MINOR_Z, strict=False)) / spread
     out = []
     for t in range(12):
         for mode in ("major", "minor"):
@@ -795,17 +796,15 @@ def key_areas(
     for a, b in cover:
         totals.append(totals[-1] + b - a)
     sounding = ([a for a, _ in cover], cover, totals)
-    resumes = {b[0] for a, b in zip(cover, cover[1:]) if b[0] - a[1] >= AREA_GAP_MS}
+    resumes = {b[0] for a, b in itertools.pairwise(cover) if b[0] - a[1] >= AREA_GAP_MS}
 
     def played(part: dict) -> float:
         return _sounded_before(sounding, part["end_ms"]) - _sounded_before(sounding, part["start_ms"])
 
     cut: list[dict] = []
     for part in parts:
-        edges = (
-            [part["start_ms"]] + sorted(t for t in resumes if part["start_ms"] < t < part["end_ms"]) + [part["end_ms"]]
-        )
-        pieces = [{"state": part["state"], "start_ms": a, "end_ms": b} for a, b in zip(edges, edges[1:])]
+        edges = [part["start_ms"], *sorted(t for t in resumes if part["start_ms"] < t < part["end_ms"]), part["end_ms"]]
+        pieces = [{"state": part["state"], "start_ms": a, "end_ms": b} for a, b in itertools.pairwise(edges)]
         if len(pieces) > 1:  # each piece of a part cut by a long silence takes the key its own steps score best: the
             for piece in pieces:  # path's 10 s context carries a key a few steps past a silence
                 steps = [
@@ -1057,7 +1056,7 @@ def _moves(segments: list[dict]) -> tuple:
         else:
             runs.append({"label": s["label"], "ms": ms, "first": s["first"]})
     moves: dict[tuple, dict] = {}
-    for i, (a, b) in enumerate(zip(runs, runs[1:])):
+    for i, (a, b) in enumerate(itertools.pairwise(runs)):
         slot = moves.setdefault(
             (a["label"], b["label"]),
             {"count": 0, "ms": 0, "first": i, "from_first": a["first"], "to_first": b["first"]},
@@ -1275,7 +1274,7 @@ def _nashville(chord_events: list[dict], areas: list[dict], reader, duration_ms:
             }
         )
     grouped: dict[tuple, dict] = {}
-    for s, moment in zip(outside, moments):
+    for s, moment in zip(outside, moments, strict=False):
         g = grouped.setdefault(s["label"], dict(moment, count=0, ms=0, start_ms=s["start_ms"], times=[]))
         g["count"] += 1
         g["ms"] += span(s)
@@ -1320,7 +1319,7 @@ def _nashville(chord_events: list[dict], areas: list[dict], reader, duration_ms:
     ]
     changes = [
         {"at": _clock(b["start_ms"]), "t_s": _r(b["start_ms"] / 1000, 3), "from": a["label"], "to": b["label"]}
-        for a, b in zip(key_segments, key_segments[1:])
+        for a, b in itertools.pairwise(key_segments)
         if a["label"] != b["label"]
     ]
     # The page numbers single notes and intervals as well as chords, so each of its numbers is compared with this
@@ -1575,7 +1574,7 @@ def summarize(events) -> dict:
     # come from the key the page showed at the move's first occurrence, which lags a key change or is a passing key, so
     # the Chords section and question 2 taught numbers in a key the music had left (verifier, 2026-09-14).
     in_areas: dict[tuple, dict[str, tuple]] = {}
-    for a, b in zip(runs, runs[1:]):
+    for a, b in itertools.pairwise(runs):
         na, nb = a["first"].get("area"), b["first"].get("area")
         if na and nb and na["key"] == nb["key"]:
             in_areas.setdefault((a["label"], b["label"]), {}).setdefault(na["key"], (na["number"], nb["number"]))
@@ -1693,7 +1692,7 @@ def summarize(events) -> dict:
     for t in onsets:  # onsets are already in time order
         if not groups or t - groups[-1] > ONSET_MERGE_MS:
             groups.append(t)
-    iois = [b - a for a, b in zip(groups, groups[1:])]
+    iois = [b - a for a, b in itertools.pairwise(groups)]
     bins: dict[int, int] = {}
     for gap in iois:
         if gap < IOI_MAX_MS:
@@ -2280,7 +2279,7 @@ def _nashville_markdown(doc: dict, add) -> list[tuple]:
 
     for loop in nv["loops"][:3]:
         used.add("loop")
-        shown += [(n, c, loop.get("key") or k) for n, c in zip(loop["numbers"], loop["chords"])]
+        shown += [(n, c, loop.get("key") or k) for n, c in zip(loop["numbers"], loop["chords"], strict=False)]
         add(
             f"- Loop from {loop['first_at']}{where(loop)}: {' → '.join(loop['numbers'])} ({', '.join(loop['chords'])}), "
             f"{_count(loop['count'])} back to back."
@@ -2497,9 +2496,11 @@ def _glossary(
     out = [
         (
             "Nashville numbers",
-            f"chords named by where they sit in the key instead of by letter. 1 is {home}, "
-            f"4 is the chord on the 4th note of the scale, and so on, so a progression reads the "
-            f"same in every key.",
+            (
+                f"chords named by where they sit in the key instead of by letter. 1 is {home}, "
+                f"4 is the chord on the 4th note of the scale, and so on, so a progression reads the "
+                f"same in every key."
+            ),
         )
     ]
     if "b#" in marks:
@@ -2529,8 +2530,10 @@ def _glossary(
         out.append(
             (
                 "/",
-                "the number after the slash is the lowest note: 1/3 is the 1 chord with the 3rd of the scale "
-                "in the bass.",
+                (
+                    "the number after the slash is the lowest note: 1/3 is the 1 chord with the 3rd of the scale "
+                    "in the bass."
+                ),
             )
         )
     if "loop" in used:
@@ -2540,8 +2543,10 @@ def _glossary(
         out.append(
             (
                 "borrowed",
-                f"a chord from the parallel key{part}, the one on the same home note in the other mode "
-                f"({_parallel_key(ex)} for {ex}). It is outside the key, and a common way to add colour.",
+                (
+                    f"a chord from the parallel key{part}, the one on the same home note in the other mode "
+                    f"({_parallel_key(ex)} for {ex}). It is outside the key, and a common way to add colour."
+                ),
             )
         )
     if "chromatic" in used:
@@ -2559,18 +2564,22 @@ def _glossary(
         out.append(
             (
                 "raised 7th",
-                "the note a half step below a minor key's home note (C# in D minor). Minor-key music "
-                "usually plays it in the 5 chord; without it, a minor key has exactly the notes of "
-                "its relative major (D minor and F major), so the numbers count from the major.",
+                (
+                    "the note a half step below a minor key's home note (C# in D minor). Minor-key music "
+                    "usually plays it in the 5 chord; without it, a minor key has exactly the notes of "
+                    "its relative major (D minor and F major), so the numbers count from the major."
+                ),
             )
         )
     if "home chord" in used:
         out.append(
             (
                 "home chord",
-                "a minor chord the music keeps sounding (Am in Am G F G). When nearly every note is on "
-                "its scale, a key that leaves out a note you keep playing cannot be home, so the numbers "
-                "count from that minor key or its relative major (A minor or C major for Am).",
+                (
+                    "a minor chord the music keeps sounding (Am in Am G F G). When nearly every note is on "
+                    "its scale, a key that leaves out a note you keep playing cannot be home, so the numbers "
+                    "count from that minor key or its relative major (A minor or C major for Am)."
+                ),
             )
         )
     if "raised 7th" in used or "home chord" in used:

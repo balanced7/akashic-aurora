@@ -43,7 +43,7 @@ def _norm(n):
 
 def cli_verbs():
     src = open(os.path.join(ROOT, "agent_cli.py"), encoding="utf-8").read()
-    return sorted(set(_norm(m) for m in re.findall(r'add_parser\(\s*["\']([a-zA-Z0-9_-]+)["\']', src)))
+    return sorted({_norm(m) for m in re.findall(r'add_parser\(\s*["\']([a-zA-Z0-9_-]+)["\']', src)})
 
 
 def mcp_tools():
@@ -92,7 +92,7 @@ def toolbox_verbs():
             "Fix the path; an empty verb list would silently pass or phantom-fail every "
             "shared verb."
         )
-    return sorted(set(_norm(n) for n in out))
+    return sorted({_norm(n) for n in out})
 
 
 # A few deliberate vocabulary pairs differ across CLI and MCP.  The canonical key is

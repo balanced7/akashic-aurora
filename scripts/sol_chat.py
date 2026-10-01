@@ -36,6 +36,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
 from ask_gpt import load_key  # same provider, same key convention; ask_gpt is provider- not seat-named
+import contextlib
 
 BASE_URL = "https://api.openai.com/v1"
 SOL, TERRA, LUNA = "gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna"
@@ -128,6 +129,7 @@ def preview_401_retry(fn, retries=None, label="sol call", exception_cls=None, sl
                 flush=True,
             )
             time.sleep(sleep_s)
+    return None
 
 
 class SolTransport:
@@ -245,17 +247,13 @@ class SolAgent:
 
     def _trace(self, kind, text):
         if self.on_trace and text:
-            try:
+            with contextlib.suppress(Exception):
                 self.on_trace(kind, str(text))
-            except Exception:
-                pass
 
     def _activity(self, state, detail=""):
         if self.on_activity:
-            try:
+            with contextlib.suppress(Exception):
                 self.on_activity(state, detail)
-            except Exception:
-                pass
 
     def reset(self):
         self.history = []

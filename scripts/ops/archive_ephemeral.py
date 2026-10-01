@@ -59,6 +59,7 @@ DEFAULT_CURSORS = BUS_EXPORT_DIR / ".cursors.json"
 DEFAULT_RECEIPTS = _REPO_ROOT / "state" / "archive" / "receipts-ephemeral"
 # Machine-specific (separate physical disks), so from the environment -- see core.paths.env_paths.
 from core.paths import env_paths as _env_paths  # noqa: E402
+import contextlib
 
 DEFAULT_DESTS: list[Path] = _env_paths("AKASHIC_EPHEMERAL_ARCHIVE_ROOTS")
 
@@ -296,10 +297,8 @@ def main(argv: list[str] | None = None) -> int:
     rep["bus_export"] = bus
     rep["planes"] = planes
     _render_copy(rep)
-    try:
+    with contextlib.suppress(Exception):
         (rdir / "latest.json").write_text(json.dumps(rep, indent=1), encoding="utf-8")
-    except Exception:
-        pass
     return 0 if (rep["ok"] and not bus.get("error")) else 1
 
 

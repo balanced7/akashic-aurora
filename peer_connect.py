@@ -40,6 +40,7 @@ import time
 import urllib.error
 import urllib.request
 from pathlib import Path
+import contextlib
 
 ROOT = Path(__file__).resolve().parent
 SECRETS = Path(os.getenv("AKASHIC_SECRETS_DIR") or (ROOT / ".secrets"))
@@ -141,10 +142,8 @@ def write_keys(send_key: bytes, recv_key: bytes) -> None:
 def write_config() -> None:
     CONFIG.parent.mkdir(parents=True, exist_ok=True)
     cfg = {}
-    try:
+    with contextlib.suppress(OSError, ValueError):
         cfg = json.loads(CONFIG.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        pass
     cfg.setdefault("peer", {})
     cfg["peer"]["name"] = OUR_NAME
     cfg["peer"]["url"] = OUR_URL

@@ -54,21 +54,20 @@ class STTProcessor:
             audio_io.name = "audio.wav"
 
             # Run transcription in thread pool to not block
-            segments, info = await asyncio.to_thread(
+            segments, _info = await asyncio.to_thread(
                 self.model.transcribe,
                 audio_io,
                 language=self.config.language,
                 beam_size=self.config.beam_size,
                 vad_filter=self.config.vad_filter,
-                vad_parameters=dict(min_speech_duration=0.3),
+                vad_parameters={"min_speech_duration": 0.3},
             )
 
             text_parts = []
             async for segment in segments:
                 text_parts.append(segment.text)
 
-            result = " ".join(text_parts).strip()
-            return result
+            return " ".join(text_parts).strip()
 
         except Exception as e:
             print(f"[STT] Transcription error: {e}")

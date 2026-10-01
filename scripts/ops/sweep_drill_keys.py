@@ -81,7 +81,7 @@ def _typed_value(store, key):
         return {"type": "set", "value": sorted(s)}
     z = _quiet(lambda: store.zrange(key, 0, -1, withscores=True), [])
     if z:
-        return {"type": "zset", "value": {m: sc for m, sc in z}}
+        return {"type": "zset", "value": dict(z)}
     return {"type": "empty", "value": None}
 
 

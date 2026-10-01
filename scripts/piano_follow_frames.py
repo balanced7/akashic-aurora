@@ -49,7 +49,10 @@ def frame(notes, T, cw=270, ch=480, label=""):
     span = max(hi - lo + 6, 16)  # easeCamera's clamp, minus the 57 ceiling
     span = min(span, 57)
     cx = (lo + hi) / 2
-    x_of = lambda m: cw / 2 + (m - cx) / span * cw
+
+    def x_of(m):
+        return cw / 2 + (m - cx) / span * cw
+
     keyy = ch - 26
     pps = (ch - 26) / TRAIL_LIFE  # 7 s of column fills the sky, as on screen
 
@@ -83,7 +86,7 @@ def frame(notes, T, cw=270, ch=480, label=""):
 def sheet(session, instants, cols=6, out=None):
     from PIL import Image
 
-    meta, notes, ped, ch = unpack(pack(session))
+    _meta, notes, _ped, _ch = unpack(pack(session))
     cw, chh = 270, 480
     rows = (len(instants) + cols - 1) // cols
     im = Image.new("RGB", (cw * cols, chh * rows), (0, 0, 0))
