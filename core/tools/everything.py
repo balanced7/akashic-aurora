@@ -33,6 +33,7 @@ from __future__ import annotations
 import fnmatch
 import json
 import os
+import re
 import shutil
 import subprocess
 import time
@@ -43,6 +44,14 @@ from typing import List, Optional
 #: OS's own env vars rather than drive literals -- unset (any non-Windows box) means skipped.
 #: es.exe lives next to Everything.exe; if the user installed to a non-default dir
 #: we still accept it via $PATH or the ES_EXE override.
+def _basename(path) -> str:
+    """Final path component, splitting on BOTH separators. Everything's es.exe always answers
+    with Windows paths while the fallback walk yields native ones, and posixpath.basename on
+    'C:\\x\\target.exe' returns the whole string -- which silently broke exact-basename ranking
+    for es.exe output read anywhere but Windows."""
+    return re.split(r"[\\/]", str(path).rstrip("\\/"))[-1]
+
+
 _EVERYTHING_ROOTS = tuple(
     os.path.join(os.environ[var], "Everything")
     # %LOCALAPPDATA%\Everything FIRST: es.exe is a SEPARATE voidtools download from the
@@ -178,8 +187,8 @@ def _rank_exact_first(paths, needle):
     not. Fixing the instance and leaving the class open is the recurring defect of this
     session; a shared helper is the version that cannot drift apart.
     """
-    base = os.path.basename(str(needle or "").strip().lower())
-    return sorted(paths, key=lambda p: (os.path.basename(p).lower() != base, len(p)))
+    base = _basename(str(needle or "").strip().lower())
+    return sorted(paths, key=lambda p: (_basename(p).lower() != base, len(p)))
 
 
 #: es.exe's -sort keys (verified against -h); the named flag surfaces these verbatim.
@@ -293,7 +302,7 @@ def _parse_csv_hits(text: str) -> List[Hit]:
         path = rec.get("filename") or field(row, "filename") or (row[0].strip() if len(row) else "")
         if not path:
             continue
-        h = Hit(path=path, name=os.path.basename(path))
+        h = Hit(path=path, name=_basename(path))
         for hdr, idx in (col or {}).items():
             hf = name_of.get(hdr)
             if not hf:
@@ -397,7 +406,7 @@ def _hit_from_record(rec: dict) -> Hit:
     path = _record_path(rec)
     return Hit(
         path=path,
-        name=rec.get("name") or os.path.basename(path),
+        name=rec.get("name") or _basename(path),
         size=rec.get("size"),
         date_modified=rec.get("date_modified") or rec.get("dm") or "",
         date_created=rec.get("date_created") or rec.get("dc") or "",
@@ -583,9 +592,9 @@ def search(query: str, *,
 
     if format in ("json", "csv"):
         parsed = _parse_json_hits(proc.stdout or "") if format == "json" else _parse_csv_hits(proc.stdout or "")
-        base = os.path.basename(str(query or "").strip().lower())
+        base = _basename(str(query or "").strip().lower())
         # rank exact-basename-first, same rule as the path form (shared intent, Hits not paths)
-        parsed.sort(key=lambda h: (os.path.basename(h.path).lower() != base, len(h.path)))
+        parsed.sort(key=lambda h: (_basename(h.path).lower() != base, len(h.path)))
         sliced = parsed[:int(max_results)]
         return SearchResult(
             query=query, paths=[h.path for h in sliced], hits=sliced,
@@ -700,8 +709,8 @@ def search_page(query: str, *, limit: int = None, offset: int = 0,
 
     if format in ("json", "csv"):
         parsed = _parse_json_hits(proc.stdout or "") if format == "json" else _parse_csv_hits(proc.stdout or "")
-        base = os.path.basename(str(query or "").strip().lower())
-        parsed.sort(key=lambda h: (os.path.basename(h.path).lower() != base, len(h.path)))
+        base = _basename(str(query or "").strip().lower())
+        parsed.sort(key=lambda h: (_basename(h.path).lower() != base, len(h.path)))
         sliced = parsed[offset:] if unlimited else parsed[offset:offset + limit]
         return SearchResult(
             query=query, paths=[h.path for h in sliced], hits=sliced,
@@ -762,10 +771,10 @@ def format_hits(res: SearchResult) -> str:
     if not res.hits:
         return f"(no matches for {res.query!r} — Everything answered, nothing found)"
 
-    base = os.path.basename(str(res.query or "").strip().lower())
+    base = _basename(str(res.query or "").strip().lower())
     rows = []
     for h in res.hits:
-        is_exact = os.path.basename(h.path).lower() == base
+        is_exact = _basename(h.path).lower() == base
         mark = "★" if is_exact else " "
         mtime = h.date_modified or ""
         size = "" if h.size is None else f"{h.size:>11}"

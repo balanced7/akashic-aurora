@@ -18,6 +18,7 @@ red-fence discipline: these land RED and get observed RED BEFORE any GREEN imple
 """
 from __future__ import annotations
 
+import os
 import pytest
 
 from core.tools import everything as e
@@ -118,4 +119,6 @@ def test_live_es_available_for_integration():
     hold shape-contract; this one records whether the live path CAN be exercised at all."""
     # Not a pass/fail on feature — a fact the slice needs to know which tests are
     # substantively runnable vs shape-only.
+    if os.name != "nt":
+        pytest.skip("Everything (es.exe) is a Windows program; off Windows the walk engine answers")
     assert e.resolve_es() is not None, "es.exe not found — live integration pins will skip"
