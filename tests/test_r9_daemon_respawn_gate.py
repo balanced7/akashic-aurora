@@ -15,9 +15,9 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "scripts"))
 
-import bifrost_daemon as bd  # noqa: E402
+import bifrost_daemon as bd  # noqa: E402  # sys.path bootstrap
 
-from core.comm import runner_lock  # noqa: E402
+from core.comm import runner_lock  # noqa: E402  # sys.path bootstrap
 
 
 def _holder(monkeypatch, value):

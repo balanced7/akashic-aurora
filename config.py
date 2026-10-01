@@ -243,7 +243,7 @@ BACKUP_DIR.mkdir(parents=True, exist_ok=True)
 # Unset -> [] and the archiver REFUSES to run (a backup with nowhere to go is not a clean run).
 # These were drive-letter literals; on Linux a literal like that is a RELATIVE path, so the
 # archiver would have mkdir'd it inside the cwd -- unredacted transcripts in the public repo.
-from core.paths import env_paths as _env_paths  # noqa: E402
+from core.paths import env_paths as _env_paths  # noqa: E402  # beside the setting it serves
 
 TRANSCRIPT_ARCHIVE_ROOTS = _env_paths("AKASHIC_TRANSCRIPT_ARCHIVE_ROOTS")
 

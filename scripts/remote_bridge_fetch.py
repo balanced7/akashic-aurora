@@ -32,7 +32,7 @@ REPO = Path(__file__).resolve().parents[1]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
-from core.comm import remote_relay as RR  # noqa: E402
+from core.comm import remote_relay as RR  # noqa: E402  # sys.path bootstrap
 
 
 def fetch(ref: str, peer: str = "", timeout: int = 120):
@@ -62,7 +62,7 @@ def fetch(ref: str, peer: str = "", timeout: int = 120):
             f"the reason is in THEIR listener log. Common causes, in order: they do "
             f"not hold that ref, clock skew beyond the window, or a key mismatch."
         )
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001  # fail-soft: falls back to a default value
         return None, f"could not reach {blob_url} ({type(e).__name__}: {e})"
 
 

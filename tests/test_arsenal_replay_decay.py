@@ -19,10 +19,10 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "tests"))
 
-from test_arsenal_replay import take  # noqa: E402,F401  (the fixture: a synthetic store)
+from test_arsenal_replay import take  # noqa: E402,F401  # the fixture: a synthetic store
 
-from arsenal import pianocue, replay  # noqa: E402
-from arsenal.replay_harmony import (  # noqa: E402
+from arsenal import pianocue, replay  # noqa: E402  # sys.path bootstrap
+from arsenal.replay_harmony import (  # noqa: E402  # sys.path bootstrap
     DECAY_T60_S,
     SILENT_DB,
     VOICE_FLOOR,

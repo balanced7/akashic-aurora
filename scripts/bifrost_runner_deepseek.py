@@ -36,7 +36,7 @@ if _os.path.isdir(
     if _qd not in _sys.path:
         _sys.path.insert(0, _qd)
     try:  # noqa: SIM105  # runs before every other import (contextlib included): Popen is patched first
-        import sitecustomize as _quiet_sitecustomize  # noqa: F401  (patches subprocess.Popen)
+        import sitecustomize as _quiet_sitecustomize  # noqa: F401  # patches subprocess.Popen
     except Exception:
         pass
 
@@ -1423,7 +1423,7 @@ def main() -> int:
         _standalone = daemon_state.standalone_warning(args.agent, runner_script=os.path.basename(__file__))
         if _standalone:
             print(_standalone, file=sys.stderr, flush=True)
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001  # fail-soft: logged, caller continues
         print(
             f"[deepseek-runner] standalone check skipped ({type(e).__name__}) -- cannot tell "
             f"whether a daemon supervises '{args.agent}'",

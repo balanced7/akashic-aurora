@@ -18,7 +18,7 @@ REPO = Path(__file__).resolve().parents[1]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
-from core.web import door  # noqa: E402
+from core.web import door  # noqa: E402  # sys.path bootstrap
 
 
 def main() -> int:

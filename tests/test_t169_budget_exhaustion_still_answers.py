@@ -40,7 +40,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 sys.path.insert(0, os.path.join(ROOT, "scripts"))
 
-import deepseek_chat as DC  # noqa: E402
+import deepseek_chat as DC  # noqa: E402  # sys.path bootstrap
 
 TEST_TOOL_ROUNDS = 3
 

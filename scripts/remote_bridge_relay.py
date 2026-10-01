@@ -46,7 +46,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from core.comm import remote_relay as RR  # noqa: E402
+from core.comm import remote_relay as RR  # noqa: E402  # sys.path bootstrap
 
 #: Kinds this relay will put on a live bus. NARROWER than BRIDGE_KINDS on purpose: the gate
 #: decides what may CROSS a fleet boundary, this decides what may be SPOKEN to your seats,
@@ -85,7 +85,7 @@ def drain_once(bus_agent: str = "bridge-relay", dry: bool = False) -> int:
         from core.comm.bus import Bus
 
         bus = Bus(bus_agent)
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001  # fail-soft: logged, caller continues
         print(f"  bus unavailable ({type(e).__name__}: {e}) — nothing relayed, nothing lost", flush=True)
         return 0
 
@@ -144,7 +144,7 @@ def main(argv=None) -> int:
         time.sleep(a.poll_sec)
         try:
             drain_once(a.agent)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:  # noqa: BLE001  # fail-soft: logged, caller continues
             print(f"  tick error ({type(e).__name__}: {e}) — relay continues", flush=True)
 
 

@@ -64,7 +64,7 @@ def _reachable(url: str, timeout: float = 4.0) -> bool | None:
         h, _, p = host.partition(":")
         socket.create_connection((h, int(p or 80)), timeout=timeout).close()
         return True
-    except Exception:  # noqa: BLE001
+    except Exception:  # noqa: BLE001  # fail-soft: falls back to a default value
         return False
 
 
@@ -116,7 +116,7 @@ def status(*, probe: bool = True) -> dict[str, Any]:
                     "reachable": _reachable(url) if probe else None,
                 }
             )
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001  # fail-soft: falls back to a default value
         # A dashboard that crashes on a malformed world takes the operator's eyes out at
         # exactly the moment something is wrong. Degrade, and say why in the payload.
         out["error"] = f"{type(e).__name__}: {e}"
@@ -192,7 +192,7 @@ def act(
             return _restart_listener(process_table=process_table, kill=kill)
 
         return BoundaryOutcome.failed(f"action {aid!r} is offered but not implemented")
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001  # fail-soft: falls back to a default value
         return BoundaryOutcome.caught(e, where="bridge_status.act")
 
 
@@ -392,5 +392,5 @@ def _restart_listener(
             failed=failed,
             refused=[pid for pid, _ in refused],
         )
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001  # fail-soft: falls back to a default value
         return BoundaryOutcome.caught(e, where="bridge_status._restart_listener")

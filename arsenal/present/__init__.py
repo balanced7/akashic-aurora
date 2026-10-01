@@ -34,7 +34,7 @@ from __future__ import annotations
 
 SCHEMA = "present.scene.v1"
 
-from .scene import (  # noqa: E402  (re-exported for convenience; scene.py stays standalone)
+from .scene import (  # noqa: E402  # re-exported for convenience; scene.py stays standalone
     ATOM_KINDS,
     TEMPLATES,
     TOKEN_ROLES,

@@ -40,7 +40,7 @@ import pytest
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from core.comm import toolbox as TB  # noqa: E402
+from core.comm import toolbox as TB  # noqa: E402  # sys.path bootstrap
 
 EYE_TOOLS = ("eye_find", "eye_freq", "eye_get", "eye_zoom")
 

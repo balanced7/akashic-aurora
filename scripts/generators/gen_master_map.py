@@ -19,14 +19,14 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 
 # Tracked content only -- a derived doc describes the repo, not this box.
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _tracked import _tracked_paths, is_tracked_dir, tracked_py  # noqa: E402
+from _tracked import _tracked_paths, is_tracked_dir, tracked_py  # noqa: E402  # sys.path bootstrap
 
 OUT = os.path.join(ROOT, "docs", "MAP.md")
 sys.path.insert(0, ROOT)
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from gen_arch_index import CORE_ORDER, first_doc  # noqa: E402
-from gen_physics_sheet import scan as physics_scan  # noqa: E402
+from gen_arch_index import CORE_ORDER, first_doc  # noqa: E402  # sys.path bootstrap
+from gen_physics_sheet import scan as physics_scan  # noqa: E402  # sys.path bootstrap
 
 
 def _pyl() -> str:

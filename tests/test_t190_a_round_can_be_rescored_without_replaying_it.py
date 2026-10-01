@@ -38,9 +38,9 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-import pytest  # noqa: E402
+import pytest  # noqa: E402  # sys.path bootstrap
 
-from scripts import round_archive as A  # noqa: E402
+from scripts import round_archive as A  # noqa: E402  # sys.path bootstrap
 
 
 def _manifest():

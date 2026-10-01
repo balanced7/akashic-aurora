@@ -1421,7 +1421,7 @@ def cmd_compare(args):
     # Domains that register themselves on import must actually BE imported, or they are
     # invisible at the door -- the built-not-wired class that blocked two commits
     # tonight. Imported here rather than from compare.py, which terms.py imports.
-    from core.coord import terms as _terms_domain  # noqa: F401  (registers on import)
+    from core.coord import terms as _terms_domain  # noqa: F401  # registers on import
 
     if getattr(args, "list", False) or not args.a:
         print("# comparable domains (only like key-types may be diffed)")
@@ -11925,7 +11925,7 @@ def cmd_secret(args):
     else:
         try:
             import tkinter as tk
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:  # noqa: BLE001  # fail-soft: logged, caller continues
             print(
                 f"[vault] no window available ({type(e).__name__}) -- use --stdin: "
                 f"Get-Clipboard | {_pyl()} agent_cli.py secret {args.target} --stdin",
@@ -12141,7 +12141,7 @@ def cmd_defer(args):
                 from core.comm.doctor import known_agents
 
                 roster = set(known_agents())
-            except Exception:  # noqa: BLE001
+            except Exception:  # noqa: BLE001  # fail-soft: falls back to a default value
                 roster = set()
             if roster and args.agent_id not in roster:
                 print(
@@ -12166,7 +12166,7 @@ def cmd_defer(args):
                 from core.comm.doctor import known_agents
 
                 roster = set(known_agents())
-            except Exception:  # noqa: BLE001
+            except Exception:  # noqa: BLE001  # fail-soft: falls back to a default value
                 roster = set()  # cannot tell -> say nothing extra, never a false alarm
             if roster and args.agent_id not in roster:
                 print(

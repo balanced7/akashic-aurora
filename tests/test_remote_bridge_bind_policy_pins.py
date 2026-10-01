@@ -36,7 +36,7 @@ import pytest
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 
-from scripts import remote_bridge_listener as L  # noqa: E402
+from scripts import remote_bridge_listener as L  # noqa: E402  # sys.path bootstrap
 
 
 # ------------------------------------------------------------------ the three categories
@@ -130,5 +130,5 @@ def test_policy_never_raises():
             L.bind_allowed(junk, allow_public=False)
             L.bind_class(junk)
             L.bind_banner(junk)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:  # noqa: BLE001  # fail-soft: best effort, skipped on any error
             pytest.fail(f"bind policy raised on {junk!r}: {type(e).__name__}: {e}")

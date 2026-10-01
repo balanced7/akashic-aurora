@@ -13,7 +13,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from arsenal import nashville as nv  # noqa: E402
+from arsenal import nashville as nv  # noqa: E402  # sys.path bootstrap
 
 FIXTURE = json.loads((ROOT / "tests" / "fixtures" / "nashville_cases.json").read_text(encoding="utf-8"))
 CASES = FIXTURE["cases"]

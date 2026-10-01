@@ -40,7 +40,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 
-from agent import bifrost_pull as BP  # noqa: E402
+from agent import bifrost_pull as BP  # noqa: E402  # sys.path bootstrap
 
 
 def _cli(*args):

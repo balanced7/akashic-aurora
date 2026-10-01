@@ -29,7 +29,7 @@ import pytest
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from core.eye import index as eye  # noqa: E402
+from core.eye import index as eye  # noqa: E402  # sys.path bootstrap
 
 SESS_A = "feed0001-1111-4111-8111-111111111111"  # shares sid8 with B -> ambiguous
 SESS_B = "feed0001-2222-4222-8222-222222222222"

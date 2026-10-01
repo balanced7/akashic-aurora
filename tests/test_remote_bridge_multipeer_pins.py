@@ -37,7 +37,7 @@ import pytest
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 
-from core.comm import remote_relay as RR  # noqa: E402
+from core.comm import remote_relay as RR  # noqa: E402  # sys.path bootstrap
 
 KEY_ZAD = b"zadkiel-key-aaaaaaaaaaaaaaaaaaaa"
 KEY_CHRONOS = b"chronos-key-bbbbbbbbbbbbbbbbbbbb"

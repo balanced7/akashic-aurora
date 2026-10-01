@@ -112,7 +112,7 @@ def run_soak(path: str, minutes: float, device_arg: str) -> dict:
 
                     if now >= deadline:
                         break
-            except Exception as exc:  # noqa: BLE001 -- record and stop, never crash the soak
+            except Exception as exc:  # noqa: BLE001  # record and stop, never crash the soak
                 errors.append(f"{type(exc).__name__}: {exc}")
                 break
             # file exhausted before the deadline (typical for a short clip): loop it again

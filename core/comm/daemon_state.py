@@ -211,7 +211,7 @@ def rearm_backlog_state(agent, tmp=None, tolerance_s=REARM_STALE_S):
     base = tmp or _tempfile.gettempdir()
     try:
         names = _os.listdir(base)
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001  # fail-soft: falls back to a default value
         return "unknown", (
             f"cannot read {base} ({type(e).__name__}) -- claiming neither direction rather than "
             "reporting a health this probe did not observe"
@@ -230,7 +230,7 @@ def rearm_backlog_state(agent, tmp=None, tolerance_s=REARM_STALE_S):
             continue
         try:
             age = now - _os.path.getmtime(_os.path.join(base, name))
-        except Exception:  # noqa: BLE001
+        except Exception:  # noqa: BLE001  # fail-soft: best effort, skipped on any error
             continue
         if age > tolerance_s:
             stale.append((parts[-1], age))

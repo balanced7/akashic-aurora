@@ -182,7 +182,7 @@ class BifrostAPI:
         """
         try:
             return bool(self.bus.probe())
-        except Exception:  # noqa: BLE001
+        except Exception:  # noqa: BLE001  # fail-soft: falls back to a default value
             return False
 
     # ---- send ----

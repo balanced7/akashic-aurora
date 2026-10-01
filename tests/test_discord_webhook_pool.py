@@ -37,8 +37,8 @@ import requests
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from core.comm import discord_bridge as DB  # noqa: E402
-from core.comm import discord_feed as F  # noqa: E402
+from core.comm import discord_bridge as DB  # noqa: E402  # sys.path bootstrap
+from core.comm import discord_feed as F  # noqa: E402  # sys.path bootstrap
 
 # ============================================================================ webhook_urls()
 

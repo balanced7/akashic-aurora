@@ -148,7 +148,7 @@ def reply(
     reader = failures or _recent_failures
     try:
         rows = reader() or []
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001  # fail-soft: falls back to a default value
         return {
             "ok": True,
             "id": str(mid),
@@ -197,7 +197,7 @@ def _stamp_model(model: str | None, *, agent: str, stamper: Callable[..., bool] 
         model_id = _sm.resolve_model_id(text)
         do_report = stamper or _sm.report
         return bool(do_report(agent, session, model_id, harness="claude-code"))
-    except Exception:  # noqa: BLE001
+    except Exception:  # noqa: BLE001  # fail-soft: falls back to a default value
         return False
 
 

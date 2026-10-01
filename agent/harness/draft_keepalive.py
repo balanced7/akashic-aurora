@@ -91,7 +91,7 @@ def should_refresh(
         if not exists(path):
             return True  # missing == maximally stale
         return (t - getmtime(path)) >= limit
-    except Exception:  # noqa: BLE001
+    except Exception:  # noqa: BLE001  # fail-soft: falls back to a default value
         return True  # unreadable == stale; fail toward writing
 
 
@@ -115,7 +115,7 @@ def refresh(
             return {"wrote": False, "reason": "draft is fresh -- nothing to do"}
         write()
         return {"wrote": True, "reason": "draft was stale; rewritten at the turn boundary"}
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001  # fail-soft: falls back to a default value
         # A keepalive that can raise into a hook is worse than no keepalive: it would
         # wedge every seat in the fleet to protect against one seat's crash.
         return {

@@ -84,7 +84,7 @@ def post(url: str, raw: bytes, timeout: int = 10):
             return r.status, r.read().decode("utf-8", "replace")
     except urllib.error.HTTPError as e:
         return e.code, e.read().decode("utf-8", "replace")
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001  # fail-soft: falls back to a default value
         return None, f"{type(e).__name__}: {e}"
 
 
@@ -163,7 +163,7 @@ def tailnet_ip() -> str:
     try:
         out = subprocess.run([exe, "ip", "-4"], capture_output=True, text=True, timeout=10).stdout.strip()
         return out.splitlines()[0].strip() if out else ""
-    except Exception:  # noqa: BLE001
+    except Exception:  # noqa: BLE001  # fail-soft: falls back to a default value
         return ""
 
 
@@ -189,7 +189,7 @@ def ensure_firewall(port: int) -> None:
                 "could NOT add the rule — re-run this script as Administrator, "
                 "or add it by hand. Without it we cannot reach you.",
             )
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001  # fail-soft: best effort, skipped on any error
         say("firewall", f"skipped ({type(e).__name__}) — add the rule by hand if we cannot reach you")
 
 

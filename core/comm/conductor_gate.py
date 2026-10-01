@@ -724,7 +724,7 @@ def notice_conductor_absence(*, agent_self: str, bus=None, now: float | None = N
             _heartbeat(v.reason, now=now)
             return v
         return decide_and_act(agent_self=agent_self, bus=bus, now=now)
-    except Exception as e:  # noqa: BLE001 -- fail-closed: never raise out of the loop top
+    except Exception as e:  # noqa: BLE001  # fail-closed: never raise out of the loop top
         # Carry the MESSAGE, not just the class. The old line logged only the exception
         # type, so a real probe failure and a drill's RuntimeError("probe exploded")
         # rendered identically and neither said what actually broke.

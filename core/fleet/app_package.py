@@ -203,7 +203,7 @@ def _ps(script: str, timeout: int = 60) -> str:
             [*_PS, script], capture_output=True, text=True, timeout=timeout, encoding="utf-8", errors="replace"
         )
         return r.stdout or ""
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001  # fail-soft: falls back to a default value
         return f"__ERROR__{type(e).__name__}: {e}"
 
 
@@ -252,7 +252,7 @@ def verify_payload(install_location: str, max_seconds: float = 600.0) -> Payload
         return PayloadProof(0, 0, 0, error=f"no AppxBlockMap.xml at {bm_path!r}")
     try:
         root = ET.parse(bm_path).getroot()
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001  # fail-soft: falls back to a default value
         return PayloadProof(0, 0, 0, error=f"block map unparseable: {type(e).__name__}")
 
     ns = {"b": "http://schemas.microsoft.com/appx/2010/blockmap"}

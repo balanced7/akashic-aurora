@@ -117,7 +117,7 @@ def _cli_logged_in(exe: str) -> bool | None:
     try:
         r = subprocess.run([exe, "auth", "status"], capture_output=True, text=True, timeout=10)
         return bool(json.loads(r.stdout).get("loggedIn"))
-    except Exception:  # noqa: BLE001
+    except Exception:  # noqa: BLE001  # fail-soft: falls back to a default value
         return None
 
 
@@ -166,7 +166,7 @@ def _is_seat_reachable(agent: str) -> bool:
         # what closes that.
         live_sessions = {str(r.get("full_sid") or "") for r in mine} - {""}
         return _seat.reachable(agent, presence_live=bool(mine), live_sessions=live_sessions)
-    except Exception:  # noqa: BLE001
+    except Exception:  # noqa: BLE001  # fail-soft: falls back to a default value
         return True
 
 
@@ -206,7 +206,7 @@ def _heartbeat_seconds() -> float:
         from core.comm.liveness import WORKLIVE_TTL
 
         return max(1.0, float(WORKLIVE_TTL) / 9.0)
-    except Exception:  # noqa: BLE001
+    except Exception:  # noqa: BLE001  # fail-soft: falls back to a default value
         return 5.0
 
 
@@ -229,7 +229,7 @@ def beat(wl, phase: str = "", detail: str = "") -> None:
             wl.set(phase, detail)
         else:
             wl.refresh()
-    except Exception:  # noqa: BLE001
+    except Exception:  # noqa: BLE001  # fail-soft: best effort, skipped on any error
         pass
 
 
@@ -245,7 +245,7 @@ class Tee:
             dest = Path(path)
             dest.parent.mkdir(parents=True, exist_ok=True)
             self._fh = open(dest, "a", encoding="utf-8", errors="replace")  # noqa: SIM115  # handle outlives this function: stored on the Tee for the process lifetime
-        except Exception:  # noqa: BLE001
+        except Exception:  # noqa: BLE001  # fail-soft: falls back to a default value
             self._fh = None  # lose the record, keep the bridge
 
     def write(self, text):
@@ -255,7 +255,7 @@ class Tee:
             try:
                 self._fh.write(text)
                 self._fh.flush()
-            except Exception:  # noqa: BLE001
+            except Exception:  # noqa: BLE001  # fail-soft: best effort, skipped on any error
                 pass
         return len(text or "")
 
@@ -264,13 +264,13 @@ class Tee:
             try:
                 if target is not None:
                     target.flush()
-            except Exception:  # noqa: BLE001
+            except Exception:  # noqa: BLE001  # fail-soft: best effort, skipped on any error
                 pass
 
     def isatty(self):
         try:
             return bool(self._stream.isatty())
-        except Exception:  # noqa: BLE001
+        except Exception:  # noqa: BLE001  # fail-soft: falls back to a default value
             return False
 
 
@@ -308,7 +308,7 @@ def _bus_startup_problem(bus) -> str | None:
     try:
         if not client.ping():
             return "the process-owned Bifrost Redis ping returned false"
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:  # noqa: BLE001  # fail-soft: falls back to a default value
         return f"the process-owned Bifrost Redis ping failed ({type(exc).__name__}: {exc})"
     return None
 
@@ -440,7 +440,7 @@ def main(argv=None) -> int:
                 from core.comm import wake_seat as _ws
 
                 _live = len(_ws.iter_seats("claude") or [])
-            except Exception:  # noqa: BLE001
+            except Exception:  # noqa: BLE001  # fail-soft: falls back to a default value
                 _live = 0
             _plan = _sl.claude_seat_plan(
                 app_healthy=bool(_row.get("healthy")),
@@ -635,11 +635,11 @@ def main(argv=None) -> int:
             try:
                 if warn:  # a closing report is news, not an alarm --
                     await message.add_reaction("⚠️")  # only a stillbirth wears the siren
-            except Exception:  # noqa: BLE001
+            except Exception:  # noqa: BLE001  # fail-soft: best effort, skipped on any error
                 pass  # the reaction is garnish; the words matter
             try:  # 1900 < Discord's 2000: a confession that
                 await message.reply(text[:1900], mention_author=False)  # clips is a
-            except Exception as e:  # noqa: BLE001
+            except Exception as e:  # noqa: BLE001  # fail-soft: logged, caller continues
                 print(
                     f"[discord-in] stillbirth notice UNDELIVERABLE ({type(e).__name__}"
                     f": {e}) -- it stands in this log only",
@@ -655,7 +655,7 @@ def main(argv=None) -> int:
             if note:
                 try:
                     asyncio.run_coroutine_threadsafe(_confess(f"🚀 {note}", warn=False), loop)
-                except Exception as e:  # noqa: BLE001
+                except Exception as e:  # noqa: BLE001  # fail-soft: logged, caller continues
                     print(f"[discord-in] could not relay the launch note: {e}", flush=True)
             try:
                 code = proc.wait(timeout=_SPAWN_PROOF_SECONDS)
@@ -681,7 +681,7 @@ def main(argv=None) -> int:
                         ),
                         loop,
                     )
-                except Exception as e:  # noqa: BLE001
+                except Exception as e:  # noqa: BLE001  # fail-soft: logged, caller continues
                     print(f"[discord-in] could not relay the already-up notice: {e}", flush=True)
                 return
             reason = spawn_stillborn_reason(code, _spawn_said(log))
@@ -708,7 +708,7 @@ def main(argv=None) -> int:
                 print(f"[discord-in] spawn {pid} closing report ({log.name})", flush=True)
                 try:
                     asyncio.run_coroutine_threadsafe(_confess(f"🌱 `{log.name}` — {report}", warn=False), loop)
-                except Exception as e:  # noqa: BLE001
+                except Exception as e:  # noqa: BLE001  # fail-soft: logged, caller continues
                     print(f"[discord-in] could not relay the closing report: {e}", flush=True)
                 return
             print(f"[discord-in] SPAWN STILLBORN ({log.name}): {reason}", flush=True)
@@ -728,7 +728,7 @@ def main(argv=None) -> int:
                     ),
                     loop,
                 )
-            except Exception as e:  # noqa: BLE001
+            except Exception as e:  # noqa: BLE001  # fail-soft: logged, caller continues
                 print(f"[discord-in] could not reach the loop to confess: {e}", flush=True)
 
         threading.Thread(target=_watch, name=f"spawn-watch-{pid}", daemon=True).start()
@@ -794,7 +794,7 @@ def main(argv=None) -> int:
                 if (r.stderr or "").strip():
                     out += NL + "stderr: " + r.stderr.strip()[:400]
                 out = out or f"(revive exited {r.returncode} with no words)"
-            except Exception as e:  # noqa: BLE001
+            except Exception as e:  # noqa: BLE001  # fail-soft: falls back to a default value
                 out = f"revive FAILED to launch: {type(e).__name__}: {e}"
 
             async def _say(txt):
@@ -831,7 +831,7 @@ def main(argv=None) -> int:
             await asyncio.sleep(4)
             try:
                 _ladder_ops.extend(tracker.poll())
-            except Exception as e:  # noqa: BLE001
+            except Exception as e:  # noqa: BLE001  # fail-soft: logged, caller continues
                 print(f"[discord-in] ladder poll failed ({type(e).__name__}: {e})", flush=True)
                 continue
             for _ in range(min(3, len(_ladder_ops))):
@@ -857,7 +857,7 @@ def main(argv=None) -> int:
                         entry[1] = emoji  # 🤔 is now current
                 except discord.NotFound:
                     _ladder_msgs.pop(op["discord_msg_id"], None)  # deleted: evict
-                except Exception as e:  # noqa: BLE001
+                except Exception as e:  # noqa: BLE001  # fail-soft: logged, caller continues
                     print(
                         f"[discord-in] ladder react failed on {op['op']} "
                         f"({type(e).__name__}: {e}) -- delivery stands, the "
@@ -905,7 +905,7 @@ def main(argv=None) -> int:
                     "text": str(drop.get("text") or "")[:200],
                 },
             )
-        except Exception:  # noqa: BLE001
+        except Exception:  # noqa: BLE001  # fail-soft: best effort, skipped on any error
             pass
 
     async def _guest_reply_loop():
@@ -920,13 +920,13 @@ def main(argv=None) -> int:
             last = bus._client.xrevrange(f"{bus.ns}:inbox:daniil", count=1)
             if last:
                 cur = last[0][0].decode() if isinstance(last[0][0], bytes) else str(last[0][0])
-        except Exception:  # noqa: BLE001
+        except Exception:  # noqa: BLE001  # fail-soft: best effort, skipped on any error
             pass  # tail-init: the archive never replays
         while True:
             await asyncio.sleep(2)
             try:
                 rows = bus._client.xrange(f"{bus.ns}:inbox:daniil", min="(" + str(cur), max="+", count=50)
-            except Exception as e:  # noqa: BLE001
+            except Exception as e:  # noqa: BLE001  # fail-soft: logged, caller continues
                 print(f"[discord-in] guest-reply read failed ({type(e).__name__}: {e})", flush=True)
                 continue
             batch = []
@@ -941,7 +941,7 @@ def main(argv=None) -> int:
                     continue
                 try:
                     msg = parser._to_msg(sid, f)  # the ONE seam: Bus shapes the record
-                except Exception:  # noqa: BLE001
+                except Exception:  # noqa: BLE001  # fail-soft: best effort, skipped on any error
                     continue
                 meta = getattr(msg, "meta", None) or {}
                 text = getattr(msg, "content", "") or f.get("content") or ""
@@ -958,7 +958,7 @@ def main(argv=None) -> int:
                 try:
                     await op["channel_key"].channel.send(f"[reply from {op['frm']}]\n{op['text']}")
                     print(f"[discord-in] guest reply posted ({op['frm']})", flush=True)
-                except Exception as e:  # noqa: BLE001
+                except Exception as e:  # noqa: BLE001  # fail-soft: logged, caller continues
                     print(
                         f"[discord-in] guest reply UNDELIVERABLE "
                         f"({type(e).__name__}: {e}) -- it stands in this log only",
@@ -1020,7 +1020,7 @@ def main(argv=None) -> int:
                     dest = att_dir / f"{message.id}-{safe}"
                     await att.save(dest)
                     att_paths.append(str(dest))
-                except Exception as e:  # noqa: BLE001
+                except Exception as e:  # noqa: BLE001  # fail-soft: logged, caller continues
                     print(f"[discord-in] attachment save failed ({type(e).__name__}: {e})", flush=True)
         reactions = []
         try:
@@ -1045,7 +1045,7 @@ def main(argv=None) -> int:
                 # here re-checks that, R1's operator gate already ran upstream.
                 mentions_everyone=bool(message.mention_everyone),
             )
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:  # noqa: BLE001  # fail-soft: logged, caller continues
             # a dead bus send must be VISIBLE at both ends: loud here, ⚠️ there.
             # A landed-receipt (📨) on a dead send would be the T149 lie with an
             # emoji on it -- and ✅ is the ladder's word for ANSWERED now (T380).
@@ -1056,7 +1056,7 @@ def main(argv=None) -> int:
         for emoji in reactions:
             try:
                 await message.add_reaction(emoji)
-            except Exception:  # noqa: BLE001
+            except Exception:  # noqa: BLE001  # fail-soft: logged, caller continues
                 print(
                     "[discord-in] heard (bus accepted) but the receipt reaction failed "
                     "-- delivery stands, the checkmark does not",
@@ -1068,7 +1068,7 @@ def main(argv=None) -> int:
         if out.get("help"):
             try:
                 await message.reply(out["help"][:1900], mention_author=False)
-            except Exception as e:  # noqa: BLE001
+            except Exception as e:  # noqa: BLE001  # fail-soft: logged, caller continues
                 print(
                     f"[discord-in] help UNDELIVERABLE ({type(e).__name__}: {e}) -- it stands in this log only",
                     flush=True,
@@ -1102,7 +1102,7 @@ def main(argv=None) -> int:
                 # reply be the checkmark"). 📨 was just added by the react
                 # loop below; the applier swaps it forward stage by stage.
                 _ladder_msgs[str(message.id)] = [message, "📨"]
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:  # noqa: BLE001  # fail-soft: logged, caller continues
             print(f"[discord-in] ladder track failed ({type(e).__name__}: {e})", flush=True)
         if out.get("acted"):
             room = f" -> ask {out['ask_id']}" if out.get("ask_id") else " -> global"
@@ -1123,7 +1123,7 @@ def main(argv=None) -> int:
                 try:
                     if getattr(client, "_guest_tracker", None):
                         client._guest_tracker.track(str(out["id"]), message)
-                except Exception:  # noqa: BLE001
+                except Exception:  # noqa: BLE001  # fail-soft: best effort, skipped on any error
                     pass
             else:
                 who = out.get("speaker") or "the operator"

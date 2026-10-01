@@ -47,7 +47,7 @@ REPO = Path(__file__).resolve().parents[1]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
-from core.comm import remote_relay as RR  # noqa: E402
+from core.comm import remote_relay as RR  # noqa: E402  # sys.path bootstrap
 
 
 def peer_ids() -> dict:
@@ -79,7 +79,7 @@ def peer_reachable() -> bool:
         h, _, p = host.partition(":")
         _s.create_connection((h, int(p or 80)), timeout=5).close()
         return True
-    except Exception:  # noqa: BLE001
+    except Exception:  # noqa: BLE001  # fail-soft: falls back to a default value
         return False
 
 
@@ -119,7 +119,7 @@ def notify(seat: str, fresh: list) -> str:
             if mid
             else (f"could NOT notify {seat}: the bus accepted nothing — no receipt for an undelivered word")
         )
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001  # fail-soft: falls back to a default value
         return f"could NOT notify {seat} ({type(e).__name__}: {e}) — the watch continues"
 
 
@@ -186,7 +186,7 @@ def main(argv=None) -> int:
 
         try:
             now = peer_ids()
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:  # noqa: BLE001  # fail-soft: logged, caller continues
             print(f"  (read hiccup, continuing: {type(e).__name__})", flush=True)
             continue
         fresh = [now[k] for k in now if k not in seen]

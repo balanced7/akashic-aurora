@@ -28,7 +28,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from piano_roll_pack import pack, unpack  # noqa: E402
+from piano_roll_pack import pack, unpack  # noqa: E402  # sys.path bootstrap
 
 TRAIL_SPEED = 6.5
 TRAIL_LIFE = 7.0

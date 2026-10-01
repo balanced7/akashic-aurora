@@ -43,7 +43,7 @@ def fetch(url: str, binary: bool = False, retries: int = 3):
             with urllib.request.urlopen(req, timeout=60) as r:
                 data = r.read()
             return data if binary else json.loads(data)
-        except Exception as e:  # noqa: BLE001 — log and retry; the summary reports misses
+        except Exception as e:  # noqa: BLE001  # fail-soft: logged, caller continues — log and retry; the summary reports misses
             if attempt == retries - 1:
                 print(f"  MISS {url} ({type(e).__name__}: {e})", file=sys.stderr)
                 return None

@@ -68,7 +68,7 @@ def processes():
         data = json.loads(raw) if raw.strip() else []
         if isinstance(data, dict):
             data = [data]
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001  # fail-soft: falls back to a default value
         say(f"  (process scan unavailable: {type(e).__name__})")
         return rows
     PATTERNS = (
@@ -151,14 +151,14 @@ def main(argv=None) -> int:
         for agent in sorted({*list(seen_agents), "zadkiel", "dsh_agent", "chronos", "deepseek", "claude"}):
             try:
                 h = RL.holder(agent)
-            except Exception:  # noqa: BLE001
+            except Exception:  # noqa: BLE001  # fail-soft: best effort, skipped on any error
                 continue
             if h:
                 found = True
                 say(f"  {agent:14s} held by {h}")
         if not found:
             say("  no locks held (or lock store unreachable)")
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001  # fail-soft: best effort, skipped on any error
         say(f"  lock read unavailable: {type(e).__name__}: {e}")
 
     say("\n[4] DSH PLUGIN STAMP — the silent one")
@@ -210,7 +210,7 @@ def main(argv=None) -> int:
             "  NOTE: presence ages out on a live-but-IDLE DSH seat. Absence here is not "
             "death; probe the PROCESS in [1]."
         )
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001  # fail-soft: best effort, skipped on any error
         say(f"  presence unavailable: {type(e).__name__}: {e}")
 
     if a.report:
@@ -239,7 +239,7 @@ def main(argv=None) -> int:
             )
             with urllib.request.urlopen(r, timeout=12) as resp:
                 say(f"\nreported across the bridge: {resp.status}")
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:  # noqa: BLE001  # fail-soft: best effort, skipped on any error
             say(f"\ncould not report ({type(e).__name__}: {e}) — paste the block above")
     return 0
 

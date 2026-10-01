@@ -85,7 +85,7 @@ def seat_channel_url(agent: str) -> str:
         from core.fleet import residents as _R
 
         cs = str((_R.get(base) or {}).get("callsign") or "").strip().lower()
-    except Exception:  # noqa: BLE001
+    except Exception:  # noqa: BLE001  # fail-soft: falls back to a default value
         cs = ""
     from core.comm.secret_intake import TARGETS, secrets_dir
 
@@ -108,7 +108,7 @@ def _streams(bus: Any) -> list[str]:
     keys = [f"{bus.ns}:broadcast"]
     try:
         agents = sorted(bus.known_agents())
-    except Exception:  # noqa: BLE001
+    except Exception:  # noqa: BLE001  # fail-soft: falls back to a default value
         agents = []
     keys.extend(bus._inbox_key(a) for a in agents)
     keys.extend(bus._inbox_key(op) for op in _OPERATOR_INBOXES if bus._inbox_key(op) not in keys)
@@ -128,7 +128,7 @@ def _post_failure_loud(path: str, msg: dict[str, Any], mid: str, exc: Exception)
             f"({type(exc).__name__}: {str(exc)[:120]})",
             file=_sys.stderr,
         )
-    except Exception:  # noqa: BLE001
+    except Exception:  # noqa: BLE001  # fail-soft: best effort, skipped on any error
         pass
     try:
         from core.events.event_log import capture_event
@@ -140,7 +140,7 @@ def _post_failure_loud(path: str, msg: dict[str, Any], mid: str, exc: Exception)
             refs=[str(mid)],
             detail={"path": path, "frm": str(msg.get("frm")), "error": f"{type(exc).__name__}: {str(exc)[:200]}"},
         )
-    except Exception:  # noqa: BLE001
+    except Exception:  # noqa: BLE001  # fail-soft: best effort, skipped on any error
         pass
 
 
@@ -168,7 +168,7 @@ def _forward_global(msg: dict[str, Any]) -> bool:
                 part,
                 lambda u, c, w=who: ROOMS._default_post(u, c, username=w["username"], avatar_url=w["avatar_url"]),
             )
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:  # noqa: BLE001  # fail-soft: falls back to a default value
         # same incident class as the seat-lane swallow: the beat survives, but
         # the failure is loud and journaled instead of impersonating success
         _post_failure_loud("global", msg, str(msg.get("id") or "?"), exc)
@@ -191,7 +191,7 @@ def pump(
             k.decode() if isinstance(k, bytes) else str(k): (v.decode() if isinstance(v, bytes) else str(v))
             for k, v in (client.hgetall(CURSOR_KEY) or {}).items()
         }
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001  # fail-soft: falls back to a default value
         return BoundaryOutcome.failed(f"feed cursor read failed ({type(e).__name__}: {e})")
 
     forwarded = 0
@@ -213,7 +213,7 @@ def pump(
                 mid_s = mid.decode() if isinstance(mid, bytes) else str(mid)
                 try:
                     msg = _decode(fields)
-                except Exception as exc:  # noqa: BLE001
+                except Exception as exc:  # noqa: BLE001  # fail-soft: logged, caller continues
                     # Defense-in-depth for the S1 class (2026-09-02). NOTE: the
                     # audit's proposed vehicle (list-typed content) does NOT raise
                     # in current _decode -- its isinstance guard passes non-strings
@@ -246,7 +246,7 @@ def pump(
                             who = ROOMS.persona(str(msg.get("frm") or ""))
                             for part in ROOMS.render_room_parts(msg):
                                 ROOMS._default_post(lane, part, username=who["username"], avatar_url=who["avatar_url"])
-                        except Exception as exc:  # noqa: BLE001
+                        except Exception as exc:  # noqa: BLE001  # fail-soft: falls back to a default value
                             # 2026-08-23 incident (root-caused by the vandor
                             # sprout, spawn-1787516635): this except used to
                             # `pass` AND count the post as forwarded -- a dead
@@ -271,7 +271,7 @@ def pump(
                     failed += 1
                 else:
                     forwarded += 1
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:  # noqa: BLE001  # fail-soft: logged, caller continues
             # one bad stream must not starve the rest of the beat -- but a caught
             # exception is a FINDING, never a shrug (S1, 2026-09-02): confess to
             # stderr so 'zero errors anywhere' can only mean zero errors.
@@ -284,7 +284,7 @@ def pump(
                     file=_sys.stderr,
                     flush=True,
                 )
-            except Exception:  # noqa: BLE001
+            except Exception:  # noqa: BLE001  # fail-soft: best effort, skipped on any error
                 pass
             continue
     return BoundaryOutcome.done(

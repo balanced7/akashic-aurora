@@ -12,7 +12,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from arsenal.serve import App, Server, clip_id_for  # noqa: E402
+from arsenal.serve import App, Server, clip_id_for  # noqa: E402  # sys.path bootstrap
 
 PAYLOAD = bytes(range(256)) * 40  # 10240 bytes; not a real video, just bytes to stream
 

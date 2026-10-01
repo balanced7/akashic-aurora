@@ -853,7 +853,7 @@ def main() -> int:
         _standalone = daemon_state.standalone_warning(args.agent, runner_script=os.path.basename(__file__))
         if _standalone:
             print(_standalone, file=sys.stderr, flush=True)
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001  # fail-soft: logged, caller continues
         print(
             f"[kimi-runner] standalone check skipped ({type(e).__name__}) -- cannot tell "
             f"whether a daemon supervises '{args.agent}'",

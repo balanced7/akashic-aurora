@@ -12,7 +12,7 @@ from typing import ClassVar
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, REPO)
 
-import agent_cli  # noqa: E402
+import agent_cli  # noqa: E402  # sys.path bootstrap
 
 
 class _FakeBus:

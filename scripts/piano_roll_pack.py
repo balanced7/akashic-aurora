@@ -19,7 +19,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from arsenal.roll import API, pack_events, unpack  # noqa: E402,F401
+from arsenal.roll import API, pack_events, unpack  # noqa: E402,F401  # sys.path bootstrap; re-export
 
 PERF = ROOT / "state" / "arsenal" / "performance"
 

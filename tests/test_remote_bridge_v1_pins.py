@@ -50,7 +50,7 @@ import pytest
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 
-from core.comm import remote_relay as RR  # noqa: E402
+from core.comm import remote_relay as RR  # noqa: E402  # sys.path bootstrap
 
 OUT_SECRET = b"test-outbound-secret"
 IN_SECRET = b"test-inbound-secret"

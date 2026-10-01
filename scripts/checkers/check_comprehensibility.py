@@ -210,7 +210,7 @@ def _gitignored(refs):
             capture_output=True,
             timeout=20,
         )
-    except Exception:  # noqa: BLE001
+    except Exception:  # noqa: BLE001  # fail-soft: falls back to a default value
         return set()
     # 0 = at least one ignored, 1 = none ignored (NOT an error), anything else = no answer.
     if p.returncode not in (0, 1):

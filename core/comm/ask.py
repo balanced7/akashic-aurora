@@ -1328,7 +1328,7 @@ def ask_many(
             i = futures[fut]
             try:
                 results[i] = fut.result()
-            except BaseException as e:  # noqa: BLE001
+            except BaseException as e:  # noqa: BLE001  # fail-soft: falls back to a default value
                 results[i] = BoundaryOutcome.caught(
                     e if isinstance(e, Exception) else RuntimeError(repr(e)), where=f"ask_many(future {i})"
                 )

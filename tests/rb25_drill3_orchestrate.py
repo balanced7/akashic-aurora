@@ -54,7 +54,7 @@ from core.comm import (  # noqa: E402  # pause-guard, 2026-07-12 finding
     control,
     runner_lock,
 )
-from core.comm.bus import Bus  # noqa: E402
+from core.comm.bus import Bus  # noqa: E402  # sys.path bootstrap
 
 PY = sys.executable
 TAG_RE = re.compile(r"(storm-[0-9a-f]+-(?:request|handoff|steer|trace|chat)-\d{3})")

@@ -64,7 +64,7 @@ def turn_beat(agent: Any, statuses: dict[str, str] | None = None) -> dict[str, A
         if statuses is None:
             try:
                 statuses = _statuses()
-            except Exception as e:  # noqa: BLE001
+            except Exception as e:  # noqa: BLE001  # fail-soft: falls back to a default value
                 return _idle(f"ledger unavailable ({type(e).__name__}) -- idle (keep-running)")
         from core.coord import shift_loop
 
@@ -72,6 +72,6 @@ def turn_beat(agent: Any, statuses: dict[str, str] | None = None) -> dict[str, A
         if not isinstance(decision, dict) or "action" not in decision:
             return _idle("decision core returned an unusable shape -- idle (fail-closed)")
         return decision
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001  # fail-soft: falls back to a default value
         # THE PIN THAT MATTERS: whatever went wrong, four runners keep turning.
         return _idle(f"turn boundary error ({type(e).__name__}) -- idle (fail-closed)")

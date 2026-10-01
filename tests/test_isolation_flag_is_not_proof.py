@@ -43,7 +43,7 @@ _PROBE = r"""
 import os, sys
 os.environ["_AISETUP_TEST_ISOLATED"] = "1"      # the claim, with NO redirect behind it
 sys.path.insert(0, r"{tests}")
-import isolate_canonical            # noqa: F401
+import isolate_canonical            # noqa: F401  # re-export or side-effect import
 ai = os.environ.get("AI_SETUP", "")
 db = os.environ.get("REDIS_DB", "")
 print("AI_SETUP=" + ai)

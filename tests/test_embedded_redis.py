@@ -24,7 +24,7 @@ sys.path.insert(0, str(ROOT))
 pytest.importorskip("fakeredis")
 redis = pytest.importorskip("redis")
 
-from core.foundation import embedded_redis as E  # noqa: E402
+from core.foundation import embedded_redis as E  # noqa: E402  # sys.path bootstrap
 
 
 def _free_port() -> int:

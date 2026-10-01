@@ -46,9 +46,9 @@ import pytest
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 
-from core.comm import remote_relay as RR  # noqa: E402
-from core.comm.blobs import BlobStore  # noqa: E402
-from scripts import remote_bridge_listener as L  # noqa: E402
+from core.comm import remote_relay as RR  # noqa: E402  # sys.path bootstrap
+from core.comm.blobs import BlobStore  # noqa: E402  # sys.path bootstrap
+from scripts import remote_bridge_listener as L  # noqa: E402  # sys.path bootstrap
 
 KEY = b"blob-transport-test-key-aaaaaaaa"
 
@@ -146,7 +146,7 @@ def test_the_blob_door_never_raises(tmp_path):
     for junk in (b"", b"\x00\xff", b"[]", b'{"body":5,"sig":[]}', b"not json"):
         try:
             L.handle_blob("POST", "/blob", junk, secret=KEY)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:  # noqa: BLE001  # fail-soft: best effort, skipped on any error
             pytest.fail(f"blob door raised on {junk[:16]!r}: {type(e).__name__}: {e}")
 
 

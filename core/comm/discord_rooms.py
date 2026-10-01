@@ -73,7 +73,7 @@ def persona(frm: str) -> dict[str, str | None]:
 
         rec = _R.get(base)
         placed = _R.current_placement(base)
-    except Exception:  # noqa: BLE001
+    except Exception:  # noqa: BLE001  # fail-soft: best effort, skipped on any error
         rec, placed = None, None
     if not rec:
         return {"username": agent or "?", "avatar_url": None}
@@ -263,7 +263,7 @@ def post_to_room(
         if _seats_registry().get("mode") == "text":
             try:
                 minted_by_bot = _default_create_thread(room_name)
-            except Exception as e:  # noqa: BLE001
+            except Exception as e:  # noqa: BLE001  # fail-soft: falls back to a default value
                 return BoundaryOutcome.failed(
                     f"text-mode thread mint failed ({type(e).__name__}: {e}) — the bus is unaffected"
                 )
@@ -290,7 +290,7 @@ def post_to_room(
                 username=who["username"],
                 avatar_url=who["avatar_url"],
             )
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001  # fail-soft: falls back to a default value
         return BoundaryOutcome.failed(
             f"discord room post failed ({type(e).__name__}: {e}) — the bus is unaffected; "
             f"this router is a listener and never blocks a send"

@@ -60,7 +60,7 @@ BUS_EXPORT_DIR = _REPO_ROOT / "state" / "bus-export"
 DEFAULT_CURSORS = BUS_EXPORT_DIR / ".cursors.json"
 DEFAULT_RECEIPTS = _REPO_ROOT / "state" / "archive" / "receipts-ephemeral"
 # Machine-specific (separate physical disks), so from the environment -- see core.paths.env_paths.
-from core.paths import env_paths as _env_paths  # noqa: E402
+from core.paths import env_paths as _env_paths  # noqa: E402  # sys.path bootstrap
 
 DEFAULT_DESTS: list[Path] = _env_paths("AKASHIC_EPHEMERAL_ARCHIVE_ROOTS")
 
@@ -138,7 +138,7 @@ def export_bus(client, out_dir: Path, cursor_file: Path | None = None) -> dict[s
                     )
                     written += 1
                     cursors[key] = mid
-        except Exception as exc:  # noqa: BLE001 -- contained + confessed, never silent
+        except Exception as exc:  # noqa: BLE001  # contained + confessed, never silent
             failed_streams.append({"stream": key, "error": f"{type(exc).__name__}: {exc}"})
     cur_path.parent.mkdir(parents=True, exist_ok=True)
     cur_path.write_text(json.dumps(cursors, indent=1), encoding="utf-8")

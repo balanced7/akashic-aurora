@@ -76,7 +76,7 @@ def hook():
     spec.loader.exec_module(mod)
     import agent.harness.guards
     import agent.harness.scope
-    import agent.policy.git_guard  # noqa: F401  -- git_veto
+    import agent.policy.git_guard  # noqa: F401  # git_veto
 
     return mod
 

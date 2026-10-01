@@ -114,7 +114,7 @@ def preview_401_retry(fn, retries=None, label="sol call", exception_cls=None, sl
     exception_cls is injectable for pins; defaults to openai.AuthenticationError.
     """
     if exception_cls is None:
-        from openai import AuthenticationError as exception_cls  # noqa: N813
+        from openai import AuthenticationError as exception_cls  # noqa: N813  # public API name
     n = PREVIEW_401_RETRIES if retries is None else retries
     for attempt in range(n + 1):
         try:

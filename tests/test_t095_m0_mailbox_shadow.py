@@ -22,7 +22,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from core.comm.bus import Bus  # noqa: E402
+from core.comm.bus import Bus  # noqa: E402  # sys.path bootstrap
 
 
 def _mailbox():

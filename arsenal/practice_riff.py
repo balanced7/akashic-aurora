@@ -448,7 +448,7 @@ def scale_for_class(
     Any chord tone missing from S replaces the scale note a half step from it."""
     k = nashville.parse_key(key)
     tonic, mode = k["tonic"], k["mode"]
-    on = lambda base, steps: {(base + s) % 12 for s in steps}  # noqa: E731
+    on = lambda base, steps: {(base + s) % 12 for s in steps}  # noqa: E731  # local one-line key function
     rel = {(p - root) % 12 for p in pcs} if root is not None else set()
     if cls == "borrowed":
         options = ("natural minor", "harmonic minor") if mode == "major" else ("major",)
@@ -2115,7 +2115,7 @@ def talking_points(
         if na >= T13_MIN_NOTES and nb >= T13_MIN_NOTES and abs(b / nb - a / na) >= T13_MIN_CHANGE:
             p1, p2 = head[0]["pass"], head[-1]["pass"]
             q1, q2 = tail[0]["pass"], tail[-1]["pass"]
-            pair = lambda x, y: f"{x}-{y}" if y == x + 1 else f"{x} and {y}"  # noqa: E731
+            pair = lambda x, y: f"{x}-{y}" if y == x + 1 else f"{x} and {y}"  # noqa: E731  # local one-line key function
             last_two = [p["pass"] for p in passes[-2:]] == [q1, q2]
             where = "the last two" if last_two else f"passes {pair(q1, q2)}"
             add(

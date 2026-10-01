@@ -165,7 +165,7 @@ def test_concurrent_appends_do_not_drop_rows(tmp_path):
         try:
             barrier.wait(timeout=10)
             remote_relay._append_row(path, {"id": f"msg-{i}", "content": f"body {i}"})
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:  # noqa: BLE001  # fail-soft: best effort, skipped on any error
             errors.append(exc)
 
     threads = [threading.Thread(target=_append, args=(i,)) for i in range(n)]

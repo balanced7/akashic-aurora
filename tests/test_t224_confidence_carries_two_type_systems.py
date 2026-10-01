@@ -38,7 +38,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 
-from core.context.learning_loader import _importance_of  # noqa: E402
+from core.context.learning_loader import _importance_of  # noqa: E402  # sys.path bootstrap
 
 
 def _imp(conf, success=""):

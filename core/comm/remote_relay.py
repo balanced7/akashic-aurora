@@ -472,7 +472,7 @@ def render(msg: dict[str, Any]) -> bytes:
     sender and verifier compute the same signature. Never raises on a malformed message."""
     try:
         return json.dumps(_payload(msg), sort_keys=True, separators=(",", ":"), default=str).encode("utf-8")
-    except Exception:  # noqa: BLE001
+    except Exception:  # noqa: BLE001  # fail-soft: falls back to a default value
         return json.dumps({"v": 1, "frm": "?", "kind": "?", "content": ""}, sort_keys=True).encode("utf-8")
 
 
@@ -536,7 +536,7 @@ def push(
     envelope = build_envelope(msg, key)
     try:
         (post or _default_post)(target, envelope)
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001  # fail-soft: falls back to a default value
         return BoundaryOutcome.failed(
             f"remote push failed ({type(e).__name__}: {e}) — the bus is unaffected; this "
             f"relay is a listener and never blocks a send"
@@ -579,7 +579,7 @@ def verify(body_b64: str, sig: str, secret: bytes, *, within_s: int = SKEW_WINDO
         return False
     try:
         body = base64.b64decode(body_b64)
-    except Exception:  # noqa: BLE001
+    except Exception:  # noqa: BLE001  # fail-soft: falls back to a default value
         return False
     if not _hmac.compare_digest(sign(body, secret), sig):
         return False
@@ -775,7 +775,7 @@ def accept(
         payload = json.loads(base64.b64decode(body_b64).decode("utf-8"))
         if not isinstance(payload, dict):
             raise ValueError("payload is not an object")
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001  # fail-soft: falls back to a default value
         return BoundaryOutcome.failed(
             f"inbound payload unreadable after a VALID signature ({type(e).__name__}) — "
             f"refused. A signed-but-malformed body means the peer's sender is broken, not "

@@ -20,7 +20,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from arsenal import presets  # noqa: E402
+from arsenal import presets  # noqa: E402  # sys.path bootstrap
 
 # The exact set of uniforms a preset body may declare, and their GLSL types.
 UNIFORM_TYPES = {

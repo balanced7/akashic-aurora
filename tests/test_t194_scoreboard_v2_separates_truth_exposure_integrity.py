@@ -33,7 +33,7 @@ import pytest
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from scripts import canary_oracle as C  # noqa: E402
+from scripts import canary_oracle as C  # noqa: E402  # sys.path bootstrap
 
 
 def _item(i, cls):

@@ -83,7 +83,7 @@ def _embedded_backend() -> bool:
         from core.foundation.embedded_redis import configured_backend
 
         return configured_backend() == "embedded"
-    except Exception:  # noqa: BLE001
+    except Exception:  # noqa: BLE001  # fail-soft: falls back to a default value
         return False
 
 
@@ -99,7 +99,7 @@ def _procs() -> list[str]:
             creationflags=_NO_WINDOW,
         )
         return (r.stdout or "").splitlines()
-    except Exception:  # noqa: BLE001
+    except Exception:  # noqa: BLE001  # fail-soft: falls back to a default value
         return []
 
 
@@ -130,7 +130,7 @@ def _cmdlines() -> str | None:
                 if cmd and "python" in (p.info.get("name") or os.path.basename(cmd[0])).lower():
                     lines.append(" ".join(cmd))
             return "\n".join(lines)
-        except Exception:  # noqa: BLE001
+        except Exception:  # noqa: BLE001  # fail-soft: falls back to a default value
             return None
     try:
         r = subprocess.run(
@@ -153,7 +153,7 @@ def _cmdlines() -> str | None:
         if r.returncode != 0:
             return None  # the shell failed: we did not learn anything
         return r.stdout or ""
-    except Exception:  # noqa: BLE001
+    except Exception:  # noqa: BLE001  # fail-soft: falls back to a default value
         return None  # timeout / spawn failure: unreadable, NOT empty
 
 
@@ -166,7 +166,7 @@ def observe(include_app: bool = True) -> dict[str, dict[str, Any]]:
             from core.fleet import app_package
 
             out["app"] = app_package.observe_app()
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:  # noqa: BLE001  # fail-soft: falls back to a default value
             # A probe that cannot run must read as NOT healthy. An unreadable answer
             # reported as health is the defect this whole rung exists to end.
             out["app"] = {
@@ -180,7 +180,7 @@ def observe(include_app: bool = True) -> dict[str, dict[str, Any]]:
 
         ok = bool(Bus("revive-probe", promote=False)._client.ping())
         out["redis"] = {"healthy": ok, "detail": "ping ok" if ok else "no ping"}
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001  # fail-soft: falls back to a default value
         out["redis"] = {"healthy": False, "detail": f"{type(e).__name__}: {str(e)[:80]}"}
     cmds = _cmdlines()
 
@@ -228,7 +228,7 @@ def observe(include_app: bool = True) -> dict[str, dict[str, Any]]:
             _state, _why = _ds.rearm_backlog_state(_a)
             if _state == "wedged":
                 wedged.append((_a, _why))
-    except Exception:  # noqa: BLE001
+    except Exception:  # noqa: BLE001  # fail-soft: best effort, skipped on any error
         pass  # probe unavailable -> claim nothing, as ever
     _alive_note = (
         f"all {len(DAEMON_AGENTS)} daemon(s) alive: {', '.join(DAEMON_AGENTS)}"
@@ -468,7 +468,7 @@ def _heal_step(step: dict[str, Any]) -> bool:
             else:  # POSIX: its own session outlives us
                 subprocess.Popen(step["cmd"], stdout=log, stderr=log, cwd=ROOT, start_new_session=True, env=env)
             return True
-    except Exception:  # noqa: BLE001
+    except Exception:  # noqa: BLE001  # fail-soft: falls back to a default value
         return False
     return False
 
@@ -534,7 +534,7 @@ def _drop_lock() -> None:
 
 
 def converge(target: str | None = None, observe_only: bool = False) -> dict[str, Any]:
-    say = lambda s: print(s, flush=True)  # noqa: E731
+    say = lambda s: print(s, flush=True)  # noqa: E731  # local one-line key function
     observed = observe()
     for organ in ("app", "redis", "daemon", "runners", "gateway"):
         row = observed.get(organ) or {}

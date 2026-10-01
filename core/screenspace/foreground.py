@@ -152,7 +152,7 @@ class ForegroundTracker:
 
             control = auto.ControlFromHandle(hwnd)
             return control.Name if control else None
-        except Exception:  # noqa: BLE001
+        except Exception:  # noqa: BLE001  # fail-soft: falls back to a default value
             return None  # defer to None rather than throw on the worker
 
     def _run(self) -> None:
@@ -164,7 +164,7 @@ class ForegroundTracker:
         else:
             try:
                 import ctypes.wintypes as wintypes
-            except Exception:  # noqa: BLE001
+            except Exception:  # noqa: BLE001  # fail-soft: falls back to a default value
                 wintypes = None
         msg = wintypes.MSG() if wintypes is not None else None
 

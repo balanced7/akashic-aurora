@@ -43,7 +43,7 @@ if _os.path.isdir(
     if _qd not in _sys.path:
         _sys.path.insert(0, _qd)
     try:  # noqa: SIM105  # runs before every other import (contextlib included): Popen is patched first
-        import sitecustomize as _quiet_sitecustomize  # noqa: F401  (patches subprocess.Popen)
+        import sitecustomize as _quiet_sitecustomize  # noqa: F401  # patches subprocess.Popen
     except Exception:
         pass
 
@@ -650,7 +650,7 @@ def main(argv=None) -> int:
                         # tick independently -- the election makes them ONE logical
                         # pump instead of four racing the same cursor + webhook.
                         _DFEED.pump_if_owner(bus)
-                except Exception:  # noqa: BLE001
+                except Exception:  # noqa: BLE001  # fail-soft: best effort, skipped on any error
                     pass
 
             # ---- t376 S2: the daemon's stale-code arm (its own metabolism) --------
@@ -678,7 +678,7 @@ def main(argv=None) -> int:
                         )
                         reason = _reason
                         break
-                except Exception:  # noqa: BLE001
+                except Exception:  # noqa: BLE001  # fail-soft: best effort, skipped on any error
                     pass
 
             # ---- child poll -------------------------------------------------------

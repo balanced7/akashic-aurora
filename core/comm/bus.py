@@ -74,7 +74,7 @@ def _loads(s: Any) -> Any:
 # least 8 chars follows it: 'seat-0001' (4 hex) and '<pid>-<agent>' (digits first) are left
 # alone. A word made ONLY of hex digits ('deadbeef-...') is a hex HEAD, not a scheme word --
 # the derivation must never discard entropy, so the negative lookahead keeps it.
-from core.comm.seat_identity import sid8  # noqa: E402  -- THE incarnation discriminator
+from core.comm.seat_identity import sid8  # noqa: E402  # THE incarnation discriminator
 
 # lives in seat_identity (the lowest layer, no bus dependency); the bus re-exports it so
 # every key builder and compare on the bus plane speaks the one derivation (7e2670d54e).

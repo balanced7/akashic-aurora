@@ -36,7 +36,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from agent.harness import context as ctxmod  # noqa: E402
+from agent.harness import context as ctxmod  # noqa: E402  # sys.path bootstrap
 
 
 def _line(monkeypatch, state):

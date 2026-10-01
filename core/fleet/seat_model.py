@@ -71,7 +71,7 @@ def resolve() -> dict[str, Any]:
             "by": str(raw.get("by") or ""),
             "at": str(raw.get("at") or ""),
         }
-    except Exception:  # noqa: BLE001
+    except Exception:  # noqa: BLE001  # fail-soft: falls back to a default value
         return {"pinned": False, "model": None, "label": DEFAULT_LABEL, "by": "", "at": ""}
 
 
@@ -133,7 +133,7 @@ def _client(c=None):
         from core.comm.bus import get_bus
 
         return get_bus("control")._client
-    except Exception:  # noqa: BLE001
+    except Exception:  # noqa: BLE001  # fail-soft: falls back to a default value
         return None
 
 
@@ -157,7 +157,7 @@ def report(agent: str, session: str, model: str, *, harness: str = "", c=None) -
             ex=REPORT_TTL_SEC,
         )
         return True
-    except Exception:  # noqa: BLE001
+    except Exception:  # noqa: BLE001  # fail-soft: falls back to a default value
         return False
 
 
@@ -180,9 +180,9 @@ def running(agent: str = "claude", c=None) -> list[dict[str, Any]]:
                 rec["session"] = k.rsplit(":", 1)[-1]
                 rec["age_s"] = max(0, int(time.time()) - int(rec.get("at") or 0))
                 out.append(rec)
-            except Exception:  # noqa: BLE001
+            except Exception:  # noqa: BLE001  # fail-soft: best effort, skipped on any error
                 continue
-    except Exception:  # noqa: BLE001
+    except Exception:  # noqa: BLE001  # fail-soft: falls back to a default value
         return out
     return sorted(out, key=lambda r: r.get("age_s", 0))
 

@@ -2366,7 +2366,7 @@ def _number(name: str | None, key: str | None, kind: str | None = None) -> str |
     try:
         got = nashville.nashville_from_name(name, key, kind=kind)
         return got["text"] if got else None
-    except Exception:  # noqa: BLE001 -- any failure inside the shared numberer falls back to the parts
+    except Exception:  # noqa: BLE001  # any failure inside the shared numberer falls back to the parts
         NUMBERING["fallbacks"] += 1
     try:
         if kind == "interval" or ("-" in name and "/" not in name):
@@ -2382,7 +2382,7 @@ def _number(name: str | None, key: str | None, kind: str | None = None) -> str |
         if not top or (bass and not low):
             return None
         return top["text"] + (f"/{low['text']}" if low else "")
-    except Exception:  # noqa: BLE001
+    except Exception:  # noqa: BLE001  # fail-soft: falls back to a default value
         NUMBERING["errors"] += 1
         return None
 

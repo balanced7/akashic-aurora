@@ -1076,7 +1076,7 @@ def compare_o1(a, b, partial=False) -> list:
     volatile = volatile_bases(a) | volatile_bases(b)
     ra, rb = _per_run(a), _per_run(b)
     for base in sorted(volatile):
-        cnt = lambda runs, base=base: min((len(r.get(base, {})) for r in runs), default=0)  # noqa: E731
+        cnt = lambda runs, base=base: min((len(r.get(base, {})) for r in runs), default=0)  # noqa: E731  # local one-line key function
 
         def ok(runs, base=base):
             return min(
@@ -1096,13 +1096,13 @@ def compare_o1(a, b, partial=False) -> list:
             diffs.append(("id:" + nid, "no longer collected"))
         elif t["class"] == "stable-pass" and fails_reproducibly(nb):
             diffs.append(("regressed:" + nid, "stable-pass now fails reproducibly"))
-    skips = lambda s: max((r["counts"].get("skipped", 0) for r in s["runs"]), default=0)  # noqa: E731
+    skips = lambda s: max((r["counts"].get("skipped", 0) for r in s["runs"]), default=0)  # noqa: E731  # local one-line key function
     if skips(b) > skips(a):
         diffs.append(("skips", f"skip count {skips(b):d} > baseline {skips(a):d}"))
-    cerr = lambda s: max((len(r["collect_errors"]) for r in s["runs"]), default=0)  # noqa: E731
+    cerr = lambda s: max((len(r["collect_errors"]) for r in s["runs"]), default=0)  # noqa: E731  # local one-line key function
     if cerr(b) > cerr(a):
         diffs.append(("collect-errors", f"collection errors {cerr(b):d} > baseline {cerr(a):d}"))
-    ran = lambda s: min((o1_ran(r) for r in s["runs"]), default=0)  # noqa: E731
+    ran = lambda s: min((o1_ran(r) for r in s["runs"]), default=0)  # noqa: E731  # local one-line key function
     if ran(b) < ran(a):
         diffs.append(("run-count", f"tests run {ran(b):d} < baseline {ran(a):d} (T7)"))
     return diffs

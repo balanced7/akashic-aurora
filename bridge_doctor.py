@@ -36,7 +36,7 @@ ROOT = Path(__file__).resolve().parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from core.comm import remote_relay as RR  # noqa: E402
+from core.comm import remote_relay as RR  # noqa: E402  # sys.path bootstrap
 
 R = []
 
@@ -105,7 +105,7 @@ def main() -> int:
             .splitlines()[0]
             .strip()
         )
-    except Exception:  # noqa: BLE001
+    except Exception:  # noqa: BLE001  # fail-soft: falls back to a default value
         my_ip = ""
     line("your tailnet IP", my_ip or "(tailscale not answering)", bool(my_ip))
     listening = False
@@ -126,7 +126,7 @@ def main() -> int:
             h, _, p = host.partition(":")
             socket.create_connection((h, int(p or 80)), timeout=6).close()
             reachable = True
-        except Exception:  # noqa: BLE001
+        except Exception:  # noqa: BLE001  # fail-soft: best effort, skipped on any error
             pass
     line("their listener reachable", "YES" if reachable else "NO", reachable)
 
@@ -184,7 +184,7 @@ def main() -> int:
         print(f"report REFUSED by their gate: {e.code} {e.read().decode()}")
         print("Their log holds the reason; the refusal is flat by design. Paste the block above.")
         return 1
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001  # fail-soft: logged, caller continues
         print(f"could not reach them ({type(e).__name__}: {e}). Paste the block above.")
         return 1
 

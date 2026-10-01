@@ -41,7 +41,7 @@ def _declare_dpi_awareness() -> None:
         # PROCESS_PER_MONITOR_DPI_AWARE = 2 (Windows >= 8.1). Declared once, before
         # any display/window call, so physical pixels are authoritative end-to-end.
         _ = ctypes.windll.shcore.SetProcessDpiAwareness(2)
-    except Exception:  # noqa: BLE001 — fail-soft: DPI awareness is a posture, not a gate
+    except Exception:  # noqa: BLE001  # fail-soft: best effort, skipped on any error — fail-soft: DPI awareness is a posture, not a gate
         pass
 
 
@@ -54,7 +54,7 @@ def _load_mss():
         import mss  # type: ignore[import-not-found]
 
         return mss
-    except Exception:  # noqa: BLE001 — optional substrate; absence is a contract-relevant fact
+    except Exception:  # noqa: BLE001  # fail-soft: falls back to a default value — optional substrate; absence is a contract-relevant fact
         return None
 
 
@@ -162,13 +162,13 @@ def screen(region=None, downscale_budget: int | None = None) -> ScreenFrame:
                 return frame
             # monitors[0] is the virtual "all screens" bounding box.
             shot = sct.grab(sct.monitors[0])
-    except Exception as exc:  # noqa: BLE001 — headless / locked / driver failure
+    except Exception as exc:  # noqa: BLE001  # fail-soft: falls back to a default value — headless / locked / driver failure
         frame.refuse_reason = f"capture-refused:{type(exc).__name__}"
         return frame
 
     try:
         width, height, png = _png_from_shot(shot)
-    except Exception as exc:  # noqa: BLE001 — PIL absent or bad pixels
+    except Exception as exc:  # noqa: BLE001  # fail-soft: falls back to a default value — PIL absent or bad pixels
         frame.refuse_reason = f"encode-failed:{type(exc).__name__}"
         return frame
 

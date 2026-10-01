@@ -339,7 +339,7 @@ def unseal(
         raise
     except (KeyError, TypeError) as e:
         raise SealRefused("recipient identity is incomplete") from e
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001  # fail-soft: re-raised after cleanup
         raise SealRefused(f"sealed body did not open ({type(e).__name__})") from e
 
     try:

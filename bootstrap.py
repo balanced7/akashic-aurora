@@ -117,7 +117,7 @@ def check_redis():
 def check_foundation():
     """Are the Pillar 0 primitives importable? Returns (ok, detail)."""
     try:
-        from core.foundation import Ledger, Store, create_ledger, create_store  # noqa: F401
+        from core.foundation import Ledger, Store, create_ledger, create_store  # noqa: F401  # availability probe
 
         return True, "Store + Ledger present"
     except Exception as e:

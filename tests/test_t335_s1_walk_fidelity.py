@@ -49,7 +49,7 @@ import pytest
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from core.eye import routes as R  # noqa: E402
+from core.eye import routes as R  # noqa: E402  # sys.path bootstrap
 
 STEPS = [
     {"type": "anchor", "target": "sess:1", "note": "the charter"},

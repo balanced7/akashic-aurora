@@ -360,7 +360,7 @@ def _keepalive_run() -> dict:
                 os.chdir(old)
 
         return draft_keepalive.refresh(agent_cli.last_session_draft_path(), write=_write)
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001  # fail-soft: falls back to a default value
         return {"wrote": False, "reason": f"keepalive failed ({type(e).__name__}: {str(e)[:80]})"}
 
 

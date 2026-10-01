@@ -18,7 +18,7 @@ flaky. Flushing on import guarantees each isolated test process starts empty.
 Usage (must precede `from core.foundation...`):
 
     import sys, os
-    import isolate_canonical            # noqa: F401  (side-effect: isolates + flushes)
+    import isolate_canonical            # noqa: F401  # side-effect: isolates + flushes
     sys.path.insert(0, <project root>)
     from core.foundation.store import ...
 """

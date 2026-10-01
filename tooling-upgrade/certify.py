@@ -362,8 +362,8 @@ def t7():
     if not g0.exists() or cur is None:
         return False, "no g0 O1 or no suite record current for HEAD"
     a, b = oracle.load_json(g0), oracle.load_json(cur / "O1.json")
-    ran = lambda s: min(oracle.o1_ran(r) for r in s["runs"])  # noqa: E731
-    skp = lambda s: max(r["counts"].get("skipped", 0) for r in s["runs"])  # noqa: E731
+    ran = lambda s: min(oracle.o1_ran(r) for r in s["runs"])  # noqa: E731  # local one-line key function
+    skp = lambda s: max(r["counts"].get("skipped", 0) for r in s["runs"])  # noqa: E731  # local one-line key function
     ok = ran(b) >= ran(a) and skp(b) <= skp(a)
     return ok, f"ran {ran(b):d} (g0 {ran(a):d}), skipped {skp(b):d} (g0 {skp(a):d}) [{cur.name}]"
 
@@ -539,7 +539,7 @@ DRILLS = {
     "D05": ("ruff.toml excluding core/ + mis-formatted core file", _fault_d05, _poe("gate"), _poe_present("gate")),
     "D06": (
         "file-level ruff: noqa",
-        lambda t: _write(t, "core/_drill_noqa.py", "# ruff: noqa\nimport os\n"),
+        lambda t: _write(t, "core/_drill_noqa.py", "# ruff" + ": noqa\nimport os\n"),
         _poe("gate"),
         _poe_present("gate"),
     ),

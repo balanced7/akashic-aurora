@@ -413,7 +413,7 @@ def steer_facts_lines(agent_id: str, nudge=None, drain: bool = True) -> list:
         facts = nudge.steer_drain(agent_id) if drain else None
         if facts is None:  # peek: render without eating another turn's mail
             facts = [f"({int(nudge.steer_pending(agent_id))} queued -- peek, not drained)"]
-    except Exception:  # noqa: BLE001
+    except Exception:  # noqa: BLE001  # fail-soft: falls back to a default value
         return []
     if not facts:
         return []

@@ -1571,7 +1571,7 @@ def _feed_failure_findings(agent: str):
                 f"{_pyl()} agent_cli.py events --kind discord_feed_post_failed",
             )
         ]
-    except Exception:  # noqa: BLE001
+    except Exception:  # noqa: BLE001  # fail-soft: falls back to a default value
         return None
 
 

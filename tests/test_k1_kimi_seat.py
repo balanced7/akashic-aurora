@@ -11,7 +11,7 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, REPO)
 sys.path.insert(0, os.path.join(REPO, "scripts"))
 
-from kimi_chat import KimiAgent, SpendMeter  # noqa: E402
+from kimi_chat import KimiAgent, SpendMeter  # noqa: E402  # sys.path bootstrap
 
 
 def _resp(content="ok", usage=None):

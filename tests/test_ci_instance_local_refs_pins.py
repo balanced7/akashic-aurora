@@ -34,7 +34,7 @@ _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(_ROOT, "scripts", "checkers"))
 sys.path.insert(0, os.path.join(_ROOT, "scripts"))
 
-import check_comprehensibility as cm  # noqa: E402
+import check_comprehensibility as cm  # noqa: E402  # sys.path bootstrap
 
 
 # ------------------------------------------------------------ asking git, not guessing

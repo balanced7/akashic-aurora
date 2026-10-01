@@ -29,7 +29,7 @@ import pytest
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 
-from core.comm import discord_inbound as DI  # noqa: E402
+from core.comm import discord_inbound as DI  # noqa: E402  # sys.path bootstrap
 
 OAUTH = "Failed to authenticate: OAuth session expired and could not be refreshed"
 

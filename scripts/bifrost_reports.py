@@ -30,7 +30,7 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from core.library import reports as rs  # noqa: E402
+from core.library import reports as rs  # noqa: E402  # sys.path bootstrap
 
 Response = tuple[int, str, bytes]
 

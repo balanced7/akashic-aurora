@@ -444,7 +444,7 @@ def _mention_map() -> dict[str, str]:
             cs = str((rec or {}).get("callsign") or "").strip().lower()
             if cs:
                 out[cs] = a
-    except Exception:  # noqa: BLE001
+    except Exception:  # noqa: BLE001  # fail-soft: best effort, skipped on any error
         pass  # registry down -> agent ids still resolve
     return out
 
@@ -516,7 +516,7 @@ def _auto_wake(
     try:
         if is_seat_reachable(agent):
             return None  # live: the lane + its listener ARE the wake
-    except Exception:  # noqa: BLE001
+    except Exception:  # noqa: BLE001  # fail-soft: falls back to a default value
         return None  # cannot tell -> never claim he is unreachable
     return COLD_SEAT_NOTICE
 
@@ -577,7 +577,7 @@ def handle_message(
         for p in attachments:
             try:
                 parts.append(file_part(p))
-            except Exception:  # noqa: BLE001
+            except Exception:  # noqa: BLE001  # fail-soft: best effort, skipped on any error
                 continue  # one unreadable file never silences the words
         parts = parts or None
         if not text and parts:

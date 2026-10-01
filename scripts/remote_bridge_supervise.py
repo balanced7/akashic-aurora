@@ -48,7 +48,7 @@ REPO = Path(__file__).resolve().parents[1]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
-from scripts.bifrost_child import _RING_LINES, ManagedChild  # noqa: E402
+from scripts.bifrost_child import _RING_LINES, ManagedChild  # noqa: E402  # sys.path bootstrap
 
 
 def _stamp() -> str:
@@ -75,7 +75,7 @@ def door_open(host: str, port: int, timeout: float = 3.0) -> bool:
     try:
         socket.create_connection((host, port), timeout=timeout).close()
         return True
-    except Exception:  # noqa: BLE001
+    except Exception:  # noqa: BLE001  # fail-soft: falls back to a default value
         return False
 
 
@@ -145,7 +145,7 @@ def main(argv=None) -> int:
                 f.write((tail + "\n") if tail else "(no output captured)\n")
             last["tee"], last["tee_err"] = str(child_log), ""
             print(f"  (appended to {child_log})", flush=True)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:  # noqa: BLE001  # fail-soft: logged, caller continues
             last["tee"], last["tee_err"] = None, f"{type(e).__name__}: {e}"
             print(
                 f"  WARNING: could not append to {child_log} ({last['tee_err']}) — the copy "
@@ -207,7 +207,7 @@ def main(argv=None) -> int:
         except KeyboardInterrupt:
             print(f"\n[{_stamp()}] stopping supervisor (listener left as-is)", flush=True)
             return 0
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:  # noqa: BLE001  # fail-soft: logged, caller continues
             print(f"[{_stamp()}] supervisor tick error ({type(e).__name__}: {e}) — continuing", flush=True)
 
 

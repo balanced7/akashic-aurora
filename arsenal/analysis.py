@@ -184,7 +184,7 @@ def hw_decode_evidence(path: str, devices=("d3d12va", "d3d11va"), frames: int = 
                     entry["frames"] = count
                     entry["frame_format"] = frame_format
                     entry["ok"] = frame_format in _HW_PIX_FMTS
-        except Exception as exc:  # noqa: BLE001 -- deliberately broad: never raise, ever
+        except Exception as exc:  # noqa: BLE001  # deliberately broad: never raise, ever
             entry["error"] = f"{type(exc).__name__}: {exc}"
         tried.append(entry)
         if entry["ok"] and ok_device is None:

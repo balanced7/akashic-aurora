@@ -27,7 +27,7 @@ os.environ.setdefault("AI_SETUP", tempfile.mkdtemp())
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from core.git import rewrite_map as rm  # noqa: E402
+from core.git import rewrite_map as rm  # noqa: E402  # sys.path bootstrap
 
 A = "a" * 40  # original
 B = "b" * 40  # after rewrite one

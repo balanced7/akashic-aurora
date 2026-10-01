@@ -10,7 +10,7 @@ from pathlib import Path
 _SCRIPTS = str(Path(__file__).resolve().parent.parent / "scripts")
 if _SCRIPTS not in sys.path:
     sys.path.insert(0, _SCRIPTS)
-import deepseek_chat as dc  # noqa: E402
+import deepseek_chat as dc  # noqa: E402  # sys.path bootstrap
 
 REPO = Path(__file__).resolve().parent.parent
 

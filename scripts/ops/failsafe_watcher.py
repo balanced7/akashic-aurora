@@ -38,7 +38,7 @@ def _webhook() -> str:
         from core.comm.secret_intake import secrets_dir
 
         return (secrets_dir() / "discord_webhook.url").read_text(encoding="utf-8").strip()
-    except Exception:  # noqa: BLE001
+    except Exception:  # noqa: BLE001  # fail-soft: falls back to a default value
         return ""
 
 
@@ -56,7 +56,7 @@ def _post(text: str) -> bool:
         )
         with urllib.request.urlopen(req, timeout=20) as resp:
             return 200 <= resp.status < 300
-    except Exception:  # noqa: BLE001
+    except Exception:  # noqa: BLE001  # fail-soft: falls back to a default value
         return False
 
 

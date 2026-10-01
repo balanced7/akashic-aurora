@@ -51,7 +51,7 @@ REPO = Path(__file__).resolve().parents[1]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
-from core.comm import remote_relay as RR  # noqa: E402
+from core.comm import remote_relay as RR  # noqa: E402  # sys.path bootstrap
 
 
 def _pyl() -> str:
@@ -101,7 +101,7 @@ def bind_class(host: Any) -> str:
     """
     try:
         h = str(host).strip().lower()
-    except Exception:  # noqa: BLE001
+    except Exception:  # noqa: BLE001  # fail-soft: falls back to a default value
         return "unknown"
     if h in ("localhost",):
         return "loopback"
@@ -140,7 +140,7 @@ def _owning_interface(host: str) -> str:
             timeout=8,
         ).stdout.strip()
         return out.splitlines()[0].strip() if out else ""
-    except Exception:  # noqa: BLE001
+    except Exception:  # noqa: BLE001  # fail-soft: falls back to a default value
         return ""
 
 
@@ -225,7 +225,7 @@ def handle_request(
 
         try:
             envelope = json.loads((body or b"").decode("utf-8"))
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:  # noqa: BLE001  # fail-soft: falls back to a default value
             return 400, FLAT_REFUSAL, f"400 unreadable envelope ({type(e).__name__}: {e})"
 
         out = RR.accept(envelope, secret=secret, peer=peer)
@@ -233,7 +233,7 @@ def handle_request(
             # The teaching reason goes HERE and only here.
             return 400, FLAT_REFUSAL, f"400 refused by the gate: {out.why}"
         return 202, _ACCEPTED, f"202 admitted {out.ref} from remote:{peer or 'peer'}"
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001  # fail-soft: falls back to a default value
         # A listener that raises is a denial of service with a one-line exploit, and this one
         # is reachable by anyone who can route to the port. There is no input that gets a
         # traceback out of this function.
@@ -266,7 +266,7 @@ def handle_blob(
         try:
             env = json.loads((body or b"").decode("utf-8"))
             b64, sig = str(env.get("body") or ""), str(env.get("sig") or "")
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:  # noqa: BLE001  # fail-soft: falls back to a default value
             return 400, FLAT_REFUSAL, f"400 unreadable blob request ({type(e).__name__})"
 
         key = secret
@@ -277,7 +277,7 @@ def handle_blob(
 
         try:
             ref = str(json.loads(base64.b64decode(b64).decode("utf-8")).get("ref") or "")
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:  # noqa: BLE001  # fail-soft: falls back to a default value
             return 400, FLAT_REFUSAL, f"400 blob request payload unreadable ({type(e).__name__})"
 
         # INJECTABLE, because get_blob_store() is a cached singleton whose base is
@@ -289,7 +289,7 @@ def handle_blob(
         if data is None:
             return 404, FLAT_REFUSAL, f"404 no blob for ref {ref[:40]!r} (flat: not an oracle)"
         return 200, data, f"200 served {ref[:24]} ({len(data)}B)"
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001  # fail-soft: falls back to a default value
         return 400, FLAT_REFUSAL, f"400 blob door caught {type(e).__name__}: {e}"
 
 
@@ -316,7 +316,7 @@ class _Handler(BaseHTTPRequestHandler):
             self.wfile.write(raw)
         print(f"[{time.strftime('%H:%M:%S')}] {self.client_address[0]} {log}", flush=True)
 
-    def do_POST(self) -> None:  # noqa: N802
+    def do_POST(self) -> None:  # noqa: N802  # public API name
         declared = self.headers.get("Content-Length") or 0
         if not length_allowed(declared):
             self._respond(413, FLAT_REFUSAL, f"413 declared length {declared} refused unread")
@@ -337,7 +337,7 @@ class _Handler(BaseHTTPRequestHandler):
             return
         self._respond(*handle_request("POST", self.path, body, peer=self.peer_name))
 
-    def do_GET(self) -> None:  # noqa: N802
+    def do_GET(self) -> None:  # noqa: N802  # public API name
         self._respond(*handle_request("GET", self.path, b"", peer=self.peer_name))
 
     def log_message(self, fmt, *args):

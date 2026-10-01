@@ -34,7 +34,7 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from scripts.checkers import check_kind_policy as C  # noqa: E402
+from scripts.checkers import check_kind_policy as C  # noqa: E402  # sys.path bootstrap
 
 
 # --- synthetic fixtures: the pins test the MECHANISM, not today's tree -------------------

@@ -34,8 +34,8 @@ import pytest
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 
-from core.comm import bridge_status as BS  # noqa: E402
-from core.comm import remote_relay as RR  # noqa: E402
+from core.comm import bridge_status as BS  # noqa: E402  # sys.path bootstrap
+from core.comm import remote_relay as RR  # noqa: E402  # sys.path bootstrap
 
 
 @pytest.fixture(autouse=True)
@@ -196,7 +196,7 @@ def test_act_never_raises(monkeypatch):
     for aid in ("tick_outbox", "drain_parked", "restart_listener", "", None, 123):
         try:
             BS.act(aid, confirm=True, bus_send=lambda **kw: None, process_table=list, kill=lambda pid: True)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:  # noqa: BLE001  # fail-soft: best effort, skipped on any error
             pytest.fail(f"act({aid!r}) raised {type(e).__name__}: {e}")
     assert spawned == [], f"act() reached the host from a test: {spawned}"
 

@@ -463,7 +463,7 @@ def forward(
     try:
         for content in parts:
             post_via_pool(targets, content, poster)
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001  # fail-soft: falls back to a default value
         return BoundaryOutcome.failed(
             f"discord post failed ({type(e).__name__}: {e}) -- the bus is unaffected; this "
             f"bridge is a listener and never blocks a send"

@@ -25,7 +25,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 
-from core.foundation.ledger import FileLedger  # noqa: E402
+from core.foundation.ledger import FileLedger  # noqa: E402  # sys.path bootstrap
 
 WORKER = r"""
 import json, os, sys, time

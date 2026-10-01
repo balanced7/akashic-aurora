@@ -158,7 +158,7 @@ def test_concurrent_claims_never_hand_out_the_same_seq(tmp_path):
                 s = seal.Chain(p).next_out("serge")["seq"]
                 with lock:
                     seen.append(s)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:  # noqa: BLE001  # fail-soft: best effort, skipped on any error
             errors.append(e)
 
     threads = [threading.Thread(target=claim) for _ in range(4)]

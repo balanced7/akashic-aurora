@@ -14,8 +14,8 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from arsenal import pianolooks  # noqa: E402
-from arsenal.serve import App, Server  # noqa: E402
+from arsenal import pianolooks  # noqa: E402  # sys.path bootstrap
+from arsenal.serve import App, Server  # noqa: E402  # sys.path bootstrap
 
 LOOKS = "/api/piano/looks"
 

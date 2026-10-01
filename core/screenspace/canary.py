@@ -75,7 +75,7 @@ def _read_foreground_name() -> tuple[int | None, str | None]:
         name = win.Name
         hwnd = getattr(win, "NativeWindowHandle", None)
         return (hwnd, name)
-    except Exception:  # noqa: BLE001 -- the READ failed; that is UNREADABLE, not "unknown"
+    except Exception:  # noqa: BLE001  # the READ failed; that is UNREADABLE, not "unknown"
         return (None, None)
 
 
