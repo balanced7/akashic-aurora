@@ -25,7 +25,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12"   # = .python-version (G1.P2)
       - name: Install dependencies
         run: python -m pip install -r requirements.txt numpy  # numpy = optional embedding subsystems; exercised in CI
       # The comprehensibility immune system -- the unbypassable REMOTE gate: every push/PR is checked,

@@ -12,7 +12,7 @@ Python standard library alone** and degrades gracefully when optional infrastruc
 
 ## 1. Requirements
 
-- **Python 3.11+** (developed on 3.11.9).
+- **Python 3.11+** (the floor in `pyproject.toml`; `uv` runs the pinned 3.12 from `.python-version`).
 - **git**.
 - **No Redis server needed.** If one is running the system uses it; if not, the bus runs on an
   embedded, SQLite-persisted Redis that starts itself (§5).
