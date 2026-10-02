@@ -300,6 +300,23 @@ def cmd_boot(args):
         return 2
     if _chk.get("override"):
         print(f"# boot subject: {_chk['why']}")
+    elif _chk.get("source") == "unknown":
+        # T418-b (2026-10-02), found by Rill drilling the fence's I3 blind. `subject_check` computes
+        # this sentence and nothing ever showed it, so a boot the house COULD NOT VERIFY rendered
+        # exactly like one it could. That is zero-is-not-no broken by the organ whose subject is
+        # identity. Unknown still SERVES -- a fresh clone and a first boot are real paths, and
+        # refusing them would be the cure killing the patient -- but it says so, and it is counted,
+        # because a line scrolls past while an event can be asked a question. Measured the night it
+        # was fixed: four of seven live MCP doors carry no stamp at all.
+        print(f"# boot subject: {_chk['why']}")
+        try:
+            from core.events.event_log import capture_event
+            capture_event("boot_unverified",
+                          f"booted as {args.agent_id} with no stamp to check it against",
+                          agent_id=str(args.agent_id),
+                          detail={"requested": args.agent_id, "source": "unknown"})
+        except Exception:                                                     # noqa: BLE001
+            pass
     res = derive_agent_context_from_startup_sources(args.agent_id, args.task, verbose=False)
     bifrost = collect_boot_bifrost(args.agent_id, limit=8)
     ctx = res.get("context") or {}
