@@ -315,8 +315,11 @@ def main():
             lum_d = pixel_delta(px_a, px_b)
             chr_d = chroma_delta(px_a, px_b)
             print(f"  {names[i]} → {names[j]}:")
-            print(f"    luminance_delta = {lum_d}  ({lum_d * 100:.1f}% pixels >10 luma diff)")
-            print(f"    chroma_delta    = {chr_d}  ({chr_d * 100:.1f}% pixels >5 chroma diff)")
+            # None = no pixel opaque in both images: nothing to compare, not a 0% change
+            lum_pct = "n/a" if lum_d is None else f"{lum_d * 100:.1f}%"
+            chr_pct = "n/a" if chr_d is None else f"{chr_d * 100:.1f}%"
+            print(f"    luminance_delta = {lum_d}  ({lum_pct} pixels >10 luma diff)")
+            print(f"    chroma_delta    = {chr_d}  ({chr_pct} pixels >5 chroma diff)")
             if lum_d is not None and lum_d < 0.01 and chr_d is not None and chr_d > 0.01:
                 print(f"    ★ FINDING: luminance says 'no change', chroma says {chr_d * 100:.1f}% changed.")
                 print("      The first probe was blind to this. A chroma-aware probe is NOT.")

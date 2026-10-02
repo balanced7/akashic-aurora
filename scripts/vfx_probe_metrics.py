@@ -253,9 +253,11 @@ def main():
                     )
                     continue
                 d = pixel_delta(px_a, px_b)
+                # None = no pixel opaque in both images: nothing to compare, not a 0% change
+                pct = "n/a" if d is None else f"{d * 100:.1f}%"
                 print(
                     f"  delta {os.path.basename(a_path)} → {os.path.basename(b_path)}: "
-                    f"{d} ({d * 100:.1f}% of non-transparent pixels changed by >10 lum)"
+                    f"{d} ({pct} of non-transparent pixels changed by >10 lum)"
                 )
 
     # Summary: would any of these numbers have told the agent something the PNG did not?
