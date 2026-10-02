@@ -347,6 +347,6 @@ component = "O1"
 key = "latent:prior-art-launcher"
 reason = "fixes latent bug: prior-art-launcher (found regenerating docs in G5.P4)"
 goal = "G5"
-fix_commit = "PENDING"
+fix_commit = "8bc3020a9bdcd23268c751bf07c04c47a35ccc89"
 regression_test = "tests/test_g5_latent_prior_art_launcher.py"
 ```
