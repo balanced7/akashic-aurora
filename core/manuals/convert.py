@@ -258,7 +258,7 @@ def from_html(
     page_title = (soup.title.string or "").split("|")[0].strip() if soup.title else ""
     root = soup.select_one(selector) if selector else None
     if root is None:
-        root = soup.find("main") or soup.find("article") or soup.find(attrs={"role": "main"})
+        root = soup.find("main") or soup.find("article") or soup.find(name=None, attrs={"role": "main"})
     chrome = list(_CHROME)
     if root is None:
         root = soup.body or soup
@@ -266,7 +266,7 @@ def from_html(
     for tag in root.find_all(chrome):
         tag.decompose()
     for img in root.find_all("img"):
-        alt = (img.get("alt") or "").strip()
+        alt = str(img.get("alt") or "").strip()  # alt is single-valued: always a str
         img.replace_with(f"[{alt}]" if alt and alt.lower() not in ("undefined", "null", "image") else "")
     md = markdownify(str(root), heading_style="ATX", strip=["a"])
     md = re.sub(r"\n{3,}", "\n\n", md)
@@ -290,7 +290,7 @@ def from_pdf(path, url: str | None = None) -> Document:
                 walk(it, level + 1)
                 continue
             try:
-                marks.append((reader.get_destination_page_number(it), level, str(it.title).strip()))
+                marks.append((reader.get_destination_page_number(it), level, str(it.title).strip()))  # pyright: ignore[reportArgumentType]  # LATENT: pypdf returns None for a dangling outline target; the sort below would raise
             except Exception:
                 continue
 

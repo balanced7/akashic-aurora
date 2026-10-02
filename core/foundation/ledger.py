@@ -420,7 +420,7 @@ class HybridLedger(Ledger):
         return self._redis is not None and self._redis.is_available()
 
     def _live_redis(self) -> RedisLedger:
-        """The Redis tier; only called where redis_available is True (so it is not None)."""
+        """Return the Redis tier; only called where redis_available is True (so not None)."""
         return cast("RedisLedger", self._redis)
 
     def emit(self, stream, event, maxlen=None):

@@ -243,7 +243,7 @@ class SpendDomain:
                 Row(
                     domain=self.name,
                     entry_ref="kimi:seeded",
-                    belief_a=f"spent=${float(spent):.2f}",
+                    belief_a=f"spent=${float(spent or 0):.2f}",  # spent is truthy here (guard above)
                     source_a="kimi_spend.json",
                     belief_b="seeded=false (never reconciled)",
                     source_b="kimi_spend.json",

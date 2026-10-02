@@ -453,7 +453,7 @@ class SignalEmitter:
                 "purpose": "Lessons learned to apply (avoid rework)",
             },
             "checkpoint": {
-                "available": hasattr(self, "checkpoint") and self.checkpoint is not None,
+                "available": getattr(self, "checkpoint", None) is not None,  # == hasattr and not None
                 "purpose": "Resume point if crashed",
             },
             "summary": {

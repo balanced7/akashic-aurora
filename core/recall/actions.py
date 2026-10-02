@@ -95,7 +95,7 @@ _EMPTY = {
 # `None` is NOT the sentinel: it means "explicitly detached" (never resolve), which is what a test
 # sets when it wants to prove the kill switch / guard fires BEFORE the engine is even loaded.
 _UNRESOLVED = object()
-_engine = _UNRESOLVED
+_engine: Any = _UNRESOLVED  # sentinel, the engine callable, or a test fake / None
 
 
 def _resolve_engine():

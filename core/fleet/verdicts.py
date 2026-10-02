@@ -252,7 +252,7 @@ def calibration(*, shape: str | None = None, resident: str | None = None) -> dic
     (fence r2, convergent H-C2 + N-C2). RC2 renders rates behind its own n-floors; this
     function hands it honest integers.
     """
-    latest: dict[str, dict[str, Any]] = {}
+    latest: dict[str | None, dict[str, Any]] = {}
     for a in _rows(_ADJUD_KEY):
         latest[a.get("ask_id")] = a  # oldest-first scan -> last write wins
 

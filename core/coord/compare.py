@@ -202,8 +202,8 @@ def _files_touched(since: float | None = None, **_) -> set[str]:
 
 
 def _lessons_all(**_) -> set[str]:
-    from core.learning.store import (
-        get_learning_store_instance,  # pyright: ignore[reportMissingImports]  # LATENT: no such module; compare() reports this domain as an error
+    from core.learning.store import (  # pyright: ignore[reportMissingImports]  # LATENT: no such module; compare() reports this domain as an error
+        get_learning_store_instance,
     )
 
     store = get_learning_store_instance()

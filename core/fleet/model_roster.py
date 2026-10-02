@@ -21,7 +21,7 @@ _DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "models.json")
 
 # Rank order for status when a caller asks broadly (best-first): in-use before proven-idle before
 # not-yet-measured; gated never wins a selection (it's disqualified, surfaced only on explicit ask).
-_STATUS_RANK = {"active": 0, "tested": 1, "candidate": 2, "gated": 3}
+_STATUS_RANK: dict[str | None, int] = {"active": 0, "tested": 1, "candidate": 2, "gated": 3}
 
 
 def _load() -> dict[str, Any]:

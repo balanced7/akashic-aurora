@@ -158,14 +158,12 @@ class ForegroundTracker:
     def _run(self) -> None:
         """Worker thread: pump messages + resolve pending hwnd -> name -> deliver."""
         user32 = ctypes.windll.user32 if hasattr(ctypes, "windll") else None
-        wintypes = None
-        if hasattr(ctypes, "wintypes"):
-            wintypes = ctypes.wintypes
-        else:
-            try:
-                import ctypes.wintypes as wintypes
-            except Exception:  # noqa: BLE001  # fail-soft: falls back to a default value
-                wintypes = None
+        # Importing ctypes.wintypes when it is already loaded just returns that module, so
+        # this is the old hasattr(ctypes, "wintypes") fast path and the import path in one.
+        try:
+            import ctypes.wintypes as wintypes
+        except Exception:  # noqa: BLE001  # fail-soft: falls back to a default value
+            wintypes = None
         msg = wintypes.MSG() if wintypes is not None else None
 
         while not self._stop.is_set():

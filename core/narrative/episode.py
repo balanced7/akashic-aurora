@@ -235,7 +235,7 @@ def close_open_episode_for_session_end(
         if not rec:
             return {"action": "none"}
         now_iso = _now(now)
-        ch = load_chapter_from_store(store, rec.get("chapter_id"))
+        ch = load_chapter_from_store(store, str(rec.get("chapter_id")))  # same key the f-string built
         if ch is None:  # pointer dangles -> clear, nothing to draft
             _clear_open(store)
             return {"action": "cleared_dangling"}

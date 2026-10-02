@@ -154,10 +154,11 @@ def fetch(
 
         doc = fitz.open(stream=body, filetype="pdf")
         toc = [f"{'  ' * (lvl - 1)}{title} (p{page})" for lvl, title, page in doc.get_toc()]
-        head_text = "".join(doc[i].get_text() for i in range(min(2, doc.page_count)))
+        # get_text() with the default "text" option returns a str; str() pins that for the checker
+        head_text = "".join(str(doc[i].get_text()) for i in range(min(2, doc.page_count)))
         refs = ""
         for i in range(max(0, doc.page_count - 4), doc.page_count):
-            t = doc[i].get_text()
+            t = str(doc[i].get_text())
             m = re.search(r"(References|BIBLIOGRAPHY|Bibliography)", t)
             if m:
                 refs = t[m.start() :]
@@ -169,7 +170,7 @@ def fetch(
             + head_text
             + ("\n\nREFERENCES:\n" + refs if refs else "")
         )
-        cleaned = "".join(doc[i].get_text() for i in range(doc.page_count)) if pdf_full else structural
+        cleaned = "".join(str(doc[i].get_text()) for i in range(doc.page_count)) if pdf_full else structural
         raw_text = cleaned  # for PDFs the extraction is the text plane
     else:
         raw_text = body.decode("utf-8", errors="replace")

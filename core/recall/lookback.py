@@ -406,7 +406,7 @@ def _chapter_items() -> list[dict[str, Any]]:
         idx = os.path.join(ROOT, "chronicles", "story.index.json")
         with open(idx, encoding="utf-8") as f:
             data = json.load(f)
-        chapters = data.get("chapters") or data if isinstance(data, list) else data.get("chapters", [])
+        chapters = data.get("chapters") or data if isinstance(data, list) else data.get("chapters", [])  # pyright: ignore[reportAttributeAccessIssue]  # LATENT: list branch calls list.get (the index is a dict today)
     except Exception:
         return []
     out = []

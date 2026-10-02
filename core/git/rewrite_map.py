@@ -153,7 +153,7 @@ def load_maps(repo=None):
 class Resolution:
     cited: str
     status: str
-    sha: str = None
+    sha: str | None = None
     hops: list = field(default_factory=list)
     note: str = ""
 

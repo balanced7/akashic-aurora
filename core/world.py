@@ -165,7 +165,8 @@ def owner_of_port(port: int) -> str | None:
     entry = config.PORT_REGISTRY.get(port)
     if not entry:
         return None
-    return ALIASES.get(entry.get("world"), entry.get("world"))
+    world = entry.get("world")
+    return ALIASES.get(world, world) if world is not None else None  # no None alias key
 
 
 def _from_name(leaf: str) -> str | None:

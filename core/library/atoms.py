@@ -125,7 +125,7 @@ class AtomFamily:
         for c in citations or []:
             # v1.1: rel names resolve through the fold table (legacy 'cites' -> 'discusses');
             # the STORED value is always roster-true. Unknown rels refuse loud.
-            r = tx.resolve_rel(c.get("rel"))
+            r = tx.resolve_rel(c.get("rel") or "")  # resolve_rel folds None to "" itself
             if r is None:
                 raise AtomError(
                     f"rel '{c.get('rel')}' not in REL_ROSTER {tx.REL_ROSTER} (supersession rides its own fields)"

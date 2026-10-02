@@ -70,7 +70,9 @@ def _load_minilm():
     try:
         with warnings.catch_warnings():  # transformers' tokenizer FutureWarning is noise here
             warnings.simplefilter("ignore", FutureWarning)
-            from sentence_transformers import SentenceTransformer
+            from sentence_transformers import (  # pyright: ignore[reportMissingImports]  # optional dependency, not in the lock
+                SentenceTransformer,
+            )
 
             try:
                 model = SentenceTransformer(EMBED_MODEL, device="cpu", local_files_only=True)
@@ -84,7 +86,7 @@ def _load_minilm():
             list(texts), batch_size=64, normalize_embeddings=True, convert_to_numpy=True, show_progress_bar=False
         ).astype("float32")
 
-    embed.model_name = DEFAULT_TAG
+    embed.model_name = DEFAULT_TAG  # pyright: ignore[reportFunctionMemberAccess]  # tag read back by callers via getattr
     return embed
 
 

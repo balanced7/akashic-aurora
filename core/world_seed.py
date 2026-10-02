@@ -140,7 +140,7 @@ def plan(source: str, target: str, include: list[str] | None = None) -> SeedPlan
             f"strictly HIGHER tier (prod > beta > alpha). {target} is not below {source}."
         )
 
-    prefixes = list(KNOWLEDGE_PREFIXES)
+    prefixes: list[str] = list(KNOWLEDGE_PREFIXES)
     excluded = dict(REFUSED_PREFIXES)
     for key, (prefix, why) in OPTIONAL_PREFIXES.items():
         if key in include:

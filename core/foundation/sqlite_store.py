@@ -299,7 +299,7 @@ class SqliteStore(Store):
         return False
 
     def _live_conn(self) -> sqlite3.Connection:
-        """The open connection; private helpers run only after the caller's None check."""
+        """Return the open connection; private helpers run only after the caller's None check."""
         return cast("sqlite3.Connection", self._conn)
 
     def _drop_key(self, key: str) -> None:

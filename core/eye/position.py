@@ -32,7 +32,7 @@ from __future__ import annotations
 import json
 import os
 import time
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from core.eye.connectome import _group, _steps
 from core.eye.index import _connect, get_event
@@ -111,7 +111,7 @@ def go(seat: str, addr: str, db_path: Path | None = None) -> dict[str, Any]:
             (seat, addr, json.dumps(trail[-32:]), now, now, cur["inherited_from"] if cur else None),
         )
         con.commit()
-        return _row(con, seat)
+        return cast("dict[str, Any]", _row(con, seat))  # the row was just upserted
     finally:
         con.close()
 
@@ -133,7 +133,7 @@ def back(seat: str, db_path: Path | None = None) -> dict[str, Any]:
             "UPDATE position SET addr=?, trail=?, moved_at=? WHERE seat=?", (prev, json.dumps(trail), time.time(), seat)
         )
         con.commit()
-        return {**_row(con, seat), "at_trail_origin": False}
+        return {**cast("dict[str, Any]", _row(con, seat)), "at_trail_origin": False}  # row exists (cur above)
     finally:
         con.close()
 
@@ -160,7 +160,7 @@ def inherit(seat: str, from_seat: str, db_path: Path | None = None) -> dict[str,
             (seat, src["addr"], json.dumps(src["trail"]), now, now, from_seat),
         )
         con.commit()
-        return _row(con, seat)
+        return cast("dict[str, Any]", _row(con, seat))  # the row was just upserted
     finally:
         con.close()
 

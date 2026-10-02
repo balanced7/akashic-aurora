@@ -49,8 +49,8 @@ class Pulse:
     """
 
     foreground: str | None = None
-    focus_path: list = None
-    roster_delta: list = None
+    focus_path: list | None = None
+    roster_delta: list | None = None
     elevated: bool | None = None
     activity: int = 0
     gen: int = 0

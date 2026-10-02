@@ -44,7 +44,7 @@ if TYPE_CHECKING:
 try:
     from core.toolbelt.toast import note_title, verify_receipt
 except Exception:  # pragma: no cover - toast is a sibling module; same package in prod
-    from toast import note_title, verify_receipt  # type: ignore[import-not-found]
+    from toast import note_title, verify_receipt
 
 MAX_BODY = 240  # a second voice is shorter than the first; chorus, not solo.
 
@@ -125,22 +125,26 @@ def send(
     # (b) APPEND -- read the existing toast note (CAS re-read), append the verse, write back.
     if note_read is None:
 
-        def note_read(_title: str) -> str | None:
+        def _default_note_read(_title: str) -> str | None:
             from core.learning.agent_memory import get_agent_memory
 
             mem = get_agent_memory()
             try:  # latest-by-title; None when absent
-                cur = mem.latest(_title)
+                cur = mem.latest(_title)  # pyright: ignore[reportAttributeAccessIssue]  # LATENT: AgentMemory has no latest(); except returns None
                 return cur.get("decision") if cur else None
             except Exception:
                 return None
 
+        note_read = _default_note_read
+
     if note_write is None:
 
-        def note_write(_title: str, body: str) -> Any:
+        def _default_note_write(_title: str, body: str) -> Any:
             from core.learning.agent_memory import get_agent_memory
 
             return get_agent_memory().decide_with_retry(_title, body, curated=True)
+
+        note_write = _default_note_write
 
     try:
         prior = note_read(title)
@@ -160,10 +164,14 @@ def send(
     # (c) PING -- the live chorus sound; fail-soft, the durable note is the credit.
     if bus_send is None:
 
-        def bus_send(_to: str, kind: str, text: str) -> Any:
-            from core.comm.bifrost import get_bus
+        def _default_bus_send(_to: str, kind: str, text: str) -> Any:
+            from core.comm.bifrost import (  # pyright: ignore[reportMissingImports]  # LATENT: no core.comm.bifrost; the ping always reports failed
+                get_bus,
+            )
 
             return get_bus().send(frm, _to, kind, text)
+
+        bus_send = _default_bus_send
 
     try:
         bus_send(to, "note", line)

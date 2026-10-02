@@ -33,11 +33,14 @@ into hot paths (commits, CLI verbs, sessions) can never break them.
 import json
 import logging
 import os
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from core.foundation.ledger import Ledger, create_ledger
 from core.foundation.timeutil import now_iso
 from core.outcome import BoundaryOutcome
+
+if TYPE_CHECKING:
+    from core.foundation.store import Store
 
 logger = logging.getLogger("event_log")
 
@@ -65,7 +68,7 @@ def event_ref(stream: str, event_id: str) -> str:
     return f"event:{stream}:{event_id}"
 
 
-def _id_precedes(a: str, b: str) -> bool:
+def _id_precedes(a: str | None, b: str) -> bool:
     """True when id `a` is strictly older than id `b` on the same stream (RB-7). Handles
     both backends' shapes -- FileLedger monotonic ints and Redis '<ms>-<seq>'. An
     unparseable id returns False: aging is only ever CLAIMED when it can be shown."""
@@ -92,7 +95,7 @@ class EventLog:
     Semantic Relationship: EventLog records RawEvents (full-fidelity, cross-agent)
     """
 
-    def __init__(self, ledger: Ledger | None = None, store: Optional["object"] = None):
+    def __init__(self, ledger: Ledger | None = None, store: Optional["Store"] = None):
         self.ledger = ledger if ledger is not None else create_ledger()
         # Optional time index (Slice V1): a Store-backed read-model that makes window
         # queries a range-scan instead of a capped replay (fixes silent recall loss). It's
@@ -273,7 +276,7 @@ class EventLog:
             if not batch:
                 break
             for eid, ev in batch:
-                rec = dict(ev) if isinstance(ev, dict) else {"raw": ev}
+                rec: dict[str, Any] = dict(ev) if isinstance(ev, dict) else {"raw": ev}
                 rec["id"] = str(eid)
                 rec["_ref"] = event_ref(stream, str(eid))
                 out.append(rec)

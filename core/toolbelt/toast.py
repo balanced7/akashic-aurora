@@ -152,10 +152,14 @@ def send(
     }
     if bus_send is None:
 
-        def bus_send(_to: str, kind: str, text: str) -> Any:  # the real door (lazy import)
-            from core.comm.bifrost import get_bus
+        def _default_bus_send(_to: str, kind: str, text: str) -> Any:  # the real door (lazy import)
+            from core.comm.bifrost import (  # pyright: ignore[reportMissingImports]  # LATENT: no core.comm.bifrost; the ping always reports failed
+                get_bus,
+            )
 
             return get_bus().send(frm, _to, kind, text)
+
+        bus_send = _default_bus_send
 
     try:
         bus_send(to, "note", line)  # 'note' kind: delight, no expectation to answer
@@ -164,12 +168,14 @@ def send(
         res["bus"] = f"failed ({type(e).__name__}) -- bus offline? the durable note still lands"
     if note_write is None:
 
-        def note_write(_title: str, body: str) -> Any:
+        def _default_note_write(_title: str, body: str) -> Any:
             from core.learning.agent_memory import get_agent_memory
 
             # decide_with_retry: re-toast of the same (to, receipt) SUPERSEDES its own
             # prior note under CAS (the RB-8-safe path cmd_note itself rides).
             return get_agent_memory().decide_with_retry(_title, body, curated=True)
+
+        note_write = _default_note_write
 
     try:
         note_write(title, note)

@@ -160,7 +160,7 @@ def grant(
 
     expires_at = None
     if not permanent:
-        expires_at = (datetime.now(UTC) + timedelta(hours=float(hours))).strftime("%Y-%m-%dT%H:%M:%SZ")
+        expires_at = (datetime.now(UTC) + timedelta(hours=float(hours or 0))).strftime("%Y-%m-%dT%H:%M:%SZ")
 
     rec = {
         "agent_id": agent_id,

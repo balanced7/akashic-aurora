@@ -716,7 +716,7 @@ def search_page(
     # page SIZE from ``offset`` -- we still OVER-FETCH then rank then slice so the
     # exact-basename match survives, but the returned slice is bounded only when asked.
     unlimited = limit is None or int(limit or 0) <= 0
-    limit = 0 if unlimited else max(int(limit), 1)
+    limit = 0 if unlimited else max(int(limit or 0), 1)  # limit is truthy when bounded
 
     es = resolve_es()
     if es is None:
@@ -786,7 +786,7 @@ def search_page(
             hits=sliced,
             ok=True,
             engine="everything",
-            exhaustive=True if unlimited else len(parsed) < fetch,
+            exhaustive=True if fetch is None else len(parsed) < fetch,  # fetch is None iff unlimited
         )
 
     lines = [ln.rstrip() for ln in (proc.stdout or "").splitlines() if ln.strip()]
@@ -796,7 +796,11 @@ def search_page(
     # definition (there is no further page). Bounded means ES may hold more than our
     # fetch window -- report it honestly so the caller can page.
     return SearchResult(
-        query=query, paths=sliced, ok=True, engine="everything", exhaustive=True if unlimited else len(lines) < fetch
+        query=query,
+        paths=sliced,
+        ok=True,
+        engine="everything",
+        exhaustive=True if fetch is None else len(lines) < fetch,
     )
 
 

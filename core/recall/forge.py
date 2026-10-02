@@ -36,7 +36,7 @@ TOKEN_BUDGET = 0.40  # textual learning rate (design decision 1, locked)
 _TOKEN_RE = re.compile(r"[A-Za-z0-9]+")
 
 
-def _tokens(text: str) -> list[str]:
+def _tokens(text: str | None) -> list[str]:
     return _TOKEN_RE.findall(str(text or "").lower())
 
 
@@ -154,7 +154,7 @@ def gate_edit(
         # BODY floor (red-team exploit 2, "body hollowing"): the advice after the trigger
         # colon must survive -- a gutted body with an intact trigger passes every other
         # floor while destroying the lesson's value. Coarse and mechanical on purpose.
-        def _body_of(text: str) -> str:
+        def _body_of(text: str | None) -> str:
             _, _, rest = str(text or "").partition(":")
             return rest or str(text or "")
 

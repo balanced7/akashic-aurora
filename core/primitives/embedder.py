@@ -29,6 +29,7 @@ import json
 import logging
 import os
 from collections.abc import Sequence
+from typing import Any, cast
 
 from core.foundation.store import Store, create_store
 from core.primitives.ranker import keyword_relevance
@@ -78,7 +79,9 @@ class Embedder:
             # block on a hub round-trip. (A user who wants a fresh download can unset these.)
             os.environ.setdefault("HF_HUB_OFFLINE", "1")
             os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
-            from sentence_transformers import SentenceTransformer
+            from sentence_transformers import (  # pyright: ignore[reportMissingImports]  # optional dependency, not in the lock
+                SentenceTransformer,
+            )
 
             self._model = SentenceTransformer(self.model_name, device="cpu")
             self._available = True
@@ -120,7 +123,7 @@ class Embedder:
         return out
 
     def _encode(self, texts: list[str]) -> list[list[float]]:
-        arr = self._model.encode(texts, normalize_embeddings=True)
+        arr = cast("Any", self._model).encode(texts, normalize_embeddings=True)  # only after `available` loaded it
         return [[float(x) for x in row] for row in arr]
 
     # ------------------------------------------------------------------ use

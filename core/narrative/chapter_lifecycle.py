@@ -145,7 +145,7 @@ def rebuild_track_chapter_list(store, track_id: str, current_ids: list[str]) -> 
             merged.append(cid)
 
     merged.sort(
-        key=lambda cid: load_chapter_from_store(store, cid).span_start or "",
+        key=lambda cid: load_chapter_from_store(store, cid).span_start or "",  # pyright: ignore[reportOptionalMemberAccess]  # LATENT: re-read; a chapter removed since the filter above raises
         reverse=True,
     )
     track.chapters = merged
