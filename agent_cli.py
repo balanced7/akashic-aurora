@@ -8629,9 +8629,11 @@ def cmd_locks(args):
         why = f"  why: {lk.get('note')}" if lk.get("note") else ""
         age = ""
         try:
+            import time
+
             from core.foundation.timeutil import to_epoch
 
-            secs = max(0, int(time.time() - to_epoch(lk.get("ts"))))  # noqa: F821  # LATENT ADV-033: `time` is undefined here; fixed with a regression test in G4.P2
+            secs = max(0, int(time.time() - to_epoch(lk.get("ts"))))
             ttl = int(lk.get("ttl") or 0)
             age = f"  [{secs}s old, ttl {ttl}s]"
         except Exception:
