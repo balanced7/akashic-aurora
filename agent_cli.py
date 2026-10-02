@@ -4125,7 +4125,13 @@ def cmd_sift(args):
         "hats": hats,
         "planes": list(planes),
         "packs": {
-            t: {"sha": p.sha, "n": len(p.occurrences), "truncated": p.truncated, "blind": p.blind}
+            t: {
+                "sha": p.sha,
+                # a junction pack counts junctions and is never capped (as the tier-0 lines show)
+                "n": len(p.junctions) if isinstance(p, S.JunctionPack) else len(p.occurrences),
+                "truncated": False if isinstance(p, S.JunctionPack) else p.truncated,
+                "blind": p.blind,
+            }
             for t, p in packs.items()
         },
         "tier1": analyses,
