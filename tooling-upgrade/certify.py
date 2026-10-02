@@ -625,9 +625,15 @@ def drill_tree() -> Generator[Path, None, None]:
     base = Path(tempfile.mkdtemp(prefix="aurora-drill-"))
     t = base / "aurora-drill"
     git("worktree", "add", "--detach", str(t), "HEAD")
+    # basedpyright reads `venv = ".venv"` relative to the tree (G4.P1); UV_PROJECT_ENVIRONMENT
+    # only reaches uv, so give the drill tree the project venv (.venv is git-ignored).
+    with contextlib.suppress(OSError):
+        (t / ".venv").symlink_to(ROOT / ".venv", target_is_directory=True)
     try:
         yield t
     finally:
+        if (t / ".venv").is_symlink():  # unlink the link itself first: never walk into the real venv
+            (t / ".venv").unlink()
         _rmtree(base)
         git("worktree", "prune", check=False)
 
