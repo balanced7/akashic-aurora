@@ -33,6 +33,7 @@ import json
 import os
 import re
 import sys
+import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
@@ -2068,7 +2069,7 @@ def _continuity_drift(notes=None) -> str:
         from datetime import datetime as _dt
 
         if notes is None:
-            from core.learning.agent_memory import get_agent_memory
+            from core.learning.agent_memory import get_agent_memory  # noqa: PLC0415, RUF100  # lazy, as elsewhere
 
             notes = get_agent_memory().get_decisions(days=90)
         stale = []
@@ -2582,7 +2583,7 @@ def cmd_wish_curate(args):
     path.write_text(new_doc, encoding="utf-8")
     print(msg)
     with contextlib.suppress(Exception):
-        from core.events.event_log import capture_event
+        from core.events.event_log import capture_event  # noqa: PLC0415, RUF100  # lazy: as every agent_cli verb
 
         capture_event(
             "wish",
@@ -2651,7 +2652,7 @@ def cmd_wish(args):
     path.write_text(text, encoding="utf-8")
     print(f"[wish] filed W{n:02d} ({args.agent_id}) -> {path.name} -- cite W{n:02d} at the next gate curation")
     with contextlib.suppress(Exception):
-        from core.events.event_log import capture_event
+        from core.events.event_log import capture_event  # noqa: PLC0415, RUF100  # lazy: as every agent_cli verb
 
         capture_event(
             "wish",
@@ -8639,8 +8640,6 @@ def cmd_locks(args):
         why = f"  why: {lk.get('note')}" if lk.get("note") else ""
         age = ""
         try:
-            import time
-
             from core.foundation.timeutil import to_epoch
 
             secs = max(0, int(time.time() - to_epoch(lk.get("ts"))))
