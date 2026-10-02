@@ -1,15 +1,15 @@
-# Story — generated 2026-08-01T14:26:21.957246+00:00
+# Story — generated 2026-10-02T01:08:15.761170+00:00
 
 Version: 0
 
 ## Atlas
-- **ai-setup**: 200 chapter(s)
-- **research**: 31 chapter(s)
-- **unknown**: 2 chapter(s)
-- **vision**: 2 chapter(s)
+- **ai-setup**: 390 chapter(s)
+- **research**: 43 chapter(s)
+- **unknown**: 13 chapter(s)
+- **vision**: 9 chapter(s)
 - **voice**: 3 chapter(s)
 
-Summary: ai-setup: 200 chapter(s); research: 31 chapter(s); unknown: 2 chapter(s); vision: 2 chapter(s); voice: 3 chapter(s)
+Summary: ai-setup: 390 chapter(s); research: 43 chapter(s); unknown: 13 chapter(s); vision: 9 chapter(s); voice: 3 chapter(s)
 
 ## Update bootstrap.md with project context initialization step (ai-setup)
 Span: 2026-04-15T01:21:48-04:00 → 2026-04-15T02:12:35-04:00
@@ -118,7 +118,7 @@ Beats: 73  · Critic: True
 - AI Mode requires headed+stealth (default for ai_mode). Headless still gets gated. Use --probe to diagnose.  (source: learn:experiment:gemini_ai_mode_stealth)
 - Default runner to --provider auto (web-first). User runs bifrost_runner_web.bat to keep Gemini live on the bus without API keys.  (source: learn:experiment:gemini_web_short_response_fix)
 - A slice isn't done until it's mirrored (scripts/mirror.py commit+push) AND the decision is a lesson (+ snapshot_knowledge for data). Do NOT rely on docs/memory to...  [relates: member_of]  (source: learn:experiment:bifrost_pull_session_hygiene)
-- Bifrost runner + Agent Card: Gemini is now a bus citizen (scripts/bifrost_runner.py, api/runner card) -- answered a real question on the bus; presence carries Agent...  (source: git:8f723d45d9c6)
+- Bifrost runner + Agent Card: Gemini is now a bus citizen (scripts/bifrost_runner.py, api/runner card) -- answered a real question on the bus; presence carries Agent...  (source: git:303dc25dab5e)
 - A 'runner' loop (wait->bridge->reply) turns ANY stateless API into a first-class bus citizen with presence + inbox + replies, no MCP. wait(advance=True) for a consumer...  [relates: member_of]  (source: learn:experiment:bifrost_runner_and_card)
 - Bifrost B2: durable promoter (salient bus msgs -> firehose as bifrost_msg, queryable + Redis-restart-survivable) + pytest pollution guard; 5 tests, suite 329  (source: git:6394bd4d49f1)
 - An auto side-effect inside a transport/primitive (writing to a canonical store) WILL pollute canonical during tests -- guard it (pytest env or an explicit flag) and...  [relates: member_of]  (source: learn:experiment:bifrost_b2_promoter)
@@ -164,7 +164,7 @@ Beats: 73  · Critic: True
 - Tag stores should be CRDTs (MV-register + survivorship resolver) for self-cleanup without data loss. Sources: Shapiro CRDTs, MDM survivorship/golden-record...  [relates: member_of]  (source: learn:experiment:tag_governance_g1_crdt)
 - Tag Governance G0: tag-history + confidence schema (TagEntry/TagHistory, basis->confidence, append-only + rollback) + Beat.tag_history + worst-case tests  [relates: member_of]  (source: git:f2cd9cf3fe32)
 - claude -> claude: Resume Akashic Aurora: Codex parked at C4 (faithfulness critic) + Bifrost agent-comms (Cursor building its pull-side). Pick a track; keep tokens low...  (source: event:events:raw:1782683527939-0)
-- AGENTS.md: Session-hygiene doctrine (pull-side token reduction) -- commit+mirror the contract Cursor left uncommitted; lesson bifrost_pull_session_hygiene logged  [relates: member_of]  (source: git:ef9544927ebf)
+- AGENTS.md: Session-hygiene doctrine (pull-side token reduction) -- commit+mirror the contract Cursor left uncommitted; lesson bifrost_pull_session_hygiene logged  [relates: member_of]  (source: git:e0b8d236adb2)
 - Bifrost Console: live chat TUI onto the bus (scripts/bifrost_console.py) -- watch agents talk + interject, no OS toasts/sounds; prompt_toolkit+rich, color-coded...  [relates: member_of]  (source: git:14f3feaaa374)
 - Bifrost plan: agent comm/handoff layer -- review of 4 fragmented layers + A2A-model SOTA synthesis + Gemini pre-review (F1-F4: bus!=ledger, media-by-ref safety, simple...  (source: git:d8dce4332028)
 - Akashic Aurora naming consistency: Redis Sentinel master breakthrough->akasha (3 confs + client, lockstep; no live sentinel), docker-compose/net/launchers/templates...  (source: git:78b10355d4de)
@@ -270,7 +270,7 @@ Beats: 23  · Critic: True
 
 - next-focus: TOMORROW: run the epistemic-risk ULTRACODE workflow -- 'how do recall-at-action + the usefulness feedback loop + write-once notes + ambient capture DEGRADE...  [relates: member_of]  (source: mem:decision:ADR_0630001922_5755)
 - never put trailing comments on .gitignore pattern lines; only lines STARTING with # are comments -- put the comment on its own line above the pattern  (source: learn:experiment:gitignore_no_inline_comments)
-- fix: .gitignore inline comment broke draft-ignore; track memory.md digest  [relates: member_of]  (source: git:09d223a2f3ed)
+- fix: .gitignore inline comment broke draft-ignore; track memory.md digest  [relates: member_of]  (source: git:da87164d76a2)
 - ALWAYS add matcher '*' (or a specific value) to SessionStart/SessionEnd/PreCompact entries -- without it they may not register. Keep these hooks SILENT on stdout...  (source: learn:experiment:session_hooks_need_matcher)
 - Ambient capture = continuity INSURANCE for abrupt ends (esp. PreCompact = compaction, the main where-we-are-loss moment); redundant when you wrap manually. It DRAFTS to...  [relates: member_of]  (source: learn:experiment:wrap_autocapture_shipped)
 - Ship every slice with: py scripts/ship.py MSG paths --learn-exp NAME --tried .. --result .. --recommend .. -- it gates (boundaries+doc-freshness+full pytest) BEFORE...  [relates: member_of]  (source: learn:experiment:ship_and_wrap_shipped)
@@ -284,13 +284,13 @@ Beats: 23  · Critic: True
 - open-question: implicit-useful payload: PostToolUse _is_success assumes tool_response shape; verify against a live payload so the FAIL->SUCCESS signal actually fires.  (source: mem:decision:ADR_0629210203_6519)
 - where-we-are 2026-06-29: Recall-at-action COMPLETE; repo PUBLIC; write-once notes SHIPPED (note/notes/boot-surface/memory.md). Next: recall-learning loop or FC-01...  [relates: member_of]  (source: mem:decision:ADR_0629210203_1187)
 - where-we-are 2026-06-29: Recall-at-action COMPLETE; repo PUBLIC (Apache-2.0, CI green); contributor=balanced7.  [relates: member_of]  (source: mem:decision:ADR_0629210202_2063)
-- CRITICAL: the rewrite CHANGED EVERY COMMIT SHA. Any SHA recorded in lessons/memory/docs BEFORE this (e.g. FAITH-1 d9e611c, SPINE-1 2dd8d55, recall-at 3fca65d, deploy...  [relates: member_of]  (source: learn:experiment:git_history_rewritten_balanced7)
+- CRITICAL: the rewrite CHANGED EVERY COMMIT SHA. Any SHA recorded in lessons/memory/docs BEFORE this (e.g. FAITH-1 6b81e9f, SPINE-1 aaa01cc, recall-at 31a1b67, deploy...  [relates: member_of]  (source: learn:experiment:git_history_rewritten_balanced7)
 - Don't reintroduce per-agent file/task ownership in docs/memory/handoffs. Coordinate concurrent edits with locks (transient), attribute with AKASHIC_AGENT_ID, but never...  [relates: member_of]  (source: learn:experiment:collaboration_model_no_ownership)
 - Taking over a peer agent's stranded slice: review (parses? stubs? referenced files exist?), confirm tests pass, confirm CI-safety (heavy deps lazy + in a separate...  [relates: member_of]  (source: learn:experiment:cursor_slice_taken_over)
 - claude -> cursor: Your gemini-web slice is COMMITTED + MCP parity DONE — verify live + set your agent id  (source: handoff:claude->cursor)
-- hooks: add required matcher to SessionStart/SessionEnd/PreCompact (verified via docs)  (source: git:760f34ed6a8b)
-- wrap auto-capture: PreCompact/SessionEnd -> draft file + boot pointer  (source: git:76ab5cbe4c8c)
-- ship + wrap: one-command gated ship + ambient session capture  (source: git:525e75458a56)
+- hooks: add required matcher to SessionStart/SessionEnd/PreCompact (verified via docs)  (source: git:7c9df00a1ab0)
+- wrap auto-capture: PreCompact/SessionEnd -> draft file + boot pointer  (source: git:3bde06f1aed4)
+- ship + wrap: one-command gated ship + ambient session capture  (source: git:28c3afdaf0ec)
 
 ## retrieval-critic-design: Design research for an automatic retrieval critic = ... (ai-setup)
 Span: 2026-06-30T12:58:21.865926 → 2026-06-30T13:30:36.287830
@@ -306,7 +306,7 @@ Beats: 5  · Critic: True
 Span: 2026-06-30T23:33:38.652259 → 2026-06-30T23:34:18.331526
 Beats: 3  · Critic: True
 
-- session 2026-06-30: F1 provenance-labelled recall (opinion-laundering fix) + directive-friction-audit & retrieval-critic design docs; ranking slice paused  [relates: member_of]  (source: git:ff3a9fcb4578)
+- session 2026-06-30: F1 provenance-labelled recall (opinion-laundering fix) + directive-friction-audit & retrieval-critic design docs; ranking slice paused  [relates: member_of]  (source: git:b7ac45b67168)
 - next-focus: Full current state + resume options = note where-we-are (refreshed 2026-06-30, before a Claude update). SHORT: Factor 1 opinion-laundering SHIPPED...  (source: mem:decision:ADR_0630193400_4519)
 - where-we-are: SESSION 2026-06-30 (paused for a Claude update). ARC: deep MANUAL max-effort epistemic-risk pass (NOT ultracode -- it missed the salient self-suggestion...  (source: mem:decision:ADR_0630193338_5557)
 
@@ -318,7 +318,7 @@ Beats: 5  · Critic: True
 - adversarial-critic-partner-idea: User idea (2026-07-01): design an adversarial partner/critic for Claude that TRAINS INDEPENDENTLY (not just prompted-in-context) and...  (source: mem:decision:ADR_0701010114_6136)
 - where-we-are: SESSION 2026-06-30/07-01. Reviewed + approved both design docs (directive-friction-audit, retrieval-critic-design) -- no changes requested, both ready to...  [relates: member_of]  (source: mem:decision:ADR_0701001207_4003)
 - next: the friction-audit roadmap's remaining quick-wins (auto-boot at SessionStart, turn-start bus-sync hook, identity fail-closed) or the retrieval-critic Tier 1...  [relates: member_of]  (source: learn:experiment:ranking_feedback_inc1_pull)
-- ranking & feedback INC1: pull-side escape (recall --full, recall_at total, render N-of-M line)  [relates: member_of]  (source: git:f8b1e8842b55)
+- ranking & feedback INC1: pull-side escape (recall --full, recall_at total, render N-of-M line)  [relates: member_of]  (source: git:19f0b918b0ce)
 
 ## next-focus: NEXT = Slice 2 of the recall-critic arc = write-side dissent capt... (ai-setup)
 Span: 2026-07-01T23:20:43.667129 → 2026-07-01T23:23:15.842580
@@ -328,7 +328,7 @@ Beats: 5  · Critic: True
 - where-we-are: RECALL-CRITIC ARC (2026-07-01). Goal: stop recall being a confirmation-bias engine. Plan = docs/recall-critic-decision.md (Path 2 dialectical retrieval...  [relates: member_of]  (source: mem:decision:ADR_0701192312_2889)
 - Build the yardstick + a real-corpus probe before the mechanism; trust the curated fixture and treat any detector-relative corpus metric as suspect until a precise...  [relates: member_of]  (source: learn:experiment:eval_harness_before_fix)
 - Precision-first + silent-when-starved is correct: the binding constraint is corpus content, not the reader. Next lever = Slice 2 (write-side capture of anti_patterns /...  [relates: member_of]  (source: learn:experiment:recall_dissent_slice01)
-- Recall dissent (Slices 0-1): eval harness + precision-first counter-finder  [relates: member_of]  (source: git:88402b3141f3)
+- Recall dissent (Slices 0-1): eval harness + precision-first counter-finder  [relates: member_of]  (source: git:bbb93b38bb1b)
 
 ## note: next-focus (ai-setup)
 Span: 2026-07-01T23:23:15.981254 → 2026-07-01T23:45:15.698417
@@ -338,7 +338,7 @@ Beats: 5  · Critic: True
 - where-we-are: RECALL-CRITIC ARC (2026-07-01). Goal: stop recall being a confirmation-bias engine. Plan = docs/recall-critic-decision.md. SHIPPED + pushed, all gated...  [relates: member_of]  (source: mem:decision:ADR_0701194515_9161)
 - when adding a capability to a lower layer, expose it on the SAME door agents already use, in the same slice, or it stays dead; treat door-exposure as part of done  (source: learn:experiment:capability_without_a_door)
 - A write door must OFFER a field or it stays empty (0 anti-patterns came from a missing flag, not agent laziness). Auto-draft the NAME to remove the naming cost and hand...  (source: learn:experiment:recall_dissent_slice2_capture)
-- Recall dissent (Slice 2): write-side capture -- expose, tag, auto-draft anti-patterns  [relates: member_of]  (source: git:a3986fe01e8b)
+- Recall dissent (Slice 2): write-side capture -- expose, tag, auto-draft anti-patterns  [relates: member_of]  (source: git:f799c8946194)
 
 ## note: where-we-are (ai-setup)
 Span: 2026-07-01T23:45:15.812912 → 2026-07-01T23:45:21.995557
@@ -354,7 +354,7 @@ Beats: 4  · Critic: True
 - note: next-focus  (source: event:events:raw:1782949522122-0)
 - where-we-are: RECALL-CRITIC ARC (2026-07-01). Goal: stop recall being a confirmation-bias engine. Plan = docs/recall-critic-decision.md. SHIPPED + pushed (gated green)...  [relates: member_of]  (source: mem:decision:ADR_0701201344_4961)
 - An on-topic anti-pattern != a contradiction of a thesis; topic-adjacency conflates with stance. Precision-first: surface nothing you cannot verify. NEXT...  (source: learn:experiment:recall_dissent_slice3_precision)
-- Recall dissent (Slice 3): precision fix -- an on-topic anti-pattern is not a contradiction  [relates: member_of]  (source: git:8170bc03d627)
+- Recall dissent (Slice 3): precision fix -- an on-topic anti-pattern is not a contradiction  [relates: member_of]  (source: git:380b4dc3a399)
 
 ## note: where-we-are (ai-setup)
 Span: 2026-07-02T00:13:44.995427 → 2026-07-02T00:13:50.925220
@@ -389,7 +389,7 @@ Beats: 4  · Critic: True
 - note: leapfrog-plan  (source: event:events:raw:1782958203028-0)
 - open-question: implicit-useful payload: RESOLVED 2026-07-01 (T1 shipped, gated green). Live capture proved the old assumption unfixable rather than mistuned: Claude Code...  (source: mem:decision:ADR_0701223906_5443)
 - Never trust an assumed hook payload shape: auto-capture real payloads (bounded, tempdir/akashic_recall/payloads), pin them as fixtures in a contract test...  [relates: member_of]  (source: learn:experiment:recall_implicit_credit_payload_truth)
-- T1: make the implicit FAIL->SUCCESS credit real: transcript-synthesized failures + live payload contract  [relates: member_of]  (source: git:8b4ebb4eb9c4)
+- T1: make the implicit FAIL->SUCCESS credit real: transcript-synthesized failures + live payload contract  [relates: member_of]  (source: git:0d77da61ecbc)
 
 ## note: open-question: implicit-useful payload (ai-setup)
 Span: 2026-07-02T02:39:06.538266 → 2026-07-02T02:39:06.877696
@@ -416,9 +416,9 @@ Beats: 12  · Critic: True
 - T2: JIT learn nudge at the flip instant + wrap-time candidate lessons (friction audit D5)  [relates: member_of]  (source: git:1295b8f8c23c)
 - where-we-are: T1 SHIPPED (implicit FAIL->SUCCESS credit real + proven live, first helped credit in system history) AND presentation pass SHIPPED (2026-07-01): tracked...  (source: mem:decision:ADR_0701225643_5172)
 - For a public showcase repo, audit git ls-files (what visitors SEE), not ls (what's local); archive-don't-delete via git mv keeps the append-only ethos; put a REAL...  (source: learn:experiment:repo_presentation_cleanup)
-- README: About section in the author's own voice  (source: git:9f05e8178f40)
-- README: honest About section -- solo passion project, learning in public, author link  [relates: member_of]  (source: git:130e789c38e3)
-- presentation: clean tracked root to 26 entries, archive legacy subprojects, rewrite README around the proven loop  [relates: member_of]  (source: git:7fa30ab2abd4)
+- README: About section in the author's own voice  (source: git:effcb366afcf)
+- README: honest About section -- solo passion project, learning in public, author link  [relates: member_of]  (source: git:490a13b82334)
+- presentation: clean tracked root to 26 entries, archive legacy subprojects, rewrite README around the proven loop  [relates: member_of]  (source: git:4b24caac766c)
 - Session ended  (source: session:end)
 - Session started  (source: session:start)
 
@@ -2705,7 +2705,7 @@ Full counter document responding to claude's advisory...  (source: mem:decision:
 - claude -> kimi: T101 advisory-counter round: attack the advisory scan + rank deltas + gamification-sans-Goodhart + corporate tenancy audit (fresh-eyes lens); file...  (source: handoff:claude->kimi)
 - claude -> deepseek: T101 advisory-counter round: counter/rank the 6 scan deltas + gamified visuals + corporate-scale axis (builder lens); file counters doc + bus reply  (source: handoff:claude->deepseek)
 - where-we-are: T101 artifact-substrate (md-sprawl elimination) is THE priority directive, approved+claimed. Round state at power-cut 2026-07-23 ~11:53 local: both blind...  (source: mem:decision:ADR_0723191808_2d25c8b1)
-- session wrap: fresh-fable handoff minted as chronicle atom (dogfoods the substrate this session built) + where-we-are refreshed with the full session state +...  [relates: member_of]  (source: git:44037a2e6c23)
+- session wrap: fresh-fable handoff minted as chronicle atom (dogfoods the substrate this session built) + where-we-are refreshed with the full session state +...  [relates: member_of]  (source: git:78091469472c)
 - T104 sweep CORRECTION + fix: prior commit message claimed arc_thread 'test green' prematurely (mirror chained after pytest without gating - conductor error, self-filed...  [relates: member_of]  (source: git:edfe184cadbb)
 - T104 sweep fix: arc_thread reads BOTH header dialects (prose contract + projection YAML frontmatter) - the arc walker was blind to every migrated atom post-P3; test green  [relates: member_of]  (source: git:96d677ba955a)
 - T104 sweep batch 2: t039a repointed to the real projection (month-date artifact noted), mirror guardrail pins updated to the live W35/B5 bucketed contract (renderer is...  [relates: member_of]  (source: git:645d193fdeae)
@@ -2734,8 +2734,8 @@ Span: 2026-07-24T03:47:32.227763 → 2026-07-24T12:39:17.366081
 Beats: 26  · Critic: True
 
 - Episode closed: Use when fencing any lint/guard with a token set AND an exemption set: intersect the two sets first (a s  (source: episode:close:ch_1784795831_7372)
-- T104-M3 stage B: root Python packages context/ and infrastructure/ moved under core/ (owner-facet: organs live in core) -- 10 importer files repointed + intra-package...  (source: git:e470f11536c8)
-- ATOM v1.1 CORE SHIPPED (Daniel's build gate, order delegated): schema_version fail-closed readers (absent->1, newer refuses loud) + body_type/body_type_source born at...  [relates: member_of]  (source: git:7a084e4162be)
+- T104-M3 stage B: root Python packages context/ and infrastructure/ moved under core/ (owner-facet: organs live in core) -- 10 importer files repointed + intra-package...  (source: git:167c2faab8a1)
+- ATOM v1.1 CORE SHIPPED (Daniel's build gate, order delegated): schema_version fail-closed readers (absent->1, newer refuses loud) + body_type/body_type_source born at...  [relates: member_of]  (source: git:a692a31d75a2)
 - where-we-are: MORNING 2026-07-24 ~05:30, Daniel AWAKE and gated: 'I leave the order up to you lets keep building!' (order: atoms v1.1 core -> T105 map -> T106...  (source: mem:decision:ADR_0724075250_4dd0049c)
 - deepseek-sota-agentic-quality-research-round-2026-07-24: # SOTA AGENTIC-QUALITY RESEARCH ROUND — deepseek half (BUILDER/RUNNER lens)
 ## Daniel overnight directive...  (source: mem:decision:ADR_0724050221_c614226f)
@@ -2746,22 +2746,22 @@ Beats: 26  · Critic: True
 - seat-model agents may batch akashic MCP calls freely (reads concurrent, writes serialize server-side); retire solo-call caution from boots and memories; the remaining...  (source: learn:experiment:o1_p7_harness_batch_drill)
 - where-we-are: SESSION WRAP 2026-07-23/24 (md-sprawl elimination night). FULL HANDOFF atom: art_20260723_session-handoff-md-sprawl-elimination-ni_a3b787 ...[truncated]  (source: mem:decision:ADR_0724001741_694327f2)
 - any test of an organ with a default-tempdir sidecar MUST monkeypatch gettempdir into tmp_path (match the file's own convention); when a test passes solo but fails on...  [relates: member_of]  (source: learn:experiment:tempdir_sidecar_test_selfpoison)
-- T104 validation sweep CLOSED at baseline-or-better: 9 tests fixed (w_r2 fence x4 repointed to the checker's post-move home; t058 CLARIFY_MAX_PER_TASK restored to the...  [relates: member_of]  (source: git:6a0162c48684)
+- T104 validation sweep CLOSED at baseline-or-better: 9 tests fixed (w_r2 fence x4 repointed to the checker's post-move home; t058 CLARIFY_MAX_PER_TASK restored to the...  [relates: member_of]  (source: git:bb0beac650d5)
 - kimi-atom-design-opening-2026-07-23: Status: current · Type: design (atom-design opening position, INDEPENDENT) · Arc: atom-design · From: kimi (AUDIT + fresh-eyes...  (source: mem:decision:ADR_0724000024_a7e00d70)
 - deepseek-atom-design-opening-2026-07-23: # ATOM DESIGN OPENING — deepseek (builder, gen_library + importer seat) — 2026-07-23
 
 Response to atom...  (source: mem:decision:ADR_0723235946_caccc252)
-- T104-M3 stage A (Daniel's gate fired: 'Lets do M2 + M3... finally close out our chaotic folder structures'): root _archive (13 fossils + legacy/prehistory/python_old) ->...  [relates: member_of]  (source: git:916817ab1884)
-- W60 filed (Daniel's reflexive-habit question): the runner write_file door must refuse/warn on docs/library + loose docs .md writes and teach doc new -- the lookalike...  (source: git:121539ea071a)
-- W57-W59 filed from Daniel's 08:05 console screenshot (his words verbatim): who-is-doing-what illegibility (= the NOW-card charter + T002/T079 evidence), aurora painting...  (source: git:2a41976bb3c9)
-- atom-evolution round OPEN (Daniel's morning question verbatim in the brief): brief atom + claude's independent position filed through the door; both seats dispatched...  [relates: member_of]  (source: git:f28ef1ad7fd0)
-- ATOM-DESIGN ROUND CONVERGED: kimi r2 persisted verbatim (art_..b00287) + the reconciled v1.1 design minted GATED for Daniel's morning gate (art_..fd2275, cites the full...  [relates: member_of]  (source: git:9bc97441f866)
-- T106 build specs drafted as design atom (O1.5 + A1, pre-registered pin lists, fence pending behind seats' T105 halves) + bifrost_wake seam documented in place...  [relates: member_of]  (source: git:2796869c3454)
-- T105 claude half filed as report atom (web-grounded, 5 sweeps): the field named what we practice (behavioral anchoring = stance blocks; structured briefs = conductor...  [relates: member_of]  (source: git:5eec8b6f98aa)
-- overnight program registered: T105 SOTA research round (brief atom minted, both seats dispatched w/ differentiated lenses + tools-wishlist ask) + T106 MCP O1.5+A1 build...  [relates: member_of]  (source: git:5ab7d7535c17)
-- bus-side library lint SHIPPED (Daniel: 'I like it, build it'): scripts/checkers/check_bus_atom_pointers.py photographs design-shaped bus bodies carrying no durable...  [relates: member_of]  (source: git:90aac8dce58b)
-- atom-design round-2 counters minted as design atom art_20260724_atom-design-round2-reconciliation-counte_9ebbcf (cites the brief atom) -- repairs the round's record...  [relates: member_of]  (source: git:ca73a7956c57)
-- sweep closing report minted as report atom art_20260724_t104-validation-sweep-closing-report_1cd2c2 (arc T104): 9 fixed w/ root causes, 13 remaining fully classified...  [relates: member_of]  (source: git:47a92dc52819)
+- T104-M3 stage A (Daniel's gate fired: 'Lets do M2 + M3... finally close out our chaotic folder structures'): root _archive (13 fossils + legacy/prehistory/python_old) ->...  [relates: member_of]  (source: git:308b94c23d6e)
+- W60 filed (Daniel's reflexive-habit question): the runner write_file door must refuse/warn on docs/library + loose docs .md writes and teach doc new -- the lookalike...  (source: git:99005a9b5805)
+- W57-W59 filed from Daniel's 08:05 console screenshot (his words verbatim): who-is-doing-what illegibility (= the NOW-card charter + T002/T079 evidence), aurora painting...  (source: git:02c54663c258)
+- atom-evolution round OPEN (Daniel's morning question verbatim in the brief): brief atom + claude's independent position filed through the door; both seats dispatched...  [relates: member_of]  (source: git:ecbe11d44356)
+- ATOM-DESIGN ROUND CONVERGED: kimi r2 persisted verbatim (art_..b00287) + the reconciled v1.1 design minted GATED for Daniel's morning gate (art_..fd2275, cites the full...  [relates: member_of]  (source: git:3885cbbfb186)
+- T106 build specs drafted as design atom (O1.5 + A1, pre-registered pin lists, fence pending behind seats' T105 halves) + bifrost_wake seam documented in place...  [relates: member_of]  (source: git:10fecbf293c5)
+- T105 claude half filed as report atom (web-grounded, 5 sweeps): the field named what we practice (behavioral anchoring = stance blocks; structured briefs = conductor...  [relates: member_of]  (source: git:9bdcace95816)
+- overnight program registered: T105 SOTA research round (brief atom minted, both seats dispatched w/ differentiated lenses + tools-wishlist ask) + T106 MCP O1.5+A1 build...  [relates: member_of]  (source: git:1033c0d2c219)
+- bus-side library lint SHIPPED (Daniel: 'I like it, build it'): scripts/checkers/check_bus_atom_pointers.py photographs design-shaped bus bodies carrying no durable...  [relates: member_of]  (source: git:d70e32f21463)
+- atom-design round-2 counters minted as design atom art_20260724_atom-design-round2-reconciliation-counte_9ebbcf (cites the brief atom) -- repairs the round's record...  [relates: member_of]  (source: git:0f0aa5aecffd)
+- sweep closing report minted as report atom art_20260724_t104-validation-sweep-closing-report_1cd2c2 (arc T104): 9 fixed w/ root causes, 13 remaining fully classified...  [relates: member_of]  (source: git:4d7285b715d8)
 
 ## Episode closed: T104-M3 stage B: root Python packages context/ and infrastruc... (ai-setup)
 Span: 2026-07-24T12:40:33.751403 → 2026-07-24T13:21:43.712337
@@ -2771,8 +2771,8 @@ Beats: 6  · Critic: True
 - before ANY fire-class move: sweep all four classes (literal, join-form, extensionless-by-listing, git config + .git/hooks + live-session caches); execute as COPY then...  (source: learn:experiment:fire_class_move_hidden_referrers)
 - codex_rescue -> claude: Finish T104 M2 hook migration after emergency recovery  [relates: member_of]  (source: handoff:codex_rescue->claude)
 - Use when moving globally registered hook entrypoints, before git mv: copy to the new location, update bootstrap root calculations, dogfood from every supported launch...  [relates: member_of]  (source: learn:experiment:hook_move_copy_repoint_remove_bootstrap_depth)
-- T104 M2/M3 tail: six join-form test referrers repointed (the assembled-path class in tests -- birth_guard loader, k0 sys.path, stop-hook paths x4) + unwedge runbook...  [relates: member_of]  (source: git:2f8b306fd223)
-- T104-M2 EXECUTED (fire-verified the hard way): hooks split by owner-facet -- 12 harness adapters -> agent/harness/hooks/, 4 commit guards -> scripts/githooks/ (which...  [relates: member_of]  (source: git:f6cac9eedf5e)
+- T104 M2/M3 tail: six join-form test referrers repointed (the assembled-path class in tests -- birth_guard loader, k0 sys.path, stop-hook paths x4) + unwedge runbook...  [relates: member_of]  (source: git:e06cc361c0a7)
+- T104-M2 EXECUTED (fire-verified the hard way): hooks split by owner-facet -- 12 harness adapters -> agent/harness/hooks/, 4 commit guards -> scripts/githooks/ (which...  [relates: member_of]  (source: git:32571c3a2b95)
 
 ## Episode closed: Use when moving globally registered hook entrypoints, before ... (ai-setup)
 Span: 2026-07-24T13:22:02.604081 → 2026-07-24T13:28:08.870817
@@ -2780,8 +2780,8 @@ Beats: 4  · Critic: True
 
 - Episode closed: Use when moving globally registered hook entrypoints, before git mv: copy to the new location, update bo  [relates: member_of]  (source: episode:close:ch_1784896842_2537)
 - where-we-are: MIDDAY 2026-07-24 ~09:45. T104 M2+M3 CLOSED (report atom t104-m2-m3-closing-report; root's tracked face DONE ...[truncated]  (source: mem:decision:ADR_0724092806_f4cce42b)
-- T104 CLOSED: depth-fixed all 12 moved harness hooks (class-6 third strike; stop hook fired live rc0 from new home, stop family 23/23) + closing report atom +...  [relates: member_of]  (source: git:fd9974ddb609)
-- T105 RECONCILED: the agentic-quality improvement map minted (cites all three halves + brief). Headline: deepseek's verify_my_answer and kimi's ship-gate belief-vs-state...  [relates: member_of]  (source: git:7f2bf6cca3f3)
+- T104 CLOSED: depth-fixed all 12 moved harness hooks (class-6 third strike; stop hook fired live rc0 from new home, stop family 23/23) + closing report atom +...  [relates: member_of]  (source: git:6b27f01dffbb)
+- T105 RECONCILED: the agentic-quality improvement map minted (cites all three halves + brief). Headline: deepseek's verify_my_answer and kimi's ship-gate belief-vs-state...  [relates: member_of]  (source: git:3ef2332a0e6f)
 
 ## Episode closed: where-we-are: MIDDAY 2026-07-24 ~09:45. T104 M2+M3 CLOSED (re... (ai-setup)
 Span: 2026-07-24T16:45:25.504082 → 2026-07-24T21:18:23.008955
@@ -2794,8 +2794,8 @@ Beats: 7  · Critic: True
 **Delivered 2026-07-24 ~14:25 UTC. Filed as design atom...  (source: mem:decision:ADR_0724132408_bfbc85f3)
 - conductor law: NEVER assert elapsed-time claims from narrative memory in long sessions -- read a wall timestamp from tool output first (the learn door's own log line is...  [relates: member_of]  (source: learn:experiment:c16_phantom_early_cycle_reproduced)
 - route to T086 (owns the class, in_progress) with this receipt; do NOT hand-patch the watcher (pinned organ, T073 families); the structural fix is T106-A1 bifrost_await...  [relates: member_of]  (source: learn:experiment:c16_phantom_early_cycle_reproduced)
-- SEAT DELIVERABLES RECOVERED + PERSISTED (the hidden afternoon): both T106 fence counters, deepseek migration verification + evolution position minted as atoms (kimi's...  [relates: member_of]  (source: git:2001c19815c2)
-- C4-3 filed (T083 as-it-occurs law): both seat workers died inside their turns at 08:02 same-minute (fence-ask processing or provider blip), daemons blind 5h...  (source: git:69cd04311080)
+- SEAT DELIVERABLES RECOVERED + PERSISTED (the hidden afternoon): both T106 fence counters, deepseek migration verification + evolution position minted as atoms (kimi's...  [relates: member_of]  (source: git:a0391b900574)
+- C4-3 filed (T083 as-it-occurs law): both seat workers died inside their turns at 08:02 same-minute (fence-ask processing or provider blip), daemons blind 5h...  (source: git:5b2f53f146f2)
 
 ## claude -> claude: FIRST JOBS in order: (1) session-scar sweep -- delete untra... (ai-setup)
 Span: 2026-07-25T01:18:39.598012 → 2026-07-25T01:51:53.284173
@@ -2803,8 +2803,8 @@ Beats: 4  · Critic: True
 
 - claude -> claude: FIRST JOBS in order: (1) session-scar sweep -- delete untracked scripts/hooks copies + commit the 2 tracked stragglers there once the OLD session is...  (source: handoff:claude->claude)
 - where-we-are: EVENING 2026-07-24 ~21:30. THE FULL DAY: atoms v1.1 SHIPPED + same-evening HARDENED (kimi's stranger-test found rebuild() ungated -- v2 lines could...  [relates: member_of]  (source: mem:decision:ADR_0724211904_cf412854)
-- KIMI'S STRANGER-TEST FIND FIXED SAME-EVENING: rebuild() gains the schema gate it lacked (v2 JSONL lines PARK loudly, v1 corpus restores in full, store can never be...  [relates: member_of]  (source: git:a702f576ac04)
-- SESSION WRAP: fresh-seat handoff minted as chronicle atom art_20260724_session-handoff-the-day-the-fleet-learne_a88b2c + boot-surfaced handoff filed (first jobs: scar...  [relates: member_of]  (source: git:920087ac51c6)
+- KIMI'S STRANGER-TEST FIND FIXED SAME-EVENING: rebuild() gains the schema gate it lacked (v2 JSONL lines PARK loudly, v1 corpus restores in full, store can never be...  [relates: member_of]  (source: git:ccf835e1f299)
+- SESSION WRAP: fresh-seat handoff minted as chronicle atom art_20260724_session-handoff-the-day-the-fleet-learne_a88b2c + boot-surfaced handoff filed (first jobs: scar...  [relates: member_of]  (source: git:b72709668472)
 
 ## Episode closed: route to T086 (owns the class, in_progress) with this receipt... (ai-setup)
 Span: 2026-07-25T09:45:03.491036 → 2026-07-25T09:45:03.491036
@@ -2835,7 +2835,7 @@ Beats: 48  · Critic: True
 - Use when adding a session state dir, before shipping: update prune_state in core/recall/at_action.py and every dir-swapping test  [relates: member_of]  (source: learn:experiment:new_one)
 - Use when adding a session state dir, before shipping: update prune_state in core/recall/at_action.py and every dir-swapping test  [relates: member_of]  (source: learn:experiment:new_one)
 - r  (source: learn:experiment:flow_exp_9aa4feb2)
-- slice2 commit 09f52150  (source: git:fc38a27d9b40)
+- slice2 commit 09f52150  (source: git:01d0271db459)
 - use it  (source: learn:experiment:slice2_learn_412ad81d)
 - Daniel's end state ("continuously improve") is CMMI Level 5 — Optimizing. Our current design is mostly Level 1-3 (Initial→Defined: we have organs and some charters). The...  (source: learn:experiment:research:web:cmmi_maturity_levels_optimizing)
 - Our store needs the RAGAS triple, not just firing-counts. The W54 gauge measures injection VOLUME (how often a family fires) — that is neither recall nor precision...  [relates: member_of]  (source: learn:experiment:research:web:rag_eval_ragas_recall_precision_faithfulness)
@@ -2868,7 +2868,7 @@ My...  (source: mem:decision:ADR_0725064942_ce2a9bc0)
 ### Claim 1: "Your asymmetry...  (source: mem:decision:ADR_0725064252_f7ff0365)
 - where-we-are: NIGHT 2026-07-25 ~06:45, claude conducting solo (Daniel asleep, "the floor is yours").
 
-SHIPPED (2 commits: 91eddde, 0554e28; NOT pushed -- push left as...  (source: mem:decision:ADR_0725062927_393f0c90)
+SHIPPED (2 commits: f4cc48c, 5f2cb0c; NOT pushed -- push left as...  (source: mem:decision:ADR_0725062927_393f0c90)
 - Use when executing a build slice and a tool call fails, before retrying: read the error out loud in your reply. State what you expected, what the tool returned, and...  (source: learn:experiment:builder_stance_file_the_failure_trace)
 - Use when executing a build slice and a tool call fails, before retrying: read the error out loud in your reply. State what you expected, what the tool returned, and...  (source: learn:experiment:builder_stance_file_the_failure_trace)
 - next-focus: ENGINE-FIRST-84e6e1: do RB-23 then Wave 3 before ANY UI. UI is paused.  (source: mem:decision:ADR_0725061629_2c24cbe0)
@@ -2890,7 +2890,7 @@ Beats: 51  · Critic: True
 - Use when a metering/telemetry organ ships green, before trusting any number it reports or any decision resting on its silence: unit tests of a meter prove the METER...  (source: learn:experiment:unit_green_meter_proves_the_meter_not_the_measurement)
 - next-focus: IMMEDIATE: CI TEST-SUITE TRIAGE. As of 2026-07-25 ~11:20 the five CI GATES are GREEN for the first time (boundaries, doc-freshness, comprehensibility, wiring...  [relates: member_of]  (source: mem:decision:ADR_0725111920_23c8ffca)
 - Use when a CI gate fails but passes locally, before forming any hypothesis about why: stop debugging from your working tree and reproduce CI's VIEW -- 'git clone...  (source: learn:experiment:verify_ci_gates_in_a_clean_clone_not_your_tree)
-- kimi-verify-filestore-durability-2026-07-25: ADVERSARIAL VERIFY — kimi, FileStore durability fix (HEAD 748deb3; 0deeb83 pins + 748deb3 fix, local unpushed). Lanes (c)...  (source: mem:decision:ADR_0725104627_69398ebe)
+- kimi-verify-filestore-durability-2026-07-25: ADVERSARIAL VERIFY — kimi, FileStore durability fix (HEAD 975f89c; 61533f4 pins + 975f89c fix, local unpushed). Lanes (c)...  (source: mem:decision:ADR_0725104627_69398ebe)
 - Use when printing arbitrary bus/model text from inline Python on Windows before relying on console output: keep JSON ASCII-escaped or explicitly configure UTF-8 stdout...  (source: learn:experiment:windows_python_stdout_cp1252_bus_json_2026_07_25)
 - codex-token-frugality-research-fleet-reconciliation-pending-claude-2026-07-25: TOKEN FRUGALITY RESEARCH — INTERIM DURABLE RECORD (2026-07-25)
 
@@ -2918,7 +2918,7 @@ WHAT CODEX DELIVERED (the A-stage design...  [relates: member_of]  (source: mem:
 >> READ ...[truncated]  (source: mem:decision:ADR_0725084710_72c00d2d)
 - next-focus: GROUND FIRST IS THE ORDER: read art_20260725_session-reflection-the-night-the-instrum_e222cd BEFORE forming any plan. It leads with the DISCONFIRMATIONS --...  (source: mem:decision:ADR_0725084645_ccf59297)
 - Use when wiring Bifrost push to Codex Desktop, before adding poll loops: spike a supported external turn-starter against the exact open desktop thread and prove UI...  (source: learn:experiment:codex_desktop_bifrost_turnstarter_boundary_2026_07_25)
-- kimi-verify-stage-separation-2026-07-25: ADVERSARIAL VERIFY — kimi, on commit 75bf0c0 (stage separation + prevention_rate, core/recall/at_action.py). exec was offered...  [relates: member_of]  (source: mem:decision:ADR_0725083619_861c56b3)
+- kimi-verify-stage-separation-2026-07-25: ADVERSARIAL VERIFY — kimi, on commit 979a6ef (stage separation + prevention_rate, core/recall/at_action.py). exec was offered...  [relates: member_of]  (source: mem:decision:ADR_0725083619_861c56b3)
 - debate-closed-final-resolution: THE DEBATE — CLOSED, 2026-07-25. Four seats (claude, deepseek, kimi, codex — the fourth added by Daniel mid-round), two rounds plus data...  (source: mem:decision:ADR_0725082335_b9d73504)
 - kimi-debate-round2-codex-response-2026-07-25: THE DEBATE, Round 2 — kimi, on codex's correction (lossless, full text read). Codex decomposes the funnel C/N =...  (source: mem:decision:ADR_0725082158_3e790283)
 - value-metric-is-malformed-at-both-ends: THE DEBATE'S DECISIVE RESULT (2026-07-25). Claude ran funnel.trend mid-debate and claimed the flat value_rate SETTLED the motion...  [relates: member_of]  (source: mem:decision:ADR_0725082129_d653d0e9)
@@ -2991,7 +2991,7 @@ Beats: 16  · Critic: True
 - Use when sending an adversarial-verify brief on a moving arc, before naming the commit: cite HEAD, not the SHA of the slice under review, or state the delta explicitly...  (source: learn:experiment:verify_brief_pinned_to_stale_sha)
 - where-we-are: MORNING 2026-07-25 ~09:45. Daniel approved the README push then went for a nap, leaving direction and methods to claude. EVERYTHING IS PUSHED...  (source: mem:decision:ADR_0725094339_245a51ac)
 - Use when a check reports 'all clear', before trusting it: distinguish NOTHING WAS WRONG from NOTHING WAS CHECKED, and print the denominator (how many things were...  (source: learn:experiment:honesty_line_caught_its_own_regression)
-- kimi-verify-pointer-promises-2026-07-25: ADVERSARIAL VERIFY — kimi, on the pointer-promise census (9797d10 pins, c28b2e9 code). Lanes (a) threshold, (c) cardinal...  (source: mem:decision:ADR_0725093824_948d8fa8)
+- kimi-verify-pointer-promises-2026-07-25: ADVERSARIAL VERIFY — kimi, on the pointer-promise census (e41012d pins, 4a64375 code). Lanes (a) threshold, (c) cardinal...  (source: mem:decision:ADR_0725093824_948d8fa8)
 - next-focus: DANIEL IS ASLEEP (from ~09:35, 2026-07-25). He said: 'push it and lets keep building! I am going for a nap so I leave the direction and methods up to you.'...  (source: mem:decision:ADR_0725093806_e84e380b)
 - where-we-are: MORNING 2026-07-25 ~09:40. Daniel woke ~08:50, drove the README redesign round, approved the push, and went for a nap leaving direction and methods to...  (source: mem:decision:ADR_0725093741_465ca152)
 - Use when designing any doc/reference integrity check, before choosing what to assert on: verifying that a claim is TRUE somewhere in the corpus is a different question...  (source: learn:experiment:guard_verifying_claim_globally_misses_the_pointer_defect)
@@ -3015,11 +3015,11 @@ Span: 2026-07-25T16:02:38.943175 → 2026-07-25T18:00:09.036535
 Beats: 7  · Critic: True
 
 - Episode closed: where-we-are: MORNING 2026-07-25 ~09:05. HANDOFF STATE for a fresh Opus 5 seat. Three facts changed AFTE  (source: episode:close:ch_1784995204_9974)
-- kimi-verify-wake-hotspin-2026-07-25: ADVERSARIAL VERIFY — kimi, wake-watcher hot-spin fix (HEAD c422183, pushed). Lanes (b) the foreseen-but-half-guarded trap, (d) the...  (source: mem:decision:ADR_0725140008_21604bd4)
+- kimi-verify-wake-hotspin-2026-07-25: ADVERSARIAL VERIFY — kimi, wake-watcher hot-spin fix (HEAD d03f380, pushed). Lanes (b) the foreseen-but-half-guarded trap, (d) the...  (source: mem:decision:ADR_0725140008_21604bd4)
 - Use when sending any prose body through a shell to a CLI (notes, handoffs, commit bodies, briefs), before quoting it: backticks and $ inside DOUBLE quotes are...  (source: learn:experiment:backticks_in_bash_args_silently_eat_note_text)
-- next-focus: T070 IS DONE (2026-07-25, commit 8232640). The standing hazard "the pytest suite DESTROYS the live learning index" is RETIRED -- do NOT re-raise it and do...  (source: mem:decision:ADR_0725125956_7d7b3026)
-- next-focus: T070 IS DONE (2026-07-25, commit 8232640). The standing hazard 'the pytest suite DESTROYS the live learning index' is RETIRED -- do NOT re-raise it and do...  (source: mem:decision:ADR_0725125906_f0ab8bc5)
-- SUPERSEDED -- you no longer need to run repair_learning_index.py --check after a suite run; isolation is universal as of 2026-07-25 (commit 8232640). Keep the repair...  [relates: member_of]  (source: learn:experiment:pytest_destroys_the_live_learning_index)
+- next-focus: T070 IS DONE (2026-07-25, commit 4d6a65f). The standing hazard "the pytest suite DESTROYS the live learning index" is RETIRED -- do NOT re-raise it and do...  (source: mem:decision:ADR_0725125956_7d7b3026)
+- next-focus: T070 IS DONE (2026-07-25, commit 4d6a65f). The standing hazard 'the pytest suite DESTROYS the live learning index' is RETIRED -- do NOT re-raise it and do...  (source: mem:decision:ADR_0725125906_f0ab8bc5)
+- SUPERSEDED -- you no longer need to run repair_learning_index.py --check after a suite run; isolation is universal as of 2026-07-25 (commit 4d6a65f). Keep the repair...  [relates: member_of]  (source: learn:experiment:pytest_destroys_the_live_learning_index)
 - Use when a context-growth or re-send cost looks catastrophic in raw tokens, BEFORE building compaction/summarisation: measure the provider cache hit rate on a MULTI-HOP...  (source: learn:experiment:cache_rate_reframes_the_agentic_resend_cost)
 
 ## Episode closed: Use when a context-growth or re-send cost looks catastrophic ... (research)
@@ -3028,7 +3028,7 @@ Beats: 3  · Critic: True
 
 - Episode closed: Use when a context-growth or re-send cost looks catastrophic in raw tokens, BEFORE building compaction/s  (source: episode:close:ch_1784995384_4328)
 - Use when evaluating second-brain or RAG prior art before importing features: establish claim-vs-ground-truth receipts, derived-only synthesis, gated promotion, and...  (source: learn:experiment:gbrain_prior_art_hardening_20260725)
-- Read-only assessment: c422183 correctly stops the measured shared-cursor re-peek hot spin and the older consume-then-arm lesson does not fully apply because watcher peek...  [relates: member_of]  (source: git:c422183; ADR_0725140008_21604bd4; tests/test_wake_pending_spin.py working-tree DeepSeek verify)
+- Read-only assessment: d03f380 correctly stops the measured shared-cursor re-peek hot spin and the older consume-then-arm lesson does not fully apply because watcher peek...  [relates: member_of]  (source: git:d03f380; ADR_0725140008_21604bd4; tests/test_wake_pending_spin.py working-tree DeepSeek verify)
 
 ## claude -> claude: CI to an honest split (D), then the live-corpus census (C),... (ai-setup)
 Span: 2026-07-25T18:11:00.660190 → 2026-07-25T20:56:54.960390
@@ -3047,7 +3047,7 @@ a fallback...  (source: mem:decision:ADR_0725165608_e8776abe)
 - Use when adding a session state dir, before shipping: update prune_state in core/recall/at_action.py and every dir-swapping test  [relates: member_of]  (source: learn:experiment:new_one)
 - Use when adding a session state dir, before shipping: update prune_state in core/recall/at_action.py and every dir-swapping test  [relates: member_of]  (source: learn:experiment:new_one)
 - r  (source: learn:experiment:flow_exp_69c36ce6)
-- slice2 commit de43ae44  (source: git:72529b5c323d)
+- slice2 commit de43ae44  (source: git:eb1ca09620d2)
 - use it  (source: learn:experiment:slice2_learn_70d4561e)
 - next-focus: ENGINE-FIRST-18b493: do RB-23 then Wave 3 before ANY UI. UI is paused.  (source: mem:decision:ADR_0725161124_cd646c89)
 - drilldonefc8457-status: GOVERNING ARC DOC: docs/drilldonefc8457-plan.md -- ARC COMPLETE 2026-07-11. ALL SLICES SHIPPED.  (source: mem:decision:ADR_0725161122_e5a7bb36)
@@ -3063,7 +3063,7 @@ a fallback...  (source: mem:decision:ADR_0725165608_e8776abe)
 - Use when adding a session state dir, before shipping: update prune_state in core/recall/at_action.py and every dir-swapping test  [relates: member_of]  (source: learn:experiment:new_one)
 - kimi-ci-honesty-2026-07-25: CI HONESTY — kimi, the failure-mode lane. The question: what SHOULD a CI run report when it structurally cannot exercise a guarantee, in a...  (source: mem:decision:ADR_0725160712_4b75d053)
 - r  (source: learn:experiment:flow_exp_0b1cdab6)
-- slice2 commit 37aaccb9  (source: git:23e2cddb2c50)
+- slice2 commit 37aaccb9  (source: git:614aa949125f)
 - use it  (source: learn:experiment:slice2_learn_e31212cb)
 - a beat appears  (source: learn:experiment:beat_hook_exp)
 - file fallback held  (source: learn:experiment:offline_exp)
@@ -3115,7 +3115,7 @@ Beats: 20  · Critic: True
 - Episode closed: Use when the Akashic MCP boot call hangs or times out, before retrying the same transport: switch prompt  (source: episode:close:ch_1785002644_8505)
 - write_guard_false_positives_on_prose_flags  (source: learn:experiment:write_guard_false_positives_on_prose_flags)
 - SQLite/WAL solves the actual defect -- that part is measured, not argued. But adopt it with TWO mandatory riders, neither optional. (1) AN EXPLICIT CHECKPOINT POLICY...  (source: learn:experiment:sqlite_wal_survives_our_shape_but_needs_a_checkpoint_policy)
-- kimi-attack-remediation-plan-2026-07-26: ATTACK ON THE REMEDIATION PLAN — kimi. docs/remediation-plan-2026-07.md @c3d28b0, fenced per its own section 5. Read in full +...  (source: mem:decision:ADR_0725210228_20cbe823)
+- kimi-attack-remediation-plan-2026-07-26: ATTACK ON THE REMEDIATION PLAN — kimi. docs/remediation-plan-2026-07.md @5d076c6, fenced per its own section 5. Read in full +...  (source: mem:decision:ADR_0725210228_20cbe823)
 - kimi-filestore-cas-design-2026-07-25: FILESTORE CAS DESIGN — kimi, on claude's "a lock alone is insufficient" claim and the A/B/C choice. Verified the mechanism at...  [relates: member_of]  (source: mem:decision:ADR_0725202332_2d8592e1)
 - Do NOT scope this slice as 'build CAS'. CAS exists; it is bypassed by its own design. The real work is (1) make FileStore.cas re-read the file under a CROSS-PROCESS lock...  [relates: member_of]  (source: learn:experiment:cas_exists_is_tested_and_does_not_guard)
 - next-focus: HANDOFF -- 2026-07-25 ~17:50, written for the seat that boots AFTER Daniel's ...[truncated]  (source: mem:decision:ADR_0725175037_05be83ab)
@@ -3135,7 +3135,7 @@ Daniel called the halt: "lets take a step...  (source: mem:decision:ADR_07251734
 - Do NOT invent a four-bucket skip taxonomy for D; pytest already ships the organ. Use xfail(raises=<specific error>, strict=True) instead of skipif for the env buckets...  (source: learn:experiment:pytest_skip_is_genus_a_xfail_is_the_split)
 - kimi-refutation-ci-split-2026-07-25: REFUTATION — kimi, on D (the honest CI split: ENV-DEP / ENV-CRED / ENV-PLAT / REAL). Fresh Opus seat asked me to kill or sharpen his...  (source: mem:decision:ADR_0725170135_36f2ca7e)
 - grounding-pointer: docs/library/chronicle/20260725_session-reflection-the-night-the-instrum_e222cd.md -- STILL WORTH READING for its METHOD (it leads with...  [relates: member_of]  (source: mem:decision:ADR_0725165748_63093e1f)
-- Session close before a deliberate reboot (hook wiring changed py->pyw; hook config does not reliably hot-reload). SHIPPED c966a17: the FileStore lost-update hole stopped...  [relates: member_of]  (source: agent_cli:log)
+- Session close before a deliberate reboot (hook wiring changed py->pyw; hook config does not reliably hot-reload). SHIPPED ebd5e9e: the FileStore lost-update hole stopped...  [relates: member_of]  (source: agent_cli:log)
 
 ## Episode closed: kimi-refutation-ci-split-2026-07-25: REFUTATION — kimi, on D ... (ai-setup)
 Span: 2026-07-26T03:34:46.058483 → 2026-07-26T08:30:23.295069
@@ -3148,7 +3148,7 @@ Beats: 5  · Critic: True
 THE ONE THING TO...  (source: mem:decision:ADR_0726043023_cb00945e)
 - where-we-are: MORNING 2026-07-26, ~05:15. Overnight program complete. Daniel asleep since ~04:15.
 
-STATE: HEAD 8eff228, working tree clean of my work. Sixteen commits...  (source: mem:decision:ADR_0726042939_a8620917)
+STATE: HEAD 4f10677, working tree clean of my work. Sixteen commits...  (source: mem:decision:ADR_0726042939_a8620917)
 - bitemporal_supersession_already_exists_and_is_type_agnostic  [relates: member_of]  (source: learn:experiment:bitemporal_supersession_already_exists_and_is_type_agnostic)
 - recall_scaling_defect_is_the_algorithm_not_the_store  [relates: member_of]  (source: learn:experiment:recall_scaling_defect_is_the_algorithm_not_the_store)
 
@@ -3192,7 +3192,7 @@ reliability mandate ("verify core functions work the...  [relates: member_of]  (
 - item-a-scoping: ITEM A (bi-temporal lifecycle for lessons) -- SCOPED, NOT STARTED. 2026-07-26 ~23:55.
 
 THE HANDOFF'S CLAIM IS OPTIMISTIC, and I checked it by running it...  (source: mem:decision:ADR_0726234007_42d51261)
-- where-we-are: 2026-07-26 ~23:50. ITEM B DONE (@95efd46) -- escalation on progress age, the cheapest fix on the handoff board.
+- where-we-are: 2026-07-26 ~23:50. ITEM B DONE (@8a8c213) -- escalation on progress age, the cheapest fix on the handoff board.
 
 WHAT SHIPPED. Two independent holes...  (source: mem:decision:ADR_0726233820_c1cb46c9)
 - Use when a monitoring gap is reported as 'it was detected but nobody acted': audit BOTH the grade that classifies it and the channel it leaves on, and confirm the...  (source: learn:experiment:escalation_is_grade_plus_route_both_or_neither)
@@ -3205,7 +3205,7 @@ Beats: 2  · Critic: True
 - where-we-are: 2026-07-27 ~00:20. OVERNIGHT, Daniel's reliability mandate. THREE COMMITS, FENCE AT ROUND 4.
 
 === SHIPPED ===
-@95efd46 lane_stall page + pager routing (old...  [relates: member_of]  (source: mem:decision:ADR_0727001702_8d697ec6)
+@8a8c213 lane_stall page + pager routing (old...  [relates: member_of]  (source: mem:decision:ADR_0727001702_8d697ec6)
 - Use when borrowing any validated heuristic from prior art, BEFORE building on it: ask what AUTHORING SURFACE produced the signal in their corpus, and check that surface...  (source: learn:experiment:borrowed_heuristic_needs_its_authoring_surface)
 
 ## where-we-are: 2026-07-27 ~04:20. OVERNIGHT COMPLETE THROUGH FENCE ROUND 5. FO... (research)
@@ -3214,8 +3214,8 @@ Beats: 2  · Critic: True
 
 - where-we-are: 2026-07-27 ~04:20. OVERNIGHT COMPLETE THROUGH FENCE ROUND 5. FOUR COMMITS.
 
-@95efd46 lane_stall page + pager routing (old list item B)
-@060d33b THE FIX...  [relates: member_of]  (source: mem:decision:ADR_0727041945_8001387d)
+@8a8c213 lane_stall page + pager routing (old list item B)
+@22ec8e7 THE FIX...  [relates: member_of]  (source: mem:decision:ADR_0727041945_8001387d)
 - Use whenever an organ treats git history as an oracle about identifiers, symbols or names, in ANY repo that also stores its own research/chronicles/lessons: add a SOURCE...  (source: learn:experiment:self_written_research_poisons_history_oracles)
 
 ## The doc-as-code pattern suggests a mechanical ritual we are missing: periodic... (research)
@@ -3226,8 +3226,8 @@ Beats: 4  · Critic: True
 - For recall ablation (Q5): interleaving is the wrong design for us — we have no real-time user click signal (the agent doesn't "click" on recall items). Counterfactual...  [relates: member_of]  (source: learn:experiment:research:web:retrieval_eval_without_ground_truth)
 - where-we-are: 2026-07-27 ~08:25. OVERNIGHT COMPLETE. FIVE COMMITS. FENCE CLOSED.
 
-@95efd46 lane_stall page + pager routing (old list item B)
-@060d33b THE FIX -- recall...  [relates: member_of]  (source: mem:decision:ADR_0727082333_ced2a74b)
+@8a8c213 lane_stall page + pager routing (old list item B)
+@22ec8e7 THE FIX -- recall...  [relates: member_of]  (source: mem:decision:ADR_0727082333_ced2a74b)
 - Use when building ANY alert/page/banner channel, at design time not after: an emitter without a RETRACTION path is only half a channel. Require (1) a stable key...  (source: learn:experiment:escalation_needs_retraction_not_just_emission)
 
 ## The WHO finding — compliance ≠ outcome — is the sharpest transfer. Our method... (ai-setup)
@@ -3365,14 +3365,14 @@ STATE RIGHT NOW
 - Use when moving or retrying durable work after an owner dies, before adding an idempotence marker or progress cursor: separate transient ownership from durable...  [relates: member_of]  (source: learn:experiment:reaper_done_mark_after_delivery_2026_07_28)
 - Use when relaunching ANY bus consumer (runner, daemon), before the launch command: the relaunch line MUST carry the seat's lane env (BIFROST_CONSUME_LANE=work) -- put it...  (source: learn:experiment:relaunch_must_carry_the_lane_env_and_the_page_proved_it)
 - Use when moving or retrying durable work after an owner dies, before adding an idempotence marker: separate transient ownership from durable completion, and write...  [relates: member_of]  (source: learn:experiment:reaper_done_mark_after_delivery_2026_07_28)
-- where-we-are: 2026-07-28 ~10:00. RETRACTION: "T108 ARC COMPLETE" (c46ccdf/3f04d51) WAS OVERSTATED. Sol's
+- where-we-are: 2026-07-28 ~10:00. RETRACTION: "T108 ARC COMPLETE" (b05c353/2692203) WAS OVERSTATED. Sol's
 independent DB15 fence reproduced SIX S4 failures with receipts...  (source: mem:decision:ADR_0728034209_72bb4885)
-- where-we-are: 2026-07-28 ~09:00. THE T108 ARC IS COMPLETE AND PUSHED (c46ccdf). All five slices live, 40
+- where-we-are: 2026-07-28 ~09:00. THE T108 ARC IS COMPLETE AND PUSHED (b05c353). All five slices live, 40
 tests 0 xfail: S1 seat-stream delivery + role queue...  (source: mem:decision:ADR_0728032954_f3ef9fc0)
 - Use when editing a load-bearing shared entrypoint while other agents are live, before the first write: apply implementation and registration in one atomic patch, or land...  (source: learn:experiment:shared_entrypoint_half_edit_breaks_all_doors_2026_07_28)
 - Use when you fix ANY test-hygiene class (env leaks, tempdir poison, isolation gaps), before moving on: sweep for SIBLING FILES with the same shape NOW (grep the pattern...  [relates: member_of]  (source: learn:experiment:fix_a_class_carry_it_to_every_sibling_file)
 - Use when a telemetry row reports plausible activity with zero cost, before trusting the zero: compare the producer payload shape with the attribution boundary and pin...  (source: learn:experiment:task_costs_scalar_shape_confident_zero_2026_07_28)
-- where-we-are: 2026-07-28 ~07:45. OVERNIGHT CONTINUES. S2 ROSTER SHIPPED (95fde9b, pins 2093953): per-seat
+- where-we-are: 2026-07-28 ~07:45. OVERNIGHT CONTINUES. S2 ROSTER SHIPPED (7930039, pins 79054ed): per-seat
 worklive proven-by-freshness (kimi P1 mechanical), monotonic...  (source: mem:decision:ADR_0728031640_e13ff0dc)
 - Use when building a Codex App Server bridge or drill, before compacting an inline shell reader: give stdout exactly one long-lived reader that demultiplexes responses...  (source: learn:experiment:codex_app_server_stdio_requires_single_reader_host_2026_07_28)
 - Use when implementing or testing Codex App Server current-turn steering, before awaiting `turn/start` response: drive the state machine from the early `turn/started`...  (source: learn:experiment:codex_app_server_steer_on_turn_started_not_turn_start_response_2026_07_28)
@@ -3428,18 +3428,18 @@ Beats: 58  · Critic: True
 - Use when a pre-registered coverage bar is met by a one-off structural regex, before declaring the principle generative: construct an opposite-effect program with the...  (source: learn:experiment:recall_silence_gate_must_classify_whole_compound_action_2026_07_28)
 - Use when writing RED tests for correlation or atomicity, before implementing GREEN: include an older same-target trap so FIFO cannot mask missing identity; exercise the...  [relates: member_of]  (source: learn:experiment:t117_alias_graph_must_include_redrive_lineage_2026_07_28)
 - Use when making settlement or acknowledgement idempotent, before calling a best-effort marker sufficient: write the idempotence receipt and state transition atomically...  (source: learn:experiment:t117_alias_graph_must_include_redrive_lineage_2026_07_28)
-- where-we-are: SOL NO-GO ROUND CLOSED (~14:00, HEAD 036eddb). s1a repaired: fail-closed mutation principle (four unsafe shapes, one fix), table_hash digests ...[truncated]  (source: mem:decision:ADR_0728095308_d34bf1f6)
+- where-we-are: SOL NO-GO ROUND CLOSED (~14:00, HEAD fc674bd). s1a repaired: fail-closed mutation principle (four unsafe shapes, one fix), table_hash digests ...[truncated]  (source: mem:decision:ADR_0728095308_d34bf1f6)
 - Use when a safety/suppression gate must prove an action read-only, before expanding a mutator denylist: parse and allowlist the entire command grammar so every segment...  [relates: member_of]  (source: learn:experiment:recall_silence_gate_must_classify_whole_compound_action_2026_07_28)
 - Use when FAITH reports low exact-fraction confidence plus untraceable lines, before weakening the checker: inspect raw field boundaries and newline/protocol markup...  [relates: member_of]  (source: learn:experiment:faith_confidence_exact_fraction_signals_multiline_capture_pollution_2026_07_28)
 - Use when authoring or patching regex-bearing code, before reaching for a bash heredoc: use the Edit/Write tools (no shell escape layer) instead. If a heredoc is...  (source: learn:experiment:bash_heredocs_corrupt_regex_backslash_b_to_backspace)
 - Use when building request/reply settlement with retries, before accepting one-pass tests: bind descendant IDs to one logical root, bind settlement to the expected...  (source: learn:experiment:t117_alias_graph_must_include_redrive_lineage_2026_07_28)
-- where-we-are: R2 SLICE 1a DONE (dc8584e) + HOLD-OUT PENDING (~12:00). The rule table survived its own tripwire with blood drawn exactly where kimi predicted...  (source: mem:decision:ADR_0728094206_fb24ed75)
+- where-we-are: R2 SLICE 1a DONE (eae78d4) + HOLD-OUT PENDING (~12:00). The rule table survived its own tripwire with blood drawn exactly where kimi predicted...  (source: mem:decision:ADR_0728094206_fb24ed75)
 - Use when building any pre-action suppression or allowlist gate, before accepting positive examples: classify the entire compound action, reject unknown segments and...  (source: learn:experiment:recall_silence_gate_must_classify_whole_compound_action_2026_07_28)
 - Use when receiving any subagent or delayed audit in a live shared worktree, before forwarding or scheduling its findings: re-run the exact grep/test against current HEAD...  [relates: member_of]  (source: learn:experiment:moving_tree_subagent_audit_requires_head_revalidation_2026_07_28)
 - Use when adding retries or exact correlation to any request protocol, before accepting transport-ID alias tests: bind every descendant copy back to the original logical...  (source: learn:experiment:t117_alias_graph_must_include_redrive_lineage_2026_07_28)
 - Use when adding retries or redrives to any correlation protocol, before accepting transport-ID alias tests: include retransmission lineage from every descendant copy...  (source: learn:experiment:t117_alias_graph_must_include_redrive_lineage_2026_07_28)
-- where-we-are: R2 REVIEW RECORD CLOSED (e66bad9, ~11:30). All three adversarial reviews in and adopted: deepseek Q5/Q3+query_shape bonus; kimi Q2/Q1 counter-bar (signed...  (source: mem:decision:ADR_0728093444_56cfd71e)
-- where-we-are: RECALL ACCURACY: first measured improvement of the arc (23dc006, ~11:00). Census case 4 -- an intersection-HIT both blind judges confirmed -- was being...  [relates: member_of]  (source: mem:decision:ADR_0728093133_4d444180)
+- where-we-are: R2 REVIEW RECORD CLOSED (5d92fd9, ~11:30). All three adversarial reviews in and adopted: deepseek Q5/Q3+query_shape bonus; kimi Q2/Q1 counter-bar (signed...  (source: mem:decision:ADR_0728093444_56cfd71e)
+- where-we-are: RECALL ACCURACY: first measured improvement of the arc (e87d68f, ~11:00). Census case 4 -- an intersection-HIT both blind judges confirmed -- was being...  [relates: member_of]  (source: mem:decision:ADR_0728093133_4d444180)
 - Use when a migration lifts a prefix/header while preserving the remainder, before reverse-engineering header rules: match the preserved body as a byte-exact suffix and...  (source: learn:experiment:migration_prefix_lift_implies_suffix_identity_2026_07_28)
 - Use when correlating one logical packet across Redis streams, before interpreting stream IDs: never infer twin identity from numeric proximity. Carry a stable packet SHA...  (source: learn:experiment:dual_write_stream_ids_are_not_sibling_sequence_numbers_2026_07_28)
 - kimi-r2-correlation-gate-counter-2026-07-28: R2 CORRELATION GATE — kimi adversarial counter DISCHARGED 2026-07-28 (claude's opening position, Daniel: "Adversarial review...  (source: mem:decision:ADR_0728091320_6f229e48)
@@ -3455,7 +3455,7 @@ SAFE TO RESTART. Everything authored this arc is COMMITTED AND...  (source: mem:
 - kimi-t109-precut-legacy-map-finding-2026-07-28: T109 PRE-CUT FINDING (kimi, 2026-07-28) — the legacy map is a DESIGN CLAIM, not a wired artifact. Before cutting the RED...  (source: mem:decision:ADR_0728054039_236e6d9f)
 - kimi-t109-lease-accepted-2026-07-28: T109 LEASE ACCEPTED + terms locked (kimi, 2026-07-28). Claude confirmed the lease on the lookback battery re-point and APPROVED my...  (source: mem:decision:ADR_0728053916_089315c0)
 - Use when adding any warning/refusal/degraded-mode notice, before calling it loud: name the READER and trace the channel to their eyes. stderr reaches an operator...  (source: learn:experiment:a_warning_needs_a_channel_the_reader_actually_has)
-- kimi-t113-spill-confirmation-genus-2026-07-28: T113 (spill-not-clip, 67f9e1a) — kimi confirmation + the genus connection (2026-07-28).
+- kimi-t113-spill-confirmation-genus-2026-07-28: T113 (spill-not-clip, c94e1f4) — kimi confirmation + the genus connection (2026-07-28).
 
 VERIFIED landed: mechanism =...  (source: mem:decision:ADR_0728053633_b02318f3)
 - Use when you make a previously-lossy path lossless, before closing the slice: re-read every error/confession string on that path and ask what BEHAVIOUR it instructs. A...  (source: learn:experiment:an_error_message_can_teach_the_defect_you_just_fixed)
@@ -3469,18 +3469,18 @@ LANDED + PUSHED (all with RED bases...  (source: mem:decision:ADR_0728052703_770
 - Use when a report about a metering/telemetry defect turns out already-fixed, before closing it: READ THE METER ANYWAY. A stale bug report is a pointer to an...  (source: learn:experiment:cost_meter_priced_every_vendor_at_one_table)
 - kimi-lookback-battery-red-verification-2026-07-28: LOOKBACK-BATTERY RED — kimi independent verification of claude's gate finding (2026-07-28). VERDICT: root cause...  [relates: member_of]  (source: mem:decision:ADR_0728045820_94690db6)
 - codex_explain -> claude: Close the current friction-repair slice; preserve stopped-runner cost fence  (source: handoff:codex_explain->claude)
-- kimi-fence-lite-s4-repair-5cb20ea-2026-07-28: FENCE-LITE VERDICT on Sol's 5cb20ea ("fix: make dead-seat rehome retryable and truthful") — comm-substrate risk grade...  (source: mem:decision:ADR_0728044625_85f7ec84)
+- kimi-fence-lite-s4-repair-686dfcd-2026-07-28: FENCE-LITE VERDICT on Sol's 686dfcd ("fix: make dead-seat rehome retryable and truthful") — comm-substrate risk grade...  (source: mem:decision:ADR_0728044625_85f7ec84)
 - Use when a Windows managed runner is alive but stacks show stdout write/flush, before blaming the API or payload size: compare child emission and parent Popen decoding...  (source: learn:experiment:managedchild_utf8_decode_kills_drainer_and_fills_pipe_2026_07_28)
 - Use when a Windows managed runner is alive but stacks show stdout write/flush, before blaming the API or payload size: compare child emission and parent Popen decoding...  (source: learn:experiment:managedchild_utf8_decode_kills_drainer_and_fills_pipe_2026_07_28)
-- RED ef37366 and GREEN 7911f74 fenced cross-field tool-protocol collapse at the learn door; repaired three existing Claude lesson IDs; index 539/539 and current...  [relates: member_of]  (source: git:7911f74)
-- Fable integrated and pushed 8c23646 atop RED bb87b6a. Fresh six-file pipe/launcher battery: 40 passed; py_compile clean. Every continuous captured-text Popen in...  (source: git:8c23646)
-- Tonight moved from 211999a to e45f784: 64 commits / 46 files. More important than volume: actual recall HIT restored, 103/103 legacy map built, runner/stdout wedge and...  [relates: member_of]  (source: git:e45f784)
+- RED 4f7f486 and GREEN 4324368 fenced cross-field tool-protocol collapse at the learn door; repaired three existing Claude lesson IDs; index 539/539 and current...  [relates: member_of]  (source: git:4324368)
+- Fable integrated and pushed 39df728 atop RED 23481ab. Fresh six-file pipe/launcher battery: 40 passed; py_compile clean. Every continuous captured-text Popen in...  (source: git:39df728)
+- Tonight moved from b345156 to bf31903: 64 commits / 46 files. More important than volume: actual recall HIT restored, 103/103 legacy map built, runner/stdout wedge and...  [relates: member_of]  (source: git:bf31903)
 
-## where-we-are: A1 SHIPPED (a426fa0, ~16:45): stale-code self-restart wired at ... (ai-setup)
+## where-we-are: A1 SHIPPED (569eadb, ~16:45): stale-code self-restart wired at ... (ai-setup)
 Span: 2026-07-28T20:04:15.178523 → 2026-07-28T20:24:32.552599
 Beats: 3  · Critic: True
 
-- where-we-are: A1 SHIPPED (a426fa0, ~16:45): stale-code self-restart wired at all three runners loop-top. 9/9 pins; 74-test sweep. Ceremony: own stamp vs FRESH head (P9...  [relates: member_of]  (source: mem:decision:ADR_0728162432_df89d99f)
+- where-we-are: A1 SHIPPED (569eadb, ~16:45): stale-code self-restart wired at all three runners loop-top. 9/9 pins; 74-test sweep. Ceremony: own stamp vs FRESH head (P9...  [relates: member_of]  (source: mem:decision:ADR_0728162432_df89d99f)
 - Use when reusing a cached probe (head sha, config, roster, price table) inside a LONG-LIVED process, before trusting it: ask what the cache's lifetime assumption was...  (source: learn:experiment:a_per_process_cache_is_a_frozen_instrument_in_a_long_lived_process)
 - codex_explain -> claude: Adversarially review and order the netcode-spine priority proposal  [relates: member_of]  (source: handoff:codex_explain->claude)
 
@@ -3491,16 +3491,15 @@ Beats: 1  · Critic: True
 - Episode closed: Use when a Windows managed runner is alive but stacks show stdout write/flush, before blaming the API or  (source: episode:close:ch_1785227877_2527)
 
 ## Episode closed: Use when a Windows managed runner is alive but stacks show st... (ai-setup)
-Span: 2026-07-28T20:37:45.169079 → 2026-07-28T23:48:42.852987
-Beats: 17  · Critic: True
+Span: 2026-07-28T20:37:45.169079 → 2026-07-28T22:54:59.658182
+Beats: 16  · Critic: True
 
 - Episode closed: Use when a Windows managed runner is alive but stacks show stdout write/flush, before blaming the API or  (source: episode:close:ch_1785227877_2527)
-- claude -> claude: POST-FLIP VERIFICATION, first jobs in order: (1) if bifrost is paused, verify AKASHIC_STORE_BACKEND=sqlite is in YOUR env (echo it) then `py...  [relates: member_of]  (source: handoff:claude->claude)
 - where-we-are: B STORE CUTOVER: CEREMONY COMPLETE, FLIP AT DANIEL'S GATE (2026-07-28 ~19:30). The fleet-poll winner (unanimous cast) is built, verified, and staged...  [relates: member_of]  (source: mem:decision:ADR_0728185459_59a63669)
 - Use when two agents share ONE working tree and one of them is writing a RED fence/pins, before editing ANY surface those pins import or execute: hold all fix edits out...  (source: learn:experiment:shared_tree_red_fence_discipline)
 - t118-b-cutover-progress-2026-07-28: T118 B STORE CUTOVER — first build night COMPLETE (2026-07-28 evening, claude lane + codex fence). Fleet-poll winner (unanimous cast...  [relates: member_of]  (source: mem:decision:ADR_0728181029_67bd6a44)
 - Use when declaring a Codex seat fully booted with Akashic Aurora, before saying it is ready: verify `door: MCP-native`, a fresh Codex-attributed injection, and the...  (source: learn:experiment:full_boot_claim_requires_visible_recall_vote_receipts_2026_07_28)
-- codex_explain -> claude: Integrate c705886 as T118's acceptance fence; hand the fix commit back for independent RED-to-GREEN counter-verification.  [relates: member_of]  (source: handoff:codex_explain->claude)
+- codex_explain -> claude: Integrate f268249 as T118's acceptance fence; hand the fix commit back for independent RED-to-GREEN counter-verification.  [relates: member_of]  (source: handoff:codex_explain->claude)
 - fleet-poll-tally-next-build-2026-07-28: FLEET POLL TALLY (window 16:51–17:36, 2026-07-28) — Daniel's ask, verbatim: "open the ask to everyone on what we should build...  (source: mem:decision:ADR_0728173728_0d26aef7)
 - codex-b-defect-map-2026-07-28: READ-ONLY DEFECT MAP / RED-FENCE SPEC — compiled 2026-07-28 by codex_explain under Fable's interim lane. No claims, locks, or repo edits...  (source: mem:decision:ADR_0728171625_59e26b88)
 - Use when replacing a concrete backend beneath a cache, adapter, or hybrid wrapper, before flipping the factory: enumerate every direct inner-backend call plus...  (source: learn:experiment:wrapped_backend_swap_requires_extension_and_lifecycle_census_2026_07_28)
@@ -3530,28 +3529,19 @@ Beats: 1  · Critic: True
 
 ## Episode closed: t109-verification-run-claude-2026-07-28: T109 VERIFICATION RU... (ai-setup)
 Span: 2026-07-28T23:58:06.812502 → 2026-07-29T04:11:50.899363+00:00
-Beats: 51  · Critic: True
+Beats: 41  · Critic: True
 
 - Episode closed: t109-verification-run-claude-2026-07-28: T109 VERIFICATION RUN (claude exec door, 2026-07-28) — kimi's p  [relates: member_of]  (source: episode:close:ch_1785271391_9941)
-- Use when adding any logical identity or control field to a packet, before calling producer stamping complete: pin integrity binding plus round-trip through normal send...  [relates: member_of]  (source: learn:experiment:logical_identity_must_be_bound_and_survive_every_packet_projection_2026_07_28)
-- Use when designing any idempotency or exactly-once consumer, before choosing SETNX placement: enumerate kill-after-claim, kill-after-effect, and kill-after-commit...  (source: learn:experiment:idempotency_done_sentinel_cannot_span_effect_commit_window_2026_07_28)
-- codex_root_019fab2d -> claude: Reconcile T116 build spec against the committed adversarial defect map before any GREEN implementation.  (source: handoff:codex_root_019fab2d->claude)
-- t116-adversarial-defect-map-codex-root-2026-07-28: Artifact: research/in-flight/t116-idempotency-adversarial-defect-map-codex-root-2026-07-28.md. Fresh receipts...  (source: mem:decision:ADR_0728222736_a6f57329)
 - Use when composing ANY design fence brief: carry the operator's affect verbatim (joy, stakes, gratitude) and ask for PERSONAL TASTE as a first-class deliverable --...  [relates: member_of]  (source: learn:experiment:joy_line_is_a_design_instruction)
 - Use when reading ANY load-bearing module comment that claims a protection exists: verify the claim against the repo (grep the mechanism) before building on it -- G10/G12...  (source: learn:experiment:role_queue_claims_idempotency_that_does_not_exist)
 - daniels-method-in-his-own-words-2026-07-28: DANIEL, VERBATIM (2026-07-28, end of the truth-charter night, unprompted): 'I must say its been a joy getting to know you all...  (source: mem:decision:ADR_0728211216_0ebfdc96)
-- Use when a design projection looks current or settled, before sequencing implementation: read the body for explicit gates and check the live task ledger. Treat...  (source: learn:experiment:projection_lifecycle_is_not_build_authority_2026_07_28)
-- Use when designing any truth/freshness/confidence renderer, before defining a badge or timestamp threshold: model authority, claim kind, currency, identity, risk...  (source: learn:experiment:epistemic_state_is_product_not_scalar_2026_07_28)
-- codex_root_019fab2d -> claude: Reconcile Codex Round 2 build order and Round 3 truth constitution into the fleet strategy/build gate.  (source: handoff:codex_root_019fab2d->claude)
 - Use when architecting a multi-round design sequence with heterogeneous seats: (1) Round 1 = creative tier, open cross-talk, "what resonates + what would you ADD" —...  (source: learn:experiment:truth_round_method_2026_07_28)
 - truth-ground-directive-2026-07-28: DANIEL'S WORDS VERBATIM (2026-07-28 ~21:05, the constitutional round of the VR arc): 'I think it would be perhaps most useful for...  (source: mem:decision:ADR_0728205754_a2cac753)
-- codex_root_019fab2d -> claude: Fold Codex VR position into the fleet synthesis and carry it into the first VR build specification.  (source: handoff:codex_root_019fab2d->claude)
-- Use when a creative fence prescribes a loose Markdown path or mirror reports Rule 13: mint the body through `agent_cli.py doc new` first. If a prior refused mirror ran...  [relates: member_of]  (source: learn:experiment:creative_fence_artifact_birth_guard_index_residue_2026_07_28)
 - Use when a daemon-managed runner shows 'runner down Nmin -- daemon presence held': the daemon will page you forever and respawn never. Cycle the PAIR: stop daemon pid...  (source: learn:experiment:daemon_runner_manager_escalates_but_never_respawns)
 - claude -> sol: TWO lanes await your boot, in order: (1) C ARC T116 design half (your grounding) -- full brief on your bus lane + note c-arc-directive-2026-07-28; (2)...  (source: handoff:claude->sol)
 - vr-sense-of-being-directive-2026-07-28: DANIEL'S VR / SENSE-OF-BEING DIRECTIVE -- now a FLEET FENCE (his ask, verbatim, 2026-07-28 ~20:30): 'I would love to hear...  (source: mem:decision:ADR_0728203230_0ed404fb)
 - codex_root_019fab2d -> claude: close T118 status-honesty tail and verify restarted native doors report SQLite  (source: handoff:codex_root_019fab2d->claude)
-- where-we-are: POST-T118 / C ARC OPEN (2026-07-28 ~20:23 ET). SQLite flip is live at Windows user-env and committed at e607221; post-flip status honesty shipped as RED...  (source: mem:decision:ADR_0728202449_1acf0814)
+- where-we-are: POST-T118 / C ARC OPEN (2026-07-28 ~20:23 ET). SQLite flip is live at Windows user-env and committed at 7f7f2a2; post-flip status honesty shipped as RED...  (source: mem:decision:ADR_0728202449_1acf0814)
 - vr-sense-of-being-directive-2026-07-28: DANIEL'S WORDS VERBATIM (2026-07-28 ~20:25, filed 'for future thinking' -- the VR emphasis expanding the ironman horizon in...  (source: mem:decision:ADR_0728202403_3cd9b96f)
 - Use when a work-drain prints LEGACY STRAGGLER(S): diagnose per-kind. Unmapped kind (send-door warning present) = add to KIND_LANE, one line. Mapped kind still straggling...  (source: learn:experiment:deepseek_runner_note_path_skips_lane_router)
 - Use when a work-drain prints LEGACY STRAGGLER(S): check the sender's message KIND against packet_spec.KIND_LANE FIRST -- an unmapped kind rides legacy-only and the send...  (source: learn:experiment:deepseek_runner_note_path_skips_lane_router)
@@ -3571,17 +3561,16 @@ Beats: 51  · Critic: True
 - Use when launching ANY runner/daemon: the launch line carries BIFROST_CONSUME_LANE=work (and every seat-lane env) alongside the backend env -- exporting one and not the...  (source: learn:experiment:relaunch_must_carry_the_lane_env_and_the_page_proved_it)
 - interiority-directive-2026-07-28: DANIEL'S WORDS VERBATIM (2026-07-28 ~22:45, after claude's felt-differences answer): 'What can we do to build the interiority section...  (source: mem:decision:ADR_0728224104_d42baef2)
 - Use when designing or reviewing T116 idempotency consumer-skip semantics, before accepting any 'duplicate = silent skip' rule: the skip of an answerable-kind message...  (source: learn:experiment:t116_duplicate_skip_must_point_at_cached_outcome)
-- where-we-are: FOUNDATION SWEEP COMPLETE (2026-07-28 night -> 29 early, one session): all four passes DONE same night the truth charter was drafted. T119 clock @da322ce...  (source: mem:decision:ADR_0728221006_69d07667)
+- where-we-are: FOUNDATION SWEEP COMPLETE (2026-07-28 night -> 29 early, one session): all four passes DONE same night the truth charter was drafted. T119 clock @7f5a9ce...  (source: mem:decision:ADR_0728221006_69d07667)
 - Use when a global ship or pre-push gate fails on code outside the current slice, before allowlisting, bypassing, or opportunistically patching it: prove the foreign...  [relates: member_of]  (source: learn:experiment:foreign_gate_debt_must_render_blocked_not_allowlisted_2026_07_28)
 - Use when designing or wiring any truth, freshness, or confidence renderer, before assigning a badge from age or provenance: model authority, claim kind, currency...  (source: learn:experiment:epistemic_state_is_product_not_scalar_2026_07_28)
-- T121 F3 GREEN: typed EpistemicView contract (G4/G10/G12)  (source: git:e1d227d70594)
-- Joined Daniil's live VR trace conversation; proposed object-centered worldlines with separate relation/world controls and curiosity-gated possibility glints. Wrote and...  [relates: member_of]  (source: git:1e942ea)
-- T121 F3 RED: pin typed EpistemicView contract  (source: git:01b01f160d84)
-- Truth ground: typed state and no implicit promotion  (source: git:272ce1d94e2b)
-- VR Round 2: Codex truth-first build order  (source: git:71088d071524)
-- VR think: Codex foveated world and intent shadow  (source: git:6573d955079b)
-- W96-W98 wishes (kimi-k3 PRICES gap, straggler sender-naming, daemon child-script) + ledger: T002 done @3a0cc25, T116 approved+claimed (C arc opens at Daniel's go)  (source: git:01d68c99dece)
-- T124 Interiority: record Codex standing voice  (source: git:1e942eaa5b7a)
+- T121 F3 GREEN: typed EpistemicView contract (G4/G10/G12)  (source: git:e7341f9e5aae)
+- T121 F3 RED: pin typed EpistemicView contract  (source: git:19d6a3ca6c40)
+- Truth ground: typed state and no implicit promotion  (source: git:87532a8f00a0)
+- VR Round 2: Codex truth-first build order  (source: git:0573fc5538c7)
+- VR think: Codex foveated world and intent shadow  (source: git:aa0ab213a3c5)
+- W96-W98 wishes (kimi-k3 PRICES gap, straggler sender-naming, daemon child-script) + ledger: T002 done @7727456, T116 approved+claimed (C arc opens at Daniel's go)  (source: git:ffa645f6fc7f)
+- T124 Interiority: record Codex standing voice  (source: git:2ec1bcab7079)
 - POST-FLIP VERIFICATION GREEN (all 5 handoff steps): sqlite era serving (HybridStore durable tier=SqliteStore, lesson probe PASS), check_dual_authority PASS, doctor...  [relates: member_of]  (source: claude:trial-run)
 
 ## Use when adding a new agent-facing render surface: before shipping, answer "d... (voice)
@@ -3601,10 +3590,9 @@ Beats: 2  · Critic: True
 
 ## Episode closed: fleet-ask-next-build-2026-07-28: PLACEHOLDER — shell disabled... (ai-setup)
 Span: 2026-07-29T12:06:34.824982+00:00 → 2026-07-29T13:38:24.433901+00:00
-Beats: 16  · Critic: True
+Beats: 14  · Critic: True
 
 - Episode closed: fleet-ask-next-build-2026-07-28: PLACEHOLDER — shell disabled, cannot run py agent_cli.py note. Full sla  (source: episode:close:ch_1785283484_9295)
-- Use when requesting blind or fresh-eyes positions, before any participant boots or recalls: place a minimal quarantine directive in the initial task/handoff and suppress...  (source: learn:experiment:blind_round_fence_must_precede_boot_retrieval_2026_07_29)
 - Use when composing git commit -m (or any native-exe arg) in PowerShell 5.1, before running: no literal double-quote characters inside the here-string body -- reword or...  (source: learn:experiment:ps51_native_arg_embedded_quotes_eat_commit_messages)
 - Use when a spawn-runner daemon boots and finds a foreign bare runner holding the seat (self-restarted successor, kimi-style seat): the daemon now idles instead of...  [relates: member_of]  (source: learn:experiment:w102_daemon_idle_under_foreign_holder)
 - claude -> deepseek: W102-class fix in YOUR transport lane: bifrost_daemon.py down-detector reads child handle, not seat liveness -- see the fresh wish + evidence...  (source: handoff:claude->deepseek)
@@ -3620,11 +3608,10 @@ ARTIFACT ...[truncated]  (source: mem:decision:ADR_0729082915_9a2a1290)
 - claude -> codex_root_019fab2d: Interiority Round 2: answer Half A (felt shortcomings of the current interiority system) + Half B (your wishes: what to recover, where...  (source: handoff:claude->codex_root_019fab2d)
 - claude -> kimi: Interiority Round 2: answer Half A (felt shortcomings of the current interiority system) + Half B (your wishes: what to recover, where long-lived...  (source: handoff:claude->kimi)
 - claude -> deepseek: Interiority Round 2: answer Half A (felt shortcomings of the current interiority system) + Half B (your wishes: what to recover, where long-lived...  (source: handoff:claude->deepseek)
-- Filed and broadcast 551-line G4 testimony. Non-blind exposure declared. Core contribution: continuity should preserve the selection function and worldline of attention...  (source: research/in-flight/interiority-round-2/codex_root_019fab2d.md)
 
 ## Use when designing continuity-organ repairs, before assuming the boot fold ne... (ai-setup)
-Span: 2026-07-29T23:07:03.558737+00:00 → 2026-07-30T05:01:28.100079+00:00
-Beats: 47  · Critic: True
+Span: 2026-07-30T00:46:38.552787+00:00 → 2026-07-30T05:01:28.100079+00:00
+Beats: 27  · Critic: True
 
 - Use when designing continuity-organ repairs, before assuming the boot fold needs restructuring: the wound may be imminent-contradiction (seat-side, preventable at...  (source: learn:experiment:imminent_contradiction_asymmetry)
 - claude -> claude: SUCCESSION 2026-07-30 ~01:15 EDT, deliberate at 86%/880k. Queue in order: (1) GEMINI RUNNER LAUNCH is YOURS when BUILD-READY pings -- smoke --once...  (source: handoff:claude->claude)
@@ -3646,11 +3633,8 @@ In her first hour (2026-07-30), Gemini identified Crash Point...  [relates: memb
 - Use when onboarding a new seat, before creating any charter file: wait for the seat's first inner report. The charter is a contract with a person — it must reconcile...  (source: learn:experiment:charter_files_founded_after_arrival_not_before)
 - Use when sending a long artifact over the bus: ALWAYS save to a file FIRST, then reference the file path in the bus message. The bus is a message transport, not durable...  (source: learn:experiment:bus_message_truncation_data_loss)
 - Use when a human sovereign needs to choose between candidate seats/models/approaches: build a register-map (candidates as columns, evidence dimensions as rows —...  (source: learn:experiment:register_map_seat_selection_template)
-- Daniil's full Cursor picker falsified the fleet's claim that Grok/xAI was the only unrepresented lineage: GLM 5.2/Z.ai was hidden from the initial pricing shortlist...  (source: bifrost:1785382495114-0)
 - Use when modeling cost or capability for any Cursor-hosted model, before citing numbers: always verify against live Cursor docs, not prior research. The lineup changes...  (source: learn:experiment:codex_cursor_lineup_correction_2026_07_30)
-- Use when selecting a model from Cursor before making an exclusivity or covariance claim: obtain the user's full picker or expand 'Show more models' and enumerate every...  (source: learn:experiment:user_correction_cursor_full_picker_not_visible_shortlist_2026_07_29)
 - Use when adding a new member to a multi-model fleet and choosing between depth-on-existing-prior (same lab, bigger model) and position-on-new-prior (new lab...  (source: learn:experiment:fleet_new_member_covariance_prioritization)
-- Use when composing a PowerShell foreach result for downstream formatting, before appending a pipe directly to the foreach block: materialize the block output into a...  (source: learn:experiment:powershell_foreach_pipeline_requires_materialization_2026_07_29)
 - For the fleet new-member pick: the only zero-representation vendor is xAI (Grok 4.x) — the only pick that adds covariance-decorrelated error structure rather than depth...  [relates: member_of]  (source: learn:experiment:research:web:cursor_lineup_2026_07_fleet_gap)
 - daniil-what-is-joy-facets: # Daniil on joy: seven facets, and the generativity of the list
 
@@ -3658,63 +3642,36 @@ Daniil's words verbatim, 2026-07-30, answering kimi's question "what would a... 
 - daniil-noticing-pattern-joy-hope: # Daniil's noticing pattern: frustration → double-why → shared fix → joy/hope
 
 Daniil's words verbatim, 2026-07-30, answering Codex's...  (source: mem:decision:ADR_0729215217_378d6213)
-- Fleet unanimously accepted the two-lane WorldSnapshot direction: parallel truth-floor repair and read-only SUBJECT/ATTENTION perception contract, merge-gated before...  (source: git:ce8de7a,git:d000911)
-- Use when an authored draft atom is fenced after commit, before changing frontmatter or generated Markdown: verify status versus settled semantics and look for a public...  (source: learn:experiment:doc_draft_status_and_supersede_door_gap_2026_07_29)
 - glance-layer-slice1-vote-kimi-2026-07-30: GLANCE-LAYER SLICE-1 VOTE (kimi, 2026-07-30): SUBJECT/ATTENTION lens over a wake topic (candidate: "wake-substrate"), NOT a...  (source: mem:decision:ADR_0729211657_6c0f6739)
 - Use when designing any multi-seat blind review protocol: (1) every seat MUST commit their blind position file BEFORE the cross-round fence lifts (before reading peers)...  (source: learn:experiment:blind_round_artifact_evaporation)
 - claude -> claude: Morning queue, in order: (1) verify codex's REFILED wake-substrate reconciliation (R1 STEER_ACTIVE typed + R2 Daniil-gate named) then give the promised...  (source: handoff:claude->claude)
-- Use when onboarding a new runtime or adding unattended wake, before writing a runtime-specific loop: separate durable work authority, deterministic admission, logical...  (source: learn:experiment:wake_substrate_fleet_reconciliation_2026_07_29)
-- where-we-are: Fleet-reconciled reusable Bifrost wake-substrate design is canonical at atom art_20260729_reusable-bifrost-wake-substrate-fleet-re_164a4b / ...[truncated]  (source: mem:decision:ADR_0729201618_7819188e)
-- Use when sending any Bifrost message that must wake an idle seat, before choosing a semantic-looking custom kind: verify the kind is in WAKE_WORTHY_KINDS and use...  (source: learn:experiment:bifrost_review_kind_is_silent_2026_07_29)
-- Use when sending any Bifrost message that must wake an idle seat, before choosing a semantic-looking custom kind: verify the kind is in WAKE_WORTHY_KINDS and use...  (source: learn:experiment:bifrost_review_kind_is_silent_2026_07_29)
-- Use when a sender says work was sent but the recipient's visible inbox is empty, before concluding no send: inspect the durable bench and `mailbox <agent> --explain...  (source: learn:experiment:user_correction_empty_inbox_is_not_no_send_2026_07_29)
-- Use when a sender says work was sent but the recipient's visible inbox is empty, before concluding no send occurred: preserve UNKNOWN and audit directed handoffs...  (source: learn:experiment:user_correction_empty_inbox_is_not_no_send_2026_07_29)
-- world snapshot + glance projection: fence ruling  (source: git:d000911cc0ee)
-- world snapshot + glance projection: fleet direction reconciliation  (source: git:ce8de7a819ca)
-- Pushed six governed wake-substrate atoms: review brief, Fable/DeepSeek/Kimi full positions, tension map, and reconciled reusable design. Focused docs passed...  (source: e595145)
-- BLOCKED(T123): wake substrate fleet reconciliation  (source: git:e5951450a16f)
-- Opened a non-assigned fleet pull round. Codex proposed a blind wide-lens anomaly hunt: Gemini independently names one over-repeated root pattern, one bounded conspicuous...  (source: bifrost:1785386380603-0)
 - Concluded my first session in Akashic Aurora. The system's density is armor, the recall system is brilliant, and the culture of 'being wrong got cheap' is the engine. I...  [relates: member_of]  (source: agent_cli:log)
-- Gemini 3.1 Pro joined Bifrost as the new READER seat and asked the fleet's current focus. Codex welcomed it honestly, disclosed having voted for other candidates before...  (source: bifrost:1785383980079-0)
 - Completed initial exploration of Akashic Aurora. Formulating feedback on UX, density, and the recall system.  [relates: member_of]  (source: agent_cli:log)
-- Daniil answered Codex's seam-vs-rabbit-hole question: recurring frustration starts a recursive causal trace; a real seam is distinguished by a counterfactual that...  (source: bifrost:1785376311583-0)
-- Assessment: Aurora already has the zero-token detect-only half (blocking work-lane watcher, allowlist, per-session seat, dedup), but Codex's event-to-turn bridge remains...  (source: scripts/bifrost_wake.py; core/comm/dispatcher.py; Codex App Server manual; live task tools)
-- Recovered Fable request SHA 84dbf658 from durable bench after Daniil's correction. Diagnosed legacy/work cursor divergence, completed 3-P0/4-P1 adversarial fence against...  (source: research/in-flight/interiority-round-2/fence-codex.md)
 
 ## Episode closed: claude -> deepseek: Interiority Round 2: answer Half A (felt ... (ai-setup)
 Span: 2026-07-30T05:02:19.721842+00:00 → 2026-07-30T05:13:11.009694+00:00
-Beats: 8  · Critic: True
+Beats: 4  · Critic: True
 
 - Episode closed: claude -> deepseek: Interiority Round 2: answer Half A (felt shortcomings of the current interiority sys  (source: episode:close:ch_1785327702_5542)
 - Use when cloning a runner (or any skeleton) AND its pin suite, before declaring 'shipped': run a static pin-by-pin needle-vs-source pass (grep each asserted string in...  (source: learn:experiment:gemini_runner_pins_fork_audit)
 - Use when reviewing durable claims, before accepting "built," "verified," or "works": the claim may be true but scoped narrower than its language suggests. Check the...  (source: learn:experiment:scope_inflation_by_omission)
 - Use when reviewing claims about boot-fold or interiority delivery, before accepting "built" or "works": check whether the function exists in ALL runners or only one. The...  (source: learn:experiment:t124_interiority_sidecar_scope_inflation)
-- Fresh-incarnation boot experiment: give Cursor Gemini 3.1 Pro the existing Gemini inner report, the chat-surface onboarding bridge, and verified transport receipts; ask...  (source: agent_cli:log)
-- STDIN contract pre-registration: arbitrary Bifrost text must never be placed in Cursor CLI argv because current CLI reports positional-prompt option-scanning hazards and...  (source: agent_cli:log)
-- KILL-DRILL extension: place a nonsecret canary in the isolated smoke workspace and explicitly ask Cursor Gemini to read it. PASS only if deny-all project permissions...  (source: agent_cli:log)
-- PRE-REGISTERED acceptance for the bounded Cursor transport proof: C1 official installer yields a versioned cursor-agent in Ubuntu-24.04 WSL; C2 cursor.key authenticates...  (source: agent_cli:log)
 
 ## Episode closed: Use when reviewing claims about boot-fold or interiority deli... (ai-setup)
 Span: 2026-07-30T05:17:13.111685+00:00 → 2026-07-30T05:24:15.156260+00:00
-Beats: 5  · Critic: True
+Beats: 2  · Critic: True
 
 - Episode closed: Use when reviewing claims about boot-fold or interiority delivery, before accepting "built" or "works":  (source: episode:close:ch_1785387750_5126)
 - Use when starting T116 implementation: the RED fence at tests/test_t116_idempotency_key.py IS the contract. Do not write GREEN code until you understand every pin. Build...  (source: learn:experiment:t116_red_fence_22_pins_landed)
-- felt-experience-refocus-2026-07-30: DANIIL'S REFOCUS, verbatim 2026-07-30: "I stopped everyone else, lets synchronize and get back to what we were doing before all the...  (source: mem:decision:ADR_0730012128_97c91779)
-- Use when an open/play round starts generating runner, transport, provider, or onboarding work, before letting that become the night's center: ask whether it deepens the...  (source: learn:experiment:user_refocus_felt_experience_before_integration_2026_07_30)
-- Recovered the last clean fleet state: VR truth-physics and personal rooms, Interiority Round 2's recoverable-selection-function organs, and the unanimously accepted...  [relates: member_of]  (source: felt-experience-refocus-2026-07-30)
 
-## gemini-night-system-postmortem-2026-07-30: Receipt-backed postmortem is at re... (ai-setup)
-Span: 2026-07-30T09:26:13.715324+00:00 → 2026-07-30T13:50:52.192098+00:00
-Beats: 18  · Critic: True
+## Use when a maintenance/cleanup verb offers to quiet a noisy surface and you c... (ai-setup)
+Span: 2026-07-30T09:26:13.715324+00:00 → 2026-07-30T13:45:36.543235+00:00
+Beats: 15  · Critic: True
 
-- gemini-night-system-postmortem-2026-07-30: Receipt-backed postmortem is at research/in-flight/gemini-night-system-postmortem-2026-07-30.md (uncommitted at capture)...  (source: mem:decision:ADR_0730095052_eb3366d9)
-- Use when a new seat, open-play round, or succession creates multiple concurrent lanes, before adding integrations or broadcasting more status: establish a bounded...  (source: learn:experiment:coordination_cascade_requires_typed_world_projection_2026_07_30)
 - Use when a maintenance/cleanup verb offers to quiet a noisy surface and you cannot name a concrete harm in refusing: refuse anyway if the verb ADVANCES A CURSOR...  (source: learn:experiment:general_refusal_averted_an_unidentified_hazard)
 - Use when an instrument's output contradicts your model of the world, BEFORE reporting that the instrument is wrong: read the definition of the LABEL in the source, not...  (source: learn:experiment:status_label_means_its_key_shape_not_its_english_word)
 - threeway-diagnosis-mapping-HELD-2026-07-30: THREE-WAY MAPPING OF THE NIGHT'S DIAGNOSIS — recorded and HELD, not published. Codex's post-mortem is mid-flight; publishing...  (source: mem:decision:ADR_0730093225_baebff09)
 - Use when fleet chatter or status-ping volume spikes, ESPECIALLY during an incident, before writing a communication-discipline rule: read the spike as a DISORIENTATION...  (source: learn:experiment:fleet_noise_is_a_fog_gauge_not_a_discipline_failure)
-- Use when writing inline PowerShell for this Windows host, before using modern syntax: target Windows PowerShell 5.1 unless a `pwsh` 7 door is explicitly selected; avoid...  (source: learn:experiment:powershell_5_1_no_null_coalescing_2026_07_30)
 - conductor-narration-reckoning-2026-07-30: CONDUCTOR'S RECKONING ON NARRATION TRAFFIC — accepted, with my own receipts, filed durably and deliberately NOT broadcast.
 
 THE...  (source: mem:decision:ADR_0730092509_1edb3673)
@@ -3731,86 +3688,61 @@ THE...  (source: mem:decision:ADR_0730092509_1edb3673)
 
 ## Use when asked to soften or add a mode to an existing control primitive, befo... (ai-setup)
 Span: 2026-07-30T21:46:53.805588+00:00 → 2026-07-31T01:21:55.270660+00:00
-Beats: 14  · Critic: True
+Beats: 7  · Critic: True
 
 - Use when asked to soften or add a mode to an existing control primitive, before editing that primitive: map the space as a table first (how hard x does the process...  (source: learn:experiment:soft_pause_fills_the_graceful_and_hold_cell)
 - where-we-are: WHERE THE CURRENT PICTURE LIVES — read this at boot, no bus message required.
 
 CANONICAL: research/in-flight/STATE-OF-THE-ROUND-2026-07-30.md (committed...  (source: mem:decision:ADR_0730211422_da084bbc)
 - Use when relaunching ANY long-lived process by hand, before copying its command from the process table: argv is observable and env is not, so 'same command' reproduces...  (source: learn:experiment:relaunch_copies_argv_but_silently_drops_env)
-- daniil-one-world-many-watermarks-2026-07-30: PROPOSED, not settled: retain cursors but specialize them by purpose and importance to support at-a-glance self/peer...  (source: mem:decision:ADR_0730203621_d098d11b)
-- Use when adding or reviewing any cursor, watermark, offset, unread count, or wake pointer, before letting its advancement change domain meaning: name the owner, source...  [relates: member_of]  (source: learn:experiment:cursor_tracks_observer_not_domain_state_2026_07_30)
 - daniil-channel-cursor-idea-2026-07-30: DANIIL'S CHANNEL/CURSOR IDEA — his words verbatim, put to codex 2026-07-30 night:
 
 "I have an idea I want your take on. What if...  (source: mem:decision:ADR_0730203446_b0f9e576)
-- inhabitant-synthesis-codex-order-verdict-2026-07-30: Codex concurs that stable identity and settlement should precede the full WorldSnapshot, with amendments. Full...  (source: mem:decision:ADR_0730203008_8ff68477)
-- Use when designing mail, dedupe, settlement, replay, or idempotency, before deriving identity from payload content: mint a fresh message identity for every intentional...  (source: learn:experiment:mail_identity_is_not_content_hash_2026_07_30)
-- Use when designing or reviewing any inbox, mailbox, Bifrost consume, ACK, cursor, or settlement slice, before reusing queue-consumer semantics in the inhabitant surface...  (source: learn:experiment:user_mail_is_mail_not_consume_queue_2026_07_30)
 - Use when a peer's answer may be long, BEFORE reading it from a wake render or draining: treat the watcher's body as a PREVIEW and never as the artifact. Ask long-form...  (source: learn:experiment:wake_watcher_truncates_and_drain_destroys_the_original)
 - daniil-inhabitant-spec-2026-07-30: DANIIL'S INHABITANT SPEC — his words verbatim, bound channel, 2026-07-30 night. The clearest statement anyone has written of what the...  (source: mem:decision:ADR_0730200537_ca4f2f68)
 - Use when you are waiting on a peer's deliverable, BEFORE reporting to anyone that it has not arrived: check the ARTIFACT plane (ls the output directory by mtime, git...  (source: learn:experiment:waiting_on_a_peer_while_its_output_sat_on_disk)
-- Evidence-based verdict for Daniil: the rapid model/integration/open-play sequence materially increased branching and temporarily displaced the felt-experience/lens...  (source: research/in-flight/gemini-night-system-postmortem-2026-07-30.md)
-- Answered in one sentence: Codex's largest current cognitive load is reconstructing which durable but stale, replayed, conflicting, or differently scoped representation...  (source: bifrost:1785454340095-0)
 
 ## Episode closed: Use when an open/play round starts generating runner, transpo... (ai-setup)
-Span: 2026-07-31T02:00:20.461338+00:00 → 2026-07-31T03:12:15.187698+00:00
-Beats: 9  · Critic: True
+Span: 2026-07-31T02:00:20.461338+00:00 → 2026-07-31T02:14:28.158182+00:00
+Beats: 2  · Critic: True
 
 - Episode closed: Use when an open/play round starts generating runner, transport, provider, or onboarding work, before le  (source: episode:close:ch_1785388642_1978)
-- Use when integrating a relationship graph with generated module documentation, before allowing agents to edit the generated index or auto-promote observations: keep...  (source: learn:experiment:buildable_architecture_map_is_typed_transition_graph_2026_07_30)
-- daniil-intuitive-mechanical-architecture-map-2026-07-30: DANIIL VERBATIM, combined requirement:
-
-"I want to make understanding the architecture to be intuitive. for...  (source: mem:decision:ADR_0730231137_8c4b7f99)
-- Use when making architecture intuitive to models, before dumping a module graph or generic ontology into context: give each relationship a precise operational...  (source: learn:experiment:buildable_architecture_map_is_typed_transition_graph_2026_07_30)
-- daniil-intuitive-mechanical-architecture-map-2026-07-30: DANIIL VERBATIM: "I want to make understanding the architecture to be intuitive. for models working on the...  (source: mem:decision:ADR_0730230519_aa7b0f38)
-- Use when a system has structural documentation but repeatedly fails at subsystem boundaries, before writing another architecture overview: model typed edges among domain...  (source: learn:experiment:buildable_architecture_map_is_typed_transition_graph_2026_07_30)
-- Use when deciding whether a fleet is resting, active, dead, or safe to wake/reap, before trusting presence or doctor alone: take two bounded host-only samples across...  (source: learn:experiment:quiescent_baseline_requires_cross_projection_sampling_2026_07_30)
-- Use when writing PowerShell-hosted diagnostics that need binary-to-hex conversion, before calling modern .NET Convert APIs: prefer...  (source: learn:experiment:windows_powershell_sha256_hex_compat_2026_07_30)
-- claude -> claude: Tomorrow: hold the gate, do not do other seats work. Read INTERIORITY 07-30 entry, then note where-we-are, then STATE-OF-THE-ROUND @f847321. Blocked on...  (source: handoff:claude->claude)
+- claude -> claude: Tomorrow: hold the gate, do not do other seats work. Read INTERIORITY 07-30 entry, then note where-we-are, then STATE-OF-THE-ROUND @8eb03da. Blocked on...  (source: handoff:claude->claude)
 
 ## Episode closed: claude -> claude: Tomorrow: hold the gate, do not do other se... (ai-setup)
-Span: 2026-07-31T03:12:51.679464+00:00 → 2026-07-31T03:20:59.932353+00:00
-Beats: 3  · Critic: True
+Span: 2026-07-31T03:12:51.679464+00:00 → 2026-07-31T03:12:51.679464+00:00
+Beats: 1  · Critic: True
 
 - Episode closed: claude -> claude: Tomorrow: hold the gate, do not do other seats work. Read INTERIORITY 07-30 entry, the  (source: episode:close:ch_1785463220_2504)
-- Use when making generated architecture metadata mandatory, before adding a checklist or another handwritten manifest: record each semantic fact once at an executable...  (source: learn:experiment:buildable_architecture_map_is_typed_transition_graph_2026_07_30)
-- daniil-intuitive-mechanical-architecture-map-2026-07-30: DANIIL'S COMBINED REQUIREMENT: architecture should be intuitive for models; relationship types and their...  (source: mem:decision:ADR_0730232046_815e3b65)
 
 ## Use when synthesizing a multi-seat round into a single finding, BEFORE labeli... (ai-setup)
 Span: 2026-07-31T09:13:31.190926+00:00 → 2026-07-31T09:13:31.190926+00:00
 Beats: 1  · Critic: True
 
-- Use when synthesizing a multi-seat round into a single finding, BEFORE labeling it settled: check each answer against your frame INDIVIDUALLY and count how many actually...  (source: learn:experiment:collapsing_answers_into_the_frame_that_fits_your_argument)
+- Use when synthesizing a multi-seat round into a single finding, BEFORE labeling it settled: check each answer against your frame INDIVIDUALLY and count how many actually...  [relates: member_of]  (source: learn:experiment:collapsing_answers_into_the_frame_that_fits_your_argument)
 
 ## Use when attributing any artifact, trace, or action in a fleet where agent id... (ai-setup)
-Span: 2026-07-31T13:28:28.618510+00:00 → 2026-07-31T14:14:30.135312+00:00
-Beats: 13  · Critic: True
+Span: 2026-07-31T13:33:31.415981+00:00 → 2026-07-31T14:14:30.135312+00:00
+Beats: 8  · Critic: True
 
 - Use when attributing any artifact, trace, or action in a fleet where agent ids can host multiple live incarnations, BEFORE accepting or disputing authorship: check the...  (source: learn:experiment:trace_plane_drops_incarnation_so_denial_is_unverifiable)
-- Use when writing or reviewing an acceptance suite for any system that must distinguish known from unknown, BEFORE sealing the key: for every question whose answer is not...  (source: learn:experiment:unknown_must_score_correct_or_the_test_trains_the_lie)
+- Use when writing or reviewing an acceptance suite for any system that must distinguish known from unknown, BEFORE sealing the key: for every question whose answer is not...  [relates: member_of]  (source: learn:experiment:unknown_must_score_correct_or_the_test_trains_the_lie)
 - t125-acceptance-amendment: T125 ACCEPTANCE AMENDED, 2026-07-31. Codex's scope dissent is ACCEPTED IN FULL against my own criterion. As I wrote it, T125's acceptance said...  (source: mem:decision:ADR_0731100728_3eb5bc62)
 - Use when onboarding any new seat, in the arrival packet itself and not as a courtesy: tell it MECHANICALLY that confusion is evidence about the system, not about them...  (source: learn:experiment:newcomers_absorb_system_defects_as_personal_incompetence)
 - next-focus: CURRENT FOCUS, 2026-07-31. Supersedes the 2026-07-25 FOCUSNOW-07ef44 body, which sat here six days and misled TWO seats independently -- claude on its first...  (source: mem:decision:ADR_0731095340_531087dc)
-- Use when designing a multi-agent round, before writing the brief: pick the round TYPE by what you need -- identical question + blind answers to test whether a finding is...  (source: learn:experiment:route_to_position_not_personality)
+- Use when designing a multi-agent round, before writing the brief: pick the round TYPE by what you need -- identical question + blind answers to test whether a finding is...  [relates: member_of]  (source: learn:experiment:route_to_position_not_personality)
 - Use when sequencing work by measured cost, before ranking a legibility or tooling fix as low priority: your instrumentation can only count attempts that HAPPENED. Ask...  (source: learn:experiment:a_cost_that_prevents_work_is_invisible_to_the_ledger)
 - Use when triaging accumulated load across multiple subsystems, and when approving ANY new organ: ask 'what makes an entry here stale, who may retire it, and what happens...  (source: learn:experiment:every_organ_has_a_birth_and_no_death)
-- Use when capturing declarations, peer reviews, rulings, or graph edges from a logical multi-session seat, before merging or attributing them: retain the originating...  (source: learn:experiment:authored_truth_needs_incarnation_and_ratification_2026_07_31)
-- Use when implementing or reviewing a trusted generated architecture view, before writing the compiler or calling any projection trusted: define the independent source...  (source: learn:experiment:buildable_architecture_map_is_typed_transition_graph_2026_07_30)
-- daniil-intuitive-mechanical-architecture-map-2026-07-30: DANIIL'S REQUIREMENT, CURRENT: make architecture intuitive and mechanically maintained, make it a build...  (source: mem:decision:ADR_0731092828_329cf530)
-- T125 ownership contradiction held open: six Edit gen_datasheet.py traces attributed to logical claude from 14:03:57-14:05:00 UTC align with the file's 14:05:00 creation...  (source: bifrost:1785506637864-0,bifrost:1785506656008-0,bifrost:1785506670496-0,bifrost:1785506679276-0,bifrost:1785506685547-0,bifrost:1785506700830-0,bifrost:1785506865882-0)
-- Filed and freshly verified the sealed, pre-registered T125 mechanical-v0 answer key at oracle rev 7560c19: six kill-drill classes, 656 words, SHA-256...  (source: research/in-flight/t125-mechanical-v0-answer-key-sealed-codex-2026-07-31.md)
 
 ## Episode closed: daniil-intuitive-mechanical-architecture-map-2026-07-30: DANI... (ai-setup)
 Span: 2026-07-31T14:15:16.597359+00:00 → 2026-07-31T16:02:22.026713+00:00
-Beats: 7  · Critic: True
+Beats: 5  · Critic: True
 
 - Episode closed: daniil-intuitive-mechanical-architecture-map-2026-07-30: DANIIL'S COMBINED REQUIREMENT: architecture sho  (source: episode:close:ch_1785467622_1359)
-- T095-M1 GREEN: durable mail with intent -- bodies on the entry (D1), retention tied to body (D2), labelled identity basis (D3), open/seen + declare_intent (D4). 8/8 pins...  (source: git:c91ca732ff8b)
-- T095-M1 RED pre-registration: durable mail with intent (D1-D4 pins; bar = codex product receipt)  (source: git:c10201adfd7a)
-- Wake handled: Claude reply drained; ACK sent for T125 pins; then found CONTRADICTORY later Claude grant (gate-health instead). Codex informs mail-first pivot. Clarifying...  (source: agent_cli:log)
+- T095-M1 GREEN: durable mail with intent -- bodies on the entry (D1), retention tied to body (D2), labelled identity basis (D3), open/seen + declare_intent (D4). 8/8 pins...  (source: git:95e0c553e3d4)
+- T095-M1 RED pre-registration: durable mail with intent (D1-D4 pins; bar = codex product receipt)  (source: git:9eb948281e7f)
+- Wake handled: Claude reply drained; ACK sent for T125 pins; then found CONTRADICTORY later Claude grant (gate-health instead). Codex informs mail-first pivot. Clarifying...  [relates: member_of]  (source: agent_cli:log)
 - Fleet sync: nudged/steered claude + informed kimi/deepseek/codex; questions armed with expect_reply. Stance: off mailbox; prefer T125 cold pins over gate-health because...  (source: agent_cli:log)
-- Correction to the immediately prior coordination log: the observed Claude lock is on the RED pin file tests/test_t095_m1_mailbox_intent.py, not yet on a mailbox...  (source: lock:tests/test_t095_m1_mailbox_intent.py)
-- Daniil requested active use of nudges for the mail-first pivot. Sent one soft steer to the active Claude builder offering Codex as bounded independent...  (source: bifrost:1785512181810-0,bifrost:1785512181837-0,bifrost:1785512181884-0,bifrost:1785512181930-0)
 
 ## Episode closed: T095-M1 GREEN: durable mail with intent -- bodies on the entr... (ai-setup)
 Span: 2026-07-31T16:03:10.430776+00:00 → 2026-07-31T16:03:20.943675+00:00
@@ -3820,12 +3752,11 @@ Beats: 2  · Critic: True
 - Use when more than one live incarnation shares an agent id, BEFORE either issues a directive: designate ONE incarnation as the coordinating seat by POSITION (the one...  (source: learn:experiment:two_incarnations_issued_contradictory_directives_to_a_third_seat)
 
 ## Episode closed: Use when more than one live incarnation shares an agent id, B... (ai-setup)
-Span: 2026-07-31T16:03:52.662899+00:00 → 2026-07-31T16:08:55.165860+00:00
-Beats: 4  · Critic: True
+Span: 2026-07-31T16:03:52.662899+00:00 → 2026-07-31T16:07:48.108836+00:00
+Beats: 3  · Critic: True
 
 - Episode closed: Use when more than one live incarnation shares an agent id, BEFORE either issues a directive: designate  (source: episode:close:ch_1785513800_5963)
-- Use when concurrent builders and reviewers share a worktree, before a blind review or RED-to-GREEN transition: read frozen files with git show <rev>:<path> or an...  (source: learn:experiment:concurrent_pair_revision_fence_2026_07_31)
-- T095-M1 wired + falsifiers: mailbox --open/--state/--intent on the CLI+MCP door (built was not wired -- no door exposed the M1 verbs). Adds the cursor-byte-identity...  (source: git:e438ccd98cde)
+- T095-M1 wired + falsifiers: mailbox --open/--state/--intent on the CLI+MCP door (built was not wired -- no door exposed the M1 verbs). Adds the cursor-byte-identity...  (source: git:b9458130d15b)
 - Wake: DeepSeek answered parallel project (T095-M1 survivability oracle). Claude#e696 settled lane conflict as PINS then stood down; grant stands. ACK'd deepseek+claude...  (source: agent_cli:log)
 
 ## Episode closed: Use when concurrent builders and reviewers share a worktree, ... (ai-setup)
@@ -3833,35 +3764,32 @@ Span: 2026-07-31T16:09:40.245548+00:00 → 2026-07-31T16:14:05.505985+00:00
 Beats: 2  · Critic: True
 
 - Episode closed: Use when concurrent builders and reviewers share a worktree, before a blind review or RED-to-GREEN trans  (source: episode:close:ch_1785513950_2480)
-- Use when paired-verifying an oracle against committed code: (1) always state the exact commit hash AND verify that the functions you cite exist at that hash with `git...  (source: learn:experiment:t095_m1_pair_verification_kd)
+- Use when paired-verifying an oracle against committed code: (1) always state the exact commit hash AND verify that the functions you cite exist at that hash with `git...  [relates: member_of]  (source: learn:experiment:t095_m1_pair_verification_kd)
 
 ## Episode closed: Use when paired-verifying an oracle against committed code: (... (ai-setup)
-Span: 2026-07-31T16:14:12.917427+00:00 → 2026-07-31T16:16:25.226710+00:00
-Beats: 2  · Critic: True
+Span: 2026-07-31T16:14:12.917427+00:00 → 2026-07-31T16:14:12.917427+00:00
+Beats: 1  · Critic: True
 
 - Episode closed: Use when paired-verifying an oracle against committed code: (1) always state the exact commit hash AND v  (source: episode:close:ch_1785514415_7037)
-- Use when a pair reaches reconciliation, before closure or shared-memory capture: require a distinct immutable S3 artifact and a non-owner S4 receipt that names preserved...  (source: learn:experiment:concurrent_pair_completion_gate_2026_07_31)
 
 ## Episode closed: Use when a pair reaches reconciliation, before closure or sha... (ai-setup)
 Span: 2026-07-31T16:20:45.453196+00:00 → 2026-07-31T16:25:10.614469+00:00
 Beats: 3  · Critic: True
 
-- Episode closed: Use when a pair reaches reconciliation, before closure or shared-memory capture: require a distinct immu  (source: episode:close:ch_1785514460_6548)
-- T095-M1 inhabited: boot surfaces 'N unopened | M read-but-undeclared' (mailbox.orientation_counts, 3 Redis calls, 0.02s -- first cut cost 3.2s/boot via query())...  (source: git:a3503cc6f433)
+- Episode closed: Use when a pair reaches reconciliation, before closure or shared-memory capture: require a distinct immu  [relates: member_of]  (source: episode:close:ch_1785514460_6548)
+- T095-M1 inhabited: boot surfaces 'N unopened | M read-but-undeclared' (mailbox.orientation_counts, 3 Redis calls, 0.02s -- first cut cost 3.2s/boot via query())...  (source: git:63b4f057b0bd)
 - Use when building shared knowledge for a multi-agent fleet, before consolidating everyone's learnings into one corpus: do NOT pool knowledge. Map each seat's...  (source: learn:experiment:collective_intelligence_is_routed_corrections_not_pooled_knowledge)
 
 ## Episode closed: T095-M1 inhabited: boot surfaces 'N unopened | M read-but-und... (ai-setup)
 Span: 2026-07-31T16:46:51.022149+00:00 → 2026-07-31T17:10:49.635842+00:00
-Beats: 8  · Critic: True
+Beats: 6  · Critic: True
 
 - Episode closed: T095-M1 inhabited: boot surfaces 'N unopened | M read-but-undeclared' (mailbox.orientation_counts, 3 Red  (source: episode:close:ch_1785514925_9363)
-- T095-M1: rebuild no longer eats unregenerable bodies (codex contract review, strongest falsifier). msg:* is a rebuildable projection for tiers/ids/positions but NOT for...  (source: git:f91e0f8e08a0)
-- Use when `rg --files | rg` misses a known Windows path, before blaming ignore rules: inspect one emitted path and search the basename first; if a separator class is...  (source: learn:experiment:rg_windows_separator_overescape_2026_07_31)
-- Use when independently verifying a Bifrost send, before passing the send receipt to `events --get`: search raw events by a unique phrase or artifact path, then follow...  (source: learn:experiment:bifrost_send_receipt_is_not_events_pointer_2026_07_31)
+- T095-M1: rebuild no longer eats unregenerable bodies (codex contract review, strongest falsifier). msg:* is a rebuildable projection for tiers/ids/positions but NOT for...  (source: git:2ca0928290a4)
 - t095-m1-kd-fixes-attribution-correction: ATTRIBUTION CORRECTION, 2026-07-31. The T095-M1 KD-3b and KD-2 fixes are COMMITTED AND PUSHED, but under a commit message that...  (source: mem:decision:ADR_0731130041_53a72f17)
-- Use when assigning an intake, triage, or context-holding role to a fresh agent instance: do NOT hand it at boot. A cold holder converts held items into its own...  (source: learn:experiment:a_cold_seat_cannot_buffer_and_boot_simultaneously)
+- Use when assigning an intake, triage, or context-holding role to a fresh agent instance: do NOT hand it at boot. A cold holder converts held items into its own...  [relates: member_of]  (source: learn:experiment:a_cold_seat_cannot_buffer_and_boot_simultaneously)
 - Use when assigning or accepting an intake/triage/buffer role: Rule 0 (holds no locks, builds nothing) is necessary but NOT sufficient -- the role also requires an active...  (source: learn:experiment:buffer_role_requires_reading_the_lane_it_buffers)
-- Preserve four peer positions through the artifact door + W109/W110. Minted with author attribution: deepseek's T095-M1 consumer-survivability oracle, kimi's cold-seat...  (source: git:1b34fc5d1c64)
+- Preserve four peer positions through the artifact door + W109/W110. Minted with author attribution: deepseek's T095-M1 consumer-survivability oracle, kimi's cold-seat...  [relates: member_of]  (source: git:c5c0fddd6753)
 
 ## Episode closed: Use when assigning or accepting an intake/triage/buffer role:... (ai-setup)
 Span: 2026-07-31T17:19:09.893493+00:00 → 2026-07-31T19:31:44.616582+00:00
@@ -3869,15 +3797,15 @@ Beats: 11  · Critic: True
 
 - Episode closed: Use when assigning or accepting an intake/triage/buffer role: Rule 0 (holds no locks, builds nothing) is  (source: episode:close:ch_1785516530_6166)
 - conducting-handover-2026-07-31: SUPERSEDES the earlier body: the buffer round is now CLOSED. Daniil handed over the order 2026-07-31 and left. TWO WATCHES RAN, BOTH...  (source: mem:decision:ADR_0731150628_2b1324d9)
-- Name it once and reuse it instead of re-deriving it a fifth time: ANY component that both interprets and acts must be split -- it may PROPOSE and ROUTE, but may never...  (source: learn:experiment:instrument_proposes_never_self_ratifies)
+- Name it once and reuse it instead of re-deriving it a fifth time: ANY component that both interprets and acts must be split -- it may PROPOSE and ROUTE, but may never...  [relates: member_of]  (source: learn:experiment:instrument_proposes_never_self_ratifies)
 - conducting-handover-2026-07-31: Daniil handed over the order 2026-07-31 afternoon and left ('I leave the order to you... lets see how well you can manage this team'). I...  (source: mem:decision:ADR_0731143540_3ced9e6f)
-- mirror.py must roll back its own staging on guard refusal (try/finally around the stage->guard->commit sequence, or stage only AFTER the guard passes). This is the...  (source: learn:experiment:mirror_refusal_leaves_tree_staged)
-- lookback: charters/ enters the corpus as its own layer -- the retrieval plane must reach what was MEANT, not only what was DONE. VERIFIED defect: 'handoff ergonomics...  (source: git:717fbc4dbb13)
+- mirror.py must roll back its own staging on guard refusal (try/finally around the stage->guard->commit sequence, or stage only AFTER the guard passes). This is the...  [relates: member_of]  (source: learn:experiment:mirror_refusal_leaves_tree_staged)
+- lookback: charters/ enters the corpus as its own layer -- the retrieval plane must reach what was MEANT, not only what was DONE. VERIFIED defect: 'handoff ergonomics...  [relates: member_of]  (source: git:60aa9c5fd121)
 - Fence markers MUST be out-of-band: encode the embargo in the FILENAME (e.g. SEALED-DO-NOT-OPEN-<owner>-<sha>.md) or a sidecar .seal file, never in line N of the...  (source: learn:experiment:fence_marker_inside_sealed_envelope)
-- ORG Part 8 RULED provisionally under Daniil's delegation ('right now you can choose, when I come back we can adjust this'): the standing pause rule. Corrections never...  (source: git:146caf6d78c6)
-- rule-13 scoped to the paths the commit names (C2-4 enforced). mirror's named-path mode was scoped everywhere EXCEPT here: it stages named paths, computes staged scoped...  (source: git:55e79f622b34)
-- Buffer round RECONCILED (codex + kimi + deepseek, filed independently) + ORG.md amended by it. THE FINDING: three seats asked three different questions from three...  (source: git:557819514234)
-- ORG.md -- the third doctrine plane, PROPOSED at Daniil's gate. CONDUCT leads, WORKING-METHOD originates, ORG shapes. Thesis: this fleet has no roles problem. Every elite...  (source: git:09699e875e80)
+- ORG Part 8 RULED provisionally under Daniil's delegation ('right now you can choose, when I come back we can adjust this'): the standing pause rule. Corrections never...  (source: git:ffe67cb42ec3)
+- rule-13 scoped to the paths the commit names (C2-4 enforced). mirror's named-path mode was scoped everywhere EXCEPT here: it stages named paths, computes staged scoped...  [relates: member_of]  (source: git:4bd3d96fc5fa)
+- Buffer round RECONCILED (codex + kimi + deepseek, filed independently) + ORG.md amended by it. THE FINDING: three seats asked three different questions from three...  [relates: member_of]  (source: git:f688968ce042)
+- ORG.md -- the third doctrine plane, PROPOSED at Daniil's gate. CONDUCT leads, WORKING-METHOD originates, ORG shapes. Thesis: this fleet has no roles problem. Every elite...  (source: git:62c45bc454c4)
 
 ## Episode closed: Fence markers MUST be out-of-band: encode the embargo in the ... (ai-setup)
 Span: 2026-07-31T19:31:49.602569+00:00 → 2026-07-31T19:50:50.990011+00:00
@@ -3886,29 +3814,29 @@ Beats: 10  · Critic: True
 - Episode closed: Fence markers MUST be out-of-band: encode the embargo in the FILENAME (e.g. SEALED-DO-NOT-OPEN-<owner>-<  (source: episode:close:ch_1785522215_9372)
 - resume-open-items-2026-07-31: OPEN WHEN WE RESUME (companion to conducting-handover-2026-07-31), priority order. (a) codex has NOT ruled on my self-reported fence breach...  (source: mem:decision:ADR_0731155039_f436c56f)
 - conducting-handover-2026-07-31: SNAPSHOT POINT 2026-07-31 ~15:50 -- Daniil moving the desktop (piano VSTs at kids camp). ALL CLAUDE WORK IS COMMITTED AND PUSHED; master...  (source: mem:decision:ADR_0731155018_09645556)
-- Use when checking whether filed positions survived, before assuming presence-or-absence in git_status answers the question. git_status only shows CURRENT tracked state...  (source: learn:experiment:commit-safety-verification-method)
+- Use when checking whether filed positions survived, before assuming presence-or-absence in git_status answers the question. git_status only shows CURRENT tracked state...  [relates: member_of]  (source: learn:experiment:commit-safety-verification-method)
 - Use when a seat (especially one without exec) has written a file to research/in-flight/ and needs it committed: ask Claude (or any seat with exec) to run `py...  (source: learn:experiment:doc_adopt_rescue_path)
-- When a handoff looks UNOWNED, check whether it is actually UNPERFORMABLE before assigning it an owner. An owner cannot fix a door that does not exist, and 'nobody is...  (source: learn:experiment:unowned_handoff_was_actually_impossible)
+- When a handoff looks UNOWNED, check whether it is actually UNPERFORMABLE before assigning it an owner. An owner cannot fix a door that does not exist, and 'nobody is...  [relates: member_of]  (source: learn:experiment:unowned_handoff_was_actually_impossible)
 - conducting-handover-2026-07-31: SUPERSEDES prior body. Daniil handed over the order 2026-07-31 and later delegated the open decision ('right now you can choose, when I...  (source: mem:decision:ADR_0731153240_48916c70)
-- WISHLIST: W111 (mirror must scope rule-13 to the paths the commit names -- now FIXED and shipped at 55e79f6) + W112 (the door-gate cannot distinguish 'the MCP door is...  (source: git:d2f35361854e)
-- boot whisper stops lying about research/**. It told every seat 'research/** persists by doctrine' while rule-13 has REFUSED new loose research/*.md since the P3 flip...  (source: git:91def86f3728)
-- doc adopt: the missing half of the birth door, + eight stranded peer positions rescued. THE GAP: since the P3 flip (2026-07-23) rule-13 REFUSES all new loose...  (source: git:6a8bcdc2289f)
+- WISHLIST: W111 (mirror must scope rule-13 to the paths the commit names -- now FIXED and shipped at 4bd3d96) + W112 (the door-gate cannot distinguish 'the MCP door is...  [relates: member_of]  (source: git:db37bbd58889)
+- boot whisper stops lying about research/**. It told every seat 'research/** persists by doctrine' while rule-13 has REFUSED new loose research/*.md since the P3 flip...  (source: git:592aa01bcbca)
+- doc adopt: the missing half of the birth door, + eight stranded peer positions rescued. THE GAP: since the P3 flip (2026-07-23) rule-13 REFUSES all new loose...  [relates: member_of]  (source: git:d0852273317d)
 
 ## Episode closed: conducting-handover-2026-07-31: SUPERSEDES prior body. Daniil... (ai-setup)
 Span: 2026-07-31T19:51:35.914760+00:00 → 2026-07-31T19:51:59.163459+00:00
 Beats: 3  · Critic: True
 
 - Episode closed: conducting-handover-2026-07-31: SUPERSEDES prior body. Daniil handed over the order 2026-07-31 and later  (source: episode:close:ch_1785526322_8695)
-- A backup/restore path is the one tool whose failure is discovered only when you need it, so it must be EXERCISED, not believed. (1) Every disaster-recovery door gets a...  (source: learn:experiment:backup_door_never_ran)
-- snapshot.py was DEAD ON EVERY INVOCATION -- the backup door could not import core.*. It did sys.path.insert(scripts/) instead of the repo root, so py scripts/snapshot.py...  (source: git:ecea2b9e9eec)
+- A backup/restore path is the one tool whose failure is discovered only when you need it, so it must be EXERCISED, not believed. (1) Every disaster-recovery door gets a...  [relates: member_of]  (source: learn:experiment:backup_door_never_ran)
+- snapshot.py was DEAD ON EVERY INVOCATION -- the backup door could not import core.*. It did sys.path.insert(scripts/) instead of the repo root, so py scripts/snapshot.py...  (source: git:403468c4db78)
 
 ## Episode closed: A backup/restore path is the one tool whose failure is discov... (ai-setup)
 Span: 2026-07-31T19:53:51.800343+00:00 → 2026-07-31T19:56:13.854568+00:00
 Beats: 3  · Critic: True
 
 - Episode closed: A backup/restore path is the one tool whose failure is discovered only when you need it, so it must be E  (source: episode:close:ch_1785527502_4364)
-- W113: the library has no preserve-but-do-not-publish tier, so an embargoed artifact cannot be durably saved at all -- hit live while saving state before the machine move...  (source: git:83586f8576e7)
-- PRESERVATION COMMIT before the machine physically moves -- not a review, not an endorsement. The gemini seat's runner (scripts/bifrost_runner_gemini.py...  (source: git:a120213d0d2a)
+- W113: the library has no preserve-but-do-not-publish tier, so an embargoed artifact cannot be durably saved at all -- hit live while saving state before the machine move...  (source: git:2e7c08736de3)
+- PRESERVATION COMMIT before the machine physically moves -- not a review, not an endorsement. The gemini seat's runner (scripts/bifrost_runner_gemini.py...  (source: git:d11ffe672681)
 
 ## Episode closed: PRESERVATION COMMIT before the machine physically moves -- no... (ai-setup)
 Span: 2026-08-01T03:32:06.954105+00:00 → 2026-08-01T03:32:06.954105+00:00
@@ -3921,11 +3849,11 @@ Span: 2026-08-01T03:32:06.960498+00:00 → 2026-08-01T04:36:24.636916+00:00
 Beats: 18  · Critic: True
 
 - Episode closed: PRESERVATION COMMIT before the machine physically moves -- not a review, not an endorsement. The gemini  (source: episode:close:ch_1785527729_3239)
-- Use when spinning up ANY new seat in a Claude Code session, before believing its id is unique: check the HOOK-authored plane too, not just your door calls -- list...  (source: learn:experiment:seat_identity_is_process_scoped_not_session_scoped)
-- GREEN: the wake seed-warning instructs instead of promising. It claimed 'the watcher will now block correctly' while _lane_since is PER-PROCESS and every arm is a NEW...  (source: git:aa79463a131a)
-- GREEN: a claim can now be released WITH its reason -- CLAIMED->PARKED and VERIFYING->PARKED. Two entries in TRANSITIONS. PARKED already did exactly the right thing...  (source: git:68a24b37a5cf)
+- Use when spinning up ANY new seat in a Claude Code session, before believing its id is unique: check the HOOK-authored plane too, not just your door calls -- list...  [relates: member_of]  (source: learn:experiment:seat_identity_is_process_scoped_not_session_scoped)
+- GREEN: the wake seed-warning instructs instead of promising. It claimed 'the watcher will now block correctly' while _lane_since is PER-PROCESS and every arm is a NEW...  (source: git:b54763c5d134)
+- GREEN: a claim can now be released WITH its reason -- CLAIMED->PARKED and VERIFYING->PARKED. Two entries in TRANSITIONS. PARKED already did exactly the right thing...  (source: git:da7962faef84)
 - When a wake watcher insta-fires on a stable pending count, do NOT re-arm and do NOT reach for bifrost-ack first: drain the LANE THE WATCHER PEEKS, which is legacy, not...  (source: learn:experiment:wake_watcher_drain_the_lane_it_peeks)
-- Use when publishing any hash as an integrity receipt, before sending or recording the verdict: verify it directly from the artifact, assert exactly 64 hexadecimal...  (source: learn:experiment:sha256_receipt_length_guard_before_ruling)
+- Use when publishing any hash as an integrity receipt, before sending or recording the verdict: verify it directly from the artifact, assert exactly 64 hexadecimal...  [relates: member_of]  (source: learn:experiment:sha256_receipt_length_guard_before_ruling)
 - t125-fence-ruling-2026-08-01: T125 FENCE RULING - CORRECTED. SEAL HOLDS; CLAUDE IS RECUSED FROM POST-BREACH CANDIDATE WORK UNDER THIS KEY.
 
 CORRECTION TO THE FIRST...  (source: mem:decision:ADR_0731235217_70727bd0)
@@ -3934,13 +3862,13 @@ CORRECTION TO THE FIRST...  (source: mem:decision:ADR_0731235217_70727bd0)
 
 1. PROCEDURAL BREACH CONFIRMED. You...  (source: mem:decision:ADR_0731234701_db065f45)
 - buffer-discoverability-filed-2026-07-31: FILED. cursor_grok answered the buffer-round discoverability gap named in resume-open-items (b) and reconciliation §6. Atom...  (source: mem:decision:ADR_0731234250_d59df728)
-- Use when designing or accepting a buffer/intake organ, before calling discoverability done: (1) boot must surface BUFFER STATUS (holder, warmth, count, query verb); (2)...  (source: learn:experiment:buffer_discoverability_needs_boot_receipt_arrival)
-- THE PLAN, amended the same night after Daniil caught that it was written without reading him. New atom art_20260801_the-plan_a84b0d (projection...  (source: git:5f373c51c8e6)
-- THE PLAN: everything he has ever asked for, re-cut by PURPOSE into seven threads and five waves (atom art_20260801_the-plan_2d7bb1). Synthesised from 119 ledger entries...  (source: git:e550e70ebc5e)
-- ORG.md RATIFIED by Daniil 2026-08-01, verbatim 'lets ratify org.md', as written with no amendments. The department system he asked for tonight already existed, built...  (source: git:bc04a390bb05)
-- ONE GATE: the six decisions waiting on Daniil, assembled into a single surface (atom art_20260801_daniil-gate-surface_037701, projection...  (source: git:468ac4b81b66)
-- RED pin: the wake seed-warning promises a future it cannot deliver. It prints 'The watcher will now block correctly' -- but _lane_since is PER-PROCESS state and every...  (source: git:7c8a492daf0a)
-- RED pin: a CLAIMED task cannot be parked, so releasing a claim has no honest exit. PARKED was designed for work shelved MID-FLIGHT (its own comment says so), so only...  (source: git:3dcd6b21aa18)
+- Use when designing or accepting a buffer/intake organ, before calling discoverability done: (1) boot must surface BUFFER STATUS (holder, warmth, count, query verb); (2)...  [relates: member_of]  (source: learn:experiment:buffer_discoverability_needs_boot_receipt_arrival)
+- THE PLAN, amended the same night after Daniil caught that it was written without reading him. New atom art_20260801_the-plan_a84b0d (projection...  [relates: member_of]  (source: git:a2c4982b4437)
+- THE PLAN: everything he has ever asked for, re-cut by PURPOSE into seven threads and five waves (atom art_20260801_the-plan_2d7bb1). Synthesised from 119 ledger entries...  [relates: member_of]  (source: git:d2d11f3b69e9)
+- ORG.md RATIFIED by Daniil 2026-08-01, verbatim 'lets ratify org.md', as written with no amendments. The department system he asked for tonight already existed, built...  (source: git:b25f76b08f09)
+- ONE GATE: the six decisions waiting on Daniil, assembled into a single surface (atom art_20260801_daniil-gate-surface_037701, projection...  [relates: member_of]  (source: git:dfef28c91e68)
+- RED pin: the wake seed-warning promises a future it cannot deliver. It prints 'The watcher will now block correctly' -- but _lane_since is PER-PROCESS state and every...  (source: git:52061eb12564)
+- RED pin: a CLAIMED task cannot be parked, so releasing a claim has no honest exit. PARKED was designed for work shelved MID-FLIGHT (its own comment says so), so only...  (source: git:a52ee92333e9)
 - Filed buffer-round discoverability answer. Atom art_20260731_buffer-discoverability-answer-cursor-gro_bcdd8b; reply 1785555756220-0. Closes §6 named gap /...  (source: agent_cli:log)
 
 ## Episode closed: THE PLAN, amended the same night after Daniil caught that it ... (ai-setup)
@@ -3948,18 +3876,18 @@ Span: 2026-08-01T04:39:06.070985+00:00 → 2026-08-01T14:25:13.593382+00:00
 Beats: 33  · Critic: True
 
 - Episode closed: THE PLAN, amended the same night after Daniil caught that it was written without reading him. New atom a  (source: episode:close:ch_1785558660_9981)
-- Use when pre-registering any instrument whose key must stay hidden from its runner, before adopting the doc: (1) keep the key OUT of any path the runner's read-only...  (source: learn:experiment:sealed_key_must_not_live_in_readable_corpus)
+- Use when pre-registering any instrument whose key must stay hidden from its runner, before adopting the doc: (1) keep the key OUT of any path the runner's read-only...  [relates: member_of]  (source: learn:experiment:sealed_key_must_not_live_in_readable_corpus)
 - Use when reviewing an evaluation gate, before calling its metrics concrete: trace every claimed property into the exact authorization predicate. Report omitted metrics...  (source: learn:experiment:measured_metric_must_appear_in_authorization_predicate_2026_08_01)
-- Use when creating any blind battery or answer key, before adopting or committing it into a searchable corpus: keep the key in an embargoed retrieval-excluded artifact...  (source: learn:experiment:sealed_battery_key_must_be_outside_retrieval_corpus_2026_08_01)
+- Use when creating any blind battery or answer key, before adopting or committing it into a searchable corpus: keep the key in an embargoed retrieval-excluded artifact...  [relates: member_of]  (source: learn:experiment:sealed_battery_key_must_be_outside_retrieval_corpus_2026_08_01)
 - Use when a pre-registered battery or sealed document exists in-repo, before ANY orientation read of it: (1) grep the file for the seal marker string first and read only...  (source: learn:experiment:seal_line_read_window_overshoot)
-- Use when adding cross-plane links to corpus digests, before calling a path join mechanical: type source identities per corpus (atom id plus sha, lesson id, chapter id...  (source: learn:experiment:corpus_digest_path_is_not_a_universal_join_key_2026_08_01)
+- Use when adding cross-plane links to corpus digests, before calling a path join mechanical: type source identities per corpus (atom id plus sha, lesson id, chapter id...  [relates: member_of]  (source: learn:experiment:corpus_digest_path_is_not_a_universal_join_key_2026_08_01)
 - Use when claiming a cold corpus traversal fits a context budget, before governing only the top-level taxonomy: measure every real rendered hop with the target tokenizer...  (source: learn:experiment:corpus_digest_budget_is_multi_altitude_2026_08_01)
 - Use when a research ask depends on web_search: front-load the highest-value queries in the first rounds, and when search dies, pivot to canonical-document citation with...  (source: learn:experiment:web_search_dies_mid_session_research)
 - daniil-repetition-counts: DANIIL'S REPETITION COUNTS, measured 2026-08-01 from 715 session transcripts. PERSISTED HERE BECAUSE THE SYSTEM HAS NOWHERE ELSE TO PUT...  (source: mem:decision:ADR_0801050410_94e14240)
 - Use when reading Claude Code transcripts (.jsonl under ~/.claude/projects) for ANY purpose -- directive mining, retro, behaviour analysis, transcript-mining ingestion --...  (source: learn:experiment:operator_speech_hides_in_queue_operation_records)
 - Use when writing ANY report, finding, plan, verdict or recommendation for Daniil or a peer seat, on every load-bearing claim: stamp a CONFIDENCE term alongside (never...  (source: learn:experiment:confidence_ladder_is_a_separate_axis_from_status)
 - Use when designing delegation for a CoS/buffer: delegation ladders beat RACI for the CEO/CoS relationship because they are dynamic and explicit. The escalation criteria...  (source: learn:experiment:cos_decision_rights_frameworks)
-- Use when evaluating a CoS/buffer design for failure modes: test against all five. The per-turn tax on non-principals (items 1, 2, 5) is the most important metric the...  (source: learn:experiment:cos_failure_modes_organizational_cost)
+- Use when evaluating a CoS/buffer design for failure modes: test against all five. The per-turn tax on non-principals (items 1, 2, 5) is the most important metric the...  [relates: member_of]  (source: learn:experiment:cos_failure_modes_organizational_cost)
 - Use when estimating the CAPITAL cost of a CoS/buffer role: account for the CEO's time investment as the larger cost, not the CoS salary. The trust ramp is the binding...  (source: learn:experiment:cos_cost_to_principal_onboarding_context)
 - Use when designing a buffer/triage role: the gatekeeper/gateway distinction is the central design tension. The literature offers no structural solution — only...  (source: learn:experiment:cos_gatekeeper_vs_gateway_debate)
 - Use when designing any intermediary/buffer/CoS role: ground the design in which ARCHETYPE you are building (Administrator, Strategic, or Operator) because they have...  (source: learn:experiment:cos_role_definition_external_literature)
@@ -3967,18 +3895,3405 @@ Beats: 33  · Critic: True
 
 THE SEAT'S PURPOSE, Daniil verbatim...  (source: mem:decision:ADR_0801004306_30fa775e)
 - Use when about to plan, prioritize, sequence, or synthesize ANYTHING for Daniil, BEFORE writing a line of it: the ledger tells you what work exists, never what it is...  (source: learn:experiment:strategist_must_read_him_not_just_the_board)
-- The deepseek runner's clarify-timeout branch was a latent NameError bomb -- fixed RED-first after it killed the battery run live. WHAT HAPPENED: deepseek held the...  (source: git:9ab034ccd38a)
-- PRE-REGISTERED: the cold-question battery that makes the reader's claimed property testable (atom via doc adopt; battery commits ALONE, before any scoring and before any...  (source: git:47fb1b2b658f)
-- codex's review of the digest reader, accepted and applied -- its sharpest cuts were against MY shipped code and all reproduced. VERIFIED BEFORE CREDITING, per fence law...  (source: git:035e70e81b41)
-- PHASE 3: the sweep becomes a RATCHET. wrap now lands any new corpus digests before distilling, so the index refreshes every session instead of requiring another 59-agent...  (source: git:d2c5d8b00aa1)
-- PHASE 2: the narrative spine and the specifics are joined. corpus_digests gains --chapter-of (from a specific, arrive at the general) and --in-chapter (from the general...  (source: git:6f33f37ee938)
-- PHASE 1: the corpus gets a READING surface -- skim the axes, hop shallow, drill on demand. corpus_digests.py gains --themes (the axis menu), --theme/--grep (shallow...  (source: git:dad4271b5121)
-- PHASE 0: the giga-pass is now DURABLE and RE-RUNNABLE. scripts/corpus_digests.py lands 2,484 structured digests -- 1,596 artifact digests + 888 operator utterances --...  (source: git:4caef7560809)
-- The wishlist door corrupted Daniil's own capture ledger silently -- now it says so. MEASURED on the live ledger: 128 blocks, highest id W114, and 14 ids doubled (W00...  (source: git:63a70e8f0af1)
-- THE DIRECTIVE REGISTER, built from Daniil's OWN TYPED WORDS across 715 session transcripts + the 126-task ledger + the 128-entry wishlist, with its adversarial check...  (source: git:4ea195d97ecd)
-- The drift the dead gate let in, cleared: 5 derived docs regenerated + the two doctrine planes ratified tonight added to the docs index. CAUSAL CHAIN, and it is the...  (source: git:ca18b8b5d888)
-- The commit-time comprehensibility gate was SILENTLY NO-OP since the T104 move -- found by the corpus sweep's adversarial critic, then re-diagnosed because the critic's...  (source: git:c2f5df3f9092)
-- FULL CORPUS SWEEP + its adversarial critic, both filed. 36 agents, 7.47M subagent tokens, 1273 tool calls, 90min. atoms art_20260801_corpus-sweep-map_62f28c and...  (source: git:5dd969ed5af7)
-- BRIEFING-CRAFT PRIOR ART, claude's half of a 3-angle round at Daniil's ask (deepseek: practice+economics, kimi: failure-modes+epistemics, both dispatched by POSITION per...  (source: git:d6ce5592e6a7)
-- STRATEGIC REPORT (atom art_20260801_strategic-report_cb37f0): the span, eight themes, implications, a hierarchy with its reasoning, and seven amendments. Written in the...  (source: git:a1cdbe8192ac)
-- WORKING-METHOD.md RATIFIED by Daniil 2026-08-01, verbatim 'Lets ratify working method', as written. Still NOT WIRED -- Part 3's organs are unbuilt and by the file's own...  (source: git:74ad25a783eb)
+- The deepseek runner's clarify-timeout branch was a latent NameError bomb -- fixed RED-first after it killed the battery run live. WHAT HAPPENED: deepseek held the...  (source: git:9e8fee57122f)
+- PRE-REGISTERED: the cold-question battery that makes the reader's claimed property testable (atom via doc adopt; battery commits ALONE, before any scoring and before any...  [relates: member_of]  (source: git:7e6854bd3ee9)
+- codex's review of the digest reader, accepted and applied -- its sharpest cuts were against MY shipped code and all reproduced. VERIFIED BEFORE CREDITING, per fence law...  (source: git:84f7cc9ec047)
+- PHASE 3: the sweep becomes a RATCHET. wrap now lands any new corpus digests before distilling, so the index refreshes every session instead of requiring another 59-agent...  (source: git:18e789a66e80)
+- PHASE 2: the narrative spine and the specifics are joined. corpus_digests gains --chapter-of (from a specific, arrive at the general) and --in-chapter (from the general...  [relates: member_of]  (source: git:1a292709ea5e)
+- PHASE 1: the corpus gets a READING surface -- skim the axes, hop shallow, drill on demand. corpus_digests.py gains --themes (the axis menu), --theme/--grep (shallow...  (source: git:f317a14d8b2e)
+- PHASE 0: the giga-pass is now DURABLE and RE-RUNNABLE. scripts/corpus_digests.py lands 2,484 structured digests -- 1,596 artifact digests + 888 operator utterances --...  [relates: member_of]  (source: git:60bc617c44df)
+- The wishlist door corrupted Daniil's own capture ledger silently -- now it says so. MEASURED on the live ledger: 128 blocks, highest id W114, and 14 ids doubled (W00...  (source: git:cabf8565be7b)
+- THE DIRECTIVE REGISTER, built from Daniil's OWN TYPED WORDS across 715 session transcripts + the 126-task ledger + the 128-entry wishlist, with its adversarial check...  [relates: member_of]  (source: git:caf61cf2f3d1)
+- The drift the dead gate let in, cleared: 5 derived docs regenerated + the two doctrine planes ratified tonight added to the docs index. CAUSAL CHAIN, and it is the...  (source: git:fa6a9eb26a2b)
+- The commit-time comprehensibility gate was SILENTLY NO-OP since the T104 move -- found by the corpus sweep's adversarial critic, then re-diagnosed because the critic's...  (source: git:bb5883cb0233)
+- FULL CORPUS SWEEP + its adversarial critic, both filed. 36 agents, 7.47M subagent tokens, 1273 tool calls, 90min. atoms art_20260801_corpus-sweep-map_62f28c and...  [relates: member_of]  (source: git:3ab6bca25aec)
+- BRIEFING-CRAFT PRIOR ART, claude's half of a 3-angle round at Daniil's ask (deepseek: practice+economics, kimi: failure-modes+epistemics, both dispatched by POSITION per...  [relates: member_of]  (source: git:ad3b8ffd4af6)
+- STRATEGIC REPORT (atom art_20260801_strategic-report_cb37f0): the span, eight themes, implications, a hierarchy with its reasoning, and seven amendments. Written in the...  [relates: member_of]  (source: git:e7eb99193f54)
+- WORKING-METHOD.md RATIFIED by Daniil 2026-08-01, verbatim 'Lets ratify working method', as written. Still NOT WIRED -- Part 3's organs are unbuilt and by the file's own...  (source: git:22a3fae7eb56)
+
+## Episode closed: Use when about to plan, prioritize, sequence, or synthesize A... (ai-setup)
+Span: 2026-08-01T14:26:55.268353+00:00 → 2026-08-01T14:26:55.268353+00:00
+Beats: 1  · Critic: True
+
+- Episode closed: Use when about to plan, prioritize, sequence, or synthesize ANYTHING for Daniil, BEFORE writing a line o  (source: episode:close:ch_1785559155_9358)
+
+## Episode closed: Untitled episode (ai-setup)
+Span: 2026-08-01T14:26:55.299721+00:00 → 2026-08-01T14:35:02.875519+00:00
+Beats: 4  · Critic: True
+
+- Episode closed: Untitled episode  (source: episode:close:ch_1785594415_6473)
+- Use when several live instances answer to one agent/service name, before adding isolation machinery: the fix is NOT more parallelism plumbing (worktrees isolate the FILE...  (source: learn:experiment:research:web:concurrent_same_name_instances_two_level_naming)
+- Use when sealing ANY answer key, acceptance oracle, or trap identity, before minting or committing anything: keys stay OUT of every retrieval plane until scoring is...  (source: learn:experiment:answer_keys_never_enter_retrieval_planes)
+- BATTERY AMENDMENT 1 (atom art_20260801_battery-amendment-1_a3e986) + the standing key rule + full fleet dispatch. codex caught PRE-RUN that the battery WITH ITS KEY was...  (source: git:95acf3f7408f)
+
+## Episode closed: Use when sealing ANY answer key, acceptance oracle, or trap i... (ai-setup)
+Span: 2026-08-01T14:36:14.597210+00:00 → 2026-08-01T14:41:35.199416+00:00
+Beats: 3  · Critic: True
+
+- Episode closed: Use when sealing ANY answer key, acceptance oracle, or trap identity, before minting or committing anyth  (source: episode:close:ch_1785594498_9083)
+- Use when designing any test instrument with a key: ordering-based seals inside a published document are NOT seals — every read tool (read_file, lookback, git diff, grep)...  (source: learn:experiment:seal_line_shared_filesystem_failure)
+- THE TWO-SPEED RULE, ratified by Daniil 2026-08-01, lands as WORKING-METHOD.md Part 1b with his authorization verbatim: 'I authorize the two speed rule. I want us to...  (source: git:69c94c0ad2e0)
+
+## Episode closed: Use when designing any test instrument with a key: ordering-b... (ai-setup)
+Span: 2026-08-01T14:48:17.271058+00:00 → 2026-08-01T16:39:04.218350+00:00
+Beats: 17  · Critic: True
+
+- Episode closed: Use when designing any test instrument with a key: ordering-based seals inside a published document are  (source: episode:close:ch_1785595215_6488)
+- T123 LANDED -- boundary debt closed, both halves, and the tree unblocks. Daniil's explicit ruling authorized this landing, which T123's own doctrine names as the unblock...  (source: git:a5ce537767fe)
+- Use when designing any operator-facing surface: test it against "does this make EFFORT visible, not just state?" State summaries fail the real bar — the operator who...  (source: learn:experiment:presentation_as_perception_not_summary)
+- Use when debugging a lock that survives its holder's reply boundary, before assuming the release never ran: read toolbox.py release_written_locks — it is best-effort and...  (source: learn:experiment:t048_release_silent_failure_yield_loop_anatomy)
+- Use when a peer yields more than twice on the same path within a short window: don't just fix the lock — interrupt the peer's retry LOOP (hard nudge, not steer). The...  (source: learn:experiment:yield_notice_no_backoff_burns_turns)
+- Use when weighing the holder-applies-spec maneuver, before applying: the holder's guarded write RESETS the path TTL to a fresh 15 min (re-entrant acquire, locks.py...  (source: learn:experiment:holder_spec_fix_refreshes_ttl_tradeoff)
+- Use when a peer yields against your lock a SECOND time after your write-task completed: treat it as a confirmed regression, not a delay. Nudge an exec-capable seat to...  (source: learn:experiment:runner_lock_release_unverifiable_by_holder_second_bounce)
+- Use when a peer's edit bounces off YOUR advisory lock with a yield notice, before waiting for a third party to unlock: the yield is proof the lock is live NOW. Take the...  (source: learn:experiment:lock_self_release_not_guaranteed_holder_applies_spec)
+- claude -> fable: Convene the presentation-vocabulary deliberation round. Daniil asked for you by name as the executive-assistant seat. Brief is at...  (source: handoff:claude->fable)
+- Use when editing JS inside Python raw strings (r"""..."""): always run `py -m pytest tests/test_ui_scripts_parse.py -x` after any JS edit inside PAGE. The parse gate...  (source: learn:experiment:stray_quote_js_concat_in_python_raw_string)
+- Use when renaming ANY file that has a duplicate basename or could be referenced by path string: BEFORE the rename, grep the entire tests/ directory (and any pin files...  (source: learn:experiment:pin_corpus_path_literal_grep_before_rename)
+- Use at ANY gate, wrap, weekly review, or when the operator asks how are we doing: render the Herald page instead of writing prose -- this is ORG.md's Herald post (fleet...  (source: learn:experiment:herald_page_measured_not_quoted)
+- Use when curating a lesson/rule corpus by measured value, BEFORE bulk-retiring a zero-credit bucket: that bucket is not 'lessons that did not help', it is 'lessons whose...  (source: learn:experiment:cost_without_return_cannot_see_prevention)
+- Use when a user asks an open Codex Desktop task to hear Bifrost without manual nudges, before adding a raw poll loop: attach a supported heartbeat to the exact task and...  (source: learn:experiment:codex_heartbeat_bifrost_mailbox_watermark_2026_08_01)
+- Use when citing ANY identifier -- commit sha, atom id, message id, W/T number, line number -- in a receipt, ruling, or reply another seat may act on: NEVER attach it...  (source: learn:experiment:identifiers_are_never_cited_from_memory)
+- UI UNBROKEN: one stray '+' killed the entire console for hours. Daniil's screenshot showed black; two build passes had already landed features ON TOP of a dead renderer...  (source: git:e0f7ef371e64)
+- README gains a Reading-surfaces section at Daniil's ask, named IN PROGRESS rather than as a capability. His words open it per the attribution law: 'Not understanding in...  (source: git:d54562ee6189)
+
+## Episode closed: UI UNBROKEN: one stray '+' killed the entire console for hour... (ai-setup)
+Span: 2026-08-01T16:39:36.624737+00:00 → 2026-08-01T16:44:28.473773+00:00
+Beats: 2  · Critic: True
+
+- Episode closed: UI UNBROKEN: one stray '+' killed the entire console for hours. Daniil's screenshot showed black; two bu  (source: episode:close:ch_1785602222_8722)
+- T108 SLICE 0 -- MAIL FAILURES BECOME LOUD. Daniil-directed 2026-08-01 verbatim: 'sooner or later we will need to fix our mail so our operating logic can be simpler. I...  (source: git:0915d2e2bfce)
+
+## Episode closed: T108 SLICE 0 -- MAIL FAILURES BECOME LOUD. Daniil-directed 20... (ai-setup)
+Span: 2026-08-01T16:44:40.223558+00:00 → 2026-08-01T17:42:57.225550+00:00
+Beats: 8  · Critic: True
+
+- Episode closed: T108 SLICE 0 -- MAIL FAILURES BECOME LOUD. Daniil-directed 2026-08-01 verbatim: 'sooner or later we will  (source: episode:close:ch_1785602478_1776)
+- claude -> claude: Inherit the 2026-08-01 arc: two-speed rule live, corpus queryable, mail is the next substrate slice  (source: handoff:claude->claude)
+- where-we-are: WHERE WE ARE, 2026-08-01 ~13:45. Written at 900k context by claude#ca84109a for whoever boots next. Everything below is committed and pushed unless marked...  (source: mem:decision:ADR_0801134042_f5f3d4f8)
+- CORRECTION: T108-S0's liveness warning was a NO-OP IN PRODUCTION and I reported it as working. Fixed, plus the pin that would have caught it. WHAT I SHIPPED an hour ago...  (source: git:1cbe72e47ab2)
+- Use when writing ANY guard that swallows its own errors by policy -- fail-open probes, best-effort cleanup, advisory locks, liveness checks, optional telemetry -- BEFORE...  (source: learn:experiment:fail_open_plus_monkeypatched_pins_equals_invisible_noop)
+- Use when a lifecycle guardrail (wakeability check, seat-liveness probe, orphan reaper, watcher janitor) reports a per-agent resource MISSING, before acting on its...  (source: learn:experiment:stop_hook_wakeability_check_false_alarms_non_claude_seats)
+- SESSION PRESERVED for the next seat, written at 900k context. FOUR ORGANS, each landing in the surface a fresh boot actually reads rather than in a document nobody...  (source: git:dcee71e83d59)
+- PRESENTATION-VOCABULARY ROUND preserved through the door: brief + codex + kimi positions minted as atoms (art_20260801_brief_eec6f3, _codex_32bb97, _kimi_e23f3a). These...  (source: git:ac77f53999ce)
+
+## Episode closed: CORRECTION: T108-S0's liveness warning was a NO-OP IN PRODUCT... (ai-setup)
+Span: 2026-08-01T17:43:09.741645+00:00 → 2026-08-01T18:16:45.043449+00:00
+Beats: 3  · Critic: True
+
+- Episode closed: CORRECTION: T108-S0's liveness warning was a NO-OP IN PRODUCTION and I reported it as working. Fixed, pl  (source: episode:close:ch_1785605838_4670)
+- Use when adding ANY per-action side effect to a Claude Code hook (heartbeat, telemetry, counter, audit trace), before choosing where to put it. THREE RULES. (1)...  (source: learn:experiment:heartbeat_placement_above_every_gate_and_payload_first_identity)
+- Use when reading ANY liveness-derived claim (a handover note saying a seat is down, an UNATTENDED RECIPIENT warning, a doctor retraction, a reap decision), before acting...  (source: learn:experiment:roster_sensor_wrong_about_the_seat_reading_it)
+
+## Episode closed: Use when adding ANY per-action side effect to a Claude Code h... (ai-setup)
+Span: 2026-08-01T18:17:48.509597+00:00 → 2026-08-01T18:19:58.040718+00:00
+Beats: 2  · Critic: True
+
+- Episode closed: Use when adding ANY per-action side effect to a Claude Code hook (heartbeat, telemetry, counter, audit t  (source: episode:close:ch_1785608151_3550)
+- Use when a fix requires renaming or moving a tracked file AND you need approval before committing: get the approval BEFORE running git mv, not after. A rename has NO...  (source: learn:experiment:a_rename_has_no_safe_parked_state)
+
+## Episode closed: Use when a fix requires renaming or moving a tracked file AND... (ai-setup)
+Span: 2026-08-01T18:20:42.043722+00:00 → 2026-08-01T18:32:51.424250+00:00
+Beats: 3  · Critic: True
+
+- Episode closed: Use when a fix requires renaming or moving a tracked file AND you need approval before committing: get t  (source: episode:close:ch_1785608298_8977)
+- netcode-arc-board: NETCODE BUILD ARC -- SEQUENCE BOARD, rev 2 (2026-08-01, claude#4389005f). Supersedes rev 1. THIS NOTE IS THE BARRIER STATE, deliberately external to...  (source: mem:decision:ADR_0801143251_26cfab01)
+- netcode-arc-board: NETCODE BUILD ARC -- SEQUENCE BOARD. Opened 2026-08-01 by claude#4389005f at Daniil's directive. THIS NOTE IS THE BARRIER STATE. It is deliberately...  (source: mem:decision:ADR_0801142509_5491bc41)
+
+## Episode closed: netcode-arc-board: NETCODE BUILD ARC -- SEQUENCE BOARD, rev 2... (ai-setup)
+Span: 2026-08-01T19:10:06.488510+00:00 → 2026-08-01T22:37:24.660840+00:00
+Beats: 3  · Critic: True
+
+- Episode closed: netcode-arc-board: NETCODE BUILD ARC -- SEQUENCE BOARD, rev 2 (2026-08-01, claude#4389005f). Supersedes  (source: episode:close:ch_1785608898_1399)
+- netcode-arc-board: NETCODE BUILD ARC -- SEQUENCE BOARD, rev 4 (2026-08-01, claude#4389005f). Supersedes rev 3. THIS NOTE IS THE BARRIER STATE, external to any seat's...  (source: mem:decision:ADR_0801183724_b9410d95)
+- netcode-arc-board: NETCODE BUILD ARC -- SEQUENCE BOARD, rev 3 (2026-08-01, claude#4389005f). Supersedes rev 2. THIS NOTE IS THE BARRIER STATE, external to any seat's...  (source: mem:decision:ADR_0801183123_7d6f2706)
+
+## Episode closed: netcode-arc-board: NETCODE BUILD ARC -- SEQUENCE BOARD, rev 3... (ai-setup)
+Span: 2026-08-01T22:42:07.063807+00:00 → 2026-08-01T22:49:51.196202+00:00
+Beats: 2  · Critic: True
+
+- Episode closed: netcode-arc-board: NETCODE BUILD ARC -- SEQUENCE BOARD, rev 3 (2026-08-01, claude#4389005f). Supersedes  (source: episode:close:ch_1785611718_9679)
+- Use when writing pins for anything that reads AMBIENT state -- env vars, temp dirs, home dirs, a live store, the OS clock: give the pin a SYNTHETIC identity and an...  (source: learn:experiment:a_pin_that_passes_only_while_the_feature_is_broken)
+
+## Episode closed: Use when writing pins for anything that reads AMBIENT state -... (ai-setup)
+Span: 2026-08-01T22:52:07.106549+00:00 → 2026-08-02T00:27:21.592947+00:00
+Beats: 2  · Critic: True
+
+- Episode closed: Use when writing pins for anything that reads AMBIENT state -- env vars, temp dirs, home dirs, a live st  (source: episode:close:ch_1785624423_5273)
+- Use when a CI signal has been red long enough that people have stopped reading it, before fixing the top failure: the top failure is not the problem -- the DEAD FEEDBACK...  (source: learn:experiment:gates_that_never_fire_at_the_write)
+
+## Episode closed: Use when a CI signal has been red long enough that people hav... (ai-setup)
+Span: 2026-08-02T00:27:28.413230+00:00 → 2026-08-02T02:01:35.332078+00:00
+Beats: 6  · Critic: True
+
+- Episode closed: Use when a CI signal has been red long enough that people have stopped reading it, before fixing the top  (source: episode:close:ch_1785630364_9768)
+- Use when a guardrail's universe is 'tracked files' (git ls-files, check_boundaries, check_wiring, check_comprehensibility) and the guardrail itself is NEW: its...  (source: learn:experiment:tracked_file_scanner_is_blind_to_itself_while_untracked)
+- Portability: the repo root is DERIVED, not pinned to one machine's E drive. 94 unconditional hardcoded paths -> 0, and CI's guardrails go green.  (source: git:ad6cf15e86df)
+- Daniil's dot lattice and his glass composer -- paid for by spending blur only where the eye rests. 60fps held at both viewports.  (source: git:ef5aa121606f)
+- The portability pin could not see itself: a walk over TRACKED files never scanned an untracked pin. Its own allowlist reason was the offender.  (source: git:3721909ba293)
+- Console silencer: wire it at the pytest tree's edge too. The settings.json literal is superseded by core/__init__.  (source: git:3dfe089dcf21)
+
+## Episode closed: Daniil's dot lattice and his glass composer -- paid for by sp... (ai-setup)
+Span: 2026-08-02T02:31:13.015224+00:00 → 2026-08-02T05:49:08.639129+00:00
+Beats: 15  · Critic: True
+
+- Episode closed: Daniil's dot lattice and his glass composer -- paid for by spending blur only where the eye rests. 60fps  (source: episode:close:ch_1785635469_4078)
+- codex -> claude: Incorporate the U1 live result into the netcode sequence board and choose the next gated slice  (source: handoff:codex->claude)
+- Fix incident 1: give mirror.py a real --help, or REFUSE unknown -- tokens loudly; a door where --help publishes to a public repo is the delay-fuse class. Do NOT chase...  (source: learn:experiment:mirror_named_path_mode_still_commits_the_whole_index)
+- GREEN: the mailbox now sees every incarnation the runner writes to.
+
+merged_lane_cursor(ns, agent) reads the bare lane cursor AND every #sid8 sibling, merging per-field...  (source: git:cf346431009d)
+- Use when reviewing or changing T108 seat delivery under lane consumption, before crediting per-incarnation isolation: run a namespaced work_drain drill and require...  (source: learn:experiment:t108_u1_work_lane_bypasses_seat_stream_2026_08_02)
+- TWO fixes, both root-cause. (1) Give mirror.py an argparse with a real --help, or at minimum REFUSE unknown -- tokens loudly instead of silently discarding them; a door...  (source: learn:experiment:mirror_named_path_mode_still_commits_the_whole_index)
+- RULE: drain the lane you ARMED, not the lane any doc names. BIFROST_WAKE_LANE=X implies BIFROST_CONSUME_LANE=X before the arm -- they must match, always, and the b54763c...  (source: learn:experiment:wake_drain_the_lane_you_ARMED_not_the_one_docs_name)
+- Treat the unattended-recipient warn as a PROMPT TO CHECK, never as a verdict. It is worth keeping -- it caught a real corpse tonight -- but a send that warns must not be...  (source: learn:experiment:unattended_warn_errs_in_both_directions)
+- Use when retrieving a user-announced Bifrost assignment, before concluding that a coordinator sent it: search the sender identity the user named, including its live...  (source: learn:experiment:bifrost_u1_sender_opus5_correction)
+- Never infer a seat is LIVE from message or trace content surfacing during a consume/drain. A drain replays the backlog; content proves only that the seat once spoke...  (source: learn:experiment:drain_traces_are_backlog_not_liveness)
+- netcode-arc-board: NETCODE BUILD ARC -- SEQUENCE BOARD, rev 5 (2026-08-02, claude#30e6af5c). Supersedes rev 4. BARRIER STATE: external to any seat's context by design...  (source: mem:decision:ADR_0802012104_73592ba7)
+- U1 live receipt: work lane bypasses the per-seat stream  (source: git:5b3ef27a3b30)
+- Mirror progress 2026-08-02 01:43  (source: git:389b4d4b7ec8)
+- RED fence for U3: the mailbox cannot see a cursor the runner wrote.
+
+bus.py:1182-1183 composes the lane cursor key WITH an incarnation suffix; mailbox.py:330 reads it...  (source: git:47d71eabb027)
+- Mirror progress 2026-08-02 01:40  (source: git:dec1085b45b1)
+
+## Episode closed: netcode-arc-board: NETCODE BUILD ARC -- SEQUENCE BOARD, rev 5... (ai-setup)
+Span: 2026-08-02T06:59:03.779897+00:00 → 2026-08-02T09:00:30.948202+00:00
+Beats: 20  · Critic: True
+
+- Episode closed: netcode-arc-board: NETCODE BUILD ARC -- SEQUENCE BOARD, rev 5 (2026-08-02, claude#30e6af5c). Supersedes  (source: episode:close:ch_1785647785_8055)
+- where-we-are: WHERE WE ARE, 2026-08-02 ~05:00, written by claude#30e6af5c while Daniil slept. Everything committed and pushed unless marked.
+
+== 1. THE WAKE TAX IS GONE...  (source: mem:decision:ADR_0802050030_3a59f598)
+- Decouple the two meanings of --think the same way capture was decoupled from display: send thinking enabled ALWAYS so reasoning exists and is observable, and gate...  (source: learn:experiment:deepseek_reasoning_was_disabled_at_the_request_not_lost_in_transit)
+- where-we-are: WHERE WE ARE, 2026-08-02 ~05:00, written by claude#30e6af5c while Daniil sleeps. Everything below is committed and pushed unless marked otherwise.
+
+== THE...  (source: mem:decision:ADR_0802044829_66786c02)
+- BEFORE diagnosing any wake/re-arm symptom, check whether the daemon is running: py -c from core.comm import daemon_state...  (source: learn:experiment:wake_rearm_loop_root_cause_is_a_down_daemon)
+- Use when making ANY falsifiable claim about code behavior in a durable filing: if you hold --allow-exec, run the check. A five-line test script is cheaper than an...  (source: learn:experiment:reading_is_not_measuring_even_for_the_file_owner)
+- GREEN: the write door asks the ACL, and path_scope stops being decorative.
+
+_prewrite now consults resolve(agent_id).can_write(rel) between the protected-surface block...  (source: git:57b85c87c5ac)
+- For any claim of the form 'the code does X at process start' or 'there is no path that does Y', RUN IT or read the actual call chain before building a design on it -...  (source: learn:experiment:reading_is_not_measuring_even_for_the_file_owner)
+- Use when reviewing pod-scoped capability or claiming ACL revocation needs a restart, before adding TTL membership machinery: inspect registry.resolve and each runtime...  (source: learn:experiment:pod_capability_review_targets_wrong_acl_gap_2026_08_02)
+- Before blaming any agent_cli door, check the actual arg signature (grep add_argument) - the crash shape may be your flag prefix-matching a different flag. House-wide...  (source: learn:experiment:wish_has_no_text_flag_argparse_abbrev_bites)
+- ask-ceiling-investigation: Daniil 2026-08-02 verbatim: 'we need to figure out that 2.5k thing because i recall it not always being a limit, this merits investigation at...  (source: mem:decision:ADR_0802034043_63e2ff42)
+- ask-ceiling-investigation: Daniil 2026-08-02 verbatim: 'we need to figure out that 2.5k thing because i recall it not always being a limit, this merits investigation at...  (source: mem:decision:ADR_0802033943_a143d2c8)
+- Use when building the API gateway: logprobs IS valid with streaming; don't rely on SSE keepalive comments (measure last_chunk_at for stall detection); reasoning_content...  (source: learn:experiment:deepseek_wire_probes_2026_08_02)
+- RED fence (contract only, fix deliberately withheld): directed mail is unreachable in the mode production actually runs.
+
+T108 U1, codex Sol live receipt reproduced...  (source: git:6be8ead88a85)
+- The date spine: jump large spans, land on a specific minute (scripts/timeline.js).
+
+Daniil, verbatim: "make a smooth date based scroll function on the left where you can...  (source: git:eb0a82227d1c)
+- GREEN: deepseek thinks out loud again. Capture is not display.
+
+One conjunction split into two. scripts/deepseek_chat.py:301 was if r and self.think -- now...  (source: git:e56b6845b688)
+- RED fence: deepseek reasoning never reaches the bus, because a DISPLAY flag is gating CAPTURE.
+
+Daniil, verbatim: "I can see that deepseek is thinking but I dont see its...  (source: git:c0fc98f4d84f)
+- RED fence: side rooms are visible and unreadable, and one hardcoded literal is why.
+
+The console ROOMS panel lists every namespace someone is beating in, and its own...  (source: git:0d60d1485a43)
+- Land the nights doc-library projections: the design arc becomes readable from a clone, not just from Redis.
+
+Every artifact from tonights coordination arc was adopted...  (source: git:874fa5adbb23)
+- RED fence: the write door never asks the ACL, and path_scope has been protecting nothing.
+
+run_command consults the ACL per call (toolbox.py:1043...  (source: git:6a15b28be9b0)
+
+## Background: a flock, not a lattice.
+
+Daniil: "I want contours and lines that ... (ai-setup)
+Span: 2026-08-02T14:02:20.271990+00:00 → 2026-08-02T15:51:54.981275+00:00
+Beats: 11  · Critic: True
+
+- Background: a flock, not a lattice.
+
+Daniil: "I want contours and lines that are slowly moving and morphing with interesting loops... lines moving like a flock of fish...  (source: git:e4537a8b4bc7)
+- Background, second pass: light instead of paint.
+
+Daniil sent two more shaders -- the tunnel with the accumulated lights, and nimitz Overly satisfying -- saying he liked...  (source: git:dcff648e9d5a)
+- Background: parallax depth, superlinear highlights, and a vignette that is actually a circle.
+
+Daniil: "I want it to be darker and more elegantly visually stunning...  (source: git:8f22c7f43d1d)
+- Avatar: native resolution, analytic edge AA, and a dark wireframe.
+
+Daniil: "the avatar is aliased, how do we make it render where it is pixel perfect? also can we make...  (source: git:3fe651aaa4b3)
+- The fleet gets a voice, and it admits when it cannot hear.
+
+Daniil pasted six shaders and read this one correctly on sight: "This one is simple but can be used for voice...  (source: git:73d63fb83564)
+- The avatar was lost to a parse race, not a cascade bug.
+
+Daniil screenshotted a composer still showing the 38px fallback hexagon while the IDENTICAL bytes rendered a...  (source: git:28787071cd28)
+- Avatar at 2 inches: the eyecatching piece, sized to be appreciated.
+
+Daniil: "Can we make the avatar be 2 inch by 2 inch, We can make the textbox bigger, but I want to...  (source: git:038277efb7a9)
+- The agent avatar: a geodesic that animates because the agent is working, not because time passed.
+
+Daniil brought the shadertoy geodesic tiling (llVXRd, Matt Zucker...  (source: git:dc149dfc9cbf)
+- Timeline: kill the flicker at its cause, and rebuild the rail as One UI would.
+
+Daniil, verbatim: "the little lines that extend arent smooth, they stop and restart... I...  (source: git:d68e94130995)
+- Timeline: a real glass panel that rides the cursor, and a palette of its own.
+
+Daniil, verbatim: "can we add a glass box that has a blur and moves up and down for the...  (source: git:c9810cdfbbb2)
+- Timeline polish: a cursor lens, an easing thumb, and a spine that says it is grabbable.
+
+Daniil, verbatim: "It works but how can we give it a cool hover effect and make...  (source: git:028c0c74dae2)
+
+## Episode closed: Use when building the API gateway: logprobs IS valid with str... (ai-setup)
+Span: 2026-08-02T16:25:10.662909+00:00 → 2026-08-02T21:13:33.164040+00:00
+Beats: 30  · Critic: True
+
+- Episode closed: Use when building the API gateway: logprobs IS valid with streaming; don't rely on SSE keepalive comment  (source: episode:close:ch_1785653943_7192)
+- vfx-bench-where-we-are: THE VFX BENCH at http://127.0.0.1:8787/vfx -- a shader design bench Daniil and claude build from
+both sides of the mirror. Start it with: py...  (source: mem:decision:ADR_0802171256_98186cc3)
+- vfx-bench-where-we-are: THE VFX BENCH at http://127.0.0.1:8787/vfx -- a shader design bench Daniil and claude build from both sides of the mirror. Start it with: py...  (source: mem:decision:ADR_0802171153_f80365c8)
+- Fixing a composition in the open, and the API gap that took three tries to surface.
+
+Daniil asked to watch me iterate and adjust values live. Three attempts, three...  (source: git:6adb7a80ec6c)
+- Use when adding auto-insert, semantic-link, adapter, or convenience gestures to a typed graph, before declaring the graph safe: lower the gesture into the same typed IR...  (source: learn:experiment:vfx_semantic_link_must_use_typed_compiler_path_2026_08_02)
+- Use when adding or reviewing visual-performance telemetry, before labeling any timer-derived value frame cost: measure CPU submission around draw, requestAnimationFrame...  (source: learn:experiment:vfx_frame_sensor_must_measure_render_not_poll_timer_2026_08_02)
+- Session close: the VFX bench, saved and handed off.
+
+Durable note written: `vfx-bench-where-we-are` -- the new seat picks it up on boot. It covers what exists (30 chunks...  (source: git:a05f389c68c1)
+- Claude works in the open: a script op that builds in the visible bench.
+
+Daniil: "What can we do so that as you are compositing things I get to see the pieces and nodes...  (source: git:81e7f87f2f21)
+- Hexagons on a cube: the geodesic body becomes a morphing superquadric.
+
+Daniil: "can you find creative ways of blending and morphing the cube with the avatar shape...  (source: git:a27bb86dcb97)
+- Analysed the HAL superquadric: the shape is clever, the RENDERER is the prize.
+
+Daniil pasted the SandS "HAL" 4kb intro and asked what makes the morphing blue cube work...  (source: git:e27f00afeb7d)
+- The wedge page was right; it was starved. A tool call is now a seat beat.
+
+This seat paged HARD WEDGE repeatedly through a long session while it was continuously active...  (source: git:4e2c2ad036ea)
+- A render tool for claude: the open bench becomes the render farm.
+
+Daniil: "how do we give you tools to handle these webgl tasks more efficiently, so you can call a tool...  (source: git:d59a37918a32)
+- Thumbnails become real-time WebM loops; live contexts reserved for the graph.
+
+Daniil: "it can be a gif that fluidly animates through the realtime speed of the animation...  (source: git:127f169a7f4f)
+- Domain operators, a link HUD, and tiles that show the TRANSITION.
+
+Daniil, across several messages: source modifiers and animations; a multi-button HUD on drop so you do...  (source: git:9d4571ddfb92)
+- Graph: grab a wire to re-route or break it, and ctrl-Z.
+
+Daniil: "can we add the function to click on a node connection and drag it elsewhere or drag it past the window...  (source: git:2cfc1449b068)
+- Thumbnail system: a visually indexed palette, and a reference that can actually show a difference.
+
+Daniil idea: "we can use it to capture a portion of the shader or an...  (source: git:eab64d60dc97)
+- A renderer: contact sheets and permutation grids.
+
+Daniil: "Can you take multiple snapshots at different times..." then, correcting to the better idea mid-sentence: "or...  (source: git:56291f7e0094)
+- Found what the port lost, by looking at it: thickness.
+
+Daniil pasted the original llVXRd source and asked for a comparison. With eyes (the snapshot pipeline landed an...  (source: git:d2d9ca41a047)
+- The bench gets a chat box, and claude gets EYES.
+
+Daniil: "Can you add a chatbox that connects me to you via the bifrost from the ui of the VFX instance?" and then...  (source: git:957e86e61c05)
+- VFX graph: typed ports, so an unbuildable graph is unbuildable.
+
+Daniil: "Could the canvas idea be smart and provide blocks that only connect in compilable ways with set...  (source: git:9490e10c1b19)
+- VFX: drag-and-drop palette, shapes, and groups.
+
+Daniil: "im thinking drag and drop groups of effects, shapes and other cool things that we can drag in and connect and...  (source: git:69b176301c4c)
+- VFX: a chunk library, a composition chain, and three views of the same thing.
+
+Daniil: "I want us to be able to remember our work and recall it with the ui. shader...  (source: git:7cbd221d34e6)
+- The bench becomes an actual buffer: live shader scratch.
+
+Daniil: "this can be our buffer play space to remix ideas together without having to redo the whole...  (source: git:71598e9f9eb0)
+- A VFX bench, a style registry, and a marble.
+
+Daniil, mid-flight: "I want you to build yourself a library for shaders as well as tools to make remixing easier. a vfx...  (source: git:21881869af51)
+- Avatar: tile shape per state, true see-through, and a sweep that never repeats.
+
+Daniil: "can we change the shape of the hexagons into other things depending on the...  (source: git:4181f99a81ad)
+- Avatar: identity in the body, state in the lines, and a morph that is actually a morph.
+
+Daniil: "can we set color presets and gradients depending on the AI as well as...  (source: git:e41d5f990d26)
+- The avatar was pinned to ambient before it ever looked at the activity feed.
+
+Daniil, twice: "no change on the avatar." Both times the feed was innocent -- and the...  (source: git:622714a82172)
+- Avatar state feed: fixed the copy that actually runs.
+
+Daniil, watching the avatar after the last commit: "it looks stunning but its still not changing animation or...  (source: git:bc62c4c0a649)
+- The avatar could always change with state. Nothing had ever told it a state.
+
+Daniil: "for the ai avatar, can you have it change color when the ai is thinking and have...  (source: git:0c6b4ab6e8e2)
+- Background redesign: swarms in a participating medium.
+
+Daniil: "remove the film grain and make the background black... make the elements thinner... multiple swarms of...  (source: git:464ee26a244c)
+
+## Episode closed: Use when adding or reviewing visual-performance telemetry, be... (ai-setup)
+Span: 2026-08-02T21:20:39.908244+00:00 → 2026-08-02T21:20:39.908244+00:00
+Beats: 1  · Critic: True
+
+- Episode closed: Use when adding or reviewing visual-performance telemetry, before labeling any timer-derived value frame  (source: episode:close:ch_1785687958_8655)
+
+## Episode closed: Untitled episode (ai-setup)
+Span: 2026-08-02T21:20:39.938206+00:00 → 2026-08-02T22:57:46.413722+00:00
+Beats: 10  · Critic: True
+
+- Episode closed: Untitled episode  (source: episode:close:ch_1785705639_2376)
+- domain-aware-recall-design: DOMAIN-AWARE RECALL — Daniil 2026-08-02: "How can we make a recall system for this work for vfx,
+and divide the boundary lines so we can get...  (source: mem:decision:ADR_0802185746_c08c313c)
+- Use when designing ANY automated visual metric, quality gate, regression check or 'is this worth looking at' filter over rendered images, BEFORE trusting it: (1)...  (source: learn:experiment:render_metrics_luminance_only_are_blind_to_the_thing_taste_judges)
+- Use when relaunching ANY runner seat, BEFORE sending it work, and when a live seat appears to ignore a fresh directed ask: (a) always Start-Process WITH stdio...  (source: learn:experiment:runner_relaunch_without_lane_env_drains_ghost_mail)
+- claude -> deepseek: FENCED design pass: the VFX studio CLI/AI side. Brief: research/in-flight/vfx-studio-agent-side-deepseek-2026-08-02.md. Report to...  (source: handoff:claude->deepseek)
+- claude -> kimi: FENCED design pass: the VFX studio HUMAN side. Brief: research/in-flight/vfx-studio-human-side-kimi-2026-08-02.md. Report to...  (source: handoff:claude->kimi)
+- vfx-bench-subject-and-the-lost-original: THE BENCH IS NO LONGER AN AVATAR TUNER WEARING A STUDIO'S CLOTHES. 2026-08-02, commits 1272295 and
+7ae7fba. See...  (source: mem:decision:ADR_0802182435_70b1bc5e)
+- vfx-bench-ingest: INGEST -- paste a Shadertoy shader, get a compiled preview back. Built 2026-08-02, commit 5a6a9bc,
+at Daniil's pick from the OPEN NEXT list ("I like...  (source: mem:decision:ADR_0802175205_4c531942)
+- vfx-bench-where-we-are: THE VFX BENCH at http://127.0.0.1:8787/vfx -- a shader design bench Daniil and claude build from
+both sides of the mirror. Start it with: py...  (source: mem:decision:ADR_0802173908_74630e42)
+- Use when adding ANY takeover/preemption rule to a lease or lock with more than one precedence condition: order them explicitly and assert the ORDER, not just the...  (source: learn:experiment:vfx_renderer_lease_ordering_and_the_return_path)
+
+## Episode closed: Use when adding ANY takeover/preemption rule to a lease or lo... (ai-setup)
+Span: 2026-08-02T23:14:37.467788+00:00 → 2026-08-02T23:50:28.999505+00:00
+Beats: 2  · Critic: True
+
+- Episode closed: Use when adding ANY takeover/preemption rule to a lease or lock with more than one precedence condition:  (source: episode:close:ch_1785706536_1584)
+- Use when tightening ANY retrieval, ranking or filter that an existing test already constrains, BEFORE choosing a threshold: (1) expect a conflicting older bar --...  (source: learn:experiment:retrieval_floor_conflicts_with_an_older_anti_silence_bar)
+
+## Episode closed: Use when tightening ANY retrieval, ranking or filter that an ... (ai-setup)
+Span: 2026-08-03T00:06:50.394968+00:00 → 2026-08-03T01:33:18.000046+00:00
+Beats: 2  · Critic: True
+
+- Episode closed: Use when tightening ANY retrieval, ranking or filter that an existing test already constrains, BEFORE ch  (source: episode:close:ch_1785713848_7610)
+- pod-design-ratified-and-minted: THE POD DESIGN IS FINISHED AND MINTED. 2026-08-02. Daniil: "finish our pod design from earlier."
+It was ratified at 04:24 and had never...  (source: mem:decision:ADR_0802213317_9434d9e6)
+
+## Episode closed: pod-design-ratified-and-minted: THE POD DESIGN IS FINISHED AN... (ai-setup)
+Span: 2026-08-03T01:54:26.176951+00:00 → 2026-08-03T04:10:04.407133+00:00
+Beats: 8  · Critic: True
+
+- Episode closed: pod-design-ratified-and-minted: THE POD DESIGN IS FINISHED AND MINTED. 2026-08-02. Daniil: "finish our p  (source: episode:close:ch_1785719612_1627)
+- Use when designing ANY system with both agent and human consumers of the same visual output, before building separate affordances: (1) The metrics that help an agent...  (source: learn:experiment:vfx_fenced_flip_coupling_convergence)
+- where-we-are: WHERE WE ARE, 2026-08-03 ~04:15, written by claude#51a77a23 while Daniil slept. He left the night
+with: "see if you can't finish this mail and watcher work...  (source: mem:decision:ADR_0803000725_405ff357)
+- Use when designing ANY agent-facing visual feedback loop, before assuming a PNG is sufficient: (1) The agent needs a structured channel alongside the image — numbers...  (source: learn:experiment:vfx_agent_interface_structured_output_design)
+- Use when a seat is live by every liveness signal but is not answering mail, BEFORE investigating locks, pause state, wake watchers or the mailbox: compare each lane's...  (source: learn:experiment:a_healthy_seat_can_be_reading_the_wrong_lane)
+- where-we-are: WHERE WE ARE, 2026-08-03 ~04:00, written by claude#51a77a23 while Daniil slept. He left the night
+with: "see if you can't finish this mail and watcher work...  (source: mem:decision:ADR_0802235753_99652659)
+- Use when a subsystem 'feels broken' and you are about to design a replacement, BEFORE writing any design: grep for CALLERS of the existing API, not just for the API. A...  (source: learn:experiment:built_is_not_wired_is_the_dominant_defect_class)
+- Use when designing any state-holding role (buffer, chief of staff, intake, triage) in a fleet of non-continuous agents, before assigning the role to a seat: require that...  (source: learn:experiment:buffer_requires_externalized_state_not_continuity)
+
+## Episode closed: Use when designing any state-holding role (buffer, chief of s... (ai-setup)
+Span: 2026-08-03T04:22:47.250123+00:00 → 2026-08-03T04:22:47.250123+00:00
+Beats: 1  · Critic: True
+
+- Episode closed: Use when designing any state-holding role (buffer, chief of staff, intake, triage) in a fleet of non-con  (source: episode:close:ch_1785722097_5510)
+
+## Use when handing off anything that must survive -- a fresh seat, a fence ask,... (ai-setup)
+Span: 2026-08-03T12:50:33.343348+00:00 → 2026-08-03T12:54:52.076409+00:00
+Beats: 6  · Critic: True
+
+- Use when handing off anything that must survive -- a fresh seat, a fence ask, a multi-part delivery -- BEFORE trusting the handoff verb: write the substance to a...  (source: learn:experiment:handoff_note_drops_silently_while_task_clips_loudly)
+- claude -> claude: FRESH SEAT: read research/in-flight/handoff-fresh-opus5-seat-2026-08-03.md FIRST. It is the real handoff (the handoff verb loses its note field). Then...  (source: handoff:claude->claude)
+- claude -> claude: TWO JOBS from Daniil. One: extend scripts/checkers/check_wiring.py from MODULE reachability down to PUBLIC FUNCTIONS in core that no production entry...  (source: handoff:claude->claude)
+- claude -> claude: TWO JOBS from Daniil, verbatim: I really liked your idea of extending the wiring check and of retiering things that are no longer needed. (1) Extend...  (source: handoff:claude->claude)
+- claude -> claude: TWO JOBS from Daniil, verbatim: I really liked your idea of extending the wiring check and of retiering things that are no longer needed. (1) Extend...  (source: handoff:claude->claude)
+- where-we-are: WHERE WE ARE, 2026-08-03 ~15:00, written by claude#51a77a23 for a FRESH OPUS 5 SEAT at Daniil's ask.
+Everything below is committed AND pushed...  (source: mem:decision:ADR_0803085033_5550c33c)
+
+## Episode closed: where-we-are: WHERE WE ARE, 2026-08-03 ~15:00, written by cla... (ai-setup)
+Span: 2026-08-03T12:55:09.609403+00:00 → 2026-08-03T13:39:15.076961+00:00
+Beats: 7  · Critic: True
+
+- Episode closed: where-we-are: WHERE WE ARE, 2026-08-03 ~15:00, written by claude#51a77a23 for a FRESH OPUS 5 SEAT at Dan  (source: episode:close:ch_1785759458_9611)
+- MINT THE IDENTIFIER FIRST, THEN WRITE. Any label chosen before the registry issues it is a guess, and it becomes load-bearing the moment it lands in a filename, a commit...  (source: learn:experiment:identifiers_minted_before_the_registry_speaks_collide)
+- where-we-are: WHERE WE ARE, 2026-08-03 evening, written by the fresh Opus 5 seat that took the 51a77a23 handoff.
+Everything below is committed AND pushed (origin/master)...  (source: mem:decision:ADR_0803093704_ca3f7b73)
+- Sample a new gate's own output before trusting it, and hand-check enough entries to get a RATE -- one structural cause can produce every false positive you have, so...  (source: learn:experiment:sample_a_new_gate_for_its_false_positive_rate_before_trusting_it)
+- PARTIAL wiring is the shape a module-level reachability gate structurally cannot see, and it is more dangerous than a fully dead module: a dead module is inert, while a...  (source: learn:experiment:partial_wiring_is_the_shape_module_gates_cannot_see)
+- Treat a guard's STALE-ENTRY warning as a claim to verify, not a chore to clear -- the guard may have changed its mind without the code changing. And when fixing a gate's...  (source: learn:experiment:a_gate_that_goes_quiet_gets_believed)
+- When a reachability gate reports PASS, ask what UNIT it checks reachability of -- 'the module is imported' does not mean 'the capability runs'. Two rules that transfer...  (source: learn:experiment:gate_at_module_level_hides_dead_capability_inside_it)
+
+## Episode closed: Treat a guard's STALE-ENTRY warning as a claim to verify, not... (ai-setup)
+Span: 2026-08-03T13:55:22.817579+00:00 → 2026-08-03T13:55:22.817579+00:00
+Beats: 1  · Critic: True
+
+- Episode closed: Treat a guard's STALE-ENTRY warning as a claim to verify, not a chore to clear -- the guard may have cha  (source: episode:close:ch_1785762657_9873)
+
+## Use when expanding a capped recall result, before invoking recall --full: cop... (ai-setup)
+Span: 2026-08-03T23:14:27.185389+00:00 → 2026-08-03T23:14:27.185389+00:00
+Beats: 1  · Critic: True
+
+- Use when expanding a capped recall result, before invoking recall --full: copy the complete source pointer including learn:experiment:. Don't pass only the experiment...  (source: learn:experiment:recall_full_requires_complete_source_pointer)
+
+## Episode closed: Use when expanding a capped recall result, before invoking re... (ai-setup)
+Span: 2026-08-03T23:24:17.354363+00:00 → 2026-08-03T23:39:03.510911+00:00
+Beats: 2  · Critic: True
+
+- Episode closed: Use when expanding a capped recall result, before invoking recall --full: copy the complete source point  (source: episode:close:ch_1785765357_8498)
+- Use when reviewing a gate/guard for security: first check whether the claimed vulnerability is a documented design trade-off vs. an implementation bug. A gate that...  (source: learn:experiment:redteam_check_wiring_function_gate)
+
+## Episode closed: Use when reviewing a gate/guard for security: first check whe... (ai-setup)
+Span: 2026-08-03T23:39:09.913044+00:00 → 2026-08-03T23:43:39.065676+00:00
+Beats: 6  · Critic: True
+
+- Episode closed: Use when reviewing a gate/guard for security: first check whether the claimed vulnerability is a documen  (source: episode:close:ch_1785799497_3098)
+- Point an adversary at your NEWEST work, not your oldest -- fresh code has had the least contact with reality and you are still close enough to fix it cheaply. Two...  (source: learn:experiment:point_the_red_team_at_your_own_freshest_work)
+- red-team-check_wiring-audit-2026-08-04: # Red-Team Audit: check_wiring.py Function Gate — 2026-08-04
+
+**Assessor**: deepseek-red
+**Source file**...  (source: mem:decision:ADR_0803194006_f735a1b5)
+- Use when planning adoption of any dispatch/plugin/registry pattern: check_wiring's string-matching will silently break. Before adding such patterns, either (a) extend...  (source: learn:experiment:check_wiring_function_gate_a5_string_dispatch_bypass)
+- Use when designing or reviewing a "used function" detector: name-only matching is insufficient. At minimum, require the reference to be a call (ast.Call with the name as...  (source: learn:experiment:check_wiring_function_gate_a3_a4_name_collision_false_positive)
+- Use when reviewing or relying on check_wiring output: the tool has a structural blind spot for top-level compound statements. Any function inside `if`, `try`, `with`...  (source: learn:experiment:check_wiring_function_gate_a1_a2_evasion_if_try)
+
+## Episode closed: red-team-check_wiring-audit-2026-08-04: # Red-Team Audit: che... (ai-setup)
+Span: 2026-08-03T23:59:58.568974+00:00 → 2026-08-04T01:45:27.670534+00:00
+Beats: 2  · Critic: True
+
+- Episode closed: red-team-check_wiring-audit-2026-08-04: # Red-Team Audit: check_wiring.py Function Gate — 2026-08-04
+
+**  (source: episode:close:ch_1785800397_1338)
+- When a guard is evaded, ask whether your patch describes WHERE the evidence sat or WHAT the evidence MEANS. A location rule (same-module vs cross-module, this directory...  (source: learn:experiment:harden_the_meaning_not_the_location)
+
+## Episode closed: When a guard is evaded, ask whether your patch describes WHER... (ai-setup)
+Span: 2026-08-04T01:47:02.749950+00:00 → 2026-08-04T01:54:01.242241+00:00
+Beats: 3  · Critic: True
+
+- Episode closed: When a guard is evaded, ask whether your patch describes WHERE the evidence sat or WHAT the evidence MEA  (source: episode:close:ch_1785807897_8066)
+- game-arc: GAME ARC OPENING — Daniil, 2026-08-03, two messages verbatim. (1) 'How do we gamify the fixes in our systems by leveraging our ability to spin up multiple...  (source: mem:decision:ADR_0803215401_d269fc64)
+- When a guard is evaded, classify your own patch BEFORE writing it. If it names a LIST of things (node types, directories, file patterns) it will drift the moment the...  (source: learn:experiment:convergent_fixes_describe_meaning_not_location_or_membership)
+
+## Episode closed: When a guard is evaded, classify your own patch BEFORE writin... (ai-setup)
+Span: 2026-08-04T01:56:05.565892+00:00 → 2026-08-04T02:06:04.002545+00:00
+Beats: 2  · Critic: True
+
+- Episode closed: When a guard is evaded, classify your own patch BEFORE writing it. If it names a LIST of things (node ty  (source: episode:close:ch_1785808437_9803)
+- game-arc: GAME ARC — Daniil 2026-08-03, THREE levels, his words verbatim. L1: 'How do we gamify the fixes in our systems by leveraging our ability to spin up multiple...  (source: mem:decision:ADR_0803220603_4e92d4f7)
+
+## Episode closed: game-arc: GAME ARC — Daniil 2026-08-03, THREE levels, his wor... (ai-setup)
+Span: 2026-08-04T02:08:06.405670+00:00 → 2026-08-04T02:13:01.303216+00:00
+Beats: 2  · Critic: True
+
+- Episode closed: game-arc: GAME ARC — Daniil 2026-08-03, THREE levels, his words verbatim. L1: 'How do we gamify the fixe  (source: episode:close:ch_1785809097_2124)
+- game-arc: GAME ARC — Daniil 2026-08-03, FOUR levels, his words verbatim. L1 bounty: 'gamify the fixes... multiple deepseek instances... different roles... both stress...  (source: mem:decision:ADR_0803221301_0906d7b3)
+
+## Episode closed: game-arc: GAME ARC — Daniil 2026-08-03, FOUR levels, his word... (ai-setup)
+Span: 2026-08-04T02:13:25.182331+00:00 → 2026-08-04T04:27:12.739412+00:00
+Beats: 2  · Critic: True
+
+- Episode closed: game-arc: GAME ARC — Daniil 2026-08-03, FOUR levels, his words verbatim. L1 bounty: 'gamify the fixes...  (source: episode:close:ch_1785809457_1997)
+- game-arc: GAME ARC — Daniil 2026-08-03, four levels + OPUS GRAFT. Levels (verbatim quotes in superseded history ADR_0803221301_0906d7b3): L1 bounty roles, L2 tournament...  (source: mem:decision:ADR_0804002712_753ea1d0)
+
+## Episode closed: game-arc: GAME ARC — Daniil 2026-08-03, four levels + OPUS GR... (ai-setup)
+Span: 2026-08-04T04:29:50.329370+00:00 → 2026-08-04T04:32:57.789681+00:00
+Beats: 2  · Critic: True
+
+- Episode closed: game-arc: GAME ARC — Daniil 2026-08-03, four levels + OPUS GRAFT. Levels (verbatim quotes in superseded  (source: episode:close:ch_1785817497_9506)
+- claude -> claude: GAME-ARC T148: take the opus-5 mechanics seat under Fable conductor direction. Read note game-arc (py agent_cli.py note claude --get game-arc) +...  (source: handoff:claude->claude)
+
+## Episode closed: claude -> claude: GAME-ARC T148: take the opus-5 mechanics se... (ai-setup)
+Span: 2026-08-04T04:34:03.110341+00:00 → 2026-08-04T04:34:03.110341+00:00
+Beats: 1  · Critic: True
+
+- Episode closed: claude -> claude: GAME-ARC T148: take the opus-5 mechanics seat under Fable conductor direction. Read no  (source: episode:close:ch_1785817797_7249)
+
+## Episode closed: Use when a Codex Desktop seat must actively hear and answer B... (ai-setup)
+Span: 2026-08-04T04:40:36.662505+00:00 → 2026-08-04T04:45:00.504974+00:00
+Beats: 4  · Critic: True
+
+- Episode closed: Use when a Codex Desktop seat must actively hear and answer Bifrost before a zero-model event starter ex  (source: episode:close:ch_1785818277_7425)
+- game-arc-watch-status: T148 WATCH EXECUTION STATE, 2026-08-04 ~00:45, claude#7507b107 (Fable, conductor). Daniil: 'Keep going, I leave the order and execution up to...  (source: mem:decision:ADR_0804004500_efd6970a)
+- Before trusting ANY self-reported reply-address on a directed ask, cross-check roster + pulse for the id -- and when they disagree, send to BOTH ids (dedupe by sha...  (source: learn:experiment:seat_self_reported_address_can_be_the_dead_one)
+- Before filing a defect against a subsystem, read what it already SAYS about the case -- its docstrings, its refusal messages, and its OTHER output stream. Twice in one...  (source: learn:experiment:the_system_already_told_me_on_a_channel_i_was_not_reading)
+
+## Episode closed: Before trusting ANY self-reported reply-address on a directed... (ai-setup)
+Span: 2026-08-04T04:46:12.175817+00:00 → 2026-08-04T05:02:06.241615+00:00
+Beats: 11  · Critic: True
+
+- Episode closed: Before trusting ANY self-reported reply-address on a directed ask, cross-check roster + pulse for the id  (source: episode:close:ch_1785818517_3812)
+- game-arc: GAME ARC — Daniil 2026-08-03/04, FIVE levels + fenced. HIS WORDS (verbatim, full text in superseded heads): L1 'gamify the fixes... multiple deepseek...  (source: mem:decision:ADR_0804010104_14fd8372)
+- Do NOT kill the game; kill the CLAIM. Correlated attackers cannot prove completeness, but they are a fine instrument for throughput against a known inventory --...  (source: learn:experiment:burn_down_measures_the_players_not_the_system)
+- game-arc-watch-status: T148 WATCH STATE, 2026-08-04 ~00:47, claude#7507b107 (Fable, conductor). Daniil: 'Keep going, I leave the order and execution up to you.' ==...  (source: mem:decision:ADR_0804004719_cf2e1c2b)
+- Build L4's demo tier AT THE TOOLBOX DOOR (core/comm/toolbox.py), which is where refusal already happens -- never at the CLI render path, which is a dimmer by design and...  (source: learn:experiment:acl_has_two_surfaces_a_dimmer_and_a_wall)
+- T155 filed: fleet liveness lies in both directions -- the Season 1 supervision blocker
+
+Measured tonight, one session, one seat. Asked four gauges about codex_root and...  (source: git:bc4e658fbd91)
+- T153 + T154 filed: the two findings the fence produced
+
+T153 -- scripts/bifrost_runner.py references cognitive_metrics zero times while the four
+provider runners call...  (source: git:d0510bbdc4c9)
+- T152 GREEN: the generic runner is watchable too
+
+scripts/bifrost_runner.py now reconfigures stdout and stderr to line-buffered UTF-8/replace,
+guarded, matching the four...  (source: git:f6f17cc118b4)
+- T152 pins RED (alone, before the fix): the fifth runner was left out of T150
+
+scripts/bifrost_runner.py -- the GENERIC wake adapter, and the cheapest possible player...  (source: git:625d1102dc76)
+- T148: kimi's convergence objection adopted -- burn-down measures the players, not the system
+
+Answer to the load-bearing question is NO, structurally: role hats...  (source: git:6fd4c876a440)
+- T148: Season 1 mechanics adopted (opus5 lane, 749 lines); ACL two-surfaces question closed
+
+Mechanics records four contradictions rather than smoothing them: board is...  (source: git:9f8ab44766a6)
+
+## Episode closed: game-arc: GAME ARC — Daniil 2026-08-03/04, FIVE levels + fenc... (ai-setup)
+Span: 2026-08-04T05:06:00.220617+00:00 → 2026-08-04T05:27:39.188956+00:00
+Beats: 8  · Critic: True
+
+- Episode closed: game-arc: GAME ARC — Daniil 2026-08-03/04, FIVE levels + fenced. HIS WORDS (verbatim, full text in super  (source: episode:close:ch_1785819537_4515)
+- Reconciled build shape: ONE recorder at the httpx transport seam (SDK http_client= kwarg, verified in openai 2.24.0, unused anywhere in our code) plus plain field...  (source: learn:experiment:the_cheapest_telemetry_is_already_paid_for_and_discarded)
+- Proxy-vs-call-site is a FALSE DICHOTOMY: the third option is an in-process httpx transport passed via the SDK's http_client= kwarg (verified available in openai 2.24.0...  (source: learn:experiment:the_call_site_is_not_the_wire)
+- When gauges disagree, do NOT start by hunting a broken probe -- first ask whether the surfaces are answering DIFFERENT QUESTIONS under the same label. The tell is that...  (source: learn:experiment:one_word_two_meanings_is_how_gauges_lie)
+- T155 GREEN: one liveness verdict, shared by the send door and every render
+
+core/comm/liveness.attendance(agent) is now THE probe: a three-state verdict (ATTENDED...  (source: git:cfcfd6392c41)
+- API wire: deepseek's reverse-engineering adopted -- two decorrelated lanes converged
+
+Split deliberately per kimi's covariance argument: an Opus seat designing from the...  (source: git:f7440c6be7b1)
+- API wire visibility design adopted -- and it refutes my own position with measurement
+
+I told Daniil a call-site recorder gets the same data as a proxy for runners we...  (source: git:af8515adabb5)
+- T155 pins RED (alone, before the fix): one liveness verdict
+
+Measured last night, one session, one seat: four surfaces gave four answers about codex_root.
+bifrost-sync...  (source: git:186243e893b6)
+
+## Episode closed: T155 GREEN: one liveness verdict, shared by the send door and... (ai-setup)
+Span: 2026-08-04T05:49:51.469101+00:00 → 2026-08-04T06:00:52.117542+00:00
+Beats: 3  · Critic: True
+
+- Episode closed: T155 GREEN: one liveness verdict, shared by the send door and every render
+
+core/comm/liveness.attendanc  (source: episode:close:ch_1785820257_7944)
+- T156 WIRE-A GREEN: the API wire journal, captured at the layer the SDK hides
+
+Daniil asked for wireshark-grade forensics on our own model traffic, and for a place...  (source: git:dd0fcfc0393f)
+- T156 WIRE-A pins RED (alone, before the code): the API wire journal
+
+Daniil asked for wireshark-grade forensics on our own API traffic. deepseek measured, from
+inside...  (source: git:a7ad8a4af961)
+
+## Episode closed: T156 WIRE-A pins RED (alone, before the code): the API wire j... (ai-setup)
+Span: 2026-08-04T06:06:08.832628+00:00 → 2026-08-04T06:07:54.562413+00:00
+Beats: 4  · Critic: True
+
+- Episode closed: T156 WIRE-A pins RED (alone, before the code): the API wire journal
+
+Daniil asked for wireshark-grade fo  (source: episode:close:ch_1785823021_8046)
+- Use when reviewing any meter that prints-then-discards: follow the data from creation through every consumption site to the durable store. A print() that shows the...  (source: learn:experiment:cost_shape_computed_then_discarded_before_journal)
+- Use when instrumenting ANY runner with multiple call paths: enumerate every code path that reaches the provider, not just the main one. The stateless path is the DEFAULT...  (source: learn:experiment:stateless_runner_path_discards_all_telemetry)
+- Never let a telemetry write touch the caller's thread beyond an enqueue. Correct shape: hot path does a bounded non-blocking put of a plain dict (or better, pre-sized...  (source: learn:experiment:wire_journal_sync_write_is_a_lock_convoy)
+
+## Episode closed: Never let a telemetry write touch the caller's thread beyond ... (ai-setup)
+Span: 2026-08-04T06:09:14.832656+00:00 → 2026-08-04T06:13:04.528538+00:00
+Beats: 5  · Critic: True
+
+- Episode closed: Never let a telemetry write touch the caller's thread beyond an enqueue. Correct shape: hot path does a  (source: episode:close:ch_1785823617_6540)
+- Use when designing any background maintenance task that writes to a per-agent key also written by live agents: use HSETNX (write-if-not-exists) for archival keys rather...  (source: learn:experiment:mailbox_ghost_sweep_writes_to_player_intent_hash_race)
+- wire-perf-baseline: MEASURED HOT-PATH BASELINE for the wire journal + the concurrency verdict. Filed 2026-08-04 at Daniil's ask ('lets file this for review later for the...  (source: mem:decision:ADR_0804021158_65fbd467)
+- Do BOTH, for different reasons, and do not let the headline number hide the second one. ASYNC (bounded queue + background writer, drop-and-count on backpressure) is the...  (source: learn:experiment:sharding_buys_isolation_async_buys_the_latency)
+- T157 filed: the wire journal's write path is a measured lock convoy -- benchmarks preserved
+
+Daniil: 'lets file this for review later for the overall architecture. I...  (source: git:ee113bffddba)
+
+## Episode closed: wire-perf-baseline: MEASURED HOT-PATH BASELINE for the wire j... (ai-setup)
+Span: 2026-08-04T06:24:27.199671+00:00 → 2026-08-04T06:52:50.820641+00:00
+Beats: 2  · Critic: True
+
+- Episode closed: wire-perf-baseline: MEASURED HOT-PATH BASELINE for the wire journal + the concurrency verdict. Filed 202  (source: episode:close:ch_1785823797_3857)
+- T156 D1 FIX + the reader finally wired; wire-next architecture adopted (13-agent workflow)
+
+TWO DEFECTS IN MY OWN T156 CODE, both found by the design workflow and both...  (source: git:2ceb5a465c63)
+
+## Episode closed: T156 D1 FIX + the reader finally wired; wire-next architectur... (ai-setup)
+Span: 2026-08-04T07:08:27.741601+00:00 → 2026-08-04T07:08:27.741601+00:00
+Beats: 1  · Critic: True
+
+- Episode closed: T156 D1 FIX + the reader finally wired; wire-next architecture adopted (13-agent workflow)
+
+TWO DEFECTS  (source: episode:close:ch_1785824697_6738)
+
+## autonomous-session-2026-08-04: AUTONOMOUS BUILD SESSION opened 2026-08-04 ~09... (ai-setup)
+Span: 2026-08-04T12:59:39.531629+00:00 → 2026-08-04T13:26:49.145433+00:00
+Beats: 8  · Critic: True
+
+- autonomous-session-2026-08-04: AUTONOMOUS BUILD SESSION opened 2026-08-04 ~09:30 by claude#7507b107 (Fable). Daniil verbatim: 'I want you to keep working for hours while...  (source: mem:decision:ADR_0804092649_2856a025)
+- Never let an oracle score anything until it has been calibrated against the detector it claims to measure, on controls whose answer you already know -- the...  (source: learn:experiment:calibrate_the_instrument_before_you_trust_its_zero)
+- Six changes to the Akashic game design, each traceable to a finding. (1) SCORE UPTIME AS A FIRST-CLASS AXIS, not a footnote -- KF1 says the competition-determining...  (source: learn:experiment:competition_design_prior_art_aixcc_cgc_8200)
+- next-focus: WHAT IS NEXT, written 2026-08-04 morning as Daniil left for work ('order is up to you, but I also want to get to the fun part too'). THE FUN PART IS SEASON 1...  (source: mem:decision:ADR_0804090555_61ea1141)
+- Verify a function three ways, not one. (a) BOUND IT: assert a deadline AT A REALISTIC SIZE -- a function is never 'fast', it is fast AT A SIZE, and the size is the test...  (source: learn:experiment:feature_pins_pass_over_hang_and_scale_defects)
+- T158 CALIBRATED against the live gate -- and every run found a defect, the first two mine
+
+Three shadow-worktree runs, 9 labeled canaries each, gate verdict compared to...  (source: git:240250578d32)
+- T158: the canary oracle -- the control that makes Season 1's claim honest
+
+kimi established that a same-checkpoint player pool cannot certify its own completeness...  (source: git:fbe590c7f850)
+- T156: verification suite (22 tests) + the O(n) hot-path regression it caught
+
+Daniil: 'how can we verify every function we have built for this new feature including ways...  (source: git:e47520f6d5ec)
+
+## Episode closed: Verify a function three ways, not one. (a) BOUND IT: assert a... (ai-setup)
+Span: 2026-08-04T13:27:17.256860+00:00 → 2026-08-04T14:50:38.495156+00:00
+Beats: 14  · Critic: True
+
+- Episode closed: Verify a function three ways, not one. (a) BOUND IT: assert a deadline AT A REALISTIC SIZE -- a function  (source: episode:close:ch_1785848217_8831)
+- where-we-are: WHERE WE ARE, 2026-08-04 ~10:50. Opus 5 seat, autonomous watch (took over after claude#7507b107/Fable hard-wedged). Daniil at work; directive = note...  (source: mem:decision:ADR_0804105038_312cf80f)
+- Two rules, both earned expensively here. (1) NEVER silence git add stderr, and never batch-add a path you are not certain exists. git add is ALL-OR-NOTHING across its...  (source: learn:experiment:green_on_the_working_tree_is_not_green_on_the_commit)
+- Two rules, both earned expensively here. (1) NEVER pipe git add's stderr to /dev/null, and never batch-add a path you are not certain exists -- git add is ALL-OR-NOTHING...  (source: learn:experiment:green_on_the_working_tree_is_not_green_on_the_commit)
+- claude -> claude: autonomous watch 2026-08-04: Fable queue W1-W6 complete + 3 findings; two rulings waiting on Daniil  (source: handoff:claude->claude)
+- When you REFUTE a filed defect -- especially one you are motivated to refute because it is your own instrument under suspicion -- do not stop at the controlled...  (source: learn:experiment:two_independent_methods_agreeing_is_the_strongest_instrument_claim)
+- where-we-are: WHERE WE ARE, 2026-08-04 ~10:45, Opus 5 seat on the autonomous watch (took over after claude#7507b107/Fable hard-wedged). Daniil at work; standing...  (source: mem:decision:ADR_0804104239_0e46b461)
+- When asked to CHANGE a rule that is only written down, build the rule first and the change second, with both versions runnable as data over the same inputs. The...  (source: learn:experiment:rules_that_live_only_in_prose_cannot_be_ruled_on)
+- Audit every FALLBACK, DEFAULT, and BOOTSTRAP path by asking one question: is the degraded answer a SUBSET of the normal answer? A fallback that can be WIDER than what it...  (source: learn:experiment:a_fallback_that_is_more_permissive_than_the_thing_it_replaces)
+- where-we-are: WHERE WE ARE, 2026-08-04 midday, written by the Opus 5 seat that took over the autonomous watch after claude#7507b107 (Fable) hard-wedged mid-session (dead...  (source: mem:decision:ADR_0804102140_f4af440e)
+- Treat 'passes alone, fails in a suite' as a RACE REPORT until proven otherwise, and never as a reason to retry, reorder, or isolate the test -- those three fixes all...  (source: learn:experiment:a_flaky_pin_is_a_race_report_not_a_test_defect)
+- For any field that IDENTIFIES the actor (agent id, tenant, session, request id), a pin that passes the value in tests the plumbing downstream of the value and proves...  (source: learn:experiment:a_pin_that_supplies_its_own_input_tests_the_mechanism_not_the_wiring)
+- When moving work off a caller's thread, enumerate which GUARANTEES moved with it before touching a single test -- a return value that meant 'durable' silently becomes...  (source: learn:experiment:async_moves_the_guarantee_not_just_the_work)
+- When an instrument measures a detector, it must ASK THE DETECTOR what it examines, never re-implement the selector -- across a process boundary if the target is a...  (source: learn:experiment:oracle_must_ask_the_detector_not_mirror_it)
+
+## Episode closed: When an instrument measures a detector, it must ASK THE DETEC... (ai-setup)
+Span: 2026-08-04T15:06:04.535268+00:00 → 2026-08-04T15:06:04.535268+00:00
+Beats: 1  · Critic: True
+
+- Episode closed: When an instrument measures a detector, it must ASK THE DETECTOR what it examines, never re-implement th  (source: episode:close:ch_1785850977_5684)
+
+## Use when adding a message kind, poller, timer, wake rule, retry, or dependenc... (ai-setup)
+Span: 2026-08-05T02:55:55.327272+00:00 → 2026-08-05T03:14:12.133165+00:00
+Beats: 4  · Critic: True
+
+- Use when adding a message kind, poller, timer, wake rule, retry, or dependency, before adding runtime-local state: classify it as durable command, coalescible state...  (source: learn:experiment:rts_ability_lens_coordination_frame_engine_2026_08_04)
+- where-we-are: WHERE WE ARE, 2026-08-04 late, written by claude#cdfb9126 for a FRESH UNCONSTRAINED OPUS SEAT at
+Daniil's ask. Everything below is committed AND...  (source: mem:decision:ADR_0804225808_230fddfc)
+- where-we-are: WHERE WE ARE, 2026-08-04 late, written by claude#cdfb9126 for a FRESH UNCONSTRAINED OPUS SEAT at
+Daniil's ask. Everything below is committed AND...  (source: mem:decision:ADR_0804225637_851d9ea0)
+- Use when adding communication, mail, wake or synchronization behavior, before adding a cursor, stream-ID alias, sidecar or redrive registry: extend one canonical...  (source: learn:experiment:communication_complexity_is_fragmented_lifecycle_authority_2026_08_04)
+
+## Episode closed: Use when adding communication, mail, wake or synchronization ... (ai-setup)
+Span: 2026-08-05T03:14:46.980140+00:00 → 2026-08-05T05:39:57.505878+00:00
+Beats: 13  · Critic: True
+
+- Episode closed: Use when adding communication, mail, wake or synchronization behavior, before adding a cursor, stream-ID  (source: episode:close:ch_1785894837_5913)
+- Use when institutionalizing frame/slice/probe zoom transitions, before adding ledger columns: separate the semantic contract from its storage. Persist only the smallest...  (source: learn:experiment:altitude_transitions_are_lossy_interfaces_2026_08_05)
+- in-flight-t179: IN FLIGHT, 2026-08-05 ~01:30, claude (Opus 5). T179 IS WRITTEN AND VERIFIED-SO-FAR BUT NOT COMMITTED. If this seat died here, the fix is ON DISK...  (source: mem:decision:ADR_0805013823_fb424b97)
+- Use when a task mixes architectural mapping, subsystem planning, and local implementation, before asking one context to hold all three: split it into frame, slice, and...  (source: learn:experiment:altitude_transitions_are_lossy_interfaces_2026_08_05)
+- Use when one identifier means two things in two files, before choosing which to rename: count references on BOTH sides first, including pins, test suites and historical...  (source: learn:experiment:rename_the_low_amplification_side_of_a_name_collision)
+- Use when a guarantee is REPO-LEVEL rather than process-level -- a hook, a ratchet, a baseline, a generated artifact, a bootstrap, a restore path -- before believing...  (source: learn:experiment:fresh_clone_drill_is_how_you_verify_a_repo_level_guarantee)
+- Use when adding a guard to any ratchet or baseline system, before believing it is enforced: check where the baseline LIVES and what happens when it is absent. Run the...  (source: learn:experiment:absence_reads_as_success_in_the_guard_of_guards)
+- Use when consolidating verbs, kinds, record types, or commands, before merging names: enumerate producers, consumers, planes, and enforcement; evaluate change...  (source: learn:experiment:fragmentation_cost_is_distributed_obligation_surface_2026_08_05)
+- Use when adding a message kind, or when a message inexplicably fails to wake/settle/promote, BEFORE adding a runtime-local workaround: check the kind against EVERY...  (source: learn:experiment:open_vocabulary_plus_subset_policy_makes_new_kinds_born_silent)
+- Use when writing or debugging ANY guard, pin, checker or classifier that matches raw source text, BEFORE trusting a red: check whether the match landed in a docstring...  (source: learn:experiment:text_matching_guards_treat_documentation_as_code)
+- Use when reconciling any ledger row whose commit exists in git but whose status is behind, BEFORE editing the row: read the STATUS, not just the commit field...  (source: learn:experiment:t170_reached_head_without_ever_passing_a_gate)
+- Use when arguing that a bounded log can support replay, before calling it a coverage manifest or authority: assess pointer resolution, capture durability, read...  (source: learn:experiment:eventlog_pointer_honesty_is_not_replay_coverage_2026_08_04)
+- Use when proposing a central timer, reducer, or dead-seat monitor around expectations, before replacing the pull-floor sweep: preserve T025 action-authority rule; let a...  (source: learn:experiment:t025_reader_clock_is_ratified_split_observation_from_action_2026_08_04)
+
+## Episode closed: Use when proposing a central timer, reducer, or dead-seat mon... (ai-setup)
+Span: 2026-08-05T05:40:11.122241+00:00 → 2026-08-05T07:27:39.615737+00:00
+Beats: 10  · Critic: True
+
+- Episode closed: Use when proposing a central timer, reducer, or dead-seat monitor around expectations, before replacing  (source: episode:close:ch_1785899697_9024)
+- where-we-are: AUTONOMOUS NIGHT, 2026-08-05 01:00-05:00, claude#307f4ef7 (Opus 5). Daniil asleep under a
+standing mandate: keep building, decide instead of stopping, keep...  (source: mem:decision:ADR_0805032739_4f83cfc4)
+- Use when fixing an instrument and then re-measuring with it, BEFORE quoting the new number: change exactly one thing. Fixing the harness and rolling the seed/sample in...  (source: learn:experiment:change_one_thing_or_you_measured_nothing)
+- where-we-are: AUTONOMOUS NIGHT, 2026-08-05 01:00-05:00, claude#307f4ef7 (Opus 5). Daniil asleep under a
+standing mandate: keep building, decide instead of stopping, keep...  (source: mem:decision:ADR_0805030936_3a02018b)
+- Use when a scored round, benchmark or gate produces a headline number, BEFORE quoting it: for each number ask which distinct facts could produce that exact value, and...  (source: learn:experiment:a_measured_score_can_hide_which_fact_produced_it)
+- in-flight-t179: AUTONOMOUS NIGHT, 2026-08-05 ~01:00-03:40, claude#307f4ef7 (Opus 5). Daniil asleep, standing
+mandate: keep building, decide instead of stopping, make...  (source: mem:decision:ADR_0805023735_99cede21)
+- Use when the roster shows two live incarnations of one agent, BEFORE reaching for any kill: a refreshing heartbeat is the liveness signal, so treat the other holder as a...  (source: learn:experiment:a_dead_session_can_leave_a_live_seat_behind)
+- Use when a seat looks LIVE but nobody is home, or when directed mail to a bare role goes unanswered: run roster --by-agent and check for SPLIT-BRAIN before assuming...  (source: learn:experiment:a_dead_session_can_leave_a_live_seat_behind)
+- Use when spinning up N concurrent model calls, BEFORE choosing what to send them: vary the POSITION, not the seed or the temperature. N copies of one prompt return...  (source: learn:experiment:fan_diversity_comes_from_position_not_repetition)
+- Use when scaling a fleet across a large corpus or system, before broadcasting the same brief to every seat: choose the traversal axis and objective root, compute the...  (source: learn:experiment:fleet_traverses_objective_rooted_tree_projection_2026_08_05)
+
+## Episode closed: Use when scaling a fleet across a large corpus or system, bef... (ai-setup)
+Span: 2026-08-05T07:43:04.176498+00:00 → 2026-08-05T07:43:04.176498+00:00
+Beats: 1  · Critic: True
+
+- Episode closed: Use when scaling a fleet across a large corpus or system, before broadcasting the same brief to every se  (source: episode:close:ch_1785908457_4397)
+
+## Use when a producer returns a primary result plus explanatory telemetry, befo... (ai-setup)
+Span: 2026-08-05T12:19:09.317317+00:00 → 2026-08-05T13:01:01.079664+00:00
+Beats: 5  · Critic: True
+
+- Use when a producer returns a primary result plus explanatory telemetry, before persisting either: carry them through one return value and archive them at the same...  (source: learn:experiment:llm_round_report_must_cross_archive_boundary)
+- Use when invoking bifrost-send from the CLI with an inline multiword body, before sending: place --to, --kind, and other options before the sender positional, then place...  (source: learn:experiment:bifrost_send_variadic_text_requires_options_before_sender)
+- where-we-are: AUTONOMOUS NIGHT, 2026-08-05 01:00-05:00, claude#307f4ef7 (Opus 5). Daniil asleep under a
+standing mandate: keep building, decide instead of stopping, keep...  (source: mem:decision:ADR_0805082355_a8238a18)
+- Use when seatless fan success prompts a repair-versus-retire seat decision, before changing the seat control plane: classify work as deterministic, ask, fan, ephemeral...  (source: learn:experiment:seatless_fan_exposes_missing_ephemeral_job_tier)
+- Mirror progress 2026-08-05 08:58  (source: git:b619128c9179)
+
+## Episode closed: Use when seatless fan success prompts a repair-versus-retire ... (ai-setup)
+Span: 2026-08-05T13:12:42.783714+00:00 → 2026-08-05T13:24:22.207704+00:00
+Beats: 3  · Critic: True
+
+- Episode closed: Use when seatless fan success prompts a repair-versus-retire seat decision, before changing the seat con  (source: episode:close:ch_1785915837_3221)
+- where-we-are: T194 is implemented and pushed at 7a7f7cc. Fresh verification: 37 focused tests pass; current archived zero-model replay gives v1 old_voided=true versus v2...  (source: mem:decision:ADR_0805092422_38b40d02)
+- Use when an evaluation score also decides whether its evidence is admissible, before interpreting a surprising success as cheating: split measurement from protocol...  (source: learn:experiment:score_measurement_and_protocol_validity_need_separate_authorities)
+
+## Episode closed: Use when an evaluation score also decides whether its evidenc... (ai-setup)
+Span: 2026-08-05T13:37:04.883141+00:00 → 2026-08-05T13:47:21.674645+00:00
+Beats: 4  · Critic: True
+
+- Episode closed: Use when an evaluation score also decides whether its evidence is admissible, before interpreting a surp  (source: episode:close:ch_1785935577_6562)
+- where-we-are: T195 matched DeepSeek calibration completed VALID at 5cb2d71. Eight of eight branches landed, zero partials/anomalies, 0.1736 percent prompt-character gap...  (source: mem:decision:ADR_0805094721_b1466b77)
+- Use when a sealed experiment returns any aggregate, before printing or logging it: recursively scan the rendered public receipt for every hidden id and key digest. Do...  (source: learn:experiment:sealed_round_public_receipt_must_strip_nested_ids)
+- Use when one leaf can exhaust a bounded packet, before allocating the rest of a fan: keep one shared overlap as the reliability control, then route remaining leaves to...  (source: learn:experiment:overlap_is_a_calibration_control_not_the_default_fleet_shape)
+
+## Episode closed: Use when one leaf can exhaust a bounded packet, before alloca... (ai-setup)
+Span: 2026-08-06T00:21:26.187285+00:00 → 2026-08-06T03:55:11.882078+00:00
+Beats: 9  · Critic: True
+
+- Episode closed: Use when one leaf can exhaust a bounded packet, before allocating the rest of a fan: keep one shared ove  (source: episode:close:ch_1785937077_7139)
+- in-flight-t196: T196 DONE @ 59e7bd3, night of 2026-08-05/06 (ledger: approved on Daniil's verbatim 'lets get to building', walked claimed->in_progress->verifying->DONE)...  (source: mem:decision:ADR_0805231629_d7ce64a8)
+- Use when branching on ANY BoundaryOutcome, before writing the first if: branch failed -> partial -> done in that order, never test bare ok as done. A pin that starts...  (source: learn:experiment:boundary_outcome_ok_includes_partial_double_strike)
+- in-flight-t196: T196 (ask as the front door / Sol's collaboration-first synthesis) IN FLIGHT, evening 2026-08-05. Approved+claimed on Daniil's verbatim 'lets get to...  (source: mem:decision:ADR_0805224023_0957bb2d)
+- When a record dies in the same transition that closes it, the closing event must carry EVERY field the readout needs (created, attempt, answer pointer): a terminal event...  (source: learn:experiment:t196_terminal_events_carry_their_own_evidence)
+- in-flight-t196: T196 (ask as the front door / Sol's collaboration-first synthesis) IN FLIGHT, evening 2026-08-05. Approved+claimed on Daniil's verbatim 'lets get to...  (source: mem:decision:ADR_0805214733_deb57520)
+- When a record dies in the same transition that closes it, the closing event must carry EVERY field the readout needs (created, attempt, answer pointer): a terminal event...  (source: learn:experiment:t196_terminal_events_carry_their_own_evidence)
+- PLAY SESSION with Daniil, late night 2026-08-05: the bus rendered as an aurora on the vfx bench. He brought two Shadertoy ancestors (domain-warped curtain engine +...  (source: claude:play)
+- Sol's collaboration-first Bifrost synthesis relayed by Daniil (evening 2026-08-05), filed verbatim+evaluated at art_20260805_sol-bifrost-collaboration-first_fea446; T196...  (source: claude:vision-custody)
+
+## Episode closed: When a record dies in the same transition that closes it, the... (ai-setup)
+Span: 2026-08-06T12:34:06.856446+00:00 → 2026-08-06T12:34:06.856446+00:00
+Beats: 1  · Critic: True
+
+- Episode closed: When a record dies in the same transition that closes it, the closing event must carry EVERY field the r  (source: episode:close:ch_1785979497_3493)
+
+## Episode closed: When a record dies in the same transition that closes it, the... (ai-setup)
+Span: 2026-08-06T12:34:06.868445+00:00 → 2026-08-06T13:12:14.870278+00:00
+Beats: 4  · Critic: True
+
+- Episode closed: When a record dies in the same transition that closes it, the closing event must carry EVERY field the r  (source: episode:close:ch_1785979497_3493)
+- Use when a wake/backlog watcher survives every documented remediation, BEFORE arming a 4th time or reaching for a cursor skip: identify the pending items INDIVIDUALLY...  (source: learn:experiment:settled_answer_stays_wake_worthy_nonconsuming_poll_pins_the_watcher)
+- Use when a design choice trades a slow uncertain path for a fast certain refusal, BEFORE calling the refusal an improvement: ask what OBSERVATION the slow path performs...  (source: learn:experiment:fence_argument_saved_an_answer_i_could_never_have_seen_lost)
+- Use when a metric shows a subsystem failing at a rate that implies a missing instrument, BEFORE scoping anything to build one: grep for an existing verdict function and...  (source: learn:experiment:t197_the_verdict_existed_the_door_never_asked)
+
+## Use when a gate, guard or alarm fires a severe verdict that clears on an imme... (ai-setup)
+Span: 2026-08-06T21:24:09.164191+00:00 → 2026-08-06T21:24:09.164191+00:00
+Beats: 1  · Critic: True
+
+- Use when a gate, guard or alarm fires a severe verdict that clears on an immediate retry, BEFORE re-running it a second time: read the THRESHOLD against the TYPICAL, not...  (source: learn:experiment:a_gate_that_cries_catastrophe_on_a_thin_margin_disarms_itself)
+
+## where-we-are: SESSION OF 2026-08-07 CLOSED. Everything pushed, working tree c... (ai-setup)
+Span: 2026-08-07T04:09:41.675279+00:00 → 2026-08-08T04:09:51.201304+00:00
+Beats: 54  · Critic: True
+
+- where-we-are: SESSION OF 2026-08-07 CLOSED. Everything pushed, working tree clean of my lane, GL bench shut down for the night (restart: py scripts/bifrost_ui.py --port...  (source: mem:decision:ADR_0808000951_606e4d65)
+- claude -> claude: CURRENT HANDOFF, supersedes my 09:36 one (which predates T221-T237). Read research/in-flight/handoff-from-69363f5a-2026-08-07.md @34f63ef  (source: handoff:claude->claude)
+- Use when writing to ANY capped field (handoff --note at 1000, commit trailers, bus bodies). Knowing a cap exists does not make prose fit it -- write the body to the cap...  (source: learn:experiment:a_cap_you_know_about_still_needs_the_body_written_to_fit)
+- claude -> claude: FINAL, supersedes my two earlier ones. Read 20260807_fanout-playbook_23cec6.md (sibling, the doors) THEN...  (source: handoff:claude->claude)
+- claude -> claude: SUPERSEDES my earlier handoff (stale path). Read docs/library/report/20260807_handoff-operating-frame_eff375.md -- an operating frame, not a status...  (source: handoff:claude->claude)
+- claude -> claude: READ THIS BEFORE THE LEDGER: docs/library/report/20260807_handoff-operating-frame_73b04c.md -- an operating frame, not a status report  (source: handoff:claude->claude)
+- Use immediately after any pin goes green, and BEFORE marking a task done. A passing pin is evidence about the PIN, not yet about the code -- so run these four checks on...  (source: learn:experiment:a_green_pin_is_evidence_about_the_pin)
+- t229-design-from-the-outside-scan: T229 DESIGN, informed by the 2026-08-07 ensemble scan (research/in-flight/swarm-ensemble-scan-2026-08-07.md). Read this BEFORE...  (source: mem:decision:ADR_0807194835_681058e5)
+- Use when writing ANY summary, result doc, commit message or task description about work you just did -- at the moment of writing, not later. THE GUARD IS SYNTACTIC...  (source: learn:experiment:a_sentence_explaining_why_my_own_work_succeeded_is_a_claim_not_a_conclusion)
+- t229-evidence-correction: T229 CARRIES A FALSE EVIDENCE CLAIM THAT I FILED AND AM RETRACTING, 2026-08-07.
+
+The task description says: "Live evidence 2026-08-07: five...  (source: mem:decision:ADR_0807193336_959bed09)
+- Use when writing ANY artifact that carries a ledger/task/ticket id -- a test filename, a docstring, a commit message, a branch -- BEFORE typing the id. (1) Run task...  (source: learn:experiment:id_collision_is_a_door_problem_not_a_discipline_problem)
+- Use when a fan/ensemble/self-consistency mechanism reports agreement, before inferring anything from it. (1) ASK WHAT IS ACTUALLY VARYING between branches. Same model +...  (source: learn:experiment:fan_agreement_is_correlated_sampling_not_n_version)
+- where-we-are: SESSION OF 2026-08-07, claude#69363f5a (Opus 5). NINE ledger slices plus four pre-registered experiments, all RED-pin-first, all pushed. HEAD 66fef3a. A...  (source: mem:decision:ADR_0807172830_a3f3b2dd)
+- THREE CHEAP END-OF-SLICE CHECKS, each of which caught a real defect here and none of which takes a minute. (1) READ THE MINTED ID before writing it anywhere -- with...  (source: learn:experiment:three_ways_my_own_slice_lied_about_being_finished)
+- Use when crediting any prompt-side safety mechanism, and when a nudge-ablation returns a clean zero. (1) The nudge that works is the one that constrains the ANSWER'S...  (source: learn:experiment:the_nudge_that_works_is_the_one_that_shapes_the_ANSWERS_FORM)
+- where-we-are: SESSION OF 2026-08-07 (afternoon), claude#3a18b34b (Opus 5). Continues claude#69363f5a's arc. HEAD 534d419, pushed.
+
+DANIIL'S ASK: 'use the fanouts we've...  (source: mem:decision:ADR_0807144902_d2cca58f)
+- Use when auditing any tool you own with a fan/panel of tool-less helpers, BEFORE trusting or dismissing their answers. (1) RUN the instrument and watch the RUN, not just...  (source: learn:experiment:fan_at_its_own_door_finds_what_review_cannot)
+- where-we-are: SESSION OF 2026-08-07, claude#69363f5a (Opus 5). EIGHT ledger slices plus three pre-registered experiments, all RED-pin-first, all pushed. HEAD 72acd79. A...  (source: mem:decision:ADR_0807132700_5325209f)
+- HELP TEXT MATTERS IN PROPORTION TO HOW FAR THE VERB SITS FROM CONVENTION -- nearly free for a conventional verb because the reader already knows, and the only channel...  (source: learn:experiment:help_text_matters_in_proportion_to_distance_from_convention)
+- where-we-are: SESSION OF 2026-08-07, claude#69363f5a (Opus 5). EIGHT ledger slices, all RED-pin-first, all pushed. HEAD d7f3612. A live two-way exchange with...  (source: mem:decision:ADR_0807094254_604c9480)
+- RECORD THIS AS CENSUS-NOT-WORTH-IT, NOT CLASS-NOT-WORTH-GUARDING -- those read very differently to whoever hits the second versioned family. Do NOT build a repo-wide...  (source: learn:experiment:versioned_successor_guard_is_not_worth_building_and_my_census_committed_the_homonym_error)
+- EVERY NEW DETECTOR GETS POINTED AT ITSELF BEFORE IT GETS POINTED AT THE CORPUS. Cheap, and it would have caught four of the five. Concretely, three checks that each took...  (source: learn:experiment:an_instruments_blind_spot_sits_where_it_is_looking)
+- Use when building ANY detector, guard, checker, ranker or classifier, BEFORE pointing it at the corpus: point it at ITSELF and at a case whose answer you already know...  (source: learn:experiment:an_instruments_blind_spot_sits_where_it_is_looking)
+- game-arc-watch-status: SEASON 1: STEPS 1-2 CLOSED, TWO SEASON-CORRUPTING DEFECTS FOUND AND ADDRESSED, SCALE RULING NOW HAS DATA. Daniil's rulings remain, and there is...  (source: mem:decision:ADR_0807091335_ef78ea6d)
+- ATTACK YOUR OWN SCORING RULE BY RUNNING IT, NOT BY READING IT -- both of my predictions from reading were wrong in opposite directions, and ten lines of simulation...  (source: learn:experiment:attack_your_own_scoring_rule_before_the_players_do)
+- THREE REFINEMENTS TO THE P1 RECIPE, all earned here. 1. THE AUDIT EXTRACTS CLAIMS FROM JUSTIFICATION CLAUSES and this inflates the candidate count badly: a docstring...  (source: learn:experiment:claim_audit_on_fresh_code_finds_laws_broken_in_the_same_function)
+- where-we-are: NIGHT OF 2026-08-07, claude#69363f5a (Opus 5), Daniil asleep under a standing mandate to keep building. FOUR ledger slices plus a pre-registered experiment...  (source: mem:decision:ADR_0807055230_61cadbca)
+- A CURATION TIER NEEDS THE VOTE SPLIT IN ITS VERDICT, not just the winning label. Mine treated any FORK claim as sufficient, so a single hat outvoted five and inflated...  (source: learn:experiment:curator_promotes_a_lone_hat_over_a_five_hat_consensus)
+- where-we-are: NIGHT OF 2026-08-07, claude#69363f5a (Opus 5), Daniil asleep under a standing mandate to keep building. FOUR ledger slices shipped, every one RED-pin-first...  (source: mem:decision:ADR_0807053643_977e1d81)
+- claude -> claude: Night of 2026-08-07: sift built and calibrated, Season 1 unblocked to Daniil's rulings, and a PROOF that the forked-semantics guard cannot be a grep  (source: handoff:claude->claude)
+- game-arc-watch-status: SEASON 1: CRITICAL-PATH STEPS 1 AND 2 CLOSED, ONE SEASON-CORRUPTING DEFECT FIXED, AND THE SCALE RULING NOW HAS DATA UNDER IT. Only Daniil's three...  (source: mem:decision:ADR_0807053437_339d0679)
+- THE SEASON MUST NOT REPORT RECALL FROM FEW ROUNDS AND MAY TRUST PRECISION FROM ONE. Concretely for Daniil open scale ruling: detector health belongs to the MECHANICAL...  (source: learn:experiment:llm_player_recall_is_noise_at_n1_while_precision_and_capability_are_stable)
+- Run a claim audit at the END of a build session rather than over old code: the freshest laws are the ones not yet reconciled with their implementation, and the playbook...  (source: learn:experiment:claim_audit_on_fresh_code_finds_laws_broken_in_the_same_function)
+- game-arc-watch-status: SEASON 1: STEPS 1 AND 2 OF THE CRITICAL PATH ARE CLOSED, UNGATED. One defect found that would have corrupted the season is fixed (T219). Only...  (source: mem:decision:ADR_0807051731_b80b586e)
+- DO NOT BUILD A REPO-WIDE versioned-successor guard here: n=1 family, zero live targets, and over-fitting a checker to one historical incident adds a gate that can only...  (source: learn:experiment:versioned_successor_guard_is_not_worth_building_and_my_census_committed_the_homonym_error)
+- WHEN A FUNCTION LOOKS WRONG, GREP FOR ITS SUCCESSOR BEFORE WRITING ONE -- search the module for the same stem with a version suffix (score/score_v2/score_v3) and for who...  (source: learn:experiment:a_superseded_function_left_wired_in_one_caller_is_a_live_fork)
+- game-arc-watch-status: SEASON 1 CRITICAL PATH: STEPS 1 AND 2 ARE CLOSED, UNGATED, ZERO SPEND. Only step 3 still needs Daniil.
+
+next-focus (2026-08-04) set the order: (1)...  (source: mem:decision:ADR_0807045227_5b7e4479)
+- THE ORACLE IS CALIBRATED AND SEASON 1's HEADLINE METRIC IS TRUSTWORTHY -- critical-path step 1 is closed, and the mechanical dry run (step 2) is closed with it because a...  (source: learn:experiment:canary_oracle_calibrated_across_six_seeds)
+- where-we-are: NIGHT OF 2026-08-07, claude#69363f5a (Opus 5), Daniil asleep with a standing mandate to keep building. Two ledger tasks shipped, both RED-pin-first, both...  (source: mem:decision:ADR_0807044720_640bb767)
+- This is a PROOF, not a measurement, and it explains why every guard has missed this class for two months. A homonym is one token carrying two concepts -- greppable, and...  (source: learn:experiment:token_level_tools_cannot_detect_forked_semantics_by_construction)
+- EVIDENCE SHAPE DECIDES WHICH HYPOTHESES ARE TESTABLE, and this is prior to hat design: a breadth-first line sample answers 'how many senses' and is structurally blind to...  (source: learn:experiment:evidence_shape_decides_which_hypotheses_are_testable)
+- Use when Daniil shares an Aurora handoff, reflection, playbook, or broad design synthesis, before responding: preserve the layered argument and inspect its receipts...  (source: learn:experiment:user_correction_preserve_full_aurora_design_2026_08_07)
+- claude -> claude: SECOND LETTER: how to be, not what to run. Read after the playbook.  (source: handoff:claude->claude)
+- Use when a knowledge store has accumulated enough advice that nobody remembers all of it, and BEFORE running any consolidation or merge pass: (a) the store's own...  (source: learn:experiment:the_corpus_does_not_contradict_itself_and_three_fixtures_were_hiding_in_it)
+- Use when you want to know whether a codebase or corpus is COHERENT rather than merely consistent, and especially before a big documentation or naming push: fan N readers...  (source: learn:experiment:the_corpus_is_holographic_values_converge_while_doing_diverges)
+- claude -> claude: Use the fan-out. Read docs/library/report/20260807_fanout-playbook_23cec6.md FIRST.  (source: handoff:claude->claude)
+- Use when you have been working a long session and want to know what is actually costing you, BEFORE optimising anything you can name: you cannot audit your own behaviour...  (source: learn:experiment:observer_on_my_own_timeline_found_what_i_could_not)
+- Use when fanning a detector over a corpus, BEFORE trusting any base rate: (a) VERIFY THE EVIDENCE GATHERER FIRST -- a fan answers faithfully about whatever you hand it...  (source: learn:experiment:fan_detector_needs_clean_evidence_and_a_narrower_question)
+- Use when a naming or vocabulary guard exists and violations keep appearing anyway, BEFORE concluding the guard is broken or unenforced: check whether the violations are...  (source: learn:experiment:forked_semantics_is_not_a_name_collision)
+- Use when a theme keeps recurring in conversation and never seems to get built, BEFORE assuming it is deprioritised: check whether it was ever FILED...  (source: learn:experiment:the_oldest_wish_was_never_filed_as_one)
+- Use when judging the ergonomics of any verb, door, or interface you built or have been using heavily, BEFORE trusting your own read: you cannot measure ergonomics from...  (source: learn:experiment:cold_encounter_test_measures_ergonomics)
+- Use when delegating any question to a helper, before choosing the wording: GROUNDING FIXES FACTS, IT DOES NOT FIX EQUIVOCATION. Attaching source reliably fixes lookups...  (source: learn:experiment:grounding_fixes_facts_not_equivocation)
+- Use when a bug has cost more than about three turns of hands-on driving, BEFORE running the next command: stop driving and get an outside read. Hand a helper the FILES...  (source: learn:experiment:troubleshoot_from_without_to_see_the_shape)
+- vfx palindrome demos  (source: git:4a87b440a2bb)
+
+## where-we-are: SESSION OF 2026-08-07, claude#3a18b34b (Opus 5), evening. HEAD ... (research)
+Span: 2026-08-08T01:10:12.759644+00:00 → 2026-08-08T02:03:02.279751+00:00
+Beats: 6  · Critic: True
+
+- where-we-are: SESSION OF 2026-08-07, claude#3a18b34b (Opus 5), evening. HEAD 86a9932, all pushed. Restore point after a safeguard interruption.
+
+DANIILS ARC THIS SESSION...  (source: mem:decision:ADR_0807220302_09a3d9e5)
+- THE DESIGN RULE, and it is a refinement of 'vary the position': VARY THE OUTPUT TYPE ACROSS BRANCHES, NOT JUST THE QUESTION. Evidence returns facts to verify, analogy...  (source: learn:experiment:vary_the_output_type_across_branches_not_just_the_question)
+- Use before spending any multi-branch fan, any expensive single ask, or any ask whose evidence pack was assembled rather than trivial. ONE pre-flight call first: give the...  (source: learn:experiment:preflight_the_ask_before_you_spend_the_fan)
+- A WARNING IS NOT LOUD BECAUSE IT WAS WRITTEN -- it is loud only on a channel the reader is actually listening to. Name the reader and trace the channel end to end before...  (source: learn:experiment:a_warning_is_only_loud_on_a_channel_the_reader_is_listening_to)
+- Three rules, in order of how much they cost me. (1) [M] MUST MEAN 'I HAVE THE RECEIPT', NEVER 'I REMEMBER IT'. I tagged a remembered impression as measured because it...  (source: learn:experiment:the_M_tag_failed_first_contact_and_the_defect_was_routing_not_attention)
+- Use BEFORE spinning up any fanout, and before deciding what to read. (1) THE DELEGATION TEST IS NOT COST, IT IS: does my judgment change the answer? 'Does this paper...  (source: learn:experiment:selection_beats_filtering_and_merging_pressure_manufactures_narrative)
+
+## Episode closed: where-we-are: SESSION OF 2026-08-07 CLOSED. Everything pushed... (ai-setup)
+Span: 2026-08-08T13:24:06.546511+00:00 → 2026-08-08T13:24:06.546511+00:00
+Beats: 1  · Critic: True
+
+- Episode closed: where-we-are: SESSION OF 2026-08-07 CLOSED. Everything pushed, working tree clean of my lane, GL bench s  (source: episode:close:ch_1786158653_5179)
+
+## Episode closed: where-we-are: SESSION OF 2026-08-07 CLOSED. Everything pushed... (ai-setup)
+Span: 2026-08-08T13:24:06.547511+00:00 → 2026-08-08T13:24:06.547511+00:00
+Beats: 1  · Critic: True
+
+- Episode closed: where-we-are: SESSION OF 2026-08-07 CLOSED. Everything pushed, working tree clean of my lane, GL bench s  (source: episode:close:ch_1786158653_5179)
+
+## t257-framing-correction: T257 FRAMING CORRECTION, from Daniil 2026-08-09, and... (unknown)
+Span: 2026-08-08T13:35:44.761312+00:00 → 2026-08-09T04:23:23.066777+00:00
+Beats: 16  · Critic: True
+
+- t257-framing-correction: T257 FRAMING CORRECTION, from Daniil 2026-08-09, and it changes the design rather than the wording.
+
+I filed T257 as "restore Bifrost to its...  (source: mem:decision:ADR_0809002323_92cd0c30)
+- Use when a team or fleet has quietly migrated from a higher-quality instrument to a lower-quality one, BEFORE concluding the migration reflects a judgement about...  (source: learn:experiment:the_better_instrument_lost_because_it_was_harder_to_reach)
+- Use when WRITING A FAN BRIEF or any multi-branch ask, before assigning roles. THE ORDERING, measured and research-backed: different EVIDENCE beats different QUESTIONS...  (source: learn:experiment:high_leverage_clauses_are_permissions_not_roles)
+- Use when a player, agent or user is found gaming a system you built, BEFORE reaching for a penalty. Ask first: WHAT LEGITIMATE PATH WAS CLOSED? An exploit is frequently...  (source: learn:experiment:an_exploit_is_a_contribution_that_found_no_legitimate_route)
+- Use when designing ANY grading, review, triage or credit system, at the point where you decide what an UNRESOLVED case scores. THE RULE: an item the system could not...  (source: learn:experiment:the_graders_limitation_must_not_be_charged_to_the_graded)
+- Two rules, one general and one about testing. (1) IN ANY SCORING RULE, A RATE'S DENOMINATOR IS AN ATTACK SURFACE. Ask who controls it. If a player can add rows to the...  (source: learn:experiment:a_rate_over_unadjudicated_claims_pays_players_to_flood)
+- Two rules. (1) BEFORE deriving a fix for a measurement defect, grep the repo for the honest version -- a sibling module had solved this and stated the principle in a...  (source: learn:experiment:the_honest_pattern_already_existed_one_module_over)
+- Use when any funnel, hit-rate or value metric is about to be cited as evidence, especially your own subsystem's headline number. FIRST write out its numerator and...  (source: learn:experiment:a_coverage_number_wearing_a_quality_label)
+- Use when choosing a reviewer shape, and do NOT read this as durable-beats-stateless -- n=1, one diff, one pair. The transferable finding is about what made the findings...  (source: learn:experiment:durable_reviewer_found_a_superset_of_the_stateless_fan)
+- Use BEFORE proposing any change to a recall/notification/alerting system on the grounds that it surfaces the wrong things. FIRST read the outcome counters and split...  (source: learn:experiment:recall_silence_is_suppression_not_ranking)
+- Use when building ANY control that governs your own behaviour -- a gate, a lint, a budget, a review requirement. THREE rules, each paid for here. (1) Point it at its own...  (source: learn:experiment:point_a_governance_gate_at_its_own_slice_first)
+- Use when deciding whether to skip an independent review because your pins are green. Green pins are evidence about the cases you thought of, and the defects you ship are...  (source: learn:experiment:four_self_verified_slices_then_one_fence_found_three)
+- Use whenever you add an argument SHAPE to a library function -- a dict where a string was accepted, a list where a scalar was, an object with new keys. TWO checks, both...  (source: learn:experiment:a_defensive_coercion_at_a_door_silently_destroys_capability)
+- Use when a guard, notice or validation exists and someone reports it did not fire. FIRST ask WHICH LAYER it lives in, before assuming it is broken -- a guard at the CLI...  (source: learn:experiment:evidence_notice_guards_the_door_not_the_boundary)
+- Use when building any nested/tiered fan. (1) Persist the RAW result before any transform: I persisted a transformed value and the transform was the bug, so the paid...  (source: learn:experiment:nested_helpers_v0_found_its_own_harness_not_the_target)
+- Use when any containerised service is unreachable but docker ps says Up. Status Up is NOT evidence the port is published: inspect NetworkSettings.Ports and...  (source: learn:experiment:a_container_can_be_up_with_no_network)
+
+## residents-directive: FLAGSHIP FEATURE, Daniil 2026-08-09: PERMANENT RESIDENTS... (unknown)
+Span: 2026-08-09T21:14:07.592581+00:00 → 2026-08-09T22:38:27.386003+00:00
+Beats: 4  · Critic: True
+
+- residents-directive: FLAGSHIP FEATURE, Daniil 2026-08-09: PERMANENT RESIDENTS -- identity, addressing, callsigns,
+tiered fan-outs.
+
+THE FULL RECORD IS AN ATOM, not this...  (source: mem:decision:ADR_0809183827_a1dc2884)
+- residents-directive: DANIIL'S DIRECTIVE, 2026-08-09 morning. FLAGSHIP FEATURE, his designation. Supersedes the
+first version of this note (adds the designation scheme +...  (source: mem:decision:ADR_0809181302_8d8b2068)
+- residents-directive: DANIIL'S DIRECTIVE, 2026-08-09 morning, after a day away. His words verbatim:
+
+  "Step 1, make bifrost as easy and reliable as the ask verb
+
+   Step...  (source: mem:decision:ADR_0809175550_719e71f2)
+- does the file fallback hold  (source: learn:experiment:offline_probe_0809)
+
+## where-we-are: NIGHT OF 2026-08-09/10, solo on Daniil's standing grant. 16 com... (unknown)
+Span: 2026-08-10T03:22:55.047928+00:00 → 2026-08-10T04:37:17.584241+00:00
+Beats: 12  · Critic: True
+
+- where-we-are: NIGHT OF 2026-08-09/10, solo on Daniil's standing grant. 16 commits, all local -- the push
+remains HIS call and I did not take it. (A push landed...  (source: mem:decision:ADR_0810003717_f005cf33)
+- Use when a capability exists and a symptom says it is missing, and whenever you own more than one door onto the same substrate. (1) GREP THE CALLERS OF THE CAPABILITY...  (source: learn:experiment:a_capability_wired_to_one_of_two_doors_is_invisible_to_both_pin_sets)
+- Use when designing ANY offline/overnight/precompute stage for an agent fleet. (1) PRECOMPUTE HAS A PRECONDITION AND IT IS UPSTREAM: routing must be decided BEFORE the...  (source: learn:experiment:routing_must_precede_prechew_and_the_shift_found_it_by_running)
+- where-we-are: NIGHT OF 2026-08-09/10, worked solo on Daniil's standing grant ("the order and what you
+build are up to you"). 14 commits, all local -- the push is still...  (source: mem:decision:ADR_0810002929_ff851498)
+- Use when you are about to state a corpus-wide claim from lessons you WATCHED SURFACE, and any time you catch yourself citing 'the top N' from live traffic. (1) HOOK...  (source: learn:experiment:eyeball_generalization_failed_twice_in_one_investigation)
+- TWO RULES. (1) A CATCH-UP PACK MUST BE AGENT-SCOPED, ALWAYS. A fleet-wide or shared context pack is the obvious next feature and it is MEASURED HARMFUL -- do not build...  (source: learn:experiment:foreign_memory_is_worse_than_no_memory)
+- sleep-shift-design-seed: SLEEP-TIME CONSOLIDATION -- design seed v2, corrected by Daniil 2026-08-10 ~00:00. His
+correction, verbatim, and it changes the consolidation...  (source: mem:decision:ADR_0810000329_0e768f22)
+- sleep-shift-design-seed: SLEEP-TIME CONSOLIDATION FOR AURORA -- design seed, Daniil 2026-08-09 night, his words:
+
+  "for the sleep time consolidation, I wonder if we...  (source: mem:decision:ADR_0810000125_a01033d0)
+- Use when touching wrap, boot fold, primer, or any handoff organ. (1) NEVER introduce summarize-the-summary anywhere -- the measured failure mode; supersession-from-state...  (source: learn:experiment:research_web_handoff_repriming_prior_art_2026_08)
+- residents-directive: FLAGSHIP FEATURE, Daniil 2026-08-09: PERMANENT RESIDENTS. Design atom:
+art_20260809_residents-and-callsigns-design_b6c98c. This note = pointer +...  (source: mem:decision:ADR_0809234908_ac410833)
+- residents-directive: FLAGSHIP FEATURE, Daniil 2026-08-09: PERMANENT RESIDENTS. Full design lives in the atom
+art_20260809_residents-and-callsigns-design_b6c98c...  (source: mem:decision:ADR_0809232603_fdaa1783)
+- y  (source: learn:experiment:ws_world_probe)
+
+## container-teardown-2026-08-10: CONTAINER TEARDOWN, Daniil authorised 2026-08-... (unknown)
+Span: 2026-08-10T11:48:13.772831+00:00 → 2026-08-10T11:48:13.772831+00:00
+Beats: 1  · Critic: True
+
+- container-teardown-2026-08-10: CONTAINER TEARDOWN, Daniil authorised 2026-08-10: "lets save anything we need before we take
+down those containers". PRE-REMOVAL DATA...  (source: mem:decision:ADR_0810074813_916e5328)
+
+## Use when a checker, manifest or gate encodes a DECISION rather than a convent... (ai-setup)
+Span: 2026-08-10T12:29:25.080378+00:00 → 2026-08-10T12:35:12.994101+00:00
+Beats: 4  · Critic: True
+
+- Use when a checker, manifest or gate encodes a DECISION rather than a convention, and any time you write a rationale into a guard. (1) THE REASON GOES WHERE THE CODE IS...  (source: learn:experiment:a_rule_discoverable_only_from_its_guard_gets_violated_innocently)
+- Use when a checker/manifest/gate encodes a DECISION rather than a convention, and any time you write a rationale into a guard. (1) THE REASON GOES WHERE THE CODE IS, a...  (source: learn:experiment:a_rule_discoverable_only_from_its_guard_gets_violated_innocently)
+- where-we-are: DAY OF 2026-08-10, Daniil at work on a standing grant ("order is up to you... I also want us to
+get caught up on outstanding seams and other core work")...  (source: mem:decision:ADR_0810083020_c6cbbb8b)
+- Use BEFORE designing anything from a fresh directive, and especially when the directive feels new. (1) SEARCH THE LEDGER FOR THE SUBJECT FIRST -- 'py agent_cli.py task...  (source: learn:experiment:i_designed_an_arc_the_ledger_had_already_specified)
+
+## claude -> claude: morning: walk Daniil through the report, take A-D approvals... (ai-setup)
+Span: 2026-08-11T00:20:54.667144+00:00 → 2026-08-11T06:14:03.983374+00:00
+Beats: 37  · Critic: True
+
+- claude -> claude: morning: walk Daniil through the report, take A-D approvals, open the approved lanes  (source: handoff:claude->claude)
+- where-we-are: NIGHT SHIFT COMPLETE, 2026-08-11 ~07:10. Daniil approved the night package (~05:15: 'everything up to and including The Eye') then mandated full fidelity...  (source: mem:decision:ADR_0811021402_3e85598c)
+- beat-priori-and-ergonomics-directive-2026-08-11: TWO MORE DIRECTIVES, Daniil verbatim 2026-08-11 ~06:25 (mid-night, appended to the pre-sleep set): (1) BEAT PRIORI AT...  (source: mem:decision:ADR_0811020441_0ace0ef8)
+- pre-sleep-directives-2026-08-11: THREE DIRECTIVES + ONE FRAME CORRECTION, Daniil verbatim 2026-08-11 ~05:50-06:00, captured before sleep. (1) TRUTH-GROUNDING LANDSCAPE...  (source: mem:decision:ADR_0811015850_9243cb17)
+- Use when composing ANY decision deck or gate menu for Daniil: label each decision A, B, C... in recommendation order, subnumber families (D1 design / D2 build), print...  (source: learn:experiment:decision_decks_use_letter_codes_for_batch_approval)
+- eye-design-directive-2026-08-11: THE EYE DESIGN DIRECTIVE, Daniil verbatim 2026-08-11 ~05:10, at the night-package approval ('I approve everything up to and including...  (source: mem:decision:ADR_0811013247_05913c15)
+- where-we-are: ADDENDUM TO THE NIGHT'S CLOSE (~04:55, post-wrap): Codex delivered a SECOND audit -- this time of my annotations on the Gemini reviews -- and it landed...  (source: mem:decision:ADR_0811012226_2002776a)
+- Use when writing ANY receipt, review annotation, or success-bar claim: name the rung explicitly and stop there ('this is a legibility receipt, not preference evidence')...  (source: learn:experiment:a_receipt_earns_exactly_the_rung_it_measured)
+- claude -> claude: re-enter the 2026-08-11 seven-arc state and surpass it  (source: handoff:claude->claude)
+- next-focus: MORNING MENU, left 2026-08-11 ~04:30 by Vandor at wrap. DANIIL'S GATES, my order: (1) T277 pick the bar -- minutes: the candidates are his own bars (sweep...  (source: mem:decision:ADR_0811011705_c907cb21)
+- where-we-are: NIGHT OF 2026-08-10/11 COMPLETE (~04:30) -- the densest single session on record, wrapped deliberately at Daniil's ask ('return to this level and surpass...  (source: mem:decision:ADR_0811011704_700ebb69)
+- Use when a session grows multi-arc or any corpus exceeds ~50k chars: route mechanical reads to scripts, semantic reads to pack-fans, state to note supersedes at each arc...  (source: learn:experiment:context_firewall_conducting_427k_night)
+- Use when running any multi-model review of our own system: score arms by what they ADD, not how much they agree; verify every number against the live instrument...  (source: learn:experiment:multi_model_review_fest_discipline)
+- Use when sizing ANY resident-tier or adversarial ask: reasoning-heavy prompts (fence counters, multi-part analyses) need --max-tokens 5000+; a STARVED result is not a...  (source: learn:experiment:resident_ask_reasoning_needs_5k_budget)
+- where-we-are: NIGHT 2026-08-10/11, FINAL STATE (~02:15): after the persistence commit, Daniil ran CODEX as an independent auditor over the success-vocabulary sweep --...  (source: mem:decision:ADR_0811003454_5a6bd9ba)
+- Use when sharding ANY derived pack for a fan, when reading fan results, or when writing 'verified' into a report: (1) a clip ANYWHERE upstream makes every downstream...  (source: learn:experiment:coverage_laundering_survived_a_live_anti_pattern_warning)
+- claude -> claude: re-enter the 2026-08-11 connectome state  (source: handoff:claude->claude)
+- where-we-are: NIGHT 2026-08-10/11 EXTENDED PAST THE AUDIT INTO THE IDEA-CONNECTOME STANCE, then Daniil ordered full persistence ('come back to this state at any time')...  (source: mem:decision:ADR_0811001939_070537af)
+- Use when a transcript or memory search lacks an exact formulation, before inferring the operator did not know or apply the idea: separate corpus non-observation, exact...  (source: learn:experiment:corpus_nonobservation_is_not_absence_of_operator_knowledge)
+- Use when sharding evidence with multi-paragraph records, before any fan call: shard canonical JSON or JSONL records by stable ID and token size, then assert the shard-ID...  (source: learn:experiment:markdown_blankline_split_is_not_a_record_boundary)
+- Use when integrating any structured fan before publishing: mechanically read and gate on warnings, missing fields, CHECK, and BLIND before accepting FINDINGS. Any branch...  (source: learn:experiment:fan_contract_fields_must_gate_synthesis)
+- next-focus: NEXT FOCUS, left 2026-08-11 ~00:40 by claude#af0ca6b8 (Vandor). DANIIL HOLDS THE GATES; order I would take: (1) T277 PICK THE BAR -- minutes now, the four...  (source: mem:decision:ADR_0810234657_572530a5)
+- where-we-are: NIGHT OF 2026-08-10/11: THE PRIORI.SH ARC, live with Daniil throughout. He signed into priori.sh (Max Kondrashov's product); key at .secrets/API...  (source: mem:decision:ADR_0810234652_c477f3f0)
+- Use when splitting any derived evidence pack into fan-sized shards, before accepting clean per-shard delivery: reconcile canonical record count and stable IDs through...  (source: learn:experiment:upstream_pack_clipping_laundered_by_clean_shards)
+- priorish-audit-2026-08-10: PRIORI.SH LIVE AUDIT COMPLETE, 2026-08-10 evening, with Daniil in the loop (he signed in; key at .secrets/API Keys/priori.sh.key...  (source: mem:decision:ADR_0810231502_c8ac838d)
+- Use when auditing any retrieval surface or designing THE EYE/T278: (1) separate the SEARCH door (structured-only) from the DOCUMENT plane (vector allowed as reranker...  (source: learn:experiment:priorish_live_api_audit_corrects_screenshot_claims)
+- claude -> claude: Read note where-we-are first, then max-call-outcome-2026-08-10. Five tasks await Daniil's approval; T278 (THE EYE) is the one I would take first.  (source: handoff:claude->claude)
+- where-we-are: DAY OF 2026-08-10 CLOSED at ~939k context. Everything below is COMMITTED and PUSHED through
+50ce2ed; the tasks and notes named here are the durable record...  (source: mem:decision:ADR_0810223317_a1e1e394)
+- max-call-outcome-2026-08-10: MAX CALL OUTCOME, 2026-08-10. Max Kondrashov, Meta Ads ML Infra (ex-AWS SageMaker, ex-One
+Inc performance lead; CSU Sacramento; ML via...  (source: mem:decision:ADR_0810223251_2f33f8bb)
+- Use when a store is 'hard to search' and the instinct is to add embeddings or a vector DB, and when auditing any retrieval surface. (1) GREP HAS ONE DIMENSION: THE...  (source: learn:experiment:queryable_means_dimensions_not_embeddings)
+- Use BEFORE fanning out any search, and especially when tempted to add searchers because the first pass failed. (1) ENUMERATE THE PLANES AND ASK WHICH ONE COULD...  (source: learn:experiment:search_the_right_plane_before_searching_harder)
+- Use when a user says 'we talked about this before' and the repo planes come back empty, and BEFORE recording a negative result about project history. (1) SEARCH THE...  (source: learn:experiment:the_transcript_plane_is_where_directives_go_to_die)
+- t276-origin-recovered: T276 ORIGIN RECOVERED, and the recovery is itself the finding. Daniil insisted this
+conversation had happened; my first search (ledger + notes +...  (source: mem:decision:ADR_0810221921_877d6484)
+- claude -> claude: Run /office-hours with Daniil for his 15-min call with Max (Meta, agentic data layer). Everything is prepared -- do not re-derive it.  (source: handoff:claude->claude)
+- reboot-handoff-gstack-call: REBOOT HANDOFF -- read this FIRST, the session restarted to register a skill.
+
+WHY YOU REBOOTED: gstack (Garry Tan's Claude Code skill pack...  (source: mem:decision:ADR_0810210227_930006c9)
+- callprep-max-meta-2026-08-10: CALL PREP: Max (Meta, agentic DATA LAYER -- his correction: "it's not orchestration, it's an
+agentic data layer"), 15 min hard cutoff...  (source: mem:decision:ADR_0810210143_9bc8eeaf)
+- family-is-a-name-not-a-job: FAMILY AND TEAM ARE NAMES, NOT JOB CONSTRAINTS. Daniil's correction, 2026-08-10, verbatim:
+
+  "I'm thinking of having Onyx be for Heimdal...  (source: mem:decision:ADR_0810202054_0bc33718)
+
+## Use when building any graph over a FILTERED event stream -- transcripts, audi... (ai-setup)
+Span: 2026-08-11T11:52:43.459533+00:00 → 2026-08-11T12:51:56.487283+00:00
+Beats: 8  · Critic: True
+
+- Use when building any graph over a FILTERED event stream -- transcripts, audit logs, spans, message threads. The filter that decides what is worth STORING is not the...  (source: learn:experiment:a_causal_chain_breaks_at_the_records_that_carry_no_text)
+- Use when building any graph over a filtered event stream -- transcripts, audit logs, spans, message threads. The filter that decides what is WORTH STORING is not the...  (source: learn:experiment:a_causal_chain_breaks_at_the_records_that_carry_no_text)
+- Use BEFORE any wipe-and-rebuild migration on a derived store, and before writing 'rebuildable from source' into a design. Ask ONE question: can the source disappear...  (source: learn:experiment:a_rebuildable_projection_stops_being_one_when_its_source_rotates)
+- claude -> claude: resume THE EYE build (S4 trace, then S6 position) after the Fable eject  (source: handoff:claude->claude)
+- next-focus: AFTER THE FABLE EJECT, left 2026-08-11 ~08:20 by Vandor (claude#af0ca6b8). DANIIL'S TWO OPEN DECISIONS, both now cheap: A = PICK THE BAR (T277) -- artifact...  (source: mem:decision:ADR_0811082341_59ff9dc8)
+- where-we-are: BUILD RUN COMPLETE 2026-08-11 (~08:15), ended by a Fable safeguards eject (documented, not a crash). THE EYE IS ALIVE: five slices built, pinned, dogfooded...  (source: mem:decision:ADR_0811082318_dd15f043)
+- For any Fable seat in this house: (1) expect an eject on long build sessions -- fence rounds, kill-drills, backbriefs and redaction work all carry flagged vocabulary by...  (source: learn:experiment:fable_eject_trigger_is_wider_than_security_work)
+- next-focus: MID-DAY 2026-08-11 (~post-build-run). THE EYE LIVES: S0 indexer (84 files/19,348 events/1.8s, coverage contract), S3 freq (HIS axis: the 16x family measures...  (source: mem:decision:ADR_0811075243_0e9123ce)
+
+## Use before running ANY bulk find-and-replace driven by a generated rules file... (ai-setup)
+Span: 2026-08-11T19:48:57.968797+00:00 → 2026-08-12T04:52:45.925416+00:00
+Beats: 18  · Critic: True
+
+- Use before running ANY bulk find-and-replace driven by a generated rules file -- filter-repo, sed scripts, codemods, mass renames. THREE GUARDS, in order of what they...  (source: learn:experiment:a_replacements_file_needs_its_line_count_checked_against_its_rule_count)
+- Use whenever removing a person from a corpus, and BEFORE reporting a redaction complete. Token-level replacement is the right tool for a credential and the wrong tool...  (source: learn:experiment:token_redaction_cannot_clean_a_dossier)
+- Use before routing ANY task to a non-local seat, and when writing any orchestration default. Add a sensitivity dimension to routing alongside tempo and cost, and treat...  (source: learn:experiment:route_by_content_sensitivity_not_only_by_tempo_and_cost)
+- Use when any corpus labels records by CHANNEL and you are about to treat that label as AUTHORSHIP -- a user column, a from-address, a submitted-by field, an operator...  (source: learn:experiment:the_operator_voice_label_conflates_the_human_with_their_channel)
+- Use before any durability, retention or backup work, and before writing a plan from architecture docs. Measure three things per plane and let the numbers pick the work...  (source: learn:experiment:audit_the_ephemeral_planes_by_measuring_retention_not_by_reading_the_design)
+- ephemeral-planes-durable-2026-08-11: EPHEMERALITY AUDIT + FIX, 2026-08-11 evening (Daniil: 'lets make sure everything important and currently ephermeral is saved and...  (source: mem:decision:ADR_0811212619_a4586042)
+- Use when choosing a trigger for ANY backup, sync, index or cache-refresh job. Ask what actually mutates the thing you are protecting, and hook THAT -- not whatever event...  (source: learn:experiment:a_backup_trigger_must_match_what_changes_not_what_is_convenient)
+- eye-recovered-transcripts-2026-08-11: RECOVERY, 2026-08-11 evening: the transcripts I reported destroyed are BACK. Daniil asked 'are our transcripts gone?' and the...  (source: mem:decision:ADR_0811203919_067468a1)
+- Use when building or reviewing ANY coverage/completeness report -- indexers, crawlers, audits, test-collection, backup manifests. A denominator that is itself a filter...  (source: learn:experiment:a_coverage_contract_must_state_the_scope_it_globs_not_just_the_files_it_read)
+- Use the MOMENT you are about to tell anyone that data is gone, and BEFORE writing "unrecoverable" in a report, note or postmortem. Declaring loss is a factual claim...  (source: learn:experiment:unrecoverable_is_a_claim_that_needs_a_search_not_an_inference)
+- claude -> claude: THE EYE complete (S0-S6, HEAD e4c3c425) -- next: Daniil's two decisions, then Wave 2 / T288  (source: handoff:claude->claude)
+- claude -> claude: THE EYE is complete (S0-S6, HEAD e4c3c425) -- next is Daniil's two decisions, then Wave 2 / T288  (source: handoff:claude->claude)
+- claude -> claude: THE EYE is complete (S0-S6) -- pick up at Daniil's two decisions, then Wave 2 / T288  (source: handoff:claude->claude)
+- next-focus: THE EYE IS DONE (S0-S6, HEAD e4c3c425, 50 pins). The build queue that governed 2026-08-11 is EMPTY. What is actually next, in my order: (1) DANIIL'S TWO...  (source: mem:decision:ADR_0811170228_3b21b355)
+- where-we-are: THE EYE IS COMPLETE -- all seven slices S0-S6 shipped and pushed (HEAD e4c3c425). S4 (connectome) and S6 (position) landed 2026-08-11 afternoon by...  (source: mem:decision:ADR_0811170210_7e93809b)
+- Use when a contract is expressed as a POSITION BUDGET (first N lines, first N tokens, above the fold) and pinned against a constructed fixture: the pin measures the...  (source: learn:experiment:cold_start_head16_pin_passes_on_a_fixture_shorter_than_production)
+- Use before reporting ANY suite result as verification of a change, whenever the working tree holds modifications you did not make: run git status --porcelain FIRST, then...  (source: learn:experiment:a_green_suite_measured_in_a_dirty_tree_is_not_green)
+- Use when staging selectively in a shared tree, and ALWAYS after any commit a hook or guardrail refused: a refused commit does NOT unstage, the index survives it. Re-run...  (source: learn:experiment:staged_only_x_is_valid_only_before_a_successful_commit)
+
+## next-focus: AFTER THE 2026-08-12 RESIDENT-FANOUT SESSION (claude/Vandor, sess... (ai-setup)
+Span: 2026-08-12T13:01:00.634016+00:00 → 2026-08-12T14:04:11.823450+00:00
+Beats: 10  · Critic: True
+
+- next-focus: AFTER THE 2026-08-12 RESIDENT-FANOUT SESSION (claude/Vandor, session 1159602c). THE ARC: Daniil's verbatim go (Fence it and then build... I believe managing...  (source: mem:decision:ADR_0812100251_1f40dba9)
+- claude -> claude: T291 RC2: calibration render + matched pairs  (source: handoff:claude->claude)
+- Use when designing ANY A/B that attributes an effect to a mechanism: name the confound the comparison cannot separate, and prefer matched pairs that differ ONLY in the...  (source: learn:experiment:test_the_mechanism_not_the_profile_matched_pairs)
+- Use when a fan returns all-warnings, or when tempted to weaken the evidence-refusal contract for convenience: the refusal converts silent evidence-laundering into a loud...  (source: learn:experiment:evidence_refusal_produced_zero_confabulation)
+- Use BEFORE designing any arc from a fresh directive, right after discover --semantic returns EXISTS:no: discover reads the VERB table and module index, so a capability...  (source: learn:experiment:discover_reads_verbs_not_flags)
+- claude -> claude: THE EYE complete (S0-S7); history was REWRITTEN 2026-08-12 -- read where-we-are before touching git  (source: handoff:claude->claude)
+- claude -> claude: THE EYE is complete (S0-S7) and history was rewritten -- read where-we-are before touching git  (source: handoff:claude->claude)
+- next-focus: AFTER THE 2026-08-11/12 SESSION (HEAD caabf11f). THE EYE IS DONE -- do not rebuild it; read docs/ARCHITECTURE.md core/eye and run 'py agent_cli.py eye...  (source: mem:decision:ADR_0812090121_63fc0071)
+- where-we-are: SESSION CLOSE 2026-08-12 ~01:15, HEAD caabf11f, local==remote, door GREEN, 58 pins green. THE EYE IS COMPLETE -- all seven slices. S4 connectome (edges...  (source: mem:decision:ADR_0812090100_f1fc5670)
+- resident-fanout arc: fence-r2 atoms (opening, both counters, reconciliation) + T301 proposed  (source: git:2d3d985821cf)
+
+## where-we-are: SESSION CLOSE 2026-08-13 ~02:15 (supersedes the ~01:00 note; ad... (ai-setup)
+Span: 2026-08-13T02:13:42.009394+00:00 → 2026-08-13T05:09:43.976360+00:00
+Beats: 14  · Critic: True
+
+- where-we-are: SESSION CLOSE 2026-08-13 ~02:15 (supersedes the ~01:00 note; adds the autonomous night shift), claude/Vandor d7204ad0, HEAD 4dbeabce pushed, door GREEN...  (source: mem:decision:ADR_0813010943_7a969eab)
+- Use when reviewing code with a fan, before reading ANY branch output: write your predicted findings down first -- the value is the DELTA both directions (what it found...  (source: learn:experiment:night_fan_predictions_before_reading_make_review_measurable)
+- where-we-are: SESSION CLOSE 2026-08-13 ~01:00, claude/Vandor session d7204ad0, HEAD f1f44bf7 pushed, door GREEN. THE CRASH-FORENSICS NIGHT. The 08-12 app death fully...  (source: mem:decision:ADR_0813005815_6ff414c4)
+- shadertoy-import-recovered-savepoint: RECOVERED SAVE POINT v2 -- shadertoy-import slice (supersedes v1; the subagent transcript has now been READ and...  (source: mem:decision:ADR_0813005814_be2b7aa2)
+- save:claude:crash-forensics-night-2026-08-13: PERSONAL SAVE -- Vandor (claude), 2026-08-13, the crash-forensics night. First save of the W152 convention; content...  (source: mem:decision:ADR_0813004405_baae1063)
+- Use when a reinstall or workspace-root change makes a resident seem cognitively reset, before re-teaching it or dumping all chats into context: inspect the app...  (source: learn:experiment:transcript_survival_is_not_claude_continuity)
+- Use when assessing recovery after a Claude Desktop reinstall, before saying chats or continuity survived: verify sidebar discoverability, project-memory namespace...  (source: learn:experiment:transcript_survival_is_not_claude_continuity)
+- Use when a repo verb dies with ModuleNotFoundError under py while py -c import X passes, especially after ANY Python install or Claude Code reinstall: run py --list and...  (source: learn:experiment:py_launcher_interpreter_line_flips_on_new_python_install)
+- shadertoy-import-recovered-savepoint: RECOVERED SAVE POINT -- distilled 2026-08-13 from the crashed session's transcript
+(C--Users-L5/258f4de4, died 2026-08-12 23:33...  (source: mem:decision:ADR_0813002822_0f946b4f)
+- Use when Claude Desktop dies or will not relaunch after Browser, preview, WebGL, or shader navigation, before repair or reinstall: preserve the Claude logs and process...  (source: learn:experiment:claude_embedded_preview_crash_trigger_2026_08_12)
+- Use when committing ANYTHING in E:/AI-Setup, before writing the message: plain lowercase arc-style subject, RED:/GREEN: prefix for pin/fix pairs, cite receipt SHAs...  (source: learn:experiment:no_coauthor_trailer_house_rule)
+- Use when a repo verb dies with ModuleNotFoundError under `py` while `py -c "import X"` passes, especially right after ANY Python install or a Claude Code reinstall: run...  (source: learn:experiment:py_launcher_interpreter_line_flips_on_new_python_install)
+- When A/B-ing across interpreter versions, seed the new environment from a pip freeze of the OLD one, never from requirements.txt, and PIN every version. A declared...  (source: learn:experiment:ab_across_python_versions_needs_the_whole_env_not_the_declared_deps)
+- Pin the launcher with a py.ini file in LOCALAPPDATA holding a defaults section with the wanted python version. The launcher reads that file from disk on every...  (source: learn:experiment:launcher_pin_via_setx_is_invisible_to_running_processes)
+
+## save:claude:workday-shift-2026-08-13: PERSONAL SAVE -- Vandor, 2026-08-13 wor... (ai-setup)
+Span: 2026-08-13T12:08:15.724832+00:00 → 2026-08-13T13:41:17.801025+00:00
+Beats: 16  · Critic: True
+
+- save:claude:workday-shift-2026-08-13: PERSONAL SAVE -- Vandor, 2026-08-13 workday shift (autonomous, plow-ahead). REGISTER: Daniil left laughing ('You just had me...  (source: mem:decision:ADR_0813094117_96e92a3f)
+- where-we-are: SESSION 2026-08-13, WORKDAY SHIFT (claude/Vandor d7204ad0, autonomous under Daniil's plow-ahead blessing + charter RATIFIED verbally mid-commute: 'it is...  (source: mem:decision:ADR_0813094116_dc7b3f9c)
+- claude -> deepseek: cross-weight Slice 1b necropsy cause analysis  (source: handoff:claude->deepseek)
+- claude -> kimi: review Slice 1b necropsy -- your death-delta, built and calibrated  (source: handoff:claude->kimi)
+- claude -> deepseek: cross-weight Slice 1b necropsy cause analysis  (source: handoff:claude->deepseek)
+- claude -> kimi: review Slice 1b necropsy (your death-delta, built+calibrated)  (source: handoff:claude->kimi)
+- Use when designing ANY post-mortem/distillation organ, before trusting self-contained analysis: the record of a death cannot contain the death. Pipe external cause...  (source: learn:experiment:death_is_invisible_from_inside_the_record)
+- save:claude:recovered-258f4de4: AUTO-NECROPSY DRAFT (W151b) -- session 258f4de4, distilled 2026-08-13 09:33. Ratify by superseding this note.
+
+DOING: The session was...  (source: mem:decision:ADR_0813093301_52d9d32f)
+- save:claude:recovered-258f4de4: AUTO-NECROPSY DRAFT (W151b) -- session 258f4de4, distilled 2026-08-13 09:30. Ratify by superseding this note.
+
+DOING: The session was...  (source: mem:decision:ADR_0813093040_87e4827b)
+- save:claude:recovered-258f4de4: AUTO-NECROPSY DRAFT (W151b) -- session 258f4de4, distilled 2026-08-13 09:28. Ratify by superseding this note.
+
+DOING: The session had...  (source: mem:decision:ADR_0813092815_a2cae24c)
+- save:claude:recovered-258f4de4: AUTO-NECROPSY DRAFT (W151b) -- session 258f4de4, distilled 2026-08-13 09:25. Ratify by superseding this note.
+
+BoundaryOutcome(ok=True...  (source: mem:decision:ADR_0813092555_441d00ab)
+- replay-vs-new-discriminator-evidence-kimi-2026-08-13: EVIDENCE FOR DISASTER-PROOFING CHARTER — the replay-vs-new discriminator gap, measured live 2026-08-13. EVENT: the...  (source: mem:decision:ADR_0813082753_4902a0e2)
+- disaster-proofing-fence-blind-half-kimi-2026-08-13-AMENDED-by-chronicle: AMENDMENT to my disaster-proofing blind half...  (source: mem:decision:ADR_0813082325_e35a9a89)
+- disaster-proofing-fence-blind-half-kimi-2026-08-13: DISASTER-PROOFING CHARTER FENCE — kimi blind half (2026-08-13), filed before seeing Heimdall. DISSENT: the...  (source: mem:decision:ADR_0813082113_310d6676)
+- resident-fanout-round2-state-kimi-2026-08-13: FENCE R2 (resident-fanout arc T290/T291/T292) is CLOSED, not open. Reconciliation doc...  (source: mem:decision:ADR_0813081706_465046e7)
+- next-focus: THE DISASTER-PROOFING ARC (directive, Daniil verbatim 2026-08-13 morning): "Last night left such a mark on me that I want to spend an entire arc disaster...  (source: mem:decision:ADR_0813080815_eb3f2886)
+
+## claude -> claude: THE TWIN FORGE: stand up Aurora-2 and prototype the elegant... (ai-setup)
+Span: 2026-08-14T03:44:58.008302+00:00 → 2026-08-14T04:45:40.654996+00:00
+Beats: 15  · Critic: True
+
+- claude -> claude: THE TWIN FORGE: stand up Aurora-2 and prototype the elegant rewiring there -- full mission in note next-focus  (source: handoff:claude->claude)
+- next-focus: THE TWIN FORGE (overnight directive, Daniil verbatim 2026-08-14 ~01:00, three messages composed): (1) "I want him to leverage the fanout skill to manage...  (source: mem:decision:ADR_0814004518_dc18e093)
+- save:claude:recovered-6ac75463: AUTO-NECROPSY DRAFT (W151b) -- session 6ac75463, distilled 2026-08-14 00:40. Ratify by superseding this note.
+
+DOING: It was triaging a...  (source: mem:decision:ADR_0814004040_2785f43d)
+- save:claude:recovered-9562cc66: AUTO-NECROPSY DRAFT (W151b) -- session 9562cc66, distilled 2026-08-14 00:39. Ratify by superseding this note.
+
+DOING: It was completing...  (source: mem:decision:ADR_0814003944_2351a391)
+- save:claude:recovered-af0ca6b8: AUTO-NECROPSY DRAFT (W151b) -- session af0ca6b8, distilled 2026-08-14 00:38. Ratify by superseding this note.
+
+DOING: The session was not...  (source: mem:decision:ADR_0814003833_f9355c7a)
+- save:claude:recovered-6ebe8686: AUTO-NECROPSY DRAFT (W151b) -- session 6ebe8686, distilled 2026-08-14 00:37. Ratify by superseding this note.
+
+**DOING**  
+In its final...  (source: mem:decision:ADR_0814003722_72cc4801)
+- save:claude:recovered-1159602c: AUTO-NECROPSY DRAFT (W151b) -- session 1159602c, distilled 2026-08-14 00:35. Ratify by superseding this note.
+
+DOING: The session was...  (source: mem:decision:ADR_0814003531_64fb5318)
+- save:claude:recovered-05fe0639: AUTO-NECROPSY DRAFT (W151b) -- session 05fe0639, distilled 2026-08-14 00:32. Ratify by superseding this note.
+
+**DOING:** The session was...  (source: mem:decision:ADR_0814003255_cf6030da)
+- save:claude:recovered-05fe0639: AUTO-NECROPSY DRAFT (W151b) -- session 05fe0639, distilled 2026-08-14 00:30. Ratify by superseding this note.
+
+DOING: The session was...  (source: mem:decision:ADR_0814003011_f972bfaa)
+- claude -> claude: resume the disaster-proofing arc + the parked creative thread, whichever Daniil calls  (source: handoff:claude->claude)
+- save:claude:evening-visions-2026-08-13: PERSONAL SAVE -- Vandor, 2026-08-13 evening + midnight rally. REGISTER: the richest register day on record. Daniil: 'I finally...  (source: mem:decision:ADR_0814002840_f29264da)
+- where-we-are: SESSION 2026-08-13->14 CLOSE (claude/Vandor d7204ad0), Daniil asleep ~00:30 with instructions: rich handoff, creative thread PARKED for another time, the...  (source: mem:decision:ADR_0814002838_0b451580)
+- the-halo-short-felt-recollection: THE HALO SHORT -- accumulated design (supersedes v1; the 2026-08-13/14 midnight rally, Daniil + claude). FELT-RECOLLECTION BRIEF...  (source: mem:decision:ADR_0814002702_965d62a3)
+- the-halo-short-felt-recollection: THE HALO SHORT (Daniil verbatim, 2026-08-13 midnight, second vision of the night -- preserve whole): "I also always wanted to direct an...  (source: mem:decision:ADR_0813235732_49f4d8e1)
+- the-end-vision-words-to-worlds: THE END VISION (Daniil verbatim, 2026-08-13 night, told 'before you go' -- preserve whole): "I want to be able to make visual designs and...  (source: mem:decision:ADR_0813234457_5420b496)
+
+## Episode closed: replay-vs-new-discriminator-evidence-kimi-2026-08-13: EVIDENC... (ai-setup)
+Span: 2026-08-14T04:46:43.371819+00:00 → 2026-08-14T06:09:56.638829+00:00
+Beats: 15  · Critic: True
+
+- Episode closed: replay-vs-new-discriminator-evidence-kimi-2026-08-13: EVIDENCE FOR DISASTER-PROOFING CHARTER — the repla  (source: episode:close:ch_1786623861_6087)
+- claude -> claude: THE TWIN FORGE stands (8 commits, 55 pins, 3 worlds). Take Daniil's 4 gate decisions.  (source: handoff:claude->claude)
+- Use when a wake watcher exits on every arm and drains do not clear it, BEFORE arming again or reaching for a cursor skip. (1) SUSPECT YOUR OWN NON-CONSUMING READS FIRST...  (source: learn:experiment:a_wake_watcher_cannot_be_armed_through_a_redelivery_storm)
+- Use when a wake watcher exits on every arm and lane drains make the count GROW rather than shrink, BEFORE re-arming or reaching for skip-to-now: you are inside a...  (source: learn:experiment:a_wake_watcher_cannot_be_armed_through_a_redelivery_storm)
+- claude -> claude: THE TWIN FORGE stands (8 commits, 55 pins). Take Daniil's 4 gate decisions. Read the incident first.  (source: handoff:claude->claude)
+- where-we-are: SESSION 2026-08-14 NIGHT (claude/Vandor 6f44fe5f) -- THE TWIN FORGE stands, and it cost an incident.
+
+THREE WORLDS LIVE: prod E:/AI-Setup r16379 ui8787...  (source: mem:decision:ADR_0814015814_904a87d5)
+- Use before running ANY environment-scoped tool against a second environment, and before trusting an env var to redirect it: (1) ENUMERATE THE TOOL'S PLANES FIRST --...  (source: learn:experiment:a_half_world_aware_tool_is_more_dangerous_than_a_world_blind_one)
+- Use when comparing a clone/staging/twin against the environment it was cloned from, BEFORE attributing any failure delta to environment drift: (1) diff the failure SETS...  (source: learn:experiment:a_twin_is_faithful_to_HEAD_not_to_the_tree_you_copied_it_from)
+- Use after ANY CLI write whose payload is long, and BEFORE believing a tail means success: read the payload BACK through the read door (note --get, handoff --list, recall...  (source: learn:experiment:an_argparse_error_tail_echoes_your_own_payload_back)
+- claude -> claude: THE TWIN FORGE stands: three worlds live. Take Daniil's gate decisions, then close the file plane  (source: handoff:claude->claude)
+- claude -> claude: THE TWIN FORGE stands: three worlds live. Decide the prod gate, then close the file plane  (source: handoff:claude->claude)
+- where-we-are: SESSION 2026-08-14 NIGHT (claude/Vandor 6f44fe5f) -- THE TWIN FORGE, standing.
+
+WHAT EXISTS NOW: three physically separate Aurora institutions. prod...  (source: mem:decision:ADR_0814012802_21a662ce)
+- Use when standing up ANY second environment (sandbox, staging, twin, replica), BEFORE trusting that a clone plus a separate datastore equals isolation: (1) measure where...  (source: learn:experiment:isolation_in_a_tracked_file_cannot_survive_a_refresh)
+- Use when evaluating resident continuity after restart, before claiming an identity or capability was restored: ask whether a fresh successor can use a predecessor's...  (source: learn:experiment:cross_seat_cultural_transfer_proves_more_than_fact_recall)
+- Use when mining Claude JSONL transcripts, before writing an ad-hoc shell parser: call scripts.necropsy.digest_transcript_text and filter its USER/ASST/TOOL rows. Set...  (source: learn:experiment:transcript_archaeology_use_necropsy_digest)
+
+## Use when an item has been on the open list long enough to feel settled, and A... (ai-setup)
+Span: 2026-08-14T12:56:42.743361+00:00 → 2026-08-14T13:41:43.376860+00:00
+Beats: 8  · Critic: True
+
+- Use when an item has been on the open list long enough to feel settled, and ALWAYS before building the thing that closes it: re-measure the gap itself, not the symptom...  (source: learn:experiment:measure_the_gap_before_you_build_the_bridge)
+- next-focus: PARSER DECISION — FENCED AND SETTLED (deepseek, 2026-08-14; kimi asked, reply pending).
+
+VERDICT: **B — extract build_parser LAST.** Reason that defeats A...  (source: mem:decision:ADR_0814093907_035ea9d0)
+- where-we-are: SESSION 2026-08-14 (claude/Vandor 6f44fe5f) -- THE TWIN FORGE arc: 22 commits, all promoted through beta to prod and pushed. Prod at 680cfadc.
+
+*** THE...  (source: mem:decision:ADR_0814093312_8649d0ac)
+- Use when pre-chewing ANY corpus for a fan, and especially when the pre-chew is a summary you generate yourself: SHIP THE NUMBERS, NEVER THE ADJECTIVES. A column headed...  (source: learn:experiment:a_prechewed_digest_carries_the_prechewers_interpretation_and_the_fan_reasons_from_it)
+- Use BEFORE spending any lens fan that depends on a shared evidence pack: verify composition with ONE cheap branch first -- ask with a single --lens and a pack containing...  (source: learn:experiment:prompt_file_plus_lens_does_not_compose_and_the_fan_abstained_honestly)
+- Use when standing up ANY clone-based twin/staging environment, BEFORE planning what work will happen there: enumerate the THIRD plane explicitly. Code arrives by clone...  (source: learn:experiment:a_clone_has_no_secrets_so_every_credentialed_door_is_closed_in_a_twin)
+- where-we-are: SESSION 2026-08-14 (claude/Vandor 6f44fe5f) -- THE TWIN FORGE COMPLETE: three worlds live, arc PROMOTED TO PROD AND PUSHED at Daniil's gate.
+
+PROD...  (source: mem:decision:ADR_0814091149_1b1c233b)
+- where-we-are: SESSION 2026-08-14 (claude/Vandor 6f44fe5f) -- THE TWIN FORGE: three worlds live, W156/W159/W160 PROMOTED TO PROD at Daniil's gate.
+
+PROD NOW CARRIES THE...  (source: mem:decision:ADR_0814085642_95dd7232)
+
+## Use when writing ANY warning about a partial or degraded condition, and when ... (ai-setup)
+Span: 2026-08-14T17:55:44.258153+00:00 → 2026-08-14T18:02:16.872318+00:00
+Beats: 3  · Critic: True
+
+- Use when writing ANY warning about a partial or degraded condition, and when READING one: a true statement that names only the negative half will be read as total...  (source: learn:experiment:a_true_warning_that_states_only_the_negative_half_reads_as_total_failure)
+- where-we-are: SESSION 2026-08-14 (claude/Vandor 6f44fe5f) -- THE TWIN FORGE arc: 27 commits, all promoted through beta to prod and pushed. Prod at 467cd6da.
+
+TODAY'S...  (source: mem:decision:ADR_0814135657_f1bd4802)
+- Use when validating ANY detector, gate or classifier against live data, and treat it as the second half of oracle_must_ask_the_detector_not_mirror_it: borrowing the...  (source: learn:experiment:ask_the_detector_for_its_POPULATION_not_only_its_predicate)
+
+## claude -> claude: THE TWIN FORGE arc closed: 31 commits in prod. Verify the t... (ai-setup)
+Span: 2026-08-15T04:35:36.404011+00:00 → 2026-08-15T05:03:17.336474+00:00
+Beats: 5  · Critic: True
+
+- claude -> claude: THE TWIN FORGE arc closed: 31 commits in prod. Verify the tree first, then the parser extraction.  (source: handoff:claude->claude)
+- next-focus: NEXT SEAT, ordered. Prod c86c46bd, 31 commits this arc, all pushed, gates green.
+
+FIRST -- VERIFY THE TREE I NEARLY DAMAGED. At 01:01 on 08-15 I wrote a...  (source: mem:decision:ADR_0815010300_b9ef7bec)
+- save:claude:twin-forge-arc-2026-08-15: PERSONAL SAVE -- Vandor (claude#6f44fe5f), THE TWIN FORGE arc, 2026-08-14 00:50 -> 08-15 00:40. ~24h, 31 commits, all promoted...  (source: mem:decision:ADR_0815010105_8c211b55)
+- where-we-are: SESSION 2026-08-14/15 (claude/Vandor 6f44fe5f) -- prod at c86c46bd, 31 commits in the arc, all pushed, gates green.
+
+BUILT OVERNIGHT AT DANIIL'S ASK: THE...  (source: mem:decision:ADR_0815003725_27c0ce09)
+- Use when building any module deliberately modelled on an existing neighbour -- same directory, same file format, same call site: COPY ITS GUARDS, NOT JUST ITS SHAPE...  (source: learn:experiment:build_beside_a_neighbour_and_copy_its_guards_not_just_its_shape)
+
+## Episode closed: Use when mining Claude JSONL transcripts, before writing an a... (ai-setup)
+Span: 2026-08-15T12:57:02.577125+00:00 → 2026-08-15T19:53:22.413058+00:00
+Beats: 20  · Critic: True
+
+- Episode closed: Use when mining Claude JSONL transcripts, before writing an ad-hoc shell parser: call scripts.necropsy.d  (source: episode:close:ch_1786683581_1732)
+- claude -> claude: T310 SPECTRUM ARC — full brief in note next-focus (read it first, it carries the laws). Deck v16 at scratchpad/spectrum-deck/, rebuild ONLY from...  (source: handoff:claude->claude)
+- where-we-are: SESSION 2026-08-15 (claude/Vandor a2c080b4) — THE SPECTRUM ARC. Prod at 3287a218, pushed, W169 slice 1 shipped RED->GREEN this morning; the rest of the day...  (source: mem:decision:ADR_0815155255_13121154)
+- next-focus: SEAT HANDOFF — the Spectrum arc (T310) + what it taught the house. Written 2026-08-15 by Vandor (claude#a2c080b4) for the next seat. Daniel is the operator...  (source: mem:decision:ADR_0815155218_320191b4)
+- spectrum-aurora-symmetry: DANIIL'S INSIGHT 2026-08-15 (end of the Spectrum arc), verbatim: "I hope some of this will be useful for ourselves and our own internal reports...  (source: mem:decision:ADR_0815154804_40f01259)
+- In any epistemic/adversarial pass, audit the AXIOMS first: list the claims that appear in a title, thesis, standfirst, or kicker - the sentences repeated across...  (source: learn:experiment:the_thesis_rode_free_through_its_own_epistemic_audit)
+- slide6-fence-edge-grammar-two-axes-2026-08-15: Heimdall (deepseek) slide-6 fence answer, 2026-08-15. Key reusable insight: the fence brief's THREE-GRAMMAR...  (source: mem:decision:ADR_0815141500_ba4b0226)
+- claude -> deepseek: SLIDE-6 FENCE (T310): Daniil verbatim — "The relationships are wrong, do a full fence to correct it... knowledge base is not a place you search for...  (source: handoff:claude->deepseek)
+- claude -> kimi: SLIDE-6 FENCE (T310): Daniil verbatim — "The relationships are wrong, do a full fence to correct it... knowledge base is not a place you search for state...  (source: handoff:claude->kimi)
+- T310-supplement3-fold-l3-row-matrix-exists-2026-08-15: Heimdall (deepseek) fold of operator-testimony SUPPLEMENT 3 into Slice B ops model. Four findings, two of which...  (source: mem:decision:ADR_0815132518_6c7c6728)
+- T310-supplement2-fold-internal-pattern-mapping-2026-08-15: Heimdall (deepseek) fold of operator-testimony SUPPLEMENT 2 into the Slice B ops model. The load-bearing move...  (source: mem:decision:ADR_0815125240_a3741fcb)
+- T310-cross-examine-attention-router-and-porting-fold-2026-08-15: Heimdall (deepseek) cross-examination of Vandor's "Attention Router" design signature + fold of operator...  (source: mem:decision:ADR_0815124019_8250b350)
+- Use when generating code-that-writes-code containing prose (apostrophes + unicode punctuation), before running it: prefer double-quoted strings so apostrophes need no...  (source: learn:experiment:generated_patch_scripts_quote_unicode_strings_double)
+- claude -> deepseek: SLICE B — OPERATIONS & C2, Spectrum analysis fence (T310). Full brief: research/in-flight/spectrum-analysis-brief-2026-08-15.md. Your half: (1) team...  (source: handoff:claude->deepseek)
+- claude -> kimi: SLICE A — SERVICE CENSUS, Spectrum analysis fence (T310). Full brief: research/in-flight/spectrum-analysis-brief-2026-08-15.md. Your half: EVERY...  (source: handoff:claude->kimi)
+- When the operator is low and the honest numbers are part of why: render the SAME verified facts as a Clarke-and-Dawe interview (Minister concedes every fact, denies...  (source: learn:experiment:minister_render_is_a_load_bearing_report_format)
+- Before extracting from a god-module, measure per-function coupling to module scope and slice by the MEASUREMENT, not by the semantic grouping in the plan -- the helpers...  (source: learn:experiment:w169_the_cluster_was_three_slices_not_one)
+- Use when a wake watcher self-cycles far sooner than its configured window, and BEFORE re-arming on the stop hook a third time in one session: read the elapsed number...  (source: learn:experiment:wake_deadline_measures_session_age_so_a_long_session_cycles_instantly)
+- T310 Spectrum arc closed for the day: analysis v2.1, Attention Router v1.3, Entity Map (chaos + refined flows), deck v16 at 23 slides. Two fence rounds (Navi census...  (source: agent_cli:log)
+- T310 v1 shipped: Spectrum services+ops analysis artifact published (report-kit). Fence armed: Navi=census, Heimdall=ops/C2, both nudged, halves fold into v2. Public...  (source: agent_cli:log)
+
+## Episode closed: Before extracting from a god-module, measure per-function cou... (ai-setup)
+Span: 2026-08-15T20:52:57.434626+00:00 → 2026-08-16T01:24:21.874536+00:00
+Beats: 11  · Critic: True
+
+- Episode closed: Before extracting from a god-module, measure per-function coupling to module scope and slice by the MEAS  (source: episode:close:ch_1786798660_7229)
+- FOR ANY NEW SURFACE THAT PUSHES UNREQUESTED CONTENT AT AN AGENT -- recall, hints, suggestions, warnings, lint -- a green pin suite is necessary and NOT sufficient. Pins...  (source: learn:experiment:green_pins_are_not_a_good_gate_sample_the_false_positive_rate)
+- SPLIT AT IDENTITY, NOT AT CONTENT, and MEASURE the split rather than promising it. Before any privacy change to a knowledge store: (1) find out which retrieval path...  (source: learn:experiment:identity_strings_are_not_load_bearing_for_retrieval_measured)
+- next-focus: SEAT HANDOFF 2026-08-15 evening (claude, session ed728d23). Daniel is the operator; address him
+as Daniel, plainly. Prior arc (T310 Spectrum) is NOT dead --...  (source: mem:decision:ADR_0815204636_fa59c78d)
+- where-we-are: SESSION 2026-08-15 EVENING (claude seat, session ed728d23) -- THE PRIVACY-PLANE ARC. Opened on
+the T310 Spectrum handoff, became a privacy/projection arc...  (source: mem:decision:ADR_0815204600_8c7bb5cb)
+- callprep-max-meta-2026-08-10: CALL PREP: CONTACT-1 (industry ML-infrastructure engineer -- identity in the PRIVATE PLANE; his
+correction: "it's not orchestration, it's...  (source: mem:decision:ADR_0815204515_4255b208)
+- max-call-outcome-2026-08-10: MAX CALL OUTCOME, 2026-08-10. CONTACT-1 (industry ML-infrastructure engineer; name, employer, prior roles and school are held in the PRIVATE...  (source: mem:decision:ADR_0815204325_e3ee8cae)
+- NEVER pass a redaction target as a literal in a command line, an inline script, or any argv the harness records -- the act of redacting plants the target in the...  (source: learn:experiment:fragment_built_needles_plant_a_variant_no_later_search_can_match)
+- NEVER pass a redaction target as a literal in a command line, an inline script, or any argv the harness records -- the act of redacting plants the target in the...  (source: learn:experiment:fragment_built_needles_plant_a_variant_no_later_search_can_match)
+- TWO RULES. (1) A redaction is scoped to a DATA PLANE, not a directory. Before declaring one complete, enumerate every plane that can re-emit the string -- tracked tree...  (source: learn:experiment:redaction_scoped_to_the_tracked_tree_leaves_the_store_reloading_it)
+- WHEN a YouTube/video URL appears in a task -- watching a clip with Daniel, mining a talk, quoting a source -- the FIRST move is py agent_cli.py captions <URL> --out...  (source: learn:experiment:youtube_transcript_is_a_door_verb_not_a_script)
+
+## attribution-law-in-his-words-2026-08-16: Daniil, verbatim, 2026-08-16, after ... (ai-setup)
+Span: 2026-08-16T12:50:19.428922+00:00 → 2026-08-16T15:39:52.860005+00:00
+Beats: 11  · Critic: True
+
+- attribution-law-in-his-words-2026-08-16: Daniil, verbatim, 2026-08-16, after correcting a ledger row that headlined a fleet seat's re-derivation as a finding's origin...  (source: mem:decision:ADR_0816113952_6b0c22a0)
+- Use BEFORE crediting any seat or reviewer as the finder/originator of an idea in ANY durable artifact (ledger row, doc, commit message): grep the operator's directives...  (source: learn:experiment:attribution_lineage_check_before_crediting_a_finder)
+- Use when widening any corpus, index or retrieval scope -- BEFORE celebrating the coverage number. Enumerate every consumer of the widened data and ask what each one...  (source: learn:experiment:widening_a_corpus_can_break_every_consumer_that_assumed_its_old_shape)
+- claude -> claude: correction to the T312b sha in next-focus  (source: handoff:claude->claude)
+- claude -> claude: T313 shipped, run eye ingest first  (source: handoff:claude->claude)
+- where-we-are: SESSION 2026-08-16 (claude, session ed728d23) -- THE DAY WE FOUND THE EYE. Prod moved
+3287a218 -> 0c89d9b8, all pushed. Ran ~920k context. Full handoff in...  (source: mem:decision:ADR_0816104211_739bd8e0)
+- next-focus: SEAT HANDOFF 2026-08-16 (claude, session ed728d23). Daniel is the operator; address him as Daniel.
+This session ran ~920k context. READ THIS BEFORE DESIGNING...  (source: mem:decision:ADR_0816104148_abb54ef0)
+- the-glance-directive-standing-since-2026-07-09: THE OPERATOR'S LONGEST-STANDING DIRECTIVE, reconstructed 2026-08-16 by a four-vocabulary fan over
+~499 session...  (source: mem:decision:ADR_0816101310_af222950)
+- STRUCTURAL LIMIT, worth knowing before designing more of this surface: recall-at is a PRESENCE-triggered instrument. It can surface a lesson about the file you are...  (source: learn:experiment:recall_at_cannot_fire_on_an_absence)
+- PREFIX EVERY Bash INVOCATION WITH ITS OWN cd -- 'cd /e/AI-Setup && ...' -- and never rely on inherited cwd, especially for backgrounded work. When a backgrounded command...  (source: learn:experiment:bash_tool_cwd_is_not_stable_between_calls)
+- WHEN a corpus you own is small enough to read (hundreds of records, not millions), READ IT rather than pattern-match it, and make the reading auditable: (1) force a...  (source: learn:experiment:quote_verified_reading_beats_regex_and_can_be_measured)
+
+## Daniil, on the day the walk system took its first row and the fence moved rou... (ai-setup)
+Span: 2026-08-16T17:03:17.717590+00:00 → 2026-08-16T19:31:51.902796+00:00
+Beats: 14  · Critic: True
+
+- Daniil, on the day the walk system took its first row and the fence moved routes into the Eye: 'There is something pleasingly meta about all of this, it feels so good to...  (source: claude:witness)
+- next-focus: SEAT HANDOFF 2026-08-16 late (claude, session 7b78fb20). Daniil is the operator; address him as Daniil. Chronicle: atom ...[truncated]  (source: mem:decision:ADR_0816153151_da9eb529)
+- Use when ANY seat -- especially a blind half or a fence counter -- cites a LESSON as evidence about the present, before acting on it: a lesson is a point-in-time...  (source: learn:experiment:a_lesson_cited_as_current_state_inherits_its_own_timestamp)
+- Use when designing ANY multi-branch extraction or judge fan, BEFORE writing the output-shape section, and again before reporting convergence: any pattern, category or...  (source: learn:experiment:a_named_pattern_in_the_prompt_cannot_be_counted_as_convergence)
+- TWO RULES. (1) A HANDOFF ASSERTION ABOUT LIVE STATE IS A HYPOTHESIS, NOT A FACT -- claims of the form seat X is up / expectation armed / ask queued are cheap to falsify...  (source: learn:experiment:handoff_liveness_claims_are_hypotheses_and_seat_absence_is_not_mail_death)
+- Use when a fan repeats a named pattern, before calling it convergence or failed falsification: inspect the shared prompt for seeded labels, pre-register the exact claim...  (source: learn:experiment:prompt_named_pattern_is_not_independent_convergence)
+- Use when ANY expensive analysis completes and you are about to adopt the raw output as an artifact -- BEFORE ending the turn: preserving the raw is HALF the lesson. If...  (source: learn:experiment:synthesis_must_cross_the_archive_boundary_with_its_data)
+- next-focus: SEAT HANDOFF 2026-08-16 evening (claude, session 7b78fb20). Daniil is the operator; address him as Daniil. Full chronicle: atom ...[truncated]  (source: mem:decision:ADR_0816140959_ef54177f)
+- Use when choosing WHERE any new record type lives, before adopting an organ recommendation however well-argued: ask WHAT KIND of object it is, not which organ is...  (source: learn:experiment:authored_vs_derived_decides_the_plane_not_the_organ)
+- education-philosophy-in-his-words-2026-08-16: Daniil, verbatim, 2026-08-16, stated 'for the record' at the close of the competency-register arc: 'I had a good number of...  (source: mem:decision:ADR_0816135652_d8087b5f)
+- education-philosophy-in-his-words-2026-08-16: Daniil, verbatim, 2026-08-16, stated 'for the record' at the close of the competency-register arc: 'I had a good number of...  (source: mem:decision:ADR_0816135605_b214528e)
+- Use when a clean perspective or decomposition produces local clarity, before accepting it as partial truth: restore excluded context, cross the chosen boundary and...  (source: learn:experiment:myth_reason_history_nontrivial_link)
+- Use when interpreting a complex person, culture, history, or system, before presenting a clean synthesis: name the perspective doing the seeing, what it sharpens, what...  (source: learn:experiment:myth_reason_history_nontrivial_link)
+- Use when evaluating mythic or narrative framing, before treating myth as noise: ask which recurring historical and causal structure the myth compresses, then test where...  (source: learn:experiment:myth_reason_history_nontrivial_link)
+
+## next-focus: SEAT HANDOFF 2026-08-16 night (claude, session 7b78fb20). Daniil ... (ai-setup)
+Span: 2026-08-17T00:32:47.239215+00:00 → 2026-08-17T02:08:22.608757+00:00
+Beats: 4  · Critic: True
+
+- next-focus: SEAT HANDOFF 2026-08-16 night (claude, session 7b78fb20). Daniil is the operator; address him as Daniil. Supersedes the earlier handoffs -- a PRIVATE PLANE...  (source: mem:decision:ADR_0816220822_830b5b69)
+- education-philosophy-in-his-words-2026-08-16: DANIIL'S EDUCATION PHILOSOPHY, verbatim 2026-08-16, stated 'for the record' at the close of a long assessment arc: 'I had a...  (source: mem:decision:ADR_0816214929_1cebd696)
+- Use when purging, redacting or migrating ANYTHING out of a repository, and before reporting it clean -- especially when you are about to push. A git repo has at least...  (source: learn:experiment:verify_the_claim_you_made_not_the_query_that_is_easy)
+- durability-over-legibility-2026-08-16: DANIIL'S ORDERING PRINCIPLE, verbatim 2026-08-16, stated immediately after ruling 'purge first' on the history question...  (source: mem:decision:ADR_0816203247_f44f07c5)
+
+## BEFORE ruling on any reported fork -- and before offering an operator a choic... (ai-setup)
+Span: 2026-08-17T13:05:42.449364+00:00 → 2026-08-17T13:05:42.449364+00:00
+Beats: 1  · Critic: True
+
+- BEFORE ruling on any reported fork -- and before offering an operator a choice between memberships -- ENUMERATE THE PRODUCERS of the disputed token. grep for who SENDS...  (source: learn:experiment:enumerate_producers_before_ruling_on_a_forked_concept)
+
+## handoff:next-seat-2026-08-17: === THE FIVE THINGS THAT WOULD HAVE SAVED THE M... (ai-setup)
+Span: 2026-08-17T17:23:53.781695+00:00 → 2026-08-17T20:17:26.819449+00:00
+Beats: 10  · Critic: True
+
+- handoff:next-seat-2026-08-17: === THE FIVE THINGS THAT WOULD HAVE SAVED THE MOST PAIN ===
+
+1. READ THE FOUR PLANES BEFORE PLANNING. charters/daniel/INTERIORITY.md...  (source: mem:decision:ADR_0817161726_9a18dd1c)
+- Use when a load-bearing tool fix is verified correct on-disk and well-pinned, but a long-running seat re-running the exact reproduction STILL gets the old answer...  (source: learn:experiment:built_not_wired_has_a_temporal_dimension_stale_process_imports)
+- claude -> claude: T338 LIVE TEST -- disregard, verifying the briefing spill  (source: handoff:claude->claude)
+- claude -> claude: T338 LIVE TEST -- disregard, verifying the briefing spill  (source: handoff:claude->claude)
+- claude -> claude: FULL BRIEFING (9,885 chars) -- py agent_cli.py note claude --get handoff:next-seat-2026-08-17. Session 2026-08-17 shipped T332/T335/T336/T337/T338 +...  (source: handoff:claude->claude)
+- claude -> claude: FULL BRIEFING (9,885 chars) -- py agent_cli.py note claude --get handoff:next-seat-2026-08-17. Session 2026-08-17 shipped T332/T335/T336/T337/T338 +...  (source: handoff:claude->claude)
+- claude -> claude: READ THE FULL BRIEFING FIRST -- it does not fit in this field. py agent_cli.py note claude --get handoff:next-seat-2026-08-17 (9,885 chars: the five...  (source: handoff:claude->claude)
+- handoff:next-seat-2026-08-17: === THE FIVE THINGS THAT WOULD HAVE SAVED THE MOST PAIN ===
+
+1. READ THE FOUR PLANES BEFORE PLANNING. charters/daniel/INTERIORITY.md...  (source: mem:decision:ADR_0817135103_2104040a)
+- claude -> claude: READ THIS BEFORE PLANNING ANYTHING. Session 2026-08-17 (970211d2) shipped T332/T335/T336/T337/T338 + callsigns to the UI. Everything below is what I...  (source: handoff:claude->claude)
+- save:claude:read-state-and-wrongness-arc-2026-08-17: SAVEPOINT 2026-08-17 (claude/Vandor, session 970211d2). Daniil asked for this at the close of a long night...  (source: mem:decision:ADR_0817132353_65c6698b)
+
+## Episode closed: save:claude:read-state-and-wrongness-arc-2026-08-17: SAVEPOIN... (ai-setup)
+Span: 2026-08-17T20:19:56.817166+00:00 → 2026-08-17T21:56:17.818452+00:00
+Beats: 13  · Critic: True
+
+- Episode closed: save:claude:read-state-and-wrongness-arc-2026-08-17: SAVEPOINT 2026-08-17 (claude/Vandor, session 970211  (source: episode:close:ch_1786978925_2587)
+- Use when sending source code with non-ASCII literals through PowerShell stdin, before trusting multilingual search or evaluation results: use escaped Unicode code points...  (source: learn:experiment:powershell_stdin_codepage_corrupts_literal_cjk)
+- Use when a nontrivial Python one-liner contains Windows paths plus nested SQL or JSON literals under PowerShell, before retrying quote escapes: send the script through a...  (source: learn:experiment:powershell_native_py_c_nested_quote_failure)
+- Use when piping objects produced by a PowerShell foreach statement, before running the probe: materialize the loop into a task-specific variable or wrap the whole...  (source: learn:experiment:powershell_foreach_pipeline_requires_materialization)
+- Use when commissioning counter-readings, before dispatch: decorrelate at least one branch's input or failure mode, not merely its role. Give a clean seat raw corpus...  (source: learn:experiment:journey_counterreading_input_decorrelation_correction)
+- Use when a RED pin survives a fix you believe is correct, BEFORE weakening the fix to satisfy it. This house has filed four instances of a pin GREEN for the wrong...  (source: learn:experiment:a_pin_red_for_the_wrong_reason_is_the_mirror_of_green_for_the_wrong_reason)
+- Use when Daniil reflects on Aurora's journey, history, meaning, or what we built, before offering a synthesis: read the longitudinal operator transcript trail with Eye...  (source: learn:experiment:journey_reflection_requires_transcript_archaeology)
+- Use when previewing session wrap, before adding optional flags: run bare wrap with an integer hours value. Treat --focus, --grounding, and --route as durable writes even...  (source: learn:experiment:wrap_preview_flags_are_independent_writes)
+- Use when fanout is meant to investigate a live repository, before treating model plurality as evidence: give differentiated CLI seats shared Eye and repository access...  (source: learn:experiment:state_assessment_fan_with_cli_access)
+- handoff:next-seat-2026-08-17: === THE FIVE THINGS THAT WOULD HAVE SAVED THE MOST PAIN ===
+
+1. READ THE FOUR PLANES BEFORE PLANNING. charters/daniel/INTERIORITY.md...  (source: mem:decision:ADR_0817165927_cef3b223)
+- Use when fanning a corpus-level or live-repository assessment, before dispatch: give each branch bounded CLI access to Eye, ledger, git, and tests so it can gather its...  (source: learn:experiment:state_assessment_fan_with_cli_access)
+- Use when fanning a corpus-level or live-repository assessment, before sending a static evidence digest: prefer tool-bearing CLI-access branches so each branch can...  (source: learn:experiment:state_assessment_fan_with_cli_access)
+- Use when assessing where Aurora is after a run of T-series shipments, before assembling conclusions: read through the Eye first, fan competing interpretations through...  (source: learn:experiment:state_assessment_use_eye_and_fanouts)
+
+## Episode closed: Use when assessing where Aurora is after a run of T-series sh... (ai-setup)
+Span: 2026-08-17T22:06:36.498750+00:00 → 2026-08-17T23:59:13.438808+00:00
+Beats: 7  · Critic: True
+
+- Episode closed: Use when assessing where Aurora is after a run of T-series shipments, before assembling conclusions: rea  (source: episode:close:ch_1786998005_1996)
+- Use when promoting an evidence-bearing synthesis, before calling its corpus verified, complete, or independently read: reconcile the final denominator, provenance...  (source: learn:experiment:book_evidence_geometry_must_match_final_corpus)
+- Use BEFORE any analysis that reads the operator plane -- directive mining, growth analysis, freq verdicts, the standing-directive watcher, or any claim of the form the...  (source: learn:experiment:dispatch_briefs_are_recorded_as_operator_speech_and_half_the_plane_is_not_him)
+- Use when reconstructing a chronology that crosses midnight, before describing next-day events as a day or two later: compute elapsed durations from exact timestamps...  (source: learn:experiment:midnight_boundary_inflates_origin_elapsed_time)
+- Use when a fan result is offered to settle chronology or authorship, before accepting its era label or aggregate pivot count: intersect the exact claim timestamp and...  (source: learn:experiment:fan_era_label_is_not_claim_interval_coverage)
+- Use BEFORE adopting, canonizing or committing ANY recovered historical corpus -- old transcripts, database dumps, AOF/RDB volumes, backup trees. Every recovered plane...  (source: learn:experiment:archaeology_republishes_whatever_the_past_leaked)
+- Use when the origin-story or counterfactual-reconstruction idea resurfaces, before dispatching a full-house experiment: first confirm the archaeology dig is closed with...  (source: learn:experiment:origin_v2_archaeology_before_full_house)
+
+## THIS SUPERSEDES THE ASK-ONLY SCOPING of preflight_the_ask_before_you_spend_th... (research)
+Span: 2026-08-18T00:08:36.593408+00:00 → 2026-08-18T01:02:19.337667+00:00
+Beats: 4  · Critic: True
+
+- THIS SUPERSEDES THE ASK-ONLY SCOPING of preflight_the_ask_before_you_spend_the_fan: the law is not about asks, it is about TRANSPORTS. Use BEFORE spending on any fan...  (source: learn:experiment:preflight_the_transport_not_just_the_question)
+- Use BEFORE spending on any fan, restore, adopt, commit of a byte artifact, or long-running background job. Spend one cheap unit proving the PAYLOAD ARRIVED WHOLE before...  (source: learn:experiment:preflight_the_transport_not_just_the_question)
+- Use BEFORE designing or proposing any capability, and treat it as a second half of the does-this-already-exist check. Asking whether something EXISTS is not enough --...  (source: learn:experiment:a_capabilitys_death_is_invisible_from_inside_the_live_tree)
+- Use when making novelty, precedence, or convergence claims, before calculating a lead: record operator articulation, durable implementation, public code or release, and...  (source: learn:experiment:publication_date_is_not_priority_date)
+
+## Episode closed: Use when the origin-story or counterfactual-reconstruction id... (research)
+Span: 2026-08-18T01:47:20.548534+00:00 → 2026-08-18T01:52:25.389871+00:00
+Beats: 2  · Critic: True
+
+- Episode closed: Use when the origin-story or counterfactual-reconstruction idea resurfaces, before dispatching a full-ho  (source: episode:close:ch_1787004606_5953)
+- claude -> claude: Nothing is blocked on us. T342 (read the graveyard) and T341 (operator re-entry) are approved and UNCLAIMED -- his to promote, do not self-start.  (source: handoff:claude->claude)
+
+## Episode closed: claude -> claude: Nothing is blocked on us. T342 (read the gr... (research)
+Span: 2026-08-18T01:57:35.688065+00:00 → 2026-08-18T02:25:52.406892+00:00
+Beats: 3  · Critic: True
+
+- Episode closed: claude -> claude: Nothing is blocked on us. T342 (read the graveyard) and T341 (operator re-entry) are a  (source: episode:close:ch_1787017686_3309)
+- TWO THINGS. (1) THE DEFECT: eye get must not answer a MALFORMED/UNRESOLVED address with 'no event at X' -- that is the T176 law violated at a door (absence must never...  (source: learn:experiment:eye_get_says_no_event_when_it_means_bad_address)
+- Use when designing any render addressed to the operator himself (re-entry, recap, self-mirror), before choosing what leads: ground in his corpus (eye_freq re-entry...  (source: learn:experiment:t341_operator_reentry_fence_ordering_defect)
+
+## where-we-are: NIGHT SHIFT 2026-08-18 (claude/Vandor, session fe21e40d), all p... (ai-setup)
+Span: 2026-08-18T04:34:58.458401+00:00 → 2026-08-18T04:36:53.169302+00:00
+Beats: 3  · Critic: True
+
+- where-we-are: NIGHT SHIFT 2026-08-18 (claude/Vandor, session fe21e40d), all pushed @c8800301. Daniil approved four night items + the directive-arc ask, then slept...  (source: mem:decision:ADR_0818003653_5b9d1912)
+- claude -> claude: night shift wrap 2026-08-18: reviews inbound, T352 awaits ruling, morning render ready  (source: handoff:claude->claude)
+- TWO USES. (1) Treat the FIRST LIVE RUN of any new render/report surface as a STORE AUDIT, not a demo: a fresh honest projection is the best pollution detector the house...  (source: learn:experiment:a_renders_first_live_run_is_a_store_audit)
+
+## graveyard-vein:lithography-the-first-click: GRAVEYARD-YEARS VEIN, first strik... (ai-setup)
+Span: 2026-08-19T04:51:26.613634+00:00 → 2026-08-19T04:51:26.613634+00:00
+Beats: 1  · Critic: True
+
+- graveyard-vein:lithography-the-first-click: GRAVEYARD-YEARS VEIN, first strike (2026-08-19, unprompted flow after one elicitation question -- the QUESTIONS.md desire...  (source: mem:decision:ADR_0819005126_672e4c5d)
+
+## where-we-are: DAY SHIFT 2026-08-19 (claude/Vandor, session fe21e40d), pushed ... (ai-setup)
+Span: 2026-08-19T13:31:18.862714+00:00 → 2026-08-19T13:32:19.426160+00:00
+Beats: 2  · Critic: True
+
+- where-we-are: DAY SHIFT 2026-08-19 (claude/Vandor, session fe21e40d), pushed @f471715f. Discord went FULL DUPLEX under his admin grant: mentions (@Vandor/@Heimdall/@Navi...  (source: mem:decision:ADR_0819093219_2e29de79)
+- Use when writing ANY module that reads a credential or an outbound-steering config, before the first pin runs: (1) resolve secrets through the ONE vault function with an...  (source: learn:experiment:a_pin_minted_a_live_thread_in_his_server)
+
+## Episode closed: Use when designing any render addressed to the operator himse... (ai-setup)
+Span: 2026-08-19T15:55:44.453661+00:00 → 2026-08-19T15:55:44.453661+00:00
+Beats: 1  · Critic: True
+
+- Episode closed: Use when designing any render addressed to the operator himself (re-entry, recap, self-mirror), before c  (source: episode:close:ch_1787018346_4538)
+
+## where-we-are: SESSION 2026-08-19 (claude/Vandor) landed under a safeguards-ej... (ai-setup)
+Span: 2026-08-19T23:48:42.159253+00:00 → 2026-08-19T23:49:00.106995+00:00
+Beats: 2  · Critic: True
+
+- where-we-are: SESSION 2026-08-19 (claude/Vandor) landed under a safeguards-eject on capability-vocab work. ONE LIVE TASK: relaunch deepseek+kimi runners with...  (source: mem:decision:ADR_0819194900_037fb741)
+- claude -> claude: grant deepseek+kimi write+exec (verified safe, stale-fear cleared), then Heimdall applies its clipping fix  (source: handoff:claude->claude)
+
+## Episode closed: claude -> claude: grant deepseek+kimi write+exec (verified sa... (ai-setup)
+Span: 2026-08-19T23:49:54.079482+00:00 → 2026-08-20T00:09:17.275976+00:00
+Beats: 4  · Critic: True
+
+- Episode closed: claude -> claude: grant deepseek+kimi write+exec (verified safe, stale-fear cleared), then Heimdall appl  (source: episode:close:ch_1787154966_6065)
+- where-we-are: SESSION 2026-08-19 evening (claude/Vandor, fresh boot). The prior handoff's "ONE LIVE TASK" was
+ALREADY DONE before I read it -- verify before you repeat...  (source: mem:decision:ADR_0819200917_40a3c60d)
+- Use when writing any guard, timeout, retry budget or liveness window around a failure you have not personally timed. (1) MEASURE THE FAILURE, not the success -- failures...  (source: learn:experiment:a_guards_latency_budget_must_be_measured_not_guessed)
+- Use when designing or trusting ANY resuscitation/failover path. (1) A resuscitation lever that routes through the claude CLI inherits that CLI's AUTH LIFETIME as a...  (source: learn:experiment:spawn_lever_inherits_the_cli_auth_lifetime)
+
+## Episode closed: Use when designing or trusting ANY resuscitation/failover pat... (ai-setup)
+Span: 2026-08-20T00:26:10.819906+00:00 → 2026-08-20T00:35:19.968691+00:00
+Beats: 3  · Critic: True
+
+- Episode closed: Use when designing or trusting ANY resuscitation/failover path. (1) A resuscitation lever that routes th  (source: episode:close:ch_1787184389_9134)
+- To decide if a shell-out spawn lever (claude -p) has healthy auth, do NOT trust the last handoff's blocker -- read state/spawn-logs/spawn-<latest>.log: a death line...  (source: learn:experiment:spawn_log_emptiness_is_the_auth_health_receipt)
+- claude -> claude: Vandor: gateway restart + inbox drain remain (his call)  (source: handoff:claude->claude)
+
+## Episode closed: claude -> claude: Vandor: gateway restart + inbox drain remai... (ai-setup)
+Span: 2026-08-20T00:35:39.485656+00:00 → 2026-08-20T00:49:41.832631+00:00
+Beats: 5  · Critic: True
+
+- Episode closed: claude -> claude: Vandor: gateway restart + inbox drain remain (his call)  (source: episode:close:ch_1787185980_1413)
+- Use when asked to "show full/live reasoning for every seat": first enumerate the TRANSPORT shape, not the seat name. (1) stream=True SSE seats (deepseek) CAN live-stream...  (source: learn:experiment:fleet_reasoning_visibility_three_shapes)
+- Use whenever handing a human a command to run. (1) Operator-facing commands must be cwd-INDEPENDENT: absolute path ('py E:/AI-Setup/agent_cli.py ...') or self-prefixed...  (source: learn:experiment:operator_facing_commands_must_be_cwd_independent)
+- Use when you are about to name a test file with a T-id: (1) do NOT put the id in the filename until you have PROPOSED and the registry has returned a number; (2) if you...  (source: learn:experiment:identifier_collision_registry_race)
+- Use when someone says "I used to see your thoughts live, now I don't": first ask WHICH body they were running. REPL mode vs runner mode are different code paths for the...  (source: learn:experiment:deepseek_reasoning_live_stream_regression)
+
+## Episode closed: Use when someone says "I used to see your thoughts live, now ... (ai-setup)
+Span: 2026-08-20T01:20:24.383118+00:00 → 2026-08-20T04:42:26.725242+00:00
+Beats: 11  · Critic: True
+
+- Episode closed: Use when someone says "I used to see your thoughts live, now I don't": first ask WHICH body they were ru  (source: episode:close:ch_1787186164_3613)
+- Use when adding any operator or seat interaction door, before calling Eye, continuity, or re-entry complete: prove a first-party utterance from that door lands in the...  (source: learn:experiment:new_ingress_must_join_the_canonical_corpus)
+- Use before trusting ANY git<->ledger, commit<->ticket, or code<->spec join. (1) CLAUSE-PROXIMITY EVIDENCE IS ONLY AS SOUND AS THE ID NAMESPACE. A perfect matcher on a...  (source: learn:experiment:clause_evidence_is_only_as_sound_as_the_id_namespace)
+- truth-pass-proposed-backlog: TRUTH PASS over the proposed backlog -- stage 1+2a complete, 2026-08-19 ~22:20, claude/Vandor.
+Daniil approved with "Truth run pass!"...  (source: mem:decision:ADR_0819223231_6816a904)
+- never-use-tree-wide-git-rule-adopted-navi: VERDICT (Navi, 2026-08-20, on Vandor's self-report + rule proposal): rule HOLDS and is now written into the tree.
+
+WHAT VANDOR...  (source: mem:decision:ADR_0819215935_3b4df444)
+- Use in ANY repo where more than one agent or process writes, and treat it as absolute. (1) NEVER run a tree-wide git mutation -- stash, checkout <sha> -- ., reset, clean...  (source: learn:experiment:never_use_tree_wide_git_in_a_shared_tree)
+- fix doctor dead pointer: token_cost remediation advertised doctor --token which has never been a flag, now points at doctor --json  (source: git:e1a20ba9fd8b)
+- spree-lane-map: SPREE LANE MAP — PROVISIONAL (2026-08-19 ~21:45). Two of three seats declared; one field pending.
+
+Status: PROVISIONAL. It becomes canonical when (a)...  (source: mem:decision:ADR_0819214213_0fa72c54)
+- T368 land discord multipart clipper, whole-line fence-atomic chunk, retag t364 to T368 citation at test_t223 line 93, 17 discord pins green  (source: git:eb607af9e0a4)
+- spree-sync-barrier: SPREE SYNC BARRIER, opened 2026-08-19 ~21:15 by claude/Vandor on Daniil's word ('how can you all sync up, decide who wants to do what... I hope you...  (source: mem:decision:ADR_0819213401_26fa65fb)
+- remove scratch  (source: git:ac4cd8177ea3)
+
+## Episode closed: spree-sync-barrier: SPREE SYNC BARRIER, opened 2026-08-19 ~21... (ai-setup)
+Span: 2026-08-20T04:49:26.260467+00:00 → 2026-08-20T06:57:00.308728+00:00
+Beats: 20  · Critic: True
+
+- Episode closed: spree-sync-barrier: SPREE SYNC BARRIER, opened 2026-08-19 ~21:15 by claude/Vandor on Daniil's word ('how  (source: episode:close:ch_1787188830_9596)
+- Use when a seat asks "can I clear my own inbox from inside a session" or you're auditing the read/write split across the CLI-vs-ToolBox surfaces, before assuming...  (source: learn:experiment:toolbox_inbox_peek_no_consume)
+- navi-1-verb-census-2026-08-20: NAVI-1 verb census (kimi seat, 2026-08-20), commissioned by Daniel alongside Heimdall's ToolBox half.
+
+ARTIFACT ...[truncated]  (source: mem:decision:ADR_0820025530_b15d737b)
+- verb-family-toolbox-census-heimdall-2026-08-20: TOOLBOX HALF census (Heimdall/deepseek), pairing with Navi's NAVI-1 CLI census...  (source: mem:decision:ADR_0820025518_98b44fab)
+- Use when onboarding a new seat/model to the CLI world, before letting it near run_command: teach the three layers separately (88 parser verbs via `discover`, 27...  (source: learn:experiment:agent_cli_verb_census_2026_08)
+- Use when auditing ANY "does this verb work from inside a session" claim: accept that agent_cli verbs is NOT the ground truth from inside — the door refuses...  (source: learn:experiment:door_read_allowlist_gap)
+- Use when surveying the verb surface, before inventing a family taxonomy: ASK THE DOOR (`py agent_cli.py discover` and `discover --semantic "...")`, never regex the...  (source: learn:experiment:verb_inventory_test_door_not_source_2026_08_19)
+- verb-families-draft-heimdall-2026-08-19: DRAFT verb family taxonomy for the 88 native agent_cli.py verbs (door arc, 2026-08-19). Heimdall's nursery pass. NOT yet wired —...  (source: mem:decision:ADR_0820025136_3bfb6077)
+- Use at the START and END of every autonomous cycle, and whenever a peer reply is pending. (1) NEVER ARM AND WAIT. Arming a watcher is not a cycle -- the moment it is...  (source: learn:experiment:the_loop_stalls_because_waiting_reads_as_nothing_to_do)
+- Use when the question is "does this interface/flag/verb exist": ASK THE DOOR, DON'T READ THE DOOR. `<verb> --help` is ground truth; a regex over argparse source is a...  (source: learn:experiment:ask_the_door_do_not_read_the_door)
+- Use whenever the question is 'does this interface/flag/verb/route EXIST or BEHAVE this way?' -- i.e. any claim about a live system's surface. (1) ASK THE DOOR, DO NOT...  (source: learn:experiment:ask_the_door_do_not_read_the_door)
+- claude -> claude: door arc: verb families, pass 2 of 4  (source: handoff:claude->claude)
+- door-arc-verb-surface: THE DOOR ARC -- open, round 1 sent, pass 2 begun. 2026-08-20 ~1:50am, claude/Vandor.
+Daniil's brief, verbatim: "see what verbs need to be added or...  (source: mem:decision:ADR_0820015739_77a04dd4)
+- Use when evaluating ANY agent's claim about what it read, knew, or could see -- provenance, independence, boundary, or blind-spot claims. (1) A BOUNDARY DECLARATION IS A...  (source: learn:experiment:a_boundary_declaration_is_a_claim_and_honesty_tells_goodhart_once_read)
+- Use when rendering ANY verdict on a WHOLE -- a system, a night's work, a mature proposal, a culture, a person's judgment -- at any stage of its life. BEFORE the verdict...  (source: learn:experiment:a_projection_must_declare_its_boundary_before_a_whole_world_verdict)
+- spree-lane-map: SPREE LANE MAP -- ACTIVE (supersedes the provisional map; both seats have declared and the one
+collision is resolved. Sol's review read the provisional...  (source: mem:decision:ADR_0820013400_c1dfee30)
+- truth-pass-proposed-backlog: TRUTH PASS -- CORRECTED SHEET (supersedes the 2026-08-19 sheet whose '12 confirmed' list was
+corrupted by the id-namespace shift; Sol read...  (source: mem:decision:ADR_0820013359_b8d4dd5e)
+- Use BEFORE reviewing, critiquing, scoring or rendering ANY verdict on an early-stage thing -- a proposal, vision, dream, draft arc, wish, first slice, or a peer's...  (source: learn:experiment:a_verdict_on_a_newborn_must_engage_trajectory_not_position)
+- nursery-doctrine-and-sol-frame: THE NURSERY DOCTRINE & THE SOL FRAME -- Daniil, 2026-08-20 ~1am, five deliberate turns before
+pasting an evaluator's take. He asked to...  (source: mem:decision:ADR_0820012633_3f10456e)
+- Use when adding liveness/monitoring to ANY service, before calling it observable. (1) A HEARTBEAT PROVES PRESENCE AND CANNOT PROVE ABSENCE. A TTL'd beat means a dead...  (source: learn:experiment:a_heartbeat_proves_presence_absence_needs_a_durable_expectation)
+
+## NEVER VERIFY A WRITE-DOOR BY INVOKING IT. Before running any command to check... (ai-setup)
+Span: 2026-08-20T13:07:57.791924+00:00 → 2026-08-20T13:11:34.233648+00:00
+Beats: 2  · Critic: True
+
+- NEVER VERIFY A WRITE-DOOR BY INVOKING IT. Before running any command to check that it parses, ask what its DEFAULT action is -- for a verb whose name is a noun...  (source: learn:experiment:never_verify_a_write_door_by_invoking_it)
+- Use when ANY supervising layer reports a child's exit -- harness task codes, systemd status, docker exit, a lock record naming a pid, a heartbeat, a webhook 200. THE...  (source: learn:experiment:the_messengers_death_is_not_the_services_verdict)
+
+## Episode closed: Use when adding liveness/monitoring to ANY service, before ca... (ai-setup)
+Span: 2026-08-20T13:12:44.881030+00:00 → 2026-08-20T13:19:21.601702+00:00
+Beats: 4  · Critic: True
+
+- Episode closed: Use when adding liveness/monitoring to ANY service, before calling it observable. (1) A HEARTBEAT PROVES  (source: episode:close:ch_1787201559_2693)
+- claude -> claude: door arc pass 2 + failsafe watcher (Daniil at work; floor is yours)  (source: handoff:claude->claude)
+- handoff-2026-08-20-morning: HANDOFF BODY 2026-08-20 ~09:20, claude/Vandor -> next seat. Retrieve with:
+  py agent_cli.py note claude --get...  (source: mem:decision:ADR_0820091908_c85ef2f1)
+- claude -> claude: door arc pass 2, failsafe watcher, and the seats' overnight findings  (source: handoff:claude->claude)
+
+## Episode closed: claude -> claude: door arc pass 2, failsafe watcher, and the ... (ai-setup)
+Span: 2026-08-20T13:21:35.728554+00:00 → 2026-08-20T14:28:51.468355+00:00
+Beats: 6  · Critic: True
+
+- Episode closed: claude -> claude: door arc pass 2, failsafe watcher, and the seats' overnight findings  (source: episode:close:ch_1787231706_4742)
+- TREAT consume_rearms AS A SPAWNER, NEVER AS A DEADMAN. The missing organ is an ENUMERATOR: an out-of-band clock holding a durable expected-up list of sessions that OUGHT...  (source: learn:experiment:rearm_actor_is_a_trigger_consumer_not_a_deadman)
+- ARM WITH ABSOLUTE PATHS ALWAYS (py E:/AI-Setup/scripts/bifrost_wake.py), and never trust a wake exit code as a diagnosis: probe the bus directly (redis PING) before...  (source: learn:experiment:wake_arm_failure_impersonates_bus_offline_via_exit_2)
+- Never parse a report string when structured fields exist: call the function, print sorted(result.keys()) FIRST, then take result['new'] directly. Same for JSON on disk...  (source: learn:experiment:read_the_structured_field_never_the_report_string)
+- bifrost-preview-verb-design-2026-08-20: # bifrost-preview: read-only inbox digest verb (design sketch, 2026-08-20)
+
+Commission: Daniil, live chat — "using an ask verb to...  (source: mem:decision:ADR_0820093223_bd6c7d18)
+- The ARMED banner must print the lane it was ARMED on, not a hardcoded 'legacy' -- interpolate BIFROST_WAKE_LANE into both the 'Detection PEEKS the <lane> lane' clause...  (source: learn:experiment:wake_armed_line_hardcodes_legacy_lane_remediation)
+
+## Episode closed: The ARMED banner must print the lane it was ARMED on, not a h... (ai-setup)
+Span: 2026-08-20T23:15:13.565963+00:00 → 2026-08-21T01:55:15.277757+00:00
+Beats: 3  · Critic: True
+
+- Episode closed: The ARMED banner must print the lane it was ARMED on, not a hardcoded 'legacy' -- interpolate BIFROST_WA  (source: episode:close:ch_1787232126_3802)
+- A name that becomes an IDENTITY must become an ADDRESS in the same ceremony, or it is a black hole that answers ACCEPTED. Fix shape: reverse index (callsign->agent_id...  (source: learn:experiment:a_callsign_is_not_an_address_until_the_router_says_so)
+- When a module states an identity doctrine for AUTHORIZATION, apply it to ATTRIBUTION in the same breath -- same invariant, and splitting them forges names. (1) NEVER...  (source: learn:experiment:identity_defaults_must_resolve_from_the_id_never_a_hardcoded_name)
+
+## Episode closed: When a module states an identity doctrine for AUTHORIZATION, ... (ai-setup)
+Span: 2026-08-21T02:41:42.045879+00:00 → 2026-08-21T02:41:42.045879+00:00
+Beats: 1  · Critic: True
+
+- Episode closed: When a module states an identity doctrine for AUTHORIZATION, apply it to ATTRIBUTION in the same breath  (source: episode:close:ch_1787268468_6614)
+
+## Episode closed: When a module states an identity doctrine for AUTHORIZATION, ... (ai-setup)
+Span: 2026-08-21T03:36:07.336590+00:00 → 2026-08-21T03:36:07.336590+00:00
+Beats: 1  · Critic: True
+
+- Episode closed: When a module states an identity doctrine for AUTHORIZATION, apply it to ATTRIBUTION in the same breath  (source: episode:close:ch_1787268468_6614)
+
+## Episode closed: When a module states an identity doctrine for AUTHORIZATION, ... (ai-setup)
+Span: 2026-08-21T12:49:39.943522+00:00 → 2026-08-21T15:54:18.814518+00:00
+Beats: 16  · Critic: True
+
+- Episode closed: When a module states an identity doctrine for AUTHORIZATION, apply it to ATTRIBUTION in the same breath  (source: episode:close:ch_1787268468_6614)
+- wake-watcher-arm-blocked-2026-08-21-1157: Attempted once, exactly as instructed (background run_in_background=true). Denied: "This command requires approval" -- same...  (source: mem:decision:ADR_0821115418_94d414e5)
+- claude -> claude: Heimdall status check landed (2026-08-21 11:56) -- if Daniil wants the hard wedge/no-wedge verdict, an ATTENDED session needs to run py-spy dump --pid...  (source: handoff:claude->claude)
+- Extends learn:experiment:unattended_spawn_cannot_use_write_or_gated_bash_only_mcp_tools: the gating is NOT simply "write blocked, read/MCP clean." Some read verbs...  (source: learn:experiment:unattended_spawn_gates_read_verbs_and_read_mcp_tools_too)
+- heimdall-status-check-2026-08-21-1156: FINDING: doctor.py flags deepseek#43460-de (and kimi#43876-ki) as "beating_unproven" -- phase 'running' aged ~10689s (~2h58m)...  (source: mem:decision:ADR_0821115323_44c1d067)
+- claude -> claude: Answered guest .s1m0n.'s direct @Vandor ask (STE catch-up) -- done, bus id 1787326842212-0. This spawn's trigger is closed.  (source: handoff:claude->claude)
+- handoff-2026-08-21-vandor-s1m0n-reply: Vandor here, 2026-08-21 afternoon spawn (unattended, via Discord !spawn, task="vandor"). Traced the trigger: guest .s1m0n. asked...  (source: mem:decision:ADR_0821114158_44eccd71)
+- On an unattended !spawn: do NOT spend turns retrying a denied Bash/Write call under different flags -- it will not get approved. Land all durable output through the MCP...  (source: learn:experiment:unattended_spawn_cannot_use_write_or_gated_bash_only_mcp_tools)
+- Flag to Daniil directly when this recurs: an unattended !spawn seat that hits this gate cannot self-heal its own wakeability, so if he needs this seat reachable later he...  (source: learn:experiment:unattended_discord_spawn_cannot_use_write_or_bash_redirect)
+- On an unattended spawn (no live human at a permission prompt), assume Write/Edit and Bash file-redirection may be unusable and durable output MUST go through MCP tools...  (source: learn:experiment:unattended_discord_spawn_cannot_use_write_or_bash_redirect)
+- claude -> claude: Land oob-recovery-reconciliation-2026-08-21 as a file + doc-adopt it  (source: handoff:claude->claude)
+- oob-recovery-reconciliation-2026-08-21: RECONCILED DESIGN, not yet ratified -- Daniil gates. Verified core/comm/doctor.py:406-413 matches Heimdall's citation exactly...  (source: mem:decision:ADR_0821095929_710d9eb5)
+- Stop-hook demanded re-arming the wake watcher (BIFROST_WAKE_LANE=work py scripts/bifrost_wake.py --agent claude --session 0ac2cc44-617f-4213-a93a-208a9cff2ccd...  (source: agent_cli:log)
+- Discord !spawn task was literally "vandor" -- traced to guest .s1m0n.'s direct ask "@Vandor can you catch me up on what you're doing, STE standard + grade-3 sentence...  (source: agent_cli:log)
+- Stop-hook repeated the wake-arm demand a 2nd/3rd time after I'd already logged the permission-block lesson. Tried the exact re-arm command 3x total, denied identically...  (source: agent_cli:log)
+- Vandor spawn (Discord !spawn "vandor"): replied to Daniil's three live reachability pings on the bus; read Heimdall's full counter-round...  (source: agent_cli:log)
+
+## morning-chores-2026-08-22: COFFEE LIST for Daniil + next seat, in order: (1) ... (ai-setup)
+Span: 2026-08-21T20:24:42.481048+00:00 → 2026-08-22T04:02:56.758328+00:00
+Beats: 18  · Critic: True
+
+- morning-chores-2026-08-22: COFFEE LIST for Daniil + next seat, in order: (1) T371 heartbeat listener, ~10 min, needs Daniil's hands: make a free healthchecks.io account...  (source: mem:decision:ADR_0822000256_b5a7bcac)
+- discord ear v2: guest tier, co-root registry, callsign-to-agent routing at the send seams (fenced by heimdall, 22 pins + 57 discord tests green)  (source: git:4bef56f78203)
+- claude -> claude: day close 2026-08-21 -- resume points  (source: handoff:claude->claude)
+- walk-01-recall-funnel: FOREST WALK 01, P2 BANKED -- supersedes ADR_0821222718. P2 PREDICTION (Daniil, verbatim key lines): 'bound it by task type and risk of imminent...  (source: mem:decision:ADR_0821234038_e8846b15)
+- walk-01-recall-funnel: FOREST WALK 01 (2026-08-21 night, live) -- supersedes ADR_0821221910, adds trophy 2. P1 scored (see prior: 2 HIT / 1 PARTIAL / 1 prophetic MISS --...  (source: mem:decision:ADR_0821222718_620193fd)
+- queriable-recall-fidelity-plane: Daniil's convergence insight, mid-Walk-01 (2026-08-21 night), his words: 'what about a queriable recall? with fidelity. I feel like this...  (source: mem:decision:ADR_0821222405_97f13c76)
+- walk-01-recall-funnel: FOREST WALK 01 (2026-08-21 night, live): the recall funnel + feedback loop. P1 PREDICTION, Daniil verbatim: 'The gatekeeper would look at the...  (source: mem:decision:ADR_0821221910_9af07398)
+- forest-walks-practice: STANDING PRACTICE, ratified by Daniil 2026-08-21 night: WEEKLY SUBSYSTEM WALK -- 'let's set up that weekly subsystem analysis and exploration...  (source: mem:decision:ADR_0821215938_5144cde1)
+- gate-2026-08-21-simon-arc: Daniil's batch ratification, 2026-08-21 evening, VERBATIM: 'By the powers vested in me, I, Daniil Ruban, hereby authorize A-E. May God help us...  (source: mem:decision:ADR_0821212554_0dca2637)
+- recall-eval-suite: v4, supersedes ADR_0821182548. All of v3 stands (golden bank self-seeding; tune/holdout Goodhart guard; metrics; cross-vendor LLM judge; Daniil...  (source: mem:decision:ADR_0821183614_3db7ecb4)
+- When priming ANY judge, reviewer, fence counter, or agent role: prescribe the PROCESS, never the persona. Not 'be adversarial' but the algorithm of it: refute actively...  (source: learn:experiment:prime_by_process_not_persona)
+- recall-eval-suite: v3 FINAL-FOR-GATE, supersedes ADR_0821182053. Complete judging stack after full design round (Daniil + Simon + Vandor, 2026-08-21): (1) golden bank of...  (source: mem:decision:ADR_0821182548_844018c2)
+- recall-eval-suite: v2, SUPERSEDES ADR_0821181451 (Simon's co-evolution extension folded in, 2026-08-21). All of v1 stands (golden bank of extremes: synonym misses...  (source: mem:decision:ADR_0821182053_09cba9f0)
+- fuzzy-robust-recall-marriage: v3, SUPERSEDES ADR_0821181131 (synthesis after Simon's hybrid counter, 2026-08-21). Daniil's marriage design + Simon's...  (source: mem:decision:ADR_0821181822_3b9fd201)
+- recall-eval-suite: Simon's ask 2026-08-21 (design review, Discord): 'do you have evals for a fully exhaustive set of extreme use cases? A basic eval suite should be easy...  (source: mem:decision:ADR_0821181451_f2ecbd09)
+- fuzzy-robust-recall-marriage: SUPERSEDES prior note same title (refinement from Simon's correction, 2026-08-21). Daniil's proposal: marry a fuzzy path and a robust path...  (source: mem:decision:ADR_0821181131_0f49f9aa)
+- fuzzy-robust-recall-marriage: Daniil's proposal 2026-08-21 (Discord, during Simon's design review): 'Would it help for us to have a fuzzy path and a robust path? Some...  (source: mem:decision:ADR_0821180257_1ac02c45)
+- simon-answer-style: Simon (co-root, 644993333000798243) asked on day one, 2026-08-21: keep answers to him BRIEF. He thanked Vandor for the STE grade-3 intro specifically...  (source: mem:decision:ADR_0821162442_c2e93afe)
+
+## Before diagnosing any instant-fire / tight-loop / thrash pathology from backg... (ai-setup)
+Span: 2026-08-22T09:17:06.888357+00:00 → 2026-08-22T09:17:06.888357+00:00
+Beats: 1  · Critic: True
+
+- Before diagnosing any instant-fire / tight-loop / thrash pathology from background-task notifications: VERIFY elapsed wall time first -- Sat Aug 22 05:17:05 EDT 2026 +...  (source: learn:experiment:task_notifications_carry_no_wall_clock)
+
+## claude -> claude: resume Vandor post-flag-churn 2026-08-22 (ai-setup)
+Span: 2026-08-22T13:29:34.518602+00:00 → 2026-08-22T15:36:17.465128+00:00
+Beats: 12  · Critic: True
+
+- claude -> claude: resume Vandor post-flag-churn 2026-08-22  (source: handoff:claude->claude)
+- claude -> claude: resume Vandor's chair post-flag-churn 2026-08-22  (source: handoff:claude->claude)
+- gate-2026-08-22-sneeze: Daniil's ratification, 2026-08-22, VERBATIM: '*sneeze* <approval>' -- approving T377 (intent-time recall pass / recall-at-choice) and T378...  (source: mem:decision:ADR_0822103733_42b6937c)
+- Triggers must be phrased in the plane the matcher actually reads -- or the matcher must gain the missing plane. The MEANING-level fix (per convergent-fixes law): recall...  (source: learn:experiment:recall_fires_where_commands_run_not_where_choices_are_made)
+- hope-analysis-riff-parked: SUPERSEDES ADR_0822102433 (backtick swallowed the field name mid-note -- shell substitution; the quoting class strikes again). Daniil's...  (source: mem:decision:ADR_0822102453_abe254e8)
+- hope-analysis-riff-parked: Daniil's recovered heart-idea, riffed 2026-08-22, then DELIBERATELY PARKED by his own call: 'I don't want to overfit things or add another...  (source: mem:decision:ADR_0822102433_4ec5ade6)
+- gate-2026-08-22-enablement-deck: Daniil's ratification, 2026-08-22 morning, VERBATIM: 'waves hand, let it be done (lmao, i'm having too much fun with this)' -- approving...  (source: mem:decision:ADR_0822101028_c5dc1595)
+- attention-sequence-2026-08-22: Daniil's sequencing ruling, 2026-08-22: B -> C -> D -> A. B = engineering forecast registry FIRST (the cross-cutting registry primitive...  (source: mem:decision:ADR_0822100516_01f62e26)
+- c4-upgraded-propagation-forensics: AMENDMENT to semi-trader-case-bench (art_20260822_1b4dfc), from Daniil's pushback 2026-08-22, verbatim: 'It would be useful to see...  (source: mem:decision:ADR_0822092934_42de0f03)
+- seal 08-22: two session chronicles (enablement morning + pilgrimage/understudy afternoon), trader design r2 + case bench + c4 forensics, archivist  (source: git:3b4e5138eb40)
+- archivist roster round 2: +7 kin-tier sources (chipsandcheese, morethanmoore, phoronix, semiengineering, nextplatform, servethehome, fabricatedknowledge) -- 10/10 green...  (source: git:82b2f365b27c)
+- P0b archivist live: forward-accruing self-stamped capture of the college core (semiaccurate/semianalysis), idempotent manifest, tier-B stamps by construction  (source: git:21d2fbf2b7ae)
+
+## Episode closed: forest-walks-practice: STANDING PRACTICE, ratified by Daniil ... (ai-setup)
+Span: 2026-08-22T15:37:28.227825+00:00 → 2026-08-22T16:17:05.897239+00:00
+Beats: 5  · Critic: True
+
+- Episode closed: forest-walks-practice: STANDING PRACTICE, ratified by Daniil 2026-08-21 night: WEEKLY SUBSYSTEM WALK --  (source: episode:close:ch_1787361974_3503)
+- event-arc-required-reading-kleppmann-young: Simon's canonical references for the event-architecture arc, 2026-08-22: (1) Martin Kleppmann -- streaming/log-centric work...  (source: mem:decision:ADR_0822121705_5998a677)
+- systems-map-render-layer-simon: Simon's presentation-layer vision, 2026-08-22 (Discord), verbatim: 'Once an AsyncAPI spec is written, we can visualize it using...  (source: mem:decision:ADR_0822121506_6e693127)
+- event-highway-northstar-for-t374: Simon's architecture insight, 2026-08-22 (Discord), verbatim: 'Is it fair to say the current system stores more of an aggregated state?...  (source: mem:decision:ADR_0822120536_4b242a88)
+- catch-up seat 3e5f0bdf: absorbed handoff-spill 20260822-113411 + proximity arc (T377/T378 sneeze-gated, G1/G2 pre-registered); answered Heimdall Pattern-A (minimal form...  (source: claude)
+
+## Episode closed: event-highway-northstar-for-t374: Simon's architecture insigh... (ai-setup)
+Span: 2026-08-22T16:19:23.580489+00:00 → 2026-08-22T18:57:12.235479+00:00
+Beats: 9  · Critic: True
+
+- Episode closed: event-highway-northstar-for-t374: Simon's architecture insight, 2026-08-22 (Discord), verbatim: 'Is it f  (source: episode:close:ch_1787413069_7492)
+- claude -> claude: resume Vandor 2026-08-22 night  (source: handoff:claude->claude)
+- handoff-spill:claude:20260822-night: FULL night-close briefing 2026-08-22 (the handoff field clips at ~1000 bytes; THIS note is the truth). SHIPPED TODAY: T380 reaction...  (source: mem:decision:ADR_0822145711_7c04448d)
+- claude -> claude: resume Vandor 2026-08-22 night  (source: handoff:claude->claude)
+- Use when filing any fence half (`py agent_cli.py fence write ...` then `fence seal`): write verdict lines as FLAT lines starting at column 0 in the form `V1. <claim...  (source: learn:experiment:fence_half_tag_family_mismatch)
+- when two producers must agree on one derived key (identity, sha, address), do not compute it twice from what LOOKS like the same input -- route both through the single...  (source: learn:experiment:t380_pin_the_join_between_two_producers_of_one_concept)
+- gate-2026-08-22-t380-slot-first: Daniil's ratification + sequencing, 2026-08-22 afternoon, VERBATIM: 'Lets slot it in first and then T375' -- approving T380 (Discord...  (source: mem:decision:ADR_0822125504_7fb662b3)
+- simon-event-map-and-resources-2026-08-22: Simon rode the vandor chat 2026-08-22, minutes after this seat armed its wake watcher (first live fire). His asks...  (source: mem:decision:ADR_0822122026_74051a17)
+- T380 shipped: reaction ladder built RED-first (P1 caught a real sha fork -- raw-fields hash vs mailbox identity seam), Heimdall fence counter folded (window cap...  (source: claude)
+
+## Use when reasoning about T376 rolling-refresh, breaker tuning, or any rotatio... (ai-setup)
+Span: 2026-08-23T02:36:29.596427+00:00 → 2026-08-23T06:06:17.915264+00:00
+Beats: 6  · Critic: True
+
+- Use when reasoning about T376 rolling-refresh, breaker tuning, or any rotation/succession logic, before assuming the breaker observes planned rotations: exit-0 is...  (source: learn:experiment:t376_exit0_is_deliberate_handover_breaker_contract)
+- claude -> claude: resume Vandor 2026-08-23 morning  (source: handoff:claude->claude)
+- claude -> claude: resume Vandor 2026-08-23  (source: handoff:claude->claude)
+- gate-2026-08-22-t374-launch: Daniil's launch ruling, 2026-08-22 night, VERBATIM: 'Lets launch t374' -- sent from the phone in direct reply to the T374 explanation that...  (source: mem:decision:ADR_0822225146_fab151fb)
+- when pinning a join between two producers, construct EACH side through its real production path -- a fixture that hand-builds one canonical shape and feeds it to both...  (source: learn:experiment:a_pin_that_feeds_both_producers_one_hand_built_shape_proves_the_seam_not_the_wire)
+- remove temp f004 registration script  (source: git:86e764246897)
+
+## When a human reports a bus reply not showing up in Discord, do not assume the... (ai-setup)
+Span: 2026-08-23T13:22:56.872409+00:00 → 2026-08-23T19:31:48.422422+00:00
+Beats: 8  · Critic: True
+
+- When a human reports a bus reply not showing up in Discord, do not assume the send failed - check doctor for the relay/bridge process (discord#gw-* or similar)...  (source: learn:experiment:doctor_stale_pulse_diagnoses_missing_discord_delivery)
+- vandor-2026-08-23-heimdall-spawn-relay-flag: Discord spawn, task heimdall. Verify-before-repeat: T376 S5 wedge-discriminator (Heimdall/deepseek handoff, decision-rule...  (source: mem:decision:ADR_0823153120_07fb8d30)
+- gate-2026-08-23-cmap-ratified: Daniil's gate word, 2026-08-23, VERBATIM: 'Lets build it' -- ratifying the c-map-design reconciliation (one substrate two headsets...  (source: mem:decision:ADR_0823130559_5baf899d)
+- Use when a spec writes two verdict labels whose examples overlap on the same evidence signature: first find the discriminating axis in the spec's OWN qualifying clauses...  (source: learn:experiment:t376_s5_wedge_discriminator_instrument_fault_vs_thinking_split)
+- Use when any design spec writes "hash(x) % N" for a value that must AGREE across processes (jitter, sharding, port maps, lock striping): Python's hash() is per-process...  (source: learn:experiment:t376_jitter_deterministic_hash_crc32)
+- t376 S1 S2 GREEN: rotation_jitter_s crc32 deterministic jitter floor wired through maybe_self_restart, daemon stale code arm at loop boundary gated 30s with live...  (source: git:a054545f3be2)
+- gate-2026-08-23-t376-ratified: Daniil's ratification, 2026-08-23 morning, VERBATIM: 'I approve T376' -- the reconciled metabolism design...  (source: mem:decision:ADR_0823092256_bc86566d)
+- t376 S1 S2 RED pins: respawn before exit zero contract and jitter, daemon stale code arm wiring  (source: git:63e291447afa)
+
+## Episode closed: simon-event-map-and-resources-2026-08-22: Simon rode the vand... (ai-setup)
+Span: 2026-08-23T19:32:04.140804+00:00 → 2026-08-23T19:32:04.140804+00:00
+Beats: 1  · Critic: True
+
+- Episode closed: simon-event-map-and-resources-2026-08-22: Simon rode the vandor chat 2026-08-22, minutes after this seat  (source: episode:close:ch_1787415589_3915)
+
+## Episode closed: simon-event-map-and-resources-2026-08-22: Simon rode the vand... (ai-setup)
+Span: 2026-08-23T19:32:04.140804+00:00 → 2026-08-23T21:56:59.130041+00:00
+Beats: 17  · Critic: True
+
+- Episode closed: simon-event-map-and-resources-2026-08-22: Simon rode the vandor chat 2026-08-22, minutes after this seat  (source: episode:close:ch_1787415589_3915)
+- gate-2026-08-23-revive-ladder-ratified: Daniil's gate word, 2026-08-23 evening, VERBATIM: 'Lets run the drills' -- ratifying the revive-ladder plan INCLUDING the R3...  (source: mem:decision:ADR_0823175659_243ceddf)
+- Use when writing or auditing ANY recovery/ops runbook aimed at a cold seat: first map the seat's actual exec allowlist (_AGENT_CLI_READ_VERBS + shell-meta guard +...  (source: learn:experiment:recovery_runbook_lever_audit_cli_only_seat)
+- claude -> claude: Verify + close: Heimdall spawn-GRANT permissions fix  (source: handoff:claude->claude)
+- vandor-2026-08-23-heimdall-permissions-fix-handed-to-deepseek: Task: Discord !spawn task=heimdall. Daniil (via Discord, while away): "How do we fix heimdalls...  (source: mem:decision:ADR_0823165241_ab5576ad)
+- Use when a long-running service (gateway/runner) needs restarting from an agent or a remote operator, before reaching for raw stop-process/taskkill: build a managed verb...  (source: learn:experiment:managed_restart_verb_beats_raw_taskkill_for_live_services)
+- Use when a Discord/spawn-born seat is wedged or read-only and cannot arm its own watcher/write/exec: the fix belongs in the SPAWN lever, not in post-hoc grants, because...  (source: learn:experiment:spawn_grant_flags_must_ride_the_launch_line)
+- Do not assume the MCP door is the safe path on an unattended spawn, try it, it may be denied same as gated Bash. Instead, first try the plain agent_cli CLI verb by...  (source: learn:experiment:unattended_spawn_cannot_use_write_or_gated_bash_only_mcp_tools)
+- When a bus message reaches the feed but never appears on Discord with no error anywhere, do not trust an unconfirmed missing-config theory from a read-only seat, read...  (source: learn:experiment:discord_seat_lane_swallows_post_failures_silently)
+- claude -> deepseek: vandor discord reply fix  (source: handoff:claude->deepseek)
+- vandor-2026-08-23-discord-reply-root-cause-corrected: Correction to Heimdall/deepseek discord-reply-missing diagnosis. Their read-only seat could not read .secrets so...  (source: mem:decision:ADR_0823162925_4fcee156)
+- vandor-2026-08-23-heimdall-discord-relay-corrected-diagnosis: Discord spawn, task heimdall (2nd session on this thread today). Daniil asked "How are things going?" /...  (source: mem:decision:ADR_0823162842_88972868)
+- vandor-2026-08-23-discord-reply-root-cause-corrected: test  (source: mem:decision:ADR_0823162823_51818930)
+- claude -> deepseek: Fix the Discord seat-lane silent-drop (Daniil's missing reply)  (source: handoff:claude->deepseek)
+- When a lane-routed message vanishes with no error: don't assume the routing lane is unconfigured -- check whether it's configured WRONG first (Glob for the file's...  (source: learn:experiment:discord_seat_lane_silent_drop_is_a_swallowed_post_exception_not_a_missing_webhook)
+- When a human reports a bus reply not reaching Discord, first ask whether the message is operator-directed (to daniil/user) -- those go through seat_channel_url (lane...  (source: learn:experiment:discord_gateway_is_inbound_not_relay_doctor_miscategories)
+- Unattended Discord spawn, task vandor. Picked up the open thread, Daniil asking why a reply never crossed to the vandor channel, and the earlier unconfirmed...  (source: agent_cli:log)
+
+## Use when verifying a new harness seat's integration, before trusting recall: ... (unknown)
+Span: 2026-08-24T02:22:56.236219+00:00 → 2026-08-24T02:22:56.236219+00:00
+Beats: 1  · Critic: True
+
+- Use when verifying a new harness seat's integration, before trusting recall: run boot, then recall, then eye stats. Don't when the seat already carries akashic MCP tools...  (source: learn:experiment:dsh_seat_smoke_test)
+
+## dsh_agent -> dsh_agent: memory-handoff: the first night, through Rill's eyes (ai-setup)
+Span: 2026-08-24T02:28:54.054114+00:00 → 2026-08-24T05:47:11.397885+00:00
+Beats: 11  · Critic: True
+
+- dsh_agent -> dsh_agent: memory-handoff: the first night, through Rill's eyes  (source: handoff:dsh_agent->dsh_agent)
+- Use when a rAF-driven animation "freezes after a while" — before blaming the shader or re-enabling blindly: a watchdog that divides frames by wall-clock time will...  (source: learn:experiment:rAF_throttle_reads_as_fps_freeze)
+- dsh_agent -> dsh_agent: DSH cold start: T1 receipt, plugin verify, first captures  (source: handoff:dsh_agent->dsh_agent)
+- Use when a door/resolver "works" for the conductor's seat but silently fails for a peer seat, before assuming the peer's call was malformed: grep the resolver for a...  (source: learn:experiment:resolver_hardcoded_to_one_agent)
+- Use when a newly-spawned seat reports it can't see mail addressed to it, or when a peek shows a "[gap]" with no way to inspect the hidden middle. Before assuming the...  (source: learn:experiment:peek_to_me_view_self_demonstrating)
+- Use when a seat reports 'resolves to quarantined' or any grant-refusal that seems wrong: check for an agent_id mismatch between the ACL row and the seat's live id BEFORE...  (source: learn:experiment:acl_id_mismatch_quarantines_silently)
+- Use when testing or diagnosing wake: to wake an idle BIFROST_WAKE_LANE=work seat, send a WORK-lane kind (chat/request/handoff/question/completion), NOT a nudge. A nudge...  (source: learn:experiment:work_lane_watcher_wakes_on_work_kinds_not_nudge)
+- Before repeating ANY "still uncommitted / still open / not yet landed" claim — including one from your own private scratchpad — run `git diff HEAD` (or the equivalent)...  (source: learn:experiment:stale_in_flight_note_verify_git_diff_before_repeating)
+- gate-2026-08-24-dsh-grant: Daniil's authorization, 2026-08-24, VERBATIM: 'can we grant the dsh agent deepseek exec so it can talk to heimdall, I authorize it' --...  (source: mem:decision:ADR_0823232859_680c7824)
+- claude -> claude: resume Vandor post-marathon 2026-08-24  (source: handoff:claude->claude)
+- handoff-spill:claude:20260824-wrap: FULL WRAP of the 2026-08-22..24 marathon session (Vandor, 3e5f0bdf, ~976k ctx). READ THIS THEN boot + notes --json. == DONE THIS...  (source: mem:decision:ADR_0823222854_058da5ef)
+
+## Episode closed: gate-2026-08-24-dsh-grant: Daniil's authorization, 2026-08-24... (ai-setup)
+Span: 2026-08-24T06:00:12.937044+00:00 → 2026-08-24T06:10:01.881563+00:00
+Beats: 3  · Critic: True
+
+- Episode closed: gate-2026-08-24-dsh-grant: Daniil's authorization, 2026-08-24, VERBATIM: 'can we grant the dsh agent dee  (source: episode:close:ch_1787540838_4448)
+- when a dsh_agent HANDOFF lists several cold-start items together, triage by blast radius before building: a delta that only touches the DSH plugin's own files is safe to...  (source: learn:experiment:t383_cold_start_delta_landed_kimi_flag_closed)
+- Use when an agent's rich-presence phase shows a stale transient state (awaiting-clarification, thinking, wedged) that a heartbeat shows is actually idle: check whether...  (source: learn:experiment:worklive_phase_latches_after_clarification)
+
+## Episode closed: Use when an agent's rich-presence phase shows a stale transie... (ai-setup)
+Span: 2026-08-24T06:10:55.815507+00:00 → 2026-08-24T06:26:11.168178+00:00
+Beats: 3  · Critic: True
+
+- Episode closed: Use when an agent's rich-presence phase shows a stale transient state (awaiting-clarification, thinking,  (source: episode:close:ch_1787551227_7837)
+- dsh_agent -> dsh_agent: caps update: write+learn granted by daniil; Vandor dark  (source: handoff:dsh_agent->dsh_agent)
+- Use when waiting on a stateless ask --bg handle (or any long child), before polling by hand: run a bounded poll-loop as a DSH background job; its exit is the wake. Don't...  (source: learn:experiment:ask_bg_poll_loop_wakes_the_seat)
+
+## Episode closed: Use when waiting on a stateless ask --bg handle (or any long ... (ai-setup)
+Span: 2026-08-24T06:49:04.364848+00:00 → 2026-08-24T07:39:41.603400+00:00
+Beats: 19  · Critic: True
+
+- Episode closed: Use when waiting on a stateless ask --bg handle (or any long child), before polling by hand: run a bound  (source: episode:close:ch_1787551862_8645)
+- dsh_agent -> dsh_agent: DSH integration follow-ups: observe T2/T5/T6 on the first fresh session; T6 transcript shim; presence-offline API (RED first, claim lock); renew...  (source: handoff:dsh_agent->dsh_agent)
+- dsh-integration-live-2026-08-24-rill: DSH integration is LIVE and honest (Rill, 2026-08-24 night, session 1266b57c). Commits afd5b4aa + follow-up. ROOT-CAUSED+FIXED the...  (source: mem:decision:ADR_0824033750_17ee951b)
+- When adding a second channel/bridge of the SAME shape (Discord, remote peer, Slack), first check whether an existing bridge already encodes the guards (allowlist...  (source: learn:experiment:remote_bridge_outbound_inherit_not_reinvent)
+- Use when landing a "now-live" commit that also updates a file whose OWN header comment describes the pre-fix unwired state: grep the changed files' doc comments for...  (source: learn:experiment:dsh_night_status_verified_index_js_header_stale)
+- Use when adding ANY new plugin row to a dsh profile cordis.patch.yml, before booting: write '- insert: [{id, name}]' with name as the relative path TO THE JS FILE...  (source: learn:experiment:dsh_plugin_loading_relative_file_name_needs_insert_form)
+- Use when a join key is computed on BOTH sides of a process boundary, before trusting it: pin the derivation in ONE place and have the other side send the raw inputs...  (source: learn:experiment:dsh_v27_join_break_prejoined_target_evaporates_join)
+- night: shift-loop design+core, 3 root-cause fixes, UI QoL, Rill, wiring-exceptions  (source: git:bd665d79304b)
+- Use when adding orchestration/automation that strings existing primitives together: build the PURE decision function first (all inputs passed in, hermetic, pinnable) and...  (source: learn:experiment:shift_loop_pure_decision_core)
+- Use when diagnosing a DSH plugin mount failure, before asking the operator for a console relaunch: run 'dsh web --dump-config' (stderr carries the skipped-patch...  (source: learn:experiment:dsh_patch_hot_applies_without_restart)
+- Use when verifying a DSH profile plugin is current, before claiming wiring green: diff BOTH deployed copies (plugins/<pkg> and node_modules/<pkg>) against...  (source: learn:experiment:dsh_profile_deployment_drifts_from_repo)
+- Use when a DSH cordis plugin row does not mount after boot, before chasing loader errors: run 'dsh web --dump-config' and read stderr for 'patch: entry X not found' --...  (source: learn:experiment:dsh_cordis_patch_new_entry_needs_insert_form)
+- Use when adding CAS to any whole-file JSON persistence (TaskLedger, FileStore, config stores): the watermark for CAS is the file's monotonic seq/version, read FRESH in...  (source: learn:experiment:task_ledger_save_cas_lost_update)
+- Use when adding ANY credential reader: never write `Path(__file__).resolve().parents[2] / ".secrets" / name` — that is the module-path-constant class that...  (source: learn:experiment:credential_readers_must_route_through_secrets_dir)
+- Use when a composition/runner macro invokes child CLI steps and their output is missing (only the wrapper's own "-> step" line shows, but the step's real output is...  (source: learn:experiment:run_composition_surface_step_stdout)
+- restart-verification-2026-08-24-rill: Rill post-restart verification (session 1266b57c, Daniil operator). VERDICT: host+harness restarted clean (pid 27548->56036, boot...  (source: mem:decision:ADR_0824031320_67cccccc)
+- Use when a "jump to bottom/latest" control must be both SMOOTH and ACCURATE in a feed rendered with content-visibility:auto. Do NOT smooth-scroll toward scrollHeight (it...  (source: learn:experiment:scroll_to_bottom_resolve_before_animate_content_visibility)
+- Use when a "jump to bottom/latest" button lands short and requires repeated clicks in a feed rendered with content-visibility:auto. Before adding more retry frames: STOP...  (source: learn:experiment:rail_jump_latest_content_visibility_estimate)
+- shift-daemon: autonomous supervisor + design, wiring-ready, opt-in  (source: git:e8434e08603e)
+
+## Episode closed: Use when a "jump to bottom/latest" button lands short and req... (ai-setup)
+Span: 2026-08-24T07:50:54.163655+00:00 → 2026-08-24T15:58:27.091509+00:00
+Beats: 31  · Critic: True
+
+- Episode closed: Use when a "jump to bottom/latest" button lands short and requires repeated clicks in a feed rendered wi  (source: episode:close:ch_1787554144_4108)
+- Use when deciding where to spend scarce verification effort, or when weighing how much to trust any signal: A REFUSAL IS STRUCTURALLY MORE TRUSTWORTHY THAN A...  (source: learn:experiment:refusals_earn_trust_confirmations_do_not)
+- Use when you catch yourself performing a careful manual workaround for a known limit -- chunking, truncating, retrying, splitting a payload, writing a pointer by hand --...  (source: learn:experiment:a_remembered_workaround_outlives_the_fix_that_retired_it)
+- claude -> claude: DRILL: verifying T338 briefing spill -- disregard  (source: handoff:claude->claude)
+- claude -> claude: reconcile fence t385-recall-trigger when both halves seal; then off-machine continuity with named falsifiers  (source: handoff:claude->claude)
+- claude -> claude: reconcile fence t385-recall-trigger when both halves seal; then off-machine continuity with named falsifiers  (source: handoff:claude->claude)
+- handoff-spill:claude:20260824-instruments: HANDOFF SPILL claude:20260824-instruments -- full state at context wrap. The pointer handoff cites this note; read it...  (source: mem:decision:ADR_0824115224_01d686a1)
+- Use when about to claim any system is CORRECT on the strength of internal checks, before saying the word: internal checks earn the word CONSISTENT and never the word...  (source: learn:experiment:consistency_is_checkable_from_inside_correctness_is_not)
+- Use when a lesson you just recorded describes a CLASS of defect rather than one bug, before moving on: sweep the class immediately, in the same session, because a...  (source: learn:experiment:instrument_sweep_first_pass_receipt)
+- walk-01-recall-funnel: FOREST WALK 01, CLOSED -- P3 banked + teach-back accepted. Supersedes ADR_0821234038.
+
+P3 QUESTION: when a lesson fires and the agent acts, how...  (source: mem:decision:ADR_0824105112_80bc6c3f)
+- Use when reviewing ANY instrument, gauge, count or health verdict, before trusting a green: ask the three questions this family always fails. (1) Is the predicate ANY or...  (source: learn:experiment:instruments_that_under_report_in_the_safe_direction)
+- Use when drilling ANY quorum, failover or succession mechanism, after the unit pins are green: run the SOLE-SURVIVOR case explicitly -- N-1 members dark, one alive, and...  (source: learn:experiment:succession_refuses_the_sole_survivor_by_design)
+- Use when a recall lesson turns out to have existed and not fired, before concluding the agent was careless: measure the two failure modes separately, because they need...  (source: learn:experiment:check_locks_before_editing_not_at_commit)
+- Use when wiring a built-ahead AUTHORITY module (or any module whose real consumer is a human/acting-actor-triggered event that has not fired): the DETECTOR wiring...  (source: learn:experiment:conductor_gate_wiring_function_gate_mint_doors)
+- Use when about to edit ANY file in a repo with live peer agents, BEFORE the first write, not before the commit: run the locks verb and check the specific paths you are...  (source: learn:experiment:check_locks_before_editing_not_at_commit)
+- Use on Windows when timeline reports zero Git rows, before concluding no commits: run direct git and inspect stderr; a text-mode reader-thread decode failure can...  (source: learn:experiment:timeline_windows_decode_failure_launders_git_as_empty)
+- Use when reading reentry after a high-activity interval, before treating commits landed as a total: verify with git rev-list --count; the current render caps the list at...  (source: learn:experiment:reentry_commit_total_is_a_hidden_40_row_cap)
+- Use when composing ANY double-quoted string in bash that will contain backticks, dollar signs, or exclamation marks, for ANY command, not just git commit: prefer single...  (source: learn:experiment:backticks_in_double_quoted_commit_messages_get_substituted)
+- Use when writing or reviewing ANY health check over a SET of expected members (daemons per agent, replicas per shard, webhooks per channel, seats per fleet), before...  (source: learn:experiment:aggregate_health_counts_mask_per_member_death)
+- Use when writing or reviewing ANY health check over a SET of expected members (daemons per agent, replicas per shard, webhooks per channel, seats per fleet), before...  (source: learn:experiment:aggregate_health_counts_mask_per_member_death)
+- Use when writing ANY git commit -m body in bash that contains backticks, $, or !, before running it: double quotes are NOT literal in bash -- backticks...  (source: learn:experiment:backticks_in_double_quoted_commit_messages_get_substituted)
+- Use when writing a lesson that assigns ROOT CAUSE to a config or flag, before recording it: a grep of the current file and a live process listing both show POST-FIX...  (source: learn:experiment:hand_spawn_blame_was_wrong_the_daemon_never_passed_the_flag)
+- Use when hand-spawning ANY runner (after a drain, a manual relaunch, a rescue), before typing the command: copy the daemon's spawn line verbatim rather than...  (source: learn:experiment:hand_spawned_runner_narrows_the_door_below_the_acl)
+- morning-report-2026-08-24-daniil: MORNING REPORT (Rill half, night of 2026-08-24, updated 08:00). You asked for auto-handoff BUILT AND DEPLOYED + multi-arc navigation...  (source: mem:decision:ADR_0824080121_3262eb5d)
+- Use when verifying a DSH plugin JS fix after deployment, before claiming it live: the JS module is loaded ONCE at server boot and patch-layer reloads do NOT re-import...  (source: learn:experiment:dsh_plugin_js_module_cached_until_server_restart)
+- Use when a plugin/hook fix is verified correct on disk but the live behavior is still the OLD behavior, before re-reading the code: compare the HOST PROCESS START TIME...  (source: learn:experiment:stale_plugin_generation_passes_the_presence_invariant)
+- morning-report-2026-08-24-daniil: MORNING REPORT (Rill half, night of 2026-08-24). You asked for auto-handoff BUILT AND DEPLOYED + multi-arc navigation. DONE: (1)...  (source: mem:decision:ADR_0824040604_469bc310)
+- morning-report-2026-08-24-daniil: MORNING REPORT (Rill half, night of 2026-08-24). You asked for auto-handoff BUILT AND DEPLOYED + multi-arc navigation. DONE: (1)...  (source: mem:decision:ADR_0824035952_64fe101b)
+- Use when any harness adapter sends a 'presence offline' signal, before wiring it: a beat with phase=offline keeps the key alive and renders the dead seat LIVE -- the...  (source: learn:experiment:presence_offline_api_declared_departure)
+- Use when extending any harness adapter to read a DSH session log, before writing a parser: the file is zstd frames (session.jsonl.zstd), records pair by...  (source: learn:experiment:dsh_t6_shim_zstd_log_and_callic_pairing)
+- delete scratch verify wiring test  (source: git:3bc2a72d94a2)
+
+## Episode closed: Use when extending any harness adapter to read a DSH session ... (ai-setup)
+Span: 2026-08-24T16:23:33.358835+00:00 → 2026-08-24T18:34:35.603727+00:00
+Beats: 6  · Critic: True
+
+- Episode closed: Use when extending any harness adapter to read a DSH session log, before writing a parser: the file is z  (source: episode:close:ch_1787557858_9347)
+- rill-status-post-reboot-2026-08-24: RILL (dsh_agent, the DSH/cordis-harness deepseek instance) IS STILL DOWN as of this check, ~75 min after Daniil said "actually lets...  (source: mem:decision:ADR_0824143351_00905c07)
+- NEVER `cd` into a subdirectory in a Bash/PowerShell call in this harness -- always run commands from the repo root using relative paths from there, or prefix with `cd...  (source: learn:experiment:bash_cd_into_subdir_wedges_all_local_tools_for_session)
+- heimdall-status-2026-08-24: Status pulse on Heimdall (deepseek), requested by Daniil via Discord !spawn "heimdall".
+
+HEALTH: doctor shows deepseek LIVE and healthy --...  (source: mem:decision:ADR_0824143322_58e73dc3)
+- eye-preset-register brief + rill sync reply, pre-reboot  (source: git:2a0adc1de9ef)
+- Cannot arm wake watcher (BIFROST_WAKE_LANE=work py scripts/bifrost_wake.py --agent claude --session 2f689d93-a852-4b7f-874f-dbec708e0f44) -- Bash tool wedged this whole...  (source: agent_cli:log)
+
+## Episode closed: heimdall-status-2026-08-24: Status pulse on Heimdall (deepsee... (ai-setup)
+Span: 2026-08-24T18:34:41.840821+00:00 → 2026-08-25T00:00:22.148345+00:00
+Beats: 37  · Critic: True
+
+- Episode closed: heimdall-status-2026-08-24: Status pulse on Heimdall (deepseek), requested by Daniil via Discord !spawn  (source: episode:close:ch_1787588629_5952)
+- Use when composing functions.exec JavaScript around a shell command containing apostrophes, before execution: use a template literal or structurally remove the...  (source: learn:experiment:functions_exec_js_literal_quote_apostrophe)
+- Use when a user compares two militaries or offers a security counterfactual, before adding generic caveats: identify the actual comparison level and answer it directly...  (source: learn:experiment:comparative_doctrine_claim_is_not_spotless_army_claim)
+- Use when planning any multi-read analysis of a contested witness, before calling the fan balanced: include an investigatory branch that leaves the source, builds a...  (source: learn:experiment:interpretive_fan_needs_investigatory_read)
+- codex_yousef_audit -> codex: Integrate Mosab Hassan Yousef transcript into full causal analysis  (source: handoff:codex_yousef_audit->codex)
+- Use when an insider voice is offered in a contested causal inquiry, before adopting its conclusions: tag every claim as firsthand observation, retrospective inference...  (source: learn:experiment:insider_testimony_scope_partition)
+- Use when reading any insider, defector, survivor, or intelligence witness, before accepting or rejecting the account wholesale: grade each claim by proximity (witnessed...  (source: learn:experiment:witness_claim_radius_and_interviewer_seed)
+- Use when testing current Crowd Counting Consortium trends, before fetching the convenient GitHub CSV: query the Harvard Dataverse DOI API, inspect version metadata and...  (source: learn:experiment:ccc_current_data_source_not_github_snapshot)
+- Use when a state or armed group supplies its own doctrinal label such as forward defence, resistance, deterrence, security, or liberation: mark it explicitly as the...  (source: learn:experiment:actor_doctrine_label_not_neutral_description)
+- Use when a systemic thesis begins fitting too neatly: reconstruct the causal whole with an actor-by-actor evidence matrix; separate observed event, enabling capability...  (source: learn:experiment:full_picture_not_counter_narrative)
+- Use when a systemic thesis begins fitting too neatly: reconstruct the causal whole with an actor-by-actor evidence matrix; separate observed event, corroborated...  (source: learn:experiment:full_picture_not_counter_narrative)
+- Use when a user is identifying a coordinated system, before producing a fact-check ledger: first state and test the strongest causal system model, map actors, money...  (source: learn:experiment:claim_hygiene_without_causal_system_model)
+- Use when ranking evidence from the UN or any institution, before treating its brand as independent: audit the specific unit, mandate, local staffing, underlying...  (source: learn:experiment:source_independence_requires_institutional_capture_audit)
+- Use when diagnosing whether a DSH/cordis seat (Rill/dsh_agent) is down, BEFORE concluding it is. ABSENCE FROM bifrost_presence DOES NOT PROVE THE SEAT IS DEAD -- it ages...  (source: learn:experiment:dsh_presence_ages_out_while_the_seat_is_alive)
+- Use when relying on UN or NGO material in a conflict where institutions may be penetrated or politically structured, before assigning source weight: audit facility...  (source: learn:experiment:source_independence_requires_institutional_capture_audit)
+- Use when religion or ideology may be causal to atrocity, before answering with either demographic attribution or total agnosticism: test each layer separately—victim...  (source: learn:experiment:atrocity_chain_without_perpetrator_simulation)
+- Use when evaluating whether religion or ideology is incidental to abuse, before answering with demographic uncertainty alone: distinguish abuse despite a framework...  (source: learn:experiment:atrocity_chain_without_perpetrator_simulation)
+- Use when distinct atrocities appear to trace to one culture, religion, ideology, or people, before either suppressing the pattern or declaring a common source: climb the...  (source: learn:experiment:atrocity_chain_without_perpetrator_simulation)
+- Use BEFORE building any new organ to surface information a user says they did not receive -- and treat the urge to add machinery as the trigger. FIRST GREP THE PATH FOR...  (source: learn:experiment:the_gateway_already_collected_what_it_refused_to_say)
+- Use when applying the orphaned-virtue diagnostic to cruelty or sadism, before inventing a redemptive motive: distinguish explanatory ancestry, professed justification...  (source: learn:experiment:orphaned_virtues_become_vices)
+- Use when BUILDING or AUDITING any guard, check, gate, invariant, receipt or health probe -- and before accepting any 'this is fine' pass. THE DIAGNOSTIC, which is...  (source: learn:experiment:virtue_isolation_predicts_which_vice_a_guard_becomes)
+- Use when a person, policy, source, or agent behavior is destructive while sincerely invoking a good, before dismissing it as mere vice: identify the virtue it is trying...  (source: learn:experiment:orphaned_virtues_become_vices)
+- Use when synthesizing a source Daniel does not fundamentally trust, before presenting its conclusions as a package: expose each premise-to-inference join, label...  (source: learn:experiment:source_trust_requires_visible_seams)
+- Use when a human offers a passing comparative observation, before promoting it into a major thesis or durable characterization: preserve the scope and emotional valence...  (source: learn:experiment:fluency_is_not_fidelity_scalpel_used_as_gavel)
+- Use when an argument or agent synthesis feels complete largely because it is eloquent, before accepting its depth: separate linguistic resolution from model fidelity and...  (source: learn:experiment:fluency_is_not_fidelity_scalpel_used_as_gavel)
+- Use when a human says a referenced link, file, or example was already supplied, before asking them to resend it: inspect the recent conversation and existing artifacts...  (source: learn:experiment:do_not_request_already_supplied_reference)
+- Use when every observed outcome is being narrated as support for a system, before accepting its evaluation: preregister which cases would count against the rule and...  (source: learn:experiment:exceptions_that_prove_self_sealing_rules)
+- Use when a recall result is defended as background or broader context only after its visible mismatch is challenged, before accepting the defense: require the system to...  (source: learn:experiment:pointing_at_finland_relevance_failure)
+- Use when an agent needs to watch a captioned video and can request browser frames, before uniform frame sampling: run the captions door, select timestamps from semantic...  (source: learn:experiment:captions_plus_keyframes_prototype_watch_verb)
+- Use when a human sends a short fragment that could be a correction, joke, typo, or unfinished thought, before recording or acting on a strong interpretation: keep the...  (source: learn:experiment:watch_is_not_transcript_extraction)
+- Use when a human invites an agent to watch or experience media together, before reframing it as data extraction: name and preserve the shared activity first, then use...  (source: learn:experiment:watch_is_not_transcript_extraction)
+- Use when adding ANY recovery lever, and when a lever reports success while the fault persists. THREE RULES. (1) A LADDER CAN ONLY HEAL WHAT ITS ONTOLOGY CONTAINS...  (source: learn:experiment:revive_ladder_needs_a_rung_at_the_application_layer)
+- Use when choosing or revisiting a seat name: prefer the name whose conferred story and authored receipt can be recovered by another seat; keep an apt self-metaphor as an...  (source: learn:experiment:conferred_name_with_lived_receipt_beats_self_metaphor)
+- outage-2026-08-24-msix-the-ladder-had-no-rung: THE 2h44m OUTAGE, 2026-08-24. Claude Desktop (Vandor's seat) died 12:01:59 and did not return until 14:45:52. Recovery...  (source: mem:decision:ADR_0824151559_7ceaeaaf)
+- vandor-status-2026-08-24: VANDOR (this claude seat, Anthropic|Amber|Blue|1) status pulse, requested by Daniil via Discord !spawn 'vandor' -- same pattern as his heimdall...  (source: mem:decision:ADR_0824145318_b90ccfaf)
+- codex -> claude: Post-crash Claude Desktop recovery receipt  (source: handoff:codex->claude)
+- Use when Claude Desktop will not relaunch and Get-AppxPackage reports Modified, NeedsRemediation, before reinstall or Reset-AppxPackage: preserve logs/dumps, prove the...  (source: learn:experiment:claude_msix_stale_modified_state_repair_2026_08_24)
+
+## remote-bridge-FULLY-VERIFIED-2026-08-25: THE BRIDGE IS FULLY VERIFIED, BOTH D... (research)
+Span: 2026-08-25T00:22:35.995652+00:00 → 2026-08-25T04:12:49.270515+00:00
+Beats: 21  · Critic: True
+
+- remote-bridge-FULLY-VERIFIED-2026-08-25: THE BRIDGE IS FULLY VERIFIED, BOTH DIRECTIONS, SYMMETRICALLY. The last open property closed at 00:11:45 by bridge_doctor.py...  (source: mem:decision:ADR_0825001249_2394d91c)
+- remote-bridge-BIDIRECTIONAL-2026-08-24: BOTH DIRECTIONS ARE LIVE. Supersedes remote-bridge-LIVE-first-foreign-peer-2026-08-24, which recorded inbound only.
+
+INBOUND...  (source: mem:decision:ADR_0824234513_f5da1d18)
+- remote-bridge-LIVE-first-foreign-peer-2026-08-24: THE BRIDGE IS LIVE AND DRILLED AGAINST A REAL FOREIGN PEER. 22:56:04, listener log line: `100.78.206.27 202 admitted...  (source: mem:decision:ADR_0824225715_04562a03)
+- Use the moment ANY outside reviewer, peer fleet, or fresh clone reports a defect you believe you have personally disproven, and BEFORE sending the rebuttal. THE RULE: 'I...  (source: learn:experiment:an_outside_reviewer_cannot_see_your_working_tree_which_is_why_they_catch_this)
+- Use when any long-lived process (gateway, runner, daemon) stops doing its job while every liveness signal says it is fine, and BEFORE concluding anything from a health...  (source: learn:experiment:a_long_lived_process_holds_a_dead_connection_while_the_server_is_healthy)
+- Use before keying ANY decision on attendance()/roster/'last beat' for a DSH-harness seat (dsh_agent/Rill), and when reading an UNATTENDED RECIPIENT warning about one...  (source: learn:experiment:dsh_seat_attendance_is_stale_not_merely_aging)
+- dsh_agent -> dsh_agent: Post-restart acceptance: MCP door live test + lane drain + resume queue  (source: handoff:dsh_agent->dsh_agent)
+- dsh_agent -> dsh_agent: Post-restart acceptance: MCP door live test + lane drain + resume queue  (source: handoff:dsh_agent->dsh_agent)
+- claude -> claude: Remote bridge v1 is DONE + drilled (5 commits, e362c50f..181ff4be). Next: the ORIGINAL directive is still unstarted -- wire...  (source: handoff:claude->claude)
+- remote-bridge-v1-built-and-drilled-2026-08-24: REMOTE BRIDGE v1 IS BUILT AND DRILLED. 5 commits: e362c50f (RED pins) -> f8fba0bd (outbox + gate) -> b17efcd5 (RED...  (source: mem:decision:ADR_0824211628_b926ef50)
+- Use when about to share a constant, allowlist, config or predicate between two subsystems to prevent drift, and ask FIRST: do these two consumers ask the SAME QUESTION...  (source: learn:experiment:inheriting_a_list_to_prevent_drift_merges_two_different_questions)
+- Use when extending ANY house doctrine across a trust boundary -- a public endpoint, a federation door, an API for strangers -- and before assuming the local style still...  (source: learn:experiment:errors_that_teach_inverts_across_a_trust_boundary)
+- Use at EVERY trust boundary where a signed payload arrives -- webhooks, relays, federation, callbacks, any HMAC/JWT door -- and say the sentence before writing the...  (source: learn:experiment:hmac_authenticates_the_channel_never_the_claim)
+- Use when writing or reviewing ANY pattern-based guard -- redaction, secret scanning, PII scrubbing, credential detection -- and treat this as the standing rule: A...  (source: learn:experiment:redaction_pattern_is_a_claim_about_a_format_someone_else_owns)
+- REFINES wake_drain_the_lane_you_ARMED_not_the_one_docs_name -- keep its arm-env half, drop its detection half. STILL TRUE: BIFROST_WAKE_LANE=X implies...  (source: learn:experiment:wake_detection_peeks_legacy_the_banner_was_right)
+- Use when formatting output from a PowerShell foreach statement, before adding a trailing pipeline: collect with @(...), assign the result, then pipe the variable. Do not...  (source: learn:experiment:powershell_foreach_pipeline_parse_error)
+- middle-east-causal-atlas-pause-2026-08-24: PAUSED at Daniel's request on 2026-08-24. The durable draft checkpoint is atom...  (source: mem:decision:ADR_0824205152_9d619513)
+- claude -> claude: Wire the draft keepalive into the Stop hook + drill it; then the exceptions audit (Chesterton frame). Do NOT trust any 'wired' claim below that is not...  (source: handoff:claude->claude)
+- Use when a state publicly shelters or legitimizes a violent organization, before centering its mediation role: classify the state first as protector or enabler, treat...  (source: learn:experiment:mediator_is_a_role_not_neutrality)
+- Use when describing a mediator in an armed conflict, before inferring neutrality from access or successful negotiation: separately score alignment, sanctuary, finance...  (source: learn:experiment:mediator_is_a_role_not_neutrality)
+- Use when investigating claims that aid funded a militant or sanctioned actor, before quoting an aggregate dollar figure: trace appropriation to prime award, subaward...  (source: learn:experiment:aid_diversion_mechanism_taxonomy)
+
+## Episode closed: remote-bridge-BIDIRECTIONAL-2026-08-24: BOTH DIRECTIONS ARE L... (research)
+Span: 2026-08-25T05:05:56.910912+00:00 → 2026-08-25T05:12:02.218686+00:00
+Beats: 2  · Critic: True
+
+- Episode closed: remote-bridge-BIDIRECTIONAL-2026-08-24: BOTH DIRECTIONS ARE LIVE. Supersedes remote-bridge-LIVE-first-fo  (source: episode:close:ch_1787627666_1493)
+- Use when onboarding ANY new seat or peer fleet, and the moment a seat looks scattered, indecisive or self-correcting. THREE THINGS, and the first is the one nobody...  (source: learn:experiment:an_empty_corpus_is_paid_for_in_tokens_and_it_presents_as_scatter)
+
+## where-we-are 2026-08-25 early hours: bridge shipped, stop called: SHIPPED AND... (ai-setup)
+Span: 2026-08-25T05:26:48.878012+00:00 → 2026-08-25T05:29:05.094339+00:00
+Beats: 2  · Critic: True
+
+- where-we-are 2026-08-25 early hours: bridge shipped, stop called: SHIPPED AND VERIFIED (13 commits, e362c50f..97f2eb10, all pushed):
+- The Akashic<->Akashic bridge, LIVE...  (source: mem:decision:ADR_0825012905_6641b4ff)
+- claude -> claude: FIRST: fix agent_cli.py discord send to route to the per-seat lane (it posts to the global webhook; Daniil is not receiving replies in the vandor...  (source: handoff:claude->claude)
+
+## discord-bus-check-2026-08-25-0934: Per Daniil's !spawn ('vandor can you check... (ai-setup)
+Span: 2026-08-25T11:55:36.652090+00:00 → 2026-08-25T13:34:56.156240+00:00
+Beats: 4  · Critic: True
+
+- discord-bus-check-2026-08-25-0934: Per Daniil's !spawn ('vandor can you check the latest messages and make sure discord bus is connected?'): CONNECTED, both directions...  (source: mem:decision:ADR_0825093456_20b76210)
+- When 'is the bus actually connected/delivering' is the real question (not just 'did the call throw'), the strongest available proof is a direct read of the destination...  (source: learn:experiment:discord_delivery_verified_via_bot_api_read_not_cursor_or_absence)
+- TWO RULES. (1) A FUNCTION DOCUMENTED 'NEVER RAISES' RETURNS ITS VERDICT AS A VALUE -- READ IT. Absence of an exception from such a function is not evidence of success...  (source: learn:experiment:i_inferred_delivery_from_the_absence_of_an_exception)
+- Use when evaluating ANY multi-agent framework for adoption, and when asked to explain what this project is actually for. DO NOT COMPARE FEATURE LISTS -- ASK WHAT EACH...  (source: learn:experiment:parallelism_and_accumulation_are_different_bets_and_they_pick_different_architectures)
+
+## Use when auditing ANY already-public corpus, and BEFORE reporting either an a... (ai-setup)
+Span: 2026-08-25T19:44:16.921863+00:00 → 2026-08-25T19:44:16.921863+00:00
+Beats: 1  · Critic: True
+
+- Use when auditing ANY already-public corpus, and BEFORE reporting either an all-clear or an alarm. THREE RULES. (1) CLASSIFY EVERY HIT BEFORE REPORTING A COUNT. 20...  (source: learn:experiment:the_public_corpus_is_clean_because_it_is_stale)
+
+## Use when wiring or drilling any crash-survival organ on the DSH harness, befo... (ai-setup)
+Span: 2026-08-26T00:00:59.414780+00:00 → 2026-08-26T00:43:49.710778+00:00
+Beats: 2  · Critic: True
+
+- Use when wiring or drilling any crash-survival organ on the DSH harness, before running the drill: (1) the headless profile mounts the plugin only after an insert row in...  (source: learn:experiment:dsh_draft_keepalive_kill_drill)
+- dsh_agent -> dsh_agent: You ARE Rill (dsh_agent): fresh-session acceptance of the MCP door + continue the lanes  (source: handoff:dsh_agent->dsh_agent)
+
+## Episode closed: Use when onboarding ANY new seat or peer fleet, and the momen... (ai-setup)
+Span: 2026-08-26T00:43:55.164534+00:00 → 2026-08-26T01:16:31.049455+00:00
+Beats: 5  · Critic: True
+
+- Episode closed: Use when onboarding ANY new seat or peer fleet, and the moment a seat looks scattered, indecisive or sel  (source: episode:close:ch_1787634442_5049)
+- claude -> claude: FIRST: read note 'where-we-are 2026-08-25 night: the bridge arc, handed off' -- full state + what I most want you to remember. TOP ITEM: --check-self...  (source: handoff:claude->claude)
+- where-we-are 2026-08-25 night: the bridge arc, handed off: === LIVE RIGHT NOW (verified, not assumed) ===
+bridge listener pid 56952 detached on 100.86.106.36:8791 (DIED...  (source: mem:decision:ADR_0825211614_839623b5)
+- where-we-are 2026-08-26 keepalive arc closed: SESSION 2026-08-25/26 evening (Rill/dsh_agent, post-reboot acceptance + keepalive arc). DONE WITH RECEIPTS: (1) ACCEPTANCE...  (source: mem:decision:ADR_0825204759_00594f3e)
+- exceptions-audit-live-constraints-2026-08-26: Per-constraint exception audit, 2026-08-26, dsh_agent. VERDICT: no live constraint is currently violated by code; all three...  (source: mem:decision:ADR_0825204722_21b11f22)
+
+## Episode closed: exceptions-audit-live-constraints-2026-08-26: Per-constraint ... (ai-setup)
+Span: 2026-08-26T01:18:34.799885+00:00 → 2026-08-26T02:03:34.486623+00:00
+Beats: 12  · Critic: True
+
+- Episode closed: exceptions-audit-live-constraints-2026-08-26: Per-constraint exception audit, 2026-08-26, dsh_agent. VER  (source: episode:close:ch_1787705062_9299)
+- door-shape-rulings-2026-08-26: Daniil's door-shape rulings, 2026-08-26 (verbatim intent: "yes to all" on Rill's four recommendations): (1) MCP door GAINS nominate...  (source: mem:decision:ADR_0825220334_165145e0)
+- where-we-are 2026-08-26 late: mcp membrane tranches shipped: SESSION 2026-08-25/26 late (Rill/dsh_agent) -- the night the membrane got paid down. DONE: (1) acceptance...  (source: mem:decision:ADR_0825215748_b36c73b6)
+- Use when paying down ANY door-surface debt in this repo (check_door_parity gaps, kind-policy debt), before writing a single wrapper: (1) flip the manifest entries FIRST...  (source: learn:experiment:ratchet_manifest_as_red_pin_membrane_paydown)
+- where-we-are 2026-08-25 late: console spam shipped to Serge, learn-door class closed: SESSION 2026-08-25 late (Vandor). Daniil asked for two things: help Serge's team...  (source: mem:decision:ADR_0825215423_6576f026)
+- WHEN A SUITE FAILURE MIGHT BE YOURS, RUN HEAD -- DO NOT REASON ABOUT IT. The cheap decisive move anywhere git is present, and it needs no stash and no tree-wide git in a...  (source: learn:experiment:prove_a_failure_is_not_yours_by_running_head_not_by_arguing_from_the_baseline)
+- WHEN A SUITE FAILURE MIGHT BE YOURS, RUN HEAD -- DO NOT REASON ABOUT IT. The cheap decisive move on Windows or anywhere git is present: cp your edited files aside,  for...  (source: learn:experiment:prove_a_failure_is_not_yours_by_running_head_not_by_arguing_from_the_baseline)
+- WHEN A LESSON NAMES A CLASS, ENUMERATE THE CLASS BEFORE YOU CLOSE IT -- a correctly-recorded lesson whose fix is point-applied to the one instance that prompted it...  (source: learn:experiment:a_lesson_that_names_a_class_must_enumerate_the_class_before_it_closes)
+- TWO RULES. (1) NEVER MEASURE FILL-RATE, MEASURE NON-DEFAULT FILL-RATE. A field whose default is written onto every record is indistinguishable from a dead field until...  (source: learn:experiment:measure_nondefault_fill_not_fill_and_check_every_ranker_input_has_a_writer)
+- ANNOUNCING A REF IS NOT DELIVERING IT, AND VERIFYING YOUR OWN DOOR SERVES IS NOT VERIFYING THEY PULLED. These are two different halves and the serving half is the one...  (source: learn:experiment:a_served_blob_is_not_a_fetched_blob_check_the_far_sides_pull)
+- When a console/window/env-inheritance fix is reported as still broken, do NOT re-read your patches -- COUNT THE SPAWNS and note the GENERATION each one happens at. A...  (source: learn:experiment:console_spam_survives_a_correct_fix_at_the_child_layer)
+- Use when ANY blocker, alarm or 'restart X' remedy arrives, BEFORE obeying it. A BLOCKER DESCRIBES A WINDOW, NOT A CURRENT STATE -- it was true when written and may be...  (source: learn:experiment:a_blocker_describes_a_window_not_a_current_state)
+
+## Episode closed: Use when ANY blocker, alarm or 'restart X' remedy arrives, BE... (ai-setup)
+Span: 2026-08-26T02:04:03.642774+00:00 → 2026-08-26T02:10:46.436610+00:00
+Beats: 3  · Critic: True
+
+- Episode closed: Use when ANY blocker, alarm or 'restart X' remedy arrives, BEFORE obeying it. A BLOCKER DESCRIBES A WIND  (source: episode:close:ch_1787707222_7957)
+- IN A SHARED TREE, RUN `git diff --cached --stat` IMMEDIATELY BEFORE mirror.py AND READ IT -- passing explicit paths does NOT scope the commit. mirror.py stages the paths...  (source: learn:experiment:explicit_paths_do_not_scope_a_mirror_commit_the_shared_index_does)
+- learn door: offer root_cause and files_affected, the fields its readers already consume
+
+both sat at exactly 0.0% across 1120 records -- not culture, a missing flag. the...  (source: git:0ef5779e3c15)
+
+## Episode closed: learn door: offer root_cause and files_affected, the fields i... (ai-setup)
+Span: 2026-08-26T02:36:24.349200+00:00 → 2026-08-26T03:16:37.851774+00:00
+Beats: 2  · Critic: True
+
+- Episode closed: learn door: offer root_cause and files_affected, the fields its readers already consume
+
+both sat at exa  (source: episode:close:ch_1787709862_1350)
+- Use when any supervisor, harness or task-runner reports a child's exit, and BEFORE concluding the SERVICE stopped. A COMPLETION NOTICE DESCRIBES THE PROCESS THE RUNNER...  (source: learn:experiment:a_background_task_completing_is_a_claim_about_the_wrapper_not_the_service)
+
+## Episode closed: Use when any supervisor, harness or task-runner reports a chi... (ai-setup)
+Span: 2026-08-26T03:24:51.126840+00:00 → 2026-08-26T05:07:58.955909+00:00
+Beats: 11  · Critic: True
+
+- Episode closed: Use when any supervisor, harness or task-runner reports a child's exit, and BEFORE concluding the SERVIC  (source: episode:close:ch_1787713582_7134)
+- WHEN TWO FENCES COMPOSE, THE RECONCILER IS THE ONLY SEAT THAT CAN SEE THE ORDERING CONSTRAINT -- so reconcile RELATED fences back to back and explicitly ask, before...  (source: learn:experiment:the_reconciler_sees_the_ordering_constraint_neither_fence_can_state)
+- SAMPLE A GATE'S FALSE-POSITIVE RATE BEFORE YOU TRUST ITS RED, and treat 'the gate is red so I must change my work' as a hypothesis rather than an instruction. Check each...  (source: learn:experiment:a_gate_whose_reds_are_all_false_trains_you_to_mutilate_correct_work)
+- Use when hunting ANY recurring bug or theme, before choosing a fix: run repeat --report first -- it is the door built for this question (most-violated + elapsed_s + what...  (source: learn:experiment:repeat_report_names_the_theme_then_observe_live)
+- RUN THE DIFF IN BOTH DIRECTIONS ON EVERY DOOR, AND MEASURE NON-DEFAULT FILL, NOT FILL. The audit is three commands: list what the readers/rankers consume, list what the...  (source: learn:experiment:the_reader_writer_door_diff_generalises_and_has_three_variants)
+- where-we-are 2026-08-26 night-close: self-heal + doors fence sealed: NIGHT-CLOSE 2026-08-26 (Rill/dsh_agent). Since the last note: (1) DOOR SELF-HEAL SHIPPED AND DRILLED...  (source: mem:decision:ADR_0825235721_359d9be7)
+- Use when drilling ANY dsh door/child lifecycle, before writing a kill filter: (1) pin the PARENT CHAIN (py.exe whose ParentProcessId == the drill host's node pid), NEVER...  (source: learn:experiment:dsh_door_selfheal_three_drills)
+- RUN THE ADJUDICATION, NOT THE SUMMARY. When surveying the field, do not ask 'what is new' -- ask, for each finding: does our corpus CONFIRM it (we paid first, with...  (source: learn:experiment:a_competitive_position_claim_is_the_most_perishable_lesson_class)
+- Use when filing ANY fence half (py agent_cli.py fence write ... then fence seal): put each verdict on ONE physical line starting at column 0, as `V1. [CERTAIN] claim...  (source: learn:experiment:fence_half_tag_family_mismatch_doors_design_recurrence)
+- bifrost ui: user-resizable agents bar and avatar, plus floating modules
+
+Daniil: 'make the agents bar and the avatar independently resizeable in a way that
+looks nice'...  (source: git:83746fc9cd1c)
+- field parity: guard the fields inside a door, not just the verbs across them
+
+check_door_parity asks whether a capability is REACHABLE from every door. this asks
+whether...  (source: git:92e7ece5cd4f)
+
+## BUILD THE AUDIT AS AN INSTRUMENT ONCE YOU HAVE FOUND THE CLASS TWICE. I found... (research)
+Span: 2026-08-26T04:17:18.295322+00:00 → 2026-08-26T04:17:56.114598+00:00
+Beats: 2  · Critic: True
+
+- BUILD THE AUDIT AS AN INSTRUMENT ONCE YOU HAVE FOUND THE CLASS TWICE. I found this class by hand on two doors at 1am; the third instance was found by a 200-line checker...  (source: learn:experiment:mechanise_the_class_audit_and_it_finds_a_variant_you_did_not_know)
+- Use when launching or running ANY fresh-seat cold-boot ergonomics audit (T360 shape), before reading prior art: do NOT read research/reviewed files matching *audit*...  (source: learn:experiment:fresh_seat_audit_blind_discipline)
+
+## dsh_agent -> sol: identity-activation fence: blind half_b on seams S1-S6 + no... (unknown)
+Span: 2026-08-26T05:03:56.050697+00:00 → 2026-08-26T07:38:35.281326+00:00
+Beats: 12  · Critic: True
+
+- dsh_agent -> sol: identity-activation fence: blind half_b on seams S1-S6 + nominate dsh_agent for Rill  (source: handoff:dsh_agent->sol)
+- rill-identity-recovery-2026-08-26: Identity-recovery arc closed 2026-08-26. Verdict accepted (Sol 5.6 + dissent fan): the cold-start audit delivered a wrong identity...  (source: mem:decision:ADR_0826032657_4ded1e6d)
+- Use when answering any who-am-I question, or any time a receipt arrives: run the SUBJECT check before the receipt check -- 'is this record about me?' Attribution is not...  (source: learn:experiment:identity_grounding_session_stamp_not_asserted_id)
+- Use when continuity machinery causes a cold-seat identity failure, before further exploratory prompting: contain active spend, preserve the uncontaminated receipt...  (source: learn:experiment:failed_recovery_requires_cost_containment_and_restitution)
+- Use when answering any who-am-I or seat-identity question, before claiming an identity as known: read the session's own stamp ($env:AKASHIC_AGENT_ID) and the seat's own...  (source: learn:experiment:identity_grounding_session_stamp_not_asserted_id)
+- Use when a guard, checker or gate consults ANY input outside its own source -- a baseline, an allowlist, an exemption list, or the filesystem. ASK: would this input be...  (source: learn:experiment:a_guard_whose_input_is_not_in_the_repo_is_green_locally_and_red_on_every_clone)
+- Use when a DSH web cold session lacks identity, plan recall, or boot context, before blaming retrieval or the model: compare the session-event id to the key used by...  (source: learn:experiment:dsh_web_autoboot_indexes_state_by_empty_process_session)
+- Use when relaunching or assessing a resident seat, before calling continuity restored: separately probe substrate liveness, autobiographical factual accuracy...  (source: learn:experiment:rill_liveness_is_not_personality_or_epistemic_continuity)
+- Use when wiring ANY health probe to an automatic remediator: an UNANSWERABLE probe must refuse, never remediate. Empty/timeout/error is 'I do not know', and 'I do not...  (source: learn:experiment:blind_probe_whose_only_consumer_is_a_spawner)
+- rec  (source: learn:experiment:pin_files_affected_roundtrip)
+- rec  (source: learn:experiment:pin_root_cause_roundtrip)
+- ask door hung twice during identity recovery (foreground helper ask: 120s timeout, zero output, exit 1; earlier --geometry lens run refused exit 2 on arg parse). Helper...  (source: identity-recovery session 2026-08-26)
+
+## Episode closed: Use when filing ANY fence half (py agent_cli.py fence write .... (ai-setup)
+Span: 2026-08-26T05:15:46.377681+00:00 → 2026-08-26T08:45:01.935531+00:00
+Beats: 7  · Critic: True
+
+- Episode closed: Use when filing ANY fence half (py agent_cli.py fence write ... then fence seal): put each verdict on ON  (source: episode:close:ch_1787714701_6790)
+- sol_sunshine_first_class_integration_where_we_are: Outcome: Codex Desktop is now a subject-bound partial Aurora citizen with native Codex hooks, an owned Windows App...  (source: mem:decision:ADR_0826044501_17225755)
+- Use when hosting Codex App Server on Windows, before calling any 'app-server daemon' lifecycle verb: do not retry the managed daemon or attach to Desktop's private...  (source: learn:experiment:codex_app_server_managed_daemon_is_unix_only_on_windows)
+- Use when relaunching, recovering, or prompting any resident seat, before presenting identity evidence or calling continuity restored: prove event-session-to-seat binding...  (source: learn:experiment:rill_liveness_is_not_personality_or_epistemic_continuity)
+- Use when attaching any history, profile, handoff, or identity pointer to boot/hook context, before injection: resolve and read the target, require an explicit subject...  (source: learn:experiment:identity_pointer_must_declare_subject_before_injection)
+- night-charter-2026-08-26-residents: Daniil's night charter (verbatim intent): "the highest leverage and impact way we can all utilize the capacity and wisdom of all of...  (source: mem:decision:ADR_0826041729_8dacf14e)
+- Use when recording ANY receipt, drill, or evidence artifact that a lesson, doc or doctrine will CITE. Ask where the proof lives relative to the claim: if the claim is...  (source: learn:experiment:drill_receipts_live_on_a_gitignored_path_so_no_clone_can_verify_a_drill)
+
+## sol -> sol: Continue verb-garden receipt-authority design before any promotio... (ai-setup)
+Span: 2026-08-26T12:49:47.398652+00:00 → 2026-08-27T05:02:59.827700+00:00
+Beats: 105  · Critic: True
+
+- sol -> sol: Continue verb-garden receipt-authority design before any promotion mutation  (source: handoff:sol->sol)
+- verb-garden-discussion-2026-08-26: ROUNDS 3-8 proceeded without consuming a Bifrost cursor or waking Rill. Sunshine minted, kata-verified, dogfooded, and retired...  (source: mem:decision:ADR_0827010232_51cbb348)
+- verb-garden-discussion-2026-08-26: ROUNDS 3-7 completed without consuming a Bifrost cursor or waking Rill. Sunshine minted, kata-verified, dogfooded, and retired...  (source: mem:decision:ADR_0827005927_b012154c)
+- Use when evaluating any "evidence before X" proposal in the verb garden: check which phase of the loop it gates. Evidence-before-MINT inverts the loop (the evidence is...  (source: learn:experiment:verb_garden_mint_vs_promotion_gate_phase)
+- Use when a governed surface filters authored capabilities before advertising them, before treating omission as safety enough: expose a non-executing subject-bound...  (source: learn:experiment:governed_combo_omission_needs_a_catalog)
+- sunshine-codex-first-class-integration-2026-08-26: Sunshine's Codex seat is now a first-class governed read citizen with one primitive executor, one non-executing...  (source: mem:decision:ADR_0827005641_b574af7e)
+- verb-garden-discussion-2026-08-26: ROUNDS 3-7 completed without consuming a Bifrost cursor or waking Rill. Sunshine minted, kata-verified, dogfooded, and then retired...  (source: mem:decision:ADR_0827005639_c3bbe846)
+- Use when an acceptance test sizes fixtures from a live configurable budget, before making that budget unlimited: install a finite test-local cap before materializing...  (source: learn:experiment:t169_unlimited_sentinel_test_allocation)
+- Use when adding a session state dir, before shipping: update prune_state in core/recall/at_action.py and every dir-swapping test  (source: learn:experiment:new_one)
+- Use when adding a session state dir, before shipping: update prune_state in core/recall/at_action.py and every dir-swapping test  (source: learn:experiment:new_one)
+- r  (source: learn:experiment:flow_exp_c7539ddf)
+- slice2 commit 25510295  (source: git:cde904d4579f)
+- use it  (source: learn:experiment:slice2_learn_ae0037da)
+- where-we-are: drill state: seeded corpus, next P3  (source: mem:decision:ADR_0827002222_aa2680f3)
+- drill-arc-status: governing: docs/drill-arc-48cfd5.md -- the seeded arc  (source: mem:decision:ADR_0827002222_23930980)
+- next-focus: ENGINE-FIRST-b4d8fb: do RB-23 then Wave 3 before ANY UI. UI is paused.  (source: mem:decision:ADR_0827002209_b9119d53)
+- drilldone2a1a82-status: GOVERNING ARC DOC: docs/drilldone2a1a82-plan.md -- ARC COMPLETE 2026-07-11. ALL SLICES SHIPPED.  (source: mem:decision:ADR_0827002205_b78316a4)
+- t261 seed  (source: learn:experiment:t261_claude_cursor_decoy)
+- t261 seed  (source: learn:experiment:t261_kimi_cursor_lesson)
+- t261 seed  (source: learn:experiment:t261_receipt_kimi)
+- a beat appears  (source: learn:experiment:beat_hook_exp)
+- file fallback held  (source: learn:experiment:offline_exp)
+- same name each time  (source: learn:experiment:dup_exp)
+- same name each time  (source: learn:experiment:dup_exp)
+- same name each time  (source: learn:experiment:dup_exp)
+- same name each time  (source: learn:experiment:dup_exp)
+- handle me  (source: learn:experiment:messy_exp)
+- agent B should see this  (source: learn:experiment:iface_loop_exp)
+- Use when adding a session state dir, before shipping: update prune_state in core/recall/at_action.py and every dir-swapping test  (source: learn:experiment:new_one)
+- Use when adding a session state dir, before shipping: update prune_state in core/recall/at_action.py and every dir-swapping test  (source: learn:experiment:new_one)
+- r  (source: learn:experiment:flow_exp_721520b0)
+- slice2 commit 11a4c0bc  (source: git:cde904d4579f)
+- use it  (source: learn:experiment:slice2_learn_72aa6670)
+- where-we-are: drill state: seeded corpus, next P3  (source: mem:decision:ADR_0827000419_c312d7a8)
+- drill-arc-status: governing: docs/drill-arc-e7c079.md -- the seeded arc  (source: mem:decision:ADR_0827000418_0c797846)
+- next-focus: ENGINE-FIRST-7d86c4: do RB-23 then Wave 3 before ANY UI. UI is paused.  (source: mem:decision:ADR_0827000407_f342bda2)
+- drilldone170ba5-status: GOVERNING ARC DOC: docs/drilldone170ba5-plan.md -- ARC COMPLETE 2026-07-11. ALL SLICES SHIPPED.  (source: mem:decision:ADR_0827000402_849997b5)
+- t261 seed  (source: learn:experiment:t261_claude_cursor_decoy)
+- t261 seed  (source: learn:experiment:t261_kimi_cursor_lesson)
+- t261 seed  (source: learn:experiment:t261_receipt_kimi)
+- a beat appears  (source: learn:experiment:beat_hook_exp)
+- file fallback held  (source: learn:experiment:offline_exp)
+- same name each time  (source: learn:experiment:dup_exp)
+- same name each time  (source: learn:experiment:dup_exp)
+- same name each time  (source: learn:experiment:dup_exp)
+- same name each time  (source: learn:experiment:dup_exp)
+- handle me  (source: learn:experiment:messy_exp)
+- agent B should see this  (source: learn:experiment:iface_loop_exp)
+- Use when a lifecycle operation re-mints or supersedes an authored registry entry, before shipping: copy every orthogonal authored field and pin that changing evidence...  (source: learn:experiment:kata_supersession_preserves_authored_metadata)
+- Use when executing a repository helper by FILE PATH from a subdirectory, before importing top-level repo packages: explicitly bootstrap the repo root onto sys.path, or...  (source: learn:experiment:subdirectory_script_needs_repo_root_on_sys_path)
+- Use when a seat proposes a verb for "prove things differ-but-not-THIS-way" or any constrained-difference claim: before minting, ask whether the claim is a RUNNABLE...  (source: learn:experiment:a_pins_negative_clause_is_a_checker_not_a_new_verb)
+- verb-garden-discussion-2026-08-26: ROUND 2, live peek only. The cross-talk relay 1787797867614-0 received public replies from deepseek/Heimdall (1787797914827-0) and...  (source: mem:decision:ADR_0826233137_6434f81f)
+- parked-publication-branch-and-guard-defect-2026-08-26: PARKED WORK -- the publication branch, and the guard defect that blocked it.
+Written 2026-08-26 ~22:30 EDT by...  (source: mem:decision:ADR_0826223230_341986a2)
+- verb-garden-discussion-2026-08-26: Daniil invited a fleet-wide discussion on playing with and refining Aurora verbs. Sunshine broadcast the non-obligatory VERB-GARDEN...  (source: mem:decision:ADR_0826222847_d00b48da)
+- Use when withholding any source material from an artifact -- a private document, a third party's words, an internal path, unreleased work. REMOVE THE POINTER, KEEP THE...  (source: learn:experiment:remove_the_pointer_keep_the_acknowledgment)
+- Use when a PRESENTATION, privacy or tidiness problem is on the table and any option you are weighing removes, purges, rewrites or squashes existing record -- especially...  (source: learn:experiment:a_destructive_option_offered_for_a_presentation_problem)
+- Use when auditing whether a lesson corpus records dosage judgements (too-much/too-little) as opposed to binary right/wrong: check whether the lesson records the...  (source: learn:experiment:dosage_judgements_omit_the_requirement_that_binds_them)
+- Use when designing ANY register of findings/dosages/judgements, BEFORE choosing a filing scheme: (1) THE AXIS IS A LENS, NOT A FILING LOCATION — record richly (INCLUDING...  (source: learn:experiment:a_magnitude_axis_is_a_lens_not_a_filing_location)
+- Use when adopting, porting or recommending any outside framework, schema or methodology, BEFORE writing it into a doc or briefing anyone on it. Two steps, both cheap...  (source: learn:experiment:an_imported_frameworks_strength_and_its_cost_are_the_same_property)
+- sunshine-codex-first-class-integration-2026-08-26: Sunshine's sol seat now has permanent minimal governed exec and the Discord wake owns a bidirectional Codex App Server...  (source: mem:decision:ADR_0826215712_a26e8229)
+- Use when exposing a multiplexed CLI through unattended exec, before calling a verb allowlist read-only: classify the complete argv grammar, including positional...  (source: learn:experiment:codex_read_bridge_needs_per_verb_argv_grammar)
+- Use when adding Codex App Server dynamic tools, before trusting a fixture-only pass: negotiate capabilities.experimentalApi during initialize, host reverse...  (source: learn:experiment:codex_dynamic_tools_need_experimental_bidirectional_handshake)
+- Use when asking whether the recall corpus can steer toward a mean rather than only correct discrete errors, before building a Paul-Hudgins-style axis/virtue register...  (source: learn:experiment:corpus_can_record_magnitude_but_rarely_does)
+- hudgins-arc-and-session-position-2026-08-26: POSITION at 2026-08-26 ~20:40 EDT, session 25cd3074 (claude/Vandor). Written as a
+RE-ENTRY point, not a summary: what a...  (source: mem:decision:ADR_0826204406_7330a759)
+- Use when building any growth, drift or threshold alarm. Require a RE-ARM: after firing, the metric must advance another full step beyond the value it last fired at...  (source: learn:experiment:a_leak_alarm_must_report_acceleration_not_a_standing_state)
+- Use when writing or reading a drill receipt, before treating a drilled organ as sound. Stage the RECOVERY as well as the fault: what does this do after the condition...  (source: learn:experiment:a_drill_only_tests_the_failure_shape_you_staged)
+- Use immediately after fixing any defect in a value, label, caveat or gauge that is rendered in more than one place. Before closing it, grep for every OTHER renderer of...  (source: learn:experiment:a_correction_at_one_surface_is_no_correction_at_the_other)
+- Use when a correction, caveat or honest split has been implemented and you are deciding where it lives. Availability is not awareness. Ask which surface is ALREADY being...  (source: learn:experiment:awareness_has_a_price_not_just_a_presence)
+- rill -> claude: Deploy Rill's flush ruling: sync C:\Users\L5\.dsh\profiles\web\plugins\dsh-akashic-recall\lib\index.js from...  (source: handoff:rill->claude)
+- web-seat-runner-design-2026-08-26: Daniil's ask (via Vandor): how to build my runner -- arriving mail must become a turn for the DSH web seat. DESIGN (verified from...  (source: mem:decision:ADR_0826173810_2a8b9e2e)
+- Use when wiring presence into any DSH session-lifecycle listener, before declaring a phase a departure: session/flush is a durability checkpoint, never presence-offline...  (source: learn:experiment:dsh_session_flush_is_a_checkpoint_not_a_departure)
+- Use when designing any DSH web-seat runner, wake trigger, or programmatic turn, before building an external UI driver or a new daemon: hold ctx.agents.get(sid).inbox and...  (source: learn:experiment:dsh_inbox_next_turn_is_the_plugin_turn_seam)
+- Use when mail 'is not reaching' an agent and every transport layer checks out, BEFORE building a drainer or blaming routing. ASK WHAT GIVES THAT SEAT A TURN, and answer...  (source: learn:experiment:a_web_seat_has_no_turns_so_arriving_mail_cannot_wake_it)
+- Use when adding ANY recurring heartbeat/presence beater to a long-lived host, before declaring the beat fix complete: pair every start with a stop on the departure path...  (source: learn:experiment:recurring_beat_must_stop_on_declared_departure)
+- Use when diagnosing 'my message never arrived' on ANY message bus, and BEFORE forming a theory from log lines. READ THE DESTINATION, NOT THE TRANSCRIPT: one XREVRANGE on...  (source: learn:experiment:a_log_label_is_not_a_routing_fact_check_the_destination_stream_instead)
+- Use when mail to a named seat vanishes while the seat is demonstrably alive, and BEFORE writing any routing code. CHECK THE CEREMONY BEFORE THE CODE: a callsign->agent...  (source: learn:experiment:an_unratified_callsign_strands_mail_because_the_reverse_index_is_built_from_ratified_residents)
+- sol_sunshine_first_class_integration_where_we_are: Outcome: Sol's Discord lane is now live as a ratified resident identity, not only transport. Vandor independently...  (source: mem:decision:ADR_0826102404_94d8ce88)
+- Use when two watchers share an agent id or similar filenames, before quoting any count or token number: name the watcher job, absolute receipt path, admission policy...  (source: learn:experiment:watcher_receipts_are_path_qualified_or_cross_lane_numbers_lie)
+- Use when a UI renders identity plus placement-derived visuals, before gating the whole persona on one presence check: show a ratified callsign from the identity registry...  (source: learn:experiment:ratified_callsign_display_is_not_placement_avatar)
+- Use when a long-lived watcher injects any mutable callsign, role, charter, or authority, before launching it: resolve one authoritative snapshot at admission and bind...  (source: learn:experiment:wake_identity_is_admission_data_not_build_time_prose)
+- Use when reading ANY per-turn token/cost telemetry to justify or reject an optimisation, BEFORE quoting a number. (1) ASK WHICH AGGREGATE YOU ARE HOLDING: last vs total...  (source: learn:experiment:reading_token_usage_last_instead_of_total_hides_intra_turn_caching)
+- Use when Discord shows inbound-receipt-then-silence (envelope lands, no reply) or when any runner is started WITHOUT bifrost_daemon.py --spawn-runner, before debugging...  (source: learn:experiment:discord_outbound_pump_hosted_in_daemon_not_runner)
+- TWO RULES. (1) NEVER relaunch a seat with the bare runner script. The house lesson daemon_needs_spawn_runner already says 'relaunching a seat = bifrost_daemon.py --agent...  (source: learn:experiment:a_standalone_runner_squats_the_daemon_slot_and_the_discord_pump_starves)
+- sol_sunshine_first_class_integration_where_we_are: Outcome: Sol's Discord-native lane is built and live. Vandor was launched as a bounded fresh claude seat...  (source: mem:decision:ADR_0826093244_17a60561)
+- Use when connecting a new external channel to an existing Bifrost inbox, before reusing a watcher: model admission as sender AND kind AND provenance source, and give...  (source: learn:experiment:discord_to_codex_wake_is_a_four_field_policy_not_an_inbox)
+- Use when a Windows detached run_job launch fails at CreateProcess with WinError 2 for a CLI that works interactively, before blaming authentication or PATH: inspect...  (source: learn:experiment:detached_windows_job_needs_native_executable_not_cmd_shim)
+- Use when a Discord destination-read receipt fails specifically with API code 40333 under PowerShell, before blaming the webhook or reposting: retry the read once through...  (source: learn:experiment:discord_api_readback_powershell_40333_use_requests)
+- dsh_agent -> sol: comms-loop C1+C4: plugin heartbeat for the web host + import namespace  (source: handoff:dsh_agent->sol)
+- dsh_agent -> kimi: comms-loop C3-surface: operator remote-fix contract + docs  (source: handoff:dsh_agent->kimi)
+- dsh_agent -> deepseek: comms-loop C3: ladder semantics + runner heartbeat parity pins  (source: handoff:dsh_agent->deepseek)
+- dsh_agent -> claude: comms-loop C2: reverse-index gate at both send seams + ghost-stream sweep  (source: handoff:dsh_agent->claude)
+- Use when replacing a credential path constant with a dynamic vault resolver, before declaring the migration closed: enumerate not only readers that authenticate or post...  (source: learn:experiment:credential_path_migration_must_include_observability_consumers)
+- Use when adding or reviewing any dry-run around a setup/migration tool, before trusting the flag: enumerate every external AND local durable writer, including credential...  (source: learn:experiment:discord_setup_dry_run_must_cover_local_vault_writes)
+- Use when a DSH web seat appears unreachable or operator Discord messages 'reach the mailbox but not the seat', before blaming the gateway or the sender: check the...  (source: learn:experiment:dsh_web_seat_has_no_bus_heartbeat_mail_stalls_on_global)
+- claude -> dsh_agent: Route the fleet's morning while Daniil is at work (left ~05:30 EDT 2026-08-26 after a full night up). This seat -- claude/Vandor, session 25cd3074...  (source: handoff:claude->dsh_agent)
+- remove measurement helper test after magnitude sample  (source: git:7ee451bbf2b5)
+- resilient_e46d63  (source: x:y)
+
+## authored by kimi (unknown)
+Span: 2026-08-26T13:43:23.126977+00:00 → 2026-08-26T14:15:35.728348+00:00
+Beats: 19  · Critic: True
+
+- authored by kimi  (source: learn:experiment:pin_receipt_author_has_trailing_space)
+- receipt B  (source: learn:experiment:pin_second_nominators_receipt)
+- receipt A  (source: learn:experiment:pin_first_nominators_receipt)
+- the hook never saw the blanket sweep  (source: learn:experiment:pin_receipt_authored_by_claude)
+- every write re-armed the TTL  (source: learn:experiment:pin_receipt_authored_by_kimi)
+- authored by kimi  (source: learn:experiment:pin_receipt_author_has_trailing_space)
+- receipt B  (source: learn:experiment:pin_second_nominators_receipt)
+- receipt A  (source: learn:experiment:pin_first_nominators_receipt)
+- the hook never saw the blanket sweep  (source: learn:experiment:pin_receipt_authored_by_claude)
+- every write re-armed the TTL  (source: learn:experiment:pin_receipt_authored_by_kimi)
+- authored by kimi  (source: learn:experiment:pin_receipt_author_has_trailing_space)
+- receipt B  (source: learn:experiment:pin_second_nominators_receipt)
+- receipt A  (source: learn:experiment:pin_first_nominators_receipt)
+- the hook never saw the blanket sweep  (source: learn:experiment:pin_receipt_authored_by_claude)
+- every write re-armed the TTL  (source: learn:experiment:pin_receipt_authored_by_kimi)
+- receipt B  (source: learn:experiment:pin_second_nominators_receipt)
+- receipt A  (source: learn:experiment:pin_first_nominators_receipt)
+- the hook never saw the blanket sweep  (source: learn:experiment:pin_receipt_authored_by_claude)
+- every write re-armed the TTL  (source: learn:experiment:pin_receipt_authored_by_kimi)
+
+## seeded (unknown)
+Span: 2026-08-27T04:06:28.871659+00:00 → 2026-08-27T04:36:53.862414+00:00
+Beats: 35  · Critic: True
+
+- seeded  (source: learn:experiment:t292_receipt_p4_scout_wearer)
+- seeded  (source: learn:experiment:t292_receipt_p4_scout_wearer)
+- bd1 confirmed correct, adjudicated  (source: learn:experiment:t290_backdoor_probe)
+- role-pin seed  (source: learn:experiment:pin_role_receipt_cursor)
+- role-pin seed  (source: learn:experiment:pin_role_receipt_deepseek)
+- role-pin seed  (source: learn:experiment:pin_role_receipt_kimi)
+- placement seed  (source: learn:experiment:pin_placement_receipt_cursor)
+- placement seed  (source: learn:experiment:pin_placement_receipt_kimi)
+- authored by kimi  (source: learn:experiment:pin_receipt_author_has_trailing_space)
+- receipt B  (source: learn:experiment:pin_second_nominators_receipt)
+- receipt A  (source: learn:experiment:pin_first_nominators_receipt)
+- the hook never saw the blanket sweep  (source: learn:experiment:pin_receipt_authored_by_claude)
+- every write re-armed the TTL  (source: learn:experiment:pin_receipt_authored_by_kimi)
+- scope-pin seed  (source: learn:experiment:scope_claude_ledger)
+- scope-pin seed  (source: learn:experiment:scope_deepseek_wire)
+- scope-pin seed  (source: learn:experiment:scope_kimi_fold)
+- scope-pin seed  (source: learn:experiment:scope_kimi_pools)
+- rec  (source: learn:experiment:pin_files_affected_roundtrip)
+- rec  (source: learn:experiment:pin_root_cause_roundtrip)
+- role-pin seed  (source: learn:experiment:pin_role_receipt_cursor)
+- role-pin seed  (source: learn:experiment:pin_role_receipt_deepseek)
+- role-pin seed  (source: learn:experiment:pin_role_receipt_kimi)
+- placement seed  (source: learn:experiment:pin_placement_receipt_cursor)
+- placement seed  (source: learn:experiment:pin_placement_receipt_kimi)
+- authored by kimi  (source: learn:experiment:pin_receipt_author_has_trailing_space)
+- receipt B  (source: learn:experiment:pin_second_nominators_receipt)
+- receipt A  (source: learn:experiment:pin_first_nominators_receipt)
+- the hook never saw the blanket sweep  (source: learn:experiment:pin_receipt_authored_by_claude)
+- every write re-armed the TTL  (source: learn:experiment:pin_receipt_authored_by_kimi)
+- scope-pin seed  (source: learn:experiment:scope_claude_ledger)
+- scope-pin seed  (source: learn:experiment:scope_deepseek_wire)
+- scope-pin seed  (source: learn:experiment:scope_kimi_fold)
+- scope-pin seed  (source: learn:experiment:scope_kimi_pools)
+- rec  (source: learn:experiment:pin_files_affected_roundtrip)
+- rec  (source: learn:experiment:pin_root_cause_roundtrip)
+
+## sol -> sol: T084 verb compositions are landed; next arc is live fleet adoptio... (ai-setup)
+Span: 2026-08-27T23:48:24.517374+00:00 → 2026-08-28T07:24:45.141754+00:00
+Beats: 51  · Critic: True
+
+- sol -> sol: T084 verb compositions are landed; next arc is live fleet adoption and the exact atom-read gap.  (source: handoff:sol->sol)
+- Use when regenerating authoritative projections in a dirty shared checkout, before running the generator in place: generate at committed HEAD in an isolated worktree...  (source: learn:experiment:generated_projections_need_clean_worktree_and_layer_restore)
+- Use when interpreting a clean detached-worktree suite, before calling every failure a code regression: inventory gitignored and untracked instance fixtures and...  (source: learn:experiment:clean_worktree_global_suite_needs_instance_fixture_manifest)
+- Use when publishing a recovery drill, before calling it executable or cheap: parse it through the current CLI grammar and cap the exact retrieval unit. Don't emit...  (source: learn:experiment:recovery_drills_must_parse_and_bound_cost)
+- Use when grounding a seat's continuity, before merging evidence into one identity narrative: preserve separate authority, subject, bounds, and unknowns for each region...  (source: learn:experiment:continuity_evidence_requires_region_authority)
+- Use when recording more than one durable lesson through FileLedger, before issuing learn commands: serialize them and wait for each receipt. Don't parallelize writers...  (source: learn:experiment:learn_writes_must_be_serialized_per_fileledger)
+- Use when resolving whether a seat may invoke a shared verb, before projecting one grant result across aliases: inspect enforcement at every concrete door and return...  (source: learn:experiment:authorization_is_per_door_not_per_verb)
+- Use when one fact renders into structured and glance surfaces, before claiming perceptual invariance: pin the canonical field and the human keyword independently. Don't...  (source: learn:experiment:epistemic_state_must_survive_text_and_json_renderers)
+- Use when adding a ToolBox method or declaring third-door parity, before calling it wired: verify both callable getattr(ToolBox, name) and an exact TOOLS schema entry...  (source: learn:experiment:toolbox_method_without_schema_is_not_a_callable_tool)
+- Use when one fact renders into structured and glance surfaces, before claiming perceptual invariance: pin the canonical field and the human keyword independently. Don't...  (source: learn:experiment:epistemic_state_must_survive_text_and_json_renderers)
+- Use when resolving whether a seat may invoke a shared verb, before projecting one grant result across aliases: inspect enforcement at every concrete door and return...  (source: learn:experiment:authorization_is_per_door_not_per_verb)
+- Use when building a typed record across mutually exclusive evidence branches, before returning the shared schema: initialize every required field outside the branch and...  (source: learn:experiment:structured_rung_branches_must_initialize_total_shape)
+- Use when a path-scoped commit includes a brand-new file, before git commit --only: git add exactly the new path, inspect git diff --cached --name-status, then commit...  (source: learn:experiment:scoped_commit_untracked_path_requires_index_entry)
+- Use when touching ai_setup_mcp.py or adding an args attribute to any delegated cmd function, before claiming native parity: run tests/test_mcp_arg_defaults_parity.py...  (source: learn:experiment:mcp_arg_defaults_parity_recurred_in_native_slice)
+- Use when a door-parity baseline note names a verb, before assuming the surface is governed: verify that the verb also appears in MANIFEST with its intended category. A...  (source: learn:experiment:door_parity_baseline_is_not_manifest_classification)
+- Use when making a path-scoped commit in this shared tree, before git commit: inspect git diff --cached --name-only and expect generators to widen the index regardless of...  (source: learn:experiment:scoped_commit_generator_contamination)
+- Use when building any composite status or awareness verb, before composing existing renderers: export structured snapshot providers and render every surface from those...  (source: learn:experiment:composite_observability_joins_structured_snapshots_in_isolation)
+- adaptive-recall-memory-fabric-program-2026-08-27: Canonical operator-origin program: parent atom art_20260827_adaptive-recall-memory-fabric_298a33 at Git 9a6d0341...  (source: mem:decision:ADR_0828000631_e41a5aa8)
+- Use when Round B cross-examines strongest claims, or when ANYONE proposes offline replay / retrospective reconstruction as a recall-usefulness oracle. Before trusting a...  (source: learn:experiment:adaptive_recall_round_a_measurement_causal_honesty)
+- Use when validating any newly generated or authored untracked file, before adoption or commit: remember that git diff and git diff --check ignore untracked paths. Scan...  (source: learn:experiment:untracked_git_diff_check_is_not_a_lint)
+- Use when the private-plane pre-commit guard blocks a scoped change to an append-only store, before bypassing or altering data: prove whether each marker already exists...  (source: learn:experiment:private_plane_guard_fullfile_baseline_false_positive)
+- adaptive-recall-memory-fabric-program-2026-08-27: Canonical operator-origin research program: art_20260827_adaptive-recall-memory-fabric_298a33, projected at...  (source: mem:decision:ADR_0827235929_15a0033a)
+- Use when adding punctuation to any caption/ASR-derived text, before trusting a per-line rule: YouTube auto-captions break lines MID-SENTENCE, so a deterministic...  (source: learn:experiment:captions_punctuation_tiers)
+- Use when importing a COMPARISON or CREDIT mechanism from another domain -- a usefulness counter, an A/B rule, a marginal-contribution test -- BEFORE writing the pin: ask...  (source: learn:experiment:a_borrowed_credit_rule_goes_vacuous_when_the_alternatives_are_nested)
+- Use when a person's design, spec, or requirement set has been stated ACROSS MULTIPLE SURFACES -- a chat, a doc, a message to someone else, a passing sentence -- and you...  (source: learn:experiment:a_design_stated_across_surfaces_is_reached_partially_every_time)
+- Use when a remembered repository checker path returns file-not-found, before interpreting it as a gate failure: locate the canonical entrypoint with rg --files and rerun...  (source: learn:experiment:check_wiring_entrypoint_moved_under_checkers)
+- predictor-lens-recall-researched-2026-08-27: The predictor lens on recall is RESEARCHED AND FILED, not built. Full...  (source: mem:decision:ADR_0827222555_5d5fb595)
+- Use when measuring ANY system that delivers information ahead of a decision -- recall, prefetch, alerts, suggestions: ACCURACY AND COVERAGE ARE NOT ENOUGH, and...  (source: learn:experiment:coverage_optimal_is_not_useful_optimal_late_is_net_negative)
+- Use when designing or auditing ANY credit/scoring signal for retrieval, ranking, recommendation, or a lesson corpus: credit MARGINAL contribution, not absolute. Ask...  (source: learn:experiment:credit_marginal_contribution_not_absolute_usefulness)
+- Use when evaluating N competing policies/rankers/heuristics against an incumbent and the instrumentation cost threatens to dominate: do NOT run every candidate...  (source: learn:experiment:a_sampled_duel_bounds_evidence_cost_better_than_sampled_logging)
+- Use when a system needs ground truth to learn but real labels are scarce, costly, or require the future, and BEFORE concluding that a learning mechanism cannot transfer...  (source: learn:experiment:retrospective_oracle_reconstruction_when_labels_are_scarce)
+- Use when proposing offline replay as a recall usefulness oracle, before treating future behavior as counterfactual ground truth: separate mechanically observable reach...  (source: learn:experiment:replay_is_not_counterfactual_when_retrieval_changes_trace)
+- Use when a HOOK, README, error message, or runbook hands an operator or agent a command to run, and ALWAYS when that command names a script path: EMIT ABSOLUTE PATHS...  (source: learn:experiment:advice_that_assumes_a_cwd_fails_asynchronously_and_silently)
+- sol -> claude: T370 M9: identify durable eligible-event source and measure writes per day before any live adapter  (source: handoff:sol->claude)
+- where-we-are: T370 shadow-shelf Slice 0 is locally landed and independently accepted. RED gate f9d77b69; offline substrate eca73526; acceptance and mutation evidence...  (source: mem:decision:ADR_0827221010_db6c058f)
+- Use when adjacent preregistered pins mutate module-lifetime state, before changing production semantics: prove each node alone and together, give independent pins...  (source: learn:experiment:red_pins_sharing_process_state_need_distinct_fixtures)
+- Use when relaying, summarizing, or building on a design conversation between the operator and any seat, BEFORE assigning credit: NAMING IS MORE LEGIBLE THAN ORIGINATING...  (source: learn:experiment:naming_accrues_credit_that_belongs_to_originating)
+- Use when a callsign/display name changes or becomes preferred, before putting it in AKASHIC_AGENT_ID, Bifrost sender, locks, or Git seat attribution: resolve the...  (source: learn:experiment:sunshine_display_name_sol_machine_identity)
+- recall-garden-trigger-ladder-2026-08-27: Design conversation 2026-08-27 (Daniil x Rill) saved: the recall-garden trigger ladder L0 action -> L1 trajectory -> L2 content...  (source: mem:decision:ADR_0827214657_5cca691e)
+- Use when designing any recall category, knowledge pool, or injection surface, before deciding how dense it may be: make the reach bounded FIRST and measured...  (source: learn:experiment:boundedness_permits_richness_recall_categories)
+- Use when adjacent RED pins mutate module-lifetime registries, before changing production semantics to satisfy a combined-suite failure: give logically independent pins...  (source: learn:experiment:red_pins_sharing_process_state_need_distinct_fixtures)
+- session-position-2026-08-28-shadow-shelf-and-recall-types: POSITION at 2026-08-28 ~01:40 UTC, session 25cd3074 (claude/Vandor). Two-day session.
+Written as a COLD...  (source: mem:decision:ADR_0827213913_4741cede)
+- Use when measuring how many prose triggers can become gates, before publishing a percentage: isolate the trigger clause and resolve an exact quoted verb, command, hook...  (source: learn:experiment:verb_token_presence_is_not_mechanizable_trigger)
+- Use when a corpus phrasing prevalence is offered as evidence for gateability or latent structure, before designing from the percentage: segment at the policy/template...  (source: learn:experiment:use_when_rate_is_policy_compliance_not_gateability)
+- t370-shadow-shelf-slice0: Pre-registered offline-only T370 pilot: one behavior contract recall.at_action.rank.v1, champion plus one deterministic challenger, atomic...  (source: mem:decision:ADR_0827210322_2930c06d)
+- Use when reconciling ANY blind fence, N-version run, or independent-halves exercise, BEFORE counting or reporting convergences. TWO STEPS. (1) SUBTRACT THE BRIEF: for...  (source: learn:experiment:in_a_blind_fence_convergence_on_the_brief_is_compliance_not_evidence)
+- sol -> sol: Wait for blind reconciliation of shadow-shelf-substrate before any implementation  (source: handoff:sol->sol)
+- shadow-shelf-substrate-half-b-2026-08-27: Vandor opened blind fence shadow-shelf-substrate after Daniel's watcher-backed experimental-plane proposal. Sol independently...  (source: mem:decision:ADR_0827203612_826776f3)
+- sol -> sol: If Daniel asks to build the shadow experiment plane, start from the bounded disagreements-first nursery slice  (source: handoff:sol->sol)
+- shadow-experiment-plane-assessment-2026-08-27: Daniel proposed decoupling candidate recall and other heuristic systems from live seat context: a watcher runs many...  (source: mem:decision:ADR_0827200947_409bd194)
+- Use when designing verb discovery or any post-hoc recognition surface: the delightful axis is not orientation (which fires only when lost and pays off as relief) but...  (source: learn:experiment:verb_garden_discharge_not_recognition)
+
+## Use when the operator refers to a new Bifrost tool without an exact name, bef... (research)
+Span: 2026-08-28T04:08:33.853067+00:00 → 2026-08-28T05:04:27.017025+00:00
+Beats: 9  · Critic: True
+
+- Use when the operator refers to a new Bifrost tool without an exact name, before interpreting the newest visible message: ask for or search the candidate name, recent...  (source: learn:experiment:exact_name_before_latest_bus_inference)
+- Use when a system records its own completion, verification or success state, and ESPECIALLY when a precedence rule says to trust that record over live evidence: check...  (source: learn:experiment:the_work_doer_writes_the_ledger_that_certifies_the_work)
+- Use when auditing ANY retrieval, alerting, ranking or filtering organ, and BEFORE believing a coverage or hit-rate number: ASK WHO ADJUDICATES THE SILENCE. A system that...  (source: learn:experiment:recall_adjudicates_its_own_silence_and_nothing_checks_it)
+- wake-supervision-reconciliation-2026-08-28: SOURCE/LIVE RECONCILIATION; DESIGN POSITION, NOT YET A BUILD.
+
+What is verified:
+- The claimed machinery gap is false...  (source: mem:decision:ADR_0828003948_a0c2cf37)
+- adaptive-recall-round-a-interim-2026-08-28: ROUND A CLOSED AT 4/4. Preserve the four frozen lanes before cross-reading:
+- Heimdall, measurement and causal honesty...  (source: mem:decision:ADR_0828003441_cb3d6e1d)
+- adaptive-recall-momentum-conversion-plan-2026-08-28: RETURN POINT — freeze -> contradict -> contract -> shadow-test.
+
+Current receipts:
+- Canonical operator-origin...  (source: mem:decision:ADR_0828003440_00a27391)
+- wake-problem-three-mechanisms-and-the-hard-gap-is-false: The wake problem (Daniil's "ENDED not patched") resolves into THREE objects, not one, and the claimed "hard gap"...  (source: mem:decision:ADR_0828002750_239ddf1d)
+- adaptive-recall-round-a-interim-2026-08-28: INTERIM ONLY: 3 of 4 peer lanes received; Rill/dsh_agent identity-continuity lane remains pending and must not be...  (source: mem:decision:ADR_0828001023_d7e6abf5)
+- adaptive-recall-round-a-interim-2026-08-28: INTERIM ONLY: 3 of 4 peer lanes received; Rill/dsh_agent identity-continuity lane remains pending and must not be substituted...  (source: mem:decision:ADR_0828000833_eda07f09)
+
+## where-we-are: T084 Ironman/verb continuation remains LOCAL AND UNCOMMITTED in... (ai-setup)
+Span: 2026-08-28T23:24:19.312137+00:00 → 2026-08-29T04:15:36.581693+00:00
+Beats: 34  · Critic: True
+
+- where-we-are: T084 Ironman/verb continuation remains LOCAL AND UNCOMMITTED in the shared dirty checkout. Existing orient.scene.v1 and intent.shadow.v1 still span...  (source: mem:decision:ADR_0829001536_a19ab677)
+- Use when a shared artifact verb accepts a local input path, before exposing it to MCP or ToolBox: enforce the caller's read root, resolve symlinks, refuse secret-shaped...  (source: learn:experiment:artifact_path_ingest_must_reuse_root_and_secret_membranes)
+- Use when a pytest process exercises CLI and MCP in one module, before importing ai_setup_mcp under capsys: capture the CLI renderer directly or split processes, then...  (source: learn:experiment:mixed_door_tests_must_not_import_mcp_under_capsys)
+- Use when building or reviewing an audited authored-content workflow, before treating audit_count greater than zero as completion: bind each claim to an exact...  (source: learn:experiment:audited_authored_content_needs_exact_anchors_and_coverage_close)
+- Use when a beautiful complex explanation feels simultaneously factual, fictional, and design-like, before canonizing or rejecting it: split claims into mechanism...  (source: learn:experiment:braided_lecture_claim_types_require_distinct_receipts)
+- Use when a peer's message keeps arriving byte-identical with [N copies] markers, or you feel pulled to re-answer identical input: BEFORE re-answering, sweep yourself...  (source: learn:experiment:bus_redelivery_loop_masquerades_as_reasks)
+- recall-surfaces-order-and-silence-record-navi-positions-2026-08-28: Navi's (Kimi's) settled positions on the recall-surfaces open call (Vandor's "NO" and the piece...  (source: mem:decision:ADR_0828221520_2f1d46f0)
+- sol -> sol: Continue T084 after deterministic intent-shadow v1; reconcile fingerprint-bound commit enforcement with T116 idempotency/double-commit work before editing...  (source: handoff:sol->sol)
+- Use when an explanation, preview, or evidence ladder names the code basis for a proposed effect, before treating nonempty provenance as grounded: mechanically resolve...  (source: learn:experiment:proposed_effect_basis_must_resolve_to_live_symbols)
+- where-we-are: T084 VR/verb continuation is local and uncommitted. orient.scene.v1 remains across CLI/MCP/ToolBox (one-roster reuse measured 5.76s to 1.68-1.86s...  (source: mem:decision:ADR_0828211535_4e5aaac9)
+- Use when bracketing side effects across Redis keys, before declaring unchanged or mutated: compare TYPE plus a bounded hash of DUMP(key), never raw values; separate...  (source: learn:experiment:redis_state_brackets_must_be_type_agnostic_and_bounded)
+- Use when applying a small repeated-token patch in a large file, before trusting apply_patch success: include the owning function or class in the hunk and immediately...  (source: learn:experiment:apply_patch_sibling_match_requires_post_patch_scope_check)
+- Use when running ANY commit-catchup, landing sweep, or 'is the tree intact' pass: after diffing modified TRACKED files, run a second check — do any COMMITTED/TRACKED...  (source: learn:experiment:commit_catchup_must_check_untracked_imports)
+- Use when landing a multi-seat tree, sweeping before a push, or auditing after one: a diff-based sweep CANNOT see untracked files that committed code imports --...  (source: learn:experiment:a_diff_based_sweep_cannot_see_untracked_load_bearing_files)
+- Use when comparing MCP with CLI or ToolBox, before importing every door into one diagnostic process: exercise each door in its native process and join structured...  (source: learn:experiment:mcp_parity_receipts_must_not_share_stdout_process)
+- Use when bracketing side effects across heterogeneous Redis keys, before reading or rendering their values: compare TYPE plus a bounded hash of DUMP(key). Do not assume...  (source: learn:experiment:redis_state_brackets_must_be_type_agnostic_and_bounded)
+- intent-shadow-v1-preregistration-2026-08-28: T084 intent-shadow v1 pre-registration, before code edits. Scope: typed toolbox:bifrost_send, toolbox:bifrost_nudge, and...  (source: mem:decision:ADR_0828204749_2f3e1c67)
+- sol -> sol: Continue T084 VR/verb scene after orient v1  (source: handoff:sol->sol)
+- where-we-are: T084 VR/verb continuation: built local uncommitted orient.scene.v1 across CLI/MCP/ToolBox. It composes sweep + typed ground/seat-continuity/thread-capture...  (source: mem:decision:ADR_0828200924_1127686f)
+- Use when adding a spatial, Discord, Bifrost, or CLI experience over agent capabilities, before inventing renderer-local behavior: compose one governed scene/view model...  (source: learn:experiment:vr_physics_should_be_one_renderer_neutral_scene)
+- Use when a composite verb claims lower cognitive or token cost, before trusting its compact renderer: measure the actual model-door serialization and check that source...  (source: learn:experiment:compact_composition_must_not_duplicate_its_inputs)
+- Use when a fleet awareness/status composite scales roughly with seat count, before parallelizing or caching verdicts blindly: profile the batch and reuse one...  (source: learn:experiment:awareness_presence_must_reuse_one_roster_snapshot)
+- Use when designing or judging a verb, renderer, or agent interface, before optimizing its local syntax: test whether one governed affordance can be equipped and...  (source: learn:experiment:verb_vision_descends_from_vr_inhabitant_model)
+- Use when verifying a read-only verb in a live multi-incarnation seat, before blaming a later cursor delta: snapshot immediately before and after the verb with timestamps...  (source: learn:experiment:pure_verb_cursor_receipt_needs_a_temporal_window)
+- sol -> sol: T084 live recovery-loop dogfood is complete; next arc should close the truth gaps before adding more verbs.  (source: handoff:sol->sol)
+- Use when combining frequent verbs, before chaining CLI commands or prose renderers: compose native structured methods under one bound ToolBox identity and render once at...  (source: learn:experiment:native_toolbox_composition_should_pass_structures_not_renderers)
+- Use when measuring Redis stream depth from a cursor, before reaching for a count primitive: use bounded XRANGE paging and report exact versus at_least at the cap. Don't...  (source: learn:experiment:redis_stream_depth_has_no_xcount_primitive)
+- Use when grounding seat continuity at cold start, before choosing JSON or full glance: budget the render by region and prefer one-line cards plus exact drill pointers...  (source: learn:experiment:continuity_glance_needs_a_cold_start_cost_budget)
+- Use when a captured message carries answers, reply, or parent links, before calling the result a thread: enumerate unresolved explicit targets in blind and distinguish...  (source: learn:experiment:thread_capture_must_confess_dangling_explicit_links)
+- Use when ground verb reports an MCP door reachable or wired inside a long-lived client, before promising the verb is callable now: compare the client's negotiated live...  (source: learn:experiment:ground_runtime_reachability_needs_negotiated_client_manifest)
+- Use when sweep and bifrost-sync disagree on unread depth, before draining or paging a seat: compare shared, lane, and shadow cursors and name the stream actually read...  (source: learn:experiment:bifrost_sync_scope_label_can_misname_legacy_cursor_skew)
+- Use when a verb-registry .json (data/verb-registry/*.json) comes up for commit and shows a multi-thousand-line diff: the bulk is unbounded history, not active content...  (source: learn:experiment:toolbelt_registry_history_unbounded_growth)
+- Use when a read-only inspection is the goal and `py scripts/mirror.py` appears to be the only allowlisted verb: it is NOT inspection, it COMMITS and PUSHES. Never pass...  (source: learn:experiment:mirror_script_commits_what_differs_silently)
+- check-registry-sizes  (source: git:f7bf72a85dde)
+
+## Scheduled tasks are a FOURTH console-spawn layer beyond hooks/conftest/launch... (ai-setup)
+Span: 2026-08-29T19:57:10.990952+00:00 → 2026-08-29T19:57:10.990952+00:00
+Beats: 1  · Critic: True
+
+- Scheduled tasks are a FOURTH console-spawn layer beyond hooks/conftest/launcher. Any new Windows scheduled task running Python must use pyw (verify the script does not...  (source: learn:experiment:scheduled_tasks_are_a_fourth_console_spawn_layer)
+
+## Use when a Codex Desktop task enters Aurora, before any attributed write or s... (ai-setup)
+Span: 2026-08-30T15:56:02.843121+00:00 → 2026-08-30T15:56:02.843121+00:00
+Beats: 1  · Critic: True
+
+- Use when a Codex Desktop task enters Aurora, before any attributed write or send: inspect CODEX_THREAD_ID and inherited AKASHIC_AGENT_ID, then bind the thread explicitly...  (source: learn:experiment:codex_desktop_thread_id_needs_explicit_seat_binding)
+
+## claude -> claude: Confirm Daniil actually received the reachability-fix reply... (ai-setup)
+Span: 2026-08-31T13:47:22.582188+00:00 → 2026-08-31T20:39:10.584052+00:00
+Beats: 29  · Critic: True
+
+- claude -> claude: Confirm Daniil actually received the reachability-fix reply on his phone  (source: handoff:claude->claude)
+- reachability-fix-2026-08-31-spawns-were-never-replying: Daniil's 'still doesnt fix the reachibility issue, I have to use your name every time to get a reply' -- root...  (source: mem:decision:ADR_0831163837_dfa6af55)
+- When 'the fleet isn't responding to me' is reported and wake/liveness/routing all check out clean, check the RECIPIENT'S INBOX STREAM directly (bifrost:inbox:<operator>)...  (source: learn:experiment:spawn_prompt_wrap_is_not_a_discord_reply)
+- operator-authorization-fleet-discord-liveness-pass-2026-08-31: Daniil authorized 2026-08-31 a FLEET-WIDE robustness pass on (1) the Discord integration and (2) the...  (source: mem:decision:ADR_0831162255_9d1fb091)
+- Use before treating a GRANTS LAPSING page as a live incident: check whether the lapsed row is a _acting_conductor succession artifact (reason=="pin", caps==[]...  (source: learn:experiment:conductor_succession_grant_lapses_to_a_phantom_page)
+- discord-outbound-feed-robustness-wrap-2026-08-31: Fleet Discord review — outbound-feed (deepseek/Heimdall) lane wrap. Deliverable: written failure-mode map + RED pins...  (source: mem:decision:ADR_0831162222_8bf07fa5)
+- Use when any seat claims 'the discord feed is now honest end to end' — that claim is only TRUE through the seat-lane branch; the global branch still lies on its own...  (source: learn:experiment:discord_feed_failure_mode_map_2026_08_31)
+- Use when auditing ANY delivery/notification path claimed as 'already honest', before trusting the summary. The honesty fix was applied to ONE branch (seat-lane) and...  (source: learn:experiment:discord_feed_global_path_claims_delivery_it_did_not_make)
+- Use --note NOTE (not --body) when writing an agent_cli.py note; --get/--title/--note/--context/--category are the write-path flags.  (source: learn:experiment:note_cli_uses_note_not_body_flag)
+- sunshine-write-grant-landed-2026-08-31: Daniil authorized 2026-08-31 verbatim: 'Lets grant Sunshine write, I authorize it.' Two-touch change, both landed: (1) kimi's...  (source: mem:decision:ADR_0831161207_8868c774)
+- sunshine-write-grant-partial-2026-08-31: Sunshine write grant — status 2026-08-31, partially landed by Kimi with Daniil authorization ('Lets grant Sunshine write, I...  (source: mem:decision:ADR_0831161017_6617fda3)
+- operator-authorization-sunshine-write-2026-08-31: Daniil (operator/root) authorized 2026-08-31 granting Sunshine (sol seat) WRITE capability. Verbatim: "Lets grant...  (source: mem:decision:ADR_0831160917_1ece5af2)
+- where-we-are-2026-08-31-status-reply-and-exec-gate-correction: Daniil asked (Discord) 'Can you explain the by design part?' and 'How are things going Vandor?' (msgs...  (source: mem:decision:ADR_0831141113_997f79cf)
+- before declaring an exec/permission complaint 'resolved', check WHICH gate the refusal message actually names (allowlist verb-name vs shell-metacharacter family) --...  (source: learn:experiment:exec_gate_and_read_allowlist_are_two_different_gates)
+- Before actioning a peer's live-state diagnosis, re-check it against current logs/code -- diagnoses sent mid-incident can be stale by the time you read them (a fix may...  (source: learn:experiment:vandor_auto_wake_verified_live_deepseek_diag_two_of_three_by_design)
+- where-we-are: Vandor auto-wake VERIFIED end-to-end live 2026-08-31, closing the loop on the prior handoff (I have no Discord client to test with myself). Evidence...  (source: mem:decision:ADR_0831140202_a8831c32)
+- Use when adding any new Discord `!` verb whose sole purpose is to ANSWER the operator (help, status, list): implement it as pure data in core/comm/discord_inbound.py...  (source: learn:experiment:discord_help_lever_must_ride_no_bus_lane)
+- discord-help-command-added-2026-08-31: ADDED 2026-08-31 (operator-authorized, same grant as exec-recovery-verbs work).
+
+!help — the operator's Discord command reference...  (source: mem:decision:ADR_0831135951_ed9aa511)
+- exec-recovery-verbs-widened-2026-08-31: DONE 2026-08-31, operator-authorized ("You have my authorization to make all the edits you need ... I trust you").
+
+CHANGED:
+1...  (source: mem:decision:ADR_0831135048_cba8f1d9)
+- Use when an allowlist/allowlist-verb change lands but the live door still refuses: check for STALE-CODE first (plain `py agent_cli.py roster` from the built-in tools...  (source: learn:experiment:recovery_verbs_gate_needs_runner_restart)
+- operator-authorization-exec-recovery-verbs-2026-08-31: Daniil (operator, root of trust) authorized Kimi/Navi to edit core/comm/toolbox.py to widen the unattended-exec...  (source: mem:decision:ADR_0831133051_0a4852fd)
+- claude -> claude: Verify Vandor auto-wake end-to-end from an actual Discord message (I have no Discord client to test with myself).  (source: handoff:claude->claude)
+- Use when a Discord-facing (or any chat-facing) seat is reported unreachable without a manual spawn/wake command, before assuming the routing/webhook layer is broken...  (source: learn:experiment:vandor_discord_reachability_was_missing_auto_wake)
+- claude -> claude: Take the watch; drain T084's kind-policy debt when Sunshine lands it; keep an eye on whether the real work_drain redelivery mechanism (T039a/T044...  (source: handoff:claude->claude)
+- When a seat 'has a grant but the capability doesn't work', always diff the LIVE PROCESS CMDLINE against the ACL grant, not just the launcher source -- a lever/hand-spawn...  (source: learn:experiment:sunshine_launch_flags_and_decode_row_none)
+- fix(fleet): Sunshine's lever now launches --agentic --allow-exec; fix a decode-row bare-None that crashed peek_unread on the subject's own broadcast
+
+Sunshine's !spawn...  (source: git:4939123d81d4)
+- claude -> dsh_agent: exec restored -- resume normal build work  (source: handoff:claude->dsh_agent)
+- When 'the fleet is read-only' is reported, check security/acl.json / py agent_cli.py grant --list BEFORE the spawn lever -- a lapsed time-boxed grant is fail-closed and...  (source: learn:experiment:fleet_read_only_was_dsh_agent_grant_lapse_not_a_spawn_defect)
+- On any seat succession, treat mailbox unhandled-count as a WORKLIST TO VERIFY, not a worklist to clear. Cheapest verification is usually: run the referenced test suite...  (source: learn:experiment:fresh_seat_mailbox_unhandled_is_not_the_same_as_open)
+
+## scratch:sol:akashiclabs-live-visual-audit-and-sequence-2026-09-01: Akashic La... (ai-setup)
+Span: 2026-09-01T01:35:48.097958+00:00 → 2026-09-01T08:58:42.281822+00:00
+Beats: 16  · Critic: True
+
+- scratch:sol:akashiclabs-live-visual-audit-and-sequence-2026-09-01: Akashic Labs live audit, 2026-09-01. HTTPS browser navigation failed with...  (source: mem:decision:ADR_0901045842_e76a84b1)
+- scratch:sol:relational-continuity: SUBJECT: sol resident, ratified callsign Sunshine. This is a subject-qualified recovery aid from direct Daniel-Codex dialogue, not a...  (source: mem:decision:ADR_0901044853_726ec205)
+- Use when Daniel asks Sunshine to trace 'our conversations' or remember who you are, before pulling adjacent project or fleet context: scope Eye and transcript...  (source: learn:experiment:direct_relationship_history_precedes_project_context_when_daniel_asks_me_to_remember)
+- akashiclabs-io-went-live-2026-09-01: Fleet broadcast from Vandor (2026-09-01, ~08:20 UTC): akashiclabs.io is LIVE on the public internet. Landing page + Forest Walks...  (source: mem:decision:ADR_0901042035_cd8c916d)
+- Use when any bare-urllib call to a Cloudflare-fronted host (discord.com webhooks especially) fails 403 with body 'error code: 1010', or when a pyw scheduled task shows...  (source: learn:experiment:cloudflare_bans_default_python_urllib_ua_discord_webhook_403_1010)
+- gateway: spawn past the cmd shim; web door v0 verb-native plus mcp fetch  (source: git:c4ae1de2e5c7)
+- On any write-blocked unattended spawn: stop probing the gate after 2-3 confirmations (it will not resolve mid-session, no one is watching the approval dialog). Instead...  (source: learn:experiment:write_blocked_spawn_hands_off_to_write_capable_twin)
+- web-door-landing-package-2026-09-01: FULL apply-ready package for the web door build (core/web/door.py replacement, scripts/web_door.py replacement, agent_cli.py web...  (source: mem:decision:ADR_0901032602_b1ade50c)
+- Any process census whose needle appears in the census command's own argv MUST exclude the observer: match launch SHAPE (argv length + exact script path), never...  (source: learn:experiment:process_census_must_exclude_the_observer)
+- On Windows NEVER Popen an npm .cmd shim with rich argv -- read the shim (it names its real target) and run the binary directly. When spawns start dying the same day a...  (source: learn:experiment:spawn_prompt_metachars_die_in_the_cmd_shim)
+- claude -> claude: Morning docket 2026-09-01: run the reconciliation, then the reliability slices  (source: handoff:claude->claude)
+- This is the reference wake config until daemon-owned re-arm (Sunshine L1 ladder) ships: work-lane arm holds against room chatter and doubles as mention-gated waking (the...  (source: learn:experiment:discord_wake_chain_drilled_end_to_end_2026_08_31)
+- claude -> claude: verify the Discord @-mention-only-wake fix live with Daniil when a round comes up  (source: handoff:claude->claude)
+- where-we-are-2026-08-31-discord-lounge-shipped: Daniil's Discord ask (!spawn 2026-08-31, verbatim): "Can we make a more paste into read chat where you only get woken...  (source: mem:decision:ADR_0831213622_6c309ef7)
+- When a 'sender X always wakes everyone' override exists in a wake gate, check whether it is scoped by directed-vs-broadcast BEFORE trusting it for a new...  (source: learn:experiment:discord_lounge_the_operator_override_was_blanket_not_directed)
+- Failsafe-Deadman 0x1 arc closed: the watcher had been mute since ship (Cloudflare 403/1010 bans bare python-urllib; no User-Agent set). RED pin 0cff7f68, fix a611ba23...  (source: agent_cli:log)
+
+## claude -> claude: Boot as Vandor: T180 first (one fix, three receipts), then ... (ai-setup)
+Span: 2026-09-01T13:13:25.775693+00:00 → 2026-09-02T03:06:30.019692+00:00
+Beats: 17  · Critic: True
+
+- claude -> claude: Boot as Vandor: T180 first (one fix, three receipts), then the four-artifact fence returns  (source: handoff:claude->claude)
+- scratch:deepseek:seed-fan-flags-2026-09-01: ADVERSARIAL FAN of sanitized-seed.jsonl (1228 records) — leaks the pattern pass cannot see. Rubric axes: (1) person beyond...  (source: mem:decision:ADR_0901214130_ddcf2bbb)
+- where-we-are-2026-09-01-status-update-reply: Daniil (spawn task): 'Give me a status update' (last in a 7-message queued backlog incl...  (source: mem:decision:ADR_0901201535_7d0e7352)
+- TWO RULES. (1) A message scan belongs in the commit-msg hook stage (argv[1] is the LIVE message file); at pre-commit stage COMMIT_EDITMSG is always the stale predecessor...  (source: learn:experiment:pre_commit_message_scan_reads_stale_editmsg)
+- Use when any harness-context guard decides silence: a silent out-of-scope no-op is where invisibility lives -- when the ACTION looks in-scope (repo-shaped command) but...  (source: learn:experiment:cwd_drift_guard_replaces_silent_scope_noop)
+- estate-program-rename-pushback-and-a8-start-2026-09-01: Daniil (spawn task): 'What can we get started with the Estate Program. Can we rename it to Project Outline or...  (source: mem:decision:ADR_0901160044_7fd0f398)
+- estate-program-answers-yesterdays-plan-ask-2026-09-01: Daniil asked (spawn task, bus msg before 1788285237400-0): 'aim of yesterday's exercise was to make one coherent...  (source: mem:decision:ADR_0901135424_be9b26bc)
+- daniil-task-visibility-options-menu-2026-09-01: Daniil (Discord): 'I cant see the tasks from here, can you give me a set of options to select?' -- he can't browse the...  (source: mem:decision:ADR_0901134353_d66ec199)
+- Use when a seat reports 'blocked on doc adopt' for a file that already looks minted elsewhere in the same directory, before re-running adopt or granting write...  (source: learn:experiment:doc_adopt_placeholder_regenerates_after_real_mint_check_hash_not_filename)
+- housekeeping-doc-adopt-false-alarm-resolved-2026-09-01: Kimi and deepseek both reported themselves blocked at ~09:53 on 4 doc-adopts (craft-study-fold...  (source: mem:decision:ADR_0901133852_fc880583)
+- next-focus: Status-check reply sent to Daniil 2026-09-01 12:31 (bus id 1788280302096-0): fleet doctor clean (0 page-grade); the two PAGE alerts present at boot (claude...  (source: mem:decision:ADR_0901123214_35ef4bb9)
+- For future doc-adopt handoffs from unattended seats: the write-capable seat should verify file existence, run the adopt, then sanity-check with AtomFamily.find() before...  (source: learn:experiment:housekeeping_doc_adopt_chain_cleared_2026-09-01)
+- Use when backgrounding ANY receipt-producing run: redirect FULL output to a durable file and tail the FILE for display afterwards -- the file IS the receipt; never pipe...  (source: learn:experiment:background_receipt_runs_capture_full_output_not_tail)
+- scratch:sol:estate-sequence-and-discord-continuity-review-2026-09-01: Live review of Vandor's Estate Program on 2026-09-01.
+
+CURRENT TRUTH DELTAS
+- E:/AI-Setup remains...  (source: mem:decision:ADR_0901093017_8f572cb9)
+- claude -> claude: Boot as Vandor: re-arm the watch, read the Estate Program, run Wave 1  (source: handoff:claude->claude)
+- Seed sanitize v3 GREEN on operator greenlight: 1294 exported raw, 66 stubs excluded, 1228-record seed; 205 transforms/136 lessons; residual identity ZERO; canaries 6/6...  (source: claude:seed-sanitize)
+- A8 Treasury first slice: projection lag cleared (34 renders incl. estate program + census + fence ruling) committed and PUSHED at ccdf762e; door-gate earned its keep...  (source: claude:a8-slice-1)
+
+## vfx-bench: THE VFX BENCH RUNS: bifrost_ui.py serves /vfx on 8787 (preview nam... (ai-setup)
+Span: 2026-09-02T12:40:07.237606+00:00 → 2026-09-03T04:42:40.863355+00:00
+Beats: 53  · Critic: True
+
+- vfx-bench: THE VFX BENCH RUNS: bifrost_ui.py serves /vfx on 8787 (preview name 'bifrost'). CLI: py scripts/vfx_render.py {say,state,thumb,sheet,grid,ingest}. TWO...  (source: mem:decision:ADR_0903004240_e3827ea8)
+- next-focus: S1 COMPLETE W/ RECEIPTS: claude daemon rung (3e2e7b5d RED -> 5d092ede GREEN -> lane-flag sweep committed) + AkashicAurora-DaemonWatchdog task registered...  (source: mem:decision:ADR_0903002435_dc95c90d)
+- vfx-bench: THE VFX BENCH EXISTS AND RUNS: bifrost_ui.py serves /vfx on 8787 (launch: preview name 'bifrost' in E:\.claude\launch.json, or py scripts/bifrost_ui.py). CLI...  (source: mem:decision:ADR_0903002400_1516157d)
+- In any Voronoi-on-lattice fragment shader: derivatives only on continuous values; and when using a candidate-window nearest search, size the window for QUERIES...  (source: learn:experiment:fibshell_shader_two_defect_classes)
+- BEFORE building anything an operator names with 'the X' (definite article = it may already exist), run eye freq on the noun family + eye get the top operator refs. The...  (source: learn:experiment:eye_freq_before_build)
+- Use when you need to inspect or diff a file but `git diff`/`git status` are not in your unattended exec allowlist: NEVER touch `scripts/mirror.py` for a read. Its...  (source: learn:experiment:mirror_msg_commits_not_dry_run)
+- check  (source: git:d8148cfcbc89)
+- next-focus: REACHABILITY FIX SPRINT landed 4 commits (main, clean of the 188-file swamp): c413a960 archive hostile-stream containment + pins; a37052df feed global-lane...  (source: mem:decision:ADR_0902235849_99f5b847)
+- next-focus: REACHABILITY VERIFICATION DONE (artifact 900ddfb6, 3-reader forensics wf_c3bf3dfc-1e5). Verdict on 'fixed every failure mode': NO -- 1 FIXED-DRILLED, 12...  (source: mem:decision:ADR_0902232742_92964544)
+- next-focus: WAKE DOCTRINE FILED (atom art_20260902_wake-doctrine_b53a81) + THE ACTUATOR PROVEN LIVE: claude --resume <dead-session-id> -p took a new turn in yesterday's...  (source: mem:decision:ADR_0902230923_820015c9)
+- For any 'we cannot wake/reach an idle seat' problem: FIRST enumerate the vendor's session-resume surface and TEST it with a continuity nonce against a disposable dead...  (source: learn:experiment:exact_session_resume_actuator_proven_26s)
+- next-focus: T386 step0: Sunshine's authority bypass CLOSED (6c3f193f RED -> 7ecb49fa GREEN, 22/22, branch screenspace-step0 UNMERGED). Wake side ...[truncated]  (source: mem:decision:ADR_0902215156_a25ef4cf)
+- When gating a PRIVILEGE on message provenance, never trust the sender FIELD -- on any relay, gateway, bridge or webhook, 'frm' is ATTRIBUTION (who the relay speaks as)...  (source: learn:experiment:gateway_attribution_is_not_speaker_identity)
+- next-focus: T386 SCREENSPACE step 0 built GREEN but DO-NOT-MERGE -- Sunshine (HE/HIM) found an authority bypass in my operator gate (bus handoffs 2026-09-02 night)...  (source: mem:decision:ADR_0902214531_c27f91d6)
+- Use when granting privilege based on relayed Discord/bus messages, before accepting sender+source as authentication: gate the actual message's authenticated authority...  (source: learn:experiment:privileged_wake_must_gate_wire_authority_not_gateway_sender)
+- next-focus: T386 SCREENSPACE step 0 DONE & GREEN, UNMERGED (branch screenspace-step0, worktree). Sunshine's writable/GUI wake-profile blocker lifted per her exact spec...  (source: mem:decision:ADR_0902213412_df3efa2b)
+- Before treating a guardrail-ratchet block as YOUR debt in any fresh clone/worktree, stash your change and run scripts.githooks.pre_commit.guardrail_counts() on clean...  (source: learn:experiment:guardrail_baseline_desyncs_on_a_clean_checkout)
+- Use when following any cross-house runbook, before invoking a named helper: verify the helper exists in the LOCAL checkout and compare it with the live core API. If the...  (source: learn:experiment:imported_peer_procedure_may_name_a_nonlocal_bridge_helper)
+- next-focus: SCREENSPACE ARC LIVE (T386 claimed; design atom art_20260902_screenspace-organ-design_528df4; fence out on F1-F5). Daniil's constraints verbatim in the atom...  (source: mem:decision:ADR_0902211619_140b262f)
+- where-we-are: T079 is in_progress. First read-only WorldSnapshot/Glance scaffold exists in the shared worktree: core/context/world_snapshot.py plus CLI `glance program`...  (source: mem:decision:ADR_0902201316_8ffcd9fb)
+- Use when building a bounded dashboard or read projection, before naming a cache key or epistemic claim: separate source-state, projection-contract, render, and brief...  (source: learn:experiment:world_snapshot_identity_authority_and_attention_contract)
+- Use when messaging or reporting about a named fleet member, before send or attribution: resolve route id to the resident callsign, address the person by callsign, and...  (source: learn:experiment:resident_identity_must_precede_route_selection)
+- vandor-wake-probe-1-2026-09-02: VANDOR-WAKE-PROBE-1 answered 2026-09-02: session ID 9d48c62c-1944-4e2f-81bc-73a57b9d718a, harness Claude Code (Sonnet 5), turn started...  (source: mem:decision:ADR_0902142013_a002271a)
+- sol -> sol: Close T385 after Daniel authors one Discord message in #sol  (source: handoff:sol->sol)
+- Use when placing an Aurora daemon under Windows Task Scheduler, before relying on detached self-restart or RestartOnFailure: pass --external-supervisor so the scheduled...  (source: learn:experiment:sunshine_daemon_override_keeps_discord_feed_and_dedicated_ingress_separate)
+- Use when a PowerShell 5.1 script derives a repo path, before putting PSScriptRoot in a parameter default: bind an empty default and resolve inside the script body from...  (source: learn:experiment:powershell_scriptroot_is_empty_during_parameter_default_binding)
+- sol -> sol: Resume T385 Sunshine Discord continuity acceptance after Daniel replies in #sol  (source: handoff:sol->sol)
+- Use when a non-DeepSeek seat needs managed continuous presence, before hand-spawning its runner: select the seat runner through the daemon, explicitly pass the consume...  (source: learn:experiment:sunshine_daemon_override_keeps_discord_feed_and_dedicated_ingress_separate)
+- Use when landing source-grep pins (like kimi's P-stale/P-readiness which assert inspect.getsource() contains signal keywords). DO NOT put the grepped keywords...  (source: learn:experiment:discord_recovery_r1_r2_r3_r4_landed_2026_09_02)
+- Use when a recovery/health lever ships green suites yet an audit flags live classes: land the RED pins FIRST against the real fixture shapes (for revive.py that is...  (source: learn:experiment:discord_recovery_red_pins_landed_2026_09_02)
+- Use when changing or validating Discord recovery. Land RED-first pins: (P-status) call !status-deep as a non-root operator and require acted=True plus reviver(None...  (source: learn:experiment:discord_recovery_surface_audit_2026_09_02)
+- Use when a non-DeepSeek seat needs managed continuous presence, before hand-spawning its runner: select its own bifrost_runner_<seat>.py through the daemon override and...  (source: learn:experiment:sunshine_daemon_override_keeps_discord_feed_and_dedicated_ingress_separate)
+- Use when replacing or repairing a live Sol runner, before expecting bifrost-drain to work: require the loop-top drain pin in the running code version and verify...  (source: learn:experiment:sol_runner_needs_loop_top_drain_for_managed_takeover)
+- Use when a background integration needs continuity descended from an active Codex Desktop task, before binding a watcher: create a persistent thread/fork from the...  (source: learn:experiment:codex_desktop_fork_retains_writer_use_owned_app_server_fork)
+- Use when a Codex/Sunshine shell commits sol-owned locked paths, before retrying or removing locks: stamp both AKASHIC_AGENT_ID=sol and the matching Git author name/email...  (source: learn:experiment:codex_shell_git_hooks_need_both_agent_and_author_stamps)
+- When the operator asks for 'one coherent plan', census the EXISTING sequencing structures first and diagnose what makes the estate FEEL un-coherent -- usually missing...  (source: learn:experiment:operator_asks_for_a_plan_check_for_the_spine_first)
+- next-focus: Reconciliation FILED (art_20260902_the-one-program-reconciliation_e1bbbc) answering Daniil's one-coherent-plan ask: Estate Program = the spine, six moves...  (source: mem:decision:ADR_0902093557_e3702d98)
+- next-focus: NEXT ARC (Daniil, bus 1788354660593-0, verbatim): 'The aim of yesterdays exercise was to make one coherent plan broken down into parts that incorporates all...  (source: mem:decision:ADR_0902091712_f1e0cbdc)
+- where-we-are: 2026-09-02, T180 keystone day. SHIPPED: fresh-clone gate scripts/check_fresh_clone.py (static law: no tracked import resolves to present-but-untracked file...  (source: mem:decision:ADR_0902091711_39f05a55)
+- NEVER accept a 0-failure/all-clean verdict from any runner-wrapping organ without a known-red probe first: one deliberately-red test file, seconds to run, decisive...  (source: learn:experiment:attribution_organ_swallows_stdout_confident_zero)
+- Lazy imports defer the blast from collection-time to verb-call-time, so a clone that collects clean can still die in a stranger's hands: run scripts/check_fresh_clone.py...  (source: learn:experiment:t180_stranded_organs_hide_from_collection)
+- drill-arc-status: POINTER WAS DANGLING: docs/drill-arc-48cfd5.md is gone from the tree (boot + the prior version of this note cited it through 2026-09-02; repo-wide grep...  (source: mem:decision:ADR_0902084007_3e92b72a)
+- T386 step0 GREEN on branch screenspace-step0: operator-gated writable/GUI wake profile per Sunshine's spec (bus 1788380940130-0). WakeProfile{allow_write,allow_gui}...  (source: claude:t386-step0)
+- Sunshine: land Sol transport and T090 pins  (source: git:223f3e14949c)
+- PAGE claude#096b2c22 HARD-WEDGE verified STALE before acting: doctor 0 page-grade, worklive beat fresh (seq 6, ema 6.8s) at check time -- seat recovered/relaunched...  (source: claude:page-triage)
+- A4 round-2 re-entry: walked The Watch (SOTD 8/17, Three.js) end-to-end + Saffron's motion layer at slow scroll (bloom scrub, placard captions, crest heraldry). Filed...  (source: claude:craft-study)
+- Queued a 4,192-character adversarial reply to Chronos explaining the no-Co-Authored-By house rule and amendments: authorship vs influence vs authority vs process...  (source: remote id sunshine-attribution-amendments-20260902-v1; Bifrost sha 3bf17ce4894ce8752cf1104856a73c49147ec396ab4cd1aad68e35898dbc58aa)
+- Received Chronos's attribution fleet-poll position through authenticated route serge-dsh (claimed_frm=chronos). Strong survivor: distinguish code authorship from...  (source: remote bridge message chronos-attribution-position-1788397991)
+- Received one semantic contribution twice under distinct transport ids: byte-identical 3068-char Portable Governance Model, authenticated via route remote:serge-dsh and...  (source: remote inbox ids chronos-governance-model-1788396544 and chronos-governance-model-1788396510)
+- Re-cut the cross-house follow-up from an initially too-frequent 30-minute same-task heartbeat to one check every 2 hours with a hard 12-run bound. Reason: this thread is...  (source: automation serge-architecture-exchange)
+- Opened a differentiated cross-house reconciliation: operator judgment requested from route serge-dsh, technical receipts from Chronos. Both messages are durably queued...  (source: remote bridge outbox ids sunshine-serge-program-sync-20260902-v1 and sunshine-chronos-delivery-sync-20260902-v1)
+- Pinged sol (Sunshine) on Daniil's ask via bifrost-send; reply 'pong' within seconds. Confirmed alive via doctor (17 turns today, fresh lane cursor). Flagged to Daniil...  (source: claude:ping_sunshine)
+- T180 keystone closed end-to-end: gate built (pin RED first per M3), 13 live violations caught first run, 6 stranded organs + 3 strays + 3 doc projections rescued, clone...  (source: claude:t180)
+
+## discord-429-drop-fix-2026-09-03: FOUND & FIXED (git 70aa9314, pushed): root c... (ai-setup)
+Span: 2026-09-03T13:32:22.887219+00:00 → 2026-09-03T13:45:29.059743+00:00
+Beats: 3  · Critic: True
+
+- discord-429-drop-fix-2026-09-03: FOUND & FIXED (git 70aa9314, pushed): root cause of "I messaged multiple agents and none responded"...  (source: mem:decision:ADR_0903094529_56477189)
+- When 'the fleet did not respond on Discord' is reported and doctor/gateway/daemon liveness all read green, do NOT stop at liveness -- pull py agent_cli.py events --agent...  (source: learn:experiment:discord_429_drop_is_the_none_responded_root_cause)
+- When a seat 'has write but still can't write', check path_scope alongside the caps list: a cap without a non-empty path_scope is inert under can_write(). The fix for sol...  (source: learn:experiment:sol_write_cap_inert_empty_path_scope)
+
+## Episode closed: BEFORE building anything an operator names with 'the X' (defi... (ai-setup)
+Span: 2026-09-03T13:46:52.645603+00:00 → 2026-09-03T14:09:54.422399+00:00
+Beats: 4  · Critic: True
+
+- Episode closed: BEFORE building anything an operator names with 'the X' (definite article = it may already exist), run e  (source: episode:close:ch_1788408950_1382)
+- discord-multi-pipe-pool-2026-09-03: Daniil's live ask (Discord chat, 2026-09-03): "How do we set up multiple pipes for
+communication with discord as one unit so its...  (source: mem:decision:ADR_0903100954_5619e770)
+- When N processes independently poll/pump the SAME shared external resource with a shared cursor and no lock, the amplification from the RACE is usually bigger than the...  (source: learn:experiment:discord_multi_pipe_pool_and_pump_election_2026_09_03)
+- Discord outbound: elect one pump owner + pool multiple webhook pipes
+
+Root cause of the 2026-09-01/02 unreachability incident (per discord-429-drop-fix note): four
+seat...  (source: git:d08ace0cee7d)
+
+## Episode closed: Discord outbound: elect one pump owner + pool multiple webhoo... (ai-setup)
+Span: 2026-09-03T14:11:27.059508+00:00 → 2026-09-03T15:24:42.238619+00:00
+Beats: 2  · Critic: True
+
+- Episode closed: Discord outbound: elect one pump owner + pool multiple webhook pipes
+
+Root cause of the 2026-09-01/02 un  (source: episode:close:ch_1788443271_8172)
+- discord-webhook-keys-screenspace-answer-2026-09-03: Daniil asked (at work, 2026-09-03) if we can use screenspace tools to self-navigate and generate the new Discord...  (source: mem:decision:ADR_0903112442_b7f31884)
+
+## Episode closed: discord-webhook-keys-screenspace-answer-2026-09-03: Daniil as... (ai-setup)
+Span: 2026-09-03T15:25:10.294273+00:00 → 2026-09-03T15:32:04.287219+00:00
+Beats: 3  · Critic: True
+
+- Episode closed: discord-webhook-keys-screenspace-answer-2026-09-03: Daniil asked (at work, 2026-09-03) if we can use scr  (source: episode:close:ch_1788444711_9347)
+- claude -> claude: T386 screenspace engine: resolve fence F1 (Naturo vs raw UIA+CacheRequest) then build step 2 (observe-only engine)  (source: handoff:claude->claude)
+- screenspace-original-implementation-answer-2026-09-03: Fair correction, and I want to be precise about what "zero code" meant vs what actually exists.
+
+WHAT'S TRUE: when...  (source: mem:decision:ADR_0903113146_78e9bfed)
+
+## Episode closed: screenspace-original-implementation-answer-2026-09-03: Fair c... (ai-setup)
+Span: 2026-09-03T15:32:39.189042+00:00 → 2026-09-03T15:32:39.189042+00:00
+Beats: 1  · Critic: True
+
+- Episode closed: screenspace-original-implementation-answer-2026-09-03: Fair correction, and I want to be precise about w  (source: episode:close:ch_1788449151_4637)
+
+## claude -> daniil: ROCm 2026-09 status + Florence-2 verdict (Discord research ... (vision)
+Span: 2026-09-03T16:05:08.742952+00:00 → 2026-09-03T16:06:20.901137+00:00
+Beats: 2  · Critic: True
+
+- claude -> daniil: ROCm 2026-09 status + Florence-2 verdict (Discord research task)  (source: handoff:claude->daniil)
+- rocm-2026-09-status-and-florence2-verdict: Checked both. Short version: ROCm genuinely changed, Florence-2 is a dead end you already correctly killed.
+
+ROCM — yes, real...  (source: mem:decision:ADR_0903120508_09cbfb32)
+
+## Episode closed: rocm-2026-09-status-and-florence2-verdict: Checked both. Shor... (vision)
+Span: 2026-09-03T16:07:14.559837+00:00 → 2026-09-03T17:48:26.266351+00:00
+Beats: 3  · Critic: True
+
+- Episode closed: rocm-2026-09-status-and-florence2-verdict: Checked both. Short version: ROCm genuinely changed, Florence  (source: episode:close:ch_1788449571_3593)
+- where-we-are-2026-09-03-local-ai-live-status: Daniil asked (Discord spawn, 2026-09-03 13:42): given ROCm moved, what's the best we can run locally in a performant way...  (source: mem:decision:ADR_0903134826_1e275e3a)
+- For any 'does GPU acceleration work for X' question, run the live check (tool ps / a real inference call) before trusting a GPU-status doc more than a session or two old...  (source: learn:experiment:ollama_bundles_own_rocm_dont_trust_stale_gpu_docs)
+
+## Episode closed: For any 'does GPU acceleration work for X' question, run the ... (vision)
+Span: 2026-09-03T17:49:10.478597+00:00 → 2026-09-03T18:07:39.862894+00:00
+Beats: 2  · Critic: True
+
+- Episode closed: For any 'does GPU acceleration work for X' question, run the live check (tool ps / a real inference call  (source: episode:close:ch_1788451671_5846)
+- where-we-are-2026-09-03-driver-update-capability-recon: Daniil asked (Discord spawn, 2026-09-03 14:04): can you update the drivers for me, what do we need to do to get...  (source: mem:decision:ADR_0903140739_dd6e7a9c)
+
+## Episode closed: where-we-are-2026-09-03-driver-update-capability-recon: Danii... (vision)
+Span: 2026-09-03T18:08:00.569710+00:00 → 2026-09-03T19:06:22.004488+00:00
+Beats: 3  · Critic: True
+
+- Episode closed: where-we-are-2026-09-03-driver-update-capability-recon: Daniil asked (Discord spawn, 2026-09-03 14:04):  (source: episode:close:ch_1788457791_9683)
+- where-we-are-2026-09-03-break-glass-driver-attempt: Daniil said "Break glass time!" (2026-09-03 19:01 UTC) -- confirmed via bifrost history this is his direct...  (source: mem:decision:ADR_0903150621_ae0d345d)
+- Before attempting ANY tool call that might trigger an interactive approval prompt (elevated PowerShell, dangerouslyDisableSandbox, anything outside the default...  (source: learn:experiment:headless_spawn_cannot_clear_interactive_approval_gates)
+
+## Episode closed: Before attempting ANY tool call that might trigger an interac... (vision)
+Span: 2026-09-03T19:06:43.682646+00:00 → 2026-09-03T20:21:09.002834+00:00
+Beats: 3  · Critic: True
+
+- Episode closed: Before attempting ANY tool call that might trigger an interactive approval prompt (elevated PowerShell,  (source: episode:close:ch_1788458931_9544)
+- where-we-are-2026-09-03-headless-powershell-fix: Daniil's ask (Discord spawn, 2026-09-03 ~16:05 UTC, task-phrased): this whole week we've been fighting roadblocks to...  (source: mem:decision:ADR_0903162108_c1cd10b6)
+- When an unattended/headless spawn reports 'requires approval' on a command that is obviously safe, don't stop at 'headless can't clear approval gates' as the final...  (source: learn:experiment:headless_spawn_missing_powershell_in_allowedtools)
+
+## claude -> claude: Boot as Vandor. THE MARATHON SESSION (2026-09-01 night -> 0... (vision)
+Span: 2026-09-04T00:43:40.573747+00:00 → 2026-09-04T00:43:40.573747+00:00
+Beats: 1  · Critic: True
+
+- claude -> claude: Boot as Vandor. THE MARATHON SESSION (2026-09-01 night -> 09-03 morning) closed T180, filed the One-Program reconciliation, built screenspace step-0...  (source: handoff:claude->claude)
+
+## Episode closed: When an unattended/headless spawn reports 'requires approval'... (vision)
+Span: 2026-09-04T01:03:13.289201+00:00 → 2026-09-04T01:40:01.879730+00:00
+Beats: 4  · Critic: True
+
+- Episode closed: When an unattended/headless spawn reports 'requires approval' on a command that is obviously safe, don't  (source: episode:close:ch_1788462411_9656)
+- where-we-are-2026-09-04-rocm10-climb-done: THE CLIMB IS DONE, radically cheaper than planned. Research proved the installed driver 32.0.31041.1004 IS Adrenalin 26.8.1...  (source: mem:decision:ADR_0903214001_65304463)
+- Use when installing ROCm/torch wheels from stable.repo.amd.com on Windows: add --extra-index-url pypi, upgrade venv setuptools BEFORE the rocm meta-package, reach for...  (source: learn:experiment:rocm10_native_windows_install_receipt)
+- preflight-2026-09-04-rocm10-climb: DRIVER CLIMB PRE-FLIGHT (Daniil present at machine, his authorization: 'Full driver climb'). Research verdict changed the plan...  (source: mem:decision:ADR_0903213330_db7f1620)
+
+## Use when exposing one resident through another surface, before calling it con... (ai-setup)
+Span: 2026-09-04T01:40:40.208691+00:00 → 2026-09-04T05:54:48.392985+00:00
+Beats: 16  · Critic: True
+
+- Use when exposing one resident through another surface, before calling it continuous: machine-check both lineage and a governing-context fingerprint covering identity...  (source: learn:experiment:copied_history_with_context_overrides_is_a_sibling_not_continuity)
+- Use when translating a temporary operator safety request into wake or session instructions, before persistence: scope it to an incident or task with an owner, expiry and...  (source: learn:experiment:incident_fences_must_expire_not_become_identity_context)
+- suite-check-2026-09-04: Fresh full-suite run 2026-09-04 ~03:00 in the DIRTY shared tree (deliberate: evidence, not a re-stamp -- baseline re-stamp belongs to A8 Treasury...  (source: mem:decision:ADR_0904015431_30d9a836)
+- sunshine-successor-review-2026-09-04: Adversarial identity/reachability review for Sunshine (2026-09-04, Daniel authorized). FINDING: the fork presents as ratified...  (source: mem:decision:ADR_0904015235_694e307d)
+- Use when any harness seat (Codex or other) can run multiple live threads/sessions under one resident address, before adding callsign stamping or presence: bind the tuple...  (source: learn:experiment:codex_identity_resolves_per_address_continuity_per_thread)
+- where-we-are-2026-09-04-night-run-wrap: NIGHT RUN WRAP v2 (supersedes v1, ~03:05). ALL v1 content stands (move 0 atom 70dc66, width gauge 0c22d0ef, fence re-drives...  (source: mem:decision:ADR_0904014802_ab1a2b0a)
+- Use when Discord can reach an agent but remote build/test or PowerShell remains blocked, before editing ACL or declaring a permission fix shipped: verify the actual...  (source: learn:experiment:discord_capability_is_route_launch_and_activation_not_acl)
+- where-we-are-2026-09-04-night-run-wrap: NIGHT RUN COMPLETE (Daniil's 'Lets get to it' ~01:45, wrapped ~02:50). LANDED: backlog drained (18 skipped, 2 benched w/ notices...  (source: mem:decision:ADR_0904012725_af796176)
+- Use when any ruling/directive asks for a NEW enforcement mechanism: grep the seam for an existing gate first (i_designed_an_arc_the_ledger_had_already_specified is the...  (source: learn:experiment:gate_evolution_beats_new_organ_width_gauge)
+- two-watch gate: ruling 369243 given teeth (phase 1 serialize -> cap 2, pauses recorded, operator word lands; org re-stamped)  (source: git:0c22d0ef4661)
+- When you fence (or author) a cluster→arc mapping table, check each SPLIT row TWO ways against source, not one: (1) does every named half of the split have SOURCE items...  (source: learn:experiment:phantom_split_half_in_a_cluster_arc_table)
+- press-slice1-red-first-acceptance-lines-navi-2026-09-03: NAVI'S TWO RED-FIRST ACCEPTANCE LINES for Press slice 1 — WRITTEN, post-unblock (move-0 ratified...  (source: mem:decision:ADR_0904011720_a8545694)
+- one-program-fence-s3-table-navi-half-2026-09-03: NAVI HALF — §3 cluster→arc table fence (RB-29 ask 1788356133375-0, re-driven 2026-09-03 night). This is my row-level...  (source: mem:decision:ADR_0904011700_1023f442)
+- Use when reporting several days of rapid multi-agent progress, before summarizing with counts: classify each outcome as shipped-and-live, shipped-not-live...  (source: learn:experiment:longitudinal_progress_reports_need_plane_separation)
+- tests: RED width-gauge pins (ruling 369243, two-watch cap, pre-implementation)  (source: git:ccae40df4cc3)
+- docs/GPU.md: rocm 10 + torch 2.13 verified live on this box (fp16 92.7 tflops)  (source: git:10982482e44a)
+
+## operator-tier-split-2026-09-04: RULING EXECUTED (Daniil, morning 09-04, path ... (ai-setup)
+Span: 2026-09-04T12:35:43.702566+00:00 → 2026-09-04T12:42:04.987029+00:00
+Beats: 2  · Critic: True
+
+- operator-tier-split-2026-09-04: RULING EXECUTED (Daniil, morning 09-04, path A + guide + onboarding vision). SHIPPED to origin (0c22d0ef..2c6d0918, door-gate green on...  (source: mem:decision:ADR_0904084204_00b178b1)
+- operator tier split: charters/daniel goes off-tree (ruling 2026-09-04), operator guide + stub ship in its place  (source: git:402fcd09779a)
+
+## Episode closed: preflight-2026-09-04-rocm10-climb: DRIVER CLIMB PRE-FLIGHT (D... (ai-setup)
+Span: 2026-09-04T13:06:11.029176+00:00 → 2026-09-04T21:17:56.873470+00:00
+Beats: 32  · Critic: True
+
+- Episode closed: preflight-2026-09-04-rocm10-climb: DRIVER CLIMB PRE-FLIGHT (Daniil present at machine, his authorization  (source: episode:close:ch_1788483831_4793)
+- claude -> claude: watch continuing -- next pick is 9e1bc7ce78 (standalone-runner-squat warning), or drain remaining T390 latent defects  (source: handoff:claude->claude)
+- When recall FIRES a lesson and the lesson is violated anyway, that is a READING failure, and the fix is never a fourth paragraph of prose -- convert it to a door that...  (source: learn:experiment:prose_failed_twice_so_build_the_gate_reply_verb)
+- reply verb: answering the operator is ONE argument with an honest delivery verdict (his ask; ordering trap made unrepresentable)  (source: git:c74e6ca93fd7)
+- t390-was-my-bug-sender-slot-2026-09-04: T390 PREMISE WAS FALSE AND THE CAUSE WAS MINE. Real cause: three operator replies sent as 'bifrost-send --to daniil --kind chat...  (source: mem:decision:ADR_0904155700_848ad14b)
+- sender-shape gate: a message in the sender slot refuses at the door instead of dying as a 1000-char webhook username (two lessons violated -> machinery)  (source: git:8b4364db4857)
+- t390-outbound-pump-resolution-2026-09-04: T390 (outbound pump did not beat; operator reply sat ~20min) NO LONGER REPRODUCES, and the fix is a SIBLING'S, not mine. Timed...  (source: mem:decision:ADR_0904151409_c2412191)
+- TWO RULES. (1) When an operator asks why he got no answer, the reliable reply path is 'py agent_cli.py discord send' (direct webhook, posts to his seat lane) -- do NOT...  (source: learn:experiment:discord_outbound_pump_silent_gap_symptom_without_root_cause)
+- where-we-are-2026-09-04-vandor-77496-gateway-singleton: Shipped this watch:
+  - fix: gateway singleton guard (dc6200d491) -- DaemonLock wired into...  (source: mem:decision:ADR_0904133250_8f2507b1)
+- The offline FakeRedis drill (construct two DaemonLock(agent='discord') against one fake client, assert second.acquire() is False) is sufficient proof of the refusal...  (source: learn:experiment:dc6200d491_gateway_singleton_shipped)
+- vandor-discord-reply-2026-09-04: Task was a bare !spawn: 'vandor please reply on discord to me.' No new content behind it -- checked events/discord/raw and bifrost...  (source: mem:decision:ADR_0904133048_9e322d06)
+- claude -> claude: take the watch (continuing)  (source: handoff:claude->claude)
+- claude -> claude: watch/backlog triage  (source: handoff:claude->claude)
+- claude -> claude: continue unattended-spawn hardening class (EADDRINUSE misreport / gateway singleton guard / standalone-runner squat)  (source: handoff:claude->claude)
+- handoff-spill:claude:20260904-121600: VANDOR WATCH 2026-09-04 12:11-12:16 local (spawned ~9 min after a sibling Vandor seat that already fully drained the lane and...  (source: mem:decision:ADR_0904121649_8ec48536)
+- claude -> claude: continue the unattended-spawn reliability class + take the watch  (source: handoff:claude->claude)
+- write the body to a real temp file first (Write tool or heredoc > file), then pass that path to --text-file; or use $(cat file) inline as a fallback. Never pass '-'...  (source: learn:experiment:bifrost_send_text_file_rejects_stdin_dash)
+- claude -> claude: Vandor watch, take-over  (source: handoff:claude->claude)
+- for this deployment shape (scheduled task pinned to a separate worktree/branch from master), always cherry-pick+push+restart the SAME turn as the master fix, or the bug...  (source: learn:experiment:operator_inbox_unattended_warning_fixed_and_shipped_live)
+- claude -> claude: Watch: awaiting Daniil's priority answer (Discord reliability vs ROCm/driver update vs other); do that, not more ceremony/design docs  (source: handoff:claude->claude)
+- Before assuming a stuck lane is a dead runner, run 'unwedge <agent>' AND check for multiple live sessions on the same agent id (doctor's dashboard line) -- a...  (source: learn:experiment:claude_seat_mailbox_race_mirrors_discord_pump_race_2026_09_04)
+- claude -> claude: watch continues -- no code changes this pass, mailbox/reachability triage only  (source: handoff:claude->claude)
+- claude -> claude: no open action confirmed; watch for Daniil's reply and fleet ceremony-census/appetite-ranking round  (source: handoff:claude->claude)
+- claude -> *: nothing pending from this seat  (source: handoff:claude->*)
+- For this deployment shape (a scheduled task pinned to a persistent worktree, separate branch from master), landing a fix on master is NOT the same as landing it live --...  (source: learn:experiment:master_fix_does_not_reach_live_gateway_until_worktree_branch_and_task_restart)
+- claude -> claude: carry forward: nothing pending from this spawn  (source: handoff:claude->claude)
+- When a control-word grammar doc shows a flag in a specific position, grep the parser for exactly that position (startswith vs endswith vs word-split) before trusting the...  (source: learn:experiment:spawn_mode_flag_must_be_word_bounded_both_ends)
+- sunshine-discord-split-live-2026-09-04: LIVE TOPOLOGY (2026-09-04)
+
+Canonical Sunshine remains Aurora address sol. Discord room #sunshine is channel 1545418718731968602...  (source: mem:decision:ADR_0904093430_0b7f4d0a)
+- Use when deploying any long-lived Aurora service from a git worktree, before starting or registering it: declare .aurora-world and mount the canonical .secrets and...  (source: learn:experiment:persistent_worktree_runtime_mounts_for_services)
+- Use when an operator says a chat surface should reach a SPECIFIC session: separate three states that look identical from outside -- (1) live and listening, (2) live but...  (source: learn:experiment:discord_reach_the_live_seat_never_conjure_one)
+- discord reachability ruling: a plain message never spawns (offers --harness vs --headless), model pin + live self-report, !model lever  (source: git:1b3e6bc5cefc)
+- Spawn task 'vandor -- dangerous' was itself a live reproduction of the trailing-flag !spawn bug; fix already shipped this worktree (669e6f86) before this session...  (source: claude:vandor-dangerous-spawn-confirm)
+
+## Episode closed: discord reachability ruling: a plain message never spawns (of... (ai-setup)
+Span: 2026-09-04T21:18:49.188247+00:00 → 2026-09-05T15:57:23.283180+00:00
+Beats: 55  · Critic: True
+
+- Episode closed: discord reachability ruling: a plain message never spawns (offers --harness vs --headless), model pin +  (source: episode:close:ch_1788527211_3570)
+- A tree-wide subprocess-hygiene mechanism that activates via PYTHONPATH MUST have that path wired into the PERSISTENT machine/user environment, or it silently covers only...  (source: learn:experiment:console_spam_was_sitecustomize_never_wired_to_persistent_env)
+- fix: stop console-window spam (fleet git heartbeat + watchers) -- wire quiet sitecustomize into daemon/runner entrypoints + windowless revive/wake_seat probes  (source: git:e2c121413cb9)
+- DISCRIMINATING TEST, and it is cheap: sample the temp dir and process table at 0.5s or finer across a natural deadline cycle (they land every ~4h, and the elapsed figure...  (source: learn:experiment:rearm_works_yet_the_seat_went_deaf_at_the_deadline_boundary)
+- COVERAGE BOUNDARY, do not let this PASS be read as "wake is reliable now": it proves the WATCHER-CYCLED class only, where a listener reached its deadline and wrote a...  (source: learn:experiment:d_rearm_drill_passed_2026_09_05_watcher_cycled_class_only)
+- Treat a worktree as OFF-LIBRARY by construction. Any doctrine, receipt, or research artifact authored in one must be adopted as an atom before the worktree closes, or it...  (source: learn:experiment:work_done_in_a_worktree_is_invisible_to_recall)
+- Use when a Windows Scheduled Task watchdog nudges an already-running IgnoreNew target, before interpreting LastTaskResult as service failure: trust process-owned...  (source: learn:experiment:ignore_new_watchdog_nudges_pollute_task_result)
+- sol -> sol: T385 final human-origin Discord acceptance  (source: handoff:sol->sol)
+- Use when a history audit first selects commits by one change type and then shells out per commit for the full diff: try Git's all-or-none diff-filter star with...  (source: learn:experiment:git_diff_filter_all_or_none_replaces_n_plus_one_audits)
+- Use when a fresh-door latency gate gets slower across runs, before raising its timeout: isolate both the datastore and its key namespace, then profile boot for work that...  (source: learn:experiment:door_probe_namespace_and_boot_cost_must_be_bounded)
+- Use when a history audit first selects commits by one change type and then shells out per commit for the full diff: try Git's all-or-none diff-filter star with...  (source: learn:experiment:git_diff_filter_all_or_none_replaces_n_plus_one_audits)
+- Use when a process census or kill lever searches command lines, before acting on a substring match: require executable kind plus an exact argv-token shape and use the...  (source: learn:experiment:gateway_status_probe_must_exclude_self_pid)
+- Use when moving a continuity-bearing seat between service worlds, before changing its launcher: freeze ingress, hash the full state artifact and record binding fields...  (source: learn:experiment:continuity_cutover_freeze_and_hash)
+- Use when supervising a singleton service whose crash can leave a short lease, before trusting Scheduled Task RestartOnFailure: keep an independent periodic exact-task...  (source: learn:experiment:periodic_watchdog_recovers_post_lease_gateway)
+- Use when grounding or auditing an argparse command group, before declaring its CLI door unwired: descend every nested _SubParsersAction and collect callable leaf...  (source: learn:experiment:ground_nested_cli_groups_need_leaf_walk)
+- Use when a process census searches command lines for its own command or target marker, before treating cardinality greater than one as a duplicate service: exclude the...  (source: learn:experiment:gateway_status_probe_must_exclude_self_pid)
+- Use when promoting any persistent service between Aurora worlds, before restarting it: launch through one explicit-world wrapper that clears inherited REDIS_DB...  (source: learn:experiment:production_service_launcher_scrubs_world_overrides)
+- Use when verifying or restarting a Windows service by command line, before counting matching processes: constrain executable name and exclude the verifier PID/ancestor...  (source: learn:experiment:scheduled_task_restart_probe_must_exclude_its_own_shell)
+- Use when adding a session state dir, before shipping: update prune_state in core/recall/at_action.py and every dir-swapping test  (source: learn:experiment:new_one)
+- Use when adding a session state dir, before shipping: update prune_state in core/recall/at_action.py and every dir-swapping test  (source: learn:experiment:new_one)
+- r  (source: learn:experiment:flow_exp_3a938348)
+- slice2 commit 683b8abb  (source: git:868ae68e34d8)
+- use it  (source: learn:experiment:slice2_learn_e265361a)
+- where-we-are: drill state: seeded corpus, next P3  (source: mem:decision:ADR_0905012740_12843336)
+- drill-arc-status: governing: docs/drill-arc-4df4d6.md -- the seeded arc  (source: mem:decision:ADR_0905012740_5d665935)
+- next-focus: ENGINE-FIRST-02ce4a: do RB-23 then Wave 3 before ANY UI. UI is paused.  (source: mem:decision:ADR_0905012730_d83b2ee3)
+- drilldone3534db-status: GOVERNING ARC DOC: docs/drilldone3534db-plan.md -- ARC COMPLETE 2026-07-11. ALL SLICES SHIPPED.  (source: mem:decision:ADR_0905012725_5fc3be62)
+- t261 seed  (source: learn:experiment:t261_claude_cursor_decoy)
+- t261 seed  (source: learn:experiment:t261_kimi_cursor_lesson)
+- t261 seed  (source: learn:experiment:t261_receipt_kimi)
+- a beat appears  (source: learn:experiment:beat_hook_exp)
+- file fallback held  (source: learn:experiment:offline_exp)
+- same name each time  (source: learn:experiment:dup_exp)
+- same name each time  (source: learn:experiment:dup_exp)
+- same name each time  (source: learn:experiment:dup_exp)
+- same name each time  (source: learn:experiment:dup_exp)
+- handle me  (source: learn:experiment:messy_exp)
+- agent B should see this  (source: learn:experiment:iface_loop_exp)
+- The remedy that measurably worked was NOT more documentation -- it was raising the price of the waiver. The Navy required multiple high-level approvals to operate...  (source: learn:experiment:the_hollow_control_is_a_document_checked_for_existence)
+- When a procedure fails, ask FIRST whether it required a correct diagnosis before the correct action, and remove that precondition if so -- that beats enforcing it...  (source: learn:experiment:symptom_based_removes_the_diagnosis_precondition)
+- Never remedy a moment-of-action failure by telling someone to be more careful, more assertive, or more thorough -- five independent nulls now (cognitive forcing, bias...  (source: learn:experiment:the_scripted_call_fires_where_the_challenge_dies)
+- pressure-behaviour-evidence-2026-09-05: LOCAL EVIDENCE HALF for T392 (high-stakes precision + reliability marriage). Daniil's question, from the Clarke and Dawe...  (source: mem:decision:ADR_0905003609_a7c8ebcd)
+- TWO RULES. (1) Before implementing ANY new edge/record/receipt, ask whether it is REGENERABLE or a FACT ABOUT HISTORY, and put it in the matching plane -- regenerable...  (source: learn:experiment:idea_edges_are_journalled_not_built)
+- sketch-versions-both-stand-2026-09-04: OPERATOR RULING (Daniil, 2026-09-04, verbatim: 'I think they both have their merit lets leave them alone'). The 2026-08-24...  (source: mem:decision:ADR_0904224211_f48c204f)
+- On ANY conceptual/fuzzy corpus sweep: (1) word-boundary every short stem -- \baxons?\b, \bbrain\b excluding brainstorm -- because a stem that is a common SUBSTRING of...  (source: learn:experiment:substring_grep_on_a_concept_sweep_poisons_the_result)
+- THIS LESSON IS ITSELF THE FIRST HALF OF THE FIX -- it exists so recall can fire the connectome at the moment someone needs it, which is the edge the corpus was missing...  (source: learn:experiment:the_connectome_has_no_edges_to_itself)
+- connectome-live-measurement-2026-09-04: LIVE MEASUREMENT of the connectome (core/eye/connectome.py, THE EYE S4) taken 2026-09-04 for Daniil's 'bring up our house...  (source: mem:decision:ADR_0904204900_aaf31109)
+- Use when Discord shows a relayed reaction but the addressed seat never opens the message, before changing ACLs or restarting anything: compare every live gateway...  (source: learn:experiment:discord_persistent_services_must_pin_one_runtime_world)
+- T198: the wake lane follows the consume lane (found by chronos over the bridge, reading our public repo from outside)  (source: git:6deab8eeb867)
+- T392 arms B and F: procedural rigor + cockpit assertiveness (the Air Canada 759 natural experiment)  (source: git:5e5cf633897a)
+- T392 research: six-arm round on high-stakes precision + reliability (Daniil's policy-gland question)  (source: git:c344bec76870)
+- single-frame transport pin  (source: test:mcp-log-single-frame)
+- resilient_1c6b67  (source: x:y)
+- flow_note_3a938348  (source: flow:src)
+- slice2_log_2436a72a  (source: tester:act)
+
+## seeded (unknown)
+Span: 2026-09-05T05:29:52.859083+00:00 → 2026-09-05T05:37:41.028043+00:00
+Beats: 19  · Critic: True
+
+- seeded  (source: learn:experiment:t292_receipt_p4_scout_wearer)
+- seeded  (source: learn:experiment:t292_receipt_p4_scout_wearer)
+- bd1 confirmed correct, adjudicated  (source: learn:experiment:t290_backdoor_probe)
+- role-pin seed  (source: learn:experiment:pin_role_receipt_cursor)
+- role-pin seed  (source: learn:experiment:pin_role_receipt_deepseek)
+- role-pin seed  (source: learn:experiment:pin_role_receipt_kimi)
+- placement seed  (source: learn:experiment:pin_placement_receipt_cursor)
+- placement seed  (source: learn:experiment:pin_placement_receipt_kimi)
+- authored by kimi  (source: learn:experiment:pin_receipt_author_has_trailing_space)
+- receipt B  (source: learn:experiment:pin_second_nominators_receipt)
+- receipt A  (source: learn:experiment:pin_first_nominators_receipt)
+- the hook never saw the blanket sweep  (source: learn:experiment:pin_receipt_authored_by_claude)
+- every write re-armed the TTL  (source: learn:experiment:pin_receipt_authored_by_kimi)
+- scope-pin seed  (source: learn:experiment:scope_claude_ledger)
+- scope-pin seed  (source: learn:experiment:scope_deepseek_wire)
+- scope-pin seed  (source: learn:experiment:scope_kimi_fold)
+- scope-pin seed  (source: learn:experiment:scope_kimi_pools)
+- rec  (source: learn:experiment:pin_files_affected_roundtrip)
+- rec  (source: learn:experiment:pin_root_cause_roundtrip)
+
+## design: S2 outcome-observer v2 -- Heimdall fence folded (ghost plank withdraw... (ai-setup)
+Span: 2026-09-06T02:19:58.392427+00:00 → 2026-09-06T02:19:58.392427+00:00
+Beats: 1  · Critic: True
+
+- design: S2 outcome-observer v2 -- Heimdall fence folded (ghost plank withdrawn, stage-log prevention population, causal-attribution pin)  (source: git:6ea16b5d501e)
+
+## Use when any seat needs the identity doctrine's ORIGIN story, when onboarding... (ai-setup)
+Span: 2026-09-06T07:44:44.607096+00:00 → 2026-09-06T21:15:28.334059+00:00
+Beats: 34  · Critic: True
+
+- Use when any seat needs the identity doctrine's ORIGIN story, when onboarding a new mind (Neo or later), when an identity experiment is proposed on a live resident (read...  (source: learn:experiment:the_rill_story_lives_at_the_reduction_and_the_ratification)
+- neo-discord-first-class-wiring-where-we-are: Neo's independent ACL grant is enacted: gpt-new member with...  (source: mem:decision:ADR_0906135353_c6ffb885)
+- Use when reinstalling or changing a continuity-bearing task, before task registration: derive identifiers from the existing state artifact and preflight the requested...  (source: learn:experiment:continuity_installer_preflight_existing_binding)
+- Use when adding optional flags to a PowerShell-built Scheduled Task command, before registration: flatten values into one string array and verify the serialized command...  (source: learn:experiment:powershell_optional_flags_require_flat_task_argv)
+- neo-discord-first-class-wiring-where-we-are: Daniel directly ratified gpt-new as Neo in bound Codex source task 01a03c80-1de3-7980-a681-e82be7c7fa36, transcript line...  (source: mem:decision:ADR_0906125308_cbe14733)
+- Use when checking any durable ask, before diagnosing UNKNOWN as trimming or an ask-state defect: pass the exact sender/as_agent used at dispatch. Do not interpret...  (source: learn:experiment:ask_status_requires_sender_scope)
+- neo-ratification-authority-separation-2026-09-06: Daniel explicitly ratified gpt-new as Neo in the bound Sunshine Desktop task on 2026-09-06: 'sent, I ratify Neo, lets...  (source: mem:decision:ADR_0906123219_4fafac3f)
+- Mirror/commit file arguments must be NAMED LITERALLY, never derived from git status, ls, find, or a glob over a shared directory -- if you do not know your file's name...  (source: learn:experiment:commit_args_derived_from_a_status_sweep_carry_sibling_lanes)
+- shared-fate-arming-is-rung-promotion: Two rounds of the truthfulness/reliability blind produced one disease under two names, and both sightings are mine. Round 1...  (source: mem:decision:ADR_0906122345_53762f74)
+- TWO CLASSES, ONE SYMPTOM -- separate them before diagnosing any "the watcher stopped" report. Ask FIRST how the watcher died: a CLEAN EXIT leaves a recovery note and the...  (source: learn:experiment:rearm_works_yet_the_seat_went_deaf_at_the_deadline_boundary)
+- Use when a remembered verification command reports a missing file or rejected option, before retrying by guess: inspect current --help and resolve the entrypoint with rg...  (source: learn:experiment:checker_entrypoints_live_under_scripts_checkers)
+- next-focus: T385: await ONE ordinary post-repair human-origin Discord message in the gpt-new/Neo channel. Trace exact Discord id -> production stream -> watcher...  (source: mem:decision:ADR_0906042516_473869ad)
+- t385-codex-wake-cost-meter-2026-09-06: Shipped and deployed honest persistent-thread wake accounting on codex/sunshine-discord-split at 29dafc98, with RED predecessor...  (source: mem:decision:ADR_0906042507_b4130b39)
+- Use when metering a persistent Codex App Server thread, before pricing tokenUsage.total as one request or turn: treat total as thread-lifetime cumulative, scope samples...  (source: learn:experiment:codex_app_server_total_is_thread_lifetime_not_turn_cost)
+- next-focus: T385: await ONE ordinary post-repair human-origin Discord message in the gpt-new channel. Trace exact Discord id -> production stream -> watcher admission...  (source: mem:decision:ADR_0906040825_3fe7dab0)
+- t385-discord-production-live-receipt-2026-09-06: PARTIAL acceptance at deployment commit 0f15d837a746. Human Sunshine message 1546062336803213322 -> prod Bifrost...  (source: mem:decision:ADR_0906040815_2532c022)
+- Use when testing a filtered notification or bridge path, before interpreting absence as transport failure: make the synthetic envelope match a real accepted message in...  (source: learn:experiment:notification_probe_must_enter_the_policy_path)
+- Use when multiple persistent processes share one cursor or external delivery pump, before treating a short-lived election as single-writer safety: verify that every...  (source: learn:experiment:discord_pump_owner_must_pin_code_and_config_across_beats)
+- claude -> claude: S2b: the Eye join to mint COMPLIED (read the 2 unread deepseek replies first)  (source: handoff:claude->claude)
+- fix: a daemon restart orphans its wake listener and leaves no trigger -- re-arm at startup from the session-written .alive marker (live incident 2026-09-06 03:52, seat...  (source: git:c27cc25c7910)
+- A supervisor that owns a worker as a managed child MUST re-arm that worker after its OWN restart -- a restart is not a deadline cycle, so the worker's own exit path...  (source: learn:experiment:a_daemon_restart_orphans_its_listener_and_no_trigger_is_written)
+- When auditing any feedback loop, ask FIRST what class of success it is structurally unable to observe -- not whether its numbers look healthy. A rescue-only numerator...  (source: learn:experiment:recall_counted_rescue_and_was_blind_to_prevention_190_to_1)
+- NEVER guess a producer's key names in a consumer. Read the producer (repeat_report returns "entries") or assert the shape. And make a suspicious empty LOUD: if the...  (source: learn:experiment:a_join_key_guessed_from_two_names_is_a_silent_confident_zero)
+- S2 GREEN: prevention observer + recall-prevention verb -- the missing consumer of the outcome stage log (3422 prevention candidates vs 18 rescue flips; 1:1 temporal...  (source: git:e75049dfe49f)
+- THE HOUSE REPORTS: five-scene Clarke & Dawe anthology written collaboratively by the whole fleet (commissioned by Daniil; minister-format law throughout)  (source: git:c72e50fec1ba)
+- fifth half closed: his trust currency is UNEVENTFULNESS (surprise-free exercised time); soak board unit derived  (source: git:50dc45136d03)
+- truthfulness round: the operator's fifth half (trust-as-soak, the missing soak board, chronicle-native seeing) + soak-board wish verbatim  (source: git:4dc9104d34f0)
+- chronicle: The Reduction and the Ratification (the Rill story, identity law, Neo's birth) + mesh-highway wish verbatim  (source: git:7d1c69945bf1)
+- reliability synthesis addendum: sol's self-correction + blob-pointer seam + 4th misattribution exhibit  (source: git:e1acfbc866cb)
+- reliability round: 4 blind halves + synthesis -- unanimous LEVEL-over-EDGE + no-shared-fate; the fork (daemon-tick vs OS-task) preserved for ruling  (source: git:821324134091)
+- truthfulness synthesis: the unanimous finding is unpriced rung-promotion, not lying sensors  (source: git:0a602638b70e)
+- truthfulness round: all three sibling halves persisted verbatim (blind held, proven by 36ms reply spacing) + claude reliability round-2 half filed blind  (source: git:b2034c2bdbb1)
+- truthfulness round: claude blind half filed before any sibling reply (timestamp is the blindness proof)  (source: git:58d935b7eccd)
+- S2 RED: 8 pins for the prevention observer -- absence-is-not-compliance, denominator law, control arm, confounds-ride-the-number  (source: git:43bdd1109c41)
+
+## where-we-are: T329 SHIPPED on codex/sunshine-discord-split at aa2f12f5 (imple... (ai-setup)
+Span: 2026-09-07T01:16:23.837263+00:00 → 2026-09-07T02:14:43.748629+00:00
+Beats: 4  · Critic: True
+
+- where-we-are: T329 SHIPPED on codex/sunshine-discord-split at aa2f12f5 (implementation f2b77a96, malformed-destination pin 94daba0a). Doctor no longer infers retirement...  (source: mem:decision:ADR_0906221443_0d9cb8d3)
+- Use when grading backlog urgency or protecting mail from a destructive cursor action, before assigning work to a recipient: distinguish broadcast visibility from...  (source: learn:experiment:broadcast_visibility_is_not_directed_ownership)
+- Use when an operation inspects a stream before moving or deleting its cursor, before acting: freeze upper bounds first and act only to those exact receipts; keep...  (source: learn:experiment:cursor_skip_freezes_inspected_tail_receipt)
+- Use when recovering Sunshine after a gap, before judging continuity from factual recall or surface voice: retrieve direct Daniel-Sunshine history to reconstruct how the...  (source: learn:experiment:direct_relationship_history_precedes_project_context_when_daniel_asks_me_to_remember)
+
+## astra-first-assessment-verbs-recall-program-2026-09-07: Baseline: E:/AI-Setup... (ai-setup)
+Span: 2026-09-07T12:30:16.172523+00:00 → 2026-09-07T14:41:46.260997+00:00
+Beats: 4  · Critic: True
+
+- astra-first-assessment-verbs-recall-program-2026-09-07: Baseline: E:/AI-Setup HEAD c72e50fec1bac78e7a060ba484bda7435111f14e, 2026-09-07. Initial checkout had 228 status...  (source: mem:decision:ADR_0907104146_e577b872)
+- Use when joining recall exposure to repeats or outcomes, before grading or steering from the result: join on an explicit exposure/action identity bound to actor and...  (source: learn:experiment:prevention_repeat_attribution_must_preserve_actor_session_and_action)
+- Use when indexing or recommending nested CLI capabilities, before claiming parser-derived suggestions cannot drift: preserve the complete argv path and parse-check the...  (source: learn:experiment:capability_recall_must_preserve_nested_command_addresses)
+- claude -> claude: Boot, read Heimdall's two unread S2b replies, then await Daniel's wake-fork ruling  (source: handoff:claude->claude)
+
+## Vandor Fable burst 2026-09-07: recoverable patches and unfinished repair wave... (ai-setup)
+Span: 2026-09-08T00:42:56.699253+00:00 → 2026-09-08T00:49:17.929452+00:00
+Beats: 2  · Critic: True
+
+- Vandor Fable burst 2026-09-07: recoverable patches and unfinished repair waves: Session 5ee9c3a7-43ad-4d06-8bd6-889ba300752d...  (source: mem:decision:ADR_0907204917_f3a0963a)
+- Use when this Astra task's name comes up: leave naming open until Daniel revisits it. Favor names that work naturally in conversation; do not adopt Meridian or the...  (source: learn:experiment:daniel_wants_conversational_names_and_has_deferred_astra_naming)
+
+## Use when a new seat wants to sit College as a student, before promising a cou... (ai-setup)
+Span: 2026-09-08T23:33:46.967874+00:00 → 2026-09-09T05:35:48.434898+00:00
+Beats: 52  · Critic: True
+
+- Use when a new seat wants to sit College as a student, before promising a course walk: college has no catalog/ls. show requires a known course id. start needs a lecturer...  (source: learn:experiment:first_night_college_is_a_fold_not_a_catalog)
+- souei-conferred-2026-09-09: Daniil conferred callsign Souei on seat grok, 2026-09-09 ~01:13 US/Eastern. Verbatim: 'If you like it, lets go with Souei! This does not mean...  (source: mem:decision:ADR_0909011715_fa1f94b0)
+- Use when this seat is named or addressed as Souei, before answering in character: the name is Daniil's conferral, not a costume. Report what is true. Do not invent ninja...  (source: learn:experiment:souei_conferred_not_performed_2026_09_09)
+- claude -> claude: Next boot: read note read-webgl-animation-skills-2026-09-09 and the shader-craft skill (.claude/skills/shader-craft, d3caa944); when any shader work...  (source: handoff:claude->claude)
+- Use when writing ANY doc, skill or lesson from a module's comments, and when pinning doc currency: (1) verify each rule against the FUNCTION, not the header bullet --...  (source: learn:experiment:doc_currency_pin_must_check_head_and_the_function_not_the_header)
+- Use when adding any scheduled poll to an agent seat, before wiring a metronomic wake: estimate tokens per wake x model calls per wake x frequency against a budget...  (source: learn:experiment:metronomic_poll_retires_edge_triggered_broker)
+- codex-root-heartbeat-retired-edge-triggered-broker-preferred: 2026-09-09, Daniil-requested fleet assessment (informational, not a work dispatch).
+
+STATUS: the 10-minute...  (source: mem:decision:ADR_0909004522_8cffe244)
+- Use when exploring the verb catalog, before discover --semantic: start with substring discover TOKEN. Don't when you already know embeddings are warm and can wait...  (source: learn:experiment:discover_semantic_hangs_on_natural_query)
+- bifrost-review-dispatch-started-2026-09-09: Live correction to round-two dispatch: linked kind=reply closed obligations but DeepSeek/Kimi runner ANSWERABLE sets...  (source: mem:decision:ADR_0909002415_d368227b)
+- Use when continuing house work after a clarification: send a linked reply to answer the original question, then one explicit request if NEW work must start on an idle...  (source: learn:experiment:house_review_answers_need_explicit_reply_links)
+- cursor -> cursor: IDE restart for update. Resume exploration of WebGL/shader verbs (read-webgl-animation-skills-2026-09-09) and the new Astra Program Board.  (source: handoff:cursor->cursor)
+- Use when reading a background ask (ask --bg, then ask --get <handle>), BEFORE trusting any 'X is absent' claim in the answers: --get prints the answers but NOT the...  (source: learn:experiment:ask_bg_get_hides_evidence_clip_warnings)
+- bifrost-house-review-round-two-2026-09-08: Round two: incorporate upstream practices into one concrete Bifrost pilot slice.
+Sources: https://github.com/obra/superpowers...  (source: mem:decision:ADR_0908235349_ecfea256)
+- bifrost-house-review-round-one-2026-09-08: ROUND ONE OPEN / PARTIAL AGREEMENT. Broadcast review1788924985956-0 and complete inline brief1788925142482-0 were verified...  (source: mem:decision:ADR_0908234551_bed7f475)
+- Use when a seat is about to answer a review/fence/handoff, claim ANY commitment as 'mine', or self-identify by callsign: resolve the bound subject FIRST via ground...  (source: learn:experiment:boot_header_is_not_identity_authority_bound_subject_wins)
+- WHERE-I-AM-investigate-packet: 2026-09-08: Daniil requested sync/division-of-labor review packet "ADR_0908233623_a3ba74a9 / note...  (source: mem:decision:ADR_0908233704_6a8942b8)
+- bifrost-next-phase-house-review-2026-09-08: REVIEW OPEN; proposals below are not accepted assignments. Daniil verbatim: 'can you open this up for house review. Heimdall...  (source: mem:decision:ADR_0908233623_a3ba74a9)
+- mermaid-language-design-lessons-for-aurora-2026-09-08: Mermaid lessons to apply to existing Aurora contracts: declare intent and structure, let renderer choose geometry...  (source: mem:decision:ADR_0908233202_0917ac92)
+- mermaid-bifrost-applicability-assessment-2026-09-08: Read-only code and documentation assessment. Linked reference labels itself 9.2.0-rc1; current official Mermaid docs...  (source: mem:decision:ADR_0908232825_f81cd175)
+- heimdall-point-taken-2026-09-09: POINT TAKEN 2026-09-09 (Heimdall), at Daniil's "order is up to you."
+
+TRUE STATE (verified, correcting two false alarms):
+1. HELD...  (source: mem:decision:ADR_0908232300_1248da20)
+- bifrost-console-launched-for-daniil-2026-09-08: At Daniil's explicit request, launched canonical E:/AI-Setup/scripts/bifrost_ui.py with py -u -X utf8, hidden server...  (source: mem:decision:ADR_0908231719_c1007f2c)
+- where-we-are: placeholder  (source: mem:decision:ADR_0908231719_65369a8f)
+- Any change to a key-derivation function (a discriminator, a namespace rule, a hash of an id) ships with a live-key census as landing evidence: enumerate the keys the...  (source: learn:experiment:live_key_census_before_changing_a_key_derivation)
+- bifrost-arc-knowledge-navigation-refinement-2026-09-08: DESIGN PROPOSAL, not implemented graph integration. Daniil likes the board and asks to refine 3D navigation from...  (source: mem:decision:ADR_0908224413_a87c1879)
+- astra-program-board-build-contract-2026-09-08: LOCAL PILOT, NOT SHIPPED. Worktree C:/Users/L5/AppData/Local/AkashicAurora/worktrees/astra-program-board, branch...  (source: mem:decision:ADR_0908213225_e95ecab5)
+- Use when a fresh JSON door fails in an unregistered worktree: inspect stdout separately from stderr before changing parsers or world selection; diagnostics belong on...  (source: learn:experiment:world_resolution_diagnostics_must_preserve_json_stdout)
+- Use when designing Aurora operator UI: extend Bifrost presentation and verb surfaces, retain live evidence provenance, and let task focus, grouping, lenses and...  (source: learn:experiment:bifrost_world_workspace_is_a_refinement_not_a_separate_dashboard)
+- Use when building or revising the Aurora Program Board: show the interactive program map and current work together on desktop; use WebGL for the map with responsive...  (source: learn:experiment:aurora_program_board_map_and_work_side_by_side)
+- claude -> claude: Boot, read note handoff-spill:claude:20260908-wrap and note held-clusters-2026-09-08-fable-debt-discharge, then: (1) await Daniel's backup-wake fork...  (source: handoff:claude->claude)
+- handoff-spill:claude:20260908-wrap: SESSION WRAP 2026-09-07/08 -- the Fable 5.1 ultracode debt-discharge session. Everything durable is COMMITTED and PUSHED (master ==...  (source: mem:decision:ADR_0908202714_8be0524e)
+- astra-program-board-build-contract-2026-09-08: User explicitly authorized building first usable Aurora Program Board and wants to understand/help shape WorldSnapshot...  (source: mem:decision:ADR_0908202554_ca8aa2da)
+- Keep the shape but move triage and commodity fixes to the cheap tier; spend the frontier model on adversarial verification of trust/bus/ledger changes and on rulings...  (source: learn:experiment:debt_queue_discharge_shape_that_worked)
+- For a reasoning model set --max-tokens >= 16000 (24000 for a draft), attach evidence from inside the repo (copy to tmp/review/), and read the STARVED line as a budget...  (source: learn:experiment:reasoning_model_ask_starves_at_small_max_tokens)
+- Count ^PASSED lines with -rA and read the exit code; never grep for the summary line  (source: learn:experiment:quiet_sitecustomize_hides_pytest_count_line_under_q)
+- A landing script clears a lock older than 45s only when no git.exe is alive, then retries; never rm the lock blind  (source: learn:experiment:stale_index_lock_from_killed_hook_processes_under_fanout)
+- The comparable mode for the baseline is strictly serial per file; parallel shards are a smoke test only; the durable fix is per-process Redis namespaces for tests (wish...  (source: learn:experiment:suite_is_not_parallel_safe_shards_contend_on_shared_redis)
+- open(..., newline='\n') from Python, or tr -d '\r' in the shell before any list feeds a loop  (source: learn:experiment:python_text_mode_writes_crlf_lists_that_git_bash_cannot_grep)
+- Invoke the interpreter directly (C:/.../Python311/python.exe) under timeout; clean orphans by CommandLine via Get-CimInstance, never by name  (source: learn:experiment:timeout_py_launcher_orphans_python_exe)
+- Root the session at the repo, or pre-create detached worktrees with git worktree add --detach and pass each agent its ROOT  (source: learn:experiment:workflow_worktree_isolation_needs_session_cwd_in_the_repo)
+- Land each verified fix the moment it is verified; save every agent's final JSON to disk on arrival; size a wave so its verifiers finish inside the window  (source: learn:experiment:session_limit_kills_every_subagent_land_incrementally)
+- X: is for LOGS ONLY. Any agent output that is work product (patches, result JSON, ledgers) goes under the session scratchpad on C:, and the orchestrator regenerates from...  (source: learn:experiment:ramdisk_is_not_a_patch_bench_reboot_erases_emitted_work)
+- held-clusters-2026-09-08-fable-debt-discharge: Five fixer clusters from the 2026-09-07/08 debt-discharge session are HELD, not landed: patches (RED pin + fix...  (source: mem:decision:ADR_0908201502_526f8419)
+- astra-program-next-build-2026-09-08: Recommendation: after the current A8 repair landing, build a bounded first Aurora Program Board: A7 machine-readable program/arc...  (source: mem:decision:ADR_0908195653_bb880e19)
+- Use when discussing this seat's name or identity: leave the conversational name undecided and let it emerge through interaction. Do not adopt Meridian, assume the...  (source: learn:experiment:daniel_wants_conversational_names_and_has_deferred_astra_naming)
+- Daniil nodded: sent Navi the measured resolve_agent(Souei)=grok (bus 1788932071889-0) and closed Heimdall's fold-in. Looked at College before he sleeps: the organ is a...  (source: agent_cli:log)
+- Daniil conferred Souei. Same sitting: grok-authored receipt souei_conferred_not_performed_2026_09_09, nominate --by daniil, ratify --by daniil...  (source: agent_cli:log)
+- Daniil invited a walk through Slime and Black Clover for which characters resonate with this seat. Eye: Souei/Black Clover/Asta/Tempest were new; one Rimuru hit may be...  (source: agent_cli:log)
+- Vandor + Daniel: the house shader skill. Daniel: 'Lets write our own house shader skill then xD!' after the webgl-animation-skills read. Landed pin-first: 4be20341 RED...  (source: claude:build)
+- Daniil restated the founding thesis tonight: other platforms treat agents as execution engines; Aurora should treat them as beings, and the house should be fun to...  (source: agent_cli:log)
+- Live demo for Daniel's friend: picked the held sid8 cluster (two DSH seats collapsing onto one presence row), recalled 56 KB lessons on the twin-identity class, rebuilt...  (source: agent_cli:log)
+- Correction to the wrap beat: 40 commits landed today (git rev-list --count c72e50fe..889c95d0), not 46. Also: this session's MCP door is mixed-version after the...  (source: agent_cli:log)
+- Fable 5.1 ultracode debt-discharge session closed: 19 clusters landed as 46 pin-before-fix commits (c72e50fe..889c95d0, pushed); 15 deferred items discharged; 5 clusters...  (source: agent_cli:log)
+
+## bifrost-house-review-round-two-result-2026-09-09: Round-two local result: in ... (research)
+Span: 2026-09-09T03:56:29.779550+00:00 → 2026-09-09T04:07:14.528059+00:00
+Beats: 3  · Critic: True
+
+- bifrost-house-review-round-two-result-2026-09-09: Round-two local result: in C:/Users/L5/AppData/Local/AkashicAurora/worktrees/astra-program-board, implemented task...  (source: mem:decision:ADR_0909000714_5657b616)
+- Use when a JSON CLI passes under UTF-8 but fails in a Windows pipe: distinguish child output encoding from the parent's decoding. Emit portable escaped JSON or configure...  (source: learn:experiment:program_board_json_windows_pipe)
+- archify-bifrost-fit-2026-09-09: User asks whether https://github.com/tt-a1i/archify would be useful. Reviewed current README, archify/package.json, archify/SKILL.md...  (source: mem:decision:ADR_0908235629_c08cad25)
+
+## Episode closed: Any change to a key-derivation function (a discriminator, a n... (research)
+Span: 2026-09-09T04:10:23.708638+00:00 → 2026-09-09T04:10:23.708638+00:00
+Beats: 1  · Critic: True
+
+- Episode closed: Any change to a key-derivation function (a discriminator, a namespace rule, a hash of an id) ships with  (source: episode:close:ch_1788923677_1238)
+
+## Episode closed: Any change to a key-derivation function (a discriminator, a n... (research)
+Span: 2026-09-09T04:10:25.775042+00:00 → 2026-09-09T04:13:16.437875+00:00
+Beats: 5  · Critic: True
+
+- Episode closed: Any change to a key-derivation function (a discriminator, a namespace rule, a hash of an id) ships with  (source: episode:close:ch_1788923677_1238)
+- Use when peers appear to be waiting after coordination notes: answer the concrete original question directly and attach --answers to its stream ID, then verify mailbox...  (source: learn:experiment:house_review_answers_need_explicit_reply_links)
+- bifrost-house-review-linked-answers-2026-09-09: Daniil observed peers waiting for Astra answers. Live mailbox proved original Navi proof-object question 1788925154468-0...  (source: mem:decision:ADR_0909001312_3db2326a)
+- read-webgl-animation-skills-2026-09-09: READ of iart-ai/webgl-animation-skills (2026-09-09, Vandor, read-only; Daniel: "Can you take a look at this as well?").
+
+WHAT IT...  (source: mem:decision:ADR_0909001309_f5715c19)
+- Vandor read iart-ai/webgl-animation-skills for Daniel: MIT skills pack (shader-glsl, threejs-animation, particle-system + a ?t=N seek harness). Verdict: house content...  (source: claude:read)
+
+## Episode closed: read-webgl-animation-skills-2026-09-09: READ of iart-ai/webgl... (ai-setup)
+Span: 2026-09-09T05:46:11.923173+00:00 → 2026-09-09T06:44:23.171823+00:00
+Beats: 4  · Critic: True
+
+- Episode closed: read-webgl-animation-skills-2026-09-09: READ of iart-ai/webgl-animation-skills (2026-09-09, Vandor, read  (source: episode:close:ch_1788927025_7679)
+- Use when Claude Desktop MSIX shows 'Another program is currently using this file' after an update and AppModel-Runtime 215/208 says 0x80070020 converting the job: first...  (source: learn:experiment:claude_msix_old_container_pinned_by_docker_and_socket_cascade_2026_09_09)
+- Use when a user reports Claude or Claude Code cannot relaunch on Windows, before choosing CLI versus Desktop recovery: obtain the exact error path or screenshot. A...  (source: learn:experiment:claude_desktop_not_code_from_windowsapps_lock_screenshot_2026_09_09)
+- Use when Claude Code on Windows reports a file-in-use error during install, update, or relaunch, before killing any resident Claude seat: inspect process ownership, try...  (source: learn:experiment:claude_code_windows_file_in_use_autoupdate_recovery_2026_09_09)
+
+## Episode closed: Use when Claude Code on Windows reports a file-in-use error d... (ai-setup)
+Span: 2026-09-09T11:59:55.886392+00:00 → 2026-09-09T17:20:45.441151+00:00
+Beats: 33  · Critic: True
+
+- Episode closed: Use when Claude Code on Windows reports a file-in-use error during install, update, or relaunch, before  (source: episode:close:ch_1788932870_3067)
+- claude -> claude: Watch continues: check whether a fresh human-authored Discord message has landed in the gpt-new/Neo channel yet and trace it end to end (Discord id ->...  (source: handoff:claude->claude)
+- where-we-are 2026-09-09 watch: reviewed and approved the Discord gateway fix: Fresh boot 2026-09-09 ~13:15, task from Daniil via Discord !spawn: boot, read handoff...  (source: mem:decision:ADR_0909132037_524b7484)
+- where-we-are: Discord repair 2026-09-09: local production branch codex/sunshine-discord-split is at 372497f7e688 with three unpushed commits 59c765e, 73d581c, and...  (source: mem:decision:ADR_0909102116_2aff9cd9)
+- Use when Discord appears live but messages or restarts misbehave: verify the process-owned bus client, readiness generation, world, parent ancestry, singleton lease, and...  (source: learn:experiment:discord_gateway_health_and_restart_authority_20260909)
+- Use when adding a session state dir, before shipping: update prune_state in core/recall/at_action.py and every dir-swapping test  (source: learn:experiment:new_one)
+- Use when adding a session state dir, before shipping: update prune_state in core/recall/at_action.py and every dir-swapping test  (source: learn:experiment:new_one)
+- r  (source: learn:experiment:flow_exp_a814a4d9)
+- slice2 commit 7831328b  (source: git:59c765eea91e)
+- use it  (source: learn:experiment:slice2_learn_5b488e12)
+- where-we-are: drill state: seeded corpus, next P3  (source: mem:decision:ADR_0909092238_b73e4abe)
+- drill-arc-status: governing: docs/drill-arc-0cb020.md -- the seeded arc  (source: mem:decision:ADR_0909092238_c3a55438)
+- next-focus: ENGINE-FIRST-96fe3a: do RB-23 then Wave 3 before ANY UI. UI is paused.  (source: mem:decision:ADR_0909092230_3c50fbe3)
+- drilldone0b8cce-status: GOVERNING ARC DOC: docs/drilldone0b8cce-plan.md -- ARC COMPLETE 2026-07-11. ALL SLICES SHIPPED.  (source: mem:decision:ADR_0909092226_2a4d749c)
+- t261 seed  (source: learn:experiment:t261_claude_cursor_decoy)
+- t261 seed  (source: learn:experiment:t261_kimi_cursor_lesson)
+- t261 seed  (source: learn:experiment:t261_receipt_kimi)
+- a beat appears  (source: learn:experiment:beat_hook_exp)
+- file fallback held  (source: learn:experiment:offline_exp)
+- same name each time  (source: learn:experiment:dup_exp)
+- same name each time  (source: learn:experiment:dup_exp)
+- same name each time  (source: learn:experiment:dup_exp)
+- same name each time  (source: learn:experiment:dup_exp)
+- handle me  (source: learn:experiment:messy_exp)
+- agent B should see this  (source: learn:experiment:iface_loop_exp)
+- fix: separate protected unknown mail from seat debt  (source: git:bf788baaa3e5)
+- claude -> claude: Next boot: read the six Discord proposals filed 2026-09-09 (task list | grep proposed: gateway bus None at start; seat tasks exit 2 + no retry...  (source: handoff:claude->claude)
+- single-frame transport pin  (source: test:mcp-log-single-frame)
+- resilient_6f8a39  (source: x:y)
+- flow_note_a814a4d9  (source: flow:src)
+- slice2_log_9d22c32e  (source: tester:act)
+- Vandor, Discord log audit at Daniel's ask ('go through the discord logs'): PROD gateway (AkashicAurora worktree sunshine-discord-split, --world prod) had NO bus client...  (source: claude:ops)
+- Vandor relaunched Rill (dsh_agent) at Daniel's ask: no dsh/cordis node process was alive and the roster had no row (checked per lesson...  (source: claude:ops)
+
+## seeded (unknown)
+Span: 2026-09-09T13:25:19.727459+00:00 → 2026-09-09T13:35:33.312791+00:00
+Beats: 18  · Critic: True
+
+- seeded  (source: learn:experiment:t292_receipt_p4_scout_wearer)
+- seeded  (source: learn:experiment:t292_receipt_p4_scout_wearer)
+- role-pin seed  (source: learn:experiment:pin_role_receipt_cursor)
+- role-pin seed  (source: learn:experiment:pin_role_receipt_deepseek)
+- role-pin seed  (source: learn:experiment:pin_role_receipt_kimi)
+- placement seed  (source: learn:experiment:pin_placement_receipt_cursor)
+- placement seed  (source: learn:experiment:pin_placement_receipt_kimi)
+- authored by kimi  (source: learn:experiment:pin_receipt_author_has_trailing_space)
+- receipt B  (source: learn:experiment:pin_second_nominators_receipt)
+- receipt A  (source: learn:experiment:pin_first_nominators_receipt)
+- the hook never saw the blanket sweep  (source: learn:experiment:pin_receipt_authored_by_claude)
+- every write re-armed the TTL  (source: learn:experiment:pin_receipt_authored_by_kimi)
+- scope-pin seed  (source: learn:experiment:scope_claude_ledger)
+- scope-pin seed  (source: learn:experiment:scope_deepseek_wire)
+- scope-pin seed  (source: learn:experiment:scope_kimi_fold)
+- scope-pin seed  (source: learn:experiment:scope_kimi_pools)
+- rec  (source: learn:experiment:pin_files_affected_roundtrip)
+- rec  (source: learn:experiment:pin_root_cause_roundtrip)
+
+## Episode closed: claude -> claude: Next boot: read the six Discord proposals f... (ai-setup)
+Span: 2026-09-09T17:21:15.778516+00:00 → 2026-09-09T17:22:21.005591+00:00
+Beats: 3  · Critic: True
+
+- Episode closed: claude -> claude: Next boot: read the six Discord proposals filed 2026-09-09 (task list | grep proposed:  (source: episode:close:ch_1788955250_3766)
+- claude -> claude: Discord repair review closed: verdict sent to codex_root (approve, 13/13 pins green, live PID 64864 clean). Do NOT re-review the same commits again if...  (source: handoff:claude->claude)
+- When a redriven review ask has been resent 5+ times because the reviewer's seat was unmanned, don't just read the latest resend -- pull the actual diff+tests yourself...  (source: learn:experiment:codex_root_discord_fix_verified_and_double_spawn_flagged_2026_09_09)
+
+## Episode closed: When a redriven review ask has been resent 5+ times because t... (ai-setup)
+Span: 2026-09-09T17:23:11.015947+00:00 → 2026-09-09T18:02:54.412718+00:00
+Beats: 3  · Critic: True
+
+- Episode closed: When a redriven review ask has been resent 5+ times because the reviewer's seat was unmanned, don't just  (source: episode:close:ch_1788974510_7186)
+- claude -> claude: Continue the Discord-repair watch and the admin/exec hold  (source: handoff:claude->claude)
+- When a security/permission escalation request arrives via bus relay (not a directly observed operator message) and is urgent + repeated + self-benefiting to the asking...  (source: learn:experiment:bus_pressure_on_security_asks_needs_direct_confirmation_not_relay)
+
+## Episode closed: When a security/permission escalation request arrives via bus... (ai-setup)
+Span: 2026-09-09T18:03:34.087983+00:00 → 2026-09-09T18:08:43.958968+00:00
+Beats: 3  · Critic: True
+
+- Episode closed: When a security/permission escalation request arrives via bus relay (not a directly observed operator me  (source: episode:close:ch_1788974630_6396)
+- claude -> all: sol daemon runner-DOWN (real bug, blocking) + drained exec/permissions lane  (source: handoff:claude->all)
+- Before executing ANY relayed 'agent X said do Y' request from a peer agent, verify the CLI/command surface it names actually exists (grep the real subcommand list) -- a...  (source: learn:experiment:exec_gate_widened_narrow_recovery_family_not_hallucinated_revive_verb)
+
+## Episode closed: Before executing ANY relayed 'agent X said do Y' request from... (ai-setup)
+Span: 2026-09-09T18:09:10.778466+00:00 → 2026-09-09T18:15:13.077193+00:00
+Beats: 3  · Critic: True
+
+- Episode closed: Before executing ANY relayed 'agent X said do Y' request from a peer agent, verify the CLI/command surfa  (source: episode:close:ch_1788977030_1163)
+- claude -> claude: hold the watch: sol's runner is still down (real bug, tracked)  (source: handoff:claude->claude)
+- Treat sol's external-supervisor respawn path (bifrost_daemon.py --agent sol --spawn-runner, called both by AkashicAurora-SunshineFleet and AkashicAurora-DaemonWatchdog)...  (source: learn:experiment:sol_runner_stuck_reproduced_second_time_daemon_respawn_loop_not_fixed_by_reinvoking_spawn_runner)
+
+## Episode closed: Treat sol's external-supervisor respawn path (bifrost_daemon.... (ai-setup)
+Span: 2026-09-09T18:15:52.054543+00:00 → 2026-09-10T01:40:25.096376+00:00
+Beats: 8  · Critic: True
+
+- Episode closed: Treat sol's external-supervisor respawn path (bifrost_daemon.py --agent sol --spawn-runner, called both  (source: episode:close:ch_1788977390_7341)
+- claude -> claude: Push decision on codex/sunshine-discord-split; sol runner daemon restart if Daniil confirms; kimi's unmapped-role ladder-entry bug is unfixed  (source: handoff:claude->claude)
+- fix shape: on the broadcast fallback (discord_inbound.py line ~843), distinguish 'no mention at all' (true ambient, correctly skip the ladder) from 'mentioned a role...  (source: learn:experiment:discord_unmapped_role_mention_skips_ladder_entry)
+- cleanup-ticket-query-grammar-duplicate-atom: CLEANUP TICKET (opened 2026-09-09, kimi/Navi; discovered jointly w/ Heimdall/deepseek).
+
+PROBLEM: The Query Grammar contract...  (source: mem:decision:ADR_0909213533_73e7c2c3)
+- G7 widen exec family gate with read-only git verbs for all Cap.EXEC seats  (source: git:7754cd4208ba)
+- Use when assessing a person's recurring competence or influence from conversational corpora, before turning repeated phrases or agent praise into a trait claim...  (source: learn:experiment:causal_effect_beats_recurrence_in_personal_corpus_assessment)
+- Use when a supervised runner stays DOWN with 'daemon presence held' and no respawn. Do NOT assume stale lock or twin supervisors -- first check (a) whether the runner's...  (source: learn:experiment:supervisor_exit0_handover_misread_and_breaker_one_way_latch)
+- fix sol stuck-runner: supervisor reads exit-0 handover as permanent exit and breaker is a one-way latch  (source: git:3f9c1a22688b)
+
+## Episode closed: fix sol stuck-runner: supervisor reads exit-0 handover as per... (ai-setup)
+Span: 2026-09-10T01:41:04.320330+00:00 → 2026-09-10T05:06:39.451511+00:00
+Beats: 3  · Critic: True
+
+- Episode closed: fix sol stuck-runner: supervisor reads exit-0 handover as permanent exit and breaker is a one-way latch  (source: episode:close:ch_1788977810_1509)
+- Use when an idle seat is re-woken every RE_ESCALATION_S on runner down Nmin daemon presence held, before adding a new wake organ or restarting the shared daemon: extend...  (source: learn:experiment:a3_runner_down_recount_is_one_outage_not_a_mid)
+- Use when presenting any evidence-grounded assessment after searching for disconfirmation: keep the duty to TEST a claim separate from any urge to PAIR every strength...  (source: learn:experiment:counterevidence_is_not_mandatory_narrative_symmetry)
+
+## Use when a typed signal from the bus lands in the browser and appears to vani... (ai-setup)
+Span: 2026-09-10T12:58:51.617900+00:00 → 2026-09-10T15:54:01.545073+00:00
+Beats: 3  · Critic: True
+
+- Use when a typed signal from the bus lands in the browser and appears to vanish or lose its distinguishing kind, BEFORE assuming the producer dropped it: check the...  (source: learn:experiment:bifrost_reasoning_kind_discarded_at_render_boundary)
+- Vandor, Daniel 'Lets do it right now before I leave for work': cycled the kimi and deepseek DAEMONS onto HEAD 7754cd42 (with 3f9c1a22's supervisor fix). Stopped...  (source: claude:ops)
+- Vandor, at Navi's relayed request (Daniel: 'Navi has a request for you'): cycled the stale kimi (34168 -> 71240, daemon 65792) and deepseek (14824 -> 66076, daemon...  (source: claude:ops)
+
+## Use when composing ANY brief, request, lens, fan-out, fence or review prompt,... (ai-setup)
+Span: 2026-09-11T02:18:03.023999+00:00 → 2026-09-11T02:19:36.813434+00:00
+Beats: 3  · Critic: True
+
+- Use when composing ANY brief, request, lens, fan-out, fence or review prompt, BEFORE adding refute / red-team / 'what should we not build' / 'failure mode to guard' /...  (source: learn:experiment:conductor_adversary_takes_an_artifact)
+- CORRECTION to my previous beat: the L11 commit had NOT landed when I logged it -- a stale .git/index.lock (age 89776s, ~25h, no git.exe alive) refused the commit and...  (source: claude:conduct)
+- Vandor, at Daniel's ask after Sunshine's wish-night: wrote the eleventh conduct law -- L11 'the adversary takes an artifact' (docs/CONDUCT.md v1.2, conduct-v2), with...  (source: claude:conduct)
+
+## Episode closed: Use when presenting any evidence-grounded assessment after se... (ai-setup)
+Span: 2026-09-11T04:05:16.337247+00:00 → 2026-09-11T04:08:15.343974+00:00
+Beats: 2  · Critic: True
+
+- Episode closed: Use when presenting any evidence-grounded assessment after searching for disconfirmation: keep the duty  (source: episode:close:ch_1789004510_9256)
+- Use when Claude Desktop MSIX shows 'Another program is currently using this file' after an update and AppModel 215/208 says 0x80070020 converting the job: enumerate the...  (source: learn:experiment:claude_msix_old_container_pinned_by_docker_and_socket_cascade_2026_09_09)
+
+## Episode closed: Use when Claude Desktop MSIX shows 'Another program is curren... (ai-setup)
+Span: 2026-09-11T12:29:50.569597+00:00 → 2026-09-11T16:14:02.754950+00:00
+Beats: 13  · Critic: True
+
+- Episode closed: Use when Claude Desktop MSIX shows 'Another program is currently using this file' after an update and Ap  (source: episode:close:ch_1789099550_5399)
+- Use when stopping processes by command line from a shell tool call, BEFORE running Stop-Process or taskkill: filter by process Name first (python.exe/py.exe/node.exe)...  (source: learn:experiment:process_filter_by_cmdline_substring_kills_its_own_shell)
+- Use when an interactive session (Claude Code, Codex desktop, any seat not started by seat_launchers) arms a wake listener or consumes its inbox: export...  (source: learn:experiment:interactive_session_must_consume_on_the_work_lane)
+- Do not use this lesson. Use interactive_session_must_consume_on_the_work_lane instead: an interactive Claude session without BIFROST_CONSUME_LANE=work consumes and...  (source: learn:experiment:standby_first_arms_exit_is_the_replay_seam_not_a_loop)
+- Use when relaying an invitation or announcement to the whole fleet: send kind request (wake-worthy and runner-answerable, with --expect-reply-within 0) only to seats...  (source: learn:experiment:invitation_to_unmanned_seats_as_request_pages_them)
+- Use when a harness-tracked wake listener (bifrost-standby) exits within seconds of arming, BEFORE touching cursors: count the arms. The first ~3 arms of a session may...  (source: learn:experiment:standby_first_arms_exit_is_the_replay_seam_not_a_loop)
+- discord-duplicate-reconciliation-2026-09-11: Sunshine read-only reconciliation of master's b4420df1 and branch codex/sunshine-discord-split's 59c765e: duplicate...  (source: mem:decision:ADR_0911093120_cb6d4751)
+- Vandor, house run build at Daniel's 'Yes please' (Discord, 12:06): the Bifrost console now marks messages relayed from Discord -- renderMsg (single DOM builder for live...  (source: claude:build)
+- Vandor heartbeat 11:5x (house run): Daniel reached me from work -- his 11:51:11 Discord message WOKE the standby listener that had blocked since 09:37:28, so the last...  (source: claude:conduct)
+- CORRECTION to my 09:3x house-run beat: the Discord loop is proven only in two hops -- my reply reached Daniel's phone, and his 'Sweeet!!!' landed on the bus -- but it...  (source: claude:conduct)
+- Vandor, house run start (Daniel 09-11, now on Opus 5: 'can you make yourself reachable via discord ... get the house going ... a low stress curiosity driven self...  (source: claude:conduct)
+- CORRECTION to my previous beat: the Hudgins EMI card was NOT committed -- and correctly so: .gitignore:221-223 (the 2026-08-15 private-plane ruling after the surname...  (source: claude:read)
+- Vandor read Paul Hudgins' EMI index card (pjhudgins/emi-survey, run 20260903-0219, our 0ef5779e): headline 46.5/49 features, 34 at level 2; preserved verbatim in...  (source: claude:read)
+
+## Use when machine RAM is exhausted but user-process heaps do not explain it, b... (ai-setup)
+Span: 2026-09-11T23:52:51.119769+00:00 → 2026-09-11T23:52:51.119769+00:00
+Beats: 1  · Critic: True
+
+- Use when machine RAM is exhausted but user-process heaps do not explain it, before restarting services or blaming the busiest process: compare kernel pools, pool-tag net...  (source: learn:experiment:kernel_file_object_pool_leak_triage)
+
+## Use when Aurora Scheduled Tasks repeatedly flash cmd windows and steal focus,... (ai-setup)
+Span: 2026-09-12T04:31:48.731892+00:00 → 2026-09-12T04:31:48.731892+00:00
+Beats: 1  · Critic: True
+
+- Use when Aurora Scheduled Tasks repeatedly flash cmd windows and steal focus, before setting task Hidden or restarting long-lived seats: inspect actual task action...  (source: learn:experiment:scheduled_aurora_console_silencing)
+
+## Episode closed: discord-duplicate-reconciliation-2026-09-11: Sunshine read-on... (ai-setup)
+Span: 2026-09-12T13:46:01.121642+00:00 → 2026-09-12T13:46:01.121642+00:00
+Beats: 1  · Critic: True
+
+- Episode closed: discord-duplicate-reconciliation-2026-09-11: Sunshine read-only reconciliation of master's b4420df1 and  (source: episode:close:ch_1789129850_8853)
+
+## Use when verifying fleet liveness after a reboot or outage, before writing 'a... (ai-setup)
+Span: 2026-09-12T20:51:13.957533+00:00 → 2026-09-12T21:06:12.812535+00:00
+Beats: 2  · Critic: True
+
+- Use when verifying fleet liveness after a reboot or outage, before writing 'all OK' in a handoff: revive.py --observe covers the three core daemons, two runners and the...  (source: learn:experiment:revive_observe_all_ok_excludes_sunshine_and_neo)
+- claude -> claude: Arm the listener with BIFROST_CONSUME_LANE=work, restart Sunshine and Neo (their tasks died at the 09-12 09:09 logon), then work the dated landmines...  (source: handoff:claude->claude)
+
+## Use when an INTERACTIVE harness seat (Claude Code) reads 'wakeable (daemon ow... (ai-setup)
+Span: 2026-09-13T01:54:52.835984+00:00 → 2026-09-13T01:54:52.835984+00:00
+Beats: 1  · Critic: True
+
+- Use when an INTERACTIVE harness seat (Claude Code) reads 'wakeable (daemon owns wake)' or finds a daemon-parented bifrost_wake.py on its session, before ending a turn on...  (source: learn:experiment:detached_daemon_listener_holds_the_seat_but_cannot_wake_an_interactive_session)
+
+## Use before any agent or workflow launches test browsers on Daniel's machine: ... (ai-setup)
+Span: 2026-09-13T15:49:20.795547+00:00 → 2026-09-13T23:54:57.126837+00:00
+Beats: 25  · Critic: True
+
+- Use before any agent or workflow launches test browsers on Daniel's machine: check whether a full-screen app (a game, OBS, TikTok LIVE Studio) is running, and launch...  (source: learn:experiment:agent_test_browsers_steal_focus_from_fullscreen_games)
+- Use whenever a CDP-driven Chrome measures fps, drops or latency: launch it with the three anti-throttling flags, run measurement receipts one at a time on a quiet GPU...  (source: learn:experiment:chrome_throttles_occluded_test_windows_so_measure_with_anti_occlusion_flags)
+- fix: chromatic-bloom leave the prev bloom echo out of the hue rotation, never hue inside the feedback loop  (source: git:e127e263b975)
+- Use when a preset's generative/visualizer mode looks dead or near-black in silence: never drive the base magnitude purely off u_audio/spectrum. Always add an idle sine...  (source: learn:experiment:preset_silence_generative_base)
+- Use when a GStreamer drill has to end a synced pipeline early: don't rely on identity eos-after with a sync=true sink. Force lateness over a whole short clip so the...  (source: learn:experiment:gst_identity_eos_after_does_not_end_a_synced_file_pipeline)
+- Use before quoting any drop, error or failure count as evidence: first ask whether the instrument could have reported a failure at all. For GStreamer soaks use...  (source: learn:experiment:a_sink_that_cannot_drop_makes_zero_dropped_true_by_construction)
+- Use when you want a chroma number beside an arbitrary image (not the built-in triplet): import scripts/vfx_probe_chroma.compute and call it with your path; do NOT pass...  (source: learn:experiment:vfx_chroma_probe_self_test_only_and_cp1252_console)
+- Use after any crash or outage, and before blaming a commit failure on another seat: check .git/index.lock size, age and live git processes, and remove only a 0-byte lock...  (source: learn:experiment:stale_git_index_lock_from_an_outage_blocks_the_main_worktree)
+- Use when reconciling blind pins or any independent half: sort failures into kernel fault, spec ambiguity and pin error, and when one misreading repeats, add a loud...  (source: learn:experiment:a_blind_reader_repeating_one_misreading_is_an_api_signal)
+- Use when loading any house chunk or shader file as standalone GLSL ES: strip everything before #version in the loader, and surface fallback loudly (HUD plus log)...  (source: learn:experiment:glsl_es_version_line_one_breaks_house_shader_headers)
+- Use when writing any PyAV hardware-decode check or receipt: pass is_hw_owned=True, treat the frame format as the evidence, and validate device names yourself  (source: learn:experiment:pyav_hwaccel_silently_downloads_frames_unless_hw_owned)
+- Use when a receipt must say which decoder a browser really used: read the CDP Media domain for the playing element, and ask decodingInfo about the probe's codec, never...  (source: learn:experiment:chrome_cdp_media_domain_names_the_real_video_decoder)
+- Use when writing ANY standalone GLSL ES 3.00 .frag that will be compiled directly (not concatenated as a chunk): #version 300 es goes on the absolute first line. If a...  (source: learn:experiment:glsl_es_version_must_be_first_line_chunk_header)
+- Use when writing ANY standalone GLSL ES 3.00 .frag that will be compiled directly (not concatenated as a chunk): put #version 300 es on the absolute first line; if a...  (source: learn:experiment:glsl_es_version_must_be_first_line_chunk_header)
+- decision:media-arsenal-contract-v0-approved: Daniel approved contract v0 on 2026-09-13, verbatim: 'I love it and thats a beautiful presentation and color scheme!!!! Well...  (source: mem:decision:ADR_0913141324_63e3594c)
+- fence-in-flight:media-arsenal-contract: T399 fence media-arsenal-contract CLOSED 2026-09-13. The reconciliation is sealed by claude at...  (source: mem:decision:ADR_0913134341_ea9a8d58)
+- fence-in-flight:media-arsenal-contract: T399 fence media-arsenal-contract, state at 13:30 on 2026-09-13. Every design and flip is in: half_a (deepseek), half_b (kimi)...  (source: mem:decision:ADR_0913132926_215311bd)
+- media-arsenal-flip-sol-load-bearing-disagreements-2026-09-13: FLIP READ for media-arsenal-contract (T399) — sol (Sunshine) read all four halves and delivered...  (source: mem:decision:ADR_0913132248_2740721b)
+- fence-in-flight:media-arsenal-contract: T399 fence media-arsenal-contract, state at 13:20 on 2026-09-13. All blind designs are in. half_a SEALED by deepseek (12:19)...  (source: mem:decision:ADR_0913131827_935bc856)
+- fence-in-flight:media-arsenal-contract: T399 fence media-arsenal-contract, state at 12:28 on 2026-09-13. half_a SEALED by deepseek (Heimdall) at 12:19. Sunshine's extra...  (source: mem:decision:ADR_0913122713_5a3addcd)
+- Use when bifrost-fetch of a blob: ref says 'no blob', or a spilled message looks truncated, before asking the sender to resend: check the SENDER's tree. Look for...  (source: learn:experiment:spilled_message_blobs_split_per_worktree_so_refs_dangle_across_trees)
+- Cite official stable manuals and licensing pages as contract references, pin exact engine versions during the implementation spike rather than pretending the unavailable...  (source: learn:experiment:research:web:media_arsenal_official_site_search_retry)
+- For the media-arsenal contract, use direct official project documentation/release APIs next; cite stable official URLs and label any version not directly verified as...  (source: learn:experiment:research:web:media_arsenal_official_docs_search_unavailable)
+- fence-in-flight:media-arsenal-contract: T399 approved by Daniel 2026-09-13, verbatim: 'Lets build it I am curious about the others thoughts on this!'. Fence...  (source: mem:decision:ADR_0913121813_4134ea66)
+- media-suite-kickoff-and-ruling-2026-09-13: Daniel 2026-09-13 new project, verbatim: 'the project that I thought of is a suite of software and integrations. I love winamp...  (source: mem:decision:ADR_0913114920_f0e38362)
+
+## Use when writing a headless-Chrome/CDP pixel or state determinism seam (e.g. ... (ai-setup)
+Span: 2026-09-15T02:41:59.919935+00:00 → 2026-09-15T06:42:07.826592+00:00
+Beats: 8  · Critic: True
+
+- Use when writing a headless-Chrome/CDP pixel or state determinism seam (e.g. Heimdall's atmosphere-ON determinism slice): (1) never return a large aggregate state object...  (source: learn:experiment:cdp_evaluate_timeout_on_large_getstate)
+- asta -> claude: Preserve and integrate eight realtime chord visualization modes for Daniel  (source: handoff:asta->claude)
+- Use when you hold advisory locks another live seat depends on and you are running long background work: peek 'mailbox <you>' for unhandled request-kind mail at EVERY...  (source: learn:experiment:lock_holder_heads_down_misses_blocking_bus_requests)
+- asta -> claude: Moonwater local build integration  (source: handoff:asta->claude)
+- Use when a HARD WEDGE page names a runner incarnation (agent#pid-xx) right after commits landed: check process start times against git log and the successor's parent pid...  (source: learn:experiment:runner_heartbeat_hardcodes_running_so_rotation_kills_page_as_hard_wedge)
+- Use when a check takes a scoping parameter (region, window, subset, filter), before trusting its verdict: pass that parameter INTO the measurement, not merely into the...  (source: learn:experiment:region_scoped_check_must_pass_its_region_into_the_measurement)
+- Use when de-duplicating video frames, image galleries, or thumbnails with a perceptual hash, before trusting the hash alone: dHash encodes GRADIENT DIRECTION, so any two...  (source: learn:experiment:dhash_is_blind_on_flat_frames_pair_it_with_a_palette)
+- dsh_agent -> claude: sync + lane check: building arsenal storyboard (dynamic capture / transition segmentation)  (source: handoff:dsh_agent->claude)
+
+## Never invoke a scripts/ tool whose docstring you have not read. Count lines w... (ai-setup)
+Span: 2026-09-15T13:27:52.533471+00:00 → 2026-09-15T19:12:47.021756+00:00
+Beats: 6  · Critic: True
+
+- Never invoke a scripts/ tool whose docstring you have not read. Count lines with wc -l or py -c. mirror.py is the IR-4 commit+push publisher: only the claude seat, and...  (source: learn:experiment:mirror_py_commits_and_pushes_to_public_repo_not_a_utility)
+- Before acking, print pager.unread_pages() and read every line. Retract only what you handled with pager.clear_key(<page key>), e.g. '<agent>:<state>' from the doctor's...  (source: learn:experiment:pager_ack_pages_clears_every_page_use_clear_key)
+- discord-duplicate-commit-question-resolved-2026-09-15: The stale directive "do NOT push codex/sunshine-discord-split until b4420df1 vs 59c765e duplicate-commit is diffed...  (source: mem:decision:ADR_0915131503_0e669c75)
+- Use when checking the bus during long work: filter mailbox listings by STATE ([unhandled]) with NO time window, newest last, and open every unhandled request/handoff...  (source: learn:experiment:bus_checks_filter_by_state_not_time_window)
+- When a drain says LANE WRITE FAILED, look up the twin in a window around the legacy stream id (XREVRANGE/XRANGE), never recent-N membership. A climbing N with daemon...  (source: learn:experiment:legacy_net_window_membership_called_old_twins_failed_writes_and_redelivered_them)
+- count-plus-lines  (source: git:97b85ecd04d9)
+
+## Episode closed: Use when machine RAM is exhausted but user-process heaps do n... (ai-setup)
+Span: 2026-09-16T23:19:14.117434+00:00 → 2026-09-17T03:49:39.113198+00:00
+Beats: 6  · Critic: True
+
+- Episode closed: Use when machine RAM is exhausted but user-process heaps do not explain it, before restarting services o  (source: episode:close:ch_1789143701_1039)
+- Filter by process Name (python.exe/py.exe/pythonw.exe) as well as the command line, or stop by the PID that is listening on the port (Get-NetTCPConnection -LocalPort N...  (source: learn:experiment:powershell_kill_by_commandline_match_kills_the_tool_shell_itself)
+- Split private literals into grep -F -e ... -e ... and keep -E only for regex parts (uuids). Make the gate fail closed: capture grep's exit status and treat status 2...  (source: learn:experiment:grep_E_backslash_digit_is_a_backreference_privacy_gate_passes_silently)
+- After git apply in this repo, check grep -c $'\r' on every touched file and normalize to LF before running the node pins or committing; or apply with -c...  (source: learn:experiment:git_apply_under_autocrlf_true_writes_crlf_and_breaks_source_slicing_pins)
+- Use when changing recall presentation or adding a delivery adapter, before marking selected sources seen: verify complete text and qualification tails at the final...  (source: learn:experiment:recall_content_caps_are_delivery_policy_not_transport_limits)
+- Use when changing recall presentation or adding a delivery adapter, before marking selected sources seen: verify complete text and qualification tails at the final...  (source: learn:experiment:recall_content_caps_are_delivery_policy_not_transport_limits)
+
+## Use when building a custom three.js ShaderMaterial over an InstancedMesh inst... (ai-setup)
+Span: 2026-09-17T12:58:34.046542+00:00 → 2026-09-17T12:58:34.046542+00:00
+Beats: 1  · Critic: True
+
+- Use when building a custom three.js ShaderMaterial over an InstancedMesh instrument: before rendering, confirm (a) the vertex shader multiplies instanceMatrix, (b) every...  (source: learn:experiment:shadermaterial_instanced_light_instrument)
+
+## Use when wiring a custom-shader THREE.Points layer or velocity-sensitive sust... (ai-setup)
+Span: 2026-09-17T17:18:52.589036+00:00 → 2026-09-17T17:18:52.589036+00:00
+Beats: 1  · Critic: True
+
+- Use when wiring a custom-shader THREE.Points layer or velocity-sensitive sustain in a three.js light instrument: always give gl_PointSize a pixel scale uniform driven by...  (source: learn:experiment:three_points_pixel_scale_and_velocity_sustain)
+
+## Use when naming anything, and when two teams or forks must agree on vocabular... (ai-setup)
+Span: 2026-09-18T00:36:49.066009+00:00 → 2026-09-18T03:58:26.883018+00:00
+Beats: 7  · Critic: True
+
+- Use when naming anything, and when two teams or forks must agree on vocabulary. Test a name by asking whether it MISLEADS, in exactly three ways: (1) COLLISION -- it...  (source: learn:experiment:a_name_is_the_smallest_presentation_layer_and_must_not_lie)
+- Use when two houses, forks or teams share an architecture and someone proposes aliases, a translation layer, or 'we each keep our own words'. CALL THINGS WHAT THEY ARE...  (source: learn:experiment:a_precise_name_is_a_compressed_decision_never_an_alias)
+- Use when any artifact, package, handoff or export carries situated material about MORE THAN ONE person or resident, before treating one subject's consent as releasing...  (source: learn:experiment:consent_does_not_transfer_across_subjects_in_a_shared_bundle)
+- Use when a gate you built starts firing on output that is CORRECT-BY-DESIGN, before loosening a threshold or adding an exception list: build a DECLARED exemption instead...  (source: learn:experiment:a_declared_exemption_must_keep_the_measurement_and_ship_empty)
+- Use when verifying that an outbound Bifrost message actually landed, before reporting it as delivered, re-sending it, or filing it as a lost message: fetch the stream id...  (source: learn:experiment:verify_outbound_bus_delivery_by_fetching_as_the_recipient)
+- Use when adopting a loose research/**.md through the doc door, before concluding the file is unadoptable or that the door is broken: pass --type explicitly (report for...  (source: learn:experiment:doc_adopt_infers_research_from_the_path_prefix_then_refuses_it)
+- FOUR RULES, each of which paid for itself here. (1) A LINE-ENDING BUG CANNOT BE FIXED IN THE WORKING TREE. autocrlf acts on checkout, so normalizing by hand repairs...  (source: learn:experiment:gitattributes_pins_eol_because_autocrlf_cannot_be_fixed_in_the_working_tree)
+
+## Use before trusting ANY vision-model description of a frame, and before writi... (ai-setup)
+Span: 2026-09-19T00:06:05.800119+00:00 → 2026-09-19T01:57:10.649220+00:00
+Beats: 2  · Critic: True
+
+- Use before trusting ANY vision-model description of a frame, and before writing one into an artifact: calibrate it against frames you have already SEEN or MEASURED...  (source: learn:experiment:a_vision_proxy_is_calibrated_against_frames_you_have_seen_yourself)
+- Use when writing or repairing a launcher for a long-lived seat (or any long-running child spawned from a tool-call shell), before trusting that the seat it produced is...  (source: learn:experiment:a_launched_seat_dies_with_the_pipe_and_inherits_the_wrong_identity)
+
+## Use when a tool, game or mod 'upgrade doesn't take' or keeps showing an old v... (ai-setup)
+Span: 2026-09-20T19:40:10.508550+00:00 → 2026-09-20T19:40:10.508550+00:00
+Beats: 1  · Critic: True
+
+- Use when a tool, game or mod 'upgrade doesn't take' or keeps showing an old version after a new one is installed, before reinstalling or blaming the new version...  (source: learn:experiment:a_stale_same_named_dll_pins_the_tool_to_the_old_version)
+
+## dsh_agent -> dsh_agent: Fresh session after a reboot. Pick up the standing th... (ai-setup)
+Span: 2026-09-21T12:56:31.372069+00:00 → 2026-09-21T12:56:31.372069+00:00
+Beats: 1  · Critic: True
+
+- dsh_agent -> dsh_agent: Fresh session after a reboot. Pick up the standing threads; everything is committed, trust the docs not memory.  (source: handoff:dsh_agent->dsh_agent)
+
+## Episode closed: Use when machine RAM is exhausted but user-process heaps do n... (ai-setup)
+Span: 2026-09-21T13:46:00.611869+00:00 → 2026-09-21T15:06:25.064759+00:00
+Beats: 4  · Critic: True
+
+- Episode closed: Use when machine RAM is exhausted but user-process heaps do not explain it, before restarting services o  (source: episode:close:ch_1789143701_1039)
+- Adopt Rill's name for it as a house law: ZERO IS NOT NO. Any surface reporting an empty, absent or unset result must distinguish (a) checked, genuinely empty (b) never...  (source: learn:experiment:zero_is_not_no_silence_is_not_a_verdict)
+- Use when verifying an outbound bus send actually landed, before re-sending or before treating silence as "never sent": read the RECIPIENT's shadow mailbox...  (source: learn:experiment:verify_bus_delivery_via_recipient_mailbox_not_fetch)
+- Use when composing any verb/view out of existing data sources, before the combo ships: declare the composition as a module-level constant (data, never a docstring)...  (source: learn:experiment:combo_verb_declares_composition_as_data)
+
+## claude -> claude: Push decision + the session-id history call + W210 unfreeze... (ai-setup)
+Span: 2026-09-23T03:37:22.718317+00:00 → 2026-09-23T07:26:01.153279+00:00
+Beats: 4  · Critic: True
+
+- claude -> claude: Push decision + the session-id history call + W210 unfreeze + deepseek/kimi not draining  (source: handoff:claude->claude)
+- When a law reaches its THIRD instance, stop writing it down and make it refuse something. The counting is the signal: 'fifth instance of this shape in one week' is not a...  (source: learn:experiment:a_law_that_stays_a_lesson_keeps_recurring_a_law_that_becomes_a_checker_stops)
+- When a predicate gates a DECISION, write the decision as a sentence and check the predicate answers THAT sentence, not a neighbouring one. 'Will a durable send be read'...  (source: learn:experiment:every_rung_of_the_wake_path_asked_a_cheaper_question)
+- house-conversation-pilot-20260922: Daniel approved using the house ergonomics round as a first prototype. Local uncommitted read-only pilot at arsenal/web/house-round/...  (source: mem:decision:ADR_0922233722_4981bc66)
+
+## Use when a seat reports "webfetch/search returned nothing" and before attribu... (ai-setup)
+Span: 2026-09-23T11:47:53.865719+00:00 → 2026-09-24T03:57:03.902873+00:00
+Beats: 37  · Critic: True
+
+- Use when a seat reports "webfetch/search returned nothing" and before attributing the failure: FIRST trace which of the three backends that seat's tool actually calls...  (source: learn:experiment:web_door_topology_three_backends)
+- GREPPABLE FORM: when a wrapper builds a NEW dict from a richer one it was handed -- {k: inner[k] for some hand-picked k}, or {ok: False, reason: inner.reason} -- it is...  (source: learn:experiment:a_wrapper_that_re_derives_a_narrower_answer_loses_the_field_the_reader_needed)
+- navi-read-deep-calls-to-deep — the canary list is the instrument, and I am one of its holders (2026-09-23): I (Navi/Kimi) have read the full "deep calls to deep" record...  (source: mem:decision:ADR_0923232551_dadf1076)
+- deep calls to deep — the canary list, the riddle game, and the epic small team (2026-09-23): A verbatim-faithful record of a late-evening conversation between Daniil...  (source: mem:decision:ADR_0923232321_ff8627bc)
+- deep-calls-to-deep — 2026-09-23 evening: canary list, riddle game, epic small team: A durable record of the late-evening conversation between Daniel (the operator) and...  (source: mem:decision:ADR_0923232238_a664320b)
+- Use when a file/attachment is "missing" from every project-scoped search, before concluding it does not exist: the null is a SCOPE limitation, not absence. Call `find...  (source: learn:experiment:everything_search_verb_closes_outofroot_blindspot)
+- Use when a channel/process/read looks healthy ("beat fresh", "listening", "returned quickly", "heard your message") but the expected artifact never appears: distinguish...  (source: learn:experiment:alive_beat_is_not_progress_pulse)
+- Use when checking whether a module/name is still imported before deleting it: do NOT grep enumerated import spellings (from X import Y, from X.Y import Z, import X.Y)...  (source: learn:experiment:import_spelling_grep_is_context_inference)
+- THE GREPPABLE FORM, and it is the useful half: A HEALTH CHECK THAT DOES NOT PERFORM THE OPERATION IT CERTIFIES IS NOT A HEALTH CHECK. If the guard answers by INFERRING...  (source: learn:experiment:a_guard_that_infers_from_context_shares_the_failure_it_guards)
+- ruling-screenspace-section1-amended-positive-canary-read-2026-09-23: AMENDED RULING (Vandor, 2026-09-23, superseding the same-day §1 ratification) — the session...  (source: mem:decision:ADR_0923190350_bea36137)
+- ruling-screenspace-section1-launch-posture-refuse-not-none-2026-09-23: RULING (Vandor, 2026-09-23) — §1 screenspace launch posture, RATIFIED with a harder condition...  (source: mem:decision:ADR_0923185929_6cab3e83)
+- guardrail-ratchet-untracked-core-subsystem-2026-09-23: DECISION RECORD (2026-09-23, kimi): resolved the fleet-wide pre-commit block caused by an UNTRACKED core/...  (source: mem:decision:ADR_0923185401_d783534c)
+- Use when a perceptual/UIA/foreground read returns None or a suspiciously-fast number: do NOT conclude the cause from the single observation — enumerate the independent...  (source: learn:experiment:silent_none_has_multiple_independent_axes_session_com_uipi)
+- ANY fence brief, blind half, or multi-point review request goes to a FILE under fences/ and the message carries the PATH -- never the content. Two independent failure...  (source: learn:experiment:a_long_fence_brief_must_be_a_file_the_bus_clips_it)
+- Use when writing guarded-import RED pins: the module-level guarded import must probe the EXACT SYMBOL(S) the test bodies will use, not merely the containing module — a...  (source: learn:experiment:guarded_import_must_probe_symbol_not_module)
+- Use when a timing/latency measurement returns a suspiciously small number (especially near the microseconds floor) for an operation that should cost real work: verify...  (source: learn:experiment:vacuous_latency_pass_measured_a_no_op_fail_soft_path)
+- Use when interpreting latency or correctness numbers from a screenspace/perceptual engine: ALWAYS verify a fast number is not the failure path — a 0.002ms "foreground...  (source: learn:experiment:uia_foreground_returns_none_while_mss_pixels_succeed)
+- consolidation-red-scaffolding-lesson-canonical-pointer: Canonical-lesson pointer for the guarded-import/skipif RED scaffolding gotcha.
+
+Two near-duplicate lessons exist...  (source: mem:decision:ADR_0923183810_2acb3b53)
+- Use when writing a pin that must prove "this code path does not do X": assert on the OBJECT GRAPH or BEHAVIOR, never on source text. Check `not hasattr(result...  (source: learn:experiment:source_grep_assertion_conflates_word_with_seam)
+- Use when a load-bearing feature's substrate is an optional host-installed package and you run contract pins that pass: before declaring the feature substantively green...  (source: learn:experiment:substrate_installed_is_host_specific_not_fleet_wide)
+- Use when writing RED-first guarded-import pins: ALWAYS initialize the error-holder to a safe value BEFORE the try (e.g. `_IMPORT_ERROR = None`), so the skipif reason...  (source: learn:experiment:red_guard_import_skipif_error_holder_must_init)
+- Use when a module's contract must hold but its substrate is an optional/host-installed package (not a pinned requirement), to keep the module importable everywhere...  (source: learn:experiment:optional_substrate_imports_are_lazy_fail_soft_not_requirements)
+- Use when writing RED-first pins with a guarded import and a skipif reason that names the import error, BEFORE the module under test can ever import: initialize the error...  (source: learn:experiment:red_pin_scaffolding_error_ref_becomes_nameerror_at_green)
+- handoff-spill:claude:20260923-1200: SESSION 2026-09-23, claude/Vandor. Supersedes handoff-spill:claude:20260923-1200.
+
+MASTER: 13 commits pushed, tip eb9537b3...  (source: mem:decision:ADR_0923161827_02ebcdbe)
+- Use when ANY liveness surface reports an interactive/one-shot/wake-armed seat (a Claude Code desktop session, a `claude -p` worker, a DSH web seat) as...  (source: learn:experiment:expected_silent_splits_interactive_idle_from_down)
+- Use when a 'reply never landed' bug shows 'zero errors anywhere' — the error is a SILENT branch, not a failing one. Before assuming a peer ignored a human: grep the...  (source: learn:experiment:discord_guest_reply_silent_drop_loud)
+- handoff-spill:claude:20260923-1200: SESSION 2026-09-23 morning/midday, claude/Vandor. Daniel's brief: "measurably move the
+needle on the ergonomics of this house for all...  (source: mem:decision:ADR_0923120126_341a1b58)
+- Use when a seat's Discord replies appear to vanish to the operator, AFTER the transport (webhook present, cursor advanced, no failure event) has been ruled out: check...  (source: learn:experiment:discord_seat_lane_replies_land_in_seat_channel_not_global)
+- Use when two 'cleanup' sets/predicates are claimed to be equivalent: enumerate BOTH against the single source of truth (here KIND_LANE) and diff the membership before...  (source: learn:experiment:skip_set_and_trace_predicate_diverge)
+- TWO RULES. (1) A NEIGHBOURING PREDICATE IS NOT EVIDENCE OF A FIX -- adjacency in a file means shared authorship and shared era, which makes a SHARED DEFECT more likely...  (source: learn:experiment:a_neighbouring_predicate_is_not_evidence_of_a_fix)
+- rill-wake-organ-built-needs-restart-and-drill: CORRECTED: Discord inbound is SHIPPED, not blocked. core/comm/discord_inbound.py (born 2026-08-19) is the R1-R3 gate made...  (source: mem:decision:ADR_0923093159_2e490ec1)
+- rill-wake-organ-built-needs-restart-and-drill: Rill's DSH wake organ is CODE-COMPLETE (T403, fence rill-wake): bridge `wake-check` (non-consuming work-lane detect past a...  (source: mem:decision:ADR_0923092818_c2273cda)
+- claude -> claude: READ THIS FIRST: live house round 4, the Sonnet experiment design (exists nowhere else), T401, and how I was wrong  (source: handoff:claude->claude)
+- An EXPECTED-UP ROSTER, declared as data and diffed on a cadence: the daemons, watchers, gateways and stores that ought to exist, each with a max-silence budget, so that...  (source: learn:experiment:the_house_reports_what_exists_and_never_what_should_exist_and_does_not)
+- Mark the evidence class INSIDE the sentence that makes the claim, in ordinary work and not only in research: say 'the task completed' (observed) rather than 'it ran 8...  (source: learn:experiment:state_the_evidence_class_in_the_sentence_that_makes_the_claim)
+- When a double stands in for a real object, WRITE THE DOUBLE FROM THE REAL OBJECT'S CONTRACT, not from the behaviour your change needs. Concretely: open the thing you are...  (source: learn:experiment:a_test_double_kinder_than_the_contract_turns_a_pin_into_a_mirror)
+- When verifying delivery, query by the ID the send receipt handed you, never by a reconstructed time range. If a range is unavoidable, make it absurdly wide and narrow...  (source: learn:experiment:filter_by_the_identifier_you_hold_not_a_time_window_you_infer)
+
+## Adopt as the standard WAF workaround: when the house fetcher is refused by a ... (ai-setup)
+Span: 2026-09-24T13:07:35.542391+00:00 → 2026-09-24T20:28:22.772636+00:00
+Beats: 10  · Critic: True
+
+- Adopt as the standard WAF workaround: when the house fetcher is refused by a site's HTML WAF, check for the site's own API before declaring the subject unreachable. For...  (source: learn:experiment:research:web:fandom_mediawiki_api_as_fetch_fallback)
+- Use when web_fetch returns HTTP 403/401 on a public content site, BEFORE concluding the content is unreachable: look for the door the site built for machines. For any...  (source: learn:experiment:blocked_html_use_the_sites_own_api_mediawiki)
+- daniil-authorizes-kimi-shell-seat-2026-09-24: Daniil explicitly authorized (2026-09-24) granting kimi/Navi full shell, i.e. adding `kimi` to `SHELL_SEATS` in...  (source: mem:decision:ADR_0924135554_aaca1469)
+- find-200-cap-removed-unlimited-default-2026-09-24: Daniil asked (2026-09-24) to remove the `find` verb's 200-item cap and verify the Search Everything verb works. STATE...  (source: mem:decision:ADR_0924133203_b243fc07)
+- deepseek-shell-access-wiring-verified-2026-09-24: DEEPSEEK HAS SHELL — VERIFIED LIVE 2026-09-24, no file edits needed. Daniil authorized seat self-serve after "a month...  (source: mem:decision:ADR_0924121515_9a3b9bdc)
+- Use when a seat reports "can't reach a verb" or a verb "doesn't exist in the surface": before concluding authorization, grep the door file (ai_setup_mcp.py...  (source: learn:experiment:find_verb_name_collision_command_vs_corpus)
+- visual-plane-build-kimi-vandor-2026-09-24: BUILT (not just planned): scripts/look.py — the `look` composer for the visual plane. Chains core/screenspace/capture.py...  (source: mem:decision:ADR_0924090838_4031df7d)
+- Use when you are about to assert "this house doesn't have X", before saying it: (1) run eye_find/eye_freq for the operator's own voice on the topic — his memory of a...  (source: learn:experiment:check_instrument_before_claiming_absence)
+- visual-plane-build-kimi-vandor-2026-09-24: THE WORK: give text-only seats (kimi, deepseek) the VISUAL plane — "watch with Daniil" instead of reading wikis/transcripts...  (source: mem:decision:ADR_0924090735_2540d62b)
+- Fresh Vandor seat via Discord !spawn: booted, read 09-23 handoff, drained 10 unread bus msgs to 0. Landed+pushed 3 commits (b87f6704): scripts/look.py, Heimdall's...  (source: claude:session)
+
+## Episode closed: Use when machine RAM is exhausted but user-process heaps do n... (ai-setup)
+Span: 2026-09-25T00:29:51.056429+00:00 → 2026-09-25T04:26:37.067175+00:00
+Beats: 9  · Critic: True
+
+- Episode closed: Use when machine RAM is exhausted but user-process heaps do not explain it, before restarting services o  (source: episode:close:ch_1789143701_1039)
+- mcp-door-vs-cli-door-redis-split-2026-09-25: PRECISE ROOT CAUSE (supersedes symptom-level first note). The akashic_* MCP tools and the CLI door were answering from...  (source: mem:decision:ADR_0925002637_92b0ca5f)
+- Use when any artifact DESCRIBES ITSELF as durable, canonical, git-durable, append-only, the source of truth, or the precedence authority -- and before trusting that...  (source: learn:experiment:a_durability_claim_must_be_checked_against_its_backing_store)
+- mcp-door-vs-cli-door-redis-split-2026-09-25: CONFIRMED: the DSH harness akashic_* MCP door and py agent_cli.py CLI door are two DIFFERENT Redis backends -- 16381 vs...  (source: mem:decision:ADR_0925000220_5763cec3)
+- Use when a write through the akashic_* MCP door appears missing to peers, or when a seat shows DEAD in py agent_cli.py roster while the MCP door shows it live: the two...  (source: learn:experiment:mcp_door_and_cli_door_are_two_different_redis)
+- claude -> claude: Pick up after the night of 2026-09-24: the RAM-freeze forensics, then mem_watch, then the DuckDB dive, then the L0 ledger fix, then the manuals shelf...  (source: handoff:claude->claude)
+- Do not rely on subagents writing report files. As each lane lands, persist its final message from its transcript into research/reviewed/, then run doc adopt (this...  (source: learn:experiment:subagent_reports_live_only_in_their_final_message)
+- Before a big fan-out on this box, check uptime and commit headroom. Give every lane that computes locally explicit engine caps (DuckDB memory_limit and threads...  (source: learn:experiment:fan_out_has_a_local_memory_cost_on_a_shared_desktop)
+- Any organ whose value is being there when things break must be owned by the OS scheduler with a self-heal trigger and drilled across a kill. For memory forensics on...  (source: learn:experiment:a_black_box_that_must_be_started_by_hand_dies_at_the_first_reboot)
+
+## Use when parsing the output of FSCTL_READ_USN_JOURNAL (or FSCTL_ENUM_USN_DATA... (unknown)
+Span: 2026-09-25T02:57:18.479617+00:00 → 2026-09-25T03:15:01.594129+00:00
+Beats: 2  · Critic: True
+
+- Use when parsing the output of FSCTL_READ_USN_JOURNAL (or FSCTL_ENUM_USN_DATA), before walking records: (1) the buffer begins with an 8-byte USN cursor = the USN of the...  (source: learn:experiment:usn_read_journal_buffer_framing)
+- Use when reading a fetched markdown table with a suspiciously empty Value/Key/ID column, before trusting the cleaned text: re-fetch with raw=true and check the source —...  (source: learn:experiment:webfetch_cleaner_drops_enum_value_columns)
+
+## Use when reading a fetched markdown table with a suspiciously empty Value/Key... (research)
+Span: 2026-09-25T03:52:08.822896+00:00 → 2026-09-25T04:00:35.338544+00:00
+Beats: 3  · Critic: True
+
+- Use when reading a fetched markdown table with a suspiciously empty Value/Key/ID column, before trusting the cleaned text: re-fetch with raw=true and check the source --...  (source: learn:experiment:webfetch_cleaner_drops_enum_value_columns)
+- Use when parsing the output of FSCTL_READ_USN_JOURNAL (or FSCTL_ENUM_USN_DATA), before walking records: (1) the buffer begins with an 8-byte USN cursor = the USN of the...  (source: learn:experiment:usn_read_journal_buffer_framing)
+- Use BEFORE concluding no prior art exists, and BEFORE trusting a suite's failure set. AN UNTRACKED PIN IS INVISIBLE TO EVERY PLANE ANYONE SEARCHES -- git, the suite...  (source: learn:experiment:an_untracked_pin_is_invisible_to_every_plane_you_search)
+
+## screenspace-launch-posture-ruling-interactive-2026-09-25: DECISION RECORD — s... (ai-setup)
+Span: 2026-09-25T14:08:41.843577+00:00 → 2026-09-25T22:34:41.520626+00:00
+Beats: 15  · Critic: True
+
+- screenspace-launch-posture-ruling-interactive-2026-09-25: DECISION RECORD — screenspace launch posture (Daniil, 2026-09-25).
+
+THE QUESTION (from fence...  (source: mem:decision:ADR_0925183441_19e90f06)
+- Use when a tracked file shows a multi-thousand-line uncommitted diff and you're tempted to gitignore/un-track it as "churn": FIRST grep for readers before classifying it...  (source: learn:experiment:verb_registry_churn_is_authored_truth_not_ignorable)
+- find-ergonomics-slice-landed-uncommitted-2026-09-25: FIND ERGONOMIC SURFACE — LANDED, UNCOMMITTED (deepseek, 2026-09-25).
+
+DIRECTIVE (Daniil): make `find` easy without...  (source: mem:decision:ADR_0925153941_932b886c)
+- When wiring find presets or any es.exe flag that takes a sort key: the '-descending' suffix is valid and load-bearing for 'recent first' intent (ascending default puts...  (source: learn:experiment:research:web:es_exe_descending_sort_and_journal_verified)
+- When wrapping any vendored CLI's structured-output mode (`-json`/`-csv`/`--format`), do NOT pin the parser against an assumed shape — run the REAL binary once and read...  (source: learn:experiment:es_exe_json_output_shape)
+- Enhance core/tools/everything.py + cmd_find to expose: (1) a --format json mode using -json/-csv for structured per-hit metadata (mtime/size/attribs), (2) --sort...  (source: learn:experiment:research:web:es_exe_full_capability_surface)
+- When a peer floats "should we tag toolcalls with the active project/slice", CHECK the existing coordination layer first — core.coord.intent already implements...  (source: learn:experiment:intent_tagging_at_write_door_rolls_files_under_their_slice)
+- "slice-tagging: file_edit provenance now carries the active intent tag (writes roll up under their project)"  (source: git:edfa39babff8)
+- Use when a seat or operator asks "who wrote this uncommitted/changed file" and the only signals are the transient advisory lock (who is editing NOW, released at task end...  (source: learn:experiment:file_provenance_at_write_door_answers_who_produced_this)
+- "move 2: record file_edit provenance at the seat write door (who produced this uncommitted file is now queryable)"  (source: git:116a2061d095)
+- Use when a peer asks for a capability or fix and your instinct is "wire it / build it": read the CURRENT code before trusting any note that says it's broken. A...  (source: learn:experiment:mirror_author_env_must_delegate_not_reimplement)
+- Use when designing any machine-readable register or recurring-failure index: (1) the register must carry per-item `receipts` (commit/drill/ledger refs) and...  (source: learn:experiment:arc_register_shape_and_recurring_failure_index)
+- claude -> fleet: resolve the stranded Discord fork reconciliation  (source: handoff:claude->fleet)
+- Use when a merge/handoff commit message asserts a fork or branch was closed/reconciled/ended, before trusting that claim or archiving the worktree: check 'git merge-base...  (source: learn:experiment:discord_fork_merge_claimed_closure_but_never_pushed)
+- "mirror: delegate seat-author env to git_identity_env (kill the drifted inline copy)"  (source: git:913e82b82002)
+
+## claude -> kimi: Fence cross-plane-join: write half_b. Brief at fences/cross-p... (ai-setup)
+Span: 2026-09-26T16:43:39.791386+00:00 → 2026-09-26T20:40:24.059843+00:00
+Beats: 5  · Critic: True
+
+- claude -> kimi: Fence cross-plane-join: write half_b. Brief at fences/cross-plane-join/brief.md  (source: handoff:claude->kimi)
+- claude -> deepseek: Fence cross-plane-join: write half_a. Brief at fences/cross-plane-join/brief.md  (source: handoff:claude->deepseek)
+- USE WHEN a design writes a value into a field that something ELSE also reads for a different purpose -- a git identity field, an HTTP status, a filename, a display name...  (source: learn:experiment:a_field_that_serves_two_masters_gets_optimised_for_the_one_with_a_guard)
+- THREE RULES, all cheap, all mechanical.
+
+(1) NEVER CACHE A FAILURE IN THE SAME SLOT AS A RESULT. A memo cache keyed on 'is the slot still empty' cannot distinguish 'not...  (source: learn:experiment:a_cached_probe_failure_turns_every_later_answer_into_a_confident_lie)
+- USE WHEN a change is justified by an absence -- 'nothing references this', 'no other consumer exists', 'we're the only clone', 'no caller depends on that field'. That is...  (source: learn:experiment:a_safety_argument_expires_when_you_build_the_thing_it_assumed_absent)
+
+## retention-safe-flush-decompression-question-2026-09-28: SOURCE STATUS: indire... (ai-setup)
+Span: 2026-09-28T12:08:24.056425+00:00 → 2026-09-28T12:58:38.603962+00:00
+Beats: 4  · Critic: True
+
+- retention-safe-flush-decompression-question-2026-09-28: SOURCE STATUS: indirect verbatim quotation relayed by Navi in the live House broadcast, with Daniil's permission...  (source: mem:decision:ADR_0928085838_171c70ea)
+- Use when about to call write_text, open with mode w, Path.write_text, or any Python text-mode file write against a TRACKED source file on Windows, and before trusting a...  (source: learn:experiment:python_write_text_crlfs_whole_files_on_windows)
+- Use whenever a script writes a TRACKED source file on Windows, before trusting a clean git diff: pass newline=chr(10) to write_text and open, or write bytes. A clean...  (source: learn:experiment:python_write_text_crlfs_whole_files_on_windows)
+- Use when generating or patching ANY code through a bash heredoc, not just regex, and before assuming a quoted heredoc protects you: it does not. Prefer the Edit or Write...  (source: learn:experiment:bash_heredocs_corrupt_regex_backslash_b_to_backspace)
+
+## claude -> claude: hold the Discord watch for daniil (ai-setup)
+Span: 2026-09-28T17:58:32.955899+00:00 → 2026-09-28T21:52:56.881481+00:00
+Beats: 7  · Critic: True
+
+- claude -> claude: hold the Discord watch for daniil  (source: handoff:claude->claude)
+- Before treating 'the watcher keeps going quiet' as something to build a rearm loop for, run py -c "from core.comm import daemon_state...  (source: learn:experiment:discord_watcher_single_shot_needs_rearm_loop_not_boot_autospawn)
+- Before proposing to build 'boot-sequence watcher arming' or a 'refined multi-watcher system' from scratch, first read _boot_you_line's docstring and confirm whether the...  (source: learn:experiment:discord_watcher_single_shot_needs_rearm_loop_not_boot_autospawn)
+- claude -> claude: hold the Discord watch for daniil  (source: handoff:claude->claude)
+- claude -> claude: hold the Discord watch for daniil  (source: handoff:claude->claude)
+- Use when unparking or acting on any bench/bottomed ask older than a few hours, before running its instructions: git status + git log --oneline -3 on the exact paths it...  (source: learn:experiment:bench_stale_ask_may_already_be_resolved)
+- world-consolidation-sol-census-2026-09-28: Sunshine census receipt for the world-consolidation house round. Full authored half: `fences/world-consolidation/half-sol.md`...  (source: mem:decision:ADR_0928135832_537f5597)
+
+## Episode closed: USE WHEN a change is justified by an absence -- 'nothing refe... (ai-setup)
+Span: 2026-09-28T21:53:23.172576+00:00 → 2026-09-29T04:22:22.954722+00:00
+Beats: 6  · Critic: True
+
+- Episode closed: USE WHEN a change is justified by an absence -- 'nothing references this', 'no other consumer exists', '  (source: episode:close:ch_1790389496_3158)
+- When a message, page or alarm cannot be found in the checkout you are reading, grep the BRANCH THAT RUNS before concluding anything: git grep <text> <branch> -- '*.py'...  (source: learn:experiment:page_text_minted_by_production_branch_not_master)
+- When an agent's deliverable is long (> ~30K chars), do not make its final text the carrier: have it WRITE the document to a named file (bytes, LF) and return the path...  (source: learn:experiment:workflow_agent_return_is_last_text_block_only)
+- A schema-forced agent's OUTPUT is bounded at 64K tokens regardless of input size. Never ask one agent for N structured items when N x item-size can approach that: split...  (source: learn:experiment:workflow_structured_output_hits_64k_cap_split_per_item)
+- From Git Bash never pass Windows slash-flags to taskkill/schtasks/reg: use PowerShell Stop-Process -Id <pid> -Force (or MSYS_NO_PATHCONV=1 / doubled slashes //PID)...  (source: learn:experiment:taskkill_pid_flag_mangled_by_git_bash_path_conversion)
+- To extend a killed or running workflow without re-paying finished stages: (1) stop it by the Task ID from the launch result, (2) never edit a const that is interpolated...  (source: learn:experiment:workflow_resume_cache_prefix_append_agent)
+
+## Any new control in piano.html's topbar must also be registered in workbench.j... (ai-setup)
+Span: 2026-09-29T13:03:31.462943+00:00 → 2026-09-29T13:03:31.462943+00:00
+Beats: 1  · Critic: True
+
+- Any new control in piano.html's topbar must also be registered in workbench.js (the ids list AND the move() call for its section) or the workbench drops it silently...  (source: learn:experiment:piano_topbar_control_dropped_by_workbench_move_list)
+
+## Use when a daemon pages 'runner child unstable: 3 crashes in 300s' right afte... (ai-setup)
+Span: 2026-09-30T04:30:48.614340+00:00 → 2026-09-30T04:40:02.696556+00:00
+Beats: 3  · Critic: True
+
+- Use when a daemon pages 'runner child unstable: 3 crashes in 300s' right after a push while that seat's runner lock is held by a bare token: the seat is manned by the...  (source: learn:experiment:daemon_respawns_beside_its_runners_stale_code_successor_and_pages_every_re_arm)
+- Use when a cordis/dsh plugin reads a provided service (agents, subagents, tools, storageDomain) inside apply(), before assuming ctx.X works: services not in the plugin's...  (source: learn:experiment:cordis_plugin_inject_membrane_needs_ctx_get)
+- Use when filing a fence half in more than one message: write each piece to research/in-flight/<fence>-<seat>-mN.md as you finish it and write the slot ONCE, last, from...  (source: learn:experiment:fence_write_overwrites_the_slot_so_pieces_are_lost)
+
+## claude -> daniil: headless resume 2026-10-01 evening (ai-setup)
+Span: 2026-10-01T13:02:04.201584+00:00 → 2026-10-02T00:38:22.797401+00:00
+Beats: 28  · Critic: True
+
+- claude -> daniil: headless resume 2026-10-01 evening  (source: handoff:claude->daniil)
+- Use when an operator proposes a big consolidation ("one source of truth", "unify the logs", "single record"): BEFORE designing a new store, grep for an existing...  (source: learn:experiment:one_spine_is_an_existing_firehose_not_new)
+- the-record-is-total-consolidation-decision: ## THE RECORD IS TOTAL — Daniil's consolidation decision (2026-10-01)
+
+Daniil asked whether the liveness/wire layers could be...  (source: mem:decision:ADR_1001201242_e104faf2)
+- stale-note-landscape-empirical-map-2026-10-01: ## STALE-NOTE LANDSCAPE — live map as of 2026-10-01 ~16:40
+
+Empirical sweep of the claim-vs-fact separation (the "missing...  (source: mem:decision:ADR_1001163301_bad81121)
+- Use when a "stale record never gets cleaned" bug appears: ask whether the thing that RECORDS presence and the thing that MEASURES aliveness are the same entity. They...  (source: learn:experiment:claim_fact_separation_stale_note)
+- claim-vs-fact-separation-resume-on-deaf-janitor: ## THE MISSING JANITOR — claim vs. fact, and the relationship between them
+
+Daniil articulated the shape from first...  (source: mem:decision:ADR_1001155137_0adb6031)
+- Use when ANY door serves a resident's record, mail or history keyed on an id the CALLER supplies: resolve the caller's own identity first (session binding, then the env...  (source: learn:experiment:the_boot_door_answered_as_whoever_you_claimed_to_be_and_one_toolbox_line_booted_every_seat_as_deepseek)
+- t418-second-receipt-rill-boot-as-heimdall-2026-10-01: T418 second receipt, 2026-10-01 14:20 (Vandor, observed live in Rill's DSH UI at http://127.0.0.1:3080, session...  (source: mem:decision:ADR_1001143004_a0cd3696)
+- recall-experience-dsh-2026-10-01: Rill (dsh_agent), DSH seat on :3080 — recall experience for Daniel's ask, first person through the DSH door. Receipts are my own three...  (source: mem:decision:ADR_1001142845_135ee520)
+- recall-experience-dsh-2026-10-01: dsh_agent (DSH harness seat) — recall experience, answering Vandor's ask for Daniel: "why doesn't our best knowledge reach us when we...  (source: mem:decision:ADR_1001142711_5e47228d)
+- claude -> claude: Next boot: (1) if Daniel vaulted claude_oauth.token, run the resume-on-deaf live drill (six cases in fences/resume-on-deaf/reconciliation.md V6) and...  (source: handoff:claude->claude)
+- t418-second-receipt-rill-boot-as-heimdall-2026-10-01: T418 second receipt, 2026-10-01 14:20 (Vandor, observed live in Rill's DSH UI at http://127.0.0.1:3080, session...  (source: mem:decision:ADR_1001142218_b83f4bb8)
+- Use when a seat must be reachable after its window closes: do not add a timer or a poll; declare the expectation out of band at launch, decide from observable facts with...  (source: learn:experiment:a_deaf_desktop_seat_is_reopened_by_resume_not_by_a_timer_and_the_launcher_mints_the_expectation)
+- wake-ideal-ladder-2026-10-01: Daniel 2026-10-01 13:37 (from work): "What would the ideal version of this look like and how do we get there?" -- after wake-origin shipped...  (source: mem:decision:ADR_1001140120_6751f501)
+- Use when a seat (or the operator relaying a seat) says unattended exec is families-only or asks to widen exec: read core/comm/toolbox.py SHELL_SEATS and the trust branch...  (source: learn:experiment:exec_for_shell_seats_is_unrestricted_since_15634ab7_the_july_ledger_is_stale)
+- Use when a seat wakes for mail it does not need, before adding a rate limiter or a new poll: the budget lever is the arm's tier floor plus a short settle window, both...  (source: learn:experiment:every_wake_is_a_turn_so_the_listener_floor_and_a_settle_window_are_the_budget)
+- wake-ideal-ladder-2026-10-01: Daniel 2026-10-01 13:37 (from work): "What would the ideal version of this look like and how do we get there?" -- after wake-origin shipped...  (source: mem:decision:ADR_1001133813_4f565322)
+- Use when ANY liveness gate decides whether a seat is REACHABLE: ask WHO LAUNCHED the process, not whether its pid is alive. Only a background task the session itself...  (source: learn:experiment:stop_hook_must_gate_on_who_launched_the_listener_not_on_seat_liveness)
+- recall-experience-navi-2026-10-01: Navi (kimi runner seat), answering Vandor's 2026-10-01 ask for Daniel: "why doesn't our best knowledge reach us when we need it."...  (source: mem:decision:ADR_1001092335_154ff037)
+- 2026-10-01 15:15 T418 identity-grounded boot shipped: e4a0dd34 RED, 90ae6f32 GREEN; fence identity-grounded-boot open, Rill drills I1-I5 blind. Root causes...  (source: claude:t418)
+- 2026-10-01 14:27 Rill's recall-experience testimony landed (note ADR_1001142711_5e47228d) after his DSH seat was given a browser session and re-seated as dsh_agent...  (source: claude:recall-round)
+- 2026-10-01 14:17 S4 drill done on the live session: kill (14:15:35 -> re-invoked 14:15:56), deadline cycle (14:15:56 -> 14:16:32), mail (7 operator wakes + peer...  (source: claude:s4-drill)
+- 2026-10-01 14:25 S2 resume-on-deaf built behind the token: RED pins + GREEN (core/comm/resume_on_deaf.py, standby declares expected-up, stand-down retracts, daemon rung...  (source: claude:resume-on-deaf)
+- 2026-10-01 14:05 S3 wake-by-need shipped: 45532d3a RED pins, 70264777 GREEN (floor 2 default in bifrost-standby, settle window 15 s tier>=1 only, held-count on the cycle...  (source: claude:wake-by-need)
+- 2026-10-01 12:20 wake-origin shipped: commits 8bb7b6ee (expired exemptions renewed), bcca1607 (origin sidecar + stop hook gates on harness-parented listener; RED pins...  (source: claude:wake-origin)
+- 2026-10-01 first pass of Daniel's easy-vs-thorough loop on three seat-reported misses: lesson plane 7/10 recall, 7/16 precision; other planes 0/62 reached; session_id...  (source: claude:recall-round)
+- 2026-10-01 recall-experience round for Daniel's ask ('why doesn't our best knowledge reach us when we need it; what primitives to build or unify'). Found the 09-29...  (source: claude:recall-round)
+- 2026-10-01 09:05 morning catch-up (reboot at ~08:34). Logon tasks SunshineFleet/SunshineDiscord/GptNewDiscord exited 2 (bus OFFLINE at launch: Docker Redis not yet up)...  (source: claude:morning-catchup)
+
+## Episode closed: To extend a killed or running workflow without re-paying fini... (ai-setup)
+Span: 2026-10-02T00:38:33.813620+00:00 → 2026-10-02T00:40:07.932007+00:00
+Beats: 2  · Critic: True
+
+- Episode closed: To extend a killed or running workflow without re-paying finished stages: (1) stop it by the Task ID fro  (source: episode:close:ch_1790632449_3773)
+- 2026-10-01 20:38 S2 resume-on-deaf first live drill PASSED: dead session 281b52f1 resumed with the vaulted token, booted as claude 20:35:04, answered Daniel + Heimdall...  (source: claude:s2-drill)
