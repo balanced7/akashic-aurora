@@ -113,7 +113,7 @@ That gate is a better trust signal than the test count, and we would rather you 
 
 ## What is shipped, what is in flight
 
-Built in test-gated slices: **7,358 tests across 722 files** (`py -m pytest --collect-only -q`),
+Built in test-gated slices: **7,358 tests across 722 files** (`uv run pytest --collect-only -q`),
 plus a layer-boundary checker, door-parity and built-≠-wired reachability gates, and a
 doc-currency guard. CI also enforces the *method* — acceptance tests must be committed before
 the code they gate, and a commit claiming a review verdict must cite the preserved record.
@@ -234,14 +234,19 @@ where the defect lives.
 ## Quickstart
 
 ```bash
-# Python 3.11+; on macOS/Linux use python3 instead of py
 git clone https://github.com/balanced7/akashic-aurora.git && cd akashic-aurora
-py bootstrap.py --agent-init          # status probe: prints the init command + store state
-py agent_cli.py boot me --task "trying Akashic Aurora"
-py agent_cli.py learn me --experiment first_try --tried "cloned the repo" --result "it booted"
-py agent_cli.py recall-at --path core/foundation/store.py   # what surfaces before editing this?
-py agent_cli.py fence                 # verify the execution guard yourself
+uv sync                                   # the locked environment, on the Python in .python-version
+uv run bootstrap.py --agent-init          # status probe: prints the init command + store state
+uv run agent_cli.py boot me --task "trying Akashic Aurora"
+uv run agent_cli.py learn me --experiment first_try --tried "cloned the repo" --result "it booted"
+uv run agent_cli.py recall-at --path core/foundation/store.py   # what surfaces before editing this?
+uv run agent_cli.py fence                 # verify the execution guard yourself
 ```
+
+**No uv?** Python 3.11+ works too: on Windows use the `py` launcher
+(`py -m pip install -r requirements.txt`, then `py agent_cli.py ...`); elsewhere use `python3`.
+The other examples in this README are written as `py agent_cli.py ...`; with uv, type
+`uv run agent_cli.py ...` instead.
 
 **Zero required dependencies** — the core runs on the Python standard library alone. Redis is an
 optional accelerator; every store degrades to files without it. Full setup, including the Claude
@@ -353,9 +358,9 @@ novel?* — are answered directly in [`docs/FSQ.md`](docs/FSQ.md).
 ## Contributing
 
 Issues and PRs welcome. [`CONTRIBUTING.md`](CONTRIBUTING.md) explains the slice discipline (small
-change, its test, green gates), and [`AGENTS.md`](AGENTS.md) is the contract your *agent* reads.
-Good entry point: run the quickstart, then `py agent_cli.py discover` — every verb describes
-itself.
+change, its test, green gates: `uv run poe gate`, then `uv run poe test`), and
+[`AGENTS.md`](AGENTS.md) is the contract your *agent* reads. Good entry point: run the quickstart,
+then `uv run agent_cli.py discover` — every verb describes itself.
 
 ## About
 
