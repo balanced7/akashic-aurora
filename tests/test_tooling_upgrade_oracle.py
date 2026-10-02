@@ -592,3 +592,16 @@ def test_verify_checkout_catches_a_flipped_byte(tmp_path: Path):
     os.utime(f, ns=(st.st_atime_ns, st.st_mtime_ns))  # same size and mtime: stat cache is fooled
     with pytest.raises(RuntimeError, match="does not match its commit"):
         O.verify_checkout(tmp_path)
+
+
+def test_oracle_env_drops_an_inherited_ai_setup(monkeypatch: pytest.MonkeyPatch):
+    # CI sets AI_SETUP to the checkout; the suite runs in a copy, where an AI_SETUP naming
+    # another directory would read as "already isolated" to tests/isolate_canonical.py
+    monkeypatch.setenv("AI_SETUP", "/somewhere/else")
+    monkeypatch.setenv("_AISETUP_TEST_ISOLATED", "1")
+    monkeypatch.setenv("REDIS_PORT", "16379")
+    env = O.oracle_env()
+    assert "AI_SETUP" not in env
+    assert "_AISETUP_TEST_ISOLATED" not in env
+    assert "REDIS_PORT" not in env
+    assert env["REDIS_DB"] == "15"

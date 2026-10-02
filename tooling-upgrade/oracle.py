@@ -207,13 +207,17 @@ def venv_python(tree: Path) -> Path:
 
 def oracle_env(extra: dict[str, str] | None = None) -> dict[str, str]:
     """The one environment every probe runs in: the caller's, scrubbed of anything that would
-    make a run depend on who launched it, plus REDIS_DB=15 and a fixed terminal size."""
+    make a run depend on who launched it, plus REDIS_DB=15 and a fixed terminal size.
+
+    AI_SETUP goes too: CI sets it to the checkout, but the oracle runs a copy of the tree
+    elsewhere, and tests/isolate_canonical.py reads "AI_SETUP names another directory" as
+    "already isolated" and skips its side-channel redirects (spill dir, task ledger)."""
     env = {
         k: v
         for k, v in os.environ.items()
         if not (
             k.startswith(("PYTHON", "REDIS_", "AKASHIC_", "UV_", "PYTEST", "COV_"))
-            or k in ("VIRTUAL_ENV", "COLUMNS", "LINES", "CONDA_PREFIX")
+            or k in ("VIRTUAL_ENV", "COLUMNS", "LINES", "CONDA_PREFIX", "AI_SETUP", "_AISETUP_TEST_ISOLATED")
         )
     }
     env.update({"REDIS_DB": "15", "COLUMNS": "80", "LINES": "24"})
