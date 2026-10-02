@@ -243,3 +243,37 @@ goal = "G4"
 fix_commit = "87cdeca6ad884486ce6cb10351815b418a36832c"
 regression_test = "tests/test_g4_latent_manual_probe_worklive_prefix.py"
 ```
+
+### IC-0017: fixes latent bug: doctor-twin-legacy-seat
+
+core/comm/doctor.py twin-sessions check joined `s[:8]` for every seat, but
+`wake_seat.iter_seats()` yields `(path, None)` for the legacy session-less seat file: the
+TypeError was swallowed and the "N LIVE SESSIONS share this agent id" finding vanished whenever a
+legacy seat sat next to a session seat. The legacy seat is now labelled "legacy".
+
+```toml
+id = "IC-0017"
+component = "O1"
+key = "latent:doctor-twin-legacy-seat"
+reason = "fixes latent bug: doctor-twin-legacy-seat (plan G4.P2 tier 1)"
+goal = "G4"
+fix_commit = "e3a211864e5a5e1ae833ac4d5d5ef4f5c93bfe68"
+regression_test = "tests/test_g4_latent_doctor_twin_legacy_seat.py"
+```
+
+### IC-0018: fixes latent bug: ask-peer-poll-caught-kwarg
+
+core/comm/ask.py `ask_peer` poll-failure handler called `BoundaryOutcome.caught(..., ask_id=...)`,
+a keyword `caught()` does not accept: the handler itself raised TypeError, breaking ask_peer's
+"never raises" contract whenever sweep()/state_of() failed during polling. The message id now
+goes in `ref=`, the field BoundaryOutcome documents as the handle to act on.
+
+```toml
+id = "IC-0018"
+component = "O1"
+key = "latent:ask-peer-poll-caught-kwarg"
+reason = "fixes latent bug: ask-peer-poll-caught-kwarg (plan G4.P2 tier 1)"
+goal = "G4"
+fix_commit = "fffe13bdae84b8f6d8deadf7b941b2260f8b2d4e"
+regression_test = "tests/test_g4_latent_ask_peer_poll_caught.py"
+```
