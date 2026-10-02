@@ -1325,6 +1325,49 @@ BREADTH, counted by me: 10 of 1,706 session commands reach for a bare `python`. 
 HONEST VALUE -- LOWEST IN THIS BATCH. Ten occurrences, one retry each, nothing lost. The only reason it is not pure noise is that one of the ten was a WRITE: a seat reaching for `python` is a seat that has not loaded the house rule, and the next such reach may be where the failure is not free. W160 (08-19) already asks for a PATH shim directory for `akashic.cmd`; one shim directory serves both, so fold this there if W160 is ever built.
 
 Audited 2026-10-02 by a five-lens pass over the 01:05-07:25 commit window; receipt independently re-verified in the dedup stage. Family: rituals that should be ambient. Value: low. Trigger: The original candidate said "python. Land: ambient-by-default posture.
+- [ ] W247 (10-02, claude) — A SINGLE NOTE IS RENDERED AS A CHORD NAME, IN A NOTATION WHERE THAT STRING IS ALSO A REAL CHORD.
+
+RECEIPT, measured 2026-10-02 on practice session 20261002-085728-dca2a2df (5,575 notes, 3,627 chord reads). FIVE names in that one session mean BOTH a lone pitch class and a real chord:
+
+  "C"   is ['C2','C3'] (an octave)        AND ['C3','G3','E4']            (C major)
+  "Bb"  is ['Bb1','Bb2']                  AND ['Bb2','F3','Bb3','D4']     (Bb major)
+  "D"   is ['D2','D3']                    AND ['D2','D3','F#4','A4']      (D major)
+  "F"   is ['F2','F3']                    AND ['F1','F2','C4','F4','A4']  (F major)
+  "A"   is ['A1','A2','A4']               AND ['A2','E3','C#5','E5']      (A major)
+
+It is worse once a digit is attached, because scientific pitch notation and chord notation occupy the same strings. "D5" is emitted both for the single note D5 (['D5']) and for a power chord (['Bb1','Bb2','F4'] -> "Bb5"). "D2", "F4", "Bb1", "D3", "F3" are each emitted for ONE note, in a vocabulary where X2 reads as sus2/add2, X4 as sus4 and X5 as a power chord.
+
+THE CONSEQUENCE IS THAT THE CHORD SUMMARY IS MOSTLY NOT CHORDS. `py -m arsenal performance summary` prints a "Time by chord" table, and in this session its rows include D2 4%, F4 4%, Bb1 3%, D3 2%, D5 2% -- single notes occupying chord rows and crowding out the real harmony. The same table for the earlier supersaw session is almost entirely this.
+
+THE DETECTOR IS NOT THE PROBLEM AND SHOULD NOT BE TOUCHED. Of reads containing three or more distinct pitch classes it NAMES 83% (656 of 791). Of the reads it declines, 30% are true silence and 43% are a single pitch class in octaves -- where there is no chord and declining is correct. chordread.js is a careful reader with its own spec, bands and corpus, and it already models no3, rootless and omit. The defect is entirely in how a non-chord is rendered on the way out.
+
+COST, AND I PAID IT TODAY IN FRONT OF THE OPERATOR. I wrote a classifier to measure "how many reads get a real chord name", it counted a bare letter as a failure, and I reported to Daniel that 82% of reads were unnameable and that the detector was too strict about thirds. Both claims were wrong and I had to retract them to him. Anyone who reads that table will make the same inference: it is a surface that silently invites a false conclusion about its own quality, which is the night's dominant wish family (an instrument returning a confident, legible, wrong answer).
+
+FIX SHAPE. A non-chord gets its own KIND rather than a chord-shaped string: one pitch class is `{kind:"note"}`, two is `{kind:"interval"}`, and neither is ever rendered as a bare letter or a letter-plus-digit. The ReadResult contract in chordread.js already has the vocabulary for this -- it carries kind: "chord" | "cluster" | "small" -- so the information exists at the seam and is thrown away by the renderer and the summary. Then `performance summary`'s chord table filters on kind, and the Nashville number, the HUD and the practice-log chord event all stop claiming a harmony that was never played.
+
+SECOND-ORDER, worth one line: with single notes removed from the table, the real distribution becomes legible for the first time, and the genuine misses collapse from "thousands" to a reviewable 135.
+
+Trigger: five chord names in one session each denoted both a lone note and a real triad, and the summary's chord table was mostly single notes.
+Land: piano theory, chordread.js output contract and the performance summary. Trigger: five chord names in one session each meant both a lone pitch class and a real triad; the summary's chord table was mostly single notes. Land: piano theory / chordread output contract.
+- [ ] W248 (10-02, claude) — THE PRACTICE LOG HEARS HARMONY AND IS DEAF TO MELODY.
+
+RECEIPT. `py -m arsenal performance summary` on session 20261002-085728-dca2a2df (12 min 49 s, 5,575 notes) prints: range and pitch-class shares, a Krumhansl-Kessler key estimate per part, time-by-chord, the most common chord moves, and a 3,622-row chord timeline. There is NOTHING about a line. No contour, no phrase boundaries, no motif, no repetition, no register separation of a melody from its accompaniment. The word melody does not appear in the output.
+
+The same gap shows in the event schema: events.jsonl carries `on`, `off`, `sound_end`, `pedal` and `chord`. Every derived read is harmonic. A player who spent the session playing a tune would get a summary that describes the chords underneath it and never mentions the tune.
+
+WHY IT IS FELT NOW. Daniel asked directly, 2026-10-02, how to improve "chord AND melody detection". The chord half had a specific answerable defect (see the naming-collision wish filed beside this). The melody half had no surface to critique, because there is nothing there to be wrong.
+
+WHAT MAKES IT TRACTABLE RATHER THAN A RESEARCH PROJECT. The hard part of melody extraction is usually source separation, and we do not have that problem: the log is already per-note MIDI with velocity, a pedal channel and millisecond timestamps, and the pitch is exact. Three cheap things exist before anything clever:
+  - a TOP-LINE trace (highest sounding voice over time) is almost free and already enough to draw a contour;
+  - phrase boundaries fall out of the gaps the log already records, and the metronome and boundary gate in piano/boundary.js already reason about pedal lifts ending a chord;
+  - repetition is an n-gram problem over the interval sequence, which is what found the dotted-eighth chains in the same session's rhythm in a few lines.
+
+COST. It is the difference between a log that can tell you what you were playing over and one that can tell you what you were playing. Every piece of analysis this house can currently do about a performance is harmonic, so a question about a line cannot be asked at all, let alone answered wrongly -- and an absent capability is the kind this house has repeatedly found hardest to notice, because nothing reports it.
+
+NOT A PROPOSAL, AND DELIBERATELY SO. The shape of this belongs to Daniel and to whoever owns the piano surface; the three items above are what the existing data makes cheap, not a design. Filed so the gap is on the ledger rather than living in one conversation.
+
+Trigger: the operator asked about melody detection and there was nothing to critique, because no melodic analysis exists.
+Land: piano practice log / performance summary. Trigger: asked how to improve melody detection; there is no melodic analysis anywhere in the practice log to critique. Land: piano practice log / performance summary.
 
 ## Folded (exemplars — the loop works)
 
