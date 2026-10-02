@@ -4,7 +4,11 @@
 // The stage mirrors piano.js: NeutralToneMapping, UnrealBloom (0.45, radius 0, threshold 0.9), the same three lights,
 // fog and floor. The keys get a small dark-studio environment like piano.js's; instruments get none.
 //
-// Builders: add your instrument id to INSTRUMENTS.
+// Builders: add your instrument to piano/instruments/catalog.js and it appears here. There is NOTHING
+// to edit in this file. That line used to read "add your instrument id to INSTRUMENTS", and the ritual
+// it asked for was skipped eight times: on 2026-10-02 this lab offered six instruments while the main
+// page shipped fourteen, so aether, solstice, nocturne and all four light sculptures were unreachable
+// in the very page built to audition them.
 
 import * as THREE from "three";
 import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
@@ -13,7 +17,13 @@ import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js"
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 
-export const INSTRUMENTS = ["vintage-synth", "keylab88mk3", "upright", "suitcase-ep", "concert-grand", "glass-piano"];
+import { MOUNTABLE_INSTRUMENT_IDS } from "./piano/instruments/catalog.js";
+
+// MOUNTABLE, not every id: this lab imports piano/instruments/<id>.js, and the built-in "page" has
+// no such file -- the page draws its own keys. Offering it here fails with "Failed to fetch
+// dynamically imported module". Re-exported under the old name so window.__lab.INSTRUMENTS keeps
+// its shape for the lab's receipts.
+export const INSTRUMENTS = MOUNTABLE_INSTRUMENT_IDS;
 
 const params = new URLSearchParams(location.search);
 const $ = (id) => document.getElementById(id);

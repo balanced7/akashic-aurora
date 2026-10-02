@@ -16,6 +16,7 @@ import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
+import { INSTRUMENTS as INSTRUMENT_CATALOG } from "./piano/instruments/catalog.js";
 import { createPerformanceLog } from "./piano/log.js";
 import { createBoundaryGate, BOUNDARY_MODES } from "./piano/boundary.js";
 import { createMetronome, FEELS, SOUND_NAMES } from "./piano/metronome.js";
@@ -1236,22 +1237,10 @@ const SCHEMES = [
   { id: "synth-asta", name: "synth-asta", probe: true },
   { id: "synth-rill", name: "synth-rill", probe: true },
 ];
-const INSTRUMENTS = [
-  { id: "page", name: "Page keys" },
-  { id: "keylab88mk3", name: "KeyLab 88 mk3" },
-  { id: "concert-grand", name: "Concert grand" },
-  { id: "upright", name: "Upright" },
-  { id: "suitcase-ep", name: "Suitcase EP" },
-  { id: "vintage-synth", name: "Vintage synth" },
-  { id: "glass-piano", name: "Crystal grand" },
-  { id: "aether", name: "Aether" },
-  { id: "solstice", name: "Solstice" },
-  { id: "nocturne", name: "Nocturne" },
-  { id: "light-kimi-aurora", name: "Aurora Harp" },
-  { id: "light-deepseek-orrery", name: "Orrery of Light" },
-  { id: "light-vandor-ornithopter", name: "Ornithopter" },
-  { id: "light-vandor-abyssal", name: "Abyssal" },
-];
+// The catalogue, not a copy of it. This list used to live here and two other places kept their own:
+// the looks registry had ten entries and the standalone lab had six, so eight instruments were
+// unreachable in the lab built to audition them. One source now, in piano/instruments/catalog.js.
+const INSTRUMENTS = INSTRUMENT_CATALOG;
 const LOOK_BUILTIN = { scheme: "classic", instrument: "page" };
 const SCHEME_METHODS = ["noteOn", "noteRelease", "noteEnd", "pedal", "update", "resize", "setActive", "dispose"];
 const PAGE_LOOK = { white: IVORY.clone(), black: new THREE.Color(0x0a0a0d), floorY: floor.position.y };

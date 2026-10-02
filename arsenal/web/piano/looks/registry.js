@@ -23,6 +23,7 @@
 // With autoWorld on the atmosphere drifts its own theme, so a look's theme is where the journey starts: it is sent with
 // the patch, but diff() and the read-back ignore it.
 import { MODES } from "../harmony-model.js";
+import { INSTRUMENTS as CATALOG } from "../instruments/catalog.js";
 
 export const LOOKS_API = "arsenal.piano.looks/v1";
 export const REC_REFUSAL = "Stop recording first. A look can't change while you're recording.";
@@ -43,14 +44,17 @@ const LOOK_ID = /^[a-z0-9-]+$/;
 const EPSILON = 1e-6;
 const opt = (value, label) => Object.freeze({ value, label });
 
-// Choices as the page lists them: schemes and instruments piano.js:1205-1223, colour piano.html:50-52, numbers
-// piano.html:79-81 and piano.js:2350, framing piano.js:406-409, themes, quality, weather and labels spectacle.js:11-19,
-// 316-317, 340-347, chord visualizations harmony-model.js (MODES).
+// Choices as the page lists them: colour piano.html:50-52, numbers piano.html:79-81 and piano.js:2350, framing
+// piano.js:406-409, themes, quality, weather and labels spectacle.js:11-19, 316-317, 340-347, chord visualizations
+// harmony-model.js (MODES).
 const SCHEMES = [opt("classic", "Classic trails"), opt("upright-roll", "Upright Roll"), opt("synth-vandor", "Straight Roll"),
   opt("synth-navi", "Bead & Beam"), opt("synth-heimdall", "Glow Echo"), opt("synth-sol", "Afterglow Roll")];
-const INSTRUMENTS = [opt("page", "Page keys"), opt("keylab88mk3", "KeyLab 88 mk3"), opt("concert-grand", "Concert grand"),
-  opt("upright", "Upright"), opt("suitcase-ep", "Suitcase EP"), opt("vintage-synth", "Vintage synth"),
-  opt("glass-piano", "Crystal grand")];
+// INSTRUMENTS used to be a hand-copied list here, and the comment above used to say it came from
+// "piano.js:1205-1223" -- a line range that was already stale when it was found on 2026-10-02 (the list had
+// moved to 1239). The copy drifted to ten entries while the page shipped fourteen, and the standalone lab
+// drifted further still, to six. A copy that records where it was copied from drifts anyway, and silently.
+// One catalogue now, read by all three. tests/piano_instrument_catalog_parity.test.mjs fails if they part.
+const INSTRUMENTS = CATALOG.map((i) => opt(i.id, i.name));
 const COLOURS = [opt("pitch", "Pitch (circle of fifths)"), opt("velocity", "How hard you play"), opt("mono", "Amber")];
 
 const call = (fn) => { try { return fn(); } catch { return null; } };

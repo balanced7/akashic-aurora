@@ -27,7 +27,8 @@
 // the drift cannot return quietly. It is the same shape as the arm-command fix earlier today, where
 // boot and the stop hook each built their own version of one string and handed out different answers.
 
-import { INSTRUMENTS as CATALOG } from "../arsenal/web/piano/instruments/catalog.js";
+import { INSTRUMENTS as CATALOG, BUILTIN_INSTRUMENT, MOUNTABLE_INSTRUMENT_IDS }
+  from "../arsenal/web/piano/instruments/catalog.js";
 import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -72,21 +73,23 @@ check("every catalogue entry has an id and a name",
 check("catalogue ids are unique", new Set(catalogIds).size === catalogIds.length);
 
 // ---------------------------------------------------------------- P2-P4: the three readers agree
-const page = idsFromSource("arsenal/web/piano.js", "const INSTRUMENTS");
-check("piano.js's instrument list is readable", !page.error, page.error || "");
-if (!page.error) eq("piano.js matches the catalogue", page.ids, catalogIds);
-
-const reg = idsFromSource("arsenal/web/piano/looks/registry.js", "const INSTRUMENTS");
-check("registry.js's instrument list is readable", !reg.error, reg.error || "");
-if (!reg.error) eq("looks/registry.js matches the catalogue", reg.ids, catalogIds);
-
-// The lab module cannot be IMPORTED here: it touches `location` and `document` at module scope
-// (piano-lab-instruments.js:18-19), so Node throws before the export is reachable. Read it as text,
-// the same way as the other two. That is not a workaround -- a pin about what a human editing the
-// file sees should read what is in the file.
-const lab = idsFromSource("arsenal/web/piano-lab-instruments.js", "export const INSTRUMENTS");
-check("piano-lab-instruments.js's list is readable", !lab.error, lab.error || "");
-if (!lab.error) eq("piano-lab-instruments.js matches the catalogue", lab.ids, catalogIds);
+// A reader may DERIVE from the catalogue -- it then cannot drift, which is the goal -- or keep its
+// own list that happens to match today. Deriving passes outright; a copy is compared element for
+// element, because a copy is exactly what drifted here before.
+for (const [label, relPath, marker] of [
+  ["piano.js", "arsenal/web/piano.js", "const INSTRUMENTS"],
+  ["looks/registry.js", "arsenal/web/piano/looks/registry.js", "const INSTRUMENTS"],
+  ["piano-lab-instruments.js", "arsenal/web/piano-lab-instruments.js", "export const INSTRUMENTS"],
+]) {
+  const src = readFileSync(join(ROOT, relPath), "utf8");
+  if (src.includes("instruments/catalog.js")) {
+    check(label + " derives from the catalogue", true);
+    continue;
+  }
+  const got = idsFromSource(relPath, marker);
+  check(label + " keeps its own list and it is readable", !got.error, got.error || "");
+  if (!got.error) eq(label + " keeps its own list and it still matches", got.ids, catalogIds);
+}
 
 // ---------------------------------------------------------------- P5: every id has a module on disk
 // A list that names an instrument with no file is the mirror defect: the menu offers something that
@@ -105,8 +108,41 @@ eq("every catalogued instrument has a module on disk", missingModule, []);
 const onDisk = readdirSync(join(ROOT, "arsenal/web/piano/instruments"))
   .filter((f) => f.endsWith(".js") && f !== "catalog.js")
   .map((f) => f.replace(/\.js$/, ""));
-const stranded = onDisk.filter((id) => !catalogIds.includes(id));
+// NOT EVERY FILE HERE IS AN INSTRUMENT. crystal-study.js exports a factory, crystalInstrument(id),
+// that aether, solstice and nocturne each import to build themselves. It has no DEFAULT export, and
+// piano.js's own lookModuleProblem rejects a module without one ("the module has no default export
+// object"), so presence on disk is the wrong test -- I nearly catalogued that helper as an
+// instrument while writing this. An instrument is a module with a default export.
+// A plain substring, not a regex. Three attempts to write this as a regex through a shell heredoc
+// produced a LITERAL BACKSPACE where the  was meant and a doubled backslash where \s was, so the
+// check silently returned false for every module -- which made the "stranded" pin pass VACUOUSLY,
+// because filtering on an always-false predicate yields an empty list either way. A pin that can
+// only pass is worse than no pin. The phrase is unambiguous; no regex is needed.
+const hasDefaultExport = (id) =>
+  readFileSync(join(ROOT, "arsenal/web/piano/instruments", id + ".js"), "utf8")
+    .includes("export default");
+const stranded = onDisk.filter((id) => hasDefaultExport(id) && !catalogIds.includes(id));
 eq("no instrument module is stranded off the catalogue", stranded, []);
+
+// And the mirror: nothing in the catalogue may be a helper rather than an instrument.
+const notInstruments = catalogIds.filter((id) => id !== BUILTIN_INSTRUMENT && !hasDefaultExport(id));
+eq("every catalogued id is a real instrument module, not a shared helper", notInstruments, []);
+
+// ---------------------------------------------------------------- the built-in is not mountable
+// A reader that MOUNTS an instrument imports instruments/<id>.js, and the built-in has no such file:
+// the page draws its own keys. I shipped exactly this bug while wiring the lab to the catalogue --
+// "page" appeared in its picker and selecting it died with "Failed to fetch dynamically imported
+// module: .../instruments/page.js". Found by clicking the entry I had just added, which the parity
+// pin could never have caught: the lists agreed perfectly and one of the ids was unusable.
+check("the built-in is in the catalogue", catalogIds.includes(BUILTIN_INSTRUMENT));
+check("the built-in is NOT offered as mountable",
+  !MOUNTABLE_INSTRUMENT_IDS.includes(BUILTIN_INSTRUMENT),
+  `${BUILTIN_INSTRUMENT} would 404 in any reader that imports instruments/<id>.js`);
+eq("mountable is the catalogue minus the built-in",
+  [...MOUNTABLE_INSTRUMENT_IDS], catalogIds.filter((id) => id !== BUILTIN_INSTRUMENT));
+check("every mountable id really has a module on disk",
+  MOUNTABLE_INSTRUMENT_IDS.every((id) => onDisk.includes(id)),
+  JSON.stringify(MOUNTABLE_INSTRUMENT_IDS.filter((id) => !onDisk.includes(id))));
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
