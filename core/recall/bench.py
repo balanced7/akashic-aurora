@@ -81,6 +81,7 @@ def score(moments: Sequence[Dict[str, Any]], recall_fn: Callable[..., Dict[str, 
     excluded: List[str] = []
     delivered: List[str] = []
     rankable: List[str] = []
+    contend: Dict[Any, List[Any]] = {}
     unmatchable: List[str] = []
     rows: List[Dict[str, Any]] = []
     chrome_chars = body_chars = 0
@@ -114,6 +115,11 @@ def score(moments: Sequence[Dict[str, Any]], recall_fn: Callable[..., Dict[str, 
 
         accept = {expect, *(m.get("also_acceptable") or [])}
         scored += 1
+        # W0.3-f3: two moments with a BYTE-IDENTICAL trigger receive an identical ranked list,
+        # and only one lesson can sit at rank 1. Record the (trigger -> expected) pairs so the
+        # result can state the cap that puts on recall@1 instead of silently absorbing it.
+        _trig_key = (str(trig.get("path") or ""), str(trig.get("command") or ""))
+        contend.setdefault(_trig_key, []).append((mid, expect))
         at1 = bool(got[:1]) and got[0] in accept
         atk = any(g in accept for g in got[:k])
         hits_at_1 += 1 if at1 else 0
@@ -150,6 +156,7 @@ def score(moments: Sequence[Dict[str, Any]], recall_fn: Callable[..., Dict[str, 
         "excluded": excluded,
         # W0.3-f2: recall@k is unreadable without the quantity that bounds it.
         "ceiling": {
+            "ambiguity": _ambiguity(contend, scored),
             "scored": scored,
             "delivered": len(delivered),
             "rankable": len(rankable),
@@ -164,6 +171,41 @@ def score(moments: Sequence[Dict[str, Any]], recall_fn: Callable[..., Dict[str, 
         },
         "chrome_share": (chrome_chars / pushed) if pushed else None,
         "rows": rows,
+    }
+
+
+def _ambiguity(contend: Dict[Any, List[Any]], scored: int) -> Dict[str, Any]:
+    """The cap trigger ambiguity places on recall@1, and WHICH moments it cannot tell apart.
+
+    Within one trigger group the moments that can possibly hit at rank 1 are those sharing the
+    SINGLE most common expected answer -- because the list is identical for all of them and only
+    one lesson occupies rank 1. Moments that share a trigger AND an answer therefore cost nothing,
+    which is why this counts the largest shared answer per group rather than the group count.
+
+    A non-trivial cap is a statement about the KEY, not the ranker: if two genuinely different
+    situations produce a byte-identical trigger, the trigger does not identify the moment.
+    """
+    best = 0
+    contended: List[Dict[str, Any]] = []
+    for key, rows in contend.items():
+        counts: Dict[str, int] = {}
+        for _mid, exp in rows:
+            counts[exp] = counts.get(exp, 0) + 1
+        best += max(counts.values()) if counts else 0
+        if len(counts) > 1:                     # same trigger, genuinely different right answers
+            contended.append({
+                "path": key[0], "command": key[1],
+                "ids": [mid for mid, _ in rows],
+                "distinct_answers": len(counts),
+                "best_possible": max(counts.values()),
+            })
+    return {
+        "scored": scored,
+        "distinct_triggers": len(contend),
+        "best_possible_at_1": best,
+        # 1.0 means nothing is contended; it is a CAP, so the uncontended case is uncapped.
+        "cap_at_1": (best / scored) if scored else UNCHECKABLE,
+        "contended": contended,
     }
 
 
@@ -200,6 +242,22 @@ def render(d: Dict[str, Any], meta: Dict[str, Any]) -> str:
         if c.get("rankable_ids"):
             out.append(f"      rankable:    {', '.join(c['rankable_ids'])}   "
                        f"<- the right answer is already in the list, below the fold")
+        amb = c.get("ambiguity") or {}
+        if amb and amb.get("contended"):
+            out += [
+                "",
+                f"  AMBIGUOUS TRIGGERS cap recall@1 at {pct(amb.get('cap_at_1'))}   "
+                f"({amb.get('best_possible_at_1')}/{amb.get('scored')} reachable at rank 1 across "
+                f"{amb.get('distinct_triggers')} distinct triggers)",
+                "    A perfect engine cannot beat that cap. Two moments with a byte-identical",
+                "    trigger get an identical list, and only one lesson can sit at rank 1, so this",
+                "    measures the TRIGGER's insufficiency rather than the ranker's quality.",
+            ]
+            for g in amb["contended"]:
+                where = g.get("path") or g.get("command") or "?"
+                out.append(f"      {', '.join(g['ids'])} share {where!r} with "
+                           f"{g['distinct_answers']} different right answers "
+                           f"<- these situations need a RICHER trigger, not a better ranker")
     out += ["", "  PER MOMENT:"]
     for r in d["rows"]:
         out.append(f"    {r['id']:<4} {r['verdict']:<18} {r.get('why') or r.get('expected') or ''}")
