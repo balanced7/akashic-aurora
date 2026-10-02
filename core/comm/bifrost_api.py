@@ -548,7 +548,7 @@ class BifrostAPI:
                 reqs.append(("rev", key, str(at), str(lo), cap))
                 reqs.append(("fwd", key, str(at + 1), str(hi), cap))
         try:
-            heads: dict[str, int] = {}  # only streams long enough to have been trimmed
+            heads: dict[str, float] = {}  # only streams long enough to have been trimmed
             for lg, key in streams:
                 if int(client.xlen(key) or 0) >= int(packet_spec.lane_maxlen("work") * 0.9):
                     first = client.xrange(key, "-", "+", count=1)

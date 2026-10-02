@@ -16,7 +16,7 @@ with kind=`bifrost_msg`, ref `bifrost:<msg_id>`, and detail {frm,to,kind,content
 """
 
 import re
-from typing import Any
+from typing import Any, cast
 
 SALIENT_KINDS = frozenset({"handoff", "decision", "completion", "blocker"})
 PROMOTED_KIND = "bifrost_msg"
@@ -72,7 +72,7 @@ def _events_for_ref(eq, ref: str, *, fallback_kind: str, fallback_top_k: int):
     promoter readers; the exact path may return mixed kinds, so callers still filter."""
     fn = getattr(eq, "events_for_ref", None)
     if callable(fn):
-        return fn(ref)
+        return cast("Any", fn(ref))  # events_for_ref: list of event dicts
     return eq.search("", kind=fallback_kind, top_k=fallback_top_k)
 
 

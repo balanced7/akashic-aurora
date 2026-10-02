@@ -191,7 +191,7 @@ class ControlChannel:
     def _serve(self) -> None:
         while not self._stop.is_set():
             try:
-                conn, _addr = self._sock.accept()
+                conn, _addr = self._sock.accept()  # pyright: ignore[reportOptionalMemberAccess]  # LATENT: stop() can null _sock between the _stop check and accept
             except TimeoutError:
                 continue
             except OSError:

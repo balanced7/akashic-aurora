@@ -27,7 +27,7 @@ import re
 import subprocess
 import tempfile
 import time
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -532,10 +532,10 @@ def agent_watcher(pid: int, snap: dict[int, dict], agent: str) -> bool:
     return bool(re.search(rf"--agent\s+{re.escape(agent)}(?!\S)", cmd))
 
 
-def chain_alive(pid: int, snap: dict[int, dict], max_depth: int = 12) -> tuple[bool, str]:
+def chain_alive(pid: int | None, snap: dict[int, dict], max_depth: int = 12) -> tuple[bool, str]:
     """Walk the watcher's parent chain. Dead/recycled link before a harness ancestor =
     the owning session is gone. Ambiguity fails toward alive (K8 direction)."""
-    cur = snap.get(pid)
+    cur = snap.get(pid) if pid is not None else None  # no int key is None: same lookup result
     if cur is None:
         return False, f"pid {pid} not in snapshot"
     for _ in range(max_depth):
@@ -582,7 +582,7 @@ def reap_decision(
     session_id: str | None,
     pid: int | None,
     pid_alive: bool,
-    pid_is_watcher: bool,
+    pid_is_watcher: bool | None,
     marker_age_min: float | None,
     fresh_min: float,
     chain_fn: Callable[[], tuple[bool, str]],
@@ -710,7 +710,7 @@ def janitor(
                         agent, f"skip seat {os.path.basename(path)}: kill withheld, identity unverified (W153)", tmp
                     )
                     continue
-                if not kill_fn(pid):
+                if not kill_fn(cast("int", pid)):  # pid_is_watcher is True only for a real pid
                     results.append((path, "skip", "kill FAILED (taskkill rc!=0) -- seat kept for retry (K3/W153)"))
                     append_provenance(
                         agent, f"skip seat {os.path.basename(path)}: kill FAILED, seat kept (K3/W153)", tmp

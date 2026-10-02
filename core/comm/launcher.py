@@ -48,7 +48,7 @@ import threading
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import IO, Any, cast
 
 # Restart-storm guard (L3c): exponential backoff, a hard cap, and a reset window so a runner that
 # ran healthily for a while starts fresh. A deterministic boot-crash must not crash-loop forever.
@@ -451,8 +451,9 @@ class Launcher:
 
         if prompt:
             try:
-                handle.stdin.write(prompt)
-                handle.stdin.close()
+                stdin = cast("IO[str]", handle.stdin)  # stdin=PIPE whenever prompt is set
+                stdin.write(prompt)
+                stdin.close()
             except Exception:
                 pass
 

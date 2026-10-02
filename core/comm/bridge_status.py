@@ -208,14 +208,18 @@ def _drain(bus_send: Callable[..., Any] | None) -> BoundaryOutcome:
     if not rows:
         return BoundaryOutcome.done(ref="drain", chars=0)
 
-    send = bus_send
-    if send is None:
+    send: Callable[..., Any]
+    if bus_send is None:
         from core.comm.bus import Bus
 
         bus = Bus("bridge-drain")
 
-        def send(**kw):
+        def _bus_broadcast(**kw):
             return bus.broadcast(kw.get("kind", "chat"), kw.get("content"), meta=kw.get("meta"))
+
+        send = _bus_broadcast
+    else:
+        send = bus_send
 
     n = 0
     for r in rows:
@@ -276,7 +280,7 @@ def _process_table() -> list[dict[str, Any]]:
         errors="replace",
         timeout=25,
     )
-    raw = json.loads(r.stdout) if (r.stdout or "").strip() else []
+    raw: Any = json.loads(r.stdout) if (r.stdout or "").strip() else []
     if isinstance(raw, dict):  # ConvertTo-Json unwraps a 1-row table
         raw = [raw]
     rows: list[dict[str, Any]] = []

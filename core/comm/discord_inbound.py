@@ -546,7 +546,7 @@ def handle_message(
     bus: Any,
     react: Callable[[str], Any],
     role_mentions: Any = None,
-    spawner: Callable[[str], Any] | None = None,
+    spawner: Callable[..., Any] | None = None,
     message_id: str | None = None,
     reviver: Callable[[str | None, bool], Any] | None = None,
     attachments: list | None = None,

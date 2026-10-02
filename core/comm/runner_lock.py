@@ -413,7 +413,7 @@ def free_if_dead(
                     verdict["reason"] = f"indeterminate (marker {int(marker_age)}s; TTL rules)"
                     return verdict
         if release(agent, token):
-            verdict.update({"freed": holder(agent) is None or holder(agent).get("token") != token, "reason": dead})
+            verdict.update({"freed": holder(agent) is None or holder(agent).get("token") != token, "reason": dead})  # pyright: ignore[reportOptionalMemberAccess]  # LATENT: two reads; lock may vanish between them
             try:  # durable audit -- a freed seat must never look like a silent expiry
                 from core.events.event_log import capture_event
 

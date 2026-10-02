@@ -34,7 +34,7 @@ import os
 import sys
 import tempfile
 import time
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -98,7 +98,7 @@ def _any_daemon_live(cli, ns: str) -> bool | None:
     try:
         scan = getattr(cli, "scan_iter", None)
         if callable(scan):
-            for _ in scan(match=pattern, count=200):
+            for _ in cast("Any", scan(match=pattern, count=200)):  # redis scan_iter
                 return True
             return False
         keys = getattr(cli, "keys", None)
