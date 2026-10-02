@@ -963,6 +963,30 @@ def cmd_assert_sha_pins(args: argparse.Namespace) -> int:
     return _report("SHA PINS", sha_pin_problems(ROOT))
 
 
+def workflow_permission_problems(root: Path) -> list[str]:
+    """Least privilege (G5.P3): every workflow declares top-level `permissions:`, and none grants
+    `write-all` anywhere. (zizmor's default persona reports excessive-permissions only at higher
+    confidence, so a single-job `permissions: write-all` passed it: drill D11.)"""
+    problems: list[str] = []
+    wf_dir = root / ".github" / "workflows"
+    for wf in sorted(wf_dir.glob("*.y*ml")) if wf_dir.exists() else []:
+        rel = wf.relative_to(root).as_posix()
+        text = wf.read_text(encoding="utf-8")
+        if not re.search(r"(?m)^permissions:", text):
+            problems.append(f"{rel}: no top-level permissions:")
+        problems.extend(
+            f"{rel}:{i:d} grants write-all"
+            for i, ln in enumerate(text.splitlines(), 1)
+            if re.match(r"\s*permissions:\s*write-all\b", ln)
+        )
+    return problems
+
+
+def cmd_assert_workflow_permissions(_args: argparse.Namespace) -> int:
+    """`poe ci-lint`: every workflow declares top-level permissions; none is write-all."""
+    return _report("WORKFLOW PERMISSIONS", workflow_permission_problems(ROOT))
+
+
 def cmd_assert_ratchet(args: argparse.Namespace) -> int:
     """Stretch rule families (plan G3: D, ANN, ARG, FBT, TRY, PL) may never rise above the
     counts committed in tooling-upgrade/ratchet.json."""
@@ -1687,6 +1711,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     sub.add_parser("assert-no-bare-py", help="no executable surface launches a bare `py`")
     sub.add_parser("assert-dev-group", help="dev group is exactly the plan's tool list (G1.P1)")
     sub.add_parser("assert-sha-pins", help="every workflow uses: is pinned to a 40-hex SHA")
+    sub.add_parser("assert-workflow-permissions", help="top-level permissions:, never write-all")
     sub.add_parser("assert-uv-settings", help="[tool.uv] carries the G1.P3 settings")
     s = sub.add_parser("assert-gate", help="poe gate: plan order, includes the given tasks")
     s.add_argument("members", nargs="*")
@@ -1721,6 +1746,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "assert-uv-settings": cmd_assert_uv_settings,
         "assert-gate": cmd_assert_gate,
         "assert-sha-pins": cmd_assert_sha_pins,
+        "assert-workflow-permissions": cmd_assert_workflow_permissions,
         "assert-latent-regressions": cmd_assert_latent_regressions,
         "assert-types-config": cmd_assert_types_config,
         "assert-strict-islands": cmd_assert_strict_islands,
