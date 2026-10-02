@@ -350,7 +350,7 @@ def main() -> int:
     try:
         from core.coord.session_focus import record_call
 
-        _ti = data.get("tool_input") if isinstance(data.get("tool_input"), dict) else {}
+        _ti = _raw_ti if isinstance(_raw_ti := data.get("tool_input"), dict) else {}
         record_call(
             data.get("session_id") or "",
             data.get("tool_name") or "",
