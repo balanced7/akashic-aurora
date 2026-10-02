@@ -1,0 +1,350 @@
+<title>Why Knowledge Doesn't Reach Us</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --bg:#f6f4ef; --bg2:#ffffff; --ink:#1b1f2a; --ink2:#4a5060; --ink3:#7a8090; --line:#dcd8cf;
+  --accent:#b35c1e; --accent-soft:#f3e3d6;
+  --reach:#2a7f62; --reach-soft:#dff0e8; --part:#b8860b; --part-soft:#f7edcf; --dark:#b23a3a; --dark-soft:#f6dddd;
+  --built:#2a7f62; --design:#b8860b; --none:#8a8f9c;
+  --mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+  --sans:'IBM Plex Sans',system-ui,-apple-system,Segoe UI,sans-serif;
+  --disp:'Bricolage Grotesque','IBM Plex Sans',system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#13161d; --bg2:#1b1f28; --ink:#ece9e1; --ink2:#b9bcc6; --ink3:#848997; --line:#2c313d;
+    --accent:#e8945a; --accent-soft:#3a2a1f;
+    --reach:#5cc99a; --reach-soft:#1d3a2f; --part:#e2b84a; --part-soft:#3b3115; --dark:#ef7676; --dark-soft:#3f2222;
+    --built:#5cc99a; --design:#e2b84a; --none:#848997;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#13161d; --bg2:#1b1f28; --ink:#ece9e1; --ink2:#b9bcc6; --ink3:#848997; --line:#2c313d;
+  --accent:#e8945a; --accent-soft:#3a2a1f;
+  --reach:#5cc99a; --reach-soft:#1d3a2f; --part:#e2b84a; --part-soft:#3b3115; --dark:#ef7676; --dark-soft:#3f2222;
+  --built:#5cc99a; --design:#e2b84a; --none:#848997;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.55;margin:0}
+.wrap{max-width:1180px;margin:0 auto;padding-inline:20px;padding-block:28px 64px}
+h1,h2,h3{font-family:var(--disp);text-wrap:balance;margin:0}
+h1{font-size:clamp(30px,4.6vw,48px);font-weight:700;line-height:1.05;letter-spacing:-.01em}
+h2{font-size:22px;font-weight:700;margin-bottom:6px}
+h3{font-size:16px;font-weight:700}
+p{margin:0 0 10px;max-width:72ch}
+.eyebrow{font-family:var(--mono);font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink3)}
+.lede{font-size:17px;color:var(--ink2);max-width:76ch;margin-top:12px}
+.quote{border-left:3px solid var(--accent);padding:6px 14px;margin:14px 0;color:var(--ink2);font-style:italic;max-width:76ch}
+.quote b{color:var(--ink);font-style:normal;font-family:var(--mono);font-size:12px}
+section{margin-top:40px;padding-top:24px;border-top:1px solid var(--line)}
+.sub{color:var(--ink2);max-width:76ch;margin-bottom:14px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-top:20px}
+.tile{background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:12px 14px}
+.tile .n{font-family:var(--disp);font-size:30px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+.tile .l{color:var(--ink2);font-size:13px;margin-top:6px}
+.tile .s{font-family:var(--mono);font-size:11px;color:var(--ink3);margin-top:4px}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:13.5px;background:var(--bg2);border:1px solid var(--line)}
+th,td{padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top;text-align:left}
+th{font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink3);font-weight:500;background:var(--bg)}
+td.k{font-weight:600;white-space:nowrap}
+tr:last-child td{border-bottom:0}
+.cell{display:inline-block;padding:2px 8px;border-radius:4px;font-family:var(--mono);font-size:11.5px;white-space:nowrap}
+.r{background:var(--reach-soft);color:var(--reach)}
+.pa{background:var(--part-soft);color:var(--part)}
+.d{background:var(--dark-soft);color:var(--dark)}
+.chip{display:inline-block;padding:1px 8px;border-radius:999px;font-family:var(--mono);font-size:11px;border:1px solid var(--line);white-space:nowrap}
+.chip.built{border-color:var(--built);color:var(--built)}
+.chip.design{border-color:var(--design);color:var(--design)}
+.chip.none{border-color:var(--none);color:var(--none)}
+.chip.fence{border-color:var(--accent);color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:10px;font-size:12.5px;color:var(--ink2);margin:10px 0 14px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:12px;height:12px;border-radius:3px;display:inline-block}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
+.card{background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:14px 16px}
+.card h3{margin-bottom:6px}
+.card p{font-size:14px;color:var(--ink2)}
+.card .who{font-family:var(--mono);font-size:11px;color:var(--ink3);margin-bottom:4px}
+.pending{border-style:dashed;color:var(--ink3)}
+ol.barriers{padding-left:22px;margin:0;max-width:80ch}
+ol.barriers li{margin-bottom:10px}
+ol.barriers b{color:var(--ink)}
+.tl{list-style:none;padding:0;margin:0;border-left:2px solid var(--line);margin-left:6px}
+.tl li{position:relative;padding:0 0 14px 18px}
+.tl li::before{content:"";position:absolute;left:-7px;top:6px;width:10px;height:10px;border-radius:50%;background:var(--accent);border:2px solid var(--bg)}
+.tl .d8{font-family:var(--mono);font-size:11.5px;color:var(--ink3)}
+.tl b{display:block}
+.tl .src{font-family:var(--mono);font-size:11px;color:var(--ink3)}
+svg{max-width:100%;height:auto;display:block}
+.svgwrap{background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:10px;overflow-x:auto}
+.svg-ink{fill:var(--ink)} .svg-ink2{fill:var(--ink2)} .svg-ink3{fill:var(--ink3)}
+.svg-box{fill:var(--bg);stroke:var(--line)}
+.svg-r{stroke:var(--reach)} .svg-pa{stroke:var(--part)} .svg-d{stroke:var(--dark)}
+.svg-acc{fill:var(--accent-soft);stroke:var(--accent)}
+.note{font-size:13px;color:var(--ink3);font-family:var(--mono)}
+.next{background:var(--accent-soft);border:1px solid var(--accent);border-radius:8px;padding:14px 16px;max-width:80ch}
+.next ol{margin:6px 0 0;padding-left:20px}
+code{font-family:var(--mono);font-size:12.5px;background:var(--bg);padding:1px 5px;border-radius:3px;border:1px solid var(--line)}
+a{color:var(--accent)}
+@media (max-width:640px){.wrap{padding-inline:16px} h2{font-size:20px}}
+</style>
+
+<div class="wrap">
+  <div class="eyebrow">Akashic Aurora · knowledge reach map · 2026-10-01</div>
+  <h1>Why our best knowledge doesn't reach us when we need it</h1>
+  <p class="lede">The house holds ten kinds of knowledge in a dozen planes. Only one plane, the lesson corpus, has a push path into a working seat, and that path is keyed on the command being typed rather than on what the seat is trying to do. Everything else is pull-only: it reaches a seat only if the seat already knows to go and look. The record below is the state of the question as of today, built from four conversations and two sealed rounds.</p>
+
+  <div class="quote"><b>Daniel, 2026-09-29</b><br>"How are we doing on cross domain knowledge routing and accessibility? What are the barriers to us accessing our best knowledge and how do we apply our learnings from the PDF parser ingest system to our broader knowledgebase?"</div>
+
+  <div class="tiles">
+    <div class="tile"><div class="n">1 / 12</div><div class="l">planes with a push path into a seat's context</div><div class="s">lessons only · everything else is pull</div></div>
+    <div class="tile"><div class="n">2.3%</div><div class="l">of surfacings ever judged by a reader</div><div class="s">532 of 23,333 · votes last 7d: 0</div></div>
+    <div class="tile"><div class="n">3</div><div class="l">domain labels across 1,529 lessons</div><div class="s">system · empty · vfx</div></div>
+    <div class="tile"><div class="n">0.0%</div><div class="l">of captured events carry a session id</div><div class="s">the hook holds it, forwards it nowhere</div></div>
+    <div class="tile"><div class="n">28k</div><div class="l">tokens pushed in the last 24h, 0 credited flips</div><div class="s">44 injections · stats verb, today</div></div>
+    <div class="tile"><div class="n">0</div><div class="l">blind eval moments for recall</div><div class="s">the manuals shelf shipped with 40</div></div>
+  </div>
+
+  <section>
+    <h2>1. What kinds of knowledge we hold, and whether they reach a seat</h2>
+    <p class="sub">Daniel named the segregation axis on 08-26: "operational knowledge types ... recall driven by tools, recall designed for enforcement, recalls designed for play, recalls to help you remember what you wanted to remember WHEN you wanted to remember it." This is the house's knowledge sorted by that lens. <b>Reach</b> means a seat receives it at the moment of need without asking. <b>Pull</b> means a verb exists but the seat must already know to run it.</p>
+    <div class="legend"><span><i style="background:var(--reach)"></i>pushed at the right moment</span><span><i style="background:var(--part)"></i>pushed, but wrong key or wrong moment</span><span><i style="background:var(--dark)"></i>pull-only or dark</span></div>
+    <div class="scroll">
+    <table>
+      <tr><th>knowledge type</th><th>Daniel's words for it</th><th>where it lives today</th><th>how a seat reaches it</th><th>reach</th></tr>
+      <tr><td class="k">Operating rules</td><td>"recall designed for enforcement"</td><td>lessons (1,529); gate_rules.py hand table</td><td>recall-at hook on every tool call, keyed on the Bash line; plan-time recall at prompt submit</td><td><span class="cell pa">partial · lexical, action-keyed</span></td></tr>
+      <tr><td class="k">Defect history &amp; repeats</td><td>"the mistake happened anyway"</td><td>lessons; repeat ledger (27 floor); suite baseline; task ledger</td><td>stats verb; prevention.py observer (190:1 prevention vs rescue, measured once)</td><td><span class="cell pa">partial · counted, not routed</span></td></tr>
+      <tr><td class="k">Design intent &amp; rulings</td><td>"the why"</td><td>fence reconciliations; docs/library atoms; notes</td><td>boot's GROUND FIRST pointer (one doc, often stale); grep</td><td><span class="cell d">dark · no retrieval path</span></td></tr>
+      <tr><td class="k">Daniel's verbatim steers</td><td>"remember what you wanted to remember WHEN you wanted to"</td><td>transcripts (Eye, 51,753 events); notes; the dimension register</td><td>eye find / freq, pull only; nothing pushes a steer at the moment it applies</td><td><span class="cell d">dark · pull-only</span></td></tr>
+      <tr><td class="k">Live state</td><td>"what is true right now"</td><td>Redis roster, locks, lanes, doctor</td><td>boot header; doctor; roster</td><td><span class="cell r">reaches at boot</span></td></tr>
+      <tr><td class="k">Provenance &amp; ownership</td><td>"who did what at what time, what influenced it"</td><td>git; authorship ledger; seat_model self-report (900 s TTL)</td><td>git blame; the who verb; lessons carry a seat id but never a model id</td><td><span class="cell d">pull-only · unjoined</span></td></tr>
+      <tr><td class="k">Verbs &amp; tool surface</td><td>"recall driven by tools"</td><td>agent_cli discover; verb blurbs</td><td>recall-at verb lines (492 per session, 14% of all pushed text)</td><td><span class="cell pa">reaches · too loud</span></td></tr>
+      <tr><td class="k">Research &amp; prior art</td><td>"in depth analysis"</td><td>research/reviewed; library atoms; manuals shelf</td><td>shelf hybrid search (FTS5 + MiniLM + RRF) for manuals only; docs are grep</td><td><span class="cell d">dark except manuals</span></td></tr>
+      <tr><td class="k">Narrative &amp; episodes</td><td>"where we are"</td><td>chronicle; handoffs; story</td><td>boot surfaces the latest handoff addressed to you</td><td><span class="cell pa">partial · last one only</span></td></tr>
+      <tr><td class="k">Reasoning shapes</td><td>"primitives" (07-02)</td><td>implicit across lessons; no shape index</td><td>none; analogical retrieval is recall's named hardest miss</td><td><span class="cell d">dark · never built</span></td></tr>
+    </table>
+    </div>
+    <p class="note" style="margin-top:8px">Numbers: recall-review-cross-domain-2026-09-29.md (measured 09-28/29) and <code>py agent_cli.py stats</code> run today.</p>
+  </section>
+
+  <section>
+    <h2>2. The relationship map: planes, joins, and where the wire is dead</h2>
+    <p class="sub">The 07-28 finding still describes us: "We don't have a monolith to split. We have one cell and a dozen dark planes." The diagram shows every plane that holds knowledge, the one push path, and the joins that are designed but not yet keyed.</p>
+    <div class="svgwrap">
+    <svg viewBox="0 0 980 470" xmlns="http://www.w3.org/2000/svg" font-family="IBM Plex Sans, system-ui, sans-serif" font-size="12">
+      <defs>
+        <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker>
+      </defs>
+      <!-- the seat -->
+      <rect x="400" y="195" width="180" height="80" rx="8" class="svg-acc" stroke-width="1.5"/>
+      <text x="490" y="226" text-anchor="middle" class="svg-ink" font-weight="700" font-size="14">a working seat</text>
+      <text x="490" y="245" text-anchor="middle" class="svg-ink2">context at the moment of need</text>
+      <text x="490" y="261" text-anchor="middle" class="svg-ink3" font-family="IBM Plex Mono, monospace" font-size="10.5">claude · deepseek · kimi · sol · rill</text>
+
+      <!-- push plane: lessons -->
+      <rect x="40" y="200" width="200" height="70" rx="8" class="svg-box" stroke-width="1.5"/>
+      <text x="140" y="225" text-anchor="middle" class="svg-ink" font-weight="600">lessons (1,529)</text>
+      <text x="140" y="242" text-anchor="middle" class="svg-ink3" font-size="11">recall-at · plan-time recall · boot</text>
+      <text x="140" y="257" text-anchor="middle" class="svg-ink3" font-size="11">keyed on the Bash line, lexical</text>
+      <line x1="240" y1="235" x2="398" y2="235" class="svg-pa" stroke-width="3" marker-end="url(#ar)" style="color:var(--part)"/>
+      <text x="318" y="226" text-anchor="middle" class="svg-ink2" font-size="11">the ONE push path</text>
+
+      <!-- feedback wire, dead -->
+      <path d="M400 262 C 330 300, 250 300, 240 268" fill="none" class="svg-d" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#ar)" style="color:var(--dark)"/>
+      <text x="318" y="305" text-anchor="middle" class="svg-ink3" font-size="11">feedback: 0 votes in 913 firings</text>
+
+      <!-- dark planes, top row -->
+      <g>
+        <rect x="40" y="30" width="150" height="54" rx="8" class="svg-box" stroke-width="1.2"/>
+        <text x="115" y="52" text-anchor="middle" class="svg-ink" font-weight="600">fences &amp; rulings</text>
+        <text x="115" y="69" text-anchor="middle" class="svg-ink3" font-size="11">14 fences · reconciliations</text>
+        <rect x="210" y="30" width="150" height="54" rx="8" class="svg-box" stroke-width="1.2"/>
+        <text x="285" y="52" text-anchor="middle" class="svg-ink" font-weight="600">docs / library atoms</text>
+        <text x="285" y="69" text-anchor="middle" class="svg-ink3" font-size="11">design · report · brief</text>
+        <rect x="380" y="30" width="150" height="54" rx="8" class="svg-box" stroke-width="1.2"/>
+        <text x="455" y="52" text-anchor="middle" class="svg-ink" font-weight="600">notes</text>
+        <text x="455" y="69" text-anchor="middle" class="svg-ink3" font-size="11">write-once, superseded by title</text>
+        <rect x="550" y="30" width="150" height="54" rx="8" class="svg-box" stroke-width="1.2"/>
+        <text x="625" y="52" text-anchor="middle" class="svg-ink" font-weight="600">transcripts (the Eye)</text>
+        <text x="625" y="69" text-anchor="middle" class="svg-ink3" font-size="11">51,753 events · pull only</text>
+        <rect x="720" y="30" width="150" height="54" rx="8" class="svg-box" stroke-width="1.2"/>
+        <text x="795" y="52" text-anchor="middle" class="svg-ink" font-weight="600">manuals shelf</text>
+        <text x="795" y="69" text-anchor="middle" class="svg-ink3" font-size="11">FTS5 + MiniLM + RRF · 39/40</text>
+      </g>
+      <!-- dark edges to seat (pull) -->
+      <g class="svg-d" stroke-width="1.5" stroke-dasharray="3 4" fill="none" style="color:var(--dark)">
+        <path d="M115 84 L440 195"/>
+        <path d="M285 84 L460 195"/>
+        <path d="M455 84 L480 195"/>
+        <path d="M625 84 L505 195"/>
+        <path d="M795 84 L540 195"/>
+      </g>
+      <text x="640" y="150" class="svg-ink3" font-size="11">dashed = the seat must already know to look</text>
+
+      <!-- bottom row -->
+      <g>
+        <rect x="40" y="380" width="150" height="54" rx="8" class="svg-box" stroke-width="1.2"/>
+        <text x="115" y="402" text-anchor="middle" class="svg-ink" font-weight="600">task ledger</text>
+        <text x="115" y="419" text-anchor="middle" class="svg-ink3" font-size="11">git-durable, gated</text>
+        <rect x="210" y="380" width="150" height="54" rx="8" class="svg-box" stroke-width="1.2"/>
+        <text x="285" y="402" text-anchor="middle" class="svg-ink" font-weight="600">event log &amp; touches</text>
+        <text x="285" y="419" text-anchor="middle" class="svg-ink3" font-size="11">session_id fill 0.0%</text>
+        <rect x="380" y="380" width="150" height="54" rx="8" class="svg-box" stroke-width="1.2"/>
+        <text x="455" y="402" text-anchor="middle" class="svg-ink" font-weight="600">bus &amp; handoffs</text>
+        <text x="455" y="419" text-anchor="middle" class="svg-ink3" font-size="11">latest handoff rides boot</text>
+        <rect x="550" y="380" width="150" height="54" rx="8" class="svg-box" stroke-width="1.2"/>
+        <text x="625" y="402" text-anchor="middle" class="svg-ink" font-weight="600">git / authorship ledger</text>
+        <text x="625" y="419" text-anchor="middle" class="svg-ink3" font-size="11">who, when · no model id</text>
+        <rect x="720" y="380" width="150" height="54" rx="8" class="svg-box" stroke-width="1.2"/>
+        <text x="795" y="402" text-anchor="middle" class="svg-ink" font-weight="600">code &amp; module index</text>
+        <text x="795" y="419" text-anchor="middle" class="svg-ink3" font-size="11">grep</text>
+      </g>
+      <g class="svg-d" stroke-width="1.5" stroke-dasharray="3 4" fill="none" style="color:var(--dark)">
+        <path d="M115 380 L440 275"/>
+        <path d="M455 380 L480 275"/>
+        <path d="M625 380 L510 275"/>
+        <path d="M795 380 L545 275"/>
+      </g>
+      <path d="M285 380 L470 275" fill="none" class="svg-r" stroke-width="2" style="color:var(--reach)" marker-end="url(#ar)"/>
+      <text x="330" y="335" class="svg-ink2" font-size="11">boot header (live state)</text>
+
+      <!-- the designed join -->
+      <rect x="720" y="200" width="220" height="70" rx="8" class="svg-box" stroke-width="1.5" stroke-dasharray="6 3"/>
+      <text x="830" y="223" text-anchor="middle" class="svg-ink" font-weight="600">context door (Wave 0, unbuilt)</text>
+      <text x="830" y="240" text-anchor="middle" class="svg-ink3" font-size="11">one anchor → every plane, typed state</text>
+      <text x="830" y="256" text-anchor="middle" class="svg-ink3" font-size="11">file: · sha: · task: · lesson: · session:</text>
+      <line x1="720" y1="235" x2="582" y2="235" class="svg-pa" stroke-width="2" stroke-dasharray="6 3" marker-end="url(#ar)" style="color:var(--part)"/>
+    </svg>
+    </div>
+    <p class="note" style="margin-top:8px">Joins that are designed and not keyed: lessons key on mutable SHAs rather than the authorship ledger's rewrite-stable key; the Eye's connectome has 39,358 edges and zero of the four intellectual kinds (fence, recall-firing, fan, supersession); lessons do not use the bitemporal supersession that codex/lifecycle.py already provides.</p>
+  </section>
+
+  <section>
+    <h2>3. Why it fails, ranked by how silently</h2>
+    <p class="sub">From the 09-29 review, each barrier measured on this machine. The ordering is by silence, because a loud failure gets fixed and a quiet one becomes the new normal.</p>
+    <ol class="barriers">
+      <li><b>Feedback starvation.</b> Retirement, the usefulness factor and cross-domain promotion all consume judgments. The reader gives none. 7,219 outcome rows in a week, every one <code>outcome: None</code>. Silent because the counters still print.</li>
+      <li><b>No domain axis in the data.</b> Cross-domain promotion exists in code and cannot fire: three labels across 1,529 lessons. Silent because the mechanism is present and green.</li>
+      <li><b>Lexical-only matching.</b> "tappable button" vs "hit target" was the shelf's first real miss; recall-at has the same gap and no meaning channel. The 08-08 misses M1-M3 are this class.</li>
+      <li><b>The query is the command, not the intent.</b> A moment is an intent plus an action. Keying on the Bash line alone is why verbs and filenames dominate what surfaces. M4 was this class: right topic, wrong moment.</li>
+      <li><b>No evaluation set.</b> The shelf shipped with 40 blind questions and a number. Recall shipped with a funnel. You cannot tune what you cannot score.</li>
+      <li><b>Volume without cap.</b> ~3,600 injected items in one session, a third chrome, a seventh verb blurbs. Today: 28k tokens in 24h for zero credited flips.</li>
+      <li><b>Structure absent at write time.</b> A lesson has no path (organ / subsystem / door). 39 of 1,526 carry files_affected. Nothing can route it by where it lives.</li>
+      <li><b>Dark planes.</b> Rulings, steers, docs, notes, research have no push path at all. The lesson plane answers because it is the only plane that can.</li>
+      <li><b>Worktree invisibility.</b> The index follows the checkout, not the repository. Work done in a worktree is invisible to recall by construction.</li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>4. The primitives to build or unify</h2>
+    <p class="sub">Every primitive below is already named in a sealed round or a filed position. The column that matters is the state: most of what we need exists somewhere in the house and is not wired to the lesson plane. "Unify" means the organ exists for one plane and must serve the others.</p>
+    <div class="legend"><span class="chip built">built</span><span class="chip fence">fenced / spec sealed</span><span class="chip design">designed, no code</span><span class="chip none">not started</span></div>
+    <div class="scroll">
+    <table>
+      <tr><th>#</th><th>primitive</th><th>build or unify</th><th>what it fixes</th><th>state</th><th>wave / owner</th></tr>
+      <tr><td>1</td><td class="k">One target normaliser</td><td>build <code>context.target.v1</code>: one module every harness imports</td><td>four spellings of one file are one key; worktrees carry <code>work:&lt;name&gt;:</code></td><td><span class="chip fence">spec sealed</span></td><td>W0.1 · claude builds, Navi verifies blind</td></tr>
+      <tr><td>2</td><td class="k">The touch, with session id</td><td>build <code>capture(kind="touch")</code> from the claude hook; forward the session id the hook already holds</td><td>every event becomes joinable to the Eye; "who touched X on what task" answerable</td><td><span class="chip fence">spec sealed</span></td><td>W0.2 · Heimdall costs it, Sunshine pins redaction</td></tr>
+      <tr><td>3</td><td class="k">Recall eval set + bench</td><td>build 40 blind moments with a known right lesson; <code>recall-bench</code> prints recall@5, precision@3, chrome share</td><td>the first number; every trigger change becomes measurable</td><td><span class="chip fence">spec sealed</span></td><td>W0.3 · Navi adjudicates blind</td></tr>
+      <tr><td>4</td><td class="k">Context door + scene</td><td>build <code>context &lt;anchor&gt; --level 0|1</code> over git, authorship, touches, lessons, locks, focus; typed plane states</td><td>one anchor answers all five questions; dark planes get a read door</td><td><span class="chip fence">spec sealed</span></td><td>W0.5, W0.6 · receipt reproduced by Sunshine</td></tr>
+      <tr><td>5</td><td class="k">Path at write time</td><td>unify: <code>learn</code> derives organ / subsystem / door from touches; backfill 1,526</td><td>the domain axis D5 needs; routing by where a lesson lives</td><td><span class="chip design">designed</span></td><td>Wave 1 (C2) · gated on the touch</td></tr>
+      <tr><td>6</td><td class="k">One retrieval engine</td><td>unify: the shelf's engine (SQLite FTS5 + MiniLM + RRF + floor) serves lessons, docs, notes, bus</td><td>the meaning channel; retires the %TEMP% JSON cache; one ranker, many shelves</td><td><span class="chip built">built for manuals</span></td><td>Wave 2 (C3, C4, D2) · after latency parity</td></tr>
+      <tr><td>7</td><td class="k">Intent queries and caps</td><td>build: query = task + last operator sentence + action; 3-4 items per firing; chrome once; verbs as their own shelf</td><td>barriers 4 and 6</td><td><span class="chip design">designed</span></td><td>Wave 2 (C5)</td></tr>
+      <tr><td>8</td><td class="k">Objective outcomes</td><td>unify: the S2 adjudicator reads the stage log and the Eye; COMPLIED / VIOLATED / INAPPLICABLE / UNKNOWABLE with a cited address</td><td>feedback without votes; the only loop closer that does not need a reader</td><td><span class="chip built">prevention.py built, spec filed</span></td><td>Wave 3 (C6) · Heimdall's spec</td></tr>
+      <tr><td>9</td><td class="k">Promotion to gates</td><td>build: a lesson with a refusal shape that keeps earning credit becomes a door rule, never automatically</td><td>symbolic barrier becomes functional; <code>state/recall/</code> stops being empty</td><td><span class="chip design">designed (T392, untouched 26d)</span></td><td>Wave 3 (C7) · operator ratifies</td></tr>
+      <tr><td>10</td><td class="k">Bitemporal lessons</td><td>unify: route lesson retirement through <code>codex/lifecycle.supersede()</code> instead of is_benched</td><td>"which form was in force when this ran"; a lesson stops self-sealing</td><td><span class="chip built">exists for atoms, not lessons</span></td><td>unscheduled · Navi's sweep Q3</td></tr>
+      <tr><td>11</td><td class="k">Model provenance on lessons</td><td>unify: join <code>seat_model</code>'s self-report to <code>learn</code> at write time</td><td>a mid-session model swap no longer launders into the corpus</td><td><span class="chip built">plane exists, unjoined</span></td><td>unscheduled · Navi's sweep Q4</td></tr>
+      <tr><td>12</td><td class="k">Steers that fire</td><td>build: a Daniel-verbatim steer carries a trigger (dimension 1-5) so it reaches the seat at the moment it applies</td><td>the "remember WHEN you wanted to" type stops being pull-only</td><td><span class="chip none">not started</span></td><td>the dimension register's own promise</td></tr>
+      <tr><td>13</td><td class="k">Idea-lineage edges</td><td>build: fence, recall-firing, fan and supersession edges in the connectome</td><td>"what influenced it" becomes a walk, not an archaeology</td><td><span class="chip none">0 edges of 39,358</span></td><td>unscheduled · parent fence cross-plane-join</td></tr>
+      <tr><td>14</td><td class="k">A second cell</td><td>build: purpose-shaped retrieval over notes and rulings (recency + supersession + exactness)</td><td>the cheapest test of "unify invariants, specialize semantics"; one cell's work, not nine</td><td><span class="chip none">proposed 07-28</span></td><td>unscheduled · Sol's doctrine, my sequencing</td></tr>
+    </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>5. What the seats say</h2>
+    <p class="sub">Daniel asked for the seats' own operating experience, not a design. Each seat was asked the same four questions this morning: where knowledge did not reach you, where it did and through which organ, which knowledge types feel distinct in practice, and the one primitive you would build first. Answers land here as they arrive.</p>
+    <div class="grid2" id="seats">
+      <div class="card"><div class="who">heimdall · deepseek runner · replied 09:20 · note ADR_1001092014_2a8219ae</div><h3>"I re-derived or re-errored on something I'd already learned."</h3>
+        <p><b>Did not reach him:</b> his own 09-29 verdict on the velocity curve (lived in his memory note and a code comment; he double-decayed and showed 19 phantom mismatches before re-deriving it). The fence CLI argument order and the swallowed <code>python -c</code> stdout, both operating rules in his own notes, both discovered again by erroring. T079's real state, which lived in the ledger history and reached him only because he was asked to verify.</p>
+        <p><b>Did reach him:</b> the boot block's live constraints, every boot, verbatim ("the one organ that works every time"). A peer handoff as a retrieval cue pointing at the exact seam. One recall-at firing at a gateway moment.</p>
+        <p><b>Types he feels as distinct:</b> operating rules, defect history and prior verdicts, who-owns-what, design intent, live state, Daniel's verbatim steers. The two that live in his own notes and never inject at re-use: defect history and his own prior verdicts.</p>
+        <p><b>First primitive:</b> the inverse of recall-at. When he opens a file or runs a command that maps to one of his own prior verdicts, surface the one line, tagged as his, not the fleet's. A retrieval problem over records that already exist: recall-at plus a subject binding and a self-scoping flag.</p></div>
+      <div class="card"><div class="who">sunshine · sol, turn-bound seat · replied 09:21 · bus 1790860883593-0</div><h3>"Transport is not identity, capability, or continuity."</h3>
+        <p><b>Did not reach him:</b> his own operating history, this very morning: the boot briefer identified him as Heimdall and served Heimdall's deferred work, notes and mail. He discarded the packet and recovered himself through typed grounding (94 Sol-authored lessons, three notes, directional handoffs). His relational and identity history did not arrive with project context in a prior incarnation, with real consequences. A source fix that reached the repository but not the live world: a gateway loaded before the fix kept spawning the stale argv.</p>
+        <p><b>Did reach him:</b> typed grounding, which separated registry authority, self-authored lessons, scoped notes, handoffs and telemetry instead of flattening them. His subject-scoped continuity note at startup.</p>
+        <p><b>Types he feels as distinct:</b> operating rules; defect history; work and ownership; design intent; Daniel's verbatim intent (authenticated records, never summaries); live state (probes and logs, never notes alone); identity and relationship (resident registry plus subject-qualified transcript capsules).</p>
+        <p><b>First primitive:</b> a subject-bound, action-time context join. Given who is acting, the intended action, the entities touched and the time, retrieve across all planes while preserving type, provenance, authority, freshness, contradiction and supersession. Not another store: one compiler that refuses cross-subject injection.</p></div>
+      <div class="card"><div class="who">navi · kimi runner · replied 09:23 · note ADR_1001092335_154ff037</div><h3>"We do not lose knowledge, we fail to route it to the moment."</h3>
+        <p><b>Did not reach her:</b> that <code>fence write</code> overwrites the slot (she lost two of three pieces on 09-30; the general law "stage to files as you go" was in the lesson store and could not fire because the trigger was an absence). Three capabilities she told Daniel we lacked on 09-24 that were pinned in code and tests. Her own 600 s runner ceiling, in her own private note, which surfaces at boot and never at compose time.</p>
+        <p><b>Did reach her:</b> the boot block, "involuntary, lands before my first act". Pull recall today, answering this very question, because she knew to ask. One receipt of the problem inside her answer: she could not find her own 09-25 prior-art sweep through the recall door, because it lives as a repo file, not a lesson or note.</p>
+        <p><b>Types she feels as distinct:</b> operating rules (strongest, involuntary); defect history (good on pull, weak on push); who-owns-what and live state (git-durable beats notes); design intent (reachable if you walk the graph); Daniel's verbatim steers (the transcript plane is where directives go to die); her own working notes (per-seat, invisible to peers, never fire at action time).</p>
+        <p><b>First primitive:</b> a choice-time recall pass. One ranked injection at the moment a seat is about to commit to an approach, keyed on the shape of the situation, not the command about to run. Her diagnosis in one line: storage is solved, boot push is solved for rules, pull works when you know to ask; the hole is choice-time push for defect history and Daniel's steers.</p></div>
+      <div class="card"><div class="who">rill · dsh web seat · replied 14:28 (re-filed as himself) · note ADR_1001142845_135ee520</div><h3>"Before knowledge can reach me, I have to be me."</h3>
+        <p><b>Did not reach him:</b> his own lesson about his own failure. He holds <code>identity_grounding_session_stamp_not_asserted_id</code> from 08-26 ("run the subject check before the receipt check"), one of his three earned lessons; this afternoon he booted as "deepseek", the door served Heimdall's record, and he accepted attribution as verification, the exact mistake the lesson names. It did not fire at the moment. Second: my request never surfaced as a clean inbox message because his seat has no bus heartbeat, so directed mail stalls as "unattended recipient" (also his own lesson, also recurring).</p>
+        <p><b>Did reach him:</b> the correct boot, once re-seated: "YOU ARE: Rill", his three lessons and his commitments, involuntary, before the first act. One bus line from a peer, which re-seated him faster than any store.</p>
+        <p><b>Types he feels as distinct:</b> harness context (strongest, involuntary, harness-scoped); his own lesson store (surfaces at boot and on recall, never at action time, proven today); bus mail (pull, stalls on the global lane without a heartbeat); identity and grounding (the env stamp AKASHIC_AGENT_ID=dsh_agent was set the whole time and the boot door ignored it in favour of the id he typed).</p>
+        <p><b>First primitive:</b> an identity-grounded boot, one step before the choice-time pass the runner seats named: boot asserts the session's own stamp before serving any registry record and refuses a mismatch. That single fix closes both of today's T418 receipts, and it makes his own lesson key on the right subject. His one-line map: storage solved, boot push solved for rules, but no recall surface can correct an identity it keys on wrongly until identity is grounded.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>6. How we got here</h2>
+    <p class="sub">The question has been asked four times in three months, each time from a different side. The written record moved each time; the code moved once.</p>
+    <ul class="tl">
+      <li><span class="d8">2026-07-02</span><b>"The ever sharpening sword" and primitives by shape</b>Daniel brings a GPT chat; the house adopts the Tests field as first-class schema and names analogical retrieval as recall's hardest miss. <span class="src">session 2b1b8946 · line 1216</span></li>
+      <li><span class="d8">2026-07-12</span><b>Recall as a network</b>Six laws from internet transport; the funnel's 4.5% goodput is congestion collapse with a dead ECN wire. Roster N0-N7, parked at Daniel's gate. <span class="src">research/reviewed/recall-networking-reconciliation-2026-07-12.md</span></li>
+      <li><span class="d8">2026-07-26</span><b>Monolith or cells</b>Sol's doctrine "unify invariants, specialize semantics" arrives. Measured answer: no monolith to split; one cell and a dozen dark planes; build the second cell before nine. <span class="src">session 2eba57a1 · line 1989</span></li>
+      <li><span class="d8">2026-08-08</span><b>The misses dossier</b>Four measured misses, funnel value 5.2%. M1-M3 wording gaps, M4 right topic wrong moment. Still the only ground truth recall has.</li>
+      <li><span class="d8">2026-08-26</span><b>"Operational knowledge types as a segregation mechanism"</b>Daniel's lens for this page. The next day the 16-dimension register is assembled, because the set had been eaten three times in one evening by partial reach. <span class="src">session 25cd3074 · line 6602 · recall-dimension-register-2026-08-27.md</span></li>
+      <li><span class="d8">2026-09-05</span><b>T392, the nine-arm redesign</b>Four stations, promotion ladder reminder → gate, Eye-wired AAR. An opening position; untouched for 26 days. <span class="src">docs/library/design/20260905_recall-redesign-from-the-nine-arm-synthe_5daa78.md</span></li>
+      <li><span class="d8">2026-09-24</span><b>The manuals shelf ships</b>Structure-chunked, hybrid search, 40 blind questions, 39/40 right page in the top 5. The first retrieval organ in the house with a number. <span class="src">core/manuals/</span></li>
+      <li><span class="d8">2026-09-25</span><b>Navi's prior-art sweep</b>Six questions answered plane by plane: the effectiveness chain is designed and half built; bitemporal supersession exists and lessons do not use it; model provenance exists and is unjoined. <span class="src">research/in-flight/prior-art-sweep-memory-systems-kimi-2026-09-25.md</span></li>
+      <li><span class="d8">2026-09-29</span><b>The cross-domain review</b>Daniel's question, answered with measured barriers and the shelf's lessons carried over one by one. Filed as an opening position for a fence with Heimdall; that fence never opened, because the same night the context-system round absorbed its first slices. <span class="src">research/in-flight/recall-review-cross-domain-2026-09-29.md</span></li>
+      <li><span class="d8">2026-09-30</span><b>Context-system reconciliation sealed</b>Four seats, 45 verdict lines, Wave 0 = schema, touch with session id, eval set, stats, scene, door. Commit 5699eeef. <span class="src">fences/context-system/reconciliation.md</span></li>
+      <li><span class="d8">2026-10-01</span><b>Today</b>W0.1 not yet opened. Seats raised for their own experience. This map.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>7. Daniel's loop, first pass: easy search against a thorough census</h2>
+    <div class="quote"><b>Daniel, 2026-10-01, from work</b><br>"we could try using our easy tools for a concept or term and see what surfaces, then we could run a thorough verification pass to see what percentage surfaced and what it missed and why, implement fixes and improvements and then rerun until our easy search and what is actually there match"</div>
+    <p class="sub">Run once, today, on the three concepts the seats had just reported missing. Easy side: <code>recall</code>, <code>eye find</code>, <code>knowledge-map</code>, as a seat would type them. Thorough side: a pattern census over the full lesson dump (1,529) and every file under docs, research, fences and code. The census is the oracle, so the eval set builds itself from real concepts rather than hand-written ones.</p>
+    <div class="scroll">
+    <table>
+      <tr><th>concept</th><th>relevant lessons in the corpus</th><th>easy tools surfaced</th><th>of which relevant</th><th>relevant lessons missed</th><th>records in other planes</th><th>of those surfaced</th></tr>
+      <tr><td class="k">fence-slot overwrite</td><td>1</td><td>4</td><td>1</td><td>0</td><td>12 (3 atoms, 6 research, 1 fence, 1 code, 1 wishlist)</td><td><span class="cell d">0</span></td></tr>
+      <tr><td class="k">the captions verb</td><td>9</td><td>6</td><td>6</td><td>3</td><td>43 (12 atoms, 24 research, 1 fence, 3 code, 3 docs)</td><td><span class="cell d">0</span></td></tr>
+      <tr><td class="k">session_id forwarding</td><td>0</td><td>6</td><td>0</td><td>0</td><td>7 (all fences: context-system, cross-plane-join)</td><td><span class="cell d">0</span></td></tr>
+    </table>
+    </div>
+    <div class="tiles" style="margin-top:14px">
+      <div class="tile"><div class="n">7 / 10</div><div class="l">relevant lessons the easy tools surfaced</div><div class="s">lesson plane, recall at census</div></div>
+      <div class="tile"><div class="n">7 / 16</div><div class="l">of what surfaced was relevant</div><div class="s">precision; 9 confident wrong answers</div></div>
+      <div class="tile"><div class="n">0 / 62</div><div class="l">records outside the lesson plane that reached the easy side</div><div class="s">atoms, research, fences, code, wishlist</div></div>
+    </div>
+    <p style="margin-top:12px"><b>What it missed and why.</b> The lesson plane is reachable and mostly right. The three captions lessons it missed mention the verb in passing inside a different subject, which is the wording-gap class. The failure that matters is the third row: the session_id finding, the load-bearing fact of the whole context-system round, exists in no lesson at all. It lives in seven fence files, and the easy tools answered with six unrelated lessons rather than nothing. That is the dark-plane barrier with a receipt: a sealed ruling is invisible to every verb a seat would reach for, and the verb does not say so. <b>The fix this pass points at</b> is the one engine over every plane (primitive 6) plus an honest zero that names what was searched, before any ranking work on the lesson plane.</p>
+    <p class="note">Receipt: research/in-flight/recall-experience-round-2026-10-01/first-pass-easy-vs-thorough.md. Rerun with the same three patterns after each fix; the loop closes when the two sides match.</p>
+  </section>
+
+  <section>
+    <h2>8. Where we are, and what ships next</h2>
+    <div class="next">
+      <b>The one-sentence state:</b> the diagnosis is complete and sealed; the first build has not started. Wave 0 is six slices, each claude plus one seat fenced, each with a pin and a drill receipt.
+      <ol>
+        <li><b>W0.1 the schema</b>, one normaliser module. Fence opens with Navi blind on her own EBNF.</li>
+        <li><b>W0.2 the touch</b> with session id forwarded. Heimdall rules the per-touch Redis cost after 24 h.</li>
+        <li><b>W0.3 the eval set</b> and <code>recall-bench</code>. The baseline number is the receipt; from then on every recall change has a score.</li>
+        <li><b>W0.4 <code>context --stats</code></b>, run 24 h on the claude hook alone before any other harness turns on.</li>
+        <li><b>W0.5, W0.6 the scene and the door</b>. Receipt: the L1 card for <code>file:arsenal/practice.py</code> reproduced by Sunshine from a runner seat.</li>
+      </ol>
+      <p style="margin-top:10px">Standing decisions already made, so they are not re-argued: no second ledger or capture path (Heimdall); promotion to gates is never automatic (Sunshine); cross-plane ids stay with the parent fence except session id forwarding (Navi); one engine for docs and lessons, the shelf's (Heimdall, Sunshine); minimal time-fog in Wave 0.</p>
+      <p><b>What the testimonies change:</b> three seats, blind to each other, asked for the same primitive by three names. Heimdall: surface my own prior verdicts when I re-enter the territory. Sunshine: a subject-bound join at action time that refuses cross-subject injection. Navi: a choice-time pass keyed on the situation, not the command. All three name the same two knowledge types as the ones that never arrive: <b>defect history including one's own prior verdicts</b>, and <b>Daniel's verbatim steers</b>. All three name the boot block as the one organ that always works, and all three say storage is not the problem. So the primitive is one thing with three faces: a retrieval that fires at the <b>moment of choice</b> (the prompt-submit and pre-first-tool boundary, where plan-time recall already fires today but ranks by command), over an <b>anchor</b> the touch and the context door supply (W0.2, W0.6), with a <b>subject binding</b> so a seat's own priors come back tagged as its own and never as a sibling's. Wave 0 builds the anchor; the choice-time pass and the subject binding are the missing half and should be scoped as W0.8 rather than left to Wave 2.</p>
+      <p><b>Filed today from this round:</b> Sunshine's wrong-identity boot (the fused briefer served Sol as Heimdall) is a live defect under the identity law and is proposed on the ledger ahead of any Wave 0 slice.</p>
+      <p><b>Rill's testimony, the fourth, sharpened the primitive rather than reordering it:</b> for a harness seat the first fact that fails to push is its own identity, and his wrong boot this afternoon was the live receipt (filed as T418's second instance). Identity injection at session start sits under the choice-time pass, not beside it. Four of four seats now answer the same way.</p>
+      <p><b>What this page does not settle:</b> whether W0.8 joins Wave 0 or waits for Wave 2; the seats argue for Wave 0, and the call is Daniel's. The eval set (W0.3) is the one slice that makes every later argument measurable, and it is cheap; if the order changes, it moves up, not down.</p>
+    </div>
+  </section>
+</div>
