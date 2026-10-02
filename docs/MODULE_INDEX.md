@@ -16,10 +16,11 @@
 - `streams.py` — streams -- process plumbing for long-lived agent processes (T030 L3 / RB-28).
 - `timeutil.py` — timeutil -- one deterministic, timezone-safe way to turn an ISO timestamp into a
 
-## core/events/  (3 modules)
+## core/events/  (4 modules)
 - `event_index.py` — EventIndex (Slice V1) -- a Store-backed time index over the raw event firehose.
 - `event_log.py` — EventLog (Slice 1) -- capture raw cross-agent events on an append-only Ledger.
 - `event_query.py` — EventQuery (Slice 3) -- search and time-window the raw event firehose.
+- `touch.py` — touch.v1 -- what a seat actually touched, as one record the spine can join.
 
 ## core/signals/  (2 modules)
 - `agent_signal_ledger.py` — Agent Signal Ledger: the ordered record of every signal agents emit

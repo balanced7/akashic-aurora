@@ -332,6 +332,29 @@ def main() -> int:
                     str(_ti.get("file_path") or _ti.get("command") or _ti.get("pattern") or ""))
     except Exception:
         pass
+    # W0.2 (2026-10-02): THE TOUCH -- what this call actually touched, typed by
+    # context.target.v1 and carrying the session id, onto events:raw.
+    #
+    # Its own kill switch and its own try/except, deliberately, for the reason the two blocks
+    # above give for liveness and presence: the touch is the SPINE, not a recall feature, so it
+    # must not be a hostage of recall's switch -- and it runs on the hot path of every seat, so it
+    # must never be able to wedge a tool call. core/events/touch.py never raises and counts what
+    # it drops; W0.4 reads that counter.
+    #
+    # It also ABSORBS Gap 3 of the record-is-total map: a hook firing IS the idle-to-active
+    # transition, so there is no separate 'activity' kind. Emitting one would put a single fact on
+    # the spine twice under two names.
+    #
+    # Measured before it was built, on 6,918 raw events: 89 carried a session id and all 89 were
+    # one kind. None of the kinds THIS hook emits carried one.
+    if os.getenv("AKASHIC_TOUCH", "1") != "0":
+        try:
+            from agent.harness.scope import session_in_scope
+            if data and session_in_scope(data.get("cwd") or os.getcwd()):
+                from core.events import touch as _touch
+                _touch.emit(data)
+        except Exception:
+            pass
     if os.getenv("AKASHIC_RECALL_AT_ACTION", "1") == "0":
         return 0
     if not data:

@@ -1380,6 +1380,36 @@ def _feed_failure_findings(agent: str):
         return None
 
 
+def _touch_drop_finding():
+    """W0.2: touches this machine failed to build, surfaced once per pass where a human looks.
+
+    Wired in the SAME commit as the counter, and the reason is in `_wire_findings` twenty lines
+    below: T156 shipped a pin asserting "a reader exists" that passed against a reader nothing
+    called. A drop counter with no reader is that defect with a different noun -- it turns a
+    swallowed failure into a number nobody holds, which is worse than not counting, because it
+    looks like diligence.
+
+    FLEET-LEVEL BY CONSTRUCTION, beside `_watch_finding` rather than inside the per-agent probe
+    loop. The count is machine-wide (the touch hook is one short-lived process per tool call, so a
+    durable file is the only place a count can survive), and the first version of this did sit in
+    the per-agent loop with a two-second guard to stop it repeating. It printed twice anyway,
+    because a fifteen-agent pass takes longer than the guard -- the timing hack was covering a
+    placement mistake. A fact about the machine belongs where the pass is assembled, not where the
+    agents are walked, and then it needs no guard at all.
+    """
+    try:
+        from core.events import touch as _touch
+        n = _touch.drops()
+    except Exception:
+        return None
+    if not n:
+        return None                       # a clean counter is not news
+    return _f("touch", "touch_drops", "dashboard",
+              f"touch: {n} touch(es) dropped on this machine -- the spine is missing that many "
+              f"records and does not know it",
+              "py -c \"from core.events import touch; print(touch.drops())\"")
+
+
 def _wire_findings(agent: str):
     """T156: surface the API wire journal's Expert Info here, on the fleet health surface.
 
@@ -1588,6 +1618,9 @@ def examine_fleet(agents: Optional[List[str]] = None, *,
     silent = _watch_finding(watches)
     if silent:
         findings.append(silent)
+    dropped = _touch_drop_finding()         # W0.2: machine-wide, so once per pass, not per agent
+    if dropped:
+        findings.append(dropped)
     pages = [f for f in findings if f["grade"] == "page"]
     if not findings:
         summary = f"doctor: fleet healthy ({len(agents)} agent(s), 0 findings)"

@@ -4,12 +4,12 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at 13dce4f1. A bound you discover by collision is not awareness -- this sheet
+> Derived at f96d162a. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
 
-## Configuration flags (270 names)
+## Configuration flags (272 names)
 
 | Flag | Default (as written) | Read sites |
 |---|---|---|
@@ -23,7 +23,7 @@ Class: reference
 | `AKASHIC_ACK_UNHANDLED_HOURS` | `UNHANDLED_HOURS` | core/comm/promoter.py |
 | `AKASHIC_ACL_PATH` | `` | core/trust/registry.py |
 | `AKASHIC_ADJUDICATORS` | `""` | core/fleet/verdicts.py |
-| `AKASHIC_AGENT_ID` | `"dsh_agent"` | agent/harness/actions.py, agent/harness/dsh_plugin/bridge.py, agent/harness/hooks/_activity.py +34 |
+| `AKASHIC_AGENT_ID` | `"dsh_agent"` | agent/harness/actions.py, agent/harness/dsh_plugin/bridge.py, agent/harness/hooks/_activity.py +35 |
 | `AKASHIC_ALLOW_HARMONIZE` | `` | scripts/harmonize_knowledge.py |
 | `AKASHIC_APP_PACKAGE` | `"Claude"` | core/fleet/app_package.py |
 | `AKASHIC_ASK_BASE_URL` | `"https://api.deepseek.com"` | core/comm/ask.py |
@@ -140,6 +140,8 @@ Class: reference
 | `AKASHIC_TIMEOUT_MULTIPLIER` | `"1"` | core/comm/timescale.py |
 | `AKASHIC_TOMBSTONE` | `"1"` | core/comm/wake_seat.py |
 | `AKASHIC_TOOLBELT_QUOTA` | `"20"` | core/toolbelt/registry.py |
+| `AKASHIC_TOUCH` | `"1"` | agent/harness/hooks/claude_posttooluse.py, scripts/hooks/claude_posttooluse.py |
+| `AKASHIC_TOUCH_DROPS_DIR` | `` | core/events/touch.py |
 | `AKASHIC_TRACE` | `"1"` | agent/harness/hooks/claude_trace.py, agent/harness/trace.py, scripts/hooks/claude_trace.py |
 | `AKASHIC_TRANSCRIPT_TAIL_BYTES` | `str(4 * 1024 * 1024` | agent/harness/hooks/claude_posttooluse.py, scripts/hooks/claude_posttooluse.py |
 | `AKASHIC_UI_URL` | `"http://localhost:8787"` | scripts/ui_shot.py |
@@ -184,7 +186,7 @@ Class: reference
 | `BIFROST_WAKE_SETTLE_S` | `"15"` | scripts/bifrost_wake.py |
 | `BIFROST_WEDGE_SECONDS` | `"300"` | core/comm/liveness.py |
 | `BUS_MAX_MESSAGE_BYTES` | `DEFAULT_MAX_MESSAGE_BYTES` | core/comm/packet_spec.py |
-| `CLAUDE_CODE_SESSION_ID` | `` | agent/bifrost_pull.py, agent/harness/hooks/claude_posttooluse.py, agent_cli.py +7 |
+| `CLAUDE_CODE_SESSION_ID` | `` | agent/bifrost_pull.py, agent/harness/hooks/claude_posttooluse.py, agent_cli.py +8 |
 | `CLAUDE_SESSION_ID` | `` | agent_cli.py, core/comm/runner_lock.py |
 | `COMPUTERNAME` | `` | arsenal/lanes/gst_d3d12_soak.py |
 | `CURSOR_PROJECT_DIR` | `` | agent/harness/hooks/cursor_posttooluse.py, agent/harness/hooks/cursor_sessionstart.py, research/in-flight/t342/dead-modules/scripts__hooks__cursor_posttooluse.py +1 |
@@ -284,7 +286,7 @@ Class: reference
 | `TEMP` | `"/tmp"` | core/recall/precision_audit.py, scripts/ops/archive_transcripts.py |
 | `USERPROFILE` | `` | core/tools/everything.py |
 
-## Mechanical bounds (327 numeric constants)
+## Mechanical bounds (328 numeric constants)
 
 | Constant | Value | Site | Note |
 |---|---|---|---|
@@ -461,6 +463,7 @@ Class: reference
 | `MAX_STORED_WARNINGS` | 200 | arsenal/lanes/gst_d3d12_soak.py | per pass; the total count is always kept |
 | `MAX_STRING` | 200 | arsenal/pianolooks.py |  |
 | `MAX_TAGS` | 12 | arsenal/jam/schemas.py |  |
+| `MAX_TARGETS` | 32 | core/events/touch.py |  |
 | `MAX_TARGETS_PER_PASS` | 2 | core/recall/forge_optimizer.py | locked design decision 1 |
 | `MAX_TEXT` | 500 | arsenal/pianocue.py |  |
 | `MAX_VARIANTS` | 6 | arsenal/jam/schemas.py |  |

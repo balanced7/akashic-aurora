@@ -128,8 +128,14 @@ def test_a_shell_tool_goes_through_the_extraction_contract():
 
 
 def test_a_command_that_cannot_be_seen_into_says_so_rather_than_reporting_a_clean_zero():
+    # CORRECTED before GREEN. The RED commit asserted `== []` here, which contradicts the very
+    # amendment this slice is built on: Navi's B5 rules that an uninspectable command emits
+    # `targets: null` plus the flag, and says in as many words that "the touch.v1 detail carries
+    # both". `[]` with a flag would have preserved the distinction only for a reader who knew to
+    # look at the flag, which is the same trap one layer up -- so the schema keeps null meaning
+    # "could not see" and `[]` meaning "looked, found nothing", identically in both places.
     t = build(P("Bash", {"command": "py - <<'EOF'\nimport os\nEOF"}))
-    assert t.detail["targets"] == [] and t.detail["targets_incomplete"] is True
+    assert t.detail["targets"] is None and t.detail["targets_incomplete"] is True
 
 
 def test_a_command_that_touched_nothing_is_a_measured_zero():

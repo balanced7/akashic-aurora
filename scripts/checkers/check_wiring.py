@@ -107,20 +107,6 @@ EXCEPTIONS = {
         "countering the schema AND sending their verify key, because sealing stays off until "
         "both halves exist. NOT wired blind on purpose: a wire format committed before the "
         "other endpoint has answered is a format we would then have to break. Owner: claude.",
-    "core/coord/target.py": "built-ahead (2026-10-02, claude/Vandor): context.target.v1, the one "
-        "canonical key for a code location. Spec research/in-flight/context-system-navi-m1.md as "
-        "amended by context-system-navi-m1-amendment-1.md (Navi); 73 pins green in "
-        "tests/test_context_target_v1.py. It is W0.1 of the Wave 0 table in "
-        "fences/context-system/reconciliation.md, and that table RATIFIES the schema shipping "
-        "before its consumers -- W0.2 (the touch) is the first writer and W0.6 (the context door) "
-        "the first reader, because a key has to exist before anything can carry it. "
-        "UNWIRE-WHEN: agent/harness/hooks/claude_posttooluse.py imports it to type a touch's "
-        "targets (W0.2). That is a hook dir this gate already enumerates, so the entry retires "
-        "itself the moment W0.2 lands -- delete it then. "
-        "NOT wired blind on purpose: the available shortcut was to mint a CLI verb tonight purely "
-        "to give the module a caller, which would be a door invented to satisfy a gate rather than "
-        "because anyone needed it, and this house has paid for exactly that shape before. "
-        "Owner: claude.",
     # Added 2026-07-25 while clearing a CI that had been RED for over a day -- the boundary
     # guard failed FIRST and skipped every gate behind it, including the whole test suite,
     # so these two never surfaced. Both are kimi-lane builds from arcs still in flight, not

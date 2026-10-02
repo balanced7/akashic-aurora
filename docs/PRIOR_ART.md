@@ -23,11 +23,12 @@ Letta's plain files beat a graph memory system; Wikidata's three ranks run at ~1
 statements where ATMS dies around 100 beliefs. The cost of NOT sweeping is measured in
 rebuilt wheels and dead ends, so the sweep is now a standing artifact rather than a mood.
 
-## Coverage: 8 current, 14 drift, 0 gap (of 22 subsystems)
+## Coverage: 7 current, 15 drift, 0 gap (of 22 subsystems)
 
 **DRIFT -- surveyed, but the subsystem has changed size since:**
 
 - `core/foundation` -- DRIFT (8->10), reviewed 2026-07-26
+- `core/events` -- DRIFT (3->4), reviewed 2026-07-26
 - `core/comm` -- DRIFT (36->73), reviewed 2026-07-26
 - `core/coord` -- DRIFT (11->33), reviewed 2026-07-26
 - `core/learning` -- DRIFT (3->5), reviewed 2026-07-26
@@ -67,7 +68,7 @@ rebuilt wheels and dead ends, so the sweep is now a standing artifact rather tha
 
 _Reviewed 2026-07-26 by claude._
 
-## `core/events` -- 3 modules  ·  current
+## `core/events` -- 4 modules  ·  DRIFT (3->4)
 
 **What it does.** The append-only event firehose and its time index -- every agent action, learning, decision and bus message, queryable by agent, kind and recency.
 
