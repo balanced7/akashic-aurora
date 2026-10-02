@@ -165,42 +165,54 @@
 | scripts/bifrost_daemon.py | 681 | `noqa: BLE001` | fail-soft: best effort, skipped on any error |
 | scripts/bifrost_reports.py | 33 | `noqa: E402` | sys.path bootstrap |
 | scripts/bifrost_reports.py | 52 | `type: ignore[import-not-found]` |  |
+| scripts/bifrost_runner.py | 32 | `noqa: SIM105` | tests t150/t152 pin a try/except guard here |
+| scripts/bifrost_runner.py | 36 | `noqa: SIM105` | tests t150/t152 pin a try/except guard here |
 | scripts/bifrost_runner_deepseek.py | 38 | `noqa: SIM105` | runs before every other import (contextlib included): Popen is patched first |
 | scripts/bifrost_runner_deepseek.py | 39 | `noqa: F401` | patches subprocess.Popen |
-| scripts/bifrost_runner_deepseek.py | 1426 | `noqa: BLE001` | fail-soft: logged, caller continues |
-| scripts/bifrost_runner_discord.py | 53 | `noqa: E402` | streams are forced to UTF-8 before the import |
-| scripts/bifrost_runner_discord.py | 120 | `noqa: BLE001` | fail-soft: falls back to a default value |
-| scripts/bifrost_runner_discord.py | 169 | `noqa: BLE001` | fail-soft: falls back to a default value |
-| scripts/bifrost_runner_discord.py | 209 | `noqa: BLE001` | fail-soft: falls back to a default value |
-| scripts/bifrost_runner_discord.py | 232 | `noqa: BLE001` | fail-soft: best effort, skipped on any error |
-| scripts/bifrost_runner_discord.py | 247 | `noqa: SIM115` | handle outlives this function: stored on the Tee for the process lifetime |
-| scripts/bifrost_runner_discord.py | 248 | `noqa: BLE001` | fail-soft: falls back to a default value |
-| scripts/bifrost_runner_discord.py | 258 | `noqa: BLE001` | fail-soft: best effort, skipped on any error |
-| scripts/bifrost_runner_discord.py | 267 | `noqa: BLE001` | fail-soft: best effort, skipped on any error |
-| scripts/bifrost_runner_discord.py | 273 | `noqa: BLE001` | fail-soft: falls back to a default value |
-| scripts/bifrost_runner_discord.py | 311 | `noqa: BLE001` | fail-soft: falls back to a default value |
-| scripts/bifrost_runner_discord.py | 443 | `noqa: BLE001` | fail-soft: falls back to a default value |
-| scripts/bifrost_runner_discord.py | 638 | `noqa: BLE001` | fail-soft: best effort, skipped on any error |
-| scripts/bifrost_runner_discord.py | 642 | `noqa: BLE001` | fail-soft: logged, caller continues |
-| scripts/bifrost_runner_discord.py | 658 | `noqa: BLE001` | fail-soft: logged, caller continues |
-| scripts/bifrost_runner_discord.py | 684 | `noqa: BLE001` | fail-soft: logged, caller continues |
-| scripts/bifrost_runner_discord.py | 711 | `noqa: BLE001` | fail-soft: logged, caller continues |
-| scripts/bifrost_runner_discord.py | 731 | `noqa: BLE001` | fail-soft: logged, caller continues |
-| scripts/bifrost_runner_discord.py | 797 | `noqa: BLE001` | fail-soft: falls back to a default value |
-| scripts/bifrost_runner_discord.py | 834 | `noqa: BLE001` | fail-soft: logged, caller continues |
-| scripts/bifrost_runner_discord.py | 860 | `noqa: BLE001` | fail-soft: logged, caller continues |
-| scripts/bifrost_runner_discord.py | 908 | `noqa: BLE001` | fail-soft: best effort, skipped on any error |
-| scripts/bifrost_runner_discord.py | 923 | `noqa: BLE001` | fail-soft: best effort, skipped on any error |
-| scripts/bifrost_runner_discord.py | 929 | `noqa: BLE001` | fail-soft: logged, caller continues |
-| scripts/bifrost_runner_discord.py | 944 | `noqa: BLE001` | fail-soft: best effort, skipped on any error |
-| scripts/bifrost_runner_discord.py | 961 | `noqa: BLE001` | fail-soft: logged, caller continues |
-| scripts/bifrost_runner_discord.py | 1023 | `noqa: BLE001` | fail-soft: logged, caller continues |
-| scripts/bifrost_runner_discord.py | 1048 | `noqa: BLE001` | fail-soft: logged, caller continues |
-| scripts/bifrost_runner_discord.py | 1059 | `noqa: BLE001` | fail-soft: logged, caller continues |
-| scripts/bifrost_runner_discord.py | 1071 | `noqa: BLE001` | fail-soft: logged, caller continues |
-| scripts/bifrost_runner_discord.py | 1105 | `noqa: BLE001` | fail-soft: logged, caller continues |
-| scripts/bifrost_runner_discord.py | 1126 | `noqa: BLE001` | fail-soft: best effort, skipped on any error |
-| scripts/bifrost_runner_kimi.py | 856 | `noqa: BLE001` | fail-soft: logged, caller continues |
+| scripts/bifrost_runner_deepseek.py | 69 | `noqa: SIM105` | tests t150/t152 pin a try/except guard here |
+| scripts/bifrost_runner_deepseek.py | 73 | `noqa: SIM105` | tests t150/t152 pin a try/except guard here |
+| scripts/bifrost_runner_deepseek.py | 1432 | `noqa: BLE001` | fail-soft: logged, caller continues |
+| scripts/bifrost_runner_discord.py | 35 | `noqa: SIM105` | tests t150/t152 pin a try/except guard here |
+| scripts/bifrost_runner_discord.py | 39 | `noqa: SIM105` | tests t150/t152 pin a try/except guard here |
+| scripts/bifrost_runner_discord.py | 57 | `noqa: E402` | streams are forced to UTF-8 before the import |
+| scripts/bifrost_runner_discord.py | 124 | `noqa: BLE001` | fail-soft: falls back to a default value |
+| scripts/bifrost_runner_discord.py | 173 | `noqa: BLE001` | fail-soft: falls back to a default value |
+| scripts/bifrost_runner_discord.py | 213 | `noqa: BLE001` | fail-soft: falls back to a default value |
+| scripts/bifrost_runner_discord.py | 236 | `noqa: BLE001` | fail-soft: best effort, skipped on any error |
+| scripts/bifrost_runner_discord.py | 251 | `noqa: SIM115` | handle outlives this function: stored on the Tee for the process lifetime |
+| scripts/bifrost_runner_discord.py | 252 | `noqa: BLE001` | fail-soft: falls back to a default value |
+| scripts/bifrost_runner_discord.py | 262 | `noqa: BLE001` | fail-soft: best effort, skipped on any error |
+| scripts/bifrost_runner_discord.py | 271 | `noqa: BLE001` | fail-soft: best effort, skipped on any error |
+| scripts/bifrost_runner_discord.py | 277 | `noqa: BLE001` | fail-soft: falls back to a default value |
+| scripts/bifrost_runner_discord.py | 315 | `noqa: BLE001` | fail-soft: falls back to a default value |
+| scripts/bifrost_runner_discord.py | 447 | `noqa: BLE001` | fail-soft: falls back to a default value |
+| scripts/bifrost_runner_discord.py | 642 | `noqa: BLE001` | fail-soft: best effort, skipped on any error |
+| scripts/bifrost_runner_discord.py | 646 | `noqa: BLE001` | fail-soft: logged, caller continues |
+| scripts/bifrost_runner_discord.py | 662 | `noqa: BLE001` | fail-soft: logged, caller continues |
+| scripts/bifrost_runner_discord.py | 688 | `noqa: BLE001` | fail-soft: logged, caller continues |
+| scripts/bifrost_runner_discord.py | 715 | `noqa: BLE001` | fail-soft: logged, caller continues |
+| scripts/bifrost_runner_discord.py | 735 | `noqa: BLE001` | fail-soft: logged, caller continues |
+| scripts/bifrost_runner_discord.py | 801 | `noqa: BLE001` | fail-soft: falls back to a default value |
+| scripts/bifrost_runner_discord.py | 838 | `noqa: BLE001` | fail-soft: logged, caller continues |
+| scripts/bifrost_runner_discord.py | 864 | `noqa: BLE001` | fail-soft: logged, caller continues |
+| scripts/bifrost_runner_discord.py | 912 | `noqa: BLE001` | fail-soft: best effort, skipped on any error |
+| scripts/bifrost_runner_discord.py | 927 | `noqa: BLE001` | fail-soft: best effort, skipped on any error |
+| scripts/bifrost_runner_discord.py | 933 | `noqa: BLE001` | fail-soft: logged, caller continues |
+| scripts/bifrost_runner_discord.py | 948 | `noqa: BLE001` | fail-soft: best effort, skipped on any error |
+| scripts/bifrost_runner_discord.py | 965 | `noqa: BLE001` | fail-soft: logged, caller continues |
+| scripts/bifrost_runner_discord.py | 1027 | `noqa: BLE001` | fail-soft: logged, caller continues |
+| scripts/bifrost_runner_discord.py | 1052 | `noqa: BLE001` | fail-soft: logged, caller continues |
+| scripts/bifrost_runner_discord.py | 1063 | `noqa: BLE001` | fail-soft: logged, caller continues |
+| scripts/bifrost_runner_discord.py | 1075 | `noqa: BLE001` | fail-soft: logged, caller continues |
+| scripts/bifrost_runner_discord.py | 1109 | `noqa: BLE001` | fail-soft: logged, caller continues |
+| scripts/bifrost_runner_discord.py | 1130 | `noqa: BLE001` | fail-soft: best effort, skipped on any error |
+| scripts/bifrost_runner_gemini.py | 56 | `noqa: SIM105` | tests t150/t152 pin a try/except guard here |
+| scripts/bifrost_runner_gemini.py | 60 | `noqa: SIM105` | tests t150/t152 pin a try/except guard here |
+| scripts/bifrost_runner_kimi.py | 56 | `noqa: SIM105` | tests t150/t152 pin a try/except guard here |
+| scripts/bifrost_runner_kimi.py | 60 | `noqa: SIM105` | tests t150/t152 pin a try/except guard here |
+| scripts/bifrost_runner_kimi.py | 861 | `noqa: BLE001` | fail-soft: logged, caller continues |
+| scripts/bifrost_runner_sol.py | 63 | `noqa: SIM105` | tests t150/t152 pin a try/except guard here |
+| scripts/bifrost_runner_sol.py | 67 | `noqa: SIM105` | tests t150/t152 pin a try/except guard here |
 | scripts/capture_apple_hig.py | 46 | `noqa: BLE001` | fail-soft: logged, caller continues — log and retry; the summary reports misses |
 | scripts/checkers/check_comprehensibility.py | 213 | `noqa: BLE001` | fail-soft: falls back to a default value |
 | scripts/checkers/check_ports.py | 48 | `noqa: E402` | sys.path bootstrap |
@@ -212,8 +224,8 @@
 | scripts/enrich_corpus.py | 40 | `noqa: E402` | sys.path bootstrap |
 | scripts/enrich_corpus.py | 41 | `noqa: E402` | sys.path bootstrap |
 | scripts/enrich_corpus.py | 42 | `noqa: E402` | sys.path bootstrap |
-| scripts/gemini_chat.py | 435 | `noqa: F821` | LATENT ADV-034: `geminiAgent` is undefined here; fixed with a regression test in G4.P2 |
-| scripts/gemini_chat.py | 447 | `noqa: F821` | LATENT ADV-034: `geminiAgent` is undefined here; fixed with a regression test in G4.P2 |
+| scripts/gemini_chat.py | 437 | `noqa: F821` | LATENT ADV-034: `geminiAgent` is undefined here; fixed with a regression test in G4.P2 |
+| scripts/gemini_chat.py | 449 | `noqa: F821` | LATENT ADV-034: `geminiAgent` is undefined here; fixed with a regression test in G4.P2 |
 | scripts/gemini_web.py | 205 | `noqa: F401` | availability probe |
 | scripts/gemini_web.py | 211 | `noqa: F401` | availability probe |
 | scripts/generators/gen_arch_index.py | 22 | `noqa: E402` | sys.path bootstrap |
@@ -264,7 +276,7 @@
 | scripts/revive.py | 537 | `noqa: E731` | local one-line key function |
 | scripts/runners/renew_deepseek_solo.py | 31 | `noqa: E402` | sys.path bootstrap (streams reconfigured first) |
 | scripts/runners/renew_deepseek_solo.py | 32 | `noqa: E402` | sys.path bootstrap (streams reconfigured first) |
-| scripts/sol_chat.py | 117 | `noqa: N813` | public API name |
+| scripts/sol_chat.py | 119 | `noqa: N813` | public API name |
 | scripts/ui_shot.py | 42 | `type: ignore[import-not-found]` |  |
 | scripts/ui_shot.py | 46 | `type: ignore[import-not-found]` |  |
 | scripts/web_door.py | 21 | `noqa: E402` | sys.path bootstrap |
