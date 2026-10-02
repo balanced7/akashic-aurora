@@ -49,7 +49,7 @@ c = liveness._client()
 
 def set_worklive(phase, age):
     c.set(
-        liveness.WORKLIVE_PREFIX + aid,
+        liveness._worklive_prefix() + aid,
         json.dumps(
             {"phase": phase, "since_ts": time.time() - age, "beat_ts": time.time(), "turn": 1, "detail": "", "seq": 1}
         ),
@@ -102,5 +102,5 @@ assert len(revives) == LM.RESTART_MAX_ATTEMPTS, ("must revive up to the cap then
 assert aid not in L._auto_revive, "must DISARM after the cap (break the loop)"
 print(f"[PASS] storm guard: {len(revives)} auto-revives then DISARMED at cap {LM.RESTART_MAX_ATTEMPTS}")
 
-c.delete(liveness.WORKLIVE_PREFIX + aid)
+c.delete(liveness._worklive_prefix() + aid)
 print("\nL3b-auto BACKEND VERIFIED.")

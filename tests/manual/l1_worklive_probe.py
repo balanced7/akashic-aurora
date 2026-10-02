@@ -85,5 +85,5 @@ print("read(unknown) -> None (fail-safe)  [PASS]")
 # cleanup
 c = liveness._client()
 if c:
-    c.delete(liveness.WORKLIVE_PREFIX + A)
+    c.delete(liveness._worklive_prefix() + A)
 print("\nL1 VERIFIED.")

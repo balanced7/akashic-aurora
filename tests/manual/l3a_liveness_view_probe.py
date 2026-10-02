@@ -36,7 +36,7 @@ for f in ("core/comm/liveness.py", "core/comm/launcher.py"):
 A = "l3a_probe"
 c = liveness._client()
 if c:
-    c.delete(liveness.WORKLIVE_PREFIX + A)
+    c.delete(liveness._worklive_prefix() + A)
 
 assert liveness.wedge_view(A) is None
 print("[PASS] no record -> None (fail-safe)")
@@ -68,5 +68,5 @@ print(f"[PASS] registry() carries liveness: {entry['liveness']}")
 
 if c:
     for k in (A, "deepseek"):
-        c.delete(liveness.WORKLIVE_PREFIX + k)
+        c.delete(liveness._worklive_prefix() + k)
 print("\nL3a VERIFIED.")
