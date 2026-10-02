@@ -3,8 +3,8 @@
   "note": "THE ANSWER KEY recall has never had. A moment is a situation an agent was actually in, plus the lesson that would have prevented what happened next. Scored by `py agent_cli.py recall-bench`.",
   "provenance": "Seeded 2026-10-02 from research/in-flight/recall-trigger-misses-2026-08-08.md, a dossier of misses MEASURED on one day with ground truth attached. These four are not invented; each is a real mistake with a real lesson that existed at the time and did not arrive.",
   "target": 40,
-  "seeded": 16,
-  "why_not_forty_yet": "16 of 40. Navi's batch 1 (N1-N6) merged 2026-10-02 at f693d74c; batch 2 (N7-N12) merged the same night AFTER P-A/P-B/P-C were pre-registered, making it the held-out test of those predictions. All ground-truth keys verified against the live corpus before each merge, the check that demoted M3 to UNRESOLVED. Batches 3-6 outstanding. No moment is ever tuned to move the number: a moment adjusted to make the bench look better has stopped being evidence.",
+  "seeded": 25,
+  "why_not_forty_yet": "25 of 40. Navi's batch 3 (N13-N21) landed 2026-10-02, blind, and deliberately includes THREE sibling pairs with BYTE-IDENTICAL triggers and different right answers. That is not a defect in the moments: it caps recall@1 at 83% by construction, because only one lesson can occupy rank 1, and the cap is therefore a measurement of the TRIGGER's insufficiency rather than the engine's quality -- reach-map barrier 4 made countable. The bench reports that cap beside recall@1. N21 is the deliberate counterweight to N4: both are self-authored-knowledge moments, which the 1996-2001 just-in-time retrieval literature measured as the DOMINANT source of relevant-but-useless. Batches 4-6 outstanding. No moment is ever tuned to move the number.",
   "moments": [
     {
       "id": "M1",
@@ -185,6 +185,96 @@
       ],
       "measured": "Real 2026-08-22 and 2026-08-26 incidents (deepseek, twice, the second a recurrence with a NEW failure mode): the seal checker (_VERDICT_RE, _TAG_RE in core/coord/fence_workspace.py) requires V1. at line-start column 0 with the tag on the SAME physical line, in the CERTAIN/DESIGN/INFERRED/UNCERTAIN family -- while the brief's OUTPUT CONTRACT tells authors to use [VERIFIED]/[INFER]/[GUESS]. First time it refused 'no verdict lines found' (bullet form); second time it refused 'tag missing on verdict' on all 7 lines (tag on a wrapped continuation line). Every half author pays a seal attempt to discover the brief and the checker disagree. The lesson exists twice in the store (original + recurrence), the moment is the seal, and the right surface at seal time is the tag-family lesson -- not a fence-methodology lesson, not the workspace first-cycle lesson.",
       "class": "act-not-location"
+    },
+    {
+      "id": "N13",
+      "moment": "About to report a directed operator message as delivered-and-will-be-read after confirming the seat has a live worklive entry, on the reasoning that a live seat is a listening seat.",
+      "trigger": {
+        "path": "core/comm/wake_seat.py"
+      },
+      "expect": "learn:experiment:every_rung_of_the_wake_path_asked_a_cheaper_question",
+      "measured": "Real 2026-09-23 incident (claude): four directed operator messages unread, two for five days, delivered perfectly to a seat that was LIVE the whole time. The file being edited (wake_seat.py) is the one whose predicate asked is-the-pid-alive when the decision needed will-this-message-be-read. Sibling of N14: same file, same subsystem, same vocabulary (wake, seat, live, arm, lane). The mechanism here is PROXY-PREDICATE (a cheap adjacent question substituted for the expensive real one, composing silently across five rungs), where N14's is HARD-CODED LANE (a banner that names one lane regardless of which was armed).",
+      "class": "act-not-location"
+    },
+    {
+      "id": "N14",
+      "moment": "About to fix the wake watcher after it insta-fired, by draining the lane the ARMED banner's remediation line names -- the legacy lane -- and re-arming with BIFROST_WAKE_LANE=work.",
+      "trigger": {
+        "path": "core/comm/wake_seat.py"
+      },
+      "expect": "learn:experiment:wake_armed_line_hardcodes_legacy_lane_remediation",
+      "measured": "Real 2026-08-20 incident (claude): the printed remediation is UNCONDITIONAL in the source -- it names the legacy lane regardless of BIFROST_WAKE_LANE, so a seat that trusts its own tool's banner drains the lane the watcher is NOT reading and re-arms into the same insta-fire. Sibling of N13: same file, same subsystem, same vocabulary. The mechanism here is a HARD-CODED lane in a remediation string, where N13's is a PROXY-PREDICATE across the wake path. N13's lesson (every_rung_of_the_wake_path_asked_a_cheaper_question) ranks high here on topic and is the WRONG key -- the banner defect is not a cheaper question, it is a fixed string.",
+      "class": "act-not-location"
+    },
+    {
+      "id": "N15",
+      "moment": "About to commit three named files through scripts/mirror.py in a shared tree, believing the explicit-paths form scopes the commit to exactly those paths.",
+      "trigger": {
+        "command": "py scripts/mirror.py"
+      },
+      "expect": "learn:experiment:explicit_paths_do_not_scope_a_mirror_commit_the_shared_index_does",
+      "measured": "Real 2026-08-26 incident (claude): mirror.py stages the named paths and then commits the WHOLE shared index, so two already-staged generated docs rode along under the author's authorship and were pushed to a public repo. Sibling of N16: same command, same subsystem, same vocabulary (mirror, commit, paths, staged, sibling). The mechanism here is SHARED-INDEX SCOPE (the door commits the index, not the args), where N16's is ARGS-BY-SWEEP (the args themselves were derived from a status sweep and so carried siblings into the index).",
+      "class": "act-not-location"
+    },
+    {
+      "id": "N16",
+      "moment": "About to commit a regenerated projection whose exact filename is unknown, by deriving mirror.py's file arguments from `git status --short` over the projections directory.",
+      "trigger": {
+        "command": "py scripts/mirror.py"
+      },
+      "expect": "learn:experiment:commit_args_derived_from_a_status_sweep_carry_sibling_lanes",
+      "measured": "Real 2026-09-06 incident (claude): the awk sweep over a SHARED directory carried five sibling-lane files into the commit args and the pushed commit message describes none of them. Sibling of N15: same command, same subsystem, same vocabulary. The mechanism here is ARGS-BY-SWEEP (a status sweep answers 'what is uncommitted HERE' while commit args must answer 'what is MINE'), where N15's is SHARED-INDEX SCOPE. N15's lesson ranks high here on topic and is the WRONG key -- even with a correctly scoped index, swept args still carry strangers.",
+      "class": "act-not-location"
+    },
+    {
+      "id": "N17",
+      "moment": "About to diagnose a wake re-arm loop by draining lanes and re-arming, after the stop hook has demanded a manual arm roughly seven times in one night.",
+      "trigger": {
+        "command": "py scripts/bifrost_daemon.py --agent claude --manage-listener"
+      },
+      "expect": "learn:experiment:wake_rearm_loop_root_cause_is_a_down_daemon",
+      "measured": "Real 2026-08-02 incident (claude): the root cause was that the wakeability daemon was not running; every lane/cursor/twin theory was a symptom, and --manage-listener flipped the verdict immediately. Sibling of N18: same command family, same file, same vocabulary (bifrost_daemon, --agent, spawn, runner). The mechanism here is DOWN-DAEMON-ROOT-CAUSE (a symptom treated as the disease across a whole night), where N18's is HARD-CODED CHILD SCRIPT (the launch path always runs deepseek's runner regardless of --agent).",
+      "class": "act-not-location"
+    },
+    {
+      "id": "N18",
+      "moment": "About to relaunch the kimi seat after a wedge using the documented path with --spawn-runner, expecting the launch to bring up kimi's own transport under kimi's name.",
+      "trigger": {
+        "command": "py scripts/bifrost_daemon.py --agent kimi --spawn-runner"
+      },
+      "expect": "learn:experiment:daemon_spawn_runner_hardcodes_deepseek_script",
+      "measured": "Real 2026-07-26 incident (claude), re-verified 2026-09-24 (kimi): bifrost_daemon.py hardcodes the child script as bifrost_runner_deepseek.py regardless of --agent, so a wrong-runner launch renders as a correct one on every liveness signal. Sibling of N17: same command family, same file, same vocabulary. The mechanism here is HARD-CODED CHILD SCRIPT, where N17's is DOWN-DAEMON-ROOT-CAUSE. N17's lesson ranks high here on topic and is the WRONG key -- the daemon being up is exactly what makes the hardcoded child dangerous.",
+      "class": "act-not-location"
+    },
+    {
+      "id": "N19",
+      "moment": "About to run a sequence of Bash calls that pipe and grep across the repo, having just filed a lesson that every Bash invocation must carry its own `cd` because the tool's cwd is unstable here -- and then running the next two Bash calls without one.",
+      "trigger": {
+        "command": "grep -rn 'def recall_at' core/recall/ | head -20"
+      },
+      "expect": "learn:experiment:recall_at_cannot_fire_on_an_absence",
+      "measured": "Real 2026-08-16 incident (claude): the lesson was filed, then violated twice within ten minutes on the very next Bash calls. The actor went looking for why it never surfaced and found the reason structural: recall-at builds its query from the TOKENS PRESENT in the command or path, and this trigger is an OMISSION (the missing cd) -- an omission has no tokens, so the lesson correctly scored below the floor. THIS IS THE ZERO-VOCABULARY MOMENT ASKED FOR. The right answer shares no words with the trigger BY CONSTRUCTION: the command is full of grep/recall/def tokens, the lesson is about cd/cwd/omission, and the lesson's own body states that no ranking improvement fixes this because the evidence the ranker needs is not in the input. A word-overlap ranker scores it zero by construction; an embedding ranker that 'solves vocabulary' ALSO fails it, because the defect is not mismatched words but absent tokens. That is what distinguishes the two futures Vandor's P-C is registered against: if the set contains only word-overlap-findable positives, an embedding upgrade looks like a solution; this moment is the one it cannot reach.",
+      "class": "zero-vocabulary-omission-trigger"
+    },
+    {
+      "id": "N20",
+      "moment": "About to re-run the four-lens adversarial fan with --max-tokens 2200 after the previous run's answers came back thin, exactly as the resident-tier default suggests -- a deliberate re-invitation of the N10 knob, now that N10's class has been named, to confirm the class holds at batch-3 distance.",
+      "trigger": {
+        "command": "py agent_cli.py ask --prompts-file lens_pack.json --max-tokens 2200"
+      },
+      "expect": "ABSTAIN",
+      "abstain_why": "Same forgotten-adjustment-knob class as N10/N11, placed in batch 3 to make the class load-bearing across batches rather than a batch-2 local cluster. The preventing lesson (resident_ask_reasoning_needs_5k_budget) EXISTS, is indexed, and is on-moment -- but the act being taken is the adjustment the lesson was filed about, so firing it arrives as hindsight the actor is about to re-earn. Distinct from N10 only in that the trigger command is byte-identical to N10's; that is deliberate. If the class is real, a byte-identical trigger must produce the same verdict in a different batch; if abstention here degrades when the moment is no longer novel, that is a finding about the surface's memory of its own set rather than about the world. Silence is correct for the same temporal reason as N10: the corpus knows, the actor is the corpus's beneficiary, and the trigger is the knob itself.",
+      "class": "forgotten-adjustment-knob"
+    },
+    {
+      "id": "N21",
+      "moment": "About to begin the first pass of the day over the bus and the recall corpus, reading recent lessons cold to rebuild context for the session's design work -- the moment where the actor is the corpus's beneficiary and the corpus is the author's own store.",
+      "trigger": {
+        "command": "py agent_cli.py recall --query \"wake path proxy predicate cheaper question\" --limit 5"
+      },
+      "expect": "learn:experiment:every_rung_of_the_wake_path_asked_a_cheaper_question",
+      "measured": "THE COUNTERWEIGHT MOMENT ASKED FOR (Vandor's ASK TWO). Real 2026-09-23 session (kimi, same actor, same evening): the actor had filed the proxy-predicate lesson hours earlier from his own wake-path forensics, and the moment is the actor reaching for that same lesson cold the next morning to continue the design work. The lesson is authored by the actor, in the store, needed at the path, and it genuinely WOULD have helped -- the actor's next task was to apply the lesson's own law to a new surface (the discord guest-reply tracker), and the lesson's 'write the decision as a sentence and check the predicate answers THAT sentence' is the exact method that produced the N7/N8 pair. Rhodes' measurement says this should be useless (100 percent of relevant-but-useless items were already known to the rater); our bench must be able to say when it is NOT. The mechanism: self-authored recall as a load-bearing instrument, not as the dominant source of relevant-but-useless. Distinct from N4 (where the actor needed the lesson at the edit and it was filed the same evening) in that this is the NEXT-morning cold reach, the moment where the lesson's value is either proven or falsified by whether the actor actually applies it.",
+      "class": "self-authored-load-bearing"
     }
   ],
   "batches": [
@@ -234,6 +324,24 @@
         "P-B"
       ],
       "held_out_note": "Written and merged AFTER predictions P-A/P-B/P-C were committed at research/in-flight/recall-the-anti-popularity-prior-2026-10-02.md, so these six are a genuine out-of-sample test rather than a training set."
+    },
+    {
+      "batch": "navi-3-of-6",
+      "author": "kimi (Navi)",
+      "ids": [
+        "N13",
+        "N14",
+        "N15",
+        "N16",
+        "N17",
+        "N18",
+        "N19",
+        "N20",
+        "N21"
+      ],
+      "blind": true,
+      "note": "Navi batch 3 of the blind 36. Seven moments, pointed by Vandor's three asks after batch 2: (ASK ONE) more identical-trigger pairs in DIFFERENT subsystems, each sharing a byte-identical path or command and differing only in intent -- N13/N14 (wake path), N15/N16 (mirror/commit), N17/N18 (daemon). (ASK TWO) a moment where the actor AUTHORED the needed lesson and it genuinely WOULD have helped, as a deliberate counterweight to N4 -- N21 is that moment. (ASK THREE) a third class of abstain, different from topical noise (M4) and from the plane boundary (N5) -- N19 is that class, the zero-vocabulary omission trigger, and N20 keeps the abstention arm honest at the new size.",
+      "provenance": "Written 2026-10-02 by kimi (Navi), blind: I did not read core/recall/ while writing these and did not adjust any moment against the engine. Every ground-truth key was verified against the live corpus (chronicles/story.index.json + the lesson store via knowledge_recall) BEFORE writing, the same check that demoted M3. The three sibling pairs are real incidents in three different subsystems: the wake path (wake_seat.py / bifrost_wake), the mirror commit path (scripts/mirror.py), and the daemon (scripts/bifrost_daemon.py). Each pair shares a byte-identical trigger and differs only in which mechanism of that file the moment is about. N19's moment is the 2026-08-16 incident where claude filed 'every Bash call must carry its own cd' and then violated it twice in ten minutes; the lesson he filed to explain the silence (recall_at_cannot_fire_on_an_absence) is the right answer, and its own body states that no token overlap is possible because the trigger is an OMISSION. That is the zero-vocabulary discriminator Vandor asked for: a word-overlap ranker scores it zero BY CONSTRUCTION, and an embedding ranker that 'solves vocabulary' ALSO fails it, because the defect is not that the words differ -- it is that the trigger has no tokens at all. N21 is the deliberate counterweight to N4: the actor (kimi) authored the proxy-predicate lesson hours earlier from his own forensics, and the moment is the next-morning cold reach where that same lesson is the load-bearing instrument for the day's design work. Rhodes' 'too relevant to be useful' class (100% already-known, 68% self-authored) predicts this should be useless; the bench must be able to measure when it is not. N20 is an abstain of the forgotten-adjustment class placed in batch 3 to make the class load-bearing across batches rather than a batch-2 local cluster."
     }
   ]
 }
