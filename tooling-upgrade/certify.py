@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import fnmatch
 import json
 import re
 import subprocess
@@ -470,7 +471,15 @@ def _gate_d14(t):
     mods = {m for m in base["modules"] if m.startswith("core.")}
     _o3, o5 = oracle.probe_modules(t, inv, graph, raw, mods, python=oracle.venv_python(ROOT))
     oracle._rmtree(raw)
-    return 1 if oracle.compare_o5(base, o5, partial=True) else 0
+    # Same rule as `oracle.py compare`: a diff item covered by a registered intended change
+    # (INTENDED_CHANGES.md, e.g. IC-0002 annotation spelling) is not a DIFF.
+    intended = [e for e in oracle.load_intended() if e["component"] == "O5"]
+    open_ = [
+        d
+        for d in oracle.compare_o5(base, o5, partial=True)
+        if not any(fnmatch.fnmatchcase(d[0], e["key"]) for e in intended)
+    ]
+    return 1 if open_ else 0
 
 
 def _fault_d15(t):
