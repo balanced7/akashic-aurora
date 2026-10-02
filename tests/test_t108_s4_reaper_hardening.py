@@ -52,6 +52,7 @@ def isolated_bus():
     bus = Bus("s4-test", namespace=ns)
     if not bus.online:
         pytest.skip("Redis unavailable")
+    assert bus._client is not None
     try:
         yield ns, bus._client
     finally:
@@ -330,4 +331,4 @@ def test_h9_self_directed_seat_work_remains_answerable_after_rehome(isolated_bus
     assert fields
     meta = json.loads(fields.get("meta") or "{}")
 
-    assert should_answer(str(fields.get("kind") or ""), str(fields.get("frm") or ""), AGENT, meta)
+    assert should_answer(str(fields.get("kind") or ""), str(fields.get("frm") or ""), AGENT, meta)  # pyright: ignore[reportCallIssue]  # pre-registered strict xfail: no meta param yet

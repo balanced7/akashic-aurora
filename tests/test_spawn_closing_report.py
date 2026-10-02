@@ -92,6 +92,7 @@ def test_harness_noise_does_not_displace_the_seats_own_answer():
     hand him a file-not-found error instead of 'I could not comply'. The seat's words are
     the payload; the harness's are not."""
     r = spawn_closing_report(0, RILL_LOG, elapsed_s=30.0, deadline_s=DEADLINE)
+    assert r is not None
     assert "No such file or directory" not in r, f"harness noise displaced the seat's answer: {r!r}"
 
 

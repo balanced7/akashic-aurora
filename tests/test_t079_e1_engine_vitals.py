@@ -58,10 +58,12 @@ AGENT = "e1drill"
 
 
 def _snap(c, **kw):
+    assert ev is not None
     return ev.gauge_snapshot(AGENT, c=c, **kw)
 
 
 def test_p1_shape_always():
+    assert ev is not None
     _built()
     for c in (FakeRedis(), None):
         s = ev.gauge_snapshot(AGENT, c=c, allow_fallback=False)
@@ -91,6 +93,7 @@ def test_p3_runtimes_passthrough():
 
 
 def test_p4_tokens_from_journal(tmp_path):
+    assert ev is not None
     _built()
     c = FakeRedis()
     day = time.strftime("%Y-%m-%d")
@@ -111,6 +114,7 @@ def test_p5_pages_count():
 
 
 def test_p6_never_raises():
+    assert ev is not None
     _built()
 
     class Hostile:

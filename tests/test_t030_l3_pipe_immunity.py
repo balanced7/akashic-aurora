@@ -62,6 +62,7 @@ class _DeadPipe(io.TextIOBase):
 
 
 def test_wrapper_survives_dead_stream_and_latches():
+    assert streams is not None
     dead = _DeadPipe()
     w = streams.pipe_immune(dead)
     for i in range(50):
@@ -83,6 +84,7 @@ def test_truncating_reader_cannot_kill_the_child():
     p = subprocess.Popen(
         [sys.executable, "-c", _CHILD_SPEW % _ROOT], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True
     )
+    assert p.stdout is not None
     for _ in range(3):
         p.stdout.readline()  # take three lines, then hang up mid-spew
     p.stdout.close()
@@ -102,6 +104,7 @@ def test_first_line_visible_within_one_second():
     p = subprocess.Popen(
         [sys.executable, "-c", _CHILD_SLOW % _ROOT], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True
     )
+    assert p.stdout is not None
     try:
         t0 = time.time()
         line = p.stdout.readline()

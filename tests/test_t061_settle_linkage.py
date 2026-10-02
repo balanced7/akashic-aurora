@@ -67,6 +67,7 @@ def test_b2_unlinked_handoff_fifo_clears_oldest(monkeypatch):
     out = expectations.sweep("claude")
     assert out["cleared"] == ["200-0"], f"exactly the OLDEST must clear, got {out['cleared']}"
     c = expectations._client()
+    assert c is not None
     assert c.hget(f"{expectations._key('claude')}", "201-0"), "the newer ask stays armed"
 
 
@@ -79,6 +80,7 @@ def test_b3_note_never_settles(monkeypatch):
     out = expectations.sweep("claude")
     assert out["cleared"] == [], f"a note must never settle an expectation, got {out}"
     c = expectations._client()
+    assert c is not None
     assert c.hget(f"{expectations._key('claude')}", "300-0"), "expectation stays armed"
 
 

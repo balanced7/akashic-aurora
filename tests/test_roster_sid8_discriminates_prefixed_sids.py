@@ -84,7 +84,7 @@ def _restore_env_and_sweep_keys():
         c = _connect()
         for ns in _MINTED:
             keys = list(c.keys(f"{ns}:*")) if c is not None else []
-            if keys:
+            if c is not None and keys:
                 c.delete(*keys)
     except Exception:
         pass
@@ -120,7 +120,7 @@ def test_p0_one_derivation_byte_identical_for_every_existing_shape():
     assert sid8(SID_A) == A8, f"'session-<uuid>' must yield the uuid's hex head, got {sid8(SID_A)!r}"
     assert sid8(sid8(SID_A)) == sid8(SID_A), "idempotent: a tail parsed from a key derives to itself"
     assert sid8("") == "", "empty in, empty out (no seat -> no key)"
-    assert sid8(None) == "", "empty in, empty out (no seat -> no key)"
+    assert sid8(None) == "", "empty in, empty out (no seat -> no key)"  # pyright: ignore[reportArgumentType]  # deliberate: pins the None-tolerant input contract
 
 
 def test_p1_two_prefixed_seats_render_two_rows():
@@ -128,8 +128,8 @@ def test_p1_two_prefixed_seats_render_two_rows():
 
     ns = _ns("p1")
     _client()
-    assert roster.heartbeat(ns, AGENT, SID_A, phase="idle")["ok"]
-    assert roster.heartbeat(ns, AGENT, SID_B, phase="idle")["ok"]
+    assert roster.heartbeat(ns, AGENT, SID_A, phase="idle")["ok"]  # pyright: ignore[reportIndexIssue]  # SOURCE: roster.heartbeat is annotated -> bool, returns a dict
+    assert roster.heartbeat(ns, AGENT, SID_B, phase="idle")["ok"]  # pyright: ignore[reportIndexIssue]  # SOURCE: roster.heartbeat is annotated -> bool, returns a dict
     rows = _rows(ns)
     got = sorted(r["sid8"] for r in rows)
     assert len(rows) == 2, (

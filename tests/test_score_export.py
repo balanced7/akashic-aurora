@@ -99,6 +99,13 @@ def read_smf(data: bytes) -> dict:
 
 
 # ------------------------------------------------------------------------------------------- MusicXML ---
+def _req_text(el: ET.Element, tag: str) -> str:
+    """Return the text of a child MusicXML requires (a missing one is a malformed export)."""
+    text = el.findtext(tag)
+    assert text is not None, f"<{el.tag}> lacks its required <{tag}>"
+    return text
+
+
 def check_musicxml(path: Path, measure_ticks: list[int], log_pitches: Counter) -> tuple[dict, list[dict]]:
     res = {
         "parsed": False,
@@ -141,13 +148,13 @@ def check_musicxml(path: Path, measure_ticks: list[int], log_pitches: Counter) -
                     res["divisions"] = int(d)
                 t = el.find("time")
                 if t is not None:
-                    cur_time = (int(t.findtext("beats")), int(t.findtext("beat-type")))
+                    cur_time = (int(_req_text(t, "beats")), int(_req_text(t, "beat-type")))
             elif el.tag == "backup":
-                cursor -= int(el.findtext("duration"))
+                cursor -= int(_req_text(el, "duration"))
                 if cursor < 0:
                     res["negative_cursor"] += 1
             elif el.tag == "forward":
-                dur = int(el.findtext("duration"))
+                dur = int(_req_text(el, "duration"))
                 v = el.findtext("voice")
                 if v is not None:
                     sums[v] += dur
@@ -173,7 +180,7 @@ def check_musicxml(path: Path, measure_ticks: list[int], log_pitches: Counter) -
             elif el.tag == "note":
                 if el.find("grace") is not None:
                     continue
-                dur = int(el.findtext("duration"))
+                dur = int(_req_text(el, "duration"))
                 voice = el.findtext("voice") or "1"
                 if el.find("chord") is None:
                     # beam structure (ls1-rulings.md LS4): begin / continue / end over consecutive notes of the voice
@@ -203,9 +210,10 @@ def check_musicxml(path: Path, measure_ticks: list[int], log_pitches: Counter) -
                 if el.find("rest") is not None:
                     continue
                 pitch = el.find("pitch")
+                assert pitch is not None, "a sounding <note> lacks its <pitch>"
                 midi = (
-                    (int(pitch.findtext("octave")) + 1) * 12
-                    + STEP_PC[pitch.findtext("step")]
+                    (int(_req_text(pitch, "octave")) + 1) * 12
+                    + STEP_PC[_req_text(pitch, "step")]
                     + int(pitch.findtext("alter") or 0)
                 )
                 staff = el.findtext("staff") or "1"

@@ -45,14 +45,14 @@ class _M:
     id: str = "0-0"
     to: str = "deepseek"
     ts: str = "2026-07-16T00:00:00"
-    meta: dict[str, Any] = None
+    meta: dict[str, Any] | None = None
 
     def __post_init__(self):
         if self.meta is None:
             self.meta = {}
 
 
-def _make_toolbox(agent_id="deepseek", allow_write=False):
+def _make_toolbox(agent_id: str | None = "deepseek", allow_write=False):
     """Lightweight ToolBox for render tests — no confirm, no exec, no trust."""
     from scripts.deepseek_chat import ToolBox
 
@@ -65,7 +65,7 @@ def _make_toolbox(agent_id="deepseek", allow_write=False):
         agent_id=agent_id,
         allow_write=allow_write,
         boot_text="test",
-        boot_sources=[],
+        boot_sources=set(),
     )
 
 

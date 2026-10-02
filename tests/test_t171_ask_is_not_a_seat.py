@@ -26,6 +26,7 @@ Run: py -m pytest tests/test_t171_ask_is_not_a_seat.py -q
 import ast
 import os
 import sys
+from typing import Any
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
@@ -41,6 +42,8 @@ class _Resp:
 
 class _Client:
     """Minimal OpenAI-compatible stand-in."""
+
+    seen: dict[str, Any]
 
     def __init__(self, resp=None, exc=None):
         self._resp, self._exc = resp, exc

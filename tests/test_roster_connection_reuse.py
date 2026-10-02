@@ -69,9 +69,9 @@ class _SocketCounter:
         self._real = real
         counter = self
 
-        def counted(conn, *a, **k):
+        def counted(self, *a, **k):
             counter.n += 1
-            return real(conn, *a, **k)
+            return real(self, *a, **k)
 
         self._rc.Connection._connect = counted
         return self

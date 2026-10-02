@@ -28,6 +28,7 @@ def agent():
     yield aid
     c = Bus(aid)._client
     try:
+        assert c is not None
         for k in (
             f"bifrost:cursor:{aid}",
             f"bifrost:cursor:lane:{aid}",

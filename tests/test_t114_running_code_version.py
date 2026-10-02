@@ -79,28 +79,33 @@ def seat():
     roster.heartbeat(NS, agent, sid, phase="thinking")
     yield agent, sid[:8], liveness.worklive(agent)
     c = liveness._client()
+    assert c is not None
     for k in c.scan_iter(match=f"{NS}:*{agent}*", count=200):
         c.delete(k)
+
+
+def _live_client():
+    from core.comm import liveness
+
+    c = liveness._client()
+    assert c is not None, "redis offline"
+    return c
 
 
 def _seat_doc(agent, sid8):
     import json as _json
 
-    from core.comm import liveness
-
-    return _json.loads(liveness._client().get(f"{NS}:worklive:{agent}#{sid8}") or "{}")
+    return _json.loads(_live_client().get(f"{NS}:worklive:{agent}#{sid8}") or "{}")
 
 
 def _set_seat_sha(agent, sid8, sha):
     import json as _json
 
-    from core.comm import liveness
-
     d = _seat_doc(agent, sid8)
     d["code_sha"] = sha
     if sha is None:
         d.pop("code_sha", None)
-    liveness._client().set(f"{NS}:worklive:{agent}#{sid8}", _json.dumps(d), ex=60)
+    _live_client().set(f"{NS}:worklive:{agent}#{sid8}", _json.dumps(d), ex=60)
 
 
 # --------------------------------------------------------------- P1
@@ -110,11 +115,9 @@ def test_p1_a_process_stamps_the_commit_it_is_running(seat):
     I happened to be looking at would leave the actual offenders invisible."""
     import json as _json
 
-    from core.comm import liveness
-
     agent, sid8, wl = seat
     wl.set("thinking")
-    runner = _json.loads(liveness._client().get(f"{NS}:worklive:{agent}") or "{}")
+    runner = _json.loads(_live_client().get(f"{NS}:worklive:{agent}") or "{}")
     assert runner.get("code_sha"), f"the RUNNER heartbeat must carry its commit: {runner}"
     assert len(str(runner["code_sha"])) >= 7, f"a usable short sha: {runner['code_sha']!r}"
     assert _seat_doc(agent, sid8).get("code_sha"), "the SEAT heartbeat must carry it too"
@@ -139,6 +142,7 @@ def test_p4_a_seat_at_head_is_not_accused(seat):
 
     agent, _sid8, _wl = seat  # fixture already beat the real sha
     row = next((r for r in roster.roster(NS) if agent in r["seat"]), None)
+    assert row is not None
     assert row.get("code_state") != "stale", (
         f"a seat running HEAD must NOT be flagged -- a false staleness page is how the "
         f"real one gets ignored, which this arc has now proved twice: {row}"
@@ -153,6 +157,7 @@ def test_p6_unknown_is_not_stale(seat):
     agent, sid8, _wl = seat
     _set_seat_sha(agent, sid8, None)
     row = next((r for r in roster.roster(NS) if agent in r["seat"]), None)
+    assert row is not None
     assert row.get("code_state") == "unknown", f"no stamp must read UNKNOWN, never STALE: {row}"
 
 
@@ -185,8 +190,9 @@ def test_p7_the_version_probe_never_breaks_a_heartbeat(monkeypatch):
     agent = f"t114{uuid.uuid4().hex[:6]}"
     wl = liveness.worklive(agent)
     wl.set("thinking")  # must not raise
-    if liveness._client() is not None:
-        rec = _json.loads(liveness._client().get(f"{NS}:worklive:{agent}") or "{}")
+    client = liveness._client()
+    if client is not None:
+        rec = _json.loads(client.get(f"{NS}:worklive:{agent}") or "{}")
         assert rec.get("beat_ts"), "the heartbeat itself must still land"
-        for k in liveness._client().scan_iter(match=f"{NS}:*{agent}*", count=200):
-            liveness._client().delete(k)
+        for k in client.scan_iter(match=f"{NS}:*{agent}*", count=200):
+            client.delete(k)

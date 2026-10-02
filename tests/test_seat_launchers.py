@@ -27,6 +27,12 @@ def _which_ok(name):
     return {"dsh": r"C:\Users\L5\AppData\Roaming\npm\dsh"}.get(name)
 
 
+def _resolved(word):
+    rec = sl.resolve_seat(word)
+    assert rec is not None, f"{word!r} must resolve to a seat"
+    return rec
+
+
 # ------------------------------------------------------------------ resolution
 @pytest.mark.parametrize(
     ("word", "seat"),
@@ -80,6 +86,7 @@ def test_rill_states_its_own_identity_and_does_not_inherit_the_launchers():
     parent's id leaks through, the plugin pins itself observe-only and Rill comes up
     present and deaf — indistinguishable, from a phone, from a working seat."""
     rec = sl.resolve_seat("rill")
+    assert rec is not None
     argv, env, cwd = sl.launch_argv(rec, root=ROOT, which=_which_ok, dsh_home=r"C:\dsh")
     assert env.get("AKASHIC_AGENT_ID") == "dsh_agent", env
     assert env.get("DSH_HOME") == r"C:\dsh", env
@@ -93,12 +100,14 @@ def test_EVERY_seat_states_its_own_identity(word, seat):
     """Not just Rill. No seat may inherit the launching process's id — that is how a
     launched seat gets mis-attributed or silently muted."""
     rec = sl.resolve_seat(word)
+    assert rec is not None
     _, env, _ = sl.launch_argv(rec, root=ROOT, which=_which_ok, dsh_home=r"C:\dsh")
     assert env.get("AKASHIC_AGENT_ID") == seat, env
 
 
 def test_a_missing_dsh_cli_REFUSES_rather_than_pretending():
     rec = sl.resolve_seat("rill")
+    assert rec is not None
     with pytest.raises(RuntimeError, match="not on PATH"):
         sl.launch_argv(rec, root=ROOT, which=lambda n: None, dsh_home=r"C:\dsh")
 
@@ -109,6 +118,7 @@ def test_navi_launches_with_her_OWN_runner_not_through_the_daemon():
     (lines 256/416), so `--agent kimi --spawn-runner` hands Kimi the wrong script. A
     non-deepseek seat launches with its own."""
     rec = sl.resolve_seat("navi")
+    assert rec is not None
     argv, _, _ = sl.launch_argv(rec, root=ROOT, which=_which_ok)
     joined = " ".join(argv).replace("\\", "/")
     assert "bifrost_runner_kimi.py" in joined, joined
@@ -123,6 +133,7 @@ def test_navi_launches_TOOLED_not_a_readonly_bridge():
     launch_flags entry is how a registry seat states its door posture; navi's must carry all
     three so the capability acl.json grants actually reaches the spawned process."""
     rec = sl.resolve_seat("navi")
+    assert rec is not None
     argv, _, _ = sl.launch_argv(rec, root=ROOT, which=_which_ok)
     joined = " ".join(argv).replace("\\", "/")
     for flag in ("--agentic", "--allow-exec", "--allow-write"):
@@ -131,6 +142,7 @@ def test_navi_launches_TOOLED_not_a_readonly_bridge():
 
 def test_heimdall_goes_through_the_daemon_which_owns_its_runner_child():
     rec = sl.resolve_seat("heimdall")
+    assert rec is not None
     argv, _, _ = sl.launch_argv(rec, root=ROOT, which=_which_ok)
     joined = " ".join(argv).replace("\\", "/")
     assert "bifrost_daemon.py" in joined, joined
@@ -141,15 +153,15 @@ def test_heimdall_goes_through_the_daemon_which_owns_its_runner_child():
 def test_an_undrilled_lever_does_not_read_like_a_drilled_one():
     """The house rule is that a recovery path without an executed drill is PRESUMED
     BROKEN. If both render identically to the operator, the flag is decoration."""
-    drilled = sl.launch_note(sl.resolve_seat("rill"))
-    undrilled = sl.launch_note(sl.resolve_seat("navi"))
+    drilled = sl.launch_note(_resolved("rill"))
+    undrilled = sl.launch_note(_resolved("navi"))
     assert "drilled 2026-08-24" in drilled, drilled
     assert "NOT yet drilled" in undrilled, undrilled
     assert drilled != undrilled
 
 
 def test_the_note_carries_the_url_when_the_seat_serves_one():
-    assert "127.0.0.1:3080" in sl.launch_note(sl.resolve_seat("rill"))
+    assert "127.0.0.1:3080" in sl.launch_note(_resolved("rill"))
 
 
 # ============================================================================

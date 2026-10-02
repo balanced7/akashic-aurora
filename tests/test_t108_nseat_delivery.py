@@ -119,6 +119,7 @@ def test_pin2_dead_seat_directed_mail_rehomes():
     ro.heartbeat(ns, AGENT, sid8, phase="building")  # A lives, registers its witness
     sender.send(AGENT, "note", f"stranded-{NS}", meta={"to_incarnation": SEAT_A})
     # A dies for real: worklive expires (simulated), seatseen witnesses -> roster says DEAD.
+    assert sender._client is not None
     sender._client.delete(f"{ns}:worklive:{AGENT}#{sid8}")
     dead = [r for r in ro.roster(ns) if r["seat"] == f"{AGENT}#{sid8}"]
     assert dead, f"precondition: A must be PROVABLY dead: {dead}"

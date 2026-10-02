@@ -147,6 +147,7 @@ def _wait_for(fn, timeout, step=0.1):
 
 
 def _cleanup_ns(ns):
+    assert _C is not None
     try:
         for k in _C.scan_iter(match=f"{ns}:*"):
             _C.delete(k)
@@ -164,15 +165,17 @@ def _drill(tmp_path, tag):
 def test_m1_p1_daemon_starts_holds_lock_registers_presence_and_survives(tmp_path):
     """M1-P1: starts, acquires lock, registers presence, survives '60s'.
     Scale: MULT=0.05 -> the pinned 60s of survival = 3.0s wall."""
+    assert _C is not None
+    client = _C  # a narrowed local the polling lambdas can close over
     ns, home = _drill(tmp_path, "p1")
     agent = "t075a"
     proc = _spawn(agent, ns, home, "0.05")
     try:
-        raw = _wait_for(lambda: _C.get(_lock_key(ns, agent)), timeout=12)
+        raw = _wait_for(lambda: client.get(_lock_key(ns, agent)), timeout=12)
         assert raw, "P1: daemon never acquired the runner lock"
         rec = json.loads(raw)
         assert str(rec.get("token", "")).startswith("daemon:"), "P1: lock token is the daemon's stable identity token"
-        assert _wait_for(lambda: _C.get(_presence_key(ns, agent)), timeout=4), (
+        assert _wait_for(lambda: client.get(_presence_key(ns, agent)), timeout=4), (
             "P1: daemon never registered presence (roster check)"
         )
         card = json.loads(_C.get(_presence_key(ns, agent)))
@@ -195,11 +198,13 @@ def test_m1_p2_heartbeat_keeps_holder_fresh(tmp_path):
     """M1-P2: heartbeat keeps the lock TTL fresh; holder ts stays recent.
     Scale: MULT=0.2 -> hb=2s, ttl=12s; the pinned 'ts within last 10s'
     becomes 'ts advances across a 3.5s observation gap' at 1s stamp resolution."""
+    assert _C is not None
+    client = _C  # a narrowed local the polling lambdas can close over
     ns, home = _drill(tmp_path, "p2")
     agent = "t075b"
     proc = _spawn(agent, ns, home, "0.2")
     try:
-        raw = _wait_for(lambda: _C.get(_lock_key(ns, agent)), timeout=12)
+        raw = _wait_for(lambda: client.get(_lock_key(ns, agent)), timeout=12)
         assert raw, "P2: daemon never acquired the lock"
         time.sleep(1.0)
         r1 = json.loads(_C.get(_lock_key(ns, agent)))
@@ -222,6 +227,7 @@ def test_m1_p2_heartbeat_keeps_holder_fresh(tmp_path):
 def test_m1_p11_pre_existing_lock_refused_no_steal(tmp_path):
     """M1-P11: a pre-existing (foreign) lock means REFUSE AND EXIT CLEANLY --
     coexistence phase 1, the operator chooses who runs. No steal, no wait-loop."""
+    assert _C is not None
     ns, home = _drill(tmp_path, "p11")
     agent = "t075c"
     foreign = {
@@ -249,6 +255,7 @@ def test_m1_p12_stable_token_reused_generation_increments(tmp_path):
     REUSES it; the fencing generation still increments per acquisition.
     Also pins the clean-exit contract: --max-runtime (raw seconds, drill hatch)
     ends the run benignly and RELEASES the lock."""
+    assert _C is not None
     ns, home = _drill(tmp_path, "p12")
     agent = "t075d"
     up_re = re.compile(r"\[daemon\] up .*token=(\S+) gen=(\d+)")
@@ -283,11 +290,13 @@ def test_r_a1_same_token_twin_refused_first_daemon_unharmed(tmp_path):
     """R-a1: a second daemon on the SAME host (same dotfile -> same stable token)
     while the first lives must REFUSE -- runner_lock's own-token re-entrancy
     would otherwise let two processes both believe they hold the seat."""
+    assert _C is not None
+    client = _C  # a narrowed local the polling lambdas can close over
     ns, home = _drill(tmp_path, "ra1")
     agent = "t075e"
     first = _spawn(agent, ns, home, "0.05")
     try:
-        raw = _wait_for(lambda: _C.get(_lock_key(ns, agent)), timeout=12)
+        raw = _wait_for(lambda: client.get(_lock_key(ns, agent)), timeout=12)
         assert raw, "R-a1: first daemon never came up"
         pid1 = json.loads(raw).get("pid")
         second = _spawn(agent, ns, home, "0.05")

@@ -57,7 +57,7 @@ def test_auto_park_on_d2_stale_partition(monkeypatch):
         kind: str
         content: str
         ts: str
-        meta: dict = None
+        meta: dict | None = None
 
         def __post_init__(self):
             if self.meta is None:
@@ -166,6 +166,8 @@ def test_sender_notified_on_auto_park(monkeypatch):
     }
     triage_park.park("deepseek", msg, reason="stale 72h (D2 auto-triage)", by="deepseek-runner")
     # The sender's inbox should contain the triage notification
-    inbox = Bus("t-sender")._client.xrevrange(f"{ns}:inbox:t-sender", count=5)
+    sender_client = Bus("t-sender")._client
+    assert sender_client is not None
+    inbox = sender_client.xrevrange(f"{ns}:inbox:t-sender", count=5)
     joined = " ".join(str(f) for _sid, f in inbox)
     assert "parked" in joined.lower(), "RB-29: sender notified that their ask was parked (never silent)"

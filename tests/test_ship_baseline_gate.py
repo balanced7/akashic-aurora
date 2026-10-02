@@ -80,7 +80,9 @@ def test_p3_a_fixed_failure_tightens_the_baseline(monkeypatch, tmp_path):
     )
     assert "tests/test_b.py::test_two" in v["fixed"]
     assert v["blocked"] is False
-    remaining = {f["node"] for f in sb.read()["failures"]}
+    baseline = sb.read()
+    assert baseline is not None
+    remaining = {f["node"] for f in baseline["failures"]}
     assert "tests/test_b.py::test_two" not in remaining, (
         "a fixed test stayed in the amnesty -- the list must ratchet DOWN automatically or it "
         "becomes a growing pile of permitted red"
@@ -146,7 +148,9 @@ def test_p9_the_gate_is_read_only_by_default(monkeypatch, tmp_path):
 
     _mk(monkeypatch, tmp_path, ["tests/test_a.py::test_one", "tests/test_b.py::test_two"])
     ship_gate.evaluate(["tests/test_a.py::test_one"])  # test_two passes; default call
-    remaining = {f["node"] for f in sb.read()["failures"]}
+    baseline = sb.read()
+    assert baseline is not None
+    remaining = {f["node"] for f in baseline["failures"]}
     assert "tests/test_b.py::test_two" in remaining, (
         "the gate mutated the shared baseline just by being run -- shrinking is good, but "
         "it must be something a seat CHOOSES, not a side effect of a green ship"
@@ -164,7 +168,9 @@ def test_p10_absence_is_not_evidence_of_passing(monkeypatch, tmp_path):
     _mk(monkeypatch, tmp_path, ["tests/test_a.py::test_one", "tests/test_gone.py::test_x"])
     # test_a ran and passed; test_gone was never collected at all
     v = ship_gate.evaluate(["tests/test_a.py::test_one"], tighten=True, collected=["tests/test_a.py::test_one"])
-    remaining = {f["node"] for f in sb.read()["failures"]}
+    baseline = sb.read()
+    assert baseline is not None
+    remaining = {f["node"] for f in baseline["failures"]}
     assert "tests/test_gone.py::test_x" in remaining, (
         "an uncollected node was removed as 'fixed' -- absence is UNCHECKABLE, never a pass"
     )

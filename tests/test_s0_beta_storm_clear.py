@@ -142,6 +142,7 @@ def test_work_backlog_is_cursor_relative(monkeypatch):
 
     agent = f"t-wb-{_uuid.uuid4().hex[:6]}"
     b = Bus(agent)
+    assert b._client is not None
     key = f"{ns}:work:inbox:{agent}"
     for i in range(4):
         b._client.xadd(key, {"kind": "inform", "frm": "x", "content": f"m{i}"})
@@ -185,6 +186,7 @@ def test_storm_clear_pause_skip_resume_with_receipt(monkeypatch):
     )
     # Fence amendment A3: the broadcast streams are {ns}:broadcast (legacy) +
     # {ns}:work:broadcast (lane) -- not {ns}:bc as the original pin guessed.
+    assert b._client is not None
     tail = b._client.xrevrange(f"{ns}:work:broadcast", count=3) + b._client.xrevrange(f"{ns}:broadcast", count=3)
     joined = " ".join(str(f) for _sid, f in tail)
     assert "storm-clear" in joined, "receipt broadcast landed"

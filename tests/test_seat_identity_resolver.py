@@ -149,14 +149,15 @@ def test_r6_no_hook_silently_defaults_identity_to_a_peer_name(which):
     no regex was written for. Importing is still avoided: a hook's module body runs on import.
     """
     import ast
+    from typing import TypeGuard
 
     PEERS = {"claude", "deepseek", "kimi", "codex", "gemini", "sol", "composer"}
 
-    def _reads_agent_env(node) -> bool:
+    def _reads_agent_env(node: ast.AST) -> TypeGuard[ast.Call]:
         """os.getenv("AKASHIC_AGENT_ID"...) or os.environ.get("AKASHIC_AGENT_ID"...)"""
         return (
             isinstance(node, ast.Call)
-            and node.args
+            and len(node.args) > 0
             and isinstance(node.args[0], ast.Constant)
             and node.args[0].value == "AKASHIC_AGENT_ID"
         )

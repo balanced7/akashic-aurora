@@ -29,7 +29,7 @@ class _FakeBus:
         raise AssertionError("clarifications must be DIRECTED to user, never broadcast")
 
 
-def _box(monkeypatch, bus="fake"):
+def _box(monkeypatch, bus: str | None = "fake"):
     import deepseek_chat as dc
 
     box = dc.ToolBox.__new__(dc.ToolBox)
@@ -44,6 +44,7 @@ def test_b1_fourth_call_refused(monkeypatch):
     import deepseek_chat as dc
 
     box, fake = _box(monkeypatch)
+    assert fake is not None
     for i in range(dc.CLARIFY_MAX_PER_TASK):
         out = box.ask_clarification(f"question {i}?")
         assert "REFUSED" not in out
@@ -64,6 +65,7 @@ def test_b2_bus_offline_returns_error(monkeypatch):
 # ------------------------------------------------ B3: directed-send shape
 def test_b3_directed_to_user_with_clarify_meta(monkeypatch):
     box, fake = _box(monkeypatch)
+    assert fake is not None
     out = box.ask_clarification("A or B?", context="deciding the frobnicator")
     assert "Waiting" in out or "waiting" in out
     assert len(fake.sent) == 1

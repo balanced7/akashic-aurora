@@ -158,7 +158,9 @@ def test_p4_reassignment_appends_and_the_history_survives(residents):
     assert [h["role"] for h in e10] == ["Jester", "Oracle"], (
         "both assignments must survive in order -- an update path would erase the timeline"
     )
-    assert R.current_role("kimi")["role"] == "Oracle", "current = the LATEST event, projected"
+    current = R.current_role("kimi")
+    assert current is not None
+    assert current["role"] == "Oracle", "current = the LATEST event, projected"
 
 
 # ------------------------------------------------------------------ P5: the rendered split

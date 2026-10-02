@@ -70,6 +70,7 @@ def peers():
     sender = Bus(a, namespace=NS, promote=False)
     if not sender.online:
         pytest.skip("bus offline")
+    assert sender._client is not None
     yield sender, a, b
     for k in sender._client.scan_iter(match=f"{NS}:*{a}*", count=200):
         sender._client.delete(k)
@@ -272,6 +273,7 @@ def test_p11_the_sender_learns_it_was_collapsed_not_just_stderr():
     sender = _Bus(a, namespace=NS, promote=False)
     if not sender.online:
         pytest.skip("bus offline")
+    assert sender._client is not None
     try:
         first = sender.send(rcv, "question", "fence this please")
         assert sender.last_reask is None, (

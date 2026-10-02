@@ -69,6 +69,7 @@ def test_p2_a_sentence_is_a_task_not_a_launch(phrase):
 
 def test_p3_launches_the_sol_runner_not_the_shared_deepseek_script():
     rec = SL.resolve_seat("sunshine")
+    assert rec is not None
     argv, _env, cwd = SL.launch_argv(rec, root=ROOT)
 
     joined = " ".join(argv)
@@ -96,6 +97,7 @@ def test_p3_launches_the_sol_runner_not_the_shared_deepseek_script():
 
 def test_p3b_launches_agentic_with_exec_but_not_write():
     rec = SL.resolve_seat("sunshine")
+    assert rec is not None
     argv, _, _ = SL.launch_argv(rec, root=ROOT)
 
     assert "--agentic" in argv, (
@@ -120,6 +122,7 @@ def test_p3b_launches_agentic_with_exec_but_not_write():
 
 def test_p4_env_states_its_own_identity():
     rec = SL.resolve_seat("sol")
+    assert rec is not None
     _, env, _ = SL.launch_argv(rec, root=ROOT)
     assert env.get("AKASHIC_AGENT_ID") == "sol", (
         f"every seat states its own identity; inheriting it is how a seat wakes up as someone else: {env}"
@@ -134,6 +137,7 @@ def test_p4_env_states_its_own_identity():
 
 def test_p5_refuses_loudly_when_the_script_is_absent():
     rec = SL.resolve_seat("sunshine")
+    assert rec is not None
     assert os.path.isfile(os.path.join(ROOT, "scripts", "bifrost_runner_sol.py")), (
         "precondition: sol has a runner script"
     )
@@ -149,6 +153,7 @@ def test_p5_refuses_loudly_when_the_script_is_absent():
 
 def test_p6_launch_note_confesses_when_the_lever_is_not_drilled():
     rec = SL.resolve_seat("sunshine")
+    assert rec is not None
     note = SL.launch_note(rec)
     assert "Sunshine" in note, note
     assert "sol" in note, note

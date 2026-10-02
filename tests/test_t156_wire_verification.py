@@ -128,8 +128,9 @@ def test_a4_rotate_terminates_when_deletion_is_impossible(tmp_path):
         j.record(model="m", status=200)
     real_remove = os.remove
     os.remove = lambda p: None  # deletion "succeeds" but frees nothing
+    old = WJ.MAX_FILES
     try:
-        WJ.MAX_FILES, old = 1, WJ.MAX_FILES
+        WJ.MAX_FILES = 1
         _, dur = _timed(j._rotate)
         assert dur < 2.0, f"_rotate did not terminate when deletion freed nothing ({dur:.1f}s)"
     finally:

@@ -37,7 +37,9 @@ def test_now_iso_is_aware_utc():
     s = now_iso()
     dt = datetime.fromisoformat(s)
     assert dt.tzinfo is not None, f"now_iso must be tz-aware, got naive: {s}"
-    assert dt.utcoffset().total_seconds() == 0, f"now_iso must be UTC, got {s}"
+    offset = dt.utcoffset()
+    assert offset is not None, f"now_iso must be tz-aware, got naive: {s}"
+    assert offset.total_seconds() == 0, f"now_iso must be UTC, got {s}"
 
 
 def test_to_epoch_roundtrips_now_iso():

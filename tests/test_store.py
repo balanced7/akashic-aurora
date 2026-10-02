@@ -206,6 +206,7 @@ def test_redisstore_if_available():
         print("\n--- RedisStore ---\n  SKIPPED (Redis not running)")
         return
     _exercise_all_structures(rs, "RedisStore (live)")
+    assert rs._client is not None
     rs._client.flushdb()  # leave the test DB clean
     print("  RedisStore live parity OK")
 

@@ -9,6 +9,8 @@ from sol_chat import SolAgent
 
 
 class _Item:
+    usage: "_Item"  # set only on responses that carry usage
+
     def __init__(self, **kw):
         self.__dict__.update(kw)
 

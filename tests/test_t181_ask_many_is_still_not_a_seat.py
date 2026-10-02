@@ -58,6 +58,7 @@ class _Client:
 
         class _Completions:
             def create(self, model=None, messages=None, max_tokens=None):
+                assert messages is not None
                 prompt = messages[-1]["content"]
                 if prompt in outer.boom_on:
                     raise RuntimeError(f"branch {prompt} refused")

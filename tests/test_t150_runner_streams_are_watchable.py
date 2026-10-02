@@ -35,6 +35,7 @@ import io
 import os
 import re
 import sys
+from typing import cast
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
@@ -103,7 +104,7 @@ def test_o5_the_guard_actually_survives_a_hostile_stream():
 
     s = NoReconfigure()
     try:
-        s.reconfigure(encoding="utf-8", errors="replace", line_buffering=True)
+        cast("io.TextIOWrapper", s).reconfigure(encoding="utf-8", errors="replace", line_buffering=True)
     except Exception:
         pass  # exactly what the runner's guard must do
     else:

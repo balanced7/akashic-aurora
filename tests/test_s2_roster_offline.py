@@ -38,7 +38,9 @@ def _ro():
 def _client():
     from core.comm.bus import get_bus
 
-    return get_bus(AGENT)._client
+    c = get_bus(AGENT)._client
+    assert c is not None
+    return c
 
 
 def _mine(ns, ro):

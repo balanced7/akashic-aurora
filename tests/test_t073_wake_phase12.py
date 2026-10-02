@@ -99,6 +99,7 @@ def test_p10_sends_stamp_frm_incarnation():
     b = Bus("deepseek", namespace=ns)
     b.send("claude", "handoff", "take this")
     b.send_reply("claude", "the answer")
+    assert b._client is not None
     for _eid, fields in b._client.xrange(f"{ns}:work:inbox:claude") + b._client.xrange(f"{ns}:inbox:claude"):
         meta = json.loads(dict(fields).get("meta", "{}"))
         assert meta.get("frm_incarnation"), "every send stamps its incarnation (best-effort id)"
@@ -121,6 +122,7 @@ def test_to_incarnation_flag_reaches_meta():
     ns = f"bifrost_t073_{uuid.uuid4().hex[:8]}"
     b = Bus("claude", namespace=ns)
     b.send("claude", "chat", "[twin-sync] ping", meta={"to_incarnation": "b0b7771d"})
+    assert b._client is not None
     _eid, fields = b._client.xrange(f"{ns}:inbox:claude")[0]
     meta = json.loads(dict(fields).get("meta", "{}"))
     assert meta.get("to_incarnation") == "b0b7771d"

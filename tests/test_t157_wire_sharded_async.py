@@ -62,7 +62,8 @@ def _wj():
 
     from scripts import wire_journal
 
-    return importlib.reload(wire_journal)
+    importlib.reload(wire_journal)  # reloads in place: the same module object, re-executed
+    return wire_journal
 
 
 def _mk(tmp_path, agent, **kw):

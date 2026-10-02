@@ -182,6 +182,8 @@ def test_watcher_stands_down_for_tombstoned_session(sid, tmp_path, capsys):
     import importlib.util
 
     spec = importlib.util.spec_from_file_location("bifrost_wake", os.path.join(REPO, "scripts", "bifrost_wake.py"))
+    assert spec is not None
+    assert spec.loader is not None
     bw = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(bw)
     assert wake_seat.write_tombstone(sid)  # default tempdir -- where watch() looks
@@ -199,6 +201,8 @@ def test_cycle_line_reports_elapsed(sid, tmp_path, capsys):
     import importlib.util
 
     spec = importlib.util.spec_from_file_location("bifrost_wake2", os.path.join(REPO, "scripts", "bifrost_wake.py"))
+    assert spec is not None
+    assert spec.loader is not None
     bw = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(bw)
     hb = str(tmp_path / "seat2.pid")

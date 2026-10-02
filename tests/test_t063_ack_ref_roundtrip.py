@@ -72,6 +72,7 @@ def test_resolved_but_unackable_blames_content_not_form():
         print("SKIPPED (Redis not running)")
         return
     mid = sender.send(AGENT, "handoff", f"unpromoted-{TAG}")
+    assert mid is not None
     from core.comm import mailbox
 
     ns = sender.ns

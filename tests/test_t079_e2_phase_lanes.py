@@ -44,6 +44,7 @@ class FakeRedis:
 
 
 def test_l1_lane_depths():
+    assert ld is not None
     _built()
     c = FakeRedis({"bifrost:work:inbox:claude": 3, "bifrost:inbox:claude": 7, "bifrost:trace": 100})
     d = ld.lane_depths("claude", c=c)
@@ -69,6 +70,7 @@ def _touch(d, name, age_s=0):
 
 
 def test_f1_phase_ladder(tmp_path):
+    assert fp is not None
     _built()
     d = str(tmp_path)
     _touch(d, "claude-widget-2026-07-15.md", 300)
@@ -84,10 +86,12 @@ def test_f1_phase_ladder(tmp_path):
 
 
 def test_f2_idle(tmp_path):
+    assert fp is not None
     _built()
     assert fp.fence_phase("nothing", reviewed_dir=str(tmp_path))["phase"] == "idle"
 
 
 def test_f3_never_raises():
+    assert fp is not None
     _built()
     assert fp.fence_phase("x", reviewed_dir="Z:/does/not/exist")["phase"] == "idle"

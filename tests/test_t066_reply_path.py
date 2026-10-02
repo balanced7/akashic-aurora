@@ -91,6 +91,7 @@ def _entries(client, key):
 def test_p1_reply_is_lane_first():
     ns = _ns()
     b = _bus("deepseek", ns)
+    assert b._client is not None
     mid = b.send_reply("claude", "the answer", meta={"answers": "1-0"})
     assert mid, "send_reply must return a message id"
     lane_writes = [k for k in b._client.xadd_keys if ":work:inbox:claude" in k]
@@ -107,6 +108,7 @@ def test_p1_reply_is_lane_first():
 def test_p2_lane_failure_retries_then_falls_back_loud(capsys):
     ns = _ns()
     b = _bus("deepseek", ns, fail={":work:inbox:claude": 2})  # initial + retry both fail
+    assert b._client is not None
     mid = b.send_reply("claude", "the answer")
     assert mid, "legacy fallback must still deliver"
     lane_attempts = [k for k in b._client.xadd_keys if ":work:inbox:claude" in k]
@@ -120,6 +122,7 @@ def test_p2_lane_failure_retries_then_falls_back_loud(capsys):
 def test_p3_reply_carries_unique_reply_id():
     ns = _ns()
     b = _bus("deepseek", ns)
+    assert b._client is not None
     b.send_reply("claude", "answer one")
     b.send_reply("claude", "answer two")
     metas = [json.loads(e.get("meta", "{}")) for e in _entries(b._client, f"{ns}:work:inbox:claude")]
@@ -151,6 +154,7 @@ def test_p4_receiver_drops_legacy_duplicate_keeps_work_copy(monkeypatch):
     api.bus.advance_to(inbox=nxt.get("inbox"), bc=nxt.get("bc"), cursor_key=api.bus.lane_cursor_key())
 
     # the legacy twin re-surfaces later (same envelope, same reply_id, fresh stream id)
+    assert sender._client is not None
     twin = dict(_entries(sender._client, f"{ns}:inbox:claude")[0])
     twin.pop("_id", None)
     sender._client.xadd(f"{ns}:inbox:claude", twin)
@@ -166,6 +170,7 @@ def test_p4_receiver_drops_legacy_duplicate_keeps_work_copy(monkeypatch):
 def test_p4_unit_is_duplicate_reply_marks_and_ttls():
     ns = _ns()
     b = _bus("deepseek", ns)
+    assert b._client is not None
     assert b.is_duplicate_reply("rid-1") is False, "first sight marks, reports not-duplicate"
     assert b.is_duplicate_reply("rid-1") is True, "second sight within TTL is a duplicate"
     ttl = b._client.ttl(f"{ns}:reply_seen:rid-1")
@@ -182,6 +187,7 @@ def test_p5_p6_non_reply_kinds_now_lane_first_and_legacy_compat():
     P6 (backward compat): legacy inbox still carries everything for pre-lane consumers."""
     ns = _ns()
     b = _bus("deepseek", ns)
+    assert b._client is not None
     b.send("claude", "handoff", "take this")
     lane_first = [k for k in b._client.xadd_keys if ":work:inbox:claude" in k]
     legacy_first = [k for k in b._client.xadd_keys if k.endswith(":inbox:claude") and ":work:" not in k]
@@ -203,6 +209,7 @@ def test_p7_lane_write_failure_is_loud_for_all_kinds(capsys):
     must be visible -- the operator needs to know a kind is falling back to legacy."""
     ns = _ns()
     b = _bus("deepseek", ns, fail={":work:inbox:claude": 5})
+    assert b._client is not None
     mid = b.send("claude", "handoff", "take this")
     assert mid, "legacy delivery unaffected"
     err = capsys.readouterr().err

@@ -60,7 +60,15 @@ def _run_cli(args, store=None):
     from agent_cli import cmd_story
 
     class FakeArgs:
-        pass
+        chronicle: bool
+        session_end: bool
+        track: str | None
+        theme: str | None
+        themes: bool
+        at: str | None
+        chapter: str | None
+        beat: str | None
+        json: bool
 
     fa = FakeArgs()
     fa.chronicle = "--chronicle" in args
@@ -152,9 +160,11 @@ def test_story_chapter():
     """`story --chapter ID` prints full chapter."""
     s, _cdir = _setup_story()
     raw_at = s.get("narr:atlas:current")
+    assert raw_at is not None
     at = Atlas.from_dict(json.loads(raw_at))
     # Get first chapter from first track
     raw_t = s.get(track_key(at.tracks[0]))
+    assert raw_t is not None
     tr = Track.from_dict(json.loads(raw_t))
     cid = tr.chapters[0]
     out, rc = _run_cli([f"--chapter={cid}"], store=s)
@@ -169,8 +179,10 @@ def test_story_chapter_json():
     """`story --chapter ID --json` returns Chapter as JSON."""
     s, _cdir = _setup_story()
     raw_at = s.get("narr:atlas:current")
+    assert raw_at is not None
     at = Atlas.from_dict(json.loads(raw_at))
     raw_t = s.get(track_key(at.tracks[0]))
+    assert raw_t is not None
     tr = Track.from_dict(json.loads(raw_t))
     cid = tr.chapters[0]
     out, rc = _run_cli([f"--chapter={cid}", "--json"], store=s)
@@ -186,10 +198,13 @@ def test_story_beat():
     """`story --beat ID` prints full beat."""
     s, _cdir = _setup_story()
     raw_at = s.get("narr:atlas:current")
+    assert raw_at is not None
     at = Atlas.from_dict(json.loads(raw_at))
     raw_t = s.get(track_key(at.tracks[0]))
+    assert raw_t is not None
     tr = Track.from_dict(json.loads(raw_t))
     raw_ch = s.get(chapter_key(tr.chapters[0]))
+    assert raw_ch is not None
     ch = Chapter.from_dict(json.loads(raw_ch))
     bid = ch.beats[0]
     out, rc = _run_cli([f"--beat={bid}"], store=s)
@@ -204,10 +219,13 @@ def test_story_beat_json():
     """`story --beat ID --json` returns Beat as JSON."""
     s, _cdir = _setup_story()
     raw_at = s.get("narr:atlas:current")
+    assert raw_at is not None
     at = Atlas.from_dict(json.loads(raw_at))
     raw_t = s.get(track_key(at.tracks[0]))
+    assert raw_t is not None
     tr = Track.from_dict(json.loads(raw_t))
     raw_ch = s.get(chapter_key(tr.chapters[0]))
+    assert raw_ch is not None
     ch = Chapter.from_dict(json.loads(raw_ch))
     bid = ch.beats[0]
     out, rc = _run_cli([f"--beat={bid}", "--json"], store=s)
@@ -284,11 +302,14 @@ def test_story_drill_pointer():
     """
     s, _cdir = _setup_story()
     raw_at = s.get("narr:atlas:current")
+    assert raw_at is not None
     at = Atlas.from_dict(json.loads(raw_at))
     raw_t = s.get(track_key(at.tracks[0]))
+    assert raw_t is not None
     tr = Track.from_dict(json.loads(raw_t))
     cid = tr.chapters[0]
     raw_ch = s.get(chapter_key(cid))
+    assert raw_ch is not None
     ch = Chapter.from_dict(json.loads(raw_ch))
     bid = ch.beats[0]
     raw_b = s.get(beat_key(bid))

@@ -23,6 +23,8 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 def _snap_module():
     path = REPO_ROOT / "scripts" / "ops" / "snapshot_knowledge.py"
     spec = importlib.util.spec_from_file_location("snapshot_knowledge", path)
+    assert spec is not None
+    assert spec.loader is not None
     mod = importlib.util.module_from_spec(spec)
     sys.modules["snapshot_knowledge"] = mod
     spec.loader.exec_module(mod)

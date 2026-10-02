@@ -88,7 +88,7 @@ def test_ir6_p2_research_note_delegates_to_knowledge_learn():
         agent_id="test",
         allow_write=False,
         boot_text="",
-        boot_sources=[],
+        boot_sources=set(),
     )
     seen = {}
 
@@ -127,7 +127,7 @@ def test_ir6_p3_research_note_fields_preserved():
         agent_id="test",
         allow_write=False,
         boot_text="",
-        boot_sources=[],
+        boot_sources=set(),
     )
     seen = {}
 

@@ -52,6 +52,7 @@ def _claim(agent, sid="deadbeef01"):
 def _aged(agent):
     """A now= far past the claim ts, so the grace gate passes without sleeping."""
     rec = runner_lock.holder(agent)
+    assert rec is not None
     return runner_lock._ts_epoch(rec["ts"], default=time.time()) + GRACE + 100
 
 
@@ -86,7 +87,9 @@ def test_fresh_activity_marker_means_alive(agent, tmp_path):
     v = runner_lock.free_if_dead(agent, now=now, tmp=str(tmp_path))
     assert not v["freed"]
     assert v["reason"].startswith("marker-fresh")
-    assert runner_lock.holder(agent)["token"] == tok
+    holder = runner_lock.holder(agent)
+    assert holder is not None
+    assert holder["token"] == tok
 
 
 def test_dead_listener_pid_frees_the_seat(agent, tmp_path):

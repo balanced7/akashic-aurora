@@ -95,6 +95,8 @@ def test_ungated_ceiling_holds_the_second_exception(tmp_path, monkeypatch):
     import importlib.util
 
     spec = importlib.util.spec_from_file_location("recon_gate", CHECKER)
+    assert spec is not None
+    assert spec.loader is not None
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     _spec_root(tmp_path)

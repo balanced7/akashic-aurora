@@ -44,6 +44,7 @@ pytestmark = pytest.mark.skipif(not _BUILT, reason="L5 pins pre-registered; impl
 
 def _online() -> bool:
     try:
+        assert control is not None
         return control._client() is not None
     except Exception:
         return False
@@ -53,6 +54,7 @@ def _online() -> bool:
 
 
 def test_ttl_pause_self_heals(monkeypatch):
+    assert control is not None
     if not _online():
         pytest.skip("live-Redis pin; bus offline")
     # Repaired 2026-07-15: PAUSE_KEY became per-call _pause_key() in the 07-12
@@ -68,13 +70,16 @@ def test_ttl_pause_self_heals(monkeypatch):
         time.sleep(1.3)
         assert control.is_paused(), "ttl-less pause persists (human intent)"
     finally:
-        control._client().delete("rb30pin:control:paused")
+        client = control._client()
+        assert client is not None
+        client.delete("rb30pin:control:paused")
 
 
 # --- P2: the pause render line is pure, loud, and teaching ---
 
 
 def test_pause_line_pure_render():
+    assert control is not None
     assert control.format_pause_line({"paused": False, "online": True}) == ""
     line = control.format_pause_line(
         {
@@ -97,6 +102,7 @@ def test_pause_line_pure_render():
 
 
 def test_bus_loss_guard_sequence():
+    assert liveness is not None
     g = liveness.BusLossGuard(max_dead=10)
     assert g.beat(True) == "ok"
     backoffs = []

@@ -33,6 +33,7 @@ Run: py -m pytest tests/test_t169_budget_exhaustion_still_answers.py -q
 
 import os
 import sys
+from typing import Any
 
 import pytest
 
@@ -63,7 +64,7 @@ class _Box:
 
 def _agent(turns, tools_enabled=True):
     """An Agent whose _stream_turn is scripted. `turns` is a list of (content, tool_calls)."""
-    a = DC.Agent.__new__(DC.Agent)
+    a: Any = DC.Agent.__new__(DC.Agent)  # a hand-assembled fake: attributes are set ad hoc
     a.messages = []
     a.model = "fake"
     a.think = False

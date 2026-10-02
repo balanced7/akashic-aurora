@@ -56,6 +56,7 @@ def test_s5_c1_sigterm_daemon_children_terminated_within_5s():
     )
 
     # Wait for daemon to print "up" and spawn the runner
+    assert p.stdout is not None
     started = time.time()
     runner_spawned = False
     while time.time() - started < 45:  # 30s flaked under full-suite + live-runner load (sweep 2026-07-23)

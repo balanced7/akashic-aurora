@@ -115,6 +115,7 @@ def test_p5_a_virgin_incarnation_cursor_inherits_the_agent_position():
     shared = _bus("deepseek")
     if not shared.online:
         pytest.skip("bus offline")
+    assert shared._client is not None
     shared._client.delete(f"{NS}:cursor:lane:deepseek", f"{NS}:cursor:lane:deepseek#a1b2c3d4")
     shared._client.hset(f"{NS}:cursor:lane:deepseek", mapping={"inbox": "1785000000000-0", "bc": "1785000000009-0"})
     try:

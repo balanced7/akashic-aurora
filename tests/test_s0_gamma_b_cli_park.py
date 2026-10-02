@@ -52,6 +52,7 @@ def _plant_stale(ns, agent, kind, content, frm="t-gamma-b-snd"):
     from core.comm.bus import Bus
 
     c = Bus(agent)._client
+    assert c is not None
     old_ms = int(time.time() * 1000) - 48 * 3600 * 1000  # 48h old
     c.xadd(
         f"{ns}:inbox:{agent}",
@@ -147,7 +148,9 @@ def test_sender_notified_on_cli_auto_park(monkeypatch):
     from agent.bifrost_pull import consume_inbox
 
     consume_inbox(agent, limit=20)
-    inbox = Bus(sender)._client.xrevrange(f"{ns}:inbox:{sender}", count=10)
+    sender_client = Bus(sender)._client
+    assert sender_client is not None
+    inbox = sender_client.xrevrange(f"{ns}:inbox:{sender}", count=10)
     joined = " ".join(str(f) for _sid, f in inbox)
     assert "parked" in joined.lower(), "RB-29: sender notified their ask was parked"
 

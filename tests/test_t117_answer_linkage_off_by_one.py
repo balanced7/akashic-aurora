@@ -140,6 +140,7 @@ def test_p3_an_answered_ask_never_redrives(sender, monkeypatch):
     _arm(sender, "1785226575154-0", "kimi", "1785226472805-0", 1785226575.19)
     _sweep_with(sender, [_Reply("1785228386835-0", "kimi", answers="1785226575153-0")], monkeypatch)
     c = E._client()
+    assert c is not None
     assert "1785226575154-0" not in (c.hgetall(E._key(sender)) or {}), (
         "the expectation must be GONE, not merely reported cleared"
     )
@@ -179,6 +180,7 @@ def test_p6_the_reply_settles_the_ASK_IT_NAMES_not_the_fifo_oldest(sender, monke
 
     s = sender
     c = E._client()
+    assert c is not None
     # Arm two expectations to the same target. The OLDER is the FIFO trap.
     _arm(s, "1785226575000-0", "kimi", "1785226574000-0", 1785226575.0)
     _arm(s, "1785226575154-0", "kimi", "1785226575100-0", 1785226575.19)
@@ -211,6 +213,7 @@ def test_p7_the_bus_records_the_dual_id_alias_at_emit():
     bus = _Bus(a, namespace=ns, promote=False)
     if not bus.online:
         pytest.skip("bus offline")
+    assert bus._client is not None
     try:
         mid = bus.send(b, "question", "alias pin: does the emit record the twin?")
         assert mid
@@ -243,6 +246,7 @@ def test_p8_one_reply_settles_exactly_one_ask_across_sweeps(sender, monkeypatch)
     expectation whose anchor predates it."""
     s = sender
     c = E._client()
+    assert c is not None
     _arm(s, "1785226575000-0", "kimi", "1785226574000-0", 1785226575.0, deadline_past=False)  # older, UNANSWERED
     _arm(s, "1785226575200-0", "kimi", "1785226575100-0", 1785226575.2)  # newer
     reply = _Reply("1785228386835-0", "kimi", answers="1785226575200-0")
@@ -281,6 +285,7 @@ def test_p10_marker_write_failure_never_reopens_double_settlement(sender, monkey
     written, the expectation must survive (loud redrive beats silent wrong-work)."""
     s = sender
     c = E._client()
+    assert c is not None
     _arm(s, "1785226575000-0", "kimi", "1785226574000-0", 1785226575.0, deadline_past=False)  # older, UNANSWERED
     _arm(s, "1785226575200-0", "kimi", "1785226575100-0", 1785226575.2)  # newer
     reply = _Reply("1785228386835-0", "kimi", answers="1785226575200-0")
@@ -359,6 +364,7 @@ def test_p12_a_broken_settle_transition_preserves_everything(sender, monkeypatch
     both asks armed, cleared=[]. Loud redrive beats deletion without receipt."""
     s = sender
     c = E._client()
+    assert c is not None
     _arm(s, "1785226575000-0", "kimi", "1785226574000-0", 1785226575.0, deadline_past=False)
     _arm(s, "1785226575200-0", "kimi", "1785226575100-0", 1785226575.2, deadline_past=False)
     monkeypatch.setattr(E, "_settle_once", lambda *a, **k: False)
@@ -378,6 +384,7 @@ def test_p13_redrive_lane_id_settles_only_the_original_never_the_fifo_trap(sende
     original may clear; the trap must survive."""
     s = sender
     c = E._client()
+    assert c is not None
     _arm(s, "1785226570000-0", "kimi", "1785226569000-0", 1785226570.0, deadline_past=False)  # the FIFO trap
     _arm(s, "1785226575154-0", "kimi", "1785226575100-0", 1785226575.19, deadline_past=True, redrives=2)  # the original
 

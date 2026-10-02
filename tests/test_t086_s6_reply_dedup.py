@@ -33,12 +33,12 @@ def test_s6_d1_reply_already_sent_redis_fast_path(monkeypatch):
     r = _runner_module()
 
     class FakeBus:
-        class _client:
+        class _Client:
             @staticmethod
             def exists(key):
                 return True
 
-        _client = _client()
+        _client = _Client()
 
     assert r._reply_already_sent(FakeBus(), "msg-1") is True
 
@@ -48,12 +48,12 @@ def test_s6_d2_reply_already_sent_store_backstop(monkeypatch):
     r = _runner_module()
 
     class FakeBus:
-        class _client:
+        class _Client:
             @staticmethod
             def exists(key):
                 raise Exception("redis down")
 
-        _client = _client()
+        _client = _Client()
 
     # Use a real FileStore (no Redis) as the durable backstop
     from core.foundation.store import FileStore
@@ -76,14 +76,14 @@ def test_s6_d3_mark_reply_sent_writes_both(monkeypatch):
     redis_written = {}
 
     class FakeBus:
-        class _client:
+        class _Client:
             @staticmethod
             def set(key, value, ex=None, nx=None):
                 redis_written["key"] = key
                 redis_written["value"] = value
                 return True
 
-        _client = _client()
+        _client = _Client()
 
     from core.foundation.store import FileStore
 
@@ -108,12 +108,12 @@ def test_s6_d4_probe_error_fail_open(monkeypatch):
     r = _runner_module()
 
     class FakeBus:
-        class _client:
+        class _Client:
             @staticmethod
             def exists(key):
                 raise Exception("redis down")
 
-        _client = _client()
+        _client = _Client()
 
     # Make create_store raise too
     monkeypatch.setattr("core.foundation.store.create_store", lambda: (_ for _ in ()).throw(RuntimeError("store down")))

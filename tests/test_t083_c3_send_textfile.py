@@ -16,7 +16,7 @@ import agent_cli
 
 class _FakeBus:
     online = True
-    sent = None
+    sent: dict[str, str] | None = None
 
     def __init__(self, *a, **k):
         pass
@@ -40,7 +40,7 @@ def _run(argv, monkeypatch):
     _FakeBus.sent = None
     parser = agent_cli.build_parser() if hasattr(agent_cli, "build_parser") else None
     if parser is None:  # fall back to main() with argv
-        return agent_cli.main(argv)
+        return agent_cli.main(argv)  # pyright: ignore[reportCallIssue]  # dead fallback: build_parser exists
     args = parser.parse_args(argv)
     return args.fn(args)
 
@@ -65,6 +65,7 @@ def test_text_file_body_with_flag_shaped_prose(tmp_path, monkeypatch):
         monkeypatch,
     )
     assert rc == 0
+    assert _FakeBus.sent is not None
     assert _FakeBus.sent["text"] == body  # the flag-shaped prose arrived intact
     assert _FakeBus.sent["to"] == "deepseek"
 
@@ -74,6 +75,7 @@ def test_positional_text_still_works(monkeypatch):
         ["bifrost-send", "claude", "hello", "there", "--to", "deepseek", "--expect-reply-within", "0"], monkeypatch
     )
     assert rc == 0
+    assert _FakeBus.sent is not None
     assert _FakeBus.sent["text"] == "hello there"
 
 

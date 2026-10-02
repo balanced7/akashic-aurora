@@ -48,7 +48,13 @@ def test_calling_model_phase_is_set_before_create():
         chat = _Chat()
 
     ag = dc.Agent(
-        _Client(), None, model="deepseek-test", system="s", think=False, tools_enabled=False, on_activity=on_activity
+        _Client(),
+        None,  # pyright: ignore[reportArgumentType]  # test double: tools_enabled=False needs no ToolBox
+        model="deepseek-test",
+        system="s",
+        think=False,
+        tools_enabled=False,
+        on_activity=on_activity,
     )
     ag.send("hello")
     assert captured["at_create"] == "calling-model", (
@@ -94,7 +100,13 @@ def test_phase_flips_to_thinking_once_the_stream_yields():
         chat = _Chat()
 
     ag = dc.Agent(
-        _Client(), None, model="deepseek-test", system="s", think=False, tools_enabled=False, on_activity=on_activity
+        _Client(),
+        None,  # pyright: ignore[reportArgumentType]  # test double: tools_enabled=False needs no ToolBox
+        model="deepseek-test",
+        system="s",
+        think=False,
+        tools_enabled=False,
+        on_activity=on_activity,
     )
     ag.send("hello")
     assert "calling-model" in seq, "the call-issued phase must be marked before create()"

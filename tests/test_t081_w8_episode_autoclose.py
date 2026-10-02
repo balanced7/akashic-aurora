@@ -48,6 +48,7 @@ def test_content_episode_closed_and_drafted():
     assert res["title"] != "Untitled episode"
     assert s.get(ep.EPISODE_OPEN_KEY) is None  # open_next=False -> nothing dangling
     ch = load_chapter_from_store(s, res["chapter_id"])
+    assert ch is not None
     assert ch.span_end is not None  # span stamped closed
 
 

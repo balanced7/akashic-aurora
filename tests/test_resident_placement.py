@@ -119,6 +119,7 @@ def test_p3_placement_never_touches_the_callsign_or_mints_a_formerly(posted):
 
     R.place(agent="kimi", family="Jade", team="Red", number=1, by="daniil_pin")
     rec = R.get("kimi")
+    assert rec is not None
     assert rec["callsign"] == "Navi", "placement must not change the name"
     assert not rec.get("formerly"), (
         f"placement must not mint a formerly: entry -- no name was superseded: {rec.get('formerly')}"
@@ -192,4 +193,6 @@ def test_p8_a_re_placement_changes_the_vendor_and_the_latest_wins(posted):
     R.place(agent="kimi", family="Jade", team="Red", number=1, vendor="Kimi-K3", by="daniil_pin")
     d = R.designation("kimi")
     assert "Kimi-K3" in d, f"the latest vendor must win: {d!r}"
-    assert R.get("kimi")["callsign"] == "Navi", "and re-homing must NOT rename the resident"
+    rehomed = R.get("kimi")
+    assert rehomed is not None
+    assert rehomed["callsign"] == "Navi", "and re-homing must NOT rename the resident"

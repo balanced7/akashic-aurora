@@ -52,6 +52,7 @@ class FakeRedis:
 
 
 def test_p1_p2_append_capped_and_peek():
+    assert pager is not None
     _built()
     c = FakeRedis()
     for i in range(55):
@@ -63,6 +64,7 @@ def test_p1_p2_append_capped_and_peek():
 
 
 def test_p3_ack_clears_idempotent():
+    assert pager is not None
     _built()
     c = FakeRedis()
     pager.page("a", "x", c=c)
@@ -72,6 +74,7 @@ def test_p3_ack_clears_idempotent():
 
 
 def test_p4_hook_lines_render():
+    assert pager is not None
     _built()
     c = FakeRedis()
     assert pager.hook_lines(c=c) == []
@@ -83,5 +86,6 @@ def test_p4_hook_lines_render():
 
 
 def test_p5_fail_open():
+    assert pager is not None
     _built()
     assert pager.page("a", "x", c=None, allow_fallback=False) is False

@@ -60,7 +60,9 @@ def _ro():
 def _client():
     from core.comm.bus import get_bus
 
-    return get_bus(AGENT)._client
+    c = get_bus(AGENT)._client
+    assert c is not None
+    return c
 
 
 def test_p1_provably_live_vs_stale():
@@ -180,6 +182,7 @@ def test_p7_have_summary_reads_through_the_bus_door():
     ro.heartbeat(ns, AGENT, SEAT_A, phase="sync")
     rows = ro.roster(ns)
     mine = next(r for r in rows if r.get("seat") == f"{AGENT}#{SEAT_A}")
+    assert b._client is not None
     door_val = str(b._client.hget(b._seat_cursor_key(SEAT_A), "seat") or "0")
     assert str(mine["have"].get("seat_inbox")) == door_val != "0", (
         f"HAVE-SUMMARY DOOR MISMATCH: roster's seat_inbox={mine['have'].get('seat_inbox')} "

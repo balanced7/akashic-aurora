@@ -28,11 +28,15 @@ Run: py -m pytest tests/test_t179_capture_cannot_lie.py -q
 
 import os
 import sys
+from typing import TYPE_CHECKING, cast
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
 from core.events import event_log as EL  # noqa: E402  # sys.path bootstrap
+
+if TYPE_CHECKING:
+    from core.foundation.ledger import Ledger
 
 
 class _Ledger:
@@ -60,7 +64,7 @@ class _Index:
 
 def _log(ledger=None, index=None):
     log = EL.EventLog.__new__(EL.EventLog)  # bypass __init__'s store wiring
-    log.ledger = ledger or _Ledger()
+    log.ledger = cast("Ledger", ledger or _Ledger())  # duck-typed fake ledger
     log.index = index
     return log
 

@@ -123,6 +123,7 @@ def test_p4_stale_message_dropped_never_delivered():
 def test_p5_claim_state_is_a_projection_of_the_durable_layer():
     rq = _rq()
     mid = rq.publish(NS + "p", AGENT, "task", f"proj-{NS}")
+    assert mid is not None
     a = rq.claim_next(NS + "p", AGENT, SEAT_A, block_ms=0)
     assert a is not None
     st = rq.claim_state(NS + "p", AGENT, mid)

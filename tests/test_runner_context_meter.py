@@ -83,7 +83,9 @@ def test_cache_rate_is_reportable_and_safe_at_zero():
     a = _agent()
     assert a.cache_rate() is None, "no data must report None, never a fake 0%"
     a._absorb_usage(_Usage(1000, 10, hit=800, miss=200))
-    assert abs(a.cache_rate() - 0.8) < 1e-6
+    rate = a.cache_rate()
+    assert rate is not None
+    assert abs(rate - 0.8) < 1e-6
 
 
 def test_context_high_water_tracks_the_real_driver():
@@ -108,6 +110,6 @@ def test_meter_is_wired_to_the_streaming_usage_path():
         and isinstance(n.func, ast.Attribute)
         and n.func.attr in ("_absorb_usage", "_mark_context")
     ]
-    names = {c.func.attr for c in calls}
+    names = {c.func.attr for c in calls if isinstance(c.func, ast.Attribute)}
     assert "_absorb_usage" in names, "usage is parsed but _absorb_usage is never called"
     assert "_mark_context" in names, "context high-water is defined but never sampled"

@@ -144,6 +144,7 @@ def test_p5_a_superseded_callsign_becomes_formerly_and_still_resolves(seeded):
     R.ratify(nominee="kimi", callsign="Muninn", by="daniil")
 
     now = R.get("kimi")
+    assert now is not None
     assert now["callsign"] == "Muninn", "the active callsign must be the ratified successor"
     assert "Snooze" in (now.get("formerly") or []), (
         "the superseded callsign must survive as a formerly: entry, never be deleted"

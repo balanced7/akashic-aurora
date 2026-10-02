@@ -7,6 +7,8 @@ from pathlib import Path
 _spec = importlib.util.spec_from_file_location(
     "mcp_register", Path(__file__).resolve().parent.parent / "scripts" / "mcp_register.py"
 )
+assert _spec is not None
+assert _spec.loader is not None
 mcp_register = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(mcp_register)
 

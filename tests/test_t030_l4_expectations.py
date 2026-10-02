@@ -56,6 +56,7 @@ def pair():
     """(sender, recipient) with teardown of every touched key. Both cursors park at the
     live broadcast tail (harness-only, the RB-21 _quiesce lesson: a live runner's trace
     backlog must not leak into pin reads; gen-0 commit valid on never-fenced agents)."""
+    assert Bus is not None
     s = f"rb29snd-{uuid.uuid4().hex[:8]}"
     r = f"rb29rcv-{uuid.uuid4().hex[:8]}"
     for aid in (s, r):
@@ -64,6 +65,7 @@ def pair():
     yield s, r
     try:
         c = Bus(s)._client
+        assert c is not None
         for k in (
             f"bifrost:expect:{s}",
             f"bifrost:inbox:{s}",
@@ -79,6 +81,8 @@ def pair():
 
 
 def _arm(s, r, within=60, content="answer me"):
+    assert Bus is not None
+    assert expectations is not None
     orig = Bus(s).send(r, "request", content)
     assert orig
     assert expectations.arm(s, orig, r, "request", content, within)
@@ -89,6 +93,7 @@ def _arm(s, r, within=60, content="answer me"):
 
 
 def test_arm_records_and_clamps(pair):
+    assert expectations is not None
     s, r = pair
     t0 = time.time()
     _arm(s, r, within=5)
@@ -101,6 +106,7 @@ def test_arm_records_and_clamps(pair):
 
 
 def test_sweep_before_deadline_noop(pair):
+    assert expectations is not None
     s, r = pair
     t0 = time.time()
     _arm(s, r, within=60)
@@ -114,6 +120,8 @@ def test_sweep_before_deadline_noop(pair):
 
 
 def test_redrive_past_deadline(pair):
+    assert Bus is not None
+    assert expectations is not None
     s, r = pair
     t0 = time.time()
     orig = _arm(s, r, within=60)
@@ -130,6 +138,7 @@ def test_redrive_past_deadline(pair):
 
 
 def test_exhaustion_emits_dead_event(pair, monkeypatch):
+    assert expectations is not None
     s, r = pair
     seen = []
     monkeypatch.setattr(expectations, "_emit_dead", lambda *a, **k: seen.append((a, k)))
@@ -151,6 +160,8 @@ def test_exhaustion_emits_dead_event(pair, monkeypatch):
 
 
 def test_linked_reply_clears_exactly_and_survives_consumption(pair):
+    assert Bus is not None
+    assert expectations is not None
     s, r = pair
     t0 = time.time()
     first = _arm(s, r, within=60, content="q-first")
@@ -170,6 +181,8 @@ def test_linked_reply_clears_exactly_and_survives_consumption(pair):
 
 
 def test_nonanswer_note_does_not_clear(pair):
+    assert Bus is not None
+    assert expectations is not None
     s, r = pair
     t0 = time.time()
     _arm(s, r, within=60)

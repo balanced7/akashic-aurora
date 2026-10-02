@@ -197,6 +197,7 @@ def test_f1_utf8_decode_error_cannot_kill_drainer_and_wedge_child(monkeypatch, t
     )
     try:
         mc.spawn()
+        assert mc._drainer is not None
         deadline = time.time() + 4.0
         while mc.alive and time.time() < deadline:
             time.sleep(0.02)
@@ -305,6 +306,7 @@ def test_read_summary_success(tmp_path):
     p = tmp_path / "s.json"
     p.write_text(json.dumps({"exit_code": 0, "turns": 5, "verdict": "ok"}))
     s = read_summary(str(p))
+    assert s is not None
     assert s["turns"] == 5
     assert s["verdict"] == "ok"
 
@@ -350,6 +352,7 @@ def test_p5r_daemon_spawns_runner_child_on_start(tmp_path):
     """P5r integration: daemon --spawn-runner acquires its daemon lock and
     spawns the runner child (visible in stdout). Two-tier lock split confirmed:
     daemon lock key exists independent of runner lock."""
+    assert _C is not None
     ns = f"t075d-p5r-{os.getpid()}"
     home = str(tmp_path)
     daemon_lock_key = f"{ns}:daemon:t075p5r"
@@ -411,6 +414,7 @@ def test_p9_daemon_starts_in_spawn_runner_mode(tmp_path):
     """P9 integration: daemon --spawn-runner starts and holds daemon lock.
     The circuit breaker is wired -- unit pin test_child_circuit_breaker_trips
     covers the trip logic. This test proves the spawn-runner path is live."""
+    assert _C is not None
     ns = f"t075d-p9-{os.getpid()}"
     home = str(tmp_path)
     daemon_lock_key = f"{ns}:daemon:t075p9"

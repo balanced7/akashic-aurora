@@ -95,6 +95,7 @@ def _seat_key():
 
 # --------------------------------------------------------------- B1 + B7 (the shadow dies)
 def test_b1_own_seat_released_and_successor_claims_instantly(fake, tmp_path):
+    assert session_exit is not None
     _built()
     tok = f"session:{SID}"
     ok, gen, _ = runner_lock.claim_consumer(AGENT, tok)
@@ -110,6 +111,7 @@ def test_b1_own_seat_released_and_successor_claims_instantly(fake, tmp_path):
 
 # --------------------------------------------------------------- B2 (foreign seat untouched)
 def test_b2_foreign_seat_untouched(fake, tmp_path):
+    assert session_exit is not None
     _built()
     foreign = f"session:{SID2}"
     assert runner_lock.claim_consumer(AGENT, foreign)[0]
@@ -121,6 +123,7 @@ def test_b2_foreign_seat_untouched(fake, tmp_path):
 
 # --------------------------------------------------------------- B3 (own card only)
 def test_b3_own_card_deleted_sibling_card_kept(fake, tmp_path):
+    assert session_exit is not None
     _built()
     inc.publish_card(AGENT, SID, pid=111, c=fake)
     inc.publish_card(AGENT, SID2, pid=222, c=fake)
@@ -132,6 +135,7 @@ def test_b3_own_card_deleted_sibling_card_kept(fake, tmp_path):
 
 # --------------------------------------------------------------- B4 (listener files, own only)
 def test_b4_listener_seat_and_marker_removed_own_session_only(fake, tmp_path):
+    assert session_exit is not None
     _built()
     tmp = str(tmp_path)
     for sid in (SID, SID2):
@@ -155,6 +159,7 @@ def test_b4_listener_seat_and_marker_removed_own_session_only(fake, tmp_path):
 
 # --------------------------------------------------------------- B5 (PreCompact = continue)
 def test_b5_precompact_never_acts(fake, tmp_path):
+    assert session_exit is not None
     _built()
     tok = f"session:{SID}"
     runner_lock.claim_consumer(AGENT, tok)
@@ -169,6 +174,7 @@ def test_b5_precompact_never_acts(fake, tmp_path):
 
 # --------------------------------------------------------------- B6 (kill switch)
 def test_b6_kill_switch(fake, tmp_path, monkeypatch):
+    assert session_exit is not None
     _built()
     monkeypatch.setenv("AKASHIC_CLEAN_DEATH", "0")
     runner_lock.claim_consumer(AGENT, f"session:{SID}")
@@ -179,6 +185,7 @@ def test_b6_kill_switch(fake, tmp_path, monkeypatch):
 
 # --------------------------------------------------------------- provenance is auditable
 def test_provenance_line_appended(fake, tmp_path):
+    assert session_exit is not None
     _built()
     tmp = str(tmp_path)
     session_exit.clean_death(AGENT, SID, tmp=tmp, c=fake, event="SessionEnd")

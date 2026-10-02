@@ -76,6 +76,7 @@ def test_scry_to_bottom_unpark_returns_intact(monkeypatch):
     }
     e = triage_park.park("t-agent", msg, reason="test", by="t-test")
     back = triage_park.unpark("t-agent", e["parked_id"])
+    assert back is not None
     assert back["msg"] == msg, "unpark returns the message INTACT (scry-to-bottom law)"
     assert triage_park.list_parked("t-agent") == [], "the bench forgets what it returned"
 
@@ -98,7 +99,9 @@ def test_parking_notifies_the_sender_loudly(monkeypatch):
         "ts": "2026-07-18T00:00:00",
     }
     triage_park.park("t-agent", msg, reason="stale", by="t-test")
-    inbox = Bus("t-sender")._client.xrevrange(f"{ns}:inbox:t-sender", count=5)
+    sender_client = Bus("t-sender")._client
+    assert sender_client is not None
+    inbox = sender_client.xrevrange(f"{ns}:inbox:t-sender", count=5)
     joined = " ".join(str(f) for _sid, f in inbox)
     assert "parked" in joined.lower(), "RB-29: the sender HEARS about the parking (never silent)"
 

@@ -50,6 +50,7 @@ def test_w7_mechanical_wrap_refuses_to_clobber_curated(monkeypatch, capsys):
     mem = _isolated_mem(monkeypatch)
     mem.decide("where-we-are", "HAND-CURATED HANDOFF: precious", curated=True)
     before = _head(mem, "where-we-are")
+    assert before is not None
     rc = agent_cli.cmd_wrap(_args())
     out = capsys.readouterr().out
     assert rc == 1, "W7: the guarded wrap must refuse, loudly, not exit clean"
@@ -57,6 +58,7 @@ def test_w7_mechanical_wrap_refuses_to_clobber_curated(monkeypatch, capsys):
     assert "--force" in out, f"W7: the refusal must teach both escape hatches, got: {out}"
     assert "--title" in out, f"W7: the refusal must teach both escape hatches, got: {out}"
     after = _head(mem, "where-we-are")
+    assert after is not None
     assert after.id == before.id, "W7: nothing may be written on refusal"
     assert after.decision == "HAND-CURATED HANDOFF: precious", "W7: nothing may be written on refusal"
 
@@ -68,6 +70,7 @@ def test_w8_force_supersedes_deliberately(monkeypatch):
     rc = agent_cli.cmd_wrap(_args(force=True))
     assert rc == 0
     head = _head(mem, "where-we-are")
+    assert head is not None
     assert head.decision != "HAND-CURATED HANDOFF", "W8: --force supersedes"
     assert head.curated is False, "the wrap output stays honestly MECHANICAL even under --force"
 
@@ -78,7 +81,9 @@ def test_w9_title_records_alongside_curated_untouched(monkeypatch):
     mem.decide("where-we-are", "HAND-CURATED HANDOFF", curated=True)
     rc = agent_cli.cmd_wrap(_args(title="where-we-are-2026-07-15"))
     assert rc == 0
-    assert _head(mem, "where-we-are").decision == "HAND-CURATED HANDOFF", "W9: curated head untouched"
+    curated = _head(mem, "where-we-are")
+    assert curated is not None
+    assert curated.decision == "HAND-CURATED HANDOFF", "W9: curated head untouched"
     side = _head(mem, "where-we-are-2026-07-15")
     assert side is not None
     assert side.curated is False
@@ -90,7 +95,9 @@ def test_r7_legacy_unflagged_head_is_not_guarded(monkeypatch):
     mem.decide("where-we-are", "legacy pre-flag note")  # curated=None
     rc = agent_cli.cmd_wrap(_args())
     assert rc == 0, "R7: no inference -- an unproven head is not protected"
-    assert _head(mem, "where-we-are").decision != "legacy pre-flag note"
+    wrapped = _head(mem, "where-we-are")
+    assert wrapped is not None
+    assert wrapped.decision != "legacy pre-flag note"
 
 
 # ---------------------------------------------------------------- R8 focus is deliberate

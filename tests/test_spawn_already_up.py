@@ -72,7 +72,7 @@ def test_ordinary_death_is_not_already_up():
 
 def test_no_log_is_not_already_up():
     assert DI.spawn_already_up_reason("") is None
-    assert DI.spawn_already_up_reason(None) is None
+    assert DI.spawn_already_up_reason(None) is None  # pyright: ignore[reportArgumentType]  # deliberate: pins the None-tolerant input contract
 
 
 def test_case_insensitive_and_one_line_result():

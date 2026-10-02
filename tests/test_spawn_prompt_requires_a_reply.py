@@ -34,7 +34,9 @@ SRC = (REPO / "scripts" / "bifrost_runner_discord.py").read_text(encoding="utf-8
 def _spawn_prompt_block() -> str:
     """The literal source slice that builds `prompt` inside `_spawn`, isolated from the
     rest of the (large) file so a match elsewhere can never fake this pin green."""
-    start = re.search(r'prompt = \(\s*f"You were spawned by the operator', SRC).start()  # any line layout
+    found = re.search(r'prompt = \(\s*f"You were spawned by the operator', SRC)  # any line layout
+    assert found is not None, "the _spawn prompt block is missing"
+    start = found.start()
     end = SRC.index(")\n", start)
     return SRC[start:end]
 

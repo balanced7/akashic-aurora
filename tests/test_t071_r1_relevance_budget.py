@@ -34,8 +34,12 @@ Run: py -m pytest tests/test_t071_r1_relevance_budget.py -q   (no Redis needed)
 import os
 import sys
 import time
+from typing import TYPE_CHECKING, cast
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+if TYPE_CHECKING:
+    from core.learning.learning_store import LearningStore
 
 try:
     from core.context import relevance_budget as rb
@@ -72,6 +76,7 @@ TASK = "T077 harden the wake listener seat files in scripts/bifrost_wake.py (com
 
 
 def _select(lessons, task=TASK, credit=None, cap=2000):
+    assert rb is not None
     return rb.select_within_budget(
         FakeStore(lessons), task, cap_chars=cap, now=NOW, credit_fn=(credit or (lambda source: {}))
     )
@@ -131,6 +136,7 @@ def test_p4_recency_breaks_ties():
 
 # --------------------------------------------------------------- R1-P5 the FIXED cap (the noise regression)
 def test_p5_fixed_cap_junk_cannot_crowd_a_real_hit():
+    assert rb is not None
     _built()
     junk = [
         _lesson(f"junk{i}", f"attempt {i}", category="general", ts=NOW - i) for i in range(100)
@@ -162,6 +168,7 @@ def test_p6_funnel_credit_boosts_cited_over_ignored():
 
 # --------------------------------------------------------------- R1-P7 top hit guaranteed + clip confessed
 def test_p7_top_hit_always_included_and_clip_is_said():
+    assert rb is not None
     _built()
     long_hit = _lesson("hit", "Use when touching T077: " + "detail " * 600, category="general", ts=NOW)
     picked = _select([long_hit], cap=300)
@@ -194,6 +201,6 @@ def test_kill_switch_falls_back_to_legacy(monkeypatch):
 
     monkeypatch.setenv("AKASHIC_RELEVANCE_BUDGET", "0")
     store = FakeStore([_lesson("only", "anything", ts=NOW)])
-    out = ll.load_learnings_for_boot(TASK, learning_store=store, now=NOW)
+    out = ll.load_learnings_for_boot(TASK, learning_store=cast("LearningStore", store), now=NOW)
     assert out, "R1-d: kill switch must serve the legacy loader shape, not an empty section"
     assert out[0]["source"] == "only", "R1-d: kill switch must serve the legacy loader shape, not an empty section"
