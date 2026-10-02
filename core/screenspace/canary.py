@@ -67,7 +67,7 @@ def _read_foreground_name() -> tuple[int | None, str | None]:
     detection.
     """
     try:
-        import uiautomation as auto  # type: ignore[import-not-found]
+        import uiautomation as auto  # pyright: ignore[reportMissingImports]  # Windows-only dependency (sys_platform == win32)
 
         win = auto.GetForegroundControl()
         if win is None:

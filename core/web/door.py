@@ -28,6 +28,7 @@ import json
 import os
 import re
 import time
+import urllib.error
 import urllib.request
 from pathlib import Path
 
@@ -113,7 +114,7 @@ def fetch(
         meta_p.write_text(json.dumps(new_meta, ensure_ascii=True), encoding="utf-8")
         cache_state = "revalidated-changed" if meta else "miss-filled"
         meta = new_meta
-    except urllib.error.HTTPError as e:  # type: ignore[attr-defined]
+    except urllib.error.HTTPError as e:
         if e.code == 304 and meta:
             status, cache_state, body = 304, "hit-revalidated", raw_p.read_bytes()
         else:

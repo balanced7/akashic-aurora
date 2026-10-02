@@ -197,7 +197,7 @@ def test_p7_depth_is_derived_from_the_executed_path_not_declared(tied):
     the caller did. A depth argument would make the fidelity field exactly as trustworthy as
     the number it replaced -- and would let a glance file itself as a traversal."""
     with pytest.raises(TypeError):
-        R.walk("test-string", depth="drilled")  # type: ignore[call-arg]
+        R.walk("test-string", depth="drilled")  # type: ignore[call-arg]  # deliberate bad call: the test pins the TypeError
 
 
 # ============================================================ the legacy population
