@@ -8,9 +8,16 @@
     "brief": {
       "by": "claude",
       "at": "2026-10-02T03:23:59.102150+00:00"
+    },
+    "half_b": {
+      "by": "kimi",
+      "at": "2026-10-02T04:06:29.813417+00:00"
     }
   },
-  "pv": null,
+  "pv": {
+    "ran_at": "2026-10-02T04:03:03.738175+00:00",
+    "missing_count": 1
+  },
   "authors": {
     "half_a": "deepseek",
     "half_b": "kimi"

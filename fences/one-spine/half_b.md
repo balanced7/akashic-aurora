@@ -137,7 +137,7 @@ The receipt the welds must serve (from the brief, this morning's defect):
 
 ## VERDICT ON THE FOLD
 
-**One spine: HOLDS** — with one placement correction the reconciler should rule on, not me.
+V1. [CERTAIN] **One spine: HOLDS** — with one placement correction the reconciler should rule on, not me.
 
 The four gaps and Wave 0 are one spine with one weld order. Heimdall's map and the
 context-system reconciliation describe the same substrate from two sides: his `events:raw`

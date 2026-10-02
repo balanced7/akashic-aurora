@@ -1,0 +1,35 @@
+{
+  "ran_at": "2026-10-02T04:03:03.738175+00:00",
+  "verified": [
+    "half_a: core/comm/liveness.py",
+    "half_a: core/comm/liveness.py:132",
+    "half_a: core/comm/liveness.py:146",
+    "half_a: core/comm/liveness.py:151",
+    "half_a: core/comm/liveness.py:154",
+    "half_a: core/comm/liveness.py:36",
+    "half_a: core/events/event_log.py:109",
+    "half_a: core/events/event_log.py:142",
+    "half_a: core/events/event_log.py:318",
+    "half_a: core/events/event_log.py:319",
+    "half_a: fences/context-system/reconciliation.md",
+    "half_b: agent/harness/context.py",
+    "half_b: core/comm/resume_on_deaf.py:62",
+    "half_b: core/comm/roster.py",
+    "half_b: core/comm/roster.py:110",
+    "half_b: core/comm/roster.py:144",
+    "half_b: core/comm/wake_seat.py:421",
+    "half_b: core/events/event_index.py:17",
+    "half_b: core/events/event_index.py:42",
+    "half_b: core/events/event_index.py:77",
+    "half_b: core/events/event_log.py:135",
+    "half_b: fences/context-system/reconciliation.md",
+    "half_b: fences/one-spine/brief.md",
+    "half_b: research/in-flight/context-system-navi-m1.md",
+    "half_b: scripts/hooks/claude_sessionend.py",
+    "half_b: scripts/wire_journal.py:323",
+    "half_b: scripts/wire_journal.py:46"
+  ],
+  "missing": [
+    "half_b: W0.1/W0.2"
+  ]
+}
