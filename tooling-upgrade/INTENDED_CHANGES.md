@@ -79,3 +79,32 @@ reason = "implicit Optional made explicit (ruff RUF013, plan G3.P3); O4c stays E
 goal = "G3"
 ```
 
+
+## IC-0006: annotation corrections for the type checker (G4.P2)
+
+G4.P2 tier (2) corrects or completes annotations so basedpyright can check the code: a return
+type that can be `None` says so, a parameter annotated `str` that takes `Path | str` says so,
+generics get their type arguments. In annotation-sensitive modules O5 shows these as `annot:`
+items. As with IC-0002, the proof that no runtime consumer sees a different type is O4c (MCP
+tool input schemas), which must stay EQUAL, plus O5's `sig:`/`name:` items, which this entry
+never covers. The MCP tool functions in ai_setup_mcp.py keep their annotations unchanged.
+
+```toml
+id = "IC-0006"
+component = "O5"
+key = "annot:*"
+reason = "annotation-only corrections for basedpyright (plan G4.P2 tier 2); O4c stays EQUAL"
+goal = "G4"
+```
+
+## IC-0007: narrowing that only differs on an unreachable branch (G4.P2)
+
+Where the checker cannot see that a value is never `None` (or never the other union member),
+G4.P2 narrows it explicitly: `assert x is not None` in tests (a test assertion; O9 counts may
+only rise), and in runtime code `assert` / `isinstance` / `typing.cast` only at sites where the
+generator shows from the surrounding code that the other branch cannot happen (the value was
+just set, checked, or produced by a call that never returns `None` for these arguments). On that
+unreachable branch the exception type would differ (AssertionError instead of AttributeError or
+TypeError); on every reachable path nothing changes. Sites where the other branch IS reachable
+are real defects and get their own `Fixes-latent` entries with regression tests, or stay
+suppressed with a LATENT reason. Not visible to the oracle (no toml block).
