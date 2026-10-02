@@ -162,13 +162,23 @@ line — the emit is inserted into the body of that branch.
 
 ## VERDICT ON THE FOLD
 
-**HOLDS.** The four gaps and Wave 0 are one spine with one weld order, and the fold is genuine,
-not a relabel: Gap 3 has no distinct fact beyond "a hook fired," and "a hook fired" *is* the W0.2
-touch. The three welds with distinct facts (wire → `kind='wire'`, worklive → `kind='phase'`, janitor
-→ `kind='expected'/'retract'/'revoke'`) remain, and the fourth (activity) is absorbed by W0.2's
-touch emit, the same transition from the earliest possible observer. The weld order shortens from
-four slices to three-plus-one-assertion; nothing about the map's scope discipline (no new writer,
-no new store, pointers-not-bodies) moves.
+V1. [CERTAIN] **The fold is genuine and Gap 3 is W0.2, not a fourth weld.** The four gaps and
+Wave 0 are one spine with one weld order, and the fold is real, not a relabel: Gap 3 has no
+distinct fact beyond "a hook fired," and "a hook fired" *is* the W0.2 touch. The three welds
+with distinct facts (wire → `kind='wire'`, worklive → `kind='phase'`, janitor →
+`kind='expected'/'retract'/'revoke'`) remain, and the fourth (activity) is absorbed by W0.2's
+touch emit — the same transition, observed from the earliest possible moment (the hook path),
+not re-emitted later under a different kind.
+
+V2. [DESIGN] **The weld order shortens to `2 → 4 → 1` plus one W0.2 assertion.** With Gap 3
+folding into W0.2 (already Wave-0 slice #2, ahead of every weld), the activity emit has no
+independent slot. Order: Gap 2 (worklive phase/wedge) first — highest signal per byte, hooks
+already at the work path; then Gap 4 (expected/retract/revoke) — closes the earlier janitor
+ruling and lands on the spine in one move; then Gap 1 (wire) — one line per record, bodies out
+per D1. Gap 3 closes when W0.2 lands, not after three other welds.
+
+V3. [CERTAIN] **The first `kind` from `liveness.py` is `phase`, emitted inside the
+`if phase != self._phase:` gate at `core/comm/liveness.py:146`, after `self._since = time.time()`.**
 
 ---
 
