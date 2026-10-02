@@ -1,3 +1,4 @@
+# pyright: strict
 """gen_requirements -- render the pip requirement files from pyproject.toml + uv.lock.
 
 requirements.txt was kept in step with pyproject.toml by hand, and pip still reads it: CI, the
@@ -20,13 +21,13 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 EXPORT = ["export", "--frozen", "--no-hashes", "--no-emit-project", "--no-annotate", "--no-header"]
-FILES = {
+FILES: dict[str, list[str]] = {
     "requirements.txt": [],
     "requirements/gemini-web.txt": ["--only-group", "browser"],
 }
 
 
-def render(extra):
+def render(extra: list[str]) -> str:
     uv = shutil.which("uv")
     if uv is None:
         raise SystemExit("gen_requirements: uv is not on PATH (https://docs.astral.sh/uv/)")
@@ -40,9 +41,9 @@ def render(extra):
     return header + body
 
 
-def main(argv):
+def main(argv: list[str]) -> int:
     check = "--check" in argv
-    stale = []
+    stale: list[str] = []
     for rel, extra in FILES.items():
         path = os.path.join(ROOT, *rel.split("/"))
         want = render(extra)
