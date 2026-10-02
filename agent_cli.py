@@ -5528,7 +5528,12 @@ def cmd_recall_bench(args) -> int:
         print(f"ERROR: could not load the moment set ({type(e).__name__}: {e})")
         return 1
     k = int(getattr(args, "limit", None) or 5)
-    d = _b.score(meta.get("moments") or [], recall_at, k=k)
+    # The ceiling probe must be GATE-FREE, or it measures the gate it exists to bound: with the
+    # live floor applied, a lesson the gate rejects would read as UNMATCHABLE (a matching defect)
+    # when it is really gate-suppressed. floor 0 keeps the two diagnoses separable.
+    import functools as _ft
+    _probe = _ft.partial(recall_at, min_relevance=0.0)
+    d = _b.score(meta.get("moments") or [], recall_at, k=k, probe_fn=_probe)
     if getattr(args, "json", False):
         print(_json.dumps({"meta": {kk: vv for kk, vv in meta.items() if kk != "moments"},
                            "result": d}, indent=2, default=str))

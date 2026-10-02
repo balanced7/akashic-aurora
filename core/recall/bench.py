@@ -53,12 +53,35 @@ def load(path: Optional[str] = None) -> Dict[str, Any]:
     return d
 
 
+#: How deep the ceiling probe looks. The ceiling is only ever a LOWER bound on reachability
+#: because it is measured at a finite depth, so the depth is reported beside it (P8) and
+#: "unmatchable" always means "not in the first PROBE_DEPTH", never a proof of absence.
+PROBE_DEPTH = 200
+
+
 def score(moments: Sequence[Dict[str, Any]], recall_fn: Callable[..., Dict[str, Any]],
-          *, k: int = 5) -> Dict[str, Any]:
-    """Drive the real trigger for each moment and grade what came back."""
+          *, k: int = 5, probe_fn: Optional[Callable[..., Dict[str, Any]]] = None,
+          probe_depth: int = PROBE_DEPTH) -> Dict[str, Any]:
+    """Drive the real trigger for each moment and grade what came back.
+
+    THE CEILING (W0.3-f2). recall@k alone is unreadable, and its author misread it. On the
+    16-moment set recall@5 was 30% while 70% of the scored positives turn out to be reachable at
+    depth, so the loss splits into 40 points of RANKING (retrieved, ranked too low) and 30 points
+    of MATCHING (never retrieved at all, reach-map barrier 3). Those two want opposite work, and a
+    single number cannot tell them apart. So every result carries a `ceiling` block that partitions
+    the scored positives into delivered / rankable / unmatchable and NAMES the unmatchable ones.
+
+    `probe_fn` is the retriever used for that probe and should be GATE-FREE (the live caller binds
+    `min_relevance=0.0`): the ceiling is a property of the corpus and the relevance function, never
+    of the gate it exists to bound. It defaults to `recall_fn`, which is right for a hermetic fake
+    and only approximate for a gated live caller -- the CLI passes an explicit ungated probe.
+    """
     hits_at_1 = hits_at_k = scored = 0
     abstain_total = abstain_ok = 0
     excluded: List[str] = []
+    delivered: List[str] = []
+    rankable: List[str] = []
+    unmatchable: List[str] = []
     rows: List[Dict[str, Any]] = []
     chrome_chars = body_chars = 0
 
@@ -95,8 +118,21 @@ def score(moments: Sequence[Dict[str, Any]], recall_fn: Callable[..., Dict[str, 
         atk = any(g in accept for g in got[:k])
         hits_at_1 += 1 if at1 else 0
         hits_at_k += 1 if atk else 0
-        rows.append({"id": mid, "verdict": "HIT@1" if at1 else ("HIT@%d" % k if atk else "MISS"),
+        rows.append({"id": mid, "verdict": "HIT@1" if at1 else ("HIT%s" % f"@{k}" if atk else "MISS"),
                      "expected": expect, "got": got[:k]})
+
+        # --- the ceiling probe. Was the right answer reachable AT ALL, gate and k aside?
+        if atk:
+            delivered.append(mid)
+        else:
+            pf = probe_fn or recall_fn
+            try:
+                deep = pf(path=trig.get("path"), command=trig.get("command"),
+                          limit=probe_depth) or {}
+                deep_got = [str(x.get("source") or "") for x in (deep.get("lessons") or [])]
+            except Exception:                                             # noqa: BLE001
+                deep_got = []
+            (rankable if any(g in accept for g in deep_got) else unmatchable).append(mid)
 
     pushed = chrome_chars + body_chars
     return {
@@ -112,6 +148,20 @@ def score(moments: Sequence[Dict[str, Any]], recall_fn: Callable[..., Dict[str, 
         "abstention": {"total": abstain_total, "correct": abstain_ok,
                        "rate": (abstain_ok / abstain_total) if abstain_total else None},
         "excluded": excluded,
+        # W0.3-f2: recall@k is unreadable without the quantity that bounds it.
+        "ceiling": {
+            "scored": scored,
+            "delivered": len(delivered),
+            "rankable": len(rankable),
+            "unmatchable": len(unmatchable),
+            "reachable": len(delivered) + len(rankable),
+            # ZERO IS NOT NO. With no positives there is nothing to bound, and 0.0 would read as
+            # "nothing is reachable" -- the most alarming possible reading of an empty set.
+            "rate": ((len(delivered) + len(rankable)) / scored) if scored else UNCHECKABLE,
+            "unmatchable_ids": unmatchable,
+            "rankable_ids": rankable,
+            "probe_depth": int(probe_depth),
+        },
         "chrome_share": (chrome_chars / pushed) if pushed else None,
         "rows": rows,
     }
@@ -130,9 +180,27 @@ def render(d: Dict[str, Any], meta: Dict[str, Any]) -> str:
         f"  CHROME SHARE      {pct(d['chrome_share'])}   of pushed characters that are not a lesson",
         f"  PRECISION@3       {UNCHECKABLE}",
         f"                      {d['precision_why']}",
-        "",
-        "  PER MOMENT:",
     ]
+    c = d.get("ceiling") or {}
+    if c:
+        out += [
+            "",
+            f"  CEILING           {pct(c.get('rate'))}   "
+            f"({c.get('reachable')}/{c.get('scored')} scored positives whose right answer is "
+            f"reachable at all, probed to depth {c.get('probe_depth')})",
+            f"    DELIVERED       {c.get('delivered')}   inside the reported k -- what recall@k counts",
+            f"    RANKABLE        {c.get('rankable')}   retrieved but ranked below k. A RANKING "
+            f"problem, recoverable without touching the matcher.",
+            f"    UNMATCHABLE     {c.get('unmatchable')}   never retrieved at this depth. A MATCHING "
+            f"problem; no gate, floor or re-rank can reach these.",
+        ]
+        if c.get("unmatchable_ids"):
+            out.append(f"      unmatchable: {', '.join(c['unmatchable_ids'])}   "
+                       f"<- these lessons want their TRIGGERS rewritten, not the gate retuned")
+        if c.get("rankable_ids"):
+            out.append(f"      rankable:    {', '.join(c['rankable_ids'])}   "
+                       f"<- the right answer is already in the list, below the fold")
+    out += ["", "  PER MOMENT:"]
     for r in d["rows"]:
         out.append(f"    {r['id']:<4} {r['verdict']:<18} {r.get('why') or r.get('expected') or ''}")
         for g in (r.get("got") or [])[:3]:

@@ -4,7 +4,7 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at 8ffdcc8c. A bound you discover by collision is not awareness -- this sheet
+> Derived at 40a432b4. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
@@ -286,7 +286,7 @@ Class: reference
 | `TEMP` | `"/tmp"` | core/recall/precision_audit.py, scripts/ops/archive_transcripts.py |
 | `USERPROFILE` | `` | core/tools/everything.py |
 
-## Mechanical bounds (329 numeric constants)
+## Mechanical bounds (330 numeric constants)
 
 | Constant | Value | Site | Note |
 |---|---|---|---|
@@ -508,6 +508,7 @@ Class: reference
 | `POLL_INTERVAL` | 30 | research/in-flight/t342/dead-modules/_archive__legacy__services__session_monitor.py | seconds between checks |
 | `PORT_TEST_UI_MAX` | 8,999 | config.py | last test-UI port. A test UI MUST live in [8900, 8999]. |
 | `PRESENCE_TTL` | 90 | core/comm/bus.py | seconds an agent is considered "online" after its last activity |
+| `PROBE_DEPTH` | 200 | core/recall/bench.py |  |
 | `PROG_GAP_MS` | 4,000 | arsenal/practice.py | a longer gap between two chords, or a change of key area, ends a chord sequence |
 | `PROPOSAL_TTL` | 60 | core/coord/intent.py | proposal records auto-expire after a minute |
 | `PULL_MAX` | 120 | arsenal/jam/schemas.py |  |
