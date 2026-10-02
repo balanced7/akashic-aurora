@@ -2364,6 +2364,27 @@ def cmd_wish(args):
     if not body:
         print("[wish] REFUSED: empty wish (pass text or --text-file)")
         return 2
+    # ONE WRITER AT A TIME (2026-10-02). Everything from the read to the write is a single
+    # read-modify-write of the whole file, and it used to run with no lock at all. Measured on a
+    # temp ledger, eight concurrent filings, five trials: 6 of 40 wishes SILENTLY LOST -- each
+    # loser's process printed "filed W##" and exited 0 while its row was overwritten by a peer.
+    # A capture door that reports success and drops the capture is the worst shape this house has
+    # a name for.
+    #
+    # The duplicate ids this door already warns about are the same race seen from the other side,
+    # and the comment below has described them since 2026-08-01. What that diagnosis could not
+    # reach for is a cross-process lock, because core/foundation/filelock.py did not exist until
+    # 2026-08-26 -- born, as its own docstring says, from a third instance of this class where an
+    # admitted message vanished. ledger.py adopted it on 2026-09-24 after the DuckDB dive measured
+    # the unlocked version losing 410 of 18,170 rows; remote_relay, task_ledger and college use it
+    # too. This door, the one that records our friction, was never told. Now it is.
+    from core.foundation.filelock import exclusive as _exclusive
+    with _exclusive(path):
+        return _wish_write(path, body, args, _re, _dt)
+
+
+def _wish_write(path, body, args, _re, _dt):
+    """The whole read-modify-write, run while the caller holds the ledger's lock."""
     text = path.read_text(encoding="utf-8")
     nums = [int(m) for m in _re.findall(r"- \[[ x~]\] W(\d+)", text)]
     # The id space can COLLIDE and nothing used to notice. max+1 never collides against a correct
