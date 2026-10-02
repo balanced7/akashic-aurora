@@ -31,6 +31,7 @@ import os
 import sys
 import time
 from pathlib import Path
+from typing import Any, cast
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -428,29 +429,31 @@ class GeminiAgent:
         ).strip()
 
 
+def _smoke() -> None:
+    """Manual transport smoke (network, costs ~$0.02): `py scripts/gemini_chat.py --smoke`."""
+    meter = SpendMeter()
+    meter.reconcile(force=True)
+    print("pre :", meter.status_line())
+    ag = GeminiAgent(instructions="You are gemini, smoke-testing your seat transport.", meter=meter)
+    print("text=", repr(ag.send("Reply with exactly: gemini TRANSPORT LIVE")))
+    calc = [
+        {
+            "type": "function",
+            "function": {
+                "name": "calc",
+                "description": "evaluate arithmetic",
+                "parameters": {"type": "object", "properties": {"expr": {"type": "string"}}, "required": ["expr"]},
+            },
+        }
+    ]
+    ag2 = GeminiAgent(instructions="Use tools when asked.", tools_schemas=calc, dispatch=lambda n, a: "42", meter=meter)
+    print("tool round-trip:", repr(ag2.send("What is 6*7? Use the calc tool, then answer.")))
+    u = cast("Any", ag2.last_response).usage  # set by the send() above
+    print("last usage:", u.model_dump() if hasattr(u, "model_dump") else u)
+    print("post:", meter.status_line())
+    print("== smoke complete ==")
+
+
 if __name__ == "__main__":
-    # Manual smoke (network, costs ~$0.02): py scripts/gemini_chat.py --smoke
     if "--smoke" in sys.argv:
-        meter = SpendMeter()
-        meter.reconcile(force=True)
-        print("pre :", meter.status_line())
-        ag = geminiAgent(instructions="You are gemini, smoke-testing your seat transport.", meter=meter)  # noqa: F821  # LATENT ADV-034: `geminiAgent` is undefined here; fixed with a regression test in G4.P2
-        print("text=", repr(ag.send("Reply with exactly: gemini TRANSPORT LIVE")))
-        calc = [
-            {
-                "type": "function",
-                "function": {
-                    "name": "calc",
-                    "description": "evaluate arithmetic",
-                    "parameters": {"type": "object", "properties": {"expr": {"type": "string"}}, "required": ["expr"]},
-                },
-            }
-        ]
-        ag2 = geminiAgent(  # noqa: F821  # LATENT ADV-034: `geminiAgent` is undefined here; fixed with a regression test in G4.P2
-            instructions="Use tools when asked.", tools_schemas=calc, dispatch=lambda n, a: "42", meter=meter
-        )
-        print("tool round-trip:", repr(ag2.send("What is 6*7? Use the calc tool, then answer.")))
-        u = ag2.last_response.usage
-        print("last usage:", u.model_dump() if hasattr(u, "model_dump") else u)
-        print("post:", meter.status_line())
-        print("== smoke complete ==")
+        _smoke()
