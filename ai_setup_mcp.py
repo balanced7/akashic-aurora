@@ -1850,6 +1850,7 @@ if __name__ == "__main__":
     parser.add_argument("--port", type=int, default=18765, help="HTTP port (with --http)")
     a = parser.parse_args()
     if a.http:
-        mcp.run(transport="streamable-http", port=a.port)
+        mcp.settings.port = a.port  # FastMCP.run takes no port; the HTTP transport reads settings.port
+        mcp.run(transport="streamable-http")
     else:
         mcp.run()
