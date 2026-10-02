@@ -38,6 +38,8 @@ from _tracked import is_tracked_dir, tracked_py_count  # noqa: E402  # sys.path 
 def _pyl() -> str:
     """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
     try:
+        if str(ROOT) not in sys.path:  # run as a script, only scripts/generators/ is importable
+            sys.path.insert(0, str(ROOT))
         from core.paths import python_launcher
 
         return python_launcher()
