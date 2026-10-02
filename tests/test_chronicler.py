@@ -133,6 +133,7 @@ def test_chronicler_single_beat():
     """Single beat → one chapter with that beat."""
     c = _chronicler()
     b = c.beat_log.emit("note", "single beat", "ledger:1", at="2026-06-27T10:00:00")
+    assert b is not None
     report = c.chronicle_all()
     assert report["chapters"] == 1
     assert report["total_beats"] == 1
@@ -198,6 +199,7 @@ def test_chronicler_uses_route_hint():
     b = c.beat_log.emit(
         "commit", "core fix", "git:3", at="2026-06-27T10:00:00", hint=RouteHint(paths=["core/foundation/store.py"])
     )
+    assert b is not None
     assert b.track == "ai-setup"
     report = c.chronicle_all()
     assert report["total_beats"] == 1
@@ -273,7 +275,7 @@ def test_chronicler_chronological_integrity():
     assert raw_atlas is not None
     atlas = Atlas.from_dict(json.loads(raw_atlas))
 
-    for _ch_dict in json.loads(c.store.get("narr:atlas:current")):
+    for _ch_dict in json.loads(raw_atlas):
         pass  # atlas doesn't contain chapters directly
 
     # Load all chapters and verify their beats are sorted

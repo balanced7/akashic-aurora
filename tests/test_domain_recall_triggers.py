@@ -176,7 +176,9 @@ def test_promotion_does_not_destroy_the_ordinary_counters():
     credit_useful("learn:experiment:x", "system", store=store)
     use = _load_use(store, "learn:experiment:x")
     assert int(use.get("useful", 0)) == 2
-    assert sorted(use.get("useful_domains") or []) == ["system", "vfx"]
+    domains = use.get("useful_domains") or []
+    assert isinstance(domains, list)
+    assert sorted(domains) == ["system", "vfx"]
 
 
 def test_a_general_lesson_surfaces_in_every_domain():

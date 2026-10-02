@@ -12,7 +12,7 @@ import json
 import os
 import sys
 import time
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -80,6 +80,7 @@ def test_d2_verify_rejects_and_names_target_only_structures_and_expiry(tmp_path)
     target.rpush("ghost:list", "value")
     target.sadd("ghost:set", "value")
     target.zadd("ghost:zset", {"value": 1.0})
+    assert target._conn is not None
     target._conn.execute(
         "INSERT INTO expiry(key, expires_at) VALUES(?, ?)",
         ("ghost:ttl", time.time() + 120),
@@ -175,6 +176,7 @@ def test_d5_sqlite_selector_reaches_both_hybrid_factory_branches(tmp_path, monke
             prefer_redis=True,
             file_path=str(tmp_path / f"hybrid-{available}.json"),
         )
+        assert isinstance(store, HybridStore)
         durable_tiers.append(store._file)
         store.close()
 
@@ -192,7 +194,8 @@ def test_d6_sqlite_durable_tier_survives_full_hybrid_reconcile(tmp_path):
     durable.sadd("set", "a", "b")
     durable.zadd("zset", {"a": 1.0, "b": 2.0})
     durable.setex("leased", 120, "value")
-    hybrid = HybridStore(cache, durable)
+    # HybridStore annotates its tiers as RedisStore/FileStore; these are duck-typed stand-ins.
+    hybrid = HybridStore(cast("RedisStore", cache), cast("FileStore", durable))
 
     try:
         report = hybrid.reconcile()
@@ -241,7 +244,7 @@ def test_d7_hybrid_close_delegates_to_cache_and_sqlite_exactly_once(tmp_path):
         original_close()
 
     durable.close = tracked_durable_close
-    hybrid = HybridStore(cache, durable)
+    hybrid = HybridStore(cast("RedisStore", cache), cast("FileStore", durable))
 
     try:
         hybrid.close()

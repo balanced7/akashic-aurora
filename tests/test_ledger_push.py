@@ -12,12 +12,16 @@ Run: py -m pytest tests/test_ledger_push.py -q
 import os
 import sys
 import uuid
+from typing import Any
 
 import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.coord import conductor
+
+#: conductor's verbs take an unannotated `client="auto"` (inferred `str`); None = no redis client.
+NO_CLIENT: Any = None
 
 
 def _capture(monkeypatch):
@@ -29,13 +33,13 @@ def _capture(monkeypatch):
 def _lifecycle(tmp_path, monkeypatch):
     sent = _capture(monkeypatch)
     path = str(tmp_path / "tasks.json")
-    t = conductor.propose("P3 drill task", by="claude", client=None, path=path)
+    t = conductor.propose("P3 drill task", by="claude", client=NO_CLIENT, path=path)
     tid = t["id"]
-    conductor.approve(tid, by="user", client=None, path=path)
-    conductor.claim(tid, "claude", client=None, path=path)
-    conductor.start(tid, by="claude", client=None, path=path)
-    conductor.verify(tid, by="claude", client=None, path=path)
-    conductor.done(tid, "abc1234", "pytest", by="claude", client=None, path=path)
+    conductor.approve(tid, by="user", client=NO_CLIENT, path=path)
+    conductor.claim(tid, "claude", client=NO_CLIENT, path=path)
+    conductor.start(tid, by="claude", client=NO_CLIENT, path=path)
+    conductor.verify(tid, by="claude", client=NO_CLIENT, path=path)
+    conductor.done(tid, "abc1234", "pytest", by="claude", client=NO_CLIENT, path=path)
     return tid, sent
 
 
@@ -70,11 +74,11 @@ def test_done_keeps_the_resolved_marker_too(tmp_path, monkeypatch):
 def test_block_emits_blocked(tmp_path, monkeypatch):
     sent = _capture(monkeypatch)
     path = str(tmp_path / "tasks.json")
-    t = conductor.propose("blockable", by="claude", client=None, path=path)
-    conductor.approve(t["id"], by="user", client=None, path=path)
-    conductor.claim(t["id"], "claude", client=None, path=path)
-    conductor.start(t["id"], by="claude", client=None, path=path)  # block needs an ACTIVE task
-    conductor.block(t["id"], "waiting on review", by="claude", client=None, path=path)
+    t = conductor.propose("blockable", by="claude", client=NO_CLIENT, path=path)
+    conductor.approve(t["id"], by="user", client=NO_CLIENT, path=path)
+    conductor.claim(t["id"], "claude", client=NO_CLIENT, path=path)
+    conductor.start(t["id"], by="claude", client=NO_CLIENT, path=path)  # block needs an ACTIVE task
+    conductor.block(t["id"], "waiting on review", by="claude", client=NO_CLIENT, path=path)
     assert ("ledger_update", "blocked") in [(k, m.get("to")) for k, _, m in sent]
 
 
@@ -84,9 +88,9 @@ def test_bus_failure_never_blocks_a_transition(tmp_path, monkeypatch):
 
     monkeypatch.setattr(conductor, "_broadcast", _boom)
     path = str(tmp_path / "tasks.json")
-    t = conductor.propose("bus-down task", by="claude", client=None, path=path)
+    t = conductor.propose("bus-down task", by="claude", client=NO_CLIENT, path=path)
     assert t["id"], "transition succeeds while the doorbell is dead"
-    assert conductor.approve(t["id"], by="user", client=None, path=path)["status"] == "approved"
+    assert conductor.approve(t["id"], by="user", client=NO_CLIENT, path=path)["status"] == "approved"
 
 
 # ---------------------------------------------------------- wake side (redis-backed)

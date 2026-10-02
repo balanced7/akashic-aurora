@@ -89,6 +89,7 @@ def test_recent_is_newest_first():
 def test_get_resolves_ref():
     el = _log()
     ev = el.capture("observation", "found a bug", agent_id="claude")
+    assert ev.ref is not None
     again = el.get(ev.ref)
     assert again is not None
     assert again["summary"] == "found a bug"
@@ -132,8 +133,8 @@ def test_per_agent_stream_name_sanitized():
 
 def test_capture_never_raises_on_bad_input():
     el = _log()
-    assert el.capture("note", None, agent_id=None).ok  # None summary -> ""
-    assert el.capture(None, "s").ok  # None kind -> 'note'
+    assert el.capture("note", None, agent_id=None).ok  # pyright: ignore[reportArgumentType]  # bad input on purpose: None summary -> ""
+    assert el.capture(None, "s").ok  # pyright: ignore[reportArgumentType]  # bad input on purpose: None kind -> 'note'
     huge = "x" * 50000
     ev = el.capture("note", huge, detail={"blob": huge})
     assert ev.ok

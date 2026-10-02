@@ -13,8 +13,12 @@ import os
 import sys
 import types
 from types import SimpleNamespace
+from typing import TYPE_CHECKING, cast
 
 from core.narrative.beat_log import BeatLog
+
+if TYPE_CHECKING:
+    from core.narrative.schema import Beat
 
 
 def _beat():
@@ -35,7 +39,7 @@ def test_default_keyword_path_does_not_import_embedding_discovery(monkeypatch):
 
     monkeypatch.setattr(builtins, "__import__", recording_import)
     beat = _beat()
-    BeatLog.__new__(BeatLog)._assign_themes(beat, hint=None)
+    BeatLog.__new__(BeatLog)._assign_themes(cast("Beat", beat), hint=None)
 
     assert attempted == [], (
         "default keyword theming imported the opt-in embedding module; on a fresh "
@@ -55,11 +59,11 @@ def test_explicit_embedding_opt_in_still_uses_discovery_selector(monkeypatch):
             return ["embedding-opt-in"]
 
     fake_module = types.ModuleType("core.narrative.theme_discovery")
-    fake_module.select_theme_assigner = lambda: FakeAssigner()
+    monkeypatch.setattr(fake_module, "select_theme_assigner", lambda: FakeAssigner(), raising=False)
     monkeypatch.setitem(sys.modules, "core.narrative.theme_discovery", fake_module)
 
     beat = _beat()
-    BeatLog.__new__(BeatLog)._assign_themes(beat, hint=None)
+    BeatLog.__new__(BeatLog)._assign_themes(cast("Beat", beat), hint=None)
 
     assert calls == [("routing verification", None)]
     assert beat.themes == ["embedding-opt-in"]

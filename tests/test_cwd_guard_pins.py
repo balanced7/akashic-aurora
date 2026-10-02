@@ -72,6 +72,8 @@ def hook():
     environment, not the guard -- so those imports are warmed here, outside every capture.
     The per-call contract below (exactly one JSON line) stays strict."""
     spec = importlib.util.spec_from_file_location("_cwd_guard_pin_live_pretooluse", LIVE_HOOK)
+    assert spec is not None
+    assert spec.loader is not None
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     import agent.harness.guards

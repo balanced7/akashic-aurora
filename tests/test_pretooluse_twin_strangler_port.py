@@ -44,6 +44,8 @@ def _load(which: str):
     its own sys.path insert, and unique names keep the two twins (and test_k0's top-level
     `claude_pretooluse`) from aliasing each other in sys.modules."""
     spec = importlib.util.spec_from_file_location(f"_twin_{which}_pretooluse", COPIES[which])
+    assert spec is not None
+    assert spec.loader is not None
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod

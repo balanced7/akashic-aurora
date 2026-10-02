@@ -7,12 +7,20 @@ first (both the claude and DeepSeek plans flagged this hazard). Synthesized from
 
 import os
 import sys
+from typing import Any
 
 import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.coord import cognitive_metrics as cm
+
+
+def _dump(agent: str) -> dict[str, Any]:
+    """Return cm.dump() for an agent the test initialized: a snapshot must exist."""
+    d = cm.dump(agent)
+    assert d is not None
+    return d
 
 
 @pytest.fixture(autouse=True)
@@ -30,7 +38,7 @@ def _clean_state():
 
 def test_init_and_dump_roundtrip():
     cm.init("a")
-    d = cm.dump("a")
+    d = _dump("a")
     assert d["agent_id"] == "a"
     assert "derived" in d
     assert d["total_tool_calls"] == 0
@@ -45,7 +53,7 @@ def test_record_functions_accumulate():
     cm.record_abandoned("a", 4)
     cm.record_human_interjection("a")
     cm.record_context_refresh("a")
-    d = cm.dump("a")
+    d = _dump("a")
     assert d["total_prompt_tokens"] == 10
     assert d["total_completion_tokens"] == 20
     assert d["reasoning_tokens_coordination"] == 5
@@ -63,7 +71,7 @@ def test_tool_call_breakdown_equality():
     cm.init("a")
     for t in ("bifrost_send", "Read", "knowledge_recall", "Edit", "Bash", "bifrost_nudge"):
         cm.record_tool_call("a", t)
-    d = cm.dump("a")
+    d = _dump("a")
     assert d["total_tool_calls"] == d["tool_calls_coordination"] + d["tool_calls_productive"]
     assert d["tool_calls_coordination"] == 3
     assert d["tool_calls_productive"] == 3
@@ -75,7 +83,7 @@ def test_derived_ratios_are_correct_and_bounded():
     cm.record_reasoning("a", 10, "productive")
     cm.record_completion_tokens("a", 100)
     cm.record_abandoned("a", 25)
-    d = cm.dump("a")["derived"]
+    d = _dump("a")["derived"]
     assert d["coordination_token_ratio"] == 0.75
     assert 0 <= d["coordination_token_ratio"] <= 1
     assert d["waste_ratio"] == 0.25
@@ -84,7 +92,7 @@ def test_derived_ratios_are_correct_and_bounded():
 
 def test_derived_properties_never_divide_by_zero():
     cm.init("a")
-    d = cm.dump("a")["derived"]  # everything zero
+    d = _dump("a")["derived"]  # everything zero
     assert all(v == 0.0 for v in d.values())
 
 
@@ -92,7 +100,7 @@ def test_human_cost_per_turn_zero_tools_but_interjections():
     """The odd branch: no tool calls yet a human interjected -> returns the raw interjection count."""
     cm.init("a")
     cm.record_human_interjection("a")
-    assert cm.dump("a")["derived"]["human_cost_per_turn"] == 1.0
+    assert _dump("a")["derived"]["human_cost_per_turn"] == 1.0
 
 
 # --- file-read duplicate detection ------------------------------------------------------------------
@@ -103,7 +111,7 @@ def test_duplicate_file_read_detection():
     cm.record_file_read("a", "x.py")
     cm.record_file_read("a", "x.py")  # duplicate
     cm.record_file_read("a", "y.py")
-    d = cm.dump("a")
+    d = _dump("a")
     assert d["total_file_reads"] == 3
     assert d["duplicate_file_reads"] == 1
 
@@ -113,15 +121,15 @@ def test_duplicate_detection_is_per_agent():
     cm.init("b")
     cm.record_file_read("a", "x.py")
     cm.record_file_read("b", "x.py")  # same path, different agent -> NOT a duplicate for either
-    assert cm.dump("a")["duplicate_file_reads"] == 0
-    assert cm.dump("b")["duplicate_file_reads"] == 0
+    assert _dump("a")["duplicate_file_reads"] == 0
+    assert _dump("b")["duplicate_file_reads"] == 0
 
 
 def test_hint_read_counts_separately_and_not_as_duplicate():
     cm.init("a")
     cm.record_file_read("a", "x.py", from_hint=True)  # saved, not a real read
     cm.record_file_read("a", "x.py")  # first REAL read -> not a duplicate
-    d = cm.dump("a")
+    d = _dump("a")
     assert d["file_reads_saved_by_hints"] == 1
     assert d["total_file_reads"] == 1
     assert d["duplicate_file_reads"] == 0
@@ -154,7 +162,7 @@ def test_reset_clears_one_agent_and_its_read_history():
     # read-history cleared: re-init + re-read same path is not a duplicate
     cm.init("a")
     cm.record_file_read("a", "x.py")
-    assert cm.dump("a")["duplicate_file_reads"] == 0
+    assert _dump("a")["duplicate_file_reads"] == 0
 
 
 def test_dump_all_aggregates_all_agents():

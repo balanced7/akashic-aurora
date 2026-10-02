@@ -79,6 +79,7 @@ def test_b2_verdict_cache_round_trips(tmp_path, monkeypatch):
     v = dp._verdict(dp.RED, "boot", 9.9, "response_path_hang", "detail", "do the thing")
     dp.write_verdict(v)
     got = dp.read_verdict()
+    assert got is not None
     assert got["verdict"] == dp.RED
     assert got["cause"] == "response_path_hang"
     assert got["recovery"] == "do the thing"

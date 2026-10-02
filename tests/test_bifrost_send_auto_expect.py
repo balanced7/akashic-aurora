@@ -39,11 +39,13 @@ def _args(**kw):
 
 def _armed(agent):
     c = _client()
+    assert c is not None
     return len(c.hgetall(expectations._key(agent)) or {})
 
 
 def _wipe():
     c = _client()
+    assert c is not None
     for k in c.keys("bifrost:*ztestpin*") or []:
         c.delete(k)
 

@@ -5,10 +5,14 @@ next_task() sequencing (deps + one-at-a-time) and that done() emits the RESOLVED
 """
 
 import os
+from typing import Any
 
 import pytest
 
 from core.coord import conductor as C
+
+#: conductor's verbs take an unannotated `client="auto"` (inferred `str`); None = no redis client.
+NO_CLIENT: Any = None
 
 
 @pytest.fixture(autouse=True)
@@ -30,7 +34,9 @@ def test_next_task_respects_deps_and_one_at_a_time(tmp_path, monkeypatch):
     b = C.propose("b", deps=[a["id"]], **k)
     C.approve(a["id"], **k)
     C.approve(b["id"], **k)
-    assert C.next_task(**k)["id"] == a["id"]  # b is blocked: dep a not DONE
+    nxt = C.next_task(**k)
+    assert nxt is not None
+    assert nxt["id"] == a["id"]  # b is blocked: dep a not DONE
     C.claim(a["id"], "claude", **k)
     C.start(a["id"], **k)
     assert C.next_task(**k) is None  # one-at-a-time: a is running
@@ -38,7 +44,9 @@ def test_next_task_respects_deps_and_one_at_a_time(tmp_path, monkeypatch):
     # 8-hex fixture: T297's done gate (598be034) refuses commits under 7 hex chars,
     # and 'c0ffee' was six -- the fixtures predated the validator by four days.
     C.done(a["id"], "c0ffee42", "pytest", **k)
-    assert C.next_task(**k)["id"] == b["id"]  # a DONE -> b now claimable
+    nxt = C.next_task(**k)
+    assert nxt is not None
+    assert nxt["id"] == b["id"]  # a DONE -> b now claimable
 
 
 def test_done_emits_resolved_marker(tmp_path, monkeypatch):
@@ -70,6 +78,7 @@ def test_offline_conductor_loses_no_transition(tmp_path, monkeypatch):
     C.start(a["id"], **k)
     C.verify(a["id"], **k)
     C.done(a["id"], "cafe1234", "pytest", **k)
-    t = C._ledger(None, k["path"]).get(a["id"])
+    t = C._ledger(NO_CLIENT, k["path"]).get(a["id"])
+    assert t is not None
     assert t["status"] == "done", "file truth carries every transition despite a dead bus"
     assert [h["to"] for h in t["history"]][-1] == "done"

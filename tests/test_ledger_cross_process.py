@@ -42,7 +42,7 @@ print(json.dumps(ids))
 """
 
 
-def _race(tmp_path, stream, writers, per_writer, maxlen="none"):
+def _race(tmp_path, stream, writers, per_writer, maxlen: int | str = "none"):
     """Start `writers` processes that emit `per_writer` events each, all at the same instant."""
     go = tmp_path / "go"
     code = WORKER.format(repo=str(REPO))

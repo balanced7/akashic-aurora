@@ -271,7 +271,9 @@ def test_recall_at_floor_gates_weak_matches():
 def test_engaged_is_a_recordable_kind(monkeypatch):
     st = FakeStore()
     assert aa.record_feedback("learn:experiment:x", "engaged", store=st) is True
-    assert json.loads(st.get("recall:use:learn:experiment:x"))["engaged"] == 1
+    raw = st.get("recall:use:learn:experiment:x")
+    assert raw is not None
+    assert json.loads(raw)["engaged"] == 1
     assert aa.record_feedback("learn:experiment:x", "bogus", store=st) is False
 
 

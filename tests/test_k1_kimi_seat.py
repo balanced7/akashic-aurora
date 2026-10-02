@@ -61,6 +61,7 @@ def test_cache_prefix_frozen_across_sends(tmp_path):
     ag = _agent(tmp_path, tools_schemas=calc)
     ag.send("one")
     ag.send("two")
+    assert isinstance(ag._client, FakeClient)
     kws = ag._client.calls
     assert len(kws) == 2
     sys0 = kws[0]["messages"][0]

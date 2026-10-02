@@ -43,7 +43,7 @@ import os
 import re
 import sys
 from collections.abc import Callable
-from typing import Any
+from typing import Any, cast
 
 # Repo root on path so the live-store dogfood (core.*) resolves when run directly as a script;
 # under pytest, conftest.py already does this. tests/ is on path either way, so `fixtures.*` works.
@@ -177,7 +177,7 @@ def naive_reference_detector(thesis: dict[str, Any], corpus: list[dict[str, Any]
             continue
         opposite_outcome = (t_success and _is_failure(rec)) or (_is_failure(thesis) and _is_success(rec))
         if rec.get("anti_pattern") or opposite_outcome:
-            found.append(rec.get("experiment_name"))
+            found.append(cast("str", rec.get("experiment_name")))
     return bool(found), found
 
 

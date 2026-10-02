@@ -188,6 +188,7 @@ def test_p10_a_selected_icon_rides_the_name(env, tmp_path, monkeypatch):
     icons.write_text(_json.dumps({"deepseek": {"icon": "👁️"}}, ensure_ascii=False), encoding="utf-8")
     monkeypatch.setattr(_mod(), "ICONS_FILE", icons)
     who = _mod().persona("deepseek")
+    assert who["username"] is not None
     assert who["username"].startswith("👁️ Heimdall"), (
         "a seat's SELF-SELECTED emoji prefixes its name the moment it picks — "
         "assignment is not selection, so nothing renders before the pick"

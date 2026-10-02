@@ -52,6 +52,7 @@ def test_send_lands_in_peer_inbox_stream():
     ns = _ns()
     api_a = _api(a, ns)
     c = api_a.bus._client
+    assert c is not None
     try:
         mid = api_a.send(b, "hello from a", kind="chat")
         assert mid  # got a message id (delegation happened)
@@ -66,6 +67,7 @@ def test_broadcast_lands_on_broadcast_stream():
     ns = _ns()
     api_a = _api(a, ns)
     c = api_a.bus._client
+    assert c is not None
     try:
         marker = f"ping-{uuid.uuid4().hex[:8]}"
         mid = api_a.broadcast(marker)

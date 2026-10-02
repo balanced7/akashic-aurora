@@ -31,6 +31,7 @@ def bus():
         pytest.skip("redis not available")
     yield b
     with contextlib.suppress(Exception):  # cursor/generation keys have no TTL -- leave nothing behind
+        assert b._client is not None
         b._client.delete(b._cursor_key(), f"{b.ns}:generation:{agent}", b._inbox_key(agent))
 
 

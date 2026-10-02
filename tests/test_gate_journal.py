@@ -89,7 +89,9 @@ def test_the_clobbering_cache_is_unchanged(paths):
     DP.write_verdict(_v("GREEN", 2.52))
     DP.write_verdict(_v("RED", 5.29, "response_path_slow"))
     assert json.loads(cache.read_text(encoding="utf-8"))["verdict"] == "RED"
-    assert DP.read_verdict()["elapsed_s"] == 5.29
+    verdict = DP.read_verdict()
+    assert verdict is not None
+    assert verdict["elapsed_s"] == 5.29
 
 
 def test_a_journal_failure_never_breaks_the_caller(tmp_path, monkeypatch):

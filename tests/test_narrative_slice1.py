@@ -114,12 +114,18 @@ def test_mark_titles_its_chapter():
     # load chapters via atlas/track listing
     from core.narrative.schema import ATLAS_KEY, Atlas, Track, chapter_key, track_key
 
-    atlas = Atlas.from_dict(json.loads(s.get(ATLAS_KEY)))
+    raw_atlas = s.get(ATLAS_KEY)
+    assert raw_atlas is not None
+    atlas = Atlas.from_dict(json.loads(raw_atlas))
     found = False
     for t in atlas.tracks:
-        tr = Track.from_dict(json.loads(s.get(track_key(t))))
+        raw_track = s.get(track_key(t))
+        assert raw_track is not None
+        tr = Track.from_dict(json.loads(raw_track))
         for cid in tr.chapters:
-            ch = json.loads(s.get(chapter_key(cid)))
+            raw_ch = s.get(chapter_key(cid))
+            assert raw_ch is not None
+            ch = json.loads(raw_ch)
             if ch["title"] == "Build the evaluation harness":
                 found = True
     assert found, "mark summary should become the chapter title"

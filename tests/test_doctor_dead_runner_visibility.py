@@ -27,6 +27,7 @@ def test_recent_inbox_agent_is_visible_stale_is_not():
     """The core fix: an inbox-only agent (no presence, no runner-lock) with RECENT mail is surfaced;
     one whose newest mail is older than the recency window is NOT."""
     c = _client()
+    assert c is not None
     recent, stale = "zdoctest-recent", "zdoctest-stale"
     rkey, skey = f"bifrost:inbox:{recent}", f"bifrost:inbox:{stale}"
     try:
@@ -50,6 +51,7 @@ def test_visible_stalled_agent_pages():
     a genuine STALLED consumer is a LIVE seat that stopped consuming, so we give it an idle
     worklive record -- the real scenario stalled_consumer exists to catch."""
     c = _client()
+    assert c is not None
     agent = "zdoctest-stalled"
     key = f"bifrost:inbox:{agent}"
     scur = f"bifrost:stalled_since:{agent}"

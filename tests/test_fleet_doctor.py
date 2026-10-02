@@ -184,10 +184,13 @@ def test_pulse_primitives_round_trip():
         assert rec["age_s"] < 3
         assert liveness.pulse_error(agent, "oom", generation=7)
         rec2 = liveness.progress_read(agent)
+        assert rec2 is not None
         assert rec2["detail"].startswith("trigger:oom")
     finally:
         with contextlib.suppress(Exception):
-            Bus(agent)._client.delete(f"bifrost:progress:{agent}")
+            client = Bus(agent)._client
+            assert client is not None
+            client.delete(f"bifrost:progress:{agent}")
 
 
 def test_runner_wires_the_pulse_at_progress_points():

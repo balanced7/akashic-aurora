@@ -12,6 +12,7 @@ import sys
 import threading
 from pathlib import Path
 from types import SimpleNamespace
+from typing import TYPE_CHECKING, Any, cast
 
 import pytest
 
@@ -35,6 +36,15 @@ from agent.harness.codex_bifrost_wake import (
 from core.comm import packet_spec
 from core.comm.bus import Bus
 from core.toolbelt.registry import Toolbelt
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+
+def _factory(make: Callable[..., Any]) -> Callable[..., CodexAppServer]:
+    """Type a fixture App Server factory as the CodexAppServer factory it duck-types."""
+    return cast("Callable[..., CodexAppServer]", make)
+
 
 FAKE_SERVER = r"""
 import json
@@ -294,7 +304,7 @@ def test_wake_exec_is_double_gated_and_dynamic_tool_input_is_structured(tmp_path
         log_path=tmp_path / "events.jsonl",
         cwd=Path(__file__).resolve().parent.parent,
         allow_exec=True,
-        server_factory=lambda **_kwargs: None,
+        server_factory=_factory(lambda **_kwargs: None),
         toolbelt_factory=lambda agent: Toolbelt(
             agent,
             root=str(tmp_path / "empty-belts"),
@@ -421,7 +431,7 @@ def test_wake_exec_advertises_only_safe_subject_combos_and_preflights_every_step
         log_path=tmp_path / "events.jsonl",
         cwd=Path(__file__).resolve().parent.parent,
         allow_exec=True,
-        server_factory=lambda **_kwargs: None,
+        server_factory=_factory(lambda **_kwargs: None),
         toolbelt_factory=lambda agent: Toolbelt(
             agent,
             root=str(belt_root),
@@ -533,7 +543,7 @@ def test_combo_admission_catalog_reports_registry_blindness_instead_of_clean_emp
         log_path=tmp_path / "events.jsonl",
         cwd=Path(__file__).resolve().parent.parent,
         allow_exec=True,
-        server_factory=lambda **_kwargs: None,
+        server_factory=_factory(lambda **_kwargs: None),
         toolbelt_factory=broken_belt,
     )
 
@@ -563,7 +573,7 @@ def test_wake_without_launch_opt_in_advertises_no_exec_tool(tmp_path):
         log_path=tmp_path / "events.jsonl",
         cwd=tmp_path,
         allow_exec=False,
-        server_factory=lambda **_kwargs: None,
+        server_factory=_factory(lambda **_kwargs: None),
     )
     assert watcher.dynamic_tools == []
     denied = watcher.handle_dynamic_tool_call(
@@ -742,7 +752,7 @@ def test_cached_app_server_restarts_when_the_registry_identity_changes(tmp_path)
         state=state,
         log_path=tmp_path / "events.jsonl",
         cwd=tmp_path,
-        server_factory=make_server,
+        server_factory=_factory(make_server),
     )
     before = SubjectIdentity(
         agent_id="sol",
@@ -762,6 +772,7 @@ def test_cached_app_server_restarts_when_the_registry_identity_changes(tmp_path)
     second = watcher._app_server(after)
 
     assert len(created) == 2
+    assert isinstance(first, IdentityServer)
     assert first.closed is True
     assert second is created[1]
     assert second.env["AKASHIC_CALLSIGN_HINT"] == "Sunshine"
@@ -830,10 +841,10 @@ class IdleRedis:
         return None
 
 
-def test_idle_level_watch_spends_no_app_server_or_model_turn(tmp_path):
+def test_idle_level_watch_spends_no_app_server_or_model_turn(tmp_path, monkeypatch):
     redis = IdleRedis()
     bus = Bus("sol", client=redis, promote=False)
-    bus._blocking_client = lambda _block_ms: redis
+    monkeypatch.setattr(bus, "_blocking_client", lambda _block_ms: redis)
     state = WakeState.open(tmp_path / "state.json", agent="sol", baseline="50-0")
     created = []
 
@@ -864,10 +875,10 @@ class TimeoutRedis(IdleRedis):
         raise RedisTimeoutError("fixture timeout")
 
 
-def test_blocking_redis_timeout_is_contained_without_a_model_turn(tmp_path):
+def test_blocking_redis_timeout_is_contained_without_a_model_turn(tmp_path, monkeypatch):
     redis = TimeoutRedis()
     bus = Bus("sol", client=redis, promote=False)
-    bus._blocking_client = lambda _block_ms: redis
+    monkeypatch.setattr(bus, "_blocking_client", lambda _block_ms: redis)
     state = WakeState.open(tmp_path / "state.json", agent="sol", baseline="50-0")
     watcher = CodexBifrostWake(
         bus=bus,
@@ -941,12 +952,12 @@ class FixtureAppServer:
         return None
 
 
-def test_one_eligible_message_makes_one_turn_and_one_causally_linked_reply(tmp_path):
+def test_one_eligible_message_makes_one_turn_and_one_causally_linked_reply(tmp_path, monkeypatch):
     mid = "60-0"
     redis = ExactRedis(mid, _message_fields(answers="1787730404992-0"))
     bus = Bus("sol", client=redis, promote=False)
     sends = []
-    bus.send = lambda to, kind, content, meta: sends.append((to, kind, content, meta)) or "70-0"
+    monkeypatch.setattr(bus, "send", lambda to, kind, content, meta: sends.append((to, kind, content, meta)) or "70-0")
     state = WakeState.open(tmp_path / "state.json", agent="sol", baseline="50-0")
     servers = []
     identity_reads = []
@@ -975,7 +986,7 @@ def test_one_eligible_message_makes_one_turn_and_one_causally_linked_reply(tmp_p
         state=state,
         log_path=tmp_path / "events.jsonl",
         cwd=tmp_path,
-        server_factory=make_server,
+        server_factory=_factory(make_server),
         identity_resolver=resolve_identity,
     )
     result = watcher.handle(mid, redis.fields)
@@ -1009,12 +1020,12 @@ def test_one_eligible_message_makes_one_turn_and_one_causally_linked_reply(tmp_p
     assert len(sends) == 1
 
 
-def test_bound_watcher_resumes_the_same_thread_across_a_fresh_host(tmp_path):
+def test_bound_watcher_resumes_the_same_thread_across_a_fresh_host(tmp_path, monkeypatch):
     mid = "60-0"
     redis = ExactRedis(mid, _message_fields(answers="1787730404992-0"))
     bus = Bus("sol", client=redis, promote=False)
     sends = []
-    bus.send = lambda to, kind, content, meta: sends.append((to, kind, content, meta)) or "70-0"
+    monkeypatch.setattr(bus, "send", lambda to, kind, content, meta: sends.append((to, kind, content, meta)) or "70-0")
     state = WakeState.open(
         tmp_path / "state.json",
         agent="sol",
@@ -1040,7 +1051,7 @@ def test_bound_watcher_resumes_the_same_thread_across_a_fresh_host(tmp_path):
         state=state,
         log_path=tmp_path / "events.jsonl",
         cwd=tmp_path,
-        server_factory=make_server,
+        server_factory=_factory(make_server),
         identity_resolver=lambda agent: SubjectIdentity(
             agent_id=agent,
             callsign="Sunshine",
@@ -1088,7 +1099,7 @@ def test_active_writer_defers_without_advancing_watermark_or_sending_a_reply(tmp
         state=state,
         log_path=tmp_path / "events.jsonl",
         cwd=tmp_path,
-        server_factory=lambda **_kwargs: server,
+        server_factory=_factory(lambda **_kwargs: server),
         identity_resolver=lambda agent: SubjectIdentity(
             agent_id=agent,
             callsign="Sunshine",
@@ -1134,7 +1145,7 @@ def test_missing_bound_thread_refuses_instead_of_silently_starting_a_stranger(tm
         state=state,
         log_path=tmp_path / "events.jsonl",
         cwd=tmp_path,
-        server_factory=lambda **_kwargs: server,
+        server_factory=_factory(lambda **_kwargs: server),
         identity_resolver=lambda agent: SubjectIdentity(
             agent_id=agent,
             callsign="Sunshine",

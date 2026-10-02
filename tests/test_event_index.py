@@ -114,6 +114,7 @@ def test_rebuild_backfills_preexisting_events():
     # now attach an index over the SAME ledger and heal it
     store = _store()
     el = EventLog(ledger, store=store)
+    assert el.index is not None
     assert el.index.count() == 0, "index starts cold"
     n = el.rebuild_index()
     assert n == 6, f"rebuild must backfill all 6 pre-existing events, got {n}"

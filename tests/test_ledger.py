@@ -125,6 +125,7 @@ def test_redisledger_if_available():
     assert [e["n"] for _id, e in events] == [1, 2], f"live replay wrong: {events}"
     after = rl.consume(stream, after_id=id1)
     assert [e["n"] for _id, e in after] == [2]
+    assert rl._client is not None
     rl._client.flushdb()  # leave the test DB clean
     print("\n--- RedisLedger (live) ---\n  live append+replay+cursor OK")
 

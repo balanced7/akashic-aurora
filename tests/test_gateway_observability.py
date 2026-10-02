@@ -42,6 +42,8 @@ sys.path.insert(0, str(REPO))
 def _gateway():
     """Load the runner shell by path -- it is a script, not a package member."""
     spec = importlib.util.spec_from_file_location("_gw", REPO / "scripts" / "bifrost_runner_discord.py")
+    assert spec is not None
+    assert spec.loader is not None
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod

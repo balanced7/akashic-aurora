@@ -227,6 +227,7 @@ def test_ledger_backfills_file_history_on_the_embedded_backend(tmp_path, monkeyp
     L.HybridLedger._backfilled.clear()
     got = L.HybridLedger(rl, fl).consume("events:raw", after_id="0")
     assert [event for _id, event in got] == [{"n": 1}, {"n": 2}], got
+    assert rl._client is not None
     assert rl._client.xlen("events:raw") == 2
     # a second read must not copy the history again
     L.HybridLedger(rl, fl).consume("events:raw", after_id="0")
@@ -244,6 +245,7 @@ def test_ledger_never_backfills_an_external_redis(tmp_path, monkeypatch):
     monkeypatch.setattr(E, "configured_backend", lambda: "external")
     L.HybridLedger._backfilled.clear()
     L.HybridLedger(rl, fl).consume("events:raw", after_id="0")
+    assert rl._client is not None
     assert rl._client.xlen("events:raw") == 0
 
 

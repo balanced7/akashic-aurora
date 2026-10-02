@@ -70,6 +70,7 @@ def test_close_drafts_fields_opens_next_and_stamps_span_end():
     assert "qa" in draft["why"].lower()
     # the closed chapter is stamped + persisted; a NEW current episode is open
     closed = load_chapter_from_store(s, draft["chapter_id"])
+    assert closed is not None
     assert closed.span_end == "2026-07-07T10:05:00"
     assert closed.why == draft["why"]
     assert res["new_current_chapter"]["id"] != draft["chapter_id"]
@@ -139,7 +140,9 @@ def test_accept_applies_edits_and_marks_final_idempotently():
     out = ep.accept_episode(s, cid, title="Final Title", why="Final Why")
     assert out["chapter"]["final"] is True
     assert out["chapter"]["title"] == "Final Title"
-    assert load_chapter_from_store(s, cid).final is True
+    accepted = load_chapter_from_store(s, cid)
+    assert accepted is not None
+    assert accepted.final is True
     # idempotent re-accept
     again = ep.accept_episode(s, cid, why="Edited Again")
     assert again["chapter"]["why"] == "Edited Again"
@@ -157,7 +160,9 @@ def test_finalize_one_shot_close_marks_final():
     ep.open_episode(s, now="2026-07-07T10:00:00")
     _emit(s, "note", "work", "2026-07-07T10:00:30")
     cid = ep.close_episode(s, now="2026-07-07T10:02:00", finalize=True)["draft"]["chapter_id"]
-    assert load_chapter_from_store(s, cid).final is True
+    finalized = load_chapter_from_store(s, cid)
+    assert finalized is not None
+    assert finalized.final is True
 
 
 # --- open_next / session-end force-close (no leaked chapters, DeepSeek Q5) --------------------------
@@ -188,9 +193,13 @@ def test_session_start_reuses_single_open_episode():
 
     s = _store()
     start_session(s, now="2026-07-07T10:00:00", chronicle=False)
-    first = ep._load_open(s)["chapter_id"]
+    first_open = ep._load_open(s)
+    assert first_open is not None
+    first = first_open["chapter_id"]
     # a second boot without an explicit end: prior open episode is closed, exactly one stays open
     start_session(s, now="2026-07-07T11:00:00", chronicle=False)
-    second = ep._load_open(s)["chapter_id"]
+    second_open = ep._load_open(s)
+    assert second_open is not None
+    second = second_open["chapter_id"]
     assert second != first
     assert ep._load_open(s) is not None

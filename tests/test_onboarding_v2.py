@@ -189,7 +189,9 @@ def test_new_approach():
     try:
         from coordinator_api import initialize
         from session_checkpoint import SessionState
-        from startup_diagnostics import create_startup_diagnostics
+        from startup_diagnostics import (  # pyright: ignore[reportMissingImports]  # LATENT: module absent
+            create_startup_diagnostics,
+        )
 
         # Track startup with diagnostics
         _diag = create_startup_diagnostics("new_agent")
@@ -246,7 +248,7 @@ def test_new_approach():
     return metrics
 
 
-def compare_results(old_metrics: dict, new_metrics: dict):
+def compare_results(old_metrics: dict | None, new_metrics: dict | None):
     """Compare old vs new approach"""
     if not old_metrics or not new_metrics:
         print("\nCannot compare: missing metrics")

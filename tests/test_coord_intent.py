@@ -34,6 +34,7 @@ def agents(monkeypatch):
     a, b = f"tA-{uuid.uuid4().hex[:6]}", f"tB-{uuid.uuid4().hex[:6]}"
     yield a, b
     c = I._client()
+    assert c is not None
     for k in c.keys(f"{I._intent_prefix()}*") or []:
         c.delete(k)
 

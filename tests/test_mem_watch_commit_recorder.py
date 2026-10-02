@@ -29,6 +29,8 @@ import pytest
 _spec = importlib.util.spec_from_file_location(
     "mem_watch", Path(__file__).resolve().parents[1] / "scripts" / "ops" / "mem_watch.py"
 )
+assert _spec is not None
+assert _spec.loader is not None
 mem_watch = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(mem_watch)
 
@@ -107,7 +109,8 @@ def test_prune_snapshots_keeps_the_newest(tmp_path):
     for i in range(7):
         p = tmp_path / f"snap-2026092{i}-000000.json"
         p.write_text("{}")
-        os.utime(p, (time.time() - (7 - i) * 60,) * 2)
+        stamp = time.time() - (7 - i) * 60
+        os.utime(p, (stamp, stamp))
     removed = mem_watch.prune_snapshots(str(tmp_path), keep=3)
     left = sorted(p.name for p in tmp_path.iterdir())
     assert removed == 4

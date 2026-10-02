@@ -84,6 +84,7 @@ def test_explicit_correction_supersedes_with_edges():
     )
     out = correct_chapter(s, "chapter_old", new, now="2026-06-27T13:00:00")
     closed = load_chapter_from_store(s, "chapter_old")
+    assert closed is not None
     assert closed.valid_to == "2026-06-27T13:00:00", "old chapter validity closed"
     assert any(e.type == "replaces" and e.target == "chapter_new" for e in closed.relates)
     assert any(e.type == "is_version_of" and e.target == "chapter_old" for e in out.relates)
@@ -245,10 +246,12 @@ def test_theme_assigner_wired_into_emit():
         at="2026-06-27T10:00:00",
         hint=RouteHint(category="research", task="routing"),
     )
+    assert b is not None
     assert "routing" in b.themes, f"themes should be inferred, got {b.themes}"
     assert "evaluation" in b.themes, "multi-label inference expected"
     # explicit themes (incl. []) are honored verbatim, not overwritten
     b2 = bl.emit("note", "routing words here", "src:2", at="2026-06-27T11:00:00", themes=[])
+    assert b2 is not None
     assert b2.themes == [], "explicit empty themes must be respected"
     print("  theme-wiring: emit infers themes; explicit list honored OK")
 
@@ -286,7 +289,9 @@ def test_theme_index_accumulates_all_member_beats():
     c.chronicle_all(now="2026-06-27T12:00:00")
     from core.narrative.schema import Theme, theme_key
 
-    t = Theme.from_dict(json.loads(s.get(theme_key("routing"))))
+    raw_theme = s.get(theme_key("routing"))
+    assert raw_theme is not None
+    t = Theme.from_dict(json.loads(raw_theme))
     assert len(t.beats) == 2, f"theme should index both beats, got {t.beats}"
     print("  theme-index: all member beats recorded OK")
 

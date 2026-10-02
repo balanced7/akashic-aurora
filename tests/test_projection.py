@@ -46,6 +46,7 @@ def test_superseded_render_carries_banner(tmp_path):
     old = fam.mint("design", "v1", "old", now=1.0)
     new = fam.supersede(old["id"], body="new", now=2.0)
     flipped = fam.get(old["id"])
+    assert flipped is not None
     text = Path(pj.render_atom(flipped, repo_root=str(tmp_path))).read_text(encoding="utf-8")
     assert "SUPERSEDED" in text
     assert new["id"] in text

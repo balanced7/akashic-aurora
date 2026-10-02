@@ -28,6 +28,7 @@ import sys
 import time
 import uuid
 from pathlib import Path
+from typing import Any, cast
 
 import pytest
 
@@ -39,7 +40,8 @@ try:
 
     _BUILT = hasattr(runner_lock, "claim_consumer")
 except ImportError:
-    runner_lock = Bus = None
+    # Any: every pin is skipped when the impl is absent (_BUILT False), so None is never used.
+    runner_lock = Bus = cast("Any", None)
     _BUILT = False
 
 try:
@@ -172,6 +174,7 @@ def test_peek_stays_seatless(agent):
     got = Bus(agent).inbox(limit=10, advance=False)
     assert len(got) == 1
     c = runner_lock._client()
+    assert c is not None
     assert c.get(f"bifrost:runner:{agent}") is None
     assert c.get(f"bifrost:generation:{agent}") is None
 

@@ -99,8 +99,8 @@ def test_no_target_unit_inside_the_scene_atoms(scene):
         elif isinstance(value, list):
             for i, v in enumerate(value):
                 walk(v, f"{path}[{i}]", in_code)
-        elif isinstance(value, str) and not in_code and sc._UNIT_RE.search(value):
-            hits.append((path, sc._UNIT_RE.search(value).group(0)))
+        elif isinstance(value, str) and not in_code and (unit := sc._UNIT_RE.search(value)):
+            hits.append((path, unit.group(0)))
 
     for slide in scene["slides"]:
         for a in slide["atoms"]:
@@ -184,6 +184,7 @@ def test_ui_fragment_scales_the_logical_layout(scene, tmp_path):
     assert "<script" not in at_400
     assert "width:1920px; height:1080px" in at_400
     note = _core.note_of(slide)
+    assert note is not None
     assert f'title="{_core.esc(note["script"])}"' in at_400
     for atom_id, cue in _core.cue_map(slide).items():
         assert f'title="{_core.esc(cue)}"' in at_400, atom_id
@@ -211,6 +212,7 @@ def test_print_page_has_one_page_per_slide(rendered, slide_ids):
     assert "@page { size: 1920px 1080px; margin: 0 }" in page
     assert "break-after: page" in page
     assert "<script" not in page
+    assert print_html.__doc__ is not None
     doc = print_html.__doc__.lower()
     assert "the browser's print" in doc
     assert "never launches a browser" in doc
@@ -231,7 +233,9 @@ def test_print_refuses_a_note_its_footnote_cannot_hold(scene, tmp_path):
 
     big = copy.deepcopy(scene)
     slide = _core.ordered_slides(big)[3]
-    _core.note_of(slide)["script"] = "word " * 900
+    note = _core.note_of(slide)
+    assert note is not None
+    note["script"] = "word " * 900
     overflow = print_html.footnote_overflow(big)
     assert overflow
     assert overflow.startswith(f"slide {slide['id']}:")

@@ -32,6 +32,7 @@ def test_mirror_happy_path_allowed():
     from core.comm.toolbox import _is_python
 
     assert why is None
+    assert argv is not None
     assert _is_python(argv[0])
     assert argv[1] == "scripts/mirror.py"
 
@@ -39,33 +40,39 @@ def test_mirror_happy_path_allowed():
 def test_mirror_without_paths_refused():
     argv, _, why = _family('py scripts/mirror.py "just a message"')
     assert argv is None
+    assert why is not None
     assert "EXPLICIT paths" in why
 
 
 def test_mirror_flags_refused():
     argv, _, why = _family('py scripts/mirror.py "msg" --all')
     assert argv is None
+    assert why is not None
     assert "no --all" in why
 
 
 def test_mirror_security_path_refused():
     argv, _, why = _family('py scripts/mirror.py "grant tweak" security/acl.json')
     assert argv is None
+    assert why is not None
     assert "outside your mirror scope" in why
 
 
 def test_mirror_claude_config_refused():
     argv, _, why = _family('py scripts/mirror.py "hook tweak" .claude/settings.json')
     assert argv is None
+    assert why is not None
     assert "outside your mirror scope" in why
 
 
 def test_mirror_absolute_or_dotdot_paths_refused():
     argv, _, why = _family('py scripts/mirror.py "msg" ../outside.txt')
     assert argv is None
+    assert why is not None
     assert "repo-relative" in why
     argv, _, why = _family(r'py scripts/mirror.py "msg" E:\AI-Setup\core\x.py')
     assert argv is None
+    assert why is not None
     assert "repo-relative" in why
 
 
@@ -96,4 +103,5 @@ def test_raw_git_still_refused():
 def test_pytest_family_regression():
     _argv, env, why = _family("py -m pytest tests/test_ir4_mirror_family.py -q")
     assert why is None
+    assert env is not None
     assert env.get("_AISETUP_TEST_ISOLATED") == "1"

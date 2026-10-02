@@ -31,12 +31,19 @@ def _tiny_log(tmp_path, monkeypatch, maxlen=5):
     return EL.EventLog(FileLedger(str(tmp_path)))
 
 
+def _ref(outcome) -> str:
+    """Return the drill pointer a successful capture carries."""
+    assert outcome.ref is not None
+    return outcome.ref
+
+
 def test_evicted_pointer_confesses_aging(tmp_path, monkeypatch):
     log = _tiny_log(tmp_path, monkeypatch)
     # capture() returns a BoundaryOutcome since T179 (64066a3f); .ref IS the _ref pointer.
-    refs = [log.capture("note", f"event {i}").ref for i in range(8)]
+    refs = [_ref(log.capture("note", f"event {i}")) for i in range(8)]
     ev, why = log.resolve(refs[0])  # ids 1..3 evicted by the bound of 5
     assert ev is None
+    assert why is not None
     assert "aged out" in why, f"an evicted payload must say so, got: {why!r}"
     assert "if it ever existed" in why, (
         "the claim stays within its evidence: sparse (Redis) ids below the oldest "
@@ -48,7 +55,7 @@ def test_evicted_pointer_confesses_aging(tmp_path, monkeypatch):
 
 def test_present_pointer_resolves_clean(tmp_path, monkeypatch):
     log = _tiny_log(tmp_path, monkeypatch)
-    refs = [log.capture("note", f"event {i}").ref for i in range(8)]
+    refs = [_ref(log.capture("note", f"event {i}")) for i in range(8)]
     ev, why = log.resolve(refs[-1])
     assert why is None
     assert ev is not None
@@ -61,6 +68,7 @@ def test_never_existed_says_so_without_false_aging(tmp_path, monkeypatch):
         log.capture("note", f"event {i}")
     ev, why = log.resolve(f"event:{EL.RAW_STREAM}:99999")  # beyond the newest id
     assert ev is None
+    assert why is not None
     assert "aged out" not in why, "an id newer than every survivor was never evicted"
 
 
@@ -68,23 +76,27 @@ def test_malformed_pointer_is_named(tmp_path, monkeypatch):
     log = _tiny_log(tmp_path, monkeypatch)
     ev, why = log.resolve("bogus-not-a-ref")
     assert ev is None
+    assert why is not None
     assert "followable" in why
 
 
 def test_get_still_returns_bare_event(tmp_path, monkeypatch):
     """get() keeps its contract (event-or-None) and shares resolve()'s scan."""
     log = _tiny_log(tmp_path, monkeypatch)
-    refs = [log.capture("note", f"event {i}").ref for i in range(3)]
-    assert log.get(refs[0])["summary"] == "event 0"
+    refs = [_ref(log.capture("note", f"event {i}")) for i in range(3)]
+    got = log.get(refs[0])
+    assert got is not None
+    assert got["summary"] == "event 0"
     assert log.get(f"event:{EL.RAW_STREAM}:777") is None
 
 
 def test_query_layer_shares_the_honest_door(tmp_path, monkeypatch):
     log = _tiny_log(tmp_path, monkeypatch)
-    refs = [log.capture("note", f"event {i}").ref for i in range(8)]
+    refs = [_ref(log.capture("note", f"event {i}")) for i in range(8)]
     eq = EventQuery(log)
     ev, why = eq.resolve(refs[0])
     assert ev is None
+    assert why is not None
     assert "aged out" in why
 
 

@@ -26,6 +26,7 @@ import os
 import sys
 import uuid
 from pathlib import Path
+from typing import Any, cast
 
 import pytest
 
@@ -39,6 +40,8 @@ try:
 
     _F1 = True
 except ImportError:
+    # Any: the F1 pins are skipped when the import fails (_F1 False), so None is never called.
+    may_run_runner = cast("Any", None)
     _F1 = False
 
 _F2 = hasattr(Bus, "seed_cursor_at_tail")

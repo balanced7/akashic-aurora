@@ -121,6 +121,7 @@ def test_evaluate_thin_episode_is_silent():
 
 def test_evaluate_impl_complete_outranks_switch():
     got = _ev(beats=_switched(), task_events=[("impl-complete", "T042", sg._epoch("2026-07-07T10:05:00"))])
+    assert got is not None
     assert got["reason"] == "impl-complete"
     assert got["confidence"] == 0.88
     assert got["fingerprint"] == "impl-complete:T042"
@@ -132,6 +133,7 @@ def test_evaluate_task_event_outside_span_is_silent():
 
 def test_evaluate_new_objective_fires():
     got = _ev(task_events=[("new-objective", "T043", sg._epoch("2026-07-07T10:05:00"))])
+    assert got is not None
     assert got["reason"] == "new-objective"
     assert got["confidence"] == 0.70
 
@@ -158,6 +160,7 @@ def test_suggest_switch_fires_once_stands_across_polls(tmp_path, monkeypatch):
     _beats(s, track="research")  # both routed beats left the episode's track
     led = _empty_ledger(tmp_path)
     got = sg.suggest(s, now="2026-07-07T10:06:00", ledger_path=led)
+    assert got is not None
     assert got["reason"] == "subsystem-switch"
     assert got["confidence"] == 0.75
     assert set(got) == {"title", "description", "why", "reason", "confidence"}  # contract, no internals
@@ -177,6 +180,7 @@ def test_suggest_idle_self_clears_when_activity_resumes(tmp_path, monkeypatch):
     _beats(s)
     led = _empty_ledger(tmp_path)
     got = sg.suggest(s, now="2026-07-07T10:17:00", ledger_path=led)  # 16 min since last beat
+    assert got is not None
     assert got["reason"] == "idle"
     assert len(events) == 1
     _emit(s, "note", "back at it", "2026-07-07T10:18:00")  # activity resumes
@@ -191,11 +195,14 @@ def test_suggest_stronger_replaces_only_after_cooldown(tmp_path, monkeypatch):
     _beats(s)
     led_idle = _empty_ledger(tmp_path)
     got = sg.suggest(s, now="2026-07-07T10:17:00", ledger_path=led_idle)
+    assert got is not None
     assert got["reason"] == "idle"
     led_done = _ledger(tmp_path, ("T042", "done", "2026-07-07T10:18:00+00:00"))
     within = sg.suggest(s, now="2026-07-07T10:19:00", ledger_path=led_done)  # 2 min after idle fired
+    assert within is not None
     assert within["reason"] == "idle"  # cooldown holds the line
     later = sg.suggest(s, now="2026-07-07T10:28:00", ledger_path=led_done)  # past COOLDOWN_S
+    assert later is not None
     assert later["reason"] == "impl-complete"
     assert later["confidence"] == 0.88
     assert [e[2]["detail"]["reason"] for e in events] == ["idle", "impl-complete"]
@@ -208,10 +215,12 @@ def test_suggest_weaker_never_replaces_stronger(tmp_path, monkeypatch):
     _beats(s)
     led = _ledger(tmp_path, ("T042", "done", "2026-07-07T10:05:00+00:00"))
     got = sg.suggest(s, now="2026-07-07T10:06:00", ledger_path=led)
+    assert got is not None
     assert got["reason"] == "impl-complete"
     for i, at in enumerate(("2026-07-07T10:20:00", "2026-07-07T10:21:00", "2026-07-07T10:22:00")):
         _emit(s, "note", f"drifting {i}", at, track="research")  # a weaker trigger appears
     later = sg.suggest(s, now="2026-07-07T10:30:00", ledger_path=led)  # even past the cooldown
+    assert later is not None
     assert later["reason"] == "impl-complete"  # 0.75 never displaces 0.88
     assert len(events) == 1
 
@@ -222,7 +231,9 @@ def test_suggest_new_episode_resets_state(tmp_path, monkeypatch):
     ep.open_episode(s, now="2026-07-07T10:00:00", track="ai-setup")
     _beats(s, track="research")
     led = _empty_ledger(tmp_path)
-    assert sg.suggest(s, now="2026-07-07T10:06:00", ledger_path=led)["reason"] == "subsystem-switch"
+    first = sg.suggest(s, now="2026-07-07T10:06:00", ledger_path=led)
+    assert first is not None
+    assert first["reason"] == "subsystem-switch"
     ep.close_episode(s, now="2026-07-07T10:07:00")  # close -> fresh episode opens
     _emit(s, "note", "new work a", "2026-07-07T10:07:30", track="research")
     _emit(s, "note", "new work b", "2026-07-07T10:08:00", track="research")

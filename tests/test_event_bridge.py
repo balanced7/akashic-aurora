@@ -76,14 +76,18 @@ def test_resolve_span_beat_window():
     store, _ = _ctx()
     b = Beat(id="b1", at="2026-06-22T12:00:00", kind="note", summary="x", source="s")
     store.set(beat_key("b1"), json.dumps(b.to_dict()))
-    start, end = resolve_span("b1", store=store, window_seconds=3600)
+    span = resolve_span("b1", store=store, window_seconds=3600)
+    assert span is not None
+    start, end = span
     assert start == "2026-06-22T11:00:00"
     assert end == "2026-06-22T13:00:00"
 
 
 def test_resolve_span_iso_and_garbage():
     store, _ = _ctx()
-    start, end = resolve_span("2026-06-22T12:00:00", store=store, window_seconds=60)
+    span = resolve_span("2026-06-22T12:00:00", store=store, window_seconds=60)
+    assert span is not None
+    start, end = span
     assert start == "2026-06-22T11:59:00"
     assert end == "2026-06-22T12:01:00"
     assert resolve_span("not-a-thing", store=store) is None
@@ -137,6 +141,7 @@ def test_events_around_unresolvable():
 def test_raw_for_beat_resolves_atom():
     store, eq = _ctx()
     ev = eq.log.capture("file_edit", "edited the file", at="2026-06-22T12:00:00")
+    assert ev.ref is not None
     b = Beat(
         id="b1", at="2026-06-22T12:00:00", kind="commit", summary="commit it", source=ev.ref
     )  # the Beat points AT the raw atom
@@ -189,7 +194,9 @@ def test_cli_story_beat_raw(capsys):
     store = create_store()
     t = "2026-06-15T12:00:00"
     ev = get_event_log().capture("tool_call", "RAWDRILL_" + uuid.uuid4().hex[:6], at=t)
+    assert ev.ref is not None
     beat = BeatLog(store).emit("note", "a beat with raw beneath it", source=ev.ref, at=t)
+    assert beat is not None
     rc = agent_cli.cmd_story(FakeArgs(beat=beat.id, raw=True), store=store)
     assert rc == 0
     out = capsys.readouterr().out

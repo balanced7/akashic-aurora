@@ -79,6 +79,7 @@ def test_a_live_expectation_with_a_stale_checkpoint_alarms():
 def test_the_alarm_names_what_who_and_how_long():
     """He reads this on a phone. 'Something is wrong' is the same silence with punctuation."""
     alarm = F.verdict({**LIVE, "checkpoint_at": NOW - 3600}, now=NOW)
+    assert alarm is not None
     assert "door arc pass 2" in alarm, alarm
     assert "claude#06528775" in alarm, alarm
     assert "60" in alarm or "min" in alarm.lower(), alarm
@@ -133,9 +134,15 @@ def test_declaring_and_standing_down_round_trips(tmp_path):
     fires -- which is the entire point of putting it outside the process that declares it."""
     p = tmp_path / "run-active.json"
     F.declare(p, who="claude#abc", what="a slice", grace_s=900, now=NOW)
-    assert F.load(p)["active"] is True
+    declared = F.load(p)
+    assert declared is not None
+    assert declared["active"] is True
     F.checkpoint(p, now=NOW + 100)
-    assert F.load(p)["checkpoint_at"] == NOW + 100
+    checkpointed = F.load(p)
+    assert checkpointed is not None
+    assert checkpointed["checkpoint_at"] == NOW + 100
     F.stand_down(p, now=NOW + 200)
-    assert F.load(p)["active"] is False
+    stood_down = F.load(p)
+    assert stood_down is not None
+    assert stood_down["active"] is False
     assert F.verdict(F.load(p), now=NOW + 99999) is None

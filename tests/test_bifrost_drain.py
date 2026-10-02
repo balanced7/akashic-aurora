@@ -66,7 +66,9 @@ def test_p2_flag_carries_ttl(monkeypatch):
 
     agent = f"t-drain-ttl-{uuid.uuid4().hex[:6]}"
     control.drain(agent, by="tester")
-    ttl = Bus("t-drain")._client.ttl(f"{ns}:control:drain:{agent}")
+    client = Bus("t-drain")._client
+    assert client is not None
+    ttl = client.ttl(f"{ns}:control:drain:{agent}")
     assert 0 < ttl <= control.DRAIN_TTL_S, "an unhonored drain must self-clear -- never a forever-flag"
 
 

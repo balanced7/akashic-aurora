@@ -30,7 +30,7 @@ class FakeBus:
     def register(self):
         pass
 
-    def send(self, to, kind, content, meta=None):
+    def send(self, to, kind, content, meta=None) -> str | None:
         self.sent.append({"to": to, "kind": kind, "content": content, "meta": meta or {}})
         return self._mid
 

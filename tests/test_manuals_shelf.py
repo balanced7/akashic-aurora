@@ -232,7 +232,9 @@ def test_questions_with_punctuation_never_break_the_query(tmp_path):
     sh.ingest("home", corpus)
     for q in ['"unbalanced', "AND OR NOT", "near(bulb)", "44x44 pt?", "col:umn*", "' ; drop table chunks; --"]:
         sh.search(q)  # must not raise
-    assert sh.stats()["chunks"] > 0
+    chunks = sh.stats()["chunks"]
+    assert isinstance(chunks, int)
+    assert chunks > 0
 
 
 def test_zero_hits_say_what_was_searched(tmp_path):
@@ -261,6 +263,8 @@ def test_mirrored_pages_with_the_same_file_name_keep_their_own_urls(tmp_path):
     sh = shelf_mod.Shelf(tmp_path / "manuals.db")
     sh.ingest("mirror", mirror)
     urls = {h.title: h.url for h in sh.search("rules basics", limit=10).hits}
+    assert urls["Layout"] is not None
+    assert urls["Motion"] is not None
     assert urls["Layout"].startswith("https://docs.example.com/guide/layout/intro.html"), urls
     assert urls["Motion"].startswith("https://docs.example.com/guide/motion/intro.html"), urls
 
@@ -307,6 +311,7 @@ def test_a_docc_page_links_to_its_human_page_not_its_raw_data(tmp_path):
     sh = shelf_mod.Shelf(tmp_path / "manuals.db")
     sh.ingest("hig", corpus)
     hit = sh.search("phone height sizing").hits[0]
+    assert hit.url is not None
     assert hit.url.startswith("https://developer.apple.com/design/guide/switches#"), hit.url
 
 

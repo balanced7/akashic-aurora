@@ -51,6 +51,7 @@ def store():
     # already isolated (a fresh temp file per test).
     d = tempfile.mkdtemp()
     s = HybridStore.create(file_path=os.path.join(d, "drill2.json"), db=15)
+    assert s._redis is not None
     for k in s._redis.keys("*"):
         s._redis.delete(k)
     yield s

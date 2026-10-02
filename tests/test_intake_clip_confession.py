@@ -24,6 +24,7 @@ import sys
 import tempfile
 from contextlib import redirect_stdout
 from types import SimpleNamespace
+from typing import Any
 
 os.environ.setdefault("AI_SETUP", tempfile.mkdtemp())
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -42,7 +43,10 @@ class _quiet_fanout:
         import core.learning.agent_memory as am
         import core.narrative.beat_log as bl
 
-        self._ev, self._bl, self._am = ev, bl, am
+        # Any: __exit__ restores attributes the module types do not declare as writable.
+        self._ev: Any = ev
+        self._bl: Any = bl
+        self._am: Any = am
         # T069 (repaired 2026-07-15): under _AISETUP_TEST_ISOLATED the doors
         # construct FRESH instances and ignore the cache global this context
         # injects -- in a full-suite run (where another module's import sets the
@@ -165,7 +169,7 @@ if __name__ == "__main__":
     print("STORAGE-INTAKE CLIP CONFESSION TESTS (RB-5 class)")
     print("=" * 60)
     test_5k_note_arg_stores_whole()
-    test_over_cap_note_confesses_in_result_and_in_band()
+    test_over_cap_note_confesses_in_result_and_in_band()  # pyright: ignore[reportCallIssue]  # LATENT: __main__ runner predates its fixtures
     test_json_mode_carries_confession()
     test_small_note_unchanged()
     print("\n" + "=" * 60)

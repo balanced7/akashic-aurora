@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import os
 import sys
+from typing import cast
 
 import pytest
 import requests
@@ -92,7 +93,7 @@ class _Resp:
 
 def _http_429():
     e = requests.HTTPError("429")
-    e.response = _Resp(429)
+    e.response = cast("requests.Response", _Resp(429))
     return e
 
 

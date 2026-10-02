@@ -111,7 +111,7 @@ def _commit_as(work, author, name, subject):
     _git(work, "commit", "-q", "-m", subject, env=_env(**extra))
 
 
-def _mirror(work, *args, seat="claude", door=None):
+def _mirror(work, *args, seat: str | None = "claude", door=None):
     return subprocess.run(
         [sys.executable, "scripts/mirror.py", *args],
         cwd=str(work),
@@ -220,6 +220,8 @@ def test_u1c_heimdall_may_publish_but_the_inherited_claude_id_still_may_not():
     import importlib.util as _ilu
 
     spec = _ilu.spec_from_file_location("mirror_amend", os.path.join(REPO, "scripts", "mirror.py"))
+    assert spec is not None
+    assert spec.loader is not None
     mirror = _ilu.module_from_spec(spec)
     spec.loader.exec_module(mirror)
     tb = {"AKASHIC_SEAT_DOOR": "toolbox"}
@@ -263,9 +265,12 @@ def test_u2_toolbox_mirror_family_stamps_the_door_mirror_refuses():
     )
     _argv, env_extra, why = box._exec_family("py scripts/mirror.py count-plus-lines research/x.patch")
     assert why is None
+    assert env_extra is not None
     assert env_extra.get("AKASHIC_SEAT_DOOR") == "toolbox"
 
     spec = importlib.util.spec_from_file_location("mirror_under_test", os.path.join(REPO, "scripts", "mirror.py"))
+    assert spec is not None
+    assert spec.loader is not None
     mirror = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mirror)
 

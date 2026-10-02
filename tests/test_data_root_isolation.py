@@ -26,6 +26,7 @@ import json
 import os
 import sys
 from pathlib import Path
+from typing import cast
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -111,7 +112,7 @@ def test_p3_legacy_learnings_jsonl_is_read_from_the_data_root_not_the_code_root(
     assert paths.repo_root().resolve() == code.resolve(), "sanity: the derivation walk must land on the fake code root"
 
     ls = LearningStore(store=FileStore(str(tmp_path / "empty.json")))
-    names = sorted(rec.get("experiment_name") for rec in ls.load_all_learnings_from_store())
+    names = sorted(cast("str", rec.get("experiment_name")) for rec in ls.load_all_learnings_from_store())
     assert names == [], (
         f"an isolated, explicitly-empty store came back holding {names}: the legacy "
         f"session_logs/learnings.jsonl was read from the CODE root instead of the data root"

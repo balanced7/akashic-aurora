@@ -67,6 +67,8 @@ def _page() -> str:
         if isinstance(node, ast.Assign):
             for tgt in node.targets:
                 if isinstance(tgt, ast.Name) and tgt.id == "PAGE":
+                    assert isinstance(node.value, ast.Constant)
+                    assert isinstance(node.value.value, str)
                     return node.value.value
     pytest.fail("PAGE constant not found in bifrost_ui.py -- the serve path moved; re-anchor this pin.")
 

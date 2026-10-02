@@ -64,7 +64,9 @@ def test_roster_loads_and_filters_by_status_and_capability():
 
 
 def test_get_returns_spec_or_none():
-    assert roster.get("glm-4.7-flash")["status"] == "active"
+    spec = roster.get("glm-4.7-flash")
+    assert spec is not None
+    assert spec["status"] == "active"
     assert roster.get("does-not-exist") is None
     assert roster.get("") is None
 

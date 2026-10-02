@@ -67,6 +67,8 @@ def _gateway_module():
         "_discord_gateway_startup_contract",
         REPO / "scripts" / "bifrost_runner_discord.py",
     )
+    assert spec is not None
+    assert spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     assert spec.loader is not None
     spec.loader.exec_module(module)

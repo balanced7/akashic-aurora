@@ -95,6 +95,7 @@ def test_cache_roundtrip_and_content_invalidation():
 
     emb = _real_embedder()
     store = emb.store
+    assert store is not None
     v1 = emb.embed("alpha beta gamma")
     assert v1 is not None
     assert len(v1) > 0

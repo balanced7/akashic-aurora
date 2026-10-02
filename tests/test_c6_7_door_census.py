@@ -188,7 +188,7 @@ def test_b1_door_census_all_xadd_sites_registered():
     assert len(bus_xadds) >= 6, (
         f"Expected at least 6 xadd sites in bus.py, found {len(bus_xadds)}. "
         f"If you added one, register it in DOOR_CENSUS. Sites:\n"
-        + "\n".join(f"  {fp}:{ln}: {ctx}" for ln, ctx in bus_xadds)
+        + "\n".join(f"  core/comm/bus.py:{ln}: {ctx}" for ln, ctx in bus_xadds)
     )
 
     print(f"Census OK: {len(bus_xadds)} xadd sites in bus.py, all registered in DOOR_CENSUS.")
@@ -236,6 +236,12 @@ def _bus(agent, ns):
     return b
 
 
+def _rec(b) -> _Recorder:
+    """Return the recording proxy _bus() installed (typed access for the census asserts)."""
+    assert isinstance(b._client, _Recorder)
+    return b._client
+
+
 def test_b2_work_kinds_are_lane_first():
     """Acceptance #3: every work-lane kind routes through lane_for() -- the lane write
     happens BEFORE the legacy write in _emit()."""
@@ -260,7 +266,7 @@ def test_b2_work_kinds_are_lane_first():
         b.send("peer", kind, f"census probe: {kind}")
         # Check the last two xadds for this send: the first should be a lane key,
         # the second should be a legacy inbox key
-        keys = b._client.xadd_keys
+        keys = _rec(b).xadd_keys
         assert len(keys) >= 2, f"No xadds recorded for kind={kind}"
         lane_write = keys[-2]
         legacy_write = keys[-1]
@@ -271,7 +277,7 @@ def test_b2_work_kinds_are_lane_first():
         assert legacy_key.endswith(":inbox:peer"), f"kind={kind}: legacy key should be inbox:peer, got {legacy_key}"
         assert ":work:" not in legacy_key, f"kind={kind}: legacy key should be inbox:peer, got {legacy_key}"
         # Clear for next kind
-        b._client.xadd_keys.clear()
+        _rec(b).xadd_keys.clear()
 
     print("B2 OK: all work kinds are lane-first.")
 
@@ -283,11 +289,11 @@ def test_b2_sig_kinds_are_lane_first():
 
     for kind in ("nudge", "steer"):
         b.send("peer", kind, f"sig probe: {kind}")
-        keys = b._client.xadd_keys
+        keys = _rec(b).xadd_keys
         assert len(keys) >= 2
         lane_key, _ = keys[-2]
         assert ":sig:inbox:peer" in lane_key, f"kind={kind}: should be sig lane, got {lane_key}"
-        b._client.xadd_keys.clear()
+        _rec(b).xadd_keys.clear()
 
     print("B2 OK: sig kinds are lane-first.")
 
@@ -299,11 +305,11 @@ def test_b2_trace_kinds_are_lane_first():
 
     for kind in ("trace", "thinking", "tool", "narration", "hint"):
         b.broadcast(kind, f"trace probe: {kind}")
-        keys = b._client.xadd_keys
+        keys = _rec(b).xadd_keys
         assert len(keys) >= 2
         lane_key, _ = keys[-2]
         assert ":trace" in lane_key, f"kind={kind}: should be trace lane, got {lane_key}"
-        b._client.xadd_keys.clear()
+        _rec(b).xadd_keys.clear()
 
     print("B2 OK: trace kinds are lane-first.")
 
@@ -313,7 +319,7 @@ def test_b2_unmapped_kind_legacy_only_loud(capsys):
     ns = _ns()
     b = _bus("census-tester", ns)
     b.send("peer", "zz_novel_kind_zz", "unmapped probe")
-    keys = b._client.xadd_keys
+    keys = _rec(b).xadd_keys
     # Should have exactly one xadd (legacy-only, no lane key)
     legacy_keys = [k for k, _ in keys if ":work:" not in k and ":sig:" not in k and ":trace" not in k]
     lane_keys = [k for k, _ in keys if ":work:" in k or ":sig:" in k or k.endswith(":trace")]
@@ -356,7 +362,7 @@ def test_b3_mixed_sends_no_legacy_stragglers_on_work_drain():
         sender.send(to, kind, text)
 
     # Verify lane keys received the writes
-    c = sender._client._real  # the real Redis client under the recorder
+    c = _rec(sender)._real  # the real Redis client under the recorder
     work_entries = c.xrevrange(f"{ns}:work:inbox:peer", count=20)
     sig_entries = c.xrevrange(f"{ns}:sig:inbox:peer", count=20)
     legacy_entries = c.xrevrange(f"{ns}:inbox:peer", count=20)
@@ -395,7 +401,7 @@ def test_b3_reply_still_lane_first_via_send_reply():
     b = _bus("drill-sender", ns)
     b.send_reply("peer", "the verdict", meta={"answers": "q1"})
 
-    keys = b._client.xadd_keys
+    keys = _rec(b).xadd_keys
     # send_reply writes lane xadd first, then legacy xadd
     assert len(keys) >= 2
     lane_key, _ = keys[-2]
@@ -416,7 +422,7 @@ def test_b4_send_reply_carries_reply_id():
     ns = _ns()
     b = _bus("drill-sender", ns)
     b.send_reply("peer", "answer")
-    c = b._client._real
+    c = _rec(b)._real
     entries = c.xrevrange(f"{ns}:work:inbox:peer", count=1)
     assert entries
     meta_raw = entries[0][1].get("meta", "{}")

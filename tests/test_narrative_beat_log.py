@@ -55,9 +55,15 @@ def test_time_order_recent_and_window():
 
 def test_weight_defaults_and_override():
     log = _log()
-    assert log.emit("milestone", "m", "git:1").weight == 5
-    assert log.emit("commit", "c", "git:2").weight == 2
-    assert log.emit("commit", "big", "git:3", weight=4).weight == 4, "override honored"
+    milestone = log.emit("milestone", "m", "git:1")
+    assert milestone is not None
+    assert milestone.weight == 5
+    commit = log.emit("commit", "c", "git:2")
+    assert commit is not None
+    assert commit.weight == 2
+    big = log.emit("commit", "big", "git:3", weight=4)
+    assert big is not None
+    assert big.weight == 4, "override honored"
     print("  weight defaults + override OK")
 
 
