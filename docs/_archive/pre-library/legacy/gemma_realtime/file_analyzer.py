@@ -7,9 +7,12 @@ Multi-format file analysis (code, images, PDFs, docs, DB, audio, video)
 import asyncio
 import io
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any, cast
 
 from PIL import Image
+
+if TYPE_CHECKING:
+    from openpyxl.worksheet.worksheet import Worksheet
 
 # Code file extensions
 CODE_EXTENSIONS = {
@@ -205,7 +208,7 @@ First 500 chars: {text[:500]}"""
         }
 
         try:
-            import pdfplumber
+            import pdfplumber  # pyright: ignore[reportMissingImports]  # optional dependency, not in the lock
 
             with pdfplumber.open(io.BytesIO(data)) as pdf:
                 result["pdf_info"] = {
@@ -248,7 +251,7 @@ Content preview:
                 result["excel_info"] = {"sheets": wb.sheetnames, "sheet_count": len(wb.sheetnames)}
 
                 # Get first sheet info
-                ws = wb.active
+                ws = cast("Worksheet", wb.active)  # a loaded workbook always has an active sheet
                 result["summary"] = f"""Excel: {filename}
 - {len(wb.sheetnames)} sheets
 - Sheet '{ws.title}': {ws.max_row} rows x {ws.max_column} cols

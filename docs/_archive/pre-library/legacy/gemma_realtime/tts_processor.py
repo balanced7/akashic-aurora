@@ -37,7 +37,7 @@ KOKORO_VOICES = {
 class KokoroTTS:
     """Kokoro TTS engine"""
 
-    def __init__(self, config: TTSConfig = None):
+    def __init__(self, config: TTSConfig | None = None):
         self.config = config or TTSConfig()
         self.engine = None
         self._loaded = False
@@ -47,7 +47,7 @@ class KokoroTTS:
         """Load Kokoro"""
         if not self._loaded:
             try:
-                from kokoro_tts import Kokoro
+                from kokoro_tts import Kokoro  # pyright: ignore[reportMissingImports]  # optional dependency
 
                 # Try GPU first, fall back to CPU
                 try:
@@ -79,7 +79,10 @@ class KokoroTTS:
             return
 
         try:
-            from kokoro_tts import KokoroEngine, TextToAudioStream
+            from kokoro_tts import (  # pyright: ignore[reportMissingImports]  # optional dependency, not in the lock
+                KokoroEngine,
+                TextToAudioStream,
+            )
 
             engine = KokoroEngine(voice=self.config.voice, default_speed=self.config.speed)
 
@@ -112,7 +115,7 @@ class KokoroTTS:
 class EspeakTTS:
     """Espeak-ng TTS engine (fallback)"""
 
-    def __init__(self, config: TTSConfig = None):
+    def __init__(self, config: TTSConfig | None = None):
         self.config = config or TTSConfig()
         self.config.engine = "espeak"
 
@@ -158,7 +161,7 @@ class EspeakTTS:
 class TTSProcessor:
     """Unified TTS processor"""
 
-    def __init__(self, config: TTSConfig = None):
+    def __init__(self, config: TTSConfig | None = None):
         self.config = config or TTSConfig()
         self.kokoro = KokoroTTS(config)
         self.espeak = EspeakTTS(config)

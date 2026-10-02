@@ -22,7 +22,7 @@ class STTConfig:
 class STTProcessor:
     """Speech-to-text using Faster-Whisper"""
 
-    def __init__(self, config: STTConfig = None):
+    def __init__(self, config: STTConfig | None = None):
         self.config = config or STTConfig()
         self.model = None
         self._loaded = False
@@ -31,7 +31,7 @@ class STTProcessor:
         """Load the Whisper model"""
         if not self._loaded:
             try:
-                from faster_whisper import WhisperModel
+                from faster_whisper import WhisperModel  # pyright: ignore[reportMissingImports]  # optional dependency
 
                 print(f"[STT] Loading Whisper model: {self.config.model_size}")
                 self.model = WhisperModel(

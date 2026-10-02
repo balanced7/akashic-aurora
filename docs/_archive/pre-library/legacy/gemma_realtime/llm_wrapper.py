@@ -28,7 +28,7 @@ class LLMConfig:
 class StreamingLLM:
     """Streaming LLM with interrupt support"""
 
-    def __init__(self, config: LLMConfig = None):
+    def __init__(self, config: LLMConfig | None = None):
         self.config = config or LLMConfig()
         self.is_generating = False
         self.should_stop = False
@@ -190,6 +190,7 @@ class StreamingLLM:
         try:
             key = f"interrupted:{datetime.now().isoformat()}"
             data = {"response": response, "intent": intent, "timestamp": datetime.now().isoformat()}
+            assert self.redis_client is not None  # caller checks; except below swallows anyway
             self.redis_client.set(key, json.dumps(data), ex=300)  # 5 min TTL
         except Exception:
             pass

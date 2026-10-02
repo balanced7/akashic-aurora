@@ -396,7 +396,7 @@ def get_current_master_from_sentinel(host: str = "127.0.0.1", port: int = 26379)
     """Get current master address from Sentinel"""
     try:
         client = get_sentinel_client(host, port)
-        result = client.execute_command("SENTINEL", "get-master-addr-by-name", "akasha")
+        result = client.execute_command("SENTINEL", "get-master-addr-by-name", "akasha")  # pyright: ignore[reportOptionalMemberAccess]  # LATENT: connect may return None; the AttributeError lands in the except below
         if result:
             return (result[0].decode(), int(result[1]))
     except Exception as e:

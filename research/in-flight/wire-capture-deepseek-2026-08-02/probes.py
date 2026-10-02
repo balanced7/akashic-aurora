@@ -9,6 +9,7 @@ import json
 import pathlib
 import sys
 import time
+from typing import Any
 
 # --- setup: key and client ------------------------------------------------
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent.parent.parent / "scripts"))
@@ -55,7 +56,7 @@ try:
     )
     chunks = []
     for i, c in enumerate(stream):
-        d = {"index": i}
+        d: dict[str, Any] = {"index": i}
         if c.choices:
             ch = c.choices[0]
             d["delta"] = ch.delta.model_dump() if hasattr(ch.delta, "model_dump") else str(ch.delta)

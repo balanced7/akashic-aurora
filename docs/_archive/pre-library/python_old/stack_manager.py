@@ -42,8 +42,12 @@ import time
 from collections import defaultdict, deque
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 import psutil
+
+if TYPE_CHECKING:
+    from redis.typing import EncodableT, FieldT
 
 # ── Platform setup ──
 if sys.platform == "win32":
@@ -509,7 +513,7 @@ class RoutingTable:
         if not r:
             return
         key = f"{self.PREFIX}:{name}:endpoint"
-        mapping = {
+        mapping: dict[FieldT, EncodableT] = {
             "host": host,
             "port": str(port),
             "protocol": protocol,
@@ -944,7 +948,7 @@ def launch_service(name: str, cfg: dict) -> bool:
         return False
 
 
-def wait_for_healthy(name: str, cfg: dict, routes: "RoutingTable" = None) -> bool:
+def wait_for_healthy(name: str, cfg: dict, routes: "RoutingTable | None" = None) -> bool:
     deadline = time.time() + cfg.get("startup_timeout", 60)
     delay = 0.5
     while time.time() < deadline:
@@ -1057,7 +1061,7 @@ def cmd_start():
         sys.exit(1)
 
 
-def _launch_one(name: str, cfg: dict, routes: "RoutingTable" = None) -> bool:
+def _launch_one(name: str, cfg: dict, routes: "RoutingTable | None" = None) -> bool:
     log("\u25b6", name, f"Starting ({cfg['description']})...", "C")
     launch_service(name, cfg)
     log("\u23f3", name, "Waiting for health check...", "Y")

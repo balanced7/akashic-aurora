@@ -35,7 +35,7 @@ _TTL_S = 2 * 60 * 60  # stamps expire; a vanished key reads as "no stamp", never
 def _client():
     from core.comm.bus import Bus  # lazy: import-cheap for non-runner callers
 
-    return Bus()._client
+    return Bus()._client  # pyright: ignore[reportCallIssue]  # LATENT: Bus() now requires agent_id; this research draft predates that
 
 
 def stamp(agent: str, phase: str, detail: dict[str, Any] | None = None) -> None:

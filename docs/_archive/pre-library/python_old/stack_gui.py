@@ -32,21 +32,30 @@ import sys
 import threading
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from datetime import datetime
 from pathlib import Path
+from typing import TYPE_CHECKING, cast
+
+if TYPE_CHECKING:
+    import io
 
 # Fix Windows console encoding for Unicode box-drawing chars
 if sys.platform == "win32":
     with contextlib.suppress(Exception):
-        sys.stdout.reconfigure(encoding="utf-8")
+        cast("io.TextIOWrapper", sys.stdout).reconfigure(encoding="utf-8")
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import uvicorn
-from fastapi import FastAPI, HTTPException, Request
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
+from fastapi import (  # pyright: ignore[reportMissingImports]  # optional dependency, not in the lock
+    FastAPI,
+    HTTPException,
+    Request,
+)
+from fastapi.middleware.cors import CORSMiddleware  # pyright: ignore[reportMissingImports]  # optional dependency
+from fastapi.responses import HTMLResponse  # pyright: ignore[reportMissingImports]  # optional dependency
 from stack_manager import (
     SERVICES,
     MemoryMonitor,
@@ -481,8 +490,6 @@ def _http_post_json(url: str, payload: dict, timeout: float = 120.0):
 
 def _http_post_form(url: str, fields: dict, timeout: float = 120.0):
     try:
-        import urllib.parse
-
         body = urllib.parse.urlencode(fields).encode("utf-8")
         req = urllib.request.Request(
             url,

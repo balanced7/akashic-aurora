@@ -18,7 +18,7 @@ import subprocess
 import urllib.request
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import redis
 
@@ -136,7 +136,7 @@ def infra_status() -> dict[str, Any]:
 
 
 def _service_closure(seed: set[str]) -> set[str]:
-    from stack_manager.config import SERVICES
+    from stack_manager.config import SERVICES  # pyright: ignore[reportMissingImports]  # archived module
 
     out = set(seed)
     changed = True
@@ -154,7 +154,7 @@ def _service_closure(seed: set[str]) -> set[str]:
 
 
 def _launch_plan(closed: set[str]) -> list[list[str]]:
-    from stack_manager.dag import resolve_tiers
+    from stack_manager.dag import resolve_tiers  # pyright: ignore[reportMissingImports]  # archived module
 
     skip = {"win-mcp"}
     plan: list[list[str]] = []
@@ -172,8 +172,11 @@ def ensure_infra(tier: str, agent: str = "") -> dict[str, Any]:
       - standard — minimal + Docker Redis mirror + ai-voice stack + session compressor
       - full — same as standard (reserved for future extras)
     """
-    from stack_manager.config import SERVICES
-    from stack_manager.launcher import launch_service, wait_for_healthy
+    from stack_manager.config import SERVICES  # pyright: ignore[reportMissingImports]  # archived module
+    from stack_manager.launcher import (  # pyright: ignore[reportMissingImports]  # archived module, no longer in the tree
+        launch_service,
+        wait_for_healthy,
+    )
 
     tier_l = (tier or "standard").strip().lower()
     report: dict[str, Any] = {
@@ -244,7 +247,10 @@ def bootstrap_context_snapshot(
 
     try:
         r = redis.Redis(**get_redis_config())
-        rows = r.xrevrange(SESSION_EVENTS_STREAM, "+", "-", count=max(1, min(stream_tail, 30)))
+        rows = cast(  # decode_responses=True: [(id, {field: value}), ...]
+            "list[tuple[str, dict[str, str]]]",
+            r.xrevrange(SESSION_EVENTS_STREAM, "+", "-", count=max(1, min(stream_tail, 30))),
+        )
         for mid, fields in rows:
             snap["recent_stream_events"].append(
                 {
@@ -260,7 +266,7 @@ def bootstrap_context_snapshot(
 
     try:
         r = redis.Redis(**get_redis_config())
-        ids = r.zrevrange("learn:decisions:idx", 0, max(0, decision_titles - 1))
+        ids = cast("list[str]", r.zrevrange("learn:decisions:idx", 0, max(0, decision_titles - 1)))
         for did in ids:
             raw = r.hget("learn:decisions", did)
             if raw:
@@ -270,7 +276,7 @@ def bootstrap_context_snapshot(
         pass
 
     try:
-        from project_context import get_context_manager
+        from project_context import get_context_manager  # pyright: ignore[reportMissingImports]  # archived module
 
         mgr = get_context_manager()
         snap["project_current_task"] = mgr.get_current_task()

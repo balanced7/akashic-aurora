@@ -11,9 +11,16 @@ import uvicorn
 
 # Import our modules
 from audio_handler import audio_handler, init_audio
-from fastapi import FastAPI, File, Form, UploadFile, WebSocket, WebSocketDisconnect
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
+from fastapi import (  # pyright: ignore[reportMissingImports]  # optional dependency, not in the lock
+    FastAPI,
+    File,
+    Form,
+    UploadFile,
+    WebSocket,
+    WebSocketDisconnect,
+)
+from fastapi.middleware.cors import CORSMiddleware  # pyright: ignore[reportMissingImports]  # optional dependency
+from fastapi.responses import HTMLResponse  # pyright: ignore[reportMissingImports]  # optional dependency
 from file_analyzer import file_analyzer, init_analyzer
 from llm_wrapper import init_llm, llm
 from stt_processor import init_stt, stt_processor

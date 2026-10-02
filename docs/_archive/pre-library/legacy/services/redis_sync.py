@@ -27,9 +27,10 @@ import threading
 import time
 from dataclasses import asdict, dataclass
 from datetime import datetime
+from typing import Any
 
 try:
-    import redis  # noqa: TC002  # import probe: sets REDIS_AVAILABLE at runtime
+    import redis  # noqa: F401  # import probe: sets REDIS_AVAILABLE at runtime
 
     REDIS_AVAILABLE = True
 except ImportError:
@@ -60,7 +61,7 @@ class SyncState:
 class RedisSyncPoller:
     def __init__(self):
         self.state = SyncState()
-        self.redis_client: redis.Redis | None = None
+        self.redis_client: Any = None  # live client or None (connect_to_redis_with_fail_fast)
         self.running = False
         self._lock = threading.Lock()
         self._load_state()

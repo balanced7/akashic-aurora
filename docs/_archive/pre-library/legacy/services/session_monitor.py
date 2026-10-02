@@ -35,11 +35,12 @@ import time
 from collections import defaultdict
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
+from typing import Any
 
 sys.path.insert(0, r"E:\AI-Setup")
 
 try:
-    import redis  # noqa: TC002  # import probe: sets REDIS_AVAILABLE at runtime
+    import redis  # noqa: F401  # import probe: sets REDIS_AVAILABLE at runtime
 
     REDIS_AVAILABLE = True
 except ImportError:
@@ -107,7 +108,7 @@ class SessionMonitor:
 
     def __init__(self):
         self.state = MonitorState()
-        self.redis_client: redis.Redis | None = None
+        self.redis_client: Any = None  # live client or None (connect_to_redis_with_fail_fast)
         self.running = False
         self._lock = threading.Lock()
         self._load_state()

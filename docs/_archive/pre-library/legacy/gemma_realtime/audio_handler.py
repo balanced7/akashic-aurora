@@ -9,8 +9,8 @@ import io
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-import torch
-import torchaudio
+import torch  # pyright: ignore[reportMissingImports]  # optional dependency, not in the lock
+import torchaudio  # pyright: ignore[reportMissingImports]  # optional dependency, not in the lock
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -28,7 +28,7 @@ class AudioConfig:
 class VADProcessor:
     """Voice Activity Detection using Silero VAD"""
 
-    def __init__(self, config: AudioConfig = None):
+    def __init__(self, config: AudioConfig | None = None):
         self.config = config or AudioConfig()
         self.model = None
         self._loaded = False
@@ -126,7 +126,7 @@ class AudioBuffer:
 class AudioWebSocketHandler:
     """WebSocket handler for real-time audio streaming"""
 
-    def __init__(self, vad_processor: VADProcessor = None):
+    def __init__(self, vad_processor: VADProcessor | None = None):
         self.vad = vad_processor or VADProcessor()
         self.buffer = AudioBuffer()
         self.is_recording = False
