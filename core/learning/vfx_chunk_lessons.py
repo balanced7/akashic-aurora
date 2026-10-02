@@ -144,7 +144,7 @@ def main(argv: list[str] | None = None) -> int:
     from core.learning.learning_store import get_learning_store_instance
 
     repo = str(repo_root())
-    ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    ap = argparse.ArgumentParser(description=(__doc__ or "").split("\n")[0])  # __doc__ is None only under -OO
     ap.add_argument("--chunks", default=os.path.join(repo, "design", "vfx-chunks"))
     ap.add_argument("--force", action="store_true", help="re-adopt even if the note is unchanged")
     ns = ap.parse_args(argv)

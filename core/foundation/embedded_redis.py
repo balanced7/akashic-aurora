@@ -48,6 +48,7 @@ import sys
 import threading
 import time
 from pathlib import Path
+from typing import Any
 
 logger = logging.getLogger("embedded_redis")
 
@@ -304,6 +305,10 @@ def _install_hooks() -> None:
 
     # -- commands the house uses that fakeredis does not implement --------------------
     class _AuroraExtras:
+        # Mixed into BaseFakeSocket below; these are its attributes (annotation only).
+        _server: Any
+        _db: Any
+
         @command(name="info", fixed=(), repeat=(bytes,))
         def info(self, *sections):
             dbs = {n: len(d) for n, d in self._server.dbs.items() if len(d)}
@@ -329,7 +334,7 @@ def _install_hooks() -> None:
 
     for name in ("info", "touch"):
         setattr(bfs.BaseFakeSocket, name, getattr(_AuroraExtras, name))
-    bfs.BaseFakeSocket._aurora_hooked = True
+    bfs.BaseFakeSocket._aurora_hooked = True  # pyright: ignore[reportAttributeAccessIssue]  # idempotence marker on a third-party class
 
 
 _SEQ_MAX = b"18446744073709551615"
@@ -446,7 +451,7 @@ def _seed_from_file_tier(fake_server, port: int, path: Path) -> int:
 # ------------------------------------------------------------------------------ the server
 
 
-def _no_delay_handler(base):
+def _no_delay_handler(base: Any) -> Any:
     """fakeredis writes each reply of a pipeline as its own small send. With Nagle on, the
     second waits for the ACK of the first, which the client delays ~40ms because it is only
     reading -- so EVERY pipeline of two or more commands cost ~41ms flat (measured), against

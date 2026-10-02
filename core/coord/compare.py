@@ -168,7 +168,7 @@ def diff(a: KeySet, b: KeySet) -> dict[str, Any]:
 def _verbs_cli(**_) -> set[str]:
     from agent_cli import list_verbs
 
-    return {n for n, _h in list_verbs(None)}
+    return {n for n, _h in list_verbs("")}  # same as None: (query or "")
 
 
 def _verbs_mcp(**_) -> set[str]:
@@ -202,7 +202,9 @@ def _files_touched(since: float | None = None, **_) -> set[str]:
 
 
 def _lessons_all(**_) -> set[str]:
-    from core.learning.store import get_learning_store_instance
+    from core.learning.store import (
+        get_learning_store_instance,  # pyright: ignore[reportMissingImports]  # LATENT: no such module; compare() reports this domain as an error
+    )
 
     store = get_learning_store_instance()
     return {

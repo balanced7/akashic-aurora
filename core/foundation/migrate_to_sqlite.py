@@ -179,7 +179,7 @@ def migrate(json_path: Path, db_path: Path) -> tuple[dict[str, int], dict[str, i
 
 
 def _count(store: SqliteStore, table: str) -> int:
-    return store._conn.execute(f"SELECT COUNT(DISTINCT key) FROM {table}").fetchone()[0]
+    return store._live_conn().execute(f"SELECT COUNT(DISTINCT key) FROM {table}").fetchone()[0]
 
 
 def verify(json_path: Path, db_path: Path) -> tuple[bool, list]:

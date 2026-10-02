@@ -152,7 +152,7 @@ def select_within_budget(
         from core.learning.learning_store import is_graduated
     except Exception:
 
-        def is_graduated(_l):
+        def is_graduated(_l: Any, /) -> bool:
             return False
 
     scored = sorted(

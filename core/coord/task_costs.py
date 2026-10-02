@@ -155,7 +155,8 @@ def cost_line(task: dict[str, Any]) -> str:
         # when present (K6); tool calls lead only when they are all there is.
         if not turns and not tools:
             return ""
-        parts = [f"cost: {int(turns)} turn(s)"] if turns else [f"cost: {int(tools)} tool call(s)"]
+        # `or 0` never fires: with turns falsy, tools is truthy (both-falsy returned above)
+        parts = [f"cost: {int(turns)} turn(s)"] if turns else [f"cost: {int(tools or 0)} tool call(s)"]
         dur = task.get("cost_duration_s")
         if dur:
             parts.append(f"{round(float(dur))}s")

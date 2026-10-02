@@ -72,7 +72,7 @@ def _verb_table() -> str | None:
     try:
         from agent_cli import list_verbs
 
-        rows = list_verbs(None)
+        rows = list_verbs("")  # same as None: list_verbs normalises (query or "")
         path = _ROOT / "research" / "in-flight" / "_verbs_snapshot.txt"
         path.parent.mkdir(parents=True, exist_ok=True)
         width = max((len(n) for n, _ in rows), default=0)

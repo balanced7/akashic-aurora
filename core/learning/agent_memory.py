@@ -39,7 +39,7 @@ import unicodedata
 import uuid
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
-from typing import Any
+from typing import Any, cast
 
 from core.foundation.store import CASConflict, Store, create_store
 
@@ -288,7 +288,7 @@ class AgentMemory:
                 return self.decide(title_n, decision, supersedes=head, **kwargs)
             except SupersedeRaceError as e:
                 last = e
-        raise last
+        raise cast("SupersedeRaceError", last)  # range(max(1, retries)): at least one conflict set it
 
     # ----- RB-9: normalization collision scan -----
     def find_normalization_collisions(self) -> list[dict]:

@@ -16,7 +16,7 @@ from collections.abc import Callable, Iterable, Mapping
 from dataclasses import asdict, is_dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 
 def _pyl() -> str:
@@ -81,7 +81,7 @@ def _same_subject(left: Any, right: Any) -> bool:
 
 def _mapping(value: Any) -> dict[str, Any]:
     if is_dataclass(value):
-        return asdict(value)
+        return asdict(cast("Any", value))  # instance or class: asdict decides, exactly as before
     if isinstance(value, Mapping):
         return dict(value)
     return {"_unreadable": repr(value)}
@@ -348,7 +348,7 @@ def _handoff_rows(rows: Iterable[dict[str, Any]], subject: str) -> list[dict[str
         if not inbound and not outbound:
             continue
         direction = "self" if inbound and outbound else ("inbound" if inbound else "outbound")
-        context = row.get("context") if isinstance(row.get("context"), Mapping) else {}
+        context = ctx if isinstance(ctx := row.get("context"), Mapping) else {}
         ident = str(row.get("signal_id") or row.get("_cursor_id") or "")
         matched.append(
             {
@@ -369,7 +369,7 @@ def _handoff_rows(rows: Iterable[dict[str, Any]], subject: str) -> list[dict[str
 def _artifact_rows(rows: Iterable[dict[str, Any]], subject: str) -> list[dict[str, Any]]:
     matched = []
     for row in rows:
-        header = row.get("header") if isinstance(row.get("header"), Mapping) else {}
+        header = hdr if isinstance(hdr := row.get("header"), Mapping) else {}
         seats = list(header.get("seats") or [])
         if not any(_same_subject(seat, subject) for seat in seats):
             continue

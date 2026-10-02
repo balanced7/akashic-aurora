@@ -187,7 +187,7 @@ def _normalize_item(raw: Mapping[str, Any], known_sources: set[str]) -> dict[str
 
 
 def _item_sort_key(item: Mapping[str, Any]) -> tuple[Any, ...]:
-    data = item.get("data") if isinstance(item.get("data"), Mapping) else {}
+    data = raw if isinstance(raw := item.get("data"), Mapping) else {}
     status = _text(data.get("status")).lower()
     return (
         _ATTENTION_RANK.get(_text(item.get("attention")).upper(), len(_ATTENTION_RANK)),

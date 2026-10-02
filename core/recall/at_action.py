@@ -428,10 +428,10 @@ def _project_items(recs: list[dict[str, Any]]) -> list[dict[str, Any]]:
         from core.learning.learning_store import is_benched, is_graduated
     except Exception:
 
-        def is_graduated(_):
+        def is_graduated(_: Any, /) -> bool:
             return False  # predicate unavailable -> fail OPEN (surface rather than lose)
 
-        def is_benched(_):
+        def is_benched(_: Any, /) -> bool:
             return False
 
     _probe_set = _bench_probe_set(recs, is_benched)
@@ -613,7 +613,7 @@ def _store():
     return create_store()
 
 
-def _load_use(store, source: str) -> dict[str, int]:
+def _load_use(store, source: str | None) -> dict[str, Any]:
     try:
         raw = store.get(_USE_PREFIX + str(source))
         return json.loads(raw) if raw else {}
@@ -632,7 +632,7 @@ def _load_use(store, source: str) -> dict[str, int]:
 _GENERAL_AT = 2
 
 
-def credit_useful(source: str, domain: str, store: Any | None = None) -> dict[str, Any]:
+def credit_useful(source: str, domain: str | None, store: Any | None = None) -> dict[str, Any]:
     """Record a useful vote AND the domain it was useful in. Additive: the ordinary `useful` counter
     keeps counting, because the funnel's value gauge reads the same record and a promotion that
     reset it would corrupt the measurement it depends on."""
@@ -649,7 +649,7 @@ def credit_useful(source: str, domain: str, store: Any | None = None) -> dict[st
     return use
 
 
-def is_general(source: str, store: Any | None = None, use: dict[str, Any] | None = None) -> bool:
+def is_general(source: str | None, store: Any | None = None, use: dict[str, Any] | None = None) -> bool:
     """True once a lesson has earned credit in >= 2 distinct domains. Twice in one domain is a
     popular lesson; that is not the same claim and must not be promoted to one."""
     rec = use if use is not None else _load_use(store if store is not None else _store(), source)

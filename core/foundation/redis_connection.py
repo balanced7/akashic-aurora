@@ -204,7 +204,7 @@ def _note_reachable(port: int) -> None:
             # hand) is not a real Redis: record `embedded`, or nothing would restart it later.
             embedded = False
             try:
-                info = redis.Redis(host=DEFAULT_REDIS_HOST, port=port, socket_timeout=2).info()
+                info = redis.Redis(host=DEFAULT_REDIS_HOST, port=port, socket_timeout=2).info()  # pyright: ignore[reportPossiblyUnboundVariable]  # NameError without redis is caught below
                 embedded = info.get("aurora_backend") == "embedded"
             except Exception:
                 pass
@@ -277,7 +277,7 @@ def connect_to_redis_with_fail_fast(
         _note_reachable(port)
 
     try:
-        client = redis.Redis(
+        client = redis.Redis(  # pyright: ignore[reportPossiblyUnboundVariable]  # REDIS_LIBRARY_AVAILABLE checked above
             host=host,
             port=port,
             db=db,

@@ -254,7 +254,7 @@ def dump(agent_id: str) -> dict[str, Any] | None:
     return None
 
 
-def dump_all() -> dict[str, dict[str, Any]]:
+def dump_all() -> dict[str, dict[str, Any] | None]:
     """Snapshot ALL agents' metrics."""
     return {aid: dump(aid) for aid in list(_store.keys()) if dump(aid)}
 

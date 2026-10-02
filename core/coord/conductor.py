@@ -30,6 +30,7 @@ import contextlib
 import sys
 import time
 from datetime import UTC, datetime
+from typing import cast
 
 from core.coord import task_ledger as TL  # import as a module (py -m core.coord.conductor) -- no sys.path hack
 
@@ -66,7 +67,7 @@ def _apply(op, client="auto", path=None):
         except TL.LedgerConflict as e:
             last = e
             time.sleep(0.02 * (attempt + 1))  # let the peer's mirror/announce land first
-    raise last
+    raise cast("TL.LedgerConflict", last)  # LOST_UPDATE_ATTEMPTS >= 1, so a conflict set it
 
 
 def _broadcast(kind: str, text: str, meta: dict) -> None:

@@ -31,12 +31,12 @@ if TYPE_CHECKING:
 try:  # Windows
     import msvcrt
 except ImportError:  # pragma: no cover - POSIX
-    msvcrt = None  # type: ignore[assignment]
+    msvcrt = None
 
 try:  # POSIX
     import fcntl
 except ImportError:  # pragma: no cover - Windows
-    fcntl = None  # type: ignore[assignment]
+    fcntl = None
 
 DEFAULT_TIMEOUT_S = 10.0
 _POLL_S = 0.01

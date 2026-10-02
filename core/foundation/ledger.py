@@ -55,7 +55,7 @@ import threading
 import time
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any, ClassVar
+from typing import Any, ClassVar, cast
 
 from core.foundation import filelock
 from core.foundation.redis_connection import DEFAULT_REDIS_DB, DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT
@@ -131,7 +131,8 @@ class RedisLedger(Ledger):
     """
 
     def __init__(self, client: Any | None):
-        self._client = client
+        # Any (not Any | None): callers gate on is_available() before issuing commands.
+        self._client: Any = client
 
     @classmethod
     def connect(
@@ -418,13 +419,17 @@ class HybridLedger(Ledger):
     def redis_available(self) -> bool:
         return self._redis is not None and self._redis.is_available()
 
+    def _live_redis(self) -> RedisLedger:
+        """The Redis tier; only called where redis_available is True (so it is not None)."""
+        return cast("RedisLedger", self._redis)
+
     def emit(self, stream, event, maxlen=None):
         # File is the durable record -- always write it.
         file_id = self._file.emit(stream, event, maxlen=maxlen)
         if self.redis_available:
             try:
                 # Return the Redis id, since reads will come from Redis.
-                return self._redis.emit(stream, event, maxlen=maxlen)
+                return self._live_redis().emit(stream, event, maxlen=maxlen)
             except Exception as e:
                 logger.warning("HybridLedger Redis emit failed: %s", e)
         return file_id
@@ -432,7 +437,7 @@ class HybridLedger(Ledger):
     def consume(self, stream, after_id="0", count=100, block_ms=0):
         if self.redis_available:
             self._backfill_once(stream)
-        backend = self._redis if self.redis_available else self._file
+        backend = self._live_redis() if self.redis_available else self._file
         return backend.consume(stream, after_id=after_id, count=count, block_ms=block_ms)
 
     _backfilled: ClassVar[set] = set()
@@ -451,7 +456,7 @@ class HybridLedger(Ledger):
 
             if configured_backend() != "embedded":
                 return
-            client = self._redis._client
+            client = self._live_redis()._client  # consume() calls this only when redis_available
             if client.exists(stream):
                 return
             # One process copies; the rest see the lock and skip (the NX guard is the dedup).
