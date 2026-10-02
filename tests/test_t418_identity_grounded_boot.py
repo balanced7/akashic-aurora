@@ -79,3 +79,52 @@ def test_toolbox_knowledge_boot_boots_as_its_own_seat_never_a_hardcoded_id():
     body = m.group(1)
     assert '"deepseek"' not in body and "'deepseek'" not in body
     assert "self.agent_id" in body
+
+
+# ---------------------------------------------------------------- T418-b: the unknown case (2026-10-02)
+#
+# Found by Rill (dsh_agent) in the blind half of fences/identity-grounded-boot, drilling I1-I5 from
+# his own seat. He reported I3 as PARTIAL: a boot with no stamp anywhere is SERVED (correct, and
+# what the brief predicted) but the "unverified" line that `subject_check` computes is NEVER
+# PRINTED, because `cmd_boot` renders `_chk["why"]` only on the refusal and override branches.
+#
+# WHY THAT MATTERS MORE THAN IT LOOKS, measured 2026-10-02 across the seven live MCP doors: four of
+# them (two Cursor, two codex) carry no AKASHIC_AGENT_ID and no session binding at all. For those
+# doors `subject_check` returns ok=True with source="unknown", so they will serve ANY typed id, and
+# today they do it in silence. That is this house's own "zero is not no" law broken by the one organ
+# whose whole subject is identity: unverified and verified render identically.
+#
+# The ruling kept from the brief: unknown still SERVES. A blanket refusal would break a fresh clone
+# and a first boot, which are real onboarding paths. What changes is that it stops being silent, and
+# that the house can COUNT it -- an event means the doctor can say how often we boot unverified,
+# instead of nobody being able to ask.
+#
+# Rill's I1 (the MCP door serving him Heimdall's full packet) is NOT pinned here, because it is not
+# a code defect: that MCP process started 2026-10-01 08:56:27 and the T418 fix landed at 15:11:57,
+# 6.3 hours later, and Python does not hot-reload. Replayed against the live code this session, his
+# exact environment refuses correctly, naming dsh_agent and deepseek. Pinning a guard there would
+# have built the second gate he himself warned would drift.
+def test_an_unverified_boot_says_so_instead_of_looking_identical_to_a_verified_one(tmp_path):
+    env = {k: v for k, v in os.environ.items()
+           if k not in ("AKASHIC_AGENT_ID", "CLAUDE_CODE_SESSION_ID", "CLAUDE_SESSION_ID",
+                        "AKASHIC_BOOT_AS_OTHER")}
+    env["AKASHIC_SEAT_BINDING_DIR"] = str(tmp_path)          # empty: no binding for any session
+    r = subprocess.run([sys.executable, os.path.join(REPO, "agent_cli.py"), "boot", "t418unknown",
+                        "--task", "t418b pin"], capture_output=True, text=True, encoding="utf-8",
+                       errors="replace", timeout=180, cwd=REPO, env=env)
+    out = (r.stdout or "") + (r.stderr or "")
+    assert r.returncode == 0, out[-800:]                      # unknown still SERVES
+    assert "unverified" in out.lower(), (
+        "a boot with no stamp anywhere must SAY it is unverified; silence makes an unverified "
+        "boot indistinguishable from a verified one -- " + out[:600])
+
+
+def test_the_unverified_boot_is_counted_not_just_printed():
+    """A line scrolls past; an event can be asked a question. The doctor must be able to say how
+    often this house boots a seat it could not verify, which is impossible if the only record is
+    stdout. Same discipline as boot_refused, which T418 already captures."""
+    src = open(os.path.join(REPO, "agent_cli.py"), encoding="utf-8").read()
+    m = re.search(r"def cmd_boot\(args\):(.*?)\n    res = derive_agent_context", src, re.S)
+    assert m, "cmd_boot subject-check block not found"
+    body = m.group(1)
+    assert "boot_unverified" in body, "the unknown case must capture an event, not only print"
