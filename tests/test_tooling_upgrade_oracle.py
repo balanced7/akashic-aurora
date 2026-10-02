@@ -605,3 +605,23 @@ def test_oracle_env_drops_an_inherited_ai_setup(monkeypatch: pytest.MonkeyPatch)
     assert "_AISETUP_TEST_ISOLATED" not in env
     assert "REDIS_PORT" not in env
     assert env["REDIS_DB"] == "15"
+
+
+def test_written_paths_sees_a_rewrite_with_identical_bytes(tmp_path: Path):
+    # O4's side-effect probe: a generator that ignores --help and rewrites its doc is still a
+    # side effect when the doc is already current (git status alone shows nothing)
+    import subprocess
+
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    doc = tmp_path / "DOC.md"
+    doc.write_text("same\n", encoding="utf-8")
+    (tmp_path / "keep.md").write_text("k\n", encoding="utf-8")
+    subprocess.run(["git", "add", "."], cwd=tmp_path, check=True)
+    written, stamps = O.written_paths(tmp_path, {})
+    assert written == set()
+    st = doc.stat()
+    doc.write_text("same\n", encoding="utf-8")
+    os.utime(doc, ns=(st.st_atime_ns, st.st_mtime_ns + 1_000_000))
+    (tmp_path / "new.txt").write_text("n\n", encoding="utf-8")
+    written, _ = O.written_paths(tmp_path, stamps)
+    assert written == {"DOC.md", "new.txt"}

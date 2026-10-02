@@ -938,6 +938,23 @@ def git_status_set(tree: Path) -> set[str]:
     return set(out.splitlines())
 
 
+def written_paths(tree: Path, before: dict[str, int]) -> tuple[set[str], dict[str, int]]:
+    """Paths (tracked, or untracked and not ignored) written since `before` was taken, and the
+    new stamp. A write is a new path or a changed mtime: a rewrite with identical bytes is still
+    a side effect, which `git status` alone cannot see."""
+    out = run(["git", "ls-files", "-z", "--cached", "--others", "--exclude-standard"], cwd=tree).stdout
+    now: dict[str, int] = {}
+    for rel in filter(None, out.split("\0")):
+        try:
+            now[rel] = (tree / rel).stat().st_mtime_ns
+        except OSError:
+            continue
+    changed = {rel for rel, m in now.items() if before.get(rel) != m}
+    if before:
+        changed |= set(before) - set(now)
+    return (changed if before else set()), now
+
+
 # ----------------------------------------------------------------------------- O1 test outcomes
 
 
@@ -1539,6 +1556,7 @@ def surface_o4(tree: Path, inv: dict[str, Any], graph: RepoGraph, raw: Path) -> 
     helps: dict[str, dict[str, Any]] = {}
     verbs: dict[str, list[str]] = {}
     before = git_status_set(tree)
+    _, stamps = written_paths(tree, {})
     clis = inv["entry_points"]["argparse_cli"]
     for k, f in enumerate(clis):
         if k % 25 == 0:
@@ -1552,11 +1570,13 @@ def surface_o4(tree: Path, inv: dict[str, Any], graph: RepoGraph, raw: Path) -> 
         except subprocess.TimeoutExpired:
             item = {"rc": None, "text": "", "na": f"timeout under --help ({HELP_TIMEOUT_S}s)"}
         after = git_status_set(tree)
-        if after - before:
+        written, stamps = written_paths(tree, stamps)
+        written |= {x[3:] for x in after - before}
+        if written:
             item = {
                 "rc": None,
                 "text": "",
-                "na": "side effect under --help: " + ", ".join(sorted(x[3:] for x in after - before))[:300],
+                "na": "side effect under --help: " + ", ".join(sorted(written))[:300],
             }
             before = after
         helps[f] = item
