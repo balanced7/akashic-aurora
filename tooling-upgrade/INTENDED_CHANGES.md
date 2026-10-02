@@ -108,3 +108,121 @@ unreachable branch the exception type would differ (AssertionError instead of At
 TypeError); on every reachable path nothing changes. Sites where the other branch IS reachable
 are real defects and get their own `Fixes-latent` entries with regression tests, or stay
 suppressed with a LATENT reason. Not visible to the oracle (no toml block).
+
+## Latent-bug fixes found by the type checker (G4.P2, batch A)
+
+Each entry: the defect, the fixing commit (`fix_commit`) and a regression test that fails on
+the fix's parent and passes on HEAD (`certify.py assert-latent-regressions`). The `key` matches
+no oracle item on purpose: these entries document behaviour fixes and mask no diff.
+
+### IC-0008: fixes latent bug: continuity-drift-memory
+
+agent_cli.py `_continuity_drift` called `get_agent_memory` without importing it; with notes=None the NameError was swallowed, so the boot drift line never appeared. Now imported.
+
+```toml
+id = "IC-0008"
+component = "O1"
+key = "latent:continuity-drift-memory"
+reason = "fixes latent bug: continuity-drift-memory (plan G4.P2 tier 1)"
+goal = "G4"
+fix_commit = "b92d55cdf9fc76ca7fe49526d2909d3d6ebea5d7"
+regression_test = "tests/test_g4_latent_continuity_drift_memory.py"
+```
+
+### IC-0009: fixes latent bug: wish-capture-event
+
+agent_cli.py `cmd_wish` and `cmd_wish_curate` called `capture_event` without importing it, inside `suppress(Exception)`, so no wish event was ever captured. Now imported.
+
+```toml
+id = "IC-0009"
+component = "O1"
+key = "latent:wish-capture-event"
+reason = "fixes latent bug: wish-capture-event (plan G4.P2 tier 1)"
+goal = "G4"
+fix_commit = "553229e7fdf470d4112f4907076b88d745e98a0f"
+regression_test = "tests/test_g4_latent_wish_capture_event.py"
+```
+
+### IC-0010: fixes latent bug: season-score-round-file
+
+agent_cli.py `cmd_season_score --round-file` used `io.open` without `import io`: every run with a round file crashed with NameError. Now reads the file with `Path.read_text`.
+
+```toml
+id = "IC-0010"
+component = "O1"
+key = "latent:season-score-round-file"
+reason = "fixes latent bug: season-score-round-file (plan G4.P2 tier 1)"
+goal = "G4"
+fix_commit = "3e9b3e9c03d80f1d5c3dbe89006efb2d83529bb5"
+regression_test = "tests/test_g4_latent_season_score_round_file.py"
+```
+
+### IC-0011: fixes latent bug: locks-age
+
+agent_cli.py `cmd_locks` used `time.time()` without importing `time`; the per-lock except swallowed the NameError, so the lock age/ttl annotation never rendered. Now imported.
+
+```toml
+id = "IC-0011"
+component = "O1"
+key = "latent:locks-age"
+reason = "fixes latent bug: locks-age (plan G4.P2 tier 1)"
+goal = "G4"
+fix_commit = "4425d8fdc043dfe33bcacc8dacfabc8e1e406ab5"
+regression_test = "tests/test_g4_latent_locks_age.py"
+```
+
+### IC-0012: fixes latent bug: tool-run-unsandboxed
+
+agent_cli.py `cmd_tool_run --no-sandbox` passed `cwd=REPO`, an undefined name: every unsandboxed run crashed with NameError. Now uses the same repo root as the sandboxed path.
+
+```toml
+id = "IC-0012"
+component = "O1"
+key = "latent:tool-run-unsandboxed"
+reason = "fixes latent bug: tool-run-unsandboxed (plan G4.P2 tier 1)"
+goal = "G4"
+fix_commit = "1f354378d53ad795f3eccf5ffe24687ecee648e4"
+regression_test = "tests/test_g4_latent_tool_run_unsandboxed.py"
+```
+
+### IC-0013: fixes latent bug: floors-json-exit
+
+arsenal/__main__.py `floors --json` read `hard`, which was computed only in the text branch: UnboundLocalError. Now computed before the branch, so --json exits with the same code as text mode.
+
+```toml
+id = "IC-0013"
+component = "O1"
+key = "latent:floors-json-exit"
+reason = "fixes latent bug: floors-json-exit (plan G4.P2 tier 1)"
+goal = "G4"
+fix_commit = "04f1dfe221d0f22a2fe7704601fd3be3739added"
+regression_test = "tests/test_g4_latent_floors_json_exit.py"
+```
+
+### IC-0014: fixes latent bug: sift-junction-record
+
+agent_cli.py `cmd_sift --junction` recorded `p.occurrences`/`p.truncated`, which JunctionPack does not have: every non-dry-run junction sift crashed after the paid tiers ran. Now records the junction count and truncated=False.
+
+```toml
+id = "IC-0014"
+component = "O1"
+key = "latent:sift-junction-record"
+reason = "fixes latent bug: sift-junction-record (plan G4.P2 tier 1)"
+goal = "G4"
+fix_commit = "6112c542569c56d3da42ce03d5660d38975e7294"
+regression_test = "tests/test_g4_latent_sift_junction_record.py"
+```
+
+### IC-0015: fixes latent bug: mcp-http-port
+
+ai_setup_mcp.py `--http` called `mcp.run(..., port=...)`, but the installed FastMCP.run has no `port` parameter: TypeError at startup. Now sets `mcp.settings.port` and runs; no MCP tool function or schema changed.
+
+```toml
+id = "IC-0015"
+component = "O1"
+key = "latent:mcp-http-port"
+reason = "fixes latent bug: mcp-http-port (plan G4.P2 tier 1)"
+goal = "G4"
+fix_commit = "459577af061611cac6f1d44a6afaca9c740fcbe6"
+regression_test = "tests/test_g4_latent_mcp_http_port.py"
+```
