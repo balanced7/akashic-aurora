@@ -1488,6 +1488,10 @@ def cmd_assert_ci_replay(_args: argparse.Namespace) -> int:
     the local server on the same port. A continue-on-error job may fail without failing the
     replay. Windows jobs are recorded as defined, not executed."""
     jobs = parse_workflow(WORKFLOW.read_text(encoding="utf-8"))
+    logs = oracle.SNAPSHOTS / "ci-replay"  # git-ignored working record: every step's full output
+    if logs.exists():
+        _rmtree(logs)
+    logs.mkdir(parents=True)
     base = Path(tempfile.mkdtemp(prefix="aurora-ci-replay-"))
     clone = base / "aurora-ci"
     failed: list[str] = []
@@ -1538,6 +1542,10 @@ def cmd_assert_ci_replay(_args: argparse.Namespace) -> int:
                     timeout=7200,
                     check=False,
                 )
+                n_step = len(list(logs.iterdir())) + 1
+                (logs / f"{n_step:02d}-{name}.log").write_text(
+                    f"$ {st['run']}\n# exit {r.returncode:d}\n{r.stdout}{r.stderr}", encoding="utf-8"
+                )
                 tail = (r.stdout + r.stderr).strip().splitlines()[-1:] or [""]
                 print(
                     f"  step {label}: `{st['run']}` -> exit {r.returncode:d} ({time.time() - t0:.0f}s)  {tail[0][:110]}"
@@ -1548,6 +1556,7 @@ def cmd_assert_ci_replay(_args: argparse.Namespace) -> int:
                 failed.append(name)
     finally:
         _rmtree(base)
+    print(f"step logs: {logs.relative_to(ROOT).as_posix()}/")
     return _report("CI REPLAY", [f"job {j} failed" for j in failed])
 
 
