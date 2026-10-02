@@ -1048,7 +1048,7 @@ def ask_peer(
             sweep(sender)  # actor: clear answered / redrive / kill
             st = state_of(sender, mid)  # oracle: the honest readout
         except Exception as e:
-            return _BO.caught(e, where="ask_peer(poll)", ask_id=str(mid))
+            return _BO.caught(e, where="ask_peer(poll)", ref=str(mid))
         if st["terminal"] or time.time() >= deadline:
             break
         time.sleep(max(0.05, float(poll_s)))
