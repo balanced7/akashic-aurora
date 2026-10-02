@@ -5,8 +5,10 @@ Status: current  (2026-07-09, P4: Living ops doc)
 How to stand up Akashic Aurora on your own machine. It's deliberately easy: the **core runs on the
 Python standard library alone** and degrades gracefully when optional infrastructure (Redis) is absent.
 
-> **Windows vs. macOS/Linux:** examples use `py` (the Windows launcher). On macOS/Linux use `python3`
-> everywhere instead. Everything else is identical.
+> **Launcher:** the primary path is uv on every OS: `uv sync` once, then `uv run <script>` /
+> `uv run python ...`. Many examples below are written with `py` (the Windows launcher), the fallback
+> when uv is not installed; with uv type `uv run` in its place, and without uv on macOS/Linux use
+> `python3`. Everything else is identical.
 
 ---
 
@@ -28,24 +30,32 @@ and the test suite need the packages in `requirements.txt` / `pyproject.toml` â€
 git clone https://github.com/balanced7/akashic-aurora.git
 cd akashic-aurora
 
-# Easiest, any OS: uv creates the environment and installs everything on first use
+# Primary, any OS: uv installs the locked environment (uv.lock) on the pinned Python (.python-version)
+uv sync
 uv run agent_cli.py status
 
-# Or with pip (the Windows `py` setup):
+# Fallback without uv (the Windows `py` setup):
 py -m venv .venv
 # Windows:  .venv\Scripts\activate     macOS/Linux:  source .venv/bin/activate
 py -m pip install -r requirements.txt
 ```
 
+`requirements.txt` and `requirements/gemini-web.txt` are generated from `uv.lock` for pip consumers
+(`uv run poe lock`; `uv run poe lock-check` fails if they are stale). Never hand-edit them.
+
 ## 3. Verify the install
 
 ```bash
-py bootstrap.py --agent-init     # prints JSON: the init command, the python cmd, Redis status, lesson count
-py -m pytest -q                  # the full quality gate (needs pytest)
-py scripts/checkers/check_boundaries.py   # architecture guardrail (should exit 0)
+uv run bootstrap.py --agent-init  # prints JSON: the init command, the python cmd, Redis status, lesson count
+uv run poe gate                   # the local gate: format, lint, types, lock, deps, guardrails, fast tests
+uv run poe test                   # the full suite (REDIS_DB=15), with coverage
 ```
 
-If `bootstrap.py --agent-init` prints a JSON blob and `check_boundaries` says PASS, you're up.
+Fallback without uv (Windows): `py bootstrap.py --agent-init`, `py -m pytest -q` (needs pytest),
+`py scripts/checkers/check_boundaries.py` (architecture guardrail, should exit 0).
+
+If `bootstrap.py --agent-init` prints a JSON blob and `uv run poe gate` passes (on the fallback:
+`check_boundaries` says PASS), you're up.
 
 ## 4. Use it
 
