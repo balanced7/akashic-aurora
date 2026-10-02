@@ -1,3 +1,4 @@
+# pyright: strict
 """Unit tests for tooling-upgrade/oracle.py and certify.py (plan G0.P3).
 
 Every oracle component gets an EQUAL fixture and a DIFF fixture, built in tmp_path, so a
@@ -8,6 +9,9 @@ import json
 import os
 import sys
 import textwrap
+from collections.abc import Generator, Sequence
+from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -15,16 +19,21 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(
 import oracle as O
 
 
-def _o1(outcomes_by_id, reruns=None, skipped=0, collect_errors=()):
+def _o1(
+    outcomes_by_id: dict[str, Sequence[str | None]],
+    reruns: dict[str, list[str]] | None = None,
+    skipped: int = 0,
+    collect_errors: Sequence[str] = (),
+) -> dict[str, Any]:
     runs = len(next(iter(outcomes_by_id.values())))
-    tests = {}
+    tests: dict[str, dict[str, Any]] = {}
     for nid, outs in outcomes_by_id.items():
         tests[nid] = {"outcomes": outs, "class": O.o1_class(outs)}
         if reruns and nid in reruns:
             tests[nid]["reruns"] = reruns[nid]
-    counts = []
+    counts: list[dict[str | None, int]] = []
     for i in range(runs):
-        c = {}
+        c: dict[str | None, int] = {}
         for outs in outcomes_by_id.values():
             c[outs[i]] = c.get(outs[i], 0) + 1
         c["skipped"] = c.get("skipped", 0) + skipped
@@ -116,7 +125,9 @@ def test_o3_partial_ignores_unprobed_modules():
 # ----------------------------------------------------------------------------- O4
 
 
-def _o4(help_text="usage: x", verbs=("boot",), schema=None):
+def _o4(
+    help_text: str = "usage: x", verbs: Sequence[str] = ("boot",), schema: dict[str, Any] | None = None
+) -> dict[str, Any]:
     return {
         "help": {"x.py": {"rc": 0, "text": help_text}},
         "verbs": {"x.py": list(verbs)},
@@ -135,7 +146,7 @@ def test_o4_equal_and_diff():
     assert keys == ["help:x.py", "verbs:x.py", "mcp:boot"]
 
 
-def test_normalize_text_is_path_and_whitespace_neutral(tmp_path):
+def test_normalize_text_is_path_and_whitespace_neutral(tmp_path: Path):
     t = f"usage:   {tmp_path}/run.py   [-h]  \r\n\n\n"
     assert O.normalize_text(t, tmp_path) == "usage: <ROOT>/run.py [-h]"
 
@@ -143,7 +154,9 @@ def test_normalize_text_is_path_and_whitespace_neutral(tmp_path):
 # ----------------------------------------------------------------------------- O5
 
 
-def _o5(names, sig="(a, b=1)", full=None, sensitive=()):
+def _o5(
+    names: list[str], sig: str = "(a, b=1)", full: str | None = None, sensitive: Sequence[str] = ()
+) -> dict[str, Any]:
     return {
         "modules": {"core.x": {"mode": "runtime", "names": names, "sigs": {"f": {"bare": sig, "full": full or sig}}}},
         "sensitive": list(sensitive),
@@ -164,7 +177,7 @@ def test_o5_annotation_change_counts_only_in_sensitive_modules():
     assert [k for k, _ in O.compare_o5(a, b)] == ["annot:core.x.f"]
 
 
-def test_o5_static_names_exclude_imports_but_keep_package_reexports(tmp_path):
+def test_o5_static_names_exclude_imports_but_keep_package_reexports(tmp_path: Path):
     src = "import os\nfrom typing import Any\nX = 1\ndef f(): pass\nclass C: pass\n"
     tree = O.ast.parse(src)
     assert O.top_level_bindings(tree) == {"X", "f", "C"}
@@ -186,7 +199,7 @@ def test_o7_equal_and_diff():
     a = {"commands": {"status": {"rc": 0, "lines": 100, "headings": ["Store:"]}}}
     near = {"commands": {"status": {"rc": 0, "lines": 108, "headings": ["Store:"]}}}
     assert O.compare_o7(a, near) == []
-    far = {"commands": {"status": {"rc": 1, "lines": 150, "headings": []}}}
+    far: dict[str, Any] = {"commands": {"status": {"rc": 1, "lines": 150, "headings": []}}}
     assert len(O.compare_o7(a, far)) == 3
 
 
@@ -213,13 +226,13 @@ def test_o8_equal_and_diff():
 # ----------------------------------------------------------------------------- O9
 
 
-def _write(root, rel, text):
+def _write(root: Path, rel: str, text: str) -> None:
     p = root / rel
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_text(textwrap.dedent(text), encoding="utf-8")
 
 
-def test_o9_counts_every_assertion_form(tmp_path):
+def test_o9_counts_every_assertion_form(tmp_path: Path):
     _write(
         tmp_path,
         "tests/test_a.py",
@@ -262,15 +275,15 @@ def test_o10_equal_and_diff():
 # ----------------------------------------------------------------------------- compare + register
 
 
-def _snap(d, comps):
+def _snap(d: Path, comps: dict[str, Any]) -> None:
     d.mkdir(parents=True)
     (d / "meta.json").write_text(json.dumps({"commit": "x"}), encoding="utf-8")
     for c, data in comps.items():
         (d / (c + ".json")).write_text(json.dumps(data), encoding="utf-8")
 
 
-def test_compare_dirs_equal_diff_and_intended(tmp_path):
-    base = {"O8": {"violations": []}, "O9": {"tests": {"t::a": 2}, "total": 2}}
+def test_compare_dirs_equal_diff_and_intended(tmp_path: Path):
+    base: dict[str, Any] = {"O8": {"violations": []}, "O9": {"tests": {"t::a": 2}, "total": 2}}
     _snap(tmp_path / "a", base)
     _snap(tmp_path / "b", {"O8": {"violations": []}, "O9": {"tests": {"t::a": 1}, "total": 1}})
     lines, ok = O.compare_dirs(tmp_path / "a", tmp_path / "a", ["O2", "O8", "O9"], intended=[])
@@ -285,7 +298,7 @@ def test_compare_dirs_equal_diff_and_intended(tmp_path):
     assert lines[1] == "O9 EQUAL (intended: IC-0001)"
 
 
-def test_missing_component_is_never_equal(tmp_path):
+def test_missing_component_is_never_equal(tmp_path: Path):
     _snap(tmp_path / "a", {"O8": {"violations": []}})
     lines, ok = O.compare_dirs(tmp_path / "a", tmp_path / "a", ["O8", "O9"], intended=[])
     assert not ok
@@ -309,7 +322,7 @@ def test_import_safe_refuses_scripts_that_run_on_import():
     assert not O.import_safe(O.ast.parse("for i in range(3):\n    print(i)\n"))[0]
 
 
-def test_repo_graph_resolves_absolute_relative_and_sibling_imports(tmp_path):
+def test_repo_graph_resolves_absolute_relative_and_sibling_imports(tmp_path: Path):
     _write(tmp_path, "pkg/__init__.py", "")
     _write(tmp_path, "pkg/a.py", "from . import b\nfrom .b import thing\n")
     _write(tmp_path, "pkg/b.py", "thing = 1\n")
@@ -329,7 +342,7 @@ def test_annotation_triggers_find_introspection():
     assert O.annotation_triggers(O.ast.parse(src)) == ["@*.tool decorator", "dataclass"]
 
 
-def test_load_intended_parses_toml_blocks(tmp_path, monkeypatch):
+def test_load_intended_parses_toml_blocks(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     p = tmp_path / "INTENDED_CHANGES.md"
     p.write_text(
         '# x\n\n```toml\nid = "IC-0001"\ncomponent = "O4"\nkey = "help:*"\nreason = "launcher text"\n```\n',
@@ -348,17 +361,19 @@ def test_load_intended_parses_toml_blocks(tmp_path, monkeypatch):
         (0, 0, 0, "MISSED"),
     ],
 )
-def test_drill_verdicts(tmp_path, monkeypatch, presence, clean, faulty, expected):
+def test_drill_verdicts(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, presence: int, clean: int, faulty: int, expected: str
+) -> None:
     """A drill BITes only when its gate exists, is green on the clean tree, and goes red on the
     fault -- so a later BIT means the gate caught the fault, not that it was absent or broken."""
     import contextlib
 
     import certify
 
-    state = {"faulted": False}
+    state: dict[str, bool] = {"faulted": False}
 
     @contextlib.contextmanager
-    def fake_tree():
+    def fake_tree() -> Generator[Path, None, None]:
         yield tmp_path
 
     monkeypatch.setattr(certify, "drill_tree", fake_tree)
@@ -388,13 +403,13 @@ def test_drill_verdicts(tmp_path, monkeypatch, presence, clean, faulty, expected
         ("pyright: strict", False),
     ],
 )
-def test_certify_blanket_suppression_forms(form, is_blanket):
+def test_certify_blanket_suppression_forms(form: str, is_blanket: bool) -> None:  # noqa: FBT001, RUF100  # pytest parametrize value, passed by pytest; FBT is ratchet-only
     import certify
 
     assert certify.blanket(form) is is_blanket
 
 
-def test_later_goal_waits_for_its_predecessor(tmp_path, monkeypatch):
+def test_later_goal_waits_for_its_predecessor(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     """`certify.py G<n>` runs G<n>'s checks only once G<n-1> is CERTIFIED in the ledger."""
     import certify
 
@@ -406,10 +421,10 @@ def test_later_goal_waits_for_its_predecessor(tmp_path, monkeypatch):
     assert not certify.prior_goal_certified(2)
 
 
-def test_every_comparator_runs_through_compare_dirs(tmp_path):
+def test_every_comparator_runs_through_compare_dirs(tmp_path: Path):
     """compare_dirs calls each comparator as (a, b, partial); a signature drift in any one of
     them must fail here, not in the middle of a certificate."""
-    fixtures = {
+    fixtures: dict[str, Any] = {
         "O1": _o1({"t::a": ["passed"]}),
         "O3": {"modules": {"m": {"status": "OK"}}},
         "O4": _o4(),
@@ -427,7 +442,7 @@ def test_every_comparator_runs_through_compare_dirs(tmp_path):
     assert lines[-1] == "ORACLE: 10/10 EQUAL"
 
 
-def test_oracle_records_are_not_archival_evidence(tmp_path, monkeypatch):
+def test_oracle_records_are_not_archival_evidence(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     """inventory.json and the snapshots name every path; if they counted as references, the
     second inventory run would find no ARCHIVAL file at all."""
     import subprocess
@@ -456,7 +471,7 @@ def test_public_id_hashes_parameter_text():
 
 def test_o1_volatile_parametrize_ids_compare_by_count():
     """Ids built from a timestamp differ every run; same count and passes is EQUAL, fewer is DIFF."""
-    a = {
+    a: dict[str, Any] = {
         "runs": [{"counts": {"passed": 1}, "collect_errors": []}] * 2,
         "tests": {
             "t::v[#1]": {"outcomes": ["passed", None], "class": "stable-pass"},
@@ -464,7 +479,7 @@ def test_o1_volatile_parametrize_ids_compare_by_count():
         },
     }
     assert "t::v" in O.volatile_bases(a)
-    b = {
+    b: dict[str, Any] = {
         "runs": [{"counts": {"passed": 1}, "collect_errors": []}],
         "tests": {"t::v[#3]": {"outcomes": ["passed"], "class": "stable-pass"}},
     }
@@ -528,7 +543,7 @@ def test_gate_members_order_and_ignore_fail():
     assert certify.gate_problems({"gate": {"shell": "true || true"}}, []) == ["gate is not a sequence task"]
 
 
-def test_sha_pins(tmp_path):
+def test_sha_pins(tmp_path: Path):
     import certify
 
     wf = tmp_path / ".github" / "workflows"
@@ -546,7 +561,7 @@ def test_sha_pins(tmp_path):
     assert "actions/setup-python@v5" in problems[0]
 
 
-def test_verify_checkout_catches_a_flipped_byte(tmp_path):
+def test_verify_checkout_catches_a_flipped_byte(tmp_path: Path):
     """A file that differs from its commit after checkout (one bit flipped: '}' -> 'u') must stop
     the run; git's stat cache alone would call the tree clean."""
     import subprocess
@@ -563,7 +578,7 @@ def test_verify_checkout_catches_a_flipped_byte(tmp_path):
         }
     )
 
-    def g(*a):
+    def g(*a: str) -> None:
         subprocess.run(["git", *a], cwd=tmp_path, env=env, check=True, capture_output=True)
 
     g("init", "-q")
