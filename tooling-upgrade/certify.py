@@ -26,6 +26,7 @@ import contextlib
 import fnmatch
 import json
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -629,6 +630,14 @@ def drill_tree() -> Generator[Path, None, None]:
     # only reaches uv, so give the drill tree the project venv (.venv is git-ignored).
     with contextlib.suppress(OSError):
         (t / ".venv").symlink_to(ROOT / ".venv", target_is_directory=True)
+    # Suite records are git-ignored working records, so a fresh tree has none and T7 (inside the
+    # D15 gate) would be red before the fault. Copy HEAD's current record (its JSON, not raw logs).
+    cur = current_snapshot()
+    if cur is not None:
+        dst = t / "tooling-upgrade" / "snapshots" / cur.name
+        dst.mkdir(parents=True, exist_ok=True)
+        for f in cur.glob("*.json"):
+            shutil.copy2(f, dst / f.name)
     try:
         yield t
     finally:
