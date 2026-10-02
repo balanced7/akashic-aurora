@@ -23,6 +23,7 @@ import os
 import time
 
 import mss
+import mss.tools
 import redis
 
 SESSION_ID = os.environ.get("OPENCODE_SESSION", f"session_{time.strftime('%Y%m%d_%H%M%S')}")

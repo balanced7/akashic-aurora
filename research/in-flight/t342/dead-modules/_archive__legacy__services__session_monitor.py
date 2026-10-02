@@ -35,6 +35,7 @@ import time
 from collections import defaultdict
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
+from typing import cast
 
 sys.path.insert(0, r"E:\AI-Setup")
 
@@ -107,7 +108,7 @@ class SessionMonitor:
 
     def __init__(self):
         self.state = MonitorState()
-        self.redis_client: redis.Redis | None = None
+        self.redis_client: redis.Redis | None = None  # pyright: ignore[reportPossiblyUnboundVariable]  # attribute annotation, never evaluated at runtime
         self.running = False
         self._lock = threading.Lock()
         self._load_state()
@@ -164,7 +165,7 @@ class SessionMonitor:
 
         try:
             # Get all session keys
-            keys = self.redis_client.keys("session:*")
+            keys = cast("list[str]", cast("redis.Redis", self.redis_client).keys("session:*"))
 
             for key in keys:
                 try:
@@ -183,7 +184,7 @@ class SessionMonitor:
                         # Get entry count from Redis
                         entry_count = 0
                         if key.endswith((":log", ":actions")):
-                            entry_count = self.redis_client.llen(key)
+                            entry_count = cast("redis.Redis", self.redis_client).llen(key)
 
                         sessions[session_id] = SessionInfo(
                             session_id=session_id,
@@ -339,14 +340,14 @@ class SessionMonitor:
                     "action_required": "import logging and start recording actions",
                 }
 
-                self.redis_client.setex(
+                cast("redis.Redis", self.redis_client).setex(
                     nudge_key,
                     300,  # Expire in 5 minutes
                     json.dumps(nudge_data),
                 )
 
                 # Also publish to agent_comm stream
-                self.redis_client.publish(
+                cast("redis.Redis", self.redis_client).publish(
                     "agent_comm:stream",
                     json.dumps(
                         {

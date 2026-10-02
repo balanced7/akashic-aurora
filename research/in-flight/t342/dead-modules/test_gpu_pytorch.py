@@ -11,7 +11,7 @@ os.environ["LD_LIBRARY_PATH"] = "/opt/rocm/lib:/usr/lib/wsl/lib:" + os.environ.g
 print("=== GPU Detection Test ===")
 
 try:
-    import torch
+    import torch  # pyright: ignore[reportMissingImports]  # archived module / optional dependency, not in the lock
 
     print(f"PyTorch version: {torch.__version__}")
     print(f"ROCm available: {torch.cuda.is_available()}")

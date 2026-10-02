@@ -154,7 +154,9 @@ def _legacy_opencode_log_hints(r) -> dict[str, Any]:
 
 
 def _port_section(sync_ports: bool) -> dict[str, Any]:
-    from stack_manager.ports import PortManager
+    from stack_manager.ports import (  # pyright: ignore[reportMissingImports]  # archived module / optional dependency, not in the lock
+        PortManager,
+    )
 
     pm = PortManager()
     section: dict[str, Any] = {
@@ -182,7 +184,11 @@ def collect_report(
     infra_agent: str = "ai_watchdog",
 ) -> dict[str, Any]:
     """Single observability payload (ports + logging + infra)."""
-    from session_supervisor import allow_infra_start, ensure_infra, infra_status
+    from session_supervisor import (  # pyright: ignore[reportMissingImports]  # archived module / optional dependency, not in the lock
+        allow_infra_start,
+        ensure_infra,
+        infra_status,
+    )
 
     report: dict[str, Any] = {
         "timestamp": _utc_now_iso(),
@@ -204,7 +210,7 @@ def collect_report(
 
     if ensure_infra:
         if allow_infra_start():
-            report["ensure_infra"] = ensure_infra(infra_tier.strip().lower(), infra_agent)
+            report["ensure_infra"] = ensure_infra(infra_tier.strip().lower(), infra_agent)  # pyright: ignore[reportCallIssue]  # LATENT: the local import rebinds the bool param ensure_infra, so the guard is always true
         else:
             report["ensure_infra"] = {
                 "ok": False,

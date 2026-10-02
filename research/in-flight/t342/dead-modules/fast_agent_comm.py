@@ -103,7 +103,7 @@ class FastAgentComm:
     _lock = threading.Lock()
 
     def __init__(self):
-        self._redis = None
+        self._redis: Any = None  # connect_to_redis_with_fail_fast() client; used only when _available
         self._available = False
         self._agent_id = None
         self._pending_responses: dict[str, threading.Event] = {}

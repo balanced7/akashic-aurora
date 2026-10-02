@@ -29,9 +29,14 @@ from blackboard import (
     PHASE_VERIFYING,
     init_blackboard,
 )
-from escalation import Tier, get_escalation_manager
+from escalation import (  # pyright: ignore[reportMissingImports]  # archived module / optional dependency, not in the lock
+    Tier,
+    get_escalation_manager,
+)
 from model_lifecycle import ModelLifecycleManager
-from session_logger import log
+from session_logger import (  # pyright: ignore[reportMissingImports]  # archived module / optional dependency, not in the lock
+    log,
+)
 
 # Complexity thresholds for Analyst "Co-Sign"
 COMPLEXITY_STEPS_THRESHOLD = 5  # If > 5 steps, mark as complex

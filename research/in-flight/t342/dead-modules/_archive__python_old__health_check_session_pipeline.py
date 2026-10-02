@@ -17,6 +17,7 @@ import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
+from typing import Any, cast
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
@@ -175,7 +176,7 @@ def redis_checks() -> dict:
             rep[label]["stream_entries_approx"] = r.xlen(SESSION_EVENTS_STREAM)
             idx_docs = None
             try:
-                info = r.execute_command("FT.INFO", "session_text_idx")
+                info = cast("list[Any]", r.execute_command("FT.INFO", "session_text_idx"))
                 di = dict(zip(info[::2], info[1::2], strict=False))
                 idx_docs = di.get(b"num_docs", di.get("num_docs"))
                 if isinstance(idx_docs, bytes):
@@ -335,7 +336,9 @@ def main():
     # Recent stream IDs (WSL)
     try:
         r = redis.Redis(**get_redis_config())
-        payload["stream_tail_ids"] = [mid for mid, _ in r.xrevrange(SESSION_EVENTS_STREAM, "+", "-", count=5)]
+        payload["stream_tail_ids"] = [
+            mid for mid, _ in cast("list[tuple[Any, Any]]", r.xrevrange(SESSION_EVENTS_STREAM, "+", "-", count=5))
+        ]
     except Exception as e:
         payload["stream_tail_error"] = str(e)
 

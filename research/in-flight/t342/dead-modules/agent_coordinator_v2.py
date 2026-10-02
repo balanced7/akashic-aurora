@@ -31,6 +31,7 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
+from typing import cast
 
 sys.path.insert(0, r"E:\AI-Setup")
 
@@ -176,7 +177,7 @@ class AgentCoordinator:
 
     def __init__(self):
         self.agent_id = self._get_my_agent_id()
-        self._manifest: AgentManifest | None = None
+        self._manifest: AgentManifest = cast("AgentManifest", None)  # set by _init_manifest() below
         self._init_manifest()
 
     def _get_my_agent_id(self) -> str:
@@ -209,8 +210,8 @@ class AgentCoordinator:
         intent: str | None = None,
         scope: list[str] | None = None,
         areas: list[str] | None = None,
-        status: AgentStatus = None,
-        priority: Priority = None,
+        status: AgentStatus | None = None,
+        priority: Priority | None = None,
         eta_minutes: int | None = None,
         current_task: str | None = None,
         progress_percent: float | None = None,
@@ -393,7 +394,7 @@ class AgentCoordinator:
             json.dump({**lock.__dict__, "priority": lock.priority.value}, f, indent=2)
 
         # Broadcast lock
-        self._broadcast_lock(lock, "acquired")
+        self._broadcast_lock(lock, "acquired")  # pyright: ignore[reportArgumentType]  # LATENT: passes a ResourceLock, json.dumps fails and the broadcast is silently dropped
 
         return lock
 
@@ -531,7 +532,7 @@ class AgentCoordinator:
         return conflicts
 
     def find_available_agents(
-        self, role: str | None = None, status: AgentStatus = None, not_busy: bool = True
+        self, role: str | None = None, status: AgentStatus | None = None, not_busy: bool = True
     ) -> list[AgentManifest]:
         """Find agents that match criteria"""
         matching = []
@@ -724,7 +725,10 @@ def declare_operation(
         Dict with manifest and alert info, or None if failed
     """
     try:
-        from operational_alerts import AlertManager, AlertType
+        from operational_alerts import (  # pyright: ignore[reportMissingImports]  # archived module / optional dependency, not in the lock
+            AlertManager,
+            AlertType,
+        )
 
         coord = get_coordinator()
 
@@ -764,7 +768,9 @@ def complete_operation(alert_id: str | None = None, scope: list[str] | None = No
         scope: If alert_id not provided, find alert by scope
     """
     try:
-        from operational_alerts import AlertManager
+        from operational_alerts import (  # pyright: ignore[reportMissingImports]  # archived module / optional dependency, not in the lock
+            AlertManager,
+        )
 
         coord = get_coordinator()
         alert_mgr = AlertManager()

@@ -13,9 +13,14 @@ import os
 import subprocess
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
+from typing import TextIO, cast
 
 import redis
-from flask import Flask, jsonify, request
+from flask import (  # pyright: ignore[reportMissingImports]  # archived module / optional dependency, not in the lock
+    Flask,
+    jsonify,
+    request,
+)
 from flask_cors import CORS
 
 app = Flask(__name__)
@@ -50,7 +55,9 @@ def get_whisper():
     global whisper_model
     if whisper_model is None:
         try:
-            from faster_whisper import WhisperModel
+            from faster_whisper import (  # pyright: ignore[reportMissingImports]  # archived module / optional dependency, not in the lock
+                WhisperModel,
+            )
 
             print("[STT] Loading Whisper model (base, int8)...")
             whisper_model = WhisperModel("base", device="cpu", compute_type="int8")
@@ -132,10 +139,10 @@ def execute_code(code):
             def __init__(self):
                 self.outputs = []
 
-            def write(self, text):
+            def write(self, text: str) -> None:
                 self.outputs.append(text)
 
-            def flush(self):
+            def flush(self) -> None:
                 pass
 
         captured = OutputCapture()
@@ -145,7 +152,8 @@ def execute_code(code):
             "print": lambda *args: captured.write(" ".join(map(str, args))),
         }
 
-        with contextlib.redirect_stdout(captured), contextlib.redirect_stderr(captured):
+        stream = cast("TextIO", captured)  # duck-typed stream: write()/flush() are all redirect_* use
+        with contextlib.redirect_stdout(stream), contextlib.redirect_stderr(stream):
             exec(code, exec_globals)
 
         result["success"] = True

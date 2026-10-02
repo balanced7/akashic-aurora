@@ -13,7 +13,7 @@ print(f"ROCM_PATH: {os.environ.get('ROCM_PATH')}")
 print(f"LD_LIBRARY_PATH: {os.environ.get('LD_LIBRARY_PATH')}")
 
 try:
-    import torch
+    import torch  # pyright: ignore[reportMissingImports]  # archived module / optional dependency, not in the lock
 
     print(f"PyTorch version: {torch.__version__}")
     print(f"ROCm available: {torch.cuda.is_available()}")

@@ -23,7 +23,7 @@ import os
 import time
 from collections import defaultdict
 from datetime import datetime
-from typing import ClassVar
+from typing import ClassVar, cast
 
 import redis
 
@@ -84,7 +84,9 @@ class ErrorDoc:
     CACHE_TTL = 60  # seconds
 
     def __init__(self):
-        self.redis, self.redis_available = _get_redis_client()
+        self.redis, self.redis_available = cast(
+            "tuple[redis.Redis, bool]", _get_redis_client()
+        )  # None only when unavailable
 
     def _log_entry(self, entry):
         """Write to error log file"""

@@ -207,7 +207,7 @@ def enterprise_fetch(
                     except Exception:
                         content = zlib.decompress(content, -zlib.MAX_WBITS)
                 elif content_encoding == "br":
-                    import brotli
+                    import brotli  # pyright: ignore[reportMissingImports]  # archived module / optional dependency, not in the lock
 
                     content = brotli.decompress(content)
 

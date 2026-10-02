@@ -56,7 +56,7 @@ def get_redis():
     if not REDIS_AVAILABLE:
         return None
     try:
-        r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, db=0, decode_responses=True)
+        r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, db=0, decode_responses=True)  # pyright: ignore[reportPossiblyUnboundVariable]  # bound when REDIS_AVAILABLE, checked above
         r.ping()
         return r
     except Exception:

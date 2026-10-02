@@ -28,7 +28,7 @@ from typing import Any
 
 # Optional imports
 try:
-    import websocket as websocket
+    import websocket as websocket  # pyright: ignore[reportMissingImports]  # archived module / optional dependency, not in the lock
 
     WEBSOCKET_AVAILABLE = True
 except ImportError:
@@ -36,13 +36,27 @@ except ImportError:
     print("[gemini_bridge] websocket-client not installed. Run: pip install websocket-client")
 
 try:
-    from selenium import webdriver
-    from selenium.common.exceptions import WebDriverException as WebDriverException
-    from selenium.webdriver.chrome.options import Options
-    from selenium.webdriver.chrome.service import Service
-    from selenium.webdriver.common.by import By
-    from selenium.webdriver.support import expected_conditions as EC
-    from selenium.webdriver.support.ui import WebDriverWait
+    from selenium import (  # pyright: ignore[reportMissingImports]  # archived module / optional dependency, not in the lock
+        webdriver,
+    )
+    from selenium.common.exceptions import (  # pyright: ignore[reportMissingImports]  # archived module / optional dependency, not in the lock
+        WebDriverException as WebDriverException,
+    )
+    from selenium.webdriver.chrome.options import (  # pyright: ignore[reportMissingImports]  # archived module / optional dependency, not in the lock
+        Options,
+    )
+    from selenium.webdriver.chrome.service import (  # pyright: ignore[reportMissingImports]  # archived module / optional dependency, not in the lock
+        Service,
+    )
+    from selenium.webdriver.common.by import (  # pyright: ignore[reportMissingImports]  # archived module / optional dependency, not in the lock
+        By,
+    )
+    from selenium.webdriver.support import (  # pyright: ignore[reportMissingImports]  # archived module / optional dependency, not in the lock
+        expected_conditions as EC,
+    )
+    from selenium.webdriver.support.ui import (  # pyright: ignore[reportMissingImports]  # archived module / optional dependency, not in the lock
+        WebDriverWait,
+    )
 
     SELENIUM_AVAILABLE = True
 except ImportError:
@@ -112,7 +126,7 @@ class CDPBridge:
         Query Gemini via CDP by injecting JavaScript.
         """
         try:
-            import websocket
+            import websocket  # pyright: ignore[reportMissingImports]  # archived module / optional dependency, not in the lock
 
             if not self.ws_url and not self.connect():
                 return None
@@ -266,7 +280,7 @@ class GeminiBridgeRemote:
 
     def __init__(self, debugging_address: str = DEBUGGING_PORT):
         self.debugging_address = debugging_address
-        self.driver = None
+        self.driver: Any = None  # selenium WebDriver once connected
 
     def connect(self) -> bool:
         """Connect to existing Brave via remote debugging"""
@@ -275,15 +289,17 @@ class GeminiBridgeRemote:
             return False
 
         try:
-            from selenium.webdriver.chrome.service import Service
+            from selenium.webdriver.chrome.service import (  # pyright: ignore[reportMissingImports]  # archived module / optional dependency, not in the lock
+                Service,
+            )
 
             chromedriver_path = r"C:\Users\L5\.chromedriver-autoinstaller\chromedriver-win64\chromedriver.exe"
 
-            options = Options()
+            options = Options()  # pyright: ignore[reportPossiblyUnboundVariable]  # selenium names exist whenever SELENIUM_AVAILABLE (callers check it or self.driver)
             options.add_experimental_option("debuggerAddress", self.debugging_address)
 
             service = Service(executable_path=chromedriver_path)
-            self.driver = webdriver.Chrome(service=service, options=options)
+            self.driver = webdriver.Chrome(service=service, options=options)  # pyright: ignore[reportPossiblyUnboundVariable]  # selenium names exist whenever SELENIUM_AVAILABLE (callers check it or self.driver)
             print("[gemini_bridge] Connected to Brave via remote debugging")
             return True
 
@@ -343,7 +359,7 @@ class GeminiBridgeRemote:
 
         for selector in selectors:
             try:
-                element = self.driver.find_element(By.CSS_SELECTOR, selector)
+                element = self.driver.find_element(By.CSS_SELECTOR, selector)  # pyright: ignore[reportPossiblyUnboundVariable]  # selenium names exist whenever SELENIUM_AVAILABLE (callers check it or self.driver)
                 if element.is_displayed():
                     print(f"[gemini_bridge] Found input: {selector}")
                     return element
@@ -367,7 +383,7 @@ class GeminiBridgeRemote:
 
         for selector in selectors:
             try:
-                elements = self.driver.find_elements(By.CSS_SELECTOR, selector)
+                elements = self.driver.find_elements(By.CSS_SELECTOR, selector)  # pyright: ignore[reportPossiblyUnboundVariable]  # selenium names exist whenever SELENIUM_AVAILABLE (callers check it or self.driver)
                 if elements:
                     # Get last (most recent) response
                     text = elements[-1].text
@@ -418,7 +434,7 @@ class GeminiBridgeRemote:
             print("[gemini_bridge] Waiting for page load...")
 
             # Wait for page to be ready
-            WebDriverWait(self.driver, 10).until(lambda d: d.execute_script("return document.readyState") == "complete")
+            WebDriverWait(self.driver, 10).until(lambda d: d.execute_script("return document.readyState") == "complete")  # pyright: ignore[reportPossiblyUnboundVariable]  # selenium names exist whenever SELENIUM_AVAILABLE (callers check it or self.driver)
 
             # Type prompt using JavaScript (more reliable than Selenium.send_keys)
             self.driver.execute_script(
@@ -490,7 +506,7 @@ class GeminiBridgeNew:
     ):
         self.brave_path = brave_path
         self.headless = headless
-        self.driver = None
+        self.driver: Any = None  # selenium WebDriver once connected
 
     def connect(self) -> bool:
         """Launch new Brave instance"""
@@ -498,9 +514,11 @@ class GeminiBridgeNew:
             return False
 
         try:
-            from webdriver_manager.chrome import ChromeDriverManager
+            from webdriver_manager.chrome import (  # pyright: ignore[reportMissingImports]  # archived module / optional dependency, not in the lock
+                ChromeDriverManager,
+            )
 
-            options = Options()
+            options = Options()  # pyright: ignore[reportPossiblyUnboundVariable]  # selenium names exist whenever SELENIUM_AVAILABLE (callers check it or self.driver)
             options.binary_location = self.brave_path
             options.add_argument(
                 "--user-data-dir=C:\\Users\\l5\\AppData\\Local\\BraveSoftware\\Brave-Browser\\User Data"
@@ -513,7 +531,7 @@ class GeminiBridgeNew:
             options.add_argument("--no-sandbox")
             options.add_argument("--disable-dev-shm-usage")
 
-            self.driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+            self.driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)  # pyright: ignore[reportPossiblyUnboundVariable]  # selenium names exist whenever SELENIUM_AVAILABLE (callers check it or self.driver)
             print("[gemini_bridge] Launched new Brave session")
             return True
 
@@ -559,8 +577,8 @@ class GeminiBridgeNew:
             time.sleep(2)
 
             # Find input
-            wait = WebDriverWait(self.driver, 10)
-            input_box = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "div[role='textbox']")))
+            wait = WebDriverWait(self.driver, 10)  # pyright: ignore[reportPossiblyUnboundVariable]  # selenium names exist whenever SELENIUM_AVAILABLE (callers check it or self.driver)
+            input_box = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "div[role='textbox']")))  # pyright: ignore[reportPossiblyUnboundVariable]  # selenium names exist whenever SELENIUM_AVAILABLE (callers check it or self.driver)
 
             input_box.clear()
             input_box.send_keys(prompt)
@@ -574,7 +592,7 @@ class GeminiBridgeNew:
 
             while time.time() - start < fast_fail:
                 try:
-                    elements = self.driver.find_elements(By.CSS_SELECTOR, "div.model-response-text")
+                    elements = self.driver.find_elements(By.CSS_SELECTOR, "div.model-response-text")  # pyright: ignore[reportPossiblyUnboundVariable]  # selenium names exist whenever SELENIUM_AVAILABLE (callers check it or self.driver)
                     if elements:
                         response = elements[-1].text
                         if len(response) > 10:
@@ -592,7 +610,7 @@ class GeminiBridgeNew:
             # Continue polling for full response
             for _ in range(timeout // 2):
                 try:
-                    elements = self.driver.find_elements(By.CSS_SELECTOR, "div.model-response-text")
+                    elements = self.driver.find_elements(By.CSS_SELECTOR, "div.model-response-text")  # pyright: ignore[reportPossiblyUnboundVariable]  # selenium names exist whenever SELENIUM_AVAILABLE (callers check it or self.driver)
                     if elements:
                         response = elements[-1].text
                         if len(response) > 10:

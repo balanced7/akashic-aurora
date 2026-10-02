@@ -24,8 +24,14 @@ def initialize():
     # 1. Session detection and re-prime check
     print("[1/6] Checking session state...")
     try:
-        from session_logger import SESSION_ID, SESSION_UNIQUE
-        from session_manager import check_and_reprime, get_session_manager
+        from session_logger import (  # pyright: ignore[reportMissingImports]  # archived module / optional dependency, not in the lock
+            SESSION_ID,
+            SESSION_UNIQUE,
+        )
+        from session_manager import (  # pyright: ignore[reportMissingImports]  # archived module / optional dependency, not in the lock
+            check_and_reprime,
+            get_session_manager,
+        )
 
         state = check_and_reprime(SESSION_ID, SESSION_UNIQUE)
 
@@ -69,7 +75,7 @@ def initialize():
     try:
         from blackboard import init_blackboard
 
-        bb = init_blackboard(force=False)
+        bb = init_blackboard(force=False)  # pyright: ignore[reportCallIssue]  # LATENT: init_blackboard() takes no force kwarg; TypeError is caught below
         print(f"  Blackboard state: {bb.get_state()}")
         results.append(("blackboard", "OK", bb.get_state()))
     except Exception as e:
@@ -80,12 +86,15 @@ def initialize():
     # 4. Activate logging and verify
     print("\n[4/6] Verifying logging...")
     try:
-        from session_logger import log, verify_logs
+        from session_logger import (  # pyright: ignore[reportMissingImports]  # archived module / optional dependency, not in the lock
+            log,
+            verify_logs,
+        )
 
         log(
             "init_session",
             "Full initialization run",
-            data={"results": results, "session_id": SESSION_ID},
+            data={"results": results, "session_id": SESSION_ID},  # pyright: ignore[reportPossiblyUnboundVariable]  # LATENT: SESSION_ID unbound if step 1's import failed; NameError caught below
             source="system",
         )
 
@@ -137,7 +146,10 @@ def initialize():
     # 7. Initialize harness enforcement
     print("\n[7/9] Initializing harness enforcement...")
     try:
-        from harness_enforcer import get_harness_enforcer, install_harness_hooks
+        from harness_enforcer import (
+            get_harness_enforcer,
+            install_harness_hooks,  # pyright: ignore[reportAttributeAccessIssue]  # LATENT: no such function; ImportError caught below
+        )
 
         he = get_harness_enforcer()
         install_harness_hooks()
@@ -155,10 +167,13 @@ def initialize():
         from multi_agent import initialize_multi_agent
 
         # Get session info from session_logger
-        from session_logger import SESSION_ID, SESSION_UNIQUE
+        from session_logger import (  # pyright: ignore[reportMissingImports]  # archived module / optional dependency, not in the lock
+            SESSION_ID,
+            SESSION_UNIQUE,
+        )
 
         # Detect role from session or default to general
-        role = os.environ.get("OPENCODE_AGENT_ROLE", "general")  # noqa: F821  # LATENT ADV-034: `os` is undefined here; fixed with a regression test in G4.P2
+        role = os.environ.get("OPENCODE_AGENT_ROLE", "general")  # noqa: F821  # pyright: ignore[reportUndefinedVariable]  # LATENT ADV-034: `os` is undefined here; fixed with a regression test in G4.P2
 
         ma_result = initialize_multi_agent(session_id=SESSION_ID, session_unique=SESSION_UNIQUE, role=role)
 
@@ -185,15 +200,15 @@ def initialize():
         # Get comm service (auto-initializes)
         comm = get_comm_service()
 
-        print(f"  Agent ID: {comm._agent_id}")
+        print(f"  Agent ID: {comm._agent_id}")  # pyright: ignore[reportAttributeAccessIssue]  # LATENT: AgentCommService has agent_id, not _agent_id; caught below
 
         # Broadcast that we're online
-        comm.broadcast_status("online", "initialization_complete")
+        comm.broadcast_status("online", "initialization_complete")  # pyright: ignore[reportAttributeAccessIssue]  # LATENT: AgentCommService has no broadcast_status; caught below
 
         # Wake any waiting agents
-        TerminalWaker.print_wake_signal()
+        TerminalWaker.print_wake_signal()  # pyright: ignore[reportAttributeAccessIssue]  # LATENT: TerminalWaker has no print_wake_signal; caught below
 
-        results.append(("comm_service", "OK", comm._agent_id))
+        results.append(("comm_service", "OK", comm._agent_id))  # pyright: ignore[reportAttributeAccessIssue]  # LATENT: AgentCommService has agent_id, not _agent_id; caught below
 
     except Exception as e:
         print(f"  WARNING: Comm service init failed: {e}")
@@ -231,7 +246,9 @@ def initialize():
         print("RE-PRIME REQUIRED")
         print("=" * 60)
         try:
-            from session_manager import get_session_manager
+            from session_manager import (  # pyright: ignore[reportMissingImports]  # archived module / optional dependency, not in the lock
+                get_session_manager,
+            )
 
             print(get_session_manager().get_reprime_instructions())
         except Exception:

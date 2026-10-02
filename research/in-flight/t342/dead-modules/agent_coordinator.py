@@ -31,6 +31,7 @@ from dataclasses import asdict, dataclass
 from datetime import datetime
 from enum import Enum
 from threading import Lock
+from typing import Any
 
 import psutil
 
@@ -191,7 +192,7 @@ class AgentMetadata:
     # Status
     status: str = "initializing"
     current_task: str | None = None
-    capabilities: list[str] = ""
+    capabilities: list[str] = ""  # pyright: ignore[reportAssignmentType]  # LATENT: dataclass default is "" not a list; field annotation left as is
     last_heartbeat: str = ""
     started_at: str = ""
 
@@ -373,7 +374,7 @@ class AgentCoordinator:
 
     def heartbeat(self, status: str | None = None, current_task: str | None = None):
         """Send heartbeat to indicate agent is alive"""
-        update = {"heartbeat": True}
+        update: dict[str, Any] = {"heartbeat": True}
 
         if status:
             update["status"] = status

@@ -33,6 +33,7 @@ import time
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from enum import Enum
+from typing import Any
 
 # ============================================================================
 # CONFIGURATION - Enterprise Grade
@@ -377,7 +378,7 @@ def get_all_keys_with_types() -> list[tuple[str, str]]:
     return result
 
 
-def get_key_value(key: str, key_type: str) -> any:
+def get_key_value(key: str, key_type: str) -> Any:
     """Get value for any key type."""
     if key_type == "string":
         output, _ = run_wsl(f"docker exec {CONTAINER_NAME} redis-cli GET {key}")

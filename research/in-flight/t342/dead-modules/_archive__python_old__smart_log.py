@@ -27,6 +27,10 @@ from collections import defaultdict
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
+from typing import TYPE_CHECKING, cast
+
+if TYPE_CHECKING:
+    import redis
 
 BASE_DIR = Path(r"E:\AI-Setup")
 ARCHIVE_DIR = BASE_DIR / "sessions"
@@ -400,7 +404,7 @@ class SmartLog:
 
         if self._redis_available:
             with contextlib.suppress(BaseException):
-                self._redis.rpush(f"session:{self.session_id}:log", entry_json)
+                cast("redis.Redis", self._redis).rpush(f"session:{self.session_id}:log", entry_json)
 
     def _auto_tag(self, content: str) -> list[str]:
         suggested = self._vocab.suggest(content)

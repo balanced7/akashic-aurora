@@ -20,6 +20,7 @@ import os
 import subprocess
 import sys
 import time
+from typing import cast
 
 sys.path.insert(0, r"E:\AI-Setup")
 
@@ -75,7 +76,7 @@ def get_active_agents():
 
         agents = []
         agent_data = r.hgetall("agents:active")
-        heartbeat_data = r.zrange("agents:heartbeat", 0, -1, withscores=True)
+        heartbeat_data = cast("list[tuple[str, float]]", r.zrange("agents:heartbeat", 0, -1, withscores=True))
 
         cutoff = time.time() - 300
 
@@ -117,8 +118,13 @@ def run_initialization(role="general"):
     os.environ["OPENCODE_AGENT_ROLE"] = role
 
     from multi_agent import initialize_multi_agent
-    from session_logger import SESSION_ID, SESSION_UNIQUE
-    from session_manager import check_and_reprime
+    from session_logger import (  # pyright: ignore[reportMissingImports]  # archived module / optional dependency, not in the lock
+        SESSION_ID,
+        SESSION_UNIQUE,
+    )
+    from session_manager import (  # pyright: ignore[reportMissingImports]  # archived module / optional dependency, not in the lock
+        check_and_reprime,
+    )
 
     state = check_and_reprime(SESSION_ID, SESSION_UNIQUE)
 
@@ -320,7 +326,7 @@ def option_spawn_helper():
             from multi_agent import get_message_bus
 
             bus = get_message_bus()
-            bus.broadcast_to_agents(
+            bus.broadcast_to_agents(  # pyright: ignore[reportAttributeAccessIssue]  # LATENT: MessageBus has no broadcast_to_agents; AttributeError at runtime
                 "alert", f"Helper agent spawned: {helper_role}", {"agent_id": agent_id, "role": helper_role}
             )
         else:
@@ -364,8 +370,8 @@ def option_status():
             verdict_ready = r.get("blackboard:verdict_ready")
 
             print("\nBlackboard:")
-            print(f"  State: {state.decode() if state else 'IDLE'}")
-            print(f"  Turn: {turn.decode() if turn else '0'}")
+            print(f"  State: {state.decode() if state else 'IDLE'}")  # pyright: ignore[reportAttributeAccessIssue]  # LATENT: decode_responses=True gives str; .decode() raises
+            print(f"  Turn: {turn.decode() if turn else '0'}")  # pyright: ignore[reportAttributeAccessIssue]  # LATENT: decode_responses=True gives str; .decode() raises
             print(f"  Proposal Ready: {proposal_ready == b'1' if proposal_ready else False}")
             print(f"  Verdict Ready: {verdict_ready == b'1' if verdict_ready else False}")
         except Exception:

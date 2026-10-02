@@ -12,6 +12,7 @@ Usage:
 import contextlib
 import json
 import os
+from typing import cast
 
 import redis
 
@@ -43,7 +44,7 @@ def get_summary():
     """Get summary of recent sessions and what happened"""
     summary = {"sessions": [], "chat_history": [], "learnings": {}, "last_task": None, "last_error": None}
 
-    r, redis_available = _get_redis_client()
+    r, redis_available = cast("tuple[redis.Redis, bool]", _get_redis_client())  # r is None only when unavailable
 
     if not redis_available:
         summary["error"] = "Redis not available"
@@ -118,7 +119,7 @@ def get_session_log(session_id):
 
 def find_last_session():
     """Find the most recent session that was active"""
-    r, redis_available = _get_redis_client()
+    r, redis_available = cast("tuple[redis.Redis, bool]", _get_redis_client())  # r is None only when unavailable
 
     if redis_available:
         try:

@@ -7,17 +7,30 @@ Monitors the Gemini tab and detects crashes using Selenium + Vision Engine.
 import sys
 import time
 import traceback
+from typing import Any
 
 sys.path.insert(0, r"E:\AI-Setup")
 
 import contextlib
 
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.support.ui import WebDriverWait
+from selenium import (  # pyright: ignore[reportMissingImports]  # archived module / optional dependency, not in the lock
+    webdriver,
+)
+from selenium.webdriver.chrome.options import (  # pyright: ignore[reportMissingImports]  # archived module / optional dependency, not in the lock
+    Options,
+)
+from selenium.webdriver.chrome.service import (  # pyright: ignore[reportMissingImports]  # archived module / optional dependency, not in the lock
+    Service,
+)
+from selenium.webdriver.common.by import (  # pyright: ignore[reportMissingImports]  # archived module / optional dependency, not in the lock
+    By,
+)
+from selenium.webdriver.support import (  # pyright: ignore[reportMissingImports]  # archived module / optional dependency, not in the lock
+    expected_conditions as EC,
+)
+from selenium.webdriver.support.ui import (  # pyright: ignore[reportMissingImports]  # archived module / optional dependency, not in the lock
+    WebDriverWait,
+)
 from vision_engine import capture_active_window, get_screen_context_for_analyst
 
 CHROMEDRIVER_PATH = r"C:\Users\L5\.chromedriver-autoinstaller\chromedriver-win64\chromedriver.exe"
@@ -31,7 +44,7 @@ class GeminiBridgeMonitor:
     """
 
     def __init__(self):
-        self.driver = None
+        self.driver: Any = None  # selenium WebDriver once connected
         self.gemini_handle = None
         self.crashed = False
 
@@ -104,7 +117,7 @@ class GeminiBridgeMonitor:
         """Capture current browser state for diagnosis"""
         try:
             screenshot = capture_active_window()
-            return get_screen_context_for_analyst(screenshot)
+            return get_screen_context_for_analyst(screenshot)  # pyright: ignore[reportArgumentType]  # LATENT: capture_active_window() may return None; the except below reports it
         except Exception as e:
             print(f"[monitor] Failed to capture state: {e}")
             return {"error": str(e)}

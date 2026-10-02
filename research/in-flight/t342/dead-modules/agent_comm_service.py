@@ -23,6 +23,7 @@ import uuid
 from collections import defaultdict
 from collections.abc import Callable
 from datetime import datetime, timedelta
+from typing import Any, cast
 
 # ============================================================================
 # CONFIGURATION
@@ -153,7 +154,7 @@ class RedisPubSub:
 
     def __init__(self):
         self.client = None
-        self.pubsub = None
+        self.pubsub: Any = None  # redis PubSub once connect() succeeds
         self.running = False
         self._thread = None
         self._callbacks = defaultdict(list)
@@ -549,7 +550,7 @@ class AgentCommService:
 
         # Auto-respond to ping
         if msg_type == "ping":
-            self.send_message("pong", {"original_time": content.get("time")}, msg.get("from_agent"))
+            self.send_message("pong", {"original_time": content.get("time")}, msg.get("from_agent"))  # pyright: ignore[reportArgumentType]  # LATENT: a ping without from_agent sends the pong to None
 
     def send_message(self, msg_type: str, content: dict, to_agent: str = "broadcast") -> str:
         """Send a message"""
@@ -626,7 +627,7 @@ class NotificationServer:
         self.port = port
         self.running = False
         self._thread = None
-        self._sock = None
+        self._sock: socket.socket | None = None
 
     def start(self):
         """Start the server"""
@@ -652,7 +653,7 @@ class NotificationServer:
         """Main server loop"""
         while self.running:
             try:
-                client, _addr = self._sock.accept()
+                client, _addr = cast("socket.socket", self._sock).accept()  # set by start() before _run
                 self._handle_client(client)
             except TimeoutError:
                 continue

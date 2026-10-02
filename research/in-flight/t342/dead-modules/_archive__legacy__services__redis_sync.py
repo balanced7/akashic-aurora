@@ -27,6 +27,7 @@ import threading
 import time
 from dataclasses import asdict, dataclass
 from datetime import datetime
+from typing import cast
 
 try:
     import redis  # noqa: TC002  # import probe: sets REDIS_AVAILABLE at runtime
@@ -60,7 +61,7 @@ class SyncState:
 class RedisSyncPoller:
     def __init__(self):
         self.state = SyncState()
-        self.redis_client: redis.Redis | None = None
+        self.redis_client: redis.Redis | None = None  # pyright: ignore[reportPossiblyUnboundVariable]  # attribute annotation, never evaluated at runtime
         self.running = False
         self._lock = threading.Lock()
         self._load_state()
@@ -215,7 +216,7 @@ class RedisSyncPoller:
         if sessions:
             try:
                 key = "sessions:active"
-                pipe = self.redis_client.pipeline()
+                pipe = cast("redis.Redis", self.redis_client).pipeline()
                 for session in sessions:
                     session_data = {"session_id": session, "status": "active", "last_seen": datetime.now().isoformat()}
                     pipe.hset(key, session, json.dumps(session_data))

@@ -59,7 +59,7 @@ def check_rocm() -> bool:
 def check_rocm_pytorch() -> bool:
     """Check if ROCm PyTorch is installed"""
     try:
-        import torch
+        import torch  # pyright: ignore[reportMissingImports]  # archived module / optional dependency, not in the lock
 
         return torch.cuda.is_available() and torch.version.hip
     except Exception:

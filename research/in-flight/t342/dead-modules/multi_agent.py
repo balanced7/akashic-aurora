@@ -39,7 +39,7 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any, Optional, cast
 
 sys.path.insert(0, r"E:\AI-Setup")
 
@@ -251,14 +251,14 @@ class AgentRegistry:
     _instance: Optional["AgentRegistry"] = None
 
     def __init__(self):
-        self._redis, self._available = _get_redis_connection()
+        self._redis, self._available = cast("tuple[redis.Redis, bool]", _get_redis_connection())
         self._vector_store = None
         self._current_agent_id: str | None = None
         self._agent_info: AgentInfo | None = None
 
         if VECTOR_STORE_AVAILABLE and self._available:
             try:
-                self._vector_store = get_vector_store()
+                self._vector_store = get_vector_store()  # pyright: ignore[reportPossiblyUnboundVariable]  # bound when VECTOR_STORE_AVAILABLE, checked above
             except Exception:
                 self._vector_store = None
 
@@ -278,7 +278,7 @@ class AgentRegistry:
 
     def register_agent(
         self, role: str, session_id: str, session_unique: str, metadata: dict[str, Any] | None = None
-    ) -> AgentInfo:
+    ) -> AgentInfo | None:
         """
         Register this agent in the registry.
         Should be called once on startup.
@@ -343,7 +343,7 @@ class AgentRegistry:
             self._redis.hset(
                 AGENT_REGISTRY_KEY,
                 self._current_agent_id,
-                json.dumps({**self._agent_info.to_dict(), "last_heartbeat": now.isoformat()}),
+                json.dumps({**cast("AgentInfo", self._agent_info).to_dict(), "last_heartbeat": now.isoformat()}),
             )
 
             self._redis.expire(AGENT_REGISTRY_KEY, AGENT_TTL_SECONDS * 2)
@@ -376,7 +376,9 @@ class AgentRegistry:
         try:
             cutoff = datetime.now().timestamp() - AGENT_TTL_SECONDS
 
-            active_ids = self._redis.zrangebyscore(AGENT_HEARTBEAT_KEY, cutoff, "+inf", withscores=False)
+            active_ids = cast(
+                "list[str]", self._redis.zrangebyscore(AGENT_HEARTBEAT_KEY, cutoff, "+inf", withscores=False)
+            )
 
             agents = []
             for agent_id in active_ids:
@@ -456,13 +458,13 @@ class MessageBus:
     _instance: Optional["MessageBus"] = None
 
     def __init__(self):
-        self._redis, self._available = _get_redis_connection()
+        self._redis, self._available = cast("tuple[redis.Redis, bool]", _get_redis_connection())
         self._vector_store = None
         self._pubsub = None
 
         if VECTOR_STORE_AVAILABLE and self._available:
             try:
-                self._vector_store = get_vector_store()
+                self._vector_store = get_vector_store()  # pyright: ignore[reportPossiblyUnboundVariable]  # bound when VECTOR_STORE_AVAILABLE, checked above
             except Exception:
                 self._vector_store = None
 
@@ -622,7 +624,7 @@ class MessageBus:
             return False
 
         try:
-            return self._redis.sismember(f"{MESSAGE_KEY_PREFIX}:read:{self._agent_id}", msg_id)
+            return cast("bool", self._redis.sismember(f"{MESSAGE_KEY_PREFIX}:read:{self._agent_id}", msg_id))
         except Exception:
             return False
 
@@ -699,12 +701,12 @@ class SharedWorkspace:
     _instance: Optional["SharedWorkspace"] = None
 
     def __init__(self):
-        self._redis, self._available = _get_redis_connection()
+        self._redis, self._available = cast("tuple[redis.Redis, bool]", _get_redis_connection())
         self._vector_store = None
 
         if VECTOR_STORE_AVAILABLE and self._available:
             try:
-                self._vector_store = get_vector_store()
+                self._vector_store = get_vector_store()  # pyright: ignore[reportPossiblyUnboundVariable]  # bound when VECTOR_STORE_AVAILABLE, checked above
             except Exception:
                 self._vector_store = None
 
@@ -917,7 +919,7 @@ class SharedWorkspace:
             return []
 
         try:
-            return self._redis.hkeys(SHARED_WORKSPACE_KEY)
+            return cast("list[str]", self._redis.hkeys(SHARED_WORKSPACE_KEY))
         except Exception:
             return []
 
@@ -1074,7 +1076,7 @@ def create_help_request(
         return None
 
     try:
-        r, _ = _get_redis_connection()
+        r, _ = cast("tuple[redis.Redis, bool]", _get_redis_connection())
         registry = get_agent_registry()
         agent_id = registry.get_current_agent_id() or "unknown"
 
@@ -1094,7 +1096,7 @@ def create_help_request(
 
         if VECTOR_STORE_AVAILABLE:
             try:
-                vs = get_vector_store()
+                vs = get_vector_store()  # pyright: ignore[reportPossiblyUnboundVariable]  # bound when VECTOR_STORE_AVAILABLE, checked above
                 vs.add_entry(
                     key=f"help_request:{request_id}",
                     model="help_requests",
@@ -1117,7 +1119,7 @@ def get_pending_help_requests(limit: int = 20) -> list[HelpRequest]:
         return []
 
     try:
-        r, _ = _get_redis_connection()
+        r, _ = cast("tuple[redis.Redis, bool]", _get_redis_connection())
         requests_raw = r.lrange(HELP_REQUEST_KEY, 0, limit - 1)
 
         requests = []
@@ -1136,8 +1138,8 @@ def respond_to_help_request(request_id: str, helper_id: str) -> bool:
         return False
 
     try:
-        r, _ = _get_redis_connection()
-        requests_raw = r.lrange(HELP_REQUEST_KEY, 0, 100)
+        r, _ = cast("tuple[redis.Redis, bool]", _get_redis_connection())
+        requests_raw = cast("list[str]", r.lrange(HELP_REQUEST_KEY, 0, 100))
 
         for req_json in requests_raw:
             try:
@@ -1245,7 +1247,7 @@ def _backup_redis_if_needed(operation: str) -> bool:
         return True  # No Redis to backup
 
     try:
-        r, _ = _get_redis_connection()
+        r, _ = cast("tuple[redis.Redis, bool]", _get_redis_connection())
 
         # Check if backup is needed (only if significant data exists)
         key_count = len(r.keys("*"))

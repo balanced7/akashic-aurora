@@ -129,7 +129,7 @@ class VectorStore:
     def _load_index(self):
         """Load existing FAISS index if available"""
         try:
-            import faiss
+            import faiss  # pyright: ignore[reportMissingImports]  # archived module / optional dependency, not in the lock
 
             if os.path.exists(VECTOR_INDEX_FILE):
                 self.faiss_index = faiss.read_index(VECTOR_INDEX_FILE)
@@ -158,7 +158,7 @@ class VectorStore:
     def _create_index(self):
         """Create new FAISS index"""
         try:
-            import faiss
+            import faiss  # pyright: ignore[reportMissingImports]  # archived module / optional dependency, not in the lock
 
             # Use Inner Product (cosine similarity with normalized vectors)
             self.faiss_index = faiss.IndexIDMap(faiss.IndexFlatIP(EMBEDDING_DIM))
@@ -172,7 +172,7 @@ class VectorStore:
             return
 
         try:
-            import faiss
+            import faiss  # pyright: ignore[reportMissingImports]  # archived module / optional dependency, not in the lock
 
             faiss.write_index(self.faiss_index, VECTOR_INDEX_FILE)
 
@@ -447,7 +447,7 @@ class VectorStore:
         except Exception as e:
             print(f"[vector_store] Sync error: {e}")
 
-        return synced
+        return synced  # pyright: ignore[reportPossiblyUnboundVariable]  # LATENT: UnboundLocalError if KB() or get_all_models() raises
 
     def save(self):
         """Explicitly save the index"""

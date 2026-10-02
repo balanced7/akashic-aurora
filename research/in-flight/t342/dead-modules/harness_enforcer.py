@@ -235,7 +235,9 @@ class HarnessEnforcer:
             import sys
 
             sys.path.insert(0, r"E:\AI-Setup")
-            from session_logger import SESSION_ID
+            from session_logger import (  # pyright: ignore[reportMissingImports]  # archived module / optional dependency, not in the lock
+                SESSION_ID,
+            )
 
             self._session_id = SESSION_ID
         except Exception:
@@ -440,8 +442,12 @@ class HarnessEnforcer:
             import sys
 
             sys.path.insert(0, r"E:\AI-Setup")
-            from session_logger import SESSION_ID
-            from session_manager import get_session_manager
+            from session_logger import (  # pyright: ignore[reportMissingImports]  # archived module / optional dependency, not in the lock
+                SESSION_ID,
+            )
+            from session_manager import (  # pyright: ignore[reportMissingImports]  # archived module / optional dependency, not in the lock
+                get_session_manager,
+            )
 
             # Get current session ID
             current_id = SESSION_ID

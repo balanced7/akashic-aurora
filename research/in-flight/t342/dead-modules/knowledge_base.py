@@ -26,9 +26,12 @@ Usage:
 
 import json
 from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any, cast
 
 import redis
+
+if TYPE_CHECKING:
+    from redis.typing import EncodableT, FieldT
 
 # Connection pool - reuse connections across instances
 _redis_pool = None
@@ -107,7 +110,7 @@ class KnowledgeBase:
 
             # Store model metadata
             capabilities_str = ",".join(capabilities) if capabilities else ""
-            model_data = {
+            model_data: dict[FieldT, EncodableT] = {
                 "name": name,
                 "description": description,
                 "capabilities": capabilities_str,
@@ -125,7 +128,7 @@ class KnowledgeBase:
         if not self.client:
             return []
         try:
-            return list(self.client.smembers(self.PREFIX_MODELS))
+            return list(cast("set[str]", self.client.smembers(self.PREFIX_MODELS)))
         except Exception:
             return []
 
@@ -170,7 +173,7 @@ class KnowledgeBase:
         # Store in Redis
         if self.client:
             try:
-                learning = {
+                learning: dict[FieldT, EncodableT] = {
                     "model": model_name,
                     "key": key,
                     "value": json.dumps(value),
@@ -329,7 +332,7 @@ class KnowledgeBase:
             if self.client:
                 for key in self.client.scan_iter(f"{self.PREFIX_LEARNING_PREFIX}*"):
                     key_name = key.replace(self.PREFIX_LEARNING_PREFIX, "")
-                    data = self.client.hgetall(key)
+                    data = cast("dict[str, str]", self.client.hgetall(key))
 
                     if data:
                         model = data.get("model", "unknown")
@@ -360,7 +363,7 @@ class KnowledgeBase:
             return False
 
         try:
-            doc_data = {
+            doc_data: dict[FieldT, EncodableT] = {
                 "name": doc_name,
                 "content": content,
                 "author": model_name,
@@ -378,7 +381,7 @@ class KnowledgeBase:
             return None
 
         try:
-            data = self.client.hgetall(f"{self.PREFIX_DOCS}:{doc_name}")
+            data = cast("dict[str, str]", self.client.hgetall(f"{self.PREFIX_DOCS}:{doc_name}"))
             return data.get("content") if data else None
         except Exception:
             return None

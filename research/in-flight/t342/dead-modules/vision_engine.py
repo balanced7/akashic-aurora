@@ -42,9 +42,9 @@ import io
 import json
 import os
 from datetime import datetime
-from typing import Any
+from typing import Any, cast
 
-import torch
+import torch  # pyright: ignore[reportMissingImports]  # archived module / optional dependency, not in the lock
 from PIL import Image, ImageGrab
 
 # Paths
@@ -86,7 +86,7 @@ class VisionEngine:
         else:
             # Check for DirectML as fallback on Windows+AMD
             try:
-                import torch_directml
+                import torch_directml  # pyright: ignore[reportMissingImports]  # archived module / optional dependency, not in the lock
 
                 self.device = torch_directml.device()
                 self._dml_available = True
@@ -95,8 +95,8 @@ class VisionEngine:
                 self.device = "cpu"
                 self._dml_available = False
 
-        self.model = None
-        self.processor = None
+        self.model: Any = None  # transformers model once loaded
+        self.processor: Any = None  # transformers processor once loaded
         self._loaded = False
 
         device_name = str(self.device) if not isinstance(self.device, str) else self.device
@@ -116,7 +116,11 @@ class VisionEngine:
             return True
 
         try:
-            from transformers import AutoModelForCausalLM, AutoProcessor, pipeline
+            from transformers import (  # pyright: ignore[reportMissingImports]  # archived module / optional dependency, not in the lock
+                AutoModelForCausalLM,
+                AutoProcessor,
+                pipeline,
+            )
 
             # Determine device for model loading
             if self._dml_available:
@@ -375,7 +379,7 @@ def capture_active_window() -> Image.Image | None:
     """
     # Try pygetwindow first
     try:
-        import pygetwindow as pgw
+        import pygetwindow as pgw  # pyright: ignore[reportMissingImports]  # archived module / optional dependency, not in the lock
 
         active = pgw.getActiveWindow()
         if active:
@@ -459,8 +463,8 @@ def encode_image_base64(image: Image.Image, max_size: int = 2048) -> str:
     # Resize if needed
     if max(image.size) > max_size:
         ratio = max_size / max(image.size)
-        new_size = tuple(int(dim * ratio) for dim in image.size)
-        image = image.resize(new_size, Image.LANCZOS)
+        new_size = cast("tuple[int, int]", tuple(int(dim * ratio) for dim in image.size))
+        image = image.resize(new_size, Image.Resampling.LANCZOS)
 
     # Encode
     buffer = io.BytesIO()
@@ -565,7 +569,7 @@ def extract_keyframes(video_path: str, max_frames: int = 8) -> list[Image.Image]
         List of PIL Images (keyframes)
     """
     try:
-        import cv2
+        import cv2  # pyright: ignore[reportMissingImports]  # archived module / optional dependency, not in the lock
     except ImportError:
         print("[vision] OpenCV not available for keyframe extraction")
         return []

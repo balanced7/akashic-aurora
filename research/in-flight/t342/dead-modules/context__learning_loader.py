@@ -39,7 +39,9 @@ def load_learnings_for_boot(
     entry shape. Fail-open: any budget-path error falls back to legacy too."""
     if os.getenv("AKASHIC_RELEVANCE_BUDGET", "1") != "0":
         try:
-            from context import relevance_budget as rb
+            from context import (  # pyright: ignore[reportMissingImports]  # archived module / optional dependency, not in the lock
+                relevance_budget as rb,
+            )
 
             store = learning_store or get_learning_store_instance()
             return rb.select_within_budget(store, task, cap_chars=cap_chars, now=now)

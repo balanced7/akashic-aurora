@@ -38,17 +38,21 @@ from datetime import datetime
 from enum import Enum
 from typing import Any
 
-import torch
+import torch  # pyright: ignore[reportMissingImports]  # archived module / optional dependency, not in the lock
 
 # Import config for GPU provider settings
 sys.path.insert(0, r"E:\AI-Setup")
 try:
-    from config import HARDWARE
-    from config import VRAM_BUDGET as VRAM_BUDGET
-    from config import GPUProvider as GPUProvider
-    from config import get_base_url as get_base_url
-    from config import get_config as get_config
-    from config import get_provider as get_provider
+    from config import HARDWARE  # pyright: ignore[reportAttributeAccessIssue]  # archived config API
+    from config import VRAM_BUDGET as VRAM_BUDGET  # pyright: ignore[reportAttributeAccessIssue]  # archived config API
+    from config import GPUProvider as GPUProvider  # pyright: ignore[reportAttributeAccessIssue]  # archived config API
+    from config import (
+        get_base_url as get_base_url,  # pyright: ignore[reportAttributeAccessIssue]  # archived config API
+    )
+    from config import get_config as get_config  # pyright: ignore[reportAttributeAccessIssue]  # archived config API
+    from config import (
+        get_provider as get_provider,  # pyright: ignore[reportAttributeAccessIssue]  # archived config API
+    )
 
     USE_CONFIG = True
 except ImportError:
@@ -62,10 +66,10 @@ except ImportError:
 
 # VRAM thresholds (GB) - use config if available
 if USE_CONFIG:
-    VRAM_TOTAL = HARDWARE.get("vram_total", 16.0)
-    VRAM_RESERVE = HARDWARE.get("vram_reserve", 4.5)
-    VRAM_THRESHOLD_WARNING = HARDWARE.get("vram_threshold_warning", 12.0)
-    VRAM_THRESHOLD_CRITICAL = HARDWARE.get("vram_threshold_critical", 14.5)
+    VRAM_TOTAL = HARDWARE.get("vram_total", 16.0)  # pyright: ignore[reportPossiblyUnboundVariable]  # bound whenever USE_CONFIG is True
+    VRAM_RESERVE = HARDWARE.get("vram_reserve", 4.5)  # pyright: ignore[reportPossiblyUnboundVariable]  # bound whenever USE_CONFIG is True
+    VRAM_THRESHOLD_WARNING = HARDWARE.get("vram_threshold_warning", 12.0)  # pyright: ignore[reportPossiblyUnboundVariable]  # bound whenever USE_CONFIG is True
+    VRAM_THRESHOLD_CRITICAL = HARDWARE.get("vram_threshold_critical", 14.5)  # pyright: ignore[reportPossiblyUnboundVariable]  # bound whenever USE_CONFIG is True
     VRAM_THRESHOLD_EMERGENCY = 15.5
 
 # Model sizes (GB)
@@ -411,7 +415,7 @@ if __name__ == "__main__":
 
     print("\n[1] VRAM Status:")
     status = mgr.check_vram_and_warn()
-    print(f"    Usage: {status['usage_gb']}GB / {VRAM_TOTAL}GB")
+    print(f"    Usage: {status['usage_gb']}GB / {VRAM_TOTAL}GB")  # pyright: ignore[reportPossiblyUnboundVariable]  # set in the except branch or under USE_CONFIG
     print(f"    Available: {status['available_gb']}GB")
     print(f"    Status: {status['status'].upper()}")
     print(f"    Loaded: {status['models_loaded']}")

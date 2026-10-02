@@ -39,7 +39,7 @@ import time
 from collections.abc import Callable
 from datetime import datetime
 from functools import wraps
-from typing import Any
+from typing import Any, cast
 
 import redis
 
@@ -227,7 +227,7 @@ def ram_list(subdir: str = "cache") -> list:
     return list_files_in_ram_disk_directory(subdir)
 
 
-def write_temporary_content_to_ram_disk(filename: str, content: str) -> str:
+def write_temporary_content_to_ram_disk(filename: str, content: str) -> str | None:
     """
     Write temporary content to RAM disk.
 
@@ -250,7 +250,7 @@ def write_temporary_content_to_ram_disk(filename: str, content: str) -> str:
 
 
 # Backward compatibility alias
-def ram_write_temp(filename: str, content: str) -> str:
+def ram_write_temp(filename: str, content: str) -> str | None:
     """Deprecated: Use write_temporary_content_to_ram_disk() instead"""
     return write_temporary_content_to_ram_disk(filename, content)
 
@@ -292,7 +292,7 @@ def cache_function_results_with_multi_layer_priority(ttl: int = CACHE_TTL, prefi
             # LAYER 3: Redis (fast - milliseconds)
             if _redis_available:
                 try:
-                    val = _redis.get(cache_key)
+                    val = cast("redis.Redis", _redis).get(cache_key)
                     if val:
                         data = json.loads(val)
                         _ram_cache[cache_key] = {"value": data, "time": time.time()}
@@ -308,7 +308,7 @@ def cache_function_results_with_multi_layer_priority(ttl: int = CACHE_TTL, prefi
             _ramdisk_cache[cache_key] = {"value": result, "time": time.time()}
             if _redis_available:
                 with contextlib.suppress(BaseException):
-                    _redis.setex(cache_key, ttl, json.dumps(result))
+                    cast("redis.Redis", _redis).setex(cache_key, ttl, json.dumps(result))
 
             return result
 
@@ -351,7 +351,7 @@ def load_value_from_cache_hierarchy(key: str, default: Any = None) -> Any:
     # LAYER 3: Redis
     if _redis_available:
         try:
-            val = _redis.get(f"{CACHE_PREFIX}{key}")
+            val = cast("redis.Redis", _redis).get(f"{CACHE_PREFIX}{key}")
             if val:
                 data = json.loads(val)
                 _ram_cache[key] = {"value": data, "time": time.time()}
@@ -391,7 +391,7 @@ def store_value_in_cache_hierarchy(key: str, value: Any, ttl: int = CACHE_TTL):
 
     if _redis_available:
         with contextlib.suppress(BaseException):
-            _redis.setex(f"{CACHE_PREFIX}{key}", ttl, json.dumps(value))
+            cast("redis.Redis", _redis).setex(f"{CACHE_PREFIX}{key}", ttl, json.dumps(value))
 
 
 # Backward compatibility alias
@@ -416,7 +416,7 @@ def load_hash_field_from_redis(key: str, field: str, default: Any = None) -> Any
     """
     if _redis_available:
         try:
-            val = _redis.hget(f"{CACHE_PREFIX}{key}", field)
+            val = cast("str | None", cast("redis.Redis", _redis).hget(f"{CACHE_PREFIX}{key}", field))
             if val:
                 return json.loads(val) if val.startswith("{") else val
         except Exception:
@@ -444,7 +444,7 @@ def store_hash_field_in_redis(key: str, field: str, value: Any):
     if _redis_available:
         try:
             val = json.dumps(value) if isinstance(value, (dict, list)) else str(value)
-            _redis.hset(f"{CACHE_PREFIX}{key}", field, val)
+            cast("redis.Redis", _redis).hset(f"{CACHE_PREFIX}{key}", field, val)
         except Exception:
             pass
 
@@ -507,7 +507,7 @@ def warm_session_cache_on_import():
     # Try to load context from Redis
     if _redis_available:
         try:
-            ctx = _redis.get("context:current")
+            ctx = cast("redis.Redis", _redis).get("context:current")
             if ctx:
                 _context_cache = json.loads(ctx)
         except Exception:

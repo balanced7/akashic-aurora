@@ -25,9 +25,9 @@ import io
 import json
 import os
 from datetime import datetime
-from typing import Any
+from typing import Any, cast
 
-import torch
+import torch  # pyright: ignore[reportMissingImports]  # archived module / optional dependency, not in the lock
 from PIL import Image, ImageGrab
 
 try:
@@ -52,7 +52,7 @@ FLORENCE_MODEL = "microsoft/Florence-2-base"
 
 # Try DirectML
 try:
-    import torch_directml
+    import torch_directml  # pyright: ignore[reportMissingImports]  # archived module / optional dependency, not in the lock
 
     DIRECTML_AVAILABLE = True
 except ImportError:
@@ -64,7 +64,7 @@ def get_redis():
     if not REDIS_AVAILABLE:
         return None
     try:
-        r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, db=0, decode_responses=True)
+        r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, db=0, decode_responses=True)  # pyright: ignore[reportPossiblyUnboundVariable]  # bound when REDIS_AVAILABLE, checked above
         r.ping()
         return r
     except Exception:
@@ -75,7 +75,7 @@ def get_device():
     """Get best available device"""
     if DIRECTML_AVAILABLE:
         try:
-            dml = torch_directml.device()
+            dml = torch_directml.device()  # pyright: ignore[reportPossiblyUnboundVariable]  # bound when DIRECTML_AVAILABLE, checked above
             torch.tensor([1.0], device=dml)
             return dml, "DirectML"
         except Exception:
@@ -93,8 +93,8 @@ class VisionEngine:
     def __init__(self, model_name: str = FLORENCE_MODEL):
         self.model_name = model_name
         self._device = None
-        self._model = None
-        self._processor = None
+        self._model: Any = None  # transformers model once load() succeeds
+        self._processor: Any = None  # transformers processor once load() succeeds
         self._loaded = False
         self._redis = get_redis()
         self._use_dml = False
@@ -104,7 +104,10 @@ class VisionEngine:
             return True
 
         try:
-            from transformers import AutoModelForCausalLM, AutoProcessor
+            from transformers import (  # pyright: ignore[reportMissingImports]  # archived module / optional dependency, not in the lock
+                AutoModelForCausalLM,
+                AutoProcessor,
+            )
 
             self._device, device_name = get_device()
             self._use_dml = "DirectML" in device_name
@@ -333,7 +336,7 @@ def get_recent_captures(limit: int = 10) -> list[dict]:
     if not r:
         return []
 
-    hashes = r.smembers(f"{REDIS_PREFIX}screenshot_keys")
+    hashes = cast("set[str]", r.smembers(f"{REDIS_PREFIX}screenshot_keys"))
     captures = []
 
     for img_hash in list(hashes)[:limit]:

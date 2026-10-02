@@ -19,6 +19,7 @@ import os
 import time
 import uuid
 from datetime import datetime
+from typing import cast
 
 import redis
 
@@ -94,7 +95,7 @@ class Blackboard:
         """Get Redis flag"""
         if self._redis:
             try:
-                return self._redis.get(key)
+                return cast("str | None", self._redis.get(key))  # decode_responses=True
             except Exception:
                 return None
         return None

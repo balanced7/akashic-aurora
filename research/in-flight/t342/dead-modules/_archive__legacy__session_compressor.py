@@ -18,13 +18,19 @@ import os
 import sys
 import threading
 import time
+from typing import TYPE_CHECKING, cast
 
 import requests
 from redis import Redis
 from redis.exceptions import RedisError
-from session_canonical import envelope_to_plaintext
+from session_canonical import (  # pyright: ignore[reportMissingImports]  # archived module / optional dependency, not in the lock
+    envelope_to_plaintext,
+)
 
 from config import SESSION_EVENTS_STREAM
+
+if TYPE_CHECKING:
+    from redis.typing import EncodableT, FieldT
 
 # Config
 WSL_HOST = "127.0.0.1"
@@ -127,7 +133,7 @@ class SessionCompressor:
         ts = int(time.time())
 
         key = f"{SUMMARY_PREFIX}{session_id}"
-        mapping = {"session_id": session_id, "timestamp": str(ts), "summary": summary}
+        mapping: dict[FieldT, EncodableT] = {"session_id": session_id, "timestamp": str(ts), "summary": summary}
 
         for redis_inst, name in [(self.wsl_redis, "WSL"), (self.win_redis, "Windows")]:
             try:
@@ -196,7 +202,10 @@ class SessionCompressor:
                     deadline.pop(sid, None)
 
             try:
-                out = self.wsl_redis.xread({SESSION_EVENTS_STREAM: last_id}, count=80, block=STREAM_XREAD_MS)
+                out = cast(
+                    "list[tuple[str, list[tuple[str, dict[str, str]]]]]",
+                    self.wsl_redis.xread({SESSION_EVENTS_STREAM: last_id}, count=80, block=STREAM_XREAD_MS),
+                )
             except RedisError as e:
                 logger.warning("XREAD stall: %s", e)
                 time.sleep(1)
