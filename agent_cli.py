@@ -6266,7 +6266,7 @@ def cmd_doctor_deploy() -> int:
     try:
         from core.comm.bus import get_bus
 
-        get_bus("control")._client.ping()  # pyright: ignore[reportOptionalMemberAccess]  # Redis down -> None -> AttributeError, reported UNREACHABLE below
+        get_bus("control")._client.ping()  # Redis down: _client is None -> AttributeError -> UNREACHABLE below
         print("  redis          : reachable")
     except Exception as e:
         print(f"  redis          : UNREACHABLE ({type(e).__name__})")
