@@ -226,3 +226,20 @@ goal = "G4"
 fix_commit = "459577af061611cac6f1d44a6afaca9c740fcbe6"
 regression_test = "tests/test_g4_latent_mcp_http_port.py"
 ```
+
+### IC-0016: fixes latent bug: manual-probe-worklive-prefix
+
+tests/manual/l1_worklive_probe.py, l3a_liveness_view_probe.py and l3b_auto_revive_probe.py still
+read `core.comm.liveness.WORKLIVE_PREFIX`, a constant the namespace-isolation change replaced
+with the per-call `_worklive_prefix()`: each probe raised AttributeError at its key write or
+cleanup when run by hand. They now call `liveness._worklive_prefix()`.
+
+```toml
+id = "IC-0016"
+component = "O1"
+key = "latent:manual-probe-worklive-prefix"
+reason = "fixes latent bug: manual-probe-worklive-prefix (plan G4.P2 tier 1)"
+goal = "G4"
+fix_commit = "87cdeca6ad884486ce6cb10351815b418a36832c"
+regression_test = "tests/test_g4_latent_manual_probe_worklive_prefix.py"
+```
