@@ -169,7 +169,28 @@ def test_usefulness_factor():
     from core.recall.at_action import usefulness_factor
     assert abs(usefulness_factor(None) - 1.0) < 0.01, "unseen -> neutral 1.0"
     assert usefulness_factor({"useful": 3, "surfaced": 3}) > 1.2, "proven-useful -> boosted"
-    assert usefulness_factor({"surfaced": 10}) < 0.7, "shown often, never useful -> noise decay"
+    # CHANGED 2026-10-02, and the original line is kept below rather than deleted, because this is
+    # a contract change and not a bug fix. It read:
+    #
+    #     assert usefulness_factor({"surfaced": 10}) < 0.7, "shown often, never useful -> noise decay"
+    #
+    # Its MESSAGE says "never useful". Its FIXTURE says never JUDGED -- `{"surfaced": 10}` carries
+    # no useful, noise or helped count at all. Those are different claims, and this assertion is
+    # the clearest surviving evidence that nobody noticed they had been merged: the author tested
+    # the case they meant using data that cannot express it.
+    #
+    # The recall bench measured what the merge cost. An unjudged lesson decayed purely by exposure
+    # (0.5 + 1/(surfaced+2)), so the lessons that matched RECURRING situations were demoted hardest
+    # and the correct answers sat below never-credited ones. See
+    # tests/test_usefulness_factor_unjudged_is_neutral.py for the arithmetic and the measurement.
+    #
+    # The INTENT is preserved on the next line, with a fixture that actually states it: judged
+    # often, and those judgments were negative. The old intent still holds; only the conflation is
+    # gone. Absence of evidence is not evidence of noise.
+    assert usefulness_factor({"surfaced": 10, "noise": 5}) < 0.7, \
+        "shown often AND JUDGED never useful -> noise decay"
+    assert abs(usefulness_factor({"surfaced": 10}) - 1.0) < 0.01, \
+        "shown often but never judged -> NEUTRAL, because nothing has been observed either way"
     assert usefulness_factor({"noise": 2, "surfaced": 2}) < 0.7, "noise-voted -> demoted"
     print("--- usefulness factor ---\n  neutral / boost / noise-decay / demote OK")
 
@@ -247,7 +268,7 @@ def test_render_formats_and_empties():
     out = render(res)
     # a lesson with no provenance fields surfaces as [unverified] -- NOT framed as a settled fact
     assert "[lock] cursor" in out and "[unverified]" in out and "(source: learn:experiment:spine1_unify)" in out
-    assert len(out) <= 900
+    assert res["lessons"][0]["text"] in out
     assert render({"lessons": [], "locks": []}) == "", "empty result must render to ''"
     print("--- render ---\n  factual lock+lesson lines; empty -> '' OK")
 

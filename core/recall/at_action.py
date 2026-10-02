@@ -660,18 +660,92 @@ def _trigger_aware_relevance(by_text: Dict[str, Dict[str, Any]]):
     return fn
 
 
+#: Smoothing constant for the judgment-rate estimate. One judgment moves the multiplier half of
+#: its available swing, two move two thirds, and it approaches the full swing from there. Chosen as
+#: the largest value that keeps every pre-existing contract in tests/test_recall_at.py (two noise
+#: votes must land below 0.7), so the only behaviour this rewrite changes is the one it means to.
+_JUDGMENT_SMOOTHING = 1.0
+
+
 def usefulness_factor(use: Optional[Dict[str, int]]) -> float:
-    """Smoothed ranking multiplier in [0.5, 1.5]. Neutral (1.0) for unseen; ->1.5 for proven-useful;
-    ->0.5 for noise-voted or surfaced-often-yet-never-useful (the automatic noise decay)."""
+    """Ranking multiplier in (0.5, 1.5), estimated from JUDGMENTS and never from impressions.
+    Neutral (1.0) when nothing has been judged; above for net-positive evidence, below for
+    net-negative, shrunk toward neutral while the evidence is thin.
+
+    WHY THIS WAS REWRITTEN, 2026-10-02, and what the old rule actually did. The previous form was
+    `0.5 + clamp((eff + 1) / (max(surfaced, judgments) + 2))`, with `surfaced` in the denominator.
+    For any lesson with NO judgments at all -- which is almost every lesson, because this house
+    judges 2.2% of surfacings (532 of 24,344) -- that reduces exactly to:
+
+        factor = 0.5 + 1 / (surfaced + 2)
+
+    a strictly decreasing function of exposure and of nothing else. Verified against the live
+    corpus: surfaced 1 -> 0.833, 3 -> 0.700, 6 -> 0.625, 13 -> 0.567, 28 -> 0.533, 72 -> 0.514.
+
+    Three consequences, all measured rather than argued:
+
+    1. IT PUNISHED RELEVANCE. A lesson that matches a RECURRING situation earns the most
+       impressions, so it took the deepest penalty. On the recall bench, N3's correct lesson
+       (surfaced 72, useful 2, noise 1 -> 0.527) was multiplied down past three never-credited
+       lessons whose only distinction was barely having been shown. Every right answer in the
+       10-moment set sat below its usurpers for this reason. Pinning this function to a constant
+       1.0, changing nothing else, took recall@1 from 17% to 33%.
+
+    2. RECALL WAS THE AGENT OF ITS OWN SUPPRESSION. `bump_surfaced` is called by `recall_at`
+       itself on the surfacing path, so the loop closed with no external input: show a lesson,
+       increment its count, lower its multiplier, show it less next time.
+
+    3. THE BOOST HALF WAS DEAD. Clearing 1.0 required `useful` on more than half of all
+       surfacings (6/10, 26/50, 51/100). At a 2% credit rate the reachable range was [0.5, 1.0]:
+       a decay wearing a multiplier's name. `helped`, the one positive the reader never has to
+       volunteer, was stuck in the dead zone too.
+
+    The rule was documented as "surfaced-often-yet-never-useful" decay and that intent is right.
+    It simply could not tell that case from "surfaced-often-and-never-JUDGED", and treated absence
+    of evidence as evidence of noise. The decay's purpose is PRESERVED here: negative judgments
+    still sink a lesson, and sink it further as they accumulate (which the old clamp could not do,
+    saturating at 0.5 after a few votes). Only the conflation is gone.
+
+    A VIRTUE SEVERED FROM ITS SIBLING. This decay was built to sit beside a working judgment
+    channel, where never-credited would genuinely mean not-useful. Isolated from that sibling it
+    inverted into an anti-relevance filter. So the contract requires the restored-sibling case
+    too: if judgments start arriving, a well-judged and a badly-judged lesson at the SAME exposure
+    must separate, and separate the right way round.
+
+    WHY `surfaced` NOW ONLY CAPS `helped`, stated because it was considered and rejected rather
+    than overlooked. Many impressions with no judgment is weak evidence of INDIFFERENCE, and it is
+    tempting to spend it. But it is not distinguishable from many impressions that nobody was ever
+    asked to judge, and spending it is precisely the defect above. A lesson credited once in a
+    thousand showings therefore reads as weakly positive here: the 999 silent showings are not
+    negative evidence, they are no evidence. The honest way to recover that signal is to make the
+    judgment channel work, not to infer judgments from volume. `surfaced` is still used to cap
+    `helped` at the number of impressions, which defends against join drift crediting a flip to a
+    lesson that was never shown.
+
+    NOT USED: `engaged`. `record_feedback` says of it, deliberately, "counted + shown in triage
+    and protective against benching, but deliberately NOT a ranking boost until it earns one".
+    That is its author's standing decision and this rewrite does not overturn it. Worth flagging
+    separately: `core/recall/curator.py` DOES count engaged among `_CREDIT_FIELDS`, so the curator
+    and the ranker disagree about what a credit is. That disagreement is real, is not this
+    function's to settle, and is recorded here so the next reader finds it.
+    """
     use = use or {}
     useful = int(use.get("useful", 0))
     noise = int(use.get("noise", 0))
     helped = int(use.get("helped", 0))            # automatic contrastive positive (FAIL->SUCCESS flip)
     surfaced = int(use.get("surfaced", 0))
-    eff = useful - noise + min(helped, surfaced)  # cap helped at impressions (defends join drift)
-    denom = max(surfaced, useful + noise + helped) + 2.0   # rate, not raw count -> anti-runaway
-    rate = max(0.0, min(1.0, (eff + 1.0) / denom))   # ~0.5 neutral; ->1 proven; ->0 stale/noise
-    return 0.5 + rate
+
+    pos = useful + min(helped, surfaced)   # cap helped at impressions (defends join drift)
+    neg = noise
+    judgments = pos + neg
+    if judgments <= 0:
+        # ZERO IS NOT NO. Nothing has been judged, so there is no evidence in either direction and
+        # the ranker must not invent one. This is the whole fix.
+        return 1.0
+
+    balance = (pos - neg) / float(judgments)                        # -1 all noise .. +1 all useful
+    confidence = judgments / (judgments + _JUDGMENT_SMOOTHING)      # thin evidence stays near 1.0
+    return 1.0 + 0.5 * balance * confidence
 
 
 def canonicalize_source(source: str, *, learning_store: Optional[Any] = None) -> str:

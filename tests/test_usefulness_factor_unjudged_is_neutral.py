@@ -148,6 +148,27 @@ def test_the_automatic_contrastive_positive_still_counts():
     assert uf({"surfaced": 10, "helped": 3}) > NEUTRAL, "the automatic positive stopped counting"
 
 
+def test_credit_cannot_exceed_the_exposure_that_earned_it():
+    """ADDED AFTER MUTATION TESTING, which is the only reason this pin exists. Five deliberate
+    breakages were run against the finished fix; four were caught and one SURVIVED -- removing the
+    `min(helped, surfaced)` cap changed nothing that any pin could see.
+
+    The cap defends against join drift: a flip credited to a lesson that was barely shown. Under
+    the OLD formula the cap also defended the documented upper bound, and the pre-existing pin
+    `uf({"helped": 99, "surfaced": 1}) <= 1.5` was enough to notice it going. Under the new
+    formula the bound is held by the confidence term instead, so removing the cap keeps the result
+    inside [0.5, 1.5] and the old pin stays green while the protection is gone. A guard whose only
+    witness was a side effect of the thing it guarded.
+
+    What the cap still does is keep CONFIDENCE proportional to actual exposure: 99 helps on a
+    lesson shown once is one observation, not ninety-nine, and must read as such."""
+    once = uf({"surfaced": 1, "helped": 1})
+    absurd = uf({"surfaced": 1, "helped": 99})
+    assert absurd == once, (
+        f"99 credits on a lesson shown once read as {absurd:.3f} rather than {once:.3f}; "
+        "credit was counted beyond the exposure that could have earned it")
+
+
 # ---------------------------------------------------------------- P9-P10: the contract itself
 def test_the_range_holds_and_the_empty_case_is_neutral():
     assert uf(None) == NEUTRAL and uf({}) == NEUTRAL
