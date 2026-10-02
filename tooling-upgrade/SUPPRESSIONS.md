@@ -750,7 +750,7 @@
 | tooling-upgrade/certify.py | 435 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
 | tooling-upgrade/certify.py | 1347 | `fmt: skip` | data table: one hook id per plan G5.P2 bullet |
 | tooling-upgrade/certify.py | 1351 | `fmt: skip` | data table: fixers that would rewrite non-Python trees (I8) |
-| tooling-upgrade/certify.py | 1571 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
+| tooling-upgrade/certify.py | 1572 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
 | tooling-upgrade/oracle.py | 2 | `pyright: strict` |  |
 | tooling-upgrade/oracle.py | 128 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
 | tooling-upgrade/oracle.py | 129 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
