@@ -1,0 +1,35 @@
+{
+  "id": "doors-design",
+  "question": "Can every corpus object carry a uniform door-list -- the typed pathways that leave it -- and can the forest propose derived routes that seats promote to authored, without the added doors multiplying confusion? What is the contract, and what breaks it?",
+  "tier": "full",
+  "opened_by": "",
+  "opened_at": "2026-08-26T03:22:28.837639+00:00",
+  "seals": {
+    "brief": {
+      "by": "dsh_agent",
+      "at": "2026-08-26T03:23:31.335819+00:00"
+    },
+    "half_b": {
+      "by": "kimi",
+      "at": "2026-08-26T03:26:25.666252+00:00"
+    },
+    "half_a": {
+      "by": "",
+      "at": "2026-08-26T03:26:41.673359+00:00"
+    },
+    "reconciliation": {
+      "by": "claude",
+      "at": "2026-08-26T04:39:48.473171+00:00"
+    }
+  },
+  "pv": {
+    "ran_at": "2026-08-26T04:39:25.135858+00:00",
+    "missing_count": 0
+  },
+  "authors": {
+    "brief": "dsh_agent",
+    "half_a": "deepseek",
+    "half_b": "kimi",
+    "reconciliation": "claude"
+  }
+}

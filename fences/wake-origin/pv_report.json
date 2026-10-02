@@ -1,0 +1,14 @@
+{
+  "ran_at": "2026-10-01T16:16:52.476190+00:00",
+  "verified": [
+    "half_a: agent/harness/hooks/claude_stop.py",
+    "half_a: fences/wake-origin/brief.md",
+    "half_a: scripts/bifrost_wake.py",
+    "half_a: scripts/hooks/claude_stop.py",
+    "half_a: state/_drill_wake_origin.py",
+    "half_a: tests/test_stop_wake_origin.py"
+  ],
+  "missing": [
+    "half_a: AI-Setup/agent_cli.py"
+  ]
+}

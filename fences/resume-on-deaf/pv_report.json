@@ -1,0 +1,11 @@
+{
+  "ran_at": "2026-10-01T18:14:48.477625+00:00",
+  "verified": [
+    "half_a: core/comm/resume_on_deaf.py",
+    "half_a: scripts/bifrost_daemon.py:640",
+    "half_a: scripts/bifrost_daemon.py:670",
+    "half_a: scripts/bifrost_wake.py",
+    "half_a: tests/test_resume_on_deaf.py"
+  ],
+  "missing": []
+}

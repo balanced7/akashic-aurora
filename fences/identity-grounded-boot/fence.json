@@ -12,6 +12,7 @@
   },
   "pv": null,
   "authors": {
-    "brief": "claude"
+    "brief": "claude",
+    "half_a": "dsh_agent"
   }
 }

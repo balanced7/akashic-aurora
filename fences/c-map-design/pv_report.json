@@ -1,0 +1,37 @@
+{
+  "ran_at": "2026-08-23T17:05:33.094607+00:00",
+  "verified": [
+    "half_a: core/comm/flow_trace.py",
+    "half_a: core/comm/toolbox.py:500",
+    "half_a: core/coord/fence_workspace.py:45",
+    "half_a: core/events/event_log.py:23",
+    "half_a: core/eye/__init__.py:3",
+    "half_a: core/eye/__init__.py:5",
+    "half_a: core/eye/connectome.py:205",
+    "half_a: core/eye/directives.py",
+    "half_a: core/eye/index.py",
+    "half_a: core/eye/index.py:266",
+    "half_a: core/eye/index.py:316",
+    "half_a: core/eye/index.py:342",
+    "half_a: core/eye/index.py:366",
+    "half_a: core/eye/index.py:398",
+    "half_a: core/eye/position.py:119",
+    "half_a: core/eye/position.py:144",
+    "half_a: core/eye/position.py:194",
+    "half_a: core/eye/position.py:84",
+    "half_a: core/eye/pyramid.py",
+    "half_a: core/eye/pyramid.py:123",
+    "half_a: core/eye/routes.py:17",
+    "half_a: core/eye/routes.py:225",
+    "half_a: core/eye/routes.py:344",
+    "half_a: core/eye/routes.py:379",
+    "half_a: core/recall/at_action.py:248",
+    "half_a: docs/DOORS.md:51",
+    "half_a: state/coord/routes.jsonl",
+    "half_a: state/eye/eye.db",
+    "half_b: state/coord/tasks.json"
+  ],
+  "missing": [
+    "half_b: state/map/index.html"
+  ]
+}

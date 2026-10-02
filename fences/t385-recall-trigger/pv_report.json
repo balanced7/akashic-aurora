@@ -1,0 +1,36 @@
+{
+  "ran_at": "2026-08-26T04:57:29.883401+00:00",
+  "verified": [
+    "half_a: agent/harness/actions.py",
+    "half_a: agent/harness/dsh_plugin/bridge.py",
+    "half_a: agent/harness/dsh_plugin/lib/index.js",
+    "half_a: core/comm/toolbox.py",
+    "half_a: core/learning/learning_store.py",
+    "half_a: core/recall/at_action.py",
+    "half_a: core/recall/surface.py",
+    "half_a: scripts/bifrost_daemon.py",
+    "half_a: scripts/bifrost_runner_deepseek.py",
+    "half_a: session_logs/store_state.db:12224",
+    "half_a: tests/test_t385_measure.py",
+    "half_b: agent/harness/actions.py",
+    "half_b: agent/harness/dsh_plugin/lib/index.js",
+    "half_b: agent/harness/hooks/claude_pretooluse.py",
+    "half_b: core/learning/learning_store.py",
+    "half_b: core/recall/at_action.py",
+    "half_b: core/recall/at_action.py:835",
+    "half_b: research/in-flight/_m4_target_extract.py",
+    "half_b: scripts/bifrost_daemon.py",
+    "half_b: tests/test_dsh_contract.py"
+  ],
+  "missing": [
+    "half_a: core/recall/derive_targets.py",
+    "half_a: core/recall/multi.py",
+    "half_a: lib/index.js",
+    "half_a: session_logs/store_state.db:74868",
+    "half_a: src/a.py",
+    "half_a: src/b.py",
+    "half_a: tests/test_derive_targets.py",
+    "half_b: scripts/ops/whatever.py",
+    "half_b: tests/test_t385_trigger.py"
+  ]
+}

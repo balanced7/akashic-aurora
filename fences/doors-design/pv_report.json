@@ -1,0 +1,15 @@
+{
+  "ran_at": "2026-08-26T04:39:25.135858+00:00",
+  "verified": [
+    "half_a: core/eye/connectome.py",
+    "half_a: core/eye/index.py",
+    "half_a: core/eye/pyramid.py",
+    "half_a: core/eye/routes.py",
+    "half_a: core/foundation/relationship_types.py",
+    "half_a: state/coord/routes.jsonl",
+    "half_b: core/eye/connectome.py:56",
+    "half_b: core/eye/routes.py:63",
+    "half_b: state/coord/routes.jsonl"
+  ],
+  "missing": []
+}

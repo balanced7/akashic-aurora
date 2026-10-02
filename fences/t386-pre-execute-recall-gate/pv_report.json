@@ -1,0 +1,28 @@
+{
+  "ran_at": "2026-08-26T05:05:09.566338+00:00",
+  "verified": [
+    "half_a: agent/harness/actions.py",
+    "half_a: agent/harness/dsh_plugin/bridge.py",
+    "half_a: agent/harness/dsh_plugin/lib/index.js",
+    "half_a: agent/harness/dsh_plugin/package.json",
+    "half_a: agent/harness/guards.py",
+    "half_a: agent/harness/hooks/claude_pretooluse.py",
+    "half_a: agent/harness/registry.py",
+    "half_a: agent/harness/seen.py",
+    "half_a: agent/policy/git_guard.py",
+    "half_a: core/comm/locks.py",
+    "half_b: agent/harness/dsh_plugin/bridge.py",
+    "half_b: agent/harness/dsh_plugin/lib/index.js",
+    "half_b: agent/harness/guards.py",
+    "half_b: agent/harness/hooks/claude_pretooluse.py"
+  ],
+  "missing": [
+    "half_a: dsh-tool-cordis/lib/index.js",
+    "half_a: dsh-tool-cordis/lib/index.js:5394",
+    "half_a: dsh-tools/lib/index.js",
+    "half_a: dsh-tools/lib/index.js:3345",
+    "half_a: lib/index.js",
+    "half_b: dsh-tools/lib/index.js:3105",
+    "half_b: tests/test_t386_veto.py"
+  ]
+}

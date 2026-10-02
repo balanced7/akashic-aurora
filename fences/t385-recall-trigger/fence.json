@@ -16,12 +16,20 @@
     "half_b": {
       "by": "dsh_agent",
       "at": "2026-08-24T14:35:30.809491+00:00"
+    },
+    "reconciliation": {
+      "by": "claude",
+      "at": "2026-08-26T04:58:29.345118+00:00"
     }
   },
-  "pv": null,
+  "pv": {
+    "ran_at": "2026-08-26T04:57:29.883401+00:00",
+    "missing_count": 9
+  },
   "authors": {
     "brief": "claude",
     "half_a": "deepseek",
-    "half_b": "dsh_agent"
+    "half_b": "dsh_agent",
+    "reconciliation": "claude"
   }
 }
