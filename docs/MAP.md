@@ -131,7 +131,7 @@ Class: reference
 | `interject.py` | Adaptive interjection router -- when a human types into a live agent session, decide whether the | GAP | GAP |  |
 | `kinds.py` | T176 s1 -- the kind registry: total resolution, so a miss stops reading as a decision. | tests/test_t175_skip_kinds_names_what_it_skips.py | GAP |  |
 | `lane_depths.py` | lane_depths -- the engine room's flow gauge source (T079-E2). | GAP | GAP | `BIFROST_NAMESPACE` |
-| `launcher.py` | Bifrost Launcher — spawn and monitor agent processes from the Bifrost UI. | tests/test_launcher_drain.py | GAP | `AKASHIC_SHOW_CONSOLES`, `LAUNCHER_AUTO_REVIVE_JITTER`, `LAUNCHER_RESTART_BACKOFF`, `LAUNCHER_RESTART_BACKOFF_MAX`, `LAUNCHER_RESTART_MAX`, `LAUNCHER_RESTART_RESET` |
+| `launcher.py` | Bifrost Launcher — spawn and monitor agent processes from the Bifrost UI. | tests/test_g5_latent_prior_art_launcher.py | GAP | `AKASHIC_SHOW_CONSOLES`, `LAUNCHER_AUTO_REVIVE_JITTER`, `LAUNCHER_RESTART_BACKOFF`, `LAUNCHER_RESTART_BACKOFF_MAX`, `LAUNCHER_RESTART_MAX`, `LAUNCHER_RESTART_RESET` |
 | `liveness.py` | Work-progress heartbeat (L1) -- pure observability for wedge detection. | tests/test_launcher_drainer_liveness.py | docs/library/design/20260701_agent-liveness-tier-stuck-lost-agent-fai_8c0d79.md | `AKASHIC_UNATTENDED_S`, `BIFROST_APPROACHING_WEDGE_SECONDS`, `BIFROST_NAMESPACE`, `BIFROST_WEDGE_SECONDS` |
 | `locks.py` | Advisory path-locks (Concurrency design C2). | tests/test_g4_latent_locks_age.py | GAP |  |
 | `mailbox.py` | mailbox -- T095 M0: shadow mailbox state index over the append-only lanes. | tests/test_t095_m0_mailbox_adversarial.py | docs/library/design/20260701_comms-mailbox-over-the-log-t095-governin_06357f.md | `AKASHIC_MAILBOX`, `BIFROST_NAMESPACE` |
