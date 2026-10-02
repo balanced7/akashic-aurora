@@ -403,6 +403,15 @@ addopts = ["-q", "-p", "no:randomly", "--strict-markers", "--strict-config"]
 # make it an error so the convention stays clean going forward.
 filterwarnings = ["error::pytest.PytestReturnNotNoneWarning"]
 
+[tool.coverage.run]
+# Coverage is always on in `poe test` (plan G5.P1): branch coverage of the runtime and script
+# packages, the same set O10 measures (tooling-upgrade/oracle.py COVERAGE_SOURCES).
+branch = true
+source = ["core", "agent", "arsenal", "scripts"]
+
+[tool.coverage.report]
+precision = 2
+
 [tool.deptry]
 # Scope (plan G1.P1): [project].dependencies must equal what RUNTIME and SCRIPT code imports.
 # tests/ stays out (deptry's default exclude: test code imports dev tools). docs/ and research/
@@ -1052,8 +1061,11 @@ help = "Every scripts/checkers/* with its documented arguments; none may exit wo
 cmd = "python tooling-upgrade/oracle.py guardrails"
 
 [tool.poe.tasks.test]
-help = "Full suite in a throwaway worktree (REDIS_DB=15); writes the suite record snapshots/suite/O1.json"
-cmd = "python tooling-upgrade/oracle.py snapshot suite --components O1 --runs 1"
+help = "Full suite + branch coverage in a throwaway worktree (REDIS_DB=15), compared with g0: no stable-pass test may fail reproducibly, no package's coverage may drop > 0.5 pp (O10)"
+sequence = [
+    { cmd = "python tooling-upgrade/oracle.py snapshot suite --components O1,O10 --runs 1" },
+    { cmd = "python tooling-upgrade/oracle.py compare g0 suite --components O1,O10" },
+]
 
 [tool.poe.tasks.test-fast]
 help = "Smoke set + tests impacted by uncommitted changes (REDIS_DB=15), well under 3 minutes"
