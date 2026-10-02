@@ -1457,9 +1457,9 @@ def _generators() -> list[str]:
 
 
 def cmd_assert_generated_docs(_args: argparse.Namespace) -> int:
-    """G5.P4: each generator's own staleness rule holds at HEAD: its --check passes where it has
-    one (gen_physics_sheet stamps the HEAD SHA, so only its --check knows what "current" means),
-    and a generator without --check, re-run in a throwaway tree, changes nothing."""
+    """G5.P4: at HEAD each generator's --check passes (where it has one), and every generator
+    re-run in a throwaway tree changes nothing -- except the one line gen_physics_sheet stamps
+    with the current HEAD SHA ("> Derived at <sha>."), which no commit can keep current."""
     problems: list[str] = []
     gens = _generators()
     with drill_tree() as t:
@@ -1471,13 +1471,14 @@ def cmd_assert_generated_docs(_args: argparse.Namespace) -> int:
                 print(f"{g} --check: rc={r.returncode:d}")
                 if r.returncode != 0:
                     problems.append(f"{g} --check exits {r.returncode:d}")
-                continue
             r = run([sys.executable, str(src)], cwd=t, env=env, timeout=600)
             print(f"{g} (write): rc={r.returncode:d}")
             if r.returncode != 0:
                 problems.append(f"{g} exits {r.returncode:d}")
-        dirty = run(["git", "status", "--porcelain", "--untracked-files=no"], cwd=t).stdout.split("\n")
-        problems.extend(f"stale generated file: {ln[3:]}" for ln in dirty if ln.strip())
+        diff = run(["git", "diff", "-U0", "--no-color"], cwd=t).stdout.splitlines()
+        stamp = re.compile(r"^[-+]> Derived at [0-9a-f]{7,40}\.")
+        changed = [ln for ln in diff if ln[:1] in "+-" and not ln.startswith(("+++", "---"))]
+        problems.extend(f"stale generated text: {ln[:120]}" for ln in changed if not stamp.match(ln))
     return _report("GENERATED DOCS", problems)
 
 
