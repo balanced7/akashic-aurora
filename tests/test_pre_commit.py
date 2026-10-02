@@ -127,6 +127,7 @@ def _hold_every_gate_open(monkeypatch):
     # module attributes are the seam -- the same way _patch_locks reaches core.comm.locks.
     monkeypatch.setattr(PP, "report", lambda *a, **k: {"findings": []})
     monkeypatch.setattr(PP, "scan_text", lambda *a, **k: [])
+    monkeypatch.setattr(pre_commit, "_prek_staged", lambda: (0, ""))
     monkeypatch.setattr(pre_commit, "regenerate_derived", lambda *a, **k: (True, ""))
     monkeypatch.setattr(pre_commit, "ensure_baseline", lambda *a, **k: (False, ""))
     monkeypatch.setattr(pre_commit, "ratchet_ok", lambda *a, **k: (True, ""))
@@ -173,3 +174,83 @@ def test_dead_gate_warns_but_does_not_block(monkeypatch, capsys):
     assert shelled == [], _LEAK % shelled
     assert rc == 0, "a dead gate must not brick every commit in the repo"
     assert "WARNING" in capsys.readouterr().err, "a dead gate must be LOUD about being dead"
+
+
+# --------------------------------------------------------------------------- PREK STAGE (G5.P2)
+# The .pre-commit-config.yaml hooks reach commits only through this backstop (never `prek
+# install`, which would fight core.hooksPath). Same policy as the comprehensibility gate: a
+# finding fails CLOSED, a missing or crashing prek fails OPEN and LOUD.
+
+_real_prek_staged = pre_commit._prek_staged  # _hold_every_gate_open stubs the module attribute
+
+
+def test_prek_finding_blocks_the_commit(monkeypatch, capsys):
+    shelled = _hold_every_gate_open(monkeypatch)
+    monkeypatch.setattr(pre_commit, "_prek_staged", lambda: (1, "ruff format....Failed"))
+    rc = pre_commit.main()
+    assert shelled == [], _LEAK % shelled
+    assert rc == 1, "a hook finding on the staged files must block the commit"
+    err = capsys.readouterr().err
+    assert "BLOCKED" in err
+    assert "ruff format....Failed" in err, "the hook output must reach the committer"
+
+
+def test_prek_missing_warns_but_does_not_block(monkeypatch, capsys):
+    shelled = _hold_every_gate_open(monkeypatch)
+    monkeypatch.setattr(pre_commit, "_prek_staged", _real_prek_staged)
+    monkeypatch.setattr(pre_commit, "_prek_executable", lambda: None)
+    rc = pre_commit.main()
+    assert shelled == [], _LEAK % shelled
+    assert rc == 0, "a missing prek must not brick every commit"
+    err = capsys.readouterr().err
+    assert "WARNING" in err
+    assert "prek is MISSING" in err, "a dead stage must say it is dead"
+
+
+def test_prek_crash_warns_but_does_not_block(monkeypatch, capsys):
+    shelled = _hold_every_gate_open(monkeypatch)
+    monkeypatch.setattr(pre_commit, "_prek_staged", _real_prek_staged)
+    monkeypatch.setattr(pre_commit, "_prek_executable", lambda: "prek")
+
+    def _boom(argv, *a, **k):
+        shelled.append(list(argv))
+        raise OSError("exec format error")
+
+    monkeypatch.setattr(pre_commit.subprocess, "run", _boom, raising=False)
+    rc = pre_commit.main()
+    assert rc == 0, "a crashing prek must not brick every commit"
+    assert "WARNING" in capsys.readouterr().err
+    assert len(shelled) == 1
+
+
+def test_prek_unexpected_exit_code_is_a_crash_not_a_finding(monkeypatch):
+    _hold_every_gate_open(monkeypatch)
+    monkeypatch.setattr(pre_commit, "_prek_executable", lambda: "prek")
+    monkeypatch.setattr(
+        pre_commit.subprocess, "run", lambda argv, *a, **k: subprocess.CompletedProcess(argv, 2, "", "bad config")
+    )
+    rc, out = _real_prek_staged()
+    assert rc == 2
+    assert "bad config" in out
+
+
+def test_prek_runs_on_the_staged_files_only(monkeypatch):
+    shelled = _hold_every_gate_open(monkeypatch)
+    monkeypatch.setattr(pre_commit, "_prek_executable", lambda: "prek")
+    rc, _out = _real_prek_staged()
+    assert rc == 0
+    assert len(shelled) == 1
+    argv = shelled[0]
+    assert argv[:2] == ["prek", "run"]
+    assert "--all-files" not in argv, "the commit-time stage sees the STAGED files, not the tree"
+    assert "--files" not in argv
+    assert "install" not in argv, "never prek install: it would fight core.hooksPath"
+    assert argv[argv.index("--config") + 1].endswith(".pre-commit-config.yaml")
+
+
+def test_prek_missing_config_is_loud(monkeypatch):
+    _hold_every_gate_open(monkeypatch)
+    monkeypatch.setattr(pre_commit.os.path, "exists", lambda p: False)
+    rc, out = _real_prek_staged()
+    assert rc == 2
+    assert "MISSING" in out

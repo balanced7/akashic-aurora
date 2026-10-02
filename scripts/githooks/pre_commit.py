@@ -99,6 +99,46 @@ def _comprehensibility_fast():
         return 0, ""  # guard crashed/slow -> fail open, per the policy in the docstring
 
 
+def _prek_executable():
+    """prek from the interpreter's own environment (the shim's `uv run` venv), else PATH."""
+    exe = "prek.exe" if os.name == "nt" else "prek"
+    beside = os.path.join(os.path.dirname(sys.executable), exe)
+    if os.path.exists(beside):
+        return beside
+    import shutil
+
+    return shutil.which("prek")
+
+
+def _prek_staged():
+    """The .pre-commit-config.yaml hooks (ruff, uv lock/export, toml/yaml/merge-conflict/large-file
+    checks, zizmor, actionlint) over the STAGED files, run by prek as one stage of this backstop
+    (tooling plan G5.P2). Never `prek install`: it would fight core.hooksPath, so prek is reached
+    only from here. The same crash-versus-finding policy as the comprehensibility gate: a finding
+    (prek exit 1, which includes a hook that rewrote a file) fails CLOSED; prek missing, a missing
+    config or a prek crash fails OPEN, and LOUDLY -- returned as rc 2 for main() to warn on."""
+    cfg = os.path.join(ROOT, ".pre-commit-config.yaml")
+    if not os.path.exists(cfg):
+        return 2, "the hook config is MISSING at " + cfg + " -- wiring defect: restore it.\n"
+    prek = _prek_executable()
+    if prek is None:
+        return 2, "prek is MISSING (not in the environment, not on PATH): run `uv sync`.\n"
+    try:
+        r = subprocess.run(
+            [prek, "run", "--config", cfg, "--no-progress"],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=600,
+        )
+    except Exception as e:
+        return 2, f"prek did not run ({type(e).__name__}: {e}).\n"
+    out = (r.stdout or "") + (r.stderr or "")
+    return (r.returncode if r.returncode in (0, 1) else 2), out
+
+
 # --------------------------------------------------------------------------- ATTRIBUTION GATE
 
 
@@ -518,6 +558,22 @@ def main():
             return 1
     except Exception:
         pass  # a guard that crashes must not wedge every commit; the checker run reports it
+
+    # THE PREK STAGE: the .pre-commit-config.yaml hooks over the staged files. A finding blocks
+    # (a fixing hook rewrote a file: review it, stage it, commit again); a dead prek only warns.
+    rc, out = _prek_staged()
+    if rc == 1:
+        sys.stderr.write(
+            "pre-commit BLOCKED: a .pre-commit-config.yaml hook (run by prek) failed on the staged files:\n"
+            + out
+            + "\nFix it (a fixing hook may already have rewritten the file: review and re-stage it).\n"
+        )
+        return 1
+    if rc not in (0, 1):
+        sys.stderr.write(
+            "pre-commit WARNING: the prek hook stage did not run. Commit allowed; "
+            f"ruff, uv lock/export and the workflow lints are not protecting you.\n{out!s}"
+        )
 
     # DERIVED DOCS FIRST: regenerate and stage BEFORE any freshness gate looks at them.
     # Ordering is the whole point -- checking a derivative before refreshing it is what made
