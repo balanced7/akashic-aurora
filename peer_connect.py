@@ -41,6 +41,7 @@ import time
 import urllib.error
 import urllib.request
 from pathlib import Path
+from typing import cast
 
 ROOT = Path(__file__).resolve().parent
 SECRETS = Path(os.getenv("AKASHIC_SECRETS_DIR") or (ROOT / ".secrets"))
@@ -90,7 +91,7 @@ def post(url: str, raw: bytes, timeout: int = 10):
 
 # --------------------------------------------------------------------------- steps
 def read_keys() -> tuple:
-    print(__doc__.split("WHY THIS EXISTS")[0].strip())
+    print((__doc__ or "").split("WHY THIS EXISTS")[0].strip())
     print("\nPaste the two values Daniil sent you. They are NOT interchangeable, but you do")
     print("not need to know which is which — this works it out by testing.\n")
     a = input("  first value  (he called it Key 1): ").strip()
@@ -104,7 +105,7 @@ def read_keys() -> tuple:
     return a.encode("utf-8"), b.encode("utf-8")
 
 
-def which_key_signs(k1: bytes, k2: bytes):
+def which_key_signs(k1: bytes, k2: bytes) -> tuple[bytes, bytes] | tuple[None, str]:
     """Ask OUR listener which key is the sending one. The wire settles it, not a table.
 
     A correctly-signed chat gets 202; anything else gets a flat 400 that deliberately reveals
@@ -249,7 +250,7 @@ def main() -> int:
     send_key, other = which_key_signs(k1, k2)
     if send_key is None:
         return fail(str(other))
-    write_keys(send_key, other)
+    write_keys(send_key, cast("bytes", other))  # a non-None send_key always pairs with the bytes key
     write_config()
 
     ip = tailnet_ip()

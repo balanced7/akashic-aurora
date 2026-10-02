@@ -17,10 +17,14 @@ import os
 import subprocess
 import sys
 import time
+from typing import TYPE_CHECKING, cast
+
+if TYPE_CHECKING:
+    import io
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(HERE)))
-sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+cast("io.TextIOWrapper", sys.stdout).reconfigure(encoding="utf-8", errors="replace")
 
 
 def sh(argv):

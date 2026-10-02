@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Any
+from typing import Any, cast
 
 
 def _pyl() -> str:
@@ -58,7 +58,7 @@ def register_presence(agent_id: str) -> dict[str, Any]:
         b = Bus(str(agent_id or "unknown"))
         registered = b.register() if b.online else False
         live = b.presence() if b.online else []
-        names = [p.get("agent") for p in live if p.get("agent")]
+        names = [a for p in live if (a := p.get("agent"))]
         attended, unattended = [], []
         for n in names:
             try:
@@ -124,7 +124,12 @@ def peek_inbox(agent_id: str, limit: int = 10) -> list[dict[str, Any]]:
             streams.append((b._bc_key, cur.get("bc", "0"), True))
             if sid8:
                 try:
-                    seat_cur = str(b._client.hget(b._seat_cursor_key(sid8), "seat") or "0")
+                    seat_cur = str(
+                        cast("Any", b._client).hget(  # b.online checked above: client is set
+                            b._seat_cursor_key(sid8), "seat"
+                        )
+                        or "0"
+                    )
                     streams.append((b._seat_inbox_key(str(agent_id), sid8), seat_cur, False))
                 except Exception:
                     pass
@@ -132,7 +137,9 @@ def peek_inbox(agent_id: str, limit: int = 10) -> list[dict[str, Any]]:
             for skey, scur, is_bc in streams:
                 lo = "(" + str(scur) if str(scur) not in ("0", "0-0") else "-"
                 try:
-                    rows = b._client.xrevrange(skey, max="+", min=lo, count=want)
+                    rows = cast("Any", b._client).xrevrange(  # b.online checked above: client is set
+                        skey, max="+", min=lo, count=want
+                    )
                 except Exception:
                     continue
                 for sid, fields in rows or []:
@@ -145,7 +152,7 @@ def peek_inbox(agent_id: str, limit: int = 10) -> list[dict[str, Any]]:
                     m = b._to_msg(str(sid), dict(fields))
                     if is_bc and m.frm == str(agent_id):
                         continue
-                    inc = _sid8((m.meta or {}).get("to_incarnation"))
+                    inc = _sid8((m.meta or {}).get("to_incarnation") or "")
                     if inc and sid8 and inc != sid8:
                         continue
                     tail_msgs.append(m)
@@ -273,10 +280,10 @@ def consume_inbox(agent_id: str, limit: int = 20) -> dict[str, Any]:
             return {"seat_held": False, "consumed": []}
         ttl = int(runner_lock.SESSION_CONSUMER_TTL)
         ok, gen, info = runner_lock.claim_consumer(str(agent_id), _session_holder_token())
+        rescue = {}
         if not ok:
             # T083-C1-1: before degrading to peek, check whether the holder is PROVABLY dead
             # (crash-killed session; clean_death only covers graceful ends). Freed -> claim once.
-            rescue = {}
             try:
                 rescue = runner_lock.free_if_dead(str(agent_id))
             except Exception:

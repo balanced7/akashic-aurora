@@ -34,6 +34,10 @@ import os
 import re
 import sys
 from pathlib import Path
+from typing import TYPE_CHECKING, Any, cast
+
+if TYPE_CHECKING:
+    import io
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # make `core`/`agent` importable
 
@@ -43,7 +47,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # make `core`/`a
 for _stream in (sys.stdout, sys.stderr):
     # non-reconfigurable stream (exotic wrapper/capture) -> old behavior, still safe
     with contextlib.suppress(Exception):
-        _stream.reconfigure(encoding="utf-8", errors="replace")
+        cast("io.TextIOWrapper", _stream).reconfigure(encoding="utf-8", errors="replace")
 
 # T119 (one clock, G5): every rendered timestamp goes through THE display door and names
 # its frame (Z / local tz label) -- a bare truncated ISO masquerading as local time was
@@ -1074,10 +1078,10 @@ def cmd_fleet(args):
         probe = model_roster.probe_availability() if args.probe else None
         present = set(probe["present"]) if probe and probe.get("ok") else None
         if args.json:
-            out = {"models": rows}
+            listing: dict[str, object] = {"models": rows}
             if probe is not None:
-                out["availability"] = probe
-            print(json.dumps(out, indent=1))
+                listing["availability"] = probe
+            print(json.dumps(listing, indent=1))
             return 0
         hdr = f"# FLEET ROSTER  ({len(rows)} model(s)"
         hdr += f", status={args.status}" if args.status else ""
@@ -1738,11 +1742,10 @@ def _boot_world_line() -> str:
         # The suite CONCEALED this: tests/test_w156_world_resolution.py was green at exit 0 while
         # paying 97.4s + 97.2s + 48.6s in three tests against 0.01s for the prod case -- 243 of its
         # 246 seconds. A green suite is not evidence of a fast one.
-        if not probe_redis_reachable("localhost", w.redis_port):
+        port = cast("int", w.redis_port)  # only the UNKNOWN world has no port, and it returned above
+        if not probe_redis_reachable("localhost", port):
             raise ConnectionError(f"world {w.name!r} store at {w.redis_port} is not reachable")
-        _c = _redis.Redis(
-            host="localhost", port=w.redis_port, db=w.redis_db, socket_timeout=2, socket_connect_timeout=2
-        )
+        _c = _redis.Redis(host="localhost", port=port, db=w.redis_db, socket_timeout=2, socket_connect_timeout=2)
         m = read_manifest(_c)
         if m:
             lineage = (
@@ -2489,20 +2492,20 @@ def _wish_curate_apply(doc, wid, action, *, reason=None, task=None, seat=None, t
 
     if action == "fold":
         block[0] = block[0].replace("- [ ] ", "- [x] ", 1)
-        extra = (" " + reason.strip()) if (reason or "").strip() else ""
-        block.append(f"  FOLDED {today} ({seat}) -> {task.strip()}.{extra}")
+        extra = (" " + (reason or "").strip()) if (reason or "").strip() else ""
+        block.append(f"  FOLDED {today} ({seat}) -> {(task or '').strip()}.{extra}")
         out = lines[:i] + block + lines[j:]
-        return "\n".join(out), f"[wish-curate] {wid} FOLDED -> {task.strip()}"
+        return "\n".join(out), f"[wish-curate] {wid} FOLDED -> {(task or '').strip()}"
 
     if action == "keep":
-        block.append(f"  STILL OPEN {today} ({seat}): {reason.strip()}")
+        block.append(f"  STILL OPEN {today} ({seat}): {(reason or '').strip()}")
         out = lines[:i] + block + lines[j:]
         return "\n".join(out), (
             f"[wish-curate] {wid} stays OPEN with a dated reason -- 'open' is now a decision rather than a default"
         )
 
     block[0] = block[0].replace("- [ ] ", "- [~] ", 1)
-    block.append(f"  DECLINED {today} ({seat}): {reason.strip()}")
+    block.append(f"  DECLINED {today} ({seat}): {(reason or '').strip()}")
     rest = lines[:i] + lines[j:]
     doc2 = "\n".join(rest)
     if "## Declined" not in doc2:
@@ -3388,7 +3391,7 @@ def cmd_ask(args):
                 file=sys.stderr,
             )
         elif lz.get("action") in ("never_attended", "launch_refused", "no_tag"):
-            print(f"-- LAUNCH {lz.get('action').upper()}: {lz.get('why')}", file=sys.stderr)
+            print(f"-- LAUNCH {str(lz.get('action')).upper()}: {lz.get('why')}", file=sys.stderr)
         if d.get("peer_at_ask") == "UNATTENDED":
             print(
                 f"-- NOBODY HOME: '{args.peer}' has no attending seat "
@@ -4015,7 +4018,7 @@ def cmd_sift(args):
         packs = {t: S.evidence_pack(t, planes=planes, max_occurrences=args.max_occurrences) for t in args.terms}
     print(f"# sift: {len(args.terms)} term(s) x {len(hats)} hat(s), planes={list(planes)}, evidence={mode}")
     for t, p in packs.items():
-        if args.junction:
+        if isinstance(p, S.JunctionPack):  # == args.junction: the pack type follows the mode
             cross = sum(1 for j in p.junctions if not j["same_file"])
             print(f"  {t:<12} junctions={len(p.junctions):<4} cross-file={cross:<4} sha={p.sha}")
         else:
@@ -4025,7 +4028,7 @@ def cmd_sift(args):
     if args.dry_run:
         print("\n# DRY RUN -- nothing spent. Read one pack before trusting any finding:")
         for t, p in packs.items():
-            if args.junction:
+            if isinstance(p, S.JunctionPack):  # == args.junction
                 print(f"\n--- {t}: {len(p.junctions)} junction(s) ---")
                 for j in p.junctions[:3]:
                     print(f"  {j['crossing']}{'  [same file]' if j['same_file'] else ''}")
@@ -4043,7 +4046,7 @@ def cmd_sift(args):
     prompts, index = [], []
     for t, p in packs.items():
         for h in hats:
-            prompts.append(f"{p.blob}\n\n{S.hat_prompt(h, p)}")
+            prompts.append(f"{p.blob}\n\n{S.hat_prompt(h, cast('S.EvidencePack', p))}")  # reads only .term
             index.append((t, h))
     print(f"\n# tier 1: fanning {len(prompts)} branches, {args.workers} workers ...")
     fan = ask_many(prompts, max_workers=args.workers)
@@ -4456,6 +4459,7 @@ def cmd_doc(args):
 
     from_bus = (getattr(args, "from_bus", "") or "").strip()
     conv_kwargs = {}
+    text = ""
     if from_bus:
         msg = _read_bus_message(from_bus)
         if msg is None:
@@ -5851,7 +5855,7 @@ def cmd_episode(args):
 
     act = args.action
     if act == "current":
-        out = ep.current_episode()
+        out: dict[str, Any] = ep.current_episode()
         try:  # S3: the door composes the advisory suggestion (episode.py stays one-way, fail-soft)
             from core.narrative.episode_suggester import suggest
 
@@ -6255,7 +6259,7 @@ def cmd_doctor_deploy() -> int:
     try:
         from core.comm.bus import get_bus
 
-        get_bus("control")._client.ping()
+        get_bus("control")._client.ping()  # pyright: ignore[reportOptionalMemberAccess]  # Redis down -> None -> AttributeError, reported UNREACHABLE below
         print("  redis          : reachable")
     except Exception as e:
         print(f"  redis          : UNREACHABLE ({type(e).__name__})")
@@ -8421,7 +8425,7 @@ def cmd_manual(args):
             )
             return 0
         print(f"manual list: {st['docs']} documents, {st['chunks']} passages ({st['db']})")
-        for name, n in st["shelves"].items():
+        for name, n in cast("dict[str, dict[str, int]]", st["shelves"]).items():
             print(f"  {name:<24} {n['docs']:>5} docs  {n['chunks']:>6} passages")
         return 0
     print(f"usage: {_pyl()} agent_cli.py manual search|ingest|list ...")
@@ -11772,7 +11776,7 @@ def cmd_toast(args, *, bus_send=None, note_write=None, store=None):
 
     if bus_send is None:
 
-        def bus_send(to, kind, text):  # the proven send door (cmd_bifrost_send's path)
+        def _bus_send(to, kind, text):  # the proven send door (cmd_bifrost_send's path)
             from core.comm.bus import Bus
 
             b = Bus(args.agent_id)
@@ -11780,6 +11784,8 @@ def cmd_toast(args, *, bus_send=None, note_write=None, store=None):
                 raise RuntimeError("bus OFFLINE (Redis down)")
             b.register()
             return b.send(to, kind, text)
+
+        bus_send = _bus_send
 
     try:
         res = toast.send(
@@ -11940,7 +11946,7 @@ def cmd_secret(args):
                 file=sys.stderr,
             )
             return 2
-        captured = {"value": None}
+        captured: dict[str, str | None] = {"value": None}
         root = tk.Tk()
         root.title(f"Akashic vault -- {args.target}")
         root.attributes("-topmost", True)

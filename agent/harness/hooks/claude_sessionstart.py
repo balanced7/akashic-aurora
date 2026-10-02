@@ -69,6 +69,7 @@ def main() -> int:
         prune_state()
     except Exception:
         pass  # warm-up is best-effort; never block session start
+    sid = ""
     try:
         # Stamp THIS session alive the moment it exists -- the janitor's K7 fast path
         # (and the twin-session proof-of-life) starts at first breath, not first stop.

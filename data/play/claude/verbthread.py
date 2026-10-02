@@ -19,11 +19,15 @@ import json
 import os
 import sys
 import time
+from typing import TYPE_CHECKING, cast
+
+if TYPE_CHECKING:
+    import io
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(HERE)))
 THREADS = os.path.join(HERE, "threads")
-sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+cast("io.TextIOWrapper", sys.stdout).reconfigure(encoding="utf-8", errors="replace")
 KINDS = {"suggest": "\U0001f527", "praise": "\U0001f389", "vote": "⭐", "question": "❓", "history-note": "\U0001f4d6"}
 
 

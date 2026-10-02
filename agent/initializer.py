@@ -28,7 +28,7 @@ This module handles:
 import logging
 import sys
 import time
-from typing import Any
+from typing import Any, cast
 
 from core.foundation.redis_connection import DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT
 
@@ -125,7 +125,7 @@ def derive_agent_context_from_startup_sources(
 
         # Expose it on the api too, so the back-compat getters return the new context.
         sections = context.get("sections", {})
-        api.startup_context = context
+        api.startup_context = context  # pyright: ignore[reportAttributeAccessIssue]  # SignalEmitter declares it as None
         api.startup_briefing = sections.get("briefing")
         api.startup_decisions = sections.get("decisions", [])
         api.startup_learnings = sections.get("learnings", [])
@@ -146,7 +146,8 @@ def derive_agent_context_from_startup_sources(
             print(f"  checkpoint available: {checkpoint_exists}")
 
             if checkpoint_exists:
-                checkpoint = state.load_checkpoint()
+                # has_checkpoint() just proved a checkpoint loads; only a concurrent delete could undo it
+                checkpoint = cast("dict[str, Any]", state.load_checkpoint())
                 print("\n  RECOVERY INFO:")
                 print(f"    Task: {checkpoint.get('task')}")
                 print(f"    Progress: {checkpoint.get('progress')}%")

@@ -58,7 +58,7 @@ def main() -> int:
         if not reason and path and file_in_scope(path):
             reason = lock_veto(
                 path,
-                os.getenv("AKASHIC_AGENT_ID"),
+                os.getenv("AKASHIC_AGENT_ID", ""),
                 "propagated by cursor_sessionstart.py; check .cursor/hooks.json wiring",
             )
     except Exception:

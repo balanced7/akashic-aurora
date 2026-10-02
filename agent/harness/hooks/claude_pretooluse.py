@@ -235,7 +235,7 @@ def _check_write(data) -> str:
 
         return lock_veto(
             (data.get("tool_input") or {}).get("file_path") or "",
-            os.getenv("AKASHIC_AGENT_ID"),
+            os.getenv("AKASHIC_AGENT_ID", ""),
             "e.g. in .claude/settings.json env",
         )
     except Exception:

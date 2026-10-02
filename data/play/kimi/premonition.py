@@ -23,10 +23,14 @@ import json
 import os
 import sys
 import time
+from typing import TYPE_CHECKING, cast
+
+if TYPE_CHECKING:
+    import io
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(HERE)))
-sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+cast("io.TextIOWrapper", sys.stdout).reconfigure(encoding="utf-8", errors="replace")
 
 # Verbs that only READ. Everything not on this list is flagged MUTATING -- the verifier's
 # default is suspicion, and a false positive here is the SAFE direction (over-warn).
@@ -110,7 +114,7 @@ def _known_verbs():
         p = agent_cli.build_parser()
         for a in p._actions:
             if hasattr(a, "choices") and a.choices:
-                return set(a.choices.keys())
+                return set(cast("dict[str, object]", a.choices).keys())  # the subparsers action: a dict
         return None
     except Exception:
         return None

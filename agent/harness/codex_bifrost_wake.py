@@ -1154,7 +1154,7 @@ class CodexBifrostWake:
                         from redis.exceptions import ConnectionError as RedisConnectionError
                         from redis.exceptions import TimeoutError as RedisTimeoutError
                     except ImportError:  # pragma: no cover - redis is a runtime dependency
-                        RedisConnectionError = RedisTimeoutError = ()  # type: ignore[assignment]
+                        RedisConnectionError = RedisTimeoutError = ()
                     if not isinstance(exc, (RedisConnectionError, RedisTimeoutError)):
                         raise
                     self._log(

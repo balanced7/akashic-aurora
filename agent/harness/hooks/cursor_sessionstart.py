@@ -45,7 +45,7 @@ def main() -> int:
     except Exception:
         pass  # warm-up is best-effort; never block session start
     agent_id = os.getenv("AKASHIC_AGENT_ID") or "composer"
-    out = {"env": {"AKASHIC_AGENT_ID": agent_id}}
+    out: dict[str, object] = {"env": {"AKASHIC_AGENT_ID": agent_id}}
     try:
         from agent.harness.context import build_autoboot_context
 
