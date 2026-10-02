@@ -120,7 +120,10 @@ def test_a_resolver_that_raises_becomes_an_error_plane_never_a_missing_one():
         raise RuntimeError("redis is down")
     sc = S.build("file:x.py", subject="c", roots=ROOTS, resolvers={"touches": boom},
                  exists=lambda k: True)
-    p = sc["planes"][0]
+    # Look the plane up BY NAME. The first version of this pin indexed planes[0] and failed
+    # against a correct implementation, because the scene emits planes in its own reading order
+    # and the broken one was not first. A pin that encodes incidental ordering tests the order.
+    p = [x for x in sc["planes"] if x["plane"] == "touches"][0]
     assert p["state"] == "error" and "redis is down" in p["fog"]
 
 

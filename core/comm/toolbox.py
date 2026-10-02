@@ -787,7 +787,8 @@ class ToolBox:
         """
         return self._agent_cli(["recall-bench", "--limit", str(int(limit))])
 
-    def context(self, hours: float = 24.0, limit: int = 20000) -> str:
+    def context(self, anchor: str = "", level: int = 1,
+                hours: float = 24.0, limit: int = 20000) -> str:
         """W0.4: meter the touch stream -- session coverage, touches per hour by seat, targets
         per touch, the share of commands that could not be seen into, ring retention, drops.
 
@@ -798,6 +799,8 @@ class ToolBox:
         What is not captured (hook latency, anchor resolve cost) comes back UNCHECKABLE with the
         reason attached, never as an estimate.
         """
+        if anchor:
+            return self._agent_cli(["context", str(anchor), "--level", str(int(level))])
         return self._agent_cli(["context", "--stats", "--hours", str(hours),
                                 "--limit", str(int(limit))])
 

@@ -196,6 +196,8 @@ _ARG_DEFAULTS = dict(
     stats=False,
     # recall-bench (W0.3)
     set=None,
+    # context scene (W0.5/W0.6)
+    anchor=None, level=None,
     # graduate
     enforced_by=None, undo=False,
     # note / notes / locks (membrane slice 1b: MCP twins for shell-less agents)
@@ -375,15 +377,18 @@ async def recall_bench(limit: int = 5) -> str:
 
 
 @mcp.tool()
-async def context(stats: bool = True, hours: float = 24.0, limit: int = 20000) -> str:
-    """W0.4: meter the touch stream -- session coverage, touches/hour by seat, targets per touch,
-    the share of commands that could not be seen into, ring retention and dropped touches.
+async def context(anchor: str = "", level: int = 1, stats: bool = False,
+                  hours: float = 24.0, limit: int = 20000) -> str:
+    """W0.5/W0.6: one anchor, every plane. Pass `anchor` (a path, path:line, dir/, a ref such as
+    sha:/task:/lesson:/event:, a url or verb:) to get the scene; pass `stats=True` instead to meter
+    the touch stream.
 
-    Session coverage is the headline: it was 89 of 6,918 records, all of one kind, before the
-    touch emit shipped. What is not captured (hook latency, anchor resolve cost) returns
-    UNCHECKABLE with the reason, never an estimate.
+    A plane that knows nothing and a plane that CANNOT know never render the same: every plane
+    reports ok, empty, UNCHECKABLE (with its reason) or error, and every row carries a ref the
+    house's own doors resolve. Two planes are live, git and touches; the rest say why not.
     """
-    return await _athread(_run, agent_cli.cmd_context, stats=stats, hours=hours, limit=limit)
+    return await _athread(_run, agent_cli.cmd_context, anchor=anchor or None, level=level,
+                          stats=stats, hours=hours, limit=limit)
 
 
 @mcp.tool()

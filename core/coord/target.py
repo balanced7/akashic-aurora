@@ -129,6 +129,14 @@ class Roots:
     def __post_init__(self) -> None:
         self.main = _slashes(self.main).rstrip("/")
         paths = [_slashes(w).rstrip("/") for w in self.worktrees]
+        # `git worktree list` ALWAYS reports the main checkout as its first entry, so a caller
+        # handing that list straight in puts main on both sides. Its leaf then collides with
+        # itself, A1's disambiguation fires, and every path in the main tree takes a `work:`
+        # prefix built from its own drive letter -- a second key for one plane, which is the
+        # defect B2 exists to refuse. Found by the context door's first live run, not by a pin:
+        # every pin built Roots by hand with main held separate, and only the real git output has
+        # this shape. Dropping it here fixes it for every caller rather than at each call site.
+        paths = [w for w in paths if _fold_root(w) != _fold_root(self.main)]
         # The main checkout participates in the collision count (its leaf can collide with a
         # worktree's) but never itself takes a `work:` prefix -- amendment B2, one plane one key.
         leaves: Dict[str, int] = {}

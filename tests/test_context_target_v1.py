@@ -409,3 +409,18 @@ def test_extraction_targets_are_typed_targets_carrying_their_worktree():
     (touch,) = ext.targets
     assert touch.action == "read"
     assert touch.target.key == "work:sunshine-discord-split:core/comm/bus.py"
+
+
+def test_the_main_checkout_is_never_also_a_worktree_entry():
+    """Found by the first live run of the context door, not by a pin. `git worktree list` ALWAYS
+    lists the main checkout as its first entry, so handing that list straight to Roots puts main in
+    both `main` and `worktrees`. Its leaf then collides with itself, A1's disambiguation fires, and
+    every path in the main tree gets a `work:` prefix built from its own drive letter -- which is
+    precisely the second-key-for-one-plane defect B2 refuses. The pins missed it because they all
+    construct Roots by hand with main held separate; only the real `git worktree list` has this
+    shape."""
+    roots = T.Roots(main=MAIN, worktrees=(MAIN, SUN))      # main listed twice, as git reports it
+    t = T.parse("core/coord/orient.py", roots=roots)
+    assert t.work is None and t.key == "core/coord/orient.py"
+    # and the sibling worktree still resolves on its bare leaf, not a disambiguated one
+    assert T.parse(SUN + "/core/comm/bus.py", roots=roots).work == "sunshine-discord-split"

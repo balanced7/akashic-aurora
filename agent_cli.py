@@ -5547,6 +5547,25 @@ def cmd_context(args) -> int:
     """
     import json as _json
     import time as _time
+
+    # W0.5/W0.6: an anchor asks the scene; --stats meters the stream. One verb, because they are
+    # the same door at two altitudes -- "what is true about this location" and "what is this
+    # organ costing" -- and splitting them would mint a second name for one surface.
+    anchor = getattr(args, "anchor", None)
+    if anchor:
+        from core.coord import scene as _scene
+        from core.events import touch as _touch
+        try:
+            sc = _scene.build(anchor, subject=(os.getenv("AKASHIC_AGENT_ID") or "claude"),
+                              roots=_touch.default_roots(),
+                              level=int(getattr(args, "level", None) or 1))
+        except Exception as e:                                            # noqa: BLE001
+            print(f"ERROR: {e}")
+            return 1
+        print(_json.dumps(sc, indent=2, default=str) if getattr(args, "json", False)
+              else _scene.render(sc))
+        return 0
+
     from core.events import touch_stats as _ts
     window = float(getattr(args, "hours", None) or 24)
     try:
@@ -8921,7 +8940,10 @@ def build_parser():
     rb.add_argument("--json", action="store_true")
     rb.set_defaults(fn=cmd_recall_bench)
 
-    cx = sub.add_parser("context", help="W0.4/W0.6: the context door -- `--stats` meters the touch stream")
+    cx = sub.add_parser("context", help="W0.5/W0.6: one anchor, every plane -- or `--stats` to meter the stream")
+    cx.add_argument("anchor", nargs="?", default=None,
+                    help="a context.target.v1 anchor: a path, path:line, dir/, ref (sha:/task:/lesson:/event:), url or verb:")
+    cx.add_argument("--level", type=int, default=None, help="0 summaries, 1 rows (default), 2 receipts")
     cx.add_argument("--stats", action="store_true", help="the instrument: coverage, rate, shape, drops")
     cx.add_argument("--hours", type=float, default=None, help="window in hours (default 24)")
     cx.add_argument("--limit", type=int, default=None, help="max raw events to read (default 20000)")
