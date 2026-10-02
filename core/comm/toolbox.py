@@ -30,7 +30,7 @@ import sys
 import time
 from collections.abc import Mapping
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from core.comm import packet_spec
 
@@ -1647,7 +1647,7 @@ class ToolBox:
         try:
             from core.comm import nudge as _nudge
 
-            _nudge.nudge(to, by=self.agent_id, reason=text[:80])
+            _nudge.nudge(to, by=cast("str", self.agent_id), reason=text[:80])  # _bus() None without an id
             mid = b.send(to, "nudge", text, meta=meta)
             return f"nudged {to} (id {mid})" if mid else "ERROR: nudge send failed (bus offline?)"
         except Exception as e:
@@ -1678,7 +1678,7 @@ class ToolBox:
         try:
             from core.comm import nudge as _nudge
 
-            _nudge.steer_push(to, self.agent_id, text)
+            _nudge.steer_push(to, cast("str", self.agent_id), text)  # _bus() None without an id
             mid = b.send(to, "steer", text, meta=meta)
             return f"steered {to} (folds into its current task; id {mid})" if mid else "ERROR: steer failed"
         except Exception as e:
@@ -1745,8 +1745,8 @@ class ToolBox:
             lines.append("## FLEET PRESENCE")
             lines.append("  (no agents present" + ("; " + fallback_note + ")" if fallback_note else ")"))
         # vitals per agent
+        known = set()
         try:
-            known = set()
             for a in agents:
                 known.add(a.get("agent", ""))
             known.discard("")
@@ -1898,7 +1898,7 @@ class ToolBox:
                 scope = it.get("scope") or []
                 if not scope:
                     continue
-                if any(_intent.scope_matches(s, rel) for s in scope):
+                if any(_intent.scope_matches(s, rel) for s in scope):  # pyright: ignore[reportAttributeAccessIssue]  # LATENT: intent.scope_matches never existed; except swallows, tag is always ""
                     return str(it.get("intent", ""))
         except Exception:
             pass
@@ -1939,6 +1939,7 @@ class ToolBox:
         p, err = self._prewrite(path)
         if err:
             return err
+        p = cast("Path", p)  # _prewrite returns (path, None) or (None, error)
         data = str(content)
         if len(data.encode("utf-8", "ignore")) > 800_000:
             return "ERROR: refusing to write more than 800KB in one call."
@@ -1959,6 +1960,7 @@ class ToolBox:
         p, err = self._prewrite(path)
         if err:
             return err
+        p = cast("Path", p)  # _prewrite returns (path, None) or (None, error)
         try:
             if not p.exists():
                 return f"ERROR: no such file: {path} (use write_file to create it)"
@@ -2392,7 +2394,7 @@ class ToolBox:
             out = body or "(no output)"
             return (out if recall else out[:MAX_CMD_OUT]) + (f"\n[exit {p.returncode}]" if p.returncode else "")
         except subprocess.TimeoutExpired:
-            return f"ERROR: command timed out after {capped}s"
+            return f"ERROR: command timed out after {capped}s"  # pyright: ignore[reportPossiblyUnboundVariable]  # bound before any subprocess call can time out
         except Exception as e:
             return f"ERROR: {e}"
 

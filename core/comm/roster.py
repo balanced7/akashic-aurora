@@ -49,7 +49,9 @@ RESUME_GAP_S = float(os.environ.get("AKASHIC_RESUME_GAP_S", "600") or 600)  # S3
 FRESH_S = float(os.environ.get("AKASHIC_WORKLIVE_FRESH_S", "45") or 45)
 
 
-def _connect():
+def _connect() -> Any:
+    # Any: a redis client, or None when unreachable; every caller here uses it inside an
+    # except-Exception block (or after a keys() call that would already have raised).
     from core.comm.bus import _connect as bus_connect
 
     return bus_connect()
@@ -100,7 +102,7 @@ def _head_code_sha() -> str:
     return _HEAD_SHA or ""
 
 
-def code_state(stamped: str) -> str:
+def code_state(stamped: str | None) -> str:
     """current | stale | unknown. UNKNOWN IS NOT STALE (P6): a seat with no stamp is an
     older build or a foreign runner, and absence of evidence gets its own word rather
     than an accusation. Crying wolf here would land on a fleet that has already spent a
@@ -120,7 +122,7 @@ def _seen_key(ns: str, agent: str, sid8: str) -> str:
 
 def heartbeat(
     ns: str, agent: str, session_id: str, *, phase: str = "idle", client=None, _beat_ts: float | None = None
-) -> bool:
+) -> dict[str, Any]:
     """Beat this seat's liveness. Monotonic (P5): an older beat_ts never overwrites a
     fresher one. The key stays sid8-sized, while the value retains the full session id
     so T086 tombstones remain reachable. `_beat_ts` is injectable for pins only.

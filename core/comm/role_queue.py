@@ -58,7 +58,9 @@ from dataclasses import dataclass, field
 from typing import Any
 
 
-def _connect():
+def _connect() -> Any:
+    # Any: a redis client, or None when Redis is unreachable (callers here do not check;
+    # a down Redis surfaces as AttributeError, caught or not exactly as before).
     from core.comm.bus import _connect as bus_connect
 
     return bus_connect()
@@ -182,7 +184,8 @@ def _drop_stale(client, ns: str, agent: str, msg_id: str, fields: dict[str, Any]
     try:
         from core.events.event_log import capture_event
 
-        capture_event("role_stale_drop", {"agent": agent, "msg_id": msg_id, "kind": str(fields.get("kind", ""))})
+        rec = {"agent": agent, "msg_id": msg_id, "kind": str(fields.get("kind", ""))}
+        capture_event("role_stale_drop", str(rec))  # summary is str()-clipped anyway
     except Exception:
         pass
 

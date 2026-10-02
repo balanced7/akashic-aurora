@@ -276,7 +276,7 @@ def ratify(*, nominee: str, callsign: str, by: str) -> dict[str, Any]:
     if draft is None:
         # Distinguish "never nominated at all" from "nominated under a different name" -- a
         # refusal that names the open drafts saves the ratifier a lookup (review point 4).
-        open_drafts = sorted({r.get("callsign") for r in records if r.get("state") == NOMINATED and r.get("callsign")})
+        open_drafts = sorted({c for r in records if r.get("state") == NOMINATED and (c := r.get("callsign"))})
         hint = f" Open draft(s) for '{nominee}': {', '.join(open_drafts)}." if open_drafts else ""
         raise ValueError(
             f"refused: '{callsign}' was never nominated for '{nominee}'. Ratification confirms "
@@ -524,7 +524,7 @@ def team_members(team: str) -> list[str]:
     return sorted(out)
 
 
-def catchup_pack(agent_id: str, topic: str, k: int = 6):
+def catchup_pack(agent_id: str, topic: str, k: int = 6) -> tuple[str, dict[str, Any]]:
     """The T261 catch-up: what THIS resident already knows that bears on `topic`.
 
     Returns (text_block, meta) -- the identity block plus up to `k` of the resident's OWN

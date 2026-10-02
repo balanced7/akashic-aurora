@@ -37,7 +37,7 @@ import os
 import re
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from core.outcome import BoundaryOutcome
 
@@ -1264,10 +1264,11 @@ def ask_many(
     workers = max(1, min(int(max_workers or DEFAULT_FAN_WORKERS), len(prompts)))
     client, why = _fan_client(client, model)
     if client is None:
-        return BoundaryOutcome.failed(why, n=len(prompts), n_ok=0, branches=[])
+        # _fan_client pairs a None client with a str reason
+        return BoundaryOutcome.failed(cast("str", why), n=len(prompts), n_ok=0, branches=[])
 
     t0 = time.time()
-    results = [None] * len(prompts)
+    results: list[BoundaryOutcome | None] = [None] * len(prompts)
 
     # T216, found while playing: --with was accepted on the fan path and SILENTLY did
     # nothing, because with_files was threaded into the single-ask call and never here.
@@ -1335,7 +1336,8 @@ def ask_many(
 
     branches, total_usd, priced_all = [], 0.0, True
     n_ok = n_partial = 0
-    for i, o in enumerate(results):
+    for i, slot in enumerate(results):
+        o = cast("BoundaryOutcome", slot)  # as_completed() above filled every slot
         d = o.detail or {}
         usd = d.get("usd")
         if usd is None:

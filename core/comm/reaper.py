@@ -43,7 +43,9 @@ REHOME_MARK_TTL_S = 7 * 86400
 REHOME_CLAIM_TTL_S = 30
 
 
-def _connect():
+def _connect() -> Any:
+    # Any: a redis client, or None when Redis is unreachable (callers here do not check;
+    # a down Redis surfaces as AttributeError, caught or not exactly as before).
     from core.comm.bus import _connect as bus_connect
 
     return bus_connect()
@@ -288,7 +290,7 @@ def reap(
                 try:
                     from core.events.event_log import capture_event
 
-                    capture_event("seat_rehome", rec)
+                    capture_event("seat_rehome", str(rec))  # summary is str()-clipped anyway
                 except Exception:
                     pass
         if safe_cursor != reaped_to:
