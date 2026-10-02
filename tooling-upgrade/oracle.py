@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# pyright: strict
 """Behavioural oracle for the 2026-10 Python tooling upgrade (plan section 11). Stdlib only.
 
 "No functionality lost" is made measurable here: a snapshot records what the repo DOES through
@@ -42,6 +43,10 @@ import tomllib
 import warnings
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from typing import IO, TYPE_CHECKING, Any, cast
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Collection, Generator, Iterable, Sequence
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
@@ -115,7 +120,14 @@ _SAFE_TOPLEVEL_CALLS = re.compile(
 # ----------------------------------------------------------------------------- small helpers
 
 
-def run(cmd, cwd=ROOT, env=None, timeout=None, check=False, capture=True):
+def run(
+    cmd: Sequence[object],
+    cwd: Path | str = ROOT,
+    env: dict[str, str] | None = None,
+    timeout: float | None = None,
+    check: bool = False,  # noqa: FBT001, RUF100  # positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only
+    capture: bool = True,  # noqa: FBT001, RUF100  # positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only
+) -> subprocess.CompletedProcess[str]:
     r = subprocess.run(
         [str(c) for c in cmd],
         cwd=str(cwd),
@@ -134,7 +146,13 @@ def run(cmd, cwd=ROOT, env=None, timeout=None, check=False, capture=True):
     return r
 
 
-def run_logged(cmd, log: Path, cwd=ROOT, env=None, timeout=None):
+def run_logged(
+    cmd: Sequence[object],
+    log: Path,
+    cwd: Path | str = ROOT,
+    env: dict[str, str] | None = None,
+    timeout: float | None = None,
+) -> subprocess.CompletedProcess[str]:
     """run() for long steps: output goes to `log` AS IT IS PRODUCED (stdout+stderr merged), so
     the log's tail shows a suite moving -- a stuck run and a slow one are told apart by watching
     it grow. Returns a CompletedProcess whose stdout is the whole log."""
@@ -152,14 +170,14 @@ def run_logged(cmd, log: Path, cwd=ROOT, env=None, timeout=None):
             raise
     text = log.read_text(encoding="utf-8", errors="replace")
     progress("step finished: exit {:d}, {:d} log lines".format(rc, text.count("\n")))
-    return subprocess.CompletedProcess(cmd, rc, text, "")
+    return subprocess.CompletedProcess(cast("list[str]", cmd), rc, text, "")
 
 
 def progress(msg: str) -> None:
     print("[{}] {}".format(time.strftime("%H:%M:%S"), msg), flush=True)
 
 
-def git(*args, cwd=ROOT, check=True):
+def git(*args: object, cwd: Path | str = ROOT, check: bool = True) -> str:
     return run(["git", *args], cwd=cwd, check=check).stdout
 
 
@@ -171,14 +189,14 @@ def sha256_file(p: Path) -> str:
     return sha256_bytes(Path(p).read_bytes())
 
 
-def dump_json(path: Path, obj) -> None:
+def dump_json(path: Path, obj: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
         json.dumps(obj, indent=1, sort_keys=True, ensure_ascii=False) + "\n", encoding="utf-8", newline="\n"
     )
 
 
-def load_json(path: Path):
+def load_json(path: Path) -> Any:
     return json.loads(Path(path).read_text(encoding="utf-8"))
 
 
@@ -187,7 +205,7 @@ def venv_python(tree: Path) -> Path:
     return win if win.exists() else tree / ".venv" / "bin" / "python"
 
 
-def oracle_env(extra=None) -> dict:
+def oracle_env(extra: dict[str, str] | None = None) -> dict[str, str]:
     """The one environment every probe runs in: the caller's, scrubbed of anything that would
     make a run depend on who launched it, plus REDIS_DB=15 and a fixed terminal size."""
     env = {
@@ -217,7 +235,7 @@ def normalize_text(s: str, tree: Path | None = None) -> str:
     return "\n".join(lines)
 
 
-def tracked_files(cwd=ROOT, ref=None):
+def tracked_files(cwd: Path | str = ROOT, ref: str | None = None) -> list[str]:
     out = git("ls-tree", "-r", "-z", "--name-only", ref, cwd=cwd) if ref else git("ls-files", "-z", cwd=cwd)
     return sorted(p for p in out.split("\0") if p)
 
@@ -226,12 +244,12 @@ def g0_base() -> str:
     return G0_BASE_FILE.read_text(encoding="utf-8").strip()
 
 
-def relevant_digest(commit: str, cwd=ROOT) -> str:
+def relevant_digest(commit: str, cwd: Path | str = ROOT) -> str:
     """Digest of everything that can change behaviour at `commit`: every tracked blob except the
     oracle's own bookkeeping (non-.py files under tooling-upgrade/). A suite record or snapshot is
     current for HEAD iff its digest equals HEAD's."""
     out = git("ls-tree", "-r", commit, cwd=cwd)
-    keep = []
+    keep: list[str] = []
     for line in out.splitlines():
         meta, path = line.split("\t", 1)
         if path.startswith("tooling-upgrade/") and not path.endswith(".py"):
@@ -243,7 +261,7 @@ def relevant_digest(commit: str, cwd=ROOT) -> str:
 # ----------------------------------------------------------------------------- source analysis
 
 
-def parse_file(path: Path):
+def parse_file(path: Path) -> ast.Module | None:
     try:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")  # invalid escapes in archived code are not ours to fix
@@ -252,7 +270,7 @@ def parse_file(path: Path):
         return None
 
 
-def dotted_name(rel: str):
+def dotted_name(rel: str) -> str | None:
     """'core/foo/bar.py' -> 'core.foo.bar'; '__init__' collapses; None if not identifier-safe."""
     parts = rel[:-3].split("/")
     if parts[-1] == "__init__":
@@ -266,7 +284,7 @@ def is_history(rel: str) -> bool:
     return rel.startswith(HISTORY_TREES)
 
 
-def has_main_guard(tree) -> bool:
+def has_main_guard(tree: ast.Module | None) -> bool:
     for node in tree.body if tree else ():
         if isinstance(node, ast.If):
             t = ast.unparse(node.test).replace("'", '"')
@@ -275,7 +293,7 @@ def has_main_guard(tree) -> bool:
     return False
 
 
-def uses_argparse(tree) -> bool:
+def uses_argparse(tree: ast.Module | None) -> bool:
     for node in ast.walk(tree) if tree else ():
         if isinstance(node, ast.Import) and any(a.name == "argparse" for a in node.names):
             return True
@@ -284,7 +302,7 @@ def uses_argparse(tree) -> bool:
     return False
 
 
-def import_safe(tree) -> tuple[bool, str]:
+def import_safe(tree: ast.Module | None) -> tuple[bool, str]:
     """Can importing this module run it? A top-level call that is not a known-benign set-up call
     (sys.path, warnings, logging) means the import IS the run -- the oracle never does that."""
     if tree is None:
@@ -306,11 +324,11 @@ def import_safe(tree) -> tuple[bool, str]:
     return True, ""
 
 
-def top_level_bindings(tree, include_imports=False) -> set[str]:
+def top_level_bindings(tree: ast.Module | None, include_imports: bool = False) -> set[str]:  # noqa: FBT001, RUF100  # positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only
     """Names bound at module top level (walking into if/try/with, never into defs)."""
     names: set[str] = set()
 
-    def targets(t):
+    def targets(t: ast.expr) -> None:
         if isinstance(t, ast.Name):
             names.add(t.id)
         elif isinstance(t, (ast.Tuple, ast.List)):
@@ -319,7 +337,7 @@ def top_level_bindings(tree, include_imports=False) -> set[str]:
         elif isinstance(t, ast.Starred):
             targets(t.value)
 
-    def visit(body):
+    def visit(body: list[ast.stmt]) -> None:
         for node in body:
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
                 names.add(node.name)
@@ -335,7 +353,7 @@ def top_level_bindings(tree, include_imports=False) -> set[str]:
             elif isinstance(node, ast.If):
                 visit(node.body)
                 visit(node.orelse)
-            elif isinstance(node, ast.Try) or type(node).__name__ == "TryStar":
+            elif isinstance(node, (ast.Try, ast.TryStar)):
                 visit(node.body)
                 for h in node.handlers:
                     visit(h.body)
@@ -348,26 +366,27 @@ def top_level_bindings(tree, include_imports=False) -> set[str]:
     return names
 
 
-def static_all(tree):
+def static_all(tree: ast.Module | None) -> list[Any] | None:
     for node in tree.body if tree else ():
         if isinstance(node, (ast.Assign, ast.AnnAssign)):
             tgts = node.targets if isinstance(node, ast.Assign) else [node.target]
             if any(isinstance(t, ast.Name) and t.id == "__all__" for t in tgts):
                 try:
-                    return sorted(set(ast.literal_eval(node.value)))
+                    # a bare annotation (value None) raises ValueError here, so None below
+                    return sorted(set(ast.literal_eval(cast("ast.expr", node.value))))
                 except Exception:
                     return None
     return None
 
 
-def static_signatures(tree) -> dict:
-    sigs = {}
+def static_signatures(tree: ast.Module | None) -> dict[str, dict[str, str]]:
+    sigs: dict[str, dict[str, str]] = {}
     for node in tree.body if tree else ():
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and not node.name.startswith("_"):
             full = f"({ast.unparse(node.args)})"
             if node.returns is not None:
                 full += " -> " + ast.unparse(node.returns)
-            bare_args = ast.parse(f"def f({ast.unparse(node.args)}): pass").body[0].args
+            bare_args = cast("ast.FunctionDef", ast.parse(f"def f({ast.unparse(node.args)}): pass").body[0]).args
             for a in bare_args.posonlyargs + bare_args.args + bare_args.kwonlyargs:
                 a.annotation = None
             for a in (bare_args.vararg, bare_args.kwarg):
@@ -389,8 +408,8 @@ ANNOTATION_TRIGGERS = {
 }
 
 
-def annotation_triggers(tree) -> list[str]:
-    found = set()
+def annotation_triggers(tree: ast.Module | None) -> list[str]:
+    found: set[str] = set()
     for node in ast.walk(tree) if tree else ():
         if isinstance(node, ast.Name) and node.id in ANNOTATION_TRIGGERS:
             found.add(ANNOTATION_TRIGGERS[node.id])
@@ -421,19 +440,19 @@ class RepoGraph:
     def __init__(self, tree_root: Path, files: list[str]):
         self.root = tree_root
         self.files = [f for f in files if f.endswith(".py")]
-        self.asts = {f: parse_file(tree_root / f) for f in self.files}
-        self.by_dotted = {}
+        self.asts: dict[str, ast.Module | None] = {f: parse_file(tree_root / f) for f in self.files}
+        self.by_dotted: dict[str, str] = {}
         for f in self.files:
             d = dotted_name(f)
             if d:
                 self.by_dotted.setdefault(d, f)
-        self.edges = {f: set() for f in self.files}  # importer -> imported files
-        self.ext_names = {}  # file -> names others take from it
+        self.edges: dict[str, set[str]] = {f: set() for f in self.files}  # importer -> imported files
+        self.ext_names: dict[str, set[str]] = {}  # file -> names others take from it
         for f in self.files:
             self._scan(f)
 
     def _resolve(self, importer: str, dotted: str) -> list[str]:
-        hits = []
+        hits: list[str] = []
         parts = dotted.split(".")
         for i in range(1, len(parts) + 1):
             f = self.by_dotted.get(".".join(parts[:i]))
@@ -452,7 +471,7 @@ class RepoGraph:
         if tree is None:
             return
         pkg = f[:-3].split("/")[:-1]  # the importer's package (for __init__.py: its own dir)
-        aliases = {}
+        aliases: dict[str, str] = {}
         for node in ast.walk(tree):
             if isinstance(node, ast.Import):
                 for a in node.names:
@@ -497,8 +516,8 @@ class RepoGraph:
                     if hits and not node.attr.startswith("_"):
                         self.ext_names.setdefault(hits[-1], set()).add(node.attr)
 
-    def reverse(self) -> dict:
-        rev = {f: set() for f in self.files}
+    def reverse(self) -> dict[str, set[str]]:
+        rev: dict[str, set[str]] = {f: set() for f in self.files}
         for src, dsts in self.edges.items():
             for d in dsts:
                 rev.setdefault(d, set()).add(src)
@@ -511,9 +530,9 @@ _PATH_TOKEN = re.compile(r"[A-Za-z0-9_./\\-]+\.py\b")
 _DOTTED_TOKEN = re.compile(r"\b[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)+\b")
 
 
-def _text_tokens(tree_root: Path, files: list[str]):
+def _text_tokens(tree_root: Path, files: list[str]) -> dict[str, tuple[set[str], set[str]]]:
     """Per non-.py-or-.py tracked text file: the .py path tokens and dotted tokens it contains."""
-    out = {}
+    out: dict[str, tuple[set[str], set[str]]] = {}
     for f in files:
         p = tree_root / f
         try:
@@ -526,7 +545,7 @@ def _text_tokens(tree_root: Path, files: list[str]):
             t.replace("\\", "/").lstrip("./") if not t.startswith("../") else t.replace("\\", "/")
             for t in _PATH_TOKEN.findall(text)
         }
-        dotted = (
+        dotted: set[str] = (
             set(_DOTTED_TOKEN.findall(text))
             if f.endswith(
                 (".py", ".json", ".toml", ".yml", ".yaml", ".md", ".sh", ".ps1", ".cmd", ".bat", ".txt", ".cfg", ".ini")
@@ -538,7 +557,7 @@ def _text_tokens(tree_root: Path, files: list[str]):
     return out
 
 
-def _referenced(cand: str, paths: set, unique_base: set) -> bool:
+def _referenced(cand: str, paths: set[str], unique_base: set[str]) -> bool:
     base = cand.rsplit("/", 1)[-1]
     for t in paths:
         t2 = t.split("../")[-1]
@@ -561,12 +580,12 @@ def classify(rel: str) -> str:
     return "SCRIPT"
 
 
-def build_inventory(tree_root: Path = ROOT) -> dict:
+def build_inventory(tree_root: Path = ROOT) -> dict[str, Any]:
     files = tracked_files(tree_root)
     pys = [f for f in files if f.endswith(".py")]
     graph = RepoGraph(tree_root, pys)
     tokens = _text_tokens(tree_root, files)
-    basenames = {}
+    basenames: dict[str, list[str]] = {}
     for f in pys:
         basenames.setdefault(f.rsplit("/", 1)[-1], []).append(f)
     unique_base = {b for b, fs in basenames.items() if len(fs) == 1}
@@ -576,7 +595,7 @@ def build_inventory(tree_root: Path = ROOT) -> dict:
     # references count as non-archival evidence against the others.
     archival = set(candidates)
     rev = graph.reverse()
-    proofs = {}
+    proofs: dict[str, dict[str, Any]] = {}
     changed = True
     while changed:
         changed = False
@@ -590,7 +609,7 @@ def build_inventory(tree_root: Path = ROOT) -> dict:
         ]
         for c in sorted(archival):
             importers = sorted(i for i in rev.get(c, ()) if i not in archival)
-            refs = []
+            refs: list[str] = []
             dotted = dotted_name(c)
             for f in nonarch_files:
                 if f == c or f not in tokens:
@@ -608,11 +627,11 @@ def build_inventory(tree_root: Path = ROOT) -> dict:
                 archival.discard(c)
                 changed = True
 
-    entries = {}
+    entries: dict[str, dict[str, Any]] = {}
     for f in pys:
         tree = graph.asts[f]
         if f in archival:
-            e = {"class": "ARCHIVAL", "proof": proofs[f]}
+            e: dict[str, Any] = {"class": "ARCHIVAL", "proof": proofs[f]}
         else:
             e = {"class": classify(f)}
             if f in proofs:
@@ -640,10 +659,10 @@ def build_inventory(tree_root: Path = ROOT) -> dict:
     sensitive = sorted(f for f in in_scope if entries[f].get("annotation_triggers") and entries[f]["class"] != "TEST")
     req_consumers = sorted(
         f
-        for f, (paths, _) in tokens.items()
+        for f, (_paths, _) in tokens.items()
         if not is_history(f) and not f.startswith("tooling-upgrade/") and _mentions_requirements(tree_root / f)
     )
-    counts = {}
+    counts: dict[str, int] = {}
     for e in entries.values():
         counts[e["class"]] = counts.get(e["class"], 0) + 1
     return {
@@ -688,10 +707,10 @@ def _mentions_requirements(p: Path) -> bool:
     return bool(re.search(r"requirements(\.txt|/[\w.-]+\.txt)", t))
 
 
-def _archival_dirs(archival: set, pys: list[str]) -> list[str]:
+def _archival_dirs(archival: set[str], pys: list[str]) -> list[str]:
     """Smallest set of history-tree directories whose .py files are ALL archival (the only
     excludes T2 allows), plus single files where a directory also holds in-scope files."""
-    out = []
+    out: list[str] = []
     for h in HISTORY_TREES:
         in_tree = [f for f in pys if f.startswith(h)]
         if in_tree and all(f in archival for f in in_tree):
@@ -701,7 +720,7 @@ def _archival_dirs(archival: set, pys: list[str]) -> list[str]:
     return sorted(out)
 
 
-def _project_scripts(tree_root: Path) -> dict:
+def _project_scripts(tree_root: Path) -> dict[str, Any]:
     try:
         data = tomllib.loads((tree_root / "pyproject.toml").read_text(encoding="utf-8"))
     except (OSError, tomllib.TOMLDecodeError):
@@ -709,8 +728,8 @@ def _project_scripts(tree_root: Path) -> dict:
     return data.get("project", {}).get("scripts", {})
 
 
-def _platform_claims(tree_root: Path) -> list:
-    claims = []
+def _platform_claims(tree_root: Path) -> list[dict[str, Any]]:
+    claims: list[dict[str, Any]] = []
     for doc in ("README.md", "CONTRIBUTING.md", "AGENTS.md", "docs/DEPLOY.md"):
         p = tree_root / doc
         if not p.exists():
@@ -721,8 +740,8 @@ def _platform_claims(tree_root: Path) -> list:
     return claims
 
 
-def _tooling_facts(tree_root: Path) -> dict:
-    facts = {
+def _tooling_facts(tree_root: Path) -> dict[str, Any]:
+    facts: dict[str, Any] = {
         "config_files": sorted(
             f
             for f in tracked_files(tree_root)
@@ -770,7 +789,7 @@ def _tooling_facts(tree_root: Path) -> dict:
     return facts
 
 
-def cmd_inventory(args) -> int:
+def cmd_inventory(args: argparse.Namespace) -> int:
     inv = build_inventory(ROOT)
     if args.check:
         old = load_json(INVENTORY)
@@ -799,12 +818,12 @@ def cmd_inventory(args) -> int:
     return 0
 
 
-def verify_proofs(inv: dict) -> int:
-    bad = []
+def verify_proofs(inv: dict[str, Any]) -> int:
+    bad: list[str] = []
     for f, e in inv["files"].items():
         if e["class"] != "ARCHIVAL":
             continue
-        p = e.get("proof") or {}
+        p: dict[str, Any] = e.get("proof") or {}
         if (
             not f.startswith(HISTORY_TREES)
             or p.get("history_tree") is None
@@ -823,7 +842,7 @@ def verify_proofs(inv: dict) -> int:
 
 
 def _rmtree(path: Path) -> None:
-    def onerror(func, p, _exc):
+    def onerror(func: Callable[[str], object], p: str, _exc: object) -> None:
         with contextlib.suppress(OSError):
             os.chmod(p, 0o700)
             func(p)
@@ -843,7 +862,7 @@ def verify_checkout(tree: Path) -> None:
 
 
 @contextlib.contextmanager
-def scratch_tree(ref: str, prefix: str = "aurora-scratch-"):
+def scratch_tree(ref: str, prefix: str = "aurora-scratch-") -> Generator[Path, None, None]:
     """Like run_tree, at a random path: for work that never compares help text (measurements),
     so it can run while a snapshot holds the fixed path."""
     base = Path(tempfile.mkdtemp(prefix=prefix))
@@ -857,7 +876,7 @@ def scratch_tree(ref: str, prefix: str = "aurora-scratch-"):
         git("worktree", "prune", check=False)
 
 
-def _owner_alive(o: dict) -> bool:
+def _owner_alive(o: dict[str, Any]) -> bool:
     """Is the process that owns the fixed run tree still alive? POSIX: signal 0. Windows has no
     harmless probe in the stdlib (os.kill terminates there), so a tree younger than the longest
     snapshot (6 h) counts as owned."""
@@ -871,7 +890,7 @@ def _owner_alive(o: dict) -> bool:
 
 
 @contextlib.contextmanager
-def run_tree(ref: str, python: str | None = None):
+def run_tree(ref: str, python: str | None = None) -> Generator[Path, None, None]:
     """A detached throwaway worktree of `ref` with its own frozen venv. Removed afterwards by
     deleting the directory and pruning (never a forced git operation).
 
@@ -910,7 +929,7 @@ def run_tree(ref: str, python: str | None = None):
         git("worktree", "prune", check=False)
 
 
-def git_status_set(tree: Path) -> set:
+def git_status_set(tree: Path) -> set[str]:
     out = run(["git", "status", "--porcelain", "--untracked-files=all"], cwd=tree).stdout
     return set(out.splitlines())
 
@@ -918,7 +937,7 @@ def git_status_set(tree: Path) -> set:
 # ----------------------------------------------------------------------------- O1 test outcomes
 
 
-def _final_outcome(rec: dict) -> str:
+def _final_outcome(rec: dict[str, Any]) -> str:
     if rec.get("setup") == "failed" or rec.get("teardown") == "failed":
         return "error"
     if rec.get("setup") == "skipped":
@@ -926,7 +945,9 @@ def _final_outcome(rec: dict) -> str:
     return rec.get("call") or rec.get("setup") or "unknown"
 
 
-def _pytest(tree: Path, args, out_json: Path, timeout, log: Path | None = None):
+def _pytest(
+    tree: Path, args: Sequence[object], out_json: Path, timeout: float | None, log: Path | None = None
+) -> tuple[subprocess.CompletedProcess[str], dict[str, Any]]:
     env = oracle_env({"PYTHONPATH": str(PLUGIN_DIR), "AURORA_ORACLE_OUT": str(out_json)})
     cmd = [venv_python(tree), "-m", "pytest", *args, "-p", "aurora_oracle_plugin"]
     t0 = time.time()
@@ -935,15 +956,16 @@ def _pytest(tree: Path, args, out_json: Path, timeout, log: Path | None = None):
         if log
         else run(cmd, cwd=tree, env=env, timeout=timeout)
     )
-    data = (
+    data: dict[str, Any] = (
         load_json(out_json) if out_json.exists() else {"results": {}, "collect_errors": [], "exitstatus": r.returncode}
     )
     data["duration_s"] = round(time.time() - t0, 1)
     return r, data
 
 
-def suite_runs(tree: Path, raw: Path, runs: int, reruns: int, select=()) -> dict:
-    run_data, side_effects = [], []
+def suite_runs(tree: Path, raw: Path, runs: int, reruns: int, select: Sequence[str] = ()) -> dict[str, Any]:
+    run_data: list[dict[str, Any]] = []
+    side_effects: list[list[str]] = []
     for i in range(1, runs + 1):
         out = raw / (f"O1-run{i:d}.json")
         before = git_status_set(tree)
@@ -966,7 +988,7 @@ def suite_runs(tree: Path, raw: Path, runs: int, reruns: int, select=()) -> dict
         run_data.append(data)
         # what the suite does to the checkout it runs in (informational; never compared)
         side_effects.append(sorted(x[3:] for x in git_status_set(tree) - before))
-    tests = {}
+    tests: dict[str, dict[str, Any]] = {}
     for i, data in enumerate(run_data):
         for nid, rec in data["results"].items():
             tests.setdefault(nid, {"outcomes": [None] * runs})["outcomes"][i] = _final_outcome(rec)
@@ -978,12 +1000,13 @@ def suite_runs(tree: Path, raw: Path, runs: int, reruns: int, select=()) -> dict
         t = tests[nid]
         if k % 10 == 0:
             progress(f"  rerun {k + 1:d}/{len(todo):d}")
-        t["reruns"] = []
+        rerun_outcomes: list[str] = []
+        t["reruns"] = rerun_outcomes
         for k in range(reruns):
             out = raw / "rerun" / (f"{sha256_bytes(nid.encode())[:16]}-{k:d}.json")
             out.parent.mkdir(parents=True, exist_ok=True)
             _r, d = _pytest(tree, [nid, "-q", "-p", "no:cacheprovider", "-p", "no:randomly"], out, 600)
-            t["reruns"].append(_final_outcome(d["results"].get(nid, {})))
+            rerun_outcomes.append(_final_outcome(d["results"].get(nid, {})))
     for t in tests.values():
         t["class"] = o1_class(t["outcomes"])
     tests = {public_id(k): v for k, v in tests.items()}
@@ -1002,15 +1025,15 @@ def suite_runs(tree: Path, raw: Path, runs: int, reruns: int, select=()) -> dict
     }
 
 
-def _counts(data) -> dict:
-    c = {}
+def _counts(data: dict[str, Any]) -> dict[str, int]:
+    c: dict[str, int] = {}
     for rec in data["results"].values():
         o = _final_outcome(rec)
         c[o] = c.get(o, 0) + 1
     return dict(sorted(c.items()))
 
 
-def o1_class(outcomes) -> str:
+def o1_class(outcomes: Iterable[str | None]) -> str:
     seen = {o for o in outcomes if o is not None}
     if not seen:
         return "uncollected"
@@ -1025,7 +1048,7 @@ def o1_class(outcomes) -> str:
     return "flaky"
 
 
-def fails_reproducibly(t: dict) -> bool:
+def fails_reproducibly(t: dict[str, Any]) -> bool:
     return (
         any(o in ("failed", "error") for o in t["outcomes"])
         and len(t.get("reruns", [])) >= 2
@@ -1033,7 +1056,7 @@ def fails_reproducibly(t: dict) -> bool:
     )
 
 
-def o1_ran(run) -> int:
+def o1_ran(run: dict[str, Any]) -> int:
     c = run["counts"]
     return c.get("passed", 0) + c.get("failed", 0) + c.get("error", 0)
 
@@ -1053,9 +1076,9 @@ def id_base(nid: str) -> str:
     return nid.split("[", 1)[0]
 
 
-def _per_run(s) -> list:
+def _per_run(s: dict[str, Any]) -> list[dict[str, dict[str, Any]]]:
     """[{base: {id: outcome}}] for each run."""
-    out = [{} for _ in s["runs"]]
+    out: list[dict[str, dict[str, Any]]] = [{} for _ in s["runs"]]
     for nid, t in s["tests"].items():
         for i, o in enumerate(t["outcomes"]):
             if o is not None and i < len(out):
@@ -1063,22 +1086,24 @@ def _per_run(s) -> list:
     return out
 
 
-def volatile_bases(s) -> set:
+def volatile_bases(s: dict[str, Any]) -> set[str]:
     """Parametrized tests whose ids differ between runs of ONE snapshot (an id built from a
     timestamp or a fresh signature): they can only be compared by count, never by id."""
     runs = _per_run(s)
-    bases = set().union(*runs) if runs else set()
+    bases: set[str] = set[str]().union(*runs) if runs else set()
     return {b for b in bases if len({frozenset(r.get(b, {})) for r in runs}) > 1}
 
 
-def compare_o1(a, b, partial=False) -> list:
-    diffs = []
+def compare_o1(a: dict[str, Any], b: dict[str, Any], partial: bool = False) -> list[tuple[str, str]]:  # noqa: FBT001, RUF100  # positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only
+    diffs: list[tuple[str, str]] = []
     volatile = volatile_bases(a) | volatile_bases(b)
     ra, rb = _per_run(a), _per_run(b)
     for base in sorted(volatile):
-        cnt = lambda runs, base=base: min((len(r.get(base, {})) for r in runs), default=0)  # noqa: E731  # local one-line key function
 
-        def ok(runs, base=base):
+        def cnt(runs: list[dict[str, dict[str, Any]]], base: str = base) -> int:
+            return min((len(r.get(base, {})) for r in runs), default=0)
+
+        def ok(runs: list[dict[str, dict[str, Any]]], base: str = base) -> int:
             return min(
                 (sum(o == "passed" for o in r.get(base, {}).values()) for r in runs),
                 default=0,
@@ -1096,19 +1121,28 @@ def compare_o1(a, b, partial=False) -> list:
             diffs.append(("id:" + nid, "no longer collected"))
         elif t["class"] == "stable-pass" and fails_reproducibly(nb):
             diffs.append(("regressed:" + nid, "stable-pass now fails reproducibly"))
-    skips = lambda s: max((r["counts"].get("skipped", 0) for r in s["runs"]), default=0)  # noqa: E731  # local one-line key function
+
+    def skips(s: dict[str, Any]) -> int:
+        return max((r["counts"].get("skipped", 0) for r in s["runs"]), default=0)
+
     if skips(b) > skips(a):
         diffs.append(("skips", f"skip count {skips(b):d} > baseline {skips(a):d}"))
-    cerr = lambda s: max((len(r["collect_errors"]) for r in s["runs"]), default=0)  # noqa: E731  # local one-line key function
+
+    def cerr(s: dict[str, Any]) -> int:
+        return max((len(r["collect_errors"]) for r in s["runs"]), default=0)
+
     if cerr(b) > cerr(a):
         diffs.append(("collect-errors", f"collection errors {cerr(b):d} > baseline {cerr(a):d}"))
-    ran = lambda s: min((o1_ran(r) for r in s["runs"]), default=0)  # noqa: E731  # local one-line key function
+
+    def ran(s: dict[str, Any]) -> int:
+        return min((o1_ran(r) for r in s["runs"]), default=0)
+
     if ran(b) < ran(a):
         diffs.append(("run-count", f"tests run {ran(b):d} < baseline {ran(a):d} (T7)"))
     return diffs
 
 
-def cmd_rekey_o1(args) -> int:
+def cmd_rekey_o1(args: argparse.Namespace) -> int:
     """Rewrite a stored O1.json's ids into public_id form (idempotent; no re-measurement)."""
     p = snapshot_dir(args.label) / "O1.json"
     data = load_json(p)
@@ -1143,9 +1177,9 @@ def ast_fingerprint(src: bytes) -> str:
     return ast.dump(tree, include_attributes=False)
 
 
-def ast_equal(parent: str, commit: str, cwd=ROOT):
+def ast_equal(parent: str, commit: str, cwd: Path | str = ROOT) -> list[tuple[str, bool, str]]:
     out = git("diff", "--name-status", "--no-renames", parent, commit, "--", "*.py", cwd=cwd)
-    results = []
+    results: list[tuple[str, bool, str]] = []
     for line in out.splitlines():
         status, path = line.split("\t", 1)
         if status != "M":
@@ -1161,7 +1195,7 @@ def ast_equal(parent: str, commit: str, cwd=ROOT):
     return results
 
 
-def cmd_ast_equal(args) -> int:
+def cmd_ast_equal(args: argparse.Namespace) -> int:
     res = ast_equal(args.parent, args.commit)
     for path, ok, why in res:
         print("{} {}{}".format("EQUAL" if ok else "DIFF ", path, (" (" + why + ")") if why else ""))
@@ -1170,7 +1204,7 @@ def cmd_ast_equal(args) -> int:
     return 0 if n_ok == len(res) else 1
 
 
-def format_commits(a_commit: str, b_commit: str, cwd=ROOT):
+def format_commits(a_commit: str | None, b_commit: str | None, cwd: Path | str = ROOT) -> list[str]:
     """Class-B commits between two snapshots: subject `style: ...` (not `style(lint): ...`)."""
     if not a_commit or not b_commit or a_commit == b_commit:
         return []
@@ -1243,7 +1277,7 @@ with open(out_path, "w", encoding="utf-8") as fh:
 """
 
 
-def optional_import_names(tree: Path) -> set:
+def optional_import_names(tree: Path) -> set[str]:
     """Import names of DECLARED optional dependencies: the pyproject dependency groups, the
     platform-marked dependencies, and what they pull in by name (torch) or the stdlib leaves
     out on some builds (tkinter). Any other missing module is an error, not an option."""
@@ -1252,7 +1286,7 @@ def optional_import_names(tree: Path) -> set:
         data = tomllib.loads((tree / "pyproject.toml").read_text(encoding="utf-8"))
     except (OSError, tomllib.TOMLDecodeError):
         return names
-    reqs = [r for g in data.get("dependency-groups", {}).values() for r in g if isinstance(r, str)]
+    reqs: list[str] = [r for g in data.get("dependency-groups", {}).values() for r in g if isinstance(r, str)]
     reqs += [r for r in data.get("project", {}).get("dependencies", []) if ";" in r]
     for r in reqs:
         dist = re.split(r"[\s<>=!~;\[]", r.strip(), maxsplit=1)[0]
@@ -1267,8 +1301,8 @@ def optional_import_names(tree: Path) -> set:
 # at top level (defs, classes, assignments); PLUS every name other in-repo code actually takes
 # from the module (`from m import x`, `m.x`) even when m only imported it -- the re-exports the
 # plan's F401 rule protects -- and, for package __init__ files, every imported name.
-def surface_targets(inv: dict, modules=None):
-    out = []
+def surface_targets(inv: dict[str, Any], modules: Collection[str] | None = None) -> list[tuple[str, dict[str, Any]]]:
+    out: list[tuple[str, dict[str, Any]]] = []
     for f in inv["in_scope"]:
         e = inv["files"][f]
         if e["class"] == "TEST":
@@ -1280,7 +1314,14 @@ def surface_targets(inv: dict, modules=None):
     return out
 
 
-def probe_modules(tree: Path, inv: dict, graph: RepoGraph, raw: Path, modules=None, python=None):
+def probe_modules(
+    tree: Path,
+    inv: dict[str, Any],
+    graph: RepoGraph,
+    raw: Path,
+    modules: Collection[str] | None = None,
+    python: Path | str | None = None,
+) -> tuple[dict[str, Any], dict[str, Any]]:
     """O3 + O5 together: one fresh interpreter per module, 20 s each, in parallel. `python`:
     an interpreter other than the tree's own venv (drill trees share the main one, plan 13)."""
     targets = surface_targets(inv, modules)
@@ -1291,7 +1332,9 @@ def probe_modules(tree: Path, inv: dict, graph: RepoGraph, raw: Path, modules=No
     work = raw / "probe"
     work.mkdir(parents=True, exist_ok=True)
 
-    def one(item):
+    def one(
+        item: tuple[str, dict[str, Any]],
+    ) -> tuple[str, str, dict[str, Any], dict[str, list[str]], ast.Module | None]:
         f, e = item
         key = e["module"] or f
         tree_ast = graph.asts.get(f)
@@ -1315,7 +1358,7 @@ def probe_modules(tree: Path, inv: dict, graph: RepoGraph, raw: Path, modules=No
                 env=oracle_env({"PYTHONHASHSEED": "0"}),
                 timeout=IMPORT_TIMEOUT_S,
             )
-            res = load_json(out_path) if out_path.exists() else {"status": "error:no-result"}
+            res: dict[str, Any] = load_json(out_path) if out_path.exists() else {"status": "error:no-result"}
         except subprocess.TimeoutExpired:
             res = {"status": "timeout"}
         return key, f, res, static, tree_ast
@@ -1323,7 +1366,8 @@ def probe_modules(tree: Path, inv: dict, graph: RepoGraph, raw: Path, modules=No
     progress(f"O3/O5 probing {len(targets):d} modules")
     with ThreadPoolExecutor(max_workers=min(12, (os.cpu_count() or 4))) as pool:
         results = list(pool.map(one, targets))
-    o3, o5 = {}, {}
+    o3: dict[str, dict[str, Any]] = {}
+    o5: dict[str, dict[str, Any]] = {}
     for key, f, res, static, tree_ast in sorted(results, key=lambda r: r[0]):
         o3[key] = {"file": f, "status": res["status"]}
         if res.get("detail"):
@@ -1337,8 +1381,8 @@ def probe_modules(tree: Path, inv: dict, graph: RepoGraph, raw: Path, modules=No
     return {"modules": o3}, {"modules": o5, "sensitive": sensitive}
 
 
-def compare_o3(a, b, partial=False) -> list:
-    diffs = []
+def compare_o3(a: dict[str, Any], b: dict[str, Any], partial: bool = False) -> list[tuple[str, str]]:  # noqa: FBT001, RUF100  # positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only
+    diffs: list[tuple[str, str]] = []
     for mod, r in sorted(a["modules"].items()):
         rb = b["modules"].get(mod)
         if rb is None:
@@ -1349,8 +1393,8 @@ def compare_o3(a, b, partial=False) -> list:
     return diffs
 
 
-def compare_o5(a, b, partial=False) -> list:
-    diffs = []
+def compare_o5(a: dict[str, Any], b: dict[str, Any], partial: bool = False) -> list[tuple[str, str]]:  # noqa: FBT001, RUF100  # positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only
+    diffs: list[tuple[str, str]] = []
     sensitive = set(a.get("sensitive", [])) | set(b.get("sensitive", []))
     for mod, s in sorted(a["modules"].items()):
         sb = b["modules"].get(mod)
@@ -1375,8 +1419,8 @@ def compare_o5(a, b, partial=False) -> list:
 # ----------------------------------------------------------------------------- O4 surfaces
 
 
-def add_parser_verbs(tree_ast) -> list:
-    verbs = set()
+def add_parser_verbs(tree_ast: ast.Module | None) -> list[str]:
+    verbs: set[str] = set()
     for node in ast.walk(tree_ast) if tree_ast else ():
         if (
             isinstance(node, ast.Call)
@@ -1407,7 +1451,7 @@ with open(out_path, "w", encoding="utf-8") as fh:
 """
 
 
-def mcp_server_script(tree: Path):
+def mcp_server_script(tree: Path) -> tuple[str, dict[str, Any], str | None]:
     cfg = json.loads((tree / ".mcp.json").read_text(encoding="utf-8"))
     name, server = sorted(cfg["mcpServers"].items())[0]
     args = server.get("args", [])
@@ -1415,7 +1459,7 @@ def mcp_server_script(tree: Path):
     return name, server, script
 
 
-def mcp_tools_inprocess(tree: Path, raw: Path):
+def mcp_tools_inprocess(tree: Path, raw: Path) -> Any:
     _name, _server, script = mcp_server_script(tree)
     probe = raw / "mcp_probe.py"
     probe.write_text(_MCP_PROBE, encoding="utf-8")
@@ -1426,11 +1470,11 @@ def mcp_tools_inprocess(tree: Path, raw: Path):
     return load_json(out)
 
 
-def mcp_tools_stdio(tree: Path, timeout=IMPORT_TIMEOUT_S):
+def mcp_tools_stdio(tree: Path, timeout: float = IMPORT_TIMEOUT_S) -> Any:
     """Fallback: launch the server as .mcp.json says (command `uv` -> the tree's venv python)
     and speak newline-delimited JSON-RPC: initialize, initialized, tools/list."""
     _name, server, script = mcp_server_script(tree)
-    cmd = (
+    cmd: list[Any] = (
         [str(venv_python(tree)), script]
         if server.get("command") == "uv"
         else [server["command"], *server.get("args", [])]
@@ -1460,12 +1504,14 @@ def mcp_tools_stdio(tree: Path, timeout=IMPORT_TIMEOUT_S):
         {"jsonrpc": "2.0", "id": 2, "method": "tools/list"},
     ]
     try:
-        p.stdin.write("".join(json.dumps(m) + "\n" for m in msgs))
-        p.stdin.flush()
+        stdin, stdout = cast("IO[str]", p.stdin), cast("IO[str]", p.stdout)  # both PIPE above
+        stdin.write("".join(json.dumps(m) + "\n" for m in msgs))
+        stdin.flush()
         deadline = time.time() + timeout
-        tools, cursor_msgs = None, 0
+        tools: Any = None
+        cursor_msgs = 0
         while time.time() < deadline:
-            line = p.stdout.readline()
+            line = stdout.readline()
             if not line:
                 break
             try:
@@ -1485,8 +1531,9 @@ def mcp_tools_stdio(tree: Path, timeout=IMPORT_TIMEOUT_S):
         p.wait(timeout=10)
 
 
-def surface_o4(tree: Path, inv: dict, graph: RepoGraph, raw: Path) -> dict:
-    helps, verbs = {}, {}
+def surface_o4(tree: Path, inv: dict[str, Any], graph: RepoGraph, raw: Path) -> dict[str, Any]:
+    helps: dict[str, dict[str, Any]] = {}
+    verbs: dict[str, list[str]] = {}
     before = git_status_set(tree)
     clis = inv["entry_points"]["argparse_cli"]
     for k, f in enumerate(clis):
@@ -1494,7 +1541,7 @@ def surface_o4(tree: Path, inv: dict, graph: RepoGraph, raw: Path) -> dict:
             progress(f"O4 --help {k + 1:d}/{len(clis):d}")
         try:
             r = run([venv_python(tree), f, "--help"], cwd=tree, env=oracle_env(), timeout=HELP_TIMEOUT_S)
-            item = {"rc": r.returncode, "text": normalize_text(r.stdout, tree)}
+            item: dict[str, Any] = {"rc": r.returncode, "text": normalize_text(r.stdout, tree)}
             if r.returncode != 0:
                 err = normalize_text(r.stderr, tree).splitlines()
                 item["stderr_last"] = err[-1] if err else ""
@@ -1528,8 +1575,8 @@ def surface_o4(tree: Path, inv: dict, graph: RepoGraph, raw: Path) -> dict:
     return {"help": helps, "verbs": verbs, "mcp": {"via": via, "tools": mcp}}
 
 
-def compare_o4(a, b, partial=False) -> list:
-    diffs = []
+def compare_o4(a: dict[str, Any], b: dict[str, Any], partial: bool = False) -> list[tuple[str, str]]:  # noqa: FBT001, RUF100  # positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only
+    diffs: list[tuple[str, str]] = []
     for f, h in sorted(a["help"].items()):
         hb = b["help"].get(f)
         if hb is None:
@@ -1555,8 +1602,8 @@ def compare_o4(a, b, partial=False) -> list:
 # ----------------------------------------------------------------------------- O6 guardrails
 
 
-def surface_o6(tree: Path, raw: Path, python=None) -> dict:
-    out = {}
+def surface_o6(tree: Path, raw: Path, python: Path | str | None = None) -> dict[str, Any]:
+    out: dict[str, dict[str, Any]] = {}
     for p in sorted((tree / "scripts" / "checkers").glob("*.py")):
         if p.name.startswith("_"):
             continue
@@ -1569,7 +1616,7 @@ def surface_o6(tree: Path, raw: Path, python=None) -> dict:
                 timeout=CHECKER_TIMEOUT_S,
             )
             text = normalize_text(r.stdout + r.stderr, tree)
-            item = {
+            item: dict[str, Any] = {
                 "rc": r.returncode,
                 "crashed": "Traceback (most recent call last)" in text,
                 "lines": len(text.splitlines()),
@@ -1584,8 +1631,8 @@ def surface_o6(tree: Path, raw: Path, python=None) -> dict:
     return {"checkers": out}
 
 
-def compare_o6(a, b, partial=False) -> list:
-    diffs = []
+def compare_o6(a: dict[str, Any], b: dict[str, Any], partial: bool = False) -> list[tuple[str, str]]:  # noqa: FBT001, RUF100  # positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only
+    diffs: list[tuple[str, str]] = []
     for name, r in sorted(a["checkers"].items()):
         rb = b["checkers"].get(name)
         if rb is None:
@@ -1603,12 +1650,12 @@ def compare_o6(a, b, partial=False) -> list:
 _HEADING = re.compile(r"^(#+ .*|=+ .* =+|[A-Za-z][\w /().,-]{0,60}:)$")
 
 
-def headings(text: str) -> list:
+def headings(text: str) -> list[str]:
     return sorted({re.sub(r"\d+", "9", ln) for ln in text.splitlines() if _HEADING.match(ln)})
 
 
-def surface_o7(tree: Path) -> dict:
-    out = {}
+def surface_o7(tree: Path) -> dict[str, Any]:
+    out: dict[str, dict[str, Any]] = {}
     for key, argv in sorted(DOC_COMMANDS.items()):
         try:
             r = run([venv_python(tree), *argv], cwd=tree, env=oracle_env(), timeout=120)
@@ -1619,8 +1666,8 @@ def surface_o7(tree: Path) -> dict:
     return {"commands": out}
 
 
-def compare_o7(a, b, partial=False) -> list:
-    diffs = []
+def compare_o7(a: dict[str, Any], b: dict[str, Any], partial: bool = False) -> list[tuple[str, str]]:  # noqa: FBT001, RUF100  # positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only
+    diffs: list[tuple[str, str]] = []
     for key, r in sorted(a["commands"].items()):
         rb = b["commands"].get(key)
         if rb is None:
@@ -1644,21 +1691,21 @@ def allowlisted(path: str) -> bool:
     )
 
 
-def surface_o8(commit: str, cwd=ROOT) -> dict:
+def surface_o8(commit: str, cwd: Path | str = ROOT) -> dict[str, Any]:
     base = g0_base()
     changed = git("diff", "--name-only", "--no-renames", base, commit, cwd=cwd).splitlines()
     non_py = sorted(p for p in changed if not p.endswith(".py"))
     return {"base": base, "changed_non_py": non_py, "violations": [p for p in non_py if not allowlisted(p)]}
 
 
-def compare_o8(a, b, partial=False) -> list:
+def compare_o8(a: dict[str, Any], b: dict[str, Any], partial: bool = False) -> list[tuple[str, str]]:  # noqa: FBT001, RUF100  # positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only
     return [("path:" + p, "non-Python file outside the tooling allowlist") for p in b["violations"]]
 
 
 # ----------------------------------------------------------------------------- O9 test strength
 
 
-def assertion_count(fn) -> int:
+def assertion_count(fn: ast.AST) -> int:
     n = 0
     for node in ast.walk(fn):
         if isinstance(node, ast.Assert):
@@ -1678,9 +1725,9 @@ def assertion_count(fn) -> int:
     return n
 
 
-def test_strength(tree_root: Path, files=None) -> dict:  # noqa: PT028  # not a pytest test: the O9 capture
+def test_strength(tree_root: Path, files: list[str] | None = None) -> dict[str, Any]:  # noqa: PT028  # not a pytest test: the O9 capture
     files = files or [f for f in tracked_files(tree_root) if f.startswith("tests/") and f.endswith(".py")]
-    out = {}
+    out: dict[str, int] = {}
     for f in files:
         tree = parse_file(tree_root / f)
         if tree is None:
@@ -1695,8 +1742,8 @@ def test_strength(tree_root: Path, files=None) -> dict:  # noqa: PT028  # not a 
     return {"tests": dict(sorted(out.items())), "total": sum(out.values())}
 
 
-def compare_o9(a, b, partial=False) -> list:
-    diffs = []
+def compare_o9(a: dict[str, Any], b: dict[str, Any], partial: bool = False) -> list[tuple[str, str]]:  # noqa: FBT001, RUF100  # positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only
+    diffs: list[tuple[str, str]] = []
     for k, n in sorted(a["tests"].items()):
         nb = b["tests"].get(k)
         if nb is None:
@@ -1711,7 +1758,7 @@ def compare_o9(a, b, partial=False) -> list:
 # ----------------------------------------------------------------------------- O10 coverage
 
 
-def surface_o10(tree: Path, raw: Path, select=()) -> dict:
+def surface_o10(tree: Path, raw: Path, select: Sequence[str] = ()) -> dict[str, Any]:
     data = raw / ".coverage"
     env = oracle_env()
     cmd = [
@@ -1758,7 +1805,7 @@ def surface_o10(tree: Path, raw: Path, select=()) -> dict:
         timeout=600,
     )
     files = load_json(js)["files"]
-    agg = {}
+    agg: dict[str, list[int]] = {}
     for path, d in files.items():
         rel = (
             Path(path).resolve().relative_to(tree.resolve()).as_posix()
@@ -1774,8 +1821,8 @@ def surface_o10(tree: Path, raw: Path, select=()) -> dict:
     return {"packages": pct, "suite_exitstatus": r.returncode, "coverage_version": COVERAGE_VERSION}
 
 
-def compare_o10(a, b, partial=False) -> list:
-    diffs = []
+def compare_o10(a: dict[str, Any], b: dict[str, Any], partial: bool = False) -> list[tuple[str, str]]:  # noqa: FBT001, RUF100  # positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only
+    diffs: list[tuple[str, str]] = []
     for pkg, p in sorted(a["packages"].items()):
         pb = b["packages"].get(pkg)
         if pb is None or pb < p - 0.5:
@@ -1791,11 +1838,11 @@ def snapshot(
     ref: str = "HEAD",
     runs: int = 3,
     reruns: int = 2,
-    components=None,
-    modules=None,
+    components: list[str] | None = None,
+    modules: Collection[str] | None = None,
     tree: Path | None = None,
-    mutate=None,
-    select=(),
+    mutate: Callable[[Path], object] | None = None,
+    select: Sequence[str] = (),
     python: str | None = None,
 ) -> Path:
     components = components or list(COMPONENTS)
@@ -1819,7 +1866,7 @@ def snapshot(
             "select": list(select),
         }
 
-        def put(comp, data):
+        def put(comp: str, data: dict[str, Any]) -> None:
             data["_meta"] = dict(common, partial_modules=sorted(modules) if modules else None)
             dump_json(dest / (comp + ".json"), data)
             progress(f"{comp} captured")
@@ -1853,7 +1900,7 @@ def snapshot(
         if "O1" in components:
             put("O1", suite_runs(t, raw, runs, reruns, select))
     meta_path = dest / "meta.json"
-    meta = load_json(meta_path) if meta_path.exists() else {}
+    meta: dict[str, Any] = load_json(meta_path) if meta_path.exists() else {}
     meta.update(
         {
             "label": label,
@@ -1894,12 +1941,12 @@ COMPARATORS = {
 }
 
 
-def load_intended() -> list:
+def load_intended() -> list[dict[str, Any]]:
     """INTENDED_CHANGES.md: one ```toml block per entry (id, component, key glob, reason)."""
     if not INTENDED.exists():
         return []
     text = INTENDED.read_text(encoding="utf-8")
-    out = []
+    out: list[dict[str, Any]] = []
     for block in re.findall(r"```toml\n(.*?)```", text, flags=re.S):
         entry = tomllib.loads(block)
         if {"id", "component", "key", "reason"} <= set(entry):
@@ -1907,16 +1954,23 @@ def load_intended() -> list:
     return out
 
 
-def compare_dirs(a: Path, b: Path, components=None, partial=False, intended=None):
+def compare_dirs(
+    a: Path,
+    b: Path,
+    components: Sequence[str] | None = None,
+    partial: bool = False,  # noqa: FBT001, RUF100  # positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only
+    intended: list[dict[str, Any]] | None = None,
+) -> tuple[list[str], bool]:
     intended = load_intended() if intended is None else intended
-    lines, equal = [], 0
+    lines: list[str] = []
+    equal = 0
     comps = components or list(COMPONENTS)
     for c in comps:
         if c == "O2":
-            ma = load_json(a / "meta.json") if (a / "meta.json").exists() else {}
-            mb = load_json(b / "meta.json") if (b / "meta.json").exists() else {}
+            ma: dict[str, Any] = load_json(a / "meta.json") if (a / "meta.json").exists() else {}
+            mb: dict[str, Any] = load_json(b / "meta.json") if (b / "meta.json").exists() else {}
             commits = format_commits(ma.get("commit"), mb.get("commit"))
-            bad = []
+            bad: list[str] = []
             for sha in commits:
                 bad += [p for p, ok, _ in ast_equal(sha + "^", sha) if not ok]
             if bad:
@@ -1956,7 +2010,7 @@ def snapshot_dir(label: str) -> Path:
     return SNAPSHOTS / ("head" if label == "HEAD" else label)
 
 
-def cmd_snapshot(args) -> int:
+def cmd_snapshot(args: argparse.Namespace) -> int:
     comps = args.components.split(",") if args.components else None
     mods = set(args.modules.split(",")) if args.modules else None
     sel = tuple(args.select.split(",")) if args.select else ()
@@ -1965,16 +2019,16 @@ def cmd_snapshot(args) -> int:
     return 0
 
 
-def cmd_compare(args) -> int:
+def cmd_compare(args: argparse.Namespace) -> int:
     comps = args.components.split(",") if args.components else None
     lines, ok = compare_dirs(snapshot_dir(args.a), snapshot_dir(args.b), comps, args.partial)
     print("\n".join(lines))
     return 0 if ok else 1
 
 
-def verify_snapshot(label: str, suite_runs: int) -> list:
+def verify_snapshot(label: str, suite_runs: int) -> list[str]:
     d = snapshot_dir(label)
-    problems = []
+    problems: list[str] = []
     if not (d / "meta.json").exists():
         return [f"no meta.json in {d}"]
     meta = load_json(d / "meta.json")
@@ -1999,7 +2053,7 @@ def verify_snapshot(label: str, suite_runs: int) -> list:
     return problems
 
 
-def cmd_verify_snapshot(args) -> int:
+def cmd_verify_snapshot(args: argparse.Namespace) -> int:
     problems = verify_snapshot(args.label, args.suite_runs)
     for p in problems:
         print("  ", p)
@@ -2010,12 +2064,12 @@ def cmd_verify_snapshot(args) -> int:
 # ----------------------------------------------------------------------------- impacted
 
 
-def impacted(commit: str) -> list:
+def impacted(commit: str) -> list[str]:
     changed = git("diff", "--name-only", commit + "^", commit, "--", "*.py").splitlines()
     return _impacted_tests(changed, [f for f in tracked_files() if f.endswith(".py")])
 
 
-def worktree_impacted() -> list:
+def worktree_impacted() -> list[str]:
     """The test-fast selection (G1.P6): the smoke set plus every test that imports, directly
     or transitively, a .py changed or added since HEAD (uncommitted and untracked files)."""
     changed = set(git("diff", "--name-only", "HEAD", "--", "*.py").split())
@@ -2025,10 +2079,11 @@ def worktree_impacted() -> list:
     return _impacted_tests(sorted(changed), pys)
 
 
-def _impacted_tests(changed, pys) -> list:
+def _impacted_tests(changed: Iterable[str], pys: list[str]) -> list[str]:
     graph = RepoGraph(ROOT, pys)
     rev = graph.reverse()
-    seen, stack = set(), [c for c in changed if c in graph.asts]
+    seen: set[str] = set()
+    stack = [c for c in changed if c in graph.asts]
     while stack:
         f = stack.pop()
         if f in seen:
@@ -2040,13 +2095,13 @@ def _impacted_tests(changed, pys) -> list:
     return sorted(tests)
 
 
-def cmd_impacted(args) -> int:
+def cmd_impacted(args: argparse.Namespace) -> int:
     for t in impacted(args.commit):
         print(t)
     return 0
 
 
-def cmd_test_fast(args) -> int:
+def cmd_test_fast(args: argparse.Namespace) -> int:
     """`poe test-fast`: the impacted selection (smoke set when nothing changed), REDIS_DB=15."""
     tests = worktree_impacted()
     progress("test-fast: {:d} test files: {}".format(len(tests), " ".join(tests)[:300]))
@@ -2059,7 +2114,7 @@ def cmd_test_fast(args) -> int:
     return r.returncode
 
 
-def cmd_guardrails(args) -> int:
+def cmd_guardrails(args: argparse.Namespace) -> int:
     """`poe guardrails`: every scripts/checkers/* run with its documented arguments (the one that
     needs a commit message and paths, check_reconciliation_gate, is run by scripts/ship.py per
     commit and recorded N/A here), each held to its g0 exit code: O6's rule, a checker may not
@@ -2086,7 +2141,7 @@ def cmd_guardrails(args) -> int:
 # ----------------------------------------------------------------------------- self-tests
 
 
-def _drop_function(tree: Path, inv: dict, base_o5: dict):
+def _drop_function(tree: Path, inv: dict[str, Any], base_o5: dict[str, Any]) -> tuple[str, str]:
     """Pick the first core module (sorted) whose baseline surface has a public top-level def
     that exists in source, and delete that def. Returns (module, function)."""
     for mod in sorted(base_o5["modules"]):
@@ -2110,13 +2165,13 @@ def _drop_function(tree: Path, inv: dict, base_o5: dict):
     raise RuntimeError("no core module with a removable public function")
 
 
-def cmd_selftest_d14(args) -> int:
+def cmd_selftest_d14(args: argparse.Namespace) -> int:
     base = snapshot_dir(args.baseline)
     base_o5 = load_json(base / "O5.json")
     inv = load_json(INVENTORY)
-    picked = {}
+    picked: dict[str, str] = {}
 
-    def mutate(tree):
+    def mutate(tree: Path) -> None:
         picked["mod"], picked["fn"] = _drop_function(tree, inv, base_o5)
         print("D14 self-test: removed {}.{} in a scratch worktree".format(picked["mod"], picked["fn"]))
 
@@ -2137,7 +2192,7 @@ def cmd_selftest_d14(args) -> int:
     return 0 if hit else 1
 
 
-def cmd_mcp_stdio(args) -> int:
+def cmd_mcp_stdio(args: argparse.Namespace) -> int:
     commit = git("rev-parse", "HEAD").strip()
     with scratch_tree(commit, "aurora-mcp-") as t:
         tools = mcp_tools_stdio(t)
@@ -2145,8 +2200,8 @@ def cmd_mcp_stdio(args) -> int:
     return 0 if tools else 1
 
 
-def imported_top_modules(path: Path) -> set:
-    tops = set()
+def imported_top_modules(path: Path) -> set[str]:
+    tops: set[str] = set()
     for node in ast.walk(ast.parse(path.read_bytes())):
         if isinstance(node, ast.Import):
             tops |= {a.name.split(".")[0] for a in node.names}
@@ -2155,8 +2210,8 @@ def imported_top_modules(path: Path) -> set:
     return tops
 
 
-def cmd_assert_stdlib(args) -> int:
-    bad = []
+def cmd_assert_stdlib(args: argparse.Namespace) -> int:
+    bad: list[str] = []
     for name in ("oracle.py", "certify.py"):
         p = HERE / name
         if not p.exists():
@@ -2207,11 +2262,11 @@ TARGET_IGNORE = ["E501", "ISC001", "Q000", "Q001", "Q002", "Q003", "COM812"]
 STRETCH = ["D", "ANN", "ARG", "FBT", "TRY", "PL"]
 
 
-def _uvx(tool, args, cwd, timeout=3600):
+def _uvx(tool: str, args: Sequence[str], cwd: Path, timeout: float = 3600) -> subprocess.CompletedProcess[str]:
     return run(["uvx", f"{tool}@{MEASURE_TOOLS[tool]}", *args], cwd=cwd, env=oracle_env(), timeout=timeout)
 
 
-def _ruff_cfg(d: Path, select, target="py311", line_length=100) -> Path:
+def _ruff_cfg(d: Path, select: list[str], target: str = "py311", line_length: int = 100) -> Path:
     cfg = d / ("ruff-{}-{:d}.toml".format("-".join(select)[:20], line_length))
     cfg.write_text(
         (
@@ -2223,16 +2278,16 @@ def _ruff_cfg(d: Path, select, target="py311", line_length=100) -> Path:
     return cfg
 
 
-def _rule_counts(stdout: str) -> dict:
-    counts = {}
+def _rule_counts(stdout: str) -> dict[str, int]:
+    counts: dict[str, int] = {}
     for d in json.loads(stdout or "[]"):
         code = d.get("code") or "syntax-error"
         counts[code] = counts.get(code, 0) + 1
     return dict(sorted(counts.items(), key=lambda kv: (-kv[1], kv[0])))
 
 
-def measure(ref: str) -> dict:
-    out = {
+def measure(ref: str) -> dict[str, Any]:
+    out: dict[str, Any] = {
         "ref": git("rev-parse", ref).strip(),
         "tools": MEASURE_TOOLS,
         "ruff_config": {
@@ -2264,7 +2319,7 @@ def measure(ref: str) -> dict:
             )
             rules = _rule_counts(r.stdout)
             out["ruff_target"] = {"total": sum(rules.values()), "by_rule": rules}
-            fam = {}
+            fam: dict[str, int] = {}
             for code, n in rules.items():
                 f = re.match(r"[A-Z]+", code)
                 f = f.group(0) if f else code
@@ -2283,7 +2338,7 @@ def measure(ref: str) -> dict:
                 ],
                 t,
             )
-            stretch = {}
+            stretch: dict[str, int] = {}
             for code, n in _rule_counts(r.stdout).items():
                 f = next((x for x in sorted(STRETCH, key=len, reverse=True) if code.startswith(x)), code)
                 stretch[f] = stretch.get(f, 0) + n
@@ -2330,7 +2385,7 @@ def measure(ref: str) -> dict:
             r = _uvx("basedpyright", ["-p", str(pyr)], t)
             text = r.stdout + r.stderr
             m = re.search(r"(?m)^(\d+) errors?, (\d+) warnings?", text)
-            by_rule = {}
+            by_rule: dict[str, int] = {}
             for rule in re.findall(r"(?m)^\s+\S.*? - error: .*?\((report\w+)\)\s*$", text):
                 by_rule[rule] = by_rule.get(rule, 0) + 1
             out["basedpyright_standard"] = {
@@ -2355,12 +2410,12 @@ def measure(ref: str) -> dict:
     return out
 
 
-def suite_measurements(label: str) -> dict:
+def suite_measurements(label: str) -> dict[str, Any]:
     """Durations (the 50 slowest tests, from run 1's junit xml) and coverage, from a snapshot."""
     import xml.etree.ElementTree as ET
 
     d = snapshot_dir(label)
-    res = {}
+    res: dict[str, Any] = {}
     xml_path = d / "raw" / "O1-run1.xml"
     if xml_path.exists():
         cases = [
@@ -2377,7 +2432,7 @@ def suite_measurements(label: str) -> dict:
     return res
 
 
-def cmd_measure(args) -> int:
+def cmd_measure(args: argparse.Namespace) -> int:
     m = measure(args.ref)
     m["suite"] = suite_measurements(args.label)
     dump_json(snapshot_dir(args.label) / "measurements.json", m)
@@ -2387,7 +2442,7 @@ def cmd_measure(args) -> int:
                 k: (
                     v
                     if not isinstance(v, dict) or len(json.dumps(v)) < 300
-                    else {kk: vv for kk, vv in v.items() if not isinstance(vv, (dict, list))}
+                    else {kk: vv for kk, vv in cast("dict[str, Any]", v).items() if not isinstance(vv, (dict, list))}
                 )
                 for k, v in m.items()
                 if k != "suite"
@@ -2401,8 +2456,8 @@ def cmd_measure(args) -> int:
 # ----------------------------------------------------------------------------- CLI
 
 
-def main(argv=None) -> int:
-    p = argparse.ArgumentParser(prog="oracle.py", description=__doc__.split("\n\n")[0])
+def main(argv: Sequence[str] | None = None) -> int:
+    p = argparse.ArgumentParser(prog="oracle.py", description=cast("str", __doc__).split("\n\n")[0])
     sub = p.add_subparsers(dest="cmd", required=True)
     s = sub.add_parser("inventory", help="classify every tracked .py (writes inventory.json)")
     s.add_argument("--check", action="store_true", help="exit 1 if inventory.json is stale")

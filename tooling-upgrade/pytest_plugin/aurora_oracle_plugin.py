@@ -1,17 +1,24 @@
+# pyright: strict
 """pytest plugin loaded by tooling-upgrade/oracle.py (`-p aurora_oracle_plugin`) for O1.
 
 Records every test's per-phase outcome by node id, and every collection error, to the JSON file
 named by $AURORA_ORACLE_OUT. Observation only: it changes no outcome.
 """
 
+from __future__ import annotations
+
 import json
 import os
+from typing import TYPE_CHECKING
 
-_results = {}
-_collect_errors = []
+if TYPE_CHECKING:
+    import pytest
+
+_results: dict[str, dict[str, str]] = {}
+_collect_errors: list[str] = []
 
 
-def pytest_runtest_logreport(report):
+def pytest_runtest_logreport(report: pytest.TestReport) -> None:
     rec = _results.setdefault(report.nodeid, {})
     outcome = report.outcome
     if hasattr(report, "wasxfail"):
@@ -19,12 +26,12 @@ def pytest_runtest_logreport(report):
     rec[report.when] = outcome
 
 
-def pytest_collectreport(report):
+def pytest_collectreport(report: pytest.CollectReport) -> None:
     if report.failed:
         _collect_errors.append(report.nodeid)
 
 
-def pytest_sessionfinish(session, exitstatus):
+def pytest_sessionfinish(session: pytest.Session, exitstatus: int | pytest.ExitCode) -> None:
     out = os.environ.get("AURORA_ORACLE_OUT")
     if not out:
         return

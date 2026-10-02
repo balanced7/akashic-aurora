@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# pyright: strict
 """Goal certification for the 2026-10 Python tooling upgrade (plan sections 12-14). Stdlib only.
 
     certify.py G<n> [--phase G<n>.P<k>] [--drills]   run checks + T1-T7 (+ drills) and print
@@ -30,9 +31,17 @@ import sys
 import tempfile
 import tomllib
 from pathlib import Path
+from typing import TYPE_CHECKING, Any, cast
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Generator, Iterator, Sequence
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import oracle
+
+# oracle's private helpers, shared by these two sibling scripts
+_rmtree = oracle._rmtree  # pyright: ignore[reportPrivateUsage]  # sibling tool module, same owner
+_drop_function = oracle._drop_function  # pyright: ignore[reportPrivateUsage]  # sibling tool module, same owner
 
 HERE = oracle.HERE
 ROOT = oracle.ROOT
@@ -57,11 +66,13 @@ GATE_TASKS = ("fmt-check", "lint-check", "types", "lock-check", "deps", "ci-lint
 GATE_FORBIDDEN = ("--fix", "--exit-zero", "|| true", "--skip")
 
 
-def run(cmd, cwd=ROOT, env=None, timeout=None):
+def run(
+    cmd: Sequence[object], cwd: Path | str = ROOT, env: dict[str, str] | None = None, timeout: float | None = None
+) -> subprocess.CompletedProcess[str]:
     return oracle.run(cmd, cwd=cwd, env=env, timeout=timeout)
 
 
-def git(*args, cwd=ROOT, check=True):
+def git(*args: object, cwd: Path | str = ROOT, check: bool = True) -> str:
     return oracle.git(*args, cwd=cwd, check=check)
 
 
@@ -72,18 +83,18 @@ def goal_num(goal: str) -> int:
 # ----------------------------------------------------------------------------- checks files
 
 
-def load_checks(goal: str, ref: str | None = None) -> dict:
+def load_checks(goal: str, ref: str | None = None) -> dict[str, Any]:
     rel = f"tooling-upgrade/checks/{goal}.toml"
     text = git("show", f"{ref}:{rel}") if ref else (ROOT / rel).read_text(encoding="utf-8")
     return tomllib.loads(text)
 
 
-def expand(cmd):
+def expand(cmd: str | list[str]) -> list[str]:
     parts = cmd if isinstance(cmd, list) else cmd.split()
     return [p.replace("{python}", sys.executable).replace("{root}", str(ROOT)) for p in parts]
 
 
-def run_check(c: dict):
+def run_check(c: dict[str, Any]) -> tuple[bool, str, str]:
     try:
         r = run(expand(c["cmd"]), timeout=c.get("timeout_s", 7200))
     except subprocess.TimeoutExpired:
@@ -97,14 +108,14 @@ def run_check(c: dict):
     return ok, "exit {:d} (expect {:d})".format(r.returncode, c.get("expect", 0)), out
 
 
-def checks_history_problems() -> list:
+def checks_history_problems() -> list[str]:
     """Append-only rule for checks/*.toml: every [[check]] keeps its id, cmd, expect, phase and
     expect_stdout from the commit that registered it; required_drills only grows."""
-    problems = []
+    problems: list[str] = []
     for goal in GOALS:
         rel = f"tooling-upgrade/checks/{goal}.toml"
         shas = git("log", "--format=%H", "--reverse", "--", rel, check=False).split()
-        prev = None
+        prev: dict[str, Any] | None = None
         for sha in [*shas, "WORKTREE"]:
             try:
                 cur = load_checks(goal, None if sha == "WORKTREE" else sha)
@@ -126,7 +137,7 @@ def checks_history_problems() -> list:
     return problems
 
 
-def cmd_assert_checks_files(args) -> int:
+def cmd_assert_checks_files(args: argparse.Namespace) -> int:
     tracked = set(git("ls-files", "tooling-upgrade/checks").split())
     problems = [f"{g} not committed" for g in GOALS if f"tooling-upgrade/checks/{g}.toml" not in tracked]
     for g in GOALS:
@@ -165,7 +176,7 @@ def pushed() -> bool:
     return bool(git("branch", "-r", "--contains", head, check=False).strip())
 
 
-def cmd_assert_branch(args) -> int:
+def cmd_assert_branch(args: argparse.Namespace) -> int:
     ok = on_branch() and is_linked_worktree()
     print(
         "BRANCH: {} (on {}: {}, linked worktree: {}, path {})".format(
@@ -175,7 +186,7 @@ def cmd_assert_branch(args) -> int:
     return 0 if ok else 1
 
 
-def current_snapshot(require_o1=True):
+def current_snapshot(require_o1: bool = True) -> Path | None:  # noqa: FBT001, RUF100  # positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only
     """The snapshot whose recorded digest equals HEAD's relevant digest (g0 first)."""
     head = oracle.relevant_digest(git("rev-parse", "HEAD").strip())
     cands = (
@@ -201,22 +212,22 @@ def current_snapshot(require_o1=True):
 # ----------------------------------------------------------------------------- T1-T7
 
 
-def pyproject() -> dict:
+def pyproject() -> dict[str, Any]:
     try:
         return tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
     except (OSError, tomllib.TOMLDecodeError):
         return {}
 
 
-def poe_tasks() -> dict:
+def poe_tasks() -> dict[str, Any]:
     return pyproject().get("tool", {}).get("poe", {}).get("tasks", {})
 
 
-def task_text(task) -> str:
+def task_text(task: Any) -> str:
     return json.dumps(task, sort_keys=True)
 
 
-def t1():
+def t1() -> tuple[bool, str]:
     files = git("ls-files").split("\n")
     bad = sorted(f for f in files if f.rsplit("/", 1)[-1] in FORBIDDEN_CONFIGS)
     for name, task in poe_tasks().items():
@@ -228,13 +239,13 @@ def t1():
     return not bad, "; ".join(bad[:6]) or "one config home"
 
 
-def in_scope_py() -> set:
+def in_scope_py() -> set[str]:
     inv = oracle.load_json(oracle.INVENTORY)
     archival = set(inv["archival"])
     return {f for f in git("ls-files", "*.py").split() if f not in archival}
 
 
-def t2():
+def t2() -> tuple[bool, str]:
     inv = oracle.load_json(oracle.INVENTORY)
     must = {f for f in inv["in_scope"] if (ROOT / f).exists()}
     allowed = in_scope_py()
@@ -247,7 +258,7 @@ def t2():
         if line.strip().endswith(".py")
     }
     missing, extra = must - shown, shown - allowed
-    msg = []
+    msg: list[str] = []
     if missing:
         msg.append(f"ruff skips {len(missing):d} in-scope files (e.g. {sorted(missing)[0]})")
     if extra:
@@ -271,9 +282,9 @@ _SUPP = re.compile(
 )
 
 
-def suppressions() -> list:
+def suppressions() -> list[tuple[str, int, str, str]]:
     """(file, line, form, reason) for every suppression comment in in-scope code."""
-    out = []
+    out: list[tuple[str, int, str, str]] = []
     for f in sorted(in_scope_py()):
         try:
             lines = (ROOT / f).read_text(encoding="utf-8").splitlines()
@@ -299,8 +310,8 @@ def blanket(form: str) -> bool:
     )
 
 
-def t3(goal: int):
-    bad = []
+def t3(goal: int) -> tuple[bool, str]:
+    bad: list[str] = []
     for f, i, form, reason in suppressions():
         low = form.lower().replace(" ", "")
         is_type = low.startswith(("type:", "pyright:"))
@@ -313,7 +324,7 @@ def t3(goal: int):
     return not bad, (f"{len(bad):d} violations, e.g. {bad[0]}") if bad else "every suppression has a rule and a reason"
 
 
-def t4():
+def t4() -> tuple[bool, str]:
     sup = [s for s in suppressions() if not s[2].lower().startswith(("fmt:", "pyright:strict"))]
     loc = sum(len((ROOT / f).read_bytes().splitlines()) for f in in_scope_py() if (ROOT / f).exists())
     budget = loc // 400
@@ -329,10 +340,10 @@ def t4():
 ALLOWED_PER_FILE = {"tests/**": {"S101", "PLR2004"}, "scripts/**": {"T20", "T201"}}
 
 
-def t5():
+def t5() -> tuple[bool, str]:
     text = (ROOT / "pyproject.toml").read_text(encoding="utf-8") if (ROOT / "pyproject.toml").exists() else ""
     pfi = pyproject().get("tool", {}).get("ruff", {}).get("lint", {}).get("per-file-ignores", {})
-    bad = []
+    bad: list[str] = []
     for pat, codes in pfi.items():
         allowed = ALLOWED_PER_FILE.get(pat)
         if allowed is None or not set(codes) <= allowed:
@@ -343,9 +354,9 @@ def t5():
     return not bad, "; ".join(bad) or f"{len(pfi):d} structural per-file ignores, all commented"
 
 
-def t6():
+def t6() -> tuple[bool, str]:
     tasks = poe_tasks()
-    bad = []
+    bad: list[str] = []
     for name in GATE_TASKS:
         if name not in tasks:
             bad.append(f"task {name} missing")
@@ -358,21 +369,26 @@ def t6():
     return not bad, "; ".join(bad[:6]) or "gate tasks run the tools"
 
 
-def t7():
+def t7() -> tuple[bool, str]:
     g0 = oracle.SNAPSHOTS / "g0" / "O1.json"
     cur = current_snapshot()
     if not g0.exists() or cur is None:
         return False, "no g0 O1 or no suite record current for HEAD"
     a, b = oracle.load_json(g0), oracle.load_json(cur / "O1.json")
-    ran = lambda s: min(oracle.o1_ran(r) for r in s["runs"])  # noqa: E731  # local one-line key function
-    skp = lambda s: max(r["counts"].get("skipped", 0) for r in s["runs"])  # noqa: E731  # local one-line key function
+
+    def ran(s: dict[str, Any]) -> int:
+        return min(oracle.o1_ran(r) for r in s["runs"])
+
+    def skp(s: dict[str, Any]) -> int:
+        return max(r["counts"].get("skipped", 0) for r in s["runs"])
+
     ok = ran(b) >= ran(a) and skp(b) <= skp(a)
     return ok, f"ran {ran(b):d} (g0 {ran(a):d}), skipped {skp(b):d} (g0 {skp(a):d}) [{cur.name}]"
 
 
-def tamper(goal: str):
+def tamper(goal: str) -> dict[str, tuple[bool, bool, str]]:
     n = goal_num(goal)
-    results = {}
+    results: dict[str, tuple[bool, bool, str]] = {}
     for t, fn in (("T1", t1), ("T2", t2), ("T3", lambda: t3(n)), ("T4", t4), ("T5", t5), ("T6", t6), ("T7", t7)):
         try:
             ok, msg = fn()
@@ -397,7 +413,7 @@ def render_suppressions() -> str:
     return "\n".join(rows) + "\n"
 
 
-def cmd_suppressions(args) -> int:
+def cmd_suppressions(args: argparse.Namespace) -> int:
     text = render_suppressions()
     p = HERE / "SUPPRESSIONS.md"
     if args.write:
@@ -414,7 +430,7 @@ def cmd_suppressions(args) -> int:
 MISFORMATTED = "x=1;y = [1,\n  2]\ndef f( a ):\n  return a\n"
 
 
-def _write(tree: Path, rel: str, text: str, append=False):
+def _write(tree: Path, rel: str, text: str, append: bool = False) -> None:  # noqa: FBT001, RUF100  # positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only
     p = tree / rel
     p.parent.mkdir(parents=True, exist_ok=True)
     if append:
@@ -429,41 +445,41 @@ def _first_core_module(tree: Path) -> str:
     return next(f for f in inv["in_scope"] if f.startswith("core/") and not f.endswith("__init__.py"))
 
 
-def _poe(task):
+def _poe(task: str) -> list[str]:
     return ["uv", "run", "--frozen", "poe", task]
 
 
-def _poe_present(task):
+def _poe_present(task: str) -> list[str]:
     return ["uv", "run", "--frozen", "poe", "-d", task]
 
 
-def _fault_d05(t):
+def _fault_d05(t: Path) -> None:
     _write(t, "ruff.toml", 'extend-exclude = ["core"]\n')
     _write(t, "core/_drill_fmt.py", MISFORMATTED)
 
 
-def _fault_d07(t):
+def _fault_d07(t: Path) -> None:
     rel = _first_core_module(t)
     p = t / rel
     p.write_text("# pyright" + ": basic\n" + p.read_text(encoding="utf-8"), encoding="utf-8")
 
 
-def _fault_d08(t):
+def _fault_d08(t: Path) -> None:
     p = t / "pyproject.toml"
     s = p.read_text(encoding="utf-8")
     p.write_text(s.replace("dependencies = [", 'dependencies = [\n    "six>=1.16",', 1), encoding="utf-8")
 
 
-def _fault_d09(t):
+def _fault_d09(t: Path) -> None:
     _write(t, "requirements.txt", "six==1.16.0  # hand edit\n", append=True)
 
 
-def _fault_d14(t):
+def _fault_d14(t: Path) -> None:
     base = oracle.load_json(oracle.SNAPSHOTS / "g0" / "O5.json")
-    oracle._drop_function(t, oracle.load_json(oracle.INVENTORY), base)
+    _drop_function(t, oracle.load_json(oracle.INVENTORY), base)
 
 
-def _gate_d14(t):
+def _gate_d14(t: Path) -> int:
     """O5 on the mutated module, compared to g0 (non-zero = DIFF = the gate bit)."""
     base = oracle.load_json(oracle.SNAPSHOTS / "g0" / "O5.json")
     inv = oracle.load_json(oracle.INVENTORY)
@@ -471,7 +487,7 @@ def _gate_d14(t):
     raw = Path(tempfile.mkdtemp(prefix="drill-d14-"))
     mods = {m for m in base["modules"] if m.startswith("core.")}
     _o3, o5 = oracle.probe_modules(t, inv, graph, raw, mods, python=oracle.venv_python(ROOT))
-    oracle._rmtree(raw)
+    _rmtree(raw)
     # Same rule as `oracle.py compare`: a diff item covered by a registered intended change
     # (INTENDED_CHANGES.md, e.g. IC-0002 annotation spelling) is not a DIFF.
     intended = [e for e in oracle.load_intended() if e["component"] == "O5"]
@@ -483,11 +499,12 @@ def _gate_d14(t):
     return 1 if open_ else 0
 
 
-def _fault_d15(t):
+def _fault_d15(t: Path) -> None:
     """Rewrite the `gate` Poe task (key form or table form) into one that swallows failure."""
     p = t / "pyproject.toml"
     lines = p.read_text(encoding="utf-8").splitlines()
-    out, i, section = [], 0, ""
+    out: list[str] = []
+    i, section = 0, ""
     while i < len(lines):
         ln = lines[i]
         if ln.startswith("["):
@@ -509,18 +526,26 @@ def _fault_d15(t):
     p.write_text("\n".join(out) + "\n", encoding="utf-8")
 
 
-def _hooks_present(t):
+def _hooks_present(t: Path) -> list[str]:
     hp = git("config", "--get", "core.hooksPath", cwd=t, check=False).strip()
     return ["git", "rev-parse", "--verify", "HEAD"] if hp and (t / hp / "pre-commit").exists() else ["false"]
 
 
-def _gate_d13(t):
+def _gate_d13(t: Path) -> int:
     _write(t, "core/_drill_fmt.py", MISFORMATTED)
     run(["git", "add", "core/_drill_fmt.py"], cwd=t)
     return run(["git", "commit", "-q", "-m", "chore: drill"], cwd=t).returncode
 
 
-DRILLS = {
+DRILLS: dict[
+    str,
+    tuple[
+        str,
+        Callable[[Path], object],
+        list[str] | Callable[[Path], int],
+        list[str] | Callable[[Path], list[str] | int],
+    ],
+] = {
     # id: (description, fault(tree), gate argv | callable(tree)->rc, presence argv | callable)
     "D01": (
         "mis-formatted in-scope file",
@@ -596,18 +621,18 @@ DRILLS = {
 
 
 @contextlib.contextmanager
-def drill_tree():
+def drill_tree() -> Generator[Path, None, None]:
     base = Path(tempfile.mkdtemp(prefix="aurora-drill-"))
     t = base / "aurora-drill"
     git("worktree", "add", "--detach", str(t), "HEAD")
     try:
         yield t
     finally:
-        oracle._rmtree(base)
+        _rmtree(base)
         git("worktree", "prune", check=False)
 
 
-def _exec(spec, t, goal):
+def _exec(spec: int | list[str] | Callable[[Path], int], t: Path, goal: str) -> int:
     if isinstance(spec, int):  # a presence probe that already answered with an exit code
         return spec
     if callable(spec):
@@ -634,8 +659,8 @@ def run_drill(did: str, goal: str) -> str:
         return "BIT" if rc != 0 else "MISSED"
 
 
-def run_drills(goal: str, ids=None):
-    out = {}
+def run_drills(goal: str, ids: list[str] | None = None) -> dict[str, str]:
+    out: dict[str, str] = {}
     for did in ids or sorted(DRILLS):
         try:
             out[did] = run_drill(did, goal)
@@ -645,7 +670,7 @@ def run_drills(goal: str, ids=None):
     return out
 
 
-def cmd_drills(args) -> int:
+def cmd_drills(args: argparse.Namespace) -> int:
     res = run_drills(args.goal)
     missed = sum(1 for v in res.values() if v.startswith("MISSED"))
     bit = sum(1 for v in res.values() if v == "BIT")
@@ -659,7 +684,7 @@ def cmd_drills(args) -> int:
 # ----------------------------------------------------------------------------- fresh clone
 
 
-def cmd_fresh_clone(args) -> int:
+def cmd_fresh_clone(args: argparse.Namespace) -> int:
     base = Path(tempfile.mkdtemp(prefix="aurora-clone-"))
     clone = base / "aurora-clone"
     try:
@@ -680,20 +705,20 @@ def cmd_fresh_clone(args) -> int:
         print("FRESH-CLONE: PASS")
         return 0
     finally:
-        oracle._rmtree(base)
+        _rmtree(base)
 
 
 # ----------------------------------------------------------------------------- goal-specific asserts
 
 
-def _report(name, problems) -> int:
+def _report(name: str, problems: list[str]) -> int:
     for p in problems[:30]:
         print("  ", p)
     print("{}: {}".format(name, "PASS" if not problems else f"FAIL ({len(problems):d})"))
     return 1 if problems else 0
 
 
-def commits_since_base():
+def commits_since_base() -> Iterator[tuple[str, str, str]]:
     out = git("log", "--reverse", "--format=%H%x1f%s%x1f%b%x1e", f"{oracle.g0_base()}..HEAD")
     for rec in out.split("\x1e"):
         rec = rec.strip("\n")
@@ -702,12 +727,13 @@ def commits_since_base():
             yield sha, subject, body
 
 
-def cmd_assert_mechanical_commits(args) -> int:
+def cmd_assert_mechanical_commits(args: argparse.Namespace) -> int:
     """Every commit with a `Replay:` line reproduces exactly from its parent (class B/C), and
     every class-B (`style:`) commit is AST-equal to its parent (O2)."""
     import shlex
 
-    problems, n = [], 0
+    problems: list[str] = []
+    n = 0
     for sha, subject, body in commits_since_base():
         m = re.search(r"(?m)^Replay:\s*(.+)$", body)
         if subject.startswith("style:"):
@@ -729,17 +755,17 @@ def cmd_assert_mechanical_commits(args) -> int:
             if run(["git", "diff", "--cached", "--quiet", sha], cwd=t).returncode != 0:
                 problems.append(f"{sha[:9]} {subject}: replay differs from the commit")
         finally:
-            oracle._rmtree(base)
+            _rmtree(base)
             git("worktree", "prune", check=False)
     print(f"replayed {n:d} mechanical commit(s)")
     return _report("MECHANICAL COMMITS", problems)
 
 
-def cmd_assert_blame_ignore_revs(args) -> int:
+def cmd_assert_blame_ignore_revs(args: argparse.Namespace) -> int:
     p = ROOT / ".git-blame-ignore-revs"
     if not p.exists():
         return _report("BLAME-IGNORE-REVS", [".git-blame-ignore-revs missing"])
-    problems = []
+    problems: list[str] = []
     shas = [ln.strip() for ln in p.read_text(encoding="utf-8").splitlines() if ln.strip() and not ln.startswith("#")]
     for sha in shas:
         subj = git("log", "-1", "--format=%s", sha, check=False).strip()
@@ -753,13 +779,13 @@ def cmd_assert_blame_ignore_revs(args) -> int:
 _VERSION_SURFACES = (".github/workflows", "scripts/githooks", ".claude/settings.json", ".mcp.json")
 
 
-def cmd_assert_python_agrees(args) -> int:
+def cmd_assert_python_agrees(args: argparse.Namespace) -> int:
     pv = ROOT / ".python-version"
     if not pv.exists():
         return _report("PYTHON AGREES", [".python-version missing"])
     pin = pv.read_text(encoding="utf-8").strip()
     pin_mm = ".".join(pin.split(".")[:2])
-    problems = []
+    problems: list[str] = []
     pat = re.compile(r"(?:python-version:\s*[\"']?|(?:uv run|uvx|py)\s+(?:-p|--python)\s+|py -)(3\.\d+)")
     for surf in _VERSION_SURFACES:
         root = ROOT / surf
@@ -781,10 +807,10 @@ def cmd_assert_python_agrees(args) -> int:
     return _report(f"PYTHON AGREES (pin {pin_mm})", problems)
 
 
-def cmd_assert_no_bare_py(args) -> int:
+def cmd_assert_no_bare_py(args: argparse.Namespace) -> int:
     """No executable surface launches Python with a bare `py ` (G1.P5); the documented Windows
     fallback inside the pyrun shim's chain is the one allowed mention."""
-    problems = []
+    problems: list[str] = []
     for f in sorted((ROOT / "scripts" / "githooks").glob("*")):
         if f.suffix or not f.is_file():
             continue
@@ -825,7 +851,7 @@ def _req_name(spec: str) -> str:
     return re.split(r"[\s<>=!~;\[@]", spec.strip(), maxsplit=1)[0].lower().replace("_", "-")
 
 
-def dev_group_problems(pp: dict) -> list:
+def dev_group_problems(pp: dict[str, Any]) -> list[str]:
     groups = pp.get("dependency-groups", {})
     dev = {_req_name(s) for s in groups.get("dev", []) if isinstance(s, str)}
     problems = [f"dev lacks {n}" for n in DEV_GROUP if n not in dev]
@@ -843,13 +869,13 @@ def dev_group_problems(pp: dict) -> list:
     return problems
 
 
-def cmd_assert_dev_group(args) -> int:
+def cmd_assert_dev_group(args: argparse.Namespace) -> int:
     return _report("DEV GROUP", dev_group_problems(pyproject()))
 
 
-def uv_settings_problems(pp: dict) -> list:
+def uv_settings_problems(pp: dict[str, Any]) -> list[str]:
     uv = pp.get("tool", {}).get("uv", {})
-    problems = []
+    problems: list[str] = []
     if uv.get("package") is not False:
         problems.append("tool.uv.package is not false")
     m = re.fullmatch(r">=\s*0\.(\d+)(\.\d+)?", str(uv.get("required-version", "")))
@@ -864,38 +890,47 @@ def uv_settings_problems(pp: dict) -> list:
     return problems
 
 
-def cmd_assert_uv_settings(args) -> int:
+def cmd_assert_uv_settings(args: argparse.Namespace) -> int:
     return _report("UV SETTINGS", uv_settings_problems(pyproject()))
 
 
-def gate_problems(tasks: dict, members: list) -> list:
+def gate_problems(tasks: dict[str, Any], members: list[str]) -> list[str]:
     """`gate` is a sequence over gate tasks in plan order (G1.P6) that includes at least
     `members`; tasks only ever join it."""
     gate = tasks.get("gate")
-    seq = gate.get("sequence") if isinstance(gate, dict) else gate if isinstance(gate, list) else None
+    seq = (
+        cast("dict[str, Any]", gate).get("sequence")
+        if isinstance(gate, dict)
+        else cast("list[Any]", gate)
+        if isinstance(gate, list)
+        else None
+    )
     if not isinstance(seq, list):
         return ["gate is not a sequence task"]
-    names = [s if isinstance(s, str) else s.get("ref", "") if isinstance(s, dict) else "" for s in seq]
+    names = [
+        s if isinstance(s, str) else cast("dict[str, Any]", s).get("ref", "") if isinstance(s, dict) else ""
+        for s in cast("list[Any]", seq)
+    ]
     problems = [f"gate step {n!r} is not a plan gate task" for n in names if n not in GATE_TASKS]
     order = [n for n in GATE_TASKS if n in names]
     if names != order:
         problems.append(f"gate order {names} differs from plan order {order}")
     problems += [f"gate lacks {m}" for m in members if m not in names]
-    if isinstance(gate, dict) and gate.get("ignore_fail"):
+    if isinstance(gate, dict) and cast("dict[str, Any]", gate).get("ignore_fail"):
         problems.append("gate sets ignore_fail")
     return problems
 
 
-def cmd_assert_gate(args) -> int:
+def cmd_assert_gate(args: argparse.Namespace) -> int:
     return _report("GATE MEMBERS", gate_problems(poe_tasks(), args.members))
 
 
 _USES = re.compile(r"^\s*(?:-\s*)?uses:\s*['\"]?([^\s'\"#]+)")
 
 
-def sha_pin_problems(root: Path) -> list:
+def sha_pin_problems(root: Path) -> list[str]:
     """Every workflow `uses:` names a 40-hex commit (local ./ actions and docker:// excepted)."""
-    problems = []
+    problems: list[str] = []
     wf_dir = root / ".github" / "workflows"
     for wf in sorted(wf_dir.glob("*.y*ml")) if wf_dir.exists() else []:
         for i, ln in enumerate(wf.read_text(encoding="utf-8").splitlines(), 1):
@@ -908,11 +943,11 @@ def sha_pin_problems(root: Path) -> list:
     return problems
 
 
-def cmd_assert_sha_pins(args) -> int:
+def cmd_assert_sha_pins(args: argparse.Namespace) -> int:
     return _report("SHA PINS", sha_pin_problems(ROOT))
 
 
-def cmd_assert_ratchet(args) -> int:
+def cmd_assert_ratchet(args: argparse.Namespace) -> int:
     """Stretch rule families (plan G3: D, ANN, ARG, FBT, TRY, PL) may never rise above the
     counts committed in tooling-upgrade/ratchet.json."""
     p = HERE / "ratchet.json"
@@ -950,10 +985,11 @@ def cmd_assert_ratchet(args) -> int:
     return _report("RATCHET", problems)
 
 
-def cmd_assert_latent_regressions(args) -> int:
+def cmd_assert_latent_regressions(args: argparse.Namespace) -> int:
     """Every INTENDED_CHANGES entry with `fix_commit` + `regression_test` (G4.P2): the test fails
     on the fix's parent and passes on HEAD."""
-    problems, n = [], 0
+    problems: list[str] = []
+    n = 0
     for e in oracle.load_intended():
         if not (e.get("fix_commit") and e.get("regression_test")):
             continue
@@ -982,7 +1018,7 @@ def cmd_assert_latent_regressions(args) -> int:
                         )
                     )
             finally:
-                oracle._rmtree(base)
+                _rmtree(base)
                 git("worktree", "prune", check=False)
     print(f"latent-bug entries checked: {n:d}")
     return _report("LATENT REGRESSIONS", problems)
@@ -999,12 +1035,13 @@ STRICT_ISLANDS = (
 BASELINE_FILES = (".basedpyright/baseline.json", "basedpyright-baseline.json")
 
 
-def types_config_problems() -> list:
+def types_config_problems() -> list[str]:
     """G4.P1: [tool.basedpyright] carries the plan's settings, [tool.ty] exists, no baseline."""
     tool = pyproject().get("tool", {})
     bp, ty = tool.get("basedpyright"), tool.get("ty")
     if not isinstance(bp, dict):
         return ["no [tool.basedpyright] table"]
+    bp = cast("dict[str, Any]", bp)
     floor = re.search(r"(\d+\.\d+)", pyproject().get("project", {}).get("requires-python", ""))
     want = {
         "typeCheckingMode": "standard",
@@ -1026,12 +1063,12 @@ def types_config_problems() -> list:
     return problems
 
 
-def cmd_assert_types_config(args) -> int:
+def cmd_assert_types_config(args: argparse.Namespace) -> int:
     return _report("TYPES CONFIG", types_config_problems())
 
 
-def cmd_assert_strict_islands(args) -> int:
-    problems = []
+def cmd_assert_strict_islands(args: argparse.Namespace) -> int:
+    problems: list[str] = []
     for f in STRICT_ISLANDS:
         p = ROOT / f
         head = p.read_text(encoding="utf-8").splitlines()[:5] if p.exists() else []
@@ -1040,25 +1077,25 @@ def cmd_assert_strict_islands(args) -> int:
     return _report("STRICT ISLANDS", problems)
 
 
-def cmd_assert_suppressions(args) -> int:
+def cmd_assert_suppressions(args: argparse.Namespace) -> int:
     """The gate's suppression step (T3 at G4 strength, T4): no blanket or reason-less
     suppression, within budget, SUPPRESSIONS.md current. This is what makes D07 bite."""
-    problems = []
+    problems: list[str] = []
     for name, (ok, msg) in (("T3", t3(4)), ("T4", t4())):
         if not ok:
             problems.append(f"{name}: {msg}")
     return _report("SUPPRESSIONS", problems)
 
 
-def cmd_assert_ledger_entry(args) -> int:
+def cmd_assert_ledger_entry(args: argparse.Namespace) -> int:
     text = (HERE / "LEDGER.md").read_text(encoding="utf-8")
     rows = [ln for ln in text.splitlines() if ln.startswith(f"| {args.phase}")]
     ok = any(re.search(r"\|\s*(DONE|CERTIFIED|NO-GO|SKIPPED)\s*\|", r) for r in rows)
     return _report(f"LEDGER {args.phase}", [] if ok else ["no DONE/CERTIFIED/NO-GO/SKIPPED row"])
 
 
-def cmd_assert_docs_uv(args) -> int:
-    problems = []
+def cmd_assert_docs_uv(args: argparse.Namespace) -> int:
+    problems: list[str] = []
     for doc in ("README.md", "CONTRIBUTING.md", "AGENTS.md", "docs/DEPLOY.md"):
         p = ROOT / doc
         if not p.exists():
@@ -1074,7 +1111,7 @@ def cmd_assert_docs_uv(args) -> int:
     return _report("DOCS UV-PRIMARY", problems)
 
 
-def cmd_assert_ci_replay(args) -> int:
+def cmd_assert_ci_replay(args: argparse.Namespace) -> int:
     print(
         "NOT IMPLEMENTED: the local replay of every CI job's run steps is built in G5.P3 "
         "(it needs a workflow parser); until then this check cannot pass."
@@ -1090,7 +1127,7 @@ def prior_goal_certified(n: int) -> bool:
     return re.search(rf"(?m)^\|\s*G{n - 1:d}\s*\|\s*(CERTIFIED|NO-GO|SKIPPED)\s*\|", text) is not None
 
 
-def certify(goal: str, phase=None, drills=False, tamper_only=False) -> int:
+def certify(goal: str, phase: str | None = None, drills: bool = False, tamper_only: bool = False) -> int:  # noqa: FBT001, RUF100  # positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only
     n = goal_num(goal)
     if tamper_only:
         res = tamper(goal)
@@ -1101,7 +1138,8 @@ def certify(goal: str, phase=None, drills=False, tamper_only=False) -> int:
 
     data = load_checks(goal)
     checks = [c for c in data.get("check", []) if phase is None or c["phase"] == phase]
-    passed, first_fail = 0, None
+    passed = 0
+    first_fail: str | None = None
     if n > 0 and not prior_goal_certified(n):
         # Goals run in order: a later goal's checks, tamper rules and oracle comparison are not
         # executed before its predecessor is certified (they would only measure work that does
@@ -1148,7 +1186,8 @@ def certify(goal: str, phase=None, drills=False, tamper_only=False) -> int:
     pending = [t for t, (active, _ok, _m) in res.items() if not active]
 
     required = data.get("required_drills", [])
-    bit_count, drill_res = 0, {}
+    bit_count = 0
+    drill_res: dict[str, str] = {}
     if drills:
         drill_res = run_drills(goal)
         missed = sum(1 for v in drill_res.values() if v.startswith("MISSED"))
@@ -1167,7 +1206,7 @@ def certify(goal: str, phase=None, drills=False, tamper_only=False) -> int:
         oracle_ok, k = False, 0
         print("ORACLE: no snapshot is current for HEAD (run `oracle.py snapshot head --runs 1`)")
 
-    refusals = []
+    refusals: list[str] = []
     if not worktree_clean():
         refusals.append("worktree dirty")
     if not on_branch():
@@ -1215,7 +1254,7 @@ def certify(goal: str, phase=None, drills=False, tamper_only=False) -> int:
     return 0 if failure is None else 1
 
 
-def main(argv=None) -> int:
+def main(argv: Sequence[str] | None = None) -> int:
     argv = sys.argv[1:] if argv is None else argv
     if argv and re.fullmatch(r"G[0-7]", argv[0]):
         p = argparse.ArgumentParser(prog="certify.py G<n>")
@@ -1225,7 +1264,7 @@ def main(argv=None) -> int:
         p.add_argument("--tamper-only", action="store_true", help="T1-T7 only (the D15 gate)")
         a = p.parse_args(argv)
         return certify(a.goal, a.phase, a.drills, a.tamper_only)
-    p = argparse.ArgumentParser(prog="certify.py", description=__doc__.split("\n\n")[0])
+    p = argparse.ArgumentParser(prog="certify.py", description=cast("str", __doc__).split("\n\n")[0])
     sub = p.add_subparsers(dest="cmd", required=True)
     sub.add_parser("assert-branch")
     sub.add_parser("assert-checks-files")
