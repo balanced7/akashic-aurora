@@ -28,6 +28,7 @@ def _liveness_attrs(path: Path) -> set[str]:
 
 @pytest.mark.parametrize("probe", _PROBES)
 def test_manual_probe_liveness_names_exist(probe: str) -> None:
+    """Every liveness.<name> a manual probe touches is defined by core.comm.liveness."""
     attrs = _liveness_attrs(_MANUAL / probe)
     assert attrs, f"{probe} no longer uses core.comm.liveness; update this pin"
     missing = sorted(a for a in attrs if not hasattr(liveness, a))
