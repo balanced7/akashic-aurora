@@ -30,6 +30,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 import tomllib
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
@@ -1127,12 +1128,401 @@ def cmd_assert_docs_uv(args: argparse.Namespace) -> int:
     return _report("DOCS UV-PRIMARY", problems)
 
 
-def cmd_assert_ci_replay(args: argparse.Namespace) -> int:
-    print(
-        "NOT IMPLEMENTED: the local replay of every CI job's run steps is built in G5.P3 "
-        "(it needs a workflow parser); until then this check cannot pass."
+# ----------------------------------------------------------------------------- G5 assertions
+
+WORKFLOW = ROOT / ".github" / "workflows" / "ci.yml"
+CI_JOBS = ("gate", "test", "ty", "windows-smoke", "ci-lint")
+# The guardrail steps the pre-G5 workflow ran (G0's ci.yml), kept as named steps (G5.P3).
+CI_GUARDRAILS = {
+    "Architecture boundary guardrail": "check_boundaries",
+    "Doc-freshness guardrail": "check_doc_freshness",
+    "Comprehensibility guardrail (docs match code; no stale refs / case drift)": "check_comprehensibility",
+    "Wiring guardrail (no built-but-unwired core module)": "check_wiring",
+    "Door-parity guardrail (CLI<->MCP verb surface)": "check_door_parity",
+}
+CI_GUARDRAIL_COMMENTS = (
+    "# The comprehensibility immune system -- the unbypassable REMOTE gate: every push/PR is checked,",
+    "# so drift can't reach the shared repo via any local path (mirror/git commit that skipped hooks).",
+    "# See docs/library/design/20260701_the-comprehensibility-immune-system-desi_339b01.md.",
+)
+
+
+def _yaml_scalar(v: str) -> str:
+    """A plain or quoted YAML scalar, its trailing comment dropped (the subset ci.yml uses)."""
+    v = v.strip()
+    if v[:1] in "\"'":
+        q = v[0]
+        end = v.find(q, 1)
+        return v[1:end] if end > 0 else v[1:]
+    return re.sub(r"\s+#.*$", "", v).strip()
+
+
+def parse_workflow(text: str) -> dict[str, dict[str, Any]]:
+    """jobs -> {keys: {...}, env: {...}, services: [...], steps: [{name, uses, run, with}]}.
+
+    Stdlib-only reader for the YAML subset .github/workflows/ci.yml is written in: block
+    mappings, step lists, plain/quoted scalars and `|`/`>-` block scalars. Anything it cannot
+    place is ignored, and assert-ci-structure checks the parts it relies on."""
+    lines = text.splitlines()
+    jobs: dict[str, dict[str, Any]] = {}
+    i = lines.index("jobs:") + 1 if "jobs:" in lines else len(lines)
+    job: dict[str, Any] | None = None
+    section = ""
+    step: dict[str, str] | None = None
+
+    def indent(ln: str) -> int:
+        return len(ln) - len(ln.lstrip(" "))
+
+    while i < len(lines):
+        ln = lines[i]
+        i += 1
+        if not ln.strip() or ln.lstrip().startswith("#"):
+            continue
+        ind = indent(ln)
+        if ind == 0:
+            break
+        body = ln.strip()
+        if ind == 2 and body.endswith(":"):
+            job = {"keys": {}, "env": {}, "services": [], "steps": []}
+            jobs[body[:-1]] = job
+            section, step = "", None
+            continue
+        if job is None:
+            continue
+        if ind == 4:
+            key, _, val = body.partition(":")
+            section, step = key, None
+            if val.strip():
+                job["keys"][key] = _yaml_scalar(val)
+            continue
+        if section == "env" and ind == 6:
+            key, _, val = body.partition(":")
+            job["env"][key] = _yaml_scalar(val)
+        elif section == "services" and ind == 6:
+            job["services"].append(body.rstrip(":"))
+        elif section == "steps" and ind >= 6:
+            if ind == 6 and body.startswith("- "):
+                step = {}
+                job["steps"].append(step)
+                body = body[2:]
+                ind = 8
+            if step is None or ind != 8:
+                if step is not None and ind == 10 and step.get("_with") == "1":
+                    k, _, v = body.partition(":")
+                    step["with." + k] = _yaml_scalar(v)
+                continue
+            key, _, val = body.partition(":")
+            val = val.strip()
+            if key == "with":
+                step["_with"] = "1"
+                continue
+            if val in ("|", "|-", ">", ">-"):
+                block: list[str] = []
+                while i < len(lines) and (not lines[i].strip() or indent(lines[i]) > 8):
+                    block.append(lines[i].strip())
+                    i += 1
+                step[key] = ("\n" if val.startswith("|") else " ").join(b for b in block if b)
+            else:
+                step[key] = _yaml_scalar(val)
+    return jobs
+
+
+def cmd_assert_ci_structure(_args: argparse.Namespace) -> int:
+    """G5.P3: the workflow's shape (permissions, concurrency, timeouts, pins, jobs, guardrails)."""
+    problems: list[str] = []
+    text = WORKFLOW.read_text(encoding="utf-8") if WORKFLOW.exists() else ""
+    if not re.search(r"(?m)^permissions:\n  contents: read\s*$", text):
+        problems.append("top-level `permissions: contents: read` missing")
+    if not re.search(r"(?m)^concurrency:\n(  .*\n)*  cancel-in-progress: true\s*$", text):
+        problems.append("top-level concurrency with cancel-in-progress: true missing")
+    for m in re.finditer(r"(?m)^\s*(?:-\s+)?uses:\s*(\S+)(.*)$", text):
+        if not re.fullmatch(r"[\w.-]+/[\w./-]+@[0-9a-f]{40}", m.group(1)):
+            problems.append(f"uses: {m.group(1)} is not pinned to a 40-hex SHA")
+        if not re.match(r"\s+#\s*v?\d+\.\d+\.\d+\s*$", m.group(2)):
+            problems.append(f"uses: {m.group(1)} lacks its `# vX.Y.Z` comment")
+    jobs = parse_workflow(text)
+    problems.extend(f"job {name} missing" for name in CI_JOBS if name not in jobs)
+    for name, job in jobs.items():
+        keys: dict[str, str] = job["keys"]
+        steps: list[dict[str, str]] = job["steps"]
+        if not keys.get("timeout-minutes", "").isdigit():
+            problems.append(f"job {name}: no timeout-minutes")
+        for st in steps:
+            uses = st.get("uses", "")
+            if uses.startswith("actions/checkout@") and st.get("with.persist-credentials") != "false":
+                problems.append(f"job {name}: checkout without persist-credentials: false")
+            if uses.startswith("astral-sh/setup-uv@") and st.get("with.enable-cache") != "true":
+                problems.append(f"job {name}: setup-uv without enable-cache: true")
+        runs = [st.get("run", "") for st in steps]
+        if not any(r.strip() == "uv sync --locked" for r in runs):
+            problems.append(f"job {name}: no `uv sync --locked` step")
+        if not any(st.get("uses", "").startswith("astral-sh/setup-uv@") for st in steps):
+            problems.append(f"job {name}: no astral-sh/setup-uv step")
+    want_run = {
+        "gate": "uv run poe gate",
+        "test": "uv run poe test",
+        "ty": "uv run poe types-ty",
+        "ci-lint": "uv run poe ci-lint",
+    }
+    for name, cmd in want_run.items():
+        if name in jobs and cmd not in [st.get("run", "").strip() for st in jobs[name]["steps"]]:
+            problems.append(f"job {name}: does not run `{cmd}`")
+    problems.extend(
+        f"job {name}: continue-on-error: true missing"
+        for name in ("ty", "windows-smoke")
+        if name in jobs and jobs[name]["keys"].get("continue-on-error") != "true"
     )
-    return 3
+    problems.extend(
+        f"job {name}: blocking job marked continue-on-error"
+        for name in ("gate", "test", "ci-lint")
+        if name in jobs and jobs[name]["keys"].get("continue-on-error") == "true"
+    )
+    if "windows-smoke" in jobs:
+        ws = jobs["windows-smoke"]
+        if ws["keys"].get("runs-on") != "windows-latest":
+            problems.append("job windows-smoke: not runs-on windows-latest")
+        wr = " ".join(st.get("run", "") for st in ws["steps"])
+        if " status" not in wr or "test_portability" not in wr:
+            problems.append("job windows-smoke: needs a status command and the portability tests")
+    if "test" in jobs:
+        t = jobs["test"]
+        if "redis" not in t["services"] or t["env"].get("REDIS_PORT") != "16379":
+            problems.append("job test: the Redis service and its env (REDIS_PORT 16379) must stay")
+    gate_steps = {st.get("name", ""): st.get("run", "") for st in jobs.get("gate", {}).get("steps", [])}
+    for step_name, checker in CI_GUARDRAILS.items():
+        if gate_steps.get(step_name, "").strip() != f"uv run poe guardrails --only {checker}":
+            problems.append(f"guardrail step {step_name!r} must run `uv run poe guardrails --only {checker}`")
+    problems.extend(f"guardrail comment missing: {c}" for c in CI_GUARDRAIL_COMMENTS if c not in text)
+    return _report("CI STRUCTURE", problems)
+
+
+def cmd_assert_dependabot(_args: argparse.Namespace) -> int:
+    """G5.P3: uv + github-actions, weekly, 7-day cooldown, minor and patch grouped."""
+    path = ROOT / ".github" / "dependabot.yml"
+    text = path.read_text(encoding="utf-8") if path.exists() else ""
+    problems: list[str] = [] if re.search(r"(?m)^version:\s*2\s*$", text) else ["version: 2 missing"]
+    blocks = re.split(r"(?m)^  - package-ecosystem:", text)[1:]
+    seen: set[str] = set()
+    for b in blocks:
+        eco = _yaml_scalar(b.splitlines()[0])
+        seen.add(eco)
+        if not re.search(r"interval:\s*\"?weekly\"?", b):
+            problems.append(f"{eco}: schedule is not weekly")
+        if not re.search(r"cooldown:\s*\n\s+default-days:\s*7\b", b):
+            problems.append(f"{eco}: cooldown default-days 7 missing")
+        if not (re.search(r"groups:", b) and '"minor"' in b and '"patch"' in b):
+            problems.append(f"{eco}: minor and patch updates are not grouped")
+    problems.extend(f"ecosystem {e} missing" for e in ("uv", "github-actions") if e not in seen)
+    return _report("DEPENDABOT", problems)
+
+
+PRECOMMIT = ROOT / ".pre-commit-config.yaml"
+PRECOMMIT_HOOKS = (
+    "ruff-check", "ruff-format", "uv-lock", "uv-export", "check-toml", "check-yaml",
+    "check-merge-conflict", "check-added-large-files", "zizmor", "actionlint",
+)  # fmt: skip  # data table: one hook id per plan G5.P2 bullet
+PRECOMMIT_FORBIDDEN = (
+    "trailing-whitespace", "end-of-file-fixer", "mixed-line-ending", "fix-byte-order-marker",
+    "pretty-format-json", "requirements-txt-fixer", "file-contents-sorter",
+)  # fmt: skip  # data table: fixers that would rewrite non-Python trees (I8)
+
+
+def cmd_assert_precommit_config(_args: argparse.Namespace) -> int:
+    """G5.P2: SHA revs with version comments, the plan's hooks, exclude = ARCHIVAL, no prek install."""
+    problems: list[str] = []
+    text = PRECOMMIT.read_text(encoding="utf-8") if PRECOMMIT.exists() else ""
+    revs = re.findall(r"(?m)^\s+rev:\s*(\S+)(.*)$", text)
+    if not revs:
+        problems.append("no rev: lines")
+    for rev, rest in revs:
+        if not re.fullmatch(r"[0-9a-f]{40}", rev):
+            problems.append(f"rev {rev} is not a full commit SHA")
+        if not re.match(r"\s+#\s*v?\d+\.\d+\.\d+", rest):
+            problems.append(f"rev {rev[:12]} lacks its version comment")
+    ids = re.findall(r"(?m)^\s+- id:\s*(\S+)", text)
+    problems.extend(f"hook {h} missing" for h in PRECOMMIT_HOOKS if h not in ids)
+    problems.extend(f"forbidden fixer hook {h}" for h in PRECOMMIT_FORBIDDEN if h in ids)
+    gen = (ROOT / "scripts" / "generators" / "gen_requirements.py").read_text(encoding="utf-8")
+    outputs = re.findall(r'^    "(requirements[^"]*\.txt)":', gen, flags=re.MULTILINE)
+    exports = re.findall(r"(?m)^\s+- id: uv-export\n(?:\s+(?!- id).*\n)*?\s+args: \[(.*)\]", text)
+    problems.extend(
+        f"no uv-export hook writes {out}"
+        for out in outputs
+        if not any(a.rstrip().endswith("--output-file, " + out) for a in exports)
+    )
+    if not re.search(r"(?m)^\s+- id: ruff-check\n\s+args: \[--fix", text):
+        problems.append("ruff-check hook does not pass --fix")
+    m = re.search(r"(?ms)^exclude: \|\n(.*?)\n\S", text)
+    if not m:
+        problems.append("top-level exclude block missing")
+    else:
+        rx = re.compile("\n".join(ln[2:] for ln in m.group(1).splitlines()))
+        inv = oracle.load_json(HERE / "inventory.json")
+        problems.extend(f"exclude misses ARCHIVAL {f}" for f in inv["archival"] if not rx.match(f))
+        problems.extend(f"exclude hides in-scope {f}" for f in inv["in_scope"] if rx.match(f))
+    hook = Path(git("rev-parse", "--git-path", "hooks/pre-commit").strip())
+    hook = hook if hook.is_absolute() else ROOT / hook
+    if hook.exists() and "prek" in hook.read_text(encoding="utf-8", errors="replace"):
+        problems.append(f"{hook} was written by `prek install` (it would fight core.hooksPath)")
+    return _report("PRE-COMMIT CONFIG", problems)
+
+
+EXPERIMENTS = HERE / "EXPERIMENTS-G5.md"
+EXPERIMENT_NAMES = ("xdist", "randomly", "doctest", "coverage")
+
+
+def cmd_assert_experiments(_args: argparse.Namespace) -> int:
+    """G5.P1: each experiment has a verdict with evidence, and the config matches the verdict."""
+    problems: list[str] = []
+    text = EXPERIMENTS.read_text(encoding="utf-8") if EXPERIMENTS.exists() else ""
+    entries: dict[str, dict[str, Any]] = {}
+    for block in re.findall(r"```toml\n(.*?)```", text, flags=re.DOTALL):
+        e = tomllib.loads(block)
+        entries[str(e.get("experiment"))] = e
+    for name in EXPERIMENT_NAMES:
+        e = entries.get(name)
+        if e is None:
+            problems.append(f"experiment {name}: no record")
+            continue
+        if e.get("verdict") not in ("ADOPT", "ADOPT-FAST-ONLY", "REJECT"):
+            problems.append(f"experiment {name}: verdict must be ADOPT, ADOPT-FAST-ONLY or REJECT")
+        if not e.get("evidence"):
+            problems.append(f"experiment {name}: no evidence")
+    pp = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    addopts = " ".join(pp["tool"]["pytest"]["ini_options"].get("addopts", []))
+    tasks = pp["tool"]["poe"]["tasks"]
+    test_text = task_text(tasks.get("test", ""))
+    fast_text = task_text(tasks.get("test-fast", ""))
+    rnd = entries.get("randomly", {}).get("verdict")
+    if rnd == "REJECT":
+        if "no:randomly" not in addopts:
+            problems.append("randomly REJECTed but addopts lacks -p no:randomly")
+        if "order-dependent" not in (HERE / "BACKLOG.md").read_text(encoding="utf-8"):
+            problems.append("randomly REJECTed but BACKLOG.md lists no order-dependent tests")
+    if rnd == "ADOPT" and "no:randomly" in addopts:
+        problems.append("randomly ADOPTed but addopts still disables it")
+    xd = entries.get("xdist", {}).get("verdict")
+    if xd == "ADOPT" and "xdist" not in test_text:
+        problems.append("xdist ADOPTed but poe test does not use it")
+    if xd == "ADOPT-FAST-ONLY" and "xdist" not in fast_text:
+        problems.append("xdist ADOPT-FAST-ONLY but poe test-fast does not use it")
+    if xd != "ADOPT" and ("-n " in addopts or "--numprocesses" in addopts):
+        problems.append("xdist not ADOPTed for the suite but addopts enables it")
+    dt = entries.get("doctest", {}).get("verdict")
+    if (dt == "ADOPT") != ("--doctest-modules" in addopts + test_text):
+        problems.append("doctest verdict and the configuration disagree")
+    if entries.get("coverage", {}).get("verdict") != "ADOPT":
+        problems.append("coverage reporting is always on (plan G5.P1): its verdict must be ADOPT")
+    cov = pp["tool"].get("coverage", {}).get("run", {})
+    if cov.get("branch") is not True or sorted(cov.get("source", [])) != sorted(oracle.COVERAGE_SOURCES):
+        problems.append("[tool.coverage.run] must set branch = true and source = the O10 packages")
+    if "O10" not in test_text or "compare" not in test_text:
+        problems.append("poe test must capture O10 and compare it with g0 (the 0.5 pp ratchet)")
+    return _report("EXPERIMENTS G5.P1", problems)
+
+
+def _generators() -> list[str]:
+    sys.path.insert(0, str(ROOT))
+    try:
+        from scripts.githooks import pre_commit
+
+        names = [str(g) for g in cast("tuple[str, ...]", pre_commit.GENERATORS)]
+    finally:
+        sys.path.remove(str(ROOT))
+    return [*names, "gen_requirements"]
+
+
+def cmd_assert_generated_docs(_args: argparse.Namespace) -> int:
+    """G5.P4: every generator re-run in a throwaway tree at HEAD changes nothing, and each one
+    that has a --check mode passes it."""
+    problems: list[str] = []
+    gens = _generators()
+    with drill_tree() as t:
+        env = oracle.oracle_env({"UV_PROJECT_ENVIRONMENT": str(ROOT / ".venv"), "UV_NO_SYNC": "1"})
+        for g in gens:
+            src = t / "scripts" / "generators" / f"{g}.py"
+            if "--check" in src.read_text(encoding="utf-8"):
+                r = run([sys.executable, str(src), "--check"], cwd=t, env=env, timeout=600)
+                print(f"{g} --check: rc={r.returncode:d}")
+                if r.returncode != 0:
+                    problems.append(f"{g} --check exits {r.returncode:d}")
+            r = run([sys.executable, str(src)], cwd=t, env=env, timeout=600)
+            print(f"{g} (write): rc={r.returncode:d}")
+            if r.returncode != 0:
+                problems.append(f"{g} exits {r.returncode:d}")
+        dirty = run(["git", "status", "--porcelain", "--untracked-files=no"], cwd=t).stdout.split("\n")
+        problems.extend(f"stale generated file: {ln[3:]}" for ln in dirty if ln.strip())
+    return _report("GENERATED DOCS", problems)
+
+
+def cmd_assert_ci_replay(_args: argparse.Namespace) -> int:
+    """G5.P3 local proof (nothing is pushed, I2): replay every `run:` step of every Linux job, in
+    order, with the job's env, in a fresh clone of HEAD, as GitHub would (`bash -e`). `uses:`
+    steps are emulated: checkout = the clone; setup-uv = the uv on PATH. A job's Redis service is
+    the local server on the same port. A continue-on-error job may fail without failing the
+    replay. Windows jobs are recorded as defined, not executed."""
+    jobs = parse_workflow(WORKFLOW.read_text(encoding="utf-8"))
+    base = Path(tempfile.mkdtemp(prefix="aurora-ci-replay-"))
+    clone = base / "aurora-ci"
+    failed: list[str] = []
+    try:
+        for argv in (
+            ["git", "clone", "--no-hardlinks", "--quiet", str(ROOT), str(clone)],
+            ["git", "-C", str(clone), "checkout", "--quiet", git("rev-parse", "HEAD").strip()],
+        ):
+            if run(argv).returncode != 0:
+                return _report("CI REPLAY", ["could not clone HEAD: " + " ".join(argv)])
+        uv_v = run(["uv", "--version"]).stdout.strip()
+        for name, job in jobs.items():
+            keys: dict[str, str] = job["keys"]
+            soft = keys.get("continue-on-error") == "true"
+            if "windows" in keys.get("runs-on", ""):
+                print(f"JOB {name}: defined, not executed (runs-on {keys.get('runs-on')}; no Windows host)")
+                continue
+            print(f"JOB {name} (runs-on {keys.get('runs-on')}{', continue-on-error' if soft else ''})")
+            env = oracle.oracle_env()
+            env.pop("VIRTUAL_ENV", None)
+            for k, v in cast("dict[str, str]", job["env"]).items():
+                env[k] = v.replace("${{ github.workspace }}", str(clone))
+            if job["services"]:
+                print(
+                    "  services {}: the local server on the job's REDIS_PORT {}".format(
+                        ",".join(job["services"]), env.get("REDIS_PORT", "?")
+                    )
+                )
+            job_ok = True
+            for st in cast("list[dict[str, str]]", job["steps"]):
+                label = st.get("name") or st.get("uses") or st.get("run", "")[:60]
+                if "uses" in st:
+                    how = "the fresh clone" if "checkout" in st["uses"] else uv_v
+                    print(f"  step {label}: emulated ({how})")
+                    continue
+                if not job_ok:
+                    print(f"  step {label}: skipped (an earlier step failed)")
+                    continue
+                t0 = time.time()
+                r = subprocess.run(
+                    ["bash", "-e", "-c", st["run"]],
+                    cwd=clone,
+                    env=env,
+                    capture_output=True,
+                    text=True,
+                    encoding="utf-8",
+                    errors="replace",
+                    timeout=7200,
+                    check=False,
+                )
+                tail = (r.stdout + r.stderr).strip().splitlines()[-1:] or [""]
+                print(
+                    f"  step {label}: `{st['run']}` -> exit {r.returncode:d} ({time.time() - t0:.0f}s)  {tail[0][:110]}"
+                )
+                job_ok = r.returncode == 0
+            print(f"  JOB {name}: {'PASS' if job_ok else 'FAIL' + (' (allowed: continue-on-error)' if soft else '')}")
+            if not job_ok and not soft:
+                failed.append(name)
+    finally:
+        _rmtree(base)
+    return _report("CI REPLAY", [f"job {j} failed" for j in failed])
 
 
 # ----------------------------------------------------------------------------- certificate
@@ -1309,7 +1699,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     s = sub.add_parser("assert-ledger-entry", help="LEDGER.md has a closed row for a phase")
     s.add_argument("phase")
     sub.add_parser("assert-docs-uv", help="docs present uv as the primary path")
-    sub.add_parser("assert-ci-replay", help="local replay of CI run steps (built in G5)")
+    sub.add_parser("assert-ci-replay", help="replay every Linux CI job's run: steps in a fresh clone")
+    sub.add_parser("assert-ci-structure", help="ci.yml: permissions, concurrency, pins, jobs (G5.P3)")
+    sub.add_parser("assert-dependabot", help="dependabot.yml: uv + actions, weekly, cooldown, grouped")
+    sub.add_parser("assert-precommit-config", help=".pre-commit-config.yaml per G5.P2; no prek install")
+    sub.add_parser("assert-experiments", help="G5.P1 verdicts recorded and matched by the config")
+    sub.add_parser("assert-generated-docs", help="generators change nothing at HEAD; --check passes")
     a = p.parse_args(argv)
     return {
         "assert-branch": cmd_assert_branch,
@@ -1333,6 +1728,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         "assert-ledger-entry": cmd_assert_ledger_entry,
         "assert-docs-uv": cmd_assert_docs_uv,
         "assert-ci-replay": cmd_assert_ci_replay,
+        "assert-ci-structure": cmd_assert_ci_structure,
+        "assert-dependabot": cmd_assert_dependabot,
+        "assert-precommit-config": cmd_assert_precommit_config,
+        "assert-experiments": cmd_assert_experiments,
+        "assert-generated-docs": cmd_assert_generated_docs,
     }[a.cmd](a)
 
 
