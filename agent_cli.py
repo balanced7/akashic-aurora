@@ -2292,6 +2292,35 @@ def cmd_wish_curate(args):
         print("[wish-curate] REFUSED: %s missing -- the ledger is git-tracked; restore it "
               "first" % path)
         return 2
+    # THE SAME LOCK THE FILING DOOR TAKES (2026-10-02, hours after cmd_wish got it in
+    # bbdc3584). A lock excludes only the writers that TAKE it, and this is the SECOND door
+    # onto docs/WISHLIST.md: it reads the whole file, rewrites one row, and writes the whole
+    # file back. Locking filings against each other while leaving curation unlocked buys
+    # nothing at all between a filing and a curation.
+    #
+    # Measured here, four filings against four curations per round, two distinct failures:
+    # a write is LOST (the process prints "folded W##", exits 0, and its row is overwritten
+    # wholesale), and a read is TORN (`write_text` truncates before it writes, so a peer
+    # observes the file without its '## Folded' anchor and refuses with "structure drifted --
+    # file by hand" on damage the ledger never actually had). The first is silent, the second
+    # sends a seat to hand-repair a healthy file.
+    #
+    # Found by taking the advice in the lesson filed immediately after bbdc3584: at the moment
+    # a shared fix-primitive lands, grep the tree for the UNFIXED SHAPE, because the sites
+    # diagnosed BEFORE the primitive existed never get revisited by anyone. The sweep's first
+    # hit was the door I had just fixed, from the other side.
+    from core.foundation.filelock import exclusive as _exclusive
+    with _exclusive(path):
+        return _wish_curate_run(path, args, _re)
+
+
+def _wish_curate_run(path, args, _re):
+    """The whole read-modify-write, run while the caller holds the ledger's lock.
+
+    The read-only listing runs in here too. It is not a write, but an unlocked read of a file
+    another process is mid-truncation on prints counts for a state that never existed -- and
+    this listing is what a gate reads to decide what to dispose of.
+    """
     doc = path.read_text(encoding="utf-8")
 
     if not getattr(args, "wish_id", None):
