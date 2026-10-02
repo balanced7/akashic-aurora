@@ -38,7 +38,7 @@ try:
 
     _HAS = True
 except ImportError:
-    CategoryContract = ObservationStore = JudgmentStore = ShadowShelfReader = None  # type: ignore[assignment]
+    CategoryContract = ObservationStore = JudgmentStore = ShadowShelfReader = None
     _HAS = False
 
 
@@ -90,6 +90,7 @@ def _control_envelope(cohort_id="ctrl-known-wrong"):
 def _ok_reader(tmp_path, Obs, Jud, Reader, *, cohorts=(), judgments=()):
     """Build a reader over a READABLE observation store AND a READABLE judgment store, so
     peek may reach status=ok. Seeds any envelopes + appends any judgments first."""
+    assert ShadowShelfReader is not None
     obs = Obs(str(tmp_path / "obs.sqlite"))
     jud = Jud(str(tmp_path / "jud.sqlite"))
     for env in cohorts:
@@ -106,6 +107,7 @@ def _ok_reader(tmp_path, Obs, Jud, Reader, *, cohorts=(), judgments=()):
 
 def test_facets_do_not_change_category_identity(tmp_path):
     Cat, _Obs, _Jud, _Reader = _require()
+    assert Cat is not None
     cat = Cat(
         input_schema={"kind": "action"},
         candidate_schema={"outcome": "ranked"},
@@ -123,6 +125,7 @@ def test_facets_do_not_change_category_identity(tmp_path):
 
 def test_two_contracts_same_tuple_are_one_identity(tmp_path):
     Cat, _Obs, _Jud, _Reader = _require()
+    assert Cat is not None
     a = Cat(input_schema=1, candidate_schema=2, comparison=3, retention=4, writers=5, reader=6, delivery=7)
     b = Cat(input_schema=1, candidate_schema=2, comparison=3, retention=4, writers=5, reader=6, delivery=7).with_facets(
         theme="different-facet"
@@ -138,7 +141,9 @@ def test_two_contracts_same_tuple_are_one_identity(tmp_path):
 
 def test_observation_and_judgment_require_separate_existing_paths(tmp_path):
     _Cat, Obs, Jud, _Reader = _require()
+    assert Obs is not None
     obs = Obs(str(tmp_path / "obs.sqlite"))
+    assert Jud is not None
     jud = Jud(str(tmp_path / "jud.sqlite"))
     assert type(obs) is not type(jud), "observation and judgment are different classes"
     assert obs.path != jud.path, "stores must be on different resolved paths"
@@ -150,7 +155,9 @@ def test_observation_and_judgment_require_separate_existing_paths(tmp_path):
 def test_same_path_across_store_types_refuses(tmp_path):
     _Cat, Obs, Jud, _Reader = _require()
     shared = str(tmp_path / "same.sqlite")
+    assert Obs is not None
     Obs(shared)
+    assert Jud is not None
     try:
         Jud(shared)
         pytest.fail("opening a judgment store on the observation path must refuse loudly")
@@ -172,11 +179,18 @@ def test_observation_write_then_peek_roundtrips(tmp_path):
 
 def test_judgment_append_persists_exact_version_verbatim(tmp_path):
     _Cat, _Obs, Jud, _Reader = _require()
+    assert Jud is not None
     jud = Jud(str(tmp_path / "jud.sqlite"))
     jud.append(cohort_id="c-1", candidate_id="champion", candidate_version=7, principal="evaluator", pref="KEEP")
     jud.append(cohort_id="c-1", candidate_id="challenger", candidate_version=7, principal="evaluator", pref="DROP")
     # Persistence asserted through a real read, not the append return value.
-    rows = jud.list() if hasattr(jud, "list") else jud.judgments() if hasattr(jud, "judgments") else None
+    rows = (
+        jud.list()
+        if hasattr(jud, "list")
+        else jud.judgments()  # pyright: ignore[reportAttributeAccessIssue]  # contract probe: either read name
+        if hasattr(jud, "judgments")
+        else None
+    )
     assert rows is not None, "JudgmentStore must expose a real read (list()/judgments())"
     by_candidate = {r["candidate_id"]: r for r in rows}
     assert by_candidate["champion"]["candidate_version"] == 7, "exact version persisted verbatim"
@@ -189,11 +203,16 @@ def test_judgment_missing_version_refuses(tmp_path):
     only accepted target. JudgmentStore has no observation authority, so it validates the
     version is PRESENT and well-formed, never that it names a real observation slot."""
     _Cat, _Obs, Jud, _Reader = _require()
+    assert Jud is not None
     jud = Jud(str(tmp_path / "jud.sqlite"))
     for bad_version in (None, "", 0, -1):
         try:
             jud.append(
-                cohort_id="c", candidate_id="champion", candidate_version=bad_version, principal="e", pref="KEEP"
+                cohort_id="c",
+                candidate_id="champion",
+                candidate_version=bad_version,  # pyright: ignore[reportArgumentType]  # deliberate invalid input
+                principal="e",
+                pref="KEEP",
             )
             pytest.fail(f"candidate_version {bad_version!r} must be rejected")
         except (ValueError, TypeError):
@@ -202,10 +221,17 @@ def test_judgment_missing_version_refuses(tmp_path):
 
 def test_judgment_appends_only_keep_or_drop(tmp_path):
     _Cat, _Obs, Jud, _Reader = _require()
+    assert Jud is not None
     jud = Jud(str(tmp_path / "jud.sqlite"))
     for bad in ("ADOPT", "PROMOTE", "useful", "", None, 1):
         try:
-            jud.append(cohort_id="c", candidate_id="champion", candidate_version=1, principal="e", pref=bad)
+            jud.append(
+                cohort_id="c",
+                candidate_id="champion",
+                candidate_version=1,
+                principal="e",
+                pref=bad,  # pyright: ignore[reportArgumentType]  # deliberate invalid input
+            )
             pytest.fail(f"pref {bad!r} must be rejected")
         except (ValueError, TypeError):
             pass
@@ -213,6 +239,7 @@ def test_judgment_appends_only_keep_or_drop(tmp_path):
 
 def test_judgment_has_no_promotion_or_usefulness_surface(tmp_path):
     _Cat, _Obs, Jud, _Reader = _require()
+    assert Jud is not None
     jud = Jud(str(tmp_path / "jud.sqlite"))
     for forbidden in ("promote", "promote_candidate", "set_useful", "claim_usefulness"):
         assert not hasattr(jud, forbidden), f"judgment must not advertise {forbidden}"
@@ -341,8 +368,11 @@ def test_contract_head_resolver_failure_status_unknown(tmp_path):
     with a reason -- never a silent ok or a fabricated fresh/stale. A cohort must exist so
     the resolver is actually invoked (a correct reader resolves heads only for returned
     rows), otherwise no reader would ever call it and the test would pass vacuously."""
+    assert ShadowShelfReader is not None
     _Cat, Obs, Jud, _Reader = _require()
+    assert Obs is not None
     obs = Obs(str(tmp_path / "obs.sqlite"))
+    assert Jud is not None
     jud = Jud(str(tmp_path / "jud.sqlite"))
     # Seed one matching envelope FIRST, so peek has a row whose head it must resolve.
     obs.write_envelope(
@@ -429,8 +459,11 @@ def test_missing_observation_register_is_unavailable_exact_dict(tmp_path):
     """A degraded observation store (unreadable DB) must yield an EXACT dict with
     status=unavailable, nonempty reasons, rows=[]. Construction returns a degraded store,
     it does not raise, so the reader can render the state."""
+    assert ShadowShelfReader is not None
     _Cat, Obs, Jud, _Reader = _require()
+    assert Jud is not None
     jud = Jud(str(tmp_path / "jud.sqlite"))
+    assert Obs is not None
     obs = Obs(str(tmp_path / "does_not_exist" / "nope.sqlite"))  # degraded, not raising
     reader = ShadowShelfReader(obs, jud)
     got = reader.peek(subject="s", purpose="p", limit=10)
@@ -443,7 +476,9 @@ def test_missing_observation_register_is_unavailable_exact_dict(tmp_path):
 def test_missing_judgment_with_observations_is_partial(tmp_path):
     """Readable observations + judgment_store=None -> status=partial with rows still
     surfacing; the judgment gap is named in reasons."""
+    assert ShadowShelfReader is not None
     _Cat, Obs, _Jud, _Reader = _require()
+    assert Obs is not None
     obs = Obs(str(tmp_path / "obs.sqlite"))
     obs.write_envelope(
         _envelope("c-1", _slot("champion", "emitted", items=["A"]), _slot("challenger", "emitted", items=["A"]))

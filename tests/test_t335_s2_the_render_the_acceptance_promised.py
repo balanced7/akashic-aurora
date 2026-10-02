@@ -269,7 +269,7 @@ def test_p6_wiring_the_flag_did_not_make_depth_caller_declarable(tied):
     threading a depth string through the new flag instead of a boolean, so the pin that
     mattered most in s1 is re-asserted here against the surface that could break it."""
     with pytest.raises(TypeError):
-        R.walk(ROUTE, depth="drilled")
+        R.walk(ROUTE, depth="drilled")  # pyright: ignore[reportCallIssue]  # deliberate: pins depth is not declarable
 
 
 def test_p7_legacy_walks_without_journal_backing_still_render_unknown(tied):

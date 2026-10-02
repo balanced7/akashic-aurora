@@ -122,7 +122,7 @@ def test_p2_knowable_ts_is_derived_strict_and_unforgeable(tmp_path):
             observed="green",
             evidence_ref=_ev_ref(T0 + 10),
             verdict="hit",
-            outcome_knowable_ts=T0 + 10,
+            outcome_knowable_ts=T0 + 10,  # pyright: ignore[reportCallIssue]  # deliberate: param must not exist
         )
 
     # hindsight: evidence artifact OLDER than registration -> refuse

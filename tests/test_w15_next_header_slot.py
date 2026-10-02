@@ -26,7 +26,8 @@ def test_header_confesses_occupied_slot(tmp_path):
     b = L.propose("queued work", at="t3")
     TL.approve(L, b["id"], at="t4")  # dep-free APPROVED -> lands in v["next"]
 
-    assert next_task(client=None, path=L.path) is None  # the gate refuses...
+    # the gate refuses...
+    assert next_task(client=None, path=L.path) is None  # pyright: ignore[reportArgumentType]  # source infers client: str; None is valid
     text = TL.format_state(path=L.path, client=None)
     assert "claimable now" not in text  # ...so the header may not promise
     assert "slot occupied by 1 active" in text
@@ -38,7 +39,7 @@ def test_header_promises_when_slot_free(tmp_path):
     b = L.propose("ready work", at="t0")
     TL.approve(L, b["id"], at="t1")
 
-    got = next_task(client=None, path=L.path)
+    got = next_task(client=None, path=L.path)  # pyright: ignore[reportArgumentType]  # source infers client: str; None is valid
     assert got
     assert got["id"] == b["id"]
     text = TL.format_state(path=L.path, client=None)

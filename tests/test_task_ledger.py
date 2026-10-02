@@ -11,6 +11,13 @@ import pytest
 from core.coord import task_ledger as TL
 
 
+def _task(ledger, tid):
+    """ledger.get for a task the test created: absent is a failure here."""
+    got = ledger.get(tid)
+    assert got is not None, f"{tid} missing from the ledger"
+    return got
+
+
 def fresh(tmp_path):
     # client=None → git-only, no Redis mirror (keeps the state-machine tests hermetic)
     return TL.TaskLedger(os.path.join(str(tmp_path), "tasks.json"), client=None)
@@ -58,8 +65,8 @@ def test_done_requires_commit_and_verification(tmp_path):
     # 8-hex fixtures: T297's done gate (598be034) refuses commits under 7 hex chars;
     # 'abc123', 'c' and 'x' predated the validator.
     TL.done(L, t["id"], commit="abc12345", verified_by="pytest", at="t6")
-    assert L.get(t["id"])["status"] == TL.DONE
-    assert L.get(t["id"])["commit"] == "abc12345"
+    assert _task(L, t["id"])["status"] == TL.DONE
+    assert _task(L, t["id"])["commit"] == "abc12345"
 
 
 def test_two_watch_gate_caps_the_third(tmp_path):
@@ -108,7 +115,7 @@ def test_persists_and_reloads(tmp_path):
     L = TL.TaskLedger(p, client=None)
     t = L.propose("persist me", at="t0")
     L2 = TL.TaskLedger(p, client=None)  # reload from disk
-    assert L2.get(t["id"])["title"] == "persist me"
+    assert _task(L2, t["id"])["title"] == "persist me"
 
 
 # --- Slice B: Redis mirror + fast reads --------------------------------------------------------
@@ -215,12 +222,17 @@ def test_claimed_can_park_without_faking_a_start(tmp_path):
     TL.claim(L, t["id"], "claude", at="t2")
     TL.park(L, t["id"], "wave 3 -- unpark after the grade", at="t3")
     got = L.get(t["id"])
+    assert got is not None
     assert got["status"] == TL.PARKED
     assert got["owner"] == "claude"  # parking is not disowning
     # the debt must survive the release AND stay reachable -- reason lives on the history entry,
     # not the task record, and _park_reason is what every surface reads it back through
     assert got["history"][-1]["reason"] == "wave 3 -- unpark after the grade"
-    v = TL.ledger_view(path=None, ledger=L) if hasattr(TL, "ledger_view") else None
+    v = (
+        TL.ledger_view(path=None, ledger=L)  # pyright: ignore[reportAttributeAccessIssue]  # optional surface, hasattr-probed
+        if hasattr(TL, "ledger_view")
+        else None
+    )
     if v:
         assert v["parked"][0]["reason"] == "wave 3 -- unpark after the grade"
 
@@ -233,7 +245,7 @@ def test_verifying_can_park(tmp_path):
     TL.start(L, t["id"], at="t3")
     TL.verifying(L, t["id"], at="t4")
     TL.park(L, t["id"], "shelved before verification landed", at="t5")
-    assert L.get(t["id"])["status"] == TL.PARKED
+    assert _task(L, t["id"])["status"] == TL.PARKED
 
 
 def test_parked_claim_frees_the_serialize_slot_but_keeps_its_files(tmp_path):
@@ -245,5 +257,5 @@ def test_parked_claim_frees_the_serialize_slot_but_keeps_its_files(tmp_path):
         TL.claim(L, t["id"], "claude", at="t2")
     TL.park(L, a["id"], "shelved", at="t3")
     TL.start(L, b["id"], at="t4")  # a parked claim must not block the slot
-    assert L.get(b["id"])["status"] == TL.IN_PROGRESS
+    assert _task(L, b["id"])["status"] == TL.IN_PROGRESS
     assert L.files_held()["shared.py"] == a["id"]  # shelved work still owns its files
