@@ -214,7 +214,7 @@
 | scripts/bifrost_runner_sol.py | 63 | `noqa: SIM105` | tests t150/t152 pin a try/except guard here |
 | scripts/bifrost_runner_sol.py | 67 | `noqa: SIM105` | tests t150/t152 pin a try/except guard here |
 | scripts/capture_apple_hig.py | 46 | `noqa: BLE001` | fail-soft: logged, caller continues — log and retry; the summary reports misses |
-| scripts/checkers/check_comprehensibility.py | 213 | `noqa: BLE001` | fail-soft: falls back to a default value |
+| scripts/checkers/check_comprehensibility.py | 215 | `noqa: BLE001` | fail-soft: falls back to a default value |
 | scripts/checkers/check_ports.py | 48 | `noqa: E402` | sys.path bootstrap |
 | scripts/codex_bifrost_wake.py | 16 | `noqa: E402` | sys.path bootstrap |
 | scripts/codex_bifrost_wake.py | 26 | `noqa: E402` | sys.path bootstrap |
