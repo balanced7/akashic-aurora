@@ -10,6 +10,7 @@ import sys
 from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Any
 
 import requests
 
@@ -33,7 +34,7 @@ class StreamingLLM:
         self.is_generating = False
         self.should_stop = False
         self.context_buffer = ""  # Store partial response for interrupt handling
-        self.redis_client = None
+        self.redis_client: Any = None  # live client or None (connect_to_redis_with_fail_fast)
 
     async def load(self):
         """Initialize"""
@@ -190,7 +191,6 @@ class StreamingLLM:
         try:
             key = f"interrupted:{datetime.now().isoformat()}"
             data = {"response": response, "intent": intent, "timestamp": datetime.now().isoformat()}
-            assert self.redis_client is not None  # caller checks; except below swallows anyway
             self.redis_client.set(key, json.dumps(data), ex=300)  # 5 min TTL
         except Exception:
             pass
