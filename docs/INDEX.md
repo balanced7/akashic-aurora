@@ -54,6 +54,8 @@ the reach barrier the middle one is about, committed by the index that exists to
   nine ranked reasons the rest stay dark.
 
 **Plan & voice**
+- [context-system.md](context-system.md) — the context system contract: the one key, the touch,
+  the scene and its four states, the doors, and what Wave 0 has and has not built.
 - [ROADMAP.md](ROADMAP.md) — the layered plan + sequenced next steps.
 - [VOICE.md](VOICE.md) — the rules for anything the project says publicly.
 - [FSQ.md](FSQ.md) — frequently anticipated skeptical questions (honest answers).
