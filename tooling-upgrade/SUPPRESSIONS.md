@@ -155,20 +155,43 @@
 | core/web/door.py | 279 | `noqa: E402` | used by search |
 | core/world.py | 53 | `noqa: TC003` | runtime-evaluated annotations (annotation_sensitive module) |
 | data/play/claude/campfire.py | 72 | `noqa: B005` | strips the char set "- []" by design |
-| docs/_archive/pre-library/legacy/gemma_realtime/llm_wrapper.py | 58 | `noqa: ASYNC210` | archived code: the blocking call stays (no behaviour change) |
-| docs/_archive/pre-library/legacy/gemma_realtime/llm_wrapper.py | 102 | `noqa: ASYNC210` | archived code: the blocking call stays (no behaviour change) |
-| docs/_archive/pre-library/legacy/gemma_realtime/server.py | 84 | `noqa: B008` | FastAPI parameter marker, evaluated once by design |
-| docs/_archive/pre-library/legacy/gemma_realtime/server.py | 93 | `noqa: B008` | FastAPI parameter marker, evaluated once by design |
-| docs/_archive/pre-library/legacy/gemma_realtime/tts_processor.py | 122 | `noqa: ASYNC221` | archived code: the blocking call stays (no behaviour change) |
-| docs/_archive/pre-library/legacy/gemma_realtime/tts_processor.py | 151 | `noqa: ASYNC230` | archived code: the blocking call stays (no behaviour change) |
-| docs/_archive/pre-library/legacy/services/redis_sync.py | 32 | `noqa: TC002` | import probe: sets REDIS_AVAILABLE at runtime |
-| docs/_archive/pre-library/legacy/services/session_monitor.py | 42 | `noqa: TC002` | import probe: sets REDIS_AVAILABLE at runtime |
-| docs/_archive/pre-library/python_old/stack_gui.py | 217 | `noqa: ASYNC251` | archived code: the blocking call stays (no behaviour change) |
+| docs/_archive/pre-library/legacy/gemma_realtime/audio_handler.py | 12 | `pyright: ignore[reportMissingImports]` | optional dependency, not in the lock |
+| docs/_archive/pre-library/legacy/gemma_realtime/audio_handler.py | 13 | `pyright: ignore[reportMissingImports]` | optional dependency, not in the lock |
+| docs/_archive/pre-library/legacy/gemma_realtime/file_analyzer.py | 211 | `pyright: ignore[reportMissingImports]` | optional dependency, not in the lock |
+| docs/_archive/pre-library/legacy/gemma_realtime/llm_wrapper.py | 59 | `noqa: ASYNC210` | archived code: the blocking call stays (no behaviour change) |
+| docs/_archive/pre-library/legacy/gemma_realtime/llm_wrapper.py | 103 | `noqa: ASYNC210` | archived code: the blocking call stays (no behaviour change) |
+| docs/_archive/pre-library/legacy/gemma_realtime/server.py | 14 | `pyright: ignore[reportMissingImports]` | optional dependency, not in the lock |
+| docs/_archive/pre-library/legacy/gemma_realtime/server.py | 22 | `pyright: ignore[reportMissingImports]` | optional dependency |
+| docs/_archive/pre-library/legacy/gemma_realtime/server.py | 23 | `pyright: ignore[reportMissingImports]` | optional dependency |
+| docs/_archive/pre-library/legacy/gemma_realtime/server.py | 91 | `noqa: B008` | FastAPI parameter marker, evaluated once by design |
+| docs/_archive/pre-library/legacy/gemma_realtime/server.py | 100 | `noqa: B008` | FastAPI parameter marker, evaluated once by design |
+| docs/_archive/pre-library/legacy/gemma_realtime/stt_processor.py | 34 | `pyright: ignore[reportMissingImports]` | optional dependency |
+| docs/_archive/pre-library/legacy/gemma_realtime/tts_processor.py | 50 | `pyright: ignore[reportMissingImports]` | optional dependency |
+| docs/_archive/pre-library/legacy/gemma_realtime/tts_processor.py | 82 | `pyright: ignore[reportMissingImports]` | optional dependency, not in the lock |
+| docs/_archive/pre-library/legacy/gemma_realtime/tts_processor.py | 125 | `noqa: ASYNC221` | archived code: the blocking call stays (no behaviour change) |
+| docs/_archive/pre-library/legacy/gemma_realtime/tts_processor.py | 154 | `noqa: ASYNC230` | archived code: the blocking call stays (no behaviour change) |
+| docs/_archive/pre-library/legacy/services/redis_ha_manager.py | 399 | `pyright: ignore[reportOptionalMemberAccess]` | LATENT: connect may return None; the AttributeError lands in the except below |
+| docs/_archive/pre-library/legacy/services/redis_sync.py | 33 | `noqa: F401` | import probe: sets REDIS_AVAILABLE at runtime |
+| docs/_archive/pre-library/legacy/services/session_monitor.py | 43 | `noqa: F401` | import probe: sets REDIS_AVAILABLE at runtime |
+| docs/_archive/pre-library/legacy/session_compressor.py | 26 | `pyright: ignore[reportMissingImports]` | archived module |
+| docs/_archive/pre-library/python_old/ai_watchdog.py | 157 | `pyright: ignore[reportMissingImports]` | archived module |
+| docs/_archive/pre-library/python_old/ai_watchdog.py | 187 | `pyright: ignore[reportAssignmentType]` | LATENT: shadows the ensure_infra flag, so the flag is ignored |
+| docs/_archive/pre-library/python_old/ai_watchdog.py | 211 | `pyright: ignore[reportCallIssue]` | LATENT: same shadowing as the import above; this calls the imported function |
+| docs/_archive/pre-library/python_old/session_supervisor.py | 139 | `pyright: ignore[reportMissingImports]` | archived module |
+| docs/_archive/pre-library/python_old/session_supervisor.py | 157 | `pyright: ignore[reportMissingImports]` | archived module |
+| docs/_archive/pre-library/python_old/session_supervisor.py | 175 | `pyright: ignore[reportMissingImports]` | archived module |
+| docs/_archive/pre-library/python_old/session_supervisor.py | 176 | `pyright: ignore[reportMissingImports]` | archived module, no longer in the tree |
+| docs/_archive/pre-library/python_old/session_supervisor.py | 279 | `pyright: ignore[reportMissingImports]` | archived module |
+| docs/_archive/pre-library/python_old/stack_gui.py | 52 | `pyright: ignore[reportMissingImports]` | optional dependency, not in the lock |
+| docs/_archive/pre-library/python_old/stack_gui.py | 57 | `pyright: ignore[reportMissingImports]` | optional dependency |
+| docs/_archive/pre-library/python_old/stack_gui.py | 58 | `pyright: ignore[reportMissingImports]` | optional dependency |
+| docs/_archive/pre-library/python_old/stack_gui.py | 226 | `noqa: ASYNC251` | archived code: the blocking call stays (no behaviour change) |
 | peer_connect.py | 88 | `noqa: BLE001` | fail-soft: falls back to a default value |
 | peer_connect.py | 163 | `noqa: SIM112` | Windows spelling; POSIX lookups are case-sensitive |
 | peer_connect.py | 167 | `noqa: BLE001` | fail-soft: falls back to a default value |
 | peer_connect.py | 193 | `noqa: BLE001` | fail-soft: best effort, skipped on any error |
 | peer_connect.py | 211 | `noqa: SIM115` | handle outlives this block: inherited by the Popen child, parent copy closed on GC |
+| research/drafts/t097-s1-progress-stamp-draft.py | 38 | `pyright: ignore[reportCallIssue]` | LATENT: Bus() now requires agent_id; this research draft predates that |
 | research/in-flight/t342/dead-modules/_archive__legacy__services__redis_ha_manager.py | 399 | `pyright: ignore[reportOptionalMemberAccess]` | LATENT: client is None when Sentinel is down; the except below logs it and returns None |
 | research/in-flight/t342/dead-modules/_archive__legacy__services__redis_sync.py | 33 | `noqa: TC002` | import probe: sets REDIS_AVAILABLE at runtime |
 | research/in-flight/t342/dead-modules/_archive__legacy__services__redis_sync.py | 64 | `pyright: ignore[reportPossiblyUnboundVariable]` | attribute annotation, never evaluated at runtime |
@@ -282,77 +305,81 @@
 | research/in-flight/t342/dead-modules/vision_engine.py | 119 | `pyright: ignore[reportMissingImports]` | archived module / optional dependency, not in the lock |
 | research/in-flight/t342/dead-modules/vision_engine.py | 382 | `pyright: ignore[reportMissingImports]` | archived module / optional dependency, not in the lock |
 | research/in-flight/t342/dead-modules/vision_engine.py | 572 | `pyright: ignore[reportMissingImports]` | archived module / optional dependency, not in the lock |
-| research/in-flight/wire-capture-deepseek-2026-08-02/probes.py | 24 | `noqa: E402` | fail fast on a missing key before importing the SDK |
 | research/in-flight/wire-capture-deepseek-2026-08-02/probes.py | 25 | `noqa: E402` | fail fast on a missing key before importing the SDK |
+| research/in-flight/wire-capture-deepseek-2026-08-02/probes.py | 26 | `noqa: E402` | fail fast on a missing key before importing the SDK |
 | scripts/bifrost_daemon.py | 45 | `noqa: SIM105` | runs before every other import (contextlib included): Popen is patched first |
 | scripts/bifrost_daemon.py | 46 | `noqa: F401` | patches subprocess.Popen |
-| scripts/bifrost_daemon.py | 653 | `noqa: BLE001` | fail-soft: best effort, skipped on any error |
-| scripts/bifrost_daemon.py | 681 | `noqa: BLE001` | fail-soft: best effort, skipped on any error |
+| scripts/bifrost_daemon.py | 655 | `noqa: BLE001` | fail-soft: best effort, skipped on any error |
+| scripts/bifrost_daemon.py | 683 | `noqa: BLE001` | fail-soft: best effort, skipped on any error |
 | scripts/bifrost_reports.py | 33 | `noqa: E402` | sys.path bootstrap |
-| scripts/bifrost_reports.py | 52 | `type: ignore[import-not-found]` |  |
-| scripts/bifrost_runner.py | 32 | `noqa: SIM105` | tests t150/t152 pin a try/except guard here |
-| scripts/bifrost_runner.py | 36 | `noqa: SIM105` | tests t150/t152 pin a try/except guard here |
+| scripts/bifrost_runner.py | 38 | `noqa: SIM105` | tests t150/t152 pin a try/except guard here |
+| scripts/bifrost_runner.py | 42 | `noqa: SIM105` | tests t150/t152 pin a try/except guard here |
 | scripts/bifrost_runner_deepseek.py | 38 | `noqa: SIM105` | runs before every other import (contextlib included): Popen is patched first |
 | scripts/bifrost_runner_deepseek.py | 39 | `noqa: F401` | patches subprocess.Popen |
-| scripts/bifrost_runner_deepseek.py | 69 | `noqa: SIM105` | tests t150/t152 pin a try/except guard here |
-| scripts/bifrost_runner_deepseek.py | 73 | `noqa: SIM105` | tests t150/t152 pin a try/except guard here |
-| scripts/bifrost_runner_deepseek.py | 1432 | `noqa: BLE001` | fail-soft: logged, caller continues |
-| scripts/bifrost_runner_discord.py | 35 | `noqa: SIM105` | tests t150/t152 pin a try/except guard here |
-| scripts/bifrost_runner_discord.py | 39 | `noqa: SIM105` | tests t150/t152 pin a try/except guard here |
-| scripts/bifrost_runner_discord.py | 57 | `noqa: E402` | streams are forced to UTF-8 before the import |
-| scripts/bifrost_runner_discord.py | 124 | `noqa: BLE001` | fail-soft: falls back to a default value |
-| scripts/bifrost_runner_discord.py | 173 | `noqa: BLE001` | fail-soft: falls back to a default value |
-| scripts/bifrost_runner_discord.py | 213 | `noqa: BLE001` | fail-soft: falls back to a default value |
-| scripts/bifrost_runner_discord.py | 236 | `noqa: BLE001` | fail-soft: best effort, skipped on any error |
-| scripts/bifrost_runner_discord.py | 251 | `noqa: SIM115` | handle outlives this function: stored on the Tee for the process lifetime |
-| scripts/bifrost_runner_discord.py | 252 | `noqa: BLE001` | fail-soft: falls back to a default value |
-| scripts/bifrost_runner_discord.py | 262 | `noqa: BLE001` | fail-soft: best effort, skipped on any error |
-| scripts/bifrost_runner_discord.py | 271 | `noqa: BLE001` | fail-soft: best effort, skipped on any error |
-| scripts/bifrost_runner_discord.py | 277 | `noqa: BLE001` | fail-soft: falls back to a default value |
-| scripts/bifrost_runner_discord.py | 315 | `noqa: BLE001` | fail-soft: falls back to a default value |
-| scripts/bifrost_runner_discord.py | 447 | `noqa: BLE001` | fail-soft: falls back to a default value |
-| scripts/bifrost_runner_discord.py | 642 | `noqa: BLE001` | fail-soft: best effort, skipped on any error |
-| scripts/bifrost_runner_discord.py | 646 | `noqa: BLE001` | fail-soft: logged, caller continues |
-| scripts/bifrost_runner_discord.py | 662 | `noqa: BLE001` | fail-soft: logged, caller continues |
-| scripts/bifrost_runner_discord.py | 688 | `noqa: BLE001` | fail-soft: logged, caller continues |
-| scripts/bifrost_runner_discord.py | 715 | `noqa: BLE001` | fail-soft: logged, caller continues |
-| scripts/bifrost_runner_discord.py | 735 | `noqa: BLE001` | fail-soft: logged, caller continues |
-| scripts/bifrost_runner_discord.py | 801 | `noqa: BLE001` | fail-soft: falls back to a default value |
-| scripts/bifrost_runner_discord.py | 838 | `noqa: BLE001` | fail-soft: logged, caller continues |
-| scripts/bifrost_runner_discord.py | 864 | `noqa: BLE001` | fail-soft: logged, caller continues |
-| scripts/bifrost_runner_discord.py | 912 | `noqa: BLE001` | fail-soft: best effort, skipped on any error |
-| scripts/bifrost_runner_discord.py | 927 | `noqa: BLE001` | fail-soft: best effort, skipped on any error |
-| scripts/bifrost_runner_discord.py | 933 | `noqa: BLE001` | fail-soft: logged, caller continues |
-| scripts/bifrost_runner_discord.py | 948 | `noqa: BLE001` | fail-soft: best effort, skipped on any error |
-| scripts/bifrost_runner_discord.py | 965 | `noqa: BLE001` | fail-soft: logged, caller continues |
-| scripts/bifrost_runner_discord.py | 1027 | `noqa: BLE001` | fail-soft: logged, caller continues |
-| scripts/bifrost_runner_discord.py | 1052 | `noqa: BLE001` | fail-soft: logged, caller continues |
-| scripts/bifrost_runner_discord.py | 1063 | `noqa: BLE001` | fail-soft: logged, caller continues |
+| scripts/bifrost_runner_deepseek.py | 75 | `noqa: SIM105` | tests t150/t152 pin a try/except guard here |
+| scripts/bifrost_runner_deepseek.py | 79 | `noqa: SIM105` | tests t150/t152 pin a try/except guard here |
+| scripts/bifrost_runner_deepseek.py | 1442 | `noqa: BLE001` | fail-soft: logged, caller continues |
+| scripts/bifrost_runner_discord.py | 41 | `noqa: SIM105` | tests t150/t152 pin a try/except guard here |
+| scripts/bifrost_runner_discord.py | 45 | `noqa: SIM105` | tests t150/t152 pin a try/except guard here |
+| scripts/bifrost_runner_discord.py | 63 | `noqa: E402` | streams are forced to UTF-8 before the import |
+| scripts/bifrost_runner_discord.py | 147 | `noqa: BLE001` | fail-soft: falls back to a default value |
+| scripts/bifrost_runner_discord.py | 196 | `noqa: BLE001` | fail-soft: falls back to a default value |
+| scripts/bifrost_runner_discord.py | 236 | `noqa: BLE001` | fail-soft: falls back to a default value |
+| scripts/bifrost_runner_discord.py | 259 | `noqa: BLE001` | fail-soft: best effort, skipped on any error |
+| scripts/bifrost_runner_discord.py | 274 | `noqa: SIM115` | handle outlives this function: stored on the Tee for the process lifetime |
+| scripts/bifrost_runner_discord.py | 275 | `noqa: BLE001` | fail-soft: falls back to a default value |
+| scripts/bifrost_runner_discord.py | 285 | `noqa: BLE001` | fail-soft: best effort, skipped on any error |
+| scripts/bifrost_runner_discord.py | 294 | `noqa: BLE001` | fail-soft: best effort, skipped on any error |
+| scripts/bifrost_runner_discord.py | 300 | `noqa: BLE001` | fail-soft: falls back to a default value |
+| scripts/bifrost_runner_discord.py | 338 | `noqa: BLE001` | fail-soft: falls back to a default value |
+| scripts/bifrost_runner_discord.py | 470 | `noqa: BLE001` | fail-soft: falls back to a default value |
+| scripts/bifrost_runner_discord.py | 665 | `noqa: BLE001` | fail-soft: best effort, skipped on any error |
+| scripts/bifrost_runner_discord.py | 669 | `noqa: BLE001` | fail-soft: logged, caller continues |
+| scripts/bifrost_runner_discord.py | 685 | `noqa: BLE001` | fail-soft: logged, caller continues |
+| scripts/bifrost_runner_discord.py | 711 | `noqa: BLE001` | fail-soft: logged, caller continues |
+| scripts/bifrost_runner_discord.py | 738 | `noqa: BLE001` | fail-soft: logged, caller continues |
+| scripts/bifrost_runner_discord.py | 758 | `noqa: BLE001` | fail-soft: logged, caller continues |
+| scripts/bifrost_runner_discord.py | 824 | `noqa: BLE001` | fail-soft: falls back to a default value |
+| scripts/bifrost_runner_discord.py | 861 | `noqa: BLE001` | fail-soft: logged, caller continues |
+| scripts/bifrost_runner_discord.py | 887 | `noqa: BLE001` | fail-soft: logged, caller continues |
+| scripts/bifrost_runner_discord.py | 935 | `noqa: BLE001` | fail-soft: best effort, skipped on any error |
+| scripts/bifrost_runner_discord.py | 950 | `noqa: BLE001` | fail-soft: best effort, skipped on any error |
+| scripts/bifrost_runner_discord.py | 956 | `noqa: BLE001` | fail-soft: logged, caller continues |
+| scripts/bifrost_runner_discord.py | 971 | `noqa: BLE001` | fail-soft: best effort, skipped on any error |
+| scripts/bifrost_runner_discord.py | 984 | `pyright: ignore[reportCallIssue]` | LATENT: GuestReplyTracker.poll() takes no on_drop; this TypeError ends the guest-reply task |
+| scripts/bifrost_runner_discord.py | 988 | `noqa: BLE001` | fail-soft: logged, caller continues |
+| scripts/bifrost_runner_discord.py | 1050 | `noqa: BLE001` | fail-soft: logged, caller continues |
 | scripts/bifrost_runner_discord.py | 1075 | `noqa: BLE001` | fail-soft: logged, caller continues |
-| scripts/bifrost_runner_discord.py | 1109 | `noqa: BLE001` | fail-soft: logged, caller continues |
-| scripts/bifrost_runner_discord.py | 1130 | `noqa: BLE001` | fail-soft: best effort, skipped on any error |
-| scripts/bifrost_runner_gemini.py | 56 | `noqa: SIM105` | tests t150/t152 pin a try/except guard here |
-| scripts/bifrost_runner_gemini.py | 60 | `noqa: SIM105` | tests t150/t152 pin a try/except guard here |
-| scripts/bifrost_runner_kimi.py | 56 | `noqa: SIM105` | tests t150/t152 pin a try/except guard here |
-| scripts/bifrost_runner_kimi.py | 60 | `noqa: SIM105` | tests t150/t152 pin a try/except guard here |
-| scripts/bifrost_runner_kimi.py | 861 | `noqa: BLE001` | fail-soft: logged, caller continues |
-| scripts/bifrost_runner_sol.py | 63 | `noqa: SIM105` | tests t150/t152 pin a try/except guard here |
-| scripts/bifrost_runner_sol.py | 67 | `noqa: SIM105` | tests t150/t152 pin a try/except guard here |
+| scripts/bifrost_runner_discord.py | 1086 | `noqa: BLE001` | fail-soft: logged, caller continues |
+| scripts/bifrost_runner_discord.py | 1098 | `noqa: BLE001` | fail-soft: logged, caller continues |
+| scripts/bifrost_runner_discord.py | 1132 | `noqa: BLE001` | fail-soft: logged, caller continues |
+| scripts/bifrost_runner_discord.py | 1153 | `noqa: BLE001` | fail-soft: best effort, skipped on any error |
+| scripts/bifrost_runner_gemini.py | 62 | `noqa: SIM105` | tests t150/t152 pin a try/except guard here |
+| scripts/bifrost_runner_gemini.py | 66 | `noqa: SIM105` | tests t150/t152 pin a try/except guard here |
+| scripts/bifrost_runner_kimi.py | 62 | `noqa: SIM105` | tests t150/t152 pin a try/except guard here |
+| scripts/bifrost_runner_kimi.py | 66 | `noqa: SIM105` | tests t150/t152 pin a try/except guard here |
+| scripts/bifrost_runner_kimi.py | 869 | `noqa: BLE001` | fail-soft: logged, caller continues |
+| scripts/bifrost_runner_sol.py | 69 | `noqa: SIM105` | tests t150/t152 pin a try/except guard here |
+| scripts/bifrost_runner_sol.py | 73 | `noqa: SIM105` | tests t150/t152 pin a try/except guard here |
+| scripts/bifrost_ui.py | 1598 | `pyright: ignore[reportMissingImports]` | optional package |
 | scripts/capture_apple_hig.py | 46 | `noqa: BLE001` | fail-soft: logged, caller continues — log and retry; the summary reports misses |
 | scripts/checkers/check_comprehensibility.py | 215 | `noqa: BLE001` | fail-soft: falls back to a default value |
 | scripts/checkers/check_ports.py | 48 | `noqa: E402` | sys.path bootstrap |
 | scripts/codex_bifrost_wake.py | 16 | `noqa: E402` | sys.path bootstrap |
 | scripts/codex_bifrost_wake.py | 26 | `noqa: E402` | sys.path bootstrap |
-| scripts/deepseek_chat.py | 117 | `noqa: F401,E402` | compat re-export |
-| scripts/deepseek_chat.py | 176 | `type: ignore[attr-defined]` |  |
+| scripts/deepseek_chat.py | 121 | `noqa: F401,E402` | compat re-export |
 | scripts/enrich_corpus.py | 38 | `noqa: E402` | sys.path bootstrap |
 | scripts/enrich_corpus.py | 40 | `noqa: E402` | sys.path bootstrap |
 | scripts/enrich_corpus.py | 41 | `noqa: E402` | sys.path bootstrap |
 | scripts/enrich_corpus.py | 42 | `noqa: E402` | sys.path bootstrap |
-| scripts/gemini_chat.py | 437 | `noqa: F821` | LATENT ADV-034: `geminiAgent` is undefined here; fixed with a regression test in G4.P2 |
-| scripts/gemini_chat.py | 449 | `noqa: F821` | LATENT ADV-034: `geminiAgent` is undefined here; fixed with a regression test in G4.P2 |
-| scripts/gemini_web.py | 205 | `noqa: F401` | availability probe |
-| scripts/gemini_web.py | 211 | `noqa: F401` | availability probe |
+| scripts/gemini_chat.py | 90 | `pyright: ignore[reportArgumentType]` | LATENT: no key passes None; the SDK then reads OPENAI_API_KEY |
+| scripts/gemini_web.py | 124 | `pyright: ignore[reportMissingImports]` | optional dependency |
+| scripts/gemini_web.py | 127 | `pyright: ignore[reportMissingImports]` | optional dependency |
+| scripts/gemini_web.py | 137 | `pyright: ignore[reportMissingImports]` | optional dependency |
+| scripts/gemini_web.py | 208 | `pyright: ignore[reportMissingImports]` | optional dependency  # noqa: F401  # availability probe |
+| scripts/gemini_web.py | 208 | `noqa: F401` | availability probe |
+| scripts/gemini_web.py | 214 | `pyright: ignore[reportMissingImports]` | optional dependency  # noqa: F401  # availability probe |
+| scripts/gemini_web.py | 214 | `noqa: F401` | availability probe |
 | scripts/generators/gen_arch_index.py | 22 | `noqa: E402` | sys.path bootstrap |
 | scripts/generators/gen_master_map.py | 22 | `noqa: E402` | sys.path bootstrap |
 | scripts/generators/gen_master_map.py | 28 | `noqa: E402` | sys.path bootstrap |
@@ -360,6 +387,7 @@
 | scripts/generators/gen_ports.py | 27 | `noqa: E402` | sys.path bootstrap |
 | scripts/generators/gen_prior_art_register.py | 35 | `noqa: E402` | sys.path bootstrap |
 | scripts/generators/gen_requirements.py | 1 | `pyright: strict` |  |
+| scripts/kimi_chat.py | 91 | `pyright: ignore[reportArgumentType]` | LATENT: no key passes None; the SDK then reads OPENAI_API_KEY |
 | scripts/ops/archive_ephemeral.py | 63 | `noqa: E402` | sys.path bootstrap |
 | scripts/ops/archive_ephemeral.py | 141 | `noqa: BLE001` | contained + confessed, never silent |
 | scripts/ops/archive_transcripts.py | 63 | `noqa: E402` | sys.path bootstrap |
@@ -397,15 +425,17 @@
 | scripts/revive.py | 169 | `noqa: BLE001` | fail-soft: falls back to a default value |
 | scripts/revive.py | 183 | `noqa: BLE001` | fail-soft: falls back to a default value |
 | scripts/revive.py | 231 | `noqa: BLE001` | fail-soft: best effort, skipped on any error |
-| scripts/revive.py | 458 | `noqa: SIM115` | handle outlives the block: the detached child's stdout/stderr (GC closes the parent copy) |
-| scripts/revive.py | 471 | `noqa: BLE001` | fail-soft: falls back to a default value |
-| scripts/revive.py | 537 | `noqa: E731` | local one-line key function |
-| scripts/runners/renew_deepseek_solo.py | 31 | `noqa: E402` | sys.path bootstrap (streams reconfigured first) |
-| scripts/runners/renew_deepseek_solo.py | 32 | `noqa: E402` | sys.path bootstrap (streams reconfigured first) |
+| scripts/revive.py | 459 | `noqa: SIM115` | handle outlives the block: the detached child's stdout/stderr (GC closes the parent copy) |
+| scripts/revive.py | 472 | `noqa: BLE001` | fail-soft: falls back to a default value |
+| scripts/revive.py | 538 | `noqa: E731` | local one-line key function |
+| scripts/runners/renew_deepseek_solo.py | 36 | `noqa: E402` | sys.path bootstrap (streams reconfigured first) |
+| scripts/runners/renew_deepseek_solo.py | 37 | `noqa: E402` | sys.path bootstrap (streams reconfigured first) |
+| scripts/sol_chat.py | 75 | `pyright: ignore[reportArgumentType]` | LATENT: no key passes None; the SDK then reads OPENAI_API_KEY |
 | scripts/sol_chat.py | 119 | `noqa: N813` | public API name |
-| scripts/ui_shot.py | 42 | `type: ignore[import-not-found]` |  |
-| scripts/ui_shot.py | 46 | `type: ignore[import-not-found]` |  |
+| scripts/ui_shot.py | 42 | `pyright: ignore[reportMissingImports]` | optional dependency |
+| scripts/ui_shot.py | 46 | `pyright: ignore[reportMissingImports]` | optional dependency |
 | scripts/web_door.py | 21 | `noqa: E402` | sys.path bootstrap |
+| scripts/yt_captions.py | 140 | `pyright: ignore[reportMissingImports]` | optional ml |
 | seat_topology.py | 71 | `noqa: BLE001` | fail-soft: falls back to a default value |
 | seat_topology.py | 154 | `noqa: BLE001` | fail-soft: best effort, skipped on any error |
 | seat_topology.py | 161 | `noqa: BLE001` | fail-soft: best effort, skipped on any error |
@@ -563,8 +593,6 @@
 | tests/test_find_ergonomics.py | 24 | `noqa: E402` | sys.path bootstrap |
 | tests/test_find_full_capability_surface.py | 121 | `pyright: ignore[reportAttributeAccessIssue]` | strict-xfail pin: journal() seam not built yet |
 | tests/test_graduation.py | 12 | `noqa: F401` | isolate file store + Redis db BEFORE foundation import |
-| tests/test_harness_lib.py | 115 | `pyright: ignore[reportArgumentType]` | unset id on purpose; source handles None |
-| tests/test_harness_lib.py | 134 | `pyright: ignore[reportArgumentType]` | unset id on purpose; source handles None |
 | tests/test_heal_clobbers_richer_redis_list.py | 59 | `noqa: E402` | sys.path bootstrap |
 | tests/test_intake_clip_confession.py | 172 | `pyright: ignore[reportCallIssue]` | LATENT: __main__ runner predates its fixtures |
 | tests/test_isolation_flag_is_not_proof.py | 46 | `noqa: F401` | re-export or side-effect import |
@@ -617,8 +645,13 @@
 | tests/test_subprocess_stdin_sever.py | 69 | `noqa: F401` | installs the membrane |
 | tests/test_sync_reconciler.py | 21 | `noqa: E402` | AI_SETUP env (mkdtemp) must exist before import |
 | tests/test_t081_w6_w7_runner.py | 13 | `noqa: E402` | sys.path bootstrap |
+| tests/test_t083_c3_send_textfile.py | 43 | `pyright: ignore[reportCallIssue]` | dead fallback: build_parser exists |
+| tests/test_t093_durable_job.py | 942 | `pyright: ignore[reportCallIssue]` | LATENT: test red at BASE, ship.main() takes no argv |
 | tests/test_t095_m0_mailbox_shadow.py | 25 | `noqa: E402` | sys.path bootstrap |
 | tests/test_t095_m0_mailbox_shadow.py | 65 | `noqa: A002` | mirrors redis-py xrange(min=, max=) |
+| tests/test_t097_s1_call_issued_phase.py | 52 | `pyright: ignore[reportArgumentType]` | test double: tools_enabled=False needs no ToolBox |
+| tests/test_t097_s1_call_issued_phase.py | 104 | `pyright: ignore[reportArgumentType]` | test double: tools_enabled=False needs no ToolBox |
+| tests/test_t108_s4_reaper_hardening.py | 334 | `pyright: ignore[reportCallIssue]` | pre-registered strict xfail: no meta param yet |
 | tests/test_t108_u3_lane_cursor_composition.py | 42 | `noqa: E402` | sys.path bootstrap |
 | tests/test_t108_u3_lane_cursor_composition.py | 106 | `noqa: A002` | mirrors redis-py xrange(min=, max=) |
 | tests/test_t134_self_invoking_is_not_a_library.py | 59 | `noqa: E402` | sys.path bootstrap |
@@ -633,14 +666,14 @@
 | tests/test_t156_wire_verification.py | 42 | `noqa: E402` | sys.path bootstrap |
 | tests/test_t156_wire_verification.py | 43 | `noqa: E402` | sys.path bootstrap |
 | tests/test_t167_rearm_autopilot_actually_spawns.py | 46 | `noqa: E402` | sys.path bootstrap |
-| tests/test_t169_budget_exhaustion_still_answers.py | 43 | `noqa: E402` | sys.path bootstrap |
+| tests/test_t169_budget_exhaustion_still_answers.py | 44 | `noqa: E402` | sys.path bootstrap |
 | tests/test_t170_outcome_cannot_be_silent.py | 33 | `noqa: E402` | sys.path bootstrap |
-| tests/test_t171_ask_is_not_a_seat.py | 33 | `noqa: E402` | sys.path bootstrap |
+| tests/test_t171_ask_is_not_a_seat.py | 34 | `noqa: E402` | sys.path bootstrap |
 | tests/test_t174_ask_names_one_thing.py | 50 | `noqa: E402` | sys.path bootstrap |
 | tests/test_t175_skip_kinds_names_what_it_skips.py | 34 | `noqa: E402` | sys.path bootstrap |
 | tests/test_t177_kind_policy_guard.py | 37 | `noqa: E402` | sys.path bootstrap |
 | tests/test_t178_absence_is_not_zero_debt.py | 41 | `noqa: E402` | sys.path bootstrap |
-| tests/test_t179_capture_cannot_lie.py | 35 | `noqa: E402` | sys.path bootstrap |
+| tests/test_t179_capture_cannot_lie.py | 36 | `noqa: E402` | sys.path bootstrap |
 | tests/test_t181_ask_many_is_still_not_a_seat.py | 42 | `noqa: E402` | sys.path bootstrap |
 | tests/test_t182_a_fan_must_confess_its_own_agreement.py | 41 | `noqa: E402` | sys.path bootstrap |
 | tests/test_t183_roster_churn_is_loud.py | 41 | `noqa: E402` | sys.path bootstrap |
@@ -676,19 +709,22 @@
 | tests/test_t335_s1_walk_fidelity.py | 200 | `type: ignore[call-arg]` | deliberate bad call: the test pins the TypeError |
 | tests/test_t335_s2_the_render_the_acceptance_promised.py | 57 | `noqa: E402` | sys.path bootstrap |
 | tests/test_t335_s2_the_render_the_acceptance_promised.py | 58 | `noqa: E402` | sys.path bootstrap |
+| tests/test_t335_s2_the_render_the_acceptance_promised.py | 272 | `pyright: ignore[reportCallIssue]` | deliberate: pins depth is not declarable |
 | tests/test_t336_eye_at_the_peer_door.py | 43 | `noqa: E402` | sys.path bootstrap |
-| tests/test_t338_handoff_briefing_not_clipped.py | 132 | `type: ignore[assignment]` |  |
-| tests/test_t338_handoff_briefing_not_clipped.py | 144 | `type: ignore[assignment]` |  |
 | tests/test_t340_read_file_slices_before_it_truncates.py | 45 | `noqa: E402` | sys.path bootstrap |
 | tests/test_t361_eye_get_prefix_pins.py | 32 | `noqa: E402` | sys.path bootstrap |
 | tests/test_t364_discord_clip_multipart.py | 21 | `noqa: E402` | sys.path bootstrap |
 | tests/test_t365_spawn_proves_life.py | 32 | `noqa: E402` | sys.path bootstrap |
 | tests/test_t366_spawn_credential_preflight.py | 28 | `noqa: E402` | sys.path bootstrap |
 | tests/test_t366_spawn_credential_preflight.py | 29 | `noqa: E402` | sys.path bootstrap |
-| tests/test_t370_shadow_shelf_reader_red.py | 41 | `type: ignore[assignment]` |  |
+| tests/test_t370_shadow_shelf_reader_red.py | 190 | `pyright: ignore[reportAttributeAccessIssue]` | contract probe: either read name |
+| tests/test_t370_shadow_shelf_reader_red.py | 213 | `pyright: ignore[reportArgumentType]` | deliberate invalid input |
+| tests/test_t370_shadow_shelf_reader_red.py | 233 | `pyright: ignore[reportArgumentType]` | deliberate invalid input |
+| tests/test_t375_forecast_registry.py | 125 | `pyright: ignore[reportCallIssue]` | deliberate: param must not exist |
 | tests/test_t409_operator_coauthor_credit.py | 28 | `noqa: E402` | sys.path bootstrap |
 | tests/test_t410_rewrite_recovery.py | 30 | `noqa: E402` | sys.path bootstrap |
 | tests/test_t414_organ_canaries.py | 29 | `noqa: E402` | sys.path bootstrap |
+| tests/test_task_ledger.py | 232 | `pyright: ignore[reportAttributeAccessIssue]` | optional surface, hasattr-probed |
 | tests/test_tooling_upgrade_oracle.py | 1 | `pyright: strict` |  |
 | tests/test_tooling_upgrade_oracle.py | 406 | `noqa: FBT001, RUF100` | pytest parametrize value, passed by pytest; FBT is ratchet-only |
 | tests/test_vault_refuses_mangled_paste.py | 30 | `noqa: E402` | sys.path bootstrap |
@@ -697,6 +733,8 @@
 | tests/test_w154_captions_gaps.py | 63 | `noqa: PT017` | optional model: the error is the skip path |
 | tests/test_w154_captions_gaps.py | 73 | `noqa: PT017` | optional model: the error is the skip path |
 | tests/test_w154_captions_gaps.py | 85 | `noqa: PT017` | optional model: the error is the skip path |
+| tests/test_w15_next_header_slot.py | 30 | `pyright: ignore[reportArgumentType]` | source infers client: str; None is valid |
+| tests/test_w15_next_header_slot.py | 42 | `pyright: ignore[reportArgumentType]` | source infers client: str; None is valid |
 | tests/test_wake_lane_pending_reads_lane_cursor.py | 49 | `noqa: E402` | sys.path bootstrap |
 | tests/test_wake_lane_pending_reads_lane_cursor.py | 50 | `noqa: E402` | sys.path bootstrap |
 | tests/test_wake_pending_spin.py | 34 | `noqa: E402` | sys.path bootstrap |

@@ -277,3 +277,36 @@ goal = "G4"
 fix_commit = "fffe13bdae84b8f6d8deadf7b941b2260f8b2d4e"
 regression_test = "tests/test_g4_latent_ask_peer_poll_caught.py"
 ```
+
+### IC-0019: fixes latent bug: gemini-chat-smoke-agent-name
+
+scripts/gemini_chat.py `--smoke` built its agents with `geminiAgent(...)`, but the class is
+`GeminiAgent`: every smoke run died with NameError right after its "pre" line (ADV-034). The
+smoke body moved into `_smoke()` unchanged except for the class name, so a test can run it offline.
+
+```toml
+id = "IC-0019"
+component = "O1"
+key = "latent:gemini-chat-smoke-agent-name"
+reason = "fixes latent bug: gemini-chat-smoke-agent-name (plan G4.P2 tier 1)"
+goal = "G4"
+fix_commit = "ef7b97d0c71f3e6f5008eaea793985ef7cd57473"
+regression_test = "tests/test_g4_latent_gemini_chat_smoke_agent.py"
+```
+
+### IC-0020: fixes latent bug: vfx-probe-none-delta
+
+scripts/vfx_probe_chroma.py and vfx_probe_metrics.py formatted `{d * 100:.1f}` with the result of
+`pixel_delta()`/`chroma_delta()`, which return None when no pixel is opaque in both renders: the
+report died with TypeError mid-table. The percentage now prints "n/a" for that pair; real deltas
+print exactly as before.
+
+```toml
+id = "IC-0020"
+component = "O1"
+key = "latent:vfx-probe-none-delta"
+reason = "fixes latent bug: vfx-probe-none-delta (plan G4.P2 tier 1)"
+goal = "G4"
+fix_commit = "1055363795bba050bd4f4f96a6f4c3c7a94a0ad3"
+regression_test = "tests/test_g4_latent_vfx_probe_none_delta.py"
+```
