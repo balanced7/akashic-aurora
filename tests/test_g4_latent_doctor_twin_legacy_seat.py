@@ -5,41 +5,44 @@ twin-session check sliced every session id with s[:8], so a legacy seat beside a
 seat raised TypeError, the surrounding except swallowed it, and the twin finding vanished.
 """
 
-import os
 import time
+from typing import Any
 
-os.environ.setdefault("REDIS_DB", "15")
+import pytest
 
-
-def _probes():
-    return {
-        "worklive": lambda a: {
-            "phase": "idle",
-            "detail": "",
-            "turn": 3,
-            "since_ts": time.time() - 5,
-            "beat_ts": time.time() - 1,
-        },
-        "progress": lambda a: None,
-        "backlog": lambda a: 0,
-        "stalled_since": lambda a, present: None,
-        "halted": lambda a: None,
-        "lane_health": lambda a: None,
-        "token_cost": lambda a: None,
-        "wire": lambda a: None,
-        "feed_failures": lambda a: None,
-        "stale_code": lambda a: None,
-        "bench_count": lambda a: 0,
-        "now": time.time(),
-    }
+from core.comm import doctor, runner_lock, wake_seat
 
 
-def test_twin_sessions_survives_legacy_seat(monkeypatch):
-    from core.comm import doctor, runner_lock, wake_seat
+def _none(_agent: str, *_rest: object) -> None:
+    return None
 
-    seats = [("/tmp/legacy.pid", None), ("/tmp/s1.pid", "abcdef1234567890")]
-    monkeypatch.setattr(wake_seat, "iter_seats", lambda agent: seats)
-    monkeypatch.setattr(runner_lock, "holder", lambda agent: None)
+
+def _zero(_agent: str) -> int:
+    return 0
+
+
+def _idle(_agent: str) -> dict[str, Any]:
+    return {"phase": "idle", "detail": "", "turn": 3, "since_ts": time.time() - 5, "beat_ts": time.time() - 1}
+
+
+def _probes() -> dict[str, Any]:
+    probes: dict[str, Any] = dict.fromkeys(
+        ("progress", "stalled_since", "halted", "lane_health", "token_cost", "wire", "feed_failures", "stale_code"),
+        _none,
+    )
+    probes.update(worklive=_idle, backlog=_zero, bench_count=_zero, now=time.time())
+    return probes
+
+
+def _two_seats(_agent: str) -> list[tuple[str, str | None]]:
+    return [("legacy-seat.pid", None), ("session-seat.pid", "abcdef1234567890")]
+
+
+def test_twin_sessions_survives_legacy_seat(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Report exactly one twin_sessions finding for a legacy seat beside a session seat."""
+    monkeypatch.setenv("REDIS_DB", "15")
+    monkeypatch.setattr(wake_seat, "iter_seats", _two_seats)
+    monkeypatch.setattr(runner_lock, "holder", _none)
 
     findings = doctor.examine("g4latent_agent", probes=_probes())
     twins = [f for f in findings if "LIVE SESSIONS" in str(f)]
