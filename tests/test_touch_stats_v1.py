@@ -144,3 +144,17 @@ def test_records_outside_the_window_are_excluded_from_rates():
 def test_the_report_states_the_window_it_used():
     r = S.compute([rec()], now=T0 + 60, window_h=24)
     assert r["window_h"] == 24
+
+
+def test_a_touch_we_could_not_see_into_is_excluded_from_the_targets_distribution():
+    """Found by running the instrument on live data: the first render showed mean=0.13 targets per
+    touch, which looked like the fleet barely touches anything. It was counting every unknowable
+    command as ZERO targets. Null is not empty -- the whole slice is built on that distinction, and
+    the meter was the one place quietly collapsing it. The denominator must be touches whose
+    targets are KNOWN, with the unknown share reported separately (it already is)."""
+    recs = [rec(targets=4), rec(targets=6), rec(targets=None, incomplete=True)]
+    r = S.compute(recs, now=T0 + 60)
+    t = r["targets_per_touch"]
+    assert t["mean"] == pytest.approx(5.0), "an unknowable command must not drag the mean toward 0"
+    assert t["known"] == 2 and t["unknown"] == 1
+    assert r["incomplete_share"] == pytest.approx(1 / 3)

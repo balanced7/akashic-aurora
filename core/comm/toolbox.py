@@ -779,6 +779,20 @@ class ToolBox:
             return err
         return self._agent_cli(["note", self.agent_id or "deepseek", "--title", str(title), "--note", str(note)])
 
+    def context(self, hours: float = 24.0, limit: int = 20000) -> str:
+        """W0.4: meter the touch stream -- session coverage, touches per hour by seat, targets
+        per touch, the share of commands that could not be seen into, ring retention, drops.
+
+        On the third door by construction, not by courtesy: the instrument measures a cost that
+        EVERY seat pays on every tool call, so a meter only the shell-holder can read is a meter
+        owned by whoever happens to have a shell. Read-only; it reads events:raw and renders.
+
+        What is not captured (hook latency, anchor resolve cost) comes back UNCHECKABLE with the
+        reason attached, never as an estimate.
+        """
+        return self._agent_cli(["context", "--stats", "--hours", str(hours),
+                                "--limit", str(int(limit))])
+
     def knowledge_boot(self, task):
         # T418 (2026-10-01): a ToolBox boots as ITS OWN seat. This line read `boot deepseek`
         # for every ToolBox for months, so Sunshine's knowledge_boot answered "YOU ARE:
@@ -1502,6 +1516,10 @@ class ToolBox:
         "stats", "injections", "harnesses", "triage", "recall-counters", "task",
         "story", "events", "doctor", "promoted", "lookback", "knowledge-map", "fence",
         "flow", "bifrost-sync", "locks", "unwedge", "pulse", "flightdeck",
+        # W0.4 (2026-10-02): the context door. Read-only -- it reads events:raw and renders.
+        # Shared by construction: the instrument meters a cost every seat pays, so every seat
+        # must be able to read it, or the meter belongs to whoever happens to have a shell.
+        "context",
         # recovery/observation reads (operator-authorized 2026-08-31, door_read_allowlist_gap):
         # a live admin seat must be able to SEE the fleet and DRIVE recovery from inside a
         # session -- roster (who's up, code state), mailbox (who's emailing, undrained lane),

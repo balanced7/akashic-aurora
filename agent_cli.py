@@ -5512,6 +5512,46 @@ def cmd_promoted(args):
     return 0
 
 
+def cmd_context(args) -> int:
+    """W0.4: the instrument over the touch stream. `context --stats` is the first mode of the
+    context door; the anchor modes are W0.5/W0.6 and are not built yet.
+
+    It exists because W0.2 put a new record on the hot path of every seat and shipping that
+    without a meter would ask the house to trust a cost nobody measured. The reconciliation gates
+    Wave 1 on 24 h of this number, which is why the verb landed the same night the emit did.
+    """
+    import json as _json
+    import time as _time
+    from core.events import touch_stats as _ts
+    window = float(getattr(args, "hours", None) or 24)
+    try:
+        from core.comm.bus import Bus
+        c = Bus("claude")._client
+        rows = c.xrange("events:raw", min="-", max="+", count=int(getattr(args, "limit", None) or 20000))
+    except Exception as e:                                                # noqa: BLE001
+        print(f"ERROR: could not read events:raw ({type(e).__name__}: {e})")
+        return 1
+    recs = []
+    for _mid, f in rows:
+        try:
+            raw = next(iter(f.values()))
+            recs.append(_json.loads(raw.decode() if isinstance(raw, bytes) else str(raw)))
+        except Exception:                                                 # noqa: BLE001
+            continue          # one unreadable row is not a reason to report nothing
+    drops = 0
+    try:
+        from core.events import touch as _touch
+        drops = _touch.drops()
+    except Exception:                                                     # noqa: BLE001
+        pass
+    rep = _ts.compute(recs, now=_time.time(), window_h=window, drops=drops)
+    if getattr(args, "json", False):
+        print(_json.dumps(rep, indent=2, default=str))
+    else:
+        print(_ts.render(rep))
+    return 0
+
+
 def cmd_doctor_deploy() -> int:
     """Is THIS machine a working deploy? One hop, before anything else is believed.
 
@@ -8849,6 +8889,13 @@ def build_parser():
                     help="one elapsed/ETA/%% line per busy agent (the poor-man's bars)")
     dr.add_argument("--json", action="store_true")
     dr.set_defaults(fn=cmd_doctor)
+
+    cx = sub.add_parser("context", help="W0.4/W0.6: the context door -- `--stats` meters the touch stream")
+    cx.add_argument("--stats", action="store_true", help="the instrument: coverage, rate, shape, drops")
+    cx.add_argument("--hours", type=float, default=None, help="window in hours (default 24)")
+    cx.add_argument("--limit", type=int, default=None, help="max raw events to read (default 20000)")
+    cx.add_argument("--json", action="store_true")
+    cx.set_defaults(fn=cmd_context)
 
     pr = sub.add_parser("promoted", help="query durable salient Bifrost msgs (kind=bifrost_msg / B2)")
     pr.add_argument("--limit", type=int, default=None)

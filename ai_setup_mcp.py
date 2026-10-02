@@ -192,6 +192,8 @@ _ARG_DEFAULTS = dict(
     to=None, note=None, blocker=None, list=False,
     # stats
     hours=None, days=None,
+    # context door (W0.4)
+    stats=False,
     # graduate
     enforced_by=None, undo=False,
     # note / notes / locks (membrane slice 1b: MCP twins for shell-less agents)
@@ -356,6 +358,18 @@ async def boot(agent: str, task: str = "") -> str:
     a short stable id (e.g. 'cursor', 'claude'); `task` tunes what context is surfaced.
     """
     return await _athread(_run, agent_cli.cmd_boot, agent_id=agent, task=task or None)
+
+
+@mcp.tool()
+async def context(stats: bool = True, hours: float = 24.0, limit: int = 20000) -> str:
+    """W0.4: meter the touch stream -- session coverage, touches/hour by seat, targets per touch,
+    the share of commands that could not be seen into, ring retention and dropped touches.
+
+    Session coverage is the headline: it was 89 of 6,918 records, all of one kind, before the
+    touch emit shipped. What is not captured (hook latency, anchor resolve cost) returns
+    UNCHECKABLE with the reason, never an estimate.
+    """
+    return await _athread(_run, agent_cli.cmd_context, stats=stats, hours=hours, limit=limit)
 
 
 @mcp.tool()

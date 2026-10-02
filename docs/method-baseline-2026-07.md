@@ -34,8 +34,10 @@ P2. WRONGNESS CAUGHT BY INDEPENDENCE -- separate contexts, different methods,
     refute-first; agreement gates, divergence teaches.  (M1, the ReferenceState idea)
 P3. FAILURE IS EXERCISED, NOT HOPED AWAY -- name the kill condition before building;
     murder the pipeline on purpose; pin the tolerances you choose.  (M0, M3, M4, M8)
-P4. KNOWLEDGE OUTLIVES THE SESSION -- verbatim records, lessons at flips, guards for
-    every law; chat is disposable, the record is not.  (M6, M10, the funnel)
+P4. OPERATIONAL EVIDENCE OUTLIVES THE SESSION -- preserve the records that decisions and
+    verification depend on; a transient delivery scroll is not their evidence store. This does
+    not classify every conversation as disposable or authorize capture across personal and
+    relational planes.  (M6, M10, the funnel)
 
 ## Lifecycle map (where each practice fires)
 
@@ -220,8 +222,10 @@ BAR: no "done" claim on unexercised runtime surfaces.
 ### M6. Verbatim preservation of peer output
 TRIGGER: any substantive report, review, or verdict from a peer agent (deepseek, GPT,
 frontier passes) -- especially when the delivery channel is lossy.
-PROTOCOL: persist the FULL text as a report ATOM (projected to docs/library/report/) with
-provenance header before synthesizing; chat is disposable, the record is not. Pre-migration
+PROTOCOL: for the substantive peer-agent outputs named by this trigger, persist the FULL text as
+a report ATOM (projected to docs/library/report/) with a provenance header before synthesizing;
+the delivery channel is transient, while the cited operational evidence must remain inspectable.
+This protocol does not authorize capturing personal or relational conversation. Pre-migration
 records live at research/reviewed/ and stay cited as-is -- corrections supersede, they never
 rewrite history. When the reply channel fails
 (no-final-answer), harvest from the streamed log -- the work usually exists.

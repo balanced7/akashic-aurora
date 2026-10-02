@@ -119,6 +119,7 @@ MANIFEST = {
     # harness environment (CLAUDE_CODE_SESSION_ID) that the CLI shares with the PreToolUse and
     # PostToolUse hooks. An MCP call runs in a different process with a different session, so an
     # mcp door would address a record nothing writes to. CLI-only by the shape of the problem.
+    "context": "shared",   # W0.4/W0.6 the context door: --stats today, anchors in W0.6
     "focus": "cli_only",
     "forecast": "cli_only",
     # 2026-08-23 incident lever (Daniil from the phone: "Can we add a command to
@@ -459,6 +460,15 @@ MANIFEST = {
     "research_note": "toolbox_only",     # IR-6 category-specialized knowledge_learn wrapper
     "execute": "toolbox_only",           # the dispatch door itself (runner plumbing)
     "release_written_locks": "toolbox_only",  # runner lifecycle: locks released at reply (T048)
+    # --- suite verb family (2026-10-01, deepseek/Heimdall + Simon): READ-ONLY test-pipeline
+    #     doors over suite_baseline + pytest lastfailed + the run log. cli_only BY DESIGN: the
+    #     verbs are local-shell diagnostics (tail reads a local log file, rerun-failing spawns
+    #     pytest, diff/triage read a local baseline) -- nothing here widens the caller set or
+    #     reaches the operator's private channel, so there is no MCP/ToolBox twin to guard. The
+    #     parent `suite` parser itself is not a verb (it carries subcommands only).
+    "suite": "cli_only",
+    "diff": "cli_only", "triage": "cli_only",
+    "rerun_failing": "cli_only", "tail": "cli_only",
 }
 
 # T067-1: shared-verb coverage on the THIRD door. The ToolBox spells some shared verbs its

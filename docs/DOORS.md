@@ -8,7 +8,7 @@ Class: reference
 > (argparse). Companion to MAP.md (modules), PHYSICS.md (bounds/flags). Guarded by
 > check_comprehensibility so it cannot silently rot.
 
-## CLI door -- `py agent_cli.py <verb>` (108 verbs)
+## CLI door -- `py agent_cli.py <verb>` (109 verbs)
 
 The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepted values.
 
@@ -36,6 +36,7 @@ The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepte
 | `college` | source packet -> immutable authored lecture -> independent claim audit -> teach-back -> append-only errata (records the chain; does not browse or call a model) | `<college_action>* {start,source,lecture,audit,teachback,teach-back,erratum,show,status}` |
 | `compare` | what does one domain have that another does not -- the cross-domain set difference four of our guards each hand-rolled | `<a>` `<b>` `--list` `--limit` `--json` |
 | `console-log` | durable console events (interjection/bus_control/file_drop) | `--limit` `--since` `--until` `--json` |
+| `context` | W0.4/W0.6: the context door -- `--stats` meters the touch stream | `--stats` `--hours` `--limit` `--json` |
 | `defer` | the capability-gated standing queue (W33): file a command awaiting an exec/write seat; boot surfaces it; discharge with a receipt | `<agent_id>*` `<cmd_text>` `--needs` `--why` `--list` `--done` `--receipt` |
 | `delta` | what changed since this agent's last boot (T052 delta door) | `<agent_id>*` `--ack` |
 | `discord` | watch the fleet from your phone (T223, OUTBOUND ONLY). A webhook URL is write-only, so this opens no command channel -- inbound needs an identity gate and does not ship until it exists | `<action> {status,test,send}` `--text` `--kind` `--json` |
