@@ -102,10 +102,56 @@ class SearchResult:
     scanned_dirs: int = 0
     roots: List[str] = field(default_factory=list)
     elapsed_s: float = 0.0
+    #: How many returned names contained a byte that is not valid UTF-8 and were REPAIRED with
+    #: a replacement character. Non-zero means those strings no longer round-trip to a real file,
+    #: so a caller comparing them against a real path must not treat a mismatch as absence.
+    #: It is a count rather than a flag because "one weird filename" and "the whole drive is
+    #: mojibake" want different reactions. Zero is the overwhelmingly common case and costs
+    #: nothing. See tests/test_everything_decode_failure_is_not_absence.py for why this exists:
+    #: strict decoding used to drop the ENTIRE result set on one bad byte and report it as
+    #: "Everything answered, nothing found".
+    undecodable: int = 0
 
     @property
     def count(self) -> int:
         return len(self.paths)
+
+
+def _run_es(argv, timeout):
+    """Run es.exe and decode its output WITHOUT letting one bad byte destroy the answer.
+
+    Returns (proc_returncode, text, stderr_text, repaired_count), or raises the same exceptions
+    subprocess.run does so each caller keeps its own timeout/spawn handling.
+
+    WHY THIS IS NOT `text=True`. Filenames on Windows are UTF-16 and es.exe emits them in the
+    console code page; a name that is not valid UTF-8 makes a strict decode raise inside
+    subprocess's own reader THREAD, where the exception cannot reach the caller. The caller then
+    sees returncode 0 and an EMPTY stdout, and reports a confident "nothing found" for a search
+    that actually matched. Measured on this machine: byte 0x89, and `find ".flp"` returning
+    nothing while five FL Studio projects sat on the C: drive.
+
+    So: capture bytes, decode once with errors="replace", and COUNT the repairs. Keeping a
+    mangled name beats losing the search, because `find` is a locator and a path with one
+    replacement character still tells a human where to look. But a repair is a real loss of
+    fidelity, so it is counted and surfaced rather than performed silently -- a silent repair
+    would only trade a loud wrong answer for a quiet one.
+    """
+    proc = subprocess.run(argv, capture_output=True, timeout=timeout or 15.0)
+
+    def _dec(raw):
+        if raw is None:
+            return "", 0
+        if isinstance(raw, str):                     # a caller or test handed us text already
+            return raw, raw.count("�")
+        txt = raw.decode("utf-8", errors="replace")
+        return txt, txt.count("�")
+
+    out, bad = _dec(getattr(proc, "stdout", None))
+    err, _ = _dec(getattr(proc, "stderr", None))
+    # Count NAMES repaired, not bytes: one mojibake filename is one problem, however many of
+    # its bytes were bad.
+    repaired = sum(1 for ln in out.splitlines() if "�" in ln)
+    return proc.returncode, out, err, repaired
 
 
 def resolve_es() -> Optional[str]:
@@ -556,23 +602,18 @@ def search(query: str, *,
     argv.extend(["-n", str(_fetch)])
 
     try:
-        proc = subprocess.run(
-            argv,
-            capture_output=True,
-            text=True,
-            timeout=timeout or 15.0,
-        )
+        _rc, _out, _err, _repaired = _run_es(argv, timeout)
     except subprocess.TimeoutExpired:
         return SearchResult(query=query, ok=False, error=f"timed out after {timeout}s")
     except OSError as e:
         return SearchResult(query=query, ok=False, error=f"spawn failed: {e}")
 
-    if proc.returncode != 0:
-        err = (proc.stderr or "").strip() or f"exit {proc.returncode}"
+    if _rc != 0:
+        err = (_err or "").strip() or f"exit {_rc}"
         return SearchResult(query=query, ok=False, error=err)
 
     if format in ("json", "csv"):
-        parsed = _parse_json_hits(proc.stdout or "") if format == "json" else _parse_csv_hits(proc.stdout or "")
+        parsed = _parse_json_hits(_out) if format == "json" else _parse_csv_hits(_out)
         base = os.path.basename(str(query or "").strip().lower())
         # rank exact-basename-first, same rule as the path form (shared intent, Hits not paths)
         parsed.sort(key=lambda h: (os.path.basename(h.path).lower() != base, len(h.path)))
@@ -580,14 +621,16 @@ def search(query: str, *,
         return SearchResult(
             query=query, paths=[h.path for h in sliced], hits=sliced,
             ok=True, engine="everything", exhaustive=len(parsed) < _fetch,
+            undecodable=_repaired,
         )
 
-    lines = [ln.rstrip() for ln in (proc.stdout or "").splitlines() if ln.strip()]
+    lines = [ln.rstrip() for ln in _out.splitlines() if ln.strip()]
     ranked = _rank_exact_first(lines, query)
     # `exhaustive` reports whether ES had MORE than our fetch window, not whether we trimmed
     # to max_results -- the caller asked for a page, and a page is not a bounded search.
     return SearchResult(query=query, paths=ranked[:int(max_results)], ok=True,
-                        engine="everything", exhaustive=len(lines) < _fetch)
+                        engine="everything", exhaustive=len(lines) < _fetch,
+                        undecodable=_repaired)
 
 
 def search_page(query: str, *, limit: int = None, offset: int = 0,
@@ -678,18 +721,18 @@ def search_page(query: str, *, limit: int = None, offset: int = 0,
         argv.extend(["-n", str(fetch)])
 
     try:
-        proc = subprocess.run(argv, capture_output=True, text=True, timeout=timeout or 15.0)
+        _rc, _out, _err, _repaired = _run_es(argv, timeout)
     except subprocess.TimeoutExpired:
         return SearchResult(query=query, ok=False, error=f"timed out after {timeout}s")
     except OSError as e:
         return SearchResult(query=query, ok=False, error=f"spawn failed: {e}")
 
-    if proc.returncode != 0:
-        err = (proc.stderr or "").strip() or f"exit {proc.returncode}"
+    if _rc != 0:
+        err = (_err or "").strip() or f"exit {_rc}"
         return SearchResult(query=query, ok=False, error=err)
 
     if format in ("json", "csv"):
-        parsed = _parse_json_hits(proc.stdout or "") if format == "json" else _parse_csv_hits(proc.stdout or "")
+        parsed = _parse_json_hits(_out) if format == "json" else _parse_csv_hits(_out)
         base = os.path.basename(str(query or "").strip().lower())
         parsed.sort(key=lambda h: (os.path.basename(h.path).lower() != base, len(h.path)))
         sliced = parsed[offset:] if unlimited else parsed[offset:offset + limit]
@@ -697,16 +740,18 @@ def search_page(query: str, *, limit: int = None, offset: int = 0,
             query=query, paths=[h.path for h in sliced], hits=sliced,
             ok=True, engine="everything",
             exhaustive=True if unlimited else len(parsed) < fetch,
+            undecodable=_repaired,
         )
 
-    lines = [ln.rstrip() for ln in (proc.stdout or "").splitlines() if ln.strip()]
+    lines = [ln.rstrip() for ln in _out.splitlines() if ln.strip()]
     ranked = _rank_exact_first(lines, query)
     sliced = ranked[offset:] if unlimited else ranked[offset:offset + limit]
     # Unlimited means we returned everything ES gave us, therefore exhaustive by
     # definition (there is no further page). Bounded means ES may hold more than our
     # fetch window -- report it honestly so the caller can page.
     return SearchResult(query=query, paths=sliced, ok=True,
-                        engine="everything", exhaustive=True if unlimited else len(lines) < fetch)
+                        engine="everything", exhaustive=True if unlimited else len(lines) < fetch,
+                        undecodable=_repaired)
 
 
 def format_result(res: SearchResult) -> str:
@@ -731,10 +776,23 @@ def format_result(res: SearchResult) -> str:
         return (f"{res.count} match(es) for {res.query!r}  [engine: walk, {scope}]{tail}:"
                 + "\n" + "\n".join(res.paths))
 
+    # A REPAIRED NAME IS A LOSS, AND IT IS SAID OUT LOUD. The strings below no longer round-trip
+    # to a real file, so a caller that compares one against a real path and finds no match must
+    # not read that as absence. This notice is also the only trace that the old strict decode
+    # would have discarded the WHOLE result set here and called it "nothing found".
+    note = ""
+    if getattr(res, "undecodable", 0):
+        note = (f"\n  [{res.undecodable} name(s) contained bytes that are NOT VALID UTF-8 and were "
+                f"REPAIRED with � -- those paths will not match a real filename exactly. "
+                f"Nothing was dropped.]")
     if not res.paths:
+        if getattr(res, "undecodable", 0):
+            return (f"(no decodable matches for {res.query!r} -- Everything answered, but "
+                    f"{res.undecodable} name(s) were NOT VALID UTF-8. This is UNCHECKABLE, "
+                    f"NOT an absence.)")
         return f"(no matches for {res.query!r} — Everything answered, nothing found)"
     header = f"{res.count} match(es) for {res.query!r}  [engine: Everything index]:"
-    return header + "\n" + "\n".join(res.paths)
+    return header + note + "\n" + "\n".join(res.paths)
 
 
 def format_hits(res: SearchResult) -> str:

@@ -112,6 +112,27 @@ def test_the_lines_that_decode_are_still_returned(es, monkeypatch):
         "the first, perfectly decodable path was lost with the bad one"
 
 
+def test_the_repaired_name_is_itself_returned_not_quietly_dropped(es, monkeypatch):
+    """ADDED AFTER MUTATION TESTING, which found this hole. Three deliberate breakages were run
+    against the finished fix and two were caught; the survivor silently FILTERED OUT any line
+    containing a replacement character. Every pin stayed green, because the fixture's other two
+    paths are clean and the assertions above only required those to survive.
+
+    Dropping the mangled name is the most tempting possible version of this bug: the output looks
+    tidy, nothing is obviously wrong, and the file with the strange name becomes permanently
+    invisible to the only tool that can find it. That file is precisely the one a human will
+    struggle to locate by hand, so it is the one the index is most needed for. The notice says
+    'Nothing was dropped' -- this is the pin that makes that sentence true.
+
+    The mutation lived in the SEARCH path, not the renderer, so this pin drives the real one."""
+    _run_returning(monkeypatch, DIRTY)
+    res = E.search(".flp", max_results=10)
+    assert len(res.paths) == 3, f"a path was dropped: {res.paths}"
+    assert any("name.flp" in p for p in res.paths), \
+        "the repaired name was filtered out of the results; 'Nothing was dropped' is then a lie"
+    assert res.undecodable == 1, f"the repair count is wrong: {res.undecodable}"
+
+
 def test_the_rendered_line_never_claims_nothing_was_found(es, monkeypatch):
     """The renderer is part of the contract: the defect was a SENTENCE, not a field."""
     _run_returning(monkeypatch, DIRTY)
