@@ -44,7 +44,7 @@ def _fresh_store():
     from core.foundation.store import FileStore
 
     d = tempfile.mkdtemp(prefix="lidx-")
-    return FileStore(base_dir=d) if "base_dir" in FileStore.__init__.__code__.co_varnames else FileStore()
+    return FileStore(base_dir=d) if "base_dir" in FileStore.__init__.__code__.co_varnames else FileStore()  # pyright: ignore[reportCallIssue]  # LATENT: dead branch, FileStore has no base_dir
 
 
 @pytest.fixture

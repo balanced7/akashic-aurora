@@ -118,7 +118,7 @@ def test_journal_accepts_from_and_action_filter():
     import inspect
 
     assert callable(getattr(e, "journal", None))
-    sig = inspect.signature(e.journal)
+    sig = inspect.signature(e.journal)  # pyright: ignore[reportAttributeAccessIssue]  # strict-xfail pin: journal() seam not built yet
     assert "from_" in sig.parameters
     assert "action" in sig.parameters
 

@@ -61,7 +61,7 @@ pytestmark = pytest.mark.xfail(
 
 
 def _clip():
-    from core.primitives import clip
+    from core.primitives import clip  # pyright: ignore[reportAttributeAccessIssue]  # T273 RED pin, not built yet
 
     return clip
 

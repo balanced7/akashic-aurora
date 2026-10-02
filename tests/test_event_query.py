@@ -134,7 +134,7 @@ def test_empty_store_returns_empty():
 def test_bad_input_never_crashes():
     eq, _ = _fixture()
     assert isinstance(eq.events_in_window("garbage", "also-garbage"), list)
-    assert isinstance(eq.search(None), list)  # None query -> falls back, no crash
+    assert isinstance(eq.search(None), list)  # pyright: ignore[reportArgumentType]  # bad input on purpose: None query falls back
     assert eq.get("not-a-ref") is None
 
 

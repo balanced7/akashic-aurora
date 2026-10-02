@@ -14,9 +14,9 @@ import os
 from pathlib import Path
 
 from agent.harness import registry
-from agent.harness.hooks import codex_common as common
-from agent.harness.hooks import codex_posttooluse as post
-from agent.harness.hooks import codex_pretooluse as pre
+from agent.harness.hooks import codex_common as common  # pyright: ignore[reportAttributeAccessIssue]  # not in repo
+from agent.harness.hooks import codex_posttooluse as post  # pyright: ignore[reportAttributeAccessIssue]  # not in repo
+from agent.harness.hooks import codex_pretooluse as pre  # pyright: ignore[reportAttributeAccessIssue]  # not in repo
 
 ROOT = Path(__file__).resolve().parents[1]
 FIX = ROOT / "tests" / "fixtures" / "codex_payloads"

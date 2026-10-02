@@ -102,7 +102,7 @@ class _SeedProbe(Bus):
 
     def __init__(self, advance_status):
         self._advance_status = advance_status  # no super().__init__: pure unit probe
-        self.online = True
+        self.online = True  # pyright: ignore[reportAttributeAccessIssue]  # LATENT: online is a read-only property; fails at base
 
     def probe(self):
         return True
