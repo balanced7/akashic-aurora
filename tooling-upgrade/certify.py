@@ -1457,8 +1457,9 @@ def _generators() -> list[str]:
 
 
 def cmd_assert_generated_docs(_args: argparse.Namespace) -> int:
-    """G5.P4: every generator re-run in a throwaway tree at HEAD changes nothing, and each one
-    that has a --check mode passes it."""
+    """G5.P4: each generator's own staleness rule holds at HEAD: its --check passes where it has
+    one (gen_physics_sheet stamps the HEAD SHA, so only its --check knows what "current" means),
+    and a generator without --check, re-run in a throwaway tree, changes nothing."""
     problems: list[str] = []
     gens = _generators()
     with drill_tree() as t:
@@ -1470,6 +1471,7 @@ def cmd_assert_generated_docs(_args: argparse.Namespace) -> int:
                 print(f"{g} --check: rc={r.returncode:d}")
                 if r.returncode != 0:
                     problems.append(f"{g} --check exits {r.returncode:d}")
+                continue
             r = run([sys.executable, str(src)], cwd=t, env=env, timeout=600)
             print(f"{g} (write): rc={r.returncode:d}")
             if r.returncode != 0:
