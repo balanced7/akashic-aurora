@@ -33,7 +33,9 @@ def pytest_collectreport(report: pytest.CollectReport) -> None:
 
 def pytest_sessionfinish(session: pytest.Session, exitstatus: int | pytest.ExitCode) -> None:
     out = os.environ.get("AURORA_ORACLE_OUT")
-    if not out:
+    if not out or hasattr(session.config, "workerinput"):
+        # an xdist worker holds only its own share; the controller receives every worker's
+        # reports through the same hooks and writes the one complete record
         return
     with open(out, "w", encoding="utf-8") as fh:
         json.dump(
