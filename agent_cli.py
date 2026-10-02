@@ -2065,7 +2065,9 @@ def _continuity_drift(notes=None) -> str:
         from datetime import datetime as _dt
 
         if notes is None:
-            notes = get_agent_memory().get_decisions(days=90)  # noqa: F821  # LATENT ADV-033: `get_agent_memory` is undefined here; fixed with a regression test in G4.P2
+            from core.learning.agent_memory import get_agent_memory
+
+            notes = get_agent_memory().get_decisions(days=90)
         stale = []
         for title in ("where-we-are", "next-focus", "grounding-pointer"):
             n = next((d for d in notes if d.title == title and not d.superseded), None)
