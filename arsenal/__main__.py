@@ -446,6 +446,7 @@ def main(argv=None) -> int:
                 print(f"no frames matched {args.pattern} under {args.dir}", file=sys.stderr)
                 return 2
             summary = fl_mod.summarise(receipts)
+            hard = [r for r in receipts if (r.get("verdict") or ("pass" if r["pass"] else "fail")) == "fail"]
             if args.json:
                 print(json.dumps({"summary": summary, "receipts": receipts}, indent=2))
             else:
@@ -470,7 +471,6 @@ def main(argv=None) -> int:
                         ids = sorted({res["exempt"]["id"] for res in r["results"] if "exempt" in res})
                         for e in excused:
                             print(f"          {e}  <- measured, declared: {', '.join(ids)}")
-                hard = [r for r in receipts if (r.get("verdict") or ("pass" if r["pass"] else "fail")) == "fail"]
                 line = (
                     f"census: {summary['frames']} frame(s) -- {summary['passed']} pass, "
                     f"{summary['failed']} fail, {summary['unreadable']} unreadable"
