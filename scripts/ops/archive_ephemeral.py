@@ -40,7 +40,7 @@ import os
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
@@ -219,7 +219,7 @@ def collect_state(root: Path | None = None) -> tuple[list[Path], dict[str, int]]
 
 
 def main(argv: list[str] | None = None) -> int:
-    ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    ap = argparse.ArgumentParser(description=cast("str", __doc__).split("\n")[0])
     ap.add_argument("--dest", action="append", default=[])
     ap.add_argument("--receipt-dir", default="")
     ap.add_argument("--verify", action="store_true")

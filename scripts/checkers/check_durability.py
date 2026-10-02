@@ -67,7 +67,7 @@ import json
 import subprocess
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -222,7 +222,7 @@ def sweep(root: Any = ROOT) -> dict[str, Any]:
 
 
 def main(argv: list[str] | None = None) -> int:
-    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap = argparse.ArgumentParser(description=cast("str", __doc__).splitlines()[0])
     ap.add_argument(
         "--gate", action="store_true", help="exit 1 on a NEW untracked pin (ratchet against the frozen baseline)"
     )

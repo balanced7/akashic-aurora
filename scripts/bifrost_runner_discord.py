@@ -25,6 +25,7 @@ import sys
 import threading
 import time
 from pathlib import Path
+from typing import TYPE_CHECKING, cast
 
 # T150/T152 runner-family law (regressed out in the ear-v2 rewrite, caught by the
 # census guards via the 2026-08-22 baseline delta): line-buffered utf-8 streams
@@ -32,6 +33,11 @@ from pathlib import Path
 # an exotic wrapper) degrades to old behaviour, never takes the ear down. This is
 # also the fix for the lazy-banner symptom (ARMED lines sitting unflushed in a
 # block buffer) that bit the operator's seat twice today.
+if TYPE_CHECKING:  # type-only narrowing (no runtime effect): the guards below handle other streams
+    import io
+
+    sys.stdout = cast("io.TextIOWrapper", sys.stdout)
+    sys.stderr = cast("io.TextIOWrapper", sys.stderr)
 try:  # noqa: SIM105  # tests t150/t152 pin a try/except guard here
     sys.stdout.reconfigure(encoding="utf-8", errors="replace", line_buffering=True)
 except Exception:
@@ -65,6 +71,23 @@ from core.comm.discord_inbound import (  # noqa: E402  # streams are forced to U
     spawn_credential_refusal,
     spawn_stillborn_reason,
 )
+
+if TYPE_CHECKING:
+    import discord
+
+    from core.comm.discord_guest_reply import GuestReplyTracker
+    from core.comm.discord_ladder import LadderTracker
+
+    class _EarClient(discord.Client):
+        """Type-only view of the gateway client: the loop state main() hangs on it."""
+
+        _ladder_tracker: LadderTracker
+        _guest_tracker: GuestReplyTracker
+        _ladder_started: bool
+        _ladder_task: asyncio.Task[None]
+        _guest_loop_started: bool
+        _guest_reply_task: asyncio.Task[None]
+
 
 NL = chr(10)  # newline, spelled out: an escape in this file got eaten once
 
@@ -774,7 +797,7 @@ def main(argv=None) -> int:
     intents.guilds = True
     intents.guild_messages = True
     intents.message_content = True
-    client = discord.Client(intents=intents)
+    client = cast("_EarClient", discord.Client(intents=intents))
 
     def _revive(target, observe_only, message):
         """The R3-amendment lever (T382): run the reconciler and speak its
@@ -958,7 +981,7 @@ def main(argv=None) -> int:
                         "text": str(text),
                     }
                 )
-            for op in tracker.poll(batch, on_drop=_drop_loud):
+            for op in tracker.poll(batch, on_drop=_drop_loud):  # pyright: ignore[reportCallIssue]  # LATENT: GuestReplyTracker.poll() takes no on_drop; this TypeError ends the guest-reply task
                 try:
                     await op["channel_key"].channel.send(f"[reply from {op['frm']}]\n{op['text']}")
                     print(f"[discord-in] guest reply posted ({op['frm']})", flush=True)

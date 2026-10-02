@@ -47,7 +47,7 @@ import tempfile
 import time
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -270,7 +270,7 @@ def _render(rep: dict[str, Any]) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
-    ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    ap = argparse.ArgumentParser(description=cast("str", __doc__).split("\n")[0])
     ap.add_argument("--source-dir", default="", help="transcript root (default: the harness projects dir)")
     ap.add_argument(
         "--dest",

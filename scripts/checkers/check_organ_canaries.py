@@ -53,6 +53,7 @@ import sqlite3
 import subprocess
 import sys
 from pathlib import Path
+from typing import cast
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
@@ -382,7 +383,7 @@ def self_test():
 
 
 def main(argv=None):
-    ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    ap = argparse.ArgumentParser(description=cast("str", __doc__).split("\n")[0])
     ap.add_argument("--gate", action="store_true", help="fail on a dead or unrunnable organ")
     ap.add_argument("--only", help="run canaries whose name contains this substring")
     ap.add_argument("--registry", action="store_true", help="check the registry's own invariant and exit")

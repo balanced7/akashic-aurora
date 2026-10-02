@@ -42,6 +42,7 @@ import sys
 import threading
 import time
 from pathlib import Path
+from typing import TYPE_CHECKING, cast
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -60,6 +61,11 @@ from core.comm.bus import Bus
 # The same call pins the ENCODING, which closes a real crash: a check-mark in a trace line raises
 # UnicodeEncodeError under Windows cp1252. Guarded -- a stream that cannot be reconfigured (pytest
 # capture, an exotic wrapper) must degrade to the old behaviour, never take the runner down.
+if TYPE_CHECKING:  # type-only narrowing (no runtime effect): the guards below handle other streams
+    import io
+
+    sys.stdout = cast("io.TextIOWrapper", sys.stdout)
+    sys.stderr = cast("io.TextIOWrapper", sys.stderr)
 try:  # noqa: SIM105  # tests t150/t152 pin a try/except guard here
     sys.stdout.reconfigure(encoding="utf-8", errors="replace", line_buffering=True)
 except Exception:
@@ -97,7 +103,9 @@ CARD = {
 # 'steer' deliberately NOT answerable (folds via inject); 'reply' NOT answerable (echo-loop guard).
 ANSWERABLE = frozenset({"chat", "request", "question", "handoff", "nudge", "inform"})
 
-REPLY_TIMEOUT_SEC = _scaled(600)  # 10 min wall-clock; drill-shrinkable (AKASHIC_TIMEOUT_MULTIPLIER)
+REPLY_TIMEOUT_SEC = cast(
+    "int", _scaled(600)
+)  # scaled(int) is an int; 10 min wall-clock; drill-shrinkable (AKASHIC_TIMEOUT_MULTIPLIER)
 SOL_MAX_HOPS = int(os.getenv("SOL_MAX_HOPS", "30"))
 
 DEFAULT_SYSTEM = (
@@ -246,10 +254,10 @@ def onboarding_context(root: Path, agent_id: str, task: str, budget_chars: int =
     try:
         if os.path.exists(sources_file):
             with open(sources_file, encoding="utf-8") as sf:
-                onboarding_context._last_sources = json.loads(sf.read()).get("sources", [])
+                vars(onboarding_context)["_last_sources"] = json.loads(sf.read()).get("sources", [])
             os.remove(sources_file)
     except Exception:
-        onboarding_context._last_sources = None
+        vars(onboarding_context)["_last_sources"] = None
     if not digest:
         return ""
     digest = _trim_onboarding(digest, budget_chars)
@@ -285,8 +293,10 @@ def _rb23_gates(answer: str, resend, agent_id: str, pulse=None) -> str:
         return answer
     if pulse is None:
 
-        def pulse(agent, reason, **kw):
+        def _pulse_error(agent, reason, **kw):
             liveness.pulse_error(agent, reason, generation=PULSE_GEN[0])
+
+        pulse = _pulse_error
 
     pre = answer
     answer = bounce_promise(answer, resend)
@@ -888,8 +898,10 @@ def main() -> int:
     if os.environ.get("AKASHIC_DRILL_ECHO"):
         args.agentic = False
 
-        def responder(prompt):
+        def _drill_echo(prompt):
             return f"[drill-echo] {str(prompt)[:120]}"
+
+        responder = _drill_echo
 
         mode = "drill-echo (offline)"
 
@@ -999,7 +1011,7 @@ def main() -> int:
 
             batch_next: dict = {}
             if lane_mode:
-                msgs = api.work_drain(timeout_ms=1500, since_out=batch_next, generation=lock_gen)
+                msgs = cast("BifrostAPI", api).work_drain(timeout_ms=1500, since_out=batch_next, generation=lock_gen)
             else:
                 msgs = bus.wait(timeout_ms=1500, advance=False, since_out=batch_next)
             bus.register(card=CARD)

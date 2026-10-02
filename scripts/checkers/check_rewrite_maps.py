@@ -43,6 +43,10 @@ import re
 import subprocess
 import sys
 from pathlib import Path
+from typing import TYPE_CHECKING, Any, cast
+
+if TYPE_CHECKING:
+    from collections.abc import Collection
 
 
 def _pyl() -> str:
@@ -190,7 +194,7 @@ def unmapped_rewrites(resolver, waived):
 
 
 # ------------------------------------------------------------------ 3. stranded citations
-def stranded_citations(resolver, waived, local=frozenset()):
+def stranded_citations(resolver, waived, local: Collection[str] = frozenset()):
     """Cited SHAs for which no map reaches a commit a clone can fetch."""
     cand = {}
     for rel in git("ls-files", "--", *CORPUS).splitlines():
@@ -235,7 +239,9 @@ def report(gate=False, freeze=False):
 
     r = Resolver(repo=ROOT)
     waived, waiver_problems = accepted()
-    out = {"maps": [{"label": m.label, "rows": len(m.rows), "durable": m.durable, "method": m.method} for m in r.maps]}
+    out: dict[str, Any] = {
+        "maps": [{"label": m.label, "rows": len(m.rows), "durable": m.durable, "method": m.method} for m in r.maps]
+    }
     out["unarchived"] = unarchived_map(r.maps)
     out["unmapped"] = unmapped_rewrites(r, waived)
     out["citations"] = stranded_citations(r, waived, local=awaiting_push())
@@ -331,7 +337,7 @@ def report(gate=False, freeze=False):
 
 
 def main(argv=None):
-    ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    ap = argparse.ArgumentParser(description=cast("str", __doc__).split("\n")[0])
     ap.add_argument("--gate", action="store_true", help="fail on a finding or a regression")
     ap.add_argument("--freeze", action="store_true", help="re-freeze the stranded baseline")
     args = ap.parse_args(argv)

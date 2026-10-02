@@ -49,6 +49,10 @@ import subprocess as subprocess  # re-export: tests patch deepseek_chat.subproce
 import sys
 import time
 from pathlib import Path
+from typing import TYPE_CHECKING, Any, cast
+
+if TYPE_CHECKING:
+    import io
 
 
 def _pyl() -> str:
@@ -103,7 +107,7 @@ def make_client(api_key=None, base_url=BASE_URL):
             http_client = recording_http_client(timeout=timeout)
         except Exception:
             http_client = None
-    kw = {"http_client": http_client} if http_client is not None else {"timeout": timeout}
+    kw: dict[str, Any] = {"http_client": http_client} if http_client is not None else {"timeout": timeout}
     return OpenAI(api_key=api_key or load_key(), base_url=base_url, max_retries=MODEL_MAX_RETRIES, **kw)
 
 
@@ -173,7 +177,7 @@ def clip_tool_result(result: str, limit: int = MAX_TOOL_RESULT_CHARS) -> str:
 def _enable_utf8_and_ansi() -> bool:
     for stream in (sys.stdout, sys.stdin, sys.stderr):
         with contextlib.suppress(Exception):
-            stream.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[attr-defined]
+            cast("io.TextIOWrapper", stream).reconfigure(encoding="utf-8", errors="replace")
     try:
         color = sys.stdout.isatty()
     except Exception:
@@ -294,8 +298,8 @@ class Agent:
         self.inject = inject  # optional () -> list[str]; steering facts to fold in mid-task
         self.on_trace = on_trace  # optional (kind, text) -> None; streams tool calls + thinking out
         self.agent_id = agent_id  # optional str; when set, cognitive metrics are recorded
-        self.temperature = None
-        self.max_tokens = None
+        self.temperature: float | None = None
+        self.max_tokens: int | None = None
         self.json_mode = False
         self.messages = [{"role": "system", "content": system}]
         self.prompt_tokens = self.completion_tokens = 0
@@ -643,7 +647,7 @@ class Agent:
 
 # ---- commands + REPL --------------------------------------------------------
 
-HELP = __doc__.split("In-chat commands:", 1)[1].split("NOTE:", 1)[0].rstrip()
+HELP = cast("str", __doc__).split("In-chat commands:", 1)[1].split("NOTE:", 1)[0].rstrip()
 
 
 def read_paste():

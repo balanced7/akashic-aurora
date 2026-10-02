@@ -17,6 +17,7 @@ import argparse
 import os
 import subprocess
 import sys
+from typing import TYPE_CHECKING, cast
 
 # T152 (T150's fifth runner). T150 made every bifrost_runner_<provider>.py watchable but
 # enumerated by the prefix `bifrost_runner_`, which cannot see the member whose name IS the
@@ -29,6 +30,11 @@ import sys
 # UnicodeEncodeError under Windows cp1252. Guarded: a stream that cannot be reconfigured
 # (pytest capture, an exotic wrapper) must degrade to the old behaviour, never take the runner
 # down at import.
+if TYPE_CHECKING:  # type-only narrowing (no runtime effect): the guards below handle other streams
+    import io
+
+    sys.stdout = cast("io.TextIOWrapper", sys.stdout)
+    sys.stderr = cast("io.TextIOWrapper", sys.stderr)
 try:  # noqa: SIM105  # tests t150/t152 pin a try/except guard here
     sys.stdout.reconfigure(encoding="utf-8", errors="replace", line_buffering=True)
 except Exception:
@@ -221,7 +227,7 @@ def main() -> int:
                 # work_drain get a cycle regularly; advance-on-read preserves this
                 # runner's existing at-most-once consume semantic.
                 batch_next: dict = {}
-                msgs = api.work_drain(timeout_ms=30_000, since_out=batch_next)
+                msgs = cast("BifrostAPI", api).work_drain(timeout_ms=30_000, since_out=batch_next)
                 if batch_next.get("inbox") or batch_next.get("bc"):
                     bus.advance_to(
                         inbox=batch_next.get("inbox"), bc=batch_next.get("bc"), cursor_key=bus.lane_cursor_key()

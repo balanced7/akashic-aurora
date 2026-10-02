@@ -47,6 +47,7 @@ import subprocess
 import sys
 import tempfile
 import time
+from typing import cast
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -209,7 +210,7 @@ def run_clone_drill(root: str, floor: int = FLOOR, tmp_base: str | None = None, 
 
 # ------------------------------------------------------------------------ main
 def main(argv: list[str] | None = None) -> int:
-    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap = argparse.ArgumentParser(description=cast("str", __doc__).splitlines()[0])
     ap.add_argument("--root", default=REPO_ROOT)
     ap.add_argument("--clone", action="store_true", help="also clone HEAD and collect the suite there (the drill)")
     ap.add_argument("--floor", type=int, default=FLOOR)

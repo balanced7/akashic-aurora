@@ -33,6 +33,7 @@ import os
 import subprocess
 import sys
 import tempfile
+from typing import cast
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
@@ -195,9 +196,10 @@ def run(
     claimed_ids = {c["_canary_id"] for c in claims if c["_canary_id"]}
     all_ids = {c["id"] for c in manifest.get("canaries", [])}
     name_to_id = {c["name"]: c["id"] for c in manifest.get("canaries", [])}
-    if (player_report or {}).get("assigned_names") is not None:
-        assigned = {name_to_id[n] for n in player_report["assigned_names"] if n in name_to_id}
-        judged = {name_to_id[n] for n in player_report.get("judged_names", []) if n in name_to_id}
+    pr = player_report or {}
+    if pr.get("assigned_names") is not None:
+        assigned = {name_to_id[n] for n in pr["assigned_names"] if n in name_to_id}
+        judged = {name_to_id[n] for n in pr.get("judged_names", []) if n in name_to_id}
     else:
         # The mechanical player scans the whole tree through the gate, so every planted
         # canary was both assigned and judged. Stated rather than assumed, because a wrong
@@ -266,7 +268,7 @@ def run(
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap = argparse.ArgumentParser(description=cast("str", __doc__).splitlines()[0])
     ap.add_argument("--k", type=int, default=9)
     ap.add_argument("--seed", type=int, default=20260804)
     ap.add_argument("--policy", default="v1_doc")
@@ -287,8 +289,10 @@ def main() -> int:
     if a.player == "llm":
         from scripts.season_llm_player import llm_player
 
-        def player(shadow):
+        def _llm(shadow):
             return llm_player(shadow, batch_size=a.batch_size, workers=a.workers)
+
+        player = _llm
 
     res = run(
         k=a.k,

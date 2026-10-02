@@ -36,6 +36,7 @@ import sys
 from collections import defaultdict
 from datetime import date
 from pathlib import Path
+from typing import cast
 
 
 def _pyl() -> str:
@@ -478,7 +479,7 @@ def cmd_census(args):
 
 
 def main(argv=None):
-    ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    ap = argparse.ArgumentParser(description=cast("str", __doc__).split("\n")[0])
     ap.add_argument("--repo")
     sub = ap.add_subparsers(dest="cmd", required=True)
 

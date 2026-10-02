@@ -26,6 +26,7 @@ import random
 import sys
 import tempfile
 import time
+from typing import cast
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT not in sys.path:
@@ -576,7 +577,7 @@ def run(
 def main() -> int:
     import argparse
 
-    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap = argparse.ArgumentParser(description=cast("str", __doc__).splitlines()[0])
     ap.add_argument("--seed", type=int, default=20260805)
     ap.add_argument("--snippet-chars", type=int, default=1200)
     ap.add_argument("--model", default="deepseek-v4-pro")

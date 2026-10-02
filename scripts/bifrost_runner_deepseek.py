@@ -48,6 +48,7 @@ import sys
 import threading
 import time
 from pathlib import Path
+from typing import TYPE_CHECKING, cast
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -66,6 +67,11 @@ from core.comm.bus import Bus
 # The same call pins the ENCODING, which closes a real crash: a check-mark in a trace line raises
 # UnicodeEncodeError under Windows cp1252. Guarded -- a stream that cannot be reconfigured (pytest
 # capture, an exotic wrapper) must degrade to the old behaviour, never take the runner down.
+if TYPE_CHECKING:  # type-only narrowing (no runtime effect): the guards below handle other streams
+    import io
+
+    sys.stdout = cast("io.TextIOWrapper", sys.stdout)
+    sys.stderr = cast("io.TextIOWrapper", sys.stderr)
 try:  # noqa: SIM105  # tests t150/t152 pin a try/except guard here
     sys.stdout.reconfigure(encoding="utf-8", errors="replace", line_buffering=True)
 except Exception:
@@ -119,7 +125,9 @@ def _pyl() -> str:
         return "py"
 
 
-REPLY_TIMEOUT_SEC = _scaled(600)  # 10 min; drill-shrinkable (AKASHIC_TIMEOUT_MULTIPLIER)
+REPLY_TIMEOUT_SEC = cast(
+    "int", _scaled(600)
+)  # scaled(int) is an int; 10 min; drill-shrinkable (AKASHIC_TIMEOUT_MULTIPLIER)
 # T018: explicit completion headroom. v4-pro is a REASONING model -- with no explicit cap the
 # provider default gets eaten by internal reasoning, and a long tool turn wraps up in a short
 # promise instead of the deliverable (reasoning_model_token_headroom; seen live 2026-07-09).
@@ -354,8 +362,10 @@ def content_floor_check(answer, resend, agent_id="deepseek", promise_bounce_fire
     stalled handoff stays visibly UNHANDLED so the sender can redrive. Never raises."""
     if pulse is None:
 
-        def pulse(agent, reason, **kw):
+        def _pulse_error(agent, reason, **kw):
             liveness.pulse_error(agent, reason, generation=PULSE_GEN[0])
+
+        pulse = _pulse_error
 
     reason = stall_reason(answer)
     if reason is None and promise_bounce_fired and promise_shaped_runner(answer):
@@ -377,7 +387,7 @@ def content_floor_check(answer, resend, agent_id="deepseek", promise_bounce_fire
 
     second, resent, resend_raised = None, False, False
     try:
-        second = resend(_FLOOR_REPROMPTS[reason])
+        second = resend(_FLOOR_REPROMPTS[cast("str", reason)])  # not None here: None returned above
         resent = True
     except Exception:
         second, resend_raised = None, True
@@ -635,10 +645,10 @@ def onboarding_context(root: Path, agent_id: str, task: str, budget_chars: int =
     try:
         if os.path.exists(sources_file):
             with open(sources_file, encoding="utf-8") as sf:
-                onboarding_context._last_sources = _json.loads(sf.read()).get("sources", [])
+                vars(onboarding_context)["_last_sources"] = _json.loads(sf.read()).get("sources", [])
             os.remove(sources_file)
     except Exception:
-        onboarding_context._last_sources = None
+        vars(onboarding_context)["_last_sources"] = None
     if not digest:
         return ""
     digest = _trim_onboarding(digest, budget_chars)
@@ -1557,8 +1567,10 @@ def main() -> int:
         # CONSUME->COMMIT pipeline, not the model. Never set in production.
         args.agentic = False
 
-        def responder(prompt):
+        def _drill_echo(prompt):
             return f"[drill-echo] {str(prompt)[:120]}"
+
+        responder = _drill_echo
 
         mode = "drill-echo (offline)"
 
@@ -1722,7 +1734,7 @@ def main() -> int:
             if lane_mode:
                 # generation rides into work_drain so its internal sig/shadow advances
                 # aren't refused as stale once this tenure stamps the lane hash
-                msgs = api.work_drain(timeout_ms=1500, since_out=batch_next, generation=lock_gen)
+                msgs = cast("BifrostAPI", api).work_drain(timeout_ms=1500, since_out=batch_next, generation=lock_gen)
             else:
                 msgs = bus.wait(timeout_ms=1500, advance=False, since_out=batch_next)
             bus.register(card=CARD)  # refresh presence
