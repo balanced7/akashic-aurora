@@ -6,26 +6,23 @@ annotation never appeared in the human `locks` listing.
 
 import argparse
 import os
-import sys
 import time
+from unittest import mock
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+import pytest
+
 os.environ.setdefault("REDIS_DB", "15")
 
 import agent_cli
 from core.comm import locks
 
 
-class _FakeLockManager:
-    def __init__(self, agent: str) -> None:
-        self.agent = agent
-
-    def list_locks(self) -> list[dict[str, object]]:
-        return [{"path": "core/x.py", "agent": "codex", "token": "t1", "ts": time.time() - 30, "ttl": 600}]
-
-
-def test_locks_listing_shows_lock_age(monkeypatch, capsys):
-    monkeypatch.setattr(locks, "LockManager", _FakeLockManager)
+def test_locks_listing_shows_lock_age(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    """A held lock is listed with its age and ttl."""
+    held = [{"path": "core/x.py", "agent": "codex", "token": "t1", "ts": time.time() - 30, "ttl": 600}]
+    manager = mock.Mock()
+    manager.return_value.list_locks.return_value = held
+    monkeypatch.setattr(locks, "LockManager", manager)
     args = argparse.Namespace(agent_id="claude", json=False)
 
     assert agent_cli.cmd_locks(args) == 0

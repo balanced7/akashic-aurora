@@ -5,10 +5,10 @@ when the caller let the function fetch the notes itself.
 """
 
 import os
-import sys
 import time
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+import pytest
+
 os.environ.setdefault("REDIS_DB", "15")
 
 import agent_cli
@@ -16,18 +16,22 @@ from core.learning import agent_memory
 
 
 class _FakeMemory:
+    """Records how many days of decisions were asked for and holds none."""
+
     def __init__(self) -> None:
         self.calls: list[int] = []
 
     def get_decisions(self, days: int = 0) -> list[object]:
+        """Return no notes, so every continuity organ reads as MISSING."""
         self.calls.append(days)
         return []
 
 
-def test_continuity_drift_fetches_notes_from_agent_memory(monkeypatch):
+def test_continuity_drift_fetches_notes_from_agent_memory(monkeypatch: pytest.MonkeyPatch) -> None:
+    """With notes=None the drift check reads the decisions itself and reports what is missing."""
     fake = _FakeMemory()
-    monkeypatch.setattr(agent_cli, "_head_commit_epoch", lambda: time.time())
-    monkeypatch.setattr(agent_memory, "get_agent_memory", lambda *a, **k: fake)
+    monkeypatch.setattr(agent_cli, "_head_commit_epoch", time.time)
+    monkeypatch.setattr(agent_memory, "get_agent_memory", lambda: fake)
 
     line = agent_cli._continuity_drift()
 
