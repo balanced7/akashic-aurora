@@ -2579,7 +2579,9 @@ def cmd_wish_curate(args):
     path.write_text(new_doc, encoding="utf-8")
     print(msg)
     with contextlib.suppress(Exception):
-        capture_event(  # noqa: F821  # LATENT ADV-033: `capture_event` is undefined here; fixed with a regression test in G4.P2
+        from core.events.event_log import capture_event
+
+        capture_event(
             "wish",
             f"{args.agent_id} curated {args.wish_id}: {action}",
             agent_id=args.agent_id,
@@ -2646,7 +2648,9 @@ def cmd_wish(args):
     path.write_text(text, encoding="utf-8")
     print(f"[wish] filed W{n:02d} ({args.agent_id}) -> {path.name} -- cite W{n:02d} at the next gate curation")
     with contextlib.suppress(Exception):
-        capture_event(  # noqa: F821  # LATENT ADV-033: `capture_event` is undefined here; fixed with a regression test in G4.P2
+        from core.events.event_log import capture_event
+
+        capture_event(
             "wish",
             f"{args.agent_id} filed W{n:02d}: {body[:120]}",
             agent_id=args.agent_id,
