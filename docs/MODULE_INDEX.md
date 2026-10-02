@@ -4,8 +4,9 @@
 > The big picture lives in [ARCHITECTURE.md](ARCHITECTURE.md); this is the per-module detail,
 > each module's line-1 docstring = its single responsibility.
 
-## core/foundation/  (10 modules)
+## core/foundation/  (11 modules)
 - `durable_reconcile.py` — Per-family authority reconcile: make the durable source COMPLETE before migrating.
+- `embedded_redis.py` — embedded_redis -- a Redis-compatible server in pure Python, persisted to SQLite.
 - `filelock.py` — A cross-process exclusive file lock.
 - `ledger.py` — Ledger: Swappable event-record interface (append-and-replay)
 - `migrate_to_sqlite.py` — JSON FileStore -> SqliteStore migration: shadow-build, census law, honest verify.
@@ -300,7 +301,7 @@
 - `seat_topology.py` — seat_topology — who is actually running, under which seat id, driven by what.
 
 ## scripts/
-- `arc_scorecard.py` — (no docstring)
+- `arc_scorecard.py` — arc_scorecard.py -- T031 hook 3: the wrap-time M-practice scorecard.
 - `arc_thread.py` — arc_thread.py -- door 2 of the library (LIBRARY.md): "trace our steps," materialized.
 - `ask_deepseek.py` — ask_deepseek -- a thin bridge so an agent (or you) can get DeepSeek's take from the CLI.
 - `ask_gemini.py` — ask_gemini -- a thin bridge so an agent (or you) can get Gemini's take from the CLI.
