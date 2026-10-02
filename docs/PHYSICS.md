@@ -4,17 +4,17 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at a7f916d8. A bound you discover by collision is not awareness -- this sheet
+> Derived at c0e78d38. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
 
-## Configuration flags (263 names)
+## Configuration flags (266 names)
 
 | Flag | Default (as written) | Read sites |
 |---|---|---|
 | `AGENT_ID` | `"unknown"` | core/comm/bus.py |
-| `AI_SETUP` | `"E:\\AI-Setup"` | agent_cli.py, core/comm/blobs.py, core/foundation/durable_reconcile.py +13 |
+| `AI_SETUP` | `<hardcoded absolute path>` | agent_cli.py, core/comm/blobs.py, core/foundation/durable_reconcile.py +10 |
 | `AI_SETUP_ROOT` | `` | research/in-flight/t342/dead-modules/_archive__python_old__launch_ai_stack.py |
 | `AI_STACK_CHAT_URL` | `"http://127.0.0.1:3000"` | research/in-flight/t342/dead-modules/_archive__python_old__launch_ai_stack.py |
 | `AI_STACK_GUI_URL` | `"http://127.0.0.1:8090"` | research/in-flight/t342/dead-modules/_archive__python_old__launch_ai_stack.py |
@@ -49,7 +49,7 @@ Class: reference
 | `AKASHIC_CLEAN_DEATH` | `"1"` | core/comm/session_exit.py |
 | `AKASHIC_CODEX_BINARY` | `` | agent/harness/codex_app_server.py |
 | `AKASHIC_CONDUCTOR_SUCCESSORS` | `",".join(SUCCESSION_ORDER` | core/comm/conductor_gate.py |
-| `AKASHIC_CONTROL_PORT_BASE` | `"47100"` | core/comm/control_channel.py |
+| `AKASHIC_CONTROL_PORT_BASE` | `""` | core/comm/control_channel.py |
 | `AKASHIC_DAEMON_WAKE` | `"1"` | agent/harness/hooks/claude_stop.py, scripts/hooks/claude_stop.py |
 | `AKASHIC_DEBUG` | `` | agent/harness/hooks/claude_userpromptsubmit.py, scripts/hooks/claude_userpromptsubmit.py |
 | `AKASHIC_DIGESTS_FILE` | `` | scripts/corpus_digests.py |
@@ -64,6 +64,8 @@ Class: reference
 | `AKASHIC_DISCORD_WEBHOOK` | `` | agent_cli.py, core/comm/discord_bridge.py |
 | `AKASHIC_DISCORD_WEBHOOKS` | `` | core/comm/discord_bridge.py |
 | `AKASHIC_DRILL_ECHO` | `` | scripts/bifrost_runner.py, scripts/bifrost_runner_deepseek.py, scripts/bifrost_runner_gemini.py +2 |
+| `AKASHIC_EMBEDDED_REDIS_DIR` | `` | core/foundation/embedded_redis.py |
+| `AKASHIC_EMBEDDED_REDIS_FLUSH_SEC` | `"0.2"` | core/foundation/embedded_redis.py |
 | `AKASHIC_EMBED_THEMES` | `""` | core/narrative/beat_log.py, core/narrative/theme_discovery.py |
 | `AKASHIC_EXPECT_TASK_SETTLE` | `"1"` | core/comm/expectations.py |
 | `AKASHIC_FENCE_ROOT` | `` | core/coord/fence_workspace.py |
@@ -93,12 +95,14 @@ Class: reference
 | `AKASHIC_PLAY_TIMEOUT_S` | `"30"` | core/toolbelt/play_sandbox.py |
 | `AKASHIC_PORTS_NO_DOCKER` | `` | scripts/checkers/check_ports.py |
 | `AKASHIC_PROPOSED_STALE_DAYS` | `stale_days` | core/coord/task_ledger.py |
+| `AKASHIC_PYTHON` | `` | core/paths.py |
 | `AKASHIC_RECALL_AT_ACTION` | `"1"` | agent/harness/actions.py, agent/harness/hooks/claude_posttooluse.py, agent/harness/hooks/cursor_posttooluse.py +2 |
 | `AKASHIC_RECALL_CACHE_TTL` | `"120"` | core/recall/at_action.py |
 | `AKASHIC_RECALL_FLOOR` | `"0.20"` | core/recall/at_action.py |
 | `AKASHIC_RECALL_SELF_ECHO_H` | `"2"` | core/recall/at_action.py |
-| `AKASHIC_RECALL_STATE_DIR` | `` | agent/harness/actions.py, agent/harness/hooks/claude_posttooluse.py, agent/harness/hooks/claude_sessionend.py +14 |
+| `AKASHIC_RECALL_STATE_DIR` | `` | agent/harness/actions.py, agent/harness/hooks/claude_posttooluse.py, agent/harness/hooks/claude_sessionend.py +15 |
 | `AKASHIC_RECENT_INBOX_S` | `str(12 * 3600` | core/comm/doctor.py |
+| `AKASHIC_REDIS_BACKEND` | `` | core/foundation/embedded_redis.py |
 | `AKASHIC_REDIS_HEALTH_CHECK_SEC` | `"30"` | core/foundation/redis_connection.py |
 | `AKASHIC_REDIS_HOST` | `"localhost"` | scripts/checkers/check_field_parity.py |
 | `AKASHIC_REDIS_PORT` | `16379` | scripts/checkers/check_field_parity.py |
@@ -110,6 +114,7 @@ Class: reference
 | `AKASHIC_RESUME_GAP_S` | `"600"` | core/comm/roster.py |
 | `AKASHIC_ROSTER_CHURN_AT` | `"3"` | core/comm/roster.py |
 | `AKASHIC_ROSTER_CHURN_WINDOW_S` | `"3600"` | core/comm/roster.py |
+| `AKASHIC_ROUND_DIR` | `os.path.join(os.path.expanduser("~"` | scripts/round_archive.py |
 | `AKASHIC_ROUTE_JOURNAL` | `""` | core/comm/ask.py |
 | `AKASHIC_RUN_EXPECTATION` | `` | core/comm/failsafe.py |
 | `AKASHIC_SEAT_DOOR` | `""` | agent_cli.py |
@@ -153,10 +158,10 @@ Class: reference
 | `AKASHIC_WIRE_MAX_SHARDS` | `"64"` | scripts/wire_journal.py |
 | `AKASHIC_WIRE_QUEUE` | `"4096"` | scripts/wire_journal.py |
 | `AKASHIC_WIRE_WRITER` | `` | scripts/wire_journal.py |
-| `AKASHIC_WISHLIST_FILE` | `` | agent_cli.py |
+| `AKASHIC_WISHLIST_FILE` | `str(Path(__file__` | agent_cli.py |
 | `AKASHIC_WORKLIVE_FRESH_S` | `"45"` | core/comm/roster.py |
 | `AKASHIC_WORKLIVE_TTL_S` | `"180"` | core/comm/roster.py |
-| `APPDATA` | `` | core/tools/everything.py |
+| `AURORA_ORACLE_OUT` | `` | tooling-upgrade/pytest_plugin/aurora_oracle_plugin.py |
 | `BIFROST_AGENT` | `` | scripts/wire_journal.py |
 | `BIFROST_AGENT_ID` | `` | core/comm/conductor_gate.py |
 | `BIFROST_APPROACHING_WEDGE_SECONDS` | `"150"` | core/comm/liveness.py |
@@ -167,8 +172,8 @@ Class: reference
 | `BIFROST_MAX_REPLIES_PER_MIN` | `"12"` | core/comm/control.py, scripts/bifrost_runner_deepseek.py |
 | `BIFROST_NAMESPACE` | `_DEFAULT_NS` | agent/bifrost_pull.py, agent/harness/delta.py, agent/harness/dsh_plugin/bridge.py +36 |
 | `BIFROST_PREFLIGHT_ASSERT` | `"1"` | core/comm/assertions.py |
-| `BIFROST_PREMISE_GATE_MIN_AGE_MS` | `` | core/coord/task_ledger.py |
-| `BIFROST_REASK_WINDOW_S` | `` | core/comm/bus.py |
+| `BIFROST_PREMISE_GATE_MIN_AGE_MS` | `2 * 3600 * 1000` | core/coord/task_ledger.py |
+| `BIFROST_REASK_WINDOW_S` | `Bus._REASK_WINDOW_S` | core/comm/bus.py |
 | `BIFROST_REPLY_DEDUP_TTL_S` | `"1200"` | core/comm/bus.py |
 | `BIFROST_STALE_MS` | `DEFAULT_STALE_MS` | core/comm/packet_spec.py |
 | `BIFROST_UI_PORT` | `"8787"` | core/comm/doctor.py |
@@ -240,12 +245,12 @@ Class: reference
 | `LAUNCHER_RESTART_BACKOFF_MAX` | `"60"` | core/comm/launcher.py |
 | `LAUNCHER_RESTART_MAX` | `"5"` | core/comm/launcher.py |
 | `LAUNCHER_RESTART_RESET` | `"300"` | core/comm/launcher.py |
-| `LD_LIBRARY_PATH` | `''` | research/in-flight/t342/dead-modules/test_gpu_pytorch.py, research/in-flight/t342/dead-modules/test_torch.py |
-| `LOCALAPPDATA` | `""` | agent/harness/codex_app_server.py, agent/harness/codex_bifrost_wake.py, core/tools/everything.py +1 |
+| `LD_LIBRARY_PATH` | `""` | research/in-flight/t342/dead-modules/test_gpu_pytorch.py, research/in-flight/t342/dead-modules/test_torch.py |
+| `LOCALAPPDATA` | `` | agent/harness/codex_app_server.py, agent/harness/codex_bifrost_wake.py |
 | `OLLAMA_URL` | `"http://localhost:11434"` | research/in-flight/t342/dead-modules/_archive__python_old__gemma_voice_service.py, research/in-flight/t342/dead-modules/_archive__python_old__stack_gui.py |
 | `OPENAI_API_KEY` | `` | scripts/ask_gpt.py |
 | `OPENAI_MODEL` | `"gpt-5"` | scripts/ask_gpt.py |
-| `OPENCODE_AGENT_ROLE` | `'generator'` | research/in-flight/t342/dead-modules/agent_coordinator.py, research/in-flight/t342/dead-modules/agent_coordinator_v2.py, research/in-flight/t342/dead-modules/init_session.py |
+| `OPENCODE_AGENT_ROLE` | `"generator"` | research/in-flight/t342/dead-modules/agent_coordinator.py, research/in-flight/t342/dead-modules/agent_coordinator_v2.py, research/in-flight/t342/dead-modules/init_session.py |
 | `OPENCODE_API_KEY` | `""` | research/in-flight/t342/dead-modules/_archive__python_old__escalation.py |
 | `OPENCODE_SESSION` | `f"session_{time.strftime('%Y%m%d_%H%M%S'` | research/in-flight/t342/dead-modules/screenshot_logger.py |
 | `OPENCODE_SESSION_ID` | `f"session_{datetime.now(` | research/in-flight/t342/dead-modules/agent_coordinator.py |
@@ -274,10 +279,8 @@ Class: reference
 | `STORM_DEPTH_THRESHOLD` | `50` | core/comm/storm_detect.py |
 | `STORM_DEPTH_WINDOW` | `3` | core/comm/storm_detect.py |
 | `STORM_REPEAT_THRESHOLD` | `5` | core/comm/storm_detect.py |
-| `TEMP` | `"/tmp"` | core/recall/precision_audit.py, scripts/ops/archive_transcripts.py |
-| `USERPROFILE` | `` | core/tools/everything.py |
 
-## Mechanical bounds (325 numeric constants)
+## Mechanical bounds (324 numeric constants)
 
 | Constant | Value | Site | Note |
 |---|---|---|---|
@@ -288,7 +291,6 @@ Class: reference
 | `AREA_FRAME_MS` | 1,000 | arsenal/performance.py | key areas (each part of a session numbered in its own key): one step a second, scoring |
 | `AREA_GAP_MS` | 10,000 | arsenal/performance.py | but never across a silence this long into a key that leaves out more than AREA_GAP_FIT mor |
 | `AREA_MIN_HEARD_MS` | 1,500 | arsenal/performance.py | a step hearing less than this, or fewer than 3 pitch classes, scores every key alike |
-| `AREA_MIN_MS` | 30,000 | arsenal/performance.py | a key area with less playing than this joins the neighbour whose key leaves out less of it |
 | `AREA_SNAP_MS` | 5,000 | arsenal/performance.py | a key change moves to the nearest note-on this close (else to where playing resumes), then |
 | `AREA_TONIC_MIN_MS` | 1,500 | arsenal/practice.py | a key area needs its tonic chord for this long, or two chord roots that the neighbouring |
 | `ARP_MAX_MS` | 2,000 | arsenal/jam/schemas.py |  |
@@ -324,6 +326,7 @@ Class: reference
 | `CAP` | 90,000 | research/reviewed/success-sweep-raw-2026-08-10/extract_daniil_success_talk.py |  |
 | `CATEGORY_CAP_PER_ATOM` | 3 | core/library/taxonomy.py |  |
 | `CHAIN_WARN_THRESHOLD` | 50 | core/learning/agent_memory.py |  |
+| `CHECKER_TIMEOUT_S` | 900 | tooling-upgrade/oracle.py |  |
 | `CHORD_SOUND_MS` | 250 | arsenal/practice.py | a pitch class is in a window's chord only if it really sounds there (key or pedal, not the |
 | `CHORD_STRIKE_MS` | 150 | arsenal/practice.py | notes struck within this long of each other are struck together |
 | `CLARIFY_MAX_PER_TASK` | 3 | core/comm/toolbox.py |  |
@@ -384,11 +387,13 @@ Class: reference
 | `HEARTBEAT_INTERVAL` | 30 | research/in-flight/t342/dead-modules/_archive__legacy__services__background_monitor.py | seconds |
 | `HEARTBEAT_INTERVAL` | 10 | research/in-flight/t342/dead-modules/agent_comm_service.py | seconds - heartbeat frequency |
 | `HEARTBEAT_INTERVAL` | 30 | research/in-flight/t342/dead-modules/multi_agent.py |  |
+| `HELP_TIMEOUT_S` | 20 | tooling-upgrade/oracle.py |  |
 | `HIGHLIGHT_SECONDS` | 6 | arsenal/practice_riff.py |  |
 | `HINT_MAX_PER_AGENT` | 8 | core/comm/context_hints.py | ring buffer cap per receiving agent |
 | `HINT_TTL_SECONDS` | 300 | core/comm/context_hints.py | 5 min soft expiry (stale hints silently dropped by drain) |
 | `HISTORY_CAP` | 200 | core/comm/turn_metrics.py |  |
 | `IMPLAUSIBLE_MIN_N` | 5 | core/coord/sift.py | below this, a high rate is small-n noise, not an alarm |
+| `IMPORT_TIMEOUT_S` | 20 | tooling-upgrade/oracle.py |  |
 | `INNER_BLOCK_MS` | 120,000 | research/in-flight/t342/dead-modules/scripts__heimdall.py | 2-min inner blocks; loop if a batch is all noise |
 | `IOI_BIN_MS` | 50 | arsenal/performance.py | inter-onset-interval histogram bin width |
 | `IOI_MAX_MS` | 2,000 | arsenal/performance.py | gaps at or above this are counted as pauses, not binned |
@@ -478,7 +483,6 @@ Class: reference
 | `NUMBER_MAX` | 24 | arsenal/jam/schemas.py |  |
 | `ONSET_GROUP_MS` | 50 | arsenal/practice.py | note-ons within 50 ms of a group's first onset are one attack (a window can start there) |
 | `ONSET_MERGE_MS` | 40 | arsenal/performance.py | note-ons within 40 ms of a group's first onset count as one onset (a chord, a roll) |
-| `OPEN_TAIL_MS` | 60,000 | arsenal/practice.py | in an open session, notes still down are counted up to now, at most this long past the las |
 | `OUTCOME_MAXLEN` | 20,000 | core/recall/at_action.py |  |
 | `OVERLAP_SLACK_MS` | 5,000 | arsenal/jam/align.py |  |
 | `PASSING_MAX_BEATS` | 1 | arsenal/practice_riff.py | a passing rub is shorter than this... |
@@ -511,7 +515,6 @@ Class: reference
 | `REPLAY_MAX_SPEED` | 4 | arsenal/jam/schemas.py |  |
 | `REPORT_TTL_SEC` | 900 | core/fleet/seat_model.py |  |
 | `RETURN_AREA_MS` | 8,000 | arsenal/practice.py | inside a key area, the parallel mode's 3rd back this long, with no sign of the area's own |
-| `RETURN_MIN_MS` | 4,000 | arsenal/practice.py | chords with the parallel key's 3rd (and not the area's own) this long in a row: the mode f |
 | `RETURN_TONIC_MS` | 4,000 | arsenal/practice.py | 3rd and the tonic with that 3rd sounding this long, is its own key area (a return) |
 | `RUN_HOLD_MS` | 1,000 | arsenal/practice.py |  |
 | `RUN_MIN_NOTES` | 5 | arsenal/practice.py | a note inside a one-way stepwise run this long (single notes at most RUN_STEP_MS apart, |
@@ -525,7 +528,6 @@ Class: reference
 | `SEATSEEN_TTL_S` | 86,400 | core/comm/roster.py | kimi F1: death must outlive the worklive TTL to be RENDERABLE |
 | `SECTION_GAP_MS` | 5,000 | arsenal/practice.py | this long with nothing sounding and the pedal up ends a section: key areas, key changes, |
 | `SECTION_IDLE_MS` | 60,000 | arsenal/practice.py | this long with nothing struck ends a section too, even while a held key or a pedal left |
-| `SECTION_JOIN_GAP_MS` | 30,000 | arsenal/practice.py | ...only across a pause shorter than this; after a longer pause it stays a section of its o |
 | `SECTION_MIN_MS` | 4,000 | arsenal/practice.py | a shorter section (a stray note between two pauses) joins its nearer neighbour... |
 | `SEEN_CAP` | 1,000 | scripts/bifrost_wake.py | newest-last trim on save; a session outliving 1000 wakes re-earns a twin wake |
 | `SENTINEL_DOWN_AFTER_MS` | 5,000 | research/in-flight/t342/dead-modules/_archive__legacy__services__redis_ha_manager.py |  |
@@ -558,7 +560,6 @@ Class: reference
 | `TEMPO_WINDOW_MS` | 25 | arsenal/performance.py | a gap's cluster is every in-range gap within 25 ms of it |
 | `TF_LEN_UNIT` | 4,000 | core/recall/lookback.py | chars of text per EXPECTED occurrence of a matched stem: a 12KB doc |
 | `THRESHOLD` | 1,500 | scripts/checkers/check_bus_atom_pointers.py | chars: below this a body is "a pointer with manners" |
-| `TIMELINE_PER_AREA_MIN` | 3 | arsenal/practice.py | ...shrinking to this many when the brief runs long (an area under ASK_MIN_AREA_S: 2 at mos |
 | `TIMEOUT` | 15 | research/in-flight/t342/dead-modules/enterprise_web_fetch.py | seconds |
 | `TOKEN_BUDGET` | 4,000 | core/narrative/chronicler.py |  |
 | `TOOL_SEND_TEXT_MAX` | 8,000 | core/comm/packet_spec.py | D3 (deepseek verdict 2026-07-19): the 4000 door |
@@ -606,3 +607,4 @@ Class: reference
 | `_TEXT_PREVIEW_CHARS` | 240 | core/coord/intent_shadow.py |  |
 | `_THEMES_MAX_DAYS` | 30 | agent/harness/context.py | R2: themes older than this stay off the whisper |
 | `_VISIT_BUDGET` | 4,096 | core/git/rewrite_map.py | DFS node visits; a pathological map graph must not hang a verb |
+| `_WINDOWS_BASE` | 47,100 | core/comm/control_channel.py |  |
