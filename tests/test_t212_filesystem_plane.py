@@ -51,8 +51,9 @@ def test_files_become_rows_with_real_mtimes(tree):
     rows = TL._file_rows(root=str(tree))
     assert len(rows) == 3
     for r in rows:
-        assert TL._epoch(r["ts"]) is not None
-        assert TL._epoch(r["ts"]) > 1_000_000_000
+        ep = TL._epoch(r["ts"])
+        assert ep is not None
+        assert ep > 1_000_000_000
     assert {os.path.basename(r["ref"]) for r in rows} == {"a.py", "b.md", "c.py"}
 
 

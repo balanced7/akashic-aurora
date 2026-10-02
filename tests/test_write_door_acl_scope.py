@@ -50,7 +50,7 @@ from core.trust.capabilities import Cap  # noqa: E402  # sys.path bootstrap
 from core.trust.registry import Grant  # noqa: E402  # sys.path bootstrap
 
 
-def _box(tmp_path: Path, agent_id="deepseek-red", allow_write=True):
+def _box(tmp_path: Path, agent_id: str | None = "deepseek-red", allow_write=True):
     """A ToolBox rooted in a scratch dir. trust=False keeps the exec-family gate out of
     the way; these pins are about the WRITE door only."""
     return tb_mod.ToolBox(

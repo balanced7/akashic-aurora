@@ -109,6 +109,7 @@ def test_t6_the_default_floor_changes_nothing():
         assert wt.admits(_tier(m), wt.AMBIENT), "T6: at the default floor every tier is admitted -- no silent narrowing"
     # the contract, not an implementation detail: watch() must DEFAULT to the ambient floor,
     # so an existing caller that knows nothing about tiers keeps its exact behaviour
+    assert bw.watch.__kwdefaults__ is not None
     assert bw.watch.__kwdefaults__.get("min_tier") == wt.AMBIENT, (
         "T6: the default floor must be AMBIENT, or landing tiers silently narrows every seat"
     )

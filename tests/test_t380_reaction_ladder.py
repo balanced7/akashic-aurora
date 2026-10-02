@@ -209,6 +209,8 @@ def test_p6_wake_fire_stamps_seen_and_the_ladder_thinks(monkeypatch):
             "bifrost_wake_under_test",
             os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts", "bifrost_wake.py"),
         )
+        assert spec is not None
+        assert spec.loader is not None
         bw = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(bw)
 

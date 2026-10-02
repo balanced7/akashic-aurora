@@ -40,6 +40,7 @@ def _setup():
         at="2026-01-01T00:00:00",
         hint=RouteHint(paths=["core/narrative/schema.py"]),
     )
+    assert b is not None
     return store, gov, b
 
 
@@ -71,6 +72,7 @@ def test_immutability_and_index_move():
     from core.narrative.beat_log import BeatLog as _B
 
     again = _B(store)._load(b.id)
+    assert again is not None
     assert again.source == "git:abc", "fact untouched"
     assert again.summary == "Slice 0 schema", "fact untouched"
     # the index MOVED (not duplicated, not the beat deleted)
@@ -82,11 +84,15 @@ def test_append_only_and_rollback():
     store, gov, b = _setup()
     gov.record(b.id, "stemroller", source="human", at="2026-01-02T00:00:00")  # wrong, confirmed
     assert gov.current(b.id) == "stemroller"
-    n_before = len(BeatLog(store)._load(b.id).tag_history)
+    loaded = BeatLog(store)._load(b.id)
+    assert loaded is not None
+    n_before = len(loaded.tag_history)
     changed, cur = gov.rollback(b.id, "ai-setup", at="2026-01-03T00:00:00")
     assert cur == "ai-setup", "I4: rollback restores the prior tag"
     assert changed is True, "I4: rollback restores the prior tag"
-    assert len(BeatLog(store)._load(b.id).tag_history) == n_before + 1, "I3: rollback appends, never deletes"
+    loaded = BeatLog(store)._load(b.id)
+    assert loaded is not None
+    assert len(loaded.tag_history) == n_before + 1, "I3: rollback appends, never deletes"
 
 
 def test_crdt_monotonicity_fuzz():
@@ -104,6 +110,7 @@ def test_crdt_monotonicity_fuzz():
         )
     assert gov.current(b.id) == "ai-setup", "I2: no low-confidence storm degrades a confirmed tag"
     fact = BeatLog(store)._load(b.id)
+    assert fact is not None
     assert fact.source == "git:abc", "I1: fact never changed"
     assert fact.summary == "Slice 0 schema", "I1: fact never changed"
 
@@ -116,7 +123,9 @@ def test_d3_tampered_nonfinite_confidence_cannot_degrade():
 
     store, gov, b = _setup()
     gov.confirm(b.id, "ai-setup", at="2026-01-02T00:00:00")  # the real, pinned tag
-    raw = json.loads(store.get(beat_key(b.id)))
+    stored = store.get(beat_key(b.id))
+    assert stored is not None
+    raw = json.loads(stored)
     raw["tag_history"].append(
         {
             "value": "stemroller",
@@ -130,6 +139,7 @@ def test_d3_tampered_nonfinite_confidence_cannot_degrade():
     assert gov.current(b.id) == "ai-setup", "an injected inf opinion must not hijack current()"
     # the FACT (the beat's source/summary) is untouched -- we only refused to count the bad vote
     fact = BeatLog(store)._load(b.id)
+    assert fact is not None
     assert fact.source == "git:abc"
     assert fact.summary == "Slice 0 schema"
 

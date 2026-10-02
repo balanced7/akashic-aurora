@@ -51,7 +51,9 @@ def _tree(tmp_path, files: dict):
 def _candidates_over(monkeypatch, tmp_path, files):
     targets = _tree(tmp_path, files)
     monkeypatch.setattr("scripts.canary_oracle._resolve_universe", lambda root: (targets, "test"))
-    return {c["name"]: c for c in P.candidates(str(tmp_path))}
+    cands = P.candidates(str(tmp_path))
+    assert isinstance(cands, list)
+    return {c["name"]: c for c in cands}
 
 
 def test_k1_low_reference_functions_are_kept_and_popular_ones_dropped(monkeypatch, tmp_path):

@@ -186,5 +186,6 @@ def test_p5_exchanges_start_at_operator_turns(db):
     for child in l2["children"]:
         l1 = PYR.zoom(child, db_path=db)
         first_ev = EYE.get_event(l1["refs"][0], db_path=db)
+        assert first_ev is not None
         firsts.append(first_ev["voice"])
     assert all(v == "operator" for v in firsts), "every exchange opens with an operator turn -- the grouping law"

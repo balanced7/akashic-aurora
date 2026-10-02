@@ -50,6 +50,7 @@ def test_a_handle_is_minted_and_short_enough_to_type(store):
 def test_record_round_trips(store):
     ask_bg.write_record("h1", {"status": "running", "prompt": "why"})
     r = ask_bg.read_record("h1")
+    assert r is not None
     assert r["status"] == "running"
     assert r["prompt"] == "why"
 
@@ -147,6 +148,7 @@ def test_result_written_by_the_child_is_readable(store):
     ask_bg.write_record("h9", {"status": "running"})
     ask_bg.finish("h9", {"ok": True, "answer": "hello", "usd": 0.001})
     r = ask_bg.read_record("h9")
+    assert r is not None
     assert r["status"] == "done"
     assert r["result"]["answer"] == "hello"
     assert ask_bg.summarize(r)["state"] == "DONE"

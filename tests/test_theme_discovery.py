@@ -13,6 +13,7 @@ import math
 import os
 import sys
 from types import SimpleNamespace
+from typing import TYPE_CHECKING, cast
 
 import pytest
 
@@ -25,6 +26,9 @@ from narrative_metrics import multilabel_prf
 from core.narrative.theme_assigner import ThemeAssigner
 from core.narrative.theme_discovery import DEFAULT_TAU, EXEMPLARS, ThemeDiscoverer, _ctfidf_terms, select_theme_assigner
 from core.primitives.embedder import get_embedder
+
+if TYPE_CHECKING:
+    from core.primitives.embedder import Embedder
 
 
 def _unit(v):
@@ -49,6 +53,11 @@ class FakeEmbedder:
         return [self.table.get(t) for t in texts]
 
 
+def _as_embedder(fake: FakeEmbedder) -> "Embedder":
+    """Type the duck-typed fake as the Embedder it stands in for (no runtime effect)."""
+    return cast("Embedder", fake)
+
+
 class _StubKW:
     def __init__(self, themes):
         self._t = themes
@@ -60,7 +69,7 @@ class _StubKW:
 # --------------------------------------------------------------- routing logic
 def test_route_single_and_below_threshold():
     fe = FakeEmbedder({"a1": [1, 0, 0], "b1": [0, 1, 0], "near_a": [1, 0, 0], "far": [0, 0, 1]})
-    d = ThemeDiscoverer(embedder=fe, tau=0.5, seeds={"alpha": ["a1"], "beta": ["b1"]})
+    d = ThemeDiscoverer(embedder=_as_embedder(fe), tau=0.5, seeds={"alpha": ["a1"], "beta": ["b1"]})
     assert d.available is True
     assert d.route("near_a") == ["alpha"]
     assert d.route("far") == []
@@ -68,14 +77,14 @@ def test_route_single_and_below_threshold():
 
 def test_route_multilabel():
     fe = FakeEmbedder({"a1": [1, 0, 0], "b1": [0, 1, 0], "ab": [1, 1, 0]})
-    d = ThemeDiscoverer(embedder=fe, tau=0.5, seeds={"alpha": ["a1"], "beta": ["b1"]})
+    d = ThemeDiscoverer(embedder=_as_embedder(fe), tau=0.5, seeds={"alpha": ["a1"], "beta": ["b1"]})
     assert d.route("ab") == ["alpha", "beta"]  # cos 0.707 to each, both >= 0.5
 
 
 def test_max_pool_over_exemplars():
     # the matching beat is near the SECOND exemplar; max-pool must still fire the theme
     fe = FakeEmbedder({"a1": [1, 0, 0], "a2": [0, 0, 1], "near_a2": [0, 0, 1]})
-    d = ThemeDiscoverer(embedder=fe, tau=0.9, seeds={"alpha": ["a1", "a2"]})
+    d = ThemeDiscoverer(embedder=_as_embedder(fe), tau=0.9, seeds={"alpha": ["a1", "a2"]})
     assert d.route("near_a2") == ["alpha"]
     assert d.scores("near_a2")["alpha"] == pytest.approx(1.0)
 
@@ -84,13 +93,15 @@ def test_assign_is_hybrid_union():
     beat = SimpleNamespace(summary="alpha beat", source="")
     txt = ThemeAssigner._text_of(beat, None)
     fe = FakeEmbedder({"a1": [1, 0, 0], txt: [1, 0, 0]})
-    d = ThemeDiscoverer(embedder=fe, tau=0.5, seeds={"alpha": ["a1"]}, keyword_assigner=_StubKW(["logging"]))
+    d = ThemeDiscoverer(
+        embedder=_as_embedder(fe), tau=0.5, seeds={"alpha": ["a1"]}, keyword_assigner=_StubKW(["logging"])
+    )
     assert d.assign(beat) == ["alpha", "logging"]  # embedding theme UNION keyword theme
 
 
 def test_falls_back_to_keyword_when_model_unavailable():
     fe = FakeEmbedder({})  # nothing embeds -> not available
-    d = ThemeDiscoverer(embedder=fe, seeds={"alpha": ["a1"]}, keyword_assigner=_StubKW(["memory"]))
+    d = ThemeDiscoverer(embedder=_as_embedder(fe), seeds={"alpha": ["a1"]}, keyword_assigner=_StubKW(["memory"]))
     assert d.available is False
     assert d.assign(SimpleNamespace(summary="x", source="")) == ["memory"]
 
@@ -165,7 +176,7 @@ def _discovery_fixture():
 
 def test_discover_surfaces_net_new_themes_with_labels():
     fe, items = _discovery_fixture()
-    d = ThemeDiscoverer(embedder=fe, tau=0.5, seeds={"alpha": ["a1"]})
+    d = ThemeDiscoverer(embedder=_as_embedder(fe), tau=0.5, seeds={"alpha": ["a1"]})
     found = d.discover(items, min_residual=6)
     assert len(found) == 2
     labels = " ".join(f["label"] for f in found)
@@ -176,7 +187,7 @@ def test_discover_surfaces_net_new_themes_with_labels():
 
 def test_discover_cold_start_returns_nothing():
     fe, items = _discovery_fixture()
-    d = ThemeDiscoverer(embedder=fe, tau=0.5, seeds={"alpha": ["a1"]})
+    d = ThemeDiscoverer(embedder=_as_embedder(fe), tau=0.5, seeds={"alpha": ["a1"]})
     assert d.discover(items[:3], min_residual=6) == []  # below the floor -> no discovery
 
 
@@ -184,13 +195,13 @@ def test_discover_excludes_beats_a_seed_claims():
     fe, items = _discovery_fixture()
     fe.table["seeded one"] = _unit([1, 0, 0, 0])  # matches seed alpha
     items = [*items, {"id": "seeded", "text": "seeded one"}]
-    d = ThemeDiscoverer(embedder=fe, tau=0.5, seeds={"alpha": ["a1"]})
+    d = ThemeDiscoverer(embedder=_as_embedder(fe), tau=0.5, seeds={"alpha": ["a1"]})
     found = d.discover(items, min_residual=6)
     assert "seeded" not in {bid for f in found for bid in f["beat_ids"]}
 
 
 def test_discover_empty_when_model_unavailable():
-    d = ThemeDiscoverer(embedder=FakeEmbedder({}), seeds={"alpha": ["a1"]})
+    d = ThemeDiscoverer(embedder=_as_embedder(FakeEmbedder({})), seeds={"alpha": ["a1"]})
     assert d.discover([{"id": "x", "text": "anything"}] * 8) == []
 
 
@@ -214,7 +225,7 @@ def test_select_flag_on_falls_back_when_model_absent(monkeypatch):
     monkeypatch.setenv("AKASHIC_EMBED_THEMES", "1")
     from core.narrative.theme_assigner import ThemeAssigner
 
-    assert isinstance(select_theme_assigner(FakeEmbedder({})), ThemeAssigner)  # opt-in but no model
+    assert isinstance(select_theme_assigner(_as_embedder(FakeEmbedder({}))), ThemeAssigner)  # opt-in but no model
 
 
 def test_select_flag_on_uses_discoverer_when_available(monkeypatch):

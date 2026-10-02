@@ -72,6 +72,7 @@ def test_arrays_of_real_strings_are_unchanged():
 
 def test_valid_objects_are_unchanged():
     out = load_fan_prompts(json.dumps([{"prompt": "q", "files": ["README.md"]}]))
+    assert isinstance(out[0], dict)
     assert out[0]["prompt"] == "q"
     assert out[0]["files"] == ["README.md"]
 

@@ -61,6 +61,7 @@ needs_live = pytest.mark.skipif(not _ONLINE, reason="live-Redis pins; bus offlin
 
 @pytest.fixture
 def pair():
+    assert Bus is not None
     s = f"t196csnd-{uuid.uuid4().hex[:8]}"
     r = f"t196crcv-{uuid.uuid4().hex[:8]}"
     for aid in (s, r):
@@ -69,6 +70,7 @@ def pair():
     yield s, r
     try:
         c = Bus(s)._client
+        assert c is not None
         for k in (
             f"bifrost:expect:{s}",
             f"bifrost:inbox:{s}",
@@ -88,6 +90,7 @@ def _responder(r, s, text="the peer's answer", delay=0.4, stop=None):
     the T117 machinery resolves (meta.answers = the id the peer actually SAW)."""
 
     def run():
+        assert Bus is not None
         end = time.time() + 10
         while time.time() < end and not (stop and stop.is_set()):
             try:
@@ -123,6 +126,8 @@ def test_seam_exists():
 @needs_built
 @needs_live
 def test_settles_in_band_without_consuming(pair):
+    assert Bus is not None
+    assert ask_peer is not None
     s, r = pair
     cursors_before = Bus(s).read_lane_cursor()
     t = _responder(r, s, text="42, obviously")
@@ -146,6 +151,8 @@ def test_settles_in_band_without_consuming(pair):
 @needs_built
 @needs_live
 def test_timeout_returns_handle_and_stays_armed(pair):
+    assert ask_peer is not None
+    assert expectations is not None
     s, r = pair
     o = ask_peer(s, r, "anyone home?", wait_s=1, poll_s=0.25)
     # House vocabulary (T181): done = ok and not partial; PARTIALLY = ok AND partial
@@ -170,6 +177,7 @@ def test_timeout_returns_handle_and_stays_armed(pair):
 
 @needs_built
 def test_empty_prompt_fails():
+    assert ask_peer is not None
     o = ask_peer("anyone", "peer", "   ", wait_s=1)
     assert not o.ok
     assert not o.partial

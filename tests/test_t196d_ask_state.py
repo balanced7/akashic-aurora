@@ -75,6 +75,7 @@ class _StubLog:
 
 @pytest.fixture
 def pair():
+    assert Bus is not None
     s = f"t196dsnd-{uuid.uuid4().hex[:8]}"
     r = f"t196drcv-{uuid.uuid4().hex[:8]}"
     for aid in (s, r):
@@ -83,6 +84,7 @@ def pair():
     yield s, r
     try:
         c = Bus(s)._client
+        assert c is not None
         for k in (
             f"bifrost:expect:{s}",
             f"bifrost:inbox:{s}",
@@ -98,6 +100,8 @@ def pair():
 
 
 def _arm(s, r, within=60, content="answer me"):
+    assert Bus is not None
+    assert expectations is not None
     orig = Bus(s).send(r, "request", content)
     assert orig
     assert expectations.arm(s, orig, r, "request", content, within)
@@ -108,6 +112,7 @@ def _arm(s, r, within=60, content="answer me"):
 
 
 def test_states_are_the_spec_seven():
+    assert ask_state is not None
     assert _BUILT, "core/comm/ask_state.py with STATES + state_of is the T196d deliverable"
     assert set(ask_state.STATES) == SEVEN
     for name, (terminal, should) in ask_state.STATES.items():
@@ -122,6 +127,7 @@ def test_states_are_the_spec_seven():
 @needs_built
 @needs_live
 def test_dispatched(pair):
+    assert ask_state is not None
     s, r = pair
     orig = _arm(s, r)
     st = ask_state.state_of(s, orig, log=_StubLog([]))
@@ -138,6 +144,8 @@ def test_dispatched(pair):
 @needs_built
 @needs_live
 def test_noted(pair):
+    assert Bus is not None
+    assert ask_state is not None
     s, r = pair
     orig = _arm(s, r)
     Bus(r).send(s, "note", "(runner timed out -- api call abandoned)")
@@ -152,6 +160,8 @@ def test_noted(pair):
 @needs_built
 @needs_live
 def test_redriving(pair):
+    assert expectations is not None
+    assert ask_state is not None
     s, r = pair
     t0 = time.time()
     orig = _arm(s, r, within=60)
@@ -167,6 +177,9 @@ def test_redriving(pair):
 @needs_built
 @needs_live
 def test_redrive_id_resolves(pair):
+    assert expectations is not None
+    assert Bus is not None
+    assert ask_state is not None
     s, r = pair
     t0 = time.time()
     orig = _arm(s, r, within=60)
@@ -184,6 +197,7 @@ def test_redrive_id_resolves(pair):
 
 @needs_built
 def test_answered_from_terminal_event():
+    assert ask_state is not None
     ev = {
         "kind": "expectation_settled_answered",
         "at": "2026-08-05T12:01:40+00:00",
@@ -204,6 +218,7 @@ def test_answered_from_terminal_event():
 
 @needs_built
 def test_echo_and_dead_from_terminal_events():
+    assert ask_state is not None
     echo = {
         "kind": "expectation_settled_done_task",
         "at": "2026-08-05T12:00:00+00:00",
@@ -233,6 +248,7 @@ def test_echo_and_dead_from_terminal_events():
 @needs_built
 @needs_live
 def test_unknown_never_guesses(pair):
+    assert ask_state is not None
     s, _ = pair
     st = ask_state.state_of(s, "1700000000000-0", log=_StubLog([]))
     assert st["state"] == "UNKNOWN"

@@ -86,6 +86,7 @@ def test_p2_done_to_abandoned_is_gated_on_an_operator_ruling(tmp_path, monkeypat
     # with a ruling: legal, and the ruling is in the history entry
     TL.abandon(led, tid, reason="cleanup", by="pin", operator_ruling="Daniil 2026-08-18 verbatim: 'Clean'")
     row = led.get(tid)
+    assert row is not None
     assert row["status"] == "abandoned"
     last = row["history"][-1]
     assert "operator_ruling" in last, (

@@ -178,7 +178,11 @@ def test_every_ask_flag_is_forwarded_by_bg_or_explicitly_is_not():
     """
     import agent_cli
 
-    sub = list(agent_cli.build_parser()._subparsers._group_actions[0].choices.items())
+    subparsers = agent_cli.build_parser()._subparsers
+    assert subparsers is not None
+    choices = subparsers._group_actions[0].choices
+    assert isinstance(choices, dict)
+    sub = list(choices.items())
     ask_parser = dict(sub)["ask"]
     dests = {a.dest for a in ask_parser._actions if a.dest != "help"}
 

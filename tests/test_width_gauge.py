@@ -60,6 +60,7 @@ def test_third_watch_with_pauses_opens_and_records(tmp_path):
     TL.start(L, b["id"], at="t3")
     TL.start(L, c["id"], at="t4", pauses=b["id"])  # the cost is spoken: what stops is named
     row = L.get(c["id"])
+    assert row is not None
     assert row["status"] == TL.IN_PROGRESS
     assert row["pauses"] == b["id"], "pauses is a recorded field on the row, not a mere password"
     assert any(h.get("pauses") == b["id"] for h in row["history"]), (
@@ -76,6 +77,7 @@ def test_operator_recorded_word_never_refused(tmp_path):
     TL.start(L, b["id"], at="t3")
     TL.start(L, c["id"], at="t4", operator_ruling="Daniil: do it anyway, pause nothing")
     row = L.get(c["id"])
+    assert row is not None
     assert row["status"] == TL.IN_PROGRESS
     assert any(h.get("operator_ruling") for h in row["history"]), (
         "the operator's word is recorded in history, same as T352's done-exit"
@@ -88,7 +90,9 @@ def test_second_watch_needs_no_pauses_field_and_records_none(tmp_path):
     a, b = _staged(L, "build"), _staged(L, "design")
     TL.start(L, a["id"], at="t3")
     TL.start(L, b["id"], at="t3")
-    assert "pauses" not in L.get(b["id"]), "no pauses field invented where none was declared"
+    got = L.get(b["id"])
+    assert got is not None
+    assert "pauses" not in got, "no pauses field invented where none was declared"
 
 
 # --- observability half (defer 2955dae7eb): the doctor renders open-watch count against the cap ---

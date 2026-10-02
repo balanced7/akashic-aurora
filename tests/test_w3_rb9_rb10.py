@@ -20,6 +20,7 @@ import os
 import sys
 from dataclasses import asdict
 from datetime import datetime
+from typing import Any, cast
 
 import pytest
 
@@ -39,6 +40,8 @@ try:
 
     _BUILT = hasattr(AgentMemory, "get_retired_titles") and hasattr(AgentMemory, "find_normalization_collisions")
 except ImportError:
+    # Any: every pin is skipped when the impl is absent, so these placeholders are never used.
+    AgentMemory = DictStore = Decision = SupersedeTargetError = normalize_title = cast("Any", None)
     _BUILT = False
 
 pytestmark = pytest.mark.skipif(not _BUILT, reason="RB-9/RB-10 pins pre-registered; impl pending (assertions frozen)")

@@ -113,7 +113,9 @@ def test_emission_failure_never_costs_the_result(store, monkeypatch):
     monkeypatch.setattr("core.events.event_log.capture_event", boom)
     ask_bg.write_record("h4", {"status": "running"})
     ask_bg.finish("h4", {"ok": True, "answer": "survives"})
-    assert ask_bg.read_record("h4")["result"]["answer"] == "survives"
+    rec = ask_bg.read_record("h4")
+    assert rec is not None
+    assert rec["result"]["answer"] == "survives"
 
 
 def test_no_event_without_a_finish(store, captured):

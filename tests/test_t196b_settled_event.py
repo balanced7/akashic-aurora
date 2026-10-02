@@ -58,6 +58,7 @@ pytestmark = [
 @pytest.fixture
 def pair():
     """(sender, recipient), teardown of every touched key (idiom: test_t030_l4)."""
+    assert Bus is not None
     s = f"t196bsnd-{uuid.uuid4().hex[:8]}"
     r = f"t196brcv-{uuid.uuid4().hex[:8]}"
     for aid in (s, r):
@@ -66,6 +67,7 @@ def pair():
     yield s, r
     try:
         c = Bus(s)._client
+        assert c is not None
         for k in (
             f"bifrost:expect:{s}",
             f"bifrost:inbox:{s}",
@@ -81,6 +83,8 @@ def pair():
 
 
 def _arm(s, r, within=60, content="answer me"):
+    assert Bus is not None
+    assert expectations is not None
     orig = Bus(s).send(r, "request", content)
     assert orig
     assert expectations.arm(s, orig, r, "request", content, within)
@@ -100,6 +104,8 @@ def test_seam_exists_parallel_to_emit_dead():
 
 
 def test_linked_settle_emits_once_with_both_ids(pair, monkeypatch):
+    assert Bus is not None
+    assert expectations is not None
     s, r = pair
     seen = []
     monkeypatch.setattr(
@@ -123,6 +129,8 @@ def test_linked_settle_emits_once_with_both_ids(pair, monkeypatch):
 
 
 def test_fifo_settle_also_emits(pair, monkeypatch):
+    assert Bus is not None
+    assert expectations is not None
     s, r = pair
     seen = []
     monkeypatch.setattr(expectations, "_emit_settled", lambda sender, oid, rid, rec: seen.append(oid))
@@ -138,6 +146,8 @@ def test_fifo_settle_also_emits(pair, monkeypatch):
 
 
 def test_event_shape_kind_refs_created(pair, monkeypatch):
+    assert Bus is not None
+    assert expectations is not None
     s, r = pair
     calls = []
     import core.events.event_log as event_log
@@ -165,6 +175,7 @@ def test_event_shape_kind_refs_created(pair, monkeypatch):
 
 
 def test_dead_event_carries_created(pair, monkeypatch):
+    assert expectations is not None
     s, r = pair
     calls = []
     import core.events.event_log as event_log
@@ -186,6 +197,8 @@ def test_dead_event_carries_created(pair, monkeypatch):
 
 
 def test_emit_failure_never_breaks_settle(pair, monkeypatch):
+    assert Bus is not None
+    assert expectations is not None
     s, r = pair
 
     def _boom(*a, **k):

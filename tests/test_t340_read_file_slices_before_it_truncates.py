@@ -47,7 +47,7 @@ from core.comm import toolbox as TB  # noqa: E402  # sys.path bootstrap
 
 @pytest.fixture
 def box(tmp_path):
-    return TB.ToolBox(tmp_path, allow_exec=False, trust="member", allow_secrets=False, confirm=None)
+    return TB.ToolBox(tmp_path, allow_exec=False, trust=True, allow_secrets=False, confirm=None)
 
 
 # 17,777 rather than a round 20,000 ON PURPOSE. The first draft used 20000 and P3 asserted
@@ -129,7 +129,7 @@ def test_p6_the_ledger_row_that_started_this_is_reachable():
     ledger = Path(ROOT) / "state" / "coord" / "tasks.json"
     if not ledger.exists() or ledger.stat().st_size <= TB.MAX_FILE_BYTES:
         pytest.skip("ledger absent or no longer exceeds the cap")
-    box = TB.ToolBox(Path(ROOT), allow_exec=False, trust="member", allow_secrets=False, confirm=None)
+    box = TB.ToolBox(Path(ROOT), allow_exec=False, trust=True, allow_secrets=False, confirm=None)
     with open(ledger, encoding="utf-8", errors="replace") as fh:
         total = sum(1 for _ in fh)
     mid = total // 2

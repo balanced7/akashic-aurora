@@ -55,6 +55,7 @@ class _Scripted:
 
         class _Completions:
             def create(self, model=None, messages=None, max_tokens=None):
+                assert messages is not None
                 text = outer.table[messages[-1]["content"]]
                 if text is None:
                     raise RuntimeError("branch refused")

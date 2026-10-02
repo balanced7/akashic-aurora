@@ -79,6 +79,7 @@ def test_p2_an_over_cap_briefing_leads_with_a_resolvable_pointer(tmp_path, monke
     body = "X" * 9000
     confessions: list = []
     out = fn(body, 1000, "note", confessions, to_agent="claude", by_agent="claude")
+    assert isinstance(out, str)
     assert len(out) <= 1000, "the stored field must still respect the cap"
     head = out[:200].lower()
     assert "note" in head, "the stored briefing must OPEN with the retrieval command, not end with it"
@@ -129,7 +130,7 @@ def test_p5_a_store_failure_degrades_and_never_raises():
         raise RuntimeError("store down")
 
     real = _am.get_agent_memory
-    _am.get_agent_memory = _boom  # type: ignore[assignment]
+    _am.get_agent_memory = _boom
     try:
         confessions: list = []
         out = fn("Z" * 4000, 1000, "note", confessions, to_agent="claude", by_agent="claude")
@@ -141,4 +142,4 @@ def test_p5_a_store_failure_degrades_and_never_raises():
             "leave the writer believing the body is reachable when it is not"
         )
     finally:
-        _am.get_agent_memory = real  # type: ignore[assignment]
+        _am.get_agent_memory = real

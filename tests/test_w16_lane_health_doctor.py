@@ -47,6 +47,7 @@ def test_p1_lane_mode_consumer_returns_health(monkeypatch, agents):
     b = Bus(agent)
     # Simulate a lane-mode consumer that advanced its lane cursor
     ts = int(time.time() * 1000) - 5000  # 5s ago
+    assert b._client is not None
     b._client.hset(
         b.lane_cursor_key(),
         mapping={
@@ -90,6 +91,7 @@ def test_p3_drained_lane_shows_healthy(monkeypatch, agents):
     # Send one msg then advance lane to tail (fully drained)
     peer = Bus(f"{agent}-peer")
     peer.send(agent, "question", "already consumed")
+    assert b._client is not None
     entries = b._client.xrevrange(f"{b.ns}:work:inbox:{agent}", count=1)
     if entries:
         tail = entries[0][0]
@@ -135,6 +137,7 @@ def test_p4_lagged_lane_counts_stragglers(monkeypatch, agents):
     # Seed a lane cursor that's BEHIND real mail
     # The lane inbox position is at a known old point
     old = int((time.time() - 3600) * 1000)  # 1h old
+    assert b._client is not None
     b._client.hset(
         b.lane_cursor_key(),
         mapping={

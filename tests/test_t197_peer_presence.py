@@ -105,6 +105,7 @@ def _dead_ev(ask_id, *, at_ask=None, at_death=None, created=1000.0, at="2026-08-
 def test_dead_partition_names_four_different_bugs():
     """The 2x2 that turns one row into four actions. This is the finding the whole
     slice exists to produce; if it collapses, the reader is back to 'they all died'."""
+    assert friction is not None
     events = [
         _dead_ev("a-1", at_ask="UNATTENDED", at_death="UNATTENDED"),  # absent
         _dead_ev("a-2", at_ask="ATTENDED", at_death="UNATTENDED"),  # vanished
@@ -123,6 +124,7 @@ def test_dead_partition_names_four_different_bugs():
 def test_partition_sums_to_n_dead_exactly():
     """A partition that does not sum is not a partition -- it is a set of overlapping
     guesses, and the missing rows would be invisible rather than named."""
+    assert friction is not None
     events = [
         _dead_ev("b-1", at_ask="UNATTENDED", at_death="UNATTENDED"),
         _dead_ev("b-2"),  # legacy: no fields
@@ -137,6 +139,7 @@ def test_partition_sums_to_n_dead_exactly():
 def test_the_past_is_never_back_filled():
     """The 26 historical dead episodes have no peer fields. They are UNKNOWN, not
     'probably absent' -- guessing the past is the defect this arc removes."""
+    assert friction is not None
     agg = friction.fold([_dead_ev(f"c-{i}") for i in range(26)], {}, now=2000.0)["agg"]
     assert agg["dead_peer_unknown"] == 26
     assert agg["dead_absent"] == 0, "a missing observation is not an observation of absence"
@@ -146,6 +149,7 @@ def test_a_half_observed_episode_is_unknown_not_half_credited():
     """One end observed is not the pair. `peer_at_ask` alone cannot distinguish
     'vanished' from 'ignored' -- that was deepseek's (F), and it is the reason the
     death-time probe exists at all."""
+    assert friction is not None
     agg = friction.fold([_dead_ev("d-1", at_ask="ATTENDED")], {}, now=2000.0)["agg"]
     assert agg["dead_peer_unknown"] == 1
     assert agg["dead_ignored"] == 0
@@ -154,6 +158,7 @@ def test_a_half_observed_episode_is_unknown_not_half_credited():
 
 def test_episode_rows_carry_both_ends():
     """The aggregate is the headline; the row is what an operator acts on."""
+    assert friction is not None
     rows = friction.fold([_dead_ev("e-1", at_ask="UNATTENDED", at_death="ATTENDED")], {}, now=2000.0)["episodes"]
     assert rows[0]["peer_at_ask"] == "UNATTENDED"
     assert rows[0]["peer_at_death"] == "ATTENDED"
@@ -164,6 +169,7 @@ def test_blind_list_names_the_new_blindness():
     """No-silent-caps, kept structural: the pair is two point-samples over a 30-minute
     window and says nothing about the middle. A reader that does not confess that is
     claiming a continuous observation it never took."""
+    assert friction is not None
     blind = " ".join(friction.fold([], {}, now=1.0)["blind"]).lower()
     assert "peer" in blind
     assert any(w in blind for w in ("between", "middle", "point", "sample", "continuous"))
@@ -271,6 +277,7 @@ def test_ask_peer_signature_does_not_grow_a_gate_flag():
 
 @needs_redis
 def test_arm_stores_the_verdict_when_given():
+    assert expectations is not None
     sender = f"t197arm{uuid.uuid4().hex[:6]}"
     oid = f"{int(time.time() * 1000)}-0"
     assert expectations.arm(
@@ -279,7 +286,9 @@ def test_arm_stores_the_verdict_when_given():
     rec = expectations.snapshot(sender)[oid]
     assert rec["peer_at_ask"] == "UNATTENDED"
     assert "worklive" in rec["peer_at_ask_why"]
-    expectations._client().delete(expectations._key(sender))
+    cl = expectations._client()
+    assert cl is not None
+    cl.delete(expectations._key(sender))
 
 
 @needs_redis
@@ -287,17 +296,21 @@ def test_arm_omits_the_field_rather_than_defaulting_it():
     """An unobserved verdict is ABSENT, not 'UNKNOWN' written into the record as if it
     had been probed. The reader distinguishes 'we looked and could not tell' from 'we
     never looked', and a default would erase that distinction at the source."""
+    assert expectations is not None
     sender = f"t197arm{uuid.uuid4().hex[:6]}"
     oid = f"{int(time.time() * 1000)}-1"
     assert expectations.arm(sender, oid, "deepseek", "request", "q", 1800)
     assert "peer_at_ask" not in expectations.snapshot(sender)[oid]
-    expectations._client().delete(expectations._key(sender))
+    cl = expectations._client()
+    assert cl is not None
+    cl.delete(expectations._key(sender))
 
 
 @needs_redis
 def test_arm_keeps_its_old_positional_contract():
     """Existing callers (T030/T117 paths) must be untouched: the new arguments are
     keyword-only and optional, or this slice breaks the settle machinery it rides on."""
+    assert expectations is not None
     sig = inspect.signature(expectations.arm)
     for name in ("peer_state", "peer_why"):
         p = sig.parameters[name]
@@ -315,6 +328,7 @@ def test_dead_event_carries_both_ends(monkeypatch):
     """The record dies in the transition that closes it (T196b's law), so the closing
     event must carry every field the episode will ever be judged by -- now including
     the peer at BOTH ends."""
+    assert expectations is not None
     captured = {}
 
     def fake_capture(kind, msg, **kw):
@@ -349,6 +363,7 @@ def test_death_probe_failure_never_breaks_the_sweep(monkeypatch):
     """Fail-open, like every other observability field on this path: a probe that
     raises must cost the column, never the terminal event. An instrument that can kill
     the transition it observes is worse than no instrument."""
+    assert expectations is not None
     captured = {}
 
     def fake_capture(kind, msg, **kw):
@@ -369,6 +384,7 @@ def test_settled_event_carries_the_ask_end_too(monkeypatch):
     """Answered episodes get the column as well. A partition defined only over failures
     cannot answer 'do live peers answer more often?' -- the question the whole arc is
     ultimately for."""
+    assert expectations is not None
     captured = {}
     monkeypatch.setattr(
         "core.events.event_log.capture_event", lambda kind, msg, **kw: captured.update(kw.get("detail") or {})
@@ -386,6 +402,7 @@ def test_settled_event_carries_the_ask_end_too(monkeypatch):
 
 @needs_redis
 def test_state_of_surfaces_the_ask_end_for_an_open_record():
+    assert expectations is not None
     from core.comm.ask_state import state_of
 
     sender = f"t197st{uuid.uuid4().hex[:6]}"
@@ -396,7 +413,9 @@ def test_state_of_surfaces_the_ask_end_for_an_open_record():
     st = state_of(sender, oid)
     assert st["state"].startswith("OPEN")
     assert st["peer_at_ask"] == "UNATTENDED"
-    expectations._client().delete(expectations._key(sender))
+    cl = expectations._client()
+    assert cl is not None
+    cl.delete(expectations._key(sender))
 
 
 @needs_redis
@@ -405,6 +424,7 @@ def test_ask_peer_reports_the_verdict_at_t0_without_waiting(monkeypatch):
     then a handle, then a forensic dig 30 minutes later. The verdict must be in the
     outcome the caller already receives -- at t=0, on the same object, with no extra
     command."""
+    assert expectations is not None
     import core.comm.liveness as _lv
     from core.comm.ask import ask_peer
 
@@ -418,4 +438,6 @@ def test_ask_peer_reports_the_verdict_at_t0_without_waiting(monkeypatch):
     assert d.get("peer_at_ask_why")
     assert d.get("ask_id"), "and it SENT anyway -- the transaction exists"
     with contextlib.suppress(Exception):
-        expectations._client().delete(expectations._key(sender))
+        cl = expectations._client()
+        assert cl is not None
+        cl.delete(expectations._key(sender))

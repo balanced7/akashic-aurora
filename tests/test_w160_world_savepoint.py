@@ -29,7 +29,7 @@ promise. Recording that honestly at SAVE time is cheaper than discovering it at 
 from core.coord import world_savepoint as SP
 
 
-def _sp(world="alpha", label="before-risky-thing", sha="a3c4b038", snapshot="20260814_015417", dirty=0):
+def _sp(world="alpha", label="before-risky-thing", sha="a3c4b038", snapshot: str | None = "20260814_015417", dirty=0):
     return SP.Savepoint(
         world=world,
         label=label,

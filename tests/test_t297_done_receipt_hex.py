@@ -35,7 +35,9 @@ def run(*args, timeout=120):
 def _drill_task():
     rc, out, err = run("task", "propose", "t297 drill: a closable slice")
     assert rc == 0, err or out
-    tid = re.search(r"proposed (T\d+)", out).group(1)
+    m = re.search(r"proposed (T\d+)", out)
+    assert m is not None, out
+    tid = m.group(1)
     for step in (("approve", tid), ("claim", tid, "--by", "drill"), ("verify", tid)):
         rc, out, err = run("task", *step)
         assert rc == 0, f"{step}: {err or out}"

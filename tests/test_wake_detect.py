@@ -90,6 +90,7 @@ def test_wait_since_reads_from_local_position_and_never_writes_shared_cursor():
         a = Bus("alice", c, namespace=ns)
         b = Bus("bob", c, namespace=ns)
         first = a.send("bob", "chat", "one")
+        assert first is not None
         a.send("bob", "chat", "two")
         got = b.wait(timeout_ms=1500, since={"inbox": first, "bc": "0"})
         assert [m.content for m in got] == ["two"], "since=<id of one> must yield only later entries"

@@ -66,7 +66,9 @@ def test_estimator_median_p90_and_confidence_tiers(monkeypatch):
     tm._est_cache.clear()
     for d in (9, 10, 12):
         tm.record("a", "chat", duration_s=d, progress_points=4, outcome="ok", prompt_len=10)
-    assert tm.estimate("a", "chat")["confidence"] == "ok"
+    est = tm.estimate("a", "chat")
+    assert est is not None
+    assert est["confidence"] == "ok"
 
 
 def test_estimate_is_cached_briefly(monkeypatch):
@@ -116,6 +118,7 @@ def test_progress_view_composes_live_turn(monkeypatch):
     tm.count_pulse("deepseek")
     tm.count_pulse("deepseek")
     view = tm.progress_view("deepseek", peek=True)
+    assert view is not None
     assert view["ask_kind"] == "handoff"
     assert 4.5 <= view["elapsed_s"] <= 6
     assert view["points_seen"] == 2

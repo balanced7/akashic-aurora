@@ -34,6 +34,13 @@ def path(tmp_path):
     return str(tmp_path / "tasks.json")
 
 
+def _task(ledger, tid):
+    """ledger.get for a task the test created: absent is a failure here."""
+    got = ledger.get(tid)
+    assert got is not None, f"{tid} missing from the ledger"
+    return got
+
+
 def _ledger(p):
     return TL.TaskLedger(p, client=None)
 
@@ -176,7 +183,7 @@ def test_refused_instance_resyncs_to_disk_truth(path):
     with pytest.raises(TL.LedgerError):
         B.propose("two", at="t3")
 
-    assert B.get("T001")["status"] == TL.APPROVED, "B still holds its stale snapshot"
+    assert _task(B, "T001")["status"] == TL.APPROVED, "B still holds its stale snapshot"
     assert "T002" not in B.tasks, "B kept the phantom task its refused save never wrote"
 
     t = B.propose("two", at="t4")  # same instance, now fresh: succeeds

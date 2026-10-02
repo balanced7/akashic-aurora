@@ -75,6 +75,7 @@ class _Scripted:
         class _Completions:
             @staticmethod
             def create(model=None, messages=None, max_tokens=None, **kw):
+                assert messages is not None
                 prompt = messages[-1]["content"]
                 for key, text in table.items():
                     if key in prompt:

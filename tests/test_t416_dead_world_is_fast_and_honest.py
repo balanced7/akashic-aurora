@@ -52,7 +52,7 @@ def test_read_manifest_raises_on_an_unreachable_store():
     double states that contract exactly. The real-network path is still covered end to end by
     test_a_dead_world_boot_line_is_fast, which measures 1.03s.
     """
-    import redis
+    import redis.exceptions
 
     from core.world_seed import read_manifest
 

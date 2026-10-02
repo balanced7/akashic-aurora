@@ -194,6 +194,7 @@ def test_s5c_ui_ports_stay_inside_their_declared_bands():
 
     for name in ("prod", "beta", "alpha"):
         port = W.WORLDS[name].ui_port
+        assert port is not None, f"{name} declares no ui_port"
         band = next((w for lo, hi, w in config.PORT_BANDS if lo <= port <= hi), None)
         assert band is not None, f"{name} ui_port {port} is in no declared band"
 

@@ -118,6 +118,7 @@ def test_fold_classification_and_aggregates():
         "A4": {"to": "peer1", "created": now - 50, "deadline_ts": now + 10, "attempt": 0},
         "A5": {"to": "peer2", "created": now - 900, "deadline_ts": now - 10, "attempt": 2},
     }
+    assert friction is not None
     rep = friction.fold(events, open_records, now=now)
     by_id = {e["ask_id"]: e for e in rep["episodes"]}
     assert set(by_id) == {"A1", "A2", "A3", "A4", "A5"}, "boot event never becomes an episode"
@@ -156,6 +157,7 @@ def test_fold_classification_and_aggregates():
 
 @needs_built
 def test_fold_rate_honesty_on_empty():
+    assert friction is not None
     rep = friction.fold([], {}, now=time.time())
     assert rep["agg"]["n_closed"] == 0
     assert rep["agg"]["dead_rate"] is None, (
@@ -172,10 +174,14 @@ def test_fold_rate_honesty_on_empty():
 def test_snapshot_reads_without_mutating():
     s = f"t196asnd-{uuid.uuid4().hex[:8]}"
     r = f"t196arcv-{uuid.uuid4().hex[:8]}"
+    assert Bus is not None
+    assert expectations is not None
     try:
         orig = Bus(s).send(r, "request", "measure me")
+        assert orig is not None
         assert expectations.arm(s, orig, r, "request", "measure me", 60)
         c = Bus(s)._client
+        assert c is not None
         key = f"bifrost:expect:{s}"
         before = c.hgetall(key)
         snap = expectations.snapshot(s)
@@ -191,6 +197,7 @@ def test_snapshot_reads_without_mutating():
     finally:
         try:
             c = Bus(s)._client
+            assert c is not None
             for k in (
                 f"bifrost:expect:{s}",
                 f"bifrost:inbox:{s}",
@@ -213,10 +220,15 @@ def test_snapshot_reads_without_mutating():
 def test_gather_zero_writes():
     s = f"t196agth-{uuid.uuid4().hex[:8]}"
     r = f"t196agrv-{uuid.uuid4().hex[:8]}"
+    assert Bus is not None
+    assert expectations is not None
+    assert friction is not None
     try:
         orig = Bus(s).send(r, "request", "friction probe")
+        assert orig is not None
         assert expectations.arm(s, orig, r, "request", "friction probe", 60)
         c = Bus(s)._client
+        assert c is not None
         key = f"bifrost:expect:{s}"
         hash_before = c.hgetall(key)
         tail_before = Bus(s).tail()
@@ -229,6 +241,7 @@ def test_gather_zero_writes():
     finally:
         try:
             c = Bus(s)._client
+            assert c is not None
             for k in (
                 f"bifrost:expect:{s}",
                 f"bifrost:inbox:{s}",

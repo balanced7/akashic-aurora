@@ -56,17 +56,24 @@ def db(tmp_path):
 
 
 # ---------------------------------------------------------------- P1: the clobber pin
+def _where(seat, db):
+    """POS.where for a seat the test has already placed: absent is a failure here."""
+    got = POS.where(seat, db_path=db)
+    assert got is not None, f"{seat} has no position"
+    return got
+
+
 def test_p1_two_incarnations_hold_independent_positions(db):
     """Fence r1 C4, the reason this is keyed the way it is. Two live seats of ONE agent
     move independently; neither read disturbs the other."""
     POS.go("claude#aaaaaaaa", f"{G}:1", db_path=db)
     POS.go("claude#bbbbbbbb", f"{D}:1", db_path=db)
 
-    assert POS.where("claude#aaaaaaaa", db_path=db)["addr"] == f"{G}:1"
-    assert POS.where("claude#bbbbbbbb", db_path=db)["addr"] == f"{D}:1"
+    assert _where("claude#aaaaaaaa", db)["addr"] == f"{G}:1"
+    assert _where("claude#bbbbbbbb", db)["addr"] == f"{D}:1"
 
     POS.go("claude#aaaaaaaa", f"{G}:6", db_path=db)
-    assert POS.where("claude#bbbbbbbb", db_path=db)["addr"] == f"{D}:1", (
+    assert _where("claude#bbbbbbbb", db)["addr"] == f"{D}:1", (
         "one seat moving must not drag its twin -- this is the whole pin"
     )
 
@@ -81,7 +88,7 @@ def test_p1b_a_virgin_seat_has_no_position_and_says_so(db):
 def test_p2_position_persists_across_reads(db):
     POS.go("claude#aaaaaaaa", f"{G}:5", db_path=db)
     for _ in range(3):
-        assert POS.where("claude#aaaaaaaa", db_path=db)["addr"] == f"{G}:5"
+        assert _where("claude#aaaaaaaa", db)["addr"] == f"{G}:5"
 
 
 # ---------------------------------------------------------------- P3: the trail
@@ -157,11 +164,12 @@ def test_p6_succession_is_explicit_and_recorded(db):
     assert POS.where("claude#dddddddd", db_path=db) is None, "a successor is virgin until it says otherwise"
 
     got = POS.inherit("claude#dddddddd", "claude#aaaaaaaa", db_path=db)
+    assert got is not None
     assert got["addr"] == f"{G}:6"
     assert got["inherited_from"] == "claude#aaaaaaaa"
-    assert POS.where("claude#dddddddd", db_path=db)["inherited_from"] == "claude#aaaaaaaa"
+    assert _where("claude#dddddddd", db)["inherited_from"] == "claude#aaaaaaaa"
     # and the predecessor is untouched by being inherited FROM
-    assert POS.where("claude#aaaaaaaa", db_path=db)["addr"] == f"{G}:6"
+    assert _where("claude#aaaaaaaa", db)["addr"] == f"{G}:6"
 
 
 def test_p6b_inheriting_from_a_seat_with_no_position_refuses(db):

@@ -21,6 +21,7 @@ Run: py -m pytest tests/test_w3_supersession_cas.py -q
 import os
 import sys
 import threading
+from typing import Any, cast
 
 import pytest
 
@@ -37,6 +38,8 @@ try:
 
     _W3_BUILT = True
 except ImportError:  # pre-impl: names land with the RB-8 slice
+    # Any: every pin is skipped when the impl is absent, so these placeholders are never used.
+    AgentMemory = DictStore = HEAD_KEY_PREFIX = SupersedeRaceError = normalize_title = cast("Any", None)
     _W3_BUILT = False
 
 # Pre-registered pins skip (never error) until the impl exists, then MUST flip to PASS.

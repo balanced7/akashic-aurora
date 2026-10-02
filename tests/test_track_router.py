@@ -118,10 +118,12 @@ def test_emit_integration():
         at="2026-06-27T10:00:00",
         hint=RouteHint(paths=["core/narrative/schema.py"]),
     )
+    assert b1 is not None
     assert b1.track == "ai-setup", "emit routes via the hint"
     b2 = log.emit(
         "learning", "RAPTOR analogue", "learn:e", at="2026-06-27T11:00:00", hint=RouteHint(category="research")
     )
+    assert b2 is not None
     assert b2.track == "research"
     # per-track index populated; active track persisted
     assert log.store.zcard("narr:track:ai-setup:beats") == 1

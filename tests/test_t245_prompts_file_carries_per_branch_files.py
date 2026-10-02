@@ -45,6 +45,7 @@ def test_a_json_array_of_dicts_survives_parsing(tmp_path):
         "repr as its question and answered it, which is why this failed silently."
     )
     assert out[0]["files"] == ["README.md"]
+    assert isinstance(out[1], dict)
     assert out[1]["prompt"] == "deep question"
 
 

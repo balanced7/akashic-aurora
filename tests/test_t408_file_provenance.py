@@ -58,7 +58,8 @@ def tb(monkeypatch, tmp_path):
         confirm=lambda p: False,
         agent_id="deepseek",
     )
-    box._provenance_fake = fake  # test-only reach-in; not part of the contract
+    # test-only reach-in; not part of the contract
+    monkeypatch.setattr(box, "_provenance_fake", fake, raising=False)
     return box
 
 

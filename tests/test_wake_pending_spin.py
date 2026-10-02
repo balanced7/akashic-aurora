@@ -344,6 +344,7 @@ def test_new_mail_on_shared_cursor_between_calls_missed_by_lane_watcher(monkeypa
         msgs = api_old.bus.wait(
             timeout_ms=timeout_ms, since=api_old._lane_since, since_out=nxt, streams=api_old._lane_streams()
         )
+        assert api_old._lane_since is not None
         if nxt:
             api_old._lane_since.update(nxt)
         return msgs

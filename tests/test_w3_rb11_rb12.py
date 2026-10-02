@@ -22,6 +22,7 @@ import os
 import sys
 from dataclasses import asdict
 from datetime import datetime
+from typing import Any, cast
 
 import pytest
 
@@ -37,6 +38,8 @@ try:
 
     _BUILT = hasattr(AgentMemory, "run_migration_once") and hasattr(AgentMemory, "get_long_chains")
 except ImportError:
+    # Any: every pin is skipped when the impl is absent, so these placeholders are never used.
+    AgentMemory = DictStore = Decision = CHAIN_WARN_THRESHOLD = cast("Any", None)
     _BUILT = False
 
 pytestmark = pytest.mark.skipif(not _BUILT, reason="RB-11/RB-12 pins pre-registered; impl pending (assertions frozen)")

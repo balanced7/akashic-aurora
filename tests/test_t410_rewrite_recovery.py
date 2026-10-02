@@ -191,6 +191,8 @@ def _rr():
     import importlib.util
 
     spec = importlib.util.spec_from_file_location("_rr", str(Path(ROOT, "scripts", "rewrite_recover.py")))
+    assert spec is not None
+    assert spec.loader is not None
     m = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(m)
     return m

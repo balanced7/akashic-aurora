@@ -40,6 +40,8 @@ TARGET = ROOT / "scripts" / "bifrost_ui.py"
 
 def _load():
     spec = importlib.util.spec_from_file_location("check_ui_contract", SCRIPT)
+    assert spec is not None
+    assert spec.loader is not None
     mod = importlib.util.module_from_spec(spec)
     sys.modules["check_ui_contract"] = mod
     spec.loader.exec_module(mod)

@@ -68,13 +68,17 @@ def test_unknown_cli_state_never_refuses():
 # ---------------------------------------------------------------------- the horizon
 def test_horizon_counts_the_days_behind_the_lever():
     creds = {"claudeAiOauth": {"refreshTokenExpiresAt": NOW + 28 * DAY_MS}}
-    assert abs(DI.credential_horizon_days(creds, NOW) - 28.0) < 0.01
+    h = DI.credential_horizon_days(creds, NOW)
+    assert h is not None
+    assert abs(h - 28.0) < 0.01
 
 
 def test_horizon_goes_negative_once_the_credential_is_dead():
     """Aug 15's token, read on Aug 19: four days dead, and the number must SAY so."""
     creds = {"claudeAiOauth": {"refreshTokenExpiresAt": NOW - 4 * DAY_MS}}
-    assert DI.credential_horizon_days(creds, NOW) < 0
+    h = DI.credential_horizon_days(creds, NOW)
+    assert h is not None
+    assert h < 0
 
 
 def test_horizon_is_none_when_it_cannot_be_read():

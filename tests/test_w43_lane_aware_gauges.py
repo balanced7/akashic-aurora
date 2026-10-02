@@ -56,6 +56,7 @@ def test_p2_lane_shadow_wins_when_ahead(monkeypatch):
 
     b = Bus(f"t-w43-lane-{uuid.uuid4().hex[:6]}")
     ahead = f"{int(time.time() * 1000)}-5"
+    assert b._client is not None
     b._client.hset(b.lane_cursor_key(), "shadow_inbox", ahead)
     eff = b.effective_cursor()
     assert eff["inbox"] == ahead, "shadow ahead of shared -> effective rides the shadow"
@@ -71,6 +72,7 @@ def test_p3_doctor_backlog_zero_for_lane_drained(monkeypatch):
     agent = f"t-w43-drained-{uuid.uuid4().hex[:6]}"
     b = Bus(agent)
     Bus(f"{agent}-peer").send(agent, "question", "already drained via the lane")
+    assert b._client is not None
     tail = b._client.xrevrange(b._inbox_key(agent), count=1)[0][0]
     # simulate the lane-mode drain: shadow advanced to tail, shared cursor untouched
     b._client.hset(b.lane_cursor_key(), "shadow_inbox", str(tail))
@@ -100,6 +102,7 @@ def test_p5_pending_per_stream_floors(monkeypatch):
     peer = Bus(f"{agent}-peer")
     peer.send(agent, "question", "direct drained")
     peer.broadcast("note", "broadcast fresh")
+    assert b._client is not None
     tail = b._client.xrevrange(b._inbox_key(agent), count=1)[0][0]
     b._client.hset(b.lane_cursor_key(), "shadow_inbox", str(tail))
     # direct is lane-drained; the broadcast is genuinely unread
