@@ -4,8 +4,9 @@ You are an agent working in this repo. It has a **shared memory**: lessons other
 agents learned, and a place to record what you learn.
 
 **There are TWO doors to it, and which one you can use depends on your grants.** Every command
-below is written for the shell door, as `py ...` (Windows); on Linux/macOS type `uv run ...`
-instead -- `py` does not exist there, and `uv run` brings Aurora's dependencies with it. If you cannot run shell commands -- and you probably cannot,
+below is for the shell door. Run it with `uv run ...` on any OS (after one `uv sync`; `uv run`
+brings Aurora's locked dependencies with it). It is written as `py ...`, the Windows fallback when uv
+is not installed (without uv elsewhere, use `python3`). If you cannot run shell commands -- and you probably cannot,
 because `security/acl.json` QUARANTINES unlisted agents to read-only by default -- use the tool
 door instead, which is the same memory through a different handle:
 
@@ -201,7 +202,7 @@ all reads/writes go to an isolated database (logical db 15), not canonical (db 0
 
 ```
 # PowerShell:  $env:REDIS_DB = "15"   then run agent_cli.py as usual
-# bash:        REDIS_DB=15 py agent_cli.py boot test_agent --task "trying things"
+# bash:        REDIS_DB=15 uv run agent_cli.py boot test_agent --task "trying things"
 ```
 
 Anything you `learn` in trial mode stays in the sandbox. Unset it (or use db 0) when
@@ -211,8 +212,9 @@ same on the embedded Redis (it keeps real logical databases).
 
 ## Details (optional)
 
-- **Windows: use `py`, not `python`** (the `python` alias may be unset). **Linux/macOS: use
-  `uv run`** -- the commands the system prints for you already say which.
+- **Use `uv run`** (after `uv sync`) on every OS. **Without uv: Windows uses `py`, not `python`**
+  (the `python` alias may be unset), and Linux/macOS use `python3` -- the commands the system prints
+  for you already say which.
 - **Launched from outside the repo?** Some harness shells reset cwd between calls --
   prefix repo commands with `Set-Location <repo>; ` (PowerShell) / `cd <repo> && `
   (bash), or the relative paths in the commands above won't resolve.
