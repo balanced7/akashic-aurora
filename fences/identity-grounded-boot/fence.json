@@ -10,7 +10,10 @@
       "at": "2026-10-01T19:12:17.888921+00:00"
     }
   },
-  "pv": null,
+  "pv": {
+    "ran_at": "2026-10-02T05:10:45.733099+00:00",
+    "missing_count": 0
+  },
   "authors": {
     "brief": "claude",
     "half_a": "dsh_agent"

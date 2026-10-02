@@ -1,0 +1,8 @@
+{
+  "ran_at": "2026-10-02T05:10:45.733099+00:00",
+  "verified": [
+    "half_a: core/comm/seat_identity.py:175",
+    "half_a: core/comm/toolbox.py:782"
+  ],
+  "missing": []
+}
