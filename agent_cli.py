@@ -11716,7 +11716,7 @@ def cmd_tool_run(args):
         print(f"[tool] running {args.ref} UNSANDBOXED (operator override -- caveat emptor)")
         import subprocess as sp
 
-        r = sp.run([sys.executable, path] + (args.args or []), cwd=REPO)  # noqa: F821  # LATENT ADV-033: `REPO` is undefined here; fixed with a regression test in G4.P2
+        r = sp.run([sys.executable, path] + (args.args or []), cwd=_repo_root_str())
         print(f"[tool] exit {r.returncode} (unsandboxed — no receipt)")
         return r.returncode
     rec = sandboxed_run(agent, tool, path, args=args.args, timeout_s=timeout)
