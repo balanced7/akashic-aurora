@@ -34,7 +34,7 @@ import os
 import subprocess
 import sys
 import time
-from typing import Any
+from typing import Any, cast
 
 _NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)  # windowless: never flash a console (2026-09-05, cmd-spam fix)
 
@@ -184,17 +184,6 @@ def observe(include_app: bool = True) -> dict[str, dict[str, Any]]:
         out["redis"] = {"healthy": False, "detail": f"{type(e).__name__}: {str(e)[:80]}"}
     cmds = _cmdlines()
 
-    # PER AGENT, never in aggregate (drill 2026-08-24). Counting processes asked
-    # "is anything alive?" when the only useful question is "is EVERY seat alive?" --
-    # so one surviving daemon reported the whole rung healthy and PROVE confirmed a
-    # heal that never happened. And counting SCRIPT names could not distinguish
-    # agents at all: every runner agent runs bifrost_runner_deepseek.py, so
-    # `bifrost_runner_kimi` matched nothing ever while `bifrost_runner_deepseek`
-    # matched both. The discriminator is `--agent <name>`, which is the only place
-    # a process states which seat it IS.
-    def _live(pattern_agent: str, script: str) -> bool:
-        return any(script in ln and f"--agent {pattern_agent}" in ln for ln in cmds.splitlines())
-
     if cmds is None:
         # THE REFUSAL. Same discipline the app rung above already applies: a probe that
         # cannot run reads as NOT healthy AND NOT repairable, so decide() plans nothing
@@ -207,6 +196,17 @@ def observe(include_app: bool = True) -> dict[str, dict[str, Any]]:
         for organ in ("daemon", "runners", "gateway"):
             out[organ] = {"healthy": False, "repairable": False, "detail": blind, "dead": []}
         return out
+
+    # PER AGENT, never in aggregate (drill 2026-08-24). Counting processes asked
+    # "is anything alive?" when the only useful question is "is EVERY seat alive?" --
+    # so one surviving daemon reported the whole rung healthy and PROVE confirmed a
+    # heal that never happened. And counting SCRIPT names could not distinguish
+    # agents at all: every runner agent runs bifrost_runner_deepseek.py, so
+    # `bifrost_runner_kimi` matched nothing ever while `bifrost_runner_deepseek`
+    # matched both. The discriminator is `--agent <name>`, which is the only place
+    # a process states which seat it IS.
+    def _live(pattern_agent: str, script: str) -> bool:
+        return any(script in ln and f"--agent {pattern_agent}" in ln for ln in cmds.splitlines())
 
     dead_daemons = [a for a in DAEMON_AGENTS if not _live(a, "bifrost_daemon.py")]
     dead_runners = [a for a in RUNNER_AGENTS if not _live(a, "bifrost_runner_")]
@@ -430,6 +430,7 @@ def _heal_app(step: dict[str, Any]) -> bool:
         receipt.extend(f"  - {r}" for r in refusals)
         return False
 
+    pkg = cast("dict[str, Any]", pkg)  # clear_refusals() refuses a missing package
     ok, detail = ap.clear_modified_status(str(pkg.get("full_name")))
     receipt.append(f"ClearPackageStatus(Modified): {'ok' if ok else 'FAILED'} -- {detail}")
     if not ok:

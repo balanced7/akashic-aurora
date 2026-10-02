@@ -18,6 +18,7 @@ import argparse
 import os
 import sys
 from pathlib import Path
+from typing import cast
 
 KEY_FILE = Path(__file__).resolve().parent.parent / ".secrets" / "gemini.key"
 DEFAULT_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")  # free-tier-accessible; pro is 0-quota
@@ -70,7 +71,8 @@ def main():
     except Exception as e:
         print(f"GEMINI_ERROR ({args.model}): {type(e).__name__}: {e}", file=sys.stderr)
         try:
-            names = [m.name for m in client.models.list()]
+            # API resources always carry a name; a None would raise into the except below, as before
+            names = [cast("str", m.name) for m in client.models.list()]
             print("models available to this key:", ", ".join(n.split("/")[-1] for n in names[:25]), file=sys.stderr)
         except Exception:
             pass

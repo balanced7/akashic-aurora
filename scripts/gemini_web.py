@@ -34,7 +34,10 @@ import threading
 import time
 import urllib.parse
 from pathlib import Path
-from typing import Literal
+from typing import TYPE_CHECKING, Any, Literal, cast
+
+if TYPE_CHECKING:
+    import io
 
 
 def _pyl() -> str:
@@ -54,7 +57,7 @@ def _pyl() -> str:
 for _stream in (sys.stdout, sys.stderr):
     if _stream is not None and hasattr(_stream, "reconfigure"):
         with contextlib.suppress(ValueError, OSError):
-            _stream.reconfigure(encoding="utf-8", errors="replace")
+            cast("io.TextIOWrapper", _stream).reconfigure(encoding="utf-8", errors="replace")
 
 ROOT = Path(__file__).resolve().parent.parent
 PROFILE = ROOT / ".secrets" / "gemini_web_profile"
@@ -118,10 +121,10 @@ def _resolve_engine(engine: str | None = None) -> Engine:
 
 def _sync_playwright_factory(engine: Engine):
     if engine == "patchright":
-        from patchright.sync_api import sync_playwright
+        from patchright.sync_api import sync_playwright  # pyright: ignore[reportMissingImports]  # optional dependency
 
         return sync_playwright
-    from playwright.sync_api import sync_playwright
+    from playwright.sync_api import sync_playwright  # pyright: ignore[reportMissingImports]  # optional dependency
 
     return sync_playwright
 
@@ -131,7 +134,7 @@ def _get_stealth():
     if _STEALTH is not None:
         return _STEALTH
     try:
-        from playwright_stealth import Stealth
+        from playwright_stealth import Stealth  # pyright: ignore[reportMissingImports]  # optional dependency
 
         # Real Chrome already has genuine UA/GPU/plugins — only patch automation leaks.
         _STEALTH = Stealth(
@@ -202,13 +205,13 @@ def _prompt_from_args(args) -> str:
 
 def _needs_playwright() -> bool:
     try:
-        import playwright  # noqa: F401  # availability probe
+        import playwright  # pyright: ignore[reportMissingImports]  # optional dependency  # noqa: F401  # availability probe
 
         return True
     except ImportError:
         pass
     try:
-        import patchright  # noqa: F401  # availability probe
+        import patchright  # pyright: ignore[reportMissingImports]  # optional dependency  # noqa: F401  # availability probe
 
         return True
     except ImportError:
@@ -312,7 +315,7 @@ def _acquire_context(
     stealth: bool,
     reuse_browser: bool,
     engine: Engine = "playwright",
-) -> tuple[object, bool]:
+) -> tuple[Any, bool]:
     """Return (context, should_close_after_use)."""
     with _POOL_LOCK:
         if reuse_browser and _POOL["ctx"] is not None:

@@ -104,7 +104,7 @@ if sys.platform == "win32" and not (
                     kwargs["env"] = _carry_pythonpath(kwargs["env"])
                 return _orig(self, *args, **kwargs)
 
-            _quiet_init._akashic_quiet = True
+            vars(_quiet_init)["_akashic_quiet"] = True
             _sp.Popen.__init__ = _quiet_init
 
             def _dedup(entries):

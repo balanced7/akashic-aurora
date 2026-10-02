@@ -194,7 +194,7 @@ def bind_allowed(host: Any, *, allow_public: bool) -> tuple[bool, str]:
     )
 
 
-def length_allowed(declared: int) -> bool:
+def length_allowed(declared: int | str) -> bool:
     """Cap by DECLARED length, before reading. Refusing after the read is not a refusal."""
     try:
         return 0 <= int(declared) <= MAX_BODY_BYTES
@@ -340,7 +340,7 @@ class _Handler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:  # noqa: N802  # public API name
         self._respond(*handle_request("GET", self.path, b"", peer=self.peer_name))
 
-    def log_message(self, fmt, *args):
+    def log_message(self, *_args: object, **_kwargs: object):
         """Silence the stdlib's own line — _respond already prints one we control."""
 
 

@@ -43,6 +43,7 @@ import argparse
 import os
 import sys
 from collections import Counter
+from typing import Any, cast
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
@@ -148,7 +149,7 @@ def reheal(pattern: str, backend: str, dry_run: bool, overwrite: bool) -> int:
 
     if not dry_run:
         with contextlib.suppress(AttributeError):
-            dst.checkpoint()
+            cast("Any", dst).checkpoint()  # only some backends have it; the suppress covers the rest
         after = len(dst.keys(pattern))
         print(f"[reheal] target now holds {after} key(s) matching {pattern!r} (redis has {len(keys)})")
         if after < len(keys):

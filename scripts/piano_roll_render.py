@@ -24,6 +24,10 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 ROOT = Path(__file__).resolve().parents[1]
 PERF = ROOT / "state" / "arsenal" / "performance"
@@ -136,7 +140,7 @@ def main(argv):
         raise SystemExit("usage: piano_roll_render.py <session> [--pxs N] [--out DIR] [--from S] [--to S] [--tag NAME]")
     session = argv[1]
 
-    def opt(flag, default=None, cast=str):
+    def opt(flag, default=None, cast: Callable[[str], Any] = str):
         return cast(argv[argv.index(flag) + 1]) if flag in argv else default
 
     pxs = opt("--pxs", 60.0, float)

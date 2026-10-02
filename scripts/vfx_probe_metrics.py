@@ -19,6 +19,7 @@ import os
 import struct
 import zlib
 from pathlib import Path
+from typing import cast
 
 REPO = Path(__file__).resolve().parent.parent
 SNAPS = REPO / "design" / "vfx-snaps"
@@ -55,7 +56,7 @@ def load_png(path):
             # Each row: filter byte + width*4 bytes
             stride = 1 + width * 4
             rgba = []
-            for y in range(height):
+            for y in range(cast("int", height)):  # IHDR sets width and height together
                 row_start = y * stride
                 filt = raw[row_start]
                 row_data = raw[row_start + 1 : row_start + stride]

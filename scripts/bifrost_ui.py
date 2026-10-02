@@ -22,6 +22,7 @@ import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from typing import Any, cast
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -758,7 +759,7 @@ def _vfx_presets_write(name, value):
 
 
 class Handler(BaseHTTPRequestHandler):
-    def log_message(self, *a):
+    def log_message(self, *_a: object, **_k: object):
         pass  # quiet
 
     # ------------------------------------------------------------------ GET
@@ -985,7 +986,7 @@ class Handler(BaseHTTPRequestHandler):
         try:
             from core.fleet import residents as _res
 
-            for aid in set(known) | {a.get("agent") for a in agents if a.get("agent")}:
+            for aid in set(known) | {ag for a in agents if (ag := a.get("agent"))}:
                 r = _res.get(aid)
                 if isinstance(r, dict) and r.get("callsign"):
                     residents[aid] = {
@@ -1338,17 +1339,20 @@ class Handler(BaseHTTPRequestHandler):
             txt = str(data.get("text") or "").strip()
             if not txt:
                 return self._json({"ok": False, "error": "text required"})
-            e = _vfx_feed_add(
-                {
-                    "kind": str(data.get("kind") or "say"),
-                    "text": txt[:2000],
-                    "from": str(data.get("from") or "claude")[:32],
-                    "label": str(data.get("label") or "")[:80],
-                    "path": "",
-                    "url": "",
-                    "ok": True,
-                    "error": "",
-                }
+            e = cast(  # a non-empty entry is always returned
+                "dict[str, Any]",
+                _vfx_feed_add(
+                    {
+                        "kind": str(data.get("kind") or "say"),
+                        "text": txt[:2000],
+                        "from": str(data.get("from") or "claude")[:32],
+                        "label": str(data.get("label") or "")[:80],
+                        "path": "",
+                        "url": "",
+                        "ok": True,
+                        "error": "",
+                    }
+                ),
             )
             return self._json({"ok": True, "id": e["id"]})
         if path == "/vfx/presets":
@@ -1591,7 +1595,7 @@ class Handler(BaseHTTPRequestHandler):
         if not context:
             return self._json({"ok": False, "error": "empty context"}, 400)
         try:
-            from bifrost.api import round_result
+            from bifrost.api import round_result  # pyright: ignore[reportMissingImports]  # optional package
 
             result = round_result(triggered_by="user", context=context)
             return self._json(

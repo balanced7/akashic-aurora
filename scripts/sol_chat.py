@@ -72,7 +72,7 @@ def make_client(api_key=None, base_url=BASE_URL):
     from core.comm.runner_lib import make_openai_compat_client
 
     return make_openai_compat_client(
-        api_key or load_key(),
+        api_key or load_key(),  # pyright: ignore[reportArgumentType]  # LATENT: no key passes None; the SDK then reads OPENAI_API_KEY
         base_url,
         connect_timeout=SOL_CONNECT_TIMEOUT,
         read_timeout=SOL_READ_TIMEOUT,

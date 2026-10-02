@@ -51,6 +51,10 @@ import contextlib
 import os
 import subprocess
 import sys
+from typing import TYPE_CHECKING, cast
+
+if TYPE_CHECKING:
+    import io
 
 
 def _pyl() -> str:
@@ -485,7 +489,9 @@ def _push(args, branch, committed):
 
 def main(argv=None):
     with contextlib.suppress(AttributeError):
-        sys.stdout.reconfigure(errors="replace")  # commit subjects can carry characters a cp1252 console lacks
+        cast("io.TextIOWrapper", sys.stdout).reconfigure(
+            errors="replace"
+        )  # commit subjects can carry characters a cp1252 console lacks
     parser = build_parser()
     args = parser.parse_intermixed_args(argv)
 

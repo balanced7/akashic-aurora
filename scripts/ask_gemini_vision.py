@@ -6,10 +6,10 @@ Thin wrapper over ask_gemini.py's key resolution + the Gemini SDK's vision suppo
 """
 
 import argparse
-import base64
 import os
 import sys
 from pathlib import Path
+from typing import Any
 
 KEY_FILE = Path(__file__).resolve().parent.parent / ".secrets" / "gemini.key"
 DEFAULT_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
@@ -59,7 +59,6 @@ def main():
         "bmp": "image/bmp",
     }
     mime = mime_map.get(ext, "image/png")
-    b64 = base64.b64encode(data).decode("ascii")
 
     from google import genai
     from google.genai import types
@@ -67,9 +66,10 @@ def main():
     client = genai.Client(api_key=key)
     cfg = types.GenerateContentConfig(system_instruction=args.system) if args.system else None
 
-    parts = [
+    parts: list[Any] = [  # Parts; the SDK's PartUnionDict alias is conditional, not a type form
         types.Part.from_text(text=prompt),
-        types.Part.from_bytes(data=b64, mime_type=mime),
+        # raw bytes: the SDK base64-encodes them for the wire (same request as the old b64 str)
+        types.Part.from_bytes(data=data, mime_type=mime),
     ]
     try:
         resp = client.models.generate_content(model=args.model, contents=parts, config=cfg)

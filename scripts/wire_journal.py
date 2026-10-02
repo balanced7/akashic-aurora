@@ -151,7 +151,7 @@ class _Shard:
         self.dir = os.path.join(root, name)
         self.day, self.n = "", 1  # segment cursor -- amortized O(1), see _segment_path
         self.q = queue.Queue(maxsize=queue_size)
-        self.thread = None
+        self.thread: threading.Thread | None = None
         # keyed by DIRECTORY, shared across every journal instance writing this shard -- the
         # file is the resource, not this object. See _shard_lock above.
         self.lock = _shard_lock(self.dir)
@@ -226,7 +226,7 @@ class WireJournal:
             return False
 
     # ------------------------------------------------------------ shards - T157
-    def _shard_for(self, agent: str) -> "_Shard":
+    def _shard_for(self, agent: str | None) -> "_Shard":
         """The shard owning `agent`, created on demand and CAPPED.
 
         The cap is not hypothetical: the shard key comes from a record field, so a buggy or
@@ -366,7 +366,7 @@ class WireJournal:
             "headers": {k: v for k, v in (kw.get("headers") or {}).items() if str(k).lower() in KEEP_HEADERS},
         }
 
-    def _segment_path(self, shard: "_Shard" = None) -> str:
+    def _segment_path(self, shard: "_Shard | None" = None) -> str:
         """The segment currently being appended to, ROLLING when it exceeds MAX_BYTES.
 
         T157: takes a SHARD. Called with none, it answers for this journal's own agent, which is
@@ -405,7 +405,7 @@ class WireJournal:
                 return p  # does not exist yet -> this is the one to write
             shard.n += 1
 
-    def _rotate(self, shard: "_Shard" = None):
+    def _rotate(self, shard: "_Shard | None" = None):
         """Bound the store by TOTAL size and segment count -- never as a side effect of one write.
 
         Deletion happens only while genuinely over budget, and the newest segment is never a

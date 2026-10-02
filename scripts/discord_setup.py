@@ -141,7 +141,7 @@ def main() -> int:
             registry["channels"][c["id"]] = agent
 
     # ---- webhooks, delivered straight to the vault -------------------------------
-    def ensure_webhook(channel: dict, vault_target: str):
+    def ensure_webhook(channel: dict | None, vault_target: str):
         if not channel:
             return
         hooks = d.get(f"/channels/{channel['id']}/webhooks")

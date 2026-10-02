@@ -55,6 +55,7 @@ import sys
 import tempfile
 import time
 import uuid
+from typing import cast
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -356,8 +357,8 @@ def main(argv=None) -> int:
     from scripts.bifrost_child import DaemonLock, ManagedChild, format_summary_for_prompt, read_summary
 
     agent = str(args.agent)
-    ttl = int(args.ttl) if args.ttl else _env_int("AKASHIC_DAEMON_LOCK_TTL_S", scaled(60))
-    hb = int(args.hb) if args.hb else _env_int("AKASHIC_DAEMON_HB_S", scaled(8))
+    ttl = int(args.ttl) if args.ttl else _env_int("AKASHIC_DAEMON_LOCK_TTL_S", cast("int", scaled(60)))
+    hb = int(args.hb) if args.hb else _env_int("AKASHIC_DAEMON_HB_S", cast("int", scaled(8)))
     hb = max(1, min(hb, max(1, ttl // 2)))
     guard_every = scaled(30)
     token = _stable_token(agent)
@@ -425,6 +426,39 @@ def main(argv=None) -> int:
     )
     last_summary_text = ""
 
+    # ---- blocker callback (M1-P9 circuit breaker) ------------------------------
+    def _send_blocker():
+        try:
+            ch = cast("ManagedChild", child)  # only the spawned child's breaker calls this
+            bus.broadcast(
+                "blocker",
+                f"[blocker] runner child for '{agent}' unstable: "
+                f"{ch._breaker_max} crashes in "
+                f"{int(ch._breaker_window_s)}s -- restarting stopped. "
+                f"Daemon presence still held. Restart the daemon to reset.",
+                meta={"via": f"{agent}-daemon", "kind": "blocker"},
+            )
+            _say(
+                f"[daemon] BLOCKER broadcast agent={agent}: circuit breaker tripped "
+                f"({ch._breaker_max} crashes in {int(ch._breaker_window_s)}s)"
+            )
+        except Exception:
+            pass
+
+    def _on_runner_exit(code: int, tail: str | None):
+        s = read_summary(summary_file)
+        if s:
+            cast("ManagedChild", child).last_summary = s  # invoked by that child's poll()
+            nonlocal last_summary_text
+            last_summary_text = format_summary_for_prompt(s)
+            _say(f"[daemon] runner exited code={code} summary={last_summary_text}")
+        else:
+            _say(f"[daemon] runner exited code={code} (no summary file)")
+        if tail:
+            short = " ".join(str(tail).split())[:200]
+            if short:
+                _say(f"[daemon] runner tail: {short}")
+
     if spawn_runner or manage_listener:
         dlock = DaemonLock(c, bus.ns, agent, ttl=ttl)
         # R-a1 twin-refusal adapted for the daemon lock
@@ -479,38 +513,6 @@ def main(argv=None) -> int:
                     f"(W102 idle-watcher)"
                 )
                 idle_mode = True
-
-        # ---- blocker callback (M1-P9 circuit breaker) ------------------------------
-        def _send_blocker():
-            try:
-                bus.broadcast(
-                    "blocker",
-                    f"[blocker] runner child for '{agent}' unstable: "
-                    f"{child._breaker_max} crashes in "
-                    f"{int(child._breaker_window_s)}s -- restarting stopped. "
-                    f"Daemon presence still held. Restart the daemon to reset.",
-                    meta={"via": f"{agent}-daemon", "kind": "blocker"},
-                )
-                _say(
-                    f"[daemon] BLOCKER broadcast agent={agent}: circuit breaker tripped "
-                    f"({child._breaker_max} crashes in {int(child._breaker_window_s)}s)"
-                )
-            except Exception:
-                pass
-
-        def _on_runner_exit(code: int, tail: str):
-            s = read_summary(summary_file)
-            if s:
-                child.last_summary = s
-                nonlocal last_summary_text
-                last_summary_text = format_summary_for_prompt(s)
-                _say(f"[daemon] runner exited code={code} summary={last_summary_text}")
-            else:
-                _say(f"[daemon] runner exited code={code} (no summary file)")
-            if tail:
-                short = " ".join(str(tail).split())[:200]
-                if short:
-                    _say(f"[daemon] runner tail: {short}")
 
         # ---- runner child (spawn-runner only) --------------------------------------
         if spawn_runner and not idle_mode:
@@ -606,7 +608,7 @@ def main(argv=None) -> int:
             else "M1-alpha"
         ),
         "pid": os.getpid(),
-        "token8": (dlock.token[-8:] if (spawn_runner or manage_listener) else token[-8:]),
+        "token8": (cast("DaemonLock", dlock).token[-8:] if (spawn_runner or manage_listener) else token[-8:]),
         "gen": 0 if (spawn_runner or manage_listener) else runner_lock.generation_of(token),
         "runtimes": {},
     }
@@ -881,7 +883,7 @@ def main(argv=None) -> int:
 
             # ---- lock heartbeat ---------------------------------------------------
             if spawn_runner or manage_listener:
-                if not dlock.heartbeat():
+                if not cast("DaemonLock", dlock).heartbeat():
                     _say(f"[daemon] stand-down agent={agent}: daemon lock lost -- exiting 0")
                     return 0
             else:

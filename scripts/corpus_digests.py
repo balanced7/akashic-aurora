@@ -31,6 +31,10 @@ import glob
 import json
 import os
 import sys
+from typing import TYPE_CHECKING, cast
+
+if TYPE_CHECKING:
+    import io
 
 
 def _pyl() -> str:
@@ -372,7 +376,7 @@ def main(argv=None):
     # the record. No pin caught this because the fixture was pure ASCII; the real corpus is not.
     for stream in (sys.stdout, sys.stderr):
         with contextlib.suppress(Exception):
-            stream.reconfigure(encoding="utf-8", errors="replace")
+            cast("io.TextIOWrapper", stream).reconfigure(encoding="utf-8", errors="replace")
 
     ap = argparse.ArgumentParser()
     ap.add_argument("--stats", action="store_true", help="report on landed digests, write nothing")

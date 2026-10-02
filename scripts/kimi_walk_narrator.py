@@ -26,6 +26,11 @@ import argparse
 import json
 import os
 import sys
+from typing import TYPE_CHECKING, cast
+
+if TYPE_CHECKING:
+    import io
+
 import time
 from pathlib import Path
 
@@ -108,7 +113,7 @@ def newest_transcript(after_ts: float):
 
 def main() -> int:
     if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        cast("io.TextIOWrapper", sys.stdout).reconfigure(encoding="utf-8", errors="replace")
     ap = argparse.ArgumentParser(description="Stream kimi's transcript reasoning to the bus.")
     ap.add_argument("--agent", default="kimi")
     ap.add_argument("--replay", help="narrate one existing transcript fully, then exit")

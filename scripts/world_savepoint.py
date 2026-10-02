@@ -20,6 +20,7 @@ import subprocess
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import cast
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -142,7 +143,12 @@ def cmd_restore(label: str, consent: bool) -> int:
     print(f"[restore] {sp.label} -- code {sp.git_sha}, memory {sp.knowledge_snapshot}")
     subprocess.run(["git", "-C", str(ROOT), "checkout", "-q", sp.git_sha])
     subprocess.run(
-        [sys.executable, str(ROOT / "scripts" / "ops" / "snapshot_knowledge.py"), "restore", sp.knowledge_snapshot],
+        [
+            sys.executable,
+            str(ROOT / "scripts" / "ops" / "snapshot_knowledge.py"),
+            "restore",
+            cast("str", sp.knowledge_snapshot),  # can_restore() refuses a point without one
+        ],
         cwd=str(ROOT),
     )
     print(f"[restore] DONE -- {current().name} is back at '{sp.label}'")

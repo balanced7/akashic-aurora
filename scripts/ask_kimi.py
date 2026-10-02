@@ -19,6 +19,11 @@ bills as output -- the default max-tokens leaves headroom (a skimpy cap returns 
 
 import argparse
 import sys
+from typing import TYPE_CHECKING, cast
+
+if TYPE_CHECKING:
+    import io
+
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -30,7 +35,8 @@ HERE = Path(__file__).resolve().parent
 
 def main():
     if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # Windows console cp1252 guard
+        # Windows console cp1252 guard
+        cast("io.TextIOWrapper", sys.stdout).reconfigure(encoding="utf-8", errors="replace")
     ap = argparse.ArgumentParser(description="Ask Kimi from the CLI.")
     ap.add_argument("prompt", nargs="*")
     ap.add_argument("--file")
@@ -64,8 +70,9 @@ def main():
         )
         cost = meter.record(getattr(resp, "usage", None), args.model)
         msg = resp.choices[0].message
-        if args.show_thinking and getattr(msg, "reasoning_content", None):
-            print(f"[thinking]\n{msg.reasoning_content}\n[/thinking]", file=sys.stderr)
+        thinking = getattr(msg, "reasoning_content", None)  # provider extension, not in the SDK type
+        if args.show_thinking and thinking:
+            print(f"[thinking]\n{thinking}\n[/thinking]", file=sys.stderr)
         print(msg.content or "(no content -- raise --max-tokens; thinking may have consumed the cap)")
         print(f"[ask_kimi] ${cost:.4f} this call | {meter.status_line()}", file=sys.stderr)
         return 0

@@ -13,6 +13,11 @@ no contention. Independent of, and concurrent with, whatever the shared runner i
 import contextlib
 import os
 import sys
+from typing import TYPE_CHECKING, cast
+
+if TYPE_CHECKING:
+    import io
+
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -20,7 +25,7 @@ from pathlib import Path
 # default cp1252 console encoding crashes on them. Force UTF-8 so a background run can't die on an emoji.
 for _s in (sys.stdout, sys.stderr):
     with contextlib.suppress(Exception):
-        _s.reconfigure(encoding="utf-8", errors="replace")
+        cast("io.TextIOWrapper", _s).reconfigure(encoding="utf-8", errors="replace")
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(os.path.dirname(HERE))

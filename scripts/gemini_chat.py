@@ -86,7 +86,7 @@ def load_key() -> str | None:
 def make_client(api_key=None, base_url=BASE_URL):
     """gemini wrap of the shared hardening factory (K0): gemini owns only its env conventions."""
     return make_openai_compat_client(
-        api_key or load_key(),
+        api_key or load_key(),  # pyright: ignore[reportArgumentType]  # LATENT: no key passes None; the SDK then reads OPENAI_API_KEY
         base_url,
         connect_timeout=GEMINI_CONNECT_TIMEOUT,
         read_timeout=GEMINI_READ_TIMEOUT,

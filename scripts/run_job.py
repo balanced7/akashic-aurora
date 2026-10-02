@@ -36,7 +36,7 @@ import time
 import uuid
 from contextlib import contextmanager
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -554,7 +554,7 @@ def _win_job_members(handle: Any) -> list[int]:
     raise JobError("Job Object process list exceeded the 4096-process safety bound")
 
 
-def _win_terminate_owned_job(handle: Any, pid: int, identity: str) -> dict[str, Any]:
+def _win_terminate_owned_job(handle: Any, pid: int, identity: str | None) -> dict[str, Any]:
     """Terminate retained membership and confirm that the OS-owned set becomes empty."""
     before = _win_job_members(handle)
     root_alive, root_actual_identity = _win_process_info(pid)
@@ -1119,7 +1119,7 @@ def read_status(
             remaining_workload = [
                 member_pid
                 for member_pid in member_pids
-                if not (exclude_supervisor and member_pid == int(supervisor_pid))
+                if not (exclude_supervisor and member_pid == int(cast("int | str", supervisor_pid)))
             ]
             retained_membership_quiescence = not remaining_workload
             out["workload_member_pids_observed"] = remaining_workload
@@ -1768,7 +1768,7 @@ def _supervise(job_id: str, state_dir: Path) -> int:
         return 2
 
 
-def _force_owned_job(job_handle: Any, child_pid: int, child_identity: str) -> dict[str, Any]:
+def _force_owned_job(job_handle: Any, child_pid: int, child_identity: str | None) -> dict[str, Any]:
     if sys.platform == "win32" and job_handle:
         return _win_terminate_owned_job(job_handle, child_pid, child_identity)
     return _kill_tree(child_pid, child_identity)
@@ -1981,7 +1981,7 @@ def _watchdog_loop(
             workload_member_pids = [
                 member_pid
                 for member_pid in job_member_pids
-                if not (exclude_supervisor and member_pid == int(supervisor_pid))
+                if not (exclude_supervisor and member_pid == int(cast("int | str", supervisor_pid)))
             ]
             workload_alive = bool(workload_member_pids)
         else:

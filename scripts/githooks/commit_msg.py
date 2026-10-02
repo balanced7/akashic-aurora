@@ -26,6 +26,12 @@ Install once per clone/worktree:  py scripts/githooks/install_git_hooks.py
 import contextlib
 import os
 import sys
+from pathlib import Path
+from typing import TYPE_CHECKING, cast
+
+if TYPE_CHECKING:
+    import io
+
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, ROOT)
@@ -57,10 +63,9 @@ def message_body(text, comment_char=COMMENT_CHAR):
     return "\n".join(kept)
 
 
-def _plane_root(root):
-    if root is not None:
-        return root
-    return os.environ.get(PLANE_ROOT_ENV) or None
+def _plane_root(root) -> Path | None:
+    raw = root if root is not None else (os.environ.get(PLANE_ROOT_ENV) or None)
+    return Path(raw) if raw else None  # scan_text takes a Path; it wraps the value in Path() anyway
 
 
 def scan_message(path, root=None):
@@ -95,7 +100,7 @@ def main(argv=None, root=None):
     argv = sys.argv if argv is None else argv
     with contextlib.suppress(Exception):
         # a marker the console's codepage cannot print must not turn a refusal into a crash
-        sys.stderr.reconfigure(errors="replace")
+        cast("io.TextIOWrapper", sys.stderr).reconfigure(errors="replace")
     if len(argv) < 2 or not argv[1]:
         _say(
             "commit-msg WARNING: git passed no message path, so the private-plane message "

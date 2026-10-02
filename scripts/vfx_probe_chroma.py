@@ -15,6 +15,7 @@ from __future__ import annotations
 import os
 import sys
 from pathlib import Path
+from typing import Any
 
 
 def _pyl() -> str:
@@ -220,7 +221,7 @@ def chroma_delta(px_a, px_b, chroma_threshold=5.0):
 
 
 # ---- full suite ----
-def compute(path):
+def compute(path) -> dict[str, Any]:
     """Full metric suite for a single PNG."""
     w, h, px = load_png(path)
     if px is None:

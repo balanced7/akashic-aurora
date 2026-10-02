@@ -39,11 +39,11 @@ DEFAULT_VIEWPORTS = ["1280x860", "900x820"]
 def _launcher():
     """Patchright first (repo default, stealth-patched), plain Playwright as fallback."""
     try:
-        from patchright.sync_api import sync_playwright  # type: ignore[import-not-found]
+        from patchright.sync_api import sync_playwright  # pyright: ignore[reportMissingImports]  # optional dependency
 
         return sync_playwright, "patchright"
     except Exception:
-        from playwright.sync_api import sync_playwright  # type: ignore[import-not-found]
+        from playwright.sync_api import sync_playwright  # pyright: ignore[reportMissingImports]  # optional dependency
 
         return sync_playwright, "playwright"
 

@@ -20,6 +20,11 @@ anything you wouldn't share with DeepSeek. DeepSeek's API is OpenAI-compatible, 
 import argparse
 import os
 import sys
+from typing import TYPE_CHECKING, cast
+
+if TYPE_CHECKING:
+    import io
+
 from pathlib import Path
 
 KEY_FILE = Path(__file__).resolve().parent.parent / ".secrets" / "deepseek.key"
@@ -41,7 +46,8 @@ def load_key():
 
 def main():
     if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # Windows console defaults to cp1252
+        # Windows console defaults to cp1252
+        cast("io.TextIOWrapper", sys.stdout).reconfigure(encoding="utf-8", errors="replace")
     ap = argparse.ArgumentParser(description="Ask DeepSeek from the CLI.")
     ap.add_argument("prompt", nargs="*")
     ap.add_argument("--file")

@@ -35,6 +35,7 @@ import os
 import sys
 import time
 from pathlib import Path
+from typing import Any, cast
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -87,7 +88,7 @@ def load_key() -> str | None:
 def make_client(api_key=None, base_url=BASE_URL):
     """Kimi wrap of the shared hardening factory (K0): kimi owns only its env conventions."""
     return make_openai_compat_client(
-        api_key or load_key(),
+        api_key or load_key(),  # pyright: ignore[reportArgumentType]  # LATENT: no key passes None; the SDK then reads OPENAI_API_KEY
         base_url,
         connect_timeout=KIMI_CONNECT_TIMEOUT,
         read_timeout=KIMI_READ_TIMEOUT,
@@ -462,7 +463,7 @@ if __name__ == "__main__":
             instructions="Use tools when asked.", tools_schemas=calc, dispatch=lambda n, a: "42", meter=meter
         )
         print("tool round-trip:", repr(ag2.send("What is 6*7? Use the calc tool, then answer.")))
-        u = ag2.last_response.usage
+        u = cast("Any", ag2.last_response).usage  # set by the send() above
         print("last usage:", u.model_dump() if hasattr(u, "model_dump") else u)
         print("post:", meter.status_line())
         print("== smoke complete ==")

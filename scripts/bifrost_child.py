@@ -27,7 +27,7 @@ import subprocess
 import threading
 import time
 import uuid
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -223,7 +223,8 @@ class ManagedChild:
 
         def _drain():
             try:
-                for line in self._proc.stdout:
+                # stdout=PIPE above; a concurrent reset (None) raises into the except below, as before
+                for line in cast("Any", self._proc).stdout:
                     self._ring.append(line.rstrip("\n\r"))
             except Exception:
                 pass

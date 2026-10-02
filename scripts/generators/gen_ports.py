@@ -39,7 +39,7 @@ def _pyl() -> str:
 
 OUT = os.path.join(ROOT, "docs", "PORTS.md")
 
-_WORLD_ORDER = {"prod": 0, "sandbox": 1, "test": 2, "external": 3}
+_WORLD_ORDER: dict[str | None, int] = {"prod": 0, "sandbox": 1, "test": 2, "external": 3}  # keyed by .get("world")
 
 
 def render() -> str:

@@ -64,7 +64,7 @@ def crop_to(src: Path, region: str, dest: Path) -> None:
 
     x, y, w, h = (float(v) for v in region.split(","))
     rgb = F.load_rgb(str(src))
-    S._write_png(F.crop(rgb, (x, y, w, h)), str(dest))
+    S._write_png(F.crop(rgb, (x, y, w, h)), dest)
 
 
 def cache_lookup(key: str):

@@ -34,7 +34,7 @@ TIMELINE = "narr:beats:timeline"
 TINDEX = "events:raw:tindex"
 
 
-def migrate_time_scores(store: Store = None) -> dict:
+def migrate_time_scores(store: Store | None = None) -> dict:
     """Re-score the persisted time-zsets from their records' `at` via to_epoch. Returns counts."""
     store = store if store is not None else create_store()
     report = {"timeline": 0, "track": 0, "tindex": 0}

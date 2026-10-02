@@ -21,6 +21,7 @@ import os
 import shutil
 import sys
 from pathlib import Path
+from typing import cast
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from core.paths import data_root
@@ -247,7 +248,7 @@ def phase_verify():
     r = _redis()
     d = json.loads(STORE_FILE.read_text(encoding="utf-8"))
     print("=== REDIS 16379 learn:* ===")
-    rk = sorted(r.keys("learn:*"))
+    rk = sorted(cast("list[str]", r.keys("learn:*")))  # decode_responses=True
     for k in rk:
         print(f"  {r.type(k):6} {k}")
     print(f"  streams present: {[s for s in TEST_STREAMS if r.exists(s)]}")
@@ -266,7 +267,7 @@ def phase_verify():
     assert "blockers:escalated" not in d.get("list", {}), "blockers still present"
     # detail preserved?
     for name in REAL:
-        h = r.hgetall(f"learn:experiment:{name}")
+        h = cast("dict[str, str]", r.hgetall(f"learn:experiment:{name}"))
         assert h.get("source", "").startswith("learnings.jsonl:L"), f"{name} missing source pointer"
         assert h.get("detail_json"), f"{name} missing detail_json"
     print("\nOK: both backends consistent; 6 lessons live with source pointers + full detail; junk gone.")

@@ -49,7 +49,7 @@ def family():
         return _FAMILY
     _FAMILY_TRIED = True
     try:
-        from core.foundation.store import create_store  # type: ignore[import-not-found]
+        from core.foundation.store import create_store
         from core.library.atoms import AtomFamily
 
         _FAMILY = AtomFamily(create_store(), repo_root=str(ROOT))
