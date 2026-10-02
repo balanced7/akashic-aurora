@@ -2125,6 +2125,14 @@ def cmd_guardrails(args: argparse.Namespace) -> int:
     finally:
         _rmtree(raw)
     base = load_json(SNAPSHOTS / "g0" / "O6.json")
+    if args.only:
+        # one CI step per guardrail (G5.P3): the same g0 rule, held for the named checkers only
+        unknown = sorted(set(args.only) - set(cur["checkers"]))
+        if unknown:
+            print("GUARDRAILS: FAIL (no such checker: {})".format(", ".join(unknown)))
+            return 2
+        cur = {"checkers": {k: v for k, v in cur["checkers"].items() if k in args.only}}
+        base = {"checkers": {k: v for k, v in base["checkers"].items() if k in args.only}}
     worse = dict(compare_o6(base, cur))
     for name, r in sorted(cur["checkers"].items()):
         b = base["checkers"].get(name, {})
@@ -2488,7 +2496,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     s.add_argument("--baseline", default="g0")
     sub.add_parser("mcp-stdio", help="list MCP tools by launching the .mcp.json server")
     sub.add_parser("test-fast", help="pytest over the smoke set + tests impacted since HEAD")
-    sub.add_parser("guardrails", help="every scripts/checkers/* held to its g0 exit code")
+    s = sub.add_parser("guardrails", help="every scripts/checkers/* held to its g0 exit code")
+    s.add_argument("--only", nargs="+", metavar="CHECKER", help="hold only these checkers (by stem)")
     sub.add_parser("assert-stdlib", help="oracle.py and certify.py import only the stdlib")
     s = sub.add_parser("rekey-o1", help="hash parametrize text in a stored O1.json (idempotent)")
     s.add_argument("label")
