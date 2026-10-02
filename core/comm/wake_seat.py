@@ -140,6 +140,44 @@ def wake_origin_state(agent: str, session_id: Optional[str] = None,
     return "armed-unknown", pid
 
 
+def arm_command(agent: str, session_id: Optional[str] = None, *, repo: Optional[str] = None) -> str:
+    """THE one arm command. Every surface that tells a seat how to arm must call this.
+
+    WHY THIS EXISTS (2026-10-02). Two surfaces used to build their own, and they disagreed in a
+    way that broke the thing they were both trying to fix:
+
+        boot, agent/harness/context.py
+            py scripts/bifrost_wake.py --agent <a> --min-tier 0
+        the stop hook, agent/harness/hooks/claude_stop.py
+            BIFROST_CONSUME_LANE=work BIFROST_WAKE_LANE=work py agent_cli.py bifrost-standby <a>
+                --session <sid>
+
+    `scripts/bifrost_wake.py` stamps its origin from BIFROST_WAKE_ORIGIN and DEFAULTS TO
+    "unknown"; `bifrost-standby` sets it to "harness"; and WAKEABLE_ORIGINS does not contain
+    "unknown", so `harness_armed()` is False for a listener armed the first way. A seat that
+    obeyed BOOT therefore armed a watcher the STOP HOOK refused, and was blocked with "holds the
+    seat with no origin record". The house recorded that recurring three or more times and read it
+    as a seat forgetting its ritual. The ritual was fine; the instruction was wrong.
+
+    So this function is deliberately shaped so it CANNOT emit the broken form: it always routes
+    through `bifrost-standby`, which is the launcher that stamps a wakeable origin, and it always
+    carries the lane env and the session.
+
+    IT IS A STRING, NOT A SPAWN, and that is not an oversight. `scripts/bifrost_wake.py` delivers
+    by PRINTING to stdout and exiting, so a wake only lands if something is reading that stream. A
+    watcher spawned detached from inside a hook or a CLI prints into a void while `any_armed()`
+    cheerfully answers "armed" -- a surface asserting reachability it does not have, which is
+    strictly worse than reporting none. The arm has to be launched on a channel the harness is
+    watching, which means the SEAT must run it. Every caller here hands the string over; nobody
+    runs it for the seat.
+    """
+    root = repo or os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    cli = os.path.join(root, "agent_cli.py").replace("\\", "/")
+    sess = f" --session {session_id}" if session_id else ""
+    return (f"BIFROST_CONSUME_LANE=work BIFROST_WAKE_LANE=work py {cli} "
+            f"bifrost-standby {agent}{sess}")
+
+
 def harness_armed(agent: str, session_id: Optional[str] = None,
                   tmp: Optional[str] = None, pid_probe=None) -> bool:
     """True only for a seat whose listener can START A TURN when it exits."""

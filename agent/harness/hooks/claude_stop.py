@@ -448,11 +448,19 @@ def main():
             # the listener never insta-fires on handled mail, then blocks as the listener's
             # harness-tracked parent and stamps origin=harness -- the only origin this hook
             # passes on.
-            _cli = os.path.join(
-                os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))),
-                "agent_cli.py").replace("\\", "/")
-            arm_cmd = (f"BIFROST_CONSUME_LANE=work BIFROST_WAKE_LANE=work py {_cli} "
-                       f"bifrost-standby {AGENT}" + (f" --session {session_id}" if session_id else ""))
+            # ONE SOURCE OF TRUTH (2026-10-02). This string used to be built here AND, differently,
+            # in agent/harness/context.py, where boot advertised a form that stamps origin
+            # "unknown" and that THIS hook then refuses. Both now read wake_seat.arm_command, so
+            # a seat cannot be told to arm in a way the gate rejects.
+            try:
+                from core.comm import wake_seat as _ws2
+                arm_cmd = _ws2.arm_command(AGENT, session_id or None)
+            except Exception:
+                _cli = os.path.join(
+                    os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))),
+                    "agent_cli.py").replace("\\", "/")
+                arm_cmd = (f"BIFROST_CONSUME_LANE=work BIFROST_WAKE_LANE=work py {_cli} "
+                           f"bifrost-standby {AGENT}" + (f" --session {session_id}" if session_id else ""))
             # T073 P3: this block is the BACKSTOP, not a per-turn chore -- the watcher is
             # long-lived (hours). Distinguish a planned deadline cycle from a death, and name
             # a daemon-parented seat for what it is.

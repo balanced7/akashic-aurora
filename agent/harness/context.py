@@ -214,8 +214,15 @@ def _reach_line(agent_id: str) -> str:
         return (f"reach: UNKNOWN -- could not read wake state ({type(exc).__name__}). "
                 f"That is not 'armed'; assume the operator cannot reach you until you check.")
 
-    arm = (f"arm it (must be harness-tracked -- a detached one fires into nothing): "
-           f"py scripts/bifrost_wake.py --agent {agent_id} --min-tier 0")
+    # ONE SOURCE OF TRUTH (2026-10-02). This used to build its own command, and it built the
+    # WRONG one: `py scripts/bifrost_wake.py --agent X --min-tier 0` leaves BIFROST_WAKE_ORIGIN
+    # unset, which stamps origin "unknown", which is not in WAKEABLE_ORIGINS, so harness_armed()
+    # is False and the stop hook blocks the very seat that obeyed this line. Boot and the stop
+    # hook now read the same string from wake_seat.arm_command.
+    sid = (os.environ.get("CLAUDE_CODE_SESSION_ID")
+           or os.environ.get("CLAUDE_SESSION_ID") or "").strip()
+    arm = (f"arm it (must be harness-tracked -- a detached one fires into nothing), as a Bash "
+           f"run_in_background task: {wake_seat.arm_command(agent_id, sid or None)}")
     if state == "armed":
         return "reach: watcher ARMED -- the operator can wake you; re-arm after it fires (firing consumes it)"
     if state == "unarmed":
