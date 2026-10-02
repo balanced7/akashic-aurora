@@ -89,4 +89,13 @@ file, re-run `uv run python tooling-upgrade/certify.py <last DONE goal>`, then c
   re-exports add PLC0414, contextlib.suppress lowers BLE001/S110. So the P4 values replace the
   e7319838 values, and the ledger's G3.P4 row lists the per-rule delta from G2 HEAD with its
   cause. From G3.P4 on they never rise.
+- **D-G3-3 (commitlint footer and header lengths in G3 history).** Verifier A (G3 round 1)
+  ran commitlint over 1a38090b..HEAD: the 21 G3 class-C commits carry a `Replay:` footer line
+  longer than commitlint's 100-character footer-max-line-length (the plan's Replay convention
+  puts the full ruff command, with its rule list, on one line), and 62e863db's header is 97
+  characters (limit 96). G0-G2 history passes. History cannot be rewritten (I3: no rebase, no
+  amend of verified commits), so these stay as they are and are recorded here; nothing is
+  pushed (I2), so the operator can squash or reword before publishing. From here on every
+  commit is checked with commitlint before verification, and Replay lines stay within 100
+  characters (long rule lists go through a committed script).
 
