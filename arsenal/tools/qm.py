@@ -20,6 +20,10 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+from typing import TYPE_CHECKING, cast
+
+if TYPE_CHECKING:
+    import io
 
 REPO = Path(__file__).resolve().parents[2]
 LOCK = REPO / ".git" / "index.lock"
@@ -50,7 +54,7 @@ def lock_state() -> dict:
     }
 
 
-def is_stale(state: dict) -> bool:
+def is_stale(state: dict) -> bool | None:
     # Only a lock nobody can still be writing: empty, old, and no git process alive right now.
     return (
         state.get("present") and state["bytes"] == 0 and state["age_s"] > STALE_LOCK_S and state["git_processes"] == 0
@@ -175,7 +179,9 @@ def cmd_receipts(args) -> int:
 
 def main(argv=None) -> int:
     with contextlib.suppress(AttributeError):
-        sys.stdout.reconfigure(errors="replace")  # agent mail can carry characters a cp1252 console lacks
+        cast("io.TextIOWrapper", sys.stdout).reconfigure(
+            errors="replace"
+        )  # agent mail can carry characters a cp1252 console lacks
     ap = argparse.ArgumentParser(prog="qm", description="Quartermaster: Vandor's chores for the arsenal lane")
     sub = ap.add_subparsers(dest="cmd", required=True)
     mail = sub.add_parser("mail", help="consume the work lane, one line per message")

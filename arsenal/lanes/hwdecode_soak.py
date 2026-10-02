@@ -17,9 +17,14 @@ import json
 import sys
 import time
 from pathlib import Path
+from typing import TYPE_CHECKING, cast
 
 import av
 from av.codec.hwaccel import HWAccel
+
+if TYPE_CHECKING:
+    from importlib.abc import Loader
+    from importlib.machinery import ModuleSpec
 
 _LANES_DIR = Path(__file__).resolve().parent
 _ARSENAL_DIR = _LANES_DIR.parent
@@ -35,13 +40,17 @@ def _load_analysis():
     """arsenal/__init__.py may not exist yet (another agent owns it); fall back to loading
     analysis.py directly by path so this script works either way."""
     try:
-        from arsenal import analysis  # type: ignore[import-not-found]
+        from arsenal import analysis
 
         return analysis
     except ImportError:
-        spec = importlib.util.spec_from_file_location("arsenal_analysis_standalone", _ARSENAL_DIR / "analysis.py")
+        # a .py path always yields a spec with a source loader
+        spec = cast(
+            "ModuleSpec",
+            importlib.util.spec_from_file_location("arsenal_analysis_standalone", _ARSENAL_DIR / "analysis.py"),
+        )
         module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)  # type: ignore[union-attr]
+        cast("Loader", spec.loader).exec_module(module)
         return module
 
 

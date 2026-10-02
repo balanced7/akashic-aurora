@@ -7,7 +7,7 @@ measurements.
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from .mediatypes import MEDIA_PORT_TYPES
 from .timebase import MASTER_BY_MODE
@@ -47,7 +47,8 @@ def make_plan(graph: Graph, registry: Registry) -> dict:
     for src, dst in graph.edges:
         s_node, s_port = src.split(".")[:2]
         d_node = dst.split(".")[0]
-        port_type = registry.port(graph.nodes[s_node]["use"], s_port, "outputs")["type"]
+        out_port = cast("dict", registry.port(graph.nodes[s_node]["use"], s_port, "outputs"))
+        port_type = out_port["type"]  # require_valid above refuses an edge from a missing output
         crosses = engine[s_node] != engine[d_node]
         is_copy = crosses and port_type in MEDIA_PORT_TYPES
         if is_copy:

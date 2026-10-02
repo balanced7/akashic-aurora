@@ -16,7 +16,7 @@ import html
 import math
 import re
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from .. import scene as sc
 
@@ -228,8 +228,8 @@ def duration_s(slide: dict) -> float:
     return max(8.0, words / 2.5)
 
 
-def atoms_by_region(slide: dict) -> dict[str, list[dict]]:
-    out: dict[str, list[dict]] = {}
+def atoms_by_region(slide: dict) -> dict[str | None, list[dict]]:
+    out: dict[str | None, list[dict]] = {}
     for a in slide.get("atoms") or []:
         if isinstance(a, dict):
             out.setdefault(a.get("region"), []).append(a)
@@ -351,7 +351,7 @@ def polyline(conn: dict) -> list[tuple[float, float]]:
 def shorten(points: Sequence[tuple[float, float]], head: str, by: float = HEAD_SHORTEN) -> list[tuple[float, float]]:
     """Pull a headed line's end(s) back a few units so the arrowhead touches the box edge
     instead of poking into it."""
-    pts = [tuple(p) for p in points]
+    pts = cast("list[tuple[float, float]]", [tuple(p) for p in points])
     if len(pts) < 2 or by <= 0:
         return pts
 

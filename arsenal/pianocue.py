@@ -41,6 +41,10 @@ import urllib.error
 import urllib.request
 from collections import deque
 from pathlib import Path
+from typing import TYPE_CHECKING, TypeGuard, cast
+
+if TYPE_CHECKING:
+    import io
 
 
 def _pyl() -> str:
@@ -85,7 +89,7 @@ class CueError(ValueError):
     """A malformed cue: the message says which field and what was expected."""
 
 
-def _is_int(x) -> bool:
+def _is_int(x) -> TypeGuard[int]:
     return isinstance(x, int) and not isinstance(x, bool)
 
 
@@ -1036,7 +1040,7 @@ def _utf8_streams() -> None:
         encoding = (getattr(stream, "encoding", None) or "").lower().replace("-", "")
         if encoding != "utf8" and hasattr(stream, "reconfigure"):
             with contextlib.suppress(ValueError, OSError):
-                stream.reconfigure(encoding="utf-8", errors="replace")
+                cast("io.TextIOWrapper", stream).reconfigure(encoding="utf-8", errors="replace")
 
 
 def main(argv=None, out=None) -> int:

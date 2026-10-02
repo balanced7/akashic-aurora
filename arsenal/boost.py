@@ -42,7 +42,7 @@ def boost(rgb: np.ndarray, lo_pct: float = 1, hi_pct: float = 99) -> np.ndarray:
     return (np.dstack([stretched, stretched, stretched]) * 255).astype(np.uint8)
 
 
-def annuli(rgb: np.ndarray, bands: int = 6, center: tuple[float, float] | None = None) -> list[float]:
+def annuli(rgb: np.ndarray, bands: int = 6, center: tuple[float, float] | None = None) -> list[float | None]:
     """Mean luma of `bands` concentric annuli, centre to edge, each one sixth of the normalised
     radius. `center` is (x, y) in pixels; default is the frame centre. Returns a list of means, or
     None entries for an empty annulus (which only happens for a degenerate image)."""
@@ -53,7 +53,7 @@ def annuli(rgb: np.ndarray, bands: int = 6, center: tuple[float, float] | None =
     yy, xx = np.mgrid[0:h, 0:w]
     rr = np.sqrt(((yy - cy) / (h / 2)) ** 2 + ((xx - cx) / (w / 2)) ** 2)
     width = 1.0 / bands
-    out: list[float] = []
+    out: list[float | None] = []
     for i in range(bands):
         band = (rr >= i * width) & (rr < (i + 1) * width)
         out.append(round(float(lum[band].mean()), 6) if band.any() else None)
@@ -68,7 +68,7 @@ def radial_summary(rgb: np.ndarray, bands: int = 6, center: tuple[float, float] 
     non_monotone = any((a[i] or 0) > (a[i - 1] or 0) + 1e-9 for i in range(1, len(a)))
     if non_monotone:
         reason = "radial banding: brightness rises away from the centre and then falls"
-    elif all(abs(v - a[0]) < 1e-6 for v in a):
+    elif all(abs(v - a[0]) < 1e-6 for v in a):  # pyright: ignore[reportOperatorIssue]  # LATENT: a degenerate image's empty annulus (None) raises TypeError here
         reason = "flat: no radial structure at all"
     else:
         reason = "a glow or gradient: monotone fall away from the centre"

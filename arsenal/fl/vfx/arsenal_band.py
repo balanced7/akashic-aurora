@@ -36,12 +36,20 @@
 #
 # Keep this file ASCII: FL 26 fixed "invalid characters when loading a file from an external editor" (#20438).
 
-try:
-    import flvfx as vfx
-except ImportError:  # outside FL the pattern parsers below still work; the tests inject a mock flvfx
-    vfx = None
 import contextlib
 import sys
+
+# FL's embedded Python may lack modules (see os/json below), so typing is never imported at run time;
+# the type checker alone reads this block.
+TYPE_CHECKING = False
+if TYPE_CHECKING:
+    import flvfx as vfx  # pyright: ignore[reportMissingImports]  # FL Studio's embedded module, exists only inside FL
+    from typing_extensions import TypeIs
+else:
+    try:
+        import flvfx as vfx
+    except ImportError:  # outside FL the pattern parsers below still work; the tests inject a mock flvfx
+        vfx = None
 
 try:
     import os
@@ -169,11 +177,11 @@ class PatternError(ValueError):
     """A pattern set, playlist or drum map that breaks the version 1 contract."""
 
 
-def _is_number(x):
+def _is_number(x) -> "TypeIs[int | float]":
     return isinstance(x, (int, float)) and not isinstance(x, bool) and x == x and x not in (float("inf"), float("-inf"))
 
 
-def _is_int(x):
+def _is_int(x) -> "TypeIs[int]":
     return isinstance(x, int) and not isinstance(x, bool)
 
 
@@ -421,6 +429,11 @@ class _Entry:
 
 
 class Band:
+    # None until on_tick first reads FL's PPQ / plays its first onTick; every arithmetic reader runs after that
+    # (resumable() and advance() check last_ticks and ppq for None before anything else touches them).
+    ppq: int
+    last_ticks: int
+
     def __init__(self):
         self.log = []
         self.switches = []  # (tick or None when stopped, index, anchor before, bar ticks before)
@@ -439,7 +452,7 @@ class Band:
         self.compiled = None
         self.anchor = 0  # band tick where the running pattern's beat 0 sits
         self.band_t = -1  # last band tick processed
-        self.last_ticks = None  # FL ticks at the last played onTick
+        self.last_ticks = None  # pyright: ignore[reportAttributeAccessIssue]  # unset until the first played onTick
         self.gaps = []  # recent FL ticks between played onTicks (forward moves of at most a beat)
         self.loop_span = None  # FL's loop span (end - start), once a loop wrap has shown it
         self.parked_at_zero = False  # FL reported tick 0 while stopped since the last played onTick (a Stop)
@@ -447,7 +460,7 @@ class Band:
         self.deferred = []  # entries whose release waits for the next onTick (they started in this one)
         self.was_playing = False
         self.restart = True  # the next Play starts fresh at bar 1
-        self.ppq = None
+        self.ppq = None  # pyright: ignore[reportAttributeAccessIssue]  # unset until on_tick reads FL's PPQ
         self.poll_every = 4
         self.calls = 0
         self.next_poll = 0

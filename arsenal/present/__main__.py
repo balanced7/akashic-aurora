@@ -110,7 +110,7 @@ def _slide_table(scene: dict, manifest: dict) -> dict[str, dict[str, list[str]]]
     table = manifest.get("atoms") or {}
     out: dict[str, dict[str, list[str]]] = {}
     for slide in scene.get("slides") or []:
-        kinds = sorted({a.get("kind") for a in scene_mod.iter_atoms(slide) if isinstance(a.get("kind"), str)})
+        kinds = sorted({k for a in scene_mod.iter_atoms(slide) if isinstance(k := a.get("kind"), str)})
         row = {"preserved": [], "degraded": [], "dropped": []}
         for kind in kinds:
             spec = table.get(kind) or {}

@@ -27,10 +27,11 @@ from bisect import bisect_left, bisect_right
 from datetime import UTC, datetime
 from fractions import Fraction
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, TypeGuard, cast
 
 if TYPE_CHECKING:
     import builtins
+    from collections.abc import Sequence
 
 API = "arsenal.performance/v0"
 SUMMARY_API = "arsenal.performance.summary/v0"
@@ -116,7 +117,7 @@ class SessionClosed(PerformanceError):
 
 
 # =========================================================================================== validation
-def _is_int(x) -> bool:
+def _is_int(x) -> TypeGuard[int]:
     return isinstance(x, int) and not isinstance(x, bool)
 
 
@@ -302,7 +303,7 @@ class PerformanceStore:
             if client_id is not None:
                 info["client_id"] = client_id
             self._write_text(path / "session.json", json.dumps(info, indent=2, sort_keys=True, default=str))
-        out = {"session": session}
+        out: dict[str, Any] = {"session": session}
         if client_id is not None:
             out.update(resumed=False, closed=False, last_seq=-1)
         return out
@@ -482,7 +483,7 @@ def _key_name(tonic: int, mode: str) -> str:
     return (MAJOR_KEY_NAMES if mode == "major" else MINOR_KEY_NAMES)[tonic] + " " + mode
 
 
-def estimate_key(weights: list[float]) -> dict | None:
+def estimate_key(weights: Sequence[float]) -> dict | None:
     """Krumhansl-Kessler: correlate the 12 pitch-class weights with all 24 rotated profiles."""
     if len(weights) != 12 or sum(weights) <= 0:
         return None
@@ -505,14 +506,14 @@ def estimate_key(weights: list[float]) -> dict | None:
 
 def _leading_tone(minor_key: str) -> str:
     """A minor key's raised 7th, spelled on the letter below its tonic: C# in D minor, F## in G# minor."""
-    m = _PC_NAME_RE.match(minor_key.split(" ")[0])
+    m = cast("re.Match[str]", _PC_NAME_RE.match(minor_key.split(" ")[0]))  # a key name _key_name wrote
     letters = "CDEFGAB"
     letter = letters[letters.index(m.group(1)) - 1]
     acc = (_LETTER_PC[m.group(1)] + _acc(m.group(2)) - 1 - _LETTER_PC[letter] + 6) % 12 - 6
     return letter + ("#" * acc if acc > 0 else "b" * -acc)
 
 
-def _out_share(weights: list[float], tonic: int, mode: str) -> float:
+def _out_share(weights: Sequence[float], tonic: int, mode: str) -> float:
     """Share of the weight outside a key's scale, a minor key's leading tone counted in (nashville.js outShare)."""
     scale = (0, 2, 4, 5, 7, 9, 11) if mode == "major" else (0, 2, 3, 5, 7, 8, 10, 11)
     total = sum(weights)
@@ -549,6 +550,7 @@ def home_chords(chord_events: list[dict], duration_ms: int, reader=None) -> dict
             home is None
             and kind == "chord"
             and parsed
+            and reader is not None  # parsed is only set when a reader is given
             and parsed["kind"] == "chord"
             and reader.FAMILY.get(parsed["suffix"]) == "min"
         ):
@@ -571,7 +573,7 @@ def _leading_tone_score(r: float, tonic_w: float, lt_w: float, r_rel: float, r_p
     return score
 
 
-def numbering_key(weights: list[float], key: dict | None, homes: dict | None = None) -> dict | None:
+def numbering_key(weights: Sequence[float], key: dict | None, homes: dict | None = None) -> dict | None:
     """The key the Nashville numbers count from: the Krumhansl-Kessler scores re-ranked by the piano key tracker's
     leading-tone and home-chord rules (nashville.js rankKeys at full maturity), so the summary settles where the HUD does.
 
@@ -605,7 +607,7 @@ def numbering_key(weights: list[float], key: dict | None, homes: dict | None = N
     first = min(ranked, key=lambda x: (-x[0], x[1]))  # ties go to estimate_key's order
     chord_ms = homes["chord_ms"] if homes else 0
     home = None  # the minor chord whose rule demoted the leading-tone winner
-    if chord_ms > 0:
+    if chord_ms > 0 and homes:  # chord_ms > 0 only comes from homes
         scores = {(t, m): s for s, _, t, m, _ in ranked}
         for tonic in range(12):  # in tonic order, each cap seeing the ones before it, as rankKeys does
             rel = (tonic + 3) % 12
@@ -641,7 +643,7 @@ def numbering_key(weights: list[float], key: dict | None, homes: dict | None = N
             "demoted": _key_name(dt, dm),
             "r": _r(first[4]),
             "home_chord": names[home] + "m",
-            "home_share": _r(homes["minor_ms"][home] / chord_ms),
+            "home_share": _r(cast("dict", homes)["minor_ms"][home] / chord_ms),  # home is set only from homes
             "left_out": names[left],
             "left_out_share": _r(_out_share(weights, dt, dm)),
             "minor_key": _key_name(home, "minor"),
@@ -1162,7 +1164,7 @@ def _nashville(chord_events: list[dict], areas: list[dict], reader, duration_ms:
         if got:
             payload.update(got)
             if got["outside_key"]:  # borrowed: at home in the parallel key; chromatic: at home in neither
-                parallel = _parallel_key(key_name)
+                parallel = _parallel_key(cast("str", key_name))  # got is only computed with a key_name
                 there = chord_number(chord, parallel, e.get("notes"), reader, kind)
                 payload["borrowed_from"] = parallel if there and not there["outside_key"] else None
         marks.append((e["t_ms"], (key_name, got["number"]) if got else None, payload))
@@ -1471,7 +1473,7 @@ def summarize(events) -> dict:
                 names = e.get("notes") or []
                 chord_sizes.append(len(names))
                 parsed = [_parse_note(n) for n in names]
-                midis = parsed if parsed and all(p is not None for p in parsed) else sorted(sounding)
+                midis = cast("list[int]", parsed) if parsed and all(p is not None for p in parsed) else sorted(sounding)
                 if midis:
                     spreads.append(max(midis) - min(midis))
     ring_out(duration_ms)
@@ -1506,7 +1508,7 @@ def summarize(events) -> dict:
     if lowest is not None:
         note_range = {
             "lowest": {"midi": lowest, "name": note_name(lowest)},
-            "highest": {"midi": highest, "name": note_name(highest)},
+            "highest": {"midi": highest, "name": note_name(cast("int", highest))},  # set with lowest
             "semitones": highest - lowest,
         }
 
@@ -1599,7 +1601,7 @@ def summarize(events) -> dict:
     number_marks = [
         (
             e["t_ms"],
-            (number_of[i]["key"], number_of[i]["number"]) if number_of[i] else None,
+            (ni["key"], ni["number"]) if (ni := number_of[i]) else None,
             dict(number_of[i] or {}, chord=e.get("chord")),
         )
         for i, e in enumerate(chord_events)
@@ -1716,6 +1718,7 @@ def summarize(events) -> dict:
             support = bisect_right(in_range, gap + TEMPO_WINDOW_MS) - bisect_left(in_range, gap - TEMPO_WINDOW_MS)
             if support > best_support:
                 best_gap, best_support = gap, support
+        best_gap = cast("float", best_gap)  # in_range is non-empty and every support >= 1 beats -1
         cluster = in_range[
             bisect_left(in_range, best_gap - TEMPO_WINDOW_MS) : bisect_right(in_range, best_gap + TEMPO_WINDOW_MS)
         ]
@@ -2470,8 +2473,8 @@ def _glossary(
             continue
         acc, middle, slash, bass_acc = m.groups()
         middle = middle.replace("6~9", "6/9")
-        if acc and accidental is None and isinstance(chord, str) and _CHORD_ROOT_RE.match(chord):
-            accidental = (number, _CHORD_ROOT_RE.match(chord).group(0), in_key)
+        if acc and accidental is None and isinstance(chord, str) and (root_m := _CHORD_ROOT_RE.match(chord)):
+            accidental = (number, root_m.group(0), in_key)
         if acc or bass_acc:
             marks.add("b#")
         if slash:

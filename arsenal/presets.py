@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import re
 from pathlib import Path
+from typing import TypeGuard, cast
 
 PRESET_DIR = Path(__file__).resolve().parent / "web" / "presets"
 ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]{1,40}$")
@@ -41,7 +42,7 @@ _UNIFORM_DECL = re.compile(r"^\s*uniform\s+(?:(?:highp|mediump|lowp)\s+)?(\w+)\s
 _FOR_CONDITION = re.compile(r"\bfor\s*\([^;]*;([^;]*);")
 
 
-def _is_int(value) -> bool:
+def _is_int(value) -> TypeGuard[int]:
     return isinstance(value, int) and not isinstance(value, bool)
 
 
@@ -130,7 +131,7 @@ def _check_header(header: dict, stem: str, info: dict, problems: list[str]) -> N
             problems.append(f"param k{k}: default must be a number from 0 to 1")
             ok = False
         if ok:
-            info["params"].append({"k": k, "name": name.strip(), "default": default})
+            info["params"].append({"k": k, "name": cast("str", name).strip(), "default": default})  # ok: str
 
 
 def _check_source(body: str, problems: list[str]) -> None:

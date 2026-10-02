@@ -59,7 +59,7 @@ class _Ctx:
         only: the artifact subset does not list title, and the page keeps cues off the slide)."""
         if self.mode == "artifact":
             return ""
-        cue = self.cues.get(obj.get("id")) if isinstance(obj.get("id"), str) else None
+        cue = self.cues.get(cid) if isinstance(cid := obj.get("id"), str) else None
         return f' title="{esc(cue)}"' if cue else ""
 
 

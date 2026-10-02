@@ -24,6 +24,7 @@ import sys
 import urllib.error
 import urllib.request
 from pathlib import Path
+from typing import Any, cast
 from urllib.parse import quote, urlencode
 
 from arsenal.jam import schemas as S
@@ -359,7 +360,7 @@ def _names_line(text: str, key: str | None) -> list[dict]:
         seg = seg.strip()
         if not seg:
             continue
-        m = re.fullmatch(r"(.+?)(?::(\d+(?:\.\d+)?))?", seg)
+        m = cast("re.Match[str]", re.fullmatch(r"(.+?)(?::(\d+(?:\.\d+)?))?", seg))
         got = nashville.nashville_from_name(m.group(1), key)
         if not got or got.get("kind") != "chord" or not S.NUMBER_RE.match(got.get("text") or ""):
             raise CliError(f"--names: {m.group(1)!r} has no Nashville number in {key}")
@@ -444,7 +445,9 @@ def _card_from_flags(args, base: dict | None = None) -> dict:
             voicing["voice_lead"] = True
         card["voicing"] = voicing
     if any(getattr(args, f, None) is not None for f in ("vel", "arp", "hold")):
-        playback = dict(card.get("playback") or {"velocity": 48, "arpeggio_ms": 0, "hold": "legato", "count": None})
+        playback: dict[str, Any] = dict(
+            card.get("playback") or {"velocity": 48, "arpeggio_ms": 0, "hold": "legato", "count": None}
+        )
         if args.vel is not None:
             playback["velocity"] = args.vel
         if args.arp is not None:
@@ -1029,7 +1032,7 @@ def moment_from_log(
         chordal = [r for r in rows if r.get("kind") == "chord"] or rows
         row = chordal[-1]
     else:
-        start = parse_clock(at)
+        start = parse_clock(cast("str", at))  # parse_clock str()s its input; None gets its ValueError
         if until:
             end = parse_clock(until)
             overlap = [

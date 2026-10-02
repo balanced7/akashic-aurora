@@ -9,6 +9,7 @@ import re
 import threading
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import cast
 
 from .performance import PerformanceStore
 from .pianocue import build_replay_cue, validate_cue
@@ -100,7 +101,7 @@ class ConversationStore:
         start, end = body.get("start_ms"), body.get("end_ms")
         if any(isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(v) for v in (start, end)):
             raise ValueError("response times must be finite milliseconds")
-        start, end = round(start), round(end)
+        start, end = round(cast("float", start)), round(cast("float", end))  # finite: checked above
         if start < 0 or not 100 <= end - start <= 60000:
             raise ValueError("an answer can span 0.1 to 60 seconds")
         note = body.get("note", "")

@@ -37,7 +37,7 @@ import copy
 import json
 import math
 import re
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from arsenal import nashville
 from arsenal.jam import CARD_API, DEF_API, RUN_API, SEED_API, SEED_MOMENTS_API, tempomap
@@ -45,6 +45,8 @@ from arsenal.performance import SESSION_PATTERN
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Sequence
+
+    from typing_extensions import TypeIs
 
 # ================================================================================================= vocabulary
 GROUPS = ("moves", "try", "kept")
@@ -325,11 +327,11 @@ def _nested(prefix: str, exc: JamSchemaError) -> JamSchemaError:
     return JamSchemaError(_path(prefix, exc.field) if exc.field else prefix, detail)
 
 
-def _is_int(x) -> bool:
+def _is_int(x) -> TypeIs[int]:
     return isinstance(x, int) and not isinstance(x, bool)
 
 
-def _is_num(x) -> bool:
+def _is_num(x) -> TypeIs[int | float]:
     return (isinstance(x, (int, float)) and not isinstance(x, bool)) and math.isfinite(x)
 
 
@@ -486,7 +488,7 @@ def _midi_list(value, field: str, lo: int = 1, hi: int = MAX_EXACT_NOTES, ordere
 
 
 def _pc(value, field: str) -> int:
-    return _int(value, field, 0, 11)
+    return cast("int", _int(value, field, 0, 11))
 
 
 def _hold(value, field: str):
@@ -1003,7 +1005,7 @@ def validate_def(d) -> dict:
         raise JamSchemaError("api", f"must be {DEF_API!r} (got {d['api']!r:.60})")
     _def_card(_need(d, "card", ""), "card")
     _key_name(_need(d, "key", ""), "key")
-    meter = _int(_need(d, "beats_per_bar", ""), "beats_per_bar", METER_MIN, METER_MAX)
+    meter = cast("int", _int(_need(d, "beats_per_bar", ""), "beats_per_bar", METER_MIN, METER_MAX))
     cycle = _need(d, "cycle_beats", "")
     if not _is_int(cycle) or cycle <= 0 or cycle % meter:
         raise JamSchemaError("cycle_beats", f"must be a whole number of bars of {meter} beats (got {cycle!r:.60})")
@@ -1038,7 +1040,7 @@ def validate_def(d) -> dict:
             _need(slot, key, at)
         if slot["i"] != i:
             raise JamSchemaError(_path(at, "i"), f"must be {i}, its place in the list (got {slot['i']!r:.60})")
-        sec = _int(slot["section"], _path(at, "section"), 0, len(sections) - 1)
+        sec = cast("int", _int(slot["section"], _path(at, "section"), 0, len(sections) - 1))
         _beat_position(slot["at_beat"], _path(at, "at_beat"))
         _beats(slot["beats"], _path(at, "beats"), hi=cycle)
         if slot["at_beat"] < end:
@@ -1224,7 +1226,7 @@ def validate_run(run) -> dict:
         raise JamSchemaError("api", f"must be {RUN_API!r} (got {run['api']!r:.60})")
     if not isinstance(run["run"], str) or not RUN_ID_RE.match(run["run"]):
         raise JamSchemaError("run", f"must be a run id like 20300101-000020-7a11c0de (got {run['run']!r:.60})")
-    mode = _enum(run["mode"], "mode", MODES)
+    mode = cast("str", _enum(run["mode"], "mode", MODES))
     _enum(run["route"], "route", ROUTES)
     _text(run, "engine", "", ENGINE_MAX, required=True)
     state = _enum(run["state"], "state", STATES)
@@ -1244,8 +1246,8 @@ def validate_run(run) -> dict:
         if run["card_snapshot"]["id"] != run["card"]["id"] or run["card_snapshot"]["rev"] != run["card"]["rev"]:
             raise JamSchemaError("card_snapshot.id", "must be the card the run names, at the same rev")
     _key_name(run["key"], "key")
-    meter = _int(run["beats_per_bar"], "beats_per_bar", METER_MIN, METER_MAX)
-    count_in = _int(run["count_in_bars"], "count_in_bars", 0, COUNT_IN_MAX)
+    meter = cast("int", _int(run["beats_per_bar"], "beats_per_bar", METER_MIN, METER_MAX))
+    count_in = cast("int", _int(run["count_in_bars"], "count_in_bars", 0, COUNT_IN_MAX))
     if mode == "play" and count_in:
         raise JamSchemaError("count_in_bars", "must be 0 for a play run")
     last_version = _int(run["last_version"], "last_version", 1)
@@ -1370,7 +1372,7 @@ def validate_run_event(line) -> dict:
     if not isinstance(line, dict):
         raise JamSchemaError("line", "must be a JSON object")
     _int(_need(line, "seq", ""), "seq", 0)
-    kind = _enum(_need(line, "kind", ""), "kind", EVENT_KINDS)
+    kind = cast("str", _enum(_need(line, "kind", ""), "kind", EVENT_KINDS))
     _num(_need(line, "recorded_epoch_ms", ""), "recorded_epoch_ms", above=0)
     _enum(_need(line, "by", ""), "by", EVENT_BY)
     if kind == "ack":

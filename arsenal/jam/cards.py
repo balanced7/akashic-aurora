@@ -24,7 +24,7 @@ import threading
 import time
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from arsenal import nashville
 from arsenal.jam import CARD_API, DECK_API
@@ -309,7 +309,7 @@ class DeckStore:
                 updated_by=by,
                 source=source or ({"kind": "claude"} if by == "claude" else {"kind": "edit"}),
             )
-            if self.exists(c.get("id")):
+            if self.exists(c["id"]):  # set just above when missing
                 raise DeckError(f"card {c['id']} exists", 409, rev=self.get(c["id"])["rev"])
             warnings = self._finish(c)
             self._write_json(self._path(c["id"]), c)
@@ -419,7 +419,7 @@ class DeckStore:
     def template_from_capture(self, capture, by: str = "daniel") -> dict:
         """ "Keep what I just played" (DATA 2.10): a chord card from the page's capture."""
         cap = _schema(S._obj, capture, "capture")
-        notes = cap.get("notes")
+        notes = cast("list[int]", cap.get("notes"))  # _midi_list below raises unless it is a list of MIDI notes
         _schema(S._midi_list, notes, "capture.notes", 1, TEMPLATE_MAX_NOTES)
         for field in ("name", "number", "key", "key_conf", "title", "page_id"):
             if cap.get(field) is not None and not isinstance(cap[field], str):
@@ -477,7 +477,7 @@ class DeckStore:
         session = m.get("session")
         if not isinstance(session, str) or not S.SESSION_RE.match(session):
             raise DeckError("moment.session must be a practice session id", 400, "moment.session")
-        notes = m.get("notes")
+        notes = cast("list[int]", m.get("notes"))  # _midi_list below raises unless it is a list of MIDI notes
         _schema(S._midi_list, notes, "moment.notes", 1, TEMPLATE_MAX_NOTES)
         at_ms, until_ms = m.get("at_ms"), m.get("until_ms")
         if not isinstance(at_ms, (int, float)) or isinstance(at_ms, bool) or at_ms < 0:
@@ -521,8 +521,8 @@ class DeckStore:
 
     @staticmethod
     def _template_key(key, name, notes):
-        if key and nashville.parse_key(key):
-            return nashville.parse_key(key)["name"], None
+        if key and (parsed_key := nashville.parse_key(key)):
+            return parsed_key["name"], None
         parsed = nashville.parse_chord(name) if name else None
         pc = nashville._pc(parsed["root"]) if parsed and parsed["kind"] == "chord" else notes[0] % 12
         return f"{nashville.MAJOR_KEY_NAMES[pc]} major", "root"
@@ -534,7 +534,7 @@ class DeckStore:
         if name:
             got = nashville.nashville_from_name(name, key)
             text = got and got.get("kind") == "chord" and got.get("text")
-            if text and S.NUMBER_RE.match(text) and len(text) <= S.NUMBER_MAX:
+            if text and S.NUMBER_RE.match(cast("str", text)) and len(text) <= S.NUMBER_MAX:
                 return text
         return None
 

@@ -54,7 +54,7 @@ def pack_events(events: Iterable[dict[str, Any]], session: str = "", keep_chords
             ons.setdefault(int(e.get("note", -1)), []).append((t, int(e.get("vel", 64) or 64)))
         elif kind in ("off", "sound_end"):
             n = e.get("note")
-            if ons.get(n):
+            if n is not None and ons.get(n):  # ons.get(None) is falsy anyway
                 t0, v = ons[n].pop(0)
                 notes.append((t0, int(n), max(t - t0, 1), v))
         elif kind == "pedal":

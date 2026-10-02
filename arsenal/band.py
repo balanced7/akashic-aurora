@@ -156,11 +156,12 @@ import re
 import struct
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast, overload
 
 from . import nashville as nv
 
 if TYPE_CHECKING:
+    import io
     from collections.abc import Iterable, Sequence
 
 
@@ -421,6 +422,12 @@ def _spelled(letter: int, pc: int) -> str:
     return nv.LETTERS[letter] + ("#" * acc if acc > 0 else "b" * -acc)
 
 
+@overload
+def _key_info(key: str) -> dict: ...
+@overload
+def _key_info(key: None) -> None: ...
+@overload
+def _key_info(key: str | None) -> dict | None: ...
 def _key_info(key: str | None) -> dict | None:
     if key is None:
         return None
@@ -494,6 +501,7 @@ def parse_loop(text: str, key: str | None = None, meter=(4, 4)) -> list[dict]:
         groups.extend(([tok], False) for tok in re.split(r"\s+-\s+|\s+", text) if tok and tok != "-")
     cycle, beat, previous = [], 0.0, None
     for toks, is_bar in groups:
+        share = 0.0  # replaced below whenever a chord in this group has no explicit duration
         items = [_split_duration(t) for t in toks]
         explicit = sum(d for _, d in items if d is not None)
         implicit = [d for _, d in items if d is None]
@@ -543,7 +551,7 @@ def estimate_key(cycle: list[dict]) -> str:
                 score += 0.25
             if best is None or score > best[0]:
                 best = (score, name)
-    return best[1]
+    return cast("tuple", best)[1]  # 12 tonics x 2 modes always score at least one key
 
 
 def _expand(cycle: list[dict], total: float) -> list[dict]:
@@ -1287,7 +1295,7 @@ def voice_lead(chords: list[dict], lane: str, ring: bool = True) -> list[list[in
                 nxt_back.append(j)
             cost, back = nxt_cost, [*back, nxt_back]
         for k in range(len(cands[-1])):
-            total = cost[k] + (seam[k][j0] if ring else 0.0)
+            total = cost[k] + (cast("list", seam)[k][j0] if ring else 0.0)  # seam is built when ring
             path = [k]
             for i in range(n - 2, -1, -1):
                 path.append(back[i][path[-1]])
@@ -1295,7 +1303,7 @@ def voice_lead(chords: list[dict], lane: str, ring: bool = True) -> list[list[in
             key = (round(total, 6), [cands[i][p][1] for i, p in enumerate(path)])
             if best is None or key < best:
                 best = key
-    return best[1]
+    return cast("tuple", best)[1]  # n >= 2 non-empty candidate lists: at least one path
 
 
 def _comp_strikes(timeline: list[dict], style: str, bpb: float, total: float, swing: float = 0.5) -> list[list]:
@@ -1478,7 +1486,7 @@ def make_pattern_set(
         raise BandError(f"an id is lowercase letters, digits and dashes (at most 64), not {pid!r}")
 
     timeline = _expand(cycle, total)
-    k = nv.parse_key(key_name)
+    k = cast("dict", nv.parse_key(key_name))  # _key_info's or estimate_key's name: readable
     scale = [(k["tonic"] + i) % 12 for i in (nv.LETTER_PC if k["mode"] == "major" else nv.MINOR_SCALE)]
     cycle_len = q(cycle[-1]["beat"] + cycle[-1]["dur"])
     bass_human = Humanizer(pid, "bass", bpb)
@@ -1577,7 +1585,7 @@ def validate_pattern_set(ps) -> dict:
                 if any(not isinstance(v, (int, float)) or isinstance(v, bool) for v in vals):
                     problems.append(f"{where} needs numeric beat, len, note and vel")
                     continue
-                beat, ln, note, vel = vals
+                beat, ln, note, vel = cast("list[float]", vals)  # all numbers: checked just above
                 if not (isinstance(note, int) and 0 <= note <= 127):
                     problems.append(f"{where} note must be an integer 0..127")
                 if not (isinstance(vel, int) and 1 <= vel <= 127):
@@ -2166,7 +2174,7 @@ def _utf8_streams() -> None:
         encoding = (getattr(stream, "encoding", None) or "").lower().replace("-", "")
         if encoding != "utf8" and hasattr(stream, "reconfigure"):
             with contextlib.suppress(ValueError, OSError):
-                stream.reconfigure(encoding="utf-8", errors="replace")
+                cast("io.TextIOWrapper", stream).reconfigure(encoding="utf-8", errors="replace")
 
 
 def _range_text(notes: list[dict], flats: bool) -> str:

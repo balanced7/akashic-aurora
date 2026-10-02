@@ -13,7 +13,7 @@ import json
 import os
 from fractions import Fraction
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import av
 import numpy as np
@@ -300,7 +300,9 @@ def audio_features(path: str, *, progress: Callable[[float], None] | None = None
 
         # Exact rational rescale to 1/48000 ticks -- Fraction arithmetic throughout,
         # round() on a Fraction is exact (no float ever enters this computation).
-        start_ticks = 0 if first_pts is None else round(Fraction(first_pts) * first_tb * FEATURE_SAMPLE_RATE)
+        start_ticks = (
+            0 if first_pts is None else round(Fraction(first_pts) * cast("Fraction", first_tb) * FEATURE_SAMPLE_RATE)
+        )  # first_tb is the decoded frame's time_base, set together with first_pts
 
         rows = _extract_features(samples, lambda v: report(0.5 + 0.5 * v))
 

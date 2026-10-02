@@ -60,9 +60,13 @@ from bisect import bisect_left, bisect_right
 from datetime import date, datetime, timedelta
 from itertools import combinations, pairwise
 from pathlib import Path
+from typing import TYPE_CHECKING, Any, cast, overload
 
 from . import nashville
 from .performance import PerformanceError, PerformanceStore, estimate_key
+
+if TYPE_CHECKING:
+    import io
 
 
 def _pyl() -> str:
@@ -241,6 +245,10 @@ ADDED_NAMES = {
 
 
 # ============================================================================================== helpers
+@overload
+def _r(x: None, places: int = 3) -> None: ...
+@overload
+def _r(x: float, places: int = 3) -> float: ...
 def _r(x, places: int = 3):
     return None if x is None else round(float(x), places)
 
@@ -287,6 +295,16 @@ def _parse_name(name: str) -> tuple | None:
         else:
             break
     return LETTERS.index(name[0]), acc
+
+
+def _spelling(name: str) -> tuple[int, int]:
+    """_parse_name for a name this module spelled itself (pc_name, _sp_name, a key's tonic): never None."""
+    return cast("tuple[int, int]", _parse_name(name))
+
+
+def _key_info(key: str) -> dict[str, Any]:
+    """nashville.parse_key for a key name this module produced (key_name / key_namer): never None."""
+    return cast("dict[str, Any]", nashville.parse_key(key))
 
 
 def _pearson(xs, ys) -> float:
@@ -345,11 +363,17 @@ def pc_name(pc: int, key: str | None) -> str:
     return _sp_name(sp)
 
 
+@overload
+def midi_name(midi: int, key: str | None) -> str: ...
+@overload
+def midi_name(midi: None, key: str | None) -> None: ...
+@overload
+def midi_name(midi: int | None, key: str | None) -> str | None: ...
 def midi_name(midi: int | None, key: str | None) -> str | None:
     if midi is None:
         return None
     name = pc_name(midi % 12, key)
-    sp = _parse_name(name)
+    sp = _spelling(name)
     return f"{name}{(midi - sp[1]) // 12 - 1}"
 
 
@@ -536,7 +560,7 @@ def _section_index(sections: list[list[int]], t: float) -> int | None:
     return k if k >= 0 and t <= sections[k][1] else None
 
 
-def _timeline_in(times, values, a, b):
+def _timeline_in(times, values, a, b) -> list[tuple[Any, Any]]:
     """[(value, ms)] for a step timeline clipped to [a, b)."""
     out = []
     i = max(0, bisect_right(times, a) - 1)
@@ -1061,7 +1085,8 @@ def _facts(w: dict, ctx: dict) -> None:
     sounding_pcs = [pc for pc in heard_pcs if sound_ms[pc] >= need]  # a held chord holds only what really sounds
     lows: dict[int, float] = {}
     figure: list[list] = []
-    for note, ms in _timeline_in(*ctx["low"], a, b):
+    low_t, low_v = ctx["low"]
+    for note, ms in _timeline_in(low_t, low_v, a, b):
         if note is None:
             continue
         lows[note] = lows.get(note, 0) + ms
@@ -1087,8 +1112,10 @@ def _facts(w: dict, ctx: dict) -> None:
     struck = [notes[i] for _, i in ctx["on_times"][lo : bisect_left(ctx["on_keys"], b)] if notes[i]["end_ms"] > a]
     hits = [n for n in struck if a <= n["on_ms"] < b]
     pitches = [n["note"] for n in struck]
-    polys = [c for c, _ in _timeline_in(*ctx["poly"], a, b)]
-    together = sum(ms for c, ms in _timeline_in(*ctx["pcpoly"], a, b) if c >= 3)
+    poly_t, poly_v = ctx["poly"]
+    pcpoly_t, pcpoly_v = ctx["pcpoly"]
+    polys = [c for c, _ in _timeline_in(poly_t, poly_v, a, b)]
+    together = sum(ms for c, ms in _timeline_in(pcpoly_t, pcpoly_v, a, b) if c >= 3)
     groups: list[list] = []
     for n in sorted(hits, key=lambda n: (n["on_ms"], n["note"])):
         if groups and n["on_ms"] - groups[-1][0] <= ONSET_GROUP_MS:
@@ -1133,7 +1160,7 @@ def _facts(w: dict, ctx: dict) -> None:
     elif (
         low_bass
         and low_total
-        and low_pcs[bass_pc] / low_total < BASS_HELD_SHARE
+        and low_pcs[cast("int", bass_pc)] / low_total < BASS_HELD_SHARE  # low_bass: bass, so bass_pc, is set
         and len(fig_pcs) >= 3
         and fig_pcs - above_fig
         and 0 < len(above_fig) <= BASS_LINE_MAX_UPPER
@@ -1169,10 +1196,9 @@ def _facts(w: dict, ctx: dict) -> None:
     if bass is not None and bass % 12 in above:
         voicing.append(above[bass % 12])
     vels = [n["vel"] for n in hits if n["vel"] is not None]
-    attacks, pc_vel = (
-        [0] * 12,
-        [None] * 12,
-    )  # per pitch class: attacks in the window (a chord's octaves are one), top vel
+    # per pitch class: attacks in the window (a chord's octaves are one), top vel
+    attacks: list[int] = [0] * 12
+    pc_vel: list[int | None] = [None] * 12
     last_on = [None] * 12
     for n in sorted(hits, key=lambda n: n["on_ms"]):
         pc = n["note"] % 12
@@ -1203,7 +1229,9 @@ def _facts(w: dict, ctx: dict) -> None:
         {
             "pcs": sorted(chord_pcs),
             "bass": bass,
-            "bass_share": low_pcs[bass_pc] / low_total if bass is not None else 0.0,  # the bass pitch class, any octave
+            "bass_share": low_pcs[cast("int", bass_pc)] / low_total
+            if bass is not None
+            else 0.0,  # the bass pitch class, any octave
             "figure": kept,
             "detect_notes": sorted(set(voicing)),
             "low_bass": low_bass,
@@ -1618,12 +1646,7 @@ def key_namer(home_state: int | None):
         tonic, mode = KEYS[state]
         plain = key_name(tonic, mode)
         alt = ENHARMONIC_KEYS.get((tonic, mode))
-        if (
-            alt
-            and home_bias
-            and nashville.parse_key(plain)["bias"] != home_bias
-            and nashville.parse_key(alt)["bias"] == home_bias
-        ):
+        if alt and home_bias and _key_info(plain)["bias"] != home_bias and _key_info(alt)["bias"] == home_bias:
             return alt
         return plain
 
@@ -1721,7 +1744,7 @@ def spell_detect(info: dict | None, key: str | None) -> dict | None:
         out["root"] = None
         return out
     new_root = in_key(root, out["suffix"] if info["kind"] == "chord" else None)
-    by = new_root[0] - root[0]
+    by = cast("tuple", new_root)[0] - cast("tuple", root)[0]  # a non-cluster detect result always has a root
 
     def moved(sp):
         letter = (sp[0] + by) % 7
@@ -2004,11 +2027,11 @@ def _analyse(w: dict, info: dict | None, templates: list[dict]) -> None:
         held = w["bass_share"] >= BASS_HELD_SHARE
         reading, replace = choose_reading(w["pcs"], bass_pc, info, templates, held)
         w["reading"] = reading
-        if replace:
-            _take_reading(w, reading)
+        if replace:  # choose_reading replaces only with a reading in hand
+            _take_reading(w, cast("dict", reading))
         elif info["kind"] == "chord":
             tones = _base_tones(templates, w["suffix"])
-            w["no5"] = bool(tones and 7 in tones and (w["root_pc"] + 7) % 12 not in w["pcs"])
+            w["no5"] = bool(tones and 7 in tones and (cast("int", w["root_pc"]) + 7) % 12 not in w["pcs"])
             w["over_third"] = over_third_reading(w["pcs"], bass_pc, info, templates, held)
     _apply_texture(w)
 
@@ -2234,7 +2257,11 @@ def analyze(
     namer = key_namer(home_state)
     areas = _describe_areas(areas_raw, frames, namer)
     home = namer(home_state) if home_state is not None else None
-    home_area = {"key": home, "tonic": KEYS[home_state][0], "mode": KEYS[home_state][1]} if home else None
+    home_area = (
+        {"key": home, "tonic": KEYS[home_state][0], "mode": KEYS[home_state][1]}
+        if home and home_state is not None
+        else None
+    )
     chord_ms = _chord_time(areas_raw, windows, skip)
     total_chord_ms = sum(chord_ms.values()) or 1
     for a in areas:
@@ -2371,11 +2398,9 @@ def _number(name: str | None, key: str | None, kind: str | None = None) -> str |
     try:
         if kind == "interval" or ("-" in name and "/" not in name):
             lo, hi = name.split("-", 1)
-            parts = [
-                nashville.nashville_from_name(lo, key, kind="note"),
-                nashville.nashville_from_name(hi, key, kind="note"),
-            ]
-            return "-".join(p["text"] for p in parts) if all(parts) else None
+            lo_n = nashville.nashville_from_name(lo, key, kind="note")
+            hi_n = nashville.nashville_from_name(hi, key, kind="note")
+            return f"{lo_n['text']}-{hi_n['text']}" if lo_n and hi_n else None
         head, _, bass = name.partition("/")
         top = nashville.nashville_from_name(head, key, kind=kind)
         low = nashville.nashville_from_name(bass, key, kind="note") if bass else None
@@ -2521,11 +2546,15 @@ def _row(idx: int, w: dict, area: dict | None, home_area: dict | None, nxt: dict
         else:
             display = f"broken chord ({implied})" if implied else "broken chord"
     analysed = (
-        reading["name"]
+        cast("dict", reading)["name"]  # w['from'] is 'reading' only when a reading was taken
         if w["from"] == "reading"
         else (spelled["name"] if spelled and spelled["kind"] != "cluster" and w["from"] == "detect" else None)
     )
-    number = reading["number"] if w["from"] == "reading" else (detect_number if w["from"] == "detect" else None)
+    number = (
+        cast("dict", reading)["number"]
+        if w["from"] == "reading"
+        else (detect_number if w["from"] == "detect" else None)
+    )
     marks = (
         chord_marks(
             pcs,
@@ -2802,7 +2831,7 @@ def _cadence(ws: list[dict], n: int) -> dict | None:
     if arel == 7 and brel == 0 and bass_b == 0:
         if bass_a == 7:
             kind = "5 -> 1 (authentic)" if a_third else "5sus -> 1 (suspended dominant)"
-            if prev_ok and _rel(prev, prev["_root_pc"]) == 2:
+            if prev_ok and prev is not None and _rel(prev, prev["_root_pc"]) == 2:
                 kind, chain = kind.replace("5", "2 -> 5", 1), [prev, a, b]
         elif bass_a == 0:
             kind = "5 over a 1 pedal -> 1"
@@ -2855,7 +2884,7 @@ def _cadence(ws: list[dict], n: int) -> dict | None:
         if arel == 5:
             kind = "4m -> 1 (minor plagal)" if a_third == "minor" else "4 -> 1 (plagal)"
         elif arel == 10:
-            if prev_ok and _rel(prev, prev["_root_pc"]) == 8:
+            if prev_ok and prev is not None and _rel(prev, prev["_root_pc"]) == 8:
                 kind, chain = "b6 -> b7 -> 1 (Aeolian)", [prev, a, b]
             else:
                 kind = "b7 -> 1"
@@ -3871,7 +3900,7 @@ def _and(items: list[str]) -> str:
 
 def _note_midi(name: str) -> int:
     """'C#7' -> 97 (C4 = 60)."""
-    m = re.fullmatch(r"([A-G])(#{1,2}|b{1,2})?(-?\d+)", name)
+    m = cast("re.Match[str]", re.fullmatch(r"([A-G])(#{1,2}|b{1,2})?(-?\d+)", name))  # names midi_name wrote
     acc = len(m.group(2) or "") * (1 if (m.group(2) or "").startswith("#") else -1)
     return (int(m.group(3)) + 1) * 12 + LETTER_PC[LETTERS.index(m.group(1))] + acc
 
@@ -3957,7 +3986,7 @@ def _wrap(
 def session_start(info: dict) -> datetime | None:
     """When the playing started, in local time: the page's clock for a session buffered in the browser and uploaded
     later (meta.opened_at_client), else the server's opened_at, else the local time the session id starts with."""
-    meta = info.get("meta") if isinstance(info.get("meta"), dict) else {}
+    meta = m if isinstance(m := info.get("meta"), dict) else {}
     for text in (meta.get("opened_at_client"), info.get("opened_at")):
         if isinstance(text, str):
             try:
@@ -4228,8 +4257,8 @@ def core_number(w: dict) -> str | None:
 def _degree(pc: int, key: str, name: str | None = None) -> str | None:
     """A note's degree read by its letter, as the chord numbers read a chord's bass: F# in Bb major is #5, Cb in Eb
     major is b6 (accidentals against the major scale on the tonic, as nashville numbers minor keys too)."""
-    sp = _parse_name(name or pc_name(pc, key))
-    tonic = _parse_name(key.split(" ")[0])
+    sp = _spelling(name or pc_name(pc, key))
+    tonic = _spelling(key.split(" ")[0])
     d = (sp[0] - tonic[0]) % 7
     acc = _signed(_sp_pc(sp) - (_sp_pc(tonic) + LETTER_PC[d]))
     return ("#" * acc if acc > 0 else "b" * -acc) + str(d + 1)
@@ -4245,7 +4274,7 @@ def _spell_from_root(pc: int, root_sp: tuple, key: str) -> str:
 
 def key_scale(key: str, wide_minor: bool = False) -> set:
     """Pitch classes of a key's scale: major, or natural minor (with wide_minor, harmonic and melodic minor too)."""
-    k = nashville.parse_key(key)
+    k = _key_info(key)
     steps = (
         SCALES["major"]
         if k["mode"] == "major"
@@ -4262,7 +4291,7 @@ def outside_notes(w: dict, key: str) -> list[dict]:
     """The chord's notes that the key lacks, each with its degree in the key: [{note, degree}]."""
     scale = key_scale(key, wide_minor=True)
     p = _parts(w)
-    tonic = nashville.parse_key(key)["tonic"]
+    tonic = _key_info(key)["tonic"]
     out = []
     for pc in sorted(set(_row_pcs(w)), key=lambda x: (x - tonic) % 12):
         if pc not in scale:
@@ -4478,7 +4507,8 @@ def chord_sequences(doc: dict, exact: bool = False, min_seconds: float = PROG_MI
     for seq in seqs:
         steps: list[dict] = []
         for step in seq:
-            token = max(step["_time"], key=lambda t: step["_time"][t])
+            times = step["_time"]
+            token = max(times, key=lambda t: times[t])
             chord, at, start = step["_first"][token]
             if steps and steps[-1]["token"] == token:
                 steps[-1]["end_ms"] = step["end_ms"]
@@ -4492,7 +4522,7 @@ def chord_sequences(doc: dict, exact: bool = False, min_seconds: float = PROG_MI
                     "span_start_ms": step["start_ms"],
                     "end_ms": step["end_ms"],
                     "key": step["key"],
-                    "merged": sorted(step["_time"], key=lambda t: -step["_time"][t]),
+                    "merged": sorted(times, key=lambda t: -times[t]),
                 }
             )
         out.append(steps)
@@ -4646,7 +4676,7 @@ RETURN_MIN_MS = (
 def _parallel_returns(area: dict, windows: list[dict]) -> list[dict]:
     """Stretches inside a key area where the parallel mode comes back: consecutive windows (chords or two-note shapes)
     holding the parallel key's 3rd and not the area's own 3rd, lasting RETURN_MIN_MS."""
-    k = nashville.parse_key(area["key"])
+    k = _key_info(area["key"])
     own, other = (
         ((k["tonic"] + 3) % 12, (k["tonic"] + 4) % 12)
         if k["mode"] == "minor"
@@ -4694,7 +4724,7 @@ def key_evidence(doc: dict, snd: dict) -> dict:
         key = a["key"]
         prof = pc_profile(heard_pc, a["start_ms"], a["end_ms"])
         scale = key_scale(key)
-        k = nashville.parse_key(key)
+        k = _key_info(key)
         inside = [w for w in windows if a["start_ms"] <= (w["start_ms"] + w["end_ms"]) / 2 < a["end_ms"]]
         voc = vocabulary({"home_key": doc["home_key"], "windows": inside})
         ru = a["runner_up"]
@@ -4733,7 +4763,7 @@ def key_evidence(doc: dict, snd: dict) -> dict:
         before = pc_profile(heard_pc, max(prev["start_ms"], min(t, prev["end_ms"]) - EVIDENCE_MS), prev["end_ms"])
         after = pc_profile(heard_pc, t, min(nxt["end_ms"], t + EVIDENCE_MS))
         sa, sb = key_scale(prev["key"]), key_scale(nxt["key"])
-        tonic = nashville.parse_key(prev["key"])["tonic"]
+        tonic = _key_info(prev["key"])["tonic"]
         swapped = []
         for pc in sorted(sa ^ sb, key=lambda p: (p not in sa, (p - tonic) % 12)):
             owner = prev["key"] if pc in sa else nxt["key"]
@@ -4763,7 +4793,7 @@ def key_evidence(doc: dict, snd: dict) -> dict:
             None,
         )  # the first chord that belongs to the new key
         first = [arrival] if arrival else first  # only (not the old tonic heard over a new bass)
-        nk = nashville.parse_key(nxt["key"])
+        nk = _key_info(nxt["key"])
         gone = [
             s["note"]
             for s in swapped
@@ -5261,7 +5291,7 @@ def touch_data(doc: dict, snd: dict) -> dict | None:
             "p50": q(0.5),
             "p90": q(0.9),
             "max": vels[-1],
-            "loudest_at": clock_tenths(loud["on_ms"]),
+            "loudest_at": clock_tenths(loud["on_ms"]),  # pyright: ignore[reportOptionalSubscript]  # LATENT: no velocities -> ZeroDivisionError above first; output for that case is a judgement call
             "per_minute": per_minute,
         }
         if vels
@@ -5523,6 +5553,7 @@ def name_data(tokens, key: str | None = None, theory_source=None, node: str | No
     answer, err = run_theory([{"notes": sorted(midis), "bias": bias}], theory_source, node)
     if err:
         raise RuntimeError(f"naming needs the page's Theory.detect through node: {err}")
+    answer = cast("dict", answer)  # run_theory returns an answer whenever it returns no error
     info, templates = answer["results"][0], answer["templates"]
     bass = min(midis)
     pcs = sorted({m % 12 for m in midis})
@@ -5532,7 +5563,7 @@ def name_data(tokens, key: str | None = None, theory_source=None, node: str | No
 
     def note_name(m):
         name = spell(m % 12)
-        return f"{name}{(m - _parse_name(name)[1]) // 12 - 1}"
+        return f"{name}{(m - _spelling(name)[1]) // 12 - 1}"
 
     w = {"pcs": pcs, "bass": bass, "bass_share": 1.0}
     _analyse(w, info, templates)
@@ -5757,7 +5788,7 @@ def caveats(sess: dict) -> list[str]:
     odd: dict[str, int] = {}
     for e in named:
         area = next((a for a in areas if a["start_ms"] <= e["t_ms"] < a["end_ms"]), None)
-        bias = nashville.parse_key(area["key"])["bias"] if area else 0
+        bias = _key_info(area["key"])["bias"] if area else 0
         if bias and len(e["chord"]) > 1 and e["chord"][1] == ("#" if bias < 0 else "b"):
             odd[e["chord"]] = odd.get(e["chord"], 0) + 1
     if odd:
@@ -5904,7 +5935,7 @@ def ask_moments(doc: dict, evidence: dict, outside: dict, progressions: dict, li
         covers: list[tuple] = []
         if min(prev["seconds"], nxt["seconds"]) < ASK_MIN_AREA_S or c.get("pause_s") or nxt.get("return"):
             continue  # after a pause it is a new section, not a key change to ask about
-        pk, nk = nashville.parse_key(prev["key"]), nashville.parse_key(nxt["key"])
+        pk, nk = _key_info(prev["key"]), _key_info(nxt["key"])
         old = [s["note"] for s in c["swapped"] if s["belongs_to"] == prev["key"]]
         new = [s["note"] for s in c["swapped"] if s["belongs_to"] == nxt["key"]]
         if pk["tonic"] == nk["tonic"]:
@@ -6041,7 +6072,7 @@ def ask_moments(doc: dict, evidence: dict, outside: dict, progressions: dict, li
         )
     lyd = f["lydian_4"]
     for m in sorted(lyd, key=lambda m: -m["seconds"])[:ASK_PER_KIND]:
-        p = nashville.parse_chord(m["analysed_as"])
+        p = cast("dict", nashville.parse_chord(m["analysed_as"]))  # a named Lydian-4 chord always parses
         root = _sp_name(p["root"])
         top = _spell_from_root((_sp_pc(p["root"]) + 6) % 12, p["root"], m["key"])
         plain = (
@@ -6099,7 +6130,7 @@ def ask_moments(doc: dict, evidence: dict, outside: dict, progressions: dict, li
         )
     sus = [d for d in f["dominants"]["windows"] if d["form"] == "suspended" and d["seconds"] >= 2]
     for d in sorted(sus, key=lambda d: -d["seconds"])[:ASK_PER_KIND]:
-        p = nashville.parse_chord(d["analysed_as"])
+        p = cast("dict", nashville.parse_chord(d["analysed_as"]))  # a named suspended dominant always parses
         root, root_pc = _sp_name(p["root"]), _sp_pc(p["root"])
         tonic = d["key"].split(" ")[0]
         third = _spell_from_root((root_pc + 4) % 12, p["root"], d["key"])
@@ -6132,7 +6163,7 @@ def ask_moments(doc: dict, evidence: dict, outside: dict, progressions: dict, li
         p
         for p in f["pedal_points"]
         if re.search(r"-?\d+$", p["bass"] or "")
-        and int(re.search(r"-?\d+$", p["bass"]).group(0)) <= ASK_PEDAL_MAX_OCTAVE
+        and int(cast("re.Match[str]", re.search(r"-?\d+$", p["bass"])).group(0)) <= ASK_PEDAL_MAX_OCTAVE
     ]  # a bass, not a held melody note
     for p in sorted(low, key=lambda p: -p["seconds"])[:ASK_PER_KIND]:
         plain = (
@@ -6647,8 +6678,8 @@ def profile(sess: dict) -> dict:
     tch = touch_data(doc, sess["snd"])
     cores: dict[str, float] = {}
     for w in doc["windows"] if doc["notes"] else []:
-        if is_chord(w) and core_number(w):
-            cores[core_number(w)] = cores.get(core_number(w), 0.0) + w["seconds"]
+        if is_chord(w) and (num := core_number(w)):
+            cores[num] = cores.get(num, 0.0) + w["seconds"]
     total = sum(cores.values()) or 1.0
     moves = progression_data(doc, (2,), 2)["moves"]["2"]
     dom = col["dominants"]["summary"]
@@ -7095,7 +7126,7 @@ def main(argv=None) -> int:
     for stream in (sys.stdout, sys.stderr):  # piped on Windows the console code page would mangle names like C°7
         if (getattr(stream, "encoding", "") or "").lower().replace("-", "") != "utf8":
             with contextlib.suppress(AttributeError, ValueError, OSError):
-                stream.reconfigure(encoding="utf-8")
+                cast("io.TextIOWrapper", stream).reconfigure(encoding="utf-8")
     try:
         global BOUNDARY_DEFAULT
         BOUNDARY_DEFAULT = getattr(args, "boundary", None) or BOUNDARY_DEFAULT
@@ -7136,6 +7167,7 @@ def main(argv=None) -> int:
             data = compare_data(load_session(store, ids[0][0]), load_session(store, ids[1][0]))
             return _finish(args, data, render_compare(data))
         t_ms = 0.0
+        when = ""
         if args.verb == "moment":
             if len(args.where) > 2:
                 raise ValueError("moment takes an optional session and one time: moment [SESSION] M:SS")
@@ -7153,7 +7185,8 @@ def main(argv=None) -> int:
                     raise ValueError(f"--min-count must be at least 1 (got {args.min_count})")
             if args.verb == "windows":
                 times = [parse_clock(text) if text else None for text in (args.start, args.end)]
-                if None not in times and times[0] >= times[1]:
+                start_t, end_t = times
+                if start_t is not None and end_t is not None and start_t >= end_t:
                     raise ValueError(f"--from {args.start} must come before --to {args.end}")
                 if args.limit is not None and args.limit < 1:
                     raise ValueError(f"--limit must be at least 1 (got {args.limit})")

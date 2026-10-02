@@ -194,7 +194,7 @@ def validate_declarations(declarations=None) -> dict[str, dict]:
         floors = spec.get("floors")
         if isinstance(floors, str) or not list(floors or []):
             raise ValueError(f"exemption {did!r}: floors must be a non-empty list of floor names")
-        unknown = [name for name in floors if name not in FLOORS]
+        unknown = [name for name in floors or [] if name not in FLOORS]  # non-empty: checked above
         if unknown:
             raise ValueError(
                 f"exemption {did!r}: unknown floor name(s) {unknown} -- a typo here would exempt "

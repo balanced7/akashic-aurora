@@ -323,7 +323,7 @@ def main(argv=None) -> int:
             out = Path(args.out) if args.out else Path("state/arsenal/receipts/boost")
             out.mkdir(parents=True, exist_ok=True)
             dest = out / (Path(args.path).stem + "-boosted.png")
-            sb_mod._write_png(bo_mod.boost(rgb), str(dest))
+            sb_mod._write_png(bo_mod.boost(rgb), dest)
             print(f"  boosted view: {dest}")
         return 0
 

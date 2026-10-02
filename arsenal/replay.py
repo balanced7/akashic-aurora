@@ -13,6 +13,7 @@ import math
 import sys
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from typing import cast
 from urllib.parse import parse_qs, urlencode, urlsplit
 
 from .performance import PerformanceError, PerformanceStore
@@ -153,6 +154,10 @@ def run_link(args, out):
 
 
 class Handler(BaseHTTPRequestHandler):
+    @property
+    def _server(self) -> Server:
+        return cast("Server", self.server)  # only ever served by Server below
+
     def _send(self, status, data, content_type="application/json"):
         body = data if isinstance(data, bytes) else json.dumps(data).encode("utf-8")
         self.send_response(status)
@@ -176,11 +181,11 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(200, (WEB / file).read_bytes(), content_type)
         if url.path == "/api/conversation":
             return self._send(
-                200, {**self.server.conversation.cards(), "responses": self.server.conversation.responses()}
+                200, {**self._server.conversation.cards(), "responses": self._server.conversation.responses()}
             )
         if url.path.startswith("/api/conversation/replay/"):
             try:
-                data = self.server.conversation.response(url.path.rsplit("/", 1)[-1])["replay"]
+                data = self._server.conversation.response(url.path.rsplit("/", 1)[-1])["replay"]
                 return self._send(200, {**data, "chords": harmony(data["cue"], data.get("speed", 1))})
             except (ValueError, OSError) as exc:
                 return self._send(404, {"error": str(exc)})
@@ -192,7 +197,7 @@ class Handler(BaseHTTPRequestHandler):
 
             try:
                 result = excerpt(
-                    self.server.performance,
+                    self._server.performance,
                     get("session"),
                     get("at"),
                     float(get("seconds", "8")),
@@ -220,7 +225,7 @@ class Handler(BaseHTTPRequestHandler):
         if urlsplit(self.path).path != "/api/conversation/responses":
             return self._send(404, {"error": "no such conversation action"})
         origin = self.headers.get("Origin")
-        if origin and origin != f"http://127.0.0.1:{self.server.server_address[1]}":
+        if origin and origin != f"http://127.0.0.1:{self._server.server_address[1]}":
             return self._send(403, {"error": "save answers from this player"})
         try:
             length = int(self.headers.get("Content-Length", "0"))
@@ -229,12 +234,12 @@ class Handler(BaseHTTPRequestHandler):
             if self.headers.get_content_type() != "application/json":
                 raise ValueError("response must be application/json")
             body = json.loads(self.rfile.read(length))
-            data = self.server.conversation.save_response(body)
+            data = self._server.conversation.save_response(body)
             return self._send(200, {k: v for k, v in data.items() if k != "replay"})
         except (ValueError, PerformanceError, OSError) as exc:
             return self._send(400, {"error": str(exc)})
 
-    def log_message(self, fmt, *args):
+    def log_message(self, fmt, *args):  # pyright: ignore[reportIncompatibleMethodOverride]  # fmt, not format (A002); stdlib passes it positionally
         # No query strings/session identifiers in service access logs.
         sys.stderr.write(f"[replay] {self.command} {urlsplit(self.path).path}\n")
 

@@ -52,7 +52,7 @@ def _read(transitions: int, per_min: float | None) -> str:
     return "frantic"
 
 
-def _median(values: list[float]) -> float | None:
+def _median(values: list[float] | list[int]) -> float | None:
     return float(np.median(values)) if values else None
 
 

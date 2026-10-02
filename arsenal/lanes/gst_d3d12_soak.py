@@ -33,6 +33,7 @@ import time
 from collections import deque
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import cast
 
 GST_ROOT = Path(r"C:\Users\L5\AppData\Local\Programs\gstreamer\1.0\msvc_x86_64")
 GST_LAUNCH = GST_ROOT / "bin" / "gst-launch-1.0.exe"
@@ -1048,12 +1049,13 @@ def summarize_soak_memory(synced: list[dict]) -> dict:
     post = synced[1:]
     if not post or not all(working_set(p) for p in post):
         return result
-    within = [working_set(p)["growth"] for p in post]
-    cross = round(working_set(post[-1])["end"] - working_set(post[0])["start"], 2)
+    post_sets = [cast("dict", working_set(p)) for p in post]  # every one present: checked just above
+    within = [s["growth"] for s in post_sets]
+    cross = round(post_sets[-1]["end"] - post_sets[0]["start"], 2)
     xs = [p["soak_offset_s"] + row["t_s"] for p in post for row in _steady_rows(p["memory"])]
     ys = [row["working_set_mb"] for p in post for row in _steady_rows(p["memory"])]
     slope = linear_slope(xs, ys)
-    within_slopes = [working_set(p)["slope_mb_per_min"] for p in post if working_set(p)["slope_mb_per_min"] is not None]
+    within_slopes = [s["slope_mb_per_min"] for s in post_sets if s["slope_mb_per_min"] is not None]
     private = [p["memory"]["private_mb"]["growth"] for p in post if p["memory"]["private_mb"]]
     gpu = [p["memory"]["gpu_dedicated_mb"]["growth"] for p in post if p["memory"]["gpu_dedicated_mb"]]
     result["post_warmup"] = {

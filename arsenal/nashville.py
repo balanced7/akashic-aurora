@@ -36,6 +36,7 @@ bass ({degree, acc, text} or None), upper (the interval's top note, same shape, 
 from __future__ import annotations
 
 import re
+from typing import cast
 
 LETTERS = "CDEFGAB"
 LETTER_PC = (0, 2, 4, 5, 7, 9, 11)  # also the major scale, degree 1..7
@@ -231,7 +232,7 @@ def _key_context(key) -> dict | None:
         k = parse_key(key)
     if not k:
         return None
-    return {**k, "sp": _parse_note(k["name"])[0]}
+    return {**k, "sp": cast("tuple", _parse_note(k["name"]))[0]}  # parse_key wrote this name
 
 
 def parse_chord(name, kind: str | None = None) -> dict | None:
@@ -253,7 +254,8 @@ def parse_chord(name, kind: str | None = None) -> dict | None:
         )
     iv = _INTERVAL_RE.match(rest)
     if iv:
-        return {"kind": "interval", "root": root, "suffix": "", "bass": None, "upper": _parse_note(iv.group(1))[0]}
+        upper = cast("tuple", _parse_note(iv.group(1)))[0]  # _INTERVAL_RE matched a note name
+        return {"kind": "interval", "root": root, "suffix": "", "bass": None, "upper": upper}
     if _OCTAVE_RE.match(rest) and rest not in FAMILY:
         return {"kind": "note", "root": root, "suffix": "", "bass": None, "upper": None}
     suffix, bass = rest, None

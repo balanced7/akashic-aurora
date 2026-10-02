@@ -326,7 +326,8 @@ def lint(scene: Any) -> list[str]:
         tpl = slide.get("template")
         atoms = [a for a in (slide.get("atoms") or []) if isinstance(a, dict)]
         ids = set(_slide_ids(slide))
-        has_footer = any(r["name"] == "footer" for r in TEMPLATES.get(tpl, {}).get("regions", []))
+        regions = (TEMPLATES.get(tpl, {}) if tpl is not None else {}).get("regions", [])  # .get(None) is {}
+        has_footer = any(r["name"] == "footer" for r in regions)
         if has_footer and not any(a.get("kind") == "receipt" for a in atoms):
             out.append(f"slide {sid}: W09 template {tpl!r} has a footer band and the slide carries no receipt")
         for a in atoms:

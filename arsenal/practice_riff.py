@@ -54,7 +54,7 @@ import time
 from bisect import bisect_left, bisect_right
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, cast, overload
 
 from . import nashville
 from . import practice as pr
@@ -64,6 +64,7 @@ from .jam.resolve import tone_name
 from .performance import PerformanceError, PerformanceStore
 
 if TYPE_CHECKING:
+    import io
     from collections.abc import Sequence
 
 
@@ -269,6 +270,10 @@ class RiffError(Exception):
 
 
 # ============================================================================================== helpers
+@overload
+def _r(x: None, places: int = 3) -> None: ...
+@overload
+def _r(x: float, places: int = 3) -> float: ...
 def _r(x, places: int = 3):
     return None if x is None else round(float(x), places)
 
@@ -446,7 +451,7 @@ def scale_for_class(
 ) -> list[int]:
     """A chord's scale S from its practice.classify class (MUSIC 9.5 table), for chords read from his own playing.
     Any chord tone missing from S replaces the scale note a half step from it."""
-    k = nashville.parse_key(key)
+    k = cast("dict", nashville.parse_key(key))  # key: a practice window's key name, which parse_key reads
     tonic, mode = k["tonic"], k["mode"]
     on = lambda base, steps: {(base + s) % 12 for s in steps}  # noqa: E731  # local one-line key function
     rel = {(p - root) % 12 for p in pcs} if root is not None else set()
@@ -575,7 +580,7 @@ def list_runs(jam_root) -> list[dict]:
 
 def session_window(info: dict) -> tuple[float | None, float | None]:
     """The session's wall-clock span in epoch ms: from the page's open time (opened_at_client) or the server's."""
-    meta = info.get("meta") if isinstance(info.get("meta"), dict) else {}
+    meta = m if isinstance(m := info.get("meta"), dict) else {}
     start = _iso_epoch_ms(meta.get("opened_at_client"))
     if start is None:
         start = (
@@ -658,7 +663,7 @@ class Clock:
 def align(loaded: dict, session: str, info: dict) -> Clock:
     """The L1-L4 ladder (11.2, DATA 7.3) for one run against one session."""
     run, acks = loaded["run"], loaded["acks"]
-    meta = info.get("meta") if isinstance(info.get("meta"), dict) else {}
+    meta = m if isinstance(m := info.get("meta"), dict) else {}
     latency = next((a["output_latency_ms"] for a in reversed(acks) if _num(a.get("output_latency_ms"))), None)
     usable = [a for a in acks if _num(a.get("bar_epoch_ms")) and _num(a.get("perf_ms"))]
     owner = run.get("owner_page_id")
@@ -1153,8 +1158,8 @@ def _in_filter(pos: dict, opts: dict) -> bool:
     return not bars or (pos.get("run_bar") is not None and bars[0] <= pos["run_bar"] <= bars[1])
 
 
-def _count(items, key) -> dict[str, int]:
-    out: dict[str, int] = {}
+def _count(items, key) -> dict[Any, int]:
+    out: dict[Any, int] = {}
     for x in items:
         k = key(x)
         if k is not None:
@@ -1639,11 +1644,11 @@ def _def_onsets(tl) -> list[tuple[float, int]]:
         joined = (
             prev is not None and abs(prev[0]["end_e"] - x["start_e"]) < 1 and prev[0]["def_version"] == x["def_version"]
         )
-        if not (joined and groove == "hold" and prev[1] == bass):
+        if not (joined and prev is not None and groove == "hold" and prev[1] == bass):  # joined implies prev
             out.append((x["start_t"], bass))
         tie_upper = joined and (groove == "hold" or x["facts"]["slot"].get("upper_same"))
         if (st.get("humanize") if _num(st.get("humanize")) else 0.6) == 0 and groove in ("hold", "ballad"):
-            out.extend((x["start_t"], u) for u in upper if not (tie_upper and u in prev[2]))
+            out.extend((x["start_t"], u) for u in upper if not (tie_upper and u in cast("tuple", prev)[2]))
         prev = (x, bass, upper)
     return out
 
@@ -1840,6 +1845,7 @@ def highlights(block: dict, session: str) -> list[dict]:
             t, why = new[0]["on"], f"new colour: {note} ({new[0]['label']}) for the first time"
             evidence = {"note": note, "label": new[0]["label"]}
         else:
+            peak = cast("dict", peak)  # no reharm and no new colour: score > 0 needs z > 0, so a peak
             t, why = peak["on"], f"a peak in your touch (velocity {peak['vel']})"
             evidence = {"velocity": peak["vel"]}
         cands.append(
@@ -1883,7 +1889,7 @@ def _against(f: dict, pc: int) -> str:
 
 
 def talking_points(
-    block: dict, session: str, run_id: str | None, concepts: list[dict], last_types: Sequence[str] = ()
+    block: dict, session: str, run_id: str | None, concepts: list[dict], last_types: Sequence[str | None] = ()
 ) -> list[dict]:
     """Every talking point whose gate passes, with its salience: type weight x min(1, count/5) x 1.25 for the card's
     concept note x 0.5 when the card's last saved riff made the same type of point. Counts, never percentages."""
@@ -2337,7 +2343,7 @@ def _note_out(r: dict) -> dict:
     }
 
 
-def _last_types(jam_root, card_id: str | None, run_id: str | None) -> list[str]:
+def _last_types(jam_root, card_id: str | None, run_id: str | None) -> list[str | None]:
     """The talking-point types of the card's last saved riff (for REPEAT_DAMP)."""
     if not card_id:
         return []
@@ -2509,7 +2515,7 @@ def _candidates(store: PerformanceStore, loaded: dict, rows=None) -> list[tuple[
     found = []
     for sid, info in rows if rows is not None else _session_rows(store):
         s0, s1 = session_window(info)
-        overlap = min(r1, s1) - max(r0, s0) if s0 is not None else -math.inf
+        overlap = min(r1, cast("float", s1)) - max(r0, s0) if s0 is not None else -math.inf  # s1 set with s0
         if overlap > 0:
             found.append((sid not in named, -overlap, sid, info))
     found.sort(key=lambda x: (x[0], x[1], x[2]))
@@ -2522,7 +2528,7 @@ def _no_overlap(store: PerformanceStore, loaded: dict, rows=None) -> RiffError:
     for sid, info in rows if rows is not None else _session_rows(store):
         s0, s1 = session_window(info)
         if s0 is not None:
-            near.append((min(abs(s0 - r1), abs(r0 - s1)), sid, s0, s1))
+            near.append((min(abs(s0 - r1), abs(r0 - cast("float", s1))), sid, s0, s1))  # s1 set with s0
     near.sort()
     lines = [
         f"no practice session overlaps run {loaded['run'].get('run')}, which played from {_local(r0)} to {_local(r1)}"
@@ -2640,7 +2646,7 @@ def riff(
             key
             and nashville.parse_key(key)
             and d.get("key")
-            and nashville.parse_key(key)["name"] != nashville.parse_key(d["key"])["name"]
+            and nashville.parse_key(key)["name"] != nashville.parse_key(d["key"])["name"]  # pyright: ignore[reportOptionalSubscript]  # LATENT: a def file whose key does not parse raises TypeError here
         ):
             loaded["problems"].append(f"the def is in {d['key']}, not {key}")
         block = run_block(loaded, sid, info, snd, opts, Clock("assumed", [(0.0, 0.0)], None), node, rebuild)
@@ -2927,7 +2933,7 @@ def main(argv=None) -> int:
     for stream in (sys.stdout, sys.stderr):
         if (getattr(stream, "encoding", "") or "").lower().replace("-", "") != "utf8":
             with contextlib.suppress(AttributeError, ValueError, OSError):
-                stream.reconfigure(encoding="utf-8")
+                cast("io.TextIOWrapper", stream).reconfigure(encoding="utf-8")
     try:
         if args.out and Path(args.out).is_dir():
             raise ValueError(f"--out {args.out} is a directory; give a file path")

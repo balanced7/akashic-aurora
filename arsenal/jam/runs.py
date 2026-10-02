@@ -39,7 +39,7 @@ import secrets
 import threading
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, cast
 
 from arsenal.jam import RUN_API
 from arsenal.jam import align as jam_align
@@ -440,9 +440,9 @@ class RunStore:
                 old = None
             if not pending:
                 self._place(rec, swap["epoch_ms"] if swap else now + spec["lead_ms"], count_in if not swap else 0)
-                if swap:
+                if swap:  # a swap line exists only for a sounding old run
                     frames += self._stop(
-                        old, "replaced", swap["epoch_ms"], swap["bar"], by, "bar", now, replaced_by=run_id
+                        cast("dict", old), "replaced", swap["epoch_ms"], swap["bar"], by, "bar", now, replaced_by=run_id
                     )
             self._recs[run_id] = rec
             self._write(rec)
@@ -463,7 +463,7 @@ class RunStore:
                 "def": d,
             }
             self._append(rec, line)
-            extra = {"swapped_from": old["run"]["run"]} if swap else {}
+            extra = {"swapped_from": cast("dict", old)["run"]["run"]} if swap else {}
             frames.append(
                 self._frame(
                     rec,
@@ -822,7 +822,7 @@ class RunStore:
                 run["late_dropped"] = a["late_dropped"]
                 self._write(rec)
             if a["stopped"] and not run["closed"] and a["page_id"] == run["owner_page_id"]:
-                bar = a.get("stop_bar") if a.get("stop_bar") is not None else a["bar"]
+                bar = a["stop_bar"] if a.get("stop_bar") is not None else a["bar"]
                 epoch = T.t_epoch(run["segments"], run["beats_per_bar"], bar) if run["segments"] else now
                 frames += self._stop(rec, a["stopped"], epoch, bar, "page", "now", now)
         return {"ok": True, "duplicate": False}, frames
@@ -980,7 +980,7 @@ class JamApi:
     def now(self) -> float:
         return self.runs.now_ms()
 
-    def _hub(self):
+    def _hub(self) -> Any:
         """The cue hub, or None. hub may be a callable returning it (serve.App passes lambda: self.cues, so a hub
         swapped in later is the one used)."""
         return self.hub() if callable(self.hub) else self.hub
@@ -1064,7 +1064,7 @@ class JamApi:
         ]
 
     @staticmethod
-    def _q(query: dict, name: str, default=None):
+    def _q(query: dict, name: str, default=None) -> Any:
         values = query.get(name)
         if not values:
             return default

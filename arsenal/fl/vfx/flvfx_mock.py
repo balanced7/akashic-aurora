@@ -45,6 +45,11 @@ import struct
 import sys
 import types
 from pathlib import Path
+from typing import TYPE_CHECKING, Any, cast
+
+if TYPE_CHECKING:
+    from importlib.abc import Loader
+    from importlib.machinery import ModuleSpec
 
 HERE = Path(__file__).resolve().parent
 BAND_SCRIPT = HERE / "arsenal_band.py"
@@ -239,7 +244,7 @@ class VoiceView:
 
 def make_flvfx(host):
     """A fresh flvfx module bound to one Host."""
-    mod = types.ModuleType("flvfx")
+    mod: Any = types.ModuleType("flvfx")
     mod.__doc__ = "Mock of FL Studio's VFX Script API (arsenal/fl/vfx/flvfx_mock.py)"
 
     class Voice:
@@ -319,7 +324,7 @@ class Host:
         if knob_store not in KNOB_STORES or knob_read not in KNOB_READS:
             raise ValueError(f"knob_store is one of {KNOB_STORES}, knob_read one of {KNOB_READS}")
         self.tick_step = tick_step
-        self.gaps = gaps
+        self.gaps: Any = gaps
         self.buffer_samples = buffer_samples
         self.sample_rate = sample_rate
         self.voice_views = voice_views
@@ -348,9 +353,9 @@ class Host:
         self._auto = {}
         self._saved = {}
         self._path_added = False
-        self.vfx = None
-        self.module = None
-        self.form = None
+        self.vfx: Any = None
+        self.module: Any = None
+        self.form: Any = None
 
     # -- lifecycle --------------------------------------------------------------------------------------------
 
@@ -376,9 +381,11 @@ class Host:
             sys.path.insert(0, str(self.patterns_dir))
             self._path_added = True
         try:
-            spec = importlib.util.spec_from_file_location(f"arsenal_band_sim_{next(_ids)}", self.script)
+            spec = cast(
+                "ModuleSpec", importlib.util.spec_from_file_location(f"arsenal_band_sim_{next(_ids)}", self.script)
+            )
             module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(module)
+            cast("Loader", spec.loader).exec_module(module)
             self.module = module
             self.form = module.createDialog()
             self.vfx.context.form = self.form
@@ -487,7 +494,7 @@ class Host:
         if self.gaps is None:
             return self.tick_step
         if callable(self.gaps):
-            return int(self.gaps(n))
+            return int(cast("Any", self.gaps(n)))
         return self.gaps[n % len(self.gaps)]
 
     def tick(self):
@@ -583,19 +590,21 @@ def load_band_parsers():
     """arsenal_band.py loaded outside FL (no flvfx): its parse functions only."""
     saved = sys.modules.pop("flvfx", _ABSENT)
     try:
-        spec = importlib.util.spec_from_file_location(f"arsenal_band_parsers_{next(_ids)}", BAND_SCRIPT)
+        spec = cast(
+            "ModuleSpec", importlib.util.spec_from_file_location(f"arsenal_band_parsers_{next(_ids)}", BAND_SCRIPT)
+        )
         module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
+        cast("Loader", spec.loader).exec_module(module)
         return module
     finally:
         if saved is not _ABSENT:
-            sys.modules["flvfx"] = saved
+            sys.modules["flvfx"] = cast("types.ModuleType", saved)
 
 
 def load_patterns_module(path):
-    spec = importlib.util.spec_from_file_location(f"{PATTERN_MODULE!s}_checked_{next(_ids)}", path)
+    spec = cast("ModuleSpec", importlib.util.spec_from_file_location(f"{PATTERN_MODULE!s}_checked_{next(_ids)}", path))
     module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
+    cast("Loader", spec.loader).exec_module(module)
     return module
 
 
@@ -641,7 +650,7 @@ def check(path, out=print):
     return 1 if problems else 0
 
 
-def parse_gaps(text):
+def parse_gaps(text) -> dict[str, Any]:
     """--gaps: None (onTick every tick), "buffer:SAMPLES" (one onTick per audio buffer), or "1,4,2" (played in turn)."""
     if text is None or text == "":
         return {}

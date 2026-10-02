@@ -35,7 +35,7 @@ import threading
 from collections import OrderedDict
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from arsenal import nashville
 from arsenal.jam import DEF_API
@@ -220,7 +220,7 @@ def _spelled(letter: int, pc: int, mode: str) -> str:
     return f"{text} {mode}"
 
 
-def tone_name(slot: dict, role: str, relative_to: str = "root") -> str | None:
+def tone_name(slot: dict, role: str | None, relative_to: str = "root") -> str | None:
     """A landing or check note spelled from the chord's own tones (jam-rulings: "Bb, the b3rd of Gm(add9)"; Cb, not B,
     over Abm(add9); Ebb over Cbm(add9)): the role's letter counted up from the root (or bass) the slot's name spells,
     through nashville's shared speller (_spell_from), never a key-wide sharp or flat table. None when the name does not
@@ -267,7 +267,7 @@ def degree_key(base_key: str, item: str, field: str = "key") -> str:
     acc = len(acc_text) if acc_text.startswith("#") else -len(acc_text)
     degree = int(item.strip()[len(acc_text)])
     mode = m.group(2)
-    base_sp = nashville._parse_note(base["name"])[0]
+    base_sp = cast("tuple", nashville._parse_note(base["name"]))[0]  # key_of returned a key it parsed
     letter = (base_sp[0] + degree - 1) % 7
     pc = (base["tonic"] + MAJOR_STEPS[degree - 1] + acc) % 12
     return _spelled(letter, pc, mode)
@@ -341,7 +341,7 @@ def parse_line(text: str) -> list[dict]:
             items.append({"key": re.sub(r"\s+", " ", m.group(1))})
             continue
         for tok in seg.split():
-            mm = re.fullmatch(r"(.+?)(?::(\d+(?:\.\d+)?))?", tok)
+            mm = cast("re.Match[str]", re.fullmatch(r"(.+?)(?::(\d+(?:\.\d+)?))?", tok))  # a non-empty token
             head, beats = mm.group(1), mm.group(2)
             value = _num(float(beats)) if beats is not None else None
             if head == "rest":
@@ -669,7 +669,7 @@ def stub_band(facts: Sequence[dict]) -> list[dict]:
                 [prev["full"][1] if len(prev["full"]) > 1 else 51, prev["comp"][1] if len(prev["comp"]) > 1 else 51, 51]
             )
             options = [p for p in range(S.BASS_RANGE[0], S.BASS_RANGE[1] + 1) if p % 12 == bass_pc and p < ceiling]
-            bass = min(options, key=lambda p: (abs(p - prev["bass"]), p)) if options else 36 + bass_pc
+            bass = min(options, key=lambda p: (abs(p - cast("dict", prev)["bass"]), p)) if options else 36 + bass_pc
             v = {
                 "bass": bass,
                 "full": [bass, *prev["full"][1:]],
@@ -964,7 +964,7 @@ class Resolver:
         for r in raw:
             it = r["item"]
             num, read = r.get("num"), r.get("read")
-            name = (num or read)["name"]
+            name = cast("dict", num or read)["name"]
             if it.get("name") and k_name == card_key and it.get("notes"):
                 name = it["name"]
             facts = None
@@ -978,7 +978,7 @@ class Resolver:
                 )
             elif num:
                 facts = chord_facts(num["name"])
-            play = r.get("exact_notes") or (num or {}).get("notes")
+            play = cast("list[int]", r.get("exact_notes") or (num or {}).get("notes"))
             if facts is None:
                 pcs = list(dict.fromkeys(n % 12 for n in sorted(play)))
                 facts = {"root_pc": pcs[0], "bass_pc": pcs[0], "semis": {}, "tones_pc": {}}
@@ -1037,7 +1037,8 @@ class Resolver:
                 nxt["facts"]["root_pc"] if nxt else None,
             )
             scale = _complete_scale(scale, chord_pcs, facts["root_pc"], facts.get("semis") or {})
-            scale = sorted(scale, key=lambda p: (p - facts["root_pc"]) % 12)
+            root_pc = facts["root_pc"]
+            scale = sorted(scale, key=lambda p: (p - root_pc) % 12)
             root_text = _root_text(r["name"], facts["root_pc"], sec["_k"])
             # an exact chord plays its own notes, so the styled voicing's warnings do not apply to it
             slot_warnings = [] if it.get("notes") else list((r.get("num") or {}).get("warnings") or [])

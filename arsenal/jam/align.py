@@ -127,7 +127,7 @@ def bar_t_ms(alignment: dict, run: dict, bar: int, beat: float = 0) -> float:
 
 def overlapping(run: dict, events: list[dict], store, slack_ms: float = OVERLAP_SLACK_MS) -> list[str]:
     rs, re_ = run_window(run, events)
-    if rs is None:
+    if rs is None or re_ is None:  # run_window gives both or neither
         return []
     out = []
     for row in store.list():
@@ -136,7 +136,7 @@ def overlapping(run: dict, events: list[dict], store, slack_ms: float = OVERLAP_
         except Exception:  # an unreadable session is not an overlap
             continue
         ss, se = session_window(info)
-        if ss is not None and ss <= re_ + slack_ms and se >= rs - slack_ms:
+        if ss is not None and se is not None and ss <= re_ + slack_ms and se >= rs - slack_ms:
             out.append(row["session"])
     return out
 

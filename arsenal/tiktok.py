@@ -40,7 +40,7 @@ import threading
 from collections.abc import Sequence  # noqa: TC003  # runtime-evaluated annotations (inventory annotation_sensitive)
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import NamedTuple
+from typing import IO, NamedTuple, cast
 
 
 def _pyl() -> str:
@@ -130,7 +130,7 @@ NO_FFMPEG = (
 def _bundled_ffmpeg() -> str | None:
     """imageio-ffmpeg's bundled binary, if that package is installed (it is optional)."""
     try:
-        import imageio_ffmpeg  # type: ignore[import-not-found]
+        import imageio_ffmpeg
     except ImportError:
         return None
     try:
@@ -365,6 +365,7 @@ def scene_span(active: Sequence[bool], size: int) -> tuple[int, int] | None:
         span = (group[0][0], group[-1][1])
         if best is None or span[1] - span[0] > best[1] - best[0]:
             best = span
+    best = cast("tuple[int, int]", best)  # runs is non-empty, so groups is and best was set
     if best[1] - best[0] < size * MIN_RUN:
         return None
     return best
@@ -795,7 +796,7 @@ def fades_for(trim: Trim) -> tuple[bool, bool]:
     """
     keep = None if trim.end is None else trim.end - trim.start
     fade_in = bool(trim.fade_in and (keep is None or keep > FADE_IN_S + FADE_S))
-    fade_out = bool(trim.fade and keep > FADE_S)
+    fade_out = bool(trim.fade and keep is not None and keep > FADE_S)  # fade means end, so keep, is set
     return fade_in, fade_out
 
 
@@ -1002,7 +1003,7 @@ def audio_filter(trim: Trim, lufs: float | None) -> str:
     if fade_in:
         parts.append(f"afade=t=in:st=0:d={FADE_IN_S}")
     if fade_out:
-        parts.append(f"afade=t=out:st={trim.end - trim.start - FADE_S:.3f}:d={FADE_S}")
+        parts.append(f"afade=t=out:st={cast('float', trim.end) - trim.start - FADE_S:.3f}:d={FADE_S}")
     return ",".join(parts)
 
 
@@ -1178,10 +1179,11 @@ def _encode(cmd: list[str], seconds: float, output: Path) -> None:
     show = sys.stdout.isatty()
     proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.DEVNULL)
     errors: list[bytes] = []
-    reader = threading.Thread(target=lambda: errors.append(proc.stderr.read()), daemon=True)
+    stdout, stderr = cast("IO[bytes]", proc.stdout), cast("IO[bytes]", proc.stderr)  # both opened as PIPE above
+    reader = threading.Thread(target=lambda: errors.append(stderr.read()), daemon=True)
     reader.start()
     try:
-        for raw in proc.stdout:
+        for raw in stdout:
             line = raw.decode("ascii", errors="replace").strip()
             if show and line.startswith("out_time_us=") and seconds > 0:
                 value = line.split("=", 1)[1]
@@ -1286,7 +1288,7 @@ def process(source, opts: Options, ffmpeg: str | None = None, many: bool = False
             # copy at the audio's end, so it fades out there instead of stopping dead
             trim.end = round(w0 + audio_end, 3)
         if trim.fade:
-            at = trim.end - w0
+            at = cast("float", trim.end) - w0  # trim.fade is end is not None
             trim.ends_in_sound = sound_near(silences, audio_end, at - START_SOUND_S, at)
 
     vf = video_filter(detection.box, framing, fps_text)

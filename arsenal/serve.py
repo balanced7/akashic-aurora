@@ -19,6 +19,7 @@ import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from typing import TYPE_CHECKING, cast
 from urllib.parse import parse_qs, unquote, urlsplit
 
 from . import __version__, pianolooks
@@ -31,6 +32,10 @@ from .presets import list_presets
 from .registry import load_registry
 from .take import TakeLedger
 from .timebase import StaleEpoch
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+    from io import BufferedIOBase
 
 HOST = "127.0.0.1"
 PACKAGE = Path(__file__).resolve().parent
@@ -229,9 +234,9 @@ class Handler(BaseHTTPRequestHandler):
 
     @property
     def app(self) -> App:
-        return self.server.app
+        return cast("Server", self.server).app  # only ever served by Server below
 
-    def log_message(self, fmt, *args):
+    def log_message(self, fmt, *args):  # pyright: ignore[reportIncompatibleMethodOverride]  # fmt, not format (A002); stdlib passes it positionally
         if "/api/media/" in self.path or "/api/analysis/" in self.path:
             return  # seeks and polls are chatty
         if self.path.startswith("/api/performance/") and self.path.endswith("/events") and args[1:2] == ("200",):
@@ -295,7 +300,8 @@ class Handler(BaseHTTPRequestHandler):
         return not isinstance(reader, _CountingReader) or reader.count < length
 
     def _route(self, method: str) -> None:
-        reader = self.rfile = _CountingReader(self.rfile)
+        reader = _CountingReader(self.rfile)
+        self.rfile = cast("BufferedIOBase", reader)  # duck-typed: read() plus every other attribute forwarded
         try:
             self._dispatch(method)
         finally:
@@ -346,7 +352,7 @@ class Handler(BaseHTTPRequestHandler):
                     return self._jam_route("GET", path, query)
                 logging = self.app.performance is not None
                 if path == "/api/performance" and logging:
-                    return self._json(200, {"sessions": self.app.performance.list()})
+                    return self._json(200, {"sessions": cast("PerformanceStore", self.app.performance).list()})
                 routes = [
                     (rf"/api/media/({_ID})", self._media),
                     (rf"/api/probe/({_ID})", lambda cid: self._probe(cid, query)),
@@ -581,22 +587,24 @@ class Handler(BaseHTTPRequestHandler):
             body = {}
         if not isinstance(body, dict):
             return self._json(400, {"error": "the body must be a JSON object"})
-        store = self.app.performance
+        store = cast("PerformanceStore", self.app.performance)  # _route posts here only when it is not None
         try:
             if action == "open":
                 return self._json(200, store.open_session(body.get("meta"), body.get("client_id")))
             if action == "events":
                 if "events" not in body:
                     return self._json(400, {"error": "the body needs events, a list"})
-                return self._json(200, store.append_batch(session, body["events"], body.get("seq")))
+                return self._json(200, store.append_batch(cast("str", session), body["events"], body.get("seq")))
             # close may carry the last events: the pagehide beacon sends both in one request
-            return self._json(200, {"summary": store.close(session, body.get("events"), body.get("seq"))})
+            # only "open" comes without a session
+            return self._json(200, {"summary": store.close(cast("str", session), body.get("events"), body.get("seq"))})
         except PerformanceError as exc:
             return self._json(exc.status, {"error": str(exc), **exc.extra})
 
     def _performance_get(self, session: str) -> None:
         try:
-            return self._json(200, self.app.performance.get(session))
+            # the route is registered only when the store is not None
+            return self._json(200, cast("PerformanceStore", self.app.performance).get(session))
         except PerformanceError as exc:
             return self._json(exc.status, {"error": str(exc)})
 
@@ -725,7 +733,9 @@ class Handler(BaseHTTPRequestHandler):
                 self.close_connection = True  # the body stays unread, so this connection cannot be reused
                 return self._json(413, {"error": f"saved looks are at most {pianolooks.MAX_BODY // 1024} KB"})
             raw = self.rfile.read(length) if length else b""
-        problem = pianolooks.request_problem(method, self.headers, self.server.server_address[1])
+        problem = pianolooks.request_problem(
+            method, cast("Mapping[str, str]", self.headers), cast("Server", self.server).server_address[1]
+        )
         if problem:
             return self._json(problem[0], {"error": problem[1]})
         try:
