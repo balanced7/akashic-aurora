@@ -234,6 +234,7 @@
 | scripts/generators/gen_master_map.py | 29 | `noqa: E402` | sys.path bootstrap |
 | scripts/generators/gen_ports.py | 27 | `noqa: E402` | sys.path bootstrap |
 | scripts/generators/gen_prior_art_register.py | 35 | `noqa: E402` | sys.path bootstrap |
+| scripts/generators/gen_requirements.py | 1 | `pyright: strict` |  |
 | scripts/ops/archive_ephemeral.py | 63 | `noqa: E402` | sys.path bootstrap |
 | scripts/ops/archive_ephemeral.py | 141 | `noqa: BLE001` | contained + confessed, never silent |
 | scripts/ops/archive_transcripts.py | 63 | `noqa: E402` | sys.path bootstrap |
@@ -536,6 +537,8 @@
 | tests/test_t409_operator_coauthor_credit.py | 28 | `noqa: E402` | sys.path bootstrap |
 | tests/test_t410_rewrite_recovery.py | 30 | `noqa: E402` | sys.path bootstrap |
 | tests/test_t414_organ_canaries.py | 29 | `noqa: E402` | sys.path bootstrap |
+| tests/test_tooling_upgrade_oracle.py | 1 | `pyright: strict` |  |
+| tests/test_tooling_upgrade_oracle.py | 406 | `noqa: FBT001, RUF100` | pytest parametrize value, passed by pytest; FBT is ratchet-only |
 | tests/test_vault_refuses_mangled_paste.py | 30 | `noqa: E402` | sys.path bootstrap |
 | tests/test_w06_stdin_send.py | 15 | `noqa: E402` | sys.path bootstrap |
 | tests/test_w149_boot_own_liveness.py | 113 | `noqa: F401` | import before patching its collaborators |
@@ -550,10 +553,25 @@
 | tests/test_write_door_acl_scope.py | 48 | `noqa: E402` | sys.path bootstrap |
 | tests/test_write_door_acl_scope.py | 49 | `noqa: E402` | sys.path bootstrap |
 | tests/test_write_door_acl_scope.py | 50 | `noqa: E402` | sys.path bootstrap |
-| tooling-upgrade/certify.py | 367 | `noqa: E731` | local one-line key function |
-| tooling-upgrade/certify.py | 368 | `noqa: E731` | local one-line key function |
-| tooling-upgrade/oracle.py | 1079 | `noqa: E731` | local one-line key function |
-| tooling-upgrade/oracle.py | 1099 | `noqa: E731` | local one-line key function |
-| tooling-upgrade/oracle.py | 1102 | `noqa: E731` | local one-line key function |
-| tooling-upgrade/oracle.py | 1105 | `noqa: E731` | local one-line key function |
-| tooling-upgrade/oracle.py | 1681 | `noqa: PT028` | not a pytest test: the O9 capture |
+| tooling-upgrade/certify.py | 2 | `pyright: strict` |  |
+| tooling-upgrade/certify.py | 43 | `pyright: ignore[reportPrivateUsage]` | sibling tool module, same owner |
+| tooling-upgrade/certify.py | 44 | `pyright: ignore[reportPrivateUsage]` | sibling tool module, same owner |
+| tooling-upgrade/certify.py | 189 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
+| tooling-upgrade/certify.py | 433 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
+| tooling-upgrade/certify.py | 1131 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
+| tooling-upgrade/oracle.py | 2 | `pyright: strict` |  |
+| tooling-upgrade/oracle.py | 128 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
+| tooling-upgrade/oracle.py | 129 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
+| tooling-upgrade/oracle.py | 327 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
+| tooling-upgrade/oracle.py | 1097 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
+| tooling-upgrade/oracle.py | 1384 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
+| tooling-upgrade/oracle.py | 1396 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
+| tooling-upgrade/oracle.py | 1578 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
+| tooling-upgrade/oracle.py | 1634 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
+| tooling-upgrade/oracle.py | 1669 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
+| tooling-upgrade/oracle.py | 1701 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
+| tooling-upgrade/oracle.py | 1728 | `noqa: PT028` | not a pytest test: the O9 capture |
+| tooling-upgrade/oracle.py | 1745 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
+| tooling-upgrade/oracle.py | 1824 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
+| tooling-upgrade/oracle.py | 1961 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
+| tooling-upgrade/pytest_plugin/aurora_oracle_plugin.py | 1 | `pyright: strict` |  |

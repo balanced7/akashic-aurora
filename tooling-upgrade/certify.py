@@ -1063,11 +1063,13 @@ def types_config_problems() -> list[str]:
     return problems
 
 
-def cmd_assert_types_config(args: argparse.Namespace) -> int:
+def cmd_assert_types_config(_args: argparse.Namespace) -> int:
+    """Check [tool.basedpyright] and [tool.ty] against plan G4.P1."""
     return _report("TYPES CONFIG", types_config_problems())
 
 
-def cmd_assert_strict_islands(args: argparse.Namespace) -> int:
+def cmd_assert_strict_islands(_args: argparse.Namespace) -> int:
+    """Check that every G4.P3 island opts into strict mode."""
     problems: list[str] = []
     for f in STRICT_ISLANDS:
         p = ROOT / f
@@ -1077,9 +1079,8 @@ def cmd_assert_strict_islands(args: argparse.Namespace) -> int:
     return _report("STRICT ISLANDS", problems)
 
 
-def cmd_assert_suppressions(args: argparse.Namespace) -> int:
-    """The gate's suppression step (T3 at G4 strength, T4): no blanket or reason-less
-    suppression, within budget, SUPPRESSIONS.md current. This is what makes D07 bite."""
+def cmd_assert_suppressions(_args: argparse.Namespace) -> int:
+    """Run the gate's suppression step: T3 at G4 strength and T4 (this makes D07 bite)."""
     problems: list[str] = []
     for name, (ok, msg) in (("T3", t3(4)), ("T4", t4())):
         if not ok:
