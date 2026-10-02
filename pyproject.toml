@@ -990,7 +990,7 @@ exclude = [
 # Ruff and basedpyright always get their config explicitly (one config home: pyproject.toml).
 # `gate` runs the tasks that can be green today, in plan order, and stops at the first failure.
 # The others join it in the goal that makes them green (recorded in tooling-upgrade/checks/):
-# fmt-check joined in G2; lint-check joined in G3, types in G4, ci-lint in G5.
+# fmt-check joined in G2; lint-check joined in G3, types joined in G4; ci-lint joins in G5.
 
 [tool.poe.tasks.deps]
 help = "Dependency truth: deptry over RUNTIME and SCRIPT code (config: [tool.deptry])"
@@ -1067,5 +1067,5 @@ sequence = [
 ]
 
 [tool.poe.tasks.gate]
-help = "The local gate: fmt-check, lint-check, lock-check, deps, guardrails, test-fast; stops at the first failure"
-sequence = ["fmt-check", "lint-check", "lock-check", "deps", "guardrails", "test-fast"]
+help = "The local gate: fmt-check, lint-check, types, lock-check, deps, guardrails, test-fast; stops at the first failure"
+sequence = ["fmt-check", "lint-check", "types", "lock-check", "deps", "guardrails", "test-fast"]
