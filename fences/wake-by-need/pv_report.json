@@ -1,0 +1,9 @@
+{
+  "ran_at": "2026-10-02T00:40:35.651364+00:00",
+  "verified": [
+    "half_a: core/comm/wake_seat.py",
+    "half_a: core/comm/wake_tiers.py",
+    "half_a: scripts/bifrost_wake.py"
+  ],
+  "missing": []
+}
