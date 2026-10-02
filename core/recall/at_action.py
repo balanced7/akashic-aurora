@@ -722,6 +722,29 @@ def usefulness_factor(use: Optional[Dict[str, int]]) -> float:
     `helped` at the number of impressions, which defends against join drift crediting a flip to a
     lesson that was never shown.
 
+    MEASURED LATER THE SAME DAY, AND IT CORRECTS THE CLAIM THIS FUNCTION SHIPPED WITH. The GREEN
+    commit said the judgment estimator doubled recall@1. The doubling is real; the ATTRIBUTION was
+    wrong. Rank-1 hits on the recall bench, as counts, which is the honest unit at this sample size:
+
+        set                 n     this estimator    constant 1.0    the old exposure rule
+        16-moment set      10            2                3                  1
+        batch 2 only        4            0                1                  0
+        batch 3 only        8            2                1                  0
+        all 25             18            4                4                  1
+
+    So REMOVING the exposure decay is a large, consistent win in every row. Replacing it with a
+    judgment estimator rather than a flat 1.0 is UNDECIDABLE here: the two tie overall, every
+    subset disagreement is one or two moments, and the sign flips depending on which subset you
+    look at. A corpus lesson claiming "a constant 1.0 beat the judgment-estimated version 30
+    percent to 20 percent on held-out moments" reproduces exactly on the 16-moment set, and
+    reverses on batch 3. Both readings are noise.
+
+    THE ESTIMATOR IS KEPT ANYWAY, FOR A REASON THAT IS NOT RETRIEVAL. A flat 1.0 would discard the
+    ability to act on negative evidence entirely: noise votes would do nothing, forever. The
+    estimator ties on retrieval and preserves the decay's original purpose, so it is the better
+    choice on grounds the bench cannot measure. If a later set ever separates them on retrieval,
+    that evidence wins over this paragraph.
+
     NOT USED: `engaged`. `record_feedback` says of it, deliberately, "counted + shown in triage
     and protective against benching, but deliberately NOT a ranking boost until it earns one".
     That is its author's standing decision and this rewrite does not overturn it. Worth flagging
