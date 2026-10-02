@@ -6747,7 +6747,7 @@ def cmd_season_score(args):
 
     claims, verifications, uptime, fixed = [], [], {}, set()
     if args.round_file:
-        doc = json.loads(io.open(args.round_file, encoding="utf-8").read())  # noqa: F821  # LATENT ADV-033: `io` is undefined here; fixed with a regression test in G4.P2
+        doc = json.loads(Path(args.round_file).read_text(encoding="utf-8"))
         claims = doc.get("claims", [])
         verifications = doc.get("verifications", [])
         uptime = doc.get("uptime", {}) or {}
