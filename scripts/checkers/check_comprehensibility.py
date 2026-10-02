@@ -32,12 +32,14 @@ from datetime import datetime
 sys.path.insert(
     0,
     os.path.join(
-        ROOT := os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),  # T104-M1 depth
+        os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),  # T104-M1 depth
         "scripts",
         "generators",
     ),
 )  # T104-M1
 import gen_arch_index as gen  # reuse the same module survey (single source of truth)
+
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # T104-M1 depth
 
 
 def _pyl() -> str:

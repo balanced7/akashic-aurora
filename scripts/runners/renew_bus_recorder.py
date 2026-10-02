@@ -23,9 +23,12 @@ import os
 import sys
 from datetime import UTC, datetime
 
-sys.path.insert(0, REPO := os.path.dirname(os.path.dirname(HERE := os.path.dirname(os.path.abspath(__file__)))))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from core.comm.bus import Bus
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+REPO = os.path.dirname(os.path.dirname(HERE))
 
 OUT_DIR = os.path.join(REPO, "research", "in-flight")
 AGENT_ID = "renew-recorder"
