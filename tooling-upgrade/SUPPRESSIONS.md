@@ -744,11 +744,13 @@
 | tests/test_write_door_acl_scope.py | 49 | `noqa: E402` | sys.path bootstrap |
 | tests/test_write_door_acl_scope.py | 50 | `noqa: E402` | sys.path bootstrap |
 | tooling-upgrade/certify.py | 2 | `pyright: strict` |  |
-| tooling-upgrade/certify.py | 43 | `pyright: ignore[reportPrivateUsage]` | sibling tool module, same owner |
-| tooling-upgrade/certify.py | 44 | `pyright: ignore[reportPrivateUsage]` | sibling tool module, same owner |
-| tooling-upgrade/certify.py | 189 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
-| tooling-upgrade/certify.py | 433 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
-| tooling-upgrade/certify.py | 1137 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
+| tooling-upgrade/certify.py | 45 | `pyright: ignore[reportPrivateUsage]` | sibling tool module, same owner |
+| tooling-upgrade/certify.py | 46 | `pyright: ignore[reportPrivateUsage]` | sibling tool module, same owner |
+| tooling-upgrade/certify.py | 191 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
+| tooling-upgrade/certify.py | 435 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
+| tooling-upgrade/certify.py | 1347 | `fmt: skip` | data table: one hook id per plan G5.P2 bullet |
+| tooling-upgrade/certify.py | 1351 | `fmt: skip` | data table: fixers that would rewrite non-Python trees (I8) |
+| tooling-upgrade/certify.py | 1560 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
 | tooling-upgrade/oracle.py | 2 | `pyright: strict` |  |
 | tooling-upgrade/oracle.py | 128 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
 | tooling-upgrade/oracle.py | 129 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
