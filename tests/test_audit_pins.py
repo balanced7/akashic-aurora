@@ -57,6 +57,8 @@ class TestKataTimestampParsing:
         """Rule 1: updated_at (00:55:11) > kata (00:52:25) => stale."""
         kata = _parse_kata_ts("kata-20260721-005225")
         updated = _parse_iso_ts("2026-07-21T00:55:11")
+        assert kata is not None
+        assert updated is not None
         assert updated > kata, "ask-peer's receipt is stale"
 
 

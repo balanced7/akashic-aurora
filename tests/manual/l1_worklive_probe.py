@@ -46,6 +46,7 @@ print(f"idle -> phase={r['phase']} since_ts={since1} turn={r['turn']}")
 time.sleep(0.05)
 wl.set("idle")  # same phase again
 r = liveness.read(A)
+assert r is not None
 assert r["since_ts"] == since1, ("same-phase must keep since_ts", r["since_ts"], since1)
 assert r["beat_ts"] > since1, "beat_ts must move on every stamp"
 print(f"same-phase re-stamp -> since_ts unchanged ({r['since_ts']}), beat_ts moved ({r['beat_ts']})  [PASS]")
@@ -53,6 +54,7 @@ print(f"same-phase re-stamp -> since_ts unchanged ({r['since_ts']}), beat_ts mov
 time.sleep(0.05)
 wl.set("thinking")
 r = liveness.read(A)
+assert r is not None
 assert r["phase"] == "thinking", r
 assert r["since_ts"] > since1, r
 print(f"phase change -> since_ts advanced to {r['since_ts']}  [PASS]")
@@ -60,6 +62,7 @@ print(f"phase change -> since_ts advanced to {r['since_ts']}  [PASS]")
 t0 = wl._turn
 wl.set("handling", detail="claude:request", new_turn=True)
 r = liveness.read(A)
+assert r is not None
 assert r["turn"] == t0 + 1, ("turn must increment", r["turn"], t0)
 print(f"new_turn -> turn {t0} -> {r['turn']} detail={r['detail']!r}  [PASS]")
 
@@ -69,12 +72,15 @@ s1 = liveness.stuck_seconds(A)
 time.sleep(0.3)
 liveness.worklive(A).refresh()  # heartbeat keeps it alive without moving since_ts
 s2 = liveness.stuck_seconds(A)
+assert s1 is not None
+assert s2 is not None
 assert s2 > s1 + 0.2, ("stuck timer must rise across a wedge", s1, s2)
 print(f"stuck-in-phase rises: {s1:.3f}s -> {s2:.3f}s across a refresh (wedge stays visible)  [PASS]")
 
 # ...and RESETS on a phase change (metric is not pinned -- it can fall)
 wl.set("idle")
 s3 = liveness.stuck_seconds(A)
+assert s3 is not None
 assert s3 < 0.1, ("stuck timer must reset on phase change", s3)
 print(f"stuck resets on phase change: {s2:.3f}s -> {s3:.3f}s  [PASS -- metric can fall]")
 

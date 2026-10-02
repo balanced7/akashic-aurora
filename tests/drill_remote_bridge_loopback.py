@@ -95,6 +95,7 @@ from scripts import remote_bridge_listener as L  # noqa: E402  # sys.path bootst
 
 
 def main() -> int:
+    assert __doc__ is not None
     print(__doc__.split("WHY A DRILL")[0].strip())
     print(f"\nisolated world: {_tmp}\nlistener: {URL}\n")
 

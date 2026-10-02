@@ -52,6 +52,8 @@ wl.set("thinking")
 time.sleep(0.15)
 hot = liveness.wedge_view(A, wedge_s=0.1)  # threshold BELOW time-in-phase -> wedged
 cold = liveness.wedge_view(A, wedge_s=1000)  # threshold ABOVE time-in-phase -> not wedged
+assert hot is not None
+assert cold is not None
 assert hot["wedged"] is True, (hot, cold)
 assert cold["wedged"] is False, (hot, cold)
 print(f"[PASS] thinking stuck={hot['stuck_seconds']}s -> wedged@0.1s=True, wedged@1000s=False (flag flips both ways)")

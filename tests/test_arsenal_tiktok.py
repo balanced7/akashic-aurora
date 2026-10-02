@@ -278,6 +278,7 @@ def test_silence_parsing_finds_the_first_and_last_sound():
     assert tiktok.parse_volume(SILENCE_LEAD_AND_TAIL) == (-39.0, -33.1)
     audio_end = tiktok.parse_last_time(SILENCE_LEAD_AND_TAIL)
     assert audio_end == pytest.approx(14.0)
+    assert audio_end is not None
     window = tiktok.sound_window(spans, audio_end)
     assert window == (3.201, 11.351)
     trim = tiktok.plan_trim(window, 14.0, lead=0.5, tail=2.0)
@@ -305,6 +306,7 @@ def test_short_clicks_at_either_end_are_not_the_first_or_last_sound():
     spans = tiktok.parse_silence(SILENCE_CLICKS)
     audio_end = tiktok.parse_last_time(SILENCE_CLICKS)
     assert audio_end == pytest.approx(34.2)
+    assert audio_end is not None
     window = tiktok.sound_window(spans, audio_end)
     assert window == (4.600062, 25.001)
     assert [(round(a, 2), round(n, 2)) for a, n in tiktok.edge_blips(spans, audio_end, window)] == [
@@ -680,6 +682,7 @@ def _note_times(path):
         capture_output=True,
     )
     first = re.search(r"pts_time:(\S+).*?rate:(\d+)", proc.stderr.decode("utf-8", "replace"))
+    assert first is not None
     start, rate = float(first.group(1)), int(first.group(2))
     samples = array.array("h", proc.stdout[: len(proc.stdout) // 2 * 2])
     loud = max(abs(v) for v in samples) * 0.1
@@ -765,6 +768,7 @@ def test_audio_that_starts_after_the_video_is_silence_until_its_first_sample(tmp
             capture_output=True,
         ).stderr.decode("utf-8", "replace"),
     )
+    assert first is not None
     assert abs(float(first.group(1)) - 0.3) < 0.02, first.group(1)  # the audio really starts late
     trim = tiktok.process(src, tiktok.Options(dry_run=True, out=str(tmp_path)), ffmpeg=FFMPEG)["trim"]
     assert abs(trim.first_sound - 1.0) < 0.05, trim
@@ -831,6 +835,7 @@ def test_stream_parsing_mp4_with_opus():
     assert info.duration == pytest.approx(3.5)
     assert info.container.startswith("mov,mp4")
     v, a = info.video, info.audio
+    assert v is not None
     assert (v.index, v.codec, v.width, v.height, v.fps, v.pix_fmt, v.bit_depth) == (
         0,
         "hevc",
@@ -840,6 +845,7 @@ def test_stream_parsing_mp4_with_opus():
         "yuv420p",
         8,
     )
+    assert a is not None
     assert (a.index, a.codec, a.sample_rate, a.channels) == (1, "opus", 48000, "stereo")
 
 
@@ -848,13 +854,16 @@ def test_stream_parsing_mkv_with_aac_and_ten_bit_video():
     assert info.duration == pytest.approx(3.02)
     assert info.container == "matroska,webm"
     v, a = info.video, info.audio
+    assert v is not None
     assert (v.codec, v.width, v.height, v.pix_fmt, v.bit_depth) == ("h264", 640, 360, "yuv420p10le", 10)
     assert tiktok.choose_fps(v.fps)[0] == "30000/1001"
+    assert a is not None
     assert (a.index, a.codec, a.sample_rate, a.channels) == (1, "aac", 44100, "mono")
 
 
 def test_stream_parsing_rotation_and_cover_art():
     info = tiktok.parse_media_info(PHONE_ROTATED)
+    assert info.video is not None
     assert info.video.index == 0
     assert info.video.display_size == (1080, 1920)
     assert info.audio is None
@@ -1136,6 +1145,7 @@ def test_end_to_end_makes_a_tiktok_ready_copy(tmp_path, capsys):
     _make_recording(src)
     before = (_sha(src), src.stat().st_size, src.stat().st_mtime_ns)
     source_info = tiktok.probe(FFMPEG, src)
+    assert source_info.audio is not None
     assert source_info.audio.codec == "opus"
     out_dir = tmp_path / "posts"  # no extension, not there yet: a new folder
 
@@ -1188,13 +1198,17 @@ def test_end_to_end_makes_a_tiktok_ready_copy(tmp_path, capsys):
         "2026-01-01 12-00-00 tiktok.mp4",
     ]
     info = tiktok.probe(FFMPEG, out)
+    assert info.video is not None
     assert (info.video.width, info.video.height) == (1080, 1920)
     assert info.video.codec == "h264"
     assert info.video.pix_fmt == "yuv420p"
+    assert info.audio is not None
     assert info.audio.codec == "aac"
     assert info.audio.sample_rate == 48000
     assert info.audio.channels == "stereo"
+    assert source_info.duration is not None
     expected = source_info.duration - (1.5 - 0.5)
+    assert info.duration is not None
     assert abs(info.duration - expected) <= 0.15, (info.duration, expected)
     jumps, audio_end = _audio_jumps(out)
     assert jumps == [], (jumps, audio_end, info.duration)
@@ -1603,8 +1617,11 @@ def test_end_to_end_window_copy_starts_on_the_frame_at_four_seconds(window_clip,
         == "  fades     in over the first 0.4 s (the copy starts inside sound); out over the last 0.3 s (it ends inside sound)"
     )
     info = tiktok.probe(FFMPEG, out)
+    assert info.video is not None
     assert (info.video.width, info.video.height) == (1080, 1920)
+    assert info.audio is not None
     assert info.audio.codec == "aac"
+    assert info.duration is not None
     assert abs(info.duration - 6.0) <= 0.15, info.duration
     assert _grey_mean(out, 0.0, 1080, 1920) > 160  # the first frame is the frame at 4 s
     jumps, audio_end = _audio_jumps(out)

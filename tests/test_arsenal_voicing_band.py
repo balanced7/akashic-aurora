@@ -15,6 +15,7 @@ import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -171,7 +172,8 @@ def items_for(card, variant, shift):
     return items
 
 
-def bridge(request, raw=False):
+def bridge(request, raw=False) -> Any:  # raw text, or the decoded JSON reply
+    assert NODE is not None
     proc = subprocess.run(
         [NODE, str(BRIDGE)], input=json.dumps(request), capture_output=True, text=True, encoding="utf-8", timeout=300
     )

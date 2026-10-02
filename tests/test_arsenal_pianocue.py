@@ -19,6 +19,7 @@ import time
 from itertools import permutations
 from pathlib import Path
 from types import SimpleNamespace
+from typing import Any, TypeVar, cast
 
 import pytest
 
@@ -35,6 +36,15 @@ from arsenal.pianocue import (  # noqa: E402  # sys.path bootstrap
     validate_cue,
 )
 from arsenal.serve import App, Server  # noqa: E402  # sys.path bootstrap
+
+_T = TypeVar("_T")
+
+
+def _some(value: _T | None) -> _T:
+    """Return the value a test expects to be there (a None here fails the test, never skips it)."""
+    assert value is not None
+    return value
+
 
 NODE = shutil.which("node")
 needs_node = pytest.mark.skipif(NODE is None, reason="the voicing bridge needs node")
@@ -559,6 +569,7 @@ def _voice(items, **kw):
 def test_the_suffix_reader_agrees_with_every_template():
     import subprocess
 
+    assert NODE is not None
     out = subprocess.run([NODE, str(pianocue.BRIDGE), "--check"], capture_output=True, text=True, timeout=60)
     reply = json.loads(out.stdout)
     assert reply["templates"] >= 30
@@ -670,6 +681,7 @@ def _match_cost(a, b):
         cost = sum(abs(x - longer[j]) for x, j in zip(s, idx, strict=False))
         cost += sum(min(abs(m - n) for m in s) for j, n in enumerate(longer) if j not in idx)
         best = cost if best is None else min(best, cost)
+    assert best is not None  # permutations(range(n), k <= n) always yields at least one match
     return best
 
 
@@ -831,7 +843,7 @@ def test_no_number_in_any_page_key_gets_a_name_the_page_would_not_show():
         f"{k} minor" for k in ["C", "C#", "D", "Eb", "E", "F", "F#", "G", "G#", "A", "Bb", "B"]
     ]
     items = [acc + str(d) + sfx for acc in ("", "b", "#") for d in range(1, 8) for sfx in ("", "m", "^7", "/5")]
-    root_of = lambda name: re.match(r"[A-G](#{1,2}|b{1,2})?", name or "").group(0) if name else None  # noqa: E731  # local one-line key function
+    root_of = lambda name: _some(re.match(r"[A-G](#{1,2}|b{1,2})?", name or "")).group(0) if name else None  # noqa: E731  # local one-line key function
     checked = 0
     for key in keys:
         for r in _voice(items, key=key):
@@ -878,6 +890,7 @@ def _root_pc(name):
     import re
 
     m = re.match(r"([A-G])(#{1,2}|b{1,2})?", name)
+    assert m is not None
     acc = 0 if not m.group(2) else (len(m.group(2)) if m.group(2)[0] == "#" else -len(m.group(2)))
     return ("C D EF G A B".index(m.group(1)) + acc) % 12
 
@@ -1037,6 +1050,7 @@ process.exit(0);
 @needs_node
 def test_cue_player_never_bursts_after_a_freeze_or_a_pagehide_and_a_replay_keeps_its_caption():
     script = PLAYER_SCRIPT % {"url": json.dumps((ROOT / "arsenal" / "web" / "piano" / "cues.js").as_uri())}
+    assert NODE is not None
     proc = subprocess.run(
         [NODE, "--input-type=module", "-"], input=script, capture_output=True, text=True, encoding="utf-8", timeout=60
     )
@@ -1254,6 +1268,7 @@ process.exit(0);
 @needs_node
 def test_cue_player_spaces_cues_that_arrive_together_and_only_drops_steps_something_overtook():
     script = TIMING_SCRIPT % {"url": json.dumps((ROOT / "arsenal" / "web" / "piano" / "cues.js").as_uri())}
+    assert NODE is not None
     proc = subprocess.run(
         [NODE, "--input-type=module", "-"], input=script, capture_output=True, text=True, encoding="utf-8", timeout=60
     )
@@ -1440,6 +1455,7 @@ process.exit(0);
 @needs_node
 def test_only_one_tab_sounds_claudes_voice_and_a_frozen_page_closes_its_stream():
     script = TABS_SCRIPT % {"url": json.dumps((ROOT / "arsenal" / "web" / "piano" / "cues.js").as_uri())}
+    assert NODE is not None
     proc = subprocess.run(
         [NODE, "--input-type=module", "-"], input=script, capture_output=True, text=True, encoding="utf-8", timeout=60
     )
@@ -1545,6 +1561,7 @@ def test_labels_in_a_key_match_the_pages_real_spellforkey(own_spelling, minor):
         "own": json.dumps("1" if own_spelling else "0"),
         "minor": json.dumps(minor),
     }
+    assert NODE is not None
     proc = subprocess.run(
         [NODE, "--input-type=module", "-"], input=script, capture_output=True, text=True, encoding="utf-8", timeout=300
     )
@@ -1576,7 +1593,8 @@ def test_typed_chords_notes_and_power_chords_are_labelled_as_the_page_shows_them
     assert any("not C7b9" in w for w in shell["C7b9"]["warnings"])
     assert any("not C9sus4" in w for w in shell["C9sus4"]["warnings"])
     assert not any("reads this" in w for w in shell["Cmaj7"]["warnings"]), shell["Cmaj7"]
-    assert "an octave lower" in pianocue.build_parser()._subparsers._group_actions[0].choices["play"].format_help()
+    play = cast("Any", pianocue.build_parser()._subparsers)._group_actions[0].choices["play"]  # argparse internals
+    assert "an octave lower" in play.format_help()
 
 
 # ------------------------------------------------------------------------------------------------- CLI
@@ -1720,7 +1738,7 @@ def test_split_progression_splits_chords_inside_a_bar_and_keeps_notes_grouped():
     assert sp("C5 G7 | F") == ["C5", "G7", "F"]
     # the help's own examples read as the chords they name
     ap = pianocue.build_parser()
-    pg = ap._subparsers._group_actions[0].choices["progression"]
+    pg = cast("Any", ap._subparsers)._group_actions[0].choices["progression"]  # argparse internals
     text = " ".join((ap.format_help() + pg.format_help()).split())
     examples = re.findall(r'"([^"]*\|[^"]*)"', text)
     assert {ex: len(sp(ex)) for ex in examples} == {
@@ -1948,7 +1966,7 @@ def test_no_server_and_an_old_server(capsys):
             self.end_headers()
             self.wfile.write(body)
 
-        def log_message(self, *args):
+        def log_message(self, *args: object, **kwargs: object):
             pass
 
     old = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Old)

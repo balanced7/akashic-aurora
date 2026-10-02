@@ -89,7 +89,12 @@ def d4_permanent_is_unexpressible():
         return False, "a 'permanent' parameter EXISTS -- the dangerous state is expressible"
     try:
         cg.acting_conduct_grant(
-            successor="deepseek", agent_id=TARGET, role="member", reason="drill", hours=None, caps=["read"]
+            successor="deepseek",
+            agent_id=TARGET,
+            role="member",
+            reason="drill",
+            hours=None,  # pyright: ignore[reportArgumentType]  # deliberate bad input: the drill proves hours=None is refused
+            caps=["read"],
         )
         return False, "hours=None was ACCEPTED -- lapse is not mandatory"
     except Exception as e:
@@ -139,7 +144,7 @@ def d8_cleanup_revokes_the_drill_grant():
             TARGET, by="claude", reason="LIVE SUCCESSION DRILL 2026-08-24 complete -- drill authority removed"
         )
     except TypeError:
-        grant_writer.revoke(TARGET, by="claude")
+        grant_writer.revoke(TARGET, by="claude")  # pyright: ignore[reportCallIssue]  # fallback for the pre-reason revoke() signature
     g = registry.resolve(TARGET)
     ok = g.role == "quarantined"
     return ok, f"post-revoke resolve({TARGET}) -> role={g.role} (must be quarantined)"

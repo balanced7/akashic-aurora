@@ -320,6 +320,7 @@ def test_reading_suffixes():
 def test_extended_readings_are_backed_by_every_note():
     answer, err = pr.run_theory([])
     assert err is None
+    assert answer is not None
     templates = answer["templates"]
     ab, bb, c, d, eb, f, g, a = 8, 10, 0, 2, 3, 5, 7, 9
     best = pr.extended_readings([ab, bb, c, d, eb, g], ab, templates)[0]
@@ -481,6 +482,7 @@ def test_session_start_prefers_the_page_clock_and_today_uses_it(tmp_path):
     fresh = _store(root, "20260101-090001-0000000b", [], now)
     store_ = pr.PerformanceStore(root)
     start = pr.session_start(store_.info(buffered))
+    assert start is not None
     assert abs((start - (now - timedelta(days=3))).total_seconds()) < 1
     assert pr.resolve_sessions(store_, "today") == [fresh]
     assert pr.resolve_sessions(store_, None) == [fresh]  # latest by open time

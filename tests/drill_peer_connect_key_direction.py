@@ -78,6 +78,7 @@ def local_pins(send_key, recv_key, world, tmp, monkey_inbound):
 
 
 def main() -> int:
+    assert __doc__ is not None
     print(__doc__.split("FOR ZADKIEL")[0].strip())
     print("\n" + "=" * 78)
     print("PART 1 — the local pins pass in BOTH worlds (so they cannot discriminate)")

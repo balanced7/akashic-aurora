@@ -40,6 +40,7 @@ for f in ("core/comm/launcher.py", "core/comm/runner_lock.py"):
 # --- clear_if_pid: frees only the matching pid, never a different holder ---
 A = "l3b_probe"
 c = runner_lock._client()
+assert c is not None
 c.set(runner_lock._key(A), json.dumps({"token": "t", "pid": 99999, "ts": "x"}), ex=20)
 assert runner_lock.clear_if_pid(A, 12345) is False, "must NOT clear a different pid"
 assert runner_lock.holder(A), "must NOT clear a different pid"
@@ -59,14 +60,14 @@ c.set(runner_lock._key(aid), json.dumps({"token": "t", "pid": 99999, "ts": "x"})
 calls = []
 
 
-def fake_kill(t):
-    calls.append(("kill", t))
+def fake_kill(tag):
+    calls.append(("kill", tag))
     L._procs[aid].status = "killed"
     return {"ok": True}
 
 
-def fake_launch(t, **k):
-    calls.append(("launch", t, runner_lock.holder(aid)))
+def fake_launch(tag, **k):
+    calls.append(("launch", tag, runner_lock.holder(aid)))
     return {"ok": True, "pid": 12345}
 
 
@@ -84,8 +85,8 @@ LM.RESTART_BACKOFF_BASE = 0.01
 LM.RESTART_MAX_ATTEMPTS = 3
 LM.RESTART_RESET_S = 300
 launches = []
-L.launch = lambda t, **k: (launches.append(t), {"ok": True})[1]
-L._free_lock_for_relaunch = lambda a, p: None
+L.launch = lambda tag, **k: (launches.append(tag), {"ok": True})[1]
+L._free_lock_for_relaunch = lambda aid, dead_pid: None
 for _ in range(5):
     L._restart(tag)
 assert len(launches) == 3, ("must launch up to the cap then stop", launches)

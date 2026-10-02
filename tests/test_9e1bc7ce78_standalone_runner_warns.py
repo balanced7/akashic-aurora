@@ -77,6 +77,7 @@ def test_p1_absent_daemon_key_yields_loud_text_naming_pump_and_flagged_relaunch(
     assert callable(fn), "P1: daemon_state.standalone_warning does not exist yet"
     text = fn("deepseek", c=FakeRedis(), ns="bifrost")
     assert text, "P1: no <ns>:daemon:<agent> key -> the runner must be told it is standalone"
+    assert isinstance(text, str)
     assert "discord" in text.lower(), "P1: the warning must NAME the outbound pump it is not hosting"
     assert "--agent deepseek --spawn-runner" in text, (
         "P1: the relaunch hint must carry the mode flag (flagless = alpha = refuses under this runner)"
@@ -98,6 +99,7 @@ def test_p1_kimi_hint_names_its_own_runner_script():
     assert callable(fn), "P1: daemon_state.standalone_warning does not exist yet"
     text = fn("kimi", c=FakeRedis(), ns="bifrost", runner_script="bifrost_runner_kimi.py")
     assert text, "P1: a kimi relaunch without --runner-script spawns the DEEPSEEK runner (daemon default)"
+    assert isinstance(text, str)
     assert "--runner-script bifrost_runner_kimi.py" in text, (
         "P1: a kimi relaunch without --runner-script spawns the DEEPSEEK runner (daemon default)"
     )

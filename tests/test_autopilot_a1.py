@@ -65,6 +65,7 @@ SID = "aaaabbbb-1111-2222-3333-444455556666"
 # --------------------------------------------------------------- P1
 def test_p1_daemon_is_live():
     _built()
+    assert ds is not None
     c = FakeRedis()
     assert ds.daemon_is_live(AGENT, c=c, ns="bifrost") is False
     c.set(f"bifrost:daemon:{AGENT}", "{}")
@@ -76,6 +77,7 @@ def test_p1_daemon_is_live():
 # --------------------------------------------------------------- P2
 def test_p2_fast_path_predicate_daemon_live(tmp_path):
     _built()
+    assert ds is not None
     c = FakeRedis()
     c.set(f"bifrost:daemon:{AGENT}", "{}")
     verdict = ds.stop_hook_wake_verdict(AGENT, SID, c=c, ns="bifrost", tmp=str(tmp_path))
@@ -97,6 +99,7 @@ def test_p2_fast_path_predicate_daemon_live(tmp_path):
 
 def test_p2_daemon_down_legacy_with_latched_nag(tmp_path):
     _built()
+    assert ds is not None
     c = FakeRedis()
     v1 = ds.stop_hook_wake_verdict(AGENT, SID, c=c, ns="bifrost", tmp=str(tmp_path))
     assert v1["pass"] is False, "P2: daemon down -> legacy path decides (not the fast path)"
@@ -108,6 +111,7 @@ def test_p2_daemon_down_legacy_with_latched_nag(tmp_path):
 # --------------------------------------------------------------- P3
 def test_p3_rearm_write_consume_clear(tmp_path):
     _built()
+    assert ds is not None
     tmp = str(tmp_path)
     ds.write_rearm_trigger(AGENT, SID, tmp=tmp)
     ds.write_rearm_trigger("otheragent", SID, tmp=tmp)  # foreign trigger stays
@@ -121,6 +125,7 @@ def test_p3_rearm_write_consume_clear(tmp_path):
 
 def test_p3_failed_spawn_keeps_trigger(tmp_path):
     _built()
+    assert ds is not None
     tmp = str(tmp_path)
     ds.write_rearm_trigger(AGENT, SID, tmp=tmp)
     ds.consume_rearms(AGENT, lambda sid: False, tmp=tmp)  # spawn refused
@@ -132,6 +137,7 @@ def test_p3_failed_spawn_keeps_trigger(tmp_path):
 # --------------------------------------------------------------- P4 (ruling R1)
 def test_p4_marker_sweep_seat_aware_and_age_gated(tmp_path):
     _built()
+    assert ds is not None
     tmp = str(tmp_path)
     old = time.time() - 25 * 3600
     # (a) stale marker, NO seat -> swept
@@ -156,6 +162,7 @@ def test_p4_marker_sweep_seat_aware_and_age_gated(tmp_path):
 # --------------------------------------------------------------- P5
 def test_p5_runtimes_card_field():
     _built()
+    assert ds is not None
 
     class Child:
         def __init__(self, alive, tripped=False):

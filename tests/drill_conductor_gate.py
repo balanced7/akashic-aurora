@@ -5,7 +5,7 @@ Run: py -m pytest tests/drill_conductor_gate.py -q
 """
 
 import inspect
-from typing import ClassVar
+from typing import Any, ClassVar, cast
 
 import pytest
 
@@ -94,7 +94,7 @@ def test_P6_admin_grant_refused_by_allowlist():
         path_scope: ClassVar[list] = ["*"]
 
     with pytest.raises(PermissionError, match=r"admin\.grant"):
-        grant_mandate_caps(FakeGrant(), requested_caps=["admin.grant"], requested_scope=["core/"])
+        grant_mandate_caps(cast("Any", FakeGrant()), requested_caps=["admin.grant"], requested_scope=["core/"])
 
 
 def test_P6_admin_approve_refused_by_allowlist():
@@ -103,7 +103,7 @@ def test_P6_admin_approve_refused_by_allowlist():
         path_scope: ClassVar[list] = ["*"]
 
     with pytest.raises(PermissionError, match=r"admin\.approve"):
-        grant_mandate_caps(FakeGrant(), requested_caps=["admin.approve"], requested_scope=["core/"])
+        grant_mandate_caps(cast("Any", FakeGrant()), requested_caps=["admin.approve"], requested_scope=["core/"])
 
 
 def test_P7_overbox_grant_refused_lapse_bounded():

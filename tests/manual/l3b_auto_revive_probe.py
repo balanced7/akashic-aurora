@@ -45,9 +45,11 @@ L._specs[tag] = AgentSpec(agent_id=aid, runtime="python_runner", description="t"
 L._reload = lambda: None  # keep the synthetic spec (registry() would otherwise reload real specs over it)
 L._procs[aid] = AgentProcess(agent_id=aid, pid=111, handle=None, status="running", started_at="")
 c = liveness._client()
+assert c is not None
 
 
 def set_worklive(phase, age):
+    assert c is not None
     c.set(
         liveness._worklive_prefix() + aid,
         json.dumps(
@@ -58,7 +60,7 @@ def set_worklive(phase, age):
 
 
 revives = []
-L.revive = lambda t, reason="manual": (revives.append((t, reason)), {"ok": True})[1]
+L.revive = lambda tag, reason="manual": (revives.append((tag, reason)), {"ok": True})[1]
 
 # arm/disarm plumbing + registry reflects it
 assert L.arm_revive(tag, True)["auto_revive"] is True

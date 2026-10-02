@@ -8,6 +8,7 @@ import socket
 import sys
 import threading
 from pathlib import Path
+from typing import TypeVar
 
 import pytest
 
@@ -16,6 +17,15 @@ sys.path.insert(0, str(ROOT))
 
 from arsenal import pianolooks  # noqa: E402  # sys.path bootstrap
 from arsenal.serve import App, Server  # noqa: E402  # sys.path bootstrap
+
+_T = TypeVar("_T")
+
+
+def _some(value: _T | None) -> _T:
+    """Return the value a test expects to be there (a None here fails the test, never skips it)."""
+    assert value is not None
+    return value
+
 
 LOOKS = "/api/piano/looks"
 
@@ -94,6 +104,7 @@ def test_round_trip_keeps_every_value_and_bumps_rev(looks):
         headers={"Host": f"localhost:{port}", "Origin": f"http://localhost:{port}"},
     )
     assert status == 200
+    assert reply is not None
     assert reply["rev"] == 2
     assert reply["presets"] == first[:1]
     status, reply = call(
@@ -113,6 +124,7 @@ def test_a_stale_rev_is_refused_with_409_and_the_current_list(looks):
     before = (folder / "presets.json").read_bytes()
     status, reply = call(port, "PUT", {"rev": 0, "presets": [preset("look-z", "Other window")]})
     assert status == 409
+    assert reply is not None
     assert reply["rev"] == 1
     assert reply["presets"] == [preset()]
     assert "changed" in reply["error"]
@@ -167,6 +179,7 @@ def test_a_put_that_is_not_application_json_is_refused(looks, kind):
     port, _, folder = looks
     status, reply = call(port, "PUT", {"rev": 0, "presets": [preset()]}, headers={"Content-Type": kind})
     assert status == 415
+    assert reply is not None
     assert "application/json" in reply["error"]
     assert not folder.exists()
 
@@ -206,6 +219,7 @@ def test_at_most_100_presets_with_unique_ids(looks):
     many = [preset(f"look-{i}", f"Look {i}") for i in range(pianolooks.MAX_PRESETS)]
     status, reply = call(port, "PUT", {"rev": 0, "presets": [*many, preset("look-x", "One too many")]})
     assert status == 400
+    assert reply is not None
     assert "at most 100" in reply["error"]
     assert call(port, "PUT", {"rev": 0, "presets": [preset(), preset()]})[0] == 400
     assert call(port, "PUT", {"rev": 0, "presets": many})[0] == 200
@@ -216,6 +230,7 @@ def test_bad_names_are_refused(looks, name):
     port, _, folder = looks
     status, reply = call(port, "PUT", {"rev": 0, "presets": [preset(name=name)]})
     assert status == 400
+    assert reply is not None
     assert "name" in reply["error"]
     assert not folder.exists()
 
@@ -226,6 +241,7 @@ def test_names_of_one_to_sixty_characters_are_kept_as_given(looks):
     presets = [preset(f"look-{i}", name) for i, name in enumerate(names)]
     status, reply = call(port, "PUT", {"rev": 0, "presets": presets})
     assert status == 200
+    assert reply is not None
     assert [p["name"] for p in reply["presets"]] == names
 
 
@@ -274,6 +290,7 @@ def test_malformed_bodies_are_refused_with_400(looks, raw):
     port, _, folder = looks
     status, reply = call(port, "PUT", raw)
     assert status == 400, reply
+    assert reply is not None
     assert reply["error"], reply
     assert not folder.exists()
 
@@ -290,6 +307,7 @@ def test_a_failed_write_leaves_the_previous_file_and_no_temp_file(looks, monkeyp
     monkeypatch.setattr(pianolooks.json, "dump", half_written)
     status, reply = call(port, "PUT", {"rev": 1, "presets": [preset("look-b", "Never lands")]})
     assert status == 500
+    assert reply is not None
     assert "No space left" in reply["error"]
     monkeypatch.undo()
     assert (folder / "presets.json").read_bytes() == before
@@ -312,6 +330,7 @@ def test_an_unreadable_file_is_reported_and_never_overwritten(looks):
     (folder / "presets.json").write_text('{"rev": 3, "presets": [', encoding="utf-8")
     status, reply = call(port, "GET")
     assert status == 500
+    assert reply is not None
     assert "left as it is" in reply["error"]
     assert call(port, "PUT", {"rev": 3, "presets": []})[0] == 500
     assert (folder / "presets.json").read_text(encoding="utf-8") == '{"rev": 3, "presets": ['
@@ -332,7 +351,7 @@ def test_concurrent_saves_on_one_rev_let_exactly_one_through(looks):
     for t in threads:
         t.join()
     assert sorted(results) == [200] + [409] * 7
-    assert call(port, "GET")[1]["rev"] == 1
+    assert _some(call(port, "GET")[1])["rev"] == 1
 
 
 def test_other_methods_and_paths_stay_unrouted(looks):
@@ -388,7 +407,7 @@ def test_a_request_hidden_in_an_unread_body_is_never_parsed(looks):
         assert not kept_open, (method, path, data)
         assert b"Connection: close" in data, (method, path, data)
     assert not folder.exists()
-    assert call(port, "GET")[1]["presets"] == []
+    assert _some(call(port, "GET")[1])["presets"] == []
     # a body the route reads in full leaves the keep-alive connection usable
     conn = http.client.HTTPConnection("127.0.0.1", port, timeout=10)
     conn.request(

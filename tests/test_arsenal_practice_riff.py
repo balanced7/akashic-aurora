@@ -25,6 +25,7 @@ import sys
 import time
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import TypeVar
 
 import pytest
 
@@ -40,6 +41,15 @@ from arsenal.jam import (  # noqa: E402  # sys.path bootstrap
 )
 from arsenal.jam import tempomap as tm  # noqa: E402  # sys.path bootstrap
 from arsenal.performance import PerformanceStore  # noqa: E402  # sys.path bootstrap
+
+_T = TypeVar("_T")
+
+
+def _some(value: _T | None) -> _T:
+    """Return the value a test expects to be there (a None here fails the test, never skips it)."""
+    assert value is not None
+    return value
+
 
 FIX = ROOT / "tests" / "fixtures" / "jam"
 J0_RUN = FIX / "run_loop_l1"
@@ -206,6 +216,7 @@ def bridge_notes(run, lines):
     """Every note Claude strikes in the run, from arsenal/groove_bridge.mjs (its run form, flat)."""
     defs = {str(x["version"]): x["def"] for x in lines if isinstance(x.get("def"), dict)}
     request = {"run": run, "defs": defs, "from_bar": 0, "to_bar": run["stop_bar"], "flat": True}
+    assert NODE is not None
     proc = subprocess.run(
         [NODE, str(BRIDGE)], input=json.dumps(request), capture_output=True, text=True, encoding="utf-8", timeout=120
     )
@@ -246,11 +257,13 @@ NAME_RE = re.compile(r"^([A-G][#b]?)(.*?)(?:/([A-G][#b]?))?$")
 
 def shift_key(key: str, s: int) -> str:
     k = nashville.parse_key(key)
+    assert k is not None
     return nashville.key_name_of((k["tonic"] + s) % 12, k["mode"])
 
 
 def shift_name(name: str, s: int, key: str) -> str:
     m = NAME_RE.match(name)
+    assert m is not None
     bass = "/" + pr.pc_name((PC[m.group(3)] + s) % 12, key) if m.group(3) else ""
     return pr.pc_name((PC[m.group(1)] + s) % 12, key) + m.group(2) + bass
 
@@ -601,7 +614,7 @@ def fixture_doc(name: str, rebuild=None) -> dict:
     return json.loads(_fixture_doc_json(name, rebuild))
 
 
-def case_doc(case: dict, rebuild="def", **kw) -> dict:
+def case_doc(case: dict, rebuild: str | None = "def", **kw) -> dict:
     return riff.riff(kw.pop("run", RUN_ID), root=case["root"], jam_root=case["jam"], rebuild=rebuild, **kw)
 
 
@@ -1207,7 +1220,7 @@ def test_landing_and_check_notes_are_spelled_from_the_chord():
     tl = SimpleNamespace(defs={1: d}, facts=lambda version, i: f)
     block = {"_insts": [{"i": 0, "slot": 0, "def_version": 1}], "_recs": [], "_landings": {}}
     assert pr.pc_name(11, "Eb major") == "B"  # the key's table, which the riff no longer uses for these
-    assert riff.card_landing(tl, block, 1)["note"] == "Cb"
+    assert _some(riff.card_landing(tl, block, 1))["note"] == "Cb"
     card = {"checks": [{"id": "borrowed", "slot": 0, "role": "b3", "want": "present", "say": "you played Cb"}]}
     assert riff.card_checks(tl, block, card, None, 1)[0]["note"] == "Cb"
     # Daniel's keys (round-2 landing_check rows): double flats and a slash bass keep the chord's letters

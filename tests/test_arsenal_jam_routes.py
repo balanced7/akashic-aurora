@@ -13,6 +13,7 @@ import threading
 from fractions import Fraction
 from pathlib import Path
 from types import SimpleNamespace
+from typing import Any, cast
 
 import pytest
 
@@ -79,7 +80,7 @@ def jam(tmp_path):
         root=tmp_path / "jam",
         performance=app.performance,
         hub=lambda: app.cues,
-        resolver=FixtureResolver(),
+        resolver=cast("Any", FixtureResolver()),  # duck-typed stand-in for jam.Resolver
         now_ms=epoch,
     )
     srv = Server(0, app)
@@ -800,7 +801,7 @@ def test_jam_posts_check_the_origin_and_the_body_and_stay_on_without_the_log(jam
     assert call(jam, "POST", "/api/piano/jam/owner", b"[1, 2]")[0] == 400
     assert get(jam, "/api/piano/jammed")[0] == 404
     quiet = App([str(tmp_path / "lib2")], takes_root=tmp_path / "t2", performance_log=False, jam_root=tmp_path / "j2")
-    quiet.jam.resolver = FixtureResolver()
+    quiet.jam.resolver = cast("Any", FixtureResolver())  # duck-typed stand-in for jam.Resolver
     quiet.jam.deck.reader = quiet.jam.resolver.page_reads
     status, _reply = quiet.jam.handle("POST", "/api/piano/deck/cards", {}, {"card": load("card_lydian_four.json")})
     assert status == 200

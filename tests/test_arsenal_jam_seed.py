@@ -25,6 +25,7 @@ import subprocess
 import sys
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from typing import TypeVar
 
 import pytest
 
@@ -47,6 +48,15 @@ from arsenal.jam.schemas import (  # noqa: E402  # sys.path bootstrap
     validate_seed_moments,
     wording_problems,
 )
+
+_T = TypeVar("_T")
+
+
+def _some(value: _T | None) -> _T:
+    """Return the value a test expects to be there (a None here fails the test, never skips it)."""
+    assert value is not None
+    return value
+
 
 SEED = ROOT / "arsenal" / "jam" / "seed" / "deck-v1.json"
 SPEC = ROOT / "research" / "in-flight" / "piano-jam-2026-09-14" / "jam-spec.md"
@@ -148,20 +158,20 @@ def name_pc(name: str) -> int:
 def midi(names: str) -> list:
     out = []
     for token in names.split():
-        letter, acc, octave = NOTE_RE.match(token).groups()
+        letter, acc, octave = _some(NOTE_RE.match(token)).groups()
         out.append(12 * (int(octave) + 1) + LETTER_PC[letter] + _acc(acc))
     return out
 
 
 def tonic_pc(key: str) -> int:
-    letter, acc, _mode = KEY_RE.match(key).groups()
+    letter, acc, _mode = _some(KEY_RE.match(key)).groups()
     return name_pc(letter + (acc or ""))
 
 
 def degree_key(key: str, item: str) -> str:
     """A key item or variant key ("6 major"), a degree of the card key, spelled from the degree (6 of Gb is Eb)."""
-    letter, _key_acc, _mode = KEY_RE.match(key).groups()
-    sign, degree, mode = DEGREE_RE.match(item).groups()
+    letter, _key_acc, _mode = _some(KEY_RE.match(key)).groups()
+    sign, degree, mode = _some(DEGREE_RE.match(item)).groups()
     degree = int(degree)
     new_letter = LETTERS[(LETTERS.index(letter) + degree - 1) % 7]
     pc = (tonic_pc(key) + MAJOR_STEPS[degree - 1] + _acc(sign)) % 12
@@ -171,7 +181,7 @@ def degree_key(key: str, item: str) -> str:
 
 def plain_key(key: str) -> str:
     """The same key respelled by pitch class when its tonic takes a double accidental or is Cb, Fb, E# or B#."""
-    letter, acc, mode = KEY_RE.match(key).groups()
+    letter, acc, mode = _some(KEY_RE.match(key)).groups()
     if (acc and len(acc) == 2) or letter + (acc or "") in ("Cb", "Fb", "E#", "B#"):
         return f"{(MAJOR_TONICS if mode == 'major' else MINOR_TONICS)[tonic_pc(key)]} {mode}"
     return key
@@ -179,7 +189,7 @@ def plain_key(key: str) -> str:
 
 def number_pcs(n: str, key: str):
     """(root pc, bass pc) of a Nashville number in a key: tonic numbering with major-scale accidentals (DATA 2.6)."""
-    acc, degree, _suffix, bass_acc, bass_degree = NUMBER_RE.match(n).groups()
+    acc, degree, _suffix, bass_acc, bass_degree = _some(NUMBER_RE.match(n)).groups()
     root = (tonic_pc(key) + MAJOR_STEPS[int(degree) - 1] + _acc(acc)) % 12
     bass = root if bass_degree is None else (tonic_pc(key) + MAJOR_STEPS[int(bass_degree) - 1] + _acc(bass_acc)) % 12
     return root, bass
@@ -301,6 +311,7 @@ def spec_cards() -> dict:
                     "key": vkey.group(1) if vkey else None,
                 }
         tail = re.search(r"\*\*Tags:\*\* (.+?)\. \*\*Related:\*\* (.+?)\. \*\*Moments:\*\* (\d+)\.", body)
+        assert tail is not None
         cards[head.group(2)] = {
             "title": head.group(1),
             "body": body,
@@ -684,6 +695,7 @@ def notes_text(notes) -> str:
 
 def bridge(key: str, style: str, items) -> dict:
     request = json.dumps({"items": list(items), "key": key, "voicing": style, "voice_lead": False})
+    assert NODE is not None
     res = subprocess.run(
         [NODE, str(BRIDGE)], input=request, capture_output=True, text=True, encoding="utf-8", cwd=str(ROOT), timeout=120
     )
@@ -778,7 +790,7 @@ def test_every_number_resolves_in_all_twelve_keys():
     groups, plan = {}, []
     for cid in IDS:
         card = CARDS[cid]
-        _letter, _acc_text, mode = KEY_RE.match(card["key"]).groups()
+        _letter, _acc_text, mode = _some(KEY_RE.match(card["key"])).groups()
         for tonic in MAJOR_TONICS if mode == "major" else MINOR_TONICS:
             key = f"{tonic} {mode}"
             for vid, _line in lines(card):

@@ -18,6 +18,7 @@ import sys
 import types
 from collections import Counter
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -30,6 +31,8 @@ FL_PRESETS = Path(r"C:\Program Files\Image-Line\FL Studio 2026\Data\Patches\Plug
 
 def _load(name, path):
     spec = importlib.util.spec_from_file_location(name, path)
+    assert spec is not None
+    assert spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
@@ -93,7 +96,7 @@ def groove_b(pid="groove-b"):
 
 
 def patterns_module(*sets, live_path=None, drum_maps=None, version=1):
-    m = types.ModuleType("arsenal_patterns")
+    m: Any = types.ModuleType("arsenal_patterns")
     m.VERSION = version
     m.PATTERNS = list(sets)
     m.LIVE_PATH = live_path

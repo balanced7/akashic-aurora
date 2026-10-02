@@ -36,7 +36,7 @@ def _chunk(text):
 
 
 class H(BaseHTTPRequestHandler):
-    def log_message(self, *a):
+    def log_message(self, *a: object, **k: object):
         pass
 
     def do_POST(self):

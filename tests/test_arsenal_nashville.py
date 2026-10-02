@@ -7,6 +7,7 @@ import json
 import re
 import sys
 from pathlib import Path
+from typing import TypeVar
 
 import pytest
 
@@ -14,6 +15,15 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from arsenal import nashville as nv  # noqa: E402  # sys.path bootstrap
+
+_T = TypeVar("_T")
+
+
+def _some(value: _T | None) -> _T:
+    """Return the value a test expects to be there (a None here fails the test, never skips it)."""
+    assert value is not None
+    return value
+
 
 FIXTURE = json.loads((ROOT / "tests" / "fixtures" / "nashville_cases.json").read_text(encoding="utf-8"))
 CASES = FIXTURE["cases"]
@@ -80,12 +90,15 @@ def test_result_shape():
         "diatonic": False,
         "kind": "interval",
     }
-    assert nv.nashville_from_name("Eb4", "C major")["kind"] == "note"
+    assert _some(nv.nashville_from_name("Eb4", "C major"))["kind"] == "note"
 
 
 def test_key_dict_and_unreadable_inputs():
-    assert nv.nashville_from_name("C7", {"tonic": 5, "mode": "major", "name": "F major", "bias": -1})["text"] == "5^7"
-    assert nv.nashville_from_name("C7", {"tonic": 5, "mode": "major"})["text"] == "5^7"
+    assert (
+        _some(nv.nashville_from_name("C7", {"tonic": 5, "mode": "major", "name": "F major", "bias": -1}))["text"]
+        == "5^7"
+    )
+    assert _some(nv.nashville_from_name("C7", {"tonic": 5, "mode": "major"}))["text"] == "5^7"
     assert nv.nashville_from_name("C", "H major") is None
     assert nv.nashville_from_name("C", "C lydian") is None
     assert nv.nashville_from_name("", "C major") is None
@@ -95,16 +108,20 @@ def test_key_dict_and_unreadable_inputs():
 def test_parse_key():
     assert nv.parse_key("C# minor") == {"tonic": 1, "mode": "minor", "name": "C# minor", "bias": 1}
     assert nv.parse_key("Eb minor") == {"tonic": 3, "mode": "minor", "name": "Eb minor", "bias": -1}  # as estimateKey
-    assert [nv.parse_key(k)["bias"] for k in ("D# minor", "Gb major", "F# major")] == [1, -1, 1]  # spelled names decide
+    assert [_some(nv.parse_key(k))["bias"] for k in ("D# minor", "Gb major", "F# major")] == [
+        1,
+        -1,
+        1,
+    ]  # spelled names decide
     assert nv.parse_key("db MAJOR") == {"tonic": 1, "mode": "major", "name": "Db major", "bias": -1}
-    assert nv.parse_key("Bbm")["mode"] == "minor"
-    assert nv.parse_key("A")["name"] == "A major"
-    assert nv.parse_key("A minor")["bias"] == 0
-    assert nv.parse_key("C major")["bias"] == 0
+    assert _some(nv.parse_key("Bbm"))["mode"] == "minor"
+    assert _some(nv.parse_key("A"))["name"] == "A major"
+    assert _some(nv.parse_key("A minor"))["bias"] == 0
+    assert _some(nv.parse_key("C major"))["bias"] == 0
     sharp = {"G", "D", "A", "E", "B", "F#"}
     for tonic in range(12):
         name = nv.MAJOR_KEY_NAMES[tonic]
-        assert nv.parse_key(name + " major")["bias"] == (0 if name == "C" else 1 if name in sharp else -1)
+        assert _some(nv.parse_key(name + " major"))["bias"] == (0 if name == "C" else 1 if name in sharp else -1)
 
 
 def test_spell_in_key_twins_the_js():
@@ -125,11 +142,11 @@ def test_parse_chord():
     assert nv.parse_chord("C6/9/E") == {"kind": "chord", "root": (0, 0), "suffix": "6/9", "bass": (2, 0), "upper": None}
     assert nv.parse_chord("Bbm7b5") == {"kind": "chord", "root": (6, -1), "suffix": "m7b5", "bass": None, "upper": None}
     assert nv.parse_chord("C D E") is None
-    assert nv.parse_chord("G5")["kind"] == "chord"  # a power chord, as on a lead sheet ...
-    assert nv.parse_chord("G5", kind="note")["kind"] == "note"  # ... or the note G5 when the caller knows
-    assert nv.parse_chord("E4")["kind"] == "note"
-    assert nv.parse_chord("Bb-Db")["upper"] == (1, -1)
-    assert nv.parse_chord("C♯m")["root"] == (0, 1)
+    assert _some(nv.parse_chord("G5"))["kind"] == "chord"  # a power chord, as on a lead sheet ...
+    assert _some(nv.parse_chord("G5", kind="note"))["kind"] == "note"  # ... or the note G5 when the caller knows
+    assert _some(nv.parse_chord("E4"))["kind"] == "note"
+    assert _some(nv.parse_chord("Bb-Db"))["upper"] == (1, -1)
+    assert _some(nv.parse_chord("C♯m"))["root"] == (0, 1)
 
 
 def test_every_template_suffix_has_a_family():
@@ -141,7 +158,7 @@ def test_every_template_suffix_has_a_family():
     for suffix in suffixes:  # on the tonic of a major key only minor, diminished and augmented families are flagged
         minorish = suffix.startswith("m") and not suffix.startswith("maj")
         flagged = minorish or suffix in ("dim", "dim7", "aug", "7#5", "maj7#5")
-        assert nv.nashville_from_name("C" + suffix, "C major")["diatonic"] is (not flagged), suffix
+        assert _some(nv.nashville_from_name("C" + suffix, "C major"))["diatonic"] is (not flagged), suffix
 
 
 def test_tone_steps_are_the_templates_letter_steps():
@@ -160,17 +177,17 @@ def test_a_slash_chords_bass_is_read_from_its_chord_not_its_letters():
     """piano.js spellForKey writes a bass that would need a double accidental as its plain twin: D#/G for D#/F## in
     C# minor. G is the chord's 3rd, so it reads #4 (as F##), not b5 (verifier, 2026-09-14)."""
     assert (
-        nv.nashville_from_name("D#/G", "C# minor")["text"]
-        == nv.nashville_from_name("D#/F##", "C# minor")["text"]
+        _some(nv.nashville_from_name("D#/G", "C# minor"))["text"]
+        == _some(nv.nashville_from_name("D#/F##", "C# minor"))["text"]
         == "2/#4"
     )
     assert (
-        nv.nashville_from_name("Gbm/A", "Db major")["text"]
-        == nv.nashville_from_name("Gbm/Bbb", "Db major")["text"]
+        _some(nv.nashville_from_name("Gbm/A", "Db major"))["text"]
+        == _some(nv.nashville_from_name("Gbm/Bbb", "Db major"))["text"]
         == "4m/b6"
     )
     assert (
-        nv.nashville_from_name("C/D", "C major")["text"] == "1/2"
+        _some(nv.nashville_from_name("C/D", "C major"))["text"] == "1/2"
     )  # no chord tone: spelled as detect spells a foreign bass
 
 
@@ -179,8 +196,8 @@ def test_minor_numberings_flag_the_same_chords():
     assert len(minor_cases) > 40
     for c in minor_cases:
         kind = c["opts"].get("kind")
-        tonic = nv.nashville_from_name(c["chord"], c["key"], minor="tonic", kind=kind)
-        relative = nv.nashville_from_name(c["chord"], c["key"], minor="relative", kind=kind)
+        tonic = _some(nv.nashville_from_name(c["chord"], c["key"], minor="tonic", kind=kind))
+        relative = _some(nv.nashville_from_name(c["chord"], c["key"], minor="relative", kind=kind))
         assert tonic["diatonic"] == relative["diatonic"], c
 
 
@@ -190,14 +207,14 @@ def test_relative_numbering_is_the_relative_major_key():
     compared = 0
     for tonic in range(12):
         minor = nv.key_name_of(tonic, "minor")
-        ctx = nv._key_context(minor)
+        ctx = _some(nv._key_context(minor))
         rel_major = nv._name(nv._relative_major(ctx)) + " major"  # spelled: Eb minor -> Gb major, not F# major
         leading_tone = (ctx["tonic"] + 11) % 12
         for chord in ("C", "Dm", "E7", "F#dim", "Bbmaj7/D", "Ab", "G#m", "Db7"):
-            parsed = nv.parse_chord(chord)
+            parsed = _some(nv.parse_chord(chord))
             if leading_tone in {nv._pc(parsed["root"])} | ({nv._pc(parsed["bass"])} if parsed["bass"] else set()):
                 continue
-            got = nv.nashville_from_name(chord, minor, minor="relative")["text"]
-            assert got == nv.nashville_from_name(chord, rel_major)["text"], (chord, minor, rel_major)
+            got = _some(nv.nashville_from_name(chord, minor, minor="relative"))["text"]
+            assert got == _some(nv.nashville_from_name(chord, rel_major))["text"], (chord, minor, rel_major)
             compared += 1
     assert compared > 70

@@ -19,13 +19,15 @@ _ARSENAL_DIR = Path(__file__).resolve().parent.parent / "arsenal"
 
 def _load_analysis():
     try:
-        from arsenal import analysis  # type: ignore[import-not-found]
+        from arsenal import analysis
 
         return analysis
     except ImportError:
         spec = importlib.util.spec_from_file_location("arsenal_analysis_standalone", _ARSENAL_DIR / "analysis.py")
+        assert spec is not None
+        assert spec.loader is not None
         module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)  # type: ignore[union-attr]
+        spec.loader.exec_module(module)
         return module
 
 

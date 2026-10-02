@@ -701,6 +701,7 @@ def test_fill_rewrites_the_back_half_of_the_last_bar():
 
 
 def test_humanize_is_seeded_per_seed_bar_and_lane():
+    assert band.__doc__ is not None
     assert "HUMANIZE INVARIANT" in band.__doc__
     assert '"<id>/<bar>/<lane>"' in band.__doc__
 
@@ -959,7 +960,10 @@ def test_a_shell_comp_is_two_guide_tones_below_e4():
     for n in lane(ps, "comp"):
         groups.setdefault(n["beat"], []).append(n["note"])
     for beat, notes in groups.items():
-        chord = band.parse_chord_token(band._chord_at(ps["chords"], beat)["name"], None)
+        chord_at = band._chord_at(ps["chords"], beat)
+        assert chord_at is not None
+        chord = band.parse_chord_token(chord_at["name"], None)
+        assert chord is not None
         guide = {(chord["root"] + chord["tones"][r]) % 12 for r in ("3", "4", "7") if r in chord["tones"]}
         assert len(notes) == 2, beat
         assert all(48 <= p <= 64 for p in notes), beat
@@ -1175,6 +1179,10 @@ def test_the_vfx_band_script_accepts_the_generated_module(tmp_path):
     import importlib.util
 
     spec = importlib.util.spec_from_file_location("arsenal_band_vfx_under_test", script)
+
+    assert spec is not None
+
+    assert spec.loader is not None
     vfx_band = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(vfx_band)  # flvfx is absent outside FL: no load_module
     store = band.PatternStore(str(tmp_path))

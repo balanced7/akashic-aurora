@@ -9,6 +9,7 @@ import random
 import sys
 import tempfile
 import time
+from typing import Any, cast
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -35,7 +36,16 @@ def _run_cli(args, store=None):
     from agent_cli import cmd_story
 
     class FakeArgs:
-        pass
+        chronicle: bool
+        session_end: bool
+        mark: str | None
+        track: str | None
+        theme: str | None
+        themes: bool
+        at: str | None
+        chapter: str | None
+        beat: str | None
+        json: bool
 
     fa = FakeArgs()
     fa.chronicle = "--chronicle" in args
@@ -130,8 +140,10 @@ def stress_large_beat_count():
 
     # Chapter view (first chapter from first track)
     raw_at = s.get("narr:atlas:current")
+    assert raw_at is not None
     at = Atlas.from_dict(json.loads(raw_at))
     raw_t = s.get(track_key(at.tracks[0]))
+    assert raw_t is not None
     tr = Track.from_dict(json.loads(raw_t))
     cid = tr.chapters[0]
     out, rc = _run_cli([f"--chapter={cid}"], store=s)
@@ -140,6 +152,7 @@ def stress_large_beat_count():
 
     # Beat view
     raw_ch = s.get(chapter_key(cid))
+    assert raw_ch is not None
     ch = Chapter.from_dict(json.loads(raw_ch))
     out, rc = _run_cli([f"--beat={ch.beats[0]}"], store=s)
     assert rc == 0
@@ -193,8 +206,10 @@ def stress_corrupt_chapter_json():
 
     # Corrupt one chapter
     raw_at = s.get("narr:atlas:current")
+    assert raw_at is not None
     at = Atlas.from_dict(json.loads(raw_at))
     raw_t = s.get(track_key(at.tracks[0]))
+    assert raw_t is not None
     tr = Track.from_dict(json.loads(raw_t))
     cid = tr.chapters[0]
     s.set(chapter_key(cid), "not valid json{{{")
@@ -233,6 +248,7 @@ def stress_empty_track():
 
     # Manually add an empty track to the atlas
     raw_at = s.get("narr:atlas:current")
+    assert raw_at is not None
     at = Atlas.from_dict(json.loads(raw_at))
     at.tracks.append("empty_track")
     s.set("narr:atlas:current", json.dumps(at.to_dict()))
@@ -311,7 +327,7 @@ def stress_at_partial_match():
     cdir = tempfile.mkdtemp()
     bl.emit("note", "morning", "src:1", at="2026-06-27T10:00:00", weight=1)
     bl.emit("note", "afternoon", "src:2", at="2026-06-28T14:00:00", weight=1)
-    c = Chronicler(beat_log=bl, store=s, chronicle_dir=cdir, boundary_detector=_MockBD())
+    c = Chronicler(beat_log=bl, store=s, chronicle_dir=cdir, boundary_detector=cast("Any", _MockBD()))
     c.chronicle_all(now="2026-06-28T15:00:00")
 
     # At the exact second of the first beat

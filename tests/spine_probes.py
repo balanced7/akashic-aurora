@@ -121,7 +121,7 @@ keys1 = [k for k in st._data.get("kv", st._data) if "narr:chapter:" in k] if isi
 # FileStore stores under _data; find chapter keys
 def chapter_keys(s):
     d = s._data
-    flat = d.get("kv") if isinstance(d, dict) and "kv" in d else d
+    flat = d["kv"] if isinstance(d, dict) and "kv" in d else d
     return [k for k in flat if isinstance(k, str) and k.startswith("narr:chapter:")]
 
 
@@ -199,7 +199,7 @@ el = EventLog(FileLedger(base_dir=tempfile.mkdtemp(prefix="ev2_")))
 for i in range(50):
     el.capture("command", f"build failed error {i}", at=f"2026-01-01T00:{i:02d}:00")
 # a couple of garbage ones
-el.capture("note", None, at="2026-01-01T01:00:00")
+el.capture("note", None, at="2026-01-01T01:00:00")  # pyright: ignore[reportArgumentType]  # deliberate garbage input
 el.capture("", "", at="2026-01-01T01:01:00")
 st = store()
 rep = promote_salient(st, EventQuery(event_log=el), threshold=3, max_promote=10, scan=500)

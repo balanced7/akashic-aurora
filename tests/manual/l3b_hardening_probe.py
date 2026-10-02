@@ -34,6 +34,7 @@ ast.parse(_pl.Path(os.path.join(ROOT, "core/comm/launcher.py")).read_text(encodi
 print("parse OK: launcher.py")
 
 r = _bus_redis()
+assert r is not None
 for k in ("deepseek", "l3bh_probe"):
     r.srem(AUTO_REVIVE_KEY, k)
 
@@ -67,7 +68,7 @@ L._set_armed(aid, True)
 L._auto_attempts.pop(aid, None)
 L._auto_last.pop(aid, None)
 revives = []
-L.revive = lambda t, reason="manual": (revives.append(t), {"ok": True})[1]
+L.revive = lambda tag, reason="manual": (revives.append(tag), {"ok": True})[1]
 for _ in range(4):
     L._reviving.discard(aid)
     L._auto_revive_run(tag, aid, {"phase": "thinking", "stuck_seconds": 400})

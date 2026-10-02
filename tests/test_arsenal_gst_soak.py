@@ -17,13 +17,15 @@ _LANE_FILE = Path(__file__).resolve().parent.parent / "arsenal" / "lanes" / "gst
 
 def _load_lane():
     try:
-        from arsenal.lanes import gst_d3d12_soak  # type: ignore[import-not-found]
+        from arsenal.lanes import gst_d3d12_soak
 
         return gst_d3d12_soak
     except ImportError:
         spec = importlib.util.spec_from_file_location("arsenal_gst_d3d12_soak", _LANE_FILE)
+        assert spec is not None
+        assert spec.loader is not None
         module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)  # type: ignore[union-attr]
+        spec.loader.exec_module(module)
         return module
 
 
@@ -85,6 +87,7 @@ def test_fps_message_current_average_format():
 
 def test_fps_message_drop_interval_format():
     record = soak.parse_fps_message(FPS_DROP_LINE)
+    assert record is not None
     assert (record["rendered"], record["dropped"]) == (4, 4)
     assert record["current_fps"] == 2.25
     assert record["drop_rate"] == 2.25
@@ -96,9 +99,13 @@ def test_fps_message_smoke_run_line_and_comma_decimal_locale():
         "/GstPipeline:pipeline0/GstFPSDisplaySink:fpsdisplaysink0: last-message = "
         "rendered: 786, dropped: 0, current: 1569.64, average: 1569.64"
     )
-    assert soak.parse_fps_message(line)["current_fps"] == pytest.approx(1569.64)
+    record = soak.parse_fps_message(line)
+    assert record is not None
+    assert record["current_fps"] == pytest.approx(1569.64)
     comma = line.replace("1569.64", "1569,64")  # constructed: comma decimal separator
-    assert soak.parse_fps_message(comma)["average_fps"] == pytest.approx(1569.64)
+    comma_record = soak.parse_fps_message(comma)
+    assert comma_record is not None
+    assert comma_record["average_fps"] == pytest.approx(1569.64)
 
 
 @pytest.mark.parametrize(
@@ -118,8 +125,15 @@ def test_fps_message_ignores_other_lines(line):
 # --- caps extraction ---------------------------------------------------------------------------
 
 
+def _caps_event(line: str) -> dict:
+    event = soak.parse_caps_line(line)
+    assert event is not None, line
+    return event
+
+
 def test_caps_line_decoder_src():
     event = soak.parse_caps_line(DEC_SRC_LINE)
+    assert event is not None
     assert event["element_name"] == "dec"
     assert event["pad_name"] == "src"
     assert event["ghost"] is False
@@ -128,6 +142,7 @@ def test_caps_line_decoder_src():
 
 def test_caps_line_ghost_proxy_chain():
     event = soak.parse_caps_line(SINK_CHAIN_LINES[0])
+    assert event is not None
     assert event["element_path"] == "/GstPipeline:pipeline0/GstFPSDisplaySink:fps"
     assert event["pad_name"] == "proxypad1"
     assert event["ghost"] is True
@@ -140,7 +155,7 @@ def test_caps_line_ignores_other_lines(line):
 
 def test_decoder_and_innermost_sink_caps_from_captured_run():
     lines = [PARSE_SRC_LINE, DEC_SRC_LINE, CAPSFILTER_LINE, *SINK_CHAIN_LINES]
-    events = [soak.parse_caps_line(line) for line in lines]
+    events = [_caps_event(line) for line in lines]
     assert all(events)
     assert soak.decoder_src_caps(events) == [CAPS_D3D12]
     sink = soak.final_sink_caps(events)
@@ -151,7 +166,7 @@ def test_decoder_and_innermost_sink_caps_from_captured_run():
 def test_download_before_the_sink_is_caught():
     system_caps = CAPS_D3D12.replace("video/x-raw(memory:D3D12Memory)", "video/x-raw")
     lines = [DEC_SRC_LINE, f"{SINK_ELEMENT}.GstPad:sink: caps = {system_caps}"]  # constructed
-    events = [soak.parse_caps_line(line) for line in lines]
+    events = [_caps_event(line) for line in lines]
     assert soak.all_d3d12(soak.decoder_src_caps(events)) is True
     assert soak.all_d3d12(soak.final_sink_caps(events)["caps"]) is False
 
@@ -162,7 +177,7 @@ def test_renegotiation_away_from_d3d12_fails_the_sink_check():
         f"{SINK_ELEMENT}.GstPad:sink: caps = {CAPS_D3D12}",
         f"{SINK_ELEMENT}.GstPad:sink: caps = {system_caps}",
     ]  # constructed
-    sink = soak.final_sink_caps([soak.parse_caps_line(line) for line in lines])
+    sink = soak.final_sink_caps([_caps_event(line) for line in lines])
     assert len(sink["caps"]) == 2
     assert soak.all_d3d12(sink["caps"]) is False
 
@@ -217,6 +232,7 @@ def test_error_or_warning_detection(line, expected):
 
 def test_d3d12_device_context_and_counter_luid():
     device = soak.parse_d3d12_device_context(CONTEXT_LINE)
+    assert device is not None
     assert device == {
         "adapter_index": 0,
         "adapter_luid": 129573,

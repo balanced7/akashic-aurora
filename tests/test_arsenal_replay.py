@@ -163,7 +163,7 @@ def test_carried_chord_and_speed_keep_original_timeline():
     events.append({"kind": "pedal", "t_ms": 5000, "down": False})
     regular = pianocue.build_replay_cue(events, 1000, 3, 1)
     slow = pianocue.build_replay_cue(events, 1000, 3, 0.5)
-    assert harmony(regular) == harmony(slow, 0.5)
+    assert harmony(regular) == harmony(slow, 0.5)  # pyright: ignore[reportArgumentType]  # harmony(speed=1) is inferred int; any number works
     assert harmony(regular)[0]["notes"] == [48, 64, 67]
     assert harmony(regular)[0]["end_ms"] == 3000
 

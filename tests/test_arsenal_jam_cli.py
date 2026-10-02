@@ -380,7 +380,7 @@ def test_no_server_and_an_old_server(capsys):
             self.end_headers()
             self.wfile.write(body)
 
-        def log_message(self, *args):
+        def log_message(self, *args: object, **kwargs: object):
             pass
 
     old = http.server.HTTPServer(("127.0.0.1", 0), Old)

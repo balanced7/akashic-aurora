@@ -35,6 +35,7 @@ def fresh_test_store():
     rs = RedisStore.connect(timeout_seconds=2.0, db=REDIS_TEST_DB)
     if not rs.is_available():
         return None
+    assert rs._client is not None  # is_available() is True only with a live client
     rs._client.flushdb()  # safe: this is the tests-only DB, never canonical db 0
     return rs
 
@@ -46,5 +47,6 @@ def fresh_test_ledger():
     rl = RedisLedger.connect(timeout_seconds=2.0, db=REDIS_TEST_DB)
     if not rl.is_available():
         return None
+    assert rl._client is not None  # is_available() is True only with a live client
     rl._client.flushdb()
     return rl

@@ -8,6 +8,7 @@ import threading
 import urllib.error
 import urllib.request
 from pathlib import Path
+from typing import TypeVar
 
 import pytest
 
@@ -17,6 +18,15 @@ sys.path.insert(0, str(ROOT))
 from arsenal import performance as perf  # noqa: E402  # sys.path bootstrap
 from arsenal.__main__ import main  # noqa: E402  # sys.path bootstrap
 from arsenal.serve import App, Server  # noqa: E402  # sys.path bootstrap
+
+_T = TypeVar("_T")
+
+
+def _some(value: _T | None) -> _T:
+    """Return the value a test expects to be there (a None here fails the test, never skips it)."""
+    assert value is not None
+    return value
+
 
 C, G, AM, F = [48, 52, 55, 60], [43, 50, 55, 59], [45, 52, 57, 60], [41, 48, 53, 57]
 NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
@@ -431,6 +441,7 @@ def test_chord_numbers_come_from_the_shared_nashville_reader():
         ("Gsus4", "C major"),
     ]:
         want = nv.nashville_from_name(chord, key)
+        assert want is not None
         assert perf.chord_number(chord, key, triad) == {"number": want["text"], "outside_key": not want["diatonic"]}
     assert perf.chord_number("G7/B", "C major", triad) == {"number": "5^7/7", "outside_key": False}
     assert perf.chord_number("Bb", "C major", triad) == {"number": "b7", "outside_key": True}
@@ -581,7 +592,7 @@ def test_page_numbers_on_notes_and_intervals_are_compared_like_with_like():
         "1 more is a name this summary cannot read."
     ) in md.splitlines()
     assert perf.chord_number("G5", "Eb major", ["G5"], detect_kind="note") is None  # a note gets no chord number
-    assert perf.chord_number("G5", "Eb major", ["G2", "D3"])["number"] == "3^5"  # a power chord does
+    assert _some(perf.chord_number("G5", "Eb major", ["G2", "D3"]))["number"] == "3^5"  # a power chord does
 
 
 def bar(t, chord, notes, key, bar_ms=3000, pedal=True, **extra):
@@ -626,8 +637,10 @@ def test_the_leading_tone_rule_never_hands_a_minor_key_to_its_parallel_major():
     for pc, w in {9: 10, 0: 4, 4: 8, 2: 4, 5: 2, 8: 1, 11: 2}.items():
         weights[pc] = w
     key = perf.estimate_key(weights)
+    assert key is not None
     assert key["best"]["key"] == "A minor"
     nkey = perf.numbering_key(weights, key)
+    assert nkey is not None
     assert nkey["key"] == "A minor"
     assert nkey["rule"] is None
 
@@ -1079,10 +1092,25 @@ def test_the_glossary_explains_the_lines_above_it_when_the_session_changes_key()
 def test_a_rule_whose_own_key_did_not_win_is_never_named_as_the_cause():
     """F# minor's missing raised 7th counts it lower, and it points to A major, but D major fitted better than A major:
     summary.md said the missing E# made the numbers count from D major (verifier, 2026-09-14). That is a next best."""
-    weights = [0, 9, 7, 0, 6, 0, 10, 5, 4, 6, 0, 7]  # C Db D Eb E F F# G Ab A Bb B: no E#, and G outweighs G#
+    weights: list[float] = [
+        0,
+        9,
+        7,
+        0,
+        6,
+        0,
+        10,
+        5,
+        4,
+        6,
+        0,
+        7,
+    ]  # C Db D Eb E F F# G Ab A Bb B: no E#, and G outweighs G#
     key = perf.estimate_key(weights)
     nkey = perf.numbering_key(weights, key)
+    assert key is not None
     assert key["best"]["key"] == "F# minor"
+    assert nkey is not None
     assert nkey["key"] == "D major"
     assert nkey["rule"] == {
         "name": "next best",

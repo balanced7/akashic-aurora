@@ -94,7 +94,7 @@ def spawn(argv, log_path, **kw):
     p = subprocess.Popen(
         [PY, *argv], cwd=str(REPO), env=child_env(), stdout=f, stderr=subprocess.STDOUT, text=True, **kw
     )
-    p._logf = f
+    p._logf = f  # pyright: ignore[reportAttributeAccessIssue]  # ad-hoc attribute: keeps the log handle alive with the child
     return p
 
 
@@ -296,6 +296,7 @@ def main():
 
         # -- 5. resume the burst (feed the newline the human would press) --------------
         try:
+            assert burst.stdin is not None
             burst.stdin.write("\n")
             burst.stdin.flush()
         except Exception as e:
@@ -463,6 +464,8 @@ def main():
         if T045_MODE:
             s6_reply_ts, s6_latency = None, None
             try:
+                assert s6_probe_id is not None  # both set together under T045_MODE above
+                assert s6_sent_at is not None
                 for m in Bus(s6_probe_id).inbox(limit=100, advance=False):
                     if f"s6-{storm}" in str(m.content):
                         s6_reply_ts = str(m.ts)

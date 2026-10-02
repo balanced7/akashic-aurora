@@ -12,6 +12,7 @@ import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from typing import TypeVar
 
 import pytest
 
@@ -38,6 +39,15 @@ from arsenal.jam.resolve import (  # noqa: E402  # sys.path bootstrap
 )
 from arsenal.jam.runs import RunError, RunStore  # noqa: E402  # sys.path bootstrap
 from arsenal.performance import PerformanceStore  # noqa: E402  # sys.path bootstrap
+
+_T = TypeVar("_T")
+
+
+def _some(value: _T | None) -> _T:
+    """Return the value a test expects to be there (a None here fails the test, never skips it)."""
+    assert value is not None
+    return value
+
 
 FIX = ROOT / "tests" / "fixtures" / "jam"
 needs_node = pytest.mark.skipif(shutil.which("node") is None, reason="the voicing bridge needs node")
@@ -384,8 +394,8 @@ def test_the_chord_line_string_form_and_the_suffix_reader():
     assert suffix_tones("7sus4") == {"root": 0, "sus": 5, "fifth": 7, "seventh": 10}
     assert suffix_tones("6/9") == {"root": 0, "third": 4, "fifth": 7, "sixth": 9, "ninth": 2}
     assert suffix_tones("m(add9)") == {"root": 0, "third": 3, "fifth": 7, "ninth": 2}
-    assert chord_facts("Bbm11/Gb")["bass_pc"] == 6
-    assert chord_facts("Bbm11/Gb")["root_pc"] == 10
+    assert _some(chord_facts("Bbm11/Gb"))["bass_pc"] == 6
+    assert _some(chord_facts("Bbm11/Gb"))["root_pc"] == 10
 
 
 # ============================================================================================ A4, transposition half
@@ -537,7 +547,7 @@ def _lines(c):
     return ([None] if c.get("chords") else []) + [v["id"] for v in c.get("variants") or []]
 
 
-def _written(c, variant):
+def _written(c, variant) -> list[dict]:
     items = c["chords"] if variant is None else next(v for v in c["variants"] if v["id"] == variant)["chords"]
     return [it for it in items if "key" not in it and "rest" not in it]
 
@@ -562,8 +572,8 @@ def test_a4_numbers_pitch_classes_sections_and_exact_notes_move_with_the_key():
         s = shift_of(c["key"], k)
         assert -6 <= s <= 5
         assert [x["n"] for x in d["slots"]] == [x["n"] for x in b["slots"]], (c["id"], v, k)
-        assert [nashville.parse_key(sec["key"])["tonic"] for sec in d["sections"]] == [
-            (nashville.parse_key(sec["key"])["tonic"] + s) % 12 for sec in b["sections"]
+        assert [_some(nashville.parse_key(sec["key"]))["tonic"] for sec in d["sections"]] == [
+            (_some(nashville.parse_key(sec["key"]))["tonic"] + s) % 12 for sec in b["sections"]
         ]
         assert [sec["from_beat"] for sec in d["sections"]] == [sec["from_beat"] for sec in b["sections"]]
         written = _written(c, v)
@@ -639,11 +649,11 @@ def test_a4_resolving_is_deterministic_and_fast():
     warm = []
     for _ in range(10):
         t0 = time.perf_counter()
-        resolver.resolve(sixteen)
+        resolver.resolve(sixteen)  # pyright: ignore[reportPossiblyUnboundVariable]  # bound by the range(10) loop above
         warm.append((time.perf_counter() - t0) * 1000)
     assert statistics.median(cold) <= 150, cold
     assert statistics.median(warm) <= 2, warm
-    assert resolver.stats["hits"] >= 10
+    assert resolver.stats["hits"] >= 10  # pyright: ignore[reportPossiblyUnboundVariable]  # bound by the range(10) loop above
 
 
 @needs_node
@@ -693,7 +703,7 @@ def test_the_bridge_band_style_is_used_when_the_bridge_has_it():
         )
         out = []
         for r in named:
-            b = 36 + chord_facts(r["name"])["bass_pc"]
+            b = 36 + _some(chord_facts(r["name"]))["bass_pc"]
             out.append(
                 {
                     "band": {

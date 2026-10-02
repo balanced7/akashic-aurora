@@ -11,6 +11,7 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -248,7 +249,9 @@ def _defs_for(case):
 
 def _run_case(case):
     a = case.get("args", {})
-    mp = TEMPO["maps"].get(case.get("map")) or {}
+    mp: Any = (
+        TEMPO["maps"].get(case.get("map")) or {}
+    )  # fixture JSON: per-op fields, read only by the ops that use them
     segs, m = mp.get("segments"), mp.get("beats_per_bar")
     defs = _defs_for(case)
     op = case["op"]
@@ -329,6 +332,7 @@ def test_add_segment_leaves_its_input_alone():
 
 @needs_node
 def test_tempomap_js_twin_agrees_with_fixture():
+    assert NODE is not None
     res = subprocess.run(
         [NODE, str(ROOT / "tests" / "jam_tempomap.test.mjs")], capture_output=True, text=True, cwd=str(ROOT), timeout=60
     )

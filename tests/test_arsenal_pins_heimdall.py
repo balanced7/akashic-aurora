@@ -77,13 +77,13 @@ def test_tb_rejects_above_one_second():
 
 def test_float_ticks_refused():
     with pytest.raises(TypeError):
-        timebase.TimeRef("media", 0, 1.5, Fraction(1, 48000))
+        timebase.TimeRef("media", 0, 1.5, Fraction(1, 48000))  # pyright: ignore[reportArgumentType]  # deliberate wrong type: the test pins the runtime refusal
 
 
 def test_integral_float_ticks_refused():
     # even a whole float is still a float, and must be refused
     with pytest.raises(TypeError):
-        timebase.TimeRef("media", 0, 1.0, Fraction(1, 48000))
+        timebase.TimeRef("media", 0, 1.0, Fraction(1, 48000))  # pyright: ignore[reportArgumentType]  # deliberate wrong type: the test pins the runtime refusal
 
 
 def test_bool_ticks_refused():
@@ -95,17 +95,18 @@ def test_bool_ticks_refused():
 
 def test_float_timebase_refused():
     with pytest.raises(TypeError):
-        timebase.TimeRef("media", 0, 48000, 1.0 / 48000)
+        timebase.TimeRef("media", 0, 48000, 1.0 / 48000)  # pyright: ignore[reportArgumentType]  # deliberate wrong type: the test pins the runtime refusal
 
 
 def test_timebase_accepts_int_and_fraction():
-    a = timebase.TimeRef("media", 0, 5, 1)  # int timebase of 1 == 1 s/tick
+    # int timebase of 1 == 1 s/tick
+    a = timebase.TimeRef("media", 0, 5, 1)  # pyright: ignore[reportArgumentType]  # int timebase is accepted at runtime; the field is annotated Fraction only
     assert a.seconds == Fraction(5)
     b = timebase.TimeRef("media", 0, 48000, Fraction(1, 48000))
     assert b.seconds == Fraction(1)
     # an int timebase above 1 s/tick is refused (a rate passed by mistake)
     with pytest.raises(ValueError, match=r"for a rate of 48000/1 per second use tb\(1, 48000\)"):
-        timebase.TimeRef("media", 0, 1, 48000)
+        timebase.TimeRef("media", 0, 1, 48000)  # pyright: ignore[reportArgumentType]  # deliberate wrong type: the test pins the runtime refusal
 
 
 def test_seconds_is_fraction():

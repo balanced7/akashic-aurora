@@ -147,6 +147,7 @@ def _firehose_len() -> dict:
     over 72h (Bus's explicit namespace= arg overrides the harness's BIFROST_NAMESPACE)."""
     try:
         b = Bus("rb25-soak-probe", namespace="bifrost")
+        assert b._client is not None
         return {"bc_len": int(b._client.xlen(b._bc_key)), "maxlen": int(b.maxlen), "ns": "bifrost"}
     except Exception as e:
         return {"bc_len": -1, "maxlen": -1, "err": str(e)}
