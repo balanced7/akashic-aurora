@@ -772,7 +772,7 @@ def examine(agent: str, *, probes: dict[str, Any] | None = None) -> list[dict[st
                 held = h[len("session:") :] if h.startswith("session:") else h
             except Exception:
                 pass
-            who = ", ".join(s[:8] for s in seats)
+            who = ", ".join((s or "legacy")[:8] for s in seats)  # legacy seat file has no session id
             out.append(
                 _f(
                     agent,
