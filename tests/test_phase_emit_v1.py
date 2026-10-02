@@ -114,11 +114,38 @@ def test_the_environment_is_the_fallback_not_the_source(spy, monkeypatch):
     assert spy[0]["session_id"] == "env-sid" and spy[0]["session_source"] == "env"
 
 
-def test_an_unattributable_transition_still_emits_and_says_so(spy, monkeypatch):
-    # Zero is not no. Navi's half flagged that liveness has no session in scope; without this the
-    # spine would collapse two incarnations of one agent into a single story.
+def test_a_runner_with_no_env_session_derives_the_one_it_already_beats_under(spy, monkeypatch):
+    """W227, and this pin CHANGED MEANING when the rung landed, which is worth stating.
+
+    It originally asserted that a transition with no env session emits with session_id "" and
+    source "unknown" -- the zero-is-not-no shape. That was right for a desktop seat and wrong for
+    a RUNNER, which is most of the fleet: a runner has no CLAUDE_CODE_SESSION_ID at all, it derives
+    its own incarnation id and beats the roster under it. The instrument measured the consequence
+    the hour Gap 2 shipped: phase coverage 15 of 188 while touch sat at 100%.
+
+    So the ladder is caller, then env, then the runner's OWN derivation -- the same one
+    core/comm/runner_lib gives the heartbeat, never a second one, so the phase record and the
+    roster card carry one id and join. `derived` stays distinct from `env` because a pid-shaped
+    incarnation id is a real identity that nobody named, and a reader comparing two records
+    deserves to know which kind it is holding."""
     for v in ("CLAUDE_CODE_SESSION_ID", "CLAUDE_SESSION_ID"):
         monkeypatch.delenv(v, raising=False)
+    w = L.WorkLive("t-agent")
+    w.set("thinking")
+    assert spy[0]["session_id"], "a runner's transition must not be unattributable"
+    assert spy[0]["session_source"] == "derived"
+    from core.comm.runner_lib import seat_session_id
+    assert spy[0]["session_id"] == seat_session_id("t-agent"), \
+        "it must be the SAME derivation the heartbeat uses, or the two records cannot join"
+
+
+def test_a_transition_with_no_identity_at_all_still_emits_and_says_unknown(spy, monkeypatch):
+    """The floor survives: if even the derivation fails, the record is still emitted and still
+    says it could not be attributed. Zero is not no, and neither is a broken import."""
+    for v in ("CLAUDE_CODE_SESSION_ID", "CLAUDE_SESSION_ID"):
+        monkeypatch.delenv(v, raising=False)
+    import core.comm.runner_lib as _rl
+    monkeypatch.setattr(_rl, "seat_session_id", lambda *_a, **_k: "")
     w = L.WorkLive("t-agent")
     w.set("thinking")
     assert spy[0]["session_id"] == "" and spy[0]["session_source"] == "unknown"

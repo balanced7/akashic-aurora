@@ -167,6 +167,24 @@ class WorkLive:
                 if sid:
                     src = "env"
                     break
+        if not sid:
+            # W227, the last rung. A RUNNER has no CLAUDE_CODE_SESSION_ID -- it derives its own
+            # incarnation id and beats the roster under it -- so without this rung every runner's
+            # phase records landed `unknown`, which the instrument measured the hour Gap 2 shipped:
+            # phase coverage 15 of 188, while touch sat at 100%.
+            #
+            # Deliberately the SAME derivation the heartbeat uses (core/comm/runner_lib), not a
+            # second one, so the phase record and the roster card carry one id and actually join.
+            # A second derivation of one identity is the fork this house keeps paying for.
+            #
+            # Labelled `derived` rather than folded into `env`: a pid-shaped incarnation id is a
+            # real identity but it is not a session anybody named, and a reader deciding whether
+            # two records are the same incarnation deserves to know which kind they are holding.
+            try:
+                from core.comm.runner_lib import seat_session_id as _ssid
+                sid, src = str(_ssid(self.agent) or "").strip(), "derived"
+            except Exception:                                             # noqa: BLE001
+                sid = ""
         self.session_id, self.session_source = sid, (src if sid else "unknown")
         self._lock = threading.Lock()
         self._phase = "online"
