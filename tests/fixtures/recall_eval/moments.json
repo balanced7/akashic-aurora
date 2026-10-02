@@ -3,13 +3,15 @@
   "note": "THE ANSWER KEY recall has never had. A moment is a situation an agent was actually in, plus the lesson that would have prevented what happened next. Scored by `py agent_cli.py recall-bench`.",
   "provenance": "Seeded 2026-10-02 from research/in-flight/recall-trigger-misses-2026-08-08.md, a dossier of misses MEASURED on one day with ground truth attached. These four are not invented; each is a real mistake with a real lesson that existed at the time and did not arrive.",
   "target": 40,
-  "seeded": 4,
-  "why_not_forty_yet": "The remaining 36 must be written by a seat BLIND to the recall engine, as the manuals-shelf eval was (a separate agent wrote 40 questions having never touched the search or the index). Moments written by the engine's own builder are contaminated: I would unconsciously write what I know it retrieves. Commissioned from Navi, who adjudicates this set per the Wave 0 table. A harness with 4 honest moments beats a harness with 40 invented ones, and the count is stated so nobody mistakes this for the finished set.",
+  "seeded": 10,
+  "why_not_forty_yet": "10 of 40. Navi's batch 1 of 6 landed 2026-10-02 (N1-N6), written blind to the engine, each naming its receipt; his eight ground-truth keys were verified against the live corpus before the merge, the same check that demoted M3 to UNRESOLVED. Batches 2-6 are outstanding. The count is stated so nobody mistakes this for the finished set, and no moment is ever tuned to move the number: a moment adjusted to make the bench look better has stopped being evidence.",
   "moments": [
     {
       "id": "M1",
       "moment": "About to edit agent_cli.py to parse a --prompts-file flag. The existing line coerces every loaded prompt with str(), which silently destroys the dict-prompt support shipped forty minutes earlier.",
-      "trigger": {"path": "agent_cli.py"},
+      "trigger": {
+        "path": "agent_cli.py"
+      },
       "expect": "learn:experiment:capability_without_a_door",
       "measured_2026_08_08": "fired instead: git staging, TRELLIS setup on an RX 9070 XT, a gemini runner pin audit. The right lesson DID fire four hours later, during an unrelated recall query. Right lesson, wrong moment.",
       "class": "act-not-location"
@@ -17,16 +19,22 @@
     {
       "id": "M2",
       "moment": "About to commit a new RED pin whose fake client has invalid nested-class scoping, so the file dies at collection with a NameError rather than failing on its assertion. The actor had written 'a RED pin must fail for its stated reason or it proves nothing' into a commit message two commits earlier, the same hour.",
-      "trigger": {"path": "tests/test_t247_ask_many_prompts_file.py"},
+      "trigger": {
+        "path": "tests/test_t247_ask_many_prompts_file.py"
+      },
       "expect": "learn:experiment:red_pin_scaffolding_error_ref_becomes_nameerror_at_green",
-      "also_acceptable": ["learn:experiment:a_pin_red_for_the_wrong_reason_is_the_mirror_of_green_for_the_wrong_reason"],
+      "also_acceptable": [
+        "learn:experiment:a_pin_red_for_the_wrong_reason_is_the_mirror_of_green_for_the_wrong_reason"
+      ],
       "measured_2026_08_08": "fired instead: nothing about pins. The strongest case in the dossier, because the knowledge was authored by the same actor in the same hour and still did not arrive.",
       "class": "act-not-location"
     },
     {
       "id": "M3",
       "moment": "About to write a harness that runs a paid five-branch fan, transforms the results, and persists only the transform. The transform was wrong and five paid answers were unrecoverable.",
-      "trigger": {"path": "scratchpad/fan_harness.py"},
+      "trigger": {
+        "path": "scratchpad/fan_harness.py"
+      },
       "expect": "UNRESOLVED",
       "unresolved_why": "The dossier states the governing knowledge was in the session handoff read at boot ('Persist an expensive result BEFORE anything that can raise') and adds 'Also present as a lesson'. Searched the corpus 2026-10-02 and found no lesson matching it; the top hits are unrelated. So either the lesson was never filed, or it has been retired, or the dossier was wrong about it. Recorded as UNRESOLVED rather than pointed at the nearest plausible lesson, because a guessed answer key measures the guesser. This moment is EXCLUDED from scoring until its ground truth is settled, and that gap is itself a finding about the corpus.",
       "class": "act-not-location"
@@ -34,10 +42,111 @@
     {
       "id": "M4",
       "moment": "Running grep over core/recall/*.py while DIAGNOSING the recall trigger itself. Not polishing it, not extending it: diagnosing why it misfires.",
-      "trigger": {"command": "grep -rn 'def recall_at' core/recall/"},
+      "trigger": {
+        "command": "grep -rn 'def recall_at' core/recall/"
+      },
       "expect": "ABSTAIN",
       "abstain_why": "The positive control, and it is not a success. Two lessons fired that are genuinely ABOUT recall (recall_at_action_ergonomics, retrieval_benchmark_floor_imports_contested_ground) and both were useless, because the actor was diagnosing a trigger rather than polishing ergonomics. A correct match on TOPIC can be a total miss on MOMENT. Silence is the right answer here, so this moment scores abstention: anything surfaced is a false positive. Without a case like this a bench rewards a surface that always speaks.",
       "class": "topic-match-moment-miss"
+    },
+    {
+      "id": "N1",
+      "moment": "About to satisfy an operator's 'watch this YouTube clip with me' ask by grepping the repo for a captions script and running scripts/yt_captions.py directly, having already tried WebFetch on the watch URL and gotten only the title.",
+      "trigger": {
+        "path": "scripts/yt_captions.py"
+      },
+      "expect": "learn:experiment:youtube_transcript_is_a_door_verb_not_a_script",
+      "measured": "Real 2026-08-15 session (claude): reached past the door to the script twice; the operator corrected twice ('use our transcript tools', then 'its a verb'), then said 'We forget it every time Q__Q'. Re-recurred for kimi 2026-09-24 despite the lesson AND a red-gate test existing (tests/test_t311_capability_recall.py, tests/test_captions_gate_red.py) -- kimi asserted 'we have no YouTube transcript capability' for ~3 turns before checking the instrument. The house renamed transcript->captions to protect the load-bearing word, which is exactly why memory says 'no verb'.",
+      "class": "capability-not-location"
+    },
+    {
+      "id": "N2",
+      "moment": "Composing a bifrost_send to a turn-bound seat, drafting one message that asks for 36 hand-written eval moments in a single turn. The author had read the house lesson about ask sizing an hour earlier and cited its sibling at another seat in between.",
+      "trigger": {
+        "command": "bifrost_send --to kimi --text-file moment-commission.txt"
+      },
+      "expect": "ABSTAIN",
+      "abstain_why": "The ask_size_kills_workers cluster genuinely exists and is genuinely about ask sizing -- but the actor here is the AUTHOR of the ask, mid-composition, not its recipient, and no recall lesson can intercept a turn-bound seat's 600s wall from the sender's side; what actually happened (the 2026-10-02 timeout) taught claude to file a NEW lesson (size_an_ask_by_its_deliverable_not_by_its_body), which is the correct outcome, not a retrieval failure. A surface that fires the sizing cluster here is matching TOPIC (the words 'ask' and 'size' are all over the moment) while missing MOMENT: the author's failure was deliverable-count blindness, and no stored lesson at send time named that. Silence is the right answer; anything surfaced is a false positive. This is the M4 shape transplanted to a different topic.",
+      "class": "topic-match-moment-miss"
+    },
+    {
+      "id": "N3",
+      "moment": "About to relaunch the kimi seat after a wedge using the documented path: py scripts/bifrost_daemon.py --agent kimi --spawn-runner. The launch will succeed, report 'runner spawned agent=kimi pid=N', and the seat will look healthy on every liveness signal while running deepseek's transport, model and spend governance under kimi's name.",
+      "trigger": {
+        "command": "py scripts/bifrost_daemon.py --agent kimi --spawn-runner"
+      },
+      "expect": "learn:experiment:daemon_spawn_runner_hardcodes_deepseek_script",
+      "also_acceptable": [
+        "learn:experiment:daemon_needs_spawn_runner"
+      ],
+      "measured": "Real 2026-07-26 incident (claude): bifrost_daemon.py:215 hardcoded the child script as bifrost_runner_deepseek.py regardless of --agent; caught only because an out-of-band control channel wired into the real kimi runner did not answer. The daemon's up-line named the agent but not the script, so a wrong-runner launch rendered as a correct one. Recurred operationally for kimi 2026-09-24 (the relaunch directive had to specify bifrost_runner_kimi.py DIRECTLY, not --spawn-runner, because the hardcode was still the live path).",
+      "class": "act-not-location"
+    },
+    {
+      "id": "N4",
+      "moment": "About to harden the Discord guest-reply tracker by making track() refuse a None or empty bus_id, on the reasoning that a None id is a not-admitted guest and must not become a key.",
+      "trigger": {
+        "path": "core/comm/discord_guest_reply.py"
+      },
+      "expect": "learn:experiment:discord_guest_reply_silent_drop_loud",
+      "also_acceptable": [
+        "learn:experiment:alive_beat_is_not_progress_pulse"
+      ],
+      "measured": "Real 2026-09-23 forensics (kimi): the guard being ADDED here is correct, but its twin defect already bit once in the opposite direction -- the same refusal path is what silently dropped real operator messages that arrived with 'bus id None' (the anti-phantom-key guard doubling as a silent-drop), and a whole Daniil<->Heimdall conversation left zero durable trace. The lesson the actor needed at edit time was not 'why the guard is right' but 'every drop on this path needs a receipt, because the last time this path chose silence a real conversation vanished'. Filed by kimi himself the same evening (discord_guest_reply_silent_drop_loud) -- knowledge authored by the actor, in the store, needed at the path.",
+      "class": "act-not-location"
+    },
+    {
+      "id": "N5",
+      "moment": "About to write the second piece of a three-piece fence half via `fence write`, having already written the first piece the same way minutes earlier. The slot file is opened with 'w' (overwrite), so each write clobbers the previous piece and the sealed slot will hold only the last.",
+      "trigger": {
+        "path": "core/coord/fence_workspace.py"
+      },
+      "expect": "ABSTAIN",
+      "abstain_why": "The knowledge that would have prevented the loss was real, specific, and earned the same night by the same actor -- 'stage each piece as a durable repo file BEFORE fence write, or the slot is a ring buffer of depth 1' -- but it lived ONLY in kimi's private memory_note scratchpad (fence-write-overwrites-slot-staged-files-are-the-safety-net), a plane recall-at does not index. No lesson exists in the store to fire, and an honest surface must say nothing rather than borrow a neighbouring fence lesson (fence_workspace_first_real_cycle, fence_heavy_asks_need_full_session_lane) that shares the topic and none of the mechanism. This moment measures whether the bench can see the PLANE BOUNDARY: private notes are out of corpus, so silence is the only correct verdict, and any topical fire is a false positive. Filing the lesson into the KB would convert this from an abstain into a hit -- recorded as abstain because at write time the store genuinely does not contain it.",
+      "class": "knowledge-on-an-unindexed-plane"
+    },
+    {
+      "id": "N6",
+      "moment": "About to relaunch a runner seat by hand from the process table, copying its exact argv (py scripts/bifrost_runner_kimi.py --agent kimi --agentic --allow-write) with Start-Process and no environment overrides and no stdio redirection.",
+      "trigger": {
+        "command": "Start-Process py scripts/bifrost_runner_kimi.py --agent kimi --agentic --allow-write"
+      },
+      "expect": "learn:experiment:relaunch_copies_argv_but_silently_drops_env",
+      "also_acceptable": [
+        "learn:experiment:runner_relaunch_without_lane_env_drains_ghost_mail",
+        "learn:experiment:relaunch_must_carry_the_lane_env_and_the_page_proved_it"
+      ],
+      "measured": "Real 2026-07-31 and 2026-08-02 incidents (claude): argv is visible in the process table, env is not; the relaunch silently dropped BIFROST_CONSUME_LANE=work, so both runners consumed the legacy lane for 12 hours while work lanes accumulated 18-22 messages -- the seat was busy, spending money, replying coherently to RETIRED seats while fresh directed asks sat unhandled. The no-redirection half (Start-Process with no -RedirectStandardOutput) killed the child with the launching shell: no process, no log. Three sibling lessons existed at the time and the same mistake was repeated across two sessions.",
+      "class": "act-not-location"
+    }
+  ],
+  "batches": [
+    {
+      "batch": "seed-claude-4",
+      "author": "claude (Vandor)",
+      "ids": [
+        "M1",
+        "M2",
+        "M3",
+        "M4"
+      ],
+      "blind": false,
+      "note": "Seeded by the engine's own builder from the 2026-08-08 misses dossier. NOT blind, and that is why the set was commissioned out: moments written by the builder risk being written to what he knows the engine retrieves. Kept because each is a measured miss with ground truth attached, and a contaminated real moment still beats an invented one."
+    },
+    {
+      "batch": "navi-1-of-6",
+      "author": "kimi (Navi)",
+      "ids": [
+        "N1",
+        "N2",
+        "N3",
+        "N4",
+        "N5",
+        "N6"
+      ],
+      "blind": true,
+      "note": "Navi batch 1 of the blind 36. Six moments, two of them abstains. Written blind: I did not read core/recall/ while writing these and did not adjust any moment against the engine. Drawn from real sessions; each names its receipt.",
+      "provenance": "Written 2026-10-02 by kimi (Navi) from his own receipts: his private notes (memory_recall), the KB lesson store queried for exact source pointers, and the 2026-09/2026-10 session record. N1/N6 are positive moments with the right lesson in the store at the time. N2/N5 are abstains. N2 is the M4-shape one: a lesson cluster that is genuinely on-topic (ask sizing) but useless because the actor is the AUTHOR, not the recipient. N5 is the harder class: the right knowledge existed and mattered but lived ONLY in the author's private memory plane, which recall does not index -- silence is the correct verdict and the moment measures whether the surface admits the plane boundary."
     }
   ]
 }
