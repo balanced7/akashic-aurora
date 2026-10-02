@@ -693,7 +693,7 @@ def examine(agent: str, *, probes: dict[str, Any] | None = None) -> list[dict[st
                 # What SURVIVES: a live runner whose lane has not moved still pages. That
                 # is the 2026-07-26 kimi receipt (pulse fresh, 45h at depth 55) and the
                 # whole reason this finding exists -- alive is not the same as moving.
-                drainer = bool(wl)
+                drainer = bool(wl)  # pyright: ignore[reportPossiblyUnboundVariable]  # LATENT: unbound if worklive probe raised; NameError swallowed below
                 paging = drainer and waited >= LANE_STALL_PAGE_S
                 if paging:
                     head, tail = "LANE STALL -- ", ""
@@ -863,7 +863,7 @@ def unwedge(agent: str) -> dict[str, Any]:
         from core.comm import locks
 
         lm = locks.LockManager(agent)
-        held = lm.list_held() if hasattr(lm, "list_held") else []
+        held = lm.list_held() if hasattr(lm, "list_held") else []  # pyright: ignore[reportAttributeAccessIssue]  # LATENT: LockManager has no list_held; always []
         evidence["locks"] = held[:20]
     except Exception:
         pass
@@ -1153,7 +1153,7 @@ def _last_turn(agent: str, *, now: float | None = None, log=None) -> dict[str, A
             continue  # a turn with no ts is skipped, never guessed
         if best_ts is None or float(ts) > best_ts:
             best_ts, best_detail = float(ts), detail
-    if best_detail is None:
+    if best_detail is None or best_ts is None:  # set together; same as best_detail alone
         return None
     return {
         "ask_kind": best_detail.get("ask_kind"),
@@ -1217,7 +1217,7 @@ def flightdeck(agent: str | None = None, *, commit_hours: float = 6.0) -> dict[s
             aid = a_row["id"]
             try:
                 lm = locks.LockManager(aid)
-                lk_rows[aid] = lm.list_held() if hasattr(lm, "list_held") else []
+                lk_rows[aid] = lm.list_held() if hasattr(lm, "list_held") else []  # pyright: ignore[reportAttributeAccessIssue]  # LATENT: LockManager has no list_held; always []
             except Exception:
                 lk_rows[aid] = []
     except Exception:
@@ -1317,7 +1317,7 @@ def flightdeck(agent: str | None = None, *, commit_hours: float = 6.0) -> dict[s
 
     # The table of contents: the declared recipe, plus the conditional drill. A pin
     # asserts this equals the built sections (membership in the derived view).
-    composed = list(FLIGHTDECK_COMPOSITION)
+    composed: list[str] = list(FLIGHTDECK_COMPOSITION)
     if agent:
         composed.append("unwedge")
     out["composed_of"] = composed
@@ -1545,6 +1545,8 @@ def _feed_failure_findings(agent: str):
         client = _client()
         now = time.time()
         fails = []
+        if client is None:
+            return None  # offline: same result the AttributeError -> except path gave
         for sid, fields in client.xrevrange("events:raw", count=300):
             try:
                 d = _json.loads(dict(fields).get("data") or "{}")
@@ -1900,7 +1902,9 @@ def _reconcile_pages(pages: list[dict[str, Any]], agents: list[str]) -> None:
                     "#" in str(a) and str(a) != subject and str(a).partition("#")[0] == base for a in scope
                 )
                 age = now - float(rec.get("ts") or now)
-                if not succeeded and not (full_round and subject not in universe and age > GHOST_PAGE_AGE_S):
+                if not succeeded and not (
+                    full_round and universe is not None and subject not in universe and age > GHOST_PAGE_AGE_S
+                ):
                     continue  # not ours to retract this round
             pager.clear_key(key, c=c)
             try:

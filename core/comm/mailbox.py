@@ -32,7 +32,7 @@ import json
 import os
 import re
 import time
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from core.comm import packet_spec
 
@@ -76,7 +76,9 @@ def enabled() -> bool:
     return os.getenv("AKASHIC_MAILBOX", "1") not in ("0", "false", "False")
 
 
-def _connect():
+def _connect() -> Any:
+    # Any: a redis client, or None when Redis is unreachable. Callers here issue commands
+    # without a None check, so a down Redis surfaces as AttributeError (pre-existing contract).
     from core.comm.bus import _connect as bus_connect
 
     return bus_connect()
@@ -873,9 +875,10 @@ def open(ns: str, agent: str, sha: str, *, incarnation: str, client=None) -> dic
     """
     client = client or _connect()
     asked = sha
-    sha, refusal = _resolve_or_refuse(ns, agent, sha, client)
+    resolved, refusal = _resolve_or_refuse(ns, agent, sha, client)
     if refusal:
         return refusal
+    sha = cast("str", resolved)  # exactly one of (resolved, refusal) is None
     entry = body_of(ns, agent, sha, client=client)
     if entry is None:
         # Indexed but the entry hash is gone. A FIFTH fact, and not the same as absent: the index
@@ -930,9 +933,10 @@ def declare_intent(
         return {"ok": False, "reason": "delegate requires `to` -- an unrouted delegation is a drop"}
     client = client or _connect()
     asked = sha
-    sha, refusal = _resolve_or_refuse(ns, agent, sha, client)
+    resolved, refusal = _resolve_or_refuse(ns, agent, sha, client)
     if refusal:
         return refusal
+    sha = cast("str", resolved)  # exactly one of (resolved, refusal) is None
     if body_of(ns, agent, sha, client=client) is None:
         return {
             "ok": False,

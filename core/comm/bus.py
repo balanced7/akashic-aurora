@@ -29,7 +29,7 @@ import sys
 import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, cast
 
 from core.comm import packet_spec
 from core.comm import router as shadow_router
@@ -187,7 +187,7 @@ class Bus:
         # it is, its lane cursor is per-incarnation instead of per-agent. Optional by
         # design -- every existing caller omits it and keeps the byte-identical legacy
         # key, so the fleet's lane progress does not move when this lands.
-        self._incarnation = sid8(incarnation)
+        self._incarnation = sid8(incarnation or "")
         # T112 P11 (deepseek's fence residual): the collapse notice goes to stderr, which
         # a runner's MODEL never reads -- it reaches the ManagedChild ring, not the turn.
         # Record it here so the calling door can say so in the string the model DOES read.
@@ -195,7 +195,9 @@ class Bus:
         self.last_reask: str | None = None
         self.ns = namespace or os.environ.get("BIFROST_NAMESPACE", NS)
         self.maxlen = maxlen
-        self._client = client if client is not None else _connect()
+        # Any, not Any | None: None means offline; every command site is gated on .online
+        # or sits inside an except-Exception best-effort block.
+        self._client: Any = client if client is not None else _connect()
         # B2: durably project salient kinds by default -- but NOT under pytest, so transport tests
         # never leak into the canonical firehose. Pass promote=True/False to force the behavior.
         self._promote = (os.getenv("PYTEST_CURRENT_TEST") is None) if promote is None else bool(promote)
@@ -346,7 +348,7 @@ class Bus:
         to, meta = self._resolve_recipient(to, meta)
         # T108 slice 1: incarnation-directed mail also lands on the target SEAT's own stream.
         self._warn_if_unattended(str(to))  # T108-S0: delivery is not receipt
-        inc = sid8((meta or {}).get("to_incarnation"))
+        inc = sid8((meta or {}).get("to_incarnation") or "")
         mirror = self._seat_inbox_key(str(to), inc) if inc else None
         return self._emit(
             self._inbox_key(str(to)),
@@ -412,14 +414,16 @@ class Bus:
         # three sends in a row that all delivered (2026-08-26); a warning wrong in the common
         # case trains readers to ignore it in the rare true one. Report the delivery surface
         # instead of a seat verdict that was never the right question for a human.
+        operator_df = None
         try:
             from core.comm import discord_feed as DF
 
             operator_inboxes = DF._OPERATOR_INBOXES
+            operator_df = DF
         except Exception:
             operator_inboxes = ()
-        if str(to) in operator_inboxes:
-            return self._warn_if_operator_unreachable(str(to), DF)
+        if operator_df is not None and str(to) in operator_inboxes:
+            return self._warn_if_operator_unreachable(str(to), operator_df)
         try:
             live, age = self._recipient_liveness(to)
         except Exception:
@@ -547,8 +551,9 @@ class Bus:
             return None  # both writes failed: the send failed
         observe_reply("success" if lane_mid is not None else "fallback")
         self._touch()
-        self._ring_bell(str(to), lane_mid or legacy_mid, "reply")
-        return lane_mid or legacy_mid
+        mid = cast("str", lane_mid or legacy_mid)  # both-None returned above
+        self._ring_bell(str(to), mid, "reply")
+        return mid
 
     def is_duplicate_reply(self, reply_id: str, *, ttl_s: int | None = None) -> bool:
         """T066 S4: receiver-side reply dedup. First sight MARKS the id (SET NX + TTL) and
@@ -720,7 +725,7 @@ class Bus:
         # reads legacy streams, so the return value of send()/broadcast() must be
         # the id those consumers see.  The lane mid is internal -- lane consumers
         # (work_drain) get their id from the stream read, not from this return.
-        mid = legacy_mid or lane_mid
+        mid = cast("str", legacy_mid or lane_mid)  # both-None returned above
         self._touch()
         # T112: remember WHICH id this ask landed as, so the next identical send can
         # collapse onto it instead of costing the recipient another turn.
@@ -844,7 +849,9 @@ class Bus:
             # Lane write (if mapped, best-effort -- the advisory mirror survives here)
             if lane_key is not None:
                 with contextlib.suppress(Exception):
-                    self._client.xadd(lane_key, fenv, maxlen=packet_spec.lane_maxlen(lane), approximate=True)
+                    self._client.xadd(
+                        lane_key, fenv, maxlen=packet_spec.lane_maxlen(cast("str", lane)), approximate=True
+                    )
             # Legacy write: the primary path for fragment consumers
             try:
                 legacy_id = str(self._client.xadd(stream, fenv, maxlen=self.maxlen, approximate=True))
@@ -1056,7 +1063,7 @@ class Bus:
                 # straggler copy): first sight delivers and MARKS by packet sha, the twin copy
                 # is dropped (T044 doctrine: dedupe by sha, never by stream id). Reassembled
                 # frags are exempt -- no seat mirror for fragments until slice 2 (documented).
-                inc = sid8((m.meta or {}).get("to_incarnation"))
+                inc = sid8((m.meta or {}).get("to_incarnation") or "")
                 if inc and my_sid8 and not was_frag:
                     if inc != my_sid8:
                         if not is_seat:

@@ -73,7 +73,8 @@ class LockManager:
 
     def __init__(self, agent_id: str, client: Any | None = None):
         self.agent_id = str(agent_id or "unknown")
-        self._client = client if client is not None else _connect()
+        # Any (None means offline): every command site is gated on .online / _next_token's caller.
+        self._client: Any = client if client is not None else _connect()
 
     @property
     def online(self) -> bool:

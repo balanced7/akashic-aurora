@@ -41,10 +41,13 @@ import threading
 import time
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any, cast
 
 from core.foundation.redis_connection import DEFAULT_REDIS_DB, DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT
 from core.paths import data_root
+
+if TYPE_CHECKING:
+    from core.foundation.sqlite_store import SqliteStore
 
 
 def _repo_root_str() -> str:
@@ -148,7 +151,7 @@ class Store(ABC):
     def sadd(self, key: str, *members: str) -> int: ...
 
     @abstractmethod
-    def smembers(self, key: str) -> set: ...  # noqa: A003  # annotation value must not change (Store.set is public API)
+    def smembers(self, key: str) -> set: ...  # pyright: ignore[reportGeneralTypeIssues]  # runtime annotation is Store.set; kept unchanged  # noqa: A003  # annotation value must not change (Store.set is public API)
 
     @abstractmethod
     def sismember(self, key: str, member: str) -> bool: ...
@@ -273,7 +276,8 @@ class RedisStore(Store):
     """
 
     def __init__(self, client: Any | None):
-        self._client = client
+        # Any (not Any | None): callers gate on is_available() before issuing commands.
+        self._client: Any = client
 
     @classmethod
     def connect(
@@ -903,7 +907,7 @@ class HybridStore(Store):
     Redis. Reads prefer Redis when available, else fall back to File.
     """
 
-    def __init__(self, redis_store: RedisStore | None, file_store: FileStore):
+    def __init__(self, redis_store: RedisStore | None, file_store: "FileStore | SqliteStore"):
         self._redis = redis_store
         self._file = file_store
 
@@ -929,9 +933,13 @@ class HybridStore(Store):
     def redis_available(self) -> bool:
         return self._redis is not None and self._redis.is_available()
 
-    def _read(self):
+    def _live_redis(self) -> RedisStore:
+        """The Redis tier; only called where redis_available is True (so it is not None)."""
+        return cast("RedisStore", self._redis)
+
+    def _read(self) -> Store:
         """Choose the read backend: Redis if up, else File."""
-        return self._redis if self.redis_available else self._file
+        return self._live_redis() if self.redis_available else self._file
 
     def _write(self, method: str, *args, **kwargs):
         """Write to File (durable) always, and Redis (best-effort) if up."""
@@ -966,7 +974,7 @@ class HybridStore(Store):
         File so the durable record converges -- closing the divergence gap. Redis down
         -> File is authority."""
         if self.redis_available:
-            ok = self._redis.cas(key, expected, value)
+            ok = self._live_redis().cas(key, expected, value)
             if ok:
                 self._file.set(key, value)  # heal: durable record matches Redis
             return ok
@@ -1060,7 +1068,7 @@ class HybridStore(Store):
         if not self.redis_available:
             return {"redis_available": False, "missing_in_redis": [], "missing_in_file": [], "in_sync": False}
         file_keys = set(self._file.keys("*"))
-        redis_keys = set(self._redis.keys("*"))
+        redis_keys = set(self._live_redis().keys("*"))
         missing_in_redis = sorted(file_keys - redis_keys)
         missing_in_file = sorted(redis_keys - file_keys)
         return {
@@ -1083,17 +1091,18 @@ class HybridStore(Store):
             return {"status": "skipped", "reason": "redis unavailable"}
 
         snap = self._file.snapshot()
+        redis = self._live_redis()
         written = {"kv": 0, "hash": 0, "list": 0, "set": 0, "zset": 0, "expire": 0}
         # What the heal DECLINED to touch because Redis already held it. Reported, never silent:
         # a heal that quietly skips is how the previous one quietly destroyed.
         skipped = {"list": 0}
         try:
             for k, v in snap["kv"].items():
-                self._redis.set(k, v)
+                redis.set(k, v)
                 written["kv"] += 1
             for k, h in snap["hash"].items():
                 if h:
-                    self._redis.hset(k, mapping=h)
+                    redis.hset(k, mapping=h)
                     written["hash"] += 1
             for k, lst in snap["list"].items():
                 # BACKFILL ONLY -- never overwrite a list Redis already holds.
@@ -1113,25 +1122,25 @@ class HybridStore(Store):
                 #
                 # Pinned by tests/test_heal_clobbers_richer_redis_list.py
                 # Evidence: research/reviewed/index-blindness-RECURRENCE-2026-07-27.md
-                if self._redis.exists(k):
+                if redis.exists(k):
                     skipped["list"] += 1
                     continue
                 if lst:
-                    self._redis.rpush(k, *lst)
+                    redis.rpush(k, *lst)
                 written["list"] += 1
             for k, members in snap["set"].items():
                 if members:
-                    self._redis.sadd(k, *members)
+                    redis.sadd(k, *members)
                     written["set"] += 1
             for k, zmap in snap["zset"].items():
                 if zmap:
-                    self._redis.zadd(k, zmap)
+                    redis.zadd(k, zmap)
                     written["zset"] += 1
             now = time.time()
             for k, exp in snap["expiry"].items():
                 remaining = int(exp - now)
                 if remaining > 0:
-                    self._redis.expire(k, remaining)
+                    redis.expire(k, remaining)
                     written["expire"] += 1
             return {"status": "success", "written": written, "skipped": skipped}
         except Exception as e:
@@ -1321,7 +1330,7 @@ def create_store(
     return HybridStore.create(host=host, port=port, timeout_seconds=timeout_seconds, file_path=file_path, db=db)
 
 
-def _file_tier(file_path: str | None = None) -> Store:
+def _file_tier(file_path: str | None = None) -> "FileStore | SqliteStore":
     """The durable file tier: SqliteStore when opted in, FileStore otherwise.
 
     OPT-IN ON PURPOSE, and it must stay opt-in until the canonical store is migrated.

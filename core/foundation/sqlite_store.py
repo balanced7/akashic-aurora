@@ -63,7 +63,7 @@ import os
 import sqlite3
 import threading
 import time
-from typing import Any
+from typing import Any, cast
 
 from core.foundation.store import Store
 
@@ -269,7 +269,7 @@ class SqliteStore(Store):
             last: Exception | None = None
             for attempt in range(5):  # Windows: brief reader holds are contention
                 try:
-                    os.replace(tmp, self._echo_path)
+                    os.replace(tmp, cast("str", self._echo_path))  # close() gates on _echo_path
                     return
                 except OSError as e:
                     last = e
@@ -298,14 +298,19 @@ class SqliteStore(Store):
             return True
         return False
 
+    def _live_conn(self) -> sqlite3.Connection:
+        """The open connection; private helpers run only after the caller's None check."""
+        return cast("sqlite3.Connection", self._conn)
+
     def _drop_key(self, key: str) -> None:
+        conn = self._live_conn()
         for t in _DATA_TABLES:
-            self._conn.execute(f"DELETE FROM {t} WHERE key=?", (key,))
-        self._conn.execute("DELETE FROM expiry WHERE key=?", (key,))
+            conn.execute(f"DELETE FROM {t} WHERE key=?", (key,))
+        conn.execute("DELETE FROM expiry WHERE key=?", (key,))
 
     def _raw_exists(self, key: str) -> bool:
         for t in _DATA_TABLES:
-            if self._conn.execute(f"SELECT 1 FROM {t} WHERE key=? LIMIT 1", (key,)).fetchone():
+            if self._live_conn().execute(f"SELECT 1 FROM {t} WHERE key=? LIMIT 1", (key,)).fetchone():
                 return True
         return False
 
@@ -409,7 +414,7 @@ class SqliteStore(Store):
         with self._lock:
             if self._conn is None:
                 return 0
-            items = dict(mapping or {})
+            items: dict[str, str | None] = dict(mapping or {})
             if field is not None:
                 items[field] = value
             added = 0
@@ -441,7 +446,7 @@ class SqliteStore(Store):
 
     # ----------------------------------------------------------------- list
     def _list_bounds(self, key: str):
-        row = self._conn.execute("SELECT MIN(idx), MAX(idx) FROM list WHERE key=?", (key,)).fetchone()
+        row = self._live_conn().execute("SELECT MIN(idx), MAX(idx) FROM list WHERE key=?", (key,)).fetchone()
         return (row[0], row[1]) if row and row[0] is not None else (None, None)
 
     def lpush(self, key: str, *values: str) -> int:
