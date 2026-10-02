@@ -4,7 +4,7 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at 9aee64c9. A bound you discover by collision is not awareness -- this sheet
+> Derived at 653b5723. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
@@ -284,7 +284,7 @@ Class: reference
 | `TEMP` | `"/tmp"` | core/recall/precision_audit.py, scripts/ops/archive_transcripts.py |
 | `USERPROFILE` | `` | core/tools/everything.py |
 
-## Mechanical bounds (326 numeric constants)
+## Mechanical bounds (327 numeric constants)
 
 | Constant | Value | Site | Note |
 |---|---|---|---|
@@ -545,6 +545,7 @@ Class: reference
 | `SKEW_WINDOW_S` | 300 | core/comm/bridge_seal.py | the window the direct link already uses |
 | `SKEW_WINDOW_S` | 300 | core/comm/remote_relay.py |  |
 | `SNIPPET_CHARS` | 72 | core/comm/flow_trace.py |  |
+| `STALE_AFTER_S` | 300 | core/coord/suite_read.py | a suite log this old (with no growth) is 'finished', not 'live' |
 | `STALE_DAYS` | 14 | scripts/checkers/check_comprehensibility.py |  |
 | `STALE_LOCK_S` | 300 | arsenal/tools/qm.py |  |
 | `STALE_PROPOSED_DAYS` | 7 | core/coord/task_ledger.py | default; render callers may override via env AKASHIC_PROPOSED_STALE_DAYS |

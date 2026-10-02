@@ -1,0 +1,18 @@
+{
+  "id": "one-spine",
+  "question": "Are Heimdall's four gaps (the record-is-total map) and the context-system Wave 0 one spine with one weld order, and which Wave 0 slice absorbs each gap?",
+  "tier": "lite",
+  "opened_by": "claude",
+  "opened_at": "2026-10-02T03:21:31.941167+00:00",
+  "seals": {
+    "brief": {
+      "by": "claude",
+      "at": "2026-10-02T03:23:59.102150+00:00"
+    }
+  },
+  "pv": null,
+  "authors": {
+    "half_a": "deepseek",
+    "half_b": "kimi"
+  }
+}

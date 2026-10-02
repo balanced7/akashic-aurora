@@ -11,7 +11,7 @@ Class: reference
 > Companions: ARCHITECTURE.md (skeleton) - MODULE_INDEX.md (docstrings) -
 > PHYSICS.md (bounds+flags) - the charter docs/library/brief/20260719_the-master-map-documentation-as-projecti_a26fd3.md.
 
-## GAP queue (46 of 203 modules lack both pin and paper by name)
+## GAP queue (45 of 204 modules lack both pin and paper by name)
 
 - core/foundation/durable_reconcile.py
 - core/foundation/filelock.py
@@ -51,7 +51,6 @@ Class: reference
 - core/narrative/chapter_lifecycle.py
 - core/narrative/theme_assigner.py
 - core/trust/action_authority.py
-- core/trust/capabilities.py
 - core/trust/grant_writer.py
 - core/fleet/model_roster.py
 - core/state/session_checkpoint.py
@@ -168,7 +167,7 @@ Class: reference
 | `wake_tiers.py` | wake tiers -- the priority dimension the wake decision was missing. | tests/test_wake_tiers.py | GAP |  |
 | `wedge_discriminator.py` | wedge_discriminator (T376 S5) -- the wedged-vs-thinking decision rule. | tests/test_t376_s5_wedge_discriminator.py | GAP |  |
 
-## core/coord/  (32 modules)
+## core/coord/  (33 modules)
 
 | Module | One-line spec | Pin | Paper | Flags |
 |---|---|---|---|---|
@@ -196,6 +195,7 @@ Class: reference
 | `shift_loop.py` | Autonomous shift loop — the missing cadence between existing primitives. | tests/test_shift_loop.py | docs/library/design/autonomous-shift-loop-design.md |  |
 | `sift.py` | sift -- the nested ask: a tiered read that returns dissent instead of consensus. | tests/test_t217_sift.py | GAP |  |
 | `suite_baseline.py` | suite_baseline — the test-suite receipt the next seat diffs instead of re-deriving (W34/B4). | tests/test_w34_suite_baseline.py | GAP |  |
+| `suite_read.py` | suite_read — the READ-ONLY half of the suite verb family (wired 2026-10-01). | tests/test_suite_read.py | GAP |  |
 | `target.py` | context.target.v1 -- the one key every plane joins a code location on. | tests/test_context_target_v1.py | docs/library/design/20260722_p3-prose-door-inventory-counter-target-f_28a325.md |  |
 | `task_costs.py` | Task cost telemetry (T056 / wishlist R5) -- per-slice ROI, honestly attributed. | GAP | GAP | `BIFROST_NAMESPACE` |
 | `task_ledger.py` | Governed task ledger — the deterministic coordination substrate (Phase 1: sequential-correct). | tests/test_task_ledger.py | GAP | `AKASHIC_PROPOSED_STALE_DAYS`, `AKASHIC_TASKS_PATH`, `BIFROST_PREMISE_GATE_MIN_AGE_MS` |
@@ -284,7 +284,7 @@ Class: reference
 | Module | One-line spec | Pin | Paper | Flags |
 |---|---|---|---|---|
 | `action_authority.py` | One read-only authority detector shared by ToolBox execution and intent shadows. | GAP | GAP |  |
-| `capabilities.py` | Capability tokens + role templates -- the atomic vocabulary of the security schema. | GAP | GAP |  |
+| `capabilities.py` | Capability tokens + role templates -- the atomic vocabulary of the security schema. | GAP | docs/library/report/20260924_duckdb-lane-capabilities_5d2414.md |  |
 | `grant_writer.py` | core.trust.grant_writer -- the WRITE side of security/acl.json (T163, S-3 of the security schema). | GAP | GAP |  |
 | `private_plane.py` | The private-plane leak guard: ingress, at the one place everything must pass. | tests/test_private_plane_guard.py | GAP |  |
 | `registry.py` | Grant registry -- the reader over security/acl.json (source of truth), mirroring core/fleet/model_roster.py (r | tests/test_audit_registry_wiring_kimi.py | docs/library/design/20260711_t034-registry-dial-consolidation-deepsee_a65322.md | `AKASHIC_ACL_PATH` |
