@@ -181,3 +181,76 @@ The anti-popularity prior is not among the nine at all. Barrier 1 named the read
 did not say that the few judgments which exist make matters worse by crediting whatever happened
 to fire. The instrument found what its own designer's analysis had missed, one day after the
 analysis was written, which is the whole argument for having built it.
+
+---
+
+# HELD-OUT RESULT, 2026-10-02 ~02:00: P-A IS FALSIFIED
+
+Navi delivered batch 2 (N7-N12) AFTER P-A/P-B/P-C were committed, so these six are a genuine
+out-of-sample test. Merged verbatim; all seven ground-truth keys verified against the live corpus
+first. The set is now 16 of 40: 10 scored, 5 abstains, 1 excluded.
+
+## P-A: FAILED. The 10-moment floor result was overfitting.
+
+| all 16, floor | recall@1 | recall@5 | abstention |
+|---|---|---|---|
+| 0.20 (live) | 20% | **30%** | 0/5 |
+| 0.78 | 20% | **20%** | 5/5 |
+
+P-A predicted a 0.78 floor would buy abstention with no recall@5 loss. It buys perfect abstention
+and costs a third of recall@5. On batch 2 alone the floor at 0.78 takes recall@5 to **0%** -- it
+destroys every hit in the held-out set. The tradeoff I expected, then dismissed on 10 moments
+because the data did not show it, is real. Nine labels were not enough to see it and I should not
+have been as confident as the strictly-dominates table made me feel. This is exactly what the
+pre-registration was for, and the right outcome is that the floor stays at 0.20.
+
+## P-B: HELD in direction, but the fix is beaten by doing nothing
+
+Three arms, all at the live floor 0.20, the old formula reconstructed verbatim:
+
+| arm | batch 1 (fitted) r@1 | batch 2 (held out) r@1 | all 16 r@1 | all 16 r@5 |
+|---|---|---|---|---|
+| OLD formula (pre-fix) | 25% | 0% | **10%** | 30% |
+| SHIPPED fix (`9232e161`) | 50% | 0% | **20%** | 30% |
+| pure neutral, always 1.0 | 50% | **25%** | **30%** | 30% |
+
+P-B holds: the shipped fix beats the old formula at rank 1 on all 16 (20% vs 10%), and the old
+exposure penalty is the worst arm everywhere. Removing `surfaced` from the denominator was right.
+
+**But pure neutrality beats the shipped fix, 30% against 20%.** The part of the fix that still
+uses real judgments -- the signed balance shrunk by a confidence term -- is net HARMFUL at rank 1.
+Using the judgment signal is worse than ignoring it entirely.
+
+That is consistent with the rate: 2.2% of surfacings are ever judged (532 of 24,378), and the
+493 useful / 39 noise votes that exist were credited to whatever happened to FIRE, not to what
+should have. So the signal is not merely sparse, it is sampled from the engine's own mistakes.
+A multiplier estimated from it inherits that bias.
+
+**The honest setting for the usefulness multiplier at a 2.2% judgment rate is 1.0 -- no re-rank
+at all -- until the judgment channel is fixed.** That is a bigger claim than the one I shipped
+and it is NOT shipped here: it is pre-registered as P-D below and gated on batch 3.
+
+## N7/N8: the identical-trigger pair proves the TRIGGER is the ceiling, not the ranker
+
+Navi built N7 and N8 as a deliberate sibling pair. Their triggers are **byte-identical** --
+both `{"path": "core/comm/discord_guest_reply.py"}` -- with disjoint right answers (the ABSENCE
+defect vs the INVERSION defect, same file, same hour).
+
+Because `recall_at` keys on (path, command), it returns the **identical ranked list** for both,
+which it did. So the pair is unsatisfiable by construction: **recall@1 over {N7, N8} cannot
+exceed 50% for ANY path-keyed ranker, at any floor, under any re-rank.** No ranking fix reaches
+it. Measured, both MISS, and neither right answer appears in the top 5 at all, so the real result
+is worse than the structural ceiling.
+
+This converts reach-map barrier 4 ("the query is the command, not the intent") from an
+observation into a proof with a number on it. Two genuinely different moments in one file with
+different right answers cannot be distinguished by location. The fix is not a better ranker over
+the same key; the trigger must carry the moment's INTENT. That is the first thing measured here
+that no amount of W0-style work can touch.
+
+## P-D, pre-registered now, gated on batch 3
+
+- **P-D:** setting `usefulness_factor` to a constant 1.0 will beat the shipped judgment-estimated
+  version at recall@1 on unseen moments, until the judgment rate rises materially above 2.2%.
+- **P-A is withdrawn as falsified.** The floor stays 0.20. A floor change requires a rule whose
+  shape is not a global constant, per P-C, which remains untested.
