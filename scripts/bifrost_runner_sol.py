@@ -43,8 +43,8 @@ import threading
 import time
 from pathlib import Path
 
-sys.path.insert(0, os.path.dirname(HERE := os.path.dirname(os.path.abspath(__file__))))
-sys.path.insert(0, HERE)
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import contextlib
 
@@ -60,12 +60,15 @@ from core.comm.bus import Bus
 # The same call pins the ENCODING, which closes a real crash: a check-mark in a trace line raises
 # UnicodeEncodeError under Windows cp1252. Guarded -- a stream that cannot be reconfigured (pytest
 # capture, an exotic wrapper) must degrade to the old behaviour, never take the runner down.
-with contextlib.suppress(Exception):
+try:  # noqa: SIM105  # tests t150/t152 pin a try/except guard here
     sys.stdout.reconfigure(encoding="utf-8", errors="replace", line_buffering=True)
-with contextlib.suppress(Exception):
+except Exception:
+    pass
+try:  # noqa: SIM105  # tests t150/t152 pin a try/except guard here
     sys.stderr.reconfigure(encoding="utf-8", errors="replace", line_buffering=True)
+except Exception:
+    pass
 
-import contextlib
 
 from sol_chat import (
     DEFAULT_EFFORT,
@@ -81,6 +84,8 @@ from sol_chat import (
 
 from core.comm import context_hints, nudge, runner_lock, self_restart
 from core.comm.timescale import scaled as _scaled
+
+HERE = os.path.dirname(os.path.abspath(__file__))
 
 CARD = {
     "runtime_class": "api",

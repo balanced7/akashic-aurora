@@ -19,12 +19,14 @@ import os
 import subprocess
 import sys
 
-sys.path.insert(0, ROOT := os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.foundation.store import create_store
 from core.narrative.beat_log import TIMELINE, BeatLog
 from core.narrative.schema import Beat, Track, beat_key, track_key
 from core.narrative.track_router import RouteHint, get_track_router
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def _git(*args):

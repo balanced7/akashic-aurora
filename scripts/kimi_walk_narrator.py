@@ -29,9 +29,11 @@ import sys
 import time
 from pathlib import Path
 
-sys.path.insert(0, os.path.dirname(HERE := os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from agent.harness.trace import emit  # broadcast kind=trace, display_only -- UI already renders
+
+HERE = os.path.dirname(os.path.abspath(__file__))
 
 
 def _repo_root():

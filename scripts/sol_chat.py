@@ -32,11 +32,13 @@ import os
 import sys
 import time
 
-sys.path.insert(0, HERE := os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import contextlib
 
 from ask_gpt import load_key  # same provider, same key convention; ask_gpt is provider- not seat-named
+
+HERE = os.path.dirname(os.path.abspath(__file__))
 
 BASE_URL = "https://api.openai.com/v1"
 SOL, TERRA, LUNA = "gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna"

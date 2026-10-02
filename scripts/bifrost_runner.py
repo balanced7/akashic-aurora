@@ -14,7 +14,6 @@ on the bus. Degrades gracefully: web-first auto mode falls back to the API bridg
 """
 
 import argparse
-import contextlib
 import os
 import subprocess
 import sys
@@ -30,16 +29,22 @@ import sys
 # UnicodeEncodeError under Windows cp1252. Guarded: a stream that cannot be reconfigured
 # (pytest capture, an exotic wrapper) must degrade to the old behaviour, never take the runner
 # down at import.
-with contextlib.suppress(Exception):
+try:  # noqa: SIM105  # tests t150/t152 pin a try/except guard here
     sys.stdout.reconfigure(encoding="utf-8", errors="replace", line_buffering=True)
-with contextlib.suppress(Exception):
+except Exception:
+    pass
+try:  # noqa: SIM105  # tests t150/t152 pin a try/except guard here
     sys.stderr.reconfigure(encoding="utf-8", errors="replace", line_buffering=True)
+except Exception:
+    pass
 
-sys.path.insert(0, os.path.dirname(HERE := os.path.dirname(os.path.abspath(__file__))))
-sys.path.insert(0, HERE)
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from core.comm import context_hints
 from core.comm.bus import Bus
+
+HERE = os.path.dirname(os.path.abspath(__file__))
 
 CARD_API = {
     "runtime_class": "api",

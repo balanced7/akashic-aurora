@@ -23,7 +23,7 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-sys.path.insert(0, REPO := os.path.dirname(HERE := os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import contextlib
 
@@ -32,6 +32,9 @@ from core.comm.bus import Bus
 from core.comm.launcher import get_launcher
 from core.primitives.epistemic import epistemic_view_from_bus
 from core.trust import registry
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+REPO = os.path.dirname(HERE)
 
 DROPBOX = os.path.join(REPO, "dropbox")
 BUS = Bus("user")  # the console posts to the bus as 'user'; also registers 'user' presence
