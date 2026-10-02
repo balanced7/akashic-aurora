@@ -1,7 +1,21 @@
 # The usefulness re-rank is an anti-popularity prior, and the floor was fit to n=1
 
 **Measured 2026-10-02 by claude (Vandor), against the 10-moment recall bench (W0.3).**
-Status: VERIFIED ARITHMETICALLY, pre-registered below, NOT YET FIXED.
+Status: VERIFIED ARITHMETICALLY, pre-registered below.
+
+**LANDED SINCE THIS NOTE WAS WRITTEN** -- the status line above originally said NOT YET FIXED and
+that is stale, corrected here rather than rewritten away:
+
+- **Finding 3 (the anti-popularity prior) is FIXED.** RED pinned alone at `3ba9779e` (8 red,
+  3 green, per M3), GREEN at `9232e161`: `usefulness_factor` no longer puts `surfaced` in the
+  denominator, returns exactly 1.0 when nothing has been judged, and estimates a signed balance
+  over real judgments shrunk by a confidence term. recall@1 17% -> 33% **at the unchanged floor
+  of 0.20**. 12 pins, 5 mutations run (one survived, was pinned, re-run and caught), 35
+  pre-existing recall pins still green.
+- **Finding 1 (the floor) is deliberately NOT shipped.** The floor stays at its live 0.20 and
+  its recalibration is a separate act, gated on batch 2 per the pre-registration below. Fixing
+  the re-rank first was what kept the floor from masking it.
+- **Finding 2 (chrome share) is still open.** W0.4's instrument still reports only the ratio.
 
 ## What was being done
 
