@@ -44,6 +44,8 @@ export function createHarmonyRenderer(THREE, parent, model, ctx) {
   const projection=new THREE.Vector3(),aim=new THREE.Vector3(),mainPoints=[],voicePoints=[];
   const cellSites=FIFTHS.map((pitch,i)=>{const a=i*2.399963229728653,r=.20+Math.sqrt(i/11)*.62;return{pc:pitch,x:Math.cos(a)*r,y:Math.sin(a)*r*.78,weight:0};});
   let active=false,lastMode='',labels='harmony',time=0,nextPaint=0,reading={},rootPc=null,modeAge=0,span=.7,fade=1,expression=1,railLow=36,railHigh=84;
+  // The chord the label is holding through a silence. See labelState() at the foot of this file.
+  let lastLabel={text:'',number:null};
   let lastCells=-Infinity,cells=[],frameCount=0;const centre=new THREE.Vector3();
   const point=(x,y,z=0)=>({x,y,z});
   function node(i,p,pitch,level,power){const n=nodes[i];n.o.visible=n.rim.visible=true;n.o.position.set(p.x,p.y,p.z||0);
@@ -148,17 +150,16 @@ export function createHarmonyRenderer(THREE, parent, model, ctx) {
     const natural=s=>String(s||'').replace(/#/g,'♯').replace(/([A-G])b/g,'$1♭').replace(/b(?=[0-9]|$)/g,'♭').replace(/\^/g,'');
     const gradient=paint.createLinearGradient(0,H*.02,0,H*.34);gradient.addColorStop(0,'rgba(2,12,20,.62)');gradient.addColorStop(1,'rgba(2,12,20,0)');paint.fillStyle=gradient;paint.fillRect(0,0,W,H*.34);
     const left=W*.07,top=H*.105;paint.textAlign='left';paint.textBaseline='alphabetic';paint.fillStyle='#8aa9ad';paint.font=font(unit*.015,500);paint.letterSpacing=`${unit*.003}px`;paint.fillText(labels==='full'?'STAFF & VOICING':MODES[mode].name.split(' · ')[0].toUpperCase(),left,top);paint.letterSpacing='0px';
-    let shown=info?.name||'',number=info?reading.nns:null,key=reading.key?.name||'';
-    if(info&&!info.root&&info.notes?.length>5&&shown.includes(' '))shown=`${info.notes.length} notes`;
-    if(reading.nnsMode==='numbers'&&number)shown=number;
-    if(!shown)shown='Listen to the space';
+    const label=labelState(info,reading,lastLabel);
+    if(label.sounding)lastLabel={text:label.text,number:label.number};
+    let shown=label.text,number=label.number,key=reading.key?.name||'',sounding=label.sounding;
     let size=unit*(mobile?.095:.081);const title=natural(shown),parts=/^\d+ notes$/.test(title)?null:/^([A-G][♯♭]?|[♯♭]?[1-7])([^/]*)(.*)$/.exec(title);
     const runs=parts?[{t:parts[1],s:1,dy:0},{t:parts[2],s:.53,dy:-.30},{t:parts[3],s:.70,dy:0}]:[{t:title,s:.66,dy:0}];
     const measure=()=>runs.reduce((s,r)=>{paint.font=font(size*r.s,280);return s+paint.measureText(r.t).width+size*.05;},0);
     while(measure()>W*.84&&size>unit*.023)size*=.93;
-    paint.fillStyle='#e4ecdf';let x=left;for(const r of runs){paint.font=font(size*r.s,280);paint.fillText(r.t,x,top+unit*.09+r.dy*size);x+=paint.measureText(r.t).width+size*.05;}
+    paint.fillStyle=sounding?'#e4ecdf':LABEL_HELD;let x=left;for(const r of runs){paint.font=font(size*r.s,280);paint.fillText(r.t,x,top+unit*.09+r.dy*size);x+=paint.measureText(r.t).width+size*.05;}
     const sub=labels==='chord'?'':[reading.nnsMode!=='off'&&reading.nnsMode!=='numbers'?number:null,key?`home · ${key}`:null].filter(Boolean).join('   /   ');
-    paint.font=font(unit*.020,400);paint.fillStyle=reading.key?.dim?'#759296':'#b6c9c2';paint.fillText(natural(sub),left,top+unit*.129,W*.85);
+    paint.font=font(unit*.020,400);paint.fillStyle=!sounding?LABEL_HELD_SUB:(reading.key?.dim?'#759296':'#b6c9c2');paint.fillText(natural(sub),left,top+unit*.129,W*.85);
     const spellings=new Map((info?.notes||[]).map(n=>[pc(n.midi),natural(n.name)]));
     paint.textAlign='center';paint.textBaseline='middle';
     if(labels!=='full'&&mainPoints.length){for(const p of mainPoints){const s=screenPoint(p);paint.font=font(unit*(mode==='glass'?.024:.019),p.root?600:400);paint.fillStyle=p.level>.07?'#f1f2df':'#6e939e';
@@ -183,4 +184,36 @@ export function createHarmonyRenderer(THREE, parent, model, ctx) {
     stats:()=>({active,mode:lastMode,frames:frameCount,voices:state.voices.map(v=>({id:v.id,midi:v.midi,x:v.x,phase:v.phase,born:v.born,level:v.level,heat:v.heat,active:v.active,pulses:v.pulses.length})),bass:state.bass,
       levels:[...state.levels],power:[...state.power],heading:reading.nns,key:reading.key?.name,texture:[canvas.width,canvas.height]}),
     dispose(){for(const r of resources)r.dispose();parent.remove(root);}};
+}
+
+// The two inks a HELD label uses while nothing is sounding. Dim enough to read as inactive against
+// the near-black gradient, bright enough to still be legible -- the dimming is the message.
+export const LABEL_HELD = '#55625f';
+export const LABEL_HELD_SUB = '#3f4a48';
+
+/**
+ * What the big chord label should say, and whether anything is sounding.
+ *
+ * WHY THIS IS A FUNCTION AND NOT FOUR LINES INSIDE draw(). Everything else in draw() needs a canvas
+ * and a WebGL context to exercise, so none of it can be pinned. This decision can, and it is the
+ * part with the behaviour worth protecting.
+ *
+ * WHAT CHANGED, 2026-10-02, at Daniel's ask. On silence the label used to read "Listen to the
+ * space". Between stabs at speed that is not a message, it is a flicker: at 143 bpm with a ~196 ms
+ * median gap, the prompt appeared and vanished several times a second. It now HOLDS the last chord
+ * and dims it instead. The eye gets something stable to rest on, and the colour carries the state
+ * that the text used to spell out.
+ *
+ * `memory` is the caller's last sounding label, so a silence shows the chord you just played rather
+ * than nothing at all. Before the first note there is no memory and the title is simply empty --
+ * which is the one case where showing nothing is right, and is why this returns '' rather than
+ * inventing a greeting.
+ */
+export function labelState(info, reading, memory) {
+  const r = reading || {};
+  let shown = info?.name || '';
+  if (info && !info.root && info.notes?.length > 5 && shown.includes(' ')) shown = `${info.notes.length} notes`;
+  if (r.nnsMode === 'numbers' && (info ? r.nns : null)) shown = r.nns;
+  if (shown) return { text: shown, number: info ? (r.nns ?? null) : null, sounding: true };
+  return { text: memory?.text || '', number: memory?.number ?? null, sounding: false };
 }
