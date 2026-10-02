@@ -32,7 +32,7 @@ rebuilt wheels and dead ends, so the sweep is now a standing artifact rather tha
 - `core/comm` -- DRIFT (36->73), reviewed 2026-07-26
 - `core/coord` -- DRIFT (11->33), reviewed 2026-07-26
 - `core/learning` -- DRIFT (3->5), reviewed 2026-07-26
-- `core/recall` -- DRIFT (10->18), reviewed 2026-07-26
+- `core/recall` -- DRIFT (10->19), reviewed 2026-07-26
 - `core/primitives` -- DRIFT (7->8), reviewed 2026-07-26
 - `core/trust` -- DRIFT (2->5), reviewed 2026-07-26
 - `core/fleet` -- DRIFT (2->8), reviewed 2026-07-26
@@ -41,7 +41,7 @@ rebuilt wheels and dead ends, so the sweep is now a standing artifact rather tha
 - `scripts/checkers` -- DRIFT (12->22), reviewed 2026-07-26
 - `scripts/generators` -- DRIFT (6->11), reviewed 2026-07-26
 - `scripts/ops` -- DRIFT (2->8), reviewed 2026-07-26
-- `tests` -- DRIFT (331->767), reviewed 2026-07-26
+- `tests` -- DRIFT (331->768), reviewed 2026-07-26
 
 ---
 
@@ -181,7 +181,7 @@ _Reviewed 2026-07-26 by claude._
 
 _Reviewed 2026-07-26 by claude._
 
-## `core/recall` -- 18 modules  ·  DRIFT (10->18)
+## `core/recall` -- 19 modules  ·  DRIFT (10->19)
 
 **What it does.** Retrieval over the lesson corpus: at_action (PreToolUse injection), funnel (surface/credit accounting), curator (bench/unbench), forge (lesson content optimisation), anchors, dissent, lookback, knowledge_map.
 
@@ -518,7 +518,7 @@ _Reviewed 2026-07-26 by claude._
 
 _Reviewed 2026-07-26 by claude._
 
-## `tests` -- 767 modules  ·  DRIFT (331->767)
+## `tests` -- 768 modules  ·  DRIFT (331->768)
 
 **What it does.** 331 test modules plus conftest, providing universal backend isolation, a parity exerciser shared across store backends, and a differential harness that cross-verifies two implementations of the same semantics.
 

@@ -144,10 +144,11 @@
 - `learning_store.py` — Learning Store: Persists and retrieves experiment outcomes via the Store.
 - `vfx_chunk_lessons.py` — Adopt the VFX chunk rules into recall — as a PROJECTION, not a migration.
 
-## core/recall/  (18 modules)
+## core/recall/  (19 modules)
 - `actions.py` — The importable recall-at-action contract for EXTERNAL consumers (deepseek harness posttool /
 - `anchors.py` — Lesson anchor resolver -- does a lesson's premise still hold?
 - `at_action.py` — Recall-at-action (`core/recall`) — read the right knowledge AT THE MOMENT of action.
+- `bench.py` — W0.3 -- recall-bench: the first number recall has ever been judged on.
 - `curator.py` — Recall curator (vNext loop 1) -- the funnel's triage made an ACTOR, not a report.
 - `dissent.py` — Dissent-finder (`core/recall`) — surface the strongest genuine COUNTER to a recalled lesson.
 - `forge.py` — Forge F1 -- the Tier-0 edit gate (docs/library/design/20260701_lesson-forge-evidence-gated-content-opti_fd3204

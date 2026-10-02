@@ -194,6 +194,8 @@ _ARG_DEFAULTS = dict(
     hours=None, days=None,
     # context door (W0.4)
     stats=False,
+    # recall-bench (W0.3)
+    set=None,
     # graduate
     enforced_by=None, undo=False,
     # note / notes / locks (membrane slice 1b: MCP twins for shell-less agents)
@@ -358,6 +360,18 @@ async def boot(agent: str, task: str = "") -> str:
     a short stable id (e.g. 'cursor', 'claude'); `task` tunes what context is surfaced.
     """
     return await _athread(_run, agent_cli.cmd_boot, agent_id=agent, task=task or None)
+
+
+@mcp.tool()
+async def recall_bench(limit: int = 5) -> str:
+    """W0.3: grade recall against the committed answer key -- recall@1, recall@k, abstention and
+    chrome share, over moments an agent was actually in.
+
+    Drives the REAL trigger (path/command), never a query: the 2026-08-08 dossier measured that
+    querying the store directly returns the right lesson first almost every time, so a
+    query-keyed bench would grade the half that already works. The failure is in WHEN, not WHAT.
+    """
+    return await _athread(_run, agent_cli.cmd_recall_bench, limit=limit)
 
 
 @mcp.tool()

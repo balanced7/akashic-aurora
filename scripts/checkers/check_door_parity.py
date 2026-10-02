@@ -119,6 +119,7 @@ MANIFEST = {
     # harness environment (CLAUDE_CODE_SESSION_ID) that the CLI shares with the PreToolUse and
     # PostToolUse hooks. An MCP call runs in a different process with a different session, so an
     # mcp door would address a record nothing writes to. CLI-only by the shape of the problem.
+    "recall_bench": "shared",   # W0.3: the answer key is read-only and Navi adjudicates it
     "context": "shared",   # W0.4/W0.6 the context door: --stats today, anchors in W0.6
     "focus": "cli_only",
     "forecast": "cli_only",

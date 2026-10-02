@@ -8,7 +8,7 @@ Class: reference
 > (argparse). Companion to MAP.md (modules), PHYSICS.md (bounds/flags). Guarded by
 > check_comprehensibility so it cannot silently rot.
 
-## CLI door -- `py agent_cli.py <verb>` (109 verbs)
+## CLI door -- `py agent_cli.py <verb>` (110 verbs)
 
 The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepted values.
 
@@ -83,6 +83,7 @@ The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepte
 | `pulse` | W25 (deepseek): LIFEWORKERS pressure-map -- where is pressure building in the fleet? lane-depths to zones. Companion to vitals. READ-only | `<agent>` `--json` |
 | `recall` | search past lessons (no query = list all) | `<query>` `--json` `--full` `--agent` |
 | `recall-at` | recall-at-action: relevant lessons/locks for a path or command | `--path` `--command` `--gesture` `--subject` `--domain` `--agent-id` `--limit` `--hint-style {cli,tool}` `--json` |
+| `recall-bench` | W0.3: grade recall against the answer key (recall@k, abstention, chrome share) | `--set` `--limit` `--json` |
 | `recall-counters` | sharpening S2a: fold bare-slug + ghost recall:use:* counters (report; --fold applies) | `--fold` `--agent-id` |
 | `recall-curate` | bench surfaced-never-credited lessons + prune ghost counters (report; --apply stamps) | `--apply` `--forge-audit` `--forge-check` `--draft` `--forge-propose` `--forge-proposals` `--limit` `--json` |
 | `recall-feedback` | mark a recalled lesson useful/noise (teaches recall what helps) | `--source*` `--useful` `--noise` `--domain` |

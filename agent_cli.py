@@ -5512,6 +5512,31 @@ def cmd_promoted(args):
     return 0
 
 
+def cmd_recall_bench(args) -> int:
+    """W0.3: grade recall against an answer key, by driving the REAL trigger.
+
+    The 2026-08-08 dossier's finding is why this drives path/command and never a query: querying
+    the store directly returns the right lesson first almost every time, so keying the bench on a
+    query would measure the half that already works. The failure is in WHEN, not WHAT.
+    """
+    import json as _json
+    from core.recall import bench as _b
+    from core.recall.at_action import recall_at
+    try:
+        meta = _b.load(getattr(args, "set", None) or None)
+    except Exception as e:                                                # noqa: BLE001
+        print(f"ERROR: could not load the moment set ({type(e).__name__}: {e})")
+        return 1
+    k = int(getattr(args, "limit", None) or 5)
+    d = _b.score(meta.get("moments") or [], recall_at, k=k)
+    if getattr(args, "json", False):
+        print(_json.dumps({"meta": {kk: vv for kk, vv in meta.items() if kk != "moments"},
+                           "result": d}, indent=2, default=str))
+    else:
+        print(_b.render(d, meta))
+    return 0
+
+
 def cmd_context(args) -> int:
     """W0.4: the instrument over the touch stream. `context --stats` is the first mode of the
     context door; the anchor modes are W0.5/W0.6 and are not built yet.
@@ -8889,6 +8914,12 @@ def build_parser():
                     help="one elapsed/ETA/%% line per busy agent (the poor-man's bars)")
     dr.add_argument("--json", action="store_true")
     dr.set_defaults(fn=cmd_doctor)
+
+    rb = sub.add_parser("recall-bench", help="W0.3: grade recall against the answer key (recall@k, abstention, chrome share)")
+    rb.add_argument("--set", default=None, help="path to a moments.json (default: the committed set)")
+    rb.add_argument("--limit", type=int, default=None, help="k for recall@k (default 5)")
+    rb.add_argument("--json", action="store_true")
+    rb.set_defaults(fn=cmd_recall_bench)
 
     cx = sub.add_parser("context", help="W0.4/W0.6: the context door -- `--stats` meters the touch stream")
     cx.add_argument("--stats", action="store_true", help="the instrument: coverage, rate, shape, drops")

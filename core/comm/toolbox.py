@@ -779,6 +779,14 @@ class ToolBox:
             return err
         return self._agent_cli(["note", self.agent_id or "deepseek", "--title", str(title), "--note", str(note)])
 
+    def recall_bench(self, limit: int = 5) -> str:
+        """W0.3: grade recall against the committed answer key. Read-only.
+
+        On the third door because the seat that ADJUDICATES the answer set is Navi, who works
+        through this door. A bench its adjudicator cannot run is a bench with one grader.
+        """
+        return self._agent_cli(["recall-bench", "--limit", str(int(limit))])
+
     def context(self, hours: float = 24.0, limit: int = 20000) -> str:
         """W0.4: meter the touch stream -- session coverage, touches per hour by seat, targets
         per touch, the share of commands that could not be seen into, ring retention, drops.
