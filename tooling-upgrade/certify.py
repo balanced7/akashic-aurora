@@ -9,6 +9,7 @@
     certify.py suppressions [--write]                 regenerate / verify SUPPRESSIONS.md (T4)
     certify.py fresh-clone [--gate]                   clone --no-hardlinks, uv sync --locked (, poe gate)
     certify.py drills [--expect-missed]               D01-D15 alone
+    certify.py assert-suppressions                    T3 + T4 (the gate step that makes D07 bite)
 
 The evaluator of a goal cannot run anything, so this script runs every pre-registered check
 itself and prints one block. It refuses to print CERTIFIED when the worktree is dirty, HEAD is
@@ -444,7 +445,7 @@ def _fault_d05(t):
 def _fault_d07(t):
     rel = _first_core_module(t)
     p = t / rel
-    p.write_text("# pyright: basic\n" + p.read_text(encoding="utf-8"), encoding="utf-8")
+    p.write_text("# pyright" + ": basic\n" + p.read_text(encoding="utf-8"), encoding="utf-8")
 
 
 def _fault_d08(t):
@@ -987,6 +988,68 @@ def cmd_assert_latent_regressions(args) -> int:
     return _report("LATENT REGRESSIONS", problems)
 
 
+STRICT_ISLANDS = (
+    # G4.P3: the Python files this effort wrote (oracle and certify tooling included)
+    "scripts/generators/gen_requirements.py",
+    "tests/test_tooling_upgrade_oracle.py",
+    "tooling-upgrade/certify.py",
+    "tooling-upgrade/oracle.py",
+    "tooling-upgrade/pytest_plugin/aurora_oracle_plugin.py",
+)
+BASELINE_FILES = (".basedpyright/baseline.json", "basedpyright-baseline.json")
+
+
+def types_config_problems() -> list:
+    """G4.P1: [tool.basedpyright] carries the plan's settings, [tool.ty] exists, no baseline."""
+    tool = pyproject().get("tool", {})
+    bp, ty = tool.get("basedpyright"), tool.get("ty")
+    if not isinstance(bp, dict):
+        return ["no [tool.basedpyright] table"]
+    floor = re.search(r"(\d+\.\d+)", pyproject().get("project", {}).get("requires-python", ""))
+    want = {
+        "typeCheckingMode": "standard",
+        "pythonVersion": floor.group(1) if floor else "?",
+        "venvPath": ".",
+        "venv": ".venv",
+        "enableTypeIgnoreComments": True,
+        "reportUnnecessaryTypeIgnoreComment": "error",
+    }
+    problems = [f"basedpyright {k} = {bp.get(k)!r}, want {v!r}" for k, v in want.items() if bp.get(k) != v]
+    problems += [f"basedpyright sets {k}" for k in ("baselineFile", "strict", "ignore") if k in bp]
+    for env in bp.get("executionEnvironments", []):
+        mode = env.get("typeCheckingMode", "standard")
+        if mode not in ("standard", "basic", "strict") or any(k.startswith("report") for k in env):
+            problems.append(f"executionEnvironment {env.get('root')!r} loosens rules beyond `basic`")
+    if not isinstance(ty, dict):
+        problems.append("no [tool.ty] table")
+    problems += [f"baseline file {b} exists" for b in BASELINE_FILES if (ROOT / b).exists()]
+    return problems
+
+
+def cmd_assert_types_config(args) -> int:
+    return _report("TYPES CONFIG", types_config_problems())
+
+
+def cmd_assert_strict_islands(args) -> int:
+    problems = []
+    for f in STRICT_ISLANDS:
+        p = ROOT / f
+        head = p.read_text(encoding="utf-8").splitlines()[:5] if p.exists() else []
+        if not any(re.fullmatch(r"#\s*pyright:\s*strict\s*", ln) for ln in head):
+            problems.append(f"{f} has no strict pyright header")
+    return _report("STRICT ISLANDS", problems)
+
+
+def cmd_assert_suppressions(args) -> int:
+    """The gate's suppression step (T3 at G4 strength, T4): no blanket or reason-less
+    suppression, within budget, SUPPRESSIONS.md current. This is what makes D07 bite."""
+    problems = []
+    for name, (ok, msg) in (("T3", t3(4)), ("T4", t4())):
+        if not ok:
+            problems.append(f"{name}: {msg}")
+    return _report("SUPPRESSIONS", problems)
+
+
 def cmd_assert_ledger_entry(args) -> int:
     text = (HERE / "LEDGER.md").read_text(encoding="utf-8")
     rows = [ln for ln in text.splitlines() if ln.startswith(f"| {args.phase}")]
@@ -1185,6 +1248,9 @@ def main(argv=None) -> int:
     s = sub.add_parser("assert-ratchet", help="stretch rule families never rise")
     s.add_argument("goal")
     sub.add_parser("assert-latent-regressions", help="latent-bug tests fail on parent, pass on HEAD")
+    sub.add_parser("assert-types-config", help="[tool.basedpyright] per G4.P1, [tool.ty], no baseline")
+    sub.add_parser("assert-strict-islands", help="G4.P3 files carry the strict pyright header")
+    sub.add_parser("assert-suppressions", help="T3 (G4 strength) and T4: the gate's suppression step")
     s = sub.add_parser("assert-ledger-entry", help="LEDGER.md has a closed row for a phase")
     s.add_argument("phase")
     sub.add_parser("assert-docs-uv", help="docs present uv as the primary path")
@@ -1206,6 +1272,9 @@ def main(argv=None) -> int:
         "assert-gate": cmd_assert_gate,
         "assert-sha-pins": cmd_assert_sha_pins,
         "assert-latent-regressions": cmd_assert_latent_regressions,
+        "assert-types-config": cmd_assert_types_config,
+        "assert-strict-islands": cmd_assert_strict_islands,
+        "assert-suppressions": cmd_assert_suppressions,
         "assert-ledger-entry": cmd_assert_ledger_entry,
         "assert-docs-uv": cmd_assert_docs_uv,
         "assert-ci-replay": cmd_assert_ci_replay,

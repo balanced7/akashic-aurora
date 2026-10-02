@@ -550,9 +550,8 @@
 | tests/test_write_door_acl_scope.py | 48 | `noqa: E402` | sys.path bootstrap |
 | tests/test_write_door_acl_scope.py | 49 | `noqa: E402` | sys.path bootstrap |
 | tests/test_write_door_acl_scope.py | 50 | `noqa: E402` | sys.path bootstrap |
-| tooling-upgrade/certify.py | 366 | `noqa: E731` | local one-line key function |
 | tooling-upgrade/certify.py | 367 | `noqa: E731` | local one-line key function |
-| tooling-upgrade/certify.py | 447 | `pyright: basic\n" + p.read_text(encoding="utf-8"), encoding="utf-8")` |  |
+| tooling-upgrade/certify.py | 368 | `noqa: E731` | local one-line key function |
 | tooling-upgrade/oracle.py | 1079 | `noqa: E731` | local one-line key function |
 | tooling-upgrade/oracle.py | 1099 | `noqa: E731` | local one-line key function |
 | tooling-upgrade/oracle.py | 1102 | `noqa: E731` | local one-line key function |
