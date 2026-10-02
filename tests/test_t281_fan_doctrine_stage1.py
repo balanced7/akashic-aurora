@@ -95,6 +95,7 @@ def test_p2_builder_records_totals_and_ratio(tmp_path):
 
         _, meta_full = A.build_context([str(f)], budget_chars=5000)
         cov_full = A.coverage_from_meta(meta_full)
+        assert cov_full is not None
         assert cov_full["ratio"] == 1.0, "P2: unclipped -> ratio exactly 1.0"
     finally:
         f.unlink(missing_ok=True)

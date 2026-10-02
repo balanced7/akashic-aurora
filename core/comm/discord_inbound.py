@@ -244,7 +244,7 @@ SPAWN_ALREADY_UP_MARKERS = (
 _SPAWN_ADDR_RE = re.compile(r"\d{1,3}(?:\.\d{1,3}){3}:\d{2,5}")
 
 
-def spawn_already_up_reason(log_text: str) -> str | None:
+def spawn_already_up_reason(log_text: str | None) -> str | None:
     """Did the spawn refuse because the seat is ALREADY alive on its port?
 
     None means no already-up marker was found -- the caller falls through to

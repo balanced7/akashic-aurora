@@ -112,7 +112,7 @@ def test_lock_veto_unset_id_fails_closed_with_teaching(monkeypatch):
         "path_conflict",
         lambda p, a, client=None: {"conflict": True, "held_by": "cursor", "reason": "locked by cursor"},
     )
-    msg = guards.lock_veto("scripts/x.py", None, "set it in <YOUR-HARNESS-CONFIG>")  # pyright: ignore[reportArgumentType]  # unset id on purpose; source handles None
+    msg = guards.lock_veto("scripts/x.py", None, "set it in <YOUR-HARNESS-CONFIG>")
     assert "AKASHIC_AGENT_ID" in msg, "the teaching must name a place THIS harness's reader can actually reach"
     assert "cursor" in msg, "the teaching must name a place THIS harness's reader can actually reach"
     assert "<YOUR-HARNESS-CONFIG>" in msg, "the teaching must name a place THIS harness's reader can actually reach"
@@ -131,7 +131,7 @@ def test_lock_veto_peer_conflict_and_clean_path(monkeypatch):
         L, "path_conflict", lambda p, a, client=None: {"conflict": False, "held_by": None, "reason": ""}
     )
     assert guards.lock_veto("scripts/x.py", "claude", "hint") == ""
-    assert guards.lock_veto("", None, "hint") == ""  # pyright: ignore[reportArgumentType]  # unset id on purpose; source handles None
+    assert guards.lock_veto("", None, "hint") == ""
 
 
 # --- nudge: three-way rate limit ----------------------------------------------------------------

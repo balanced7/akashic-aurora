@@ -61,7 +61,7 @@ def _path(session_id: str, binding_dir: str | None) -> str:
 _SCHEME_PREFIX_RE = re.compile(r"^(?:(?![0-9A-Fa-f]+-)[A-Za-z]+-)+(?=[0-9A-Fa-f]{8}-)")
 
 
-def sid8(session_id: str) -> str:
+def sid8(session_id: str | None) -> str:
     """THE incarnation discriminator -- the 8 characters every per-seat key hangs off
     (`{ns}:worklive|seatseen:<agent>#<sid8>`, `{ns}:inbox:<agent>#<sid8>`,
     `{ns}:cursor:seat:<agent>#<sid8>`, the eye's `<agent>#<sid8>` standpoint, the mailbox

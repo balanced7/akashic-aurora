@@ -76,7 +76,7 @@ def _client():
 
 def test_r1_a_runner_shaped_beat_renders_live():
     c = _client()
-    assert R.heartbeat(NS, AGENT, SID, phase="handling", client=c)["ok"] is True  # pyright: ignore[reportIndexIssue]  # SOURCE: roster.heartbeat is annotated -> bool, returns a dict
+    assert R.heartbeat(NS, AGENT, SID, phase="handling", client=c)["ok"] is True
     rows = [r for r in R.roster(NS, client=c) if str(r.get("seat", "")).startswith(AGENT)]
     assert rows, "a beating runner produced no roster row at all"
     assert rows[0]["state"] == "LIVE", (
@@ -142,7 +142,7 @@ def test_r5_a_broken_client_never_raises():
             return _boom
 
     got = R.heartbeat(NS, AGENT, SID, client=Broken())  # must not raise
-    assert got["ok"] is False  # pyright: ignore[reportIndexIssue]  # SOURCE: roster.heartbeat is annotated -> bool, returns a dict
+    assert got["ok"] is False
     # NOTE: heartbeat is annotated -> bool but returns {"ok": ..., "resumed_after_s": ...}.
     # An `is not False` assertion would therefore pass on ANY outcome -- my first draft of R1
     # did exactly that and was green while proving nothing. Both pins now read ["ok"].

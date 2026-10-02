@@ -113,7 +113,7 @@ def _retire(ns, c, *, stop_hb=None, hb_thread=None, hb_join_s=6.0):
 # ------------------------------------------------------------------ P1: the retraction
 def test_p1_retire_seat_deletes_the_card_and_declares_offline():
     c, ns = FakeRedis(), _ns()
-    assert roster.heartbeat(ns, AGENT, SESSION, phase="running", client=c)["ok"] is True  # pyright: ignore[reportIndexIssue]  # SOURCE: roster.heartbeat is annotated -> bool, returns a dict
+    assert roster.heartbeat(ns, AGENT, SESSION, phase="running", client=c)["ok"] is True
     assert _card(c, ns), "sanity: the beat wrote the per-incarnation card"
 
     rep = _retire(ns, c, stop_hb=threading.Event())
@@ -165,7 +165,7 @@ def test_p1c_no_fake_retraction_when_the_beat_thread_does_not_join():
     go_offline -- a delete then would be resurrected by the still-running beat. retire_seat
     reports retracted=False with a reason, never a fake clean retraction."""
     c, ns = FakeRedis(), _ns()
-    assert roster.heartbeat(ns, AGENT, SESSION, phase="running", client=c)["ok"] is True  # pyright: ignore[reportIndexIssue]  # SOURCE: roster.heartbeat is annotated -> bool, returns a dict
+    assert roster.heartbeat(ns, AGENT, SESSION, phase="running", client=c)["ok"] is True
 
     stop = threading.Event()
 

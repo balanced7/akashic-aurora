@@ -25,7 +25,7 @@ def git_veto(command: str) -> str:
     return "" if allowed else (reason or "")
 
 
-def lock_veto(path: str, agent_id: str, id_hint: str) -> str:
+def lock_veto(path: str, agent_id: str | None, id_hint: str) -> str:
     """The deny reason if a PEER holds an advisory lock on `path` (core/comm/locks.py),
     else "". With `agent_id` set we know who we are and only a PEER's lock blocks. With
     it UNSET we can't verify ownership, so we fail CLOSED on any locked path, teaching
