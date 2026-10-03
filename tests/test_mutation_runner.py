@@ -148,9 +148,18 @@ def test_a_missing_anchor_is_NULL_APPLY_not_SURVIVED(bench):
 
 
 def test_an_ambiguous_anchor_is_NULL_APPLY(bench):
-    """Two matches means the runner cannot know which site it mutated."""
-    r = _one(bench, file="subject.py", anchor="return", replacement="return")
+    """Two matches means the runner cannot know which site it mutated.
+
+    The replacement must DIFFER from the anchor. The first version used
+    replacement == anchor, so removing the ambiguity check entirely still produced
+    NULL-APPLY via the identical-replacement check -- the pin passed for the wrong reason and
+    the runner's own self-mutation caught it ('stop refusing an ambiguous anchor' SURVIVED).
+    """
+    r = _one(bench, file="subject.py", anchor="return", replacement="return  ")
     assert r["verdict"] == "NULL-APPLY", r
+    assert "ambiguous" in r["detail"].lower(), (
+        "refused for some reason other than ambiguity, so this does not pin the count "
+        "check: %r" % r["detail"])
 
 
 def test_a_mutant_that_does_not_parse_is_NULL_APPLY_not_SURVIVED(bench):
@@ -196,17 +205,43 @@ def test_a_probe_that_moves_leaves_the_verdict_alone(bench):
 
 
 # ------------------------------------------------------------------ today: the blind detector
-def test_the_verdict_comes_from_the_exit_code_not_from_matching_output(bench):
-    """THE 2026-10-02 SPECIES. Under `-q --no-header` a passing pytest run prints only dots
-    and NO lowercase counts line, so `" failed" not in output` is False in both directions.
-    This bench reproduces that shape exactly: if the runner scores by text it reads this
-    genuinely-red run as green and reports SURVIVED."""
-    r = _one(bench, file="subject.py", anchor='return "negative"',
-             replacement='return "nonnegative"', expect="test_negative_is_negative")
+def test_the_verdict_comes_from_the_exit_code_not_from_matching_output(bench, monkeypatch):
+    """THE 2026-10-02 SPECIES, pinned by DRIVING THE DETECTOR rather than hoping the real
+    runner emits the right shape.
+
+    The first version of this pin ran the toy bench and asserted CAUGHT. That is not a pin:
+    this pytest DOES print a lowercase counts line on failure, so a text-scoring runner reads
+    it correctly here and the pin passes anyway. The runner's own self-mutation proved it --
+    'score by output text instead of the exit code' SURVIVED, the single most important
+    mutation in the set, against the pin written specifically to catch it.
+
+    So substitute a detector that returns the shape that actually broke things: a NONZERO
+    exit code with output containing no failure vocabulary at all. Any runner scoring on text
+    calls this green.
+    """
+    import scripts.mutate as M
+    calls = {"n": 0}
+    real = M._run_tests
+
+    def fake(tests, repo, timeout=600):
+        calls["n"] += 1
+        if "canary" in str(tests):
+            return 1, "canary went red"          # calibration must still pass
+        if calls["n"] <= 3:
+            return 0, "..... [100%]"             # baseline + null control: genuinely green
+        # the mutation run: RED, with innocuous output and no counts line
+        return 1, "..F.. [100%]"
+
+    monkeypatch.setattr(M, "_run_tests", fake)
+    res = M.run_spec(_spec(file="subject.py", anchor="return n * 2", replacement="return n * 3"),
+                     tests="test_subject.py", repo=bench)
+    assert res["calibration"]["ok"] is True, res["calibration"]
+    r = res["results"][0]
     assert r["verdict"] == "CAUGHT", (
-        "a red suite was scored green -- the runner is matching output text instead of "
-        "reading the exit code: %r" % (r,))
-    assert r.get("returncode") not in (None, 0), r
+        "a nonzero exit code was scored green -- the runner is matching output text instead "
+        "of reading the exit code: %r" % (r,))
+    assert r["returncode"] == 1, r
+    assert real is not M._run_tests  # sanity: the substitution was live
 
 
 def test_the_runner_refuses_when_its_canary_is_not_caught(bench, monkeypatch):
@@ -234,13 +269,26 @@ def test_the_runner_refuses_when_the_null_control_reads_as_red(bench, monkeypatc
 
 
 def test_a_red_baseline_refuses_before_anything_is_mutated(bench):
-    """Mutating a tree that is already red cannot produce a readable verdict."""
+    """Mutating a tree that is already red cannot produce a readable verdict.
+
+    Assert on the REASON, not merely that it refused. The first version checked
+    `"baseline" in json.dumps(calibration)` -- but the report always carries a "baseline"
+    key, so the assertion was true whichever check did the refusing. With the baseline check
+    removed the NULL CONTROL refused instead (the target is red, so a no-op stays red) and
+    the pin still passed. The runner's own self-mutation caught it.
+    """
     (bench / "test_subject.py").write_text(
         TESTS + "\n\ndef test_already_broken():\n    assert False\n", encoding="utf-8")
     res = run_spec(_spec(file="subject.py", anchor="return n * 2", replacement="return n * 3"),
                    tests="test_subject.py", repo=bench)
-    assert res["calibration"]["ok"] is False, res["calibration"]
-    assert "baseline" in json.dumps(res["calibration"]).lower()
+    cal = res["calibration"]
+    assert cal["ok"] is False, cal
+    assert cal["baseline"]["green"] is False, cal
+    assert "baseline" in (cal.get("why") or "").lower(), (
+        "refused, but not FOR the baseline -- the baseline check is not what is pinned "
+        "here: %r" % cal.get("why"))
+    assert cal["canary"] is None and cal["null_control"] is None, (
+        "calibration continued past a red baseline instead of refusing immediately: %r" % cal)
 
 
 # --------------------------------------------------------------------------- hygiene

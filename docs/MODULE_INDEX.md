@@ -351,6 +351,7 @@
 - `mcp_register.py` — T081-W2: make the akashic-aurora MCP door attach from ANY launch cwd.
 - `migrate_time_scores.py` — One-time migration (S5): re-score the persisted time-zsets with the unified `to_epoch`.
 - `mirror.py` — mirror.py -- the PUBLISH door: commit named paths and push them to the PUBLIC GitHub repo.
+- `mutate.py` — The mutation runner (W128, amended by W236).
 - `necropsy.py` — necropsy -- unclean deaths detected, then distilled (W151b, disaster-proofing Slice 1b).
 - `piano_follow_frames.py` — Reconstruct what the 9:16 follow view actually SHOWED, at true scale.
 - `piano_roll_pack.py` — roll/1 door: pack a recorded session, or read one back.

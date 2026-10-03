@@ -4,7 +4,7 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at 48292a94. A bound you discover by collision is not awareness -- this sheet
+> Derived at c768cec7. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
@@ -286,7 +286,7 @@ Class: reference
 | `TEMP` | `"/tmp"` | core/recall/precision_audit.py, scripts/ops/archive_transcripts.py |
 | `USERPROFILE` | `` | core/tools/everything.py |
 
-## Mechanical bounds (330 numeric constants)
+## Mechanical bounds (331 numeric constants)
 
 | Constant | Value | Site | Note |
 |---|---|---|---|
@@ -359,6 +359,7 @@ Class: reference
 | `DEFAULT_THRESHOLD` | 3 | core/narrative/event_promoter.py | salience >= this is worth a Beat |
 | `DEFAULT_TIMEOUT` | 5 | research/in-flight/t342/dead-modules/gemini_bridge.py | 5 seconds max to determine bridge failure |
 | `DEFAULT_TIMEOUT` | 5 | research/in-flight/t342/dead-modules/gemini_bridge_monitor.py |  |
+| `DEFAULT_TIMEOUT` | 600 | scripts/mutate.py |  |
 | `DEFAULT_TIMEOUT_S` | 25 | core/comm/door_probe.py |  |
 | `DEFAULT_TOKEN_BUDGET` | 4,000 | core/primitives/consolidator.py |  |
 | `DEFAULT_TRACE_SPOT_INTERVAL` | 1,000 | core/comm/packet_spec.py |  |
