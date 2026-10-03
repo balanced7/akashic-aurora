@@ -207,3 +207,92 @@ different vocabulary by construction, which is exactly why ours never caught it.
 96 KB) and `research/reviewed/mnemosyne-provenance-archaeology-2026-10-03.md` (five diggers
 over our own archive, 78 KB). Both are the agents' verbatim returns; the two load-bearing
 findings in §2.1 and §2.3 were re-verified by hand before being written down here.*
+
+---
+
+# 6. NORTH_STAR.md — reviewed at Serge's request
+
+`NORTH_STAR.md`, 144 lines, untracked, mtime 2026-09-29 — written after both our prior
+reviews and before your last commits, so neither earlier review saw it.
+
+## 6.1 The best thing in it, and the part most vision documents do not have
+
+The FOUNDATION / NORTH STAR split, with the line *"Maintained so nobody retroactively claims
+the vision is already real"*, and then the promotion rule:
+
+> *a frontier capability moves to the "foundation" column only when it is demonstrated by a
+> conformance/golden test over real evidence — never by prose, consensus, or "feels done."*
+
+That is an evidentiary standard inside a vision document, which is rare enough to be the
+document's main contribution. You also claim only **7 of 13** principles as mechanically
+enforced and leave the rest unclaimed; the restraint is the credible part. And the citations
+are real — I first could not find D03 and I05 because I grepped `tests/`; they live in
+`battery/scenarios.py:112` and `battery/interrupt.py`. My error, corrected before writing.
+
+## 6.2 So we tested the FOUNDATION column by your own rule
+
+A rule that says "demonstrated by a test" invites exactly one question: *does the test fail
+when the guarantee is violated?* We sampled 30 single-token mutations across your subsystems
+and ran your battery against each.
+
+**Four of the seven principles you claim are mechanically enforced have a surviving mutation
+that inverts the precise check the principle names.** Each verified by hand as real logic —
+not prose, not semantically null:
+
+| principle | line | mutation that survived |
+|---|---|---|
+| **P3** attempted effect is not confirmed effect | `execution/filesystem.py:381` | `before.get("hash") != after.get("hash")` → `==`. Every unchanged file now reports **APPLIED**, every changed file **NO_CHANGE**. This line *is* the effect-receipt mechanism you cite. |
+| **P6** approval against an old world | `memory/memory.py:123` | `current is None or current.version != expected_version` → `and`. A stale version is accepted on the `adapt` path. D03 exists and covers the **approval** plane; it does not reach this one. |
+| **P12** freshness where effects become real | `execution/workspace_intel.py:189` | `src["symbol_hash"] != expected_hash` → `==`, inverting the integrity check. |
+| *(security default)* | `control/models.py:18` | `private: bool = True` → `False` — the "does data stay on the machine?" default flips undetected. |
+
+**The caveats, because the raw number would mislead you.** 10 of 30 killed is a 33% rate and
+**we are not quoting that at you**, for two reasons. It is a 30-mutation sample, not a census.
+And at least 4 of the 20 survivors were our harness mutating **prose inside string literals** —
+`house/rof.py:52`, `house/adjudications.py:100` (a string that *quotes* code), and two
+`ToolSpec` descriptions. That is our own documented defect, "a pin that reads prose measures
+prose", sitting in the instrument we measured you with. The four rows above are the finding;
+the percentage is not.
+
+## 6.3 One line worth looking at before the security column moves
+
+`execution/filesystem.py:469`, `run_elevated`: the PowerShell command is built by f-string
+interpolation — `Start-Process -FilePath 'cmd.exe' -ArgumentList '/c {command}' -Verb RunAs`.
+`shell=False` guards the outer `subprocess` layer, but the PowerShell string itself is the
+injection point, and this is the **RunAs** path. Your North Star already lists enterprise
+security as not-built, so this is not a gotcha — it is the specific line we would move to the
+foundation column first, and the one where "local single-operator tool" is currently doing all
+the work in the threat model.
+
+## 6.4 Two document-hygiene notes
+
+- **"86 automated tests."** The tree today holds 60 golden + 83 conformance = **143** files.
+  The doc predates your last commits and the number *understates*, which is the safe
+  direction — but a hand-typed count inside the document that enforces *"no claims without
+  tests"* should be generated rather than maintained.
+- **143 of 143 battery files carry their own `__main__`; only 6 use pytest.** A real design
+  choice, and it is why we invoked them individually. The cost: aggregate pass/fail depends on
+  something iterating 143 exit codes, and a file that dies on import is indistinguishable from
+  one that passes unless the runner checks **every** code. That exact trap cost us a full round
+  two days ago — a suite that had died at collection and run zero tests read to us as green.
+
+## 6.5 The probe that matters most about this document
+
+Your thirteen principles split three ways, not two. Seven are claimed as foundation. Six —
+**5, 7, 9, 10, 11, 13** — appear in *neither* column.
+
+Two of those six are the thesis of the entire system:
+
+> **10. The world survives the resident.**
+> **11. Replace the model; preserve the organization.**
+
+Everything else in Mnemosyne is instrumental to those two, and neither has a stated acceptance
+test or a column. So: **what conformance test demonstrates that the world survived the
+resident?** Not "state persisted" — the hard version: a resident is replaced *mid-obligation*,
+and the organization's unfinished work, authority, and open loops arrive intact at a new one.
+
+That is the question your own promotion rule asks of everything else, turned on the two
+principles it exempts. If that test exists, principles 10 and 11 belong in the foundation
+column and the document undersells itself. If it does not, it is the most valuable test you
+could write next — because it is the only one that can *falsify* the north star rather than
+decorate it.
