@@ -76,6 +76,16 @@ BENIGN_FINGERPRINTS: Dict[str, str] = {
     "924f713c5ef2f732": "tests/test_t156_wire_journal.py canary asserting the wire "
                         "journal stores metadata only and never prompt content -- not a "
                         "credential, and its presence is the proof the assertion exists",
+    # VERIFIED the same way, not assumed: sha256 of the literal was computed independently
+    # and equals the fingerprint the scan reported, so this entry names that exact 25-byte
+    # string and nothing else. The literal spells out that it is not a key.
+    "0b0e8dd958417728": "tests/test_touch_v1.py canary ('sk-ant-not-a-real-key-000', 25 "
+                        "bytes) in test_the_raw_command_text_never_lands_in_the_record -- "
+                        "the pin asserts a credential-shaped command never reaches a touch "
+                        "record, so the fixture HAS to look like a credential or the pin "
+                        "proves nothing. Same class as the t223/remote-bridge redaction "
+                        "pins already allowlisted below, but entered by FINGERPRINT rather "
+                        "than by path so a genuine key in that file would still fire",
 }
 
 # path -> WHY it is allowed. A bare path is refused (see _check_allowlist).
