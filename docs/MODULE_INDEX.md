@@ -102,7 +102,7 @@
 - `wake_tiers.py` — wake tiers -- the priority dimension the wake decision was missing.
 - `wedge_discriminator.py` — wedge_discriminator (T376 S5) -- the wedged-vs-thinking decision rule.
 
-## core/coord/  (34 modules)
+## core/coord/  (35 modules)
 - `capability_search.py` — capability_search -- "does this system already do X?", asked at the level of MEANING.
 - `cognitive_metrics.py` — Cognitive Efficiency Metrics — live instrumentation for the Stage-3 evidence engine.
 - `compare.py` — compare -- the cross-domain set difference, with a name (T213).
@@ -125,6 +125,7 @@
 - `preregistration.py` — preregistration -- M3's pre-registration metric, as numbers (T123 boundary fix).
 - `scene.py` — context.scene.v1 -- one anchor, every plane, and silence that is typed.
 - `session_focus.py` — Session focus -- which task THIS session's tool calls belong to, and a nudge when they drift.
+- `session_id.py` — One session identity, resolved one way, with its provenance attached.
 - `shift_loop.py` — Autonomous shift loop — the missing cadence between existing primitives.
 - `sift.py` — sift -- the nested ask: a tiered read that returns dissent instead of consensus.
 - `suite_baseline.py` — suite_baseline — the test-suite receipt the next seat diffs instead of re-deriving (W34/B4).

@@ -4,12 +4,12 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at 160c202a. A bound you discover by collision is not awareness -- this sheet
+> Derived at 33b08aa3. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
 
-## Configuration flags (272 names)
+## Configuration flags (271 names)
 
 | Flag | Default (as written) | Read sites |
 |---|---|---|
@@ -120,7 +120,6 @@ Class: reference
 | `AKASHIC_SELF_RESTART_MIN_BEHIND` | `"3"` | core/comm/self_restart.py |
 | `AKASHIC_SELF_RESTART_MIN_UPTIME_S` | `"900"` | core/comm/self_restart.py |
 | `AKASHIC_SESSION8` | `` | agent_cli.py |
-| `AKASHIC_SESSION_ID` | `` | core/coord/session_focus.py |
 | `AKASHIC_SESSION_SIGNALS` | `"1"` | agent/harness/dsh_plugin/bridge.py, agent/harness/hooks/claude_sessionend.py, scripts/hooks/claude_sessionend.py |
 | `AKASHIC_SESSION_SIGNALS_MAX_BYTES` | `str(16 * 1024 * 1024` | agent/harness/hooks/claude_sessionend.py, scripts/hooks/claude_sessionend.py |
 | `AKASHIC_SHIFT_LOOP` | `"1"` | core/comm/shift_turn.py |
@@ -186,7 +185,7 @@ Class: reference
 | `BIFROST_WAKE_SETTLE_S` | `"15"` | scripts/bifrost_wake.py |
 | `BIFROST_WEDGE_SECONDS` | `"300"` | core/comm/liveness.py |
 | `BUS_MAX_MESSAGE_BYTES` | `DEFAULT_MAX_MESSAGE_BYTES` | core/comm/packet_spec.py |
-| `CLAUDE_CODE_SESSION_ID` | `` | agent/bifrost_pull.py, agent/harness/context.py, agent/harness/hooks/claude_posttooluse.py +9 |
+| `CLAUDE_CODE_SESSION_ID` | `` | agent/bifrost_pull.py, agent/harness/context.py, agent/harness/hooks/claude_posttooluse.py +8 |
 | `CLAUDE_SESSION_ID` | `` | agent/harness/context.py, agent_cli.py, core/comm/runner_lock.py |
 | `COMPUTERNAME` | `` | arsenal/lanes/gst_d3d12_soak.py |
 | `CURSOR_PROJECT_DIR` | `` | agent/harness/hooks/cursor_posttooluse.py, agent/harness/hooks/cursor_sessionstart.py, research/in-flight/t342/dead-modules/scripts__hooks__cursor_posttooluse.py +1 |

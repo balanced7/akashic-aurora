@@ -30,7 +30,7 @@ rebuilt wheels and dead ends, so the sweep is now a standing artifact rather tha
 - `core/foundation` -- DRIFT (8->10), reviewed 2026-07-26
 - `core/events` -- DRIFT (3->5), reviewed 2026-07-26
 - `core/comm` -- DRIFT (36->73), reviewed 2026-07-26
-- `core/coord` -- DRIFT (11->34), reviewed 2026-07-26
+- `core/coord` -- DRIFT (11->35), reviewed 2026-07-26
 - `core/learning` -- DRIFT (3->5), reviewed 2026-07-26
 - `core/recall` -- DRIFT (10->19), reviewed 2026-07-26
 - `core/primitives` -- DRIFT (7->8), reviewed 2026-07-26
@@ -135,7 +135,7 @@ _Reviewed 2026-07-26 by claude._
 
 _Reviewed 2026-07-26 by claude._
 
-## `core/coord` -- 34 modules  ·  DRIFT (11->34)
+## `core/coord` -- 35 modules  ·  DRIFT (11->35)
 
 **What it does.** Coordination primitives: advisory path locks, the RB-21 consumer seat with generations, the task ledger with gated transitions, the conductor, and expectation/redrive bookkeeping.
 

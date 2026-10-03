@@ -700,11 +700,25 @@ def cmd_learn(args):
         # payload as drill-down detail beneath the salient learning Beat. Best-effort.
         try:
             from core.events.event_log import capture_event
+            # A lesson that cannot be joined to the session that produced it loses the only
+            # link between the claim and the work that earned it. Measured 2026-10-03: 0 of 4
+            # `learning` events in a 24h window carried a session id, while touch and phase
+            # were at 100% -- because those two are handed one in a hook payload and this is a
+            # CLI process that never asked. There is provably no payload here, so the ambient
+            # environment IS the ground truth; `ambient_session_id` says so in its own name
+            # and returns the source alongside, which lands in the detail below.
+            from core.coord.session_id import ambient_session_id as _amb
+            _sid, _sid_src = _amb()
             capture_event("learning", f"lesson: {signal['experiment_name']}",
-                          agent_id=signal.get("agent_id"),
+                          agent_id=signal.get("agent_id"), session_id=_sid,
                           refs=[f"learn:experiment:{signal['experiment_name']}"],
                           detail={"tried": signal.get("what_tried"), "result": signal.get("actual_outcome"),
-                                  "category": signal.get("category"), "success": signal.get("success")})
+                                  "category": signal.get("category"), "success": signal.get("success"),
+                                  # Typed absence: an id resolved from the ambient environment is a
+                                  # weaker fact than one handed over in a payload, and "no session
+                                  # anywhere" is a third state. A consumer that cannot tell them
+                                  # apart will eventually join on the weakest one.
+                                  "session_source": _sid_src})
         except Exception:
             pass
     edge_stamped = False

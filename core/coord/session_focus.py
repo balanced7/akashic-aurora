@@ -67,9 +67,11 @@ def this_session() -> str:
     the CLI would be writing to a session nobody reads. AKASHIC_SESSION_ID overrides for a harness
     that exports neither (a runner lane, a test).
     """
-    return (os.environ.get("AKASHIC_SESSION_ID")
-            or os.environ.get("CLAUDE_CODE_SESSION_ID")
-            or "")
+    # Delegated 2026-10-03 to core/coord/session_id.py, the one resolver. This copy honoured
+    # AKASHIC_SESSION_ID and CLAUDE_CODE_SESSION_ID but not the legacy CLAUDE_SESSION_ID that
+    # runner_lock accepted, so the two doors disagreed about whether a session existed.
+    from core.coord.session_id import ambient_session_id
+    return ambient_session_id()[0]
 
 
 def _client():

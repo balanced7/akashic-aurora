@@ -158,5 +158,5 @@ def test_the_old_resolvers_agree_with_the_shared_one(monkeypatch):
     monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", FULL)
     from core.coord.session_id import ambient_session_id
     from core.coord import session_focus
-    assert session_focus._session_id() == ambient_session_id(), (
-        "session_focus resolves a different id than the shared resolver")
+    assert session_focus.this_session() == ambient_session_id()[0], (
+        "session_focus.this_session resolves a different id than the shared resolver")

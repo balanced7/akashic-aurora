@@ -121,14 +121,13 @@ def _session_of(payload: Dict[str, Any]) -> tuple:
     truth for who made this call. When neither exists the touch is still emitted -- an
     unattributable touch is a real fact about the house -- but it must not be indistinguishable
     from an attributed one, which is the same discipline T418-b landed for an unverified boot."""
-    sid = str(payload.get("session_id") or "").strip()
-    if sid:
-        return sid, "payload"
-    for var in ("CLAUDE_CODE_SESSION_ID", "CLAUDE_SESSION_ID"):
-        v = str(os.getenv(var) or "").strip()
-        if v:
-            return v, "env"
-    return "", "unknown"
+    # DELEGATED 2026-10-03. This function had the only correct contract in the house and three
+    # other modules each had their own, weaker one (one of them truncating to 8 chars, which
+    # mints an id that can never join a full-length one). Rather than add a fourth, the pair
+    # it returns was lifted into core/coord/session_id.py and every resolver now reads from
+    # there -- so the (id, source) discipline spreads instead of this file's copy drifting.
+    from core.coord.session_id import session_of as _session_of_shared
+    return _session_of_shared(payload)
 
 
 def _agent_of() -> str:
