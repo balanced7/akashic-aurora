@@ -371,6 +371,23 @@ def _project_items(recs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
                 break
         if not summary:
             continue
+        # MATCHING WIDENS, DISPLAY DOES NOT (2026-10-03). The loop above picks ONE field to
+        # SHOW, deliberately, for the claim-vs-evidence reason in the comment above it -- and
+        # until now that one field was also the only thing a query could MATCH. Measured over
+        # all 1,562 lessons: `recommendation` won on 1,509 of 1,534 projected rows, `actual` on
+        # 25, and `what_tried` on ZERO despite being carried by 1,533 of them. 1,110,737 of
+        # 1,925,277 characters -- 57.7% of the corpus's prose -- could not be reached by any
+        # query, including the whole of the longest field in the schema.
+        #
+        # Concatenating the three into `text` would fix that and destroy the thing the comment
+        # above protects, because _provenance_tag reads `field` to tell a seat whether it is
+        # looking at a claim or at an observation. So the match surface is carried SEPARATELY:
+        # `match_text` feeds _item_tokens (the one seam where an item becomes matchable tokens)
+        # and `text` stays the single tagged field the reader is shown.
+        #
+        # A surface may widen WHAT IT MATCHES. It may not widen WHAT IT CLAIMS TO BE.
+        match_text = " ".join(str(rec.get(f) or "") for f in
+                              ("recommendation", "actual", "what_tried")).strip()
         success = str(rec.get("success", "")).lower()
         items.append({
             "text": summary,
@@ -390,6 +407,9 @@ def _project_items(recs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
             # written before domains existed has no field and means DEFAULT_DOMAIN by construction.
             "domain": rec.get("domain", ""),
             "field": field,
+            # What the ranker matches against: all three text fields. `text` above is what the
+            # reader is SHOWN. Keeping them apart is the whole point -- see the note above.
+            "match_text": match_text,
             # Carried so the renderer can say so. A probed lesson was benched for failing to
             # earn credit and is being re-tested -- presenting it as an ordinary lesson would
             # overclaim its standing, which is the failure genus this whole arc is about.
@@ -588,7 +608,14 @@ def _with_mined_triggers(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
 
 
 def _item_tokens(it: Dict[str, Any]) -> set:
-    blob = " ".join(filter(None, [str(it.get("text") or ""), str(it.get("trigger") or ""),
+    """The ONE seam where an item becomes matchable tokens.
+
+    Prefers `match_text` (all three lesson text fields) over `text` (the single
+    provenance-tagged field the reader is shown). Falling back to `text` keeps every
+    non-lesson item -- and any caller that builds an item by hand -- working unchanged.
+    """
+    blob = " ".join(filter(None, [str(it.get("match_text") or it.get("text") or ""),
+                                  str(it.get("trigger") or ""),
                                   " ".join(it.get("trigger_terms") or [])]))
     return {w.lower() for w in _TOKEN_RE.findall(blob) if len(w) > 3}
 

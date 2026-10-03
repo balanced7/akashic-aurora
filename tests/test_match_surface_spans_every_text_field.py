@@ -135,10 +135,25 @@ def test_the_match_surface_is_carried_as_its_own_field():
 
 
 def test_item_tokens_reads_the_match_surface():
-    """_item_tokens (at_action.py:590) is the ONE seam where an item becomes matchable
-    tokens. A match_text nothing reads is the unwired-keystone shape."""
+    """_item_tokens is the ONE seam where an item becomes matchable tokens. A match_text
+    nothing reads is the unwired-keystone shape.
+
+    STRIPS THE DOCSTRING FIRST, and the first version did not. Mutation-testing this file
+    caught it: removing `match_text` from the actual expression left the function's own
+    docstring saying "Prefers `match_text`", so a plain `in inspect.getsource(...)` stayed
+    true against code that no longer did it. That is the house's own
+    `a_pin_that_reads_prose_measures_prose` defect, written an hour after I quoted that
+    lesson at Serge. Walk the AST; prose about the rule is not the rule.
+    """
+    import ast
     import inspect
-    src = inspect.getsource(A._item_tokens)
-    assert "match_text" in src, (
-        "_item_tokens does not read match_text -- the field would be inert, which is the "
-        "'looks adopted but is not load-bearing' failure")
+    tree = ast.parse(inspect.getsource(A._item_tokens).strip())
+    fn = tree.body[0]
+    if (fn.body and isinstance(fn.body[0], ast.Expr)
+            and isinstance(fn.body[0].value, ast.Constant)
+            and isinstance(fn.body[0].value.value, str)):
+        fn.body = fn.body[1:]                       # drop the docstring, keep the code
+    code = ast.unparse(fn)
+    assert "match_text" in code, (
+        "_item_tokens does not READ match_text (its docstring may still mention it) -- the "
+        "field would be inert, which is the 'looks adopted but is not load-bearing' failure")
