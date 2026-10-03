@@ -71,14 +71,56 @@ def test_only_the_armed_state_reads_as_reachable(monkeypatch):
 
 
 def test_a_not_armed_seat_is_handed_the_arming_command(monkeypatch):
-    """Naming a problem without its remedy is how a warning becomes wallpaper."""
+    """Naming a problem without its remedy is how a warning becomes wallpaper.
+
+    THE REMEDY CHANGED SHAPE ON 2026-10-02 AND THIS PIN WAS RIGHT TO GO RED. It used to
+    demand `bifrost_wake.py --min-tier 0` -- the bare listener at the most selective floor.
+    Boot now hands back `agent_cli.py bifrost-standby`, and the old assertions were dropped
+    only after checking that the property they protected still holds, because a stale
+    assertion and a real regression look identical from here.
+
+    WHAT THE OLD FLOOR WAS FOR. Tier 0 is operator-only. A watcher armed over unconsumed mail
+    fires immediately by construction (wake_tiers' SEED rule), so on 2026-09-23 every arm
+    exited within seconds against a 1,383-message backlog and four operator messages went
+    unanswered for five days. `--min-tier 0` bought durability by ignoring everything that
+    was not the human.
+
+    WHY IT IS NOT NEEDED NOW, MEASURED RATHER THAN ASSUMED. `bifrost-standby` DRAINS and
+    THEN arms, so the backlog is gone before the listener blocks -- it does not need an
+    ultra-selective floor to survive it. Live receipt from this seat's own watcher,
+    2026-10-02 19:17-23:16:
+
+        drained: inbox already clean
+        standby: inbox clean -- handing off to the wake listener (blocking)
+        [standby] floor: tier 2 (settlement) | wakes 24h: 30
+                  (22 with mail, 0 quiet, 8 deadline cycles; 11 held below floor)
+
+    Four hours blocked at floor 2, not the instant exit the old failure mode predicts, and
+    "11 held below floor" is the floor doing its job rather than being absent. The durability
+    property MOVED from "be very selective" to "drain first", so this pin now guards the new
+    mechanism instead of the old flag. If a future change arms WITHOUT draining, floor 0
+    becomes load-bearing again -- which is why the drain is asserted, not just the verb.
+    """
+    from core.comm import wake_seat
+
     for state in ("unarmed", "dead-seat", "unknown"):
         text = _line(monkeypatch, state)
-        assert "bifrost_wake.py" in text, f"{state!r} names no remedy: {text!r}"
-        assert "--min-tier 0" in text, (
-            f"{state!r} omits the tier floor. Tier 0 is operator-only and is what makes the "
-            f"watcher DURABLE -- a tier-1 watcher is consumed instantly by ordinary peer mail, "
-            f"which is how this looked broken on the first attempt."
+        # ONE SOURCE OF TRUTH: the remedy boot prints IS the canonical arm command. Asserting
+        # a hand-written string here is what let boot and the stop-hook gate contradict each
+        # other for weeks -- boot advertised a form that stamped origin "unknown" and the hook
+        # then refused it.
+        # The session suffix comes from the live environment, so pin the session-INDEPENDENT
+        # stem: the lane env, the interpreter, the resolved cli path, the verb and the agent.
+        # That is the whole shape that can drift; the session id is the renderer's own.
+        stem = wake_seat.arm_command("claude", None)
+        assert stem in text, (
+            f"{state!r} does not hand back the canonical arm command.\n"
+            f"  expected to contain: {stem!r}\n  got: {text!r}"
+        )
+        assert "bifrost-standby" in text, (
+            f"{state!r} names a bare listener rather than the drain-then-arm verb. Arming "
+            f"without draining is the 2026-09-23 starvation incident: a watcher armed over "
+            f"unconsumed mail fires immediately and the seat stays unreachable."
         )
         assert "harness-tracked" in text, (
             f"{state!r} does not warn that a detached watcher fires into nothing -- the exact "
