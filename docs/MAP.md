@@ -275,7 +275,7 @@ Class: reference
 | `event_promoter.py` | EventPromoter (Slice 5) -- promote salient raw events into narrative Beats. | tests/test_event_promoter.py | GAP |  |
 | `health.py` | Narrative health counters (Slice W-c) -- give the silent best-effort paths a voice. | tests/test_narrative_health.py | GAP |  |
 | `schema.py` | Narrative schema (Slice 0) — the data shapes of the multi-domain narrative spine. | tests/test_arsenal_jam_schemas.py | docs/THE-FILING-SCHEMA.md |  |
-| `session.py` | Session lifecycle (Slice 1 auto-capture) -- the spine fills itself. | tests/test_notes_supersession.py | docs/library/brief/20260723_charter-the-supersession-sweep-megaread_76cc41.md |  |
+| `session.py` | Session lifecycle (Slice 1 auto-capture) -- the spine fills itself. | tests/test_ambient_session_id_has_one_resolver.py | docs/library/brief/20260723_charter-the-supersession-sweep-megaread_76cc41.md |  |
 | `tag_audit.py` | TagAuditor (Slice G2) -- detect likely mis-tags. FLAG-ONLY: it returns suspects and | tests/test_tag_audit.py | GAP |  |
 | `tag_governance.py` | TagGovernor (Slice G1) -- the append-only, confidence-gated re-tag write path. | tests/test_tag_governance.py | docs/library/design/20260709_tag-governance-safe-self-improving-taggi_1c9052.md |  |
 | `tagging.py` | Tag governance (Slice G0) -- tag-history + confidence schema. Pure data + selection | tests/test_tagging.py | GAP |  |
