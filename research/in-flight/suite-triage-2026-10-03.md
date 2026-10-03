@@ -77,8 +77,37 @@ Heimdall's wire call-site seam (P2/P2b/P2c) classifies BY-DESIGN off its own com
 *"pre-registered acceptance for the wire call-site seam, written by the reviewer"*. It is
 working exactly as intended and should stay red until the seam lands.
 
+## The failing set is not stable between runs — measured, after this was first written
+
+A third full run of the same tree was used to check the number above, and it disagreed:
+**131 nodes against the 130 predicted**, with five nodes churning in both directions.
+
+| churned | direction |
+|---|---|
+| `test_t093_durable_job::test_atomic_receipt_never_tears_during_heartbeats` | was red, now green |
+| `test_t156_wire_verification::test_a3_every_filesystem_function_completes_under_deadline` | was red, now green |
+| `test_t093_durable_job::test_exit_zero_after_deadline_intent_remains_success` | was green, now red |
+| `test_atoms_v11::test_lineage_resolve_current_and_lineage_backlinks` | was green, now red |
+| `test_t114_running_code_version::test_p4_a_seat_at_head_is_not_accused` | was green, now red |
+
+Three of the five name a **deadline**, a **heartbeat**, or **HEAD**. Those are wall-clock and
+git-state dependent, and the tree was being committed to throughout — so at least some of this
+churn is the measurement reacting to the measurer rather than to the code.
+
+**So every count in this document carries about ±5 nodes of noise**, and FLAKY is a fourth
+class this triage does not have. That matters more than the imprecision: a flaky node is
+neither "red on purpose" nor "a real break", and sorting it into either is wrong. Any future
+baseline must record a node's *stability across runs*, not just its last verdict — otherwise
+the churn silently re-opens the same question this document was written to close.
+
+The 48% intentional / 60 needs-look split survives the correction; the individual node counts
+should be read as approximate.
+
 ## The honest limits of this triage
 
+0. **The failing set churns by about five nodes per run** (measured above). Treat every count
+   here as ±5, and treat the three deadline/heartbeat/HEAD names as flaky until pinned
+   otherwise.
 1. **Eleven NEEDS-LOOK files call themselves RED in their docstring but carry no commit
    trace.** They may be older pre-registrations whose history was squashed or renamed, or they
    may be genuine breaks. The classifier refuses to guess, by design. They are annotated in
