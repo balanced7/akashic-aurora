@@ -274,7 +274,7 @@ Class: reference
 | `event_bridge.py` | EventBridge (Slice 4) -- join the narrative timeline to the raw event firehose. | tests/test_event_bridge.py | GAP |  |
 | `event_promoter.py` | EventPromoter (Slice 5) -- promote salient raw events into narrative Beats. | tests/test_event_promoter.py | GAP |  |
 | `health.py` | Narrative health counters (Slice W-c) -- give the silent best-effort paths a voice. | tests/test_narrative_health.py | GAP |  |
-| `schema.py` | Narrative schema (Slice 0) — the data shapes of the multi-domain narrative spine. | tests/test_arsenal_jam_schemas.py | docs/library/design/20260709_agent-security-schema-design-proposal_cdccf1.md |  |
+| `schema.py` | Narrative schema (Slice 0) — the data shapes of the multi-domain narrative spine. | tests/test_arsenal_jam_schemas.py | docs/THE-FILING-SCHEMA.md |  |
 | `session.py` | Session lifecycle (Slice 1 auto-capture) -- the spine fills itself. | tests/test_notes_supersession.py | docs/library/brief/20260723_charter-the-supersession-sweep-megaread_76cc41.md |  |
 | `tag_audit.py` | TagAuditor (Slice G2) -- detect likely mis-tags. FLAG-ONLY: it returns suspects and | tests/test_tag_audit.py | GAP |  |
 | `tag_governance.py` | TagGovernor (Slice G1) -- the append-only, confidence-gated re-tag write path. | tests/test_tag_governance.py | docs/library/design/20260709_tag-governance-safe-self-improving-taggi_1c9052.md |  |
@@ -318,14 +318,14 @@ Class: reference
 | Module | One-line spec | Pin | Paper | Flags |
 |---|---|---|---|---|
 | `lifecycle.py` | Node lifecycle (Slice C2, delta E3) -- bi-temporal stamping + supersession as TYPE-AGNOSTIC | GAP | docs/library/design/20260718_gemini-t086-seat-wake-hook-lifecycle-pri_dc70d6.md |  |
-| `schema.py` | Resource schema (Slice C2) -- the knowledge-axis node + the structural bi-temporal contract. | tests/test_arsenal_jam_schemas.py | docs/library/design/20260709_agent-security-schema-design-proposal_cdccf1.md |  |
+| `schema.py` | Resource schema (Slice C2) -- the knowledge-axis node + the structural bi-temporal contract. | tests/test_arsenal_jam_schemas.py | docs/THE-FILING-SCHEMA.md |  |
 
 ## core/perspectives/  (2 modules)
 
 | Module | One-line spec | Pin | Paper | Flags |
 |---|---|---|---|---|
 | `reinforce.py` | ReinforcedGraph (Slice P1) -- an association graph whose edges STRENGTHEN with co-use | GAP | GAP |  |
-| `schema.py` | Perspectives schema (Slice P0) -- Lens + Map shapes. Pure data, no behavior. | tests/test_arsenal_jam_schemas.py | docs/library/design/20260709_agent-security-schema-design-proposal_cdccf1.md |  |
+| `schema.py` | Perspectives schema (Slice P0) -- Lens + Map shapes. Pure data, no behavior. | tests/test_arsenal_jam_schemas.py | docs/THE-FILING-SCHEMA.md |  |
 
 ## agent/harness/  (13 modules)
 
