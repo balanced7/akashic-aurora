@@ -145,6 +145,101 @@ def draft_anti_pattern_slug(what_tried: str = "", root_cause: str = "", recommen
     return "_".join(words)
 
 
+# --- W237: offer the wish door at the moment the tool is conceded ---------------------
+# Filing a lesson about a tool defect and NOT filing a wish is an INVERSION: the lesson
+# teaches the next seat to tolerate the defect, so the defect survives and is paid for
+# again every session. Measured 2026-10-02, 01:05-07:25: 11 `learn` invocations, 0 `wish`,
+# and at least five of those lessons name a tool defect in their own text.
+#
+# THE GATE IS AN OR, AND THE OR IS THE WHOLE DESIGN. Measured over all 1,560 corpus
+# lessons BEFORE this was written, which is the only reason it is not the other shape:
+#
+#     category=correction                 8%   fires 0/174 for deepseek, 0/106 for kimi
+#     names-a-tool AND defect-language    8%   fires 0/44 for codex
+#     the OR                             16%   no seat left out
+#
+# `correction` is a per-seat HABIT, not a house convention -- claude 5%, sol 31%, codex 45%,
+# dsh_agent 6%, deepseek 0%, kimi 0%. Gating on it alone ships a feature that does not exist
+# for two of the most active seats. Content alone has the mirror hole at codex, whose lessons
+# are terse. W237 proposed `correction AND names-a-tool`, which fires on 28 of 1,560 -- almost
+# exactly the handful of examples the wish was reasoned from, and essentially nothing else.
+# An AND of two sparse signals is how a rule comes to pass every test written from its own
+# description while doing nothing in production.
+_WISH_TOOL_NAMED = re.compile(
+    r"(agent_cli\.py|\bpy \w+\.py|--[a-z][a-z-]{3,}|\bthe door\b|\bthe verb\b|\bthe flag\b|"
+    r"\bthe harness\b|\bthe hook\b|\bCLI\b|\bexit code\b|\boutput format\b)", re.I)
+# Naming a tool is not conceding it -- nearly every lesson here names a command somewhere, so
+# without this second half the gate degenerates to "always" and the hint becomes wallpaper.
+_WISH_DEFECT = re.compile(
+    r"(silently|silent\b|no door|cannot|could not|\blost\b|\bloses\b|\blies\b|\blied\b|"
+    r"misreport|reports? as|never (?:fires|surfaces|reaches|revisited|told)|no equivalent|"
+    r"had no door|is not wired|unwired|by hand|wears? a .{0,20}clothes)", re.I)
+
+
+def wish_candidate(category: Optional[str] = "", tried: Optional[str] = "",
+                   result: Optional[str] = "", recommendation: Optional[str] = "",
+                   root_cause: Optional[str] = "", experiment: Optional[str] = "",
+                   agent_id: str = "AGENT", draft_path: str = "DRAFT.md") -> Dict[str, str]:
+    """Decide whether a just-recorded lesson is a wish wearing a lesson's clothes, and if so
+    pre-draft the wish from the lesson's own words.
+
+    Returns {} to stay silent -- same contract as draft_anti_pattern_slug returning "".
+    Otherwise {'why', 'body', 'command_hint'}. Pure: no I/O, no store, never raises on a
+    missing field, because this runs AFTER the lesson is already recorded and must never be
+    able to turn a successful capture into a traceback.
+    """
+    cat = (category or "").strip().lower()
+    tried_s = (tried or "").strip()
+    result_s = (result or "").strip()
+    rec_s = (recommendation or "").strip()
+    cause_s = (root_cause or "").strip()
+    exp = (experiment or "").strip() or "this lesson"
+
+    haystack = " ".join((tried_s, result_s, rec_s, cause_s))
+    if cat == "correction":
+        why = "correction"
+    elif _WISH_TOOL_NAMED.search(haystack) and _WISH_DEFECT.search(haystack):
+        why = "names-a-defect-in-a-tool"
+    else:
+        return {}
+
+    # The draft carries the lesson's OWN words. A template that says "describe the friction"
+    # has removed no cost at all, which is the thing the sibling slug-drafter gets right.
+    # PREFERENCE ORDER, and recommendation is deliberately LAST. It reads first in a lesson,
+    # so it was the obvious choice and it is the wrong one: house recommendations are written
+    # in the recall-trigger format and open with "Use when ...", which is advice about future
+    # behaviour. A wish's first line has to name the FRICTION. Caught by running the organ
+    # live rather than by any pin -- the first real draft opened "Use when building or
+    # trusting ANY harness", which is a correct sentence and a useless wish title. root_cause
+    # first for the same reason the sibling slug-drafter prefers it: it names WHY it failed.
+    want = cause_s or result_s or tried_s or rec_s
+    headline = re.split(r"(?<=[.;])\s", want)[0].strip()[:200] if want else \
+        "the tool this lesson concedes should be fixed rather than tolerated"
+    body = (
+        "%s\n\n"
+        "RECEIPT, drafted from lesson %s at the moment it was filed, in its own words.\n"
+        "  TRIED:  %s\n"
+        "  RESULT: %s\n"
+        "%s"
+        "%s"
+        "\nWHY THIS IS A WISH AND NOT ONLY A LESSON: a lesson teaches the next seat to work\n"
+        "around the defect, so the defect survives and is paid for again every session.\n"
+        "Edit this draft freely before filing, or delete the file and write your own.\n\n"
+        "Trigger: lesson %s. Land: fix the defect rather than document the workaround.\n"
+        % (headline, exp, tried_s or "(not recorded)", result_s or "(not recorded)",
+           ("  CAUSE:  %s\n" % cause_s) if cause_s else "",
+           # The recommendation used to reach the draft only by ACCIDENT, as the headline.
+           # Moving the headline to the cause dropped it entirely, which a pin caught: it is
+           # the WANT half of a wish and the most reusable sentence the lesson has.
+           ("\nWANT, from the lesson's own recommendation:\n  %s\n" % rec_s) if rec_s else "",
+           exp))
+    return {
+        "why": why,
+        "body": body,
+        "command_hint": "py agent_cli.py wish %s --text-file %s" % (agent_id, draft_path),
+    }
+
+
 class LearningStore:
     """
     Unified interface to learning data, backed by a swappable Store.

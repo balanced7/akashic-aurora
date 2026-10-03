@@ -117,14 +117,25 @@ def test_the_draft_carries_the_lesson_slug_so_the_wish_is_traceable():
 
 def test_the_draft_carries_the_lessons_own_words_not_a_template():
     """Removing the composition cost is the whole point -- the precedent auto-drafts a slug for
-    the same reason. A draft that says '<describe the friction>' has removed nothing."""
-    body = wish_candidate(
+    the same reason. A draft that says 'describe the friction' has removed nothing.
+
+    STRENGTHENED AFTER A MUTATION SURVIVED IT. The first version passed a lesson with only a
+    `result` and asserted a phrase from it appeared in the body. That phrase ALSO becomes the
+    headline, so replacing the RESULT field with a template left the pin green -- it was
+    measuring the headline and reporting on the body. Each field now carries a distinct
+    sentinel so no one field can stand in for another."""
+    got = wish_candidate(
         category="correction",
-        tried="ran the wish door eight times concurrently",
-        result="six of forty wishes vanished while every process printed filed and exited 0",
-        experiment="wish_door_loses_wishes").get("body", "")
-    assert "six of forty wishes vanished" in body, body
-    assert "<" not in body.replace("<path>", ""), "the draft still contains a placeholder: " + body
+        tried="RAN-THE-DOOR eight times concurrently",
+        result="SIX-OF-FORTY vanished while every process printed filed and exited 0",
+        recommendation="LOCK-THE-DOOR before the read",
+        root_cause="UNLOCKED-RMW on a shared file",
+        experiment="wish_door_loses_wishes")
+    body = got.get("body", "")
+    for sentinel, field in (("RAN-THE-DOOR", "tried"), ("SIX-OF-FORTY", "result"),
+                            ("LOCK-THE-DOOR", "recommendation"), ("UNLOCKED-RMW", "root_cause")):
+        assert sentinel in body, "the draft dropped the lesson's %s field:\n%s" % (field, body)
+    assert "describe" not in body.lower(), "the draft is asking the seat to write it: " + body
 
 
 def test_nothing_in_the_draft_needs_shell_escaping():
@@ -140,6 +151,25 @@ def test_nothing_in_the_draft_needs_shell_escaping():
 
 
 # ------------------------------------------------------------------ robustness
+def test_the_headline_names_the_friction_not_the_advice():
+    """FOUND BY DOGFOODING, NOT BY A PIN. The first live draft opened with "Use when building
+    or trusting ANY harness..." -- a correct sentence and a useless wish title. House
+    recommendations are written in the recall-trigger format and start with "Use when", so
+    preferring `recommendation` for the headline reliably produces advice where a wish needs
+    friction. Order is root_cause, then result, then tried, then recommendation last."""
+    body = wish_candidate(
+        category="correction",
+        tried="ran the harness",
+        result="it reported six of six surviving and every one was wrong",
+        recommendation="Use when building any harness that judges a test run",
+        root_cause="the detector matched output text instead of reading the exit code",
+        experiment="e").get("body", "")
+    first = body.splitlines()[0]
+    assert not first.lower().startswith("use when"), \
+        "the wish opens with trigger-format advice instead of the friction: " + first
+    assert "exit code" in first, "the headline should name the cause: " + first
+
+
 def test_missing_fields_never_throw():
     """This runs inside cmd_learn AFTER the lesson is already recorded. It must never be able
     to turn a successful capture into a traceback."""
@@ -151,11 +181,21 @@ def test_missing_fields_never_throw():
 # ------------------------------------------------------------------ the wiring
 def test_cmd_learn_reaches_for_the_helper():
     """Names the intended fix, so a refactor that drops the call fails with WHICH piece is
-    missing rather than only that the hint went quiet."""
+    missing rather than only that the hint went quiet.
+
+    TIGHTENED AFTER A MUTATION SLIPPED PAST IT. A bare `"wish_candidate" in body` is a
+    SUBSTRING test, so it stayed true when the import was mutated to
+    `import draft_anti_pattern_slug as wish_candidate_UNUSED` -- a wiring that NameErrors at
+    runtime. The end-to-end pin caught that; this one did not, and a pin whose whole job is
+    naming the missing piece must not be the loose one. Word-boundary, and both halves."""
+    import re as _re
     src = (REPO / "agent_cli.py").read_text(encoding="utf-8")
     start = src.index("def cmd_learn(")
     body = src[start:src.index("\ndef ", start + 1)]
-    assert "wish_candidate" in body, "cmd_learn does not call wish_candidate"
+    assert _re.search(r"import\s+wish_candidate\b", body), \
+        "cmd_learn does not import wish_candidate by that name"
+    assert _re.search(r"\bwish_candidate\s*\(", body), \
+        "cmd_learn imports wish_candidate but never calls it"
 
 
 def test_a_real_learn_prints_the_wish_hint_end_to_end(tmp_path):

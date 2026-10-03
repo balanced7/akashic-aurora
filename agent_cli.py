@@ -738,6 +738,44 @@ def cmd_learn(args):
             print("[hint] if this failure names a reusable known-bad, tag it so recall can warn others:")
             print(f"       py agent_cli.py tag-anti-pattern {args.agent_id} "
                   f"--experiment {signal['experiment_name']} --name {slug}   (edit the name if a better fits)")
+    # W237: THE WISH DOOR, OFFERED AT THE MOMENT THE TOOL IS CONCEDED. Sibling of the hint
+    # above, same slot, same shape. Measured 2026-10-02 01:05-07:25: 11 `learn` invocations,
+    # 0 `wish`, at least five of those lessons naming a tool defect in their own text. The
+    # cost of each miss is the INVERSION -- a lesson teaches the next seat to tolerate the
+    # defect, so it survives and is paid for again every session. The standing rule says file
+    # a wish the moment friction is felt; the door that records the friction should ask.
+    #
+    # The draft is WRITTEN TO A FILE and the hint hands back --text-file rather than inline
+    # prose, deliberately: W213 records three separate manglings in one night from prose
+    # through the shell, and a draft containing the lesson's own quotes and backticks is
+    # exactly the payload that breaks. The gate's measurement lives on wish_candidate.
+    #
+    # Entirely fail-soft. The lesson is ALREADY recorded by this point, and no hint is worth
+    # turning a successful capture into a traceback.
+    if ok and not args.json:
+        try:
+            from core.learning.learning_store import wish_candidate
+            import tempfile as _tf
+            _root = os.getenv("AKASHIC_RECALL_STATE_DIR") or _tf.gettempdir()
+            _dir = os.path.join(_root, "wish_drafts")
+            _path = os.path.join(_dir, "%s.md" % re.sub(r"[^A-Za-z0-9_.-]", "_",
+                                                        signal["experiment_name"])[:120])
+            cand = wish_candidate(
+                category=signal.get("category"), tried=signal.get("what_tried"),
+                result=signal.get("actual_outcome"), recommendation=signal.get("recommendation"),
+                root_cause=signal.get("root_cause"), experiment=signal["experiment_name"],
+                agent_id=args.agent_id, draft_path=_path)
+            if cand:
+                os.makedirs(_dir, exist_ok=True)
+                with open(_path, "w", encoding="utf-8", newline="\n") as fh:
+                    fh.write(cand["body"])
+                print("[wish] this lesson concedes a tool (%s). A lesson teaches the next seat "
+                      "to work around it;" % cand["why"])
+                print("       a wish gets it fixed. Draft written from your own words -- read it, "
+                      "edit it, then:")
+                print("       %s" % cand["command_hint"])
+        except Exception as e:      # noqa: BLE001 - a hint must never cost a recorded lesson
+            print("[wish] (hint unavailable: %s: %s)" % (type(e).__name__, e))
     # Near-duplicate advisory (ce-compound's overlap rule, field-survey C5): 4-5 dims -> this is
     # probably the SAME lesson, update that one next time (same --experiment name = update);
     # 2-3 dims -> related, worth merging in a consolidation pass. Never blocks (append-only).

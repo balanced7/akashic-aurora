@@ -4,7 +4,7 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at f80a6bec. A bound you discover by collision is not awareness -- this sheet
+> Derived at 38f6c3ff. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
@@ -97,7 +97,7 @@ Class: reference
 | `AKASHIC_RECALL_CACHE_TTL` | `"120"` | core/recall/at_action.py |
 | `AKASHIC_RECALL_FLOOR` | `"0.20"` | core/recall/at_action.py |
 | `AKASHIC_RECALL_SELF_ECHO_H` | `"2"` | core/recall/at_action.py |
-| `AKASHIC_RECALL_STATE_DIR` | `` | agent/harness/actions.py, agent/harness/hooks/claude_posttooluse.py, agent/harness/hooks/claude_sessionend.py +14 |
+| `AKASHIC_RECALL_STATE_DIR` | `` | agent/harness/actions.py, agent/harness/hooks/claude_posttooluse.py, agent/harness/hooks/claude_sessionend.py +15 |
 | `AKASHIC_RECENT_INBOX_S` | `str(12 * 3600` | core/comm/doctor.py |
 | `AKASHIC_REDIS_HEALTH_CHECK_SEC` | `"30"` | core/foundation/redis_connection.py |
 | `AKASHIC_REDIS_HOST` | `"localhost"` | scripts/checkers/check_field_parity.py |
