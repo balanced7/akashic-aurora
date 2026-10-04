@@ -177,7 +177,15 @@ def _git_var(name):
 # days passed unnoticed. These two functions move the gates to the write.
 
 GUARDRAILS = ("check_boundaries", "check_doc_freshness", "check_comprehensibility",
-              "check_wiring", "check_door_parity", "check_kind_policy")
+              "check_wiring", "check_door_parity", "check_kind_policy",
+              # 2026-10-03: "which session is this" had SIXTEEN implementations that did not
+              # agree -- three env-var orders, three return shapes, two empty conventions and
+              # two truncation sites, one of which minted ids that could never join a
+              # full-length one. Measured consequence: learning 0/4, fail 0/17, boot 0/23
+              # carried a session id while touch was at 796/796. Counted rather than swept
+              # because several sites sit in other seats' lanes; adopted at today's 16, may
+              # fall, may never rise.
+              "check_session_resolvers")
 
 # GENERATED, not authored. Committing a derivative and then gating on its freshness is a
 # category error: every code commit invalidates it, so the gate fires on whoever commits next
