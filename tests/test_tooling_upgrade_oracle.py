@@ -635,106 +635,98 @@ _OLD_CHECK: dict[str, Any] = {
     "expect": 0,
     "expect_stdout": "passed",
 }
+_NEW_CMD = [*_UVPY, "-p", "no:randomly", "tests/x.py"]
 _LEDGER = "- **D-G9-1.** G9.t2 supersedes G9.t: the registered cmd doubled -q.\n"
 
 
 def _new_check(**over: Any) -> dict[str, Any]:
-    new = {**_OLD_CHECK, "id": "G9.t2", "cmd": [*_UVPY, "-p", "no:randomly", "tests/x.py"]}
+    new = {**_OLD_CHECK, "id": "G9.t2", "cmd": list(_NEW_CMD)}
     new.update(over)
     return new
 
 
-def test_supersede_accepts_a_dropped_verbosity_flag():
+@pytest.fixture
+def pinned(monkeypatch: pytest.MonkeyPatch) -> Any:
     import certify
 
-    assert certify.supersede_verdict(_OLD_CHECK, _new_check(), _LEDGER, 0, 1) == []
+    monkeypatch.setattr(
+        certify,
+        "PINNED_SUPERSESSIONS",
+        {("G9", "G9.t"): ("G9.t2", tuple(_OLD_CHECK["cmd"]), tuple(_NEW_CMD))},
+    )
+    return certify
+
+
+def test_supersede_accepts_the_pinned_pair(pinned: Any):
+    assert pinned.supersede_verdict("G9", _OLD_CHECK, _new_check(), _LEDGER, 0, 1) == []
 
 
 @pytest.mark.parametrize(
-    ("over", "ledger", "old_at", "new_at", "needle"),
+    ("goal", "over", "ledger", "old_at", "new_at", "needle"),
     [
-        ({"cmd": [*_UVPY, "-q", "-p", "no:randomly"]}, _LEDGER, 0, 1, "verbosity"),
-        ({"cmd": [*_UVPY, "-q", "-p", "no:randomly", "tests/x.py"]}, _LEDGER, 0, 1, "verbosity"),
-        ({"cmd": [*_UVPY, "-p", "no:randomly", "tests/x.py", "-x"]}, _LEDGER, 0, 1, "verbosity"),
-        ({"expect_stdout": "."}, _LEDGER, 0, 1, "expect_stdout differs"),
-        ({"expect": 1}, _LEDGER, 0, 1, "expect differs"),
-        ({"phase": "G9.P2"}, _LEDGER, 0, 1, "phase differs"),
-        ({}, "no decision here\n", 0, 1, "LEDGER"),
-        ({"id": "G9.t-v2"}, "- G9.t-v2 is the new check\n", 0, 1, "LEDGER"),
-        ({"timeout_s": 60}, _LEDGER, 0, 1, "timeout_s differs"),
-        ({}, _LEDGER, 1, 1, "later commit"),
-        ({}, _LEDGER, 0, -1, "later commit"),
+        ("G8", {}, _LEDGER, 0, 1, "not a pinned supersession"),  # same ids, another goal
+        ("G9", {"id": "G9.t3"}, _LEDGER, 0, 1, "not a pinned supersession"),  # another successor
+        ("G9", {"cmd": [*_UVPY, "-p", "no:randomly"]}, _LEDGER, 0, 1, "not the pinned argv"),
+        ("G9", {"cmd": [*_UVPY, "-q", "-p", "no:randomly", "tests/x.py"]}, _LEDGER, 0, 1, "not the pinned argv"),
+        ("G9", {"expect_stdout": "."}, _LEDGER, 0, 1, "expect_stdout differs"),
+        ("G9", {"expect": 1}, _LEDGER, 0, 1, "expect differs"),
+        ("G9", {"phase": "G9.P2"}, _LEDGER, 0, 1, "phase differs"),
+        ("G9", {"timeout_s": 60}, _LEDGER, 0, 1, "timeout_s differs"),
+        ("G9", {}, "no decision here\n", 0, 1, "LEDGER"),
+        ("G9", {}, "- G9.t2-x and G9.tt only\n", 0, 1, "LEDGER"),
+        ("G9", {}, _LEDGER, 1, 1, "later commit"),
+        ("G9", {}, _LEDGER, 0, -1, "later commit"),
     ],
 )
-def test_supersede_rejects_anything_but_a_recorded_verbosity_drop(
-    over: dict[str, Any], ledger: str, old_at: int, new_at: int, needle: str
+def test_supersede_rejects_anything_but_the_pinned_pair(
+    pinned: Any, goal: str, over: dict[str, Any], ledger: str, old_at: int, new_at: int, needle: str
 ):
-    import certify
-
-    problems = certify.supersede_verdict(_OLD_CHECK, _new_check(**over), ledger, old_at, new_at)
+    problems = pinned.supersede_verdict(goal, _OLD_CHECK, _new_check(**over), ledger, old_at, new_at)
     assert any(needle in p for p in problems), problems
 
 
 @pytest.mark.parametrize(
     ("old_cmd", "new_cmd"),
     [
-        (["git", "diff", "--quiet", "HEAD"], ["git", "diff", "HEAD"]),  # --quiet sets git's exit code
-        (["grep", "-v", "-r", "TODO", "src"], ["grep", "-r", "TODO", "src"]),  # -v inverts grep
-        ([*_UVPY, "-k", "-q", "tests"], [*_UVPY, "-k", "tests"]),  # -q is -k's value
-        ([*_UVPY, "-p", "-q", "tests"], [*_UVPY, "-p", "tests"]),  # -q is -p's value
-        ([*_UVPY, "tests", "--", "-q"], [*_UVPY, "tests", "--"]),  # after --, -q is a path
-        (["uv", "run", "pytest", "-q", "tests"], ["uv", "run", "pytest", "tests"]),  # not an exact launcher
-        (["pytest.sh", "--quiet"], ["pytest.sh"]),  # a name is not a launcher
+        (["git", "diff", "--quiet", "HEAD"], ["git", "diff", "HEAD"]),
         (
             ["uv", "run", "--with", "pytest", "git", "diff", "--quiet", "HEAD"],
             ["uv", "run", "--with", "pytest", "git", "diff", "HEAD"],
         ),
-        (
-            ["uv", "run", "--with", "pytest", "python", "check.py", "-v"],
-            ["uv", "run", "--with", "pytest", "python", "check.py"],
-        ),
-        (
-            ["python", "-c", "import sys; sys.exit('-q' in sys.argv)", "-m", "pytest", "-q"],
-            ["python", "-c", "import sys; sys.exit('-q' in sys.argv)", "-m", "pytest"],
-        ),
-        (["uv", "run", "-q", "pytest", "tests"], ["uv", "run", "pytest", "tests"]),  # not pytest's own flag
-        (["python", "-q", "-m", "pytest", "tests"], ["python", "-m", "pytest", "tests"]),  # python's -q
+        ([*_UVPY, "-p", "no:randomly", "--", "tests", "-q"], [*_UVPY, "-p", "no:randomly", "--", "tests"]),
+        ([*_UVPY, "-q", "-p", "no:randomly", "tests/x.py"], _NEW_CMD),  # the shape of a legit drop
     ],
 )
-def test_supersede_drops_verbosity_only_from_pytest_itself(old_cmd: list[str], new_cmd: list[str]):
-    import certify
+def test_supersede_rejects_every_unpinned_pair(old_cmd: list[str], new_cmd: list[str]):
+    import certify  # the real table: only G5.hook-stage-test is pinned
 
     old = {**_OLD_CHECK, "cmd": old_cmd}
     new = {**_OLD_CHECK, "id": "G9.t2", "cmd": new_cmd}
-    assert any("verbosity" in p for p in certify.supersede_verdict(old, new, _LEDGER, 0, 1))
+    assert any("not a pinned supersession" in p for p in certify.supersede_verdict("G9", old, new, _LEDGER, 0, 1))
 
 
-def test_supersessions_reject_an_unknown_target_and_a_second_successor(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
-    import certify
-
+def test_supersessions_reject_an_unknown_target_and_a_second_successor(
+    pinned: Any, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
     (tmp_path / "LEDGER.md").write_text(_LEDGER + "- G9.t3 supersedes G9.t too\n", encoding="utf-8")
-    monkeypatch.setattr(certify, "HERE", tmp_path)
+    monkeypatch.setattr(pinned, "HERE", tmp_path)
     order = {"G9.t": 0, "G9.t2": 1, "G9.t3": 2}
 
     def first_registered(goal: str, check_id: str) -> int:
         return order.get(check_id, -1)
 
-    monkeypatch.setattr(certify, "_first_registered", first_registered)
+    monkeypatch.setattr(pinned, "_first_registered", first_registered)
     two = {"check": [_OLD_CHECK, _new_check(supersedes="G9.t"), _new_check(id="G9.t3", supersedes="G9.t")]}
-    valid, problems = certify.supersessions("G9", two)
+    valid, problems = pinned.supersessions("G9", two)
     assert valid == {"G9.t": "G9.t2"}
     assert any("superseded twice" in p for p in problems)
-    valid, problems = certify.supersessions("G9", {"check": [_new_check(supersedes="G9.nope")]})
+    valid, problems = pinned.supersessions("G9", {"check": [_new_check(supersedes="G9.nope")]})
     assert valid == {}
     assert any("unknown check G9.nope" in p for p in problems)
 
 
-@pytest.mark.parametrize(
-    "launcher", [["{python}", "-m", "pytest"], ["uv", "run", "--frozen", "python", "-m", "pytest"]]
-)
-def test_supersede_accepts_both_exact_pytest_launchers(launcher: list[str]):
+def test_the_pinned_g5_pair_matches_its_checks_file():
     import certify
 
-    old = {**_OLD_CHECK, "cmd": [*launcher, "-q", "-p", "no:randomly", "tests/x.py", "-k", "y", "-v"]}
-    new = {**_OLD_CHECK, "id": "G9.t2", "cmd": [*launcher, "-p", "no:randomly", "tests/x.py", "-k", "y"]}
-    assert certify.supersede_verdict(old, new, _LEDGER, 0, 1) == []
+    valid, problems = certify.supersessions("G5", certify.load_checks("G5"))
+    assert (valid, problems) == ({"G5.hook-stage-test": "G5.hook-stage-test-summary"}, [])

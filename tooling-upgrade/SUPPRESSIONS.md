@@ -746,11 +746,11 @@
 | tooling-upgrade/certify.py | 2 | `pyright: strict` |  |
 | tooling-upgrade/certify.py | 45 | `pyright: ignore[reportPrivateUsage]` | sibling tool module, same owner |
 | tooling-upgrade/certify.py | 46 | `pyright: ignore[reportPrivateUsage]` | sibling tool module, same owner |
-| tooling-upgrade/certify.py | 296 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
-| tooling-upgrade/certify.py | 540 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
-| tooling-upgrade/certify.py | 1452 | `fmt: skip` | data table: one hook id per plan G5.P2 bullet |
-| tooling-upgrade/certify.py | 1456 | `fmt: skip` | data table: fixers that would rewrite non-Python trees (I8) |
-| tooling-upgrade/certify.py | 1677 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
+| tooling-upgrade/certify.py | 312 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
+| tooling-upgrade/certify.py | 556 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
+| tooling-upgrade/certify.py | 1468 | `fmt: skip` | data table: one hook id per plan G5.P2 bullet |
+| tooling-upgrade/certify.py | 1472 | `fmt: skip` | data table: fixers that would rewrite non-Python trees (I8) |
+| tooling-upgrade/certify.py | 1693 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
 | tooling-upgrade/oracle.py | 2 | `pyright: strict` |  |
 | tooling-upgrade/oracle.py | 128 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
 | tooling-upgrade/oracle.py | 129 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |

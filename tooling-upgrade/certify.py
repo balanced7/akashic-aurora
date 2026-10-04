@@ -139,61 +139,75 @@ def checks_history_problems() -> list[str]:
     return problems
 
 
-# pytest's output-verbosity flags: deleting one changes what pytest prints, never which tests
-# run or the exit code (no conftest or plugin in this repo reads the verbosity). They are the
-# only tokens a superseding check may drop, and only from a command that is pytest by its exact
-# launch prefix: deciding "this argv runs pytest" any other way is open-ended (`uv run --with
-# pytest git diff --quiet`, `-m pytest` inside `python -c`, a `pytest.sh`), and outside pytest
-# the same spellings change semantics (`git diff --quiet` sets the exit code, `grep -v` inverts).
-VERBOSITY_FLAGS = frozenset({"-q", "--quiet", "-v", "--verbose"})
-# The launch prefixes the checks files use, matched token for token; nothing else is pytest here.
-PYTEST_LAUNCHERS = (("{python}", "-m", "pytest"), ("uv", "run", "--frozen", "python", "-m", "pytest"))
+# The only supersessions certify accepts, pinned literally (D-G5-2): (goal, superseded id) ->
+# (successor id, the superseded argv, the successor argv), token for token. A general rule
+# ("a successor may drop verbosity flags") went through three verifier rounds and each found a
+# new bypass (`git diff --quiet`, `uv run --with pytest ...`, a `-q` after `--` that is a path),
+# because "which argv edits are harmless" has no closed form. A pinned pair has no rule to bypass,
+# and adding one is a certify.py change that a verifier reviews pair by pair. Each pair below
+# was checked empirically: the dropped token is pytest's own -q (directly after `-m pytest`),
+# which only removes the summary line at verbosity -2; selection and exit code are unchanged.
+PINNED_SUPERSESSIONS: dict[tuple[str, str], tuple[str, tuple[str, ...], tuple[str, ...]]] = {
+    ("G5", "G5.hook-stage-test"): (
+        "G5.hook-stage-test-summary",
+        (
+            "uv",
+            "run",
+            "--frozen",
+            "python",
+            "-m",
+            "pytest",
+            "-q",
+            "-p",
+            "no:cacheprovider",
+            "-p",
+            "no:randomly",
+            "tests/test_pre_commit.py",
+            "-k",
+            "prek",
+        ),
+        (
+            "uv",
+            "run",
+            "--frozen",
+            "python",
+            "-m",
+            "pytest",
+            "-p",
+            "no:cacheprovider",
+            "-p",
+            "no:randomly",
+            "tests/test_pre_commit.py",
+            "-k",
+            "prek",
+        ),
+    ),
+}
 
 
-def _pytest_start(argv: Sequence[str]) -> int:
-    """Index of the first token pytest itself parses, or -1 unless `argv` starts with one of
-    PYTEST_LAUNCHERS exactly."""
-    for prefix in PYTEST_LAUNCHERS:
-        if tuple(argv[: len(prefix)]) == prefix:
-            return len(prefix)
-    return -1
-
-
-def _drops_only_verbosity(old: Sequence[str], new: Sequence[str]) -> bool:
-    """True iff `old` runs pytest and `new` is `old` with at least one token deleted, where every
-    deleted token is a pytest verbosity flag, sits after the pytest marker, and does not follow an
-    option (so it cannot be that option's value, as in `-k -q`)."""
-    start = _pytest_start(old)
-    if start < 0:
-        return False
-    i = 0
-    for pos, tok in enumerate(old):
-        if i < len(new) and new[i] == tok:
-            i += 1
-            continue
-        prev = old[pos - 1] if pos else ""
-        if tok not in VERBOSITY_FLAGS or pos < start or (prev.startswith("-") and prev not in VERBOSITY_FLAGS):
-            return False
-    return i == len(new) and len(new) < len(old)
-
-
-def supersede_verdict(old: dict[str, Any], new: dict[str, Any], ledger: str, old_at: int, new_at: int) -> list[str]:
+def supersede_verdict(
+    goal: str, old: dict[str, Any], new: dict[str, Any], ledger: str, old_at: int, new_at: int
+) -> list[str]:
     """Problems with `new` superseding `old` (empty = valid). A check registered with a defect no
-    tree can satisfy is never edited (append-only); a check appended later may supersede it if
-    every key but id and cmd is unchanged (phase, expect, expect_stdout, timeout_s, ...), its cmd
-    is the old pytest cmd minus verbosity flags only, it was registered in a later commit, and a
-    LEDGER.md decision line names both ids."""
+    tree can satisfy is never edited (append-only); a check appended later may supersede it only
+    if the pair is in PINNED_SUPERSESSIONS with both argvs exactly as pinned, every other key
+    (phase, expect, expect_stdout, timeout_s, ...) is unchanged, the successor was registered in
+    a later commit, and a LEDGER.md decision line names both ids."""
     tag = "{} supersedes {}".format(new["id"], old["id"])
+    pin = PINNED_SUPERSESSIONS.get((goal, old["id"]))
+    if pin is None or pin[0] != new["id"]:
+        return [f"{tag}: not a pinned supersession (certify.PINNED_SUPERSESSIONS)"]
     keys = sorted((set(old) | set(new)) - {"id", "cmd", "supersedes"})
     problems = [f"{tag}: {k} differs" for k in keys if old.get(k) != new.get(k)]
     old_cmd: object = old["cmd"]
     new_cmd: object = new["cmd"]
     if not (isinstance(old_cmd, list) and isinstance(new_cmd, list)):
         problems.append(f"{tag}: both commands must be argv lists")
-    elif not _drops_only_verbosity(
-        [str(t) for t in cast("list[object]", old_cmd)], [str(t) for t in cast("list[object]", new_cmd)]
+    elif (
+        tuple(str(t) for t in cast("list[object]", old_cmd)) != pin[1]
+        or tuple(str(t) for t in cast("list[object]", new_cmd)) != pin[2]
     ):
-        problems.append(f"{tag}: cmd may only drop pytest verbosity flags {sorted(VERBOSITY_FLAGS)}")
+        problems.append(f"{tag}: cmd is not the pinned argv")
     if not 0 <= old_at < new_at:
         problems.append(f"{tag}: not registered in a later commit than the check it supersedes")
 
@@ -232,7 +246,9 @@ def supersessions(goal: str, data: dict[str, Any]) -> tuple[dict[str, str], list
         if target in valid:
             problems.append(f"{target} is superseded twice")
             continue
-        found = supersede_verdict(old, c, ledger, _first_registered(goal, target), _first_registered(goal, c["id"]))
+        found = supersede_verdict(
+            goal, old, c, ledger, _first_registered(goal, target), _first_registered(goal, c["id"])
+        )
         problems += found
         if not found:
             valid[target] = c["id"]
