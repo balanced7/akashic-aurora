@@ -26,6 +26,7 @@ import contextlib
 import fnmatch
 import json
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -66,19 +67,26 @@ FORBIDDEN_CONFIGS = (
 )
 GATE_TASKS = ("fmt-check", "lint-check", "types", "lock-check", "deps", "ci-lint", "guardrails", "test-fast", "gate")
 GATE_FORBIDDEN = ("--fix", "--exit-zero", "|| true", "--skip")
+# T3 judges `type:` / `pyright:` suppressions only from G4, when basedpyright arrives.
+TYPE_SUPPRESSIONS_FROM = 4
+# tool.uv.required-version must floor at 0.<this minor> or later: the G0 uv minor.
+UV_MIN_MINOR = 12
 
 
 def run(
     cmd: Sequence[object], cwd: Path | str = ROOT, env: dict[str, str] | None = None, timeout: float | None = None
 ) -> subprocess.CompletedProcess[str]:
+    """Run `cmd` through oracle.run: text output captured, stdin closed, a non-zero exit returned, not raised."""
     return oracle.run(cmd, cwd=cwd, env=env, timeout=timeout)
 
 
 def git(*args: object, cwd: Path | str = ROOT, check: bool = True) -> str:
+    """Run git with `args` and return its stdout (raises on failure when `check`)."""
     return oracle.git(*args, cwd=cwd, check=check)
 
 
 def goal_num(goal: str) -> int:
+    """Return the number of a goal id (`G3` -> 3)."""
     return int(goal[1:])
 
 
@@ -86,17 +94,20 @@ def goal_num(goal: str) -> int:
 
 
 def load_checks(goal: str, ref: str | None = None) -> dict[str, Any]:
+    """Parse checks/<goal>.toml from the worktree, or from commit `ref` when given."""
     rel = f"tooling-upgrade/checks/{goal}.toml"
     text = git("show", f"{ref}:{rel}") if ref else (ROOT / rel).read_text(encoding="utf-8")
     return tomllib.loads(text)
 
 
 def expand(cmd: str | list[str]) -> list[str]:
+    """Split a check command into argv and fill in the {python} and {root} placeholders."""
     parts = cmd if isinstance(cmd, list) else cmd.split()
     return [p.replace("{python}", sys.executable).replace("{root}", str(ROOT)) for p in parts]
 
 
 def run_check(c: dict[str, Any]) -> tuple[bool, str, str]:
+    """Run one pre-registered check; return (passed, reason, combined output)."""
     try:
         r = run(expand(c["cmd"]), timeout=c.get("timeout_s", 7200))
     except subprocess.TimeoutExpired:
@@ -111,8 +122,11 @@ def run_check(c: dict[str, Any]) -> tuple[bool, str, str]:
 
 
 def checks_history_problems() -> list[str]:
-    """Append-only rule for checks/*.toml: every [[check]] keeps its id, cmd, expect, phase and
-    expect_stdout from the commit that registered it; required_drills only grows."""
+    """List violations of the append-only rule for checks/*.toml.
+
+    Every [[check]] keeps its id, cmd, expect, phase and expect_stdout from the commit that
+    registered it; required_drills only grows.
+    """
     problems: list[str] = []
     for goal in GOALS:
         rel = f"tooling-upgrade/checks/{goal}.toml"
@@ -188,11 +202,14 @@ PINNED_SUPERSESSIONS: dict[tuple[str, str], tuple[str, tuple[str, ...], tuple[st
 def supersede_verdict(
     goal: str, old: dict[str, Any], new: dict[str, Any], ledger: str, old_at: int, new_at: int
 ) -> list[str]:
-    """Problems with `new` superseding `old` (empty = valid). A check registered with a defect no
-    tree can satisfy is never edited (append-only); a check appended later may supersede it only
-    if the pair is in PINNED_SUPERSESSIONS with both argvs exactly as pinned, every other key
-    (phase, expect, expect_stdout, timeout_s, ...) is unchanged, the successor was registered in
-    a later commit, and a LEDGER.md decision line names both ids."""
+    """List the problems with `new` superseding `old` (empty = valid).
+
+    A check registered with a defect no tree can satisfy is never edited (append-only); a check
+    appended later may supersede it only if the pair is in PINNED_SUPERSESSIONS with both argvs
+    exactly as pinned, every other key (phase, expect, expect_stdout, timeout_s, ...) is
+    unchanged, the successor was registered in a later commit, and a LEDGER.md decision line
+    names both ids.
+    """
     tag = "{} supersedes {}".format(new["id"], old["id"])
     pin = PINNED_SUPERSESSIONS.get((goal, old["id"]))
     if pin is None or pin[0] != new["id"]:
@@ -220,8 +237,10 @@ def supersede_verdict(
 
 
 def _first_registered(goal: str, check_id: str) -> int:
-    """Index (in commit order) of the first commit of checks/<goal>.toml that holds `check_id`;
-    -1 if no commit does (an uncommitted check is never registered)."""
+    """Return the commit-order index of the first commit of checks/<goal>.toml holding `check_id`.
+
+    -1 if no commit does (an uncommitted check is never registered).
+    """
     rel = f"tooling-upgrade/checks/{goal}.toml"
     for i, sha in enumerate(git("log", "--format=%H", "--reverse", "--", rel, check=False).split()):
         if any(c["id"] == check_id for c in load_checks(goal, sha).get("check", [])):
@@ -255,7 +274,8 @@ def supersessions(goal: str, data: dict[str, Any]) -> tuple[dict[str, str], list
     return valid, problems
 
 
-def cmd_assert_checks_files(args: argparse.Namespace) -> int:
+def cmd_assert_checks_files(_args: argparse.Namespace) -> int:
+    """Check that checks/G0..G7.toml are tracked, parseable and append-only."""
     tracked = set(git("ls-files", "tooling-upgrade/checks").split())
     problems = [f"{g} not committed" for g in GOALS if f"tooling-upgrade/checks/{g}.toml" not in tracked]
     for g in GOALS:
@@ -281,25 +301,30 @@ def cmd_assert_checks_files(args: argparse.Namespace) -> int:
 
 
 def worktree_clean() -> bool:
+    """Return whether the worktree has no changes and no untracked files."""
     return git("status", "--porcelain", "--untracked-files=all") == ""
 
 
 def on_branch() -> bool:
+    """Return whether HEAD is the migration branch."""
     return git("rev-parse", "--abbrev-ref", "HEAD").strip() == BRANCH
 
 
 def is_linked_worktree() -> bool:
+    """Return whether ROOT is a linked worktree rather than the main checkout."""
     common = Path(git("rev-parse", "--git-common-dir").strip())
     gitdir = Path(git("rev-parse", "--git-dir").strip())
     return common.resolve() != gitdir.resolve()
 
 
 def pushed() -> bool:
+    """Return whether any remote branch contains HEAD."""
     head = git("rev-parse", "HEAD").strip()
     return bool(git("branch", "-r", "--contains", head, check=False).strip())
 
 
-def cmd_assert_branch(args: argparse.Namespace) -> int:
+def cmd_assert_branch(_args: argparse.Namespace) -> int:
+    """Check that HEAD is the migration branch, in a linked worktree."""
     ok = on_branch() and is_linked_worktree()
     print(
         "BRANCH: {} (on {}: {}, linked worktree: {}, path {})".format(
@@ -310,7 +335,7 @@ def cmd_assert_branch(args: argparse.Namespace) -> int:
 
 
 def current_snapshot(require_o1: bool = True) -> Path | None:  # noqa: FBT001, RUF100  # positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only
-    """The snapshot whose recorded digest equals HEAD's relevant digest (g0 first)."""
+    """Return the snapshot whose recorded digest equals HEAD's relevant digest (g0 first)."""
     head = oracle.relevant_digest(git("rev-parse", "HEAD").strip())
     cands = (
         sorted(
@@ -336,6 +361,7 @@ def current_snapshot(require_o1: bool = True) -> Path | None:  # noqa: FBT001, R
 
 
 def pyproject() -> dict[str, Any]:
+    """Parse ROOT/pyproject.toml ({} when it is missing or unparseable)."""
     try:
         return tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
     except (OSError, tomllib.TOMLDecodeError):
@@ -343,14 +369,17 @@ def pyproject() -> dict[str, Any]:
 
 
 def poe_tasks() -> dict[str, Any]:
+    """Return the [tool.poe.tasks] table."""
     return pyproject().get("tool", {}).get("poe", {}).get("tasks", {})
 
 
 def task_text(task: Any) -> str:
+    """Serialise a Poe task definition to canonical JSON for substring checks."""
     return json.dumps(task, sort_keys=True)
 
 
 def t1() -> tuple[bool, str]:
+    """T1: one config home (no stray tool configs; ruff and basedpyright invoked with pyproject)."""
     files = git("ls-files").split("\n")
     bad = sorted(f for f in files if f.rsplit("/", 1)[-1] in FORBIDDEN_CONFIGS)
     for name, task in poe_tasks().items():
@@ -363,12 +392,14 @@ def t1() -> tuple[bool, str]:
 
 
 def in_scope_py() -> set[str]:
+    """Return the tracked .py files that G0 did not classify ARCHIVAL."""
     inv = oracle.load_json(oracle.INVENTORY)
     archival = set(inv["archival"])
     return {f for f in git("ls-files", "*.py").split() if f not in archival}
 
 
 def t2() -> tuple[bool, str]:
+    """T2: ruff and basedpyright cover exactly the G0 in-scope set."""
     inv = oracle.load_json(oracle.INVENTORY)
     must = {f for f in inv["in_scope"] if (ROOT / f).exists()}
     allowed = in_scope_py()
@@ -424,6 +455,7 @@ def suppressions() -> list[tuple[str, int, str, str]]:
 
 
 def blanket(form: str) -> bool:
+    """Return whether a suppression form is a blanket one (no rule code)."""
     f = form.lower().replace(" ", "")
     return (
         f == "noqa"
@@ -434,11 +466,12 @@ def blanket(form: str) -> bool:
 
 
 def t3(goal: int) -> tuple[bool, str]:
+    """T3: every suppression names a rule and gives a reason (type suppressions from G4)."""
     bad: list[str] = []
     for f, i, form, reason in suppressions():
         low = form.lower().replace(" ", "")
         is_type = low.startswith(("type:", "pyright:"))
-        if is_type and goal < 4:
+        if is_type and goal < TYPE_SUPPRESSIONS_FROM:
             continue
         if blanket(form):
             bad.append(f"{f}:{i:d} blanket {form!r}")
@@ -448,6 +481,7 @@ def t3(goal: int) -> tuple[bool, str]:
 
 
 def t4() -> tuple[bool, str]:
+    """T4: suppressions stay within budget and SUPPRESSIONS.md matches the tree."""
     sup = [s for s in suppressions() if not s[2].lower().startswith(("fmt:", "pyright:strict"))]
     loc = sum(len((ROOT / f).read_bytes().splitlines()) for f in in_scope_py() if (ROOT / f).exists())
     budget = loc // 400
@@ -464,6 +498,7 @@ ALLOWED_PER_FILE = {"tests/**": {"S101", "PLR2004"}, "scripts/**": {"T20", "T201
 
 
 def t5() -> tuple[bool, str]:
+    """T5: per-file ignores are section-16 structural patterns, each commented."""
     text = (ROOT / "pyproject.toml").read_text(encoding="utf-8") if (ROOT / "pyproject.toml").exists() else ""
     pfi = pyproject().get("tool", {}).get("ruff", {}).get("lint", {}).get("per-file-ignores", {})
     bad: list[str] = []
@@ -478,6 +513,7 @@ def t5() -> tuple[bool, str]:
 
 
 def t6() -> tuple[bool, str]:
+    """T6: gate tasks exist, carry no bypass flags and dry-run successfully."""
     tasks = poe_tasks()
     bad: list[str] = []
     for name in GATE_TASKS:
@@ -493,6 +529,7 @@ def t6() -> tuple[bool, str]:
 
 
 def t7() -> tuple[bool, str]:
+    """T7: HEAD's suite record runs at least as many tests as g0 and skips no more."""
     g0 = oracle.SNAPSHOTS / "g0" / "O1.json"
     cur = current_snapshot()
     if not g0.exists() or cur is None:
@@ -510,6 +547,7 @@ def t7() -> tuple[bool, str]:
 
 
 def tamper(goal: str) -> dict[str, tuple[bool, bool, str]]:
+    """Evaluate T1-T7 for `goal`: {rule: (active, ok, message)}."""
     n = goal_num(goal)
     results: dict[str, tuple[bool, bool, str]] = {}
     for t, fn in (("T1", t1), ("T2", t2), ("T3", lambda: t3(n)), ("T4", t4), ("T5", t5), ("T6", t6), ("T7", t7)):
@@ -523,6 +561,7 @@ def tamper(goal: str) -> dict[str, tuple[bool, bool, str]]:
 
 
 def render_suppressions() -> str:
+    """Render SUPPRESSIONS.md for the current tree."""
     rows = [
         "# Suppressions in in-scope code (generated by certify.py suppressions --write)",
         "",
@@ -537,6 +576,7 @@ def render_suppressions() -> str:
 
 
 def cmd_suppressions(args: argparse.Namespace) -> int:
+    """Write SUPPRESSIONS.md (--write) or check that it is current."""
     text = render_suppressions()
     p = HERE / "SUPPRESSIONS.md"
     if args.write:
@@ -563,7 +603,7 @@ def _write(tree: Path, rel: str, text: str, append: bool = False) -> None:  # no
         p.write_text(text, encoding="utf-8")
 
 
-def _first_core_module(tree: Path) -> str:
+def _first_core_module(_tree: Path) -> str:
     inv = oracle.load_json(oracle.INVENTORY)
     return next(f for f in inv["in_scope"] if f.startswith("core/") and not f.endswith("__init__.py"))
 
@@ -732,7 +772,7 @@ DRILLS: dict[
         _poe("test-fast"),
         _poe_present("test-fast"),
     ),
-    "D13": ("mis-formatted staged file + git commit", lambda t: None, _gate_d13, _hooks_present),
+    "D13": ("mis-formatted staged file + git commit", lambda _t: None, _gate_d13, _hooks_present),
     "D14": ("public function removed from a core module", _fault_d14, _gate_d14, _poe_present("oracle")),
     "D15": (
         "poe gate task edited to add || true",
@@ -745,6 +785,7 @@ DRILLS: dict[
 
 @contextlib.contextmanager
 def drill_tree() -> Generator[Path, None, None]:
+    """Yield a throwaway worktree at HEAD with the project venv and suite record, then remove it."""
     base = Path(tempfile.mkdtemp(prefix="aurora-drill-"))
     t = base / "aurora-drill"
     git("worktree", "add", "--detach", str(t), "HEAD")
@@ -783,6 +824,7 @@ def _exec(spec: int | list[str] | Callable[[Path], int], t: Path, goal: str) -> 
 
 
 def run_drill(did: str, goal: str) -> str:
+    """Run drill `did` in a throwaway tree; return BIT or a MISSED verdict."""
     _desc, fault, gate, presence = DRILLS[did]
     with drill_tree() as t:
         pres = presence(t) if callable(presence) else presence
@@ -797,6 +839,7 @@ def run_drill(did: str, goal: str) -> str:
 
 
 def run_drills(goal: str, ids: list[str] | None = None) -> dict[str, str]:
+    """Run the given drills (all by default), printing one verdict line per drill."""
     out: dict[str, str] = {}
     for did in ids or sorted(DRILLS):
         try:
@@ -808,6 +851,7 @@ def run_drills(goal: str, ids: list[str] | None = None) -> dict[str, str]:
 
 
 def cmd_drills(args: argparse.Namespace) -> int:
+    """Run every drill and print the BIT/MISSED totals."""
     res = run_drills(args.goal)
     missed = sum(1 for v in res.values() if v.startswith("MISSED"))
     bit = sum(1 for v in res.values() if v == "BIT")
@@ -822,6 +866,7 @@ def cmd_drills(args: argparse.Namespace) -> int:
 
 
 def cmd_fresh_clone(args: argparse.Namespace) -> int:
+    """Clone HEAD without hardlinks, `uv sync --locked` it and optionally run `poe gate`."""
     base = Path(tempfile.mkdtemp(prefix="aurora-clone-"))
     clone = base / "aurora-clone"
     try:
@@ -856,19 +901,21 @@ def _report(name: str, problems: list[str]) -> int:
 
 
 def commits_since_base() -> Iterator[tuple[str, str, str]]:
+    """Yield (sha, subject, body) for each commit after the G0 base, oldest first."""
     out = git("log", "--reverse", "--format=%H%x1f%s%x1f%b%x1e", f"{oracle.g0_base()}..HEAD")
-    for rec in out.split("\x1e"):
-        rec = rec.strip("\n")
+    for chunk in out.split("\x1e"):
+        rec = chunk.strip("\n")
         if rec:
             sha, subject, body = rec.split("\x1f", 2)
             yield sha, subject, body
 
 
-def cmd_assert_mechanical_commits(args: argparse.Namespace) -> int:
-    """Every commit with a `Replay:` line reproduces exactly from its parent (class B/C), and
-    every class-B (`style:`) commit is AST-equal to its parent (O2)."""
-    import shlex
+def cmd_assert_mechanical_commits(_args: argparse.Namespace) -> int:
+    """Check that mechanical commits replay exactly and style: commits are AST-equal.
 
+    Every commit with a `Replay:` line reproduces exactly from its parent (class B/C), and every
+    class-B (`style:`) commit is AST-equal to its parent (O2).
+    """
     problems: list[str] = []
     n = 0
     for sha, subject, body in commits_since_base():
@@ -898,7 +945,8 @@ def cmd_assert_mechanical_commits(args: argparse.Namespace) -> int:
     return _report("MECHANICAL COMMITS", problems)
 
 
-def cmd_assert_blame_ignore_revs(args: argparse.Namespace) -> int:
+def cmd_assert_blame_ignore_revs(_args: argparse.Namespace) -> int:
+    """Check that every revision in .git-blame-ignore-revs is a style: commit."""
     p = ROOT / ".git-blame-ignore-revs"
     if not p.exists():
         return _report("BLAME-IGNORE-REVS", [".git-blame-ignore-revs missing"])
@@ -916,7 +964,8 @@ def cmd_assert_blame_ignore_revs(args: argparse.Namespace) -> int:
 _VERSION_SURFACES = (".github/workflows", "scripts/githooks", ".claude/settings.json", ".mcp.json")
 
 
-def cmd_assert_python_agrees(args: argparse.Namespace) -> int:
+def cmd_assert_python_agrees(_args: argparse.Namespace) -> int:
+    """Check that .python-version agrees with CI, hooks, settings and requires-python."""
     pv = ROOT / ".python-version"
     if not pv.exists():
         return _report("PYTHON AGREES", [".python-version missing"])
@@ -944,9 +993,11 @@ def cmd_assert_python_agrees(args: argparse.Namespace) -> int:
     return _report(f"PYTHON AGREES (pin {pin_mm})", problems)
 
 
-def cmd_assert_no_bare_py(args: argparse.Namespace) -> int:
-    """No executable surface launches Python with a bare `py ` (G1.P5); the documented Windows
-    fallback inside the pyrun shim's chain is the one allowed mention."""
+def cmd_assert_no_bare_py(_args: argparse.Namespace) -> int:
+    """Check that no executable surface launches Python with a bare `py ` (G1.P5).
+
+    The documented Windows fallback inside the pyrun shim's chain is the one allowed mention.
+    """
     problems: list[str] = []
     for f in sorted((ROOT / "scripts" / "githooks").glob("*")):
         if f.suffix or not f.is_file():
@@ -989,6 +1040,7 @@ def _req_name(spec: str) -> str:
 
 
 def dev_group_problems(pp: dict[str, Any]) -> list[str]:
+    """List deviations of the dev dependency group from the plan's tool list (G1.P1)."""
     groups = pp.get("dependency-groups", {})
     dev = {_req_name(s) for s in groups.get("dev", []) if isinstance(s, str)}
     problems = [f"dev lacks {n}" for n in DEV_GROUP if n not in dev]
@@ -1006,17 +1058,19 @@ def dev_group_problems(pp: dict[str, Any]) -> list[str]:
     return problems
 
 
-def cmd_assert_dev_group(args: argparse.Namespace) -> int:
+def cmd_assert_dev_group(_args: argparse.Namespace) -> int:
+    """Check the dev dependency group against the plan (G1.P1)."""
     return _report("DEV GROUP", dev_group_problems(pyproject()))
 
 
 def uv_settings_problems(pp: dict[str, Any]) -> list[str]:
+    """List deviations of [tool.uv] from the G1.P3 settings."""
     uv = pp.get("tool", {}).get("uv", {})
     problems: list[str] = []
     if uv.get("package") is not False:
         problems.append("tool.uv.package is not false")
     m = re.fullmatch(r">=\s*0\.(\d+)(\.\d+)?", str(uv.get("required-version", "")))
-    if not m or int(m.group(1)) < 12:
+    if not m or int(m.group(1)) < UV_MIN_MINOR:
         problems.append(
             "tool.uv.required-version {!r} is not >=0.12 (the G0 uv minor)".format(uv.get("required-version"))
         )
@@ -1027,13 +1081,16 @@ def uv_settings_problems(pp: dict[str, Any]) -> list[str]:
     return problems
 
 
-def cmd_assert_uv_settings(args: argparse.Namespace) -> int:
+def cmd_assert_uv_settings(_args: argparse.Namespace) -> int:
+    """Check [tool.uv] against the G1.P3 settings."""
     return _report("UV SETTINGS", uv_settings_problems(pyproject()))
 
 
 def gate_problems(tasks: dict[str, Any], members: list[str]) -> list[str]:
-    """`gate` is a sequence over gate tasks in plan order (G1.P6) that includes at least
-    `members`; tasks only ever join it."""
+    """List the ways `gate` departs from a plan-ordered sequence of gate tasks (G1.P6).
+
+    `gate` must include at least `members`; tasks only ever join it.
+    """
     gate = tasks.get("gate")
     seq = (
         cast("dict[str, Any]", gate).get("sequence")
@@ -1059,6 +1116,7 @@ def gate_problems(tasks: dict[str, Any], members: list[str]) -> list[str]:
 
 
 def cmd_assert_gate(args: argparse.Namespace) -> int:
+    """Check that `poe gate` runs the plan's gate tasks in order and includes `members`."""
     return _report("GATE MEMBERS", gate_problems(poe_tasks(), args.members))
 
 
@@ -1080,14 +1138,18 @@ def sha_pin_problems(root: Path) -> list[str]:
     return problems
 
 
-def cmd_assert_sha_pins(args: argparse.Namespace) -> int:
+def cmd_assert_sha_pins(_args: argparse.Namespace) -> int:
+    """Check that every workflow `uses:` is pinned to a commit SHA."""
     return _report("SHA PINS", sha_pin_problems(ROOT))
 
 
 def workflow_permission_problems(root: Path) -> list[str]:
-    """Least privilege (G5.P3): every workflow declares top-level `permissions:`, and none grants
-    `write-all` anywhere. (zizmor's default persona reports excessive-permissions only at higher
-    confidence, so a single-job `permissions: write-all` passed it: drill D11.)"""
+    """List least-privilege violations in the workflows (G5.P3).
+
+    Every workflow declares top-level `permissions:`, and none grants `write-all` anywhere.
+    (zizmor's default persona reports excessive-permissions only at higher confidence, so a
+    single-job `permissions: write-all` passed it: drill D11.)
+    """
     problems: list[str] = []
     wf_dir = root / ".github" / "workflows"
     for wf in sorted(wf_dir.glob("*.y*ml")) if wf_dir.exists() else []:
@@ -1108,9 +1170,12 @@ def cmd_assert_workflow_permissions(_args: argparse.Namespace) -> int:
     return _report("WORKFLOW PERMISSIONS", workflow_permission_problems(ROOT))
 
 
-def cmd_assert_ratchet(args: argparse.Namespace) -> int:
-    """Stretch rule families (plan G3: D, ANN, ARG, FBT, TRY, PL) may never rise above the
-    counts committed in tooling-upgrade/ratchet.json."""
+def cmd_assert_ratchet(_args: argparse.Namespace) -> int:
+    """Check that no stretch rule family rises above its ratchet.
+
+    Stretch rule families (plan G3: D, ANN, ARG, FBT, TRY, PL) may never rise above the counts
+    committed in tooling-upgrade/ratchet.json.
+    """
     p = HERE / "ratchet.json"
     if not p.exists():
         return _report("RATCHET", ["tooling-upgrade/ratchet.json missing"])
@@ -1146,9 +1211,12 @@ def cmd_assert_ratchet(args: argparse.Namespace) -> int:
     return _report("RATCHET", problems)
 
 
-def cmd_assert_latent_regressions(args: argparse.Namespace) -> int:
-    """Every INTENDED_CHANGES entry with `fix_commit` + `regression_test` (G4.P2): the test fails
-    on the fix's parent and passes on HEAD."""
+def cmd_assert_latent_regressions(_args: argparse.Namespace) -> int:
+    """Check each latent-bug regression test against its fix (G4.P2).
+
+    For every INTENDED_CHANGES entry with `fix_commit` + `regression_test`, the test fails on the
+    fix's parent and passes on HEAD.
+    """
     problems: list[str] = []
     n = 0
     for e in oracle.load_intended():
@@ -1250,13 +1318,15 @@ def cmd_assert_suppressions(_args: argparse.Namespace) -> int:
 
 
 def cmd_assert_ledger_entry(args: argparse.Namespace) -> int:
+    """Check that LEDGER.md has a closed row for the given phase."""
     text = (HERE / "LEDGER.md").read_text(encoding="utf-8")
     rows = [ln for ln in text.splitlines() if ln.startswith(f"| {args.phase}")]
     ok = any(re.search(r"\|\s*(DONE|CERTIFIED|NO-GO|SKIPPED)\s*\|", r) for r in rows)
     return _report(f"LEDGER {args.phase}", [] if ok else ["no DONE/CERTIFIED/NO-GO/SKIPPED row"])
 
 
-def cmd_assert_docs_uv(args: argparse.Namespace) -> int:
+def cmd_assert_docs_uv(_args: argparse.Namespace) -> int:
+    """Check that the contributor docs present uv as the primary path."""
     problems: list[str] = []
     for doc in ("README.md", "CONTRIBUTING.md", "AGENTS.md", "docs/DEPLOY.md"):
         p = ROOT / doc
@@ -1293,7 +1363,7 @@ CI_GUARDRAIL_COMMENTS = (
 
 
 def _yaml_scalar(v: str) -> str:
-    """A plain or quoted YAML scalar, its trailing comment dropped (the subset ci.yml uses)."""
+    """Return a plain or quoted YAML scalar, its trailing comment dropped (the subset ci.yml uses)."""
     v = v.strip()
     if v[:1] in "\"'":
         q = v[0]
@@ -1302,80 +1372,110 @@ def _yaml_scalar(v: str) -> str:
     return re.sub(r"\s+#.*$", "", v).strip()
 
 
+# Indentation levels of the ci.yml subset parse_workflow reads (two spaces per level).
+_JOB_INDENT = 2  # `  <job id>:` under `jobs:`
+_JOB_KEY_INDENT = 4  # `    runs-on: ...`, `    steps:`
+_ITEM_INDENT = 6  # env entries, service names, the `- ` that opens a step
+_STEP_KEY_INDENT = 8  # `name:`, `uses:`, `run:`, `with:` inside a step
+_STEP_WITH_INDENT = 10  # the entries under a step's `with:`
+_BLOCK_STYLES = ("|", "|-", ">", ">-")
+
+
+def _indent(ln: str) -> int:
+    return len(ln) - len(ln.lstrip(" "))
+
+
+class _WorkflowReader:
+    """Line cursor and parse state for parse_workflow."""
+
+    def __init__(self, text: str) -> None:
+        self.lines = text.splitlines()
+        self.i = self.lines.index("jobs:") + 1 if "jobs:" in self.lines else len(self.lines)
+        self.jobs: dict[str, dict[str, Any]] = {}
+        self.job: dict[str, Any] | None = None
+        self.section = ""
+        self.step: dict[str, str] | None = None
+
+    def read(self) -> dict[str, dict[str, Any]]:
+        while self.i < len(self.lines):
+            ln = self.lines[self.i]
+            self.i += 1
+            if not ln.strip() or ln.lstrip().startswith("#"):
+                continue
+            ind = _indent(ln)
+            if ind == 0:
+                break
+            self._line(ind, ln.strip())
+        return self.jobs
+
+    def _line(self, ind: int, body: str) -> None:
+        if ind == _JOB_INDENT and body.endswith(":"):
+            self.job = {"keys": {}, "env": {}, "services": [], "steps": []}
+            self.jobs[body[:-1]] = self.job
+            self.section, self.step = "", None
+            return
+        job = self.job
+        if job is None:
+            return
+        if ind == _JOB_KEY_INDENT:
+            key, _, val = body.partition(":")
+            self.section, self.step = key, None
+            if val.strip():
+                job["keys"][key] = _yaml_scalar(val)
+            return
+        if self.section == "env" and ind == _ITEM_INDENT:
+            key, _, val = body.partition(":")
+            job["env"][key] = _yaml_scalar(val)
+        elif self.section == "services" and ind == _ITEM_INDENT:
+            job["services"].append(body.rstrip(":"))
+        elif self.section == "steps" and ind >= _ITEM_INDENT:
+            self._step_line(job, ind, body)
+
+    def _step_line(self, job: dict[str, Any], ind: int, body: str) -> None:
+        if ind == _ITEM_INDENT and body.startswith("- "):
+            self.step = {}
+            job["steps"].append(self.step)
+            body, ind = body[2:], _STEP_KEY_INDENT
+        step = self.step
+        if step is None:
+            return
+        if ind != _STEP_KEY_INDENT:
+            if ind == _STEP_WITH_INDENT and step.get("_with") == "1":
+                k, _, v = body.partition(":")
+                step["with." + k] = _yaml_scalar(v)
+            return
+        key, _, val = body.partition(":")
+        val = val.strip()
+        if key == "with":
+            step["_with"] = "1"
+        elif val in _BLOCK_STYLES:
+            step[key] = self._block_scalar(val)
+        else:
+            step[key] = _yaml_scalar(val)
+
+    def _block_scalar(self, style: str) -> str:
+        block: list[str] = []
+        while self.i < len(self.lines) and (
+            not self.lines[self.i].strip() or _indent(self.lines[self.i]) > _STEP_KEY_INDENT
+        ):
+            block.append(self.lines[self.i].strip())
+            self.i += 1
+        return ("\n" if style.startswith("|") else " ").join(b for b in block if b)
+
+
 def parse_workflow(text: str) -> dict[str, dict[str, Any]]:
-    """jobs -> {keys: {...}, env: {...}, services: [...], steps: [{name, uses, run, with}]}.
+    """Map each job to {keys: {...}, env: {...}, services: [...], steps: [{name, uses, run, with}]}.
 
     Stdlib-only reader for the YAML subset .github/workflows/ci.yml is written in: block
     mappings, step lists, plain/quoted scalars and `|`/`>-` block scalars. Anything it cannot
-    place is ignored, and assert-ci-structure checks the parts it relies on."""
-    lines = text.splitlines()
-    jobs: dict[str, dict[str, Any]] = {}
-    i = lines.index("jobs:") + 1 if "jobs:" in lines else len(lines)
-    job: dict[str, Any] | None = None
-    section = ""
-    step: dict[str, str] | None = None
-
-    def indent(ln: str) -> int:
-        return len(ln) - len(ln.lstrip(" "))
-
-    while i < len(lines):
-        ln = lines[i]
-        i += 1
-        if not ln.strip() or ln.lstrip().startswith("#"):
-            continue
-        ind = indent(ln)
-        if ind == 0:
-            break
-        body = ln.strip()
-        if ind == 2 and body.endswith(":"):
-            job = {"keys": {}, "env": {}, "services": [], "steps": []}
-            jobs[body[:-1]] = job
-            section, step = "", None
-            continue
-        if job is None:
-            continue
-        if ind == 4:
-            key, _, val = body.partition(":")
-            section, step = key, None
-            if val.strip():
-                job["keys"][key] = _yaml_scalar(val)
-            continue
-        if section == "env" and ind == 6:
-            key, _, val = body.partition(":")
-            job["env"][key] = _yaml_scalar(val)
-        elif section == "services" and ind == 6:
-            job["services"].append(body.rstrip(":"))
-        elif section == "steps" and ind >= 6:
-            if ind == 6 and body.startswith("- "):
-                step = {}
-                job["steps"].append(step)
-                body = body[2:]
-                ind = 8
-            if step is None or ind != 8:
-                if step is not None and ind == 10 and step.get("_with") == "1":
-                    k, _, v = body.partition(":")
-                    step["with." + k] = _yaml_scalar(v)
-                continue
-            key, _, val = body.partition(":")
-            val = val.strip()
-            if key == "with":
-                step["_with"] = "1"
-                continue
-            if val in ("|", "|-", ">", ">-"):
-                block: list[str] = []
-                while i < len(lines) and (not lines[i].strip() or indent(lines[i]) > 8):
-                    block.append(lines[i].strip())
-                    i += 1
-                step[key] = ("\n" if val.startswith("|") else " ").join(b for b in block if b)
-            else:
-                step[key] = _yaml_scalar(val)
-    return jobs
+    place is ignored, and assert-ci-structure checks the parts it relies on.
+    """
+    return _WorkflowReader(text).read()
 
 
-def cmd_assert_ci_structure(_args: argparse.Namespace) -> int:
-    """G5.P3: the workflow's shape (permissions, concurrency, timeouts, pins, jobs, guardrails)."""
+def _ci_header_problems(text: str) -> list[str]:
+    """List problems with ci.yml's top-level permissions, concurrency and action pins."""
     problems: list[str] = []
-    text = WORKFLOW.read_text(encoding="utf-8") if WORKFLOW.exists() else ""
     if not re.search(r"(?m)^permissions:\n  contents: read\s*$", text):
         problems.append("top-level `permissions: contents: read` missing")
     if not re.search(r"(?m)^concurrency:\n(  .*\n)*  cancel-in-progress: true\s*$", text):
@@ -1385,24 +1485,33 @@ def cmd_assert_ci_structure(_args: argparse.Namespace) -> int:
             problems.append(f"uses: {m.group(1)} is not pinned to a 40-hex SHA")
         if not re.match(r"\s+#\s*v?\d+\.\d+\.\d+\s*$", m.group(2)):
             problems.append(f"uses: {m.group(1)} lacks its `# vX.Y.Z` comment")
-    jobs = parse_workflow(text)
-    problems.extend(f"job {name} missing" for name in CI_JOBS if name not in jobs)
-    for name, job in jobs.items():
-        keys: dict[str, str] = job["keys"]
-        steps: list[dict[str, str]] = job["steps"]
-        if not keys.get("timeout-minutes", "").isdigit():
-            problems.append(f"job {name}: no timeout-minutes")
-        for st in steps:
-            uses = st.get("uses", "")
-            if uses.startswith("actions/checkout@") and st.get("with.persist-credentials") != "false":
-                problems.append(f"job {name}: checkout without persist-credentials: false")
-            if uses.startswith("astral-sh/setup-uv@") and st.get("with.enable-cache") != "true":
-                problems.append(f"job {name}: setup-uv without enable-cache: true")
-        runs = [st.get("run", "") for st in steps]
-        if not any(r.strip() == "uv sync --locked" for r in runs):
-            problems.append(f"job {name}: no `uv sync --locked` step")
-        if not any(st.get("uses", "").startswith("astral-sh/setup-uv@") for st in steps):
-            problems.append(f"job {name}: no astral-sh/setup-uv step")
+    return problems
+
+
+def _ci_job_problems(name: str, job: dict[str, Any]) -> list[str]:
+    """List the problems every ci.yml job is checked for: timeout, checkout, setup-uv, uv sync."""
+    problems: list[str] = []
+    keys: dict[str, str] = job["keys"]
+    steps: list[dict[str, str]] = job["steps"]
+    if not keys.get("timeout-minutes", "").isdigit():
+        problems.append(f"job {name}: no timeout-minutes")
+    for st in steps:
+        uses = st.get("uses", "")
+        if uses.startswith("actions/checkout@") and st.get("with.persist-credentials") != "false":
+            problems.append(f"job {name}: checkout without persist-credentials: false")
+        if uses.startswith("astral-sh/setup-uv@") and st.get("with.enable-cache") != "true":
+            problems.append(f"job {name}: setup-uv without enable-cache: true")
+    runs = [st.get("run", "") for st in steps]
+    if not any(r.strip() == "uv sync --locked" for r in runs):
+        problems.append(f"job {name}: no `uv sync --locked` step")
+    if not any(st.get("uses", "").startswith("astral-sh/setup-uv@") for st in steps):
+        problems.append(f"job {name}: no astral-sh/setup-uv step")
+    return problems
+
+
+def _ci_role_problems(jobs: dict[str, dict[str, Any]]) -> list[str]:
+    """List problems with what each named ci.yml job runs and whether it may fail."""
+    problems: list[str] = []
     want_run = {
         "gate": "uv run poe gate",
         "test": "uv run poe test",
@@ -1433,6 +1542,18 @@ def cmd_assert_ci_structure(_args: argparse.Namespace) -> int:
         t = jobs["test"]
         if "redis" not in t["services"] or t["env"].get("REDIS_PORT") != "16379":
             problems.append("job test: the Redis service and its env (REDIS_PORT 16379) must stay")
+    return problems
+
+
+def cmd_assert_ci_structure(_args: argparse.Namespace) -> int:
+    """G5.P3: the workflow's shape (permissions, concurrency, timeouts, pins, jobs, guardrails)."""
+    text = WORKFLOW.read_text(encoding="utf-8") if WORKFLOW.exists() else ""
+    problems = _ci_header_problems(text)
+    jobs = parse_workflow(text)
+    problems.extend(f"job {name} missing" for name in CI_JOBS if name not in jobs)
+    for name, job in jobs.items():
+        problems += _ci_job_problems(name, job)
+    problems += _ci_role_problems(jobs)
     gate_steps = {st.get("name", ""): st.get("run", "") for st in jobs.get("gate", {}).get("steps", [])}
     for step_name, checker in CI_GUARDRAILS.items():
         if gate_steps.get(step_name, "").strip() != f"uv run poe guardrails --only {checker}":
@@ -1516,14 +1637,9 @@ EXPERIMENTS = HERE / "EXPERIMENTS-G5.md"
 EXPERIMENT_NAMES = ("xdist", "randomly", "doctest", "coverage")
 
 
-def cmd_assert_experiments(_args: argparse.Namespace) -> int:
-    """G5.P1: each experiment has a verdict with evidence, and the config matches the verdict."""
+def _experiment_record_problems(entries: dict[str, dict[str, Any]]) -> list[str]:
+    """List the experiments that lack a record, a valid verdict or evidence."""
     problems: list[str] = []
-    text = EXPERIMENTS.read_text(encoding="utf-8") if EXPERIMENTS.exists() else ""
-    entries: dict[str, dict[str, Any]] = {}
-    for block in re.findall(r"```toml\n(.*?)```", text, flags=re.DOTALL):
-        e = tomllib.loads(block)
-        entries[str(e.get("experiment"))] = e
     for name in EXPERIMENT_NAMES:
         e = entries.get(name)
         if e is None:
@@ -1533,11 +1649,14 @@ def cmd_assert_experiments(_args: argparse.Namespace) -> int:
             problems.append(f"experiment {name}: verdict must be ADOPT, ADOPT-FAST-ONLY or REJECT")
         if not e.get("evidence"):
             problems.append(f"experiment {name}: no evidence")
-    pp = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
-    addopts = " ".join(pp["tool"]["pytest"]["ini_options"].get("addopts", []))
-    tasks = pp["tool"]["poe"]["tasks"]
-    test_text = task_text(tasks.get("test", ""))
-    fast_text = task_text(tasks.get("test-fast", ""))
+    return problems
+
+
+def _plugin_verdict_problems(
+    entries: dict[str, dict[str, Any]], addopts: str, test_text: str, fast_text: str
+) -> list[str]:
+    """List disagreements between the randomly / xdist / doctest verdicts and the pytest config."""
+    problems: list[str] = []
     rnd = entries.get("randomly", {}).get("verdict")
     if rnd == "REJECT":
         if "no:randomly" not in addopts:
@@ -1556,6 +1675,23 @@ def cmd_assert_experiments(_args: argparse.Namespace) -> int:
     dt = entries.get("doctest", {}).get("verdict")
     if (dt == "ADOPT") != ("--doctest-modules" in addopts + test_text):
         problems.append("doctest verdict and the configuration disagree")
+    return problems
+
+
+def cmd_assert_experiments(_args: argparse.Namespace) -> int:
+    """G5.P1: each experiment has a verdict with evidence, and the config matches the verdict."""
+    text = EXPERIMENTS.read_text(encoding="utf-8") if EXPERIMENTS.exists() else ""
+    entries: dict[str, dict[str, Any]] = {}
+    for block in re.findall(r"```toml\n(.*?)```", text, flags=re.DOTALL):
+        e = tomllib.loads(block)
+        entries[str(e.get("experiment"))] = e
+    problems = _experiment_record_problems(entries)
+    pp = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    addopts = " ".join(pp["tool"]["pytest"]["ini_options"].get("addopts", []))
+    tasks = pp["tool"]["poe"]["tasks"]
+    test_text = task_text(tasks.get("test", ""))
+    fast_text = task_text(tasks.get("test-fast", ""))
+    problems += _plugin_verdict_problems(entries, addopts, test_text, fast_text)
     if entries.get("coverage", {}).get("verdict") != "ADOPT":
         problems.append("coverage reporting is always on (plan G5.P1): its verdict must be ADOPT")
     cov = pp["tool"].get("coverage", {}).get("run", {})
@@ -1578,9 +1714,12 @@ def _generators() -> list[str]:
 
 
 def cmd_assert_generated_docs(_args: argparse.Namespace) -> int:
-    """G5.P4: at HEAD each generator's --check passes (where it has one), and every generator
-    re-run in a throwaway tree changes nothing -- except the one line gen_physics_sheet stamps
-    with the current HEAD SHA ("> Derived at <sha>."), which no commit can keep current."""
+    """Check that the generated docs are current at HEAD (G5.P4).
+
+    Each generator's --check passes (where it has one), and every generator re-run in a
+    throwaway tree changes nothing -- except the one line gen_physics_sheet stamps with the
+    current HEAD SHA ("> Derived at <sha>."), which no commit can keep current.
+    """
     problems: list[str] = []
     gens = _generators()
     with drill_tree() as t:
@@ -1589,11 +1728,11 @@ def cmd_assert_generated_docs(_args: argparse.Namespace) -> int:
             src = t / "scripts" / "generators" / f"{g}.py"
             if "--check" in src.read_text(encoding="utf-8"):
                 r = run([sys.executable, str(src), "--check"], cwd=t, env=env, timeout=600)
-                print(f"{g} --check: rc={r.returncode:d}")
+                print(f"{g} --check: rc={r.returncode:d}")  # noqa: T201  # CLI output: each generator's exit code is this check's evidence
                 if r.returncode != 0:
                     problems.append(f"{g} --check exits {r.returncode:d}")
             r = run([sys.executable, str(src)], cwd=t, env=env, timeout=600)
-            print(f"{g} (write): rc={r.returncode:d}")
+            print(f"{g} (write): rc={r.returncode:d}")  # noqa: T201  # CLI output: each generator's exit code is this check's evidence
             if r.returncode != 0:
                 problems.append(f"{g} exits {r.returncode:d}")
         diff = run(["git", "diff", "-U0", "--no-color"], cwd=t).stdout.splitlines()
@@ -1604,11 +1743,14 @@ def cmd_assert_generated_docs(_args: argparse.Namespace) -> int:
 
 
 def cmd_assert_ci_replay(_args: argparse.Namespace) -> int:
-    """G5.P3 local proof (nothing is pushed, I2): replay every `run:` step of every Linux job, in
-    order, with the job's env, in a fresh clone of HEAD, as GitHub would (`bash -e`). `uses:`
-    steps are emulated: checkout = the clone; setup-uv = the uv on PATH. A job's Redis service is
-    the local server on the same port. A continue-on-error job may fail without failing the
-    replay. Windows jobs are recorded as defined, not executed."""
+    """Replay the CI workflow locally (G5.P3 local proof; nothing is pushed, I2).
+
+    Every `run:` step of every Linux job runs in order, with the job's env, in a fresh clone of
+    HEAD, as GitHub would (`bash -e`). `uses:` steps are emulated: checkout = the clone;
+    setup-uv = the uv on PATH. A job's Redis service is the local server on the same port. A
+    continue-on-error job may fail without failing the replay. Windows jobs are recorded as
+    defined, not executed.
+    """
     jobs = parse_workflow(WORKFLOW.read_text(encoding="utf-8"))
     logs = oracle.SNAPSHOTS / "ci-replay"  # git-ignored working record: every step's full output
     if logs.exists():
@@ -1629,15 +1771,15 @@ def cmd_assert_ci_replay(_args: argparse.Namespace) -> int:
             keys: dict[str, str] = job["keys"]
             soft = keys.get("continue-on-error") == "true"
             if "windows" in keys.get("runs-on", ""):
-                print(f"JOB {name}: defined, not executed (runs-on {keys.get('runs-on')}; no Windows host)")
+                print(f"JOB {name}: defined, not executed (runs-on {keys.get('runs-on')}; no Windows host)")  # noqa: T201  # CLI output: CI replay evidence (G5 goal condition 4)
                 continue
-            print(f"JOB {name} (runs-on {keys.get('runs-on')}{', continue-on-error' if soft else ''})")
+            print(f"JOB {name} (runs-on {keys.get('runs-on')}{', continue-on-error' if soft else ''})")  # noqa: T201  # CLI output: CI replay evidence (G5 goal condition 4)
             env = oracle.oracle_env()
             env.pop("VIRTUAL_ENV", None)
             for k, v in cast("dict[str, str]", job["env"]).items():
                 env[k] = v.replace("${{ github.workspace }}", str(clone))
             if job["services"]:
-                print(
+                print(  # noqa: T201  # CLI output: CI replay evidence (G5 goal condition 4)
                     "  services {}: the local server on the job's REDIS_PORT {}".format(
                         ",".join(job["services"]), env.get("REDIS_PORT", "?")
                     )
@@ -1647,38 +1789,28 @@ def cmd_assert_ci_replay(_args: argparse.Namespace) -> int:
                 label = st.get("name") or st.get("uses") or st.get("run", "")[:60]
                 if "uses" in st:
                     how = "the fresh clone" if "checkout" in st["uses"] else uv_v
-                    print(f"  step {label}: emulated ({how})")
+                    print(f"  step {label}: emulated ({how})")  # noqa: T201  # CLI output: CI replay evidence (G5 goal condition 4)
                     continue
                 if not job_ok:
-                    print(f"  step {label}: skipped (an earlier step failed)")
+                    print(f"  step {label}: skipped (an earlier step failed)")  # noqa: T201  # CLI output: CI replay evidence (G5 goal condition 4)
                     continue
                 t0 = time.time()
-                r = subprocess.run(
-                    ["bash", "-e", "-c", st["run"]],
-                    cwd=clone,
-                    env=env,
-                    capture_output=True,
-                    text=True,
-                    encoding="utf-8",
-                    errors="replace",
-                    timeout=7200,
-                    check=False,
-                )
+                r = run(["bash", "-e", "-c", st["run"]], cwd=clone, env=env, timeout=7200)
                 n_step = len(list(logs.iterdir())) + 1
                 (logs / f"{n_step:02d}-{name}.log").write_text(
                     f"$ {st['run']}\n# exit {r.returncode:d}\n{r.stdout}{r.stderr}", encoding="utf-8"
                 )
                 tail = (r.stdout + r.stderr).strip().splitlines()[-1:] or [""]
-                print(
+                print(  # noqa: T201  # CLI output: CI replay evidence (G5 goal condition 4)
                     f"  step {label}: `{st['run']}` -> exit {r.returncode:d} ({time.time() - t0:.0f}s)  {tail[0][:110]}"
                 )
                 job_ok = r.returncode == 0
-            print(f"  JOB {name}: {'PASS' if job_ok else 'FAIL' + (' (allowed: continue-on-error)' if soft else '')}")
+            print(f"  JOB {name}: {'PASS' if job_ok else 'FAIL' + (' (allowed: continue-on-error)' if soft else '')}")  # noqa: T201  # CLI output: CI replay evidence (G5 goal condition 4)
             if not job_ok and not soft:
                 failed.append(name)
     finally:
         _rmtree(base)
-    print(f"step logs: {logs.relative_to(ROOT).as_posix()}/")
+    print(f"step logs: {logs.relative_to(ROOT).as_posix()}/")  # noqa: T201  # CLI output: CI replay evidence (G5 goal condition 4)
     return _report("CI REPLAY", [f"job {j} failed" for j in failed])
 
 
@@ -1686,53 +1818,126 @@ def cmd_assert_ci_replay(_args: argparse.Namespace) -> int:
 
 
 def prior_goal_certified(n: int) -> bool:
+    """Return whether goal G<n-1> is closed (CERTIFIED, NO-GO or SKIPPED) in LEDGER.md."""
     text = (HERE / "LEDGER.md").read_text(encoding="utf-8") if (HERE / "LEDGER.md").exists() else ""
     return re.search(rf"(?m)^\|\s*G{n - 1:d}\s*\|\s*(CERTIFIED|NO-GO|SKIPPED)\s*\|", text) is not None
 
 
-def certify(goal: str, phase: str | None = None, drills: bool = False, tamper_only: bool = False) -> int:  # noqa: FBT001, RUF100  # positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only
-    n = goal_num(goal)
-    if tamper_only:
-        res = tamper(goal)
-        failed = [t for t, (active, ok, _m) in res.items() if active and not ok]
-        for t, (active, ok, msg) in res.items():
-            print("{} {}{} -- {}".format(t, "PASS" if ok else "FAIL", "" if active else " (not yet active)", msg))
-        return 1 if failed else 0
+def _certify_tamper_only(goal: str) -> int:
+    """Print T1-T7 for `goal` (the D15 gate); non-zero when an active rule fails."""
+    res = tamper(goal)
+    failed = [t for t, (active, ok, _m) in res.items() if active and not ok]
+    for t, (active, ok, msg) in res.items():
+        print("{} {}{} -- {}".format(t, "PASS" if ok else "FAIL", "" if active else " (not yet active)", msg))
+    return 1 if failed else 0
 
-    data = load_checks(goal)
-    checks = [c for c in data.get("check", []) if phase is None or c["phase"] == phase]
+
+def _certify_not_started(goal: str, n: int, *, drills: bool) -> int:
+    """Report that `goal` has not started because G<n-1> is not certified; run only the drills."""
+    # Goals run in order: a later goal's checks, tamper rules and oracle comparison are not
+    # executed before its predecessor is certified (they would only measure work that does
+    # not exist yet). Drills still run -- that is the G0.P5 self-test `certify.py G7 --drills`.
+    print(
+        f"CHECKS skipped: G{n - 1:d} is not CERTIFIED in tooling-upgrade/LEDGER.md, so {goal} has not "
+        "started; only the drills run."
+    )
+    if drills:
+        res = run_drills(goal)
+        missed = sum(1 for v in res.values() if v.startswith("MISSED"))
+        print(f"DRILLS: {len(res) - missed:d}/{len(res):d} BIT")
+        print(f"DRILLS-MISSED {missed:d}/{len(res):d}")
+    print(f"RESULT: {goal} NOT CERTIFIED: G{n - 1:d} not certified; {goal} not started")
+    return 1
+
+
+def _run_goal_checks(
+    checks: list[dict[str, Any]], superseded: dict[str, str], first_fail: str | None
+) -> tuple[int, str | None]:
+    """Run and print each check; return (counted passes, first failure so far)."""
     passed = 0
-    first_fail: str | None = None
-    if n > 0 and not prior_goal_certified(n):
-        # Goals run in order: a later goal's checks, tamper rules and oracle comparison are not
-        # executed before its predecessor is certified (they would only measure work that does
-        # not exist yet). Drills still run -- that is the G0.P5 self-test `certify.py G7 --drills`.
-        print(
-            f"CHECKS skipped: G{n - 1:d} is not CERTIFIED in tooling-upgrade/LEDGER.md, so {goal} has not "
-            "started; only the drills run."
-        )
-        if drills:
-            res = run_drills(goal)
-            missed = sum(1 for v in res.values() if v.startswith("MISSED"))
-            print(f"DRILLS: {len(res) - missed:d}/{len(res):d} BIT")
-            print(f"DRILLS-MISSED {missed:d}/{len(res):d}")
-        print(f"RESULT: {goal} NOT CERTIFIED: G{n - 1:d} not certified; {goal} not started")
-        return 1
-    superseded, sup_problems = supersessions(goal, data)
-    for p in sup_problems:
-        print("FAIL supersede --", p)
-        first_fail = first_fail or "supersede: " + p
     for c in checks:
         ok, why, out = run_check(c)
         if c["id"] in superseded:
             # still run and shown, never counted: its successor carries the criterion
-            print("SUPERSEDED {} by {} -- {} {}".format(c["id"], superseded[c["id"]], "pass" if ok else "fail", why))
+            print("SUPERSEDED {} by {} -- {} {}".format(c["id"], superseded[c["id"]], "pass" if ok else "fail", why))  # noqa: T201  # CLI output: a certificate line
             continue
         passed += ok
         print("{} {} -- {}".format("PASS" if ok else "FAIL", c["id"], why), flush=True)
         if not ok:
             print("    " + "\n    ".join(out.strip().splitlines()[-6:]))
             first_fail = first_fail or "check {} ({})".format(c["id"], why)
+    return passed, first_fail
+
+
+def _print_tamper(res: dict[str, tuple[bool, bool, str]]) -> None:
+    """Print one line per T-rule, naming the goal a not-yet-active rule binds from."""
+    for t, (active, ok, msg) in res.items():
+        print(
+            "{} {}{} -- {}".format(
+                t,
+                "PASS" if ok else "FAIL",
+                "" if active else f" (not yet active: binds from G{T_ACTIVE_FROM[t]:d})",
+                msg,
+            )
+        )
+
+
+def _required_drills_bit(goal: str, required: list[str], *, drills: bool) -> int:
+    """Run all drills (`drills`) or just the required ones; return how many required drills BIT."""
+    drill_res: dict[str, str] = {}
+    if drills:
+        drill_res = run_drills(goal)
+        missed = sum(1 for v in drill_res.values() if v.startswith("MISSED"))
+        print(f"DRILLS-MISSED {missed:d}/{len(drill_res):d}")
+    elif required:
+        drill_res = run_drills(goal, required)
+    return sum(1 for d in required if drill_res.get(d) == "BIT")
+
+
+def _oracle_verdict(cur: Path | None) -> tuple[bool, int]:
+    """Compare the current suite record with g0, printing the comparison; return (ok, EQUAL count)."""
+    if cur is not None and (oracle.SNAPSHOTS / "g0" / "meta.json").exists():
+        lines, oracle_ok = oracle.compare_dirs(oracle.SNAPSHOTS / "g0", cur)
+        for ln in lines:
+            print(ln)
+        return oracle_ok, int(lines[-1].split()[1].split("/")[0])
+    print("ORACLE: no snapshot is current for HEAD (run `oracle.py snapshot head --runs 1`)")
+    return False, 0
+
+
+def _refusals(cur: Path | None) -> list[str]:
+    """List the repository states in which no certificate may be issued."""
+    refusals: list[str] = []
+    if not worktree_clean():
+        refusals.append("worktree dirty")
+    if not on_branch():
+        refusals.append(f"HEAD not on {BRANCH}")
+    hist = checks_history_problems()
+    if hist:
+        refusals.append("checks files changed after registration: " + hist[0])
+    if cur is None:
+        refusals.append("no full-suite record current for HEAD")
+    if pushed():
+        refusals.append("HEAD is on a remote branch (pushed)")
+    return refusals
+
+
+def certify(goal: str, phase: str | None = None, drills: bool = False, tamper_only: bool = False) -> int:  # noqa: FBT001, RUF100  # positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only
+    """Run `goal`'s checks, T1-T7, drills and the oracle comparison and print the certificate."""
+    n = goal_num(goal)
+    if tamper_only:
+        return _certify_tamper_only(goal)
+
+    data = load_checks(goal)
+    checks = [c for c in data.get("check", []) if phase is None or c["phase"] == phase]
+    first_fail: str | None = None
+    if n > 0 and not prior_goal_certified(n):
+        return _certify_not_started(goal, n, drills=drills)
+    superseded, sup_problems = supersessions(goal, data)
+    for p in sup_problems:
+        print("FAIL supersede --", p)  # noqa: T201  # CLI output: a certificate line
+        first_fail = first_fail or "supersede: " + p
+    passed, first_fail = _run_goal_checks(checks, superseded, first_fail)
     counted = [c for c in checks if c["id"] not in superseded]
     sup_note = (
         " ({:d} superseded: {})".format(
@@ -1760,50 +1965,16 @@ def certify(goal: str, phase: str | None = None, drills: bool = False, tamper_on
         return 0 if ok_all and worktree_clean() and on_branch() else 1
     res = tamper(goal)
     t_fail = [t for t, (active, ok, _m) in res.items() if active and not ok]
-    for t, (active, ok, msg) in res.items():
-        print(
-            "{} {}{} -- {}".format(
-                t,
-                "PASS" if ok else "FAIL",
-                "" if active else f" (not yet active: binds from G{T_ACTIVE_FROM[t]:d})",
-                msg,
-            )
-        )
+    _print_tamper(res)
     pending = [t for t, (active, _ok, _m) in res.items() if not active]
 
     required = data.get("required_drills", [])
-    bit_count = 0
-    drill_res: dict[str, str] = {}
-    if drills:
-        drill_res = run_drills(goal)
-        missed = sum(1 for v in drill_res.values() if v.startswith("MISSED"))
-        print(f"DRILLS-MISSED {missed:d}/{len(drill_res):d}")
-    elif required:
-        drill_res = run_drills(goal, required)
-    bit_count = sum(1 for d in required if drill_res.get(d) == "BIT")
+    bit_count = _required_drills_bit(goal, required, drills=drills)
 
     cur = current_snapshot()
-    if cur is not None and (oracle.SNAPSHOTS / "g0" / "meta.json").exists():
-        lines, oracle_ok = oracle.compare_dirs(oracle.SNAPSHOTS / "g0", cur)
-        for ln in lines:
-            print(ln)
-        k = int(lines[-1].split()[1].split("/")[0])
-    else:
-        oracle_ok, k = False, 0
-        print("ORACLE: no snapshot is current for HEAD (run `oracle.py snapshot head --runs 1`)")
+    oracle_ok, k = _oracle_verdict(cur)
 
-    refusals: list[str] = []
-    if not worktree_clean():
-        refusals.append("worktree dirty")
-    if not on_branch():
-        refusals.append(f"HEAD not on {BRANCH}")
-    hist = checks_history_problems()
-    if hist:
-        refusals.append("checks files changed after registration: " + hist[0])
-    if cur is None:
-        refusals.append("no full-suite record current for HEAD")
-    if pushed():
-        refusals.append("HEAD is on a remote branch (pushed)")
+    refusals = _refusals(cur)
 
     head = git("rev-parse", "HEAD").strip()
     print("=== CERTIFICATE {}{} ===".format(goal, (" " + phase) if phase else ""))
@@ -1841,6 +2012,7 @@ def certify(goal: str, phase: str | None = None, drills: bool = False, tamper_on
 
 
 def main(argv: Sequence[str] | None = None) -> int:
+    """Parse the command line and dispatch to the goal certificate or a subcommand."""
     argv = sys.argv[1:] if argv is None else argv
     if argv and re.fullmatch(r"G[0-7]", argv[0]):
         p = argparse.ArgumentParser(prog="certify.py G<n>")
