@@ -6,6 +6,7 @@ only a transport and a mount path; the HTTP port lives in `mcp.settings.port`.
 
 import os
 import runpy
+import subprocess
 import sys
 from pathlib import Path
 
@@ -28,6 +29,16 @@ def test_http_entry_point_serves_on_the_requested_port(monkeypatch: pytest.Monke
 
     monkeypatch.setattr(FastMCP, "run", fake_run)
     monkeypatch.setattr(sys, "argv", [str(SCRIPT), "--http", "--port", "18999"])
+    # Re-executing the door re-installs its process-wide patches (a fresh _StdinSeveredPopen,
+    # the stdout proxy, a sys.path entry, AKASHIC_SEAT_DOOR); snapshot them so teardown restores
+    # them, or later tests see a Popen that is no longer the imported door's class.
+    monkeypatch.setattr(subprocess, "Popen", subprocess.Popen)
+    monkeypatch.setattr(sys, "stdout", sys.stdout)
+    monkeypatch.setattr(sys, "path", list(sys.path))
+    if "AKASHIC_SEAT_DOOR" in os.environ:
+        monkeypatch.setenv("AKASHIC_SEAT_DOOR", os.environ["AKASHIC_SEAT_DOOR"])
+    else:
+        monkeypatch.delenv("AKASHIC_SEAT_DOOR", raising=False)
 
     runpy.run_path(str(SCRIPT), run_name="__main__")
 
