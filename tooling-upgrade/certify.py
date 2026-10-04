@@ -941,9 +941,8 @@ def cmd_assert_mechanical_commits(_args: argparse.Namespace) -> int:
             run(shlex.split(m.group(1)), cwd=t, env=env, timeout=3600)
             # .gitignore's `**/.venv/` matches directories only; the link itself must not be staged
             run(["git", "add", "-A", "--", ".", ":(exclude).venv"], cwd=t)
-            diffs = stamp_only_problems(t, sha, cached=True)
-            if diffs:
-                problems.append(f"{sha[:9]} {subject}: replay differs from the commit ({diffs[0]})")
+            if not same_tree(t, sha) and not (apply_pinned_stamp(t, sha) and same_tree(t, sha)):
+                problems.append(f"{sha[:9]} {subject}: replay differs from the commit")
         finally:
             if (t / ".venv").is_symlink():  # unlink the link itself first: never walk into the real venv
                 (t / ".venv").unlink()
@@ -953,47 +952,44 @@ def cmd_assert_mechanical_commits(_args: argparse.Namespace) -> int:
     return _report("MECHANICAL COMMITS", problems)
 
 
-# gen_physics_sheet stamps the HEAD it ran at ("> Derived at <sha>. <prose>") into docs/PHYSICS.md:
-# no commit can keep that line current, and a replay at the parent stamps the parent. That SHA, in
-# that file, is the one thing a generated-doc comparison may differ in. The comparison is over
-# files, never over diff text: each differing path must be STAMPED_FILES content, modified in
-# place (same mode), and byte-identical to the other side once each stamp line's SHA is masked.
-DERIVED_STAMP = re.compile(r"^> Derived at [0-9a-f]{7,40}\.", re.M)
-STAMPED_FILES = frozenset({"docs/PHYSICS.md"})
+# Replays are compared exactly (git's whole-tree equality), with one pinned exception (D-G5-4):
+# eec0d183 regenerated docs/PHYSICS.md while HEAD was c0e78d38, two commits before it landed, so
+# gen_physics_sheet's "> Derived at <HEAD>." stamp names c0e78d38 where a replay at its parent
+# writes 00c842bf. The commit cannot be rewritten (I3). Its replay passes only if swapping that
+# one literal stamp (present exactly once) makes the tree equal to the commit, byte for byte. A
+# general stamp tolerance went through three verifier rounds and each found a way past it, so
+# there is none: every other replay, and any later PHYSICS regeneration, must match exactly.
+PINNED_REPLAY_STAMPS: dict[str, tuple[str, bytes, bytes]] = {
+    "eec0d18356a33be4d3593b88ad17a0362e2e76e9": (
+        "docs/PHYSICS.md",
+        b"> Derived at 00c842bf.",  # what the replay at the parent writes
+        b"> Derived at c0e78d38.",  # what the commit holds
+    ),
+}
 
 
-def _mask_stamps(text: str) -> str:
-    return DERIVED_STAMP.sub("> Derived at <sha>.", text)
+def same_tree(tree: Path, sha: str) -> bool:
+    """Return True when the index of `tree` equals commit `sha` exactly (git exit 0, nothing else)."""
+    return run(["git", "diff", "--cached", "--quiet", "--no-ext-diff", "--no-textconv", sha], cwd=tree).returncode == 0
 
 
-def stamp_only_problems(tree: Path, rev: str, *, cached: bool) -> list[str]:
-    """Return how `tree` (its index if `cached`, else its files) differs from `rev` beyond stamps.
+def apply_pinned_stamp(tree: Path, sha: str) -> bool:
+    """Swap a pinned commit's replayed stamp for its committed one and stage it.
 
-    [] means the only differences are DERIVED_STAMP SHAs in STAMPED_FILES. Renames are not
-    detected (a moved file is a delete plus an add, both refused), untracked files are refused,
-    and any path outside STAMPED_FILES must be identical.
+    Return True when the swap was made: the commit is pinned and the replay holds the
+    expected stamp exactly once.
     """
-    cmd = ["git", "diff", "--raw", "-z", "--no-renames", "--no-ext-diff", "--no-textconv"]
-    out = run([*cmd, "--cached", rev] if cached else [*cmd, rev], cwd=tree).stdout
-    problems: list[str] = []
-    fields = out.split("\0")
-    for meta, path in zip(fields[0::2], fields[1::2], strict=False):
-        if not meta.startswith(":"):
-            continue
-        mode_a, mode_b, blob_a, blob_b, status = meta[1:].split()[:5]
-        if path not in STAMPED_FILES or status != "M" or mode_a != mode_b:
-            problems.append(f"{path}: {status} {mode_a}->{mode_b}")
-            continue
-        old = git("cat-file", "blob", blob_a, cwd=tree)
-        new = git("cat-file", "blob", blob_b, cwd=tree) if cached else (tree / path).read_text(encoding="utf-8")
-        if _mask_stamps(old) != _mask_stamps(new):
-            problems.append(f"{path}: differs beyond the derivation stamp")
-    if not cached:
-        # the drill/replay trees' .venv link: `**/.venv/` in .gitignore matches directories only
-        cmd = ["git", "ls-files", "-z", "--others", "--exclude-standard", "--", ".", ":(exclude).venv"]
-        untracked = run(cmd, cwd=tree).stdout
-        problems.extend(f"{u}: untracked file" for u in untracked.split("\0") if u)
-    return problems
+    pin = PINNED_REPLAY_STAMPS.get(sha)
+    if pin is None:
+        return False
+    rel, replayed, committed = pin
+    f = tree / rel
+    data = f.read_bytes() if f.is_file() and not f.is_symlink() else b""
+    if data.count(replayed) != 1:
+        return False
+    f.write_bytes(data.replace(replayed, committed))
+    run(["git", "add", "--", rel], cwd=tree)
+    return True
 
 
 def cmd_assert_blame_ignore_revs(_args: argparse.Namespace) -> int:
@@ -1775,9 +1771,9 @@ def _generators() -> list[str]:
 def cmd_assert_generated_docs(_args: argparse.Namespace) -> int:
     """Check that the generated docs are current at HEAD (G5.P4).
 
-    Each generator's --check passes (where it has one), and every generator re-run in a
-    throwaway tree changes nothing -- except the one line gen_physics_sheet stamps with the
-    current HEAD SHA ("> Derived at <sha>."), which no commit can keep current.
+    A generator with a --check is judged by it: its own freshness verdict, which accounts for its
+    own HEAD stamp (gen_physics_sheet). A generator without one is re-run in a throwaway tree,
+    and its rewrite must change nothing at all: no byte, mode or new file (D-G5-4).
     """
     problems: list[str] = []
     gens = _generators()
@@ -1786,15 +1782,21 @@ def cmd_assert_generated_docs(_args: argparse.Namespace) -> int:
         for g in gens:
             src = t / "scripts" / "generators" / f"{g}.py"
             if "--check" in src.read_text(encoding="utf-8"):
+                # the generator's own freshness verdict (it knows its own HEAD stamp, if any)
                 r = run([sys.executable, str(src), "--check"], cwd=t, env=env, timeout=600)
                 print(f"{g} --check: rc={r.returncode:d}")  # noqa: T201  # CLI output: each generator's exit code is this check's evidence
                 if r.returncode != 0:
                     problems.append(f"{g} --check exits {r.returncode:d}")
+                continue
             r = run([sys.executable, str(src)], cwd=t, env=env, timeout=600)
             print(f"{g} (write): rc={r.returncode:d}")  # noqa: T201  # CLI output: each generator's exit code is this check's evidence
             if r.returncode != 0:
                 problems.append(f"{g} exits {r.returncode:d}")
-        problems.extend(f"stale generated output: {d}" for d in stamp_only_problems(t, "HEAD", cached=False))
+        # no --check: its rewrite must change nothing at all (bytes, modes, new files)
+        st = run(["git", "status", "--porcelain", "--untracked-files=all", "--", ".", ":(exclude).venv"], cwd=t)
+        if st.returncode != 0:
+            problems.append("git status failed in the drill tree")
+        problems.extend(f"stale generated output: {ln}" for ln in st.stdout.splitlines() if ln.strip())
     return _report("GENERATED DOCS", problems)
 
 

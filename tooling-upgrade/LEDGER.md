@@ -153,3 +153,18 @@ file, re-run `uv run python tooling-upgrade/certify.py <last DONE goal>`, then c
   scripts/** T20 ignore records: these programs print to their user by design). They are the
   first T201/S603 noqa in the repo, listed in SUPPRESSIONS.md (780 rows, within T4) for the
   operator's review. The ratchet now passes: ARG 1685, D 16513, PL 7746, S 1498, T20 3967.
+- **D-G5-4 (generated-doc and replay comparisons are exact).** A tolerance for gen_physics_sheet's
+  "> Derived at <sha>." stamp (assert-generated-docs, then the replay proof) failed three verifier
+  rounds in a row: prefix-skipped diff headers, then diff-text parsing (renames, modes, binary),
+  then decoded-text comparison (CR, invalid bytes). Under 9.3 that is the Fallback; G5's written
+  one does not cover it, so it was derived: no general tolerance at all.
+  - assert-generated-docs judges a generator with a `--check` by that `--check`, its own freshness
+    verdict, which accounts for its own HEAD stamp. A generator without one is re-run in a drill
+    tree, and `git status` there must be empty.
+  - The replay proof requires git's exact tree equality. The one commit that cannot replay
+    exactly, eec0d183 (PHYSICS generated at c0e78d38, two commits before it landed), is pinned
+    in certify.PINNED_REPLAY_STAMPS. It passes only if swapping its one literal stamp
+    (00c842bf -> c0e78d38) makes the tree equal to the commit. Later PHYSICS regenerations
+    (53ad5418) replay exactly.
+  Rounds 1-2 also closed the archival proof's exclusion-list handling: tomllib entries, count-based,
+  failing closed on any backslash. Round 3 found nothing in it after a 56,704-case fuzz.

@@ -766,73 +766,55 @@ def test_exclusion_entries_apply_to_pyproject_only():
     assert O.only_in_exclusions("docs/notes.toml", _PYPROJECT) == (set(), set())
 
 
-_PHYS = "# Physics\n\n> Derived at 82d5ab2f. A bound you discover\n\nbody\n"
+_PHYS = b"# Physics\n\n> Derived at c0e78d38. A bound\n\nbody\n"
+_REPLAYED = _PHYS.replace(b"c0e78d38", b"00c842bf")
 
 
-def _stamped_repo(tmp_path: Path) -> Path:
-    """Return a git repo whose HEAD holds docs/PHYSICS.md and docs/other.md."""
+def _pinned_repo(tmp_path: Path, replayed: bytes) -> tuple[Path, str]:
+    """Commit docs/PHYSICS.md as `_PHYS`, then stage `replayed` over it; return (repo, commit)."""
     (tmp_path / "docs").mkdir()
-    (tmp_path / "docs" / "PHYSICS.md").write_text(_PHYS, encoding="utf-8")
-    (tmp_path / "docs" / "other.md").write_text("x\n", encoding="utf-8")
-    env_git = ("-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false")
+    phys = tmp_path / "docs" / "PHYSICS.md"
+    phys.write_bytes(_PHYS)
+    ident = ("-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false")
     O.git("init", "-q", cwd=tmp_path)
     O.git("add", "-A", cwd=tmp_path)
-    O.git(*env_git, "commit", "-q", "-m", "c", cwd=tmp_path)
-    return tmp_path
-
-
-def _edit(repo: Path, change: str) -> None:
-    phys = repo / "docs" / "PHYSICS.md"
-    if change == "stamp":
-        phys.write_text(_PHYS.replace("82d5ab2f", "0dc8e0861"), encoding="utf-8")
-    elif change == "prose":
-        phys.write_text(_PHYS.replace("82d5ab2f. A bound", "0dc8e086. A limit"), encoding="utf-8")
-    elif change == "moved":
-        phys.write_text(
-            _PHYS.replace(
-                "> Derived at 82d5ab2f. A bound you discover\n\nbody",
-                "body\n\n> Derived at 0dc8e086. A bound you discover",
-            ),
-            encoding="utf-8",
-        )
-    elif change == "no-eol":
-        phys.write_text(_PHYS.replace("82d5ab2f", "0dc8e086").rstrip("\n"), encoding="utf-8")
-    elif change == "mode":
-        phys.write_text(_PHYS.replace("82d5ab2f", "0dc8e086"), encoding="utf-8")
-        phys.chmod(0o755)
-    elif change == "other":
-        phys.write_text(_PHYS.replace("82d5ab2f", "0dc8e086"), encoding="utf-8")
-        (repo / "docs" / "other.md").write_text("y\n", encoding="utf-8")
-    elif change == "rename":
-        (repo / "docs" / "other.md").rename(repo / "docs" / "moved.md")
-    elif change == "venv-link":  # what drill and replay trees add; `**/.venv/` misses a link
-        (repo / ".venv").symlink_to(repo / "docs", target_is_directory=True)
-    elif change == "new":
-        (repo / "docs" / "new.md").write_text("n\n", encoding="utf-8")
+    O.git(*ident, "commit", "-q", "-m", "c", cwd=tmp_path)
+    sha = O.git("rev-parse", "HEAD", cwd=tmp_path).strip()
+    phys.write_bytes(replayed)
+    O.git("add", "-A", cwd=tmp_path)
+    return tmp_path, sha
 
 
 @pytest.mark.parametrize(
-    ("change", "ok"),
+    ("replayed", "ok"),
     [
-        ("stamp", True),
-        ("prose", False),
-        ("moved", False),
-        ("no-eol", False),
-        ("mode", False),
-        ("other", False),
-        ("rename", False),
-        ("new", False),
-        ("venv-link", True),
+        (_REPLAYED, True),  # the pinned stamp swap, nothing else
+        (_REPLAYED.replace(b"body", b"bodY"), False),  # another change rides along
+        (_REPLAYED.replace(b"\n\nbody", b"\n\rbody"), False),  # a lone CR
+        (_REPLAYED.replace(b"body", b"b\xffdy"), False),  # an invalid UTF-8 byte
+        (_REPLAYED + _REPLAYED, False),  # the replayed stamp twice
+        (_PHYS.replace(b"c0e78d38", b"0dc8e086"), False),  # some other stamp
     ],
 )
-@pytest.mark.parametrize("cached", [False, True])
-def test_stamp_only_accepts_nothing_but_the_stamp_sha(tmp_path: Path, *, change: str, ok: bool, cached: bool):
-    """Only a changed derivation SHA in docs/PHYSICS.md is tolerated; files, not diff text, are compared."""
-    repo = _stamped_repo(tmp_path)
-    _edit(repo, change)
-    if cached:
-        O.git("add", "-A", "--", ".", ":(exclude).venv", cwd=repo)  # as the replay stages
-    assert (certify.stamp_only_problems(repo, "HEAD", cached=cached) == []) is ok
+def test_a_pinned_replay_differs_only_by_its_literal_stamp(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, replayed: bytes, ok: bool
+):
+    """The one pinned replay exception swaps one literal stamp; the tree must then match exactly."""
+    repo, sha = _pinned_repo(tmp_path, replayed)
+    monkeypatch.setattr(
+        certify,
+        "PINNED_REPLAY_STAMPS",
+        {sha: ("docs/PHYSICS.md", b"> Derived at 00c842bf.", b"> Derived at c0e78d38.")},
+    )
+    assert not certify.same_tree(repo, sha)
+    assert (certify.apply_pinned_stamp(repo, sha) and certify.same_tree(repo, sha)) is ok
+
+
+def test_an_unpinned_replay_gets_no_stamp_tolerance(tmp_path: Path):
+    """Without a pin, a replay that differs only by the stamp still differs."""
+    repo, sha = _pinned_repo(tmp_path, _REPLAYED)
+    assert not certify.apply_pinned_stamp(repo, sha)
+    assert not certify.same_tree(repo, sha)
 
 
 def test_an_escaped_exclusion_entry_discounts_nothing():

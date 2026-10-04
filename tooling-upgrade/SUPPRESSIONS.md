@@ -750,21 +750,21 @@
 | tooling-upgrade/certify.py | 48 | `pyright: ignore[reportPrivateUsage]` | sibling tool module, same owner |
 | tooling-upgrade/certify.py | 338 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
 | tooling-upgrade/certify.py | 597 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
-| tooling-upgrade/certify.py | 1640 | `fmt: skip` | data table: one hook id per plan G5.P2 bullet |
-| tooling-upgrade/certify.py | 1644 | `fmt: skip` | data table: fixers that would rewrite non-Python trees (I8) |
-| tooling-upgrade/certify.py | 1790 | `noqa: T201` | CLI output: each generator's exit code is this check's evidence |
-| tooling-upgrade/certify.py | 1794 | `noqa: T201` | CLI output: each generator's exit code is this check's evidence |
-| tooling-upgrade/certify.py | 1830 | `noqa: T201` | CLI output: CI replay evidence (G5 goal condition 4) |
+| tooling-upgrade/certify.py | 1636 | `fmt: skip` | data table: one hook id per plan G5.P2 bullet |
+| tooling-upgrade/certify.py | 1640 | `fmt: skip` | data table: fixers that would rewrite non-Python trees (I8) |
+| tooling-upgrade/certify.py | 1787 | `noqa: T201` | CLI output: each generator's exit code is this check's evidence |
+| tooling-upgrade/certify.py | 1792 | `noqa: T201` | CLI output: each generator's exit code is this check's evidence |
 | tooling-upgrade/certify.py | 1832 | `noqa: T201` | CLI output: CI replay evidence (G5 goal condition 4) |
-| tooling-upgrade/certify.py | 1838 | `noqa: T201` | CLI output: CI replay evidence (G5 goal condition 4) |
-| tooling-upgrade/certify.py | 1848 | `noqa: T201` | CLI output: CI replay evidence (G5 goal condition 4) |
-| tooling-upgrade/certify.py | 1851 | `noqa: T201` | CLI output: CI replay evidence (G5 goal condition 4) |
-| tooling-upgrade/certify.py | 1860 | `noqa: T201` | CLI output: CI replay evidence (G5 goal condition 4) |
-| tooling-upgrade/certify.py | 1864 | `noqa: T201` | CLI output: CI replay evidence (G5 goal condition 4) |
-| tooling-upgrade/certify.py | 1869 | `noqa: T201` | CLI output: CI replay evidence (G5 goal condition 4) |
-| tooling-upgrade/certify.py | 1918 | `noqa: T201` | CLI output: a certificate line |
-| tooling-upgrade/certify.py | 1981 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
-| tooling-upgrade/certify.py | 1994 | `noqa: T201` | CLI output: a certificate line |
+| tooling-upgrade/certify.py | 1834 | `noqa: T201` | CLI output: CI replay evidence (G5 goal condition 4) |
+| tooling-upgrade/certify.py | 1840 | `noqa: T201` | CLI output: CI replay evidence (G5 goal condition 4) |
+| tooling-upgrade/certify.py | 1850 | `noqa: T201` | CLI output: CI replay evidence (G5 goal condition 4) |
+| tooling-upgrade/certify.py | 1853 | `noqa: T201` | CLI output: CI replay evidence (G5 goal condition 4) |
+| tooling-upgrade/certify.py | 1862 | `noqa: T201` | CLI output: CI replay evidence (G5 goal condition 4) |
+| tooling-upgrade/certify.py | 1866 | `noqa: T201` | CLI output: CI replay evidence (G5 goal condition 4) |
+| tooling-upgrade/certify.py | 1871 | `noqa: T201` | CLI output: CI replay evidence (G5 goal condition 4) |
+| tooling-upgrade/certify.py | 1920 | `noqa: T201` | CLI output: a certificate line |
+| tooling-upgrade/certify.py | 1983 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
+| tooling-upgrade/certify.py | 1996 | `noqa: T201` | CLI output: a certificate line |
 | tooling-upgrade/oracle.py | 2 | `pyright: strict` |  |
 | tooling-upgrade/oracle.py | 129 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
 | tooling-upgrade/oracle.py | 130 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
