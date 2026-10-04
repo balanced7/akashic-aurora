@@ -162,8 +162,10 @@ file, re-run `uv run python tooling-upgrade/certify.py <last DONE goal>`, then c
     generator in write mode in a drill tree. `git status` there must then be empty except for
     docs/PHYSICS.md, which gen_physics_sheet --check judges. A first version judged every
     `--check` generator by its `--check` alone. The fallback verifier showed that lost
-    byte-exact detection for five generators that never stamp (their `--check`s strip or
-    normalise newlines), so the exclusion is now that one file.
+    byte-exact detection for the four generators whose `--check`s strip or normalise newlines
+    (gen_arch_index, gen_master_map, gen_doors, gen_ports), so the exclusion is now that one
+    file. The verifier's committed-mutation matrix: every non-PHYSICS mutation fd8bb739 catches,
+    this catches too, plus a deleted generated doc.
   - The replay proof requires git's exact tree equality. The one commit that cannot replay
     exactly, eec0d183 (PHYSICS generated at c0e78d38, two commits before it landed), is pinned
     in certify.PINNED_REPLAY_STAMPS. It passes only if swapping its one literal stamp
