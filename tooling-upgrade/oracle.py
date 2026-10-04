@@ -534,6 +534,22 @@ _PATH_TOKEN = re.compile(r"[A-Za-z0-9_./\\-]+\.py\b")
 _DOTTED_TOKEN = re.compile(r"\b[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)+\b")
 
 
+# A tool's exclusion list names the ARCHIVAL paths because they are archival (G2 wrote the ruff,
+# basedpyright and ty excludes and G5 the pre-commit `exclude:` from this very inventory), so a
+# path's appearance there is not a use of it. Without this, excluding a file failed its proof.
+_EXCLUDE_ARRAY = re.compile(r"^[ \t]*(?:extend[-_])?exclude[ \t]*=[ \t]*\[.*?^[ \t]*\]", re.M | re.S)
+_EXCLUDE_BLOCK = re.compile(r"^([ \t]*)exclude:[ \t]*[|>][^\n]*\n(?:\1[ \t]+[^\n]*\n|[ \t]*\n)*", re.M)
+
+
+def _strip_exclusion_lists(rel: str, text: str) -> str:
+    """Return `text` without the tool exclusion lists of pyproject.toml / .pre-commit-config.yaml."""
+    if rel == "pyproject.toml":
+        return _EXCLUDE_ARRAY.sub("", text)
+    if rel == ".pre-commit-config.yaml":
+        return _EXCLUDE_BLOCK.sub("", text)
+    return text
+
+
 def _text_tokens(tree_root: Path, files: list[str]) -> dict[str, tuple[set[str], set[str]]]:
     """Per non-.py-or-.py tracked text file: the .py path tokens and dotted tokens it contains."""
     out: dict[str, tuple[set[str], set[str]]] = {}
@@ -542,7 +558,7 @@ def _text_tokens(tree_root: Path, files: list[str]) -> dict[str, tuple[set[str],
         try:
             if p.stat().st_size > 4_000_000:
                 continue
-            text = p.read_text(encoding="utf-8")
+            text = _strip_exclusion_lists(f, p.read_text(encoding="utf-8"))
         except (OSError, UnicodeDecodeError):
             continue
         paths = {

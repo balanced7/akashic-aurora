@@ -22,6 +22,7 @@ rule, implemented as digest equality: oracle.relevant_digest).
 from __future__ import annotations
 
 import argparse
+import ast
 import contextlib
 import fnmatch
 import json
@@ -1703,14 +1704,22 @@ def cmd_assert_experiments(_args: argparse.Namespace) -> int:
 
 
 def _generators() -> list[str]:
-    sys.path.insert(0, str(ROOT))
-    try:
-        from scripts.githooks import pre_commit
+    """Return the pre-commit backstop's GENERATORS tuple, then gen_requirements.
 
-        names = [str(g) for g in cast("tuple[str, ...]", pre_commit.GENERATORS)]
-    finally:
-        sys.path.remove(str(ROOT))
-    return [*names, "gen_requirements"]
+    Read from the source's AST, not imported: certify.py stays stdlib-only (G0.P3), and
+    importing the hook module would run its import-time code.
+    """
+    src = (ROOT / "scripts" / "githooks" / "pre_commit.py").read_text(encoding="utf-8")
+    for node in ast.parse(src).body:
+        if (
+            isinstance(node, ast.Assign)
+            and any(isinstance(t, ast.Name) and t.id == "GENERATORS" for t in node.targets)
+            and isinstance(node.value, ast.Tuple)
+        ):
+            names = [e.value for e in node.value.elts if isinstance(e, ast.Constant) and isinstance(e.value, str)]
+            return [*names, "gen_requirements"]
+    msg = "scripts/githooks/pre_commit.py defines no GENERATORS tuple of names"
+    raise RuntimeError(msg)
 
 
 def cmd_assert_generated_docs(_args: argparse.Namespace) -> int:
