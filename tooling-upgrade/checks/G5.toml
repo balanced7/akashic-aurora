@@ -104,3 +104,12 @@ cmd = ["uv", "run", "--frozen", "python", "-m", "pytest", "-p", "no:cacheprovide
 expect = 0
 expect_stdout = "passed"
 supersedes = "G5.hook-stage-test"
+
+# The G3 stretch ratchet (tooling-upgrade/ratchet.json) binds every later goal: no family may
+# rise above its G3 end count. Found during G5: G5's own checks did not run it, and G5's new
+# code had raised 8 families.
+[[check]]
+id = "G5.stretch-ratchet"
+phase = "G5.P2"
+cmd = ["{python}", "tooling-upgrade/certify.py", "assert-ratchet", "G3"]
+expect = 0

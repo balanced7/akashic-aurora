@@ -33,3 +33,12 @@ id = "G7.ledger-goals"
 phase = "G7.P5"
 cmd = ["{python}", "tooling-upgrade/certify.py", "assert-ledger-entry", "G7.P5"]
 expect = 0
+
+# The G3 stretch ratchet (tooling-upgrade/ratchet.json) binds every later goal: no family may
+# rise above its G3 end count. Found during G5: G5's own checks did not run it, and G5's new
+# code had raised 8 families.
+[[check]]
+id = "G7.stretch-ratchet"
+phase = "G7.P4"
+cmd = ["{python}", "tooling-upgrade/certify.py", "assert-ratchet", "G3"]
+expect = 0
