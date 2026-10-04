@@ -660,6 +660,7 @@ def test_supersede_accepts_a_dropped_verbosity_flag():
         ({"phase": "G9.P2"}, _LEDGER, 0, 1, "phase differs"),
         ({}, "no decision here\n", 0, 1, "LEDGER"),
         ({"id": "G9.t-v2"}, "- G9.t-v2 is the new check\n", 0, 1, "LEDGER"),
+        ({"timeout_s": 60}, _LEDGER, 0, 1, "timeout_s differs"),
         ({}, _LEDGER, 1, 1, "later commit"),
         ({}, _LEDGER, 0, -1, "later commit"),
     ],
@@ -671,3 +672,41 @@ def test_supersede_rejects_anything_but_a_recorded_verbosity_drop(
 
     problems = certify.supersede_verdict(_OLD_CHECK, _new_check(**over), ledger, old_at, new_at)
     assert any(needle in p for p in problems), problems
+
+
+@pytest.mark.parametrize(
+    ("old_cmd", "new_cmd"),
+    [
+        (["git", "diff", "--quiet", "HEAD"], ["git", "diff", "HEAD"]),  # --quiet sets git's exit code
+        (["grep", "-v", "-r", "TODO", "src"], ["grep", "-r", "TODO", "src"]),  # -v inverts grep
+        (["uv", "run", "pytest", "-k", "-q", "tests"], ["uv", "run", "pytest", "-k", "tests"]),  # -q is -k's value
+        (["uv", "run", "-q", "pytest", "tests"], ["uv", "run", "pytest", "tests"]),  # not pytest's own flag
+        (["python", "-q", "-m", "pytest", "tests"], ["python", "-m", "pytest", "tests"]),  # python's -q
+    ],
+)
+def test_supersede_drops_verbosity_only_from_pytest_itself(old_cmd: list[str], new_cmd: list[str]):
+    import certify
+
+    old = {**_OLD_CHECK, "cmd": old_cmd}
+    new = {**_OLD_CHECK, "id": "G9.t2", "cmd": new_cmd}
+    assert any("verbosity" in p for p in certify.supersede_verdict(old, new, _LEDGER, 0, 1))
+
+
+def test_supersessions_reject_an_unknown_target_and_a_second_successor(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    import certify
+
+    (tmp_path / "LEDGER.md").write_text(_LEDGER + "- G9.t3 supersedes G9.t too\n", encoding="utf-8")
+    monkeypatch.setattr(certify, "HERE", tmp_path)
+    order = {"G9.t": 0, "G9.t2": 1, "G9.t3": 2}
+
+    def first_registered(goal: str, check_id: str) -> int:
+        return order.get(check_id, -1)
+
+    monkeypatch.setattr(certify, "_first_registered", first_registered)
+    two = {"check": [_OLD_CHECK, _new_check(supersedes="G9.t"), _new_check(id="G9.t3", supersedes="G9.t")]}
+    valid, problems = certify.supersessions("G9", two)
+    assert valid == {"G9.t": "G9.t2"}
+    assert any("superseded twice" in p for p in problems)
+    valid, problems = certify.supersessions("G9", {"check": [_new_check(supersedes="G9.nope")]})
+    assert valid == {}
+    assert any("unknown check G9.nope" in p for p in problems)

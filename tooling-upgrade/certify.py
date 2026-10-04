@@ -139,39 +139,65 @@ def checks_history_problems() -> list[str]:
     return problems
 
 
-# Output-verbosity flags: deleting one changes what a command prints, never what it runs or
-# its exit code. They are the only tokens a superseding check may drop from the command.
+# pytest's output-verbosity flags: deleting one changes what pytest prints, never which tests
+# run or the exit code. They are the only tokens a superseding check may drop, and only from a
+# pytest command (in other programs the same spelling can change semantics: `git diff --quiet`
+# sets the exit code, `grep -v` inverts the match).
 VERBOSITY_FLAGS = frozenset({"-q", "--quiet", "-v", "--verbose"})
 
 
-def _drops_only(old: Sequence[str], new: Sequence[str], droppable: frozenset[str]) -> bool:
-    """True iff `new` is `old` with at least one token deleted, every deleted token droppable."""
+def _pytest_start(argv: Sequence[str]) -> int:
+    """Index of the first token pytest itself parses (-1 if `argv` does not run pytest): after
+    `-m pytest`, after a `pytest` executable at argv[0], or after `uv run [--opt ...] pytest`."""
+    for i in range(len(argv) - 1):
+        if argv[i] == "-m" and argv[i + 1] == "pytest":
+            return i + 2
+    if argv and Path(argv[0]).stem in ("pytest", "py.test"):
+        return 1
+    if argv[:2] == ["uv", "run"]:
+        j = 2
+        while j < len(argv) and argv[j].startswith("--") and "=" not in argv[j]:
+            j += 1  # uv's own value-less switches (--frozen, --locked, ...)
+        if j < len(argv) and argv[j] == "pytest":
+            return j + 1
+    return -1
+
+
+def _drops_only_verbosity(old: Sequence[str], new: Sequence[str]) -> bool:
+    """True iff `old` runs pytest and `new` is `old` with at least one token deleted, where every
+    deleted token is a pytest verbosity flag, sits after the pytest marker, and does not follow an
+    option (so it cannot be that option's value, as in `-k -q`)."""
+    start = _pytest_start(old)
+    if start < 0:
+        return False
     i = 0
-    for tok in old:
+    for pos, tok in enumerate(old):
         if i < len(new) and new[i] == tok:
             i += 1
-        elif tok not in droppable:
+            continue
+        prev = old[pos - 1] if pos else ""
+        if tok not in VERBOSITY_FLAGS or pos < start or (prev.startswith("-") and prev not in VERBOSITY_FLAGS):
             return False
     return i == len(new) and len(new) < len(old)
 
 
 def supersede_verdict(old: dict[str, Any], new: dict[str, Any], ledger: str, old_at: int, new_at: int) -> list[str]:
     """Problems with `new` superseding `old` (empty = valid). A check registered with a defect no
-    tree can satisfy is never edited (append-only); a check appended later may supersede it if it
-    keeps the old phase, expect and expect_stdout, drops only verbosity flags from the command,
-    was registered in a later commit, and a LEDGER.md decision line names both ids."""
+    tree can satisfy is never edited (append-only); a check appended later may supersede it if
+    every key but id and cmd is unchanged (phase, expect, expect_stdout, timeout_s, ...), its cmd
+    is the old pytest cmd minus verbosity flags only, it was registered in a later commit, and a
+    LEDGER.md decision line names both ids."""
     tag = "{} supersedes {}".format(new["id"], old["id"])
-    problems = [f"{tag}: {k} differs" for k in ("phase", "expect", "expect_stdout") if old.get(k) != new.get(k)]
+    keys = sorted((set(old) | set(new)) - {"id", "cmd", "supersedes"})
+    problems = [f"{tag}: {k} differs" for k in keys if old.get(k) != new.get(k)]
     old_cmd: object = old["cmd"]
     new_cmd: object = new["cmd"]
     if not (isinstance(old_cmd, list) and isinstance(new_cmd, list)):
         problems.append(f"{tag}: both commands must be argv lists")
-    elif not _drops_only(
-        [str(t) for t in cast("list[object]", old_cmd)],
-        [str(t) for t in cast("list[object]", new_cmd)],
-        VERBOSITY_FLAGS,
+    elif not _drops_only_verbosity(
+        [str(t) for t in cast("list[object]", old_cmd)], [str(t) for t in cast("list[object]", new_cmd)]
     ):
-        problems.append(f"{tag}: cmd may only drop verbosity flags {sorted(VERBOSITY_FLAGS)}")
+        problems.append(f"{tag}: cmd may only drop pytest verbosity flags {sorted(VERBOSITY_FLAGS)}")
     if not 0 <= old_at < new_at:
         problems.append(f"{tag}: not registered in a later commit than the check it supersedes")
 
