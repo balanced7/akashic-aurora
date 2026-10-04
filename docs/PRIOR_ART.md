@@ -3,7 +3,7 @@
 Status: current
 Class: reference
 
-> Do NOT edit by hand. Regenerate with `py scripts/generators/gen_prior_art_register.py`.
+> Do NOT edit by hand. Regenerate with `uv run scripts/generators/gen_prior_art_register.py`.
 > INVENTORY is derived from live code and cannot rot. PRIOR ART is authored in
 > `data/prior-art/register.json`. COVERAGE is derived: **GAP** = no entry, **DRIFT** =
 > the subsystem changed size since it was surveyed. DRIFT does NOT claim the research
