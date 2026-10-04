@@ -731,3 +731,62 @@ def test_the_pinned_g5_pair_matches_its_checks_file():
     """The real G5 checks file supersedes exactly the pinned G5 pair, with no problems."""
     valid, problems = certify.supersessions("G5", certify.load_checks("G5"))
     assert (valid, problems) == ({"G5.hook-stage-test": "G5.hook-stage-test-summary"}, [])
+
+
+_PYPROJECT = """[tool.ruff]
+extend-exclude = [
+    "research/a/b.py",
+]
+[tool.deptry]
+extend_exclude = ["^docs/"]
+known_first_party = ["research/c/d.py"]
+[tool.basedpyright]
+exclude = ["research/a/b.py", "research/e/f.py"]
+"""
+
+
+@pytest.mark.parametrize(
+    ("extra", "hidden", "visible"),
+    [
+        ("", {"research/a/b.py", "research/e/f.py"}, {"research/c/d.py"}),
+        ('[tool.poe.tasks]\nx = "python research/a/b.py"\n', {"research/e/f.py"}, {"research/a/b.py"}),
+        ("# see research/e/f.py\n", {"research/a/b.py"}, {"research/e/f.py"}),
+        ('[tool.pytest.ini_options]\ntestpaths = ["research/e/f.py"]\n', {"research/a/b.py"}, {"research/e/f.py"}),
+    ],
+)
+def test_only_exclusion_list_entries_are_discounted(extra: str, hidden: set[str], visible: set[str]):
+    """A path counts as referenced unless every mention of it is an exclusion-list entry."""
+    only_paths, _ = O.only_in_exclusions("pyproject.toml", _PYPROJECT + extra)
+    assert only_paths == hidden
+    assert not (only_paths & visible)
+
+
+def test_exclusion_entries_apply_to_pyproject_only():
+    """The same text in any other file is never discounted."""
+    assert O.only_in_exclusions("docs/notes.toml", _PYPROJECT) == (set(), set())
+
+
+_STAMP_DIFF = [
+    "diff --git a/docs/PHYSICS.md b/docs/PHYSICS.md",
+    "--- a/docs/PHYSICS.md",
+    "+++ b/docs/PHYSICS.md",
+    "@@ -7 +7 @@",
+    "-> Derived at 82d5ab2f. A bound you discover by collision",
+    "+> Derived at 0dc8e086. A bound you discover by collision",
+]
+
+
+@pytest.mark.parametrize(
+    ("diff", "ok"),
+    [
+        (_STAMP_DIFF, True),
+        ([*_STAMP_DIFF[:-1], "+> Derived at 0dc8e086. A different sentence"], False),  # prose changed
+        ([*_STAMP_DIFF, "@@ -9 +8 @@", "----"], False),  # a removed `---` line is content
+        ([*_STAMP_DIFF, "@@ -9 +9 @@", "-x", "+y"], False),  # any other change
+        (_STAMP_DIFF[:4], False),  # no content change at all
+        (["diff --git a/x.png b/x.png", "Binary files a/x.png and b/x.png differ"], False),
+    ],
+)
+def test_stamp_only_accepts_nothing_but_the_sha(diff: list[str], ok: bool):
+    """The stamp tolerance accepts a diff only when the derivation SHA is all that changed."""
+    assert certify.stamp_only(diff) is ok

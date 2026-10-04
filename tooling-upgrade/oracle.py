@@ -41,6 +41,7 @@ import tempfile
 import time
 import tomllib
 import warnings
+from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import IO, TYPE_CHECKING, Any, cast
@@ -535,19 +536,53 @@ _DOTTED_TOKEN = re.compile(r"\b[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)+\b")
 
 
 # A tool's exclusion list names the ARCHIVAL paths because they are archival (G2 wrote the ruff,
-# basedpyright and ty excludes and G5 the pre-commit `exclude:` from this very inventory), so a
-# path's appearance there is not a use of it. Without this, excluding a file failed its proof.
-_EXCLUDE_ARRAY = re.compile(r"^[ \t]*(?:extend[-_])?exclude[ \t]*=[ \t]*\[.*?^[ \t]*\]", re.M | re.S)
-_EXCLUDE_BLOCK = re.compile(r"^([ \t]*)exclude:[ \t]*[|>][^\n]*\n(?:\1[ \t]+[^\n]*\n|[ \t]*\n)*", re.M)
+# basedpyright and ty excludes from this very inventory), so a path's appearance there is not a
+# use of it; without this, excluding a file failed its own proof. The lists are read as TOML
+# data, never matched as text, and a token is discounted only when EVERY occurrence of it in
+# pyproject.toml is one of those list entries: any other mention (another key, a comment, a
+# task command) still counts as a reference.
+EXCLUSION_KEYS: tuple[tuple[str, ...], ...] = (
+    ("tool", "ruff", "extend-exclude"),
+    ("tool", "basedpyright", "exclude"),
+    ("tool", "ty", "src", "exclude"),
+)
 
 
-def _strip_exclusion_lists(rel: str, text: str) -> str:
-    """Return `text` without the tool exclusion lists of pyproject.toml / .pre-commit-config.yaml."""
-    if rel == "pyproject.toml":
-        return _EXCLUDE_ARRAY.sub("", text)
-    if rel == ".pre-commit-config.yaml":
-        return _EXCLUDE_BLOCK.sub("", text)
-    return text
+def _norm_path_token(t: str) -> str:
+    return t.replace("\\", "/").lstrip("./") if not t.startswith("../") else t.replace("\\", "/")
+
+
+def _exclusion_entries(text: str) -> list[str]:
+    """Return the string entries of pyproject.toml's EXCLUSION_KEYS lists ([] if unparseable)."""
+    try:
+        data: object = tomllib.loads(text)
+    except tomllib.TOMLDecodeError:
+        return []
+    out: list[str] = []
+    for keys in EXCLUSION_KEYS:
+        node: object = data
+        for k in keys:
+            node = cast("dict[str, object]", node).get(k) if isinstance(node, dict) else None
+        if isinstance(node, list):
+            out.extend(e for e in cast("list[object]", node) if isinstance(e, str))
+    return out
+
+
+def only_in_exclusions(rel: str, text: str) -> tuple[set[str], set[str]]:
+    """Path and dotted tokens of `text` whose every occurrence is an exclusion-list entry."""
+    if rel != "pyproject.toml":
+        return set(), set()
+    entries = _exclusion_entries(text)
+    if not entries:
+        return set(), set()
+    excl_paths = Counter(_norm_path_token(t) for e in entries for t in _PATH_TOKEN.findall(e))
+    excl_dotted = Counter(t for e in entries for t in _DOTTED_TOKEN.findall(e))
+    all_paths = Counter(_norm_path_token(t) for t in _PATH_TOKEN.findall(text))
+    all_dotted = Counter(_DOTTED_TOKEN.findall(text))
+    return (
+        {t for t, n in excl_paths.items() if all_paths[t] <= n},
+        {t for t, n in excl_dotted.items() if all_dotted[t] <= n},
+    )
 
 
 def _text_tokens(tree_root: Path, files: list[str]) -> dict[str, tuple[set[str], set[str]]]:
@@ -558,13 +593,10 @@ def _text_tokens(tree_root: Path, files: list[str]) -> dict[str, tuple[set[str],
         try:
             if p.stat().st_size > 4_000_000:
                 continue
-            text = _strip_exclusion_lists(f, p.read_text(encoding="utf-8"))
+            text = p.read_text(encoding="utf-8")
         except (OSError, UnicodeDecodeError):
             continue
-        paths = {
-            t.replace("\\", "/").lstrip("./") if not t.startswith("../") else t.replace("\\", "/")
-            for t in _PATH_TOKEN.findall(text)
-        }
+        paths = {_norm_path_token(t) for t in _PATH_TOKEN.findall(text)}
         dotted: set[str] = (
             set(_DOTTED_TOKEN.findall(text))
             if f.endswith(
@@ -573,7 +605,8 @@ def _text_tokens(tree_root: Path, files: list[str]) -> dict[str, tuple[set[str],
             or "/" not in f
             else set()
         )
-        out[f] = (paths, dotted)
+        only_paths, only_dotted = only_in_exclusions(f, text)
+        out[f] = (paths - only_paths, dotted - only_dotted)
     return out
 
 

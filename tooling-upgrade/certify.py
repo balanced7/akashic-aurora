@@ -943,8 +943,7 @@ def cmd_assert_mechanical_commits(_args: argparse.Namespace) -> int:
             run(["git", "add", "-A", "--", ".", ":(exclude).venv"], cwd=t)
             if run(["git", "diff", "--cached", "--quiet", sha], cwd=t).returncode != 0:
                 diff = run(["git", "diff", "--cached", "-U0", "--no-color", sha], cwd=t).stdout.splitlines()
-                changed = [ln for ln in diff if ln[:1] in "+-" and not ln.startswith(("+++", "---"))]
-                if not changed or not all(DERIVED_STAMP.match(ln) for ln in changed):
+                if not stamp_only(diff):
                     problems.append(f"{sha[:9]} {subject}: replay differs from the commit")
         finally:
             if (t / ".venv").is_symlink():  # unlink the link itself first: never walk into the real venv
@@ -955,10 +954,41 @@ def cmd_assert_mechanical_commits(_args: argparse.Namespace) -> int:
     return _report("MECHANICAL COMMITS", problems)
 
 
-# gen_physics_sheet stamps the HEAD it ran at ("> Derived at <sha>."): no commit can keep that
-# line current, and a replay at the parent stamps the parent. It is the one line a generated-doc
-# comparison may differ in.
-DERIVED_STAMP = re.compile(r"^[-+]> Derived at [0-9a-f]{7,40}\.")
+# gen_physics_sheet stamps the HEAD it ran at ("> Derived at <sha>. <prose>"): no commit can keep
+# that line current, and a replay at the parent stamps the parent. The SHA is the one thing a
+# generated-doc comparison may differ in.
+DERIVED_STAMP = re.compile(r"^> Derived at [0-9a-f]{7,40}\.")
+
+
+def _hunk_changes(diff_lines: Sequence[str]) -> tuple[list[str], list[str]]:
+    """Removed and added content lines of a `git diff -U0`: hunk bodies only, never file headers."""
+    removed: list[str] = []
+    added: list[str] = []
+    in_hunk = False
+    for ln in diff_lines:
+        if ln.startswith("diff --git "):
+            in_hunk = False
+        elif ln.startswith("@@"):
+            in_hunk = True
+        elif in_hunk and ln.startswith("-"):
+            removed.append(ln[1:])
+        elif in_hunk and ln.startswith("+"):
+            added.append(ln[1:])
+    return removed, added
+
+
+def stamp_only(diff_lines: Sequence[str]) -> bool:
+    """True iff the diff changes nothing but DERIVED_STAMP lines' SHA (same lines otherwise)."""
+    removed, added = _hunk_changes(diff_lines)
+    if not removed or len(removed) != len(added):
+        return False
+    if not all(DERIVED_STAMP.match(ln) for ln in [*removed, *added]):
+        return False
+
+    def masked(lines: list[str]) -> list[str]:
+        return sorted(re.sub(r"^> Derived at [0-9a-f]{7,40}\.", "> Derived at <sha>.", ln) for ln in lines)
+
+    return masked(removed) == masked(added)
 
 
 def cmd_assert_blame_ignore_revs(_args: argparse.Namespace) -> int:
@@ -1760,8 +1790,12 @@ def cmd_assert_generated_docs(_args: argparse.Namespace) -> int:
             if r.returncode != 0:
                 problems.append(f"{g} exits {r.returncode:d}")
         diff = run(["git", "diff", "-U0", "--no-color"], cwd=t).stdout.splitlines()
-        changed = [ln for ln in diff if ln[:1] in "+-" and not ln.startswith(("+++", "---"))]
-        problems.extend(f"stale generated text: {ln[:120]}" for ln in changed if not DERIVED_STAMP.match(ln))
+        if run(["git", "diff", "--quiet"], cwd=t).returncode != 0 and not stamp_only(diff):
+            removed, added = _hunk_changes(diff)
+            problems.extend(f"stale generated text: -{ln[:119]}" for ln in removed)
+            problems.extend(f"stale generated text: +{ln[:119]}" for ln in added)
+            if not removed and not added:
+                problems.append("generators changed files outside text hunks (mode, binary, new file)")
     return _report("GENERATED DOCS", problems)
 
 

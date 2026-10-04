@@ -750,35 +750,35 @@
 | tooling-upgrade/certify.py | 48 | `pyright: ignore[reportPrivateUsage]` | sibling tool module, same owner |
 | tooling-upgrade/certify.py | 338 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
 | tooling-upgrade/certify.py | 597 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
-| tooling-upgrade/certify.py | 1605 | `fmt: skip` | data table: one hook id per plan G5.P2 bullet |
-| tooling-upgrade/certify.py | 1609 | `fmt: skip` | data table: fixers that would rewrite non-Python trees (I8) |
-| tooling-upgrade/certify.py | 1755 | `noqa: T201` | CLI output: each generator's exit code is this check's evidence |
-| tooling-upgrade/certify.py | 1759 | `noqa: T201` | CLI output: each generator's exit code is this check's evidence |
-| tooling-upgrade/certify.py | 1797 | `noqa: T201` | CLI output: CI replay evidence (G5 goal condition 4) |
-| tooling-upgrade/certify.py | 1799 | `noqa: T201` | CLI output: CI replay evidence (G5 goal condition 4) |
-| tooling-upgrade/certify.py | 1805 | `noqa: T201` | CLI output: CI replay evidence (G5 goal condition 4) |
-| tooling-upgrade/certify.py | 1815 | `noqa: T201` | CLI output: CI replay evidence (G5 goal condition 4) |
-| tooling-upgrade/certify.py | 1818 | `noqa: T201` | CLI output: CI replay evidence (G5 goal condition 4) |
-| tooling-upgrade/certify.py | 1827 | `noqa: T201` | CLI output: CI replay evidence (G5 goal condition 4) |
+| tooling-upgrade/certify.py | 1635 | `fmt: skip` | data table: one hook id per plan G5.P2 bullet |
+| tooling-upgrade/certify.py | 1639 | `fmt: skip` | data table: fixers that would rewrite non-Python trees (I8) |
+| tooling-upgrade/certify.py | 1785 | `noqa: T201` | CLI output: each generator's exit code is this check's evidence |
+| tooling-upgrade/certify.py | 1789 | `noqa: T201` | CLI output: each generator's exit code is this check's evidence |
 | tooling-upgrade/certify.py | 1831 | `noqa: T201` | CLI output: CI replay evidence (G5 goal condition 4) |
-| tooling-upgrade/certify.py | 1836 | `noqa: T201` | CLI output: CI replay evidence (G5 goal condition 4) |
-| tooling-upgrade/certify.py | 1885 | `noqa: T201` | CLI output: a certificate line |
-| tooling-upgrade/certify.py | 1948 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
-| tooling-upgrade/certify.py | 1961 | `noqa: T201` | CLI output: a certificate line |
+| tooling-upgrade/certify.py | 1833 | `noqa: T201` | CLI output: CI replay evidence (G5 goal condition 4) |
+| tooling-upgrade/certify.py | 1839 | `noqa: T201` | CLI output: CI replay evidence (G5 goal condition 4) |
+| tooling-upgrade/certify.py | 1849 | `noqa: T201` | CLI output: CI replay evidence (G5 goal condition 4) |
+| tooling-upgrade/certify.py | 1852 | `noqa: T201` | CLI output: CI replay evidence (G5 goal condition 4) |
+| tooling-upgrade/certify.py | 1861 | `noqa: T201` | CLI output: CI replay evidence (G5 goal condition 4) |
+| tooling-upgrade/certify.py | 1865 | `noqa: T201` | CLI output: CI replay evidence (G5 goal condition 4) |
+| tooling-upgrade/certify.py | 1870 | `noqa: T201` | CLI output: CI replay evidence (G5 goal condition 4) |
+| tooling-upgrade/certify.py | 1919 | `noqa: T201` | CLI output: a certificate line |
+| tooling-upgrade/certify.py | 1982 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
+| tooling-upgrade/certify.py | 1995 | `noqa: T201` | CLI output: a certificate line |
 | tooling-upgrade/oracle.py | 2 | `pyright: strict` |  |
-| tooling-upgrade/oracle.py | 128 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
 | tooling-upgrade/oracle.py | 129 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
-| tooling-upgrade/oracle.py | 331 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
-| tooling-upgrade/oracle.py | 1136 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
-| tooling-upgrade/oracle.py | 1423 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
-| tooling-upgrade/oracle.py | 1435 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
-| tooling-upgrade/oracle.py | 1620 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
-| tooling-upgrade/oracle.py | 1676 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
-| tooling-upgrade/oracle.py | 1711 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
-| tooling-upgrade/oracle.py | 1743 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
-| tooling-upgrade/oracle.py | 1770 | `noqa: PT028` | not a pytest test: the O9 capture |
-| tooling-upgrade/oracle.py | 1787 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
-| tooling-upgrade/oracle.py | 1866 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
-| tooling-upgrade/oracle.py | 2003 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
-| tooling-upgrade/oracle.py | 2174 | `noqa: T201` | CLI output: the guardrails verdict line |
+| tooling-upgrade/oracle.py | 130 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
+| tooling-upgrade/oracle.py | 332 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
+| tooling-upgrade/oracle.py | 1169 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
+| tooling-upgrade/oracle.py | 1456 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
+| tooling-upgrade/oracle.py | 1468 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
+| tooling-upgrade/oracle.py | 1653 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
+| tooling-upgrade/oracle.py | 1709 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
+| tooling-upgrade/oracle.py | 1744 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
+| tooling-upgrade/oracle.py | 1776 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
+| tooling-upgrade/oracle.py | 1803 | `noqa: PT028` | not a pytest test: the O9 capture |
+| tooling-upgrade/oracle.py | 1820 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
+| tooling-upgrade/oracle.py | 1899 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
+| tooling-upgrade/oracle.py | 2036 | `noqa: FBT001, RUF100` | positional flag kept: signature probed by the oracle (O5); FBT is ratchet-only |
+| tooling-upgrade/oracle.py | 2207 | `noqa: T201` | CLI output: the guardrails verdict line |
 | tooling-upgrade/pytest_plugin/aurora_oracle_plugin.py | 1 | `pyright: strict` |  |
