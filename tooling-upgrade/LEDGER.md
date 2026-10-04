@@ -126,3 +126,6 @@ file, re-run `uv run python tooling-upgrade/certify.py <last DONE goal>`, then c
   expect_stdout and tests and one `-q` fewer. certify.py accepts a supersession only when the
   command drops nothing but verbosity flags, the successor was registered later, and this line
   names both ids; the old check still runs and is printed as SUPERSEDED in the certificate.
+  Round-2 verifier blocking B1 narrowed the rule: the dropped flags must be pytest's own (not
+  `git diff --quiet` or `grep -v`, not an option's value as in `-k -q`), and every key but id
+  and cmd, timeout_s included, must match.
