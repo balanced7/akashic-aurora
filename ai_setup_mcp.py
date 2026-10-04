@@ -68,6 +68,15 @@ from mcp.server.fastmcp import FastMCP
 
 import agent_cli
 
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+        return python_launcher()
+    except Exception:
+        return "py"
+
 ROOT = Path(__file__).resolve().parent
 SCRIPTS = ROOT / "scripts"
 
@@ -1193,7 +1202,7 @@ async def resident(sub: str = "show", nominee: str = "", agent: str = "",
     if sub in ("ratify", "place", "adjudicate", "verdict-file"):
         return (f"[resident] the MCP door refuses '{sub}' -- a HUMAN ratifies and the "
                 f"operator adjudicates (the ratify ruling). Use the CLI: "
-                f"py agent_cli.py resident {sub} ...")
+                f"{_pyl()} agent_cli.py resident {sub} ...")
     return await _athread(_run, agent_cli.cmd_resident, sub=sub, nominee=nominee or None,
                           agent=agent or None, family=family or None, team=team or None,
                           role=role or None, side=side or None, exercise=exercise or None,

@@ -11,6 +11,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import core.recall.at_action as aa
 from agent.harness.hooks import claude_posttooluse as hook
 import agent_cli
+from core.paths import python_launcher as _python_launcher  # noqa: E402
+_PYL = _python_launcher()   # `py` on Windows, `uv run` elsewhere
 
 
 def _patch_state_dirs(monkeypatch, tmp_path):
@@ -75,7 +77,7 @@ def test_recent_flips_window(tmp_path, monkeypatch):
 
 def test_learn_command_prefills_slug_and_agent():
     cmd = aa.learn_command_for("c:py -m pytest tests/test_ranker.py", agent_id="claude")
-    assert cmd.startswith("py agent_cli.py learn claude --experiment fix_")
+    assert cmd.startswith(f"{_PYL} agent_cli.py learn claude --experiment fix_")
     assert "--tried" in cmd and "--result" in cmd
 
 
@@ -179,7 +181,7 @@ def test_session_draft_includes_candidate_lessons():
     flips = [{"t": "c:py -m pytest tests/test_x.py", "credited": 1, "s": ["learn:experiment:a"], "at": 1.0}]
     d = agent_cli.build_session_draft([], [], [], flips=flips)
     assert "Candidate lessons" in d
-    assert "py agent_cli.py learn" in d and "--experiment fix_" in d
+    assert f"{_PYL} agent_cli.py learn" in d and "--experiment fix_" in d
 
 
 def test_session_draft_no_flips_no_section():
@@ -195,4 +197,4 @@ def test_session_draft_dedupes_repeated_flip_target():
     assert d.count("command: py probe.py") == 1, "one candidate per target, not one per retry"
     assert "c:py probe.py" not in d, "the raw join key never reaches the human draft"
     assert "(credited: 2)" in d, "the LAST flip's credited count wins"
-    assert d.count("py agent_cli.py learn") == 2
+    assert d.count(f"{_PYL} agent_cli.py learn") == 2

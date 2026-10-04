@@ -36,6 +36,15 @@ from collections import defaultdict
 from datetime import date
 from pathlib import Path
 
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+        return python_launcher()
+    except Exception:
+        return "py"
+
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
@@ -144,7 +153,7 @@ def cmd_capture(args):
         raise SystemExit(f"no map at {src}\n"
                          f"  filter-repo writes one per run; filter-branch writes none at all.\n"
                          f"  If the rewrite is already done and the map is gone, use:\n"
-                         f"    py scripts/rewrite_recover.py reconstruct --from-ref <old-ref>")
+                         f"    {_pyl()} scripts/rewrite_recover.py reconstruct --from-ref <old-ref>")
     dest = root / "state" / "rewrites" / f"{args.date or date.today().isoformat()}"
     if args.label:
         dest = dest.with_name(dest.name + "-" + args.label)

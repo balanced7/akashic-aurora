@@ -30,11 +30,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import redis                                                        # noqa: E402
 
 from core.coord import world_diff as WD                             # noqa: E402
-from core.world import WORLDS, current                              # noqa: E402
+from core.world import WORLDS, checkout_of, current                 # noqa: E402
 from core.world_seed import read_manifest                           # noqa: E402
 
 #: Where each world's checkout lives, so the CODE plane can be read without guessing.
-CHECKOUTS = {"prod": "E:/AI-Setup", "beta": "E:/AI-Setup-Beta", "alpha": "E:/AI-Setup-Alpha"}
+#: Derived from this checkout's location (siblings sharing a base name), never a drive letter.
+CHECKOUTS = {w: str(checkout_of(w)) for w in WORLDS}
 
 
 def _client(world: str):

@@ -24,6 +24,15 @@ import subprocess
 import time
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+        return python_launcher()
+    except Exception:
+        return "py"
+
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 FIELDS = ("git_commit", "ledger_seq", "notes_head", "promoted_id")
 BUDGET_DEFAULT = 1200
@@ -226,15 +235,15 @@ def _sections(agent: str, mark: Dict[str, str], cur: Dict[str, str]) -> List[str
         parts.append("  git: (unavailable -- repository not readable)")
     if _moved(mark["ledger_seq"], cur["ledger_seq"]):
         parts.append(f"  ledger: moved {mark['ledger_seq']} -> {cur['ledger_seq']} -- "
-                     f"transitions: py agent_cli.py task list")
+                     f"transitions: {_pyl()} agent_cli.py task list")
     elif cur["ledger_seq"] == "?":
         parts.append("  ledger: (unavailable)")
     if _moved(mark["notes_head"], cur["notes_head"]):
-        parts.append(f"  notes: updated since your mark -- py agent_cli.py notes")
+        parts.append(f"  notes: updated since your mark -- {_pyl()} agent_cli.py notes")
     elif cur["notes_head"] == "?":
         parts.append("  notes: (unavailable)")
     if _moved(mark["promoted_id"], cur["promoted_id"]):
-        parts.append(f"  bus: new promoted salient(s) -- py agent_cli.py promoted")
+        parts.append(f"  bus: new promoted salient(s) -- {_pyl()} agent_cli.py promoted")
     elif cur["promoted_id"] == "?":
         parts.append("  bus: (unavailable)")
     return parts
@@ -261,7 +270,7 @@ def delta_boot_block(agent: str, budget: int = BUDGET_DEFAULT) -> Tuple[str, Cal
     text = "\n".join([head] + parts)
     if len(text) > budget:
         counts = f"[delta truncated: {len(parts)} section(s), {len(text)} chars -- " \
-                 f"full: py agent_cli.py delta {agent}]"
+                 f"full: {_pyl()} agent_cli.py delta {agent}]"
         keep: List[str] = [head]
         for p in parts:
             if len("\n".join(keep + [p, counts])) > budget:

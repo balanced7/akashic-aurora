@@ -17,6 +17,15 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Tuple
 
 
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+        return python_launcher()
+    except Exception:
+        return "py"
+
+
 _ROOT = Path(__file__).resolve().parents[2]
 _RUNG_ORDER = ("declared", "reachable", "authorized", "wired", "exercised", "proven")
 _STATES = {"observed", "partial", "absent", "refused", "unknown"}
@@ -402,25 +411,25 @@ def ground(target: str, *, subject: str, continuity: bool = False) -> Dict[str, 
         _rung("declared", declared_state, declared_claim, source_base, observed_at,
               details={"classification": classification, "manifest_entry": name,
                        "reader_errors": inv.get("errors") or {}},
-              drill="py scripts/checkers/check_door_parity.py --report"),
+              drill=f"{_pyl()} scripts/checkers/check_door_parity.py --report"),
         _rung("reachable", reachable_state, reachable_claim, source_base, observed_at,
               details={"doors": doors, "expected_doors": list(expected)},
-              drill="py scripts/checkers/check_door_parity.py --report"),
+              drill=f"{_pyl()} scripts/checkers/check_door_parity.py --report"),
         _rung("authorized", auth_state,
               ("effective grant and per-door gate observations disagree or are incomplete"
                if auth_state == "partial" else
                "effective grant was compared only where a subject gate is mechanically known"),
               "security/acl.json via core.trust.registry.resolve + door implementations",
               observed_at, details=auth_details,
-              drill=f"py agent_cli.py ground verb:{name} --agent {subject} --json"),
+              drill=f"{_pyl()} agent_cli.py ground verb:{name} --agent {subject} --json"),
         _rung("wired", wired_state, wired_claim,
               "live parser defaults + MCP callables + ToolBox method/schema", observed_at,
               details={"doors": wired, "reader_errors": wired_errors},
-              drill="py scripts/checkers/check_wiring.py"),
+              drill=f"{_pyl()} scripts/checkers/check_wiring.py"),
         _rung("exercised", exercised_state, exercised_claim,
               "tests/test_*.py bounded lexical reference scan (not execution)", observed_at,
               details=refs,
-              drill=f"py -m pytest -q -k {name}"),
+              drill=f"{_pyl()} -m pytest -q -k {name}"),
         _rung("proven", "unknown",
               "no canonical fresh runtime receipt resolver currently maps this verb to a successful execution",
               "canonical runtime receipt resolver: unavailable", observed_at,

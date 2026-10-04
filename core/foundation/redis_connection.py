@@ -185,6 +185,41 @@ def probe_redis_reachable(
     return result
 
 
+def _note_reachable(port: int) -> None:
+    """First sight of an answering Redis on a world port records this checkout as `external`,
+    so a later outage never conjures an embedded server that would split the bus in two."""
+    try:
+        from core.foundation import embedded_redis as _emb
+        if _emb.configured_backend() is None and _emb.is_world_port(port):
+            # An embedded server already answering (started by another checkout process or by
+            # hand) is not a real Redis: record `embedded`, or nothing would restart it later.
+            embedded = False
+            try:
+                info = redis.Redis(host=DEFAULT_REDIS_HOST, port=port, socket_timeout=2).info()
+                embedded = info.get("aurora_backend") == "embedded"
+            except Exception:
+                pass
+            _emb.record_backend(reachable=not embedded)
+    except Exception:                                    # pragma: no cover - never block a connect
+        pass
+
+
+def ensure_redis_server(host: str = DEFAULT_REDIS_HOST, port: int = DEFAULT_REDIS_PORT) -> bool:
+    """True when something answers Redis on host:port, starting the embedded server first if
+    this checkout's backend is `embedded`. For callers that build redis.Redis(...) themselves."""
+    if probe_redis_reachable(host, port):
+        _note_reachable(port)
+        return True
+    try:
+        from core.foundation.embedded_redis import ensure_running
+    except Exception:
+        return False
+    if ensure_running(host, port):
+        _REACHABILITY_CACHE.pop((host, port), None)
+        return True
+    return False
+
+
 def connect_to_redis_with_fail_fast(
     host: str = DEFAULT_REDIS_HOST,
     port: int = DEFAULT_REDIS_PORT,
@@ -223,7 +258,14 @@ def connect_to_redis_with_fail_fast(
         return None
 
     if not probe_redis_reachable(host, port, probe_timeout_seconds):
-        return None
+        # No Redis answering. If this checkout runs on the EMBEDDED backend (no Redis server
+        # installed; see core/foundation/embedded_redis.py), start it and carry on -- every
+        # caller below keeps speaking Redis. A checkout recorded as `external` (a real Redis
+        # that is merely down) keeps the old behaviour: None, fast.
+        if not ensure_redis_server(host, port):
+            return None
+    else:
+        _note_reachable(port)
 
     try:
         client = redis.Redis(

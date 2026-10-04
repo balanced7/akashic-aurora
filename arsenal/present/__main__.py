@@ -29,6 +29,15 @@ from typing import Dict, List
 from . import scene as scene_mod
 
 
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+        return python_launcher()
+    except Exception:
+        return "py"
+
+
 def _cmd_check(args) -> int:
     scene = scene_mod.load(args.scene)
     refusals = scene_mod.validate(scene)
@@ -175,7 +184,7 @@ def _cmd_render(args) -> int:
 
 
 def main(argv=None) -> int:
-    ap = argparse.ArgumentParser(prog="py -m arsenal.present", description="present.scene.v1 tools")
+    ap = argparse.ArgumentParser(prog=f"{_pyl()} -m arsenal.present", description="present.scene.v1 tools")
     sub = ap.add_subparsers(dest="cmd", required=True)
     c = sub.add_parser("check", help="validate + lint a scene; exit 1 on any refusal")
     c.add_argument("scene")

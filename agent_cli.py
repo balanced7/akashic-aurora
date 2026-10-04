@@ -54,6 +54,15 @@ from core.foundation.timeutil import render_iso
 from core.recall.surface import (cmd_recall_at, cmd_recall_feedback, cmd_recall_curate,
                                  cmd_recall_prevention)
 
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+        return python_launcher()
+    except Exception:
+        return "py"
+
 _MAX = 4000   # clamp absurdly long fields an agent might paste
 
 
@@ -167,7 +176,7 @@ def _briefing_intake(s, n, field, confessions, *, to_agent, by_agent=""):
         title = f"handoff-spill:{to_agent}:{_time.strftime('%Y%m%d-%H%M%S')}"
         get_agent_memory().decide_with_retry(title, s, curated=True)
         ptr = (f"[FULL BRIEFING -- {len(s)} chars, this field caps at {n}. Retrieve with:\n"
-               f"   py agent_cli.py note {to_agent} --get {title}\n"
+               f"   {_pyl()} agent_cli.py note {to_agent} --get {title}\n"
                f"-- what follows is the opening only]\n")
         confessions.append(
             f"[SPILLED-TO-NOTE] {field}: {len(s)} chars exceeds the {n}-char cap -- the FULL "
@@ -260,15 +269,15 @@ def _warn_unmirrored(soft=False, status=None):
               "files may be a sibling's mid-flight work (check `task list` claims).\n"
               "    NEW loose research/**.md does NOT persist by committing it -- rule-13 has "
               "REFUSED that since the P3 flip (2026-07-23). Bring it through the door:\n"
-              "      py agent_cli.py doc adopt <path>   (mints an atom; leaves your file alone)")
+              f"      {_pyl()} agent_cli.py doc adopt <path>   (mints an atom; leaves your file alone)")
         return True
     print(f"\n[!] UNMIRRORED WORK: {label} -- a slice isn't done until it's mirrored.")
     if s.get("summary"):
         print(f"    changed: {s['summary']}" + (" ..." if s["dirty"] > 6 else ""))
     print('    Commit YOUR files by name (never a sweep over a sibling\'s lane). claude seat: '
-          'py scripts/mirror.py "<msg>" <explicit paths> --commit (publishing to the public repo '
+          f'{_pyl()} scripts/mirror.py "<msg>" <explicit paths> --commit (publishing to the public repo '
           "is a separate --push --yes); other seats: send Vandor the paths and a message. Then  "
-          "py scripts/ops/snapshot_knowledge.py snapshot")
+          f"{_pyl()} scripts/ops/snapshot_knowledge.py snapshot")
     return True
 
 
@@ -414,7 +423,7 @@ def cmd_boot(args):
             if len(notes) > len(shown) or any(len(d.decision or "") > b for d, b in zip(shown, _budgets)):
                 # M1 (kimi seat-zero counter): the verb shipped, the teaching text must
                 # retire the old dance in the same breath -- one hop, no JSON pipe.
-                print("  (clipped; ONE full body: py agent_cli.py note <you> --get <title>)")
+                print(f"  (clipped; ONE full body: {_pyl()} agent_cli.py note <you> --get <title>)")
         else:
             # RB-12 [GAP]: zero notes, empty store -- no crash, no wrong line
             print("\n## RECENT NOTES (durable project memory)")
@@ -440,13 +449,13 @@ def cmd_boot(args):
                       f"{d.get('frm','?')} -> {d.get('to','?')}: "
                       f"{_clip(str(d.get('content','')), 110)}")
             if more:
-                print("  (+ older salient records beyond this page -- py agent_cli.py promoted)")
+                print(f"  (+ older salient records beyond this page -- {_pyl()} agent_cli.py promoted)")
     except Exception:
         pass
     if not _pa:   # W13: the whisper carries the funnel pulse for harness sessions
         try:   # T3: one-line funnel pulse -- watch the loop's trend without a separate command
             from core.recall.funnel import snapshot, summary_line
-            print("\n## FUNNEL (recall value -- full: py agent_cli.py stats --days 7)")
+            print(f"\n## FUNNEL (recall value -- full: {_pyl()} agent_cli.py stats --days 7)")
             print("  " + summary_line(snapshot(hours=7 * 24)))
         except Exception:
             pass
@@ -467,7 +476,7 @@ def cmd_boot(args):
         line = rep["summary"]
         pages = rep.get("pages") or []
         banners = [f for f in rep["findings"] if f["grade"] == "banner"]
-        print("\n## DOCTOR (fleet liveness -- full: py agent_cli.py doctor)")
+        print(f"\n## DOCTOR (fleet liveness -- full: {_pyl()} agent_cli.py doctor)")
         print("  " + line)
         for f in (pages + banners)[:4]:
             print(f"  !! {f['line']}")
@@ -479,18 +488,18 @@ def cmd_boot(args):
             dp = last_session_draft_path()
             if os.path.isfile(dp) and (_t.time() - os.path.getmtime(dp)) < 2 * 86400:
                 print(f"\n## LAST-SESSION DRAFT (auto-captured) -> {dp}")
-                print("   review it; promote with: py agent_cli.py wrap --commit")
+                print(f"   review it; promote with: {_pyl()} agent_cli.py wrap --commit")
         except Exception:
             pass
     if not _pa:   # R14: the unread peek rides the whisper's mail count; locks stay below
         print_boot_bifrost_section(bifrost)
     print_boot_locks_section(bifrost, args.agent_id)
     print("\n## TO CONTRIBUTE A LESSON, run:")
-    print(f'  py agent_cli.py learn {args.agent_id} --experiment NAME '
+    print(f'  {_pyl()} agent_cli.py learn {args.agent_id} --experiment NAME '
           f'--tried "..." --result "..." --recommend "..."')
     print("\n## BIFROST (live + durable)")
-    print("  py agent_cli.py bifrost-sync <agent>     # peek unread (same as boot section)")
-    print("  py agent_cli.py promoted [--limit N]       # durable salient msgs (kind=bifrost_msg)")
+    print(f"  {_pyl()} agent_cli.py bifrost-sync <agent>     # peek unread (same as boot section)")
+    print(f"  {_pyl()} agent_cli.py promoted [--limit N]       # durable salient msgs (kind=bifrost_msg)")
     # T052 delta door: render what moved since this agent's last boot, then stamp the
     # seen mark AFTER the full context above was delivered (mark-lag contract, D1 ruling
     # -- a crash before this line leaves the old mark and the whole gap redelivers).
@@ -545,7 +554,7 @@ def cmd_sha(args):
     if getattr(args, "maps", False):
         if not r.maps:
             print("no rewrite maps found under state/rewrites/ -- if a rewrite has run, its "
-                  "map is unarchived:\n  py scripts/rewrite_recover.py capture --label <slug>")
+                  f"map is unarchived:\n  {_pyl()} scripts/rewrite_recover.py capture --label <slug>")
             return 1
         for m in r.maps:
             flag = "" if m.durable else "   VOLATILE: .git only, the next rewrite overwrites it"
@@ -553,7 +562,7 @@ def cmd_sha(args):
                   f"  [{m.method}]{flag}")
         return 0
     if not args.sha:
-        print("usage: py agent_cli.py sha <commit-sha> [...]   |   --maps to list the maps")
+        print(f"usage: {_pyl()} agent_cli.py sha <commit-sha> [...]   |   --maps to list the maps")
         return 2
     bad = 0
     for one in args.sha:
@@ -588,12 +597,12 @@ def cmd_learn(args):
         print(f"[repeat] '{rec['of']}' violated again after {hrs:.1f}h"
               + (f" (recall: {rec['recall_outcome']})" if rec["recall_outcome"] else ""))
         print("  a FLOOR, not a rate -- this counts only what someone noticed. "
-              "See `py agent_cli.py stats`.")
+              f"See `{_pyl()} agent_cli.py stats`.")
         return 0
 
     if not args.experiment or not (args.tried or args.result):
         print("ERROR: need --experiment and at least one of --tried/--result.")
-        print('Example: py agent_cli.py learn me --experiment cache_fix '
+        print(f'Example: {_pyl()} agent_cli.py learn me --experiment cache_fix '
               '--tried "memoize" --result "+50%" --recommend "use it"')
         return 2
     raw_fields = {
@@ -695,7 +704,7 @@ def cmd_learn(args):
                                        signal.get("recommendation", ""))
         if slug:
             print("[hint] if this failure names a reusable known-bad, tag it so recall can warn others:")
-            print(f"       py agent_cli.py tag-anti-pattern {args.agent_id} "
+            print(f"       {_pyl()} agent_cli.py tag-anti-pattern {args.agent_id} "
                   f"--experiment {signal['experiment_name']} --name {slug}   (edit the name if a better fits)")
     # Near-duplicate advisory (ce-compound's overlap rule, field-survey C5): 4-5 dims -> this is
     # probably the SAME lesson, update that one next time (same --experiment name = update);
@@ -861,7 +870,7 @@ def cmd_triage(args):
                   f"n={g['noise']}  {g['source']}{tag}")
         zero = len(ghosts) - len(credited)
         print(f"  -> {zero} zero-credit (safe auto-fold), {len(credited)} credited (needs a decision). "
-              f"Apply: py agent_cli.py recall-counters --fold")
+              f"Apply: {_pyl()} agent_cli.py recall-counters --fold")
     print("\n(adjudication is human/frontier judgment -- this report never auto-prunes)")
     return 0
 
@@ -1095,12 +1104,12 @@ def cmd_graduate(args):
     if not exp or (not args.undo and not enforced):
         print("ERROR: need --experiment NAME and --enforced-by \"<the automation that enforces it>\""
               " (or --undo to reverse a graduation).")
-        print('Example: py agent_cli.py graduate claude --experiment git_blanket_staging '
+        print(f'Example: {_pyl()} agent_cli.py graduate claude --experiment git_blanket_staging '
               '--enforced-by "git-guard PreToolUse hook (C0)"')
         return 2
     ls = get_learning_store()
     if not ls.mark_graduated(exp, enforced, undo=bool(args.undo)):
-        print(f"ERROR: no lesson named '{exp}' -- check the name with `py agent_cli.py list`.")
+        print(f"ERROR: no lesson named '{exp}' -- check the name with `{_pyl()} agent_cli.py list`.")
         return 1
     try:   # recall must reflect graduation NOW, not at the next cache TTL expiry
         from core.recall.at_action import warm_cache
@@ -1183,7 +1192,7 @@ def cmd_repeat(args):
              for r in (store.load_all_learnings_from_store() or [])}
     if of not in known:
         print(f"[repeat] no lesson named '{of}' -- a repeat is evidence ABOUT a lesson, so a "
-              f"dangling one inflates a count nobody can audit. Check: py agent_cli.py recall "
+              f"dangling one inflates a count nobody can audit. Check: {_pyl()} agent_cli.py recall "
               f"--full learn:experiment:{of}", file=sys.stderr)
         return 2
 
@@ -1335,7 +1344,7 @@ def cmd_discover(args):
         print(json.dumps([{"verb": n, "purpose": h} for n, h in verbs], indent=2)); return 0
     q = (args.query or "").strip()
     print(f"# agent_cli.py - {len(verbs)} verb(s)" + (f" matching '{q}'" if q else "")
-          + "   (run `py agent_cli.py <verb> -h` for arguments)")
+          + f"   (run `{_pyl()} agent_cli.py <verb> -h` for arguments)")
     width = max((len(n) for n, _ in verbs), default=0)
     for n, h in verbs:
         print(f"  {n.ljust(width)}  {h}")
@@ -1347,7 +1356,7 @@ def cmd_discover(args):
     if q and not verbs:
         print(f"\n0 matches -- but this is a SUBSTRING search and cannot match meaning. "
               f"Ask at the level of meaning before concluding it does not exist:\n"
-              f"  py agent_cli.py discover --semantic \"{q}\"", file=sys.stderr)
+              f"  {_pyl()} agent_cli.py discover --semantic \"{q}\"", file=sys.stderr)
     return 0
 
 
@@ -1363,12 +1372,12 @@ def project_notes(memory=None, chronicle_dir=None):
     items = [Consolidator.item(text=f"{d.title}: {d.decision}", source=f"mem:decision:{d.id}",
                                importance=4, timestamp=d.created_at) for d in decs]
     dist = Consolidator().consolidate(items, instruction="durable project notes")
-    base = Path(chronicle_dir) if chronicle_dir else \
-        Path(os.getenv("AI_SETUP", "E:\\AI-Setup")) / "chronicles"
+    from core.paths import data_root
+    base = Path(chronicle_dir) if chronicle_dir else data_root() / "chronicles"
     base.mkdir(parents=True, exist_ok=True)
     path = base / "memory.md"
     header = ("# Project memory (auto-generated from notes — do not hand-edit)\n\n"
-              f"_Distilled from {len(items)} active note(s) · regenerate via `py agent_cli.py note` / `notes --project`_\n\n"
+              f"_Distilled from {len(items)} active note(s) · regenerate via `{_pyl()} agent_cli.py note` / `notes --project`_\n\n"
               "Record durable project state once with `note`; correct it by re-noting the same title.\n\n")
     body = dist.skeleton if dist.skeleton else "_(no notes yet)_"
     path.write_text(header + body + "\n", encoding="utf-8")
@@ -1452,7 +1461,7 @@ def _boot_you_line(agent_id: str) -> str:
             return "# YOU: wakeable (daemon owns wake)"
         from core.comm import wake_seat
         state, pid = wake_seat.watcher_state(agent_id, sid)
-        arm = (f"BIFROST_WAKE_LANE=work py scripts/bifrost_wake.py "
+        arm = (f"BIFROST_WAKE_LANE=work {_pyl()} scripts/bifrost_wake.py "
                f"--agent {agent_id} --session {sid}")
         if state == "armed":
             return f"# YOU: wakeable (watcher pid {pid}; armed, not proof of reachable)"
@@ -1554,7 +1563,7 @@ def _boot_save_line(agent_id: str, notes) -> str:
         created = str(getattr(best, "created_at", "") or "")[:10]
         stamp = f" [as of {created}]" if created else ""
         return (f"# personal save: {t}{stamp}"
-                f"  (restore: py agent_cli.py note {agent_id} --get {t})")
+                f"  (restore: {_pyl()} agent_cli.py note {agent_id} --get {t})")
     except Exception:
         return ""                          # a save render must never cost a boot
 
@@ -1654,7 +1663,7 @@ def _transport_line(door=None, detail=None) -> str:
     return ("# door: CLI-shell -- this PROCESS carries no door stamp, so it cannot tell "
             "whether your SEAT has akashic tools; a shell-out from an MCP seat looks "
             "identical here. If yours are attached, ignore this line" + paren
-            + ". If not: user-scoped MCP w/ absolute paths [T081-W2] or cd E:\\AI-Setup && restart")
+            + f". If not: user-scoped MCP w/ absolute paths [T081-W2] or cd {_repo_root_str()} && restart")
 
 
 DIRECTIVE_STALE_DAYS = 3   # W04: a directive older than this confesses its age at boot
@@ -1694,7 +1703,7 @@ def _grounding_line(pointer: str, created_day: str, age_days=None) -> str:
                  "re-point at wrap]")
     if not _grounding_exists(pointer):
         tags += (" [MOVED? this path does not resolve -- the doc was re-homed or "
-                 "deleted; find it by title (py agent_cli.py lookback \"<title>\") "
+                 f"deleted; find it by title ({_pyl()} agent_cli.py lookback \"<title>\") "
                  "or re-point at wrap]")
     return f"# GROUND FIRST: {_clip(' '.join(pointer.split()), 160)}{tags}"
 
@@ -1716,7 +1725,7 @@ def _arc_line(pointer: str, note_title: str) -> str:
     tags = ""
     if not _grounding_exists(pointer):
         tags = (" [MOVED? this path does not resolve -- the arc was re-homed or deleted;"
-                " find it by title (py agent_cli.py lookback \"<title>\") or re-point"
+                f" find it by title ({_pyl()} agent_cli.py lookback \"<title>\") or re-point"
                 " the note]")
     return f"# Governing arc: {pointer}  (from note '{note_title}'){tags}"
 
@@ -1830,7 +1839,7 @@ def _continuity_drift(notes=None) -> str:
         return ("# [continuity DRIFT] the repo has moved since these were written: "
                 + ", ".join(stale)
                 + " -- they describe an OLDER system than the one you are booting into. "
-                  "Refresh at wrap (py agent_cli.py wrap --focus/--grounding, note where-we-are).")
+                  f"Refresh at wrap ({_pyl()} agent_cli.py wrap --focus/--grounding, note where-we-are).")
     except Exception:
         return ""
 
@@ -1969,7 +1978,7 @@ def _orientation_header(agent_id: str, primer_aware: bool = False) -> str:
             one_line = " ".join((wwa.decision or "").split())
             # M4 (kimi seat-zero counter): the one line every seat reads to the END must
             # carry its own fetch pointer when it clips -- never a dead-end ellipsis.
-            more = " (full: py agent_cli.py note <you> --get where-we-are)"
+            more = f" (full: {_pyl()} agent_cli.py note <you> --get where-we-are)"
             if primer_aware:
                 # W13: the whisper carried the clip; the boot head IS the resume anchor
                 # now -- full body (the NOTES section below skips its duplicate, R16).
@@ -2271,11 +2280,11 @@ def cmd_wish_curate(args):
             print("  %-6s (%s) %s" % (wid, who, head.rstrip()))
         print()
         print("# dispose of one with:")
-        print("#   py agent_cli.py wish-curate %s --id W## --as fold --task T### "
+        print(f"#   {_pyl()} agent_cli.py wish-curate %s --id W## --as fold --task T### "
               "[--reason ...]" % args.agent_id)
-        print("#   py agent_cli.py wish-curate %s --id W## --as keep --reason '<why still>'"
+        print(f"#   {_pyl()} agent_cli.py wish-curate %s --id W## --as keep --reason '<why still>'"
               % args.agent_id)
-        print("#   py agent_cli.py wish-curate %s --id W## --as decline --reason '<why not>'"
+        print(f"#   {_pyl()} agent_cli.py wish-curate %s --id W## --as decline --reason '<why not>'"
               % args.agent_id)
         print("# a DECLINE is the loop working. Nothing is ever deleted -- declined wishes "
               "teach too.")
@@ -2614,7 +2623,7 @@ def cmd_eye(args):
             tail += f", as_of {env['as_of'][:10]}"
         if env["degraded"]:
             tail += f"  DEGRADED: {env['degraded_reason']}"
-        print(tail + " -- drill: py agent_cli.py eye get <event_id>")
+        print(tail + f" -- drill: {_pyl()} agent_cli.py eye get <event_id>")
         return 0
     if args.eye_cmd == "freq":
         r = _EYE.freq(args.patterns)
@@ -2706,7 +2715,7 @@ def cmd_eye(args):
         for nb in v["neighbors"]:
             print(f"    - [{nb['evidence']}/{nb['edge_kind']}] {nb['voice']}: "
                   f"{nb['snippet'][:88]}")
-        print(f"  exits: {len(v['exits'])}  (drill: py agent_cli.py eye trace {v['addr']})")
+        print(f"  exits: {len(v['exits'])}  (drill: {_pyl()} agent_cli.py eye trace {v['addr']})")
         return 0
     if args.eye_cmd == "standing":
         from core.eye import directives as _DIR
@@ -2725,7 +2734,7 @@ def cmd_eye(args):
             print(f"  [{i['shape']}] said in {i['sessions']} session(s), "
                   f"{i['utterances']} utterance(s)")
             print(f"      \"{i['phrase']}\"")
-            print(f"      check it: py agent_cli.py eye get {i['refs'][0]}")
+            print(f"      check it: {_pyl()} agent_cli.py eye get {i['refs'][0]}")
         print("  (this instrument PROPOSES -- it files nothing. Known false-positive "
               "class: agent-authored briefs pasted into a fresh seat read as operator "
               "speech.)")
@@ -2733,7 +2742,7 @@ def cmd_eye(args):
     if args.eye_cmd == "trace":
         from core.eye import connectome as _CONN
         if not _CONN.edges():
-            print("[eye] the connectome is empty -- run `py agent_cli.py eye ingest` "
+            print(f"[eye] the connectome is empty -- run `{_pyl()} agent_cli.py eye ingest` "
                   "first (it builds the edges)", file=sys.stderr)
             return 2
         try:
@@ -2822,7 +2831,7 @@ def cmd_eye(args):
             steps = _json.loads(open(args.steps_file, encoding="utf-8").read())
             rid = _RT.save(args.name, steps, by=args.by)
             print(f"[eye route] tied: {args.name!r} = {rid} ({len(steps)} step(s)) -- "
-                  f"walk it: py agent_cli.py eye route walk {args.name!r}")
+                  f"walk it: {_pyl()} agent_cli.py eye route walk {args.name!r}")
             return 0
         if args.route_action == "walk":
             if not args.name:
@@ -2848,7 +2857,7 @@ def cmd_eye(args):
                     print(f"      {s['note']}{dead}")
                 elif dead:
                     print(f"      {dead.strip()}")
-            print(f"  (drill any leg: py agent_cli.py eye get <target>)")
+            print(f"  (drill any leg: {_pyl()} agent_cli.py eye get <target>)")
             return 0
         return 2
     if args.eye_cmd == "get":
@@ -3103,7 +3112,7 @@ def cmd_ask(args):
                                   "with": list(getattr(args, "with_files", None) or [])})
         print(handle)
         print(f"-- running in background (pid {proc.pid}) -- "
-              f"`py agent_cli.py ask --get {handle}`", file=sys.stderr)
+              f"`{_pyl()} agent_cli.py ask --get {handle}`", file=sys.stderr)
         return 0
 
     # The child half of --bg: run normally, then file the structured result under the
@@ -3321,7 +3330,7 @@ def cmd_discord(args):
             print("# discord bridge: NOT CONFIGURED (this is a state, not a failure)")
             print(f"#   1. private Discord channel -> Integrations -> Webhooks -> New -> Copy URL")
             print(f"#   2. save it to {url_file}")
-            print(f"#   3. py agent_cli.py discord test")
+            print(f"#   3. {_pyl()} agent_cli.py discord test")
             return 0
         print(f"# discord bridge: CONFIGURED via {out['source']}")
         print(f"#   forwards: {', '.join(sorted(DB.FORWARD_KINDS))}")
@@ -3964,7 +3973,7 @@ def cmd_doc(args):
     if not typ or not title:
         print("[doc] REFUSED: --type and --title are required (--from-bus infers type from the message kind)")
         print("  atom types: contract map design brief report chronicle ledger ruling")
-        print("  example: py agent_cli.py doc new --type report --title fence-x --seats claude --body-file x.md")
+        print(f"  example: {_pyl()} agent_cli.py doc new --type report --title fence-x --seats claude --body-file x.md")
         return 2
 
     body = getattr(args, "body", "") or ""
@@ -4092,7 +4101,7 @@ def cmd_note(args, *, mem=None):
         return 0
     if not args.title or not args.note:
         print("ERROR: need --title and --note (or --retire <id|title>).")
-        print('Example: py agent_cli.py note me --title "checkpoint: recall done" --note "next: write-once"')
+        print(f'Example: {_pyl()} agent_cli.py note me --title "checkpoint: recall done" --note "next: write-once"')
         return 2
     clipped = []
     title = _clip(args.title, 200)
@@ -4220,7 +4229,7 @@ def _human_flip_target(target):
     if s.startswith("p:"):
         p = s[2:]
         try:
-            rel = os.path.relpath(p, os.getenv("AI_SETUP", "E:\\AI-Setup"))
+            rel = os.path.relpath(p, _repo_root_str())
             if not rel.startswith(".."):
                 p = rel.replace("\\", "/")
         except Exception:
@@ -4293,8 +4302,8 @@ def build_session_draft(commits, lessons, notes, max_per=8, flips=None, injectio
             for src, n in top:
                 slug = str(src).replace("learn:experiment:", "")
                 lines.append(f"  - {n}x {slug}")
-                lines.append(f"    useful: py agent_cli.py recall-feedback --source {src}"
-                             f"   |   noise: py agent_cli.py recall-feedback --source {src} --noise")
+                lines.append(f"    useful: {_pyl()} agent_cli.py recall-feedback --source {src}"
+                             f"   |   noise: {_pyl()} agent_cli.py recall-feedback --source {src} --noise")
     return "\n".join(lines) if lines else "(no session activity captured)"
 
 
@@ -4302,7 +4311,7 @@ def _recent_commits(hours=12, limit=12):
     import subprocess
     try:
         r = subprocess.run(["git", "log", f"--since={hours} hours ago", "--pretty=%h\t%s"],
-                           cwd=os.getenv("AI_SETUP", "E:\\AI-Setup"), capture_output=True, text=True, timeout=10)
+                           cwd=_repo_root_str(), capture_output=True, text=True, timeout=10)
         out = []
         for line in (r.stdout or "").splitlines()[:limit]:
             if "\t" in line:
@@ -4486,7 +4495,7 @@ def cmd_wrap(args):
         # NEVER blocks: a hygiene prompt that can fail a wrap is one people route around.
         print("[wrap] no routing set for the next window -- the night shift cannot pre-chew "
               "without targets.\n"
-              "       Set them with: py agent_cli.py wrap --route T123,T124 --commit")
+              f"       Set them with: {_pyl()} agent_cli.py wrap --route T123,T124 --commit")
 
     # point is to capture priority intent THE MOMENT it is decided, even on a bare wrap.
     if getattr(args, "focus", None):
@@ -4506,7 +4515,7 @@ def cmd_wrap(args):
               "boot renders it ABOVE the NEXT list."
               if f_id else "WARN: --focus note not recorded (store unavailable?)")
     if not args.commit:
-        print("# DRAFT where-we-are (review it; record with: py agent_cli.py wrap --commit "
+        print(f"# DRAFT where-we-are (review it; record with: {_pyl()} agent_cli.py wrap --commit "
               "-- the default title supersedes the prior where-we-are)\n")
         print(draft)
         print(f"\n# from {len(commits)} commit(s), {len(lessons)} lesson(s), {len(notes)} note(s) this session")
@@ -4524,11 +4533,11 @@ def cmd_wrap(args):
             rep = curation_report()
             if rep.get("bench") or rep.get("unbench"):
                 print(f"\n# [recall-curate] {len(rep['bench'])} lesson(s) are pure surface cost, "
-                      f"{len(rep['unbench'])} earned their way back -> py agent_cli.py recall-curate --apply")
+                      f"{len(rep['unbench'])} earned their way back -> {_pyl()} agent_cli.py recall-curate --apply")
             if rep.get("forge_rollback") or rep.get("forge_confirm") or rep.get("forge_expire"):
                 print(f"# [forge-watch] rollback {len(rep['forge_rollback'])} / confirm "
                       f"{len(rep['forge_confirm'])} / expire {len(rep['forge_expire'])} "
-                      f"-> py agent_cli.py recall-curate --apply")
+                      f"-> {_pyl()} agent_cli.py recall-curate --apply")
         except Exception:
             pass
         try:   # stale-claim sweep: a lesson's ANCHORS can resolve while its CLAIM has gone
@@ -4550,7 +4559,7 @@ def cmd_wrap(args):
             props = pending_proposals()
             if props:
                 print(f"# [forge] {len(props)} optimizer proposal(s) pending review "
-                      f"-> py agent_cli.py recall-curate --forge-proposals")
+                      f"-> {_pyl()} agent_cli.py recall-curate --forge-proposals")
         except Exception:
             pass
         return 0
@@ -4570,7 +4579,7 @@ def cmd_wrap(args):
             print(f"WARNING: the current '{title}' note is CURATED (hand-written). "
                   "This wrap draft is MECHANICAL and would overwrite it.\n"
                   "  To supersede deliberately: re-run with --force (review the draft first).\n"
-                  f"  To record alongside:      py agent_cli.py wrap --commit --title "
+                  f"  To record alongside:      {_pyl()} agent_cli.py wrap --commit --title "
                   f"\"{title}-{_date.today().isoformat()}\"\n"
                   "(nothing written)")
             return 1
@@ -4617,7 +4626,7 @@ def cmd_wrap(args):
                         print(f"[wrap] retired stale next-focus (id {nf.id}, "
                               f"{str(nf.created_at)[:10]}) -- consumed by this session; "
                               f"directive slot now empty. Set fresh intent: "
-                              f"py agent_cli.py wrap --focus \"...\"")
+                              f"{_pyl()} agent_cli.py wrap --focus \"...\"")
         except Exception:
             pass   # the retire is a courtesy; the wrap itself already landed
     # W37 (kimi (b)): the kept-pointer rule is SPELLED, never silent -- a fresh pointer
@@ -4670,7 +4679,7 @@ def cmd_stats(args):
             print(f"    {r:18} {c}")
         if s["calls"] == 0:
             print("  (no rows -- calls==0 is 'nothing recorded', NOT '0% silent')")
-        print("  pack replay (frozen-30 vs the reconciled bar): py -m core.recall.pack_replay")
+        print(f"  pack replay (frozen-30 vs the reconciled bar): {_pyl()} -m core.recall.pack_replay")
         return 0
     from core.recall.funnel import snapshot, trend, TARGET_LESSONS_30D
     hours = float(args.hours or 24)
@@ -4752,8 +4761,14 @@ def cmd_stats(args):
 LAST_SESSION_DRAFT = "last-session-draft.md"   # under chronicles/; auto-captured by the SessionEnd/PreCompact hook
 
 
+def _repo_root_str() -> str:
+    from core.paths import repo_root
+    return str(repo_root())
+
+
 def last_session_draft_path():
-    return str(Path(os.getenv("AI_SETUP", "E:\\AI-Setup")) / "chronicles" / LAST_SESSION_DRAFT)
+    from core.paths import data_root
+    return str(data_root() / "chronicles" / LAST_SESSION_DRAFT)
 
 
 def write_last_session_draft(path, commits, lessons, notes, trigger="", flips=None, injections=None):
@@ -4767,7 +4782,7 @@ def write_last_session_draft(path, commits, lessons, notes, trigger="", flips=No
     when = datetime.now().isoformat(timespec="seconds")
     header = (f"# Last-session draft (auto-captured {when}"
               f"{' at ' + trigger if trigger else ''}) — review, then promote with "
-              "`py agent_cli.py wrap --commit`\n\n")
+              f"`{_pyl()} agent_cli.py wrap --commit`\n\n")
     p = Path(path)
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_text(header + draft + "\n", encoding="utf-8")
@@ -4890,7 +4905,7 @@ def cmd_story(args, store=None):
 
     # No atlas -> no story yet
     if not atlas_raw:
-        print("ERROR: no story found. Run `py agent_cli.py story --chronicle` first.")
+        print(f"ERROR: no story found. Run `{_pyl()} agent_cli.py story --chronicle` first.")
         return 2
 
     try:
@@ -5017,7 +5032,7 @@ def cmd_story(args, store=None):
                 nbeats = 0
             if nbeats:
                 print(f"Track '{args.track}' has {nbeats} beat(s) but no chapters yet -- "
-                      f"run `py agent_cli.py story --chronicle` first, then retry.")
+                      f"run `{_pyl()} agent_cli.py story --chronicle` first, then retry.")
             else:
                 print(f"ERROR: track '{args.track}' not found. "
                       f"Available: {', '.join(atlas.tracks) or '(none yet)'}")
@@ -5084,10 +5099,10 @@ def _print_chapter(ch, store) -> None:
             print(f"  {s}")
     if ch.beats:
         print("\nDrill into a beat:")
-        print(f'  py agent_cli.py story --beat {ch.beats[0]}')
+        print(f'  {_pyl()} agent_cli.py story --beat {ch.beats[0]}')
     if ch.id:
         print(f"\nRaw JSON:")
-        print(f'  py agent_cli.py story --chapter {ch.id} --json')
+        print(f'  {_pyl()} agent_cli.py story --chapter {ch.id} --json')
 
 
 def _print_beat(beat) -> None:
@@ -5100,7 +5115,7 @@ def _print_beat(beat) -> None:
     print(f"Summary: {beat.summary}")
     if beat.chapter:
         print(f"Chapter: {beat.chapter}")
-        print(f'  py agent_cli.py story --chapter {beat.chapter}')
+        print(f'  {_pyl()} agent_cli.py story --chapter {beat.chapter}')
     if beat.relates:
         for e in beat.relates:
             print(f"  relates: ({e.type}) {e.target}")
@@ -5200,7 +5215,7 @@ def cmd_episode(args):
         print(f"  title: {d.get('title')}")
         print(f"  desc : {d.get('description')}")
         print(f"  why  : {d.get('why')}")
-        print("  (edit + finalize: py agent_cli.py episode accept "
+        print(f"  (edit + finalize: {_pyl()} agent_cli.py episode accept "
               f"{d.get('chapter_id')} --title ... --why ...)")
     elif act == "accept":
         c = out.get("chapter") or {}
@@ -5260,7 +5275,7 @@ def cmd_handoff(args):
     task = (args.task or "").strip()
     if not to_agent or not task:
         print("ERROR: need --to <agent> and --task \"...\" (or --list to read).")
-        print('Example: py agent_cli.py handoff cursor --to claude '
+        print(f'Example: {_pyl()} agent_cli.py handoff cursor --to claude '
               '--task "finish C3 threshold tuning" --note "see docs/library/design/20260709_the-codex-a-self-curating-knowledge-laye_302fc9.md"')
         return 2
 
@@ -5335,7 +5350,7 @@ def _print_events(evs, args, header):
             tail += f"   by={e['agent_id']}"
         print(f"      {tail}")
     print("\nDrill into one:")
-    print(f"  py agent_cli.py events --get {evs[0].get('_ref')}")
+    print(f"  {_pyl()} agent_cli.py events --get {evs[0].get('_ref')}")
 
 
 def _sid8_of(session_id) -> str:
@@ -5464,7 +5479,7 @@ def cmd_promoted(args):
         print(f"  [acked] {ref}: {who}")
     if flagged:
         print(f"\n  !! {len(flagged)} UNHANDLED salient message(s) older than {hours}h "
-              "(no msg_ack -- handle it, then: py agent_cli.py bifrost-ack <msg_id>):")
+              f"(no msg_ack -- handle it, then: {_pyl()} agent_cli.py bifrost-ack <msg_id>):")
         for e in flagged:
             print(f"     {str(e.get('refs', [''])[0])}  ({e.get('age_hours', 0):.0f}h)  "
                   f"{_clip(str(e.get('summary', '')), 90)}")
@@ -5522,7 +5537,7 @@ def cmd_doctor_deploy() -> int:
     if not _hooked:
         bad.append("core.hooksPath is not set, so the pre-commit gates never run -- violations "
                    "reach CI instead of being refused at the commit. Fix: "
-                   "py scripts/githooks/install_git_hooks.py")
+                   f"{_pyl()} scripts/githooks/install_git_hooks.py")
 
     quiet = root / "scripts" / "quiet"
     pp = [x for x in (os.getenv("PYTHONPATH") or "").split(os.pathsep) if x.strip()]
@@ -5627,7 +5642,7 @@ def cmd_doctor(args):
                   "git show <last-commit>:security/acl.json > security/acl.json; on a fresh "
                   "instance copy security/acl.example.json AND add your own root/super_admin "
                   "record by hand (an EMPTY valid acl.json quarantines EVERY seat, claude and "
-                  "deepseek included -- narrower than this floor); then py agent_cli.py grant --bootstrap")
+                  f"deepseek included -- narrower than this floor); then {_pyl()} agent_cli.py grant --bootstrap")
         elif _acl.get("floor_in_force") is None and _acl.get("error"):
             print(f"## ACL STATUS UNKNOWN ({_acl['error']})")
     except Exception:
@@ -6085,7 +6100,7 @@ def cmd_resident(args):
         print(f"[resident] nominated {rec['agent_id']} as '{rec['callsign']}' by {rec['by']}")
         print(f"           receipts: {', '.join(rec['receipts'])}")
         print(f"           NOT yet active -- rule 3, a human ratifies: "
-              f"py agent_cli.py resident ratify {rec['agent_id']} --callsign {rec['callsign']} --by <you>")
+              f"{_pyl()} agent_cli.py resident ratify {rec['agent_id']} --callsign {rec['callsign']} --by <you>")
         return 0
 
     if sub == "ratify":
@@ -6181,7 +6196,7 @@ def cmd_resident(args):
         twin = f" (cold twin of {rec['cold_twin_of']})" if rec.get("cold_twin_of") else ""
         print(f"[resident] verdict filed: {rec['agent_id']} on ask {rec['ask_id']} "
               f"[{rec['question_shape']}]{twin} -- unadjudicated until an operator rules: "
-              f"py agent_cli.py resident adjudicate {rec['ask_id']} --outcome ... --by <operator>")
+              f"{_pyl()} agent_cli.py resident adjudicate {rec['ask_id']} --outcome ... --by <operator>")
         return 0
 
     if sub == "adjudicate":
@@ -6194,7 +6209,7 @@ def cmd_resident(args):
             return 1
         print(f"[resident] ADJUDICATED: ask {rec['ask_id']} -> {rec['outcome']} by {rec['by']}"
               + (f" ({rec['receipt']})" if rec.get("receipt") else ""))
-        print("           calibration moved: py agent_cli.py resident calibration")
+        print(f"           calibration moved: {_pyl()} agent_cli.py resident calibration")
         return 0
 
     if sub == "calibration":
@@ -6227,7 +6242,7 @@ def cmd_resident(args):
     # show
     who = getattr(args, "nominee", "") or ""
     if not who:
-        print("usage: py agent_cli.py resident show <agent>")
+        print(f"usage: {_pyl()} agent_cli.py resident show <agent>")
         return 2
     rec = R.get(who)
     if not rec:
@@ -6266,7 +6281,7 @@ def cmd_scout(args):
     from core.fleet import scout as SC
     q = " ".join(args.text or []).strip()
     if not q:
-        print("usage: py agent_cli.py scout \"is anyone mid-flight on <area>?\"",
+        print(f"usage: {_pyl()} agent_cli.py scout \"is anyone mid-flight on <area>?\"",
               file=sys.stderr)
         return 2
     try:
@@ -6283,7 +6298,7 @@ def cmd_scout(args):
     print(f"# scout [{r['tier']}] ask {r['ask_id']}  (pack: {bounds})")
     print(r.get("answer") or f"(no answer -- {r.get('why') or 'ask failed'})")
     print(f"\n-- verdict filed unadjudicated. When you have CHECKED this answer: "
-          f"py agent_cli.py resident adjudicate {r['ask_id']} --outcome confirmed|refuted "
+          f"{_pyl()} agent_cli.py resident adjudicate {r['ask_id']} --outcome confirmed|refuted "
           f"--by <operator>", file=sys.stderr)
     return 0 if r.get("ok") else 1
 
@@ -7170,8 +7185,8 @@ def cmd_ground(args):
 
 
 _SHELL_HOME_MARK = "# >>> akashic shell-home"
-_SHELL_HOME_HOOK = """
-# >>> akashic shell-home (auto-installed; manage: py agent_cli.py shell-home) >>>
+_SHELL_HOME_HOOK = f"""
+# >>> akashic shell-home (auto-installed; manage: {_pyl()} agent_cli.py shell-home) >>>
 if [ -n "$CLAUDE_CODE_SESSION_ID" ] && [ -f "$HOME/.claude/shell-home" ]; then
   _ash_target="$(cat "$HOME/.claude/shell-home" 2>/dev/null)"
   if [ -n "$_ash_target" ] && [ -d "$_ash_target" ] && [ "$PWD" != "$_ash_target" ]; then
@@ -7355,7 +7370,7 @@ def cmd_manual(args):
     if cmd == "search":
         question = " ".join(words).strip() or str(getattr(args, "query", "") or "").strip()
         if not question:
-            print("usage: py agent_cli.py manual search <question> [--shelf NAME] [--mode bm25|hybrid] "
+            print(f"usage: {_pyl()} agent_cli.py manual search <question> [--shelf NAME] [--mode bm25|hybrid] "
                   "[--limit N] [--max-chars N]")
             return 2
         res = shelf.search(question, shelf=(getattr(args, "shelf", "") or None),
@@ -7366,7 +7381,7 @@ def cmd_manual(args):
         return 1 if res.error else 0
     if cmd == "ingest":
         if len(words) < 2:
-            print("usage: py agent_cli.py manual ingest SHELF PATH [--selector CSS]")
+            print(f"usage: {_pyl()} agent_cli.py manual ingest SHELF PATH [--selector CSS]")
             return 2
         rep = shelf.ingest(words[0], words[1], html_selector=(getattr(args, "selector", "") or None))
         print(rep.render())
@@ -7377,13 +7392,13 @@ def cmd_manual(args):
             print(_json.dumps(st))
             return 0
         if not st["shelves"]:
-            print(f"manual list: the shelf is empty ({st['db']}). Add one: py agent_cli.py manual ingest NAME FOLDER")
+            print(f"manual list: the shelf is empty ({st['db']}). Add one: {_pyl()} agent_cli.py manual ingest NAME FOLDER")
             return 0
         print(f"manual list: {st['docs']} documents, {st['chunks']} passages ({st['db']})")
         for name, n in st["shelves"].items():
             print(f"  {name:<24} {n['docs']:>5} docs  {n['chunks']:>6} passages")
         return 0
-    print("usage: py agent_cli.py manual search|ingest|list ...")
+    print(f"usage: {_pyl()} agent_cli.py manual search|ingest|list ...")
     return 2
 
 
@@ -7399,7 +7414,7 @@ def cmd_blob(args):
     from core.comm.blobs import get_blob_store
     ref = str(getattr(args, "get", "") or "").strip()
     if not ref:
-        print("usage: py agent_cli.py bifrost-fetch --get blob:<sha>|<stream-id>  [--out FILE]")
+        print(f"usage: {_pyl()} agent_cli.py bifrost-fetch --get blob:<sha>|<stream-id>  [--out FILE]")
         return 2
     data = get_blob_store().get(ref)
     if data is None and _looks_like_stream_id(ref):
@@ -7544,7 +7559,7 @@ def cmd_focus(args):
     if args.json:
         print(json.dumps(st or {}, indent=2)); return 0
     if not st:
-        print("# no focus. Set one: py agent_cli.py focus --set T###"); return 0
+        print(f"# no focus. Set one: {_pyl()} agent_cli.py focus --set T###"); return 0
     print(f"# focus {st['task']}: {st.get('calls',0)} call(s) attributed "
           f"({st.get('hits',0)} on its files, {st.get('misses',0)} elsewhere, "
           f"streak {st.get('streak',0)})")
@@ -7611,7 +7626,7 @@ def _mailbox_refusal(out, agent_id):
             print(f"    {c}")
         print(f"  -> re-run with more characters, e.g. --open {shown[0][:16]}")
     elif how == "absent":
-        print(f"  -> list what IS here:  py agent_cli.py mailbox {agent_id}")
+        print(f"  -> list what IS here:  {_pyl()} agent_cli.py mailbox {agent_id}")
     return 1
 
 
@@ -9458,7 +9473,7 @@ def build_parser():
                      help="allowlisted name (see bare `secret` for the list)")
     sec.add_argument("--stdin", action="store_true",
                      help="headless path: read the value from stdin instead of a window "
-                          "(pipe it: Get-Clipboard | py agent_cli.py secret X --stdin)")
+                          f"(pipe it: Get-Clipboard | {_pyl()} agent_cli.py secret X --stdin)")
     sec.set_defaults(fn=cmd_secret)
 
     fd = sub.add_parser("flightdeck", help="W25 (deepseek): cockpit one-pager — fleet at "
@@ -9670,7 +9685,7 @@ def cmd_alias(args):
                         tested_against=args.tested_against, why=args.why, family=args.family)
             print(f"[alias] minted {e['name']} v{e['version']} [{e['evidence']}] "
                   f"({e.get('family', 'UNSORTED')}) ({len(e['steps'])} step(s)) -- "
-                  f"run: py agent_cli.py run {args.agent_id} {e['name']}")
+                  f"run: {_pyl()} agent_cli.py run {args.agent_id} {e['name']}")
         elif args.action == "list":
             print(tb.render_list())
         elif args.action == "retire":
@@ -9999,7 +10014,7 @@ def cmd_secret(args):
         for name, rec in inv.items():
             state = f"present, {rec['bytes']}B" if rec["present"] else "absent"
             print(f"  {name:<28} {state:<16} {rec['desc']}")
-        print("# capture one:  py agent_cli.py secret <name>")
+        print(f"# capture one:  {_pyl()} agent_cli.py secret <name>")
         return 0
 
     if args.target not in TARGETS:
@@ -10015,7 +10030,7 @@ def cmd_secret(args):
             from tkinter import messagebox
         except Exception as e:                                          # noqa: BLE001
             print(f"[vault] no window available ({type(e).__name__}) -- use --stdin: "
-                  f"Get-Clipboard | py agent_cli.py secret {args.target} --stdin",
+                  f"Get-Clipboard | {_pyl()} agent_cli.py secret {args.target} --stdin",
                   file=sys.stderr)
             return 2
         captured = {"value": None}
@@ -10221,7 +10236,7 @@ def cmd_defer(args):
             why = f"  ({i['why']})" if i.get("why") else ""
             print(f"  [{i['id']}] needs {i['needs']}: {i['cmd']}{why}  <- {i['by']}, "
                   f"{i['filed_at'][:10]}")
-        print(f"[defer] discharge: py agent_cli.py defer {args.agent_id} --done <id> "
+        print(f"[defer] discharge: {_pyl()} agent_cli.py defer {args.agent_id} --done <id> "
               f"--receipt \"what happened\"")
         return 0
     text = " ".join(args.cmd_text) if isinstance(args.cmd_text, list) else str(args.cmd_text or "")

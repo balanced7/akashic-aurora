@@ -46,6 +46,15 @@ from typing import Any, Callable, Dict, List, Optional
 from core.comm import liveness
 from core.comm.timescale import scaled as _scaled
 
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+        return python_launcher()
+    except Exception:
+        return "py"
+
 def _ns() -> str:
     # ns-isolation (2026-07-12): the doctor diagnoses agents WITHIN a namespace; its stall/page keys
     # (and its known_agents enumeration) must stay coherent with its scoped inputs (liveness,
@@ -340,11 +349,11 @@ def examine(agent: str, *, probes: Optional[Dict[str, Any]] = None) -> List[Dict
             out.append(_f(agent, "self_reported_error", "dashboard",
                           f"{agent}: SELF-REPORTED failure -- {reason} "
                           f"(gen {prog.get('generation', '?')})",
-                          f"py agent_cli.py events --search \"{agent} error\""))
+                          f"{_pyl()} agent_cli.py events --search \"{agent} error\""))
         if phase.startswith("error:"):
             out.append(_f(agent, "self_reported_error", "dashboard",
                           f"{agent}: worklive error phase -- {phase[len('error:'):]}",
-                          "py agent_cli.py doctor --json"))
+                          f"{_pyl()} agent_cli.py doctor --json"))
 
         # S2 fix (self-demonstrated 2026-07-28: this doctor paged the live seat that was
         # building and committing at that moment). `stuck` measures PHASE AGE -- since_ts is
@@ -402,7 +411,7 @@ def examine(agent: str, *, probes: Optional[Dict[str, Any]] = None) -> List[Dict
                 out.append(_f(agent, "working", "dashboard",
                               f"{agent}: long work in '{phase}' ({int(stuck)}s) but the "
                               f"{evidence} -- genuinely working, not wedged",
-                              "py agent_cli.py doctor --json"))
+                              f"{_pyl()} agent_cli.py doctor --json"))
             elif runner_beat_fresh:
                 out.append(_f(agent, "beating_unproven", "dashboard",
                               f"{agent}: phase '{phase}' aged {int(stuck)}s with beat "
@@ -430,7 +439,7 @@ def examine(agent: str, *, probes: Optional[Dict[str, Any]] = None) -> List[Dict
                           f"{agent}: APPROACHING WEDGE -- '{phase}' for {int(stuck)}s with no "
                           f"fresh pulse (sub-threshold; pages at {int(liveness.DEFAULT_WEDGE_S)}s "
                           "if it doesn't self-heal)",
-                          f"py agent_cli.py doctor --json   # py-spy dump --pid <{agent}-runner-pid> if it climbs"))
+                          f"{_pyl()} agent_cli.py doctor --json   # py-spy dump --pid <{agent}-runner-pid> if it climbs"))
 
         backlog = int(p["backlog"](agent) or 0)
         idleish = (not wl) or phase in liveness.IDLE_PHASES
@@ -448,7 +457,7 @@ def examine(agent: str, *, probes: Optional[Dict[str, Any]] = None) -> List[Dict
                     out.append(_f(agent, "idle_backlog", "dashboard",
                                   f"{agent}: {backlog} unread -- live seat (wake-armed / "
                                   f"lock-held), no runner phase; consumes on next turn/wake",
-                                  f"py agent_cli.py bifrost-sync {agent}"))
+                                  f"{_pyl()} agent_cli.py bifrost-sync {agent}"))
                 else:
                     # ABSENT: no worklive, no runner, no wake seat. Ghost mail from a
                     # retired/dead seat -- dashboard-visible (graveyard-is-a-resource) but
@@ -464,7 +473,7 @@ def examine(agent: str, *, probes: Optional[Dict[str, Any]] = None) -> List[Dict
                                   # to act on a finding the doctor deliberately raised.
                                   # skip-to-now IS "retire the inbox": it advances the
                                   # cursors past ghost mail, with an audited reason.
-                                  f"py agent_cli.py bifrost-skip-to-now {agent} --by <you> "
+                                  f"{_pyl()} agent_cli.py bifrost-skip-to-now {agent} --by <you> "
                                   f"--reason 'ghost mail from a retired seat'  | or ignore: "
                                   f"the mail TTLs with the stream"))
                 p["stalled_since"](agent, False)
@@ -476,12 +485,12 @@ def examine(agent: str, *, probes: Optional[Dict[str, Any]] = None) -> List[Dict
                                   f"{agent}: STALLED CONSUMER -- {backlog} unread for "
                                   f"{int(age)}s while idle (past hysteresis "
                                   f"{int(STALL_HYSTERESIS_S)}s)",
-                                  f"py agent_cli.py bifrost-sync {agent}"))
+                                  f"{_pyl()} agent_cli.py bifrost-sync {agent}"))
                 else:
                     out.append(_f(agent, "stalled_consumer", "dashboard",
                                   f"{agent}: backlog {backlog} while idle -- observing "
                                   f"({int(age)}s / {int(STALL_HYSTERESIS_S)}s hysteresis)",
-                                  f"py agent_cli.py bifrost-sync {agent}"))
+                                  f"{_pyl()} agent_cli.py bifrost-sync {agent}"))
         else:
             p["stalled_since"](agent, False)     # clear the hysteresis clock
 
@@ -491,7 +500,7 @@ def examine(agent: str, *, probes: Optional[Dict[str, Any]] = None) -> List[Dict
             out.append(_f(agent, "frozen", "banner",
                           f"{agent}: FROZEN -- {frozen.get('reason', 'paused')}"
                           + (f" ({int(age)}s)" if age else ""),
-                          "py agent_cli.py bifrost-resume"))
+                          f"{_pyl()} agent_cli.py bifrost-resume"))
 
         # T077 A3: runner-down visibility from daemon presence card
         try:
@@ -503,13 +512,13 @@ def examine(agent: str, *, probes: Optional[Dict[str, Any]] = None) -> List[Dict
                               f"{agent}: RUNNER BLOCKED (circuit breaker tripped) — "
                               f"daemon holds presence, runner stopped. "
                               f"Restart the daemon to reset.",
-                              f"py scripts/bifrost_daemon.py --agent {agent} --spawn-runner"))
+                              f"{_pyl()} scripts/bifrost_daemon.py --agent {agent} --spawn-runner"))
             elif runner == "down":
                 since = rt.get("since_s", "?")
                 out.append(_f(agent, "runner_down", "banner",
                               f"{agent}: runner DOWN ({since}s) — daemon presence held, "
                               f"restart the daemon to respawn.",
-                              f"py scripts/bifrost_daemon.py --agent {agent} --spawn-runner"))
+                              f"{_pyl()} scripts/bifrost_daemon.py --agent {agent} --spawn-runner"))
         except Exception:
             pass
     except Exception:
@@ -599,7 +608,7 @@ def examine(agent: str, *, probes: Optional[Dict[str, Any]] = None) -> List[Dict
                 out.append(_f(agent, "lane_stall", "page" if paging else "dashboard",
                               f"{agent}: {head}{depth} message(s) undrained on the work "
                               f"lane, oldest waiting {_fmt_age(waited)}{tail}",
-                              f"py agent_cli.py unwedge {agent}"))
+                              f"{_pyl()} agent_cli.py unwedge {agent}"))
             parts = [f"{agent}: lane cursor"]
             if lh["age_s"] is not None:
                 parts.append(f"age {int(lh['age_s'])}s")
@@ -610,7 +619,7 @@ def examine(agent: str, *, probes: Optional[Dict[str, Any]] = None) -> List[Dict
             lh_line = " -- ".join(parts)
             out.append(_f(agent, "lane_health", "dashboard",
                           lh_line if len(parts) > 1 else lh_line + " healthy",
-                          f"py agent_cli.py mailbox --explain {agent}"))
+                          f"{_pyl()} agent_cli.py mailbox --explain {agent}"))
     except Exception:
         pass
 
@@ -651,7 +660,7 @@ def examine(agent: str, *, probes: Optional[Dict[str, Any]] = None) -> List[Dict
                           f"one cursor, one consumer seat"
                           + (f"; held by {held[:8]}" if held else "; seat unheld")
                           + ". The other is being degraded to peek and may be losing mail.",
-                          f"retiring seat: py agent_cli.py stand-down {agent}"))
+                          f"retiring seat: {_pyl()} agent_cli.py stand-down {agent}"))
     except Exception:
         pass
 
@@ -661,7 +670,7 @@ def examine(agent: str, *, probes: Optional[Dict[str, Any]] = None) -> List[Dict
         if n > 0:
             out.append(_f(agent, "triage_bench", "dashboard",
                           f"{agent}: {n} ask(s) on the triage bench (bottomed, not dropped)",
-                          f"py agent_cli.py bench {agent}"))
+                          f"{_pyl()} agent_cli.py bench {agent}"))
     except Exception:
         pass
 
@@ -739,7 +748,7 @@ def unwedge(agent: str) -> Dict[str, Any]:
     if frozen:
         status, verdict, rec = "frozen", (
             f"{agent}: FROZEN — deliberately paused/halted. No action required unless "
-            "this is stale."), "resume: py agent_cli.py bifrost-resume"
+            "this is stale."), f"resume: {_pyl()} agent_cli.py bifrost-resume"
     elif hard_wedge:
         status, verdict, rec = "wedged", (
             f"{agent}: HARD WEDGE — died inside a turn, not self-healing. Revive."), (
@@ -750,13 +759,13 @@ def unwedge(agent: str) -> Dict[str, Any]:
             f"{agent}: STALLED — {lh['depth']} unprocessed on the work lane "
             f"(lane cursor {age}s behind)" + (f", {len(evidence['locks'])} lock(s) held"
             if evidence["locks"] else "")), (
-            f"triaged drain: py agent_cli.py bifrost-skip-to-now {agent} --by <you> --reason '<why>' "
-            f"| or drill down: py agent_cli.py mailbox --explain {agent}")
+            f"triaged drain: {_pyl()} agent_cli.py bifrost-skip-to-now {agent} --by <you> --reason '<why>' "
+            f"| or drill down: {_pyl()} agent_cli.py mailbox --explain {agent}")
     elif stalled:
         status, verdict, rec = "stalled", (
             f"{agent}: STALLED CONSUMER — backlog present but lane cursor current; "
             "legacy mail may have accumulated"), (
-            f"sync: py agent_cli.py bifrost-sync {agent}")
+            f"sync: {_pyl()} agent_cli.py bifrost-sync {agent}")
     elif lane_stall:
         # Ranked ABOVE the runner and BUSY branches deliberately. This branch did not
         # exist and the ladder fell through to BUSY ("working, not wedged") on a live
@@ -772,34 +781,34 @@ def unwedge(agent: str) -> Dict[str, Any]:
             # Measured 2026-07-26 on claude's own stalled lane (22 -> 2 -> 0): the D2
             # stale-ask gate parks in BATCHES, so one pass rarely finishes. Saying so
             # keeps a half-drained lane from reading as a failed recommendation.
-            f"drain (repeat until depth 0): BIFROST_CONSUME_LANE=work py agent_cli.py "
-            f"bifrost-sync {agent} --consume  | if it will not drain: py agent_cli.py "
+            f"drain (repeat until depth 0): BIFROST_CONSUME_LANE=work {_pyl()} agent_cli.py "
+            f"bifrost-sync {agent} --consume  | if it will not drain: {_pyl()} agent_cli.py "
             f"bifrost-skip-to-now {agent} --by <you> --reason '<why>'  "
-            f"| inspect: py agent_cli.py mailbox --explain {agent}")
+            f"| inspect: {_pyl()} agent_cli.py mailbox --explain {agent}")
     elif runner == "down":
         status, verdict, rec = "down", (
             f"{agent}: runner DOWN — daemon holds presence but no live runner"), (
-            f"restart daemon: py scripts/bifrost_daemon.py --agent {agent} --spawn-runner")
+            f"restart daemon: {_pyl()} scripts/bifrost_daemon.py --agent {agent} --spawn-runner")
     elif runner == "blocked":
         status, verdict, rec = "down", (
             f"{agent}: RUNNER BLOCKED — circuit breaker tripped"), (
-            f"restart daemon to reset: py scripts/bifrost_daemon.py --agent {agent} --spawn-runner")
+            f"restart daemon to reset: {_pyl()} scripts/bifrost_daemon.py --agent {agent} --spawn-runner")
     elif runner == "absent":
         status, verdict, rec = "down", (
             f"{agent}: no runner process found (no live lock, no presence)"), (
-            f"start: py scripts/bifrost_runner_deepseek.py --agent {agent} --agentic")
+            f"start: {_pyl()} scripts/bifrost_runner_deepseek.py --agent {agent} --agentic")
     elif lh.get("depth", 0) > 10:
         status, verdict, rec = "backlogged", (
             f"{agent}: BUSY — {lh['depth']} on the work lane but pulse is fresh. "
-            "Working, not wedged."), "monitor: py agent_cli.py doctor"
+            "Working, not wedged."), f"monitor: {_pyl()} agent_cli.py doctor"
     elif lh.get("straggler", 0) > 0:
         status, verdict, rec = "healthy", (
             f"{agent}: HEALTHY — {lh.get('straggler', 0)} straggler(s) on legacy stream "
-            "(dual-write soak, self-clears)"), "monitor: py agent_cli.py doctor"
+            "(dual-write soak, self-clears)"), f"monitor: {_pyl()} agent_cli.py doctor"
     elif runner == "live":
         status, verdict, rec = "healthy", (
             f"{agent}: HEALTHY — runner live, lane current, no page-grade findings"), (
-            "no action needed: py agent_cli.py doctor")
+            f"no action needed: {_pyl()} agent_cli.py doctor")
     else:
         status, verdict, rec = "healthy", (
             f"{agent}: HEALTHY — no runner, no backlog, no findings"), (
@@ -1280,7 +1289,7 @@ def _stale_code_line(agent: str) -> Optional[Dict[str, Any]]:
         if not text:
             return None
         return _f(agent, "stale_code", "dashboard", text,
-                  f"py agent_cli.py roster   # per-seat code state")
+                  f"{_pyl()} agent_cli.py roster   # per-seat code state")
     except Exception:
         return None
 
@@ -1337,7 +1346,7 @@ def _token_cost_line(agent: str, journal_dir: str = "") -> Optional[Dict[str, An
         # in the finding that raised it (T222's class; check_advertised_verbs guards
         # the verb, not the flags, so this dead --token slipped the checker).
         return _f(agent, "token_cost", "dashboard", line,
-                  "py agent_cli.py doctor --json")
+                  f"{_pyl()} agent_cli.py doctor --json")
     except Exception:
         return None
 
@@ -1375,7 +1384,7 @@ def _feed_failure_findings(agent: str):
                    f"feed: {len(fails)} Discord post failure(s) in the last "
                    f"hour ({latest.get('path')}: {str(latest.get('error'))[:80]})"
                    f" -- replies may not be reaching the operator",
-                   "py agent_cli.py events --kind discord_feed_post_failed")]
+                   f"{_pyl()} agent_cli.py events --kind discord_feed_post_failed")]
     except Exception:                                                   # noqa: BLE001
         return None
 
@@ -1457,7 +1466,7 @@ def examine_services() -> List[Dict[str, Any]]:
     try:   # 2) UI console
         port = int(os.environ.get("BIFROST_UI_PORT", "8787"))
         out.append(_svc_finding(f"ui:{port}", _tcp_up("127.0.0.1", port), "bifrost console",
-                                "py scripts/bifrost_ui.py  (Bash run_in_background)"))
+                                f"{_pyl()} scripts/bifrost_ui.py  (Bash run_in_background)"))
     except Exception:
         pass
     try:   # 3) Presence daemon(s) -- the autopilot that owns wake/consume (T075/T077). DOWN means
@@ -1478,9 +1487,9 @@ def examine_services() -> List[Dict[str, Any]]:
                                 ", ".join(sorted(live)) if live
                                 else "no live daemon -- seats self-manage wake/consume; "
                                      "the discord outbound pump (daemon-hosted) has NO host",
-                                "py scripts/bifrost_daemon.py --agent <a> --spawn-runner "
+                                f"{_pyl()} scripts/bifrost_daemon.py --agent <a> --spawn-runner "
                                 "--runner-consume-lane work [--runner-script bifrost_runner_<a>.py]"
-                                "  (runner seats)  |  py scripts/bifrost_daemon.py --agent claude "
+                                f"  (runner seats)  |  {_pyl()} scripts/bifrost_daemon.py --agent claude "
                                 "--manage-listener  (wake listeners; revive DAEMON_MODE) -- the flag "
                                 "IS the brain: flagless = alpha, REFUSES under a bare runner"))
     except Exception:
@@ -1562,7 +1571,7 @@ def _watch_finding(w: Dict[str, Any]) -> Optional[Dict[str, Any]]:
                      f"{len(silent)} of them {silent} recorded no cost -- neither pauses= nor "
                      f"operator_ruling= (ORG Part 3, ruling 369243). The gate refuses this, so "
                      f"the ledger was widened around it"),
-            "drill": ("py agent_cli.py task list  # then name what stops: py agent_cli.py task "
+            "drill": (f"{_pyl()} agent_cli.py task list  # then name what stops: {_pyl()} agent_cli.py task "
                       "park <id> --reason <why> -- width is licensed only by a recorded cost")}
 
 

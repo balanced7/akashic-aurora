@@ -11,6 +11,15 @@ import os
 from typing import Any, Dict, List, Optional
 
 
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+        return python_launcher()
+    except Exception:
+        return "py"
+
+
 def _clip(s: Any, n: int = 220) -> str:
     s = "" if s is None else str(s)
     if len(s) <= n:
@@ -317,7 +326,7 @@ def consume_inbox(agent_id: str, limit: int = 20) -> Dict[str, Any]:
                             pass                     # park is best-effort (G3)
                     stale_notice_txt += (f"  parked {parked_n} stale ask(s) to durable "
                                          f"bench (bottomed, never dropped; "
-                                         f"py agent_cli.py bench {agent_id})\n")
+                                         f"{_pyl()} agent_cli.py bench {agent_id})\n")
                 msgs = fresh
             except Exception:
                 pass                                 # gate is best-effort; fresh-path intact
@@ -388,7 +397,7 @@ def stale_notice_lines(res: Dict[str, Any], agent_id: str) -> List[str]:
     out = [notice]
     if not (res.get("consumed") or []):
         out.append(f"# no NEW mail surfaced for {agent_id} -- but the cursor ADVANCED past "
-                   f"the entries above (bench: py agent_cli.py bench {agent_id})")
+                   f"the entries above (bench: {_pyl()} agent_cli.py bench {agent_id})")
     return out
 
 
@@ -713,7 +722,7 @@ def print_boot_bifrost_section(block: Dict[str, Any], show_traces: bool = False)
     capped = any(m.get("pending_capped") for m in (block.get("messages") or [])
                  if isinstance(m, dict))
     print(f"  {pending}{'+' if capped else ''} unread ({scope}, peek -- use bifrost_inbox or "
-          f"`py agent_cli.py bifrost-sync --consume` to ack):{summary_tag}")
+          f"`{_pyl()} agent_cli.py bifrost-sync --consume` to ack):{summary_tag}")
     for ln in render_collapsed(block.get("messages") or [], show_traces=show_traces):
         print(f"  {ln}")   # W4: trace-class telemetry folded (--traces to expand)
 
@@ -793,7 +802,7 @@ def format_promoted_events(events: List[Dict[str, Any]], *, json_out: bool = Fal
         lines.append(f"    {body}")
         if ref:
             lines.append(f"    ref: {ref}")
-    lines.append("\nDrill: py agent_cli.py events --get <ref>")
+    lines.append(f"\nDrill: {_pyl()} agent_cli.py events --get <ref>")
     return "\n".join(lines)
 
 
@@ -825,5 +834,5 @@ def format_console_events(events: List[Dict[str, Any]], *, json_out: bool = Fals
         lines.append(f"    {body}")
         if ref:
             lines.append(f"    ref: {ref}")
-    lines.append("\nDrill: py agent_cli.py events --get <ref>")
+    lines.append(f"\nDrill: {_pyl()} agent_cli.py events --get <ref>")
     return "\n".join(lines)

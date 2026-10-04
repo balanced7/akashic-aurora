@@ -151,3 +151,47 @@ def env_override_is_wrong() -> Optional[str]:
         missing = [m for m in _MARKERS if not (p / m).exists()]
         return f"AI_SETUP={env!r} is not a repo root (missing: {', '.join(missing)})"
     return None
+
+
+def env_paths(name: str) -> "list[Path]":
+    """Absolute paths from the env var `name`, separated by os.pathsep (';' on Windows, ':'
+    elsewhere). For locations that are genuinely MACHINE-SPECIFIC -- a second physical disk,
+    a tool installed somewhere odd -- and so cannot be derived the way repo_root() is.
+
+    A relative entry is DROPPED with a warning, never resolved: 'E:\\x' on Linux is a relative
+    path, and resolving it against the cwd is how a Windows literal became a stray folder
+    inside the repo. Unset or empty -> [] (the caller decides what "not configured" means).
+    """
+    import sys
+    out = []
+    for part in (os.environ.get(name) or "").split(os.pathsep):
+        part = part.strip().strip('"')
+        if not part:
+            continue
+        p = Path(os.path.expanduser(part))
+        if p.is_absolute():
+            out.append(p)
+        else:
+            print(f"[paths] {name}: ignoring {part!r} -- not an absolute path on this OS",
+                  file=sys.stderr)
+    return out
+
+
+def python_launcher() -> str:
+    """The command prefix that runs Aurora's Python on THIS machine, for commands shown to (or
+    run by) an agent: `<launcher> scripts/x.py`, `<launcher> -m pytest`, `<launcher> agent_cli.py`.
+
+    Windows keeps the `py` launcher, exactly as before. Elsewhere `py` does not exist, so the
+    old literal sent every agent on Linux/macOS into a 'command not found' first. There `uv run`
+    is used when uv and the repo's pyproject are present -- it brings Aurora's dependencies with
+    it -- else plain `python3`. AKASHIC_PYTHON overrides for any other setup.
+    """
+    override = (os.getenv("AKASHIC_PYTHON") or "").strip()
+    if override:
+        return override
+    if os.name == "nt":
+        return "py"
+    import shutil
+    if shutil.which("uv") and (repo_root() / "pyproject.toml").exists():
+        return "uv run"
+    return "python3"

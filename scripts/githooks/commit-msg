@@ -5,4 +5,7 @@
 # place where the message being committed is the message that gets scanned. Tracked, shared
 # across worktrees via core.hooksPath (py scripts/githooks/install_git_hooks.py).
 # Bypass: git commit --no-verify (skips pre-commit too) -- say so out loud if you use it.
-exec py scripts/githooks/commit_msg.py "$1"
+# `py` is the Windows launcher. Elsewhere run Aurora's Python through uv (its dependencies
+# come with it), else python3 -- so every `py ...` line below works on any OS unchanged.
+command -v py >/dev/null 2>&1 || py() { if command -v uv >/dev/null 2>&1; then uv run "$@"; else python3 "$@"; fi; }
+py scripts/githooks/commit_msg.py "$1"

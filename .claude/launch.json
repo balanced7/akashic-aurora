@@ -3,8 +3,9 @@
   "configurations": [
     {
       "name": "bifrost-ui",
-      "runtimeExecutable": "py",
+      "runtimeExecutable": "uv",
       "runtimeArgs": [
+        "run",
         "scripts/bifrost_ui.py",
         "--port",
         "8790"
@@ -14,8 +15,9 @@
     },
     {
       "name": "arsenal-web",
-      "runtimeExecutable": "py",
+      "runtimeExecutable": "uv",
       "runtimeArgs": [
+        "run",
         "-m",
         "arsenal",
         "serve",

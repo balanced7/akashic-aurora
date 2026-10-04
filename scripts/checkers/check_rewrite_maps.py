@@ -44,6 +44,15 @@ import subprocess
 import sys
 from pathlib import Path
 
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+        return python_launcher()
+    except Exception:
+        return "py"
+
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
@@ -248,7 +257,7 @@ def report(gate=False, freeze=False):
         print(f"\n  UNCAPTURED REWRITE -- {u['path']}")
         print(f"    {u['uncovered']:,} of {u['rows']:,} rows are in no committed map. This file")
         print("    is overwritten by the next filter-repo run. Capture it now:")
-        print("      py scripts/rewrite_recover.py capture --label <slug> --why \"...\"")
+        print(f"      {_pyl()} scripts/rewrite_recover.py capture --label <slug> --why \"...\"")
 
     if out["unmapped"]:
         findings += 1
@@ -258,7 +267,7 @@ def report(gate=False, freeze=False):
             print(f"    {f['ref']}")
             print(f"      lineage {f['lineage']:,}, orphaned {f['orphans']:,}, "
                   f"unresolvable {f['unresolvable']:,}")
-        print("      py scripts/rewrite_recover.py reconstruct --from-ref <ref>")
+        print(f"      {_pyl()} scripts/rewrite_recover.py reconstruct --from-ref <ref>")
 
     cit = out["citations"]
     if not cit["checked"]:

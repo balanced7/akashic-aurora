@@ -21,6 +21,15 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+        return python_launcher()
+    except Exception:
+        return "py"
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 # W156h: DERIVED, not defaulted. This read `os.getenv("AI_SETUP", "E:\\AI-Setup")`, which is
@@ -34,7 +43,7 @@ try:
     from core.paths import repo_root as _rr
     BASE = _rr()
 except Exception:
-    BASE = Path(os.getenv("AI_SETUP", "E:\\AI-Setup"))
+    BASE = Path(__file__).resolve().parents[2]
 SNAP_DIR = BASE / "backups" / "snapshots"
 STORE_FILE = BASE / "session_logs" / "store_state.json"
 STORE_DB = BASE / "session_logs" / "store_state.db"
@@ -111,6 +120,15 @@ except Exception:
         REDIS_HOST, REDIS_PORT = "localhost", 16379
 
 
+def _alpha_checkout() -> str:
+    """The alpha twin's checkout, derived from this one (core.world.checkout_of)."""
+    try:
+        from core.world import checkout_of
+        return str(checkout_of("alpha"))
+    except Exception:
+        return "<alpha checkout>"
+
+
 def _assert_restore_is_consented(target_world: str):
     """A restore FLUSHES db0. Against prod that needs a human saying so, out loud.
 
@@ -140,9 +158,9 @@ def _assert_restore_is_consented(target_world: str):
         "  taken is gone -- and stream ids are REGENERATED, so every bus cursor dangles and\n"
         "  consumers replay their backlog.\n"
         "  If prod is genuinely what you mean:\n"
-        "      AKASHIC_RESTORE_PROD=yes-flush-production py scripts/ops/snapshot_knowledge.py restore <name>\n"
+        f"      AKASHIC_RESTORE_PROD=yes-flush-production {_pyl()} scripts/ops/snapshot_knowledge.py restore <name>\n"
         "  To rehearse it safely, restore into a twin instead -- that is what they are for:\n"
-        "      cd E:/AI-Setup-Alpha && py scripts/ops/snapshot_knowledge.py restore <name>")
+        f"      cd {_alpha_checkout()} && {_pyl()} scripts/ops/snapshot_knowledge.py restore <name>")
 
 
 def _assert_planes_agree():
@@ -164,13 +182,15 @@ def _assert_planes_agree():
         f"  redis  -> {REDIS_HOST}:{REDIS_PORT}  (world: {redis_world})\n"
         f"  A restore FLUSHES db0, so a split like this destroys the world you did not name.\n"
         f"  FIX: run this from the checkout you mean, and let both planes derive from it --\n"
-        f"       cd <that checkout> && py scripts/ops/snapshot_knowledge.py ...\n"
+        f"       cd <that checkout> && {_pyl()} scripts/ops/snapshot_knowledge.py ...\n"
         f"       (AI_SETUP moves the FILE plane only; it has never moved the redis plane.)")
 
 
 def _redis():
     try:
         import redis
+        from core.foundation.redis_connection import ensure_redis_server
+        ensure_redis_server(REDIS_HOST, REDIS_PORT)   # starts the embedded server if that is ours
         c = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, db=0,
                         decode_responses=True, socket_connect_timeout=1.0)
         c.ping()
@@ -263,7 +283,7 @@ def _prune():
 
 def list_snaps():
     if not SNAP_DIR.exists() or not any(SNAP_DIR.iterdir()):
-        print("(no snapshots yet -- run: py scripts/ops/snapshot_knowledge.py snapshot)")
+        print(f"(no snapshots yet -- run: {_pyl()} scripts/ops/snapshot_knowledge.py snapshot)")
         return
     for p in sorted([p for p in SNAP_DIR.iterdir() if p.is_dir()], reverse=True):
         m = {}

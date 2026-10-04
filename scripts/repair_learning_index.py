@@ -35,6 +35,15 @@ import argparse
 import os
 import sys
 
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+        return python_launcher()
+    except Exception:
+        return "py"
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 INDEX = "learn:experiments:all"
@@ -117,7 +126,7 @@ def main() -> int:
         if missing:
             print(f"\nFAIL: {len(missing)} lesson(s) exist but are invisible to every "
                   f"keyword search ({100 * len(missing) // max(1, len(found))}% of the "
-                  "corpus). Repair: py scripts/repair_learning_index.py --apply")
+                  f"corpus). Repair: {_pyl()} scripts/repair_learning_index.py --apply")
             return 1
         print("\n[OK] every discovered lesson record is reachable by search.")
         return 0

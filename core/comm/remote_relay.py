@@ -55,6 +55,15 @@ from core.outcome import BoundaryOutcome
 from core.comm import discord_bridge
 from core.foundation import filelock
 
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+        return python_launcher()
+    except Exception:
+        return "py"
+
 _ROOT = Path(__file__).resolve().parents[2]
 
 #: The committed route config: names the peer URL + which secret file, NEVER the secret.
@@ -496,7 +505,7 @@ def push(msg: Dict[str, Any], *, url: Optional[str] = None,
     if not key:
         return BoundaryOutcome.failed(
             "remote bridge has no outbound secret. Capture one with "
-            "`py agent_cli.py secret remote_bridge_outbound.key` (the vault door keeps it "
+            f"`{_pyl()} agent_cli.py secret remote_bridge_outbound.key` (the vault door keeps it "
             "out of every transcript), then hand the peer the SAME value out-of-band. "
             "Inert-until-keyed is the 'not everyone has access' gate.")
     envelope = build_envelope(msg, key)
@@ -707,7 +716,7 @@ def accept(envelope: Dict[str, str], *, secret: Optional[bytes] = None,
                     "no inbound secret for any configured peer — the bridge is "
                     "INERT-UNTIL-KEYED. An absent allowlist must not resolve to 'allow' (the "
                     "obvious sin) and must not resolve to a guess (discord_inbound's "
-                    "refusal). Capture one: py agent_cli.py secret remote_bridge_inbound.key")
+                    f"refusal). Capture one: {_pyl()} agent_cli.py secret remote_bridge_inbound.key")
             return BoundaryOutcome.failed(
                 "no configured peer's key verifies this envelope — refused. Identity here is "
                 "decided by WHICH KEY SIGNED IT, so an unrecognised signature is an "

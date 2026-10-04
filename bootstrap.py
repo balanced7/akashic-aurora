@@ -23,6 +23,15 @@ import shutil
 import argparse
 from datetime import datetime
 
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+        return python_launcher()
+    except Exception:
+        return "py"
+
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 
@@ -212,18 +221,18 @@ def run(args):
     print()
     if not args.brief:
         print("  IF YOU ARE AN AGENT, start here (read AGENTS.md, then use the CLI):")
-        print('    py agent_cli.py boot <your_agent_id> --task "<what you are doing>"')
-        print('    py agent_cli.py learn <your_agent_id> --experiment NAME --tried "..." --result "..."')
-        print("    py agent_cli.py list            # see all lessons")
+        print(f'    {_pyl()} agent_cli.py boot <your_agent_id> --task "<what you are doing>"')
+        print(f'    {_pyl()} agent_cli.py learn <your_agent_id> --experiment NAME --tried "..." --result "..."')
+        print(f"    {_pyl()} agent_cli.py list            # see all lessons")
         print("    -> full contract: AGENTS.md")
         print()
         print("  Humans / maintainers:")
         print("    docs/ROADMAP.md                 - the plan + current wave")
         print("    docs/LEXICON.md                 - the vocabulary")
         print("    docs/BACKUP_AND_RECOVERY.md     - how code + knowledge are backed up")
-        print("    py scripts/checkers/check_boundaries.py  - verify architectural boundaries")
-        print("    py scripts/checkers/check_doc_freshness.py - flag stale hand-written status docs")
-        print("    py scripts/ops/snapshot_knowledge.py snapshot   - back up the knowledge store")
+        print(f"    {_pyl()} scripts/checkers/check_boundaries.py  - verify architectural boundaries")
+        print(f"    {_pyl()} scripts/checkers/check_doc_freshness.py - flag stale hand-written status docs")
+        print(f"    {_pyl()} scripts/ops/snapshot_knowledge.py snapshot   - back up the knowledge store")
         print()
 
 

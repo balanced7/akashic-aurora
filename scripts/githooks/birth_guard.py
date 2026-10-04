@@ -22,11 +22,20 @@ import re
 import subprocess
 import sys
 
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+        return python_launcher()
+    except Exception:
+        return "py"
+
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 _CROWN = re.compile(r"^docs/[A-Z0-9_]+\.md$")
 _TEACH = ("  -> knowledge artifacts are born through the door now: "
-          "py agent_cli.py doc new --type <t> --title <x> [--draft]")
+          f"{_pyl()} agent_cli.py doc new --type <t> --title <x> [--draft]")
 
 
 def classify(relpath: str) -> str:

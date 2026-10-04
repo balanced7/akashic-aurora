@@ -97,6 +97,15 @@ ANSWERABLE = frozenset({"chat", "request", "question", "handoff", "nudge", "info
 # The API client already has a socket timeout (L0), but we add a wall-clock deadline
 # via threading so even a stuck stream can't block the main loop beyond this window.
 from core.comm.timescale import scaled as _scaled
+
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+        return python_launcher()
+    except Exception:
+        return "py"
 REPLY_TIMEOUT_SEC = _scaled(600)   # 10 min; drill-shrinkable (AKASHIC_TIMEOUT_MULTIPLIER)
 # T018: explicit completion headroom. v4-pro is a REASONING model -- with no explicit cap the
 # provider default gets eaten by internal reasoning, and a long tool turn wraps up in a short
@@ -654,7 +663,7 @@ def _directive_line(agent_id: str) -> str:
             return f"DIRECTIVE: {body}{suffix}"
     except Exception:
         pass
-    return "DIRECTIVE: none active -- check the ledger: py agent_cli.py task list"
+    return f"DIRECTIVE: none active -- check the ledger: {_pyl()} agent_cli.py task list"
 
 
 def _siblings_for_runner(agent_id: str) -> str:

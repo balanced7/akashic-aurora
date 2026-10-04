@@ -88,7 +88,9 @@ def test_g3_pytest_family_forces_isolation_env(monkeypatch):
 
     monkeypatch.setattr(dc.subprocess, "run", fake_run)
     _tb().run_command("py -m pytest tests/test_t073_wake_longlived.py -q", timeout=300)
-    assert seen["argv"][0:3] == ["py", "-m", "pytest"], "shell=False argv split (G2)"
+    from core.comm.toolbox import _is_python
+    assert _is_python(seen["argv"][0]) and seen["argv"][1:3] == ["-m", "pytest"], \
+        "shell=False argv split (G2)"
     assert (seen["env"] or {}).get("_AISETUP_TEST_ISOLATED") == "1", \
         "G3: an unattended verify run must never touch live backends"
 
