@@ -141,3 +141,15 @@ file, re-run `uv run python tooling-upgrade/certify.py <last DONE goal>`, then c
   question: is this pair a non-loosening? Rounds 1-3 established that empirically for this
   argv (the dropped -q directly follows `-m pytest`; at verbosity -2 only the summary line is
   lost).
+- **D-G5-3 (the G3 stretch ratchet in G5).** G5's checks never ran `assert-ratchet G3`. The G7
+  dry run found that G5's new code had raised 8 families: ARG +3, BLE +1, D +38, PL +27, PTH +10,
+  S +6, T20 +12, TRY +1 versus 17ea7e48, where the ratchet passes. G5.stretch-ratchet and
+  G7.stretch-ratchet were registered first (99f44f23). Real fixes (docstrings, pathlib, named
+  constants, helper splits, narrowed except, module imports) took every family to its G3 count
+  or below except S and T20, whose remaining findings the G5 mandate itself requires. The prek
+  stage must spawn prek, and the certificate must print CI-replay evidence. Those take §12
+  suppressions with a rule and a reason: 2 x `noqa: S603` (threat-model reasons, as G3.P3
+  prescribes for S) and 13 x `noqa: T201` on the CLI output lines G5 added (the rationale the
+  scripts/** T20 ignore records: these programs print to their user by design). They are the
+  first T201/S603 noqa in the repo, listed in SUPPRESSIONS.md (780 rows, within T4) for the
+  operator's review. The ratchet now passes: ARG 1685, D 16513, PL 7746, S 1498, T20 3967.
