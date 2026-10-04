@@ -129,3 +129,7 @@ file, re-run `uv run python tooling-upgrade/certify.py <last DONE goal>`, then c
   Round-2 verifier blocking B1 narrowed the rule: the dropped flags must be pytest's own (not
   `git diff --quiet` or `grep -v`, not an option's value as in `-k -q`), and every key but id
   and cmd, timeout_s included, must match.
+  Round 3 (blocking: `uv run --with pytest git ...`, `-m pytest` inside `python -c`, `pytest.sh`)
+  closed the rule: pytest is recognised only by an exact launch prefix (PYTEST_LAUNCHERS). The
+  supersede mechanism was new work after G5.P2 passed, and its own verify loop used rounds 1-2
+  (FAIL, FAIL); the next verifier is that loop's third and last round under section 9.3.
