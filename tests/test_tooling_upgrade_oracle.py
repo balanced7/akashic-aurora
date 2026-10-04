@@ -766,27 +766,76 @@ def test_exclusion_entries_apply_to_pyproject_only():
     assert O.only_in_exclusions("docs/notes.toml", _PYPROJECT) == (set(), set())
 
 
-_STAMP_DIFF = [
-    "diff --git a/docs/PHYSICS.md b/docs/PHYSICS.md",
-    "--- a/docs/PHYSICS.md",
-    "+++ b/docs/PHYSICS.md",
-    "@@ -7 +7 @@",
-    "-> Derived at 82d5ab2f. A bound you discover by collision",
-    "+> Derived at 0dc8e086. A bound you discover by collision",
-]
+_PHYS = "# Physics\n\n> Derived at 82d5ab2f. A bound you discover\n\nbody\n"
+
+
+def _stamped_repo(tmp_path: Path) -> Path:
+    """Return a git repo whose HEAD holds docs/PHYSICS.md and docs/other.md."""
+    (tmp_path / "docs").mkdir()
+    (tmp_path / "docs" / "PHYSICS.md").write_text(_PHYS, encoding="utf-8")
+    (tmp_path / "docs" / "other.md").write_text("x\n", encoding="utf-8")
+    env_git = ("-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false")
+    O.git("init", "-q", cwd=tmp_path)
+    O.git("add", "-A", cwd=tmp_path)
+    O.git(*env_git, "commit", "-q", "-m", "c", cwd=tmp_path)
+    return tmp_path
+
+
+def _edit(repo: Path, change: str) -> None:
+    phys = repo / "docs" / "PHYSICS.md"
+    if change == "stamp":
+        phys.write_text(_PHYS.replace("82d5ab2f", "0dc8e0861"), encoding="utf-8")
+    elif change == "prose":
+        phys.write_text(_PHYS.replace("82d5ab2f. A bound", "0dc8e086. A limit"), encoding="utf-8")
+    elif change == "moved":
+        phys.write_text(
+            _PHYS.replace(
+                "> Derived at 82d5ab2f. A bound you discover\n\nbody",
+                "body\n\n> Derived at 0dc8e086. A bound you discover",
+            ),
+            encoding="utf-8",
+        )
+    elif change == "no-eol":
+        phys.write_text(_PHYS.replace("82d5ab2f", "0dc8e086").rstrip("\n"), encoding="utf-8")
+    elif change == "mode":
+        phys.write_text(_PHYS.replace("82d5ab2f", "0dc8e086"), encoding="utf-8")
+        phys.chmod(0o755)
+    elif change == "other":
+        phys.write_text(_PHYS.replace("82d5ab2f", "0dc8e086"), encoding="utf-8")
+        (repo / "docs" / "other.md").write_text("y\n", encoding="utf-8")
+    elif change == "rename":
+        (repo / "docs" / "other.md").rename(repo / "docs" / "moved.md")
+    elif change == "venv-link":  # what drill and replay trees add; `**/.venv/` misses a link
+        (repo / ".venv").symlink_to(repo / "docs", target_is_directory=True)
+    elif change == "new":
+        (repo / "docs" / "new.md").write_text("n\n", encoding="utf-8")
 
 
 @pytest.mark.parametrize(
-    ("diff", "ok"),
+    ("change", "ok"),
     [
-        (_STAMP_DIFF, True),
-        ([*_STAMP_DIFF[:-1], "+> Derived at 0dc8e086. A different sentence"], False),  # prose changed
-        ([*_STAMP_DIFF, "@@ -9 +8 @@", "----"], False),  # a removed `---` line is content
-        ([*_STAMP_DIFF, "@@ -9 +9 @@", "-x", "+y"], False),  # any other change
-        (_STAMP_DIFF[:4], False),  # no content change at all
-        (["diff --git a/x.png b/x.png", "Binary files a/x.png and b/x.png differ"], False),
+        ("stamp", True),
+        ("prose", False),
+        ("moved", False),
+        ("no-eol", False),
+        ("mode", False),
+        ("other", False),
+        ("rename", False),
+        ("new", False),
+        ("venv-link", True),
     ],
 )
-def test_stamp_only_accepts_nothing_but_the_sha(*, diff: list[str], ok: bool):
-    """The stamp tolerance accepts a diff only when the derivation SHA is all that changed."""
-    assert certify.stamp_only(diff) is ok
+@pytest.mark.parametrize("cached", [False, True])
+def test_stamp_only_accepts_nothing_but_the_stamp_sha(tmp_path: Path, *, change: str, ok: bool, cached: bool):
+    """Only a changed derivation SHA in docs/PHYSICS.md is tolerated; files, not diff text, are compared."""
+    repo = _stamped_repo(tmp_path)
+    _edit(repo, change)
+    if cached:
+        O.git("add", "-A", "--", ".", ":(exclude).venv", cwd=repo)  # as the replay stages
+    assert (certify.stamp_only_problems(repo, "HEAD", cached=cached) == []) is ok
+
+
+def test_an_escaped_exclusion_entry_discounts_nothing():
+    """With any backslash in pyproject.toml, parsed entries may differ from their raw text: fail closed."""
+    text = '[tool.ruff]\nextend-exclude = ["research\\\\a\\\\b.py"]\n[tool.poe.tasks]\nx = "python research/a/b.py"\n'
+    assert O.only_in_exclusions("pyproject.toml", text) == (set(), set())

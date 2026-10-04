@@ -570,7 +570,10 @@ def _exclusion_entries(text: str) -> list[str]:
 
 def only_in_exclusions(rel: str, text: str) -> tuple[set[str], set[str]]:
     """Path and dotted tokens of `text` whose every occurrence is an exclusion-list entry."""
-    if rel != "pyproject.toml":
+    if rel != "pyproject.toml" or "\\" in text:
+        # Every TOML escape and line continuation needs a backslash; without one, each parsed
+        # entry IS its raw spelling, so counting parsed entries against raw text is exact. With
+        # one, a parsed entry could "use up" a real mention elsewhere: discount nothing.
         return set(), set()
     entries = _exclusion_entries(text)
     if not entries:
