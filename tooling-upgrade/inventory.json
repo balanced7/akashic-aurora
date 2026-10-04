@@ -617,7 +617,7 @@
   "research/reviewed/origin-prelog-2026-04-11/dump_april_redis.py",
   "research/reviewed/origin-prelog-2026-04-11/extract_opencode.py"
  ],
- "commit": "2ca34b5677fa55ac59269dce203bf67b5e9d3ead",
+ "commit": "d726ee3bdf7ca5a31e9b504c5aa1c3d674c34e09",
  "counts": {
   "ARCHIVAL": 261,
   "RUNTIME": 360,
