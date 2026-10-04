@@ -35,10 +35,9 @@ def test_http_entry_point_serves_on_the_requested_port(monkeypatch: pytest.Monke
     monkeypatch.setattr(subprocess, "Popen", subprocess.Popen)
     monkeypatch.setattr(sys, "stdout", sys.stdout)
     monkeypatch.setattr(sys, "path", list(sys.path))
-    if "AKASHIC_SEAT_DOOR" in os.environ:
-        monkeypatch.setenv("AKASHIC_SEAT_DOOR", os.environ["AKASHIC_SEAT_DOOR"])
-    else:
-        monkeypatch.delenv("AKASHIC_SEAT_DOOR", raising=False)
+    # setenv records the prior state (value or absence) and restores it; delenv on an absent
+    # variable records nothing, and the door's setdefault would then outlive this test
+    monkeypatch.setenv("AKASHIC_SEAT_DOOR", os.environ.get("AKASHIC_SEAT_DOOR", "mcp"))
 
     runpy.run_path(str(SCRIPT), run_name="__main__")
 
