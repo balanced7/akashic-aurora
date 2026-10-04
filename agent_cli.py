@@ -281,7 +281,8 @@ def cmd_boot(args):
     # covers all three. A session whose stamp names someone else is refused by name.
     try:
         from core.comm import seat_identity as _si
-        _sid = os.getenv("CLAUDE_CODE_SESSION_ID") or os.getenv("CLAUDE_SESSION_ID") or ""
+        from core.coord.session_id import ambient_session_id as _amb_sid
+        _sid = _amb_sid()[0]
         _chk = _si.subject_check(args.agent_id, session_id=_sid,
                                  binding_dir=os.getenv("AKASHIC_SEAT_BINDING_DIR") or None)
     except Exception:
@@ -6760,7 +6761,8 @@ def cmd_bifrost_standby(args):
                "BIFROST_WAKE_ORIGIN": "harness"}
         return subprocess.run(standby_listener_argv(agent_id, session_id, floor), env=env).returncode
 
-    session = args.session or os.getenv("CLAUDE_CODE_SESSION_ID") or os.getenv("CLAUDE_SESSION_ID") or ""
+    from core.coord.session_id import ambient_session_id as _amb_sid
+    session = args.session or _amb_sid()[0]
     try:   # S2 (T420): the LAUNCHER declares this session expected-up, out of band of the
         #    listener it is about to parent -- the daemon's resume-on-deaf rung reads it.
         from core.comm import resume_on_deaf as _rod
@@ -7310,7 +7312,11 @@ def cmd_seat_identity(args) -> int:
     every hook silently called it "claude" -- the conductor. This binds it per session instead.
     """
     from core.comm import seat_identity as si
-    sid = (args.session or os.environ.get("CLAUDE_CODE_SESSION_ID")
+    # BIFROST_INCARNATION stays an EXPLICIT extra fallback rather than folding into the
+    # shared resolver: in the runners it is a process incarnation, not a Claude session,
+    # and quietly widening the shared chain would give it that second meaning everywhere.
+    from core.coord.session_id import ambient_session_id as _amb_sid
+    sid = (args.session or _amb_sid()[0]
            or os.environ.get("BIFROST_INCARNATION") or "").strip()
     if not sid:
         print("[seat-identity] no session id -- pass --session <uuid> "

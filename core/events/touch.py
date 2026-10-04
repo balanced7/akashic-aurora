@@ -133,7 +133,8 @@ def _session_of(payload: Dict[str, Any]) -> tuple:
 def _agent_of() -> str:
     try:
         from core.comm import seat_identity as _si
-        sid = os.getenv("CLAUDE_CODE_SESSION_ID") or ""
+        from core.coord.session_id import ambient_session_id
+        sid = ambient_session_id()[0]
         return _si.resolve(sid) if hasattr(_si, "resolve") else (os.getenv("AKASHIC_AGENT_ID") or "")
     except Exception:                                                     # noqa: BLE001
         return str(os.getenv("AKASHIC_AGENT_ID") or "")

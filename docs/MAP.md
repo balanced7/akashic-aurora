@@ -81,7 +81,7 @@ Class: reference
 | `event_index.py` | EventIndex (Slice V1) -- a Store-backed time index over the raw event firehose. | tests/test_event_index.py | GAP |  |
 | `event_log.py` | EventLog (Slice 1) -- capture raw cross-agent events on an append-only Ledger. | tests/test_event_log.py | GAP |  |
 | `event_query.py` | EventQuery (Slice 3) -- search and time-window the raw event firehose. | tests/test_event_query.py | GAP |  |
-| `touch.py` | touch.v1 -- what a seat actually touched, as one record the spine can join. | tests/test_touch_stats_v1.py | GAP | `AKASHIC_AGENT_ID`, `AKASHIC_TOUCH_DROPS_DIR`, `CLAUDE_CODE_SESSION_ID` |
+| `touch.py` | touch.v1 -- what a seat actually touched, as one record the spine can join. | tests/test_touch_stats_v1.py | GAP | `AKASHIC_AGENT_ID`, `AKASHIC_TOUCH_DROPS_DIR` |
 | `touch_stats.py` | W0.4 -- the instrument: what the touch stream costs, and what it covers. | tests/test_touch_stats_v1.py | GAP |  |
 
 ## core/signals/  (2 modules)
