@@ -133,3 +133,11 @@ file, re-run `uv run python tooling-upgrade/certify.py <last DONE goal>`, then c
   closed the rule: pytest is recognised only by an exact launch prefix (PYTEST_LAUNCHERS). The
   supersede mechanism was new work after G5.P2 passed, and its own verify loop used rounds 1-2
   (FAIL, FAIL); the next verifier is that loop's third and last round under section 9.3.
+  Round 3 also failed (a `-q` after `--` is a path). Three rounds failing on one criterion
+  triggers the phase Fallback (9.3). G5's written Fallback (experiments, zizmor ignores) does not
+  cover it, so the Fallback was derived: drop the general rule and pin each supersession
+  literally (certify.PINNED_SUPERSESSIONS: G5.hook-stage-test -> G5.hook-stage-test-summary,
+  both argvs token for token). No rule is left to bypass, so verification is one finite
+  question: is this pair a non-loosening? Rounds 1-3 established that empirically for this
+  argv (the dropped -q directly follows `-m pytest`; at verbosity -2 only the summary line is
+  lost).
