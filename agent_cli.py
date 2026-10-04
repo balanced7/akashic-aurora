@@ -10192,6 +10192,22 @@ def cmd_defer(args):
         return 0
     if getattr(args, "list", False):
         items = dq.pending()
+        if items:
+            # The queue is shared, so it lists the same for any id -- which is exactly why an
+            # UNKNOWN id must still be named as such: otherwise a typo'd seat reads the queue
+            # and looks legitimate (the empty-queue branch below learned this 2026-08-20).
+            try:
+                from core.comm.doctor import known_agents
+                roster = set(known_agents())
+            except Exception:                                           # noqa: BLE001
+                roster = set()
+            if roster and args.agent_id not in roster:
+                print(f"[defer] note: {args.agent_id!r} is UNKNOWN to the fleet roster "
+                      f"(known: {', '.join(sorted(roster)[:8])}"
+                      f"{' ...' if len(roster) > 8 else ''}) -- the shared queue follows")
+            elif not roster:
+                print(f"[defer] note: cannot confirm {args.agent_id!r} is a real seat -- the "
+                      f"fleet roster is unknown here -- the shared queue follows")
         if not items:
             # ABSENCE AND NONEXISTENCE MUST NOT RENDER IDENTICALLY. Until 2026-08-20 an unknown
             # seat's queue printed the same cheerful "queue empty" as a real one, so an
