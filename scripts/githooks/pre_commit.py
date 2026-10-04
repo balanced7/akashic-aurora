@@ -351,7 +351,7 @@ def ratchet_ok(baseline=None, live=None):
     if not base:
         return False, ("the guardrail baseline is EMPTY, so it ratchets nothing -- which is not "
                        "the same as clean. Populate it, or remove the gate deliberately.")
-    worse = []
+    worse, better = [], []
     for name, was in base.items():
         is_now = now.get(name, 0)
         if is_now == -1:
@@ -359,11 +359,28 @@ def ratchet_ok(baseline=None, live=None):
                          % name)
         elif is_now > was:
             worse.append("%s: %d -> %d violation(s)" % (name, was, is_now))
+        elif is_now < was:
+            better.append("%s: %d -> %d (%d slot(s) of slack)" % (name, was, is_now, was - is_now))
     if worse:
         return False, ("guardrail debt INCREASED:\n    " + "\n    ".join(worse) +
                        "\n  Fix it, or pay something else down first. To accept a deliberate "
                        "rise, update state/ci/guardrail_baseline.json in the same commit so the "
                        "increase is a RECORDED decision rather than a silent one.")
+    if better:
+        # A FALL IS NEWS, because the gate is weakest immediately after one. ratchet_ok only
+        # refuses a RISE, and re-baselining is deliberately manual -- an automatic tighten
+        # would let a transiently broken checker lock in a count nobody can reach again. The
+        # cost of that correct choice is that the second step has no prompt: measured
+        # 2026-10-03, check_session_resolvers sat at a baseline of 16 against a live 12 after
+        # four sites were migrated, so four new hand-rolled resolvers could have landed
+        # without the gate firing. It closed only because the author happened to re-read the
+        # number. Same genus as _count_violations' own warning about a baseline built from a
+        # wrong count: a baseline left ABOVE the truth is a rubber stamp by a different road.
+        return True, ("guardrail debt FELL:\n    " + "\n    ".join(better) +
+                      "\n  Re-baseline to keep the gate tight -- until you do, the slack above "
+                      "is room a future commit can fill silently. Clear those entries from "
+                      "state/ci/guardrail_baseline.json and the hook re-adopts them at today's "
+                      "count, so the number is measured rather than typed.")
     return True, ""
 
 
@@ -476,6 +493,11 @@ def main():
         sys.stderr.write("pre-commit BLOCKED: " + _r_msg + "\n  Emergency bypass: "
                          "`git commit --no-verify`.\n")
         return 1
+    if _r_msg:
+        # A PASSING ratchet can still have something to say, and until 2026-10-03 this message
+        # was computed and thrown away -- the caller read it only inside `if not _r_ok`. Debt
+        # falling is the one case where the gate is quietly weaker than it looks.
+        sys.stderr.write("pre-commit: " + _r_msg + "\n")
 
     rc, out = _comprehensibility_fast()
     if rc == 1:
