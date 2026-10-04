@@ -939,9 +939,11 @@ def git_status_set(tree: Path) -> set[str]:
 
 
 def written_paths(tree: Path, before: dict[str, int]) -> tuple[set[str], dict[str, int]]:
-    """Paths (tracked, or untracked and not ignored) written since `before` was taken, and the
-    new stamp. A write is a new path or a changed mtime: a rewrite with identical bytes is still
-    a side effect, which `git status` alone cannot see."""
+    """Return the paths written since `before` was taken, and the new stamp.
+
+    Paths are tracked, or untracked and not ignored. A write is a new path or a changed mtime:
+    a rewrite with identical bytes is still a side effect, which `git status` alone cannot see.
+    """
     out = run(["git", "ls-files", "-z", "--cached", "--others", "--exclude-standard"], cwd=tree).stdout
     now: dict[str, int] = {}
     for rel in filter(None, out.split("\0")):
@@ -2153,7 +2155,7 @@ def cmd_guardrails(args: argparse.Namespace) -> int:
         # one CI step per guardrail (G5.P3): the same g0 rule, held for the named checkers only
         unknown = sorted(set(args.only) - set(cur["checkers"]))
         if unknown:
-            print("GUARDRAILS: FAIL (no such checker: {})".format(", ".join(unknown)))
+            print("GUARDRAILS: FAIL (no such checker: {})".format(", ".join(unknown)))  # noqa: T201  # CLI output: the guardrails verdict line
             return 2
         cur = {"checkers": {k: v for k, v in cur["checkers"].items() if k in args.only}}
         base = {"checkers": {k: v for k, v in base["checkers"].items() if k in args.only}}

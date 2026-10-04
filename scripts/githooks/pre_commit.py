@@ -16,8 +16,10 @@ Install once per clone/worktree:  py scripts/githooks/install_git_hooks.py
 
 import os
 import re
+import shutil
 import subprocess
 import sys
+from pathlib import Path
 
 
 def _pyl() -> str:
@@ -99,32 +101,33 @@ def _comprehensibility_fast():
         return 0, ""  # guard crashed/slow -> fail open, per the policy in the docstring
 
 
-def _prek_executable():
-    """prek from the interpreter's own environment (the shim's `uv run` venv), else PATH."""
+def _prek_executable() -> str | None:
+    """Return prek from the interpreter's own environment (the shim's `uv run` venv), else PATH."""
     exe = "prek.exe" if os.name == "nt" else "prek"
-    beside = os.path.join(os.path.dirname(sys.executable), exe)
-    if os.path.exists(beside):
-        return beside
-    import shutil
-
+    beside = Path(sys.executable).parent / exe
+    if beside.exists():
+        return str(beside)
     return shutil.which("prek")
 
 
-def _prek_staged():
-    """The .pre-commit-config.yaml hooks (ruff, uv lock/export, toml/yaml/merge-conflict/large-file
-    checks, zizmor, actionlint) over the STAGED files, run by prek as one stage of this backstop
-    (tooling plan G5.P2). Never `prek install`: it would fight core.hooksPath, so prek is reached
-    only from here. The same crash-versus-finding policy as the comprehensibility gate: a finding
-    (prek exit 1, which includes a hook that rewrote a file) fails CLOSED; prek missing, a missing
-    config or a prek crash fails OPEN, and LOUDLY -- returned as rc 2 for main() to warn on."""
-    cfg = os.path.join(ROOT, ".pre-commit-config.yaml")
-    if not os.path.exists(cfg):
+def _prek_staged() -> tuple[int, str]:
+    """Run the .pre-commit-config.yaml hooks over the STAGED files, through prek.
+
+    The hooks are ruff, uv lock/export, toml/yaml/merge-conflict/large-file checks, zizmor and
+    actionlint; prek runs them as one stage of this backstop (tooling plan G5.P2). Never
+    `prek install`: it would fight core.hooksPath, so prek is reached only from here. The same
+    crash-versus-finding policy as the comprehensibility gate: a finding (prek exit 1, which
+    includes a hook that rewrote a file) fails CLOSED; prek missing, a missing config or a prek
+    crash fails OPEN, and LOUDLY -- returned as rc 2 for main() to warn on.
+    """
+    cfg = str(Path(ROOT) / ".pre-commit-config.yaml")
+    if not Path(cfg).exists():
         return 2, "the hook config is MISSING at " + cfg + " -- wiring defect: restore it.\n"
     prek = _prek_executable()
     if prek is None:
         return 2, "prek is MISSING (not in the environment, not on PATH): run `uv sync`.\n"
     try:
-        r = subprocess.run(
+        r = subprocess.run(  # noqa: S603  # argv is the resolved prek binary plus fixed flags and the repo's own config path; no user input reaches it
             [prek, "run", "--config", cfg, "--no-progress"],
             cwd=ROOT,
             capture_output=True,
@@ -132,8 +135,12 @@ def _prek_staged():
             encoding="utf-8",
             errors="replace",
             timeout=600,
+            check=False,
         )
-    except Exception as e:
+    # every way subprocess.run can crash: launch failures (OSError: not found, permission),
+    # bad argv (ValueError, incl. UnicodeError), TimeoutExpired and the other SubprocessErrors,
+    # a reader thread that cannot start (RuntimeError, Windows) and an output too big to hold
+    except (OSError, ValueError, RuntimeError, MemoryError, subprocess.SubprocessError) as e:
         return 2, f"prek did not run ({type(e).__name__}: {e}).\n"
     out = (r.stdout or "") + (r.stderr or "")
     return (r.returncode if r.returncode in (0, 1) else 2), out
@@ -513,14 +520,12 @@ def regenerate_derived(stage: bool = True):
 
 def main():
     ok, reason = check_staged(_staged_files(), os.getenv("AKASHIC_AGENT_ID"))
-    if not ok:
-        sys.stderr.write(reason + "\n")
-        return 1
 
     # ATTRIBUTION GATE (t384): in a seat context, git's author must be that seat. Runs
     # early and cheap -- a commit that would land under the wrong name should be refused
     # before any generator regenerates anything on its behalf.
-    ok, reason = check_author_matches_seat(os.getenv("AKASHIC_AGENT_ID"), _git_author_ident())
+    if ok:
+        ok, reason = check_author_matches_seat(os.getenv("AKASHIC_AGENT_ID"), _git_author_ident())
     if not ok:
         sys.stderr.write(reason + "\n")
         return 1
