@@ -34,7 +34,7 @@ try:
     from core.paths import repo_root as _rr
     BASE = _rr()
 except Exception:
-    BASE = Path(os.getenv("AI_SETUP", "E:\\AI-Setup"))
+    BASE = Path(__file__).resolve().parents[2]
 SNAP_DIR = BASE / "backups" / "snapshots"
 STORE_FILE = BASE / "session_logs" / "store_state.json"
 STORE_DB = BASE / "session_logs" / "store_state.db"
@@ -111,6 +111,15 @@ except Exception:
         REDIS_HOST, REDIS_PORT = "localhost", 16379
 
 
+def _alpha_checkout() -> str:
+    """The alpha twin's checkout, derived from this one (core.world.checkout_of)."""
+    try:
+        from core.world import checkout_of
+        return str(checkout_of("alpha"))
+    except Exception:
+        return "<alpha checkout>"
+
+
 def _assert_restore_is_consented(target_world: str):
     """A restore FLUSHES db0. Against prod that needs a human saying so, out loud.
 
@@ -142,7 +151,7 @@ def _assert_restore_is_consented(target_world: str):
         "  If prod is genuinely what you mean:\n"
         "      AKASHIC_RESTORE_PROD=yes-flush-production py scripts/ops/snapshot_knowledge.py restore <name>\n"
         "  To rehearse it safely, restore into a twin instead -- that is what they are for:\n"
-        "      cd E:/AI-Setup-Alpha && py scripts/ops/snapshot_knowledge.py restore <name>")
+        f"      cd {_alpha_checkout()} && py scripts/ops/snapshot_knowledge.py restore <name>")
 
 
 def _assert_planes_agree():
@@ -171,6 +180,8 @@ def _assert_planes_agree():
 def _redis():
     try:
         import redis
+        from core.foundation.redis_connection import ensure_redis_server
+        ensure_redis_server(REDIS_HOST, REDIS_PORT)   # starts the embedded server if that is ours
         c = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, db=0,
                         decode_responses=True, socket_connect_timeout=1.0)
         c.ping()

@@ -22,7 +22,10 @@ import sys
 import time
 from pathlib import Path
 
-BASE = Path(os.getenv("AI_SETUP", "E:\\AI-Setup"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from core.paths import data_root  # noqa: E402
+
+BASE = data_root()
 STORE_FILE = BASE / "session_logs" / "store_state.json"
 JSONL = BASE / "session_logs" / "learnings.jsonl"
 CHRONICLES = BASE / "chronicles"
@@ -56,6 +59,8 @@ TEST_STREAMS = ["agent:events", "agent:recon_test_agent:events"]
 
 def _redis():
     import redis
+    from core.foundation.redis_connection import ensure_redis_server
+    ensure_redis_server("localhost", REDIS_PORT)   # starts the embedded server if that is ours
     return redis.Redis(port=REDIS_PORT, decode_responses=True)
 
 

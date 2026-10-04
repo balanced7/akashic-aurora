@@ -423,8 +423,40 @@ class HybridLedger(Ledger):
         return file_id
 
     def consume(self, stream, after_id="0", count=100, block_ms=0):
+        if self.redis_available:
+            self._backfill_once(stream)
         backend = self._redis if self.redis_available else self._file
         return backend.consume(stream, after_id=after_id, count=count, block_ms=block_ms)
+
+    _backfilled: set = set()
+
+    def _backfill_once(self, stream) -> None:
+        """EMBEDDED backend only: a stream the file tier holds and Redis has never seen gets
+        its history copied across once. A checkout that ran without any Redis kept its events
+        in files alone, and reads here go Redis-first -- so the first embedded boot would
+        otherwise hide every earlier event. Never on an `external` Redis: there a missing
+        stream may have been removed on purpose, and a read must not resurrect it."""
+        if stream in HybridLedger._backfilled:
+            return
+        HybridLedger._backfilled.add(stream)
+        try:
+            from core.foundation.embedded_redis import configured_backend
+            if configured_backend() != "embedded":
+                return
+            client = self._redis._client
+            if client.exists(stream):
+                return
+            # One process copies; the rest see the lock and skip (the NX guard is the dedup).
+            if not client.set(f"__aurora_backfill__:{stream}", "1", nx=True, ex=600):
+                return
+            records = self._file._read_records(stream)
+            if records:
+                pipe = client.pipeline(transaction=False)
+                for rec in records:
+                    pipe.xadd(stream, {"data": json.dumps(rec.get("event"))})
+                pipe.execute()
+        except Exception as e:
+            logger.warning(f"HybridLedger backfill of {stream!r} skipped: {e}")
 
     def close(self):
         if self._redis is not None:
