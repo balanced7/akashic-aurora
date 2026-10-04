@@ -140,26 +140,22 @@ def checks_history_problems() -> list[str]:
 
 
 # pytest's output-verbosity flags: deleting one changes what pytest prints, never which tests
-# run or the exit code. They are the only tokens a superseding check may drop, and only from a
-# pytest command (in other programs the same spelling can change semantics: `git diff --quiet`
-# sets the exit code, `grep -v` inverts the match).
+# run or the exit code (no conftest or plugin in this repo reads the verbosity). They are the
+# only tokens a superseding check may drop, and only from a command that is pytest by its exact
+# launch prefix: deciding "this argv runs pytest" any other way is open-ended (`uv run --with
+# pytest git diff --quiet`, `-m pytest` inside `python -c`, a `pytest.sh`), and outside pytest
+# the same spellings change semantics (`git diff --quiet` sets the exit code, `grep -v` inverts).
 VERBOSITY_FLAGS = frozenset({"-q", "--quiet", "-v", "--verbose"})
+# The launch prefixes the checks files use, matched token for token; nothing else is pytest here.
+PYTEST_LAUNCHERS = (("{python}", "-m", "pytest"), ("uv", "run", "--frozen", "python", "-m", "pytest"))
 
 
 def _pytest_start(argv: Sequence[str]) -> int:
-    """Index of the first token pytest itself parses (-1 if `argv` does not run pytest): after
-    `-m pytest`, after a `pytest` executable at argv[0], or after `uv run [--opt ...] pytest`."""
-    for i in range(len(argv) - 1):
-        if argv[i] == "-m" and argv[i + 1] == "pytest":
-            return i + 2
-    if argv and Path(argv[0]).stem in ("pytest", "py.test"):
-        return 1
-    if argv[:2] == ["uv", "run"]:
-        j = 2
-        while j < len(argv) and argv[j].startswith("--") and "=" not in argv[j]:
-            j += 1  # uv's own value-less switches (--frozen, --locked, ...)
-        if j < len(argv) and argv[j] == "pytest":
-            return j + 1
+    """Index of the first token pytest itself parses, or -1 unless `argv` starts with one of
+    PYTEST_LAUNCHERS exactly."""
+    for prefix in PYTEST_LAUNCHERS:
+        if tuple(argv[: len(prefix)]) == prefix:
+            return len(prefix)
     return -1
 
 

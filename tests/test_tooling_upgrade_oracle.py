@@ -627,10 +627,11 @@ def test_written_paths_sees_a_rewrite_with_identical_bytes(tmp_path: Path):
     assert written == {"DOC.md", "new.txt"}
 
 
+_UVPY = ["uv", "run", "--frozen", "python", "-m", "pytest"]
 _OLD_CHECK: dict[str, Any] = {
     "id": "G9.t",
     "phase": "G9.P1",
-    "cmd": ["uv", "run", "pytest", "-q", "-p", "no:randomly", "tests/x.py"],
+    "cmd": [*_UVPY, "-q", "-p", "no:randomly", "tests/x.py"],
     "expect": 0,
     "expect_stdout": "passed",
 }
@@ -638,7 +639,7 @@ _LEDGER = "- **D-G9-1.** G9.t2 supersedes G9.t: the registered cmd doubled -q.\n
 
 
 def _new_check(**over: Any) -> dict[str, Any]:
-    new = {**_OLD_CHECK, "id": "G9.t2", "cmd": ["uv", "run", "pytest", "-p", "no:randomly", "tests/x.py"]}
+    new = {**_OLD_CHECK, "id": "G9.t2", "cmd": [*_UVPY, "-p", "no:randomly", "tests/x.py"]}
     new.update(over)
     return new
 
@@ -652,9 +653,9 @@ def test_supersede_accepts_a_dropped_verbosity_flag():
 @pytest.mark.parametrize(
     ("over", "ledger", "old_at", "new_at", "needle"),
     [
-        ({"cmd": ["uv", "run", "pytest", "-q", "-p", "no:randomly"]}, _LEDGER, 0, 1, "verbosity"),
-        ({"cmd": ["uv", "run", "pytest", "-q", "-p", "no:randomly", "tests/x.py"]}, _LEDGER, 0, 1, "verbosity"),
-        ({"cmd": ["uv", "run", "pytest", "-p", "no:randomly", "tests/x.py", "-x"]}, _LEDGER, 0, 1, "verbosity"),
+        ({"cmd": [*_UVPY, "-q", "-p", "no:randomly"]}, _LEDGER, 0, 1, "verbosity"),
+        ({"cmd": [*_UVPY, "-q", "-p", "no:randomly", "tests/x.py"]}, _LEDGER, 0, 1, "verbosity"),
+        ({"cmd": [*_UVPY, "-p", "no:randomly", "tests/x.py", "-x"]}, _LEDGER, 0, 1, "verbosity"),
         ({"expect_stdout": "."}, _LEDGER, 0, 1, "expect_stdout differs"),
         ({"expect": 1}, _LEDGER, 0, 1, "expect differs"),
         ({"phase": "G9.P2"}, _LEDGER, 0, 1, "phase differs"),
@@ -679,7 +680,23 @@ def test_supersede_rejects_anything_but_a_recorded_verbosity_drop(
     [
         (["git", "diff", "--quiet", "HEAD"], ["git", "diff", "HEAD"]),  # --quiet sets git's exit code
         (["grep", "-v", "-r", "TODO", "src"], ["grep", "-r", "TODO", "src"]),  # -v inverts grep
-        (["uv", "run", "pytest", "-k", "-q", "tests"], ["uv", "run", "pytest", "-k", "tests"]),  # -q is -k's value
+        ([*_UVPY, "-k", "-q", "tests"], [*_UVPY, "-k", "tests"]),  # -q is -k's value
+        ([*_UVPY, "-p", "-q", "tests"], [*_UVPY, "-p", "tests"]),  # -q is -p's value
+        ([*_UVPY, "tests", "--", "-q"], [*_UVPY, "tests", "--"]),  # after --, -q is a path
+        (["uv", "run", "pytest", "-q", "tests"], ["uv", "run", "pytest", "tests"]),  # not an exact launcher
+        (["pytest.sh", "--quiet"], ["pytest.sh"]),  # a name is not a launcher
+        (
+            ["uv", "run", "--with", "pytest", "git", "diff", "--quiet", "HEAD"],
+            ["uv", "run", "--with", "pytest", "git", "diff", "HEAD"],
+        ),
+        (
+            ["uv", "run", "--with", "pytest", "python", "check.py", "-v"],
+            ["uv", "run", "--with", "pytest", "python", "check.py"],
+        ),
+        (
+            ["python", "-c", "import sys; sys.exit('-q' in sys.argv)", "-m", "pytest", "-q"],
+            ["python", "-c", "import sys; sys.exit('-q' in sys.argv)", "-m", "pytest"],
+        ),
         (["uv", "run", "-q", "pytest", "tests"], ["uv", "run", "pytest", "tests"]),  # not pytest's own flag
         (["python", "-q", "-m", "pytest", "tests"], ["python", "-m", "pytest", "tests"]),  # python's -q
     ],
@@ -710,3 +727,14 @@ def test_supersessions_reject_an_unknown_target_and_a_second_successor(tmp_path:
     valid, problems = certify.supersessions("G9", {"check": [_new_check(supersedes="G9.nope")]})
     assert valid == {}
     assert any("unknown check G9.nope" in p for p in problems)
+
+
+@pytest.mark.parametrize(
+    "launcher", [["{python}", "-m", "pytest"], ["uv", "run", "--frozen", "python", "-m", "pytest"]]
+)
+def test_supersede_accepts_both_exact_pytest_launchers(launcher: list[str]):
+    import certify
+
+    old = {**_OLD_CHECK, "cmd": [*launcher, "-q", "-p", "no:randomly", "tests/x.py", "-k", "y", "-v"]}
+    new = {**_OLD_CHECK, "id": "G9.t2", "cmd": [*launcher, "-p", "no:randomly", "tests/x.py", "-k", "y"]}
+    assert certify.supersede_verdict(old, new, _LEDGER, 0, 1) == []
