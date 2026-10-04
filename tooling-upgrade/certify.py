@@ -968,6 +968,11 @@ PINNED_REPLAY_STAMPS: dict[str, tuple[str, bytes, bytes]] = {
 }
 
 
+# gen_physics_sheet's output: its "> Derived at <HEAD>." stamp can never equal the committed one
+# in a re-run, so an exact comparison can never pass on it; gen_physics_sheet --check judges it.
+HEAD_STAMPED_DOC = "docs/PHYSICS.md"
+
+
 def same_tree(tree: Path, sha: str) -> bool:
     """Return True when the index of `tree` equals commit `sha` exactly (git exit 0, nothing else)."""
     return run(["git", "diff", "--cached", "--quiet", "--no-ext-diff", "--no-textconv", sha], cwd=tree).returncode == 0
@@ -1771,9 +1776,10 @@ def _generators() -> list[str]:
 def cmd_assert_generated_docs(_args: argparse.Namespace) -> int:
     """Check that the generated docs are current at HEAD (G5.P4).
 
-    A generator with a --check is judged by it: its own freshness verdict, which accounts for its
-    own HEAD stamp (gen_physics_sheet). A generator without one is re-run in a throwaway tree,
-    and its rewrite must change nothing at all: no byte, mode or new file (D-G5-4).
+    Each generator's --check (where it has one) passes, and every generator re-run in a
+    throwaway tree changes nothing at all -- no byte, mode or new file -- except
+    HEAD_STAMPED_DOC, whose stamp names the HEAD it ran at and which its own --check judges
+    (D-G5-4).
     """
     problems: list[str] = []
     gens = _generators()
@@ -1782,18 +1788,18 @@ def cmd_assert_generated_docs(_args: argparse.Namespace) -> int:
         for g in gens:
             src = t / "scripts" / "generators" / f"{g}.py"
             if "--check" in src.read_text(encoding="utf-8"):
-                # the generator's own freshness verdict (it knows its own HEAD stamp, if any)
                 r = run([sys.executable, str(src), "--check"], cwd=t, env=env, timeout=600)
                 print(f"{g} --check: rc={r.returncode:d}")  # noqa: T201  # CLI output: each generator's exit code is this check's evidence
                 if r.returncode != 0:
                     problems.append(f"{g} --check exits {r.returncode:d}")
-                continue
             r = run([sys.executable, str(src)], cwd=t, env=env, timeout=600)
             print(f"{g} (write): rc={r.returncode:d}")  # noqa: T201  # CLI output: each generator's exit code is this check's evidence
             if r.returncode != 0:
                 problems.append(f"{g} exits {r.returncode:d}")
-        # no --check: its rewrite must change nothing at all (bytes, modes, new files)
-        st = run(["git", "status", "--porcelain", "--untracked-files=all", "--", ".", ":(exclude).venv"], cwd=t)
+        # every rewrite must change nothing at all (bytes, modes, new files), except PHYSICS.md,
+        # whose stamp names the HEAD it ran at: it is judged by gen_physics_sheet --check above
+        cmd = ["git", "status", "--porcelain", "--untracked-files=all", "--", "."]
+        st = run([*cmd, ":(exclude).venv", f":(exclude){HEAD_STAMPED_DOC}"], cwd=t)
         if st.returncode != 0:
             problems.append("git status failed in the drill tree")
         problems.extend(f"stale generated output: {ln}" for ln in st.stdout.splitlines() if ln.strip())

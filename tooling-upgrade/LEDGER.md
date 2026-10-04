@@ -158,9 +158,12 @@ file, re-run `uv run python tooling-upgrade/certify.py <last DONE goal>`, then c
   rounds in a row: prefix-skipped diff headers, then diff-text parsing (renames, modes, binary),
   then decoded-text comparison (CR, invalid bytes). Under 9.3 that is the Fallback; G5's written
   one does not cover it, so it was derived: no general tolerance at all.
-  - assert-generated-docs judges a generator with a `--check` by that `--check`, its own freshness
-    verdict, which accounts for its own HEAD stamp. A generator without one is re-run in a drill
-    tree, and `git status` there must be empty.
+  - assert-generated-docs runs every generator's `--check` (where it has one) and re-runs every
+    generator in write mode in a drill tree. `git status` there must then be empty except for
+    docs/PHYSICS.md, which gen_physics_sheet --check judges. A first version judged every
+    `--check` generator by its `--check` alone. The fallback verifier showed that lost
+    byte-exact detection for five generators that never stamp (their `--check`s strip or
+    normalise newlines), so the exclusion is now that one file.
   - The replay proof requires git's exact tree equality. The one commit that cannot replay
     exactly, eec0d183 (PHYSICS generated at c0e78d38, two commits before it landed), is pinned
     in certify.PINNED_REPLAY_STAMPS. It passes only if swapping its one literal stamp
