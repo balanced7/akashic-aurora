@@ -625,3 +625,49 @@ def test_written_paths_sees_a_rewrite_with_identical_bytes(tmp_path: Path):
     (tmp_path / "new.txt").write_text("n\n", encoding="utf-8")
     written, _ = O.written_paths(tmp_path, stamps)
     assert written == {"DOC.md", "new.txt"}
+
+
+_OLD_CHECK: dict[str, Any] = {
+    "id": "G9.t",
+    "phase": "G9.P1",
+    "cmd": ["uv", "run", "pytest", "-q", "-p", "no:randomly", "tests/x.py"],
+    "expect": 0,
+    "expect_stdout": "passed",
+}
+_LEDGER = "- **D-G9-1.** G9.t2 supersedes G9.t: the registered cmd doubled -q.\n"
+
+
+def _new_check(**over: Any) -> dict[str, Any]:
+    new = {**_OLD_CHECK, "id": "G9.t2", "cmd": ["uv", "run", "pytest", "-p", "no:randomly", "tests/x.py"]}
+    new.update(over)
+    return new
+
+
+def test_supersede_accepts_a_dropped_verbosity_flag():
+    import certify
+
+    assert certify.supersede_verdict(_OLD_CHECK, _new_check(), _LEDGER, 0, 1) == []
+
+
+@pytest.mark.parametrize(
+    ("over", "ledger", "old_at", "new_at", "needle"),
+    [
+        ({"cmd": ["uv", "run", "pytest", "-q", "-p", "no:randomly"]}, _LEDGER, 0, 1, "verbosity"),
+        ({"cmd": ["uv", "run", "pytest", "-q", "-p", "no:randomly", "tests/x.py"]}, _LEDGER, 0, 1, "verbosity"),
+        ({"cmd": ["uv", "run", "pytest", "-p", "no:randomly", "tests/x.py", "-x"]}, _LEDGER, 0, 1, "verbosity"),
+        ({"expect_stdout": "."}, _LEDGER, 0, 1, "expect_stdout differs"),
+        ({"expect": 1}, _LEDGER, 0, 1, "expect differs"),
+        ({"phase": "G9.P2"}, _LEDGER, 0, 1, "phase differs"),
+        ({}, "no decision here\n", 0, 1, "LEDGER"),
+        ({"id": "G9.t-v2"}, "- G9.t-v2 is the new check\n", 0, 1, "LEDGER"),
+        ({}, _LEDGER, 1, 1, "later commit"),
+        ({}, _LEDGER, 0, -1, "later commit"),
+    ],
+)
+def test_supersede_rejects_anything_but_a_recorded_verbosity_drop(
+    over: dict[str, Any], ledger: str, old_at: int, new_at: int, needle: str
+):
+    import certify
+
+    problems = certify.supersede_verdict(_OLD_CHECK, _new_check(**over), ledger, old_at, new_at)
+    assert any(needle in p for p in problems), problems

@@ -139,6 +139,84 @@ def checks_history_problems() -> list[str]:
     return problems
 
 
+# Output-verbosity flags: deleting one changes what a command prints, never what it runs or
+# its exit code. They are the only tokens a superseding check may drop from the command.
+VERBOSITY_FLAGS = frozenset({"-q", "--quiet", "-v", "--verbose"})
+
+
+def _drops_only(old: Sequence[str], new: Sequence[str], droppable: frozenset[str]) -> bool:
+    """True iff `new` is `old` with at least one token deleted, every deleted token droppable."""
+    i = 0
+    for tok in old:
+        if i < len(new) and new[i] == tok:
+            i += 1
+        elif tok not in droppable:
+            return False
+    return i == len(new) and len(new) < len(old)
+
+
+def supersede_verdict(old: dict[str, Any], new: dict[str, Any], ledger: str, old_at: int, new_at: int) -> list[str]:
+    """Problems with `new` superseding `old` (empty = valid). A check registered with a defect no
+    tree can satisfy is never edited (append-only); a check appended later may supersede it if it
+    keeps the old phase, expect and expect_stdout, drops only verbosity flags from the command,
+    was registered in a later commit, and a LEDGER.md decision line names both ids."""
+    tag = "{} supersedes {}".format(new["id"], old["id"])
+    problems = [f"{tag}: {k} differs" for k in ("phase", "expect", "expect_stdout") if old.get(k) != new.get(k)]
+    old_cmd: object = old["cmd"]
+    new_cmd: object = new["cmd"]
+    if not (isinstance(old_cmd, list) and isinstance(new_cmd, list)):
+        problems.append(f"{tag}: both commands must be argv lists")
+    elif not _drops_only(
+        [str(t) for t in cast("list[object]", old_cmd)],
+        [str(t) for t in cast("list[object]", new_cmd)],
+        VERBOSITY_FLAGS,
+    ):
+        problems.append(f"{tag}: cmd may only drop verbosity flags {sorted(VERBOSITY_FLAGS)}")
+    if not 0 <= old_at < new_at:
+        problems.append(f"{tag}: not registered in a later commit than the check it supersedes")
+
+    def names(check_id: str, line: str) -> bool:  # a whole id, not a prefix of a longer one
+        return re.search(r"(?<![\w.-])" + re.escape(check_id) + r"(?![\w.-])", line) is not None
+
+    if not any(names(old["id"], ln) and names(new["id"], ln) for ln in ledger.splitlines()):
+        problems.append(f"{tag}: no LEDGER.md decision line names both ids")
+    return problems
+
+
+def _first_registered(goal: str, check_id: str) -> int:
+    """Index (in commit order) of the first commit of checks/<goal>.toml that holds `check_id`;
+    -1 if no commit does (an uncommitted check is never registered)."""
+    rel = f"tooling-upgrade/checks/{goal}.toml"
+    for i, sha in enumerate(git("log", "--format=%H", "--reverse", "--", rel, check=False).split()):
+        if any(c["id"] == check_id for c in load_checks(goal, sha).get("check", [])):
+            return i
+    return -1
+
+
+def supersessions(goal: str, data: dict[str, Any]) -> tuple[dict[str, str], list[str]]:
+    """{superseded id: superseding id} for the valid supersessions in `data`, and the problems."""
+    by_id = {c["id"]: c for c in data.get("check", [])}
+    ledger = (HERE / "LEDGER.md").read_text(encoding="utf-8")
+    valid: dict[str, str] = {}
+    problems: list[str] = []
+    for c in data.get("check", []):
+        target = c.get("supersedes")
+        if target is None:
+            continue
+        old = by_id.get(target)
+        if old is None:
+            problems.append("{} supersedes unknown check {}".format(c["id"], target))
+            continue
+        if target in valid:
+            problems.append(f"{target} is superseded twice")
+            continue
+        found = supersede_verdict(old, c, ledger, _first_registered(goal, target), _first_registered(goal, c["id"]))
+        problems += found
+        if not found:
+            valid[target] = c["id"]
+    return valid, problems
+
+
 def cmd_assert_checks_files(args: argparse.Namespace) -> int:
     tracked = set(git("ls-files", "tooling-upgrade/checks").split())
     problems = [f"{g} not committed" for g in GOALS if f"tooling-upgrade/checks/{g}.toml" not in tracked]
@@ -150,6 +228,11 @@ def cmd_assert_checks_files(args: argparse.Namespace) -> int:
         except (OSError, tomllib.TOMLDecodeError) as e:
             problems.append(f"{g} unparseable: {e}")
     problems += checks_history_problems()
+    for g in GOALS:
+        try:
+            problems += supersessions(g, load_checks(g))[1]
+        except (OSError, tomllib.TOMLDecodeError):
+            continue  # already reported as unparseable above
     for p in problems:
         print("  ", p)
     print("CHECKS FILES: %s" % ("G0-G7 committed, append-only" if not problems else "FAIL"))
@@ -1597,23 +1680,46 @@ def certify(goal: str, phase: str | None = None, drills: bool = False, tamper_on
             print(f"DRILLS-MISSED {missed:d}/{len(res):d}")
         print(f"RESULT: {goal} NOT CERTIFIED: G{n - 1:d} not certified; {goal} not started")
         return 1
+    superseded, sup_problems = supersessions(goal, data)
+    for p in sup_problems:
+        print("FAIL supersede --", p)
+        first_fail = first_fail or "supersede: " + p
     for c in checks:
         ok, why, out = run_check(c)
+        if c["id"] in superseded:
+            # still run and shown, never counted: its successor carries the criterion
+            print("SUPERSEDED {} by {} -- {} {}".format(c["id"], superseded[c["id"]], "pass" if ok else "fail", why))
+            continue
         passed += ok
         print("{} {} -- {}".format("PASS" if ok else "FAIL", c["id"], why), flush=True)
         if not ok:
             print("    " + "\n    ".join(out.strip().splitlines()[-6:]))
             first_fail = first_fail or "check {} ({})".format(c["id"], why)
+    counted = [c for c in checks if c["id"] not in superseded]
+    sup_note = (
+        " ({:d} superseded: {})".format(
+            len(checks) - len(counted),
+            ", ".join(f"{o} -> {n}" for o, n in superseded.items() if any(c["id"] == o for c in checks)),
+        )
+        if len(counted) < len(checks)
+        else ""
+    )
 
     if phase:
         # Phase self-check (plan 9: "certify.py G<n> --phase <id>"): that phase's pre-registered
         # checks only. T1-T7, the drills and the oracle belong to the goal-end certificate.
         print(
-            "PHASE {}: {:d}/{:d} PASS (worktree clean: {}, branch ok: {})".format(
-                phase, passed, len(checks), "yes" if worktree_clean() else "no", "yes" if on_branch() else "no"
+            "PHASE {}: {:d}/{:d} PASS{} (worktree clean: {}, branch ok: {})".format(
+                phase,
+                passed,
+                len(counted),
+                sup_note,
+                "yes" if worktree_clean() else "no",
+                "yes" if on_branch() else "no",
             )
         )
-        return 0 if checks and passed == len(checks) and worktree_clean() and on_branch() else 1
+        ok_all = counted and passed == len(counted) and first_fail is None
+        return 0 if ok_all and worktree_clean() and on_branch() else 1
     res = tamper(goal)
     t_fail = [t for t, (active, ok, _m) in res.items() if active and not ok]
     for t, (active, ok, msg) in res.items():
@@ -1671,7 +1777,7 @@ def certify(goal: str, phase: str | None = None, drills: bool = False, tamper_on
             "yes" if pushed() else "no",
         )
     )
-    print(f"CHECKS {passed:d}/{len(checks):d} PASS")
+    print(f"CHECKS {passed:d}/{len(counted):d} PASS{sup_note}")
     print(
         "TAMPER T1-T7 {}{}".format(
             "PASS" if not t_fail else "FAIL ({})".format(", ".join(t_fail)),
