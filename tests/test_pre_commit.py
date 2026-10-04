@@ -6,6 +6,7 @@ human commits (no AKASHIC_AGENT_ID). Hermetic: monkeypatch the lock check.
 Run: py -m pytest tests/test_pre_commit.py -q
 """
 
+import errno
 import os
 import subprocess
 import sys
@@ -182,9 +183,11 @@ def test_dead_gate_warns_but_does_not_block(monkeypatch, capsys):
 # finding fails CLOSED, a missing or crashing prek fails OPEN and LOUD.
 
 _real_prek_staged = pre_commit._prek_staged  # _hold_every_gate_open stubs the module attribute
+_PREK_DEAD_RC = 2  # _prek_staged's "did not run" code: main() warns on it, never blocks
 
 
 def test_prek_finding_blocks_the_commit(monkeypatch, capsys):
+    """A prek hook finding on the staged files blocks the commit and shows the hook output."""
     shelled = _hold_every_gate_open(monkeypatch)
     monkeypatch.setattr(pre_commit, "_prek_staged", lambda: (1, "ruff format....Failed"))
     rc = pre_commit.main()
@@ -196,6 +199,7 @@ def test_prek_finding_blocks_the_commit(monkeypatch, capsys):
 
 
 def test_prek_missing_warns_but_does_not_block(monkeypatch, capsys):
+    """A missing prek fails open: the commit goes through with a loud WARNING."""
     shelled = _hold_every_gate_open(monkeypatch)
     monkeypatch.setattr(pre_commit, "_prek_staged", _real_prek_staged)
     monkeypatch.setattr(pre_commit, "_prek_executable", lambda: None)
@@ -208,13 +212,14 @@ def test_prek_missing_warns_but_does_not_block(monkeypatch, capsys):
 
 
 def test_prek_crash_warns_but_does_not_block(monkeypatch, capsys):
+    """A prek that cannot be executed fails open with a WARNING after exactly one attempt."""
     shelled = _hold_every_gate_open(monkeypatch)
     monkeypatch.setattr(pre_commit, "_prek_staged", _real_prek_staged)
     monkeypatch.setattr(pre_commit, "_prek_executable", lambda: "prek")
 
-    def _boom(argv, *a, **k):
+    def _boom(argv, *_args, **_kwargs):
         shelled.append(list(argv))
-        raise OSError("exec format error")
+        raise OSError(errno.ENOEXEC, os.strerror(errno.ENOEXEC))
 
     monkeypatch.setattr(pre_commit.subprocess, "run", _boom, raising=False)
     rc = pre_commit.main()
@@ -224,17 +229,21 @@ def test_prek_crash_warns_but_does_not_block(monkeypatch, capsys):
 
 
 def test_prek_unexpected_exit_code_is_a_crash_not_a_finding(monkeypatch):
+    """A prek exit code other than 0 or 1 is reported as a crash (rc 2), not as a finding."""
     _hold_every_gate_open(monkeypatch)
     monkeypatch.setattr(pre_commit, "_prek_executable", lambda: "prek")
     monkeypatch.setattr(
-        pre_commit.subprocess, "run", lambda argv, *a, **k: subprocess.CompletedProcess(argv, 2, "", "bad config")
+        pre_commit.subprocess,
+        "run",
+        lambda argv, *_args, **_kwargs: subprocess.CompletedProcess(argv, 2, "", "bad config"),
     )
     rc, out = _real_prek_staged()
-    assert rc == 2
+    assert rc == _PREK_DEAD_RC
     assert "bad config" in out
 
 
 def test_prek_runs_on_the_staged_files_only(monkeypatch):
+    """Prek runs once, on the staged files only, with the repo config and never as `prek install`."""
     shelled = _hold_every_gate_open(monkeypatch)
     monkeypatch.setattr(pre_commit, "_prek_executable", lambda: "prek")
     rc, _out = _real_prek_staged()
@@ -248,9 +257,11 @@ def test_prek_runs_on_the_staged_files_only(monkeypatch):
     assert argv[argv.index("--config") + 1].endswith(".pre-commit-config.yaml")
 
 
-def test_prek_missing_config_is_loud(monkeypatch):
+def test_prek_missing_config_is_loud(monkeypatch, tmp_path):
+    """A missing .pre-commit-config.yaml is reported as a dead stage that names what is MISSING."""
     _hold_every_gate_open(monkeypatch)
-    monkeypatch.setattr(pre_commit.os.path, "exists", lambda p: False)
+    # a root without the config: the real condition, whatever API the stage checks it with
+    monkeypatch.setattr(pre_commit, "ROOT", str(tmp_path))
     rc, out = _real_prek_staged()
-    assert rc == 2
+    assert rc == _PREK_DEAD_RC
     assert "MISSING" in out

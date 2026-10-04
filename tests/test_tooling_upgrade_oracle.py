@@ -16,6 +16,7 @@ from typing import Any
 import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "tooling-upgrade"))
+import certify
 import oracle as O
 
 
@@ -595,6 +596,7 @@ def test_verify_checkout_catches_a_flipped_byte(tmp_path: Path):
 
 
 def test_oracle_env_drops_an_inherited_ai_setup(monkeypatch: pytest.MonkeyPatch):
+    """oracle_env strips inherited AI_SETUP/isolation/Redis-port vars and pins REDIS_DB to 15."""
     # CI sets AI_SETUP to the checkout; the suite runs in a copy, where an AI_SETUP naming
     # another directory would read as "already isolated" to tests/isolate_canonical.py
     monkeypatch.setenv("AI_SETUP", "/somewhere/else")
@@ -608,15 +610,14 @@ def test_oracle_env_drops_an_inherited_ai_setup(monkeypatch: pytest.MonkeyPatch)
 
 
 def test_written_paths_sees_a_rewrite_with_identical_bytes(tmp_path: Path):
+    """written_paths reports a same-bytes rewrite (by mtime) and a new untracked file."""
     # O4's side-effect probe: a generator that ignores --help and rewrites its doc is still a
     # side effect when the doc is already current (git status alone shows nothing)
-    import subprocess
-
-    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    O.git("init", "-q", cwd=tmp_path)
     doc = tmp_path / "DOC.md"
     doc.write_text("same\n", encoding="utf-8")
     (tmp_path / "keep.md").write_text("k\n", encoding="utf-8")
-    subprocess.run(["git", "add", "."], cwd=tmp_path, check=True)
+    O.git("add", ".", cwd=tmp_path)
     written, stamps = O.written_paths(tmp_path, {})
     assert written == set()
     st = doc.stat()
@@ -647,8 +648,7 @@ def _new_check(**over: Any) -> dict[str, Any]:
 
 @pytest.fixture
 def pinned(monkeypatch: pytest.MonkeyPatch) -> Any:
-    import certify
-
+    """Certify with PINNED_SUPERSESSIONS replaced by the single G9.t -> G9.t2 test pair."""
     monkeypatch.setattr(
         certify,
         "PINNED_SUPERSESSIONS",
@@ -658,6 +658,7 @@ def pinned(monkeypatch: pytest.MonkeyPatch) -> Any:
 
 
 def test_supersede_accepts_the_pinned_pair(pinned: Any):
+    """The pinned pair, ledgered and registered in order, yields no problems."""
     assert pinned.supersede_verdict("G9", _OLD_CHECK, _new_check(), _LEDGER, 0, 1) == []
 
 
@@ -679,8 +680,9 @@ def test_supersede_accepts_the_pinned_pair(pinned: Any):
     ],
 )
 def test_supersede_rejects_anything_but_the_pinned_pair(
-    pinned: Any, goal: str, over: dict[str, Any], ledger: str, old_at: int, new_at: int, needle: str
+    pinned: Any, *, goal: str, over: dict[str, Any], ledger: str, old_at: int, new_at: int, needle: str
 ):
+    """Any deviation from the pinned pair (goal, ids, argv, fields, ledger, order) is named."""
     problems = pinned.supersede_verdict(goal, _OLD_CHECK, _new_check(**over), ledger, old_at, new_at)
     assert any(needle in p for p in problems), problems
 
@@ -698,8 +700,7 @@ def test_supersede_rejects_anything_but_the_pinned_pair(
     ],
 )
 def test_supersede_rejects_every_unpinned_pair(old_cmd: list[str], new_cmd: list[str]):
-    import certify  # the real table: only G5.hook-stage-test is pinned
-
+    """The real table (only G5.hook-stage-test is pinned) rejects every other dropped flag."""
     old = {**_OLD_CHECK, "cmd": old_cmd}
     new = {**_OLD_CHECK, "id": "G9.t2", "cmd": new_cmd}
     assert any("not a pinned supersession" in p for p in certify.supersede_verdict("G9", old, new, _LEDGER, 0, 1))
@@ -708,11 +709,12 @@ def test_supersede_rejects_every_unpinned_pair(old_cmd: list[str], new_cmd: list
 def test_supersessions_reject_an_unknown_target_and_a_second_successor(
     pinned: Any, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ):
+    """A second successor and an unknown supersedes target are problems; the first pair stays valid."""
     (tmp_path / "LEDGER.md").write_text(_LEDGER + "- G9.t3 supersedes G9.t too\n", encoding="utf-8")
     monkeypatch.setattr(pinned, "HERE", tmp_path)
     order = {"G9.t": 0, "G9.t2": 1, "G9.t3": 2}
 
-    def first_registered(goal: str, check_id: str) -> int:
+    def first_registered(_goal: str, check_id: str) -> int:
         return order.get(check_id, -1)
 
     monkeypatch.setattr(pinned, "_first_registered", first_registered)
@@ -726,7 +728,6 @@ def test_supersessions_reject_an_unknown_target_and_a_second_successor(
 
 
 def test_the_pinned_g5_pair_matches_its_checks_file():
-    import certify
-
+    """The real G5 checks file supersedes exactly the pinned G5 pair, with no problems."""
     valid, problems = certify.supersessions("G5", certify.load_checks("G5"))
     assert (valid, problems) == ({"G5.hook-stage-test": "G5.hook-stage-test-summary"}, [])
