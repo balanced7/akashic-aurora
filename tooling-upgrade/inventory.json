@@ -617,7 +617,7 @@
   "research/reviewed/origin-prelog-2026-04-11/dump_april_redis.py",
   "research/reviewed/origin-prelog-2026-04-11/extract_opencode.py"
  ],
- "commit": "277aa9192396f5c0b8eb3ed828b2f80c13949344",
+ "commit": "2ca34b5677fa55ac59269dce203bf67b5e9d3ead",
  "counts": {
   "ARCHIVAL": 261,
   "RUNTIME": 360,
@@ -17629,7 +17629,7 @@
    "argparse": false,
    "class": "TEST",
    "import_safe": true,
-   "lines": 733,
+   "lines": 792,
    "main_guard": false,
    "module": "tests.test_tooling_upgrade_oracle",
    "parse_ok": true
@@ -18406,7 +18406,7 @@
    "argparse": true,
    "class": "TOOLING",
    "import_safe": true,
-   "lines": 2117,
+   "lines": 2151,
    "main_guard": true,
    "module": null,
    "parse_ok": true
@@ -18415,7 +18415,7 @@
    "argparse": true,
    "class": "TOOLING",
    "import_safe": true,
-   "lines": 2568,
+   "lines": 2601,
    "main_guard": true,
    "module": null,
    "parse_ok": true
