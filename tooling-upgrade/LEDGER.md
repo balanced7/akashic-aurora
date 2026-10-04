@@ -118,3 +118,11 @@ file, re-run `uv run python tooling-upgrade/certify.py <last DONE goal>`, then c
 - **D-G5-1 (commit-message lint).** 766a4009 (`ci: rebuild the workflow ...`) has one body line
   over commitlint's 100-character limit; it is not HEAD and cannot be reworded without a rebase
   (I3), so it stays, like D-G4-1. Every later G5 commit message was linted before committing.
+- **D-G5-2 (a registered check that no tree can satisfy).** The final G5 certificate (HEAD
+  4aa75b99) failed only G5.hook-stage-test: its command passes `-q` on top of the `-q` in
+  pytest's addopts, and at verbosity -2 pytest prints no summary line, so expect_stdout
+  "passed" cannot match even though all 6 tests pass. Checks are append-only, so it is not
+  edited: G5.hook-stage-test-summary supersedes G5.hook-stage-test, with the same phase, expect,
+  expect_stdout and tests and one `-q` fewer. certify.py accepts a supersession only when the
+  command drops nothing but verbosity flags, the successor was registered later, and this line
+  names both ids; the old check still runs and is printed as SUPERSEDED in the certificate.

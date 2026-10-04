@@ -93,3 +93,14 @@ phase = "G5.P4"
 cmd = ["uv", "run", "--frozen", "poe", "gate"]
 expect = 0
 timeout_s = 3600
+
+# D-G5-2: G5.hook-stage-test passes `-q` on top of the `-q` in [tool.pytest.ini_options] addopts;
+# at verbosity -2 pytest prints no summary line, so its expect_stdout "passed" can never match,
+# whatever the tests do. Same tests, same expectations, one verbosity flag fewer:
+[[check]]
+id = "G5.hook-stage-test-summary"
+phase = "G5.P2"
+cmd = ["uv", "run", "--frozen", "python", "-m", "pytest", "-p", "no:cacheprovider", "-p", "no:randomly", "tests/test_pre_commit.py", "-k", "prek"]
+expect = 0
+expect_stdout = "passed"
+supersedes = "G5.hook-stage-test"
