@@ -154,7 +154,14 @@ def check() -> int:
         print("Two meanings on one variable -- worth resolving, but it is not this class.\n")
 
     if offenders:
-        print("HAND-ROLLED SESSION RESOLVERS (%d):" % len(offenders))
+        # The heading MUST start with "VIOLATIONS": pre_commit._count_violations only counts
+        # itemised "- [" lines while inside a VIOLATIONS block, and otherwise falls back to
+        # counting FAIL: summaries. The first version of this checker titled the block
+        # "HAND-ROLLED SESSION RESOLVERS" and the ratchet adopted 1 instead of 16 -- a guard
+        # with fifteen sites of silent slack, which is that function's own docstring warning
+        # ("a baseline built from a wrong count is not a ratchet, it is a rubber stamp")
+        # happening to the guard being added.
+        print("VIOLATIONS -- hand-rolled session resolvers (%d):" % len(offenders))
         for rel, ln, text in offenders:
             print("  - [%s:%d] %s" % (rel, ln, text))
         print("\nFAIL: %d site(s) resolve a session id outside %s."
