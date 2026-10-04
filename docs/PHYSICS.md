@@ -4,7 +4,7 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at a591aaa8. A bound you discover by collision is not awareness -- this sheet
+> Derived at 82d5ab2f. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
@@ -280,7 +280,7 @@ Class: reference
 | `STORM_DEPTH_WINDOW` | `3` | core/comm/storm_detect.py |
 | `STORM_REPEAT_THRESHOLD` | `5` | core/comm/storm_detect.py |
 
-## Mechanical bounds (324 numeric constants)
+## Mechanical bounds (325 numeric constants)
 
 | Constant | Value | Site | Note |
 |---|---|---|---|
@@ -566,6 +566,7 @@ Class: reference
 | `TOUCH_MIN_MS` | 10,000 | arsenal/practice.py | a session shorter than this has no notes-a-minute rate |
 | `TRY_CONCEPT_MIN` | 2 | arsenal/practice_riff.py |  |
 | `TRY_EARLY_MIN_PHRASES` | 3 | arsenal/practice_riff.py | try rule 4 ("start one phrase a beat early") needs a few phrases to speak of |
+| `UV_MIN_MINOR` | 12 | tooling-upgrade/certify.py |  |
 | `VARIANT_LABEL_MAX` | 60 | arsenal/jam/schemas.py |  |
 | `VFX_MAX_NOTES` | 4,096 | arsenal/band.py | arsenal/fl/vfx/arsenal_band.py MAX_NOTES_PER_LANE |
 | `VFX_MAX_PATTERNS` | 64 | arsenal/band.py | arsenal/fl/vfx/arsenal_band.py MAX_PATTERNS |
