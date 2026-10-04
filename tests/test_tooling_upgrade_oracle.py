@@ -787,6 +787,6 @@ _STAMP_DIFF = [
         (["diff --git a/x.png b/x.png", "Binary files a/x.png and b/x.png differ"], False),
     ],
 )
-def test_stamp_only_accepts_nothing_but_the_sha(diff: list[str], ok: bool):
+def test_stamp_only_accepts_nothing_but_the_sha(*, diff: list[str], ok: bool):
     """The stamp tolerance accepts a diff only when the derivation SHA is all that changed."""
     assert certify.stamp_only(diff) is ok
