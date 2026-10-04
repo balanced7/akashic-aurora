@@ -934,16 +934,31 @@ def cmd_assert_mechanical_commits(_args: argparse.Namespace) -> int:
         t = base / "aurora-replay"
         try:
             git("worktree", "add", "--detach", str(t), sha + "^")
+            # the project venv, as in drill_tree: a command that probes `<tree>/.venv` (the
+            # inventory's import probe, basedpyright) must see the same interpreter it saw
+            (t / ".venv").symlink_to(ROOT / ".venv", target_is_directory=True)
             env = oracle.oracle_env({"UV_PROJECT_ENVIRONMENT": str(ROOT / ".venv"), "UV_NO_SYNC": "1"})
             run(shlex.split(m.group(1)), cwd=t, env=env, timeout=3600)
-            run(["git", "add", "-A"], cwd=t)
+            # .gitignore's `**/.venv/` matches directories only; the link itself must not be staged
+            run(["git", "add", "-A", "--", ".", ":(exclude).venv"], cwd=t)
             if run(["git", "diff", "--cached", "--quiet", sha], cwd=t).returncode != 0:
-                problems.append(f"{sha[:9]} {subject}: replay differs from the commit")
+                diff = run(["git", "diff", "--cached", "-U0", "--no-color", sha], cwd=t).stdout.splitlines()
+                changed = [ln for ln in diff if ln[:1] in "+-" and not ln.startswith(("+++", "---"))]
+                if not changed or not all(DERIVED_STAMP.match(ln) for ln in changed):
+                    problems.append(f"{sha[:9]} {subject}: replay differs from the commit")
         finally:
+            if (t / ".venv").is_symlink():  # unlink the link itself first: never walk into the real venv
+                (t / ".venv").unlink()
             _rmtree(base)
             git("worktree", "prune", check=False)
     print(f"replayed {n:d} mechanical commit(s)")
     return _report("MECHANICAL COMMITS", problems)
+
+
+# gen_physics_sheet stamps the HEAD it ran at ("> Derived at <sha>."): no commit can keep that
+# line current, and a replay at the parent stamps the parent. It is the one line a generated-doc
+# comparison may differ in.
+DERIVED_STAMP = re.compile(r"^[-+]> Derived at [0-9a-f]{7,40}\.")
 
 
 def cmd_assert_blame_ignore_revs(_args: argparse.Namespace) -> int:
@@ -1745,9 +1760,8 @@ def cmd_assert_generated_docs(_args: argparse.Namespace) -> int:
             if r.returncode != 0:
                 problems.append(f"{g} exits {r.returncode:d}")
         diff = run(["git", "diff", "-U0", "--no-color"], cwd=t).stdout.splitlines()
-        stamp = re.compile(r"^[-+]> Derived at [0-9a-f]{7,40}\.")
         changed = [ln for ln in diff if ln[:1] in "+-" and not ln.startswith(("+++", "---"))]
-        problems.extend(f"stale generated text: {ln[:120]}" for ln in changed if not stamp.match(ln))
+        problems.extend(f"stale generated text: {ln[:120]}" for ln in changed if not DERIVED_STAMP.match(ln))
     return _report("GENERATED DOCS", problems)
 
 
