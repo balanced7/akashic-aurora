@@ -18,7 +18,7 @@ def _mint(tmp_path, **kw):
 
 
 def test_relpath_is_type_and_id_only():
-    fam, a = _mint(__import__("pathlib").Path(os.getenv("TEMP", "/tmp")))
+    fam, a = _mint(__import__("pathlib").Path(__import__("tempfile").gettempdir()))
     rel = pj.projection_relpath(a)
     assert rel.startswith(os.path.join("docs", "library", "design"))
     assert "substrate" not in rel and "t101" not in rel  # one-facet law: no facet in path

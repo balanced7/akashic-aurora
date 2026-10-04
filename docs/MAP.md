@@ -229,7 +229,7 @@ Class: reference
 | `knowledge_map.py` | knowledge_map (R8 / T059) -- WALK the knowledge, don't query it blind. | tests/test_knowledge_map.py | docs/library/report/20260714_claude-t059-review-r8-knowledge-map-2026_43eade.md | `AKASHIC_KMAP_NO_COUNT` |
 | `lookback.py` | Lookback (P7 / T027) -- one question over the rationale corpus, layered, drillable. | tests/test_charters_in_lookback_corpus.py | docs/library/report/20260710_p7-lookback-corpus-inventory-deepseek-ve_f5fc91.md | `AKASHIC_LOOKBACK_NO_COUNT` |
 | `pack_replay.py` | pack_replay (R2) -- replay the frozen census pack through TODAY's recall pipeline. | GAP | GAP |  |
-| `precision_audit.py` | precision_audit -- the missing instrument: is recall ACCURATE? | tests/test_precision_audit.py | research/reviewed/precision-audit-calibration-deepseek-2026-07-27.md | `TEMP` |
+| `precision_audit.py` | precision_audit -- the missing instrument: is recall ACCURATE? | tests/test_precision_audit.py | research/reviewed/precision-audit-calibration-deepseek-2026-07-27.md | `AKASHIC_RECALL_STATE_DIR` |
 | `prevention.py` | prevention -- the missing consumer of the outcome stage log (S2, recall's AAR). | tests/test_s2_prevention_observer_red.py | docs/library/contract/20260724_unwedge-runbook-prevention-and-recovery_291f4b.md |  |
 | `replay.py` | Forge F0 -- replay harness + data-sufficiency audit (docs/library/design/20260701_lesson-forge-evidence-gated- | tests/test_arsenal_replay.py | docs/library/design/20260721_the-arc-replay-bench-opening-position-cl_551e03.md |  |
 | `shadow_shelf.py` | Offline shadow-shelf substrate for T370 Slice 0. | tests/test_t370_shadow_shelf_reader_red.py | GAP |  |

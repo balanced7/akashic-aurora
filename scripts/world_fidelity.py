@@ -22,11 +22,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from core.coord import world_fidelity as F                        # noqa: E402
 from core.paths import repo_root                                  # noqa: E402
-from core.world import current                                    # noqa: E402
+from core.world import checkout_of, current                       # noqa: E402
 
 ROOT = repo_root()
 #: Where each world's checkout lives, so the CODE plane can compare against its source.
-SOURCES = {"beta": "E:/AI-Setup", "alpha": "E:/AI-Setup"}
+#: Both twins are seeded from prod, whose checkout is derived rather than pinned to a drive.
+SOURCES = {"beta": str(checkout_of("prod")), "alpha": str(checkout_of("prod"))}
 
 
 def _count(path: Path):

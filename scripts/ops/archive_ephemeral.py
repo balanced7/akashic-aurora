@@ -53,10 +53,9 @@ archive = archive
 BUS_EXPORT_DIR = _REPO_ROOT / "state" / "bus-export"
 DEFAULT_CURSORS = BUS_EXPORT_DIR / ".cursors.json"
 DEFAULT_RECEIPTS = _REPO_ROOT / "state" / "archive" / "receipts-ephemeral"
-DEFAULT_DESTS: List[Path] = [
-    Path(r"E:\Akashic Aurora\ephemeral"),
-    Path(r"F:\Akashic Aurora\ephemeral"),
-]
+# Machine-specific (separate physical disks), so from the environment -- see core.paths.env_paths.
+from core.paths import env_paths as _env_paths  # noqa: E402
+DEFAULT_DESTS: List[Path] = _env_paths("AKASHIC_EPHEMERAL_ARCHIVE_ROOTS")
 
 # Planes worth keeping, and the extensions that are the RECORD rather than scratch.
 STATE_PLANES: Dict[str, Tuple[str, ...]] = {
@@ -240,6 +239,12 @@ def main(argv: Optional[List[str]] = None) -> int:
         print(f"[ephemeral] last run {rep['ran_at']}")
         _render_copy(rep)
         return 0 if rep.get("ok") else 1
+
+    if not (a.dest or DEFAULT_DESTS):
+        print("[ephemeral] NO DESTINATIONS -- set AKASHIC_EPHEMERAL_ARCHIVE_ROOTS (absolute "
+              f"paths, '{os.pathsep}'-separated; separate physical disks) or pass --dest",
+              file=sys.stderr)
+        return 2
 
     # 1) export the bus so it is a file at all
     bus = {"streams": 0, "entries_written": 0, "error": None}
