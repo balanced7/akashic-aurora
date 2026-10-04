@@ -11,7 +11,7 @@ Class: reference
 > Companions: ARCHITECTURE.md (skeleton) - MODULE_INDEX.md (docstrings) -
 > PHYSICS.md (bounds+flags) - the charter docs/library/brief/20260719_the-master-map-documentation-as-projecti_a26fd3.md.
 
-## GAP queue (46 of 201 modules lack both pin and paper by name)
+## GAP queue (46 of 202 modules lack both pin and paper by name)
 
 - core/foundation/durable_reconcile.py
 - core/foundation/filelock.py
@@ -60,11 +60,12 @@ Class: reference
 - agent/harness/codex_bifrost_wake.py
 - agent/initializer.py
 
-## core/foundation/  (10 modules)
+## core/foundation/  (11 modules)
 
 | Module | One-line spec | Pin | Paper | Flags |
 |---|---|---|---|---|
 | `durable_reconcile.py` | Per-family authority reconcile: make the durable source COMPLETE before migrating. | GAP | GAP | `AI_SETUP` |
+| `embedded_redis.py` | embedded_redis -- a Redis-compatible server in pure Python, persisted to SQLite. | tests/test_embedded_redis.py | GAP | `AKASHIC_EMBEDDED_REDIS_DIR`, `AKASHIC_EMBEDDED_REDIS_FLUSH_SEC`, `AKASHIC_REDIS_BACKEND` |
 | `filelock.py` | A cross-process exclusive file lock. | GAP | GAP |  |
 | `ledger.py` | Ledger: Swappable event-record interface (append-and-replay) | tests/test_charter_p0_gap_ledger.py | docs/failure-ledger-2026-07.md |  |
 | `migrate_to_sqlite.py` | JSON FileStore -> SqliteStore migration: shadow-build, census law, honest verify. | GAP | GAP | `AI_SETUP` |

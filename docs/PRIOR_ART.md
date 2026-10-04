@@ -27,7 +27,7 @@ rebuilt wheels and dead ends, so the sweep is now a standing artifact rather tha
 
 **DRIFT -- surveyed, but the subsystem has changed size since:**
 
-- `core/foundation` -- DRIFT (8->10), reviewed 2026-07-26
+- `core/foundation` -- DRIFT (8->11), reviewed 2026-07-26
 - `core/comm` -- DRIFT (36->72), reviewed 2026-07-26
 - `core/coord` -- DRIFT (11->31), reviewed 2026-07-26
 - `core/learning` -- DRIFT (3->5), reviewed 2026-07-26
@@ -40,11 +40,11 @@ rebuilt wheels and dead ends, so the sweep is now a standing artifact rather tha
 - `scripts/checkers` -- DRIFT (12->22), reviewed 2026-07-26
 - `scripts/generators` -- DRIFT (6->11), reviewed 2026-07-26
 - `scripts/ops` -- DRIFT (2->8), reviewed 2026-07-26
-- `tests` -- DRIFT (331->757), reviewed 2026-07-26
+- `tests` -- DRIFT (331->758), reviewed 2026-07-26
 
 ---
 
-## `core/foundation` -- 10 modules  ·  DRIFT (8->10)
+## `core/foundation` -- 11 modules  ·  DRIFT (8->11)
 
 **What it does.** The Store: a Redis-command-shaped key/value substrate emulating five structures (kv, hash, list, set, zset) over three backends -- RedisStore (pass-through), FileStore (JSON whole-file, superseded), SqliteStore (WAL, landed 2026-07-26), and HybridStore (dual-write, Redis-preferred reads).
 
@@ -517,7 +517,7 @@ _Reviewed 2026-07-26 by claude._
 
 _Reviewed 2026-07-26 by claude._
 
-## `tests` -- 757 modules  ·  DRIFT (331->757)
+## `tests` -- 758 modules  ·  DRIFT (331->758)
 
 **What it does.** 331 test modules plus conftest, providing universal backend isolation, a parity exerciser shared across store backends, and a differential harness that cross-verifies two implementations of the same semantics.
 
