@@ -58,6 +58,7 @@ false-alarming monitor is worse than the blind spot it replaces.
 
 Run:  py -m pytest tests/test_idle_seat_attendance.py -v
 """
+
 from __future__ import annotations
 
 import json
@@ -67,10 +68,11 @@ from pathlib import Path
 
 import pytest
 
-REPO = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(REPO))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from core.comm import liveness as L
+
+REPO = Path(__file__).resolve().parents[1]
 
 
 class FakeRedis:
@@ -84,6 +86,7 @@ class FakeRedis:
 
     def keys(self, pattern):
         import fnmatch
+
         return [k for k in self.kv if fnmatch.fnmatch(k, pattern)]
 
     def set(self, k, v, ex=None, **kw):
@@ -112,7 +115,7 @@ def test_an_incarnation_only_seat_has_a_measurable_beat(fake_bus):
     pre = L._worklive_prefix()
     fake_bus.kv[pre + "claude#c097980f"] = _rec(3.0)
 
-    assert L.read("claude") is None                      # unchanged, by design
+    assert L.read("claude") is None  # unchanged, by design
     assert L.live_incarnations("claude") == ["claude#c097980f"]
 
     age = L.worklive_beat_age("claude")
@@ -129,7 +132,8 @@ def test_the_freshest_incarnation_wins(fake_bus):
     fake_bus.kv[pre + "claude#aaaaaaaa"] = _rec(240.0)
     fake_bus.kv[pre + "claude#bbbbbbbb"] = _rec(2.0)
     age = L.worklive_beat_age("claude")
-    assert age is not None and age < 10, f"stale incarnation shadowed a live one (age={age})"
+    assert age is not None, f"stale incarnation shadowed a live one (age={age})"
+    assert age < 10, f"stale incarnation shadowed a live one (age={age})"
 
 
 def test_the_bare_record_still_works_for_runners(fake_bus):
@@ -137,7 +141,8 @@ def test_the_bare_record_still_works_for_runners(fake_bus):
     pre = L._worklive_prefix()
     fake_bus.kv[pre + "kimi"] = _rec(1.0)
     age = L.worklive_beat_age("kimi")
-    assert age is not None and age < 10
+    assert age is not None
+    assert age < 10
 
 
 def test_absence_is_still_absence(fake_bus):
@@ -151,9 +156,8 @@ def test_a_stale_incarnation_is_not_rescued(fake_bus):
     pre = L._worklive_prefix()
     fake_bus.kv[pre + "claude#c097980f"] = _rec(9999.0)
     age = L.worklive_beat_age("claude")
-    assert age is not None and age > L.UNATTENDED_S, (
-        "a long-dead incarnation must report its true age, not be hidden or refreshed"
-    )
+    assert age is not None, "a long-dead incarnation must report its true age, not be hidden or refreshed"
+    assert age > L.UNATTENDED_S, "a long-dead incarnation must report its true age, not be hidden or refreshed"
 
 
 def test_attendance_sees_an_idle_armed_seat(fake_bus, monkeypatch):
@@ -162,6 +166,7 @@ def test_attendance_sees_an_idle_armed_seat(fake_bus, monkeypatch):
     reading his mail while a listener is blocked on his inbox."""
     monkeypatch.setattr(L, "progress_age", lambda *a, **k: None)
     import core.comm.roster as _roster
+
     monkeypatch.setattr(_roster, "roster", lambda *a, **k: [])
 
     pre = L._worklive_prefix()
@@ -200,7 +205,11 @@ def test_the_listener_also_refreshes_the_roster_the_production_ear_reads():
     this yet" on every message sent to an armed, idle, blocked-on-his-inbox seat.
     """
     src = (REPO / "scripts" / "bifrost_wake.py").read_text(encoding="utf-8")
-    assert "roster" in src and "heartbeat(" in src, (
+    assert "roster" in src, (
+        "the listener refreshes worklive but not the roster, which is the plane the live "
+        "Discord ear actually reads when deciding whether to tell the operator nobody is home"
+    )
+    assert "heartbeat(" in src, (
         "the listener refreshes worklive but not the roster, which is the plane the live "
         "Discord ear actually reads when deciding whether to tell the operator nobody is home"
     )

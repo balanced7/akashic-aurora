@@ -4,12 +4,12 @@ Tests for the Distiller shared primitive.
 Run: py tests/test_distiller.py
 """
 
-import sys
 import os
+import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.primitives.distiller import Distiller, Distillation
+from core.primitives.distiller import Distillation, Distiller
 
 
 def test_distills_within_budget():
@@ -21,20 +21,23 @@ def test_distills_within_budget():
     ]
     out = d.distill(items, token_budget=9000)
     assert isinstance(out, Distillation)
-    assert out.critic_ok and out.approx_tokens <= 9000
-    assert out.included_sources == ["learn_1", "ADR_2", "blk_3"] and out.dropped_sources == []
+    assert out.critic_ok
+    assert out.approx_tokens <= 9000
+    assert out.included_sources == ["learn_1", "ADR_2", "blk_3"]
+    assert out.dropped_sources == []
     # every entry keeps a source pointer (lossless-pointer rule)
     assert all(e["source"] for e in out.entries)
     # skeleton is human-readable and carries the sources + a relates tag
     assert "trust the file fallback" in out.skeleton
-    assert "(source: blk_3)" in out.skeleton and "[relates: prevents]" in out.skeleton
+    assert "(source: blk_3)" in out.skeleton
+    assert "[relates: prevents]" in out.skeleton
     print("\n--- distill within budget ---\n  compact skeleton + source pointers + critic OK")
 
 
 def test_drops_to_fit_budget_but_keeps_pointers():
     d = Distiller()
     items = [{"recommendation": "x" * 80, "source": f"s{i}"} for i in range(10)]
-    out = d.distill(items, token_budget=40)   # only a few fit
+    out = d.distill(items, token_budget=40)  # only a few fit
     assert out.approx_tokens <= 40, "must respect the budget"
     assert out.dropped_sources, "over-budget items are dropped"
     # dropped items are still recoverable via their pointers (lossy view + lossless pointer)
@@ -45,8 +48,13 @@ def test_drops_to_fit_budget_but_keeps_pointers():
 
 def test_skips_source_less_items():
     d = Distiller()
-    out = d.distill([{"recommendation": "no pointer here"},          # no source/id -> skipped
-                     {"recommendation": "keep me", "source": "s1"}], token_budget=9000)
+    out = d.distill(
+        [
+            {"recommendation": "no pointer here"},  # no source/id -> skipped
+            {"recommendation": "keep me", "source": "s1"},
+        ],
+        token_budget=9000,
+    )
     assert out.skipped_no_source == 1, "source-less item must be skipped (not traceable)"
     assert [e["source"] for e in out.entries] == ["s1"], "only traceable entries kept"
     assert any("no source pointer" in n for n in out.critic_notes)
@@ -56,8 +64,16 @@ def test_skips_source_less_items():
 def test_llm_writer_seam():
     # an injected writer is honored (the LLM seam)
     def fake_writer(items, budget, instruction):
-        return Distillation(skeleton="LLM SUMMARY", entries=[], included_sources=["x"],
-                            dropped_sources=[], approx_tokens=2, critic_ok=True, critic_notes=[])
+        return Distillation(
+            skeleton="LLM SUMMARY",
+            entries=[],
+            included_sources=["x"],
+            dropped_sources=[],
+            approx_tokens=2,
+            critic_ok=True,
+            critic_notes=[],
+        )
+
     d = Distiller(writer=fake_writer)
     out = d.distill([{"text": "anything", "source": "x"}], token_budget=9000)
     assert out.skeleton == "LLM SUMMARY", "injected writer should be used"

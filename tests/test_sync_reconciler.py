@@ -6,8 +6,8 @@ wired into cold-start boot, agent_cli cmd_boot).
 Run: py tests/test_sync_reconciler.py
 """
 
-import sys
 import os
+import sys
 import tempfile
 
 # Full test isolation BEFORE any foundation import: FILE store -> throwaway AI_SETUP dir, REDIS -> db 15.
@@ -18,7 +18,11 @@ os.environ.setdefault("REDIS_DB", "15")
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.foundation.store import FileStore, RedisStore, HybridStore
+from core.foundation.store import (  # noqa: E402  # AI_SETUP env (mkdtemp) must exist before import
+    FileStore,
+    HybridStore,
+    RedisStore,
+)
 
 
 def test_reconcile_redis_down():
@@ -27,7 +31,8 @@ def test_reconcile_redis_down():
         store = HybridStore.create(port=63999, file_path=os.path.join(d, "s.json"))
         assert store.redis_available is False
         drift = store.check_drift()
-        assert drift["redis_available"] is False and drift["in_sync"] is False
+        assert drift["redis_available"] is False
+        assert drift["in_sync"] is False
         report = store.reconcile()
         assert report["status"] == "skipped"
         print("\n--- reconcile (Redis down) ---\n  safe no-op + drift report OK")
@@ -41,6 +46,7 @@ def test_reconcile_backfill_if_redis():
         print("\n--- reconcile backfill ---\n  SKIPPED (Redis not running)")
         return
     import time
+
     ns = f"recon:{int(time.time())}"
     with tempfile.TemporaryDirectory() as d:
         fs = FileStore(os.path.join(d, "s.json"))
@@ -77,9 +83,11 @@ def main():
 
 def _teardown():
     import shutil
+
     try:
         from redis_test_helpers import fresh_test_store
-        fresh_test_store()   # flushes db 15 (no-op if Redis down)
+
+        fresh_test_store()  # flushes db 15 (no-op if Redis down)
     except Exception:
         pass
     shutil.rmtree(_TMP_AI_SETUP, ignore_errors=True)

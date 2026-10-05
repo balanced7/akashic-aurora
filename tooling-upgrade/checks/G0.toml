@@ -1,0 +1,89 @@
+# G0 -- make "functionality" measurable before touching anything (plan Part IV, G0).
+# Append-only (plan section 9): a check below may never be removed or changed after its
+# registering commit; tighten by ADDING a check. certify.py enforces this from git history.
+# cmd is an argv list (no shell, so it runs the same on Windows); {python} = the interpreter
+# certify.py runs under (`uv run python`).
+goal = "G0"
+required_drills = []   # G0's drill requirement is the self-test check G0.P5.drills-all-missed
+
+[[check]]
+id = "G0.P1.plan-tracked"
+phase = "G0.P1"
+cmd = ["git", "ls-files", "--error-unmatch", "docs/python-tooling-upgrade-plan-2026-10.md"]
+expect = 0
+
+[[check]]
+id = "G0.P1.branch-worktree"
+phase = "G0.P1"
+cmd = ["{python}", "tooling-upgrade/certify.py", "assert-branch"]
+expect = 0
+
+[[check]]
+id = "G0.P1.ledger-tracked"
+phase = "G0.P1"
+cmd = ["git", "ls-files", "--error-unmatch", "tooling-upgrade/LEDGER.md", "tooling-upgrade/G0_BASE", "tooling-upgrade/INTENDED_CHANGES.md", "tooling-upgrade/BACKLOG.md"]
+expect = 0
+
+[[check]]
+id = "G0.P2.inventory-current"
+phase = "G0.P2"
+cmd = ["{python}", "tooling-upgrade/oracle.py", "inventory", "--check"]
+expect = 0
+
+[[check]]
+id = "G0.P2.archival-proofs"
+phase = "G0.P2"
+cmd = ["{python}", "tooling-upgrade/oracle.py", "inventory", "--verify-proofs"]
+expect = 0
+
+[[check]]
+id = "G0.P3.oracle-unit-tests"
+phase = "G0.P3"
+cmd = ["{python}", "-m", "pytest", "-q", "-p", "no:cacheprovider", "tests/test_tooling_upgrade_oracle.py"]
+expect = 0
+
+[[check]]
+id = "G0.P3.stdlib-only"
+phase = "G0.P3"
+cmd = ["{python}", "tooling-upgrade/oracle.py", "assert-stdlib"]
+expect = 0
+
+[[check]]
+id = "G0.P3.checks-files"
+phase = "G0.P3"
+cmd = ["{python}", "tooling-upgrade/certify.py", "assert-checks-files"]
+expect = 0
+
+[[check]]
+id = "G0.P4.g0-snapshot-complete"
+phase = "G0.P4"
+cmd = ["{python}", "tooling-upgrade/oracle.py", "verify-snapshot", "g0", "--suite-runs", "3"]
+expect = 0
+
+[[check]]
+id = "G0.P4.measurements"
+phase = "G0.P4"
+cmd = ["git", "ls-files", "--error-unmatch", "tooling-upgrade/snapshots/g0/measurements.json"]
+expect = 0
+
+[[check]]
+id = "G0.P5.self-compare"
+phase = "G0.P5"
+cmd = ["{python}", "tooling-upgrade/oracle.py", "compare", "g0", "g0"]
+expect = 0
+expect_stdout = "^ORACLE: 10/10 EQUAL$"
+
+[[check]]
+id = "G0.P5.drills-all-missed"
+phase = "G0.P5"
+cmd = ["{python}", "tooling-upgrade/certify.py", "drills", "--goal", "G7", "--expect-missed"]
+expect = 0
+expect_stdout = "^DRILLS-MISSED 15/15$"
+timeout_s = 3600
+
+[[check]]
+id = "G0.P5.d14-selftest"
+phase = "G0.P5"
+cmd = ["{python}", "tooling-upgrade/oracle.py", "selftest-d14"]
+expect = 0
+expect_stdout = "^D14 SELF-TEST: O5 DIFF DETECTED$"

@@ -9,8 +9,8 @@ Each model is reached through its own bridge (ask_gemini.py / ask_gpt.py / ask_d
 key handling and model selection stay in one place per provider. A provider with no key just
 prints its NO_KEY notice and the panel continues with whoever is available.
 """
+
 import argparse
-import os
 import subprocess
 import sys
 from pathlib import Path
@@ -27,7 +27,7 @@ def run(script: str, prompt: str, system: str, model: str):
         cmd += ["--model", model]
     try:
         p = subprocess.run(cmd, input=prompt, capture_output=True, text=True, timeout=180)
-        return (p.stdout.strip() or p.stderr.strip() or "(no output)")
+        return p.stdout.strip() or p.stderr.strip() or "(no output)"
     except Exception as e:
         return f"(panel error: {type(e).__name__}: {e})"
 
@@ -52,8 +52,7 @@ def main():
         print("NO_PROMPT", file=sys.stderr)
         return 2
 
-    models = {"ask_gemini.py": args.gemini_model, "ask_gpt.py": args.gpt_model,
-              "ask_deepseek.py": args.deepseek_model}
+    models = {"ask_gemini.py": args.gemini_model, "ask_gpt.py": args.gpt_model, "ask_deepseek.py": args.deepseek_model}
     for label, script in PANEL:
         print(f"\n========================= {label} =========================")
         print(run(script, prompt, args.system, models[script]))

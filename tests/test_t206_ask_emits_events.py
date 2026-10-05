@@ -25,6 +25,7 @@ rather than reconstructed later.
 
 Run: py -m pytest tests/test_t206_ask_emits_events.py -q
 """
+
 import os
 import sys
 
@@ -32,7 +33,7 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.comm import ask_bg  # noqa: E402
+from core.comm import ask_bg
 
 
 @pytest.fixture
@@ -44,15 +45,13 @@ def store(tmp_path, monkeypatch):
 @pytest.fixture
 def captured(monkeypatch):
     seen = []
-    monkeypatch.setattr("core.events.event_log.capture_event",
-                        lambda kind, msg, **kw: seen.append((kind, msg, kw)))
+    monkeypatch.setattr("core.events.event_log.capture_event", lambda kind, msg, **kw: seen.append((kind, msg, kw)))
     return seen
 
 
 def test_a_finished_ask_emits_one_event(store, captured):
     ask_bg.write_record("h1", {"status": "running", "prompt": "why is X"})
-    ask_bg.finish("h1", {"ok": True, "answer": "because", "usd": 0.0031,
-                         "elapsed_s": 12.5, "model": "deepseek-v4-pro"})
+    ask_bg.finish("h1", {"ok": True, "answer": "because", "usd": 0.0031, "elapsed_s": 12.5, "model": "deepseek-v4-pro"})
     assert len(captured) == 1
     kind, _, kw = captured[0]
     assert kind == "ask_completed"
@@ -64,11 +63,20 @@ def test_the_event_carries_what_a_metric_would_need(store, captured):
     field absent here cannot be reconstructed later: the record is deleted, and the
     conversation that produced it is gone."""
     ask_bg.write_record("h2", {"status": "running", "prompt": "q", "with": ["a.py"]})
-    ask_bg.finish("h2", {"ok": True, "answer": "a", "usd": 0.002, "elapsed_s": 9.0,
-                         "model": "m", "prompt_tokens": 100, "completion_tokens": 50})
+    ask_bg.finish(
+        "h2",
+        {
+            "ok": True,
+            "answer": "a",
+            "usd": 0.002,
+            "elapsed_s": 9.0,
+            "model": "m",
+            "prompt_tokens": 100,
+            "completion_tokens": 50,
+        },
+    )
     d = captured[0][2]["detail"]
-    for field in ("usd", "elapsed_s", "model", "outcome", "grounded",
-                  "prompt_tokens", "completion_tokens"):
+    for field in ("usd", "elapsed_s", "model", "outcome", "grounded", "prompt_tokens", "completion_tokens"):
         assert field in d, f"missing {field}"
     assert d["grounded"] is True, "an ask carrying files is GROUNDED -- the T203 lever"
     assert d["outcome"] == "done"
@@ -78,8 +86,7 @@ def test_failure_and_partial_are_distinct_outcomes(store, captured):
     ask_bg.write_record("f1", {"status": "running"})
     ask_bg.finish("f1", {"ok": False, "why": "STARVED", "truncation": "STARVED"})
     ask_bg.write_record("p1", {"status": "running"})
-    ask_bg.finish("p1", {"ok": True, "partial": True, "why": "cut",
-                         "truncation": "CUT"})
+    ask_bg.finish("p1", {"ok": True, "partial": True, "why": "cut", "truncation": "CUT"})
     outcomes = [c[2]["detail"]["outcome"] for c in captured]
     assert outcomes == ["failed", "partial"]
     assert captured[0][2]["detail"]["truncation"] == "STARVED"
@@ -99,12 +106,16 @@ def test_the_answer_body_never_rides_the_event(store, captured):
 def test_emission_failure_never_costs_the_result(store, monkeypatch):
     """Observability must never be able to destroy the thing it observes. If the firehose
     is down, the answer still lands."""
+
     def boom(*a, **k):
         raise RuntimeError("event log down")
+
     monkeypatch.setattr("core.events.event_log.capture_event", boom)
     ask_bg.write_record("h4", {"status": "running"})
     ask_bg.finish("h4", {"ok": True, "answer": "survives"})
-    assert ask_bg.read_record("h4")["result"]["answer"] == "survives"
+    rec = ask_bg.read_record("h4")
+    assert rec is not None
+    assert rec["result"]["answer"] == "survives"
 
 
 def test_no_event_without_a_finish(store, captured):

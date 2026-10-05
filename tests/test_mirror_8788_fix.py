@@ -12,26 +12,32 @@ It now drives the incident path itself -- the toolbox's unattended run_command, 
 identity, positional arguments only -- against the real repo, and pins the refusal. Safe twice
 over: mirror.py refuses before touching git, and positional arguments alone never commit or push.
 """
+
 import os
 import sys
 from pathlib import Path
 
-REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, REPO)
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import core.comm.toolbox as tbmod
+
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def test_unattended_mirror_is_refused_in_the_real_repo(monkeypatch):
     class _Trust:
         def has(self, cap):
             return True
-    monkeypatch.setattr("core.trust.registry.resolve", lambda a: _Trust())
-    box = tbmod.ToolBox(Path(REPO), allow_exec=True, trust=True, allow_secrets=False,
-                        confirm=lambda _p: False, agent_id="deepseek")
 
-    for command in ('py scripts/mirror.py "deepseek_chat: kill the 8788 UI-port ghost" scripts/deepseek_chat.py',
-                    "py scripts/mirror.py count-plus-lines scripts/deepseek_chat.py"):
+    monkeypatch.setattr("core.trust.registry.resolve", lambda a: _Trust())
+    box = tbmod.ToolBox(
+        Path(REPO), allow_exec=True, trust=True, allow_secrets=False, confirm=lambda _p: False, agent_id="deepseek"
+    )
+
+    for command in (
+        'py scripts/mirror.py "deepseek_chat: kill the 8788 UI-port ghost" scripts/deepseek_chat.py',
+        "py scripts/mirror.py count-plus-lines scripts/deepseek_chat.py",
+    ):
         out = box.run_command(command, timeout=60)
         # deepseek is commit-authorized (2026-09-24), so positional args alone are a SAFE
         # dry run (exit 2) -- the D1 guard: no intent flag means nothing is staged, committed
@@ -42,9 +48,10 @@ def test_unattended_mirror_is_refused_in_the_real_repo(monkeypatch):
     # Re-pointed to KIMI 2026-09-24: deepseek/heimdall gained the publish leg by operator
     # amendment, so it is no longer the right seat to prove the publish leg stays shut. The
     # CLAIM is unchanged -- a seat without publish authority cannot push through this door.
-    box = tbmod.ToolBox(Path(REPO), allow_exec=True, trust=True, allow_secrets=False,
-                        confirm=lambda _p: False, agent_id="kimi")
-    out = box.run_command('py scripts/mirror.py count-plus-lines scripts/deepseek_chat.py --push --yes', timeout=60)
+    box = tbmod.ToolBox(
+        Path(REPO), allow_exec=True, trust=True, allow_secrets=False, confirm=lambda _p: False, agent_id="kimi"
+    )
+    out = box.run_command("py scripts/mirror.py count-plus-lines scripts/deepseek_chat.py --push --yes", timeout=60)
     # REFUSED IS THE CLAIM; WHICH LAYER REFUSES IS NOT. This used to require mirror.py's own
     # banner ("PUBLISH door", exit 3), but the IR-4 family gate now refuses --push/--yes
     # UPSTREAM -- before mirror.py is even spawned. That is strictly safer (the publish door

@@ -22,6 +22,7 @@ The discord half (reaction apply, staggering, evict-on-deleted) is runner wiring
 under garnish-never-wounds; G1 is a live drill with a dated receipt.
 Run: py -m pytest tests/test_t380_reaction_ladder.py -q
 """
+
 import os
 import sys
 import time
@@ -31,16 +32,17 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.comm.bus import Bus
 from core.comm import mailbox
-from core.comm.discord_ladder import LadderTracker, REPLIED_WINDOW_S
+from core.comm.bus import Bus
+from core.comm.discord_ladder import REPLIED_WINDOW_S, LadderTracker
 
 
 def _client():
-    from core.foundation.redis_connection import (
-        connect_to_redis_with_fail_fast, DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT)
-    c = connect_to_redis_with_fail_fast(host=DEFAULT_REDIS_HOST, port=DEFAULT_REDIS_PORT,
-                                        timeout_seconds=3, decode_responses=True)
+    from core.foundation.redis_connection import DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT, connect_to_redis_with_fail_fast
+
+    c = connect_to_redis_with_fail_fast(
+        host=DEFAULT_REDIS_HOST, port=DEFAULT_REDIS_PORT, timeout_seconds=3, decode_responses=True
+    )
     if c is None:
         pytest.skip("redis not available")
     return c
@@ -60,15 +62,13 @@ def _operator_send(client, ns, text="hello from the car"):
     """One operator message relayed onto the bus, discord-shaped meta, as the
     gateway's inbound path sends it (frm=daniil, directed to the seat lane)."""
     b = Bus("daniil", client=client, namespace=ns, promote=False)
-    mid = b.send("claude", "chat", text,
-                 meta={"source": "discord", "operator": True, "speaker": "daniil"})
+    mid = b.send("claude", "chat", text, meta={"source": "discord", "operator": True, "speaker": "daniil"})
     assert mid, "bus refused the send; test cannot proceed"
     return b, str(mid)
 
 
 def _tracker(client, ns, events_reader=None):
-    return LadderTracker(client=client, ns=ns, operator="daniil",
-                         events_reader=events_reader or (lambda: []))
+    return LadderTracker(client=client, ns=ns, operator="daniil", events_reader=events_reader or (list))
 
 
 def _track(t, b, mid, text="hello from the car"):
@@ -102,9 +102,7 @@ def test_p1_p2_thinking_fires_once_on_seen_receipt():
         assert t.poll() == [], "no seen receipt yet -- thinking must NOT fire"
 
         # the HARNESS producer: exactly what agent_cli's consume does (T133/M6)
-        opened = mailbox.open_for_message(
-            "claude", _consumed_msg(c, ns, mid), incarnation="testinc",
-            ns=ns, client=c)
+        opened = mailbox.open_for_message("claude", _consumed_msg(c, ns, mid), incarnation="testinc", ns=ns, client=c)
         assert opened.get("ok"), f"open_for_message failed: {opened}"
 
         ops = t.poll()
@@ -125,17 +123,14 @@ def test_p3_strict_answer_settles_and_swallows():
         _track(t, b, mid)
 
         seat = Bus("claude", client=c, namespace=ns, promote=False)
-        rid = seat.send("daniil", "reply", "here is your answer",
-                        meta={"answers": mid})
+        rid = seat.send("daniil", "reply", "here is your answer", meta={"answers": mid})
         assert rid
 
         ops = t.poll()
         assert [o["op"] for o in ops] == ["answered"], f"expected answered, got {ops}"
 
         # settled: a later seen receipt must not resurrect thinking
-        opened = mailbox.open_for_message(
-            "claude", _consumed_msg(c, ns, mid), incarnation="testinc",
-            ns=ns, client=c)
+        opened = mailbox.open_for_message("claude", _consumed_msg(c, ns, mid), incarnation="testinc", ns=ns, client=c)
         assert opened.get("ok")
         assert t.poll() == [], "settled entry must emit nothing further"
     finally:
@@ -157,10 +152,11 @@ def test_p4_unlinked_reply_is_distinct_op_and_window_capped():
 
         ops = t.poll()
         assert [o["op"] for o in ops] == ["replied"], (
-            f"unlinked reply must be its own labeled op, never the strict checkmark: {ops}")
+            f"unlinked reply must be its own labeled op, never the strict checkmark: {ops}"
+        )
 
         # window cap: a stale entry must NOT be settled by fresh chatter
-        b2, mid2 = _operator_send(c, ns, text="older question")
+        _b2, mid2 = _operator_send(c, ns, text="older question")
         t2 = _tracker(c, ns)
         t2.track(mid2, to_agents=["claude"], channel_id="chan1", discord_msg_id="dmsg2")
         t2._entries[mid2].tracked_ts = time.time() - (REPLIED_WINDOW_S + 60)
@@ -199,9 +195,10 @@ def test_p6_wake_fire_stamps_seen_and_the_ladder_thinks(monkeypatch):
     formal consume. This pin drives the REAL watcher function with a REAL
     bus-parsed Message -- both shapes live, per tonight's forked-sha lesson."""
     import importlib.util
+
     c = _client()
     ns = _ns()
-    monkeypatch.setenv("BIFROST_NAMESPACE", ns)   # the stamp must land in the test ns
+    monkeypatch.setenv("BIFROST_NAMESPACE", ns)  # the stamp must land in the test ns
     try:
         b, mid = _operator_send(c, ns)
         t = _tracker(c, ns)
@@ -210,8 +207,10 @@ def test_p6_wake_fire_stamps_seen_and_the_ladder_thinks(monkeypatch):
 
         spec = importlib.util.spec_from_file_location(
             "bifrost_wake_under_test",
-            os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                         "scripts", "bifrost_wake.py"))
+            os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts", "bifrost_wake.py"),
+        )
+        assert spec is not None
+        assert spec.loader is not None
         bw = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(bw)
 
@@ -220,6 +219,7 @@ def test_p6_wake_fire_stamps_seen_and_the_ladder_thinks(monkeypatch):
 
         ops = t.poll()
         assert [o["op"] for o in ops] == ["thinking"], (
-            f"the ladder must think from the fire-time receipt alone, got {ops}")
+            f"the ladder must think from the fire-time receipt alone, got {ops}"
+        )
     finally:
         _cleanup(c, ns)

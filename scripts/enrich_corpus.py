@@ -35,36 +35,48 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "scripts" / "generators"))  # T104-M1: generators moved
 
-from gen_library import walk_docs, _extract, _relpath  # noqa: E402
-from core.library import taxonomy as tx  # noqa: E402
-from core.library.atoms import AtomFamily, DOC_TYPES, AtomError  # noqa: E402
-from core.library.projection import render_atom  # noqa: E402
+from gen_library import _relpath, walk_docs  # noqa: E402  # sys.path bootstrap
+
+from core.library import taxonomy as tx  # noqa: E402  # sys.path bootstrap
+from core.library.atoms import DOC_TYPES, AtomError, AtomFamily  # noqa: E402  # sys.path bootstrap
+from core.library.projection import render_atom  # noqa: E402  # sys.path bootstrap
 
 MAP_PATH = ROOT / "state" / "migration_map.json"
 
 CROWN_EXPLICIT = {
-    "docs/method-baseline-2026-07.md", "docs/failure-ledger-2026-07.md",
+    "docs/method-baseline-2026-07.md",
+    "docs/failure-ledger-2026-07.md",
     "docs/pillar-analysis-method.md",
 }
 _CROWN_RE = re.compile(r"^docs/[A-Z0-9_]+\.md$")
 
 # zone -> default type when the header is silent (LIBRARY naming canon)
-_ZONE_TYPE = {"research/briefs": "brief", "research/reviewed": "report",
-              "research/drafts": "design", "chronicles": "chronicle"}
+_ZONE_TYPE = {
+    "research/briefs": "brief",
+    "research/reviewed": "report",
+    "research/drafts": "design",
+    "chronicles": "chronicle",
+}
 
-_HDR_TYPE_MAP = {"plan": "design", "draft": "design", "research": "report",
-                 "counter": "design", "brainstorm": "design", "think-pass": "design",
-                 "reconciliation": "design", "capture": "report"}
+_HDR_TYPE_MAP = {
+    "plan": "design",
+    "draft": "design",
+    "research": "report",
+    "counter": "design",
+    "brainstorm": "design",
+    "think-pass": "design",
+    "reconciliation": "design",
+    "capture": "report",
+}
 
 _PATH_REF = re.compile(r"\b((?:docs|research|chronicles)/[A-Za-z0-9_\-./]+\.md)\b")
 _SUPERSEDED_BY = re.compile(r"superseded[- ]by[:\s]+`?([A-Za-z0-9_\-./]+\.md)`?", re.IGNORECASE)
-_HDR_BLOCK = re.compile(r"^(#[^\n]*\n)?\s*(Status:[^\n]*\n)(Type:[^\n]*\n)?([^\n]*·[^\n]*\n)*\n?",
-                        re.IGNORECASE)
+_HDR_BLOCK = re.compile(r"^(#[^\n]*\n)?\s*(Status:[^\n]*\n)(Type:[^\n]*\n)?([^\n]*·[^\n]*\n)*\n?", re.IGNORECASE)
 
 
 def skip_reason(rel: str) -> str | None:
     p = rel.replace("\\", "/")
-    if p.startswith("docs/library/") or p.startswith("docs/_archive/"):
+    if p.startswith(("docs/library/", "docs/_archive/")):
         return "projection/archive"
     if p.startswith("charters/"):
         return "agent-contract (stays file)"
@@ -88,7 +100,7 @@ def derive(rel: str, header: dict, text: str) -> dict:
         status = "current"
     elif status_raw.startswith("superseded"):
         status = "superseded"
-    elif status_raw.startswith("fossil") or status_raw.startswith("historical"):
+    elif status_raw.startswith(("fossil", "historical")):
         status = "fossil"
     else:
         status = "draft"  # unmarked = uncurated; honest, and the lint sweeps drafts
@@ -104,9 +116,17 @@ def derive(rel: str, header: dict, text: str) -> dict:
         body = text
     cats = tx.classify(f"{title} {p} {body[:400]}")
     seats = [s.strip() for s in re.split(r"[,+&]", header.get("seats") or "") if s.strip()]
-    return {"type": typ, "status": status, "arc": arc, "date": date, "title": title[:160],
-            "categories": cats, "cat_sources": ["auto"] * len(cats),
-            "seats": seats[:4], "body": body}
+    return {
+        "type": typ,
+        "status": status,
+        "arc": arc,
+        "date": date,
+        "title": title[:160],
+        "categories": cats,
+        "cat_sources": ["auto"] * len(cats),
+        "seats": seats[:4],
+        "body": body,
+    }
 
 
 def load_map() -> dict:
@@ -136,7 +156,7 @@ def migratable() -> list[tuple[str, dict, str]]:
 
 def cmd_dry_run() -> int:
     files = migratable()
-    skipped = [( _relpath(p), skip_reason(_relpath(p))) for p, _ in walk_docs() if skip_reason(_relpath(p))]
+    skipped = [(_relpath(p), skip_reason(_relpath(p))) for p, _ in walk_docs() if skip_reason(_relpath(p))]
     by_type, by_status, no_cat, no_date = {}, {}, [], []
     for rel, header, text in files:
         d = derive(rel, header, text)
@@ -157,14 +177,17 @@ def cmd_dry_run() -> int:
     step = max(1, len(files) // 5)
     for rel, header, text in files[::step][:5]:
         d = derive(rel, header, text)
-        print(f"    {rel}\n      -> type={d['type']} status={d['status']} arc={d['arc']} "
-              f"cats={d['categories']} title={d['title'][:60]!r}")
+        print(
+            f"    {rel}\n      -> type={d['type']} status={d['status']} arc={d['arc']} "
+            f"cats={d['categories']} title={d['title'][:60]!r}"
+        )
     print("[dry-run] no writes. Next: --import after Daniel's spot-check gate.")
     return 0
 
 
 def _fam() -> AtomFamily:
     from core.foundation.store import create_store
+
     return AtomFamily(create_store(), repo_root=str(ROOT))
 
 
@@ -177,11 +200,19 @@ def cmd_import() -> int:
             continue
         d = derive(rel, header, text)
         try:
-            atom = fam.mint(d["type"], d["title"], d["body"], arc=d["arc"],
-                            seats=d["seats"], categories=d["categories"],
-                            category_sources=d["cat_sources"], status=d["status"],
-                            origin="migrated", date=d["date"],
-                            now=os.path.getmtime(str(ROOT / rel)) if (ROOT / rel).exists() else time.time())
+            atom = fam.mint(
+                d["type"],
+                d["title"],
+                d["body"],
+                arc=d["arc"],
+                seats=d["seats"],
+                categories=d["categories"],
+                category_sources=d["cat_sources"],
+                status=d["status"],
+                origin="migrated",
+                date=d["date"],
+                now=os.path.getmtime(str(ROOT / rel)) if (ROOT / rel).exists() else time.time(),
+            )
             render_atom(atom, repo_root=str(ROOT))
             mp[rel] = atom["id"]
             minted += 1
@@ -203,7 +234,7 @@ def cmd_link() -> int:
         atom = fam.get(art_id)
         if atom is None:
             continue
-        src = (ROOT / rel)
+        src = ROOT / rel
         text = src.read_text(encoding="utf-8", errors="replace") if src.exists() else atom["body"]
         cites, seen = [], set()
         sup = _SUPERSEDED_BY.search(text[:2000])
@@ -235,6 +266,7 @@ def cmd_link() -> int:
 
 def cmd_verify() -> int:
     from core.library.projection import projection_relpath
+
     fam, mp = _fam(), load_map()
     bars = {"missing_atom": [], "sha_mismatch": [], "missing_projection": [], "proj_sha": []}
     for rel, art_id in mp.items():
@@ -245,6 +277,7 @@ def cmd_verify() -> int:
         if atom["header"].get("visibility") == "local":
             continue  # P3b redaction: no public projection by design
         import hashlib
+
         if hashlib.sha256(atom["body"].encode("utf-8", "replace")).hexdigest()[:12] != atom["body_sha"]:
             bars["sha_mismatch"].append(rel)
         proj = ROOT / projection_relpath(atom)

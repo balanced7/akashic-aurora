@@ -15,9 +15,12 @@ test_filestore_coherence.py, and asserts the REFUSED contract.
 
 Run: py -m pytest tests/test_task_ledger_cas.py -v
 """
+
+import json
 import os
+import subprocess
 import sys
-from pathlib import Path
+import time
 
 import pytest
 
@@ -31,6 +34,13 @@ def path(tmp_path):
     return str(tmp_path / "tasks.json")
 
 
+def _task(ledger, tid):
+    """ledger.get for a task the test created: absent is a failure here."""
+    got = ledger.get(tid)
+    assert got is not None, f"{tid} missing from the ledger"
+    return got
+
+
 def _ledger(p):
     return TL.TaskLedger(p, client=None)
 
@@ -38,15 +48,16 @@ def _ledger(p):
 def test_second_proposer_is_refused_not_silently_lost(path):
     # A and B both open the SAME ledger file (fresh, seq=0) before either writes.
     A = _ledger(path)
-    B = _ledger(path)     # B loads the SAME on-disk state A holds
+    B = _ledger(path)  # B loads the SAME on-disk state A holds
 
-    A.propose("task from A", at="t-a")   # A commits seq=1 to disk
+    A.propose("task from A", at="t-a")  # A commits seq=1 to disk
 
     # B, still holding its stale seq=0 snapshot, tries to propose. The fix REFUSES it.
     with pytest.raises(TL.LedgerError) as exc_info:
         B.propose("task from B", at="t-b")
     assert "lost-update" in str(exc_info.value) or "advanced" in str(exc_info.value), (
-        "the refusal must name the lost-update, so the caller knows to re-read")
+        "the refusal must name the lost-update, so the caller knows to re-read"
+    )
 
     # A's committed task survived intact — nothing was clobbered.
     titles = {t["title"] for t in TL.read_ledger(path, client=None)["tasks"]}
@@ -97,9 +108,6 @@ def test_same_instance_sequential_proposes_still_succeed(path):
 # Pins below are deterministic: the interleaving is sequenced by hand, like the T270 pins above.
 # =================================================================================================
 
-import json
-import subprocess
-import time
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -119,18 +127,18 @@ def test_stale_transition_is_refused_not_clobbered(path):
     """A and B load the same ledger; A approves T001; B (stale) approves T002. B's save
     must be REFUSED -- it would write T001 back to 'proposed', erasing A's commit."""
     A = _seed_two(path)
-    B = _ledger(path)                                   # same on-disk snapshot as A
+    B = _ledger(path)  # same on-disk snapshot as A
 
-    A.transition("T001", TL.APPROVED, by="user", at="t3")   # A commits
+    A.transition("T001", TL.APPROVED, by="user", at="t3")  # A commits
 
     with pytest.raises(TL.LedgerError) as exc_info:
         B.transition("T002", TL.APPROVED, by="user", at="t4")
-    assert "lost-update" in str(exc_info.value), (
-        "the refusal must name the lost-update so the caller knows to re-read")
+    assert "lost-update" in str(exc_info.value), "the refusal must name the lost-update so the caller knows to re-read"
 
     assert _statuses(path)["T001"] == TL.APPROVED, (
         "B's stale transition clobbered A's committed approval (seq never moved, so the "
-        "old seq-anchored CAS could not see A's write)")
+        "old seq-anchored CAS could not see A's write)"
+    )
 
 
 def test_stale_propose_after_peer_transition_is_refused(path):
@@ -145,8 +153,7 @@ def test_stale_propose_after_peer_transition_is_refused(path):
     with pytest.raises(TL.LedgerError):
         B.propose("two", at="t3")
 
-    assert _statuses(path)["T001"] == TL.APPROVED, (
-        "B's stale propose silently reverted A's approval")
+    assert _statuses(path)["T001"] == TL.APPROVED, "B's stale propose silently reverted A's approval"
 
 
 def test_rev_advances_on_every_save_not_only_on_propose(path):
@@ -158,7 +165,8 @@ def test_rev_advances_on_every_save_not_only_on_propose(path):
     A.transition("T001", TL.APPROVED, by="user", at="t2")
     with open(path, encoding="utf-8") as fh:
         second = json.load(fh)
-    assert first.get("rev") == 1 and second.get("rev") == 2, (first.get("rev"), second.get("rev"))
+    assert first.get("rev") == 1, (first.get("rev"), second.get("rev"))
+    assert second.get("rev") == 2, (first.get("rev"), second.get("rev"))
     assert first["seq"] == second["seq"] == 1, "seq is the id allocator; a transition leaves it"
 
 
@@ -175,10 +183,10 @@ def test_refused_instance_resyncs_to_disk_truth(path):
     with pytest.raises(TL.LedgerError):
         B.propose("two", at="t3")
 
-    assert B.get("T001")["status"] == TL.APPROVED, "B still holds its stale snapshot"
+    assert _task(B, "T001")["status"] == TL.APPROVED, "B still holds its stale snapshot"
     assert "T002" not in B.tasks, "B kept the phantom task its refused save never wrote"
 
-    t = B.propose("two", at="t4")                       # same instance, now fresh: succeeds
+    t = B.propose("two", at="t4")  # same instance, now fresh: succeeds
     assert t["id"] == "T002"
     assert _statuses(path) == {"T001": TL.APPROVED, "T002": TL.PROPOSED}
 
@@ -188,18 +196,19 @@ def test_save_refuses_while_a_peer_holds_the_ledger_lock(path, monkeypatch):
     house filelock). While a peer holds it, a save WAITS (bounded) and then REFUSES -- it never
     proceeds unprotected, and it never touches the file."""
     from core.foundation import filelock
+
     A = _ledger(path)
     A.propose("one", at="t1")
     B = _ledger(path)
     monkeypatch.setattr(TL, "LOCK_TIMEOUT_S", 0.2, raising=False)
 
-    with filelock.exclusive(path):                      # the peer, mid-save
+    with filelock.exclusive(path):  # the peer, mid-save
         with pytest.raises(TL.LedgerError) as exc_info:
             B.propose("two", at="t2")
         assert "lock" in str(exc_info.value).lower()
         assert set(_statuses(path)) == {"T001"}, "a refused save must not have written"
 
-    B.propose("two", at="t3")                           # lock released: the same write lands
+    B.propose("two", at="t3")  # lock released: the same write lands
     assert set(_statuses(path)) == {"T001", "T002"}
 
 
@@ -213,7 +222,8 @@ def test_lock_is_honoured_across_processes(path, tmp_path, monkeypatch):
         "from core.foundation import filelock\n"
         f"with filelock.exclusive({path!r}):\n"
         f"    open({marker!r}, 'w').close()\n"
-        "    time.sleep(2.5)\n")
+        "    time.sleep(2.5)\n"
+    )
     A = _ledger(path)
     A.propose("one", at="t1")
     B = _ledger(path)
@@ -227,12 +237,12 @@ def test_lock_is_honoured_across_processes(path, tmp_path, monkeypatch):
             assert time.monotonic() < deadline, "lock-holder child never signalled"
             time.sleep(0.02)
         with pytest.raises(TL.LedgerError):
-            B.propose("two", at="t2")                   # child holds the lock: refused
+            B.propose("two", at="t2")  # child holds the lock: refused
         assert set(_statuses(path)) == {"T001"}
     finally:
         proc.wait(timeout=30)
 
-    B.propose("two", at="t3")                           # child gone: the write lands
+    B.propose("two", at="t3")  # child gone: the write lands
     assert set(_statuses(path)) == {"T001", "T002"}
 
 
@@ -255,9 +265,10 @@ def test_conductor_reapplies_after_a_peer_write(tmp_path, monkeypatch):
     re-apply: two DISJOINT transitions from two processes both land, in order, with the gates
     re-evaluated against the fresh state. A gate refusal is an answer and is never retried."""
     from core.coord import conductor as C
+
     monkeypatch.setattr(C, "_broadcast", lambda *a, **k: None)
     p = str(tmp_path / "t.json")
-    k = dict(client=None, path=p)
+    k = {"client": None, "path": p}
     C.propose("one", **k)
     C.propose("two", **k)
 
@@ -266,17 +277,18 @@ def test_conductor_reapplies_after_a_peer_write(tmp_path, monkeypatch):
 
     def _ledger_with_a_peer_in_the_gap(client="auto", path=None):
         led = real(client, path)
-        if not fired:                                   # first load only: a peer writes AFTER it
+        if not fired:  # first load only: a peer writes AFTER it
             fired.append(1)
             TL.TaskLedger(p, client=None).transition("T001", TL.APPROVED, by="peer", at="t9")
         return led
 
     monkeypatch.setattr(C, "_ledger", _ledger_with_a_peer_in_the_gap)
-    C.approve("T002", **k)                              # stale on first try; must re-apply
+    C.approve("T002", **k)  # stale on first try; must re-apply
 
     assert _statuses(p) == {"T001": TL.APPROVED, "T002": TL.APPROVED}, (
         "the conductor either clobbered the peer's approval or surfaced the refusal instead "
-        "of re-reading and re-applying")
+        "of re-reading and re-applying"
+    )
     assert len(fired) == 1
 
     calls = []
@@ -288,6 +300,6 @@ def test_conductor_reapplies_after_a_peer_write(tmp_path, monkeypatch):
     monkeypatch.setattr(C, "_ledger", _counting)
     C.claim("T001", "claude", **k)
     calls.clear()
-    with pytest.raises(TL.LedgerError):                 # claimed -> claimed: a GATE refusal
+    with pytest.raises(TL.LedgerError):  # claimed -> claimed: a GATE refusal
         C.claim("T001", "claude", **k)
     assert len(calls) == 1, "a gate refusal is an answer; it must not be retried"

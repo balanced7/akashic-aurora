@@ -32,45 +32,63 @@ remote those blobs stay fetchable forever. Only a history rewrite (`git filter-r
 actually removes them, and that invalidates every commit SHA recorded in lessons, notes and
 docs. This tool is step one of two, and it must never be mistaken for both.
 """
+
 from __future__ import annotations
 
 import argparse
 import json
 import re
 import subprocess
-import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, cast
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 MANIFEST = _REPO_ROOT / ".secrets" / "redaction-manifest.json"
 
 # Binary and vendored content: replacing bytes inside these corrupts them, and a name
 # "found" in a PNG is image data, not a disclosure.
-_SKIP_SUFFIXES = {".png", ".jpg", ".jpeg", ".gif", ".webm", ".mp4", ".pdf", ".zip", ".gz",
-                  ".ico", ".woff", ".woff2", ".ttf", ".db", ".pyc", ".jsonl.gz"}
+_SKIP_SUFFIXES = {
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".gif",
+    ".webm",
+    ".mp4",
+    ".pdf",
+    ".zip",
+    ".gz",
+    ".ico",
+    ".woff",
+    ".woff2",
+    ".ttf",
+    ".db",
+    ".pyc",
+    ".jsonl.gz",
+}
 _SKIP_DIRS = ("refs/design-inspiration/", "docs/_archive/", "ComfyUI-Zluda/")
 
 
-def load_manifest(path: Optional[Path] = None) -> Dict[str, Any]:
+def load_manifest(path: Path | None = None) -> dict[str, Any]:
     p = Path(path) if path else MANIFEST
     if not p.exists():
         raise FileNotFoundError(
             f"no manifest at {p} -- it lives OUTSIDE the tracked tree on purpose, so the "
-            f"tool can be reviewed without re-committing the strings it removes")
+            f"tool can be reviewed without re-committing the strings it removes"
+        )
     man = json.loads(p.read_text(encoding="utf-8"))
     for t in man.get("targets", []):
         if not str(t.get("pattern", "")).strip():
             raise ValueError("a target has no pattern")
         if not str(t.get("why", "")).strip():
-            raise ValueError(f"target {t['pattern'][:3]}… has no stated reason -- a "
-                             f"redaction nobody can justify later is one nobody can audit")
+            raise ValueError(
+                f"target {t['pattern'][:3]}… has no stated reason -- a "
+                f"redaction nobody can justify later is one nobody can audit"
+            )
     return man
 
 
-def _tracked(root: Path) -> List[str]:
-    out = subprocess.run(["git", "ls-files"], cwd=str(root),
-                         capture_output=True, text=True).stdout
+def _tracked(root: Path) -> list[str]:
+    out = subprocess.run(["git", "ls-files"], cwd=str(root), capture_output=True, text=True).stdout
     files = []
     for rel in out.splitlines():
         rel = rel.strip()
@@ -84,19 +102,17 @@ def _tracked(root: Path) -> List[str]:
 
 def shape(pattern: str) -> str:
     """A target named in output without being reproduced in it."""
-    return f"{pattern[0]}{'*' * max(0, len(pattern) - 2)}{pattern[-1]}" \
-        if len(pattern) > 2 else "**"
+    return f"{pattern[0]}{'*' * max(0, len(pattern) - 2)}{pattern[-1]}" if len(pattern) > 2 else "**"
 
 
-def scan(root: Optional[Path] = None, manifest: Optional[Dict[str, Any]] = None
-         ) -> Dict[str, Any]:
+def scan(root: Path | None = None, manifest: dict[str, Any] | None = None) -> dict[str, Any]:
     """Count every target across the tree. Nothing is written."""
     root = Path(root) if root else _REPO_ROOT
     man = manifest or load_manifest()
     ceiling = int(man.get("max_hits_per_target", 400))
     files = _tracked(root)
 
-    per_target: List[Dict[str, Any]] = []
+    per_target: list[dict[str, Any]] = []
     for t in man["targets"]:
         rx = re.compile(re.escape(t["pattern"]), re.IGNORECASE)
         hits, where = 0, []
@@ -109,22 +125,25 @@ def scan(root: Optional[Path] = None, manifest: Optional[Dict[str, Any]] = None
             if n:
                 hits += n
                 where.append((rel, n))
-        per_target.append({
-            "shape": shape(t["pattern"]), "why": t["why"], "hits": hits,
-            "files": sorted(where, key=lambda x: -x[1]),
-            # A pattern this common is a word, not a name. Refusing it is the difference
-            # between a redaction and an outage.
-            "refused": hits > ceiling,
-        })
+        per_target.append(
+            {
+                "shape": shape(t["pattern"]),
+                "why": t["why"],
+                "hits": hits,
+                "files": sorted(where, key=lambda x: -x[1]),
+                # A pattern this common is a word, not a name. Refusing it is the difference
+                # between a redaction and an outage.
+                "refused": hits > ceiling,
+            }
+        )
     return {"scanned": len(files), "ceiling": ceiling, "targets": per_target}
 
 
-def apply(root: Optional[Path] = None, manifest: Optional[Dict[str, Any]] = None
-          ) -> Dict[str, Any]:
+def apply(root: Path | None = None, manifest: dict[str, Any] | None = None) -> dict[str, Any]:
     root = Path(root) if root else _REPO_ROOT
     man = manifest or load_manifest()
     pre = scan(root, man)
-    ok_patterns = [t for t, s in zip(man["targets"], pre["targets"]) if not s["refused"]]
+    ok_patterns = [t for t, s in zip(man["targets"], pre["targets"], strict=False) if not s["refused"]]
     files = _tracked(root)
     changed, replacements = 0, 0
     for rel in files:
@@ -141,14 +160,16 @@ def apply(root: Optional[Path] = None, manifest: Optional[Dict[str, Any]] = None
         if new != body:
             p.write_text(new, encoding="utf-8")
             changed += 1
-    return {"files_changed": changed, "replacements": replacements,
-            "refused": [t["shape"] for t in pre["targets"] if t["refused"]],
-            "applied_targets": len(ok_patterns)}
+    return {
+        "files_changed": changed,
+        "replacements": replacements,
+        "refused": [t["shape"] for t in pre["targets"] if t["refused"]],
+        "applied_targets": len(ok_patterns),
+    }
 
 
-def render(rep: Dict[str, Any]) -> None:
-    print(f"[redact] {rep['scanned']:,} tracked text file(s) | "
-          f"refusal ceiling {rep['ceiling']} hits/target")
+def render(rep: dict[str, Any]) -> None:
+    print(f"[redact] {rep['scanned']:,} tracked text file(s) | refusal ceiling {rep['ceiling']} hits/target")
     for t in rep["targets"]:
         flag = "  REFUSED (too common to be a name)" if t["refused"] else ""
         print(f"   {t['shape']:22} {t['hits']:5} hit(s){flag}")
@@ -158,8 +179,8 @@ def render(rep: Dict[str, Any]) -> None:
         print(f"        why: {t['why']}")
 
 
-def main(argv: Optional[List[str]] = None) -> int:
-    ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+def main(argv: list[str] | None = None) -> int:
+    ap = argparse.ArgumentParser(description=cast("str", __doc__).split("\n")[0])
     ap.add_argument("--apply", action="store_true")
     ap.add_argument("--verify", action="store_true")
     ap.add_argument("--root", default="")
@@ -168,8 +189,10 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     if a.apply:
         rep = apply(root)
-        print(f"[redact] APPLIED -- {rep['replacements']} replacement(s) across "
-              f"{rep['files_changed']} file(s), {rep['applied_targets']} target(s)")
+        print(
+            f"[redact] APPLIED -- {rep['replacements']} replacement(s) across "
+            f"{rep['files_changed']} file(s), {rep['applied_targets']} target(s)"
+        )
         if rep["refused"]:
             print(f"[redact] REFUSED (unchanged): {', '.join(rep['refused'])}")
         print("[redact] NOTE: the working tree is clean; HISTORY IS NOT. Prior commits")

@@ -26,6 +26,7 @@ Each test probes one claim or seam from the R2 round:
       passes it. The report must NAME the gap between contract-v0-law-1 and
       checker-M-L1 (the checker enforces a weaker law than the contract states).
 """
+
 from __future__ import annotations
 
 import importlib.util
@@ -39,6 +40,8 @@ TARGET = ROOT / "scripts" / "bifrost_ui.py"
 
 def _load():
     spec = importlib.util.spec_from_file_location("check_ui_contract", SCRIPT)
+    assert spec is not None
+    assert spec.loader is not None
     mod = importlib.util.module_from_spec(spec)
     sys.modules["check_ui_contract"] = mod
     spec.loader.exec_module(mod)
@@ -64,14 +67,18 @@ def test_t1_t2_incumbent_verdict_and_l8_truth():
         print("   ", h)
     # The fence's own census found raw hex at call sites (hovers, badges, JS).
     # If the checker found ZERO, its L8 is blind to a real class -> fail loudly.
-    assert l8, ("M-L8 found ZERO raw-hex hits on the incumbent, but the fence census "
-                "(grep) finds ~15 call-site hex values (#39405a, #0a0b0f, #20232e, "
-                "#0c0e14, #0b0d13, #dce0ea, #fff, #48e6bf fallbacks, #e0915c in a "
-                "conic-gradient). Either the census is wrong (then delete this pin) "
-                "or the checker's L8 is NOT enforcing the contract's token law.")
-    print("[T1/T2] checker DOES fire on the incumbent -- the charter's "
-          "'zero false positives / exits 0 tonight' claim is FALSE. Advisory rail "
-          "is load-bearing.")
+    assert l8, (
+        "M-L8 found ZERO raw-hex hits on the incumbent, but the fence census "
+        "(grep) finds ~15 call-site hex values (#39405a, #0a0b0f, #20232e, "
+        "#0c0e14, #0b0d13, #dce0ea, #fff, #48e6bf fallbacks, #e0915c in a "
+        "conic-gradient). Either the census is wrong (then delete this pin) "
+        "or the checker's L8 is NOT enforcing the contract's token law."
+    )
+    print(
+        "[T1/T2] checker DOES fire on the incumbent -- the charter's "
+        "'zero false positives / exits 0 tonight' claim is FALSE. Advisory rail "
+        "is load-bearing."
+    )
 
 
 # ---------------------------------------------------------------- T3
@@ -102,7 +109,8 @@ def test_t4_l3_tripped_self_authorization():
     # line 2 has no predicate at all except the alarm word itself -> MUST flag.
     assert any("L2" in h for h in hits), (
         "L3 vacuity: 'el.className = tripped' passed because 'tripped' is its own "
-        "state predicate -- the founding class is self-authorizing.")
+        "state predicate -- the founding class is self-authorizing."
+    )
 
 
 # ---------------------------------------------------------------- T5
@@ -116,6 +124,8 @@ def test_t5_l1_enforces_weaker_law_than_contract():
     hits = mod._check_gauge_axes(lines)
     print(f"\n[T5] checker hits on gauge lacking aria-label/data-fresh: {len(hits)}")
     assert not hits, "unexpected: checker flags a gauge WITH data-agent+title"
-    print("[T5] CONFIRMED: checker-M-L1 is a WEAKER law than contract law 1 "
-          "(no aria-label / data-fresh / unit / freshness check). The report and "
-          "the docstring must name the gap or the checker overclaims.")
+    print(
+        "[T5] CONFIRMED: checker-M-L1 is a WEAKER law than contract law 1 "
+        "(no aria-label / data-fresh / unit / freshness check). The report and "
+        "the docstring must name the gap or the checker overclaims."
+    )

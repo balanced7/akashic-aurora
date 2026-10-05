@@ -16,8 +16,8 @@ RUN_API = "arsenal.jam.run/v0"
 DECK_API = "arsenal.jam.deck/v0"
 SEED_API = "arsenal.jam.seed/v0"
 SEED_MOMENTS_API = "arsenal.jam.seed.moments/v0"
-REPORT_API = "arsenal.jam.report/v0"      # v2 (section 4.5), named now so v1 leaves room for it
-RIFF_API = "arsenal.practice.riff/v0"     # practice riff's output (section 11.6)
+REPORT_API = "arsenal.jam.report/v0"  # v2 (section 4.5), named now so v1 leaves room for it
+RIFF_API = "arsenal.practice.riff/v0"  # practice riff's output (section 11.6)
 TEMPOMAP_CASES_API = "arsenal.jam.tempomap.cases/v0"
 
 API = {

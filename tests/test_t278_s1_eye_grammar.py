@@ -17,6 +17,7 @@ Envelope contract: {results, total, degraded, degraded_reason, tokens_returned, 
 
 Run: py -m pytest tests/test_t278_s1_eye_grammar.py -q
 """
+
 from __future__ import annotations
 
 import os
@@ -28,13 +29,13 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.eye import index as EYE  # noqa: E402
+from core.eye import index as EYE
 
 ROOT = Path(__file__).resolve().parents[1]
 FIX = ROOT / "tests" / "fixtures" / "eye"
 
 
-@pytest.fixture()
+@pytest.fixture
 def db(tmp_path):
     corpus = tmp_path / "corpus"
     corpus.mkdir()
@@ -46,7 +47,8 @@ def db(tmp_path):
         '"message":{"role":"user","content":"gamma fixture sword late saying"}}\n'
         '{"type":"user","isMeta":false,"timestamp":"not-a-real-time",'
         '"message":{"role":"user","content":"timeless fixture sword utterance"}}\n',
-        encoding="utf-8")
+        encoding="utf-8",
+    )
     dbp = tmp_path / "eye.db"
     EYE.ingest(paths=sorted(corpus.glob("*.jsonl")), db_path=dbp)
     return dbp
@@ -62,29 +64,27 @@ def test_p1_as_of_hides_later_events(db):
     env_d = EYE.find(q="fixture sword", as_of="2026-08-02", db_path=db)
     ids_d = {r["event_id"] for r in env_d["results"]}
     assert not any(i.startswith("session_gamma:1") for i in ids_d), (
-        "THE AS-OF PIN: an event recorded 08-03 is invisible to as_of=08-02")
-    assert any(i.startswith("session_alpha") for i in ids_d), (
-        "earlier events stay visible under as_of")
+        "THE AS-OF PIN: an event recorded 08-03 is invisible to as_of=08-02"
+    )
+    assert any(i.startswith("session_alpha") for i in ids_d), "earlier events stay visible under as_of"
     assert env_d["as_of"] is not None
 
 
 def test_p2_malformed_as_of_refuses_with_teaching(db):
-    with pytest.raises(ValueError) as e:
+    with pytest.raises(ValueError, match="as_of '2026-13-01' is not a date") as e:
         EYE.find(q="fixture", as_of="2026-13-01", db_path=db)
     msg = str(e.value)
-    assert "as_of" in msg and ("ISO" in msg or "YYYY-MM-DD" in msg), (
-        "THE SILENT-EMPTY PIN: the refusal teaches the expected shape")
-    with pytest.raises(ValueError):
+    assert "as_of" in msg, "THE SILENT-EMPTY PIN: the refusal teaches the expected shape"
+    assert "ISO" in msg or "YYYY-MM-DD" in msg, "THE SILENT-EMPTY PIN: the refusal teaches the expected shape"
+    with pytest.raises(ValueError, match="as_of 'not-a-date' is not a date"):
         EYE.find(q="fixture", as_of="not-a-date", db_path=db)
 
 
 def test_p3_facets_compose(db):
     base = EYE.find(q="fixture", db_path=db, limit=100)
     who = EYE.find(q="fixture", who="operator", db_path=db, limit=100)
-    kind = EYE.find(q="fixture", who="operator", kind="queue-operation",
-                    db_path=db, limit=100)
-    assert base["total"] > who["total"] > kind["total"] >= 1, (
-        "THE FACET PIN: each facet narrows -- AND composition")
+    kind = EYE.find(q="fixture", who="operator", kind="queue-operation", db_path=db, limit=100)
+    assert base["total"] > who["total"] > kind["total"] >= 1, "THE FACET PIN: each facet narrows -- AND composition"
     assert all(r["voice"] == "operator" for r in who["results"])
     assert all(r["type"] == "queue-operation" for r in kind["results"])
     sess = EYE.find(q="fixture", session="session_beta", db_path=db, limit=100)
@@ -94,20 +94,21 @@ def test_p3_facets_compose(db):
 def test_p4_unevaluable_ts_degrades_the_envelope(db):
     env = EYE.find(q="fixture sword", as_of="2026-08-02", db_path=db)
     assert env["degraded"] is True, (
-        "THE DEGRADED PIN: a ts-less matching event cannot be evaluated under as_of; "
-        "silence would read as completeness")
+        "THE DEGRADED PIN: a ts-less matching event cannot be evaluated under as_of; silence would read as completeness"
+    )
     assert "timestamp" in (env["degraded_reason"] or "")
     env2 = EYE.find(q="fixture sword", db_path=db)
-    assert env2["degraded"] is False, (
-        "no as_of -> ts-less events are ordinary results, nothing degraded")
+    assert env2["degraded"] is False, "no as_of -> ts-less events are ordinary results, nothing degraded"
 
 
 def test_p5_q_alone_still_works_and_s0_wrapper_intact(db):
     env = EYE.find(q="queued directive", db_path=db)
-    assert env["total"] == 1 and env["results"][0]["type"] == "queue-operation"
+    assert env["total"] == 1
+    assert env["results"][0]["type"] == "queue-operation"
     assert not hasattr(EYE, "find_text"), (
         "one door, no fork: the S0 wrapper was DELETED when production moved to find() -- "
-        "a superseded function left callable is a live fork (the lesson, applied)")
+        "a superseded function left callable is a live fork (the lesson, applied)"
+    )
 
 
 def test_p6_envelope_carries_budget(db):
@@ -115,4 +116,5 @@ def test_p6_envelope_carries_budget(db):
     assert len(env["results"]) <= 3
     assert env["total"] >= len(env["results"]), "total counts before the limit"
     assert env["tokens_returned"] > 0, (
-        "the envelope prices itself -- context-efficiency is a visible number (category B)")
+        "the envelope prices itself -- context-efficiency is a visible number (category B)"
+    )

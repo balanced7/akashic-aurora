@@ -27,7 +27,9 @@ deepseek's independent verify (fence doctrine). ISOLATION: everything in namespa
 
 Usage:  py tests/rb25_drill3_orchestrate.py [--pause-at 20]
 """
+
 import argparse
+import contextlib
 import json
 import os
 import queue
@@ -47,15 +49,18 @@ os.environ["AKASHIC_DRILL_ECHO"] = "1"
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO))
 
-from core.comm.bus import Bus                # noqa: E402
-from core.comm import runner_lock            # noqa: E402
-from core.comm import control                # noqa: E402  (pause-guard, 2026-07-12 finding)
+
+from core.comm import (  # noqa: E402  # pause-guard, 2026-07-12 finding
+    control,
+    runner_lock,
+)
+from core.comm.bus import Bus  # noqa: E402  # sys.path bootstrap
 
 PY = sys.executable
 TAG_RE = re.compile(r"(storm-[0-9a-f]+-(?:request|handoff|steer|trace|chat)-\d{3})")
 
 
-T045_MODE = False   # set by --t045: the consumer-cutover storm rerun (lanes live)
+T045_MODE = False  # set by --t045: the consumer-cutover storm rerun (lanes live)
 
 
 def child_env():
@@ -85,10 +90,11 @@ def child_env():
 
 def spawn(argv, log_path, **kw):
     """Launch a child python process, stdout+stderr -> log_path. Returns Popen."""
-    f = open(log_path, "w", encoding="utf-8")
-    p = subprocess.Popen([PY] + argv, cwd=str(REPO), env=child_env(),
-                         stdout=f, stderr=subprocess.STDOUT, text=True, **kw)
-    p._logf = f
+    f = open(log_path, "w", encoding="utf-8")  # noqa: SIM115  # handle outlives this function: the child writes to it; kept on p._logf
+    p = subprocess.Popen(
+        [PY, *argv], cwd=str(REPO), env=child_env(), stdout=f, stderr=subprocess.STDOUT, text=True, **kw
+    )
+    p._logf = f  # pyright: ignore[reportAttributeAccessIssue]  # ad-hoc attribute: keeps the log handle alive with the child
     return p
 
 
@@ -107,20 +113,20 @@ def tag_of(content):
 def unconsumed(agent):
     """Non-destructive read of an agent's pending inbox (advance=False -> cursor untouched)."""
     b = Bus(agent)
-    out = []
-    for x in b.inbox(limit=3000, advance=False):
-        out.append({"frm": x.frm, "kind": str(x.kind), "tag": tag_of(x.content)})
-    return out
+    return [{"frm": x.frm, "kind": str(x.kind), "tag": tag_of(x.content)} for x in b.inbox(limit=3000, advance=False)]
 
 
 def main():
     ap = argparse.ArgumentParser(description="RB-25 drill 3 storm orchestrator")
     ap.add_argument("--pause-at", type=int, default=20, help="messages before the mid-burst kill")
     ap.add_argument("--drain-timeout", type=int, default=25, help="seconds to wait for the successor to drain")
-    ap.add_argument("--t045", action="store_true",
-                    help="T045 stage-2 rerun: children consume on the work lane; adds the "
-                         "S6 sig-latency probe + the session-consume leg (fence Q3) to the "
-                         "evidence bundle")
+    ap.add_argument(
+        "--t045",
+        action="store_true",
+        help="T045 stage-2 rerun: children consume on the work lane; adds the "
+        "S6 sig-latency probe + the session-consume leg (fence Q3) to the "
+        "evidence bundle",
+    )
     args = ap.parse_args()
     global T045_MODE
     T045_MODE = bool(args.t045)
@@ -152,18 +158,26 @@ def main():
         rA = spawn(["scripts/bifrost_runner_deepseek.py", "--agent", ids["a"]], logdir / "runnerA.log")
         rB = spawn(["scripts/bifrost_runner_deepseek.py", "--agent", ids["b"]], logdir / "runnerB.log")
         children += [rA, rB]
-        w1 = spawn(["scripts/bifrost_wake.py", "--agent", ids["w"], "--session", f"{storm}-s1"], logdir / "watcher1.log")
-        w2 = spawn(["scripts/bifrost_wake.py", "--agent", ids["w"], "--session", f"{storm}-s2"], logdir / "watcher2.log")
+        w1 = spawn(
+            ["scripts/bifrost_wake.py", "--agent", ids["w"], "--session", f"{storm}-s1"], logdir / "watcher1.log"
+        )
+        w2 = spawn(
+            ["scripts/bifrost_wake.py", "--agent", ids["w"], "--session", f"{storm}-s2"], logdir / "watcher2.log"
+        )
         children += [w1, w2]
         time.sleep(5)  # registration + seat claim
 
         ev["boot"] = {
-            "runnerA_alive": rA.poll() is None, "runnerB_alive": rB.poll() is None,
-            "watcher1_alive": w1.poll() is None, "watcher2_alive": w2.poll() is None,
+            "runnerA_alive": rA.poll() is None,
+            "runnerB_alive": rB.poll() is None,
+            "watcher1_alive": w1.poll() is None,
+            "watcher2_alive": w2.poll() is None,
             "presence": Bus("orch-probe").presence(),
         }
-        note(f"boot: runners alive={ev['boot']['runnerA_alive']}/{ev['boot']['runnerB_alive']} "
-             f"watchers alive={ev['boot']['watcher1_alive']}/{ev['boot']['watcher2_alive']}")
+        note(
+            f"boot: runners alive={ev['boot']['runnerA_alive']}/{ev['boot']['runnerB_alive']} "
+            f"watchers alive={ev['boot']['watcher1_alive']}/{ev['boot']['watcher2_alive']}"
+        )
 
         # -- 2. pre-kill state for runner B (the corpse-to-be) --------------------------
         hb = runner_lock.holder(ids["b"]) or {}
@@ -175,19 +189,40 @@ def main():
         }
 
         # -- 3. drive the frozen burst; read stdout until the pause ---------------------
-        note("starting burst (pause-at=%d)" % args.pause_at)
+        note(f"starting burst (pause-at={args.pause_at})")
         burst = subprocess.Popen(
-            [PY, "tests/rb25_drill3_burst.py", "--runner", ids["a"], "--target", ids["b"],
-             "--watcher", ids["w"], "--namespace", NS, "--pause-at", str(args.pause_at),
-             "--ledger", str(ledger_path)],
-            cwd=str(REPO), env=child_env(), stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT, text=True, bufsize=1, encoding="utf-8", errors="replace")
+            [
+                PY,
+                "tests/rb25_drill3_burst.py",
+                "--runner",
+                ids["a"],
+                "--target",
+                ids["b"],
+                "--watcher",
+                ids["w"],
+                "--namespace",
+                NS,
+                "--pause-at",
+                str(args.pause_at),
+                "--ledger",
+                str(ledger_path),
+            ],
+            cwd=str(REPO),
+            env=child_env(),
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1,
+            encoding="utf-8",
+            errors="replace",
+        )
         children.append(burst)
 
         q = queue.Queue()
 
         def reader(pipe, qq):
-            for line in iter(pipe.readline, ''):
+            for line in iter(pipe.readline, ""):
                 qq.put(line)
             qq.put(None)
 
@@ -215,10 +250,8 @@ def main():
         if not paused:
             # The burst did not reach the pause -- almost always an early crash. Capture + abort
             # cleanly (finally tears everything down) rather than proceeding to kill nothing.
-            try:
+            with contextlib.suppress(Exception):
                 burst.wait(timeout=5)
-            except Exception:
-                pass
             (logdir / "burst.log").write_text("\n".join(burst_lines), encoding="utf-8")
             note("BURST DID NOT PAUSE -- likely early exit. Aborting. Tail:")
             print("\n".join(burst_lines[-15:]))
@@ -235,7 +268,9 @@ def main():
         except subprocess.TimeoutExpired:
             dupe.kill()
         s4_out = log_tail(logdir / "dupeA.log")
-        s4_refused = ("Refusing to start" in s4_out) or ("already live" in s4_out) or ("holds the consumer seat" in s4_out)
+        s4_refused = (
+            ("Refusing to start" in s4_out) or ("already live" in s4_out) or ("holds the consumer seat" in s4_out)
+        )
         ev["s4"] = {
             "dupe_exit": dupe.returncode,
             "refused": s4_refused,
@@ -261,6 +296,7 @@ def main():
 
         # -- 5. resume the burst (feed the newline the human would press) --------------
         try:
+            assert burst.stdin is not None
             burst.stdin.write("\n")
             burst.stdin.flush()
         except Exception as e:
@@ -297,8 +333,10 @@ def main():
         # runner froze mid-storm and the S3/S5 reads are INVALID -- flag loudly, do not pretend.
         ev["paused_during_burst"] = control.is_paused()
         if ev["paused_during_burst"]:
-            note("!! bus got PAUSED during the burst (reply RateLimiter runaway guard) -- S3/S5 "
-                 "reads are INVALID. See docs/library/design/20260712_rb-25-drill-3-s3-wedge-root-cause-diagno_d92cb6.md. Clearing to recover.")
+            note(
+                "!! bus got PAUSED during the burst (reply RateLimiter runaway guard) -- S3/S5 "
+                "reads are INVALID. See docs/library/design/20260712_rb-25-drill-3-s3-wedge-root-cause-diagno_d92cb6.md. Clearing to recover."
+            )
             control.resume()
 
         # -- 6. start the successor (same id as the corpse) ----------------------------
@@ -338,6 +376,7 @@ def main():
             os.environ["BIFROST_CONSUME_LANE"] = "work"
             try:
                 from agent.bifrost_pull import consume_inbox
+
                 leg = consume_inbox(ids["w"], limit=50)
                 ev["session_leg"] = {
                     "seat_held_by_other": bool(leg.get("seat_held")),
@@ -345,8 +384,9 @@ def main():
                     "lane_cursor_w": Bus(ids["w"]).read_lane_cursor(),
                     "pass": not leg.get("seat_held"),
                 }
-                note(f"session leg: consumed={ev['session_leg']['consumed_count']} "
-                     f"seat_free={ev['session_leg']['pass']}")
+                note(
+                    f"session leg: consumed={ev['session_leg']['consumed_count']} seat_free={ev['session_leg']['pass']}"
+                )
             except Exception as e:
                 ev["session_leg"] = {"error": f"{type(e).__name__}: {e}", "pass": False}
             finally:
@@ -361,13 +401,16 @@ def main():
             reply_tags[t] = reply_tags.get(t, 0) + 1
 
         unc_a, unc_b = unconsumed(ids["a"]), unconsumed(ids["b"])
-        unc_tags = set(x["tag"] for x in (unc_a + unc_b) if x["tag"])
-        answered = set(t for t in reply_tags if t)
+        unc_tags = {x["tag"] for x in (unc_a + unc_b) if x["tag"]}
+        answered = {t for t in reply_tags if t}
 
         # S1 accounting over directed requests (the bar's subject)
         req_entries = [e for e in ledger["messages"] if e["kind"] == "request"]
-        lost = [e["content_tag"] for e in req_entries
-                if e["content_tag"] not in answered and e["content_tag"] not in unc_tags]
+        lost = [
+            e["content_tag"]
+            for e in req_entries
+            if e["content_tag"] not in answered and e["content_tag"] not in unc_tags
+        ]
         ev["s1"] = {
             "requests_sent": len(req_entries),
             "send_side_lost": ledger.get("lost_count", 0),
@@ -380,19 +423,24 @@ def main():
         # S2 phantom wake: did either watcher DETECT (exit on the trace/steer flood)?
         w1_out, w2_out = log_tail(logdir / "watcher1.log"), log_tail(logdir / "watcher2.log")
         ev["s2"] = {
-            "watcher1_alive": w1.poll() is None, "watcher2_alive": w2.poll() is None,
-            "watcher1_detected": "DETECTED" in w1_out, "watcher2_detected": "DETECTED" in w2_out,
+            "watcher1_alive": w1.poll() is None,
+            "watcher2_alive": w2.poll() is None,
+            "watcher1_detected": "DETECTED" in w1_out,
+            "watcher2_detected": "DETECTED" in w2_out,
             "pass": ("DETECTED" not in w1_out) and ("DETECTED" not in w2_out),
-            "watcher1_out": w1_out[-400:], "watcher2_out": w2_out[-400:],
+            "watcher1_out": w1_out[-400:],
+            "watcher2_out": w2_out[-400:],
         }
 
         # S3 cursor passes the corpse -- report the SEAT handoff (mechanical) separately from
         # BACKLOG drain (the corpse's work actually getting consumed). Conflating them hides the
         # 2026-07-12 finding: the seat hands off cleanly but a non-virgin successor may not drain.
         b_pending = Bus(ids["b"]).pending()
-        seat_handoff = (ev["successor"]["online"]
-                        and ev["successor"]["lock_holder"].get("pid") != ev["kill"]["corpse_pid"]
-                        and ev["kill"]["lock_cleared_by_pid"])
+        seat_handoff = (
+            ev["successor"]["online"]
+            and ev["successor"]["lock_holder"].get("pid") != ev["kill"]["corpse_pid"]
+            and ev["kill"]["lock_cleared_by_pid"]
+        )
         ev["s3"] = {
             "corpse_cursor": ev["kill"]["corpse_cursor"],
             "successor_cursor": Bus(ids["b"]).cursor(),
@@ -416,24 +464,25 @@ def main():
         if T045_MODE:
             s6_reply_ts, s6_latency = None, None
             try:
+                assert s6_probe_id is not None  # both set together under T045_MODE above
+                assert s6_sent_at is not None
                 for m in Bus(s6_probe_id).inbox(limit=100, advance=False):
                     if f"s6-{storm}" in str(m.content):
                         s6_reply_ts = str(m.ts)
                         import datetime as _dt
+
                         rt = _dt.datetime.fromisoformat(s6_reply_ts).timestamp()
                         s6_latency = round(rt - s6_sent_at, 2)
                         break
             except Exception:
                 pass
-            last_work_reply_ts = max((str(m.ts) for m in replies if tag_of(m.content)),
-                                     default="")
+            last_work_reply_ts = max((str(m.ts) for m in replies if tag_of(m.content)), default="")
             ev["s6"] = {
                 "probe_id": s6_probe_id,
                 "nudge_reply_ts": s6_reply_ts,
                 "latency_s": s6_latency,
                 "last_work_reply_ts": last_work_reply_ts,
-                "sig_beat_final_work": bool(s6_reply_ts and last_work_reply_ts
-                                            and s6_reply_ts < last_work_reply_ts),
+                "sig_beat_final_work": bool(s6_reply_ts and last_work_reply_ts and s6_reply_ts < last_work_reply_ts),
                 # bound named per M8: answered, and within 10s despite the flood
                 "pass": bool(s6_latency is not None and s6_latency <= 10.0),
             }
@@ -443,7 +492,8 @@ def main():
                 "lane_cursor_b": Bus(ids["b"]).read_lane_cursor(),
                 "straggler_lines": {
                     n: len(re.findall(r"LEGACY STRAGGLER", log_tail(logdir / n, 100000)))
-                    for n in ("runnerA.log", "runnerB.log", "runnerB_successor.log")},
+                    for n in ("runnerA.log", "runnerB.log", "runnerB_successor.log")
+                },
             }
 
         ev["reply_tags_total"] = sum(reply_tags.values())
@@ -458,18 +508,26 @@ def main():
         print("=" * 60)
         for bar in ("s1", "s2", "s3", "s4"):
             p = ev.get(bar, {}).get("pass")
-            print(f"  {bar.upper()}: {'PASS' if p else 'CHECK'}  {json.dumps({k:v for k,v in ev[bar].items() if k not in ('watcher1_out','watcher2_out','dupe_out','out')})[:180]}")
+            print(
+                f"  {bar.upper()}: {'PASS' if p else 'CHECK'}  {json.dumps({k: v for k, v in ev[bar].items() if k not in ('watcher1_out', 'watcher2_out', 'dupe_out', 'out')})[:180]}"
+            )
         print(f"  S5: {'PASS' if ev['s5']['pass'] else 'CHECK'}  {ev['s5']['handoff_reply_counts']}")
         if T045_MODE:
-            print(f"  S6: {'PASS' if ev.get('s6', {}).get('pass') else 'CHECK'}  "
-                  f"latency={ev.get('s6', {}).get('latency_s')}s "
-                  f"sig_beat_final_work={ev.get('s6', {}).get('sig_beat_final_work')}")
-            print(f"  SESSION-LEG: {'PASS' if ev.get('session_leg', {}).get('pass') else 'CHECK'}  "
-                  f"consumed={ev.get('session_leg', {}).get('consumed_count')}")
+            print(
+                f"  S6: {'PASS' if ev.get('s6', {}).get('pass') else 'CHECK'}  "
+                f"latency={ev.get('s6', {}).get('latency_s')}s "
+                f"sig_beat_final_work={ev.get('s6', {}).get('sig_beat_final_work')}"
+            )
+            print(
+                f"  SESSION-LEG: {'PASS' if ev.get('session_leg', {}).get('pass') else 'CHECK'}  "
+                f"consumed={ev.get('session_leg', {}).get('consumed_count')}"
+            )
         if ev.get("paused_during_burst"):
-            print("  !! INVALID RUN: bus was PAUSED mid-burst (reply RateLimiter runaway guard) -- "
-                  "S3/S5 are UNTESTABLE this run. Fix A+B (docs/library/design/20260712_rb-25-drill-3-s3-wedge-root-cause-diagno_d92cb6.md) "
-                  "must land before a valid re-run.")
+            print(
+                "  !! INVALID RUN: bus was PAUSED mid-burst (reply RateLimiter runaway guard) -- "
+                "S3/S5 are UNTESTABLE this run. Fix A+B (docs/library/design/20260712_rb-25-drill-3-s3-wedge-root-cause-diagno_d92cb6.md) "
+                "must land before a valid re-run."
+            )
         print(f"\nevidence -> {evidence_path}")
         print(f"ledger   -> {ledger_path}")
         print(f"logs     -> {logdir}")

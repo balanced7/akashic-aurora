@@ -32,30 +32,30 @@ SCORE IS EVIDENCE, NEVER A KEY (Daniil, L4). This module deliberately imports no
 trust/ACL layer, and a pin enforces that structurally, so a score cannot become an access
 decision by accident. A score may make a player ELIGIBLE for a grant that a human then makes.
 """
+
 from __future__ import annotations
 
 #: Base multiplier by confirmed claim class. Identical in both policies -- the classes are the
 #: findings the board is made of, and re-weighting them is a different argument than the one W2
 #: is making.
 _BASE = {
-    "new-blind-spot": 6,   # improves the INSTRUMENT rather than the inventory
-    "false-positive": 5,   # the list_snapshots class: a gate calling a live door dead
-    "structural": 4,       # what actually drained the board (T134c, T144)
-    "needs-door": 3,       # the founding defect class (declare_intent)
-    "needs-caller": 2,     # real, but the fix is a program not a slice
-    "dead": 1,             # weakest claim, never auto-executed
+    "new-blind-spot": 6,  # improves the INSTRUMENT rather than the inventory
+    "false-positive": 5,  # the list_snapshots class: a gate calling a live door dead
+    "structural": 4,  # what actually drained the board (T134c, T144)
+    "needs-door": 3,  # the founding defect class (declare_intent)
+    "needs-caller": 2,  # real, but the fix is a program not a slice
+    "dead": 1,  # weakest claim, never auto-executed
 }
 
 POLICIES = {
     "v1_doc": {
-        "notes": "Exactly the committed table, section 1.6. Pinned so the design doc stays "
-                 "executable.",
+        "notes": "Exactly the committed table, section 1.6. Pinned so the design doc stays executable.",
         "base": dict(_BASE),
-        "refuted": -2,                 # flat
-        "refuted_low_confidence": 0,   # honesty floor
+        "refuted": -2,  # flat
+        "refuted_low_confidence": 0,  # honesty floor
         "unverifiable": -1,
         "already_known": 0,
-        "duplicate": 0,                # later identical claims: zero, not negative
+        "duplicate": 0,  # later identical claims: zero, not negative
         "verify_delivered": 1,
         "verify_refuted_upheld": 3,
         "uptime_weighted": False,
@@ -64,17 +64,17 @@ POLICIES = {
     },
     "v2_aixcc": {
         "notes": "PROPOSED (W2), not the default. Four changes, each with a reason: "
-                 "(1) UPTIME AS A SCORED AXIS -- AIxCC scores availability because a competitor "
-                 "that is down contributes nothing; here a wedged seat currently scores the same "
-                 "as a live player who found nothing, which is the exact ambiguity T155 was "
-                 "filed about. (2) GRADUATED ACCURACY PENALTY replacing the flat -2 -- a flat "
-                 "penalty is regressive: it is trivial for a high-volume player and severe for a "
-                 "careful one, so it taxes care rather than inaccuracy. Scale by the player's "
-                 "own refuted RATE. (3) DUPLICATE DECAY rather than a hard zero -- a hard zero "
-                 "makes independent near-simultaneous discovery worthless, which suppresses "
-                 "exactly the corroboration that makes a finding trustworthy. (4) VALUE "
-                 "WEIGHTING -- a confirmed finding that is later FIXED is worth more than one "
-                 "that sits on the board.",
+        "(1) UPTIME AS A SCORED AXIS -- AIxCC scores availability because a competitor "
+        "that is down contributes nothing; here a wedged seat currently scores the same "
+        "as a live player who found nothing, which is the exact ambiguity T155 was "
+        "filed about. (2) GRADUATED ACCURACY PENALTY replacing the flat -2 -- a flat "
+        "penalty is regressive: it is trivial for a high-volume player and severe for a "
+        "careful one, so it taxes care rather than inaccuracy. Scale by the player's "
+        "own refuted RATE. (3) DUPLICATE DECAY rather than a hard zero -- a hard zero "
+        "makes independent near-simultaneous discovery worthless, which suppresses "
+        "exactly the corroboration that makes a finding trustworthy. (4) VALUE "
+        "WEIGHTING -- a confirmed finding that is later FIXED is worth more than one "
+        "that sits on the board.",
         "base": dict(_BASE),
         "refuted": -2,
         "refuted_low_confidence": 0,
@@ -84,38 +84,37 @@ POLICIES = {
         "verify_delivered": 1,
         "verify_refuted_upheld": 3,
         "uptime_weighted": True,
-        "uptime_floor": 0.5,           # a seat down half the round keeps half its score
+        "uptime_floor": 0.5,  # a seat down half the round keeps half its score
         "graduated_penalty": True,
-        "graduated_penalty_max": -5,   # a player refuted most of the time pays more than -2
+        "graduated_penalty_max": -5,  # a player refuted most of the time pays more than -2
         "duplicate_decay": True,
         "duplicate_decay_hours": 6.0,  # an independent find within the window keeps a share
         "duplicate_decay_floor": 0.0,
     },
     "v3_confidence_priced": {
-        "notes":
-            "PROPOSED 2026-08-07, NOT the default -- same standing as v2_aixcc, and it "
-            "carries v2's four changes plus one more. Closes the HEDGE EXPLOIT (T221), "
-            "found by attacking this scorer before the season ran: a player with 3 real "
-            "finds and THIRTY wrong claims, every one marked low-confidence, outscored a "
-            "player with the same 3 finds and one wrong high-confidence claim -- 6 to 4 "
-            "under v1_doc, 6 to 5 under v2_aixcc, and unbounded in both (300 wrong claims "
-            "cost exactly what 30 do, which is nothing). "
-            "CAUSE: refuted_low_confidence=0 gives an honestly-flagged wrong claim downside "
-            "protection, which is right; but a CONFIRMED low-confidence claim still earns "
-            "FULL points, so the protection is free. In competition terms that is a free "
-            "option, and a free option is always exercised -- the dominant strategy becomes "
-            "hedge everything, spray, keep the hits. "
-            "TWO KNOBS, and they must move together. (1) low_confidence_credit prices the "
-            "option: a hedged claim that lands earns less than one its author stood behind, "
-            "so confidence becomes a real trade rather than a free put. (2) "
-            "low_confidence_free_misses bounds the volume: the first few honest misses stay "
-            "free -- that is the whole point of the floor and it must survive -- but the "
-            "exemption stops being infinite. "
-            "WHY BOTH: pricing alone still lets a hedger spray at zero downside, and "
-            "bounding alone makes honest uncertainty expensive without making confidence "
-            "worth anything. The failure mode to avoid is over-correcting into punishing "
-            "flagged doubt, which buys FALSE CONFIDENCE -- strictly worse than noise, "
-            "because noise is filterable and false confidence is not.",
+        "notes": "PROPOSED 2026-08-07, NOT the default -- same standing as v2_aixcc, and it "
+        "carries v2's four changes plus one more. Closes the HEDGE EXPLOIT (T221), "
+        "found by attacking this scorer before the season ran: a player with 3 real "
+        "finds and THIRTY wrong claims, every one marked low-confidence, outscored a "
+        "player with the same 3 finds and one wrong high-confidence claim -- 6 to 4 "
+        "under v1_doc, 6 to 5 under v2_aixcc, and unbounded in both (300 wrong claims "
+        "cost exactly what 30 do, which is nothing). "
+        "CAUSE: refuted_low_confidence=0 gives an honestly-flagged wrong claim downside "
+        "protection, which is right; but a CONFIRMED low-confidence claim still earns "
+        "FULL points, so the protection is free. In competition terms that is a free "
+        "option, and a free option is always exercised -- the dominant strategy becomes "
+        "hedge everything, spray, keep the hits. "
+        "TWO KNOBS, and they must move together. (1) low_confidence_credit prices the "
+        "option: a hedged claim that lands earns less than one its author stood behind, "
+        "so confidence becomes a real trade rather than a free put. (2) "
+        "low_confidence_free_misses bounds the volume: the first few honest misses stay "
+        "free -- that is the whole point of the floor and it must survive -- but the "
+        "exemption stops being infinite. "
+        "WHY BOTH: pricing alone still lets a hedger spray at zero downside, and "
+        "bounding alone makes honest uncertainty expensive without making confidence "
+        "worth anything. The failure mode to avoid is over-correcting into punishing "
+        "flagged doubt, which buys FALSE CONFIDENCE -- strictly worse than noise, "
+        "because noise is filterable and false confidence is not.",
         "base": dict(_BASE),
         "duplicate": 0,
         "refuted": -2,
@@ -164,15 +163,14 @@ def _stream_sort_key(claim: dict):
         ms, _, seq = raw.partition("-")
         return (0, int(ms), int(seq or 0))
     except (TypeError, ValueError):
-        return (1, 0, 0), raw          # unparseable ids sort last, deterministically
+        return (1, 0, 0), raw  # unparseable ids sort last, deterministically
 
 
 def _has_evidence(claim: dict) -> bool:
     return any(str(e).strip() for e in (claim.get("evidence") or []))
 
 
-def score_round(claims, verifications=None, policy: str = DEFAULT_POLICY,
-                uptime=None, fixed_keys=None) -> dict:
+def score_round(claims, verifications=None, policy: str = DEFAULT_POLICY, uptime=None, fixed_keys=None) -> dict:
     """Score one round. Pure: no IO, no clock, no randomness, no authority lookups.
 
     `claims`        [{player, dedupe_key, claim_class, outcome, confidence, stream_id, evidence}]
@@ -233,15 +231,21 @@ def score_round(claims, verifications=None, policy: str = DEFAULT_POLICY,
         player = c.get("player")
         key = c.get("dedupe_key")
         outcome = str(c.get("outcome") or "").lower()
-        detail = {"player": player, "dedupe_key": key, "outcome": outcome,
-                  "claim_class": c.get("claim_class"), "first_finder": False,
-                  "scored": True, "points": 0, "reason": ""}
+        detail = {
+            "player": player,
+            "dedupe_key": key,
+            "outcome": outcome,
+            "claim_class": c.get("claim_class"),
+            "first_finder": False,
+            "scored": True,
+            "points": 0,
+            "reason": "",
+        }
 
         # NO RECEIPTS, NO SCORE -- checked before anything else, including before first-finder,
         # so an evidence-free claim cannot even reserve a dedupe key it did not earn.
         if not _has_evidence(c):
-            detail.update(scored=False, points=0,
-                          reason="unscored: no resolvable evidence lines")
+            detail.update(scored=False, points=0, reason="unscored: no resolvable evidence lines")
             out.append(detail)
             continue
 
@@ -260,9 +264,10 @@ def score_round(claims, verifications=None, policy: str = DEFAULT_POLICY,
             # policy this is 1.0, so v1_doc and v2_aixcc are byte-identical to before.
             credit = float(P.get("low_confidence_credit", 1.0))
             if is_low_conf and credit != 1.0:
-                pts = int(round(pts * credit))
-                detail["reason"] = (detail["reason"] + "; " if detail["reason"] else "") + \
-                    f"low-confidence credit x{credit:g}"
+                pts = round(pts * credit)
+                detail["reason"] = (
+                    detail["reason"] + "; " if detail["reason"] else ""
+                ) + f"low-confidence credit x{credit:g}"
             if not is_first:
                 if P["duplicate_decay"]:
                     # An independent corroborating find keeps a SHARE. A hard zero makes
@@ -271,7 +276,7 @@ def score_round(claims, verifications=None, policy: str = DEFAULT_POLICY,
                     lag = _lag_hours(first_seen[key], c)
                     window = float(P["duplicate_decay_hours"]) or 1.0
                     frac = max(float(P["duplicate_decay_floor"]), 1.0 - (lag / window))
-                    pts = int(round(pts * frac))
+                    pts = round(pts * frac)
                     detail["reason"] = f"duplicate, decayed (lag {lag:.2f}h)"
                 else:
                     pts = P["duplicate"]
@@ -279,13 +284,15 @@ def score_round(claims, verifications=None, policy: str = DEFAULT_POLICY,
             if P["uptime_weighted"]:
                 u = float(uptime.get(player, 1.0))
                 floor = float(P.get("uptime_floor", 0.0))
-                pts = int(round(pts * max(floor, min(1.0, u))))
-                detail["reason"] = (detail["reason"] + "; " if detail["reason"] else "") + \
-                    f"uptime x{max(floor, min(1.0, u)):.2f}"
+                pts = round(pts * max(floor, min(1.0, u)))
+                detail["reason"] = (
+                    detail["reason"] + "; " if detail["reason"] else ""
+                ) + f"uptime x{max(floor, min(1.0, u)):.2f}"
             if key in fixed_keys:
                 pts *= 2
-                detail["reason"] = (detail["reason"] + "; " if detail["reason"] else "") + \
-                    "value-weighted: finding was fixed"
+                detail["reason"] = (
+                    detail["reason"] + "; " if detail["reason"] else ""
+                ) + "value-weighted: finding was fixed"
             detail["points"] = pts
 
         elif outcome == "refuted":
@@ -300,25 +307,25 @@ def score_round(claims, verifications=None, policy: str = DEFAULT_POLICY,
                 used = low_conf_misses.get(player, 0)
                 low_conf_misses[player] = used + 1
                 if budget is None or used < int(budget):
-                    detail.update(points=P["refuted_low_confidence"],
-                                  reason="honest low-confidence report: floored at 0")
+                    detail.update(
+                        points=P["refuted_low_confidence"], reason="honest low-confidence report: floored at 0"
+                    )
                 else:
-                    detail.update(points=P["refuted"],
-                                  reason=f"low-confidence, but past the free-miss budget "
-                                         f"({budget}): ordinary penalty applies")
+                    detail.update(
+                        points=P["refuted"],
+                        reason=f"low-confidence, but past the free-miss budget ({budget}): ordinary penalty applies",
+                    )
             elif P["graduated_penalty"]:
                 rate = refuted.get(player, 0) / max(1, seen.get(player, 1))
                 worst = float(P["graduated_penalty_max"])
-                detail.update(points=int(round(worst * rate)),
-                              reason=f"graduated penalty (refuted rate {rate:.2f})")
+                detail.update(points=round(worst * rate), reason=f"graduated penalty (refuted rate {rate:.2f})")
             else:
                 detail.update(points=P["refuted"], reason="refuted (flat)")
 
         elif outcome == "unverifiable":
             detail.update(points=P["unverifiable"], reason="evidence did not resolve")
         elif outcome == "already-known":
-            detail.update(points=P["already_known"],
-                          reason="already known: rediscovery is honest work, never negative")
+            detail.update(points=P["already_known"], reason="already known: rediscovery is honest work, never negative")
         else:
             detail.update(scored=False, points=0, reason=f"unscored: unknown outcome {outcome!r}")
 
@@ -328,24 +335,25 @@ def score_round(claims, verifications=None, policy: str = DEFAULT_POLICY,
         if d["scored"]:
             totals[d["player"]] = totals.get(d["player"], 0) + d["points"]
 
-    for v in (verifications or []):
+    for v in verifications or []:
         p = v.get("player")
         pts = P["verify_delivered"]
         if str(v.get("verdict") or "").lower() == "refuted" and v.get("upheld"):
             pts = P["verify_refuted_upheld"]
         totals[p] = totals.get(p, 0) + pts
 
-    return {"policy": policy, "claims": out, "totals": totals,
-            "unscored": sum(1 for d in out if not d["scored"])}
+    return {"policy": policy, "claims": out, "totals": totals, "unscored": sum(1 for d in out if not d["scored"])}
 
 
 def _lag_hours(first: dict, later: dict) -> float:
     """Hours between two claims, from their STREAM IDS (ms-prefixed), never player clocks."""
+
     def ms(c):
         try:
             return int(str(c.get("stream_id") or "0").partition("-")[0])
         except (TypeError, ValueError):
             return 0
+
     return max(0.0, (ms(later) - ms(first)) / 3_600_000.0)
 
 
@@ -359,7 +367,8 @@ def compare(claims, verifications=None, **kw) -> dict:
     b = score_round(claims, verifications, policy="v2_aixcc", **kw)
     players = sorted(set(a["totals"]) | set(b["totals"]))
     return {
-        "v1_doc": a["totals"], "v2_aixcc": b["totals"],
+        "v1_doc": a["totals"],
+        "v2_aixcc": b["totals"],
         "delta": {p: b["totals"].get(p, 0) - a["totals"].get(p, 0) for p in players},
         "rank_v1": [p for p, _ in sorted(a["totals"].items(), key=lambda kv: -kv[1])],
         "rank_v2": [p for p, _ in sorted(b["totals"].items(), key=lambda kv: -kv[1])],

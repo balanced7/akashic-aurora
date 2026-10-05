@@ -22,6 +22,7 @@ The two default viewports are the contract's "two standard viewports": 1280x860 
 the header row was measured overflowing by 399px) and 900x820 (the mid-size window where the
 2026-07-23 audit found the layout shattering and the brand cropping to "ifrost").
 """
+
 from __future__ import annotations
 
 import argparse
@@ -38,10 +39,12 @@ DEFAULT_VIEWPORTS = ["1280x860", "900x820"]
 def _launcher():
     """Patchright first (repo default, stealth-patched), plain Playwright as fallback."""
     try:
-        from patchright.sync_api import sync_playwright  # type: ignore
+        from patchright.sync_api import sync_playwright  # pyright: ignore[reportMissingImports]  # optional dependency
+
         return sync_playwright, "patchright"
     except Exception:
-        from playwright.sync_api import sync_playwright  # type: ignore
+        from playwright.sync_api import sync_playwright  # pyright: ignore[reportMissingImports]  # optional dependency
+
         return sync_playwright, "playwright"
 
 
@@ -68,15 +71,17 @@ FPS_PROBE = """
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description=__doc__,
-                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--url", default=os.environ.get("AKASHIC_UI_URL", "http://localhost:8787"))
-    ap.add_argument("--viewport", action="append", default=None,
-                    help="WxH; repeatable. Default: %s" % " ".join(DEFAULT_VIEWPORTS))
+    ap.add_argument(
+        "--viewport",
+        action="append",
+        default=None,
+        help="WxH; repeatable. Default: {}".format(" ".join(DEFAULT_VIEWPORTS)),
+    )
     ap.add_argument("--label", default="", help="tag for the filename set (e.g. before/after)")
     ap.add_argument("--out", default=OUT_DIR)
-    ap.add_argument("--settle", type=float, default=2.5,
-                    help="seconds to let the feed/shader settle before shooting")
+    ap.add_argument("--settle", type=float, default=2.5, help="seconds to let the feed/shader settle before shooting")
     ap.add_argument("--fps", action="store_true", help="also sample real frame timing")
     ap.add_argument("--full", action="store_true", help="full-page rather than viewport")
     a = ap.parse_args()
@@ -97,8 +102,7 @@ def main() -> int:
                 except ValueError:
                     print(f"[ui_shot] bad viewport {vp!r}, skipping", file=sys.stderr)
                     continue
-                page = browser.new_page(viewport={"width": w, "height": h},
-                                        color_scheme="dark", device_scale_factor=1)
+                page = browser.new_page(viewport={"width": w, "height": h}, color_scheme="dark", device_scale_factor=1)
                 entry = {"viewport": vp}
                 try:
                     page.goto(a.url, wait_until="networkidle", timeout=30000)
@@ -123,7 +127,7 @@ def main() -> int:
 
                 # console errors are free evidence while we are here
                 errs = []
-                page.on("console", lambda m: errs.append(m.text) if m.type == "error" else None)
+                page.on("console", lambda m, errs=errs: errs.append(m.text) if m.type == "error" else None)
                 path = os.path.join(a.out, f"{tag}{vp}_{stamp}.png")
                 page.screenshot(path=path, full_page=a.full)
                 entry["path"] = path

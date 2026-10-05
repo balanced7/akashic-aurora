@@ -30,6 +30,7 @@ what he meant, while claude could only send words back about pictures Daniil cou
     py scripts/vfx_render.py say "that read as glow because round turns tile area into gap"
     py scripts/vfx_render.py ingest --name tunnel --file shadertoy.txt
 """
+
 from __future__ import annotations
 
 import argparse
@@ -39,12 +40,24 @@ import time
 import urllib.error
 import urllib.request
 
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+
+        return python_launcher()
+    except Exception:
+        return "py"
+
+
 BASE = "http://127.0.0.1:8787"
 
 
 def _post(path, payload):
-    req = urllib.request.Request(BASE + path, data=json.dumps(payload).encode("utf-8"),
-                                 headers={"Content-Type": "application/json"})
+    req = urllib.request.Request(
+        BASE + path, data=json.dumps(payload).encode("utf-8"), headers={"Content-Type": "application/json"}
+    )
     return json.load(urllib.request.urlopen(req, timeout=10))
 
 
@@ -59,7 +72,7 @@ def say(text, kind="say", label=""):
     try:
         r = _post("/vfx/feed", {"text": text, "kind": kind, "label": label, "from": "claude"})
     except urllib.error.URLError as exc:
-        print("the console is not running on %s (%s)" % (BASE, exc), file=sys.stderr)
+        print(f"the console is not running on {BASE} ({exc})", file=sys.stderr)
         return 2
     return 0 if r.get("ok") else 1
 
@@ -82,7 +95,7 @@ def ingest(ns):
     elif ns.file == "-":
         src = sys.stdin.read()
     elif ns.file:
-        with open(ns.file, "r", encoding="utf-8") as fh:
+        with open(ns.file, encoding="utf-8") as fh:
             src = fh.read()
     else:
         print("ingest needs --file PATH (or - for stdin) or --text", file=sys.stderr)
@@ -91,26 +104,26 @@ def ingest(ns):
     try:
         r = _post("/vfx/ingest", {"name": ns.name, "src": src})
     except urllib.error.URLError as exc:
-        print("the console is not running on %s (%s)" % (BASE, exc), file=sys.stderr)
+        print(f"the console is not running on {BASE} ({exc})", file=sys.stderr)
         return 2
     if not r.get("ok"):
-        print("ingest failed: %s" % r.get("error", "unknown"), file=sys.stderr)
+        print("ingest failed: {}".format(r.get("error", "unknown")), file=sys.stderr)
         return 1
 
     # The notes go to stderr so the PATH stays the only thing on stdout -- the whole tool is built
     # around that path being pipeable into a Read.
     for n in r.get("notes", []):
-        print("  . %s" % n, file=sys.stderr)
+        print(f"  . {n}", file=sys.stderr)
     for w in r.get("warnings", []):
-        print("  ! %s" % w, file=sys.stderr)
-    print("stored design/vfx-sketches/%s.frag (%d bytes)" % (r["name"], r["bytes"]), file=sys.stderr)
+        print(f"  ! {w}", file=sys.stderr)
+    print(f"stored design/vfx-sketches/{r['name']!s}.frag ({int(r['bytes'])} bytes)", file=sys.stderr)
 
     if ns.no_preview:
-        return say("ingested `%s` -- %s" % (r["name"], r.get("summary", "")))
+        return say("ingested `{}` -- {}".format(r["name"], r.get("summary", "")))
 
     # --say overrides the generated reason: the translation summary is a good default and a poor
     # substitute for knowing WHY this shader was worth importing.
-    why = getattr(ns, "say", None) or ("ingested `%s` -- %s" % (r["name"], r.get("summary", "")))
+    why = getattr(ns, "say", None) or ("ingested `{}` -- {}".format(r["name"], r.get("summary", "")))
     if r.get("warnings"):
         why += ". " + " ".join(r["warnings"])
     args = {"name": r["name"], "cell": ns.cell, "out": "ingest-" + r["name"], "say": why}
@@ -125,12 +138,12 @@ def submit(op, args, wait=90):
     try:
         job = _post("/vfx/job", {"op": op, "args": args})
     except urllib.error.URLError as exc:
-        print("the console is not running on %s (%s)" % (BASE, exc), file=sys.stderr)
-        print("start it:  py scripts/bifrost_ui.py --port 8787", file=sys.stderr)
+        print(f"the console is not running on {BASE} ({exc})", file=sys.stderr)
+        print(f"start it:  {_pyl()} scripts/bifrost_ui.py --port 8787", file=sys.stderr)
         return 2
 
     jid = job.get("id")
-    print("queued %s (%s)" % (jid, op), file=sys.stderr)
+    print(f"queued {jid} ({op})", file=sys.stderr)
     deadline = time.time() + wait
     picked_up = False
     while time.time() < deadline:
@@ -148,11 +161,11 @@ def submit(op, args, wait=90):
                 # actually LOOK at what it asked for, which is the whole point of the exercise.
                 print(res.get("path") or json.dumps(res))
                 return 0
-            print("render failed: %s" % res.get("error", "unknown"), file=sys.stderr)
+            print("render failed: {}".format(res.get("error", "unknown")), file=sys.stderr)
             return 1
     # Distinguish "nobody is listening" from "the render is slow" -- they need opposite responses.
     if picked_up:
-        print("job %s was picked up but did not finish in %ss" % (jid, wait), file=sys.stderr)
+        print(f"job {jid} was picked up but did not finish in {wait}s", file=sys.stderr)
         return 3
     # And distinguish "no tab" from "a tab, but it is hidden". Both look identical from here -- a
     # job that never moves -- and the fixes are different sentences, so guessing wastes the very
@@ -164,17 +177,19 @@ def submit(op, args, wait=90):
     if r.get("attached") and not r.get("visible"):
         print("the /vfx tab is HIDDEN, so it cannot render: bring it to the front", file=sys.stderr)
     elif r.get("attached"):
-        print("a renderer is attached (%s) but took no job in %ss -- reload %s/vfx"
-              % (r.get("worker", "?"), wait, BASE), file=sys.stderr)
+        print(
+            "a renderer is attached ({}) but took no job in {}s -- reload {}/vfx".format(
+                r.get("worker", "?"), wait, BASE
+            ),
+            file=sys.stderr,
+        )
     else:
-        print("no renderer attached: open %s/vfx in a browser and leave the tab open" % BASE,
-              file=sys.stderr)
+        print(f"no renderer attached: open {BASE}/vfx in a browser and leave the tab open", file=sys.stderr)
     return 3
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description=__doc__,
-                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="op", required=True)
 
     p = sub.add_parser("state", help="render one avatar state")
@@ -251,8 +266,7 @@ def main() -> int:
     p.add_argument("--from", dest="from_", type=float, default=0.0)
     p.add_argument("--to", type=float, default=6.0)
     p.add_argument("--t", type=float, default=1.0, help="time for a single still")
-    p.add_argument("--no-preview", dest="no_preview", action="store_true",
-                   help="store it without rendering")
+    p.add_argument("--no-preview", dest="no_preview", action="store_true", help="store it without rendering")
 
     p = sub.add_parser("say", help="narrate into the open bench, with no render")
     p.add_argument("text", nargs="+")
@@ -277,14 +291,14 @@ def main() -> int:
         raw = args.pop("json", None)
         f = args.pop("file", None)
         if f:
-            with open(f, "r", encoding="utf-8") as fh:
+            with open(f, encoding="utf-8") as fh:
                 raw = fh.read()
         if not raw:
             print("script needs --file or --json", file=sys.stderr)
             return 2
         args["steps"] = json.loads(raw)
     if ns.op == "graph" and args.get("file"):
-        with open(args.pop("file"), "r", encoding="utf-8") as fh:
+        with open(args.pop("file"), encoding="utf-8") as fh:
             args["graph"] = json.load(fh)
     return submit(ns.op, args)
 

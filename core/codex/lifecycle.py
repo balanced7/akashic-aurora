@@ -14,8 +14,10 @@ Rules (deltas E1/E4):
 - `valid_to` is the single writer of "inactive" for bi-temporal nodes (E4); `is_active` here and
   `core/primitives/supersession.is_active` agree (open valid_to AND not field-superseded).
 """
+
 import json
-from typing import Any, Callable, Optional
+from collections.abc import Callable
+from typing import Any
 
 from core.narrative.schema import Edge
 
@@ -27,7 +29,7 @@ def is_active(node: Any) -> bool:
     return not getattr(node, "superseded", False)
 
 
-def stamp(node: Any, *, now: str, origin: Optional[str] = None) -> Any:
+def stamp(node: Any, *, now: str, origin: str | None = None) -> Any:
     """Set `valid_from` once (the origin), refresh `recorded_at`. Never moves the origin."""
     if not getattr(node, "valid_from", None):
         node.valid_from = origin or now
@@ -35,8 +37,7 @@ def stamp(node: Any, *, now: str, origin: Optional[str] = None) -> Any:
     return node
 
 
-def regenerate_in_place(store, node: Any, key_fn: Callable[[str], str], *, now: str,
-                        origin: Optional[str] = None) -> Any:
+def regenerate_in_place(store, node: Any, key_fn: Callable[[str], str], *, now: str, origin: str | None = None) -> Any:
     """Persist `node` under its STABLE id, preserving a prior `valid_from`. Idempotent: if the
     stored node has the same `version_hash`, only `recorded_at` would change, so we skip the write
     to keep re-runs byte-stable."""
@@ -45,10 +46,14 @@ def regenerate_in_place(store, node: Any, key_fn: Callable[[str], str], *, now: 
         try:
             prev = json.loads(raw)
             if prev.get("valid_from"):
-                node.valid_from = prev["valid_from"]                  # never move the origin
-            if (prev.get("version_hash") and getattr(node, "version_hash", "")
-                    and prev["version_hash"] == node.version_hash and prev.get("valid_to") == node.valid_to):
-                return node                                           # unchanged content -> no rewrite
+                node.valid_from = prev["valid_from"]  # never move the origin
+            if (
+                prev.get("version_hash")
+                and getattr(node, "version_hash", "")
+                and prev["version_hash"] == node.version_hash
+                and prev.get("valid_to") == node.valid_to
+            ):
+                return node  # unchanged content -> no rewrite
         except (ValueError, TypeError):
             pass
     stamp(node, now=now, origin=origin)
@@ -75,7 +80,7 @@ def supersede(store, old_node: Any, new_node: Any, key_fn: Callable[[str], str],
         try:
             prev = json.loads(raw)
             if prev.get("valid_from"):
-                new_node.valid_from = prev["valid_from"]       # never move the origin
+                new_node.valid_from = prev["valid_from"]  # never move the origin
         except (ValueError, TypeError):
             pass
     stamp(new_node, now=now)

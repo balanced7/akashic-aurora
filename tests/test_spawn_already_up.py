@@ -23,16 +23,18 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 
-from core.comm import discord_inbound as DI  # noqa: E402
+from core.comm import discord_inbound as DI  # noqa: E402  # sys.path bootstrap
 
-RILL_LOG = (REPO / "state" / "spawn-logs" / "launch-rill-1787760845.log")
+RILL_LOG = REPO / "state" / "spawn-logs" / "launch-rill-1787760845.log"
 
 
 def test_eaddrinuse_is_recognized_not_a_stillbirth():
     """The exact incident log: EADDRINUSE names the seat as already up, not dead."""
-    log_text = RILL_LOG.read_text(encoding="utf-8") if RILL_LOG.exists() else (
-        "Error: listen EADDRINUSE: address already in use 127.0.0.1:3080\n"
-        "Node.js v24.14.1\n")
+    log_text = (
+        RILL_LOG.read_text(encoding="utf-8")
+        if RILL_LOG.exists()
+        else ("Error: listen EADDRINUSE: address already in use 127.0.0.1:3080\nNode.js v24.14.1\n")
+    )
     already = DI.spawn_already_up_reason(log_text)
     assert already is not None, "EADDRINUSE must be recognized as already-up, not silence"
     assert already == "127.0.0.1:3080", already
@@ -44,9 +46,14 @@ def test_already_up_wins_over_the_interpreter_banner():
     check spawn_already_up_reason FIRST and never let the fallback answer instead."""
     log_text = "Error: listen EADDRINUSE: address already in use 127.0.0.1:3080\nNode.js v24.14.1\n"
     stillborn = DI.spawn_stillborn_reason(1, log_text)
-    assert stillborn is not None and "Node.js" in stillborn, (
+    assert stillborn is not None, (
         "the fallback reason must still be the banner -- that IS the defect this "
-        "already-up check is designed to be consulted ahead of")
+        "already-up check is designed to be consulted ahead of"
+    )
+    assert "Node.js" in stillborn, (
+        "the fallback reason must still be the banner -- that IS the defect this "
+        "already-up check is designed to be consulted ahead of"
+    )
     already = DI.spawn_already_up_reason(log_text)
     assert already == "127.0.0.1:3080"
 

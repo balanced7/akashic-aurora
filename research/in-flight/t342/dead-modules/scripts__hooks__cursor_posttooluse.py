@@ -26,6 +26,7 @@ injections are ledgered altitude="action". Payload capture comes FIRST and has i
 switch (AKASHIC_PAYLOAD_CAPTURE=0) -- while shapes are unpinned, capture IS the product.
 Recall/credit kill switch: AKASHIC_RECALL_AT_ACTION=0. Everything fails OPEN.
 """
+
 import json
 import os
 import sys
@@ -64,32 +65,36 @@ def _recall_block(sid: str, path: str, command: str) -> str:
     if not path and not command:
         return ""
     try:
-        from core.recall.at_action import (recall_at, render, mark_impression, normalize_target,
-                                           log_injection)
         from agent.harness.seen import load_seen, mark_seen
-        res = recall_at(path=path or None, command=command or None,
-                        agent_id=os.getenv("AKASHIC_AGENT_ID"),
-                        exclude_sources=load_seen(sid), count_surface=True)
+        from core.recall.at_action import log_injection, mark_impression, normalize_target, recall_at, render
+
+        res = recall_at(
+            path=path or None,
+            command=command or None,
+            agent_id=os.getenv("AKASHIC_AGENT_ID"),
+            exclude_sources=load_seen(sid),
+            count_surface=True,
+        )
         out = render(res)
         if out:
-            srcs = [l.get("source") for l in res.get("lessons", [])]
+            srcs = [lesson.get("source") for lesson in res.get("lessons", [])]
             mark_seen(sid, srcs)
             target = normalize_target(path or None, command or None)
             mark_impression(sid, target, srcs)
             log_injection(sid, "action", target, srcs, len(out))
         return out
     except Exception:
-        return ""   # recall must never brick the agent
+        return ""  # recall must never brick the agent
 
 
 def _in_scope(data, command: str, path: str) -> bool:
     """Belt only -- .cursor/hooks.json is project config, so events are this-repo by
     construction; this protects against the config being copied elsewhere."""
     from agent.harness.scope import file_in_scope, shell_in_scope
+
     if path:
         return file_in_scope(path)
-    return shell_in_scope(data.get("cwd") or os.getenv("CURSOR_PROJECT_DIR") or os.getcwd(),
-                          command)
+    return shell_in_scope(data.get("cwd") or os.getenv("CURSOR_PROJECT_DIR") or os.getcwd(), command)
 
 
 def main() -> int:
@@ -99,6 +104,7 @@ def main() -> int:
         return 0
     try:
         from agent.harness.capture import capture
+
         capture(data, _CAP_DIR, label=_event(data))
     except Exception:
         pass
@@ -109,7 +115,8 @@ def main() -> int:
     try:
         if not _in_scope(data, command, path):
             return 0
-        from core.recall.at_action import normalize_target, resolve_action_outcome, build_learn_nudge
+        from core.recall.at_action import build_learn_nudge, normalize_target, resolve_action_outcome
+
         target = normalize_target(path or None, command or None)
         if not target:
             return 0
@@ -121,25 +128,30 @@ def main() -> int:
             return 0
         rep = resolve_action_outcome(sid, target, True)
         if rep.get("flipped"):
-            try:   # durable funnel signal (flips observed vs lessons recorded) -- best-effort
+            try:  # durable funnel signal (flips observed vs lessons recorded) -- best-effort
                 from core.events.event_log import capture_event
-                capture_event("flip", f"FAIL->SUCCESS: {target}",
-                              agent_id=os.getenv("AKASHIC_AGENT_ID") or "unknown",
-                              detail={"target": target, "credited": rep.get("credited", 0),
-                                      "sources": rep.get("sources", [])})
+
+                capture_event(
+                    "flip",
+                    f"FAIL->SUCCESS: {target}",
+                    agent_id=os.getenv("AKASHIC_AGENT_ID") or "unknown",
+                    detail={"target": target, "credited": rep.get("credited", 0), "sources": rep.get("sources", [])},
+                )
             except Exception:
                 pass
-            from agent.harness.nudge import nudge_allowed, mark_nudged
+            from agent.harness.nudge import mark_nudged, nudge_allowed
+
             if nudge_allowed(_NUDGE_DIR, sid, target):
-                _emit_context(build_learn_nudge(target, rep.get("credited", 0), rep.get("sources"),
-                                                os.getenv("AKASHIC_AGENT_ID")))
+                _emit_context(
+                    build_learn_nudge(target, rep.get("credited", 0), rep.get("sources"), os.getenv("AKASHIC_AGENT_ID"))
+                )
                 mark_nudged(_NUDGE_DIR, sid, target)
         else:
             ctx = _recall_block(sid, path, command)
             if ctx:
                 _emit_context(ctx)
     except Exception:
-        pass   # credit/recall must never affect the agent
+        pass  # credit/recall must never affect the agent
     return 0
 
 

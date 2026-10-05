@@ -13,34 +13,38 @@ Ops (short keys keep the page small):
   {"t":"line","p":[[x,y],...],"c":colour,"sw"?,"d"?:dashed,"h":"end|both|none"}
   {"t":"text","x","y","w","z":size,"wt":weight,"lh","f":"sans|mono","c":colour,"a"?:align,"ls"?,"r":[[text,mark],...]}
 """
+
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import TYPE_CHECKING, Any
 
 from .. import scene as sc
 from . import _core as C
 
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
 CANVAS_W, CANVAS_H = sc.CANVAS["w"], sc.CANVAS["h"]
 L = sc.MARGIN
-W = CANVAS_W - 2 * sc.MARGIN            # 1664
+W = CANVAS_W - 2 * sc.MARGIN  # 1664
 BAR_ROW, BAR_TRACK = 480, 300
 FOOTER_Y = 982
 
 
 class Painter:
-    def __init__(self, tk: dict, surf: Dict[str, str]):
+    def __init__(self, tk: dict, surf: dict[str, str]):
         self.tk = tk
         self.surf = surf
-        self.ops: List[dict] = []
+        self.ops: list[dict] = []
 
-    def probe(self) -> "Painter":
+    def probe(self) -> Painter:
         return Painter(self.tk, self.surf)
 
     def size(self, role: str) -> int:
         return int(self.tk["type"][role])
 
     def rect(self, x, y, w, h, fill=None, stroke=None, sw=1, dashed=False, r=0) -> None:
-        op: Dict[str, Any] = {"t": "rect", "x": _n(x), "y": _n(y), "w": _n(w), "h": _n(h)}
+        op: dict[str, Any] = {"t": "rect", "x": _n(x), "y": _n(y), "w": _n(w), "h": _n(h)}
         if fill:
             op["f"] = fill
         if stroke:
@@ -53,16 +57,31 @@ class Painter:
             op["r"] = r
         self.ops.append(op)
 
-    def line(self, pts: Sequence[Tuple[float, float]], colour: str, sw=2, dashed=False, head="none") -> None:
-        op: Dict[str, Any] = {"t": "line", "p": [[_n(x), _n(y)] for x, y in pts], "c": colour, "h": head}
+    def line(self, pts: Sequence[tuple[float, float]], colour: str, sw=2, dashed=False, head="none") -> None:
+        op: dict[str, Any] = {"t": "line", "p": [[_n(x), _n(y)] for x, y in pts], "c": colour, "h": head}
         if sw != 2:
             op["sw"] = sw
         if dashed:
             op["d"] = 1
         self.ops.append(op)
 
-    def text(self, x, y, w, runs: Any, role: Optional[str] = None, *, size=None, weight=None, lh=None,
-             face=None, colour=None, align="left", ls=None, upper=False) -> float:
+    def text(
+        self,
+        x,
+        y,
+        w,
+        runs: Any,
+        role: str | None = None,
+        *,
+        size=None,
+        weight=None,
+        lh=None,
+        face=None,
+        colour=None,
+        align="left",
+        ls=None,
+        upper=False,
+    ) -> float:
         """Emit a text box and return its estimated height."""
         if role:
             r_wt, r_lh, r_face, r_ls = C.TYPE_STYLE[role]
@@ -77,8 +96,18 @@ class Painter:
         face = face or "sans"
         rl = [[t.upper() if upper else t, m] for t, m in C.runs_list(runs)]
         text = "".join(t for t, _ in rl)
-        op: Dict[str, Any] = {"t": "text", "x": _n(x), "y": _n(y), "w": _n(w), "z": size, "wt": weight,
-                              "lh": lh, "f": face, "c": colour or self.surf["text"], "r": rl}
+        op: dict[str, Any] = {
+            "t": "text",
+            "x": _n(x),
+            "y": _n(y),
+            "w": _n(w),
+            "z": size,
+            "wt": weight,
+            "lh": lh,
+            "f": face,
+            "c": colour or self.surf["text"],
+            "r": rl,
+        }
         if align != "left":
             op["a"] = align
         if ls:
@@ -141,7 +170,7 @@ def _number(p: Painter, a: dict, x, y, w) -> float:
 
 def _list(p: Painter, a: dict, x, y, w, nested: bool) -> float:
     width = w if nested else min(w, 1400)
-    size = p.size("body")
+    p.size("body")
     total = 0.0
     for i, item in enumerate(a.get("items") or [], 1):
         bullet = f"{i}." if a.get("ordered") else "•"
@@ -154,16 +183,18 @@ def _list(p: Painter, a: dict, x, y, w, nested: bool) -> float:
 def _table(p: Painter, a: dict, x, y, w) -> float:
     size = p.size(a.get("role") or "caption")
     cols = a.get("columns") or []
-    xs: List[float] = []
+    xs: list[float] = []
     cx = x
     for c in cols:
         xs.append(cx)
         cx += w * float(c.get("share", 0)) / 100
     pad_x, pad_y = 0.6 * size, 0.35 * size
 
-    def row_h(cells: List[str], weight: int) -> float:
-        lines = max(C.est_lines(t, (xs[i + 1] if i + 1 < len(xs) else x + w) - xs[i] - 2 * pad_x, size, weight)
-                    for i, t in enumerate(cells))
+    def row_h(cells: list[str], weight: int) -> float:
+        lines = max(
+            C.est_lines(t, (xs[i + 1] if i + 1 < len(xs) else x + w) - xs[i] - 2 * pad_x, size, weight)
+            for i, t in enumerate(cells)
+        )
         return lines * size * 1.4 + 2 * pad_y
 
     cy = y
@@ -196,7 +227,9 @@ def _code(p: Painter, a: dict, x, y, w) -> float:
     for i, line in enumerate(lines, 1):
         tone = marks.get(i)
         colour = p.surf["muted"] if tone == "ghost" else (C.tone_colour(tone, p.surf) if tone else None)
-        p.text(x + 32, y + 32 + (i - 1) * lh, w - 64, [[line, "em" if tone == "ghost" else "plain"]], "code", colour=colour)
+        p.text(
+            x + 32, y + 32 + (i - 1) * lh, w - 64, [[line, "em" if tone == "ghost" else "plain"]], "code", colour=colour
+        )
     return h
 
 
@@ -208,7 +241,7 @@ def _bars(p: Painter, a: dict, x, y, w) -> float:
     mx = float(a.get("max") or top or 1.0)
     unit = str(a.get("unit") or "")
     cw = (w - 48 * (len(series) - 1)) / len(series)
-    floor = y + BAR_ROW - (34 + 8 + 34)                  # label and caption rows under the track
+    floor = y + BAR_ROW - (34 + 8 + 34)  # label and caption rows under the track
     for i, s in enumerate(series):
         cx = x + i * (cw + 48)
         tone = s.get("tone")
@@ -218,14 +251,21 @@ def _bars(p: Painter, a: dict, x, y, w) -> float:
             p.rect(cx, floor - h, cw, h, fill=p.surf["tint"], stroke=p.surf["accent"], sw=2, dashed=True, r=8)
         else:
             p.rect(cx, floor - h, cw, h, fill=colour, r=8)
-        p.text(cx, floor - h - 8 - p.size("number_inline"), cw, f"{s.get('value')} {unit}".strip(), "number_inline", colour=colour)
+        p.text(
+            cx,
+            floor - h - 8 - p.size("number_inline"),
+            cw,
+            f"{s.get('value')} {unit}".strip(),
+            "number_inline",
+            colour=colour,
+        )
         p.text(cx, floor + 8, cw, s.get("label", ""), "caption")
         if s.get("caption"):
             p.text(cx, floor + 8 + 34 + 8, cw, s["caption"], "caption", colour=p.surf["muted"])
     return BAR_ROW
 
 
-def _card_paint(p: Painter, tone: Optional[str]) -> Tuple[str, str, int, bool, Optional[str]]:
+def _card_paint(p: Painter, tone: str | None) -> tuple[str, str, int, bool, str | None]:
     s = p.surf
     if tone == "accent":
         return s["tint"], s["accent"], 2, False, s["tint_text"]
@@ -249,20 +289,33 @@ def _timeline(p: Painter, a: dict, x, y, w) -> float:
         heights = []
         for b in beats:
             q = p.probe()
-            heights.append(pad + q.text(0, 0, cw - 2 * pad, b.get("at", ""), "eyebrow") + gap
-                           + q.text(0, 0, cw - 2 * pad, b.get("text"), "caption") + pad)
+            heights.append(
+                pad
+                + q.text(0, 0, cw - 2 * pad, b.get("at", ""), "eyebrow")
+                + gap
+                + q.text(0, 0, cw - 2 * pad, b.get("text"), "caption")
+                + pad
+            )
         h = max(heights)
         for i, b in enumerate(beats):
             cx = x + i * (cw + 24)
             fill, stroke, sw, dashed, colour = _card_paint(p, b.get("tone"))
             p.rect(cx, y, cw, h, fill=fill, stroke=stroke, sw=sw, dashed=dashed, r=16)
-            eh = p.text(cx + pad, y + pad, cw - 2 * pad, b.get("at", ""), "eyebrow", colour=p.surf["eyebrow"], upper=True)
+            eh = p.text(
+                cx + pad, y + pad, cw - 2 * pad, b.get("at", ""), "eyebrow", colour=p.surf["eyebrow"], upper=True
+            )
             p.text(cx + pad, y + pad + eh + gap, cw - 2 * pad, b.get("text"), "caption", colour=colour)
         return h
     cy = y
     for b in beats:
         q = p.probe()
-        h = pad + q.text(0, 0, w - 2 * pad, b.get("at", ""), "eyebrow") + gap + q.text(0, 0, w - 2 * pad, b.get("text"), "caption") + pad
+        h = (
+            pad
+            + q.text(0, 0, w - 2 * pad, b.get("at", ""), "eyebrow")
+            + gap
+            + q.text(0, 0, w - 2 * pad, b.get("text"), "caption")
+            + pad
+        )
         fill, stroke, sw, dashed, colour = _card_paint(p, b.get("tone"))
         p.rect(x, cy, w, h, fill=fill, stroke=stroke, sw=sw, dashed=dashed, r=16)
         eh = p.text(x + pad, cy + pad, w - 2 * pad, b.get("at", ""), "eyebrow", colour=p.surf["eyebrow"], upper=True)
@@ -294,7 +347,9 @@ def _comparison(p: Painter, a: dict, x, y, w, min_h: float) -> float:
         p.rect(cx, y, cw, h, fill=fill, stroke=stroke, sw=sw, dashed=dashed, r=16)
         cy = y + pad
         if s.get("eyebrow"):
-            cy += p.text(cx + pad, cy, cw - 2 * pad, s["eyebrow"], "eyebrow", colour=p.surf["eyebrow"], upper=True) + gap
+            cy += (
+                p.text(cx + pad, cy, cw - 2 * pad, s["eyebrow"], "eyebrow", colour=p.surf["eyebrow"], upper=True) + gap
+            )
         cy += p.text(cx + pad, cy, cw - 2 * pad, s.get("title", ""), "h3", colour=colour) + gap
         for item in s.get("body") or []:
             cy += paint_atom(p, item, cx + pad, cy, cw - 2 * pad, "body", nested=True) + gap
@@ -310,7 +365,7 @@ def _group(p: Painter, a: dict, x, y, w) -> float:
     pad = 40 if framed else 0
     cols = len(items) if arr == "row" else (1 if arr == "column" else int(a.get("columns") or 3))
     cw = (w - 32 * (cols - 1)) / cols
-    rows: List[List[dict]] = [items[i:i + cols] for i in range(0, len(items), cols)]
+    rows: list[list[dict]] = [items[i : i + cols] for i in range(0, len(items), cols)]
     cy = y
     for row in rows:
         heights = [_measure(p, item, cw - 2 * pad, "body", nested=True) + 2 * pad for item in row]
@@ -353,8 +408,9 @@ def _receipt(p: Painter, a: dict) -> float:
     return p.text(L, FOOTER_Y, W, a.get("text", ""), "receipt", lh=34 / p.size("receipt"), colour=p.surf["muted"])
 
 
-def paint_atom(p: Painter, a: dict, x, y, w, region: str, nested: bool = False, tpl: str = "content",
-               min_h: float = 0) -> float:
+def paint_atom(
+    p: Painter, a: dict, x, y, w, region: str, nested: bool = False, tpl: str = "content", min_h: float = 0
+) -> float:
     kind = a.get("kind")
     if kind == "headline":
         return _headline(p, a, x, y, w, region, tpl)
@@ -390,7 +446,7 @@ def paint_atom(p: Painter, a: dict, x, y, w, region: str, nested: bool = False, 
 
 
 # ---------------------------------------------------------------- the slide
-def paint_slide(scene: dict, slide: dict, tk: Optional[dict] = None, section: Optional[str] = None) -> dict:
+def paint_slide(scene: dict, slide: dict, tk: dict | None = None, section: str | None = None) -> dict:
     """The draw list for one slide, plus what a viewer shows around it (title, note, section)."""
     tk = tk or C.tokens(scene)
     surf = C.surface(C.slide_background(slide), tk["palette"])
@@ -402,7 +458,7 @@ def paint_slide(scene: dict, slide: dict, tk: Optional[dict] = None, section: Op
     by = C.atoms_by_region(slide)
     gap = C.DIAGRAM_GAP if tpl == "diagram" else C.GAP
 
-    def stack(atoms: List[dict], region: str, y: float) -> float:
+    def stack(atoms: list[dict], region: str, y: float) -> float:
         for a in atoms:
             y += paint_atom(p, a, L, y, W, region, tpl=tpl) + gap
         return y
@@ -436,10 +492,18 @@ def paint_slide(scene: dict, slide: dict, tk: Optional[dict] = None, section: Op
     for a in by.get("footer", []):
         paint_atom(p, a, L, FOOTER_Y, W, "footer", tpl=tpl)
     note = C.note_of(slide)
-    return {"id": slide["id"], "title": slide.get("title") or slide["id"], "bg": surf["background"],
-            "ca": surf["accent"], "cm": surf["muted"], "section": section,
-            "transition": slide.get("transition") or "fade", "duration_s": round(C.duration_s(slide), 1),
-            "note": str((note or {}).get("script", "")), "ops": p.ops}
+    return {
+        "id": slide["id"],
+        "title": slide.get("title") or slide["id"],
+        "bg": surf["background"],
+        "ca": surf["accent"],
+        "cm": surf["muted"],
+        "section": section,
+        "transition": slide.get("transition") or "fade",
+        "duration_s": round(C.duration_s(slide), 1),
+        "note": str((note or {}).get("script", "")),
+        "ops": p.ops,
+    }
 
 
 def _measure_tpl(p: Painter, a: dict, w: float, region: str, tpl: str) -> float:

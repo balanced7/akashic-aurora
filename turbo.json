@@ -1,0 +1,180 @@
+{
+  "$schema": "https://turborepo.dev/schema.json",
+  "futureFlags": {
+    "experimentalPythonWorkspaces": true,
+    "experimentalTaskCommand": true
+  },
+  "tasks": {
+    "aurora#fmt-check": {
+      "command": [
+        "uv",
+        "run",
+        "--frozen",
+        "poe",
+        "fmt-check"
+      ],
+      "inputs": [
+        "**/*.py",
+        "**/*.pyi",
+        "pyproject.toml",
+        ".gitignore"
+      ]
+    },
+    "aurora#lint-check": {
+      "command": [
+        "uv",
+        "run",
+        "--frozen",
+        "poe",
+        "lint-check"
+      ],
+      "inputs": [
+        "**/*.py",
+        "**/*.pyi",
+        "pyproject.toml",
+        ".gitignore",
+        "tooling-upgrade/SUPPRESSIONS.md",
+        "tooling-upgrade/ratchet.json"
+      ]
+    },
+    "aurora#types": {
+      "command": [
+        "uv",
+        "run",
+        "--frozen",
+        "poe",
+        "types"
+      ],
+      "inputs": [
+        "**/*.py",
+        "**/*.pyi",
+        "pyproject.toml",
+        "uv.lock",
+        ".python-version",
+        "tooling-upgrade/SUPPRESSIONS.md"
+      ]
+    },
+    "aurora#lock-check": {
+      "command": [
+        "uv",
+        "run",
+        "--frozen",
+        "poe",
+        "lock-check"
+      ],
+      "inputs": [
+        "pyproject.toml",
+        "tooling-upgrade/pyproject.toml",
+        "uv.lock",
+        "requirements.txt",
+        "requirements/**",
+        "scripts/generators/gen_requirements.py"
+      ]
+    },
+    "aurora#deps": {
+      "command": [
+        "uv",
+        "run",
+        "--frozen",
+        "poe",
+        "deps"
+      ],
+      "inputs": [
+        "**/*.py",
+        "pyproject.toml",
+        "uv.lock"
+      ]
+    },
+    "aurora#ci-lint": {
+      "command": [
+        "uv",
+        "run",
+        "--frozen",
+        "poe",
+        "ci-lint"
+      ],
+      "inputs": [
+        ".github/**",
+        "tooling-upgrade/certify.py",
+        "tooling-upgrade/oracle.py",
+        "pyproject.toml",
+        "uv.lock"
+      ]
+    },
+    "aurora#guardrails": {
+      "command": [
+        "uv",
+        "run",
+        "--frozen",
+        "poe",
+        "guardrails"
+      ],
+      "inputs": [
+        "$TURBO_DEFAULT$"
+      ]
+    },
+    "aurora#test-fast": {
+      "command": [
+        "uv",
+        "run",
+        "--frozen",
+        "poe",
+        "test-fast"
+      ],
+      "dependsOn": [
+        "aurora#guardrails"
+      ],
+      "inputs": [
+        "$TURBO_DEFAULT$"
+      ]
+    },
+    "aurora#gate": {
+      "command": [
+        "uv",
+        "run",
+        "--frozen",
+        "python",
+        "-c",
+        "print('gate: every member task passed')"
+      ],
+      "dependsOn": [
+        "aurora#fmt-check",
+        "aurora#lint-check",
+        "aurora#types",
+        "aurora#lock-check",
+        "aurora#deps",
+        "aurora#ci-lint",
+        "aurora#guardrails",
+        "aurora#test-fast"
+      ],
+      "inputs": [
+        "$TURBO_DEFAULT$"
+      ]
+    },
+    "aurora#test": {
+      "command": [
+        "uv",
+        "run",
+        "--frozen",
+        "poe",
+        "test"
+      ],
+      "dependsOn": [
+        "aurora#clean-tree"
+      ],
+      "inputs": [
+        "$TURBO_DEFAULT$"
+      ]
+    },
+    "aurora#clean-tree": {
+      "command": [
+        "uv",
+        "run",
+        "--frozen",
+        "poe",
+        "clean-tree"
+      ],
+      "cache": false
+    }
+  }
+}

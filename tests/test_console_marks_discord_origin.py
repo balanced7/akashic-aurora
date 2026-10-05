@@ -24,6 +24,7 @@ Run::
 
     py -m pytest tests/test_console_marks_discord_origin.py -q
 """
+
 from __future__ import annotations
 
 import ast
@@ -60,12 +61,14 @@ process.stdout.write(JSON.stringify(out));
 
 def _page() -> str:
     """The PAGE template exactly as served: AST-extract, zero import side effects."""
-    with open(UI_PATH, "r", encoding="utf-8") as fh:
+    with open(UI_PATH, encoding="utf-8") as fh:
         tree = ast.parse(fh.read())
     for node in ast.walk(tree):
         if isinstance(node, ast.Assign):
             for tgt in node.targets:
                 if isinstance(tgt, ast.Name) and tgt.id == "PAGE":
+                    assert isinstance(node.value, ast.Constant)
+                    assert isinstance(node.value.value, str)
                     return node.value.value
     pytest.fail("PAGE constant not found in bifrost_ui.py -- the serve path moved; re-anchor this pin.")
 
@@ -79,8 +82,10 @@ def _render_msg_source(page: str) -> str:
 @pytest.fixture(scope="module")
 def rendered(tmp_path_factory):
     if not NODE:
-        pytest.skip("node not on PATH -- this pin executes renderMsg and cannot verify the "
-                    "Discord mark without it; install node (the CI runners ship it)")
+        pytest.skip(
+            "node not on PATH -- this pin executes renderMsg and cannot verify the "
+            "Discord mark without it; install node (the CI runners ship it)"
+        )
     js = tmp_path_factory.mktemp("via_discord") / "render.js"
     js.write_text(HARNESS.replace("%RENDER%", _render_msg_source(_page())), encoding="utf-8")
     r = subprocess.run([NODE, str(js)], capture_output=True, text=True, timeout=60)
@@ -95,8 +100,7 @@ def _row(html: str) -> str:
 
 def test_p0_a_discord_message_carries_a_via_discord_mark_in_its_row(rendered):
     row = _row(rendered["discord"])
-    assert "via Discord" in row, (
-        "a message relayed from Discord renders exactly like a console line: " + row[-300:])
+    assert "via Discord" in row, "a message relayed from Discord renders exactly like a console line: " + row[-300:]
 
 
 def test_p1_a_console_message_carries_no_discord_mark(rendered):
@@ -105,7 +109,8 @@ def test_p1_a_console_message_carries_no_discord_mark(rendered):
 
 def test_p2_a_seat_message_without_meta_renders_and_carries_no_mark(rendered):
     html = rendered["nometa"]
-    assert 'class="who' in html and "via Discord" not in html
+    assert 'class="who' in html
+    assert "via Discord" not in html
 
 
 def test_p3_the_mark_has_a_style_rule_beside_the_other_row_badges():

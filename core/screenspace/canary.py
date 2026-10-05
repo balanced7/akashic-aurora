@@ -39,21 +39,20 @@ the 2026-09-23 §1 ratification, and its same-day amendment.
 from __future__ import annotations
 
 from enum import Enum
-from typing import Optional, Tuple
 
 
-class CanaryState(str, Enum):
+class CanaryState(str, Enum):  # noqa: UP042  # str() of members must stay "Cls.NAME"
     """What a POSITIVE CANARY READ actually observed -- the read, not the context."""
 
-    READABLE = "readable"            # a property read off the foreground window came back non-empty
+    READABLE = "readable"  # a property read off the foreground window came back non-empty
     NO_FOREGROUND = "no_foreground"  # no foreground window to read at all (genuine empty desktop)
-    UNREADABLE = "unreadable"        # a window exists, but the property read returned None/empty
+    UNREADABLE = "unreadable"  # a window exists, but the property read returned None/empty
     # NOTE: no "unknown" state. The canary ANSWERS by reading; it does not declare a context.
     # A failed READ attempt is UNREADABLE, not "unknown" -- absence of the answer is an answer
     # about the read, never about the session.
 
 
-def _read_foreground_name() -> Tuple[Optional[int], Optional[str]]:
+def _read_foreground_name() -> tuple[int | None, str | None]:
     """One REAL foreground read: name via UIA, hwnd as the validity proxy.
 
     Returns (hwnd_or_none, name_or_none). The signature distinctions:
@@ -68,7 +67,7 @@ def _read_foreground_name() -> Tuple[Optional[int], Optional[str]]:
     detection.
     """
     try:
-        import uiautomation as auto  # type: ignore
+        import uiautomation as auto  # pyright: ignore[reportMissingImports]  # Windows-only dependency (sys_platform == win32)
 
         win = auto.GetForegroundControl()
         if win is None:
@@ -76,7 +75,7 @@ def _read_foreground_name() -> Tuple[Optional[int], Optional[str]]:
         name = win.Name
         hwnd = getattr(win, "NativeWindowHandle", None)
         return (hwnd, name)
-    except Exception:  # noqa: BLE001 -- the READ failed; that is UNREADABLE, not "unknown"
+    except Exception:  # noqa: BLE001  # the READ failed; that is UNREADABLE, not "unknown"
         return (None, None)
 
 

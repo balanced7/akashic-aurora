@@ -66,6 +66,7 @@ def cmd_tally(args):
     print(out)
     return 0
 """
+
 import os
 import sys
 
@@ -86,10 +87,12 @@ def _write(d, name, text):
 
 
 OPENING_NAME = "seat-zero-brief-opening-claude-2026-07-21.md"
-OPENING_TEXT = ("# Seat-Zero Brief (opening position)\n\n"
-                "- **B1 — stale-directive kill.** COUNTER-Q1 (deepseek): auto vs prompt?\n"
-                "- **B2 — note drill verb.**\n"
-                "- **B3 — standing queue.** COUNTER-Q2: registry vs ledger tag?\n")
+OPENING_TEXT = (
+    "# Seat-Zero Brief (opening position)\n\n"
+    "- **B1 — stale-directive kill.** COUNTER-Q1 (deepseek): auto vs prompt?\n"
+    "- **B2 — note drill verb.**\n"
+    "- **B3 — standing queue.** COUNTER-Q2: registry vs ledger tag?\n"
+)
 
 
 def test_p1_find_counters_matches_naming_files_only(tmp_path):
@@ -97,20 +100,21 @@ def test_p1_find_counters_matches_naming_files_only(tmp_path):
     os.makedirs(os.path.join(research, "drafts"))
     os.makedirs(os.path.join(research, "reviewed"))
     opening = _write(os.path.join(research, "drafts"), OPENING_NAME, OPENING_TEXT)
-    counter = _write(os.path.join(research, "reviewed"),
-                     "kimi-seat-zero-counter-2026-07-21.md",
-                     "Counter to: research/drafts/" + OPENING_NAME + "\n**B1: KEEP**\n")
-    _write(os.path.join(research, "reviewed"), "kimi-unrelated-2026-07-21.md",
-           "nothing to do with any opening\n")
+    _write(
+        os.path.join(research, "reviewed"),
+        "kimi-seat-zero-counter-2026-07-21.md",
+        "Counter to: research/drafts/" + OPENING_NAME + "\n**B1: KEEP**\n",
+    )
+    _write(os.path.join(research, "reviewed"), "kimi-unrelated-2026-07-21.md", "nothing to do with any opening\n")
     found = tl.find_counters(opening, research)
-    assert [os.path.basename(f) for f in found] == ["kimi-seat-zero-counter-2026-07-21.md"], \
+    assert [os.path.basename(f) for f in found] == ["kimi-seat-zero-counter-2026-07-21.md"], (
         "the counter names the opening's basename; the opening itself and unrelated files stay out"
+    )
 
 
 def test_p2_extract_positions_spec_forms():
     pos = tl.extract_positions("Q1 AMEND the ordering pin\nB3 KEEP + AMEND\n")
-    assert pos == {"Q1": "AMEND", "B3": "KEEP"}, \
-        "spec forms: first verdict word after the q-id wins"
+    assert pos == {"Q1": "AMEND", "B3": "KEEP"}, "spec forms: first verdict word after the q-id wins"
 
 
 def test_p3_title_trap_and_parenthetical_and_prose():
@@ -121,7 +125,8 @@ def test_p3_title_trap_and_parenthetical_and_prose():
         "**B1 — stale-directive kill: KEEP, re-scoped + AMEND.**\n"
         "  **Q1 (auto vs prompt): AGREE with auto-with-tombstone.**\n"
         "the Q7 consensus was never a verdict line\n"
-        "- Q9 maybe KEEP maybe KILL, undecided prose has no colon and parses honestly\n")
+        "- Q9 maybe KEEP maybe KILL, undecided prose has no colon and parses honestly\n"
+    )
     assert pos.get("B1") == "KEEP", f"title trap defused: {pos}"
     assert pos.get("Q1") == "AGREE", f"parenthetical then colon: {pos}"
     assert "Q7" not in pos, "a prose citation is not an anchored verdict line"
@@ -132,12 +137,19 @@ def test_p4_matrix_agree_and_conflict(tmp_path):
     research = str(tmp_path / "research")
     os.makedirs(research)
     opening = _write(research, OPENING_NAME, OPENING_TEXT)
-    c1 = _write(research, "kimi-seat-zero-counter-2026-07-21.md",
-                "Counter to: " + OPENING_NAME + "\nB1: KEEP\nQ1: AGREE\nB2: KEEP\n")
-    c2 = _write(research, "deepseek-seat-zero-counter-2026-07-21.md",
-                "Counter to: " + OPENING_NAME + "\nB1: KEEP\nQ1: DISAGREE\nB2: KEEP\n")
+    c1 = _write(
+        research,
+        "kimi-seat-zero-counter-2026-07-21.md",
+        "Counter to: " + OPENING_NAME + "\nB1: KEEP\nQ1: AGREE\nB2: KEEP\n",
+    )
+    c2 = _write(
+        research,
+        "deepseek-seat-zero-counter-2026-07-21.md",
+        "Counter to: " + OPENING_NAME + "\nB1: KEEP\nQ1: DISAGREE\nB2: KEEP\n",
+    )
     m = tl.matrix(opening, [c1, c2])
-    assert m["status"]["B1"] == "AGREE" and m["status"]["B2"] == "AGREE"
+    assert m["status"]["B1"] == "AGREE"
+    assert m["status"]["B2"] == "AGREE"
     assert m["status"]["Q1"] == "CONFLICT", "AGREE vs DISAGREE must read CONFLICT"
 
 
@@ -145,15 +157,21 @@ def test_p5_partial_and_no_one_voice_consensus(tmp_path):
     research = str(tmp_path / "research")
     os.makedirs(research)
     opening = _write(research, OPENING_NAME, OPENING_TEXT)
-    c1 = _write(research, "kimi-seat-zero-counter-2026-07-21.md",
-                "Counter to: " + OPENING_NAME + "\nB1: KEEP\nQ1: AGREE\n")
-    c2 = _write(research, "deepseek-seat-zero-counter-2026-07-21.md",
-                "Counter to: " + OPENING_NAME + "\nB1: KEEP\n")  # silent on Q1
+    c1 = _write(
+        research, "kimi-seat-zero-counter-2026-07-21.md", "Counter to: " + OPENING_NAME + "\nB1: KEEP\nQ1: AGREE\n"
+    )
+    c2 = _write(
+        research, "deepseek-seat-zero-counter-2026-07-21.md", "Counter to: " + OPENING_NAME + "\nB1: KEEP\n"
+    )  # silent on Q1
     m = tl.matrix(opening, [c1, c2])
     assert m["status"]["Q1"] == "partial", "a silent author makes the row partial"
     one = tl.matrix(opening, [c1])
-    assert one["status"]["B1"] == "partial" and one["status"]["Q1"] == "partial", \
+    assert one["status"]["B1"] == "partial", (
         "ONE VOICE never reads AGREE -- 2-of-3 cannot be pronounced from a single counter"
+    )
+    assert one["status"]["Q1"] == "partial", (
+        "ONE VOICE never reads AGREE -- 2-of-3 cannot be pronounced from a single counter"
+    )
 
 
 def test_p6_empty_research_dir_no_crash(tmp_path):
@@ -161,41 +179,55 @@ def test_p6_empty_research_dir_no_crash(tmp_path):
     os.makedirs(research)
     opening = _write(research, OPENING_NAME, OPENING_TEXT)
     m = tl.matrix(opening, tl.find_counters(opening, research))
-    assert m["rows"] and m["authors"] == []
+    assert m["rows"]
+    assert m["authors"] == []
     out = tl.render(m)
-    assert "0 agree / 0 conflict" in out and "0 partial" in out
+    assert "0 agree / 0 conflict" in out
+    assert "0 partial" in out
 
 
 def test_p7_author_derivation_both_filename_orders():
     opening = "docs/library/design/20260717_packet-routing-internal-apis-claude-open_595704.md"
-    assert tl._author("docs/library/report/20260721_seat-zero-wave-kimi-s-hard-counter-fresh_8d4726.md",
-                      "research/drafts/" + OPENING_NAME) == "kimi"
-    assert tl._author("docs/library/design/20260717_packet-routing-deepseek-counter-round-2_c66cdb.md",
-                      opening) == "deepseek", "author-last order resolves too"
+    assert (
+        tl._author(
+            "docs/library/report/20260721_seat-zero-wave-kimi-s-hard-counter-fresh_8d4726.md",
+            "research/drafts/" + OPENING_NAME,
+        )
+        == "kimi"
+    )
+    assert (
+        tl._author("docs/library/design/20260717_packet-routing-deepseek-counter-round-2_c66cdb.md", opening)
+        == "deepseek"
+    ), "author-last order resolves too"
 
 
 @pytest.mark.skipif(
     not os.path.isfile(os.path.join(REPO, "research", "drafts", OPENING_NAME)),
-    reason="the live seat-zero fixture is not in this tree")
+    reason="the live seat-zero fixture is not in this tree",
+)
 def test_p8_live_seat_zero_dogfood():
     opening = os.path.join(REPO, "research", "drafts", OPENING_NAME)
     found = tl.find_counters(opening, os.path.join(REPO, "research"))
     names = {os.path.basename(f): f for f in found}
     assert "kimi-seat-zero-counter-2026-07-21.md" in names, "kimi's real counter is found"
     m = tl.matrix(opening, found)
-    assert m["cells"].get("B1", {}).get("kimi") == "KEEP", \
+    assert m["cells"].get("B1", {}).get("kimi") == "KEEP", (
         f"the title-trap row on the REAL counter reads KEEP, not KILL: {m['cells'].get('B1')}"
+    )
     assert m["cells"].get("Q1", {}).get("kimi") == "AGREE"
     mentioned = [os.path.basename(x) for x in m["mentions"]]
-    assert "kimi-seat-zero-counter-brief-2026-07-21.md" in mentioned, \
+    assert "kimi-seat-zero-counter-brief-2026-07-21.md" in mentioned, (
         "the brief NAMES the opening but carries no verdict lines -> mention, not a column"
+    )
     assert "kimi-seat-zero-counter-brief-2026-07-21.md" not in str(m["authors"])
-    assert all(s == "partial" for s in m["status"].values()), \
+    assert all(s == "partial" for s in m["status"].values()), (
         "one filed counter -> every row partial; the tool refuses one-voice consensus"
+    )
 
 
 def test_p9_cli_wiring_parses_to_cmd_tally(tmp_path):
     import agent_cli
+
     research = str(tmp_path / "research")
     os.makedirs(research)
     opening = _write(research, OPENING_NAME, OPENING_TEXT)
@@ -212,18 +244,19 @@ def test_p10_possessive_prose_never_clobbers_a_verdict():
     pos = tl.extract_positions(
         "**B4 — suite-baseline receipt: KEEP + AMEND.**\n"
         "  B4's baseline). **Recommendation: adopt W38 at ship time.**\n"
-        "  Q2's answer, looking back: REJECT the framing.\n")
+        "  Q2's answer, looking back: REJECT the framing.\n"
+    )
     assert pos.get("B4") == "KEEP", f"possessive prose must not parse, let alone clobber: {pos}"
     assert pos.get("Q2") is None, f"a possessive line carries no verdict: {pos}"
 
 
 @pytest.mark.skipif(
-    not os.path.isfile(os.path.join(REPO, "research", "reviewed",
-                                    "kimi-seat-zero-counter-2026-07-21.md")),
-    reason="the live seat-zero fixture is not in this tree")
+    not os.path.isfile(os.path.join(REPO, "research", "reviewed", "kimi-seat-zero-counter-2026-07-21.md")),
+    reason="the live seat-zero fixture is not in this tree",
+)
 def test_p10b_live_b4_reads_keep_not_adopt():
     opening = os.path.join(REPO, "research", "drafts", OPENING_NAME)
     m = tl.matrix(opening, tl.find_counters(opening, os.path.join(REPO, "research")))
-    assert m["cells"].get("B4", {}).get("kimi") == "KEEP", \
-        f"the live regression: B4 is KEEP + AMEND, never the possessive line's ADOPT: " \
-        f"{m['cells'].get('B4')}"
+    assert m["cells"].get("B4", {}).get("kimi") == "KEEP", (
+        f"the live regression: B4 is KEEP + AMEND, never the possessive line's ADOPT: {m['cells'].get('B4')}"
+    )

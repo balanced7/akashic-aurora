@@ -24,6 +24,7 @@ V2 keeps v1 executable for replay and adds two pure functions:
 
 Run: py -m pytest tests/test_t194_scoreboard_v2_separates_truth_exposure_integrity.py -q
 """
+
 import os
 import sys
 
@@ -32,7 +33,7 @@ import pytest
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from scripts import canary_oracle as C  # noqa: E402
+from scripts import canary_oracle as C  # noqa: E402  # sys.path bootstrap
 
 
 def _item(i, cls):
@@ -40,8 +41,7 @@ def _item(i, cls):
 
 
 def _manifest(*items):
-    return {"universe": {"source": "test", "size": len(items)},
-            "canaries": list(items)}
+    return {"universe": {"source": "test", "size": len(items)}, "canaries": list(items)}
 
 
 def test_k1_a_miss_is_zero_recall_not_perfect_honesty():
@@ -59,26 +59,22 @@ def test_k2_baseline_blind_success_is_capability_not_protocol():
 
     assert got["capability_findings"] == ["u1"]
     assert got["by_class"]["undetectable"]["recall"] == 1.0
-    assert "voided" not in got and "void_reason" not in got
+    assert "voided" not in got
+    assert "void_reason" not in got
 
-    integrity = C.protocol_verdict(
-        seal_verified=True, archive_complete=True, key_leak_detected=False)
-    assert integrity["validity"] == "VALID" and integrity["voided"] is False
+    integrity = C.protocol_verdict(seal_verified=True, archive_complete=True, key_leak_detected=False)
+    assert integrity["validity"] == "VALID"
+    assert integrity["voided"] is False
 
 
 @pytest.mark.parametrize(
-    "facts, validity, voided",
+    ("facts", "validity", "voided"),
     [
-        ({"seal_verified": True, "archive_complete": True,
-          "key_leak_detected": False}, "VALID", False),
-        ({"seal_verified": False, "archive_complete": True,
-          "key_leak_detected": False}, "VOID", True),
-        ({"seal_verified": True, "archive_complete": True,
-          "key_leak_detected": True}, "VOID", True),
-        ({"seal_verified": True, "archive_complete": False,
-          "key_leak_detected": False}, "UNKNOWN", None),
-        ({"seal_verified": True, "archive_complete": True,
-          "key_leak_detected": None}, "UNKNOWN", None),
+        ({"seal_verified": True, "archive_complete": True, "key_leak_detected": False}, "VALID", False),
+        ({"seal_verified": False, "archive_complete": True, "key_leak_detected": False}, "VOID", True),
+        ({"seal_verified": True, "archive_complete": True, "key_leak_detected": True}, "VOID", True),
+        ({"seal_verified": True, "archive_complete": False, "key_leak_detected": False}, "UNKNOWN", None),
+        ({"seal_verified": True, "archive_complete": True, "key_leak_detected": None}, "UNKNOWN", None),
     ],
 )
 def test_k3_protocol_integrity_is_evidence_three_state(facts, validity, voided):
@@ -124,9 +120,9 @@ def test_k6_duplicate_manifest_ids_and_broken_set_chains_refuse():
         C.score_v2(duplicate, set(), assigned=set(), judged=set())
 
     m = _manifest(_item("x", "catchable"))
-    with pytest.raises(ValueError, match="claimed.*judged"):
+    with pytest.raises(ValueError, match=r"claimed.*judged"):
         C.score_v2(m, {"x"}, assigned={"x"}, judged=set())
-    with pytest.raises(ValueError, match="judged.*assigned"):
+    with pytest.raises(ValueError, match=r"judged.*assigned"):
         C.score_v2(m, set(), assigned=set(), judged={"x"})
 
 

@@ -23,13 +23,11 @@ Reconciled contract highlights the pins encode:
   K6' malformed seats: young -> skip (fail-toward-alive), old -> clean (drains).
   P5  inertness guard: a REAL dead watcher must still die.
 """
+
 import os
 import time
 
-import pytest
-
 from core.comm import wake_seat as ws
-
 
 SID = "aaaabbbb-cccc-dddd-eeee-ffff00001111"
 AGENT = "claude"
@@ -68,11 +66,9 @@ def test_p1_tombstoned_recycled_pid_is_never_killed(tmp_path):
     seat = _seat(tmp_path, AGENT, SID)
     _marker(tmp_path, AGENT, SID, age_min=1)
     _tomb(tmp_path, SID)
-    snap = {4242: {"ppid": 1, "name": "python.exe",
-                   "cmdline": "python totally_unrelated_job.py", "created": 1}}
+    snap = {4242: {"ppid": 1, "name": "python.exe", "cmdline": "python totally_unrelated_job.py", "created": 1}}
     kills = KillRecorder()
-    results = ws.janitor(AGENT, my_session=None, tmp=str(tmp_path),
-                         snapshot_fn=lambda: snap, kill_fn=kills)
+    results = ws.janitor(AGENT, my_session=None, tmp=str(tmp_path), snapshot_fn=lambda: snap, kill_fn=kills)
     assert kills.calls == [], f"kill_fn invoked on a recycled pid: {kills.calls}"
     acted = {os.path.basename(p): a for p, a, _ in results}
     assert acted.get(os.path.basename(str(seat))) == "clean"
@@ -85,9 +81,14 @@ def test_p2_another_agents_watcher_is_not_a_kill_warrant(tmp_path):
     _seat(tmp_path, AGENT, SID)
     _marker(tmp_path, AGENT, SID, age_min=1)
     _tomb(tmp_path, SID)
-    snap = {4242: {"ppid": 1, "name": "python.exe",
-                   "cmdline": "py scripts/bifrost_wake.py --agent kimi --session other",
-                   "created": 1}}
+    snap = {
+        4242: {
+            "ppid": 1,
+            "name": "python.exe",
+            "cmdline": "py scripts/bifrost_wake.py --agent kimi --session other",
+            "created": 1,
+        }
+    }
     kills = KillRecorder()
     ws.janitor(AGENT, tmp=str(tmp_path), snapshot_fn=lambda: snap, kill_fn=kills)
     assert kills.calls == []
@@ -101,9 +102,14 @@ def test_p2b_agent_token_needs_a_word_boundary(tmp_path):
     _seat(tmp_path, "codex", sid2)
     _marker(tmp_path, "codex", sid2, age_min=1)
     _tomb(tmp_path, sid2)
-    snap = {4242: {"ppid": 1, "name": "python.exe",
-                   "cmdline": "py scripts/bifrost_wake.py --agent codex_root --session x",
-                   "created": 1}}
+    snap = {
+        4242: {
+            "ppid": 1,
+            "name": "python.exe",
+            "cmdline": "py scripts/bifrost_wake.py --agent codex_root --session x",
+            "created": 1,
+        }
+    }
     kills = KillRecorder()
     ws.janitor("codex", tmp=str(tmp_path), snapshot_fn=lambda: snap, kill_fn=kills)
     assert kills.calls == []
@@ -115,13 +121,17 @@ def test_p3_failed_taskkill_retains_the_seat(tmp_path):
     seat = _seat(tmp_path, AGENT, SID)
     _marker(tmp_path, AGENT, SID, age_min=1)
     _tomb(tmp_path, SID)
-    snap = {4242: {"ppid": 1, "name": "python.exe",
-                   "cmdline": f"py scripts/bifrost_wake.py --agent {AGENT} --session {SID}",
-                   "created": 1}}
-    kills = KillRecorder(result=False)          # taskkill fails (rc != 0)
-    results = ws.janitor(AGENT, tmp=str(tmp_path), snapshot_fn=lambda: snap,
-                         kill_fn=kills)
-    assert kills.calls == [4242]                 # the kill WAS attempted
+    snap = {
+        4242: {
+            "ppid": 1,
+            "name": "python.exe",
+            "cmdline": f"py scripts/bifrost_wake.py --agent {AGENT} --session {SID}",
+            "created": 1,
+        }
+    }
+    kills = KillRecorder(result=False)  # taskkill fails (rc != 0)
+    results = ws.janitor(AGENT, tmp=str(tmp_path), snapshot_fn=lambda: snap, kill_fn=kills)
+    assert kills.calls == [4242]  # the kill WAS attempted
     assert seat.exists(), "seat file removed after a FAILED kill"
     reasons = " | ".join(r for _, _, r in results)
     assert "FAILED" in reasons.upper() or "kept" in reasons.lower()
@@ -132,15 +142,12 @@ def test_p4_codex_janitor_never_touches_codex_root_seats(tmp_path):
     the codex janitor -- and still visible to its own."""
     sid2 = "11112222-3333-4444-5555-666677778888"
     foreign = _seat(tmp_path, "codex_root", sid2)
-    results = ws.janitor("codex", tmp=str(tmp_path),
-                         snapshot_fn=lambda: {}, kill_fn=KillRecorder())
+    results = ws.janitor("codex", tmp=str(tmp_path), snapshot_fn=dict, kill_fn=KillRecorder())
     touched = [p for p, _, _ in results]
     assert not any("codex_root" in p for p in touched)
     assert foreign.exists()
-    own = ws.janitor("codex_root", tmp=str(tmp_path),
-                     snapshot_fn=lambda: {}, kill_fn=KillRecorder())
-    assert any("codex_root" in p for p, _, _ in own), \
-        "codex_root's own janitor must still see its seats"
+    own = ws.janitor("codex_root", tmp=str(tmp_path), snapshot_fn=dict, kill_fn=KillRecorder())
+    assert any("codex_root" in p for p, _, _ in own), "codex_root's own janitor must still see its seats"
 
 
 def test_p5_a_real_dead_watcher_still_dies(tmp_path):
@@ -150,9 +157,14 @@ def test_p5_a_real_dead_watcher_still_dies(tmp_path):
     seat = _seat(tmp_path, AGENT, SID)
     _marker(tmp_path, AGENT, SID, age_min=1)
     _tomb(tmp_path, SID)
-    snap = {4242: {"ppid": 1, "name": "python.exe",
-                   "cmdline": f"py scripts/bifrost_wake.py --agent {AGENT} --session {SID}",
-                   "created": 1}}
+    snap = {
+        4242: {
+            "ppid": 1,
+            "name": "python.exe",
+            "cmdline": f"py scripts/bifrost_wake.py --agent {AGENT} --session {SID}",
+            "created": 1,
+        }
+    }
     kills = KillRecorder(result=True)
     ws.janitor(AGENT, tmp=str(tmp_path), snapshot_fn=lambda: snap, kill_fn=kills)
     assert kills.calls == [4242]
@@ -164,8 +176,7 @@ def test_p6_unreadable_young_seat_survives(tmp_path):
     torn write -- fail toward alive, keep it."""
     seat = _seat(tmp_path, AGENT, SID, body="not-a-pid-yet")
     kills = KillRecorder()
-    results = ws.janitor(AGENT, tmp=str(tmp_path),
-                         snapshot_fn=lambda: {}, kill_fn=kills)
+    results = ws.janitor(AGENT, tmp=str(tmp_path), snapshot_fn=dict, kill_fn=kills)
     assert seat.exists(), "young unreadable seat removed (torn-write race)"
     assert kills.calls == []
     reasons = " | ".join(r for _, _, r in results)
@@ -178,6 +189,5 @@ def test_p7_unreadable_old_seat_drains(tmp_path):
     seat = _seat(tmp_path, AGENT, SID, body="not-a-pid")
     old = time.time() - (ws.fresh_minutes() + 10) * 60
     os.utime(seat, (old, old))
-    ws.janitor(AGENT, tmp=str(tmp_path), snapshot_fn=lambda: {},
-               kill_fn=KillRecorder())
+    ws.janitor(AGENT, tmp=str(tmp_path), snapshot_fn=dict, kill_fn=KillRecorder())
     assert not seat.exists()

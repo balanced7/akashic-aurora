@@ -2,33 +2,41 @@
 Wire-probe battery — DeepSeek API, raw SSE capture.
 Run: py research/in-flight/wire-capture-deepseek-2026-08-02/probes.py
 """
+
 from __future__ import annotations
-import json, os, sys, time, pathlib, pprint, itertools
+
+import json
+import pathlib
+import sys
+import time
+from typing import Any
 
 # --- setup: key and client ------------------------------------------------
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent.parent.parent / "scripts"))
+from deepseek_chat import BASE_URL, PRO, load_key
+
 ROOT = pathlib.Path(__file__).resolve().parent.parent.parent.parent
-sys.path.insert(0, str(ROOT / "scripts"))
-from deepseek_chat import load_key, BASE_URL, PRO
 
 API_KEY = load_key()
 if not API_KEY:
     print("FATAL: no DEEPSEEK_API_KEY", file=sys.stderr)
     sys.exit(1)
 
-import httpx
-from openai import OpenAI
+import httpx  # noqa: E402  # fail fast on a missing key before importing the SDK
+from openai import OpenAI  # noqa: E402  # fail fast on a missing key before importing the SDK
 
-SDK = OpenAI(api_key=API_KEY, base_url=BASE_URL,
-             timeout=httpx.Timeout(120, connect=15), max_retries=1)
+SDK = OpenAI(api_key=API_KEY, base_url=BASE_URL, timeout=httpx.Timeout(120, connect=15), max_retries=1)
 HTTPX = httpx.Client(timeout=httpx.Timeout(120, connect=15))
 
 OUT = pathlib.Path(__file__).resolve().parent
 OUT.mkdir(parents=True, exist_ok=True)
 
+
 def save(name, text):
     p = OUT / name
     p.write_text(text, encoding="utf-8")
     print(f"  -> saved {p}")
+
 
 # ========================================================================
 # P1: logprobs under stream=True
@@ -48,7 +56,7 @@ try:
     )
     chunks = []
     for i, c in enumerate(stream):
-        d = {"index": i}
+        d: dict[str, Any] = {"index": i}
         if c.choices:
             ch = c.choices[0]
             d["delta"] = ch.delta.model_dump() if hasattr(ch.delta, "model_dump") else str(ch.delta)
@@ -111,8 +119,7 @@ try:
             raw_bytes_chunks.append({"idx": chunk_idx, "ts": ts, "len": len(data), "hex_first_32": data[:32].hex()})
             text = data.decode("utf-8", errors="replace")
             raw_lines.append(f"# BYTE-CHUNK {chunk_idx} ts={ts:.6f} len={len(data)}")
-            for line in text.split("\n"):
-                raw_lines.append(f"D|{line}")
+            raw_lines.extend(f"D|{line}" for line in text.split("\n"))
             chunk_idx += 1
 
     save("p2-raw-sse.txt", "\n".join(raw_lines))
@@ -131,7 +138,8 @@ print("P3: TTFT DECOMPOSITION — same prompt twice, then perturbed")
 print("=" * 72)
 
 PROMPT_CACHE = "The capital of France is Paris. The capital of Germany is Berlin. The capital of Italy is"
-PERTURBED   = "The capital of France is Paris. The capital of Germany is Berlin. The capital of Spain is"
+PERTURBED = "The capital of France is Paris. The capital of Germany is Berlin. The capital of Spain is"
+
 
 def measure_ttft(prompt, label):
     t0 = time.monotonic()
@@ -148,14 +156,15 @@ def measure_ttft(prompt, label):
     content = []
     reasoning = []
     for c in stream:
-        if first_ts is None:
-            # Any real token — content OR reasoning — counts as first token
-            if c.choices:
-                d = c.choices[0].delta
-                has_content = d.content and d.content.strip()
-                has_reasoning = getattr(d, "reasoning_content", None) or (getattr(d, "model_extra", None) or {}).get("reasoning_content")
-                if has_content or (has_reasoning and has_reasoning.strip()):
-                    first_ts = time.monotonic()
+        # Any real token — content OR reasoning — counts as first token
+        if first_ts is None and c.choices:
+            d = c.choices[0].delta
+            has_content = d.content and d.content.strip()
+            has_reasoning = getattr(d, "reasoning_content", None) or (getattr(d, "model_extra", None) or {}).get(
+                "reasoning_content"
+            )
+            if has_content or (has_reasoning and has_reasoning.strip()):
+                first_ts = time.monotonic()
         if c.choices and c.choices[0].delta.content:
             content.append(c.choices[0].delta.content)
         if c.choices:
@@ -166,8 +175,15 @@ def measure_ttft(prompt, label):
             usage = c.usage.model_dump() if hasattr(c.usage, "model_dump") else dict(c.usage)
     t1 = time.monotonic()
     ttft = round(first_ts - t0, 4) if first_ts else None
-    return {"label": label, "ttft_s": ttft, "total_s": round(t1 - t0, 4),
-            "usage": usage, "content": "".join(content), "reasoning": "".join(reasoning)[:80]}
+    return {
+        "label": label,
+        "ttft_s": ttft,
+        "total_s": round(t1 - t0, 4),
+        "usage": usage,
+        "content": "".join(content),
+        "reasoning": "".join(reasoning)[:80],
+    }
+
 
 p3a = measure_ttft(PROMPT_CACHE, "run-1 (cold or warm)")
 time.sleep(0.5)

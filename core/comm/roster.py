@@ -31,24 +31,29 @@ Monotonic beats: heartbeat() refuses to write a beat_ts older than the stored on
 replayed/duplicated beat can never resurrect a stale seat or mask a death. Have-summaries
 derive their keys through the Bus door (F2) with shared cursors LABELED as shared.
 """
+
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 # The incarnation discriminator is derived by the bus (the organ that owns the key formats,
 # kimi F2) -- imported, never re-sliced here. bus imports nothing from this module.
 from core.comm.bus import sid8 as _sid8
 
 WORKLIVE_TTL_S = int(os.environ.get("AKASHIC_WORKLIVE_TTL_S", "180") or 180)
-RESUME_GAP_S = float(os.environ.get("AKASHIC_RESUME_GAP_S", "600") or 600)   # S3: away-time that counts as a RESUME
+RESUME_GAP_S = float(os.environ.get("AKASHIC_RESUME_GAP_S", "600") or 600)  # S3: away-time that counts as a RESUME
 FRESH_S = float(os.environ.get("AKASHIC_WORKLIVE_FRESH_S", "45") or 45)
 
 
-def _connect():
+def _connect() -> Any:
+    # Any: a redis client, or None when unreachable; every caller here uses it inside an
+    # except-Exception block (or after a keys() call that would already have raised).
     from core.comm.bus import _connect as bus_connect
+
     return bus_connect()
 
 
@@ -61,6 +66,7 @@ def _liveness_code_sha() -> str:
     field must never be able to break a heartbeat."""
     try:
         from core.comm import liveness
+
         return liveness._safe_code_sha()
     except Exception:
         return ""
@@ -78,10 +84,17 @@ def _head_code_sha() -> str:
         _HEAD_SHA = ""
         try:
             import subprocess
+
             root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-            r = subprocess.run(["git", "rev-parse", "--short=12", "HEAD"], cwd=root,
-                               capture_output=True, text=True, timeout=5,
-                               stdin=subprocess.DEVNULL, close_fds=True)
+            r = subprocess.run(
+                ["git", "rev-parse", "--short=12", "HEAD"],
+                cwd=root,
+                capture_output=True,
+                text=True,
+                timeout=5,
+                stdin=subprocess.DEVNULL,
+                close_fds=True,
+            )
             if r.returncode == 0:
                 _HEAD_SHA = (r.stdout or "").strip()
         except Exception:
@@ -89,7 +102,7 @@ def _head_code_sha() -> str:
     return _HEAD_SHA or ""
 
 
-def code_state(stamped: str) -> str:
+def code_state(stamped: str | None) -> str:
     """current | stale | unknown. UNKNOWN IS NOT STALE (P6): a seat with no stamp is an
     older build or a foreign runner, and absence of evidence gets its own word rather
     than an accusation. Crying wolf here would land on a fleet that has already spent a
@@ -100,15 +113,16 @@ def code_state(stamped: str) -> str:
     return "current" if stamped == head else "stale"
 
 
-SEATSEEN_TTL_S = 86400          # kimi F1: death must outlive the worklive TTL to be RENDERABLE
+SEATSEEN_TTL_S = 86400  # kimi F1: death must outlive the worklive TTL to be RENDERABLE
 
 
 def _seen_key(ns: str, agent: str, sid8: str) -> str:
     return f"{ns}:seatseen:{agent}#{sid8}"
 
 
-def heartbeat(ns: str, agent: str, session_id: str, *, phase: str = "idle",
-              client=None, _beat_ts: Optional[float] = None) -> bool:
+def heartbeat(
+    ns: str, agent: str, session_id: str, *, phase: str = "idle", client=None, _beat_ts: float | None = None
+) -> dict[str, Any]:
     """Beat this seat's liveness. Monotonic (P5): an older beat_ts never overwrites a
     fresher one. The key stays sid8-sized, while the value retains the full session id
     so T086 tombstones remain reachable. `_beat_ts` is injectable for pins only.
@@ -119,7 +133,7 @@ def heartbeat(ns: str, agent: str, session_id: str, *, phase: str = "idle",
         sid8 = _sid8(full_sid)
         k = _key(ns, agent, sid8)
         now = float(_beat_ts if _beat_ts is not None else time.time())
-        prev: Dict[str, Any] = {}
+        prev: dict[str, Any] = {}
         try:
             prev = json.loads(client.get(k) or "{}")
         except (ValueError, TypeError):
@@ -139,30 +153,31 @@ def heartbeat(ns: str, agent: str, session_id: str, *, phase: str = "idle",
         if prev_beat > 0:
             interval = max(0.0, now - prev_beat)
             ema = (0.3 * interval + 0.7 * ema) if ema > 0 else interval
-        doc = {"full_sid": full_sid, "phase": str(phase), "beat_ts": now,
-               "since_ts": float(prev.get("since_ts") or now),
-               "seq": int(prev.get("seq") or 0) + 1,
-               "ema_interval": round(ema, 3),
-               # T114: WHAT is beating, not just that something is.
-               "code_sha": _liveness_code_sha()}
+        doc = {
+            "full_sid": full_sid,
+            "phase": str(phase),
+            "beat_ts": now,
+            "since_ts": float(prev.get("since_ts") or now),
+            "seq": int(prev.get("seq") or 0) + 1,
+            "ema_interval": round(ema, 3),
+            # T114: WHAT is beating, not just that something is.
+            "code_sha": _liveness_code_sha(),
+        }
         client.set(k, json.dumps(doc), ex=WORKLIVE_TTL_S)
         # kimi F1: the long-lived death witness -- when worklive TTLs away, this record
         # lets the roster render DEAD-with-last-beat instead of silent absence.
-        try:
-            client.set(_seen_key(ns, agent, sid8),
-                       json.dumps({"full_sid": full_sid, "beat_ts": now,
-                                   "phase": str(phase)}),
-                       ex=SEATSEEN_TTL_S)
-        except Exception:
-            pass
-        return {"ok": True,
-                "resumed_after_s": (round(resumed_after, 1) if resumed_after else None)}
+        with contextlib.suppress(Exception):
+            client.set(
+                _seen_key(ns, agent, sid8),
+                json.dumps({"full_sid": full_sid, "beat_ts": now, "phase": str(phase)}),
+                ex=SEATSEEN_TTL_S,
+            )
+        return {"ok": True, "resumed_after_s": (round(resumed_after, 1) if resumed_after else None)}
     except Exception:
         return {"ok": False, "resumed_after_s": None}
 
 
-def go_offline(ns: str, agent: str, session_id: str, *, client=None,
-               _beat_ts: Optional[float] = None) -> dict:
+def go_offline(ns: str, agent: str, session_id: str, *, client=None, _beat_ts: float | None = None) -> dict:
     """Declared departure (presence-offline API, 2026-08-24). Removes the worklive key
     NOW -- a departing seat must not render STALE for the rest of the TTL -- and stamps
     the seatseen witness with offline_ts so the roster renders OFFLINE (declared) instead
@@ -175,16 +190,20 @@ def go_offline(ns: str, agent: str, session_id: str, *, client=None,
         sid8 = _sid8(full_sid)
         now = float(_beat_ts if _beat_ts is not None else time.time())
         client.delete(_key(ns, agent, sid8))
-        doc = {"full_sid": full_sid, "beat_ts": now, "phase": "offline",
-               "offline_ts": now, "code_sha": _liveness_code_sha()}
+        doc = {
+            "full_sid": full_sid,
+            "beat_ts": now,
+            "phase": "offline",
+            "offline_ts": now,
+            "code_sha": _liveness_code_sha(),
+        }
         client.set(_seen_key(ns, agent, sid8), json.dumps(doc), ex=SEATSEEN_TTL_S)
         return {"ok": True, "offline_ts": now}
     except Exception:
         return {"ok": False}
 
 
-def _have_summary(client, ns: str, agent: str, sid8: str,
-                  *, bus_cache: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+def _have_summary(client, ns: str, agent: str, sid8: str, *, bus_cache: dict[str, Any] | None = None) -> dict[str, Any]:
     """T3 (torrent bitfield): the seat's consumed-through positions -- inventory POINTERS,
     never payload (T5). kimi F2: keys are DERIVED THROUGH THE BUS DOOR (the organ that owns
     the formats), never a parallel hardcoded f-string; the shared legacy cursor is labeled
@@ -208,30 +227,26 @@ def _have_summary(client, ns: str, agent: str, sid8: str,
     would be a frozen instrument in a long-lived runner. None means "no sharing", which is
     still correct, just as expensive as before.
     """
-    have: Dict[str, Any] = {}
+    have: dict[str, Any] = {}
     try:
         from core.comm.bus import Bus
+
         cache_key = f"{ns}\x00{agent}"
         b = None if bus_cache is None else bus_cache.get(cache_key)
         if b is None:
-            b = Bus(str(agent), client=client,
-                    namespace=(None if ns == "bifrost" else ns))
+            b = Bus(str(agent), client=client, namespace=(None if ns == "bifrost" else ns))
             if bus_cache is not None:
                 bus_cache[cache_key] = b
-        try:
+        with contextlib.suppress(Exception):
             have["legacy_inbox_shared"] = str(b._read_cursor().get("inbox", "0"))
-        except Exception:
-            pass
         try:
             seat_cursor_key = b._seat_cursor_key(_sid8(sid8))
             have["seat_inbox"] = str(client.hget(seat_cursor_key, "seat") or "0")
             have["reaper"] = str(client.hget(seat_cursor_key, "reaper") or "0")
         except Exception:
             pass
-        try:
+        with contextlib.suppress(Exception):
             have["lane_inbox_shared"] = str((client.hgetall(b.lane_cursor_key(str(agent))) or {}).get("inbox", "0"))
-        except Exception:
-            pass
     except Exception:
         pass
     return have
@@ -243,8 +258,7 @@ CHURN_AT = int(os.environ.get("AKASHIC_ROSTER_CHURN_AT", "3") or 3)
 _STATE_RANK = {"LIVE": 3, "STALE": 2, "OFFLINE": 1.5, "DEAD": 1}
 
 
-def by_agent(rows, *, churn_window_s: Optional[float] = None,
-             churn_at: Optional[int] = None) -> List[Dict[str, Any]]:
+def by_agent(rows, *, churn_window_s: float | None = None, churn_at: int | None = None) -> list[dict[str, Any]]:
     """One summary per LOGICAL agent, with churn STATED rather than implied (T183).
 
     WHY THIS IS NOT A COLLAPSE. The obvious version of this function -- one line per agent with a
@@ -264,20 +278,19 @@ def by_agent(rows, *, churn_window_s: Optional[float] = None,
     window = float(CHURN_WINDOW_S if churn_window_s is None else churn_window_s)
     threshold = int(CHURN_AT if churn_at is None else churn_at)
 
-    groups: Dict[str, List[Dict[str, Any]]] = {}
-    for r in (rows or []):
+    groups: dict[str, list[dict[str, Any]]] = {}
+    for r in rows or []:
         groups.setdefault(str(r.get("agent") or "?"), []).append(r)
 
     def _rank(r):
         age = r.get("beat_age_s")
-        return (_STATE_RANK.get(str(r.get("state")), 0),
-                -(float(age) if age is not None else 1e12))
+        return (_STATE_RANK.get(str(r.get("state")), 0), -(float(age) if age is not None else 1e12))
 
     def _recent(r):
         age = r.get("beat_age_s")
         return age is not None and float(age) <= window
 
-    out: List[Dict[str, Any]] = []
+    out: list[dict[str, Any]] = []
     for agent, rs in sorted(groups.items()):
         best = max(rs, key=_rank)
         live = [r for r in rs if str(r.get("state")) == "LIVE"]
@@ -285,66 +298,73 @@ def by_agent(rows, *, churn_window_s: Optional[float] = None,
         dead = [r for r in rs if str(r.get("state")) == "DEAD"]
         offline = [r for r in rs if str(r.get("state")) == "OFFLINE"]
         recent_deaths = [r for r in dead if _recent(r)]
-        newest_death = min((float(r["beat_age_s"]) for r in dead
-                            if r.get("beat_age_s") is not None), default=None)
-        out.append({
-            "agent": agent,
-            "state": str(best.get("state") or "?"),
-            # None, never a stale stand-in: "who do I address" must not be answered with a corpse.
-            # And when there are TWO live incarnations, naming one of them as THE address is
-            # worse than naming none -- directed and multi-part delivery splits between them
-            # (two_live_seats_split_chunked_bus_delivery). Found by dogfooding: the first cut
-            # took live[0] and rendered two live claude seats as one.
-            "live_sid8": str(live[0].get("sid8")) if len(live) == 1 else None,
-            "live_sids": [str(r.get("sid8")) for r in live],
-            "split_brain": len(live) > 1,
-            "phase": str(best.get("phase") or "?"),
-            "beat_age_s": best.get("beat_age_s"),
-            "n_total": len(rs), "n_live": len(live), "n_stale": len(stale),
-            "n_dead": len(dead), "n_offline": len(offline),
-            "deaths_in_window": len(recent_deaths),
-            "newest_death_age_s": newest_death,
-            "churn_window_s": window,
-            "churning": len(recent_deaths) >= threshold,
-        })
+        newest_death = min((float(r["beat_age_s"]) for r in dead if r.get("beat_age_s") is not None), default=None)
+        out.append(
+            {
+                "agent": agent,
+                "state": str(best.get("state") or "?"),
+                # None, never a stale stand-in: "who do I address" must not be answered with a corpse.
+                # And when there are TWO live incarnations, naming one of them as THE address is
+                # worse than naming none -- directed and multi-part delivery splits between them
+                # (two_live_seats_split_chunked_bus_delivery). Found by dogfooding: the first cut
+                # took live[0] and rendered two live claude seats as one.
+                "live_sid8": str(live[0].get("sid8")) if len(live) == 1 else None,
+                "live_sids": [str(r.get("sid8")) for r in live],
+                "split_brain": len(live) > 1,
+                "phase": str(best.get("phase") or "?"),
+                "beat_age_s": best.get("beat_age_s"),
+                "n_total": len(rs),
+                "n_live": len(live),
+                "n_stale": len(stale),
+                "n_dead": len(dead),
+                "n_offline": len(offline),
+                "deaths_in_window": len(recent_deaths),
+                "newest_death_age_s": newest_death,
+                "churn_window_s": window,
+                "churning": len(recent_deaths) >= threshold,
+            }
+        )
     return out
 
 
-def render_by_agent(ns: str, *, client=None) -> List[str]:
+def render_by_agent(ns: str, *, client=None) -> list[str]:
     """The per-agent render. Churn is the headline; the graveyard total is context."""
     groups = by_agent(roster(ns, client=client))
-    lines = [f"# seat roster BY AGENT -- {len(groups)} agent(s) "
-             f"(raw incarnations: `roster` without --by-agent)"]
+    lines = [f"# seat roster BY AGENT -- {len(groups)} agent(s) (raw incarnations: `roster` without --by-agent)"]
     for g in groups:
         beat = f"{g['beat_age_s']:.1f}s" if g["beat_age_s"] is not None else "never"
         who = f"#{g['live_sid8']}" if g["live_sid8"] else ("SPLIT" if g["split_brain"] else "-")
         churn = ""
         if g["churning"]:
             mins = int(g["churn_window_s"] // 60)
-            churn = (f"  <<< CHURNING: {g['deaths_in_window']} death(s) in {mins}m")
+            churn = f"  <<< CHURNING: {g['deaths_in_window']} death(s) in {mins}m"
         elif g["deaths_in_window"]:
             churn = f"  ({g['deaths_in_window']} recent)"
         if g["split_brain"]:
-            churn += (f"  <<< SPLIT-BRAIN: {g['n_live']} live incarnations "
-                      f"({', '.join(g['live_sids'])}) -- directed delivery splits between them")
+            churn += (
+                f"  <<< SPLIT-BRAIN: {g['n_live']} live incarnations "
+                f"({', '.join(g['live_sids'])}) -- directed delivery splits between them"
+            )
         # A negative beat age is clock skew between the seat and this reader, not freshness.
         # Say so rather than rendering a confident -0.4s that reads like a very fresh beat.
         if g["beat_age_s"] is not None and float(g["beat_age_s"]) < 0:
             churn += "  [clock skew: beat timestamped ahead of this reader]"
-        lines.append(f"  [{g['state']:<5}] {g['agent']:<20} {who:<10} beat={beat:>9} "
-                     f"phase={g['phase']:<9} dead={g['n_dead']:<3}{churn}")
+        lines.append(
+            f"  [{g['state']:<5}] {g['agent']:<20} {who:<10} beat={beat:>9} "
+            f"phase={g['phase']:<9} dead={g['n_dead']:<3}{churn}"
+        )
     return lines
 
 
-def roster(ns: str, *, client=None, now: Optional[float] = None) -> List[Dict[str, Any]]:
+def roster(ns: str, *, client=None, now: float | None = None) -> list[dict[str, Any]]:
     """Every known seat in `ns`, with its PROVEN state. Read-only; derives everything from
     worklive keys + cursor hashes (a projection -- rebuild-safe by construction)."""
     client = client or _connect()
     now = float(now if now is not None else time.time())
-    rows: List[Dict[str, Any]] = []
+    rows: list[dict[str, Any]] = []
     # One Bus per agent for THIS read only (see _have_summary). Scoped to the call so the
     # roster stays a projection of one observation instant and holds nothing between reads.
-    bus_cache: Dict[str, Any] = {}
+    bus_cache: dict[str, Any] = {}
     try:
         live_keys = {str(k) for k in client.keys(f"{ns}:worklive:*")}
         seen_keys = {str(k) for k in client.keys(f"{ns}:seatseen:*")}
@@ -354,7 +374,7 @@ def roster(ns: str, *, client=None, now: Optional[float] = None) -> List[Dict[st
     seen_tails = {k.rsplit(":seatseen:", 1)[-1] for k in seen_keys if "#" in k.rsplit(":seatseen:", 1)[-1]}
     for tail in sorted(live_tails | seen_tails):
         agent, _, sid8 = tail.partition("#")
-        doc: Dict[str, Any] = {}
+        doc: dict[str, Any] = {}
         dead = tail not in live_tails
         try:
             raw = client.get(_seen_key(ns, agent, sid8) if dead else _key(ns, agent, sid8))
@@ -382,49 +402,61 @@ def roster(ns: str, *, client=None, now: Optional[float] = None) -> List[Dict[st
             ema = float(doc.get("ema_interval") or 0)
             window = max(2.0 * ema, 10.0) if ema > 0 else FRESH_S
             state = "LIVE" if (age is not None and age <= window) else "STALE"
-        rows.append({
-            "seat": tail, "agent": agent, "sid8": sid8,
-            "full_sid": str(doc.get("full_sid") or sid8),
-            "phase": str(doc.get("phase") or "?"),
-            "beat_ts": beat, "beat_age_s": (round(age, 1) if age is not None else None),
-            "seq": int(doc.get("seq") or 0),
-            "state": state,
-            "have": _have_summary(client, ns, agent, sid8, bus_cache=bus_cache),
-            "code_sha": str(doc.get("code_sha") or ""),
-            "code_state": code_state(doc.get("code_sha")),
-            # DSH bridge rich fields (Lane 2): passed through defensively so the UI card can
-            # read profile/hop/plugin_present when the bridge stamps them. Absent -> empty/None,
-            # never a fabricated value: the card treats None as "unknown", not a false alarm.
-            "bridge": {
-                "profile": doc.get("profile") or "",
-                "hop": doc.get("hop"),
-                "plugin_present": doc.get("plugin_present"),
-                "plugin": doc.get("plugin"),
-            },
-        })
+        rows.append(
+            {
+                "seat": tail,
+                "agent": agent,
+                "sid8": sid8,
+                "full_sid": str(doc.get("full_sid") or sid8),
+                "phase": str(doc.get("phase") or "?"),
+                "beat_ts": beat,
+                "beat_age_s": (round(age, 1) if age is not None else None),
+                "seq": int(doc.get("seq") or 0),
+                "state": state,
+                "have": _have_summary(client, ns, agent, sid8, bus_cache=bus_cache),
+                "code_sha": str(doc.get("code_sha") or ""),
+                "code_state": code_state(doc.get("code_sha")),
+                # DSH bridge rich fields (Lane 2): passed through defensively so the UI card can
+                # read profile/hop/plugin_present when the bridge stamps them. Absent -> empty/None,
+                # never a fabricated value: the card treats None as "unknown", not a false alarm.
+                "bridge": {
+                    "profile": doc.get("profile") or "",
+                    "hop": doc.get("hop"),
+                    "plugin_present": doc.get("plugin_present"),
+                    "plugin": doc.get("plugin"),
+                },
+            }
+        )
     rows.sort(key=lambda r: (r["agent"], -(r["beat_ts"] or 0)))
     return rows
 
 
-def render_roster(ns: str, *, client=None) -> List[str]:
+def render_roster(ns: str, *, client=None) -> list[str]:
     """Human render with the W84 contract: what this roster CHECKED, and what it did NOT."""
     rows = roster(ns, client=client)
     out = [f"# seat roster ({ns}) -- {len(rows)} seat(s)"]
     for r in rows:
         age = f"{r['beat_age_s']}s" if r["beat_age_s"] is not None else "?"
         have = ",".join(f"{k}@{str(v)[-9:]}" for k, v in (r.get("have") or {}).items())
-        out.append(f"  [{r['state']:5}] {r['seat']:24} phase={r['phase']:10} beat={age:>7} "
-                   f"seq={r['seq']:<5} have: {have}")
+        out.append(
+            f"  [{r['state']:5}] {r['seat']:24} phase={r['phase']:10} beat={age:>7} seq={r['seq']:<5} have: {have}"
+        )
         # T114: a seat can be perfectly alive and running the defect you already fixed.
         # Only STALE earns a line -- current is the silent default, unknown says so plainly.
         if r.get("code_state") == "stale":
-            out.append(f"          ^ STALE-CODE: running {r['code_sha'][:12]}, "
-                       f"HEAD is {_head_code_sha()[:12]} -- restart to pick up fixes")
+            out.append(
+                f"          ^ STALE-CODE: running {r['code_sha'][:12]}, "
+                f"HEAD is {_head_code_sha()[:12]} -- restart to pick up fixes"
+            )
     if not rows:
         out.append("  (no per-seat worklive keys -- no seat has ever heartbeat in this ns)")
     # W84: the confession line. A roster that cannot name its blind spots is unwedge again.
-    out.append(f"  checked:     {ns}:worklive:<agent>#<sid8> keys (TTL {WORKLIVE_TTL_S}s, "
-               f"fresh<= {FRESH_S:g}s) + cursor positions (have-summary)")
-    out.append("  NOT checked: process liveness (a beating loop can host a wedged model) | "
-               "wake watcher armed | runner locks | role-queue claims -- doctor covers those")
+    out.append(
+        f"  checked:     {ns}:worklive:<agent>#<sid8> keys (TTL {WORKLIVE_TTL_S}s, "
+        f"fresh<= {FRESH_S:g}s) + cursor positions (have-summary)"
+    )
+    out.append(
+        "  NOT checked: process liveness (a beating loop can host a wedged model) | "
+        "wake watcher armed | runner locks | role-queue claims -- doctor covers those"
+    )
     return out

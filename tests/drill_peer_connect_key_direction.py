@@ -33,6 +33,7 @@ So on EVERY machine running this code, the signing key belongs in remote_bridge_
 The filenames are named from the perspective of THE MACHINE THEY SIT ON, which is why they
 read backwards when you think about them from the other end.
 """
+
 from __future__ import annotations
 
 import base64
@@ -46,7 +47,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 
-from core.comm import remote_relay as RR  # noqa: E402
+from core.comm import remote_relay as RR  # noqa: E402  # sys.path bootstrap
 
 KEY_A = b"drill-key-A-what-the-peer-verifies-with"
 KEY_B = b"drill-key-B-the-other-direction"
@@ -61,42 +62,47 @@ def check(name, ok, detail=""):
 
 def envelope(payload, secret):
     body = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
-    return {"body": base64.b64encode(body).decode(),
-            "sig": hmac.new(secret, body, hashlib.sha256).hexdigest()}
+    return {"body": base64.b64encode(body).decode(), "sig": hmac.new(secret, body, hashlib.sha256).hexdigest()}
 
 
 def payload(mid):
-    return {"v": 1, "id": mid, "frm": "peer", "kind": "chat",
-            "content": "direction drill", "sent_at": int(time.time())}
+    return {"v": 1, "id": mid, "frm": "peer", "kind": "chat", "content": "direction drill", "sent_at": int(time.time())}
 
 
 def local_pins(send_key, recv_key, world, tmp, monkey_inbound):
     """Zadkiel's D3/D4, run against a given assignment. Shows they pass EITHER way."""
-    monkey_inbound(recv_key)          # accept() will verify with whatever RECV holds
+    monkey_inbound(recv_key)  # accept() will verify with whatever RECV holds
     d3 = not RR.accept(envelope(payload(f"{world}-d3"), send_key), secret=recv_key).ok
     d4 = RR.accept(envelope(payload(f"{world}-d4"), recv_key), secret=recv_key).ok
     return d3, d4
 
 
 def main() -> int:
+    assert __doc__ is not None
     print(__doc__.split("FOR ZADKIEL")[0].strip())
     print("\n" + "=" * 78)
     print("PART 1 — the local pins pass in BOTH worlds (so they cannot discriminate)")
     print("=" * 78)
 
-    import tempfile, os
+    import os
+    import tempfile
+
     tmp = tempfile.mkdtemp(prefix="key-direction-")
     os.environ["AKASHIC_REMOTE_BRIDGE_INBOX"] = str(Path(tmp) / "in.jsonl")
 
     def noop(_):
         pass
 
-    for world, send, recv in (("MINE   (send=outbound file)", KEY_A, KEY_B),
-                              ("SWAPPED(send=inbound file) ", KEY_B, KEY_A)):
+    for world, send, recv in (
+        ("MINE   (send=outbound file)", KEY_A, KEY_B),
+        ("SWAPPED(send=inbound file) ", KEY_B, KEY_A),
+    ):
         d3, d4 = local_pins(send, recv, world, tmp, noop)
         print(f"  {world}:  D3 refused-with-wrong-key = {d3}   D4 admitted-with-right-key = {d4}")
-    print("\n  Both worlds green. That is the tautology: accept() is being asked about its OWN\n"
-          "  key, so the assignment under test never enters the question.")
+    print(
+        "\n  Both worlds green. That is the tautology: accept() is being asked about its OWN\n"
+        "  key, so the assignment under test never enters the question."
+    )
 
     print("\n" + "=" * 78)
     print("PART 2 — the question that DOES discriminate, answered from the shared code")
@@ -123,32 +129,45 @@ def main() -> int:
         return {"ok": True}
 
     RR.push({"frm": "me", "kind": "chat", "content": "which key signs?", "id": "dir-1"}, post=spy)
-    signed_with_A = captured.get("sig") == hmac.new(KEY_A, captured.get("body", b""),
-                                                    hashlib.sha256).hexdigest()
-    check("the SIGNING path uses the key in remote_bridge_outbound.key", signed_with_A,
-          "observed: push() signed with the value found in OUTBOUND_KEY_FILE")
+    signed_with_A = captured.get("sig") == hmac.new(KEY_A, captured.get("body", b""), hashlib.sha256).hexdigest()
+    check(
+        "the SIGNING path uses the key in remote_bridge_outbound.key",
+        signed_with_A,
+        "observed: push() signed with the value found in OUTBOUND_KEY_FILE",
+    )
 
     verified_with_B = RR.accept(envelope(payload("dir-2"), KEY_B), peer="p").ok
     verified_with_A = RR.accept(envelope(payload("dir-3"), KEY_A), peer="p").ok
-    check("the VERIFY path uses the key in remote_bridge_inbound.key",
-          verified_with_B and not verified_with_A,
-          "observed: accept() admitted the INBOUND_KEY_FILE value and refused the other")
+    check(
+        "the VERIFY path uses the key in remote_bridge_inbound.key",
+        verified_with_B and not verified_with_A,
+        "observed: accept() admitted the INBOUND_KEY_FILE value and refused the other",
+    )
 
-    import peer_connect as PC  # noqa: E402
-    check("peer_connect.SEND_KEY == remote_bridge_outbound.key",
-          PC.SEND_KEY == RR.OUTBOUND_KEY_FILE, f"SEND_KEY={PC.SEND_KEY}")
-    check("peer_connect.RECV_KEY == remote_bridge_inbound.key",
-          PC.RECV_KEY == RR.INBOUND_KEY_FILE, f"RECV_KEY={PC.RECV_KEY}")
+    import peer_connect as PC
+
+    check(
+        "peer_connect.SEND_KEY == remote_bridge_outbound.key",
+        PC.SEND_KEY == RR.OUTBOUND_KEY_FILE,
+        f"SEND_KEY={PC.SEND_KEY}",
+    )
+    check(
+        "peer_connect.RECV_KEY == remote_bridge_inbound.key",
+        PC.RECV_KEY == RR.INBOUND_KEY_FILE,
+        f"RECV_KEY={PC.RECV_KEY}",
+    )
 
     bad = [n for n, ok in results if not ok]
-    print(f"\n--- {len(results)-len(bad)}/{len(results)} ---")
+    print(f"\n--- {len(results) - len(bad)}/{len(results)} ---")
     if bad:
         print("FAILED: " + ", ".join(bad))
         return 1
-    print("The signing key belongs in remote_bridge_outbound.key on BOTH machines.\n"
-          "The filenames describe the machine they sit on, which is exactly why they read\n"
-          "backwards from the far end — and why peer_connect asks the wire instead of asking\n"
-          "you to hold the sentence two ways at once.")
+    print(
+        "The signing key belongs in remote_bridge_outbound.key on BOTH machines.\n"
+        "The filenames describe the machine they sit on, which is exactly why they read\n"
+        "backwards from the far end — and why peer_connect asks the wire instead of asking\n"
+        "you to hold the sentence two ways at once."
+    )
     return 0
 
 

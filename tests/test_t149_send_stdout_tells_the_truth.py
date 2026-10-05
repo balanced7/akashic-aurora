@@ -33,6 +33,7 @@ channel, and a louder line on a better channel said the opposite.
 
 Run: py -m pytest tests/test_t149_send_stdout_tells_the_truth.py -q
 """
+
 import os
 import subprocess
 import sys
@@ -49,16 +50,32 @@ TO = f"t149probe{uuid.uuid4().hex[:6]}"
 def _send(body_path):
     """Run the real CLI door and return (stdout, stderr) separately."""
     p = subprocess.run(
-        [sys.executable, "agent_cli.py", "bifrost-send", "claude", "--to", TO,
-         "--kind", "request", "--text-file", str(body_path)],
-        cwd=ROOT, capture_output=True, text=True, encoding="utf-8",
-        errors="replace", timeout=120)
+        [
+            sys.executable,
+            "agent_cli.py",
+            "bifrost-send",
+            "claude",
+            "--to",
+            TO,
+            "--kind",
+            "request",
+            "--text-file",
+            str(body_path),
+        ],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        timeout=120,
+    )
     return p.stdout or "", p.stderr or ""
 
 
 @pytest.fixture(scope="module")
 def sends(tmp_path_factory):
     from core.comm import bus as B
+
     if B.Bus("claude")._client is None:
         pytest.skip("redis unavailable")
     body = tmp_path_factory.mktemp("t149") / "b.txt"
@@ -77,18 +94,18 @@ def test_c2_an_identical_resend_says_collapsed_on_stdout(sends):
     _first, (out2, _e2) = sends
     assert "COLLAPSED" in out2.upper(), (
         "stdout still renders a collapsed re-ask as a successful send -- an orchestration loop "
-        f"reading stdout believes the brief landed:\n{out2}")
-    assert "[bifrost-send] ->" not in out2, (
-        f"the arrow line must not appear when nothing was sent:\n{out2}")
+        f"reading stdout believes the brief landed:\n{out2}"
+    )
+    assert "[bifrost-send] ->" not in out2, f"the arrow line must not appear when nothing was sent:\n{out2}"
 
 
 def test_c3_the_collapsed_line_names_the_id_it_collapsed_onto(sends):
     (out1, _e1), (out2, _e2) = sends
     import re
+
     m = re.search(r"\(id (\S+?)\)", out1)
     assert m, f"could not read the original id from the first send:\n{out1}"
-    assert m.group(1) in out2, (
-        f"the collapsed line must name {m.group(1)} so the operator can nudge it:\n{out2}")
+    assert m.group(1) in out2, f"the collapsed line must name {m.group(1)} so the operator can nudge it:\n{out2}"
 
 
 def test_c4_stderr_keeps_its_existing_notice(sends):

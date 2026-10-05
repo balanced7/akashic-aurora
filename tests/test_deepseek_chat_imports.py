@@ -8,9 +8,11 @@ when a clarification goes unanswered -- a latent branch bomb that no smoke test 
 
 Run: py -m pytest tests/test_deepseek_chat_imports.py -q
 """
+
 import ast
 import os
 import sys
+from pathlib import Path
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, REPO)
@@ -21,8 +23,9 @@ def test_every_toolbox_constant_used_is_imported():
     (Not literal-coupled to CLARIFY_TIMEOUT_S -- the defect class is 'compat re-export
     drifted behind its own callers', and the next missing name should fail here too.)"""
     import core.comm.toolbox as tb
+
     src_path = os.path.join(REPO, "scripts", "deepseek_chat.py")
-    tree = ast.parse(open(src_path, encoding="utf-8").read())
+    tree = ast.parse(Path(src_path).read_text(encoding="utf-8"))
 
     imported = set()
     for node in ast.walk(tree):

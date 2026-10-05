@@ -42,10 +42,10 @@ only reported "things that differ" would have stayed silent on it, because after
 contamination the two worlds AGREED on bifrost:. Agreement with prod is exactly the wrong
 outcome for a plane the seed refuses, and only the manifest makes that legible.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, List, Optional
 
 #: Severity vocabulary, ordered loudest-first for rendering.
 SEVERITY_ORDER = {"alarm": 0, "report": 1, "unknown": 2, "silent": 3}
@@ -54,7 +54,7 @@ SEVERITY_ORDER = {"alarm": 0, "report": 1, "unknown": 2, "silent": 3}
 @dataclass(frozen=True)
 class PlaneVerdict:
     expected: bool
-    severity: str          # alarm | report | unknown | silent
+    severity: str  # alarm | report | unknown | silent
     why: str
 
 
@@ -76,9 +76,9 @@ class PlaneRow:
 LOCAL_LIFE_SHARE = 0.05
 
 
-def classify(prefix: str, present_in_target: bool,
-             manifest: Optional[Dict],
-             n_source: int = 0, n_target: int = 0) -> PlaneVerdict:
+def classify(
+    prefix: str, present_in_target: bool, manifest: dict | None, n_source: int = 0, n_target: int = 0
+) -> PlaneVerdict:
     """Is this prefix's state between two worlds expected, or news?
 
     `present_in_target` rather than a count on purpose: the question the manifest can
@@ -87,18 +87,20 @@ def classify(prefix: str, present_in_target: bool,
     needs no oracle to interpret.
     """
     if not manifest:
-        return PlaneVerdict(False, "unknown",
-                       "no seed manifest in the target world, so nothing can vouch for "
-                       "what SHOULD differ here -- run scripts/seed_world.py, or read this "
-                       "row as raw difference and judge it yourself")
+        return PlaneVerdict(
+            False,
+            "unknown",
+            "no seed manifest in the target world, so nothing can vouch for "
+            "what SHOULD differ here -- run scripts/seed_world.py, or read this "
+            "row as raw difference and judge it yourself",
+        )
 
     refused = manifest.get("refused") or {}
     carried = manifest.get("carried") or {}
 
     if prefix in refused:
         if not present_in_target:
-            return PlaneVerdict(True, "silent",
-                           f"refused by the seed ({refused[prefix][:60]}) and correctly absent")
+            return PlaneVerdict(True, "silent", f"refused by the seed ({refused[prefix][:60]}) and correctly absent")
         # PRESENCE ALONE IS NOT THE SIGNAL, and assuming it was made this tool cry wolf on
         # its second world within minutes of shipping. A LIVE twin necessarily writes its
         # own transport -- booting one seat in beta created bifrost:seatseen:<its own sid>
@@ -113,38 +115,49 @@ def classify(prefix: str, present_in_target: bool,
         # the source's whole population. Local life was 2 keys against 8,281 (0.02%).
         share = (n_target / n_source) if n_source else 1.0
         if share < LOCAL_LIFE_SHARE:
-            return PlaneVerdict(False, "report",
-                           f"refused by the seed, and {n_target} key(s) present against the "
-                           f"source's {n_source:,} ({share:.1%}) -- consistent with this "
-                           f"twin's OWN activity since seeding, not a bulk import. Worth "
-                           f"knowing, not worth alarm")
-        return PlaneVerdict(False, "alarm",
-                       f"REFUSED by the seed but holding {share:.0%} of the source's "
-                       f"population ({n_target:,} of {n_source:,}) -- that is a BULK IMPORT, "
-                       f"so something wrote around the seeding door (a full-fidelity restore "
-                       f"does exactly this). Agreement with the source on a refused plane is "
-                       f"the bug, not the fix")
+            return PlaneVerdict(
+                False,
+                "report",
+                f"refused by the seed, and {n_target} key(s) present against the "
+                f"source's {n_source:,} ({share:.1%}) -- consistent with this "
+                f"twin's OWN activity since seeding, not a bulk import. Worth "
+                f"knowing, not worth alarm",
+            )
+        return PlaneVerdict(
+            False,
+            "alarm",
+            f"REFUSED by the seed but holding {share:.0%} of the source's "
+            f"population ({n_target:,} of {n_source:,}) -- that is a BULK IMPORT, "
+            f"so something wrote around the seeding door (a full-fidelity restore "
+            f"does exactly this). Agreement with the source on a refused plane is "
+            f"the bug, not the fix",
+        )
 
     if prefix in carried:
         if present_in_target:
-            return PlaneVerdict(False, "report",
-                           "carried by the seed; two institutions drifting apart on a "
-                           "shared plane is the normal condition, shown so it stays visible")
-        return PlaneVerdict(False, "alarm",
-                       "carried by the seed but now entirely ABSENT -- the twin lost a "
-                       "plane it was given")
+            return PlaneVerdict(
+                False,
+                "report",
+                "carried by the seed; two institutions drifting apart on a "
+                "shared plane is the normal condition, shown so it stays visible",
+            )
+        return PlaneVerdict(
+            False, "alarm", "carried by the seed but now entirely ABSENT -- the twin lost a plane it was given"
+        )
 
-    return PlaneVerdict(False, "report",
-                   "not named in the seed manifest (it postdates the seed, or arrived by "
-                   "another door), so the manifest cannot vouch for it either way")
+    return PlaneVerdict(
+        False,
+        "report",
+        "not named in the seed manifest (it postdates the seed, or arrived by "
+        "another door), so the manifest cannot vouch for it either way",
+    )
 
 
 #: A prefix smaller than this, and unnamed by the manifest, is not a plane.
 MINOR_FLOOR = 25
 
 
-def collapse_minor(rows: List[PlaneRow], manifest: Optional[Dict],
-                   floor: int = MINOR_FLOOR):
+def collapse_minor(rows: list[PlaneRow], manifest: dict | None, floor: int = MINOR_FLOOR):
     """Fold tiny, manifest-unknown prefixes into one counted group. Returns (kept, group).
 
     FOUND BY RUNNING IT. The first live prod->alpha run put twenty rows of per-test
@@ -180,27 +193,27 @@ def collapse_minor(rows: List[PlaneRow], manifest: Optional[Dict],
     return kept, group
 
 
-def render(rows: List[PlaneRow], source: str, target: str,
-           manifest: Optional[Dict] = None,
-           collapsed: Optional[Dict] = None) -> str:
+def render(
+    rows: list[PlaneRow], source: str, target: str, manifest: dict | None = None, collapsed: dict | None = None
+) -> str:
     """One screen: findings first, expected bulk collapsed but never hidden.
 
     "At a glance" is the requirement, so ordering IS the feature. Silence here means
     'not shouted', never 'not shown' -- a differ that omits what it chose to ignore
     cannot be audited, and then its quiet stops being evidence of anything.
     """
-    out: List[str] = [f"WORLD DIFF  {source} -> {target}"]
+    out: list[str] = [f"WORLD DIFF  {source} -> {target}"]
 
     if manifest:
-        out.append(f"  oracle: seed manifest, {source} -> {target} at "
-                   f"{str(manifest.get('seeded_at'))[:16]} "
-                   f"({manifest.get('total_carried', 0):,} keys carried)")
+        out.append(
+            f"  oracle: seed manifest, {source} -> {target} at "
+            f"{str(manifest.get('seeded_at'))[:16]} "
+            f"({manifest.get('total_carried', 0):,} keys carried)"
+        )
     else:
-        out.append("  oracle: NO SEED MANIFEST -- nothing is called expected below; "
-                   "every row is raw difference")
+        out.append("  oracle: NO SEED MANIFEST -- nothing is called expected below; every row is raw difference")
 
-    ordered = sorted(rows, key=lambda r: (SEVERITY_ORDER.get(r.verdict.severity, 9),
-                                          -abs(r.n_source - r.n_target)))
+    ordered = sorted(rows, key=lambda r: (SEVERITY_ORDER.get(r.verdict.severity, 9), -abs(r.n_source - r.n_target)))
     for r in ordered:
         if r.verdict.severity == "alarm":
             tag = "ALARM  "
@@ -212,13 +225,14 @@ def render(rows: List[PlaneRow], source: str, target: str,
             tag = "differs" if not r.identical else "same"
         if r.identical and r.verdict.severity not in ("alarm",):
             tag = "identical"
-        out.append(f"  [{tag:>9}] {r.prefix:<14} {r.n_source:>8,} vs {r.n_target:>8,}"
-                   f"   {r.verdict.why}")
+        out.append(f"  [{tag:>9}] {r.prefix:<14} {r.n_source:>8,} vs {r.n_target:>8,}   {r.verdict.why}")
 
     if collapsed and collapsed.get("n_prefixes"):
         eg = ", ".join(collapsed.get("examples") or [])
-        out.append(f"  [{'minor':>9}] {collapsed['n_prefixes']} ephemeral prefix(es) "
-                   f"{collapsed['n_keys_source']:,} vs {collapsed['n_keys_target']:,}"
-                   f"   below the plane floor and unnamed by the manifest "
-                   f"(e.g. {eg}) -- counted, not dropped")
+        out.append(
+            f"  [{'minor':>9}] {collapsed['n_prefixes']} ephemeral prefix(es) "
+            f"{collapsed['n_keys_source']:,} vs {collapsed['n_keys_target']:,}"
+            f"   below the plane floor and unnamed by the manifest "
+            f"(e.g. {eg}) -- counted, not dropped"
+        )
     return "\n".join(out)

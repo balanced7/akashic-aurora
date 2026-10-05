@@ -1,7 +1,6 @@
 """Port types, memory domains and caps checks for arsenal graphs (contract §4.2)."""
-from __future__ import annotations
 
-from typing import List
+from __future__ import annotations
 
 PORT_TYPES = (
     "stream.video",
@@ -15,8 +14,8 @@ PORT_TYPES = (
     "analysis.features",
     "asset.reference",
     "timeline.sequence",
-    "scene.deck",    # a whole present.scene.v1 document: tokens, order, sections, slides (arsenal/present)
-    "scene.slide",   # one slide of a present.scene.v1 deck, carried with the deck's tokens (arsenal/present)
+    "scene.deck",  # a whole present.scene.v1 document: tokens, order, sections, slides (arsenal/present)
+    "scene.slide",  # one slide of a present.scene.v1 deck, carried with the deck's tokens (arsenal/present)
 )
 
 #: Types that carry media payloads: moving these between engines is a copy.
@@ -28,11 +27,10 @@ MEMORY_DOMAINS = ("cpu", "d3d11", "d3d12", "vulkan", "opengl", "webgl", "webgpu"
 #: Binding sources must produce one of these.
 PRODUCER_TYPES = ("control.event", "control.curve", "analysis.features")
 
-CAPS_KEYS = ("memory", "primaries", "transfer", "matrix", "range", "alpha_mode",
-             "sample_rate", "channels", "layout")
+CAPS_KEYS = ("memory", "primaries", "transfer", "matrix", "range", "alpha_mode", "sample_rate", "channels", "layout")
 
 
-def check_caps(out_caps, in_caps) -> List[str]:
+def check_caps(out_caps, in_caps) -> list[str]:
     """Reasons an output's caps cannot feed an input's; an empty list means compatible.
 
     Only keys the input states are checked, and an input value of "any" accepts anything.

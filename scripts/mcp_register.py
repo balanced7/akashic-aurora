@@ -14,11 +14,23 @@ config. Run the printed command, then restart Claude Code.
   py scripts/mcp_register.py            # print the apply command + verification steps
   py scripts/mcp_register.py --json     # print a ready-to-paste mcpServers JSON snippet
 """
+
 import argparse
 import json
 import os
 import sys
 from pathlib import Path
+
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+
+        return python_launcher()
+    except Exception:
+        return "py"
+
 
 MCP_NAME = "akashic-aurora"
 
@@ -28,21 +40,41 @@ def _mcp_path(repo=None):
     return Path(repo) / "ai_setup_mcp.py"
 
 
+def _launch(repo=None):
+    """The interpreter prefix for the MCP server: the `py` launcher on Windows (as always);
+    elsewhere `py` does not exist, so uv -- by ABSOLUTE path, since an MCP host started from a
+    desktop app may not share the shell's PATH -- running inside the repo's project so the
+    server's dependencies come with it. No uv: the interpreter running this script."""
+    if os.name == "nt":
+        return ["py"]
+    import shutil
+
+    repo = Path(repo) if repo else Path(__file__).resolve().parent.parent
+    uv = shutil.which("uv")
+    if uv and (repo / "pyproject.toml").exists():
+        return [uv, "run", "--project", str(repo)]
+    return [sys.executable]
+
+
 def registration_command(repo=None):
     """The exact `claude mcp add` one-liner, with an ABSOLUTE script path (user-scoped)."""
-    return f'claude mcp add --scope user {MCP_NAME} -- py "{_mcp_path(repo)}"'
+    import shlex
+
+    launch = " ".join(shlex.quote(a) for a in _launch(repo))
+    return f'claude mcp add --scope user {MCP_NAME} -- {launch} "{_mcp_path(repo)}"'
 
 
 def registration_json(repo=None):
     """The equivalent mcpServers snippet, for manual config editing if preferred."""
-    return {"mcpServers": {MCP_NAME: {"command": "py", "args": [str(_mcp_path(repo))], "env": {}}}}
+    launch = _launch(repo)
+    return {"mcpServers": {MCP_NAME: {"command": launch[0], "args": [*launch[1:], str(_mcp_path(repo))], "env": {}}}}
 
 
 def main(argv=None):
-    ap = argparse.ArgumentParser(
-        description="Print the user-scoped akashic-aurora MCP registration (T081-W2).")
-    ap.add_argument("--json", action="store_true",
-                    help="print a ready-to-paste mcpServers JSON snippet instead of the command")
+    ap = argparse.ArgumentParser(description="Print the user-scoped akashic-aurora MCP registration (T081-W2).")
+    ap.add_argument(
+        "--json", action="store_true", help="print a ready-to-paste mcpServers JSON snippet instead of the command"
+    )
     a = ap.parse_args(argv)
     if a.json:
         print(json.dumps(registration_json(), indent=2))
@@ -51,7 +83,7 @@ def main(argv=None):
     print("# 1) run this once:")
     print(f"     {registration_command()}")
     print("# 2) restart Claude Code")
-    print("# 3) verify: py agent_cli.py boot claude  ->  '# door: MCP-native' (was 'CLI-shell')")
+    print(f"# 3) verify: {_pyl()} agent_cli.py boot claude  ->  '# door: MCP-native' (was 'CLI-shell')")
     return 0
 
 

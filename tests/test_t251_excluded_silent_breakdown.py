@@ -30,6 +30,7 @@ Daniil, 2026-08-08, asked for hints "with the ability to tune them or adjust". Y
 what you cannot measure separately. This is the measurement that makes the tuning decision
 possible; it is not the tuning.
 """
+
 import json
 
 import pytest
@@ -56,8 +57,7 @@ def test_the_recorder_accepts_and_persists_an_exclusion_kind(outcomes):
     AA._record_outcome("silent", "excluded_silent", query="q", excl_kind="self_echo")
     rows = _rows(outcomes)
     assert rows, "no outcome row was written"
-    assert rows[0].get("excl_kind") == "self_echo", (
-        f"the exclusion kind did not reach the row: {rows[0]}")
+    assert rows[0].get("excl_kind") == "self_echo", f"the exclusion kind did not reach the row: {rows[0]}"
 
 
 def _write_legacy_row(path, **extra):
@@ -68,8 +68,16 @@ def _write_legacy_row(path, **extra):
     unknown/unclassified split pass while being untested against the thing it exists for.
     """
     import time as _t
-    row = {"at": _t.time(), "outcome": "silent", "reason": "excluded_silent",
-           "q": "q", "n_items": 0, "agent": "", "query_shape": ""}
+
+    row = {
+        "at": _t.time(),
+        "outcome": "silent",
+        "reason": "excluded_silent",
+        "q": "q",
+        "n_items": 0,
+        "agent": "",
+        "query_shape": "",
+    }
     row.update(extra)
     with open(path, "a", encoding="utf-8") as f:
         f.write(json.dumps(row) + "\n")
@@ -114,8 +122,8 @@ def test_rows_with_no_kind_are_counted_as_unknown_not_dropped(outcomes):
     r = AA.silence_rate(window_s=86400.0)
     by_kind = r.get("excluded_by_kind") or {}
     assert sum(by_kind.values()) == r["by_reason"]["excluded_silent"], (
-        f"the breakdown must account for EVERY excluded row: {by_kind} vs "
-        f"{r['by_reason']['excluded_silent']}")
+        f"the breakdown must account for EVERY excluded row: {by_kind} vs {r['by_reason']['excluded_silent']}"
+    )
     assert by_kind.get("unknown") == 1, f"the pre-T251 row must be visible as unknown: {by_kind}"
 
 
@@ -133,7 +141,8 @@ def test_an_item_breaking_both_rules_is_counted_under_both(outcomes):
     AA._note_exclusion(stats, [AA.EXCL_ANTIREPEAT, AA.EXCL_SELF_ECHO])
     assert stats["excluded"] == 1, (
         f"the TOTAL counts ITEMS, not rule-hits -- it gates the outcome label via "
-        f"excluded >= above_floor and must not double-count: {stats}")
+        f"excluded >= above_floor and must not double-count: {stats}"
+    )
     assert stats[f"excluded_{AA.EXCL_ANTIREPEAT}"] == 1, stats
     assert stats[f"excluded_{AA.EXCL_SELF_ECHO}"] == 1, stats
 
@@ -145,11 +154,17 @@ def test_the_row_carries_item_counts_not_only_a_call_level_label(outcomes):
     a 1-and-1 call. The label cannot answer which rule dominates, which is the only question
     the instrument exists to answer.
     """
-    AA._record_outcome("silent", "excluded_silent", query="q", excl_kind="mixed",
-                       excl_counts={AA.EXCL_ANTIREPEAT: 99, AA.EXCL_SELF_ECHO: 1})
+    AA._record_outcome(
+        "silent",
+        "excluded_silent",
+        query="q",
+        excl_kind="mixed",
+        excl_counts={AA.EXCL_ANTIREPEAT: 99, AA.EXCL_SELF_ECHO: 1},
+    )
     row = _rows(outcomes)[0]
     assert row.get("excl_counts", {}).get(AA.EXCL_ANTIREPEAT) == 99, (
-        f"item-level counts did not reach the row, so 'mixed' stays uninterpretable: {row}")
+        f"item-level counts did not reach the row, so 'mixed' stays uninterpretable: {row}"
+    )
 
 
 def test_a_new_unclassified_row_is_not_filed_under_the_old_baseline(outcomes):
@@ -161,13 +176,13 @@ def test_a_new_unclassified_row_is_not_filed_under_the_old_baseline(outcomes):
     baseline, which is precisely the merge this whole task exists to undo.
     """
     outcomes.parent.mkdir(parents=True, exist_ok=True)
-    _write_legacy_row(outcomes)                                                  # genuinely old
-    AA._record_outcome("silent", "excluded_silent", query="q", excl_kind="")     # new, unclassified
+    _write_legacy_row(outcomes)  # genuinely old
+    AA._record_outcome("silent", "excluded_silent", query="q", excl_kind="")  # new, unclassified
     by_kind = AA.silence_rate(window_s=86400.0)["excluded_by_kind"]
     assert by_kind.get("unknown") == 1, f"only the pre-T251 row is 'unknown': {by_kind}"
     assert by_kind.get("unclassified") == 1, (
-        f"a new row with an empty kind must be visibly UNCLASSIFIED, not folded into the "
-        f"historical baseline: {by_kind}")
+        f"a new row with an empty kind must be visibly UNCLASSIFIED, not folded into the historical baseline: {by_kind}"
+    )
 
 
 def test_the_two_rules_increment_separate_counters():
@@ -177,7 +192,6 @@ def test_the_two_rules_increment_separate_counters():
     text-scanning assertion here would pass on the comment that explains the fix.
     """
     stats = {}
-    item = {"source": "learn:experiment:x", "text": "t", "trigger": "", "trigger_terms": []}
     AA._note_exclusion(stats, "antirepeat")
     AA._note_exclusion(stats, "self_echo")
     AA._note_exclusion(stats, "antirepeat")

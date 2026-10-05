@@ -25,10 +25,9 @@ B. RETIREMENT MUST NOT SELF-SEAL.
    is to adopt the EXISTING type-agnostic bi-temporal lifecycle (core/codex/lifecycle.py),
    where supersede() closes valid_to and persists BOTH nodes so the old one stays queryable.
 """
-import time
-from typing import Any, Dict, List
 
-import pytest
+import time
+from typing import Any
 
 from core.foundation.store import FileStore
 
@@ -77,20 +76,24 @@ class CountingStore(FileStore):
 def _seed(store, n: int) -> None:
     """n lessons through the real learning-store write path."""
     from core.learning.learning_store import LearningStore
+
     ls = LearningStore(store=store)
     for i in range(n):
-        ls.record_learning({
-            "experiment_name": f"seeded_lesson_{i:05d}",
-            "what_was_tried": f"attempt {i}",
-            "result": "it worked" if i % 2 == 0 else "it did not",
-            "recommendation": f"use approach {i} when condition {i % 7} holds",
-            "success": "yes" if i % 2 == 0 else "no",
-            "agent_id": "test",
-        })
+        ls.record_learning(
+            {
+                "experiment_name": f"seeded_lesson_{i:05d}",
+                "what_was_tried": f"attempt {i}",
+                "result": "it worked" if i % 2 == 0 else "it did not",
+                "recommendation": f"use approach {i} when condition {i % 7} holds",
+                "success": "yes" if i % 2 == 0 else "no",
+                "agent_id": "test",
+            }
+        )
 
 
-def _retrieve(store) -> List[Dict[str, Any]]:
+def _retrieve(store) -> list[dict[str, Any]]:
     from core.learning.learning_store import LearningStore
+
     return LearningStore(store=store).load_all_learnings_from_store()
 
 
@@ -159,7 +162,7 @@ def test_a3_retrieval_latency_stays_flat_enough_to_sit_on_the_hot_path(tmp_path)
     _retrieve(store)
     elapsed = time.perf_counter() - t0
     assert elapsed < 0.25, (
-        f"retrieval over 300 lessons took {elapsed*1000:.0f}ms. This runs on every tool call; "
+        f"retrieval over 300 lessons took {elapsed * 1000:.0f}ms. This runs on every tool call; "
         f"at 10x the corpus it would be unusable."
     )
 
@@ -175,6 +178,7 @@ def _retire(store, name: str, reason: str = "surfaced often, never credited") ->
     than on the property, which is the failure mode a pre-build run exists to catch.
     """
     from core.learning.learning_store import LearningStore
+
     assert LearningStore(store=store).mark_benched(name, reason), "bench path did not fire"
 
 
@@ -193,6 +197,7 @@ def test_b1_a_retired_lesson_remains_queryable_by_id(tmp_path):
     _retire(store, name)
 
     from core.learning.learning_store import LearningStore
+
     rec = LearningStore(store=store)._load_experiment(name)
     assert rec, "a retired lesson must still be retrievable by id -- retirement is not deletion"
     assert rec.get("experiment_name") == name or rec.get("experiment") == name
@@ -215,12 +220,12 @@ def test_b2_retirement_records_why_and_when(tmp_path):
     _retire(store, name, reason="never credited across 40 surfacings")
 
     from core.learning.learning_store import LearningStore
+
     rec = LearningStore(store=store)._load_experiment(name) or {}
     when = str(rec.get("benched") or rec.get("valid_to") or "")
     why = str(rec.get("bench_reason") or rec.get("superseded_by") or "")
-    assert when and when.lower() not in ("true", "1"), (
-        f"retirement must record WHEN, not a bare boolean -- got {when!r}"
-    )
+    assert when, f"retirement must record WHEN, not a bare boolean -- got {when!r}"
+    assert when.lower() not in ("true", "1"), f"retirement must record WHEN, not a bare boolean -- got {when!r}"
     assert why, "retirement must record WHY -- a reasonless flag can be obeyed but not reviewed"
 
 
@@ -247,6 +252,7 @@ def test_b3_a_benched_lesson_can_still_earn_its_way_back(tmp_path):
     _retire(store, name)
 
     from core.learning.learning_store import LearningStore, is_benched
+
     ls = LearningStore(store=store)
     assert is_benched(ls._load_experiment(name) or {}), "sanity: benched before we test revival"
 
@@ -269,19 +275,17 @@ def test_b3_a_benched_lesson_can_still_earn_its_way_back(tmp_path):
     from core.recall import at_action
 
     def _surfaced_names(store):
-        items = at_action._project_items(
-            LearningStore(store=store).load_all_learnings_from_store())
+        items = at_action._project_items(LearningStore(store=store).load_all_learnings_from_store())
         return {str(i.get("source") or i.get("experiment") or "") for i in items}
 
     # (i) freshly benched -> stays out of the slots.
     ls.mark_benched(name, "just benched")
     assert not any(name in n for n in _surfaced_names(store)), (
-        "a lesson benched moments ago should not compete for slots -- that is the economy "
-        "benching exists to protect"
+        "a lesson benched moments ago should not compete for slots -- that is the economy benching exists to protect"
     )
 
     # (ii) benched long ago -> gets one more look, WITHOUT a human intervening.
-    from core.learning.learning_store import LearningStore as _LS
+
     store.hset(f"learn:experiment:{name}", mapping={"benched": "2020-01-01T00:00:00"})
     assert any(name in n for n in _surfaced_names(store)), (
         "a lesson benched long ago is still invisible to the surface that awards credit, so "
@@ -299,13 +303,12 @@ def test_b4_probing_is_bounded_so_it_cannot_starve_the_active_corpus(tmp_path):
     benched lessons meant fifty probes competing with the active corpus. That reintroduces
     the slot starvation the probe was written to cure. The probe must be capped.
     """
-    from core.recall.at_action import _bench_probe_set, _BENCH_PROBE_MAX
+    from core.recall.at_action import _BENCH_PROBE_MAX, _bench_probe_set
 
     def benched(r):
         return bool(r.get("benched"))
 
-    recs = [{"experiment_name": f"old_{i:03d}", "benched": f"2020-01-{(i % 28) + 1:02d}T00:00:00"}
-            for i in range(40)]
+    recs = [{"experiment_name": f"old_{i:03d}", "benched": f"2020-01-{(i % 28) + 1:02d}T00:00:00"} for i in range(40)]
     chosen = _bench_probe_set(recs, benched)
     assert len(chosen) <= _BENCH_PROBE_MAX, (
         f"{len(chosen)} of 40 benched lessons probed at once; the cap is {_BENCH_PROBE_MAX}. "
@@ -349,6 +352,4 @@ def test_b6_a_probed_lesson_is_rendered_as_on_probation(tmp_path):
     probed = _provenance_tag({"success": "yes", "agent_id": "claude", "bench_probe": True})
     assert probed != ordinary, "a probed lesson must not render identically to an earned one"
     assert "probation" in probed, f"the probe marker is missing from {probed!r}"
-    assert probed.startswith("[probation"), (
-        f"the marker must lead -- it qualifies everything after it; got {probed!r}"
-    )
+    assert probed.startswith("[probation"), f"the marker must lead -- it qualifies everything after it; got {probed!r}"

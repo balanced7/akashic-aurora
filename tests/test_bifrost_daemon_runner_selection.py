@@ -1,10 +1,11 @@
 """T385 RED: a managed daemon may supervise Sunshine's own runner explicitly."""
+
 from __future__ import annotations
 
 import os
-from pathlib import Path
 import subprocess
 import sys
+from pathlib import Path
 
 import pytest
 
@@ -42,19 +43,18 @@ def test_external_supervisor_keeps_daemon_anchored_instead_of_detached_respawn(m
         return "stale-code successor launched"
 
     monkeypatch.setattr(daemon._SELF_RESTART, "maybe_self_restart", _would_detach)
-    args = daemon.build_parser().parse_args(
-        ["--agent", "sol", "--external-supervisor"]
-    )
+    args = daemon.build_parser().parse_args(["--agent", "sol", "--external-supervisor"])
 
     assert args.external_supervisor is True
-    assert daemon.daemon_self_restart_reason(
-        "sol", in_flight=False, external_supervisor=args.external_supervisor
-    ) is None
+    assert (
+        daemon.daemon_self_restart_reason("sol", in_flight=False, external_supervisor=args.external_supervisor) is None
+    )
     assert calls == []
 
-    assert daemon.daemon_self_restart_reason(
-        "sol", in_flight=True, external_supervisor=False
-    ) == "stale-code successor launched"
+    assert (
+        daemon.daemon_self_restart_reason("sol", in_flight=True, external_supervisor=False)
+        == "stale-code successor launched"
+    )
     assert calls == [("sol", True)]
 
 
@@ -70,42 +70,42 @@ def test_external_supervisor_waits_inside_same_process_for_singleton_lease():
 
     supervised = _Lock([False, False, True])
     sleeps = []
-    assert daemon.acquire_daemon_lock(
-        supervised,
-        external_supervisor=True,
-        retry_s=0.25,
-        sleep_fn=sleeps.append,
-    ) is True
+    assert (
+        daemon.acquire_daemon_lock(
+            supervised,
+            external_supervisor=True,
+            retry_s=0.25,
+            sleep_fn=sleeps.append,
+        )
+        is True
+    )
     assert supervised.calls == 3
     assert sleeps == [0.25, 0.25]
 
     default = _Lock([False])
-    assert daemon.acquire_daemon_lock(
-        default,
-        external_supervisor=False,
-        retry_s=0.25,
-        sleep_fn=lambda _: pytest.fail("unsupervised refusal must not wait"),
-    ) is False
+    assert (
+        daemon.acquire_daemon_lock(
+            default,
+            external_supervisor=False,
+            retry_s=0.25,
+            sleep_fn=lambda _: pytest.fail("unsupervised refusal must not wait"),
+        )
+        is False
+    )
     assert default.calls == 1
 
 
 def test_sunshine_scheduled_task_declares_external_supervisor_anchor():
-    installer = (
-        Path(__file__).resolve().parents[1]
-        / "scripts"
-        / "install_sunshine_discord_tasks.ps1"
-    ).read_text(encoding="utf-8")
+    installer = (Path(__file__).resolve().parents[1] / "scripts" / "install_sunshine_discord_tasks.ps1").read_text(
+        encoding="utf-8"
+    )
 
     assert "'--external-supervisor'" in installer
 
 
 @pytest.mark.skipif(os.name != "nt", reason="PowerShell Task Scheduler installer is Windows-only")
 def test_sunshine_installer_resolves_its_default_repo_root_in_script_context():
-    installer = (
-        Path(__file__).resolve().parents[1]
-        / "scripts"
-        / "install_sunshine_discord_tasks.ps1"
-    )
+    installer = Path(__file__).resolve().parents[1] / "scripts" / "install_sunshine_discord_tasks.ps1"
     result = subprocess.run(
         [
             "powershell.exe",
@@ -141,7 +141,7 @@ def test_managed_runner_environment_can_pin_the_work_lane_without_dropping_base_
     assert env["KEEP_ME"] == "yes"
     assert env["BIFROST_CONSUME_LANE"] == "work"
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="invalid managed runner consume lane: 'mystery'"):
         daemon.managed_runner_env("sol", consume_lane="mystery", base={})
 
 
@@ -188,7 +188,7 @@ def test_managed_runner_can_select_sol_and_exclude_dedicated_discord_ingress(tmp
     ["../bifrost_runner_sol.py", "bifrost_daemon.py", "missing_runner.py"],
 )
 def test_managed_runner_override_refuses_traversal_nonrunner_and_missing_files(name, tmp_path):
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="invalid managed runner basename"):
         daemon.managed_runner_argv(
             "sol",
             str(tmp_path / "summary.json"),

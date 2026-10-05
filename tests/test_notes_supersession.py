@@ -9,9 +9,10 @@ default title (T016 F1a; the title default is pinned here too).
 
 Run: py -m pytest tests/test_notes_supersession.py -q
 """
-import json
+
 import os
 import sys
+from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -56,13 +57,15 @@ def test_all_view_orders_and_tags_mixed_records(tmp_path):
     allv = mem.get_decisions(days=3650, include_superseded=True)
     assert {d.id for d in allv} == {a, b}
     flags = {d.id: d.superseded for d in allv}
-    assert flags[a] is False and flags[b] is True
+    assert flags[a] is False
+    assert flags[b] is True
 
 
 def test_wrap_default_title_is_bare_where_we_are():
     """The one-line root cause of the pileup (agent_cli wrap): a DATED default title
     defeats update-by-title supersession. Pin the bare default at the source."""
-    src = open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                            "agent_cli.py"), encoding="utf-8").read()
+    src = Path(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "agent_cli.py")).read_text(
+        encoding="utf-8"
+    )
     assert 'args.title or "where-we-are"' in src, "wrap default title must be BARE"
     assert 'args.title or f"where-we-are {' not in src, "the dated default must not return"

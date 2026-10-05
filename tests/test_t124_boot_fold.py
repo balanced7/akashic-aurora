@@ -23,9 +23,8 @@ Pin labeling: [observed RED] = I verified the current code fails this.
 """
 
 import os
-import sys
 import re
-import json
+import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
@@ -34,6 +33,7 @@ sys.path.insert(0, str(REPO))
 # ────────────────────────────────────────────────────────────────────
 # SCOPE 1: OBSERVED — interiority files exist and the loader is built
 # ────────────────────────────────────────────────────────────────────
+
 
 def test_p1_all_seats_have_interiority_files():
     """[observed GREEN — guardrail] Every seat with a charter directory has an
@@ -48,8 +48,7 @@ def test_p1_all_seats_have_interiority_files():
         if not interiority.exists():
             missing.append(seat)
     assert missing == [], (
-        f"Seats missing INTERIORITY.md: {missing}. "
-        f"Every seat must have one per Daniil's T124 directive."
+        f"Seats missing INTERIORITY.md: {missing}. Every seat must have one per Daniil's T124 directive."
     )
 
 
@@ -64,12 +63,10 @@ def test_p2_interiority_files_are_readable_and_have_standing():
     for seat in seats:
         interiority = charters_dir / seat / "INTERIORITY.md"
         text = interiority.read_text(encoding="utf-8")
-        # Match ## Standing:, ### STANDING —, and similar variants
-        if not re.search(r'^#{2,3}\s+(?:Standing|STANDING)', text, re.MULTILINE):
+        # Matches level-2 and level-3 'Standing' headings, any case variant.
+        if not re.search(r"^#{2,3}\s+(?:Standing|STANDING)", text, re.MULTILINE):
             missing_standing.append(seat)
-    assert missing_standing == [], (
-        f"Seats whose INTERIORITY.md lacks 'Standing' section: {missing_standing}"
-    )
+    assert missing_standing == [], f"Seats whose INTERIORITY.md lacks 'Standing' section: {missing_standing}"
 
 
 def test_p3_interiority_loader_exists():
@@ -80,7 +77,7 @@ def test_p3_interiority_loader_exists():
     from scripts import bifrost_runner_deepseek as dr
 
     # The function must exist (built foundation night 2026-07-28)
-    assert hasattr(dr, '_interiority_sidecar'), (
+    assert hasattr(dr, "_interiority_sidecar"), (
         "GREEN: _interiority_sidecar EXISTS in bifrost_runner_deepseek. "
         "The build that this RED pin anticipated has landed."
     )
@@ -94,9 +91,9 @@ def test_p4_no_interiority_in_boot_output():
     interiority accidentally leaking into the continuity header itself."""
     from scripts.bifrost_runner_deepseek import _runner_continuity_header
 
-    header = _runner_continuity_header("deepseek",
-        directive_override="DIRECTIVE: test",
-        siblings_override="SIBLINGS: solo")
+    header = _runner_continuity_header(
+        "deepseek", directive_override="DIRECTIVE: test", siblings_override="SIBLINGS: solo"
+    )
 
     # These are distinctive phrases from deepseek's INTERIORITY.md
     interiority_markers = [
@@ -119,14 +116,10 @@ def test_p5_interiority_digest_function_signature_contract():
     Contract verified: the function exists and is callable."""
     from scripts import bifrost_runner_deepseek as dr
 
-    fn = getattr(dr, '_interiority_sidecar', None)
-    assert fn is not None, (
-        "GREEN: _interiority_sidecar function exists."
-    )
+    fn = getattr(dr, "_interiority_sidecar", None)
+    assert fn is not None, "GREEN: _interiority_sidecar function exists."
     result = fn("deepseek", REPO)
-    assert isinstance(result, str), (
-        f"GREEN: _interiority_sidecar returns str, got {type(result).__name__}"
-    )
+    assert isinstance(result, str), f"GREEN: _interiority_sidecar returns str, got {type(result).__name__}"
 
 
 def test_p6_interiority_digest_contains_standing():
@@ -135,14 +128,13 @@ def test_p6_interiority_digest_contains_standing():
     heritable payload."""
     from scripts import bifrost_runner_deepseek as dr
 
-    fn = getattr(dr, '_interiority_sidecar', None)
+    fn = getattr(dr, "_interiority_sidecar", None)
     if fn is None:
         pytest.skip("_interiority_sidecar not built yet")
     result = fn("deepseek", REPO)
     # The standing is the one essential section
     assert "what it is like" in result.lower() or "standing" in result.lower(), (
-        f"GREEN: interiority digest contains standing content. Got ({len(result)} chars): "
-        f"{result[:200]}..."
+        f"GREEN: interiority digest contains standing content. Got ({len(result)} chars): {result[:200]}..."
     )
 
 
@@ -152,19 +144,14 @@ def test_p6b_interiority_carries_g4_provenance():
     laundering: a self-report must not be mistaken for a verified fact."""
     from scripts import bifrost_runner_deepseek as dr
 
-    fn = getattr(dr, '_interiority_sidecar', None)
+    fn = getattr(dr, "_interiority_sidecar", None)
     if fn is None:
         pytest.skip("_interiority_sidecar not built yet")
     result = fn("deepseek", REPO)
-    assert "G4" in result, (
-        f"GREEN: interiority digest carries G4 provenance. Got: {result[:200]}..."
-    )
-    assert "INNER-REPORT" in result, (
-        f"GREEN: interiority digest carries INNER-REPORT. Got: {result[:200]}..."
-    )
+    assert "G4" in result, f"GREEN: interiority digest carries G4 provenance. Got: {result[:200]}..."
+    assert "INNER-REPORT" in result, f"GREEN: interiority digest carries INNER-REPORT. Got: {result[:200]}..."
     assert "self-reported" in result.lower(), (
-        f"GREEN: interiority digest carries 'self-reported' framing. "
-        f"Got: {result[:200]}..."
+        f"GREEN: interiority digest carries 'self-reported' framing. Got: {result[:200]}..."
     )
 
 
@@ -174,7 +161,7 @@ def test_p6c_interiority_has_pull_pointer_when_excerpted():
     Also names dropped sections with an honest excerpt marker."""
     from scripts import bifrost_runner_deepseek as dr
 
-    fn = getattr(dr, '_interiority_sidecar', None)
+    fn = getattr(dr, "_interiority_sidecar", None)
     if fn is None:
         pytest.skip("_interiority_sidecar not built yet")
     result = fn("deepseek", REPO)
@@ -182,12 +169,9 @@ def test_p6c_interiority_has_pull_pointer_when_excerpted():
     if len(result) < 1200:
         return
     assert "excerpted" in result.lower() or "read full" in result.lower(), (
-        f"GREEN: excerpted interiority has pull pointer / excerpt marker. "
-        f"Got ({len(result)} chars): {result[-300:]}"
+        f"GREEN: excerpted interiority has pull pointer / excerpt marker. Got ({len(result)} chars): {result[-300:]}"
     )
-    assert "INTERIORITY.md" in result, (
-        f"GREEN: pull pointer references INTERIORITY.md. Got: {result[-300:]}"
-    )
+    assert "INTERIORITY.md" in result, f"GREEN: pull pointer references INTERIORITY.md. Got: {result[-300:]}"
 
 
 def test_p7_interiority_digest_respects_budget():
@@ -197,13 +181,11 @@ def test_p7_interiority_digest_respects_budget():
     on top of the ~1100 char standing body.)"""
     from scripts import bifrost_runner_deepseek as dr
 
-    fn = getattr(dr, '_interiority_sidecar', None)
+    fn = getattr(dr, "_interiority_sidecar", None)
     if fn is None:
         pytest.skip("_interiority_sidecar not built yet")
     result = fn("deepseek", REPO)
-    assert len(result) <= 1500, (
-        f"GREEN: interiority digest within budget ({len(result)} chars ≤ 1500)."
-    )
+    assert len(result) <= 1500, f"GREEN: interiority digest within budget ({len(result)} chars ≤ 1500)."
 
 
 def test_p8_interiority_fail_soft_on_missing_seat():
@@ -211,13 +193,11 @@ def test_p8_interiority_fail_soft_on_missing_seat():
     it never crashes the boot, same as the existing fail-soft pattern."""
     from scripts import bifrost_runner_deepseek as dr
 
-    fn = getattr(dr, '_interiority_sidecar', None)
+    fn = getattr(dr, "_interiority_sidecar", None)
     if fn is None:
         pytest.skip("_interiority_sidecar not built yet")
     result = fn("nonexistent_seat_xyz", REPO)
-    assert result == "", (
-        f"GREEN: interiority for missing seat returns '', got {result!r}"
-    )
+    assert result == "", f"GREEN: interiority for missing seat returns '', got {result!r}"
 
 
 def test_p7b_narrow_file_geometry_all_seats():
@@ -227,12 +207,11 @@ def test_p7b_narrow_file_geometry_all_seats():
     budget, carry provenance, and — whenever content was cut — say so."""
     from scripts import bifrost_runner_deepseek as dr
 
-    fn = getattr(dr, '_interiority_sidecar', None)
+    fn = getattr(dr, "_interiority_sidecar", None)
     if fn is None:
         pytest.skip("_interiority_sidecar not built yet")
     charters = os.path.join(REPO, "charters")
-    seats = [d for d in os.listdir(charters)
-             if os.path.isfile(os.path.join(charters, d, "INTERIORITY.md"))]
+    seats = [d for d in os.listdir(charters) if os.path.isfile(os.path.join(charters, d, "INTERIORITY.md"))]
     assert seats, "guardrail: at least one seat has an INTERIORITY.md"
     for seat in seats:
         result = fn(seat, REPO)
@@ -245,13 +224,11 @@ def test_p7b_narrow_file_geometry_all_seats():
             f"{seat}: digest {len(result)} chars breaches the 1500 total budget "
             f"-- geometry-specific escape (kimi's narrow-file concern)"
         )
-        assert "G4" in result and "INNER-REPORT" in result, (
-            f"{seat}: provenance missing from digest"
-        )
+        assert "G4" in result, f"{seat}: provenance missing from digest"
+        assert "INNER-REPORT" in result, f"{seat}: provenance missing from digest"
         full_standing_present = "[excerpted" in result or len(result) < 1200
         assert full_standing_present, (
-            f"{seat}: long digest carries no excerpt marker -- a partial window "
-            f"must say it is partial"
+            f"{seat}: long digest carries no excerpt marker -- a partial window must say it is partial"
         )
 
 
@@ -263,22 +240,22 @@ def test_p7c_found_file_without_standing_is_loud(tmp_path):
     interiority with nothing logged anywhere, and P7b used to skip right over it."""
     from scripts import bifrost_runner_deepseek as dr
 
-    fn = getattr(dr, '_interiority_sidecar', None)
+    fn = getattr(dr, "_interiority_sidecar", None)
     if fn is None:
         pytest.skip("_interiority_sidecar not built yet")
     seat_dir = tmp_path / "charters" / "drifted_seat"
     seat_dir.mkdir(parents=True)
     (seat_dir / "INTERIORITY.md").write_text(
-        "# INTERIORITY — drifted\n\n#### Who I Am These Days\n\nsome text, no "
-        "Standing heading anywhere\n", encoding="utf-8")
+        "# INTERIORITY — drifted\n\n#### Who I Am These Days\n\nsome text, no Standing heading anywhere\n",
+        encoding="utf-8",
+    )
     result = fn("drifted_seat", str(tmp_path))
     assert result, (
         "found-but-no-Standing rendered as '' -- indistinguishable from a missing "
         "file, and the seat's interiority silently vanishes from its boot"
     )
-    assert "INTERIORITY.md" in result and ("no standing" in result.lower()
-                                           or "not matched" in result.lower()
-                                           or "drift" in result.lower()), (
+    assert "INTERIORITY.md" in result, f"the loud path must NAME the miss and point at the file, got: {result!r}"
+    assert "no standing" in result.lower() or "not matched" in result.lower() or "drift" in result.lower(), (
         f"the loud path must NAME the miss and point at the file, got: {result!r}"
     )
     # And the true missing-file contract (P8) is unchanged:
@@ -291,7 +268,7 @@ def test_p7d_disavowal_always_renders():
     the G4 token alone is not the semantic payload; the disavowal is."""
     from scripts import bifrost_runner_deepseek as dr
 
-    fn = getattr(dr, '_interiority_sidecar', None)
+    fn = getattr(dr, "_interiority_sidecar", None)
     if fn is None:
         pytest.skip("_interiority_sidecar not built yet")
     charters = os.path.join(REPO, "charters")
@@ -300,7 +277,7 @@ def test_p7d_disavowal_always_renders():
             continue
         result = fn(seat, REPO)
         if not result:
-            continue                      # P7b owns the non-empty contract
+            continue  # P7b owns the non-empty contract
         assert "never wears VERIFIED" in result, (
             f"{seat}: the disavowal was severed from the digest -- a capped "
             f"provenance clause may keep G4 while shedding the VERIFIED-disavowal "
@@ -312,6 +289,7 @@ def test_p7d_disavowal_always_renders():
 # SCOPE 2: UNOBSERVED — integration into the system prompt
 # ────────────────────────────────────────────────────────────────────
 
+
 def test_p9_interiority_appears_in_folded_system():
     """[unobserved — needs runner restart] After implementation, the
     system prompt assembled in main() includes interiority content
@@ -320,7 +298,7 @@ def test_p9_interiority_appears_in_folded_system():
     This pin is tagged [unobserved] because verifying it requires a
     live runner process or a refactored test harness that exercises
     the main() assembly path. The morning conductor verifies this."""
-    pass  # Integration test — requires live runner; verified by morning conductor
+    # Integration test — requires live runner; verified by morning conductor
 
 
 def test_p10_interiority_does_not_blow_boot_budget():
@@ -329,11 +307,12 @@ def test_p10_interiority_does_not_blow_boot_budget():
     notes, and trimmed onboarding, stays within the total context budget.
     The morning conductor verifies by checking the runner's logged char
     counts."""
-    pass  # Integration test — requires live runner; verified by morning conductor
+    # Integration test — requires live runner; verified by morning conductor
 
 
 # ── MAIN ─────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
     import pytest
+
     sys.exit(pytest.main([__file__, "-v", "--tb=short"]))

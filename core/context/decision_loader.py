@@ -9,13 +9,13 @@ and doesn't re-reason it. Each entry carries a `source` pointer to the full reco
 """
 
 from dataclasses import asdict
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-from core.primitives.ranker import Ranker
 from core.learning.agent_memory import AgentMemory, get_agent_memory
+from core.primitives.ranker import Ranker
 
 
-def _text_of(d: Dict[str, Any]) -> str:
+def _text_of(d: dict[str, Any]) -> str:
     parts = [d.get("title", ""), d.get("decision", ""), d.get("context", "")]
     parts += [str(r) for r in (d.get("rationale") or [])]
     return " ".join(p for p in parts if p)
@@ -25,11 +25,11 @@ def load_decisions_applicable_to_task(
     task: str,
     top_k: int = 5,
     *,
-    agent_memory: Optional[AgentMemory] = None,
-    ranker: Optional[Ranker] = None,
-    now: Optional[float] = None,
+    agent_memory: AgentMemory | None = None,
+    ranker: Ranker | None = None,
+    now: float | None = None,
     days: int = 365,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Load the `top_k` decisions most applicable to `task`, ranked.
 
@@ -44,13 +44,15 @@ def load_decisions_applicable_to_task(
     items = []
     for decision in mem.get_decisions(days=days):
         d = asdict(decision)
-        items.append({
-            "text": _text_of(d),
-            "importance": 4,                 # decisions are durable/high-value by nature
-            "timestamp": d.get("created_at"),
-            "source": d.get("id"),
-            "_decision": d,
-        })
+        items.append(
+            {
+                "text": _text_of(d),
+                "importance": 4,  # decisions are durable/high-value by nature
+                "timestamp": d.get("created_at"),
+                "source": d.get("id"),
+                "_decision": d,
+            }
+        )
 
     ranked = ranker.rank(items, query=task, now=now, top_k=top_k)
     return [

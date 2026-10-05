@@ -22,7 +22,7 @@ the same reading.
 
 Run: py -m pytest tests/test_t205_ask_bg.py -q
 """
-import json
+
 import os
 import sys
 import time
@@ -31,7 +31,7 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.comm import ask_bg  # noqa: E402
+from core.comm import ask_bg
 
 
 @pytest.fixture
@@ -42,13 +42,17 @@ def store(tmp_path, monkeypatch):
 
 def test_a_handle_is_minted_and_short_enough_to_type(store):
     h = ask_bg.new_handle()
-    assert h and len(h) <= 12 and h.isalnum()
+    assert h
+    assert len(h) <= 12
+    assert h.isalnum()
 
 
 def test_record_round_trips(store):
     ask_bg.write_record("h1", {"status": "running", "prompt": "why"})
     r = ask_bg.read_record("h1")
-    assert r["status"] == "running" and r["prompt"] == "why"
+    assert r is not None
+    assert r["status"] == "running"
+    assert r["prompt"] == "why"
 
 
 def test_unknown_handle_is_honest_not_empty(store):
@@ -85,8 +89,7 @@ def test_a_crashed_child_does_not_read_as_running_forever(store):
     """A record whose process is gone but whose status never advanced is ORPHANED, not
     running. Without this, a dead child looks busy indefinitely -- the wedge shape this
     repo already knows well."""
-    ask_bg.write_record("c1", {"status": "running", "pid": 999999,
-                               "started": time.time() - 7200})
+    ask_bg.write_record("c1", {"status": "running", "pid": 999999, "started": time.time() - 7200})
     s = ask_bg.summarize(ask_bg.read_record("c1"))
     assert s["state"] == "ORPHANED"
     assert "no longer running" in s["next"].lower() or "re-ask" in s["next"].lower()
@@ -108,7 +111,12 @@ def test_a_failed_liveness_probe_is_cannot_tell_never_dead(store, monkeypatch):
     def timeout(*a, **k):
         raise subprocess.TimeoutExpired(cmd="tasklist", timeout=10)
 
-    monkeypatch.setattr(subprocess, "run", timeout)
+    monkeypatch.setattr(subprocess, "run", timeout)  # the Windows probe (tasklist)
+
+    def unprobeable(pid, sig):  # the POSIX probe (os.kill(pid, 0))
+        raise OSError(5, "I/O error")  # a failure that proves nothing
+
+    monkeypatch.setattr(ask_bg.os, "kill", unprobeable)
     assert ask_bg._alive(4242) is None, "a failed probe is cannot-tell, never dead"
 
 
@@ -122,13 +130,12 @@ def test_permission_denied_means_alive_not_dead(store, monkeypatch):
 
 def test_process_lookup_error_is_the_one_error_that_proves_death(store, monkeypatch):
     monkeypatch.setattr(ask_bg.os, "name", "posix")
-    monkeypatch.setattr(ask_bg.os, "kill",
-                        lambda *a: (_ for _ in ()).throw(ProcessLookupError()))
+    monkeypatch.setattr(ask_bg.os, "kill", lambda *a: (_ for _ in ()).throw(ProcessLookupError()))
     assert ask_bg._alive(4242) is False
 
 
 def test_write_record_really_never_raises(store):
-    """"Never raises" was false: only OSError was caught, so a circular reference would
+    """ "Never raises" was false: only OSError was caught, so a circular reference would
     propagate ValueError out of json.dumps into a caller promised it could not."""
     circular = {}
     circular["self"] = circular
@@ -141,7 +148,9 @@ def test_result_written_by_the_child_is_readable(store):
     ask_bg.write_record("h9", {"status": "running"})
     ask_bg.finish("h9", {"ok": True, "answer": "hello", "usd": 0.001})
     r = ask_bg.read_record("h9")
-    assert r["status"] == "done" and r["result"]["answer"] == "hello"
+    assert r is not None
+    assert r["status"] == "done"
+    assert r["result"]["answer"] == "hello"
     assert ask_bg.summarize(r)["state"] == "DONE"
 
 
@@ -173,6 +182,15 @@ def test_ask_bg_is_not_a_seat():
             names.add(n.attr)
         elif isinstance(n, ast.Name):
             names.add(n.id)
-    for forbidden in ("runner_lock", "seed_cursor", "roster", "mailbox", "worklive",
-                      "heartbeat", "role_queue", "expectations", "Bus"):
+    for forbidden in (
+        "runner_lock",
+        "seed_cursor",
+        "roster",
+        "mailbox",
+        "worklive",
+        "heartbeat",
+        "role_queue",
+        "expectations",
+        "Bus",
+    ):
         assert forbidden not in names, f"{forbidden}: a background ask is still not a seat"

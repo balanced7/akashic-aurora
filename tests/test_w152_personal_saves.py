@@ -10,6 +10,7 @@ door is the existing note verb; supersession and durability come free from the p
 This slice adds ONLY the render: boot surfaces the seat's newest save with its restore
 drill inline (the W146 law -- a pointed render carries its own drill).
 """
+
 from types import SimpleNamespace as SN
 
 import agent_cli
@@ -24,7 +25,7 @@ def test_s1_renders_newest_save_with_restore_drill():
     line = agent_cli._boot_save_line("claude", notes)
     assert line.startswith("# personal save: save:claude:post-eye-arc")
     assert "[as of 2026-08-13]" in line
-    assert "note claude --get save:claude:post-eye-arc" in line   # the restore drill
+    assert "note claude --get save:claude:post-eye-arc" in line  # the restore drill
 
 
 def test_s2_no_saves_no_line():
@@ -39,8 +40,10 @@ def test_s3_newest_first_wins_regardless_of_input_order():
     (agent_memory.py RB-12), but _boot_save_line must not depend on a sort that
     lives in another module -- it orders its own matches by created_at. Fed
     OLDEST-first here on purpose: the newest save must still win."""
-    notes = [_n("save:claude:last-week", created="2026-08-06T02:00:00"),
-             _n("save:claude:tonight", created="2026-08-13T02:00:00")]
+    notes = [
+        _n("save:claude:last-week", created="2026-08-06T02:00:00"),
+        _n("save:claude:tonight", created="2026-08-13T02:00:00"),
+    ]
     line = agent_cli._boot_save_line("claude", notes)
     assert "save:claude:tonight" in line
     assert "last-week" not in line
@@ -51,7 +54,8 @@ def test_s7_title_whitespace_cannot_break_the_head():
     format (the W146 family, aimed at the renderer's own new line)."""
     notes = [_n("save:claude:evil\nlabel\twith   spaces")]
     line = agent_cli._boot_save_line("claude", notes)
-    assert "\n" not in line and "\t" not in line
+    assert "\n" not in line
+    assert "\t" not in line
     assert "save:claude:evil label with spaces" in line
 
 
@@ -61,7 +65,8 @@ def test_s4_foreign_seat_saves_never_leak():
     notes = [_n("save:deepseek:heimdall-arc"), _n("save:kimi:navi-arc")]
     assert agent_cli._boot_save_line("claude", notes) == ""
     line = agent_cli._boot_save_line("deepseek", notes)
-    assert "heimdall-arc" in line and "navi-arc" not in line
+    assert "heimdall-arc" in line
+    assert "navi-arc" not in line
 
 
 def test_s6_title_scoping_inherits_the_plane_trust_model():
@@ -75,16 +80,18 @@ def test_s6_title_scoping_inherits_the_plane_trust_model():
     slice. Until then: a 'fix' that adds ad-hoc author filtering ONLY to saves
     would misrepresent the plane's actual guarantees."""
     from types import SimpleNamespace as SN2
-    forged = SN2(title="save:claude:written-by-anyone",
-                 created_at="2026-08-13T03:00:00", decision="x")
+
+    forged = SN2(title="save:claude:written-by-anyone", created_at="2026-08-13T03:00:00", decision="x")
     line = agent_cli._boot_save_line("claude", [forged])
-    assert "written-by-anyone" in line     # renders: trust-scoped, like the whole plane
+    assert "written-by-anyone" in line  # renders: trust-scoped, like the whole plane
 
 
 def test_s5_malformed_notes_never_break_boot():
-    notes = [SN(title=None, created_at=None, decision=None),
-             SN(title=123, created_at="", decision=""),
-             _n("save:claude:ok", created="")]
+    notes = [
+        SN(title=None, created_at=None, decision=None),
+        SN(title=123, created_at="", decision=""),
+        _n("save:claude:ok", created=""),
+    ]
     line = agent_cli._boot_save_line("claude", notes)
     assert "save:claude:ok" in line
-    assert "[as of" not in line          # no created stamp when unknown -- never invent
+    assert "[as of" not in line  # no created stamp when unknown -- never invent

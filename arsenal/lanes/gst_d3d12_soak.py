@@ -17,9 +17,11 @@ PyGObject in lib\\site-packages, but its extension is built for CPython 3.9
 `import gi` fails with "cannot import name '_gi'". The receipt re-runs that check and records
 the result. Standard library only; headless (frames end in fakevideosink, no window).
 """
+
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import math
 import os
@@ -29,8 +31,9 @@ import sys
 import threading
 import time
 from collections import deque
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
+from typing import cast
 
 GST_ROOT = Path(r"C:\Users\L5\AppData\Local\Programs\gstreamer\1.0\msvc_x86_64")
 GST_LAUNCH = GST_ROOT / "bin" / "gst-launch-1.0.exe"
@@ -58,15 +61,16 @@ LAUNCH_FLAGS = ["-v", "-m", "-e", "--no-position"]
 # GST_DEBUG=*:2 makes GStreamer print its ERROR and WARN debug lines on stderr.
 GST_ENV = {"GST_DEBUG": "*:2", "GST_DEBUG_NO_COLOR": "1"}
 
-MAX_DROP_RATE = 0.001            # 0.1 %
+MAX_DROP_RATE = 0.001  # 0.1 %
 MAX_WORKING_SET_GROWTH_MB = 64.0
-MIN_SOAK_PASS_S = 5.0            # skip a final soak pass shorter than this
-MAX_STORED_WARNINGS = 200        # per pass; the total count is always kept
+MIN_SOAK_PASS_S = 5.0  # skip a final soak pass shorter than this
+MAX_STORED_WARNINGS = 200  # per pass; the total count is always kept
 
 
 # ---------------------------------------------------------------------------------------------
 # Parsing helpers for gst-launch-1.0 -v / -m output (pure functions, covered by tests)
 # ---------------------------------------------------------------------------------------------
+
 
 def parse_fps_message(line: str) -> dict | None:
     """Parse an fpsdisplaysink last-message notification.
@@ -129,25 +133,32 @@ def parse_caps_line(line: str) -> dict | None:
 
 def decoder_src_caps(caps_events: list[dict], decoder_name: str = DECODER_NAME) -> list[str]:
     """Every caps string negotiated on the decoder's src pad, in order."""
-    return [event["caps"] for event in caps_events
-            if event["element_name"] == decoder_name and event["pad_name"] == "src"
-            and not event["ghost"]]
+    return [
+        event["caps"]
+        for event in caps_events
+        if event["element_name"] == decoder_name and event["pad_name"] == "src" and not event["ghost"]
+    ]
 
 
 def final_sink_caps(caps_events: list[dict], sink_bin_name: str = FPS_SINK_NAME) -> dict:
     """Caps on the innermost real sink pad inside the fpsdisplaysink bin: the pad that actually
     receives the buffers (fpsdisplaysink and fakevideosink are bins that only ghost it)."""
+
     def inside_sink_bin(path: str) -> bool:
         return any(segment.partition(":")[2] == sink_bin_name for segment in path.split("/"))
 
-    candidates = [event for event in caps_events
-                  if event["pad_name"] == "sink" and not event["ghost"]
-                  and inside_sink_bin(event["element_path"])]
+    candidates = [
+        event
+        for event in caps_events
+        if event["pad_name"] == "sink" and not event["ghost"] and inside_sink_bin(event["element_path"])
+    ]
     if not candidates:
         return {"element_path": None, "caps": []}
     deepest = max(candidates, key=lambda event: event["element_path"].count("/"))["element_path"]
-    return {"element_path": deepest,
-            "caps": [event["caps"] for event in candidates if event["element_path"] == deepest]}
+    return {
+        "element_path": deepest,
+        "caps": [event["caps"] for event in candidates if event["element_path"] == deepest],
+    }
 
 
 def all_d3d12(caps_list: list[str]) -> bool:
@@ -167,9 +178,11 @@ def parse_qos_message(line: str) -> dict | None:
     match = _QOS_RE.match(line.strip())
     if not match:
         return None
-    return {"element": match.group("element"),
-            "processed": int(match.group("processed")),
-            "dropped": int(match.group("dropped"))}
+    return {
+        "element": match.group("element"),
+        "processed": int(match.group("processed")),
+        "dropped": int(match.group("dropped")),
+    }
 
 
 _DEBUG_LOG_RE = re.compile(r"^\d+:\d{2}:\d{2}\.\d+\s+\S+\s+\S+\s+(?P<level>[A-Z]+)\s")
@@ -219,10 +232,12 @@ def parse_d3d12_device_context(line: str) -> dict | None:
     if not text.startswith("Got context from element") or "d3d12.device" not in text:
         return None
     device = {}
-    for key, pattern in (("adapter_index", r"adapter-index=\(uint\)(\d+)"),
-                         ("adapter_luid", r"adapter-luid=\(gint64\)(-?\d+)"),
-                         ("device_id", r"device-id=\(uint\)(\d+)"),
-                         ("vendor_id", r"vendor-id=\(uint\)(\d+)")):
+    for key, pattern in (
+        ("adapter_index", r"adapter-index=\(uint\)(\d+)"),
+        ("adapter_luid", r"adapter-luid=\(gint64\)(-?\d+)"),
+        ("device_id", r"device-id=\(uint\)(\d+)"),
+        ("vendor_id", r"vendor-id=\(uint\)(\d+)"),
+    ):
         match = re.search(pattern, text)
         device[key] = int(match.group(1)) if match else None
     match = re.search(r'description=\(string\)"((?:[^"\\]|\\.)*)"', text)
@@ -249,7 +264,7 @@ def linear_slope(xs: list[float], ys: list[float]) -> float | None:
     sxx = sum((x - mean_x) ** 2 for x in xs)
     if sxx == 0:
         return None
-    return sum((x - mean_x) * (y - mean_y) for x, y in zip(xs, ys)) / sxx
+    return sum((x - mean_x) * (y - mean_y) for x, y in zip(xs, ys, strict=False)) / sxx
 
 
 def luid_instance_key(luid: int) -> str:
@@ -263,6 +278,7 @@ def luid_instance_key(luid: int) -> str:
 # helpers above import on any platform)
 # ---------------------------------------------------------------------------------------------
 
+
 class ProcessMemorySampler:
     """Working set and private bytes of one process, via GetProcessMemoryInfo."""
 
@@ -271,16 +287,19 @@ class ProcessMemorySampler:
         from ctypes import wintypes
 
         class PROCESS_MEMORY_COUNTERS_EX(ctypes.Structure):
-            _fields_ = [("cb", wintypes.DWORD), ("PageFaultCount", wintypes.DWORD),
-                        ("PeakWorkingSetSize", ctypes.c_size_t),
-                        ("WorkingSetSize", ctypes.c_size_t),
-                        ("QuotaPeakPagedPoolUsage", ctypes.c_size_t),
-                        ("QuotaPagedPoolUsage", ctypes.c_size_t),
-                        ("QuotaPeakNonPagedPoolUsage", ctypes.c_size_t),
-                        ("QuotaNonPagedPoolUsage", ctypes.c_size_t),
-                        ("PagefileUsage", ctypes.c_size_t),
-                        ("PeakPagefileUsage", ctypes.c_size_t),
-                        ("PrivateUsage", ctypes.c_size_t)]
+            _fields_ = [
+                ("cb", wintypes.DWORD),
+                ("PageFaultCount", wintypes.DWORD),
+                ("PeakWorkingSetSize", ctypes.c_size_t),
+                ("WorkingSetSize", ctypes.c_size_t),
+                ("QuotaPeakPagedPoolUsage", ctypes.c_size_t),
+                ("QuotaPagedPoolUsage", ctypes.c_size_t),
+                ("QuotaPeakNonPagedPoolUsage", ctypes.c_size_t),
+                ("QuotaNonPagedPoolUsage", ctypes.c_size_t),
+                ("PagefileUsage", ctypes.c_size_t),
+                ("PeakPagefileUsage", ctypes.c_size_t),
+                ("PrivateUsage", ctypes.c_size_t),
+            ]
 
         self._ctypes = ctypes
         self._counters_type = PROCESS_MEMORY_COUNTERS_EX
@@ -290,11 +309,13 @@ class ProcessMemorySampler:
         self._kernel32.OpenProcess.restype = wintypes.HANDLE
         self._kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
         self._psapi.GetProcessMemoryInfo.argtypes = [
-            wintypes.HANDLE, ctypes.POINTER(PROCESS_MEMORY_COUNTERS_EX), wintypes.DWORD]
+            wintypes.HANDLE,
+            ctypes.POINTER(PROCESS_MEMORY_COUNTERS_EX),
+            wintypes.DWORD,
+        ]
         self._psapi.GetProcessMemoryInfo.restype = wintypes.BOOL
         process_query_limited_information, process_vm_read = 0x1000, 0x0010
-        self._handle = self._kernel32.OpenProcess(
-            process_query_limited_information | process_vm_read, False, pid)
+        self._handle = self._kernel32.OpenProcess(process_query_limited_information | process_vm_read, False, pid)
         if not self._handle:
             raise OSError(f"OpenProcess({pid}) failed, winerror {ctypes.get_last_error()}")
 
@@ -302,8 +323,7 @@ class ProcessMemorySampler:
         """(working_set_bytes, private_bytes), or None if the call failed."""
         counters = self._counters_type()
         counters.cb = self._ctypes.sizeof(counters)
-        ok = self._psapi.GetProcessMemoryInfo(self._handle, self._ctypes.byref(counters),
-                                              counters.cb)
+        ok = self._psapi.GetProcessMemoryInfo(self._handle, self._ctypes.byref(counters), counters.cb)
         return (counters.WorkingSetSize, counters.PrivateUsage) if ok else None
 
     def close(self) -> None:
@@ -325,9 +345,13 @@ class GpuDedicatedMemoryCounter:
         from ctypes import wintypes
 
         class _Value(ctypes.Union):
-            _fields_ = [("longValue", ctypes.c_long), ("doubleValue", ctypes.c_double),
-                        ("largeValue", ctypes.c_longlong), ("AnsiStringValue", ctypes.c_char_p),
-                        ("WideStringValue", ctypes.c_wchar_p)]
+            _fields_ = [
+                ("longValue", ctypes.c_long),
+                ("doubleValue", ctypes.c_double),
+                ("largeValue", ctypes.c_longlong),
+                ("AnsiStringValue", ctypes.c_char_p),
+                ("WideStringValue", ctypes.c_wchar_p),
+            ]
 
         class PDH_FMT_COUNTERVALUE(ctypes.Structure):
             _fields_ = [("CStatus", wintypes.DWORD), ("value", _Value)]
@@ -341,14 +365,17 @@ class GpuDedicatedMemoryCounter:
         handle_p = ctypes.POINTER(wintypes.HANDLE)
         dword_p = ctypes.POINTER(wintypes.DWORD)
         pdh.PdhOpenQueryW.argtypes = [wintypes.LPCWSTR, ctypes.c_size_t, handle_p]
-        pdh.PdhAddEnglishCounterW.argtypes = [wintypes.HANDLE, wintypes.LPCWSTR, ctypes.c_size_t,
-                                              handle_p]
+        pdh.PdhAddEnglishCounterW.argtypes = [wintypes.HANDLE, wintypes.LPCWSTR, ctypes.c_size_t, handle_p]
         pdh.PdhCollectQueryData.argtypes = [wintypes.HANDLE]
-        pdh.PdhGetFormattedCounterArrayW.argtypes = [wintypes.HANDLE, wintypes.DWORD, dword_p,
-                                                     dword_p, ctypes.c_void_p]
+        pdh.PdhGetFormattedCounterArrayW.argtypes = [wintypes.HANDLE, wintypes.DWORD, dword_p, dword_p, ctypes.c_void_p]
         pdh.PdhCloseQuery.argtypes = [wintypes.HANDLE]
-        for function in (pdh.PdhOpenQueryW, pdh.PdhAddEnglishCounterW, pdh.PdhCollectQueryData,
-                         pdh.PdhGetFormattedCounterArrayW, pdh.PdhCloseQuery):
+        for function in (
+            pdh.PdhOpenQueryW,
+            pdh.PdhAddEnglishCounterW,
+            pdh.PdhCollectQueryData,
+            pdh.PdhGetFormattedCounterArrayW,
+            pdh.PdhCloseQuery,
+        ):
             function.restype = wintypes.DWORD
 
         self._query = wintypes.HANDLE()
@@ -356,8 +383,7 @@ class GpuDedicatedMemoryCounter:
         status = pdh.PdhOpenQueryW(None, 0, ctypes.byref(self._query))
         if status != 0:
             raise OSError(f"PdhOpenQueryW failed: {status:#x}")
-        status = pdh.PdhAddEnglishCounterW(self._query, self.COUNTER_PATH, 0,
-                                           ctypes.byref(self._counter))
+        status = pdh.PdhAddEnglishCounterW(self._query, self.COUNTER_PATH, 0, ctypes.byref(self._counter))
         if status != 0:
             pdh.PdhCloseQuery(self._query)
             self._query = None
@@ -372,15 +398,16 @@ class GpuDedicatedMemoryCounter:
         for _ in range(3):  # the instance list can grow between the size query and the read
             size, count = wintypes.DWORD(0), wintypes.DWORD(0)
             status = self._pdh.PdhGetFormattedCounterArrayW(
-                self._counter, self._PDH_FMT_LARGE, ctypes.byref(size), ctypes.byref(count), None)
+                self._counter, self._PDH_FMT_LARGE, ctypes.byref(size), ctypes.byref(count), None
+            )
             if status == 0:
                 return {}
             if status != self._PDH_MORE_DATA:
                 return None
             buffer = ctypes.create_string_buffer(size.value)
             status = self._pdh.PdhGetFormattedCounterArrayW(
-                self._counter, self._PDH_FMT_LARGE, ctypes.byref(size), ctypes.byref(count),
-                buffer)
+                self._counter, self._PDH_FMT_LARGE, ctypes.byref(size), ctypes.byref(count), buffer
+            )
             if status == self._PDH_MORE_DATA:
                 continue
             if status != 0:
@@ -391,7 +418,7 @@ class GpuDedicatedMemoryCounter:
             for index in range(count.value):
                 name = items[index].szName or ""
                 if name.startswith(prefix) and items[index].FmtValue.CStatus in (0, 1):
-                    luid = name[len(prefix):].split("_phys_")[0].lower()
+                    luid = name[len(prefix) :].split("_phys_")[0].lower()
                     usage[luid] = usage.get(luid, 0) + items[index].FmtValue.value.largeValue
             return usage
         return None
@@ -423,18 +450,20 @@ def sample_until_exit(proc: subprocess.Popen, t0: float, timeout_s: float) -> di
                 proc.kill()
                 timed_out = True
                 break
-            sample = {"t_s": round(elapsed, 3), "working_set_bytes": None,
-                      "private_bytes": None, "gpu_dedicated_by_luid": None}
+            sample = {
+                "t_s": round(elapsed, 3),
+                "working_set_bytes": None,
+                "private_bytes": None,
+                "gpu_dedicated_by_luid": None,
+            }
             values = memory.sample() if memory else None
             if values and values[0] > 0:  # a process that just exited reads as 0
                 sample["working_set_bytes"], sample["private_bytes"] = values
             if gpu:
                 sample["gpu_dedicated_by_luid"] = gpu.sample(proc.pid)
             samples.append(sample)
-            try:
+            with contextlib.suppress(subprocess.TimeoutExpired):
                 proc.wait(timeout=1.0)
-            except subprocess.TimeoutExpired:
-                pass
     finally:
         if memory:
             memory.close()
@@ -448,16 +477,24 @@ def sample_until_exit(proc: subprocess.Popen, t0: float, timeout_s: float) -> di
 # Facts: machine, file, PyGObject option, pipeline
 # ---------------------------------------------------------------------------------------------
 
+
 def utc_now() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+    return datetime.now(UTC).isoformat(timespec="seconds")
 
 
 def _run_text(argv: list[str], timeout_s: float = 60.0) -> tuple[int | None, str, str]:
     """Run a short helper command. Returns (exit_code, stdout, stderr); exit_code is None when
     the command could not run or timed out."""
     try:
-        done = subprocess.run(argv, capture_output=True, text=True, encoding="utf-8",
-                              errors="replace", timeout=timeout_s, stdin=subprocess.DEVNULL)
+        done = subprocess.run(
+            argv,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=timeout_s,
+            stdin=subprocess.DEVNULL,
+        )
     except (OSError, subprocess.TimeoutExpired) as exc:
         return None, "", f"{type(exc).__name__}: {exc}"
     return done.returncode, done.stdout, done.stderr
@@ -472,25 +509,29 @@ _MACHINE_POWERSHELL = (
 
 def collect_machine_facts() -> dict:
     facts: dict = {"hostname": os.environ.get("COMPUTERNAME")}
-    code, out, err = _run_text(["powershell", "-NoProfile", "-NonInteractive", "-Command",
-                                _MACHINE_POWERSHELL])
+    code, out, err = _run_text(["powershell", "-NoProfile", "-NonInteractive", "-Command", _MACHINE_POWERSHELL])
     try:
         cim = json.loads(out) if code == 0 else None
     except json.JSONDecodeError:
         cim = None
     windows: dict = {}
     if cim:
-        facts["gpus"] = [{"name": gpu.get("Name"), "driver_version": gpu.get("DriverVersion")}
-                         for gpu in cim.get("video_controllers") or []]
+        facts["gpus"] = [
+            {"name": gpu.get("Name"), "driver_version": gpu.get("DriverVersion")}
+            for gpu in cim.get("video_controllers") or []
+        ]
         os_info = cim.get("os") or {}
-        windows = {"caption": os_info.get("Caption"), "version": os_info.get("Version"),
-                   "build": os_info.get("BuildNumber")}
+        windows = {
+            "caption": os_info.get("Caption"),
+            "version": os_info.get("Version"),
+            "build": os_info.get("BuildNumber"),
+        }
     else:
         facts["gpus"] = f"Get-CimInstance failed: {(err or out).strip()[:300]}"
     try:
         import winreg
-        with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE,
-                            r"SOFTWARE\Microsoft\Windows NT\CurrentVersion") as key:
+
+        with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Microsoft\Windows NT\CurrentVersion") as key:
             build = winreg.QueryValueEx(key, "CurrentBuild")[0]
             windows["build_with_ubr"] = f"{build}.{winreg.QueryValueEx(key, 'UBR')[0]}"
             windows["display_version"] = winreg.QueryValueEx(key, "DisplayVersion")[0]
@@ -499,27 +540,32 @@ def collect_machine_facts() -> dict:
     facts["windows"] = windows
 
     code, out, err = _run_text([str(GST_INSPECT), "--version"])
-    facts["gst_inspect_version"] = (out.strip().splitlines() if code == 0
-                                    else f"failed: {(err or out).strip()[:300]}")
+    facts["gst_inspect_version"] = out.strip().splitlines() if code == 0 else f"failed: {(err or out).strip()[:300]}"
     code, out, err = _run_text([str(GST_INSPECT), "d3d12h265dec"])
     long_name = re.search(r"Long-name\s+(.+)", out)
     rank = re.search(r"Rank\s+(.+)", out)
-    facts["d3d12h265dec"] = ({"long_name": long_name.group(1).strip() if long_name else None,
-                              "rank": rank.group(1).strip() if rank else None}
-                             if code == 0 else f"failed: {(err or out).strip()[:300]}")
+    facts["d3d12h265dec"] = (
+        {
+            "long_name": long_name.group(1).strip() if long_name else None,
+            "rank": rank.group(1).strip() if rank else None,
+        }
+        if code == 0
+        else f"failed: {(err or out).strip()[:300]}"
+    )
     return facts
 
 
 def collect_file_facts(path: Path) -> dict:
     stat = path.stat()
-    facts = {"path": str(path), "size_bytes": stat.st_size,
-             "mtime_utc": datetime.fromtimestamp(stat.st_mtime, timezone.utc)
-             .isoformat(timespec="seconds")}
+    facts = {
+        "path": str(path),
+        "size_bytes": stat.st_size,
+        "mtime_utc": datetime.fromtimestamp(stat.st_mtime, UTC).isoformat(timespec="seconds"),
+    }
     code, out, err = _run_text([str(GST_DISCOVERER), path.as_posix()], timeout_s=120.0)
     duration = re.search(r"Duration:\s*(\S+)", out) if code == 0 else None
     facts["duration_s"] = parse_clock_time(duration.group(1)) if duration else None
-    facts["duration_source"] = ("gst-discoverer-1.0" if duration
-                                else f"unknown: {(err or out).strip()[:300]}")
+    facts["duration_source"] = "gst-discoverer-1.0" if duration else f"unknown: {(err or out).strip()[:300]}"
     return facts
 
 
@@ -557,19 +603,33 @@ def build_pipeline(file_path: Path, sync: bool, eos_after: int, sleep_us: int = 
     if sleep_us > 0:
         identity.append(f"sleep-time={sleep_us}")
     return [
-        "filesrc", f"location={file_path.as_posix()}", "!",
-        "qtdemux", "name=demux", "demux.video_0", "!",
-        "h265parse", "name=parse", "!",
+        "filesrc",
+        f"location={file_path.as_posix()}",
+        "!",
+        "qtdemux",
+        "name=demux",
+        "demux.video_0",
+        "!",
+        "h265parse",
+        "name=parse",
+        "!",
         # identity passes the encoded frames through untouched; eos-after=N ends the final
         # soak pass at the deadline (-1 = the whole file).
-        *identity, "!",
-        "d3d12h265dec", f"name={DECODER_NAME}", "!",
-        f"video/x-raw({D3D12_CAPS_FEATURE})", "!",
+        *identity,
+        "!",
+        "d3d12h265dec",
+        f"name={DECODER_NAME}",
+        "!",
+        f"video/x-raw({D3D12_CAPS_FEATURE})",
+        "!",
         # fakevideosink behaves like a real video sink (qos=true, max-lateness 5 ms, crop and
         # overlay meta advertised), so late frames really are dropped and counted; a plain
         # fakesink never drops. Neither opens a window.
-        "fpsdisplaysink", f"name={FPS_SINK_NAME}", "video-sink=fakevideosink name=sink",
-        "text-overlay=false", f"sync={'true' if sync else 'false'}",
+        "fpsdisplaysink",
+        f"name={FPS_SINK_NAME}",
+        "video-sink=fakevideosink name=sink",
+        "text-overlay=false",
+        f"sync={'true' if sync else 'false'}",
         f"fps-update-interval={FPS_UPDATE_INTERVAL_MS}",
     ]
 
@@ -585,8 +645,7 @@ def pipeline_string(tokens: list[str]) -> str:
 
 def inspect_property_default(inspect_text: str, name: str) -> str | None:
     """The "Default:" value of one property in gst-inspect-1.0 output."""
-    match = re.search(rf"^\s+{re.escape(name)}\s*:.*?Default:\s*(\S+)", inspect_text,
-                      re.MULTILINE | re.DOTALL)
+    match = re.search(rf"^\s+{re.escape(name)}\s*:.*?Default:\s*(\S+)", inspect_text, re.MULTILINE | re.DOTALL)
     return match.group(1).rstrip(",") if match else None
 
 
@@ -602,10 +661,12 @@ def collect_sink_defaults() -> dict:
         except ValueError:
             return None
 
-    return {"qos": inspect_property_default(out, "qos") == "true",
-            "max_lateness_ns": as_int(inspect_property_default(out, "max-lateness")),
-            "processing_deadline_ns": as_int(inspect_property_default(out, "processing-deadline")),
-            "source": "gst-inspect-1.0 fakevideosink defaults"}
+    return {
+        "qos": inspect_property_default(out, "qos") == "true",
+        "max_lateness_ns": as_int(inspect_property_default(out, "max-lateness")),
+        "processing_deadline_ns": as_int(inspect_property_default(out, "processing-deadline")),
+        "source": "gst-inspect-1.0 fakevideosink defaults",
+    }
 
 
 # ---------------------------------------------------------------------------------------------
@@ -660,8 +721,7 @@ class PassOutput:
                 return
             qos = parse_qos_message(line)
             if qos:
-                entry = self.qos.setdefault(qos["element"],
-                                            {"messages": 0, "dropped": 0, "processed": 0})
+                entry = self.qos.setdefault(qos["element"], {"messages": 0, "dropped": 0, "processed": 0})
                 entry["messages"] += 1
                 entry["dropped"] = max(entry["dropped"], qos["dropped"])
                 entry["processed"] = max(entry["processed"], qos["processed"])
@@ -681,12 +741,14 @@ class PassOutput:
                 if len(self.warnings) < MAX_STORED_WARNINGS:
                     self.warnings.append({"t_s": round(t, 3), "stream": stream, "line": line})
                 # gst-launch follows ERROR:/WARNING: with "Additional debug info:" and a detail line.
-                self._follow[stream] = (2 if line.startswith(("ERROR:", "WARNING:"))
-                                        else max(0, self._follow[stream] - 1))
+                self._follow[stream] = (
+                    2 if line.startswith(("ERROR:", "WARNING:")) else max(0, self._follow[stream] - 1)
+                )
 
 
-def summarize_pass_memory(samples: list[dict], window_start_s: float | None,
-                          window_end_s: float | None, gpu_luid: str | None) -> dict:
+def summarize_pass_memory(
+    samples: list[dict], window_start_s: float | None, window_end_s: float | None, gpu_luid: str | None
+) -> dict:
     """Memory series for one pass plus stats over its steady window, which runs from the first
     fpsdisplaysink report (frames flowing, pools allocated) to EOS."""
     rows = []
@@ -698,11 +760,21 @@ def summarize_pass_memory(samples: list[dict], window_start_s: float | None,
             gpu = by_luid.get(gpu_luid, 0)
         else:
             gpu = sum(by_luid.values())
-        rows.append({"t_s": sample["t_s"], "working_set_mb": _mb(sample["working_set_bytes"]),
-                     "private_mb": _mb(sample["private_bytes"]), "gpu_dedicated_mb": _mb(gpu)})
-    steady = [row for row in rows
-              if window_start_s is not None and row["t_s"] > window_start_s
-              and (window_end_s is None or row["t_s"] <= window_end_s)]
+        rows.append(
+            {
+                "t_s": sample["t_s"],
+                "working_set_mb": _mb(sample["working_set_bytes"]),
+                "private_mb": _mb(sample["private_bytes"]),
+                "gpu_dedicated_mb": _mb(gpu),
+            }
+        )
+    steady = [
+        row
+        for row in rows
+        if window_start_s is not None
+        and row["t_s"] > window_start_s
+        and (window_end_s is None or row["t_s"] <= window_end_s)
+    ]
 
     def stats(key: str) -> dict | None:
         points = [(row["t_s"], row[key]) for row in steady if row[key] is not None]
@@ -710,8 +782,13 @@ def summarize_pass_memory(samples: list[dict], window_start_s: float | None,
             return None
         xs, ys = [point[0] for point in points], [point[1] for point in points]
         slope = linear_slope(xs, ys)
-        return {"start": ys[0], "end": ys[-1], "peak": max(ys), "growth": round(ys[-1] - ys[0], 2),
-                "slope_mb_per_min": None if slope is None else round(slope * 60.0, 3)}
+        return {
+            "start": ys[0],
+            "end": ys[-1],
+            "peak": max(ys),
+            "growth": round(ys[-1] - ys[0], 2),
+            "slope_mb_per_min": None if slope is None else round(slope * 60.0, 3),
+        }
 
     return {
         "steady_window_s": [window_start_s, None if window_end_s is None else round(window_end_s, 3)],
@@ -740,19 +817,36 @@ def sink_conditions(sync: bool, sink_defaults: dict) -> dict:
     }
 
 
-def run_pass(kind: str, file_path: Path, *, sync: bool, eos_after: int,
-             frames_expected: int | None, timeout_s: float, sink_defaults: dict,
-             sleep_us: int = 0) -> dict:
+def run_pass(
+    kind: str,
+    file_path: Path,
+    *,
+    sync: bool,
+    eos_after: int,
+    frames_expected: int | None,
+    timeout_s: float,
+    sink_defaults: dict,
+    sleep_us: int = 0,
+) -> dict:
     tokens = build_pipeline(file_path, sync, eos_after, sleep_us)
     argv = [str(GST_LAUNCH), *LAUNCH_FLAGS, *tokens]
     started_at = utc_now()
     t0 = time.monotonic()
-    proc = subprocess.Popen(argv, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
-                            stderr=subprocess.PIPE, text=True, encoding="utf-8",
-                            errors="replace", env={**os.environ, **GST_ENV})
+    proc = subprocess.Popen(
+        argv,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        env={**os.environ, **GST_ENV},
+    )
     output = PassOutput(t0)
-    readers = [threading.Thread(target=output.consume, args=(proc.stdout, "stdout"), daemon=True),
-               threading.Thread(target=output.consume, args=(proc.stderr, "stderr"), daemon=True)]
+    readers = [
+        threading.Thread(target=output.consume, args=(proc.stdout, "stdout"), daemon=True),
+        threading.Thread(target=output.consume, args=(proc.stderr, "stderr"), daemon=True),
+    ]
     for reader in readers:
         reader.start()
     try:
@@ -768,21 +862,42 @@ def run_pass(kind: str, file_path: Path, *, sync: bool, eos_after: int,
     dec_caps = decoder_src_caps(output.caps_events)
     sink = final_sink_caps(output.caps_events)
     last = output.fps_series[-1] if output.fps_series else None
-    luid = (luid_instance_key(output.device["adapter_luid"])
-            if output.device and output.device.get("adapter_luid") is not None else None)
+    luid = (
+        luid_instance_key(output.device["adapter_luid"])
+        if output.device and output.device.get("adapter_luid") is not None
+        else None
+    )
     zero_qos = {"messages": 0, "dropped": 0, "processed": 0}
     qos_elements = sorted(set(output.qos) | {DECODER_NAME, SINK_NAME})
-    reporters = {DECODER_NAME: "decoder: GstVideoDecoder posts a QoS message per dropped late frame",
-                 SINK_NAME: "sink: GstBaseSink posts a QoS message per dropped late buffer"}
-    drop_counts = [{"source": "qos_bus_messages", "element": element,
-                    "reporter": reporters.get(element, "element QoS messages"),
-                    **output.qos.get(element, zero_qos)} for element in qos_elements]
-    drop_counts.append({"source": "gst_debug_log", "element": DECODER_NAME,
-                        "reporter": "decoder WARN lines 'Dropping frame due to QoS' (GST_DEBUG=*:2)",
-                        "dropped": output.decoder_drop_log_lines})
-    drop_counts.append({"source": "fpsdisplaysink_last_message", "element": FPS_SINK_NAME,
-                        "reporter": "fpsdisplaysink: sink-side drops only, as of its last 1000 ms report",
-                        "dropped": last["dropped"] if last else None})
+    reporters = {
+        DECODER_NAME: "decoder: GstVideoDecoder posts a QoS message per dropped late frame",
+        SINK_NAME: "sink: GstBaseSink posts a QoS message per dropped late buffer",
+    }
+    drop_counts = [
+        {
+            "source": "qos_bus_messages",
+            "element": element,
+            "reporter": reporters.get(element, "element QoS messages"),
+            **output.qos.get(element, zero_qos),
+        }
+        for element in qos_elements
+    ]
+    drop_counts.append(
+        {
+            "source": "gst_debug_log",
+            "element": DECODER_NAME,
+            "reporter": "decoder WARN lines 'Dropping frame due to QoS' (GST_DEBUG=*:2)",
+            "dropped": output.decoder_drop_log_lines,
+        }
+    )
+    drop_counts.append(
+        {
+            "source": "fpsdisplaysink_last_message",
+            "element": FPS_SINK_NAME,
+            "reporter": "fpsdisplaysink: sink-side drops only, as of its last 1000 ms report",
+            "dropped": last["dropped"] if last else None,
+        }
+    )
 
     result = {
         "kind": kind,
@@ -801,8 +916,7 @@ def run_pass(kind: str, file_path: Path, *, sync: bool, eos_after: int,
         "execution_ended_after_s": output.execution_s,
         "eos_received": output.eos_t is not None,
         "decoder_device": output.device,
-        "caps": {"decoder_src": dec_caps, "sink_pad_element": sink["element_path"],
-                 "sink_pad": sink["caps"]},
+        "caps": {"decoder_src": dec_caps, "sink_pad_element": sink["element_path"], "sink_pad": sink["caps"]},
         "d3d12_memory_at_decoder_src": all_d3d12(dec_caps),
         "d3d12_memory_at_sink": all_d3d12(sink["caps"]),
         "framerate": parse_framerate(dec_caps[-1] if dec_caps else None),
@@ -812,30 +926,35 @@ def run_pass(kind: str, file_path: Path, *, sync: bool, eos_after: int,
             "last_fps_report_t_s": last["t_s"] if last else None,
             "average_fps_at_last_report": last["average_fps"] if last else None,
             "note": "fpsdisplaysink reports every 1000 ms; frames after its last report are "
-                    "not in rendered_at_last_fps_report",
+            "not in rendered_at_last_fps_report",
         },
         "drops": {
             "sink_conditions": sink_conditions(sync, sink_defaults),
             "counts": drop_counts,
-            "gated": {"source": "qos_bus_messages", "elements": qos_elements,
-                      "dropped": sum(output.qos.get(e, zero_qos)["dropped"] for e in qos_elements)},
+            "gated": {
+                "source": "qos_bus_messages",
+                "elements": qos_elements,
+                "dropped": sum(output.qos.get(e, zero_qos)["dropped"] for e in qos_elements),
+            },
         },
         "fpsdisplaysink_series": output.fps_series,
         "errors_warnings_total": output.warnings_total,
         "errors_warnings": output.warnings,
         "memory": {
-            **summarize_pass_memory(sampling["samples"],
-                                    output.fps_series[0]["t_s"] if output.fps_series else None,
-                                    output.eos_t, luid),
+            **summarize_pass_memory(
+                sampling["samples"], output.fps_series[0]["t_s"] if output.fps_series else None, output.eos_t, luid
+            ),
             "sampler_notes": sampling["notes"],
         },
     }
     if proc.returncode != 0 or sampling["timed_out"]:
         result["output_tail"] = {name: list(lines) for name, lines in output.tails.items()}
-    _progress(f"{kind} pass: exit={proc.returncode} wall={wall_s:.1f}s "
-              f"d3d12_at_sink={result['d3d12_memory_at_sink']} "
-              f"qos_dropped={result['drops']['gated']['dropped']} "
-              f"rendered@last_report={result['frames']['rendered_at_last_fps_report']}")
+    _progress(
+        f"{kind} pass: exit={proc.returncode} wall={wall_s:.1f}s "
+        f"d3d12_at_sink={result['d3d12_memory_at_sink']} "
+        f"qos_dropped={result['drops']['gated']['dropped']} "
+        f"rendered@last_report={result['frames']['rendered_at_last_fps_report']}"
+    )
     return result
 
 
@@ -854,45 +973,63 @@ CALIBRATION_TIMEOUT_S = 30.0
 PRIOR_FORCED_DROP_PROBE = {
     "provenance": "scratch probe run on 2026-09-13 before this lane existed; not part of this run",
     "file": r"E:\Video Output E\2026-09-06 10-32-02.mp4",
-    "forcing_condition": "identity eos-after=300 sleep-time=25000 before d3d12h265dec, sync=true, "
-                         "fakevideosink",
+    "forcing_condition": "identity eos-after=300 sleep-time=25000 before d3d12h265dec, sync=true, fakevideosink",
     "result": "fpsdisplaysink reported dropped 5 (rendered 6) at its last report, 7.5 s into a "
-              "14.4 s pass; the decoder logged 288 'Dropping frame due to QoS' WARN lines; "
-              "294 QoS bus messages",
+    "14.4 s pass; the decoder logged 288 'Dropping frame due to QoS' WARN lines; "
+    "294 QoS bus messages",
 }
 
 NOTES = [
-    "Earlier numbers for this lane counted no drops by construction. The 2026-09-13 smoke run "
-    "(fpsdisplaysink video-sink=fakesink sync=false: rendered 786, dropped 0) used fakesink, whose "
-    "defaults on this install are qos=false and max-lateness=-1, so it never drops a late frame; "
-    "and with sync=false no frame is ever late. The QoS-message counts in this receipt are the "
-    "lane's first real drop counts.",
-    "fpsdisplaysink's dropped figure only sees sink-side drops (and only as of its last 1000 ms "
-    "report). In the forced-drop probe the decoder dropped 288 frames while fpsdisplaysink "
-    "reported 5, so the verdict gates on QoS bus messages from the decoder and the sink.",
+    (
+        "Earlier numbers for this lane counted no drops by construction. The 2026-09-13 smoke run "
+        "(fpsdisplaysink video-sink=fakesink sync=false: rendered 786, dropped 0) used fakesink, whose "
+        "defaults on this install are qos=false and max-lateness=-1, so it never drops a late frame; "
+        "and with sync=false no frame is ever late. The QoS-message counts in this receipt are the "
+        "lane's first real drop counts."
+    ),
+    (
+        "fpsdisplaysink's dropped figure only sees sink-side drops (and only as of its last 1000 ms "
+        "report). In the forced-drop probe the decoder dropped 288 frames while fpsdisplaysink "
+        "reported 5, so the verdict gates on QoS bus messages from the decoder and the sink."
+    ),
 ]
 
 KNOWN_WARNINGS = [
-    ("d3d11debuglayer", "D3D11 debug-layer report while D3D11 devices are disposed, before the "
-                        "pipeline starts; seen in every probe run on this machine"),
-    ("qtdemux_parse_segments", "OBS edit list: the segment runs a few ms past the declared movie "
-                               "duration; qtdemux extends the segment"),
-    ("No value transform to serialize field 'context'",
-     "printed when gst-launch -m serializes the decoder's have-context message"),
+    (
+        "d3d11debuglayer",
+        (
+            "D3D11 debug-layer report while D3D11 devices are disposed, before the "
+            "pipeline starts; seen in every probe run on this machine"
+        ),
+    ),
+    (
+        "qtdemux_parse_segments",
+        "OBS edit list: the segment runs a few ms past the declared movie duration; qtdemux extends the segment",
+    ),
+    (
+        "No value transform to serialize field 'context'",
+        "printed when gst-launch -m serializes the decoder's have-context message",
+    ),
 ]
 
 
 def _steady_rows(memory: dict) -> list[dict]:
     start, end = memory["steady_window_s"]
-    return [row for row in memory["samples"]
-            if start is not None and row["t_s"] > start and (end is None or row["t_s"] <= end)
-            and row["working_set_mb"] is not None]
+    return [
+        row
+        for row in memory["samples"]
+        if start is not None
+        and row["t_s"] > start
+        and (end is None or row["t_s"] <= end)
+        and row["working_set_mb"] is not None
+    ]
 
 
 def summarize_soak_memory(synced: list[dict]) -> dict:
     """Memory across the synced passes. Every pass is its own process, so after the warm-up
     pass, growth is judged both inside each pass and from the start of the first post-warm-up
     pass to the end of the last one."""
+
     def working_set(p: dict) -> dict | None:
         return p["memory"]["working_set_mb"]
 
@@ -900,24 +1037,25 @@ def summarize_soak_memory(synced: list[dict]) -> dict:
     last = working_set(synced[-1]) if synced else None
     result: dict = {
         "model": "one gst-launch process per pass, sampled at 1 Hz; steady window = first "
-                 "fpsdisplaysink report to EOS; the first synced pass is the warm-up",
+        "fpsdisplaysink report to EOS; the first synced pass is the warm-up",
         "working_set_start_mb": first["start"] if first else None,
         "working_set_end_mb": last["end"] if last else None,
         "working_set_growth_mb": round(last["end"] - first["start"], 2) if first and last else None,
-        "gpu_dedicated_peak_mb": max((p["memory"]["gpu_dedicated_mb"]["peak"] for p in synced
-                                      if p["memory"]["gpu_dedicated_mb"]), default=None),
+        "gpu_dedicated_peak_mb": max(
+            (p["memory"]["gpu_dedicated_mb"]["peak"] for p in synced if p["memory"]["gpu_dedicated_mb"]), default=None
+        ),
         "post_warmup": None,
     }
     post = synced[1:]
     if not post or not all(working_set(p) for p in post):
         return result
-    within = [working_set(p)["growth"] for p in post]
-    cross = round(working_set(post[-1])["end"] - working_set(post[0])["start"], 2)
+    post_sets = [cast("dict", working_set(p)) for p in post]  # every one present: checked just above
+    within = [s["growth"] for s in post_sets]
+    cross = round(post_sets[-1]["end"] - post_sets[0]["start"], 2)
     xs = [p["soak_offset_s"] + row["t_s"] for p in post for row in _steady_rows(p["memory"])]
     ys = [row["working_set_mb"] for p in post for row in _steady_rows(p["memory"])]
     slope = linear_slope(xs, ys)
-    within_slopes = [working_set(p)["slope_mb_per_min"] for p in post
-                     if working_set(p)["slope_mb_per_min"] is not None]
+    within_slopes = [s["slope_mb_per_min"] for s in post_sets if s["slope_mb_per_min"] is not None]
     private = [p["memory"]["private_mb"]["growth"] for p in post if p["memory"]["private_mb"]]
     gpu = [p["memory"]["gpu_dedicated_mb"]["growth"] for p in post if p["memory"]["gpu_dedicated_mb"]]
     result["post_warmup"] = {
@@ -938,8 +1076,11 @@ def summarize(passes: list[dict], duration_s: float) -> dict:
     throughput = next((p for p in passes if p["kind"] == "throughput"), None)
 
     rendered = sum(p["frames"]["rendered_at_last_fps_report"] or 0 for p in synced)
-    expected = (sum(p["frames"]["expected"] for p in synced)
-                if synced and all(p["frames"]["expected"] for p in synced) else None)
+    expected = (
+        sum(p["frames"]["expected"] for p in synced)
+        if synced and all(p["frames"]["expected"] for p in synced)
+        else None
+    )
     by_source: dict[str, int] = {}
     for p in synced:
         for count in p["drops"]["counts"]:
@@ -947,8 +1088,9 @@ def summarize(passes: list[dict], duration_s: float) -> dict:
             by_source[key] = by_source.get(key, 0) + (count["dropped"] or 0)
     gated = sum(p["drops"]["gated"]["dropped"] for p in synced)
     denominator = rendered + gated
-    fps_values = [row["current_fps"] for p in synced for row in p["fpsdisplaysink_series"]
-                  if row["current_fps"] is not None]
+    fps_values = [
+        row["current_fps"] for p in synced for row in p["fpsdisplaysink_series"] if row["current_fps"] is not None
+    ]
 
     def rounded(value: float | None) -> float | None:
         return None if value is None else round(value, 2)
@@ -961,8 +1103,11 @@ def summarize(passes: list[dict], duration_s: float) -> dict:
         average = throughput["frames"]["average_fps_at_last_report"]
         throughput_summary = {
             "fps": average if average is not None else per_second,
-            "fps_source": ("fpsdisplaysink average at its last report" if average is not None
-                           else "expected frames / time in PLAYING"),
+            "fps_source": (
+                "fpsdisplaysink average at its last report"
+                if average is not None
+                else "expected frames / time in PLAYING"
+            ),
             "expected_frames_per_playing_second": per_second,
             "execution_ended_after_s": execution_s,
             "wall_s": throughput["wall_s"],
@@ -980,7 +1125,7 @@ def summarize(passes: list[dict], duration_s: float) -> dict:
         "requested_soak_s": duration_s,
         "total_frames": rendered,
         "total_frames_source": "sum over synced passes of fpsdisplaysink rendered at the last "
-                               "report (each pass's final <1 s is not included)",
+        "report (each pass's final <1 s is not included)",
         "total_frames_expected": expected,
         "drops": {
             "gated_source": "qos_bus_messages from decoder and sink, synced passes only",
@@ -990,10 +1135,13 @@ def summarize(passes: list[dict], duration_s: float) -> dict:
             "by_source": by_source,
             "sink_conditions": synced[0]["drops"]["sink_conditions"] if synced else None,
         },
-        "current_fps": {"samples": len(fps_values), "p50": rounded(percentile(fps_values, 50)),
-                        "p5": rounded(percentile(fps_values, 5)),
-                        "min": rounded(min(fps_values, default=None)),
-                        "max": rounded(max(fps_values, default=None))},
+        "current_fps": {
+            "samples": len(fps_values),
+            "p50": rounded(percentile(fps_values, 50)),
+            "p5": rounded(percentile(fps_values, 5)),
+            "min": rounded(min(fps_values, default=None)),
+            "max": rounded(max(fps_values, default=None)),
+        },
         "throughput": throughput_summary,
         "memory": summarize_soak_memory(synced),
         "errors_warnings_total": sum(p["errors_warnings_total"] for p in passes),
@@ -1001,8 +1149,7 @@ def summarize(passes: list[dict], duration_s: float) -> dict:
     }
 
 
-def build_verdict(passes: list[dict], summary: dict, calibration: dict | None,
-                  interrupted: bool) -> dict:
+def build_verdict(passes: list[dict], summary: dict, calibration: dict | None, interrupted: bool) -> dict:
     """The soak verdict (decode path) and the calibration record (the drop instrument) are
     separate claims: the calibration never changes the soak verdict, and the status line
     states both."""
@@ -1018,8 +1165,10 @@ def build_verdict(passes: list[dict], summary: dict, calibration: dict | None,
         record(False, "the run was interrupted before the soak finished")
 
     at_sink = sum(1 for p in passes if p["d3d12_memory_at_sink"])
-    record(bool(passes) and at_sink == len(passes),
-           f"memory:D3D12Memory reached the innermost sink pad in {at_sink}/{len(passes)} passes")
+    record(
+        bool(passes) and at_sink == len(passes),
+        f"memory:D3D12Memory reached the innermost sink pad in {at_sink}/{len(passes)} passes",
+    )
 
     drops = summary["drops"]
     synced = [p for p in passes if p["kind"] == "synced"]
@@ -1029,24 +1178,34 @@ def build_verdict(passes: list[dict], summary: dict, calibration: dict | None,
         rate = drops["drop_rate"]
         ok = drops["total_dropped"] == 0 or (rate is not None and rate < MAX_DROP_RATE)
         rate_text = "n/a" if rate is None else f"{rate:.4%}"
-        record(ok, f"synced passes dropped {drops['total_dropped']} frames by the gated count "
-                   f"(qos_bus_messages, decoder + sink), rate {rate_text}, limit 0.1%")
+        record(
+            ok,
+            f"synced passes dropped {drops['total_dropped']} frames by the gated count "
+            f"(qos_bus_messages, decoder + sink), rate {rate_text}, limit 0.1%",
+        )
 
     post = summary["memory"]["post_warmup"]
     if post is None:
-        record(False, "working-set growth after warm-up not measured: it needs a second synced "
-                      "pass with memory samples")
+        record(
+            False, "working-set growth after warm-up not measured: it needs a second synced pass with memory samples"
+        )
     else:
-        record(post["working_set_growth_mb"] < MAX_WORKING_SET_GROWTH_MB,
-               f"working-set growth after warm-up {post['working_set_growth_mb']:.2f} MB "
-               f"(within-pass max {post['max_within_pass_growth_mb']:.2f} MB, cross-pass "
-               f"{post['cross_pass_growth_mb']:.2f} MB), limit {MAX_WORKING_SET_GROWTH_MB:.0f} MB")
+        record(
+            post["working_set_growth_mb"] < MAX_WORKING_SET_GROWTH_MB,
+            f"working-set growth after warm-up {post['working_set_growth_mb']:.2f} MB "
+            f"(within-pass max {post['max_within_pass_growth_mb']:.2f} MB, cross-pass "
+            f"{post['cross_pass_growth_mb']:.2f} MB), limit {MAX_WORKING_SET_GROWTH_MB:.0f} MB",
+        )
 
-    failed = [f"pass {p['index']} ({p['kind']}) exit={p['exit_code']}"
-              f"{' timed out' if p['timed_out'] else ''}"
-              for p in passes if p["exit_code"] != 0 or p["timed_out"]]
-    record(bool(passes) and not failed,
-           f"all {len(passes)} passes exited 0" if not failed else "failed: " + "; ".join(failed))
+    failed = [
+        f"pass {p['index']} ({p['kind']}) exit={p['exit_code']}{' timed out' if p['timed_out'] else ''}"
+        for p in passes
+        if p["exit_code"] != 0 or p["timed_out"]
+    ]
+    record(
+        bool(passes) and not failed,
+        f"all {len(passes)} passes exited 0" if not failed else "failed: " + "; ".join(failed),
+    )
 
     detected = bool(calibration and calibration["gated_count_detected_drops"])
     completed = bool(calibration and calibration["completed"])
@@ -1059,17 +1218,16 @@ def build_verdict(passes: list[dict], summary: dict, calibration: dict | None,
     elif completed:
         calibration_text = "calibration saw no drops, so the zero-drop result is unproven"
     else:
-        calibration_text = ("calibration saw no drops and stalled before EOS, so the zero-drop "
-                            "result is unproven")
+        calibration_text = "calibration saw no drops and stalled before EOS, so the zero-drop result is unproven"
     return {
         "status": f"soak {'PASS' if all_ok else 'FAIL'}; {calibration_text}",
         "soak_verdict": "pass" if all_ok else "fail",
         "pass": all_ok,
         "gated_drop_count": "qos_bus_messages from decoder and sink, synced passes only",
         "reasons": reasons,
-        "calibration": None if calibration is None else {
-            key: calibration[key]
-            for key in ("drops_observed", "gated_count_detected_drops", "completed", "stall")},
+        "calibration": None
+        if calibration is None
+        else {key: calibration[key] for key in ("drops_observed", "gated_count_detected_drops", "completed", "stall")},
     }
 
 
@@ -1079,37 +1237,48 @@ def measured_lists(passes: list[dict]) -> tuple[list[str], list[str]]:
         "negotiated caps on the decoder src pad and on the innermost sink pad (gst-launch -v), per pass",
         "the decoder's D3D12 device: adapter LUID, vendor and device id, description",
         "fpsdisplaysink reports every 1000 ms: rendered, dropped, current and average fps",
-        "drops per source: QoS bus messages from decoder and sink (gst-launch -m), decoder "
-        "'Dropping frame due to QoS' WARN lines, and fpsdisplaysink's figure",
+        (
+            "drops per source: QoS bus messages from decoder and sink (gst-launch -m), decoder "
+            "'Dropping frame due to QoS' WARN lines, and fpsdisplaysink's figure"
+        ),
         "a forced-drop calibration pass showing the gated drop count registers drops",
         "GStreamer ERROR/WARN debug lines (GST_DEBUG=*:2) and gst-launch ERROR:/WARNING: reports",
         "working set and private bytes of each gst-launch process at 1 Hz (GetProcessMemoryInfo)",
         "exit code, wall time and time in PLAYING per pass",
     ]
     not_measured = [
-        "GPU-side copies: D3D12Memory caps at the sink rule out a download to system memory, not "
-        "a texture copy inside the GPU (for example a decoder output copy)",
-        "presentation: frames end in fakevideosink, not a D3D12 swapchain (d3d12videosink opens "
-        "a window)",
+        (
+            "GPU-side copies: D3D12Memory caps at the sink rule out a download to system memory, not "
+            "a texture copy inside the GPU (for example a decoder output copy)"
+        ),
+        "presentation: frames end in fakevideosink, not a D3D12 swapchain (d3d12videosink opens a window)",
         "frames rendered after each pass's last fpsdisplaysink report (under 1 s per pass)",
-        "memory growth across loops inside one long-lived process: every pass is a fresh "
-        "gst-launch process",
+        "memory growth across loops inside one long-lived process: every pass is a fresh gst-launch process",
         "TDR or device-removed events, GPU engine utilisation, CPU usage",
         "audio: only the video track is demuxed and decoded",
         "the file's exact frame count: expected frames are duration x framerate",
     ]
     if gpu_measured:
-        measured.append("dedicated GPU memory of each gst-launch process on the decoder's adapter "
-                        r"at 1 Hz (PDH \GPU Process Memory(*)\Dedicated Usage)")
+        measured.append(
+            "dedicated GPU memory of each gst-launch process on the decoder's adapter "
+            r"at 1 Hz (PDH \GPU Process Memory(*)\Dedicated Usage)"
+        )
     else:
         not_measured.append("dedicated GPU memory per process: the PDH counter returned no data")
     return measured, not_measured
 
 
 def run_calibration(file_path: Path, framerate: float, sink_defaults: dict) -> dict:
-    result = run_pass("calibration", file_path, sync=True, eos_after=CALIBRATION_FRAMES,
-                      frames_expected=CALIBRATION_FRAMES, timeout_s=CALIBRATION_TIMEOUT_S,
-                      sink_defaults=sink_defaults, sleep_us=CALIBRATION_SLEEP_US)
+    result = run_pass(
+        "calibration",
+        file_path,
+        sync=True,
+        eos_after=CALIBRATION_FRAMES,
+        frames_expected=CALIBRATION_FRAMES,
+        timeout_s=CALIBRATION_TIMEOUT_S,
+        sink_defaults=sink_defaults,
+        sleep_us=CALIBRATION_SLEEP_US,
+    )
     return calibration_record(result, framerate)
 
 
@@ -1120,10 +1289,19 @@ def calibration_record(result: dict, framerate: float) -> dict:
     completed = result["exit_code"] == 0 and result["eos_received"] and not result["timed_out"]
     stall = None
     if not completed:
-        decoder_qos = next((c for c in result["drops"]["counts"] if c["source"] == "qos_bus_messages"
-                            and c["element"] == DECODER_NAME), {})
-        ending = (f"killed by the pass timeout after {result['wall_s']:.1f} s" if result["timed_out"]
-                  else f"exit code {result['exit_code']}")
+        decoder_qos = next(
+            (
+                c
+                for c in result["drops"]["counts"]
+                if c["source"] == "qos_bus_messages" and c["element"] == DECODER_NAME
+            ),
+            {},
+        )
+        ending = (
+            f"killed by the pass timeout after {result['wall_s']:.1f} s"
+            if result["timed_out"]
+            else f"exit code {result['exit_code']}"
+        )
         stall = {
             "summary": f"registered {drops} gated drops but stalled before EOS ({ending})",
             "exit_code": result["exit_code"],
@@ -1136,18 +1314,16 @@ def calibration_record(result: dict, framerate: float) -> dict:
     return {
         "name": "forced_drop",
         "purpose": "show the drop counters register drops before trusting a zero-drop soak; "
-                   "excluded from the soak totals and not part of the soak verdict",
+        "excluded from the soak totals and not part of the soak verdict",
         "forcing_condition": f"identity sleep-time={CALIBRATION_SLEEP_US} us on each of "
-                             f"{CALIBRATION_FRAMES} encoded frames before the decoder, sync=true, "
-                             f"against a {framerate:g} fps clock",
-        "expectation": "the gated count (qos_bus_messages, decoder + sink) is above zero and the "
-                       "pass reaches EOS",
+        f"{CALIBRATION_FRAMES} encoded frames before the decoder, sync=true, "
+        f"against a {framerate:g} fps clock",
+        "expectation": "the gated count (qos_bus_messages, decoder + sink) is above zero and the pass reaches EOS",
         "gated_count_detected_drops": drops > 0,
         "drops_observed": drops,
         "completed": completed,
         "stall": stall,
-        "counts_by_source": {f"{c['source']}:{c['element']}": c["dropped"]
-                             for c in result["drops"]["counts"]},
+        "counts_by_source": {f"{c['source']}:{c['element']}": c["dropped"] for c in result["drops"]["counts"]},
         "sink_conditions": result["drops"]["sink_conditions"],
         "prior_probe": PRIOR_FORCED_DROP_PROBE,
         "pass": result,
@@ -1168,9 +1344,15 @@ def run_soak(file_path: Path, duration_s: float, out_dir: Path) -> tuple[dict, P
     calibration = None
     interrupted = False
     try:
-        throughput = run_pass("throughput", file_path, sync=False, eos_after=-1,
-                              frames_expected=None, timeout_s=(media_s or 1800.0) * 2 + 60,
-                              sink_defaults=sink_defaults)
+        throughput = run_pass(
+            "throughput",
+            file_path,
+            sync=False,
+            eos_after=-1,
+            frames_expected=None,
+            timeout_s=(media_s or 1800.0) * 2 + 60,
+            sink_defaults=sink_defaults,
+        )
         passes.append({"index": 1, **throughput})
         framerate = throughput["framerate"]
         frames_in_file = round(media_s * framerate) if media_s and framerate else None
@@ -1189,11 +1371,16 @@ def run_soak(file_path: Path, duration_s: float, out_dir: Path) -> tuple[dict, P
                     expected = eos_after
                 else:
                     eos_after, expected, media_len = -1, frames_in_file, media_s or 3600.0
-                synced = run_pass("synced", file_path, sync=True, eos_after=eos_after,
-                                  frames_expected=expected, timeout_s=media_len * 1.25 + 60,
-                                  sink_defaults=sink_defaults)
-                passes.append({"index": len(passes) + 1, "soak_offset_s": round(offset, 3),
-                               **synced})
+                synced = run_pass(
+                    "synced",
+                    file_path,
+                    sync=True,
+                    eos_after=eos_after,
+                    frames_expected=expected,
+                    timeout_s=media_len * 1.25 + 60,
+                    sink_defaults=sink_defaults,
+                )
+                passes.append({"index": len(passes) + 1, "soak_offset_s": round(offset, 3), **synced})
                 if synced["exit_code"] != 0 or synced["timed_out"]:
                     break  # stop rather than keep re-driving a failing GPU path
     except KeyboardInterrupt:
@@ -1211,7 +1398,7 @@ def run_soak(file_path: Path, duration_s: float, out_dir: Path) -> tuple[dict, P
         "interrupted": interrupted,
         "approach": {
             "driver": "gst-launch-1.0 subprocess per pass; caps and fpsdisplaysink reports (-v) "
-                      "and QoS messages (-m) parsed from its output",
+            "and QoS messages (-m) parsed from its output",
             "pygobject_check": pygobject,
         },
         "machine": machine,
@@ -1223,9 +1410,11 @@ def run_soak(file_path: Path, duration_s: float, out_dir: Path) -> tuple[dict, P
             "fps_update_interval_ms": FPS_UPDATE_INTERVAL_MS,
             "sink_defaults": sink_defaults,
             "calibration": {"frames": CALIBRATION_FRAMES, "identity_sleep_us": CALIBRATION_SLEEP_US},
-            "thresholds": {"max_drop_rate": MAX_DROP_RATE,
-                           "max_working_set_growth_mb": MAX_WORKING_SET_GROWTH_MB,
-                           "min_soak_pass_s": MIN_SOAK_PASS_S},
+            "thresholds": {
+                "max_drop_rate": MAX_DROP_RATE,
+                "max_working_set_growth_mb": MAX_WORKING_SET_GROWTH_MB,
+                "min_soak_pass_s": MIN_SOAK_PASS_S,
+            },
         },
         "notes": NOTES,
         "verdict": verdict,
@@ -1242,14 +1431,15 @@ def run_soak(file_path: Path, duration_s: float, out_dir: Path) -> tuple[dict, P
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="arsenal Lane B.1: GStreamer D3D12 decode soak receipt")
+    parser = argparse.ArgumentParser(description="arsenal Lane B.1: GStreamer D3D12 decode soak receipt")
     parser.add_argument("--file", default=DEFAULT_FILE, help="clip to decode (default: %(default)s)")
-    parser.add_argument("--duration", type=float, default=DEFAULT_DURATION_S,
-                        help="seconds of real-time soak after the throughput and calibration "
-                             "passes (default: %(default)s)")
-    parser.add_argument("--out-dir", default=str(DEFAULT_OUT_DIR),
-                        help="receipt directory (default: %(default)s)")
+    parser.add_argument(
+        "--duration",
+        type=float,
+        default=DEFAULT_DURATION_S,
+        help="seconds of real-time soak after the throughput and calibration passes (default: %(default)s)",
+    )
+    parser.add_argument("--out-dir", default=str(DEFAULT_OUT_DIR), help="receipt directory (default: %(default)s)")
     return parser.parse_args(argv)
 
 
@@ -1268,9 +1458,11 @@ def main(argv: list[str] | None = None) -> int:
     print(f"status: {receipt['verdict']['status']}")
     for reason in receipt["verdict"]["reasons"]:
         print(f"  {reason}")
-    print(f"frames={summary['total_frames']} gated_dropped={summary['drops']['total_dropped']} "
-          f"fps_p50={summary['current_fps']['p50']} fps_p5={summary['current_fps']['p5']} "
-          f"throughput_fps={(summary['throughput'] or {}).get('fps')}")
+    print(
+        f"frames={summary['total_frames']} gated_dropped={summary['drops']['total_dropped']} "
+        f"fps_p50={summary['current_fps']['p50']} fps_p5={summary['current_fps']['p5']} "
+        f"throughput_fps={(summary['throughput'] or {}).get('fps')}"
+    )
     return 0 if receipt["verdict"]["pass"] else 1
 
 

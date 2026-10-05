@@ -30,12 +30,23 @@ with a friendlier name: the checkout says one thing, the store says another, and
 believes the label. So both planes are verified available BEFORE either is touched, and any
 missing half refuses the whole operation.
 """
+
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, asdict
+from collections.abc import Callable  # noqa: TC003  # runtime-evaluated annotations (annotation_sensitive module)
+from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Callable, List, Optional, Tuple
+
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+
+        return python_launcher()
+    except Exception:
+        return "py"
 
 
 #: Tracked paths this repo REWRITES as a side effect of being operated -- generator output
@@ -48,10 +59,15 @@ from typing import Callable, List, Optional, Tuple
 #: always-on caveat is an ignored caveat; a never-satisfiable guard is a disabled guard.
 #: Third time that shape appeared in one arc, after W159's false alarms and the env guard.
 GENERATED_PATHS = (
-    "docs/MAP.md", "docs/DOORS.md", "docs/PHYSICS.md", "docs/PRIOR_ART.md",
-    "docs/MODULE_INDEX.md", "docs/PORTS.md",
+    "docs/MAP.md",
+    "docs/DOORS.md",
+    "docs/PHYSICS.md",
+    "docs/PRIOR_ART.md",
+    "docs/MODULE_INDEX.md",
+    "docs/PORTS.md",
     "chronicles/memory.md",
-    "data/corpus-digests/", "data/verb-registry/",
+    "data/corpus-digests/",
+    "data/verb-registry/",
     "state/",
 )
 
@@ -76,7 +92,7 @@ class Savepoint:
     world: str
     label: str
     git_sha: str
-    knowledge_snapshot: Optional[str]
+    knowledge_snapshot: str | None
     saved_at: str
     #: Tracked files modified at save time. git can only restore what was COMMITTED, so
     #: uncommitted work sits outside what this label is able to promise.
@@ -94,9 +110,11 @@ class Savepoint:
     def note(self) -> str:
         if not self.generated_at_save:
             return ""
-        return (f"{self.generated_at_save} generated file(s) were dirty at save time and "
-                f"deliberately ignored -- they are reproducible, so losing them costs a "
-                f"regenerate rather than work")
+        return (
+            f"{self.generated_at_save} generated file(s) were dirty at save time and "
+            f"deliberately ignored -- they are reproducible, so losing them costs a "
+            f"regenerate rather than work"
+        )
 
     @property
     def caveat(self) -> str:
@@ -104,9 +122,11 @@ class Savepoint:
             return ""
         bits = []
         if self.dirty_at_save:
-            bits.append(f"{self.dirty_at_save} uncommitted tracked file(s) at save time -- "
-                        f"git restores only what was committed, so those edits are NOT in "
-                        f"this point and restoring will not bring them back")
+            bits.append(
+                f"{self.dirty_at_save} uncommitted tracked file(s) at save time -- "
+                f"git restores only what was committed, so those edits are NOT in "
+                f"this point and restoring will not bring them back"
+            )
         if not self.knowledge_snapshot:
             bits.append("no knowledge snapshot -- the memory plane is not captured")
         return "; ".join(bits)
@@ -125,20 +145,26 @@ class Savepoint:
         with no tool in it can still get home -- the record carries its own drill, so the
         recovery does not depend on the recoverer.
         """
-        return (f"git checkout {self.git_sha} && "
-                f"py scripts/ops/snapshot_knowledge.py restore {self.knowledge_snapshot}")
+        return (
+            f"git checkout {self.git_sha} && "
+            f"{_pyl()} scripts/ops/snapshot_knowledge.py restore {self.knowledge_snapshot}"
+        )
 
     def render(self) -> str:
         flag = "" if self.complete else "  [PARTIAL] " + self.caveat
-        return (f"{self.label:<24} {self.world:<6} code {self.git_sha:<10} "
-                f"memory {self.knowledge_snapshot or '(none)':<18} {self.saved_at[:16]}{flag}")
+        return (
+            f"{self.label:<24} {self.world:<6} code {self.git_sha:<10} "
+            f"memory {self.knowledge_snapshot or '(none)':<18} {self.saved_at[:16]}{flag}"
+        )
 
 
-def can_restore(sp: Savepoint,
-                snapshot_exists: Callable[[str], bool],
-                tree_dirty: int,
-                consent: bool = False,
-                into_world: Optional[str] = None) -> Tuple[bool, str]:
+def can_restore(
+    sp: Savepoint,
+    snapshot_exists: Callable[[str], bool],
+    tree_dirty: int,
+    consent: bool = False,
+    into_world: str | None = None,
+) -> tuple[bool, str]:
     """Verify EVERYTHING before touching ANYTHING. Returns (ok, why-not).
 
     The ordering is the contract: a half-applied restore leaves a world whose code and
@@ -147,38 +173,49 @@ def can_restore(sp: Savepoint,
     target = into_world or sp.world
 
     if target != sp.world:
-        return False, (f"refusing: this savepoint belongs to '{sp.world}' and you are "
-                       f"restoring into '{target}'. Crossing worlds by accident is the "
-                       f"failure the whole arc exists to prevent.")
+        return False, (
+            f"refusing: this savepoint belongs to '{sp.world}' and you are "
+            f"restoring into '{target}'. Crossing worlds by accident is the "
+            f"failure the whole arc exists to prevent."
+        )
 
     if target == "prod" and not consent:
-        return False, ("refusing: restoring a savepoint into PROD rewinds both its code and "
-                       "its entire knowledge store, and stream ids regenerate so every bus "
-                       "cursor dangles. Routing safety is not consent.\n"
-                       "  If prod is genuinely what you mean, pass consent explicitly.")
+        return False, (
+            "refusing: restoring a savepoint into PROD rewinds both its code and "
+            "its entire knowledge store, and stream ids regenerate so every bus "
+            "cursor dangles. Routing safety is not consent.\n"
+            "  If prod is genuinely what you mean, pass consent explicitly."
+        )
 
     if not sp.knowledge_snapshot:
-        return False, (f"refusing: savepoint '{sp.label}' has no memory half, so restoring "
-                       f"it would move code to {sp.git_sha} and leave the store where it is "
-                       f"-- both planes or neither.")
+        return False, (
+            f"refusing: savepoint '{sp.label}' has no memory half, so restoring "
+            f"it would move code to {sp.git_sha} and leave the store where it is "
+            f"-- both planes or neither."
+        )
 
     if not snapshot_exists(sp.knowledge_snapshot):
-        return False, (f"refusing: knowledge snapshot '{sp.knowledge_snapshot}' is gone "
-                       f"(snapshots self-prune). The code half alone is not this point, so "
-                       f"nothing will be touched.")
+        return False, (
+            f"refusing: knowledge snapshot '{sp.knowledge_snapshot}' is gone "
+            f"(snapshots self-prune). The code half alone is not this point, so "
+            f"nothing will be touched."
+        )
 
     if tree_dirty:
-        return False, (f"refusing: {tree_dirty} uncommitted tracked file(s) in the working "
-                       f"tree would be discarded by this restore. Commit or stash them "
-                       f"first -- a savepoint is for rewinding deliberate work, not for "
-                       f"silently deleting the work you have not landed yet.")
+        return False, (
+            f"refusing: {tree_dirty} uncommitted tracked file(s) in the working "
+            f"tree would be discarded by this restore. Commit or stash them "
+            f"first -- a savepoint is for rewinding deliberate work, not for "
+            f"silently deleting the work you have not landed yet."
+        )
 
     return True, ""
 
 
 # ------------------------------------------------------------------ persistence
 
-def read(path: Path) -> List[Savepoint]:
+
+def read(path: Path) -> list[Savepoint]:
     try:
         raw = json.loads(Path(path).read_text(encoding="utf-8"))
     except Exception:
@@ -186,13 +223,12 @@ def read(path: Path) -> List[Savepoint]:
     return [Savepoint(**d) for d in raw]
 
 
-def write(path: Path, points: List[Savepoint]) -> None:
+def write(path: Path, points: list[Savepoint]) -> None:
     Path(path).parent.mkdir(parents=True, exist_ok=True)
-    Path(path).write_text(json.dumps([asdict(p) for p in points], indent=2),
-                          encoding="utf-8")
+    Path(path).write_text(json.dumps([asdict(p) for p in points], indent=2), encoding="utf-8")
 
 
-def append(path: Path, sp: Savepoint) -> List[Savepoint]:
+def append(path: Path, sp: Savepoint) -> list[Savepoint]:
     """Add or SUPERSEDE by label -- two points sharing one name is a name that does not point."""
     points = [p for p in read(path) if p.label != sp.label]
     points.append(sp)

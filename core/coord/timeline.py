@@ -31,28 +31,38 @@ ten baseline failures look "fixed". So every result names which domains were rea
 FAILED, and how many rows each produced -- and a domain that could not be read is never
 silently absent. "Nothing happened there" and "I could not look there" are different facts.
 """
+
 from __future__ import annotations
 
 import os
 import subprocess
 import time
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 #: Named blindness, structural. A timeline that confesses nothing claims to be the whole
 #: story, and a whole story is exactly what a partial merge is not.
 BLIND = [
-    "only domains listed in coverage.read were consulted; a domain in coverage.failed "
-    "contributed NOTHING and its absence must not read as 'nothing happened there'",
-    "rows without a resolvable timestamp are kept and sorted LAST, never dropped and "
-    "never coerced to epoch 0 -- 'when unknown' is not 'did not happen'",
-    "clock skew between domains is not corrected: git commit times, event stamps and "
-    "file mtimes come from different writers and may disagree by seconds",
+    (
+        "only domains listed in coverage.read were consulted; a domain in coverage.failed "
+        "contributed NOTHING and its absence must not read as 'nothing happened there'"
+    ),
+    (
+        "rows without a resolvable timestamp are kept and sorted LAST, never dropped and "
+        "never coerced to epoch 0 -- 'when unknown' is not 'did not happen'"
+    ),
+    (
+        "clock skew between domains is not corrected: git commit times, event stamps and "
+        "file mtimes come from different writers and may disagree by seconds"
+    ),
 ]
 
 
-def _epoch(v: Any) -> Optional[float]:
+def _epoch(v: Any) -> float | None:
     """Best-effort epoch. None when undateable -- never 0, which would silently move
     unknown-time evidence to the dawn of the record and rewrite the story."""
     if v is None or v == "":
@@ -73,6 +83,7 @@ def _epoch(v: Any) -> Optional[float]:
             return None
     try:
         from core.foundation.timeutil import to_epoch
+
         got = to_epoch(s)
         # 0 from a parser means "could not read", not "1 Jan 1970". Trusting it is how
         # undateable evidence silently becomes the oldest evidence.
@@ -81,26 +92,34 @@ def _epoch(v: Any) -> Optional[float]:
         return None
 
 
-def _norm(row: Dict[str, Any], domain: str) -> Dict[str, Any]:
-    return {"ts": _epoch(row.get("ts")), "domain": domain,
-            "actor": row.get("actor") or "", "kind": row.get("kind") or "",
-            "summary": str(row.get("summary") or "")[:300],
-            "ref": row.get("ref") or ""}
+def _norm(row: dict[str, Any], domain: str) -> dict[str, Any]:
+    return {
+        "ts": _epoch(row.get("ts")),
+        "domain": domain,
+        "actor": row.get("actor") or "",
+        "kind": row.get("kind") or "",
+        "summary": str(row.get("summary") or "")[:300],
+        "ref": row.get("ref") or "",
+    }
 
 
 # ------------------------------------------------------------------ domain sources
-def _events_rows(since: Optional[float] = None, agent: str = "", **_) -> List[Dict]:
+def _events_rows(since: float | None = None, agent: str = "", **_) -> list[dict]:
     from core.events.event_log import EventLog
-    out = []
-    for ev in (EventLog().scan(agent=agent) if agent else EventLog().scan()) or []:
-        out.append({"ts": ev.get("at"), "actor": ev.get("agent_id") or "",
-                    "kind": ev.get("kind") or "event",
-                    "summary": ev.get("summary") or ev.get("message") or "",
-                    "ref": ev.get("_ref") or ev.get("id") or ""})
-    return out
+
+    return [
+        {
+            "ts": ev.get("at"),
+            "actor": ev.get("agent_id") or "",
+            "kind": ev.get("kind") or "event",
+            "summary": ev.get("summary") or ev.get("message") or "",
+            "ref": ev.get("_ref") or ev.get("id") or "",
+        }
+        for ev in (EventLog().scan(agent=agent) if agent else EventLog().scan()) or []
+    ]
 
 
-def _git_rows(since: Optional[float] = None, limit: int = 200, **_) -> List[Dict]:
+def _git_rows(since: float | None = None, limit: int = 200, **_) -> list[dict]:
     # ENCODING IS EXPLICIT, and this is a correctness fix rather than tidiness. `text=True`
     # alone decodes with the LOCALE codec -- cp1252 on this box -- so one commit subject
     # carrying a character outside cp1252 raised UnicodeDecodeError and took the ENTIRE git
@@ -108,10 +127,16 @@ def _git_rows(since: Optional[float] = None, limit: int = 200, **_) -> List[Dict
     # emoji in this repo's own T380 ladder commit subject. Git speaks UTF-8; read it as
     # UTF-8, and never let one unlucky character decide whether history is visible.
     # errors="replace" so a mangled byte costs one glyph, never the whole report.
-    r = subprocess.run(["git", "log", f"-{int(limit)}", "--format=%H%x1f%at%x1f%an%x1f%s"],
-                       cwd=_ROOT, capture_output=True, text=True, timeout=30,
-                       encoding="utf-8", errors="replace",
-                       stdin=subprocess.DEVNULL)
+    r = subprocess.run(
+        ["git", "log", f"-{int(limit)}", "--format=%H%x1f%at%x1f%an%x1f%s"],
+        cwd=_ROOT,
+        capture_output=True,
+        text=True,
+        timeout=30,
+        encoding="utf-8",
+        errors="replace",
+        stdin=subprocess.DEVNULL,
+    )
     if r.returncode != 0:
         raise RuntimeError((r.stderr or "git log failed").strip()[:200])
     out = []
@@ -120,23 +145,27 @@ def _git_rows(since: Optional[float] = None, limit: int = 200, **_) -> List[Dict
         if len(parts) != 4:
             continue
         sha, at, who, subj = parts
-        out.append({"ts": at, "actor": who, "kind": "commit", "summary": subj,
-                    "ref": sha[:12]})
+        out.append({"ts": at, "actor": who, "kind": "commit", "summary": subj, "ref": sha[:12]})
     return out
 
 
-def _task_rows(since: Optional[float] = None, **_) -> List[Dict]:
+def _task_rows(since: float | None = None, **_) -> list[dict]:
     import json
+
     with open(os.path.join(_ROOT, "state", "coord", "tasks.json"), encoding="utf-8") as f:
         data = json.load(f)
     out = []
     for t in data.get("tasks", []):
-        for ev in (t.get("history") or t.get("events") or []):
-            out.append({"ts": ev.get("at") or ev.get("ts"),
-                        "actor": ev.get("by") or t.get("owner") or "",
-                        "kind": f"task:{ev.get('to') or ev.get('status') or 'change'}",
-                        "summary": f"{t.get('id')} {str(t.get('title') or '')[:120]}",
-                        "ref": str(t.get("id") or "")})
+        out.extend(
+            {
+                "ts": ev.get("at") or ev.get("ts"),
+                "actor": ev.get("by") or t.get("owner") or "",
+                "kind": f"task:{ev.get('to') or ev.get('status') or 'change'}",
+                "summary": f"{t.get('id')} {str(t.get('title') or '')[:120]}",
+                "ref": str(t.get("id") or ""),
+            }
+            for ev in t.get("history") or t.get("events") or []
+        )
     return out
 
 
@@ -144,17 +173,25 @@ def _task_rows(since: Optional[float] = None, **_) -> List[Dict]:
 #: carried here so a cross-match between "what was declared" and "what was witnessed" is
 #: expressible at all. events/git/tasks are all things somebody CHOSE to record; a file's
 #: mtime is what the filesystem witnessed with nobody's narration in between.
-PLANE_OF = {"events": "AUTHORED", "git": "AUTHORED", "tasks": "AUTHORED",
-            "files": "OBSERVED"}
+PLANE_OF = {"events": "AUTHORED", "git": "AUTHORED", "tasks": "AUTHORED", "files": "OBSERVED"}
 
 #: Directory names whose mtimes are somebody else's bookkeeping, not this project's story.
-_SKIP_DIRS = {".git", "__pycache__", "node_modules", ".venv", "venv", ".pytest_cache",
-              ".mypy_cache", ".ruff_cache", "artifacts"}
+_SKIP_DIRS = {
+    ".git",
+    "__pycache__",
+    "node_modules",
+    ".venv",
+    "venv",
+    ".pytest_cache",
+    ".mypy_cache",
+    ".ruff_cache",
+    "artifacts",
+}
 
 FILE_SCAN_LIMIT = int(os.environ.get("AKASHIC_TIMELINE_FILE_LIMIT", "4000"))
 
 
-def _birth(st) -> Optional[float]:
+def _birth(st) -> float | None:
     """When the file was born, or None where the platform cannot say.
 
     DELIBERATELY NOT st_ctime. That attribute means CREATION time on Windows and INODE
@@ -170,8 +207,7 @@ def _birth(st) -> Optional[float]:
         return None
 
 
-def _file_rows(root: Optional[str] = None, limit: Optional[int] = None,
-               since: Optional[float] = None, **_) -> List[Dict]:
+def _file_rows(root: str | None = None, limit: int | None = None, since: float | None = None, **_) -> list[dict]:
     """The OBSERVED plane: what was actually touched, and when.
 
     Catches the activity that left no other trace -- a sibling agent's mid-flight edits,
@@ -184,7 +220,7 @@ def _file_rows(root: Optional[str] = None, limit: Optional[int] = None,
     """
     base = root or _ROOT
     cap = int(limit if limit is not None else FILE_SCAN_LIMIT)
-    out: List[Dict] = []
+    out: list[dict] = []
     for dirpath, dirnames, filenames in os.walk(base):
         dirnames[:] = [d for d in dirnames if d not in _SKIP_DIRS]
         for fn in filenames:
@@ -194,13 +230,17 @@ def _file_rows(root: Optional[str] = None, limit: Optional[int] = None,
             try:
                 st = os.stat(p)
             except OSError:
-                continue                      # one bad stat, not a dead plane
+                continue  # one bad stat, not a dead plane
             ts = float(getattr(st, "st_mtime", 0) or 0)
             if since is not None and ts and ts < float(since):
                 continue
-            row = {"ts": ts or None, "actor": "", "kind": "file:modified",
-                   "summary": os.path.relpath(p, base).replace("\\", "/"),
-                   "ref": p.replace("\\", "/")}
+            row = {
+                "ts": ts or None,
+                "actor": "",
+                "kind": "file:modified",
+                "summary": os.path.relpath(p, base).replace("\\", "/"),
+                "ref": p.replace("\\", "/"),
+            }
             born = _birth(st)
             if born is not None:
                 row["born"] = born
@@ -208,15 +248,13 @@ def _file_rows(root: Optional[str] = None, limit: Optional[int] = None,
     return out
 
 
-def default_sources() -> List[Tuple[str, Callable]]:
+def default_sources() -> list[tuple[str, Callable]]:
     """The domains, registered BY NAME so a missing one shows up in coverage rather than
     being quietly absent from the design."""
-    return [("events", _events_rows), ("git", _git_rows), ("tasks", _task_rows),
-            ("files", _file_rows)]
+    return [("events", _events_rows), ("git", _git_rows), ("tasks", _task_rows), ("files", _file_rows)]
 
 
-def gather(*, sources: Optional[List[Tuple[str, Callable]]] = None,
-           since: Optional[float] = None, **kw) -> Dict[str, Any]:
+def gather(*, sources: list[tuple[str, Callable]] | None = None, since: float | None = None, **kw) -> dict[str, Any]:
     """Merge every domain into one time-ordered set. Never raises.
 
     Returns {rows, coverage, blind}. `rows` is DATA (dicts a later compare can diff),
@@ -224,10 +262,10 @@ def gather(*, sources: Optional[List[Tuple[str, Callable]]] = None,
     window -- because a set difference is only as true as the coverage of both sides.
     """
     srcs = sources if sources is not None else default_sources()
-    rows: List[Dict[str, Any]] = []
-    read: List[str] = []
-    failed: Dict[str, str] = {}
-    counts: Dict[str, int] = {}
+    rows: list[dict[str, Any]] = []
+    read: list[str] = []
+    failed: dict[str, str] = {}
+    counts: dict[str, int] = {}
 
     for name, fn in srcs:
         try:
@@ -236,10 +274,10 @@ def gather(*, sources: Optional[List[Tuple[str, Callable]]] = None,
             # Named, never silent: an unreadable domain is a FACT about the report.
             failed[name] = f"{e.__class__.__name__}: {e}"
             continue
-        normed = [dict(_norm(r, name),
-                       plane=PLANE_OF.get(name, "UNKNOWN"),
-                       **({"born": r["born"]} if r.get("born") else {}))
-                  for r in got]
+        normed = [
+            dict(_norm(r, name), plane=PLANE_OF.get(name, "UNKNOWN"), **({"born": r["born"]} if r.get("born") else {}))
+            for r in got
+        ]
         if since is not None:
             normed = [r for r in normed if r["ts"] is None or r["ts"] >= float(since)]
         read.append(name)
@@ -253,9 +291,20 @@ def gather(*, sources: Optional[List[Tuple[str, Callable]]] = None,
 
     blind = list(BLIND)
     for name, why in failed.items():
-        blind.append(f"domain '{name}' could NOT be read ({why}) -- it contributed zero "
-                     f"rows, which is not the same as having none")
-    return {"rows": rows, "blind": blind,
-            "coverage": {"read": read, "failed": failed, "counts": counts,
-                         "undated": undated, "since": since,
-                         "as_of": time.time(), "n": len(rows)}}
+        blind.append(
+            f"domain '{name}' could NOT be read ({why}) -- it contributed zero "
+            f"rows, which is not the same as having none"
+        )
+    return {
+        "rows": rows,
+        "blind": blind,
+        "coverage": {
+            "read": read,
+            "failed": failed,
+            "counts": counts,
+            "undated": undated,
+            "since": since,
+            "as_of": time.time(),
+            "n": len(rows),
+        },
+    }

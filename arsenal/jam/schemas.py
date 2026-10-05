@@ -30,28 +30,34 @@ Two optional card fields beyond jam-spec 4.1 come from the house ideas (house-id
 Helpers other phases share: card_settings (4.1 defaults), line_beats and chord_count (a chord line's length and its
 slot count), card_texts and wording_problems (the section 12 wording rule), pair_problems.
 """
+
 from __future__ import annotations
 
 import copy
 import json
 import math
 import re
-from typing import Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import TYPE_CHECKING, cast
 
 from arsenal import nashville
 from arsenal.jam import CARD_API, DEF_API, RUN_API, SEED_API, SEED_MOMENTS_API, tempomap
 from arsenal.performance import SESSION_PATTERN
 
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Sequence
+
+    from typing_extensions import TypeIs
+
 # ================================================================================================= vocabulary
 GROUPS = ("moves", "try", "kept")
 KINDS = ("chord", "progression", "loop", "concept", "moment")
 GROOVES_V1 = ("hold", "ballad", "pulse")
-GROOVES = GROOVES_V1 + ("swell", "arp", "gospel")          # a v2 groove on a v1 page plays ballad (4.1)
+GROOVES = (*GROOVES_V1, "swell", "arp", "gospel")  # a v2 groove on a v1 page plays ballad (4.1)
 BACKINGS_V1 = ("full", "comp", "bass")
-BACKINGS = BACKINGS_V1 + ("pad",)                           # pad is v2
+BACKINGS = (*BACKINGS_V1, "pad")  # pad is v2
 VOICING_STYLES = ("close", "open", "spread", "drop2", "shell")
-FEELS = ("straight", "rubato", "half-time")                 # v1 always plays straight
-HOLDS = ("legato", "detached")                              # or a number of beats
+FEELS = ("straight", "rubato", "half-time")  # v1 always plays straight
+HOLDS = ("legato", "detached")  # or a number of beats
 SOURCE_KINDS = ("seed", "claude", "saved-live", "saved-from-moment", "kept", "edit")
 AUTHORS = ("claude", "daniel")
 ROLES = ("1", "b3", "3", "4", "#4", "5", "b6", "6", "b7", "7", "b9", "9", "#9", "11", "#11", "b13", "13")
@@ -59,13 +65,18 @@ RELATIVE_TO = ("root", "bass")
 WANTS = ("present", "landing", "absent")
 VARIANT_IDS = ("a", "b", "c", "d", "e", "f")
 PAIR_ROLES = ("question", "answer")
-MATCHES = ("exact", "enharmonic", "equivalent", "unnamed",  # the voicing bridge's round trip for a chord
-           "notes")                                          # ... and for exact notes: the page's own name, no chord to compare
+MATCHES = (
+    "exact",
+    "enharmonic",
+    "equivalent",
+    "unnamed",  # the voicing bridge's round trip for a chord
+    "notes",
+)  # ... and for exact notes: the page's own name, no chord to compare
 TONE_ROLES = ("root", "third", "fifth", "sixth", "seventh", "ninth", "eleventh", "thirteenth", "sus")
-VOICE_ROLES = ("bass",) + TONE_ROLES
+VOICE_ROLES = ("bass", *TONE_ROLES)
 SLOT_CLASSES = ("diatonic", "secondary dominant", "borrowed", "modal", "chromatic")  # practice.classify
 MODES = ("play", "loop", "try")
-ROUTES = ("page",)                                          # v2 adds FL as the clock
+ROUTES = ("page",)  # v2 adds FL as the clock
 STATES = ("pending", "running", "stopped")
 COURTESY_VIA = ("rest", "knock", "now", "timeout")
 STOP_REASONS = ("page", "cli", "replaced", "count", "stream-lost", "server-restart", "device", "declined", "expired")
@@ -75,7 +86,7 @@ AT_LINES = tempomap.AT_LINES
 ACK_ROLES = ("owner", "viewer")
 ACK_STOPPED = ("stream-lost", "device")
 EVENT_KINDS = ("start", "launch", "ack", "change", "mark", "stop")
-CHANGE_OPS = ("tempo", "next", "mute", "unmute", "set")    # a stop is its own line
+CHANGE_OPS = ("tempo", "next", "mute", "unmute", "set")  # a stop is its own line
 EVENT_BY = ("claude", "daniel", "page", "server")
 
 # ===================================================================================================== limits
@@ -89,15 +100,23 @@ MAX_MOMENTS = 12
 MAX_RELATED = 8
 MAX_BEATS = 64
 MAX_EXACT_NOTES = 24
-MAX_BAND_NOTES = 7              # a bass and up to 6 upper voices (MUSIC 3.2)
+MAX_BAND_NOTES = 7  # a bass and up to 6 upper voices (MUSIC 3.2)
 NOTE_MIN, NOTE_MAX = 21, 108
 BPM_MIN, BPM_MAX = 30, 240
 METER_MIN, METER_MAX = 2, 7
 COUNT_IN_MAX = 2
 VELOCITY_MIN, VELOCITY_MAX = 1, 127
 ARP_MAX_MS = 2000
-TEXT_LIMITS = {"title": 80, "meaning": 120, "theory_name": 40, "style": 80, "explanation": 400, "why": 300,
-               "try": 300, "listen_for": 160}
+TEXT_LIMITS = {
+    "title": 80,
+    "meaning": 120,
+    "theory_name": 40,
+    "style": 80,
+    "explanation": 400,
+    "why": 300,
+    "try": 300,
+    "listen_for": 160,
+}
 SAY_MAX = 120
 NAME_MAX = 24
 NUMBER_MAX = 24
@@ -109,15 +128,18 @@ ENGINE_MAX = 40
 WARNING_MAX = 300
 REPLAY_MAX_SECONDS = 600
 REPLAY_MAX_SPEED = 4
-BASS_RANGE = (28, 50)           # E1..D3 (10.1)
-FULL_TOP_MAX = 69               # A4, hard
-COMP_TOP_MAX = 64               # E4: only the defining altered colour reaches it
-SEGMENT_TOLERANCE_MS = 0.1      # a stored segment epoch against the tempo map (DATA 6.3 keeps 0.1 ms)
-CARD_DEFAULTS = {"tempo": {"bpm": 66, "beats_per_bar": 4, "feel": "straight"},
-                 "voicing": {"style": "spread", "voice_lead": False, "octave": None},
-                 "playback": {"velocity": 48, "arpeggio_ms": 0, "hold": "legato", "count": None},
-                 "backing": "comp", "pulse_from_bpm": 80}
-CARD_WORDING_FORBIDDEN = ("wrong", "mistake", "should")    # section 12 wording rule
+BASS_RANGE = (28, 50)  # E1..D3 (10.1)
+FULL_TOP_MAX = 69  # A4, hard
+COMP_TOP_MAX = 64  # E4: only the defining altered colour reaches it
+SEGMENT_TOLERANCE_MS = 0.1  # a stored segment epoch against the tempo map (DATA 6.3 keeps 0.1 ms)
+CARD_DEFAULTS = {
+    "tempo": {"bpm": 66, "beats_per_bar": 4, "feel": "straight"},
+    "voicing": {"style": "spread", "voice_lead": False, "octave": None},
+    "playback": {"velocity": 48, "arpeggio_ms": 0, "hold": "legato", "count": None},
+    "backing": "comp",
+    "pulse_from_bpm": 80,
+}
+CARD_WORDING_FORBIDDEN = ("wrong", "mistake", "should")  # section 12 wording rule
 
 ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,47}$")
 TAG_RE = re.compile(r"^[a-z0-9-]{1,24}$")
@@ -126,13 +148,49 @@ KEY_ITEM_RE = re.compile(r"^(#{1,2}|b{1,2})?[1-7] (major|minor)$")
 CLOCK_RE = re.compile(r"^\d{1,3}:[0-5]\d(\.\d{1,3})?$")
 ISO_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,6})?(\+00:00|Z)$")
 SESSION_RE = re.compile(rf"^{SESSION_PATTERN}$")
-RUN_ID_RE = SESSION_RE          # runs are named like sessions: YYYYMMDD-HHMMSS-8 hex
+RUN_ID_RE = SESSION_RE  # runs are named like sessions: YYYYMMDD-HHMMSS-8 hex
 PAGE_ID_RE = re.compile(r"^[A-Za-z0-9_.:-]{1,80}$")
 
-CARD_KEYS = ("api", "id", "rev", "title", "meaning", "theory_name", "group", "kind", "key", "also_in", "chords",
-             "variants", "voicing", "groove", "backing", "tempo", "bars", "playback", "style", "explanation", "why",
-             "try", "listen_for", "checks", "tags", "moments", "replay", "related", "page_reads", "source",
-             "created_by", "updated_by", "created_at", "updated_at", "favorite", "archived", "landing", "pair")
+CARD_KEYS = (
+    "api",
+    "id",
+    "rev",
+    "title",
+    "meaning",
+    "theory_name",
+    "group",
+    "kind",
+    "key",
+    "also_in",
+    "chords",
+    "variants",
+    "voicing",
+    "groove",
+    "backing",
+    "tempo",
+    "bars",
+    "playback",
+    "style",
+    "explanation",
+    "why",
+    "try",
+    "listen_for",
+    "checks",
+    "tags",
+    "moments",
+    "replay",
+    "related",
+    "page_reads",
+    "source",
+    "created_by",
+    "updated_by",
+    "created_at",
+    "updated_at",
+    "favorite",
+    "archived",
+    "landing",
+    "pair",
+)
 CARD_SERVER_FIELDS = ("rev", "source", "created_at", "updated_at", "updated_by")
 CARD_UNPATCHABLE = ("api", "id", "rev", "created_by", "created_at", "page_reads", "source")  # 5.1 update
 CHORD_ITEM_KEYS = ("n", "beats", "notes", "voicing", "vel", "arp_ms", "hold", "say", "upper", "name")
@@ -147,21 +205,76 @@ PAGE_READ_KEYS = ("variant", "slot", "key", "voicing", "notes", "name", "number"
 DEF_KEYS = ("api", "card", "key", "beats_per_bar", "cycle_beats", "backing", "sections", "slots", "warnings", "landing")
 DEF_CARD_KEYS = ("id", "rev", "title", "variant")
 SECTION_KEYS = ("i", "key", "from_beat")
-SLOT_KEYS = ("i", "section", "at_beat", "beats", "n", "name", "key", "tones_pc", "bass_pc", "chord_pcs", "scale",
-             "scale_name", "class", "voicings", "roles", "exact", "upper_same", "vel", "arp_ms", "say", "page_reads",
-             "warnings")
+SLOT_KEYS = (
+    "i",
+    "section",
+    "at_beat",
+    "beats",
+    "n",
+    "name",
+    "key",
+    "tones_pc",
+    "bass_pc",
+    "chord_pcs",
+    "scale",
+    "scale_name",
+    "class",
+    "voicings",
+    "roles",
+    "exact",
+    "upper_same",
+    "vel",
+    "arp_ms",
+    "say",
+    "page_reads",
+    "warnings",
+)
 SLOT_OPTIONAL_KEYS = ("hold", "omits", "reads_as")
 VOICING_KEYS = ("play", "full", "comp", "bass")
 VOICING_OPTIONAL_KEYS = ("pad",)
 DEF_LANDING_KEYS = ("slot", "role", "relative_to", "pc", "pull", "note")  # note: optional, spelled from the chord
 
-RUN_KEYS = ("api", "run", "mode", "route", "engine", "state", "created_at", "created_by", "card", "card_snapshot", "key",
-            "beats_per_bar", "count_in_bars", "start_epoch_ms", "bar0_epoch_ms", "segments", "settings",
-            "last_version", "owner_page_id", "courtesy", "closed", "stopped_epoch_ms", "stop_bar", "stop_reason",
-            "late_dropped")
+RUN_KEYS = (
+    "api",
+    "run",
+    "mode",
+    "route",
+    "engine",
+    "state",
+    "created_at",
+    "created_by",
+    "card",
+    "card_snapshot",
+    "key",
+    "beats_per_bar",
+    "count_in_bars",
+    "start_epoch_ms",
+    "bar0_epoch_ms",
+    "segments",
+    "settings",
+    "last_version",
+    "owner_page_id",
+    "courtesy",
+    "closed",
+    "stopped_epoch_ms",
+    "stop_bar",
+    "stop_reason",
+    "late_dropped",
+)
 RUN_OPTIONAL_KEYS = ("approx", "slot", "velocity")
 SEGMENT_KEYS = ("from_bar", "bpm", "epoch_ms", "def_version", "def_from_bar")
-SETTINGS_KEYS = ("from_bar", "groove", "backing", "level", "humanize", "seed", "walk", "try_backing", "passes", "ending")
+SETTINGS_KEYS = (
+    "from_bar",
+    "groove",
+    "backing",
+    "level",
+    "humanize",
+    "seed",
+    "walk",
+    "try_backing",
+    "passes",
+    "ending",
+)
 SETTINGS_OPTIONAL_KEYS = ("muted", "dropout")  # dropout 0..1, absent means off (jam-rulings: a run setting)
 COURTESY_KEYS = ("held_ms", "via")
 
@@ -171,18 +284,22 @@ ACK_OPTIONAL_KEYS = ("late_frame_ms", "offset_step_ms", "stop_bar", "effective_b
 ACK_LOG_KEYS = ("local", "session", "t0_perf_ms")
 
 EVENT_COMMON_KEYS = ("seq", "kind", "recorded_epoch_ms", "by")
-EVENT_REQUIRED = {"start": ("version", "effective_bar", "bpm", "def"),
-                  "launch": ("version", "start_epoch_ms", "bar0_epoch_ms", "page_id"),
-                  "ack": (),
-                  "change": ("op", "version", "effective_bar", "epoch_ms"),
-                  "mark": ("text",),
-                  "stop": ("reason", "version", "epoch_ms")}
-EVENT_OPTIONAL = {"start": ("epoch_ms", "state", "mode", "card", "key", "settings", "segments"),
-                  "launch": ("epoch_ms", "held_ms", "via"),
-                  "ack": (),
-                  "change": ("at", "bpm", "def", "card", "key", "variant", "settings", "segments", "if_version"),
-                  "mark": ("run", "epoch_ms", "version", "bar"),
-                  "stop": ("effective_bar", "stop_bar", "at", "approx")}
+EVENT_REQUIRED = {
+    "start": ("version", "effective_bar", "bpm", "def"),
+    "launch": ("version", "start_epoch_ms", "bar0_epoch_ms", "page_id"),
+    "ack": (),
+    "change": ("op", "version", "effective_bar", "epoch_ms"),
+    "mark": ("text",),
+    "stop": ("reason", "version", "epoch_ms"),
+}
+EVENT_OPTIONAL = {
+    "start": ("epoch_ms", "state", "mode", "card", "key", "settings", "segments"),
+    "launch": ("epoch_ms", "held_ms", "via"),
+    "ack": (),
+    "change": ("at", "bpm", "def", "card", "key", "variant", "settings", "segments", "if_version"),
+    "mark": ("run", "epoch_ms", "version", "bar"),
+    "stop": ("effective_bar", "stop_bar", "at", "approx"),
+}
 
 SEED_KEYS = ("api", "seed_version", "cards")
 SEED_MOMENTS_KEYS = ("api", "cards")
@@ -206,15 +323,15 @@ def _path(where: str, key) -> str:
 
 def _nested(prefix: str, exc: JamSchemaError) -> JamSchemaError:
     """The same complaint about an object held inside another, its field path prefixed ("card_snapshot.title")."""
-    detail = str(exc)[len(exc.field):].lstrip() if exc.field else str(exc)
+    detail = str(exc)[len(exc.field) :].lstrip() if exc.field else str(exc)
     return JamSchemaError(_path(prefix, exc.field) if exc.field else prefix, detail)
 
 
-def _is_int(x) -> bool:
+def _is_int(x) -> TypeIs[int]:
     return isinstance(x, int) and not isinstance(x, bool)
 
 
-def _is_num(x) -> bool:
+def _is_num(x) -> TypeIs[int | float]:
     return (isinstance(x, (int, float)) and not isinstance(x, bool)) and math.isfinite(x)
 
 
@@ -227,8 +344,9 @@ def _obj(value, field: str, what: str = "a JSON object") -> dict:
 def _unknown(obj: dict, allowed: Iterable[str], where: str) -> None:
     extra = sorted(set(obj) - set(allowed))
     if extra:
-        raise JamSchemaError(_path(where, extra[0]),
-                             f"is not a known field; expected some of {', '.join(sorted(allowed))}")
+        raise JamSchemaError(
+            _path(where, extra[0]), f"is not a known field; expected some of {', '.join(sorted(allowed))}"
+        )
 
 
 def _need(obj: dict, key: str, where: str):
@@ -237,7 +355,7 @@ def _need(obj: dict, key: str, where: str):
     return obj[key]
 
 
-def _text(obj: dict, key: str, where: str, limit: int, required: bool = False, nullable: bool = True) -> Optional[str]:
+def _text(obj: dict, key: str, where: str, limit: int, required: bool = False, nullable: bool = True) -> str | None:
     field = _path(where, key)
     if key not in obj or (obj[key] is None and nullable and not required):
         if required:
@@ -261,7 +379,7 @@ def _enum(value, field: str, allowed: Sequence, nullable: bool = False):
     return value
 
 
-def _int(value, field: str, lo: Optional[int] = None, hi: Optional[int] = None, nullable: bool = False):
+def _int(value, field: str, lo: int | None = None, hi: int | None = None, nullable: bool = False):
     if value is None and nullable:
         return None
     if not _is_int(value) or (lo is not None and value < lo) or (hi is not None and value > hi):
@@ -269,12 +387,22 @@ def _int(value, field: str, lo: Optional[int] = None, hi: Optional[int] = None, 
     return value
 
 
-def _num(value, field: str, lo: Optional[float] = None, hi: Optional[float] = None, nullable: bool = False,
-         above: Optional[float] = None):
+def _num(
+    value,
+    field: str,
+    lo: float | None = None,
+    hi: float | None = None,
+    nullable: bool = False,
+    above: float | None = None,
+):
     if value is None and nullable:
         return None
-    bad = not _is_num(value) or (lo is not None and value < lo) or (hi is not None and value > hi) or \
-        (above is not None and value <= above)
+    bad = (
+        not _is_num(value)
+        or (lo is not None and value < lo)
+        or (hi is not None and value > hi)
+        or (above is not None and value <= above)
+    )
     if bad:
         span = f" > {above}" if above is not None else _range(lo, hi)
         raise JamSchemaError(field, f"must be a number{span} (got {value!r:.60})")
@@ -299,7 +427,7 @@ def _bool(value, field: str, nullable: bool = False):
     return value
 
 
-def _list(value, field: str, lo: int = 0, hi: Optional[int] = None) -> list:
+def _list(value, field: str, lo: int = 0, hi: int | None = None) -> list:
     if not isinstance(value, list):
         raise JamSchemaError(field, f"must be a list (got {value!r:.60})")
     if len(value) < lo:
@@ -319,15 +447,19 @@ def _iso(value, field: str, nullable: bool = False):
     if value is None and nullable:
         return None
     if not isinstance(value, str) or not ISO_RE.match(value):
-        raise JamSchemaError(field, f'must be an ISO 8601 UTC time like "2030-01-01T00:00:00.000+00:00" '
-                                    f"(got {value!r:.60})")
+        raise JamSchemaError(
+            field, f'must be an ISO 8601 UTC time like "2030-01-01T00:00:00.000+00:00" (got {value!r:.60})'
+        )
     return value
 
 
 def _card_id(value, field: str) -> str:
     if not isinstance(value, str) or not ID_RE.match(value):
-        raise JamSchemaError(field, f"must be a card id: lowercase letters, digits and -, 1 to 48 long, starting "
-                                    f"with a letter or digit (got {value!r:.60})")
+        raise JamSchemaError(
+            field,
+            f"must be a card id: lowercase letters, digits and -, 1 to 48 long, starting "
+            f"with a letter or digit (got {value!r:.60})",
+        )
     return value
 
 
@@ -356,7 +488,7 @@ def _midi_list(value, field: str, lo: int = 1, hi: int = MAX_EXACT_NOTES, ordere
 
 
 def _pc(value, field: str) -> int:
-    return _int(value, field, 0, 11)
+    return cast("int", _int(value, field, 0, 11))
 
 
 def _hold(value, field: str):
@@ -401,8 +533,10 @@ def _chord_line(items, where: str) -> None:
             _unknown(item, ("key",), at)
             value = item["key"]
             if not isinstance(value, str) or not KEY_ITEM_RE.match(value):
-                raise JamSchemaError(_path(at, "key"), f'must be a degree of the card key and a mode, like "6 major" '
-                                                       f"or \"b3 minor\" (got {value!r:.60})")
+                raise JamSchemaError(
+                    _path(at, "key"),
+                    f'must be a degree of the card key and a mode, like "6 major" or "b3 minor" (got {value!r:.60})',
+                )
             continue
         if "rest" in item:
             _unknown(item, ("rest",), at)
@@ -412,11 +546,13 @@ def _chord_line(items, where: str) -> None:
         n = item.get("n")
         if n is None:
             if "notes" not in item:
-                raise JamSchemaError(_path(at, "n"), 'is required unless the chord has exact notes (a Nashville number '
-                                                     'like "4maj7#11")')
+                raise JamSchemaError(
+                    _path(at, "n"), 'is required unless the chord has exact notes (a Nashville number like "4maj7#11")'
+                )
         elif not isinstance(n, str) or len(n) > NUMBER_MAX or not NUMBER_RE.match(n):
-            raise JamSchemaError(_path(at, "n"), f'must be a Nashville number like "1maj9", "5^7sus4/1" or "b6maj9" '
-                                                 f"(got {n!r:.60})")
+            raise JamSchemaError(
+                _path(at, "n"), f'must be a Nashville number like "1maj9", "5^7sus4/1" or "b6maj9" (got {n!r:.60})'
+            )
         if "beats" in item:
             _beats(item["beats"], _path(at, "beats"))
         if "notes" in item:
@@ -435,8 +571,9 @@ def _chord_line(items, where: str) -> None:
             if item["upper"] != "same":
                 raise JamSchemaError(_path(at, "upper"), f'must be "same" (got {item["upper"]!r:.60})')
             if first_chord:
-                raise JamSchemaError(_path(at, "upper"), "cannot be on a line's first chord: it keeps the previous "
-                                                         "chord's upper voices")
+                raise JamSchemaError(
+                    _path(at, "upper"), "cannot be on a line's first chord: it keeps the previous chord's upper voices"
+                )
         first_chord = False
     if chord_count(items) == 0:
         raise JamSchemaError(where, "needs at least one chord (not only rests and key changes)")
@@ -454,7 +591,7 @@ def _tempo(value, field: str, partial: bool = False) -> dict:
     return value
 
 
-def _line_for(card: dict, variant: Optional[str], field: str) -> list:
+def _line_for(card: dict, variant: str | None, field: str) -> list:
     if variant is None:
         return card.get("chords") or []
     for v in card.get("variants") or []:
@@ -473,8 +610,10 @@ def _slot_in_line(card: dict, obj: dict, where: str, required: bool) -> None:
     count = chord_count(line)
     _int(obj["slot"], _path(where, "slot"), 0)
     if obj["slot"] >= count:
-        raise JamSchemaError(_path(where, "slot"), f"is {obj['slot']}, but the line has {count} chord"
-                                                   f"{'s' if count != 1 else ''} (slots count from 0)")
+        raise JamSchemaError(
+            _path(where, "slot"),
+            f"is {obj['slot']}, but the line has {count} chord{'s' if count != 1 else ''} (slots count from 0)",
+        )
 
 
 def _moment(value, field: str) -> None:
@@ -578,10 +717,13 @@ def validate_card(card, stored: bool = False) -> dict:
                 raise JamSchemaError(_path(at, "id"), f"repeats variant {vid!r}")
             seen.add(vid)
             _text(v, "label", at, VARIANT_LABEL_MAX)
-            if "key" in v and v["key"] is not None:
-                if not isinstance(v["key"], str) or not KEY_ITEM_RE.match(v["key"]):
-                    raise JamSchemaError(_path(at, "key"), f'must be a degree of the card key and a mode, like '
-                                                           f'"b7 major" (got {v["key"]!r:.60})')
+            if ("key" in v and v["key"] is not None) and (
+                not isinstance(v["key"], str) or not KEY_ITEM_RE.match(v["key"])
+            ):
+                raise JamSchemaError(
+                    _path(at, "key"),
+                    f'must be a degree of the card key and a mode, like "b7 major" (got {v["key"]!r:.60})',
+                )
             _chord_line(_need(v, "chords", at), _path(at, "chords"))
             if "tempo" in v:
                 _tempo(v["tempo"], _path(at, "tempo"), partial=True)
@@ -615,7 +757,9 @@ def validate_card(card, stored: bool = False) -> dict:
         meter = (card.get("tempo") or {}).get("beats_per_bar", CARD_DEFAULTS["tempo"]["beats_per_bar"])
         beats = line_beats(card.get("chords") or [])
         if card["bars"] * meter < beats:
-            raise JamSchemaError("bars", f"is {card['bars']} bars of {meter} beats, but the chords last {beats:g} beats")
+            raise JamSchemaError(
+                "bars", f"is {card['bars']} bars of {meter} beats, but the chords last {beats:g} beats"
+            )
     if "playback" in card:
         pb = _obj(card["playback"], "playback")
         _unknown(pb, ("velocity", "arpeggio_ms", "hold", "count"), "playback")
@@ -641,7 +785,7 @@ def validate_card(card, stored: bool = False) -> dict:
             _unknown(chk, CHECK_KEYS, at)
             cid = _need(chk, "id", at)
             if not isinstance(cid, str) or not ID_RE.match(cid):
-                raise JamSchemaError(_path(at, "id"), f"must be a slug like \"sharp-eleven\" (got {cid!r:.60})")
+                raise JamSchemaError(_path(at, "id"), f'must be a slug like "sharp-eleven" (got {cid!r:.60})')
             if cid in seen:
                 raise JamSchemaError(_path(at, "id"), f"repeats check {cid!r}")
             seen.add(cid)
@@ -655,8 +799,9 @@ def validate_card(card, stored: bool = False) -> dict:
         _list(card["tags"], "tags", 0, MAX_TAGS)
         for i, tag in enumerate(card["tags"]):
             if not isinstance(tag, str) or not TAG_RE.match(tag):
-                raise JamSchemaError(_path("tags", i), f"must be a tag: lowercase letters, digits and -, 1 to 24 long "
-                                                       f"(got {tag!r:.60})")
+                raise JamSchemaError(
+                    _path("tags", i), f"must be a tag: lowercase letters, digits and -, 1 to 24 long (got {tag!r:.60})"
+                )
     if "moments" in card:
         _list(card["moments"], "moments", 0, MAX_MOMENTS)
         for i, m in enumerate(card["moments"]):
@@ -714,14 +859,22 @@ def card_settings(card: dict) -> dict:
     beats = line_beats(card.get("chords") or [])
     meter = tempo["beats_per_bar"]
     bars = card.get("bars") or (math.ceil(beats / meter) if beats else 0)
-    return {"tempo": tempo, "voicing": voicing, "playback": playback, "groove": groove,
-            "groove_v1": groove if groove in GROOVES_V1 else "ballad", "backing": backing,
-            "backing_v1": backing if backing in BACKINGS_V1 else "comp", "bars": bars, "cycle_beats": bars * meter}
+    return {
+        "tempo": tempo,
+        "voicing": voicing,
+        "playback": playback,
+        "groove": groove,
+        "groove_v1": groove if groove in GROOVES_V1 else "ballad",
+        "backing": backing,
+        "backing_v1": backing if backing in BACKINGS_V1 else "comp",
+        "bars": bars,
+        "cycle_beats": bars * meter,
+    }
 
 
-def card_texts(card: dict) -> List[Tuple[str, str]]:
+def card_texts(card: dict) -> list[tuple[str, str]]:
     """Every text of a card Daniel reads, as (field path, text), for the wording guards (sections 11.4 and 12)."""
-    out: List[Tuple[str, str]] = []
+    out: list[tuple[str, str]] = []
 
     def add(path, value):
         if isinstance(value, str) and value:
@@ -750,17 +903,15 @@ def card_texts(card: dict) -> List[Tuple[str, str]]:
     return out
 
 
-def wording_problems(card: dict, forbidden: Sequence[str] = CARD_WORDING_FORBIDDEN) -> List[Tuple[str, str]]:
+def wording_problems(card: dict, forbidden: Sequence[str] = CARD_WORDING_FORBIDDEN) -> list[tuple[str, str]]:
     """(field path, word) for every forbidden word (whole word, any case) in the card's texts."""
     out = []
     for path, text in card_texts(card):
-        for word in forbidden:
-            if re.search(rf"\b{re.escape(word)}\b", text, re.I):
-                out.append((path, word))
+        out.extend((path, word) for word in forbidden if re.search(rf"\b{re.escape(word)}\b", text, re.I))
     return out
 
 
-def pair_problems(cards: Sequence[dict]) -> List[Tuple[str, str]]:
+def pair_problems(cards: Sequence[dict]) -> list[tuple[str, str]]:
     """(card id, sentence) for every question and answer pair that does not close: the partner is missing from the
     cards, does not name this card back, or has the same role. The sentence reads after "<id>.pair "."""
     by_id = {c.get("id"): c for c in cards if isinstance(c, dict)}
@@ -808,17 +959,21 @@ def _voicings(slot: dict, at: str) -> None:
     for key in ("full", "comp", "bass"):
         low = v[key][0]
         if low % 12 != slot["bass_pc"]:
-            raise JamSchemaError(_path(_path(field, key), 0), f"is MIDI {low}, not the bass pitch class "
-                                                              f"{slot['bass_pc']}")
+            raise JamSchemaError(
+                _path(_path(field, key), 0), f"is MIDI {low}, not the bass pitch class {slot['bass_pc']}"
+            )
         if not lo <= low <= hi:
-            raise JamSchemaError(_path(_path(field, key), 0), f"is MIDI {low}; the band bass sits in {lo}..{hi} "
-                                                              f"(E1..D3)")
+            raise JamSchemaError(
+                _path(_path(field, key), 0), f"is MIDI {low}; the band bass sits in {lo}..{hi} (E1..D3)"
+            )
     if v["full"][-1] > FULL_TOP_MAX:
-        raise JamSchemaError(_path(field, "full"), f"reaches MIDI {v['full'][-1]}; the full backing tops out at "
-                                                   f"{FULL_TOP_MAX} (A4)")
+        raise JamSchemaError(
+            _path(field, "full"), f"reaches MIDI {v['full'][-1]}; the full backing tops out at {FULL_TOP_MAX} (A4)"
+        )
     if v["comp"][-1] > COMP_TOP_MAX:
-        raise JamSchemaError(_path(field, "comp"), f"reaches MIDI {v['comp'][-1]}; the comp backing tops out at "
-                                                   f"{COMP_TOP_MAX} (E4)")
+        raise JamSchemaError(
+            _path(field, "comp"), f"reaches MIDI {v['comp'][-1]}; the comp backing tops out at {COMP_TOP_MAX} (E4)"
+        )
     rfield = _path(at, "roles")
     roles = _obj(_need(slot, "roles", at), rfield)
     _unknown(roles, VOICING_KEYS[1:] + VOICING_OPTIONAL_KEYS, rfield)
@@ -850,7 +1005,7 @@ def validate_def(d) -> dict:
         raise JamSchemaError("api", f"must be {DEF_API!r} (got {d['api']!r:.60})")
     _def_card(_need(d, "card", ""), "card")
     _key_name(_need(d, "key", ""), "key")
-    meter = _int(_need(d, "beats_per_bar", ""), "beats_per_bar", METER_MIN, METER_MAX)
+    meter = cast("int", _int(_need(d, "beats_per_bar", ""), "beats_per_bar", METER_MIN, METER_MAX))
     cycle = _need(d, "cycle_beats", "")
     if not _is_int(cycle) or cycle <= 0 or cycle % meter:
         raise JamSchemaError("cycle_beats", f"must be a whole number of bars of {meter} beats (got {cycle!r:.60})")
@@ -885,15 +1040,19 @@ def validate_def(d) -> dict:
             _need(slot, key, at)
         if slot["i"] != i:
             raise JamSchemaError(_path(at, "i"), f"must be {i}, its place in the list (got {slot['i']!r:.60})")
-        sec = _int(slot["section"], _path(at, "section"), 0, len(sections) - 1)
+        sec = cast("int", _int(slot["section"], _path(at, "section"), 0, len(sections) - 1))
         _beat_position(slot["at_beat"], _path(at, "at_beat"))
         _beats(slot["beats"], _path(at, "beats"), hi=cycle)
         if slot["at_beat"] < end:
-            raise JamSchemaError(_path(at, "at_beat"), f"is {slot['at_beat']:g}, before the previous slot ends at "
-                                                       f"beat {end:g}")
-        if slot["at_beat"] < sections[sec]["from_beat"] or \
-                (sec + 1 < len(sections) and slot["at_beat"] >= sections[sec + 1]["from_beat"]):
-            raise JamSchemaError(_path(at, "section"), f"is {sec}, but beat {slot['at_beat']:g} is outside that section")
+            raise JamSchemaError(
+                _path(at, "at_beat"), f"is {slot['at_beat']:g}, before the previous slot ends at beat {end:g}"
+            )
+        if slot["at_beat"] < sections[sec]["from_beat"] or (
+            sec + 1 < len(sections) and slot["at_beat"] >= sections[sec + 1]["from_beat"]
+        ):
+            raise JamSchemaError(
+                _path(at, "section"), f"is {sec}, but beat {slot['at_beat']:g} is outside that section"
+            )
         end = slot["at_beat"] + slot["beats"]
         if end > cycle:
             raise JamSchemaError(_path(at, "beats"), f"runs to beat {end:g}, past the cycle's {cycle} beats")
@@ -903,8 +1062,9 @@ def validate_def(d) -> dict:
         _text(slot, "name", at, 60)
         _key_name(slot["key"], _path(at, "key"))
         if slot["key"] != sections[sec]["key"]:
-            raise JamSchemaError(_path(at, "key"), f"is {slot['key']!r}, but section {sec} is in "
-                                                   f"{sections[sec]['key']!r}")
+            raise JamSchemaError(
+                _path(at, "key"), f"is {slot['key']!r}, but section {sec} is in {sections[sec]['key']!r}"
+            )
         tones = _obj(slot["tones_pc"], _path(at, "tones_pc"))
         for role, pc in tones.items():
             _enum(role, _path(_path(at, "tones_pc"), role), TONE_ROLES)
@@ -935,8 +1095,9 @@ def validate_def(d) -> dict:
                 raise JamSchemaError(_path(at, "upper_same"), "cannot be true on the first slot")
             for key in ("full", "comp"):
                 if slot["voicings"][key][1:] != prev["voicings"][key][1:]:
-                    raise JamSchemaError(_path(_path(at, "voicings"), key),
-                                         "must keep the previous slot's upper voices (upper_same)")
+                    raise JamSchemaError(
+                        _path(_path(at, "voicings"), key), "must keep the previous slot's upper voices (upper_same)"
+                    )
         _int(slot["vel"], _path(at, "vel"), VELOCITY_MIN, VELOCITY_MAX)
         _int(slot["arp_ms"], _path(at, "arp_ms"), 0, ARP_MAX_MS)
         _text(slot, "say", at, SAY_MAX)
@@ -965,8 +1126,9 @@ def validate_def(d) -> dict:
             _enum(landing["relative_to"], "landing.relative_to", RELATIVE_TO)
         _pc(_need(landing, "pc", "landing"), "landing.pc")
         _text(landing, "pull", "landing", PULL_MAX, required=True)
-        if "note" in landing and (not isinstance(landing["note"], str) or
-                                  not re.fullmatch(r"[A-G](bb|##|b|#)?", landing["note"])):
+        if "note" in landing and (
+            not isinstance(landing["note"], str) or not re.fullmatch(r"[A-G](bb|##|b|#)?", landing["note"])
+        ):
             raise JamSchemaError("landing.note", f"must be a note name like Cb or F# (got {landing['note']!r:.60})")
     return copy.deepcopy(d)
 
@@ -989,23 +1151,29 @@ def _segments(segments, meter: int, count_in: int, where: str = "segments") -> N
         _int(seg["def_from_bar"], _path(at, "def_from_bar"))
         if i == 0:
             if seg["from_bar"] != -count_in:
-                raise JamSchemaError(_path(at, "from_bar"), f"must be {-count_in}: the first segment starts the "
-                                                            f"count-in of {count_in} bar{'s' if count_in != 1 else ''}")
+                raise JamSchemaError(
+                    _path(at, "from_bar"),
+                    f"must be {-count_in}: the first segment starts the "
+                    f"count-in of {count_in} bar{'s' if count_in != 1 else ''}",
+                )
             if seg["def_from_bar"] != 0:
                 raise JamSchemaError(_path(at, "def_from_bar"), "must be 0: bar 0 is the first downbeat of the run")
             continue
         before = segments[i - 1]
         if seg["from_bar"] <= before["from_bar"]:
-            raise JamSchemaError(_path(at, "from_bar"), f"must come after the previous segment's bar "
-                                                        f"{before['from_bar']}")
+            raise JamSchemaError(
+                _path(at, "from_bar"), f"must come after the previous segment's bar {before['from_bar']}"
+            )
         if seg["def_version"] < before["def_version"]:
             raise JamSchemaError(_path(at, "def_version"), "must not go back to an older def")
         if seg["def_from_bar"] > seg["from_bar"]:
             raise JamSchemaError(_path(at, "def_from_bar"), "cannot start the def's cycle after the segment starts")
         want = tempomap.t_epoch(segments[:i], meter, seg["from_bar"])
         if abs(seg["epoch_ms"] - want) > SEGMENT_TOLERANCE_MS:
-            raise JamSchemaError(_path(at, "epoch_ms"), f"is {seg['epoch_ms']!r}, but the tempo map puts bar "
-                                                        f"{seg['from_bar']} at {want!r}")
+            raise JamSchemaError(
+                _path(at, "epoch_ms"),
+                f"is {seg['epoch_ms']!r}, but the tempo map puts bar {seg['from_bar']} at {want!r}",
+            )
 
 
 def _settings(settings, mode: str, where: str = "settings") -> None:
@@ -1027,7 +1195,7 @@ def _settings(settings, mode: str, where: str = "settings") -> None:
         _enum(s["backing"], _path(at, "backing"), BACKINGS)
         _int(s["level"], _path(at, "level"), VELOCITY_MIN, VELOCITY_MAX)
         _num(s["humanize"], _path(at, "humanize"), 0, 1)
-        _int(s["seed"], _path(at, "seed"), 0, 2 ** 32 - 1)
+        _int(s["seed"], _path(at, "seed"), 0, 2**32 - 1)
         _int(s["walk"], _path(at, "walk"), 0, 1)
         if mode == "try":
             _enum(s["try_backing"], _path(at, "try_backing"), TRY_BACKINGS)
@@ -1058,7 +1226,7 @@ def validate_run(run) -> dict:
         raise JamSchemaError("api", f"must be {RUN_API!r} (got {run['api']!r:.60})")
     if not isinstance(run["run"], str) or not RUN_ID_RE.match(run["run"]):
         raise JamSchemaError("run", f"must be a run id like 20300101-000020-7a11c0de (got {run['run']!r:.60})")
-    mode = _enum(run["mode"], "mode", MODES)
+    mode = cast("str", _enum(run["mode"], "mode", MODES))
     _enum(run["route"], "route", ROUTES)
     _text(run, "engine", "", ENGINE_MAX, required=True)
     state = _enum(run["state"], "state", STATES)
@@ -1078,8 +1246,8 @@ def validate_run(run) -> dict:
         if run["card_snapshot"]["id"] != run["card"]["id"] or run["card_snapshot"]["rev"] != run["card"]["rev"]:
             raise JamSchemaError("card_snapshot.id", "must be the card the run names, at the same rev")
     _key_name(run["key"], "key")
-    meter = _int(run["beats_per_bar"], "beats_per_bar", METER_MIN, METER_MAX)
-    count_in = _int(run["count_in_bars"], "count_in_bars", 0, COUNT_IN_MAX)
+    meter = cast("int", _int(run["beats_per_bar"], "beats_per_bar", METER_MIN, METER_MAX))
+    count_in = cast("int", _int(run["count_in_bars"], "count_in_bars", 0, COUNT_IN_MAX))
     if mode == "play" and count_in:
         raise JamSchemaError("count_in_bars", "must be 0 for a play run")
     last_version = _int(run["last_version"], "last_version", 1)
@@ -1089,8 +1257,12 @@ def validate_run(run) -> dict:
     for key in ("start_epoch_ms", "bar0_epoch_ms"):
         _num(run[key], key, above=0, nullable=True)
         if (run[key] is None) == launched:
-            raise JamSchemaError(key, "is required once the run is launched (it has segments)" if launched else
-                                 "must be null until the run is launched and has segments")
+            raise JamSchemaError(
+                key,
+                "is required once the run is launched (it has segments)"
+                if launched
+                else "must be null until the run is launched and has segments",
+            )
     if state == "running" and not launched:
         raise JamSchemaError("segments", "must not be empty for a running run")
     if state == "pending" and launched:
@@ -1101,15 +1273,17 @@ def validate_run(run) -> dict:
             raise JamSchemaError("segments[0].epoch_ms", "must equal start_epoch_ms")
         want = tempomap.t_epoch(segments, meter, 0)
         if abs(run["bar0_epoch_ms"] - want) > SEGMENT_TOLERANCE_MS:
-            raise JamSchemaError("bar0_epoch_ms", f"is {run['bar0_epoch_ms']!r}, but the tempo map puts bar 0 at "
-                                                  f"{want!r}")
+            raise JamSchemaError(
+                "bar0_epoch_ms", f"is {run['bar0_epoch_ms']!r}, but the tempo map puts bar 0 at {want!r}"
+            )
         for i, seg in enumerate(segments):
             if seg["def_version"] > last_version:
                 raise JamSchemaError(f"segments[{i}].def_version", f"is newer than last_version {last_version}")
     _settings(run["settings"], mode)
 
-    if run["owner_page_id"] is not None and (not isinstance(run["owner_page_id"], str) or
-                                             not PAGE_ID_RE.match(run["owner_page_id"])):
+    if run["owner_page_id"] is not None and (
+        not isinstance(run["owner_page_id"], str) or not PAGE_ID_RE.match(run["owner_page_id"])
+    ):
         raise JamSchemaError("owner_page_id", f"must be a page id or null (got {run['owner_page_id']!r:.60})")
     courtesy = _obj(run["courtesy"], "courtesy")
     _unknown(courtesy, COURTESY_KEYS, "courtesy")
@@ -1124,11 +1298,13 @@ def validate_run(run) -> dict:
     if closed != stopped:
         raise JamSchemaError("closed", f"must be {str(stopped).lower()} while the state is {state}")
     if (reason is None) == stopped:
-        raise JamSchemaError("stop_reason", "is required once the run is stopped" if stopped else
-                             "must be null until the run stops")
+        raise JamSchemaError(
+            "stop_reason", "is required once the run is stopped" if stopped else "must be null until the run stops"
+        )
     if (run["stopped_epoch_ms"] is None) == stopped:
-        raise JamSchemaError("stopped_epoch_ms", "is required once the run is stopped" if stopped else
-                             "must be null until the run stops")
+        raise JamSchemaError(
+            "stopped_epoch_ms", "is required once the run is stopped" if stopped else "must be null until the run stops"
+        )
     _int(run["late_dropped"], "late_dropped", 0)
     if "approx" in run:
         _bool(run["approx"], "approx")
@@ -1146,7 +1322,9 @@ def _ack_body(ack: dict, where: str, extra_allowed: Sequence[str] = ()) -> dict:
         _need(ack, key, where)
     page_id = ack["page_id"]
     if not isinstance(page_id, str) or not PAGE_ID_RE.match(page_id):
-        raise JamSchemaError(_path(where, "page_id"), f"must be 1 to 80 letters, digits or _ . : - (got {page_id!r:.60})")
+        raise JamSchemaError(
+            _path(where, "page_id"), f"must be 1 to 80 letters, digits or _ . : - (got {page_id!r:.60})"
+        )
     _enum(ack["role"], _path(where, "role"), ACK_ROLES)
     _int(ack["version"], _path(where, "version"), 1)
     _int(ack["bar"], _path(where, "bar"), -COUNT_IN_MAX)
@@ -1194,7 +1372,7 @@ def validate_run_event(line) -> dict:
     if not isinstance(line, dict):
         raise JamSchemaError("line", "must be a JSON object")
     _int(_need(line, "seq", ""), "seq", 0)
-    kind = _enum(_need(line, "kind", ""), "kind", EVENT_KINDS)
+    kind = cast("str", _enum(_need(line, "kind", ""), "kind", EVENT_KINDS))
     _num(_need(line, "recorded_epoch_ms", ""), "recorded_epoch_ms", above=0)
     _enum(_need(line, "by", ""), "by", EVENT_BY)
     if kind == "ack":
@@ -1207,7 +1385,7 @@ def validate_run_event(line) -> dict:
         _int(line["version"], "version", 1)
     if "epoch_ms" in line:
         _num(line["epoch_ms"], "epoch_ms", above=0, nullable=kind in ("start", "launch", "mark"))
-    for key in ("effective_bar", "stop_bar", "bar"):     # null: a pending run has no bars yet
+    for key in ("effective_bar", "stop_bar", "bar"):  # null: a pending run has no bars yet
         if key in line:
             _int(line[key], key, nullable=True)
     if "bpm" in line:
@@ -1256,8 +1434,11 @@ def validate_run_event(line) -> dict:
             _int(line["if_version"], "if_version", 1)
     elif kind == "mark":
         _text(line, "text", "", MARK_TEXT_MAX, required=True)
-        if "run" in line and line["run"] is not None and (not isinstance(line["run"], str) or
-                                                          not RUN_ID_RE.match(line["run"])):
+        if (
+            "run" in line
+            and line["run"] is not None
+            and (not isinstance(line["run"], str) or not RUN_ID_RE.match(line["run"]))
+        ):
             raise JamSchemaError("run", f"must be a run id (got {line['run']!r:.60})")
     elif kind == "stop":
         _enum(line["reason"], "reason", STOP_REASONS)
@@ -1287,8 +1468,11 @@ def validate_seed(doc) -> dict:
             raise _nested(at, exc) from None
         for key in ("moments", "replay"):
             if key in card:
-                raise JamSchemaError(_path(at, key), "must stay out of the tracked seed: moment links live only in "
-                                                     "state/arsenal/jam/seed/moments-v1.json")
+                raise JamSchemaError(
+                    _path(at, key),
+                    "must stay out of the tracked seed: moment links live only in "
+                    "state/arsenal/jam/seed/moments-v1.json",
+                )
         if card["id"] in seen:
             raise JamSchemaError(_path(at, "id"), f"repeats card {card['id']!r}")
         seen.add(card["id"])

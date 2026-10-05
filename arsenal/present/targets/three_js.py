@@ -14,13 +14,13 @@ with urllib and falls back to the jsdelivr npm build when cdnjs lacks the versio
 works from file:// with no build step and stays under 200 KB. Never open it in the Claude
 app's own browser pane (WebGL crashed the app on 2026-08-12); use Chrome.
 """
+
 from __future__ import annotations
 
 import json
 import urllib.error
 import urllib.request
 from pathlib import Path
-from typing import List, Optional
 
 from .. import scene as sc
 from . import _core as C
@@ -31,7 +31,7 @@ MODULE_ID = "present.three-js"
 THREE_VERSION = "r128"
 CDNJS = "https://cdnjs.cloudflare.com/ajax/libs/three.js/{v}/three.min.js"
 JSDELIVR = "https://cdn.jsdelivr.net/npm/three@{v}/build/three.min.js"
-DEFAULT_GAP = 480             # logical units between plane edges (a quarter of a slide)
+DEFAULT_GAP = 480  # logical units between plane edges (a quarter of a slide)
 SIZE_LIMIT = 200_000
 
 
@@ -64,16 +64,23 @@ def cdn_url(version: str = THREE_VERSION, verify: bool = False) -> str:
     raise RuntimeError(f"three.js {version} answers neither at {url} nor at {alt}")
 
 
-def deck_data(scene: dict, tk: Optional[dict] = None, *, three: str, autoplay: bool = False,
-              plane_gap: float = DEFAULT_GAP) -> dict:
+def deck_data(
+    scene: dict, tk: dict | None = None, *, three: str, autoplay: bool = False, plane_gap: float = DEFAULT_GAP
+) -> dict:
     tk = tk or C.tokens(scene)
     starts = C.section_starts(scene)
     slides = [_paint.paint_slide(scene, s, tk, section=starts.get(s["id"])) for s in C.ordered_slides(scene)]
     world_per_unit = 16 / sc.CANVAS["w"]
-    return {"title": scene.get("title", ""), "three": three, "bg": tk["palette"]["dark"],
-            "faces": tk["faces"], "autoplay": bool(autoplay),
-            "gap": round(16 + plane_gap * world_per_unit, 3), "section_gap": round(plane_gap * world_per_unit, 3),
-            "slides": slides}
+    return {
+        "title": scene.get("title", ""),
+        "three": three,
+        "bg": tk["palette"]["dark"],
+        "faces": tk["faces"],
+        "autoplay": bool(autoplay),
+        "gap": round(16 + plane_gap * world_per_unit, 3),
+        "section_gap": round(plane_gap * world_per_unit, 3),
+        "slides": slides,
+    }
 
 
 PAGE = """<!DOCTYPE html>
@@ -279,20 +286,38 @@ var DECK = __DECK__;
 """
 
 
-def page(scene: dict, tk: Optional[dict] = None, *, three: Optional[str] = None, autoplay: bool = False,
-         plane_gap: float = DEFAULT_GAP) -> str:
+def page(
+    scene: dict,
+    tk: dict | None = None,
+    *,
+    three: str | None = None,
+    autoplay: bool = False,
+    plane_gap: float = DEFAULT_GAP,
+) -> str:
     tk = tk or C.tokens(scene)
     data = deck_data(scene, tk, three=three or cdn_url(), autoplay=autoplay, plane_gap=plane_gap)
     blob = json.dumps(data, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
     fonts = f'<link rel="stylesheet" href="{esc(tk["href"])}">\n' if tk.get("href") else ""
-    return (PAGE.replace("__TITLE__", esc(scene.get("title", ""))).replace("__FONTS__", fonts)
-            .replace("__BG__", tk["palette"]["dark"]).replace("__SANS__", tk["faces"]["sans"])
-            .replace("__MONO__", tk["faces"]["mono"]).replace("__THREE__", esc(data["three"]))
-            .replace("__DECK__", blob))
+    return (
+        PAGE.replace("__TITLE__", esc(scene.get("title", "")))
+        .replace("__FONTS__", fonts)
+        .replace("__BG__", tk["palette"]["dark"])
+        .replace("__SANS__", tk["faces"]["sans"])
+        .replace("__MONO__", tk["faces"]["mono"])
+        .replace("__THREE__", esc(data["three"]))
+        .replace("__DECK__", blob)
+    )
 
 
-def render(scene: dict, out_dir, verify_cdn: bool = False, autoplay: bool = False, plane_gap: float = DEFAULT_GAP,
-           three_version: str = THREE_VERSION, **opts) -> List[Path]:
+def render(
+    scene: dict,
+    out_dir,
+    verify_cdn: bool = False,
+    autoplay: bool = False,
+    plane_gap: float = DEFAULT_GAP,
+    three_version: str = THREE_VERSION,
+    **opts,
+) -> list[Path]:
     """Write <out_dir>/index.html (one page, one external script, under 200 KB)."""
     three = cdn_url(three_version, verify=bool(verify_cdn))
     html = page(scene, three=three, autoplay=autoplay, plane_gap=float(plane_gap))

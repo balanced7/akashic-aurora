@@ -1,0 +1,12 @@
+# The tooling-upgrade toolkit (behavioural oracle + goal certifier) as a uv workspace member.
+# It is stdlib-only by design (G0.P3), so it declares no dependencies and no build backend:
+# a virtual member, run from the checkout like everything else. Being a member is what lets
+# Turborepo's uv workspace support (turbo.json) discover the workspace at all.
+[project]
+name = "aurora-tooling-upgrade"
+version = "0.0.0"
+requires-python = ">=3.11"
+dependencies = []
+
+[tool.uv]
+package = false

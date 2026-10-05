@@ -23,6 +23,7 @@ it somewhere and check it later" is precisely the pattern that produced them. So
   * a record whose process is gone but whose status never advanced reads ORPHANED, so a
     dead child cannot look busy forever (the wedge shape this fleet already knows)
 """
+
 from __future__ import annotations
 
 import json
@@ -30,7 +31,7 @@ import os
 import time
 import uuid
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 ASK_DIR = Path(__file__).resolve().parents[2] / "state" / "asks"
 #: A record still "running" past this with no live process is ORPHANED rather than busy.
@@ -60,13 +61,12 @@ def prompt_path(handle: str) -> Path:
     return ASK_DIR / f"{handle}.prompt"
 
 
-def write_record(handle: str, rec: Dict[str, Any]) -> None:
+def write_record(handle: str, rec: dict[str, Any]) -> None:
     """Best-effort durable write. Never raises: losing bookkeeping must not lose the ask."""
     try:
         ASK_DIR.mkdir(parents=True, exist_ok=True)
         rec = {"handle": handle, "started": rec.get("started", time.time()), **rec}
-        _path(handle).write_text(json.dumps(rec, ensure_ascii=False, default=str),
-                                 encoding="utf-8")
+        _path(handle).write_text(json.dumps(rec, ensure_ascii=False, default=str), encoding="utf-8")
     except Exception:
         # Was `except OSError`, which made "Never raises" false: a circular reference
         # raises ValueError out of json.dumps and would have propagated into a caller
@@ -74,7 +74,7 @@ def write_record(handle: str, rec: Dict[str, Any]) -> None:
         pass
 
 
-def read_record(handle: str) -> Optional[Dict[str, Any]]:
+def read_record(handle: str) -> dict[str, Any] | None:
     """The record, or None for an unknown handle. None is NOT an empty answer -- a typo and
     a silent helper are different facts and must render differently."""
     try:
@@ -83,7 +83,7 @@ def read_record(handle: str) -> Optional[Dict[str, Any]]:
         return None
 
 
-def finish(handle: str, result: Dict[str, Any]) -> None:
+def finish(handle: str, result: dict[str, Any]) -> None:
     """Attach the child's structured result -- the same shape `ask --json` produces, so the
     background and foreground paths cannot drift into reporting different things."""
     rec = read_record(handle) or {"handle": handle}
@@ -94,7 +94,7 @@ def finish(handle: str, result: Dict[str, Any]) -> None:
     _emit_completed(handle, rec, result)
 
 
-def _emit_completed(handle: str, rec: Dict[str, Any], result: Dict[str, Any]) -> None:
+def _emit_completed(handle: str, rec: dict[str, Any], result: dict[str, Any]) -> None:
     """One durable event per finished ask (T206).
 
     WHY AN EVENT AND NOT MAIL. A background ask is PULL -- the caller must remember to
@@ -117,12 +117,14 @@ def _emit_completed(handle: str, rec: Dict[str, Any], result: Dict[str, Any]) ->
     """
     try:
         from core.events.event_log import capture_event
-        outcome = ("partial" if result.get("partial")
-                   else "done" if result.get("ok") else "failed")
+
+        outcome = "partial" if result.get("partial") else "done" if result.get("ok") else "failed"
         started = rec.get("started")
         detail = {
-            "handle": handle, "outcome": outcome,
-            "model": result.get("model"), "usd": result.get("usd"),
+            "handle": handle,
+            "outcome": outcome,
+            "model": result.get("model"),
+            "usd": result.get("usd"),
             "elapsed_s": result.get("elapsed_s"),
             "prompt_tokens": result.get("prompt_tokens"),
             "completion_tokens": result.get("completion_tokens"),
@@ -136,16 +138,18 @@ def _emit_completed(handle: str, rec: Dict[str, Any], result: Dict[str, Any]) ->
             "why": result.get("why"),
             "waited_s": (round(time.time() - float(started), 2) if started else None),
         }
-        capture_event("ask_completed",
-                      f"background ask {handle} {outcome}"
-                      + (f" ({result.get('model')})" if result.get("model") else ""),
-                      agent_id=os.environ.get("AKASHIC_AGENT_ID", "claude"),
-                      refs=[handle], detail=detail)
+        capture_event(
+            "ask_completed",
+            f"background ask {handle} {outcome}" + (f" ({result.get('model')})" if result.get("model") else ""),
+            agent_id=os.environ.get("AKASHIC_AGENT_ID", "claude"),
+            refs=[handle],
+            detail=detail,
+        )
     except Exception:
         pass
 
 
-def _alive(pid: Any) -> Optional[bool]:
+def _alive(pid: Any) -> bool | None:
     """Is that pid still running? None when we cannot tell -- and cannot-tell must not be
     reported as dead, or a healthy child gets declared orphaned."""
     try:
@@ -162,33 +166,37 @@ def _alive(pid: Any) -> Optional[bool]:
     # one screen below where the law is stated. Each failure now maps to what it actually
     # proves.
     import subprocess
+
     try:
         if os.name == "nt":
-            out = subprocess.run(["tasklist", "/FI", f"PID eq {pid}", "/NH"],
-                                 capture_output=True, text=True, timeout=10,
-                                 stdin=subprocess.DEVNULL)
+            out = subprocess.run(
+                ["tasklist", "/FI", f"PID eq {pid}", "/NH"],
+                capture_output=True,
+                text=True,
+                timeout=10,
+                stdin=subprocess.DEVNULL,
+            )
             if out.returncode != 0:
-                return None                     # the probe failed: cannot tell
+                return None  # the probe failed: cannot tell
             return str(pid) in (out.stdout or "")
         os.kill(pid, 0)
         return True
     except subprocess.SubprocessError:
-        return None                             # timeout/probe failure: cannot tell
+        return None  # timeout/probe failure: cannot tell
     except ProcessLookupError:
-        return False                            # the ONE error that proves death
+        return False  # the ONE error that proves death
     except PermissionError:
-        return True                             # it exists; we merely may not signal it
+        return True  # it exists; we merely may not signal it
     except OSError:
-        return None                             # any other OS failure: cannot tell
+        return None  # any other OS failure: cannot tell
     except Exception:
         return None
 
 
-def summarize(rec: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+def summarize(rec: dict[str, Any] | None) -> dict[str, Any]:
     """One state and one next step. Four readings, deliberately distinct."""
     if not rec:
-        return {"state": "UNKNOWN", "next": "no ask by that handle -- check the id, or "
-                                            "`ask --list` to see recent ones"}
+        return {"state": "UNKNOWN", "next": "no ask by that handle -- check the id, or `ask --list` to see recent ones"}
     status = str(rec.get("status") or "")
     result = rec.get("result") or {}
     if status == "done":
@@ -205,44 +213,67 @@ def summarize(rec: Optional[Dict[str, Any]]) -> Dict[str, Any]:
                 f"--- branch {b.get('i')} "
                 f"[{'ok' if b.get('ok') and not b.get('partial') else ('PARTIAL' if b.get('partial') else 'FAIL')}] "
                 f"{'-' * 40}\n{b.get('answer') or '(' + str(b.get('why') or 'no answer') + ')'}"
-                for b in branches)
+                for b in branches
+            )
             # T228: whoever reads a retrieved fan may never have seen the command that made
             # it, so this is the surface where the shape MOST needs saying. One shared
             # prescription with the CLI renderer.
             nxt = f"read {n_ok} of {n} branches"
             if div:
                 from core.comm.ask import diversity_prescription
-                nxt += " -- " + (result.get("diversity_next") or diversity_prescription(
-                    div, bool(result.get("homogeneous")), n_compared=n_ok or n))
-            return {"state": "DONE", "handle": rec.get("handle"), "answer": body,
-                    "usd": result.get("usd"), "partial": bool(result.get("partial")),
-                    "n": n, "n_ok": n_ok, "diversity": div, "next": nxt}
-        return {"state": "DONE", "handle": rec.get("handle"),
-                "answer": result.get("answer"), "usd": result.get("usd"),
+
+                nxt += " -- " + (
+                    result.get("diversity_next")
+                    or diversity_prescription(div, bool(result.get("homogeneous")), n_compared=n_ok or n)
+                )
+            return {
+                "state": "DONE",
+                "handle": rec.get("handle"),
+                "answer": body,
+                "usd": result.get("usd"),
                 "partial": bool(result.get("partial")),
-                "next": "read the answer" + (" -- it is PARTIAL, see `why`"
-                                             if result.get("partial") else "")}
+                "n": n,
+                "n_ok": n_ok,
+                "diversity": div,
+                "next": nxt,
+            }
+        return {
+            "state": "DONE",
+            "handle": rec.get("handle"),
+            "answer": result.get("answer"),
+            "usd": result.get("usd"),
+            "partial": bool(result.get("partial")),
+            "next": "read the answer" + (" -- it is PARTIAL, see `why`" if result.get("partial") else ""),
+        }
     if status == "failed":
-        return {"state": "FAILED", "handle": rec.get("handle"),
-                "why": result.get("why") or rec.get("why") or "unreported",
-                "next": "read `why` -- a STARVED ask needs a narrower question, not a retry"}
+        return {
+            "state": "FAILED",
+            "handle": rec.get("handle"),
+            "why": result.get("why") or rec.get("why") or "unreported",
+            "next": "read `why` -- a STARVED ask needs a narrower question, not a retry",
+        }
     # Still marked running. Is anything actually behind it?
     alive = _alive(rec.get("pid"))
     age = time.time() - float(rec.get("started") or time.time())
     if alive is False or (alive is None and age > ORPHAN_AFTER_S):
-        return {"state": "ORPHANED", "handle": rec.get("handle"),
-                "next": f"the child is no longer running and never wrote a result "
-                        f"(age {age:.0f}s) -- re-ask; nothing will arrive"}
-    return {"state": "RUNNING", "handle": rec.get("handle"),
-            "age_s": round(age, 1),
-            "next": "still working -- do something else and check back with "
-                    "`ask --get <handle>`"}
+        return {
+            "state": "ORPHANED",
+            "handle": rec.get("handle"),
+            "next": f"the child is no longer running and never wrote a result "
+            f"(age {age:.0f}s) -- re-ask; nothing will arrive",
+        }
+    return {
+        "state": "RUNNING",
+        "handle": rec.get("handle"),
+        "age_s": round(age, 1),
+        "next": "still working -- do something else and check back with `ask --get <handle>`",
+    }
 
 
-def list_records(limit: int = 20) -> List[Dict[str, Any]]:
+def list_records(limit: int = 20) -> list[dict[str, Any]]:
     """Recent asks, newest first. Bounded, because an unbounded listing of a growing
     directory is how a listing surface stops being read."""
-    out: List[Dict[str, Any]] = []
+    out: list[dict[str, Any]] = []
     try:
         for p in ASK_DIR.glob("*.json"):
             try:
@@ -252,4 +283,4 @@ def list_records(limit: int = 20) -> List[Dict[str, Any]]:
     except OSError:
         return []
     out.sort(key=lambda r: float(r.get("started") or 0), reverse=True)
-    return out[:max(1, int(limit))]
+    return out[: max(1, int(limit))]

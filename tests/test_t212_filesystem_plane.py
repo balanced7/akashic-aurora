@@ -26,15 +26,15 @@ possible failure shape: correct on the machine you test on.
 
 Run: py -m pytest tests/test_t212_filesystem_plane.py -q
 """
+
 import os
 import sys
-import time
 
 import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.coord import timeline as TL  # noqa: E402
+from core.coord import timeline as TL
 
 
 @pytest.fixture
@@ -51,8 +51,9 @@ def test_files_become_rows_with_real_mtimes(tree):
     rows = TL._file_rows(root=str(tree))
     assert len(rows) == 3
     for r in rows:
-        assert TL._epoch(r["ts"]) is not None
-        assert TL._epoch(r["ts"]) > 1_000_000_000
+        ep = TL._epoch(r["ts"])
+        assert ep is not None
+        assert ep > 1_000_000_000
     assert {os.path.basename(r["ref"]) for r in rows} == {"a.py", "b.md", "c.py"}
 
 
@@ -82,13 +83,12 @@ def test_ctime_is_never_read_as_creation(tree):
     tree = ast.parse(inspect.getsource(TL))
     attrs = {n.attr for n in ast.walk(tree) if isinstance(n, ast.Attribute)}
     names = {n.id for n in ast.walk(tree) if isinstance(n, ast.Name)}
-    consts = {n.value for n in ast.walk(tree)
-              if isinstance(n, ast.Constant) and isinstance(n.value, str)}
+    consts = {n.value for n in ast.walk(tree) if isinstance(n, ast.Constant) and isinstance(n.value, str)}
     assert "st_ctime" not in (attrs | names | consts), (
         "st_ctime means CREATION on Windows and INODE CHANGE on Unix -- use "
-        "st_birthtime (guarded) or do not claim a birth time at all")
-    assert "st_birthtime" in (attrs | names | consts), (
-        "the guarded birth source must actually be the one consulted")
+        "st_birthtime (guarded) or do not claim a birth time at all"
+    )
+    assert "st_birthtime" in (attrs | names | consts), "the guarded birth source must actually be the one consulted"
 
 
 def test_birth_time_is_optional_and_absent_is_not_zero(tree):

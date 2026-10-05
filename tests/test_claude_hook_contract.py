@@ -13,6 +13,7 @@ Windows) -- the ground truth this hook's assumptions are pinned to. Verified liv
 If the harness changes shape, re-capture (the hook auto-captures to %TEMP%/akashic_recall/payloads/
 -- kill switch AKASHIC_PAYLOAD_CAPTURE=0), diff against these fixtures, and update BOTH.
 """
+
 import io
 import json
 import os
@@ -39,10 +40,16 @@ def _transcript_path():
 
 # --- 1. success payloads: every real captured payload must resolve success=True -------------------
 
-@pytest.mark.parametrize("name", ["posttooluse_bash_success.json",
-                                  "posttooluse_edit_success.json",
-                                  "posttooluse_write_success.json",
-                                  "posttooluse_powershell_success.json"])
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "posttooluse_bash_success.json",
+        "posttooluse_edit_success.json",
+        "posttooluse_write_success.json",
+        "posttooluse_powershell_success.json",
+    ],
+)
 def test_live_success_payloads_are_success(name):
     assert hook._is_success(_load(name)) is True
 
@@ -63,6 +70,7 @@ def test_interrupted_is_not_success():
 
 
 # --- 2. transcript synthesis: find the newest failure for a target --------------------------------
+
 
 def test_latest_failure_id_bash_target_newest_wins():
     tgt = normalize_target(None, "cd E:/AI-Setup && py probe_thing.py --flag")
@@ -87,6 +95,7 @@ def test_latest_failure_id_unknown_target_and_bad_path():
 
 # --- 3. watermark: a failure is processed exactly once ---------------------------------------------
 
+
 def test_failure_watermark_roundtrip(tmp_path, monkeypatch):
     monkeypatch.setattr(hook, "_TXW_DIR", str(tmp_path))
     assert hook._failure_processed("sess-1", "c:x", "toolu_a") is False
@@ -101,13 +110,17 @@ def test_failure_watermark_roundtrip(tmp_path, monkeypatch):
 
 # --- 4. end-to-end through main(): the flip fires from a real-shaped payload ----------------------
 
+
 def _run_main(monkeypatch, payload, calls, tmp_txw):
     monkeypatch.setattr(hook, "_TXW_DIR", str(tmp_txw))
     monkeypatch.setattr(hook, "_CAP_DIR", str(tmp_txw / "cap"))
     import core.recall.at_action as aa
-    monkeypatch.setattr(aa, "resolve_action_outcome",
-                        lambda sid, tgt, ok, **kw: (calls.append((sid, tgt, ok)) or
-                                                    {"flipped": False, "credited": 0, "sources": []}))
+
+    monkeypatch.setattr(
+        aa,
+        "resolve_action_outcome",
+        lambda sid, tgt, ok, **kw: calls.append((sid, tgt, ok)) or {"flipped": False, "credited": 0, "sources": []},
+    )
     monkeypatch.setattr(sys, "stdin", io.StringIO(json.dumps(payload)))
     assert hook.main() == 0
 
@@ -121,12 +134,13 @@ def _bash_success_payload_for(command):
 
 
 def test_main_backfills_fail_then_resolves_success_once(tmp_path, monkeypatch):
-    cmd = "cd E:/AI-Setup && py probe_thing.py --flag"   # the fixture's failed-then-retried target
+    cmd = "cd E:/AI-Setup && py probe_thing.py --flag"  # the fixture's failed-then-retried target
     tgt = normalize_target(None, cmd)
     calls = []
     _run_main(monkeypatch, _bash_success_payload_for(cmd), calls, tmp_path)
-    assert calls == [("contract-e2e", tgt, False), ("contract-e2e", tgt, True)], \
+    assert calls == [("contract-e2e", tgt, False), ("contract-e2e", tgt, True)], (
         "first success after a transcript failure must backfill FAIL then resolve SUCCESS"
+    )
     # same event again: the failure is watermarked -> no second backfill (never farm one failure)
     calls2 = []
     _run_main(monkeypatch, _bash_success_payload_for(cmd), calls2, tmp_path)
@@ -134,7 +148,7 @@ def test_main_backfills_fail_then_resolves_success_once(tmp_path, monkeypatch):
 
 
 def test_main_first_try_success_no_backfill(tmp_path, monkeypatch):
-    cmd = "cd E:/AI-Setup && echo fine"                  # succeeded in the transcript, never failed
+    cmd = "cd E:/AI-Setup && echo fine"  # succeeded in the transcript, never failed
     tgt = normalize_target(None, cmd)
     calls = []
     _run_main(monkeypatch, _bash_success_payload_for(cmd), calls, tmp_path)
@@ -146,7 +160,7 @@ def test_main_posttoolusefailure_records_fail_and_watermarks(tmp_path, monkeypat
     tgt = normalize_target(None, cmd)
     data = _bash_success_payload_for(cmd)
     data["hook_event_name"] = "PostToolUseFailure"
-    data["tool_use_id"] = "toolu_fail_bash_2"            # matches the transcript's newest failure
+    data["tool_use_id"] = "toolu_fail_bash_2"  # matches the transcript's newest failure
     calls = []
     _run_main(monkeypatch, data, calls, tmp_path)
     assert calls == [("contract-e2e", tgt, False)], "direct failure path records FAIL immediately"
@@ -161,12 +175,13 @@ def test_main_posttoolusefailure_records_fail_and_watermarks(tmp_path, monkeypat
 # `fail` event, exactly once per failure (same watermark guarantee as the resolve), for the
 # context-health correlation study. -----------------------------------------------------------------
 
+
 def _spy_fail(monkeypatch):
     """Capture every capture_event(...) the hook fires, so we can assert the durable `fail` label."""
     import core.events.event_log as el
+
     events = []
-    monkeypatch.setattr(el, "capture_event",
-                        lambda kind, summary, **kw: events.append((kind, summary, kw)) or None)
+    monkeypatch.setattr(el, "capture_event", lambda kind, summary, **kw: events.append((kind, summary, kw)) or None)
     return events
 
 
@@ -180,26 +195,28 @@ def test_posttoolusefailure_captures_fail_label_once(tmp_path, monkeypatch):
     _run_main(monkeypatch, data, [], tmp_path)
     labels = [e for e in fails if e[0] == "fail"]
     assert len(labels) == 1, "a direct failure must emit exactly one durable `fail` label"
-    assert labels[0][2]["detail"]["target"] == tgt and labels[0][2]["detail"]["tool"] == "Bash"
+    assert labels[0][2]["detail"]["target"] == tgt
+    assert labels[0][2]["detail"]["tool"] == "Bash"
     # same failure id again -> watermark suppresses a second label (never double-count rework)
     _run_main(monkeypatch, data, [], tmp_path)
     assert len([e for e in fails if e[0] == "fail"]) == 1
 
 
 def test_transcript_backfill_captures_fail_label_once(tmp_path, monkeypatch):
-    cmd = "cd E:/AI-Setup && py probe_thing.py --flag"   # failed-then-retried in the fixture transcript
+    cmd = "cd E:/AI-Setup && py probe_thing.py --flag"  # failed-then-retried in the fixture transcript
     tgt = normalize_target(None, cmd)
     fails = _spy_fail(monkeypatch)
     _run_main(monkeypatch, _bash_success_payload_for(cmd), [], tmp_path)
     labels = [e for e in fails if e[0] == "fail"]
-    assert len(labels) == 1 and labels[0][2]["detail"]["target"] == tgt
+    assert len(labels) == 1
+    assert labels[0][2]["detail"]["target"] == tgt
     # the same success again: the failure is watermarked -> no second label
     _run_main(monkeypatch, _bash_success_payload_for(cmd), [], tmp_path)
     assert len([e for e in fails if e[0] == "fail"]) == 1
 
 
 def test_first_try_success_emits_no_fail_label(tmp_path, monkeypatch):
-    cmd = "cd E:/AI-Setup && echo fine"                  # succeeded in the transcript, never failed
+    cmd = "cd E:/AI-Setup && echo fine"  # succeeded in the transcript, never failed
     fails = _spy_fail(monkeypatch)
     _run_main(monkeypatch, _bash_success_payload_for(cmd), [], tmp_path)
     assert [e for e in fails if e[0] == "fail"] == [], "a clean first-try success is not a rework event"
@@ -208,7 +225,7 @@ def test_first_try_success_emits_no_fail_label(tmp_path, monkeypatch):
 def test_main_out_of_scope_is_silent(tmp_path, monkeypatch):
     data = _load("posttooluse_bash_success.json")
     data["tool_input"]["command"] = "echo unrelated"
-    data["cwd"] = "C:\\Somewhere\\Else"
+    data["cwd"] = "C:\\Somewhere\\Else" if os.name == "nt" else "/somewhere/else"  # absolute on this OS
     calls = []
     _run_main(monkeypatch, data, calls, tmp_path)
     assert calls == []
@@ -219,6 +236,7 @@ def test_main_out_of_scope_is_silent(tmp_path, monkeypatch):
 # recall/credit.) posttooluse_powershell_success.json is a LIVE capture (2026-07-02, same session
 # the blindspot was found): tool_response = {stdout, stderr, interrupted, isImage} -- Bash's shape
 # minus noOutputExpected, and like Bash it carries NO error/exit markers.
+
 
 def _powershell_payload_for(command):
     data = _load("posttooluse_powershell_success.json")
@@ -236,17 +254,18 @@ def test_powershell_success_payload_has_no_error_markers():
 
 
 def test_main_powershell_flip_credits_like_bash(tmp_path, monkeypatch):
-    cmd = "cd E:/AI-Setup && py probe_thing.py --flag"    # transcript's failed-then-retried target
+    cmd = "cd E:/AI-Setup && py probe_thing.py --flag"  # transcript's failed-then-retried target
     tgt = normalize_target(None, cmd)
     calls = []
     _run_main(monkeypatch, _powershell_payload_for(cmd), calls, tmp_path)
-    assert calls == [("contract-e2e", tgt, False), ("contract-e2e", tgt, True)], \
+    assert calls == [("contract-e2e", tgt, False), ("contract-e2e", tgt, True)], (
         "a PowerShell success after a transcript failure must flip exactly like Bash"
+    )
 
 
 def test_main_powershell_out_of_scope_is_silent(tmp_path, monkeypatch):
     data = _powershell_payload_for("echo unrelated")
-    data["cwd"] = "C:\\Somewhere\\Else"
+    data["cwd"] = "C:\\Somewhere\\Else" if os.name == "nt" else "/somewhere/else"  # absolute on this OS
     calls = []
     _run_main(monkeypatch, data, calls, tmp_path)
     assert calls == []

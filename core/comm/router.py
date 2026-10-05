@@ -6,16 +6,16 @@ The Bus continues to route through ``packet_spec.lane_for()``.  Counter writes a
 best-effort and bounded to static fields so telemetry can never fail a send or
 turn untrusted kind strings into unbounded Redis cardinality.
 """
+
 from __future__ import annotations
 
-from dataclasses import dataclass
-from datetime import datetime, timezone
 import hashlib
 import json
-from typing import Any, Dict, Optional, Tuple
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from typing import Any
 
 from core.comm import packet_spec
-
 
 MODE = "shadow"
 UNKNOWN_RULE = "_unknown"
@@ -32,13 +32,13 @@ POLICY_VERSION = f"kind-lane:{hashlib.sha256(_POLICY_CANONICAL.encode('utf-8')).
 @dataclass(frozen=True)
 class RoutingDecision:
     kind: str
-    lane: Optional[str]
+    lane: str | None
     known: bool
     rule_id: str
     policy_version: str = POLICY_VERSION
     mode: str = MODE
 
-    def as_dict(self) -> Dict[str, Any]:
+    def as_dict(self) -> dict[str, Any]:
         return {
             "kind": self.kind,
             "lane": self.lane,
@@ -67,19 +67,15 @@ def metric_key(namespace: str) -> str:
     return f"{namespace}:route:shadow:stats"
 
 
-def _labels() -> Tuple[str, ...]:
-    return tuple(sorted(str(kind) for kind in packet_spec.KIND_LANE)) + (UNKNOWN_RULE,)
+def _labels() -> tuple[str, ...]:
+    return (*tuple(sorted(str(kind) for kind in packet_spec.KIND_LANE)), UNKNOWN_RULE)
 
 
-def metric_field_schema() -> Tuple[str, ...]:
+def metric_field_schema() -> tuple[str, ...]:
     """All counter fields this module can create (a static cardinality ceiling)."""
     labels = _labels()
     fields = [f"decision:{label}" for label in labels]
-    fields.extend(
-        f"mirror:{label}:{outcome}"
-        for label in labels
-        for outcome in MIRROR_OUTCOMES
-    )
+    fields.extend(f"mirror:{label}:{outcome}" for label in labels for outcome in MIRROR_OUTCOMES)
     fields.extend(f"reply:reply:{outcome}" for outcome in REPLY_OUTCOMES)
     return tuple(fields)
 
@@ -91,8 +87,7 @@ def _label(decision: RoutingDecision) -> str:
     return decision.kind if decision.kind in packet_spec.KIND_LANE else UNKNOWN_RULE
 
 
-def _observation_fields(decision: RoutingDecision, outcome: str,
-                        family: str) -> Optional[Tuple[str, str]]:
+def _observation_fields(decision: RoutingDecision, outcome: str, family: str) -> tuple[str, str] | None:
     label = _label(decision)
     if family == "mirror" and outcome in MIRROR_OUTCOMES:
         outcome_field = f"mirror:{label}:{outcome}"
@@ -107,11 +102,12 @@ def _observation_fields(decision: RoutingDecision, outcome: str,
 
 
 def _utc_now() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
-def record_observation(client: Any, namespace: str, decision: RoutingDecision,
-                       outcome: str, *, family: str = "mirror") -> bool:
+def record_observation(
+    client: Any, namespace: str, decision: RoutingDecision, outcome: str, *, family: str = "mirror"
+) -> bool:
     """Best-effort increment of one decision and one physical outcome.
 
     The field names are selected only from ``metric_field_schema``.  Unknown kinds
@@ -160,9 +156,9 @@ def _text(value: Any) -> str:
     return str(value)
 
 
-def route_stats(client: Any, namespace: str) -> Dict[str, Any]:
+def route_stats(client: Any, namespace: str) -> dict[str, Any]:
     """Read the bounded counter hash as a stable JSON-friendly object."""
-    raw: Dict[Any, Any] = {}
+    raw: dict[Any, Any] = {}
     online = client is not None
     if client is not None:
         try:
@@ -170,7 +166,7 @@ def route_stats(client: Any, namespace: str) -> Dict[str, Any]:
         except Exception:
             online = False
     normalized = {_text(key): value for key, value in raw.items()}
-    counts: Dict[str, int] = {}
+    counts: dict[str, int] = {}
     for field in metric_field_schema():
         if field not in normalized:
             continue

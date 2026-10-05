@@ -1,0 +1,577 @@
+{
+ "basedpyright_standard": {
+  "by_rule_single_line": {
+   "reportArgumentType": 7,
+   "reportAttributeAccessIssue": 41,
+   "reportCallIssue": 53,
+   "reportGeneralTypeIssues": 8,
+   "reportIndexIssue": 12,
+   "reportMissingImports": 291,
+   "reportOperatorIssue": 7,
+   "reportOptionalCall": 68,
+   "reportOptionalIterable": 5,
+   "reportOptionalMemberAccess": 993,
+   "reportOptionalOperand": 47,
+   "reportOptionalSubscript": 311,
+   "reportPossiblyUnboundVariable": 83,
+   "reportRedeclaration": 10,
+   "reportReturnType": 5,
+   "reportUndefinedVariable": 33
+  },
+  "errors": 3175,
+  "exit": 1,
+  "note": "by_rule counts errors whose rule tag sits on the error line itself; multi-line messages put it on a continuation line and are counted in errors only",
+  "warnings": 36
+ },
+ "in_scope_files": 1354,
+ "in_scope_lines": 333907,
+ "ref": "d5f0615decac5f2449c59b18e3e3a3c6effe823c",
+ "ruff_config": {
+  "ignore": [
+   "E501",
+   "ISC001",
+   "Q000",
+   "Q001",
+   "Q002",
+   "Q003",
+   "COM812"
+  ],
+  "per_file_ignores": {
+   "scripts/**": [
+    "T20"
+   ],
+   "tests/**": [
+    "S101"
+   ]
+  },
+  "select": [
+   "E",
+   "W",
+   "F",
+   "I",
+   "UP",
+   "B",
+   "C4",
+   "SIM",
+   "PIE",
+   "PERF",
+   "RUF",
+   "T10",
+   "T20",
+   "ASYNC",
+   "LOG",
+   "G",
+   "N",
+   "A",
+   "PT",
+   "RET",
+   "S",
+   "BLE",
+   "PTH",
+   "TC",
+   "ERA",
+   "PGH",
+   "FLY",
+   "ISC",
+   "ICN",
+   "Q"
+  ],
+  "target_version": "py311 (requires-python >=3.11)"
+ },
+ "ruff_format": {
+  "line_length_100": {
+   "errors": [],
+   "exit": 1,
+   "would_reformat": 1324
+  },
+  "line_length_120": {
+   "errors": [],
+   "exit": 1,
+   "would_reformat": 1318
+  }
+ },
+ "ruff_stretch": {
+  "ANN": 21755,
+  "ARG": 1664,
+  "D": 16480,
+  "FBT": 911,
+  "PL": 7695,
+  "TRY": 1569
+ },
+ "ruff_target": {
+  "by_prefix": {
+   "A": 26,
+   "ASYNC": 7,
+   "B": 268,
+   "BLE": 2419,
+   "C": 99,
+   "E": 1114,
+   "ERA": 46,
+   "F": 873,
+   "FLY": 4,
+   "G": 78,
+   "I": 933,
+   "ICN": 1,
+   "ISC": 237,
+   "LOG": 1,
+   "N": 807,
+   "PERF": 165,
+   "PGH": 13,
+   "PIE": 53,
+   "PT": 2604,
+   "PTH": 5141,
+   "RET": 66,
+   "RUF": 938,
+   "S": 1691,
+   "SIM": 618,
+   "T": 3907,
+   "TC": 18,
+   "UP": 7851,
+   "W": 3033
+  },
+  "by_rule": {
+   "A001": 1,
+   "A002": 24,
+   "A003": 1,
+   "ASYNC109": 1,
+   "ASYNC210": 2,
+   "ASYNC221": 1,
+   "ASYNC230": 1,
+   "ASYNC251": 2,
+   "B005": 1,
+   "B006": 1,
+   "B007": 48,
+   "B008": 3,
+   "B011": 12,
+   "B015": 9,
+   "B017": 6,
+   "B023": 18,
+   "B033": 1,
+   "B904": 48,
+   "B905": 121,
+   "BLE001": 2419,
+   "C401": 14,
+   "C402": 1,
+   "C405": 1,
+   "C408": 46,
+   "C414": 1,
+   "C416": 15,
+   "C420": 21,
+   "E401": 40,
+   "E402": 241,
+   "E701": 34,
+   "E702": 380,
+   "E712": 1,
+   "E722": 229,
+   "E731": 38,
+   "E741": 149,
+   "E742": 2,
+   "ERA001": 46,
+   "F401": 556,
+   "F402": 5,
+   "F541": 150,
+   "F811": 9,
+   "F821": 33,
+   "F841": 120,
+   "FLY002": 4,
+   "G004": 78,
+   "I001": 933,
+   "ICN001": 1,
+   "ISC002": 39,
+   "ISC003": 1,
+   "ISC004": 197,
+   "LOG015": 1,
+   "N801": 17,
+   "N802": 170,
+   "N803": 7,
+   "N806": 246,
+   "N811": 3,
+   "N812": 327,
+   "N814": 10,
+   "N817": 3,
+   "N818": 24,
+   "PERF102": 11,
+   "PERF401": 151,
+   "PERF402": 1,
+   "PERF403": 2,
+   "PGH003": 13,
+   "PIE790": 6,
+   "PIE807": 30,
+   "PIE808": 2,
+   "PIE810": 15,
+   "PT001": 95,
+   "PT006": 40,
+   "PT011": 101,
+   "PT013": 3,
+   "PT015": 12,
+   "PT017": 13,
+   "PT018": 2321,
+   "PT019": 10,
+   "PT022": 2,
+   "PT028": 7,
+   "PTH100": 805,
+   "PTH101": 1,
+   "PTH103": 128,
+   "PTH104": 3,
+   "PTH105": 41,
+   "PTH106": 2,
+   "PTH107": 57,
+   "PTH108": 4,
+   "PTH109": 27,
+   "PTH110": 235,
+   "PTH111": 20,
+   "PTH112": 33,
+   "PTH113": 45,
+   "PTH116": 8,
+   "PTH117": 9,
+   "PTH118": 1005,
+   "PTH119": 62,
+   "PTH120": 1726,
+   "PTH121": 1,
+   "PTH122": 6,
+   "PTH123": 775,
+   "PTH201": 2,
+   "PTH202": 18,
+   "PTH204": 30,
+   "PTH207": 9,
+   "PTH208": 89,
+   "RET501": 4,
+   "RET502": 5,
+   "RET503": 6,
+   "RET504": 27,
+   "RET505": 23,
+   "RET508": 1,
+   "RUF001": 8,
+   "RUF002": 15,
+   "RUF003": 2,
+   "RUF005": 150,
+   "RUF006": 2,
+   "RUF007": 37,
+   "RUF010": 18,
+   "RUF012": 25,
+   "RUF013": 144,
+   "RUF015": 24,
+   "RUF019": 4,
+   "RUF021": 12,
+   "RUF022": 23,
+   "RUF023": 3,
+   "RUF034": 4,
+   "RUF043": 9,
+   "RUF046": 82,
+   "RUF051": 1,
+   "RUF059": 251,
+   "RUF100": 123,
+   "RUF102": 1,
+   "S101": 18,
+   "S102": 6,
+   "S104": 7,
+   "S105": 4,
+   "S108": 11,
+   "S110": 909,
+   "S112": 101,
+   "S301": 1,
+   "S307": 1,
+   "S310": 88,
+   "S311": 32,
+   "S314": 3,
+   "S324": 30,
+   "S602": 4,
+   "S603": 306,
+   "S604": 1,
+   "S606": 1,
+   "S607": 154,
+   "S608": 14,
+   "SIM102": 40,
+   "SIM103": 17,
+   "SIM105": 281,
+   "SIM108": 14,
+   "SIM109": 1,
+   "SIM110": 2,
+   "SIM112": 2,
+   "SIM114": 7,
+   "SIM115": 197,
+   "SIM116": 1,
+   "SIM117": 15,
+   "SIM118": 4,
+   "SIM201": 2,
+   "SIM212": 1,
+   "SIM222": 2,
+   "SIM300": 16,
+   "SIM401": 1,
+   "SIM905": 15,
+   "T201": 3907,
+   "TC001": 6,
+   "TC002": 4,
+   "TC003": 8,
+   "UP004": 3,
+   "UP006": 4588,
+   "UP007": 1,
+   "UP012": 6,
+   "UP015": 120,
+   "UP017": 75,
+   "UP020": 15,
+   "UP024": 1,
+   "UP031": 156,
+   "UP032": 3,
+   "UP033": 1,
+   "UP034": 4,
+   "UP035": 744,
+   "UP037": 28,
+   "UP041": 4,
+   "UP042": 8,
+   "UP045": 2094,
+   "W291": 83,
+   "W292": 12,
+   "W293": 2923,
+   "W605": 15
+  },
+  "total": 33011
+ },
+ "suite": {
+  "coverage_branch_pct": {
+   "agent": 67.12,
+   "arsenal": 85.35,
+   "core": 73.9,
+   "scripts": 34.54
+  },
+  "outcome_counts": [
+   {
+    "error": 7,
+    "failed": 105,
+    "passed": 7267,
+    "skipped": 71,
+    "xfailed": 23
+   },
+   {
+    "error": 7,
+    "failed": 104,
+    "passed": 7268,
+    "skipped": 71,
+    "xfailed": 23
+   },
+   {
+    "error": 7,
+    "failed": 105,
+    "passed": 7267,
+    "skipped": 71,
+    "xfailed": 23
+   }
+  ],
+  "slowest_50": [
+   {
+    "s": 26.01,
+    "test": "tests.test_wake_detect::test_wake_block_survives_stream_trimming_with_bounded_paging"
+   },
+   {
+    "s": 16.59,
+    "test": "tests.test_lookback::test_the_preregistered_battery_passes"
+   },
+   {
+    "s": 13.18,
+    "test": "tests.test_t352_ledger_isolation_pins::test_p3_drill_file_leaves_production_ledger_byte_identical[tests/test_wrap_routing.py]"
+   },
+   {
+    "s": 12.32,
+    "test": "tests.test_arsenal_jam_store::test_a4_numbers_pitch_classes_sections_and_exact_notes_move_with_the_key"
+   },
+   {
+    "s": 9.2,
+    "test": "tests.test_legacy_net_exact_and_bounded::test_p2_one_drain_pages_the_shadow_past_junk"
+   },
+   {
+    "s": 8.64,
+    "test": "tests.test_t075_m1_delta::test_p5r_daemon_spawns_runner_child_on_start"
+   },
+   {
+    "s": 8.51,
+    "test": "tests.test_arsenal_practice::test_days_of_held_sound_cost_what_the_playing_costs"
+   },
+   {
+    "s": 7.79,
+    "test": "tests.test_arsenal_tiktok::test_end_to_end_makes_a_tiktok_ready_copy"
+   },
+   {
+    "s": 7.55,
+    "test": "tests.test_t078_w3_mcp_door::test_p6_boot_returns_without_a_second_inbound_frame"
+   },
+   {
+    "s": 7.2,
+    "test": "tests.test_t159_oracle_field_of_view::test_k13_every_catchable_canary_is_caught_end_to_end"
+   },
+   {
+    "s": 6.88,
+    "test": "tests.test_t134c_scripts_are_production::test_g4_every_script_is_in_the_production_set"
+   },
+   {
+    "s": 6.5,
+    "test": "tests.test_sync_peek_freshness::test_true_tail_visible_beyond_the_overread_cap"
+   },
+   {
+    "s": 6.42,
+    "test": "tests.test_wrap_routing::test_p1_route_records_targets_that_survive_to_the_next_boot"
+   },
+   {
+    "s": 6.42,
+    "test": "tests.test_derived_docs_ignore_untracked::test_dirty_tree_and_clean_checkout_generate_byte_identical_docs"
+   },
+   {
+    "s": 5.79,
+    "test": "tests.test_derived_docs_ignore_untracked::test_planting_an_untracked_module_does_not_change_any_derived_doc"
+   },
+   {
+    "s": 5.79,
+    "test": "tests.test_arsenal_pianocue::test_labels_in_a_key_match_the_pages_real_spellforkey[True-tonic]"
+   },
+   {
+    "s": 5.69,
+    "test": "tests.test_arsenal_pianocue::test_labels_in_a_key_match_the_pages_real_spellforkey[False-tonic]"
+   },
+   {
+    "s": 5.68,
+    "test": "tests.test_check_secrets::test_p7_this_repository_is_currently_clean"
+   },
+   {
+    "s": 5.59,
+    "test": "tests.test_t075_m1_delta::test_p9_daemon_starts_in_spawn_runner_mode"
+   },
+   {
+    "s": 5.21,
+    "test": "tests.test_t352_ledger_isolation_pins::test_p3_drill_file_leaves_production_ledger_byte_identical[tests/test_t292_scout_role.py]"
+   },
+   {
+    "s": 5.18,
+    "test": "tests.test_t075_m1_daemon::test_m1_p2_heartbeat_keeps_holder_fresh"
+   },
+   {
+    "s": 4.85,
+    "test": "tests.test_t074_boot_dedup::test_w13_session_boot_skips_whisper_sections"
+   },
+   {
+    "s": 4.82,
+    "test": "tests.test_event_hooks::test_full_flow_fills_firehose"
+   },
+   {
+    "s": 4.81,
+    "test": "tests.test_t075_m1_daemon::test_m1_p12_stable_token_reused_generation_increments"
+   },
+   {
+    "s": 4.69,
+    "test": "tests.test_t074_boot_dedup::test_w13_boot_full_hatch_forces_legacy"
+   },
+   {
+    "s": 4.65,
+    "test": "tests.test_t074_boot_dedup::test_w13_bare_terminal_keeps_full_boot"
+   },
+   {
+    "s": 4.62,
+    "test": "tests.test_turn_metrics::test_record_and_history_are_capped"
+   },
+   {
+    "s": 4.6,
+    "test": "tests.test_bifrost_wake::test_wait_blocks_past_the_fast_socket_timeout"
+   },
+   {
+    "s": 4.29,
+    "test": "tests.test_t095_m0_mailbox_shadow::test_bounded_cardinality"
+   },
+   {
+    "s": 4.19,
+    "test": "tests.test_sync_peek_freshness::test_newest_mail_visible_through_stale_backlog"
+   },
+   {
+    "s": 4.12,
+    "test": "tests.test_event_hooks::test_boot_hook_captures"
+   },
+   {
+    "s": 3.9,
+    "test": "tests.test_recall_acceptance::test_a3_retrieval_latency_stays_flat_enough_to_sit_on_the_hot_path"
+   },
+   {
+    "s": 3.82,
+    "test": "tests.test_door_probe::test_b1_probe_is_green_against_the_real_door_and_leaves_no_trace"
+   },
+   {
+    "s": 3.81,
+    "test": "tests.test_arsenal_tiktok::test_no_loudnorm_fills_the_same_holes_and_keeps_the_notes_on_their_flashes"
+   },
+   {
+    "s": 3.8,
+    "test": "tests.test_arsenal_tiktok::test_window_trim_on_and_off_and_the_fade_in_only_inside_sound"
+   },
+   {
+    "s": 3.64,
+    "test": "tests.test_ci_instance_local_refs_pins::test_the_build_is_green_under_the_ci_condition"
+   },
+   {
+    "s": 3.63,
+    "test": "tests.test_tag_governance::test_crdt_monotonicity_fuzz"
+   },
+   {
+    "s": 3.54,
+    "test": "tests.test_t075_m1_daemon::test_m1_p1_daemon_starts_holds_lock_registers_presence_and_survives"
+   },
+   {
+    "s": 3.45,
+    "test": "tests.test_comprehensibility::test_guard_is_green_on_the_real_repo"
+   },
+   {
+    "s": 3.22,
+    "test": "tests.test_arsenal_pianocue::test_no_number_in_any_page_key_gets_a_name_the_page_would_not_show"
+   },
+   {
+    "s": 3.13,
+    "test": "tests.test_derived_docs_ignore_untracked::test_generators_do_not_emit_untracked_module_names"
+   },
+   {
+    "s": 3.11,
+    "test": "tests.test_comprehensibility::test_main_fails_loud_when_a_check_crashes"
+   },
+   {
+    "s": 3.11,
+    "test": "tests.test_t108_s4_reaper_hardening::test_h3_repeated_passes_progress_beyond_first_page"
+   },
+   {
+    "s": 3.1,
+    "test": "tests.test_arsenal_pianocue::test_labels_in_a_key_match_the_pages_real_spellforkey[False-relative]"
+   },
+   {
+    "s": 3.04,
+    "test": "tests.test_alias_composition_is_honest::test_run_surfaces_what_its_steps_actually_printed"
+   },
+   {
+    "s": 3.02,
+    "test": "tests.test_t133_mail_states_load_bearing::test_the_wait_announces_itself_once"
+   },
+   {
+    "s": 2.98,
+    "test": "tests.test_boot_intent_surface::test_wrap_focus_captures_intent_at_decision_time"
+   },
+   {
+    "s": 2.9,
+    "test": "tests.test_t159_oracle_field_of_view::test_k11_oracle_targets_are_derived_from_the_detector"
+   },
+   {
+    "s": 2.88,
+    "test": "tests.test_arsenal_pianocue::test_labels_in_a_key_match_the_pages_real_spellforkey[True-relative]"
+   },
+   {
+    "s": 2.83,
+    "test": "tests.test_mcp_concurrent_calls::test_c1_concurrent_batch_returns_intact"
+   }
+  ],
+  "suite_runs_s": [
+   852.8,
+   854.4,
+   846.2
+  ]
+ },
+ "tools": {
+  "basedpyright": "1.40.1",
+  "ruff": "0.16.9",
+  "ty": "0.0.84"
+ },
+ "ty": {
+  "diagnostics": 2532,
+  "tail": []
+ }
+}

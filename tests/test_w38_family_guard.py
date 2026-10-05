@@ -12,6 +12,7 @@ boundary check -- the register-at-ship-time enforcement W38 asked for.
   P4  the LIVE core/comm tree has zero unregistered families (the guard is GREEN now --
       proving this slice also registered the 5 latent gaps it first surfaced)
 """
+
 import os
 import sys
 
@@ -21,10 +22,12 @@ import scripts.checkers.check_boundaries as cb
 
 
 def test_p1_extract_families():
-    text = ('a = f"{ns}:mailbox:pos:{agent}"\n'
-            'b = f"{_ns()}:control:paused"\n'
-            'c = f"{self.ns}:work:inbox:{a}"\n'
-            'd = "not a key at all"\n')
+    text = (
+        'a = f"{ns}:mailbox:pos:{agent}"\n'
+        'b = f"{_ns()}:control:paused"\n'
+        'c = f"{self.ns}:work:inbox:{a}"\n'
+        'd = "not a key at all"\n'
+    )
     fams = cb._ns_families(text)
     assert fams == {"mailbox", "control", "work"}
 
@@ -33,19 +36,21 @@ def test_p2_unregistered_flagged_registered_not():
     # 'control' is in the ephemeral roster (*:control:*); 'zzznewfamily' is not
     text = 'x = f"{ns}:control:paused"\ny = f"{ns}:zzznewfamily:thing"\n'
     unreg = cb._unregistered_families(text)
-    assert "zzznewfamily" in unreg and "control" not in unreg
+    assert "zzznewfamily" in unreg
+    assert "control" not in unreg
 
 
 def test_p3_durable_allowlist_passes():
-    text = 'x = f"{ns}:events:raw:{a}"\n'   # durable Store family, not ephemeral-by-design
-    assert cb._unregistered_families(text) == set(), \
+    text = 'x = f"{ns}:events:raw:{a}"\n'  # durable Store family, not ephemeral-by-design
+    assert cb._unregistered_families(text) == set(), (
         "durable families are classified by the File-family check, allowlisted here"
+    )
 
 
 def test_p4_live_core_comm_is_clean():
     # the systemic proof: after this slice registered activity/pages/reply_seen/seat/
     # session, the live transport keyspace has NO unclassified family.
-    from pathlib import Path
+
     offenders = {}
     commdir = cb.ROOT / "core" / "comm"
     for p in commdir.rglob("*.py"):

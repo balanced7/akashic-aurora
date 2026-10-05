@@ -57,10 +57,12 @@ def test_p1_ledger_honors_env_path(tmp_path, monkeypatch):
     iso = _tmp_ledger(tmp_path)
     monkeypatch.setenv("AKASHIC_TASKS_PATH", iso)
     from core.coord.task_ledger import TaskLedger
+
     led = TaskLedger()
     assert led.path == iso, (
         "TaskLedger() must honor AKASHIC_TASKS_PATH at construction — without "
-        "this, every drill through the real door lands in production")
+        "this, every drill through the real door lands in production"
+    )
 
 
 # ---- P2: the operator-ruling route out of DONE -------------------------------
@@ -68,6 +70,7 @@ def test_p2_done_to_abandoned_is_gated_on_an_operator_ruling(tmp_path, monkeypat
     iso = _tmp_ledger(tmp_path)
     monkeypatch.setenv("AKASHIC_TASKS_PATH", iso)
     from core.coord import task_ledger as TL
+
     led = TL.TaskLedger()
     t = led.propose("t352 pin drill: a row that reaches done")
     tid = t["id"]
@@ -77,18 +80,23 @@ def test_p2_done_to_abandoned_is_gated_on_an_operator_ruling(tmp_path, monkeypat
     TL.done(led, tid, commit="deadbee2", verified_by="pin", by="pin")
 
     # without a ruling: REFUSED (the gate is the point)
-    with pytest.raises(Exception):
+    with pytest.raises(Exception, match="requires an explicit --operator-ruling"):
         TL.abandon(led, tid, reason="cleanup", by="pin")
 
     # with a ruling: legal, and the ruling is in the history entry
-    TL.abandon(led, tid, reason="cleanup", by="pin",
-               operator_ruling="Daniil 2026-08-18 verbatim: 'Clean'")
+    TL.abandon(led, tid, reason="cleanup", by="pin", operator_ruling="Daniil 2026-08-18 verbatim: 'Clean'")
     row = led.get(tid)
+    assert row is not None
     assert row["status"] == "abandoned"
     last = row["history"][-1]
-    assert "operator_ruling" in last and "Clean" in last["operator_ruling"], (
+    assert "operator_ruling" in last, (
         "the ruling that authorized leaving DONE must live in the history "
-        "entry — a terminal-state exit with no recorded authority is a hole")
+        "entry — a terminal-state exit with no recorded authority is a hole"
+    )
+    assert "Clean" in last["operator_ruling"], (
+        "the ruling that authorized leaving DONE must live in the history "
+        "entry — a terminal-state exit with no recorded authority is a hole"
+    )
 
 
 # ---- P3: the class-closer ----------------------------------------------------
@@ -97,10 +105,15 @@ def test_p3_drill_file_leaves_production_ledger_byte_identical(testfile):
     before = _sha(PROD)
     r = subprocess.run(
         [sys.executable, "-m", "pytest", testfile, "-q", "--tb=no", "-p", "no:cacheprovider"],
-        cwd=ROOT, capture_output=True, text=True, timeout=420,
-        env={**os.environ, "PYTHONIOENCODING": "utf-8"})
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        timeout=420,
+        env={**os.environ, "PYTHONIOENCODING": "utf-8"},
+    )
     after = _sha(PROD)
     assert before == after, (
         f"{testfile} mutated the PRODUCTION ledger (sha {before[:12]} -> "
         f"{after[:12]}). A drill through the real door tests the DOOR, never "
-        f"the production STORE. pytest rc={r.returncode}")
+        f"the production STORE. pytest rc={r.returncode}"
+    )

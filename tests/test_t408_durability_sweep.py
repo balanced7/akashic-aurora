@@ -43,11 +43,11 @@ DESIGN CONSTRAINTS these pins encode, each from a law this house already paid fo
     mocked git.
   * STATE THE SCOPE. The report names what it scanned, per the coverage-contract law.
 """
+
 import os
 import subprocess
 import sys
 import tempfile
-from pathlib import Path
 
 import pytest
 
@@ -57,8 +57,7 @@ sys.path.insert(0, ROOT)
 
 
 def _git(repo, *args):
-    return subprocess.run(["git", "-C", str(repo)] + list(args),
-                          capture_output=True, text=True)
+    return subprocess.run(["git", "-C", str(repo), *list(args)], capture_output=True, text=True)
 
 
 @pytest.fixture
@@ -81,7 +80,8 @@ def _sweep():
         pytest.fail(
             f"scripts/checkers/check_durability.py does not exist ({e}). Nineteen checkers ask "
             "whether committed things are correct; none asks whether the things the house "
-            "believes it has committed are actually there.")
+            "believes it has committed are actually there."
+        )
     return check_durability
 
 
@@ -94,10 +94,12 @@ def test_sweep_reports_three_planes():
     for key in ("untracked_pins", "unpushed_commits", "uncommitted_durable_state"):
         assert key in out, (
             f"sweep() does not report '{key}'. All three were live defects on 2026-09-24 and "
-            f"each was invisible to every existing checker. Got: {sorted(out)}")
+            f"each was invisible to every existing checker. Got: {sorted(out)}"
+        )
     assert "scanned" in out, (
         "the report must state WHAT IT SCANNED -- a count without its frame is not a coverage "
-        "claim (a_coverage_contract_must_state_the_scope_it_globs_not_just_the_files_it_read)")
+        "claim (a_coverage_contract_must_state_the_scope_it_globs_not_just_the_files_it_read)"
+    )
 
 
 # ---------------------------------------------------------------- the positive canary
@@ -111,7 +113,8 @@ def test_a_planted_untracked_pin_is_found(repo):
     after = mod.untracked_pins(repo)
     assert any("test_orphan_red.py" in str(p) for p in after), (
         f"the planted untracked pin was not detected. Found: {after}. This is the "
-        "test_eye_seat_capture.py case -- a red pin that sat outside git for 36 days.")
+        "test_eye_seat_capture.py case -- a red pin that sat outside git for 36 days."
+    )
 
 
 def test_a_planted_unpushed_commit_is_found(repo):
@@ -125,7 +128,8 @@ def test_a_planted_unpushed_commit_is_found(repo):
     found = mod.unpushed_commits(repo)
     assert found, (
         "a commit with no upstream counterpart was not reported. A repo with no remote at all "
-        "is the strongest form of this: NOTHING here has been published.")
+        "is the strongest form of this: NOTHING here has been published."
+    )
 
 
 # ---------------------------------------------------------------- zero is not no
@@ -134,12 +138,13 @@ def test_unknown_is_not_zero(tmp_path):
     same failure it exists to catch, wearing the organ's own badge. A directory that is not a
     git repository must produce an explicit unknown, never an empty list that reads as clean."""
     mod = _sweep()
-    out = mod.sweep(tmp_path)          # not a git repo
+    out = mod.sweep(tmp_path)  # not a git repo
     verdict = str(out.get("verdict", "")).upper()
     assert "UNKNOWN" in verdict or out.get("unknown"), (
         f"sweeping a non-repository returned {out.get('verdict')!r} with no unknown marker. "
         "'checked, nothing found' and 'could not check' must be different answers "
-        "(zero_is_not_no_silence_is_not_a_verdict).")
+        "(zero_is_not_no_silence_is_not_a_verdict)."
+    )
 
 
 def test_clean_repo_says_checked_not_unknown(repo):
@@ -147,8 +152,7 @@ def test_clean_repo_says_checked_not_unknown(repo):
     and must not hide behind unknown."""
     mod = _sweep()
     out = mod.sweep(repo)
-    assert not out.get("unknown"), \
-        f"a readable git repo was reported as unevaluable: {out.get('verdict')!r}"
+    assert not out.get("unknown"), f"a readable git repo was reported as unevaluable: {out.get('verdict')!r}"
     assert out["untracked_pins"] == [], f"clean repo reported pins: {out['untracked_pins']}"
 
 
@@ -160,12 +164,12 @@ def test_ratchet_passes_known_and_fails_new(repo):
     mod = _sweep()
     (repo / "tests" / "test_known_orphan.py").write_text("def test_x():\n    assert True\n")
     baseline = mod.untracked_pins(repo)
-    assert mod.new_since(repo, baseline) == [], \
-        "a pin already in the baseline must not fail the gate"
+    assert mod.new_since(repo, baseline) == [], "a pin already in the baseline must not fail the gate"
     (repo / "tests" / "test_fresh_orphan.py").write_text("def test_y():\n    assert True\n")
     fresh = mod.new_since(repo, baseline)
     assert any("test_fresh_orphan" in str(p) for p in fresh), (
-        f"a NEW untracked pin must fail the ratchet; new_since returned {fresh}")
+        f"a NEW untracked pin must fail the ratchet; new_since returned {fresh}"
+    )
 
 
 # ---------------------------------------------------------------- the declared authority
@@ -180,11 +184,13 @@ def test_durable_state_paths_are_declared_not_inferred():
     declared = getattr(mod, "DURABLE_STATE_PATHS", None)
     assert declared, (
         "check_durability.DURABLE_STATE_PATHS does not exist. Which paths carry a durability "
-        "CLAIM must be written down, or the sweep is one seat's opinion about what matters.")
+        "CLAIM must be written down, or the sweep is one seat's opinion about what matters."
+    )
     joined = " ".join(str(p) for p in declared).replace("\\", "/").lower()
     assert "tasks.json" in joined, (
         f"the task ledger is the precedence authority boot names first and must be watched; "
-        f"declared paths are {declared}")
+        f"declared paths are {declared}"
+    )
 
 
 # ---------------------------------------------------------------- postal inertness

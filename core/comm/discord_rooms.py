@@ -25,11 +25,13 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
-from typing import Any, Callable, Dict, Optional
+from typing import TYPE_CHECKING, Any
 
+from core.comm.discord_bridge import DISCORD_MAX, _content_str, chunk, redact, should_forward
 from core.outcome import BoundaryOutcome
-from core.comm.discord_bridge import (DISCORD_MAX, _content_str, chunk, redact,
-                                       should_forward)
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 _ROOT = Path(__file__).resolve().parents[2]
 
@@ -54,23 +56,24 @@ AVATAR_BASE = "https://raw.githubusercontent.com/balanced7/akashic-aurora/master
 ICONS_FILE = _ROOT / "state" / "coord" / "discord_personas.json"
 
 
-def _icons() -> Dict[str, Any]:
+def _icons() -> dict[str, Any]:
     try:
         return json.loads(ICONS_FILE.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return {}
 
 
-def persona(frm: str) -> Dict[str, Optional[str]]:
+def persona(frm: str) -> dict[str, str | None]:
     """username + avatar for a seat, from the registry + its own icon pick.
     Ratification names the resident; placement separately permits its generated face."""
     agent = str(frm or "").strip()
-    base = agent.split("#", 1)[0].lower()          # incarnations wear the agent's face
+    base = agent.split("#", 1)[0].lower()  # incarnations wear the agent's face
     try:
         from core.fleet import residents as _R
+
         rec = _R.get(base)
         placed = _R.current_placement(base)
-    except Exception:                                                   # noqa: BLE001
+    except Exception:  # noqa: BLE001  # fail-soft: best effort, skipped on any error
         rec, placed = None, None
     if not rec:
         return {"username": agent or "?", "avatar_url": None}
@@ -91,9 +94,9 @@ def forum_url() -> str:
     if v and v.strip():
         return v.strip()
     from core.comm.secret_intake import secrets_dir
+
     try:
-        return (secrets_dir() / "discord_forum_webhook.url").read_text(
-            encoding="utf-8").strip()
+        return (secrets_dir() / "discord_forum_webhook.url").read_text(encoding="utf-8").strip()
     except OSError:
         return ""
 
@@ -109,7 +112,7 @@ def _reg_path() -> Path:
 SEATS_FILE = _ROOT / "state" / "coord" / "discord_seat_channels.json"
 
 
-def _seats_registry() -> Dict[str, Any]:
+def _seats_registry() -> dict[str, Any]:
     path = Path(os.getenv("AKASHIC_DISCORD_SEATS_REGISTRY") or SEATS_FILE)
     try:
         return json.loads(path.read_text(encoding="utf-8"))
@@ -117,44 +120,49 @@ def _seats_registry() -> Dict[str, Any]:
         return {"mode": "forum", "channels": {}}
 
 
-def _default_create_thread(name: str) -> Optional[str]:
+def _default_create_thread(name: str) -> str | None:
     """TEXT-mode thread mint via the bot token (admin-granted). Isolated so pins
     run offline; returns the thread id or None (and None is a refusal upstream —
     an unregistered room would mint twins forever)."""
     import requests
+
     reg = _seats_registry()
     channel_id = str(reg.get("rooms_channel_id") or "")
     if not channel_id:
         return None
     from core.comm.secret_intake import secrets_dir
+
     try:
-        token = os.getenv("AKASHIC_DISCORD_BOT_TOKEN") or \
-            (secrets_dir() / "discord_bot.token").read_text(encoding="utf-8").strip()
+        token = (
+            os.getenv("AKASHIC_DISCORD_BOT_TOKEN")
+            or (secrets_dir() / "discord_bot.token").read_text(encoding="utf-8").strip()
+        )
     except OSError:
         return None
     r = requests.post(
         f"https://discord.com/api/v10/channels/{channel_id}/threads",
         headers={"Authorization": f"Bot {token}"},
         json={"name": name[:100], "type": 11, "auto_archive_duration": 10080},
-        timeout=15)
+        timeout=15,
+    )
     r.raise_for_status()
     return str(r.json().get("id") or "") or None
 
 
-def _load_reg() -> Dict[str, Any]:
+def _load_reg() -> dict[str, Any]:
     try:
         return json.loads(_reg_path().read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return {}
 
 
-def _save_reg(reg: Dict[str, Any]) -> None:
+def _save_reg(reg: dict[str, Any]) -> None:
     p = _reg_path()
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_text(json.dumps(reg, indent=1), encoding="utf-8")
 
 
-def _render_room(msg: Dict[str, Any]) -> str:
+def _render_room(msg: dict[str, Any]) -> str:
     """Body + kind tag; the author line is carried by the webhook username instead of
     markdown (rooms show the speaker natively — that is what 'native expression' buys).
     Single-part render kept for callers that want one string; post_to_room and the feed
@@ -162,7 +170,7 @@ def _render_room(msg: Dict[str, Any]) -> str:
     return render_room_parts(msg)[0]
 
 
-def render_room_parts(msg: Dict[str, Any]) -> list:
+def render_room_parts(msg: dict[str, Any]) -> list:
     """One or more room posts for a message: the kind tag rides every part, and a body
     over the cap becomes N whole-line parts (chunk()) — no truncation, no shell handle.
     T364: a `bifrost-fetch --get` tail is a command Daniil cannot run from a phone, so
@@ -178,27 +186,33 @@ def render_room_parts(msg: Dict[str, Any]) -> list:
     return [head + p for p in parts]
 
 
-def _default_post(url: str, content: str, *, thread_id: Optional[str] = None,
-                  thread_name: Optional[str] = None,
-                  username: Optional[str] = None,
-                  avatar_url: Optional[str] = None) -> Optional[str]:
+def _default_post(
+    url: str,
+    content: str,
+    *,
+    thread_id: str | None = None,
+    thread_name: str | None = None,
+    username: str | None = None,
+    avatar_url: str | None = None,
+) -> str | None:
     """The only network call in this module, isolated so every pin runs offline.
     Returns the thread id Discord minted (wait=true => the created forum post's
     channel_id IS the thread id), or None when the response carries none."""
     import requests
+
     from core.comm.discord_bridge import post_with_rate_limit_retry
-    params: Dict[str, str] = {"wait": "true"}
+
+    params: dict[str, str] = {"wait": "true"}
     if thread_id:
         params["thread_id"] = str(thread_id)
-    payload: Dict[str, Any] = {"content": content}
+    payload: dict[str, Any] = {"content": content}
     if username:
         payload["username"] = username
     if avatar_url:
         payload["avatar_url"] = avatar_url
     if thread_name:
         payload["thread_name"] = thread_name
-    r = post_with_rate_limit_retry(
-        lambda: requests.post(url, params=params, json=payload, timeout=10))
+    r = post_with_rate_limit_retry(lambda: requests.post(url, params=params, json=payload, timeout=10))
     r.raise_for_status()
     try:
         data = r.json() if r.text else {}
@@ -208,8 +222,13 @@ def _default_post(url: str, content: str, *, thread_id: Optional[str] = None,
     return str(ch) if ch else None
 
 
-def post_to_room(msg: Dict[str, Any], *, url: Optional[str] = None, force: bool = False,
-                 post: Optional[Callable[..., Optional[str]]] = None) -> BoundaryOutcome:
+def post_to_room(
+    msg: dict[str, Any],
+    *,
+    url: str | None = None,
+    force: bool = False,
+    post: Callable[..., str | None] | None = None,
+) -> BoundaryOutcome:
     """Route one message to its ask's room, creating the room on first contact.
 
     NEVER RAISES — a Discord outage must not raise into a bus caller, and must not
@@ -217,20 +236,21 @@ def post_to_room(msg: Dict[str, Any], *, url: Optional[str] = None, force: bool 
     if not force and not should_forward(msg):
         return BoundaryOutcome.failed(
             f"kind {str(msg.get('kind') or '?')!r} is not on the forward allowlist — the "
-            f"rooms inherit the bridge's list; the firehose stays out of the house")
+            f"rooms inherit the bridge's list; the firehose stays out of the house"
+        )
 
     meta = msg.get("meta") or {}
     ask_id = str(meta.get("ask_id") or meta.get("reply_id") or "").strip()
     if not ask_id:
-        return BoundaryOutcome.failed(
-            "no ask/reply id on this message — that is the global feed's job, not a room's")
+        return BoundaryOutcome.failed("no ask/reply id on this message — that is the global feed's job, not a room's")
 
     target = forum_url() if url is None else url
     if not target:
         return BoundaryOutcome.failed(
             "discord rooms not configured — set AKASHIC_DISCORD_FORUM_WEBHOOK or write "
             ".secrets/discord_forum_webhook.url. A configuration state, not a delivery "
-            "failure: rooms are opt-in and most seats will never set them.")
+            "failure: rooms are opt-in and most seats will never set them."
+        )
 
     reg = _load_reg()
     known = reg.get(ask_id) or {}
@@ -243,15 +263,16 @@ def post_to_room(msg: Dict[str, Any], *, url: Optional[str] = None, force: bool 
         if _seats_registry().get("mode") == "text":
             try:
                 minted_by_bot = _default_create_thread(room_name)
-            except Exception as e:                                      # noqa: BLE001
+            except Exception as e:  # noqa: BLE001  # fail-soft: falls back to a default value
                 return BoundaryOutcome.failed(
-                    f"text-mode thread mint failed ({type(e).__name__}: {e}) — "
-                    f"the bus is unaffected")
+                    f"text-mode thread mint failed ({type(e).__name__}: {e}) — the bus is unaffected"
+                )
             if not minted_by_bot:
                 return BoundaryOutcome.failed(
                     "text-mode room needs a bot-minted thread and none was "
                     "minted (no rooms_channel_id or no token) — refusing "
-                    "beats minting twins")
+                    "beats minting twins"
+                )
             thread_id = minted_by_bot
         else:
             thread_name = room_name
@@ -262,12 +283,18 @@ def post_to_room(msg: Dict[str, Any], *, url: Optional[str] = None, force: bool 
     try:
         for content in parts:
             minted = (post or _default_post)(
-                target, content, thread_id=thread_id, thread_name=thread_name,
-                username=who["username"], avatar_url=who["avatar_url"])
-    except Exception as e:                                              # noqa: BLE001
+                target,
+                content,
+                thread_id=thread_id,
+                thread_name=thread_name,
+                username=who["username"],
+                avatar_url=who["avatar_url"],
+            )
+    except Exception as e:  # noqa: BLE001  # fail-soft: falls back to a default value
         return BoundaryOutcome.failed(
             f"discord room post failed ({type(e).__name__}: {e}) — the bus is unaffected; "
-            f"this router is a listener and never blocks a send")
+            f"this router is a listener and never blocks a send"
+        )
 
     if thread_name or minted_by_bot:
         tid = str(minted_by_bot or minted or "")
@@ -275,11 +302,13 @@ def post_to_room(msg: Dict[str, Any], *, url: Optional[str] = None, force: bool 
             return BoundaryOutcome.failed(
                 "room post landed but no thread id came back — room NOT registered, "
                 "so the next post would mint a twin. Check the webhook targets a FORUM "
-                "channel and wait=true is honored.")
-        reg[ask_id] = {"thread_id": tid,
-                       "title": str(thread_name or f"{ask_id} (text-mode)"),
-                       "created": str(msg.get("id") or "")}
+                "channel and wait=true is honored."
+            )
+        reg[ask_id] = {
+            "thread_id": tid,
+            "title": str(thread_name or f"{ask_id} (text-mode)"),
+            "created": str(msg.get("id") or ""),
+        }
         _save_reg(reg)
 
-    return BoundaryOutcome.done(ref=str(msg.get("id") or ""),
-                                chars=sum(len(p) for p in parts))
+    return BoundaryOutcome.done(ref=str(msg.get("id") or ""), chars=sum(len(p) for p in parts))

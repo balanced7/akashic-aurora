@@ -32,29 +32,29 @@ Architecture tiers:
   Tier 4: session-compressor
 """
 
-import os
-import sys
+import contextlib
 import json
-import time
-import signal
-import socket
 import shutil
-import psutil
-import threading
+import socket
 import subprocess
-from collections import defaultdict, deque, OrderedDict
+import sys
+import time
+from collections import defaultdict, deque
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime, timezone
-from typing import Any
+from datetime import datetime
+from typing import TYPE_CHECKING
+
+import psutil
+
+if TYPE_CHECKING:
+    from redis.typing import EncodableT, FieldT
 
 # ── Platform setup ──
 if sys.platform == "win32":
     try:
         import ctypes
 
-        ctypes.windll.kernel32.SetConsoleMode(
-            ctypes.windll.kernel32.GetStdHandle(-11), 7
-        )
+        ctypes.windll.kernel32.SetConsoleMode(ctypes.windll.kernel32.GetStdHandle(-11), 7)
     except Exception:
         pass
 
@@ -65,9 +65,15 @@ sys.path.insert(0, r"E:\AI-Setup")
 # ──────────────────────────────────────────────────────────────
 
 C = {
-    "R": "\033[91m", "G": "\033[92m", "Y": "\033[93m",
-    "B": "\033[94m", "C": "\033[96m", "M": "\033[95m",
-    "W": "\033[97m", "X": "\033[0m", "D": "\033[90m",
+    "R": "\033[91m",
+    "G": "\033[92m",
+    "Y": "\033[93m",
+    "B": "\033[94m",
+    "C": "\033[96m",
+    "M": "\033[95m",
+    "W": "\033[97m",
+    "X": "\033[0m",
+    "D": "\033[90m",
 }
 
 
@@ -84,11 +90,14 @@ def log(icon: str, name: str, msg: str, color: str = "W"):
 # WSL + POWERSHELL EXEC HELPERS
 # ──────────────────────────────────────────────────────────────
 
+
 def _run_wsl(cmd: str, timeout: int = 10) -> tuple:
     try:
         p = subprocess.run(
             ["wsl", "-d", "Ubuntu-Migrate", "-e", "bash", "-c", cmd],
-            capture_output=True, text=True, timeout=timeout,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
         )
         return p.stdout.strip(), p.returncode == 0
     except subprocess.TimeoutExpired:
@@ -101,7 +110,9 @@ def _run_ps(cmd: str, timeout: int = 15) -> tuple:
     try:
         p = subprocess.run(
             ["powershell", "-NoProfile", "-Command", cmd],
-            capture_output=True, text=True, timeout=timeout,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
         )
         return p.stdout.strip(), p.returncode == 0
     except subprocess.TimeoutExpired:
@@ -110,10 +121,15 @@ def _run_ps(cmd: str, timeout: int = 15) -> tuple:
         return "", False
 
 
-def _run_cmd(cmd: str, timeout: int = 30, cwd: str = None) -> tuple:
+def _run_cmd(cmd: str, timeout: int = 30, cwd: str | None = None) -> tuple:
     try:
         p = subprocess.run(
-            cmd, shell=True, capture_output=True, text=True, timeout=timeout, cwd=cwd,
+            cmd,
+            shell=True,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            cwd=cwd,
         )
         return p.stdout.strip(), p.returncode == 0
     except Exception:
@@ -137,6 +153,7 @@ def _redis():
             _redis_conn = None
     try:
         import redis as redis_lib
+
         r = redis_lib.Redis(host="127.0.0.1", port=6379, decode_responses=True, socket_connect_timeout=3)
         r.ping()
         _redis_conn = r
@@ -155,9 +172,9 @@ SERVICES = {
         "description": "WSL2 VM keep-alive (prevents VM shutdown)",
         "runtime": "windows",
         "command": (
-            'Start-Process -WindowStyle Hidden -FilePath wsl '
+            "Start-Process -WindowStyle Hidden -FilePath wsl "
             '-ArgumentList "-d","Ubuntu-Migrate","-e","bash","-c","sleep infinity" '
-            '-PassThru'
+            "-PassThru"
         ),
         "depends": [],
         "health": {"type": "wsl_alive"},
@@ -170,15 +187,12 @@ SERVICES = {
         "description": "Docker Redis Stack HA (6 containers)",
         "runtime": "docker",
         "command": (
-            "docker compose -f E:\\AI-Setup\\dockerized-ai\\redis\\docker-compose-ha.yml "
-            "up -d --remove-orphans"
+            "docker compose -f E:\\AI-Setup\\dockerized-ai\\redis\\docker-compose-ha.yml up -d --remove-orphans"
         ),
         "cwd": r"E:\AI-Setup\dockerized-ai\redis",
         "depends": [],
         "health": {"type": "tcp", "host": "127.0.0.1", "port": 6379},
-        "stop": (
-            "docker compose -f E:\\AI-Setup\\dockerized-ai\\redis\\docker-compose-ha.yml down"
-        ),
+        "stop": ("docker compose -f E:\\AI-Setup\\dockerized-ai\\redis\\docker-compose-ha.yml down"),
         "ports": [6379, 6380, 6381, 26379, 26380, 26381],
         "resources": {"cpu_cores": 2, "ram_mb": 1024, "gpu_vram_mb": 0},
         "startup_timeout": 60,
@@ -291,17 +305,17 @@ SERVICES = {
         "description": "Session Compressor (auto-compresses logs)",
         "runtime": "windows",
         "command": (
-            'if (Get-Process python -ErrorAction SilentlyContinue | Where-Object '
+            "if (Get-Process python -ErrorAction SilentlyContinue | Where-Object "
             '{$_.CommandLine -like "*session_compressor*"}) { exit 0 }; '
-            'Start-Process -WindowStyle Hidden -FilePath python '
+            "Start-Process -WindowStyle Hidden -FilePath python "
             '-ArgumentList "E:\\AI-Setup\\session_compressor.py","--daemon"'
         ),
         "depends": ["wsl-redis-master"],
         "health": {"type": "process", "name": "session_compressor"},
         "stop": (
-            'Get-Process python -ErrorAction SilentlyContinue | '
+            "Get-Process python -ErrorAction SilentlyContinue | "
             'Where-Object {$_.CommandLine -like "*session_compressor*"} | '
-            'Stop-Process -Force'
+            "Stop-Process -Force"
         ),
         "ports": [],
         "resources": {"cpu_cores": 0.5, "ram_mb": 256, "gpu_vram_mb": 0},
@@ -313,17 +327,17 @@ SERVICES = {
         "description": "Stack Manager Web GUI (localhost:8090)",
         "runtime": "windows",
         "command": (
-            'if (Get-Process python -ErrorAction SilentlyContinue | Where-Object '
+            "if (Get-Process python -ErrorAction SilentlyContinue | Where-Object "
             '{$_.CommandLine -like "*stack_gui*"}) { exit 0 }; '
-            'Start-Process -WindowStyle Hidden -FilePath python '
+            "Start-Process -WindowStyle Hidden -FilePath python "
             '-ArgumentList "E:\\AI-Setup\\stack_gui.py","--no-browser","--port","8090"'
         ),
         "depends": ["wsl-redis-master"],
         "health": {"type": "http", "url": "http://localhost:8090/api/dashboard"},
         "stop": (
-            'Get-Process python -ErrorAction SilentlyContinue | '
+            "Get-Process python -ErrorAction SilentlyContinue | "
             'Where-Object {$_.CommandLine -like "*stack_gui*"} | '
-            'Stop-Process -Force'
+            "Stop-Process -Force"
         ),
         "ports": [8090],
         "resources": {"cpu_cores": 0.5, "ram_mb": 256, "gpu_vram_mb": 0},
@@ -337,7 +351,8 @@ SERVICES = {
 # DAG RESOLVER
 # ──────────────────────────────────────────────────────────────
 
-def resolve_tiers(services: dict = None) -> list:
+
+def resolve_tiers(services: dict | None = None) -> list:
     """Kahn's algorithm → list of parallel-safe launch tiers."""
     if services is None:
         services = SERVICES
@@ -367,6 +382,7 @@ def resolve_tiers(services: dict = None) -> list:
 # SUBSYSTEM 1: PORT MANAGER — allocation, conflict detection
 # ══════════════════════════════════════════════════════════════
 
+
 class PortManager:
     """
     Manages port allocation across all services.
@@ -377,7 +393,7 @@ class PortManager:
     def __init__(self):
         self.allocations: dict[str, list[int]] = {}  # service_name → [ports]
 
-    def scan_services(self, services: dict = None) -> dict[str, list[int]]:
+    def scan_services(self, services: dict | None = None) -> dict[str, list[int]]:
         """Extract port assignments from service configs."""
         if services is None:
             services = SERVICES
@@ -388,7 +404,7 @@ class PortManager:
                 result[name] = sorted(ports)
         return result
 
-    def detect_conflicts(self, services: dict = None) -> list[str]:
+    def detect_conflicts(self, services: dict | None = None) -> list[str]:
         """
         Check for port conflicts across services.
         Shared-purpose services (same runtime type group: wsl/docker)
@@ -409,9 +425,7 @@ class PortManager:
                 runtimes = {services[n].get("runtime", "") for n in names}
                 if len(runtimes) == 1:
                     # Same runtime = real conflict
-                    conflicts.append(
-                        f"Port {port}: {', '.join(names)} (same runtime={list(runtimes)[0]})"
-                    )
+                    conflicts.append(f"Port {port}: {', '.join(names)} (same runtime={next(iter(runtimes))})")
                 # Different runtimes = alternative backends (not a conflict)
         return conflicts
 
@@ -451,19 +465,22 @@ class PortManager:
                 key = f"port:{name.replace('-', '_')}"
                 if port != (endpoint.get("port") or ports[0]):
                     key = f"port:{name.replace('-', '_')}_{port}"
-                r.hset(key, mapping={
-                    "port": str(port),
-                    "protocol": endpoint.get("protocol", "tcp"),
-                    "description": cfg["description"],
-                    "service": name,
-                    "updated_at": now,
-                })
+                r.hset(
+                    key,
+                    mapping={
+                        "port": str(port),
+                        "protocol": endpoint.get("protocol", "tcp"),
+                        "description": cfg["description"],
+                        "service": name,
+                        "updated_at": now,
+                    },
+                )
 
     def print_map(self):
         """Print the full port allocation map."""
         print()
         print(f" {'PORT':<8} {'SERVICE':<26} {'STATUS':<10} {'DESCRIPTION'}")
-        print(f" {'-'*8} {'-'*26} {'-'*10} {'-'*40}")
+        print(f" {'-' * 8} {'-' * 26} {'-' * 10} {'-' * 40}")
         seen = set()
         for name, cfg in SERVICES.items():
             for port in cfg.get("ports", []):
@@ -478,6 +495,7 @@ class PortManager:
 # ══════════════════════════════════════════════════════════════
 # SUBSYSTEM 2: ROUTING TABLE — Redis-based service discovery
 # ══════════════════════════════════════════════════════════════
+
 
 class RoutingTable:
     """
@@ -495,7 +513,7 @@ class RoutingTable:
         if not r:
             return
         key = f"{self.PREFIX}:{name}:endpoint"
-        mapping = {
+        mapping: dict[FieldT, EncodableT] = {
             "host": host,
             "port": str(port),
             "protocol": protocol,
@@ -557,14 +575,14 @@ class RoutingTable:
             return
         print()
         print(f" {'SERVICE':<26} {'ENDPOINT':<30} {'STATUS'}")
-        print(f" {'-'*26} {'-'*30} {'-'*12}")
+        print(f" {'-' * 26} {'-' * 30} {'-' * 12}")
         for name, info in sorted(routes.items()):
             endpoint = f"{info.get('host', '?')}:{info.get('port', '?')} ({info.get('protocol', '?')})"
             status = info.get("status", "unknown")
             sc = "G" if status == "healthy" else ("Y" if status == "starting" else "R")
             print(f" {name:<26} {endpoint:<30} {c(sc, status)}")
 
-    def sync_from_config(self, services: dict = None):
+    def sync_from_config(self, services: dict | None = None):
         """Register all services that have endpoint definitions."""
         if services is None:
             services = SERVICES
@@ -572,8 +590,10 @@ class RoutingTable:
             ep = cfg.get("endpoint")
             if ep:
                 self.register(
-                    name, ep.get("host", "127.0.0.1"),
-                    ep.get("port", 0), ep.get("protocol", "tcp"),
+                    name,
+                    ep.get("host", "127.0.0.1"),
+                    ep.get("port", 0),
+                    ep.get("protocol", "tcp"),
                     status="defined",
                 )
 
@@ -581,6 +601,7 @@ class RoutingTable:
 # ══════════════════════════════════════════════════════════════
 # SUBSYSTEM 3: RESOURCE TRACKER — CPU, GPU, RAM, WSL, RAM disk
 # ══════════════════════════════════════════════════════════════
+
 
 class ResourceTracker:
     """
@@ -626,9 +647,7 @@ class ResourceTracker:
     def gpu_info(self) -> dict | None:
         """Get GPU info via WSL ROCm."""
         out, ok = _run_wsl(
-            "source /etc/profile.d/rocm.sh 2>/dev/null; "
-            "rocm-smi --showmeminfo vram --json 2>/dev/null || "
-            "echo '{}'",
+            "source /etc/profile.d/rocm.sh 2>/dev/null; rocm-smi --showmeminfo vram --json 2>/dev/null || echo '{}'",
             timeout=10,
         )
         if ok and out:
@@ -651,7 +670,7 @@ class ResourceTracker:
         except Exception:
             return {"total_mb": 0, "used_mb": 0, "free_mb": 0, "used_pct": 0}
 
-    def check_capacity(self, services: dict = None) -> list[str]:
+    def check_capacity(self, services: dict | None = None) -> list[str]:
         """
         Check if system has enough resources for all declared services.
         Returns list of warnings (empty = all good).
@@ -670,14 +689,10 @@ class ResourceTracker:
 
         warnings = []
         if total_cpu > system["cpu_cores_logical"] * 0.85:
-            warnings.append(
-                f"CPU overallocation: {total_cpu:.0f} requested vs "
-                f"{system['cpu_cores_logical']} available"
-            )
+            warnings.append(f"CPU overallocation: {total_cpu:.0f} requested vs {system['cpu_cores_logical']} available")
         if total_ram > system["ram_available_mb"]:
             warnings.append(
-                f"RAM overallocation: {total_ram} MB requested vs "
-                f"{system['ram_available_mb']} MB available"
+                f"RAM overallocation: {total_ram} MB requested vs {system['ram_available_mb']} MB available"
             )
         return warnings
 
@@ -690,7 +705,9 @@ class ResourceTracker:
         print()
         print(c("B", "  SYSTEM RESOURCES"))
         print(f"  CPU: {sysinfo['cpu_cores_physical']} physical / {sysinfo['cpu_cores_logical']} logical cores")
-        print(f"  RAM: {sysinfo['ram_available_mb']} MB available / {sysinfo['ram_total_mb']} MB total ({sysinfo['ram_used_pct']}% used)")
+        print(
+            f"  RAM: {sysinfo['ram_available_mb']} MB available / {sysinfo['ram_total_mb']} MB total ({sysinfo['ram_used_pct']}% used)"
+        )
         if wsl_mem:
             print(f"  WSL Memory: ~{wsl_mem} MB used")
         if ramdisk["total_mb"] > 0:
@@ -699,7 +716,7 @@ class ResourceTracker:
         # Per-service allocation
         print()
         print(f" {'SERVICE':<26} {'CPU':>5} {'RAM':>8} {'GPU VRAM':>9}")
-        print(f" {'-'*26} {'-'*5} {'-'*8} {'-'*9}")
+        print(f" {'-' * 26} {'-' * 5} {'-' * 8} {'-' * 9}")
         for name, cfg in SERVICES.items():
             res = cfg.get("resources", {})
             cpu = res.get("cpu_cores", 0)
@@ -712,6 +729,7 @@ class ResourceTracker:
 # SUBSYSTEM 4: MEMORY MONITOR — per-service RSS/VMS tracking
 # ══════════════════════════════════════════════════════════════
 
+
 class MemoryMonitor:
     """
     Tracks per-service memory usage (RSS, VMS) and alerts on limit breaches.
@@ -722,7 +740,7 @@ class MemoryMonitor:
         self.snapshots: dict[str, list] = defaultdict(list)  # name → [snapshots]
         self.max_snapshots = 30  # rolling window
 
-    def sample(self, services: dict = None) -> dict[str, dict]:
+    def sample(self, services: dict | None = None) -> dict[str, dict]:
         """Take a memory sample for all active services."""
         if services is None:
             services = SERVICES
@@ -733,19 +751,20 @@ class MemoryMonitor:
                 samples[name] = mem
                 self.snapshots[name].append(mem)
                 if len(self.snapshots[name]) > self.max_snapshots:
-                    self.snapshots[name] = self.snapshots[name][-self.max_snapshots:]
+                    self.snapshots[name] = self.snapshots[name][-self.max_snapshots :]
                 # Store in Redis
                 r = _redis()
                 if r:
-                    try:
-                        r.hset(f"service:{name}:memory", mapping={
-                            "rss_mb": str(mem.get("rss_mb", 0)),
-                            "vms_mb": str(mem.get("vms_mb", 0)),
-                            "cpu_pct": str(mem.get("cpu_pct", 0)),
-                            "timestamp": datetime.now().isoformat(),
-                        })
-                    except Exception:
-                        pass
+                    with contextlib.suppress(Exception):
+                        r.hset(
+                            f"service:{name}:memory",
+                            mapping={
+                                "rss_mb": str(mem.get("rss_mb", 0)),
+                                "vms_mb": str(mem.get("vms_mb", 0)),
+                                "cpu_pct": str(mem.get("cpu_pct", 0)),
+                                "timestamp": datetime.now().isoformat(),
+                            },
+                        )
         return samples
 
     def _sample_service(self, name: str, cfg: dict) -> dict | None:
@@ -807,9 +826,9 @@ class MemoryMonitor:
 
             elif runtime == "docker":
                 out, ok = _run_cmd(
-                    f"docker stats --no-stream --format "
-                    f"\"{{{{.MemUsage}}}} {{{{.CPUPerc}}}}\" "
-                    f"$(docker ps --filter \"name=redis|sentinel\" -q) 2>nul",
+                    "docker stats --no-stream --format "
+                    '"{{.MemUsage}} {{.CPUPerc}}" '
+                    '$(docker ps --filter "name=redis|sentinel" -q) 2>nul',
                     timeout=10,
                 )
                 if ok and out.strip():
@@ -820,22 +839,18 @@ class MemoryMonitor:
                         if parts:
                             # MemUsage is like "50MiB / 1GiB"
                             mem_str = parts[0].replace("MiB", "").replace("GiB", "*1024")
-                            try:
+                            with contextlib.suppress(Exception):
                                 total_rss += float(eval(mem_str) if "*" in mem_str else mem_str)
-                            except Exception:
-                                pass
                             if len(parts) > 1:
-                                try:
+                                with contextlib.suppress(Exception):
                                     total_cpu += float(parts[-1].replace("%", ""))
-                                except Exception:
-                                    pass
                     return {"rss_mb": round(total_rss, 1), "vms_mb": 0, "cpu_pct": round(total_cpu, 1)}
 
         except Exception:
             pass
         return None
 
-    def check_limits(self, services: dict = None) -> list[str]:
+    def check_limits(self, services: dict | None = None) -> list[str]:
         """Check if any service exceeds its memory limit. Returns alerts."""
         if services is None:
             services = SERVICES
@@ -844,9 +859,7 @@ class MemoryMonitor:
         for name, mem in samples.items():
             limit = services.get(name, {}).get("memory_limit_mb")
             if limit and mem.get("rss_mb", 0) > limit:
-                alerts.append(
-                    f"{name}: {mem['rss_mb']:.0f} MB RSS exceeds limit of {limit} MB"
-                )
+                alerts.append(f"{name}: {mem['rss_mb']:.0f} MB RSS exceeds limit of {limit} MB")
         return alerts
 
     def print_memory(self):
@@ -857,7 +870,7 @@ class MemoryMonitor:
             return
         print()
         print(f" {'SERVICE':<26} {'RSS':>8} {'VMS':>8} {'CPU%':>6} {'LIMIT':>8} {'ALERT'}")
-        print(f" {'-'*26} {'-'*8} {'-'*8} {'-'*6} {'-'*8} {'-'*6}")
+        print(f" {'-' * 26} {'-' * 8} {'-' * 8} {'-' * 6} {'-' * 8} {'-' * 6}")
         for name in SERVICES:
             mem = samples.get(name, {})
             rss = mem.get("rss_mb", 0)
@@ -873,6 +886,7 @@ class MemoryMonitor:
 # HEALTH CHECK ENGINE
 # ══════════════════════════════════════════════════════════════
 
+
 def check_health(name: str, cfg: dict) -> bool:
     hc = cfg.get("health", {})
     htype = hc.get("type", "")
@@ -880,19 +894,16 @@ def check_health(name: str, cfg: dict) -> bool:
         if htype == "wsl_alive":
             out, ok = _run_wsl("echo ALIVE", timeout=5)
             return ok and "ALIVE" in out
-        elif htype == "tcp":
-            s = socket.create_connection(
-                (hc.get("host", "127.0.0.1"), hc.get("port", 6379)), timeout=3
-            )
+        if htype == "tcp":
+            s = socket.create_connection((hc.get("host", "127.0.0.1"), hc.get("port", 6379)), timeout=3)
             s.close()
             return True
-        elif htype == "redis_ping":
-            out, ok = _run_wsl(
-                f"redis-cli -p {hc.get('port', 6379)} PING 2>/dev/null", timeout=5
-            )
+        if htype == "redis_ping":
+            out, ok = _run_wsl(f"redis-cli -p {hc.get('port', 6379)} PING 2>/dev/null", timeout=5)
             return ok and "PONG" in out
-        elif htype == "http":
+        if htype == "http":
             import urllib.request
+
             req = urllib.request.Request(hc.get("url", ""))
             with urllib.request.urlopen(req, timeout=5) as resp:
                 if resp.status == 200:
@@ -901,7 +912,7 @@ def check_health(name: str, cfg: dict) -> bool:
                         return contains in resp.read().decode()
                     return True
             return False
-        elif htype == "process":
+        if htype == "process":
             pattern = hc.get("name", "")
             out, ok = _run_ps(
                 f"Get-Process python -ErrorAction SilentlyContinue | "
@@ -910,8 +921,7 @@ def check_health(name: str, cfg: dict) -> bool:
                 timeout=10,
             )
             return ok and out.strip() not in ("", "0")
-        else:
-            return True
+        return True
     except Exception:
         return False
 
@@ -919,6 +929,7 @@ def check_health(name: str, cfg: dict) -> bool:
 # ══════════════════════════════════════════════════════════════
 # SERVICE LAUNCHER
 # ══════════════════════════════════════════════════════════════
+
 
 def launch_service(name: str, cfg: dict) -> bool:
     runtime = cfg.get("runtime", "windows")
@@ -937,7 +948,7 @@ def launch_service(name: str, cfg: dict) -> bool:
         return False
 
 
-def wait_for_healthy(name: str, cfg: dict, routes: "RoutingTable" = None) -> bool:
+def wait_for_healthy(name: str, cfg: dict, routes: "RoutingTable | None" = None) -> bool:
     deadline = time.time() + cfg.get("startup_timeout", 60)
     delay = 0.5
     while time.time() < deadline:
@@ -955,6 +966,7 @@ def wait_for_healthy(name: str, cfg: dict, routes: "RoutingTable" = None) -> boo
 # ══════════════════════════════════════════════════════════════
 # COMMAND IMPLEMENTATIONS
 # ══════════════════════════════════════════════════════════════
+
 
 def cmd_start():
     """Full stack launch with pre-flight checks, DAG, parallel tiers."""
@@ -991,8 +1003,7 @@ def cmd_start():
     in_use = ports.scan_host_ports()
     stale = [(p, s) for p, s in in_use.items() if s == "IN USE"]
     if stale:
-        log("\u26a0", "port-manager",
-            f"Some ports already in use: {', '.join(str(p) for p, _ in stale)}", "Y")
+        log("\u26a0", "port-manager", f"Some ports already in use: {', '.join(str(p) for p, _ in stale)}", "Y")
 
     # 4. Sync routing table
     routes.sync_from_config()
@@ -1010,10 +1021,7 @@ def cmd_start():
         print(c("M", f"\u2500\u2500 Tier {i}: {tier_label} \u2500\u2500"))
 
         with ThreadPoolExecutor(max_workers=6) as executor:
-            futures = {
-                executor.submit(_launch_one, name, SERVICES[name], routes): name
-                for name in tier
-            }
+            futures = {executor.submit(_launch_one, name, SERVICES[name], routes): name for name in tier}
             for future in as_completed(futures):
                 name = futures[future]
                 try:
@@ -1024,8 +1032,10 @@ def cmd_start():
                         ep = cfg.get("endpoint")
                         if ep:
                             routes.register(
-                                name, ep.get("host", "127.0.0.1"),
-                                ep.get("port", 0), ep.get("protocol", "tcp"),
+                                name,
+                                ep.get("host", "127.0.0.1"),
+                                ep.get("port", 0),
+                                ep.get("protocol", "tcp"),
                                 status="healthy",
                             )
                         stats["healthy"] += 1
@@ -1051,7 +1061,7 @@ def cmd_start():
         sys.exit(1)
 
 
-def _launch_one(name: str, cfg: dict, routes: "RoutingTable" = None) -> bool:
+def _launch_one(name: str, cfg: dict, routes: "RoutingTable | None" = None) -> bool:
     log("\u25b6", name, f"Starting ({cfg['description']})...", "C")
     launch_service(name, cfg)
     log("\u23f3", name, "Waiting for health check...", "Y")
@@ -1065,7 +1075,7 @@ def _launch_one(name: str, cfg: dict, routes: "RoutingTable" = None) -> bool:
 
 def cmd_status():
     """Show status of all services + resources + memory."""
-    ports = PortManager()
+    PortManager()
     resources = ResourceTracker()
     memory = MemoryMonitor()
     routes = RoutingTable()
@@ -1078,7 +1088,7 @@ def cmd_status():
     # Service health
     print()
     print(f" {'SERVICE':<24} {'HEALTH':<12} {'DESCRIPTION'}")
-    print(f" {'-'*24} {'-'*12} {'-'*35}")
+    print(f" {'-' * 24} {'-' * 12} {'-' * 35}")
     for name, cfg in SERVICES.items():
         healthy = check_health(name, cfg)
         status_str = c("G", "  HEALTHY  ") if healthy else c("R", "  DOWN     ")
@@ -1114,9 +1124,9 @@ def cmd_stop():
             runtime = cfg.get("runtime", "")
             try:
                 if runtime == "wsl":
-                    out, ok = _run_wsl(stop_cmd, timeout=10)
+                    _out, ok = _run_wsl(stop_cmd, timeout=10)
                 else:
-                    out, ok = _run_ps(stop_cmd, timeout=10)
+                    _out, ok = _run_ps(stop_cmd, timeout=10)
                 icon = "\u2713" if ok else "\u26a0"
                 log(icon, name, "Stopped", "G" if ok else "Y")
             except Exception as e:
@@ -1139,7 +1149,10 @@ def cmd_stop():
     if docker_stop:
         log("\u25b6", "docker-global", "Stopping Docker containers...", "Y")
         subprocess.run(
-            docker_stop, shell=True, capture_output=True, timeout=30,
+            docker_stop,
+            shell=True,
+            capture_output=True,
+            timeout=30,
             cwd=r"E:\AI-Setup\dockerized-ai\redis",
         )
         log("\u2713", "docker-global", "Docker containers stopped", "G")
@@ -1260,13 +1273,13 @@ def cmd_resources():
 # ──────────────────────────────────────────────────────────────
 
 COMMANDS = {
-    "start":     (cmd_start,     "Launch the full stack (pre-flight + DAG + parallel)"),
-    "stop":      (cmd_stop,      "Stop all services in reverse dependency order"),
-    "status":    (cmd_status,    "Show service health, resources, memory, routes"),
-    "monitor":   (cmd_monitor,   "Start + continuous health/memory watchdog"),
-    "restart":   ("args",        "Restart a specific service by name"),
-    "ports":     (cmd_ports,     "Show port allocation map + host scan"),
-    "routes":    (cmd_routes,    "Show service routing / discovery table"),
+    "start": (cmd_start, "Launch the full stack (pre-flight + DAG + parallel)"),
+    "stop": (cmd_stop, "Stop all services in reverse dependency order"),
+    "status": (cmd_status, "Show service health, resources, memory, routes"),
+    "monitor": (cmd_monitor, "Start + continuous health/memory watchdog"),
+    "restart": ("args", "Restart a specific service by name"),
+    "ports": (cmd_ports, "Show port allocation map + host scan"),
+    "routes": (cmd_routes, "Show service routing / discovery table"),
     "resources": (cmd_resources, "Show system resource overview"),
 }
 

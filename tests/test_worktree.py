@@ -6,6 +6,7 @@ in a temp repo: setup -> commit in the worktree -> integrate -> master has the c
 
 Run: py -m pytest tests/test_worktree.py -q
 """
+
 import os
 import subprocess
 import sys
@@ -58,8 +59,8 @@ def test_setup_creates_branch_and_worktree(repo, tmp_path):
     base = tmp_path / "wts"
     p = wt.setup("claude", root=repo, base=base)
     assert p.exists()
-    assert (p / ".git").exists()                 # linked-worktree marker (a file, not a dir)
-    assert (p / "seed.txt").exists()             # shares history
+    assert (p / ".git").exists()  # linked-worktree marker (a file, not a dir)
+    assert (p / "seed.txt").exists()  # shares history
     branches = subprocess.run(["git", "branch"], cwd=repo, capture_output=True, text=True).stdout
     assert "agent/claude" in branches
 
@@ -68,8 +69,9 @@ def test_same_branch_cannot_be_checked_out_twice(repo, tmp_path):
     base = tmp_path / "wts"
     wt.setup("claude", root=repo, base=base)
     # second worktree on the SAME branch must fail -- git's built-in collision guard
-    r = subprocess.run(["git", "worktree", "add", str(tmp_path / "dup"), "agent/claude"],
-                       cwd=repo, capture_output=True, text=True)
+    r = subprocess.run(
+        ["git", "worktree", "add", str(tmp_path / "dup"), "agent/claude"], cwd=repo, capture_output=True, text=True
+    )
     assert r.returncode != 0
 
 
@@ -80,11 +82,11 @@ def test_integrate_lands_worktree_commit_on_master(repo, tmp_path):
     (p / "feature.txt").write_text("from claude\n")
     _git(p, "add", "feature.txt")
     _git(p, "commit", "-m", "claude: add feature")
-    assert not (repo / "feature.txt").exists()   # isolated: master can't see it yet
+    assert not (repo / "feature.txt").exists()  # isolated: master can't see it yet
 
-    wt.integrate("claude", root=repo)            # repo is on master (no origin -> push skipped)
+    wt.integrate("claude", root=repo)  # repo is on master (no origin -> push skipped)
 
-    assert (repo / "feature.txt").exists()       # now master has it
+    assert (repo / "feature.txt").exists()  # now master has it
     log = subprocess.run(["git", "log", "--oneline"], cwd=repo, capture_output=True, text=True).stdout
     assert "claude: add feature" in log
 
@@ -93,4 +95,4 @@ def test_integrate_refuses_off_master(repo, tmp_path):
     wt.setup("claude", root=repo, base=tmp_path / "wts")
     _git(repo, "checkout", "-b", "somewhere-else")
     with pytest.raises(SystemExit):
-        wt.integrate("claude", root=repo)        # guard: integrate only from master
+        wt.integrate("claude", root=repo)  # guard: integrate only from master

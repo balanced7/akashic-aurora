@@ -21,8 +21,10 @@ a prompt template instead of a comment.
 
 Run:  py -m pytest tests/test_spawn_prompt_requires_a_reply.py -v
 """
+
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
@@ -32,7 +34,9 @@ SRC = (REPO / "scripts" / "bifrost_runner_discord.py").read_text(encoding="utf-8
 def _spawn_prompt_block() -> str:
     """The literal source slice that builds `prompt` inside `_spawn`, isolated from the
     rest of the (large) file so a match elsewhere can never fake this pin green."""
-    start = SRC.index('prompt = (f"You were spawned by the operator')
+    found = re.search(r'prompt = \(\s*f"You were spawned by the operator', SRC)  # any line layout
+    assert found is not None, "the _spawn prompt block is missing"
+    start = found.start()
     end = SRC.index(")\n", start)
     return SRC[start:end]
 
@@ -44,7 +48,8 @@ def test_the_prompt_names_wrap_as_insufficient():
     assert "wrap" in block.lower()
     assert "never reaches him" in block or "distills" in block, (
         "the prompt must say, in words, that wrap alone does not reach Daniil -- "
-        "otherwise a spawned seat has no reason not to repeat the silent-completion bug")
+        "otherwise a spawned seat has no reason not to repeat the silent-completion bug"
+    )
 
 
 def test_the_prompt_gives_the_exact_reply_command():
@@ -61,6 +66,7 @@ def test_the_prompt_covers_task_shaped_asks_not_just_questions():
     answered on the model's own initiative. The instruction must not leave that judgment
     call to chance."""
     block = _spawn_prompt_block()
-    assert "task" in block.lower() and (
-        "even if" in block.lower() or "task-shaped" in block.lower() or "task rather than" in block.lower()
-    ), "the prompt must cover task-phrased asks explicitly, not just question-phrased ones"
+    assert "task" in block.lower(), "the prompt must cover task-phrased asks explicitly, not just question-phrased ones"
+    assert "even if" in block.lower() or "task-shaped" in block.lower() or "task rather than" in block.lower(), (
+        "the prompt must cover task-phrased asks explicitly, not just question-phrased ones"
+    )

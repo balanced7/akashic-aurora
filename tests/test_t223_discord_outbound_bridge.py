@@ -12,6 +12,7 @@ EVERY PIN HERE RUNS WITHOUT A NETWORK. The transport is injected, so the selecti
 redaction and the failure semantics are all testable offline -- and a bridge whose tests need
 a live webhook is a bridge nobody runs the tests for.
 """
+
 from __future__ import annotations
 
 import sys
@@ -22,7 +23,7 @@ import pytest
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 
-from core.comm import discord_bridge as DB  # noqa: E402
+from core.comm import discord_bridge as DB  # noqa: E402  # sys.path bootstrap
 
 
 class FakePost:
@@ -49,10 +50,12 @@ def test_only_allowlisted_kinds_go_out():
     was written -- and this repo adds kinds regularly (31 at last count, T177)."""
     assert DB.should_forward(_msg(kind="handoff"))
     assert DB.should_forward(_msg(kind="blocker"))
-    assert not DB.should_forward(_msg(kind="trace")), \
+    assert not DB.should_forward(_msg(kind="trace")), (
         "trace is the firehose -- forwarding it makes the channel unreadable within an hour"
-    assert not DB.should_forward(_msg(kind="some_kind_invented_next_week")), \
+    )
+    assert not DB.should_forward(_msg(kind="some_kind_invented_next_week")), (
         "an unknown kind must default to NOT forwarded; that is what allowlist means"
+    )
 
 
 def test_a_human_message_always_goes_out():
@@ -65,8 +68,7 @@ def test_secrets_are_redacted_before_they_leave_the_machine():
     """Posting to Discord PUBLISHES to a third party, retained and indexed regardless of
     later deletion. A bus body can carry a key, a token or a webhook URL; that must not be
     the way it escapes."""
-    body = ("failed with DEEPSEEK_API_KEY=sk-abc123def456ghi789 and "
-            "https://discord.com/api/webhooks/123/AbCdEfGhIjK")
+    body = "failed with DEEPSEEK_API_KEY=sk-abc123def456ghi789 and https://discord.com/api/webhooks/123/AbCdEfGhIjK"
     out = DB.redact(body)
     assert "sk-abc123def456ghi789" not in out
     assert "AbCdEfGhIjK" not in out
@@ -77,7 +79,8 @@ def test_redaction_keeps_the_message_readable():
     """Over-redaction makes the channel useless, which is how a safety feature gets turned
     off. The surrounding text must survive."""
     out = DB.redact("T219 landed at cbae99e -- the scorer fork is closed")
-    assert "cbae99e" in out and "scorer fork" in out
+    assert "cbae99e" in out
+    assert "scorer fork" in out
 
 
 # ------------------------------------------------------------------ transport
@@ -86,7 +89,8 @@ def test_a_post_carries_who_and_what():
     DB.forward(_msg(), url="https://example.invalid/hook", post=post)
     assert len(post.sent) == 1
     _, content = post.sent[0]
-    assert "deepseek" in content and "handoff" in content
+    assert "deepseek" in content
+    assert "handoff" in content
 
 
 def test_oversize_bodies_post_multiple_parts_never_over_the_cap():
@@ -96,20 +100,21 @@ def test_oversize_bodies_post_multiple_parts_never_over_the_cap():
     phone) cannot run, so multi-part posting replaces it."""
     long_body = "x" * 5000
     post = FakePost()
-    DB.forward({**_msg(content=long_body), "id": "1786094136458-0"},
-               url="https://example.invalid/hook", post=post)
+    DB.forward({**_msg(content=long_body), "id": "1786094136458-0"}, url="https://example.invalid/hook", post=post)
     assert len(post.sent) > 1, "an oversize body must post multiple parts, not one clip"
     for _, content in post.sent:
         assert len(content) <= 2000, "Discord will reject any part over 2000 outright"
-        assert "bifrost-fetch" not in content, \
+        assert "bifrost-fetch" not in content, (
             "the recovery handle is a shell command a phone cannot run -- N parts replace it"
+        )
 
 
 def test_a_dead_webhook_never_breaks_the_bus():
     """The bridge is a LISTENER on a substrate that must not care about it. A Discord outage
     must not raise into a caller, and must not silently pretend success either."""
     out = DB.forward(_msg(), url="https://example.invalid/hook", post=FakePost(fail=True))
-    assert out.ok is False and out.why, "a failed post must say why"
+    assert out.ok is False, "a failed post must say why"
+    assert out.why, "a failed post must say why"
 
 
 def test_no_url_is_a_configuration_state_not_a_failure():
@@ -126,19 +131,21 @@ def test_the_outbound_bridge_exposes_no_inbound_door():
     inbound path is a prompt-injection channel into a fleet that holds a shell, a repo and a
     budget; it does not ship until the R1-R3 identity gate is built and pinned."""
     for banned in ("receive", "poll", "listen", "on_message", "read_channel"):
-        assert not hasattr(DB, banned), (
-            f"discord_bridge exposes {banned!r} -- phase 2 must not arrive by accident")
+        assert not hasattr(DB, banned), f"discord_bridge exposes {banned!r} -- phase 2 must not arrive by accident"
 
 
 # ------------------------------------------------------- redaction vs the CURRENT key formats
-@pytest.mark.parametrize("key", [
-    "sk-ant-api03-AAAABBBBCCCCDDDDEEEEFFFF",   # Anthropic -- the format THIS HOUSE's keys use
-    "sk-proj-AAAABBBBCCCCDDDD",                 # OpenAI project-scoped
-    "sk-AAAABBBBCCCCDDDD",                      # OpenAI legacy (the shape the regex was born on)
-    "ghp_AAAABBBBCCCCDDDD",                     # GitHub PAT
-    "xoxb-1234567890-abcdefghij",               # Slack bot
-    "AIzaSyAAAABBBBCCCCDDDD",                   # Google
-])
+@pytest.mark.parametrize(
+    "key",
+    [
+        "sk-ant-api03-AAAABBBBCCCCDDDDEEEEFFFF",  # Anthropic -- the format THIS HOUSE's keys use
+        "sk-proj-AAAABBBBCCCCDDDD",  # OpenAI project-scoped
+        "sk-AAAABBBBCCCCDDDD",  # OpenAI legacy (the shape the regex was born on)
+        "ghp_AAAABBBBCCCCDDDD",  # GitHub PAT
+        "xoxb-1234567890-abcdefghij",  # Slack bot
+        "AIzaSyAAAABBBBCCCCDDDD",  # Google
+    ],
+)
 def test_redaction_covers_prefixed_provider_keys(key):
     """FOUND 2026-08-24, live: the pattern was `sk-[A-Za-z0-9]{8,}`, written when an OpenAI key
     was `sk-` plus one alphanumeric blob. Both vendors moved to PREFIXED keys, the character
@@ -152,10 +159,16 @@ def test_redaction_covers_prefixed_provider_keys(key):
     assert key[:14] not in DB.redact(f"the key is {key} ok")
 
 
-@pytest.mark.parametrize("innocent", [
-    "the task-force-alpha plan", "desk-based-review of the code", "ask-me-anything session",
-    "disk-io-scheduler tuning", "risk-benefit-analysis",
-])
+@pytest.mark.parametrize(
+    "innocent",
+    [
+        "the task-force-alpha plan",
+        "desk-based-review of the code",
+        "ask-me-anything session",
+        "disk-io-scheduler tuning",
+        "risk-benefit-analysis",
+    ],
+)
 def test_redaction_does_not_eat_ordinary_prose(innocent):
     """The sibling pin, and the reason the fix keeps the word boundary and an alphanumeric
     tail. redact()'s own docstring names over-redaction as the failure that gets a safety

@@ -10,13 +10,18 @@ transport/control traffic.
 
 These pins run on DictStore/FileStore stand-ins -- no Redis required.
 """
+
 import json
 
 import pytest
 
 from core.foundation.durable_reconcile import (
     ReconcileHalt,
+)
+from core.foundation.durable_reconcile import (
     apply as reconcile_apply,
+)
+from core.foundation.durable_reconcile import (
     plan as reconcile_plan,
 )
 from core.foundation.store import FileStore
@@ -124,14 +129,11 @@ def test_p8_artifact_divergence_halts_before_any_write(tmp_path):
         reconcile_apply(redis, file, escrow_path=escrow)
 
     assert "write-once" in str(exc.value), (
-        "the halt must come from the STOP-RULE (write-once divergence), not from "
-        "the unknown-family path"
+        "the halt must come from the STOP-RULE (write-once divergence), not from the unknown-family path"
     )
     assert not escrow.exists(), "stop-rule must fire before the escrow write"
     assert file.hgetall("artifact:art_2026_x") == {"body": "file-variant"}
-    assert file.hgetall("artifact:art_2026_new") == {}, (
-        "halt means NOTHING was written, not even the safe copies"
-    )
+    assert file.hgetall("artifact:art_2026_new") == {}, "halt means NOTHING was written, not even the safe copies"
 
 
 def test_p9_auto_type_family_copies_kv_hash_and_list(tmp_path):
@@ -213,9 +215,7 @@ def test_p4_ephemeral_families_are_never_copied(tmp_path):
 
     reconcile_apply(redis, file, escrow_path=tmp_path / "escrow.json")
 
-    assert file.get("bifrost:work:123-0") is None, (
-        "transport/control namespaces must not gain a durable afterlife"
-    )
+    assert file.get("bifrost:work:123-0") is None, "transport/control namespaces must not gain a durable afterlife"
     assert file.hgetall("learn:experiment:delta") == {"result": "keep"}
 
 

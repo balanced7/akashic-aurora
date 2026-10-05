@@ -36,10 +36,9 @@ these pins keep fail-open ONLY where the probe genuinely cannot tell.
   D5  not LIVE                        -> NOT reachable   (unchanged)
   D6  probe raises                    -> reachable       (fail open, unchanged contract)
 """
+
 import os
 import sys
-
-import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -60,15 +59,16 @@ def test_d1_no_seat_file_at_all_is_unarmed(tmp_path):
 
 
 def test_d2_one_armed_session_is_armed(tmp_path):
-    _seat(tmp_path, "claude", "s1", os.getpid())      # our own pid is certainly alive
+    _seat(tmp_path, "claude", "s1", os.getpid())  # our own pid is certainly alive
     assert wake_seat.any_armed("claude", tmp=str(tmp_path)) == "armed"
 
 
 def test_d2b_one_armed_among_several_is_enough(tmp_path):
     _seat(tmp_path, "claude", "dead", 999_999_998)
     _seat(tmp_path, "claude", "live", os.getpid())
-    assert wake_seat.any_armed("claude", tmp=str(tmp_path)) == "armed", \
+    assert wake_seat.any_armed("claude", tmp=str(tmp_path)) == "armed", (
         "D2b: ANY armed session makes the agent reachable -- a stale sibling must not mask it"
+    )
 
 
 def test_d3_only_dead_seats_is_dead_seat(tmp_path):
@@ -87,8 +87,7 @@ def test_d4_unreadable_pid_is_unknown_never_a_verdict(tmp_path):
 
 def test_the_four_states_are_total(tmp_path):
     """An unlisted case resolves; it never raises and never silently reads as armed."""
-    assert wake_seat.any_armed("nobody-here", tmp=str(tmp_path)) in (
-        "armed", "unarmed", "dead-seat", "unknown")
+    assert wake_seat.any_armed("nobody-here", tmp=str(tmp_path)) in ("armed", "unarmed", "dead-seat", "unknown")
 
 
 # --------------------------------------------------------------- the composed verdict
@@ -100,9 +99,10 @@ def test_d5_reachability_requires_presence_too(tmp_path):
 
 def test_d1_composed_live_but_unarmed_is_not_reachable(tmp_path):
     """THE PIN THIS FILE EXISTS FOR. Live, beating, and nobody listening."""
-    assert wake_seat.reachable("claude", presence_live=True, tmp=str(tmp_path)) is False, \
-        "D1: a LIVE seat with no armed listener must NOT report as reachable -- this is the " \
+    assert wake_seat.reachable("claude", presence_live=True, tmp=str(tmp_path)) is False, (
+        "D1: a LIVE seat with no armed listener must NOT report as reachable -- this is the "
         "exact state in which four operator messages were lost"
+    )
 
 
 def test_d2_composed_live_and_armed_is_reachable(tmp_path):
@@ -120,8 +120,9 @@ def test_d4_composed_unknown_stays_reachable(tmp_path):
 
 def test_d6_a_raising_probe_fails_open(tmp_path):
     """Contract preserved from _is_seat_live: a crashed probe never cries unreachable."""
+
     def boom(_pid):
         raise RuntimeError("probe exploded")
+
     _seat(tmp_path, "claude", "s1", os.getpid())
-    assert wake_seat.reachable("claude", presence_live=True, tmp=str(tmp_path),
-                               pid_probe=boom) is True
+    assert wake_seat.reachable("claude", presence_live=True, tmp=str(tmp_path), pid_probe=boom) is True

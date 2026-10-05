@@ -14,6 +14,7 @@ agent_cli.py for direct `<argsparam>.<attr>` reads. Every attr must be a key of
 _ARG_DEFAULTS or of that tool's overrides. getattr(args, "x", default) is exempt by
 construction (it is a Call node, not an Attribute read, and cannot raise).
 """
+
 import ast
 from pathlib import Path
 
@@ -43,8 +44,7 @@ def _arg_defaults_keys(src: str) -> set:
             if isinstance(call, ast.Call):
                 keys = {kw.arg for kw in call.keywords if kw.arg}
                 keys |= {
-                    k.value for a in call.args if isinstance(a, ast.Dict)
-                    for k in a.keys if isinstance(k, ast.Constant)
+                    k.value for a in call.args if isinstance(a, ast.Dict) for k in a.keys if isinstance(k, ast.Constant)
                 }
                 if keys:
                     return keys
@@ -56,6 +56,8 @@ def _arg_defaults_keys(src: str) -> set:
         "could not read _ARG_DEFAULTS statically from ai_setup_mcp.py -- the assignment "
         "moved or changed shape. Fix this extractor; do NOT let it return an empty set."
     )
+
+
 MCP_SRC = (ROOT / "ai_setup_mcp.py").read_text(encoding="utf-8")
 CLI_SRC = (ROOT / "agent_cli.py").read_text(encoding="utf-8")
 
@@ -78,8 +80,12 @@ def _delegations(mcp_tree: ast.AST) -> dict:
         target = None
         if fn.id == "_run" and node.args:
             target = node.args[0]
-        elif (fn.id == "_athread" and len(node.args) >= 2
-              and isinstance(node.args[0], ast.Name) and node.args[0].id == "_run"):
+        elif (
+            fn.id == "_athread"
+            and len(node.args) >= 2
+            and isinstance(node.args[0], ast.Name)
+            and node.args[0].id == "_run"
+        ):
             target = node.args[1]
         if isinstance(target, ast.Attribute) and target.attr.startswith("cmd_"):
             keys = {kw.arg for kw in node.keywords if kw.arg and kw.arg != "lock"}
@@ -97,9 +103,7 @@ def _args_attr_reads(cli_tree: ast.AST, cmd_name: str) -> set:
             return {
                 sub.attr
                 for sub in ast.walk(node)
-                if isinstance(sub, ast.Attribute)
-                and isinstance(sub.value, ast.Name)
-                and sub.value.id == param
+                if isinstance(sub, ast.Attribute) and isinstance(sub.value, ast.Name) and sub.value.id == param
             }
     return set()
 
@@ -123,6 +127,5 @@ def test_every_delegated_cmd_attribute_is_covered():
         if uncovered:
             misses[cmd_name] = sorted(uncovered)
     assert not misses, (
-        "cmd_* attributes missing from _ARG_DEFAULTS (MCP twin would raise "
-        f"AttributeError while CLI works): {misses}"
+        f"cmd_* attributes missing from _ARG_DEFAULTS (MCP twin would raise AttributeError while CLI works): {misses}"
     )

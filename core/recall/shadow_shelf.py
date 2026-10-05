@@ -6,17 +6,18 @@ does not import or call the live recall path, a communication surface, an event 
 or a canonical-memory writer.  A later adapter may hand it terminal candidate slots;
 that adapter is explicitly outside this module and outside Slice 0.
 """
+
 from __future__ import annotations
 
-from dataclasses import dataclass, field, replace
-from datetime import datetime, timezone
 import hashlib
 import json
 import os
 import sqlite3
 import time
-from typing import Any, Callable, Iterable, Mapping, Optional
-
+from collections.abc import Callable, Iterable, Mapping
+from dataclasses import dataclass, field, replace
+from datetime import UTC, datetime
+from typing import Any
 
 ENVELOPE_CAP = 8 * 1024
 DEFAULT_WAL_PAUSE_BYTES = 100 * 1024 * 1024
@@ -46,9 +47,7 @@ def _jsonable(value: Any) -> Any:
 
 
 def _canonical_json(value: Any) -> str:
-    return json.dumps(
-        _jsonable(value), ensure_ascii=False, sort_keys=True, separators=(",", ":")
-    )
+    return json.dumps(_jsonable(value), ensure_ascii=False, sort_keys=True, separators=(",", ":"))
 
 
 def _sha256(value: Any) -> str:
@@ -58,7 +57,7 @@ def _sha256(value: Any) -> str:
 
 def _now() -> tuple[str, int]:
     stamp_ns = time.time_ns()
-    stamp = datetime.fromtimestamp(stamp_ns / 1_000_000_000, timezone.utc)
+    stamp = datetime.fromtimestamp(stamp_ns / 1_000_000_000, UTC)
     return stamp.isoformat().replace("+00:00", "Z"), stamp_ns
 
 
@@ -103,9 +102,7 @@ def register_contract(name: str, **members: Any) -> str:
         return identity
     old_name = _CONTRACT_IDENTITIES.get(identity)
     if old_name is not None and old_name != name:
-        raise ContractAliasRefused(
-            f"contract tuple is already registered as {old_name!r}; alias {name!r} refused"
-        )
+        raise ContractAliasRefused(f"contract tuple is already registered as {old_name!r}; alias {name!r} refused")
     _CONTRACT_NAMES[name] = identity
     _CONTRACT_IDENTITIES[identity] = name
     return identity
@@ -135,7 +132,7 @@ class CategoryContract:
             delivery=self.delivery,
         )
 
-    def with_facets(self, **facets: Any) -> "CategoryContract":
+    def with_facets(self, **facets: Any) -> CategoryContract:
         merged = dict(self.facets)
         merged.update(facets)
         return replace(self, facets=merged)
@@ -213,7 +210,7 @@ class _SQLiteRegister:
 
     def __init__(self, path: os.PathLike[str] | str):
         self.path = os.path.realpath(os.fspath(path))
-        self._conn: Optional[sqlite3.Connection] = None
+        self._conn: sqlite3.Connection | None = None
         self._degraded_reason = ""
         parent = os.path.dirname(self.path) or os.curdir
         if not os.path.isdir(parent):
@@ -225,18 +222,11 @@ class _SQLiteRegister:
             conn.execute("PRAGMA journal_mode=WAL")
             conn.execute("PRAGMA synchronous=NORMAL")
             conn.execute("PRAGMA busy_timeout=5000")
-            conn.execute(
-                "CREATE TABLE IF NOT EXISTS shadow_shelf_meta "
-                "(key TEXT PRIMARY KEY, value TEXT NOT NULL)"
-            )
-            existing = conn.execute(
-                "SELECT value FROM shadow_shelf_meta WHERE key='store_kind'"
-            ).fetchone()
+            conn.execute("CREATE TABLE IF NOT EXISTS shadow_shelf_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
+            existing = conn.execute("SELECT value FROM shadow_shelf_meta WHERE key='store_kind'").fetchone()
             if existing is not None and existing["value"] != self.KIND:
                 conn.close()
-                raise ValueError(
-                    f"{self.path} is a {existing['value']} register, not {self.KIND}"
-                )
+                raise ValueError(f"{self.path} is a {existing['value']} register, not {self.KIND}")
             if existing is None:
                 conn.execute(
                     "INSERT INTO shadow_shelf_meta(key, value) VALUES('store_kind', ?)",
@@ -321,13 +311,17 @@ class ObservationStore(_SQLiteRegister):
             """
         )
 
-    def _find(self, cohort_id: str) -> Optional[dict[str, Any]]:
+    def _find(self, cohort_id: str) -> dict[str, Any] | None:
         if not self.available:
             return None
-        row = self._require_connection().execute(
-            "SELECT rowid AS sequence, payload, content_hash FROM envelopes WHERE cohort_id=?",
-            (cohort_id,),
-        ).fetchone()
+        row = (
+            self._require_connection()
+            .execute(
+                "SELECT rowid AS sequence, payload, content_hash FROM envelopes WHERE cohort_id=?",
+                (cohort_id,),
+            )
+            .fetchone()
+        )
         return self._decode_envelope(row) if row is not None else None
 
     @staticmethod
@@ -341,7 +335,7 @@ class ObservationStore(_SQLiteRegister):
         self,
         envelope: Mapping[str, Any],
         *,
-        before_commit: Optional[Callable[[], Any]] = None,
+        before_commit: Callable[[], Any] | None = None,
     ) -> dict[str, Any]:
         conn = self._require_connection()
         value = dict(_jsonable(envelope))
@@ -365,9 +359,7 @@ class ObservationStore(_SQLiteRegister):
         subject = str(value.get("subject") or "")
         purpose = str(value.get("purpose") or value.get("purpose_id") or "")
         category = str(value.get("category") or value.get("contract_id") or "unknown")
-        category_hash = str(
-            value.get("category_contract_hash") or value.get("contract_id") or category
-        )
+        category_hash = str(value.get("category_contract_hash") or value.get("contract_id") or category)
         version = int(value.get("cohort_version") or value.get("version") or 1)
         state = str(value.get("state") or "unknown")
         payload = _canonical_json(value)
@@ -409,9 +401,7 @@ class ObservationStore(_SQLiteRegister):
         result["content_hash"] = content_hash
         return result
 
-    def list_envelopes(
-        self, *, subject: Optional[str] = None, purpose: Optional[str] = None
-    ) -> list[dict[str, Any]]:
+    def list_envelopes(self, *, subject: str | None = None, purpose: str | None = None) -> list[dict[str, Any]]:
         if not self.available:
             return []
         clauses: list[str] = []
@@ -423,12 +413,16 @@ class ObservationStore(_SQLiteRegister):
             clauses.append("purpose=?")
             values.append(purpose)
         where = " WHERE " + " AND ".join(clauses) if clauses else ""
-        rows = self._require_connection().execute(
-            "SELECT rowid AS sequence, payload, content_hash FROM envelopes"
-            + where
-            + " ORDER BY observed_ns DESC, rowid DESC",
-            values,
-        ).fetchall()
+        rows = (
+            self._require_connection()
+            .execute(
+                "SELECT rowid AS sequence, payload, content_hash FROM envelopes"
+                + where
+                + " ORDER BY observed_ns DESC, rowid DESC",
+                values,
+            )
+            .fetchall()
+        )
         return [self._decode_envelope(row) for row in rows]
 
     def count(self) -> int:
@@ -437,7 +431,7 @@ class ObservationStore(_SQLiteRegister):
         row = self._require_connection().execute("SELECT COUNT(*) AS n FROM envelopes").fetchone()
         return int(row["n"])
 
-    def compact(self, cohort_id: str, reason: str) -> Optional[dict[str, Any]]:
+    def compact(self, cohort_id: str, reason: str) -> dict[str, Any] | None:
         manifests = self._compact_rows([cohort_id], reason=reason)
         return manifests[0] if manifests else None
 
@@ -445,10 +439,14 @@ class ObservationStore(_SQLiteRegister):
         if not self.available:
             return []
         cutoff_ns = time.time_ns() - int(float(before_hours) * 3_600_000_000_000)
-        rows = self._require_connection().execute(
-            "SELECT cohort_id FROM envelopes WHERE observed_ns <= ? ORDER BY observed_ns",
-            (cutoff_ns,),
-        ).fetchall()
+        rows = (
+            self._require_connection()
+            .execute(
+                "SELECT cohort_id FROM envelopes WHERE observed_ns <= ? ORDER BY observed_ns",
+                (cutoff_ns,),
+            )
+            .fetchall()
+        )
         return self._compact_rows([str(row["cohort_id"]) for row in rows], reason=reason)
 
     def _compact_rows(self, cohort_ids: Iterable[str], *, reason: str) -> list[dict[str, Any]]:
@@ -461,9 +459,7 @@ class ObservationStore(_SQLiteRegister):
         try:
             conn.execute("BEGIN IMMEDIATE")
             for cohort_id in identifiers:
-                row = conn.execute(
-                    "SELECT * FROM envelopes WHERE cohort_id=?", (cohort_id,)
-                ).fetchone()
+                row = conn.execute("SELECT * FROM envelopes WHERE cohort_id=?", (cohort_id,)).fetchone()
                 if row is None:
                     continue
                 value = json.loads(row["payload"])
@@ -520,9 +516,9 @@ class ObservationStore(_SQLiteRegister):
     def list_manifests(
         self,
         *,
-        limit: Optional[int] = None,
-        subject: Optional[str] = None,
-        purpose: Optional[str] = None,
+        limit: int | None = None,
+        subject: str | None = None,
+        purpose: str | None = None,
     ) -> list[dict[str, Any]]:
         if not self.available:
             return []
@@ -621,9 +617,7 @@ class JudgmentStore(_SQLiteRegister):
     def list(self) -> list[dict[str, Any]]:
         if not self.available:
             return []
-        rows = self._require_connection().execute(
-            "SELECT snapshot FROM judgments ORDER BY id"
-        ).fetchall()
+        rows = self._require_connection().execute("SELECT snapshot FROM judgments ORDER BY id").fetchall()
         return [json.loads(row["snapshot"]) for row in rows]
 
     def _mark_seen(self, cohort_id: str, principal: str) -> None:
@@ -641,9 +635,11 @@ class JudgmentStore(_SQLiteRegister):
     def _was_seen(self, cohort_id: str) -> bool:
         if not self.available:
             return False
-        row = self._require_connection().execute(
-            "SELECT 1 FROM peek_receipts WHERE cohort_id=? LIMIT 1", (str(cohort_id),)
-        ).fetchone()
+        row = (
+            self._require_connection()
+            .execute("SELECT 1 FROM peek_receipts WHERE cohort_id=? LIMIT 1", (str(cohort_id),))
+            .fetchone()
+        )
         return row is not None
 
 
@@ -710,7 +706,7 @@ def record_envelope(
     cohort_version: int,
     watcher_incarnation: str,
     decisions: Mapping[str, Any],
-    before_commit: Optional[Callable[[], Any]] = None,
+    before_commit: Callable[[], Any] | None = None,
 ) -> dict[str, Any]:
     value = _functional_envelope(
         source_fingerprint=source_fingerprint,
@@ -793,9 +789,7 @@ def resource_report(path: os.PathLike[str] | str) -> dict[str, Any]:
         wal_bytes = os.path.getsize(wal_path) if os.path.isfile(wal_path) else 0
         conn = sqlite3.connect(resolved)
         try:
-            table = conn.execute(
-                "SELECT 1 FROM sqlite_master WHERE type='table' AND name='envelopes'"
-            ).fetchone()
+            table = conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='envelopes'").fetchone()
             rows = int(conn.execute("SELECT COUNT(*) FROM envelopes").fetchone()[0]) if table else 0
         finally:
             conn.close()
@@ -865,11 +859,11 @@ class ShadowShelfReader:
     def __init__(
         self,
         observation_store: ObservationStore,
-        judgment_store: Optional[JudgmentStore],
+        judgment_store: JudgmentStore | None,
     ) -> None:
         self.observation_store = observation_store
         self.judgment_store = judgment_store
-        self._head_resolver: Optional[Callable[[str], Any]] = None
+        self._head_resolver: Callable[[str], Any] | None = None
 
     def set_contract_head_resolver(self, resolver: Callable[[str], Any]) -> None:
         self._head_resolver = resolver
@@ -906,11 +900,7 @@ class ShadowShelfReader:
                 candidate_slots += len(envelope["decisions"])
         judgments = []
         if self.judgment_store is not None and self.judgment_store.available:
-            judgments = [
-                value
-                for value in self.judgment_store.list()
-                if str(value.get("cohort_id")) in cohort_ids
-            ]
+            judgments = [value for value in self.judgment_store.list() if str(value.get("cohort_id")) in cohort_ids]
         keep = sum(1 for value in judgments if value.get("pref") == "KEEP")
         drop = sum(1 for value in judgments if value.get("pref") == "DROP")
         counters["judgment"].update(
@@ -970,9 +960,7 @@ class ShadowShelfReader:
                     row["contract_head"] = self._head_resolver(cohort_id)
                 except Exception as exc:
                     status = "unknown"
-                    reasons.append(
-                        f"contract head unresolved for {cohort_id}: {type(exc).__name__}: {exc}"
-                    )
+                    reasons.append(f"contract head unresolved for {cohort_id}: {type(exc).__name__}: {exc}")
             rows.append(row)
 
         rows.sort(
@@ -982,9 +970,7 @@ class ShadowShelfReader:
             )
         )
         if include_stale:
-            for manifest in self.observation_store.list_manifests(
-                subject=subject, purpose=purpose
-            ):
+            for manifest in self.observation_store.list_manifests(subject=subject, purpose=purpose):
                 stale = dict(manifest)
                 stale["peek_state"] = "stale"
                 stale["_sequence"] = -1
@@ -993,9 +979,7 @@ class ShadowShelfReader:
         rows = rows[:bound]
         for row in rows:
             row.pop("_sequence", None)
-        controls = [
-            row for row in rows if row.get("control") is True and row.get("known_wrong") is True
-        ]
+        controls = [row for row in rows if row.get("control") is True and row.get("known_wrong") is True]
         return {
             "status": status,
             "reasons": reasons,
@@ -1012,11 +996,7 @@ class ShadowShelfReader:
 
     def control_sample(self, *, limit: int) -> list[dict[str, Any]]:
         rows = self.observation_store.list_envelopes()
-        selected = [
-            value
-            for value in rows
-            if value.get("control") is True and value.get("known_wrong") is True
-        ]
+        selected = [value for value in rows if value.get("control") is True and value.get("known_wrong") is True]
         selected.sort(key=lambda value: -int(value.get("_sequence", 0)))
         result = selected[: max(0, int(limit))]
         for value in result:
@@ -1082,11 +1062,11 @@ def replay_fixture(root: os.PathLike[str] | str, **_: Any) -> dict[str, Any]:
 
 
 __all__ = [
-    "CategoryContract",
-    "ContractAliasRefused",
     "DEFAULT_BACKLOG_MULTIPLIER",
     "DEFAULT_WAL_PAUSE_BYTES",
     "ENVELOPE_CAP",
+    "CategoryContract",
+    "ContractAliasRefused",
     "JudgmentStore",
     "ObservationStore",
     "ShadowShelfReader",

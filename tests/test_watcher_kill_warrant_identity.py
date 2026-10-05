@@ -34,24 +34,21 @@ excluded. Same law, same callable, second door.
 
 Run:  py -m pytest tests/test_watcher_kill_warrant_identity.py -v
 """
+
 from __future__ import annotations
 
 import sys
 from pathlib import Path
 
-import pytest
-
-REPO = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(REPO))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from core.comm import wake_seat as WS
 
+REPO = Path(__file__).resolve().parents[1]
+
 
 def _snap(rows):
-    return {
-        pid: {"ppid": 1, "name": name, "cmdline": cmdline, "created": 0}
-        for pid, name, cmdline in rows
-    }
+    return {pid: {"ppid": 1, "name": name, "cmdline": cmdline, "created": 0} for pid, name, cmdline in rows}
 
 
 # Verbatim shapes from the live host on 2026-09-23.
@@ -69,7 +66,7 @@ CODEX_WATCHER = (
 )
 DIAGNOSING_SHELL = (
     r'"C:\Program Files\Git\bin\bash.exe" -c "source /c/Users/L5/.claude/'
-    r'shell-snapshots/snapshot.sh && cd /e/AI-Setup && '
+    r"shell-snapshots/snapshot.sh && cd /e/AI-Setup && "
     r'grep -rn is_watcher scripts/bifrost_wake.py"'
 )
 DIAGNOSING_PY = (
@@ -100,9 +97,7 @@ def test_a_shell_diagnosing_the_wake_system_is_not_a_kill_target():
     """THE HAZARD. A recycled pid landing on a shell that merely names bifrost_wake
     currently satisfies the kill warrant."""
     snap = _snap([(63776, "bash.exe", DIAGNOSING_SHELL)])
-    assert WS.is_watcher(63776, snap) is False, (
-        "a bash shell grepping for is_watcher satisfied the kill warrant"
-    )
+    assert WS.is_watcher(63776, snap) is False, "a bash shell grepping for is_watcher satisfied the kill warrant"
 
 
 def test_a_python_one_liner_about_watchers_is_not_a_kill_target():
@@ -138,7 +133,7 @@ def test_the_kill_site_uses_the_strict_warrant_not_the_lenient_check():
     assert kills, "the K6 kill disappeared -- re-point this pin at wherever it went"
     # Look at what GUARDS each kill, not at a byte window: an earlier mention of the
     # same log string is not the call site (this pin's first draft made that mistake).
-    kill_block = "\n".join(lines[max(0, kills[0] - 10):kills[0] + 1])
+    kill_block = "\n".join(lines[max(0, kills[0] - 10) : kills[0] + 1])
     assert "agent_watcher(" in kill_block, (
         "bifrost_wake.py's K6 kill gates on is_watcher (the lenient kind-only check) "
         "when agent_watcher (the strict warrant, with the word-bounded --agent token) "
@@ -149,7 +144,7 @@ def test_the_kill_site_uses_the_strict_warrant_not_the_lenient_check():
 def test_a_foreign_agents_watcher_is_not_my_kill_target():
     """The other half of deepseek's dissent: a recycled pid can be a LIVE watcher
     belonging to a different seat. Killing it reopens the 2026-07-10 kill loop."""
-    snap = _snap([(55332, "python.exe", CODEX_WATCHER)])       # --agent sol
+    snap = _snap([(55332, "python.exe", CODEX_WATCHER)])  # --agent sol
     assert WS.agent_watcher(55332, snap, "claude") is False
     assert WS.agent_watcher(55332, snap, "sol") is True
 
@@ -168,6 +163,4 @@ def test_the_live_ratio_is_the_regression_this_pin_exists_for():
         ]
     )
     warranted = sorted(p for p in snap if WS.is_watcher(p, snap))
-    assert warranted == [55332, 63804, 65860], (
-        f"kill warrant granted over {warranted}; only the three watchers qualify"
-    )
+    assert warranted == [55332, 63804, 65860], f"kill warrant granted over {warranted}; only the three watchers qualify"

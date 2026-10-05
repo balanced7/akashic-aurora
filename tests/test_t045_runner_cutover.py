@@ -35,6 +35,7 @@ Pins (R1-R10; expected RED today -- the seam does not exist yet):
 Redis-backed pins use throwaway namespaces (skip if down) -- CI without Redis skips,
 matching stage 1. Run: py -m pytest tests/test_t045_runner_cutover.py -q
 """
+
 import os
 import sys
 import uuid
@@ -45,15 +46,16 @@ os.environ.setdefault("_AISETUP_TEST_ISOLATED", "1")
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts"))
 
-from core.comm.bus import Bus
 from core.comm.bifrost_api import BifrostAPI
+from core.comm.bus import Bus
 
 
 def _client():
-    from core.foundation.redis_connection import (
-        connect_to_redis_with_fail_fast, DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT)
-    c = connect_to_redis_with_fail_fast(host=DEFAULT_REDIS_HOST, port=DEFAULT_REDIS_PORT,
-                                        timeout_seconds=3, decode_responses=True)
+    from core.foundation.redis_connection import DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT, connect_to_redis_with_fail_fast
+
+    c = connect_to_redis_with_fail_fast(
+        host=DEFAULT_REDIS_HOST, port=DEFAULT_REDIS_PORT, timeout_seconds=3, decode_responses=True
+    )
     if c is None:
         pytest.skip("redis not available")
     return c
@@ -85,12 +87,13 @@ def test_r1_lane_handoff_drains_and_advances(monkeypatch):
     sender = Bus("boss", c, namespace=ns, promote=False)
     api = BifrostAPI("alice", namespace=ns)
     sender.send("alice", "handoff", "stage-2 work")
-    got = api.work_drain(timeout_ms=1500)                 # RED: work_drain does not exist
+    got = api.work_drain(timeout_ms=1500)  # RED: work_drain does not exist
     assert "handoff" in _kinds(got)
     # advance through the LANE cursor, then the packet must be gone
-    key = api.bus.lane_cursor_key()                       # RED: lane_cursor_key missing
-    api.bus.advance_to(inbox=str(getattr((got if isinstance(got, list) else got["work"])[0], "id", "")),
-                       cursor_key=key)                    # RED: cursor_key param missing
+    key = api.bus.lane_cursor_key()  # RED: lane_cursor_key missing
+    api.bus.advance_to(
+        inbox=str(getattr((got if isinstance(got, list) else got["work"])[0], "id", "")), cursor_key=key
+    )  # RED: cursor_key param missing
     again = api.work_drain(timeout_ms=200)
     assert "handoff" not in _kinds(again), "consumed work must not redeliver after lane advance"
 
@@ -112,13 +115,14 @@ def test_r2_lane_write_failure_falls_back_to_legacy(monkeypatch):
     assert "handoff" in _kinds(first)
     wid = str(getattr(first[0] if isinstance(first, list) else first["work"][0], "id", ""))
     api.bus.advance_to(inbox=wid, cursor_key=api.bus.lane_cursor_key())
-    monkeypatch.setattr(sender, "_lane_write",
-                        lambda *a, **k: (_ for _ in ()).throw(RuntimeError("lane down")),
-                        raising=True)
+    monkeypatch.setattr(
+        sender, "_lane_write", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("lane down")), raising=True
+    )
     sender.send("alice", "handoff", "legacy-only by lane-write failure")
     got = api.work_drain(timeout_ms=1500)
-    assert "handoff" in _kinds(got), \
+    assert "handoff" in _kinds(got), (
         "dual-write ON + lane write failed + legacy delivered -> the strangler net must catch it"
+    )
 
 
 # ------------------------------- R11: newborn session never replays legacy history
@@ -133,10 +137,9 @@ def test_r11_newborn_shadow_seeds_at_tails_no_history_replay(monkeypatch):
     noisy = Bus("noisy", c, namespace=ns, promote=False)
     for _ in range(6):
         noisy.broadcast("inform", "ancient broadcast history")
-    api = BifrostAPI("alice", namespace=ns)                # newborn: no cursors anywhere
+    api = BifrostAPI("alice", namespace=ns)  # newborn: no cursors anywhere
     first = api.work_drain(timeout_ms=400)
-    assert _kinds(first) == [], \
-        "R11: a newborn's first drain must not replay legacy broadcast history as stragglers"
+    assert _kinds(first) == [], "R11: a newborn's first drain must not replay legacy broadcast history as stragglers"
     noisy.send("alice", "handoff", "real mail after the newborn seed")
     got = api.work_drain(timeout_ms=1500)
     assert "handoff" in _kinds(got), "post-seed mail must still flow"
@@ -166,7 +169,7 @@ def test_r4_corrupted_sha_never_delivered(monkeypatch):
     intact twin is correct). The honest bar: lane copy corrupt + straggler net OFF at
     drain time -> NOTHING delivered, corrupt copy dropped loudly."""
     c = _client()
-    _lane_mode(monkeypatch, dual_write="1")            # send lands on BOTH streams
+    _lane_mode(monkeypatch, dual_write="1")  # send lands on BOTH streams
     ns = _ns()
     sender = Bus("boss", c, namespace=ns, promote=False)
     sender.send("alice", "handoff", "payload to corrupt")
@@ -182,8 +185,9 @@ def test_r4_corrupted_sha_never_delivered(monkeypatch):
     monkeypatch.setenv("BIFROST_LANES_DUAL_WRITE", "0")  # drain lane-only (no legacy net)
     api = BifrostAPI("alice", namespace=ns)
     got = api.work_drain(timeout_ms=800)
-    assert "handoff" not in _kinds(got), \
+    assert "handoff" not in _kinds(got), (
         "T043 consume door on the LANE path: bad sha packets DROP loudly, never deliver"
+    )
 
 
 # ------------------------------------------------------------- R5: P3 sig-interleave
@@ -193,7 +197,7 @@ def test_r5_sig_seen_before_second_work_packet(monkeypatch):
     ns = _ns()
     sender = Bus("boss", c, namespace=ns, promote=False)
     sender.send("alice", "handoff", "work-1")
-    sender.send("alice", "nudge", "sig lands AFTER work-1")   # nudge routes to sig lane
+    sender.send("alice", "nudge", "sig lands AFTER work-1")  # nudge routes to sig lane
     sender.send("alice", "handoff", "work-2")
     api = BifrostAPI("alice", namespace=ns)
     seen = []
@@ -201,9 +205,11 @@ def test_r5_sig_seen_before_second_work_packet(monkeypatch):
         seen += _kinds(api.work_drain(timeout_ms=800))
         if seen.count("handoff") >= 2:
             break
-    assert "nudge" in seen and "handoff" in seen
-    assert seen.index("nudge") < len(seen) - 1 - seen[::-1].index("handoff"), \
+    assert "nudge" in seen
+    assert "handoff" in seen
+    assert seen.index("nudge") < len(seen) - 1 - seen[::-1].index("handoff"), (
         "P3: the sig packet must be drained BEFORE the second work packet (EF beats AF)"
+    )
 
 
 # ----------------------------------------- R6: note/status never wake an idle lane seat
@@ -220,17 +226,20 @@ def test_r6_note_status_drain_but_never_wake(monkeypatch):
     ns = _ns()
     sender = Bus("boss", c, namespace=ns, promote=False)
     watcher = BifrostAPI("alice", namespace=ns)
-    assert watcher.wake_block(timeout_ms=200) == []       # arm quiet (stage-1 surface)
+    assert watcher.wake_block(timeout_ms=200) == []  # arm quiet (stage-1 surface)
     sender.send("alice", "note", "informational")
     sender.send("alice", "status", "informational too")
     import bifrost_wake as bw
+
     surfaced = watcher.wake_block(timeout_ms=400)
-    assert all(str(getattr(m, "kind", "?")) in bw.SKIP_KINDS_LANE for m in surfaced), \
+    assert all(str(getattr(m, "kind", "?")) in bw.SKIP_KINDS_LANE for m in surfaced), (
         "P4: every informational kind the watcher sees must be skip-listed (no idle-seat wake)"
+    )
     api = BifrostAPI("alice", namespace=ns)
     got = api.work_drain(timeout_ms=800)
     ks = _kinds(got)
-    assert "note" in ks and "status" in ks, "informational kinds still DRAIN (they are mail, not wakes)"
+    assert "note" in ks, "informational kinds still DRAIN (they are mail, not wakes)"
+    assert "status" in ks, "informational kinds still DRAIN (they are mail, not wakes)"
 
 
 # ------------------------- R7: lane-aware pending check load-bearing (dual-write OFF)
@@ -255,12 +264,11 @@ def test_r7_pre_arm_lane_only_mail_drains_without_dual_write(monkeypatch):
     legacy_key = sender._inbox_key("alice")
     entries = c.xrange(legacy_key)
     assert entries, "test precondition: legacy copies landed"
-    c.xdel(legacy_key, *[eid for eid, _ in entries])      # now the gap mail is LANE-ONLY
-    monkeypatch.setenv("BIFROST_LANES_DUAL_WRITE", "0")   # THE point: no legacy twin mask
-    revived = BifrostAPI("alice", namespace=ns)           # new process, durable cursor
+    c.xdel(legacy_key, *[eid for eid, _ in entries])  # now the gap mail is LANE-ONLY
+    monkeypatch.setenv("BIFROST_LANES_DUAL_WRITE", "0")  # THE point: no legacy twin mask
+    revived = BifrostAPI("alice", namespace=ns)  # new process, durable cursor
     got = revived.work_drain(timeout_ms=800)
-    assert "handoff" in _kinds(got), \
-        "fence R7: the durable lane cursor alone must catch mail from the process gap"
+    assert "handoff" in _kinds(got), "fence R7: the durable lane cursor alone must catch mail from the process gap"
 
 
 # ------------------------------------------- R8: shared cursor untouched in lane mode
@@ -288,9 +296,18 @@ def test_r9_tails_fault_seeds_new_only_never_history(monkeypatch):
     _lane_mode(monkeypatch)
     monkeypatch.setenv("BIFROST_WAKE_LANE", "work")
     ns = _ns()
-    c.xadd(f"{ns}:work:inbox:alice", {"frm": "ghost", "to": "alice", "kind": "handoff",
-                                      "content": '"ancient soak history"', "ts": "0",
-                                      "meta": "{}", "parts": "[]"})
+    c.xadd(
+        f"{ns}:work:inbox:alice",
+        {
+            "frm": "ghost",
+            "to": "alice",
+            "kind": "handoff",
+            "content": '"ancient soak history"',
+            "ts": "0",
+            "meta": "{}",
+            "parts": "[]",
+        },
+    )
     api = BifrostAPI("alice", namespace=ns)
     real_xrevrange = c.xrevrange
     calls = {"n": 0}
@@ -298,12 +315,12 @@ def test_r9_tails_fault_seeds_new_only_never_history(monkeypatch):
     def flaky_xrevrange(*a, **k):
         calls["n"] += 1
         raise ConnectionError("simulated redis blip during tails read")
+
     monkeypatch.setattr(api.bus._client, "xrevrange", flaky_xrevrange, raising=False)
     got = api.wake_block(timeout_ms=300)
     monkeypatch.setattr(api.bus._client, "xrevrange", real_xrevrange, raising=False)
     assert calls["n"] > 0, "test precondition: the fault actually hit the tails read"
-    assert got == [], \
-        "stage-1 F2: a tails-read fault must seed '$'-equivalent (new-only), never replay history"
+    assert got == [], "stage-1 F2: a tails-read fault must seed '$'-equivalent (new-only), never replay history"
 
 
 # ----------------------------------------------- R10: cursor init at flip (fresh/return)
@@ -316,28 +333,41 @@ def test_r10_fresh_seeds_at_tails_returning_reads_lane_cursor(monkeypatch):
     c = _client()
     _lane_mode(monkeypatch)
     ns = _ns()
-    c.xadd(f"{ns}:work:inbox:alice", {"frm": "ghost", "to": "alice", "kind": "handoff",
-                                      "content": '"pre-flip history"', "ts": "0",
-                                      "meta": "{}", "parts": "[]"})
+    c.xadd(
+        f"{ns}:work:inbox:alice",
+        {
+            "frm": "ghost",
+            "to": "alice",
+            "kind": "handoff",
+            "content": '"pre-flip history"',
+            "ts": "0",
+            "meta": "{}",
+            "parts": "[]",
+        },
+    )
     fresh = BifrostAPI("alice", namespace=ns)
     # MIGRANT precondition: real pre-flip consumption progress on the shared cursor
     # (an all-virgin agent is a NEWBORN and takes the R11 path instead).
     fresh.bus.advance_to(inbox="1-1", bc="1-1")
-    assert fresh.bus.lane_cursor_flip_init() is True, \
+    assert fresh.bus.lane_cursor_flip_init() is True, (
         "R10a: the flip ritual must seed a virgin lane cursor (migrating agent)"
-    assert fresh.bus.lane_cursor_flip_init() is False, \
+    )
+    assert fresh.bus.lane_cursor_flip_init() is False, (
         "R10a: the ritual is idempotent -- a seeded cursor is never re-seeded"
-    assert _kinds(fresh.work_drain(timeout_ms=300)) == [], \
+    )
+    assert _kinds(fresh.work_drain(timeout_ms=300)) == [], (
         "R10a: after the flip ritual, pre-flip history is soak, not mail"
+    )
     sender = Bus("boss", c, namespace=ns, promote=False)
     sender.send("alice", "handoff", "post-flip real work")
     got = fresh.work_drain(timeout_ms=1500)
     assert "handoff" in _kinds(got)
     wid = str(getattr((got if isinstance(got, list) else got["work"])[0], "id", ""))
     fresh.bus.advance_to(inbox=wid, cursor_key=fresh.bus.lane_cursor_key())
-    returning = BifrostAPI("alice", namespace=ns)         # simulates a runner restart
-    assert "handoff" not in _kinds(returning.work_drain(timeout_ms=300)), \
+    returning = BifrostAPI("alice", namespace=ns)  # simulates a runner restart
+    assert "handoff" not in _kinds(returning.work_drain(timeout_ms=300)), (
         "R10b: a RETURNING consumer resumes from its lane cursor -- no re-delivery of consumed work"
+    )
 
 
 # ------------------------- R12: the straggler net only nets WORK-lane-eligible kinds
@@ -361,11 +391,10 @@ def test_r12_trace_kind_legacy_mail_is_never_a_straggler(monkeypatch):
     for _ in range(4):
         noisy.broadcast("trace", "narration that rides the trace lane, not work")
     got = api.work_drain(timeout_ms=400)
-    assert "trace" not in _kinds(got), \
-        "R12: trace-kind legacy mail must never surface as a work straggler"
-    monkeypatch.setattr(noisy, "_lane_write",
-                        lambda *a, **k: (_ for _ in ()).throw(RuntimeError("lane down")),
-                        raising=True)
+    assert "trace" not in _kinds(got), "R12: trace-kind legacy mail must never surface as a work straggler"
+    monkeypatch.setattr(
+        noisy, "_lane_write", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("lane down")), raising=True
+    )
     noisy.send("alice", "handoff", "true lane-write failure -- MUST still net")
     got2 = api.work_drain(timeout_ms=1500)
     assert "handoff" in _kinds(got2), "R12: real work-kind stragglers still caught"

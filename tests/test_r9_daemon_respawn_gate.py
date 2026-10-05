@@ -7,6 +7,7 @@ lock and counted as a crash, the breaker tripped and re-armed every ~6.5 min, an
 foreign_holder_after_exit() is the gate the daemon's child-poll site now applies: a foreign live holder means idle
 (W102's reclaim probe spawns when the lock frees), never a respawn.
 """
+
 import sys
 from pathlib import Path
 
@@ -14,8 +15,9 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "scripts"))
 
-import bifrost_daemon as bd  # noqa: E402
-from core.comm import runner_lock  # noqa: E402
+import bifrost_daemon as bd  # noqa: E402  # sys.path bootstrap
+
+from core.comm import runner_lock  # noqa: E402  # sys.path bootstrap
 
 
 def _holder(monkeypatch, value):
@@ -25,7 +27,8 @@ def _holder(monkeypatch, value):
 def test_a_bare_successor_holding_the_lock_is_foreign(monkeypatch):
     _holder(monkeypatch, {"token": "kimi:83136:4e7f3fc4611a", "pid": 83136, "ts": "2026-09-30T04:32:35+00:00"})
     fh = bd.foreign_holder_after_exit("kimi", exited_pid=68972)
-    assert fh and fh["pid"] == 83136, "the successor holds the seat: idle, do not respawn"
+    assert fh, "the successor holds the seat: idle, do not respawn"
+    assert fh["pid"] == 83136, "the successor holds the seat: idle, do not respawn"
 
 
 def test_the_exited_child_s_own_unexpired_key_is_not_foreign(monkeypatch):
@@ -46,6 +49,7 @@ def test_a_free_lock_is_not_foreign(monkeypatch):
 def test_an_unreadable_lock_never_blocks_the_daemon_loop(monkeypatch):
     def boom(agent):
         raise RuntimeError("redis down")
+
     monkeypatch.setattr(runner_lock, "holder", boom)
     assert bd.foreign_holder_after_exit("kimi", exited_pid=1) is None
 

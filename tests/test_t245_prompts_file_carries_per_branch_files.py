@@ -17,6 +17,7 @@ transit.
 The parsing lived inline inside `cmd_ask` and so could not be pinned at all -- which is the
 second half of why this shipped. A unit that cannot be tested is a unit that will drift.
 """
+
 import json
 
 import pytest
@@ -27,17 +28,24 @@ from agent_cli import load_fan_prompts
 def test_a_json_array_of_dicts_survives_parsing(tmp_path):
     """The core wiring. What the caller wrote must reach ask_many with its shape intact."""
     p = tmp_path / "prompts.json"
-    p.write_text(json.dumps([
-        {"prompt": "surface question", "files": ["README.md"]},
-        {"prompt": "deep question", "files": ["core/comm/ask.py"]},
-    ]), encoding="utf-8")
+    p.write_text(
+        json.dumps(
+            [
+                {"prompt": "surface question", "files": ["README.md"]},
+                {"prompt": "deep question", "files": ["core/comm/ask.py"]},
+            ]
+        ),
+        encoding="utf-8",
+    )
 
     out = load_fan_prompts(p.read_text(encoding="utf-8"))
 
     assert isinstance(out[0], dict), (
         f"the dict was stringified in transit: {out[0]!r}. A helper would have received the "
-        "repr as its question and answered it, which is why this failed silently.")
+        "repr as its question and answered it, which is why this failed silently."
+    )
     assert out[0]["files"] == ["README.md"]
+    assert isinstance(out[1], dict)
     assert out[1]["prompt"] == "deep question"
 
 
@@ -48,7 +56,7 @@ def test_a_dict_without_a_prompt_is_refused_by_index(tmp_path):
     nothing, indistinguishable in the results from a helper that found nothing.
     """
     raw = json.dumps([{"prompt": "fine", "files": []}, {"files": ["x.py"]}])
-    with pytest.raises(ValueError) as e:
+    with pytest.raises(ValueError, match="no usable 'prompt'") as e:
         load_fan_prompts(raw)
     assert "1" in str(e.value), f"the message must name the offending index: {e.value}"
 

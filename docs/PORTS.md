@@ -1,13 +1,13 @@
 # Port Registry — what lives where
 
 Status: current  ·  **GENERATED — do not edit by hand.**
-Source of truth: `config.PORT_REGISTRY`. Regenerate with `py scripts/generators/gen_ports.py`.
+Source of truth: `config.PORT_REGISTRY`. Regenerate with `uv run scripts/generators/gen_ports.py`.
 
 This file is the DECLARED plane only, so it is reproducible on any machine. For what is actually
 listening right now — and what nobody declared — run:
 
 ```
-py scripts/checkers/check_ports.py --report
+uv run scripts/checkers/check_ports.py --report
 ```
 
 ## The bands — the digits tell you the world
@@ -36,12 +36,13 @@ this repo would ever have found it.
 | **11434** | prod | container | local model lane; core/fleet/caller.py calls /api/generate | `ai-ollama` |
 | **16379** | prod | container | canonical knowledge store + bus (db 0 prod / db 15 test) | `akashic-redis` |
 | **18765** | prod | app | MCP HTTP mode (stdio is the default, so usually silent) | `ai_setup_mcp.py` |
+| **27100** | prod | app | runner control-channel BASE where 47100 falls inside the OS's ephemeral range (Linux); base+n on loopback, dynamic by design | `core/comm/control_channel.py` |
 | **47100** | prod | app | runner control-channel BASE; each seat takes base+n on loopback, so the exact port is dynamic by design | `core/comm/control_channel.py` |
 | **3000** | external | container | human chat front-end over the same ollama; no live repo refs | `ai-open-webui` |
 | **5000** | external | container | voice service; no live repo refs | `ai-voice` |
 | **5001** | external | container | voice service (second port) | `ai-voice` |
-| **8790** | beta | app | beta console (was: sandbox) | `E:/AI-Setup-Beta scripts/bifrost_ui.py` |
-| **8800** | alpha | app | alpha console | `E:/AI-Setup-Alpha scripts/bifrost_ui.py` |
+| **8790** | beta | app | beta console (was: sandbox) | `<beta checkout>/scripts/bifrost_ui.py` |
+| **8800** | alpha | app | alpha console | `<alpha checkout>/scripts/bifrost_ui.py` |
 | **16380** | beta | container | beta Redis, isolated from prod and alpha | `akashic-redis-beta` |
 | **16381** | alpha | container | alpha Redis, isolated from prod and beta | `akashic-redis-alpha` |
 

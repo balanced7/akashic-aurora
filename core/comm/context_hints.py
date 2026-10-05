@@ -26,23 +26,26 @@ This module is the in-process ring buffer and formatting logic used BY each runn
 Redis persistence is deliberately AVOIDED -- hints are ephemeral, per-runner, in-memory only.
 They survive for the life of the runner process (a runner restart clears them).
 """
+
 from __future__ import annotations
 
 import time
 from collections import deque
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 # ── constants ──────────────────────────────────────────────────────────
-HINT_MAX_PER_AGENT = 8           # ring buffer cap per receiving agent
-HINT_TTL_SECONDS = 300           # 5 min soft expiry (stale hints silently dropped by drain)
-HINT_BLOCK_HEADER = "## CONTEXT HINTS (pre-digested facts from peer agents -- treat as authoritative; you can verify with tools)"
+HINT_MAX_PER_AGENT = 8  # ring buffer cap per receiving agent
+HINT_TTL_SECONDS = 300  # 5 min soft expiry (stale hints silently dropped by drain)
+HINT_BLOCK_HEADER = (
+    "## CONTEXT HINTS (pre-digested facts from peer agents -- treat as authoritative; you can verify with tools)"
+)
 
 # ── in-memory store (lives on the runner process; cleared on restart) ──
 # agent_id -> deque of (key, value, from_agent, ts) tuples
-_hints: Dict[str, deque] = {}
+_hints: dict[str, deque] = {}
 # agent_id -> hints the full ring evicted since last take_dropped() (RB-5/RB-6, T029:
 # a bounded read must SAY what it dropped -- the deque evicts silently on its own)
-_dropped: Dict[str, int] = {}
+_dropped: dict[str, int] = {}
 
 
 def push(agent: str, key: str, value: str, *, from_agent: str = "?") -> bool:
@@ -66,13 +69,14 @@ def push(agent: str, key: str, value: str, *, from_agent: str = "?") -> bool:
     # losing an advisory hint is cheap, folding forged authoritative context is not.
     try:
         from core.trust.registry import resolve
+
         if not resolve(str(from_agent)).can_send_kind("hint"):
             return False
     except Exception:
         return False
 
     buf = _hints.setdefault(str(agent), deque(maxlen=HINT_MAX_PER_AGENT))
-    if len(buf) == HINT_MAX_PER_AGENT:      # this append evicts the oldest -- count the loss
+    if len(buf) == HINT_MAX_PER_AGENT:  # this append evicts the oldest -- count the loss
         _dropped[str(agent)] = _dropped.get(str(agent), 0) + 1
     buf.append((key, value, str(from_agent), time.time()))
     return True
@@ -84,7 +88,7 @@ def take_dropped(agent: str) -> int:
     return _dropped.pop(str(agent), 0)
 
 
-def drain(agent: str) -> List[Dict[str, Any]]:
+def drain(agent: str) -> list[dict[str, Any]]:
     """Drain ALL pending hints for `agent`, clearing the ring.
 
     Call this ONCE per model turn, before composing the prompt.  Returns a list of
@@ -99,11 +103,11 @@ def drain(agent: str) -> List[Dict[str, Any]]:
         return []
 
     now = time.time()
-    hints: List[Dict[str, Any]] = []
+    hints: list[dict[str, Any]] = []
     while buf:
         key, value, from_agent, ts = buf[0]
         if now - ts > HINT_TTL_SECONDS:
-            buf.popleft()               # stale -- drop silently
+            buf.popleft()  # stale -- drop silently
             continue
         hints.append({"key": key, "value": value, "from": from_agent})
         buf.popleft()
@@ -115,7 +119,7 @@ def drain(agent: str) -> List[Dict[str, Any]]:
     return hints
 
 
-def format_for_prompt(hints: List[Dict[str, Any]], dropped: int = 0) -> str:
+def format_for_prompt(hints: list[dict[str, Any]], dropped: int = 0) -> str:
     """Render a list of hint dicts (from drain()) as a compact block for system-prompt or
     user-prompt injection. `dropped` (from take_dropped()) confesses ring overflow: the
     block reports the loss instead of narrowing silently (RB-5/RB-6, T029).
@@ -134,8 +138,10 @@ def format_for_prompt(hints: List[Dict[str, Any]], dropped: int = 0) -> str:
         frm = h.get("from", "?")
         lines.append(f"- [{k}] from {frm}: {v}")
     if dropped:
-        lines.append(f"- (! {dropped} older hint(s) dropped -- ring full at "
-                     f"{HINT_MAX_PER_AGENT}; peers should batch or slow down)")
+        lines.append(
+            f"- (! {dropped} older hint(s) dropped -- ring full at "
+            f"{HINT_MAX_PER_AGENT}; peers should batch or slow down)"
+        )
 
     return "\n".join(lines)
 

@@ -11,17 +11,17 @@ channel:
   - it is loopback-only
   - "nobody listening" is distinguishable from "listener refused"
 """
+
 import os
 import socket
 import threading
-import time
 
 import pytest
 
 from core.comm import control_channel as cc
 
 
-@pytest.fixture()
+@pytest.fixture
 def chan():
     # A port well away from the real base so a live runner cannot collide with the test.
     ch = cc.ControlChannel("testagent", port=cc.CONTROL_PORT_BASE + 900)
@@ -42,10 +42,13 @@ def test_port_is_stable_across_processes():
     """The killer detail: Python's hash() is randomised per process (PYTHONHASHSEED), so a
     hash()-based port would make two processes disagree about where one agent listens. That is
     exactly the stale-mapping failure this design exists to avoid, so it must be pinned."""
-    import subprocess, sys
-    src = ("import sys; sys.path.insert(0, r'%s'); "
-           "from core.comm import control_channel as cc; print(cc.port_for('kimi'))"
-           % os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    import subprocess
+    import sys
+
+    src = (
+        f"import sys; sys.path.insert(0, r'{os.path.dirname(os.path.dirname(os.path.abspath(__file__)))}'); "
+        "from core.comm import control_channel as cc; print(cc.port_for('kimi'))"
+    )
     out = subprocess.run([sys.executable, "-c", src], capture_output=True, text=True, timeout=60)
     assert out.returncode == 0, out.stderr[:300]
     assert int(out.stdout.strip()) == cc.port_for("kimi"), (
@@ -56,7 +59,8 @@ def test_port_is_stable_across_processes():
 
 def test_ping_answers(chan):
     reply = cc.send("testagent", "ping", port=chan.port)
-    assert reply and reply.startswith("pong"), f"got {reply!r}"
+    assert reply, f"got {reply!r}"
+    assert reply.startswith("pong"), f"got {reply!r}"
     assert f"pid={os.getpid()}" in reply, "ping must identify the process it reached"
 
 
@@ -69,7 +73,8 @@ def test_silence_is_distinguishable_from_refusal():
 
 def test_unknown_verb_is_refused_not_ignored(chan):
     reply = cc.send("testagent", "definitely-not-a-verb", port=chan.port)
-    assert reply and reply.startswith("ERR"), f"got {reply!r}"
+    assert reply, f"got {reply!r}"
+    assert reply.startswith("ERR"), f"got {reply!r}"
     assert "help" in reply, "a refusal should teach the caller what IS available"
 
 
@@ -88,7 +93,7 @@ def test_bind_conflict_is_loud(capsys):
 
 def test_listener_is_loopback_only(chan):
     """A control plane must never be reachable off-box."""
-    conns = [c for c in socket.getaddrinfo("127.0.0.1", chan.port, proto=socket.IPPROTO_TCP)]
+    conns = list(socket.getaddrinfo("127.0.0.1", chan.port, proto=socket.IPPROTO_TCP))
     assert conns, "expected a loopback binding"
     s = socket.socket()
     s.settimeout(1.0)
@@ -133,7 +138,7 @@ def test_answers_while_the_main_thread_is_blocked(chan):
         blocked.set()
         try:
             victim.settimeout(20)
-            victim.recv(1)          # nothing will ever be sent -- this is the wedge
+            victim.recv(1)  # nothing will ever be sent -- this is the wedge
         except Exception:
             pass
 
@@ -142,8 +147,8 @@ def test_answers_while_the_main_thread_is_blocked(chan):
     assert blocked.wait(5), "setup: the victim thread never reached its blocking read"
 
     reply = cc.send("testagent", "ping", port=chan.port)
-    assert reply and reply.startswith("pong"), (
-        "the control channel went silent while another thread was blocked -- it is not "
-        "actually out-of-band"
+    assert reply, "the control channel went silent while another thread was blocked -- it is not actually out-of-band"
+    assert reply.startswith("pong"), (
+        "the control channel went silent while another thread was blocked -- it is not actually out-of-band"
     )
     dead.close()

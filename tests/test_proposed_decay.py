@@ -8,9 +8,11 @@ line says so -- silent parked intent was the T002-T007 disease.
 
 Run: py -m pytest tests/test_proposed_decay.py -q
 """
+
 import os
 import sys
 import time
+from typing import Any
 
 import pytest
 
@@ -19,25 +21,26 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from core.coord import conductor
 from core.coord import task_ledger as TL
 
+#: conductor's verbs take an unannotated `client="auto"` (inferred `str`); None = no redis client.
+NO_CLIENT: Any = None
+
 
 def test_abandon_is_terminal_and_reasoned(tmp_path, monkeypatch):
     sent = []
-    monkeypatch.setattr(conductor, "_broadcast",
-                        lambda kind, text, meta: sent.append((kind, meta.get("to"))))
+    monkeypatch.setattr(conductor, "_broadcast", lambda kind, text, meta: sent.append((kind, meta.get("to"))))
     path = str(tmp_path / "tasks.json")
-    t = conductor.propose("lane-era leftover", by="claude", client=None, path=path)
-    out = conductor.abandon(t["id"], "lane era ended; re-propose if wanted", by="user",
-                            client=None, path=path)
+    t = conductor.propose("lane-era leftover", by="claude", client=NO_CLIENT, path=path)
+    out = conductor.abandon(t["id"], "lane era ended; re-propose if wanted", by="user", client=NO_CLIENT, path=path)
     assert out["status"] == "abandoned"
     assert out["history"][-1]["reason"].startswith("lane era ended")
     assert ("ledger_update", "abandoned") in sent, "P3 uniformity: abandon rings the doorbell"
     with pytest.raises(TL.LedgerError):
-        conductor.approve(t["id"], client=None, path=path)   # terminal: no way back
+        conductor.approve(t["id"], client=NO_CLIENT, path=path)  # terminal: no way back
 
 
 def _seed(tmp_path, created_days_ago):
     path = str(tmp_path / "tasks.json")
-    led = TL.TaskLedger(path, client=None)
+    led = TL.TaskLedger(path, client=NO_CLIENT)
     old = time.time() - created_days_ago * 86400
     at = __import__("datetime").datetime.fromtimestamp(old).isoformat()
     led.propose("old parked idea", by="claude", at=at)
@@ -57,9 +60,9 @@ def test_stale_flagging_uses_injected_clock(tmp_path):
 
 def test_format_state_lists_stale_and_counts_them(tmp_path):
     path = _seed(tmp_path, created_days_ago=30)
-    text = TL.format_state(path=path, client=None, now=time.time())
+    text = TL.format_state(path=path, client=NO_CLIENT, now=time.time())
     assert "PROPOSED BUT STALE" in text
     assert "re-approve or abandon" in text
     assert "proposed 1 (1 stale)" in text
-    fresh = TL.format_state(path=path, client=None)   # no clock -> no annotation
+    fresh = TL.format_state(path=path, client=NO_CLIENT)  # no clock -> no annotation
     assert "PROPOSED BUT STALE" not in fresh

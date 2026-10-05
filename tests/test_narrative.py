@@ -17,27 +17,37 @@ partition while themes are MULTI-label. Micro-F1 over (beat, theme) pairs is the
 methodologically correct bar; single-label NMI on the primary theme is reported too,
 for continuity.
 """
+
 import os
 import sys
 import tempfile
 
-_TESTS = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.dirname(_TESTS))
-sys.path.insert(0, _TESTS)
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+from fixtures.narrative_fixture import GOLD_TRACKS, gold_qa, gold_rows
+from narrative_metrics import (
+    accuracy,
+    ari,
+    boundaries,
+    boundary_f1,
+    jaccard_multilabel,
+    multilabel_prf,
+    nmi,
+    purity,
+    windowdiff,
+)
 
 from core.foundation.store import FileStore
 from core.narrative.beat_log import BeatLog
 from core.narrative.chronicler import Chronicler
 from core.narrative.schema import Atlas, Beat, Chapter, beat_key, chapter_key, track_key
-from core.narrative.track_router import TrackRouter, RouteHint
 from core.narrative.theme_assigner import ThemeAssigner
-from core.primitives.ranker import Ranker
+from core.narrative.track_router import RouteHint, TrackRouter
 from core.primitives.distiller import Distiller
-from narrative_metrics import (
-    ari, nmi, purity, accuracy, boundaries, windowdiff, boundary_f1,
-    multilabel_prf, jaccard_multilabel,
-)
-from fixtures.narrative_fixture import gold_rows, gold_qa, GOLD_TRACKS, GOLD_THEME_VOCAB
+from core.primitives.ranker import Ranker
+
+_TESTS = os.path.dirname(os.path.abspath(__file__))
 
 # ---- acceptance bars (docs/library/design/20260709_narrative-spine-test-verification-plan-b_cc061e.md) ----
 ARI_BAR = 0.70
@@ -52,12 +62,15 @@ NAV_BAR = 100.0
 
 # ===================== measurement =====================
 
+
 def _measure_routing():
     rows = gold_rows()
     gold = [r["gold"] for r in rows]
     items = [
-        (Beat(id=f"b{i}", at=r["at"], kind=r["kind"], summary=r["summary"], source=r["source"]),
-         RouteHint(paths=r["paths"], category=r["category"], task=r["task"]))
+        (
+            Beat(id=f"b{i}", at=r["at"], kind=r["kind"], summary=r["summary"], source=r["source"]),
+            RouteHint(paths=r["paths"], category=r["category"], task=r["task"]),
+        )
         for i, r in enumerate(rows)
     ]
     pred = [res.track for res in TrackRouter().route_sequence(items)]
@@ -101,10 +114,20 @@ def _build_store():
     bl = BeatLog(s)
     rows = gold_rows()
     for r in rows:
-        bl.emit(r["kind"], r["summary"], r["source"], at=r["at"],
-                hint=RouteHint(paths=r["paths"], category=r["category"], task=r["task"]))
-    c = Chronicler(beat_log=bl, store=s, chronicle_dir=tempfile.mkdtemp(),
-                   ranker=Ranker(), distiller=Distiller(max_chars_per_entry=170))
+        bl.emit(
+            r["kind"],
+            r["summary"],
+            r["source"],
+            at=r["at"],
+            hint=RouteHint(paths=r["paths"], category=r["category"], task=r["task"]),
+        )
+    c = Chronicler(
+        beat_log=bl,
+        store=s,
+        chronicle_dir=tempfile.mkdtemp(),
+        ranker=Ranker(),
+        distiller=Distiller(max_chars_per_entry=170),
+    )
     report = c.chronicle_all(now="2026-06-30T00:00:00")
     return s, report
 
@@ -115,12 +138,14 @@ def _measure_chronicler(store, report):
     raw_atlas = store.get("narr:atlas:current")
     if raw_atlas:
         import json
+
         atlas = Atlas.from_dict(json.loads(raw_atlas))
         for t in atlas.tracks:
             raw_t = store.get(track_key(t))
             if not raw_t:
                 continue
             from core.narrative.schema import Track
+
             tr = Track.from_dict(json.loads(raw_t))
             for cid in tr.chapters:
                 ch = _load_chapter(store, cid)
@@ -143,6 +168,7 @@ def _measure_navigation(store):
     Success = expected track's chapter is reached and a beat resolves, in <= 2 drills."""
     import json
     from datetime import datetime
+
     raw_atlas = store.get("narr:atlas:current")
     if not raw_atlas:
         return {"success_rate": 0.0, "max_drills": 0, "n": 0}
@@ -162,8 +188,7 @@ def _measure_navigation(store):
                     continue
                 try:
                     start = datetime.fromisoformat(ch.span_start).timestamp()
-                    end = (datetime.fromisoformat(ch.span_end).timestamp()
-                           if ch.span_end else float("inf"))
+                    end = datetime.fromisoformat(ch.span_end).timestamp() if ch.span_end else float("inf")
                 except (ValueError, TypeError):
                     continue
                 if start <= target <= end:
@@ -173,25 +198,25 @@ def _measure_navigation(store):
     ok, max_drills = 0, 0
     qa = gold_qa()
     for pair in qa:
-        drills = 1                          # Atlas -> chapter via --at
+        drills = 1  # Atlas -> chapter via --at
         found = [ch for ch in chapters_at(pair["at"]) if ch.track == pair["expect_track"]]
         if not found:
             continue
         ch = found[0]
         beat_ok = False
         if ch.beats:
-            drills = 2                       # chapter -> beat via --beat
+            drills = 2  # chapter -> beat via --beat
             b = _load_beat(store, ch.beats[0])
             beat_ok = b is not None and bool(b.source)
         if beat_ok and drills <= 2:
             ok += 1
             max_drills = max(max_drills, drills)
-    return {"success_rate": (ok / len(qa) * 100) if qa else 100.0,
-            "max_drills": max_drills, "n": len(qa)}
+    return {"success_rate": (ok / len(qa) * 100) if qa else 100.0, "max_drills": max_drills, "n": len(qa)}
 
 
 def _load_chapter(store, cid):
     import json
+
     raw = store.get(chapter_key(cid))
     if not raw:
         return None
@@ -203,6 +228,7 @@ def _load_chapter(store, cid):
 
 def _load_beat(store, bid):
     import json
+
     raw = store.get(beat_key(bid))
     if not raw:
         return None
@@ -213,6 +239,7 @@ def _load_beat(store, bid):
 
 
 # ===================== report table =====================
+
 
 def _row(name, value, op, bar, fmt="{:.3f}"):
     if op == ">=":
@@ -234,8 +261,9 @@ def render_report():
 
     lines, oks = [], []
     lines.append("=" * 64)
-    lines.append("NARRATIVE EVALUATION HARNESS (Slice 8) -- fixture: %d beats, %d tracks"
-                 % (len(gold_rows()), len(GOLD_TRACKS)))
+    lines.append(
+        f"NARRATIVE EVALUATION HARNESS (Slice 8) -- fixture: {len(gold_rows())} beats, {len(GOLD_TRACKS)} tracks"
+    )
     lines.append("=" * 64)
 
     lines.append("\n[Routing -- Slice 2]")
@@ -244,15 +272,21 @@ def render_report():
         _row("WindowDiff", rt["WindowDiff"], "<=", WINDOWDIFF_BAR),
         _row("boundary_F1", rt["boundary_F1"], ">=", BOUNDARY_F1_BAR),
     ):
-        lines.append(r); oks.append(ok)
-    lines.append("        (NMI %.3f | purity %.3f | accuracy %.3f)"
-                 % (rt["NMI"], rt["purity"], rt["accuracy"]))
+        lines.append(r)
+        oks.append(ok)
+    lines.append(
+        "        (NMI {:.3f} | purity {:.3f} | accuracy {:.3f})".format(rt["NMI"], rt["purity"], rt["accuracy"])
+    )
 
     lines.append("\n[Themes -- Slice 5]")
     for r, ok in (_row("theme micro-F1", th["micro_F1"], ">=", THEME_F1_BAR),):
-        lines.append(r); oks.append(ok)
-    lines.append("        (precision %.3f | recall %.3f | jaccard %.3f | primary-NMI %.3f)"
-                 % (th["precision"], th["recall"], th["jaccard"], th["primary_NMI"]))
+        lines.append(r)
+        oks.append(ok)
+    lines.append(
+        "        (precision {:.3f} | recall {:.3f} | jaccard {:.3f} | primary-NMI {:.3f})".format(
+            th["precision"], th["recall"], th["jaccard"], th["primary_NMI"]
+        )
+    )
 
     lines.append("\n[Chronicler -- Slice 3]")
     for r, ok in (
@@ -260,21 +294,24 @@ def render_report():
         _row("coverage %", ch["coverage"], ">=", COVERAGE_BAR, "{:.1f}"),
         _row("chronological %", ch["chronological"], "==", CHRONO_BAR, "{:.1f}"),
     ):
-        lines.append(r); oks.append(ok)
-    lines.append("        (%d chapters across %d tracks)" % (ch["chapters"], ch["tracks"]))
+        lines.append(r)
+        oks.append(ok)
+    lines.append(f"        ({int(ch['chapters'])} chapters across {int(ch['tracks'])} tracks)")
 
     lines.append("\n[Navigation -- Slice 4]")
     for r, ok in (_row("QA reachable %", nav["success_rate"], "==", NAV_BAR, "{:.1f}"),):
-        lines.append(r); oks.append(ok)
-    lines.append("        (%d QA pairs, max %d drills)" % (nav["n"], nav["max_drills"]))
+        lines.append(r)
+        oks.append(ok)
+    lines.append(f"        ({int(nav['n'])} QA pairs, max {int(nav['max_drills'])} drills)")
 
     lines.append("\n" + "=" * 64)
-    lines.append("RESULT: %d/%d bars met" % (sum(oks), len(oks)))
+    lines.append(f"RESULT: {int(sum(oks))}/{len(oks)} bars met")
     lines.append("=" * 64)
     return "\n".join(lines), all(oks)
 
 
 # ===================== pytest entry points =====================
+
 
 def test_routing_bars():
     rt = _measure_routing()

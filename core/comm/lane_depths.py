@@ -5,10 +5,10 @@ streams read 0 (a lane that never existed is empty, not an error); a hostile
 backend reads all-zero (the engine room renders through its own outages).
 The 562-storm of 2026-07-15 would have been a visible spike here.
 """
+
 from __future__ import annotations
 
 import os
-from typing import Dict
 
 
 def _ns() -> str:
@@ -22,16 +22,21 @@ def _client(c=None, allow_fallback: bool = True):
         return None
     try:
         from core.comm.bus import get_bus
+
         return get_bus("control")._client
     except Exception:
         return None
 
 
-def lane_depths(agent: str, c=None, allow_fallback: bool = True) -> Dict[str, int]:
+def lane_depths(agent: str, c=None, allow_fallback: bool = True) -> dict[str, int]:
     ns = _ns()
-    keys = {"work": f"{ns}:work:inbox:{agent}", "legacy": f"{ns}:inbox:{agent}",
-            "trace": f"{ns}:trace", "sig": f"{ns}:sig"}
-    out = {k: 0 for k in keys}
+    keys = {
+        "work": f"{ns}:work:inbox:{agent}",
+        "legacy": f"{ns}:inbox:{agent}",
+        "trace": f"{ns}:trace",
+        "sig": f"{ns}:sig",
+    }
+    out = dict.fromkeys(keys, 0)
     cli = _client(c, allow_fallback)
     if cli is None:
         return out
@@ -58,6 +63,7 @@ def work_backlog(agent: str, c=None, allow_fallback: bool = True, cap: int = 500
         return 0
     try:
         from core.comm.bus import Bus
+
         cur = Bus(agent).read_lane_cursor().get("inbox", "0")
 
         def _p(s):

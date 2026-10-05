@@ -3,16 +3,18 @@ generated chronicles/memory.md digest is a derived projection (never hand-edited
 
 Run: py tests/test_notes.py   (or via pytest)
 """
+
 import os
 import sys
 import tempfile
+from pathlib import Path
 
 os.environ.setdefault("AI_SETUP", tempfile.mkdtemp())
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+import agent_cli
 from core.foundation.store import FileStore
 from core.learning.agent_memory import AgentMemory
-import agent_cli
 
 
 def _mem():
@@ -22,10 +24,12 @@ def _mem():
 def test_note_records_and_supersedes():
     mem = _mem()
     a = mem.decide(title="checkpoint", decision="recall-at-action done")
-    assert a and len(mem.get_decisions(days=3650)) == 1
+    assert a
+    assert len(mem.get_decisions(days=3650)) == 1
     b = mem.decide(title="checkpoint", decision="write-once done; FC-01 next", supersedes=a)
     active = mem.get_decisions(days=3650)
-    assert len(active) == 1 and active[0].id == b, "superseding leaves exactly one active note"
+    assert len(active) == 1, "superseding leaves exactly one active note"
+    assert active[0].id == b, "superseding leaves exactly one active note"
     assert active[0].decision == "write-once done; FC-01 next"
     print("\n--- note supersession ---\n  correcting a note retires the prior; one active note OK")
 
@@ -33,12 +37,13 @@ def test_note_records_and_supersedes():
 def test_project_notes_renders_active_only():
     mem = _mem()
     a = mem.decide(title="alpha", decision="first state")
-    mem.decide(title="alpha", decision="second state", supersedes=a)   # supersede first
+    mem.decide(title="alpha", decision="second state", supersedes=a)  # supersede first
     mem.decide(title="beta", decision="another note")
     path = agent_cli.project_notes(memory=mem, chronicle_dir=tempfile.mkdtemp())
-    text = open(path, encoding="utf-8").read()
+    text = Path(path).read_text(encoding="utf-8")
     assert "auto-generated from notes" in text
-    assert "second state" in text and "another note" in text, "active notes are present"
+    assert "second state" in text, "active notes are present"
+    assert "another note" in text, "active notes are present"
     assert "first state" not in text, "the superseded note is excluded (write-once correction)"
     assert "(source: mem:decision:" in text, "digest lines carry lossless source pointers"
     print("--- project notes ---\n  digest renders ACTIVE notes only, with source pointers OK")

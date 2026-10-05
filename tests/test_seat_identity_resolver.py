@@ -32,10 +32,10 @@ lesson stop_hook_wakeability_check_false_alarms_non_claude_seats, wish W114,
 atom art_20260801_concurrent-seats-one-program-prior-art_a69ecf (six systems, all of which
 solve this with a two-level name plus an explicit binding step).
 """
+
 from __future__ import annotations
 
 import os
-import re
 import subprocess
 import sys
 
@@ -45,10 +45,18 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
-HOOK_NAMES = ("claude_sessionstart.py", "claude_stop.py", "claude_userpromptsubmit.py",
-              "claude_pretooluse.py", "claude_posttooluse.py", "claude_sessionend.py")
-HOOK_DIRS = {"scripts": os.path.join(ROOT, "scripts", "hooks"),
-             "agent_harness": os.path.join(ROOT, "agent", "harness", "hooks")}
+HOOK_NAMES = (
+    "claude_sessionstart.py",
+    "claude_stop.py",
+    "claude_userpromptsubmit.py",
+    "claude_pretooluse.py",
+    "claude_posttooluse.py",
+    "claude_sessionend.py",
+)
+HOOK_DIRS = {
+    "scripts": os.path.join(ROOT, "scripts", "hooks"),
+    "agent_harness": os.path.join(ROOT, "agent", "harness", "hooks"),
+}
 
 # A SYNTHETIC session id, never a real one: these pins must not read live seat state.
 # Found the hard way -- the first draft used this seat's REAL session id with the default
@@ -72,9 +80,9 @@ def test_r1_no_identity_anywhere_never_yields_a_real_peer_name(tmp_path, monkeyp
 
     assert got != "claude", (
         "resolver silently impersonated the conductor with no identity available -- "
-        "this is the exact defect the slice exists to remove")
-    assert got not in ("deepseek", "kimi", "codex", "gemini", "sol"), (
-        f"resolver borrowed a real peer's name: {got!r}")
+        "this is the exact defect the slice exists to remove"
+    )
+    assert got not in ("deepseek", "kimi", "codex", "gemini", "sol"), f"resolver borrowed a real peer's name: {got!r}"
     assert got.startswith("unknown-"), f"expected a loud unknown-<sid8>, got {got!r}"
     assert SID8 in got, f"unknown id must carry the session discriminator, got {got!r}"
 
@@ -141,14 +149,18 @@ def test_r6_no_hook_silently_defaults_identity_to_a_peer_name(which):
     no regex was written for. Importing is still avoided: a hook's module body runs on import.
     """
     import ast
+    from typing import TypeGuard
 
     PEERS = {"claude", "deepseek", "kimi", "codex", "gemini", "sol", "composer"}
 
-    def _reads_agent_env(node) -> bool:
+    def _reads_agent_env(node: ast.AST) -> TypeGuard[ast.Call]:
         """os.getenv("AKASHIC_AGENT_ID"...) or os.environ.get("AKASHIC_AGENT_ID"...)"""
-        return (isinstance(node, ast.Call) and node.args
-                and isinstance(node.args[0], ast.Constant)
-                and node.args[0].value == "AKASHIC_AGENT_ID")
+        return (
+            isinstance(node, ast.Call)
+            and len(node.args) > 0
+            and isinstance(node.args[0], ast.Constant)
+            and node.args[0].value == "AKASHIC_AGENT_ID"
+        )
 
     offenders = []
     for name in HOOK_NAMES:
@@ -161,9 +173,11 @@ def test_r6_no_hook_silently_defaults_identity_to_a_peer_name(which):
             # `os.getenv("AKASHIC_AGENT_ID") or "claude"`
             if isinstance(node, ast.BoolOp) and isinstance(node.op, ast.Or):
                 vals = node.values
-                if (any(_reads_agent_env(v) for v in vals[:-1])
-                        and isinstance(vals[-1], ast.Constant)
-                        and vals[-1].value in PEERS):
+                if (
+                    any(_reads_agent_env(v) for v in vals[:-1])
+                    and isinstance(vals[-1], ast.Constant)
+                    and vals[-1].value in PEERS
+                ):
                     offenders.append(f"{name}:{node.lineno}: `... or {vals[-1].value!r}`")
             # `os.environ.get("AKASHIC_AGENT_ID", "claude")`
             if _reads_agent_env(node) and len(node.args) > 1:
@@ -171,9 +185,9 @@ def test_r6_no_hook_silently_defaults_identity_to_a_peer_name(which):
                 if isinstance(d, ast.Constant) and d.value in PEERS:
                     offenders.append(f"{name}:{node.lineno}: `get(..., {d.value!r})`")
 
-    assert not offenders, (
-        f"{which}/ hooks still default a missing identity to a real peer:\n  "
-        + "\n  ".join(offenders))
+    assert not offenders, f"{which}/ hooks still default a missing identity to a real peer:\n  " + "\n  ".join(
+        offenders
+    )
 
 
 def test_r7_both_hook_copies_resolve_identity_identically():
@@ -182,6 +196,7 @@ def test_r7_both_hook_copies_resolve_identity_identically():
     wiring gate at check_wiring.py:28-34 declares that copy 'not entry points... deliberately
     not walked', so a fix landing in the agent/ copy alone is invisible AND a no-op exactly
     where it is needed. Identity lines must match across both."""
+
     def ident_lines(d):
         out = []
         for name in HOOK_NAMES:
@@ -189,21 +204,31 @@ def test_r7_both_hook_copies_resolve_identity_identically():
             if not os.path.exists(p):
                 continue
             with open(p, encoding="utf-8") as fh:
-                out += [(name, ln.strip()) for ln in fh
-                        if "AKASHIC_AGENT_ID" in ln or "seat_identity" in ln]
+                out += [(name, ln.strip()) for ln in fh if "AKASHIC_AGENT_ID" in ln or "seat_identity" in ln]
         return out
 
     a, b = ident_lines(HOOK_DIRS["scripts"]), ident_lines(HOOK_DIRS["agent_harness"])
-    assert a == b, ("hook copies disagree on identity resolution -- one seat profile gets the "
-                    f"fix and the other does not:\n  scripts/: {a}\n  agent/:   {b}")
+    assert a == b, (
+        "hook copies disagree on identity resolution -- one seat profile gets the "
+        f"fix and the other does not:\n  scripts/: {a}\n  agent/:   {b}"
+    )
 
 
 # ------------------------------------------------------------------ R8: the declare door
 def test_r8_declare_door_is_reachable_from_the_cli():
     """A binding a seat cannot create is not a door. The CLI must expose it, because the seat
     that needs it is mid-session and cannot restart itself to change its own process env."""
-    r = subprocess.run([sys.executable, "-X", "utf8", "agent_cli.py", "discover"],
-                       capture_output=True, text=True, cwd=ROOT, encoding="utf-8",
-                       errors="replace", stdin=subprocess.DEVNULL, close_fds=True, timeout=90)
+    r = subprocess.run(
+        [sys.executable, "-X", "utf8", "agent_cli.py", "discover"],
+        capture_output=True,
+        text=True,
+        cwd=ROOT,
+        encoding="utf-8",
+        errors="replace",
+        stdin=subprocess.DEVNULL,
+        close_fds=True,
+        timeout=90,
+    )
     assert "seat-identity" in (r.stdout or "") or "seat_identity" in (r.stdout or ""), (
-        "no seat-identity verb on the self-describing door -- a seat cannot declare its name")
+        "no seat-identity verb on the self-describing door -- a seat cannot declare its name"
+    )

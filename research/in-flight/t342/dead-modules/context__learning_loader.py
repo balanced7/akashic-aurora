@@ -20,44 +20,51 @@ See docs/library/design/20260709_context-pillar-system-4-design-consolida_89733b
 """
 
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-from core.primitives.ranker import Ranker
 from core.learning.learning_store import LearningStore, get_learning_store_instance, is_graduated
+from core.primitives.ranker import Ranker
 
 
-def load_learnings_for_boot(task: str, *, learning_store: Optional[LearningStore] = None,
-                            now: Optional[float] = None,
-                            cap_chars: Optional[int] = None) -> List[Dict[str, Any]]:
+def load_learnings_for_boot(
+    task: str,
+    *,
+    learning_store: LearningStore | None = None,
+    now: float | None = None,
+    cap_chars: int | None = None,
+) -> list[dict[str, Any]]:
     """T071-R1 boot door: MOST-RELEVANT lessons under the fixed relevance budget
     (context/relevance_budget.py; deepseek Part 5 governs). Kill switch R1-d:
     AKASHIC_RELEVANCE_BUDGET=0 serves the legacy recency/Ranker selection, same
     entry shape. Fail-open: any budget-path error falls back to legacy too."""
     if os.getenv("AKASHIC_RELEVANCE_BUDGET", "1") != "0":
         try:
-            from context import relevance_budget as rb
+            from context import (  # pyright: ignore[reportMissingImports]  # archived module / optional dependency, not in the lock
+                relevance_budget as rb,
+            )
+
             store = learning_store or get_learning_store_instance()
             return rb.select_within_budget(store, task, cap_chars=cap_chars, now=now)
         except Exception:
             pass
-    return load_learnings_ranked_by_relevance(
-        task, top_k=8, learning_store=learning_store, now=now)
+    return load_learnings_ranked_by_relevance(task, top_k=8, learning_store=learning_store, now=now)
+
 
 # confidence -> base importance (1..5)
 _CONFIDENCE_IMPORTANCE = {"high": 5, "medium": 3, "low": 2}
 
 
-def _importance_of(learning: Dict[str, Any]) -> int:
+def _importance_of(learning: dict[str, Any]) -> int:
     base = _CONFIDENCE_IMPORTANCE.get(str(learning.get("confidence", "medium")).lower(), 3)
     success = str(learning.get("success", "")).lower()
     if success == "yes":
-        base = min(5, base + 1)   # a proven win is worth surfacing
+        base = min(5, base + 1)  # a proven win is worth surfacing
     elif success == "no":
-        base = max(1, base - 1)   # a known failure still matters, slightly less
+        base = max(1, base - 1)  # a known failure still matters, slightly less
     return base
 
 
-def _text_of(learning: Dict[str, Any]) -> str:
+def _text_of(learning: dict[str, Any]) -> str:
     parts = [
         learning.get("experiment_name", ""),
         learning.get("category", ""),
@@ -71,10 +78,10 @@ def load_learnings_ranked_by_relevance(
     task: str,
     top_k: int = 5,
     *,
-    learning_store: Optional[LearningStore] = None,
-    ranker: Optional[Ranker] = None,
-    now: Optional[float] = None,
-) -> List[Dict[str, Any]]:
+    learning_store: LearningStore | None = None,
+    ranker: Ranker | None = None,
+    now: float | None = None,
+) -> list[dict[str, Any]]:
     """
     Load the `top_k` learnings most relevant to `task`, ranked.
 
@@ -89,29 +96,31 @@ def load_learnings_ranked_by_relevance(
     learnings = store.load_all_learnings_from_store()
     items = [
         {
-            "text": _text_of(l),
-            "importance": _importance_of(l),
-            "timestamp": l.get("timestamp"),
-            "source": l.get("experiment_name"),
-            "_learning": l,
+            "text": _text_of(learning),
+            "importance": _importance_of(learning),
+            "timestamp": learning.get("timestamp"),
+            "source": learning.get("experiment_name"),
+            "_learning": learning,
         }
-        for l in learnings
+        for learning in learnings
         # graduated = rule enforced by automation now; boot's ranked slots go to live knowledge
-        if not is_graduated(l)
+        if not is_graduated(learning)
     ]
 
     ranked = ranker.rank(items, query=task, now=now, top_k=top_k)
 
-    results: List[Dict[str, Any]] = []
+    results: list[dict[str, Any]] = []
     for s in ranked:
-        l = s.item["_learning"]
-        results.append({
-            "source": s.item["source"],            # pointer to the full record
-            "recommendation": l.get("recommendation", ""),
-            "what_tried": l.get("what_tried", ""),
-            "success": l.get("success", ""),
-            "confidence": l.get("confidence", ""),
-            "category": l.get("category", ""),
-            "score": round(s.score, 4),
-        })
+        learning = s.item["_learning"]
+        results.append(
+            {
+                "source": s.item["source"],  # pointer to the full record
+                "recommendation": learning.get("recommendation", ""),
+                "what_tried": learning.get("what_tried", ""),
+                "success": learning.get("success", ""),
+                "confidence": learning.get("confidence", ""),
+                "category": learning.get("category", ""),
+                "score": round(s.score, 4),
+            }
+        )
     return results

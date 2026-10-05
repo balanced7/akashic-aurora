@@ -7,14 +7,28 @@ reinforced association graph (edges that strengthen with co-use, decay without).
 
 See docs/library/design/20260709_perspectives-maps-build-plan-the-interpr_5a5e0a.md.  Slice P0 = schema; P1 = reinforcement.
 """
-from core.perspectives.schema import (
-    Lens, Map, valid_relationship, VALID_DOMAINS,
-    BUILTIN_LENSES, BUILTIN_MAPS, lens_key, map_key,
-)
+
 from core.perspectives.reinforce import ReinforcedGraph, get_reinforced_graph
+from core.perspectives.schema import (
+    BUILTIN_LENSES,
+    BUILTIN_MAPS,
+    VALID_DOMAINS,
+    Lens,
+    Map,
+    lens_key,
+    map_key,
+    valid_relationship,
+)
 
 __all__ = [
-    "Lens", "Map", "valid_relationship", "VALID_DOMAINS",
-    "BUILTIN_LENSES", "BUILTIN_MAPS", "lens_key", "map_key",
-    "ReinforcedGraph", "get_reinforced_graph",
+    "BUILTIN_LENSES",
+    "BUILTIN_MAPS",
+    "VALID_DOMAINS",
+    "Lens",
+    "Map",
+    "ReinforcedGraph",
+    "get_reinforced_graph",
+    "lens_key",
+    "map_key",
+    "valid_relationship",
 ]

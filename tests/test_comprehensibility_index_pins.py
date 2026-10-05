@@ -29,6 +29,7 @@ Pins 2a/2b are Windows-only RED (the newline translation does not happen on POSI
 
 Run: py -m pytest tests/test_comprehensibility_index_pins.py -q -p no:cacheprovider
 """
+
 from __future__ import annotations
 
 import os
@@ -41,9 +42,9 @@ _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(_ROOT, "scripts", "checkers"))
 sys.path.insert(0, os.path.join(_ROOT, "scripts", "generators"))
 
-import check_comprehensibility as cm  # noqa: E402
-import gen_master_map as mapgen  # noqa: E402
-import _tracked  # noqa: E402
+import _tracked  # noqa: E402  # sys.path bootstrap
+import check_comprehensibility as cm  # noqa: E402  # sys.path bootstrap
+import gen_master_map as mapgen  # noqa: E402  # sys.path bootstrap
 
 
 # ------------------------------------------------ 2. git can be asked about MANY paths at once
@@ -53,7 +54,8 @@ def test_gitignored_recognises_the_acl_when_it_is_not_the_last_ref():
     carries a stray '\\r' into git, which then matches nothing.)"""
     got = cm._gitignored({"security/acl.json", "tests/zz_never_exists.py"})
     assert "security/acl.json" in got, (
-        f"a gitignored ref must be recognised regardless of how many refs travel with it; got {got!r}")
+        f"a gitignored ref must be recognised regardless of how many refs travel with it; got {got!r}"
+    )
 
 
 def test_gitignored_answers_the_real_clean_checkout_shape():
@@ -64,7 +66,7 @@ def test_gitignored_answers_the_real_clean_checkout_shape():
 
 
 # ------------------------------------------------ 1. the index, not the filesystem
-@pytest.fixture()
+@pytest.fixture
 def throwaway_repo(tmp_path):
     """A real git repo holding ONE committed living doc that cites two paths, plus one tracked
     test. After the commit both cited targets are made to EXIST on disk: one UNTRACKED, one
@@ -73,9 +75,24 @@ def throwaway_repo(tmp_path):
     repo.mkdir()
 
     def git(*args):
-        r = subprocess.run(["git", "-c", "user.name=pin", "-c", "user.email=pin@example.invalid",
-                            "-c", "commit.gpgsign=false", "-c", "core.autocrlf=false", *args],
-                           cwd=str(repo), capture_output=True, text=True, timeout=60)
+        r = subprocess.run(
+            [
+                "git",
+                "-c",
+                "user.name=pin",
+                "-c",
+                "user.email=pin@example.invalid",
+                "-c",
+                "commit.gpgsign=false",
+                "-c",
+                "core.autocrlf=false",
+                *args,
+            ],
+            cwd=str(repo),
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
         if r.returncode != 0:
             pytest.skip(f"git {' '.join(args)} failed here: {(r.stderr or r.stdout)[:200]}")
         return r
@@ -85,8 +102,8 @@ def throwaway_repo(tmp_path):
         (repo / d).mkdir()
     (repo / ".gitignore").write_text("security/acl.json\n", encoding="utf-8")
     (repo / "docs" / "PLANTED.md").write_text(
-        "Pins: run `tests/planted_probe.py`; grants live in security/acl.json.\n",
-        encoding="utf-8")
+        "Pins: run `tests/planted_probe.py`; grants live in security/acl.json.\n", encoding="utf-8"
+    )
     (repo / "tests" / "test_tracked_probe.py").write_text("# committed\n", encoding="utf-8")
     git("add", "-A")
     git("commit", "-q", "--no-verify", "-m", "pin: one living doc, two references")
@@ -96,8 +113,7 @@ def throwaway_repo(tmp_path):
     return str(repo)
 
 
-def test_untracked_target_is_drift_and_gitignored_target_is_instance_local(throwaway_repo,
-                                                                          monkeypatch):
+def test_untracked_target_is_drift_and_gitignored_target_is_instance_local(throwaway_repo, monkeypatch):
     """(1a) Same repo, two references, two different answers -- neither of them PASS.
     The untracked one is drift (a clone cannot follow it, and nothing declared it absent);
     the gitignored one is absent BY DESIGN: excused from FAIL, still named as a WARN."""
@@ -106,12 +122,14 @@ def test_untracked_target_is_drift_and_gitignored_target_is_instance_local(throw
     fails = cm._stale_refs()
     warns = cm._instance_local_refs()
     assert any("tests/planted_probe.py" in f for f in fails), (
-        f"an UNTRACKED target exists on this box and nowhere else -- that is drift; "
-        f"got fails={fails}")
+        f"an UNTRACKED target exists on this box and nowhere else -- that is drift; got fails={fails}"
+    )
     assert not any("security/acl.json" in f for f in fails), (
-        f"a GITIGNORED target is absent by design, not drift; got fails={fails}")
+        f"a GITIGNORED target is absent by design, not drift; got fails={fails}"
+    )
     assert any("security/acl.json" in w for w in warns), (
-        f"...and it must stay visible as an instance-local WARN; got warns={warns}")
+        f"...and it must stay visible as an instance-local WARN; got warns={warns}"
+    )
 
 
 def test_guard_fails_loud_when_the_index_cannot_be_read(tmp_path, monkeypatch):
@@ -125,8 +143,8 @@ def test_guard_fails_loud_when_the_index_cannot_be_read(tmp_path, monkeypatch):
     monkeypatch.setattr(cm, "ROOT", str(norepo))
     monkeypatch.setattr(cm, "REF_ALLOWLIST", {})
     got, crash = cm._run("F stale-refs", cm._stale_refs)
-    assert crash is not None and "CRASHED" in crash, (
-        f"no index -> no verdict: expected a loud broken-check FAIL, got got={got} crash={crash}")
+    assert crash is not None, f"no index -> no verdict: expected a loud broken-check FAIL, got got={got} crash={crash}"
+    assert "CRASHED" in crash, f"no index -> no verdict: expected a loud broken-check FAIL, got got={got} crash={crash}"
 
 
 # ------------------------------------------------ 3. the map's name-matched columns, same law
@@ -141,4 +159,5 @@ def test_map_name_index_reads_the_index_not_the_directory(throwaway_repo, monkey
     finally:
         _tracked._tracked_paths.cache_clear()
     assert got == [("tests/test_tracked_probe.py", "test_tracked_probe.py")], (
-        f"the pin column must describe the repository, not the box; got {got}")
+        f"the pin column must describe the repository, not the box; got {got}"
+    )

@@ -8,13 +8,16 @@ Two rules, both about what an agent can use:
   * Long sections split at paragraph boundaries (sentences, then hard cuts, only for a
     paragraph that is itself over the limit), so no chunk floods a context window.
 """
+
 from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import List, Optional
 
-from core.manuals.convert import Document, Section
+from core.manuals.convert import (  # noqa: TC001  # runtime-evaluated annotations (annotation_sensitive module)
+    Document,
+    Section,
+)
 
 SEP = " › "
 
@@ -22,16 +25,16 @@ SEP = " › "
 @dataclass
 class Chunk:
     seq: int
-    title: str                 # document title
-    breadcrumb: str            # "Doc › Heading › Subheading"
-    url: Optional[str]         # source url (or file uri) with the section's #anchor
-    page: Optional[int]
+    title: str  # document title
+    breadcrumb: str  # "Doc › Heading › Subheading"
+    url: str | None  # source url (or file uri) with the section's #anchor
+    page: int | None
     text: str
 
 
-def _split(text: str, max_chars: int) -> List[str]:
+def _split(text: str, max_chars: int) -> list[str]:
     paras = [p.strip() for p in re.split(r"\n\s*\n", text) if p.strip()]
-    pieces: List[str] = []
+    pieces: list[str] = []
     for p in paras:
         if len(p) <= max_chars:
             pieces.append(p)
@@ -39,23 +42,28 @@ def _split(text: str, max_chars: int) -> List[str]:
         sentences = re.split(r"(?<=[.!?])\s+", p)
         cur = ""
         for s in sentences:
-            if len(s) > max_chars:                       # a single run-on "sentence":
-                if cur:                                  # cut it by index, in one pass
-                    pieces.append(cur); cur = ""         # (slicing the remainder on every cut
-                pieces.extend(s[i:i + max_chars]         # was quadratic -- DeepSeek fence)
-                              for i in range(0, len(s), max_chars))
+            if len(s) > max_chars:  # a single run-on "sentence":
+                if cur:  # cut it by index, in one pass
+                    pieces.append(cur)
+                    cur = ""  # (slicing the remainder on every cut
+                pieces.extend(
+                    s[i : i + max_chars]  # was quadratic -- DeepSeek fence)
+                    for i in range(0, len(s), max_chars)
+                )
                 continue
             if cur and len(cur) + 1 + len(s) > max_chars:
-                pieces.append(cur); cur = s
+                pieces.append(cur)
+                cur = s
             else:
                 cur = f"{cur} {s}".strip()
         if cur:
             pieces.append(cur)
-    out: List[str] = []
+    out: list[str] = []
     cur = ""
     for piece in pieces:
         if cur and len(cur) + 2 + len(piece) > max_chars:
-            out.append(cur); cur = piece
+            out.append(cur)
+            cur = piece
         else:
             cur = f"{cur}\n\n{piece}" if cur else piece
     if cur:
@@ -63,28 +71,37 @@ def _split(text: str, max_chars: int) -> List[str]:
     return out
 
 
-def chunk_document(doc: Document, max_chars: int = 1800, min_chars: int = 300,
-                   source_uri: Optional[str] = None) -> List[Chunk]:
+def chunk_document(
+    doc: Document, max_chars: int = 1800, min_chars: int = 300, source_uri: str | None = None
+) -> list[Chunk]:
     base = doc.url or source_uri
-    chunks: List[Chunk] = []
+    chunks: list[Chunk] = []
 
-    def url_for(sec: Section) -> Optional[str]:
+    def url_for(sec: Section) -> str | None:
         if not base:
             return None
         return f"{base}#{sec.anchor}" if sec.anchor else base
 
     def emit(sec: Section, text: str):
         for piece in _split(text, max_chars):
-            chunks.append(Chunk(seq=len(chunks), title=doc.title, breadcrumb=SEP.join(sec.path),
-                                url=url_for(sec), page=sec.page, text=piece))
+            chunks.append(
+                Chunk(
+                    seq=len(chunks),
+                    title=doc.title,
+                    breadcrumb=SEP.join(sec.path),
+                    url=url_for(sec),
+                    page=sec.page,
+                    text=piece,
+                )
+            )
 
-    pending: Optional[Section] = None
+    pending: Section | None = None
     pending_text = ""
     for sec in doc.sections:
         if pending is not None:
             siblings = len(sec.path) == len(pending.path) and sec.path[:-1] == pending.path[:-1]
             heading_line = sec.path[-1] if sec.path != pending.path else ""
-            addition = (f"{heading_line}\n{sec.text}" if heading_line else sec.text)
+            addition = f"{heading_line}\n{sec.text}" if heading_line else sec.text
             fits = len(pending_text) + 2 + len(addition) <= max_chars
             small = len(pending_text) < min_chars or len(sec.text) < min_chars
             if siblings and fits and small and sec.page == pending.page:

@@ -33,6 +33,7 @@ AMBIENT, NEVER A DEMAND. This rides `hookSpecificOutput.additionalContext` and m
 `_deny`. The hook is able to block -- that is what makes the restraint a design decision worth
 pinning rather than an implementation detail.
 """
+
 from __future__ import annotations
 
 import sys
@@ -44,6 +45,7 @@ sys.path.insert(0, str(REPO))
 
 def _facts(path, exists=False, ledger=None):
     from agent.harness.hooks.claude_pretooluse import id_facts_for_path
+
     return id_facts_for_path(path, exists=exists, ledger=ledger or _LEDGER)
 
 
@@ -102,8 +104,7 @@ def test_a_path_without_an_id_is_silent_and_costs_nothing():
 def test_the_hook_never_denies_on_this_path():
     """AMBIENT, NEVER A DEMAND -- and the hook is fully capable of denying, which is why
     this is pinned rather than assumed."""
-    src = (REPO / "agent" / "harness" / "hooks" / "claude_pretooluse.py").read_text(
-        encoding="utf-8", errors="replace")
+    src = (REPO / "agent" / "harness" / "hooks" / "claude_pretooluse.py").read_text(encoding="utf-8", errors="replace")
     i = src.index("def id_facts_for_path")
     j = src.index("\ndef ", i + 10)
     assert "_deny" not in src[i:j], "the id fact must never block an action"
@@ -124,15 +125,16 @@ def test_it_works_against_the_REAL_ledger():
 
     out = id_facts_for_path("tests/test_t001_would_collide.py")
     assert out, "the real ledger lookup returned nothing for a known-DONE id"
-    assert "T001" in out and "done" in out.lower()
+    assert "T001" in out
+    assert "done" in out.lower()
 
-    assert id_facts_for_path("tests/test_t999_free.py") == "", \
-        "a free id must stay silent against the real ledger too"
+    assert id_facts_for_path("tests/test_t999_free.py") == "", "a free id must stay silent against the real ledger too"
 
 
 def test_it_fails_open_on_a_broken_ledger():
     """A helper that can brick a Write is not a helper."""
     from agent.harness.hooks.claude_pretooluse import id_facts_for_path
+
     assert id_facts_for_path("tests/test_t227_x.py", ledger="not-a-dict") == ""
     assert id_facts_for_path("tests/test_t227_x.py", ledger={"T227": "malformed"}) == ""
 
@@ -164,11 +166,10 @@ def test_the_hook_survives_a_non_dict_tool_input():
     import json as _json
     import subprocess as _sp
 
-    payload = _json.dumps({"tool_name": "Write", "session_id": "t236-nondict",
-                           "cwd": str(REPO), "tool_input": "a bare string"})
-    for hook in ("scripts/hooks/claude_pretooluse.py",
-                 "agent/harness/hooks/claude_pretooluse.py"):
-        r = _sp.run([sys.executable, hook], input=payload, cwd=REPO,
-                    capture_output=True, text=True, timeout=120)
+    payload = _json.dumps(
+        {"tool_name": "Write", "session_id": "t236-nondict", "cwd": str(REPO), "tool_input": "a bare string"}
+    )
+    for hook in ("scripts/hooks/claude_pretooluse.py", "agent/harness/hooks/claude_pretooluse.py"):
+        r = _sp.run([sys.executable, hook], input=payload, cwd=REPO, capture_output=True, text=True, timeout=120)
         assert r.returncode == 0, f"{hook} crashed on a non-dict tool_input: {r.stderr[:300]}"
         assert "AttributeError" not in r.stderr

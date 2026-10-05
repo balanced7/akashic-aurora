@@ -41,6 +41,7 @@ before the fix: 277 orphans. After: 44. P2/P3/P4 pin that boundary so it cannot 
 
 Run: py -m pytest tests/test_t134_wiring_function_level.py -q
 """
+
 import os
 import sys
 
@@ -48,7 +49,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 sys.path.insert(0, os.path.join(ROOT, "scripts", "checkers"))
 
-import check_wiring  # noqa: E402
+import check_wiring  # noqa: E402  # sys.path bootstrap
 
 
 def _mod(tmp_path, name, text):
@@ -66,21 +67,23 @@ def _orphans(tmp_path, cand, prod):
 
 def test_p1_tested_but_never_called_is_unwired(tmp_path):
     """The declare_intent case: built, pinned, and reachable from nothing that runs."""
-    lib = _mod(tmp_path, "core/comm/mailbox.py",
-               "def declare_intent(ns, agent, sha):\n    return {'ok': True}\n")
+    lib = _mod(tmp_path, "core/comm/mailbox.py", "def declare_intent(ns, agent, sha):\n    return {'ok': True}\n")
     door = _mod(tmp_path, "agent_cli.py", "from core.comm import mailbox\nprint('door')\n")
     # a pin exercises it, and a pin is not a production call path
-    _mod(tmp_path, "tests/test_mailbox.py",
-         "from core.comm.mailbox import declare_intent\ndeclare_intent('ns', 'a', 'sha')\n")
+    _mod(
+        tmp_path,
+        "tests/test_mailbox.py",
+        "from core.comm.mailbox import declare_intent\ndeclare_intent('ns', 'a', 'sha')\n",
+    )
     assert "declare_intent" in _orphans(tmp_path, [lib], [door, lib]), (
         "a capability with pins and no caller is exactly what shipped for months behind a "
-        "green gate -- tests are not a production call path")
+        "green gate -- tests are not a production call path"
+    )
 
 
 def test_p2_called_from_another_production_module_is_wired(tmp_path):
     lib = _mod(tmp_path, "core/comm/mailbox.py", "def declare_intent(ns):\n    return 1\n")
-    door = _mod(tmp_path, "agent_cli.py",
-                "from core.comm.mailbox import declare_intent\ndeclare_intent('ns')\n")
+    door = _mod(tmp_path, "agent_cli.py", "from core.comm.mailbox import declare_intent\ndeclare_intent('ns')\n")
     assert "declare_intent" not in _orphans(tmp_path, [lib], [door, lib])
 
 
@@ -91,50 +94,43 @@ def test_p3_called_from_elsewhere_in_its_own_module_is_wired(tmp_path):
     The first draft suppressed every reference made inside any public def of the defining module
     and so called it dead. Same shape as load_learnings_for_boot <- aggregator.py:104.
     """
-    lib = _mod(tmp_path, "core/comm/mailbox.py",
-               "def catch_up(ns):\n"
-               "    return 1\n"
-               "\n"
-               "def consume(ns):\n"
-               "    cu = catch_up(ns)\n"
-               "    return cu\n")
-    door = _mod(tmp_path, "agent_cli.py",
-                "from core.comm.mailbox import consume\nconsume('ns')\n")
+    lib = _mod(
+        tmp_path,
+        "core/comm/mailbox.py",
+        "def catch_up(ns):\n    return 1\n\ndef consume(ns):\n    cu = catch_up(ns)\n    return cu\n",
+    )
+    door = _mod(tmp_path, "agent_cli.py", "from core.comm.mailbox import consume\nconsume('ns')\n")
     assert "catch_up" not in _orphans(tmp_path, [lib], [door, lib]), (
         "a helper called by its own module's public API is wired; calling it dead is the "
-        "expensive direction -- the only remedy this gate offers is a permanent exemption")
+        "expensive direction -- the only remedy this gate offers is a permanent exemption"
+    )
 
 
 def test_p4_recursion_alone_is_not_wiring(tmp_path):
-    lib = _mod(tmp_path, "core/util/walk.py",
-               "def descend(n):\n"
-               "    if n <= 0:\n"
-               "        return 0\n"
-               "    return descend(n - 1)\n")
+    lib = _mod(
+        tmp_path, "core/util/walk.py", "def descend(n):\n    if n <= 0:\n        return 0\n    return descend(n - 1)\n"
+    )
     door = _mod(tmp_path, "agent_cli.py", "from core.util import walk\nprint(walk)\n")
-    assert "descend" in _orphans(tmp_path, [lib], [door, lib]), (
-        "a function that only ever calls itself runs nowhere")
+    assert "descend" in _orphans(tmp_path, [lib], [door, lib]), "a function that only ever calls itself runs nowhere"
 
 
 def test_p5_string_constant_dispatch_is_wiring(tmp_path):
     """getattr / verb tables are how the doors dispatch; missing them would flood the gate."""
     lib = _mod(tmp_path, "core/comm/verbs.py", "def promote(x):\n    return x\n")
-    door = _mod(tmp_path, "agent_cli.py",
-                "from core.comm import verbs\nfn = getattr(verbs, 'promote')\nfn(1)\n")
+    door = _mod(tmp_path, "agent_cli.py", "from core.comm import verbs\nfn = getattr(verbs, 'promote')\nfn(1)\n")
     assert "promote" not in _orphans(tmp_path, [lib], [door, lib])
 
 
 def test_p6_private_and_dunder_are_not_candidates(tmp_path):
-    lib = _mod(tmp_path, "core/comm/thing.py",
-               "class Thing:\n"
-               "    def __init__(self):\n"
-               "        self.x = 1\n"
-               "\n"
-               "def _helper():\n"
-               "    return 2\n")
+    lib = _mod(
+        tmp_path,
+        "core/comm/thing.py",
+        "class Thing:\n    def __init__(self):\n        self.x = 1\n\ndef _helper():\n    return 2\n",
+    )
     door = _mod(tmp_path, "agent_cli.py", "from core.comm import thing\nprint(thing)\n")
     got = _orphans(tmp_path, [lib], [door, lib])
-    assert "__init__" not in got and "_helper" not in got
+    assert "__init__" not in got
+    assert "_helper" not in got
 
 
 def test_p7_module_backlog_is_not_double_reported(tmp_path):
@@ -146,7 +142,8 @@ def test_p7_module_backlog_is_not_double_reported(tmp_path):
     assert _orphans(tmp_path, [], [door]) == set()
     assert "evaluate" in _orphans(tmp_path, [lib], [door, lib]), (
         "sanity: the exclusion must come from the CALLER passing a filtered candidate list, "
-        "not from this function silently knowing about EXCEPTIONS")
+        "not from this function silently knowing about EXCEPTIONS"
+    )
 
 
 def test_p8_a_baseline_entry_that_became_wired_is_reported_stale(tmp_path):
@@ -154,18 +151,21 @@ def test_p8_a_baseline_entry_that_became_wired_is_reported_stale(tmp_path):
     session_recovery.py). That self-correction is the property worth copying: a backlog that
     can only grow is how an exemption list stops being a backlog."""
     lib = _mod(tmp_path, "core/comm/mailbox.py", "def declare_intent(ns):\n    return 1\n")
-    door = _mod(tmp_path, "agent_cli.py",
-                "from core.comm.mailbox import declare_intent\ndeclare_intent('ns')\n")
+    door = _mod(tmp_path, "agent_cli.py", "from core.comm.mailbox import declare_intent\ndeclare_intent('ns')\n")
     stale = check_wiring.stale_function_baseline(
-        ["core/comm/mailbox.py::declare_intent"], [lib], [door, lib], root=str(tmp_path))
+        ["core/comm/mailbox.py::declare_intent"], [lib], [door, lib], root=str(tmp_path)
+    )
     assert "core/comm/mailbox.py::declare_intent" in stale
 
 
 def test_p9_a_docstring_mention_is_not_wiring(tmp_path):
     """self_restart.py:11 mentions `should_restart(...)` in prose. Prose is not a call path, and
     a guard evadable by writing the name in a comment guards nothing."""
-    lib = _mod(tmp_path, "core/comm/self_restart.py",
-               '"""Usage:\n\n    reason = should_restart(stamped_sha=..., head_sha=...)\n"""\n'
-               "def should_restart(stamped_sha):\n    return False\n")
+    lib = _mod(
+        tmp_path,
+        "core/comm/self_restart.py",
+        '"""Usage:\n\n    reason = should_restart(stamped_sha=..., head_sha=...)\n"""\n'
+        "def should_restart(stamped_sha):\n    return False\n",
+    )
     door = _mod(tmp_path, "agent_cli.py", "from core.comm import self_restart\nprint(self_restart)\n")
     assert "should_restart" in _orphans(tmp_path, [lib], [door, lib])

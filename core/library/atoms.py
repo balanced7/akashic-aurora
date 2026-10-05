@@ -18,17 +18,24 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-from core.paths import repo_root as _repo_root
 import re
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from core.library import taxonomy as tx
+from core.paths import repo_root as _repo_root
 
 # Doc-plane types only (LIBRARY.md canon); machine/file-plane kinds (skill, pin,
 # receipt, machine:*) stay files. `fossil` is a STATUS here, not a type.
 DOC_TYPES: tuple[str, ...] = (
-    "contract", "map", "design", "brief", "report", "chronicle", "ledger", "ruling",
+    "contract",
+    "map",
+    "design",
+    "brief",
+    "report",
+    "chronicle",
+    "ledger",
+    "ruling",
 )
 STATUSES: tuple[str, ...] = ("current", "draft", "superseded", "fossil")
 
@@ -40,7 +47,7 @@ SCHEMA_VERSION = 1
 SCHEMA_KNOWN_MAX = 1
 
 KEY_PREFIX = "artifact:"
-IDX_ALL = "artifact:index:all"           # zset id -> created_ts
+IDX_ALL = "artifact:index:all"  # zset id -> created_ts
 DEFAULT_JSONL_DIR = os.path.join("store", "docs")
 
 
@@ -70,14 +77,24 @@ class AtomFamily:
 
     def __init__(self, store: Any, jsonl_dir: str = DEFAULT_JSONL_DIR, repo_root: str = ""):
         self.store = store
-        self.jsonl_dir = jsonl_dir if os.path.isabs(jsonl_dir) else os.path.join(repo_root or str(_repo_root()), jsonl_dir)
+        self.jsonl_dir = (
+            jsonl_dir if os.path.isabs(jsonl_dir) else os.path.join(repo_root or str(_repo_root()), jsonl_dir)
+        )
 
     # ---------- validation ----------
 
-    def _validate(self, type_: str, title: str, categories: List[str],
-                  citations: List[Dict[str, str]], origin: str, settled: str,
-                  status: str, body_type: str = "markdown",
-                  body_type_source: str = "unstated") -> List[str]:
+    def _validate(
+        self,
+        type_: str,
+        title: str,
+        categories: list[str],
+        citations: list[dict[str, str]],
+        origin: str,
+        settled: str,
+        status: str,
+        body_type: str = "markdown",
+        body_type_source: str = "unstated",
+    ) -> list[str]:
         if type_ not in DOC_TYPES:
             raise AtomError(f"type '{type_}' not in DOC_TYPES {DOC_TYPES} -- machine/file kinds stay files")
         if not (title or "").strip():
@@ -89,10 +106,12 @@ class AtomFamily:
         if settled not in tx.SETTLED_STATES:
             raise AtomError(f"settled '{settled}' not in {tx.SETTLED_STATES}")
         if body_type not in tx.BODY_TYPES:
-            raise AtomError(f"body_type '{body_type}' not in {tx.BODY_TYPES} (T034 roster; segments-v2 lifts this enum)")
+            raise AtomError(
+                f"body_type '{body_type}' not in {tx.BODY_TYPES} (T034 roster; segments-v2 lifts this enum)"
+            )
         if body_type_source not in tx.BODY_TYPE_SOURCES:
             raise AtomError(f"body_type_source '{body_type_source}' not in {tx.BODY_TYPE_SOURCES}")
-        resolved: List[str] = []
+        resolved: list[str] = []
         for c in categories or []:
             r = tx.resolve(c)
             if r is None:
@@ -100,13 +119,17 @@ class AtomFamily:
             if r not in resolved:
                 resolved.append(r)
         if len(resolved) > tx.CATEGORY_CAP_PER_ATOM:
-            raise AtomError(f"max {tx.CATEGORY_CAP_PER_ATOM} categories (PRIMARY first); needing more means split the artifact")
+            raise AtomError(
+                f"max {tx.CATEGORY_CAP_PER_ATOM} categories (PRIMARY first); needing more means split the artifact"
+            )
         for c in citations or []:
             # v1.1: rel names resolve through the fold table (legacy 'cites' -> 'discusses');
             # the STORED value is always roster-true. Unknown rels refuse loud.
-            r = tx.resolve_rel(c.get("rel"))
+            r = tx.resolve_rel(c.get("rel") or "")  # resolve_rel folds None to "" itself
             if r is None:
-                raise AtomError(f"rel '{c.get('rel')}' not in REL_ROSTER {tx.REL_ROSTER} (supersession rides its own fields)")
+                raise AtomError(
+                    f"rel '{c.get('rel')}' not in REL_ROSTER {tx.REL_ROSTER} (supersession rides its own fields)"
+                )
             c["rel"] = r
             if not c.get("target"):
                 raise AtomError("citation needs a target atom id")
@@ -114,7 +137,7 @@ class AtomFamily:
 
     # ---------- durable record ----------
 
-    def _append_jsonl(self, atom: Dict[str, Any]) -> None:
+    def _append_jsonl(self, atom: dict[str, Any]) -> None:
         os.makedirs(self.jsonl_dir, exist_ok=True)
         path = os.path.join(self.jsonl_dir, f"{atom['header']['type']}.jsonl")
         line = json.dumps(atom, ensure_ascii=False, sort_keys=True)
@@ -123,7 +146,7 @@ class AtomFamily:
 
     # ---------- index maintenance ----------
 
-    def _index(self, atom: Dict[str, Any]) -> None:
+    def _index(self, atom: dict[str, Any]) -> None:
         h = atom["header"]
         self.store.zadd(IDX_ALL, {atom["id"]: float(atom["created_ts"])})
         self.store.sadd(_idx_key("type", h["type"]), atom["id"])
@@ -148,16 +171,31 @@ class AtomFamily:
 
     # ---------- operations ----------
 
-    def mint(self, type_: str, title: str, body: str, *, arc: Optional[str] = None,
-             seats: Optional[List[str]] = None, categories: Optional[List[str]] = None,
-             citations: Optional[List[Dict[str, str]]] = None, status: str = "current",
-             origin: str = "authored", speakers: Optional[List[str]] = None,
-             source_thread: Optional[str] = None, settled: str = "settled",
-             tenant: str = "solo", visibility: str = "fleet",
-             body_type: Optional[str] = None, body_type_source: str = "unstated",
-             supersedes: Optional[str] = None, date: Optional[str] = None,
-             gist: Optional[str] = None, category_sources: Optional[List[str]] = None,
-             now: Optional[float] = None) -> Dict[str, Any]:
+    def mint(
+        self,
+        type_: str,
+        title: str,
+        body: str,
+        *,
+        arc: str | None = None,
+        seats: list[str] | None = None,
+        categories: list[str] | None = None,
+        citations: list[dict[str, str]] | None = None,
+        status: str = "current",
+        origin: str = "authored",
+        speakers: list[str] | None = None,
+        source_thread: str | None = None,
+        settled: str = "settled",
+        tenant: str = "solo",
+        visibility: str = "fleet",
+        body_type: str | None = None,
+        body_type_source: str = "unstated",
+        supersedes: str | None = None,
+        date: str | None = None,
+        gist: str | None = None,
+        category_sources: list[str] | None = None,
+        now: float | None = None,
+    ) -> dict[str, Any]:
         # v1.1: absent body_type auto-detects (source stamped 'auto' so a wrong stamp
         # is VISIBLE -- kimi hardening); an explicit value should arrive with source
         # 'flag'. tenant is accepted for compat but NO LONGER STORED (demoted to a
@@ -166,23 +204,30 @@ class AtomFamily:
             body_type = tx.detect_body_type(body or "")
             if body_type_source == "unstated":
                 body_type_source = "auto"
-        cats = self._validate(type_, title, categories or [], citations or [], origin,
-                              settled, status, body_type, body_type_source)
+        cats = self._validate(
+            type_, title, categories or [], citations or [], origin, settled, status, body_type, body_type_source
+        )
         # kimi (fence round 1): inference provenance is PERSISTED, not just printed --
         # the library lint reads recorded [flag|auto] sources instead of re-deriving.
-        srcs = list(category_sources or [])[:len(cats)]
+        srcs = list(category_sources or [])[: len(cats)]
         srcs += ["unstated"] * (len(cats) - len(srcs))
         ts = float(now if now is not None else time.time())
         day = date or time.strftime("%Y-%m-%d", time.localtime(ts))
         slug = _slug(title)
         atom_id = f"art_{day.replace('-', '')}_{slug}_{_sha12(f'{title}|{ts}|{seats}')[:6]}"
-        atom: Dict[str, Any] = {
+        atom: dict[str, Any] = {
             "id": atom_id,
             "schema_version": SCHEMA_VERSION,
             "header": {
-                "status": status, "type": type_, "arc": arc, "seats": seats or [],
-                "date": day, "title": title.strip(), "category": cats,
-                "visibility": visibility, "body_type": body_type,
+                "status": status,
+                "type": type_,
+                "arc": arc,
+                "seats": seats or [],
+                "date": day,
+                "title": title.strip(),
+                "category": cats,
+                "visibility": visibility,
+                "body_type": body_type,
                 # kimi R3: recall surfaces are capped and silent-when-empty -- a doc
                 # that cannot render in one line gets dropped, so the gist is born-with.
                 "gist": (gist or re.sub(r"\s+", " ", (body or "")).strip()[:140]),
@@ -192,19 +237,23 @@ class AtomFamily:
             "body_sha": _sha12(body or ""),
             "category_sources": srcs,
             "citations_out": citations or [],
-            "supersedes": supersedes, "superseded": None,
-            "origin": origin, "speakers": speakers or [],
+            "supersedes": supersedes,
+            "superseded": None,
+            "origin": origin,
+            "speakers": speakers or [],
             "captured_at": ts if origin == "conversation" else None,
             "source_thread": source_thread,
             "settled": settled,
-            "version": 1, "created_ts": ts, "updated_ts": ts,
+            "version": 1,
+            "created_ts": ts,
+            "updated_ts": ts,
         }
         self.store.set(KEY_PREFIX + atom_id, json.dumps(atom, ensure_ascii=False, sort_keys=True))
         self._index(atom)
         self._append_jsonl(atom)
         return atom
 
-    def get(self, atom_id: str) -> Optional[Dict[str, Any]]:
+    def get(self, atom_id: str) -> dict[str, Any] | None:
         raw = self.store.get(KEY_PREFIX + atom_id)
         if not raw:
             return None
@@ -214,12 +263,15 @@ class AtomFamily:
         # than a refusal (the migrate_schema door is the sanctioned path forward).
         v = int(atom.get("schema_version", 1))
         if v > SCHEMA_KNOWN_MAX:
-            raise AtomError(f"atom {atom_id} is schema v{v}; this reader knows <= v{SCHEMA_KNOWN_MAX} "
-                            f"-- upgrade the reader (or run the migrate_schema door), never guess-render")
+            raise AtomError(
+                f"atom {atom_id} is schema v{v}; this reader knows <= v{SCHEMA_KNOWN_MAX} "
+                f"-- upgrade the reader (or run the migrate_schema door), never guess-render"
+            )
         return atom
 
-    def supersede(self, old_id: str, *, title: Optional[str] = None, body: str,
-                  now: Optional[float] = None, **mint_kwargs: Any) -> Dict[str, Any]:
+    def supersede(
+        self, old_id: str, *, title: str | None = None, body: str, now: float | None = None, **mint_kwargs: Any
+    ) -> dict[str, Any]:
         """Mint the successor, then CAS-flip the ancestor (append-only everywhere).
 
         Known window (deepseek fence, round 1): the successor exists BEFORE the ancestor
@@ -237,14 +289,13 @@ class AtomFamily:
             arc=mint_kwargs.pop("arc", h["arc"]),
             categories=mint_kwargs.pop("categories", list(h.get("category", []))),
             body_type=mint_kwargs.pop("body_type", h.get("body_type")),
-            body_type_source=mint_kwargs.pop("body_type_source",
-                                             old.get("body_type_source", "unstated")),
+            body_type_source=mint_kwargs.pop("body_type_source", old.get("body_type_source", "unstated")),
             supersedes=old_id,
             now=now,
             **mint_kwargs,
         )
 
-        def _flip(raw: Optional[str]) -> Optional[str]:
+        def _flip(raw: str | None) -> str | None:
             if raw is None:
                 return None
             cur = json.loads(raw)
@@ -261,7 +312,7 @@ class AtomFamily:
             self._append_jsonl(flipped)
         return successor
 
-    def set_arc(self, atom_id: str, arc: Optional[str], *, now: Optional[float] = None) -> Dict[str, Any]:
+    def set_arc(self, atom_id: str, arc: str | None, *, now: float | None = None) -> dict[str, Any]:
         """Relabel an atom's arc in place: a header-only version event (id, body and body_sha stay, so the
         projection still self-verifies), CAS-updated in the store, the arc index moved, one JSONL line appended.
         An arc is a filing facet, not content, so relabelling it is not a supersession (the founding case: SA-1's
@@ -274,9 +325,9 @@ class AtomFamily:
         if old["header"].get("arc") == new_arc:
             return old
         ts = float(now if now is not None else time.time())
-        seen: Dict[str, Any] = {}
+        seen: dict[str, Any] = {}
 
-        def _relabel(raw: Optional[str]) -> Optional[str]:
+        def _relabel(raw: str | None) -> str | None:
             if raw is None:
                 return None
             cur = json.loads(raw)
@@ -294,10 +345,16 @@ class AtomFamily:
         self._append_jsonl(atom)
         return atom
 
-    def find(self, *, type_: Optional[str] = None, arc: Optional[str] = None,
-             category: Optional[str] = None, status: Optional[str] = None) -> List[Dict[str, Any]]:
+    def find(
+        self,
+        *,
+        type_: str | None = None,
+        arc: str | None = None,
+        category: str | None = None,
+        status: str | None = None,
+    ) -> list[dict[str, Any]]:
         """Index-intersection find; newest first. Facets are ANDed."""
-        sets: List[set] = []
+        sets: list[set] = []
         if type_:
             sets.append(set(self.store.smembers(_idx_key("type", type_))))
         if arc:
@@ -314,14 +371,14 @@ class AtomFamily:
         atoms = [a for a in (self.get(i) for i in ids) if a]
         return sorted(atoms, key=lambda a: a["created_ts"], reverse=True)
 
-    def backlinks(self, atom_id: str, *, lineage: bool = False) -> List[Dict[str, Any]]:
+    def backlinks(self, atom_id: str, *, lineage: bool = False) -> list[dict[str, Any]]:
         """v1.1: O(1) read off the cited-by inverse index (was a full-corpus scan).
         lineage=True aggregates across the whole supersession chain -- the resolve-forward
         law's answer to citation decay (a successor is born with zero direct backlinks;
         the LINEAGE keeps them all). The index is DERIVED: rebuild() recomputes it and
         verify_backlink_index() photographs drift (the A2 lie-detector row)."""
         ids = self.lineage(atom_id) if lineage else [atom_id]
-        out: List[Dict[str, Any]] = []
+        out: list[dict[str, Any]] = []
         seen: set = set()
         for aid in ids:
             for src_id in self.store.smembers(_idx_key("cited-by", aid)):
@@ -334,66 +391,70 @@ class AtomFamily:
                         if key in seen:
                             continue
                         seen.add(key)
-                        out.append({"source": atom["id"], "target": aid,
-                                    "rel": tx.resolve_rel(c.get("rel")) or c.get("rel"),
-                                    "status": atom["header"]["status"]})
+                        out.append(
+                            {
+                                "source": atom["id"],
+                                "target": aid,
+                                "rel": tx.resolve_rel(c.get("rel")) or c.get("rel"),
+                                "status": atom["header"]["status"],
+                            }
+                        )
         return out
 
-    def backlinks_scan(self, atom_id: str) -> List[Dict[str, Any]]:
+    def backlinks_scan(self, atom_id: str) -> list[dict[str, Any]]:
         """The pre-v1.1 full scan, kept as the TRUTH SIDE of the index cross-read
         (never the serving path)."""
-        out: List[Dict[str, Any]] = []
+        out: list[dict[str, Any]] = []
         for atom in self.find():
-            for c in atom.get("citations_out", []):
-                if c.get("target") == atom_id:
-                    out.append({"source": atom["id"], "rel": c.get("rel"),
-                                "status": atom["header"]["status"]})
+            out.extend(
+                {"source": atom["id"], "rel": c.get("rel"), "status": atom["header"]["status"]}
+                for c in atom.get("citations_out", [])
+                if c.get("target") == atom_id
+            )
         return out
 
-    def verify_backlink_index(self) -> List[str]:
+    def verify_backlink_index(self) -> list[str]:
         """The lie-detector: BELIEF (cited-by sets) vs STATE (citations_out truth).
         Returns drift rows; empty = the cache tells the truth. A2's founding row."""
-        truth: Dict[str, set] = {}
+        truth: dict[str, set] = {}
         for atom in self.find():
             for c in atom.get("citations_out", []):
                 if c.get("target"):
                     truth.setdefault(c["target"], set()).add(atom["id"])
-        rows: List[str] = []
+        rows: list[str] = []
         targets = set(truth)
         for aid in self.store.zrange(IDX_ALL, 0, -1):
             targets.add(aid)
         for t in sorted(targets):
             believed = set(self.store.smembers(_idx_key("cited-by", t)))
             actual = truth.get(t, set())
-            for missing in sorted(actual - believed):
-                rows.append(f"INDEX-MISSING cited-by:{t} lacks {missing}")
-            for phantom in sorted(believed - actual):
-                rows.append(f"INDEX-PHANTOM cited-by:{t} claims {phantom}")
+            rows.extend(f"INDEX-MISSING cited-by:{t} lacks {missing}" for missing in sorted(actual - believed))
+            rows.extend(f"INDEX-PHANTOM cited-by:{t} claims {phantom}" for phantom in sorted(believed - actual))
         return rows
 
     # ---------- resolution laws (v1.1) ----------
 
-    def lineage(self, atom_id: str) -> List[str]:
+    def lineage(self, atom_id: str) -> list[str]:
         """The full supersession chain containing atom_id, oldest-first. Bounded walk
         (a cycle -- impossible by construction, photographed by A2 if real -- stops)."""
         a = self.get(atom_id)
         if a is None:
             return [atom_id]
-        back: List[str] = []
+        back: list[str] = []
         cur, hops = a, 0
         while cur and cur.get("supersedes") and hops < 100:
             back.append(cur["supersedes"])
             cur = self.get(cur["supersedes"])
             hops += 1
-        fwd: List[str] = []
+        fwd: list[str] = []
         cur, hops = a, 0
         while cur and cur.get("superseded") and hops < 100:
             fwd.append(cur["superseded"])
             cur = self.get(cur["superseded"])
             hops += 1
-        return list(reversed(back)) + [atom_id] + fwd
+        return [*list(reversed(back)), atom_id, *fwd]
 
-    def resolve_current(self, atom_id: str) -> Optional[Dict[str, Any]]:
+    def resolve_current(self, atom_id: str) -> dict[str, Any] | None:
         """Resolve-forward: hand back the CURRENT head of atom_id's chain (never read a
         fossil thinking it is live; the receipt stays one hop away via 'supersedes')."""
         a = self.get(atom_id)
@@ -420,8 +481,8 @@ class AtomFamily:
         newer-than-known atoms are PARKED loudly per line -- the v1 corpus restores in
         full, recovery never bricks on one alien line, and nothing newer-than-known is
         ever indexed. The migrate_schema door is the sanctioned path for parked lines."""
-        latest: Dict[str, Dict[str, Any]] = {}
-        parked: List[str] = []
+        latest: dict[str, dict[str, Any]] = {}
+        parked: list[str] = []
         if not os.path.isdir(self.jsonl_dir):
             return 0
         for name in sorted(os.listdir(self.jsonl_dir)):
@@ -447,6 +508,8 @@ class AtomFamily:
                 if st != h["status"]:
                     self.store.srem(_idx_key("status", st), atom["id"])
         if parked:
-            print(f"[rebuild] PARKED {len(parked)} newer-than-v{SCHEMA_KNOWN_MAX} atom line(s) "
-                  f"(schema gate; migrate_schema is the door): " + ", ".join(sorted(set(parked))[:5]))
+            print(
+                f"[rebuild] PARKED {len(parked)} newer-than-v{SCHEMA_KNOWN_MAX} atom line(s) "
+                f"(schema gate; migrate_schema is the door): " + ", ".join(sorted(set(parked))[:5])
+            )
         return len(latest)

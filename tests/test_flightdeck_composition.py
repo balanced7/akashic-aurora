@@ -17,6 +17,7 @@ view actually composes. A declared source that is not built, or a built source t
 not declared, fails P1 — the "unwired detector" / derived-artifact-membership lesson,
 applied to the tool surface instead of an index.
 """
+
 from __future__ import annotations
 
 import os
@@ -26,47 +27,76 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.comm.doctor import (  # noqa: E402
+from core.comm.doctor import (
     FLIGHTDECK_COMPOSITION,
     flightdeck,
     format_flightdeck,
 )
 
 
-@pytest.fixture()
+@pytest.fixture
 def patched(monkeypatch):
-    monkeypatch.setattr("core.comm.doctor.examine_fleet", lambda **kw: {
-        "summary": "doctor: 1 page, 0 banner across 2 agent(s)",
-        "agents": ["claude", "deepseek"],
-        "findings": [
-            {"agent": "claude", "state": "stalled_consumer", "grade": "page",
-             "line": "claude: STALLED", "drill": "sync"},
-            {"agent": "deepseek", "state": "lane_health", "grade": "dashboard",
-             "line": "deepseek: lane cursor", "drill": "mailbox"},
-        ],
-        "pages": [{"agent": "claude", "state": "stalled_consumer", "grade": "page",
-                    "line": "STALLED", "drill": "sync"}],
-    })
-    monkeypatch.setattr("core.comm.doctor.pulse", lambda agents=None: {
-        "summary": "pulse: 1 elevated (claude), 1 normal",
-        "zones": {"critical": [], "elevated": ["claude"],
-                  "normal": ["deepseek"], "absent": []},
-        "readings": {"claude": {"backlog": 12, "zone": "elevated", "has_lane": True},
-                     "deepseek": {"backlog": 3, "zone": "normal", "has_lane": True}},
-    })
-    monkeypatch.setattr("core.comm.doctor._probe_lane_health", lambda a: {
-        "claude": {"age_s": 1800, "depth": 12, "straggler": 0},
-        "deepseek": {"age_s": 120, "depth": 3, "straggler": 0},
-    }.get(a))
-    monkeypatch.setattr("core.comm.doctor.unwedge", lambda a: {
-        "agent": a, "status": "stalled" if a == "claude" else "healthy",
-        "verdict": f"{a}: STALLED" if a == "claude" else f"{a}: HEALTHY",
-        "recommendation": "sync" if a == "claude" else "none",
-        "evidence": {"findings": [
-            {"grade": "page", "state": "stalled", "line": "STALLED"} if a == "claude"
-            else {"grade": "dashboard", "state": "ok", "line": "ok"}
-        ], "runner_status": "live"},
-    })
+    monkeypatch.setattr(
+        "core.comm.doctor.examine_fleet",
+        lambda **kw: {
+            "summary": "doctor: 1 page, 0 banner across 2 agent(s)",
+            "agents": ["claude", "deepseek"],
+            "findings": [
+                {
+                    "agent": "claude",
+                    "state": "stalled_consumer",
+                    "grade": "page",
+                    "line": "claude: STALLED",
+                    "drill": "sync",
+                },
+                {
+                    "agent": "deepseek",
+                    "state": "lane_health",
+                    "grade": "dashboard",
+                    "line": "deepseek: lane cursor",
+                    "drill": "mailbox",
+                },
+            ],
+            "pages": [
+                {"agent": "claude", "state": "stalled_consumer", "grade": "page", "line": "STALLED", "drill": "sync"}
+            ],
+        },
+    )
+    monkeypatch.setattr(
+        "core.comm.doctor.pulse",
+        lambda agents=None: {
+            "summary": "pulse: 1 elevated (claude), 1 normal",
+            "zones": {"critical": [], "elevated": ["claude"], "normal": ["deepseek"], "absent": []},
+            "readings": {
+                "claude": {"backlog": 12, "zone": "elevated", "has_lane": True},
+                "deepseek": {"backlog": 3, "zone": "normal", "has_lane": True},
+            },
+        },
+    )
+    monkeypatch.setattr(
+        "core.comm.doctor._probe_lane_health",
+        lambda a: {
+            "claude": {"age_s": 1800, "depth": 12, "straggler": 0},
+            "deepseek": {"age_s": 120, "depth": 3, "straggler": 0},
+        }.get(a),
+    )
+    monkeypatch.setattr(
+        "core.comm.doctor.unwedge",
+        lambda a: {
+            "agent": a,
+            "status": "stalled" if a == "claude" else "healthy",
+            "verdict": f"{a}: STALLED" if a == "claude" else f"{a}: HEALTHY",
+            "recommendation": "sync" if a == "claude" else "none",
+            "evidence": {
+                "findings": [
+                    {"grade": "page", "state": "stalled", "line": "STALLED"}
+                    if a == "claude"
+                    else {"grade": "dashboard", "state": "ok", "line": "ok"}
+                ],
+                "runner_status": "live",
+            },
+        },
+    )
 
     class _MockLM:
         def __init__(self, agent):
@@ -85,20 +115,30 @@ def patched(monkeypatch):
 
     # NEW sources — the composition delta under test.
     # deadline_ts=1.0 is always past (overdue); 9999999999.0 is always future.
-    monkeypatch.setattr("core.comm.expectations.snapshot", lambda sender: {
-        "claude": {"q1": {"to": "kimi", "attempt": 0,
-                          "deadline_ts": 9999999999.0, "created": 1.0}},
-        "deepseek": {"q2": {"to": "kimi", "attempt": 2,
-                            "deadline_ts": 1.0, "created": 1.0},
-                     "q3": {"to": "sol", "attempt": 0,
-                            "deadline_ts": 9999999999.0, "created": 1.0}},
-    }.get(sender, {}))
-    monkeypatch.setattr("core.comm.turn_metrics.progress_view", lambda a: {
-        "claude": {"phase": "running", "ask_kind": "question",
-                   "elapsed_s": 47.5, "points_seen": 3, "eta": None,
-                   "pct_estimate": None},
-        "deepseek": None,   # idle — honest absence, never a fabricated turn
-    }.get(a))
+    monkeypatch.setattr(
+        "core.comm.expectations.snapshot",
+        lambda sender: {
+            "claude": {"q1": {"to": "kimi", "attempt": 0, "deadline_ts": 9999999999.0, "created": 1.0}},
+            "deepseek": {
+                "q2": {"to": "kimi", "attempt": 2, "deadline_ts": 1.0, "created": 1.0},
+                "q3": {"to": "sol", "attempt": 0, "deadline_ts": 9999999999.0, "created": 1.0},
+            },
+        }.get(sender, {}),
+    )
+    monkeypatch.setattr(
+        "core.comm.turn_metrics.progress_view",
+        lambda a: {
+            "claude": {
+                "phase": "running",
+                "ask_kind": "question",
+                "elapsed_s": 47.5,
+                "points_seen": 3,
+                "eta": None,
+                "pct_estimate": None,
+            },
+            "deepseek": None,  # idle — honest absence, never a fabricated turn
+        }.get(a),
+    )
 
 
 def test_p1_composed_of_declared_and_matches_built(patched):
@@ -106,15 +146,19 @@ def test_p1_composed_of_declared_and_matches_built(patched):
     assert "composed_of" in fd, "the cockpit must carry its own table of contents"
     assert set(fd["composed_of"]) == set(fd["sections"].keys()), (
         "declaration == reality: a declared source that is not built, or a built source "
-        "that is not declared, is the drift this contract exists to catch")
+        "that is not declared, is the drift this contract exists to catch"
+    )
     assert list(fd["composed_of"]) == list(FLIGHTDECK_COMPOSITION), (
-        "fleet mode composes exactly the declared base recipe, in order")
+        "fleet mode composes exactly the declared base recipe, in order"
+    )
 
 
 def test_p2_recipe_names_asks_and_turns(patched):
     fd = flightdeck()
-    assert "asks" in fd["composed_of"] and "turns" in fd["composed_of"]
-    assert "asks" in fd["sections"] and "turns" in fd["sections"]
+    assert "asks" in fd["composed_of"]
+    assert "turns" in fd["composed_of"]
+    assert "asks" in fd["sections"]
+    assert "turns" in fd["sections"]
 
 
 def test_p3_single_agent_appends_unwedge(patched):
@@ -152,13 +196,15 @@ def test_p6_format_renders_composition_toc(patched):
 
 
 def test_p7_last_turn_composes(patched, monkeypatch):
-    monkeypatch.setattr("core.comm.doctor._last_turn", lambda a: {
-        "deepseek": {"ask_kind": "nudge", "duration_s": 39.5, "age_s": 120.0},
-        "claude": None,
-    }.get(a))
+    monkeypatch.setattr(
+        "core.comm.doctor._last_turn",
+        lambda a: {
+            "deepseek": {"ask_kind": "nudge", "duration_s": 39.5, "age_s": 120.0},
+            "claude": None,
+        }.get(a),
+    )
     fd = flightdeck()
-    assert "last_turn" in fd["composed_of"], (
-        "the recipe names the last-turn source -- 'what did they just do'")
+    assert "last_turn" in fd["composed_of"], "the recipe names the last-turn source -- 'what did they just do'"
     lt = fd["sections"]["last_turn"]
     assert lt["deepseek"]["ask_kind"] == "nudge"
     assert lt["deepseek"]["duration_s"] == 39.5
@@ -167,13 +213,17 @@ def test_p7_last_turn_composes(patched, monkeypatch):
 
 
 def test_p8_render_shows_last_turn(patched, monkeypatch):
-    monkeypatch.setattr("core.comm.doctor._last_turn", lambda a: {
-        "deepseek": {"ask_kind": "nudge", "duration_s": 39.5, "age_s": 120.0},
-    }.get(a))
+    monkeypatch.setattr(
+        "core.comm.doctor._last_turn",
+        lambda a: {
+            "deepseek": {"ask_kind": "nudge", "duration_s": 39.5, "age_s": 120.0},
+        }.get(a),
+    )
     out = format_flightdeck(flightdeck())
     low = out.lower()
     assert "last turn" in low, "the last-turn section is rendered with its source named"
-    assert "nudge" in low and "39.5s" in low
+    assert "nudge" in low
+    assert "39.5s" in low
 
 
 def test_p9_last_turn_reads_firehose_most_recent():
@@ -186,17 +236,31 @@ def test_p9_last_turn_reads_firehose_most_recent():
         def scan(self, agent):
             return self._rows
 
-    r = _last_turn("deepseek", now=1000.0, log=_Log([
-        {"kind": "turn_metrics", "detail": {"ts": 900.0, "ask_kind": "question",
-                                            "duration_s": 60.0}},
-        {"kind": "turn_metrics", "detail": {"ts": 950.0, "ask_kind": "nudge",
-                                            "duration_s": 39.5}},
-        {"kind": "boot", "detail": {}},
-        {"kind": "turn_metrics", "detail": {"ask_kind": "no_ts", "duration_s": 1.0}},
-    ]))
+    r = _last_turn(
+        "deepseek",
+        now=1000.0,
+        log=_Log(
+            [
+                {"kind": "turn_metrics", "detail": {"ts": 900.0, "ask_kind": "question", "duration_s": 60.0}},
+                {"kind": "turn_metrics", "detail": {"ts": 950.0, "ask_kind": "nudge", "duration_s": 39.5}},
+                {"kind": "boot", "detail": {}},
+                {"kind": "turn_metrics", "detail": {"ask_kind": "no_ts", "duration_s": 1.0}},
+            ]
+        ),
+    )
     assert r == {"ask_kind": "nudge", "duration_s": 39.5, "age_s": 50.0}, (
-        "the most recent turn_metrics wins; a missing ts is skipped, never guessed")
+        "the most recent turn_metrics wins; a missing ts is skipped, never guessed"
+    )
     assert _last_turn("x", now=1000.0, log=_Log([])) is None
-    assert _last_turn("x", now=1000.0, log=_Log([
-        {"kind": "not_a_turn", "detail": {"ts": 950.0}},
-    ])) is None
+    assert (
+        _last_turn(
+            "x",
+            now=1000.0,
+            log=_Log(
+                [
+                    {"kind": "not_a_turn", "detail": {"ts": 950.0}},
+                ]
+            ),
+        )
+        is None
+    )

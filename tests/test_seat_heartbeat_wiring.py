@@ -88,23 +88,27 @@ def _run_hook(path: str, ns: str, payload: dict) -> subprocess.CompletedProcess:
     env = dict(os.environ)
     env["BIFROST_NAMESPACE"] = ns
     env["AKASHIC_AGENT_ID"] = AGENT
-    env.pop("AKASHIC_SEAT_HEARTBEAT", None)     # default-on must be what ships
-    env.pop("BIFROST_INCARNATION", None)        # force the payload's session_id to be used
+    env.pop("AKASHIC_SEAT_HEARTBEAT", None)  # default-on must be what ships
+    env.pop("BIFROST_INCARNATION", None)  # force the payload's session_id to be used
     env.pop("CLAUDE_CODE_SESSION_ID", None)
     return subprocess.run(
         [sys.executable, path],
         input=json.dumps(payload),
-        capture_output=True, text=True, timeout=90,
-        cwd=REPO, env=env,
+        capture_output=True,
+        text=True,
+        timeout=90,
+        cwd=REPO,
+        env=env,
     )
 
 
 def _beats(ns: str):
     from core.comm.roster import roster as read_roster
+
     return {(r.get("agent"), r.get("sid8")): r for r in read_roster(ns)}
 
 
-@pytest.fixture()
+@pytest.fixture
 def ns():
     return f"hbwire{uuid.uuid4().hex[:8]}"
 
@@ -137,7 +141,8 @@ def test_w2_beat_survives_the_target_scope_gate(which, ns):
     A beat placed anywhere at or below claude_posttooluse.py:253 cannot fire here. This is the
     regression that would silently return the fleet to zero-live for home-rooted seats.
     """
-    from agent.harness.scope import shell_in_scope, session_in_scope
+    from agent.harness.scope import session_in_scope, shell_in_scope
+
     # Establish the premise rather than assume it: this payload really is out of target scope
     # and really is in session scope. If that ever stops being true the pin is meaningless.
     assert not shell_in_scope(PAYLOAD["cwd"], PAYLOAD["tool_input"]["command"]), (
@@ -163,9 +168,12 @@ def test_w2b_beat_is_not_hostage_to_the_recall_kill_switch(which, ns):
     env_payload = dict(PAYLOAD)
     proc = subprocess.run(
         [sys.executable, HOOKS[which]],
-        input=json.dumps(env_payload), capture_output=True, text=True, timeout=90, cwd=REPO,
-        env={**os.environ, "BIFROST_NAMESPACE": ns, "AKASHIC_AGENT_ID": AGENT,
-             "AKASHIC_RECALL_AT_ACTION": "0"},
+        input=json.dumps(env_payload),
+        capture_output=True,
+        text=True,
+        timeout=90,
+        cwd=REPO,
+        env={**os.environ, "BIFROST_NAMESPACE": ns, "AKASHIC_AGENT_ID": AGENT, "AKASHIC_RECALL_AT_ACTION": "0"},
     )
     assert proc.returncode == 0, proc.stderr[-2000:]
     assert (AGENT, SID8) in _beats(ns), (
@@ -181,6 +189,7 @@ def test_w3_both_hook_copies_stay_in_sync():
     scripts/ alone). If a future fix lands in one copy, a home-rooted session and a repo-rooted
     session get different liveness behaviour -- and the difference is invisible.
     """
+
     def norm(p):
         with open(p, encoding="utf-8") as f:
             body = f.read().replace("\r\n", "\n")
@@ -188,10 +197,16 @@ def test_w3_both_hook_copies_stay_in_sync():
 
     a, b = norm(HOOKS["scripts"]), norm(HOOKS["agent_harness"])
     if a != b:
-        diff = [f"  line {i+1}:\n    scripts/: {x!r}\n    agent/:   {y!r}"
-                for i, (x, y) in enumerate(zip(a, b)) if x != y][:5]
-        pytest.fail("hook copies have drifted (modulo sys.path):\n" + "\n".join(diff)
-                    + ("" if len(a) == len(b) else f"\n  line counts differ: {len(a)} vs {len(b)}"))
+        diff = [
+            f"  line {i + 1}:\n    scripts/: {x!r}\n    agent/:   {y!r}"
+            for i, (x, y) in enumerate(zip(a, b, strict=False))
+            if x != y
+        ][:5]
+        pytest.fail(
+            "hook copies have drifted (modulo sys.path):\n"
+            + "\n".join(diff)
+            + ("" if len(a) == len(b) else f"\n  line counts differ: {len(a)} vs {len(b)}")
+        )
 
 
 @pytest.mark.parametrize("which", sorted(HOOKS))
@@ -204,9 +219,16 @@ def test_w4_never_invents_a_seat_when_identity_is_absent(which, ns):
     """
     proc = subprocess.run(
         [sys.executable, HOOKS[which]],
-        input=json.dumps(PAYLOAD), capture_output=True, text=True, timeout=90, cwd=REPO,
-        env={k: v for k, v in {**os.environ, "BIFROST_NAMESPACE": ns}.items()
-             if k not in ("AKASHIC_AGENT_ID", "BIFROST_INCARNATION", "CLAUDE_CODE_SESSION_ID")},
+        input=json.dumps(PAYLOAD),
+        capture_output=True,
+        text=True,
+        timeout=90,
+        cwd=REPO,
+        env={
+            k: v
+            for k, v in {**os.environ, "BIFROST_NAMESPACE": ns}.items()
+            if k not in ("AKASHIC_AGENT_ID", "BIFROST_INCARNATION", "CLAUDE_CODE_SESSION_ID")
+        },
     )
     assert proc.returncode == 0, proc.stderr[-2000:]
     rows = _beats(ns)

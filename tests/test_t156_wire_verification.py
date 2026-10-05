@@ -27,19 +27,20 @@ So this file verifies three things the feature pins structurally cannot:
 
 Run: py -m pytest tests/test_t156_wire_verification.py -q
 """
-import json
+
 import os
 import sys
 import threading
 import time
+from pathlib import Path
 
 import pytest
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from scripts.wire_journal import WireJournal          # noqa: E402
-import scripts.wire_journal as WJ                     # noqa: E402
+import scripts.wire_journal as WJ  # noqa: E402  # sys.path bootstrap
+from scripts.wire_journal import WireJournal  # noqa: E402  # sys.path bootstrap
 
 
 def _j(tmp_path, sub="j"):
@@ -53,6 +54,7 @@ def _timed(fn, *a, **k):
 
 
 # ===================================================================== A. BOUNDED TIME
+
 
 def test_a1_segment_path_is_amortized_constant(tmp_path):
     """REGRESSION, measured. Probing from segment 1 on every record is O(segments): 29.6us at 1,
@@ -68,12 +70,13 @@ def test_a1_segment_path_is_amortized_constant(tmp_path):
         for i in range(1, 801):
             (d / f"wire-{day}-{i:03d}.jsonl").write_text("x" * 200, encoding="utf-8")
         j = WireJournal(journal_dir=str(d))
-        j._segment_path()                                  # first call may walk; that is allowed
+        j._segment_path()  # first call may walk; that is allowed
         _, dur = _timed(lambda: [j._segment_path() for _ in range(50)])
         per_call_us = dur / 50 * 1e6
         assert per_call_us < 500, (
             f"_segment_path costs {per_call_us:.0f}us/call at 800 segments -- it is scanning from "
-            f"the start on every record, on the hot path, inside the lock")
+            f"the start on every record, on the hot path, inside the lock"
+        )
     finally:
         WJ.MAX_BYTES = old_max
 
@@ -89,7 +92,8 @@ def test_a2_record_stays_bounded_as_the_journal_grows(tmp_path):
         j.record(model="m", status=200)
     _, late = _timed(lambda: [j.record(model="m", status=200) for _ in range(50)])
     assert late < warm * 6 + 0.05, (
-        f"record() degraded as the journal grew: {warm/50*1e6:.0f}us -> {late/50*1e6:.0f}us per call")
+        f"record() degraded as the journal grew: {warm / 50 * 1e6:.0f}us -> {late / 50 * 1e6:.0f}us per call"
+    )
 
 
 def test_a3_every_filesystem_function_completes_under_deadline(tmp_path):
@@ -97,11 +101,21 @@ def test_a3_every_filesystem_function_completes_under_deadline(tmp_path):
     A deadline is the only thing that distinguishes 'slow' from 'hung' in an automated check."""
     j = _j(tmp_path)
     for i in range(3000):
-        j.record(model="m", status=200 if i % 7 else 429, finish_reason="length" if i % 11 else "stop",
-                 system_fingerprint=f"fp_{i % 3}", usage={"total_tokens": i})
-    for name, call in (("files", j.files), ("read_all", j.read_all),
-                       ("summarize", j.summarize), ("expert", j.expert),
-                       ("_rotate", j._rotate), ("_segment_path", j._segment_path)):
+        j.record(
+            model="m",
+            status=200 if i % 7 else 429,
+            finish_reason="length" if i % 11 else "stop",
+            system_fingerprint=f"fp_{i % 3}",
+            usage={"total_tokens": i},
+        )
+    for name, call in (
+        ("files", j.files),
+        ("read_all", j.read_all),
+        ("summarize", j.summarize),
+        ("expert", j.expert),
+        ("_rotate", j._rotate),
+        ("_segment_path", j._segment_path),
+    ):
         _, dur = _timed(call)
         assert dur < 2.0, f"{name}() took {dur:.2f}s on a 3000-record journal -- unbounded"
 
@@ -113,9 +127,10 @@ def test_a4_rotate_terminates_when_deletion_is_impossible(tmp_path):
     for _ in range(5):
         j.record(model="m", status=200)
     real_remove = os.remove
-    os.remove = lambda p: None                     # deletion "succeeds" but frees nothing
+    os.remove = lambda p: None  # deletion "succeeds" but frees nothing
+    old = WJ.MAX_FILES
     try:
-        WJ.MAX_FILES, old = 1, WJ.MAX_FILES
+        WJ.MAX_FILES = 1
         _, dur = _timed(j._rotate)
         assert dur < 2.0, f"_rotate did not terminate when deletion freed nothing ({dur:.1f}s)"
     finally:
@@ -136,6 +151,7 @@ def test_a5_the_transport_hook_adds_bounded_latency(tmp_path, monkeypatch):
 
 
 # ===================================================================== B. FAULT INJECTION
+
 
 # B1/B2 PIN THE SYNCHRONOUS WRITE CONTRACT, and after T157 they say so explicitly.
 #
@@ -163,8 +179,10 @@ def test_b2_disk_full_midwrite_is_survived(tmp_path, monkeypatch):
     def _full(*a, **k):
         f = real_open(*a, **k)
         if len(a) > 1 and "a" in str(a[1]):
+
             def boom(*_a, **_k):
                 raise OSError(28, "No space left on device")
+
             f.write = boom
         return f
 
@@ -179,7 +197,7 @@ def test_b3_a_torn_line_costs_one_record_not_the_reader(tmp_path):
     j = _j(tmp_path)
     j.record(model="m", status=200, usage={"total_tokens": 5})
     with open(j._segment_path(), "a", encoding="utf-8") as f:
-        f.write('{"ts": 1, "agent": "x", "model": "trunc\n')      # torn
+        f.write('{"ts": 1, "agent": "x", "model": "trunc\n')  # torn
     j.record(model="m", status=200, usage={"total_tokens": 7})
     rows = j.read_all()
     assert len(rows) == 2, f"reader lost good records to a torn line: {len(rows)}"
@@ -190,8 +208,9 @@ def test_b4_vanished_directory_is_survived(tmp_path):
     """Journal dir deleted underneath us (cleanup script, operator, container restart)."""
     j = _j(tmp_path)
     j.record(model="m", status=200)
-    j.flush()                     # T157: the dir exists once the write LANDS, not when it is accepted
+    j.flush()  # T157: the dir exists once the write LANDS, not when it is accepted
     import shutil
+
     shutil.rmtree(j._journal_dir)
     assert j.record(model="m", status=200) is True, "record() must recreate its own directory"
     assert j.files(), "writing after a vanished dir produced no file"
@@ -203,7 +222,7 @@ def test_b5_concurrent_writers_lose_nothing(tmp_path):
     N, PER = 20, 50
 
     def w(i):
-        for k in range(PER):
+        for _k in range(PER):
             j.record(model="m", status=200, agent=f"a{i}", usage={"total_tokens": 1})
 
     ts = [threading.Thread(target=w, args=(i,)) for i in range(N)]
@@ -212,7 +231,7 @@ def test_b5_concurrent_writers_lose_nothing(tmp_path):
     for t in ts:
         t.join()
     rows = j.read_all()
-    assert len(rows) == N * PER, f"lost records under concurrency: {len(rows)} of {N*PER}"
+    assert len(rows) == N * PER, f"lost records under concurrency: {len(rows)} of {N * PER}"
     assert j.dropped == 0
     for line_no, r in enumerate(rows):
         assert isinstance(r, dict), f"interleaved write corrupted record {line_no}"
@@ -224,28 +243,32 @@ def test_b6_reader_survives_a_file_deleted_mid_read(tmp_path):
     for _ in range(5):
         j.record(model="m", status=200)
     listed = j.files()
-    j.files = lambda *a, **k: listed + [os.path.join(j._journal_dir, "wire-gone-999.jsonl")]
+    j.files = lambda *a, **k: [*listed, os.path.join(j._journal_dir, "wire-gone-999.jsonl")]
     rows = j.read_all()
     assert isinstance(rows, list), "reader died on a file that vanished between list and open"
 
 
 # ===================================================================== C. BEHAVIOURAL INVARIANTS
 
-@pytest.mark.parametrize("payload", [
-    {"prompt_text": "secret-alpha", "response_text": "secret-beta"},
-    {"prompt_text": "", "response_text": None},
-    {"prompt_text": "x" * 100000},
-    {"prompt_text": {"nested": "secret-gamma"}},
-    {"prompt_text": ["secret-delta", 2]},
-    {"prompt_text": b"secret-epsilon"},
-])
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"prompt_text": "secret-alpha", "response_text": "secret-beta"},
+        {"prompt_text": "", "response_text": None},
+        {"prompt_text": "x" * 100000},
+        {"prompt_text": {"nested": "secret-gamma"}},
+        {"prompt_text": ["secret-delta", 2]},
+        {"prompt_text": b"secret-epsilon"},
+    ],
+)
 def test_c1_no_body_reaches_disk_for_any_input_shape(tmp_path, payload):
     """W2 held for a string. Verify it holds for dicts, lists, bytes, empty and huge -- the shapes
     a caller will eventually pass. A privacy guarantee that only covers the tested type is not a
     guarantee."""
     j = _j(tmp_path, sub=f"c1{abs(hash(str(payload)))}")
     j.record(model="m", status=200, **payload)
-    raw = "".join(open(p, encoding="utf-8").read() for p in j.files())
+    raw = "".join(Path(p).read_text(encoding="utf-8") for p in j.files())
     for marker in ("secret-alpha", "secret-beta", "secret-gamma", "secret-delta", "secret-epsilon"):
         assert marker not in raw, f"body content {marker!r} reached disk"
     assert "x" * 1000 not in raw, "a large body was written verbatim"
@@ -254,11 +277,18 @@ def test_c1_no_body_reaches_disk_for_any_input_shape(tmp_path, payload):
 def test_c2_authorization_header_can_never_land(tmp_path):
     """The allowlist is the control. Verify it holds against case variants and lookalikes."""
     j = _j(tmp_path)
-    j.record(model="m", status=200, headers={
-        "Authorization": "Bearer sk-SECRETKEY", "AUTHORIZATION": "Bearer sk-SECRETKEY2",
-        "x-api-key": "sk-SECRETKEY3", "cookie": "session=SECRETKEY4",
-        "x-ds-trace-id": "keep-me"})
-    raw = "".join(open(p, encoding="utf-8").read() for p in j.files())
+    j.record(
+        model="m",
+        status=200,
+        headers={
+            "Authorization": "Bearer sk-SECRETKEY",
+            "AUTHORIZATION": "Bearer sk-SECRETKEY2",
+            "x-api-key": "sk-SECRETKEY3",
+            "cookie": "session=SECRETKEY4",
+            "x-ds-trace-id": "keep-me",
+        },
+    )
+    raw = "".join(Path(p).read_text(encoding="utf-8") for p in j.files())
     assert "SECRETKEY" not in raw, "a credential header reached disk"
     assert "keep-me" in raw, "the allowlisted header was dropped"
 
@@ -266,17 +296,39 @@ def test_c2_authorization_header_can_never_land(tmp_path):
 def test_c3_a_record_round_trips_intact(tmp_path):
     """Does it do what it says: what goes in comes back out, with the right names."""
     j = _j(tmp_path)
-    j.record(model="deepseek-chat", status=200, finish_reason="stop", system_fingerprint="fp_x",
-             service_tier="default", attempt=2, ms_first_byte=431,
-             usage={"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15,
-                    "prompt_cache_hit_tokens": 8, "prompt_cache_miss_tokens": 2,
-                    "completion_tokens_details": {"reasoning_tokens": 3}})
+    j.record(
+        model="deepseek-chat",
+        status=200,
+        finish_reason="stop",
+        system_fingerprint="fp_x",
+        service_tier="default",
+        attempt=2,
+        ms_first_byte=431,
+        usage={
+            "prompt_tokens": 10,
+            "completion_tokens": 5,
+            "total_tokens": 15,
+            "prompt_cache_hit_tokens": 8,
+            "prompt_cache_miss_tokens": 2,
+            "completion_tokens_details": {"reasoning_tokens": 3},
+        },
+    )
     r = j.read_all()[0]
-    for k, v in (("model", "deepseek-chat"), ("status", 200), ("finish_reason", "stop"),
-                 ("system_fingerprint", "fp_x"), ("service_tier", "default"), ("attempt", 2),
-                 ("ms_first_byte", 431), ("prompt_tokens", 10), ("completion_tokens", 5),
-                 ("total_tokens", 15), ("cache_hit_tokens", 8), ("cache_miss_tokens", 2),
-                 ("reasoning_tokens", 3)):
+    for k, v in (
+        ("model", "deepseek-chat"),
+        ("status", 200),
+        ("finish_reason", "stop"),
+        ("system_fingerprint", "fp_x"),
+        ("service_tier", "default"),
+        ("attempt", 2),
+        ("ms_first_byte", 431),
+        ("prompt_tokens", 10),
+        ("completion_tokens", 5),
+        ("total_tokens", 15),
+        ("cache_hit_tokens", 8),
+        ("cache_miss_tokens", 2),
+        ("reasoning_tokens", 3),
+    ):
         assert r[k] == v, f"{k}: expected {v!r}, got {r[k]!r}"
     s = j.summarize()
     assert s["cache_hit_rate"] == 0.8, f"cache hit rate wrong: {s['cache_hit_rate']}"
@@ -297,12 +349,19 @@ def test_c5_expert_reports_nothing_as_clean_not_as_broken(tmp_path):
     """An empty journal must not manufacture findings, and a clean one must not either."""
     j = _j(tmp_path)
     empty = j.expert()
-    assert len(empty) == 1 and empty[0][0] == "info"
+    assert len(empty) == 1
+    assert empty[0][0] == "info"
     for _ in range(3):
-        j.record(model="m", status=200, finish_reason="stop", system_fingerprint="fp_same",
-                 usage={"prompt_cache_hit_tokens": 9, "prompt_cache_miss_tokens": 1})
+        j.record(
+            model="m",
+            status=200,
+            finish_reason="stop",
+            system_fingerprint="fp_same",
+            usage={"prompt_cache_hit_tokens": 9, "prompt_cache_miss_tokens": 1},
+        )
     sev = {s for s, _, _ in j.expert()}
-    assert "error" not in sev and "warn" not in sev, f"clean traffic produced {j.expert()}"
+    assert "error" not in sev, f"clean traffic produced {j.expert()}"
+    assert "warn" not in sev, f"clean traffic produced {j.expert()}"
 
 
 def test_c6_agent_scope_isolates(tmp_path):

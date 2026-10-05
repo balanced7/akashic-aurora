@@ -33,13 +33,15 @@ RULES:
   S4 seeded-honesty     — spent_usd > 0 with seeded false: the meter confesses it
                           never reconciled; the figure is a floor, not a figure.
 """
+
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import re
 import time
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:  # annotations only; the RUNTIME import lives in SpendDomain.run
     from core.toolbelt.audit import Row
@@ -63,10 +65,10 @@ _ASSIGN_RE = {
 }
 
 
-def _read_config_defaults(path: str) -> Dict[str, Optional[float]]:
+def _read_config_defaults(path: str) -> dict[str, float | None]:
     """WARN_AT / REFUSE_AT defaults from kimi_chat.py by source read (NEVER import —
     the module pulls an SDK client at import time; audit stays side-effect-free)."""
-    out: Dict[str, Optional[float]] = {"WARN_AT": None, "REFUSE_AT": None}
+    out: dict[str, float | None] = {"WARN_AT": None, "REFUSE_AT": None}
     try:
         with open(path, encoding="utf-8") as f:
             text = f.read()
@@ -84,14 +86,12 @@ def _read_config_defaults(path: str) -> Dict[str, Optional[float]]:
         if out[key] is None:
             m = re.search(rf"^{key}\s*=\s*([\d.]+)\s*$", text, re.M)
             if m:
-                try:
+                with contextlib.suppress(ValueError):
                     out[key] = float(m.group(1))
-                except ValueError:
-                    pass
     return out
 
 
-def _read_meter(path: str) -> Optional[Dict[str, Any]]:
+def _read_meter(path: str) -> dict[str, Any] | None:
     try:
         with open(path, encoding="utf-8") as f:
             return json.load(f)
@@ -105,13 +105,17 @@ class SpendDomain:
 
     name = "SPEND"
 
-    def __init__(self, *, meter_path: str = DEFAULT_METER,
-                 config_path: str = DEFAULT_CONFIG,
-                 warn_at: Optional[float] = None,
-                 refuse_at: Optional[float] = None,
-                 expect_refuse: Optional[float] = None,
-                 stale_reconcile_s: float = STALE_RECONCILE_S,
-                 now: Optional[float] = None):
+    def __init__(
+        self,
+        *,
+        meter_path: str = DEFAULT_METER,
+        config_path: str = DEFAULT_CONFIG,
+        warn_at: float | None = None,
+        refuse_at: float | None = None,
+        expect_refuse: float | None = None,
+        stale_reconcile_s: float = STALE_RECONCILE_S,
+        now: float | None = None,
+    ):
         """warn_at/refuse_at: config OVERRIDE (tests inject; production reads the file).
         expect_refuse: the operator/brief's believed refuse line (None = row skipped)."""
         self._meter_path = meter_path
@@ -123,7 +127,7 @@ class SpendDomain:
         self._now = now
 
     # -- surfaces -----------------------------------------------------------
-    def _config(self) -> Dict[str, Optional[float]]:
+    def _config(self) -> dict[str, float | None]:
         cfg = _read_config_defaults(self._config_path)
         if self._warn_override is not None:
             cfg["WARN_AT"] = self._warn_override
@@ -132,9 +136,10 @@ class SpendDomain:
         return cfg
 
     # -- domain entry -------------------------------------------------------
-    def run(self) -> List[Row]:
+    def run(self) -> list[Row]:
         from core.toolbelt.audit import Row  # lazy: see IMPORT-CYCLE LAW above
-        rows: List[Row] = []
+
+        rows: list[Row] = []
         now = self._now if self._now is not None else time.time()
         cfg = self._config()
         meter = _read_meter(self._meter_path)
@@ -146,15 +151,19 @@ class SpendDomain:
                 rel = os.path.relpath(self._meter_path, _ROOT)
             except ValueError:  # different drives (Windows tests) — show raw
                 rel = self._meter_path
-            rows.append(Row(
-                domain=self.name, entry_ref="kimi:spend",
-                belief_a=f"meter sidecar at {rel}",
-                source_a="filesystem",
-                belief_b="missing or unparseable", source_b="json parser",
-                verdict="UNKNOWN",
-                detail="spend meter sidecar unreadable — no spend rows computable",
-                rule="meter-missing",
-            ))
+            rows.append(
+                Row(
+                    domain=self.name,
+                    entry_ref="kimi:spend",
+                    belief_a=f"meter sidecar at {rel}",
+                    source_a="filesystem",
+                    belief_b="missing or unparseable",
+                    source_b="json parser",
+                    verdict="UNKNOWN",
+                    detail="spend meter sidecar unreadable — no spend rows computable",
+                    rule="meter-missing",
+                )
+            )
             return rows
 
         budget = meter.get("budget")
@@ -163,62 +172,89 @@ class SpendDomain:
         last_recon = meter.get("last_reconcile_ts")
 
         # ---- S1: brief-vs-config ------------------------------------------
-        if self._expect_refuse is not None and refuse is not None:
-            if abs(float(self._expect_refuse) - float(refuse)) > 1e-9:
-                rows.append(Row(
-                    domain=self.name, entry_ref="kimi:refuse-line",
+        if (
+            self._expect_refuse is not None
+            and refuse is not None
+            and abs(float(self._expect_refuse) - float(refuse)) > 1e-9
+        ):
+            rows.append(
+                Row(
+                    domain=self.name,
+                    entry_ref="kimi:refuse-line",
                     belief_a=f"refuse line ${float(self._expect_refuse):.0f}",
                     source_a="operator belief (brief)",
-                    belief_b=f"refuse line ${float(refuse):.0f}", source_b="kimi_chat.py",
+                    belief_b=f"refuse line ${float(refuse):.0f}",
+                    source_b="kimi_chat.py",
                     verdict="DRIFT",
-                    detail=(f"the brief rides refuse=${float(self._expect_refuse):.0f} "
-                            f"but the config defaults to ${float(refuse):.0f} — the seat "
-                            f"and its charter disagree on where the wall is"),
+                    detail=(
+                        f"the brief rides refuse=${float(self._expect_refuse):.0f} "
+                        f"but the config defaults to ${float(refuse):.0f} — the seat "
+                        f"and its charter disagree on where the wall is"
+                    ),
                     rule="brief-vs-config",
-                ))
+                )
+            )
 
         # ---- S2: config-vs-meter ------------------------------------------
-        if refuse is not None and budget is not None:
-            if float(budget) < float(refuse):
-                rows.append(Row(
-                    domain=self.name, entry_ref="kimi:headroom",
-                    belief_a=f"refuse at ${float(refuse):.0f}", source_b="kimi_chat.py",
-                    belief_b=f"budget ${float(budget):.2f}", source_a="kimi_spend.json",
+        if refuse is not None and budget is not None and float(budget) < float(refuse):
+            rows.append(
+                Row(
+                    domain=self.name,
+                    entry_ref="kimi:headroom",
+                    belief_a=f"refuse at ${float(refuse):.0f}",
+                    source_b="kimi_chat.py",
+                    belief_b=f"budget ${float(budget):.2f}",
+                    source_a="kimi_spend.json",
                     verdict="DRIFT",
-                    detail=(f"meter budget ${float(budget):.2f} is BELOW the refuse "
-                            f"line ${float(refuse):.0f} — the warn/refuse ladder can "
-                            f"never fire before the grant itself is exceeded"),
+                    detail=(
+                        f"meter budget ${float(budget):.2f} is BELOW the refuse "
+                        f"line ${float(refuse):.0f} — the warn/refuse ladder can "
+                        f"never fire before the grant itself is exceeded"
+                    ),
                     rule="config-vs-meter",
-                ))
+                )
+            )
 
         # ---- S3: reconcile-hygiene ----------------------------------------
         if seeded and last_recon:
             age = now - float(last_recon)
             if age > self._stale_s:
-                rows.append(Row(
-                    domain=self.name, entry_ref="kimi:reconcile",
-                    belief_a=f"last reconcile {age/3600:.1f}h ago",
-                    source_a="kimi_spend.json",
-                    belief_b=f"reconcile within {self._stale_s/3600:.0f}h",
-                    source_b="hygiene contract",
-                    verdict="DRIFT",
-                    detail=(f"the fine meter has run {age/3600:.1f}h without a "
+                rows.append(
+                    Row(
+                        domain=self.name,
+                        entry_ref="kimi:reconcile",
+                        belief_a=f"last reconcile {age / 3600:.1f}h ago",
+                        source_a="kimi_spend.json",
+                        belief_b=f"reconcile within {self._stale_s / 3600:.0f}h",
+                        source_b="hygiene contract",
+                        verdict="DRIFT",
+                        detail=(
+                            f"the fine meter has run {age / 3600:.1f}h without a "
                             f"balance-endpoint reconcile — spent=${float(spent or 0):.2f} "
-                            f"is metered, not grounded"),
-                    rule="reconcile-hygiene",
-                ))
+                            f"is metered, not grounded"
+                        ),
+                        rule="reconcile-hygiene",
+                    )
+                )
 
         # ---- S4: seeded-honesty -------------------------------------------
         if not seeded and float(spent or 0) > 0:
-            rows.append(Row(
-                domain=self.name, entry_ref="kimi:seeded",
-                belief_a=f"spent=${float(spent):.2f}", source_a="kimi_spend.json",
-                belief_b="seeded=false (never reconciled)", source_b="kimi_spend.json",
-                verdict="UNKNOWN",
-                detail=("the meter carries spend but confesses it never reconciled — "
-                        "the figure is a floor, not a figure"),
-                rule="seeded-honesty",
-            ))
+            rows.append(
+                Row(
+                    domain=self.name,
+                    entry_ref="kimi:seeded",
+                    belief_a=f"spent=${float(spent or 0):.2f}",  # spent is truthy here (guard above)
+                    source_a="kimi_spend.json",
+                    belief_b="seeded=false (never reconciled)",
+                    source_b="kimi_spend.json",
+                    verdict="UNKNOWN",
+                    detail=(
+                        "the meter carries spend but confesses it never reconciled — "
+                        "the figure is a floor, not a figure"
+                    ),
+                    rule="seeded-honesty",
+                )
+            )
 
         # ---- MATCH row when nothing fired ----------------------------------
         if not rows:
@@ -231,12 +267,17 @@ class SpendDomain:
                 parts.append(f"ladder ${float(warn):.0f}/${float(refuse):.0f}")
             if seeded:
                 parts.append("seeded")
-            rows.append(Row(
-                domain=self.name, entry_ref="kimi:spend",
-                belief_a="coherent", source_a="kimi_spend.json",
-                belief_b="coherent", source_b="kimi_chat.py",
-                verdict="MATCH",
-                detail=" ".join(parts) or "surfaces agree",
-            ))
+            rows.append(
+                Row(
+                    domain=self.name,
+                    entry_ref="kimi:spend",
+                    belief_a="coherent",
+                    source_a="kimi_spend.json",
+                    belief_b="coherent",
+                    source_b="kimi_chat.py",
+                    verdict="MATCH",
+                    detail=" ".join(parts) or "surfaces agree",
+                )
+            )
 
         return rows

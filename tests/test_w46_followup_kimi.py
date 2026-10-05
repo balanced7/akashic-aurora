@@ -79,6 +79,7 @@ def cmd_followup(args):
           f"--receipt \"answered {res['qid']}: ...\"")
     return 0
 """
+
 import json
 import os
 import re
@@ -93,7 +94,7 @@ from core.coord import defer_queue as dq
 from core.toolbelt import followup as fq
 
 
-@pytest.fixture()
+@pytest.fixture
 def stage(tmp_path, monkeypatch):
     """Repo root + queue both sandboxed to tmp_path (the dq.QUEUE_PATH pattern)."""
     monkeypatch.setattr(fq, "ROOT", str(tmp_path))
@@ -108,22 +109,26 @@ def _write(root, name, text):
 
 
 def _qline(qid, ask):
-    return re.compile(r"- %s \(\d{4}-\d{2}-\d{2}, kimi -> deepseek\) OPEN: %s"
-                      % (qid, re.escape(ask)))
+    return re.compile(rf"- {qid} \(\d{{4}}-\d{{2}}-\d{{2}}, kimi -> deepseek\) OPEN: {re.escape(ask)}")
 
 
 def test_p1_question_lands_inside_block_with_qid(stage):
-    f = _write(stage, "verdict.md",
-               "# Verdict\n\nbody citing Q1 consensus\n\n## Open Questions\n\n"
-               "- Q2 (2026-07-21, claude -> deepseek) OPEN: earlier one\n\n"
-               "## Next\n\ntail\n")
+    f = _write(
+        stage,
+        "verdict.md",
+        "# Verdict\n\nbody citing Q1 consensus\n\n## Open Questions\n\n"
+        "- Q2 (2026-07-21, claude -> deepseek) OPEN: earlier one\n\n"
+        "## Next\n\ntail\n",
+    )
     res = fq.file_followup("verdict.md", by="kimi", to="deepseek", ask="is n=1 enough?")
-    assert res["qid"] == "Q3" and res["created_block"] is False
+    assert res["qid"] == "Q3"
+    assert res["created_block"] is False
     text = f.read_text(encoding="utf-8")
     m = _qline("Q3", "is n=1 enough?").search(text)
     assert m, "q-id'd question line appended"
-    assert text.index("## Open Questions") < m.start() < text.index("## Next"), \
+    assert text.index("## Open Questions") < m.start() < text.index("## Next"), (
         "the line lands INSIDE the block, before the next heading"
+    )
     assert "## Next\n\ntail\n" in text, "surrounding content preserved"
 
 
@@ -133,12 +138,15 @@ def test_p2_defer_item_carries_the_pointer(stage):
     items = dq.pending()
     assert len(items) == 1
     it = items[0]
-    assert it["id"] == res["defer_id"] and it["by"] == "kimi"
+    assert it["id"] == res["defer_id"]
+    assert it["by"] == "kimi"
     assert it["needs"] == "write", "answering means editing the verdict file"
-    assert "Q1" in it["cmd"] and "v.md" in it["cmd"] and "the ask text" in it["cmd"], \
-        "cmd points at the question: file + q-id + ask"
+    assert "Q1" in it["cmd"], "cmd points at the question: file + q-id + ask"
+    assert "v.md" in it["cmd"], "cmd points at the question: file + q-id + ask"
+    assert "the ask text" in it["cmd"], "cmd points at the question: file + q-id + ask"
     assert "deepseek" in it["why"], "why names the responsible seat"
-    stored = json.load(open(dq.QUEUE_PATH, encoding="utf-8"))
+    with open(dq.QUEUE_PATH, encoding="utf-8") as fh:
+        stored = json.load(fh)
     assert len(stored["items"]) == 1, "queue file valid + holds the item"
 
 
@@ -152,7 +160,8 @@ def test_p4_block_created_if_absent(stage):
     body = "# Verdict\n\nno block here\n"
     f = _write(stage, "v.md", body)
     res = fq.file_followup("v.md", by="kimi", to="deepseek", ask="first q")
-    assert res["created_block"] is True and res["qid"] == "Q1"
+    assert res["created_block"] is True
+    assert res["qid"] == "Q1"
     text = f.read_text(encoding="utf-8")
     assert text.startswith(body), "prior content byte-preserved"
     assert "## Open Questions" in text
@@ -170,7 +179,8 @@ def test_p6_replayed_ask_is_idempotent(stage):
     a = fq.file_followup("v.md", by="kimi", to="deepseek", ask="same ask")
     b = fq.file_followup("v.md", by="kimi", to="deepseek", ask="same ask")
     assert (a["qid"], a["defer_id"]) == (b["qid"], b["defer_id"])
-    assert b["reused_line"] and b["reused_defer"]
+    assert b["reused_line"]
+    assert b["reused_defer"]
     text = f.read_text(encoding="utf-8")
     assert text.count("same ask") == 1, "one question line, not two"
     assert len(dq.pending()) == 1, "one pending defer item, not two"
@@ -179,28 +189,30 @@ def test_p6_replayed_ask_is_idempotent(stage):
 def test_p7_door_hygiene_refusals(stage, tmp_path):
     outside = tmp_path.parent / "outside_root.md"
     outside.write_text("# x\n", encoding="utf-8")
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="verdict file must live inside the repo root"):
         fq.file_followup(str(outside), by="kimi", to="deepseek", ask="q")
     _write(stage, "v.md", "# V\n")
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="followup needs the question itself"):
         fq.file_followup("v.md", by="kimi", to="deepseek", ask="   ")
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="followup needs --to"):
         fq.file_followup("v.md", by="kimi", to="", ask="q")
     assert dq.pending() == [], "every refusal leaves the queue untouched"
 
 
-@pytest.mark.skip(reason="agent_cli.py is outside the builder allowlist -- the verb "
-                         "wiring rides the fence seat (paste blocks in the module "
-                         "docstring); unskip when cmd_followup lands")
+@pytest.mark.skip(
+    reason="agent_cli.py is outside the builder allowlist -- the verb "
+    "wiring rides the fence seat (paste blocks in the module "
+    "docstring); unskip when cmd_followup lands"
+)
 def test_p8_cli_wiring_and_refusal_rc(stage, capsys):
     p = agent_cli.build_parser()
-    a = p.parse_args(["followup", "kimi", "--on", "v.md",
-                      "--ask", "is it enough?", "--to", "deepseek"])
+    a = p.parse_args(["followup", "kimi", "--on", "v.md", "--ask", "is it enough?", "--to", "deepseek"])
     assert a.fn is agent_cli.cmd_followup
     f = _write(stage, "v.md", "# V\n\n## Open Questions\n")
     assert a.fn(a) == 0
     out = capsys.readouterr().out
-    assert "Q1" in out and "deepseek" in out
+    assert "Q1" in out
+    assert "deepseek" in out
     assert "is it enough?" in f.read_text(encoding="utf-8")
     assert len(dq.pending()) == 1
 

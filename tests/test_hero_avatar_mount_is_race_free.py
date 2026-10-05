@@ -38,11 +38,11 @@ Run::
 
     py -m pytest tests/test_hero_avatar_mount_is_race_free.py -q
 """
+
 from __future__ import annotations
 
-import io
-from pathlib import Path
 import re
+from pathlib import Path
 
 import pytest
 
@@ -53,12 +53,12 @@ AV = ROOT / "scripts" / "agent-avatar.js"
 
 @pytest.fixture(scope="module")
 def ui() -> str:
-    return io.open(UI, encoding="utf-8").read()
+    return open(UI, encoding="utf-8").read()
 
 
 @pytest.fixture(scope="module")
 def av() -> str:
-    return io.open(AV, encoding="utf-8").read()
+    return open(AV, encoding="utf-8").read()
 
 
 def _mount_body(ui: str) -> str:
@@ -78,7 +78,8 @@ def test_a_missing_script_does_not_latch_avatars_off(ui):
     assert m, "the undefined-script guard vanished; this pin no longer guards anything"
     assert "_avatarsOff" not in m.group(0), (
         "the transient 'script has not parsed yet' guard latches _avatarsOff again -- a lost "
-        f"parse race is once more permanent. Offending guard: {m.group(0)!r}")
+        f"parse race is once more permanent. Offending guard: {m.group(0)!r}"
+    )
 
 
 def test_terminal_failures_still_latch(ui):
@@ -86,9 +87,10 @@ def test_terminal_failures_still_latch(ui):
     without WebGL2 must latch, or every status poll retries a doomed context creation forever."""
     body = _mount_body(ui)
     i = body.index("isSupported()")
-    assert "_avatarsOff = true" in body[i:i + 320], (
+    assert "_avatarsOff = true" in body[i : i + 320], (
         "the no-WebGL2 path stopped latching -- a machine without WebGL2 will now retry context "
-        "creation on every status poll")
+        "creation on every status poll"
+    )
 
 
 def test_size_is_applied_before_the_webgl_guard(ui):
@@ -98,14 +100,16 @@ def test_size_is_applied_before_the_webgl_guard(ui):
     body = _mount_body(ui)
     assert body.index("sizeHeroFrame(frame)") < body.index("AgentAvatar"), (
         "sizing moved back behind the WebGL guard -- a shader failure is once again "
-        "indistinguishable from 'the change never shipped'")
+        "indistinguishable from 'the change never shipped'"
+    )
 
 
 def test_there_is_a_mount_door_that_does_not_go_through_the_status_poll(ui):
     """The avatar is chrome, not data. Reaching it only via driveAvatars() meant a slow, failed
     or still-pending first poll decided whether the composer had a centrepiece."""
     assert re.search(r"DOMContentLoaded['\"]?\s*,\s*mountHeroAvatar", ui), (
-        "the DOMContentLoaded mount door is gone; mounting depends on a status render again")
+        "the DOMContentLoaded mount door is gone; mounting depends on a status render again"
+    )
 
 
 def test_a_dead_gpu_still_leaves_a_two_inch_frame(ui):
@@ -120,16 +124,19 @@ def test_a_dead_gpu_still_leaves_a_two_inch_frame(ui):
     of one commit, and it went red the day the implementation improved."""
     body = _mount_body(ui)
     assert body.count("av-fallback") >= 2, (
-        f"expected both terminal bails to add .av-fallback, found {body.count('av-fallback')}")
+        f"expected both terminal bails to add .av-fallback, found {body.count('av-fallback')}"
+    )
     rule = re.search(r"#ash-frame\.av-fallback\{[^}]*\}", ui)
     assert rule, "the #ash-frame.av-fallback rule is gone; the degraded path is unstyled"
     for edge in ("width", "height"):
         assert re.search(rf"{edge}:\s*var\(--ash-size\)", rule.group(0)), (
             f"the .av-fallback rule no longer takes its {edge} from --ash-size -- the degraded "
-            f"path stops following the user's size (or the two-inch default). Rule: {rule.group(0)!r}")
+            f"path stops following the user's size (or the two-inch default). Rule: {rule.group(0)!r}"
+        )
     assert re.search(r":root\s*\{[^}]*--ash-size\s*:\s*192px", ui), (
         "--ash-size no longer defaults to 192px in :root -- the fallback box is no longer two "
-        "inches for anyone who never dragged it")
+        "inches for anyone who never dragged it"
+    )
 
 
 def test_the_bail_reason_is_left_on_the_element(ui):
@@ -140,7 +147,8 @@ def test_the_bail_reason_is_left_on_the_element(ui):
         assert reason in body, f"bail reason {reason!r} no longer recorded on the frame"
     assert "delete frame.dataset.avOff" in body, (
         "the success path no longer clears avOff -- a frame that recovered from a lost race "
-        "still advertises 'pending-script'")
+        "still advertises 'pending-script'"
+    )
 
 
 def test_the_backing_store_is_told_its_size_not_asked_to_measure(ui, av):
@@ -148,7 +156,9 @@ def test_the_backing_store_is_told_its_size_not_asked_to_measure(ui, av):
     that bet cuts a thumbnail-sized render target, and the backing store is re-cut only on
     resize -- so the blur persists no matter how many frames are drawn afterwards."""
     assert "_resize = function (cssSize)" in av, (
-        "_resize no longer accepts an explicit size and is back to guessing from clientWidth")
+        "_resize no longer accepts an explicit size and is back to guessing from clientWidth"
+    )
     assert "this.cssSize ||" in av, "the explicit size is not preferred over the measurement"
     assert "_heroAv.shader._resize(SIZE)" in _mount_body(ui), (
-        "the mount stopped passing the known size, reintroducing the layout-timing bet")
+        "the mount stopped passing the known size, reintroducing the layout-timing bet"
+    )

@@ -30,8 +30,7 @@ from __future__ import annotations
 
 import hashlib
 import time
-from dataclasses import dataclass, field
-from typing import Optional, Tuple
+from dataclasses import dataclass
 
 
 def _declare_dpi_awareness() -> None:
@@ -42,7 +41,7 @@ def _declare_dpi_awareness() -> None:
         # PROCESS_PER_MONITOR_DPI_AWARE = 2 (Windows >= 8.1). Declared once, before
         # any display/window call, so physical pixels are authoritative end-to-end.
         _ = ctypes.windll.shcore.SetProcessDpiAwareness(2)
-    except Exception:  # noqa: BLE001 — fail-soft: DPI awareness is a posture, not a gate
+    except Exception:  # noqa: BLE001  # fail-soft: best effort, skipped on any error — fail-soft: DPI awareness is a posture, not a gate
         pass
 
 
@@ -52,10 +51,10 @@ _declare_dpi_awareness()
 def _load_mss():
     """Lazy, fail-soft loader for the optional mss substrate."""
     try:
-        import mss  # type: ignore
+        import mss
 
         return mss
-    except Exception:  # noqa: BLE001 — optional substrate; absence is a contract-relevant fact
+    except Exception:  # noqa: BLE001  # fail-soft: falls back to a default value — optional substrate; absence is a contract-relevant fact
         return None
 
 
@@ -69,17 +68,17 @@ class ScreenFrame:
     """
 
     available: bool = False
-    pixels: Optional[bytes] = None                      # PNG bytes when available
+    pixels: bytes | None = None  # PNG bytes when available
     width: int = 0
     height: int = 0
     dpi_scale: float = 1.0
     ts_ms: int = 0
     source: str = "mss"
     sha256: str = ""
-    long_edge_budget: Optional[int] = None               # the budget that was applied
-    resized: bool = False                                # True if we downscaled
-    refuse_reason: Optional[str] = None                  # set when available=False
-    transient_path: Optional[str] = None                 # only when caller persists
+    long_edge_budget: int | None = None  # the budget that was applied
+    resized: bool = False  # True if we downscaled
+    refuse_reason: str | None = None  # set when available=False
+    transient_path: str | None = None  # only when caller persists
 
     def to_dict(self) -> dict:
         """Structured form (never a bare string) — the §4.1 provenance surface."""
@@ -97,14 +96,12 @@ class ScreenFrame:
         }
 
 
-def _png_from_shot(shot_image) -> Tuple[int, int, bytes]:
+def _png_from_shot(shot_image) -> tuple[int, int, bytes]:
     """Drain one mss screenshot into raw RGB -> PNG bytes; returns (w, h, png)."""
     # shot_image is a PIL.Image in mss >= 6; older versions give a raw byte str.
-    from PIL import Image  # type: ignore
+    from PIL import Image
 
-    img = shot_image if isinstance(shot_image, Image.Image) else Image.frombytes(
-        "RGB", shot_image.size, shot_image.rgb
-    )
+    img = shot_image if isinstance(shot_image, Image.Image) else Image.frombytes("RGB", shot_image.size, shot_image.rgb)
     if img.mode != "RGB":
         img = img.convert("RGB")
     w, h = img.size
@@ -121,21 +118,21 @@ def _resize_to_budget(pixels: bytes, width: int, height: int, budget: int):
     long_edge = max(width, height)
     if long_edge <= budget:
         return pixels, width, height, False
-    from PIL import Image  # type: ignore
-
     import io
 
+    from PIL import Image
+
     scale = budget / float(long_edge)
-    nw = max(1, int(round(width * scale)))
-    nh = max(1, int(round(height * scale)))
+    nw = max(1, round(width * scale))
+    nh = max(1, round(height * scale))
     img = Image.open(io.BytesIO(pixels))
-    img = img.resize((nw, nh), Image.LANCZOS)
+    img = img.resize((nw, nh), Image.Resampling.LANCZOS)  # same filter (== Image.LANCZOS)
     buf = io.BytesIO()
     img.save(buf, format="PNG")
     return buf.getvalue(), nw, nh, True
 
 
-def screen(region=None, downscale_budget: Optional[int] = None) -> ScreenFrame:
+def screen(region=None, downscale_budget: int | None = None) -> ScreenFrame:
     """One-shot full-screen (or region) capture -> ScreenFrame.
 
     Args:
@@ -165,20 +162,18 @@ def screen(region=None, downscale_budget: Optional[int] = None) -> ScreenFrame:
                 return frame
             # monitors[0] is the virtual "all screens" bounding box.
             shot = sct.grab(sct.monitors[0])
-    except Exception as exc:  # noqa: BLE001 — headless / locked / driver failure
+    except Exception as exc:  # noqa: BLE001  # fail-soft: falls back to a default value — headless / locked / driver failure
         frame.refuse_reason = f"capture-refused:{type(exc).__name__}"
         return frame
 
     try:
         width, height, png = _png_from_shot(shot)
-    except Exception as exc:  # noqa: BLE001 — PIL absent or bad pixels
+    except Exception as exc:  # noqa: BLE001  # fail-soft: falls back to a default value — PIL absent or bad pixels
         frame.refuse_reason = f"encode-failed:{type(exc).__name__}"
         return frame
 
     if downscale_budget and downscale_budget > 0:
-        png, width, height, resized = _resize_to_budget(
-            png, width, height, downscale_budget
-        )
+        png, width, height, resized = _resize_to_budget(png, width, height, downscale_budget)
         frame.resized = resized
 
     frame.available = True

@@ -5,6 +5,7 @@ events.jsonl, which is append-only. Epochs only move forward: a new epoch arrive
 event carrying exactly latest + 1. Anything from an older epoch is refused, and nothing from a
 refused batch is written.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -13,18 +14,21 @@ import os
 import re
 import threading
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Dict, List
+from typing import TYPE_CHECKING
 
 from .timebase import StaleEpoch, TimeRef
+
+if TYPE_CHECKING:
+    import builtins
 
 DEFAULT_ROOT = Path(__file__).resolve().parents[1] / "state" / "arsenal" / "takes"
 _TAKE_ID_RE = re.compile(r"^\d{8}-\d{6}-[0-9a-f]{8}$")
 
 
 def _now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="milliseconds")
+    return datetime.now(UTC).isoformat(timespec="milliseconds")
 
 
 class TakeLedger:
@@ -65,13 +69,21 @@ class TakeLedger:
                 except FileExistsError:
                     continue
             (path / "events.jsonl").touch()
-            take = {"api": "arsenal.take/v0", "take_id": take_id, "opened_at": _now_iso(),
-                    "graph": graph_json, "plan": plan, "meta": meta,
-                    "closed": False, "latest_epoch": 0, "event_count": 0}
+            take = {
+                "api": "arsenal.take/v0",
+                "take_id": take_id,
+                "opened_at": _now_iso(),
+                "graph": graph_json,
+                "plan": plan,
+                "meta": meta,
+                "closed": False,
+                "latest_epoch": 0,
+                "event_count": 0,
+            }
             self._write(take_id, take)
         return take_id
 
-    def append(self, take_id: str, events: List[dict]) -> int:
+    def append(self, take_id: str, events: builtins.list[dict]) -> int:
         if not isinstance(events, list):
             raise ValueError("events must be a list")
         with self._lock:
@@ -79,7 +91,7 @@ class TakeLedger:
             if take.get("closed"):
                 raise ValueError(f"take {take_id} is closed")
             latest = int(take.get("latest_epoch", 0))
-            lines: List[str] = []
+            lines: list[str] = []
             for i, event in enumerate(events):
                 if not isinstance(event, dict) or "kind" not in event or "t" not in event:
                     raise ValueError(f"event {i} needs a kind and a t")
@@ -87,14 +99,18 @@ class TakeLedger:
                 if event["kind"] == "epoch":
                     declared = event.get("epoch", ref.epoch)
                     if declared != latest + 1 or ref.epoch != latest + 1:
-                        raise StaleEpoch(f"event {i}: an epoch event must carry epoch {latest + 1}, "
-                                         f"got {declared} (t.epoch {ref.epoch})")
+                        raise StaleEpoch(
+                            f"event {i}: an epoch event must carry epoch {latest + 1}, "
+                            f"got {declared} (t.epoch {ref.epoch})"
+                        )
                     latest += 1
                 elif ref.epoch < latest:
                     raise StaleEpoch(f"event {i} ({event['kind']}) is from epoch {ref.epoch}; the take is at {latest}")
                 elif ref.epoch > latest:
-                    raise ValueError(f"event {i} ({event['kind']}) is from epoch {ref.epoch} before any "
-                                     f"epoch event announced it; the take is at {latest}")
+                    raise ValueError(
+                        f"event {i} ({event['kind']}) is from epoch {ref.epoch} before any "
+                        f"epoch event announced it; the take is at {latest}"
+                    )
                 lines.append(json.dumps(event, sort_keys=True, default=str))
             if lines:
                 with open(self._dir(take_id) / "events.jsonl", "a", encoding="utf-8") as fh:
@@ -118,7 +134,7 @@ class TakeLedger:
             raw = (self._dir(take_id) / "events.jsonl").read_text(encoding="utf-8")
         return {"take": take, "events": [json.loads(line) for line in raw.splitlines() if line.strip()]}
 
-    def list(self) -> List[Dict]:
+    def list(self) -> builtins.list[dict]:
         if not self.root.is_dir():
             return []
         out = []
@@ -130,7 +146,13 @@ class TakeLedger:
             except (OSError, ValueError):
                 continue
             meta = take.get("meta") or {}
-            out.append({"take_id": take.get("take_id", path.name), "opened_at": take.get("opened_at"),
-                        "closed": bool(take.get("closed")), "event_count": take.get("event_count", 0),
-                        "clip": meta.get("clip_name") or meta.get("clip_id")})
+            out.append(
+                {
+                    "take_id": take.get("take_id", path.name),
+                    "opened_at": take.get("opened_at"),
+                    "closed": bool(take.get("closed")),
+                    "event_count": take.get("event_count", 0),
+                    "clip": meta.get("clip_name") or meta.get("clip_id"),
+                }
+            )
         return out

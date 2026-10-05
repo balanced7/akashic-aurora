@@ -25,6 +25,7 @@ ignores the return, and a scope check keeps it silent outside this repo. set_act
 25s TTL of its own (control.ACTIVITY_TTL), so a seat that dies mid-turn expires rather than
 leaving the console asserting work that stopped -- the failure mode is going quiet, never lying.
 """
+
 from __future__ import annotations
 
 import os
@@ -33,11 +34,19 @@ import os
 # unrecognised falls to 'working' rather than being dropped: an unmapped tool still means the
 # seat is busy, and silence would render as idle, which is a wrong claim rather than a vague one.
 _VERB = {
-    "Read": "reading", "NotebookRead": "reading",
-    "Grep": "searching", "Glob": "searching", "WebSearch": "searching", "WebFetch": "reading",
-    "Edit": "writing", "Write": "writing", "NotebookEdit": "writing",
-    "Bash": "running", "PowerShell": "running",
-    "Task": "working", "Agent": "working",
+    "Read": "reading",
+    "NotebookRead": "reading",
+    "Grep": "searching",
+    "Glob": "searching",
+    "WebSearch": "searching",
+    "WebFetch": "reading",
+    "Edit": "writing",
+    "Write": "writing",
+    "NotebookEdit": "writing",
+    "Bash": "running",
+    "PowerShell": "running",
+    "Task": "working",
+    "Agent": "working",
 }
 
 
@@ -49,10 +58,12 @@ def report(state: str, detail: str = "", cwd: str = "", session_id: str = "") ->
     """Best-effort. Never raises, never blocks the caller's decision, never speaks out of scope."""
     try:
         from agent.harness.scope import session_in_scope
+
         if not session_in_scope(cwd or os.getcwd()):
             return
         agent = os.getenv("AKASHIC_AGENT_ID") or "claude"
         from core.comm import control
+
         if state:
             control.set_activity(agent, state, detail)
         else:
@@ -85,10 +96,11 @@ def _beat_seat(agent: str, state: str, session_id: str) -> None:
     able to page.
     """
     if not session_id:
-        return                      # no seat identity to beat; a bare agent id is governed by the
-                                    # progress pulse instead, which is the doctor's own fallback
+        return  # no seat identity to beat; a bare agent id is governed by the
+        # progress pulse instead, which is the doctor's own fallback
     try:
         from core.comm import roster
+
         ns = os.getenv("BIFROST_NAMESPACE") or "bifrost"
         roster.heartbeat(ns, agent, session_id, phase=(state or "idle"))
     except Exception:

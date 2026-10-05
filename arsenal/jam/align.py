@@ -15,11 +15,11 @@ Alignment = {session, method: L1|L2|L3|L4, error_ms, bar0_t_ms, anchor, page_id,
 A buffered session without opened_at_client is refused at L4: its server open time can be an hour late. Every
 anchor has the shape tempomap.session_t_ms takes, so one formula serves all four levels. Read only.
 """
+
 from __future__ import annotations
 
 import math
 from datetime import datetime
-from typing import List, Optional, Tuple
 
 from arsenal.jam import tempomap
 
@@ -27,7 +27,7 @@ ERROR_MS = {"L1": 2, "L2": 2, "L3": 50, "L4": 150}
 OVERLAP_SLACK_MS = 5000
 
 
-def epoch_ms_of(iso) -> Optional[float]:
+def epoch_ms_of(iso) -> float | None:
     if not isinstance(iso, str) or not iso:
         return None
     try:
@@ -40,7 +40,7 @@ def _num(x) -> bool:
     return isinstance(x, (int, float)) and not isinstance(x, bool) and math.isfinite(x)
 
 
-def session_window(info: dict) -> Tuple[Optional[float], Optional[float]]:
+def session_window(info: dict) -> tuple[float | None, float | None]:
     """(start, end) of a session in epoch ms: its open time (client clock first) plus its last event time."""
     meta = info.get("meta") or {}
     start = epoch_ms_of(meta.get("opened_at_client")) or epoch_ms_of(info.get("opened_at"))
@@ -49,7 +49,7 @@ def session_window(info: dict) -> Tuple[Optional[float], Optional[float]]:
     return start, start + max(0, int(info.get("last_t_ms") or 0))
 
 
-def run_window(run: dict, events: List[dict]) -> Tuple[Optional[float], Optional[float]]:
+def run_window(run: dict, events: list[dict]) -> tuple[float | None, float | None]:
     start = run.get("start_epoch_ms")
     if start is None:
         return None, None
@@ -61,17 +61,35 @@ def run_window(run: dict, events: List[dict]) -> Tuple[Optional[float], Optional
 
 def _result(method: str, info: dict, run: dict, anchor: dict, **extra) -> dict:
     bar0 = tempomap.session_t_ms(run["segments"], run["beats_per_bar"], 0, 0, anchor)
-    out = {"session": info.get("session"), "run": run.get("run"), "method": method, "error_ms": ERROR_MS[method],
-           "bar0_t_ms": bar0, "anchor": anchor, "page_id": None, "approx": method == "L4", "refused": False,
-           "reason": None}
+    out = {
+        "session": info.get("session"),
+        "run": run.get("run"),
+        "method": method,
+        "error_ms": ERROR_MS[method],
+        "bar0_t_ms": bar0,
+        "anchor": anchor,
+        "page_id": None,
+        "approx": method == "L4",
+        "refused": False,
+        "reason": None,
+    }
     out.update(extra)
     return out
 
 
-def align_session(run: dict, events: List[dict], info: dict) -> dict:
+def align_session(run: dict, events: list[dict], info: dict) -> dict:
     session = info.get("session")
-    base = {"session": session, "run": run.get("run"), "method": None, "error_ms": None, "bar0_t_ms": None,
-            "anchor": None, "page_id": None, "approx": False, "refused": True}
+    base = {
+        "session": session,
+        "run": run.get("run"),
+        "method": None,
+        "error_ms": None,
+        "bar0_t_ms": None,
+        "anchor": None,
+        "page_id": None,
+        "approx": False,
+        "refused": True,
+    }
     if not run.get("segments"):
         return dict(base, reason="the run never started (it has no bars)")
     meta = info.get("meta") or {}
@@ -91,8 +109,12 @@ def align_session(run: dict, events: List[dict], info: dict) -> dict:
     if client is not None:
         return _result("L3", info, run, {"bar_epoch_ms": 0.0, "perf_ms": 0.0, "t0_perf_ms": client})
     if meta.get("buffered"):
-        return dict(base, method="L4", reason="the session was buffered and has no opened_at_client, so its server "
-                                              "open time can be far from its first note")
+        return dict(
+            base,
+            method="L4",
+            reason="the session was buffered and has no opened_at_client, so its server "
+            "open time can be far from its first note",
+        )
     opened = epoch_ms_of(info.get("opened_at"))
     if opened is None:
         return dict(base, reason="the session has no open time")
@@ -103,9 +125,9 @@ def bar_t_ms(alignment: dict, run: dict, bar: int, beat: float = 0) -> float:
     return tempomap.session_t_ms(run["segments"], run["beats_per_bar"], bar, beat, alignment["anchor"])
 
 
-def overlapping(run: dict, events: List[dict], store, slack_ms: float = OVERLAP_SLACK_MS) -> List[str]:
+def overlapping(run: dict, events: list[dict], store, slack_ms: float = OVERLAP_SLACK_MS) -> list[str]:
     rs, re_ = run_window(run, events)
-    if rs is None:
+    if rs is None or re_ is None:  # run_window gives both or neither
         return []
     out = []
     for row in store.list():
@@ -114,12 +136,12 @@ def overlapping(run: dict, events: List[dict], store, slack_ms: float = OVERLAP_
         except Exception:  # an unreadable session is not an overlap
             continue
         ss, se = session_window(info)
-        if ss is not None and ss <= re_ + slack_ms and se >= rs - slack_ms:
+        if ss is not None and se is not None and ss <= re_ + slack_ms and se >= rs - slack_ms:
             out.append(row["session"])
     return out
 
 
-def align(run: dict, events: List[dict], store, session: Optional[str] = None) -> List[dict]:
+def align(run: dict, events: list[dict], store, session: str | None = None) -> list[dict]:
     if store is None:
         return [{"session": session, "run": run.get("run"), "method": None, "refused": True, "reason": "no log"}]
     sessions = [session] if session else overlapping(run, events, store)

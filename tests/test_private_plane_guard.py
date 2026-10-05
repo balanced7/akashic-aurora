@@ -32,6 +32,7 @@ slice. This slice makes the live hole un-reopenable while that gets designed pro
 
 Run: py -m pytest tests/test_private_plane_guard.py -q
 """
+
 from __future__ import annotations
 
 import os
@@ -41,10 +42,10 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.trust import private_plane as PP  # noqa: E402
+from core.trust import private_plane as PP
 
 
-@pytest.fixture()
+@pytest.fixture
 def plane(tmp_path):
     """A private plane holding one assessment, mirroring the live shape."""
     # SYNTHETIC identifiers on purpose. The first draft used the REAL atom id, and the guard
@@ -54,11 +55,12 @@ def plane(tmp_path):
     priv = tmp_path / "private" / "assessments"
     priv.mkdir(parents=True)
     (priv / "20260101_synthetic-sample-dossier_ff00aa.md").write_text(
-        "# A synthetic dossier\n\nname: synthetic-sample-dossier\n"
-        "fixture body, no real content.\n", encoding="utf-8")
+        "# A synthetic dossier\n\nname: synthetic-sample-dossier\nfixture body, no real content.\n", encoding="utf-8"
+    )
     (priv / "atoms-private.jsonl").write_text(
-        '{"id": "art_20260101_synthetic-sample-dossier_ff00aa", '
-        '"title": "synthetic-sample-dossier"}\n', encoding="utf-8")
+        '{"id": "art_20260101_synthetic-sample-dossier_ff00aa", "title": "synthetic-sample-dossier"}\n',
+        encoding="utf-8",
+    )
     return tmp_path
 
 
@@ -95,10 +97,8 @@ def test_p2b_existence_metadata_counts_as_a_leak(plane):
     """deepseek's sharpest point: publishing IDS and TITLES leaks even with no body."""
     tracked = plane / "docs" / "MAP.md"
     tracked.parent.mkdir(parents=True, exist_ok=True)
-    tracked.write_text("atom art_20260101_synthetic-sample-dossier_ff00aa -> report\n",
-                       encoding="utf-8")
-    assert PP.scan([str(tracked)], root=plane), \
-        "an id-only reference is still a leak -- existence metadata is content"
+    tracked.write_text("atom art_20260101_synthetic-sample-dossier_ff00aa -> report\n", encoding="utf-8")
+    assert PP.scan([str(tracked)], root=plane), "an id-only reference is still a leak -- existence metadata is content"
 
 
 # ---------------------------------------------------------------- P3: the plane itself is ok
@@ -138,5 +138,7 @@ def test_p5_a_finding_names_the_marker_the_file_and_the_remedy(plane):
     tracked.parent.mkdir(parents=True, exist_ok=True)
     tracked.write_text("see synthetic-sample-dossier\n", encoding="utf-8")
     f = PP.scan([str(tracked)], root=plane)[0]
-    assert f["marker"] and f["path"] and f["line"]
+    assert f["marker"]
+    assert f["path"]
+    assert f["line"]
     assert f["remedy"], "a refusal that does not say what to do next gets bypassed"

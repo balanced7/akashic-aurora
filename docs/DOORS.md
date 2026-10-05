@@ -3,12 +3,12 @@
 Status: current
 Class: reference
 
-> Do NOT edit by hand. Regenerate with `py scripts/generators/gen_doors.py`.
+> Do NOT edit by hand. Regenerate with `uv run scripts/generators/gen_doors.py`.
 > What goes IN each door and what it is FOR, derived from the door's own declaration
 > (argparse). Companion to MAP.md (modules), PHYSICS.md (bounds/flags). Guarded by
 > check_comprehensibility so it cannot silently rot.
 
-## CLI door -- `py agent_cli.py <verb>` (107 verbs)
+## CLI door -- `uv run agent_cli.py <verb>` (107 verbs)
 
 The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepted values.
 

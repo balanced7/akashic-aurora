@@ -8,20 +8,20 @@ Three parts built:
   2. T056 join: runner passes tokens to turn_metrics.record() at each turn-close
   3. Doctor line: examine() reads the journal and renders a cost finding
 """
-import json
+
 import inspect
+import json
 import os
 import sys
 import time
 
-import pytest
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from core.comm import doctor
+from core.comm import turn_metrics as tm
+from scripts.runner_token_journal import TokenJournal
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, ROOT)
-
-from scripts.runner_token_journal import TokenJournal
-from core.comm import turn_metrics as tm
-from core.comm import doctor
 
 
 # --------------------------------------------------------------- W1-P1 TokenJournal
@@ -31,7 +31,8 @@ def test_p1_token_journal_new_day_creates_fresh(tmp_path):
     assert j.prompt_tokens == 0
     assert j.completion_tokens == 0
     j._save()
-    raw = json.loads(open(j._path, encoding="utf-8").read())
+    with open(j._path, encoding="utf-8") as fh:
+        raw = json.loads(fh.read())
     assert raw["agent"] == "deepseek"
     assert raw["date"] == time.strftime("%Y-%m-%d")
 
@@ -81,9 +82,17 @@ def test_p2_turn_metrics_accepts_tokens_kwarg():
 def test_p3_doctor_cost_line_renders(tmp_path):
     path = os.path.join(str(tmp_path), f"runner_deepseek_{time.strftime('%Y-%m-%d')}.json")
     with open(path, "w", encoding="utf-8") as f:
-        json.dump({"agent": "deepseek", "date": time.strftime("%Y-%m-%d"),
-                   "turns": 12, "prompt_tokens": 45000, "completion_tokens": 18000,
-                   "cost_est": 0.06}, f)
+        json.dump(
+            {
+                "agent": "deepseek",
+                "date": time.strftime("%Y-%m-%d"),
+                "turns": 12,
+                "prompt_tokens": 45000,
+                "completion_tokens": 18000,
+                "cost_est": 0.06,
+            },
+            f,
+        )
 
     finding = doctor._token_cost_line("deepseek", journal_dir=str(tmp_path))
     assert finding is not None
@@ -100,6 +109,14 @@ def test_p3_doctor_silent_when_absent(tmp_path):
 def test_p3_doctor_silent_when_zero(tmp_path):
     path = os.path.join(str(tmp_path), f"runner_deepseek_{time.strftime('%Y-%m-%d')}.json")
     with open(path, "w", encoding="utf-8") as f:
-        json.dump({"agent": "deepseek", "date": time.strftime("%Y-%m-%d"),
-                   "turns": 0, "prompt_tokens": 0, "completion_tokens": 0}, f)
+        json.dump(
+            {
+                "agent": "deepseek",
+                "date": time.strftime("%Y-%m-%d"),
+                "turns": 0,
+                "prompt_tokens": 0,
+                "completion_tokens": 0,
+            },
+            f,
+        )
     assert doctor._token_cost_line("deepseek", journal_dir=str(tmp_path)) is None

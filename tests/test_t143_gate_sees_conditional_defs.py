@@ -41,6 +41,7 @@ exactly that line.
 
 Run: py -m pytest tests/test_t143_gate_sees_conditional_defs.py -q
 """
+
 import os
 import sys
 
@@ -48,50 +49,46 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 sys.path.insert(0, os.path.join(ROOT, "scripts", "checkers"))
 
-import check_wiring  # noqa: E402
+import check_wiring  # noqa: E402  # sys.path bootstrap
 
 
 def _names(tmp_path, body):
     p = tmp_path / "core" / "comm"
     p.mkdir(parents=True, exist_ok=True)
     (p / "probe.py").write_text(body, encoding="utf-8")
-    return {n for n, _lo, _hi, _m in
-            check_wiring.public_defs("core/comm/probe.py", root=str(tmp_path))}
+    return {n for n, _lo, _hi, _m in check_wiring.public_defs("core/comm/probe.py", root=str(tmp_path))}
 
 
 def test_p1_def_inside_a_module_level_if_is_a_candidate(tmp_path):
-    got = _names(tmp_path,
-                 "_FLAG = False\n"
-                 "if _FLAG:\n"
-                 "    def dead_handler_v1():\n"
-                 "        return 99\n")
+    got = _names(tmp_path, "_FLAG = False\nif _FLAG:\n    def dead_handler_v1():\n        return 99\n")
     assert "dead_handler_v1" in got, (
         "the red team's A1: a dead public function hid inside a module-level `if` and the gate "
-        "reported the whole tree clean")
+        "reported the whole tree clean"
+    )
 
 
 def test_p2_try_and_with_wrappers_too(tmp_path):
-    got = _names(tmp_path,
-                 "try:\n"
-                 "    def from_try():\n"
-                 "        return 1\n"
-                 "except ImportError:\n"
-                 "    def from_except():\n"
-                 "        return 2\n"
-                 "\n"
-                 "import contextlib\n"
-                 "with contextlib.suppress(Exception):\n"
-                 "    def from_with():\n"
-                 "        return 3\n")
+    got = _names(
+        tmp_path,
+        "try:\n"
+        "    def from_try():\n"
+        "        return 1\n"
+        "except ImportError:\n"
+        "    def from_except():\n"
+        "        return 2\n"
+        "\n"
+        "import contextlib\n"
+        "with contextlib.suppress(Exception):\n"
+        "    def from_with():\n"
+        "        return 3\n",
+    )
     assert {"from_try", "from_except", "from_with"} <= got
 
 
 def test_p3_class_inside_a_conditional(tmp_path):
-    got = _names(tmp_path,
-                 "if True:\n"
-                 "    class Thing:\n"
-                 "        def method_in_hidden_class(self):\n"
-                 "            return 1\n")
+    got = _names(
+        tmp_path, "if True:\n    class Thing:\n        def method_in_hidden_class(self):\n            return 1\n"
+    )
     assert "method_in_hidden_class" in got
 
 
@@ -99,25 +96,24 @@ def test_p4_a_nested_def_is_still_not_a_candidate(tmp_path):
     """The fix must not overreach. A closure is private by construction; reporting closures would
     flood the gate, and a flooded gate gets silenced -- the failure this file's sibling records
     twice."""
-    got = _names(tmp_path,
-                 "def outer():\n"
-                 "    def inner_helper():\n"
-                 "        return 1\n"
-                 "    return inner_helper()\n")
+    got = _names(tmp_path, "def outer():\n    def inner_helper():\n        return 1\n    return inner_helper()\n")
     assert "outer" in got
     assert "inner_helper" not in got
 
 
 def test_p5_the_plain_case_still_works(tmp_path):
-    got = _names(tmp_path,
-                 "def plain():\n"
-                 "    return 1\n"
-                 "\n"
-                 "def _private():\n"
-                 "    return 2\n"
-                 "\n"
-                 "class C:\n"
-                 "    def meth(self):\n"
-                 "        return 3\n")
-    assert "plain" in got and "meth" in got
+    got = _names(
+        tmp_path,
+        "def plain():\n"
+        "    return 1\n"
+        "\n"
+        "def _private():\n"
+        "    return 2\n"
+        "\n"
+        "class C:\n"
+        "    def meth(self):\n"
+        "        return 3\n",
+    )
+    assert "plain" in got
+    assert "meth" in got
     assert "_private" not in got
