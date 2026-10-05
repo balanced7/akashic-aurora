@@ -14,16 +14,17 @@ Detectors (cheap, available signals + a seam for the strong one):
 Confirmed tags are trusted -- never flagged. Read-only on the substrate AND on the tags.
 See docs/library/design/20260709_tag-governance-safe-self-improving-taggi_1c9052.md.
 """
+
 import json
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Callable, List, Optional, Tuple
 
 from core.foundation.store import Store, create_store
 from core.narrative.schema import Beat, beat_key
 from core.narrative.tagging import TagHistory
 
 # scorer seam: given a Beat, return (predicted_track, confidence) or (None, 0.0) to abstain.
-Scorer = Callable[[Beat], Tuple[Optional[str], float]]
+Scorer = Callable[[Beat], tuple[str | None, float]]
 
 
 @dataclass
@@ -31,20 +32,26 @@ class Suspect:
     beat_id: str
     track: str
     confidence: float
-    reasons: List[str] = field(default_factory=list)
+    reasons: list[str] = field(default_factory=list)
     severity: float = 0.0
     summary: str = ""
 
     def to_dict(self):
-        return {"beat_id": self.beat_id, "track": self.track, "confidence": self.confidence,
-                "reasons": self.reasons, "severity": round(self.severity, 3), "summary": self.summary}
+        return {
+            "beat_id": self.beat_id,
+            "track": self.track,
+            "confidence": self.confidence,
+            "reasons": self.reasons,
+            "severity": round(self.severity, 3),
+            "summary": self.summary,
+        }
 
 
 class TagAuditor:
-    def __init__(self, store: Optional[Store] = None):
+    def __init__(self, store: Store | None = None):
         self.store = store if store is not None else create_store()
 
-    def _load(self, beat_id: str) -> Optional[Beat]:
+    def _load(self, beat_id: str) -> Beat | None:
         raw = self.store.get(beat_key(beat_id))
         if not raw:
             return None
@@ -53,18 +60,17 @@ class TagAuditor:
         except (ValueError, TypeError):
             return None
 
-    def flag_suspect_tags(self, *, low_conf_threshold: float = 0.5,
-                          scorer: Optional[Scorer] = None) -> List[Suspect]:
+    def flag_suspect_tags(self, *, low_conf_threshold: float = 0.5, scorer: Scorer | None = None) -> list[Suspect]:
         """Return likely mis-tags, worst-first. NEVER mutates (I6)."""
-        ids = self.store.zrange("narr:beats:timeline", 0, -1)        # ascending by time
+        ids = self.store.zrange("narr:beats:timeline", 0, -1)  # ascending by time
         beats = [b for b in (self._load(i) for i in ids) if b is not None]
-        suspects: List[Suspect] = []
+        suspects: list[Suspect] = []
         for idx, b in enumerate(beats):
             cur = TagHistory.from_list(b.tag_history).current()
             conf = cur.confidence if cur else 0.1
             if cur and cur.confirmed:
-                continue                                            # confirmed = trusted, never flagged
-            reasons: List[str] = []
+                continue  # confirmed = trusted, never flagged
+            reasons: list[str] = []
             if conf < low_conf_threshold:
                 reasons.append("low_confidence")
             prev = beats[idx - 1].track if idx > 0 else None
@@ -80,16 +86,17 @@ class TagAuditor:
                     reasons.append(f"model_suggests:{pred}")
             if reasons:
                 sev = len(reasons) + max(0.0, low_conf_threshold - conf)
-                suspects.append(Suspect(b.id, b.track or "unknown", round(conf, 3),
-                                        reasons, sev, (b.summary or "")[:80]))
+                suspects.append(
+                    Suspect(b.id, b.track or "unknown", round(conf, 3), reasons, sev, (b.summary or "")[:80])
+                )
         suspects.sort(key=lambda s: -s.severity)
         return suspects
 
 
-_INSTANCE: Optional[TagAuditor] = None
+_INSTANCE: TagAuditor | None = None
 
 
-def get_tag_auditor(store: Optional[Store] = None) -> TagAuditor:
+def get_tag_auditor(store: Store | None = None) -> TagAuditor:
     global _INSTANCE
     if store is not None:
         return TagAuditor(store)

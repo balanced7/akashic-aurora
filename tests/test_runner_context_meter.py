@@ -26,9 +26,10 @@ And one guard learned the hard way today: T078-W1's TokenJournal shipped unit-gr
 recorded a single turn in production, because nothing pinned that a runner actually reached
 it. So the last pin here asserts the counters are wired to the real accumulation path.
 """
-from pathlib import Path
+
 import ast
 import sys
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
@@ -49,6 +50,7 @@ class _Usage:
 def _agent():
     """A bare Agent instance without running __init__ (no API key, no network)."""
     import deepseek_chat as dc
+
     a = dc.Agent.__new__(dc.Agent)
     a.prompt_tokens = a.completion_tokens = 0
     a.cache_hit_tokens = a.cache_miss_tokens = 0
@@ -71,15 +73,19 @@ def test_missing_cache_fields_do_not_break_accounting():
     """Not every provider reports a cache split. Absence must degrade, never raise."""
     a = _agent()
     a._absorb_usage(_Usage(500, 100))
-    assert a.prompt_tokens == 500 and a.completion_tokens == 100
-    assert a.cache_hit_tokens == 0 and a.cache_miss_tokens == 0
+    assert a.prompt_tokens == 500
+    assert a.completion_tokens == 100
+    assert a.cache_hit_tokens == 0
+    assert a.cache_miss_tokens == 0
 
 
 def test_cache_rate_is_reportable_and_safe_at_zero():
     a = _agent()
     assert a.cache_rate() is None, "no data must report None, never a fake 0%"
     a._absorb_usage(_Usage(1000, 10, hit=800, miss=200))
-    assert abs(a.cache_rate() - 0.8) < 1e-6
+    rate = a.cache_rate()
+    assert rate is not None
+    assert abs(rate - 0.8) < 1e-6
 
 
 def test_context_high_water_tracks_the_real_driver():
@@ -98,10 +104,12 @@ def test_meter_is_wired_to_the_streaming_usage_path():
     """T078-W1's lesson: a meter nothing calls is indistinguishable from a dead one."""
     tree = ast.parse(CHAT_SRC)
     calls = [
-        n for n in ast.walk(tree)
-        if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+        n
+        for n in ast.walk(tree)
+        if isinstance(n, ast.Call)
+        and isinstance(n.func, ast.Attribute)
         and n.func.attr in ("_absorb_usage", "_mark_context")
     ]
-    names = {c.func.attr for c in calls}
+    names = {c.func.attr for c in calls if isinstance(c.func, ast.Attribute)}
     assert "_absorb_usage" in names, "usage is parsed but _absorb_usage is never called"
     assert "_mark_context" in names, "context high-water is defined but never sampled"

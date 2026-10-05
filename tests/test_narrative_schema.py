@@ -3,16 +3,30 @@ Tests for the narrative schema (Slice 0). Pure data shapes — no behavior yet.
 
 Run: py tests/test_narrative_schema.py
 """
-import sys
+
 import os
+import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.narrative.schema import (
-    Beat, Chapter, Track, Theme, Atlas, Edge,
-    BEAT_KINDS, DEFAULT_WEIGHT, clamp_weight, valid_relationship,
-    validate_beat, validate_edge,
-    beat_key, chapter_key, track_key, theme_key, ATLAS_KEY,
+    ATLAS_KEY,
+    BEAT_KINDS,
+    DEFAULT_WEIGHT,
+    Atlas,
+    Beat,
+    Chapter,
+    Edge,
+    Theme,
+    Track,
+    beat_key,
+    chapter_key,
+    clamp_weight,
+    theme_key,
+    track_key,
+    valid_relationship,
+    validate_beat,
+    validate_edge,
 )
 
 
@@ -38,17 +52,25 @@ def test_edges_validate_against_real_vocabulary():
 
 
 def test_weight_and_kinds():
-    assert clamp_weight(9) == 5 and clamp_weight(-3) == 0 and clamp_weight("nope") == 1
-    assert DEFAULT_WEIGHT["milestone"] == 5 and DEFAULT_WEIGHT["note"] == 1
+    assert clamp_weight(9) == 5
+    assert clamp_weight(-3) == 0
+    assert clamp_weight("nope") == 1
+    assert DEFAULT_WEIGHT["milestone"] == 5
+    assert DEFAULT_WEIGHT["note"] == 1
     assert set(BEAT_KINDS) == set(DEFAULT_WEIGHT.keys())
     print("  narrative weight + kinds OK")
 
 
 def test_beat_roundtrip_and_validation():
     b = Beat(
-        id="beat_1", at="2026-06-27T15:00:00", kind="learning",
-        summary="recorded the narrative prior-art", source="learn:experiment:narrative_memory_prior_art",
-        weight=4, track="research", themes=["local-first"],
+        id="beat_1",
+        at="2026-06-27T15:00:00",
+        kind="learning",
+        summary="recorded the narrative prior-art",
+        source="learn:experiment:narrative_memory_prior_art",
+        weight=4,
+        track="research",
+        themes=["local-first"],
         relates=[Edge("member_of", "narr:theme:local-first"), Edge("part_of", "narr:chapter:c1")],
         chapter="narr:chapter:c1",
     )
@@ -57,18 +79,25 @@ def test_beat_roundtrip_and_validation():
     assert again == b, "beat must round-trip through dict"
     assert isinstance(again.relates[0], Edge)
     # a source-less beat with a bad kind + invalid edge is caught
-    bad = Beat(id="x", at="t", kind="bogus", summary="", source="", weight=99,
-               relates=[Edge("led_to", "y")])
+    bad = Beat(id="x", at="t", kind="bogus", summary="", source="", weight=99, relates=[Edge("led_to", "y")])
     probs = validate_beat(bad)
-    assert any("kind" in p for p in probs) and any("source" in p for p in probs) \
-        and any("weight" in p for p in probs) and any("led_to" in p for p in probs)
+    assert any("kind" in p for p in probs)
+    assert any("source" in p for p in probs)
+    assert any("weight" in p for p in probs)
+    assert any("led_to" in p for p in probs)
     print("  beat round-trip + validation OK")
 
 
 def test_other_nodes_roundtrip():
-    c = Chapter(id="c1", track="research", title="Narrative prior-art",
-                span_start="2026-06-27T14:00:00", beats=["beat_1"],
-                relates=[Edge("precedes", "narr:chapter:c2")], recorded_at="2026-06-27T16:00:00")
+    c = Chapter(
+        id="c1",
+        track="research",
+        title="Narrative prior-art",
+        span_start="2026-06-27T14:00:00",
+        beats=["beat_1"],
+        relates=[Edge("precedes", "narr:chapter:c2")],
+        recorded_at="2026-06-27T16:00:00",
+    )
     assert Chapter.from_dict(c.to_dict()) == c
     t = Track(id="research", title="Research", domain="research", chapters=["c1"])
     assert Track.from_dict(t.to_dict()) == t

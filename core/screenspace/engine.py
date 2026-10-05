@@ -29,16 +29,19 @@ never the raw screen string.
 
 from __future__ import annotations
 
+import contextlib
 import time
 from dataclasses import dataclass, field
-from typing import Any, List, Optional
+from typing import Any
 
-from core.screenspace import capture
-from core.screenspace import canary  # §1 amended ruling: positive canary read (uia_available)
+from core.screenspace import (
+    canary,  # §1 amended ruling: positive canary read (uia_available)
+    capture,
+)
 from core.screenspace.foreground import ForegroundTracker
 
-
 # --------------------------------------------------------------------------- result types
+
 
 @dataclass
 class ScreenResult:
@@ -50,11 +53,11 @@ class ScreenResult:
     """
 
     level: str = "L0"
-    window: Optional[str] = None
-    focus: Optional[str] = None
+    window: str | None = None
+    focus: str | None = None
     gen: int = 0
     stale_ms: int = 0
-    elevated: Optional[bool] = None
+    elevated: bool | None = None
     act_available: bool = False
     uia_unavailable: bool = False  # §1 ruling: non-interactive station -> reads UNCHECKABLE
     source: str = "screen"
@@ -84,10 +87,10 @@ class ScreenDelta:
 
     since_gen: int = 0
     current_gen: int = 0
-    appeared: List[dict] = field(default_factory=list)
-    vanished: List[dict] = field(default_factory=list)
-    changed: List[dict] = field(default_factory=list)
-    focus_trail: List[str] = field(default_factory=list)
+    appeared: list[dict] = field(default_factory=list)
+    vanished: list[dict] = field(default_factory=list)
+    changed: list[dict] = field(default_factory=list)
+    focus_trail: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict:
         return {
@@ -105,10 +108,10 @@ class Ref:
     """A stable see-side reference (§3: see-side currency is refs+gen)."""
 
     gen: int = 0
-    role: Optional[str] = None
-    name: Optional[str] = None
-    bounds_quantized: Optional[dict] = None
-    text_redacted: Optional[str] = None
+    role: str | None = None
+    name: str | None = None
+    bounds_quantized: dict | None = None
+    text_redacted: str | None = None
 
 
 @dataclass
@@ -123,11 +126,12 @@ class TextResult:
         return self.provenance.get("source", "screen")
 
     @property
-    def window(self) -> Optional[str]:
+    def window(self) -> str | None:
         return self.provenance.get("window")
 
 
 # --------------------------------------------------------------------------- gen clock
+
 
 class ObservationStream:
     """A monotone gen clock: the see-side currency (refs+gen). Pure, testable.
@@ -138,12 +142,11 @@ class ObservationStream:
 
     def __init__(self) -> None:
         self.gen = 0
-        self.focus_trail: List[dict] = []   # {"gen": n, "focus": name, "ts_ms": t}
+        self.focus_trail: list[dict] = []  # {"gen": n, "focus": name, "ts_ms": t}
 
-    def observe(self, focus: Optional[str]) -> int:
+    def observe(self, focus: str | None) -> int:
         self.gen += 1
-        self.focus_trail.append({"gen": self.gen, "focus": focus,
-                                 "ts_ms": int(time.time() * 1000)})
+        self.focus_trail.append({"gen": self.gen, "focus": focus, "ts_ms": int(time.time() * 1000)})
         return self.gen
 
     def delta_since(self, since_gen: int) -> ScreenDelta:
@@ -185,10 +188,8 @@ def _ensure_tracker_started() -> None:
     if _tracker_started:
         return
     _tracker_started = True  # attempted once; start() is idempotent regardless
-    try:
+    with contextlib.suppress(Exception):  # fail-soft: cache reads return whatever is (or is not) cached
         _tracker.start()
-    except Exception:  # noqa: BLE001
-        pass  # fail-soft: cache reads return whatever is (or is not) cached
 
 
 # --------------------------------------------------------------------------- redaction
@@ -214,7 +215,8 @@ def _redact_text(text: str) -> str:
 
 # --------------------------------------------------------------------------- verbs
 
-def _current_focus() -> Optional[str]:
+
+def _current_focus() -> str | None:
     """Cache-first foreground window name from the shared ForegroundTracker (fail-soft).
 
     §1.1: the foreground source is the WinEventHook tracker, not a per-call UIA poll.
@@ -271,7 +273,7 @@ def peek(level: str = "L0", scope=None, budget=None) -> ScreenResult:
         window=focus,
         focus=focus,
         gen=gen,
-        stale_ms=0,          # gen just observed -> current
+        stale_ms=0,  # gen just observed -> current
         elevated=elevated,
         act_available=False,  # observe-only; act is gated on step 0
         uia_unavailable=uia_unavailable,
@@ -280,7 +282,7 @@ def peek(level: str = "L0", scope=None, budget=None) -> ScreenResult:
     )
 
 
-def refs(scope=None) -> List[Ref]:
+def refs(scope=None) -> list[Ref]:
     """Stable see-side references with gen currency. v1 derives refs from the
     current focus only (the roster/roster-delta is shadow.py's F2-gated job)."""
     focus = _current_focus()

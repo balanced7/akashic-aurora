@@ -21,6 +21,7 @@ failed BoundaryOutcome with no reason cannot be constructed. Silence is not a st
 
 Run: py -m pytest tests/test_t170_outcome_cannot_be_silent.py -q
 """
+
 import os
 import sys
 
@@ -29,13 +30,13 @@ import pytest
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from core.outcome import BoundaryOutcome  # noqa: E402
+from core.outcome import BoundaryOutcome  # noqa: E402  # sys.path bootstrap
 
 
 def test_o1_a_failure_without_a_reason_cannot_be_built():
     with pytest.raises(ValueError, match="why"):
         BoundaryOutcome(ok=False)
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="require a `why`"):
         BoundaryOutcome(ok=False, why="   ")
     assert BoundaryOutcome.failed("spawn refused: lock held").why
 
@@ -43,15 +44,19 @@ def test_o1_a_failure_without_a_reason_cannot_be_built():
 def test_o2_a_partial_without_a_reason_cannot_be_built():
     """The state that did not exist. deepseek-red produced 109KB of correct analysis and returned
     "" because there was no way to say 'I did some of it'."""
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="require a `why`"):
         BoundaryOutcome(ok=True, partial=True)
     o = BoundaryOutcome.partially("budget exhausted after 30 tool rounds", ref="msg-1")
-    assert o.partial and o.why and o.ref == "msg-1"
+    assert o.partial
+    assert o.why
+    assert o.ref == "msg-1"
 
 
 def test_o3_success_needs_no_reason():
     o = BoundaryOutcome.done(ref="1785818229175-0")
-    assert o.ok and o.why == "" and bool(o) is True
+    assert o.ok
+    assert o.why == ""
+    assert bool(o) is True
 
 
 def test_o4_partial_is_falsy():
@@ -69,7 +74,8 @@ def test_o5_caught_records_the_exception_without_reraising():
     except TypeError as e:
         o = BoundaryOutcome.caught(e, where="spawn_listener", ref="cdfb9126")
     assert o.ok is False
-    assert "TypeError" in o.why and "2 were given" in o.why
+    assert "TypeError" in o.why
+    assert "2 were given" in o.why
     assert o.ref == "cdfb9126"
     assert o.detail.get("exception") == "TypeError"
 
@@ -78,7 +84,9 @@ def test_o6_one_render_for_every_surface():
     assert BoundaryOutcome.done(ref="abc").line().startswith("OK")
     assert "FAILED" in BoundaryOutcome.failed("no live seat", ref="x").line()
     p = BoundaryOutcome.partially("budget exhausted", ref="m1").line()
-    assert p.startswith("PARTIAL") and "budget exhausted" in p and "ref=m1" in p
+    assert p.startswith("PARTIAL")
+    assert "budget exhausted" in p
+    assert "ref=m1" in p
 
 
 def test_o7_an_outcome_drops_into_a_bool_expecting_callsite_unchanged():
@@ -89,6 +97,7 @@ def test_o7_an_outcome_drops_into_a_bool_expecting_callsite_unchanged():
     already means "fully happened" -- and the caller gains a REASON it can print. That is the T167
     fix falling out of the type instead of being hand-written per boundary.
     """
+
     def spawn_ok(sid):
         return BoundaryOutcome.done(ref=f"pid-{sid}")
 
@@ -101,5 +110,5 @@ def test_o7_an_outcome_drops_into_a_bool_expecting_callsite_unchanged():
     # the EXISTING consumer logic, verbatim in shape
     assert bool(spawn_ok("cdfb9126")) is True
     bad = spawn_broken("cdfb9126")
-    assert bool(bad) is False                      # trigger correctly left for the next tick
-    assert "TypeError" in bad.line()               # ...and the silence is gone, for free
+    assert bool(bad) is False  # trigger correctly left for the next tick
+    assert "TypeError" in bad.line()  # ...and the silence is gone, for free

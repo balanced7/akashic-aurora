@@ -27,13 +27,14 @@ memory -- is what asks.
 
 Run: py -m pytest tests/test_t177_kind_policy_guard.py -q
 """
+
 import os
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from scripts.checkers import check_kind_policy as C  # noqa: E402
+from scripts.checkers import check_kind_policy as C  # noqa: E402  # sys.path bootstrap
 
 
 # --- synthetic fixtures: the pins test the MECHANISM, not today's tree -------------------
@@ -55,13 +56,13 @@ def test_k1_same_identifier_different_membership_is_a_conflict():
     assert len(conflicts) == 1, "one identifier, two memberships -- that is the T175 defect"
     name, detail = conflicts[0][0], str(conflicts[0])
     assert name == "SKIP_KINDS"
-    assert "halt" in detail and "steer" in detail, "the conflict must NAME the disagreement"
+    assert "halt" in detail, "the conflict must NAME the disagreement"
+    assert "steer" in detail, "the conflict must NAME the disagreement"
 
 
 def test_k2_same_identifier_identical_membership_is_not_a_conflict():
     s = _sets(alpha__SKIP_KINDS=["trace", "steer"], beta__SKIP_KINDS=["steer", "trace"])
-    assert C.duplicate_identifier_conflicts(s) == [], (
-        "duplication is not conflict -- two files may legitimately agree")
+    assert C.duplicate_identifier_conflicts(s) == [], "duplication is not conflict -- two files may legitimately agree"
 
 
 def test_k3_unclassified_cross_plane_collision_fails_but_a_classified_one_does_not():
@@ -74,7 +75,8 @@ def test_k3_unclassified_cross_plane_collision_fails_but_a_classified_one_does_n
 def test_k4_orphans_are_the_kinds_in_one_policy_set_or_fewer():
     s = _sets(a__BUS_A=["handoff", "lonely"], b__BUS_B=["handoff"])
     orphans = dict(C.orphans(s, PLANES, plane="bus"))
-    assert "lonely" in orphans and orphans["lonely"] == 1
+    assert "lonely" in orphans
+    assert orphans["lonely"] == 1
     assert "handoff" not in orphans, "two sets is not an orphan"
 
 
@@ -83,7 +85,8 @@ def test_k5_redundancy_is_advisory_and_cannot_gate():
     groups = C.redundancy_candidates(s, PLANES, plane="bus")
     assert sorted(groups[0]) == ["question", "request"], "identical signature = merge CANDIDATE"
     assert C.is_advisory("redundancy") is True, (
-        "this instrument produced 10 confident false positives across planes; it may never gate")
+        "this instrument produced 10 confident false positives across planes; it may never gate"
+    )
 
 
 def test_k6_the_planes_manifest_must_be_total():
@@ -91,16 +94,22 @@ def test_k6_the_planes_manifest_must_be_total():
     missing = C.unassigned_sets(s, PLANES)
     assert missing == ["BRAND_NEW_KINDS"], (
         "a new policy set with no declared plane must FAIL -- otherwise someone has to remember "
-        "to classify it, which is the exact failure this guard exists to prevent")
+        "to classify it, which is the exact failure this guard exists to prevent"
+    )
 
 
 def test_k7_resolution_is_total_unknown_is_never_a_silent_false():
     s = _sets(a__BUS_A=["handoff"])
     assert C.resolve("handoff", "BUS_A", s) == (True, "classified")
     verdict, why = C.resolve("never_seen", "BUS_A", s)
-    assert verdict is False and why == "UNCLASSIFIED", (
+    assert verdict is False, (
         "an unregistered kind must resolve to UNCLASSIFIED, never to a bare False that reads "
-        "identical to a deliberate exclusion -- the whole census finding in one assertion")
+        "identical to a deliberate exclusion -- the whole census finding in one assertion"
+    )
+    assert why == "UNCLASSIFIED", (
+        "an unregistered kind must resolve to UNCLASSIFIED, never to a bare False that reads "
+        "identical to a deliberate exclusion -- the whole census finding in one assertion"
+    )
 
 
 def test_k8_the_ratchet_can_actually_COUNT_this_checkers_output():
@@ -112,10 +121,11 @@ def test_k8_the_ratchet_can_actually_COUNT_this_checkers_output():
     the colon form -- so the hook parsed TWO real violations as ZERO. A guard against silent
     omission, silently omitted. Green in isolation, useless when wired.
     """
-    import io
     import contextlib
+    import io
+
     sys.path.insert(0, os.path.join(ROOT, "scripts", "githooks"))
-    import pre_commit  # noqa: E402
+    import pre_commit
 
     buf = io.StringIO()
     with contextlib.redirect_stdout(buf):
@@ -126,7 +136,8 @@ def test_k8_the_ratchet_can_actually_COUNT_this_checkers_output():
     real = text.count("\n  - [")
     assert counted == real, (
         f"the hook counts {counted} but the checker reported {real} -- a ratchet fed a wrong "
-        f"count is not a ratchet, it is a rubber stamp with room to absorb violations silently")
+        f"count is not a ratchet, it is a rubber stamp with room to absorb violations silently"
+    )
     assert (rc == 1) == (real > 0), "exit code and reported violations must agree"
 
 

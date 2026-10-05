@@ -36,7 +36,6 @@ week-old blockers, the stale gate parked every one, and the park storm timed out
 The classifier and render below are unchanged; twins are now found per packet, and a twin past
 the flip seed is no longer re-delivered.
 """
-import pytest
 
 from core.comm import bifrost_api as A
 
@@ -65,8 +64,10 @@ def test_c2_a_packet_ABSENT_from_the_lane_IS_a_straggler():
 def test_c3_an_unreadable_lane_reports_UNKNOWN_never_a_defect_claim():
     """If the membership check itself fails, the honest answer is 'cannot tell'. Guessing
     'lane write failed' here is how the original alarm earned its false positives."""
+
     def boom(_):
         raise RuntimeError("redis down")
+
     assert A.classify_straggler("abc", lane_has=boom) == "unknown"
 
 
@@ -94,11 +95,12 @@ def test_c7_a_mixed_batch_reports_BOTH_counts_rather_than_the_louder_one():
     """Ten skew and one real failure is a different situation from eleven of either, and
     collapsing them is what hid the single genuine defect for a whole day."""
     out = A.render_straggler_summary({"lane-write-failed": 1, "cursor-skew": 10, "unknown": 2})
-    assert "1" in out and "10" in out and "2" in out
+    assert "1" in out
+    assert "10" in out
+    assert "2" in out
 
 
 def test_c8_an_all_clear_batch_renders_nothing():
     """Silence is correct when there is nothing to say -- the alarm should not fire at all
     on a healthy drain, which is the state it spent the day failing to recognise."""
-    assert A.render_straggler_summary({"lane-write-failed": 0, "cursor-skew": 0,
-                                       "unknown": 0}) == ""
+    assert A.render_straggler_summary({"lane-write-failed": 0, "cursor-skew": 0, "unknown": 0}) == ""

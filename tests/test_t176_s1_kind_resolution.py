@@ -37,6 +37,7 @@ retiring a pin because its instance got fixed would quietly retire the instrumen
 
 Run: py -m pytest tests/test_t176_s1_kind_resolution.py -q
 """
+
 from __future__ import annotations
 
 import os
@@ -46,7 +47,7 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.comm import kinds as K  # noqa: E402
+from core.comm import kinds as K
 
 
 # ---------------------------------------------------------------- P1: totality
@@ -61,11 +62,17 @@ def test_p1_an_unknown_kind_resolves_unclassified_not_false():
 
 def test_p1b_a_registered_kind_resolves_with_a_real_answer():
     yes = K.resolve("handoff", "wake_worthy", plane="bus_kind")
-    assert yes.classified is True and yes.value is True
+    assert yes.classified is True
+    assert yes.value is True
     no = K.resolve("trace", "wake_worthy", plane="bus_kind")
-    assert no.classified is True and no.value is False, (
+    assert no.classified is True, (
         "a kind registered in the dimension's universe but NOT in the set is a real NO -- "
-        "that is the distinction the whole organ exists to make")
+        "that is the distinction the whole organ exists to make"
+    )
+    assert no.value is False, (
+        "a kind registered in the dimension's universe but NOT in the set is a real NO -- "
+        "that is the distinction the whole organ exists to make"
+    )
 
 
 def test_p1c_resolve_never_returns_a_bare_bool():
@@ -74,7 +81,9 @@ def test_p1c_resolve_never_returns_a_bare_bool():
     for kind in ("handoff", "trace", "not_a_kind_at_all"):
         v = K.resolve(kind, "wake_worthy", plane="bus_kind")
         assert not isinstance(v, bool), f"resolve({kind!r}) returned a bare bool"
-        assert hasattr(v, "classified") and hasattr(v, "value") and hasattr(v, "why")
+        assert hasattr(v, "classified")
+        assert hasattr(v, "value")
+        assert hasattr(v, "why")
 
 
 # ---------------------------------------------------------------- P2: unknown dimension
@@ -85,16 +94,18 @@ def test_p2_an_unknown_dimension_is_also_unclassified_and_loud():
 
 
 # ---------------------------------------------------------------- P3: parity, the safety pin
-@pytest.mark.parametrize("dimension,expected", [
-    ("wake_worthy", {"request", "handoff", "reply", "blocker", "question", "completion",
-                     "nudge"}),
-    ("answer", {"reply", "handoff", "completion"}),
-    ("escalate", {"request", "handoff", "question", "blocker"}),
-    ("salient", {"handoff", "decision", "completion", "blocker"}),
-    ("flaggable", {"handoff", "blocker"}),
-    ("long", {"handoff", "request", "question", "blocker"}),
-    ("trace", {"trace", "steer", "nudge", "ledger_update", "resolved"}),
-])
+@pytest.mark.parametrize(
+    ("dimension", "expected"),
+    [
+        ("wake_worthy", {"request", "handoff", "reply", "blocker", "question", "completion", "nudge"}),
+        ("answer", {"reply", "handoff", "completion"}),
+        ("escalate", {"request", "handoff", "question", "blocker"}),
+        ("salient", {"handoff", "decision", "completion", "blocker"}),
+        ("flaggable", {"handoff", "blocker"}),
+        ("long", {"handoff", "request", "question", "blocker"}),
+        ("trace", {"trace", "steer", "nudge", "ledger_update", "resolved"}),
+    ],
+)
 def test_p3_the_registry_reproduces_the_live_sets_exactly(dimension, expected):
     """s1 must be a NO-OP on behaviour. If the registry disagrees with the shipped set by
     one kind, some door changes its mind the day it is rewired -- and that is how a
@@ -109,7 +120,8 @@ def test_p4_coverage_reports_per_dimension_and_names_the_universe():
     wake = cov["dimensions"]["wake_worthy"]
     assert wake["members"] == 7
     assert wake["universe"] >= wake["members"]
-    assert isinstance(cov["kinds_total"], int) and cov["kinds_total"] > 0
+    assert isinstance(cov["kinds_total"], int)
+    assert cov["kinds_total"] > 0
     # the frame that must ship with the number (the coverage-contract lesson)
     assert "sources" in cov, "a coverage claim must name where its sets came from"
 
@@ -121,7 +133,8 @@ def test_p5_registration_is_sparse_and_orthogonal():
     assert K.resolve("nudge", "wake_worthy", plane="bus_kind").value is True
     assert K.resolve("nudge", "salient", plane="bus_kind").value is False, (
         "nudge is wake-worthy but NOT salient -- if these moved together the registry "
-        "collapsed two independent dimensions into one")
+        "collapsed two independent dimensions into one"
+    )
 
 
 # ---------------------------------------------------------------- P6: the three planes
@@ -131,8 +144,7 @@ def test_p6_the_three_planes_are_named_and_note_is_shown_colliding():
     planes = K.planes()
     assert set(planes) >= {"bus_kind", "event_kind", "beat_kind"}
     collisions = K.plane_collisions()
-    assert "note" in collisions, (
-        "'note' is a bus kind, an event kind and a beat kind -- the collision the row names")
+    assert "note" in collisions, "'note' is a bus kind, an event kind and a beat kind -- the collision the row names"
     assert len(collisions["note"]) >= 2
 
 
@@ -150,18 +162,21 @@ def test_p7_a_forked_concept_is_reported_not_silently_merged(monkeypatch):
     its instance got resolved would silently retire the instrument that found it. The ruling
     also found the instrument's edge: forks() groups by NAME, so `ask` was three honest
     questions sharing a word rather than one concept in dispute."""
-    monkeypatch.setattr(K, "_FORKS", {
-        "synthetic": [
-            {"source": "a.py:X_KINDS", "members": frozenset({"one", "two"})},
-            {"source": "b.py:Y_KINDS", "members": frozenset({"one"})},
-        ],
-    })
+    monkeypatch.setattr(
+        K,
+        "_FORKS",
+        {
+            "synthetic": [
+                {"source": "a.py:X_KINDS", "members": frozenset({"one", "two"})},
+                {"source": "b.py:Y_KINDS", "members": frozenset({"one"})},
+            ],
+        },
+    )
     forks = K.forks()
     assert "synthetic" in forks, "a live fork must be reported, never silently merged"
     f = forks["synthetic"]
     assert len(f["variants"]) >= 2, "a fork with one variant is not a fork"
-    assert "two" in f["differs_on"], (
-        "naming WHICH kind differs is what makes the report actionable instead of an alarm")
+    assert "two" in f["differs_on"], "naming WHICH kind differs is what makes the report actionable instead of an alarm"
 
 
 def test_p7b_the_ruled_fork_is_gone_from_the_live_report():

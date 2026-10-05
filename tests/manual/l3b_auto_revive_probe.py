@@ -1,35 +1,66 @@
 """L3b-auto proof: monitor auto-revives ARMED + wedged agents (opt-in), with a storm guard that
 disarms after the cap. No real processes: revive() is stubbed."""
-import os, ast, sys, json, time
+
+import ast
+import json
+import os
 
 # Root DERIVED from this file, never hardcoded: the literal pinned one machine's disk,
 # so a copy of the repo anywhere else resolved every path under it to nothing.
-import os as _os, pathlib as _pl
-_here = _pl.Path(__file__).resolve()
-ROOT = str(next((p for p in (_here, *_here.parents)
-                 if (p / 'agent_cli.py').exists() and (p / 'core').is_dir()), _here.parent))
-ast.parse(open(os.path.join(ROOT, "core/comm/launcher.py"), encoding="utf-8").read()); print("parse OK: launcher.py")
+import pathlib as _pl
+import sys
+import time
 
-sys.path.insert(0, ROOT)
+sys.path.insert(
+    0,
+    str(
+        next(
+            (
+                p
+                for p in (_pl.Path(__file__).resolve(), *_pl.Path(__file__).resolve().parents)
+                if (p / "agent_cli.py").exists() and (p / "core").is_dir()
+            ),
+            _pl.Path(__file__).resolve().parent,
+        )
+    ),
+)
 import core.comm.launcher as LM
-from core.comm.launcher import Launcher, AgentSpec, AgentProcess
 from core.comm import liveness
+from core.comm.launcher import AgentProcess, AgentSpec, Launcher
 
-LM.RESTART_MAX_ATTEMPTS = 3; LM.RESTART_BACKOFF_BASE = 0.05; LM.RESTART_RESET_S = 300
+_here = _pl.Path(__file__).resolve()
+ROOT = str(
+    next((p for p in (_here, *_here.parents) if (p / "agent_cli.py").exists() and (p / "core").is_dir()), _here.parent)
+)
+ast.parse(_pl.Path(os.path.join(ROOT, "core/comm/launcher.py")).read_text(encoding="utf-8"))
+print("parse OK: launcher.py")
+
+LM.RESTART_MAX_ATTEMPTS = 3
+LM.RESTART_BACKOFF_BASE = 0.05
+LM.RESTART_RESET_S = 300
 
 L = Launcher()
 tag = aid = "l3ba_probe"
 L._specs[tag] = AgentSpec(agent_id=aid, runtime="python_runner", description="t", command=["x"])
-L._reload = lambda: None   # keep the synthetic spec (registry() would otherwise reload real specs over it)
+L._reload = lambda: None  # keep the synthetic spec (registry() would otherwise reload real specs over it)
 L._procs[aid] = AgentProcess(agent_id=aid, pid=111, handle=None, status="running", started_at="")
 c = liveness._client()
+assert c is not None
+
 
 def set_worklive(phase, age):
-    c.set(liveness.WORKLIVE_PREFIX + aid, json.dumps(
-        {"phase": phase, "since_ts": time.time() - age, "beat_ts": time.time(), "turn": 1, "detail": "", "seq": 1}), ex=45)
+    assert c is not None
+    c.set(
+        liveness._worklive_prefix() + aid,
+        json.dumps(
+            {"phase": phase, "since_ts": time.time() - age, "beat_ts": time.time(), "turn": 1, "detail": "", "seq": 1}
+        ),
+        ex=45,
+    )
+
 
 revives = []
-L.revive = lambda t, reason="manual": (revives.append((t, reason)), {"ok": True})[1]
+L.revive = lambda tag, reason="manual": (revives.append((tag, reason)), {"ok": True})[1]
 
 # arm/disarm plumbing + registry reflects it
 assert L.arm_revive(tag, True)["auto_revive"] is True
@@ -38,26 +69,34 @@ print("[PASS] arm_revive + registry expose the armed flag")
 
 # NOT wedged (fresh phase) -> no auto-revive even though armed
 set_worklive("thinking", 5)
-L._check_auto_revive(); time.sleep(0.2)
+L._check_auto_revive()
+time.sleep(0.2)
 assert revives == [], ("armed but not wedged must NOT revive", revives)
 print("[PASS] armed + NOT wedged -> no auto-revive (observe-only)")
 
 # wedged past threshold -> auto-revive fires
-set_worklive("thinking", 400)   # 400s > 300 default
+set_worklive("thinking", 400)  # 400s > 300 default
 L._reviving.discard(aid)
-L._check_auto_revive(); time.sleep(0.25)
-assert len(revives) == 1 and revives[0][1] == "auto-wedge", ("armed + wedged must auto-revive", revives)
+L._check_auto_revive()
+time.sleep(0.25)
+assert len(revives) == 1, ("armed + wedged must auto-revive", revives)
+assert revives[0][1] == "auto-wedge", ("armed + wedged must auto-revive", revives)
 print(f"[PASS] armed + wedged -> auto-revive fired ({revives[0]})")
 
 # NOT armed -> no auto-revive even when wedged
-L.arm_revive(tag, False); revives.clear()
+L.arm_revive(tag, False)
+revives.clear()
 L._reviving.discard(aid)
-L._check_auto_revive(); time.sleep(0.2)
+L._check_auto_revive()
+time.sleep(0.2)
 assert revives == [], ("disarmed must NOT auto-revive", revives)
 print("[PASS] disarmed -> no auto-revive")
 
 # storm guard: keeps reviving up to the cap, then DISARMS + escalates
-revives.clear(); L._auto_attempts.pop(aid, None); L._auto_last.pop(aid, None); L._auto_revive.add(aid)
+revives.clear()
+L._auto_attempts.pop(aid, None)
+L._auto_last.pop(aid, None)
+L._auto_revive.add(aid)
 for _ in range(5):
     L._reviving.discard(aid)
     L._auto_revive_run(tag, aid, {"phase": "thinking", "stuck_seconds": 400})
@@ -65,5 +104,5 @@ assert len(revives) == LM.RESTART_MAX_ATTEMPTS, ("must revive up to the cap then
 assert aid not in L._auto_revive, "must DISARM after the cap (break the loop)"
 print(f"[PASS] storm guard: {len(revives)} auto-revives then DISARMED at cap {LM.RESTART_MAX_ATTEMPTS}")
 
-c.delete(liveness.WORKLIVE_PREFIX + aid)
+c.delete(liveness._worklive_prefix() + aid)
 print("\nL3b-auto BACKEND VERIFIED.")

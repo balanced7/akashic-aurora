@@ -13,6 +13,7 @@ the pedal down for 80% of every bar. Its twins: riff_lydian_d4 (D at about 4% of
 riff_lydian_loopback (Claude's notes mirrored into the log 2-9 ms late) and riff_lydian_buffered (a buffered session
 with no opened_at_client and no L1 ack).
 """
+
 import copy
 import functools
 import json
@@ -22,21 +23,33 @@ import shutil
 import subprocess
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
+from typing import TypeVar
 
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from arsenal import nashville  # noqa: E402
-from arsenal import practice as pr  # noqa: E402
-from arsenal import practice_riff as riff  # noqa: E402
-from arsenal.jam import RIFF_API  # noqa: E402
-from arsenal.jam import schemas  # noqa: E402
-from arsenal.jam import tempomap as tm  # noqa: E402
-from arsenal.performance import PerformanceStore  # noqa: E402
+from arsenal import nashville  # noqa: E402  # sys.path bootstrap
+from arsenal import practice as pr  # noqa: E402  # sys.path bootstrap
+from arsenal import practice_riff as riff  # noqa: E402  # sys.path bootstrap
+from arsenal.jam import (  # noqa: E402  # sys.path bootstrap
+    RIFF_API,
+    schemas,
+)
+from arsenal.jam import tempomap as tm  # noqa: E402  # sys.path bootstrap
+from arsenal.performance import PerformanceStore  # noqa: E402  # sys.path bootstrap
+
+_T = TypeVar("_T")
+
+
+def _some(value: _T | None) -> _T:
+    """Return the value a test expects to be there (a None here fails the test, never skips it)."""
+    assert value is not None
+    return value
+
 
 FIX = ROOT / "tests" / "fixtures" / "jam"
 J0_RUN = FIX / "run_loop_l1"
@@ -48,31 +61,54 @@ BPM, M = 66, 4
 BEAT = 60000 / BPM
 RUN_ID = "20300101-010019-7a11c0df"
 SESSION_ID = "20300101-010012-5e55a0f2"
-START_EPOCH = 1893459620000.0                      # the count-in starts here (2030-01-01T01:00:20Z)
-OPEN_CLIENT_EPOCH = 1893459612000.0                # the page opened the practice log 8 s earlier
-PERF_OFFSET = 1893456000000.25                     # Date.now() - performance.now() on the page
-T0_PERF = OPEN_CLIENT_EPOCH - PERF_OFFSET          # the log's t0 on the page clock
+START_EPOCH = 1893459620000.0  # the count-in starts here (2030-01-01T01:00:20Z)
+OPEN_CLIENT_EPOCH = 1893459612000.0  # the page opened the practice log 8 s earlier
+PERF_OFFSET = 1893456000000.25  # Date.now() - performance.now() on the page
+T0_PERF = OPEN_CLIENT_EPOCH - PERF_OFFSET  # the log's t0 on the page clock
 PAGE = "p-0a1c"
 BAR0_EPOCH = START_EPOCH + M * BEAT
-BAR0_T = BAR0_EPOCH - OPEN_CLIENT_EPOCH            # 11636.36 ms into the session
+BAR0_T = BAR0_EPOCH - OPEN_CLIENT_EPOCH  # 11636.36 ms into the session
 MEDIANS = [40, 44, 48, 52, 56, 52, 48, 44]
-PC = {"C": 0, "B#": 0, "C#": 1, "Db": 1, "D": 2, "D#": 3, "Eb": 3, "E": 4, "Fb": 4, "E#": 5, "F": 5, "F#": 6, "Gb": 6,
-      "G": 7, "G#": 8, "Ab": 8, "A": 9, "A#": 10, "Bb": 10, "B": 11, "Cb": 11}
+PC = {
+    "C": 0,
+    "B#": 0,
+    "C#": 1,
+    "Db": 1,
+    "D": 2,
+    "D#": 3,
+    "Eb": 3,
+    "E": 4,
+    "Fb": 4,
+    "E#": 5,
+    "F": 5,
+    "F#": 6,
+    "Gb": 6,
+    "G": 7,
+    "G#": 8,
+    "Ab": 8,
+    "A": 9,
+    "A#": 10,
+    "Bb": 10,
+    "B": 11,
+    "Cb": 11,
+}
 PRIORITY = {"off": 0, "up": 1, "down": 2, "on": 3}
 
 
 def n(name: str) -> int:
     """'Eb5' -> 75 (C4 = 60)."""
     letters = name.rstrip("-0123456789")
-    return (int(name[len(letters):]) + 1) * 12 + PC[letters]
+    return (int(name[len(letters) :]) + 1) * 12 + PC[letters]
 
 
 def t_map(segments):
     """Session t_ms of a beat position counted from the loop's bar 0, through the run's tempo map. Under L1 the session
     clock is the page clock from the log's open: t = epoch - OPEN_CLIENT_EPOCH. The log keeps whole ms."""
+
     def t_of(beat: float) -> int:
         bar = math.floor(beat / M + 1e-9)
-        return int(round(tm.t_epoch(segments, M, bar, beat - bar * M) - OPEN_CLIENT_EPOCH))
+        return round(tm.t_epoch(segments, M, bar, beat - bar * M) - OPEN_CLIENT_EPOCH)
+
     return t_of
 
 
@@ -89,8 +125,13 @@ def planted_notes(d_plan: str = "l1"):
         if k == 3:
             out += [(s, n("Ab4"), 2.0, "rub"), (s + 2, n("G4"), 1.0, ""), (s + 3, n("Bb4"), 1.0, "")]
         elif k == 5:
-            out += [(s, n("Eb5"), 1.0, ""), (s + 1, n("Bb4"), 0.5, ""), (s + 1.5, n("Ab4"), 0.5, "passing"),
-                    (s + 2, n("G4"), 1.0, ""), (s + 3, n("Bb4"), 1.0, "")]
+            out += [
+                (s, n("Eb5"), 1.0, ""),
+                (s + 1, n("Bb4"), 0.5, ""),
+                (s + 1.5, n("Ab4"), 0.5, "passing"),
+                (s + 2, n("G4"), 1.0, ""),
+                (s + 3, n("Bb4"), 1.0, ""),
+            ]
         else:
             out += [(s, n("Eb5"), 1.0, ""), (s + 1, n("F5"), 0.5, ""), (s + 1.5, n("G5"), 0.5, "")]
             if k == 8:
@@ -113,8 +154,12 @@ def planted_notes(d_plan: str = "l1"):
             else:
                 out.append((b2 + 0.5, n("F5"), 0.5, ""))
         keep_d = d_plan == "l1" or (k == 1 and d_plan == "d4")
-        out += [(b2 + 1.0, n("D5") if keep_d else n("Bb4"), 0.5, "sharp-eleven" if keep_d else ""),
-                (b2 + 1.5, n("C5"), 0.25, ""), (b2 + 1.75, n("Ab4"), 0.25, ""), (b2 + 2.0, n("G4"), 0.25, "end")]
+        out += [
+            (b2 + 1.0, n("D5") if keep_d else n("Bb4"), 0.5, "sharp-eleven" if keep_d else ""),
+            (b2 + 1.5, n("C5"), 0.25, ""),
+            (b2 + 1.75, n("Ab4"), 0.25, ""),
+            (b2 + 2.0, n("G4"), 0.25, "end"),
+        ]
     return sorted(out)
 
 
@@ -171,8 +216,10 @@ def bridge_notes(run, lines):
     """Every note Claude strikes in the run, from arsenal/groove_bridge.mjs (its run form, flat)."""
     defs = {str(x["version"]): x["def"] for x in lines if isinstance(x.get("def"), dict)}
     request = {"run": run, "defs": defs, "from_bar": 0, "to_bar": run["stop_bar"], "flat": True}
-    proc = subprocess.run([NODE, str(BRIDGE)], input=json.dumps(request), capture_output=True, text=True,
-                          encoding="utf-8", timeout=120)
+    assert NODE is not None
+    proc = subprocess.run(
+        [NODE, str(BRIDGE)], input=json.dumps(request), capture_output=True, text=True, encoding="utf-8", timeout=120
+    )
     answer = json.loads(proc.stdout)
     assert answer["ok"], answer
     return answer["notes"]
@@ -183,8 +230,10 @@ def claude_mirror_actions(run, lines):
     acts = []
     for i, e in enumerate(bridge_notes(run, lines)):
         lag = 2 + (i * 5) % 8
-        acts += [(int(round(e["epoch_ms"] - OPEN_CLIENT_EPOCH)) + lag, "on", e["midi"], e["vel"]),
-                 (int(round(e["end_epoch_ms"] - OPEN_CLIENT_EPOCH)) + lag, "off", e["midi"], None)]
+        acts += [
+            (round(e["epoch_ms"] - OPEN_CLIENT_EPOCH) + lag, "on", e["midi"], e["vel"]),
+            (round(e["end_epoch_ms"] - OPEN_CLIENT_EPOCH) + lag, "off", e["midi"], None),
+        ]
     return acts
 
 
@@ -208,11 +257,13 @@ NAME_RE = re.compile(r"^([A-G][#b]?)(.*?)(?:/([A-G][#b]?))?$")
 
 def shift_key(key: str, s: int) -> str:
     k = nashville.parse_key(key)
+    assert k is not None
     return nashville.key_name_of((k["tonic"] + s) % 12, k["mode"])
 
 
 def shift_name(name: str, s: int, key: str) -> str:
     m = NAME_RE.match(name)
+    assert m is not None
     bass = "/" + pr.pc_name((PC[m.group(3)] + s) % 12, key) if m.group(3) else ""
     return pr.pc_name((PC[m.group(1)] + s) % 12, key) + m.group(2) + bass
 
@@ -222,7 +273,7 @@ def transpose_def(d: dict, s: int) -> dict:
     d = copy.deepcopy(d)
     if s == 0:
         return d
-    sh = lambda pc: (pc + s) % 12  # noqa: E731
+    sh = lambda pc: (pc + s) % 12  # noqa: E731  # local one-line key function
     d["key"] = shift_key(d["key"], s)
     for sec in d["sections"]:
         sec["key"] = shift_key(sec["key"], s)
@@ -242,21 +293,53 @@ def transpose_def(d: dict, s: int) -> dict:
     return d
 
 
-def make_run(d=None, run_id=RUN_ID, session=SESSION_ID, settings=None, ack_log=True, page=PAGE, stop_bar=16,
-             start_epoch=START_EPOCH, bpm=BPM, mode="loop", changes=(), card=True):
+def make_run(
+    d=None,
+    run_id=RUN_ID,
+    session=SESSION_ID,
+    settings=None,
+    ack_log=True,
+    page=PAGE,
+    stop_bar=16,
+    start_epoch=START_EPOCH,
+    bpm=BPM,
+    mode="loop",
+    changes=(),
+    card=True,
+):
     """(run.json, events.jsonl lines) for a stopped loop, from J0's run as a template. changes: extra lines
     [('tempo', bar, bpm) | ('next', bar, def)] applied in order. card False: a run of chords with no card."""
     d = copy.deepcopy(d or base_def())
     template = json.loads((J0_RUN / "run.json").read_text(encoding="utf-8"))
     m = d["beats_per_bar"]
     segs = [tm.first_segment(start_epoch, bpm, 1)]
-    st = settings or {"from_bar": 0, "groove": "hold", "backing": "comp", "level": 44, "humanize": 0.6, "seed": 90210,
-                      "walk": 1, "try_backing": "bass" if mode == "try" else None, "passes": 0, "ending": "cut"}
+    st = settings or {
+        "from_bar": 0,
+        "groove": "hold",
+        "backing": "comp",
+        "level": 44,
+        "humanize": 0.6,
+        "seed": 90210,
+        "walk": 1,
+        "try_backing": "bass" if mode == "try" else None,
+        "passes": 0,
+        "ending": "cut",
+    }
     lines = []
     version = 1
     start = copy.deepcopy(j0_start_line())
-    start.update({"recorded_epoch_ms": start_epoch - 800, "epoch_ms": start_epoch, "bpm": bpm, "mode": mode,
-                  "key": d["key"], "settings": [st], "segments": copy.deepcopy(segs), "def": d})
+    start.update(
+        {
+            "recorded_epoch_ms": start_epoch - 800,
+            "epoch_ms": start_epoch,
+            "bpm": bpm,
+            "mode": mode,
+            "key": d["key"],
+            "settings": [st],
+            "segments": copy.deepcopy(segs),
+            "def": d,
+        }
+    )
     if not card:
         start.pop("card", None)
     lines.append(start)
@@ -264,10 +347,22 @@ def make_run(d=None, run_id=RUN_ID, session=SESSION_ID, settings=None, ack_log=T
 
     def ack(bar, ver, **extra):
         e = tm.t_epoch(segs, m, bar)
-        line = {"kind": "ack", "recorded_epoch_ms": e + 100, "by": "page", "page_id": page, "role": "owner",
-                "version": ver, "bar": bar, "bar_epoch_ms": e, "perf_ms": e - PERF_OFFSET,
-                "perf_offset_ms": PERF_OFFSET, "output_latency_ms": 21.3, "log": ack_log_obj, "stopped": None,
-                "late_dropped": 0}
+        line = {
+            "kind": "ack",
+            "recorded_epoch_ms": e + 100,
+            "by": "page",
+            "page_id": page,
+            "role": "owner",
+            "version": ver,
+            "bar": bar,
+            "bar_epoch_ms": e,
+            "perf_ms": e - PERF_OFFSET,
+            "perf_offset_ms": PERF_OFFSET,
+            "output_latency_ms": 21.3,
+            "log": ack_log_obj,
+            "stopped": None,
+            "late_dropped": 0,
+        }
         line.update(extra)
         return line
 
@@ -276,27 +371,73 @@ def make_run(d=None, run_id=RUN_ID, session=SESSION_ID, settings=None, ack_log=T
         version += 1
         if op == "tempo":
             segs = tm.add_segment(segs, m, bar, bpm=value)
-            lines.append({"kind": "change", "op": "tempo", "recorded_epoch_ms": tm.t_epoch(segs, m, bar) - 3000,
-                          "by": "claude", "version": version, "effective_bar": bar, "epoch_ms": tm.t_epoch(segs, m, bar),
-                          "bpm": value, "at": "bar", "segments": copy.deepcopy(segs)})
+            lines.append(
+                {
+                    "kind": "change",
+                    "op": "tempo",
+                    "recorded_epoch_ms": tm.t_epoch(segs, m, bar) - 3000,
+                    "by": "claude",
+                    "version": version,
+                    "effective_bar": bar,
+                    "epoch_ms": tm.t_epoch(segs, m, bar),
+                    "bpm": value,
+                    "at": "bar",
+                    "segments": copy.deepcopy(segs),
+                }
+            )
         else:
             segs = tm.add_segment(segs, m, bar, def_version=version, def_from_bar=bar)
-            lines.append({"kind": "change", "op": "next", "recorded_epoch_ms": tm.t_epoch(segs, m, bar) - 3000,
-                          "by": "claude", "version": version, "effective_bar": bar, "epoch_ms": tm.t_epoch(segs, m, bar),
-                          "def": value, "at": "bar", "segments": copy.deepcopy(segs)})
+            lines.append(
+                {
+                    "kind": "change",
+                    "op": "next",
+                    "recorded_epoch_ms": tm.t_epoch(segs, m, bar) - 3000,
+                    "by": "claude",
+                    "version": version,
+                    "effective_bar": bar,
+                    "epoch_ms": tm.t_epoch(segs, m, bar),
+                    "def": value,
+                    "at": "bar",
+                    "segments": copy.deepcopy(segs),
+                }
+            )
         lines.append(ack(bar, version, effective_bar=bar))
     version += 1
     stop_epoch = tm.t_epoch(segs, m, stop_bar)
-    lines.append({"kind": "stop", "recorded_epoch_ms": stop_epoch - 3000, "by": "claude", "version": version,
-                  "effective_bar": stop_bar, "epoch_ms": stop_epoch, "reason": "cli", "at": "bar"})
+    lines.append(
+        {
+            "kind": "stop",
+            "recorded_epoch_ms": stop_epoch - 3000,
+            "by": "claude",
+            "version": version,
+            "effective_bar": stop_bar,
+            "epoch_ms": stop_epoch,
+            "reason": "cli",
+            "at": "bar",
+        }
+    )
     lines.append(ack(stop_bar, version, stop_bar=stop_bar))
     for seq, line in enumerate(lines):
         line["seq"] = seq
     run = copy.deepcopy(template)
-    run.update({"run": run_id, "mode": mode, "created_at": "2030-01-01T01:00:19.200+00:00", "key": d["key"],
-                "beats_per_bar": m, "start_epoch_ms": start_epoch, "bar0_epoch_ms": tm.t_epoch(segs, m, 0),
-                "segments": segs, "settings": [st], "last_version": version, "owner_page_id": page,
-                "stopped_epoch_ms": stop_epoch, "stop_bar": stop_bar, "stop_reason": "cli"})
+    run.update(
+        {
+            "run": run_id,
+            "mode": mode,
+            "created_at": "2030-01-01T01:00:19.200+00:00",
+            "key": d["key"],
+            "beats_per_bar": m,
+            "start_epoch_ms": start_epoch,
+            "bar0_epoch_ms": tm.t_epoch(segs, m, 0),
+            "segments": segs,
+            "settings": [st],
+            "last_version": version,
+            "owner_page_id": page,
+            "stopped_epoch_ms": stop_epoch,
+            "stop_bar": stop_bar,
+            "stop_reason": "cli",
+        }
+    )
     if card:
         run["card_snapshot"]["key"] = d["key"]
     else:
@@ -305,26 +446,36 @@ def make_run(d=None, run_id=RUN_ID, session=SESSION_ID, settings=None, ack_log=T
 
 
 def _iso(epoch_ms: float) -> str:
-    return datetime.fromtimestamp(epoch_ms / 1000, timezone.utc).isoformat(timespec="milliseconds")
+    return datetime.fromtimestamp(epoch_ms / 1000, UTC).isoformat(timespec="milliseconds")
 
 
 def session_meta(kind: str, opened_epoch: float = OPEN_CLIENT_EPOCH) -> dict:
     """The log's open meta: 'full' (page_id, t0_perf_ms, opened_at_client: L2 without an L1 ack), 'l3'
     (opened_at_client only), 'l4' (nothing), 'buffered' (a buffered session with nothing)."""
     iso = _iso(opened_epoch)
-    return {"full": {"page_id": PAGE, "t0_perf_ms": opened_epoch - PERF_OFFSET, "opened_at_client": iso,
-                     "buffered": False},
-            "l3": {"opened_at_client": iso, "buffered": False},
-            "l4": {"buffered": False},
-            "buffered": {"buffered": True}}[kind]
+    return {
+        "full": {"page_id": PAGE, "t0_perf_ms": opened_epoch - PERF_OFFSET, "opened_at_client": iso, "buffered": False},
+        "l3": {"opened_at_client": iso, "buffered": False},
+        "l4": {"buffered": False},
+        "buffered": {"buffered": True},
+    }[kind]
 
 
 def session_doc(events, meta, session=SESSION_ID, opened_epoch=OPEN_CLIENT_EPOCH):
     last = max((e["t_ms"] for e in events), default=0)
-    opened = opened_epoch + 41                     # the server's open time, 41 ms after the page's
-    return {"api": "arsenal.performance/v0", "session": session, "opened_at": _iso(opened),
-            "opened_ns": int(round(opened)) * 1000000, "client_id": "lg-0a1c", "meta": meta, "closed": True,
-            "event_count": len(events), "last_t_ms": last, "duration_s": round(last / 1000, 3)}
+    opened = opened_epoch + 41  # the server's open time, 41 ms after the page's
+    return {
+        "api": "arsenal.performance/v0",
+        "session": session,
+        "opened_at": _iso(opened),
+        "opened_ns": round(opened) * 1000000,
+        "client_id": "lg-0a1c",
+        "meta": meta,
+        "closed": True,
+        "event_count": len(events),
+        "last_t_ms": last,
+        "duration_s": round(last / 1000, 3),
+    }
 
 
 def write_jam(folder: Path, runs, sessions):
@@ -333,26 +484,53 @@ def write_jam(folder: Path, runs, sessions):
         d = folder / "jam" / "runs" / run["run"]
         d.mkdir(parents=True, exist_ok=True)
         (d / "run.json").write_text(json.dumps(run, indent=2) + "\n", encoding="utf-8", newline="\n")
-        (d / "events.jsonl").write_text("".join(json.dumps(x, sort_keys=True) + "\n" for x in lines),
-                                        encoding="utf-8", newline="\n")
+        (d / "events.jsonl").write_text(
+            "".join(json.dumps(x, sort_keys=True) + "\n" for x in lines), encoding="utf-8", newline="\n"
+        )
     (folder / "jam").mkdir(parents=True, exist_ok=True)
     for info, events in sessions:
         d = folder / "performance" / info["session"]
         d.mkdir(parents=True, exist_ok=True)
-        (d / "session.json").write_text(json.dumps(info, indent=2, sort_keys=True) + "\n", encoding="utf-8",
-                                        newline="\n")
-        (d / "events.jsonl").write_text("".join(json.dumps(e, sort_keys=True) + "\n" for e in events),
-                                        encoding="utf-8", newline="\n")
+        (d / "session.json").write_text(
+            json.dumps(info, indent=2, sort_keys=True) + "\n", encoding="utf-8", newline="\n"
+        )
+        (d / "events.jsonl").write_text(
+            "".join(json.dumps(e, sort_keys=True) + "\n" for e in events), encoding="utf-8", newline="\n"
+        )
     return folder
 
 
-def jam_case(folder: Path, d_plan="l1", shift=0, meta="full", ack_log=True, humanize=0.6, walk=1, mirror=False,
-             changes=(), mode="loop", d=None, card=True, keep=None, session_shift_ms=0) -> dict:
+def jam_case(
+    folder: Path,
+    d_plan="l1",
+    shift=0,
+    meta="full",
+    ack_log=True,
+    humanize=0.6,
+    walk=1,
+    mirror=False,
+    changes=(),
+    mode="loop",
+    d=None,
+    card=True,
+    keep=None,
+    session_shift_ms=0,
+) -> dict:
     """One synthetic jam: a stopped 16-bar run and one session with the planted riff (moved by shift half steps; the
     def moves with it unless d is given), the pedal, and optionally Claude's notes mirrored into the log."""
     d = copy.deepcopy(d) if d is not None else transpose_def(base_def(), shift)
-    settings = {"from_bar": 0, "groove": "hold", "backing": "comp", "level": 44, "humanize": humanize, "seed": 90210,
-                "walk": walk, "try_backing": "bass" if mode == "try" else None, "passes": 0, "ending": "cut"}
+    settings = {
+        "from_bar": 0,
+        "groove": "hold",
+        "backing": "comp",
+        "level": 44,
+        "humanize": humanize,
+        "seed": 90210,
+        "walk": walk,
+        "try_backing": "bass" if mode == "try" else None,
+        "passes": 0,
+        "ending": "cut",
+    }
     run, lines = make_run(d=d, settings=settings, ack_log=ack_log, changes=changes, mode=mode, card=card)
     t_of = t_map(run["segments"])
     notes = planted_notes(d_plan)
@@ -364,13 +542,23 @@ def jam_case(folder: Path, d_plan="l1", shift=0, meta="full", ack_log=True, huma
     events = perform(acts)
     opened = OPEN_CLIENT_EPOCH + session_shift_ms
     write_jam(folder, [(run, lines)], [(session_doc(events, session_meta(meta, opened), opened_epoch=opened), events)])
-    return {"folder": folder, "run": run, "lines": lines, "notes": notes, "t_of": t_of,
-            "root": folder / "performance", "jam": folder / "jam"}
+    return {
+        "folder": folder,
+        "run": run,
+        "lines": lines,
+        "notes": notes,
+        "t_of": t_of,
+        "root": folder / "performance",
+        "jam": folder / "jam",
+    }
 
 
-FIXTURES = {"riff_lydian_l1": {}, "riff_lydian_d4": {"d_plan": "d4"},
-            "riff_lydian_loopback": {"mirror": True, "humanize": 0, "walk": 0},
-            "riff_lydian_buffered": {"meta": "buffered", "ack_log": False}}
+FIXTURES = {
+    "riff_lydian_l1": {},
+    "riff_lydian_d4": {"d_plan": "d4"},
+    "riff_lydian_loopback": {"mirror": True, "humanize": 0, "walk": 0},
+    "riff_lydian_buffered": {"meta": "buffered", "ack_log": False},
+}
 
 
 def build_fixture(name: str, folder: Path) -> Path:
@@ -378,16 +566,24 @@ def build_fixture(name: str, folder: Path) -> Path:
     case = jam_case(folder, **FIXTURES[name])
     if name == "riff_lydian_l1":
         notes, t_of = case["notes"], case["t_of"]
-        tagged = lambda tag: [t_of(b) for b, _, _, g in notes if g == tag]  # noqa: E731
+        tagged = lambda tag: [t_of(b) for b, _, _, g in notes if g == tag]  # noqa: E731  # local one-line key function
         expected = {
             "note": "Synthetic A11 jam (jam-spec 14): generated by tests/test_arsenal_practice_riff.py build_fixture.",
-            "run": RUN_ID, "session": SESSION_ID, "bar0_t_ms": BAR0_T,
-            "planted": {"sharp_eleven": {"slot": 1, "label": "#11", "count": 9, "t_ms": tagged("sharp-eleven")},
-                        "rub": tagged("rub"), "passing": tagged("passing"), "slide_ins": tagged("slide-in"),
-                        "outside": tagged("outside"), "anticipations": tagged("anticipation"),
-                        "phrases": {"count": 8, "pickups": 6,
-                                    "t_ms": sorted(tagged("pickup") + [t_of(0), t_of(32)])},
-                        "vel_medians": MEDIANS, "pedal": 0.8}}
+            "run": RUN_ID,
+            "session": SESSION_ID,
+            "bar0_t_ms": BAR0_T,
+            "planted": {
+                "sharp_eleven": {"slot": 1, "label": "#11", "count": 9, "t_ms": tagged("sharp-eleven")},
+                "rub": tagged("rub"),
+                "passing": tagged("passing"),
+                "slide_ins": tagged("slide-in"),
+                "outside": tagged("outside"),
+                "anticipations": tagged("anticipation"),
+                "phrases": {"count": 8, "pickups": 6, "t_ms": sorted([*tagged("pickup"), t_of(0), t_of(32)])},
+                "vel_medians": MEDIANS,
+                "pedal": 0.8,
+            },
+        }
         (folder / "expected.json").write_text(json.dumps(expected, indent=2) + "\n", encoding="utf-8", newline="\n")
     return folder
 
@@ -408,7 +604,7 @@ def build_long_session(folder: Path, runs: int = 4, reps: int = 5) -> Path:
 
 
 # ================================================================================================ helpers
-@functools.lru_cache(maxsize=None)
+@functools.cache
 def _fixture_doc_json(name: str, rebuild=None) -> str:
     f = FIX / name
     return json.dumps(riff.riff(RUN_ID, root=f / "performance", jam_root=f / "jam", rebuild=rebuild))
@@ -418,7 +614,7 @@ def fixture_doc(name: str, rebuild=None) -> dict:
     return json.loads(_fixture_doc_json(name, rebuild))
 
 
-def case_doc(case: dict, rebuild="def", **kw) -> dict:
+def case_doc(case: dict, rebuild: str | None = "def", **kw) -> dict:
     return riff.riff(kw.pop("run", RUN_ID), root=case["root"], jam_root=case["jam"], rebuild=rebuild, **kw)
 
 
@@ -428,35 +624,82 @@ def slot(block: dict, i: int) -> dict:
 
 def planted_counts(doc: dict) -> dict:
     b = doc["runs"][0]
-    total = lambda c: sum(s["classes"][c] for s in b["slots"])  # noqa: E731
-    return {"sharp_eleven": slot(b, 1)["labels"].get("#11", 0), "rub": total("rub"), "passing": total("passing"),
-            "slide_in": total("slide_in"), "slide_dirs": [x["direction"] for x in b["slide_ins"]],
-            "outside": total("outside"), "anticipations": len(b["anticipations"]), "phrases": len(b["phrases"]),
-            "pickups": sum(1 for p in b["phrases"] if p["pickup"]), "phrase_bars": [p["bars"] for p in b["phrases"]],
-            "vel_medians": [p["vel_median"] for p in b["passes"]], "pedal": [p["pedal"] for p in b["passes"]]}
+    total = lambda c: sum(s["classes"][c] for s in b["slots"])  # noqa: E731  # local one-line key function
+    return {
+        "sharp_eleven": slot(b, 1)["labels"].get("#11", 0),
+        "rub": total("rub"),
+        "passing": total("passing"),
+        "slide_in": total("slide_in"),
+        "slide_dirs": [x["direction"] for x in b["slide_ins"]],
+        "outside": total("outside"),
+        "anticipations": len(b["anticipations"]),
+        "phrases": len(b["phrases"]),
+        "pickups": sum(1 for p in b["phrases"] if p["pickup"]),
+        "phrase_bars": [p["bars"] for p in b["phrases"]],
+        "vel_medians": [p["vel_median"] for p in b["passes"]],
+        "pedal": [p["pedal"] for p in b["passes"]],
+    }
 
 
-A11_COUNTS = {"sharp_eleven": 9, "rub": 1, "passing": 1, "slide_in": 3, "slide_dirs": ["below"] * 3, "outside": 2,
-              "anticipations": 5, "phrases": 8, "pickups": 6, "phrase_bars": [2.0] * 8, "vel_medians": MEDIANS,
-              "pedal": [0.8] * 8}
+A11_COUNTS = {
+    "sharp_eleven": 9,
+    "rub": 1,
+    "passing": 1,
+    "slide_in": 3,
+    "slide_dirs": ["below"] * 3,
+    "outside": 2,
+    "anticipations": 5,
+    "phrases": 8,
+    "pickups": 6,
+    "phrase_bars": [2.0] * 8,
+    "vel_medians": MEDIANS,
+    "pedal": [0.8] * 8,
+}
 
 
 def invariant_view(doc: dict) -> dict:
     """Everything the analysis says that must not depend on the key."""
     b = doc["runs"][0]
-    return {"slots": [(s["slot"], s["classes"], s["all_notes"], s["labels"], s["bass_labels"], s["landings"],
-                       len(s["rubs"]), len(s["passing"]), len(s["outside"]), (s["scale"] or {}).get("named"))
-                      for s in b["slots"]],
-            "anticipations": [a["t_ms"] for a in b["anticipations"]],
-            "slide_ins": [(x["t_ms"], x["direction"]) for x in b["slide_ins"]],
-            "phrases": [(p["t_ms"], p["pass"], p["bar"], p["beat"], p["bars"], p["pickup"], p["contour"],
-                         p["landing"]["class"], p["landing"]["label"]) for p in b["phrases"]],
-            "degrees": b["degrees_by_bar"],
-            "passes": [(p["pass"], p["vel_median"], p["shares"], p["rests"], p["pedal"], p["fact"]) for p in b["passes"]],
-            "checks": [(c["pass"], c["count"]) for c in b["checks"]],
-            "types": [p["type"] for p in doc["talking_points"]],
-            "question": ((doc["question"] or {}).get("kind"), (doc["question"] or {}).get("at")),
-            "try": (doc["try"] or {}).get("rule"), "loopback": b["loopback"]["mirrored_share"]}
+    return {
+        "slots": [
+            (
+                s["slot"],
+                s["classes"],
+                s["all_notes"],
+                s["labels"],
+                s["bass_labels"],
+                s["landings"],
+                len(s["rubs"]),
+                len(s["passing"]),
+                len(s["outside"]),
+                (s["scale"] or {}).get("named"),
+            )
+            for s in b["slots"]
+        ],
+        "anticipations": [a["t_ms"] for a in b["anticipations"]],
+        "slide_ins": [(x["t_ms"], x["direction"]) for x in b["slide_ins"]],
+        "phrases": [
+            (
+                p["t_ms"],
+                p["pass"],
+                p["bar"],
+                p["beat"],
+                p["bars"],
+                p["pickup"],
+                p["contour"],
+                p["landing"]["class"],
+                p["landing"]["label"],
+            )
+            for p in b["phrases"]
+        ],
+        "degrees": b["degrees_by_bar"],
+        "passes": [(p["pass"], p["vel_median"], p["shares"], p["rests"], p["pedal"], p["fact"]) for p in b["passes"]],
+        "checks": [(c["pass"], c["count"]) for c in b["checks"]],
+        "types": [p["type"] for p in doc["talking_points"]],
+        "question": ((doc["question"] or {}).get("kind"), (doc["question"] or {}).get("at")),
+        "try": (doc["try"] or {}).get("rule"),
+        "loopback": b["loopback"]["mirrored_share"],
+    }
 
 
 # ================================================================================================ fixtures
@@ -482,18 +725,23 @@ def test_fixture_runs_and_sessions_are_valid_and_synthetic(name):
     store = PerformanceStore(f / "performance")
     info = store.info(SESSION_ID)
     events, problems = pr.read_events(store, SESSION_ID)
-    assert problems == [] and events
-    assert info["opened_at"].startswith("2030-") and run["created_at"].startswith("2030-")
-    assert run["run"].startswith("2030") and SESSION_ID.startswith("2030")
+    assert problems == []
+    assert events
+    assert info["opened_at"].startswith("2030-")
+    assert run["created_at"].startswith("2030-")
+    assert run["run"].startswith("2030")
+    assert SESSION_ID.startswith("2030")
 
 
 # ================================================================================================ A11
 def test_a11_planted_counts_are_reported_exactly():
     doc = fixture_doc("riff_lydian_l1")
-    assert doc["api"] == RIFF_API and doc["session"] == SESSION_ID
+    assert doc["api"] == RIFF_API
+    assert doc["session"] == SESSION_ID
     assert planted_counts(doc) == A11_COUNTS
     b = doc["runs"][0]
-    assert slot(b, 1)["name"] == "Abmaj7#11" and slot(b, 0)["name"] == "Ebmaj9"
+    assert slot(b, 1)["name"] == "Abmaj7#11"
+    assert slot(b, 0)["name"] == "Ebmaj9"
     assert b["coverage"] == {"passes": 8, "bars": 16, "bars_with_his_notes": 16, "notes": 99, "top_line_notes": 99}
     notes = b["notes"]
     rub = [x for x in notes if x["class"] == "rub"]
@@ -501,7 +749,9 @@ def test_a11_planted_counts_are_reported_exactly():
     passing = [x for x in notes if x["class"] == "passing"]
     assert [(x["name"], x["pass"], x["bar"], x["beat"], x["grid"]) for x in passing] == [("Ab4", 5, 1, 1.5, "offbeat")]
     assert [(x["name"], x["pass"]) for x in notes if x["class"] == "slide_in"] == [("Gb4", 2), ("Gb4", 4), ("Gb4", 6)]
-    outside = [(x["name"], x["pass"], x["bar"], x["beat"], x["beats"], x["slot"]) for x in notes if x["class"] == "outside"]
+    outside = [
+        (x["name"], x["pass"], x["bar"], x["beat"], x["beats"], x["slot"]) for x in notes if x["class"] == "outside"
+    ]
     assert outside == [("E5", 7, 2, 0.0, 1.0, 1), ("A4", 8, 1, 2.0, 1.0, 0)]
     assert all("anticipates" in x["flags"] for x in notes if x["t_ms"] in {a["t_ms"] for a in b["anticipations"]})
     assert all(190 <= a["early_ms"] <= 210 for a in b["anticipations"])
@@ -515,7 +765,7 @@ def test_a11_planted_times_within_10_ms():
 
     def close(got, want):
         assert len(got) == len(want), (got, want)
-        assert all(abs(g - w) <= 10 for g, w in zip(sorted(got), sorted(want))), (got, want)
+        assert all(abs(g - w) <= 10 for g, w in zip(sorted(got), sorted(want), strict=False)), (got, want)
 
     close([x["t_ms"] for x in b["notes"] if x["slot"] == 1 and x["label"] == "#11"], planted["sharp_eleven"]["t_ms"])
     close([x["t_ms"] for s in b["slots"] for x in s["rubs"]], planted["rub"])
@@ -528,20 +778,30 @@ def test_a11_planted_times_within_10_ms():
 
 def test_a11_alignment_is_l1_within_2_ms():
     a = fixture_doc("riff_lydian_l1")["runs"][0]["alignment"]
-    assert a["method"] == "L1" and a["error_ms"] <= 2 and a["approx"] is False
-    assert abs(a["bar0_t_ms"] - BAR0_T) <= 0.1 and a["page_id"] == PAGE
+    assert a["method"] == "L1"
+    assert a["error_ms"] <= 2
+    assert a["approx"] is False
+    assert abs(a["bar0_t_ms"] - BAR0_T) <= 0.1
+    assert a["page_id"] == PAGE
 
 
 def test_a11_mode_naming_gate_and_its_twin():
     doc = fixture_doc("riff_lydian_l1")
     sc = slot(doc["runs"][0], 1)["scale"]
-    assert sc["best"] == "Ab Lydian" and sc["named"] is True and sc["own_note"] == "D" and sc["own_share"] >= 0.05
+    assert sc["best"] == "Ab Lydian"
+    assert sc["named"] is True
+    assert sc["own_note"] == "D"
+    assert sc["own_share"] >= 0.05
     t2 = [p for p in doc["talking_points"] if p["type"] == "T2"]
-    assert len(t2) == 1 and "(Ab Lydian)" in t2[0]["text"] and "the D, its #11, came 9 times" in t2[0]["text"]
+    assert len(t2) == 1
+    assert "(Ab Lydian)" in t2[0]["text"]
+    assert "the D, its #11, came 9 times" in t2[0]["text"]
     twin = fixture_doc("riff_lydian_d4")
     sc = slot(twin["runs"][0], 1)["scale"]
-    assert sc["own_note"] == "D" and 0.03 <= sc["own_share"] < 0.05, sc
-    assert sc["named"] is False and sc["say"] == "the notes of Eb major"
+    assert sc["own_note"] == "D", sc
+    assert 0.03 <= sc["own_share"] < 0.05, sc
+    assert sc["named"] is False
+    assert sc["say"] == "the notes of Eb major"
     assert "T2" not in [p["type"] for p in twin["talking_points"]]
 
 
@@ -565,12 +825,15 @@ def test_a11_free_play_same_notes_no_run(tmp_path, capsys):
     assert code == 0
     doc = json.loads(capsys.readouterr().out)
     free = doc["free_play"]
-    assert doc["runs"] == [] and free["mode"] == "free play" and free["chords"] == "chords read from your own playing"
+    assert doc["runs"] == []
+    assert free["mode"] == "free play"
+    assert free["chords"] == "chords read from your own playing"
     assert free["anticipations"] == []
     assert "T14" not in [p["type"] for p in doc["talking_points"]]
     assert all("beat" not in p and "seconds" in p for p in free["phrases"])
     if NODE:
-        assert free["coverage"]["chords_read"] > 0 and free["coverage"]["notes"] > 0
+        assert free["coverage"]["chords_read"] > 0
+        assert free["coverage"]["notes"] > 0
     assert riff.wording_problems(doc) == []
 
 
@@ -579,34 +842,48 @@ def test_a11_buffered_session_at_l4_exits_2_naming_opened_at_client(capsys):
     code = riff.main([RUN_ID, "--root", str(f / "performance"), "--jam-root", str(f / "jam")])
     assert code == 2
     captured = capsys.readouterr()
-    assert "opened_at_client" in captured.err and captured.out == ""
+    assert "opened_at_client" in captured.err
+    assert captured.out == ""
 
 
 @needs_node
 def test_a11_loopback_guard_through_the_groove_bridge():
     mirrored = fixture_doc("riff_lydian_loopback")
     lb = mirrored["runs"][0]["loopback"]
-    assert lb["source"] == "groove_bridge.mjs" and lb["claude_onsets"] > 0
-    assert lb["suspected"] is True and lb["mirrored_share"] >= 0.9
+    assert lb["source"] == "groove_bridge.mjs"
+    assert lb["claude_onsets"] > 0
+    assert lb["suspected"] is True
+    assert lb["mirrored_share"] >= 0.9
     assert "the loop may be echoing into the log (MIDI loopback)" in riff.render(mirrored)
-    assert slot(mirrored["runs"][0], 1)["labels"]["#11"] == 9           # and it still analyses
+    assert slot(mirrored["runs"][0], 1)["labels"]["#11"] == 9  # and it still analyses
     clean = fixture_doc("riff_lydian_l1")["runs"][0]["loopback"]
-    assert clean["source"] == "groove_bridge.mjs" and clean["claude_onsets"] > 0
-    assert clean["suspected"] is False and clean["mirrored_share"] == 0.0
+    assert clean["source"] == "groove_bridge.mjs"
+    assert clean["claude_onsets"] > 0
+    assert clean["suspected"] is False
+    assert clean["mirrored_share"] == 0.0
 
 
 def test_a11_loopback_guard_from_the_def_without_node():
     lb = fixture_doc("riff_lydian_loopback", "def")["runs"][0]["loopback"]
     assert lb["source"].startswith("the def's downbeat strikes")
-    assert lb["suspected"] is True and lb["mirrored_share"] >= 0.9
+    assert lb["suspected"] is True
+    assert lb["mirrored_share"] >= 0.9
     clean = fixture_doc("riff_lydian_l1", "def")["runs"][0]["loopback"]
-    assert clean["suspected"] is False and clean["mirrored_share"] == 0.0
+    assert clean["suspected"] is False
+    assert clean["mirrored_share"] == 0.0
 
 
 WORDING_CASES = {
-    "l1": {}, "d4": {"d_plan": "d4"}, "d0": {"d_plan": "d0"}, "loopback": {"mirror": True, "humanize": 0, "walk": 0},
-    "l2": {"ack_log": False}, "l3": {"ack_log": False, "meta": "l3"}, "l4": {"ack_log": False, "meta": "l4"},
-    "tempo": {"changes": [("tempo", 8, 80)]}, "next": {"changes": [("next", 8, "Db")]}, "try": {"mode": "try"},
+    "l1": {},
+    "d4": {"d_plan": "d4"},
+    "d0": {"d_plan": "d0"},
+    "loopback": {"mirror": True, "humanize": 0, "walk": 0},
+    "l2": {"ack_log": False},
+    "l3": {"ack_log": False, "meta": "l3"},
+    "l4": {"ack_log": False, "meta": "l4"},
+    "tempo": {"changes": [("tempo", 8, 80)]},
+    "next": {"changes": [("next", 8, "Db")]},
+    "try": {"mode": "try"},
     "lament": {"d": "def_lament_bass", "card": False, "shift": -2},
     "dorian": {"d": "def_dorian_vamp", "card": False, "shift": -1},
 }
@@ -616,8 +893,9 @@ def wording_case(tmp_path: Path, name: str) -> dict:
     kw = copy.deepcopy(WORDING_CASES[name])
     if isinstance(kw.get("d"), str):
         kw["d"] = j0_def(kw["d"])
-    kw["changes"] = [(op, bar, transpose_def(base_def(), -2) if value == "Db" else value)
-                     for op, bar, value in kw.get("changes", ())]
+    kw["changes"] = [
+        (op, bar, transpose_def(base_def(), -2) if value == "Db" else value) for op, bar, value in kw.get("changes", ())
+    ]
     return jam_case(tmp_path / name, **kw)
 
 
@@ -658,19 +936,22 @@ def test_a11_speed_30_minute_session_with_4_runs(tmp_path):
     doc = riff.riff(None, session=SESSION_ID, root=folder / "performance", jam_root=folder / "jam")
     elapsed = time.perf_counter() - t
     assert elapsed <= 3.0, elapsed
-    assert len(doc["runs"]) == 4 and all(b["coverage"]["passes"] == 40 for b in doc["runs"])
+    assert len(doc["runs"]) == 4
+    assert all(b["coverage"]["passes"] == 40 for b in doc["runs"])
     assert PerformanceStore(folder / "performance").info(SESSION_ID)["last_t_ms"] >= 29 * 60000 + 59000
 
 
 # ================================================================================================ the rest of 11
-@pytest.mark.parametrize("meta,method,error", [("full", "L2", 2.0), ("l3", "L3", 50.0), ("l4", "L4", 150.0)])
+@pytest.mark.parametrize(("meta", "method", "error"), [("full", "L2", 2.0), ("l3", "L3", 50.0), ("l4", "L4", 150.0)])
 def test_alignment_ladder_without_an_l1_ack(tmp_path, meta, method, error):
     doc = case_doc(jam_case(tmp_path, meta=meta, ack_log=False))
     b = doc["runs"][0]
     a = b["alignment"]
-    assert a["method"] == method and a["error_ms"] == error and a["approx"] is (method == "L4")
+    assert a["method"] == method
+    assert a["error_ms"] == error
+    assert a["approx"] is (method == "L4")
     assert abs(a["bar0_t_ms"] - BAR0_T) <= error
-    assert slot(b, 1)["labels"]["#11"] == 9                            # which chord: at every level
+    assert slot(b, 1)["labels"]["#11"] == 9  # which chord: at every level
     assert len(b["anticipations"]) == 5
     assert all(x.get("approx") is (True if method == "L4" else None) for x in b["anticipations"] + b["phrases"])
 
@@ -679,7 +960,8 @@ def test_tempo_change_mid_run_follows_the_tempo_map(tmp_path):
     case = jam_case(tmp_path, changes=[("tempo", 8, 80)])
     doc = case_doc(case)
     assert planted_counts(doc) == A11_COUNTS
-    assert doc["runs"][0]["bpm"] == [66, 80] and doc["runs"][0]["coverage"]["bars"] == 16
+    assert doc["runs"][0]["bpm"] == [66, 80]
+    assert doc["runs"][0]["coverage"]["bars"] == 16
     loaded = riff.load_run(case["jam"], RUN_ID)
     tl = riff.RunTimeline(loaded, riff.align(loaded, SESSION_ID, PerformanceStore(case["root"]).info(SESSION_ID)))
     segs = case["run"]["segments"]
@@ -693,8 +975,12 @@ def test_next_card_mid_run_keeps_counting_passes(tmp_path):
     doc = case_doc(jam_case(tmp_path, changes=[("next", 8, transpose_def(base_def(), -2))]))
     b = doc["runs"][0]
     assert b["coverage"]["passes"] == 8
-    assert {(s["def_version"], s["name"]) for s in b["slots"]} == \
-        {(1, "Ebmaj9"), (1, "Abmaj7#11"), (2, "Dbmaj9"), (2, "Gbmaj7#11")}
+    assert {(s["def_version"], s["name"]) for s in b["slots"]} == {
+        (1, "Ebmaj9"),
+        (1, "Abmaj7#11"),
+        (2, "Dbmaj9"),
+        (2, "Gbmaj7#11"),
+    }
     assert [x["def_version"] for x in b["degrees_by_bar"]["by_def"]] == [1, 2]
     assert sorted({x["pass"] for x in b["notes"] if x["t_ms"] >= case_t(8)}) == [5, 6, 7, 8]
 
@@ -705,12 +991,17 @@ def case_t(bar: int) -> float:
 
 def test_not_enough_playing_inside_the_loop_exits_0(tmp_path, capsys):
     case = jam_case(tmp_path, keep=5)
-    code = riff.main([RUN_ID, "--root", str(case["root"]), "--jam-root", str(case["jam"]), "--json", "--rebuild", "def"])
+    code = riff.main(
+        [RUN_ID, "--root", str(case["root"]), "--jam-root", str(case["jam"]), "--json", "--rebuild", "def"]
+    )
     assert code == 0
     doc = json.loads(capsys.readouterr().out)
     b = doc["runs"][0]
-    assert b["enough"] is False and b["say"] == "not enough playing inside the loop to talk about (5 notes)"
-    assert doc["talking_points"] == [] and doc["question"] is None and doc["try"] is None
+    assert b["enough"] is False
+    assert b["say"] == "not enough playing inside the loop to talk about (5 notes)"
+    assert doc["talking_points"] == []
+    assert doc["question"] is None
+    assert doc["try"] is None
 
 
 def test_no_session_overlapping_the_run_exits_2(tmp_path, capsys):
@@ -726,23 +1017,34 @@ def test_question_try_checks_and_the_held_rub_point():
     doc = fixture_doc("riff_lydian_l1")
     planted = json.loads((FIX / "riff_lydian_l1" / "expected.json").read_text(encoding="utf-8"))["planted"]
     q = doc["question"]
-    assert q["kind"] == "rub" and q["at"] == pr.clock(planted["rub"][0])
-    assert q["text"] == f"At {pr.clock(planted['rub'][0])} the Ab rubbed against the G in Ebmaj9. Did you want that rub?"
+    assert q["kind"] == "rub"
+    assert q["at"] == pr.clock(planted["rub"][0])
+    assert (
+        q["text"] == f"At {pr.clock(planted['rub'][0])} the Ab rubbed against the G in Ebmaj9. Did you want that rub?"
+    )
     assert q["replay"] == riff.replay_command(SESSION_ID, planted["rub"][0] - 4000, 8)
-    assert doc["try"]["rule"] == 5 and doc["try"]["text"].startswith("Keep the loop going. On the Ab bar")
+    assert doc["try"]["rule"] == 5
+    assert doc["try"]["text"].startswith("Keep the loop going. On the Ab bar")
     check = doc["runs"][0]["checks"][0]
-    assert check["id"] == "sharp-eleven" and check["pass"] is True and check["count"] == 9
+    assert check["id"] == "sharp-eleven"
+    assert check["pass"] is True
+    assert check["count"] == 9
     t4 = [p for p in fixture_doc("riff_lydian_d4")["talking_points"] if p["type"] == "T4"]
-    assert t4 and t4[0]["text"] == (f"At {pr.clock(planted['rub'][0])} you held Ab over Ebmaj9 for 2 beats: it rubs a "
-                                    f"half step against the G. At {pr.clock(planted['passing'][0])} the same Ab passed "
-                                    f"quickly.")
+    assert t4
+    assert t4[0]["text"] == (
+        f"At {pr.clock(planted['rub'][0])} you held Ab over Ebmaj9 for 2 beats: it rubs a "
+        f"half step against the G. At {pr.clock(planted['passing'][0])} the same Ab passed "
+        f"quickly."
+    )
 
 
 def test_concept_note_missing_gives_try_rule_1(tmp_path):
     doc = case_doc(jam_case(tmp_path, d_plan="d0"))
     check = doc["runs"][0]["checks"][0]
-    assert check["pass"] is False and check["count"] == 0
-    assert doc["try"]["rule"] == 1 and doc["try"]["text"] == "Land your top note on D in bar 2."
+    assert check["pass"] is False
+    assert check["count"] == 0
+    assert doc["try"]["rule"] == 1
+    assert doc["try"]["text"] == "Land your top note on D in bar 2."
     assert doc["try"]["card"] == {"id": "lydian-four", "target_notes": [74], "bar": 2}
     assert "- sharp-eleven: D did not come up this time" in riff.render(doc)
 
@@ -751,13 +1053,31 @@ def test_card_with_no_run_is_assumed_alignment(tmp_path, capsys):
     f = FIX / "riff_lydian_l1"
     def_path = tmp_path / "lydian.def.json"
     def_path.write_text(json.dumps(base_def()), encoding="utf-8")
-    code = riff.main(["--card", str(def_path), "--from", "0:11.636", "--bpm", "66", "--session", SESSION_ID,
-                      "--root", str(f / "performance"), "--jam-root", str(tmp_path / "jam"), "--json",
-                      "--rebuild", "def"])
+    code = riff.main(
+        [
+            "--card",
+            str(def_path),
+            "--from",
+            "0:11.636",
+            "--bpm",
+            "66",
+            "--session",
+            SESSION_ID,
+            "--root",
+            str(f / "performance"),
+            "--jam-root",
+            str(tmp_path / "jam"),
+            "--json",
+            "--rebuild",
+            "def",
+        ]
+    )
     assert code == 0
     b = json.loads(capsys.readouterr().out)["runs"][0]
-    assert b["alignment"]["method"] == "assumed" and b["alignment"]["approx"] is True
-    assert slot(b, 1)["labels"]["#11"] == 9 and len(b["anticipations"]) == 5
+    assert b["alignment"]["method"] == "assumed"
+    assert b["alignment"]["approx"] is True
+    assert slot(b, 1)["labels"]["#11"] == 9
+    assert len(b["anticipations"]) == 5
     assert all(x["approx"] is True for x in b["anticipations"])
 
 
@@ -765,44 +1085,72 @@ def test_save_writes_only_the_riff_file(tmp_path, capsys):
     folder = tmp_path / "jam-case"
     shutil.copytree(FIX / "riff_lydian_l1", folder)
     before = {p: p.read_bytes() for p in folder.rglob("*") if p.is_file()}
-    code = riff.main([RUN_ID, "--root", str(folder / "performance"), "--jam-root", str(folder / "jam"), "--save",
-                      "--rebuild", "def"])
+    code = riff.main(
+        [RUN_ID, "--root", str(folder / "performance"), "--jam-root", str(folder / "jam"), "--save", "--rebuild", "def"]
+    )
     assert code == 0
     saved = folder / "jam" / "riffs" / f"{RUN_ID}.json"
     doc = json.loads(saved.read_text(encoding="utf-8"))
-    assert doc["api"] == RIFF_API and doc["saved_at"] and [b["run"] for b in doc["runs"]] == [RUN_ID]
+    assert doc["api"] == RIFF_API
+    assert doc["saved_at"]
+    assert [b["run"] for b in doc["runs"]] == [RUN_ID]
     after = {p: p.read_bytes() for p in folder.rglob("*") if p.is_file()}
-    assert set(after) - set(before) == {saved} and all(after[p] == before[p] for p in before)
+    assert set(after) - set(before) == {saved}
+    assert all(after[p] == before[p] for p in before)
     assert "saved" in capsys.readouterr().err
 
 
 def test_the_practice_verb_registration():
     f = FIX / "riff_lydian_l1"
-    proc = subprocess.run([sys.executable, "-m", "arsenal.practice", "riff", RUN_ID, "--root", str(f / "performance"),
-                           "--jam-root", str(f / "jam"), "--json", "--rebuild", "def"], cwd=ROOT, capture_output=True,
-                          text=True, encoding="utf-8", timeout=120)
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "arsenal.practice",
+            "riff",
+            RUN_ID,
+            "--root",
+            str(f / "performance"),
+            "--jam-root",
+            str(f / "jam"),
+            "--json",
+            "--rebuild",
+            "def",
+        ],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        timeout=120,
+    )
     assert proc.returncode == 0, proc.stderr
     doc = json.loads(proc.stdout)
-    assert doc["api"] == RIFF_API and doc["runs"][0]["alignment"]["method"] == "L1"
-    assert doc["constants"]["ONSET_GROUP_MS"] == 50 and doc["constants"]["GRID_TOL"] == 0.08
+    assert doc["api"] == RIFF_API
+    assert doc["runs"][0]["alignment"]["method"] == "L1"
+    assert doc["constants"]["ONSET_GROUP_MS"] == 50
+    assert doc["constants"]["GRID_TOL"] == 0.08
 
 
 def test_latest_and_session_forms_and_the_filters(capsys):
     f = FIX / "riff_lydian_l1"
     base = ["--root", str(f / "performance"), "--jam-root", str(f / "jam"), "--json", "--rebuild", "def"]
-    assert riff.main(["latest"] + base) == 0
+    assert riff.main(["latest", *base]) == 0
     latest = json.loads(capsys.readouterr().out)
-    assert [b["run"] for b in latest["runs"]] == [RUN_ID] and latest["session"] == SESSION_ID
-    assert riff.main(["--session", SESSION_ID] + base) == 0
+    assert [b["run"] for b in latest["runs"]] == [RUN_ID]
+    assert latest["session"] == SESSION_ID
+    assert riff.main(["--session", SESSION_ID, *base]) == 0
     by_session = json.loads(capsys.readouterr().out)
-    assert [b["run"] for b in by_session["runs"]] == [RUN_ID] and "free_play" not in by_session
+    assert [b["run"] for b in by_session["runs"]] == [RUN_ID]
+    assert "free_play" not in by_session
     for flags in (["--pass", "3"], ["--bars", "5-6"]):
-        assert riff.main([RUN_ID] + flags + base) == 0
+        assert riff.main([RUN_ID, *flags, *base]) == 0
         b = json.loads(capsys.readouterr().out)["runs"][0]
-        assert b["coverage"]["passes"] == 1 and b["coverage"]["bars"] == 2, flags
-        assert sum(s["classes"]["rub"] for s in b["slots"]) == 1 and sum(s["classes"]["passing"] for s in b["slots"]) == 0
+        assert b["coverage"]["passes"] == 1, flags
+        assert b["coverage"]["bars"] == 2, flags
+        assert sum(s["classes"]["rub"] for s in b["slots"]) == 1
+        assert sum(s["classes"]["passing"] for s in b["slots"]) == 0
         assert {x["pass"] for x in b["notes"]} == {3}
-    assert riff.main([RUN_ID, "--pass", "0"] + base) == 2
+    assert riff.main([RUN_ID, "--pass", "0", *base]) == 2
     assert "--pass counts from 1" in capsys.readouterr().err
 
 
@@ -824,7 +1172,7 @@ def test_passes_he_did_not_play_are_not_growth_or_misses(tmp_path):
     run, lines = make_run(d=d)
     t_of = t_map(run["segments"])
     notes = [x for x in planted_notes() if 8 <= x[0] < 56]  # passes 2..7 only (a pass is 8 beats)
-    notes.append((58.0, n("Eb5"), 1.0, "stray"))             # one note in pass 8, over its first chord
+    notes.append((58.0, n("Eb5"), 1.0, "stray"))  # one note in pass 8, over its first chord
     events = perform(note_actions(notes, t_of) + pedal_actions(16, t_of))
     folder = write_jam(tmp_path / "late", [(run, lines)], [(session_doc(events, session_meta("full")), events)])
     doc = riff.riff(RUN_ID, root=folder / "performance", jam_root=folder / "jam", rebuild="def")
@@ -835,9 +1183,11 @@ def test_passes_he_did_not_play_are_not_growth_or_misses(tmp_path):
         if point["type"] == "T13":
             ev = point["evidence"]
             assert set(ev["passes"] + ev["to_passes"]) <= set(held), ev
-            assert ev["from_notes"] >= riff.T13_MIN_NOTES and ev["to_notes"] >= riff.T13_MIN_NOTES, ev
+            assert ev["from_notes"] >= riff.T13_MIN_NOTES, ev
+            assert ev["to_notes"] >= riff.T13_MIN_NOTES, ev
     ld = b["card_landing"]
-    assert ld is not None and (ld["instances"], ld["instances_all"]) == (6, 8), ld
+    assert ld is not None, ld
+    assert (ld["instances"], ld["instances_all"]) == (6, 8), ld
     text = riff.render(doc)
     assert f"of the {ld['instances']} times you played over it" in text
     assert riff.wording_problems(doc, text) == []
@@ -848,29 +1198,45 @@ def test_landing_and_check_notes_are_spelled_from_the_chord():
     'Eb major') is B), where the card and jam-rulings say Cb, the b3 of Abm(add9). Both are spelled from the chord's own
     tones now, also for a def recorded before resolve carried landing.note."""
     from types import SimpleNamespace
+
     from arsenal.jam.resolve import tone_name
-    slot = {"name": "Abm(add9)", "key": "Eb major", "tones_pc": {"root": 8, "third": 11, "fifth": 3, "ninth": 10},
-            "bass_pc": 8}
+
+    slot = {
+        "name": "Abm(add9)",
+        "key": "Eb major",
+        "tones_pc": {"root": 8, "third": 11, "fifth": 3, "ninth": 10},
+        "bass_pc": 8,
+    }
     d = {"slots": [slot], "landing": {"slot": 0, "role": "b3", "relative_to": "root", "pc": 11, "pull": "Cb, the b3."}}
-    f = {"root": 8, "bass": 8, "roles": {8: "root", 11: "third", 3: "fifth", 10: "ninth"}, "key": "Eb major",
-         "name": "Abm(add9)", "major_third": False, "sus": False}
+    f = {
+        "root": 8,
+        "bass": 8,
+        "roles": {8: "root", 11: "third", 3: "fifth", 10: "ninth"},
+        "key": "Eb major",
+        "name": "Abm(add9)",
+        "major_third": False,
+        "sus": False,
+    }
     tl = SimpleNamespace(defs={1: d}, facts=lambda version, i: f)
     block = {"_insts": [{"i": 0, "slot": 0, "def_version": 1}], "_recs": [], "_landings": {}}
     assert pr.pc_name(11, "Eb major") == "B"  # the key's table, which the riff no longer uses for these
-    assert riff.card_landing(tl, block, 1)["note"] == "Cb"
+    assert _some(riff.card_landing(tl, block, 1))["note"] == "Cb"
     card = {"checks": [{"id": "borrowed", "slot": 0, "role": "b3", "want": "present", "say": "you played Cb"}]}
     assert riff.card_checks(tl, block, card, None, 1)[0]["note"] == "Cb"
     # Daniel's keys (round-2 landing_check rows): double flats and a slash bass keep the chord's letters
     for name, key, tones, bass, role, rel, want in (
-            ("Gm(add9)", "D major", {"root": 7}, 7, "b3", "root", "Bb"),
-            ("Cm(add9)", "G major", {"root": 0}, 0, "b3", "root", "Eb"),
-            ("Cbm(add9)", "Gb major", {"root": 11}, 11, "b3", "root", "Ebb"),
-            ("Dbm(add9)", "Ab major", {"root": 1}, 1, "b3", "root", "Fb"),
-            ("Gbm(add9)", "Db major", {"root": 6}, 6, "b3", "root", "Bbb"),
-            ("Db11/Cb", "Gb major", {"root": 1}, 11, "1", "bass", "Cb"),
-            ("Cmaj7#11", "G major", {"root": 0}, 0, "#11", "root", "F#")):
+        ("Gm(add9)", "D major", {"root": 7}, 7, "b3", "root", "Bb"),
+        ("Cm(add9)", "G major", {"root": 0}, 0, "b3", "root", "Eb"),
+        ("Cbm(add9)", "Gb major", {"root": 11}, 11, "b3", "root", "Ebb"),
+        ("Dbm(add9)", "Ab major", {"root": 1}, 1, "b3", "root", "Fb"),
+        ("Gbm(add9)", "Db major", {"root": 6}, 6, "b3", "root", "Bbb"),
+        ("Db11/Cb", "Gb major", {"root": 1}, 11, "1", "bass", "Cb"),
+        ("Cmaj7#11", "G major", {"root": 0}, 0, "#11", "root", "F#"),
+    ):
         assert tone_name({"name": name, "key": key, "tones_pc": tones, "bass_pc": bass}, role, rel) == want, name
-    assert tone_name({"name": "a cluster of mine", "key": "Eb major", "tones_pc": {"root": 8}, "bass_pc": 8}, "b3") is None
+    assert (
+        tone_name({"name": "a cluster of mine", "key": "Eb major", "tones_pc": {"root": 8}, "bass_pc": 8}, "b3") is None
+    )
 
 
 if __name__ == "__main__" and "--write-fixtures" in sys.argv:

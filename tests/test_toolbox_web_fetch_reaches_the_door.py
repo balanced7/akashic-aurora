@@ -35,11 +35,12 @@ Run::
 
     py -m pytest tests/test_toolbox_web_fetch_reaches_the_door.py -q
 """
+
 from __future__ import annotations
 
 import json
-from pathlib import Path
 import sys
+from pathlib import Path
 
 import pytest
 
@@ -61,13 +62,14 @@ def _never_touch_the_real_ledger(monkeypatch, tmp_path):
     author knowing the hazard exists.
     """
     import core.web.door as real_door
+
     monkeypatch.setattr(real_door, "RECEIPTS", tmp_path / "web_fetch_receipts.jsonl")
 
 
 def _toolbox(agent_id="test-seat"):
     from core.comm.toolbox import ToolBox
-    tb = ToolBox(ROOT, allow_exec=False, trust=False, allow_secrets=False,
-                 confirm=lambda *a, **k: True)
+
+    tb = ToolBox(ROOT, allow_exec=False, trust=False, allow_secrets=False, confirm=lambda *a, **k: True)
     tb.agent_id = agent_id
     return tb
 
@@ -76,6 +78,7 @@ def test_web_fetch_is_in_the_runner_tool_surface():
     """THE PIN THE INCIDENT NEEDED. Not "the door exists" -- the door existed the whole time.
     The question is whether a runner seat can SEE it."""
     from core.comm.toolbox import TOOLS
+
     names = {t["function"]["name"] for t in TOOLS}
     assert "web_fetch" in names, (
         "a runner seat has no fetch tool. It can search and never read, and nothing in its "
@@ -88,6 +91,7 @@ def test_the_spec_warns_that_fetched_text_is_untrusted():
     """Fetched content is a stranger's writing entering a model's context. The tool description
     is the only place the seat is told so BEFORE it calls."""
     from core.comm.toolbox import TOOLS
+
     spec = next(t for t in TOOLS if t["function"]["name"] == "web_fetch")
     desc = spec["function"]["description"].lower()
     assert "untrusted" in desc, "the spec does not tell the seat the content is untrusted"
@@ -113,7 +117,11 @@ def test_a_failed_fetch_can_never_read_as_an_empty_page():
     out = tb.web_fetch("https://this-host-does-not-exist.invalid")
     assert "FETCH FAILED" in out, f"a failure did not announce itself: {out[:160]!r}"
     low = out.lower()
-    assert "not an empty page" in low and "absent" in low, (
+    assert "not an empty page" in low, (
+        "the failure does not distinguish itself from an empty page / an absent subject, which "
+        "is the exact confusion that produced this task"
+    )
+    assert "absent" in low, (
         "the failure does not distinguish itself from an empty page / an absent subject, which "
         "is the exact confusion that produced this task"
     )
@@ -133,11 +141,20 @@ def test_the_range_survives_the_wrapper(monkeypatch):
     import core.web.door as real_door
 
     def _fake_fetch(url, **kw):
-        return {"ok": True, "url": url, "final_url": url, "fetched_at": "2026-09-24T00:00:00Z",
-                "status": 200, "content_type": "text/html", "sha256": "a" * 64, "bytes": 10,
-                "cache": "miss-filled", "is_pdf": False,
-                "cleaned": {"total_chars": 5000, "offset": 0, "returned": 80, "text": "x" * 80},
-                "raw_available": True}
+        return {
+            "ok": True,
+            "url": url,
+            "final_url": url,
+            "fetched_at": "2026-09-24T00:00:00Z",
+            "status": 200,
+            "content_type": "text/html",
+            "sha256": "a" * 64,
+            "bytes": 10,
+            "cache": "miss-filled",
+            "is_pdf": False,
+            "cleaned": {"total_chars": 5000, "offset": 0, "returned": 80, "text": "x" * 80},
+            "raw_available": True,
+        }
 
     monkeypatch.setattr(real_door, "fetch", _fake_fetch)
     out = tb.web_fetch("https://example.com/long", limit=80)
@@ -159,17 +176,16 @@ def test_the_receipt_names_the_seat_that_fetched(tmp_path):
     could reach the web door. An audit trail that gains fabricated entries on every CI run stops
     being usable as evidence, which is exactly what it was being used for.
     """
-    ledger = tmp_path / "web_fetch_receipts.jsonl"   # the autouse fixture already points here
+    ledger = tmp_path / "web_fetch_receipts.jsonl"  # the autouse fixture already points here
     tb = _toolbox(agent_id="pin-seat")
     out = tb.web_fetch("https://this-host-does-not-exist.invalid")
     assert "FETCH FAILED" in out
 
     assert ledger.exists(), "a failed fetch wrote NO receipt -- the error path is unaudited"
-    lines = [l for l in ledger.read_text(encoding="utf-8").splitlines() if l.strip()]
+    lines = [ln for ln in ledger.read_text(encoding="utf-8").splitlines() if ln.strip()]
     assert lines, "receipt file created but empty"
     row = json.loads(lines[-1])
     assert row.get("seat") == "pin-seat", (
-        f"the receipt names {row.get('seat')!r}, not the calling seat -- attribution is the "
-        f"entire point of this ledger"
+        f"the receipt names {row.get('seat')!r}, not the calling seat -- attribution is the entire point of this ledger"
     )
     assert row.get("cache") == "error", "a failed fetch must receipt AS a failure"

@@ -12,10 +12,8 @@ Pins cover the PURE cleaner (scripts/yt_captions.py:clean_vtt_text) and the
 teaching error when yt-dlp is absent. The network half is a thin yt-dlp
 passthrough, deliberately unpinned (their contract, not ours).
 """
-import pytest
 
-from scripts.yt_captions import clean_vtt_text, MISSING_YTDLP_HINT
-
+from scripts.yt_captions import MISSING_YTDLP_HINT, clean_vtt_text
 
 VTT = """WEBVTT
 Kind: captions
@@ -37,22 +35,24 @@ we had about <c.colorE5E5E5>interest rates</c> was a
 
 def test_c1_cues_headers_and_indices_are_stripped():
     out = clean_vtt_text(VTT)
-    assert "WEBVTT" not in out and "-->" not in out
-    assert "Kind:" not in out and "Language:" not in out
-    assert "\n2\n" not in f"\n{out}\n"          # bare cue index lines dropped
+    assert "WEBVTT" not in out
+    assert "-->" not in out
+    assert "Kind:" not in out
+    assert "Language:" not in out
+    assert "\n2\n" not in f"\n{out}\n"  # bare cue index lines dropped
 
 
 def test_c2_rolling_duplicates_collapse_preserving_order():
     lines = clean_vtt_text(VTT).splitlines()
     assert lines.count("Glenn Stevens, thank you for your time.") == 1
     assert lines.count("Brian, the eerily moving conversation") == 1
-    assert lines.index("Glenn Stevens, thank you for your time.") < \
-           lines.index("Brian, the eerily moving conversation")
+    assert lines.index("Glenn Stevens, thank you for your time.") < lines.index("Brian, the eerily moving conversation")
 
 
 def test_c3_inline_styling_tags_are_stripped_content_kept():
     out = clean_vtt_text(VTT)
-    assert "<c." not in out and "</c>" not in out
+    assert "<c." not in out
+    assert "</c>" not in out
     assert "interest rates" in out
 
 

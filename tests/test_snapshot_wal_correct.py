@@ -8,9 +8,10 @@ the worst possible place to discover it.
 
 These two tests pin the properties a file copy does not have.
 """
+
 import importlib.util
-import sqlite3
 import shutil
+import sqlite3
 import sys
 from pathlib import Path
 
@@ -22,6 +23,8 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 def _snap_module():
     path = REPO_ROOT / "scripts" / "ops" / "snapshot_knowledge.py"
     spec = importlib.util.spec_from_file_location("snapshot_knowledge", path)
+    assert spec is not None
+    assert spec.loader is not None
     mod = importlib.util.module_from_spec(spec)
     sys.modules["snapshot_knowledge"] = mod
     spec.loader.exec_module(mod)
@@ -53,9 +56,8 @@ def test_backup_carries_writes_a_file_copy_would_drop(tmp_path):
     conn = _live_db_with_uncheckpointed_writes(live)
     try:
         wal = live.with_name(live.name + "-wal")
-        assert wal.exists() and wal.stat().st_size > 0, (
-            "setup failed: no uncheckpointed WAL content, so this pin would prove nothing"
-        )
+        assert wal.exists(), "setup failed: no uncheckpointed WAL content, so this pin would prove nothing"
+        assert wal.stat().st_size > 0, "setup failed: no uncheckpointed WAL content, so this pin would prove nothing"
 
         good = tmp_path / "good.db"
         assert snap._backup_sqlite(live, good) is True
@@ -130,7 +132,7 @@ def test_restore_refuses_loudly_when_the_store_is_in_use(tmp_path):
     c.close()
 
     dst = tmp_path / "store_state.db"
-    holder = _live_db_with_uncheckpointed_writes(dst)   # deliberately left open
+    holder = _live_db_with_uncheckpointed_writes(dst)  # deliberately left open
     try:
         ok = snap._restore_sqlite(src, dst)
         if ok:

@@ -4,9 +4,22 @@ on:
   push:
   pull_request:
 
+# Least privilege (G5.P3): every job only reads the repository.
+permissions:
+  contents: read
+
+# A newer push to the same ref supersedes the run in flight.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Every action is pinned to a full commit SHA, the tag it resolved from beside it
+# (`git ls-remote` at pin time); Dependabot (.github/dependabot.yml) proposes the updates.
 jobs:
-  test:
+  gate:
+    name: Gate (poe gate) and guardrails
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     env:
       AI_SETUP: ${{ github.workspace }}
       REDIS_HOST: localhost
@@ -22,24 +35,126 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
-          python-version: "3.11"
+          persist-credentials: false
+      # One launcher (plan G1.P5): the locked environment, then every step through `uv run`.
+      # numpy (the embedding subsystems exercised here) is a locked runtime dependency.
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7  # v10.2.0
+        with:
+          version: "0.12.21"
+          enable-cache: true
       - name: Install dependencies
-        run: python -m pip install -r requirements.txt numpy  # numpy = optional embedding subsystems; exercised in CI
+        run: uv sync --locked
+      # The local gate, the same command a contributor runs: fmt-check, lint-check, types,
+      # lock-check, deps, guardrails, test-fast; it stops at the first failure.
+      - name: Gate
+        run: uv run poe gate
       # The comprehensibility immune system -- the unbypassable REMOTE gate: every push/PR is checked,
       # so drift can't reach the shared repo via any local path (mirror/git commit that skipped hooks).
       # See docs/library/design/20260701_the-comprehensibility-immune-system-desi_339b01.md.
+      # Each guardrail runs through `poe guardrails`, which holds a checker to its exit code in the
+      # g0 baseline (tooling-upgrade/snapshots/g0/O6.json): it may hold or improve, never get worse.
       - name: Architecture boundary guardrail
-        run: python scripts/checkers/check_boundaries.py
+        run: uv run poe guardrails --only check_boundaries
       - name: Doc-freshness guardrail
-        run: python scripts/checkers/check_doc_freshness.py
+        run: uv run poe guardrails --only check_doc_freshness
       - name: Comprehensibility guardrail (docs match code; no stale refs / case drift)
-        run: python scripts/checkers/check_comprehensibility.py
+        run: uv run poe guardrails --only check_comprehensibility
       - name: Wiring guardrail (no built-but-unwired core module)
-        run: python scripts/checkers/check_wiring.py
+        run: uv run poe guardrails --only check_wiring
       - name: Door-parity guardrail (CLI<->MCP verb surface)
-        run: python scripts/checkers/check_door_parity.py
+        run: uv run poe guardrails --only check_door_parity
+
+  test:
+    name: Test suite (poe test)
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      AI_SETUP: ${{ github.workspace }}
+      REDIS_HOST: localhost
+      REDIS_PORT: "16379"
+    services:
+      redis:
+        image: redis:7
+        ports:
+          - 16379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7  # v10.2.0
+        with:
+          version: "0.12.21"
+          enable-cache: true
+      - name: Install dependencies
+        run: uv sync --locked
+      # The full suite (REDIS_DB=15) with branch coverage, compared with the g0 baseline:
+      # no stable-pass test may fail reproducibly, and no package's coverage may drop > 0.5 pp.
       - name: Test suite
-        run: python -m pytest -q
+        run: uv run poe test
+
+  ty:
+    name: ty (advisory)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # ty is the advisory second opinion beside basedpyright (G4.P4): reported, never blocking.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7  # v10.2.0
+        with:
+          version: "0.12.21"
+          enable-cache: true
+      - name: Install dependencies
+        run: uv sync --locked
+      - name: ty
+        run: uv run poe types-ty
+
+  windows-smoke:
+    name: Windows smoke (non-blocking)
+    runs-on: windows-latest
+    timeout-minutes: 30
+    # Windows stays a supported platform (PF3). Non-blocking until a human promotes it.
+    continue-on-error: true
+    env:
+      REDIS_DB: "15"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7  # v10.2.0
+        with:
+          version: "0.12.21"
+          enable-cache: true
+      - name: Install dependencies
+        run: uv sync --locked
+      - name: Status command
+        run: uv run python agent_cli.py status
+      - name: Portability tests
+        run: uv run python -m pytest -q tests/test_portability.py tests/test_no_console_windows.py
+
+  ci-lint:
+    name: Workflow lint (poe ci-lint)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7  # v10.2.0
+        with:
+          version: "0.12.21"
+          enable-cache: true
+      - name: Install dependencies
+        run: uv sync --locked
+      # zizmor (workflow security), actionlint (syntax), and every uses: pinned to a SHA
+      - name: Workflow lint
+        run: uv run poe ci-lint

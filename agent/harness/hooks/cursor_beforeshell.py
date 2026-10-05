@@ -13,6 +13,7 @@ never bricks the agent). Payload capture comes first (payload-truth discipline);
 `command` (with a `tool_input.command` fallback) is the field per the pinned docs
 (cursor.com/docs/agent/hooks, 2026-07-02) -- H2 pins live captures as the contract.
 """
+
 import json
 import os
 import sys
@@ -32,23 +33,29 @@ def main() -> int:
         return 0
     try:
         from agent.harness.capture import capture
+
         capture(data, _CAP_DIR, label="beforeShellExecution")
     except Exception:
         pass
     command = data.get("command") or ((data.get("tool_input") or {}).get("command")) or ""
     try:
         from agent.harness.guards import git_veto
+
         reason = git_veto(command)
     except Exception:
-        reason = ""   # policy unavailable -> allow
+        reason = ""  # policy unavailable -> allow
     if not reason:
         print(json.dumps({"permission": "allow"}))
     else:
-        print(json.dumps({
-            "permission": "deny",
-            "agentMessage": reason,
-            "userMessage": "Blocked blanket git staging in the shared tree (see agent message).",
-        }))
+        print(
+            json.dumps(
+                {
+                    "permission": "deny",
+                    "agentMessage": reason,
+                    "userMessage": "Blocked blanket git staging in the shared tree (see agent message).",
+                }
+            )
+        )
     return 0
 
 

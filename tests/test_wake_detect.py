@@ -9,9 +9,9 @@ afterwards -- the exact scenario that silently ate a fenced report on 2026-07-09
 Design: docs/library/design/20260709_p0-wake-listener-detect-don-t-consume-t0_864270.md. Redis-backed (skip if down).
 Run: py -m pytest tests/test_wake_detect.py -q
 """
+
 import os
 import sys
-import threading
 import time
 import uuid
 
@@ -19,8 +19,8 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.comm.bus import Bus
 from core.comm.bifrost_api import BifrostAPI
+from core.comm.bus import Bus
 
 
 @pytest.fixture(autouse=True)
@@ -42,10 +42,11 @@ def _legacy_wake_plane(monkeypatch):
 
 
 def _client():
-    from core.foundation.redis_connection import (
-        connect_to_redis_with_fail_fast, DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT)
-    c = connect_to_redis_with_fail_fast(host=DEFAULT_REDIS_HOST, port=DEFAULT_REDIS_PORT,
-                                        timeout_seconds=3, decode_responses=True)
+    from core.foundation.redis_connection import DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT, connect_to_redis_with_fail_fast
+
+    c = connect_to_redis_with_fail_fast(
+        host=DEFAULT_REDIS_HOST, port=DEFAULT_REDIS_PORT, timeout_seconds=3, decode_responses=True
+    )
     if c is None:
         pytest.skip("redis not available")
     return c
@@ -89,6 +90,7 @@ def test_wait_since_reads_from_local_position_and_never_writes_shared_cursor():
         a = Bus("alice", c, namespace=ns)
         b = Bus("bob", c, namespace=ns)
         first = a.send("bob", "chat", "one")
+        assert first is not None
         a.send("bob", "chat", "two")
         got = b.wait(timeout_ms=1500, since={"inbox": first, "bc": "0"})
         assert [m.content for m in got] == ["two"], "since=<id of one> must yield only later entries"
@@ -127,10 +129,10 @@ def test_wake_block_returns_skip_kind_once_and_leaves_it_consumable():
         got2 = api.wake_block(timeout_ms=700)
         assert got2 == [], "second wake_block must NOT re-return it (local cursor advanced; no spin)"
         assert time.time() - t0 >= 0.5, "second call must BLOCK (not hot-return the same entry)"
-        assert c.hgetall(_cursor_key(ns, "bob")) == cursor_after_prime, \
-            "shared cursor untouched by wake_block"
-        assert [m.content for m in api.bus.inbox()] == ["the fenced report"], \
+        assert c.hgetall(_cursor_key(ns, "bob")) == cursor_after_prime, "shared cursor untouched by wake_block"
+        assert [m.content for m in api.bus.inbox()] == ["the fenced report"], (
             "the real consumer still receives the reply (THE regression)"
+        )
     finally:
         _cleanup(c, ns)
 
@@ -161,8 +163,9 @@ def test_wake_block_local_cursor_spans_inbox_and_broadcast():
         got1 = api.wake_block(timeout_ms=1500)
         assert sorted(m.content for m in got1) == ["bc-skip", "direct-skip"]
         assert api.wake_block(timeout_ms=600) == [], "neither stream re-delivers to the watcher"
-        assert sorted(m.content for m in api.bus.inbox()) == ["bc-skip", "direct-skip"], \
+        assert sorted(m.content for m in api.bus.inbox()) == ["bc-skip", "direct-skip"], (
             "both remain unread for the real consumer"
+        )
     finally:
         _cleanup(c, ns)
 
@@ -170,6 +173,7 @@ def test_wake_block_local_cursor_spans_inbox_and_broadcast():
 # ------------------------------------------------------------- T4: watch() semantics
 def _watch(agent, api, deadline_s, block_ms):
     import scripts.bifrost_wake as bw
+
     return bw.watch(agent, deadline_s, block_ms, api=api)
 
 
@@ -243,7 +247,8 @@ def test_watch_skips_own_broadcasts_without_spin():
         # >=1.5s floor encoded exit-AT-deadline timing. The pinned semantic is anti-SPIN:
         # a spinning watcher exits in milliseconds; a blocking one takes real fractions
         # of the deadline. 0.7s of a 2s deadline proves blocking happened.
-        assert rc == 0 and time.time() - t0 >= 0.7, "own broadcast must not wake or spin"
+        assert rc == 0, "own broadcast must not wake or spin"
+        assert time.time() - t0 >= 0.7, "own broadcast must not wake or spin"
     finally:
         _cleanup(c, ns)
 
@@ -255,14 +260,15 @@ def test_wake_block_virgin_cursor_seeds_at_tail_not_zero():
     c, ns = _client(), _ns()
     try:
         a = Bus("alice", c, namespace=ns)
-        api = _api("bob", c, ns)                 # NO prime: virgin cursor
+        api = _api("bob", c, ns)  # NO prime: virgin cursor
         a.send("bob", "chat", "ancient backlog")
         assert api.wake_block(timeout_ms=400) == [], "virgin seed = $: backlog must not wake"
         a.send("bob", "chat", "fresh mail")
         got = api.wake_block(timeout_ms=1500)
         assert [m.content for m in got] == ["fresh mail"]
-        assert sorted(m.content for m in api.bus.inbox()) == ["ancient backlog", "fresh mail"], \
+        assert sorted(m.content for m in api.bus.inbox()) == ["ancient backlog", "fresh mail"], (
             "nothing consumed either way"
+        )
     finally:
         _cleanup(c, ns)
 
@@ -275,12 +281,13 @@ def test_wake_block_fast_forwards_past_live_consumed_mail():
         a = Bus("alice", c, namespace=ns)
         api = _api("bob", c, ns)
         _prime(a, api)
-        assert api.wake_block(timeout_ms=300) == []          # seed the local cursor
+        assert api.wake_block(timeout_ms=300) == []  # seed the local cursor
         a.send("bob", "chat", "handled by the live session")
         assert [m.content for m in api.bus.inbox(advance=True)] == ["handled by the live session"]
         t0 = time.time()
-        assert api.wake_block(timeout_ms=700) == [], \
+        assert api.wake_block(timeout_ms=700) == [], (
             "consumed mail must not wake the watcher (fast-forward to shared cursor)"
+        )
         assert time.time() - t0 >= 0.5, "must block, not hot-return the consumed entry"
     finally:
         _cleanup(c, ns)
@@ -296,11 +303,15 @@ def test_watch_ignores_broadcast_reply_but_wakes_on_directed_reply(capsys):
         a.broadcast("reply", "room-wide answer")
         rc = _watch("bob", api, deadline_s=2, block_ms=400)
         out = capsys.readouterr().out.lower()
-        assert rc == 0 and "self-cycle" in out and "bifrost wake -- messages" not in out, \
+        assert rc == 0, "broadcast reply must not wake (deadline ends as a T073-P3 self-cycle)"
+        assert "self-cycle" in out, "broadcast reply must not wake (deadline ends as a T073-P3 self-cycle)"
+        assert "bifrost wake -- messages" not in out, (
             "broadcast reply must not wake (deadline ends as a T073-P3 self-cycle)"
+        )
         a.send("bob", "reply", "answer for bob")
         rc = _watch("bob", api, deadline_s=6, block_ms=400)
-        assert rc == 0 and "answer for bob" in capsys.readouterr().out
+        assert rc == 0
+        assert "answer for bob" in capsys.readouterr().out
     finally:
         _cleanup(c, ns)
 
@@ -314,8 +325,8 @@ def test_wake_block_survives_stream_trimming_with_bounded_paging():
         api = _api("bob", c, ns)
         api.bus.maxlen = 50
         _prime(a, api)
-        assert api.wake_block(timeout_ms=300) == []          # seed at the pre-flood frontier
-        for i in range(300):                                 # flood past maxlen -> head trimmed
+        assert api.wake_block(timeout_ms=300) == []  # seed at the pre-flood frontier
+        for i in range(300):  # flood past maxlen -> head trimmed
             a.send("bob", "trace", f"noise {i}")
         pages = 0
         while api.wake_block(timeout_ms=250) and pages < 40:
@@ -334,12 +345,15 @@ def test_watch_stands_down_when_heartbeat_stolen(tmp_path):
     try:
         api = _api("bob", c, ns)
         hb = tmp_path / "bifrost_wake_bob.pid"
-        hb.write_text(str(os.getpid()))          # a DIFFERENT live pid owns the seat
+        hb.write_text(str(os.getpid()))  # a DIFFERENT live pid owns the seat
         import scripts.bifrost_wake as bw
+
         t0 = time.time()
         rc = bw.watch("bob", 30, 400, api=api, hb_path=str(hb), my_pid=999999)
-        assert rc == 0, ("stolen seat -> stand down BENIGN, exit 0 (Wave 2: a nonzero exit "
-                         "badges a FAILED task into a live session; provenance is the printed line)")
+        assert rc == 0, (
+            "stolen seat -> stand down BENIGN, exit 0 (Wave 2: a nonzero exit "
+            "badges a FAILED task into a live session; provenance is the printed line)"
+        )
         assert time.time() - t0 < 5, "stand-down must be prompt, not deadline-length"
     finally:
         _cleanup(c, ns)

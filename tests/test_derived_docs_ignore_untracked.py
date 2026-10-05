@@ -26,6 +26,7 @@ Both pins run generators inside throwaway git worktrees. ROOT is derived from __
 all three generators, so a run inside a worktree writes into that worktree and can never
 touch the developer's tree.
 """
+
 import os
 import subprocess
 import sys
@@ -82,8 +83,13 @@ def _run_generators(tree):
     """Run all three in `tree`. Returns {doc_path: bytes}. Skips on generator error so a
     broken generator reads as a skip, never as a false PASS."""
     for gen, _ in GENERATORS:
-        r = subprocess.run([sys.executable, os.path.join("scripts", "generators", gen)],
-                           cwd=tree, capture_output=True, text=True, timeout=300)
+        r = subprocess.run(
+            [sys.executable, os.path.join("scripts", "generators", gen)],
+            cwd=tree,
+            capture_output=True,
+            text=True,
+            timeout=300,
+        )
         if r.returncode != 0:
             pytest.skip(f"{gen} failed in {tree}: {(r.stderr or r.stdout)[:300]}")
     out = {}
@@ -103,6 +109,7 @@ def _plant(tree):
 
 # --- the acceptance pin: THE refuting check ------------------------------------------------
 
+
 def test_dirty_tree_and_clean_checkout_generate_byte_identical_docs(tmp_path):
     """THE PIN. Same commit, two trees -- one carrying untracked files, one clean.
     Every derived doc must come out byte-identical, or the generators are still
@@ -117,13 +124,15 @@ def test_dirty_tree_and_clean_checkout_generate_byte_identical_docs(tmp_path):
             assert dirty_docs[doc] == clean_docs[doc], (
                 f"{doc} differs between a dirty tree and a clean checkout of the same "
                 f"commit -- the generator is reading the working tree, not the repo "
-                f"(clean={len(clean_docs[doc])}B dirty={len(dirty_docs[doc])}B)")
+                f"(clean={len(clean_docs[doc])}B dirty={len(dirty_docs[doc])}B)"
+            )
     finally:
         _remove(clean)
         _remove(dirty)
 
 
 # --- the cheap delta pin: same property, clearer failure -----------------------------------
+
 
 def test_planting_an_untracked_module_does_not_change_any_derived_doc(tmp_path):
     """Narrower and faster: within ONE tree, adding an untracked .py must not move any
@@ -136,7 +145,8 @@ def test_planting_an_untracked_module_does_not_change_any_derived_doc(tmp_path):
         moved = [doc for _, doc in GENERATORS if before[doc] != after[doc]]
         assert not moved, (
             f"untracked files changed derived docs: {moved} -- generated content must "
-            f"depend on tracked repo contents only")
+            f"depend on tracked repo contents only"
+        )
     finally:
         _remove(tree)
 
@@ -152,6 +162,7 @@ def test_generators_do_not_emit_untracked_module_names(tmp_path):
         for _, name, _body in PLANTS:
             assert name.encode() not in blob, (
                 f"{name} is untracked but appears in a derived doc -- the doc claims the "
-                f"repo contains a module it does not")
+                f"repo contains a module it does not"
+            )
     finally:
         _remove(tree)

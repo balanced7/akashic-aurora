@@ -18,11 +18,11 @@ curve), so the fix for that belongs in storyboard.analyse(), where the times sti
 Standalone: numpy only, no arsenal.* imports (the analysis.py rule). It reads a manifest; it
 never decodes a frame, so a stored storyboard is profiled at file-read cost.
 """
+
 from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import List, Optional
 
 import numpy as np
 
@@ -40,7 +40,7 @@ def load(manifest) -> dict:
     return manifest
 
 
-def _read(transitions: int, per_min: Optional[float]) -> str:
+def _read(transitions: int, per_min: float | None) -> str:
     if per_min is None:
         return "unknown"
     if transitions == 0:
@@ -52,7 +52,7 @@ def _read(transitions: int, per_min: Optional[float]) -> str:
     return "frantic"
 
 
-def _median(values: List[float]) -> Optional[float]:
+def _median(values: list[float] | list[int]) -> float | None:
     return float(np.median(values)) if values else None
 
 
@@ -72,22 +72,34 @@ def profile(manifest) -> dict:
 
     blind = [
         "audio: the change score is visual only",
-        "transitions_per_min is a RATE, so a SHORT take inflates it: one cut in a 7.8 s clip "
-        "reads 7.7/min and bands as 'active' beside a 90 s take with three cuts (2/min). Read "
-        "duration_s beside the rate, and treat 'read' as a hint on a whole bank, never a verdict "
-        "on one short clip",
-        "settle depth INSIDE a transition is not measurable from a stored manifest -- the "
-        "segment table carries peaks and durations, not the curve per segment (the fix, when "
-        "someone wants it, belongs in storyboard.analyse(), where the per-frame times live)",
-        "a strobe can read as one very short transition and a slow fade as one very long one, "
-        "so duration_ms is not by itself a violence measure -- read it beside peak_median",
+        (
+            "transitions_per_min is a RATE, so a SHORT take inflates it: one cut in a 7.8 s clip "
+            "reads 7.7/min and bands as 'active' beside a 90 s take with three cuts (2/min). Read "
+            "duration_s beside the rate, and treat 'read' as a hint on a whole bank, never a verdict "
+            "on one short clip"
+        ),
+        (
+            "settle depth INSIDE a transition is not measurable from a stored manifest -- the "
+            "segment table carries peaks and durations, not the curve per segment (the fix, when "
+            "someone wants it, belongs in storyboard.analyse(), where the per-frame times live)"
+        ),
+        (
+            "a strobe can read as one very short transition and a slow fade as one very long one, "
+            "so duration_ms is not by itself a violence measure -- read it beside peak_median"
+        ),
     ]
     if duration is None:
-        blind.insert(0, "no segments in this manifest -- a rate over no time is not zero, it is "
-                        "unknown, and this profile reports None rather than a fake 0")
+        blind.insert(
+            0,
+            "no segments in this manifest -- a rate over no time is not zero, it is "
+            "unknown, and this profile reports None rather than a fake 0",
+        )
     elif fps:
-        blind.insert(0, f"the sampling stride is {1000.0 / fps:.0f} ms -- any change shorter than "
-                        f"that happened between two samples and was never seen at all")
+        blind.insert(
+            0,
+            f"the sampling stride is {1000.0 / fps:.0f} ms -- any change shorter than "
+            f"that happened between two samples and was never seen at all",
+        )
     return {
         "api": API,
         "source": m.get("source"),
@@ -111,7 +123,7 @@ def profile(manifest) -> dict:
     }
 
 
-def profile_many(directory, *, pattern: str = "storyboard.json") -> List[dict]:
+def profile_many(directory, *, pattern: str = "storyboard.json") -> list[dict]:
     """Every stored storyboard under a directory (recursive) -- the bank-wide comparison."""
     d = Path(directory)
     if not d.is_dir():

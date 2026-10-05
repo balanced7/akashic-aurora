@@ -2,21 +2,24 @@
 in security/acl.json). Commit autonomy through OUR door -- canonical scripts/mirror.py,
 repo root only, explicit repo-relative paths, no flags, trust surfaces excluded; raw git
 stays refused. Pattern: t067 (_exec_family called directly on a trusted ToolBox)."""
+
 import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts"))
 
-import deepseek_chat as dc
 from pathlib import Path
+
+import deepseek_chat as dc
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def _tb():
-    return dc.ToolBox(Path(REPO), allow_exec=True, trust=True, allow_secrets=False,
-                      confirm=lambda *_: False)   # trusted path never prompts
+    return dc.ToolBox(
+        Path(REPO), allow_exec=True, trust=True, allow_secrets=False, confirm=lambda *_: False
+    )  # trusted path never prompts
 
 
 def _family(cmd):
@@ -24,40 +27,58 @@ def _family(cmd):
 
 
 def test_mirror_happy_path_allowed():
-    argv, env, why = _family('py scripts/mirror.py "T086-S5 daemon slice" core/comm/daemon_state.py tests/test_s5.py')
-    assert why is None and argv[:2] == ["py", "scripts/mirror.py"]
+    argv, _env, why = _family('py scripts/mirror.py "T086-S5 daemon slice" core/comm/daemon_state.py tests/test_s5.py')
+    # `py` on Windows; elsewhere the running interpreter (py does not exist there).
+    from core.comm.toolbox import _is_python
+
+    assert why is None
+    assert argv is not None
+    assert _is_python(argv[0])
+    assert argv[1] == "scripts/mirror.py"
 
 
 def test_mirror_without_paths_refused():
     argv, _, why = _family('py scripts/mirror.py "just a message"')
-    assert argv is None and "EXPLICIT paths" in why
+    assert argv is None
+    assert why is not None
+    assert "EXPLICIT paths" in why
 
 
 def test_mirror_flags_refused():
     argv, _, why = _family('py scripts/mirror.py "msg" --all')
-    assert argv is None and "no --all" in why
+    assert argv is None
+    assert why is not None
+    assert "no --all" in why
 
 
 def test_mirror_security_path_refused():
     argv, _, why = _family('py scripts/mirror.py "grant tweak" security/acl.json')
-    assert argv is None and "outside your mirror scope" in why
+    assert argv is None
+    assert why is not None
+    assert "outside your mirror scope" in why
 
 
 def test_mirror_claude_config_refused():
     argv, _, why = _family('py scripts/mirror.py "hook tweak" .claude/settings.json')
-    assert argv is None and "outside your mirror scope" in why
+    assert argv is None
+    assert why is not None
+    assert "outside your mirror scope" in why
 
 
 def test_mirror_absolute_or_dotdot_paths_refused():
     argv, _, why = _family('py scripts/mirror.py "msg" ../outside.txt')
-    assert argv is None and "repo-relative" in why
+    assert argv is None
+    assert why is not None
+    assert "repo-relative" in why
     argv, _, why = _family(r'py scripts/mirror.py "msg" E:\AI-Setup\core\x.py')
-    assert argv is None and "repo-relative" in why
+    assert argv is None
+    assert why is not None
+    assert "repo-relative" in why
 
 
 def test_shadow_mirror_script_refused():
-    argv, _, why = _family('py evil/mirror.py "msg" core/x.py')
-    assert argv is None                       # not the canonical scripts/mirror.py
+    argv, _, _why = _family('py evil/mirror.py "msg" core/x.py')
+    assert argv is None  # not the canonical scripts/mirror.py
 
 
 def test_mirror_working_dir_override_refused():
@@ -80,5 +101,7 @@ def test_raw_git_still_refused():
 
 
 def test_pytest_family_regression():
-    argv, env, why = _family("py -m pytest tests/test_ir4_mirror_family.py -q")
-    assert why is None and env.get("_AISETUP_TEST_ISOLATED") == "1"
+    _argv, env, why = _family("py -m pytest tests/test_ir4_mirror_family.py -q")
+    assert why is None
+    assert env is not None
+    assert env.get("_AISETUP_TEST_ISOLATED") == "1"

@@ -21,6 +21,8 @@ exceptions until it guards nothing, which is the lesson check_wiring's own comme
 Run:  py scripts/checkers/check_advertised_tools.py           # gate over the contract docs
       py scripts/checkers/check_advertised_tools.py --report  # also print the tool namespaces
 """
+
+import contextlib
 import os
 import re
 import sys
@@ -33,7 +35,7 @@ TOOLBOX = os.path.join(ROOT, "core", "comm", "toolbox.py")
 # broken promise; AGENTS.md telling you to call one is.
 CONTRACT_DOCS = ("AGENTS.md", "README.md", "docs/DOORS.md")
 
-_TOOL_DEF = re.compile(r'_fn\("([a-z0-9_]+)"')
+_TOOL_DEF = re.compile(r'_fn\(\s*"([a-z0-9_]+)"')  # the call may wrap: _fn(\n    "name", ...)
 _MCP_DEF = re.compile(r"^\s*async def ([a-z][a-z0-9_]*)\(", re.M)
 
 # A token IMMEDIATELY FOLLOWED BY "(" -- i.e. written as a CALL. Both live false-positive classes
@@ -53,16 +55,12 @@ def real_tools(path=TOOLBOX, mcp=None):
     There are two tool doors; a name that resolves at either one is advertised truthfully.
     """
     names = set()
-    try:
-        names |= set(_TOOL_DEF.findall(open(path, encoding="utf-8", errors="replace").read()))
-    except OSError:
-        pass
+    with contextlib.suppress(OSError), open(path, encoding="utf-8", errors="replace") as fh:
+        names |= set(_TOOL_DEF.findall(fh.read()))
     mcp = mcp if mcp is not None else os.path.join(ROOT, "ai_setup_mcp.py")
-    try:
-        names |= set(_MCP_DEF.findall(open(mcp, encoding="utf-8", errors="replace").read()))
-    except OSError:
-        pass
-    return names                          # fail open: no tool list, nothing to enforce
+    with contextlib.suppress(OSError), open(mcp, encoding="utf-8", errors="replace") as fh:
+        names |= set(_MCP_DEF.findall(fh.read()))
+    return names  # fail open: no tool list, nothing to enforce
 
 
 def namespaces(tools):
@@ -82,9 +80,8 @@ def _file_stems():
     global _FILE_STEMS
     if _FILE_STEMS is None:
         _FILE_STEMS = set()
-        for dp, dn, fn in os.walk(ROOT):
-            dn[:] = [d for d in dn
-                     if d not in ("__pycache__", ".git", "node_modules", "ComfyUI-Zluda")]
+        for _dp, dn, fn in os.walk(ROOT):
+            dn[:] = [d for d in dn if d not in ("__pycache__", ".git", "node_modules", "ComfyUI-Zluda")]
             for f in fn:
                 _FILE_STEMS.add(os.path.splitext(f)[0])
     return _FILE_STEMS
@@ -99,14 +96,15 @@ def scan(docs, toolbox=TOOLBOX, mcp=None):
     out = []
     for d in docs:
         try:
-            text = open(d, encoding="utf-8", errors="replace").read()
+            with open(d, encoding="utf-8", errors="replace") as fh:
+                text = fh.read()
         except OSError:
-            continue                      # fail open: an unreadable doc promises nothing
+            continue  # fail open: an unreadable doc promises nothing
         for i, line in enumerate(text.splitlines(), 1):
             for tok in _TOKEN.findall(line):
                 if tok in tools or tok.split("_")[0] not in ns:
                     continue
-                if tok in _file_stems():          # it is a file, not a tool call
+                if tok in _file_stems():  # it is a file, not a tool call
                     continue
                 out.append((d, tok, i))
     return out
@@ -123,14 +121,17 @@ def main():
         print(f"contract docs scanned: {[os.path.relpath(d, ROOT) for d in docs]}\n")
     for d, tok, ln in bad:
         rel = os.path.relpath(d, ROOT).replace(os.sep, "/")
-        print(f"FAIL: {rel}:{ln} advertises tool '{tok}', which is not in the TOOLS list "
-              f"-> fix the name, or add the tool, or stop promising it")
+        print(
+            f"FAIL: {rel}:{ln} advertises tool '{tok}', which is not in the TOOLS list "
+            f"-> fix the name, or add the tool, or stop promising it"
+        )
     if bad:
-        print(f"\n{len(bad)} advertised tool(s) do not exist. A door that names a capability "
-              f"nobody can call strands the agent that believes it.")
+        print(
+            f"\n{len(bad)} advertised tool(s) do not exist. A door that names a capability "
+            f"nobody can call strands the agent that believes it."
+        )
         return 1
-    print(f"PASS: every tool named in {len(docs)} contract doc(s) exists "
-          f"({len(tools)} tools, {len(ns)} namespace(s)).")
+    print(f"PASS: every tool named in {len(docs)} contract doc(s) exists ({len(tools)} tools, {len(ns)} namespace(s)).")
     return 0
 
 

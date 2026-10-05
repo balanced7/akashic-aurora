@@ -51,6 +51,7 @@ path never occupies the slot it never needed.
 
 Run: py -m pytest tests/test_t138_receipt_path_to_done.py -q
 """
+
 import os
 import sys
 
@@ -58,10 +59,10 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.coord import task_ledger as TL  # noqa: E402
+from core.coord import task_ledger as TL
 
 
-@pytest.fixture()
+@pytest.fixture
 def led(tmp_path):
     return TL.TaskLedger(str(tmp_path / "ledger.json"), client=None)
 
@@ -95,9 +96,13 @@ def test_l2_the_done_gate_is_not_weakened(led):
         led.transition(tid, TL.DONE, at="2026-08-03T01:00:06")
     with pytest.raises(TL.LedgerError, match="no proof, no close"):
         led.transition(tid, TL.DONE, commit="0a2e6a4", at="2026-08-03T01:00:07")
-    led.transition(tid, TL.DONE, commit="0a2e6a4",
-                   verified_by="receipt check: sha resolves, message matches the entry",
-                   at="2026-08-03T01:00:08")
+    led.transition(
+        tid,
+        TL.DONE,
+        commit="0a2e6a4",
+        verified_by="receipt check: sha resolves, message matches the entry",
+        at="2026-08-03T01:00:08",
+    )
     assert led.tasks[tid]["status"] == TL.DONE
     assert led.tasks[tid]["commit"] == "0a2e6a4"
 
@@ -109,8 +114,7 @@ def test_l3_the_receipt_path_never_takes_the_serialize_slot(led):
     live = _to_in_progress(led, "the live wave")
     tid = _to_claimed(led, "a receipt filed while the live wave runs")
     led.transition(tid, TL.VERIFYING, at="2026-08-03T01:01:00")
-    led.transition(tid, TL.DONE, commit="67f9e1a", verified_by="receipt check",
-                   at="2026-08-03T01:01:01")
+    led.transition(tid, TL.DONE, commit="67f9e1a", verified_by="receipt check", at="2026-08-03T01:01:01")
     assert led.tasks[live]["status"] == TL.IN_PROGRESS
     assert led.tasks[tid]["status"] == TL.DONE
 
@@ -120,8 +124,7 @@ def test_l4_the_shortcut_is_not_opened_wholesale(led):
     walk it."""
     t = led.propose("brand new work", by="claude", at="2026-08-03T02:00:00")
     with pytest.raises(TL.LedgerError, match="illegal transition"):
-        led.transition(t["id"], TL.DONE, commit="deadbee", verified_by="x",
-                       at="2026-08-03T02:00:01")
+        led.transition(t["id"], TL.DONE, commit="deadbee", verified_by="x", at="2026-08-03T02:00:01")
     led.transition(t["id"], TL.APPROVED, at="2026-08-03T02:00:02")
     with pytest.raises(TL.LedgerError, match="illegal transition"):
         led.transition(t["id"], TL.VERIFYING, at="2026-08-03T02:00:03")
@@ -130,6 +133,5 @@ def test_l4_the_shortcut_is_not_opened_wholesale(led):
 def test_l5_the_normal_build_path_still_works(led):
     tid = _to_in_progress(led, "ordinary wave")
     led.transition(tid, TL.VERIFYING, at="2026-08-03T03:00:00")
-    led.transition(tid, TL.DONE, commit="abc1234", verified_by="pytest",
-                   at="2026-08-03T03:00:01")
+    led.transition(tid, TL.DONE, commit="abc1234", verified_by="pytest", at="2026-08-03T03:00:01")
     assert led.tasks[tid]["status"] == TL.DONE

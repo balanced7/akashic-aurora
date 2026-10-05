@@ -32,11 +32,15 @@ every turn would put real work in a hot path that must stay nearly free -- the
 renew_two_birds_bus_recorder lesson ("don't touch the hook hot path"). So the common case
 here is a single `os.path.getmtime` and an early return.
 """
+
 from __future__ import annotations
 
 import os
 import time
-from typing import Any, Callable, Dict, Optional
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 #: How stale the draft may get before a turn boundary refreshes it. Ten minutes bounds
 #: what an ungraceful death can destroy, while leaving the overwhelming majority of turns
@@ -61,10 +65,14 @@ def max_age_s() -> float:
         return DEFAULT_MAX_AGE_S
 
 
-def should_refresh(path: str, *, now: Optional[float] = None,
-                   max_age: Optional[float] = None,
-                   getmtime: Callable[[str], float] = os.path.getmtime,
-                   exists: Callable[[str], bool] = os.path.isfile) -> bool:
+def should_refresh(
+    path: str,
+    *,
+    now: float | None = None,
+    max_age: float | None = None,
+    getmtime: Callable[[str], float] = os.path.getmtime,
+    exists: Callable[[str], bool] = os.path.isfile,
+) -> bool:
     """Is the draft stale enough to be worth rewriting? PURE, with the two filesystem
     calls injected so a pin can drive it without touching a clock or a disk.
 
@@ -81,16 +89,15 @@ def should_refresh(path: str, *, now: Optional[float] = None,
     t = now if now is not None else time.time()
     try:
         if not exists(path):
-            return True                 # missing == maximally stale
+            return True  # missing == maximally stale
         return (t - getmtime(path)) >= limit
-    except Exception:                                                   # noqa: BLE001
-        return True                     # unreadable == stale; fail toward writing
+    except Exception:  # noqa: BLE001  # fail-soft: falls back to a default value
+        return True  # unreadable == stale; fail toward writing
 
 
-def refresh(path: str, *, write: Callable[[], Any],
-            now: Optional[float] = None,
-            max_age: Optional[float] = None,
-            **probe) -> Dict[str, Any]:
+def refresh(
+    path: str, *, write: Callable[[], Any], now: float | None = None, max_age: float | None = None, **probe
+) -> dict[str, Any]:
     """Refresh the draft if it is stale. NEVER RAISES.
 
     `write` is the caller's zero-arg draft writer (in production, the same
@@ -108,8 +115,10 @@ def refresh(path: str, *, write: Callable[[], Any],
             return {"wrote": False, "reason": "draft is fresh -- nothing to do"}
         write()
         return {"wrote": True, "reason": "draft was stale; rewritten at the turn boundary"}
-    except Exception as e:                                              # noqa: BLE001
+    except Exception as e:  # noqa: BLE001  # fail-soft: falls back to a default value
         # A keepalive that can raise into a hook is worse than no keepalive: it would
         # wedge every seat in the fleet to protect against one seat's crash.
-        return {"wrote": False, "reason": f"refresh failed ({type(e).__name__}: "
-                                          f"{str(e)[:80]}) -- keeping the turn alive"}
+        return {
+            "wrote": False,
+            "reason": f"refresh failed ({type(e).__name__}: {str(e)[:80]}) -- keeping the turn alive",
+        }

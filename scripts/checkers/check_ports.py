@@ -35,6 +35,7 @@ level down.
 Run:  py scripts/checkers/check_ports.py            # gate (exit 1 on NEW undeclared drift)
       py scripts/checkers/check_ports.py --report   # the map: who owns what, and what is silent
 """
+
 import json
 import os
 import re
@@ -44,7 +45,7 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, ROOT)
 
-import config  # noqa: E402
+import config  # noqa: E402  # sys.path bootstrap
 
 BASELINE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "port_baseline.json")
 
@@ -71,19 +72,21 @@ _PORT_LIT = re.compile(
           (?:--)?\bports?\b["']?\s*[=:]?\s*["']?(?P<a>\d{4,5})\b   # port=N, --port N, "port": N
         | ://[\w.\-\[\]]+:(?P<b>\d{4,5})\b                          # scheme://host:N
         | \b[A-Z][A-Z0-9_]*PORT[A-Z0-9_]*\s*=[^\n]*?["']?(?P<c>\d{4,5})\b   # SOME_PORT_X = N
-        )""", re.I | re.X)
+        )""",
+    re.I | re.X,
+)
 
 UNKNOWN = "UNKNOWN"
 
 
 # ------------------------------------------------------------------ plane 3: what is listening
 
+
 def listening_ports():
     """Host sockets in LISTENING state. Returns (set_of_ports, ok) -- ok=False means the probe
     itself failed, which renders UNKNOWN rather than an empty set."""
     try:
-        out = subprocess.run(["netstat", "-ano", "-p", "TCP"], capture_output=True,
-                             text=True, timeout=30).stdout
+        out = subprocess.run(["netstat", "-ano", "-p", "TCP"], capture_output=True, text=True, timeout=30).stdout
     except Exception:
         return set(), False
     ports = set()
@@ -105,8 +108,9 @@ def container_ports():
     if os.getenv("AKASHIC_PORTS_NO_DOCKER"):
         return {}, False
     try:
-        out = subprocess.run(["docker", "ps", "--format", "{{.Names}}\t{{.Ports}}"],
-                             capture_output=True, text=True, timeout=30)
+        out = subprocess.run(
+            ["docker", "ps", "--format", "{{.Names}}\t{{.Ports}}"], capture_output=True, text=True, timeout=30
+        )
         if out.returncode != 0:
             return {}, False
         raw = out.stdout
@@ -126,6 +130,7 @@ def container_ports():
 
 
 # ------------------------------------------------------------------ plane 2: literals in code
+
 
 def _scan_files():
     for f in _SCAN_FILES:
@@ -172,6 +177,7 @@ def code_ports():
 
 # ------------------------------------------------------------------ the ratchet
 
+
 def load_baseline(path=BASELINE_PATH):
     """Frozen known-undeclared literals. FAILS OPEN: a missing baseline freezes nothing and
     does not crash -- the same choice check_wiring makes, and for the same reason."""
@@ -208,11 +214,13 @@ def report():
         owner = e.get("owner", "?")
         if port in cont:
             owner = f"{cont[port]} (running)"
-        print(f"{port:>6}  {e.get('world','?'):<9} {state:<10} {owner[:38]:<38} {e.get('what','')}")
+        print(f"{port:>6}  {e.get('world', '?'):<9} {state:<10} {owner[:38]:<38} {e.get('what', '')}")
 
-    print(f"\n  legend: listening = seen in the socket table | {UNKNOWN} = registered but "
-          f"silent, which is\n          EITHER the service is down OR the entry is stale -- "
-          f"nothing here can tell those apart.")
+    print(
+        f"\n  legend: listening = seen in the socket table | {UNKNOWN} = registered but "
+        f"silent, which is\n          EITHER the service is down OR the entry is stale -- "
+        f"nothing here can tell those apart."
+    )
     if not listen_ok:
         print("          (the socket probe itself failed, so every state above is UNKNOWN)")
     if not cont_ok:
@@ -225,8 +233,7 @@ def report():
     ours = [p for p in undeclared if band_of(p) or p in cont]
     theirs = [p for p in undeclared if p not in ours]
 
-    print(f"\nUNREGISTERED, AND PLAUSIBLY OURS ({len(ours)}) -- in a band we claim, or a "
-          f"container we run:")
+    print(f"\nUNREGISTERED, AND PLAUSIBLY OURS ({len(ours)}) -- in a band we claim, or a container we run:")
     if not ours:
         print("  (none -- every listener in our bands is registered)")
     for p in ours:
@@ -235,19 +242,23 @@ def report():
         note = f"  <-- inside the {band} band" if band else ""
         print(f"  {p:>6}  {who}{note}")
 
-    print(f"\nOTHER LISTENERS ({len(theirs)}) -- outside every band we claim; the machine's own "
-          f"services\n          and other apps. Listed with --verbose; not our concern by "
-          f"construction, but\n          counted rather than hidden so a real service cannot "
-          f"disappear into the silence.")
+    print(
+        f"\nOTHER LISTENERS ({len(theirs)}) -- outside every band we claim; the machine's own "
+        f"services\n          and other apps. Listed with --verbose; not our concern by "
+        f"construction, but\n          counted rather than hidden so a real service cannot "
+        f"disappear into the silence."
+    )
     if "--verbose" in sys.argv and theirs:
         for p in theirs:
             print(f"  {p:>6}  {cont.get(p, 'OS or another app')}")
 
     print("\nDYNAMIC BY DESIGN (no fixed port to register):")
-    print("  runner control channels bind an EPHEMERAL loopback port per seat "
-          "(core/comm/control_channel.py)\n  -- e.g. kimi on 127.0.0.1:47127 this session. "
-          "They cannot be pre-registered by number,\n  which is why an unregistered listener "
-          "in the high range is not automatically drift.")
+    print(
+        "  runner control channels bind an EPHEMERAL loopback port per seat "
+        "(core/comm/control_channel.py)\n  -- e.g. kimi on 127.0.0.1:47127 this session. "
+        "They cannot be pre-registered by number,\n  which is why an unregistered listener "
+        "in the high range is not automatically drift."
+    )
 
     if config.PORT_RETIRED:
         print("\nRETIRED (never silently resurrect):")
@@ -262,27 +273,34 @@ def gate():
     baseline = load_baseline()
     hits = code_ports()
     known = set(reg) | set(config.PORT_RETIRED) | {config.PORT_TEST_UI_BASE, config.PORT_TEST_UI_MAX}
-    drift = {p: locs for p, locs in hits.items()
-             if p not in known and band_of(p) is None and p not in baseline}
+    drift = {p: locs for p, locs in hits.items() if p not in known and band_of(p) is None and p not in baseline}
     frozen = {p for p in hits if p in baseline}
 
     stale = sorted(p for p in baseline if p not in hits)
     if stale:
-        print(f"note: {len(stale)} baseline entr(ies) no longer appear in code "
-              f"({', '.join(str(p) for p in stale[:6])}) -- prune them so the ratchet cannot rot.")
+        print(
+            f"note: {len(stale)} baseline entr(ies) no longer appear in code "
+            f"({', '.join(str(p) for p in stale[:6])}) -- prune them so the ratchet cannot rot."
+        )
 
     if drift:
-        print(f"\nFAIL: {len(drift)} port literal(s) in live code that no registry declares "
-              f"|  frozen backlog: {len(frozen)}\n")
+        print(
+            f"\nFAIL: {len(drift)} port literal(s) in live code that no registry declares "
+            f"|  frozen backlog: {len(frozen)}\n"
+        )
         for p, locs in sorted(drift.items()):
             print(f"  {p}  ->  {', '.join(locs[:4])}{' ...' if len(locs) > 4 else ''}   [NEW]")
-        print(f"\n  Fix it one of three ways: import the value from config.py, add the port to "
-              f"config.PORT_REGISTRY with an owner, or -- if it is genuinely not a port -- add "
-              f"it to\n  {os.path.relpath(BASELINE_PATH, ROOT).replace(os.sep, '/')} with a reason.")
+        print(
+            f"\n  Fix it one of three ways: import the value from config.py, add the port to "
+            f"config.PORT_REGISTRY with an owner, or -- if it is genuinely not a port -- add "
+            f"it to\n  {os.path.relpath(BASELINE_PATH, ROOT).replace(os.sep, '/')} with a reason."
+        )
         return 1
 
-    print(f"PASS: every port literal in live code is declared, retired, or in a reserved band "
-          f"({len(frozen)} on the frozen backlog, {len(reg)} registered).")
+    print(
+        f"PASS: every port literal in live code is declared, retired, or in a reserved band "
+        f"({len(frozen)} on the frozen backlog, {len(reg)} registered)."
+    )
     return 0
 
 

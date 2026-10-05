@@ -28,10 +28,8 @@ feeling of a guard while leaving the holes that matter, which is the failure the
 already named in `gate_at_module_level_hides_dead_capability_inside_it`. The write-side
 guard is its own fenced slice, and it is named in the handoff rather than half-built here.
 """
-import importlib
-import os
 
-import pytest
+import importlib
 
 
 def _fresh(monkeypatch, **env):
@@ -43,6 +41,7 @@ def _fresh(monkeypatch, **env):
     for k, v in env.items():
         monkeypatch.setenv(k, v)
     import core.foundation.redis_connection as rc
+
     return importlib.reload(rc)
 
 
@@ -62,6 +61,7 @@ def test_w3_prod_is_unchanged(monkeypatch):
     byte-identical to what config always said -- this slice must be invisible there."""
     rc = _fresh(monkeypatch, AKASHIC_WORLD="prod")
     import config
+
     assert rc.DEFAULT_REDIS_PORT == config.REDIS_PORT == 16379
 
 
@@ -77,8 +77,10 @@ def test_w5_unknown_world_falls_back_to_config_but_says_so(monkeypatch, capsys):
     original defect wearing a new coat, so the fallback must announce itself."""
     monkeypatch.setenv("AKASHIC_WORLD", "nonsense-world")
     import core.foundation.redis_connection as rc
+
     importlib.reload(rc)
     import config
+
     assert rc.DEFAULT_REDIS_PORT == config.REDIS_PORT
     warned = capsys.readouterr()
     assert "world" in (warned.out + warned.err).lower()
@@ -98,7 +100,7 @@ def test_w8_declining_never_raises_at_import(monkeypatch):
     """core/paths.py's rule for this exact position: a helper that throws during import
     takes down every door that imports it. A stale env var must not brick the twin."""
     rc = _fresh(monkeypatch, AKASHIC_WORLD="alpha", REDIS_PORT="16380")
-    assert rc.DEFAULT_REDIS_PORT == 16381        # got here at all == it did not raise
+    assert rc.DEFAULT_REDIS_PORT == 16381  # got here at all == it did not raise
 
 
 def test_w9_an_unregistered_port_is_still_obeyed(monkeypatch):
@@ -113,4 +115,5 @@ def test_w6_the_endpoint_agrees_with_the_world_object(monkeypatch):
     for name, port in (("alpha", 16381), ("beta", 16380), ("prod", 16379)):
         rc = _fresh(monkeypatch, AKASHIC_WORLD=name)
         from core import world as W
+
         assert W.resolve(env={"AKASHIC_WORLD": name}).redis_port == rc.DEFAULT_REDIS_PORT == port

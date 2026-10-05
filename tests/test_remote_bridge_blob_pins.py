@@ -32,10 +32,10 @@ exists and pulls it if it wants it — the same parked-not-bussed stance the inb
 with messages, applied to files. A transport that writes to your disk because someone else
 decided to send something is a different and much worse thing than one that offers.
 """
+
 from __future__ import annotations
 
 import base64
-import hashlib
 import json
 import sys
 import time
@@ -46,9 +46,9 @@ import pytest
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 
-from core.comm import remote_relay as RR          # noqa: E402
-from core.comm.blobs import BlobStore             # noqa: E402
-from scripts import remote_bridge_listener as L   # noqa: E402
+from core.comm import remote_relay as RR  # noqa: E402  # sys.path bootstrap
+from core.comm.blobs import BlobStore  # noqa: E402  # sys.path bootstrap
+from scripts import remote_bridge_listener as L  # noqa: E402  # sys.path bootstrap
 
 KEY = b"blob-transport-test-key-aaaaaaaa"
 
@@ -65,13 +65,11 @@ def _world(tmp_path, monkeypatch):
 
 def signed(payload: dict, secret=KEY) -> bytes:
     body = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
-    return json.dumps({"body": base64.b64encode(body).decode(),
-                       "sig": RR.sign(body, secret)}).encode()
+    return json.dumps({"body": base64.b64encode(body).decode(), "sig": RR.sign(body, secret)}).encode()
 
 
 def blob_request(ref: str, secret=KEY, sent_at=None) -> bytes:
-    return signed({"v": 1, "ref": ref,
-                   "sent_at": int(sent_at if sent_at is not None else time.time())}, secret)
+    return signed({"v": 1, "ref": ref, "sent_at": int(sent_at if sent_at is not None else time.time())}, secret)
 
 
 # ------------------------------------------------------------------ the door
@@ -99,9 +97,11 @@ def test_an_unsigned_or_forged_request_is_refused(tmp_path):
     store = BlobStore(str(tmp_path / "blobs"))
     ref = store.put(b"secret-ish")
     s1, b1, _ = L.handle_blob("POST", "/blob", blob_request(ref, secret=b"wrong"), secret=KEY, blobs=store)
-    assert s1 == 400 and b1 == L.FLAT_REFUSAL
+    assert s1 == 400
+    assert b1 == L.FLAT_REFUSAL
     s2, b2, _ = L.handle_blob("POST", "/blob", b"{}", secret=KEY)
-    assert s2 == 400 and b2 == L.FLAT_REFUSAL
+    assert s2 == 400
+    assert b2 == L.FLAT_REFUSAL
 
 
 def test_a_stale_request_is_refused(tmp_path):
@@ -111,7 +111,8 @@ def test_a_stale_request_is_refused(tmp_path):
     ref = store.put(b"data")
     old = blob_request(ref, sent_at=int(time.time()) - 99_999)
     status, body, _ = L.handle_blob("POST", "/blob", old, secret=KEY, blobs=store)
-    assert status == 400 and body == L.FLAT_REFUSAL
+    assert status == 400
+    assert body == L.FLAT_REFUSAL
 
 
 def test_an_unknown_ref_reveals_nothing(tmp_path):
@@ -119,17 +120,20 @@ def test_an_unknown_ref_reveals_nothing(tmp_path):
     endpoint becomes an oracle for what this fleet holds, which is exactly the property the
     message gate's flat refusal exists to deny."""
     missing = "blob:" + "0" * 32
-    status, body, _ = L.handle_blob("POST", "/blob", blob_request(missing), secret=KEY)
+    _status, body, _ = L.handle_blob("POST", "/blob", blob_request(missing), secret=KEY)
     assert body == L.FLAT_REFUSAL, "an unknown ref returned something distinguishable"
 
 
-@pytest.mark.parametrize("hostile", [
-    "blob:../../../../etc/passwd",
-    "blob:..\\..\\windows\\system32\\config\\sam",
-    "../../secrets/remote_bridge_inbound.key",
-    "blob:" + "a" * 5000,
-    "",
-])
+@pytest.mark.parametrize(
+    "hostile",
+    [
+        "blob:../../../../etc/passwd",
+        "blob:..\\..\\windows\\system32\\config\\sam",
+        "../../secrets/remote_bridge_inbound.key",
+        "blob:" + "a" * 5000,
+        "",
+    ],
+)
 def test_no_request_can_escape_the_blob_store(hostile, tmp_path):
     """Structurally impossible rather than defended-against: the request names a HASH. There
     is no path to sanitise, so there is no sanitiser to get wrong."""
@@ -142,7 +146,7 @@ def test_the_blob_door_never_raises(tmp_path):
     for junk in (b"", b"\x00\xff", b"[]", b'{"body":5,"sig":[]}', b"not json"):
         try:
             L.handle_blob("POST", "/blob", junk, secret=KEY)
-        except Exception as e:                                    # noqa: BLE001
+        except Exception as e:  # noqa: BLE001  # fail-soft: best effort, skipped on any error
             pytest.fail(f"blob door raised on {junk[:16]!r}: {type(e).__name__}: {e}")
 
 
@@ -180,7 +184,8 @@ def test_the_announcement_advertises_a_REAL_retrieval_verb(tmp_path):
     script = how.split()[1] if how.split()[0] in ("py", "python") else how.split()[0]
     assert (REPO / script).exists(), (
         f"the announcement advertises {script!r}, which does not exist -- a retrieval command "
-        f"that is not a real entry point is the pointer-with-no-door defect exactly")
+        f"that is not a real entry point is the pointer-with-no-door defect exactly"
+    )
 
 
 def test_every_surface_that_shows_a_ref_also_shows_its_door(tmp_path):
@@ -194,4 +199,5 @@ def test_every_surface_that_shows_a_ref_also_shows_its_door(tmp_path):
     assert ann["ref"] in rendered, "the render drops the ref"
     assert ann["name"] in rendered, "the render drops the filename"
     assert "fetch" in rendered.lower() or ann["fetch_with"] in rendered, (
-        "a surface shows the ref without showing how to follow it")
+        "a surface shows the ref without showing how to follow it"
+    )

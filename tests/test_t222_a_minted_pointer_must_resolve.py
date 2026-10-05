@@ -30,6 +30,7 @@ THE FIX IS THE RESOLVER, NOT THE POINTER. Extending bifrost-fetch to accept a bu
 serves the address the message actually has. Rewriting the pointer to name some other door
 would just move the lie.
 """
+
 from __future__ import annotations
 
 import subprocess
@@ -39,13 +40,19 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 
-from agent import bifrost_pull as BP  # noqa: E402
+from agent import bifrost_pull as BP  # noqa: E402  # sys.path bootstrap
 
 
 def _cli(*args):
-    r = subprocess.run([sys.executable, "agent_cli.py", *args], cwd=REPO,
-                       capture_output=True, text=True, encoding="utf-8",
-                       errors="replace", timeout=120)
+    r = subprocess.run(
+        [sys.executable, "agent_cli.py", *args],
+        cwd=REPO,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        timeout=120,
+    )
     return (r.stdout or "") + (r.stderr or "")
 
 
@@ -53,6 +60,7 @@ def _send_long(body: str) -> str:
     """Send a body long enough to clip, return its stream id."""
     sys.path.insert(0, str(REPO))
     from core.comm.bus import Bus
+
     return str(Bus("claude").send("claude", "note", body) or "")
 
 
@@ -63,19 +71,21 @@ def test_the_pointer_a_clipped_render_prints_actually_resolves():
     mid = _send_long(body)
     assert mid, "could not send a probe message"
 
-    line = BP.format_inbox_line({"frm": "claude", "kind": "note", "content": body,
-                                 "id": mid}, max_len=200)
-    assert "[truncated]" in line and mid in line
+    line = BP.format_inbox_line({"frm": "claude", "kind": "note", "content": body, "id": mid}, max_len=200)
+    assert "[truncated]" in line
+    assert mid in line
 
     # Extract the command the render told the reader to run, and RUN IT.
     assert "bifrost-fetch --get" in line, f"unexpected pointer shape: {line[-120:]}"
     got = _cli("bifrost-fetch", "--get", mid)
     assert "no blob" not in got.lower(), (
         f"the render told the reader to run `bifrost-fetch --get {mid}` and that command "
-        f"cannot resolve it -- the pointer is decoration:\n{got[:300]}")
+        f"cannot resolve it -- the pointer is decoration:\n{got[:300]}"
+    )
     assert "TAIL SENTINEL" in got, (
         "resolver returned something, but not the clipped body's tail -- a partial "
-        "reconstruction is still a data-loss path")
+        "reconstruction is still a data-loss path"
+    )
 
 
 def test_a_bad_ref_still_fails_loudly():
@@ -83,8 +93,7 @@ def test_a_bad_ref_still_fails_loudly():
     a LOUD miss -- a fetch that silently returns nothing would be the same defect wearing
     the opposite costume."""
     got = _cli("bifrost-fetch", "--get", "9999999999999-0")
-    assert "no" in got.lower() or "not" in got.lower(), \
-        "an unresolvable ref must say so rather than returning empty"
+    assert "no" in got.lower() or "not" in got.lower(), "an unresolvable ref must say so rather than returning empty"
 
 
 def test_spill_blobs_still_resolve():
@@ -117,7 +126,8 @@ def test_a_non_claude_seat_resolves_a_body_addressed_to_itself():
     # Resolve AS the non-claude seat (the agent whose inbox holds the message).
     got = _cli("bifrost-fetch", "--get", mid, "--agent", other)
     assert "no blob" not in got.lower(), (
-        f"a {other} seat could not resolve a body addressed to itself (the W169 residual):\n"
-        f"{got[:300]}")
+        f"a {other} seat could not resolve a body addressed to itself (the W169 residual):\n{got[:300]}"
+    )
     assert "W169 PROBE TAIL SENTINEL" in got, (
-        f"resolver returned something for {other}, but not the clipped tail:\n{got[:300]}")
+        f"resolver returned something for {other}, but not the clipped tail:\n{got[:300]}"
+    )

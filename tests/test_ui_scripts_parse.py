@@ -15,6 +15,7 @@ homemade lexer: the first draft's delimiter-balance fallback false-positived on 
 literals containing backticks (PAGE line 15, /`([^`\n]+)`/g) -- regex-vs-division needs a
 real parser, and a gate that cries wolf on valid code teaches people to ignore it.
 """
+
 import ast
 import os
 import re
@@ -30,13 +31,17 @@ NODE = shutil.which("node")
 
 def _page_constant():
     """The PAGE template exactly as served: AST-extract, zero import side effects."""
-    with open(UI_PATH, "r", encoding="utf-8") as fh:
+    with open(UI_PATH, encoding="utf-8") as fh:
         tree = ast.parse(fh.read())
     for node in ast.walk(tree):
         if isinstance(node, ast.Assign):
             for tgt in node.targets:
                 if isinstance(tgt, ast.Name) and tgt.id == "PAGE":
-                    assert isinstance(node.value, ast.Constant) and isinstance(node.value.value, str), (
+                    assert isinstance(node.value, ast.Constant), (
+                        "PAGE is no longer a plain string constant -- update this pin to "
+                        "extract whatever _html() now serves; do NOT let it skip."
+                    )
+                    assert isinstance(node.value.value, str), (
                         "PAGE is no longer a plain string constant -- update this pin to "
                         "extract whatever _html() now serves; do NOT let it skip."
                     )
@@ -46,7 +51,7 @@ def _page_constant():
 
 def _static_js_routes():
     """Every scripts/*.js file do_GET serves via _static -- new modules auto-join the pin."""
-    with open(UI_PATH, "r", encoding="utf-8") as fh:
+    with open(UI_PATH, encoding="utf-8") as fh:
         src = fh.read()
     paths = re.findall(r'_static\("(scripts/[^"]+\.js)"', src)
     assert paths, "no _static scripts/*.js routes found -- the static serve path moved; re-anchor this pin."
@@ -62,8 +67,10 @@ def _inline_scripts(html):
 
 def _parse_check(src, label, tmp_path):
     if not NODE:
-        pytest.skip("node not on PATH -- the C10-1 parse gate CANNOT verify the console "
-                    "without it; install node (the CI runners ship it)")
+        pytest.skip(
+            "node not on PATH -- the C10-1 parse gate CANNOT verify the console "
+            "without it; install node (the CI runners ship it)"
+        )
     js = tmp_path / (re.sub(r"[^\w.-]", "_", label) + ".js")
     js.write_text(src, encoding="utf-8")
     r = subprocess.run([NODE, "--check", str(js)], capture_output=True, text=True)
@@ -83,5 +90,5 @@ def test_static_module_scripts_parse(tmp_path):
     for rel in _static_js_routes():
         fpath = os.path.join(REPO, rel.replace("/", os.sep))
         assert os.path.exists(fpath), f"{rel} is routed in do_GET but missing on disk"
-        with open(fpath, "r", encoding="utf-8") as fh:
+        with open(fpath, encoding="utf-8") as fh:
             _parse_check(fh.read(), rel, tmp_path)

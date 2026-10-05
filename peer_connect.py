@@ -24,9 +24,11 @@ makes the contract unnecessary to interpret.
 
 Safe to re-run. It overwrites the key files with what you paste and nothing else.
 """
+
 from __future__ import annotations
 
 import base64
+import contextlib
 import hashlib
 import hmac
 import json
@@ -39,6 +41,7 @@ import time
 import urllib.error
 import urllib.request
 from pathlib import Path
+from typing import cast
 
 ROOT = Path(__file__).resolve().parent
 SECRETS = Path(os.getenv("AKASHIC_SECRETS_DIR") or (ROOT / ".secrets"))
@@ -50,8 +53,8 @@ OUR_NAME = "daniil"
 
 #: Your side of the pair. Named from YOUR point of view, which is the thing that confuses
 #: everyone: the key you SIGN with lives in *outbound*, the key you VERIFY with in *inbound*.
-SEND_KEY = "remote_bridge_outbound.key"     # you sign -> we verify
-RECV_KEY = "remote_bridge_inbound.key"      # we sign  -> you verify
+SEND_KEY = "remote_bridge_outbound.key"  # you sign -> we verify
+RECV_KEY = "remote_bridge_inbound.key"  # we sign  -> you verify
 
 LISTEN_PORT = 8791
 
@@ -65,32 +68,30 @@ def fail(msg: str) -> int:
     return 1
 
 
-# --------------------------------------------------------------------------- crypto (ours)
+# --------------------------------------------------------------------------- crypto: ours
 def sign(body: bytes, secret: bytes) -> str:
     return hmac.new(secret, body, hashlib.sha256).hexdigest()
 
 
 def envelope(payload: dict, secret: bytes) -> bytes:
     body = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
-    return json.dumps({"body": base64.b64encode(body).decode("ascii"),
-                       "sig": sign(body, secret)}).encode("utf-8")
+    return json.dumps({"body": base64.b64encode(body).decode("ascii"), "sig": sign(body, secret)}).encode("utf-8")
 
 
 def post(url: str, raw: bytes, timeout: int = 10):
-    req = urllib.request.Request(url, data=raw, method="POST",
-                                 headers={"Content-Type": "application/json"})
+    req = urllib.request.Request(url, data=raw, method="POST", headers={"Content-Type": "application/json"})
     try:
         with urllib.request.urlopen(req, timeout=timeout) as r:
             return r.status, r.read().decode("utf-8", "replace")
     except urllib.error.HTTPError as e:
         return e.code, e.read().decode("utf-8", "replace")
-    except Exception as e:                                        # noqa: BLE001
+    except Exception as e:  # noqa: BLE001  # fail-soft: falls back to a default value
         return None, f"{type(e).__name__}: {e}"
 
 
 # --------------------------------------------------------------------------- steps
 def read_keys() -> tuple:
-    print(__doc__.split("WHY THIS EXISTS")[0].strip())
+    print((__doc__ or "").split("WHY THIS EXISTS")[0].strip())
     print("\nPaste the two values Daniil sent you. They are NOT interchangeable, but you do")
     print("not need to know which is which — this works it out by testing.\n")
     a = input("  first value  (he called it Key 1): ").strip()
@@ -104,14 +105,20 @@ def read_keys() -> tuple:
     return a.encode("utf-8"), b.encode("utf-8")
 
 
-def which_key_signs(k1: bytes, k2: bytes):
+def which_key_signs(k1: bytes, k2: bytes) -> tuple[bytes, bytes] | tuple[None, str]:
     """Ask OUR listener which key is the sending one. The wire settles it, not a table.
 
     A correctly-signed chat gets 202; anything else gets a flat 400 that deliberately reveals
     nothing. That single bit is all we need, and it is the one fact no documentation can get
     wrong."""
-    probe = {"v": 1, "id": "peer-connect-probe", "frm": "peer", "kind": "chat",
-             "content": "peer_connect handshake probe", "sent_at": int(time.time())}
+    probe = {
+        "v": 1,
+        "id": "peer-connect-probe",
+        "frm": "peer",
+        "kind": "chat",
+        "content": "peer_connect handshake probe",
+        "sent_at": int(time.time()),
+    }
     for label, cand, other in (("Key 1", k1, k2), ("Key 2", k2, k1)):
         status, _body = post(OUR_URL, envelope(probe, cand))
         if status == 202:
@@ -119,9 +126,11 @@ def which_key_signs(k1: bytes, k2: bytes):
             return cand, other
         if status is None:
             return None, f"cannot reach {OUR_URL} — {_body}"
-    return None, ("neither value was accepted by Daniil's listener. Either the keys are stale, "
-                  "or your clock is off by more than 300s (check NTP first — it is the more "
-                  "common cause and it looks exactly like a bad key)")
+    return None, (
+        "neither value was accepted by Daniil's listener. Either the keys are stale, "
+        "or your clock is off by more than 300s (check NTP first — it is the more "
+        "common cause and it looks exactly like a bad key)"
+    )
 
 
 def write_keys(send_key: bytes, recv_key: bytes) -> None:
@@ -134,29 +143,28 @@ def write_keys(send_key: bytes, recv_key: bytes) -> None:
 def write_config() -> None:
     CONFIG.parent.mkdir(parents=True, exist_ok=True)
     cfg = {}
-    try:
+    with contextlib.suppress(OSError, ValueError):
         cfg = json.loads(CONFIG.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        pass
     cfg.setdefault("peer", {})
     cfg["peer"]["name"] = OUR_NAME
     cfg["peer"]["url"] = OUR_URL
     cfg["peer"]["inbound_secret_file"] = RECV_KEY
     cfg["peer"]["outbound_secret_file"] = SEND_KEY
-    cfg["note"] = ("Written by peer_connect.py. peer.name is what YOU call THEM — provenance "
-                   "is assigned locally from it and never read off an arriving payload, so "
-                   "the two sides' configs never need to agree.")
+    cfg["note"] = (
+        "Written by peer_connect.py. peer.name is what YOU call THEM — provenance "
+        "is assigned locally from it and never read off an arriving payload, so "
+        "the two sides' configs never need to agree."
+    )
     CONFIG.write_text(json.dumps(cfg, indent=2) + "\n", encoding="utf-8")
     say("config", f"peer -> {OUR_NAME} at {OUR_URL}")
 
 
 def tailnet_ip() -> str:
-    exe = shutil.which("tailscale") or r"C:\Program Files\Tailscale\tailscale.exe"
+    exe = shutil.which("tailscale") or os.path.join(os.environ.get("ProgramFiles", ""), "Tailscale", "tailscale.exe")  # noqa: SIM112  # Windows spelling; POSIX lookups are case-sensitive
     try:
-        out = subprocess.run([exe, "ip", "-4"], capture_output=True, text=True,
-                             timeout=10).stdout.strip()
+        out = subprocess.run([exe, "ip", "-4"], capture_output=True, text=True, timeout=10).stdout.strip()
         return out.splitlines()[0].strip() if out else ""
-    except Exception:                                             # noqa: BLE001
+    except Exception:  # noqa: BLE001  # fail-soft: falls back to a default value
         return ""
 
 
@@ -165,20 +173,24 @@ def ensure_firewall(port: int) -> None:
     if os.name != "nt":
         return
     name = "Akashic remote-bridge (Tailscale only)"
-    ps = (f"if (-not (Get-NetFirewallRule -DisplayName '{name}' -ErrorAction SilentlyContinue))"
-          f" {{ New-NetFirewallRule -DisplayName '{name}' -Direction Inbound -Action Allow "
-          f"-Protocol TCP -LocalPort {port} -RemoteAddress '100.64.0.0/10' "
-          f"-InterfaceAlias 'Tailscale' -Profile Any | Out-Null; 'created' }} else {{ 'exists' }}")
+    ps = (
+        f"if (-not (Get-NetFirewallRule -DisplayName '{name}' -ErrorAction SilentlyContinue))"
+        f" {{ New-NetFirewallRule -DisplayName '{name}' -Direction Inbound -Action Allow "
+        f"-Protocol TCP -LocalPort {port} -RemoteAddress '100.64.0.0/10' "
+        f"-InterfaceAlias 'Tailscale' -Profile Any | Out-Null; 'created' }} else {{ 'exists' }}"
+    )
     try:
-        r = subprocess.run(["powershell", "-NoProfile", "-Command", ps],
-                           capture_output=True, text=True, timeout=25)
+        r = subprocess.run(["powershell", "-NoProfile", "-Command", ps], capture_output=True, text=True, timeout=25)
         out = (r.stdout or "").strip()
         if out in ("created", "exists"):
             say("firewall", f"inbound rule {out} (TCP {port}, Tailscale adapter, tailnet only)")
         else:
-            say("firewall", "could NOT add the rule — re-run this script as Administrator, "
-                            "or add it by hand. Without it we cannot reach you.")
-    except Exception as e:                                        # noqa: BLE001
+            say(
+                "firewall",
+                "could NOT add the rule — re-run this script as Administrator, "
+                "or add it by hand. Without it we cannot reach you.",
+            )
+    except Exception as e:  # noqa: BLE001  # fail-soft: best effort, skipped on any error
         say("firewall", f"skipped ({type(e).__name__}) — add the rule by hand if we cannot reach you")
 
 
@@ -193,11 +205,13 @@ def start_listener(host: str, port: int):
         return "already"
     except OSError:
         pass
-    argv = [sys.executable, str(script), "--host", host, "--port", str(port),
-            "--peer", OUR_NAME]
+    argv = [sys.executable, str(script), "--host", host, "--port", str(port), "--peer", OUR_NAME]
     flags = 0x00000008 | 0x00000200 if os.name == "nt" else 0
-    logf = open(ROOT / "state" / "logs" / "remote-bridge-listener.log", "ab") \
-        if (ROOT / "state" / "logs").exists() else subprocess.DEVNULL
+    logf = (
+        open(ROOT / "state" / "logs" / "remote-bridge-listener.log", "ab")  # noqa: SIM115  # handle outlives this block: inherited by the Popen child, parent copy closed on GC
+        if (ROOT / "state" / "logs").exists()
+        else subprocess.DEVNULL
+    )
     p = subprocess.Popen(argv, stdout=logf, stderr=logf, creationflags=flags, close_fds=True)
     for _ in range(10):
         try:
@@ -211,9 +225,14 @@ def start_listener(host: str, port: int):
 
 
 def handshake(send_key: bytes, my_url: str) -> bool:
-    payload = {"v": 1, "id": f"peer-connect-{int(time.time())}", "frm": "peer",
-               "kind": "chat", "sent_at": int(time.time()),
-               "content": f"peer_connect: I am live at {my_url} — both directions ready."}
+    payload = {
+        "v": 1,
+        "id": f"peer-connect-{int(time.time())}",
+        "frm": "peer",
+        "kind": "chat",
+        "sent_at": int(time.time()),
+        "content": f"peer_connect: I am live at {my_url} — both directions ready.",
+    }
     status, body = post(OUR_URL, envelope(payload, send_key))
     if status == 202:
         say("handshake", "202 — Daniil's fleet accepted the message")
@@ -231,13 +250,14 @@ def main() -> int:
     send_key, other = which_key_signs(k1, k2)
     if send_key is None:
         return fail(str(other))
-    write_keys(send_key, other)
+    write_keys(send_key, cast("bytes", other))  # a non-None send_key always pairs with the bytes key
     write_config()
 
     ip = tailnet_ip()
     if not ip:
-        return fail("could not read your Tailscale IP — is Tailscale running? "
-                    "(`tailscale ip -4` should print a 100.x address)")
+        return fail(
+            "could not read your Tailscale IP — is Tailscale running? (`tailscale ip -4` should print a 100.x address)"
+        )
     say("tailnet", f"your address is {ip}")
 
     ensure_firewall(LISTEN_PORT)
@@ -260,4 +280,4 @@ if __name__ == "__main__":
     try:
         raise SystemExit(main())
     except KeyboardInterrupt:
-        raise SystemExit(130)
+        raise SystemExit(130) from None

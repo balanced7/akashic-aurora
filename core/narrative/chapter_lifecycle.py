@@ -16,10 +16,10 @@ Design rules this enforces (docs/library/design/20260709_narrative-spine-design-
 - **Track lists stay clean.** Only active (not superseded), resolvable chapter ids,
   newest-first.
 """
-import json
-from typing import List, Optional
 
-from core.foundation.timeutil import now_iso as _now_iso   # aliased: locals below are named now_iso
+import json
+
+from core.foundation.timeutil import now_iso as _now_iso  # aliased: locals below are named now_iso
 from core.narrative.schema import Chapter, Edge, Track, chapter_key, track_key
 
 
@@ -28,11 +28,11 @@ def is_active_chapter(ch: Chapter) -> bool:
     return not ch.valid_to
 
 
-def active_chapters(chapters: List[Chapter]) -> List[Chapter]:
+def active_chapters(chapters: list[Chapter]) -> list[Chapter]:
     return [ch for ch in chapters if is_active_chapter(ch)]
 
 
-def load_chapter_from_store(store, chapter_id: str) -> Optional[Chapter]:
+def load_chapter_from_store(store, chapter_id: str) -> Chapter | None:
     raw = store.get(chapter_key(chapter_id))
     if not raw:
         return None
@@ -42,7 +42,7 @@ def load_chapter_from_store(store, chapter_id: str) -> Optional[Chapter]:
         return None
 
 
-def persist_chapter_in_place(store, chapter: Chapter, *, now: Optional[str] = None) -> Chapter:
+def persist_chapter_in_place(store, chapter: Chapter, *, now: str | None = None) -> Chapter:
     """Write ``chapter`` under its deterministic id, preserving bi-temporal anchors.
 
     ``valid_from`` is set the first time the chapter is seen and never moved;
@@ -50,10 +50,10 @@ def persist_chapter_in_place(store, chapter: Chapter, *, now: Optional[str] = No
     regenerate-from-atoms rebuild is the same logical chapter, so it stays stable
     and idempotent.
     """
-    now_iso = now or _now_iso()   # T119: aware UTC (to_epoch reads both eras)
+    now_iso = now or _now_iso()  # T119: aware UTC (to_epoch reads both eras)
     existing = load_chapter_from_store(store, chapter.id)
     if existing is not None and existing.valid_from:
-        chapter.valid_from = existing.valid_from           # never move the origin
+        chapter.valid_from = existing.valid_from  # never move the origin
     if not chapter.valid_from:
         chapter.valid_from = chapter.span_start
     # Respect a recorded_at the caller already stamped (the Chronicler stamps it from
@@ -65,14 +65,14 @@ def persist_chapter_in_place(store, chapter: Chapter, *, now: Optional[str] = No
     return chapter
 
 
-def correct_chapter(store, old_id: str, new_chapter: Chapter, *, now: Optional[str] = None) -> Chapter:
+def correct_chapter(store, old_id: str, new_chapter: Chapter, *, now: str | None = None) -> Chapter:
     """Explicit correction: a *different*-id chapter supersedes ``old_id``.
 
     Closes the old chapter's validity interval, links the two with the real
     ``replaces`` / ``is_version_of`` edges (66-type vocabulary), and writes the
     replacement. History stays queryable; only the new chapter is active.
     """
-    now_iso = now or _now_iso()   # T119: aware UTC (to_epoch reads both eras)
+    now_iso = now or _now_iso()  # T119: aware UTC (to_epoch reads both eras)
     old = load_chapter_from_store(store, old_id)
     if old is not None and is_active_chapter(old):
         old.valid_to = now_iso
@@ -99,21 +99,24 @@ def write_learning_chapter_backlinks(store, chapter: Chapter) -> int:
     for src in chapter.learnings or []:
         if not src.startswith("learn:experiment:"):
             continue
-        key = src                                  # source already IS the hash key
+        key = src  # source already IS the hash key
         try:
             if not store.exists(key):
                 continue
-            store.hset(key, mapping={
-                "narrative_chapter": chapter.id,
-                "narrative_track": chapter.track or "",
-            })
+            store.hset(
+                key,
+                mapping={
+                    "narrative_chapter": chapter.id,
+                    "narrative_track": chapter.track or "",
+                },
+            )
             linked += 1
         except Exception:
             continue
     return linked
 
 
-def rebuild_track_chapter_list(store, track_id: str, current_ids: List[str]) -> Track:
+def rebuild_track_chapter_list(store, track_id: str, current_ids: list[str]) -> Track:
     """Set a Track's chapter list to active, resolvable chapters only, newest-first.
 
     Merges the ids produced this run with any pre-existing ones (so a windowed
@@ -131,7 +134,7 @@ def rebuild_track_chapter_list(store, track_id: str, current_ids: List[str]) -> 
     if track is None:
         track = Track(id=track_id, title=track_id, chapters=[])
 
-    merged: List[str] = []
+    merged: list[str] = []
     seen = set()
     for cid in list(track.chapters or []) + list(current_ids):
         if cid in seen:
@@ -142,7 +145,7 @@ def rebuild_track_chapter_list(store, track_id: str, current_ids: List[str]) -> 
             merged.append(cid)
 
     merged.sort(
-        key=lambda cid: (load_chapter_from_store(store, cid).span_start or ""),
+        key=lambda cid: load_chapter_from_store(store, cid).span_start or "",  # pyright: ignore[reportOptionalMemberAccess]  # LATENT: re-read; a chapter removed since the filter above raises
         reverse=True,
     )
     track.chapters = merged

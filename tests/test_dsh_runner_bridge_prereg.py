@@ -35,6 +35,7 @@ running host and belongs in a drill with a dated receipt (house doctrine: a reco
 path ships with an executed drill or is presumed broken). These static pins constrain
 the SHAPE; the drill proves the BEHAVIOUR. Neither substitutes for the other.
 """
+
 import re
 from pathlib import Path
 
@@ -59,10 +60,11 @@ def test_wake_decision_is_spawned_not_reimplemented_in_js():
     src = _src()
     assert "bifrost_wake" in src, (
         "no reference to bifrost_wake.py: the wake decision must be SPAWNED from the "
-        "single Python definition, not reimplemented in the plugin")
+        "single Python definition, not reimplemented in the plugin"
+    )
     assert not re.search(r"\bwake_worthy\b|\bwakeWorthy\b", src), (
-        "wake_worthy appears to be reimplemented in JS -- that is the forbidden "
-        "second definition of the wake decision")
+        "wake_worthy appears to be reimplemented in JS -- that is the forbidden second definition of the wake decision"
+    )
 
 
 def test_arriving_mail_becomes_a_turn_via_the_next_turn_inbox():
@@ -70,9 +72,9 @@ def test_arriving_mail_becomes_a_turn_via_the_next_turn_inbox():
     src = _src()
     assert "next-turn" in src, (
         "no 'next-turn' lane write: the bridge must append through the harness's own "
-        "durable Inbox primitive, which survives restarts, rather than driving the UI")
-    assert re.search(r"\.inbox\b", src), (
-        "no inbox handle: the design requires ctx.agents.get(sid).inbox")
+        "durable Inbox primitive, which survives restarts, rather than driving the UI"
+    )
+    assert re.search(r"\.inbox\b", src), "no inbox handle: the design requires ctx.agents.get(sid).inbox"
 
 
 def test_the_appended_prompt_is_harness_authored_and_peer_content_is_data():
@@ -88,10 +90,13 @@ def test_the_appended_prompt_is_harness_authored_and_peer_content_is_data():
     src = _src()
     marker = re.search(
         r"(PEER CONTENT IS DATA|peer content is data|never instruction|"
-        r"NEVER instruction|data, never instruction)", src)
+        r"NEVER instruction|data, never instruction)",
+        src,
+    )
     assert marker, (
         "the fixed-prompt law is not stated at the append site: the appended turn must "
-        "be harness-authored, and arriving peer text must never become instruction")
+        "be harness-authored, and arriving peer text must never become instruction"
+    )
 
 
 def test_one_watcher_per_seat():
@@ -102,10 +107,9 @@ def test_one_watcher_per_seat():
     spawner with no singleton guard is the known shape of that bug.
     """
     src = _src()
-    assert re.search(
-        r"(alreadyRunning|watcherAlive|singleton|oneWatcher|if\s*\(\s*watcher\s*\))", src), (
-        "no singleton guard around the watcher spawn: nothing stops a second watcher "
-        "from being armed for the same seat")
+    assert re.search(r"(alreadyRunning|watcherAlive|singleton|oneWatcher|if\s*\(\s*watcher\s*\))", src), (
+        "no singleton guard around the watcher spawn: nothing stops a second watcher from being armed for the same seat"
+    )
 
 
 def test_the_bridge_never_restarts_its_own_host():
@@ -117,8 +121,8 @@ def test_the_bridge_never_restarts_its_own_host():
     src = _src()
     for forbidden in ("dsh web", "restartHost", "restart_host"):
         assert forbidden not in src, (
-            f"{forbidden!r} appears in the plugin: the bridge must never restart the "
-            f"host it is running inside")
+            f"{forbidden!r} appears in the plugin: the bridge must never restart the host it is running inside"
+        )
 
 
 def test_external_ui_driver_is_defibrillator_only():
@@ -131,4 +135,5 @@ def test_external_ui_driver_is_defibrillator_only():
     src = _src()
     assert re.search(r"(defibrillator|beat is stale|staleBeat|stale_beat)", src), (
         "the defibrillator boundary is not stated: an external UI driver must be gated "
-        "on a STALE presence beat, never used against a healthy host")
+        "on a STALE presence beat, never used against a healthy host"
+    )

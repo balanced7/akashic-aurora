@@ -30,22 +30,28 @@ What IS new is the EXPORT. A Redis stream is not a file until someone writes it 
 the export is incremental (per-stream last-id cursor) and APPEND-ONLY, so an entry the bus
 has since trimmed stays readable forever. That is the whole point.
 """
+
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import os
 import sys
-import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, cast
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+from scripts.ops.archive_transcripts import (
+    _render as _render_copy,
+)
+from scripts.ops.archive_transcripts import (
+    archive,
+)
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(_REPO_ROOT))
-
-from scripts.ops.archive_transcripts import (  # noqa: E402
-    DEFAULT_DESTS as _T_DESTS, archive, _render as _render_copy)
 
 # The engine, re-exported so callers (and the pins) can see it is the SAME one.
 archive = archive
@@ -53,13 +59,13 @@ archive = archive
 BUS_EXPORT_DIR = _REPO_ROOT / "state" / "bus-export"
 DEFAULT_CURSORS = BUS_EXPORT_DIR / ".cursors.json"
 DEFAULT_RECEIPTS = _REPO_ROOT / "state" / "archive" / "receipts-ephemeral"
-DEFAULT_DESTS: List[Path] = [
-    Path(r"E:\Akashic Aurora\ephemeral"),
-    Path(r"F:\Akashic Aurora\ephemeral"),
-]
+# Machine-specific (separate physical disks), so from the environment -- see core.paths.env_paths.
+from core.paths import env_paths as _env_paths  # noqa: E402  # sys.path bootstrap
+
+DEFAULT_DESTS: list[Path] = _env_paths("AKASHIC_EPHEMERAL_ARCHIVE_ROOTS")
 
 # Planes worth keeping, and the extensions that are the RECORD rather than scratch.
-STATE_PLANES: Dict[str, Tuple[str, ...]] = {
+STATE_PLANES: dict[str, tuple[str, ...]] = {
     "state/spill": (".txt", ".md", ".json", ".jsonl"),
     "state/wire": (".jsonl", ".json"),
     "state/bus-export": (".jsonl",),
@@ -81,7 +87,7 @@ def _safe_name(stream: str) -> str:
     return stream
 
 
-def export_bus(client, out_dir: Path, cursor_file: Optional[Path] = None) -> Dict[str, Any]:
+def export_bus(client, out_dir: Path, cursor_file: Path | None = None) -> dict[str, Any]:
     """Write every stream's NEW entries to `<stream>.jsonl`, resuming from a per-stream
     cursor. Append-only: an entry the bus later trims stays in the file.
 
@@ -118,19 +124,28 @@ def export_bus(client, out_dir: Path, cursor_file: Optional[Path] = None) -> Dic
             path = out_dir / f"{_safe_name(key)}.jsonl"
             with open(path, "a", encoding="utf-8") as fh:
                 for mid, fields in rows:
-                    fh.write(json.dumps({
-                        "stream": key, "id": mid,
-                        "exported_at": datetime.now(timezone.utc).isoformat(),
-                        "fields": dict(fields),
-                    }, ensure_ascii=False) + "\n")
+                    fh.write(
+                        json.dumps(
+                            {
+                                "stream": key,
+                                "id": mid,
+                                "exported_at": datetime.now(UTC).isoformat(),
+                                "fields": dict(fields),
+                            },
+                            ensure_ascii=False,
+                        )
+                        + "\n"
+                    )
                     written += 1
                     cursors[key] = mid
-        except Exception as exc:  # noqa: BLE001 -- contained + confessed, never silent
+        except Exception as exc:  # noqa: BLE001  # contained + confessed, never silent
             failed_streams.append({"stream": key, "error": f"{type(exc).__name__}: {exc}"})
     cur_path.parent.mkdir(parents=True, exist_ok=True)
     cur_path.write_text(json.dumps(cursors, indent=1), encoding="utf-8")
-    report: Dict[str, Any] = {
-        "streams": streams, "entries_written": written, "out_dir": str(out_dir),
+    report: dict[str, Any] = {
+        "streams": streams,
+        "entries_written": written,
+        "out_dir": str(out_dir),
     }
     if failed_streams:
         # surfacing in the receipt keeps the deadman honest: a partial export is
@@ -139,7 +154,7 @@ def export_bus(client, out_dir: Path, cursor_file: Optional[Path] = None) -> Dic
     return report
 
 
-def _sender(fields: Dict[str, Any]) -> str:
+def _sender(fields: dict[str, Any]) -> str:
     """Who sent it. `frm` is the bifrost envelope's field; the others are the shapes the
     events streams and older records use. Checked against the live export, not assumed."""
     for k in ("frm", "from", "agent", "by", "from_agent"):
@@ -149,13 +164,12 @@ def _sender(fields: Dict[str, Any]) -> str:
     return ""
 
 
-def search(out_dir: Path, *, q: str = "", who: str = "", kind: str = "",
-           limit: int = 20) -> List[Dict[str, Any]]:
+def search(out_dir: Path, *, q: str = "", who: str = "", kind: str = "", limit: int = 20) -> list[dict[str, Any]]:
     """Read the exported bus back. Facets AND together; `q` is a substring within the
     faceted slice -- the query grammar's shape, at the cheapest door that can honour it.
 
     Saved without findable is a tarball, which is why this ships in the same slice."""
-    hits: List[Dict[str, Any]] = []
+    hits: list[dict[str, Any]] = []
     for f in sorted(Path(out_dir).glob("*.jsonl")):
         for line in f.read_text(encoding="utf-8", errors="replace").splitlines():
             if not line.strip():
@@ -183,12 +197,12 @@ def search(out_dir: Path, *, q: str = "", who: str = "", kind: str = "",
     return hits
 
 
-def collect_state(root: Optional[Path] = None) -> Tuple[List[Path], Dict[str, int]]:
+def collect_state(root: Path | None = None) -> tuple[list[Path], dict[str, int]]:
     """The files to archive, and a PER-PLANE count. The count rides the report because an
     archive that cannot say what it covered is how a plane goes quietly uncovered."""
     root = Path(root) if root else _REPO_ROOT
-    files: List[Path] = []
-    planes: Dict[str, int] = {}
+    files: list[Path] = []
+    planes: dict[str, int] = {}
     for plane, exts in STATE_PLANES.items():
         d = root / plane
         planes[plane] = 0
@@ -204,8 +218,8 @@ def collect_state(root: Optional[Path] = None) -> Tuple[List[Path], Dict[str, in
     return files, planes
 
 
-def main(argv: Optional[List[str]] = None) -> int:
-    ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+def main(argv: list[str] | None = None) -> int:
+    ap = argparse.ArgumentParser(description=cast("str", __doc__).split("\n")[0])
     ap.add_argument("--dest", action="append", default=[])
     ap.add_argument("--receipt-dir", default="")
     ap.add_argument("--verify", action="store_true")
@@ -220,14 +234,12 @@ def main(argv: Optional[List[str]] = None) -> int:
     if a.search or a.who or a.kind:
         hits = search(BUS_EXPORT_DIR, q=a.search, who=a.who, kind=a.kind)
         if not hits:
-            print("[bus] no match in the export "
-                  "(run without --search first if it has never been exported)")
+            print("[bus] no match in the export (run without --search first if it has never been exported)")
             return 1
         for h in hits:
             f = h["fields"]
             body = str(f.get("content") or f.get("data", ""))[:150].replace("\n", " ")
-            print(f"  [{f.get('kind','?')}] {_sender(f) or '?'} -> {f.get('to','*')}  "
-                  f"{h['id']}\n      {body}")
+            print(f"  [{f.get('kind', '?')}] {_sender(f) or '?'} -> {f.get('to', '*')}  {h['id']}\n      {body}")
         print(f"[bus] {len(hits)} hit(s) from the durable export")
         return 0
 
@@ -241,16 +253,26 @@ def main(argv: Optional[List[str]] = None) -> int:
         _render_copy(rep)
         return 0 if rep.get("ok") else 1
 
+    if not (a.dest or DEFAULT_DESTS):
+        print(
+            "[ephemeral] NO DESTINATIONS -- set AKASHIC_EPHEMERAL_ARCHIVE_ROOTS (absolute "
+            f"paths, '{os.pathsep}'-separated; separate physical disks) or pass --dest",
+            file=sys.stderr,
+        )
+        return 2
+
     # 1) export the bus so it is a file at all
     bus = {"streams": 0, "entries_written": 0, "error": None}
     try:
         import redis
+
         # Bounded on purpose: an unresponsive Redis must fail this step in seconds, not
         # hang a scheduled task. The file archiving below does not depend on it.
-        client = redis.Redis(host=os.getenv("REDIS_HOST", "localhost"),
-                             port=int(os.getenv("REDIS_PORT", "16379")),
-                             decode_responses=True,
-                             socket_timeout=5, socket_connect_timeout=5)
+        from core.foundation.redis_connection import ensure_redis_server
+
+        _host, _port = os.getenv("REDIS_HOST", "localhost"), int(os.getenv("REDIS_PORT", "16379"))
+        ensure_redis_server(_host, _port)  # starts the embedded server if that is ours
+        client = redis.Redis(host=_host, port=_port, decode_responses=True, socket_timeout=5, socket_connect_timeout=5)
         client.ping()
         bus = export_bus(client, BUS_EXPORT_DIR)
     except Exception as e:
@@ -260,27 +282,24 @@ def main(argv: Optional[List[str]] = None) -> int:
         # spill/learnings copy, the same independence the two drives get.
         print(f"[bus] EXPORT FAILED: {bus['error']}", file=sys.stderr)
     else:
-        print(f"[bus] {bus['streams']} stream(s), +{bus['entries_written']:,} entry(s) "
-              f"exported -> {BUS_EXPORT_DIR}")
+        print(f"[bus] {bus['streams']} stream(s), +{bus['entries_written']:,} entry(s) exported -> {BUS_EXPORT_DIR}")
 
     # 2) archive every state plane (bus export included) with the proven engine
     files, planes = collect_state()
     if not files:
-        print("[ephemeral] NO STATE FILES FOUND -- refusing to record a clean run over "
-              "nothing", file=sys.stderr)
+        print("[ephemeral] NO STATE FILES FOUND -- refusing to record a clean run over nothing", file=sys.stderr)
         return 1
     print("[ephemeral] planes: " + ", ".join(f"{k}={v}" for k, v in planes.items()))
     # rel_root keeps each plane's own shape in the archive. The wire journal is sharded
     # per agent, so flattening by basename collides five agents' shards onto one name.
-    rep = archive(files, [Path(d) for d in a.dest] or DEFAULT_DESTS,
-                  verify=a.verify, receipt_dir=rdir, rel_root=_REPO_ROOT)
+    rep = archive(
+        files, [Path(d) for d in a.dest] or DEFAULT_DESTS, verify=a.verify, receipt_dir=rdir, rel_root=_REPO_ROOT
+    )
     rep["bus_export"] = bus
     rep["planes"] = planes
     _render_copy(rep)
-    try:
+    with contextlib.suppress(Exception):
         (rdir / "latest.json").write_text(json.dumps(rep, indent=1), encoding="utf-8")
-    except Exception:
-        pass
     return 0 if (rep["ok"] and not bus.get("error")) else 1
 
 

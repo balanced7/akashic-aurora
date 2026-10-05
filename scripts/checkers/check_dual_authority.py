@@ -30,6 +30,7 @@ SURFACE: doctor/standalone now; ship-gate wiring lands WITH the cutover flip com
 gating every unrelated ship on a known in-flight migration would be noise, and the
 checker's own birth state (firing on live repo) proves the signal works.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -37,7 +38,7 @@ import os
 import sys
 import time
 from pathlib import Path
-from typing import Dict, List, Optional
+
 
 def _repo_root_str() -> str:
     """AI_SETUP override, else the root DERIVED from this file (core/paths).
@@ -47,8 +48,10 @@ def _repo_root_str() -> str:
     every call here silently used that literal and the repo only ran from one
     directory on one disk.
     """
-    from core.paths import root_str
     import os as _os
+
+    from core.paths import root_str
+
     return (_os.getenv("AI_SETUP") or "").strip() or root_str()
 
 
@@ -57,7 +60,7 @@ DEFAULT_WINDOW_HOURS = 24.0
 DEFAULT_WAL_ALERT_BYTES = 4 * 1024 * 1024
 
 
-def _mtime(p: Path) -> Optional[float]:
+def _mtime(p: Path) -> float | None:
     try:
         return os.path.getmtime(p)
     except OSError:
@@ -69,16 +72,20 @@ def _age(now: float, ts: float) -> str:
     return f"{h / 24.0:.1f}d" if h >= 48 else f"{h:.1f}h"
 
 
-def classify(json_path: Path, db_path: Path, backend_env: str = "",
-             window_hours: float = DEFAULT_WINDOW_HOURS,
-             wal_alert_bytes: int = DEFAULT_WAL_ALERT_BYTES,
-             now: Optional[float] = None) -> List[Dict[str, str]]:
+def classify(
+    json_path: Path,
+    db_path: Path,
+    backend_env: str = "",
+    window_hours: float = DEFAULT_WINDOW_HOURS,
+    wal_alert_bytes: int = DEFAULT_WAL_ALERT_BYTES,
+    now: float | None = None,
+) -> list[dict[str, str]]:
     """Pure classification: [(severity, code, line)] as dicts. No printing, no exit --
     the doctor and the CLI wrap this; the pins call it directly."""
     now = time.time() if now is None else now
     json_path, db_path = Path(json_path), Path(db_path)
     jm, dm = _mtime(json_path), _mtime(db_path)
-    findings: List[Dict[str, str]] = []
+    findings: list[dict[str, str]] = []
 
     if jm is not None and dm is not None:
         lag_h = abs(jm - dm) / 3600.0
@@ -87,20 +94,26 @@ def classify(json_path: Path, db_path: Path, backend_env: str = "",
             stale_name, stale_ts = (db_path.name, dm) if stale_is_db else (json_path.name, jm)
             fresh_name, fresh_ts = (json_path.name, jm) if stale_is_db else (db_path.name, dm)
             authority_is_db = (backend_env or "").strip().lower() == "sqlite"
-            findings.append({
-                "severity": "fail", "code": "DIVERGENT-DUAL",
-                "line": f"{stale_name} froze {_age(now, stale_ts)} ago while {fresh_name} "
-                        f"moved {_age(now, fresh_ts)} ago (tear {lag_h / 24.0:.1f}d > "
-                        f"{window_hours:.0f}h window). Two artifacts claim one state; "
-                        f"finish the cutover or retire the twin.",
-            })
+            findings.append(
+                {
+                    "severity": "fail",
+                    "code": "DIVERGENT-DUAL",
+                    "line": f"{stale_name} froze {_age(now, stale_ts)} ago while {fresh_name} "
+                    f"moved {_age(now, fresh_ts)} ago (tear {lag_h / 24.0:.1f}d > "
+                    f"{window_hours:.0f}h window). Two artifacts claim one state; "
+                    f"finish the cutover or retire the twin.",
+                }
+            )
             if authority_is_db == stale_is_db:
-                findings.append({
-                    "severity": "fail", "code": "STALE-AUTHORITY",
-                    "line": f"the SELECTED backend ({'sqlite' if authority_is_db else 'file'}) "
-                            f"is the frozen twin -- every read is served from a store that "
-                            f"stopped moving {_age(now, stale_ts)} ago.",
-                })
+                findings.append(
+                    {
+                        "severity": "fail",
+                        "code": "STALE-AUTHORITY",
+                        "line": f"the SELECTED backend ({'sqlite' if authority_is_db else 'file'}) "
+                        f"is the frozen twin -- every read is served from a store that "
+                        f"stopped moving {_age(now, stale_ts)} ago.",
+                    }
+                )
 
     wal = Path(str(db_path) + "-wal")
     try:
@@ -108,16 +121,19 @@ def classify(json_path: Path, db_path: Path, backend_env: str = "",
     except OSError:
         wal_size = 0
     if wal_size > wal_alert_bytes:
-        findings.append({
-            "severity": "fail", "code": "WAL-GROWTH",
-            "line": f"{wal.name} at {wal_size} bytes (> {wal_alert_bytes}). A long-lived "
-                    f"reader is starving the checkpoint (measured shape, 2026-07-26); run "
-                    f"wal_checkpoint(TRUNCATE) after the reader releases.",
-        })
+        findings.append(
+            {
+                "severity": "fail",
+                "code": "WAL-GROWTH",
+                "line": f"{wal.name} at {wal_size} bytes (> {wal_alert_bytes}). A long-lived "
+                f"reader is starving the checkpoint (measured shape, 2026-07-26); run "
+                f"wal_checkpoint(TRUNCATE) after the reader releases.",
+            }
+        )
     return findings
 
 
-def _defaults() -> Dict[str, Path]:
+def _defaults() -> dict[str, Path]:
     base = Path(_repo_root_str()) / "session_logs"
     return {"json": base / "store_state.json", "db": base / "store_state.db"}
 
@@ -131,17 +147,23 @@ def main(argv=None) -> int:
     ap.add_argument("--wal-alert-bytes", type=int, default=DEFAULT_WAL_ALERT_BYTES)
     a = ap.parse_args(argv)
 
-    findings = classify(Path(a.json), Path(a.db),
-                        backend_env=os.getenv("AKASHIC_STORE_BACKEND", ""),
-                        window_hours=a.window_hours, wal_alert_bytes=a.wal_alert_bytes)
+    findings = classify(
+        Path(a.json),
+        Path(a.db),
+        backend_env=os.getenv("AKASHIC_STORE_BACKEND", ""),
+        window_hours=a.window_hours,
+        wal_alert_bytes=a.wal_alert_bytes,
+    )
     print(f"# dual-authority check -- {a.json} vs {a.db}")
     if not findings:
         print("PASS: no dual-authority tear (single authority, or twins converging).")
         return 0
     for f in findings:
         print(f"{f['severity'].upper()} [{f['code']}]: {f['line']}")
-    print(f"\n{len(findings)} finding(s). Divergence, not duality, is the defect: a pair "
-          f"that moves together is a cutover; a pair that tears is an abandonment.")
+    print(
+        f"\n{len(findings)} finding(s). Divergence, not duality, is the defect: a pair "
+        f"that moves together is a cutover; a pair that tears is an abandonment."
+    )
     return 1
 
 

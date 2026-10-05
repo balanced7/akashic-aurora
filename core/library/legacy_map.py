@@ -19,43 +19,53 @@ Result: original_slug -> art_id, deterministic and self-verifying -- the very ar
 design promised. Rebuild is idempotent; a slug that matches no atom is recorded UNMATCHED
 (loud, never silently dropped) so the gap is visible rather than absorbed.
 """
+
 from __future__ import annotations
 
 import os
 import subprocess
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from core.library import atoms as _atoms
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-MIGRATION_COMMIT = "425cf52"          # "Delete the 643!" -- the sprawl retirement
-MAP_PATH = os.path.join("store", "docs", "legacy_map.json")   # the committed map artifact
+MIGRATION_COMMIT = "425cf52"  # "Delete the 643!" -- the sprawl retirement
+MAP_PATH = os.path.join("store", "docs", "legacy_map.json")  # the committed map artifact
 # Independent live census (codex, 2026-07-28): all 103 deleted docs matched exactly
 # one atom, zero were ambiguous, and the shortest matching atom tail was 3,225
 # characters -- more than 16x this conservative anti-trivial-match floor.
 _MIN_SUFFIX_CHARS = 200
 
 
-def _deleted_docs(commit: str = MIGRATION_COMMIT) -> List[str]:
+def _deleted_docs(commit: str = MIGRATION_COMMIT) -> list[str]:
     """Every docs/*.md path deleted by the migration commit (git ancestry is the truth)."""
     try:
         raw = subprocess.run(
             ["git", "show", "--pretty=", "--name-only", "--diff-filter=D", commit],
-            cwd=ROOT, capture_output=True, text=True, encoding="utf-8",
-            errors="replace", timeout=30).stdout
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=30,
+        ).stdout
     except Exception:
         return []
-    return [ln.strip() for ln in raw.splitlines()
-            if ln.strip().startswith("docs/") and ln.strip().endswith(".md")]
+    return [ln.strip() for ln in raw.splitlines() if ln.strip().startswith("docs/") and ln.strip().endswith(".md")]
 
 
-def _pre_delete_body(path: str, commit: str = MIGRATION_COMMIT) -> Optional[str]:
+def _pre_delete_body(path: str, commit: str = MIGRATION_COMMIT) -> str | None:
     """The deleted doc's body as of the commit's parent (its last live form)."""
     try:
         raw = subprocess.run(
             ["git", "show", f"{commit}^:{path}"],
-            cwd=ROOT, capture_output=True, text=True, encoding="utf-8",
-            errors="replace", timeout=30)
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=30,
+        )
         return raw.stdout if raw.returncode == 0 else None
     except Exception:
         return None
@@ -72,7 +82,7 @@ def _slug_of(path: str) -> str:
 _MIN_SUFFIX_CHARS = 200
 
 
-def _match_atom(body: str, atoms_by_id: Dict[str, Any]) -> Optional[str]:
+def _match_atom(body: str, atoms_by_id: dict[str, Any]) -> str | None:
     """Return the one atom whose body is the legacy document's byte-exact suffix.
 
     The migration moved an unknown PREFIX into the atom header; reconstructing which
@@ -84,7 +94,7 @@ def _match_atom(body: str, atoms_by_id: Dict[str, Any]) -> Optional[str]:
     if not body:
         return None
     doc_body = body.rstrip()
-    candidates: List[str] = []
+    candidates: list[str] = []
     for aid, atom in atoms_by_id.items():
         atom_tail = str((atom or {}).get("body") or "").rstrip()
         if len(atom_tail) > _MIN_SUFFIX_CHARS and doc_body.endswith(atom_tail):
@@ -92,7 +102,7 @@ def _match_atom(body: str, atoms_by_id: Dict[str, Any]) -> Optional[str]:
     return candidates[0] if len(candidates) == 1 else None
 
 
-def build_map(family: Optional[Any] = None) -> Dict[str, Any]:
+def build_map(family: Any | None = None) -> dict[str, Any]:
     """original_slug -> {art_id, matched} for every doc deleted by the migration.
 
     Match is self-verifying: exactly one non-trivial atom body must be a byte-exact
@@ -100,10 +110,10 @@ def build_map(family: Optional[Any] = None) -> Dict[str, Any]:
     art_id=None so the hole is a datum, not an absence."""
     if family is None:
         family = _atoms.AtomFamily(store=_default_store())
-    atoms_by_id: Dict[str, Any] = {}
+    atoms_by_id: dict[str, Any] = {}
     for atom in family.find():
         atoms_by_id[atom["id"]] = atom
-    out: Dict[str, Any] = {}
+    out: dict[str, Any] = {}
     for path in _deleted_docs():
         slug = _slug_of(path)
         body = _pre_delete_body(path)
@@ -112,9 +122,10 @@ def build_map(family: Optional[Any] = None) -> Dict[str, Any]:
     return out
 
 
-def write_map(path: str = MAP_PATH, family: Optional[Any] = None) -> Dict[str, Any]:
+def write_map(path: str = MAP_PATH, family: Any | None = None) -> dict[str, Any]:
     """Build and persist the map (the committed artifact the design promised)."""
     import json
+
     m = build_map(family)
     full = path if os.path.isabs(path) else os.path.join(ROOT, path)
     os.makedirs(os.path.dirname(full), exist_ok=True)
@@ -123,10 +134,11 @@ def write_map(path: str = MAP_PATH, family: Optional[Any] = None) -> Dict[str, A
     return m
 
 
-def load_map(path: str = MAP_PATH) -> Dict[str, Any]:
+def load_map(path: str = MAP_PATH) -> dict[str, Any]:
     """The persisted map; {} when absent (fail-soft -- a missing map means the corpus
     still answers by content, just not by original handle)."""
     import json
+
     full = path if os.path.isabs(path) else os.path.join(ROOT, path)
     try:
         with open(full, encoding="utf-8") as f:
@@ -138,22 +150,21 @@ def load_map(path: str = MAP_PATH) -> Dict[str, Any]:
 def _default_store() -> Any:
     try:
         from core.foundation.store import create_store
+
         return create_store(prefer_redis=True)
     except Exception:
         return None
 
 
-def main(argv: Optional[List[str]] = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     """py -m core.library.legacy_map [--write] -- build (and optionally persist) the map."""
     import argparse
+
     ap = argparse.ArgumentParser(description="build the legacy_path -> art_id map")
     ap.add_argument("--write", action="store_true", help="persist to store/docs/legacy_map.json")
     args = ap.parse_args(argv)
     fam = _atoms.AtomFamily(store=_default_store())
-    if args.write:
-        m = write_map(family=fam)
-    else:
-        m = build_map(family=fam)
+    m = write_map(family=fam) if args.write else build_map(family=fam)
     matched = sum(1 for r in m.values() if r.get("matched"))
     print(f"legacy_map: {matched}/{len(m)} deleted docs matched to one atom by suffix identity")
     for slug, rec in sorted(m.items()):

@@ -18,6 +18,7 @@ it parses, so a change to one is a change to both.
 The slice is deliberately narrow: one preset (`findings`) and lens plumbing. That pair covers
 four of the five fans run today.
 """
+
 import pytest
 
 from core.comm import presets
@@ -27,7 +28,8 @@ from core.comm import presets
 def test_a_preset_carries_both_a_contract_and_a_parser():
     """The whole design. A contract with no parser is the situation we already had."""
     p = presets.get("findings")
-    assert p.contract and isinstance(p.contract, str)
+    assert p.contract
+    assert isinstance(p.contract, str)
     assert callable(p.parse)
 
 
@@ -38,7 +40,7 @@ def test_a_preset_cannot_be_registered_without_a_parser():
     caller silently goes back to hand-rolling a regex, which is the defect this task exists
     to remove.
     """
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="a contract MUST ship with its parser"):
         presets.register("halfbaked", contract="ANSWER: something", parse=None)
 
 
@@ -60,8 +62,7 @@ def test_the_findings_contract_carries_the_clauses_that_earned_their_place():
     c = presets.get("findings").contract.lower()
     assert "wrong" in c, "must demand the cheapest disproof"
     assert "blind" in c, "must demand what the evidence cannot show"
-    assert any(w in c for w in ("unclear", "abstention", "abstain")), \
-        "must make abstention explicitly acceptable"
+    assert any(w in c for w in ("unclear", "abstention", "abstain")), "must make abstention explicitly acceptable"
     assert "descriptive" in c or "not recommend" in c, "must steer away from normative answers"
 
 
@@ -84,7 +85,8 @@ def test_parse_returns_structured_findings():
     assert out["ok"] is True
     assert len(out["findings"]) == 2
     assert "bus.py:249" in out["findings"][0]
-    assert out["check"] and out["blind"]
+    assert out["check"]
+    assert out["blind"]
     assert "read-only" in out["reasoning"]
 
 
@@ -103,25 +105,27 @@ def test_an_answer_that_ignores_the_contract_is_UNPARSED_not_dropped():
 
 def test_parse_is_lenient_about_shape_but_strict_about_presence():
     """Models bullet, bold and number inconsistently. That must not lose a finding."""
-    messy = ("FINDINGS\n- **first** thing at a.py:1\n* second thing at b.py:2\n\n"
-             "REASONING\nbecause\n\nCHECK\nrun it\n\nBLIND\nnothing")
+    messy = (
+        "FINDINGS\n- **first** thing at a.py:1\n* second thing at b.py:2\n\n"
+        "REASONING\nbecause\n\nCHECK\nrun it\n\nBLIND\nnothing"
+    )
     out = presets.get("findings").parse(messy)
-    assert out["ok"] is True and len(out["findings"]) == 2, out
+    assert out["ok"] is True, out
+    assert len(out["findings"]) == 2, out
 
 
 # ---------------------------------------------------------------- lens plumbing
 def test_lenses_become_one_branch_each_with_the_contract_appended():
     prompts = presets.build_prompts("findings", ["what does it do", "what breaks it"])
     assert len(prompts) == 2
-    for p, lens in zip(prompts, ["what does it do", "what breaks it"]):
+    for p, lens in zip(prompts, ["what does it do", "what breaks it"], strict=False):
         assert p.startswith(lens), "the lens leads; the contract follows"
         assert "BLIND" in p, "every branch carries the contract"
 
 
 def test_lens_file_ignores_blanks_and_comments(tmp_path):
     f = tmp_path / "lenses.txt"
-    f.write_text("# the surface\nwhat does it promise\n\n  \n# the mechanism\nwhat does it do\n",
-                 encoding="utf-8")
+    f.write_text("# the surface\nwhat does it promise\n\n  \n# the mechanism\nwhat does it do\n", encoding="utf-8")
     assert presets.read_lens_file(str(f)) == ["what does it promise", "what does it do"]
 
 
@@ -130,7 +134,7 @@ def test_an_empty_lens_file_is_refused_by_name(tmp_path):
     than returning zero branches that read like 'nothing found'."""
     f = tmp_path / "empty.txt"
     f.write_text("# only comments\n\n", encoding="utf-8")
-    with pytest.raises(ValueError) as e:
+    with pytest.raises(ValueError, match="contains no lenses") as e:
         presets.read_lens_file(str(f))
     assert "empty.txt" in str(e.value)
 

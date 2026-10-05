@@ -3,7 +3,7 @@
 Status: current
 Class: reference
 
-> Do NOT edit by hand. Regenerate with `py scripts/generators/gen_master_map.py`.
+> Do NOT edit by hand. Regenerate with `uv run scripts/generators/gen_master_map.py`.
 > Columns: line-1 docstring (the module's own spec) | name-matched pin file |
 > name-matched design/reference doc (v0 HEURISTIC -- ranks the M3 backfill queue,
 > does not certify coverage) | env flags read (physics scan). GAP = neither a
@@ -11,7 +11,7 @@ Class: reference
 > Companions: ARCHITECTURE.md (skeleton) - MODULE_INDEX.md (docstrings) -
 > PHYSICS.md (bounds+flags) - the charter docs/library/brief/20260719_the-master-map-documentation-as-projecti_a26fd3.md.
 
-## GAP queue (46 of 201 modules lack both pin and paper by name)
+## GAP queue (46 of 202 modules lack both pin and paper by name)
 
 - core/foundation/durable_reconcile.py
 - core/foundation/filelock.py
@@ -60,11 +60,12 @@ Class: reference
 - agent/harness/codex_bifrost_wake.py
 - agent/initializer.py
 
-## core/foundation/  (10 modules)
+## core/foundation/  (11 modules)
 
 | Module | One-line spec | Pin | Paper | Flags |
 |---|---|---|---|---|
 | `durable_reconcile.py` | Per-family authority reconcile: make the durable source COMPLETE before migrating. | GAP | GAP | `AI_SETUP` |
+| `embedded_redis.py` | embedded_redis -- a Redis-compatible server in pure Python, persisted to SQLite. | tests/test_embedded_redis.py | GAP | `AKASHIC_EMBEDDED_REDIS_DIR`, `AKASHIC_EMBEDDED_REDIS_FLUSH_SEC`, `AKASHIC_REDIS_BACKEND` |
 | `filelock.py` | A cross-process exclusive file lock. | GAP | GAP |  |
 | `ledger.py` | Ledger: Swappable event-record interface (append-and-replay) | tests/test_charter_p0_gap_ledger.py | docs/failure-ledger-2026-07.md |  |
 | `migrate_to_sqlite.py` | JSON FileStore -> SqliteStore migration: shadow-build, census law, honest verify. | GAP | GAP | `AI_SETUP` |
@@ -130,9 +131,9 @@ Class: reference
 | `interject.py` | Adaptive interjection router -- when a human types into a live agent session, decide whether the | GAP | GAP |  |
 | `kinds.py` | T176 s1 -- the kind registry: total resolution, so a miss stops reading as a decision. | tests/test_t175_skip_kinds_names_what_it_skips.py | GAP |  |
 | `lane_depths.py` | lane_depths -- the engine room's flow gauge source (T079-E2). | GAP | GAP | `BIFROST_NAMESPACE` |
-| `launcher.py` | Bifrost Launcher — spawn and monitor agent processes from the Bifrost UI. | tests/test_launcher_drain.py | GAP | `AKASHIC_SHOW_CONSOLES`, `LAUNCHER_AUTO_REVIVE_JITTER`, `LAUNCHER_RESTART_BACKOFF`, `LAUNCHER_RESTART_BACKOFF_MAX`, `LAUNCHER_RESTART_MAX`, `LAUNCHER_RESTART_RESET` |
+| `launcher.py` | Bifrost Launcher — spawn and monitor agent processes from the Bifrost UI. | tests/test_g5_latent_prior_art_launcher.py | GAP | `AKASHIC_SHOW_CONSOLES`, `LAUNCHER_AUTO_REVIVE_JITTER`, `LAUNCHER_RESTART_BACKOFF`, `LAUNCHER_RESTART_BACKOFF_MAX`, `LAUNCHER_RESTART_MAX`, `LAUNCHER_RESTART_RESET` |
 | `liveness.py` | Work-progress heartbeat (L1) -- pure observability for wedge detection. | tests/test_launcher_drainer_liveness.py | docs/library/design/20260701_agent-liveness-tier-stuck-lost-agent-fai_8c0d79.md | `AKASHIC_UNATTENDED_S`, `BIFROST_APPROACHING_WEDGE_SECONDS`, `BIFROST_NAMESPACE`, `BIFROST_WEDGE_SECONDS` |
-| `locks.py` | Advisory path-locks (Concurrency design C2). | tests/test_locks.py | GAP |  |
+| `locks.py` | Advisory path-locks (Concurrency design C2). | tests/test_g4_latent_locks_age.py | GAP |  |
 | `mailbox.py` | mailbox -- T095 M0: shadow mailbox state index over the append-only lanes. | tests/test_t095_m0_mailbox_adversarial.py | docs/library/design/20260701_comms-mailbox-over-the-log-t095-governin_06357f.md | `AKASHIC_MAILBOX`, `BIFROST_NAMESPACE` |
 | `nudge.py` | Bifrost nudge -- targeted, per-agent barge-in (companion to control.py's global PAUSE). | tests/test_learn_nudge.py | docs/library/design/20260831_attention-architecture-wakes-nudges-pric_bba04c.md | `BIFROST_NAMESPACE` |
 | `operator_reply.py` | Answering the operator, in one argument, with an honest delivery verdict. | tests/test_operator_reply.py | GAP | `AKASHIC_AGENT_ID`, `AKASHIC_OPERATOR_ID`, `CLAUDE_CODE_SESSION_ID` |
@@ -193,7 +194,7 @@ Class: reference
 | `preregistration.py` | preregistration -- M3's pre-registration metric, as numbers (T123 boundary fix). | GAP | docs/library/report/20260807_t207-grounding-ab-preregistration_b423f7.md |  |
 | `session_focus.py` | Session focus -- which task THIS session's tool calls belong to, and a nudge when they drift. | tests/test_t056b_session_focus.py | GAP | `AKASHIC_SESSION_ID`, `BIFROST_NAMESPACE`, `CLAUDE_CODE_SESSION_ID` |
 | `shift_loop.py` | Autonomous shift loop — the missing cadence between existing primitives. | tests/test_shift_loop.py | docs/library/design/autonomous-shift-loop-design.md |  |
-| `sift.py` | sift -- the nested ask: a tiered read that returns dissent instead of consensus. | tests/test_t217_sift.py | GAP |  |
+| `sift.py` | sift -- the nested ask: a tiered read that returns dissent instead of consensus. | tests/test_g4_latent_sift_junction_record.py | GAP |  |
 | `suite_baseline.py` | suite_baseline — the test-suite receipt the next seat diffs instead of re-deriving (W34/B4). | tests/test_w34_suite_baseline.py | GAP |  |
 | `task_costs.py` | Task cost telemetry (T056 / wishlist R5) -- per-slice ROI, honestly attributed. | GAP | GAP | `BIFROST_NAMESPACE` |
 | `task_ledger.py` | Governed task ledger — the deterministic coordination substrate (Phase 1: sequential-correct). | tests/test_task_ledger.py | GAP | `AKASHIC_PROPOSED_STALE_DAYS`, `AKASHIC_TASKS_PATH`, `BIFROST_PREMISE_GATE_MIN_AGE_MS` |
@@ -229,7 +230,7 @@ Class: reference
 | `knowledge_map.py` | knowledge_map (R8 / T059) -- WALK the knowledge, don't query it blind. | tests/test_knowledge_map.py | docs/library/report/20260714_claude-t059-review-r8-knowledge-map-2026_43eade.md | `AKASHIC_KMAP_NO_COUNT` |
 | `lookback.py` | Lookback (P7 / T027) -- one question over the rationale corpus, layered, drillable. | tests/test_charters_in_lookback_corpus.py | docs/library/report/20260710_p7-lookback-corpus-inventory-deepseek-ve_f5fc91.md | `AKASHIC_LOOKBACK_NO_COUNT` |
 | `pack_replay.py` | pack_replay (R2) -- replay the frozen census pack through TODAY's recall pipeline. | GAP | GAP |  |
-| `precision_audit.py` | precision_audit -- the missing instrument: is recall ACCURATE? | tests/test_precision_audit.py | research/reviewed/precision-audit-calibration-deepseek-2026-07-27.md | `TEMP` |
+| `precision_audit.py` | precision_audit -- the missing instrument: is recall ACCURATE? | tests/test_precision_audit.py | research/reviewed/precision-audit-calibration-deepseek-2026-07-27.md | `AKASHIC_RECALL_STATE_DIR` |
 | `prevention.py` | prevention -- the missing consumer of the outcome stage log (S2, recall's AAR). | tests/test_s2_prevention_observer_red.py | docs/library/contract/20260724_unwedge-runbook-prevention-and-recovery_291f4b.md |  |
 | `replay.py` | Forge F0 -- replay harness + data-sufficiency audit (docs/library/design/20260701_lesson-forge-evidence-gated- | tests/test_arsenal_replay.py | docs/library/design/20260721_the-arc-replay-bench-opening-position-cl_551e03.md |  |
 | `shadow_shelf.py` | Offline shadow-shelf substrate for T370 Slice 0. | tests/test_t370_shadow_shelf_reader_red.py | GAP |  |
@@ -330,7 +331,7 @@ Class: reference
 | `codex_app_server.py` | Owned Codex App Server stdio host. | tests/test_codex_app_server.py | GAP | `AKASHIC_CODEX_BINARY`, `LOCALAPPDATA` |
 | `codex_bifrost_wake.py` | Zero-model Bifrost level watcher with an owned Codex turn starter. | GAP | GAP | `AKASHIC_CALLSIGN_HINT`, `AKASHIC_CALLSIGN_STATUS`, `LOCALAPPDATA` |
 | `context.py` | The auto-boot whisper shared by every harness adapter (Integration Tiers H0). | tests/test_context_hints_gate.py | docs/library/design/20260620_research-context-handling-compaction-and_e5960c.md | `AKASHIC_AUTOBOOT`, `AKASHIC_WHISPER_LINES` |
-| `delta.py` | The delta door (T052 / wishlist R1) -- "what changed since I was last here." | tests/test_t052_delta_door.py | docs/library/design/20260714_design-brief-r1-delta-door-t052-full-fen_a36fa9.md | `BIFROST_NAMESPACE` |
+| `delta.py` | The delta door (T052 / wishlist R1) -- "what changed since I was last here." | tests/test_g4_latent_vfx_probe_none_delta.py | docs/library/design/20260714_design-brief-r1-delta-door-t052-full-fen_a36fa9.md | `BIFROST_NAMESPACE` |
 | `draft_keepalive.py` | draft_keepalive -- make the auto-handoff survive an UNGRACEFUL death. | tests/test_draft_keepalive.py | GAP |  |
 | `guards.py` | Action-veto policy shared by every harness adapter (Integration Tiers H1). | tests/test_birth_guard_scoping.py | docs/library/design/20260719_fable-opus-safeguards-downgrade-research_570a26.md |  |
 | `nudge.py` | JIT learn-nudge rate limiting shared by every harness adapter (friction audit D5). | tests/test_learn_nudge.py | docs/library/design/20260831_attention-architecture-wakes-nudges-pric_bba04c.md | `AKASHIC_LEARN_NUDGE`, `AKASHIC_LEARN_NUDGE_CAP` |

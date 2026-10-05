@@ -32,31 +32,32 @@ WHAT THESE PINS HOLD, and why each one is here rather than in a later slice:
 
 Run: py -m pytest tests/test_resident_identity.py -q
 """
-import os
-import sys
-import subprocess
 
-import isolate_canonical  # noqa: F401 -- db 15 + temp AI_SETUP, flushed (child inherits via env)
+import os
+import subprocess
+import sys
+
+import isolate_canonical  # noqa: F401  # db 15 + temp AI_SETUP, flushed (child inherits via env)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-import pytest  # noqa: E402
+import pytest  # noqa: E402  # sys.path bootstrap
 
 
 def run(*args, timeout=120):
     """Invoke the CLI as a subprocess -- the door a real seat enters through."""
     env = os.environ.copy()
     env["PYTHONIOENCODING"] = "utf-8"
-    r = subprocess.run([sys.executable, "agent_cli.py", *args],
-                       cwd=ROOT, env=env, capture_output=True, text=True, timeout=timeout)
+    r = subprocess.run(
+        [sys.executable, "agent_cli.py", *args], cwd=ROOT, env=env, capture_output=True, text=True, timeout=timeout
+    )
     return r.returncode, r.stdout, r.stderr
 
 
 def _seed_lesson(agent, experiment, tried="pin seed", result="pin seed"):
     """Author a lesson AS `agent`, so receipt-ownership has something real to check against."""
-    rc, out, err = run("learn", agent, "--experiment", experiment,
-                       "--tried", tried, "--result", result)
+    rc, out, err = run("learn", agent, "--experiment", experiment, "--tried", tried, "--result", result)
     assert rc == 0, f"seeding lesson {experiment} for {agent} failed: {err or out}"
     return experiment
 
@@ -65,27 +66,33 @@ def _seed_lesson(agent, experiment, tried="pin seed", result="pin seed"):
 def seeded():
     """Two lessons with DIFFERENT authors -- the whole point of P4 is telling them apart."""
     return {
-        "kimi": _seed_lesson("kimi", "pin_receipt_authored_by_kimi",
-                             tried="held a lock it could not release",
-                             result="every write re-armed the TTL"),
-        "claude": _seed_lesson("claude", "pin_receipt_authored_by_claude",
-                               tried="swept nine sibling files into a commit",
-                               result="the hook never saw the blanket sweep"),
+        "kimi": _seed_lesson(
+            "kimi",
+            "pin_receipt_authored_by_kimi",
+            tried="held a lock it could not release",
+            result="every write re-armed the TTL",
+        ),
+        "claude": _seed_lesson(
+            "claude",
+            "pin_receipt_authored_by_claude",
+            tried="swept nine sibling files into a commit",
+            result="the hook never saw the blanket sweep",
+        ),
     }
 
 
 # ---------------------------------------------------------------- P3 / P4: the registry rules
 
+
 def test_p3_a_nomination_is_never_a_self_nomination(seeded):
     """Rule 1, structural. You do not name yourself -- and the door refuses, not the etiquette."""
     from core.fleet import residents as R
-    with pytest.raises(ValueError) as e:
-        R.nominate(nominee="kimi", callsign="Snooze",
-                   receipts=[seeded["kimi"]], by="kimi")
+
+    with pytest.raises(ValueError, match="cannot nominate itself") as e:
+        R.nominate(nominee="kimi", callsign="Snooze", receipts=[seeded["kimi"]], by="kimi")
     msg = str(e.value).lower()
     assert "kimi" in msg, "the refusal must name the offending party"
-    assert "self" in msg or "yourself" in msg, \
-        f"the refusal must say WHY (rule 1), got: {e.value}"
+    assert "self" in msg or "yourself" in msg, f"the refusal must say WHY (rule 1), got: {e.value}"
 
 
 def test_p4_a_receipt_must_be_authored_by_the_nominee(seeded):
@@ -95,9 +102,9 @@ def test_p4_a_receipt_must_be_authored_by_the_nominee(seeded):
     error -- recollection wearing a receipt's clothes -- and it must be refused.
     """
     from core.fleet import residents as R
-    with pytest.raises(ValueError) as e:
-        R.nominate(nominee="kimi", callsign="Snooze",
-                   receipts=[seeded["claude"]], by="claude")
+
+    with pytest.raises(ValueError, match="was authored by 'claude', not by the nominee 'kimi'") as e:
+        R.nominate(nominee="kimi", callsign="Snooze", receipts=[seeded["claude"]], by="claude")
     msg = str(e.value)
     assert seeded["claude"] in msg, "the refusal must NAME the offending receipt"
     assert "claude" in msg.lower(), "the refusal must name who actually authored it"
@@ -106,8 +113,8 @@ def test_p4_a_receipt_must_be_authored_by_the_nominee(seeded):
 def test_p4b_a_receipt_authored_by_the_nominee_is_accepted(seeded):
     """The mirror of P4 -- the rule must not refuse everything."""
     from core.fleet import residents as R
-    rec = R.nominate(nominee="kimi", callsign="Snooze",
-                     receipts=[seeded["kimi"]], by="claude")
+
+    rec = R.nominate(nominee="kimi", callsign="Snooze", receipts=[seeded["kimi"]], by="claude")
     assert rec, "a well-formed nomination must be recorded"
     assert seeded["kimi"] in (rec.get("receipts") or []), "the receipt must be carried on the record"
 
@@ -118,59 +125,68 @@ def test_p4c_an_unknown_receipt_is_refused_not_assumed(seeded):
     Absence must not read as success -- the same invariant the guard-of-guards broke in T178.
     """
     from core.fleet import residents as R
-    with pytest.raises(ValueError) as e:
-        R.nominate(nominee="kimi", callsign="Snooze",
-                   receipts=["no_such_lesson_exists_anywhere"], by="claude")
-    assert "no_such_lesson_exists_anywhere" in str(e.value), \
-        "the refusal must name the receipt it could not resolve"
+
+    with pytest.raises(ValueError, match="does not resolve to any lesson") as e:
+        R.nominate(nominee="kimi", callsign="Snooze", receipts=["no_such_lesson_exists_anywhere"], by="claude")
+    assert "no_such_lesson_exists_anywhere" in str(e.value), "the refusal must name the receipt it could not resolve"
 
 
 # ---------------------------------------------------------------- P5: append-only supersession
 
+
 def test_p5_a_superseded_callsign_becomes_formerly_and_still_resolves(seeded):
     """Append-only. A callsign is succeeded, never deleted."""
     from core.fleet import residents as R
+
     R.nominate(nominee="kimi", callsign="Snooze", receipts=[seeded["kimi"]], by="claude")
     R.ratify(nominee="kimi", callsign="Snooze", by="daniil")
     R.nominate(nominee="kimi", callsign="Muninn", receipts=[seeded["kimi"]], by="claude")
     R.ratify(nominee="kimi", callsign="Muninn", by="daniil")
 
     now = R.get("kimi")
+    assert now is not None
     assert now["callsign"] == "Muninn", "the active callsign must be the ratified successor"
-    assert "Snooze" in (now.get("formerly") or []), \
+    assert "Snooze" in (now.get("formerly") or []), (
         "the superseded callsign must survive as a formerly: entry, never be deleted"
+    )
 
     hist = R.history("kimi")
-    assert any(h.get("callsign") == "Snooze" for h in hist), \
+    assert any(h.get("callsign") == "Snooze" for h in hist), (
         "the prior record must still RESOLVE, not merely be remembered as a string"
+    )
 
 
 # ---------------------------------------------------------------- P1 / P2: kimi's fold probe
 
+
 def test_p1_the_boot_fold_carries_the_residents_own_callsign(seeded):
     """THE HEADLINE PIN. Measured at 0/8 on the live tree before this was written."""
     from core.fleet import residents as R
+
     R.nominate(nominee="kimi", callsign="Snooze", receipts=[seeded["kimi"]], by="claude")
     R.ratify(nominee="kimi", callsign="Snooze", by="daniil")
 
     rc, out, err = run("boot", "kimi", "--task", "who am i")
     assert rc == 0, f"boot must succeed, rc={rc}: {err}"
-    assert "Snooze" in out, \
-        "a resident's own callsign must appear in its boot fold -- otherwise the name asserts " \
+    assert "Snooze" in out, (
+        "a resident's own callsign must appear in its boot fold -- otherwise the name asserts "
         "an archive the boot does not carry (kimi's provenance-laundering objection)"
+    )
 
 
 def test_p2_the_boot_fold_carries_the_receipt_that_earned_the_name(seeded):
     """A callsign without its receipt in the fold is a claim the resident cannot support."""
     from core.fleet import residents as R
+
     R.nominate(nominee="kimi", callsign="Snooze", receipts=[seeded["kimi"]], by="claude")
     R.ratify(nominee="kimi", callsign="Snooze", by="daniil")
 
     rc, out, _ = run("boot", "kimi", "--task", "why am i called that")
     assert rc == 0
-    assert seeded["kimi"] in out, \
-        "the receipt that earned the callsign must be reachable FROM THE FOLD, not only from " \
+    assert seeded["kimi"] in out, (
+        "the receipt that earned the callsign must be reachable FROM THE FOLD, not only from "
         "the archive -- 0/8 was the measured state that opened this slice"
+    )
 
 
 def test_p2b_an_unregistered_seat_boots_clean(seeded):
@@ -186,22 +202,27 @@ def test_p2b_an_unregistered_seat_boots_clean(seeded):
 # lectures about in its own docstring. The drill that found them is at
 # research/in-flight/t262-killdrill-results.md.
 
+
 def test_p8_a_corrupt_row_is_reported_never_silently_dropped(seeded, capfd):
     """A dropped record must be LOUD. _records swallowed corrupt JSON with except:continue,
     so a lost row was invisible to every caller -- while the module docstring two functions
     above states that absence must not read as success. The T178 guard-of-guards shape."""
     from core.fleet import residents as R
+
     R.nominate(nominee="kimi", callsign="Corrupt", receipts=[seeded["kimi"]], by="claude")
     R._store().rpush(R._LOG_KEY.format(agent="kimi"), "{not valid json at all")
 
-    capfd.readouterr()                       # drop anything buffered before the read
+    capfd.readouterr()  # drop anything buffered before the read
     recs = R._records("kimi")
     err = capfd.readouterr().err
 
-    assert any(r.get("callsign") == "Corrupt" for r in recs), \
+    assert any(r.get("callsign") == "Corrupt" for r in recs), (
         "the good rows must still be returned -- one bad row cannot hide the rest"
-    assert "kimi" in err and ("corrupt" in err.lower() or "unreadable" in err.lower()), \
+    )
+    assert "kimi" in err, f"a dropped row must NAME itself on a channel someone reads; stderr was: {err!r}"
+    assert "corrupt" in err.lower() or "unreadable" in err.lower(), (
         f"a dropped row must NAME itself on a channel someone reads; stderr was: {err!r}"
+    )
 
 
 def test_p9_a_store_fault_is_unknown_not_a_verdict_about_the_receipt(seeded, monkeypatch):
@@ -209,8 +230,8 @@ def test_p9_a_store_fault_is_unknown_not_a_verdict_about_the_receipt(seeded, mon
     'this receipt does not resolve' and REFUSES the nomination. So a store outage silently
     became a verdict about someone's callsign evidence -- absence vs UNKNOWN, inside a door
     built to be strict about exactly that distinction."""
-    from core.fleet import residents as R
     import core.learning.learning_store as LS
+    from core.fleet import residents as R
 
     # Fail THE STORE, not the function -- the realistic outage. A bug inside _receipt_author
     # should crash loudly instead; only a store fault may be converted to UNKNOWN, or the
@@ -219,25 +240,28 @@ def test_p9_a_store_fault_is_unknown_not_a_verdict_about_the_receipt(seeded, mon
         raise RuntimeError("redis is on fire")
 
     monkeypatch.setattr(LS, "get_learning_store", _explode)
-    with pytest.raises(ValueError) as e:
+    with pytest.raises(ValueError, match="the archive is UNAVAILABLE") as e:
         R.nominate(nominee="kimi", callsign="Outage", receipts=[seeded["kimi"]], by="claude")
     msg = str(e.value).lower()
-    assert "unknown" in msg or "could not verify" in msg or "unavailable" in msg, \
+    assert "unknown" in msg or "could not verify" in msg or "unavailable" in msg, (
         f"a store fault must refuse as UNKNOWN, got: {e.value}"
-    assert "does not resolve" not in msg, \
+    )
+    assert "does not resolve" not in msg, (
         "a store fault must NOT assert the receipt is bad -- that is the false verdict"
+    )
 
 
 def test_p9b_a_genuinely_missing_receipt_still_refuses_as_before(seeded):
     """The mirror: distinguishing UNKNOWN from ABSENT must not weaken the absent case."""
     from core.fleet import residents as R
-    with pytest.raises(ValueError) as e:
-        R.nominate(nominee="kimi", callsign="Ghost",
-                   receipts=["no_such_lesson_exists_anywhere"], by="claude")
+
+    with pytest.raises(ValueError, match="does not resolve to any lesson") as e:
+        R.nominate(nominee="kimi", callsign="Ghost", receipts=["no_such_lesson_exists_anywhere"], by="claude")
     assert "no_such_lesson_exists_anywhere" in str(e.value)
 
 
 # ------------------------------------------------- P6 / P7: deepseek's T258 review findings
+
 
 def test_p6_two_drafts_one_callsign_the_latest_wins_and_carries_its_receipts(seeded):
     """Review point 4: the ONE ceremony path where the door does something other than what the
@@ -249,29 +273,33 @@ def test_p6_two_drafts_one_callsign_the_latest_wins_and_carries_its_receipts(see
     distinguishes the drafts and the ratifier must be able to see what they signed.
     """
     from core.fleet import residents as R
-    first = _seed_lesson("kimi", "pin_first_nominators_receipt",
-                         tried="first draft", result="receipt A")
-    second = _seed_lesson("kimi", "pin_second_nominators_receipt",
-                          tried="second draft", result="receipt B")
+
+    first = _seed_lesson("kimi", "pin_first_nominators_receipt", tried="first draft", result="receipt A")
+    second = _seed_lesson("kimi", "pin_second_nominators_receipt", tried="second draft", result="receipt B")
     R.nominate(nominee="kimi", callsign="Twice", receipts=[first], by="claude")
     R.nominate(nominee="kimi", callsign="Twice", receipts=[second], by="deepseek")
 
     rec = R.ratify(nominee="kimi", callsign="Twice", by="daniil")
     got = rec.get("receipts") or []
-    assert second in got and first not in got, \
-        f"ratify must confirm the LATEST draft's receipts (got {got}) -- silently confirming " \
+    assert second in got, (
+        f"ratify must confirm the LATEST draft's receipts (got {got}) -- silently confirming "
         f"a different draft than the ratifier saw is the defect the review named"
+    )
+    assert first not in got, (
+        f"ratify must confirm the LATEST draft's receipts (got {got}) -- silently confirming "
+        f"a different draft than the ratifier saw is the defect the review named"
+    )
 
 
 def test_p6b_a_wrong_callsign_refusal_names_the_open_drafts(seeded):
     """The refusal must distinguish 'never nominated at all' from 'nominated under a different
     name' -- naming the open drafts saves the ratifier the lookup."""
     from core.fleet import residents as R
+
     R.nominate(nominee="kimi", callsign="Snooze", receipts=[seeded["kimi"]], by="claude")
-    with pytest.raises(ValueError) as e:
+    with pytest.raises(ValueError, match="was never nominated for 'kimi'") as e:
         R.ratify(nominee="kimi", callsign="NoSuchName", by="daniil")
-    assert "Snooze" in str(e.value), \
-        "a wrong-callsign refusal must NAME the drafts that are actually open"
+    assert "Snooze" in str(e.value), "a wrong-callsign refusal must NAME the drafts that are actually open"
 
 
 def test_p7_a_stored_author_with_stray_whitespace_does_not_refuse_a_valid_receipt():
@@ -291,8 +319,9 @@ def test_p7_a_stored_author_with_stray_whitespace_does_not_refuse_a_valid_receip
     rec = s._load_experiment(exp)
     assert rec, "seeded lesson must exist"
     stored_author = R._receipt_author(exp)
-    assert stored_author == "kimi", \
+    assert stored_author == "kimi", (
         f"author must normalise to 'kimi' regardless of stored whitespace, got {stored_author!r}"
+    )
     out = R.nominate(nominee="kimi", callsign="Whitespace", receipts=[exp], by="claude")
     assert out, "a receipt whose stored author differs only by whitespace must be ACCEPTED"
 
@@ -313,11 +342,15 @@ def test_p10_ratification_immediately_invalidates_a_warm_callsign_index(monkeypa
     )
 
     # Reproduce a long-lived router that built its cache before the ceremony completed.
-    monkeypatch.setattr(R, "_ALIAS_CACHE", {
-        "at": __import__("time").time(),
-        "alias": {"vandor": "claude"},
-        "ids": {"claude", agent},
-    })
+    monkeypatch.setattr(
+        R,
+        "_ALIAS_CACHE",
+        {
+            "at": __import__("time").time(),
+            "alias": {"vandor": "claude"},
+            "ids": {"claude", agent},
+        },
+    )
     R.ratify(nominee=agent, callsign=callsign, by="daniil")
 
     assert R.resolve_agent(callsign) == agent, (

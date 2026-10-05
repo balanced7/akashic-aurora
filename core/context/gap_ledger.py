@@ -19,16 +19,15 @@ render. Laws it enforces by shape:
   - Reporting NEVER raises, rendering never multiplies lines uncontrolled: honesty
     organs must be cheaper than the dishonesty they end.
 """
-from __future__ import annotations
 
-from typing import List, Tuple
+from __future__ import annotations
 
 _STATUSES = ("loaded", "partial", "absent", "failed")
 
 
 class GapLedger:
     def __init__(self) -> None:
-        self._rows: List[Tuple[str, str, str]] = []
+        self._rows: list[tuple[str, str, str]] = []
 
     def report(self, plane: str, status: str, why: str = "") -> None:
         """Record one plane's restoration verdict. Never raises; an unknown status
@@ -49,8 +48,10 @@ class GapLedger:
         """The boot-head block. One line clean; expanded when gapped; confessional
         when empty."""
         if not self._rows:
-            return ("# restored: 0/0 planes -- GAP LEDGER UNINSTRUMENTED this boot "
-                    "(no organ reported; treat fullness claims with suspicion)")
+            return (
+                "# restored: 0/0 planes -- GAP LEDGER UNINSTRUMENTED this boot "
+                "(no organ reported; treat fullness claims with suspicion)"
+            )
         total = len(self._rows)
         loaded = sum(1 for _, s, _ in self._rows if s == "loaded")
         if loaded == total:
@@ -60,7 +61,6 @@ class GapLedger:
         for p, s, w in self._rows:
             if s == "loaded":
                 continue
-            label = {"failed": f"{p} FAILED", "partial": f"{p} PARTIAL",
-                     "absent": f"{p} absent"}[s]
+            label = {"failed": f"{p} FAILED", "partial": f"{p} PARTIAL", "absent": f"{p} absent"}[s]
             lines.append(f"#   {label}" + (f" ({w})" if w else ""))
         return "\n".join(lines)

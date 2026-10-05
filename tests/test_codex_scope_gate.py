@@ -9,6 +9,7 @@ What is pinned is the gate's SHAPE, not the scope policy: deny by default for a 
 route; a routed tool with nothing to check is out of scope; and a scope module that raises is a
 NO, never a yes (unknown is not a yes -- the same law the arsenal caps check states).
 """
+
 import importlib
 
 

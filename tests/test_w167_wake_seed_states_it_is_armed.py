@@ -22,9 +22,8 @@ Same defect class as W166's straggler alarm: a diagnostic whose wording misrepre
 state, spending other people's attention. The fix in both is the same shape -- classify and
 say the true state, keep the caveat, lead with what holds.
 """
-import logging
 
-import pytest
+import logging
 
 from core.comm import bifrost_api as A
 
@@ -41,7 +40,10 @@ def _emit(caplog, n=9, kinds="chat,reply", agent="claude"):
             "WILL NOT REDUCE IT (the watcher is fine either way). Detection PEEKS the "
             "legacy lane, not the lane you armed, so drain that one: "
             "BIFROST_CONSUME_LANE=legacy py agent_cli.py bifrost-sync %s --consume",
-            n, kinds, agent)
+            n,
+            kinds,
+            agent,
+        )
     return caplog.text
 
 
@@ -49,6 +51,7 @@ def test_a1_the_source_line_states_the_watcher_is_ARMED():
     """The missing half. Three seats read the old text as death because it never said the
     watcher was alive -- guard the source, since that is what a future editor changes."""
     import inspect
+
     src = inspect.getsource(A)
     assert "ARMED and watching" in src
 
@@ -57,6 +60,7 @@ def test_a2_the_source_keeps_the_true_caveat_about_re_arming():
     """The warning earned its place: re-arming genuinely does not clear the pending set.
     This slice adds the positive half, it does not delete the honest one."""
     import inspect
+
     src = inspect.getsource(A)
     assert "does NOT carry to the next arm" in src
     assert "RE-ARMING" in src
@@ -66,6 +70,7 @@ def test_a3_the_caveat_no_longer_implies_the_watcher_is_broken():
     """'re-arming will not help' reads as 'nothing will help'. It must be scoped to the
     pending COUNT, with the watcher's own health stated separately."""
     import inspect
+
     src = inspect.getsource(A)
     assert "the watcher is fine either way" in src
 
@@ -87,4 +92,5 @@ def test_a5_the_message_leads_with_the_state_not_the_caveat(caplog):
 def test_a6_the_count_and_kinds_survive(caplog):
     """The diagnostic content that made the line worth printing."""
     out = _emit(caplog, n=9, kinds="chat,question,reply")
-    assert "9" in out and "chat,question,reply" in out
+    assert "9" in out
+    assert "chat,question,reply" in out

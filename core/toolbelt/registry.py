@@ -19,16 +19,21 @@ The reconciled laws (docs/library/design/20260701_self-tooling-arc-reconciled-de
 Registry file: data/verb-registry/<agent>.json  (one file per agent; shared/ tier is V2).
 Fail-open nowhere: this is an authoring surface, not an observability path -- errors raise.
 """
+
 from __future__ import annotations
 
 import json
 import os
-from typing import Any, Callable, Dict, List, Optional
+import re as _re
+from typing import TYPE_CHECKING, Any
 
 from core.foundation.timeutil import now_iso
 
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
 EVIDENCE_LEVELS = ("VERIFIED", "INFER", "GUESS")
-import re as _re
+
 _SLOT = _re.compile(r"\$([1-9])")
 DEFAULT_QUOTA = int(os.getenv("AKASHIC_TOOLBELT_QUOTA", "20"))
 
@@ -41,8 +46,9 @@ def default_root() -> str:
 class Toolbelt:
     """One agent's authored-verb registry. Load-on-init (projection), save-on-write (truth)."""
 
-    def __init__(self, agent: str, *, root: str = "", known_verbs: Optional[Callable[[], set]] = None,
-                 quota: int = DEFAULT_QUOTA):
+    def __init__(
+        self, agent: str, *, root: str = "", known_verbs: Callable[[], set] | None = None, quota: int = DEFAULT_QUOTA
+    ):
         self.agent = str(agent)
         self.root = root or default_root()
         self.quota = int(quota)
@@ -51,7 +57,7 @@ class Toolbelt:
         self._doc = self._load()
 
     # ---------------------------------------------------------------- persistence
-    def _load(self) -> Dict[str, Any]:
+    def _load(self) -> dict[str, Any]:
         if not os.path.exists(self.path):
             return {"agent": self.agent, "entries": {}, "history": []}
         with open(self.path, encoding="utf-8") as f:
@@ -62,12 +68,20 @@ class Toolbelt:
         tmp = self.path + ".tmp"
         with open(tmp, "w", encoding="utf-8") as f:
             json.dump(self._doc, f, indent=1, ensure_ascii=False)
-        os.replace(tmp, self.path)          # atomic on the same volume
+        os.replace(tmp, self.path)  # atomic on the same volume
 
     # ---------------------------------------------------------------- authoring
-    def mint(self, name: str, steps: List[List[str]], *, kind: str = "alias",
-             evidence: str = "GUESS", tested_against: Optional[str] = None,
-             why: str = "", family: str = "UNSORTED") -> Dict[str, Any]:
+    def mint(
+        self,
+        name: str,
+        steps: list[list[str]],
+        *,
+        kind: str = "alias",
+        evidence: str = "GUESS",
+        tested_against: str | None = None,
+        why: str = "",
+        family: str = "UNSORTED",
+    ) -> dict[str, Any]:
         """Create or supersede an authored verb. Sugar-only validated HERE, at mint time."""
         name = str(name).strip()
         if not name or " " in name:
@@ -80,37 +94,53 @@ class Toolbelt:
         params = 0
         for s in steps:
             if str(s[0]) not in known:
-                raise ValueError(f"unknown verb {s[0]!r} -- sugar-only: every step must be an "
-                                 f"existing agent_cli verb (registry cannot mint capabilities)")
-            for tok in s:                            # macro slots: $1..$9 (macro-expansion lineage)
+                raise ValueError(
+                    f"unknown verb {s[0]!r} -- sugar-only: every step must be an "
+                    f"existing agent_cli verb (registry cannot mint capabilities)"
+                )
+            for tok in s:  # macro slots: $1..$9 (macro-expansion lineage)
                 m = _SLOT.fullmatch(str(tok))
                 if m:
                     params = max(params, int(m.group(1)))
         if params and kind == "alias":
-            kind = "macro"                           # arity makes it a MACRO (expansion), not a combo
+            kind = "macro"  # arity makes it a MACRO (expansion), not a combo
         entries = self._doc["entries"]
         prior = entries.get(name)
-        if (prior and prior.get("status", "active") == "active" and prior["steps"] == steps
-                and prior.get("evidence") == evidence
-                and prior.get("tested_against") == tested_against
-                and prior.get("family", "UNSORTED") == family
-                and prior.get("kind", "alias") == kind):
-            return prior     # exact re-mint = no-op. Evidence IS content (dogfood catch
-                             # 2026-07-20), and so is FAMILY (the Halo-caste taxonomy):
-                             # a label change supersedes, never silently no-ops.
+        if (
+            prior
+            and prior.get("status", "active") == "active"
+            and prior["steps"] == steps
+            and prior.get("evidence") == evidence
+            and prior.get("tested_against") == tested_against
+            and prior.get("family", "UNSORTED") == family
+            and prior.get("kind", "alias") == kind
+        ):
+            return prior  # exact re-mint = no-op. Evidence IS content (dogfood catch
+            # 2026-07-20), and so is FAMILY (the Halo-caste taxonomy):
+            # a label change supersedes, never silently no-ops.
         active = sum(1 for e in entries.values() if e.get("status", "active") == "active")
         if prior is None and active >= self.quota:
-            raise ValueError(f"quota: {active}/{self.quota} active entries -- retire one first "
-                             "(junk-drawer guard, T039 lineage)")
+            raise ValueError(
+                f"quota: {active}/{self.quota} active entries -- retire one first (junk-drawer guard, T039 lineage)"
+            )
         version = (prior["version"] + 1) if prior else 1
-        if prior:                                            # supersession: prior rides history
+        if prior:  # supersession: prior rides history
             self._doc["history"].append(dict(prior, superseded_at=_now()))
-        entry = {"name": name, "kind": kind, "steps": steps, "version": version,
-                 "params": params,
-                 "evidence": evidence, "tested_against": tested_against, "why": why,
-                 "family": family, "status": "active",
-                 "created_at": prior["created_at"] if prior else _now(),
-                 "updated_at": _now(), "author": self.agent}
+        entry = {
+            "name": name,
+            "kind": kind,
+            "steps": steps,
+            "version": version,
+            "params": params,
+            "evidence": evidence,
+            "tested_against": tested_against,
+            "why": why,
+            "family": family,
+            "status": "active",
+            "created_at": prior["created_at"] if prior else _now(),
+            "updated_at": _now(),
+            "author": self.agent,
+        }
         entries[name] = entry
         self._save()
         return entry
@@ -123,24 +153,25 @@ class Toolbelt:
         self._save()
 
     # ---------------------------------------------------------------- reading
-    def _require(self, name: str) -> Dict[str, Any]:
+    def _require(self, name: str) -> dict[str, Any]:
         e = self._doc["entries"].get(str(name))
         if not e or e.get("status", "active") != "active":
-            raise KeyError(f"no active toolbelt entry {name!r} for {self.agent} "
-                           f"(have: {', '.join(sorted(self.active())) or 'none'})")
+            raise KeyError(
+                f"no active toolbelt entry {name!r} for {self.agent} "
+                f"(have: {', '.join(sorted(self.active())) or 'none'})"
+            )
         return e
 
-    def get(self, name: str) -> Dict[str, Any]:
+    def get(self, name: str) -> dict[str, Any]:
         return self._require(name)
 
-    def active(self) -> List[str]:
-        return [n for n, e in self._doc["entries"].items()
-                if e.get("status", "active") == "active"]
+    def active(self) -> list[str]:
+        return [n for n, e in self._doc["entries"].items() if e.get("status", "active") == "active"]
 
-    def history(self, name: str) -> List[Dict[str, Any]]:
+    def history(self, name: str) -> list[dict[str, Any]]:
         return [h for h in self._doc["history"] if h["name"] == str(name)]
 
-    def resolve(self, name: str, args: Optional[List[str]] = None) -> List[List[str]]:
+    def resolve(self, name: str, args: list[str] | None = None) -> list[list[str]]:
         """Resolve a macro's steps: $SELF$ -> the running seat, then $1..$N positional slots.
 
         $SELF$ IS SUBSTITUTED HERE, AT THE ORGAN, and not at either call site. The shipped
@@ -157,34 +188,42 @@ class Toolbelt:
         steps = [[(self.agent if str(t) == "$SELF$" else t) for t in s] for s in e["steps"]]
         if need:
             if len(args) < need:
-                raise ValueError(f"macro {name!r} expects {need} arg(s) "
-                                 f"({'$' + ', $'.join(str(i) for i in range(1, need + 1))}); "
-                                 f"got {len(args)}")
+                raise ValueError(
+                    f"macro {name!r} expects {need} arg(s) "
+                    f"({'$' + ', $'.join(str(i) for i in range(1, need + 1))}); "
+                    f"got {len(args)}"
+                )
+
             def sub(tok):
                 m = _SLOT.fullmatch(str(tok))
                 return args[int(m.group(1)) - 1] if m else tok
+
             return [[sub(t) for t in s] for s in steps]
         return [list(s) for s in steps]
 
     def render_list(self) -> str:
-        rows = [f"# toolbelt: {self.agent} -- {len(self.active())} active "
-                f"(quota {self.quota}; evidence confesses: GUESS = never pinned)"]
-        by_family: Dict[str, list] = {}
+        rows = [
+            (
+                f"# toolbelt: {self.agent} -- {len(self.active())} active "
+                f"(quota {self.quota}; evidence confesses: GUESS = never pinned)"
+            )
+        ]
+        by_family: dict[str, list] = {}
         for n in sorted(self.active()):
             by_family.setdefault(self._doc["entries"][n].get("family", "UNSORTED"), []).append(n)
         for fam in sorted(by_family):
             rows.append(f"  [{fam}]")
             for n in by_family[fam]:
                 e = self._doc["entries"][n]
-                rows.append(f"    {n:<20} v{e['version']}  [{e['evidence']}"
-                            f"{' :' + e['tested_against'] if e.get('tested_against') else ''}]  "
-                            f"{len(e['steps'])} step(s): " +
-                            " -> ".join(s[0] for s in e["steps"]))
+                rows.append(
+                    f"    {n:<20} v{e['version']}  [{e['evidence']}"
+                    f"{' :' + e['tested_against'] if e.get('tested_against') else ''}]  "
+                    f"{len(e['steps'])} step(s): " + " -> ".join(s[0] for s in e["steps"])
+                )
         return "\n".join(rows)
 
     # ---------------------------------------------------------------- execution
-    def resolve_and_run(self, name: str, *, runner: Callable[[List[str]], int],
-                        args: Optional[List[str]] = None) -> int:
+    def resolve_and_run(self, name: str, *, runner: Callable[[list[str]], int], args: list[str] | None = None) -> int:
         """Run each step through `runner(argv) -> rc`, stopping at the first non-zero rc.
         The runner is INJECTED (the CLI passes a subprocess invoker; pins pass a recorder)."""
         for argv in self.resolve(name, args=args):
@@ -195,7 +234,7 @@ class Toolbelt:
 
 
 def _now() -> str:
-    return now_iso()   # T119: the one clock (aware UTC), not the machine's naive wall
+    return now_iso()  # T119: the one clock (aware UTC), not the machine's naive wall
 
 
 _VERB_CACHE: set = set()
@@ -209,9 +248,10 @@ def _agent_cli_verbs() -> set:
     if _VERB_CACHE:
         return _VERB_CACHE
     import agent_cli
+
     p = agent_cli.build_parser()
-    for a in p._actions:                                     # the subparsers action holds choices
+    for a in p._actions:  # the subparsers action holds choices
         if hasattr(a, "choices") and a.choices:
-            _VERB_CACHE = set(a.choices.keys())
+            _VERB_CACHE = set(a.choices)  # a dict: iterating yields its keys
             return _VERB_CACHE
     return set()

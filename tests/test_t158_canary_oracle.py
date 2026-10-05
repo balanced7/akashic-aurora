@@ -24,6 +24,7 @@ tired pool stops catching planted canaries too, so exhaustion cannot masquerade 
 
 Run: py -m pytest tests/test_t158_canary_oracle.py -q
 """
+
 import os
 import sys
 
@@ -33,6 +34,7 @@ sys.path.insert(0, ROOT)
 
 def _mod():
     from scripts import canary_oracle
+
     return canary_oracle
 
 
@@ -51,8 +53,9 @@ def test_k2_the_live_tree_is_never_written(tmp_path):
     single worst thing this module could do, so it refuses by construction, not by convention."""
     c = _mod()
     import pytest
-    with pytest.raises(Exception):
-        c.plant(ROOT, k=3, seed=1)          # the real repo root must be refused outright
+
+    with pytest.raises(Exception, match="refusing to plant inside the live repository"):
+        c.plant(ROOT, k=3, seed=1)  # the real repo root must be refused outright
 
 
 def test_k3_the_key_is_sealed_and_tamper_evident(tmp_path):
@@ -64,8 +67,10 @@ def test_k3_the_key_is_sealed_and_tamper_evident(tmp_path):
     p = str(tmp_path / "key.json")
     c.seal(m, p)
     assert c.verify_seal(p) is True
-    raw = open(p, encoding="utf-8").read().replace('"catchable"', '"bait"', 1)
-    open(p, "w", encoding="utf-8").write(raw)
+    with open(p, encoding="utf-8") as fh:
+        raw = fh.read().replace('"catchable"', '"bait"', 1)
+    with open(p, "w", encoding="utf-8") as fh:
+        fh.write(raw)
     assert c.verify_seal(p) is False, "a tampered answer key must not verify"
 
 
@@ -91,7 +96,7 @@ def test_k5_catch_rate_uses_catchable_only(tmp_path):
     (shadow / "t.py").write_text("def a():\n    return 1\n", encoding="utf-8")
     m = c.plant(str(shadow), k=6, seed=13, targets=["t.py"])
     catchable = [x["id"] for x in m["canaries"] if x["cls"] == "catchable"]
-    res = c.score(m, claims=catchable)                     # every catchable found, nothing else
+    res = c.score(m, claims=catchable)  # every catchable found, nothing else
     assert res["catch_rate"] == 1.0, f"expected 1.0, got {res['catch_rate']}"
     assert res["voided"] is False
 
@@ -126,12 +131,11 @@ def test_k8_catchable_canaries_land_in_the_detectors_universe(tmp_path):
     (shadow / "tests" / "t_x.py").write_text("def b():\n    return 1\n", encoding="utf-8")
     m = c.plant(str(shadow), k=6, seed=5)
     landed = {x["file"] for x in m["canaries"]}
-    assert landed == {"core/comm/real.py"}, (
-        f"canaries landed outside the detector's universe: {landed}")
+    assert landed == {"core/comm/real.py"}, f"canaries landed outside the detector's universe: {landed}"
 
 
 def test_k7_planting_is_deterministic_under_a_seed(tmp_path):
-    c = _mod()
+    _mod()
     out = []
     for n in ("a", "b"):
         shadow = tmp_path / n

@@ -28,6 +28,7 @@ someone else is still writing is guessing on their behalf, and a wrong classific
 worse than an unregistered one: it would tell the heal machinery to treat their state as
 expendable. Flagged to that lane instead.
 """
+
 from core.comm.packet_spec import is_ephemeral_key
 
 
@@ -55,4 +56,5 @@ def test_f4_the_three_role_families_are_still_UNREGISTERED_on_purpose():
     for fam in ("role", "rolefence", "rolegen"):
         assert is_ephemeral_key(f"bifrost:{fam}:agent:msg") is False, (
             f"{fam} became ephemeral -- if that was deliberate, delete this pin and lower "
-            f"the check_boundaries baseline in the same commit")
+            f"the check_boundaries baseline in the same commit"
+        )

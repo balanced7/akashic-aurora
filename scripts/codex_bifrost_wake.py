@@ -1,21 +1,21 @@
 #!/usr/bin/env python3
 """Arm a future-only, zero-model-idle Bifrost watcher for Codex/Sol."""
+
 from __future__ import annotations
 
 import argparse
 import json
 import os
-from pathlib import Path
 import sys
-
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from agent.harness.codex_bifrost_wake import (  # noqa: E402
-    CodexBifrostWake,
+from agent.harness.codex_bifrost_wake import (  # noqa: E402  # sys.path bootstrap
     DIRECT_ACTION_KINDS,
+    CodexBifrostWake,
     WakeError,
     WakePolicy,
     WakeState,
@@ -23,7 +23,7 @@ from agent.harness.codex_bifrost_wake import (  # noqa: E402
     default_runtime_paths,
     install_signal_stops,
 )
-from core.comm.bus import Bus  # noqa: E402
+from core.comm.bus import Bus  # noqa: E402  # sys.path bootstrap
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -124,8 +124,7 @@ def main(argv: list[str] | None = None) -> int:
         allowed_senders=frozenset(args.allow_from or ["dsh_agent"]),
         expected_answers=frozenset(str(value) for value in args.expected_answer),
         direct_kinds=frozenset(
-            set(DIRECT_ACTION_KINDS)
-            | {str(value).strip().lower() for value in args.allow_kind if str(value).strip()}
+            set(DIRECT_ACTION_KINDS) | {str(value).strip().lower() for value in args.allow_kind if str(value).strip()}
         ),
         required_source=(str(args.require_source).strip() if args.require_source else None),
     )
@@ -177,4 +176,4 @@ if __name__ == "__main__":
         raise SystemExit(main())
     except (WakeError, OSError, ValueError) as exc:
         print(f"ERROR: {exc}", file=sys.stderr, flush=True)
-        raise SystemExit(2)
+        raise SystemExit(2) from exc

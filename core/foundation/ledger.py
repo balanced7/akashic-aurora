@@ -46,20 +46,20 @@ backend -- consumers should treat them as opaque cursors and dedup downstream if
 a backend switch replays (the coordinator already dedups by agent_id:signal_number).
 """
 
-import os
-from core.paths import data_root
-import re
-import json
-import time
-import threading
-import logging
 import contextlib
+import json
+import logging
+import os
+import re
+import threading
+import time
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, ClassVar, cast
 
-from core.foundation.redis_connection import DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT, DEFAULT_REDIS_DB
 from core.foundation import filelock
+from core.foundation.redis_connection import DEFAULT_REDIS_DB, DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT
+from core.paths import data_root
 
 logger = logging.getLogger("ledger")
 
@@ -69,7 +69,7 @@ _TAIL_CHUNK = 64 * 1024
 _TAIL_LIMIT = 4 * 1024 * 1024
 
 # An event as handed to/from callers, paired with its cursor id.
-Event = Tuple[str, Dict[str, Any]]
+Event = tuple[str, dict[str, Any]]
 
 
 class Ledger(ABC):
@@ -83,7 +83,7 @@ class Ledger(ABC):
     """
 
     @abstractmethod
-    def emit(self, stream: str, event: Dict[str, Any], maxlen: Optional[int] = None) -> str:
+    def emit(self, stream: str, event: dict[str, Any], maxlen: int | None = None) -> str:
         """
         Append an event to a stream. Returns the new event's cursor id.
 
@@ -95,8 +95,7 @@ class Ledger(ABC):
         ...
 
     @abstractmethod
-    def consume(self, stream: str, after_id: str = "0", count: int = 100,
-                block_ms: int = 0) -> List[Event]:
+    def consume(self, stream: str, after_id: str = "0", count: int = 100, block_ms: int = 0) -> list[Event]:
         """
         Replay events appended after `after_id`, oldest first.
 
@@ -115,7 +114,7 @@ class Ledger(ABC):
 
     def close(self) -> None:
         """Release resources. Default: no-op."""
-        return None
+        return
 
 
 # =====================================================================
@@ -131,13 +130,20 @@ class RedisLedger(Ledger):
     so a down Redis yields an unavailable ledger (is_available() == False).
     """
 
-    def __init__(self, client: Optional[Any]):
-        self._client = client
+    def __init__(self, client: Any | None):
+        # Any (not Any | None): callers gate on is_available() before issuing commands.
+        self._client: Any = client
 
     @classmethod
-    def connect(cls, host: str = DEFAULT_REDIS_HOST, port: int = DEFAULT_REDIS_PORT,
-                timeout_seconds: float = 2.0, db: int = DEFAULT_REDIS_DB) -> "RedisLedger":
+    def connect(
+        cls,
+        host: str = DEFAULT_REDIS_HOST,
+        port: int = DEFAULT_REDIS_PORT,
+        timeout_seconds: float = 2.0,
+        db: int = DEFAULT_REDIS_DB,
+    ) -> "RedisLedger":
         from core.foundation.redis_connection import connect_to_redis_with_fail_fast
+
         client = connect_to_redis_with_fail_fast(
             host=host, port=port, timeout_seconds=timeout_seconds, decode_responses=True, db=db
         )
@@ -156,7 +162,7 @@ class RedisLedger(Ledger):
     def consume(self, stream, after_id="0", count=100, block_ms=0):
         block = block_ms if block_ms > 0 else None
         raw = self._client.xread({stream: after_id}, count=count, block=block)
-        events: List[Event] = []
+        events: list[Event] = []
         for _stream, messages in raw or []:
             for message_id, fields in messages:
                 try:
@@ -204,9 +210,8 @@ class FileLedger(Ledger):
     attempted, so a failed trim costs disk, never data.
     """
 
-    def __init__(self, base_dir: Optional[str] = None):
-        base = Path(base_dir) if base_dir else \
-            data_root() / "session_logs" / "ledger"
+    def __init__(self, base_dir: str | None = None):
+        base = Path(base_dir) if base_dir else data_root() / "session_logs" / "ledger"
         base.mkdir(parents=True, exist_ok=True)
         self._base = base
         self._lock = threading.RLock()
@@ -219,12 +224,12 @@ class FileLedger(Ledger):
         safe = re.sub(r"[^A-Za-z0-9_.-]", "_", stream)
         return self._base / f"{safe}.jsonl"
 
-    def _read_records(self, stream: str) -> List[Dict[str, Any]]:
+    def _read_records(self, stream: str) -> list[dict[str, Any]]:
         path = self._stream_path(stream)
         if not path.exists():
             return []
         records = []
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
                 if not line:
@@ -253,21 +258,21 @@ class FileLedger(Ledger):
                         self._maybe_trim(path, maxlen, last_id + 1)
                     return new_id
             except Exception as e:
-                if new_id is not None:      # the row is on disk; only the trim step failed
-                    logger.warning(f"FileLedger appended {path.name}#{new_id} but could not trim: {e}")
+                if new_id is not None:  # the row is on disk; only the trim step failed
+                    logger.warning("FileLedger appended %s#%s but could not trim: %s", path.name, new_id, e)
                     return new_id
                 # Loud, never raising: emit sits on hot paths in every seat. A lock timeout
                 # (10 s of contention) or a disk error loses this one event WITH a log line.
                 # Return the newest id already on disk, read without the lock -- never "0",
                 # which a caller would take as a cursor and replay the whole stream from.
-                logger.error(f"FileLedger could not append to {path}: {e}")
+                logger.error("FileLedger could not append to %s: %s", path, e)
                 try:
                     return str(self._tail_state(path)[0])
                 except Exception:
                     return "0"
 
     @staticmethod
-    def _tail_state(path: Path) -> Tuple[int, bool]:
+    def _tail_state(path: Path) -> tuple[int, bool]:
         """(the id of the newest complete record, whether the file ends mid-line).
 
         Reads backwards from the end in chunks, skipping torn or foreign lines. Falls back to
@@ -303,16 +308,15 @@ class FileLedger(Ledger):
         return max((int(r["id"]) for r in records if "id" in r), default=0), torn
 
     @staticmethod
-    def _head_id(path: Path) -> Optional[int]:
+    def _head_id(path: Path) -> int | None:
         """Id of the oldest complete record, from the first lines only; None if unknown."""
-        with contextlib.suppress(OSError):
-            with open(path, "rb") as f:
-                for _ in range(32):
-                    raw = f.readline(_TAIL_CHUNK * 16)
-                    if not raw:
-                        break
-                    with contextlib.suppress(ValueError, KeyError, TypeError):
-                        return int(json.loads(raw.strip())["id"])
+        with contextlib.suppress(OSError), open(path, "rb") as f:
+            for _ in range(32):
+                raw = f.readline(_TAIL_CHUNK * 16)
+                if not raw:
+                    break
+                with contextlib.suppress(ValueError, KeyError, TypeError):
+                    return int(json.loads(raw.strip())["id"])
         return None
 
     def _maybe_trim(self, path: Path, maxlen: int, newest_id: int) -> None:
@@ -335,23 +339,22 @@ class FileLedger(Ledger):
                     f.write(json.dumps(r) + "\n")
             os.replace(tmp, path)
         except OSError as e:
-            logger.warning(f"FileLedger trim of {path.name} deferred to a later emit: {e}")
+            logger.warning("FileLedger trim of %s deferred to a later emit: %s", path.name, e)
             with contextlib.suppress(OSError):
                 tmp.unlink()
 
     @staticmethod
-    def _parse_file(path: Path) -> List[Dict[str, Any]]:
+    def _parse_file(path: Path) -> list[dict[str, Any]]:
         records = []
-        with contextlib.suppress(FileNotFoundError):
-            with open(path, "r", encoding="utf-8") as f:
-                for line in f:
-                    line = line.strip()
-                    if not line:
-                        continue
-                    try:
-                        records.append(json.loads(line))
-                    except json.JSONDecodeError:
-                        continue
+        with contextlib.suppress(FileNotFoundError), open(path, encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    records.append(json.loads(line))
+                except json.JSONDecodeError:
+                    continue
         return records
 
     def consume(self, stream, after_id="0", count=100, block_ms=0):
@@ -364,12 +367,12 @@ class FileLedger(Ledger):
         with self._lock:
             return self._collect_after(stream, after_id, count)
 
-    def _collect_after(self, stream: str, after_id: str, count: int) -> List[Event]:
+    def _collect_after(self, stream: str, after_id: str, count: int) -> list[Event]:
         try:
             cursor = int(after_id)
         except (TypeError, ValueError):
             cursor = 0
-        events: List[Event] = []
+        events: list[Event] = []
         for r in self._read_records(stream):
             if int(r["id"]) > cursor:
                 events.append((r["id"], r["event"]))
@@ -393,14 +396,19 @@ class HybridLedger(Ledger):
     `after_id` stays consistent with what consume() will read.
     """
 
-    def __init__(self, redis_ledger: Optional[RedisLedger], file_ledger: FileLedger):
+    def __init__(self, redis_ledger: RedisLedger | None, file_ledger: FileLedger):
         self._redis = redis_ledger
         self._file = file_ledger
 
     @classmethod
-    def create(cls, host: str = DEFAULT_REDIS_HOST, port: int = DEFAULT_REDIS_PORT,
-               timeout_seconds: float = 2.0, base_dir: Optional[str] = None,
-               db: int = DEFAULT_REDIS_DB) -> "HybridLedger":
+    def create(
+        cls,
+        host: str = DEFAULT_REDIS_HOST,
+        port: int = DEFAULT_REDIS_PORT,
+        timeout_seconds: float = 2.0,
+        base_dir: str | None = None,
+        db: int = DEFAULT_REDIS_DB,
+    ) -> "HybridLedger":
         rj = RedisLedger.connect(host=host, port=port, timeout_seconds=timeout_seconds, db=db)
         return cls(rj if rj.is_available() else None, FileLedger(base_dir))
 
@@ -411,20 +419,57 @@ class HybridLedger(Ledger):
     def redis_available(self) -> bool:
         return self._redis is not None and self._redis.is_available()
 
+    def _live_redis(self) -> RedisLedger:
+        """Return the Redis tier; only called where redis_available is True (so not None)."""
+        return cast("RedisLedger", self._redis)
+
     def emit(self, stream, event, maxlen=None):
         # File is the durable record -- always write it.
         file_id = self._file.emit(stream, event, maxlen=maxlen)
         if self.redis_available:
             try:
                 # Return the Redis id, since reads will come from Redis.
-                return self._redis.emit(stream, event, maxlen=maxlen)
+                return self._live_redis().emit(stream, event, maxlen=maxlen)
             except Exception as e:
-                logger.warning(f"HybridLedger Redis emit failed: {e}")
+                logger.warning("HybridLedger Redis emit failed: %s", e)
         return file_id
 
     def consume(self, stream, after_id="0", count=100, block_ms=0):
-        backend = self._redis if self.redis_available else self._file
+        if self.redis_available:
+            self._backfill_once(stream)
+        backend = self._live_redis() if self.redis_available else self._file
         return backend.consume(stream, after_id=after_id, count=count, block_ms=block_ms)
+
+    _backfilled: ClassVar[set] = set()
+
+    def _backfill_once(self, stream) -> None:
+        """EMBEDDED backend only: a stream the file tier holds and Redis has never seen gets
+        its history copied across once. A checkout that ran without any Redis kept its events
+        in files alone, and reads here go Redis-first -- so the first embedded boot would
+        otherwise hide every earlier event. Never on an `external` Redis: there a missing
+        stream may have been removed on purpose, and a read must not resurrect it."""
+        if stream in HybridLedger._backfilled:
+            return
+        HybridLedger._backfilled.add(stream)
+        try:
+            from core.foundation.embedded_redis import configured_backend
+
+            if configured_backend() != "embedded":
+                return
+            client = self._live_redis()._client  # consume() calls this only when redis_available
+            if client.exists(stream):
+                return
+            # One process copies; the rest see the lock and skip (the NX guard is the dedup).
+            if not client.set(f"__aurora_backfill__:{stream}", "1", nx=True, ex=600):
+                return
+            records = self._file._read_records(stream)
+            if records:
+                pipe = client.pipeline(transaction=False)
+                for rec in records:
+                    pipe.xadd(stream, {"data": json.dumps(rec.get("event"))})
+                pipe.execute()
+        except Exception as e:
+            logger.warning("HybridLedger backfill of %r skipped: %s", stream, e)
 
     def close(self):
         if self._redis is not None:
@@ -434,9 +479,14 @@ class HybridLedger(Ledger):
 # =====================================================================
 # Factory
 # =====================================================================
-def create_ledger(prefer_redis: bool = True, host: str = DEFAULT_REDIS_HOST, port: int = DEFAULT_REDIS_PORT,
-                   timeout_seconds: float = 2.0, base_dir: Optional[str] = None,
-                   db: int = DEFAULT_REDIS_DB) -> Ledger:
+def create_ledger(
+    prefer_redis: bool = True,
+    host: str = DEFAULT_REDIS_HOST,
+    port: int = DEFAULT_REDIS_PORT,
+    timeout_seconds: float = 2.0,
+    base_dir: str | None = None,
+    db: int = DEFAULT_REDIS_DB,
+) -> Ledger:
     """
     Create the default Ledger for the system.
 
@@ -449,5 +499,4 @@ def create_ledger(prefer_redis: bool = True, host: str = DEFAULT_REDIS_HOST, por
     """
     if not prefer_redis:
         return FileLedger(base_dir)
-    return HybridLedger.create(host=host, port=port, timeout_seconds=timeout_seconds,
-                                base_dir=base_dir, db=db)
+    return HybridLedger.create(host=host, port=port, timeout_seconds=timeout_seconds, base_dir=base_dir, db=db)

@@ -45,17 +45,22 @@ me. W126 is that correction.
 
 Run: py -m pytest tests/test_t147_runner_seats_are_visible.py -q
 """
+
 import os
 import re
 import sys
 import uuid
+from pathlib import Path
 
 import pytest
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, ROOT)
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.comm import reaper, roster as R  # noqa: E402
+from core.comm import reaper
+from core.comm import roster as R
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
 
 NS = f"t147{uuid.uuid4().hex[:8]}"
 AGENT = "deepseek-probe"
@@ -76,7 +81,8 @@ def test_r1_a_runner_shaped_beat_renders_live():
     assert rows, "a beating runner produced no roster row at all"
     assert rows[0]["state"] == "LIVE", (
         f"a runner that just beat renders {rows[0]['state']} -- the roster is the reaper's "
-        f"only sensor and it cannot see this seat class")
+        f"only sensor and it cannot see this seat class"
+    )
 
 
 def test_r2_a_beating_seat_is_not_provably_dead():
@@ -87,7 +93,8 @@ def test_r2_a_beating_seat_is_not_provably_dead():
     rows = [r for r in R.roster(NS, client=c) if str(r.get("seat", "")).startswith(AGENT)]
     assert rows
     assert reaper._provably_dead(rows[0], client=c, ns=NS) is False, (
-        "a live runner's directed mail is eligible for re-homing")
+        "a live runner's directed mail is eligible for re-homing"
+    )
 
 
 def test_r3_every_runner_publishes_the_seat_beat():
@@ -95,34 +102,35 @@ def test_r3_every_runner_publishes_the_seat_beat():
     ENTRY_POINTS uses two files over, and the same mistake T146 punished me for. A fix that
     lands in one runner and not its four siblings is not a fix."""
     rd = os.path.join(ROOT, "scripts")
-    runners = sorted(f for f in os.listdir(rd)
-                     if f.startswith("bifrost_runner_") and f.endswith(".py"))
+    runners = sorted(f for f in os.listdir(rd) if f.startswith("bifrost_runner_") and f.endswith(".py"))
     assert runners, "no runner scripts found -- the enumeration itself is broken"
     missing = []
     for f in runners:
-        src = open(os.path.join(rd, f), encoding="utf-8", errors="replace").read()
+        with open(os.path.join(rd, f), encoding="utf-8", errors="replace") as fh:
+            src = fh.read()
         if not re.search(r"roster\.heartbeat\s*\(", src):
             missing.append(f)
     assert not missing, (
         f"{len(missing)} of {len(runners)} runner(s) never publish the per-incarnation beat "
-        f"the roster reads, so they render DEAD while alive: {missing}")
+        f"the roster reads, so they render DEAD while alive: {missing}"
+    )
 
 
 def test_r4_the_bare_worklive_refresh_survives():
     """Other readers (doctor, turn_metrics) still consume the bare key. The fix ADDS a beat;
     it must not trade one blind spot for another."""
     rd = os.path.join(ROOT, "scripts")
-    runners = sorted(f for f in os.listdir(rd)
-                     if f.startswith("bifrost_runner_") and f.endswith(".py"))
-    dropped = [f for f in runners
-               if not re.search(r"worklive\(", open(os.path.join(rd, f), encoding="utf-8",
-                                                    errors="replace").read())]
+    runners = sorted(f for f in os.listdir(rd) if f.startswith("bifrost_runner_") and f.endswith(".py"))
+    dropped = [
+        f for f in runners if not re.search(r"worklive\(", Path(rd, f).read_text(encoding="utf-8", errors="replace"))
+    ]
     assert not dropped, f"runner(s) stopped refreshing the bare worklive key: {dropped}"
 
 
 def test_r5_a_broken_client_never_raises():
     """roster.heartbeat's docstring promises 'Never raises.' The runner calls it from a daemon
     thread inside a bare except, but the promise is load-bearing and gets pinned."""
+
     class Broken:
         def get(self, *a, **k):
             raise RuntimeError("redis down")
@@ -130,9 +138,10 @@ def test_r5_a_broken_client_never_raises():
         def __getattr__(self, _n):
             def _boom(*a, **k):
                 raise RuntimeError("redis down")
+
             return _boom
 
-    got = R.heartbeat(NS, AGENT, SID, client=Broken())   # must not raise
+    got = R.heartbeat(NS, AGENT, SID, client=Broken())  # must not raise
     assert got["ok"] is False
     # NOTE: heartbeat is annotated -> bool but returns {"ok": ..., "resumed_after_s": ...}.
     # An `is not False` assertion would therefore pass on ANY outcome -- my first draft of R1
@@ -146,14 +155,18 @@ def test_r6_successive_incarnations_of_one_agent_get_distinct_seats():
     the exact confusion T147 exists to remove, at the scale Season 0 is meant to survive.
     """
     import re as _re
+
     rd = os.path.join(ROOT, "scripts")
-    runners = [f for f in os.listdir(rd)
-               if f.startswith("bifrost_runner_") and f.endswith(".py")]
-    bad = [f for f in runners
-           if _re.search(r'f"\{args\.agent\}-\{os\.getpid\(\)\}"',
-                         open(os.path.join(rd, f), encoding="utf-8", errors="replace").read())]
-    assert not bad, (
-        f"agent-first fallback truncates to a shared sid8 across incarnations: {bad}")
+    runners = [f for f in os.listdir(rd) if f.startswith("bifrost_runner_") and f.endswith(".py")]
+    bad = [
+        f
+        for f in runners
+        if _re.search(
+            r'f"\{args\.agent\}-\{os\.getpid\(\)\}"',
+            Path(rd, f).read_text(encoding="utf-8", errors="replace"),
+        )
+    ]
+    assert not bad, f"agent-first fallback truncates to a shared sid8 across incarnations: {bad}"
     # and the property itself, independent of how it is spelled
     for agent in ("deepseek-red", "deepseek-review"):
         sids = {f"{pid}-{agent}"[:8] for pid in (49976, 51002, 62256)}

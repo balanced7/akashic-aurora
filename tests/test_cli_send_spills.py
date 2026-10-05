@@ -24,17 +24,18 @@ rather than the verb plane: the capability exists and one of two doors is wired 
 
 Run: py -m pytest tests/test_cli_send_spills.py -q
 """
+
 import os
 import re
-import sys
 import subprocess
+import sys
+from pathlib import Path
 
-import isolate_canonical  # noqa: F401 -- db 15 + temp AI_SETUP, flushed (child inherits via env)
+import isolate_canonical  # noqa: F401  # db 15 + temp AI_SETUP, flushed (child inherits via env)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-import pytest  # noqa: E402
 
 # Comfortably over the tool door's rendering bound, so the spill path must engage.
 BIG = "THE-BODY " + ("x" * 40000) + " END-MARKER"
@@ -43,16 +44,16 @@ BIG = "THE-BODY " + ("x" * 40000) + " END-MARKER"
 def run(*args, timeout=180):
     env = os.environ.copy()
     env["PYTHONIOENCODING"] = "utf-8"
-    r = subprocess.run([sys.executable, "agent_cli.py", *args],
-                       cwd=ROOT, env=env, capture_output=True, text=True, timeout=timeout)
+    r = subprocess.run(
+        [sys.executable, "agent_cli.py", *args], cwd=ROOT, env=env, capture_output=True, text=True, timeout=timeout
+    )
     return r.returncode, r.stdout, r.stderr
 
 
 def _send_big_to(peer, tmp_path):
     f = tmp_path / "big.txt"
     f.write_text(BIG, encoding="utf-8")
-    rc, out, err = run("bifrost-send", "claude", "--to", peer, "--kind", "note",
-                       "--text-file", str(f))
+    rc, out, err = run("bifrost-send", "claude", "--to", peer, "--kind", "note", "--text-file", str(f))
     assert rc == 0, f"send failed: {err or out}"
     return out + err
 
@@ -71,34 +72,38 @@ def test_p1_a_long_body_sent_to_a_PEER_is_fetchable_by_the_sender(tmp_path):
     # which is the whole defect. The sender learning the address at send time is the fix,
     # not a convenience: it is the only moment the sender can still act on it.
     m = re.search(r"(blob:[0-9a-f]{6,})", sent)
-    assert m, ("the send door must advertise a CONTENT-ADDRESSED ref for an oversize body, "
-               "TO THE SENDER, at send time -- a stream id is an address only the recipient "
-               f"can resolve. Door said: {sent[:300]!r}")
+    assert m, (
+        "the send door must advertise a CONTENT-ADDRESSED ref for an oversize body, "
+        "TO THE SENDER, at send time -- a stream id is an address only the recipient "
+        f"can resolve. Door said: {sent[:300]!r}"
+    )
     ref = m.group(1)
 
     rc, got, err = run("bifrost-fetch", "--get", ref)
     assert rc == 0, f"the advertised ref must resolve for the SENDER: {err or got}"
-    assert "END-MARKER" in got, \
-        "the resolved body must be the WHOLE body -- a pointer to a prefix is still a loss"
+    assert "END-MARKER" in got, "the resolved body must be the WHOLE body -- a pointer to a prefix is still a loss"
 
 
 def test_p2_the_pointer_minted_is_content_addressed_not_a_stream_id(tmp_path):
     """A stream id is an address in a space only one reader can reach. A blob sha is an
     address in a space everyone can reach. The distinction is the whole defect."""
     from core.comm import packet_spec
+
     text, meta = packet_spec.spill_tool_text(BIG)
-    assert meta.get("spill_ref", "").startswith("blob:"), \
+    assert meta.get("spill_ref", "").startswith("blob:"), (
         "spill must produce a content-addressed ref (this half already worked -- T113)"
-    assert "bifrost-fetch --get blob:" in text, \
-        "and the confession must name the door that resolves it"
+    )
+    assert "bifrost-fetch --get blob:" in text, "and the confession must name the door that resolves it"
 
 
 def test_p3_a_short_body_is_byte_identical_to_today(tmp_path):
     """The spill must engage ONLY above the bound. Every ordinary message is unchanged."""
     from core.comm import packet_spec
+
     small = "a short note that fits comfortably"
     text, meta = packet_spec.spill_tool_text(small)
-    assert text == small and meta == {}, "under the bound, nothing may change"
+    assert text == small, "under the bound, nothing may change"
+    assert meta == {}, "under the bound, nothing may change"
 
 
 def test_p5_the_new_caller_degrades_to_the_clip_when_the_blob_store_fails(monkeypatch, tmp_path):
@@ -115,7 +120,7 @@ def test_p5_the_new_caller_degrades_to_the_clip_when_the_blob_store_fails(monkey
     the body still carries a bound-and-confessed clip, and RB-5 (a bound always confesses)
     holds in the degraded branch too.
     """
-    from core.comm import packet_spec, blobs
+    from core.comm import blobs, packet_spec
 
     def _dead_put(self, data):
         raise OSError("blob store unavailable")
@@ -126,10 +131,12 @@ def test_p5_the_new_caller_degrades_to_the_clip_when_the_blob_store_fails(monkey
     assert not meta.get("spilled"), "a failed store must not claim a spill happened"
     assert not meta.get("spill_ref"), "and must not advertise a ref that resolves to nothing"
     assert len(text) < len(BIG), "the degraded path must still BOUND the body"
-    assert text != BIG and text.strip(), "and must return something, never drop the message"
+    assert text != BIG, "and must return something, never drop the message"
+    assert text.strip(), "and must return something, never drop the message"
     # RB-5: the bound confesses even when the better mechanism is unavailable.
-    assert any(w in text.lower() for w in ("clip", "truncat", "chars", "...")), \
+    assert any(w in text.lower() for w in ("clip", "truncat", "chars", "...")), (
         f"a bound must confess in the degraded branch too; got tail: {text[-160:]!r}"
+    )
 
 
 def test_p4_the_cli_door_actually_calls_the_spill(tmp_path):
@@ -141,13 +148,13 @@ def test_p4_the_cli_door_actually_calls_the_spill(tmp_path):
     _the_wiring`, applied to a door instead of an argument.
     """
     import ast
-    src = open(os.path.join(ROOT, "agent_cli.py"), encoding="utf-8").read()
+
+    src = Path(os.path.join(ROOT, "agent_cli.py")).read_text(encoding="utf-8")
     tree = ast.parse(src)
-    fn = next((n for n in ast.walk(tree)
-               if isinstance(n, ast.FunctionDef) and n.name == "cmd_bifrost_send"), None)
+    fn = next((n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef) and n.name == "cmd_bifrost_send"), None)
     assert fn is not None, "cmd_bifrost_send must exist for this pin to mean anything"
-    called = {n.func.attr for n in ast.walk(fn)
-              if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)}
-    assert "spill_tool_text" in called, \
-        "the CLI send door must route an oversize body through the SAME spill the tool " \
+    called = {n.func.attr for n in ast.walk(fn) if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)}
+    assert "spill_tool_text" in called, (
+        "the CLI send door must route an oversize body through the SAME spill the tool "
         "door uses -- otherwise the capability exists and only one door has it"
+    )

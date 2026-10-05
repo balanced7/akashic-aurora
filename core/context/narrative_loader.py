@@ -3,11 +3,12 @@ Narrative loader (Slice 7) — recent Atlas + active chapters for agent boot con
 
 Semantic Relationship: NarrativeSummary loaded_from ChronicleStore (active chapters only)
 """
-import json
-from typing import Any, Dict, List, Optional
 
-from core.narrative.schema import ATLAS_KEY, Atlas, Chapter, Track, chapter_key, track_key
+import json
+from typing import Any
+
 from core.narrative.chapter_lifecycle import is_active_chapter, load_chapter_from_store
+from core.narrative.schema import ATLAS_KEY, Atlas, Chapter, Track, chapter_key, track_key
 
 
 def load_recent_narrative_for_boot(
@@ -15,10 +16,11 @@ def load_recent_narrative_for_boot(
     *,
     max_chapters: int = 5,
     max_chars: int = 2400,
-) -> Optional[Dict[str, Any]]:
+) -> dict[str, Any] | None:
     """Compact recent narrative for ``boot`` — active chapters only, newest first."""
     if store is None:
         from core.foundation.store import create_store
+
         store = create_store()
 
     raw_atlas = store.get(ATLAS_KEY)
@@ -29,7 +31,7 @@ def load_recent_narrative_for_boot(
     except (ValueError, TypeError, json.JSONDecodeError):
         return None
 
-    chapters: List[Chapter] = []
+    chapters: list[Chapter] = []
     for tid in atlas.tracks:
         tr_raw = store.get(track_key(tid))
         if not tr_raw:
@@ -56,20 +58,22 @@ def load_recent_narrative_for_boot(
 
     lines = [f"Atlas: {atlas.summary or '; '.join(atlas.tracks)}"]
     used = len(lines[0])
-    picked: List[Dict[str, Any]] = []
+    picked: list[dict[str, Any]] = []
     for ch in chapters:
         line = f"- [{ch.track}] {ch.title} ({ch.span_start[:10] if ch.span_start else '?'})"
         if used + len(line) > max_chars:
             break
         lines.append(line)
         used += len(line)
-        picked.append({
-            "id": ch.id,
-            "track": ch.track,
-            "title": ch.title,
-            "span_start": ch.span_start,
-            "source": chapter_key(ch.id),
-        })
+        picked.append(
+            {
+                "id": ch.id,
+                "track": ch.track,
+                "title": ch.title,
+                "span_start": ch.span_start,
+                "source": chapter_key(ch.id),
+            }
+        )
 
     return {
         "source": ATLAS_KEY,

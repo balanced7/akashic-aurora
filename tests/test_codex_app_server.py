@@ -4,13 +4,15 @@ Hermetic by default: the App Server tests launch a tiny newline-JSON fixture,
 and the wake tests use a fake Redis client.  No Codex model turn, canonical
 mailbox cursor, or peer process is touched.
 """
+
 from __future__ import annotations
 
 import json
-from pathlib import Path
 import sys
 import threading
+from pathlib import Path
 from types import SimpleNamespace
+from typing import TYPE_CHECKING, Any, cast
 
 import pytest
 
@@ -34,6 +36,14 @@ from agent.harness.codex_bifrost_wake import (
 from core.comm import packet_spec
 from core.comm.bus import Bus
 from core.toolbelt.registry import Toolbelt
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+
+def _factory(make: Callable[..., Any]) -> Callable[..., CodexAppServer]:
+    """Type a fixture App Server factory as the CodexAppServer factory it duck-types."""
+    return cast("Callable[..., CodexAppServer]", make)
 
 
 FAKE_SERVER = r"""
@@ -241,7 +251,8 @@ def test_dynamic_tool_reverse_request_is_answered_without_blocking_stdout_reader
 
     assert result.status == "completed"
     assert result.text == "governed verb output"
-    assert seen and seen[0]["tool"] == "aurora_read_verb"
+    assert seen
+    assert seen[0]["tool"] == "aurora_read_verb"
     traffic = [json.loads(line) for line in log.read_text(encoding="utf-8").splitlines()]
     initialize = next(item for item in traffic if item.get("method") == "initialize")
     assert initialize["params"]["capabilities"] == {"experimentalApi": True}
@@ -259,9 +270,11 @@ def test_dynamic_tools_require_explicit_experimental_api_negotiation(tmp_path):
         "description": "fixture",
         "inputSchema": {"type": "object"},
     }
-    with CodexAppServer(command=command, cwd=tmp_path) as server:
-        with pytest.raises(CodexAppServerError, match="experimental_api=True"):
-            server.start_thread(dynamic_tools=[spec])
+    with (
+        CodexAppServer(command=command, cwd=tmp_path) as server,
+        pytest.raises(CodexAppServerError, match="experimental_api=True"),
+    ):
+        server.start_thread(dynamic_tools=[spec])
 
     traffic = [json.loads(line) for line in log.read_text(encoding="utf-8").splitlines()]
     assert not any(item.get("method") == "thread/start" for item in traffic)
@@ -269,8 +282,8 @@ def test_dynamic_tools_require_explicit_experimental_api_negotiation(tmp_path):
 
 def test_wake_exec_is_double_gated_and_dynamic_tool_input_is_structured(tmp_path, monkeypatch):
     """RED: launch opt-in and the live ACL both matter; raw shell is never exposed."""
-    from core.trust.capabilities import Cap
     from core.trust import registry
+    from core.trust.capabilities import Cap
 
     class Grant:
         role = "member"
@@ -291,7 +304,7 @@ def test_wake_exec_is_double_gated_and_dynamic_tool_input_is_structured(tmp_path
         log_path=tmp_path / "events.jsonl",
         cwd=Path(__file__).resolve().parent.parent,
         allow_exec=True,
-        server_factory=lambda **_kwargs: None,
+        server_factory=_factory(lambda **_kwargs: None),
         toolbelt_factory=lambda agent: Toolbelt(
             agent,
             root=str(tmp_path / "empty-belts"),
@@ -304,26 +317,29 @@ def test_wake_exec_is_double_gated_and_dynamic_tool_input_is_structured(tmp_path
         AURORA_COMBO_CATALOG_TOOL_NAME,
     ]
     assert watcher._toolbox.agent_id == "sol"
-    assert watcher._toolbox.allow_exec is True and watcher._toolbox.trust is True
+    assert watcher._toolbox.allow_exec is True
+    assert watcher._toolbox.trust is True
     assert "command" not in AURORA_READ_VERB_TOOL["inputSchema"]["properties"]
-    advertised_verbs = set(
-        AURORA_READ_VERB_TOOL["inputSchema"]["properties"]["verb"]["enum"]
-    )
+    advertised_verbs = set(AURORA_READ_VERB_TOOL["inputSchema"]["properties"]["verb"]["enum"])
     assert {"task", "fence", "notes"}.isdisjoint(advertised_verbs)
 
     monkeypatch.setattr(registry, "resolve", lambda _agent: Grant(False))
-    denied = watcher.handle_dynamic_tool_call({
-        "tool": "aurora_read_verb",
-        "arguments": {"verb": "discover", "args": []},
-    })
+    denied = watcher.handle_dynamic_tool_call(
+        {
+            "tool": "aurora_read_verb",
+            "arguments": {"verb": "discover", "args": []},
+        }
+    )
     assert denied["success"] is False
     assert "does not hold the exec capability" in denied["contentItems"][0]["text"]
 
     monkeypatch.setattr(registry, "resolve", lambda _agent: Grant(True))
-    refused_mutation = watcher.handle_dynamic_tool_call({
-        "tool": "aurora_read_verb",
-        "arguments": {"verb": "learn", "args": ["sol"]},
-    })
+    refused_mutation = watcher.handle_dynamic_tool_call(
+        {
+            "tool": "aurora_read_verb",
+            "arguments": {"verb": "learn", "args": ["sol"]},
+        }
+    )
     assert refused_mutation["success"] is False
     assert "safe read grammar" in refused_mutation["contentItems"][0]["text"].lower()
 
@@ -336,17 +352,21 @@ def test_wake_exec_is_double_gated_and_dynamic_tool_input_is_structured(tmp_path
         ("doctor", ["--page"]),
         ("discover", ["--semantic", "who am I"]),
     ):
-        refused = watcher.handle_dynamic_tool_call({
-            "tool": "aurora_read_verb",
-            "arguments": {"verb": verb, "args": args},
-        })
+        refused = watcher.handle_dynamic_tool_call(
+            {
+                "tool": "aurora_read_verb",
+                "arguments": {"verb": verb, "args": args},
+            }
+        )
         assert refused["success"] is False
         assert "safe read grammar" in refused["contentItems"][0]["text"].lower()
 
-    refused_shell = watcher.handle_dynamic_tool_call({
-        "tool": "aurora_read_verb",
-        "arguments": {"verb": "discover", "args": ["verbs; whoami"]},
-    })
+    refused_shell = watcher.handle_dynamic_tool_call(
+        {
+            "tool": "aurora_read_verb",
+            "arguments": {"verb": "discover", "args": ["verbs; whoami"]},
+        }
+    )
     assert refused_shell["success"] is False
     assert "shell metacharacters" in refused_shell["contentItems"][0]["text"].lower()
 
@@ -356,21 +376,21 @@ def test_wake_exec_is_double_gated_and_dynamic_tool_input_is_structured(tmp_path
         "run_command",
         lambda command, timeout: commands.append((command, timeout)) or "governed output",
     )
-    allowed = watcher.handle_dynamic_tool_call({
-        "tool": "aurora_read_verb",
-        "arguments": {"verb": "discover", "args": ["verbs"]},
-    })
+    allowed = watcher.handle_dynamic_tool_call(
+        {
+            "tool": "aurora_read_verb",
+            "arguments": {"verb": "discover", "args": ["verbs"]},
+        }
+    )
     assert allowed["success"] is True
     assert allowed["contentItems"][0]["text"] == "governed output"
     assert commands == [("py agent_cli.py discover verbs", 120)]
 
 
-def test_wake_exec_advertises_only_safe_subject_combos_and_preflights_every_step(
-    tmp_path, monkeypatch
-):
+def test_wake_exec_advertises_only_safe_subject_combos_and_preflights_every_step(tmp_path, monkeypatch):
     """RED: native sugar crosses the bridge only after whole-combo read preflight."""
-    from core.trust.capabilities import Cap
     from core.trust import registry
+    from core.trust.capabilities import Cap
 
     class Grant:
         role = "member"
@@ -379,7 +399,10 @@ def test_wake_exec_advertises_only_safe_subject_combos_and_preflights_every_step
             return cap == Cap.EXEC
 
     belt_root = tmp_path / "belts"
-    known_verbs = lambda: {"triage", "doctor", "locks", "lookback", "learn"}
+
+    def known_verbs():
+        return {"triage", "doctor", "locks", "lookback", "learn"}
+
     belt = Toolbelt("sol", root=str(belt_root), known_verbs=known_verbs)
     belt.mint(
         "pressure",
@@ -408,7 +431,7 @@ def test_wake_exec_advertises_only_safe_subject_combos_and_preflights_every_step
         log_path=tmp_path / "events.jsonl",
         cwd=Path(__file__).resolve().parent.parent,
         allow_exec=True,
-        server_factory=lambda **_kwargs: None,
+        server_factory=_factory(lambda **_kwargs: None),
         toolbelt_factory=lambda agent: Toolbelt(
             agent,
             root=str(belt_root),
@@ -426,20 +449,28 @@ def test_wake_exec_advertises_only_safe_subject_combos_and_preflights_every_step
         "run_command",
         lambda *_args, **_kwargs: pytest.fail("combo admission catalog must not execute"),
     )
-    catalog = watcher.handle_dynamic_tool_call({
-        "tool": AURORA_COMBO_CATALOG_TOOL_NAME,
-        "arguments": {},
-    })
+    catalog = watcher.handle_dynamic_tool_call(
+        {
+            "tool": AURORA_COMBO_CATALOG_TOOL_NAME,
+            "arguments": {},
+        }
+    )
     catalog_body = catalog["contentItems"][0]["text"]
     assert catalog["success"] is True
-    assert "pressure" in catalog_body and "ADMITTED" in catalog_body
-    assert "late-mutation" in catalog_body and "OMITTED" in catalog_body
-    assert "learn" in catalog_body and "safe read grammar" in catalog_body
-    assert "late-shell" in catalog_body and "shell metacharacters" in catalog_body
-    peer_probe = watcher.handle_dynamic_tool_call({
-        "tool": AURORA_COMBO_CATALOG_TOOL_NAME,
-        "arguments": {"agent": "deepseek"},
-    })
+    assert "pressure" in catalog_body
+    assert "ADMITTED" in catalog_body
+    assert "late-mutation" in catalog_body
+    assert "OMITTED" in catalog_body
+    assert "learn" in catalog_body
+    assert "safe read grammar" in catalog_body
+    assert "late-shell" in catalog_body
+    assert "shell metacharacters" in catalog_body
+    peer_probe = watcher.handle_dynamic_tool_call(
+        {
+            "tool": AURORA_COMBO_CATALOG_TOOL_NAME,
+            "arguments": {"agent": "deepseek"},
+        }
+    )
     assert peer_probe["success"] is False
     assert "accepts no arguments" in peer_probe["contentItems"][0]["text"]
 
@@ -449,10 +480,12 @@ def test_wake_exec_advertises_only_safe_subject_combos_and_preflights_every_step
         "run_command",
         lambda command, timeout: commands.append((command, timeout)) or f"output:{command}",
     )
-    result = watcher.handle_dynamic_tool_call({
-        "tool": "aurora_read_combo",
-        "arguments": {"name": "pressure"},
-    })
+    result = watcher.handle_dynamic_tool_call(
+        {
+            "tool": "aurora_read_combo",
+            "arguments": {"name": "pressure"},
+        }
+    )
     assert result["success"] is True
     assert commands == [
         ("py agent_cli.py triage", 120),
@@ -467,28 +500,34 @@ def test_wake_exec_advertises_only_safe_subject_combos_and_preflights_every_step
         "run_command",
         lambda _command, timeout: "x" * 10_000,
     )
-    capped = watcher.handle_dynamic_tool_call({
-        "tool": "aurora_read_combo",
-        "arguments": {"name": "pressure"},
-    })
+    capped = watcher.handle_dynamic_tool_call(
+        {
+            "tool": "aurora_read_combo",
+            "arguments": {"name": "pressure"},
+        }
+    )
     capped_body = capped["contentItems"][0]["text"]
     assert capped["success"] is True
     assert len(capped_body) <= 24_000
     assert "combo output capped" in capped_body
 
     commands.clear()
-    refused = watcher.handle_dynamic_tool_call({
-        "tool": "aurora_read_combo",
-        "arguments": {"name": "late-mutation"},
-    })
+    refused = watcher.handle_dynamic_tool_call(
+        {
+            "tool": "aurora_read_combo",
+            "arguments": {"name": "late-mutation"},
+        }
+    )
     assert refused["success"] is False
     assert "safe read grammar" in refused["contentItems"][0]["text"].lower()
     assert commands == []
 
-    refused_shell = watcher.handle_dynamic_tool_call({
-        "tool": "aurora_read_combo",
-        "arguments": {"name": "late-shell"},
-    })
+    refused_shell = watcher.handle_dynamic_tool_call(
+        {
+            "tool": "aurora_read_combo",
+            "arguments": {"name": "late-shell"},
+        }
+    )
     assert refused_shell["success"] is False
     assert commands == []
 
@@ -504,7 +543,7 @@ def test_combo_admission_catalog_reports_registry_blindness_instead_of_clean_emp
         log_path=tmp_path / "events.jsonl",
         cwd=Path(__file__).resolve().parent.parent,
         allow_exec=True,
-        server_factory=lambda **_kwargs: None,
+        server_factory=_factory(lambda **_kwargs: None),
         toolbelt_factory=broken_belt,
     )
 
@@ -512,10 +551,12 @@ def test_combo_admission_catalog_reports_registry_blindness_instead_of_clean_emp
         AURORA_READ_VERB_TOOL["name"],
         AURORA_COMBO_CATALOG_TOOL_NAME,
     ]
-    result = watcher.handle_dynamic_tool_call({
-        "tool": AURORA_COMBO_CATALOG_TOOL_NAME,
-        "arguments": {},
-    })
+    result = watcher.handle_dynamic_tool_call(
+        {
+            "tool": AURORA_COMBO_CATALOG_TOOL_NAME,
+            "arguments": {},
+        }
+    )
     assert result["success"] is False
     assert "UNAVAILABLE" in result["contentItems"][0]["text"]
     assert "registry unreadable" in result["contentItems"][0]["text"]
@@ -532,13 +573,15 @@ def test_wake_without_launch_opt_in_advertises_no_exec_tool(tmp_path):
         log_path=tmp_path / "events.jsonl",
         cwd=tmp_path,
         allow_exec=False,
-        server_factory=lambda **_kwargs: None,
+        server_factory=_factory(lambda **_kwargs: None),
     )
     assert watcher.dynamic_tools == []
-    denied = watcher.handle_dynamic_tool_call({
-        "tool": "aurora_read_verb",
-        "arguments": {"verb": "discover", "args": []},
-    })
+    denied = watcher.handle_dynamic_tool_call(
+        {
+            "tool": "aurora_read_verb",
+            "arguments": {"verb": "discover", "args": []},
+        }
+    )
     assert denied["success"] is False
     assert "launch opt-in" in denied["contentItems"][0]["text"]
 
@@ -549,7 +592,7 @@ class ExactRedis:
         self.fields = fields
         self.calls = []
 
-    def xrange(self, key, min, max, count=None):
+    def xrange(self, key, min, max, count=None):  # noqa: A002  # mirrors the redis-py xrange(min=, max=) keyword API
         self.calls.append((key, min, max, count))
         return [(self.mid, self.fields)] if min == self.mid and max == self.mid else []
 
@@ -573,7 +616,8 @@ def test_exact_wake_read_does_not_touch_shared_cursor():
     redis = ExactRedis(mid, _message_fields(answers="1787730404992-0"))
     bus = Bus("sol", client=redis, promote=False)
     message = decode_exact_message(bus, mid)
-    assert message is not None and message.content == "Rill's answer"
+    assert message is not None
+    assert message.content == "Rill's answer"
     assert redis.calls == [("bifrost:inbox:sol", mid, mid, 1)]
 
 
@@ -616,7 +660,8 @@ def test_wake_prompt_is_subject_labelled_and_forbids_peer_interference():
         ),
     )
     assert "SUBJECT SEAT: sol" in prompt
-    assert "dsh_agent" in prompt and "Rill's answer" in prompt
+    assert "dsh_agent" in prompt
+    assert "Rill's answer" in prompt
     assert "Do not manage, stop, relaunch, inspect, or mutate Rill's process" in prompt
     assert "Do not consume or advance any Bifrost mailbox cursor" in prompt
 
@@ -655,7 +700,8 @@ def test_ratified_wake_identity_comes_from_the_resident_registry(monkeypatch):
     assert "IDENTITY AUTHORITY: resident-registry" in prompt
     assert "currently unratified" not in prompt
     assert "historical and unratified" not in instructions
-    assert "Sunshine" in instructions and "ratified" in instructions
+    assert "Sunshine" in instructions
+    assert "ratified" in instructions
 
 
 def test_environment_cannot_self_promote_a_callsign_when_registry_is_absent(monkeypatch):
@@ -706,7 +752,7 @@ def test_cached_app_server_restarts_when_the_registry_identity_changes(tmp_path)
         state=state,
         log_path=tmp_path / "events.jsonl",
         cwd=tmp_path,
-        server_factory=make_server,
+        server_factory=_factory(make_server),
     )
     before = SubjectIdentity(
         agent_id="sol",
@@ -726,6 +772,7 @@ def test_cached_app_server_restarts_when_the_registry_identity_changes(tmp_path)
     second = watcher._app_server(after)
 
     assert len(created) == 2
+    assert isinstance(first, IdentityServer)
     assert first.closed is True
     assert second is created[1]
     assert second.env["AKASHIC_CALLSIGN_HINT"] == "Sunshine"
@@ -794,10 +841,10 @@ class IdleRedis:
         return None
 
 
-def test_idle_level_watch_spends_no_app_server_or_model_turn(tmp_path):
+def test_idle_level_watch_spends_no_app_server_or_model_turn(tmp_path, monkeypatch):
     redis = IdleRedis()
     bus = Bus("sol", client=redis, promote=False)
-    bus._blocking_client = lambda _block_ms: redis
+    monkeypatch.setattr(bus, "_blocking_client", lambda _block_ms: redis)
     state = WakeState.open(tmp_path / "state.json", agent="sol", baseline="50-0")
     created = []
 
@@ -828,10 +875,10 @@ class TimeoutRedis(IdleRedis):
         raise RedisTimeoutError("fixture timeout")
 
 
-def test_blocking_redis_timeout_is_contained_without_a_model_turn(tmp_path):
+def test_blocking_redis_timeout_is_contained_without_a_model_turn(tmp_path, monkeypatch):
     redis = TimeoutRedis()
     bus = Bus("sol", client=redis, promote=False)
-    bus._blocking_client = lambda _block_ms: redis
+    monkeypatch.setattr(bus, "_blocking_client", lambda _block_ms: redis)
     state = WakeState.open(tmp_path / "state.json", agent="sol", baseline="50-0")
     watcher = CodexBifrostWake(
         bus=bus,
@@ -840,9 +887,7 @@ def test_blocking_redis_timeout_is_contained_without_a_model_turn(tmp_path):
         log_path=tmp_path / "events.jsonl",
         cwd=tmp_path,
         block_ms=5_000,
-        server_factory=lambda **_kwargs: (_ for _ in ()).throw(
-            AssertionError("timeout must not create an App Server")
-        ),
+        server_factory=lambda **_kwargs: (_ for _ in ()).throw(AssertionError("timeout must not create an App Server")),
     )
     assert watcher.run(once=True) == 0
     assert state.last_seen == "50-0"
@@ -907,12 +952,12 @@ class FixtureAppServer:
         return None
 
 
-def test_one_eligible_message_makes_one_turn_and_one_causally_linked_reply(tmp_path):
+def test_one_eligible_message_makes_one_turn_and_one_causally_linked_reply(tmp_path, monkeypatch):
     mid = "60-0"
     redis = ExactRedis(mid, _message_fields(answers="1787730404992-0"))
     bus = Bus("sol", client=redis, promote=False)
     sends = []
-    bus.send = lambda to, kind, content, meta: sends.append((to, kind, content, meta)) or "70-0"
+    monkeypatch.setattr(bus, "send", lambda to, kind, content, meta: sends.append((to, kind, content, meta)) or "70-0")
     state = WakeState.open(tmp_path / "state.json", agent="sol", baseline="50-0")
     servers = []
     identity_reads = []
@@ -941,13 +986,15 @@ def test_one_eligible_message_makes_one_turn_and_one_causally_linked_reply(tmp_p
         state=state,
         log_path=tmp_path / "events.jsonl",
         cwd=tmp_path,
-        server_factory=make_server,
+        server_factory=_factory(make_server),
         identity_resolver=resolve_identity,
     )
     result = watcher.handle(mid, redis.fields)
     assert result == {"mid": mid, "outcome": "replied", "reply_mid": "70-0"}
-    assert len(servers) == 1 and servers[0].turns == 1
-    assert servers[0].starts == 1 and servers[0].resumes == 0
+    assert len(servers) == 1
+    assert servers[0].turns == 1
+    assert servers[0].starts == 1
+    assert servers[0].resumes == 0
     assert state.thread_id == "thread-wake", "the first durable thread is bound before reuse"
     assert identity_reads == ["sol"], "one admitted turn gets exactly one identity snapshot"
     assert sends[0][:3] == ("dsh_agent", "reply", "A bounded reply from Sol.")
@@ -962,23 +1009,23 @@ def test_one_eligible_message_makes_one_turn_and_one_causally_linked_reply(tmp_p
     assert accounting["final_model_step"]["totalTokens"] == 31
     assert accounting["multi_step"] is True
 
-    events = [json.loads(line) for line in
-              (tmp_path / "events.jsonl").read_text(encoding="utf-8").splitlines()]
+    events = [json.loads(line) for line in (tmp_path / "events.jsonl").read_text(encoding="utf-8").splitlines()]
     replied = next(event for event in events if event.get("event") == "replied")
     assert replied["usage_accounting"] == accounting, (
-        "the operational JSONL and private watermark must agree about which usage "
-        "scope prices the whole admitted turn")
+        "the operational JSONL and private watermark must agree about which usage scope prices the whole admitted turn"
+    )
 
     assert watcher.handle(mid, redis.fields)["outcome"] == "duplicate"
-    assert servers[0].turns == 1 and len(sends) == 1
+    assert servers[0].turns == 1
+    assert len(sends) == 1
 
 
-def test_bound_watcher_resumes_the_same_thread_across_a_fresh_host(tmp_path):
+def test_bound_watcher_resumes_the_same_thread_across_a_fresh_host(tmp_path, monkeypatch):
     mid = "60-0"
     redis = ExactRedis(mid, _message_fields(answers="1787730404992-0"))
     bus = Bus("sol", client=redis, promote=False)
     sends = []
-    bus.send = lambda to, kind, content, meta: sends.append((to, kind, content, meta)) or "70-0"
+    monkeypatch.setattr(bus, "send", lambda to, kind, content, meta: sends.append((to, kind, content, meta)) or "70-0")
     state = WakeState.open(
         tmp_path / "state.json",
         agent="sol",
@@ -1004,7 +1051,7 @@ def test_bound_watcher_resumes_the_same_thread_across_a_fresh_host(tmp_path):
         state=state,
         log_path=tmp_path / "events.jsonl",
         cwd=tmp_path,
-        server_factory=make_server,
+        server_factory=_factory(make_server),
         identity_resolver=lambda agent: SubjectIdentity(
             agent_id=agent,
             callsign="Sunshine",
@@ -1015,7 +1062,8 @@ def test_bound_watcher_resumes_the_same_thread_across_a_fresh_host(tmp_path):
 
     result = watcher.handle(mid, redis.fields)
     assert result["outcome"] == "replied"
-    assert servers[0].starts == 0 and servers[0].resumes == 1
+    assert servers[0].starts == 0
+    assert servers[0].resumes == 1
     assert servers[0].turns == 1
     assert sends[0][3]["continuity_thread_id"] == "thread-wake"
     assert sends[0][3]["continuity_source_thread_id"] == "thread-desktop"
@@ -1025,9 +1073,7 @@ def test_bound_watcher_resumes_the_same_thread_across_a_fresh_host(tmp_path):
 class ActiveWriterAppServer(FixtureAppServer):
     def resume_thread(self, thread_id, **kwargs):
         self.resumes += 1
-        raise CodexAppServerError(
-            f"App Server 'thread/resume' failed: thread {thread_id} already has an active writer"
-        )
+        raise CodexAppServerError(f"App Server 'thread/resume' failed: thread {thread_id} already has an active writer")
 
 
 def test_active_writer_defers_without_advancing_watermark_or_sending_a_reply(tmp_path):
@@ -1053,7 +1099,7 @@ def test_active_writer_defers_without_advancing_watermark_or_sending_a_reply(tmp
         state=state,
         log_path=tmp_path / "events.jsonl",
         cwd=tmp_path,
-        server_factory=lambda **_kwargs: server,
+        server_factory=_factory(lambda **_kwargs: server),
         identity_resolver=lambda agent: SubjectIdentity(
             agent_id=agent,
             callsign="Sunshine",
@@ -1066,16 +1112,16 @@ def test_active_writer_defers_without_advancing_watermark_or_sending_a_reply(tmp
     assert result == {"mid": mid, "outcome": "deferred_active_writer"}
     assert state.last_seen == "50-0"
     assert state.seen(mid) is False
-    assert server.starts == 0 and server.resumes == 1 and server.turns == 0
+    assert server.starts == 0
+    assert server.resumes == 1
+    assert server.turns == 0
     assert sends == []
 
 
 class MissingThreadAppServer(FixtureAppServer):
     def resume_thread(self, thread_id, **kwargs):
         self.resumes += 1
-        raise CodexAppServerError(
-            f"App Server 'thread/resume' failed: thread {thread_id} not found"
-        )
+        raise CodexAppServerError(f"App Server 'thread/resume' failed: thread {thread_id} not found")
 
 
 def test_missing_bound_thread_refuses_instead_of_silently_starting_a_stranger(tmp_path):
@@ -1099,7 +1145,7 @@ def test_missing_bound_thread_refuses_instead_of_silently_starting_a_stranger(tm
         state=state,
         log_path=tmp_path / "events.jsonl",
         cwd=tmp_path,
-        server_factory=lambda **_kwargs: server,
+        server_factory=_factory(lambda **_kwargs: server),
         identity_resolver=lambda agent: SubjectIdentity(
             agent_id=agent,
             callsign="Sunshine",
@@ -1112,4 +1158,6 @@ def test_missing_bound_thread_refuses_instead_of_silently_starting_a_stranger(tm
     assert result["outcome"] == "continuity_refused"
     assert state.last_seen == "50-0"
     assert state.seen(mid) is False
-    assert server.starts == 0 and server.resumes == 1 and server.turns == 0
+    assert server.starts == 0
+    assert server.resumes == 1
+    assert server.turns == 0

@@ -32,11 +32,11 @@ incumbent console is fully contract-clean (~54 pre-existing L8 sites).
 STATUS: v0 — mechanical [M] clauses only. [T] clauses need sighted fence + Daniel
 gate, not this script. Add clauses as the contract ratifies them.
 """
+
 from __future__ import annotations
 
 import argparse
 import json
-import os
 import re
 import sys
 from pathlib import Path
@@ -52,7 +52,7 @@ def _check_raw_hex(lines: list[str]) -> list[str]:
     ALLOWS: --name:#hex (token definitions), var(--name, #fallback)
     FLAGS: standalone #hex at CSS property call sites and JS color literals."""
     problems: list[str] = []
-    # Pattern: a #hex that is NOT part of a --custom-property definition
+    # The pattern is a #hex that is NOT part of a --custom-property definition
     # and NOT inside a var(...) fallback
     in_css = False
     for i, line in enumerate(lines, 1):
@@ -81,7 +81,8 @@ def _check_raw_hex(lines: list[str]) -> list[str]:
                 continue
             problems.append(
                 f"  L{i}: raw hex '{m.group()}' — use a CSS variable instead "
-                f"({'CSS' if in_css else 'JS'} context, token law M-L8)")
+                f"({'CSS' if in_css else 'JS'} context, token law M-L8)"
+            )
     return problems
 
 
@@ -107,11 +108,13 @@ def _check_gauge_axes(lines: list[str]) -> list[str]:
         if ln not in has_agent:
             problems.append(
                 f"  L{ln}: gauge element missing data-agent attribute "
-                f"(axis law M-L1a — every gauge must label what it measures)")
+                f"(axis law M-L1a — every gauge must label what it measures)"
+            )
         if ln not in has_title:
             problems.append(
                 f"  L{ln}: gauge element missing title attribute "
-                f"(axis law M-L1a — every gauge must carry a hover explanation)")
+                f"(axis law M-L1a — every gauge must carry a hover explanation)"
+            )
 
     return problems
 
@@ -129,12 +132,13 @@ def _check_earned_accent(lines: list[str]) -> list[str]:
     problems: list[str] = []
     _tok = re.compile(r"\b(tripped|warn|high)\b")
     # Relational / comparison patterns — the word IS being checked, not assigned
-    _pred = re.compile(r"===\s*['\"]tripped|===\s*['\"]blocked|state\s*===\s*['\"]tripped",
-                       re.IGNORECASE)
+    _pred = re.compile(r"===\s*['\"]tripped|===\s*['\"]blocked|state\s*===\s*['\"]tripped", re.IGNORECASE)
     # Named gauge-state patterns (identifiers anchored to comparison operators)
-    _state_anchor = re.compile(r"\b(runner===|workN\s*[<>]=?\s*\d+|legacyN\s*[<>]=?\s*\d+"
-                               r"|pages\s*[<>]=?\s*\d+|allQuiet|offline"
-                               r"|phase\s*!==|hb\s*!==|tokPct\s*[<>]=?\s*\d+)")
+    _state_anchor = re.compile(
+        r"\b(runner===|workN\s*[<>]=?\s*\d+|legacyN\s*[<>]=?\s*\d+"
+        r"|pages\s*[<>]=?\s*\d+|allQuiet|offline"
+        r"|phase\s*!==|hb\s*!==|tokPct\s*[<>]=?\s*\d+)"
+    )
     # General relational: any numeric comparison near an alarm word
     _relational = re.compile(r"[<>]=?\s*\d+")
 
@@ -147,13 +151,13 @@ def _check_earned_accent(lines: list[str]) -> list[str]:
 
         stripped = line.strip()
         # Allow: Python comments + docstring prose (English verb uses)
-        if stripped.startswith("#") or stripped.startswith("//"):
+        if stripped.startswith(("#", "//")):
             continue
         # Allow: CSS class definitions like .tripped { ... }
         if any("." + t in stripped and "{" in stripped for t in tokens):
             continue
         # Allow: CSS comment blocks
-        if stripped.startswith("/*") or stripped.startswith("*"):
+        if stripped.startswith(("/*", "*")):
             continue
 
         # Check this line AND the previous line for a state predicate
@@ -165,7 +169,8 @@ def _check_earned_accent(lines: list[str]) -> list[str]:
         problems.append(
             f"  L{i}: alarm-class token(#{'|'.join(tokens)}) without visible "
             f"state-check predicate on this or previous line — verify it is "
-            f"alarm-gated (earned-accent law M-L3, warn-tier advisory only)")
+            f"alarm-gated (earned-accent law M-L3, warn-tier advisory only)"
+        )
 
     return problems
 
@@ -182,8 +187,7 @@ def _save_baseline(path: Path, counts: dict) -> None:
         existing = _load_baseline_raw()
         existing[_baseline_key(path)] = counts
         BASELINE_FILE.write_text(json.dumps(existing, indent=2), encoding="utf-8")
-        print(f"[ui-contract] baseline recorded -> {BASELINE_FILE} "
-              f"(key: {_baseline_key(path)})")
+        print(f"[ui-contract] baseline recorded -> {BASELINE_FILE} (key: {_baseline_key(path)})")
     except Exception as e:
         print(f"[ui-contract] WARNING: baseline save failed: {e}")
 
@@ -209,7 +213,9 @@ def _check_dedupe_identity(lines: list[str]) -> list[str]:
     if "function msgKey(m)" not in src:
         problems.append("  msgKey() content-identity function missing -- dual-write twins would render twice")
     if "seen.has(m.id)" in src:
-        problems.append("  stream-id dedupe found (seen.has(m.id)) -- the exact T044/T045 violation; key on msgKey instead")
+        problems.append(
+            "  stream-id dedupe found (seen.has(m.id)) -- the exact T044/T045 violation; key on msgKey instead"
+        )
     if '"sha": fields.get("sha", "")' not in src:
         problems.append("  _fmt does not surface the envelope sha -- diagnostics lost, dedupe unverifiable")
     return problems
@@ -217,7 +223,7 @@ def _check_dedupe_identity(lines: list[str]) -> list[str]:
 
 # Law names used in both exit paths -- single source
 _LAW_NAMES = [
-    ("token law M-L8", _check_raw_hex, True),       # ship-grade
+    ("token law M-L8", _check_raw_hex, True),  # ship-grade
     ("axis law M-L1a (label-presence)", _check_gauge_axes, True),  # ship-grade
     ("earned-accent M-L3 (warn-tier)", _check_earned_accent, False),  # advisory-only
     ("dedupe identity T044/T045", _check_dedupe_identity, True),  # ship-grade
@@ -258,23 +264,25 @@ def check_file(path: Path, *, baseline: bool = False) -> int:
                 delta = count - prior
                 if ship_grade:
                     new_violations += delta
-                print(f"[ui-contract] {name}: {count} violations "
-                      f"({delta} NEW since baseline{' — BLOCKING' if ship_grade else ' — advisory'})")
+                print(
+                    f"[ui-contract] {name}: {count} violations "
+                    f"({delta} NEW since baseline{' — BLOCKING' if ship_grade else ' — advisory'})"
+                )
             elif count < prior:
-                print(f"[ui-contract] {name}: {count} violations "
-                      f"({prior - count} FIXED since baseline — update baseline)")
+                print(
+                    f"[ui-contract] {name}: {count} violations ({prior - count} FIXED since baseline — update baseline)"
+                )
             else:
                 print(f"[ui-contract] {name}: {count} violations (at baseline)")
         if new_violations:
-            print(f"[ui-contract] {new_violations} NEW ship-grade violation(s) since "
-                  f"baseline — DELTA FAIL")
+            print(f"[ui-contract] {new_violations} NEW ship-grade violation(s) since baseline — DELTA FAIL")
             return 1
         print("[ui-contract] CLEAN relative to baseline: no new ship-grade violations")
         return 0
 
     # No baseline: M-L3 never drives exit-1. M-L8 + M-L1a do.
     ship_problems = 0
-    for name, count, ship_grade in hits_by_law:
+    for _name, count, ship_grade in hits_by_law:
         if ship_grade and count:
             ship_problems += count
     if ship_problems:
@@ -285,13 +293,13 @@ def check_file(path: Path, *, baseline: bool = False) -> int:
 
 
 def main(argv=None) -> int:
-    ap = argparse.ArgumentParser(
-        description="UI design-contract [M] clause enforcement (organ 2's teeth)")
-    ap.add_argument("file", nargs="?", default=str(DEFAULT),
-                    help=f"UI file to check (default: {DEFAULT})")
-    ap.add_argument("--baseline", action="store_true",
-                    help="record current violation counts as the baseline "
-                         "(subsequent runs only fail on NEW violations)")
+    ap = argparse.ArgumentParser(description="UI design-contract [M] clause enforcement (organ 2's teeth)")
+    ap.add_argument("file", nargs="?", default=str(DEFAULT), help=f"UI file to check (default: {DEFAULT})")
+    ap.add_argument(
+        "--baseline",
+        action="store_true",
+        help="record current violation counts as the baseline (subsequent runs only fail on NEW violations)",
+    )
     args = ap.parse_args(argv)
     return check_file(Path(args.file), baseline=args.baseline)
 

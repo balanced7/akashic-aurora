@@ -20,15 +20,15 @@ Usage:
   py scripts/install_dsh_plugin.py [--profile web] [--agent-id dsh_agent]
                                    [--dsh-home PATH] [--dry-run]
 """
+
 import argparse
 import hashlib
-import io
 import os
 import shutil
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from core.paths import repo_root  # noqa: E402
+from core.paths import repo_root
 
 FILES = ("bridge.py", "package.json", os.path.join("lib", "index.js"))
 
@@ -45,7 +45,8 @@ def _stamp_env(env_path: str, stamps: dict, dry: bool) -> list:
     """Update KEY=VALUE lines in-place, append missing; preserve everything else."""
     lines = []
     if os.path.exists(env_path):
-        lines = io.open(env_path, encoding="utf-8").read().splitlines()
+        with open(env_path, encoding="utf-8") as fh:
+            lines = fh.read().splitlines()
     seen, out, changes = set(), [], []
     for ln in lines:
         key = ln.split("=", 1)[0].strip() if "=" in ln and not ln.lstrip().startswith("#") else None
@@ -65,17 +66,20 @@ def _stamp_env(env_path: str, stamps: dict, dry: bool) -> list:
             out.append(f"{key}={val}")
     if changes and not dry:
         os.makedirs(os.path.dirname(env_path), exist_ok=True)
-        io.open(env_path, "w", encoding="utf-8", newline="\n").write("\n".join(out) + "\n")
+        with open(env_path, "w", encoding="utf-8", newline="\n") as fh:
+            fh.write("\n".join(out) + "\n")
     return changes
 
 
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--profile", default="web")
-    ap.add_argument("--agent-id", default="dsh_agent",
-                    help="the id this instance's DSH seat STAMPS (grant this exact id in the ACL)")
-    ap.add_argument("--dsh-home", default=os.environ.get("DSH_HOME")
-                    or os.path.join(os.path.expanduser("~"), ".dsh"))
+    ap.add_argument(
+        "--agent-id",
+        default="dsh_agent",
+        help="the id this instance's DSH seat STAMPS (grant this exact id in the ACL)",
+    )
+    ap.add_argument("--dsh-home", default=os.environ.get("DSH_HOME") or os.path.join(os.path.expanduser("~"), ".dsh"))
     ap.add_argument("--dry-run", action="store_true")
     a = ap.parse_args()
 

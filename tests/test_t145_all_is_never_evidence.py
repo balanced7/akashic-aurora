@@ -39,6 +39,7 @@ functions in that one file.
 
 Run: py -m pytest tests/test_t145_all_is_never_evidence.py -q
 """
+
 import os
 import sys
 
@@ -46,7 +47,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 sys.path.insert(0, os.path.join(ROOT, "scripts", "checkers"))
 
-import check_wiring  # noqa: E402
+import check_wiring  # noqa: E402  # sys.path bootstrap
 
 
 def _mod(tmp_path, rel, text):
@@ -57,13 +58,11 @@ def _mod(tmp_path, rel, text):
 
 
 def _orphans(tmp_path, cand, prod):
-    return {n for _m, n, _l in
-            check_wiring.unwired_functions(cand, prod, root=str(tmp_path))}
+    return {n for _m, n, _l in check_wiring.unwired_functions(cand, prod, root=str(tmp_path))}
 
 
 def test_e1_all_beside_the_function_is_not_evidence(tmp_path):
-    lib = _mod(tmp_path, "core/comm/bus.py",
-               "def dead_fn():\n    return 1\n\n__all__ = [\"dead_fn\"]\n")
+    lib = _mod(tmp_path, "core/comm/bus.py", 'def dead_fn():\n    return 1\n\n__all__ = ["dead_fn"]\n')
     door = _mod(tmp_path, "agent_cli.py", "from core.comm import bus\nprint(bus)\n")
     assert "dead_fn" in _orphans(tmp_path, [lib], [door, lib])
 
@@ -72,28 +71,28 @@ def test_e2_all_in_the_package_init_is_not_evidence(tmp_path):
     """THE RELOCATION. T144 closed E1 and this reopened it one file up -- in the single most
     idiomatic place a Python package puts an export list."""
     lib = _mod(tmp_path, "core/comm/bus.py", "def dead_via_pkg_init():\n    return 1\n")
-    init = _mod(tmp_path, "core/comm/__init__.py",
-                "__all__ = [\"dead_via_pkg_init\"]\n")
+    init = _mod(tmp_path, "core/comm/__init__.py", '__all__ = ["dead_via_pkg_init"]\n')
     door = _mod(tmp_path, "agent_cli.py", "from core.comm import bus\nprint(bus)\n")
     assert "dead_via_pkg_init" in _orphans(tmp_path, [lib], [door, init, lib]), (
         "moving __all__ into the package __init__ restored full immunity, because __init__.py "
-        "satisfies the cross-module test")
+        "satisfies the cross-module test"
+    )
 
 
 def test_e3_a_non_all_string_in_another_module_still_counts(tmp_path):
     """getattr dispatch is real wiring. The exclusion must bite __all__, not strings."""
     lib = _mod(tmp_path, "core/comm/verbs.py", "def promote(x):\n    return x\n")
-    door = _mod(tmp_path, "agent_cli.py",
-                "from core.comm import verbs\nfn = getattr(verbs, 'promote')\nfn(1)\n")
+    door = _mod(tmp_path, "agent_cli.py", "from core.comm import verbs\nfn = getattr(verbs, 'promote')\nfn(1)\n")
     assert "promote" not in _orphans(tmp_path, [lib], [door, lib])
 
 
 def test_e4_a_same_module_call_still_counts(tmp_path):
-    lib = _mod(tmp_path, "core/comm/mailbox.py",
-               "def catch_up(ns):\n    return 1\n\n"
-               "def consume(ns):\n    return catch_up(ns)\n")
-    door = _mod(tmp_path, "agent_cli.py",
-                "from core.comm.mailbox import consume\nconsume('ns')\n")
+    lib = _mod(
+        tmp_path,
+        "core/comm/mailbox.py",
+        "def catch_up(ns):\n    return 1\n\ndef consume(ns):\n    return catch_up(ns)\n",
+    )
+    door = _mod(tmp_path, "agent_cli.py", "from core.comm.mailbox import consume\nconsume('ns')\n")
     assert "catch_up" not in _orphans(tmp_path, [lib], [door, lib])
 
 
@@ -101,8 +100,9 @@ def test_e5_a_string_list_that_is_not_all_still_counts(tmp_path):
     """The exclusion is narrow: only the name `__all__`. A genuine dispatch table of strings in
     another module is still evidence, because something reads it."""
     lib = _mod(tmp_path, "core/comm/verbs.py", "def promote(x):\n    return x\n")
-    door = _mod(tmp_path, "agent_cli.py",
-                "from core.comm import verbs\n"
-                "HANDLERS = ['promote']\n"
-                "for h in HANDLERS:\n    getattr(verbs, h)(1)\n")
+    door = _mod(
+        tmp_path,
+        "agent_cli.py",
+        "from core.comm import verbs\nHANDLERS = ['promote']\nfor h in HANDLERS:\n    getattr(verbs, h)(1)\n",
+    )
     assert "promote" not in _orphans(tmp_path, [lib], [door, lib])

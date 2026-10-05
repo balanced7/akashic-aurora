@@ -28,14 +28,16 @@ THE TWO WAYS THIS INSTRUMENT COULD LIE TO US, and they are what K2 and K4 exist 
 
 Run: py -m pytest tests/test_t184_llm_player_cannot_flatter_itself.py -q
 """
+
 import os
 import sys
 import textwrap
+from typing import ClassVar
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from scripts import season_llm_player as P  # noqa: E402
+from scripts import season_llm_player as P  # noqa: E402  # sys.path bootstrap
 
 
 def _tree(tmp_path, files: dict):
@@ -48,26 +50,31 @@ def _tree(tmp_path, files: dict):
 
 def _candidates_over(monkeypatch, tmp_path, files):
     targets = _tree(tmp_path, files)
-    monkeypatch.setattr("scripts.canary_oracle._resolve_universe",
-                        lambda root: (targets, "test"))
-    return {c["name"]: c for c in P.candidates(str(tmp_path))}
+    monkeypatch.setattr("scripts.canary_oracle._resolve_universe", lambda root: (targets, "test"))
+    cands = P.candidates(str(tmp_path))
+    assert isinstance(cands, list)
+    return {c["name"]: c for c in cands}
 
 
 def test_k1_low_reference_functions_are_kept_and_popular_ones_dropped(monkeypatch, tmp_path):
-    got = _candidates_over(monkeypatch, tmp_path, {
-        "a.py": """
+    got = _candidates_over(
+        monkeypatch,
+        tmp_path,
+        {
+            "a.py": """
             def lonely_one():
                 return 1
 
             def popular():
                 return 2
         """,
-        "b.py": """
+            "b.py": """
             from core.a import popular
             popular()
             popular()
         """,
-    })
+        },
+    )
     assert "lonely_one" in got, "a name that occurs once must reach the player"
     assert "popular" not in got, "a well-referenced function is not a candidate"
 
@@ -76,34 +83,43 @@ def test_k2_a_call_shaped_second_reference_is_NOT_filtered_out(monkeypatch, tmp_
     """THE FLATTERY PIN. Dropping call-shaped references would look like a sensible narrowing
     and would silently remove every bait canary, scoring the player high on a test it was never
     shown. Bait must reach the player and the player must reject it on its own judgment."""
-    got = _candidates_over(monkeypatch, tmp_path, {
-        "bait.py": """
+    got = _candidates_over(
+        monkeypatch,
+        tmp_path,
+        {
+            "bait.py": """
             def looks_dead():
                 return 3
 
 
             _USED = looks_dead()
         """,
-        "registered.py": """
+            "registered.py": """
             def never_invoked():
                 return 2
 
 
             _HANDLERS = [never_invoked]
         """,
-    })
+        },
+    )
     assert "looks_dead" in got, (
         "bait (def + a real call) MUST be shown to the player -- filtering it out deletes the "
-        "precision test and buys a good score by not asking the question")
+        "precision test and buys a good score by not asking the question"
+    )
     assert "never_invoked" in got, "the registered-never-invoked shape must be shown too"
     assert "_USED = looks_dead()" in got["looks_dead"]["window"], (
-        "and the window must actually contain the evidence the verdict turns on")
+        "and the window must actually contain the evidence the verdict turns on"
+    )
 
 
 def test_k3_prose_contributes_nothing_rather_than_a_guess():
-    good = P._parse('{"name": "a", "verdict": "DEAD", "why": "never called"}\n'
-                    '{"name": "b", "verdict": "LIVE", "why": "called below"}')
-    assert good["a"]["verdict"] == "DEAD" and good["b"]["verdict"] == "LIVE"
+    good = P._parse(
+        '{"name": "a", "verdict": "DEAD", "why": "never called"}\n'
+        '{"name": "b", "verdict": "LIVE", "why": "called below"}'
+    )
+    assert good["a"]["verdict"] == "DEAD"
+    assert good["b"]["verdict"] == "LIVE"
     assert P._parse("I think function a might be dead, but honestly it is hard to say.") == {}
     assert P._parse('{"name": "c", "verdict": "MAYBE"}') == {}, "only DEAD/LIVE are verdicts"
     assert P._parse(None) == {}
@@ -111,9 +127,16 @@ def test_k3_prose_contributes_nothing_rather_than_a_guess():
 
 def _fake_fan(monkeypatch, branches):
     """Stand in for ask_many with a scripted set of branch results."""
+
     class _O:
-        detail = {"branches": branches, "n_ok": sum(1 for b in branches if b["ok"]),
-                  "n": len(branches), "usd": 0.01, "elapsed_s": 1.0}
+        detail: ClassVar[dict] = {
+            "branches": branches,
+            "n_ok": sum(1 for b in branches if b["ok"]),
+            "n": len(branches),
+            "usd": 0.01,
+            "elapsed_s": 1.0,
+        }
+
     monkeypatch.setattr("core.comm.ask.ask_many", lambda *a, **k: _O())
 
 
@@ -129,17 +152,24 @@ def test_k4_unmentioned_candidates_are_UNJUDGED_never_LIVE(monkeypatch, tmp_path
     assert rep["verdicts_returned"] == 1
     assert rep["unjudged"] == 3, (
         "three candidates were never mentioned; counting them as LIVE would make a truncated "
-        "round look like a clean sweep")
+        "round look like a clean sweep"
+    )
 
 
 def test_k5_a_dead_branch_shrinks_coverage_visibly(monkeypatch, tmp_path):
     files = {f"f{i}.py": f"def fn_{i}():\n    return {i}\n" for i in range(2)}
     targets = _tree(tmp_path, files)
     monkeypatch.setattr("scripts.canary_oracle._resolve_universe", lambda root: (targets, "test"))
-    _fake_fan(monkeypatch, [{"ok": False, "answer": None, "why": "length ceiling"},
-                            {"ok": True, "answer": '{"name": "fn_1", "verdict": "DEAD"}'}])
+    _fake_fan(
+        monkeypatch,
+        [
+            {"ok": False, "answer": None, "why": "length ceiling"},
+            {"ok": True, "answer": '{"name": "fn_1", "verdict": "DEAD"}'},
+        ],
+    )
     dead, rep = P.llm_player(str(tmp_path), batch_size=1)
-    assert rep["branches_ok"] == 1 and rep["branches"] == 2, "the loss must be on the report"
+    assert rep["branches_ok"] == 1, "the loss must be on the report"
+    assert rep["branches"] == 2, "the loss must be on the report"
     assert dead == ["fn_1"]
 
 
@@ -150,33 +180,39 @@ def test_k7_a_name_in_a_string_is_not_a_code_reference(monkeypatch, tmp_path):
     round scored that as the player correctly DECLINING them. Restraint and blindness rendered
     identically. Discounting quoted hits is also the semantically right rule: a bare name inside
     a string is exactly the false wiring signal the A5 class is built from."""
-    got = _candidates_over(monkeypatch, tmp_path, {
-        "dispatch.py": """
+    got = _candidates_over(
+        monkeypatch,
+        tmp_path,
+        {
+            "dispatch.py": """
             def string_dispatched():
                 return 1
 
 
             _DISPATCH = {"string_dispatched": string_dispatched}
         """,
-    })
+        },
+    )
     assert "string_dispatched" in got, (
         "the def, the quoted key and the value are three raw occurrences but only TWO code "
-        "references; a filter that cannot tell them apart hides this canary class entirely")
+        "references; a filter that cannot tell them apart hides this canary class entirely"
+    )
 
 
 def test_k8_the_filter_reports_what_it_never_showed_the_model(monkeypatch, tmp_path):
     """A candidate the pre-pass dropped was not judged LIVE and was not DECLINED -- it was
     UNSEEN. An adjudicator that cannot distinguish those scores blindness as restraint."""
-    files = {"a.py": "def kept():\n    return 1\n",
-             "b.py": "def popular():\n    return 2\n",
-             "c.py": "from core.b import popular\npopular()\npopular()\npopular()\n"}
+    files = {
+        "a.py": "def kept():\n    return 1\n",
+        "b.py": "def popular():\n    return 2\n",
+        "c.py": "from core.b import popular\npopular()\npopular()\npopular()\n",
+    }
     targets = _tree(tmp_path, files)
     monkeypatch.setattr("scripts.canary_oracle._resolve_universe", lambda root: (targets, "test"))
     _fake_fan(monkeypatch, [{"ok": True, "answer": '{"name": "kept", "verdict": "DEAD"}'}])
     _dead, rep = P.llm_player(str(tmp_path), batch_size=99)
     assert rep["excluded_by_filter"] >= 1
-    assert "popular" in rep["excluded_names"], (
-        "the round must be able to say WHICH candidates the player never saw")
+    assert "popular" in rep["excluded_names"], "the round must be able to say WHICH candidates the player never saw"
 
 
 def test_k9_the_canary_fixtures_no_longer_state_their_own_answers():
@@ -185,6 +221,7 @@ def test_k9_the_canary_fixtures_no_longer_state_their_own_answers():
     first LLM player's correct verdict quoted one of them verbatim. A harness that grades on
     label-reading measures reading, not analysis."""
     from scripts import canary_oracle as C
+
     for pool in (C._CATCHABLE, C._UNDETECTABLE, C._BAIT):
         for tmpl, _shape in pool:
             assert '"""Helper."""' in tmpl, f"template still self-describes: {tmpl[:70]!r}"
@@ -198,8 +235,9 @@ def test_k6_only_dead_verdicts_become_claims(monkeypatch, tmp_path):
     files = {"f.py": "def alpha():\n    return 1\n\n\ndef beta():\n    return 2\n"}
     targets = _tree(tmp_path, files)
     monkeypatch.setattr("scripts.canary_oracle._resolve_universe", lambda root: (targets, "test"))
-    _fake_fan(monkeypatch, [{"ok": True, "answer":
-                             '{"name": "alpha", "verdict": "LIVE"}\n'
-                             '{"name": "beta", "verdict": "DEAD"}'}])
+    _fake_fan(
+        monkeypatch,
+        [{"ok": True, "answer": '{"name": "alpha", "verdict": "LIVE"}\n{"name": "beta", "verdict": "DEAD"}'}],
+    )
     dead, _rep = P.llm_player(str(tmp_path), batch_size=99)
     assert dead == ["beta"], "a LIVE verdict is not a claim, and neither is silence"

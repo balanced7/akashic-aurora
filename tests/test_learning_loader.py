@@ -4,8 +4,9 @@ Tests for context.learning_loader — the Ranker surfacing LearningStore records
 Run: py tests/test_learning_loader.py
 """
 
-import sys
+import datetime as _dt
 import os
+import sys
 import tempfile
 
 # Isolate: AI_SETUP -> temp so the LearningStore does NOT import the real legacy
@@ -14,37 +15,62 @@ os.environ["AI_SETUP"] = tempfile.mkdtemp()
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from core.context.learning_loader import load_learnings_ranked_by_relevance
 from core.foundation.store import FileStore
 from core.learning.learning_store import LearningStore
-from core.context.learning_loader import load_learnings_ranked_by_relevance
 
 NOW = 1_750_000_000.0
 DAY = 86400.0
-import datetime as _dt
-def _iso(ts): return _dt.datetime.utcfromtimestamp(ts).isoformat()
+
+
+def _iso(ts):
+    return _dt.datetime.utcfromtimestamp(ts).isoformat()
 
 
 def _seeded_store():
     store = LearningStore(store=FileStore(os.path.join(tempfile.mkdtemp(), "ll.json")))
     # relevant + high-confidence + recent -> should top the list
-    store.record_learning({"experiment_name": "comfyui_install", "category": "vision",
-        "what_tried": "install ComfyUI custom nodes", "recommendation": "use the manager",
-        "success": "yes", "confidence": "high", "timestamp": _iso(NOW)})
+    store.record_learning(
+        {
+            "experiment_name": "comfyui_install",
+            "category": "vision",
+            "what_tried": "install ComfyUI custom nodes",
+            "recommendation": "use the manager",
+            "success": "yes",
+            "confidence": "high",
+            "timestamp": _iso(NOW),
+        }
+    )
     # relevant but low-confidence + old
-    store.record_learning({"experiment_name": "comfyui_old", "category": "vision",
-        "what_tried": "manual ComfyUI node install", "recommendation": "avoid manual",
-        "success": "no", "confidence": "low", "timestamp": _iso(NOW - 90 * DAY)})
+    store.record_learning(
+        {
+            "experiment_name": "comfyui_old",
+            "category": "vision",
+            "what_tried": "manual ComfyUI node install",
+            "recommendation": "avoid manual",
+            "success": "no",
+            "confidence": "low",
+            "timestamp": _iso(NOW - 90 * DAY),
+        }
+    )
     # irrelevant (different topic)
-    store.record_learning({"experiment_name": "nginx_setup", "category": "infra",
-        "what_tried": "configure nginx", "recommendation": "use reverse proxy",
-        "success": "yes", "confidence": "high", "timestamp": _iso(NOW)})
+    store.record_learning(
+        {
+            "experiment_name": "nginx_setup",
+            "category": "infra",
+            "what_tried": "configure nginx",
+            "recommendation": "use reverse proxy",
+            "success": "yes",
+            "confidence": "high",
+            "timestamp": _iso(NOW),
+        }
+    )
     return store
 
 
 def test_surfaces_relevant_ranked():
     store = _seeded_store()
-    out = load_learnings_ranked_by_relevance("install comfyui", top_k=3,
-                                            learning_store=store, now=NOW)
+    out = load_learnings_ranked_by_relevance("install comfyui", top_k=3, learning_store=store, now=NOW)
     assert out, "should return ranked learnings"
     assert out[0]["source"] == "comfyui_install", f"most relevant+confident+recent first, got {out[0]}"
     # the irrelevant nginx learning should rank below the relevant comfyui ones
@@ -60,7 +86,7 @@ def test_source_pointers_present():
     assert all(r["source"] for r in out), "every entry must carry a source pointer (lossy+pointer rule)"
     # the pointer must resolve back to the full record in the store
     full = store.load_all_learnings_from_store()
-    names = {l["experiment_name"] for l in full}
+    names = {lesson["experiment_name"] for lesson in full}
     assert all(r["source"] in names for r in out), "source must resolve to a real record"
     print("\n--- source pointers ---\n  every entry traceable back to LearningStore OK")
 

@@ -35,6 +35,7 @@ before" is the more comfortable answer and therefore the one that will rot first
 
 Run: py -m pytest tests/test_t208_whose_failure.py -q
 """
+
 import os
 import sys
 
@@ -42,7 +43,7 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.coord import suite_baseline as SB  # noqa: E402
+from core.coord import suite_baseline as SB
 
 
 @pytest.fixture
@@ -53,10 +54,21 @@ def baseline(tmp_path, monkeypatch):
 
     def _write(sha, nodes):
         import json
-        path.write_text(json.dumps({
-            "v": 1, "sha": sha, "seat": "claude", "at": "2026-07-24T00:14:40",
-            "failures": [{"node": n, "lane": ""} for n in nodes],
-            "claims_at_snapshot": {}}), encoding="utf-8")
+
+        path.write_text(
+            json.dumps(
+                {
+                    "v": 1,
+                    "sha": sha,
+                    "seat": "claude",
+                    "at": "2026-07-24T00:14:40",
+                    "failures": [{"node": n, "lane": ""} for n in nodes],
+                    "claims_at_snapshot": {},
+                }
+            ),
+            encoding="utf-8",
+        )
+
     return _write
 
 
@@ -141,7 +153,7 @@ def test_a_subset_run_never_calls_unrun_tests_fixed(baseline, monkeypatch):
     another: the same shape as every other defect in this arc."""
     baseline("abc1234", ["tests/a.py::old", "tests/c.py::never_ran"])
     monkeypatch.setattr(SB, "head_sha", lambda: "abc1234")
-    v = SB.verdicts(["tests/a.py::old"])          # subset: full_suite defaults False
+    v = SB.verdicts(["tests/a.py::old"])  # subset: full_suite defaults False
     assert v["fixed"] == [], "a subset run cannot prove anything was fixed"
     assert v["not_evaluated"] == ["tests/c.py::never_ran"]
     assert v["full_suite"] is False

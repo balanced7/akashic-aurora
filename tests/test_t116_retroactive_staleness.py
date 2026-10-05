@@ -43,8 +43,6 @@ for everyone else, and it says which of the two answered.
 import os
 import sys
 
-import pytest
-
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.comm import runtime_age
@@ -53,18 +51,15 @@ from core.comm import runtime_age
 # --------------------------------------------------------------- P1
 def test_p1_an_old_process_reports_the_commits_it_cannot_contain():
     """deepseek's runner, live: started 04:38:49 while HEAD landed 05:51:27."""
-    got = runtime_age.describe(pid=1234, started_at="2000-01-01T00:00:00+00:00",
-                               stamped_sha="")
-    assert got["commits_behind"] > 0, (
-        f"a process from the year 2000 must report commits it cannot contain: {got}")
+    got = runtime_age.describe(pid=1234, started_at="2000-01-01T00:00:00+00:00", stamped_sha="")
+    assert got["commits_behind"] > 0, f"a process from the year 2000 must report commits it cannot contain: {got}"
     assert got["state"] == "stale", got
 
 
 # --------------------------------------------------------------- P2
 def test_p2_a_fresh_process_reports_zero():
     """No crying wolf. This arc has spent all night on what false pages cost."""
-    got = runtime_age.describe(pid=1234, started_at="2099-01-01T00:00:00+00:00",
-                               stamped_sha="")
+    got = runtime_age.describe(pid=1234, started_at="2099-01-01T00:00:00+00:00", stamped_sha="")
     assert got["commits_behind"] == 0, f"a future-dated process is not behind: {got}"
     assert got["state"] == "current", got
 
@@ -74,21 +69,21 @@ def test_p3_the_exact_stamp_wins_over_the_age_estimate():
     """Process age is an UPPER BOUND on what a process can contain; a self-reported
     sha is ground truth. A fallback that overrides evidence is not a fallback."""
     head = runtime_age.head_sha()
-    got = runtime_age.describe(pid=1234, started_at="2000-01-01T00:00:00+00:00",
-                               stamped_sha=head)
+    got = runtime_age.describe(pid=1234, started_at="2000-01-01T00:00:00+00:00", stamped_sha=head)
     assert got["state"] == "current", (
         f"an ancient process that STAMPED the current HEAD has been restarted into it "
-        f"-- or is running it some other way -- and the stamp is the better witness: {got}")
+        f"-- or is running it some other way -- and the stamp is the better witness: {got}"
+    )
     assert got["source"] == "stamp", got
 
 
 # --------------------------------------------------------------- P4
 def test_p4_the_answer_names_its_source():
-    by_age = runtime_age.describe(pid=1234, started_at="2000-01-01T00:00:00+00:00",
-                                  stamped_sha="")
+    by_age = runtime_age.describe(pid=1234, started_at="2000-01-01T00:00:00+00:00", stamped_sha="")
     assert by_age["source"] == "process_age", (
         f"'started before' and 'definitely running the wrong code' are different claims; "
-        f"the reader must be able to tell which one this is: {by_age}")
+        f"the reader must be able to tell which one this is: {by_age}"
+    )
 
 
 # --------------------------------------------------------------- P5
@@ -96,18 +91,20 @@ def test_p5_a_dead_or_unreadable_pid_is_unknown_never_stale():
     got = runtime_age.describe(pid=0, started_at="", stamped_sha="")
     assert got["state"] == "unknown", (
         f"absence of evidence gets its own word -- accusing a process we cannot read is "
-        f"how a real staleness report gets ignored: {got}")
+        f"how a real staleness report gets ignored: {got}"
+    )
     assert got["commits_behind"] == 0
 
 
 # --------------------------------------------------------------- P6
 def test_p6_never_raises_and_never_blocks(monkeypatch):
     """The doctor calls this on a hot path."""
+
     def _boom(*a, **k):
         raise RuntimeError("no such process, and the shell is on fire")
 
     monkeypatch.setattr(runtime_age, "_probe_start_time", _boom)
-    got = runtime_age.for_agent("nobody-home")          # must not raise
+    got = runtime_age.for_agent("nobody-home")  # must not raise
     assert got["state"] == "unknown", got
 
 
@@ -140,16 +137,17 @@ def test_p8_a_warm_fleet_probe_spawns_no_subprocess(monkeypatch):
     from core.comm import runtime_age as ra
 
     calls = []
-    monkeypatch.setattr(ra, "_probe_start_time",
-                        lambda pid: calls.append(pid) or "2026-07-28T04:00:00+00:00")
+    monkeypatch.setattr(ra, "_probe_start_time", lambda pid: calls.append(pid) or "2026-07-28T04:00:00+00:00")
     ra._START_CACHE.clear()
     first = ra.start_time(31337)
-    assert first and calls == [31337], "cold probe pays once"
+    assert first, "cold probe pays once"
+    assert calls == [31337], "cold probe pays once"
 
-    ra._START_CACHE.clear()                 # simulate a FRESH process (empty local cache)
+    ra._START_CACHE.clear()  # simulate a FRESH process (empty local cache)
     second = ra.start_time(31337)
     assert second == first, f"the cross-process cache must serve the value: {second!r}"
     assert calls == [31337], (
         f"FRESH PROCESS RE-PAID THE SUBPROCESS: {calls}. The door's probe child is "
         f"always fresh, so a per-process cache makes every boot pay ~1.5s per pid -- "
-        f"this is the regression that turned the door-gate RED.")
+        f"this is the regression that turned the door-gate RED."
+    )

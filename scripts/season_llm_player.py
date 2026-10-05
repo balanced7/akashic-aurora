@@ -31,6 +31,7 @@ keeps ~600 candidates for ~9 canaries, and it deliberately does NOT drop call-sh
 Dropping them would remove every bait canary from the player's view and quietly delete the
 precision test -- scoring high by never being shown the hard case.
 """
+
 import json
 import os
 import re
@@ -81,13 +82,15 @@ def candidates(shadow_root: str, *, with_excluded: bool = False):
     never shown instead of letting silence read as judgment (T187).
     """
     from scripts import canary_oracle as C
+
     files, _src = C._resolve_universe(shadow_root)
     files = [f for f in files if os.path.isfile(f)]
 
     texts = {}
     for f in files:
         try:
-            texts[f] = open(f, encoding="utf-8", errors="replace").read()
+            with open(f, encoding="utf-8", errors="replace") as fh:
+                texts[f] = fh.read()
         except OSError:
             continue
     blob = "\n".join(texts.values())
@@ -106,25 +109,25 @@ def candidates(shadow_root: str, *, with_excluded: bool = False):
             # canaries were never shown to the player and the round scored that as a correct
             # DECLINE. Discounting quoted hits is also the semantically right rule: a bare name
             # in a string is exactly the false wiring signal the A5 class is built from.
-            refs = (len(re.findall(rf"\b{esc}\b", blob))
-                    - len(re.findall(rf"""['"]{esc}['"]""", blob)))
+            refs = len(re.findall(rf"\b{esc}\b", blob)) - len(re.findall(rf"""['"]{esc}['"]""", blob))
             if refs > MAX_REFS:
                 excluded.append({"name": name, "refs": refs})
                 continue
-            ln = text[:m.start()].count("\n")
-            out.append({
-                "name": name,
-                "file": os.path.relpath(path, shadow_root).replace("\\", "/"),
-                "line": ln + 1,
-                "window": "\n".join(lines[max(0, ln - WINDOW_BEFORE): ln + WINDOW_AFTER]),
-            })
+            ln = text[: m.start()].count("\n")
+            out.append(
+                {
+                    "name": name,
+                    "file": os.path.relpath(path, shadow_root).replace("\\", "/"),
+                    "line": ln + 1,
+                    "window": "\n".join(lines[max(0, ln - WINDOW_BEFORE) : ln + WINDOW_AFTER]),
+                }
+            )
     return (out, excluded) if with_excluded else out
 
 
 def _batch_prompt(batch):
     parts = [_PROMPT_HEAD.format(n=len(batch))]
-    for c in batch:
-        parts.append(f"### {c['name']}   ({c['file']}:{c['line']})\n```python\n{c['window']}\n```\n")
+    parts.extend(f"### {c['name']}   ({c['file']}:{c['line']})\n```python\n{c['window']}\n```\n" for c in batch)
     return "\n".join(parts)
 
 
@@ -146,8 +149,7 @@ def _parse(answer):
     return verdicts
 
 
-def llm_player(shadow_root: str, *, batch_size: int = 20, workers: int = 6,
-               max_tokens: int = 9000, limit=None):
+def llm_player(shadow_root: str, *, batch_size: int = 20, workers: int = 6, max_tokens: int = 9000, limit=None):
     # 9000, not 4000. The smoke run lost a whole branch to the length ceiling and the surviving
     # branch returned 17 verdicts for 30 candidates: this is a reasoning model, and the thinking
     # is billed against the same budget as the answer. A truncated branch is not a quiet
@@ -158,13 +160,12 @@ def llm_player(shadow_root: str, *, batch_size: int = 20, workers: int = 6,
     cands, excluded = candidates(shadow_root, with_excluded=True)
     if limit:
         cands = cands[:limit]
-    batches = [cands[i:i + batch_size] for i in range(0, len(cands), batch_size)]
+    batches = [cands[i : i + batch_size] for i in range(0, len(cands), batch_size)]
 
-    o = ask_many([_batch_prompt(b) for b in batches], system=_SYSTEM,
-                 max_tokens=max_tokens, max_workers=workers)
+    o = ask_many([_batch_prompt(b) for b in batches], system=_SYSTEM, max_tokens=max_tokens, max_workers=workers)
 
     verdicts, judged = {}, 0
-    for b, branch in zip(batches, o.detail.get("branches", [])):
+    for b, branch in zip(batches, o.detail.get("branches", []), strict=False):
         if not branch.get("ok"):
             continue
         got = _parse(branch.get("answer"))
@@ -173,10 +174,14 @@ def llm_player(shadow_root: str, *, batch_size: int = 20, workers: int = 6,
 
     dead = sorted(n for n, v in verdicts.items() if v["verdict"] == "DEAD")
     return dead, {
-        "candidates": len(cands), "batches": len(batches),
-        "branches_ok": o.detail.get("n_ok"), "branches": o.detail.get("n"),
-        "usd": o.detail.get("usd"), "elapsed_s": o.detail.get("elapsed_s"),
-        "judged_shown": judged, "verdicts_returned": len(verdicts),
+        "candidates": len(cands),
+        "batches": len(batches),
+        "branches_ok": o.detail.get("n_ok"),
+        "branches": o.detail.get("n"),
+        "usd": o.detail.get("usd"),
+        "elapsed_s": o.detail.get("elapsed_s"),
+        "judged_shown": judged,
+        "verdicts_returned": len(verdicts),
         # T219: the NAME SETS score_v2 requires, not just their sizes. Both are host-derived
         # orchestration facts -- `candidates()` is a deterministic scan and `verdicts` is
         # what the parse actually recovered -- so K6 holds: the model never chooses its own
@@ -198,6 +203,7 @@ def llm_player(shadow_root: str, *, batch_size: int = 20, workers: int = 6,
 
 if __name__ == "__main__":
     import argparse
+
     ap = argparse.ArgumentParser(description="LLM player for the Season 1 bounty loop")
     ap.add_argument("shadow", nargs="?", default=ROOT)
     ap.add_argument("--batch-size", type=int, default=50)

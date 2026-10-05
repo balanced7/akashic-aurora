@@ -20,11 +20,15 @@ common case costs nothing and the hard case is still adaptive.
   classify_intent("also make sure to handle nulls")     -> {"intent": "steer", ...}
   classify_intent("what are you working on right now?")  -> {"intent": "ask",   ...}
 """
+
 from __future__ import annotations
 
 import json
 import re
-from typing import Any, Callable, Dict, Optional
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 HALT = "halt"
 STEER = "steer"
@@ -35,7 +39,9 @@ RESUME = "resume"
 _HALT_RE = re.compile(
     r"\b(stop|wait|hold\s+(?:on|up)|halt|abort|cancel|scrap|forget\s+it|never\s?mind|"
     r"no+|nope|don'?t|do\s+not|that'?s\s+wrong|it'?s\s+wrong|not\s+what|not\s+right|"
-    r"redo|revert|undo|start\s+over)\b", re.I)
+    r"redo|revert|undo|start\s+over)\b",
+    re.I,
+)
 # NB: 'instead'/'actually'/'wrong'/'back up' were dropped from the always-halt set -- they false-fire
 # on descriptive text ("...keep triggering INSTEAD of staying put" is a bug report, not a stop command).
 # Leading stop words -> near-certain halt (someone slamming the brakes types the verb first).
@@ -43,19 +49,25 @@ _HALT_LEAD_RE = re.compile(r"^\s*(stop|wait|hold|halt|no|nope|abort|cancel|don'?
 # Question form -> wants an answer, not a halt.
 _ASK_RE = re.compile(
     r"(\?\s*$)|^\s*(what|why|how|when|where|who|which|whose|are\s+you|is\s+(it|this|that)|"
-    r"can\s+you|could\s+you|would\s+you|did\s+you|do\s+you|have\s+you|status|explain|show\s+me)\b", re.I)
+    r"can\s+you|could\s+you|would\s+you|did\s+you|do\s+you|have\s+you|status|explain|show\s+me)\b",
+    re.I,
+)
 # Additive / refinement -> steer without stopping.
 _STEER_RE = re.compile(
     r"\b(also|and\s+also|additionally|plus|make\s+sure|ensure|fyi|note\s+that|nb|btw|"
     r"by\s+the\s+way|consider|keep\s+in\s+mind|remember\s+to|one\s+more|as\s+well|prefer|"
-    r"priorit(?:y|ise|ize)|make\s+it|can\s+you\s+also)\b", re.I)
+    r"priorit(?:y|ise|ize)|make\s+it|can\s+you\s+also)\b",
+    re.I,
+)
 # A bare resume command (the WHOLE message) -> unfreeze the agents, don't send it as chat.
-_RESUME_RE = re.compile(r"^\s*(resume|continue|unpause|go\s+on|keep\s+going|carry\s+on|proceed|"
-                        r"go\s+ahead|resume\s+work|go)\s*[.!]*\s*$", re.I)
+_RESUME_RE = re.compile(
+    r"^\s*(resume|continue|unpause|go\s+on|keep\s+going|carry\s+on|proceed|"
+    r"go\s+ahead|resume\s+work|go)\s*[.!]*\s*$",
+    re.I,
+)
 
 
-def classify_intent(text: Any, *, llm: Optional[Callable[[str], str]] = None,
-                    threshold: float = 0.55) -> Dict[str, Any]:
+def classify_intent(text: Any, *, llm: Callable[[str], str] | None = None, threshold: float = 0.55) -> dict[str, Any]:
     """Classify a human interjection as halt|steer|ask with a confidence and a one-line reason.
     Precedence HALT > ASK > STEER (a brake word dominates a refinement word). If `llm` is given and the
     heuristic is unsure (confidence < threshold), escalate to the model for a nuanced call."""
@@ -79,8 +91,12 @@ def classify_intent(text: Any, *, llm: Optional[Callable[[str], str]] = None,
     elif steer:
         verdict = {"intent": STEER, "confidence": 0.76, "why": "additive / refinement signal", "source": "heuristic"}
     else:
-        verdict = {"intent": STEER, "confidence": 0.40, "why": "no strong signal -> default steer (don't halt unbidden)",
-                   "source": "heuristic"}
+        verdict = {
+            "intent": STEER,
+            "confidence": 0.40,
+            "why": "no strong signal -> default steer (don't halt unbidden)",
+            "source": "heuristic",
+        }
 
     if llm is not None and verdict["confidence"] < threshold:
         refined = _llm_classify(t, llm)
@@ -102,20 +118,25 @@ def should_resume(intent: str) -> bool:
 _LLM_PROMPT = (
     "Classify this human interjection into a live AI work session as exactly one of: "
     "halt (stop/redirect the work now), steer (add guidance, keep working), ask (answer a question, "
-    "keep working). Reply ONLY as compact JSON: {\"intent\":\"halt|steer|ask\",\"why\":\"<=8 words\"}.\n\n"
-    "Message: ")
+    'keep working). Reply ONLY as compact JSON: {"intent":"halt|steer|ask","why":"<=8 words"}.\n\n'
+    "Message: "
+)
 
 
-def _llm_classify(text: str, llm: Callable[[str], str]) -> Optional[Dict[str, Any]]:
+def _llm_classify(text: str, llm: Callable[[str], str]) -> dict[str, Any] | None:
     """Escalate an ambiguous message to a cheap model. `llm(prompt) -> str` (JSON). Fail-soft -> None."""
     try:
         raw = llm(_LLM_PROMPT + text)
         start, end = raw.find("{"), raw.rfind("}")
-        obj = json.loads(raw[start:end + 1]) if start >= 0 and end > start else {}
+        obj = json.loads(raw[start : end + 1]) if start >= 0 and end > start else {}
         intent = str(obj.get("intent", "")).lower().strip()
         if intent in (HALT, STEER, ASK):
-            return {"intent": intent, "confidence": 0.85,
-                    "why": str(obj.get("why", "model call"))[:60], "source": "llm"}
+            return {
+                "intent": intent,
+                "confidence": 0.85,
+                "why": str(obj.get("why", "model call"))[:60],
+                "source": "llm",
+            }
     except Exception:
         pass
     return None

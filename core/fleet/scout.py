@@ -35,11 +35,12 @@ addressing scheme), cold-twin sampling and rate rendering (RC2/T291), and any wr
 capability at all -- the scout is read-only by charter, and the one thing it writes is
 its own verdict, which is a record about itself.
 """
+
 from __future__ import annotations
 
 import time
 import uuid
-from typing import Any, Dict, Optional, Tuple
+from typing import Any
 
 SCOUT_ROLE = "Scout"
 
@@ -63,8 +64,7 @@ def _section(title: str, rows) -> str:
     return f"## {title}\n{body}"
 
 
-def build_pack(*, for_wearer: str = "", done_limit: int = 12,
-               memory_limit: int = 12) -> Tuple[str, Dict[str, Any]]:
+def build_pack(*, for_wearer: str = "", done_limit: int = 12, memory_limit: int = 12) -> tuple[str, dict[str, Any]]:
     """The scout's world, rebuilt from live sources -- never cached, never curated.
 
     Returns (text, meta). meta["sections"] carries a count per section so the surface
@@ -74,22 +74,24 @@ def build_pack(*, for_wearer: str = "", done_limit: int = 12,
     pack's CONTENT is deliberately identical for every wearer -- that is what makes the
     role's knowledge the role's.
     """
-    sections: Dict[str, int] = {}
+    sections: dict[str, int] = {}
     parts = []
 
     # IN FLIGHT + RECENTLY DONE -- the ledger, read the way the conductor reads it.
     try:
         from core.coord.task_ledger import read_ledger
+
         tasks = (read_ledger() or {}).get("tasks") or []
         inflight = [t for t in tasks if t.get("status") in ("claimed", "verifying")]
-        done = [t for t in tasks if t.get("status") == "done"][-max(0, int(done_limit)):]
-        inf_rows = [f"{t.get('id')} [{t.get('status')}] owner={t.get('owner') or '?'} -- "
-                    f"{' '.join(str(t.get('title') or '').split())[:110]}" for t in inflight]
-        done_rows = [f"{t.get('id')} [done] -- "
-                     f"{' '.join(str(t.get('title') or '').split())[:110]}" for t in done]
+        done = [t for t in tasks if t.get("status") == "done"][-max(0, int(done_limit)) :]
+        inf_rows = [
+            f"{t.get('id')} [{t.get('status')}] owner={t.get('owner') or '?'} -- "
+            f"{' '.join(str(t.get('title') or '').split())[:110]}"
+            for t in inflight
+        ]
+        done_rows = [f"{t.get('id')} [done] -- {' '.join(str(t.get('title') or '').split())[:110]}" for t in done]
         parts.append(_section("IN FLIGHT (claimed/verifying -- someone is HERE)", inf_rows))
-        parts.append(_section(f"RECENTLY DONE (last {done_limit} -- closed, never redo)",
-                              done_rows))
+        parts.append(_section(f"RECENTLY DONE (last {done_limit} -- closed, never redo)", done_rows))
         sections["in_flight"] = len(inf_rows)
         sections["recently_done"] = len(done_rows)
     except Exception as e:
@@ -100,9 +102,12 @@ def build_pack(*, for_wearer: str = "", done_limit: int = 12,
     # LIVE LOCKS -- who holds what right now, with the WHY the holder recorded.
     try:
         from core.comm.locks import LockManager
+
         lks = LockManager("scout_pack").list_locks() or []
-        lk_rows = [f"{lk.get('path')} held by {lk.get('agent')}"
-                   + (f" -- {lk.get('note')}" if lk.get("note") else "") for lk in lks]
+        lk_rows = [
+            f"{lk.get('path')} held by {lk.get('agent')}" + (f" -- {lk.get('note')}" if lk.get("note") else "")
+            for lk in lks
+        ]
         parts.append(_section("LIVE LOCKS (advisory -- a held path is a busy area)", lk_rows))
         sections["locks"] = len(lk_rows)
     except Exception as e:
@@ -112,9 +117,11 @@ def build_pack(*, for_wearer: str = "", done_limit: int = 12,
     # SCOUT MEMORY -- the role's own record, whoever wore it (H-C3: role-scoped).
     try:
         from core.fleet.verdicts import verdicts
-        mem = verdicts(role=SCOUT_ROLE)[-max(0, int(memory_limit)):]
-        mem_rows = [f"{v.get('ask_id')} [{v.get('question_shape')}] by {v.get('agent_id')}"
-                    f" -- {v.get('gist')}" for v in mem]
+
+        mem = verdicts(role=SCOUT_ROLE)[-max(0, int(memory_limit)) :]
+        mem_rows = [
+            f"{v.get('ask_id')} [{v.get('question_shape')}] by {v.get('agent_id')} -- {v.get('gist')}" for v in mem
+        ]
         parts.append(_section("SCOUT MEMORY (this role's past verdicts, any wearer)", mem_rows))
         sections["scout_memory"] = len(mem_rows)
     except Exception as e:
@@ -125,9 +132,16 @@ def build_pack(*, for_wearer: str = "", done_limit: int = 12,
     return "\n\n".join(parts), meta
 
 
-def scout_ask(question: str, *, wearer: str = "deepseek", by: str = "claude",
-              blind: bool = False, question_shape: str = "descriptive",
-              client=None, model: Optional[str] = None) -> Dict[str, Any]:
+def scout_ask(
+    question: str,
+    *,
+    wearer: str = "deepseek",
+    by: str = "claude",
+    blind: bool = False,
+    question_shape: str = "descriptive",
+    client=None,
+    model: str | None = None,
+) -> dict[str, Any]:
     """One door: wear the role, read the world, answer, file the verdict.
 
     Resident tier by default (the wearer's own archive rides via T261); blind=True runs
@@ -149,22 +163,32 @@ def scout_ask(question: str, *, wearer: str = "deepseek", by: str = "claude",
         # already a verdict record. Re-assigning per ask would flood the role log with
         # events that decide nothing (the T267 "records deciding nothing" smell).
         from core.fleet import residents as R
+
         cur = R.current_role(wearer)
         if not cur or cur.get("role") != SCOUT_ROLE:
             R.assign(agent=wearer, role=SCOUT_ROLE, by=by)
 
-    o = ask_mod.ask(question, system=CHARTER + "\n" + pack_text, client=client,
-                    model=model, as_resident=(None if blind else wearer))
+    o = ask_mod.ask(
+        question, system=CHARTER + "\n" + pack_text, client=client, model=model, as_resident=(None if blind else wearer)
+    )
     answer = str((o.detail or {}).get("answer") or "")
 
     # uuid4, not a counter: minting by counting-up is the T227 collision class, and the
     # verdict plane's dedup makes a collision a REFUSAL, so the id must be born unique.
     ask_id = f"scout-{uuid.uuid4().hex[:12]}"
-    V.file_verdict(agent=("blind" if blind else wearer), ask_id=ask_id,
-                   question_shape=question_shape,
-                   gist=answer or "(no answer -- ask failed)",
-                   role=SCOUT_ROLE)
+    V.file_verdict(
+        agent=("blind" if blind else wearer),
+        ask_id=ask_id,
+        question_shape=question_shape,
+        gist=answer or "(no answer -- ask failed)",
+        role=SCOUT_ROLE,
+    )
 
-    return {"answer": answer, "ask_id": ask_id, "ok": bool(o.ok),
-            "tier": ("blind" if blind else "resident"), "pack_meta": meta,
-            "why": ("" if o.ok else str(getattr(o, "why", "") or ""))}
+    return {
+        "answer": answer,
+        "ask_id": ask_id,
+        "ok": bool(o.ok),
+        "tier": ("blind" if blind else "resident"),
+        "pack_meta": meta,
+        "why": ("" if o.ok else str(getattr(o, "why", "") or "")),
+    }

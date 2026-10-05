@@ -22,6 +22,7 @@ therefore it HALTS the whole run loudly -- the checker-shaped refusal, not a gue
 Both modes classify EVERY authority-side key first; any unknown non-ephemeral
 family halts before a single write (see ReconcileHalt).
 """
+
 from __future__ import annotations
 
 import argparse
@@ -30,7 +31,8 @@ import os
 import sys
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
+
 
 def _repo_root_str() -> str:
     """AI_SETUP override, else the root DERIVED from this file (core/paths).
@@ -40,8 +42,10 @@ def _repo_root_str() -> str:
     every call here silently used that literal and the repo only ran from one
     directory on one disk.
     """
-    from core.paths import root_str
     import os as _os
+
+    from core.paths import root_str
+
     return (_os.getenv("AI_SETUP") or "").strip() or root_str()
 
 
@@ -57,7 +61,7 @@ def _repo_root_str() -> str:
 #                      action here, no halt.
 #   structure "hash"/"kv": the family's declared shape (anomalies reported).
 #   structure "auto":  mixed shapes under one family; probe per key.
-ROSTER: Dict[str, Tuple[str, Optional[str]]] = {
+ROSTER: dict[str, tuple[str, str | None]] = {
     # census 2026-07-28: Redis 540 / SQLite 455 / File 23 -- Redis is recovery source
     "learn:experiment": ("redis", "hash"),
     # category indexes + experiments:all list -- projections but load-bearing (the
@@ -95,7 +99,7 @@ class ReconcileHalt(SystemExit):
     """Raised (before any write) when a family no one has ruled on shows up."""
 
 
-def _roster_family(key: str) -> Optional[str]:
+def _roster_family(key: str) -> str | None:
     """Longest ROSTER prefix that matches on a ':' boundary, else None. Family depth
     is namespace-specific (learn:experiment:NAME is a two-segment family; an
     artifact:art_... atom is a one-segment family), so matching is against the
@@ -117,17 +121,18 @@ def _report_family(key: str) -> str:
 def _is_ephemeral(key: str) -> bool:
     try:
         from core.comm.packet_spec import is_ephemeral_key
+
         return bool(is_ephemeral_key(key))
     except Exception:
         return False
 
 
-def _classify(authority_store) -> Tuple[Dict[str, List[str]], Dict[str, int]]:
+def _classify(authority_store) -> tuple[dict[str, list[str]], dict[str, int]]:
     """(rostered redis-authoritative family -> keys, unknown family -> key count).
     Ephemeral and file-authoritative keys drop out here; unknowns are counted per
     first-segment group, never guessed at."""
-    per_family: Dict[str, List[str]] = {}
-    unknown: Dict[str, int] = {}
+    per_family: dict[str, list[str]] = {}
+    unknown: dict[str, int] = {}
     for key in authority_store.keys("*"):
         if _is_ephemeral(key):
             continue
@@ -141,14 +146,15 @@ def _classify(authority_store) -> Tuple[Dict[str, List[str]], Dict[str, int]]:
     return per_family, unknown
 
 
-def _halt(unknown: Dict[str, int]) -> "ReconcileHalt":
+def _halt(unknown: dict[str, int]) -> ReconcileHalt:
     shown = sorted(unknown.items(), key=lambda kv: -kv[1])
     head = ", ".join(f"{fam} ({n} key(s))" for fam, n in shown[:20])
     more = f" +{len(shown) - 20} more group(s)" if len(shown) > 20 else ""
     return ReconcileHalt(
         f"[reconcile] HALT: {len(shown)} unrostered family group(s) on the authority "
         f"side: {head}{more}. Rule on each in ROSTER (with a census receipt) or add "
-        f"it to the ephemeral roster; nothing was written.")
+        f"it to the ephemeral roster; nothing was written."
+    )
 
 
 def _quiet(fn, default):
@@ -161,7 +167,7 @@ def _quiet(fn, default):
         return default
 
 
-def _probe(store, key) -> Tuple[Optional[str], Any]:
+def _probe(store, key) -> tuple[str | None, Any]:
     """(structure, value) for whatever this key holds on this store; (None, None)
     when empty everywhere. Store-agnostic: probes the five structure verbs rather
     than trusting any backend's private type table."""
@@ -179,11 +185,11 @@ def _probe(store, key) -> Tuple[Optional[str], Any]:
         return "set", sorted(s)
     z = _quiet(lambda: store.zrange(key, 0, -1, withscores=True), [])
     if z:
-        return "zset", {m: sc for m, sc in z}
+        return "zset", dict(z)
     return None, None
 
 
-def _read_source(authority_store, fam: str, key: str) -> Tuple[Optional[str], Any, bool]:
+def _read_source(authority_store, fam: str, key: str) -> tuple[str | None, Any, bool]:
     """(structure, value, is_anomaly) honoring the family's DECLARED shape: a
     declared-hash family with a non-hash key is a shape anomaly (reported, skipped);
     'auto' families accept whatever the probe finds."""
@@ -196,13 +202,13 @@ def _read_source(authority_store, fam: str, key: str) -> Tuple[Optional[str], An
     return src_t, src, False
 
 
-def plan(authority_store, durable_store) -> Dict[str, Any]:
+def plan(authority_store, durable_store) -> dict[str, Any]:
     """Read-only: what --apply would do. Halts on unknown families exactly as apply
     does -- a plan that silently skips what apply would refuse is a lying plan."""
     per_family, unknown = _classify(authority_store)
     if unknown:
         raise _halt(unknown)
-    report: Dict[str, Any] = {"copy": {}, "divergent": {}, "type_anomalies": []}
+    report: dict[str, Any] = {"copy": {}, "divergent": {}, "type_anomalies": []}
     for fam, keys in per_family.items():
         for key in keys:
             src_t, src, anomaly = _read_source(authority_store, fam, key)
@@ -219,7 +225,7 @@ def plan(authority_store, durable_store) -> Dict[str, Any]:
     return report
 
 
-def apply(authority_store, durable_store, escrow_path) -> Dict[str, Any]:
+def apply(authority_store, durable_store, escrow_path) -> dict[str, Any]:
     """Escrow-then-reconcile. Additive for keys the durable side lacks; divergent
     twins take the authority value AFTER the displaced variant lands in the escrow
     file. Escrow is written before the first overwrite (crash order matters)."""
@@ -227,10 +233,9 @@ def apply(authority_store, durable_store, escrow_path) -> Dict[str, Any]:
     if unknown:
         raise _halt(unknown)
 
-    report: Dict[str, Any] = {"copied": {}, "displaced": {}, "type_anomalies": [],
-                              "untouched_equal": 0}
-    to_copy: List[Tuple[str, str, str, Any]] = []      # (family, key, structure, value)
-    displaced: Dict[str, Any] = {}
+    report: dict[str, Any] = {"copied": {}, "displaced": {}, "type_anomalies": [], "untouched_equal": 0}
+    to_copy: list[tuple[str, str, str, Any]] = []  # (family, key, structure, value)
+    displaced: dict[str, Any] = {}
 
     for fam, keys in per_family.items():
         for key in keys:
@@ -253,15 +258,15 @@ def apply(authority_store, durable_store, escrow_path) -> Dict[str, Any]:
 
     # RATIFIED stop-rule: a divergent WRITE-ONCE twin is a contract violation, not a
     # tie to break. Halt before any write -- no escrow, no copies, durable untouched.
-    stop = sorted(k for k in displaced
-                  if any(str(k).startswith(p) for p in STOP_ON_DIVERGENCE_PREFIXES))
+    stop = sorted(k for k in displaced if any(str(k).startswith(p) for p in STOP_ON_DIVERGENCE_PREFIXES))
     if stop:
         shown = ", ".join(stop[:5]) + (" ..." if len(stop) > 5 else "")
         raise ReconcileHalt(
             f"[reconcile] HALT: {len(stop)} write-once twin(s) diverged -- "
             f"impossible-by-contract under {STOP_ON_DIVERGENCE_PREFIXES}, so "
             f"something upstream is broken. Investigate before ANY reconcile: {shown}. "
-            f"Nothing was written, no escrow was created.")
+            f"Nothing was written, no escrow was created."
+        )
 
     if displaced:
         escrow_path = Path(escrow_path)
@@ -271,13 +276,13 @@ def apply(authority_store, durable_store, escrow_path) -> Dict[str, Any]:
             json.dump(displaced, f, indent=1)
         os.replace(tmp, escrow_path)
 
-    for fam, key, src_t, src in to_copy:
+    for _fam, key, src_t, src in to_copy:
         if src_t == "hash":
             durable_store.hset(key, mapping=src)
         elif src_t == "kv":
             durable_store.set(key, src)
         elif src_t == "list":
-            durable_store.delete(key)   # divergent replace; no-op on fresh copies
+            durable_store.delete(key)  # divergent replace; no-op on fresh copies
             durable_store.rpush(key, *src)
         elif src_t == "set":
             durable_store.sadd(key, *src)
@@ -295,28 +300,34 @@ def main(argv=None) -> int:
         ap.error("pick --plan or --apply")
 
     from core.foundation.store import FileStore, RedisStore
+
     redis = RedisStore.connect()
     if not redis.is_available():
-        print("[reconcile] REFUSING: Redis (the authority side for rostered families) "
-              "is down; a reconcile without the authority present would be fiction.")
+        print(
+            "[reconcile] REFUSING: Redis (the authority side for rostered families) "
+            "is down; a reconcile without the authority present would be fiction."
+        )
         return 1
     file_store = FileStore(None)
 
     try:
         if a.plan:
             rep = plan(redis, file_store)
-            print(f"[reconcile] PLAN (read-only): copy={rep['copy']} "
-                  f"divergent(escrow-then-take)={rep['divergent']} "
-                  f"type_anomalies={len(rep['type_anomalies'])}")
+            print(
+                f"[reconcile] PLAN (read-only): copy={rep['copy']} "
+                f"divergent(escrow-then-take)={rep['divergent']} "
+                f"type_anomalies={len(rep['type_anomalies'])}"
+            )
             return 0
         stamp = int(time.time())
-        escrow = Path(_repo_root_str()) / "session_logs" / \
-            f"reconcile-displaced-{stamp}.json"
+        escrow = Path(_repo_root_str()) / "session_logs" / f"reconcile-displaced-{stamp}.json"
         rep = apply(redis, file_store, escrow_path=escrow)
-        print(f"[reconcile] APPLIED: copied={rep['copied']} displaced={rep['displaced']} "
-              f"(escrow: {escrow if rep['displaced'] else 'none needed'}) "
-              f"equal-untouched={rep['untouched_equal']} "
-              f"type_anomalies={rep['type_anomalies'] or 'none'}")
+        print(
+            f"[reconcile] APPLIED: copied={rep['copied']} displaced={rep['displaced']} "
+            f"(escrow: {escrow if rep['displaced'] else 'none needed'}) "
+            f"equal-untouched={rep['untouched_equal']} "
+            f"type_anomalies={rep['type_anomalies'] or 'none'}"
+        )
         return 0
     except ReconcileHalt as e:
         print(str(e))

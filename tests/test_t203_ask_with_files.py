@@ -29,14 +29,16 @@ HONESTY REQUIREMENTS, because a context assembler that lies is worse than no ass
 
 Run: py -m pytest tests/test_t203_ask_with_files.py -q
 """
+
 import os
 import sys
+from typing import ClassVar
 
 import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.comm import ask as ask_mod  # noqa: E402
+from core.comm import ask as ask_mod
 
 
 @pytest.fixture
@@ -51,10 +53,13 @@ def test_files_are_inlined_with_path_and_line_numbers(tree):
     possible, and a citation is what makes an answer cheap to verify."""
     block, meta = ask_mod.build_context([str(tree / "a.py")], root=tree)
     assert "a.py" in block
-    assert "1" in block and "alpha" in block
+    assert "1" in block
+    assert "alpha" in block
     lines = [ln for ln in block.splitlines() if "alpha" in ln]
-    assert lines and lines[0].strip().startswith("1"), "line number must precede the line"
-    assert meta["included"] and meta["included"][0]["path"].endswith("a.py")
+    assert lines, "line number must precede the line"
+    assert lines[0].strip().startswith("1"), "line number must precede the line"
+    assert meta["included"]
+    assert meta["included"][0]["path"].endswith("a.py")
 
 
 def test_an_unreadable_path_is_named_not_silently_dropped(tree):
@@ -88,14 +93,15 @@ def test_budget_is_per_call_and_starvation_is_reported(tree):
 def test_no_path_escapes_the_repo(tmp_path):
     """A prompt assembler is a read primitive pointed at whatever it is handed. Keep it
     inside the repo so a stray path cannot exfiltrate a key file into a model prompt."""
-    block, meta = ask_mod.build_context(["../../../../etc/passwd"])
+    _block, meta = ask_mod.build_context(["../../../../etc/passwd"])
     assert not meta["included"], "outside-repo paths must not be inlined"
     assert meta["missing"] or meta.get("refused")
 
 
 def test_empty_list_is_a_noop_not_an_error():
     block, meta = ask_mod.build_context([])
-    assert block == "" and not meta["included"]
+    assert block == ""
+    assert not meta["included"]
 
 
 def test_ask_accepts_with_and_records_what_it_sent(monkeypatch, tree):
@@ -107,9 +113,11 @@ def test_ask_accepts_with_and_records_what_it_sent(monkeypatch, tree):
         class C:
             class M:
                 content = "ok"
+
             message = M()
             finish_reason = "stop"
-        choices = [C()]
+
+        choices: ClassVar[list] = [C()]
         usage = None
 
     class FakeClient:
@@ -120,8 +128,7 @@ def test_ask_accepts_with_and_records_what_it_sent(monkeypatch, tree):
                     seen["messages"] = kw.get("messages")
                     return FakeResp()
 
-    o = ask_mod.ask("why", with_files=[str(tree / "a.py")], client=FakeClient(),
-                     context_root=tree)
+    o = ask_mod.ask("why", with_files=[str(tree / "a.py")], client=FakeClient(), context_root=tree)
     assert o.ok
     assert "alpha" in str(seen["messages"]), "file content must reach the model"
     assert o.detail.get("context", {}).get("included"), "outcome records what it sent"
@@ -143,9 +150,11 @@ def test_with_files_reaches_the_FAN_not_only_the_single_ask(tree):
         class C:
             class M:
                 content = "ok"
+
             message = M()
             finish_reason = "stop"
-        choices = [C()]
+
+        choices: ClassVar[list] = [C()]
         usage = None
 
     class FakeClient:
@@ -156,8 +165,7 @@ def test_with_files_reaches_the_FAN_not_only_the_single_ask(tree):
                     seen.append(str(kw.get("messages")))
                     return FakeResp()
 
-    o = ask_mod.ask_many(["q1", "q2"], client=FakeClient(),
-                         with_files=[str(tree / "a.py")], context_root=tree)
+    o = ask_mod.ask_many(["q1", "q2"], client=FakeClient(), with_files=[str(tree / "a.py")], context_root=tree)
     assert o.ok
     assert len(seen) == 2
     for msg in seen:

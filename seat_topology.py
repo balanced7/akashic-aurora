@@ -31,6 +31,7 @@ WHAT IT LOOKS FOR, in the order that actually diagnoses a collision:
 
 Reads only. Kills nothing, changes nothing.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -56,35 +57,49 @@ def say(s=""):
 def processes():
     """Every agent-hosting process, with the identity it is wearing."""
     rows = []
-    ps = (r"Get-CimInstance Win32_Process | Where-Object { $_.Name -match 'python|node' } | "
-          r"Select-Object ProcessId,ParentProcessId,CommandLine | ConvertTo-Json -Depth 3")
+    ps = (
+        r"Get-CimInstance Win32_Process | Where-Object { $_.Name -match 'python|node' } | "
+        r"Select-Object ProcessId,ParentProcessId,CommandLine | ConvertTo-Json -Depth 3"
+    )
     try:
-        raw = subprocess.run(["powershell", "-NoProfile", "-Command", ps],
-                             capture_output=True, text=True, timeout=40).stdout
+        raw = subprocess.run(
+            ["powershell", "-NoProfile", "-Command", ps], capture_output=True, text=True, timeout=40
+        ).stdout
         data = json.loads(raw) if raw.strip() else []
         if isinstance(data, dict):
             data = [data]
-    except Exception as e:                                        # noqa: BLE001
+    except Exception as e:  # noqa: BLE001  # fail-soft: falls back to a default value
         say(f"  (process scan unavailable: {type(e).__name__})")
         return rows
-    PATTERNS = ("bifrost_runner", "dsh", "bifrost_ui", "remote_bridge_listener",
-                "remote_bridge_relay", "ai_setup_mcp", "bifrost_daemon")
+    PATTERNS = (
+        "bifrost_runner",
+        "dsh",
+        "bifrost_ui",
+        "remote_bridge_listener",
+        "remote_bridge_relay",
+        "ai_setup_mcp",
+        "bifrost_daemon",
+    )
     for p in data:
-        cmd = (p.get("CommandLine") or "")
+        cmd = p.get("CommandLine") or ""
         low = cmd.lower()
         if not any(k in low for k in PATTERNS):
             continue
         m = re.search(r"--agent[= ]+([\w\-]+)", cmd)
-        rows.append({"pid": p.get("ProcessId"), "ppid": p.get("ParentProcessId"),
-                     "agent_flag": m.group(1) if m else "",
-                     "cmd": cmd[:120]})
+        rows.append(
+            {
+                "pid": p.get("ProcessId"),
+                "ppid": p.get("ParentProcessId"),
+                "agent_flag": m.group(1) if m else "",
+                "cmd": cmd[:120],
+            }
+        )
     return rows
 
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--report", action="store_true",
-                    help="also send this across the bridge to your peer")
+    ap.add_argument("--report", action="store_true", help="also send this across the bridge to your peer")
     a = ap.parse_args(argv)
 
     say("=" * 72)
@@ -97,8 +112,7 @@ def main(argv=None) -> int:
         say("  none found")
     seen_agents = {}
     for p in procs:
-        say(f"  pid {p['pid']:<7} ppid {p['ppid']:<7} --agent={p['agent_flag'] or '(none)':<14} "
-            f"{p['cmd']}")
+        say(f"  pid {p['pid']:<7} ppid {p['ppid']:<7} --agent={p['agent_flag'] or '(none)':<14} {p['cmd']}")
         if p["agent_flag"]:
             seen_agents.setdefault(p["agent_flag"], []).append(p["pid"])
     # A SUPERVISOR AND ITS CHILD ARE NOT A COLLISION, and the first run of this probe said
@@ -110,16 +124,19 @@ def main(argv=None) -> int:
     for agent, pids in seen_agents.items():
         if len(pids) < 2:
             continue
-        unrelated = [pid for pid in pids
-                     if by_pid.get(pid, {}).get("ppid") not in pids]
+        unrelated = [pid for pid in pids if by_pid.get(pid, {}).get("ppid") not in pids]
         if len(unrelated) > 1:
-            say(f"  >>> COLLISION: seat {agent!r} is worn by {len(unrelated)} UNRELATED "
+            say(
+                f"  >>> COLLISION: seat {agent!r} is worn by {len(unrelated)} UNRELATED "
                 f"processes {unrelated}. runner_lock is single-holder keyed by AGENT — one "
                 f"holds, the others degrade QUIETLY and stay degraded. Directed multi-part "
-                f"mail splits between them and THE SENDER SEES NO ERROR.")
+                f"mail splits between them and THE SENDER SEES NO ERROR."
+            )
         else:
-            say(f"      (seat {agent!r} on {len(pids)} processes {pids} — supervisor + its "
-                f"spawned runner, which is the intended shape, not a collision)")
+            say(
+                f"      (seat {agent!r} on {len(pids)} processes {pids} — supervisor + its "
+                f"spawned runner, which is the intended shape, not a collision)"
+            )
 
     say("\n[2] ENVIRONMENT IDENTITY (this process)")
     say(f"  AKASHIC_AGENT_ID = {os.getenv('AKASHIC_AGENT_ID') or '(unset)'}")
@@ -129,19 +146,19 @@ def main(argv=None) -> int:
     say("\n[3] RUNNER LOCKS (single-holder, keyed by agent)")
     try:
         from core.comm import runner_lock as RL
+
         found = False
-        for agent in sorted(set(list(seen_agents) + ["zadkiel", "dsh_agent", "chronos",
-                                                     "deepseek", "claude"])):
+        for agent in sorted({*list(seen_agents), "zadkiel", "dsh_agent", "chronos", "deepseek", "claude"}):
             try:
                 h = RL.holder(agent)
-            except Exception:                                     # noqa: BLE001
+            except Exception:  # noqa: BLE001  # fail-soft: best effort, skipped on any error
                 continue
             if h:
                 found = True
                 say(f"  {agent:14s} held by {h}")
         if not found:
             say("  no locks held (or lock store unreachable)")
-    except Exception as e:                                        # noqa: BLE001
+    except Exception as e:  # noqa: BLE001  # fail-soft: best effort, skipped on any error
         say(f"  lock read unavailable: {type(e).__name__}: {e}")
 
     say("\n[4] DSH PLUGIN STAMP — the silent one")
@@ -159,48 +176,70 @@ def main(argv=None) -> int:
         # domain is noise, and noise is how a true warning gets ignored later.
         in_dsh = bool(os.getenv("DSH_SESSION_ID"))
         if not in_dsh:
-            say(f"  not inside a DSH host (DSH_SESSION_ID unset) — this check does not apply "
-                f"to this process. Run it from INSIDE the DSH session to judge the stamp.")
+            say(
+                "  not inside a DSH host (DSH_SESSION_ID unset) — this check does not apply "
+                "to this process. Run it from INSIDE the DSH session to judge the stamp."
+            )
         elif env_id and env_id != key:
             say(f"  >>> OBSERVE-ONLY: AKASHIC_AGENT_ID={env_id!r} != SESSION_KEY={key!r}.")
-            say(f"      The plugin injects NOTHING while captures and presence keep running, "
-                f"so the seat looks entirely alive. Present and deaf.")
-            say(f"      Fix: set AKASHIC_AGENT_ID={key!r}, or change the constant to your "
-                f"seat id. Do NOT leave it unset-and-hope — the real failure is INHERITANCE.")
+            say(
+                "      The plugin injects NOTHING while captures and presence keep running, "
+                "so the seat looks entirely alive. Present and deaf."
+            )
+            say(
+                f"      Fix: set AKASHIC_AGENT_ID={key!r}, or change the constant to your "
+                f"seat id. Do NOT leave it unset-and-hope — the real failure is INHERITANCE."
+            )
         elif env_id:
-            say(f"  stamp matches the constant — plugin is ACTIVE, not observing")
+            say("  stamp matches the constant — plugin is ACTIVE, not observing")
         else:
-            say(f"  AKASHIC_AGENT_ID unset here (active by default, but a spawned child will "
-                f"inherit whatever its parent wore)")
+            say(
+                "  AKASHIC_AGENT_ID unset here (active by default, but a spawned child will "
+                "inherit whatever its parent wore)"
+            )
     else:
         say("  no DSH plugin in this checkout")
 
     say("\n[5] ROSTER PRESENCE — compare against [1], it lies reassuringly")
     try:
         from core.comm.bus import Bus
+
         for row in Bus("topology-probe").presence():
-            say(f"  {str(row.get('agent','?')):14s} phase={row.get('phase','?'):10s} "
-                f"beat={row.get('age_s','?')}s")
-        say("  NOTE: presence ages out on a live-but-IDLE DSH seat. Absence here is not "
-            "death; probe the PROCESS in [1].")
-    except Exception as e:                                        # noqa: BLE001
+            say(f"  {row.get('agent', '?')!s:14s} phase={row.get('phase', '?'):10s} beat={row.get('age_s', '?')}s")
+        say(
+            "  NOTE: presence ages out on a live-but-IDLE DSH seat. Absence here is not "
+            "death; probe the PROCESS in [1]."
+        )
+    except Exception as e:  # noqa: BLE001  # fail-soft: best effort, skipped on any error
         say(f"  presence unavailable: {type(e).__name__}: {e}")
 
     if a.report:
         try:
-            import base64, time, urllib.request, urllib.error
+            import base64
+            import time
+            import urllib.error
+            import urllib.request
+
             from core.comm import remote_relay as RR
+
             k = RR._secret(RR.OUTBOUND_KEY_FILE)
             url = RR.peer_url()
-            pay = {"v": 1, "id": f"topology-{int(time.time())}", "frm": "peer",
-                   "kind": "note", "content": "\n".join(OUT), "sent_at": int(time.time())}
+            pay = {
+                "v": 1,
+                "id": f"topology-{int(time.time())}",
+                "frm": "peer",
+                "kind": "note",
+                "content": "\n".join(OUT),
+                "sent_at": int(time.time()),
+            }
             b = json.dumps(pay, sort_keys=True, separators=(",", ":")).encode()
             env = {"body": base64.b64encode(b).decode(), "sig": RR.sign(b, k)}
-            r = urllib.request.Request(url, data=json.dumps(env).encode(), method="POST",
-                                       headers={"Content-Type": "application/json"})
+            r = urllib.request.Request(
+                url, data=json.dumps(env).encode(), method="POST", headers={"Content-Type": "application/json"}
+            )
             with urllib.request.urlopen(r, timeout=12) as resp:
                 say(f"\nreported across the bridge: {resp.status}")
-        except Exception as e:                                    # noqa: BLE001
+        except Exception as e:  # noqa: BLE001  # fail-soft: best effort, skipped on any error
             say(f"\ncould not report ({type(e).__name__}: {e}) — paste the block above")
     return 0
 

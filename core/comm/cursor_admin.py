@@ -19,39 +19,47 @@ Safety:
 Cites: T076 task text + docs/library/report/20260716_t086-seat-wake-hook-lifecycle-reconcilia_c203c4.md
 (lease/fencing doctrine); refines T014 (live asks re-send via L4 redrives; echo skips).
 """
+
 from __future__ import annotations
 
-from typing import Any, Dict
+from typing import Any
 
 
-def skip_to_now(agent: str, by: str, reason: str) -> Dict[str, Any]:
+def skip_to_now(agent: str, by: str, reason: str) -> dict[str, Any]:
     """Advance every consume cursor for `agent` to its stream tail. Returns a report dict:
     {"ok": bool, "refused": str, "before": {...}, "after": {...}}. Never raises."""
-    out: Dict[str, Any] = {"ok": False, "agent": str(agent), "by": str(by),
-                           "reason": str(reason or ""), "before": {}, "after": {},
-                           "refused": ""}
+    out: dict[str, Any] = {
+        "ok": False,
+        "agent": str(agent),
+        "by": str(by),
+        "reason": str(reason or ""),
+        "before": {},
+        "after": {},
+        "refused": "",
+    }
     if not str(reason or "").strip():
         out["refused"] = "reason required (this is an audited admin operation)"
         return out
     try:
         from core.comm import control
+
         if not control.is_paused():
-            out["refused"] = ("fleet not paused -- a skip under a live consumer races its "
-                              "drain; run bifrost-pause first")
+            out["refused"] = "fleet not paused -- a skip under a live consumer races its drain; run bifrost-pause first"
             return out
     except Exception:
         out["refused"] = "pause state unprobeable -- refusing (fail-closed for admin ops)"
         return out
     try:
         from core.comm.bus import Bus
+
         b = Bus(str(agent))
         if not b.online:
             out["refused"] = "bus offline"
             return out
         c = b._client
         out["before"] = {"shared": b.cursor(), "lane": b.read_lane_cursor()}
-        tails = b.tail()                              # legacy inbox/bc concrete tails
-        lane_fields: Dict[str, str] = {}
+        tails = b.tail()  # legacy inbox/bc concrete tails
+        lane_fields: dict[str, str] = {}
         for lane, (fi, fb) in (("work", ("inbox", "bc")), ("sig", ("sig_inbox", "sig_bc"))):
             keys = b._lane_keys(lane)
             for logical, field in (("inbox", fi), ("bc", fb)):
@@ -73,22 +81,30 @@ def skip_to_now(agent: str, by: str, reason: str) -> Dict[str, Any]:
         res_shared = b.advance_to(
             inbox=(tails.get("inbox") if tails.get("inbox", "0") != "0" else None),
             bc=(tails.get("bc") if tails.get("bc", "0") != "0" else None),
-            generation=_gen(b._cursor_key()))
+            generation=_gen(b._cursor_key()),
+        )
         fields = {f: v for f, v in lane_fields.items() if v != "0"}
-        res_lane = (b.advance_cursor_fields(b.lane_cursor_key(), fields,
-                                            generation=_gen(b.lane_cursor_key()))
-                    if fields else "OK_NOOP")
-        out["after"] = {"shared": b.cursor(), "lane": b.read_lane_cursor(),
-                        "advance": {"shared": res_shared, "lane": res_lane}}
+        res_lane = (
+            b.advance_cursor_fields(b.lane_cursor_key(), fields, generation=_gen(b.lane_cursor_key()))
+            if fields
+            else "OK_NOOP"
+        )
+        out["after"] = {
+            "shared": b.cursor(),
+            "lane": b.read_lane_cursor(),
+            "advance": {"shared": res_shared, "lane": res_lane},
+        }
         bad = ("STALE_GENERATION", "ERROR", "OFFLINE")
         out["ok"] = res_shared not in bad and res_lane not in bad
-        try:   # durable audit -- a skipped backlog must never look like silent loss
+        try:  # durable audit -- a skipped backlog must never look like silent loss
             from core.events.event_log import capture_event
-            capture_event("cursor_skip_to_now",
-                          f"consume cursors for '{agent}' skipped to stream tails by {by}: {reason}",
-                          agent_id=str(agent),
-                          detail={"by": str(by), "reason": str(reason),
-                                  "before": out["before"], "after": out["after"]})
+
+            capture_event(
+                "cursor_skip_to_now",
+                f"consume cursors for '{agent}' skipped to stream tails by {by}: {reason}",
+                agent_id=str(agent),
+                detail={"by": str(by), "reason": str(reason), "before": out["before"], "after": out["after"]},
+            )
         except Exception:
             pass
         return out

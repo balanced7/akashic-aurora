@@ -14,9 +14,10 @@ the full-corpus walk + maps.
 from __future__ import annotations
 
 import os
-from core.paths import repo_root as _repo_root
 import time
-from typing import Any, Dict
+from typing import Any
+
+from core.paths import repo_root as _repo_root
 
 DEFAULT_LIBRARY_DIR = os.path.join("docs", "library")
 
@@ -46,7 +47,7 @@ def _iso(ts: Any) -> str:
         return "null"
 
 
-def frontmatter(atom: Dict[str, Any]) -> str:
+def frontmatter(atom: dict[str, Any]) -> str:
     h = atom["header"]
     lines = ["---"]
     lines.append(f"akashic_id: {_yaml_escape(atom['id'])}")
@@ -62,7 +63,7 @@ def frontmatter(atom: Dict[str, Any]) -> str:
         if field == "arc" and h.get("arc") is None:
             continue  # deepseek fence: 'arc: null' renders as the STRING null in Bases -- omit
         if field == "body_type" and h.get("body_type") is None:
-            lines.append("body_type: markdown")   # legacy default, explicit for Bases filters
+            lines.append("body_type: markdown")  # legacy default, explicit for Bases filters
             continue
         lines.append(f"{field}: {_yaml_escape(h.get(field))}")
     lines.append("seats: [" + ", ".join(_yaml_escape(s) for s in h.get("seats", [])) + "]")
@@ -85,14 +86,14 @@ def frontmatter(atom: Dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
-def projection_relpath(atom: Dict[str, Any]) -> str:
+def projection_relpath(atom: dict[str, Any]) -> str:
     """docs/library/<type>/<id-minus-prefix>.md -- type + slug + hash only (one-facet law:
     the path never encodes arc/category/status; re-categorizing never moves a file)."""
-    fname = atom["id"][len("art_"):] + ".md"
+    fname = atom["id"][len("art_") :] + ".md"
     return os.path.join(DEFAULT_LIBRARY_DIR, atom["header"]["type"], fname)
 
 
-def render_atom(atom: Dict[str, Any], repo_root: str = "") -> str:
+def render_atom(atom: dict[str, Any], repo_root: str = "") -> str:
     """Write the atom's single projection file; returns the absolute path."""
     rel = projection_relpath(atom)
     path = os.path.join(repo_root or str(_repo_root()), rel)
@@ -104,11 +105,16 @@ def render_atom(atom: Dict[str, Any], repo_root: str = "") -> str:
     elif h.get("status") == "draft":
         banner = "\n> **DRAFT** -- unpromoted; the wrap sweep + library lint curate drafts.\n"
     elif atom.get("origin") == "conversation" and atom.get("settled") == "live":
-        banner = "\n> **LIVE DISCUSSION** -- no ruling yet; authority derives from (type, origin, settled), never prose.\n"
+        banner = (
+            "\n> **LIVE DISCUSSION** -- no ruling yet; authority derives from (type, origin, settled), never prose.\n"
+        )
     content = (
-        frontmatter(atom) + "\n"
-        + _DO_NOT_EDIT.format(atom_id=atom["id"]) + "\n"
-        + banner + "\n"
+        frontmatter(atom)
+        + "\n"
+        + _DO_NOT_EDIT.format(atom_id=atom["id"])
+        + "\n"
+        + banner
+        + "\n"
         + f"# {h['title']}\n\n"
         + (atom.get("body") or "")
         + ("\n" if not (atom.get("body") or "").endswith("\n") else "")

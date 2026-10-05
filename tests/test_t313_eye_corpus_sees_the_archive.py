@@ -22,6 +22,7 @@ tell you it has shrunk. Lesson: a_coverage_contract_must_state_the_scope_it_glob
 _files_it_read -- whose own example is THE EYE printing "83/83 manifest_complete" while globbing
 one level and seeing 82 of 443 transcripts on disk.
 """
+
 import os
 import sys
 import tempfile
@@ -32,14 +33,20 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 def test_config_declares_the_archive_roots_once():
-    """One home for the constant. Two literals in two modules IS the defect."""
+    """One home for the constant. Two literals in two modules IS the defect.
+
+    The VALUES are machine-specific (which physical disks), so since 2026-10-01 they come from
+    AKASHIC_TRANSCRIPT_ARCHIVE_ROOTS rather than drive literals; the single declaration is what
+    this pins, and an unset machine declares an empty list rather than someone else's disks."""
     import config
+
     roots = getattr(config, "TRANSCRIPT_ARCHIVE_ROOTS", None)
-    assert roots, ("config.TRANSCRIPT_ARCHIVE_ROOTS does not exist -- the archive roots are still "
-                   "a literal inside scripts/ops/archive_transcripts.py, which is why the indexer "
-                   "could point somewhere else and nobody noticed")
-    assert any("rolling" in str(r).lower() for r in roots), \
-        f"the rolling archive must be among the declared roots, got {roots}"
+    assert isinstance(roots, list), (
+        "config.TRANSCRIPT_ARCHIVE_ROOTS does not exist -- the archive roots are still "
+        "a literal inside scripts/ops/archive_transcripts.py, which is why the indexer "
+        "could point somewhere else and nobody noticed"
+    )
+    assert all(Path(r).is_absolute() for r in roots), f"relative archive root declared: {roots}"
 
 
 def test_archiver_and_indexer_read_the_same_constant():
@@ -49,20 +56,24 @@ def test_archiver_and_indexer_read_the_same_constant():
     side only, which is exactly how the 90-file gap opened."""
     import config
     from scripts.ops import archive_transcripts as arch
+
     declared = {str(Path(r)).rstrip("\\/").lower() for r in config.TRANSCRIPT_ARCHIVE_ROOTS}
     writing = {str(Path(d)).rstrip("\\/").lower() for d in arch.DEFAULT_DESTS}
     assert writing <= declared, (
         f"archive_transcripts writes to destinations the shared constant does not declare: "
-        f"{writing - declared}. The reader will never see them.")
+        f"{writing - declared}. The reader will never see them."
+    )
 
 
 def test_default_corpus_includes_the_rolling_archive():
     """The 90 archive-only sessions must become visible to ingest."""
     import config
     from core.eye.index import default_corpus
+
     roots = [Path(r) for r in config.TRANSCRIPT_ARCHIVE_ROOTS if Path(r).is_dir()]
     if not roots:
         import pytest
+
         pytest.skip("no archive root present on this machine")
     archived = {p.name for r in roots for p in r.glob("*.jsonl")}
     seen = {p.name for p in default_corpus()}
@@ -70,7 +81,8 @@ def test_default_corpus_includes_the_rolling_archive():
     assert not missing, (
         f"{len(missing)} archived session(s) are invisible to default_corpus(), "
         f"e.g. {sorted(missing)[:5]}. The archive exists precisely because these rotated off "
-        "the harness disk -- if the indexer cannot read them they are unreachable everywhere.")
+        "the harness disk -- if the indexer cannot read them they are unreachable everywhere."
+    )
 
 
 def test_default_corpus_publishes_its_coverage():
@@ -83,12 +95,14 @@ def test_default_corpus_publishes_its_coverage():
         raise AssertionError(
             f"core.eye.index.corpus_coverage() does not exist ({e}) -- default_corpus() returns a "
             "bare list, so a root that vanishes or a glob that narrows produces a smaller answer "
-            "with no signal. Publish roots scanned and per-root counts.")
+            "with no signal. Publish roots scanned and per-root counts."
+        ) from e
     cov = corpus_coverage()
-    assert isinstance(cov, dict) and cov.get("roots"), \
-        f"coverage must name the roots it scanned, got {cov!r}"
+    assert isinstance(cov, dict), f"coverage must name the roots it scanned, got {cov!r}"
+    assert cov.get("roots"), f"coverage must name the roots it scanned, got {cov!r}"
     for r in cov["roots"]:
-        assert "path" in r and "files" in r, f"each root reports path + files, got {r!r}"
+        assert "path" in r, f"each root reports path + files, got {r!r}"
+        assert "files" in r, f"each root reports path + files, got {r!r}"
     assert "total" in cov, "coverage must carry a total"
 
 
@@ -98,26 +112,31 @@ def test_projects_glob_reaches_nested_transcripts():
     `for d in root.iterdir() if d.is_dir() for p in d.glob('*.jsonl')` cannot see a transcript in
     projects/<x>/subagents/. The recorded instance of this class is THE EYE reporting
     '83/83 manifest_complete' while seeing 82 of 443 files on disk."""
-    from core.eye.index import default_corpus, corpus_coverage
+    from core.eye.index import corpus_coverage, default_corpus
+
     live = Path.home() / ".claude" / "projects"
     if not live.is_dir():
         import pytest
+
         pytest.skip("no live projects directory on this machine")
     nested = [p for p in live.rglob("*.jsonl") if p.parent.parent != live]
     if not nested:
         import pytest
+
         pytest.skip("no nested transcripts exist to find")
     seen = {p.name for p in default_corpus()}
     missing = [p for p in nested if p.name not in seen]
     assert not missing, (
         f"{len(missing)} nested transcript(s) are invisible to default_corpus(), e.g. "
         f"{[str(p.relative_to(live)) for p in missing[:3]]} -- a one-level glob cannot reach "
-        "projects/<id>/subagents/, where every research agent's findings live")
+        "projects/<id>/subagents/, where every research agent's findings live"
+    )
     cov = corpus_coverage()
     assert "subagent_transcripts" in cov, (
         "nested subagent transcripts must be COUNTED separately, not silently mixed in: ~5x more "
         "of them exist than operator sessions, and an unlabelled mix makes a terse operator "
-        "look verbose")
+        "look verbose"
+    )
 
 
 if __name__ == "__main__":

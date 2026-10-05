@@ -39,37 +39,48 @@ manufacturing a comfortable number -- the same discipline `precision_audit` stat
 Closing the COMPLIED gap needs the Eye (what the seat ACTUALLY did next), which is the next
 slice. This one makes the prevention numerator computable for the first time, contrastively.
 """
+
 from __future__ import annotations
 
 import glob
 import json
 import os
-from typing import Any, Callable, Dict, List, Optional
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 VERDICTS = ("COMPLIED", "VIOLATED", "INAPPLICABLE", "UNKNOWABLE")
 
 # Named beside every rate, per the stage log's own warning. A number without these invites the
 # steer the docstring forbids.
 CONFOUNDS = (
-    "exposure-bias: a lesson surfaces BECAUSE the matcher judged the moment risky, so surfaced "
-    "actions are not a random sample -- the control arm is not a matched control",
-    "self-inflation: the positive feedback loop credits whatever was surfaced at flip time "
-    "(resolve_action_outcome) with no causal check; this report deliberately ignores that counter",
-    "self-sealing demotion: a benched lesson stops surfacing, so it can never earn the credit "
-    "that would redeem it -- absence of exposure is not absence of value",
+    (
+        "exposure-bias: a lesson surfaces BECAUSE the matcher judged the moment risky, so surfaced "
+        "actions are not a random sample -- the control arm is not a matched control"
+    ),
+    (
+        "self-inflation: the positive feedback loop credits whatever was surfaced at flip time "
+        "(resolve_action_outcome) with no causal check; this report deliberately ignores that counter"
+    ),
+    (
+        "self-sealing demotion: a benched lesson stops surfacing, so it can never earn the credit "
+        "that would redeem it -- absence of exposure is not absence of value"
+    ),
     "COMPLIED is unprovable from this join: silence is UNKNOWABLE, never compliance",
 )
 
 
 def _stage_dir() -> str:
     from core.recall import at_action as aa
+
     return getattr(aa, "_STAGE_DIR", "")
 
 
-def read_stage_rows(stage_dir: Optional[str] = None) -> List[Dict[str, Any]]:
+def read_stage_rows(stage_dir: str | None = None) -> list[dict[str, Any]]:
     """Every durable stage row. Sorted for determinism (P7)."""
     base = stage_dir or _stage_dir()
-    rows: List[Dict[str, Any]] = []
+    rows: list[dict[str, Any]] = []
     if not base or not os.path.isdir(base):
         return rows
     for path in sorted(glob.glob(os.path.join(base, "*.jsonl"))):
@@ -82,7 +93,7 @@ def read_stage_rows(stage_dir: Optional[str] = None) -> List[Dict[str, Any]]:
                     try:
                         rec = json.loads(line)
                     except Exception:
-                        continue          # a torn line is not a row; never a guess
+                        continue  # a torn line is not a row; never a guess
                     rec["_session"] = os.path.basename(path)[:-6]
                     rows.append(rec)
         except OSError:
@@ -91,7 +102,7 @@ def read_stage_rows(stage_dir: Optional[str] = None) -> List[Dict[str, Any]]:
     return rows
 
 
-def load_repeats(store: Any = None) -> Dict[str, List[Dict[str, Any]]]:
+def load_repeats(store: Any = None) -> dict[str, list[dict[str, Any]]]:
     """Repeats indexed by lesson source. The VIOLATED evidence side of the join.
 
     `recall_outcome` is the field that earns its place: fired = a READING failure,
@@ -99,8 +110,9 @@ def load_repeats(store: Any = None) -> Dict[str, List[Dict[str, Any]]]:
     was violated -- a suppressed repeat says the lesson never reached the seat, which is a
     targeting defect, not a compliance one, and must not be scored as a violation here.
     """
-    out: Dict[str, List[Dict[str, Any]]] = {}
+    out: dict[str, list[dict[str, Any]]] = {}
     from core.learning.learning_store import LearningStore
+
     ls = store or LearningStore()
     rep = ls.repeat_report() or {}
     # The list lives under "entries". The first draft of this function guessed
@@ -121,11 +133,12 @@ def load_repeats(store: Any = None) -> Dict[str, List[Dict[str, Any]]]:
             f"repeat ledger declares count={declared} but the join extracted 0 rows -- the "
             f"record shape changed (keys: {sorted(rep.keys())}). REFUSING to report zero "
             f"violations from an empty join; that is indistinguishable from 'no violations' "
-            f"and would be a confident zero.")
+            f"and would be a confident zero."
+        )
     return out
 
 
-def _epoch(value: Any) -> Optional[float]:
+def _epoch(value: Any) -> float | None:
     """Best-effort epoch seconds from either a float (stage) or ISO string (repeat)."""
     if value in (None, ""):
         return None
@@ -135,14 +148,18 @@ def _epoch(value: Any) -> Optional[float]:
         pass
     try:
         from datetime import datetime
+
         return datetime.fromisoformat(str(value)).timestamp()
     except Exception:
         return None
 
 
-def observe(*, stage_dir: Optional[str] = None,
-            repeats: Optional[Dict[str, List[Dict[str, Any]]]] = None,
-            sources_resolver: Optional[Callable[[str], bool]] = None) -> List[Dict[str, Any]]:
+def observe(
+    *,
+    stage_dir: str | None = None,
+    repeats: dict[str, list[dict[str, Any]]] | None = None,
+    sources_resolver: Callable[[str], bool] | None = None,
+) -> list[dict[str, Any]]:
     """One observation per (prevention candidate, surfaced lesson). Never a judgment.
 
     TEMPORAL ATTRIBUTION (fixed after the first live run reported 170 violations from 8
@@ -158,37 +175,43 @@ def observe(*, stage_dir: Optional[str] = None,
     reps = load_repeats() if repeats is None else repeats
     rows = read_stage_rows(stage_dir)
 
-    candidates: List[Dict[str, Any]] = []
+    candidates: list[dict[str, Any]] = []
     for rec in rows:
         if not (rec.get("ok") and rec.get("surfaced") and not rec.get("flipped")):
             continue
-        for src in (rec.get("s") or []):
-            candidates.append({"session": rec.get("_session", ""), "at": rec.get("at"),
-                               "target": rec.get("t", ""), "source": str(src),
-                               "verdict": "UNKNOWABLE", "evidence": [],
-                               "authority": "observation"})
+        candidates.extend(
+            {
+                "session": rec.get("_session", ""),
+                "at": rec.get("at"),
+                "target": rec.get("t", ""),
+                "source": str(src),
+                "verdict": "UNKNOWABLE",
+                "evidence": [],
+                "authority": "observation",
+            }
+            for src in rec.get("s") or []
+        )
 
     # index candidates by source, ascending in time, for nearest-preceding attribution
-    by_src: Dict[str, List[Dict[str, Any]]] = {}
+    by_src: dict[str, list[dict[str, Any]]] = {}
     for c in candidates:
         by_src.setdefault(c["source"], []).append(c)
     for lst in by_src.values():
-        lst.sort(key=lambda c: (_epoch(c["at"]) or 0.0))
+        lst.sort(key=lambda c: _epoch(c["at"]) or 0.0)
 
-    unattributed: List[str] = []
+    unattributed: list[str] = []
     for src, rlist in (reps or {}).items():
-        fired = [r for r in rlist
-                 if str(r.get("recall_outcome") or "").lower().startswith("fired")]
+        fired = [r for r in rlist if str(r.get("recall_outcome") or "").lower().startswith("fired")]
         for rep in fired:
             r_at = _epoch(rep.get("at"))
             pool = by_src.get(src) or []
             target = None
-            for c in pool:                       # nearest PRECEDING, unclaimed
+            for c in pool:  # nearest PRECEDING, unclaimed
                 c_at = _epoch(c["at"])
                 if c_at is None or r_at is None:
                     continue
                 if c_at <= r_at and c["verdict"] != "VIOLATED":
-                    target = c                   # keep advancing -> last one <= r_at
+                    target = c  # keep advancing -> last one <= r_at
             if target is not None:
                 target["verdict"] = "VIOLATED"
                 target["evidence"] = [str(rep.get("id") or "")]
@@ -207,14 +230,12 @@ def observe(*, stage_dir: Optional[str] = None,
     return candidates
 
 
-def report(*, stage_dir: Optional[str] = None,
-           repeats: Optional[Dict[str, List[Dict[str, Any]]]] = None) -> Dict[str, Any]:
+def report(*, stage_dir: str | None = None, repeats: dict[str, list[dict[str, Any]]] | None = None) -> dict[str, Any]:
     """The contrastive prevention report. Rates only over SETTLED rows; coverage always rides."""
     rows = read_stage_rows(stage_dir)
     obs = observe(stage_dir=stage_dir, repeats=repeats)
 
-    prevention_candidates = sum(1 for r in rows
-                                if r.get("ok") and r.get("surfaced") and not r.get("flipped"))
+    prevention_candidates = sum(1 for r in rows if r.get("ok") and r.get("surfaced") and not r.get("flipped"))
     control_arm = sum(1 for r in rows if r.get("ok") and not r.get("surfaced"))
     flips = sum(1 for r in rows if r.get("flipped"))
     failures = sum(1 for r in rows if not r.get("ok"))
@@ -231,23 +252,25 @@ def report(*, stage_dir: Optional[str] = None,
     # meaning "the only thing this instrument can see is violations". A rate over a degenerate
     # denominator is worse than no rate: it is a confident lie. Rates return when the Eye can
     # mint COMPLIED (next slice); until then, counts and coverage only.
-    rates: Dict[str, float] = {}
+    rates: dict[str, float] = {}
 
     # The contrastive arms, reported as RAW rates with their confounds attached -- never as a
     # causal claim. Success-when-surfaced vs success-when-not is the shape the stage log was
     # built to expose; exposure-bias is why it is not yet an effect size.
     contrast = {
         "success_rate_when_surfaced": (
-            sum(1 for r in rows if r.get("surfaced") and r.get("ok")) / surfaced_total
-            if surfaced_total else None),
+            sum(1 for r in rows if r.get("surfaced") and r.get("ok")) / surfaced_total if surfaced_total else None
+        ),
         "success_rate_when_not_surfaced": (
             sum(1 for r in rows if not r.get("surfaced") and r.get("ok")) / unsurfaced_total
-            if unsurfaced_total else None),
+            if unsurfaced_total
+            else None
+        ),
     }
 
-    per_lesson: Dict[str, Dict[str, int]] = {}
+    per_lesson: dict[str, dict[str, int]] = {}
     for o in obs:
-        d = per_lesson.setdefault(o["source"], {v: 0 for v in VERDICTS})
+        d = per_lesson.setdefault(o["source"], dict.fromkeys(VERDICTS, 0))
         d[o["verdict"]] += 1
 
     return {
@@ -265,6 +288,6 @@ def report(*, stage_dir: Optional[str] = None,
         "contrast": contrast,
         "per_lesson": dict(sorted(per_lesson.items())),
         "confounds": list(CONFOUNDS),
-        "steers": False,          # fence r2 H-C1 + the stage log's own standing rule
+        "steers": False,  # fence r2 H-C1 + the stage log's own standing rule
         "authority": "observation",
     }

@@ -37,11 +37,13 @@ ESCAPE HATCH: AKASHIC_SHOW_CONSOLES=1 restores visible windows for debugging a c
 dies before it can log anything. tests/conftest.py honours AKASHIC_TEST_SHOW_CONSOLES for the
 suite specifically; either one turns the windows back on.
 """
+
 import os
 import sys
 
-if sys.platform == "win32" and not (os.environ.get("AKASHIC_SHOW_CONSOLES")
-                                    or os.environ.get("AKASHIC_TEST_SHOW_CONSOLES")):
+if sys.platform == "win32" and not (
+    os.environ.get("AKASHIC_SHOW_CONSOLES") or os.environ.get("AKASHIC_TEST_SHOW_CONSOLES")
+):
     try:
         import subprocess as _sp
 
@@ -54,7 +56,7 @@ if sys.platform == "win32" and not (os.environ.get("AKASHIC_SHOW_CONSOLES")
             # Respect an explicit opinion, whichever way it points:
             #   CREATE_NEW_CONSOLE -> the caller WANTS a window; never override intent.
             #   DETACHED_PROCESS   -> already console-less, AND mutually exclusive with
-            #                         CREATE_NO_WINDOW in Win32 (ERROR_INVALID_PARAMETER),
+            #                         CREATE_NO_WINDOW in Win32 with ERROR_INVALID_PARAMETER,
             #                         so adding it would break the spawn outright.
             #   CREATE_NO_WINDOW   -> already correct.
             _INTENT = _NEW_CONSOLE | _DETACHED | _NO_WINDOW
@@ -71,8 +73,7 @@ if sys.platform == "win32" and not (os.environ.get("AKASHIC_SHOW_CONSOLES")
                 spellings of one directory already present after a single hop."""
                 try:
                     want = os.path.normcase(os.path.normpath(value))
-                    return any(os.path.normcase(os.path.normpath(e)) == want
-                               for e in entries if e)
+                    return any(os.path.normcase(os.path.normpath(e)) == want for e in entries if e)
                 except Exception:
                     return value in entries
 
@@ -103,7 +104,7 @@ if sys.platform == "win32" and not (os.environ.get("AKASHIC_SHOW_CONSOLES")
                     kwargs["env"] = _carry_pythonpath(kwargs["env"])
                 return _orig(self, *args, **kwargs)
 
-            _quiet_init._akashic_quiet = True
+            vars(_quiet_init)["_akashic_quiet"] = True
             _sp.Popen.__init__ = _quiet_init
 
             def _dedup(entries):

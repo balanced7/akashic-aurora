@@ -9,6 +9,7 @@ performance.close() had to reach the format, and a library importing a script in
 dependency -- so the format moved and this became a door. Two implementations of one format
 drift; there is one.
 """
+
 from __future__ import annotations
 
 import json
@@ -18,7 +19,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from arsenal.roll import pack_events, unpack, API      # noqa: E402,F401
+from arsenal.roll import API, pack_events, unpack  # noqa: E402,F401  # sys.path bootstrap; re-export
 
 PERF = ROOT / "state" / "arsenal" / "performance"
 
@@ -34,7 +35,7 @@ def pack(session: str, keep_chords: bool = False) -> str:
         try:
             events.append(json.loads(line))
         except Exception:
-            continue                 # a torn last line is not a reason to pack nothing
+            continue  # a torn last line is not a reason to pack nothing
     return pack_events(events, session=session, keep_chords=keep_chords)
 
 
@@ -43,6 +44,8 @@ if __name__ == "__main__":
     txt = pack(s, "--keep-chords" in sys.argv)
     if "--write" in sys.argv:
         (PERF / s / "roll.txt").write_bytes(txt.encode("utf-8"))
-    m, n, pd, c = unpack(txt)        # round-trip on every pack, not on faith
-    print(f"{s}: {len(n):,} notes, {len(pd)} pedal spans, {len(c)} chord marks -> "
-          f"{len(txt.encode()):,} bytes{' (written)' if '--write' in sys.argv else ''}")
+    m, n, pd, c = unpack(txt)  # round-trip on every pack, not on faith
+    print(
+        f"{s}: {len(n):,} notes, {len(pd)} pedal spans, {len(c)} chord marks -> "
+        f"{len(txt.encode()):,} bytes{' (written)' if '--write' in sys.argv else ''}"
+    )

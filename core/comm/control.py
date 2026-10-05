@@ -22,16 +22,29 @@ Both fail-open on any Redis error (never wedge the bus) and are ADVISORY -- hono
 runners, same trust model as the advisory path-locks. Tunable via env: BIFROST_MAX_HOPS,
 BIFROST_MAX_REPLIES_PER_MIN.
 """
+
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import time
 from collections import deque
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any
 
 from core.foundation.timeutil import now_iso
+
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+
+        return python_launcher()
+    except Exception:
+        return "py"
+
 
 # --- namespace-scoped control plane (2026-07-12 isolation fix; claude fenced half, deepseek review
 # pending) -----------------------------------------------------------------------------------------
@@ -51,22 +64,22 @@ def _pause_key() -> str:
     return f"{_ns()}:control:paused"
 
 
-def _soft_pause_key() -> str:              # "pause nudge" (Daniil, 2026-07-30): finish the turn, THEN hold
+def _soft_pause_key() -> str:  # "pause nudge" (Daniil, 2026-07-30): finish the turn, THEN hold
     # Deliberately a SEPARATE key from _pause_key so is_halted() -- which runners pass as
     # a MID-TURN interrupt -- can never see it. That separation IS the feature: a soft
     # pause must not abandon the message a seat is holding.
     return f"{_ns()}:control:paused:soft"
 
 
-def _halt_prefix() -> str:                 # per-agent targeted halt (A1); union'd with the pause by is_halted
+def _halt_prefix() -> str:  # per-agent targeted halt (A1); union'd with the pause by is_halted
     return f"{_ns()}:control:halt:"
 
 
-def _narration_key() -> str:               # off|key|full -- how much of claude's reasoning streams to the bus
+def _narration_key() -> str:  # off|key|full -- how much of claude's reasoning streams to the bus
     return f"{_ns()}:control:narration"
 
 
-def _activity_prefix() -> str:             # rich-presence activity keys (same class, also ns-scoped)
+def _activity_prefix() -> str:  # rich-presence activity keys (same class, also ns-scoped)
     return f"{_ns()}:activity:"
 
 
@@ -76,7 +89,7 @@ MAX_REPLIES_PER_MIN = int(os.getenv("BIFROST_MAX_REPLIES_PER_MIN", "12"))
 
 
 def _now() -> str:
-    return now_iso()   # T119: the one clock (aware UTC), not the machine's naive wall
+    return now_iso()  # T119: the one clock (aware UTC), not the machine's naive wall
 
 
 def _client():
@@ -84,6 +97,7 @@ def _client():
     Redis is unreachable -- every function below then fails open."""
     try:
         from core.comm.bus import get_bus
+
         return get_bus("control")._client
     except Exception:
         return None
@@ -107,14 +121,13 @@ def drain(agent: str, by: str = "user", reason: str = "") -> bool:
     if c is None:
         return False
     try:
-        c.set(_drain_key(agent), json.dumps({"by": by, "reason": reason, "ts": _now()}),
-              ex=DRAIN_TTL_S)
+        c.set(_drain_key(agent), json.dumps({"by": by, "reason": reason, "ts": _now()}), ex=DRAIN_TTL_S)
         return True
     except Exception:
         return False
 
 
-def drain_requested(agent: str) -> Optional[Dict[str, Any]]:
+def drain_requested(agent: str) -> dict[str, Any] | None:
     """The runner's loop-top probe. None when no live request (or bus offline)."""
     c = _client()
     if c is None:
@@ -130,15 +143,12 @@ def clear_drain(agent: str) -> None:
     c = _client()
     if c is None:
         return
-    try:
+    with contextlib.suppress(Exception):
         c.delete(_drain_key(agent))
-    except Exception:
-        pass
 
 
 # ------------------------------------------------------------------ pause
-def pause(reason: str = "", by: str = "user", ttl: Optional[int] = None,
-          soft: bool = False) -> bool:
+def pause(reason: str = "", by: str = "user", ttl: int | None = None, soft: bool = False) -> bool:
     """Freeze the auto-responders. Idempotent. Returns False if the bus is offline.
     RB-30 (T030 L5): `ttl` seconds makes the pause SELF-HEAL -- automated backstops
     (rate-limit guards) must never freeze the fleet forever if everyone forgets them.
@@ -162,14 +172,17 @@ def pause(reason: str = "", by: str = "user", ttl: Optional[int] = None,
         return False
     try:
         key = _soft_pause_key() if soft else _pause_key()
-        c.set(key, json.dumps({"reason": reason, "by": by, "ts": _now(), "soft": bool(soft)}),
-              ex=int(ttl) if ttl else None)
+        c.set(
+            key,
+            json.dumps({"reason": reason, "by": by, "ts": _now(), "soft": bool(soft)}),
+            ex=int(ttl) if ttl else None,
+        )
         return True
     except Exception:
         return False
 
 
-def format_pause_line(status: Dict[str, Any], now: Optional[float] = None) -> str:
+def format_pause_line(status: dict[str, Any], now: float | None = None) -> str:
     """PURE render of pause_status() (RB-30 H5): a leftover freeze must be LOUD at every
     surface that renders fleet state (boot, bifrost-sync, fleet doctor). Age is computed
     AT RENDER from the stored ts -- the store stays clock-free (T025 doctrine). Returns
@@ -182,8 +195,7 @@ def format_pause_line(status: Dict[str, Any], now: Optional[float] = None) -> st
         dt = datetime.fromisoformat(ts_s)
         # T119 dual-era read: one-clock stamps (now_iso) carry their offset; legacy naive
         # rows were written as LOCAL wall-clock, so they keep their historical meaning.
-        then = dt.timestamp() if dt.tzinfo is not None \
-            else time.mktime(time.strptime(ts_s, "%Y-%m-%dT%H:%M:%S"))
+        then = dt.timestamp() if dt.tzinfo is not None else time.mktime(time.strptime(ts_s, "%Y-%m-%dT%H:%M:%S"))
         mins = max(0, int(((now if now is not None else time.time()) - then) / 60))
         age = f"{mins // 60}h{mins % 60:02d}m" if mins >= 60 else f"{mins}m"
     except Exception:
@@ -192,12 +204,16 @@ def format_pause_line(status: Dict[str, Any], now: Optional[float] = None) -> st
         # Never let a soft pause hide behind the same words as a hard one: the fleet
         # already has two organs answering "is it paused" at different scopes with no way
         # to tell them apart. A third invisible pause state would be that bug on purpose.
-        return (f"~~ SOFT PAUSE / winding down (by {status.get('by', '?')}: "
-                f"{status.get('reason') or 'no reason given'}, {age} old) -- seats FINISH "
-                f"the message in hand, then hold; in-flight work is NOT abandoned; "
-                f"resume: py agent_cli.py bifrost-resume")
-    return (f"!! PAUSED (by {status.get('by', '?')}: {status.get('reason') or 'no reason given'}, "
-            f"{age} old) -- auto-responders frozen; resume: py agent_cli.py bifrost-resume")
+        return (
+            f"~~ SOFT PAUSE / winding down (by {status.get('by', '?')}: "
+            f"{status.get('reason') or 'no reason given'}, {age} old) -- seats FINISH "
+            f"the message in hand, then hold; in-flight work is NOT abandoned; "
+            f"resume: {_pyl()} agent_cli.py bifrost-resume"
+        )
+    return (
+        f"!! PAUSED (by {status.get('by', '?')}: {status.get('reason') or 'no reason given'}, "
+        f"{age} old) -- auto-responders frozen; resume: {_pyl()} agent_cli.py bifrost-resume"
+    )
 
 
 def resume(targets=None) -> bool:
@@ -211,8 +227,8 @@ def resume(targets=None) -> bool:
     try:
         if not ts:
             c.delete(_pause_key())
-            c.delete(_soft_pause_key())   # a pause that survives its own resume is the
-                                          # RB-30 forever-freeze failure, softly
+            c.delete(_soft_pause_key())  # a pause that survives its own resume is the
+            # RB-30 forever-freeze failure, softly
             keys = c.keys(_halt_prefix() + "*") or []
             if keys:
                 c.delete(*keys)
@@ -259,7 +275,7 @@ def is_frozen(agent: str) -> bool:
         return False
 
 
-def pause_status() -> Dict[str, Any]:
+def pause_status() -> dict[str, Any]:
     """{paused, soft, online, reason?, by?, ts?} -- for the UI/CLI status line. A HARD
     pause wins the render when both are somehow set: it is the stronger claim, and a
     surface must never describe a fleet as merely winding down while it is actually
@@ -336,7 +352,7 @@ def halt(targets=None, reason: str = "", by: str = "user") -> bool:
     freeze only those agents via per-agent flags; the rest keep running. Idempotent. False if offline."""
     ts = _norm_targets(targets)
     if not ts:
-        return pause(reason=reason, by=by)          # halt-all == the global pause (backward compat)
+        return pause(reason=reason, by=by)  # halt-all == the global pause (backward compat)
     c = _client()
     if c is None:
         return False
@@ -363,15 +379,15 @@ def is_halted(agent: str) -> bool:
         return False
 
 
-def halted_agents() -> Dict[str, Any]:
+def halted_agents() -> dict[str, Any]:
     """{agent: {reason, by, ts}} for each agent under a TARGETED halt (a global pause is separate, via
     pause_status()). The UI unions the two to show who is frozen and why."""
     c = _client()
     if c is None:
         return {}
-    out: Dict[str, Any] = {}
+    out: dict[str, Any] = {}
     try:
-        for k in (c.keys(_halt_prefix() + "*") or []):
+        for k in c.keys(_halt_prefix() + "*") or []:
             agent = str(k).rsplit(":", 1)[-1]
             raw = c.get(k)
             if raw:
@@ -385,7 +401,7 @@ def halted_agents() -> Dict[str, Any]:
 
 
 # ------------------------------------------------------------------ loop guard
-def next_hops(incoming_meta: Optional[dict]) -> int:
+def next_hops(incoming_meta: dict | None) -> int:
     """The hop count to stamp on the reply to a message: incoming hops + 1 (0 if unset)."""
     try:
         return int((incoming_meta or {}).get("hops", 0)) + 1
@@ -393,7 +409,7 @@ def next_hops(incoming_meta: Optional[dict]) -> int:
         return 1
 
 
-def hops_exceeded(incoming_meta: Optional[dict], max_hops: int = MAX_HOPS) -> bool:
+def hops_exceeded(incoming_meta: dict | None, max_hops: int = MAX_HOPS) -> bool:
     """True iff this message is already too deep in an auto-reply chain to answer (return to a human)."""
     try:
         return int((incoming_meta or {}).get("hops", 0)) >= max_hops
@@ -409,7 +425,7 @@ class RateLimiter:
         self.max = max(1, int(max_per_min))
         self.events: deque = deque()
 
-    def allow(self, now: Optional[float] = None) -> bool:
+    def allow(self, now: float | None = None) -> bool:
         """Record an event and return True if under the limit; False if the window is full."""
         now = time.time() if now is None else now
         while self.events and now - self.events[0] > 60:
@@ -434,9 +450,11 @@ def set_activity(agent: str, state: str, detail: str = "") -> bool:
     if c is None:
         return False
     try:
-        c.set(_activity_prefix() + str(agent),
-              json.dumps({"state": str(state), "detail": str(detail)[:120], "ts": _now()}),
-              ex=ACTIVITY_TTL)
+        c.set(
+            _activity_prefix() + str(agent),
+            json.dumps({"state": str(state), "detail": str(detail)[:120], "ts": _now()}),
+            ex=ACTIVITY_TTL,
+        )
         return True
     except Exception:
         return False
@@ -454,21 +472,19 @@ def clear_activity(agent: str) -> bool:
         return False
 
 
-def get_activities() -> Dict[str, Any]:
+def get_activities() -> dict[str, Any]:
     """{agent: {state, detail, ts}} for every agent currently doing something (non-expired)."""
     c = _client()
     if c is None:
         return {}
-    out: Dict[str, Any] = {}
+    out: dict[str, Any] = {}
     try:
-        for k in (c.keys(_activity_prefix() + "*") or []):
+        for k in c.keys(_activity_prefix() + "*") or []:
             agent = str(k).rsplit(":", 1)[-1]
             raw = c.get(k)
             if raw:
-                try:
+                with contextlib.suppress(Exception):
                     out[agent] = json.loads(raw)
-                except Exception:
-                    pass
     except Exception:
         pass
     return out

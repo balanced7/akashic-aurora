@@ -15,14 +15,14 @@ pointer, so the assembled block is fully traceable back to the raw records.
 
 import json
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any
 
-from core.primitives.distiller import Distiller
-from core.context.learning_loader import load_learnings_for_boot
-from core.context.decision_loader import load_decisions_applicable_to_task
 from core.context.blocker_loader import load_blockers_preventing_progress
 from core.context.briefing_loader import load_briefing_from_previous_handoff
+from core.context.decision_loader import load_decisions_applicable_to_task
+from core.context.learning_loader import load_learnings_for_boot
 from core.context.narrative_loader import load_recent_narrative_for_boot
+from core.primitives.distiller import Distiller
 
 # Fraction of the token budget allotted to each section (high-signal first).
 SECTION_BUDGET_FRACTION = {
@@ -40,10 +40,10 @@ def _estimate_tokens(obj: Any) -> int:
     return max(1, len(json.dumps(obj, default=str)) // 4)
 
 
-def _fit_to_budget(sections: Dict[str, Any], token_budget: int) -> tuple:
+def _fit_to_budget(sections: dict[str, Any], token_budget: int) -> tuple:
     """Trim each section to its share of the budget; list sections drop lowest-ranked
     entries first (they arrive ranked best-first). Returns (sections, approx_tokens)."""
-    fitted: Dict[str, Any] = {}
+    fitted: dict[str, Any] = {}
     total = 0
     for name, content in sections.items():
         sub_budget = int(token_budget * SECTION_BUDGET_FRACTION.get(name, 0.1))
@@ -67,15 +67,15 @@ def _fit_to_budget(sections: Dict[str, Any], token_budget: int) -> tuple:
 def assemble_context(
     task: str,
     *,
-    agent: Optional[str] = None,
+    agent: str | None = None,
     token_budget: int = 9000,
     agent_memory: Any = None,
     learning_store: Any = None,
     context_manager: Any = None,
     signal_ledger: Any = None,
     store: Any = None,
-    now: Optional[float] = None,
-) -> Dict[str, Any]:
+    now: float | None = None,
+) -> dict[str, Any]:
     """
     Assemble ranked, budget-fitted context for `task` (and optionally `agent`).
 
@@ -87,24 +87,23 @@ def assemble_context(
     """
     if context_manager is None:
         from core.context.project_context import get_project_context_manager_instance
+
         context_manager = get_project_context_manager_instance()
 
-    sections: Dict[str, Any] = {}
+    sections: dict[str, Any] = {}
 
     if agent:
         briefing = load_briefing_from_previous_handoff(
-            agent, signal_ledger=signal_ledger, learning_store=learning_store)
+            agent, signal_ledger=signal_ledger, learning_store=learning_store
+        )
         if briefing:
             sections["briefing"] = briefing
 
-    sections["decisions"] = load_decisions_applicable_to_task(
-        task, top_k=8, agent_memory=agent_memory, now=now)
+    sections["decisions"] = load_decisions_applicable_to_task(task, top_k=8, agent_memory=agent_memory, now=now)
     # T071-R1: MOST-RELEVANT under the fixed relevance budget (was: top-8 by
     # generic rank). Same entry shape; kill switch AKASHIC_RELEVANCE_BUDGET=0.
-    sections["learnings"] = load_learnings_for_boot(
-        task, learning_store=learning_store, now=now)
-    sections["blockers"] = load_blockers_preventing_progress(
-        task, top_k=8, context_manager=context_manager, now=now)
+    sections["learnings"] = load_learnings_for_boot(task, learning_store=learning_store, now=now)
+    sections["blockers"] = load_blockers_preventing_progress(task, top_k=8, context_manager=context_manager, now=now)
 
     narrative = load_recent_narrative_for_boot(store=store)
     if narrative:
@@ -121,8 +120,7 @@ def assemble_context(
     }
 
     fitted, approx_tokens = _fit_to_budget(sections, token_budget)
-    coverage = [name for name, content in fitted.items()
-                if content or content == 0]  # sections that produced something
+    coverage = [name for name, content in fitted.items() if content or content == 0]  # sections that produced something
 
     # Distill a compact SKELETON over the source-bearing entries (progressive
     # disclosure: this is the small overview an agent reads; `sections` is the
@@ -130,22 +128,28 @@ def assemble_context(
     skeleton_items = []
     narrative = fitted.get("narrative")
     if narrative:
-        skeleton_items.append({
-            "summary": narrative.get("summary", ""),
-            "source": narrative.get("source", "narr:atlas:current"),
-            "kind": "narrative",
-        })
+        skeleton_items.append(
+            {
+                "summary": narrative.get("summary", ""),
+                "source": narrative.get("source", "narr:atlas:current"),
+                "kind": "narrative",
+            }
+        )
     for kind in ("decisions", "learnings", "blockers"):
-        for entry in fitted.get(kind, []):
-            skeleton_items.append({**entry, "kind": kind})
+        skeleton_items.extend({**entry, "kind": kind} for entry in fitted.get(kind, []))
     briefing = fitted.get("briefing")
     if briefing:
-        skeleton_items.insert(0, {
-            "summary": f"handoff from {briefing.get('from_agent')}: {briefing.get('task')}",
-            "source": briefing.get("source"), "kind": "briefing",
-        })
+        skeleton_items.insert(
+            0,
+            {
+                "summary": f"handoff from {briefing.get('from_agent')}: {briefing.get('task')}",
+                "source": briefing.get("source"),
+                "kind": "briefing",
+            },
+        )
     distillation = Distiller().distill(
-        skeleton_items, token_budget=token_budget, instruction=f"starting context for: {task}")
+        skeleton_items, token_budget=token_budget, instruction=f"starting context for: {task}"
+    )
 
     return {
         "task": task,
@@ -155,9 +159,9 @@ def assemble_context(
         "approx_tokens": approx_tokens,
         "within_budget": approx_tokens <= token_budget,
         "coverage": coverage,
-        "skeleton": distillation.skeleton,            # compact "shape" to inject
-        "skeleton_entries": distillation.entries,     # structured, each with a source
+        "skeleton": distillation.skeleton,  # compact "shape" to inject
+        "skeleton_entries": distillation.entries,  # structured, each with a source
         "skeleton_dropped": distillation.dropped_sources,
         "skeleton_ok": distillation.critic_ok,
-        "sections": fitted,                           # full structured backing (drill-down)
+        "sections": fitted,  # full structured backing (drill-down)
     }

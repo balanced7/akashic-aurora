@@ -19,29 +19,31 @@ Usage:
   py scripts/checkers/check_bus_atom_pointers.py --self-test
 Exit 0 = clean photograph; exit 1 = atomless bodies found (wrap/lint gateable).
 """
+
 from __future__ import annotations
 
 import argparse
 import os
 import re
 import sys
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(_HERE))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
-THRESHOLD = 1500          # chars: below this a body is "a pointer with manners"
-HEADING_MIN = 2           # markdown headings that make a body design-shaped
-BULLET_MIN = 6            # or this many list items
+THRESHOLD = 1500  # chars: below this a body is "a pointer with manners"
+HEADING_MIN = 2  # markdown headings that make a body design-shaped
+BULLET_MIN = 6  # or this many list items
 
 # Durable-pointer roster: an atom id, a write-once note id, or a library/legacy path.
 POINTER_RE = re.compile(
     r"\bart_\d{8}_[a-z0-9\-]+_[0-9a-f]{6}\b"
     r"|\bADR_\d{10}_[0-9a-f]{8}\b"
     r"|docs/library/[A-Za-z0-9_\-./]+"
-    r"|research/[A-Za-z0-9_\-./]+\.md")
+    r"|research/[A-Za-z0-9_\-./]+\.md"
+)
 _HEADING_RE = re.compile(r"^#{1,6}\s+\S", re.MULTILINE)
 _BULLET_RE = re.compile(r"^\s*(?:[-*]|\d+\.)\s+\S", re.MULTILINE)
 
@@ -54,11 +56,21 @@ _BULLET_RE = re.compile(r"^\s*(?:[-*]|\d+\.)\s+\S", re.MULTILINE)
 # they landed in (the corpus calls this one_word_two_meanings_is_how_gauges_lie). This side moved
 # because it is referenced in exactly one function in this file, while the wake side carries
 # parity pin L7, two T045 suites and ~20 library documents that are historical record.
-NON_CARGO_KINDS = {"trace", "halt", "interrupt", "pause", "resume", "nudge", "steer",
-                   "ledger_update", "presence", "heartbeat"}
+NON_CARGO_KINDS = {
+    "trace",
+    "halt",
+    "interrupt",
+    "pause",
+    "resume",
+    "nudge",
+    "steer",
+    "ledger_update",
+    "presence",
+    "heartbeat",
+}
 
 
-def classify_body(text: str, kind: str = "") -> Optional[str]:
+def classify_body(text: str, kind: str = "") -> str | None:
     """Return a flag-reason for an atomless design-shaped body, else None (clean)."""
     if not text or (kind or "").lower() in NON_CARGO_KINDS:
         return None
@@ -71,29 +83,30 @@ def classify_body(text: str, kind: str = "") -> Optional[str]:
     headings = len(_HEADING_RE.findall(text))
     bullets = len(_BULLET_RE.findall(text))
     if headings < HEADING_MIN and bullets < BULLET_MIN:
-        return None                     # long prose, not a structured artifact
+        return None  # long prose, not a structured artifact
     if POINTER_RE.search(text):
-        return None                     # carries its durable home
-    return (f"design-shaped ({headings} heading(s), {bullets} bullet(s), "
-            f"{len(text)} chars) with NO durable pointer")
+        return None  # carries its durable home
+    return f"design-shaped ({headings} heading(s), {bullets} bullet(s), {len(text)} chars) with NO durable pointer"
 
 
-def _body_of(fields: Dict[str, Any]) -> Tuple[str, str]:
+def _body_of(fields: dict[str, Any]) -> tuple[str, str]:
     """(text, kind) from a stream envelope; field names vary across eras."""
     text = str(fields.get("text") or fields.get("content") or "")
     return text, str(fields.get("kind") or "")
 
 
-def scan_live(per_stream: int = 100, hours: float = 0.0) -> List[str]:
+def scan_live(per_stream: int = 100, hours: float = 0.0) -> list[str]:
     """Photograph recent messages on every non-telemetry stream in the namespace.
     hours > 0 bounds the window (stream ids are ms timestamps) -- the wrap-gate mode:
     history stays a one-time census; the gate judges only fresh sends."""
     import time as _time
+
     from core.comm.bus import get_bus
+
     bus = get_bus("claude")
     client, ns = bus._client, bus.ns
     min_id = f"{int((_time.time() - hours * 3600) * 1000)}-0" if hours > 0 else "-"
-    rows: List[str] = []
+    rows: list[str] = []
     seen_keys: set = set()
     for key in client.scan_iter(match=f"{ns}:*", count=200):
         k = str(key)
@@ -114,8 +127,7 @@ def scan_live(per_stream: int = 100, hours: float = 0.0) -> List[str]:
             if reason:
                 frm = fields.get("frm", "?")
                 head = re.sub(r"\s+", " ", text)[:70]
-                rows.append(f"[atomless] {k} {mid} frm={frm} kind={kind or '?'} -- {reason}\n"
-                            f"           \"{head}...\"")
+                rows.append(f'[atomless] {k} {mid} frm={frm} kind={kind or "?"} -- {reason}\n           "{head}..."')
     return rows
 
 
@@ -134,8 +146,12 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--live", action="store_true", help="scan the live namespace's streams")
     ap.add_argument("--per-stream", type=int, default=100)
-    ap.add_argument("--hours", type=float, default=0.0,
-                    help="only judge messages younger than this (wrap-gate mode); 0 = all history")
+    ap.add_argument(
+        "--hours",
+        type=float,
+        default=0.0,
+        help="only judge messages younger than this (wrap-gate mode); 0 = all history",
+    )
     ap.add_argument("--self-test", action="store_true")
     args = ap.parse_args()
     if args.self_test:
@@ -147,8 +163,10 @@ def main() -> int:
     for r in rows:
         print(r)
     verdict = "CLEAN" if not rows else "ATOMLESS BODIES FOUND"
-    print(f"[check_bus_atom_pointers] {verdict}: {len(rows)} row(s). "
-          f"Law: mint first (doc new / note), the bus carries the pointer.")
+    print(
+        f"[check_bus_atom_pointers] {verdict}: {len(rows)} row(s). "
+        f"Law: mint first (doc new / note), the bus carries the pointer."
+    )
     return 0 if not rows else 1
 
 

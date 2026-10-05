@@ -30,6 +30,7 @@ seat-tasks could return two findings and read as a failure.
 
 Run: py -m pytest tests/test_t181_ask_many_is_still_not_a_seat.py -q
 """
+
 import ast
 import os
 import sys
@@ -38,14 +39,12 @@ import time
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from core.comm import ask as A  # noqa: E402
+from core.comm import ask as A  # noqa: E402  # sys.path bootstrap
 
 
 class _Resp:
     def __init__(self, text, finish="stop", pt=100, ct=50):
-        self.choices = [type("C", (), {
-            "message": type("M", (), {"content": text})(),
-            "finish_reason": finish})()]
+        self.choices = [type("C", (), {"message": type("M", (), {"content": text})(), "finish_reason": finish})()]
         self.usage = type("U", (), {"prompt_tokens": pt, "completion_tokens": ct})()
 
 
@@ -59,6 +58,7 @@ class _Client:
 
         class _Completions:
             def create(self, model=None, messages=None, max_tokens=None):
+                assert messages is not None
                 prompt = messages[-1]["content"]
                 if prompt in outer.boom_on:
                     raise RuntimeError(f"branch {prompt} refused")
@@ -71,7 +71,8 @@ class _Client:
 def test_k1_n_prompts_return_n_answers_in_input_order():
     prompts = [f"q{i}" for i in range(5)]
     o = A.ask_many(prompts, client=_Client())
-    assert o.ok and not o.partial
+    assert o.ok
+    assert not o.partial
     branches = o.detail["branches"]
     assert [b["answer"] for b in branches] == [f"answer:q{i}" for i in range(5)]
 
@@ -80,13 +81,12 @@ def test_k2_branches_actually_run_concurrently():
     """A fan-out that serialises is not a fan-out. Five 0.4s branches must finish nearer 0.4s
     than 2.0s -- ask is I/O-bound, so the whole value here is overlap."""
     prompts = [f"q{i}" for i in range(5)]
-    delays = {p: 0.4 for p in prompts}
+    delays = dict.fromkeys(prompts, 0.4)
     t0 = time.time()
     o = A.ask_many(prompts, client=_Client(delays=delays), max_workers=5)
     elapsed = time.time() - t0
     assert o.ok
-    assert elapsed < 1.2, (
-        f"5 x 0.4s branches took {elapsed:.2f}s -- serial would be ~2.0s. Not running concurrently.")
+    assert elapsed < 1.2, f"5 x 0.4s branches took {elapsed:.2f}s -- serial would be ~2.0s. Not running concurrently."
 
 
 def test_k3_one_bad_branch_does_not_kill_the_fan():
@@ -97,7 +97,8 @@ def test_k3_one_bad_branch_does_not_kill_the_fan():
     assert o.ok is True, "two of three landed; that is not a failure"
     assert o.partial is True, "nor is it a clean success"
     assert bool(o) is False, "a partial fan is falsy so nobody mistakes it for complete"
-    assert "2" in o.why and "3" in o.why, f"the aggregate must say how many landed: {o.why!r}"
+    assert "2" in o.why, f"the aggregate must say how many landed: {o.why!r}"
+    assert "3" in o.why, f"the aggregate must say how many landed: {o.why!r}"
     branches = o.detail["branches"]
     assert [b["ok"] for b in branches] == [True, False, True], "order and per-branch verdicts kept"
     assert "refused" in branches[1]["why"], "the failed branch names its own cause"
@@ -106,7 +107,8 @@ def test_k3_one_bad_branch_does_not_kill_the_fan():
 def test_k4_a_total_wipeout_is_a_failure_that_still_counts():
     o = A.ask_many(["a", "b"], client=_Client(boom_on={"a", "b"}))
     assert o.ok is False
-    assert "0" in o.why and "2" in o.why
+    assert "0" in o.why
+    assert "2" in o.why
 
 
 def test_k5_aggregate_spend_is_the_sum_of_the_branches():
@@ -115,19 +117,20 @@ def test_k5_aggregate_spend_is_the_sum_of_the_branches():
     per = [b["usd"] for b in branches]
     assert all(x is not None for x in per), "a priced model must price every branch"
     assert abs(o.detail["usd"] - sum(per)) < 1e-9, "the fan must report what the fan cost"
-    assert o.detail["n_ok"] == 3 and o.detail["n"] == 3
+    assert o.detail["n_ok"] == 3
+    assert o.detail["n"] == 3
 
 
 def test_k6_input_order_survives_reversed_completion_order():
     """first finishes LAST. Attribution depends on order, so completion order must not leak."""
-    o = A.ask_many(["first", "second"],
-                   client=_Client(delays={"first": 0.5, "second": 0.0}), max_workers=2)
+    o = A.ask_many(["first", "second"], client=_Client(delays={"first": 0.5, "second": 0.0}), max_workers=2)
     assert [b["answer"] for b in o.detail["branches"]] == ["answer:first", "answer:second"]
 
 
 def test_k7_an_empty_fan_is_a_named_failure():
     o = A.ask_many([], client=_Client())
-    assert o.ok is False and o.why, "asking nothing is not the same as asking and hearing nothing"
+    assert o.ok is False, "asking nothing is not the same as asking and hearing nothing"
+    assert o.why, "asking nothing is not the same as asking and hearing nothing"
 
 
 def test_k8_ask_many_touches_no_seat_machinery():
@@ -140,13 +143,28 @@ def test_k8_ask_many_touches_no_seat_machinery():
     enforced with no exemptions on the fan path; the durable verb answers to its own narrower law
     in test_t197_peer_presence.py.
     """
-    tree = ast.parse(open(os.path.join(ROOT, "core", "comm", "ask.py"), encoding="utf-8").read())
-    tree = ast.Module(body=[n for n in tree.body
-                            if not (isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))
-                                    and n.name == "ask_peer")],
-                      type_ignores=[])
-    forbidden = {"runner_lock", "seed_cursor", "roster", "mailbox", "worklive",
-                 "acquire", "bifrost_send", "heartbeat", "role_queue", "expectations"}
+    with open(os.path.join(ROOT, "core", "comm", "ask.py"), encoding="utf-8") as fh:
+        tree = ast.parse(fh.read())
+    tree = ast.Module(
+        body=[
+            n
+            for n in tree.body
+            if not (isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)) and n.name == "ask_peer")
+        ],
+        type_ignores=[],
+    )
+    forbidden = {
+        "runner_lock",
+        "seed_cursor",
+        "roster",
+        "mailbox",
+        "worklive",
+        "acquire",
+        "bifrost_send",
+        "heartbeat",
+        "role_queue",
+        "expectations",
+    }
     referenced = set()
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):

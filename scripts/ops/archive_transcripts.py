@@ -33,18 +33,21 @@ THREE LAWS, each earned that day:
 Destinations are separate PHYSICAL disks on purpose (C: source, E:, F:) -- two copies on one
 drive is one failure domain wearing a disguise.
 """
+
 from __future__ import annotations
 
 import argparse
+import contextlib
 import hashlib
 import json
 import os
 import shutil
 import sys
+import tempfile
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, cast
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -56,9 +59,10 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 # wrote to the rolling dirs (102). Ninety archived sessions were unreachable by the indexer for
 # as long as nobody compared the two lists. One declaration, one pin asserting they agree.
 sys.path.insert(0, str(_REPO_ROOT))
-from config import TRANSCRIPT_ARCHIVE_ROOTS  # noqa: E402
 
-DEFAULT_DESTS: List[Path] = list(TRANSCRIPT_ARCHIVE_ROOTS)
+from config import TRANSCRIPT_ARCHIVE_ROOTS  # noqa: E402  # sys.path bootstrap
+
+DEFAULT_DESTS: list[Path] = list(TRANSCRIPT_ARCHIVE_ROOTS)
 DEFAULT_RECEIPTS = _REPO_ROOT / "state" / "archive" / "receipts"
 
 # A path no filesystem will give us, for the unreachable-destination pin. Named rather than
@@ -68,8 +72,7 @@ UNREACHABLE_PROBE = Path("\x00::unreachable::")
 _SUBAGENT_MARKERS = ("subagents", "workflows")
 
 
-def source_transcripts(root: Optional[Path] = None,
-                       include_subagents: bool = False) -> Tuple[List[Path], int]:
+def source_transcripts(root: Path | None = None, include_subagents: bool = False) -> tuple[list[Path], int]:
     """The transcripts to archive, and HOW MANY WERE EXCLUDED.
 
     Returns the excluded count rather than swallowing it: a denominator that is itself a
@@ -82,7 +85,7 @@ def source_transcripts(root: Optional[Path] = None,
     root = Path(root) if root else (Path.home() / ".claude" / "projects")
     if not root.is_dir():
         return [], 0
-    picked: List[Path] = []
+    picked: list[Path] = []
     excluded = 0
     for p in sorted(root.rglob("*.jsonl")):
         rel = p.relative_to(root).parts
@@ -109,17 +112,30 @@ def _copy_verified(src: Path, dst: Path) -> bool:
     shutil.copy2(str(src), str(tmp))
     ok = _sha256(tmp) == _sha256(src)
     if ok:
-        os.replace(str(tmp), str(dst))     # atomic: no half-written file is ever visible
+        os.replace(str(tmp), str(dst))  # atomic: no half-written file is ever visible
     else:
         tmp.unlink(missing_ok=True)
     return ok
 
 
-def _archive_one_dest(sources: List[Path], dest: Path, verify: bool,
-                      rel_root: Optional[Path] = None) -> Dict[str, Any]:
-    rec: Dict[str, Any] = {"path": str(dest), "reachable": False, "copied": 0,
-                           "skipped": 0, "repaired": 0, "deleted": 0, "bytes_copied": 0,
-                           "refused": [], "failed": [], "present_total": 0}
+def _archive_one_dest(sources: list[Path], dest: Path, verify: bool, rel_root: Path | None = None) -> dict[str, Any]:
+    rec: dict[str, Any] = {
+        "path": str(dest),
+        "reachable": False,
+        "copied": 0,
+        "skipped": 0,
+        "repaired": 0,
+        "deleted": 0,
+        "bytes_copied": 0,
+        "refused": [],
+        "failed": [],
+        "present_total": 0,
+    }
+    if not dest.is_absolute():
+        # A drive letter from another OS is a RELATIVE path here; mkdir would plant the
+        # archive (unredacted transcripts) inside whatever the cwd is -- often the repo.
+        rec["failed"].append(f"destination is not an absolute path on this OS: {dest}")
+        return rec
     try:
         dest.mkdir(parents=True, exist_ok=True)
         rec["reachable"] = True
@@ -139,7 +155,7 @@ def _archive_one_dest(sources: List[Path], dest: Path, verify: bool,
         try:
             target = (dest / src.relative_to(rel_root)) if rel_root else (dest / src.name)
         except ValueError:
-            target = dest / src.name       # outside rel_root: fall back, never crash
+            target = dest / src.name  # outside rel_root: fall back, never crash
         try:
             s_size = src.stat().st_size
             if target.exists():
@@ -148,7 +164,8 @@ def _archive_one_dest(sources: List[Path], dest: Path, verify: bool,
                     # LAW 2. Append-only means this cannot be a legitimate update.
                     rec["refused"].append(
                         f"{src.name}: source {s_size:,}B is SMALLER than archived "
-                        f"{d_size:,}B -- kept the archived copy (upstream truncation?)")
+                        f"{d_size:,}B -- kept the archived copy (upstream truncation?)"
+                    )
                     continue
                 if s_size == d_size:
                     if not verify or _sha256(target) == _sha256(src):
@@ -172,26 +189,34 @@ def _archive_one_dest(sources: List[Path], dest: Path, verify: bool,
     # LAW 1: nothing here removes files. The count is reported so the pin can assert on it
     # and so a reader never has to infer the absence of a delete path from silence.
     rec["deleted"] = 0
-    try:
+    with contextlib.suppress(Exception):
         rec["present_total"] = sum(1 for _ in dest.rglob("*") if _.is_file())
-    except Exception:
-        pass
     return rec
 
 
-def archive(sources: List[Path], dests: Optional[List[Path]] = None, *,
-            verify: bool = False, receipt_dir: Optional[Path] = None,
-            excluded: int = 0, rel_root: Optional[Path] = None) -> Dict[str, Any]:
+def archive(
+    sources: list[Path],
+    dests: list[Path] | None = None,
+    *,
+    verify: bool = False,
+    receipt_dir: Path | None = None,
+    excluded: int = 0,
+    rel_root: Path | None = None,
+) -> dict[str, Any]:
     """Copy every source into every destination, additively. Returns the report.
 
     Destinations are independent: two drives exist so that one can die, so an unreachable
     one is recorded and stepped over, never allowed to abort the copy to the live one."""
     dests = list(dests if dests is not None else DEFAULT_DESTS)
+    if not dests:
+        # all([]) is True: with no destinations the report below would read OK having copied
+        # nothing anywhere. Refuse instead -- the exact failure this tool exists to prevent.
+        raise ValueError("no archive destinations configured -- set AKASHIC_TRANSCRIPT_ARCHIVE_ROOTS or pass --dest")
     started = time.time()
     per_dest = [_archive_one_dest(sources, Path(d), verify, rel_root) for d in dests]
     ok = all(d["reachable"] and not d["refused"] and not d["failed"] for d in per_dest)
     report = {
-        "ran_at": datetime.now(timezone.utc).isoformat(),
+        "ran_at": datetime.now(UTC).isoformat(),
         "elapsed_s": round(time.time() - started, 2),
         "sources_seen": len(sources),
         "sources_excluded": excluded,
@@ -206,35 +231,37 @@ def archive(sources: List[Path], dests: Optional[List[Path]] = None, *,
         # `--status` -- the operator's only window onto whether the backup is healthy --
         # reported a pytest fixture as the last real run. A monitoring surface showing test
         # data as production is worse than one that shows nothing.
-        rdir = Path(os.getenv("TEMP", ".")) / "akashic-archive-receipts-test"
+        rdir = Path(tempfile.gettempdir()) / "akashic-archive-receipts-test"
     try:
         rdir.mkdir(parents=True, exist_ok=True)
-        stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-        (rdir / f"archive-{stamp}.json").write_text(
-            json.dumps(report, indent=1), encoding="utf-8")
+        stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
+        (rdir / f"archive-{stamp}.json").write_text(json.dumps(report, indent=1), encoding="utf-8")
         (rdir / "latest.json").write_text(json.dumps(report, indent=1), encoding="utf-8")
     except Exception as e:
         report["receipt_error"] = f"{e.__class__.__name__}: {e}"
-        report["ok"] = False      # an unrecorded run is indistinguishable from no run
+        report["ok"] = False  # an unrecorded run is indistinguishable from no run
     return report
 
 
-def _render(rep: Dict[str, Any]) -> None:
-    print(f"[archive] {rep['sources_seen']} transcript(s) seen"
-          + (f", {rep['sources_excluded']} subagent transcript(s) excluded"
-             if rep["sources_excluded"] else "")
-          + f" | {rep['elapsed_s']}s"
-          + ("  [VERIFY]" if rep["verify"] else ""))
+def _render(rep: dict[str, Any]) -> None:
+    print(
+        f"[archive] {rep['sources_seen']} transcript(s) seen"
+        + (f", {rep['sources_excluded']} subagent transcript(s) excluded" if rep["sources_excluded"] else "")
+        + f" | {rep['elapsed_s']}s"
+        + ("  [VERIFY]" if rep["verify"] else "")
+    )
     for d in rep["destinations"]:
         if not d["reachable"]:
             print(f"  [UNREACHABLE] {d['path']}")
             for f in d["failed"]:
                 print(f"      {f}")
             continue
-        print(f"  {d['path']}: +{d['copied']} copied, {d['skipped']} unchanged"
-              + (f", {d['repaired']} REPAIRED" if d["repaired"] else "")
-              + f", {d['present_total']} held"
-              + (f", {d['bytes_copied']:,} bytes" if d["bytes_copied"] else ""))
+        print(
+            f"  {d['path']}: +{d['copied']} copied, {d['skipped']} unchanged"
+            + (f", {d['repaired']} REPAIRED" if d["repaired"] else "")
+            + f", {d['present_total']} held"
+            + (f", {d['bytes_copied']:,} bytes" if d["bytes_copied"] else "")
+        )
         for r in d["refused"]:
             print(f"      [REFUSED] {r}")
         for f in d["failed"]:
@@ -242,20 +269,23 @@ def _render(rep: Dict[str, Any]) -> None:
     print("[archive] OK" if rep["ok"] else "[archive] NOT CLEAN -- see above")
 
 
-def main(argv: Optional[List[str]] = None) -> int:
-    ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    ap.add_argument("--source-dir", default="", help="transcript root (default: the "
-                                                     "harness projects dir)")
-    ap.add_argument("--dest", action="append", default=[],
-                    help="destination (repeatable; default: E: and F: archives)")
+def main(argv: list[str] | None = None) -> int:
+    ap = argparse.ArgumentParser(description=cast("str", __doc__).split("\n")[0])
+    ap.add_argument("--source-dir", default="", help="transcript root (default: the harness projects dir)")
+    ap.add_argument(
+        "--dest",
+        action="append",
+        default=[],
+        help="destination (repeatable; default: AKASHIC_TRANSCRIPT_ARCHIVE_ROOTS)",
+    )
     ap.add_argument("--receipt-dir", default="", help="where receipts land")
-    ap.add_argument("--verify", action="store_true",
-                    help="hash every archived copy, not just the size-changed ones "
-                         "(catches silent rot; slower)")
-    ap.add_argument("--include-subagents", action="store_true",
-                    help="also archive subagent/workflow transcripts")
-    ap.add_argument("--status", action="store_true",
-                    help="print the last receipt and exit; copies nothing")
+    ap.add_argument(
+        "--verify",
+        action="store_true",
+        help="hash every archived copy, not just the size-changed ones (catches silent rot; slower)",
+    )
+    ap.add_argument("--include-subagents", action="store_true", help="also archive subagent/workflow transcripts")
+    ap.add_argument("--status", action="store_true", help="print the last receipt and exit; copies nothing")
     a = ap.parse_args(argv)
 
     rdir = Path(a.receipt_dir) if a.receipt_dir else DEFAULT_RECEIPTS
@@ -265,21 +295,28 @@ def main(argv: Optional[List[str]] = None) -> int:
             print("[archive] NEVER RUN -- no receipt on record", file=sys.stderr)
             return 1
         rep = json.loads(latest.read_text(encoding="utf-8"))
-        age_h = (datetime.now(timezone.utc)
-                 - datetime.fromisoformat(rep["ran_at"])).total_seconds() / 3600.0
+        age_h = (datetime.now(UTC) - datetime.fromisoformat(rep["ran_at"])).total_seconds() / 3600.0
         print(f"[archive] last run {age_h:.1f}h ago")
         _render(rep)
         return 0 if rep.get("ok") else 1
 
-    sources, excluded = source_transcripts(
-        Path(a.source_dir) if a.source_dir else None, a.include_subagents)
+    sources, excluded = source_transcripts(Path(a.source_dir) if a.source_dir else None, a.include_subagents)
     if not sources:
-        print("[archive] NO TRANSCRIPTS FOUND -- refusing to record a clean run over an "
-              "empty source (an empty backup that reports OK is the failure mode this "
-              "tool exists to prevent)", file=sys.stderr)
+        print(
+            "[archive] NO TRANSCRIPTS FOUND -- refusing to record a clean run over an "
+            "empty source (an empty backup that reports OK is the failure mode this "
+            "tool exists to prevent)",
+            file=sys.stderr,
+        )
         return 1
-    rep = archive(sources, [Path(d) for d in a.dest] or None,
-                  verify=a.verify, receipt_dir=rdir, excluded=excluded)
+    if not (a.dest or DEFAULT_DESTS):
+        print(
+            "[archive] NO DESTINATIONS -- set AKASHIC_TRANSCRIPT_ARCHIVE_ROOTS (absolute paths, "
+            f"'{os.pathsep}'-separated; separate physical disks) or pass --dest",
+            file=sys.stderr,
+        )
+        return 2
+    rep = archive(sources, [Path(d) for d in a.dest] or None, verify=a.verify, receipt_dir=rdir, excluded=excluded)
     _render(rep)
     return 0 if rep["ok"] else 1
 

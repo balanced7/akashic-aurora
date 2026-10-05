@@ -37,11 +37,16 @@ WHAT THIS DOOR DOES DIFFERENTLY, and both halves are load-bearing:
   reads. An unresolvable alias or a stamp failure never blocks the reply itself -- the body
   reaching him outranks the receipt about who sent it.
 """
+
 from __future__ import annotations
 
+import contextlib
 import os
 import time
-from typing import Any, Callable, Dict, List, Optional
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 #: Who "the operator" is when nobody says otherwise. A default, never a truth claim --
 #: whoever holds the root id is not necessarily this name (the same discipline
@@ -67,7 +72,7 @@ def _session_id() -> str:
     return (os.environ.get("CLAUDE_CODE_SESSION_ID") or "").strip()[:8]
 
 
-def _recent_failures() -> List[Dict[str, Any]]:
+def _recent_failures() -> list[dict[str, Any]]:
     """Recent `discord_feed_post_failed` records. Best-effort by construction: the caller
     treats an exception here as UNKNOWN, never as clean."""
     # The SAME door `agent_cli events --search` uses (agent_cli.py:4966). My first guess
@@ -75,8 +80,9 @@ def _recent_failures() -> List[Dict[str, Any]]:
     # honesty caught it: the ImportError degraded to UNKNOWN and it claimed neither
     # delivery nor loss, exactly as designed, instead of reporting a cheerful success.
     from core.events.event_query import get_event_query
+
     rows = get_event_query().search("discord_feed_post_failed", top_k=25)
-    out: List[Dict[str, Any]] = []
+    out: list[dict[str, Any]] = []
     now = time.time()
     for r in rows or []:
         ts = r.get("ts") or r.get("timestamp") or 0
@@ -89,69 +95,93 @@ def _recent_failures() -> List[Dict[str, Any]]:
     return out
 
 
-def reply(text: Optional[str], *, sender: Optional[str] = None, to: Optional[str] = None,
-          bus: Any = None, failures: Optional[Callable[[], List[Dict[str, Any]]]] = None,
-          kind: str = "chat", model: Optional[str] = None,
-          stamp: Optional[Callable[..., bool]] = None) -> Dict[str, Any]:
+def reply(
+    text: str | None,
+    *,
+    sender: str | None = None,
+    to: str | None = None,
+    bus: Any = None,
+    failures: Callable[[], list[dict[str, Any]]] | None = None,
+    kind: str = "chat",
+    model: str | None = None,
+    stamp: Callable[..., bool] | None = None,
+) -> dict[str, Any]:
     """Answer the operator. `text` is the ONLY positional -- see the module docstring.
 
     `model`, if given, is stamped to the self-report plane (`!model` reads it) on a
     successful send -- best-effort, and never turns a delivered reply into a failure."""
     body = "" if text is None else str(text).strip()
     if not body:
-        return {"ok": False, "why": "refusing an EMPTY reply -- a header with nothing under "
-                                    "it is indistinguishable from a failed send",
-                "delivery": "REFUSED", "id": None}
+        return {
+            "ok": False,
+            "why": "refusing an EMPTY reply -- a header with nothing under it is indistinguishable from a failed send",
+            "delivery": "REFUSED",
+            "id": None,
+        }
 
     who = (sender or _seat()).strip()
     target = (to or operator_id()).strip()
 
     if bus is None:
         from core.comm.bus import Bus
+
         bus = Bus(who)
     if not getattr(bus, "online", True):
-        return {"ok": False, "why": "bus OFFLINE (Redis down) -- not sent",
-                "delivery": "REFUSED", "id": None}
-    try:
+        return {"ok": False, "why": "bus OFFLINE (Redis down) -- not sent", "delivery": "REFUSED", "id": None}
+    with contextlib.suppress(Exception):  # registration is hygiene, not the delivery path
         bus.register()
-    except Exception:                                                     # noqa: BLE001
-        pass                          # registration is hygiene, not the delivery path
 
     mid = bus.send(target, kind, body, meta={"source": "reply-verb", "from_seat": who})
     if mid is None:
         # T149: bus.send returns None WITHOUT raising when Redis is down or both writes
         # fail. Reporting success here is the exact claimed-delivery lie this door exists
         # to end.
-        return {"ok": False, "why": "the bus accepted nothing (send returned None) -- no "
-                                    "receipt for an undelivered word",
-                "delivery": "FAILED", "id": None}
+        return {
+            "ok": False,
+            "why": "the bus accepted nothing (send returned None) -- no receipt for an undelivered word",
+            "delivery": "FAILED",
+            "id": None,
+        }
 
     stamped = _stamp_model(model, agent=who, stamper=stamp)
 
     reader = failures or _recent_failures
     try:
         rows = reader() or []
-    except Exception as e:                                                # noqa: BLE001
-        return {"ok": True, "id": str(mid), "delivery": "UNKNOWN", "model_stamped": stamped,
-                "why": f"sent, but the failure log could not be read ({type(e).__name__}) "
-                       f"-- claiming neither delivery nor loss"}
+    except Exception as e:  # noqa: BLE001  # fail-soft: falls back to a default value
+        return {
+            "ok": True,
+            "id": str(mid),
+            "delivery": "UNKNOWN",
+            "model_stamped": stamped,
+            "why": f"sent, but the failure log could not be read ({type(e).__name__}) "
+            f"-- claiming neither delivery nor loss",
+        }
 
     probe = body[:60]
     for r in rows:
         blob = f"{r.get('text') or ''} {r.get('detail') or ''}"
         if probe and probe[:40] in blob:
             err = str((r.get("detail") or {}).get("error") or "post failed")
-            return {"ok": True, "id": str(mid), "delivery": "FAILED", "model_stamped": stamped,
-                    "why": f"the bus took it but the Discord post FAILED: {err}"}
+            return {
+                "ok": True,
+                "id": str(mid),
+                "delivery": "FAILED",
+                "model_stamped": stamped,
+                "why": f"the bus took it but the Discord post FAILED: {err}",
+            }
 
-    return {"ok": True, "id": str(mid), "delivery": "SENT_NO_FAILURE_RECORDED",
-            "model_stamped": stamped,
-            "why": "on the bus, nothing has confessed a failure -- which is not the same "
-                   "fact as the operator having read it"}
+    return {
+        "ok": True,
+        "id": str(mid),
+        "delivery": "SENT_NO_FAILURE_RECORDED",
+        "model_stamped": stamped,
+        "why": "on the bus, nothing has confessed a failure -- which is not the same "
+        "fact as the operator having read it",
+    }
 
 
-def _stamp_model(model: Optional[str], *, agent: str,
-                  stamper: Optional[Callable[..., bool]] = None) -> bool:
+def _stamp_model(model: str | None, *, agent: str, stamper: Callable[..., bool] | None = None) -> bool:
     """Best-effort self-report so `!model` reflects who is actually answering. An
     unresolvable alias, a missing session id, or a Redis hiccup all degrade to False --
     none of them may turn a delivered reply into a failure (see module docstring)."""
@@ -163,18 +193,20 @@ def _stamp_model(model: Optional[str], *, agent: str,
         return False
     try:
         from core.fleet import seat_model as _sm
+
         model_id = _sm.resolve_model_id(text)
         do_report = stamper or _sm.report
         return bool(do_report(agent, session, model_id, harness="claude-code"))
-    except Exception:                                                     # noqa: BLE001
+    except Exception:  # noqa: BLE001  # fail-soft: falls back to a default value
         return False
 
 
-def render(out: Dict[str, Any]) -> str:
+def render(out: dict[str, Any]) -> str:
     """One line for a CLI door."""
     if not out.get("ok"):
         return f"[reply] {out.get('why')}"
-    tag = {"FAILED": "FAILED", "UNKNOWN": "sent (unverified)",
-           "SENT_NO_FAILURE_RECORDED": "sent"}.get(str(out.get("delivery")), "sent")
+    tag = {"FAILED": "FAILED", "UNKNOWN": "sent (unverified)", "SENT_NO_FAILURE_RECORDED": "sent"}.get(
+        str(out.get("delivery")), "sent"
+    )
     stamp_note = " · model stamped" if out.get("model_stamped") else ""
     return f"[reply] {tag} -> {out.get('id')} :: {out.get('why')}{stamp_note}"

@@ -18,7 +18,6 @@ IDLE IN THE POOL -- it is PINGed on next use, raises, and redis-py reconnects. I
 cover a connection that dies WHILE ALREADY BLOCKED in a read. That path is still unexplained
 (socket_timeout was set to 6.5s and demonstrably did not fire) and remains open.
 """
-import os
 
 import pytest
 

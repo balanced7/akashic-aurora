@@ -56,6 +56,7 @@ items that SHOULD have surfaced and did not.
 
 Run: py -m pytest tests/test_precision_audit.py -q
 """
+
 import json
 import os
 import sys
@@ -81,6 +82,7 @@ ROWS = [
 
 def test_p1_harvest_returns_action_and_surfaced(tmp_path):
     from core.recall import precision_audit as pa
+
     items = pa.harvest(imp_dir=_ledger(tmp_path, ROWS))
     assert len(items) == 3
     one = next(i for i in items if i["action"].endswith("doctor.py"))
@@ -90,33 +92,41 @@ def test_p1_harvest_returns_action_and_surfaced(tmp_path):
 
 def test_p2_sampling_is_deterministic(tmp_path):
     from core.recall import precision_audit as pa
+
     d = _ledger(tmp_path, ROWS * 20)
     a = [i["action"] for i in pa.sample(pa.harvest(imp_dir=d), n=5, seed=7)]
     b = [i["action"] for i in pa.sample(pa.harvest(imp_dir=d), n=5, seed=7)]
-    assert a == b and len(a) == 5, "the same seed must re-draw the same sample, or no audit is re-auditable"
+    assert a == b, "the same seed must re-draw the same sample, or no audit is re-auditable"
+    assert len(a) == 5, "the same seed must re-draw the same sample, or no audit is re-auditable"
 
 
 def test_p3_the_pack_is_blind(tmp_path):
     """A labeller who can see credit history is not labelling relevance, they are reading the
     instrument's prior opinion back to it."""
     from core.recall import precision_audit as pa
+
     items = pa.harvest(imp_dir=_ledger(tmp_path, ROWS))
-    pack = pa.render_pack(items, bodies={"learn:experiment:daemon_needs_spawn_runner": "relaunch a seat with --spawn-runner"})
+    pack = pa.render_pack(
+        items, bodies={"learn:experiment:daemon_needs_spawn_runner": "relaunch a seat with --spawn-runner"}
+    )
     low = pack.lower()
     for leak in ("helped", "useful", "noise", "surfaced=", "credit", "worked claude"):
         assert leak not in low, f"the pack leaks prior credit signal ({leak!r}) -- labels would echo the ranker"
-    assert "daemon_needs_spawn_runner" in pack and "doctor.py" in pack
+    assert "daemon_needs_spawn_runner" in pack
+    assert "doctor.py" in pack
 
 
 def test_p4_score_reports_agreement_not_just_precision(tmp_path):
     from core.recall import precision_audit as pa
+
     labels = {
-        "claude":   {"1:a": "on", "2:a": "off", "3:a": "on"},
+        "claude": {"1:a": "on", "2:a": "off", "3:a": "on"},
         "deepseek": {"1:a": "on", "2:a": "off", "3:a": "off"},
     }
     r = pa.score(labels)
     assert 0.0 <= r["precision"] <= 1.0
-    assert "agreement" in r and 0.0 <= r["agreement"] <= 1.0
+    assert "agreement" in r
+    assert 0.0 <= r["agreement"] <= 1.0
     assert r["disputed"] == ["3:a"], "items the labellers disagree on must be named for the fence round"
 
 
@@ -124,6 +134,7 @@ def test_p5_an_empty_ledger_is_starved_not_perfect(tmp_path):
     """The audit must confess its own blindness. An instrument that reports 100% precision
     over zero observations is the exact disease this whole arc has been chasing."""
     from core.recall import precision_audit as pa
+
     items = pa.harvest(imp_dir=str(tmp_path / "nothing"))
     r = pa.score({})
     assert items == []
@@ -136,12 +147,18 @@ def test_p6_precision_never_travels_without_its_coverage():
     NOT negative. A precision figure quoted without the coverage it was computed over invites
     exactly the misreading that overturned the last one."""
     from core.recall import precision_audit as pa
-    labels = {"claude": {"1:a": "on", "2:a": "off"}}          # 2 of 5 surfaced items labelled
+
+    labels = {"claude": {"1:a": "on", "2:a": "off"}}  # 2 of 5 surfaced items labelled
     r = pa.score(labels, total_surfaced=5)
     assert r["label_coverage"] == 0.4
-    assert r["labelled"] == 2 and r["precision"] == 0.5, (
+    assert r["labelled"] == 2, (
         "precision must be computed over LABELLED items only -- counting the 3 unlabelled as "
-        "off-point would report 20% and be a lie")
+        "off-point would report 20% and be a lie"
+    )
+    assert r["precision"] == 0.5, (
+        "precision must be computed over LABELLED items only -- counting the 3 unlabelled as "
+        "off-point would report 20% and be a lie"
+    )
 
 
 def test_p7_the_score_carries_a_recall_arm():
@@ -150,9 +167,16 @@ def test_p7_the_score_carries_a_recall_arm():
     selection-vs-ranking dispute. Without a recall arm this audit cannot settle the thing it
     was built to settle."""
     from core.recall import precision_audit as pa
-    r = pa.score({"claude": {"1:a": "on"}}, total_surfaced=1,
-                 misses={"claude": {"1": ["learn:experiment:should_have_fired"]}})
+
+    r = pa.score(
+        {"claude": {"1:a": "on"}}, total_surfaced=1, misses={"claude": {"1": ["learn:experiment:should_have_fired"]}}
+    )
     assert r["misses_named"] == 1
-    assert "recall" in r and r["recall"] is not None, (
+    assert "recall" in r, (
         "no recall arm -- a precision-only audit is blind to the missing-item failure by "
-        "construction, which is the selection half of the question")
+        "construction, which is the selection half of the question"
+    )
+    assert r["recall"] is not None, (
+        "no recall arm -- a precision-only audit is blind to the missing-item failure by "
+        "construction, which is the selection half of the question"
+    )

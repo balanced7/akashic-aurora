@@ -13,6 +13,7 @@ EXCLUDED: RB-29 timeout/error notes must keep the expectation armed so the redri
 Redis-backed, throwaway namespace per test (BIFROST_NAMESPACE is read per-call by both
 the expectations module and Bus). Run: py -m pytest tests/test_t061_settle_linkage.py -q
 """
+
 import os
 import sys
 import uuid
@@ -27,10 +28,14 @@ from core.comm.bus import Bus
 
 
 def _redis_up():
-    from core.foundation.redis_connection import (
-        connect_to_redis_with_fail_fast, DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT)
-    return connect_to_redis_with_fail_fast(host=DEFAULT_REDIS_HOST, port=DEFAULT_REDIS_PORT,
-                                           timeout_seconds=3, decode_responses=True) is not None
+    from core.foundation.redis_connection import DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT, connect_to_redis_with_fail_fast
+
+    return (
+        connect_to_redis_with_fail_fast(
+            host=DEFAULT_REDIS_HOST, port=DEFAULT_REDIS_PORT, timeout_seconds=3, decode_responses=True
+        )
+        is not None
+    )
 
 
 def _ns(monkeypatch):
@@ -46,8 +51,7 @@ def test_b1_linked_handoff_settles_exactly(monkeypatch):
     it must settle that exact expectation."""
     _ns(monkeypatch)
     assert expectations.arm("claude", "100-0", "deepseek", "handoff", "review this", 3600)
-    Bus("deepseek").send("claude", "handoff", "verdict filed: GREEN",
-                         meta={"answers": "100-0"})
+    Bus("deepseek").send("claude", "handoff", "verdict filed: GREEN", meta={"answers": "100-0"})
     out = expectations.sweep("claude")
     assert "100-0" in out["cleared"], f"linked handoff must settle its ask, got {out}"
 
@@ -63,6 +67,7 @@ def test_b2_unlinked_handoff_fifo_clears_oldest(monkeypatch):
     out = expectations.sweep("claude")
     assert out["cleared"] == ["200-0"], f"exactly the OLDEST must clear, got {out['cleared']}"
     c = expectations._client()
+    assert c is not None
     assert c.hget(f"{expectations._key('claude')}", "201-0"), "the newer ask stays armed"
 
 
@@ -75,6 +80,7 @@ def test_b3_note_never_settles(monkeypatch):
     out = expectations.sweep("claude")
     assert out["cleared"] == [], f"a note must never settle an expectation, got {out}"
     c = expectations._client()
+    assert c is not None
     assert c.hget(f"{expectations._key('claude')}", "300-0"), "expectation stays armed"
 
 

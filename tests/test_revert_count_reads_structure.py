@@ -23,6 +23,7 @@ the form: Revert "<original subject>". That is structure, and prose in a body ca
 
 Run: py -m pytest tests/test_revert_count_reads_structure.py -q
 """
+
 import os
 import sys
 
@@ -31,29 +32,38 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 def test_p1_revert_instructions_in_a_body_are_not_reverts():
     from scripts import arc_scorecard as sc
-    msg = ("A shell hook is a production entry point too\n\n"
-           "REVERT: drop the reachable |= shell_invoked_modules() line in analyze().")
+
+    msg = (
+        "A shell hook is a production entry point too\n\n"
+        "REVERT: drop the reachable |= shell_invoked_modules() line in analyze()."
+    )
     assert not sc.is_revert(msg), (
         "a commit that merely EXPLAINS how to revert was counted as a revert -- 20 of 20 "
         "commits matched while zero reverts had occurred, because a good practice collided "
-        "with an old regex")
+        "with an old regex"
+    )
 
 
 def test_p2_a_real_git_revert_is_counted():
     from scripts import arc_scorecard as sc
+
     assert sc.is_revert('Revert "The scorecard now knows the difference between zero and blind"')
 
 
 def test_p3_prose_cannot_forge_the_structure():
     from scripts import arc_scorecard as sc
-    for msg in ("we reverted the thing by hand",
-                "reverting is documented below",
-                "REVERT: instructions here",
-                "this commit is not a revert"):
+
+    for msg in (
+        "we reverted the thing by hand",
+        "reverting is documented below",
+        "REVERT: instructions here",
+        "this commit is not a revert",
+    ):
         assert not sc.is_revert(msg), f"prose leaked into a structural count: {msg!r}"
 
 
 def test_p4_a_bad_message_never_raises():
     from scripts import arc_scorecard as sc
+
     for bad in (None, "", "\n\n"):
         assert sc.is_revert(bad) is False

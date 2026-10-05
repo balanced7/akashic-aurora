@@ -33,12 +33,13 @@ Still honest about what it is: a DASHBOARD, not a billing ledger. Rates carry
 `as_of` and are estimates. When the dashboard and the invoice disagree, the
 invoice is right and the table needs an edit.
 """
+
 from __future__ import annotations
 
 import json
 import os
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 # ---------------------------------------------------------------- price table
 #
@@ -53,14 +54,20 @@ from typing import Any, Dict, List, Optional
 # `source`. Do NOT approximate one vendor with another's number -- an absent
 # entry is a designed, visible state, and the unpriced line on the doctor
 # dashboard exists to ask for exactly this edit.
-PRICES: Dict[str, Dict[str, Any]] = {
+PRICES: dict[str, dict[str, Any]] = {
     "deepseek-v4-pro": {
-        "prompt": 0.55, "cached_prompt": 0.055, "completion": 2.19,
-        "as_of": "2026-07", "source": "T078 W1 docstring, carried forward",
+        "prompt": 0.55,
+        "cached_prompt": 0.055,
+        "completion": 2.19,
+        "as_of": "2026-07",
+        "source": "T078 W1 docstring, carried forward",
     },
     "deepseek-v4-flash": {
-        "prompt": 0.14, "cached_prompt": 0.014, "completion": 0.56,
-        "as_of": "2026-07", "source": "T078 W1 docstring, carried forward",
+        "prompt": 0.14,
+        "cached_prompt": 0.014,
+        "completion": 0.56,
+        "as_of": "2026-07",
+        "source": "T078 W1 docstring, carried forward",
     },
 }
 
@@ -69,14 +76,14 @@ PRICES: Dict[str, Dict[str, Any]] = {
 # fallback: an agent absent from this map stays unpriced. A catch-all default
 # is how the original defect was written -- kimi's turns reached DeepSeek's
 # table through exactly that door.
-AGENT_DEFAULT_MODEL: Dict[str, str] = {
+AGENT_DEFAULT_MODEL: dict[str, str] = {
     "deepseek": "deepseek-v4-pro",
 }
 
 UNKNOWN_MODEL = "unknown"
 
 
-def price_of(model: str) -> Optional[Dict[str, Any]]:
+def price_of(model: str) -> dict[str, Any] | None:
     """The rate card for `model`, or None if we cannot source one. None is a
     legitimate answer and callers must RENDER it, never substitute."""
     return PRICES.get(str(model or "").strip())
@@ -87,26 +94,23 @@ class TokenJournal:
     Thread-safe enough: the runner is single-threaded per turn-close (the
     record path runs in the main loop)."""
 
-    def __init__(self, agent: str, journal_dir: Optional[str] = None):
+    def __init__(self, agent: str, journal_dir: str | None = None):
         self._agent = str(agent)
-        base = journal_dir or os.path.join(
-            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-            "state")
+        base = journal_dir or os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "state")
         os.makedirs(base, exist_ok=True)
         self._base = base
         self.turns: int = 0
         self.prompt_tokens: int = 0
         self.completion_tokens: int = 0
         self.cached_prompt_tokens: int = 0
-        self.model: str = ""                       # first seen; kept for compat
+        self.model: str = ""  # first seen; kept for compat
         # model -> {turns, prompt, cached_prompt, completion}
-        self.models: Dict[str, Dict[str, int]] = {}
+        self.models: dict[str, dict[str, int]] = {}
         self._load()
 
     # -- public ----------------------------------------------------------
 
-    def add_turn(self, prompt: int = 0, completion: int = 0, model: str = "",
-                 cached_prompt: int = 0) -> None:
+    def add_turn(self, prompt: int = 0, completion: int = 0, model: str = "", cached_prompt: int = 0) -> None:
         """Record one turn. `cached_prompt` is the SUBSET of `prompt` served
         from cache (the shape every provider reports it in), so it is never
         added to the total -- only repriced."""
@@ -122,8 +126,8 @@ class TokenJournal:
             self.model = str(model)
 
         bucket = self.models.setdefault(
-            self._resolve_model(model),
-            {"turns": 0, "prompt": 0, "cached_prompt": 0, "completion": 0})
+            self._resolve_model(model), {"turns": 0, "prompt": 0, "cached_prompt": 0, "completion": 0}
+        )
         bucket["turns"] += 1
         bucket["prompt"] += p
         bucket["cached_prompt"] += cached
@@ -148,10 +152,11 @@ class TokenJournal:
 
     def unpriced_tokens(self) -> int:
         """Real tokens we deliberately refuse to price. Counted, never hidden."""
-        return sum(b.get("prompt", 0) + b.get("completion", 0)
-                   for model, b in self.models.items() if price_of(model) is None)
+        return sum(
+            b.get("prompt", 0) + b.get("completion", 0) for model, b in self.models.items() if price_of(model) is None
+        )
 
-    def unpriced_models(self) -> List[str]:
+    def unpriced_models(self) -> list[str]:
         """Which models the rate table is missing -- the shopping list for
         whoever fills it in."""
         return sorted(m for m in self.models if price_of(m) is None)
@@ -161,8 +166,7 @@ class TokenJournal:
         empty journal reports UNKNOWN_MODEL, not a vendor."""
         if not self.models:
             return UNKNOWN_MODEL
-        return max(self.models.items(),
-                   key=lambda kv: kv[1].get("prompt", 0) + kv[1].get("completion", 0))[0]
+        return max(self.models.items(), key=lambda kv: kv[1].get("prompt", 0) + kv[1].get("completion", 0))[0]
 
     def today(self) -> str:
         return time.strftime("%Y-%m-%d")
@@ -176,7 +180,7 @@ class TokenJournal:
         counters reset at the next _load() of the new path."""
         return os.path.join(self._base, f"runner_{self._agent}_{self.today()}.json")
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         # Every pre-T110 key is preserved so existing readers keep working; the
         # new keys are additive. `model` no longer falls back to a vendor name
         # we were never told -- it reports the dominant model or UNKNOWN.
@@ -221,11 +225,15 @@ class TokenJournal:
             models = data.get("models")
             if isinstance(models, dict) and models:
                 self.models = {
-                    str(k): {"turns": int(v.get("turns", 0) or 0),
-                             "prompt": int(v.get("prompt", 0) or 0),
-                             "cached_prompt": int(v.get("cached_prompt", 0) or 0),
-                             "completion": int(v.get("completion", 0) or 0)}
-                    for k, v in models.items() if isinstance(v, dict)}
+                    str(k): {
+                        "turns": int(v.get("turns", 0) or 0),
+                        "prompt": int(v.get("prompt", 0) or 0),
+                        "cached_prompt": int(v.get("cached_prompt", 0) or 0),
+                        "completion": int(v.get("completion", 0) or 0),
+                    }
+                    for k, v in models.items()
+                    if isinstance(v, dict)
+                }
             elif self.turns:
                 # PRE-T110 FLAT FILE. The real journals on disk have this shape
                 # and today's spend is inside one of them -- reconstruct a single
@@ -233,10 +241,14 @@ class TokenJournal:
                 # blanks the day it inherits. An unlabelled legacy file resolves
                 # through the same narrow agent default as a live turn, so a
                 # legacy kimi file does NOT acquire DeepSeek's rate on the way in.
-                self.models = {self._resolve_model(self.model): {
-                    "turns": self.turns, "prompt": self.prompt_tokens,
-                    "cached_prompt": self.cached_prompt_tokens,
-                    "completion": self.completion_tokens}}
+                self.models = {
+                    self._resolve_model(self.model): {
+                        "turns": self.turns,
+                        "prompt": self.prompt_tokens,
+                        "cached_prompt": self.cached_prompt_tokens,
+                        "completion": self.completion_tokens,
+                    }
+                }
         except Exception:
             pass
 

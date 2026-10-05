@@ -27,20 +27,22 @@ Run::
 
     py -m pytest tests/test_boot_reports_reachability.py -q
 """
+
 from __future__ import annotations
 
-from pathlib import Path
 import sys
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from agent.harness import context as ctxmod  # noqa: E402
+from agent.harness import context as ctxmod  # noqa: E402  # sys.path bootstrap
 
 
 def _line(monkeypatch, state):
     """Render the reach line for a given any_armed() verdict."""
     from core.comm import wake_seat
+
     monkeypatch.setattr(wake_seat, "any_armed", lambda *a, **k: state)
     return ctxmod._reach_line("claude")
 
@@ -50,9 +52,7 @@ def test_every_state_any_armed_can_return_renders_distinctly(monkeypatch):
     unknown, and collapsing any pair of them here would throw away the distinction the wake
     layer was built to preserve."""
     seen = {s: _line(monkeypatch, s) for s in ("armed", "unarmed", "dead-seat", "unknown")}
-    assert len(set(seen.values())) == 4, (
-        f"two or more states render identically: {seen}"
-    )
+    assert len(set(seen.values())) == 4, f"two or more states render identically: {seen}"
     for state, text in seen.items():
         assert text.startswith("reach:"), f"{state} did not render a reach line: {text!r}"
 
@@ -61,13 +61,15 @@ def test_only_the_armed_state_reads_as_reachable(monkeypatch):
     """The load-bearing one. Every NOT-armed state must read as not-reachable -- including
     'unknown', because "I could not tell" rendering as "you are fine" is the whole defect."""
     armed = _line(monkeypatch, "armed")
-    assert "ARMED" in armed and "UNREACHABLE" not in armed.upper()
+    assert "ARMED" in armed
+    assert "UNREACHABLE" not in armed.upper()
 
     for state in ("unarmed", "dead-seat", "unknown"):
         text = _line(monkeypatch, state)
         low = text.lower()
-        assert ("unreachable" in low or "nothing is listening" in low
-                or "not armed" in low), f"{state!r} does not read as unreachable: {text!r}"
+        assert "unreachable" in low or "nothing is listening" in low or "not armed" in low, (
+            f"{state!r} does not read as unreachable: {text!r}"
+        )
 
 
 def test_a_not_armed_seat_is_handed_the_arming_command(monkeypatch):

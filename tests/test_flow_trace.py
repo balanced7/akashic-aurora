@@ -15,6 +15,7 @@ If (1) fails we shipped a message list, not a tracer; if (2) fails the tracer
 amplifies the very duplication bug it exists to expose (live receipts 2026-07-14:
 event:events:raw:1784082287759-0).
 """
+
 import os
 import sys
 
@@ -24,8 +25,17 @@ from core.comm.flow_trace import build_flows, lane_of
 
 
 def _e(eid, stream, frm, to, kind, *, meta=None, sha=None, length=100):
-    return {"id": eid, "stream": stream, "frm": frm, "to": to, "kind": kind,
-            "ts": "", "meta": meta or {}, "len": length, "sha": sha}
+    return {
+        "id": eid,
+        "stream": stream,
+        "frm": frm,
+        "to": to,
+        "kind": kind,
+        "ts": "",
+        "meta": meta or {},
+        "len": length,
+        "sha": sha,
+    }
 
 
 def _flow_ids(out):
@@ -36,17 +46,17 @@ def test_f1_answers_chain_builds_the_waterfall():
     """An ask and its meta.answers reply are ONE flow: reply nested under the ask,
     positive offset, flow id = the root (ask) id."""
     ask = _e("1000-0", "bifrost:inbox:deepseek", "claude", "deepseek", "request", sha="a1")
-    rep = _e("5000-0", "bifrost:work:inbox:claude", "deepseek", "claude", "reply",
-             meta={"answers": "1000-0"}, sha="b2")
+    rep = _e("5000-0", "bifrost:work:inbox:claude", "deepseek", "claude", "reply", meta={"answers": "1000-0"}, sha="b2")
     out = build_flows([ask, rep])
     assert len(out["flows"]) == 1, "ask + its answer must be ONE flow, not two"
     fl = out["flows"][0]
     assert fl["flow"] == "1000-0", "flow id is the root message id"
     root = fl["root"]
-    assert root["kind"] == "request" and len(root["children"]) == 1
+    assert root["kind"] == "request"
+    assert len(root["children"]) == 1
     child = root["children"][0]
-    assert child["kind"] == "reply" and child["offset_ms"] == 4000, \
-        f"reply offset must be child_ms - root_ms, got {child.get('offset_ms')}"
+    assert child["kind"] == "reply", f"reply offset must be child_ms - root_ms, got {child.get('offset_ms')}"
+    assert child["offset_ms"] == 4000, f"reply offset must be child_ms - root_ms, got {child.get('offset_ms')}"
     print("--- F1 answers chain ---\n  reply nested under ask, offset 4000ms OK")
 
 
@@ -54,10 +64,12 @@ def test_f2_duplicate_delivery_collapses_to_one_node():
     """The T066 signature: one logical reply observed on legacy AND work lanes
     (different stream ids, same sha + frm/to/kind) = ONE node, copies=2, both lanes."""
     ask = _e("1000-0", "bifrost:inbox:deepseek", "claude", "deepseek", "request", sha="a1")
-    legacy = _e("5000-0", "bifrost:inbox:claude", "deepseek", "claude", "reply",
-                meta={"answers": "1000-0"}, sha="dupsha")
-    workcp = _e("5200-0", "bifrost:work:inbox:claude", "deepseek", "claude", "reply",
-                meta={"answers": "1000-0"}, sha="dupsha")
+    legacy = _e(
+        "5000-0", "bifrost:inbox:claude", "deepseek", "claude", "reply", meta={"answers": "1000-0"}, sha="dupsha"
+    )
+    workcp = _e(
+        "5200-0", "bifrost:work:inbox:claude", "deepseek", "claude", "reply", meta={"answers": "1000-0"}, sha="dupsha"
+    )
     out = build_flows([ask, legacy, workcp])
     assert len(out["flows"]) == 1
     kids = out["flows"][0]["root"]["children"]
@@ -90,17 +102,25 @@ def test_f4_singletons_window_and_order():
     ids = _flow_ids(out)
     assert "1000-0" not in ids, "outside the window -- must be excluded"
     assert ids == ["900000-0", "600000-0"], f"newest flow first, got {ids}"
-    assert out["counts"]["flows"] == 2 and out["counts"]["dropped_by_window"] == 1
+    assert out["counts"]["flows"] == 2
+    assert out["counts"]["dropped_by_window"] == 1
     print("--- F4 window + order ---\n  singleton flows, newest-first, window drop counted OK")
 
 
 def test_f5_robust_inputs_never_brick():
     """Malformed meta / missing sha / unknown parents degrade, never crash; a reply
     whose parent is outside the window roots its own flow with the dangling link kept."""
-    orphan = _e("7000-0", "bifrost:work:inbox:claude", "deepseek", "claude", "reply",
-                meta={"answers": "1-0"}, sha=None)
-    junk = {"id": "8000-0", "stream": "bifrost:inbox:claude", "frm": "x", "to": "claude",
-            "kind": "chat", "meta": "NOT A DICT", "len": "NaN", "sha": None}
+    orphan = _e("7000-0", "bifrost:work:inbox:claude", "deepseek", "claude", "reply", meta={"answers": "1-0"}, sha=None)
+    junk = {
+        "id": "8000-0",
+        "stream": "bifrost:inbox:claude",
+        "frm": "x",
+        "to": "claude",
+        "kind": "chat",
+        "meta": "NOT A DICT",
+        "len": "NaN",
+        "sha": None,
+    }
     out = build_flows([orphan, junk])
     ids = _flow_ids(out)
     assert "7000-0" in ids, "orphaned reply must still appear as its own flow root"

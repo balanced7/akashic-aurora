@@ -11,19 +11,20 @@ code and the twin's memory. "claude concluded that recall-at arms too hot" conta
 So the upward path is re-litigation, not bulk state, and `--to prod` must be refused by the
 mechanism rather than merely discouraged by a docstring.
 """
+
 import pytest
 
 from core import world_seed as S
 
-
 # ---------------------------------------------------------------- direction
+
 
 def test_d1_refuses_to_seed_into_prod():
     """The load-bearing refusal. Not a warning, not a flag -- a refusal."""
     with pytest.raises(S.SeedRefusal) as e:
         S.plan("alpha", "prod")
     msg = str(e.value)
-    assert "re-litigation" in msg          # names the correct path, not just 'no'
+    assert "re-litigation" in msg  # names the correct path, not just 'no'
     assert "grounded:false" in msg or "rumour" in msg
 
 
@@ -50,6 +51,7 @@ def test_d5_unknown_world_is_refused_not_guessed():
 
 
 # ---------------------------------------------------------------- what rides
+
 
 def test_k1_transport_never_rides_and_can_never_be_opted_into():
     """bifrost:* is 7,740 keys of cursors, presence and runner locks. An alpha that
@@ -86,6 +88,7 @@ def test_k4_optional_classes_are_out_by_default_and_in_on_request():
 
 # ---------------------------------------------------------------- the report
 
+
 def test_r1_the_report_names_what_was_refused_not_only_what_was_carried():
     """Dawe Test on our own instrument. 'Copied 3,397 keys' is fluent and tells you
     nothing about whether your twin will behave. The excluded half is the half that
@@ -99,7 +102,8 @@ def test_r1_the_report_names_what_was_refused_not_only_what_was_carried():
 def test_r2_every_exclusion_carries_a_reason():
     p = S.plan("prod", "alpha")
     for prefix, why in p.excluded.items():
-        assert why and len(why) > 20, f"{prefix} excluded with no usable reason"
+        assert why, f"{prefix} excluded with no usable reason"
+        assert len(why) > 20, f"{prefix} excluded with no usable reason"
 
 
 def test_r3_a_dry_run_says_it_is_a_dry_run():
@@ -111,6 +115,7 @@ def test_r3_a_dry_run_says_it_is_a_dry_run():
 
 
 # ---------------------------------------------------------------- the copy
+
 
 class _FakeRedis:
     def __init__(self, keys=None):
@@ -149,7 +154,7 @@ def test_c2_apply_writes_every_key():
     src = _FakeRedis({"learn:a": b"1", "learn:b": b"2", "mem:x": b"3"})
     dst = _FakeRedis()
     assert S.copy_prefix(src, dst, "learn:", apply=True) == 2
-    assert set(dst.restored) == {"learn:a", "learn:b"}      # mem: not swept by this call
+    assert set(dst.restored) == {"learn:a", "learn:b"}  # mem: not swept by this call
 
 
 def test_c3_a_key_that_expired_mid_scan_is_skipped_not_crashed():
@@ -157,11 +162,12 @@ def test_c3_a_key_that_expired_mid_scan_is_skipped_not_crashed():
     with TTLs that is a normal Tuesday, and a seed that dies on it is a seed nobody runs."""
     src = _FakeRedis({"learn:a": b"1", "learn:gone": None})
     dst = _FakeRedis()
-    assert S.copy_prefix(src, dst, "learn:", apply=True) == 2   # seen
-    assert set(dst.restored) == {"learn:a"}                     # written
+    assert S.copy_prefix(src, dst, "learn:", apply=True) == 2  # seen
+    assert set(dst.restored) == {"learn:a"}  # written
 
 
 # ---------------------------------------------------------------- provenance
+
 
 def test_m1_a_seeded_world_records_what_it_inherited():
     """Corpus-level provenance. A seeded lesson is byte-identical to a native one -- same
@@ -172,7 +178,8 @@ def test_m1_a_seeded_world_records_what_it_inherited():
     dst = _FakeRedis()
     plan = S.plan("prod", "alpha")
     doc = S.write_manifest(dst, plan, {"learn:": 1056, "mem:": 559}, "2026-08-14T02:00:00+00:00")
-    assert doc["source_world"] == "prod" and doc["target_world"] == "alpha"
+    assert doc["source_world"] == "prod"
+    assert doc["target_world"] == "alpha"
     assert doc["total_carried"] == 1056 + 559
     assert S.read_manifest(dst) == doc
 

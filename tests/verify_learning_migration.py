@@ -5,9 +5,9 @@ on-disk learnings, with Redis DOWN (File fallback path).
 Run: py -u tests/verify_learning_migration.py
 """
 
-import sys
-import os
 import json
+import os
+import sys
 import tempfile
 
 # NOTE: deliberately NOT isolated via isolate_canonical: this test injects its own
@@ -24,11 +24,12 @@ def _count_legacy():
     """Count UNIQUE experiment_names (the Store keys by name, so repeated
     emits of the same experiment collapse to one -- this is the idempotency
     mechanism, not data loss)."""
-    legacy = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                          "session_logs", "learnings.jsonl")
+    legacy = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "session_logs", "learnings.jsonl"
+    )
     names = set()
     if os.path.exists(legacy):
-        with open(legacy, "r", encoding="utf-8") as f:
+        with open(legacy, encoding="utf-8") as f:
             for line in f:
                 if not line.strip():
                     continue
@@ -62,34 +63,35 @@ def main():
         # 1) legacy import
         all_learnings = ls.load_all_learnings_from_store()
         print(f"\n[1] load_all_learnings_from_store -> {len(all_learnings)} learnings")
-        assert len(all_learnings) == legacy_count, \
-            f"expected {legacy_count} imported, got {len(all_learnings)}"
+        assert len(all_learnings) == legacy_count, f"expected {legacy_count} imported, got {len(all_learnings)}"
         print("    legacy import count matches OK")
 
         # 2) idempotent re-import: build a second LearningStore on SAME store
         ls2 = LearningStore(store=store)
         all2 = ls2.load_all_learnings_from_store()
         print(f"\n[2] re-instantiate on same store -> {len(all2)} learnings")
-        assert len(all2) == legacy_count, \
-            f"idempotency broken: {legacy_count} -> {len(all2)}"
+        assert len(all2) == legacy_count, f"idempotency broken: {legacy_count} -> {len(all2)}"
         print("    idempotent re-import (no duplicates) OK")
 
         # 3) record a new learning
         before = len(ls.load_all_learnings_from_store())
-        ok = ls.persist_learning_derived_from_experiment({
-            "experiment_name": "migration_verify_exp",
-            "what_tried": "route LearningStore through HybridStore",
-            "expected_outcome": "single code path, file fallback works",
-            "actual_outcome": "verified",
-            "category": "verification",
-            "success": "yes",
-            "confidence": "high",
-            "recommendation": "swap Store to swap persistence",
-            "agent_id": "migration_test",
-        })
+        ok = ls.persist_learning_derived_from_experiment(
+            {
+                "experiment_name": "migration_verify_exp",
+                "what_tried": "route LearningStore through HybridStore",
+                "expected_outcome": "single code path, file fallback works",
+                "actual_outcome": "verified",
+                "category": "verification",
+                "success": "yes",
+                "confidence": "high",
+                "recommendation": "swap Store to swap persistence",
+                "agent_id": "migration_test",
+            }
+        )
         after = len(ls.load_all_learnings_from_store())
         print(f"\n[3] persist new learning -> ok={ok}, count {before} -> {after}")
-        assert ok and after == before + 1, "new learning did not index"
+        assert ok, "new learning did not index"
+        assert after == before + 1, "new learning did not index"
         print("    new learning indexed OK")
 
         # 4) search
@@ -125,8 +127,9 @@ def main():
 
         # 9) success vocabulary is canonical (no stray "True"/"False"/synonyms)
         canonical = {"yes", "partial", "no"}
-        bad = [l["experiment_name"] for l in ls.load_all_learnings_from_store()
-               if l.get("success") not in canonical]
+        bad = [
+            rec["experiment_name"] for rec in ls.load_all_learnings_from_store() if rec.get("success") not in canonical
+        ]
         print(f"\n[9] success vocabulary check -> {len(bad)} non-canonical")
         assert not bad, f"non-canonical success values: {bad}"
         # normalizer maps the messy inputs we've actually seen

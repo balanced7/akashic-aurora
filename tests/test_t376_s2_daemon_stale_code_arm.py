@@ -27,11 +27,10 @@ rolling-refresh drill does end-to-end. S2 pins the WIRING (the call is made
 at the loop boundary with the right inputs), leaving the hands-free rotation
 proof to the drill where it belongs.
 """
+
 import os
 import re
 import sys
-
-import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -51,14 +50,16 @@ def test_s2_p1_daemon_imports_and_calls_maybe_self_restart():
     src = _daemon_source()
 
     # import present (either module or direct symbol)
-    assert re.search(r"from\s+core\.comm\s*import\s+self_restart", src) or \
-           re.search(r"from\s+core\.comm\.self_restart\s+import", src) or \
-           "self_restart." in src, \
-        "S2: bifrost_daemon.py never references self_restart (RED — no arm)"
+    assert (
+        re.search(r"from\s+core\.comm\s*import\s+self_restart", src)
+        or re.search(r"from\s+core\.comm\.self_restart\s+import", src)
+        or "self_restart." in src
+    ), "S2: bifrost_daemon.py never references self_restart (RED — no arm)"
 
     # the call is made somewhere in main()'s loop body
-    assert re.search(r"maybe_self_restart\s*\(", src), \
+    assert re.search(r"maybe_self_restart\s*\(", src), (
         "S2: bifrost_daemon.py never calls maybe_self_restart (RED — arm not wired)"
+    )
 
 
 # ------------------------------------------------------------------ S2-P2
@@ -104,6 +105,11 @@ def test_s2_p3_daemon_arm_is_in_flight_aware():
 
     for call in calls:
         # a hardcoded in_flight=False is the bug; it must be a live expression
-        assert "in_flight=False" not in call and "in_flight = False" not in call, \
-            f"S2: the arm must NOT hardcode in_flight=False; pass live child " \
+        assert "in_flight=False" not in call, (
+            f"S2: the arm must NOT hardcode in_flight=False; pass live child "
             f"management state. Found: {call.strip()[:120]!r}"
+        )
+        assert "in_flight = False" not in call, (
+            f"S2: the arm must NOT hardcode in_flight=False; pass live child "
+            f"management state. Found: {call.strip()[:120]!r}"
+        )

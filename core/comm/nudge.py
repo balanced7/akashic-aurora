@@ -16,11 +16,12 @@ runner clears the flag and acks, so the nudger knows it landed.
 
 Fail-open on any Redis error (never wedge a runner) and ADVISORY (honored by cooperating runners).
 """
+
 from __future__ import annotations
 
 import json
 import os
-from typing import Any, Dict, Optional
+from typing import Any
 
 from core.foundation.timeutil import now_iso
 
@@ -35,16 +36,16 @@ def _nudge_prefix() -> str:
     return f"{_ns()}:control:nudge:"
 
 
-def _steer_prefix() -> str:               # per-agent queue of facts to FOLD INTO current work
+def _steer_prefix() -> str:  # per-agent queue of facts to FOLD INTO current work
     return f"{_ns()}:steer:"
 
 
-NUDGE_TTL = 120          # a nudge auto-expires so a missed pick-up never sticks
-STEER_TTL = 900          # a queued steer that's never picked up self-expires after 15 min
+NUDGE_TTL = 120  # a nudge auto-expires so a missed pick-up never sticks
+STEER_TTL = 900  # a queued steer that's never picked up self-expires after 15 min
 
 
 def _now() -> str:
-    return now_iso()   # T119: the one clock (aware UTC), not the machine's naive wall
+    return now_iso()  # T119: the one clock (aware UTC), not the machine's naive wall
 
 
 def _client():
@@ -52,6 +53,7 @@ def _client():
     unreachable -- every function below then fails open, exactly like control.py."""
     try:
         from core.comm.bus import get_bus
+
         return get_bus("control")._client
     except Exception:
         return None
@@ -97,7 +99,7 @@ def is_nudged(agent: str) -> bool:
         return False
 
 
-def nudge_status(agent: str) -> Optional[Dict[str, Any]]:
+def nudge_status(agent: str) -> dict[str, Any] | None:
     """{by, reason, ts} for a pending nudge, or None if there isn't one / bus offline."""
     c = _client()
     if c is None:

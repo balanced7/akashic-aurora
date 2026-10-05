@@ -7,6 +7,7 @@ module only DECIDES, it never claims.
 
 Run: py -m pytest tests/test_shift_loop.py -v
 """
+
 import os
 import sys
 
@@ -60,8 +61,14 @@ def test_stale_restart_only_when_idle_and_past_floors():
     r = SL.next_beat(statuses={}, stale_behind=5, stale_min=3, uptime_s=1000, uptime_min=900)
     assert r["action"] == "restart"
     # behind threshold but mid-flight -> never restart
-    r2 = SL.next_beat(statuses={"T001": "in_progress"}, current_task_done=False,
-                      stale_behind=5, stale_min=3, uptime_s=1000, uptime_min=900)
+    r2 = SL.next_beat(
+        statuses={"T001": "in_progress"},
+        current_task_done=False,
+        stale_behind=5,
+        stale_min=3,
+        uptime_s=1000,
+        uptime_min=900,
+    )
     assert r2["action"] != "restart", "restart only at a boundary with nothing in flight"
     # behind threshold but under uptime floor -> anti-thrash, no restart
     r3 = SL.next_beat(statuses={}, stale_behind=5, stale_min=3, uptime_s=100, uptime_min=900)

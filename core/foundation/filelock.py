@@ -16,23 +16,27 @@ bounded wait, and a context manager. No lock directories, no PID files, no stale
 heuristics -- the kernel drops the lock when the holder dies, which is the one
 correctness property a hand-rolled lock file cannot give you.
 """
+
 from __future__ import annotations
 
 import contextlib
-import os
 import time
 from pathlib import Path
-from typing import Iterator, Union
+from typing import TYPE_CHECKING
 
-try:                                    # Windows
+if TYPE_CHECKING:
+    import os
+    from collections.abc import Iterator
+
+try:  # Windows
     import msvcrt
-except ImportError:                     # pragma: no cover - POSIX
-    msvcrt = None                       # type: ignore[assignment]
+except ImportError:  # pragma: no cover - POSIX
+    msvcrt = None
 
-try:                                    # POSIX
+try:  # POSIX
     import fcntl
-except ImportError:                     # pragma: no cover - Windows
-    fcntl = None                        # type: ignore[assignment]
+except ImportError:  # pragma: no cover - Windows
+    fcntl = None
 
 DEFAULT_TIMEOUT_S = 10.0
 _POLL_S = 0.01
@@ -53,7 +57,7 @@ def _try_lock(fh) -> bool:
             return True
     except OSError:
         return False
-    return False                        # no locking primitive at all
+    return False  # no locking primitive at all
 
 
 def _unlock(fh) -> None:
@@ -66,8 +70,7 @@ def _unlock(fh) -> None:
 
 
 @contextlib.contextmanager
-def exclusive(target: Union[str, os.PathLike],
-              *, timeout: float = DEFAULT_TIMEOUT_S) -> Iterator[bool]:
+def exclusive(target: str | os.PathLike, *, timeout: float = DEFAULT_TIMEOUT_S) -> Iterator[bool]:
     """Hold an exclusive cross-process lock for `target` while the block runs.
 
     Yields True when the lock is genuinely held, False when this platform offers no
@@ -81,7 +84,7 @@ def exclusive(target: Union[str, os.PathLike],
 
     # "a+" so the byte we lock exists without ever truncating a peer's lock file.
     with open(lock_path, "a+", encoding="utf-8") as fh:
-        if msvcrt is None and fcntl is None:                 # pragma: no cover
+        if msvcrt is None and fcntl is None:  # pragma: no cover
             yield False
             return
         fh.seek(0)
@@ -91,8 +94,8 @@ def exclusive(target: Union[str, os.PathLike],
                 break
             if time.monotonic() >= deadline:
                 raise LockTimeout(
-                    f"could not lock {lock_path.name} within {timeout:.1f}s -- "
-                    f"another process is holding it")
+                    f"could not lock {lock_path.name} within {timeout:.1f}s -- another process is holding it"
+                )
             time.sleep(_POLL_S)
         try:
             yield True

@@ -29,12 +29,12 @@ Usage:
         ...
 """
 
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from core.foundation.ledger import Ledger, create_ledger
 from core.foundation.redis_connection import DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT
 
-Signal = Tuple[str, Dict[str, Any]]  # (cursor_id, signal)
+Signal = tuple[str, dict[str, Any]]  # (cursor_id, signal)
 
 
 class AgentSignalLedger:
@@ -47,14 +47,12 @@ class AgentSignalLedger:
     retention). Backed by Redis when up, File always; degrades gracefully.
     """
 
-    CANONICAL_STREAM = "agent:events"   # the firehose: every agent's signals
-    PER_AGENT_MAXLEN = 10_000           # signals retained per agent stream
-    CANONICAL_MAXLEN = 100_000          # signals retained on the canonical stream
+    CANONICAL_STREAM = "agent:events"  # the firehose: every agent's signals
+    PER_AGENT_MAXLEN = 10_000  # signals retained per agent stream
+    CANONICAL_MAXLEN = 100_000  # signals retained on the canonical stream
 
-    def __init__(self, ledger: Optional[Ledger] = None,
-                 host: str = DEFAULT_REDIS_HOST, port: int = DEFAULT_REDIS_PORT):
-        self.ledger = ledger if ledger is not None else \
-            create_ledger(prefer_redis=True, host=host, port=port)
+    def __init__(self, ledger: Ledger | None = None, host: str = DEFAULT_REDIS_HOST, port: int = DEFAULT_REDIS_PORT):
+        self.ledger = ledger if ledger is not None else create_ledger(prefer_redis=True, host=host, port=port)
 
     @property
     def redis_available(self) -> bool:
@@ -64,7 +62,7 @@ class AgentSignalLedger:
         """The per-agent stream name for one agent's own signal history."""
         return f"agent:{agent_id}:events"
 
-    def append_signal(self, signal: Dict[str, Any]) -> None:
+    def append_signal(self, signal: dict[str, Any]) -> None:
         """
         Record a signal: onto the agent's own stream AND the canonical firehose.
 
@@ -74,12 +72,10 @@ class AgentSignalLedger:
         self.ledger.emit(self.stream_for_agent(agent_id), signal, maxlen=self.PER_AGENT_MAXLEN)
         self.ledger.emit(self.CANONICAL_STREAM, signal, maxlen=self.CANONICAL_MAXLEN)
 
-    def replay_signals(self, after_id: str = "0", count: int = 100,
-                       block_ms: int = 0) -> List[Signal]:
+    def replay_signals(self, after_id: str = "0", count: int = 100, block_ms: int = 0) -> list[Signal]:
         """
         Replay signals from the canonical firehose, oldest first, after a cursor.
 
         Semantic Relationship: Signals replayed_from AgentSignalLedger
         """
-        return self.ledger.consume(self.CANONICAL_STREAM, after_id=after_id,
-                                   count=count, block_ms=block_ms)
+        return self.ledger.consume(self.CANONICAL_STREAM, after_id=after_id, count=count, block_ms=block_ms)

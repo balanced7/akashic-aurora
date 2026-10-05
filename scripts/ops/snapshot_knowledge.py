@@ -14,12 +14,24 @@ Snapshots live in backups/snapshots/<timestamp>/ and are self-contained:
   redis_db0.json (type-aware dump) + store_state.json + learnings.jsonl + chronicles/.
 The last KEEP_LAST are retained; older ones are pruned.
 """
+
 import json
 import os
 import shutil
 import sys
 from datetime import datetime
 from pathlib import Path
+
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+
+        return python_launcher()
+    except Exception:
+        return "py"
+
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
@@ -32,9 +44,10 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 # place for it: a fine thing to have and a terrible thing to depend on.
 try:
     from core.paths import repo_root as _rr
+
     BASE = _rr()
 except Exception:
-    BASE = Path(os.getenv("AI_SETUP", "E:\\AI-Setup"))
+    BASE = Path(__file__).resolve().parents[2]
 SNAP_DIR = BASE / "backups" / "snapshots"
 STORE_FILE = BASE / "session_logs" / "store_state.json"
 STORE_DB = BASE / "session_logs" / "store_state.db"
@@ -55,6 +68,7 @@ def _backup_sqlite(src: Path, dest: Path) -> bool:
     file -- which is then safe to copy, unlike its source.
     """
     import sqlite3
+
     try:
         with sqlite3.connect(str(src)) as s, sqlite3.connect(str(dest)) as d:
             s.backup(d)
@@ -83,6 +97,7 @@ def _restore_sqlite(src: Path, dst: Path) -> bool:
         print(f"[restore] SQLITE RESTORE FAILED for {dst.name}: {type(e).__name__}: {e}")
         return False
 
+
 # W156h (2026-08-14) -- THIS TOOL HAS TWO PLANES AND THEY USED TO DISAGREE.
 #
 # It was read from `config` directly, which is the raw constant and NOT the world-aware
@@ -102,13 +117,23 @@ def _restore_sqlite(src: Path, dst: Path) -> bool:
 # The fix is not only "use the resolver" -- it is to REFUSE when the two planes disagree,
 # because any future plane added to this script will have the same failure mode.
 try:
-    from core.foundation.redis_connection import DEFAULT_REDIS_HOST as REDIS_HOST, \
-        DEFAULT_REDIS_PORT as REDIS_PORT
+    from core.foundation.redis_connection import DEFAULT_REDIS_HOST as REDIS_HOST
+    from core.foundation.redis_connection import DEFAULT_REDIS_PORT as REDIS_PORT
 except Exception:
     try:
         from config import REDIS_HOST, REDIS_PORT
     except Exception:
         REDIS_HOST, REDIS_PORT = "localhost", 16379
+
+
+def _alpha_checkout() -> str:
+    """The alpha twin's checkout, derived from this one (core.world.checkout_of)."""
+    try:
+        from core.world import checkout_of
+
+        return str(checkout_of("alpha"))
+    except Exception:
+        return "<alpha checkout>"
 
 
 def _assert_restore_is_consented(target_world: str):
@@ -140,9 +165,10 @@ def _assert_restore_is_consented(target_world: str):
         "  taken is gone -- and stream ids are REGENERATED, so every bus cursor dangles and\n"
         "  consumers replay their backlog.\n"
         "  If prod is genuinely what you mean:\n"
-        "      AKASHIC_RESTORE_PROD=yes-flush-production py scripts/ops/snapshot_knowledge.py restore <name>\n"
+        f"      AKASHIC_RESTORE_PROD=yes-flush-production {_pyl()} scripts/ops/snapshot_knowledge.py restore <name>\n"
         "  To rehearse it safely, restore into a twin instead -- that is what they are for:\n"
-        "      cd E:/AI-Setup-Alpha && py scripts/ops/snapshot_knowledge.py restore <name>")
+        f"      cd {_alpha_checkout()} && {_pyl()} scripts/ops/snapshot_knowledge.py restore <name>"
+    )
 
 
 def _assert_planes_agree():
@@ -151,9 +177,9 @@ def _assert_planes_agree():
     Destructive by nature (restore flushes db0), so it fails closed and names both sides.
     """
     try:
-        from core.world import resolve, owner_of_port
+        from core.world import owner_of_port, resolve
     except Exception:
-        return                                   # world module absent: nothing to compare
+        return  # world module absent: nothing to compare
     file_world = resolve(root=BASE).name
     redis_world = owner_of_port(REDIS_PORT) or "unregistered"
     if file_world == redis_world:
@@ -164,19 +190,23 @@ def _assert_planes_agree():
         f"  redis  -> {REDIS_HOST}:{REDIS_PORT}  (world: {redis_world})\n"
         f"  A restore FLUSHES db0, so a split like this destroys the world you did not name.\n"
         f"  FIX: run this from the checkout you mean, and let both planes derive from it --\n"
-        f"       cd <that checkout> && py scripts/ops/snapshot_knowledge.py ...\n"
-        f"       (AI_SETUP moves the FILE plane only; it has never moved the redis plane.)")
+        f"       cd <that checkout> && {_pyl()} scripts/ops/snapshot_knowledge.py ...\n"
+        f"       (AI_SETUP moves the FILE plane only; it has never moved the redis plane.)"
+    )
 
 
 def _redis():
     try:
         import redis
-        c = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, db=0,
-                        decode_responses=True, socket_connect_timeout=1.0)
+
+        from core.foundation.redis_connection import ensure_redis_server
+
+        ensure_redis_server(REDIS_HOST, REDIS_PORT)  # starts the embedded server if that is ours
+        c = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, db=0, decode_responses=True, socket_connect_timeout=1.0)
         c.ping()
         return c
     except Exception:
-        return None   # Redis down -> snapshot the file side only
+        return None  # Redis down -> snapshot the file side only
 
 
 def _dump_redis(r):
@@ -216,9 +246,9 @@ def _restore_redis(r, dump):
                 r.sadd(k, *v)
         elif t == "zset":
             if v:
-                r.zadd(k, {m: s for m, s in v})
+                r.zadd(k, dict(v))
         elif t == "stream":
-            for eid, fields in v:
+            for _eid, fields in v:
                 r.xadd(k, fields)
 
 
@@ -244,12 +274,23 @@ def snapshot(note=""):
         shutil.copy2(JSONL, dest / "learnings.jsonl")
     if CHRONICLES.exists():
         shutil.copytree(CHRONICLES, dest / "chronicles", dirs_exist_ok=True)
-    (dest / "manifest.json").write_text(json.dumps({
-        "timestamp": stamp, "note": note, "redis_up": r is not None,
-        "redis_keys": redis_keys, "created": datetime.now().isoformat(),
-    }, indent=1), encoding="utf-8")
-    print(f"[snapshot] {dest.name}  (redis_keys={redis_keys}, redis_up={r is not None})"
-          + (f"  note: {note}" if note else ""))
+    (dest / "manifest.json").write_text(
+        json.dumps(
+            {
+                "timestamp": stamp,
+                "note": note,
+                "redis_up": r is not None,
+                "redis_keys": redis_keys,
+                "created": datetime.now().isoformat(),
+            },
+            indent=1,
+        ),
+        encoding="utf-8",
+    )
+    print(
+        f"[snapshot] {dest.name}  (redis_keys={redis_keys}, redis_up={r is not None})"
+        + (f"  note: {note}" if note else "")
+    )
     _prune()
     return dest
 
@@ -263,15 +304,14 @@ def _prune():
 
 def list_snaps():
     if not SNAP_DIR.exists() or not any(SNAP_DIR.iterdir()):
-        print("(no snapshots yet -- run: py scripts/ops/snapshot_knowledge.py snapshot)")
+        print(f"(no snapshots yet -- run: {_pyl()} scripts/ops/snapshot_knowledge.py snapshot)")
         return
     for p in sorted([p for p in SNAP_DIR.iterdir() if p.is_dir()], reverse=True):
         m = {}
         mf = p / "manifest.json"
         if mf.exists():
             m = json.loads(mf.read_text(encoding="utf-8"))
-        print(f"  {p.name}  redis_keys={m.get('redis_keys', '?')}"
-              + (f"  note: {m['note']}" if m.get("note") else ""))
+        print(f"  {p.name}  redis_keys={m.get('redis_keys', '?')}" + (f"  note: {m['note']}" if m.get("note") else ""))
 
 
 def restore(name):
@@ -318,6 +358,7 @@ if __name__ == "__main__":
     if cmd == "restore":
         try:
             from core.world import resolve as _rw
+
             _assert_restore_is_consented(_rw(root=BASE).name)
         except ImportError:
             pass

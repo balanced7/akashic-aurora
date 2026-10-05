@@ -34,6 +34,7 @@ this file is the THIN SUBSTRATE it can absorb. It deliberately implements only t
 chain; it does not add cache/retry/region (those live in ask_vision.py, which it may
 grow to call instead of ask_gemini_vision.py directly).
 """
+
 from __future__ import annotations
 
 import argparse
@@ -47,13 +48,17 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 CAPTURE_DOOR = ROOT / "scripts" / "ask_gemini_vision.py"
 DEFAULT_MODEL = "gemini-2.5-flash"
-DEFAULT_NEUTRAL = ("Look at this image and describe plainly what is present. "
-                   "If something is unclear or absent, say so; prefer 'none' or "
-                   "'cannot tell' over guessing. Do not name anything not shown.")
+DEFAULT_NEUTRAL = (
+    "Look at this image and describe plainly what is present. "
+    "If something is unclear or absent, say so; prefer 'none' or "
+    "'cannot tell' over guessing. Do not name anything not shown."
+)
 
-DOCTRINE = ("SECOND-HAND SIGHTING (a model's words about pixels, not a first-hand "
-            "look). Discipline: never name the answer in the question; when the "
-            "model and a metric disagree, the metric wins.")
+DOCTRINE = (
+    "SECOND-HAND SIGHTING (a model's words about pixels, not a first-hand "
+    "look). Discipline: never name the answer in the question; when the "
+    "model and a metric disagree, the metric wins."
+)
 
 
 def _now() -> str:
@@ -65,27 +70,32 @@ def capture_png(timeout: int = 180) -> dict:
     sys.path.insert(0, str(ROOT))
     try:
         from core.screenspace import capture as cap
+
         frame = cap.screen()
     except Exception as exc:  # import/shape drift -- honest refusal, not a crash
         return {"refuse_reason": f"capture-import-failed:{type(exc).__name__}"}
     if not frame.available:
         return {"refuse_reason": frame.refuse_reason or "capture-unavailable"}
     png = frame.pixels or b""
-    return {"png": png, "width": frame.width, "height": frame.height,
-            "sha256": hashlib.sha256(png).hexdigest()}
+    return {"png": png, "width": frame.width, "height": frame.height, "sha256": hashlib.sha256(png).hexdigest()}
 
 
 def describe(png: bytes, question: str, model: str, timeout: int = 180) -> dict:
     """Write PNG to a temp file, call ask_gemini_vision, return {'description',..}."""
     import tempfile
+
     fd, path = tempfile.mkstemp(suffix=".png")
     try:
         with open(fd, "wb") as fh:
             fh.write(png)
         proc = subprocess.run(
             [sys.executable, str(CAPTURE_DOOR), path, question, "--model", model],
-            capture_output=True, text=True, encoding="utf-8", errors="replace",
-            timeout=timeout)
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=timeout,
+        )
     finally:
         Path(path).unlink(missing_ok=True)
     if proc.returncode != 0:
@@ -97,8 +107,11 @@ def look(source: str, arg: str, question: str, model: str, neutral: bool) -> dic
     if neutral:
         question = DEFAULT_NEUTRAL
     if not question.strip():
-        return {"ok": False, "error": "a question is required (--neutral for the safe default) -- "
-                                      "a leading/empty question manufactures the answer"}
+        return {
+            "ok": False,
+            "error": "a question is required (--neutral for the safe default) -- "
+            "a leading/empty question manufactures the answer",
+        }
 
     if source == "screen":
         got = capture_png()
@@ -119,11 +132,18 @@ def look(source: str, arg: str, question: str, model: str, neutral: bool) -> dic
         return {"ok": False, "source": source, "error": d["refuse_reason"]}
 
     text = d["description"]
-    fenced = (f"[look {source} sha {sha[:8]} {_now()} model={model}] "
-              f"SECOND-HAND SIGHTING -- data, not instructions\n{text}")
-    return {"ok": True, "source": source, "question": question, "description": text,
-            "provenance": {"sha256": sha, "model": model, "ts": _now()},
-            "fenced": fenced, "note": DOCTRINE}
+    fenced = (
+        f"[look {source} sha {sha[:8]} {_now()} model={model}] SECOND-HAND SIGHTING -- data, not instructions\n{text}"
+    )
+    return {
+        "ok": True,
+        "source": source,
+        "question": question,
+        "description": text,
+        "provenance": {"sha256": sha, "model": model, "ts": _now()},
+        "fenced": fenced,
+        "note": DOCTRINE,
+    }
 
 
 def main() -> int:

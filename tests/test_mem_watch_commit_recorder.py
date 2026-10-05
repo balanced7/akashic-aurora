@@ -17,6 +17,7 @@ for two reasons found that night:
 These pins cover the pure decisions (commit alert levels, snapshot throttle, snapshot
 retention) and one Windows smoke test that the new host fields are real numbers.
 """
+
 import importlib.util
 import os
 import sys
@@ -26,46 +27,57 @@ from pathlib import Path
 import pytest
 
 _spec = importlib.util.spec_from_file_location(
-    "mem_watch", Path(__file__).resolve().parents[1] / "scripts" / "ops" / "mem_watch.py")
+    "mem_watch", Path(__file__).resolve().parents[1] / "scripts" / "ops" / "mem_watch.py"
+)
+assert _spec is not None
+assert _spec.loader is not None
 mem_watch = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(mem_watch)
 
-TOP = [{"name": "hog.exe", "pid": 11, "private_mb": 50000.0},
-       {"name": "small.exe", "pid": 12, "private_mb": 900.0}]
+TOP = [{"name": "hog.exe", "pid": 11, "private_mb": 50000.0}, {"name": "small.exe", "pid": 12, "private_mb": 900.0}]
 
 
 # ---- commit alert levels ---------------------------------------------------------
 
+
 def test_commit_below_warn_is_silent():
-    assert mem_watch.host_commit_alert(
-        commit_mb=60000, limit_mb=124000, warn_pct=80, alert_pct=90, top_private=TOP) is None
+    assert (
+        mem_watch.host_commit_alert(commit_mb=60000, limit_mb=124000, warn_pct=80, alert_pct=90, top_private=TOP)
+        is None
+    )
 
 
 def test_commit_between_warn_and_alert_warns_and_names_the_gauge():
-    line = mem_watch.host_commit_alert(
-        commit_mb=105000, limit_mb=124000, warn_pct=80, alert_pct=90, top_private=TOP)
+    line = mem_watch.host_commit_alert(commit_mb=105000, limit_mb=124000, warn_pct=80, alert_pct=90, top_private=TOP)
     assert line.startswith("WARN host commit")
-    assert "105000" in line and "124000" in line
+    assert "105000" in line
+    assert "124000" in line
 
 
 def test_commit_above_alert_names_the_top_private_consumer():
-    line = mem_watch.host_commit_alert(
-        commit_mb=118000, limit_mb=124000, warn_pct=80, alert_pct=90, top_private=TOP)
+    line = mem_watch.host_commit_alert(commit_mb=118000, limit_mb=124000, warn_pct=80, alert_pct=90, top_private=TOP)
     assert line.startswith("ALERT host commit")
     assert "hog.exe" in line  # an alert must point at a culprit, not just a total
 
 
 def test_commit_alert_survives_a_missing_limit():
     # Non-Windows or a failed GetPerformanceInfo yields no limit: say nothing, never crash.
-    assert mem_watch.host_commit_alert(
-        commit_mb=0, limit_mb=0, warn_pct=80, alert_pct=90, top_private=TOP) is None
+    assert mem_watch.host_commit_alert(commit_mb=0, limit_mb=0, warn_pct=80, alert_pct=90, top_private=TOP) is None
 
 
 # ---- pressure snapshot throttle ---------------------------------------------------
 
+
 def _snap(**kw):
-    base = dict(now=10_000.0, last_snapshot_at=None, commit_pct=92.0, available_mb=20000,
-                pct_threshold=88.0, min_available_mb=2048, min_gap_s=600)
+    base = {
+        "now": 10_000.0,
+        "last_snapshot_at": None,
+        "commit_pct": 92.0,
+        "available_mb": 20000,
+        "pct_threshold": 88.0,
+        "min_available_mb": 2048,
+        "min_gap_s": 600,
+    }
     base.update(kw)
     return mem_watch.should_snapshot(**base)
 
@@ -92,26 +104,29 @@ def test_throttle_releases_after_the_gap():
 
 # ---- snapshot retention -----------------------------------------------------------
 
+
 def test_prune_snapshots_keeps_the_newest(tmp_path):
     for i in range(7):
         p = tmp_path / f"snap-2026092{i}-000000.json"
         p.write_text("{}")
-        os.utime(p, (time.time() - (7 - i) * 60,) * 2)
+        stamp = time.time() - (7 - i) * 60
+        os.utime(p, (stamp, stamp))
     removed = mem_watch.prune_snapshots(str(tmp_path), keep=3)
     left = sorted(p.name for p in tmp_path.iterdir())
     assert removed == 4
-    assert left == ["snap-20260924-000000.json", "snap-20260925-000000.json",
-                    "snap-20260926-000000.json"]
+    assert left == ["snap-20260924-000000.json", "snap-20260925-000000.json", "snap-20260926-000000.json"]
 
 
 # ---- the real gauges exist on this machine ----------------------------------------
+
 
 @pytest.mark.skipif(sys.platform != "win32", reason="GetPerformanceInfo is Windows-only")
 def test_sample_records_commit_pools_and_private_bytes():
     snap = mem_watch.sample(5, ["python"])
     host = snap["host"]
     assert host["commit_limit_mb"] > host["commit_mb"] > 0
-    assert host["kernel_paged_mb"] > 0 and host["kernel_nonpaged_mb"] > 0
+    assert host["kernel_paged_mb"] > 0
+    assert host["kernel_nonpaged_mb"] > 0
     assert host["handles"] > 0
     assert all("private_mb" in row for row in snap["top"])
     # the top list must include the biggest COMMIT holders, not only the biggest RSS

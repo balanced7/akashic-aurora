@@ -12,6 +12,7 @@ this and were waiting).
 
 Run: py -m pytest tests/test_media_inbound.py -q
 """
+
 import os
 import sys
 import tempfile
@@ -24,8 +25,7 @@ ROOT_ID = "111222333444555666"
 
 
 def _cfg():
-    return {"operator_id": ROOT_ID,
-            "people": {ROOT_ID: {"agent": "daniil", "tier": "operator"}}}
+    return {"operator_id": ROOT_ID, "people": {ROOT_ID: {"agent": "daniil", "tier": "operator"}}}
 
 
 class _Bus:
@@ -33,29 +33,32 @@ class _Bus:
         self.sent = []
 
     def send(self, to, kind, content, meta=None, parts=None):
-        self.sent.append({"to": to, "kind": kind, "content": content,
-                          "meta": dict(meta or {}), "parts": parts})
+        self.sent.append({"to": to, "kind": kind, "content": content, "meta": dict(meta or {}), "parts": parts})
         return "m1-0"
 
     def broadcast(self, kind, content, meta=None, parts=None):
-        self.sent.append({"to": "*", "kind": kind, "content": content,
-                          "meta": dict(meta or {}), "parts": parts})
+        self.sent.append({"to": "*", "kind": kind, "content": content, "meta": dict(meta or {}), "parts": parts})
         return "m1-0"
 
 
 def _tmp_png():
-    f = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
-    f.write(b"\x89PNG\r\n\x1a\nfakepixels")
-    f.close()
+    with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as f:
+        f.write(b"\x89PNG\r\n\x1a\nfakepixels")
     return f.name
 
 
 def _call(content, attachments=None):
     bus = _Bus()
     out = discord_inbound.handle_message(
-        _cfg(), author_id=ROOT_ID, author_name="d", channel_id="c1",
-        content=content, bus=bus, react=lambda e: None,
-        attachments=attachments)
+        _cfg(),
+        author_id=ROOT_ID,
+        author_name="d",
+        channel_id="c1",
+        content=content,
+        bus=bus,
+        react=lambda e: None,
+        attachments=attachments,
+    )
     return out, bus
 
 
@@ -65,7 +68,8 @@ def test_p1_attachments_ride_as_blob_parts():
         out, bus = _call("design from this", attachments=[p])
         assert out.get("acted")
         parts = bus.sent[-1]["parts"]
-        assert parts and len(parts) == 1
+        assert parts
+        assert len(parts) == 1
         assert parts[0].content_type == "image/png"
         assert parts[0].is_ref, "media rides by REFERENCE (B1), never inline"
     finally:

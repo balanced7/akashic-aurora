@@ -21,15 +21,14 @@ Ledger) and the shared Ranker (core/primitives). It does NOT import the narrativ
 routing a raw event to a Track / linking it to a Beat is the BRIDGE concern (Slice 4),
 which lives in System 4 where importing the TrackRouter is layering-legal.
 """
-from typing import Any, Dict, List, Optional
+
+from typing import Any
 
 from core.events.event_log import EventLog, get_event_log
+from core.foundation.timeutil import to_epoch as _epoch  # unified tz-safe epoch (S5)
 from core.primitives.ranker import Ranker
 
-_DEFAULT_SCAN = 20000   # how many recent events a query considers (briefing_loader precedent)
-
-
-from core.foundation.timeutil import to_epoch as _epoch   # unified tz-safe epoch (S5)
+_DEFAULT_SCAN = 20000  # how many recent events a query considers (briefing_loader precedent)
 
 
 class EventQuery:
@@ -38,17 +37,22 @@ class EventQuery:
     Semantic Relationship: EventQuery selects RawEvents (by window / filters / relevance)
     """
 
-    def __init__(self, event_log: Optional[EventLog] = None, ranker: Optional[Ranker] = None,
-                 scan: int = _DEFAULT_SCAN):
+    def __init__(self, event_log: EventLog | None = None, ranker: Ranker | None = None, scan: int = _DEFAULT_SCAN):
         self.log = event_log if event_log is not None else get_event_log()
         self.ranker = ranker if ranker is not None else Ranker()
         self.scan = scan
 
     # --------------------------------------------------------------- time window (the bridge)
-    def events_in_window(self, start_iso: str, end_iso: str, *,
-                         agent: Optional[str] = None, kind: Optional[str] = None,
-                         track: Optional[str] = None,
-                         limit: Optional[int] = None) -> List[Dict[str, Any]]:
+    def events_in_window(
+        self,
+        start_iso: str,
+        end_iso: str,
+        *,
+        agent: str | None = None,
+        kind: str | None = None,
+        track: str | None = None,
+        limit: int | None = None,
+    ) -> list[dict[str, Any]]:
         """Raw events whose `at` falls in [start, end] (inclusive), oldest-first, filtered.
 
         The core timeline-drill primitive: pass a Chapter/Beat span to see what actually
@@ -68,9 +72,11 @@ class EventQuery:
                 # filters in-window -- incl. agent, which the scan path got from the per-agent
                 # stream but the index must apply explicitly.
                 candidates = index.window(start_iso, end_iso)
-                out = [e for e in candidates
-                       if (agent is None or e.get("agent_id") == agent)
-                       and self._match(e, kind=kind, track=track)]
+                out = [
+                    e
+                    for e in candidates
+                    if (agent is None or e.get("agent_id") == agent) and self._match(e, kind=kind, track=track)
+                ]
                 return out[:limit] if limit else out
             out = []
             for e in self.log.scan(agent=agent, limit=self.scan):
@@ -81,9 +87,17 @@ class EventQuery:
             return []
 
     # --------------------------------------------------------------- relevance search
-    def search(self, query: str, *, kind: Optional[str] = None, agent: Optional[str] = None,
-               track: Optional[str] = None, since: Optional[str] = None,
-               until: Optional[str] = None, top_k: int = 10) -> List[Dict[str, Any]]:
+    def search(
+        self,
+        query: str,
+        *,
+        kind: str | None = None,
+        agent: str | None = None,
+        track: str | None = None,
+        since: str | None = None,
+        until: str | None = None,
+        top_k: int = 10,
+    ) -> list[dict[str, Any]]:
         """Rank raw events by relevance to `query` within the filters, best-first.
 
         Empty query -> relevance contributes 0, so results fall back to recency/importance
@@ -107,7 +121,7 @@ class EventQuery:
         except Exception:
             return []
 
-    def get(self, ref: str) -> Optional[Dict[str, Any]]:
+    def get(self, ref: str) -> dict[str, Any] | None:
         """Resolve a followable event:<stream>:<id> pointer to its raw event."""
         return self.log.get(ref)
 
@@ -117,7 +131,7 @@ class EventQuery:
         so drill surfaces never render an evicted pointer as blank truth."""
         return self.log.resolve(ref)
 
-    def events_for_ref(self, ref: str) -> List[Dict[str, Any]]:
+    def events_for_ref(self, ref: str) -> list[dict[str, Any]]:
         """Every event carrying `ref`, oldest-first -- EXACT, not a newest-N scan
         (RB-4: the ack tier's false-UNHANDLED re-flag dies here). Index-backed O(refs)
         when the time index is live; on a ledger-only log it falls back to a full
@@ -134,36 +148,38 @@ class EventQuery:
 
     # --------------------------------------------------------------- internals
     @staticmethod
-    def _match(e: Dict[str, Any], *, kind: Optional[str], track: Optional[str]) -> bool:
+    def _match(e: dict[str, Any], *, kind: str | None, track: str | None) -> bool:
         if kind is not None and e.get("kind") != kind:
             return False
-        if track is not None and e.get("track") != track:
-            return False
-        return True
+        return not (track is not None and e.get("track") != track)
 
     @staticmethod
-    def _to_item(e: Dict[str, Any]) -> Dict[str, Any]:
+    def _to_item(e: dict[str, Any]) -> dict[str, Any]:
         """Project a raw event into a Ranker item: searchable text + recency timestamp,
         carrying the original event so callers get the full record back."""
         import json
-        text = " ".join([
-            str(e.get("summary", "")),
-            str(e.get("kind", "")),
-            " ".join(str(r) for r in e.get("refs", [])),
-            json.dumps(e.get("detail", {}), default=str),
-        ])
+
+        text = " ".join(
+            [
+                str(e.get("summary", "")),
+                str(e.get("kind", "")),
+                " ".join(str(r) for r in e.get("refs", [])),
+                json.dumps(e.get("detail", {}), default=str),
+            ]
+        )
         return {"text": text, "timestamp": e.get("at"), "_event": e}
 
 
-_INSTANCE: Optional[EventQuery] = None
+_INSTANCE: EventQuery | None = None
 
 
-def get_event_query(event_log: Optional[EventLog] = None) -> EventQuery:
+def get_event_query(event_log: EventLog | None = None) -> EventQuery:
     """Module singleton (lazy). Pass `event_log` for an isolated query (tests/trial)."""
     global _INSTANCE
     if event_log is not None:
         return EventQuery(event_log)
     import os
+
     if os.environ.get("_AISETUP_TEST_ISOLATED"):
         return EventQuery()
     if _INSTANCE is None:

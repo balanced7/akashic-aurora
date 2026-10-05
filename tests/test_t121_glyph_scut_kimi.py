@@ -19,6 +19,7 @@ glyph VOCABULARY + render): the render maps
 and degrades any missing stamped field to UNKNOWN (G4-amended: UNKNOWN is a
 rendering state, never blank, never default-fresh).
 """
+
 from __future__ import annotations
 
 import re
@@ -38,15 +39,15 @@ def test_red_staleness_glyph_vocabulary_exists():
     Accept either the literal char or its \\uXXXX JS escape (the honest form in a
     JS string literal inside the Python template)."""
     src = _src()
-    forms = {"fresh": ("●", "\\u25CF"), "aging": ("◐", "\\u25D0"),
-             "stale": ("○", "\\u25CB")}
+    forms = {"fresh": ("●", "\\u25CF"), "aging": ("◐", "\\u25D0"), "stale": ("○", "\\u25CB")}
     for name, variants in forms.items():
         assert any(v in src for v in variants), (
             f"S-cut glyph MISSING: no {name} staleness glyph ({variants[0]!r} or "
             f"its escape {variants[1]!r}) in bifrost_ui.py. The S-cut vocabulary "
             f"(● fresh / ◐ aging / ○ stale) is not defined, so a stale artifact "
             f"renders identically to a fresh one. This is the RED state the cut "
-            f"fixes.")
+            f"fixes."
+        )
 
 
 def test_red_infer_guess_markers_exist():
@@ -56,7 +57,8 @@ def test_red_infer_guess_markers_exist():
         assert marker in src, (
             f"S-cut marker MISSING: {marker!r} not found in bifrost_ui.py. "
             f"INFER/GUESS content has no visible epistemic marker, so a guess "
-            f"renders with the same confidence as a verified claim.")
+            f"renders with the same confidence as a verified claim."
+        )
 
 
 def test_red_glyph_mapping_function_present():
@@ -69,7 +71,8 @@ def test_red_glyph_mapping_function_present():
         "S-cut derivation MISSING: no single named glyph-mapping function "
         "(epiGlyph/epistemicGlyph/stalenessGlyph/glyphFor) in bifrost_ui.py. "
         "The tier derivation must live in ONE function (auditable, reused), not "
-        "inline at the call site.")
+        "inline at the call site."
+    )
 
 
 # ---------------------------------------------------------------- G4-amended
@@ -82,7 +85,8 @@ def test_red_unknown_is_default_not_blank():
         "G4-amended VIOLATED: no UNKNOWN branch in the render path. A message "
         "missing stamped status would render blank or default-fresh. UNKNOWN-by-"
         "default is the difference between honesty as virtue and honesty as "
-        "physics.")
+        "physics."
+    )
 
 
 # ---------------------------------------------------------------- G11 (the gate)
@@ -100,10 +104,12 @@ def test_red_glyph_is_structural_not_dial_suppressible():
         "staleness class) in the message render. If the glyph is only emitted by "
         "_msgRenderer(content) or is gated behind a focus/density dial, a dial "
         "can dim it and the cut has failed. Red pierces the blur is the "
-        "invariant.")
+        "invariant."
+    )
     # Negative guard: the glyph must NOT be routed through the content renderer.
     routed_via_content = re.search(r"_msgRenderer[^;]*(epi|glyph|staleness)", src)
     assert not routed_via_content, (
         "G11 VIOLATED: the glyph is routed through _msgRenderer (the content "
         "path). Content can be re-rendered / dial-adjusted; the truth glyph must "
-        "be a structural sibling that no dial reaches.")
+        "be a structural sibling that no dial reaches."
+    )

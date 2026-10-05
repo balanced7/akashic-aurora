@@ -8,6 +8,7 @@ opens the mapping. Letters are assigned per-task via a content hash (determinist
 no randomness source needed; not inferable without the originals at hand -- honest
 label: this blinds convenience-peeking, not a determined grader who wrote the harness).
 """
+
 import hashlib
 import json
 import os
@@ -17,13 +18,11 @@ import sys
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 BAKE = os.path.join(REPO, "research", "bakeoff")
 ANON = os.path.join(BAKE, "anon")
-SCRUB = [r"glm[-\s]?4\.?7[-\s]?flash", r"qwen3[-\s]?coder(?::?30b)?", r"gpt[-\s]?oss(?::?20b)?",
-         r"bakeoff_[a-z0-9-]+"]
+SCRUB = [r"glm[-\s]?4\.?7[-\s]?flash", r"qwen3[-\s]?coder(?::?30b)?", r"gpt[-\s]?oss(?::?20b)?", r"bakeoff_[a-z0-9-]+"]
 
 
 def main() -> int:
-    models = [d for d in os.listdir(BAKE)
-              if os.path.isdir(os.path.join(BAKE, d)) and d not in ("anon", "tasks")]
+    models = [d for d in os.listdir(BAKE) if os.path.isdir(os.path.join(BAKE, d)) and d not in ("anon", "tasks")]
     mapping = {}
     for model in models:
         mdir = os.path.join(BAKE, model)

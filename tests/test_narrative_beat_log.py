@@ -5,6 +5,7 @@ Isolated: injects a temp FileStore, so it never touches Redis or canonical data.
 
 Run: py tests/test_narrative_beat_log.py
 """
+
 import os
 import sys
 import tempfile
@@ -12,7 +13,7 @@ import tempfile
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.foundation.store import FileStore
-from core.narrative.beat_log import BeatLog, TIMELINE
+from core.narrative.beat_log import BeatLog
 from core.narrative.schema import Edge
 
 
@@ -22,9 +23,10 @@ def _log():
 
 def test_emit_and_count():
     log = _log()
-    b = log.emit("learning", "memoization beat +52%", "learn:experiment:perf",
-                 at="2026-06-27T10:00:00")
-    assert b is not None and b.kind == "learning" and b.weight == 4  # default for learning
+    b = log.emit("learning", "memoization beat +52%", "learn:experiment:perf", at="2026-06-27T10:00:00")
+    assert b is not None
+    assert b.kind == "learning"
+    assert b.weight == 4
     assert log.count() == 1
     print("  emit + count OK")
 
@@ -33,7 +35,8 @@ def test_source_required_and_kind_coerced():
     log = _log()
     assert log.emit("learning", "no source", "") is None, "source-less beat must be refused"
     b = log.emit("bogus_kind", "x", "git:abc123")
-    assert b is not None and b.kind == "note", "unknown kind coerces to 'note'"
+    assert b is not None, "unknown kind coerces to 'note'"
+    assert b.kind == "note", "unknown kind coerces to 'note'"
     assert log.count() == 1
     print("  source required + kind coercion OK")
 
@@ -52,19 +55,31 @@ def test_time_order_recent_and_window():
 
 def test_weight_defaults_and_override():
     log = _log()
-    assert log.emit("milestone", "m", "git:1").weight == 5
-    assert log.emit("commit", "c", "git:2").weight == 2
-    assert log.emit("commit", "big", "git:3", weight=4).weight == 4, "override honored"
+    milestone = log.emit("milestone", "m", "git:1")
+    assert milestone is not None
+    assert milestone.weight == 5
+    commit = log.emit("commit", "c", "git:2")
+    assert commit is not None
+    assert commit.weight == 2
+    big = log.emit("commit", "big", "git:3", weight=4)
+    assert big is not None
+    assert big.weight == 4, "override honored"
     print("  weight defaults + override OK")
 
 
 def test_roundtrip_with_edges():
     log = _log()
-    b = log.emit("learning", "themed", "learn:experiment:x",
-                 themes=["local-first"], relates=[Edge("member_of", "narr:theme:local-first")])
+    log.emit(
+        "learning",
+        "themed",
+        "learn:experiment:x",
+        themes=["local-first"],
+        relates=[Edge("member_of", "narr:theme:local-first")],
+    )
     loaded = log.recent(1)[0]
     assert loaded.themes == ["local-first"]
-    assert loaded.relates[0].type == "member_of" and isinstance(loaded.relates[0], Edge)
+    assert loaded.relates[0].type == "member_of"
+    assert isinstance(loaded.relates[0], Edge)
     print("  round-trip through the store (themes + edges) OK")
 
 

@@ -11,10 +11,9 @@ here as a strict xfail so the gap stays a visible confession, not a silent one.
 Covers: R17 coherence, boot-vs-CLI threshold mismatch, hint-ring overflow (RB-6 overlap).
 Run: py -m pytest tests/test_window_confession.py -q
 """
+
 import os
 import sys
-
-import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -28,7 +27,7 @@ class FakeQuery:
     and (for RB-4) the exact by-ref lookup the index will provide."""
 
     def __init__(self, events):
-        self.events = events            # newest first, like the empty-query Ranker order
+        self.events = events  # newest first, like the empty-query Ranker order
 
     def search(self, q, kind=None, since=None, until=None, top_k=50):
         return [e for e in self.events if e.get("kind") == kind][:top_k]
@@ -38,24 +37,29 @@ class FakeQuery:
 
 
 def _promoted_rec(mid, to="claude"):
-    return {"kind": "bifrost_msg", "at": "t0", "refs": [f"bifrost:{mid}"],
-            "detail": {"frm": "alice", "to": to, "kind": "handoff",
-                       "content": "please do X", "ts": "t0"}}
+    return {
+        "kind": "bifrost_msg",
+        "at": "t0",
+        "refs": [f"bifrost:{mid}"],
+        "detail": {"frm": "alice", "to": to, "kind": "handoff", "content": "please do X", "ts": "t0"},
+    }
 
 
 # ------------------------------------------------------------- promoted() page confession
 
+
 def test_promoted_page_confesses_older_records():
     evs = [_promoted_rec(f"{i}-0") for i in range(7)]
     page, more = promoter.promoted_page(limit=5, event_query=FakeQuery(evs))
-    assert len(page) == 5 and more is True, \
-        "a full page must say older records exist, not under-report silently"
+    assert len(page) == 5, "a full page must say older records exist, not under-report silently"
+    assert more is True, "a full page must say older records exist, not under-report silently"
     page, more = promoter.promoted_page(limit=10, event_query=FakeQuery(evs))
-    assert len(page) == 7 and more is False, \
-        "a page with room left is the whole truth -- no false confession"
+    assert len(page) == 7, "a page with room left is the whole truth -- no false confession"
+    assert more is False, "a page with room left is the whole truth -- no false confession"
 
 
 # ------------------------------------------------------------- one threshold seam
+
 
 def test_unhandled_threshold_reads_env_through_one_seam(monkeypatch):
     monkeypatch.setenv("AKASHIC_ACK_UNHANDLED_HOURS", "3")
@@ -70,14 +74,18 @@ def test_boot_and_cli_share_the_threshold_and_page_seams():
     """Structural guard (comprehensibility-immune-system style): agent_cli must not read
     the threshold env itself (boot silently used the default while the CLI read the env
     -- the RB-5 mismatch), and both renderers must page through promoted_page."""
-    src = open(os.path.join(REPO, "agent_cli.py"), encoding="utf-8").read()
-    assert "AKASHIC_ACK_UNHANDLED_HOURS" not in src, \
+    with open(os.path.join(REPO, "agent_cli.py"), encoding="utf-8") as fh:
+        src = fh.read()
+    assert "AKASHIC_ACK_UNHANDLED_HOURS" not in src, (
         "threshold env is read ONLY via promoter.unhandled_threshold_hours()"
-    assert src.count("promoted_page(") >= 2, \
+    )
+    assert src.count("promoted_page(") >= 2, (
         "both the promoted CLI verb and the boot digest page with the confession bit"
+    )
 
 
 # ------------------------------------------------------------- hint-ring overflow confession
+
 
 def setup_function(_fn):
     context_hints.clear_all()
@@ -90,8 +98,8 @@ def test_hint_ring_overflow_is_confessed():
     assert dropped == 4, "12 pushes into a ring of 8 -> 4 evictions counted"
     hints = context_hints.drain("deepseek")
     block = context_hints.format_for_prompt(hints, dropped=dropped)
-    assert "4" in block and "dropped" in block, \
-        "the drained block confesses the loss instead of silently narrowing"
+    assert "4" in block, "the drained block confesses the loss instead of silently narrowing"
+    assert "dropped" in block, "the drained block confesses the loss instead of silently narrowing"
     assert context_hints.take_dropped("deepseek") == 0, "one confession per drain"
 
 
@@ -105,10 +113,12 @@ def test_no_overflow_means_no_confession():
 
 def test_confession_renders_even_with_no_live_hints():
     block = context_hints.format_for_prompt([], dropped=2)
-    assert block and "2" in block and "dropped" in block, \
-        "losses are reported even when every surviving hint also expired"
-    assert context_hints.format_for_prompt([], dropped=0) == "", \
+    assert block, "losses are reported even when every surviving hint also expired"
+    assert "2" in block, "losses are reported even when every surviving hint also expired"
+    assert "dropped" in block, "losses are reported even when every surviving hint also expired"
+    assert context_hints.format_for_prompt([], dropped=0) == "", (
         "empty ring, no losses -> no block at all (unchanged contract)"
+    )
 
 
 def test_clear_all_resets_the_drop_ledger():
@@ -120,16 +130,27 @@ def test_clear_all_resets_the_drop_ledger():
 
 # ------------------------------------------------------------- RB-4 (pending) exact ack lookup
 
+
 def test_ack_beyond_the_500_window_still_reads_handled():
     """S2/R17 root: acks_for pulled the newest-500 msg_ack records then filtered, so once
     >500 acks existed the FIRST-acked message read as never-handled (false UNHANDLED
     re-flag). RB-4's acceptance (pre-registered 068f65e as strict xfail; built after
     deepseek's GATE GREEN + srem mandate): it still reads handled -- exact by-ref lookup."""
-    first_ack = {"kind": "msg_ack", "at": "t0", "refs": ["bifrost:m0"],
-                 "detail": {"by": "claude", "msg_id": "m0", "note": "handled long ago"}}
-    newer = [{"kind": "msg_ack", "at": f"t{i+1}", "refs": [f"bifrost:m{i+1}"],
-              "detail": {"by": "claude", "msg_id": f"m{i+1}", "note": ""}}
-             for i in range(520)]
-    q = FakeQuery(list(reversed(newer)) + [first_ack])   # newest first; m0's ack oldest
+    first_ack = {
+        "kind": "msg_ack",
+        "at": "t0",
+        "refs": ["bifrost:m0"],
+        "detail": {"by": "claude", "msg_id": "m0", "note": "handled long ago"},
+    }
+    newer = [
+        {
+            "kind": "msg_ack",
+            "at": f"t{i + 1}",
+            "refs": [f"bifrost:m{i + 1}"],
+            "detail": {"by": "claude", "msg_id": f"m{i + 1}", "note": ""},
+        }
+        for i in range(520)
+    ]
+    q = FakeQuery([*list(reversed(newer)), first_ack])  # newest first; m0's ack oldest
     acks = promoter.acks_for(["m0"], event_query=q)
     assert acks["m0"], "the oldest settled message must still read as handled (exact lookup)"

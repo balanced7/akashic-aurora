@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 """arc_scorecard.py -- T031 hook 3: the wrap-time M-practice scorecard.
 
 Deterministic reads over the arc window (git history + the event firehose): which
@@ -8,6 +8,7 @@ A READER, not a gate: always exits 0. Wired into the wrap draft; also standalone
 
   py scripts/arc_scorecard.py --days 2
 """
+
 import argparse
 import os
 import re
@@ -21,8 +22,7 @@ CITE_RE = re.compile(r"(?:docs|research/reviewed)/[A-Za-z0-9_\-./]+\.md")
 def _git(*argv) -> str:
     # encoding pinned: text=True means cp1252 on Windows, and one unicode commit body
     # kills the reader thread (stdout becomes None). utf-8 + replace, always.
-    r = subprocess.run(["git", *argv], capture_output=True, cwd=ROOT,
-                       encoding="utf-8", errors="replace")
+    r = subprocess.run(["git", *argv], capture_output=True, cwd=ROOT, encoding="utf-8", errors="replace")
     return r.stdout or ""
 
 
@@ -31,6 +31,7 @@ def _since_iso(days: float) -> str:
     'N days ago' (0.25 days ago -> full history -- the scorecard's own first live run
     read 411 commits as one arc). Never hand git a phrase when a date will do."""
     from datetime import datetime, timedelta
+
     return (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%S")
 
 
@@ -47,8 +48,7 @@ def _commits(days: float):
 
 def _added_files(days: float, prefix: str) -> list:
     raw = _git("log", f"--since={_since_iso(days)}", "--diff-filter=A", "--name-only", "--format=")
-    return sorted({l.strip() for l in raw.splitlines()
-                   if l.strip().replace("\\", "/").startswith(prefix)})
+    return sorted({ln.strip() for ln in raw.splitlines() if ln.strip().replace("\\", "/").startswith(prefix)})
 
 
 # A guard is a CHECKER SCRIPT. Both locations count: T104 moved them from scripts/ to
@@ -71,7 +71,7 @@ def is_guard_path(path: str) -> bool:
 
 def _added_guards(days: float) -> list:
     raw = _git("log", f"--since={_since_iso(days)}", "--diff-filter=A", "--name-only", "--format=")
-    return sorted({l.strip() for l in raw.splitlines() if is_guard_path(l.strip())})
+    return sorted({ln.strip() for ln in raw.splitlines() if is_guard_path(ln.strip())})
 
 
 # Detectors that read commit PROSE. They measure what we SAY, and they render green silence the
@@ -105,6 +105,7 @@ def is_revert(message) -> bool:
         return False
     return bool(_REVERT_SUBJECT.match(head))
 
+
 SKIP_DIRS = {".git", "__pycache__", "node_modules", ".claude", "backups", "snapshots"}
 
 
@@ -136,16 +137,23 @@ def detector_health(name: str, predicate, root: str = "") -> dict:
                         if hits >= 2:
                             return {"name": name, "status": "OK", "matches": hits, "detail": ""}
                 except Exception:
-                    return {"name": name, "status": "UNCHECKABLE", "matches": 0,
-                            "detail": "predicate raised -- the detector cannot evaluate itself"}
+                    return {
+                        "name": name,
+                        "status": "UNCHECKABLE",
+                        "matches": 0,
+                        "detail": "predicate raised -- the detector cannot evaluate itself",
+                    }
     except Exception:
-        return {"name": name, "status": "UNCHECKABLE", "matches": 0,
-                "detail": "tree walk failed"}
+        return {"name": name, "status": "UNCHECKABLE", "matches": 0, "detail": "tree walk failed"}
     if hits:
         return {"name": name, "status": "OK", "matches": hits, "detail": ""}
-    return {"name": name, "status": "UNCHECKABLE", "matches": 0,
-            "detail": "predicate matches nothing in the tree -- the detector is blind, "
-                      "so a zero here means NOT MEASURED, never 'none happened'"}
+    return {
+        "name": name,
+        "status": "UNCHECKABLE",
+        "matches": 0,
+        "detail": "predicate matches nothing in the tree -- the detector is blind, "
+        "so a zero here means NOT MEASURED, never 'none happened'",
+    }
 
 
 def main() -> int:
@@ -161,7 +169,6 @@ def main() -> int:
         rx = re.compile(pattern, flags)
         return sum(1 for m in msgs if rx.search(m))
 
-    gated = sum(1 for m in msgs if CITE_RE.search(m))
     prereg = count(r"pre-?registered|committed BEFORE impl|registration")
     drills = count(r"\bdrill")
     live = count(r"\blive[- ](?:drill|drill:|exercis|prov|incident|finding)")
@@ -171,8 +178,10 @@ def main() -> int:
     guards = _added_guards(days)
     ungated = []
     try:
-        from core.events.event_query import get_event_query
         from datetime import datetime, timedelta
+
+        from core.events.event_query import get_event_query
+
         since = (datetime.utcnow() - timedelta(days=days)).isoformat()
         ungated = get_event_query().search("", kind="ungated_ship", since=since, top_k=10)
     except Exception:
@@ -202,11 +211,12 @@ def main() -> int:
             # This is T176's law one plane over: absence of a record is not a record of
             # absence. The words matter as much as the label; a bare rename still reads as a
             # zero to a tired reader at 3am.
-            print(f"  {mid:<4} {label:<28} UNRECORDED -- nobody wrote it down; this is NOT "
-                  f"evidence of absence (self-reported: no detector exists){tag}")
+            print(
+                f"  {mid:<4} {label:<28} UNRECORDED -- nobody wrote it down; this is NOT "
+                f"evidence of absence (self-reported: no detector exists){tag}"
+            )
         else:
-            print(f"  {mid:<4} {label:<28} (no signal -- annotate fired/skipped-with-reason "
-                  f"in the wrap note){tag}")
+            print(f"  {mid:<4} {label:<28} (no signal -- annotate fired/skipped-with-reason in the wrap note){tag}")
 
     print(f"## ARC SCORECARD (last {days:g}d: {n} commit(s)) -- method-baseline reads (T031 hook 3)")
     line("M1", "fenced dual pass", fences, f"{fences} fence/review/reconcile ship(s)")
@@ -219,22 +229,37 @@ def main() -> int:
     try:
         sys.path.insert(0, os.path.join(ROOT, "scripts", "checkers"))
         from check_preregistration import audit_stats
+
         m3 = audit_stats(max(n, 20))
         if m3["total"]:
             flag = "  <-- pins are landing WITH their implementation" if m3["pct"] < 80 else ""
-            print(f"  M3   pre-registered acceptance  MEASURED {m3['clean']}/{m3['total']} "
-                  f"test-adding commit(s) clean ({m3['pct']:.0f}%){flag}")
+            print(
+                f"  M3   pre-registered acceptance  MEASURED {m3['clean']}/{m3['total']} "
+                f"test-adding commit(s) clean ({m3['pct']:.0f}%){flag}"
+            )
         else:
             line("M3", "pre-registered acceptance", prereg, "no test-adding commits in window")
-    except Exception as exc:                      # a reader must never break the wrap
-        line("M3", "pre-registered acceptance", prereg,
-             f"{prereg} registration-marked ship(s) (audit unavailable: {exc})")
+    except Exception as exc:  # a reader must never break the wrap
+        line(
+            "M3",
+            "pre-registered acceptance",
+            prereg,
+            f"{prereg} registration-marked ship(s) (audit unavailable: {exc})",
+        )
     line("M4", "drills as acceptance", drills, f"{drills} drill-bearing ship(s)")
     line("M5", "live-exercise after ship", live, f"{live} live-exercise mention(s)")
-    line("M6", "verbatim preservation", records,
-         f"{len(records)} record(s) added: " + ", ".join(os.path.basename(r) for r in records[:4]))
-    line("M10", "guards for new law", guards,
-         f"{len(guards)} guard(s) born: " + ", ".join(os.path.basename(g) for g in guards[:4]))
+    line(
+        "M6",
+        "verbatim preservation",
+        records,
+        f"{len(records)} record(s) added: " + ", ".join(os.path.basename(r) for r in records[:4]),
+    )
+    line(
+        "M10",
+        "guards for new law",
+        guards,
+        f"{len(guards)} guard(s) born: " + ", ".join(os.path.basename(g) for g in guards[:4]),
+    )
     # M11 is MEASURED by replaying the real gate, not by regexing doc paths out of messages.
     # deepseek: "a typo fix mentioning docs/ARCHITECTURE.md counts as gated; a full-fence slice
     # whose message says only 'RB-99 landed' does not... target it upward and you get more doc
@@ -243,29 +268,37 @@ def main() -> int:
     try:
         sys.path.insert(0, os.path.join(ROOT, "scripts", "checkers"))
         from check_reconciliation_gate import audit_stats as _gate_audit
+
         g = _gate_audit(max(n, 20))
         if g["applied"]:
-            print(f"  M11  slice discipline            {n} slice(s), {reverts} revert(s); "
-                  f"MEASURED {g['passed'] + g['ungated']}/{g['applied']} SUBSTRATE ship(s) "
-                  f"gated ({g['pct']:.0f}%)"
-                  + (f", {g['ungated']} ungated-with-reason" if g["ungated"] else ""))
-            for sha, subj, why in g["offenders"][:3]:
+            print(
+                f"  M11  slice discipline            {n} slice(s), {reverts} revert(s); "
+                f"MEASURED {g['passed'] + g['ungated']}/{g['applied']} SUBSTRATE ship(s) "
+                f"gated ({g['pct']:.0f}%)" + (f", {g['ungated']} ungated-with-reason" if g["ungated"] else "")
+            )
+            for sha, subj, _why in g["offenders"][:3]:
                 print(f"       ungated substrate: {sha} {subj}")
         else:
-            print(f"  M11  slice discipline            {n} slice(s), {reverts} revert(s); "
-                  f"no substrate ships in window -- gate did not apply")
+            print(
+                f"  M11  slice discipline            {n} slice(s), {reverts} revert(s); "
+                f"no substrate ships in window -- gate did not apply"
+            )
     except Exception as exc:
-        print(f"  M11  slice discipline            {n} slice(s), {reverts} revert(s) "
-              f"[self-report: gate audit unavailable: {exc}]")
+        print(
+            f"  M11  slice discipline            {n} slice(s), {reverts} revert(s) "
+            f"[self-report: gate audit unavailable: {exc}]"
+        )
     if ungated:
-        print(f"  !!   UNGATED substrate ship(s) this window: {len(ungated)} -- each needs a "
-              f"wrap ruling (hook 1 audit line)")
-    print("  (M0/M2/M7/M8/M9: judgment practices -- annotate in the wrap note where they "
-          "fired or were deliberately skipped)")
+        print(
+            f"  !!   UNGATED substrate ship(s) this window: {len(ungated)} -- each needs a "
+            f"wrap ruling (hook 1 audit line)"
+        )
+    print(
+        "  (M0/M2/M7/M8/M9: judgment practices -- annotate in the wrap note where they "
+        "fired or were deliberately skipped)"
+    )
     return 0
 
 
 if __name__ == "__main__":
     sys.exit(main())
-
-

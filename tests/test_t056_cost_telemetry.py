@@ -16,6 +16,7 @@ REGISTERED SEAM (core/coord/task_costs.py -- deepseek's adopted design):
 Pins K1-K7 per the reconciliation, plus K8-K9 for the confident-zero usage-shape
 regression found in the live Kimi/Sol runner wiring.
 """
+
 import ast
 import json
 import os
@@ -30,6 +31,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 def _mod():
     import importlib
+
     try:
         return importlib.import_module("core.coord.task_costs")
     except ImportError:
@@ -37,10 +39,11 @@ def _mod():
 
 
 def _client():
-    from core.foundation.redis_connection import (
-        connect_to_redis_with_fail_fast, DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT)
-    c = connect_to_redis_with_fail_fast(host=DEFAULT_REDIS_HOST, port=DEFAULT_REDIS_PORT,
-                                        timeout_seconds=3, decode_responses=True)
+    from core.foundation.redis_connection import DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT, connect_to_redis_with_fail_fast
+
+    c = connect_to_redis_with_fail_fast(
+        host=DEFAULT_REDIS_HOST, port=DEFAULT_REDIS_PORT, timeout_seconds=3, decode_responses=True
+    )
     if c is None:
         pytest.skip("redis not available")
     return c
@@ -55,14 +58,22 @@ def _ns(monkeypatch):
 def _ledger(tmp_path, tasks):
     """A git-only TaskLedger on a throwaway path (client=None per its test contract)."""
     from core.coord.task_ledger import TaskLedger
+
     p = tmp_path / "tasks.json"
     p.write_text(json.dumps({"seq": 1, "tasks": tasks}), encoding="utf-8")
     return TaskLedger(path=str(p), client=None)
 
 
 def _task(tid, owner, status):
-    return {"id": tid, "title": f"{tid} test task", "owner": owner, "status": status,
-            "history": [], "created": "2026-07-14", "updated": "2026-07-14"}
+    return {
+        "id": tid,
+        "title": f"{tid} test task",
+        "owner": owner,
+        "status": status,
+        "history": [],
+        "created": "2026-07-14",
+        "updated": "2026-07-14",
+    }
 
 
 def _row(duration=2.5, tools=3, tokens=None):
@@ -77,15 +88,16 @@ def test_k1_owner_matched_active_task_increments(monkeypatch, tmp_path):
     c = _client()
     ns = _ns(monkeypatch)
     tc = _mod()
-    led = _ledger(tmp_path, [_task("T900", "alice", "in_progress"),
-                             _task("T901", "bob", "verifying"),
-                             _task("T902", "alice", "done")])
+    led = _ledger(
+        tmp_path,
+        [_task("T900", "alice", "in_progress"), _task("T901", "bob", "verifying"), _task("T902", "alice", "done")],
+    )
     tid = tc.attribute_turn("alice", _row(), ledger=led)
     assert tid == "T900", "K1: the owner's ACTIVE task receives the attribution"
     acc = c.hgetall(f"{ns}:task_cost:T900")
-    assert int(acc.get("turns", 0)) == 1 and int(acc.get("tool_calls", 0)) == 3
-    assert tc.attribute_turn("carol", _row(), ledger=led) is None, \
-        "K1: an agent with no active task increments nothing"
+    assert int(acc.get("turns", 0)) == 1
+    assert int(acc.get("tool_calls", 0)) == 3
+    assert tc.attribute_turn("carol", _row(), ledger=led) is None, "K1: an agent with no active task increments nothing"
     assert not c.exists(f"{ns}:task_cost:T902"), "K1: done tasks never accumulate"
 
 
@@ -96,8 +108,7 @@ def test_k2_redis_down_is_a_noop(monkeypatch, tmp_path):
     tc = _mod()
     led = _ledger(tmp_path, [_task("T900", "alice", "in_progress")])
     monkeypatch.setattr(tc, "_client", lambda: None, raising=False)
-    assert tc.attribute_turn("alice", _row(), ledger=led) is None, \
-        "K2: Redis down -> no-op, never raises (fail-open)"
+    assert tc.attribute_turn("alice", _row(), ledger=led) is None, "K2: Redis down -> no-op, never raises (fail-open)"
 
 
 # ------------------------------------------------------ K3: done finalize
@@ -109,8 +120,9 @@ def test_k3_finalize_stamps_and_deletes(monkeypatch, tmp_path):
     for _ in range(3):
         tc.attribute_turn("alice", _row(duration=1.0, tools=2), ledger=led)
     t = led.tasks["T900"]
-    stamped = tc.finalize("T900", t)
-    assert t.get("cost_turns") == 3 and t.get("cost_tool_calls") == 6
+    tc.finalize("T900", t)
+    assert t.get("cost_turns") == 3
+    assert t.get("cost_tool_calls") == 6
     assert not c.exists(f"{ns}:task_cost:T900"), "K3: accumulator deleted after finalize"
     t2 = _task("T950", "alice", "verifying")
     tc.finalize("T950", t2)
@@ -128,7 +140,7 @@ def test_k4_finalize_is_once(monkeypatch, tmp_path):
     t = led.tasks["T900"]
     tc.finalize("T900", t)
     first = t.get("cost_turns")
-    tc.finalize("T900", t)                    # bounce: second finalize on empty accumulator
+    tc.finalize("T900", t)  # bounce: second finalize on empty accumulator
     assert t.get("cost_turns") == first, "K4: a bounce never double-counts or zeroes"
 
 
@@ -149,12 +161,13 @@ def test_k6_done_render_budget(monkeypatch, tmp_path):
     _ns(monkeypatch)
     tc = _mod()
     t = _task("T900", "alice", "done")
-    t.update(cost_turns=84, cost_duration_s=7612.4, cost_tool_calls=412,
-             cost_tokens=156000)
+    t.update(cost_turns=84, cost_duration_s=7612.4, cost_tool_calls=412, cost_tokens=156000)
     line = tc.cost_line(t)
-    assert line and len(line) <= 120, "K6: one line, <=120 chars"
-    assert "84" in line and "turn" in line
-    t["cost_tokens"] = 10 ** 12              # absurd width forces the drop order
+    assert line, "K6: one line, <=120 chars"
+    assert len(line) <= 120, "K6: one line, <=120 chars"
+    assert "84" in line
+    assert "turn" in line
+    t["cost_tokens"] = 10**12  # absurd width forces the drop order
     line2 = tc.cost_line(t)
     assert len(line2) <= 120, "K6: tokens drop first under budget pressure"
 
@@ -164,7 +177,7 @@ def test_k7_pre_t056_tasks_render_nothing(monkeypatch, tmp_path):
     _client()
     _ns(monkeypatch)
     tc = _mod()
-    t = _task("T900", "alice", "done")       # no cost_* keys at all
+    t = _task("T900", "alice", "done")  # no cost_* keys at all
     assert tc.cost_line(t) == "", "K7: absent stamps render absent -- no placeholders"
 
 
@@ -184,36 +197,49 @@ def test_k8_scalar_token_total_never_becomes_confident_zero(monkeypatch, tmp_pat
     assert tc.attribute_turn("alice", _row(tokens=1234), ledger=led) == "T900"
     acc = c.hgetall(f"{ns}:task_cost:T900")
     assert int(acc.get("tokens", 0)) == 1234, (
-        "K8: a positive scalar token total must be counted, not silently omitted as zero")
+        "K8: a positive scalar token total must be counted, not silently omitted as zero"
+    )
 
 
 def _runner_record_token_exprs(relpath):
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    source = open(os.path.join(root, relpath), encoding="utf-8").read()
+    with open(os.path.join(root, relpath), encoding="utf-8") as fh:
+        source = fh.read()
     tree = ast.parse(source, filename=relpath)
     out = []
     for node in ast.walk(tree):
         if not isinstance(node, ast.Call):
             continue
         fn = node.func
-        if not (isinstance(fn, ast.Attribute) and fn.attr == "record"
-                and isinstance(fn.value, ast.Name) and fn.value.id == "_tm"):
+        if not (
+            isinstance(fn, ast.Attribute)
+            and fn.attr == "record"
+            and isinstance(fn.value, ast.Name)
+            and fn.value.id == "_tm"
+        ):
             continue
         out.extend(kw.value for kw in node.keywords if kw.arg == "tokens")
     return out
 
 
 def _is_toks_index(node, index):
-    return (isinstance(node, ast.Subscript)
-            and isinstance(node.value, ast.Name) and node.value.id == "toks"
-            and isinstance(node.slice, ast.Constant) and node.slice.value == index)
+    return (
+        isinstance(node, ast.Subscript)
+        and isinstance(node.value, ast.Name)
+        and node.value.id == "toks"
+        and isinstance(node.slice, ast.Constant)
+        and node.slice.value == index
+    )
 
 
 # ------------------------------------------------------ K9: live runner wiring
-@pytest.mark.parametrize("relpath", [
-    "scripts/bifrost_runner_kimi.py",
-    "scripts/bifrost_runner_sol.py",
-])
+@pytest.mark.parametrize(
+    "relpath",
+    [
+        "scripts/bifrost_runner_kimi.py",
+        "scripts/bifrost_runner_sol.py",
+    ],
+)
 def test_k9_kimi_and_sol_pass_split_token_usage(relpath):
     """Pin the consumers, not only the meter: both runners must reach turn_metrics with
     the same split dictionary DeepSeek uses. A scalar here recreates confident-zero task
@@ -222,19 +248,22 @@ def test_k9_kimi_and_sol_pass_split_token_usage(relpath):
     exprs = _runner_record_token_exprs(relpath)
     assert len(exprs) == 1, f"K9: expected one _tm.record token seam in {relpath}"
     expr = exprs[0]
-    assert isinstance(expr, ast.IfExp) and isinstance(expr.body, ast.Dict), (
-        f"K9: {relpath} must pass a conditional split token dictionary, got "
-        f"{ast.dump(expr, include_attributes=False)}")
+    assert isinstance(expr, ast.IfExp), (
+        f"K9: {relpath} must pass a conditional split token dictionary, got {ast.dump(expr, include_attributes=False)}"
+    )
+    assert isinstance(expr.body, ast.Dict), (
+        f"K9: {relpath} must pass a conditional split token dictionary, got {ast.dump(expr, include_attributes=False)}"
+    )
     pairs = {
         key.value: value
-        for key, value in zip(expr.body.keys, expr.body.values)
+        for key, value in zip(expr.body.keys, expr.body.values, strict=False)
         if isinstance(key, ast.Constant) and isinstance(key.value, str)
     }
     assert set(pairs) == {"prompt", "completion"}, (
-        f"K9: {relpath} token keys must be prompt+completion, got {sorted(pairs)}")
+        f"K9: {relpath} token keys must be prompt+completion, got {sorted(pairs)}"
+    )
     assert _is_toks_index(pairs["prompt"], 0), f"K9: {relpath} prompt must use toks[0]"
-    assert _is_toks_index(pairs["completion"], 1), (
-        f"K9: {relpath} completion must use toks[1]")
+    assert _is_toks_index(pairs["completion"], 1), f"K9: {relpath} completion must use toks[1]"
 
 
 if __name__ == "__main__":

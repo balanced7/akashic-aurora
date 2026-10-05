@@ -25,6 +25,7 @@ Note: exit 0 + a {permissionDecision:"deny"} JSON is the documented block path.
 Do NOT signal a policy block with exit code 1 -- Claude Code treats exit 1 as a
 non-blocking error and PROCEEDS with the action.
 """
+
 import json
 import os
 import re
@@ -50,14 +51,19 @@ def _dedup_should_skip(data) -> bool:
     import hashlib
     import tempfile
     import time
+
     try:
-        key = hashlib.sha1(json.dumps(
-            [data.get("session_id", ""), data.get("tool_name", ""),
-             data.get("tool_input", {})], sort_keys=True, default=str).encode()).hexdigest()[:24]
+        key = hashlib.sha1(
+            json.dumps(
+                [data.get("session_id", ""), data.get("tool_name", ""), data.get("tool_input", {})],
+                sort_keys=True,
+                default=str,
+            ).encode()
+        ).hexdigest()[:24]
         d = os.path.join(tempfile.gettempdir(), "akashic-hook-dedup")
         os.makedirs(d, exist_ok=True)
         now = time.time()
-        try:                                    # lazy sweep so the dir stays tiny
+        try:  # lazy sweep so the dir stays tiny
             for f in os.listdir(d):
                 p = os.path.join(d, f)
                 if now - os.path.getmtime(p) > 60:
@@ -68,7 +74,7 @@ def _dedup_should_skip(data) -> bool:
         try:
             fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
             os.close(fd)
-            return False                        # first fire -- we hold the marker
+            return False  # first fire -- we hold the marker
         except FileExistsError:
             return (now - os.path.getmtime(path)) < _DEDUP_WINDOW_S
     except Exception:
@@ -79,6 +85,7 @@ def _in_scope(tool: str, data) -> bool:
     """Claude tool names -> the shared scope policy (agent/harness/scope.py): file tools scope
     by their target path, shell tools by session cwd or the command itself."""
     from agent.harness.scope import file_in_scope, shell_in_scope
+
     ti = data.get("tool_input")
     # `or {}` guarded None but NOT a truthy non-dict, so a tool whose input is a bare string
     # raised AttributeError HERE -- before any of this hook's guards ran -- and crashed the
@@ -92,18 +99,30 @@ def _in_scope(tool: str, data) -> bool:
 
 
 def _deny(reason: str) -> None:
-    print(json.dumps({"hookSpecificOutput": {
-        "hookEventName": "PreToolUse",
-        "permissionDecision": "deny",
-        "permissionDecisionReason": reason,
-    }}))
+    print(
+        json.dumps(
+            {
+                "hookSpecificOutput": {
+                    "hookEventName": "PreToolUse",
+                    "permissionDecision": "deny",
+                    "permissionDecisionReason": reason,
+                }
+            }
+        )
+    )
 
 
 def _emit_context(text: str) -> None:
-    print(json.dumps({"hookSpecificOutput": {
-        "hookEventName": "PreToolUse",
-        "additionalContext": text,
-    }}))
+    print(
+        json.dumps(
+            {
+                "hookSpecificOutput": {
+                    "hookEventName": "PreToolUse",
+                    "additionalContext": text,
+                }
+            }
+        )
+    )
 
 
 def _recall_context(data) -> str:
@@ -119,9 +138,10 @@ def _recall_context(data) -> str:
         # Rule of three fired (t383): the sequence lives in agent/harness/actions.py.
         # The hook's session uuid serves as both keys — byte-for-byte the old behavior.
         from agent.harness.actions import recall_block
+
         return recall_block(session_id, session_id, path or None, command or None)
     except Exception:
-        return ""   # recall must never brick the action
+        return ""  # recall must never brick the action
 
 
 #: A minted id looks like T227 in a PATH. THREE OR MORE digits -- an exact {3} expires
@@ -168,7 +188,7 @@ def id_facts_for_path(path, *, exists=None, ledger=None) -> str:
         if exists is None:
             exists = os.path.exists(p)
         if exists:
-            return ""          # editing an existing pin, not minting a new id
+            return ""  # editing an existing pin, not minting a new id
         if ledger is None:
             # state_view() is keyed by STATUS BUCKET (done/in_progress/next/proposed/...),
             # each a list of task dicts -- NOT {"tasks": [...]}. The first cut assumed the
@@ -176,6 +196,7 @@ def id_facts_for_path(path, *, exists=None, ledger=None) -> str:
             # built for, while its pins stayed green because they injected a fake ledger.
             # Mocking the seam that was wrong is how a pin certifies nothing.
             from core.coord.task_ledger import state_view
+
             ledger = {}
             for bucket in (state_view() or {}).values():
                 if isinstance(bucket, list):
@@ -184,25 +205,26 @@ def id_facts_for_path(path, *, exists=None, ledger=None) -> str:
                             ledger[t["id"]] = t
         rec = (ledger or {}).get(tid)
         if not isinstance(rec, dict):
-            return ""          # unknown id is FREE, and free is silent
+            return ""  # unknown id is FREE, and free is silent
         status = str(rec.get("status") or "").lower()
         if status not in _TERMINAL:
-            return ""          # active work on a claimed id -- normal, never interrupt it
+            return ""  # active work on a claimed id -- normal, never interrupt it
         title = str(rec.get("title") or "").strip()
         if len(title) > 90:
             title = title[:87] + "..."
         return f"[ledger] {tid} is {status}: {title}"
     except Exception:
-        return ""              # fail open, always
+        return ""  # fail open, always
 
 
 def _check_bash(data) -> str:
     """Blanket git-staging veto -- verdict text from the shared policy (agent/harness/guards.py)."""
     try:
         from agent.harness.guards import git_veto
+
         return git_veto(((data.get("tool_input") or {}).get("command")) or "")
     except Exception:
-        return ""   # policy unavailable -> allow
+        return ""  # policy unavailable -> allow
 
 
 def _check_write(data) -> str:
@@ -210,18 +232,21 @@ def _check_write(data) -> str:
     (agent/harness/guards.py); this adapter only says where Claude sets its env."""
     try:
         from agent.harness.guards import lock_veto
-        return lock_veto((data.get("tool_input") or {}).get("file_path") or "",
-                         os.getenv("AKASHIC_AGENT_ID"),
-                         "e.g. in .claude/settings.json env")
+
+        return lock_veto(
+            (data.get("tool_input") or {}).get("file_path") or "",
+            os.getenv("AKASHIC_AGENT_ID"),
+            "e.g. in .claude/settings.json env",
+        )
     except Exception:
-        return ""   # lock layer unavailable -> allow (advisory)
+        return ""  # lock layer unavailable -> allow (advisory)
 
 
 def main() -> int:
     try:
         data = json.load(sys.stdin)
     except Exception:
-        return 0   # unparseable -> allow
+        return 0  # unparseable -> allow
     tool = data.get("tool_name") or ""
     # PRESENCE, before the tool filter and before every gate below. This must fire for EVERY tool,
     # not just the shell/file ones this hook guards -- the avatar is reporting whether the seat is
@@ -229,19 +254,17 @@ def main() -> int:
     # rather than a missing one. Fail-open and side-effect-only; see _activity.py.
     try:
         from agent.harness.hooks._activity import report, verb_for
+
         report(verb_for(tool), tool, data.get("cwd") or "", data.get("session_id") or "")
     except Exception:
         pass
     if tool not in _SHELL_TOOLS + _FILE_TOOLS:
         return 0
     if _dedup_should_skip(data):
-        return 0   # K0/C8-3: identical payload already fired within the window -> silent no-op
+        return 0  # K0/C8-3: identical payload already fired within the window -> silent no-op
     if not _in_scope(tool, data):
-        return 0   # outside this repo -> silent no-op (safe for user-level / global registration)
-    if tool in _SHELL_TOOLS:
-        reason = _check_bash(data)
-    else:
-        reason = _check_write(data)
+        return 0  # outside this repo -> silent no-op (safe for user-level / global registration)
+    reason = _check_bash(data) if tool in _SHELL_TOOLS else _check_write(data)
     if reason:
         _deny(reason)
         return 0
@@ -269,11 +292,12 @@ def main() -> int:
     # `focus --quiet`, and goes quiet on its own after two dismissals.
     try:
         from core.coord.session_focus import drift_note
+
         note = drift_note(data.get("session_id") or "")
         if note:
             ctx = (ctx + chr(10) + note) if ctx else note
     except Exception:
-        pass        # bookkeeping must never cost a tool call
+        pass  # bookkeeping must never cost a tool call
     if ctx:
         _emit_context(ctx)
     return 0

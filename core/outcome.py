@@ -34,10 +34,11 @@ Season 1 scoreboard, retry policy, doctor rows and the canary oracle each need a
 per subsystem today. Given one vocabulary they read everything, and a twentieth seat or a new
 scoring axis costs nothing.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, Optional
+from typing import Any
 
 
 @dataclass(frozen=True)
@@ -50,11 +51,12 @@ class BoundaryOutcome:
     partial -- the thing happened INCOMPLETELY; `why` says what is missing
     detail  -- optional structured extras; never load-bearing for the verdict
     """
+
     ok: bool
     why: str = ""
-    ref: Optional[str] = None
+    ref: str | None = None
     partial: bool = False
-    detail: Dict[str, Any] = field(default_factory=dict)
+    detail: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self):
         # THE WHOLE POINT. A failure or a partial that cannot say why is the defect this type
@@ -63,7 +65,8 @@ class BoundaryOutcome:
             raise ValueError(
                 "BoundaryOutcome(ok=False) and BoundaryOutcome(partial=True) require a `why`. A boundary that "
                 "fails silently is the T170 defect: the caller cannot tell 'did not happen' from "
-                "'happened and had nothing to say'.")
+                "'happened and had nothing to say'."
+            )
 
     def __bool__(self) -> bool:
         """Truthy iff it fully happened. `if send(...)` stays readable, and a PARTIAL is falsy --
@@ -71,29 +74,32 @@ class BoundaryOutcome:
         return bool(self.ok and not self.partial)
 
     @classmethod
-    def done(cls, ref: Optional[str] = None, **detail) -> "BoundaryOutcome":
+    def done(cls, ref: str | None = None, **detail) -> BoundaryOutcome:
         return cls(ok=True, ref=ref, detail=detail)
 
     @classmethod
-    def failed(cls, why: str, ref: Optional[str] = None, **detail) -> "BoundaryOutcome":
+    def failed(cls, why: str, ref: str | None = None, **detail) -> BoundaryOutcome:
         return cls(ok=False, why=why, ref=ref, detail=detail)
 
     @classmethod
-    def partially(cls, why: str, ref: Optional[str] = None, **detail) -> "BoundaryOutcome":
+    def partially(cls, why: str, ref: str | None = None, **detail) -> BoundaryOutcome:
         """Happened, incompletely. The state five dialects could not express, and the reason
         109KB of correct analysis died in a log on 2026-08-04."""
         return cls(ok=True, why=why, ref=ref, partial=True, detail=detail)
 
     @classmethod
-    def caught(cls, exc: BaseException, where: str = "", ref: Optional[str] = None) -> "BoundaryOutcome":
+    def caught(cls, exc: BaseException, where: str = "", ref: str | None = None) -> BoundaryOutcome:
         """Fail-open WITHOUT going silent -- the exact shape consume_rearms needed.
 
         Fail-open is correct: a bad spawn must not kill the daemon loop. Silent fail-open is what
         turned a one-line arity typo into a permanent invisible no-op for weeks (T167).
         """
-        return cls(ok=False, ref=ref,
-                   why=f"{where + ': ' if where else ''}{type(exc).__name__}: {exc}",
-                   detail={"exception": type(exc).__name__})
+        return cls(
+            ok=False,
+            ref=ref,
+            why=f"{where + ': ' if where else ''}{type(exc).__name__}: {exc}",
+            detail={"exception": type(exc).__name__},
+        )
 
     def line(self) -> str:
         """One render, so every surface reports a boundary the same way."""
