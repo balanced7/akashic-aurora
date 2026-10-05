@@ -94,11 +94,22 @@ from typing import Dict, List, Optional, Set, Tuple
 
 ROOT = Path(__file__).resolve().parents[2]
 
-#: Directories whose contents are not live code. `archive` and the worktrees are other trees
-#: entirely; `.venv` is not ours. Kept narrow on purpose -- an exclusion is slack.
-SKIP_DIRS = {
-    ".git", ".venv", "venv", "__pycache__", "node_modules", ".claude", ".codex", ".cursor",
-    "archive", "X", "logs", "state", ".pytest_cache", ".ruff_cache", "tooling-upgrade",
+#: Noise directories, skipped at ANY depth: caches and foreign dependency trees.
+SKIP_ANY_LEVEL = {
+    ".git", ".venv", "venv", "__pycache__", "node_modules", ".pytest_cache", ".ruff_cache",
+}
+
+#: Skipped only as a TOP-LEVEL directory, and that anchoring is load-bearing.
+#:
+#: The first version matched these against EVERY path component, so `state` excluded
+#: `core/state/` -- 789 lines of live session-recovery code (session_checkpoint.py,
+#: session_recovery.py) silently unchecked, and silently was the whole problem: star-imports
+#: and parse failures each get a reported SKIPPED block, while this exclusion appeared
+#: nowhere in the output. That broke this module's own stated law -- "an exclusion that
+#: cannot be seen is slack, and a guard with invisible slack is a rubber stamp" -- in the
+#: file that states it. Found by an adversarial reader, not by me.
+SKIP_TOP_LEVEL = {
+    ".claude", ".codex", ".cursor", "archive", "X", "logs", "state", "tooling-upgrade",
 }
 
 BUILTINS: Set[str] = set(dir(builtins)) | {
@@ -121,10 +132,54 @@ class _Scope:
 
 
 def _bind_target(node: ast.AST, scope: _Scope) -> None:
-    """Add every Name bound by an assignment/for/with/except target."""
+    """Bind only what a store target ACTUALLY binds.
+
+    THE FIRST VERSION ast.walk'd the target and bound every Name it found, which is wrong in
+    the one direction that matters: `registry[key] = payload` bound BOTH `registry` and
+    `key`, and `cfg.debug = v` bound `cfg`. Those bases are Load context -- they must stay
+    unbound so the resolver reports them. Worse, it MASKED other findings: one such line
+    cleared every later read of those names in the whole scope, so the guard could pass a
+    function that raises NameError on its second line.
+
+    Measured exposure when this was found: 4,614 Attribute/Subscript store targets across
+    743 files. Live defects hidden by it today: zero -- a strict variant over the whole
+    counted bucket surfaced nothing new, which is why this fix carries no false-positive
+    risk. It is the hole the seventh arrival walks through, not a present defect.
+    """
+    if isinstance(node, ast.Name):
+        scope.names.add(node.id)
+    elif isinstance(node, (ast.Tuple, ast.List)):
+        for e in node.elts:
+            _bind_target(e, scope)
+    elif isinstance(node, ast.Starred):
+        _bind_target(node.value, scope)
+    # Attribute and Subscript bind nothing: `o.a = 1` requires `o` to already exist, and the
+    # base is parsed as a Load, so leaving it alone is what makes it checkable.
+
+
+def _is_type_checking(test: ast.AST) -> bool:
+    """`if TYPE_CHECKING:` or `if typing.TYPE_CHECKING:` -- both forms, either spelling."""
+    if isinstance(test, ast.Name):
+        return test.id == "TYPE_CHECKING"
+    if isinstance(test, ast.Attribute):
+        return test.attr == "TYPE_CHECKING"
+    return False
+
+
+def _walrus_targets(node: ast.AST) -> Set[str]:
+    """PEP 572: a walrus inside a comprehension binds in the CONTAINING scope.
+
+    `_collect` skips comprehensions (they are their own scope) and `_comp` binds only the
+    generator targets, so without this the walrus target was bound in NO scope and
+    `[y for x in rows if (y := x*2) > 3]` -- code that runs and returns correctly -- was
+    reported twice. A guard that blocks correct code gets switched off, so this mattered
+    more than any of the missed cases.
+    """
+    out: Set[str] = set()
     for sub in ast.walk(node):
-        if isinstance(sub, ast.Name):
-            scope.names.add(sub.id)
+        if isinstance(sub, ast.NamedExpr) and isinstance(sub.target, ast.Name):
+            out.add(sub.target.id)
+    return out
 
 
 def _collect(node: ast.AST, scope: _Scope) -> None:
@@ -146,29 +201,45 @@ def _collect(node: ast.AST, scope: _Scope) -> None:
             scope.names.add(child.name)
             continue                          # do NOT descend: its body is another scope
         elif isinstance(child, ast.Lambda):
+            scope.names |= _walrus_targets(child)       # a walrus in a default leaks out
             continue
         elif isinstance(child, (ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp)):
+            scope.names |= _walrus_targets(child)       # PEP 572 -- binds in THIS scope
             continue
         elif isinstance(child, ast.Assign):
             for t in child.targets:
                 _bind_target(t, scope)
-        elif isinstance(child, (ast.AnnAssign, ast.AugAssign)):
-            if child.target is not None:
+        elif isinstance(child, ast.AnnAssign):
+            # A VALUELESS annotation binds nothing at runtime -- `x: int` only writes
+            # __annotations__, so a later read is NameError at module scope and
+            # UnboundLocalError in a function. Bind only when there is a value.
+            if child.target is not None and child.value is not None:
                 _bind_target(child.target, scope)
+        elif isinstance(child, ast.AugAssign):
+            # `x += 1` REQUIRES x to already exist, so it is not a binding. Any genuine
+            # binding elsewhere in the scope is picked up by its own Assign/import.
+            pass
         elif isinstance(child, ast.NamedExpr):
             _bind_target(child.target, scope)
         elif isinstance(child, (ast.For, ast.AsyncFor)):
             _bind_target(child.target, scope)
         elif isinstance(child, ast.ExceptHandler):
-            if child.name:
-                scope.names.add(child.name)
+            # Deliberately NOT bound here. CPython compiles an implicit `name = None;
+            # del name` at handler exit, so the name exists ONLY inside the handler body.
+            # visit_ExceptHandler pushes a scope for exactly that extent, so a read after
+            # the handler is correctly reported.
+            pass
         elif isinstance(child, (ast.With, ast.AsyncWith)):
             for item in child.items:
                 if item.optional_vars is not None:
                     _bind_target(item.optional_vars, scope)
         elif isinstance(child, ast.Global):
+            # `global X` does NOT bind X in this scope -- it declares that X means the
+            # MODULE's X. Binding it locally masked the case where nothing assigns X
+            # anywhere, which is a plain NameError. The legitimate lazy-singleton
+            # (`global _C; _C = {}` here, read in a sibling) is admitted at module scope,
+            # where the declaration is intersected with the real stores.
             scope.globals_.update(child.names)
-            scope.names.update(child.names)
         elif isinstance(child, ast.Nonlocal):
             scope.nonlocals.update(child.names)
             scope.names.update(child.names)
@@ -181,7 +252,13 @@ def _collect(node: ast.AST, scope: _Scope) -> None:
                     scope.names.add(sub.name)
                 elif isinstance(sub, ast.MatchMapping) and sub.rest:
                     scope.names.add(sub.rest)
-        # recurse through plain statement containers (if/try/while/else bodies)
+        # recurse through plain statement containers (if/try/while/else bodies), EXCEPT an
+        # `if TYPE_CHECKING:` body. That block never executes, so the imports inside it bind
+        # nothing at runtime -- a name imported only there and used in a real function body
+        # is a genuine NameError, and it is categorically NOT the "conditional definition"
+        # this file deliberately permits: there is no branch on which it gets defined.
+        if isinstance(child, ast.If) and _is_type_checking(child.test):
+            continue
         if not isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef,
                                   ast.Lambda, ast.ListComp, ast.SetComp, ast.DictComp,
                                   ast.GeneratorExp)):
@@ -203,6 +280,27 @@ class _Resolver(ast.NodeVisitor):
     def __init__(self, module: ast.Module, lazy_annotations: bool = False) -> None:
         mod = _Scope("module")
         _collect(module, mod)
+        #: `global X; X = ...` inside ANY function creates a MODULE binding, so a sibling
+        #: function reading X is correct even though nothing assigns X at module level. The
+        #: lazy-singleton pattern (`def init(): global _CACHE; _CACHE = {}` then
+        #: `def get(): return _CACHE`) was reported as unbound before this -- a false
+        #: positive on an idiom, which at a baseline of 0 is a hard block on correct code.
+        #: ...but only when something actually ASSIGNS it. `global X` with no assignment
+        #: anywhere binds nothing, and blanket-trusting the declaration traded the FP for a
+        #: false negative. Intersecting the declarations with the real stores keeps both.
+        declared: Set[str] = set()
+        stored: Set[str] = set()
+        for n in ast.walk(module):
+            if isinstance(n, ast.Global):
+                declared.update(n.names)
+            elif isinstance(n, (ast.Assign, ast.AugAssign, ast.AnnAssign)):
+                tgts = n.targets if isinstance(n, ast.Assign) else [n.target]
+                for t in tgts:
+                    if t is not None:
+                        stored |= {s.id for s in ast.walk(t) if isinstance(s, ast.Name)}
+            elif isinstance(n, (ast.For, ast.AsyncFor)):
+                stored |= {s.id for s in ast.walk(n.target) if isinstance(s, ast.Name)}
+        mod.names.update(declared & stored)
         self.stack: List[_Scope] = [mod]
         self.fn_stack: List[str] = []
         self.violations: List[Tuple[int, str, str]] = []   # (lineno, name, where)
@@ -319,6 +417,50 @@ class _Resolver(ast.NodeVisitor):
         if node.target is not None and not isinstance(node.target, ast.Name):
             self.visit(node.target)          # attribute/subscript targets still evaluate
 
+    def visit_ExceptHandler(self, node) -> None:
+        """`except E as e:` -- `e` lives only until the handler exits, then CPython deletes
+        it. Scoping it to the handler body is what makes a later read reportable."""
+        if node.type is not None:
+            self.visit(node.type)
+        if node.name:
+            sc = _Scope("function")
+            sc.names.add(node.name)
+            self.stack.append(sc)
+            for st in node.body:
+                self.visit(st)
+            self.stack.pop()
+        else:
+            for st in node.body:
+                self.visit(st)
+
+    def visit_If(self, node) -> None:
+        """Do not VISIT an `if TYPE_CHECKING:` body, only its test.
+
+        Skipping the binding alone is not enough: the loads inside that block never execute
+        either, so reporting them is a false positive. An adversarial reader measured exactly
+        that -- their first attempt at this fix produced 16 new findings, every one an
+        assignment living inside a TYPE_CHECKING block.
+        """
+        self.visit(node.test)
+        if not _is_type_checking(node.test):
+            for st in node.body:
+                self.visit(st)
+        for st in node.orelse:
+            self.visit(st)
+
+    def visit_AugAssign(self, node) -> None:
+        """`x += 1` READS x before writing it, so a bare-name target is a Load in practice.
+
+        The AST marks it Store, so visit_Name alone never sees it -- 1,086 bare-name
+        AugAssigns in the tree were structurally invisible to this guard.
+        """
+        self.visit(node.value)
+        if isinstance(node.target, ast.Name):
+            if not self._resolves(node.target.id):
+                self.violations.append((node.lineno, node.target.id, self._where()))
+        else:
+            self.visit(node.target)
+
     # -- the check ------------------------------------------------------------------------
     def visit_Name(self, node) -> None:
         if isinstance(node.ctx, ast.Load) and not self._resolves(node.id):
@@ -327,14 +469,17 @@ class _Resolver(ast.NodeVisitor):
 
 
 # ------------------------------------------------------------------------------------- driver
-def _py_files() -> List[Path]:
+def _py_files() -> Tuple[List[Path], int]:
+    """Returns (files, skipped_by_path_count). The count is REPORTED, never silent."""
     out: List[Path] = []
+    skipped = 0
     for p in ROOT.rglob("*.py"):
-        parts = set(p.relative_to(ROOT).parts)
-        if parts & SKIP_DIRS:
+        parts = p.relative_to(ROOT).parts
+        if set(parts) & SKIP_ANY_LEVEL or (parts and parts[0] in SKIP_TOP_LEVEL):
+            skipped += 1
             continue
         out.append(p)
-    return sorted(out)
+    return sorted(out), skipped
 
 
 #: Paths that are not this house's live code: vendored third party, explicitly archived, and
@@ -353,13 +498,30 @@ def _NOT_OURS(rel: str) -> bool:
     return rel.startswith(_NOT_OURS_PREFIXES)
 
 
-def check(as_json: bool = False) -> int:
+def check(as_json: bool = False, scan_foreign: bool = False) -> int:
     offenders: List[Tuple[str, int, str, str]] = []
     not_ours: List[Tuple[str, int, str, str]] = []
     skipped_star: List[str] = []
     unparsed: List[Tuple[str, str]] = []
 
-    for path in _py_files():
+    files, skipped_by_path = _py_files()
+    #: Vendored/archived/scratch code is PARSED only under --all. Measured 2026-10-05: it is
+    #: 1,050 of the 2,499 files and 4.8s of a 10.8s run -- half the budget of every commit,
+    #: spent on findings that by definition never enter the count. The exclusion stays
+    #: VISIBLE (the file count and the prefixes are printed either way), only the itemisation
+    #: moves behind the flag. W252 was filed about per-commit friction the same day; adding
+    #: five seconds to every commit for information nobody can act on would be the same bill.
+    foreign_unscanned = 0
+    if not scan_foreign:
+        keep = []
+        for p in files:
+            if _NOT_OURS(p.relative_to(ROOT).as_posix()):
+                foreign_unscanned += 1
+            else:
+                keep.append(p)
+        files = keep
+
+    for path in files:
         rel = path.relative_to(ROOT).as_posix()
         try:
             # utf-8-SIG, not utf-8: three of this repo's own files carry a UTF-8 BOM
@@ -376,8 +538,17 @@ def check(as_json: bool = False) -> int:
             tree = ast.parse(src, filename=rel)
         except SyntaxError as e:
             unparsed.append((rel, f"SyntaxError line {e.lineno}")); continue
+        except Exception as e:                                   # noqa: BLE001
+            # NOT just SyntaxError. A deeply nested expression raises RecursionError (seen at
+            # AST depth 497), which escaped the narrow handler, killed the run, and -- at any
+            # baseline above zero -- read to the ratchet as "the debt FELL". A dead checker
+            # must never look like a paydown.
+            unparsed.append((rel, f"{type(e).__name__}: {e}")); continue
         if any(isinstance(n, ast.ImportFrom) and any(a.name == "*" for a in n.names)
-               for n in ast.walk(tree)):
+               for n in tree.body):
+            # tree.body, not ast.walk: a star-import is only legal at module level, and
+            # walking the whole tree let a `from x import *` ANYWHERE (including inside a
+            # string-compiled block or a nested module in a test fixture) excuse the file.
             skipped_star.append(rel); continue
         lazy = any(isinstance(n, ast.ImportFrom) and n.module == "__future__"
                    and any(a.name == "annotations" for a in n.names)
@@ -397,12 +568,16 @@ def check(as_json: bool = False) -> int:
             "not_ours": [{"file": f, "line": l, "name": n, "in": w}
                          for f, l, n, w in not_ours],
             "not_ours_count": len(not_ours),
+            "foreign_unscanned": foreign_unscanned,
             "skipped_star_import": skipped_star,
             "unparsed": [{"file": f, "why": w} for f, w in unparsed],
         }, indent=2))
         return 1 if offenders else 0
 
     # Typed absence, every time: a skip is REPORTED, never silently passed. Zero is not no.
+    print("# scanned %d .py file(s); %d skipped by path policy (caches, top-level archive/"
+          "logs/state/X, .claude/.codex/.cursor, tooling-upgrade)"
+          % (len(files), skipped_by_path))
     if skipped_star:
         print("SKIPPED, not counted: %d module(s) use `from x import *`, which cannot be"
               % len(skipped_star))
@@ -415,14 +590,33 @@ def check(as_json: bool = False) -> int:
         for rel, why in unparsed:
             print("  ? %s (%s)" % (rel, why))
         print()
+    if foreign_unscanned:
+        print("NOT OURS, not counted and not parsed: %d file(s) under %s"
+              % (foreign_unscanned, ", ".join(_NOT_OURS_PREFIXES)))
+        print("  (half the wall-clock, zero effect on the count -- `--all` itemises them)")
+        print()
     if not_ours:
-        files = sorted({f for f, _, _, _ in not_ours})
+        nf = sorted({f for f, _, _, _ in not_ours})
         print("NOT OURS, not counted: %d finding(s) in %d vendored/archived/scratch file(s)."
-              % (len(not_ours), len(files)))
+              % (len(not_ours), len(nf)))
         print("Real, and we cannot fix them; shown so the exclusion is visible:")
-        for f in files:
+        for f in nf:
             print("  ~ %s (%d)" % (f, sum(1 for g, _, _, _ in not_ours if g == f)))
         print()
+
+    # A SKIP IN OUR OWN CODE COSTS A COUNTED SLOT, and this is the single most important
+    # line in the file for the gate's integrity. Measured by an adversarial reader: adding
+    # one `from os.path import *` to a module dropped the counted total from 28 to 25 with
+    # nothing fixed, and because ratchet_ok permits FALLS, the ratchet recorded it as a
+    # paydown. That is a one-line, gate-rewarded way to delete findings. The same applies to
+    # a file we cannot parse. Unchecked is not clean, so each unchecked file of OURS counts
+    # as one violation -- it cannot be cheaper to hide a module than to fix it.
+    for rel in skipped_star:
+        if not _NOT_OURS(rel):
+            offenders.append((rel, 0, "<unchecked: star-import>", "<whole module>"))
+    for rel, why in unparsed:
+        if not _NOT_OURS(rel):
+            offenders.append((rel, 0, f"<unchecked: {why}>", "<whole module>"))
 
     if offenders:
         # The heading MUST start with "VIOLATIONS" -- pre_commit._count_violations only counts
@@ -446,8 +640,11 @@ def check(as_json: bool = False) -> int:
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--json", action="store_true", help="machine-readable, for the ratchet")
+    ap.add_argument("--all", action="store_true", dest="scan_all",
+                    help="also parse vendored/archived/scratch trees and itemise their "
+                         "findings (doubles the runtime; never changes the counted total)")
     a = ap.parse_args()
-    return check(as_json=a.json)
+    return check(as_json=a.json, scan_foreign=a.scan_all)
 
 
 if __name__ == "__main__":
