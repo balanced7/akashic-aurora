@@ -22,11 +22,14 @@ Design (CPU-first, best-effort):
 Default model: all-MiniLM-L6-v2 (384-d, ~80MB, fast on CPU). Override via EMBED_MODEL. GPU is a
 later refinement (just a `device=` change); CPU is the simplicity-first baseline.
 """
+
+import contextlib
 import hashlib
 import json
 import logging
 import os
-from typing import List, Optional, Sequence
+from collections.abc import Sequence
+from typing import Any, cast
 
 from core.foundation.store import Store, create_store
 from core.primitives.ranker import keyword_relevance
@@ -43,15 +46,14 @@ def _hash(text: str) -> str:
 class Embedder:
     """Text -> vector, with a Store cache and a keyword fallback. Never raises into callers."""
 
-    def __init__(self, model_name: Optional[str] = None, store: Optional[Store] = None,
-                 *, cache: bool = True):
+    def __init__(self, model_name: str | None = None, store: Store | None = None, *, cache: bool = True):
         self.model_name = model_name or os.getenv("EMBED_MODEL", DEFAULT_MODEL)
         self.store = store if store is not None else (create_store() if cache else None)
         self._tag = self.model_name.split("/")[-1]
         self._model = None
-        self._tried = False                 # have we attempted to load the model?
-        self._available: Optional[bool] = None
-        self._mem: dict = {}                # in-process cache: hash -> vector
+        self._tried = False  # have we attempted to load the model?
+        self._available: bool | None = None
+        self._mem: dict = {}  # in-process cache: hash -> vector
 
     # ------------------------------------------------------------------ model
     @property
@@ -77,24 +79,27 @@ class Embedder:
             # block on a hub round-trip. (A user who wants a fresh download can unset these.)
             os.environ.setdefault("HF_HUB_OFFLINE", "1")
             os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
-            from sentence_transformers import SentenceTransformer
+            from sentence_transformers import (  # pyright: ignore[reportMissingImports]  # optional dependency, not in the lock
+                SentenceTransformer,
+            )
+
             self._model = SentenceTransformer(self.model_name, device="cpu")
             self._available = True
         except Exception as e:
-            logger.warning(f"embedder unavailable ({type(e).__name__}: {e}); using keyword fallback")
+            logger.warning("embedder unavailable (%s: %s); using keyword fallback", type(e).__name__, e)
             self._available = False
 
     # ------------------------------------------------------------------ embed
-    def embed(self, text: str) -> Optional[List[float]]:
+    def embed(self, text: str) -> list[float] | None:
         """One text -> a unit vector (list of floats), or None if the model is unavailable."""
         return self.embed_many([text])[0]
 
-    def embed_many(self, texts: Sequence[str]) -> List[Optional[List[float]]]:
+    def embed_many(self, texts: Sequence[str]) -> list[list[float] | None]:
         """Batch embed. Cache hits avoid the model entirely; only the misses are encoded
         (in one batch) and then cached. Returns a vector (or None on fallback) per input."""
         texts = [str(t or "") for t in texts]
-        out: List[Optional[List[float]]] = [None] * len(texts)
-        misses = []                                    # (index, text, hash)
+        out: list[list[float] | None] = [None] * len(texts)
+        misses = []  # (index, text, hash)
         for i, t in enumerate(texts):
             h = _hash(t)
             if h in self._mem:
@@ -106,19 +111,19 @@ class Embedder:
                 out[i] = cached
                 continue
             misses.append((i, t, h))
-        if misses and self.available:                  # `available` triggers the lazy load
+        if misses and self.available:  # `available` triggers the lazy load
             try:
                 vecs = self._encode([t for _, t, _ in misses])
-                for (i, _t, h), v in zip(misses, vecs):
+                for (i, _t, h), v in zip(misses, vecs, strict=False):
                     self._mem[h] = v
                     self._cache_put(h, v)
                     out[i] = v
             except Exception as e:
-                logger.warning(f"encode failed ({type(e).__name__}: {e}); leaving as fallback")
+                logger.warning("encode failed (%s: %s); leaving as fallback", type(e).__name__, e)
         return out
 
-    def _encode(self, texts: List[str]) -> List[List[float]]:
-        arr = self._model.encode(texts, normalize_embeddings=True)
+    def _encode(self, texts: list[str]) -> list[list[float]]:
+        arr = cast("Any", self._model).encode(texts, normalize_embeddings=True)  # only after `available` loaded it
         return [[float(x) for x in row] for row in arr]
 
     # ------------------------------------------------------------------ use
@@ -127,7 +132,7 @@ class Embedder:
         va, vb = self.embed_many([a, b])
         if va is None or vb is None:
             return keyword_relevance(a, b)
-        return float(sum(x * y for x, y in zip(va, vb)))
+        return float(sum(x * y for x, y in zip(va, vb, strict=False)))
 
     def relevance(self, text: str, query: str) -> float:
         """Ranker.relevance_fn adapter -> [0,1]. Cosine (negatives clamped to 0); falls back to
@@ -137,14 +142,14 @@ class Embedder:
         vt, vq = self.embed_many([text, query])
         if vt is None or vq is None:
             return keyword_relevance(text, query)
-        cos = sum(x * y for x, y in zip(vt, vq))
+        cos = sum(x * y for x, y in zip(vt, vq, strict=False))
         return max(0.0, min(1.0, cos))
 
     # ------------------------------------------------------------------ cache
     def _cache_key(self, h: str) -> str:
         return f"embed:{self._tag}:{h}"
 
-    def _cache_get(self, h: str) -> Optional[List[float]]:
+    def _cache_get(self, h: str) -> list[float] | None:
         if self.store is None:
             return None
         try:
@@ -153,19 +158,17 @@ class Embedder:
         except Exception:
             return None
 
-    def _cache_put(self, h: str, vec: List[float]) -> None:
+    def _cache_put(self, h: str, vec: list[float]) -> None:
         if self.store is None:
             return
-        try:
+        with contextlib.suppress(Exception):
             self.store.set(self._cache_key(h), json.dumps(vec))
-        except Exception:
-            pass
 
 
-_INSTANCE: Optional[Embedder] = None
+_INSTANCE: Embedder | None = None
 
 
-def get_embedder(store: Optional[Store] = None) -> Embedder:
+def get_embedder(store: Store | None = None) -> Embedder:
     """Module singleton (lazy). Pass `store` for an isolated Embedder (tests/trial)."""
     global _INSTANCE
     if store is not None:

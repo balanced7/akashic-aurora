@@ -4,15 +4,18 @@ This module deliberately does not call the boot/sync surfaces.  Those surfaces
 maintain presence, heartbeats, and expectations; an observer must not make the
 subject look alive merely by looking at it.
 """
+
 from __future__ import annotations
 
 import json
 import os
 from concurrent.futures import ThreadPoolExecutor
-from typing import Any, Callable, Dict, Mapping, Optional, Sequence
+from typing import TYPE_CHECKING, Any
 
 from core.coord.observations import Observation, Snapshot
 
+if TYPE_CHECKING:
+    from collections.abc import Callable, Mapping, Sequence
 
 DEFAULT_ORDER = ("bus", "bench", "route", "moved")
 
@@ -24,6 +27,7 @@ def _redis_client():
             DEFAULT_REDIS_PORT,
             connect_to_redis_with_fail_fast,
         )
+
         return connect_to_redis_with_fail_fast(
             host=DEFAULT_REDIS_HOST,
             port=DEFAULT_REDIS_PORT,
@@ -55,7 +59,7 @@ def _max_sid(a: Any, b: Any) -> str:
     return str(a) if _sid(a) >= _sid(b) else str(b)
 
 
-def _effective_cursor(client, namespace: str, subject: str) -> Dict[str, str]:
+def _effective_cursor(client, namespace: str, subject: str) -> dict[str, str]:
     shared = client.hgetall(f"{namespace}:cursor:{subject}") or {}
     lane = client.hgetall(f"{namespace}:cursor:lane:{subject}") or {}
     return {
@@ -68,6 +72,7 @@ def _decode_row(subject: str, stream: str, sid: Any, fields: Mapping[str, Any]):
     """Decode one packet without reassembly, receipts, logging, or any write edge."""
     try:
         from core.comm import packet_spec
+
         valid, _reason = packet_spec.verify_integrity(dict(fields))
         if not valid:
             return None, "integrity"
@@ -101,8 +106,7 @@ def _decode_row(subject: str, stream: str, sid: Any, fields: Mapping[str, Any]):
     }, ""
 
 
-def peek_unread(subject: str, limit: int = 10, *, client=None,
-                namespace: Optional[str] = None) -> list[Dict[str, Any]]:
+def peek_unread(subject: str, limit: int = 10, *, client=None, namespace: str | None = None) -> list[dict[str, Any]]:
     """Read a freshness window without touching presence, cursors, or receipts.
 
     Only Redis read operations are used.  Fragment packets are not reassembled here:
@@ -123,7 +127,7 @@ def peek_unread(subject: str, limit: int = 10, *, client=None,
         ("inbox", f"{ns}:inbox:{subject}", cursors["inbox"]),
         ("bc", f"{ns}:broadcast", cursors["bc"]),
     )
-    seen: Dict[tuple[str, str], Dict[str, Any]] = {}
+    seen: dict[tuple[str, str], dict[str, Any]] = {}
     packet_seen = set()
     capped = False
     skipped = {"fragment": 0, "integrity": 0, "decode": 0}
@@ -159,61 +163,67 @@ def peek_unread(subject: str, limit: int = 10, *, client=None,
     else:
         head, tail, hidden = merged, [], 0
 
-    out: list[Dict[str, Any]] = []
+    out: list[dict[str, Any]] = []
     degraded_n = sum(skipped.values())
 
     def append_row(row):
         clean = {k: v for k, v in row.items() if not k.startswith("_")}
-        clean.update({
-            "pending_at_least": total,
-            "pending_capped": capped or degraded_n > 0,
-            "observation_order": "oldest+newest" if hidden or capped else "oldest",
-            "unrendered_entries": degraded_n,
-        })
+        clean.update(
+            {
+                "pending_at_least": total,
+                "pending_capped": capped or degraded_n > 0,
+                "observation_order": "oldest+newest" if hidden or capped else "oldest",
+                "unrendered_entries": degraded_n,
+            }
+        )
         out.append(clean)
 
     for row in head:
         append_row(row)
     if hidden:
-        out.append({
-            "gap": True,
-            "display_only": True,
-            "id": "",
-            "frm": "backlog",
-            "to": subject,
-            "kind": "gap",
-            "content": f"(... {hidden} unread hidden between oldest and newest)",
-            "ts": "",
-            "pending_at_least": total,
-            "pending_capped": capped or degraded_n > 0,
-            "observation_order": "oldest+newest",
-            "unrendered_entries": degraded_n,
-        })
+        out.append(
+            {
+                "gap": True,
+                "display_only": True,
+                "id": "",
+                "frm": "backlog",
+                "to": subject,
+                "kind": "gap",
+                "content": f"(... {hidden} unread hidden between oldest and newest)",
+                "ts": "",
+                "pending_at_least": total,
+                "pending_capped": capped or degraded_n > 0,
+                "observation_order": "oldest+newest",
+                "unrendered_entries": degraded_n,
+            }
+        )
     for row in tail:
         append_row(row)
     if degraded_n:
-        out.append({
-            "gap": True,
-            "display_only": True,
-            "id": "",
-            "frm": "observer",
-            "to": subject,
-            "kind": "gap",
-            "content": (
-                f"(... {degraded_n} packet entries not rendered by the pure observer: "
-                f"fragments={skipped['fragment']}, integrity={skipped['integrity']}, "
-                f"decode={skipped['decode']})"
-            ),
-            "ts": "",
-            "pending_at_least": total,
-            "pending_capped": True,
-            "observation_order": "oldest+newest" if hidden or capped else "oldest",
-            "unrendered_entries": degraded_n,
-        })
+        out.append(
+            {
+                "gap": True,
+                "display_only": True,
+                "id": "",
+                "frm": "observer",
+                "to": subject,
+                "kind": "gap",
+                "content": (
+                    f"(... {degraded_n} packet entries not rendered by the pure observer: "
+                    f"fragments={skipped['fragment']}, integrity={skipped['integrity']}, "
+                    f"decode={skipped['decode']})"
+                ),
+                "ts": "",
+                "pending_at_least": total,
+                "pending_capped": True,
+                "observation_order": "oldest+newest" if hidden or capped else "oldest",
+                "unrendered_entries": degraded_n,
+            }
+        )
     return out
 
 
-def _presence(subject: str) -> Dict[str, Any]:
+def _presence(subject: str) -> dict[str, Any]:
     store = _redis_client()
     if store is None:
         return {
@@ -235,6 +245,7 @@ def _presence(subject: str) -> Dict[str, Any]:
     roster_observed = False
     try:
         from core.comm import roster
+
         roster_rows = roster.roster(ns, client=store)
         if roster_rows is None:
             roster_rows = []
@@ -245,6 +256,7 @@ def _presence(subject: str) -> Dict[str, Any]:
         name = str(key).rsplit(":", 1)[-1]
         try:
             from core.comm.liveness import attendance
+
             kwargs = {"namespace": ns, "client": store}
             if roster_observed:
                 kwargs["roster_rows"] = roster_rows
@@ -259,8 +271,7 @@ def _presence(subject: str) -> Dict[str, Any]:
     }
 
 
-def observe_bus(subject: str, limit: int = 10, *, peek_fn=None,
-                presence_fn=None) -> Observation:
+def observe_bus(subject: str, limit: int = 10, *, peek_fn=None, presence_fn=None) -> Observation:
     rows = (peek_fn or peek_unread)(subject, limit)
     presence = (presence_fn or _presence)(subject)
     real = [row for row in rows if not row.get("gap")]
@@ -270,6 +281,7 @@ def observe_bus(subject: str, limit: int = 10, *, peek_fn=None,
     # T332: this is the existing attention bucket, not a fourth definition of
     # "ask".  In particular, blocker needs attention and kind=ask is retired.
     from agent.bifrost_pull import kind_summary
+
     attention = int(kind_summary(real).get("asks", 0))
     shown = len(real)
     relation = "at_least" if capped else "exact"
@@ -296,9 +308,7 @@ def observe_bus(subject: str, limit: int = 10, *, peek_fn=None,
             "attention_shown": attention,
             "unrendered_entries": unrendered,
             "agents_online": online,
-            "agents_registered_unattended": list(
-                presence.get("agents_registered_unattended") or []
-            ),
+            "agents_registered_unattended": list(presence.get("agents_registered_unattended") or []),
             "bus_online": bool(presence.get("bus_online")),
         },
         drill=f"bifrost-sync {subject} --digest",
@@ -309,18 +319,28 @@ def observe_bench(subject: str) -> Observation:
     store = _redis_client()
     if store is None:
         return Observation(
-            name="bench", subject=subject, status="UNAVAILABLE",
+            name="bench",
+            subject=subject,
+            status="UNAVAILABLE",
             summary="bus unavailable; parked count unknown",
-            source=("redis:llen",), effects=(),
+            source=("redis:llen",),
+            effects=(),
             drill=f"bench {subject}",
         )
     ns = os.environ.get("BIFROST_NAMESPACE", "bifrost")
     parked = int(store.llen(f"{ns}:triage:{subject}") or 0)
     return Observation(
-        name="bench", subject=subject, status="OK",
-        summary=f"{parked} parked", source=("redis:llen",),
-        total=parked, total_relation="exact", shown=0,
-        order="not_rendered", truncated=parked > 0, effects=(),
+        name="bench",
+        subject=subject,
+        status="OK",
+        summary=f"{parked} parked",
+        source=("redis:llen",),
+        total=parked,
+        total_relation="exact",
+        shown=0,
+        order="not_rendered",
+        truncated=parked > 0,
+        effects=(),
         drill=f"bench {subject}",
     )
 
@@ -332,10 +352,13 @@ def observe_route(subject: str) -> Observation:
     incarnations = list(live_incarnations(subject) or [])
     suffix = f"; incarnations={','.join(incarnations)}" if incarnations else ""
     return Observation(
-        name="route", subject=subject, status=verdict.state,
+        name="route",
+        subject=subject,
+        status=verdict.state,
         summary=f"{verdict.state}: {verdict.reason}{suffix}",
         source=("core.comm.liveness.attendance", "core.comm.liveness.live_incarnations"),
-        effects=(), details={
+        effects=(),
+        details={
             "state": verdict.state,
             "reason": verdict.reason,
             "beat_age_s": verdict.beat_age_s,
@@ -346,21 +369,26 @@ def observe_route(subject: str) -> Observation:
 
 
 def observe_moved(subject: str) -> Observation:
-    from agent.harness.delta import DeltaMark, FIELDS, current_positions
+    from agent.harness.delta import FIELDS, DeltaMark, current_positions
 
     mark = DeltaMark(subject).read()
     current = current_positions(subject)
     if mark is None:
         return Observation(
-            name="moved", subject=subject, status="UNKNOWN",
+            name="moved",
+            subject=subject,
+            status="UNKNOWN",
             summary="mark absent; movement unknown",
             source=("agent.harness.delta.DeltaMark.read", "agent.harness.delta.current_positions"),
-            effects=(), details={"mark": None, "current": current},
+            effects=(),
+            details={"mark": None, "current": current},
             drill=f"delta {subject}",
         )
     moved = {
-        field: (str(mark.get(field, "?")) != str(current.get(field, "?"))
-                and "?" not in (str(mark.get(field, "?")), str(current.get(field, "?"))))
+        field: (
+            str(mark.get(field, "?")) != str(current.get(field, "?"))
+            and "?" not in (str(mark.get(field, "?")), str(current.get(field, "?")))
+        )
         for field in FIELDS
     }
     labels = (
@@ -371,9 +399,13 @@ def observe_moved(subject: str) -> Observation:
     )
     summary = "; ".join(f"{label}={1 if moved[field] else 0}" for label, field in labels)
     return Observation(
-        name="moved", subject=subject, status="OK", summary=summary,
+        name="moved",
+        subject=subject,
+        status="OK",
+        summary=summary,
         source=("agent.harness.delta.DeltaMark.read", "agent.harness.delta.current_positions"),
-        effects=(), details={"mark": mark, "current": current, "moved": moved},
+        effects=(),
+        details={"mark": mark, "current": current, "moved": moved},
         drill=f"delta {subject}",
     )
 
@@ -389,12 +421,11 @@ def _unavailable(name: str, subject: str, exc: Exception) -> Observation:
     )
 
 
-def build_snapshot(subject: str, *, providers: Optional[Mapping[str, Callable]] = None
-                   ) -> Snapshot:
+def build_snapshot(subject: str, *, providers: Mapping[str, Callable] | None = None) -> Snapshot:
     subject = str(subject or "").strip()
     if not subject:
         raise ValueError("awareness subject is required")
-    selected: Dict[str, Callable[[str], Observation]] = {
+    selected: dict[str, Callable[[str], Observation]] = {
         "bus": observe_bus,
         "bench": observe_bench,
         "route": observe_route,
@@ -414,8 +445,7 @@ def build_snapshot(subject: str, *, providers: Optional[Mapping[str, Callable]] 
     # Providers are pure and independent.  Run them concurrently, then restore the
     # declared order: one slow store must not make four sequential timeouts feel like
     # one convenient verb.
-    with ThreadPoolExecutor(max_workers=len(DEFAULT_ORDER),
-                            thread_name_prefix="awareness") as pool:
+    with ThreadPoolExecutor(max_workers=len(DEFAULT_ORDER), thread_name_prefix="awareness") as pool:
         rows = list(pool.map(observe_one, DEFAULT_ORDER))
     return Snapshot(kind="awareness", subject=subject, observations=tuple(rows))
 
@@ -426,8 +456,7 @@ def _effects_text(effects: Sequence[str]) -> str:
 
 def render_snapshot(snapshot: Snapshot) -> str:
     lines = [
-        f"# sweep subject={snapshot.subject} as_of={snapshot.observed_at} "
-        f"effects={_effects_text(snapshot.effects)}"
+        f"# sweep subject={snapshot.subject} as_of={snapshot.observed_at} effects={_effects_text(snapshot.effects)}"
     ]
     for row in snapshot.observations:
         if row.name == "bus" and row.total is not None:

@@ -17,6 +17,7 @@ catching them by accident:
   - a directory named `mycore/` is not `core/`.
   - direct edits to tasks.json are filesystem access, not a boundary this gate can defend.
 """
+
 import pytest
 
 from core.coord import task_ledger as TL
@@ -41,8 +42,9 @@ def test_the_closer_cannot_review_themselves_under_an_alias(ledger, alias):
     """Exact string equality made ' claude' an independent reviewer of claude's own work."""
     tid = _verifying(ledger, ["core/comm/ask.py"])
     with pytest.raises(TL.LedgerError):
-        ledger.transition(tid, TL.DONE, by="claude", at="2026-08-08T00:01:00",
-                          commit="abc1234", verified_by="pins", reviewed_by=alias)
+        ledger.transition(
+            tid, TL.DONE, by="claude", at="2026-08-08T00:01:00", commit="abc1234", verified_by="pins", reviewed_by=alias
+        )
 
 
 def test_an_unidentifiable_closer_cannot_pass_the_gate(ledger):
@@ -53,35 +55,46 @@ def test_an_unidentifiable_closer_cannot_pass_the_gate(ledger):
     """
     tid = _verifying(ledger, ["core/comm/ask.py"], owner="")
     with pytest.raises(TL.LedgerError) as e:
-        ledger.transition(tid, TL.DONE, by="", at="2026-08-08T00:01:00",
-                          commit="abc1234", verified_by="pins", reviewed_by="somebody")
+        ledger.transition(
+            tid, TL.DONE, by="", at="2026-08-08T00:01:00", commit="abc1234", verified_by="pins", reviewed_by="somebody"
+        )
     assert "who" in str(e.value).lower() or "closer" in str(e.value).lower(), (
-        f"the refusal must say the CLOSER is unknown, not imply the reviewer was bad: {e.value}")
+        f"the refusal must say the CLOSER is unknown, not imply the reviewer was bad: {e.value}"
+    )
 
 
 def test_a_known_closer_with_a_real_reviewer_still_closes(ledger):
     """The gate must stay passable, or it gets routed around and protects nothing."""
     tid = _verifying(ledger, ["core/comm/ask.py"])
-    t = ledger.transition(tid, TL.DONE, by="claude", at="2026-08-08T00:01:00",
-                          commit="abc1234", verified_by="pins", reviewed_by="deepseek")
+    t = ledger.transition(
+        tid,
+        TL.DONE,
+        by="claude",
+        at="2026-08-08T00:01:00",
+        commit="abc1234",
+        verified_by="pins",
+        reviewed_by="deepseek",
+    )
     assert t["status"] == TL.DONE
 
 
 # ------------------------------------------------------------------ path normalisation
-@pytest.mark.parametrize("path", [
-    "core/comm/ask.py",
-    "./core/comm/ask.py",
-    "core\\comm\\ask.py",
-    "/srv/repo/core/comm/ask.py",          # absolute
-    "E:\\AI-Setup\\core\\comm\\ask.py",    # absolute, windows
-    "subdir/../core/comm/ask.py",          # non-leading ..
-])
+@pytest.mark.parametrize(
+    "path",
+    [
+        "core/comm/ask.py",
+        "./core/comm/ask.py",
+        "core\\comm\\ask.py",
+        "/srv/repo/core/comm/ask.py",  # absolute
+        "E:\\AI-Setup\\core\\comm\\ask.py",  # absolute, windows
+        "subdir/../core/comm/ask.py",  # non-leading ..
+    ],
+)
 def test_load_bearing_survives_path_spelling(path):
     assert TL.is_load_bearing([path]), f"{path!r} is core/ and was not recognised"
 
 
-@pytest.mark.parametrize("path", ["core.py", "mycore/x.py", "docs/core-notes.md",
-                                  "tests/test_core.py", "score/x.py"])
+@pytest.mark.parametrize("path", ["core.py", "mycore/x.py", "docs/core-notes.md", "tests/test_core.py", "score/x.py"])
 def test_these_are_correctly_not_load_bearing(path):
     """FREEZES REJECTED FINDINGS. core.py at root is not the core/ package.
 
@@ -100,5 +113,4 @@ def test_the_declared_files_limit_is_written_down():
     a reviewer's head.
     """
     doc = (TL.is_load_bearing.__doc__ or "") + (TL.TaskLedger.transition.__doc__ or "")
-    assert "declar" in doc.lower(), (
-        "the declared-files limit is not stated anywhere a reader of the gate will find it")
+    assert "declar" in doc.lower(), "the declared-files limit is not stated anywhere a reader of the gate will find it"

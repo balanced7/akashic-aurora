@@ -24,6 +24,7 @@ THE CUT (build refinements, T073 precedent):
       super-admin doing it by hand every time. The runner_lock TTL means a
       force-killed seat's lock self-expires even without a graceful exit.
 """
+
 import os
 import sys
 
@@ -37,25 +38,28 @@ REPO = Path(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 def _tb(trust=True, allow_exec=True, agent_id=None):
-    return dc.ToolBox(REPO, allow_exec=allow_exec, trust=trust, allow_secrets=False,
-                      confirm=lambda prompt: False, agent_id=agent_id)
+    return dc.ToolBox(
+        REPO, allow_exec=allow_exec, trust=trust, allow_secrets=False, confirm=lambda prompt: False, agent_id=agent_id
+    )
 
 
 # ---------------------------------------------------------------- G1 families allowed
 def test_g1_unattended_pytest_family_runs():
     out = _tb().run_command("py -m pytest --version", timeout=60)
-    assert "pytest" in out.lower() and "REFUSED" not in out, out
+    assert "pytest" in out.lower(), out
+    assert "REFUSED" not in out, out
 
 
 def test_g1_unattended_agent_cli_read_verb_runs():
     out = _tb().run_command("py agent_cli.py discover", timeout=120)
-    assert "REFUSED" not in out and ("verb" in out.lower() or "boot" in out.lower()), out[:300]
+    assert "REFUSED" not in out, out[:300]
+    assert "verb" in out.lower() or "boot" in out.lower(), out[:300]
 
 
 def test_g1_unattended_generic_command_refused():
     out = _tb().run_command("git push origin master")
-    assert "REFUSED" in out and "famil" in out.lower(), \
-        f"unattended exec must be families-only, got: {out[:200]}"
+    assert "REFUSED" in out, f"unattended exec must be families-only, got: {out[:200]}"
+    assert "famil" in out.lower(), f"unattended exec must be families-only, got: {out[:200]}"
 
 
 def test_g1_unattended_arbitrary_python_refused():
@@ -65,11 +69,13 @@ def test_g1_unattended_arbitrary_python_refused():
 
 # ---------------------------------------------------------------- G2 metachar refusal
 def test_g2_shell_metacharacters_refused_even_inside_a_family():
-    for cmd in ("py -m pytest tests; git push",
-                "py -m pytest tests && echo pwned",
-                "py agent_cli.py notes | tee out.txt",
-                "py -m pytest > secrets.txt",
-                "py -m pytest `whoami`"):
+    for cmd in (
+        "py -m pytest tests; git push",
+        "py -m pytest tests && echo pwned",
+        "py agent_cli.py notes | tee out.txt",
+        "py -m pytest > secrets.txt",
+        "py -m pytest `whoami`",
+    ):
         out = _tb().run_command(cmd)
         assert "REFUSED" in out, f"metachar survived: {cmd!r} -> {out[:120]}"
 
@@ -77,31 +83,38 @@ def test_g2_shell_metacharacters_refused_even_inside_a_family():
 # ---------------------------------------------------------------- G3 isolated env forced
 def test_g3_pytest_family_forces_isolation_env(monkeypatch):
     seen = {}
-    import subprocess as sp
 
     def fake_run(argv, **kw):
         seen["argv"], seen["env"] = argv, kw.get("env")
 
         class R:
             stdout, stderr, returncode = "1 passed", "", 0
+
         return R()
 
     monkeypatch.setattr(dc.subprocess, "run", fake_run)
     _tb().run_command("py -m pytest tests/test_t073_wake_longlived.py -q", timeout=300)
-    assert seen["argv"][0:3] == ["py", "-m", "pytest"], "shell=False argv split (G2)"
-    assert (seen["env"] or {}).get("_AISETUP_TEST_ISOLATED") == "1", \
+    from core.comm.toolbox import _is_python
+
+    assert _is_python(seen["argv"][0]), "shell=False argv split (G2)"
+    assert seen["argv"][1:3] == ["-m", "pytest"], "shell=False argv split (G2)"
+    assert (seen["env"] or {}).get("_AISETUP_TEST_ISOLATED") == "1", (
         "G3: an unattended verify run must never touch live backends"
+    )
 
 
 # ---------------------------------------------------------------- G4 read verbs only
 def test_g4_mutating_agent_cli_verbs_refused():
-    for cmd in ("py agent_cli.py note claude --title x --note y",
-                "py agent_cli.py learn claude --experiment e --tried t --result r --recommend c",
-                "py agent_cli.py wrap --commit",
-                "py agent_cli.py bifrost-send claude hi --to user",
-                "py agent_cli.py lock deepseek somefile"):
+    for cmd in (
+        "py agent_cli.py note claude --title x --note y",
+        "py agent_cli.py learn claude --experiment e --tried t --result r --recommend c",
+        "py agent_cli.py wrap --commit",
+        "py agent_cli.py bifrost-send claude hi --to user",
+        "py agent_cli.py lock deepseek somefile",
+    ):
         out = _tb().run_command(cmd)
-        assert "REFUSED" in out and "read" in out.lower(), f"mutator survived: {cmd!r}"
+        assert "REFUSED" in out, f"mutator survived: {cmd!r}"
+        assert "read" in out.lower(), f"mutator survived: {cmd!r}"
 
 
 # ------------------------------------------------------- G4b recovery verbs reachable
@@ -131,7 +144,7 @@ def test_g6_recovery_tasklist_runs():
 
 
 def test_g6_recovery_tasklist_with_flags_refused():
-    out = _tb().run_command("tasklist /FI \"foo\"")
+    out = _tb().run_command('tasklist /FI "foo"')
     assert "REFUSED" in out
 
 
@@ -144,7 +157,8 @@ def test_g6_recovery_taskkill_narrow_shape_runs():
 
 def test_g6_recovery_taskkill_by_name_refused():
     out = _tb().run_command("taskkill /IM notepad.exe /F")
-    assert "REFUSED" in out and "/IM" in out
+    assert "REFUSED" in out
+    assert "/IM" in out
 
 
 def test_g6_recovery_taskkill_without_force_refused():
@@ -167,6 +181,7 @@ def test_g6_recovery_taskkill_multiple_pids_refused():
 # reset/mv/rm/...) stays refused. GETURI-0: scope, not --git-dir arbitrariness.
 G7_READ_VERBS = ("status", "diff", "log", "show")
 
+
 def test_g7_readonly_git_verbs_run():
     for v in G7_READ_VERBS:
         out = _tb().run_command(f"git {v}", timeout=30)
@@ -182,9 +197,26 @@ def test_g7_diff_and_log_flags_accepted():
 
 
 def test_g7_mutating_git_verbs_refused():
-    for v in ("add", "commit", "push", "pull", "fetch", "checkout", "reset", "merge",
-              "rebase", "cherry-pick", "stash", "mv", "rm", "branch", "tag", "clone",
-              "switch", "restore"):
+    for v in (
+        "add",
+        "commit",
+        "push",
+        "pull",
+        "fetch",
+        "checkout",
+        "reset",
+        "merge",
+        "rebase",
+        "cherry-pick",
+        "stash",
+        "mv",
+        "rm",
+        "branch",
+        "tag",
+        "clone",
+        "switch",
+        "restore",
+    ):
         out = _tb().run_command(f"git {v}", timeout=30)
         assert "REFUSED" in out, f"mutating git verb {v!r} survived the gate: {out[:200]}"
 
@@ -201,6 +233,7 @@ def test_g7_git_force_flag_refused():
     out = _tb().run_command("git diff -f")
     assert "REFUSED" in out, "git -f must be refused (force/mutate)"
 
+
 # ---------------------------------------------------------------- G5 the ACL layer
 def test_g5_exec_cap_checked_when_agent_identity_present(monkeypatch):
     from core.trust import registry
@@ -214,8 +247,8 @@ def test_g5_exec_cap_checked_when_agent_identity_present(monkeypatch):
 
     monkeypatch.setattr(registry, "resolve", lambda agent_id, **k: NoExecGrant())
     out = _tb(agent_id="deepseek-ui").run_command("py -m pytest --version")
-    assert "REFUSED" in out and "acl" in out.lower(), \
-        "G5: without Cap.EXEC the door refuses regardless of the runner flag"
+    assert "REFUSED" in out, "G5: without Cap.EXEC the door refuses regardless of the runner flag"
+    assert "acl" in out.lower(), "G5: without Cap.EXEC the door refuses regardless of the runner flag"
 
 
 def test_g5_flagless_toolbox_still_fully_disabled():
@@ -233,5 +266,7 @@ def test_g1_interactive_generic_still_confirm_gated():
 
     tb = dc.ToolBox(REPO, allow_exec=True, trust=False, allow_secrets=False, confirm=confirm)
     out = tb.run_command("git status")
-    assert "DENIED" in out and "git status" in asked.get("prompt", ""), \
+    assert "DENIED" in out, "interactive generic exec stays human-confirmed (Daniel's own /exec path)"
+    assert "git status" in asked.get("prompt", ""), (
         "interactive generic exec stays human-confirmed (Daniel's own /exec path)"
+    )

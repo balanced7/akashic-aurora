@@ -23,6 +23,7 @@ The property that makes it worth pinning rather than merely writing: a message s
 A can NEVER be attributed to peer B, no matter what it claims, what order the config lists
 them in, or what flag the listener was started with.
 """
+
 from __future__ import annotations
 
 import base64
@@ -36,7 +37,7 @@ import pytest
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 
-from core.comm import remote_relay as RR  # noqa: E402
+from core.comm import remote_relay as RR  # noqa: E402  # sys.path bootstrap
 
 KEY_ZAD = b"zadkiel-key-aaaaaaaaaaaaaaaaaaaa"
 KEY_CHRONOS = b"chronos-key-bbbbbbbbbbbbbbbbbbbb"
@@ -53,12 +54,17 @@ def _world(tmp_path, monkeypatch):
     (secrets / "chronos_in.key").write_bytes(KEY_CHRONOS)
     monkeypatch.setenv("AKASHIC_SECRETS_DIR", str(secrets))
     cfg = tmp_path / "remote_bridge.json"
-    cfg.write_text(json.dumps({
-        "peers": [
-            {"name": "zadkiel", "inbound_secret_file": "zadkiel_in.key"},
-            {"name": "chronos", "inbound_secret_file": "chronos_in.key"},
-        ]
-    }), encoding="utf-8")
+    cfg.write_text(
+        json.dumps(
+            {
+                "peers": [
+                    {"name": "zadkiel", "inbound_secret_file": "zadkiel_in.key"},
+                    {"name": "chronos", "inbound_secret_file": "chronos_in.key"},
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
     monkeypatch.setattr(RR, "CONFIG_FILE", cfg)
     RR._reset_cache()
     yield
@@ -66,8 +72,14 @@ def _world(tmp_path, monkeypatch):
 
 
 def env(kind="chat", frm="whoever", content="x", mid="m-1", secret=KEY_ZAD, sent_at=None):
-    p = {"v": 1, "id": mid, "frm": frm, "kind": kind, "content": content,
-         "sent_at": int(sent_at if sent_at is not None else time.time())}
+    p = {
+        "v": 1,
+        "id": mid,
+        "frm": frm,
+        "kind": kind,
+        "content": content,
+        "sent_at": int(sent_at if sent_at is not None else time.time()),
+    }
     body = json.dumps(p, sort_keys=True, separators=(",", ":")).encode()
     return {"body": base64.b64encode(body).decode(), "sig": RR.sign(body, secret)}
 
@@ -113,9 +125,9 @@ def test_single_peer_config_still_works(tmp_path, monkeypatch):
     """Backward compatibility is a security property here: a fleet that upgrades and silently
     stops admitting its only peer has been broken by a fix."""
     cfg = tmp_path / "single.json"
-    cfg.write_text(json.dumps({
-        "peer": {"name": "serge-dsh", "inbound_secret_file": "zadkiel_in.key"}
-    }), encoding="utf-8")
+    cfg.write_text(
+        json.dumps({"peer": {"name": "serge-dsh", "inbound_secret_file": "zadkiel_in.key"}}), encoding="utf-8"
+    )
     monkeypatch.setattr(RR, "CONFIG_FILE", cfg)
     RR._reset_cache()
     out = RR.accept(env(mid="legacy-1", secret=KEY_ZAD))
@@ -127,5 +139,4 @@ def test_explicit_peer_argument_still_overrides_for_a_single_key_caller():
     """The listener's --peer flag stays usable for the one-key case (and for drills), but it
     must never be able to RENAME a peer the key already identified."""
     RR.accept(env(mid="z-9", secret=KEY_ZAD), peer="not-zadkiel")
-    assert RR.last_admitted()["frm"] == "remote:zadkiel", (
-        "a flag overrode an identity the key had already proven")
+    assert RR.last_admitted()["frm"] == "remote:zadkiel", "a flag overrode an identity the key had already proven"

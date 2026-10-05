@@ -28,6 +28,7 @@ Behaviour worth knowing (5.2):
 - tick() stops runs whose passes are done (reason count) and pending runs nobody launched in 90 s (expired).
 - close_unclosed() runs at server start only, never in tests' App(): it closes unclosed runs with server-restart.
 """
+
 from __future__ import annotations
 
 import copy
@@ -38,26 +39,53 @@ import secrets
 import threading
 import time
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, cast
 
-from arsenal.jam import RUN_API, align as jam_align, cards as jam_cards
+from arsenal.jam import RUN_API
+from arsenal.jam import align as jam_align
+from arsenal.jam import cards as jam_cards
 from arsenal.jam import schemas as S
 from arsenal.jam import tempomap as T
 from arsenal.jam.cards import DeckError, DeckStore, now_iso
-from arsenal.jam.resolve import BridgeUnavailable, ResolveError, Resolver, key_of, parse_line
+from arsenal.jam.resolve import BridgeUnavailable, ResolveError, Resolver, parse_line
+
+if TYPE_CHECKING:
+    import builtins
 
 ENGINE = "groove/1"
 LEASE_MS = 30000
-PENDING_EXPIRE_MS = 90000         # 20 s waiting for his rest + a 60 s knock + margin (8.9)
+PENDING_EXPIRE_MS = 90000  # 20 s waiting for his rest + a 60 s knock + margin (8.9)
 LAUNCH_MIN_LEAD_MS = 150
 LEAD_MS = {"claude": 800, "daniel": 250}
 LEVEL = 44
 HUMANIZE = 0.6
 TRY_PASSES_CLI = 2
 PAGE_STOP_REASONS = ("page", "cli", "declined", "expired", "device", "stream-lost")
-START_KEYS = ("mode", "card_id", "chords", "key", "variant", "slot", "bpm", "backing", "groove", "count_in", "passes",
-              "try_backing", "velocity", "humanize", "seed", "walk", "level", "now", "lead_ms", "page_id", "voicing",
-              "arp_ms", "by")
+START_KEYS = (
+    "mode",
+    "card_id",
+    "chords",
+    "key",
+    "variant",
+    "slot",
+    "bpm",
+    "backing",
+    "groove",
+    "count_in",
+    "passes",
+    "try_backing",
+    "velocity",
+    "humanize",
+    "seed",
+    "walk",
+    "level",
+    "now",
+    "lead_ms",
+    "page_id",
+    "voicing",
+    "arp_ms",
+    "by",
+)
 CONTROL_KEYS = ("op", "bpm", "card_id", "chords", "variant", "key", "settings", "at", "if_version", "by", "reason")
 CONTROL_OPS = ("tempo", "next", "stop", "mute", "unmute", "set")
 DEFAULT_AT = {"tempo": "bar", "next": "bar", "set": "bar", "stop": "bar", "mute": "now", "unmute": "now"}
@@ -65,7 +93,7 @@ CAP_JAM, CAP_DECK = "jam1", "deck1"
 
 
 class RunError(Exception):
-    def __init__(self, message: str, status: int = 400, field: Optional[str] = None, **extra):
+    def __init__(self, message: str, status: int = 400, field: str | None = None, **extra):
         super().__init__(message)
         self.status = status
         self.field = field
@@ -97,8 +125,8 @@ class RunStore:
         self.root = Path(root) if root else jam_cards.DEFAULT_ROOT
         self.now_ms = now_ms or (lambda: time.time() * 1000)
         self._lock = threading.RLock()
-        self._recs: Dict[str, dict] = {}
-        self._owner: Optional[dict] = None
+        self._recs: dict[str, dict] = {}
+        self._owner: dict | None = None
 
     # ------------------------------------------------------------------------------------------ files
     @property
@@ -122,7 +150,7 @@ class RunStore:
         tmp.write_text(json.dumps(run, indent=2, ensure_ascii=False) + "\n", encoding="utf-8", newline="\n")
         tmp.replace(path)
 
-    def _commit(self, rec: dict, new_run: dict, refused: Optional[str] = None) -> None:
+    def _commit(self, rec: dict, new_run: dict, refused: str | None = None) -> None:
         """Swap a changed copy of the run in only once it validates, then write it. A copy that does not validate leaves
         the run exactly as it was, in memory and on disk: with `refused` (what was asked) the caller hears 409 naming the
         field, otherwise it is a store bug (500). Changing the run in place first left a broken run in memory that
@@ -131,8 +159,12 @@ class RunStore:
             S.validate_run(new_run)
         except S.JamSchemaError as exc:
             if refused:
-                raise RunError(f"{refused} cannot be applied ({exc}); the run is unchanged", 409, exc.field,
-                               version=rec["run"]["last_version"]) from None
+                raise RunError(
+                    f"{refused} cannot be applied ({exc}); the run is unchanged",
+                    409,
+                    exc.field,
+                    version=rec["run"]["last_version"],
+                ) from None
             raise RunError(f"the run came out malformed ({exc}); this is a run store bug", 500) from None
         run = rec["run"]
         run.clear()
@@ -176,7 +208,7 @@ class RunStore:
         self._recs[run_id] = rec
         return rec
 
-    def _events(self, run_id: str) -> List[dict]:
+    def _events(self, run_id: str) -> builtins.list[dict]:
         try:
             text = (self._dir(run_id) / "events.jsonl").read_text(encoding="utf-8")
         except FileNotFoundError:
@@ -190,17 +222,20 @@ class RunStore:
         return out
 
     # ------------------------------------------------------------------------------------------ reads
-    def _live(self, now: float) -> List[dict]:
-        return [rec for rec in self._recs.values()
-                if not rec["run"]["closed"] or (rec["run"]["stopped_epoch_ms"] or 0) > now]
+    def _live(self, now: float) -> builtins.list[dict]:
+        return [
+            rec
+            for rec in self._recs.values()
+            if not rec["run"]["closed"] or (rec["run"]["stopped_epoch_ms"] or 0) > now
+        ]
 
-    def live_of(self, now: float, mode_class: str) -> List[dict]:
+    def live_of(self, now: float, mode_class: str) -> builtins.list[dict]:
         """The live runs of one class ('play' or 'loop': a loop or try), oldest first."""
         with self._lock:
             live = sorted(self._live(now), key=lambda r: r["run"]["run"])
             return [r for r in live if (r["run"]["mode"] == "play") == (mode_class == "play")]
 
-    def current(self, now: Optional[float] = None, mode_class: Optional[str] = None) -> Optional[dict]:
+    def current(self, now: float | None = None, mode_class: str | None = None) -> dict | None:
         """The live run: a loop or try first, else a play. mode_class 'play' or 'loop' asks for one class only. Inside a
         class a run that sounds (or has launched) comes before one still waiting for Daniel's pause, so a knock waiting
         beside a playing loop never hides the loop from `loop stop`, `jam status` or a page's sync."""
@@ -218,13 +253,13 @@ class RunStore:
                 return pick(loops)
             return pick(loops) if loops else pick(plays)
 
-    def pending(self, now: Optional[float] = None) -> List[dict]:
+    def pending(self, now: float | None = None) -> builtins.list[dict]:
         """Runs still waiting for Daniel's pause (the courtesy gate), oldest first."""
         now = self.now_ms() if now is None else now
         with self._lock:
             return [r for r in sorted(self._live(now), key=lambda r: r["run"]["run"]) if r["run"]["state"] == "pending"]
 
-    def owner(self, now: Optional[float] = None) -> Optional[dict]:
+    def owner(self, now: float | None = None) -> dict | None:
         now = self.now_ms() if now is None else now
         o = self._owner
         if o and o["lease_until_epoch_ms"] > now:
@@ -236,7 +271,7 @@ class RunStore:
             rec = self._load(run_id)
             return {"run": copy.deepcopy(rec["run"]), "events": self._events(run_id)}
 
-    def list(self, limit: int = 20, card: Optional[str] = None) -> List[dict]:
+    def list(self, limit: int = 20, card: str | None = None) -> builtins.list[dict]:
         out = []
         if not self.runs_dir.is_dir():
             return out
@@ -259,18 +294,18 @@ class RunStore:
                 break
         return out
 
-    def counts_by_card(self) -> Dict[str, int]:
-        counts: Dict[str, int] = {}
-        for run in self.list(limit=10 ** 6):
+    def counts_by_card(self) -> dict[str, int]:
+        counts: dict[str, int] = {}
+        for run in self.list(limit=10**6):
             cid = (run.get("card") or {}).get("id")
             if cid:
                 counts[cid] = counts.get(cid, 0) + 1
         return counts
 
-    def defs_for(self, rec: dict) -> Dict[int, dict]:
+    def defs_for(self, rec: dict) -> dict[int, dict]:
         return rec["defs"]
 
-    def position(self, rec: dict, now: float) -> Optional[dict]:
+    def position(self, rec: dict, now: float) -> dict | None:
         run = rec["run"]
         if not run["segments"]:
             return None
@@ -278,12 +313,21 @@ class RunStore:
             p = T.position(run["segments"], run["beats_per_bar"], now, rec["defs"])
         except T.TempoMapError:
             return None
-        return {"bar": p["bar"], "beat": p["beat"], "pass": p["pass"], "slot": p["slot"], "version": run["last_version"],
-                "cycle_beat": p["cycle_beat"], "counting_in": p["counting_in"], "rest": p["rest"], "bpm": p["bpm"],
-                "def_version": p["def_version"]}
+        return {
+            "bar": p["bar"],
+            "beat": p["beat"],
+            "pass": p["pass"],
+            "slot": p["slot"],
+            "version": run["last_version"],
+            "cycle_beat": p["cycle_beat"],
+            "counting_in": p["counting_in"],
+            "rest": p["rest"],
+            "bpm": p["bpm"],
+            "def_version": p["def_version"],
+        }
 
     # ------------------------------------------------------------------------------------------ owner
-    def claim(self, page_id: str, claim: bool, now: float) -> Tuple[dict, List[dict]]:
+    def claim(self, page_id: str, claim: bool, now: float) -> tuple[dict, builtins.list[dict]]:
         if not isinstance(page_id, str) or not S.PAGE_ID_RE.match(page_id):
             raise RunError("page_id must be 1 to 80 letters, digits or _ . : -", 400, "page_id")
         frames = []
@@ -299,7 +343,7 @@ class RunStore:
                 frames.append(self._owner_changed(after, now))
         return {"owner": after}, frames
 
-    def _owner_changed(self, owner: Optional[dict], now: float) -> dict:
+    def _owner_changed(self, owner: dict | None, now: float) -> dict:
         page = owner["page_id"] if owner else None
         for rec in self._live(now):
             if rec["run"]["owner_page_id"] != page and page is not None:
@@ -311,20 +355,32 @@ class RunStore:
     @staticmethod
     def _frame(rec: dict, op: str, by: str, **extra) -> dict:
         run = rec["run"]
-        frame = {"op": op, "run": run["run"], "mode": run["mode"], "state": run["state"],
-                 "version": run["last_version"], "by": by, "segments": run["segments"], "settings": run["settings"],
-                 "owner": run["owner_page_id"], "card": run["card"], "key": run["key"],
-                 "beats_per_bar": run["beats_per_bar"], "count_in_bars": run["count_in_bars"],
-                 "start_epoch_ms": run["start_epoch_ms"], "bar0_epoch_ms": run["bar0_epoch_ms"]}
+        frame = {
+            "op": op,
+            "run": run["run"],
+            "mode": run["mode"],
+            "state": run["state"],
+            "version": run["last_version"],
+            "by": by,
+            "segments": run["segments"],
+            "settings": run["settings"],
+            "owner": run["owner_page_id"],
+            "card": run["card"],
+            "key": run["key"],
+            "beats_per_bar": run["beats_per_bar"],
+            "count_in_bars": run["count_in_bars"],
+            "start_epoch_ms": run["start_epoch_ms"],
+            "bar0_epoch_ms": run["bar0_epoch_ms"],
+        }
         frame.update(extra)
         return frame
 
     # ------------------------------------------------------------------------------------------ start
-    def start(self, spec: dict, d: dict, card: Optional[dict], by: str, now: float) -> Tuple[dict, List[dict]]:
+    def start(self, spec: dict, d: dict, card: dict | None, by: str, now: float) -> tuple[dict, builtins.list[dict]]:
         """spec: {mode, bpm, count_in, settings0, now, lead_ms, slot, velocity}; d: the resolved def; card: the stored
         card (its snapshot goes into run.json) or None for bare chords."""
         mode = spec["mode"]
-        frames: List[dict] = []
+        frames: list[dict] = []
         with self._lock:
             owner = self.owner(now)
             pending = by == "claude" and not spec["now"]
@@ -332,14 +388,33 @@ class RunStore:
             while (self.runs_dir / run_id).exists() or run_id in self._recs:
                 run_id = new_run_id(now)
             count_in = spec["count_in"]
-            run = {"api": RUN_API, "run": run_id, "mode": mode, "route": "page", "engine": ENGINE,
-                   "state": "pending" if pending else "running", "created_at": now_iso(), "created_by": by,
-                   "card": d["card"], "card_snapshot": copy.deepcopy(card) if card else None, "key": d["key"],
-                   "beats_per_bar": d["beats_per_bar"], "count_in_bars": count_in, "start_epoch_ms": None,
-                   "bar0_epoch_ms": None, "segments": [], "settings": [spec["settings0"]], "last_version": 1,
-                   "owner_page_id": owner["page_id"] if owner else None,
-                   "courtesy": {"held_ms": 0, "via": None if pending else "now"}, "closed": False,
-                   "stopped_epoch_ms": None, "stop_bar": None, "stop_reason": None, "late_dropped": 0}
+            run = {
+                "api": RUN_API,
+                "run": run_id,
+                "mode": mode,
+                "route": "page",
+                "engine": ENGINE,
+                "state": "pending" if pending else "running",
+                "created_at": now_iso(),
+                "created_by": by,
+                "card": d["card"],
+                "card_snapshot": copy.deepcopy(card) if card else None,
+                "key": d["key"],
+                "beats_per_bar": d["beats_per_bar"],
+                "count_in_bars": count_in,
+                "start_epoch_ms": None,
+                "bar0_epoch_ms": None,
+                "segments": [],
+                "settings": [spec["settings0"]],
+                "last_version": 1,
+                "owner_page_id": owner["page_id"] if owner else None,
+                "courtesy": {"held_ms": 0, "via": None if pending else "now"},
+                "closed": False,
+                "stopped_epoch_ms": None,
+                "stop_bar": None,
+                "stop_reason": None,
+                "late_dropped": 0,
+            }
             if spec.get("slot") is not None:
                 run["slot"] = spec["slot"]
             if spec.get("velocity") is not None:
@@ -365,23 +440,54 @@ class RunStore:
                 old = None
             if not pending:
                 self._place(rec, swap["epoch_ms"] if swap else now + spec["lead_ms"], count_in if not swap else 0)
-                if swap:
-                    frames += self._stop(old, "replaced", swap["epoch_ms"], swap["bar"], by, "bar", now,
-                                         replaced_by=run_id)
+                if swap:  # a swap line exists only for a sounding old run
+                    frames += self._stop(
+                        cast("dict", old), "replaced", swap["epoch_ms"], swap["bar"], by, "bar", now, replaced_by=run_id
+                    )
             self._recs[run_id] = rec
             self._write(rec)
-            line = {"kind": "start", "recorded_epoch_ms": now, "by": by, "version": 1,
-                    "effective_bar": None if pending else -run["count_in_bars"], "epoch_ms": run["start_epoch_ms"],
-                    "bpm": spec["bpm"], "state": run["state"], "mode": mode, "card": run["card"], "key": run["key"],
-                    "settings": run["settings"], "segments": run["segments"], "def": d}
+            line = {
+                "kind": "start",
+                "recorded_epoch_ms": now,
+                "by": by,
+                "version": 1,
+                "effective_bar": None if pending else -run["count_in_bars"],
+                "epoch_ms": run["start_epoch_ms"],
+                "bpm": spec["bpm"],
+                "state": run["state"],
+                "mode": mode,
+                "card": run["card"],
+                "key": run["key"],
+                "settings": run["settings"],
+                "segments": run["segments"],
+                "def": d,
+            }
             self._append(rec, line)
-            extra = {"swapped_from": old["run"]["run"]} if swap else {}
-            frames.append(self._frame(rec, "start", by, effective_bar=line["effective_bar"],
-                                      epoch_ms=run["start_epoch_ms"], bpm=spec["bpm"], def_=None, **extra))
+            extra = {"swapped_from": cast("dict", old)["run"]["run"]} if swap else {}
+            frames.append(
+                self._frame(
+                    rec,
+                    "start",
+                    by,
+                    effective_bar=line["effective_bar"],
+                    epoch_ms=run["start_epoch_ms"],
+                    bpm=spec["bpm"],
+                    def_=None,
+                    **extra,
+                )
+            )
             frames[-1]["def"] = frames[-1].pop("def_") or d
-            reply = {"run": run_id, "version": 1, "state": run["state"], "start_epoch_ms": run["start_epoch_ms"],
-                     "bar0_epoch_ms": run["bar0_epoch_ms"], "count_in_bars": run["count_in_bars"], "def": d,
-                     "owner": run["owner_page_id"], **extra}
+            reply = {
+                "run": run_id,
+                "version": 1,
+                "state": run["state"],
+                "start_epoch_ms": run["start_epoch_ms"],
+                "bar0_epoch_ms": run["bar0_epoch_ms"],
+                "count_in_bars": run["count_in_bars"],
+                "def": d,
+                "owner": run["owner_page_id"],
+                **extra,
+            }
         return reply, frames
 
     def _swap_line(self, old: dict, now: float, not_before: float) -> dict:
@@ -402,23 +508,28 @@ class RunStore:
         run["state"] = "running"
 
     # ------------------------------------------------------------------------------------------ launch
-    def launch(self, run_id: str, page_id, epoch_ms, via, now: float) -> Tuple[dict, List[dict]]:
+    def launch(self, run_id: str, page_id, epoch_ms, via, now: float) -> tuple[dict, builtins.list[dict]]:
         if not isinstance(page_id, str) or not S.PAGE_ID_RE.match(page_id):
             raise RunError("page_id must be 1 to 80 letters, digits or _ . : -", 400, "page_id")
         if not _is_num(epoch_ms):
             raise RunError("epoch_ms must be a number (epoch ms)", 400, "epoch_ms")
         if via is not None and via not in S.COURTESY_VIA:
             raise RunError(f"via must be one of {', '.join(S.COURTESY_VIA)}", 400, "via")
-        frames: List[dict] = []
+        frames: list[dict] = []
         with self._lock:
             rec = self._load(run_id)
             run = rec["run"]
             if run["state"] != "pending":
-                raise RunError(f"run {run_id} is {run['state']}, not waiting for a launch", 409, state=run["state"],
-                               version=run["last_version"])
+                raise RunError(
+                    f"run {run_id} is {run['state']}, not waiting for a launch",
+                    409,
+                    state=run["state"],
+                    version=run["last_version"],
+                )
             if epoch_ms < now + LAUNCH_MIN_LEAD_MS - T.EPS_MS:
-                raise RunError(f"epoch_ms must be at least {LAUNCH_MIN_LEAD_MS} ms from now", 400, "epoch_ms",
-                               now_epoch_ms=now)
+                raise RunError(
+                    f"epoch_ms must be at least {LAUNCH_MIN_LEAD_MS} ms from now", 400, "epoch_ms", now_epoch_ms=now
+                )
             owner = self.owner(now)
             if owner and owner["page_id"] != page_id:
                 raise RunError("only the owner page launches a run", 409, owner=owner["page_id"])
@@ -433,48 +544,105 @@ class RunStore:
             swap = None
             if old is not None and run["mode"] != "play":
                 swap = self._swap_line(old, now, epoch_ms)
-                frames += self._stop(old, "replaced", swap["epoch_ms"], swap["bar"], "page", "bar", now,
-                                     replaced_by=run_id)
+                frames += self._stop(
+                    old, "replaced", swap["epoch_ms"], swap["bar"], "page", "bar", now, replaced_by=run_id
+                )
             elif old is not None:
                 frames += self._stop_now(old, "replaced", now, "page")
             self._place(rec, swap["epoch_ms"] if swap else epoch_ms, 0 if swap else run["count_in_bars"])
             run["owner_page_id"] = page_id
             run["courtesy"] = {"held_ms": max(0.0, now - (rec["created_ms"] or now)), "via": via or "rest"}
             self._write(rec)
-            self._append(rec, {"kind": "launch", "recorded_epoch_ms": now, "by": "page",
-                               "version": run["last_version"], "start_epoch_ms": run["start_epoch_ms"],
-                               "bar0_epoch_ms": run["bar0_epoch_ms"], "page_id": page_id,
-                               "held_ms": run["courtesy"]["held_ms"], "via": run["courtesy"]["via"]})
-            frames.append(self._frame(rec, "launch", "page", effective_bar=-run["count_in_bars"],
-                                      epoch_ms=run["start_epoch_ms"], courtesy=run["courtesy"],
-                                      def_version=run["segments"][0]["def_version"]))
-            reply = {"version": run["last_version"], "start_epoch_ms": run["start_epoch_ms"],
-                     "bar0_epoch_ms": run["bar0_epoch_ms"], "count_in_bars": run["count_in_bars"]}
+            self._append(
+                rec,
+                {
+                    "kind": "launch",
+                    "recorded_epoch_ms": now,
+                    "by": "page",
+                    "version": run["last_version"],
+                    "start_epoch_ms": run["start_epoch_ms"],
+                    "bar0_epoch_ms": run["bar0_epoch_ms"],
+                    "page_id": page_id,
+                    "held_ms": run["courtesy"]["held_ms"],
+                    "via": run["courtesy"]["via"],
+                },
+            )
+            frames.append(
+                self._frame(
+                    rec,
+                    "launch",
+                    "page",
+                    effective_bar=-run["count_in_bars"],
+                    epoch_ms=run["start_epoch_ms"],
+                    courtesy=run["courtesy"],
+                    def_version=run["segments"][0]["def_version"],
+                )
+            )
+            reply = {
+                "version": run["last_version"],
+                "start_epoch_ms": run["start_epoch_ms"],
+                "bar0_epoch_ms": run["bar0_epoch_ms"],
+                "count_in_bars": run["count_in_bars"],
+            }
         return reply, frames
 
     # ------------------------------------------------------------------------------------------ stop
-    def _stop(self, rec: dict, reason: str, epoch: float, bar: Optional[int], by: str, at: Optional[str], now: float,
-              approx: bool = False, **extra) -> List[dict]:
+    def _stop(
+        self,
+        rec: dict,
+        reason: str,
+        epoch: float,
+        bar: int | None,
+        by: str,
+        at: str | None,
+        now: float,
+        approx: bool = False,
+        **extra,
+    ) -> builtins.list[dict]:
         run = rec["run"]
         if run["closed"]:
             return []
         stopped = copy.deepcopy(run)
-        stopped.update(state="stopped", closed=True, stopped_epoch_ms=epoch, stop_bar=bar if run["segments"] else None,
-                       stop_reason=reason, last_version=run["last_version"] + 1)
+        stopped.update(
+            state="stopped",
+            closed=True,
+            stopped_epoch_ms=epoch,
+            stop_bar=bar if run["segments"] else None,
+            stop_reason=reason,
+            last_version=run["last_version"] + 1,
+        )
         if approx:
             stopped["approx"] = True
         self._commit(rec, stopped)
-        line = {"kind": "stop", "recorded_epoch_ms": now, "by": by, "reason": reason, "version": run["last_version"],
-                "epoch_ms": epoch, "effective_bar": run["stop_bar"], "stop_bar": run["stop_bar"]}
+        line = {
+            "kind": "stop",
+            "recorded_epoch_ms": now,
+            "by": by,
+            "reason": reason,
+            "version": run["last_version"],
+            "epoch_ms": epoch,
+            "effective_bar": run["stop_bar"],
+            "stop_bar": run["stop_bar"],
+        }
         if at:
             line["at"] = at
         if approx:
             line["approx"] = True
         self._append(rec, line)
-        return [self._frame(rec, "stop", by, reason=reason, effective_bar=run["stop_bar"], epoch_ms=epoch,
-                            stop_bar=run["stop_bar"], **extra)]
+        return [
+            self._frame(
+                rec,
+                "stop",
+                by,
+                reason=reason,
+                effective_bar=run["stop_bar"],
+                epoch_ms=epoch,
+                stop_bar=run["stop_bar"],
+                **extra,
+            )
+        ]
 
-    def _stop_now(self, rec: dict, reason: str, now: float, by: str, **extra) -> List[dict]:
+    def _stop_now(self, rec: dict, reason: str, now: float, by: str, **extra) -> builtins.list[dict]:
         """Stop a run at once, on the bar sounding now (never before its first bar): a launched run always stops with a
         real bar, so a page knows which bars to take back. A pending run has no bars and stops with none."""
         run = rec["run"]
@@ -484,8 +652,9 @@ class RunStore:
         return self._stop(rec, reason, now, bar, by, "now", now, **extra)
 
     # ------------------------------------------------------------------------------------------ control
-    def control(self, run_id: str, op: str, args: dict, by: str, now: float,
-                new_def: Optional[dict] = None) -> Tuple[dict, List[dict]]:
+    def control(
+        self, run_id: str, op: str, args: dict, by: str, now: float, new_def: dict | None = None
+    ) -> tuple[dict, builtins.list[dict]]:
         if op not in CONTROL_OPS:
             raise RunError(f"op must be one of {', '.join(CONTROL_OPS)} (got {op!r})", 400, "op")
         at = args.get("at")
@@ -501,11 +670,18 @@ class RunStore:
                 if not _is_int(if_version):
                     raise RunError("if_version must be an integer", 400, "if_version")
                 if if_version != run["last_version"]:
-                    raise RunError(f"version changed: run {run_id} is at version {run['last_version']}", 409,
-                                   version=run["last_version"])
+                    raise RunError(
+                        f"version changed: run {run_id} is at version {run['last_version']}",
+                        409,
+                        version=run["last_version"],
+                    )
             if run["closed"]:
-                raise RunError(f"run {run_id} has stopped ({run['stop_reason']})", 409, version=run["last_version"],
-                               state=run["state"])
+                raise RunError(
+                    f"run {run_id} has stopped ({run['stop_reason']})",
+                    409,
+                    version=run["last_version"],
+                    state=run["state"],
+                )
             if op == "stop":
                 reason = args.get("reason") or ("page" if by == "daniel" else "cli")
                 if reason not in PAGE_STOP_REASONS:
@@ -515,11 +691,19 @@ class RunStore:
                     return {"version": run["last_version"], "effective_bar": run["stop_bar"], "epoch_ms": now}, frames
                 land = T.next_line(run["segments"], run["beats_per_bar"], now, at, rec["defs"])
                 frames = self._stop(rec, reason, land["epoch_ms"], land["bar"], by, at, now)
-                return {"version": run["last_version"], "effective_bar": land["bar"], "epoch_ms": land["epoch_ms"],
-                        "at": at}, frames
+                return {
+                    "version": run["last_version"],
+                    "effective_bar": land["bar"],
+                    "epoch_ms": land["epoch_ms"],
+                    "at": at,
+                }, frames
             if run["state"] == "pending":
-                raise RunError(f"run {run_id} is waiting for Daniel's pause; stop it, or change it once it plays", 409,
-                               version=run["last_version"], state="pending")
+                raise RunError(
+                    f"run {run_id} is waiting for Daniel's pause; stop it, or change it once it plays",
+                    409,
+                    version=run["last_version"],
+                    state="pending",
+                )
             if run["mode"] == "play":
                 raise RunError("a play run only stops", 400, "op")
             m, segs = run["beats_per_bar"], run["segments"]
@@ -541,8 +725,16 @@ class RunStore:
                 bar = max(bar, run["settings"][0]["from_bar"])
             epoch = land["epoch_ms"] if bar == land["bar"] else T.t_epoch(segs, m, bar)
             version = run["last_version"] + 1
-            line = {"kind": "change", "op": op, "recorded_epoch_ms": now, "by": by, "version": version,
-                    "effective_bar": bar, "epoch_ms": epoch, "at": used_at}
+            line = {
+                "kind": "change",
+                "op": op,
+                "recorded_epoch_ms": now,
+                "by": by,
+                "version": version,
+                "effective_bar": bar,
+                "epoch_ms": epoch,
+                "at": used_at,
+            }
             extra = {}
             changed = copy.deepcopy(run)  # built on a copy and swapped in only once it validates (_commit)
             if op == "tempo":
@@ -554,8 +746,11 @@ class RunStore:
                 if new_def is None:
                     raise RunError("next needs a card, chords, a variant or a key", 400, "card_id")
                 if new_def["beats_per_bar"] != m:
-                    raise RunError(f"the next line is in {new_def['beats_per_bar']} beats a bar; this run keeps "
-                                   f"{m}", 400, "card_id")
+                    raise RunError(
+                        f"the next line is in {new_def['beats_per_bar']} beats a bar; this run keeps {m}",
+                        400,
+                        "card_id",
+                    )
                 changed["segments"] = insert_segment(segs, m, bar, def_version=version)
                 line.update(def_=None, card=new_def["card"], key=new_def["key"], segments=changed["segments"])
                 line.pop("def_")
@@ -581,8 +776,7 @@ class RunStore:
             if op == "next":
                 rec["defs"][version] = new_def
             self._append(rec, line)
-            frames = [self._frame(rec, "change", by, change=op, effective_bar=bar, epoch_ms=epoch, at=used_at,
-                                  **extra)]
+            frames = [self._frame(rec, "change", by, change=op, effective_bar=bar, epoch_ms=epoch, at=used_at, **extra)]
             reply = {"version": version, "effective_bar": bar, "epoch_ms": epoch, "at": used_at}
             if "bpm" in extra:
                 reply["bpm"] = extra["bpm"]
@@ -599,9 +793,7 @@ class RunStore:
     def _bpm(value, current: float) -> float:
         if isinstance(value, str) and re.fullmatch(r"[+-]\d+(\.\d+)?", value.strip()):
             bpm = current + float(value)
-        elif isinstance(value, str) and re.fullmatch(r"\d+(\.\d+)?", value.strip()):
-            bpm = float(value)
-        elif _is_num(value):
+        elif (isinstance(value, str) and re.fullmatch(r"\d+(\.\d+)?", value.strip())) or _is_num(value):
             bpm = float(value)
         else:
             raise RunError(f'bpm must be a number or a relative "+N" / "-N" (got {value!r})', 400, "bpm")
@@ -611,9 +803,9 @@ class RunStore:
         return bpm
 
     # ------------------------------------------------------------------------------------------ ack, mark
-    def ack(self, run_id: str, body, now: float) -> Tuple[dict, List[dict]]:
+    def ack(self, run_id: str, body, now: float) -> tuple[dict, builtins.list[dict]]:
         a = _schema(S.validate_ack, body)
-        frames: List[dict] = []
+        frames: list[dict] = []
         with self._lock:
             rec = self._load(run_id)
             run = rec["run"]
@@ -622,7 +814,7 @@ class RunStore:
             key = (a["page_id"], a["version"], a["bar"])
             if key in rec["acks"]:
                 return {"ok": True, "duplicate": True}, frames
-            if not self.owner(now) and a["role"] == "owner" or not self.owner(now) and run["owner_page_id"] is None:
+            if (not self.owner(now) and a["role"] == "owner") or (not self.owner(now) and run["owner_page_id"] is None):
                 _, owner_frames = self.claim(a["page_id"], True, now)
                 frames += owner_frames
             self._append(rec, {"kind": "ack", "recorded_epoch_ms": now, "by": "page", **a})
@@ -630,12 +822,12 @@ class RunStore:
                 run["late_dropped"] = a["late_dropped"]
                 self._write(rec)
             if a["stopped"] and not run["closed"] and a["page_id"] == run["owner_page_id"]:
-                bar = a.get("stop_bar") if a.get("stop_bar") is not None else a["bar"]
+                bar = a["stop_bar"] if a.get("stop_bar") is not None else a["bar"]
                 epoch = T.t_epoch(run["segments"], run["beats_per_bar"], bar) if run["segments"] else now
                 frames += self._stop(rec, a["stopped"], epoch, bar, "page", "now", now)
         return {"ok": True, "duplicate": False}, frames
 
-    def mark(self, text, run_id: Optional[str], epoch_ms, by: str, now: float) -> Tuple[dict, List[dict]]:
+    def mark(self, text, run_id: str | None, epoch_ms, by: str, now: float) -> tuple[dict, builtins.list[dict]]:
         if not isinstance(text, str) or not text.strip() or len(text) > S.MARK_TEXT_MAX:
             raise RunError(f"text must be 1 to {S.MARK_TEXT_MAX} characters", 400, "text")
         if epoch_ms is not None and not _is_num(epoch_ms):
@@ -652,19 +844,34 @@ class RunStore:
                 rec = self._load(run_id)
             run = rec["run"]
             at = epoch_ms if epoch_ms is not None else now
-            line = {"kind": "mark", "recorded_epoch_ms": now, "by": by, "text": text, "run": run["run"],
-                    "epoch_ms": at, "version": run["last_version"]}
+            line = {
+                "kind": "mark",
+                "recorded_epoch_ms": now,
+                "by": by,
+                "text": text,
+                "run": run["run"],
+                "epoch_ms": at,
+                "version": run["last_version"],
+            }
             if run["segments"]:
                 line["bar"] = T.bar_at(run["segments"], run["beats_per_bar"], at)["bar"]
             line = self._append(rec, line)
-            frame = {"op": "mark", "run": run["run"], "text": text, "by": by, "seq": line["seq"], "epoch_ms": at,
-                     "bar": line.get("bar"), "version": run["last_version"]}
+            frame = {
+                "op": "mark",
+                "run": run["run"],
+                "text": text,
+                "by": by,
+                "seq": line["seq"],
+                "epoch_ms": at,
+                "bar": line.get("bar"),
+                "version": run["last_version"],
+            }
         return {"run": run["run"], "seq": line["seq"]}, [frame]
 
     # ------------------------------------------------------------------------------------------ time passing
-    def tick(self, now: Optional[float] = None) -> List[dict]:
+    def tick(self, now: float | None = None) -> builtins.list[dict]:
         now = self.now_ms() if now is None else now
-        frames: List[dict] = []
+        frames: list[dict] = []
         with self._lock:
             for rec in list(self._live(now)):
                 run = rec["run"]
@@ -682,7 +889,7 @@ class RunStore:
                     continue  # one run that cannot close here must never fail an unrelated jam route
         return frames
 
-    def _passes_end(self, rec: dict) -> Optional[Tuple[int, float]]:
+    def _passes_end(self, rec: dict) -> tuple[int, float] | None:
         run = rec["run"]
         settings = run["settings"][-1]
         passes = settings["passes"]
@@ -699,7 +906,7 @@ class RunStore:
             end_bar += cycle_bars
         return end_bar, T.t_epoch(run["segments"], m, end_bar)
 
-    def close_unclosed(self, now: Optional[float] = None) -> List[str]:
+    def close_unclosed(self, now: float | None = None) -> builtins.list[str]:
         """At server start: every run left open gets a stop line with server-restart and approx, at the time of its
         last timeline line (DATA 6.6)."""
         now = self.now_ms() if now is None else now
@@ -729,8 +936,15 @@ class RunStore:
         with self._lock:
             rec = self.current(now)
             play = self.current(now, "play")
-            out = {"run": None, "now_epoch_ms": now, "position": None, "owner": self.owner(now), "def": None,
-                   "defs": {}, "play": None}
+            out = {
+                "run": None,
+                "now_epoch_ms": now,
+                "position": None,
+                "owner": self.owner(now),
+                "def": None,
+                "defs": {},
+                "play": None,
+            }
             if rec is not None:
                 out["run"] = copy.deepcopy(rec["run"])
                 out["position"] = self.position(rec, now)
@@ -751,8 +965,9 @@ class RunStore:
 class JamApi:
     """The deck, jam and replay routes, independent of HTTP: handle(method, path, query, body) -> (status, body)."""
 
-    def __init__(self, root=None, performance=None, hub=None, resolver: Optional[Resolver] = None, now_ms=None,
-                 seed_path=None):
+    def __init__(
+        self, root=None, performance=None, hub=None, resolver: Resolver | None = None, now_ms=None, seed_path=None
+    ):
         self.root = Path(root) if root else jam_cards.DEFAULT_ROOT
         self.resolver = resolver or Resolver()
         self.deck = DeckStore(self.root, reader=self.resolver.page_reads)
@@ -765,7 +980,7 @@ class JamApi:
     def now(self) -> float:
         return self.runs.now_ms()
 
-    def _hub(self):
+    def _hub(self) -> Any:
         """The cue hub, or None. hub may be a callable returning it (serve.App passes lambda: self.cues, so a hub
         swapped in later is the one used)."""
         return self.hub() if callable(self.hub) else self.hub
@@ -780,14 +995,17 @@ class JamApi:
         if hub is None:
             return {"listeners": 0, "caps": {CAP_JAM: 0, CAP_DECK: 0}, "pages": []}
         st = hub.status()
-        return {"listeners": st.get("listeners", 0), "caps": st.get("caps") or {CAP_JAM: 0, CAP_DECK: 0},
-                "pages": st.get("pages") or []}
+        return {
+            "listeners": st.get("listeners", 0),
+            "caps": st.get("caps") or {CAP_JAM: 0, CAP_DECK: 0},
+            "pages": st.get("pages") or [],
+        }
 
     def tick(self) -> None:
         for frame in self.runs.tick(self.now()):
             self.publish("jam", frame)
 
-    def handle(self, method: str, path: str, query: Optional[dict] = None, body=None) -> Tuple[int, dict]:
+    def handle(self, method: str, path: str, query: dict | None = None, body=None) -> tuple[int, dict]:
         query = query or {}
         try:
             if method == "POST":
@@ -846,16 +1064,21 @@ class JamApi:
         ]
 
     @staticmethod
-    def _q(query: dict, name: str, default=None):
+    def _q(query: dict, name: str, default=None) -> Any:
         values = query.get(name)
         if not values:
             return default
         return values[0] if isinstance(values, list) else values
 
     # ------------------------------------------------------------------------------------------ deck
-    def _deck_frame(self, op: str, card: Optional[dict], by: str, deck_rev: int, **extra) -> None:
-        payload = {"op": op, "card_id": card["id"] if card else None, "rev": card["rev"] if card else None,
-                   "deck_rev": deck_rev, "by": by}
+    def _deck_frame(self, op: str, card: dict | None, by: str, deck_rev: int, **extra) -> None:
+        payload = {
+            "op": op,
+            "card_id": card["id"] if card else None,
+            "rev": card["rev"] if card else None,
+            "deck_rev": deck_rev,
+            "by": by,
+        }
         if card is not None and op in ("upsert", "restore"):
             payload["summary"] = DeckStore.summary(card, self.runs.counts_by_card().get(card["id"], 0))
         payload.update(extra)
@@ -863,9 +1086,14 @@ class JamApi:
 
     def _deck_get(self, query, body, by):
         archived = self._q(query, "archived", "0") in ("1", "true")
-        return 200, self.deck.doc(self.runs.counts_by_card(), group=self._q(query, "group"),
-                                  kind=self._q(query, "kind"), tag=self._q(query, "tag"), by=self._q(query, "by"),
-                                  archived=archived)
+        return 200, self.deck.doc(
+            self.runs.counts_by_card(),
+            group=self._q(query, "group"),
+            kind=self._q(query, "kind"),
+            tag=self._q(query, "tag"),
+            by=self._q(query, "by"),
+            archived=archived,
+        )
 
     def _card_get(self, card_id, query, body, by):
         return 200, {"card": self.deck.get(card_id)}
@@ -877,8 +1105,14 @@ class JamApi:
             if not re.fullmatch(r"\d{1,3}", slot):
                 return 400, {"error": "slot must be a chord slot number from 0", "field": "slot"}
             slot = int(slot)
-        d = self.resolver.resolve(card, key=self._q(query, "key"), variant=self._q(query, "variant"),
-                                  backing=self._q(query, "backing"), voicing=self._q(query, "voicing"), slot=slot)
+        d = self.resolver.resolve(
+            card,
+            key=self._q(query, "key"),
+            variant=self._q(query, "variant"),
+            backing=self._q(query, "backing"),
+            voicing=self._q(query, "voicing"),
+            slot=slot,
+        )
         return 200, {"def": d}
 
     def _card_create(self, query, body, by):
@@ -896,8 +1130,9 @@ class JamApi:
         if action == "delete":
             _only(body, ("if_rev", "by"))
             out = self.deck.delete(card_id, body.get("if_rev"), by)
-            self.publish("deck", {"op": "delete", "card_id": card_id, "rev": out["rev"], "deck_rev": out["deck_rev"],
-                                  "by": by})
+            self.publish(
+                "deck", {"op": "delete", "card_id": card_id, "rev": out["rev"], "deck_rev": out["deck_rev"], "by": by}
+            )
             return 200, {"id": card_id, "trashed": out["trashed"]}
         if action == "restore":
             _only(body, ("by",))
@@ -913,16 +1148,21 @@ class JamApi:
         _only(body, ("capture", "moment", "by"))
         if ("capture" in body) == ("moment" in body):
             return 400, {"error": "send capture (the page) or moment (the log), one of them", "field": "capture"}
-        out = self.deck.template_from_capture(body["capture"], by) if "capture" in body else \
-            self.deck.template_from_moment(body["moment"], by)
+        out = (
+            self.deck.template_from_capture(body["capture"], by)
+            if "capture" in body
+            else self.deck.template_from_moment(body["moment"], by)
+        )
         self._deck_frame("upsert", out["card"], by, out["deck_rev"])
         return 200, {k: out[k] for k in ("id", "rev", "card", "warnings")}
 
     def _order(self, query, body, by):
         _only(body, ("order", "if_rev", "by"))
         out = self.deck.order(body.get("order"), body.get("if_rev"), by)
-        self.publish("deck", {"op": "order", "card_id": None, "rev": None, "deck_rev": out["rev"], "by": by,
-                              "order": out["order"]})
+        self.publish(
+            "deck",
+            {"op": "order", "card_id": None, "rev": None, "deck_rev": out["rev"], "by": by, "order": out["order"]},
+        )
         return 200, {"rev": out["rev"]}
 
     def _seed(self, query, body, by):
@@ -930,15 +1170,27 @@ class JamApi:
         doc = jam_cards.load_seed(self.seed_path)
         out = self.deck.seed(doc, body.get("moments"), bool(body.get("update")), bool(body.get("dry_run")), by)
         if not out["dry_run"] and (out["installed"] or out["updated"]):
-            self.publish("deck", {"op": "seed", "card_id": None, "rev": None, "deck_rev": out["deck_rev"], "by": by,
-                                  "installed": out["installed"], "updated": out["updated"]})
+            self.publish(
+                "deck",
+                {
+                    "op": "seed",
+                    "card_id": None,
+                    "rev": None,
+                    "deck_rev": out["deck_rev"],
+                    "by": by,
+                    "installed": out["installed"],
+                    "updated": out["updated"],
+                },
+            )
         return 200, out
 
     def _open(self, query, body, by):
         _only(body, ("card_id", "by"))
         card = self.deck.get(self.deck.find(body.get("card_id")))
-        self.publish("deck", {"op": "open", "card_id": card["id"], "rev": card["rev"],
-                              "deck_rev": self.deck.deck()["rev"], "by": by})
+        self.publish(
+            "deck",
+            {"op": "open", "card_id": card["id"], "rev": card["rev"], "deck_rev": self.deck.deck()["rev"], "by": by},
+        )
         return 200, {"id": card["id"], "listeners": self.pages()["caps"].get(CAP_DECK, 0)}
 
     def _trash(self, query, body, by):
@@ -947,6 +1199,7 @@ class JamApi:
     def _replay(self, query, body, by):
         from arsenal.performance import PerformanceError
         from arsenal.pianocue import CueError, build_replay_cue, parse_clock, validate_cue
+
         if self.performance is None:
             return 404, {"error": "no practice log on this server (--no-performance-log)"}
         session = self._q(query, "session")
@@ -1020,7 +1273,7 @@ class JamApi:
         seed = body.get("seed")
         if seed is None:
             seed = secrets.randbits(32)
-        _check_int(seed, "seed", 0, 2 ** 32 - 1)
+        _check_int(seed, "seed", 0, 2**32 - 1)
         walk = body.get("walk", 1)
         _check_int(walk, "walk", 0, 1)
         # a Play plays once, a Try ends after 2 passes (7.2's default, now for the page's Try too), a Loop runs on
@@ -1052,11 +1305,28 @@ class JamApi:
             _, frames = self.runs.claim(page_id, True, now)
             for f in frames:
                 self.publish("jam", f)
-        settings0 = {"from_bar": 0, "groove": groove, "backing": backing, "level": level, "humanize": humanize,
-                     "seed": seed, "walk": walk, "try_backing": try_backing if mode == "try" else None,
-                     "passes": passes, "ending": "cut"}
-        spec = {"mode": mode, "bpm": bpm, "count_in": count_in, "settings0": settings0, "now": now_flag,
-                "lead_ms": lead_ms, "slot": body.get("slot"), "velocity": velocity}
+        settings0 = {
+            "from_bar": 0,
+            "groove": groove,
+            "backing": backing,
+            "level": level,
+            "humanize": humanize,
+            "seed": seed,
+            "walk": walk,
+            "try_backing": try_backing if mode == "try" else None,
+            "passes": passes,
+            "ending": "cut",
+        }
+        spec = {
+            "mode": mode,
+            "bpm": bpm,
+            "count_in": count_in,
+            "settings0": settings0,
+            "now": now_flag,
+            "lead_ms": lead_ms,
+            "slot": body.get("slot"),
+            "velocity": velocity,
+        }
         reply, frames = self.runs.start(spec, d, card, by, now)
         for f in frames:
             self.publish("jam", f)
@@ -1064,7 +1334,7 @@ class JamApi:
         reply.update(jam_pages=pages["caps"].get(CAP_JAM, 0), listeners=pages["listeners"], bpm=bpm)
         return 200, reply
 
-    def _def_for(self, body: dict, mode: Optional[str], current: Optional[dict]):
+    def _def_for(self, body: dict, mode: str | None, current: dict | None):
         """(def, card or None, variant tempo) for a start or a next: card_id or chords (+ key)."""
         variant, key, slot = body.get("variant"), body.get("key"), body.get("slot")
         if slot is not None and (not _is_int(slot) or slot < 0):
@@ -1076,8 +1346,9 @@ class JamApi:
             card = self.deck.get(self.deck.find(body["card_id"]))
             if variant is None and mode == "play" and card.get("kind") == "concept" and card.get("variants"):
                 variant = "all"
-            d = self.resolver.resolve(card, key=key, variant=variant, backing=body.get("backing"), voicing=voicing,
-                                      slot=slot)
+            d = self.resolver.resolve(
+                card, key=key, variant=variant, backing=body.get("backing"), voicing=voicing, slot=slot
+            )
             vt = next((v.get("tempo") for v in card.get("variants") or [] if v["id"] == d["card"]["variant"]), None)
             return d, card, vt
         chords = body.get("chords")
@@ -1093,8 +1364,9 @@ class JamApi:
         if not isinstance(chords, list):
             raise RunError("chords must be a chord line (a string or a list of items)", 400, "chords")
         meter = current["beats_per_bar"] if current else 4
-        d = self.resolver.resolve_chords(chords, key, meter=meter, backing=body.get("backing") or "comp",
-                                         voicing=voicing or "spread", slot=slot)
+        d = self.resolver.resolve_chords(
+            chords, key, meter=meter, backing=body.get("backing") or "comp", voicing=voicing or "spread", slot=slot
+        )
         return d, None, None
 
     def _run_post(self, run_id, action, query, body, by):
@@ -1118,7 +1390,7 @@ class JamApi:
             self.publish("jam", f)
         return 200, reply
 
-    def _next_def(self, run_id: str, body: dict) -> Tuple[dict, bool]:
+    def _next_def(self, run_id: str, body: dict) -> tuple[dict, bool]:
         rec = self.runs._load(run_id)
         run = rec["run"]
         current = rec["defs"][max(rec["defs"])]
@@ -1166,7 +1438,7 @@ class JamApi:
         return 200, reply
 
 
-def insert_segment(segs: List[dict], m: int, bar: int, bpm=None, def_version: Optional[int] = None) -> List[dict]:
+def insert_segment(segs: list[dict], m: int, bar: int, bpm=None, def_version: int | None = None) -> list[dict]:
     """The run's segments with a tempo (bpm) or next (def_version, its cycle starting at `bar`) change at `bar`, which
     may land before a change already scheduled later (a key change waiting for the pass top when Daniel presses `]`).
     Later segments are rebuilt on the new map, so every epoch stays where the tempo map puts it:
@@ -1174,14 +1446,20 @@ def insert_segment(segs: List[dict], m: int, bar: int, bpm=None, def_version: Op
     - a next change: the newest line wins, so later def changes fold into it (their tempo changes stay).
     A later segment that is left carrying nothing is dropped."""
     if bar >= segs[-1]["from_bar"]:
-        return T.add_segment(segs, m, bar, bpm=bpm, def_version=def_version,
-                             def_from_bar=bar if def_version is not None else None)
+        return T.add_segment(
+            segs, m, bar, bpm=bpm, def_version=def_version, def_from_bar=bar if def_version is not None else None
+        )
     in_effect = T.segment_at(segs, bar)
     out = [dict(s) for s in segs if s["from_bar"] < bar]
-    out.append({"from_bar": bar, "bpm": in_effect["bpm"] if bpm is None else bpm,
-                "epoch_ms": T.t_epoch(segs, m, bar),
-                "def_version": in_effect["def_version"] if def_version is None else def_version,
-                "def_from_bar": in_effect["def_from_bar"] if def_version is None else bar})
+    out.append(
+        {
+            "from_bar": bar,
+            "bpm": in_effect["bpm"] if bpm is None else bpm,
+            "epoch_ms": T.t_epoch(segs, m, bar),
+            "def_version": in_effect["def_version"] if def_version is None else def_version,
+            "def_from_bar": in_effect["def_from_bar"] if def_version is None else bar,
+        }
+    )
     old_prev = in_effect
     for s in segs:
         if s["from_bar"] <= bar:
@@ -1195,12 +1473,19 @@ def insert_segment(segs: List[dict], m: int, bar: int, bpm=None, def_version: Op
         old_prev = s
         if seg_bpm == cur["bpm"] and seg_def == (cur["def_version"], cur["def_from_bar"]):
             continue
-        out.append({"from_bar": s["from_bar"], "bpm": seg_bpm, "epoch_ms": T.t_epoch(out, m, s["from_bar"]),
-                    "def_version": seg_def[0], "def_from_bar": seg_def[1]})
+        out.append(
+            {
+                "from_bar": s["from_bar"],
+                "bpm": seg_bpm,
+                "epoch_ms": T.t_epoch(out, m, s["from_bar"]),
+                "def_version": seg_def[0],
+                "def_from_bar": seg_def[1],
+            }
+        )
     return out
 
 
-def insert_settings(settings: List[dict], bar: int, partial: dict) -> List[dict]:
+def insert_settings(settings: list[dict], bar: int, partial: dict) -> list[dict]:
     """The run's settings with `partial` taking effect at `bar`, which may come before an entry already scheduled later
     (a `set --at pass` waiting): the change gets a real entry at its own bar, and a later entry keeps the fields it set
     itself while taking the new values of the fields it only carried. An entry left identical to the one before it is
@@ -1210,14 +1495,15 @@ def insert_settings(settings: List[dict], bar: int, partial: dict) -> List[dict]
     out = [dict(s) for s in settings if s["from_bar"] < bar]
     out.append({**in_effect, **partial, "from_bar": bar})
     old_prev = in_effect
-    same = lambda a, b: {k: v for k, v in a.items() if k != "from_bar"} == {k: v for k, v in b.items() if k != "from_bar"}  # noqa: E731
+
+    def same(a, b):
+        return {k: v for k, v in a.items() if k != "from_bar"} == {k: v for k, v in b.items() if k != "from_bar"}
+
     for s in settings:
         if s["from_bar"] <= bar:
             continue
         entry = dict(s)
-        for k, v in partial.items():
-            if s.get(k) == old_prev.get(k):
-                entry[k] = v
+        entry.update({k: v for k, v in partial.items() if s.get(k) == old_prev.get(k)})
         old_prev = s
         if same(entry, out[-1]):
             continue

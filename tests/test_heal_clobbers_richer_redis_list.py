@@ -41,6 +41,7 @@ a richer Redis list and replacing it with a File subset is not a heal, it is dat
 reassuring log line ("[heal] Redis was behind -- backfilled N key-structure(s)").
 """
 
+import contextlib
 import os
 import sys
 import tempfile
@@ -54,7 +55,8 @@ os.environ.setdefault("REDIS_DB", "15")
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.foundation.store import FileStore, RedisStore, HybridStore  # noqa: E402
+
+from core.foundation.store import FileStore, HybridStore, RedisStore  # noqa: E402  # sys.path bootstrap
 
 
 def test_heal_must_not_clobber_a_richer_redis_list():
@@ -86,24 +88,24 @@ def test_heal_must_not_clobber_a_richer_redis_list():
             hybrid = HybridStore(rs, fs)
             drift = hybrid.check_drift()
             assert any(k.startswith(ns) for k in drift["missing_in_redis"]), (
-                "precondition: the unrelated key must register as File-ahead drift")
+                "precondition: the unrelated key must register as File-ahead drift"
+            )
 
             before = rs.lrange(index_key, 0, -1)
             assert len(before) == 20, f"precondition: Redis holds the full index, got {len(before)}"
 
-            hybrid.heal_report()          # <-- what every agent boot runs
+            hybrid.heal_report()  # <-- what every agent boot runs
 
             after = rs.lrange(index_key, 0, -1)
             assert len(after) == 20, (
                 f"HEAL DESTROYED THE RICHER LIST: Redis held {len(before)} entries, "
                 f"File held 2, and after heal_report() Redis holds {len(after)} -> {after}. "
                 f"A heal must never make a backend lose data. This is the mechanism behind "
-                f"the recall-index blindness recurrence of 2026-07-27.")
+                f"the recall-index blindness recurrence of 2026-07-27."
+            )
     finally:
-        try:
+        with contextlib.suppress(Exception):
             rs.delete(index_key)
-        except Exception:
-            pass
 
 
 if __name__ == "__main__":

@@ -24,13 +24,14 @@ the real consumer), and every subsequent call goes down the genuinely blocking l
 This pin asserts the SEAM, not the CPU: a second call with the same pending mail must not
 re-peek. Timing assertions would be flaky; the state transition is exact.
 """
+
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from core.comm.bifrost_api import BifrostAPI  # noqa: E402
+from core.comm.bifrost_api import BifrostAPI  # noqa: E402  # sys.path bootstrap
 
 
 class _Msg:
@@ -49,10 +50,10 @@ class _Bus:
         self.ns = "test"  # needed by _lane_streams -> packet_spec.lane_stream_key
 
     def wait(self, timeout_ms=0, limit=None, since=None, since_out=None, streams=None):
-        if since is None:                 # the shared-cursor peek path
+        if since is None:  # the shared-cursor peek path
             self.peeks += 1
-            return list(self.pending)     # detect-only: never drains
-        self.lane_waits += 1              # the real blocking lane read
+            return list(self.pending)  # detect-only: never drains
+        self.lane_waits += 1  # the real blocking lane read
         return []
 
     def cursor(self):
@@ -65,8 +66,7 @@ class _Bus:
         # VIRGIN lane hash: this seat has never consumed in lane mode, so the legacy family
         # is the authority and the peek above is the `since is None` branch (defer
         # 224ac54766 made the family choice explicit; these pins model the legacy family).
-        return {f: "0" for f in ("inbox", "bc", "sig_inbox", "sig_bc",
-                                 "shadow_inbox", "shadow_bc")}
+        return dict.fromkeys(("inbox", "bc", "sig_inbox", "sig_bc", "shadow_inbox", "shadow_bc"), "0")
 
 
 def _api(bus):
@@ -94,9 +94,7 @@ def test_pending_mail_is_delivered_once_then_the_watcher_blocks(monkeypatch):
         f"the shared cursor was re-peeked {bus.peeks} times -- pending mail that never "
         f"drains makes every call return instantly, which is the 20%-of-a-core hot spin"
     )
-    assert bus.lane_waits >= 5, (
-        "after the first delivery every call must go down the BLOCKING lane read"
-    )
+    assert bus.lane_waits >= 5, "after the first delivery every call must go down the BLOCKING lane read"
 
 
 def test_seeding_over_undrainable_mail_is_ANNOUNCED(caplog, monkeypatch):
@@ -109,6 +107,7 @@ def test_seeding_over_undrainable_mail_is_ANNOUNCED(caplog, monkeypatch):
     rule forbids: it removes the alarm without removing the condition.
     """
     import logging
+
     bus = _Bus([_Msg()])
     api = _api(bus)
     monkeypatch.setattr(api, "_lane_tails", lambda: {"work": "0-0"}, raising=False)
@@ -135,6 +134,7 @@ def test_seeding_over_undrainable_mail_is_ANNOUNCED(caplog, monkeypatch):
 def test_quiet_seed_does_not_cry_wolf(caplog, monkeypatch):
     """The marker must fire ONLY on the real condition, or it becomes noise people mute."""
     import logging
+
     bus = _Bus([])
     api = _api(bus)
     monkeypatch.setattr(api, "_lane_tails", lambda: {"work": "0-0"}, raising=False)
@@ -164,6 +164,7 @@ def test_seed_warning_does_not_promise_a_future_it_cannot_deliver(caplog, monkey
     The whole cost tonight was draining `work` (the lane armed) while detection reads `legacy`.
     """
     import logging
+
     bus = _Bus([_Msg()])
     api = _api(bus)
     monkeypatch.setattr(api, "_lane_tails", lambda: {"work": "0-0"}, raising=False)
@@ -197,6 +198,7 @@ def test_a_quiet_bus_still_seeds_and_blocks(monkeypatch):
 def test_skip_kind_pending_does_not_count_as_wake_worthy(monkeypatch):
     """Pre-existing behaviour (L7 parity) must survive the fix: trace junk never wakes."""
     from core.comm.bifrost_api import PENDING_SKIP_KINDS
+
     junk = next(iter(PENDING_SKIP_KINDS)) if PENDING_SKIP_KINDS else None
     if junk is None:
         return
@@ -246,8 +248,7 @@ def test_peek_count_passes_but_cpu_spin_could_still_live_elsewhere(monkeypatch):
             break
     # With the fix, delivery happens once then the lane read blocks (returns [])
     assert call_count <= 2, (
-        f"_wake_block_lane delivered {call_count} times before blocking -- "
-        f"a caller-level spin would amplify this"
+        f"_wake_block_lane delivered {call_count} times before blocking -- a caller-level spin would amplify this"
     )
     # But NOTE: a REAL caller with twin dedup could still spin if bus.wait(lane)
     # returned non-empty every time. This test's fake bus returns [] from lane
@@ -271,7 +272,7 @@ class _PhaseBus:
         self.phase = 1
 
     def wait(self, timeout_ms=0, limit=None, since=None, since_out=None, streams=None):
-        if since is None:                 # shared-cursor peek
+        if since is None:  # shared-cursor peek
             self.peeks += 1
             return list(self.shared_pending)
         # lane blocking read -- simulate empty work lane
@@ -285,8 +286,9 @@ class _PhaseBus:
         return {}
 
     def read_lane_cursor(self):
-        return {f: "0" for f in ("inbox", "bc", "sig_inbox", "sig_bc",
-                                 "shadow_inbox", "shadow_bc")}     # virgin: legacy family
+        return dict.fromkeys(
+            ("inbox", "bc", "sig_inbox", "sig_bc", "shadow_inbox", "shadow_bc"), "0"
+        )  # virgin: legacy family
 
 
 def test_new_mail_on_shared_cursor_between_calls_missed_by_lane_watcher(monkeypatch):
@@ -308,7 +310,8 @@ def test_new_mail_on_shared_cursor_between_calls_missed_by_lane_watcher(monkeypa
 
     # --- NEW code path ---
     first = api_new._wake_block_lane(timeout_ms=1)
-    assert len(first) == 1 and first[0].kind == "request"
+    assert len(first) == 1
+    assert first[0].kind == "request"
     assert bus.peeks == 1
     assert api_new._lane_since is not None, "seeded after first delivery"
 
@@ -326,27 +329,30 @@ def test_new_mail_on_shared_cursor_between_calls_missed_by_lane_watcher(monkeypa
     monkeypatch.setattr(api_old, "_lane_tails", lambda: {"work": "0-0"}, raising=False)
     monkeypatch.setattr(api_old, "_lane_streams", lambda: {"inbox": "s"}, raising=False)
     # Simulate old code: never seed _lane_since
-    original_block_lane = api_old._wake_block_lane
+    _original_block_lane = api_old._wake_block_lane
 
     def old_wake_block_lane(timeout_ms):
         if api_old._lane_since is None:
             pending = api_old.bus.wait(timeout_ms=1, limit=10)
             from core.comm.bifrost_api import PENDING_SKIP_KINDS
-            live = [m for m in pending
-                    if str(getattr(m, "kind", "")) not in PENDING_SKIP_KINDS]
+
+            live = [m for m in pending if str(getattr(m, "kind", "")) not in PENDING_SKIP_KINDS]
             # OLD: return WITHOUT seeding
             if live:
                 return live
         nxt = {}
-        msgs = api_old.bus.wait(timeout_ms=timeout_ms, since=api_old._lane_since,
-                                since_out=nxt, streams=api_old._lane_streams())
+        msgs = api_old.bus.wait(
+            timeout_ms=timeout_ms, since=api_old._lane_since, since_out=nxt, streams=api_old._lane_streams()
+        )
+        assert api_old._lane_since is not None
         if nxt:
             api_old._lane_since.update(nxt)
         return msgs
 
     # Phase 1 for old code: finds Phase 1 mail
     old_first = old_wake_block_lane(timeout_ms=1)
-    assert len(old_first) == 1 and old_first[0].kind == "request"
+    assert len(old_first) == 1
+    assert old_first[0].kind == "request"
     assert api_old._lane_since is None, "OLD code: still unseeded after delivery"
 
     # Phase 2: add straggler
@@ -355,7 +361,12 @@ def test_new_mail_on_shared_cursor_between_calls_missed_by_lane_watcher(monkeypa
     # Old code's second call: re-peeks shared cursor, finds BOTH (Phase 1 never
     # consumed — detect-only — so it's still there alongside Phase 2)
     old_second = old_wake_block_lane(timeout_ms=1)
-    assert len(old_second) == 2 and any(m.frm == "kimi" for m in old_second), (
+    assert len(old_second) == 2, (
+        f"OLD code re-peeked shared cursor and found BOTH messages ({len(old_second)}); "
+        f"the Phase 2 straggler would have been delivered as a wake. "
+        f"NEW code missed it (lane-only read after seed)"
+    )
+    assert any(m.frm == "kimi" for m in old_second), (
         f"OLD code re-peeked shared cursor and found BOTH messages ({len(old_second)}); "
         f"the Phase 2 straggler would have been delivered as a wake. "
         f"NEW code missed it (lane-only read after seed)"

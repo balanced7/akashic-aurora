@@ -23,28 +23,30 @@ THE CLAUSES IN THESE CONTRACTS ARE NOT STYLE. Each was measured this week:
   - "descriptive, not normative" is the T207 danger zone: a grounded helper answering a
     should/better question came back confidently wrong WITH accurate citations.
 """
-from dataclasses import dataclass
-from typing import Any, Callable, Dict, List, Optional
+
 import os
 import re
+from collections.abc import Callable
+from dataclasses import dataclass
+from typing import Any
 
-__all__ = ["Preset", "register", "get", "known", "build_prompts", "read_lens_file"]
+__all__ = ["Preset", "build_prompts", "get", "known", "read_lens_file", "register"]
 
 
 @dataclass(frozen=True)
 class Preset:
     """A contract and the parser that reads its answers. Never one without the other."""
+
     name: str
     contract: str
-    parse: Callable[[str], Dict[str, Any]]
+    parse: Callable[[str], dict[str, Any]]
     describe: str = ""
 
 
-_REGISTRY: Dict[str, Preset] = {}
+_REGISTRY: dict[str, Preset] = {}
 
 
-def register(name: str, *, contract: str, parse: Optional[Callable] = None,
-             describe: str = "") -> Preset:
+def register(name: str, *, contract: str, parse: Callable | None = None, describe: str = "") -> Preset:
     """Add a preset. REFUSES a contract with no parser -- that is the drift this module exists
     to prevent, and refusing is the only thing that actually prevents it."""
     if not contract or not str(contract).strip():
@@ -53,7 +55,8 @@ def register(name: str, *, contract: str, parse: Optional[Callable] = None,
         raise ValueError(
             f"preset {name!r}: a contract MUST ship with its parser. A contract alone sends "
             f"callers back to hand-rolling a regex against a shape only the author knows, "
-            f"which is the exact defect this module exists to remove.")
+            f"which is the exact defect this module exists to remove."
+        )
     p = Preset(name=name, contract=contract, parse=parse, describe=describe)
     _REGISTRY[name] = p
     return p
@@ -65,7 +68,7 @@ def get(name: str) -> Preset:
     return _REGISTRY[name]
 
 
-def known() -> List[str]:
+def known() -> list[str]:
     return sorted(_REGISTRY)
 
 
@@ -82,7 +85,7 @@ def _section(text: str, head: str) -> str:
     m = re.search(pat, text, re.M | re.I)
     if not m:
         return ""
-    rest = text[m.end():]
+    rest = text[m.end() :]
     nxt = None
     for h in heads:
         if h.lower() == head.lower():
@@ -93,7 +96,7 @@ def _section(text: str, head: str) -> str:
     return (rest[:nxt] if nxt is not None else rest).strip()
 
 
-def _items(block: str) -> List[str]:
+def _items(block: str) -> list[str]:
     """One entry per bullet or numbered line; a bare paragraph counts as one entry."""
     out = []
     for ln in block.splitlines():
@@ -107,7 +110,7 @@ def _items(block: str) -> List[str]:
     return out
 
 
-def _parse_findings(answer: str) -> Dict[str, Any]:
+def _parse_findings(answer: str) -> dict[str, Any]:
     """FINDINGS / REASONING / CHECK / BLIND -> structured, or ok=False with the raw text kept.
 
     An answer that ignores the contract is REPORTED, never dropped. A paid branch vanishing into
@@ -120,11 +123,19 @@ def _parse_findings(answer: str) -> Dict[str, Any]:
     check = _section(text, "CHECK")
     blind = _section(text, "BLIND")
     ok = bool(findings) or bool(reasoning and blind)
-    return {"ok": ok, "findings": findings if ok else [], "reasoning": reasoning,
-            "check": check, "blind": blind,
-            "raw": text if not ok else "",
-            "missing": [h for h, v in (("FINDINGS", findings), ("REASONING", reasoning),
-                                       ("CHECK", check), ("BLIND", blind)) if not v]}
+    return {
+        "ok": ok,
+        "findings": findings if ok else [],
+        "reasoning": reasoning,
+        "check": check,
+        "blind": blind,
+        "raw": text if not ok else "",
+        "missing": [
+            h
+            for h, v in (("FINDINGS", findings), ("REASONING", reasoning), ("CHECK", check), ("BLIND", blind))
+            if not v
+        ],
+    }
 
 
 _FINDINGS_CONTRACT = """
@@ -141,12 +152,16 @@ should / better / more / fewer are the tell that you have left the evidence behi
 If the evidence does not support an answer, say UNCLEAR. An abstention is a correct answer
 here and is preferred to a confident guess."""
 
-register("findings", contract=_FINDINGS_CONTRACT, parse=_parse_findings,
-         describe="facts with citations, plus the cheapest disproof for each")
+register(
+    "findings",
+    contract=_FINDINGS_CONTRACT,
+    parse=_parse_findings,
+    describe="facts with citations, plus the cheapest disproof for each",
+)
 
 
 # ------------------------------------------------------------------ lens plumbing
-def build_prompts(preset_name: str, lenses) -> List[str]:
+def build_prompts(preset_name: str, lenses) -> list[str]:
     """One branch per lens, each with the contract appended.
 
     THE LENS LEADS AND THE CONTRACT FOLLOWS, deliberately: the question is what the helper
@@ -167,18 +182,21 @@ def build_prompts(preset_name: str, lenses) -> List[str]:
         if s:
             out.append(s + p.contract)
     if not out:
-        raise ValueError(f"preset {preset_name!r}: no lenses given -- an empty fan is a caller "
-                         f"mistake, and zero branches read like 'nothing found'")
+        raise ValueError(
+            f"preset {preset_name!r}: no lenses given -- an empty fan is a caller "
+            f"mistake, and zero branches read like 'nothing found'"
+        )
     return out
 
 
-def read_lens_file(path: str) -> List[str]:
+def read_lens_file(path: str) -> list[str]:
     """One lens per line. Blank lines and # comments are skipped so a lens file can be
     annotated with WHY each lens is there -- which is the part that rots first."""
     with open(path, encoding="utf-8") as f:
-        lenses = [ln.strip() for ln in f
-                  if ln.strip() and not ln.lstrip().startswith("#")]
+        lenses = [ln.strip() for ln in f if ln.strip() and not ln.lstrip().startswith("#")]
     if not lenses:
-        raise ValueError(f"{os.path.basename(path)} contains no lenses (only blanks/comments) -- "
-                         f"refusing rather than running an empty fan")
+        raise ValueError(
+            f"{os.path.basename(path)} contains no lenses (only blanks/comments) -- "
+            f"refusing rather than running an empty fan"
+        )
     return lenses

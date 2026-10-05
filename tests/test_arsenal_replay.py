@@ -1,4 +1,5 @@
 """The clickable player reads a synthetic take and cannot send notes to the live piano."""
+
 import io
 import json
 import threading
@@ -17,19 +18,22 @@ from arsenal.replay_harmony import harmony, theory_module
 def take(tmp_path):
     store = PerformanceStore(tmp_path / "sessions")
     session = store.open()
-    store.append(session, [
-        {"kind": "on", "t_ms": 0, "note": 48, "vel": 55},
-        {"kind": "pedal", "t_ms": 100, "down": True, "value": 100},
-        {"kind": "off", "t_ms": 200, "note": 48},
-        {"kind": "on", "t_ms": 1500, "note": 64, "vel": 91},
-        {"kind": "off", "t_ms": 1700, "note": 64},
-        {"kind": "sound_end", "t_ms": 3000, "note": 48, "by": "pedal"},
-        {"kind": "sound_end", "t_ms": 3000, "note": 64, "by": "pedal"},
-        {"kind": "pedal", "t_ms": 3000, "down": False, "value": 0},
-        {"kind": "on", "t_ms": 4000, "note": 67, "vel": 75},
-        {"kind": "off", "t_ms": 5000, "note": 67},
-        {"kind": "sound_end", "t_ms": 5000, "note": 67, "by": "release"},
-    ])
+    store.append(
+        session,
+        [
+            {"kind": "on", "t_ms": 0, "note": 48, "vel": 55},
+            {"kind": "pedal", "t_ms": 100, "down": True, "value": 100},
+            {"kind": "off", "t_ms": 200, "note": 48},
+            {"kind": "on", "t_ms": 1500, "note": 64, "vel": 91},
+            {"kind": "off", "t_ms": 1700, "note": 64},
+            {"kind": "sound_end", "t_ms": 3000, "note": 48, "by": "pedal"},
+            {"kind": "sound_end", "t_ms": 3000, "note": 64, "by": "pedal"},
+            {"kind": "pedal", "t_ms": 3000, "down": False, "value": 0},
+            {"kind": "on", "t_ms": 4000, "note": 67, "vel": 75},
+            {"kind": "off", "t_ms": 5000, "note": 67},
+            {"kind": "sound_end", "t_ms": 5000, "note": 67, "by": "release"},
+        ],
+    )
     return store, session
 
 
@@ -43,7 +47,9 @@ def test_excerpt_keeps_carried_pedal_and_velocity_and_scales_time(take):
     data = replay.excerpt(store, session, "0:01", seconds=3, speed=0.5)
     steps = data["cue"]["steps"]
     assert [(s["notes"], s["at_ms"], s["hold_ms"], s["velocity"]) for s in steps] == [
-        ([48], 0, 4000, 55), ([64], 1000, 3000, 91)]
+        ([48], 0, 4000, 55),
+        ([64], 1000, 3000, 91),
+    ]
     assert snapshot(store.root) == before
 
 
@@ -51,8 +57,24 @@ def test_link_resolves_latest_and_escapes_label_without_sending(take, monkeypatc
     store, session = take
     monkeypatch.setattr(pianocue, "send_cue", lambda *a: pytest.fail("link must not send a cue"))
     out = io.StringIO()
-    assert pianocue.main(["replay-link", "latest", "0:01", "--seconds", "3", "--label", "A [bright] & B",
-                         "--root", str(store.root), "--json"], out=out) == 0
+    assert (
+        pianocue.main(
+            [
+                "replay-link",
+                "latest",
+                "0:01",
+                "--seconds",
+                "3",
+                "--label",
+                "A [bright] & B",
+                "--root",
+                str(store.root),
+                "--json",
+            ],
+            out=out,
+        )
+        == 0
+    )
     data = json.loads(out.getvalue())
     q = parse_qs(urlsplit(data["url"]).query)
     assert q["session"] == [session]
@@ -61,10 +83,10 @@ def test_link_resolves_latest_and_escapes_label_without_sending(take, monkeypatc
     assert "latest" not in data["url"]
 
 
-@pytest.mark.parametrize("seconds,speed", [(0, 1), (61, 1), (float("nan"), 1), (2, 0), (2, 3), (2, float("inf"))])
+@pytest.mark.parametrize(("seconds", "speed"), [(0, 1), (61, 1), (float("nan"), 1), (2, 0), (2, 3), (2, float("inf"))])
 def test_rejects_unbounded_excerpt(take, seconds, speed):
     store, session = take
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match=r"(seconds|speed) must be between"):
         replay.excerpt(store, session, "0:00", seconds, speed)
 
 
@@ -98,9 +120,12 @@ def test_read_only_http_player_and_errors(take):
             module = response.read().decode("utf-8")
             assert "export default Theory" in module
             assert "import * as THREE" not in module
-        for path, expected in [("/api/piano/replay?session=missing&at=0:01", 404),
-                               ("/api/piano/replay?seconds=nan", 400),
-                               ("/web/../pianocue.py", 404), ("/api/performance", 404)]:
+        for path, expected in [
+            ("/api/piano/replay?session=missing&at=0:01", 404),
+            ("/api/piano/replay?seconds=nan", 400),
+            ("/web/../pianocue.py", 404),
+            ("/api/performance", 404),
+        ]:
             with pytest.raises(urllib.error.HTTPError) as error:
                 urllib.request.urlopen(base + path)
             assert error.value.code == expected
@@ -117,12 +142,10 @@ def test_read_only_http_player_and_errors(take):
 def test_pedalled_arpeggio_is_one_chord_then_releases_before_next():
     events = [{"kind": "pedal", "t_ms": 0, "down": True}]
     for at, note in [(0, 48), (400, 64), (800, 67)]:
-        events += [{"kind": "on", "t_ms": at, "note": note, "vel": 80},
-                   {"kind": "off", "t_ms": at + 180, "note": note}]
+        events += [{"kind": "on", "t_ms": at, "note": note, "vel": 80}, {"kind": "off", "t_ms": at + 180, "note": note}]
     events.append({"kind": "pedal", "t_ms": 2600, "down": False})
     for note in (50, 65, 69):
-        events += [{"kind": "on", "t_ms": 3000, "note": note, "vel": 70},
-                   {"kind": "off", "t_ms": 5000, "note": note}]
+        events += [{"kind": "on", "t_ms": 3000, "note": note, "vel": 70}, {"kind": "off", "t_ms": 5000, "note": note}]
     cue = pianocue.validate_cue(pianocue.build_replay_cue(events, 0, 5))
     windows = harmony(cue)
     assert len(windows) == 2
@@ -136,12 +159,11 @@ def test_pedalled_arpeggio_is_one_chord_then_releases_before_next():
 def test_carried_chord_and_speed_keep_original_timeline():
     events = [{"kind": "pedal", "t_ms": 0, "down": True}]
     for at, note in [(0, 48), (400, 64), (800, 67)]:
-        events += [{"kind": "on", "t_ms": at, "note": note, "vel": 75},
-                   {"kind": "off", "t_ms": at + 100, "note": note}]
+        events += [{"kind": "on", "t_ms": at, "note": note, "vel": 75}, {"kind": "off", "t_ms": at + 100, "note": note}]
     events.append({"kind": "pedal", "t_ms": 5000, "down": False})
     regular = pianocue.build_replay_cue(events, 1000, 3, 1)
-    slow = pianocue.build_replay_cue(events, 1000, 3, .5)
-    assert harmony(regular) == harmony(slow, .5)
+    slow = pianocue.build_replay_cue(events, 1000, 3, 0.5)
+    assert harmony(regular) == harmony(slow, 0.5)  # pyright: ignore[reportArgumentType]  # harmony(speed=1) is inferred int; any number works
     assert harmony(regular)[0]["notes"] == [48, 64, 67]
     assert harmony(regular)[0]["end_ms"] == 3000
 
@@ -149,8 +171,7 @@ def test_carried_chord_and_speed_keep_original_timeline():
 def test_separated_notes_do_not_become_a_pedalled_chord():
     events = []
     for at, note in [(0, 48), (2000, 64), (4000, 67)]:
-        events += [{"kind": "on", "t_ms": at, "note": note, "vel": 80},
-                   {"kind": "off", "t_ms": at + 800, "note": note}]
+        events += [{"kind": "on", "t_ms": at, "note": note, "vel": 80}, {"kind": "off", "t_ms": at + 800, "note": note}]
     windows = harmony(pianocue.build_replay_cue(events, 0, 5))
     assert [w["notes"] for w in windows] == [[48], [64], [67]]
 
@@ -165,17 +186,32 @@ def test_theory_module_rejects_missing_marker(tmp_path):
 def test_saved_answer_chords_use_frozen_cue_without_rereading_take(take, monkeypatch):
     store, session = take
     server = replay.Server(0, store.root, store.root.parent / "conversation")
-    server.conversation.publish({"cards": [{"id": "listen", "title": "Listen", "group": "Test",
-        "observation": "A synthetic take", "question": "What rings?", "prompt": "Play a chord",
-        "clips": [{"session": session, "at": "0:00", "seconds": 3, "label": "Listen"}]}]})
-    saved = server.conversation.save_response({"id": "a" * 32, "card_id": "listen", "session": session,
-                                               "start_ms": 0, "end_ms": 2500})
+    server.conversation.publish(
+        {
+            "cards": [
+                {
+                    "id": "listen",
+                    "title": "Listen",
+                    "group": "Test",
+                    "observation": "A synthetic take",
+                    "question": "What rings?",
+                    "prompt": "Play a chord",
+                    "clips": [{"session": session, "at": "0:00", "seconds": 3, "label": "Listen"}],
+                }
+            ]
+        }
+    )
+    saved = server.conversation.save_response(
+        {"id": "a" * 32, "card_id": "listen", "session": session, "start_ms": 0, "end_ms": 2500}
+    )
     before = snapshot(store.root)
     monkeypatch.setattr(server.performance, "events", lambda *_: pytest.fail("saved replay must stay frozen"))
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     try:
-        with urllib.request.urlopen(f"http://127.0.0.1:{server.server_address[1]}/api/conversation/replay/{saved['id']}") as r:
+        with urllib.request.urlopen(
+            f"http://127.0.0.1:{server.server_address[1]}/api/conversation/replay/{saved['id']}"
+        ) as r:
             data = json.load(r)
         assert data["cue"] == saved["replay"]["cue"]
         assert data["chords"]

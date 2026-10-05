@@ -8,9 +8,11 @@ treats ledger control-plane kinds as skip (they insta-woke armed watchers 3x on 
 
 Run: py -m pytest tests/test_ledger_push.py -q
 """
+
 import os
 import sys
 import uuid
+from typing import Any
 
 import pytest
 
@@ -18,24 +20,26 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.coord import conductor
 
+#: conductor's verbs take an unannotated `client="auto"` (inferred `str`); None = no redis client.
+NO_CLIENT: Any = None
+
 
 def _capture(monkeypatch):
     sent = []
-    monkeypatch.setattr(conductor, "_broadcast",
-                        lambda kind, text, meta: sent.append((kind, text, meta)))
+    monkeypatch.setattr(conductor, "_broadcast", lambda kind, text, meta: sent.append((kind, text, meta)))
     return sent
 
 
 def _lifecycle(tmp_path, monkeypatch):
     sent = _capture(monkeypatch)
     path = str(tmp_path / "tasks.json")
-    t = conductor.propose("P3 drill task", by="claude", client=None, path=path)
+    t = conductor.propose("P3 drill task", by="claude", client=NO_CLIENT, path=path)
     tid = t["id"]
-    conductor.approve(tid, by="user", client=None, path=path)
-    conductor.claim(tid, "claude", client=None, path=path)
-    conductor.start(tid, by="claude", client=None, path=path)
-    conductor.verify(tid, by="claude", client=None, path=path)
-    conductor.done(tid, "abc1234", "pytest", by="claude", client=None, path=path)
+    conductor.approve(tid, by="user", client=NO_CLIENT, path=path)
+    conductor.claim(tid, "claude", client=NO_CLIENT, path=path)
+    conductor.start(tid, by="claude", client=NO_CLIENT, path=path)
+    conductor.verify(tid, by="claude", client=NO_CLIENT, path=path)
+    conductor.done(tid, "abc1234", "pytest", by="claude", client=NO_CLIENT, path=path)
     return tid, sent
 
 
@@ -44,9 +48,14 @@ def test_every_transition_emits_ledger_update_with_from_state(tmp_path, monkeypa
     demand different reactions): every hint carries frm->to derived from ledger history."""
     tid, sent = _lifecycle(tmp_path, monkeypatch)
     arrows = [(m.get("frm_status"), m.get("to")) for k, _, m in sent if k == "ledger_update"]
-    assert arrows == [("new", "proposed"), ("proposed", "approved"),
-                      ("approved", "claimed"), ("claimed", "in_progress"),
-                      ("in_progress", "verifying"), ("verifying", "done")]
+    assert arrows == [
+        ("new", "proposed"),
+        ("proposed", "approved"),
+        ("approved", "claimed"),
+        ("claimed", "in_progress"),
+        ("in_progress", "verifying"),
+        ("verifying", "done"),
+    ]
     assert all(m.get("task") == tid for k, _, m in sent if k == "ledger_update")
     for k, txt, m in sent:
         if k == "ledger_update":
@@ -58,45 +67,49 @@ def test_done_keeps_the_resolved_marker_too(tmp_path, monkeypatch):
     kinds = [k for k, _, _ in sent]
     assert "resolved" in kinds, "existing consumers keep their marker"
     resolved = next(txt for k, txt, _ in sent if k == "resolved")
-    assert f"RESOLVED {tid}" in resolved and "do not redo" in resolved
+    assert f"RESOLVED {tid}" in resolved
+    assert "do not redo" in resolved
 
 
 def test_block_emits_blocked(tmp_path, monkeypatch):
     sent = _capture(monkeypatch)
     path = str(tmp_path / "tasks.json")
-    t = conductor.propose("blockable", by="claude", client=None, path=path)
-    conductor.approve(t["id"], by="user", client=None, path=path)
-    conductor.claim(t["id"], "claude", client=None, path=path)
-    conductor.start(t["id"], by="claude", client=None, path=path)   # block needs an ACTIVE task
-    conductor.block(t["id"], "waiting on review", by="claude", client=None, path=path)
+    t = conductor.propose("blockable", by="claude", client=NO_CLIENT, path=path)
+    conductor.approve(t["id"], by="user", client=NO_CLIENT, path=path)
+    conductor.claim(t["id"], "claude", client=NO_CLIENT, path=path)
+    conductor.start(t["id"], by="claude", client=NO_CLIENT, path=path)  # block needs an ACTIVE task
+    conductor.block(t["id"], "waiting on review", by="claude", client=NO_CLIENT, path=path)
     assert ("ledger_update", "blocked") in [(k, m.get("to")) for k, _, m in sent]
 
 
 def test_bus_failure_never_blocks_a_transition(tmp_path, monkeypatch):
     def _boom(kind, text, meta):
         raise RuntimeError("bus down")
+
     monkeypatch.setattr(conductor, "_broadcast", _boom)
     path = str(tmp_path / "tasks.json")
-    t = conductor.propose("bus-down task", by="claude", client=None, path=path)
+    t = conductor.propose("bus-down task", by="claude", client=NO_CLIENT, path=path)
     assert t["id"], "transition succeeds while the doorbell is dead"
-    assert conductor.approve(t["id"], by="user", client=None, path=path)["status"] == "approved"
+    assert conductor.approve(t["id"], by="user", client=NO_CLIENT, path=path)["status"] == "approved"
 
 
 # ---------------------------------------------------------- wake side (redis-backed)
 def _client():
-    from core.foundation.redis_connection import (
-        connect_to_redis_with_fail_fast, DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT)
-    c = connect_to_redis_with_fail_fast(host=DEFAULT_REDIS_HOST, port=DEFAULT_REDIS_PORT,
-                                        timeout_seconds=3, decode_responses=True)
+    from core.foundation.redis_connection import DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT, connect_to_redis_with_fail_fast
+
+    c = connect_to_redis_with_fail_fast(
+        host=DEFAULT_REDIS_HOST, port=DEFAULT_REDIS_PORT, timeout_seconds=3, decode_responses=True
+    )
     if c is None:
         pytest.skip("redis not available")
     return c
 
 
 def test_watch_stays_quiet_through_ledger_markers(capsys):
-    from core.comm.bus import Bus
-    from core.comm.bifrost_api import BifrostAPI
     import scripts.bifrost_wake as bw
+    from core.comm.bifrost_api import BifrostAPI
+    from core.comm.bus import Bus
+
     c = _client()
     ns = f"bifrost_test_{uuid.uuid4().hex[:8]}"
     try:
@@ -113,10 +126,10 @@ def test_watch_stays_quiet_through_ledger_markers(capsys):
         # 'quiet' -> 'self-cycle' (near-deadline chunk exit + re-arm trigger).
         # The semantic pinned HERE is unchanged and now asserted directly:
         # the watcher SAW both markers and still ended benign, not woken.
-        assert rc == 0 and ("self-cycle" in out or "quiet" in out), \
-            "ledger control-plane markers must never wake an armed watcher"
-        assert "alice:resolved" in out and "alice:ledger_update" in out, \
-            "the benign exit's provenance must show it sat THROUGH the markers"
+        assert rc == 0, "ledger control-plane markers must never wake an armed watcher"
+        assert "self-cycle" in out or "quiet" in out, "ledger control-plane markers must never wake an armed watcher"
+        assert "alice:resolved" in out, "the benign exit's provenance must show it sat THROUGH the markers"
+        assert "alice:ledger_update" in out, "the benign exit's provenance must show it sat THROUGH the markers"
     finally:
         keys = c.keys(f"{ns}:*")
         if keys:

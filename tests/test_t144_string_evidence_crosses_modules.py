@@ -44,6 +44,7 @@ that anything uses it.**
 
 Run: py -m pytest tests/test_t144_string_evidence_crosses_modules.py -q
 """
+
 import os
 import sys
 
@@ -51,7 +52,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 sys.path.insert(0, os.path.join(ROOT, "scripts", "checkers"))
 
-import check_wiring  # noqa: E402
+import check_wiring  # noqa: E402  # sys.path bootstrap
 
 
 def _mod(tmp_path, rel, text):
@@ -62,25 +63,24 @@ def _mod(tmp_path, rel, text):
 
 
 def _orphans(tmp_path, cand, prod):
-    return {n for _m, n, _l in
-            check_wiring.unwired_functions(cand, prod, root=str(tmp_path))}
+    return {n for _m, n, _l in check_wiring.unwired_functions(cand, prod, root=str(tmp_path))}
 
 
 def test_s1_all_does_not_prove_a_function_is_alive(tmp_path):
-    lib = _mod(tmp_path, "core/comm/bus.py",
-               "def dead_but_exported():\n    return 1\n\n"
-               '__all__ = ["dead_but_exported"]\n')
+    lib = _mod(
+        tmp_path, "core/comm/bus.py", 'def dead_but_exported():\n    return 1\n\n__all__ = ["dead_but_exported"]\n'
+    )
     door = _mod(tmp_path, "agent_cli.py", "from core.comm import bus\nprint(bus)\n")
     assert "dead_but_exported" in _orphans(tmp_path, [lib], [door, lib]), (
-        "an export list immunised its own exports -- every module with __all__ was a blind spot")
+        "an export list immunised its own exports -- every module with __all__ was a blind spot"
+    )
 
 
 def test_s2_a_string_in_another_module_still_counts(tmp_path):
     """getattr dispatch is real wiring and must keep working; this is the whole reason string
     evidence exists at all."""
     lib = _mod(tmp_path, "core/comm/verbs.py", "def promote(x):\n    return x\n")
-    door = _mod(tmp_path, "agent_cli.py",
-                "from core.comm import verbs\nfn = getattr(verbs, 'promote')\nfn(1)\n")
+    door = _mod(tmp_path, "agent_cli.py", "from core.comm import verbs\nfn = getattr(verbs, 'promote')\nfn(1)\n")
     assert "promote" not in _orphans(tmp_path, [lib], [door, lib])
 
 
@@ -88,24 +88,26 @@ def test_s3_a_same_module_call_still_counts(tmp_path):
     """T134's P3, restated: a helper called by its own module's public API is WIRED. The fix must
     narrow STRING evidence only -- narrowing name evidence would resurrect the expensive
     false-positive class."""
-    lib = _mod(tmp_path, "core/comm/mailbox.py",
-               "def catch_up(ns):\n    return 1\n\n"
-               "def consume(ns):\n    return catch_up(ns)\n")
-    door = _mod(tmp_path, "agent_cli.py",
-                "from core.comm.mailbox import consume\nconsume('ns')\n")
+    lib = _mod(
+        tmp_path,
+        "core/comm/mailbox.py",
+        "def catch_up(ns):\n    return 1\n\ndef consume(ns):\n    return catch_up(ns)\n",
+    )
+    door = _mod(tmp_path, "agent_cli.py", "from core.comm.mailbox import consume\nconsume('ns')\n")
     assert "catch_up" not in _orphans(tmp_path, [lib], [door, lib])
 
 
 def test_s4_a_same_module_string_annotation_does_not_count(tmp_path):
-    lib = _mod(tmp_path, "core/comm/bus.py",
-               "def dead_annotated():\n    return 3\n\n"
-               'def _unused(x: "dead_annotated" = None):\n    return x\n')
+    lib = _mod(
+        tmp_path,
+        "core/comm/bus.py",
+        'def dead_annotated():\n    return 3\n\ndef _unused(x: "dead_annotated" = None):\n    return x\n',
+    )
     door = _mod(tmp_path, "agent_cli.py", "from core.comm import bus\nprint(bus)\n")
     assert "dead_annotated" in _orphans(tmp_path, [lib], [door, lib])
 
 
 def test_s5_recursion_is_still_not_wiring(tmp_path):
-    lib = _mod(tmp_path, "core/util/walk.py",
-               "def descend(n):\n    return 0 if n <= 0 else descend(n - 1)\n")
+    lib = _mod(tmp_path, "core/util/walk.py", "def descend(n):\n    return 0 if n <= 0 else descend(n - 1)\n")
     door = _mod(tmp_path, "agent_cli.py", "from core.util import walk\nprint(walk)\n")
     assert "descend" in _orphans(tmp_path, [lib], [door, lib])

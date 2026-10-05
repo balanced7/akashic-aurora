@@ -10,12 +10,9 @@ Measured baselines, same 3-process shape:
     FileStore  : 450 attempted, 155 survived, 295 LOST (65.6%), no error raised
     SqliteStore: 450 attempted, 450 survived, 0 lost
 """
-import json
-import os
-import sqlite3
+
 import subprocess
 import sys
-import tempfile
 from pathlib import Path
 
 import pytest
@@ -35,8 +32,7 @@ s = SqliteStore({path!r})
 
 def _run_child(path: Path, body: str, timeout: int = 120):
     src = _CHILD.format(repo=str(REPO_ROOT), path=str(path), body=body)
-    return subprocess.run([sys.executable, "-c", src], capture_output=True,
-                          text=True, timeout=timeout)
+    return subprocess.run([sys.executable, "-c", src], capture_output=True, text=True, timeout=timeout)
 
 
 # --------------------------------------------------------------- the core property
@@ -83,8 +79,7 @@ def test_b_cas_is_atomic_across_processes(tmp_path):
     parent_won = parent.cas("k", "v0", "parent_won")
 
     assert child_won != parent_won, (
-        f"exactly one CAS may succeed against the same expected value; "
-        f"child_won={child_won} parent_won={parent_won}"
+        f"exactly one CAS may succeed against the same expected value; child_won={child_won} parent_won={parent_won}"
     )
     assert parent.get("k") == ("parent_won" if parent_won else "child_won")
 
@@ -95,11 +90,20 @@ def test_c_three_process_write_storm_loses_nothing(tmp_path):
     store = SqliteStore(str(db))
     store.set("seed", "1")
 
-    procs = [subprocess.Popen(
-        [sys.executable, "-c", _CHILD.format(
-            repo=str(REPO_ROOT), path=str(db),
-            body=f'\nfor i in range(40): s.set("w{w}:%d" % i, "v")\n')],
-        stdout=subprocess.PIPE, stderr=subprocess.PIPE) for w in range(3)]
+    procs = [
+        subprocess.Popen(
+            [
+                sys.executable,
+                "-c",
+                _CHILD.format(
+                    repo=str(REPO_ROOT), path=str(db), body=f'\nfor i in range(40): s.set("w{w}:%d" % i, "v")\n'
+                ),
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        for w in range(3)
+    ]
     for p in procs:
         _, err = p.communicate(timeout=180)
         assert p.returncode == 0, f"worker failed: {err.decode()[:300]}"

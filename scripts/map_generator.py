@@ -19,6 +19,7 @@ Two halves, one seam (the T375 fold lesson applied to rendering):
 
 Regenerate: py scripts/map_generator.py  ->  state/map/index.html
 """
+
 from __future__ import annotations
 
 import html as _html
@@ -27,12 +28,12 @@ import os
 import re
 import subprocess
 import sys
-from datetime import datetime, timezone
-from typing import Any, Dict, List
+from datetime import UTC, datetime
+from typing import Any
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT not in sys.path:
-    sys.path.insert(0, ROOT)              # scripts/ runs standalone (house pattern)
+    sys.path.insert(0, ROOT)  # scripts/ runs standalone (house pattern)
 OUT_PATH = os.path.join(ROOT, "state", "map", "index.html")
 
 _REQUIRED_STAMP = ("generated_ts", "head_sha", "cursors")
@@ -44,15 +45,16 @@ class MapRefusal(Exception):
 
 
 # --------------------------------------------------------------------- pure
-def build_map(data: Dict[str, Any]) -> str:
+def build_map(data: dict[str, Any]) -> str:
     for k in _REQUIRED_STAMP:
         if k not in data:
             raise MapRefusal(
                 f"stamp ingredient {k!r} missing -- a map that cannot be dated "
-                f"is a map that lies about now; refused, not degraded")
+                f"is a map that lies about now; refused, not degraded"
+            )
     e = _html.escape
     page_grades = int(data.get("page_grades") or 0)
-    parts: List[str] = []
+    parts: list[str] = []
     parts.append(
         "<style>"
         "body{background:#0b0e14;color:#cdd6e4;font-family:Segoe UI,system-ui,"
@@ -81,85 +83,100 @@ def build_map(data: Dict[str, Any]) -> str:
         "color:#6b7488;font-family:Consolas,monospace}"
         "h1{font-size:1.0rem;margin:.9rem 1.2rem .1rem;color:#dfe6f2;"
         "font-weight:600}"
-        "</style>")
+        "</style>"
+    )
     if page_grades > 0:
-        parts.append(f'<div class="map-alarm">⚠ {page_grades} page-grade '
-                     f'finding(s) -- the house is paging; everything below is '
-                     f'secondary</div>')
-    kernel = [f'<span>pages <b>{page_grades}</b></span>',
-              f'<span>dashboard <b>{int(data.get("dashboard_count") or 0)}</b></span>']
+        parts.append(
+            f'<div class="map-alarm">⚠ {page_grades} page-grade '
+            f"finding(s) -- the house is paging; everything below is "
+            f"secondary</div>"
+        )
+    kernel = [
+        f"<span>pages <b>{page_grades}</b></span>",
+        f"<span>dashboard <b>{int(data.get('dashboard_count') or 0)}</b></span>",
+    ]
     overdue = data.get("overdue") or []
     if overdue:
         names = ", ".join(e(str(o.get("id"))) for o in overdue)
-        kernel.append(f'<span class="overdue">OVERDUE bets <b>{len(overdue)}</b> '
-                      f'({names})</span>')
+        kernel.append(f'<span class="overdue">OVERDUE bets <b>{len(overdue)}</b> ({names})</span>')
     else:
         kernel.append('<span class="overdue">OVERDUE bets <b>0</b></span>')
     parts.append(f'<div class="kernel">{"".join(kernel)}</div>')
     badges = data.get("badges") or []
     if badges:
-        chips = "".join(
-            f'<span>{e(str(b.get("family")))} · {int(b.get("count") or 0)}'
-            f'</span>' for b in badges)
+        chips = "".join(f"<span>{e(str(b.get('family')))} · {int(b.get('count') or 0)}</span>" for b in badges)
         parts.append(f'<div class="badges">{chips}</div>')
     parts.append("<h1>the deck</h1>")
     cards = []
     for lm in data.get("landmarks") or []:
         kind = e(str(lm.get("kind") or "task"))
-        by = f' · {e(str(lm.get("by")))}' if lm.get("by") else ""
+        by = f" · {e(str(lm.get('by')))}" if lm.get("by") else ""
         cards.append(
             f'<div class="lm {kind}"><span class="id">{e(str(lm.get("id")))}'
             f'</span><span class="st">{e(str(lm.get("status")))}{by}</span>'
-            f'<div class="ti">{e(str(lm.get("title") or ""))[:110]}</div></div>')
+            f'<div class="ti">{e(str(lm.get("title") or ""))[:110]}</div></div>'
+        )
     parts.append(f'<div class="terrain">{"".join(cards)}</div>')
     tr = data.get("trails") or {}
-    parts.append(f'<div class="trail">trails: {int(tr.get("routes") or 0)} '
-                 f'authored route(s), {int(tr.get("last24h") or 0)} touched in '
-                 f'the last 24h · sensed overlay arrives with T378</div>')
+    parts.append(
+        f'<div class="trail">trails: {int(tr.get("routes") or 0)} '
+        f"authored route(s), {int(tr.get('last24h') or 0)} touched in "
+        f"the last 24h · sensed overlay arrives with T378</div>"
+    )
     cur = data["cursors"]
-    cur_s = " · ".join(f"{e(str(k))}={e(str(v))}" for k, v in
-                            sorted(cur.items()))
+    cur_s = " · ".join(f"{e(str(k))}={e(str(v))}" for k, v in sorted(cur.items()))
     parts.append(
         f'<div class="stamp">generated {e(str(data["generated_ts"]))} · '
-        f'HEAD {e(str(data["head_sha"]))} · {cur_s} · a map without '
-        f'this stamp is refused by its own generator</div>')
+        f"HEAD {e(str(data['head_sha']))} · {cur_s} · a map without "
+        f"this stamp is refused by its own generator</div>"
+    )
     return "".join(parts)
 
 
 # ---------------------------------------------------------------------- i/o
-def gather_map_data() -> Dict[str, Any]:
+def gather_map_data() -> dict[str, Any]:
     """READ verbs only; never the Eye position family (half_a C3)."""
-    data: Dict[str, Any] = {
-        "generated_ts": datetime.now(timezone.utc).isoformat()}
+    data: dict[str, Any] = {"generated_ts": datetime.now(UTC).isoformat()}
     try:
-        r = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=ROOT,
-                           capture_output=True, text=True, timeout=10)
+        r = subprocess.run(
+            ["git", "rev-parse", "--short", "HEAD"], cwd=ROOT, capture_output=True, text=True, timeout=10
+        )
         data["head_sha"] = (r.stdout or "").strip() or "unknown"
     except Exception:
         data["head_sha"] = "unknown"
 
-    ledger = json.load(open(os.path.join(ROOT, "state", "coord", "tasks.json"),
-                            encoding="utf-8"))
+    with open(os.path.join(ROOT, "state", "coord", "tasks.json"), encoding="utf-8") as fh:
+        ledger = json.load(fh)
     tasks = ledger.get("tasks") or []
-    landmarks = [{"id": t.get("id"), "kind": "task", "status": t.get("status"),
-                  "by": t.get("owner"), "title": t.get("title") or
-                  (t.get("desc") or "")[:110]}
-                 for t in tasks if t.get("status") in _ACTIVE_STATUSES]
+    landmarks = [
+        {
+            "id": t.get("id"),
+            "kind": "task",
+            "status": t.get("status"),
+            "by": t.get("owner"),
+            "title": t.get("title") or (t.get("desc") or "")[:110],
+        }
+        for t in tasks
+        if t.get("status") in _ACTIVE_STATUSES
+    ]
 
     from core.coord.forecast_registry import ForecastRegistry
-    reg = ForecastRegistry(path=os.path.join(ROOT, "state", "coord",
-                                             "forecasts.jsonl"))
+
+    reg = ForecastRegistry(path=os.path.join(ROOT, "state", "coord", "forecasts.jsonl"))
     state = reg.state()
     for fid in sorted(state):
         row = state[fid]
-        landmarks.append({"id": fid, "kind": "bet",
-                          "status": row.get("verdict") or "OPEN",
-                          "by": row.get("registered_by"),
-                          "title": (row.get("expectation") or {}).get(
-                              "statement", "")[:110]})
+        landmarks.append(
+            {
+                "id": fid,
+                "kind": "bet",
+                "status": row.get("verdict") or "OPEN",
+                "by": row.get("registered_by"),
+                "title": (row.get("expectation") or {}).get("statement", "")[:110],
+            }
+        )
     cal = reg.calibration()
-    overdue = [{"id": r.get("id"), "registered_by": r.get("registered_by")}
-               for r in cal.get("overdue") or []]
+    overdue = [{"id": r.get("id"), "registered_by": r.get("registered_by")} for r in cal.get("overdue") or []]
 
     fdir = os.path.join(ROOT, "fences")
     if os.path.isdir(fdir):
@@ -167,23 +184,26 @@ def gather_map_data() -> Dict[str, Any]:
             fj = os.path.join(fdir, name, "fence.json")
             if os.path.exists(fj):
                 try:
-                    doc = json.load(open(fj, encoding="utf-8"))
+                    with open(fj, encoding="utf-8") as fh:
+                        doc = json.load(fh)
                     seals = doc.get("seals") or {}
-                    status = ("sealed" if "reconciliation" in seals
-                              else f"{len(seals)}/4 sealed")
+                    status = "sealed" if "reconciliation" in seals else f"{len(seals)}/4 sealed"
                 except Exception:
                     status = "unreadable"
-                landmarks.append({"id": name, "kind": "fence",
-                                  "status": status, "title": "design fence"})
+                landmarks.append({"id": name, "kind": "fence", "status": status, "title": "design fence"})
 
     page_grades, dashboard = 0, 0
     try:
-        r = subprocess.run([sys.executable, os.path.join(ROOT, "agent_cli.py"),
-                            "doctor"], cwd=ROOT, capture_output=True,
-                           text=True, timeout=90, encoding="utf-8",
-                           errors="replace")
-        m = re.search(r"doctor:\s*(\d+)\s*page-grade.*?(\d+)\s*dashboard",
-                      r.stdout or "")
+        r = subprocess.run(
+            [sys.executable, os.path.join(ROOT, "agent_cli.py"), "doctor"],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            timeout=90,
+            encoding="utf-8",
+            errors="replace",
+        )
+        m = re.search(r"doctor:\s*(\d+)\s*page-grade.*?(\d+)\s*dashboard", r.stdout or "")
         if m:
             page_grades, dashboard = int(m.group(1)), int(m.group(2))
     except Exception:
@@ -191,13 +211,13 @@ def gather_map_data() -> Dict[str, Any]:
     data["page_grades"] = page_grades
     data["dashboard_count"] = dashboard
 
-    badges: List[Dict[str, Any]] = []
+    badges: list[dict[str, Any]] = []
     newest_event = ""
     try:
         from core.comm.bus import Bus
+
         c = Bus("map-generator", promote=False)._client
-        for key in ("bifrost:inbox:claude", "bifrost:inbox:deepseek",
-                    "bifrost:inbox:kimi", "events:raw"):
+        for key in ("bifrost:inbox:claude", "bifrost:inbox:deepseek", "bifrost:inbox:kimi", "events:raw"):
             try:
                 n = c.xlen(key)
                 last = c.xrevrange(key, count=1)
@@ -215,27 +235,30 @@ def gather_map_data() -> Dict[str, Any]:
     rp = os.path.join(ROOT, "state", "eye", "routes.jsonl")
     if os.path.exists(rp):
         try:
-            now = datetime.now(timezone.utc).timestamp()
-            for line in open(rp, encoding="utf-8", errors="replace"):
-                line = line.strip()
-                if not line:
-                    continue
-                routes_n += 1
-                try:
-                    ts = json.loads(line).get("ts")
-                    if ts and (now - float(ts)) < 86400:
-                        last24 += 1
-                except Exception:
-                    continue
+            now = datetime.now(UTC).timestamp()
+            with open(rp, encoding="utf-8", errors="replace") as fh:
+                for line in fh:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    routes_n += 1
+                    try:
+                        ts = json.loads(line).get("ts")
+                        if ts and (now - float(ts)) < 86400:
+                            last24 += 1
+                    except Exception:
+                        continue
         except Exception:
             pass
     data["trails"] = {"routes": routes_n, "last24h": last24}
 
     data["landmarks"] = landmarks
     data["overdue"] = overdue
-    data["cursors"] = {"ledger_seq": ledger.get("seq"),
-                       "forecasts": len(state),
-                       "newest_event": newest_event or "none-read"}
+    data["cursors"] = {
+        "ledger_seq": ledger.get("seq"),
+        "forecasts": len(state),
+        "newest_event": newest_event or "none-read",
+    }
     return data
 
 
@@ -245,9 +268,11 @@ def main() -> int:
     os.makedirs(os.path.dirname(OUT_PATH), exist_ok=True)
     with open(OUT_PATH, "w", encoding="utf-8") as f:
         f.write(html_out)
-    print(f"[map] rendered {OUT_PATH} @ {data['head_sha']} "
-          f"({len(data.get('landmarks') or [])} landmark(s), "
-          f"page-grades {data.get('page_grades')})")
+    print(
+        f"[map] rendered {OUT_PATH} @ {data['head_sha']} "
+        f"({len(data.get('landmarks') or [])} landmark(s), "
+        f"page-grades {data.get('page_grades')})"
+    )
     return 0
 
 

@@ -39,7 +39,7 @@ def _mod():
     return secret_intake
 
 
-@pytest.fixture()
+@pytest.fixture
 def vault(tmp_path, monkeypatch):
     monkeypatch.setenv("AKASHIC_SECRETS_DIR", str(tmp_path))
     return tmp_path
@@ -48,7 +48,7 @@ def vault(tmp_path, monkeypatch):
 def test_p1_target_is_an_allowlist_not_a_path(vault):
     m = _mod()
     for evil in ("../../evil", "..\\evil", "x/../../y", "nope.txt", "unknown_target"):
-        with pytest.raises(Exception):
+        with pytest.raises(Exception, match="the vault takes an allowlisted NAME, never a path"):
             m.save_secret(evil, "value123456")
     assert not list(vault.glob("**/*evil*")), "traversal must write NOTHING"
 
@@ -58,22 +58,24 @@ def test_p2_value_lands_exactly_and_only_in_the_file(vault):
     m.save_secret("discord_operator_id", "  123456789012345678\n")
     f = vault / "discord_operator_id"
     assert f.read_text(encoding="utf-8") == "123456789012345678", (
-        "stripped, one line, byte-exact — the file IS the delivery")
+        "stripped, one line, byte-exact — the file IS the delivery"
+    )
 
 
 def test_p3_the_receipt_never_carries_the_bytes(vault):
     m = _mod()
     receipt = m.save_secret("discord_operator_id", "998877665544332211")
     assert "998877665544332211" not in str(receipt), (
-        "the receipt must be safe to print into a transcript — count, target, "
-        "never content")
+        "the receipt must be safe to print into a transcript — count, target, never content"
+    )
     assert "18" in str(receipt.get("bytes", "")) or receipt.get("bytes") == 18
 
 
 def test_p4_empty_paste_refuses(vault):
     m = _mod()
-    with pytest.raises(Exception):
+    with pytest.raises(Exception, match="empty paste for 'discord_operator_id'"):
         m.save_secret("discord_operator_id", "   \n ")
     assert not (vault / "discord_operator_id").exists(), (
         "a blank credential file authenticates as garbage downstream — refuse "
-        "and leave absence, which at least refuses loudly")
+        "and leave absence, which at least refuses loudly"
+    )

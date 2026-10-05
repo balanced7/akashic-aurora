@@ -15,6 +15,7 @@ The payload shape has no pinned fixture yet -> capture FIRST, extract defensivel
 is project config, so events only arrive for this repo; the lock guard additionally
 no-ops on paths outside it (agent/harness/scope.py) as a belt against surprises.
 """
+
 import json
 import os
 import sys
@@ -42,6 +43,7 @@ def main() -> int:
         return 0
     try:
         from agent.harness.capture import capture
+
         capture(data, _CAP_DIR, label="preToolUse")
     except Exception:
         pass
@@ -50,21 +52,29 @@ def main() -> int:
     try:
         from agent.harness.guards import git_veto, lock_veto
         from agent.harness.scope import file_in_scope
+
         if command:
             reason = git_veto(command)
         if not reason and path and file_in_scope(path):
-            reason = lock_veto(path, os.getenv("AKASHIC_AGENT_ID"),
-                               "propagated by cursor_sessionstart.py; check .cursor/hooks.json wiring")
+            reason = lock_veto(
+                path,
+                os.getenv("AKASHIC_AGENT_ID", ""),
+                "propagated by cursor_sessionstart.py; check .cursor/hooks.json wiring",
+            )
     except Exception:
-        reason = ""   # guards unavailable -> allow
+        reason = ""  # guards unavailable -> allow
     if not reason:
         print(json.dumps({"permission": "allow"}))
     else:
-        print(json.dumps({
-            "permission": "deny",
-            "agentMessage": reason,
-            "userMessage": "Blocked by the shared-tree guard (see agent message).",
-        }))
+        print(
+            json.dumps(
+                {
+                    "permission": "deny",
+                    "agentMessage": reason,
+                    "userMessage": "Blocked by the shared-tree guard (see agent message).",
+                }
+            )
+        )
     return 0
 
 

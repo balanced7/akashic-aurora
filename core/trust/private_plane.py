@@ -41,12 +41,16 @@ OVERLAY; public tombstones are authoritative subtraction) and backup (snapshot m
 without writing private cleartext into an artifact). None of that is this slice. This slice
 makes the live hole un-reopenable while that gets built properly.
 """
+
 from __future__ import annotations
 
 import json
 import re
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Set
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 PLANE_DIRNAME = "private"
@@ -54,8 +58,26 @@ PLANE_DIRNAME = "private"
 # A marker must be distinctive enough that its appearance in a tracked file is evidence of a
 # leak rather than a coincidence. These are dropped even if they appear in the plane.
 _TOO_GENERIC = {
-    "the", "and", "for", "with", "from", "this", "that", "report", "notes", "note", "md",
-    "json", "jsonl", "txt", "atoms", "atom", "private", "assessments", "register", "daniil",
+    "the",
+    "and",
+    "for",
+    "with",
+    "from",
+    "this",
+    "that",
+    "report",
+    "notes",
+    "note",
+    "md",
+    "json",
+    "jsonl",
+    "txt",
+    "atoms",
+    "atom",
+    "private",
+    "assessments",
+    "register",
+    "daniil",
     # W210 (2026-09-23): a private artifact whose filename is an ordinary English noun phrase
     # made that phrase a forbidden token in every tracked file. It froze store/docs/*.jsonl for
     # fifteen days with 24 atom lines stranded, refused a 2026-07-23 record that merely used the
@@ -66,19 +88,26 @@ _TOO_GENERIC = {
     # artifact is untouched -- the protection a name confers is proportional to how distinctive
     # it is, and this one was never conferring much. Better long-term fix, Daniel's call because
     # private/ is his: rename that artifact to something distinctive.
-    "".join(("best-", "practices")),
-    "claude", "kimi", "deepseek", "codex", "session", "2026", "docs", "library",
+    "best-" + "practices",  # split so this source file cannot re-arm the scanner against its own fix
+    "claude",
+    "kimi",
+    "deepseek",
+    "codex",
+    "session",
+    "2026",
+    "docs",
+    "library",
 }
 _MIN_MARKER = 6
 
 
-def plane_root(root: Optional[Path] = None) -> Path:
+def plane_root(root: Path | None = None) -> Path:
     return (Path(root) if root else _REPO_ROOT) / PLANE_DIRNAME
 
 
-def _tokens_from_name(name: str) -> Set[str]:
+def _tokens_from_name(name: str) -> set[str]:
     """Atom short-hashes and multi-word slugs are the distinctive parts of a filename."""
-    out: Set[str] = set()
+    out: set[str] = set()
     stem = re.sub(r"\.(md|jsonl?|txt|ya?ml)$", "", name, flags=re.I)
     # trailing short hash, e.g. ..._ff00aa (SYNTHETIC example on purpose -- the first draft
     # of this comment used a real private id and the guard blocked its own commit)
@@ -102,14 +131,14 @@ def _tokens_from_name(name: str) -> Set[str]:
     return out
 
 
-def markers(root: Optional[Path] = None) -> Set[str]:
+def markers(root: Path | None = None) -> set[str]:
     """Every distinctive token identifying something that lives in the private plane.
 
     Derived from filenames plus any `id`/`title` fields inside jsonl records, because the
     store copy is the one that generators regenerate from -- and that copy is what published
     itself in the live incident."""
     base = plane_root(root)
-    out: Set[str] = set()
+    out: set[str] = set()
     if not base.is_dir():
         return out
     for p in base.rglob("*"):
@@ -119,7 +148,7 @@ def markers(root: Optional[Path] = None) -> Set[str]:
         if p.suffix.lower() in (".jsonl", ".json"):
             try:
                 text = p.read_text(encoding="utf-8", errors="replace")
-            except Exception:                                # pragma: no cover - io guard
+            except Exception:  # pragma: no cover - io guard
                 continue
             for line in text.splitlines():
                 try:
@@ -132,11 +161,10 @@ def markers(root: Optional[Path] = None) -> Set[str]:
                     v = str(rec.get(field) or "")
                     if v:
                         out |= _tokens_from_name(v)
-    return {m for m in out
-            if len(m) >= _MIN_MARKER and m.lower() not in _TOO_GENERIC}
+    return {m for m in out if len(m) >= _MIN_MARKER and m.lower() not in _TOO_GENERIC}
 
 
-def _inside_plane(path: Path, root: Optional[Path] = None) -> bool:
+def _inside_plane(path: Path, root: Path | None = None) -> bool:
     try:
         path.resolve().relative_to(plane_root(root).resolve())
         return True
@@ -144,7 +172,7 @@ def _inside_plane(path: Path, root: Optional[Path] = None) -> bool:
         return False
 
 
-def scan(paths: Iterable[str], root: Optional[Path] = None) -> List[Dict[str, Any]]:
+def scan(paths: Iterable[str], root: Path | None = None) -> list[dict[str, Any]]:
     """Findings for tracked files carrying a private marker.
 
     Files INSIDE the plane are never flagged: the guard protects the boundary, not the room,
@@ -152,7 +180,7 @@ def scan(paths: Iterable[str], root: Optional[Path] = None) -> List[Dict[str, An
     marks = markers(root)
     if not marks:
         return []
-    findings: List[Dict[str, Any]] = []
+    findings: list[dict[str, Any]] = []
     for raw in paths:
         p = Path(raw)
         if not p.is_absolute():
@@ -161,29 +189,31 @@ def scan(paths: Iterable[str], root: Optional[Path] = None) -> List[Dict[str, An
             continue
         try:
             text = p.read_text(encoding="utf-8", errors="replace")
-        except Exception:                                    # pragma: no cover - io guard
+        except Exception:  # pragma: no cover - io guard
             continue
         low = text.lower()
         for m in sorted(marks):
             if m not in low:
                 continue
-            line_no = next((i for i, ln in enumerate(text.splitlines(), 1)
-                            if m in ln.lower()), 0)
-            findings.append({
-                "path": str(p),
-                "marker": m,
-                "line": line_no,
-                "remedy": (f"{p.name} carries {m!r}, which identifies private-plane content. "
-                           "Either regenerate it with the private records excluded, or move "
-                           "the artifact into private/. Do NOT hand-edit the marker out -- "
-                           "the generator will put it back on the next run."),
-            })
+            line_no = next((i for i, ln in enumerate(text.splitlines(), 1) if m in ln.lower()), 0)
+            findings.append(
+                {
+                    "path": str(p),
+                    "marker": m,
+                    "line": line_no,
+                    "remedy": (
+                        f"{p.name} carries {m!r}, which identifies private-plane content. "
+                        "Either regenerate it with the private records excluded, or move "
+                        "the artifact into private/. Do NOT hand-edit the marker out -- "
+                        "the generator will put it back on the next run."
+                    ),
+                }
+            )
             break
     return findings
 
 
-def scan_text(text: str, label: str = "text",
-              root: Optional[Path] = None) -> List[Dict[str, Any]]:
+def scan_text(text: str, label: str = "text", root: Path | None = None) -> list[dict[str, Any]]:
     """Findings for a blob of prose that is about to become durable and public.
 
     ADDED 2026-08-16, AFTER THE MISS THAT PROVED IT NECESSARY. The first purge rewrote file
@@ -200,35 +230,51 @@ def scan_text(text: str, label: str = "text",
     if not marks or not text:
         return []
     low = str(text).lower()
-    out: List[Dict[str, Any]] = []
-    for m in sorted(marks):
-        if m in low:
-            out.append({
-                "path": label, "marker": m, "line": 0,
-                "remedy": (f"this {label} names {m!r}, which identifies private-plane "
-                           "content. Describe the work without naming the artifact -- "
-                           "existence metadata is a leak even when no body is published."),
-            })
+    out: list[dict[str, Any]] = [
+        {
+            "path": label,
+            "marker": m,
+            "line": 0,
+            "remedy": (
+                f"this {label} names {m!r}, which identifies private-plane "
+                "content. Describe the work without naming the artifact -- "
+                "existence metadata is a leak even when no body is published."
+            ),
+        }
+        for m in sorted(marks)
+        if m in low
+    ]
     return out
 
 
-def report(paths: Iterable[str], root: Optional[Path] = None) -> Dict[str, Any]:
+def report(paths: Iterable[str], root: Path | None = None) -> dict[str, Any]:
     """The frame that ships with the number. An empty result must be distinguishable from a
     guard that never ran -- absence of findings is not evidence of a clean tree."""
     marks = markers(root)
     paths = list(paths)
     if not marks:
         return {
-            "markers": 0, "scanned": 0, "findings": [],
-            "why": (f"no private plane at {plane_root(root)} -- nothing to protect, so this "
-                    "is NOT a clean bill, it is an empty subject"),
+            "markers": 0,
+            "scanned": 0,
+            "findings": [],
+            "why": (
+                f"no private plane at {plane_root(root)} -- nothing to protect, so this "
+                "is NOT a clean bill, it is an empty subject"
+            ),
             "scope": "derived markers from private/**; none found",
         }
     findings = scan(paths, root)
     return {
-        "markers": len(marks), "scanned": len(paths), "findings": findings,
-        "why": ("clean: no tracked path carries a private marker" if not findings
-                else f"{len(findings)} tracked path(s) carry private-plane identifiers"),
-        "scope": (f"{len(paths)} path(s) checked against {len(marks)} marker(s) derived "
-                  f"from {plane_root(root)}; files inside the plane are exempt by design"),
+        "markers": len(marks),
+        "scanned": len(paths),
+        "findings": findings,
+        "why": (
+            "clean: no tracked path carries a private marker"
+            if not findings
+            else f"{len(findings)} tracked path(s) carry private-plane identifiers"
+        ),
+        "scope": (
+            f"{len(paths)} path(s) checked against {len(marks)} marker(s) derived "
+            f"from {plane_root(root)}; files inside the plane are exempt by design"
+        ),
     }

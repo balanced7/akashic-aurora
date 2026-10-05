@@ -25,21 +25,25 @@ drive the real `main()` and stub only the git read.
 
 W111 · lesson mirror_refusal_leaves_tree_staged. Shares the blanket-stage genus with W109/W110.
 """
+
 import importlib.util
 import os
+from pathlib import Path
 
 import pytest
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 GUARD_PATH = os.path.join(ROOT, "scripts", "githooks", "birth_guard.py")
 
-STRANGER = "research/in-flight/stranger-position.md"   # REFUSE since the P3 flip
-MINE = "docs/MINE.md"                                  # crown doc -- allowed outright
+STRANGER = "research/in-flight/stranger-position.md"  # REFUSE since the P3 flip
+MINE = "docs/MINE.md"  # crown doc -- allowed outright
 
 
-@pytest.fixture()
+@pytest.fixture
 def guard():
     spec = importlib.util.spec_from_file_location("birth_guard_under_test", GUARD_PATH)
+    assert spec is not None
+    assert spec.loader is not None
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod
@@ -51,11 +55,12 @@ def _stub_index(guard, monkeypatch, contents):
 
     def fake_run(cmd, **kw):
         seen["cmd"] = cmd
-        paths = cmd[cmd.index("--") + 1:] if "--" in cmd else None
+        paths = cmd[cmd.index("--") + 1 :] if "--" in cmd else None
         out = [p for p in contents if (not paths or p in paths)]
 
         class R:
             stdout = "\n".join(out) + ("\n" if out else "")
+
         return R()
 
     monkeypatch.setattr(guard.subprocess, "run", fake_run)
@@ -66,8 +71,9 @@ def test_p1_scoped_call_ignores_a_strangers_staged_file(guard, monkeypatch):
     """THE defect. Naming only my own allowed path must not be refused by someone else's."""
     _stub_index(guard, monkeypatch, [STRANGER, MINE])
     rc = guard.main([MINE])
-    assert rc == 0, ("rule-13 refused a commit of an allowed crown doc because ANOTHER seat's "
-                     ".md was sitting in the shared index")
+    assert rc == 0, (
+        "rule-13 refused a commit of an allowed crown doc because ANOTHER seat's .md was sitting in the shared index"
+    )
 
 
 def test_p2_scoped_call_still_refuses_my_own_bad_path(guard, monkeypatch, capsys):
@@ -95,20 +101,22 @@ def test_p4_scoping_keeps_the_added_only_filter(guard, monkeypatch):
     guard.main([MINE])
     cmd = seen["cmd"]
     assert "--diff-filter=A" in cmd, f"scoped query lost the added-only filter: {cmd}"
-    assert "--" in cmd and MINE in cmd[cmd.index("--") + 1:], \
-        f"scoped query did not pathspec-limit to the named paths: {cmd}"
+    assert "--" in cmd, f"scoped query did not pathspec-limit to the named paths: {cmd}"
+    assert MINE in cmd[cmd.index("--") + 1 :], f"scoped query did not pathspec-limit to the named paths: {cmd}"
 
 
 def test_p5_mirror_passes_the_scoped_list_to_rule_13():
     """The integration point: mirror must hand rule-13 its scoped list, as it already does
     for rule-8. Without this the fix exists but nothing calls it."""
-    src = open(os.path.join(ROOT, "scripts", "mirror.py"), encoding="utf-8").read()
+    src = Path(os.path.join(ROOT, "scripts", "mirror.py")).read_text(encoding="utf-8")
     assert "hook13" in src, "mirror.py no longer references hook13"
     # Anchor on the INVOCATION, not on a byte window -- a comment above the call site must
     # not be able to break this pin (it did, first cut).
     assert "hook13, *" in src, (
         "mirror.py still invokes birth_guard with no file arguments -- rule-13 will keep "
-        "judging the whole shared index in named-path mode (C2-4 violation)")
+        "judging the whole shared index in named-path mode (C2-4 violation)"
+    )
     assert "staged13" in src, (
         "the list handed to rule-13 must derive from this invocation's STAGED set, not be "
-        "re-derived from the shared index")
+        "re-derived from the shared index"
+    )

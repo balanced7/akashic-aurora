@@ -25,26 +25,28 @@ contract on any host, degrading honestly (structured ``NoDisplay`` / absence
 results) when the OS has no interactive desktop or the substrate is unpinned.
 """
 
-from core.screenspace import canary    # noqa: F401  (§1 amended ruling: positive canary read) — imported FIRST: leaf-most (no package-internal imports), consumed by engine/shadow
-from core.screenspace import capture  # noqa: F401  (module attribute, deep substrate)
-from core.screenspace import foreground  # noqa: F401  (WinEventHook foreground source, §1.1)
-from core.screenspace import shadow    # noqa: F401  (L0 pulse, F2-gated)
-from core.screenspace.engine import (  # noqa: F401  (flat verb seam)
+from core.screenspace import (
+    canary,
+    capture,
+    foreground,
+    shadow,
+)
+from core.screenspace.engine import (
     delta,
     peek,
     read_text,
     refs,
 )
-from core.screenspace.foreground import ForegroundTracker  # noqa: F401  (the §1.1 source)
+from core.screenspace.foreground import ForegroundTracker
 
 __all__ = [
+    "ForegroundTracker",
     "canary",
     "capture",
-    "foreground",
-    "shadow",
-    "ForegroundTracker",
-    "peek",
     "delta",
-    "refs",
+    "foreground",
+    "peek",
     "read_text",
+    "refs",
+    "shadow",
 ]

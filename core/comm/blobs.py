@@ -15,10 +15,10 @@ Safety (design delta F2 -- the failure modes a naive media-by-reference hits):
     blob never changes under a ref.
   * **dangling pointer is not fatal.** `get` of a missing/garbage ref returns None, never raises.
 """
+
 import hashlib
-import os
 from pathlib import Path
-from typing import Optional
+
 
 def _repo_root_str() -> str:
     """AI_SETUP override, else the root DERIVED from this file (core/paths).
@@ -28,13 +28,15 @@ def _repo_root_str() -> str:
     every call here silently used that literal and the repo only ran from one
     directory on one disk.
     """
-    from core.paths import root_str
     import os as _os
+
+    from core.paths import root_str
+
     return (_os.getenv("AI_SETUP") or "").strip() or root_str()
 
 
 PREFIX = "blob:"
-_SHA_LEN = 24                       # 96 bits of sha256 -- ample for a single-user blob store
+_SHA_LEN = 24  # 96 bits of sha256 -- ample for a single-user blob store
 
 
 def _default_base() -> Path:
@@ -42,16 +44,26 @@ def _default_base() -> Path:
 
 
 class BlobStore:
-    def __init__(self, base_dir: Optional[str] = None):
+    def __init__(self, base_dir: str | None = None):
         self.base = Path(base_dir) if base_dir else _default_base()
 
     def _path(self, sha: str) -> Path:
         return self.base / sha
 
     @staticmethod
-    def _sha_of_ref(ref: str) -> Optional[str]:
+    def _sha_of_ref(ref: str) -> str | None:
+        """The hash a ref names -- or None unless it is EXACTLY what put() mints (_SHA_LEN lowercase
+        hex). Everything after `blob:` used to be joined onto the store's base unvalidated, so
+        `blob:../../../../etc/passwd` read /etc/passwd through the signed /blob door (it only
+        looked safe on Windows because that file does not exist there). A ref that cannot be a
+        hash is now refused before any path is built."""
         s = str(ref or "")
-        return s[len(PREFIX):] if s.startswith(PREFIX) else None
+        if not s.startswith(PREFIX):
+            return None
+        sha = s[len(PREFIX) :]
+        if len(sha) != _SHA_LEN or any(c not in "0123456789abcdef" for c in sha):
+            return None
+        return sha
 
     def put(self, data) -> str:
         """Store bytes (or a str, utf-8 encoded). Returns a `blob:<sha>` ref. Idempotent (dedup),
@@ -62,17 +74,17 @@ class BlobStore:
             raise TypeError("BlobStore.put expects bytes or str")
         sha = hashlib.sha256(bytes(data)).hexdigest()[:_SHA_LEN]
         path = self._path(sha)
-        if not path.exists():                          # dedup
+        if not path.exists():  # dedup
             self.base.mkdir(parents=True, exist_ok=True)
             tmp = path.with_suffix(".tmp")
             tmp.write_bytes(bytes(data))
-            tmp.replace(path)                          # atomic -> ref valid only after a full write
+            tmp.replace(path)  # atomic -> ref valid only after a full write
         return f"{PREFIX}{sha}"
 
     def put_path(self, path) -> str:
         return self.put(Path(path).read_bytes())
 
-    def get(self, ref: str) -> Optional[bytes]:
+    def get(self, ref: str) -> bytes | None:
         """The bytes for a ref, or None if the ref is missing/garbage (never raises)."""
         sha = self._sha_of_ref(ref)
         if not sha:
@@ -88,7 +100,7 @@ class BlobStore:
         return bool(sha) and self._path(sha).exists()
 
 
-_INSTANCE: Optional[BlobStore] = None
+_INSTANCE: BlobStore | None = None
 
 
 def get_blob_store() -> BlobStore:

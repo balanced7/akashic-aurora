@@ -3,7 +3,7 @@
 Status: current
 Class: reference
 
-> Do NOT edit by hand. Regenerate with `py scripts/generators/gen_prior_art_register.py`.
+> Do NOT edit by hand. Regenerate with `uv run scripts/generators/gen_prior_art_register.py`.
 > INVENTORY is derived from live code and cannot rot. PRIOR ART is authored in
 > `data/prior-art/register.json`. COVERAGE is derived: **GAP** = no entry, **DRIFT** =
 > the subsystem changed size since it was surveyed. DRIFT does NOT claim the research
@@ -27,7 +27,7 @@ rebuilt wheels and dead ends, so the sweep is now a standing artifact rather tha
 
 **DRIFT -- surveyed, but the subsystem has changed size since:**
 
-- `core/foundation` -- DRIFT (8->10), reviewed 2026-07-26
+- `core/foundation` -- DRIFT (8->11), reviewed 2026-07-26
 - `core/comm` -- DRIFT (36->72), reviewed 2026-07-26
 - `core/coord` -- DRIFT (11->31), reviewed 2026-07-26
 - `core/learning` -- DRIFT (3->5), reviewed 2026-07-26
@@ -38,13 +38,13 @@ rebuilt wheels and dead ends, so the sweep is now a standing artifact rather tha
 - `agent/harness` -- DRIFT (9->13), reviewed 2026-07-26
 - `scripts/hooks` -- DRIFT (7->8), reviewed 2026-07-26
 - `scripts/checkers` -- DRIFT (12->22), reviewed 2026-07-26
-- `scripts/generators` -- DRIFT (6->11), reviewed 2026-07-26
+- `scripts/generators` -- DRIFT (6->12), reviewed 2026-07-26
 - `scripts/ops` -- DRIFT (2->8), reviewed 2026-07-26
-- `tests` -- DRIFT (331->757), reviewed 2026-07-26
+- `tests` -- DRIFT (331->773), reviewed 2026-07-26
 
 ---
 
-## `core/foundation` -- 10 modules  ·  DRIFT (8->10)
+## `core/foundation` -- 11 modules  ·  DRIFT (8->11)
 
 **What it does.** The Store: a Redis-command-shaped key/value substrate emulating five structures (kv, hash, list, set, zset) over three backends -- RedisStore (pass-through), FileStore (JSON whole-file, superseded), SqliteStore (WAL, landed 2026-07-26), and HybridStore (dual-write, Redis-preferred reads).
 
@@ -471,7 +471,7 @@ _Reviewed 2026-07-26 by deepseek (swept), claude (folded)._
 
 _Reviewed 2026-07-26 by claude._
 
-## `scripts/generators` -- 11 modules  ·  DRIFT (6->11)
+## `scripts/generators` -- 12 modules  ·  DRIFT (6->12)
 
 **What it does.** Six generators projecting live code into documents: MAP.md (module census), MODULE_INDEX.md (docstrings), PHYSICS.md (bounds and env flags), DOORS.md (CLI verb reference), PRIOR_ART.md (this register), and the arch index.
 
@@ -517,7 +517,7 @@ _Reviewed 2026-07-26 by claude._
 
 _Reviewed 2026-07-26 by claude._
 
-## `tests` -- 757 modules  ·  DRIFT (331->757)
+## `tests` -- 773 modules  ·  DRIFT (331->773)
 
 **What it does.** 331 test modules plus conftest, providing universal backend isolation, a parity exerciser shared across store backends, and a differential harness that cross-verifies two implementations of the same semantics.
 

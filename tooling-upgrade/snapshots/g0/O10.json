@@ -1,0 +1,18 @@
+{
+ "_meta": {
+  "commit": "d5f0615decac5f2449c59b18e3e3a3c6effe823c",
+  "created": "2026-10-01T11:46:23+0200",
+  "digest": "b520b97aa258ae904c082f2da8f7adea7d9d4e41cca8855cda6459f6376ac164",
+  "dirty": false,
+  "partial_modules": null,
+  "select": []
+ },
+ "coverage_version": "7.16.2",
+ "packages": {
+  "agent": 67.12,
+  "arsenal": 85.35,
+  "core": 73.9,
+  "scripts": 34.54
+ },
+ "suite_exitstatus": 1
+}

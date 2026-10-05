@@ -54,15 +54,20 @@ PRE-REGISTERED GO/NO-GO (fixed BEFORE looking at any data -- lesson: dual_blind_
   anything else                              -> INCONCLUSIVE. Say so; do not round toward the
                                                 answer we already like.
 """
+
 from __future__ import annotations
 
 import glob
 import json
 import os
 import random
-from typing import Any, Dict, List, Optional
+import tempfile
+from typing import Any
 
-_DEFAULT_IMP = os.path.join(os.environ.get("TEMP", "/tmp"), "akashic_recall", "imp")
+# Same root the recall hooks WRITE to (agent/harness/*): a reader on a different temp dir reads nothing.
+_DEFAULT_IMP = os.path.join(
+    os.getenv("AKASHIC_RECALL_STATE_DIR") or os.path.join(tempfile.gettempdir(), "akashic_recall"), "imp"
+)
 
 PRECISION_OK = 0.80
 PRECISION_BROKEN = 0.60
@@ -70,14 +75,14 @@ MISSES_OK = 0.20
 MISSES_DOMINANT = 0.40
 
 
-def harvest(imp_dir: str = "", limit: int = 0) -> List[Dict[str, Any]]:
+def harvest(imp_dir: str = "", limit: int = 0) -> list[dict[str, Any]]:
     """Read the impression ledger into (action, surfaced) records.
 
     NO NEW INSTRUMENTATION: the hook has been writing {"t": <target>, "s": [<sources>]} per
     firing all along. The audit corpus already existed -- it just had no reader.
     """
     d = imp_dir or _DEFAULT_IMP
-    out: List[Dict[str, Any]] = []
+    out: list[dict[str, Any]] = []
     for path in sorted(glob.glob(os.path.join(d, "*"))):
         try:
             with open(path, encoding="utf-8", errors="replace") as f:
@@ -94,25 +99,27 @@ def harvest(imp_dir: str = "", limit: int = 0) -> List[Dict[str, Any]]:
                     if not t or not srcs:
                         continue
                     kind, _, rest = t.partition(":")
-                    out.append({
-                        "action": rest or t,
-                        "action_kind": {"p": "path", "c": "command"}.get(kind, "other"),
-                        "surfaced": srcs,
-                        "session": os.path.basename(path).split(".")[0],
-                    })
+                    out.append(
+                        {
+                            "action": rest or t,
+                            "action_kind": {"p": "path", "c": "command"}.get(kind, "other"),
+                            "surfaced": srcs,
+                            "session": os.path.basename(path).split(".")[0],
+                        }
+                    )
         except OSError:
             continue
     return out[-limit:] if limit else out
 
 
-def sample(items: List[Dict[str, Any]], n: int = 30, seed: int = 1) -> List[Dict[str, Any]]:
+def sample(items: list[dict[str, Any]], n: int = 30, seed: int = 1) -> list[dict[str, Any]]:
     """Seed-deterministic draw: a published number that cannot be re-drawn cannot be audited."""
     if n >= len(items):
         return list(items)
     return random.Random(seed).sample(list(items), n)
 
 
-def render_pack(items: List[Dict[str, Any]], bodies: Optional[Dict[str, str]] = None) -> str:
+def render_pack(items: list[dict[str, Any]], bodies: dict[str, str] | None = None) -> str:
     """A BLIND labelling pack.
 
     Deliberately omits usefulness counters, credit history and seat identity. A labeller who can
@@ -151,31 +158,41 @@ def render_pack(items: List[Dict[str, Any]], bodies: Optional[Dict[str, str]] = 
     return "\n".join(lines)
 
 
-def score(labels: Dict[str, Dict[str, str]], *, total_surfaced: int = 0,
-          misses: Optional[Dict[str, Dict[str, List[str]]]] = None) -> Dict[str, Any]:
+def score(
+    labels: dict[str, dict[str, str]],
+    *,
+    total_surfaced: int = 0,
+    misses: dict[str, dict[str, list[str]]] | None = None,
+) -> dict[str, Any]:
     """Precision + coverage + agreement + the recall arm. Never precision alone.
 
     `labels`: {labeller: {"<case>:<slot>": "on"|"off"|"skip"}}
     `misses`: {labeller: {"<case>": [source_or_description, ...]}}
     """
     misses = misses or {}
-    per_item: Dict[str, List[str]] = {}
-    for who, marks in (labels or {}).items():
+    per_item: dict[str, list[str]] = {}
+    for marks in (labels or {}).values():
         for key, val in (marks or {}).items():
             v = str(val).lower().strip()
             if v in ("on", "off"):
                 per_item.setdefault(key, []).append(v)
 
     if not per_item:
-        return {"status": "STARVED", "precision": None, "recall": None,
-                "labelled": 0, "label_coverage": 0.0, "agreement": None,
-                "disputed": [], "misses_named": 0, "verdict":
-                "no labelled observations -- the audit measured nothing, which is a "
-                "confession, not a score"}
+        return {
+            "status": "STARVED",
+            "precision": None,
+            "recall": None,
+            "labelled": 0,
+            "label_coverage": 0.0,
+            "agreement": None,
+            "disputed": [],
+            "misses_named": 0,
+            "verdict": "no labelled observations -- the audit measured nothing, which is a confession, not a score",
+        }
 
     # MAJORITY per item; a tie is DISPUTED and goes to a fence round rather than a coin flip.
     on = off = 0
-    disputed: List[str] = []
+    disputed: list[str] = []
     for key, votes in per_item.items():
         n_on, n_off = votes.count("on"), votes.count("off")
         if n_on and n_off:
@@ -206,23 +223,32 @@ def score(labels: Dict[str, Dict[str, str]], *, total_surfaced: int = 0,
     if precision is None:
         verdict = "INCONCLUSIVE -- nothing labelled on|off"
     elif precision >= PRECISION_OK and (misses_rate is None or misses_rate <= MISSES_OK):
-        verdict = ("SELECTION was the constraint -- ranking is adequate; the next work is "
-                   "injection and giving dark planes a path")
+        verdict = (
+            "SELECTION was the constraint -- ranking is adequate; the next work is "
+            "injection and giving dark planes a path"
+        )
     elif precision < PRECISION_BROKEN:
-        verdict = ("RANKING is broken corpus-wide -- the build order INVERTS: fix ranking "
-                   "before adding planes")
+        verdict = "RANKING is broken corpus-wide -- the build order INVERTS: fix ranking before adding planes"
     elif misses_rate is not None and misses_rate > MISSES_DOMINANT:
-        verdict = ("SELECTION dominant -- give the dark planes a retrieval path before "
-                   "touching the ranker")
+        verdict = "SELECTION dominant -- give the dark planes a retrieval path before touching the ranker"
     else:
         verdict = "INCONCLUSIVE -- do not round toward the answer we already like"
 
     if n_labellers < 2:
         verdict = f"SINGLE-LABELLER, NOT SETTLED -- {verdict}"
 
-    return {"status": "OK", "precision": precision, "recall": recall,
-            "labellers": n_labellers,
-            "labelled": labelled, "on": on, "off": off,
-            "label_coverage": round(coverage, 4), "agreement": agreement,
-            "disputed": sorted(disputed), "misses_named": named,
-            "misses_rate": misses_rate, "verdict": verdict}
+    return {
+        "status": "OK",
+        "precision": precision,
+        "recall": recall,
+        "labellers": n_labellers,
+        "labelled": labelled,
+        "on": on,
+        "off": off,
+        "label_coverage": round(coverage, 4),
+        "agreement": agreement,
+        "disputed": sorted(disputed),
+        "misses_named": named,
+        "misses_rate": misses_rate,
+        "verdict": verdict,
+    }

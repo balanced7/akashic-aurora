@@ -17,6 +17,7 @@ Both corrections landed on one build: make the stages distinct events.
   S5  only the FIRST resolution per target counts (first-try semantics, not eventual)
   S6  the outcome stage is OBSERVATION ONLY -- it must not move any ranking counter
 """
+
 import os
 import sys
 import uuid
@@ -52,7 +53,8 @@ def test_s2_first_try_success_without_lesson_is_the_control_arm():
     at_action.resolve_action_outcome(sid, tgt, True)
     recs = at_action.session_outcomes(sid)
     assert len(recs) == 1
-    assert recs[0]["ok"] is True and recs[0]["surfaced"] is False
+    assert recs[0]["ok"] is True
+    assert recs[0]["surfaced"] is False
 
 
 def test_s3_real_flip_still_flips_and_logs(monkeypatch):
@@ -60,29 +62,32 @@ def test_s3_real_flip_still_flips_and_logs(monkeypatch):
     monkeypatch.setattr(at_action, "record_feedback", lambda *a, **k: True)
     sid, tgt = _sid(), at_action.normalize_target(command="echo rescue")
     at_action.mark_impression(sid, tgt, ["learn:experiment:rescuer"])
-    at_action.resolve_action_outcome(sid, tgt, False)          # FAIL
-    res = at_action.resolve_action_outcome(sid, tgt, True)     # ...then SUCCESS
+    at_action.resolve_action_outcome(sid, tgt, False)  # FAIL
+    res = at_action.resolve_action_outcome(sid, tgt, True)  # ...then SUCCESS
     assert res["flipped"] is True, "the flip path is unchanged"
     assert res["credited"] == 1
     assert at_action.session_flips(sid), "the flip log still receives it"
     recs = at_action.session_outcomes(sid)
     assert len(recs) == 2, "and BOTH resolutions are now staged"
-    assert recs[0]["ok"] is False and recs[1]["flipped"] is True
+    assert recs[0]["ok"] is False
+    assert recs[1]["flipped"] is True
 
 
 def test_s4_prevention_rate_contrasts_the_two_arms():
     sid = _sid()
-    for i in range(3):                                    # surfaced arm: 3 tries, 2 succeed
+    for i in range(3):  # surfaced arm: 3 tries, 2 succeed
         t = at_action.normalize_target(command=f"echo w{i}")
         at_action.mark_impression(sid, t, ["learn:experiment:l"])
         at_action.resolve_action_outcome(sid, t, i < 2)
-    for i in range(2):                                    # control arm: 2 tries, 0 succeed
+    for i in range(2):  # control arm: 2 tries, 0 succeed
         t = at_action.normalize_target(command=f"echo o{i}")
         at_action.resolve_action_outcome(sid, t, False)
 
     pr = at_action.prevention_rate(sid)
-    assert pr["with_lesson"]["n"] == 3 and pr["with_lesson"]["ok"] == 2
-    assert pr["without_lesson"]["n"] == 2 and pr["without_lesson"]["ok"] == 0
+    assert pr["with_lesson"]["n"] == 3
+    assert pr["with_lesson"]["ok"] == 2
+    assert pr["without_lesson"]["n"] == 2
+    assert pr["without_lesson"]["ok"] == 0
     assert pr["rate_with"] == pytest.approx(2 / 3)
     assert pr["rate_without"] == 0.0
     assert pr["lift"] == pytest.approx(0.6667, abs=1e-3)
@@ -107,8 +112,8 @@ def test_s7_contrast_counts_per_session_and_target():
     is the starved-index genus wearing a different hat."""
     recs = [
         {"sid": "a", "t": "p:/x", "ok": True, "surfaced": True},
-        {"sid": "a", "t": "p:/x", "ok": False, "surfaced": True},   # same pair -> ignored
-        {"sid": "b", "t": "p:/x", "ok": False, "surfaced": True},   # different session -> counts
+        {"sid": "a", "t": "p:/x", "ok": False, "surfaced": True},  # same pair -> ignored
+        {"sid": "b", "t": "p:/x", "ok": False, "surfaced": True},  # different session -> counts
         {"sid": "b", "t": "p:/y", "ok": True, "surfaced": False},
     ]
     c = at_action._contrast(recs)
@@ -130,8 +135,7 @@ def test_s9_tests_never_write_the_canonical_durable_stream(monkeypatch):
         def emit(self, *a, **k):
             emitted.append(a)
 
-    monkeypatch.setattr(el, "get_event_log",
-                        lambda: type("L", (), {"ledger": _FakeLedger()})())
+    monkeypatch.setattr(el, "get_event_log", lambda: type("L", (), {"ledger": _FakeLedger()})())
     monkeypatch.setenv("AKASHIC_RECALL_STATE_DIR", "/tmp/redirected")
     sid, tgt = _sid(), at_action.normalize_target(command="echo isolation")
     at_action.resolve_action_outcome(sid, tgt, True)
@@ -149,19 +153,18 @@ def test_s8_durable_readers_are_fail_soft(monkeypatch):
     monkeypatch.setattr(el, "get_event_log", boom)
     assert at_action.durable_outcomes(30) == []
     pr = at_action.prevention_rate_durable(30)
-    assert pr["lift"] is None and pr["with_lesson"]["n"] == 0
+    assert pr["lift"] is None
+    assert pr["with_lesson"]["n"] == 0
 
 
 def test_s6_outcome_stage_does_not_steer_ranking(monkeypatch):
     """The debate's unanimous constraint: no automatic feedback, positive or negative,
     until the stages are separately observed. Recording an outcome must touch NO counter."""
     calls = []
-    monkeypatch.setattr(at_action, "record_feedback",
-                        lambda *a, **k: calls.append(a) or True)
-    monkeypatch.setattr(at_action, "bump_surfaced",
-                        lambda *a, **k: calls.append(("bump",) + a))
+    monkeypatch.setattr(at_action, "record_feedback", lambda *a, **k: calls.append(a) or True)
+    monkeypatch.setattr(at_action, "bump_surfaced", lambda *a, **k: calls.append(("bump", *a)))
     sid, tgt = _sid(), at_action.normalize_target(command="echo nosteer")
     at_action.mark_impression(sid, tgt, ["learn:experiment:l"])
-    at_action.resolve_action_outcome(sid, tgt, True)      # first-try success
+    at_action.resolve_action_outcome(sid, tgt, True)  # first-try success
     assert calls == [], "a non-flip outcome must move no ranking counter at all"
     assert at_action.session_outcomes(sid), "yet it is still observed"

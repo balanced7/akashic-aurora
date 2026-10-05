@@ -12,6 +12,7 @@ with their tools). Serves on 127.0.0.1 only -- it is a local cockpit, never expo
 Transport: Server-Sent Events (bus -> browser, live) + plain POST (browser -> bus). No websockets, no
 build step, no npm. Pause/loop-guard come from core/comm/control.py; messages from core/comm/bus.py.
 """
+
 import argparse
 import base64
 import json
@@ -19,45 +20,56 @@ import os
 import sys
 import threading
 import time
-from pathlib import Path
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
+from typing import Any, cast
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+import contextlib
+
+from core.comm import control, promoter, room_feed
+from core.comm.bus import Bus
+from core.comm.launcher import get_launcher
+from core.primitives.epistemic import epistemic_view_from_bus
+from core.trust import registry
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(HERE)
-sys.path.insert(0, REPO)
-
-from core.comm.bus import Bus
-from core.comm import control
-from core.comm import promoter
-from core.comm.launcher import get_launcher
-from core.comm import room_feed
-from core.trust import registry
-from core.primitives.epistemic import epistemic_view_from_bus
 
 DROPBOX = os.path.join(REPO, "dropbox")
-BUS = Bus("user")   # the console posts to the bus as 'user'; also registers 'user' presence
-_BUS_CACHE = {}     # per-ns Bus("user", namespace=ns) constructed lazily; never per-request
+BUS = Bus("user")  # the console posts to the bus as 'user'; also registers 'user' presence
+_BUS_CACHE = {}  # per-ns Bus("user", namespace=ns) constructed lazily; never per-request
 
 
 def _client(block_ms: int = 20000):
     """A Redis client with a long socket timeout, for the SSE blocking tail (mirrors bus._blocking_client)."""
     try:
         from core.foundation.redis_connection import (
-            connect_to_redis_with_fail_fast, DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT)
+            DEFAULT_REDIS_HOST,
+            DEFAULT_REDIS_PORT,
+            connect_to_redis_with_fail_fast,
+        )
+
         return connect_to_redis_with_fail_fast(
-            host=DEFAULT_REDIS_HOST, port=DEFAULT_REDIS_PORT,
-            timeout_seconds=block_ms / 1000.0 + 5, decode_responses=True)
+            host=DEFAULT_REDIS_HOST,
+            port=DEFAULT_REDIS_PORT,
+            timeout_seconds=block_ms / 1000.0 + 5,
+            decode_responses=True,
+        )
     except Exception:
         return None
 
 
 def _fmt(sid, fields):
     """A raw Redis stream entry -> the message shape the browser renders."""
+
     def _loads(s):
         try:
             return json.loads(s)
         except Exception:
             return s
+
     msg = {
         "id": str(sid),
         "from": fields.get("frm", ""),
@@ -100,7 +112,7 @@ def backfill(client, last_ids, ns="bifrost", per_stream=12):
         except Exception:
             entries = []
         if entries:
-            last_ids[s] = entries[0][0]           # newest id -> tail starts exactly after it
+            last_ids[s] = entries[0][0]  # newest id -> tail starts exactly after it
             for sid, fields in reversed(entries):
                 collected.append(_fmt(sid, fields))
     collected.sort(key=lambda m: m["id"])
@@ -190,9 +202,8 @@ _VFX_SEQ = [0]
 
 def _vfx_job_add(op, args):
     _VFX_SEQ[0] += 1
-    jid = "j%d" % _VFX_SEQ[0]
-    _VFX_JOBS[jid] = {"id": jid, "op": str(op or ""), "args": args or {},
-                      "state": "pending", "result": None}
+    jid = f"j{int(_VFX_SEQ[0])}"
+    _VFX_JOBS[jid] = {"id": jid, "op": str(op or ""), "args": args or {}, "state": "pending", "result": None}
     # Keep the table small; a bench left open for a day should not accumulate a thousand records.
     if len(_VFX_JOBS) > 200:
         for k in sorted(_VFX_JOBS)[:100]:
@@ -226,15 +237,9 @@ def _vfx_lease(worker, visible):
         holder_visible = bool(cur.get("visible"))
         # RULE 1, and it outranks everything: a tab that can actually draw displaces one that
         # cannot. Nothing else may promote a hidden tab over a visible one.
-        if visible and not holder_visible:
-            pass
-        # RULE 2, and only BETWEEN EQUALS. A page from before the lease existed identifies as
-        # 'legacy'; it still renders (a deploy must not stop a working bench) but its claim is weak,
-        # so a reloaded tab takes the farm rather than waiting behind a holder that cannot be asked
-        # about. Ordering this rule ABOVE rule 1 is a bug that reproduced immediately and loudly:
-        # a hidden pane and a visible legacy tab traded the lease twice a second, so every render
-        # was a coin flip on whether it landed in a tab that composites.
-        elif visible == holder_visible and cur["worker"] == "legacy" and worker != "legacy":
+        if (visible and not holder_visible) or (
+            visible == holder_visible and cur["worker"] == "legacy" and worker != "legacy"
+        ):
             pass
         else:
             return False
@@ -245,9 +250,12 @@ def _vfx_lease(worker, visible):
 def _vfx_lease_state():
     now = time.time()
     held = bool(_VFX_LEASE["worker"]) and (now - _VFX_LEASE["at"]) < VFX_LEASE_TTL
-    return {"attached": held, "worker": _VFX_LEASE["worker"] if held else "",
-            "visible": bool(_VFX_LEASE["visible"]) if held else False,
-            "idle": round(now - _VFX_LEASE["at"], 2) if _VFX_LEASE["worker"] else None}
+    return {
+        "attached": held,
+        "worker": _VFX_LEASE["worker"] if held else "",
+        "visible": bool(_VFX_LEASE["visible"]) if held else False,
+        "idle": round(now - _VFX_LEASE["at"], 2) if _VFX_LEASE["worker"] else None,
+    }
 
 
 def _vfx_job_next(worker="", visible=True):
@@ -333,11 +341,16 @@ def _vfx_feed_from_job(j):
     ok = bool(res.get("ok"))
     # The subject, not the verb: "thumb swirl" tells you what you are looking at; "thumb" does not.
     subject = args.get("chunk") or args.get("state") or args.get("name") or args.get("style") or ""
-    return {"kind": "render", "op": j.get("op", ""), "ok": ok,
-            "text": (args.get("say") or "").strip(),
-            "label": (str(j.get("op", "")) + " " + str(subject)).strip(),
-            "error": "" if ok else str(res.get("error") or "failed")[:200],
-            "path": res.get("path") or "", "url": _vfx_feed_url(res.get("path"))}
+    return {
+        "kind": "render",
+        "op": j.get("op", ""),
+        "ok": ok,
+        "text": (args.get("say") or "").strip(),
+        "label": (str(j.get("op", "")) + " " + str(subject)).strip(),
+        "error": "" if ok else str(res.get("error") or "failed")[:200],
+        "path": res.get("path") or "",
+        "url": _vfx_feed_url(res.get("path")),
+    }
 
 
 def _vfx_feed_since(since):
@@ -370,6 +383,7 @@ VFX_THUMBS = os.path.join(REPO, "design", "vfx-thumbs")
 
 def _vfx_thumb_write(name, data_url):
     import base64
+
     safe = "".join(c for c in str(name or "") if c.isalnum() or c in "-_")[:60]
     if not safe:
         return {"ok": False, "error": "bad name"}
@@ -396,6 +410,7 @@ def _vfx_clip_write(name, data_url):
     different lifetimes: the sprite is the FALLBACK and must survive even when a clip exists, so a
     failed recording never leaves a block with no tile at all."""
     import base64
+
     safe = "".join(c for c in str(name or "") if c.isalnum() or c in "-_")[:60]
     if not safe:
         return {"ok": False, "error": "bad name"}
@@ -437,14 +452,15 @@ VFX_SNAPS = os.path.join(REPO, "design", "vfx-snaps")
 def _vfx_snap_write(name, data_url):
     """Decode a data: URL from canvas.toDataURL and write a PNG claude can open with Read."""
     import base64
+
     safe = "".join(c for c in str(name or "snap") if c.isalnum() or c in "-_")[:50] or "snap"
     try:
         head, _, b64 = str(data_url or "").partition(",")
         if "base64" not in head or not b64:
             return {"ok": False, "error": "expected a base64 data URL"}
         raw = base64.b64decode(b64)
-        if len(raw) > 8 * 1024 * 1024:            # a bench canvas is ~100KB; anything near 8MB is
-            return {"ok": False, "error": "too large"}   # not a canvas and should not be written
+        if len(raw) > 8 * 1024 * 1024:  # a bench canvas is ~100KB; anything near 8MB is
+            return {"ok": False, "error": "too large"}  # not a canvas and should not be written
         os.makedirs(VFX_SNAPS, exist_ok=True)
         path = os.path.join(VFX_SNAPS, safe + ".png")
         tmp = path + ".tmp"
@@ -462,7 +478,7 @@ VFX_GRAPHS = os.path.join(REPO, "design", "vfx-graphs.json")
 
 def _vfx_graphs_read():
     try:
-        with open(VFX_GRAPHS, "r", encoding="utf-8") as fh:
+        with open(VFX_GRAPHS, encoding="utf-8") as fh:
             d = json.load(fh)
         return d if isinstance(d, dict) else {}
     except Exception:
@@ -491,7 +507,7 @@ VFX_GROUPS = os.path.join(REPO, "design", "vfx-groups.json")
 
 def _vfx_groups_read():
     try:
-        with open(VFX_GROUPS, "r", encoding="utf-8") as fh:
+        with open(VFX_GROUPS, encoding="utf-8") as fh:
             d = json.load(fh)
         return d if isinstance(d, dict) else {}
     except Exception:
@@ -530,7 +546,7 @@ def _vfx_chunks_read():
         return out
     for fn in names:
         try:
-            with open(os.path.join(VFX_CHUNKS, fn), "r", encoding="utf-8") as fh:
+            with open(os.path.join(VFX_CHUNKS, fn), encoding="utf-8") as fh:
                 txt = fh.read()
             head, _, body = txt.partition("\n")
             meta = json.loads(head[3:].strip()) if head.startswith("//!") else {}
@@ -545,7 +561,7 @@ def _vfx_chunks_read():
 
 def _vfx_compos_read():
     try:
-        with open(VFX_COMPOS, "r", encoding="utf-8") as fh:
+        with open(VFX_COMPOS, encoding="utf-8") as fh:
             d = json.load(fh)
         return d if isinstance(d, dict) else {}
     except Exception:
@@ -588,7 +604,7 @@ def _vfx_sketches_list():
     try:
         return sorted(f[:-5] for f in os.listdir(VFX_SKETCHES) if f.endswith(".frag"))
     except Exception:
-        return []                      # no sketches dir yet is not an error
+        return []  # no sketches dir yet is not an error
 
 
 def _vfx_sketch_read(name):
@@ -597,7 +613,7 @@ def _vfx_sketch_read(name):
         return {"ok": False, "error": "bad name"}
     path, safe = r
     try:
-        with open(path, "r", encoding="utf-8") as fh:
+        with open(path, encoding="utf-8") as fh:
             return {"ok": True, "name": safe, "src": fh.read()}
     except Exception as exc:
         return {"ok": False, "error": str(exc)[:200]}
@@ -613,7 +629,7 @@ def _vfx_sketch_write(name, src):
         tmp = path + ".tmp"
         with open(tmp, "w", encoding="utf-8") as fh:
             fh.write(str(src or ""))
-        os.replace(tmp, path)          # atomic, same reason as the presets file
+        os.replace(tmp, path)  # atomic, same reason as the presets file
         return {"ok": True, "name": safe, "bytes": len(src or "")}
     except Exception as exc:
         return {"ok": False, "error": str(exc)[:200]}
@@ -629,20 +645,31 @@ def _vfx_ingest(name, src):
     than on disk.
     """
     import vfx_ingest
+
     r = vfx_ingest.rewrite(src, name=name)
     if not r.get("ok"):
         return r
     w = _vfx_sketch_write(name, r["src"])
     if not w.get("ok"):
-        return {"ok": False, "error": w.get("error", "could not save"),
-                "notes": r.get("notes", []), "warnings": r.get("warnings", [])}
-    return {"ok": True, "name": w["name"], "bytes": w["bytes"], "kind": r.get("kind"),
-            "notes": r.get("notes", []), "warnings": r.get("warnings", []),
-            "summary": vfx_ingest.summary(r)}
+        return {
+            "ok": False,
+            "error": w.get("error", "could not save"),
+            "notes": r.get("notes", []),
+            "warnings": r.get("warnings", []),
+        }
+    return {
+        "ok": True,
+        "name": w["name"],
+        "bytes": w["bytes"],
+        "kind": r.get("kind"),
+        "notes": r.get("notes", []),
+        "warnings": r.get("warnings", []),
+        "summary": vfx_ingest.summary(r),
+    }
 
 
 # ---- WHAT THE BENCH IS CURRENTLY SHOWING -------------------------------------------------------
-# Daniil: "If I refresh the page your buffered demo gets lost."
+# Daniil said, "If I refresh the page your buffered demo gets lost."
 #
 # Exactly so, and it was worse than a nuisance: claude loads a shader into the open bench, Daniil
 # reloads for any reason, and the bench boots back to the default avatar with no trace of what was
@@ -655,21 +682,27 @@ def _vfx_ingest(name, src):
 # everything else in this bench -- either side can read it, edit it and commit it.
 VFX_BENCH = os.path.join(REPO, "design", "vfx-bench.json")
 _BENCH_KEYS = ("subject", "sketch", "style", "state", "identity", "note")
-_BENCH_DEFAULT = {"subject": "avatar", "sketch": "", "style": "geodesic",
-                  "state": "thinking", "identity": "claude", "note": ""}
+_BENCH_DEFAULT = {
+    "subject": "avatar",
+    "sketch": "",
+    "style": "geodesic",
+    "state": "thinking",
+    "identity": "claude",
+    "note": "",
+}
 
 
 def _vfx_bench_read():
     out = dict(_BENCH_DEFAULT)
     try:
-        with open(VFX_BENCH, "r", encoding="utf-8") as fh:
+        with open(VFX_BENCH, encoding="utf-8") as fh:
             d = json.load(fh)
         if isinstance(d, dict):
             out.update({k: d[k] for k in _BENCH_KEYS if k in d})
     except FileNotFoundError:
-        pass                       # never bench-stated before is not an error, it is a fresh clone
+        pass  # never bench-stated before is not an error, it is a fresh clone
     except Exception:
-        pass                       # a corrupt file must not stop the bench from opening
+        pass  # a corrupt file must not stop the bench from opening
     return out
 
 
@@ -690,7 +723,7 @@ def _vfx_bench_write(patch):
         tmp = VFX_BENCH + ".tmp"
         with open(tmp, "w", encoding="utf-8") as fh:
             json.dump(cur, fh, indent=2)
-        os.replace(tmp, VFX_BENCH)          # atomic, same reason as the presets file
+        os.replace(tmp, VFX_BENCH)  # atomic, same reason as the presets file
         return {"ok": True, "bench": cur}
     except Exception as exc:
         return {"ok": False, "error": str(exc)[:200]}
@@ -701,13 +734,13 @@ VFX_PRESETS = os.path.join(REPO, "design", "vfx-presets.json")
 
 def _vfx_presets_read():
     try:
-        with open(VFX_PRESETS, "r", encoding="utf-8") as fh:
+        with open(VFX_PRESETS, encoding="utf-8") as fh:
             d = json.load(fh)
         return d if isinstance(d, dict) else {}
     except FileNotFoundError:
-        return {}                      # no presets yet is not an error, it is Tuesday
+        return {}  # no presets yet is not an error, it is Tuesday
     except Exception:
-        return {}                      # fail-open: a corrupt preset file must not break the bench
+        return {}  # fail-open: a corrupt preset file must not break the bench
 
 
 def _vfx_presets_write(name, value):
@@ -719,14 +752,14 @@ def _vfx_presets_write(name, value):
         tmp = VFX_PRESETS + ".tmp"
         with open(tmp, "w", encoding="utf-8") as fh:
             json.dump(cur, fh, indent=2, sort_keys=True)
-        os.replace(tmp, VFX_PRESETS)   # atomic: a crash mid-write leaves the old file intact,
-        return {"ok": True, "count": len(cur)}      # never a half-written one
+        os.replace(tmp, VFX_PRESETS)  # atomic: a crash mid-write leaves the old file intact,
+        return {"ok": True, "count": len(cur)}  # never a half-written one
     except Exception as exc:
         return {"ok": False, "error": str(exc)[:200]}
 
 
 class Handler(BaseHTTPRequestHandler):
-    def log_message(self, *a):
+    def log_message(self, *_a: object, **_k: object):
         pass  # quiet
 
     # ------------------------------------------------------------------ GET
@@ -734,22 +767,22 @@ class Handler(BaseHTTPRequestHandler):
         path = self.path.split("?", 1)[0]
         if path == "/":
             return self._html()
-        if path == "/status":                   # legacy — still works; /api/now is canonical
+        if path == "/status":  # legacy — still works; /api/now is canonical
             return self._json(self._status())
-        if path == "/vitals":                   # legacy — still works; /api/now is canonical
+        if path == "/vitals":  # legacy — still works; /api/now is canonical
             return self._json(self._vitals())
-        if path == "/api/now":                  # TRUTH/NOISE tier: one call to rule all cards
+        if path == "/api/now":  # TRUTH/NOISE tier: one call to rule all cards
             return self._json(self._api_now())
-        if path == "/api/channels":             # side-channel visibility (Daniil's standing ask)
+        if path == "/api/channels":  # side-channel visibility (Daniil's standing ask)
             return self._json(self._api_channels())
         # REMOTE PLANE (claude, 2026-08-25): the model lives in core/comm/bridge_status.py so
         # the panel is paint over a dict and the logic keeps its pins. ?probe=1 costs a TCP
         # connect per peer; the default render must not imply a measurement it did not take.
         if path == "/api/remote":
             from core.comm import bridge_status as _bs
+
             _probe = "probe=1" in (self.path.split("?", 1)[1] if "?" in self.path else "")
-            return self._json({"status": _bs.status(probe=_probe),
-                               "actions": _bs.actions()})
+            return self._json({"status": _bs.status(probe=_probe), "actions": _bs.actions()})
         if path == "/events":
             return self._events()
         if path == "/launcher/status":
@@ -762,7 +795,9 @@ class Handler(BaseHTTPRequestHandler):
         # has no write door, which is what keeps the private shelf private.
         if path in ("/reports", "/api/reports", "/api/report", "/api/reports/compare"):
             import urllib.parse as _up
+
             from scripts import bifrost_reports as _reports
+
             _q = _up.parse_qs(self.path.split("?", 1)[1]) if "?" in self.path else {}
             _hit = _reports.handle(path, _q)
             if _hit is not None:
@@ -772,7 +807,7 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_header("Content-Length", str(len(_body)))
                 self.end_headers()
                 self.wfile.write(_body)
-                return
+                return None
         if path == "/aurora-shader.js":
             return self._static("scripts/aurora-shader.js", "application/javascript")
         if path == "/bifrost_viz.js":
@@ -804,10 +839,10 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/vfx/clips":
             return self._json({"names": _vfx_clips_list()})
         if path == "/vfx/job/next":
-            from urllib.parse import urlparse, parse_qs
+            from urllib.parse import parse_qs, urlparse
+
             q = parse_qs(urlparse(self.path).query)
-            return self._json(_vfx_job_next((q.get("worker") or [""])[0],
-                                            (q.get("visible") or ["1"])[0] != "0") or {})
+            return self._json(_vfx_job_next((q.get("worker") or [""])[0], (q.get("visible") or ["1"])[0] != "0") or {})
         if path == "/vfx/renderer":
             return self._json(_vfx_lease_state())
         if path == "/vfx/bench":
@@ -836,7 +871,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send_error(404)
             return self._static("design/vfx-snaps/" + safe, "image/png")
         if path == "/vfx/feed":
-            from urllib.parse import urlparse, parse_qs
+            from urllib.parse import parse_qs, urlparse
+
             q = parse_qs(urlparse(self.path).query)
             return self._json(_vfx_feed_since((q.get("since") or ["0"])[0]))
         if path == "/vfx/compositions":
@@ -846,10 +882,12 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/vfx/graphs":
             return self._json(_vfx_graphs_read())
         if path.startswith("/vfx/sketch"):
-            from urllib.parse import urlparse, parse_qs
+            from urllib.parse import parse_qs, urlparse
+
             q = parse_qs(urlparse(self.path).query)
             return self._json(_vfx_sketch_read((q.get("name") or [""])[0]))
         self.send_error(404)
+        return None
 
     def _html(self):
         body = PAGE.encode("utf-8")
@@ -890,13 +928,16 @@ class Handler(BaseHTTPRequestHandler):
         signals = {}
         try:
             from core.comm import nudge, runner_lock
+
             for a in agents:
                 aid = a.get("agent")
                 if not aid:
                     continue
-                signals[aid] = {"nudged": nudge.is_nudged(aid),
-                                "steer_pending": nudge.steer_pending(aid),
-                                "runner": bool(runner_lock.holder(aid))}
+                signals[aid] = {
+                    "nudged": nudge.is_nudged(aid),
+                    "steer_pending": nudge.steer_pending(aid),
+                    "runner": bool(runner_lock.holder(aid)),
+                }
         except Exception:
             signals = {}
         # Known: the roster of who the user can actually TALK to. Daniil, 2026-08-19, looking at
@@ -915,10 +956,11 @@ class Handler(BaseHTTPRequestHandler):
         residents_ids = set()
         try:
             from core.fleet import residents as _res
+
             # enumerate ratified residents via the index (the module exposes no list-all; the
             # index is "every id ever nominated", get() returns None for non-ratified ones)
             index_key = getattr(_res, "_INDEX_KEY", "residents:all")
-            for aid in (_res._store().lrange(index_key, 0, -1) or []):
+            for aid in _res._store().lrange(index_key, 0, -1) or []:
                 if _res.get(aid) is not None:
                     residents_ids.add(aid)
         except Exception:
@@ -943,33 +985,45 @@ class Handler(BaseHTTPRequestHandler):
         residents = {}
         try:
             from core.fleet import residents as _res
-            for aid in set(known) | {a.get("agent") for a in agents if a.get("agent")}:
+
+            for aid in set(known) | {ag for a in agents if (ag := a.get("agent"))}:
                 r = _res.get(aid)
                 if isinstance(r, dict) and r.get("callsign"):
                     residents[aid] = {
-                        "callsign": r.get("callsign"), "vendor": r.get("vendor"),
-                        "family": r.get("family"), "team": r.get("team"),
-                        "number": r.get("number"), "state": r.get("state"),
+                        "callsign": r.get("callsign"),
+                        "vendor": r.get("vendor"),
+                        "family": r.get("family"),
+                        "team": r.get("team"),
+                        "number": r.get("number"),
+                        "state": r.get("state"),
                         # the schema line as the boot block renders it, so one spelling
-                        # travels: "Anthropic | Amber | Blue | 1 - Vandor"
+                        # travels, e.g. "Anthropic | Amber | Blue | 1 - Vandor"
                         "schema": f"{r.get('vendor')} | {r.get('family')} | "
-                                  f"{r.get('team')} | {r.get('number')} - {r.get('callsign')}",
+                        f"{r.get('team')} | {r.get('number')} - {r.get('callsign')}",
                     }
         except Exception:
             residents = {}
-        return {"paused": control.is_paused(), "pause": control.pause_status(),
-                "agents": agents, "known": known, "activities": control.get_activities(),
-                "signals": signals, "max_hops": control.MAX_HOPS, "residents": residents,
-                "halted": control.halted_agents(),
-                "narration": control.get_narration_level()}   # claude reasoning visibility: off|key|full
+        return {
+            "paused": control.is_paused(),
+            "pause": control.pause_status(),
+            "agents": agents,
+            "known": known,
+            "activities": control.get_activities(),
+            "signals": signals,
+            "max_hops": control.MAX_HOPS,
+            "residents": residents,
+            "halted": control.halted_agents(),
+            "narration": control.get_narration_level(),
+        }  # claude reasoning visibility: off|key|full
 
     def _vitals(self):
         """T079-E4: engine-room vitals for all known agents (heartbeat + runtimes +
         tokens + pages + daemon_live + lane depths + fence phase). Polled at 2s."""
         try:
             from core.comm.engine_vitals import gauge_snapshot
-            from core.comm.lane_depths import lane_depths
             from core.comm.fence_phase import fence_phase
+            from core.comm.lane_depths import lane_depths
+
             known = {"claude": None, "deepseek": None}  # default agents
             try:
                 for g in registry.grants():
@@ -991,9 +1045,11 @@ class Handler(BaseHTTPRequestHandler):
                 result[a] = snap
             # fence phases for active arcs
             try:
-                result["_fence"] = {"engine-room": fence_phase("engine-room"),
-                                    "capability-surface": fence_phase("capability-surface"),
-                                    "presence-autopilot": fence_phase("presence-autopilot")}
+                result["_fence"] = {
+                    "engine-room": fence_phase("engine-room"),
+                    "capability-surface": fence_phase("capability-surface"),
+                    "presence-autopilot": fence_phase("presence-autopilot"),
+                }
             except Exception:
                 result["_fence"] = {}
             return result
@@ -1007,6 +1063,7 @@ class Handler(BaseHTTPRequestHandler):
         Redis pipeline. The frontend's single poll scheduler calls this, not the
         scattered /status + /vitals loops."""
         import urllib.parse
+
         qs = urllib.parse.parse_qs(self.path.split("?", 1)[-1] if "?" in self.path else "")
         requested = [a.strip() for a in qs.get("agents", [""])[0].split(",") if a.strip()] if "agents" in qs else None
         try:
@@ -1015,13 +1072,13 @@ class Handler(BaseHTTPRequestHandler):
             # ---- vitals half (engine-room gauges, per-agent) ---------------------
             vitals = self._vitals()
             # ---- seat-class honesty: per-agent seat type for honest vocab -------
-            from core.comm import runner_lock, daemon_state
+            from core.comm import daemon_state, runner_lock
+
             daemon_live = {}
             seat_class = {}
-            agents_list = requested or sorted(set(
-                [a.get("agent","") for a in status.get("agents",[])] +
-                list((vitals or {}).keys())
-            ))
+            agents_list = requested or sorted(
+                set([a.get("agent", "") for a in status.get("agents", [])] + list((vitals or {}).keys()))
+            )
             for a in agents_list:
                 if not a or a == "_fence":
                     continue
@@ -1029,17 +1086,18 @@ class Handler(BaseHTTPRequestHandler):
                 rh = runner_lock.holder(a)
                 rtoken = str((rh or {}).get("token", ""))
                 if rh and not rtoken.startswith("daemon:"):
-                    seat_class[a] = "runner"     # real runner holds the lock directly
+                    seat_class[a] = "runner"  # real runner holds the lock directly
                 elif daemon_live[a] or rtoken.startswith("daemon:"):
                     seat_class[a] = "listening"  # daemon holds watch (alpha-mode lock or delta daemon)
-                elif any(a == s.get("agent","") for s in status.get("agents",[])):
-                    seat_class[a] = "seat"       # on bus, not a runner — harness/launcher
+                elif any(a == s.get("agent", "") for s in status.get("agents", [])):
+                    seat_class[a] = "seat"  # on bus, not a runner — harness/launcher
                 else:
                     seat_class[a] = "unseated"
             # ---- progress (turn_metrics live view, per agent) -----------
             progress = {}
             try:
                 from core.comm.turn_metrics import progress_view
+
                 for a in agents_list:
                     if not a or a == "_fence":
                         continue
@@ -1058,7 +1116,9 @@ class Handler(BaseHTTPRequestHandler):
             dsh_card = None
             try:
                 import os as _os
+
                 from core.comm import roster as _roster
+
                 _ns = _os.environ.get("BIFROST_NAMESPACE", "bifrost")
                 rows = _roster.roster(_ns)
                 # find the dsh_agent row (best = LIVE > STALE > DEAD), honoring the
@@ -1066,12 +1126,14 @@ class Handler(BaseHTTPRequestHandler):
                 dsh_rows = [r for r in rows if r.get("agent") == "dsh_agent"]
                 if dsh_rows:
                     _rank = {"LIVE": 3, "STALE": 2, "DEAD": 1}
-                    best = max(dsh_rows, key=lambda r: (_rank.get(str(r.get("state")), 0),
-                                                        -(float(r.get("beat_age_s") or 1e12))))
+                    best = max(
+                        dsh_rows,
+                        key=lambda r: (_rank.get(str(r.get("state")), 0), -(float(r.get("beat_age_s") or 1e12))),
+                    )
                     # beat age -> green/amber/gray, the operator's core ask
                     _state = str(best.get("state") or "?")
                     _age = best.get("beat_age_s")
-                    _color = { "LIVE": "green", "STALE": "amber", "DEAD": "gray" }.get(_state, "gray")
+                    _color = {"LIVE": "green", "STALE": "amber", "DEAD": "gray"}.get(_state, "gray")
                     dsh_card = {
                         "state": _state,
                         "color": _color,
@@ -1121,18 +1183,23 @@ class Handler(BaseHTTPRequestHandler):
         than inventing a fleet.
         """
         import os as _os
+
         default_ns = _os.environ.get("BIFROST_NAMESPACE", "bifrost")
         out, seen = [], {}
         try:
             from core.comm.bus import _connect
+
             r = _connect()
             if r is None:
-                return {"channels": [], "default": default_ns,
-                        "note": "store unreachable -- channel discovery unavailable"}
+                return {
+                    "channels": [],
+                    "default": default_ns,
+                    "note": "store unreachable -- channel discovery unavailable",
+                }
             scanned = 0
             for raw in r.scan_iter(match="*:worklive:*", count=200):
                 scanned += 1
-                if scanned > 4000:          # hard cap: a census must not become a scan storm
+                if scanned > 4000:  # hard cap: a census must not become a scan storm
                     break
                 key = raw.decode("utf-8", "replace") if isinstance(raw, bytes) else str(raw)
                 ns = key.split(":worklive:", 1)[0]
@@ -1144,21 +1211,25 @@ class Handler(BaseHTTPRequestHandler):
                     d["seats"].add(seat)
             for ns, d in sorted(seen.items()):
                 seats = sorted(d["seats"])
-                out.append({
-                    "ns": ns,
-                    "is_default": ns == default_ns,
-                    "seats": seats,
-                    "count": len(seats),
-                    # agents, not incarnations -- "who is in the room" is the operator's question
-                    "agents": sorted({s.split("#", 1)[0] for s in seats}),
-                })
+                out.append(
+                    {
+                        "ns": ns,
+                        "is_default": ns == default_ns,
+                        "seats": seats,
+                        "count": len(seats),
+                        # agents, not incarnations -- "who is in the room" is the operator's question
+                        "agents": sorted({s.split("#", 1)[0] for s in seats}),
+                    }
+                )
         except Exception as e:
-            return {"channels": [], "default": default_ns,
-                    "note": f"discovery failed: {type(e).__name__}"}
-        return {"channels": out, "default": default_ns,
-                "checked": "worklive keys only (a channel exists when someone beats in it)",
-                "not_checked": "namespaces with no live seat are invisible here BY DESIGN -- "
-                               "an empty room is not a conversation"}
+            return {"channels": [], "default": default_ns, "note": f"discovery failed: {type(e).__name__}"}
+        return {
+            "channels": out,
+            "default": default_ns,
+            "checked": "worklive keys only (a channel exists when someone beats in it)",
+            "not_checked": "namespaces with no live seat are invisible here BY DESIGN -- "
+            "an empty room is not a conversation",
+        }
 
     def _json(self, obj, code=200):
         body = json.dumps(obj, default=str).encode("utf-8")
@@ -1169,8 +1240,9 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def _events(self):
-        import urllib.parse
         import os as _os
+        import urllib.parse
+
         default_ns = _os.environ.get("BIFROST_NAMESPACE", "bifrost")
         qs = urllib.parse.parse_qs(self.path.split("?", 1)[-1] if "?" in self.path else "")
         ns_list = qs.get("ns", [default_ns])
@@ -1179,7 +1251,7 @@ class Handler(BaseHTTPRequestHandler):
             self.send_response(400)
             self.send_header("Content-Type", "text/plain")
             self.end_headers()
-            self.wfile.write(f"invalid namespace: {ns!r} — a room name is a bare token".encode("utf-8"))
+            self.wfile.write(f"invalid namespace: {ns!r} — a room name is a bare token".encode())
             return
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream")
@@ -1189,8 +1261,16 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         client = _client()
         if client is None:
-            self._sse({"from": "system", "kind": "note", "content": "bus offline (Redis unreachable)",
-                       "ts": "", "meta": {}, "id": "0"})
+            self._sse(
+                {
+                    "from": "system",
+                    "kind": "note",
+                    "content": "bus offline (Redis unreachable)",
+                    "ts": "",
+                    "meta": {},
+                    "id": "0",
+                }
+            )
             return
         last_ids = {}
         try:
@@ -1226,9 +1306,9 @@ class Handler(BaseHTTPRequestHandler):
         # bus. The module refuses on its own too; this is the outer half of that pair.
         if path == "/api/remote/act":
             from core.comm import bridge_status as _bs
+
             _out = _bs.act(data.get("action"), confirm=bool(data.get("confirm")))
-            return self._json({"ok": bool(_out.ok), "why": _out.why or "",
-                               "ref": _out.ref, "detail": _out.detail})
+            return self._json({"ok": bool(_out.ok), "why": _out.why or "", "ref": _out.ref, "detail": _out.detail})
         if path == "/vfx/sketch":
             return self._json(_vfx_sketch_write(data.get("name"), data.get("src")))
         if path == "/vfx/compositions":
@@ -1259,10 +1339,21 @@ class Handler(BaseHTTPRequestHandler):
             txt = str(data.get("text") or "").strip()
             if not txt:
                 return self._json({"ok": False, "error": "text required"})
-            e = _vfx_feed_add({"kind": str(data.get("kind") or "say"), "text": txt[:2000],
-                               "from": str(data.get("from") or "claude")[:32],
-                               "label": str(data.get("label") or "")[:80],
-                               "path": "", "url": "", "ok": True, "error": ""})
+            e = cast(  # a non-empty entry is always returned
+                "dict[str, Any]",
+                _vfx_feed_add(
+                    {
+                        "kind": str(data.get("kind") or "say"),
+                        "text": txt[:2000],
+                        "from": str(data.get("from") or "claude")[:32],
+                        "label": str(data.get("label") or "")[:80],
+                        "path": "",
+                        "url": "",
+                        "ok": True,
+                        "error": "",
+                    }
+                ),
+            )
             return self._json({"ok": True, "id": e["id"]})
         if path == "/vfx/presets":
             name = str(data.get("name") or "").strip()
@@ -1303,10 +1394,12 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(result)
         if path == "/launcher/snapshot":
             from core.comm import session_state
+
             result = session_state.save(label=data.get("label") or "")
             return self._json(result)
         if path == "/launcher/restore":
             from core.comm import session_state
+
             result = session_state.resume(label=data.get("label") or "launcher-restore")
             return self._json(result)
         if path == "/launcher/session-status":
@@ -1315,7 +1408,7 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/reload":
             self._json({"ok": True, "reloading": True})
             threading.Thread(target=lambda: (time.sleep(0.3), _reexec()), daemon=True).start()
-            return
+            return None
         if path == "/negotiate":
             return self._negotiate(data)
         if path == "/narration":
@@ -1325,6 +1418,7 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/episode/accept":
             return self._episode_accept(data)
         self.send_error(404)
+        return None
 
     # --- session bookends (S4): the episode panel's backend --------------------------------------
     # Thin adapters over core/narrative/episode(_suggester) emitting the locked contract
@@ -1334,9 +1428,11 @@ class Handler(BaseHTTPRequestHandler):
     def _episode_current(self):
         try:
             from core.narrative.episode import current_episode
+
             out = current_episode()
             try:
                 from core.narrative.episode_suggester import suggest
+
                 if out.get("current_chapter"):
                     out["current_chapter"]["suggestion"] = suggest()
             except Exception:
@@ -1348,21 +1444,30 @@ class Handler(BaseHTTPRequestHandler):
     def _episode_close(self, data):
         try:
             from core.narrative.episode import close_episode
-            return self._json(close_episode(
-                title=data.get("title"), description=data.get("description"),
-                why=data.get("why"), finalize=bool(data.get("finalize"))))
+
+            return self._json(
+                close_episode(
+                    title=data.get("title"),
+                    description=data.get("description"),
+                    why=data.get("why"),
+                    finalize=bool(data.get("finalize")),
+                )
+            )
         except Exception as e:
             return self._json({"draft": None, "error": f"close failed: {type(e).__name__}"}, 500)
 
     def _episode_accept(self, data):
         try:
             from core.narrative.episode import accept_episode
+
             cid = str(data.get("chapter_id") or "")
             if not cid:
                 return self._json({"error": "chapter_id required"}, 400)
-            return self._json(accept_episode(None, cid, title=data.get("title"),
-                                             description=data.get("description"),
-                                             why=data.get("why")))
+            return self._json(
+                accept_episode(
+                    None, cid, title=data.get("title"), description=data.get("description"), why=data.get("why")
+                )
+            )
         except Exception as e:
             return self._json({"error": f"accept failed: {type(e).__name__}"}, 500)
 
@@ -1389,24 +1494,29 @@ class Handler(BaseHTTPRequestHandler):
             return self._json({"ok": False, "refused": "empty command"}, 400)
         try:
             from core.comm.toolbox import ToolBox
+
             # trust=True + allow_exec=True picks the family-allowlist path ONLY (no interactive
             # confirm); agent_id is None so the ACL/runner-identity branch never fires. We do NOT
             # call toolbox.run_command() -- that method hard-gates on the *agent's* exec cap,
             # which the console (posting as 'user') correctly does not hold. We call the one
             # primitive that IS the policy: _exec_family.
-            tb = ToolBox(Path(REPO), allow_exec=True, trust=True, allow_secrets=False,
-                         confirm=lambda _p: False, agent_id=None)
+            tb = ToolBox(
+                Path(REPO), allow_exec=True, trust=True, allow_secrets=False, confirm=lambda _p: False, agent_id=None
+            )
             argv, env_extra, why = tb._exec_family(command)
             if argv is None:
                 return self._json({"ok": False, "refused": why}, 200)
             import subprocess
+
             env = dict(os.environ)
             env.update(env_extra or {})
-            p = subprocess.run(argv, cwd=REPO, capture_output=True, text=True,
-                               encoding="utf-8", errors="replace", timeout=60, env=env)
+            p = subprocess.run(
+                argv, cwd=REPO, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=60, env=env
+            )
             body = (p.stdout or "") + (("\n[stderr]\n" + p.stderr) if p.stderr else "")
-            return self._json({"ok": True, "argv": argv, "exit": p.returncode,
-                               "output": body[:12000] or "(no output)"}, 200)
+            return self._json(
+                {"ok": True, "argv": argv, "exit": p.returncode, "output": body[:12000] or "(no output)"}, 200
+            )
         except Exception as exc:
             return self._json({"ok": False, "refused": f"run failed: {type(exc).__name__}: {exc}"}, 200)
 
@@ -1429,7 +1539,7 @@ class Handler(BaseHTTPRequestHandler):
         talk, and the system ensures the recipient exists. Steer messages also get a brief
         ack echoed to the sender so the user KNOWS it was received, even though steer is silent."""
         text = (data.get("text") or "").strip()
-        to = (data.get("to") or "all").strip().lower()       # default: reach every agent
+        to = (data.get("to") or "all").strip().lower()  # default: reach every agent
         fidelity = (data.get("fidelity") or "chat").strip().lower()
         ns = (data.get("ns") or "").strip() or "bifrost"
         if not room_feed.valid_namespace(ns):
@@ -1485,13 +1595,19 @@ class Handler(BaseHTTPRequestHandler):
         if not context:
             return self._json({"ok": False, "error": "empty context"}, 400)
         try:
-            from bifrost.api import round_result
+            from bifrost.api import round_result  # pyright: ignore[reportMissingImports]  # optional package
+
             result = round_result(triggered_by="user", context=context)
-            return self._json({"ok": True, "verdict": result.get("verdict"),
-                               "reason": result.get("reason"),
-                               "proposals": result.get("proposals", []),
-                               "conflicts": result.get("conflicts", []),
-                               "round": result.get("round_id", "")})
+            return self._json(
+                {
+                    "ok": True,
+                    "verdict": result.get("verdict"),
+                    "reason": result.get("reason"),
+                    "proposals": result.get("proposals", []),
+                    "conflicts": result.get("conflicts", []),
+                    "round": result.get("round_id", ""),
+                }
+            )
         except Exception as e:
             return self._json({"ok": False, "error": str(e)}, 500)
 
@@ -1510,11 +1626,14 @@ class Handler(BaseHTTPRequestHandler):
         except Exception as e:
             return self._json({"ok": False, "error": str(e)}, 500)
         rel = "dropbox/" + name
-        BUS.send("deepseek", "chat",
-                 f"[shared file] The user dropped a file into the project at `{rel}` "
-                 f"({len(blob)} bytes). Read it with read_file if it's relevant.",
-                 meta={"hops": 0, "via": "console", "file": rel})
-        promoter.promote_drop(rel, len(blob), by="user")     # durable provenance: what the human shared
+        BUS.send(
+            "deepseek",
+            "chat",
+            f"[shared file] The user dropped a file into the project at `{rel}` "
+            f"({len(blob)} bytes). Read it with read_file if it's relevant.",
+            meta={"hops": 0, "via": "console", "file": rel},
+        )
+        promoter.promote_drop(rel, len(blob), by="user")  # durable provenance: what the human shared
         return self._json({"ok": True, "path": rel, "bytes": len(blob)})
 
 
@@ -1522,10 +1641,11 @@ def _reexec():
     """Replace this process with a fresh one (same args/port) so edited source is served. SSE clients
     auto-reconnect; the browser just needs a refresh (the Reload button does it)."""
     try:
-        sys.stdout.flush(); sys.stderr.flush()
+        sys.stdout.flush()
+        sys.stderr.flush()
     except Exception:
         pass
-    os.execv(sys.executable, [sys.executable] + sys.argv)
+    os.execv(sys.executable, [sys.executable, *sys.argv])
 
 
 def _reload_watcher():
@@ -1542,7 +1662,7 @@ def _reload_watcher():
         except Exception:
             continue
         if m != last:
-            time.sleep(1.0)                 # debounce: let the writer finish flushing
+            time.sleep(1.0)  # debounce: let the writer finish flushing
             print("[bifrost-ui] source changed on disk -> reloading")
             _reexec()
 
@@ -1551,24 +1671,27 @@ def main():
     ap = argparse.ArgumentParser(description="Realtime Bifrost web console.")
     ap.add_argument("--port", type=int, default=8787)
     ap.add_argument("--host", default="127.0.0.1")
-    ap.add_argument("--auto-reload", action="store_true",
-                    help="re-exec the server when its source changes on disk (dev only; OFF by default so a "
-                         "write-enabled agent editing the UI can't silently restart it under you). Use the "
-                         "header ↻ Reload button for an explicit, safe reload instead.")
+    ap.add_argument(
+        "--auto-reload",
+        action="store_true",
+        help="re-exec the server when its source changes on disk (dev only; OFF by default so a "
+        "write-enabled agent editing the UI can't silently restart it under you). Use the "
+        "header ↻ Reload button for an explicit, safe reload instead.",
+    )
     args = ap.parse_args()
     if not BUS.online:
         print("bifrost_ui: WARNING -- bus offline (Redis unreachable). UI will serve but show no messages.")
     os.makedirs(DROPBOX, exist_ok=True)
     srv = ThreadingHTTPServer((args.host, args.port), Handler)
     srv.daemon_threads = True
-    if args.auto_reload:                                             # opt-in: surprise-restart safe by default
+    if args.auto_reload:  # opt-in: surprise-restart safe by default
         threading.Thread(target=_reload_watcher, daemon=True).start()
     url = f"http://{args.host}:{args.port}"
-    print(f"[bifrost-ui] live at {url}   ({'auto-reload ON' if args.auto_reload else 'manual reload button'} - Ctrl-C to stop)")
-    try:
+    print(
+        f"[bifrost-ui] live at {url}   ({'auto-reload ON' if args.auto_reload else 'manual reload button'} - Ctrl-C to stop)"
+    )
+    with contextlib.suppress(KeyboardInterrupt):
         srv.serve_forever()
-    except KeyboardInterrupt:
-        pass
     print("[bifrost-ui] stopped.")
 
 

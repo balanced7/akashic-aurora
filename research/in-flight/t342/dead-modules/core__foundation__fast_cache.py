@@ -30,15 +30,18 @@ Usage:
     data = load_data_from_ram_disk("temp.json")
 """
 
+import contextlib
+import hashlib
+import json
 import os
 import sys
-import json
-import redis
 import time
-import hashlib
-from typing import Any, Callable, Optional
-from functools import wraps
+from collections.abc import Callable
 from datetime import datetime
+from functools import wraps
+from typing import Any, cast
+
+import redis
 
 # Storage configuration
 RAM_DISK = "X:\\"
@@ -51,7 +54,8 @@ os.makedirs(os.path.join(RAM_DISK, "cache"), exist_ok=True)
 os.makedirs(os.path.join(RAM_DISK, "temp"), exist_ok=True)
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from config import get_redis_config
+
+from config import get_redis_config  # noqa: E402  # sys.path bootstrap (after the RAM-disk makedirs)
 
 # Try to connect to Redis (fail-fast: this runs at import, so it must never
 # stall ~48s when Redis is down — gate on a raw-socket reachability probe).
@@ -84,6 +88,7 @@ def _make_key(prefix: str, *args, **kwargs) -> str:
 
 # ============ RAM DISK OPERATIONS ============
 
+
 def write_data_to_ram_disk(filename: str, data: Any, subdir: str = "cache") -> bool:
     """
     Write data to RAM disk - fastest persistence option.
@@ -100,11 +105,11 @@ def write_data_to_ram_disk(filename: str, data: Any, subdir: str = "cache") -> b
     """
     filepath = os.path.join(RAM_DISK, subdir, filename)
     try:
-        with open(filepath, 'w', encoding='utf-8') as f:
+        with open(filepath, "w", encoding="utf-8") as f:
             json.dump(data, f)
-        _ramdisk_cache[filename] = {'data': data, 'time': time.time()}
+        _ramdisk_cache[filename] = {"data": data, "time": time.time()}
         return True
-    except Exception as e:
+    except Exception:
         return False
 
 
@@ -129,15 +134,15 @@ def load_data_from_ram_disk(filename: str, subdir: str = "cache", use_cache: boo
         Parsed JSON data if file exists, None otherwise
     """
     if use_cache and filename in _ramdisk_cache:
-        return _ramdisk_cache[filename]['data']
+        return _ramdisk_cache[filename]["data"]
 
     filepath = os.path.join(RAM_DISK, subdir, filename)
     try:
-        with open(filepath, 'r', encoding='utf-8') as f:
+        with open(filepath, encoding="utf-8") as f:
             data = json.load(f)
-        _ramdisk_cache[filename] = {'data': data, 'time': time.time()}
+        _ramdisk_cache[filename] = {"data": data, "time": time.time()}
         return data
-    except:
+    except Exception:
         return None
 
 
@@ -186,10 +191,9 @@ def delete_file_from_ram_disk(filename: str, subdir: str = "cache") -> bool:
     try:
         if os.path.exists(filepath):
             os.remove(filepath)
-        if filename in _ramdisk_cache:
-            del _ramdisk_cache[filename]
+        _ramdisk_cache.pop(filename, None)
         return True
-    except:
+    except Exception:
         return False
 
 
@@ -223,7 +227,7 @@ def ram_list(subdir: str = "cache") -> list:
     return list_files_in_ram_disk_directory(subdir)
 
 
-def write_temporary_content_to_ram_disk(filename: str, content: str) -> str:
+def write_temporary_content_to_ram_disk(filename: str, content: str) -> str | None:
     """
     Write temporary content to RAM disk.
 
@@ -238,15 +242,15 @@ def write_temporary_content_to_ram_disk(filename: str, content: str) -> str:
     """
     filepath = os.path.join(RAM_DISK, "temp", filename)
     try:
-        with open(filepath, 'w', encoding='utf-8') as f:
+        with open(filepath, "w", encoding="utf-8") as f:
             f.write(content)
         return filepath
-    except:
+    except Exception:
         return None
 
 
 # Backward compatibility alias
-def ram_write_temp(filename: str, content: str) -> str:
+def ram_write_temp(filename: str, content: str) -> str | None:
     """Deprecated: Use write_temporary_content_to_ram_disk() instead"""
     return write_temporary_content_to_ram_disk(filename, content)
 
@@ -266,6 +270,7 @@ def cache_function_results_with_multi_layer_priority(ttl: int = CACHE_TTL, prefi
     Returns:
         Decorator function that caches function results
     """
+
     def decorator(func: Callable) -> Callable:
         @wraps(func)
         def wrapper(*args, **kwargs):
@@ -274,41 +279,41 @@ def cache_function_results_with_multi_layer_priority(ttl: int = CACHE_TTL, prefi
             # LAYER 1: RAM cache (fastest - microseconds)
             if cache_key in _ram_cache:
                 entry = _ram_cache[cache_key]
-                if time.time() - entry['time'] < ttl:
-                    return entry['value']
+                if time.time() - entry["time"] < ttl:
+                    return entry["value"]
 
             # LAYER 2: RAM disk cache (fast - milliseconds)
             if cache_key in _ramdisk_cache:
                 entry = _ramdisk_cache[cache_key]
-                if time.time() - entry['time'] < ttl:
+                if time.time() - entry["time"] < ttl:
                     _ram_cache[cache_key] = entry  # Promote to RAM
-                    return entry['value']
+                    return entry["value"]
 
             # LAYER 3: Redis (fast - milliseconds)
             if _redis_available:
                 try:
-                    val = _redis.get(cache_key)
+                    val = cast("redis.Redis", _redis).get(cache_key)
                     if val:
                         data = json.loads(val)
-                        _ram_cache[cache_key] = {'value': data, 'time': time.time()}
+                        _ram_cache[cache_key] = {"value": data, "time": time.time()}
                         return data
-                except:
+                except Exception:
                     pass
 
             # Execute function
             result = func(*args, **kwargs)
 
             # Store in all layers
-            _ram_cache[cache_key] = {'value': result, 'time': time.time()}
-            _ramdisk_cache[cache_key] = {'value': result, 'time': time.time()}
+            _ram_cache[cache_key] = {"value": result, "time": time.time()}
+            _ramdisk_cache[cache_key] = {"value": result, "time": time.time()}
             if _redis_available:
-                try:
-                    _redis.setex(cache_key, ttl, json.dumps(result))
-                except:
-                    pass
+                with contextlib.suppress(BaseException):
+                    cast("redis.Redis", _redis).setex(cache_key, ttl, json.dumps(result))
 
             return result
+
         return wrapper
+
     return decorator
 
 
@@ -335,24 +340,24 @@ def load_value_from_cache_hierarchy(key: str, default: Any = None) -> Any:
     """
     # LAYER 1: RAM
     if key in _ram_cache:
-        return _ram_cache[key]['value']
+        return _ram_cache[key]["value"]
 
     # LAYER 2: RAM disk cache
     if key in _ramdisk_cache:
-        data = _ramdisk_cache[key]['data']
+        data = _ramdisk_cache[key]["data"]
         _ram_cache[key] = _ramdisk_cache[key]  # Promote
         return data
 
     # LAYER 3: Redis
     if _redis_available:
         try:
-            val = _redis.get(f"{CACHE_PREFIX}{key}")
+            val = cast("redis.Redis", _redis).get(f"{CACHE_PREFIX}{key}")
             if val:
                 data = json.loads(val)
-                _ram_cache[key] = {'value': data, 'time': time.time()}
-                _ramdisk_cache[key] = {'data': data, 'time': time.time()}
+                _ram_cache[key] = {"value": data, "time": time.time()}
+                _ramdisk_cache[key] = {"data": data, "time": time.time()}
                 return data
-        except:
+        except Exception:
             pass
 
     return default
@@ -378,17 +383,15 @@ def store_value_in_cache_hierarchy(key: str, value: Any, ttl: int = CACHE_TTL):
         ttl: Time-to-live in seconds
     """
     timestamp = time.time()
-    _ram_cache[key] = {'value': value, 'time': timestamp}
-    _ramdisk_cache[key] = {'data': value, 'time': timestamp}
+    _ram_cache[key] = {"value": value, "time": timestamp}
+    _ramdisk_cache[key] = {"data": value, "time": timestamp}
 
     # Also persist to RAM disk as file
-    write_data_to_ram_disk(f"{key}.json", {'value': value, 'time': timestamp, 'ttl': ttl})
+    write_data_to_ram_disk(f"{key}.json", {"value": value, "time": timestamp, "ttl": ttl})
 
     if _redis_available:
-        try:
-            _redis.setex(f"{CACHE_PREFIX}{key}", ttl, json.dumps(value))
-        except:
-            pass
+        with contextlib.suppress(BaseException):
+            cast("redis.Redis", _redis).setex(f"{CACHE_PREFIX}{key}", ttl, json.dumps(value))
 
 
 # Backward compatibility alias
@@ -413,10 +416,10 @@ def load_hash_field_from_redis(key: str, field: str, default: Any = None) -> Any
     """
     if _redis_available:
         try:
-            val = _redis.hget(f"{CACHE_PREFIX}{key}", field)
+            val = cast("str | None", cast("redis.Redis", _redis).hget(f"{CACHE_PREFIX}{key}", field))
             if val:
-                return json.loads(val) if val.startswith('{') else val
-        except:
+                return json.loads(val) if val.startswith("{") else val
+        except Exception:
             pass
     return default
 
@@ -441,8 +444,8 @@ def store_hash_field_in_redis(key: str, field: str, value: Any):
     if _redis_available:
         try:
             val = json.dumps(value) if isinstance(value, (dict, list)) else str(value)
-            _redis.hset(f"{CACHE_PREFIX}{key}", field, val)
-        except:
+            cast("redis.Redis", _redis).hset(f"{CACHE_PREFIX}{key}", field, val)
+        except Exception:
             pass
 
 
@@ -467,12 +470,12 @@ def get_cache_system_status_snapshot() -> dict:
         Dictionary with cache statistics and resource information
     """
     return {
-        'ram_cache_entries': len(_ram_cache),
-        'ramdisk_cache_entries': len(_ramdisk_cache),
-        'ramdisk_files': len(list_files_in_ram_disk_directory()),
-        'redis_available': _redis_available,
-        'ram_disk': RAM_DISK,
-        'ram_disk_free': os.statvfs(RAM_DISK).f_bavail * os.statvfs(RAM_DISK).f_frsize if os.name != 'nt' else None,
+        "ram_cache_entries": len(_ram_cache),
+        "ramdisk_cache_entries": len(_ramdisk_cache),
+        "ramdisk_files": len(list_files_in_ram_disk_directory()),
+        "redis_available": _redis_available,
+        "ram_disk": RAM_DISK,
+        "ram_disk_free": os.statvfs(RAM_DISK).f_bavail * os.statvfs(RAM_DISK).f_frsize if os.name != "nt" else None,
     }
 
 
@@ -494,20 +497,20 @@ def warm_session_cache_on_import():
 
     # Session info
     _session_data = {
-        'timestamp': datetime.now().isoformat(),
-        'session_id': f"session_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
-        'redis_available': _redis_available,
-        'ram_disk': RAM_DISK,
-        'cache_status': get_cache_system_status_snapshot(),
+        "timestamp": datetime.now().isoformat(),
+        "session_id": f"session_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+        "redis_available": _redis_available,
+        "ram_disk": RAM_DISK,
+        "cache_status": get_cache_system_status_snapshot(),
     }
 
     # Try to load context from Redis
     if _redis_available:
         try:
-            ctx = _redis.get("context:current")
+            ctx = cast("redis.Redis", _redis).get("context:current")
             if ctx:
                 _context_cache = json.loads(ctx)
-        except:
+        except Exception:
             pass
 
     # Cache hot paths in all layers
@@ -541,7 +544,7 @@ def load_hot_module_from_cache(module_name: str):
         try:
             __import__(module_name)
             _hot_modules[module_name] = sys.modules.get(module_name)
-        except:
+        except Exception:
             return None
     return _hot_modules.get(module_name)
 
@@ -552,7 +555,7 @@ def get_hot_module(module_name: str):
     return load_hot_module_from_cache(module_name)
 
 
-def execute_code_without_file_io(code: str, globals_dict: dict = None, timeout: float = 5.0) -> dict:
+def execute_code_without_file_io(code: str, globals_dict: dict | None = None, timeout: float = 5.0) -> dict:
     """
     Execute Python code without file I/O.
 
@@ -569,52 +572,42 @@ def execute_code_without_file_io(code: str, globals_dict: dict = None, timeout: 
         Dictionary with success status, result, and stdout
     """
     import io
-    from contextlib import redirect_stdout, redirect_stderr
 
     if globals_dict is None:
         globals_dict = {
-            '__name__': '__fast__',
-            'sys': sys,
-            'json': json,
-            'load_value_from_cache_hierarchy': load_value_from_cache_hierarchy,
-            'store_value_in_cache_hierarchy': store_value_in_cache_hierarchy,
-            'load_hash_field_from_redis': load_hash_field_from_redis,
-            'store_hash_field_in_redis': store_hash_field_in_redis,
-            'cache_function_results_with_multi_layer_priority': cache_function_results_with_multi_layer_priority,
-            'time': time,
-            'datetime': datetime,
-            'fast_cache': sys.modules[__name__] if __name__ in sys.modules else None,
-            'write_data_to_ram_disk': write_data_to_ram_disk,
-            'load_data_from_ram_disk': load_data_from_ram_disk,
-            'list_files_in_ram_disk_directory': list_files_in_ram_disk_directory,
-            'ram_disk': RAM_DISK,
+            "__name__": "__fast__",
+            "sys": sys,
+            "json": json,
+            "load_value_from_cache_hierarchy": load_value_from_cache_hierarchy,
+            "store_value_in_cache_hierarchy": store_value_in_cache_hierarchy,
+            "load_hash_field_from_redis": load_hash_field_from_redis,
+            "store_hash_field_in_redis": store_hash_field_in_redis,
+            "cache_function_results_with_multi_layer_priority": cache_function_results_with_multi_layer_priority,
+            "time": time,
+            "datetime": datetime,
+            "fast_cache": sys.modules.get(__name__, None),
+            "write_data_to_ram_disk": write_data_to_ram_disk,
+            "load_data_from_ram_disk": load_data_from_ram_disk,
+            "list_files_in_ram_disk_directory": list_files_in_ram_disk_directory,
+            "ram_disk": RAM_DISK,
         }
 
     output = io.StringIO()
-    error_output = io.StringIO()
 
     try:
-        exec_globals = {**globals_dict, '__builtins__': __builtins__}
+        exec_globals = {**globals_dict, "__builtins__": __builtins__}
         exec(code, exec_globals)
 
         # Get any returned value
-        result = exec_globals.get('_result')
+        result = exec_globals.get("_result")
 
-        return {
-            "success": True,
-            "result": result,
-            "stdout": output.getvalue()
-        }
+        return {"success": True, "result": result, "stdout": output.getvalue()}
     except Exception as e:
-        return {
-            "success": False,
-            "error": str(e),
-            "stdout": output.getvalue()
-        }
+        return {"success": False, "error": str(e), "stdout": output.getvalue()}
 
 
 # Backward compatibility alias
-def exec_fast(code: str, globals_dict: dict = None, timeout: float = 5.0) -> dict:
+def exec_fast(code: str, globals_dict: dict | None = None, timeout: float = 5.0) -> dict:
     """Deprecated: Use execute_code_without_file_io() instead"""
     return execute_code_without_file_io(code, globals_dict, timeout)
 

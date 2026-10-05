@@ -11,6 +11,7 @@ Offline: runs against a copy of mirror.py inside a temp repo with a local bare o
 Since 2026-09-16 mirror only commits on --commit and only pushes on --push; these pins
 commit, and the push leg is pinned in tests/test_mirror_publish_guard.py.
 """
+
 import os
 import shutil
 import subprocess
@@ -38,7 +39,7 @@ def _staged_files(work):
     return sorted(r.stdout.split())
 
 
-@pytest.fixture()
+@pytest.fixture
 def twin_repo(tmp_path):
     """A repo shared by two seats, with a local bare origin so mirror's push succeeds."""
     work = tmp_path / "work"
@@ -61,28 +62,36 @@ def twin_repo(tmp_path):
 
 def _mirror(work, *args):
     # run as the claude seat (the only seat mirror.py serves) whatever seat runs the suite
-    env = {k: v for k, v in os.environ.items()
-           if k not in ("AKASHIC_AGENT_ID", "AKASHIC_SEAT_DOOR", "GIT_AUTHOR_NAME", "GIT_AUTHOR_EMAIL")}
+    env = {
+        k: v
+        for k, v in os.environ.items()
+        if k not in ("AKASHIC_AGENT_ID", "AKASHIC_SEAT_DOOR", "GIT_AUTHOR_NAME", "GIT_AUTHOR_EMAIL")
+    }
     env["AKASHIC_AGENT_ID"] = "claude"
-    return subprocess.run([sys.executable, "scripts/mirror.py", *args, "--commit"],
-                          cwd=str(work), env=env, stdin=subprocess.DEVNULL,
-                          capture_output=True, text=True)
+    return subprocess.run(
+        [sys.executable, "scripts/mirror.py", *args, "--commit"],
+        cwd=str(work),
+        env=env,
+        stdin=subprocess.DEVNULL,
+        capture_output=True,
+        text=True,
+    )
 
 
 def test_named_path_commit_excludes_strangers_staged_files(twin_repo):
     """THE C2-4 PIN: a rider staged by the other seat stays out of my named-path commit."""
     work = twin_repo
     (work / "rider.txt").write_text("the twin's staged draft\n")
-    _run(["git", "add", "rider.txt"], work)          # the other seat pre-stages
+    _run(["git", "add", "rider.txt"], work)  # the other seat pre-stages
     (work / "mine.txt").write_text("my doc\n")
 
     r = _mirror(work, "docs: mine only", "mine.txt")
     assert r.returncode == 0, f"mirror failed:\n{r.stdout}\n{r.stderr}"
 
     assert _committed_files(work) == ["mine.txt"], (
-        f"named-path commit carried a stranger's staged file: {_committed_files(work)}")
-    assert "rider.txt" in _staged_files(work), (
-        "the twin's staged entry must SURVIVE staged for the twin's own commit")
+        f"named-path commit carried a stranger's staged file: {_committed_files(work)}"
+    )
+    assert "rider.txt" in _staged_files(work), "the twin's staged entry must SURVIVE staged for the twin's own commit"
     # the printed receipt must match what was actually committed
     assert "committed 1 file(s)" in r.stdout, r.stdout
 
@@ -114,7 +123,7 @@ def test_directory_pathspec_scopes_correctly(twin_repo):
     """Directory pathspec: only files under the directory are committed; strangers survive."""
     work = twin_repo
     (work / "rider.txt").write_text("the twin's staged draft\n")
-    _run(["git", "add", "rider.txt"], work)           # the other seat pre-stages
+    _run(["git", "add", "rider.txt"], work)  # the other seat pre-stages
     # NOTE (T104 sweep): fixture moved off docs/*.md — rule-13 birth guard rightly
     # refuses loose doc births even inside the twin; scoping semantics need no .md.
     (work / "notes").mkdir(exist_ok=True)
@@ -127,7 +136,5 @@ def test_directory_pathspec_scopes_correctly(twin_repo):
     committed = _committed_files(work)
     assert "notes/a.txt" in committed
     assert "notes/b.txt" in committed
-    assert "rider.txt" not in committed, (
-        f"directory pathspec carried stranger file outside the dir: {committed}")
-    assert "rider.txt" in _staged_files(work), (
-        "the twin's staged entry must SURVIVE for the twin's own commit")
+    assert "rider.txt" not in committed, f"directory pathspec carried stranger file outside the dir: {committed}"
+    assert "rider.txt" in _staged_files(work), "the twin's staged entry must SURVIVE for the twin's own commit"

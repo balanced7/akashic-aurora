@@ -20,10 +20,9 @@ else. Each pin below is the render, not the mechanism -- the mechanisms were all
   P6  delta mark sha absent from the repo -> says unresolvable, prints NO git-log remedy
   P7  delta genuine divergence (both shas real) -> keeps the loud diverged render
 """
+
 import os
 import sys
-
-import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -40,7 +39,7 @@ class Ns:
 
 
 def _sync_args(**kw):
-    base = dict(agent_id="claude", consume=True, limit=20, json=False, traces=False)
+    base = {"agent_id": "claude", "consume": True, "limit": 20, "json": False, "traces": False}
     base.update(kw)
     return Ns(**base)
 
@@ -48,18 +47,23 @@ def _sync_args(**kw):
 # ---------------------------------------------------------------- W65
 def _stub_consume(monkeypatch, payload):
     import agent.bifrost_pull as bp
+
     monkeypatch.setattr(bp, "consume_inbox", lambda *a, **k: payload)
 
 
 def test_p1_parked_stale_is_not_silence(monkeypatch, capsys):
     """The live 2026-07-25 case: 5 real messages drained + parked, renderer said nothing."""
-    _stub_consume(monkeypatch, {
-        "seat_held": False,
-        "consumed": [],
-        "stale_asks_parked": 2,
-        "stale_notice": ("  skipped 3 stale inform(s)/trace(s) (no bench pollution)\n"
-                         "  parked 2 stale ask(s) to durable bench"),
-    })
+    _stub_consume(
+        monkeypatch,
+        {
+            "seat_held": False,
+            "consumed": [],
+            "stale_asks_parked": 2,
+            "stale_notice": (
+                "  skipped 3 stale inform(s)/trace(s) (no bench pollution)\n  parked 2 stale ask(s) to durable bench"
+            ),
+        },
+    )
     rc = agent_cli.cmd_bifrost_sync(_sync_args())
     out = capsys.readouterr().out
     assert rc == 0
@@ -77,12 +81,15 @@ def test_p2_true_silence_stays_silent(monkeypatch, capsys):
 
 def test_p3_notice_survives_the_happy_path(monkeypatch, capsys):
     """A notice must not be swallowed just because some mail WAS surfaced."""
-    _stub_consume(monkeypatch, {
-        "seat_held": False,
-        "consumed": [{"frm": "kimi", "kind": "reply", "content": "hello", "id": "1-0"}],
-        "stale_asks_parked": 1,
-        "stale_notice": "  parked 1 stale ask(s) to durable bench",
-    })
+    _stub_consume(
+        monkeypatch,
+        {
+            "seat_held": False,
+            "consumed": [{"frm": "kimi", "kind": "reply", "content": "hello", "id": "1-0"}],
+            "stale_asks_parked": 1,
+            "stale_notice": "  parked 1 stale ask(s) to durable bench",
+        },
+    )
     rc = agent_cli.cmd_bifrost_sync(_sync_args())
     out = capsys.readouterr().out
     assert rc == 0
@@ -93,13 +100,14 @@ def test_p3_notice_survives_the_happy_path(monkeypatch, capsys):
 # ------------------------------------------------- W65 door parity (deepseek fence)
 def test_p15_shared_renderer_silent_when_nothing_moved():
     from agent.bifrost_pull import stale_notice_lines
+
     assert stale_notice_lines({"consumed": [], "stale_notice": None}, "claude") == []
 
 
 def test_p16_shared_renderer_reports_the_advance():
     from agent.bifrost_pull import stale_notice_lines
-    out = stale_notice_lines(
-        {"consumed": [], "stale_notice": "  parked 2 stale ask(s) to durable bench"}, "claude")
+
+    out = stale_notice_lines({"consumed": [], "stale_notice": "  parked 2 stale ask(s) to durable bench"}, "claude")
     assert len(out) == 2
     assert "parked 2 stale ask(s)" in out[0]
     assert "cursor ADVANCED" in out[1]
@@ -107,8 +115,8 @@ def test_p16_shared_renderer_reports_the_advance():
 
 def test_p17_no_advance_line_when_mail_actually_surfaced():
     from agent.bifrost_pull import stale_notice_lines
-    out = stale_notice_lines(
-        {"consumed": [{"id": "1-0"}], "stale_notice": "  parked 1 stale ask(s)"}, "claude")
+
+    out = stale_notice_lines({"consumed": [{"id": "1-0"}], "stale_notice": "  parked 1 stale ask(s)"}, "claude")
     assert len(out) == 1, "the advance note is for the empty case only"
 
 
@@ -121,6 +129,7 @@ def test_p18_both_doors_use_the_shared_renderer():
     a full-suite import and the pin failed in-suite while passing standalone. A pin whose
     result depends on import order is not a pin."""
     import pathlib
+
     root = pathlib.Path(agent_cli.__file__).resolve().parent
     for fname in ("ai_setup_mcp.py", "agent_cli.py"):
         src = (root / fname).read_text(encoding="utf-8", errors="replace")
@@ -153,7 +162,8 @@ def test_p5_resolvable_grounding_pointer_unchanged(monkeypatch):
     monkeypatch.setattr(agent_cli, "_grounding_exists", lambda p: True)
     line = agent_cli._grounding_line("chronicles/real.md", "2026-07-23", 2)
     assert "chronicles/real.md" in line
-    assert "MOVED" not in line and "UNRESOLVED" not in line
+    assert "MOVED" not in line
+    assert "UNRESOLVED" not in line
     assert "[as of 2026-07-23]" in line
 
 
@@ -162,12 +172,19 @@ def test_p6_unresolvable_mark_is_not_a_rewrite_alarm(monkeypatch):
     """f6a96df was not in the repo at all; delta called it a history rewrite."""
     monkeypatch.setattr(delta_mod, "_git_log_range", lambda a, b: None)
     monkeypatch.setattr(delta_mod, "_git_is_forward", lambda a, b: False)
-    monkeypatch.setattr(delta_mod, "_git_has_commit",
-                        lambda sha: sha != "f6a96df0000000000000000000000000000000000")
-    mark = {"git_commit": "f6a96df0000000000000000000000000000000000",
-            "ledger_seq": "1", "notes_head": "n", "promoted_id": "p"}
-    cur = {"git_commit": "b727096000000000000000000000000000000000",
-           "ledger_seq": "1", "notes_head": "n", "promoted_id": "p"}
+    monkeypatch.setattr(delta_mod, "_git_has_commit", lambda sha: sha != "f6a96df0000000000000000000000000000000000")
+    mark = {
+        "git_commit": "f6a96df0000000000000000000000000000000000",
+        "ledger_seq": "1",
+        "notes_head": "n",
+        "promoted_id": "p",
+    }
+    cur = {
+        "git_commit": "b727096000000000000000000000000000000000",
+        "ledger_seq": "1",
+        "notes_head": "n",
+        "promoted_id": "p",
+    }
     txt = "\n".join(delta_mod._sections("claude", mark, cur))
     assert "BACKWARDS" not in txt, "an unresolvable mark is not a rewrite"
     assert "git log" not in txt, "never print a remedy command that cannot run"
@@ -181,23 +198,26 @@ def test_p11_stance_block_exists_and_stamps_its_version():
     out = agent_cli._stance_block("claude")
     assert len(out) == 3, "the activation map specifies a 3-line render"
     joined = "\n".join(out)
-    assert agent_cli.CONDUCT_VERSION in joined, \
+    assert agent_cli.CONDUCT_VERSION in joined, (
         "v1.1 substrate rule: every projection stamps conduct_version (kimi F2: zero did)"
+    )
     assert "docs/CONDUCT.md" in joined, "the render points back at its substrate"
 
 
 def test_p12_license_line_is_the_load_bearing_one():
     """Kimi's finding: organs delivered the FORMS without the LICENSE to amend them."""
     joined = "\n".join(agent_cli._stance_block("claude")).lower()
-    assert "floor" in joined and "ceiling" in joined
+    assert "floor" in joined
+    assert "ceiling" in joined
     assert "amend" in joined, "the permission to diverge IS the culture/checklist difference"
 
 
 def test_p13_missing_stretch_renders_a_named_gap(monkeypatch):
     """Unrecorded must read as a GAP, not as a silent zero -- tonight's whole theme."""
     monkeypatch.setattr(agent_cli, "_charter_stretch", lambda a: None)
-    line = [l for l in agent_cli._stance_block("kimi") if "stretch" in l][0]
-    assert "GAP" in line and "CHARTER.md" in line
+    line = next(ln for ln in agent_cli._stance_block("kimi") if "stretch" in ln)
+    assert "GAP" in line
+    assert "CHARTER.md" in line
 
 
 def test_p14_stance_rides_the_head_without_displacing_the_cold_start_four():
@@ -209,8 +229,7 @@ def test_p14_stance_rides_the_head_without_displacing_the_cold_start_four():
     head = agent_cli._orientation_header("claude")
     assert "# STANCE" in head, "the head a stateless peer folds must carry the stance"
     first16 = "\n".join(head.splitlines()[:16])
-    assert "# STANCE" not in first16, \
-        "a new organ does not spend the head-16 the four cold-start questions own"
+    assert "# STANCE" not in first16, "a new organ does not spend the head-16 the four cold-start questions own"
 
 
 def test_p20_stance_survives_the_runner_onboarding_trim():
@@ -227,7 +246,8 @@ def test_p20_stance_survives_the_runner_onboarding_trim():
     assert idx < 5200, (
         f"stance sits at offset {idx} in the orientation header; the runner's onboarding "
         "trim budget defaults to 6000 chars and cuts the tail. Something above it grew -- "
-        "shorten it, or the fold will silently drop the stance for every runner seat.")
+        "shorten it, or the fold will silently drop the stance for every runner seat."
+    )
 
 
 # ---------------------------------------------------------------- W64
@@ -255,9 +275,18 @@ def test_p7_real_divergence_still_loud(monkeypatch):
     monkeypatch.setattr(delta_mod, "_git_log_range", lambda a, b: None)
     monkeypatch.setattr(delta_mod, "_git_is_forward", lambda a, b: False)
     monkeypatch.setattr(delta_mod, "_git_has_commit", lambda sha: True)
-    mark = {"git_commit": "aaaaaaa0000000000000000000000000000000000",
-            "ledger_seq": "1", "notes_head": "n", "promoted_id": "p"}
-    cur = {"git_commit": "bbbbbbb0000000000000000000000000000000000",
-           "ledger_seq": "1", "notes_head": "n", "promoted_id": "p"}
+    mark = {
+        "git_commit": "aaaaaaa0000000000000000000000000000000000",
+        "ledger_seq": "1",
+        "notes_head": "n",
+        "promoted_id": "p",
+    }
+    cur = {
+        "git_commit": "bbbbbbb0000000000000000000000000000000000",
+        "ledger_seq": "1",
+        "notes_head": "n",
+        "promoted_id": "p",
+    }
     txt = "\n".join(delta_mod._sections("claude", mark, cur))
-    assert "BACKWARDS" in txt and "git log" in txt, "genuine divergence keeps its alarm"
+    assert "BACKWARDS" in txt, "genuine divergence keeps its alarm"
+    assert "git log" in txt, "genuine divergence keeps its alarm"

@@ -28,20 +28,21 @@ this is an upper bound, and `source` always says which one answered. Conflating
 arguable, and an arguable signal gets ignored -- the failure this arc keeps paying
 for.
 """
+
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import subprocess
-from datetime import datetime, timezone
-from typing import Any, Dict, Optional
+from typing import Any
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # pid -> ISO start time (or ""). A process's start time cannot change, so this is a
 # constant per pid; re-probing per doctor tick would spend a subprocess to re-learn it.
-_START_CACHE: Dict[int, str] = {}
-_HEAD_SHA: Optional[str] = None
+_START_CACHE: dict[int, str] = {}
+_HEAD_SHA: str | None = None
 
 
 def _git(*args: str, timeout: int = 5) -> str:
@@ -54,9 +55,17 @@ def _git(*args: str, timeout: int = 5) -> str:
         # this repo's own commit subject. The zero-on-doubt doctrine below is right for a
         # COUNT and backwards for a STALENESS CHECK -- silence there means "nothing
         # changed", which is the unsafe direction. Git speaks UTF-8; read it as UTF-8.
-        r = subprocess.run(["git", *args], cwd=ROOT, capture_output=True, text=True,
-                           encoding="utf-8", errors="replace",
-                           timeout=timeout, stdin=subprocess.DEVNULL, close_fds=True)
+        r = subprocess.run(
+            ["git", *args],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=timeout,
+            stdin=subprocess.DEVNULL,
+            close_fds=True,
+        )
         return (r.stdout or "").strip() if r.returncode == 0 else ""
     except Exception:
         return ""
@@ -87,11 +96,19 @@ def _probe_start_time(pid: int) -> str:
     gets tuned out."""
     try:
         r = subprocess.run(
-            ["powershell", "-NoProfile", "-NonInteractive", "-Command",
-             f"(Get-Process -Id {int(pid)} -ErrorAction SilentlyContinue)"
-             f".StartTime.ToString('o')"],
-            capture_output=True, text=True, timeout=10,
-            stdin=subprocess.DEVNULL, close_fds=True)
+            [
+                "powershell",
+                "-NoProfile",
+                "-NonInteractive",
+                "-Command",
+                f"(Get-Process -Id {int(pid)} -ErrorAction SilentlyContinue).StartTime.ToString('o')",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            stdin=subprocess.DEVNULL,
+            close_fds=True,
+        )
         return (r.stdout or "").strip()
     except Exception:
         return ""
@@ -100,6 +117,7 @@ def _probe_start_time(pid: int) -> str:
 def _redis():
     try:
         from core.comm.bus import get_bus
+
         return get_bus("runtime_age")._client
     except Exception:
         return None
@@ -137,16 +155,14 @@ def start_time(pid: int) -> str:
         val = ""
     _START_CACHE[pid] = val
     if c is not None:
-        try:
+        with contextlib.suppress(Exception):
             # empty is cached too ("" = unreadable pid): an unreadable pid re-probed
             # by every fresh process is the same regression wearing a failure mask.
             c.set(key, val, ex=3600)
-        except Exception:
-            pass
     return val
 
 
-def describe(*, pid: int, started_at: str, stamped_sha: str = "") -> Dict[str, Any]:
+def describe(*, pid: int, started_at: str, stamped_sha: str = "") -> dict[str, Any]:
     """The verdict for one process, with its provenance attached.
 
     Order matters: a self-reported stamp is EVIDENCE and an age estimate is an upper
@@ -155,25 +171,45 @@ def describe(*, pid: int, started_at: str, stamped_sha: str = "") -> Dict[str, A
     head = head_sha()
     stamped = str(stamped_sha or "").strip()
     if stamped and head:
-        return {"pid": pid, "started_at": started_at, "stamped_sha": stamped,
-                "head_sha": head, "commits_behind": 0 if stamped == head else -1,
-                "state": "current" if stamped == head else "stale", "source": "stamp"}
+        return {
+            "pid": pid,
+            "started_at": started_at,
+            "stamped_sha": stamped,
+            "head_sha": head,
+            "commits_behind": 0 if stamped == head else -1,
+            "state": "current" if stamped == head else "stale",
+            "source": "stamp",
+        }
     if not started_at:
-        return {"pid": pid, "started_at": "", "stamped_sha": "", "head_sha": head,
-                "commits_behind": 0, "state": "unknown", "source": "none"}
+        return {
+            "pid": pid,
+            "started_at": "",
+            "stamped_sha": "",
+            "head_sha": head,
+            "commits_behind": 0,
+            "state": "unknown",
+            "source": "none",
+        }
     behind = commits_since(started_at)
-    return {"pid": pid, "started_at": started_at, "stamped_sha": "", "head_sha": head,
-            "commits_behind": behind,
-            "state": "stale" if behind > 0 else "current", "source": "process_age"}
+    return {
+        "pid": pid,
+        "started_at": started_at,
+        "stamped_sha": "",
+        "head_sha": head,
+        "commits_behind": behind,
+        "state": "stale" if behind > 0 else "current",
+        "source": "process_age",
+    }
 
 
-def for_agent(agent: str, *, client=None) -> Dict[str, Any]:
+def for_agent(agent: str, *, client=None) -> dict[str, Any]:
     """Resolve `agent`'s runner pid from its lock, then describe it. Never raises: the
     doctor calls this on a hot path, and an observability probe that can break the
     diagnostic is worse than no probe."""
     try:
         if client is None:
             from core.comm.bus import get_bus
+
             client = get_bus("runtime_age")._client
         ns = os.environ.get("BIFROST_NAMESPACE", "bifrost")
         raw = client.get(f"{ns}:runner:{agent}") if client is not None else None
@@ -181,20 +217,31 @@ def for_agent(agent: str, *, client=None) -> Dict[str, Any]:
         pid = int(rec.get("pid") or 0)
         return describe(pid=pid, started_at=start_time(pid) if pid else "")
     except Exception:
-        return {"pid": 0, "started_at": "", "stamped_sha": "", "head_sha": "",
-                "commits_behind": 0, "state": "unknown", "source": "none"}
+        return {
+            "pid": 0,
+            "started_at": "",
+            "stamped_sha": "",
+            "head_sha": "",
+            "commits_behind": 0,
+            "state": "unknown",
+            "source": "none",
+        }
 
 
-def line(agent: str, verdict: Optional[Dict[str, Any]] = None) -> str:
+def line(agent: str, verdict: dict[str, Any] | None = None) -> str:
     """One operator-facing sentence, or "" when there is nothing to say. States the
     fact and its provenance, and never converts an upper bound into an accusation."""
     v = verdict if verdict is not None else for_agent(agent)
     if v.get("state") != "stale":
         return ""
     if v.get("source") == "stamp":
-        return (f"{agent}: STALE-CODE -- running {str(v.get('stamped_sha'))[:12]}, "
-                f"HEAD is {str(v.get('head_sha'))[:12]}. Restart to pick up fixes.")
+        return (
+            f"{agent}: STALE-CODE -- running {str(v.get('stamped_sha'))[:12]}, "
+            f"HEAD is {str(v.get('head_sha'))[:12]}. Restart to pick up fixes."
+        )
     started = str(v.get("started_at") or "")[:19]
-    return (f"{agent}: STALE-CODE (by process age) -- pid {v.get('pid')} started "
-            f"{started}; {v.get('commits_behind')} commit(s) have landed since, and it "
-            f"cannot be running any of them. Restart to pick up fixes.")
+    return (
+        f"{agent}: STALE-CODE (by process age) -- pid {v.get('pid')} started "
+        f"{started}; {v.get('commits_behind')} commit(s) have landed since, and it "
+        f"cannot be running any of them. Restart to pick up fixes."
+    )

@@ -15,14 +15,29 @@ Phases (run explicitly):
   py scripts/harmonize_knowledge.py rebuild    # Phases 3-5: clear junk, re-import 6 lessons richly, reconcile
   py scripts/harmonize_knowledge.py verify     # show final state of BOTH backends + assert equality
 """
+
 import json
 import os
 import shutil
 import sys
-import time
 from pathlib import Path
+from typing import cast
 
-BASE = Path(os.getenv("AI_SETUP", "E:\\AI-Setup"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from core.paths import data_root
+
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+
+        return python_launcher()
+    except Exception:
+        return "py"
+
+
+BASE = data_root()
 STORE_FILE = BASE / "session_logs" / "store_state.json"
 JSONL = BASE / "session_logs" / "learnings.jsonl"
 CHRONICLES = BASE / "chronicles"
@@ -56,6 +71,10 @@ TEST_STREAMS = ["agent:events", "agent:recon_test_agent:events"]
 
 def _redis():
     import redis
+
+    from core.foundation.redis_connection import ensure_redis_server
+
+    ensure_redis_server("localhost", REDIS_PORT)  # starts the embedded server if that is ours
     return redis.Redis(port=REDIS_PORT, decode_responses=True)
 
 
@@ -96,8 +115,7 @@ def phase_backup():
             dump[k] = {"type": t, "v": r.zrange(k, 0, -1, withscores=True)}
         elif t == "stream":
             dump[k] = {"type": t, "v": r.xrange(k)}
-    (BACKUP_DIR / "redis_16379_dump.json").write_text(
-        json.dumps(dump, indent=1, ensure_ascii=False), encoding="utf-8")
+    (BACKUP_DIR / "redis_16379_dump.json").write_text(json.dumps(dump, indent=1, ensure_ascii=False), encoding="utf-8")
     # 4. quarantine the test records verbatim (from file store + redis), before any removal
     d = json.loads(STORE_FILE.read_text(encoding="utf-8"))
     q = []
@@ -108,8 +126,10 @@ def phase_backup():
         rh = r.hgetall(f"learn:experiment:{name}")
         if rh and rh != h:
             q.append({"kind": "test_learning", "source": "redis:16379", "record": rh})
-    for b in d.get("list", {}).get("blockers:escalated", []):
-        q.append({"kind": "test_blocker", "source": "store_state.json", "record": b})
+    q.extend(
+        {"kind": "test_blocker", "source": "store_state.json", "record": b}
+        for b in d.get("list", {}).get("blockers:escalated", [])
+    )
     for s in TEST_STREAMS:
         ent = r.xrange(s)
         if ent:
@@ -172,7 +192,7 @@ def phase_rebuild():
             "(2026-06-20). It deletes every non-canonical key and rewrites the live lesson "
             "index from a hardcoded 6-record set. Re-running it destroys the corpus.\n"
             "If you genuinely intend that, set AKASHIC_ALLOW_HARMONIZE=1 and take a snapshot "
-            "first (py scripts/snapshot_knowledge.py)."
+            f"first ({_pyl()} scripts/snapshot_knowledge.py)."
         )
     if not (BACKUP_DIR / "redis_16379_dump.json").exists():
         sys.exit("REFUSING: run `backup` first (no snapshot found).")
@@ -191,15 +211,20 @@ def phase_rebuild():
     removed = 0
     for k in r.keys("*"):
         if k not in canonical_keys:
-            r.delete(k); removed += 1
+            r.delete(k)
+            removed += 1
     for name in REAL:
         r.delete(f"learn:experiment:{name}")
         r.hset(f"learn:experiment:{name}", mapping=recs[name])
-    r.delete("learn:experiments:all"); r.rpush("learn:experiments:all", *REAL)
-    r.delete("learn:experiments:success"); r.zadd("learn:experiments:success", {n: 100.0 for n in REAL})
-    r.delete(f"learn:agent:{REAL_AGENT}"); r.rpush(f"learn:agent:{REAL_AGENT}", *REAL)
+    r.delete("learn:experiments:all")
+    r.rpush("learn:experiments:all", *REAL)
+    r.delete("learn:experiments:success")
+    r.zadd("learn:experiments:success", dict.fromkeys(REAL, 100.0))
+    r.delete(f"learn:agent:{REAL_AGENT}")
+    r.rpush(f"learn:agent:{REAL_AGENT}", *REAL)
     for name in REAL:
-        r.delete(f"learn:category:{CATEGORY[name]}"); r.sadd(f"learn:category:{CATEGORY[name]}", name)
+        r.delete(f"learn:category:{CATEGORY[name]}")
+        r.sadd(f"learn:category:{CATEGORY[name]}", name)
 
     # ---- File store: write a FRESH skeleton holding ONLY the canonical learn:*.
     d = {"kv": {}, "hash": {}, "list": {}, "set": {}, "zset": {}, "__expiry__": {}}
@@ -209,11 +234,13 @@ def phase_rebuild():
     d["list"][f"learn:agent:{REAL_AGENT}"] = list(REAL)
     for name in REAL:
         d["set"][f"learn:category:{CATEGORY[name]}"] = [name]
-    d["zset"]["learn:experiments:success"] = {n: 100.0 for n in REAL}
+    d["zset"]["learn:experiments:success"] = dict.fromkeys(REAL, 100.0)
     STORE_FILE.write_text(json.dumps(d, indent=2, ensure_ascii=False), encoding="utf-8")
 
-    print(f"[rebuild] wrote {len(REAL)} canonical lessons to BOTH backends; "
-          f"removed {removed} non-canonical Redis key(s); file reset to clean skeleton.")
+    print(
+        f"[rebuild] wrote {len(REAL)} canonical lessons to BOTH backends; "
+        f"removed {removed} non-canonical Redis key(s); file reset to clean skeleton."
+    )
 
 
 # ----------------------------------------------------------------------------- verify
@@ -221,7 +248,7 @@ def phase_verify():
     r = _redis()
     d = json.loads(STORE_FILE.read_text(encoding="utf-8"))
     print("=== REDIS 16379 learn:* ===")
-    rk = sorted(r.keys("learn:*"))
+    rk = sorted(cast("list[str]", r.keys("learn:*")))  # decode_responses=True
     for k in rk:
         print(f"  {r.type(k):6} {k}")
     print(f"  streams present: {[s for s in TEST_STREAMS if r.exists(s)]}")
@@ -240,7 +267,7 @@ def phase_verify():
     assert "blockers:escalated" not in d.get("list", {}), "blockers still present"
     # detail preserved?
     for name in REAL:
-        h = r.hgetall(f"learn:experiment:{name}")
+        h = cast("dict[str, str]", r.hgetall(f"learn:experiment:{name}"))
         assert h.get("source", "").startswith("learnings.jsonl:L"), f"{name} missing source pointer"
         assert h.get("detail_json"), f"{name} missing detail_json"
     print("\nOK: both backends consistent; 6 lessons live with source pointers + full detail; junk gone.")

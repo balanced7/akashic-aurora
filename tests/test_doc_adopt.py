@@ -19,6 +19,7 @@ the point.
 These pins cover the pure inference; the live drain of the ten stranded positions is the
 integration proof.
 """
+
 import os
 import sys
 
@@ -28,23 +29,28 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
-import agent_cli  # noqa: E402
+import agent_cli  # noqa: E402  # sys.path bootstrap
 
 
 class Args:
     """Minimal stand-in for argparse.Namespace."""
+
     def __init__(self, **kw):
         self.__dict__.update(kw)
 
 
 # ---------------------------------------------------------------- title inference
 
-@pytest.mark.parametrize("stem,expected", [
-    ("buffer-authority-codex-position-2026-07-31", "buffer-authority-codex-position"),
-    ("t125-newcomer-lookups-cursor-grok", "t125-newcomer-lookups-cursor-grok"),
-    ("20260731_some_capture", "some-capture"),
-    ("Mixed Case Name", "mixed-case-name"),
-])
+
+@pytest.mark.parametrize(
+    ("stem", "expected"),
+    [
+        ("buffer-authority-codex-position-2026-07-31", "buffer-authority-codex-position"),
+        ("t125-newcomer-lookups-cursor-grok", "t125-newcomer-lookups-cursor-grok"),
+        ("20260731_some_capture", "some-capture"),
+        ("Mixed Case Name", "mixed-case-name"),
+    ],
+)
 def test_p1_title_is_slugged_and_dates_stripped(stem, expected):
     """A filename is a title with punctuation and a date bolted on. Strip both."""
     assert agent_cli._adopt_title(stem) == expected
@@ -53,24 +59,30 @@ def test_p1_title_is_slugged_and_dates_stripped(stem, expected):
 def test_p2_title_never_returns_empty():
     """A file named only with a date must still get a usable title, not ''."""
     out = agent_cli._adopt_title("2026-07-31")
-    assert out and out.strip("-"), f"degenerate title: {out!r}"
+    assert out, f"degenerate title: {out!r}"
+    assert out.strip("-"), f"degenerate title: {out!r}"
 
 
 # ---------------------------------------------------------------- type inference
 
-@pytest.mark.parametrize("stem,expected", [
-    ("buffer-round-reconciliation", "design"),
-    ("buffer-authority-codex-position", "report"),
-    ("t095-m1-contract-review-codex", "report"),
-    ("inhabitant-synthesis-codex-order-verdict", "ruling"),
-    ("design-conversation-2026-07-31", "chronicle"),
-    ("something-with-no-hint", "report"),
-])
+
+@pytest.mark.parametrize(
+    ("stem", "expected"),
+    [
+        ("buffer-round-reconciliation", "design"),
+        ("buffer-authority-codex-position", "report"),
+        ("t095-m1-contract-review-codex", "report"),
+        ("inhabitant-synthesis-codex-order-verdict", "ruling"),
+        ("design-conversation-2026-07-31", "chronicle"),
+        ("something-with-no-hint", "report"),
+    ],
+)
 def test_p3_type_inferred_from_the_name(stem, expected):
     assert agent_cli._adopt_type(stem) == expected
 
 
 # ---------------------------------------------------------------- seat inference
+
 
 def test_p4_seats_inferred_from_filename():
     """Peer positions are named after their author far more often than not."""
@@ -90,6 +102,7 @@ def test_p6_no_seat_in_name_yields_empty_not_a_guess():
 
 
 # ---------------------------------------------------------------- door behaviour
+
 
 def test_p7_adopt_refuses_a_missing_file_loudly(capsys):
     rc = agent_cli.cmd_doc(Args(sub="adopt", path="research/in-flight/no-such-file.md"))
@@ -121,10 +134,11 @@ def test_p9_adopt_is_non_destructive(tmp_path, monkeypatch, capsys):
 
     import core.library.atoms as _atoms
     import core.library.projection as _proj
+
     monkeypatch.setattr(_atoms, "AtomFamily", FakeFam)
-    monkeypatch.setattr(_proj, "render_atom",
-                        lambda atom, repo_root=None: os.path.join(ROOT, "docs", "library",
-                                                                  "report", "x.md"))
+    monkeypatch.setattr(
+        _proj, "render_atom", lambda atom, repo_root=None: os.path.join(ROOT, "docs", "library", "report", "x.md")
+    )
 
     rc = agent_cli.cmd_doc(Args(sub="adopt", path=str(src)))
     assert rc == 0, capsys.readouterr().out

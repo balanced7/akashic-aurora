@@ -10,12 +10,13 @@ The unattended path (no live seat anywhere) is wave-2's scheduled-session anchor
 
 Fail-open everywhere; the pager must never wedge a writer.
 """
+
 from __future__ import annotations
 
 import json
 import os
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 CAP = 50
 
@@ -35,13 +36,13 @@ def _client(c=None, allow_fallback: bool = True):
         return None
     try:
         from core.comm.bus import get_bus
+
         return get_bus("control")._client
     except Exception:
         return None
 
 
-def page(agent: str, text: str, c=None, allow_fallback: bool = True,
-         key: str = "") -> bool:
+def page(agent: str, text: str, c=None, allow_fallback: bool = True, key: str = "") -> bool:
     """Record a page-grade finding. Newest-first, capped at CAP (oldest drop).
 
     `key` identifies WHAT is being paged about -- conventionally "<agent>:<state>" -- so the
@@ -79,7 +80,7 @@ def clear_key(key: str, c=None, allow_fallback: bool = True) -> int:
             try:
                 rec = json.loads(raw)
             except Exception:
-                kept.append(raw)             # unparseable: keep, never silently drop
+                kept.append(raw)  # unparseable: keep, never silently drop
                 continue
             if rec.get("key") == str(key):
                 removed += 1
@@ -88,14 +89,14 @@ def clear_key(key: str, c=None, allow_fallback: bool = True) -> int:
         if not removed:
             return 0
         cli.delete(_key())
-        for raw in reversed(kept):           # lpush reverses; restore original order
+        for raw in reversed(kept):  # lpush reverses; restore original order
             cli.lpush(_key(), raw)
         return removed
     except Exception:
         return 0
 
 
-def unread_pages(c=None, allow_fallback: bool = True) -> List[Dict[str, Any]]:
+def unread_pages(c=None, allow_fallback: bool = True) -> list[dict[str, Any]]:
     """Peek (never consumes) -- newest first."""
     cli = _client(c, allow_fallback)
     if cli is None:
@@ -124,12 +125,14 @@ def ack_pages(c=None, allow_fallback: bool = True) -> bool:
         return False
 
 
-def hook_lines(c=None, allow_fallback: bool = True, now: Optional[float] = None) -> List[str]:
+def hook_lines(c=None, allow_fallback: bool = True, now: float | None = None) -> list[str]:
     """Render for hook injection: '[PAGE] agent: text (Nm ago)'. Empty = silent."""
     now_f = float(now if now is not None else time.time())
     lines = []
     for p in unread_pages(c, allow_fallback):
         age_m = max(0, int((now_f - float(p.get("ts") or now_f)) / 60))
-        lines.append(f"[PAGE] {p.get('agent', '?')}: {p.get('text', '')} ({age_m}m ago) "
-                     f"-- relay via PushNotification if Daniel may be away, then ack")
+        lines.append(
+            f"[PAGE] {p.get('agent', '?')}: {p.get('text', '')} ({age_m}m ago) "
+            f"-- relay via PushNotification if Daniel may be away, then ack"
+        )
     return lines

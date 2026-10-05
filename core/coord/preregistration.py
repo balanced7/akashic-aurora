@@ -16,11 +16,12 @@ self-allowlist its own gate, and that refusal is now doctrine.
 
 No outward imports. Nothing here may import from scripts/, agent/, or any harness.
 """
+
 from __future__ import annotations
 
 import os
 import subprocess
-from typing import Any, Dict
+from typing import Any
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -32,7 +33,7 @@ def _norm(p: str) -> str:
     return p.replace("\\", "/").lstrip("./")
 
 
-def audit_stats(n: int, root: str = "") -> Dict[str, Any]:
+def audit_stats(n: int, root: str = "") -> dict[str, Any]:
     """M3 metric as NUMBERS: of the last N commits that ADD a tests/test_*.py, how many also
     touched source in the same commit (violations).
 
@@ -42,31 +43,52 @@ def audit_stats(n: int, root: str = "") -> Dict[str, Any]:
     {total, clean, violations, pct, offenders}; callers render, this computes.
     """
     cwd = root or ROOT
-    log = subprocess.run(
-        ["git", "log", f"-n{n}", "--diff-filter=A", "--name-only", "--format=%x01%h %s"],
-        capture_output=True, cwd=cwd, encoding="utf-8", errors="replace",
-        stdin=subprocess.DEVNULL, close_fds=True).stdout or ""
+    log = (
+        subprocess.run(
+            ["git", "log", f"-n{n}", "--diff-filter=A", "--name-only", "--format=%x01%h %s"],
+            capture_output=True,
+            cwd=cwd,
+            encoding="utf-8",
+            errors="replace",
+            stdin=subprocess.DEVNULL,
+            close_fds=True,
+        ).stdout
+        or ""
+    )
     total = viol = 0
     offenders = []
     for block in log.split("\x01"):
-        lines = [l.strip() for l in block.strip().splitlines() if l.strip()]
+        lines = [ln.strip() for ln in block.strip().splitlines() if ln.strip()]
         if not lines:
             continue
-        header, files = lines[0], [_norm(l) for l in lines[1:]]
+        header, files = lines[0], [_norm(ln) for ln in lines[1:]]
         added_tests = [f for f in files if f.startswith("tests/test_") and f.endswith(".py")]
         if not added_tests:
             continue
         total += 1
         # The same commit's FULL touch set (adds + modifications):
         sha = header.split()[0]
-        touched = (subprocess.run(["git", "show", "--name-only", "--format=", sha],
-                                  capture_output=True, cwd=cwd, encoding="utf-8",
-                                  errors="replace", stdin=subprocess.DEVNULL,
-                                  close_fds=True).stdout or "").split()
+        touched = (
+            subprocess.run(
+                ["git", "show", "--name-only", "--format=", sha],
+                capture_output=True,
+                cwd=cwd,
+                encoding="utf-8",
+                errors="replace",
+                stdin=subprocess.DEVNULL,
+                close_fds=True,
+            ).stdout
+            or ""
+        ).split()
         src = [f for f in map(_norm, touched) if f and not f.startswith(NONSOURCE_PREFIXES)]
         if src:
             viol += 1
             offenders.append((header, added_tests, src[:3]))
     ok = total - viol
-    return {"total": total, "clean": ok, "violations": viol,
-            "pct": (100.0 * ok / total) if total else 100.0, "offenders": offenders}
+    return {
+        "total": total,
+        "clean": ok,
+        "violations": viol,
+        "pct": (100.0 * ok / total) if total else 100.0,
+        "offenders": offenders,
+    }

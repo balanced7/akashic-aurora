@@ -21,6 +21,6 @@ from .session_checkpoint import SessionState
 from .session_recovery import SessionRecovery
 
 __all__ = [
-    "SessionState",
     "SessionRecovery",
+    "SessionState",
 ]

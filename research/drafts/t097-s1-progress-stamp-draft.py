@@ -21,22 +21,24 @@ Contract:
 - A stamp is a claim of PROGRESS, not of health: phase transitions moving = alive;
   a frozen young stamp means nothing yet; a frozen OLD stamp is exactly the RB-27 signal.
 """
+
 from __future__ import annotations
 
 import json
 import time
-from typing import Any, Dict, Optional
+from typing import Any
 
 _KEY_PREFIX = "progress:"
-_TTL_S = 2 * 60 * 60   # stamps expire; a vanished key reads as "no stamp", never stale truth
+_TTL_S = 2 * 60 * 60  # stamps expire; a vanished key reads as "no stamp", never stale truth
 
 
 def _client():
-    from core.comm.bus import Bus   # lazy: import-cheap for non-runner callers
-    return Bus()._client
+    from core.comm.bus import Bus  # lazy: import-cheap for non-runner callers
+
+    return Bus()._client  # pyright: ignore[reportCallIssue]  # LATENT: Bus() now requires agent_id; this research draft predates that
 
 
-def stamp(agent: str, phase: str, detail: Optional[Dict[str, Any]] = None) -> None:
+def stamp(agent: str, phase: str, detail: dict[str, Any] | None = None) -> None:
     """Record that <agent>'s turn machinery reached <phase> NOW. Fail-soft, emit-only."""
     try:
         payload = {"ts": time.time(), "phase": str(phase)[:64]}
@@ -47,7 +49,7 @@ def stamp(agent: str, phase: str, detail: Optional[Dict[str, Any]] = None) -> No
         pass
 
 
-def read(agent: str) -> Optional[Dict[str, Any]]:
+def read(agent: str) -> dict[str, Any] | None:
     """The raw last stamp for <agent>, or None. Adds computed age_s. Fail-soft."""
     try:
         raw = _client().get(_KEY_PREFIX + agent)

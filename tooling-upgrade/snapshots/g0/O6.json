@@ -1,0 +1,145 @@
+{
+ "_meta": {
+  "commit": "d5f0615decac5f2449c59b18e3e3a3c6effe823c",
+  "created": "2026-10-01T11:46:23+0200",
+  "digest": "b520b97aa258ae904c082f2da8f7adea7d9d4e41cca8855cda6459f6376ac164",
+  "dirty": false,
+  "partial_modules": null,
+  "select": []
+ },
+ "checkers": {
+  "check_advertised_tools": {
+   "crashed": false,
+   "digest": "7fb15ec413705d04c82b76432cdcd91e7e7a55a27ef47c88a54adf84c82488cd",
+   "lines": 1,
+   "rc": 0
+  },
+  "check_advertised_verbs": {
+   "crashed": false,
+   "digest": "5d4fba53e5a3c587ffe945bd193f15b664e7dbcc4f8faaf968c47fdc76104f49",
+   "lines": 15,
+   "rc": 1
+  },
+  "check_boundaries": {
+   "crashed": false,
+   "digest": "6587cb7bb0de7487098febaa3cdac759b9ac09033457bbc02ff5ec3b1d06a141",
+   "lines": 25,
+   "rc": 1
+  },
+  "check_bus_atom_pointers": {
+   "crashed": false,
+   "digest": "31d4eb261ecc788071fb885076a81d4dbd287909eae303acb831fe6e65cdbba3",
+   "lines": 1,
+   "rc": 0
+  },
+  "check_comprehensibility": {
+   "crashed": false,
+   "digest": "3715d81e55bf0895f3c00230f445d300d873e43cc2cf0404bf9c55b611b3c8dc",
+   "lines": 22,
+   "rc": 1
+  },
+  "check_doc_currency": {
+   "crashed": false,
+   "digest": "310cfb62907d42c4fe02b5486d2bac09b600301c070068a1fcf121fd8f2b803e",
+   "lines": 33,
+   "rc": 1
+  },
+  "check_doc_freshness": {
+   "crashed": false,
+   "digest": "8ffe187d96de2c481cd687580c2b4be76848ec13b5784876fc93034dbbc4e578",
+   "lines": 7,
+   "rc": 0
+  },
+  "check_door_parity": {
+   "crashed": false,
+   "digest": "93b2a3894213ef26dd830831c252c8c7568c412ac6f944c36aa808ca61e08d74",
+   "lines": 5,
+   "rc": 0
+  },
+  "check_dual_authority": {
+   "crashed": true,
+   "digest": "9fcf962aa0ac55a98c833a2e4daed6cfbf829486588e822380bd8c4daa44ea34",
+   "lines": 13,
+   "rc": 1
+  },
+  "check_durability": {
+   "crashed": false,
+   "digest": "27e195529b45b2efb85883cd6184aa7e969343e472c93a9a0d49c571d8cd0aff",
+   "lines": 15,
+   "rc": 0
+  },
+  "check_field_parity": {
+   "crashed": false,
+   "digest": "5f606ad9f9a809a88637c95dff5421f6bc0eed0a38b920ea598b348288d2b5be",
+   "lines": 13,
+   "rc": 1
+  },
+  "check_kind_policy": {
+   "crashed": false,
+   "digest": "503f086908a634e4f5f14a5131c9286c23dd8fb6dc7e42fa4d4ed2c9f47dd7d0",
+   "lines": 12,
+   "rc": 1
+  },
+  "check_organ_canaries": {
+   "crashed": false,
+   "digest": "123d48c7a82bd801528233f5b7c6a6dde5d3f16a6fbaff3fb70a8f31aa0e3f57",
+   "lines": 20,
+   "rc": 0
+  },
+  "check_pointer_promises": {
+   "crashed": false,
+   "digest": "750320160b003026948c4b423dc760342f07ed4a0c5e3844517b185389e40633",
+   "lines": 12,
+   "rc": 0
+  },
+  "check_ports": {
+   "crashed": false,
+   "digest": "3fe56a23bc603cc4a2a40e4995c4c47013fb422191ff1bab7820538b30becf49",
+   "lines": 8,
+   "rc": 1
+  },
+  "check_preregistration": {
+   "crashed": false,
+   "digest": "03a8a5cb7119b36b5f1e65c7784153f67b05c0ce4f6a4122a8e9366308b95f79",
+   "lines": 1,
+   "rc": 0
+  },
+  "check_reconciliation_gate": {
+   "crashed": false,
+   "digest": "28390019081ab404e936011d4945015321ac9e1f1927cfa6a7b72885f2dacf74",
+   "lines": 2,
+   "na": "needs arguments",
+   "rc": 2
+  },
+  "check_rewrite_maps": {
+   "crashed": false,
+   "digest": "7159080f684abb31f4cb964ad143e70901c4bb8f4f7c20966f09f6df3ef7f2ce",
+   "lines": 46,
+   "rc": 0
+  },
+  "check_secrets": {
+   "crashed": false,
+   "digest": "2b011e0e7a2905269bd3f20943114ae2cd384b8bb8b540103025d070599024db",
+   "lines": 6,
+   "rc": 0
+  },
+  "check_ui_contract": {
+   "crashed": false,
+   "digest": "472470e03b738301b2e136cd956016443d4a30aeb3314cda489d3d602c46f36d",
+   "lines": 64,
+   "rc": 1
+  },
+  "check_verbatim_citation": {
+   "crashed": false,
+   "digest": "32cb9c5bf2776c727cddd60a51fe06fddc116301cf1c500c01b1525fd8402eaa",
+   "lines": 1,
+   "rc": 0
+  },
+  "check_wiring": {
+   "crashed": false,
+   "digest": "692940d2010ccada603cf487ab54a07720e565f73f84a6f6346d104e804e6a59",
+   "lines": 5,
+   "rc": 1
+  }
+ }
+}

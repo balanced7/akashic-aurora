@@ -14,6 +14,7 @@ The live es.exe path (real index lookup) is NOT pinned here — it needs Everyth
 installed and is an integration concern; the unit contract is the fail-soft and
 the render.
 """
+
 from core.tools.everything import SearchResult, format_result, resolve_es, search
 
 
@@ -33,7 +34,7 @@ def test_missing_es_falls_back_to_walk_not_silent(monkeypatch):
     monkeypatch.setattr("core.tools.everything.resolve_es", lambda: None)
     monkeypatch.setattr("core.tools.everything._WALK_ROOTS", ())  # no roots -> no dirs walked
     res = search("1552504210585813062-message.txt")
-    assert res.engine == "walk"          # the fallback engine answered, not the index
+    assert res.engine == "walk"  # the fallback engine answered, not the index
     # A miss with no roots walked is exhaustive (nothing to walk) -- but ok must stay True
     # so the caller can tell "searched, not found" from "failed to search". The BOUNDED
     # confession lives in format_result, not in a refusal crash.
@@ -67,6 +68,7 @@ def test_resolve_es_honors_es_exe_override(monkeypatch, tmp_path):
 # unreachable. search_page() fetches offset+limit, ranks, then slices -- so a wide
 # query (es.ex / lib / .env) stops silently hiding everything past page one.
 
+
 def _lines_for(n):
     # A fake 200-hit ES answer where the EXACT basename match ("target.exe") is the
     # FIRST line (so ranking keeps it first) and 199 decoys follow.
@@ -87,7 +89,7 @@ def test_search_page_returns_requested_slice(monkeypatch):
     res = e.search_page("target.exe", limit=10, offset=5)
     assert res.ok is True
     assert res.engine == "everything"
-    assert len(res.paths) == 10           # limit honoured
+    assert len(res.paths) == 10  # limit honoured
     # offset=5 slices INTO the ranked list: target.exe (ranked first) is already
     # skipped, so the returned window starts at decoy4.exe -- page 2 must not
     # re-show page 1's head.
@@ -106,7 +108,7 @@ def test_search_page_zero_offset_ranks_exact_first(monkeypatch):
     monkeypatch.setattr(e, "resolve_es", lambda: r"C:\es\es.exe")
     monkeypatch.setattr(e.subprocess, "run", lambda *a, **k: _Proc())
 
-    res = e.search_page("target.exe", limit=10)   # offset omitted -> 0
+    res = e.search_page("target.exe", limit=10)  # offset omitted -> 0
     # At offset 0 the EXACT basename match must be ranked FIRST (the whole reason
     # ranking exists -- so target.exe isn't buried under decoys).
     assert res.paths[0] == "C:\\x\\target.exe"
@@ -125,11 +127,12 @@ def test_search_page_offset_beyond_result_is_empty(monkeypatch):
 
     res = e.search_page("target.exe", limit=10, offset=100)
     assert res.ok is True
-    assert res.paths == []               # offset pushed past everything -> empty, not crash
+    assert res.paths == []  # offset pushed past everything -> empty, not crash
 
 
 def test_search_page_fetch_window_covers_offset(monkeypatch):
     from core.tools import everything as e
+
     captured = {}
 
     class _Proc:

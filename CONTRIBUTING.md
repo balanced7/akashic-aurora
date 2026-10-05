@@ -6,18 +6,98 @@ trustworthy as it grows.
 
 ## Setup
 
-See [`docs/DEPLOY.md`](docs/DEPLOY.md). TL;DR: `git clone`, optionally `pip install -r requirements.txt`,
-then `py bootstrap.py --agent-init` to verify. (Windows uses `py`; macOS/Linux use `python3`.)
+See [`docs/DEPLOY.md`](docs/DEPLOY.md). TL;DR: `git clone`, then `uv sync` (installs the locked
+environment from `uv.lock`, on the Python pinned in `.python-version`), then
+`uv run python bootstrap.py --agent-init` to verify.
+
+**Fallback when uv is not installed:** on Windows use the `py` launcher
+(`py -m pip install -r requirements.txt`, then `py bootstrap.py --agent-init`); elsewhere use
+`python3`. This is the repo's own launcher policy (`core.paths.python_launcher`): `uv run` wherever
+uv and `pyproject.toml` exist, `py` on Windows without uv, `python3` elsewhere.
+
+`requirements.txt` and `requirements/gemini-web.txt` are **generated** from `uv.lock` for pip
+consumers (`uv run poe lock`; `uv run poe lock-check` fails if they are stale). Never hand-edit them.
+
+### Daily commands
+
+```bash
+uv sync                          # install / update the locked environment
+uv run poe gate                  # the local gate: fmt-check, lint-check, types, lock-check, deps,
+                                 #   guardrails, test-fast (stops at the first failure)
+uv run poe test                  # the full suite (REDIS_DB=15), with coverage, vs. the g0 baseline
+uv run poe fmt                   # fixer: ruff format
+uv run poe lint                  # fixer: ruff check --fix
+uv run poe types                 # basedpyright + the suppression policy (below)
+uv run prek run --all-files      # the .pre-commit-config.yaml hooks over the whole tree
+```
+
+Run anything else with `uv run <script>` or `uv run python ...`. Tool configuration (ruff,
+basedpyright, ty, pytest, coverage, the poe tasks, deptry) lives **only** in `pyproject.toml`: no
+`ruff.toml`, `pyrightconfig.json`, `setup.cfg`, `tox.ini`, `pytest.ini` or `.coveragerc`.
+
+### Git hooks
+
+The repo has its **own** hook framework in `scripts/githooks`. Install it once per clone:
+
+```bash
+uv run python scripts/githooks/install_git_hooks.py   # sets core.hooksPath -> scripts/githooks
+# Windows fallback without uv:  py scripts/githooks/install_git_hooks.py
+```
+
+Its pre-commit backstop runs prek over the **staged** files as one stage: a hook finding blocks the
+commit (if a fixing hook rewrote a file, review it, stage it and commit again); a missing prek only
+warns (`uv sync` installs it). **Never run `prek install`** -- it would fight `core.hooksPath`.
+
+**Never `git commit --no-verify`.** A failing hook is a finding to fix, not a gate to skip. A few hook
+messages name `--no-verify` as an emergency bypass: that is for a genuine emergency only, and if you
+use it you must say so out loud (in the commit body and to whoever reviews it).
+
+### Blame-ignore setup
+
+Once per clone:
+
+```bash
+git config blame.ignoreRevsFile .git-blame-ignore-revs
+```
+
+`.git-blame-ignore-revs` lists the mechanical format/lint commits, so `git blame` skips them and shows
+the change that actually wrote each line.
+
+### Suppression policy
+
+Every suppression names its rule **and** a reason:
+
+```python
+x = thing()  # noqa: <CODE>  # <reason>
+y = other()  # type: ignore[<code>]  # <reason>
+z = third()  # pyright: ignore[<rule>]  # <reason>
+```
+
+- **Blanket forms are forbidden:** bare `# noqa`, `# ruff: noqa`, `# type: ignore` without a code, and
+  `# pyright: basic` or `# pyright: <rule>=false` file headers.
+- **Budget:** total suppressions <= 1 per 400 lines of in-scope code.
+- `tooling-upgrade/SUPPRESSIONS.md` is generated
+  (`uv run python tooling-upgrade/certify.py suppressions --write`) and must match the tree.
+- Stale suppressions are caught: ruff `RUF100` (unused noqa) and basedpyright
+  `reportUnnecessaryTypeIgnoreComment` are enabled.
+- Per-file ignores in `pyproject.toml` are only for structural patterns (for example `S101` in
+  tests), each with a comment.
+
+`uv run poe types` enforces all of this.
 
 ## The quality gates (must be green)
 
-Every change must pass all three before it lands:
+Every change must pass both before it lands:
 
 ```bash
-py -m pytest -q                  # the full suite — all green, no skips you didn't justify
-py scripts/checkers/check_boundaries.py   # core/ layering guardrail (exit 0)
-py scripts/checkers/check_doc_freshness.py# only living entry-point docs at the repo root
+uv run poe gate                  # format, lint, types, lock, deps, every guardrail checker, fast tests
+uv run poe test                  # the full suite — all green, no skips you didn't justify
 ```
+
+The guardrails include `scripts/checkers/check_boundaries.py` (core/ layering) and
+`scripts/checkers/check_doc_freshness.py` (only living entry-point docs at the repo root). Windows
+fallback without uv: `py -m pytest -q`, `py scripts/checkers/check_boundaries.py`,
+`py scripts/checkers/check_doc_freshness.py`.
 
 CI runs these on every push (see [`.github/workflows/ci.yml`](.github/workflows/ci.yml)).
 
@@ -48,7 +128,7 @@ CI runs these on every push (see [`.github/workflows/ci.yml`](.github/workflows/
   (the tree may be shared by another agent). Commit/push only what you changed.
 - **Commit messages** describe the slice and its verification. (Project style: no AI co-author trailers.)
 - **Design/plan docs go in `docs/`**, not the repo root (the root holds only README/AGENTS/bootstrap).
-- **Record non-obvious learnings**: `py agent_cli.py learn <id> --experiment NAME --tried … --result …
+- **Record non-obvious learnings**: `uv run agent_cli.py learn <id> --experiment NAME --tried … --result …
   --recommend …` so the next contributor (human or agent) inherits them.
 - PRs: describe the slice, show the gates green, and call out any new latent (unwired) capability.
 

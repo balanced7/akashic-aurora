@@ -10,6 +10,7 @@ never run it. Fix: mutation moves behind an explicit --start-session flag.
 Offline: fake narrative modules are injected into sys.modules; the pins prove presence or
 absence of the mutation call, not narrative behavior itself.
 """
+
 import sys
 import types
 from pathlib import Path
@@ -31,14 +32,14 @@ class _Recorder:
             self.start_calls += 1
             return {"closed_prior": False}
 
-        session.start_session = start_session
+        monkeypatch.setattr(session, "start_session", start_session, raising=False)
         promoter = types.ModuleType("core.narrative.event_promoter")
 
         def promote_salient():
             self.promote_calls += 1
             return {"promoted": 0}
 
-        promoter.promote_salient = promote_salient
+        monkeypatch.setattr(promoter, "promote_salient", promote_salient, raising=False)
         monkeypatch.setitem(sys.modules, "core.narrative.session", session)
         monkeypatch.setitem(sys.modules, "core.narrative.event_promoter", promoter)
 

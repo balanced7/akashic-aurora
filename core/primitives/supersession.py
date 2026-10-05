@@ -18,10 +18,11 @@ and are treated as active — so it's safe to adopt incrementally.
 See docs/library/design/20260619_shared-primitives-interface-spec_03e098.md.
 """
 
-from typing import Any, Dict, Iterable, List, Optional
+from collections.abc import Iterable
+from typing import Any
 
 
-def is_active(record: Dict[str, Any]) -> bool:
+def is_active(record: dict[str, Any]) -> bool:
     """True unless this record has been superseded by a newer one.
 
     Honors BOTH supersession mechanisms so neither can leave a retired node falsely active
@@ -30,22 +31,22 @@ def is_active(record: Dict[str, Any]) -> bool:
     Chapters/Resources). A record with neither field present is active (safe for legacy data)."""
     if record.get("superseded", False):
         return False
-    return not record.get("valid_to")        # open/absent valid_to = active; a closed interval = retired
+    return not record.get("valid_to")  # open/absent valid_to = active; a closed interval = retired
 
 
-def mark_supersedes(new_record: Dict[str, Any], old_id: Optional[str]) -> Dict[str, Any]:
+def mark_supersedes(new_record: dict[str, Any], old_id: str | None) -> dict[str, Any]:
     """Stamp `new_record` as superseding `old_id` (no-op if old_id is falsy)."""
     if old_id:
         new_record["supersedes"] = old_id
     return new_record
 
 
-def retire(record: Dict[str, Any]) -> Dict[str, Any]:
+def retire(record: dict[str, Any]) -> dict[str, Any]:
     """Flip a record to superseded (inactive)."""
     record["superseded"] = True
     return record
 
 
-def active_only(records: Iterable[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def active_only(records: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
     """Drop superseded records — the default read filter."""
     return [r for r in records if is_active(r)]

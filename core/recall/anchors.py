@@ -51,15 +51,16 @@ carry skips, including "pre-registered; impl pending (assertions frozen)" -- pin
 never executed once. So a pin anchor resolves ONLY against an execution receipt, and SKIPPED
 reads UNCHECKABLE (blindness), never RESOLVED and never MISSING (absence).
 """
+
 from __future__ import annotations
 
-import os
-from core.paths import repo_root
 import re
 import subprocess
 from dataclasses import dataclass, field
-from pathlib import Path
-from typing import Any, Dict, List, Optional
+from pathlib import Path  # noqa: TC003  # runtime-evaluated annotations (annotation_sensitive module)
+from typing import Any
+
+from core.paths import repo_root
 
 ROOT = repo_root()
 
@@ -83,14 +84,14 @@ _MINE = re.compile(
 class Verdict:
     anchor: str
     kind: str
-    status: str                 # RESOLVED | MISSING | UNCHECKABLE
+    status: str  # RESOLVED | MISSING | UNCHECKABLE
     detail: str = ""
-    weak: bool = False          # true for path anchors: usable, never authoritative
+    weak: bool = False  # true for path anchors: usable, never authoritative
 
 
 @dataclass
 class Review:
-    verdicts: List[Verdict] = field(default_factory=list)
+    verdicts: list[Verdict] = field(default_factory=list)
     starved: bool = True
     banner: str = ""
 
@@ -114,12 +115,13 @@ def _atom_exists(anchor: str, root: Path) -> bool:
     lib = root / "docs" / "library"
     if not lib.is_dir():
         return False
-    tail = anchor[len("art_"):] if anchor.startswith("art_") else anchor
+    tail = anchor[len("art_") :] if anchor.startswith("art_") else anchor
     return any(tail in p.name for p in lib.rglob("*.md"))
 
 
-def _task_status(anchor: str, root: Path) -> Optional[str]:
+def _task_status(anchor: str, root: Path) -> str | None:
     import json
+
     f = root / "state" / "coord" / "tasks.json"
     try:
         data = json.loads(f.read_text(encoding="utf-8"))
@@ -133,24 +135,25 @@ def _task_status(anchor: str, root: Path) -> Optional[str]:
     return None
 
 
-def _commit_exists(anchor: str, root: Path) -> Optional[bool]:
+def _commit_exists(anchor: str, root: Path) -> bool | None:
     try:
-        r = subprocess.run(["git", "-C", str(root), "cat-file", "-t", anchor],
-                           capture_output=True, text=True, timeout=15)
+        r = subprocess.run(
+            ["git", "-C", str(root), "cat-file", "-t", anchor], capture_output=True, text=True, timeout=15
+        )
         return r.returncode == 0 and r.stdout.strip() == "commit"
     except (OSError, subprocess.SubprocessError):
-        return None            # git unavailable -> blindness, not absence
+        return None  # git unavailable -> blindness, not absence
 
 
-def resolve(anchor: str, *, root: Path = ROOT,
-            receipts: Optional[Dict[str, str]] = None) -> Verdict:
+def resolve(anchor: str, *, root: Path = ROOT, receipts: dict[str, str] | None = None) -> Verdict:
     """One anchor -> one verdict. Never raises; an error is UNCHECKABLE, not a pass."""
     kind = classify(anchor)
     try:
         if kind == "atom":
             ok = _atom_exists(anchor, root)
-            return Verdict(anchor, kind, "RESOLVED" if ok else "MISSING",
-                           "" if ok else "no atom projection carries this id")
+            return Verdict(
+                anchor, kind, "RESOLVED" if ok else "MISSING", "" if ok else "no atom projection carries this id"
+            )
 
         if kind == "task":
             st = _task_status(anchor, root)
@@ -162,39 +165,46 @@ def resolve(anchor: str, *, root: Path = ROOT,
 
         if kind == "pin":
             if not receipts:
-                return Verdict(anchor, kind, "UNCHECKABLE",
-                               "no execution receipt: a skipped pin reads green, so a green "
-                               "suite is not proof this guard ran")
+                return Verdict(
+                    anchor,
+                    kind,
+                    "UNCHECKABLE",
+                    "no execution receipt: a skipped pin reads green, so a green suite is not proof this guard ran",
+                )
             state = str(receipts.get(anchor, "")).lower()
             if state == "passed":
                 return Verdict(anchor, kind, "RESOLVED", "ran and passed")
             if state == "failed":
                 return Verdict(anchor, kind, "MISSING", "ran and FAILED -- the guard is red")
             if state == "skipped":
-                return Verdict(anchor, kind, "UNCHECKABLE",
-                               "SKIPPED -- the guard did not execute; blindness, not absence")
+                return Verdict(
+                    anchor, kind, "UNCHECKABLE", "SKIPPED -- the guard did not execute; blindness, not absence"
+                )
             return Verdict(anchor, kind, "UNCHECKABLE", f"no receipt for this pin ({state!r})")
 
         if kind == "commit":
             ok = _commit_exists(anchor, root)
             if ok is None:
                 return Verdict(anchor, kind, "UNCHECKABLE", "git unavailable")
-            return Verdict(anchor, kind, "RESOLVED" if ok else "MISSING",
-                           "" if ok else "no such commit")
+            return Verdict(anchor, kind, "RESOLVED" if ok else "MISSING", "" if ok else "no such commit")
 
         if kind == "path":
             ok = (root / anchor).exists()
-            return Verdict(anchor, kind, "RESOLVED" if ok else "MISSING",
-                           "path anchors are WEAK (~78% false-positive as a decay signal): a "
-                           "moved file does not make the knowledge wrong",
-                           weak=True)
-    except Exception as exc:                       # never let a resolver failure read as a pass
+            return Verdict(
+                anchor,
+                kind,
+                "RESOLVED" if ok else "MISSING",
+                "path anchors are WEAK (~78% false-positive as a decay signal): a "
+                "moved file does not make the knowledge wrong",
+                weak=True,
+            )
+    except Exception as exc:  # never let a resolver failure read as a pass
         return Verdict(anchor, kind, "UNCHECKABLE", f"resolver error: {exc}")
 
     return Verdict(anchor, "unknown", "UNCHECKABLE", "unrecognised anchor form")
 
 
-def mine(lesson: Dict[str, Any]) -> List[str]:
+def mine(lesson: dict[str, Any]) -> list[str]:
     """Anchors declared in `cites`, else mined from the text (pre-`cites` lessons)."""
     cites = lesson.get("cites")
     if isinstance(cites, (list, tuple)) and cites:
@@ -209,8 +219,7 @@ def mine(lesson: Dict[str, Any]) -> List[str]:
     return out
 
 
-def review(lesson: Dict[str, Any], *, root: Path = ROOT,
-           receipts: Optional[Dict[str, str]] = None) -> Review:
+def review(lesson: dict[str, Any], *, root: Path = ROOT, receipts: dict[str, str] | None = None) -> Review:
     """A whole lesson -> verdicts + an advisory banner. Decides nothing, retires nothing."""
     anchors_found = mine(lesson or {})
     verdicts = [resolve(a, root=root, receipts=receipts) for a in anchors_found]
@@ -235,10 +244,9 @@ def review(lesson: Dict[str, Any], *, root: Path = ROOT,
             # signal, and the headline says exactly that -- with the count -- instead of
             # "MISSING", which claimed more than the verdict list supports (defer 00b3d351fb).
             # Label only: the verdicts, and what counts as a valid lesson, are unchanged.
-            lead = (f"premise PARTIALLY unresolved ({len(strong)} of {len(strong_checkable)} "
-                    f"strong anchors MISSING)")
+            lead = f"premise PARTIALLY unresolved ({len(strong)} of {len(strong_checkable)} strong anchors MISSING)"
         else:
-            lead = "premise MISSING"          # every strong justification failed
+            lead = "premise MISSING"  # every strong justification failed
         detail = ", ".join(f"{v.anchor} ({v.kind})" for v in missing[:3])
         tail = " -- weak path anchors only; a moved file is not a wrong lesson" if weak_only else ""
         return Review(verdicts, False, f"[{lead}: MISSING {detail}{tail}]")
@@ -248,6 +256,8 @@ def review(lesson: Dict[str, Any], *, root: Path = ROOT,
     # right about the transient case, silent about the structural one, and it nearly cost a
     # live 20%-of-a-core defect. Saying "premise holds" would endorse exactly the lesson this
     # resolver cannot judge. It reports what it checked, not what it did not.
-    return Review(verdicts, False,
-                  f"[{len(checkable)} anchor(s) resolve -- anchors only; "
-                  f"says nothing about whether the lesson is complete]")
+    return Review(
+        verdicts,
+        False,
+        f"[{len(checkable)} anchor(s) resolve -- anchors only; says nothing about whether the lesson is complete]",
+    )

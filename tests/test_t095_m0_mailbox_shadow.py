@@ -11,20 +11,18 @@ Run::
 
     py -m pytest tests/test_t095_m0_mailbox_shadow.py -q
 """
+
 from __future__ import annotations
 
 import importlib
 import json
-from pathlib import Path
 import sys
-import time
-
-import pytest
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from core.comm.bus import Bus  # noqa: E402
+from core.comm.bus import Bus  # noqa: E402  # sys.path bootstrap
 
 
 def _mailbox():
@@ -64,7 +62,7 @@ class _FakeRedis:
         self.streams.setdefault(str(key), []).append((sid, {str(k): str(v) for k, v in fields.items()}))
         return sid
 
-    def xrange(self, key, min="-", max="+", count=None):
+    def xrange(self, key, min="-", max="+", count=None):  # noqa: A002  # mirrors redis-py xrange(min=, max=)
         entries = self.streams.get(str(key), [])
         if isinstance(min, str) and min.startswith("("):
             floor = min[1:]
@@ -85,6 +83,7 @@ class _FakeRedis:
         def parse(x: str):
             ms, _, seq = str(x).partition("-")
             return (int(ms or 0), int(seq or 0))
+
         pa, pb = parse(a), parse(b)
         return (pa > pb) - (pa < pb)
 
@@ -131,7 +130,7 @@ class _FakeRedis:
 
     def zrange(self, key, start, end, withscores=False):
         z = sorted(self.zsets.get(str(key), {}).items(), key=lambda kv: (kv[1], kv[0]))
-        sliced = z[start: (None if end == -1 else end + 1)]
+        sliced = z[start : (None if end == -1 else end + 1)]
         return [(m, s) for m, s in sliced] if withscores else [m for m, _ in sliced]
 
     def zrem(self, key, *members):
@@ -178,8 +177,7 @@ def _mk(agent="deepseek", poison=False):
     return fake, bus
 
 
-def _advance_cursor(fake: _FakeRedis, agent: str, *, lane_inbox=None, legacy_inbox=None,
-                    sig_inbox=None) -> None:
+def _advance_cursor(fake: _FakeRedis, agent: str, *, lane_inbox=None, legacy_inbox=None, sig_inbox=None) -> None:
     if lane_inbox is not None:
         fake.hashes.setdefault(f"{NS}:cursor:lane:{agent}", {})["inbox"] = lane_inbox
     if sig_inbox is not None:
@@ -201,7 +199,8 @@ def test_index_never_writes_transport_state():
     for _ in range(100):
         mbx.query(NS, "deepseek", client=fake)
     assert all(":mailbox:" in k for k in fake.mutated_keys), (
-        f"non-mailbox writes: {[k for k in fake.mutated_keys if ':mailbox:' not in k]}")
+        f"non-mailbox writes: {[k for k in fake.mutated_keys if ':mailbox:' not in k]}"
+    )
     assert fake.streams == before_streams
     assert {k: dict(v) for k, v in fake.hashes.items() if ":cursor:" in k} == before_cursors
 
@@ -212,12 +211,13 @@ def test_unhandled_matches_ground_truth():
     fake, bus = _mk()
     mid = bus.send("deepseek", "handoff", "please review X")
     r = mbx.query(NS, "deepseek", client=fake)
-    assert r["available"] and r["counts"]["unhandled"] == 1
+    assert r["available"]
+    assert r["counts"]["unhandled"] == 1
 
     # answered via reply linkage (meta.answers = the message id) -> replied/auto_acked
     peer = Bus(agent_id="deepseek", client=fake, namespace=NS)
     peer.send("claude", "reply", "done", meta={"answers": mid})
-    mbx.catch_up(NS, "claude", client=fake)          # replies ride the SENDER's inbox
+    mbx.catch_up(NS, "claude", client=fake)  # replies ride the SENDER's inbox
     r2 = mbx.query(NS, "deepseek", client=fake)
     assert r2["counts"]["unhandled"] == 0
     assert r2["counts"].get("auto_acked", 0) + r2["counts"].get("replied", 0) == 1
@@ -225,8 +225,7 @@ def test_unhandled_matches_ground_truth():
     # msg_ack -> acked (exact per-id lookup, injected)
     mid2 = bus.send("deepseek", "request", "second ask")
     acks = {str(mid2): [{"by": "deepseek", "at": "t", "note": ""}]}
-    r3 = mbx.query(NS, "deepseek", client=fake, acks_lookup=lambda ids: {
-        str(i): acks.get(str(i), []) for i in ids})
+    r3 = mbx.query(NS, "deepseek", client=fake, acks_lookup=lambda ids: {str(i): acks.get(str(i), []) for i in ids})
     tiers = {e["sha"]: e["tier"] for e in r3["entries"]}
     assert "acked" in set(tiers.values())
 
@@ -240,8 +239,9 @@ def test_rebuild_equals_incremental():
     incremental = mbx.query(NS, "deepseek", client=fake)
     rebuilt = mbx.rebuild(NS, "deepseek", client=fake)
     assert rebuilt["divergence"] == 0
-    assert {e["sha"]: e["tier"] for e in incremental["entries"]} == \
-           {e["sha"]: e["tier"] for e in mbx.query(NS, "deepseek", client=fake)["entries"]}
+    assert {e["sha"]: e["tier"] for e in incremental["entries"]} == {
+        e["sha"]: e["tier"] for e in mbx.query(NS, "deepseek", client=fake)["entries"]
+    }
 
 
 # ---------------------------------------------------------------- pin 4
@@ -269,7 +269,8 @@ def test_index_failure_never_affects_delivery():
     lane_key = f"{NS}:work:inbox:deepseek"
     assert any(lane_key == k for k in fake.streams), "delivery unaffected by poisoned index"
     r = mbx.query(NS, "deepseek", client=fake)
-    assert r["available"] is False and "peek" in r["reason"].lower()
+    assert r["available"] is False
+    assert "peek" in r["reason"].lower()
 
 
 # ---------------------------------------------------------------- pin 6
@@ -277,14 +278,25 @@ def test_firehose_kinds_excluded():
     mbx = _mailbox()
     fake, bus = _mk()
     bus.send("deepseek", "handoff", "real")
-    fake.xadd(f"{NS}:trace", {"frm": "deepseek", "to": "*", "kind": "trace",
-                              "content": "\"tool call\"", "ts": "t", "meta": "{}"})
-    fake.xadd(f"{NS}:work:inbox:deepseek", {"frm": "x", "to": "deepseek", "kind": "hint",
-                                            "content": "\"h\"", "ts": "t",
-                                            "meta": json.dumps({"display_only": True})})
+    fake.xadd(
+        f"{NS}:trace",
+        {"frm": "deepseek", "to": "*", "kind": "trace", "content": '"tool call"', "ts": "t", "meta": "{}"},
+    )
+    fake.xadd(
+        f"{NS}:work:inbox:deepseek",
+        {
+            "frm": "x",
+            "to": "deepseek",
+            "kind": "hint",
+            "content": '"h"',
+            "ts": "t",
+            "meta": json.dumps({"display_only": True}),
+        },
+    )
     r = mbx.query(NS, "deepseek", client=fake)
     kinds = {e["kind"] for e in r["entries"]}
-    assert "trace" not in kinds and "hint" not in kinds
+    assert "trace" not in kinds
+    assert "hint" not in kinds
     assert r["counts"]["unhandled"] == 1
 
 
@@ -314,9 +326,12 @@ def test_concurrent_readers_identical_and_writeless():
 def test_nudge_marked_consumed_not_unhandled_forever():
     mbx = _mailbox()
     fake, bus = _mk()
-    mid = bus.send("deepseek", "nudge", "look now")
-    sid = fake.streams[f"{NS}:sig:inbox:deepseek"][-1][0] if f"{NS}:sig:inbox:deepseek" in fake.streams \
+    bus.send("deepseek", "nudge", "look now")
+    sid = (
+        fake.streams[f"{NS}:sig:inbox:deepseek"][-1][0]
+        if f"{NS}:sig:inbox:deepseek" in fake.streams
         else fake.streams[f"{NS}:work:inbox:deepseek"][-1][0]
+    )
     # runner answers with kind=note (no answers meta, no ack) and its cursor advances
     peer = Bus(agent_id="deepseek", client=fake, namespace=NS)
     peer.send("claude", "note", "[nudge ack] looking")
@@ -331,8 +346,7 @@ def test_steer_marked_consumed_not_unhandled_forever():
     mbx = _mailbox()
     fake, bus = _mk()
     bus.send("deepseek", "steer", "fold this into the live task")
-    stream = f"{NS}:sig:inbox:deepseek" if f"{NS}:sig:inbox:deepseek" in fake.streams \
-        else f"{NS}:work:inbox:deepseek"
+    stream = f"{NS}:sig:inbox:deepseek" if f"{NS}:sig:inbox:deepseek" in fake.streams else f"{NS}:work:inbox:deepseek"
     sid = fake.streams[stream][-1][0]
     _advance_cursor(fake, "deepseek", lane_inbox=sid, sig_inbox=sid, legacy_inbox=sid)
     r = mbx.query(NS, "deepseek", client=fake)
@@ -344,11 +358,20 @@ def test_steer_marked_consumed_not_unhandled_forever():
 def test_hint_excluded_from_mailbox():
     mbx = _mailbox()
     fake, _bus = _mk()
-    fake.xadd(f"{NS}:work:inbox:deepseek", {"frm": "x", "to": "deepseek", "kind": "hint",
-                                            "content": "\"h\"", "ts": "t",
-                                            "meta": json.dumps({"display_only": True})})
+    fake.xadd(
+        f"{NS}:work:inbox:deepseek",
+        {
+            "frm": "x",
+            "to": "deepseek",
+            "kind": "hint",
+            "content": '"h"',
+            "ts": "t",
+            "meta": json.dumps({"display_only": True}),
+        },
+    )
     r = mbx.query(NS, "deepseek", client=fake)
-    assert r["entries"] == [] and r["counts"]["unhandled"] == 0
+    assert r["entries"] == []
+    assert r["counts"]["unhandled"] == 0
 
 
 # ---------------------------------------------------------------- pin 12 (deepseek)
@@ -360,9 +383,12 @@ def test_cursor_advance_during_mailbox_read_consistent():
     mbx.query(NS, "deepseek", client=fake)
     lane_reads = [k for k in fake.cursor_hgetall_calls if k == f"{NS}:cursor:lane:deepseek"]
     legacy_reads = [k for k in fake.cursor_hgetall_calls if k == f"{NS}:cursor:deepseek"]
-    assert len(lane_reads) == 1 and len(legacy_reads) == 1, (
-        "cursors must be read once per query (snapshot semantics); "
-        f"got {fake.cursor_hgetall_calls}")
+    assert len(lane_reads) == 1, (
+        f"cursors must be read once per query (snapshot semantics); got {fake.cursor_hgetall_calls}"
+    )
+    assert len(legacy_reads) == 1, (
+        f"cursors must be read once per query (snapshot semantics); got {fake.cursor_hgetall_calls}"
+    )
 
 
 # ---------------------------------------------------------------- pin 13 (deepseek)
@@ -373,5 +399,4 @@ def test_twin_runners_see_same_mailbox_state():
         bus.send("deepseek", "request", f"r{i}")
     one = mbx.query(NS, "deepseek", client=fake)
     two = mbx.query(NS, "deepseek", client=fake)
-    assert [(e["sha"], e["tier"]) for e in one["entries"]] == \
-           [(e["sha"], e["tier"]) for e in two["entries"]]
+    assert [(e["sha"], e["tier"]) for e in one["entries"]] == [(e["sha"], e["tier"]) for e in two["entries"]]

@@ -38,6 +38,7 @@ correct, and is unwired at the one end that matters.
 
 Run: py -m pytest tests/test_seat_handover.py -q
 """
+
 import os
 import sys
 import uuid
@@ -49,16 +50,17 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 AGENT = "t-handover-agent"
 
 
-@pytest.fixture()
+@pytest.fixture
 def seat(monkeypatch, tmp_path):
     monkeypatch.setenv("BIFROST_NAMESPACE", f"t-handover-{os.getpid()}")
     monkeypatch.setenv("TEMP", str(tmp_path))
     monkeypatch.setenv("TMP", str(tmp_path))
     from core.comm import runner_lock as rl
+
     return rl
 
 
-@pytest.fixture()
+@pytest.fixture
 def sid():
     """A session-id prefix unique PER RUN.
 
@@ -71,21 +73,25 @@ def sid():
 
 def test_p1_a_tombstoned_session_cannot_claim(seat, sid, tmp_path):
     from core.comm import wake_seat
+
     wake_seat.write_tombstone(f"{sid}a", str(tmp_path))
     ok, _gen, _info = seat.claim_consumer(AGENT, f"session:{sid}a")
     assert ok is False, (
         "a session tombstoned as DONE still took the consumer seat -- that is the re-claim hole "
-        "that let a retiring seat keep draining its successor's mail")
+        "that let a retiring seat keep draining its successor's mail"
+    )
 
 
 def test_p2_stand_down_releases_and_tombstones(seat, sid, tmp_path):
     from core.comm import wake_seat
+
     assert seat.claim_consumer(AGENT, f"session:{sid}b")[0] is True
     assert seat.stand_down(AGENT, f"session:{sid}b") is True
     assert seat.holder(AGENT) is None, "stand_down did not release the seat"
     assert wake_seat.is_tombstoned(f"{sid}b", str(tmp_path)) is True, (
         "stand_down released but left no tombstone -- the next consume would re-claim and the "
-        "session would take the seat straight back")
+        "session would take the seat straight back"
+    )
 
 
 def test_p3_stand_down_is_idempotent_and_safe_without_the_seat(seat, sid):
@@ -108,11 +114,13 @@ def test_p5_the_successor_claims_immediately_after_handover(monkeypatch, sid):
     is worse than no pin, because the next seat debugs the product instead of the test.
     """
     import tempfile
+
     d = tempfile.mkdtemp(prefix="handover-")
     monkeypatch.setenv("TEMP", d)
     monkeypatch.setenv("TMP", d)
     monkeypatch.setenv("BIFROST_NAMESPACE", f"t-handover-p5-{sid}")
     from core.comm import runner_lock as seat
+
     # Explicit TTL: SESSION_CONSUMER_TTL is scaled() and the test timescale can compress it to
     # near-zero, which expires the seat between two calls and destroys the contention this pin
     # depends on. Pin the behaviour, not the clock.
@@ -121,6 +129,8 @@ def test_p5_the_successor_claims_immediately_after_handover(monkeypatch, sid):
     assert seat.claim_consumer(AGENT, new, ttl=600)[0] is False, "precondition: seat contended"
     seat.stand_down(AGENT, old)
     assert seat.claim_consumer(AGENT, new, ttl=600)[0] is True, (
-        "the successor could not take the seat after a clean hand-over")
+        "the successor could not take the seat after a clean hand-over"
+    )
     assert seat.claim_consumer(AGENT, old, ttl=600)[0] is False, (
-        "the stood-down session re-took the seat -- exactly the live symptom Daniel reported")
+        "the stood-down session re-took the seat -- exactly the live symptom Daniel reported"
+    )

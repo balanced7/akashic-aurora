@@ -23,7 +23,9 @@ Contract frozen here:
 
 Run: py -m pytest tests/test_t196c_ask_peer.py -q
 """
+
 import os
+import re
 import sys
 import threading
 import time
@@ -42,6 +44,7 @@ except ImportError:
 
 try:
     from core.comm.ask import ask_peer
+
     _BUILT = True
 except ImportError:
     ask_peer = None
@@ -56,8 +59,9 @@ needs_built = pytest.mark.skipif(not _BUILT, reason="ask_peer pending (pins froz
 needs_live = pytest.mark.skipif(not _ONLINE, reason="live-Redis pins; bus offline")
 
 
-@pytest.fixture()
+@pytest.fixture
 def pair():
+    assert Bus is not None
     s = f"t196csnd-{uuid.uuid4().hex[:8]}"
     r = f"t196crcv-{uuid.uuid4().hex[:8]}"
     for aid in (s, r):
@@ -66,9 +70,16 @@ def pair():
     yield s, r
     try:
         c = Bus(s)._client
-        for k in (f"bifrost:expect:{s}", f"bifrost:inbox:{s}", f"bifrost:inbox:{r}",
-                  f"bifrost:cursor:{s}", f"bifrost:cursor:{r}",
-                  f"bifrost:presence:{s}", f"bifrost:presence:{r}"):
+        assert c is not None
+        for k in (
+            f"bifrost:expect:{s}",
+            f"bifrost:inbox:{s}",
+            f"bifrost:inbox:{r}",
+            f"bifrost:cursor:{s}",
+            f"bifrost:cursor:{r}",
+            f"bifrost:presence:{s}",
+            f"bifrost:presence:{r}",
+        ):
             c.delete(k)
     except Exception:
         pass
@@ -77,21 +88,25 @@ def pair():
 def _responder(r, s, text="the peer's answer", delay=0.4, stop=None):
     """A scripted peer: peek (non-consuming) for the request, reply with the linkage
     the T117 machinery resolves (meta.answers = the id the peer actually SAW)."""
+
     def run():
+        assert Bus is not None
         end = time.time() + 10
         while time.time() < end and not (stop and stop.is_set()):
             try:
-                reqs = [m for m in Bus(r).inbox(limit=20, advance=False)
-                        if getattr(m, "frm", None) == s
-                        and getattr(m, "kind", "") == "request"]
+                reqs = [
+                    m
+                    for m in Bus(r).inbox(limit=20, advance=False)
+                    if getattr(m, "frm", None) == s and getattr(m, "kind", "") == "request"
+                ]
                 if reqs:
                     time.sleep(delay)
-                    Bus(r).send(s, "reply", text,
-                                meta={"answers": reqs[-1].id})
+                    Bus(r).send(s, "reply", text, meta={"answers": reqs[-1].id})
                     return
             except Exception:
                 pass
             time.sleep(0.1)
+
     t = threading.Thread(target=run, daemon=True)
     t.start()
     return t
@@ -99,58 +114,74 @@ def _responder(r, s, text="the peer's answer", delay=0.4, stop=None):
 
 # --- P1: the seam exists (RED today) ---
 
+
 def test_seam_exists():
-    assert _BUILT and callable(ask_peer), \
-        "core.comm.ask.ask_peer is the T196c deliverable -- the verb family lives together"
+    assert _BUILT, "core.comm.ask.ask_peer is the T196c deliverable -- the verb family lives together"
+    assert callable(ask_peer), "core.comm.ask.ask_peer is the T196c deliverable -- the verb family lives together"
 
 
 # --- P2: settled within the wait -> done, answer in-band, cursors untouched ---
 
+
 @needs_built
 @needs_live
 def test_settles_in_band_without_consuming(pair):
+    assert Bus is not None
+    assert ask_peer is not None
     s, r = pair
     cursors_before = Bus(s).read_lane_cursor()
     t = _responder(r, s, text="42, obviously")
     o = ask_peer(s, r, "what is the answer?", wait_s=15, poll_s=0.2)
     t.join(timeout=1)
-    assert o.ok and not o.partial, f"settled ask must be a clean done, got: {o.why}"
+    assert o.ok, f"settled ask must be a clean done, got: {o.why}"
+    assert not o.partial, f"settled ask must be a clean done, got: {o.why}"
     d = o.detail
-    assert d["state"] == "CLOSED.ANSWERED" and d["ask_id"]
+    assert d["state"] == "CLOSED.ANSWERED"
+    assert d["ask_id"]
     assert d["answer"] == "42, obviously", "the peer's text comes back IN-BAND"
     assert d["elapsed_s"] < 15
-    assert Bus(s).read_lane_cursor() == cursors_before, \
+    assert Bus(s).read_lane_cursor() == cursors_before, (
         "the whole flow is non-consuming: sibling sessions keep their mail"
+    )
 
 
 # --- P3: not settled -> PARTIALLY with a handle; the expectation OUTLIVES the wait ---
 
+
 @needs_built
 @needs_live
 def test_timeout_returns_handle_and_stays_armed(pair):
+    assert ask_peer is not None
+    assert expectations is not None
     s, r = pair
     o = ask_peer(s, r, "anyone home?", wait_s=1, poll_s=0.25)
     # House vocabulary (T181): done = ok and not partial; PARTIALLY = ok AND partial
     # (ok means "not failed"); failed = not ok. The first cut of this pin asserted
     # `partial and not ok` -- a foreign outcome type, corrected to the contract's
     # actual intent: a timeout is PARTIALLY, never failed, never a clean done.
-    assert o.partial and not bool(o), \
-        "an OPEN ask is a normal state: PARTIALLY, never failed, never a clean done"
+    assert o.partial, "an OPEN ask is a normal state: PARTIALLY, never failed, never a clean done"
+    assert not bool(o), "an OPEN ask is a normal state: PARTIALLY, never failed, never a clean done"
     d = o.detail
-    assert d["state"].startswith("OPEN.") and d["ask_id"]
+    assert d["state"].startswith("OPEN.")
+    assert d["ask_id"]
     assert "--status" in d.get("how_to_check", ""), "the handle says how to check later"
     recs = expectations.snapshot(s)
-    assert str(d["ask_id"]) in {str(k) for k in recs}, \
+    assert str(d["ask_id"]) in {str(k) for k in recs}, (
         "the DURABLE tail is the point: the record survives the interactive wait"
+    )
     assert recs[str(d["ask_id"])].get("to") == r
 
 
 # --- P4: an empty prompt is a failure, same as the stateless verb ---
 
+
 @needs_built
 def test_empty_prompt_fails():
+    assert ask_peer is not None
     o = ask_peer("anyone", "peer", "   ", wait_s=1)
-    assert not o.ok and not o.partial and "empty" in (o.why or "").lower()
+    assert not o.ok
+    assert not o.partial
+    assert "empty" in (o.why or "").lower()
 
 
 # --- P6 (post-incident, first live use 2026-08-06): the CLI render must branch on
@@ -160,35 +191,61 @@ def test_empty_prompt_fails():
 #     render lied. Same trap this file's own P3 hit an hour earlier: pinned so the
 #     class closes. ---
 
+
 @needs_built
 def test_cli_render_partial_is_not_echo(monkeypatch, capsys):
     import types
+
     import agent_cli
     from core.outcome import BoundaryOutcome
 
     fake = BoundaryOutcome.partially(
         "not settled within 1s -- the ask stays armed",
-        ask_id="123-0", peer="deepseek", state="OPEN.DISPATCHED",
-        elapsed_s=1.0, armed=True, redrives=0,
-        how_to_check="py agent_cli.py ask --status 123-0 --as claude")
+        ask_id="123-0",
+        peer="deepseek",
+        state="OPEN.DISPATCHED",
+        elapsed_s=1.0,
+        armed=True,
+        redrives=0,
+        how_to_check="py agent_cli.py ask --status 123-0 --as claude",
+    )
     import core.comm.ask as ask_mod
+
     monkeypatch.setattr(ask_mod, "ask_peer", lambda *a, **k: fake)
 
     args = types.SimpleNamespace(
-        text=["anyone", "home?"], prompt_file=None, prompts_file=None, fan=0,
-        system="", model="", max_tokens=None, workers=None, json=False,
-        status=None, as_agent="claude", peer="deepseek", wait=1.0, poll=0.25)
+        text=["anyone", "home?"],
+        prompt_file=None,
+        prompts_file=None,
+        fan=0,
+        system="",
+        model="",
+        max_tokens=None,
+        workers=None,
+        json=False,
+        status=None,
+        as_agent="claude",
+        peer="deepseek",
+        wait=1.0,
+        poll=0.25,
+    )
     rc = agent_cli.cmd_ask(args)
     err = capsys.readouterr().err
     assert rc == 0, "an OPEN handle is a normal outcome: exit 0"
-    assert "OPEN.DISPATCHED" in err and "--status" in err
-    assert "ECHO" not in err, \
-        "a PARTIALLY must never render as CLOSED.ECHO -- partial checks BEFORE ok"
+    assert "OPEN.DISPATCHED" in err
+    assert "--status" in err
+    assert "ECHO" not in err, "a PARTIALLY must never render as CLOSED.ECHO -- partial checks BEFORE ok"
 
 
 # --- P5: the door is wired ---
 
+
 def test_door_wired():
-    cli = open(os.path.join(_ROOT, "agent_cli.py"), encoding="utf-8").read()
-    assert 'ask_p.add_argument("--peer"' in cli and 'ask_p.add_argument("--wait"' in cli, \
+    with open(os.path.join(_ROOT, "agent_cli.py"), encoding="utf-8") as fh:
+        cli = fh.read()
+    assert re.search(r'ask_p\.add_argument\(\s*"--peer"', cli), (
         "ask --peer <seat> [--wait N] is the durable route on the SAME verb"
+    )
+    assert re.search(r'ask_p\.add_argument\(\s*"--wait"', cli), (
+        "ask --peer <seat> [--wait N] is the durable route on the SAME verb"
+    )

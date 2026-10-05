@@ -19,12 +19,12 @@ AgentMemory consolidation->chronicles loop. It embodies the compaction research:
 See docs/library/design/20260620_research-context-handling-compaction-and_e5960c.md and docs/library/design/20260619_shared-primitives-interface-spec_03e098.md.
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any
 
 # Fields to summarize from, in priority order (first present wins).
-_SUMMARY_FIELDS = ["recommendation", "decision", "description", "title", "summary",
-                   "text", "what_tried", "task"]
+_SUMMARY_FIELDS = ["recommendation", "decision", "description", "title", "summary", "text", "what_tried", "task"]
 
 # Values that look present but carry no signal — skip them when summarizing.
 _EMPTY_TOKENS = {"", "none", "null", "n/a", "unknown"}
@@ -46,17 +46,17 @@ def _clip_words(s: str, max_chars: int) -> str:
 
 @dataclass
 class Distillation:
-    skeleton: str                       # compact human-readable text (the shape)
-    entries: List[Dict[str, Any]]       # structured: {summary, source, relates, kind}
-    included_sources: List[str]
-    dropped_sources: List[str]          # didn't fit -> recoverable via these pointers
+    skeleton: str  # compact human-readable text (the shape)
+    entries: list[dict[str, Any]]  # structured: {summary, source, relates, kind}
+    included_sources: list[str]
+    dropped_sources: list[str]  # didn't fit -> recoverable via these pointers
     approx_tokens: int
     critic_ok: bool
-    critic_notes: List[str] = field(default_factory=list)
-    skipped_no_source: int = 0          # items excluded for lacking a source pointer
+    critic_notes: list[str] = field(default_factory=list)
+    skipped_no_source: int = 0  # items excluded for lacking a source pointer
 
 
-def _summarize_item(item: Dict[str, Any], max_chars: int) -> str:
+def _summarize_item(item: dict[str, Any], max_chars: int) -> str:
     for f in _SUMMARY_FIELDS:
         v = item.get(f)
         if _useful(v):
@@ -67,7 +67,7 @@ def _summarize_item(item: Dict[str, Any], max_chars: int) -> str:
     return ""
 
 
-def _source_of(item: Dict[str, Any]) -> Optional[str]:
+def _source_of(item: dict[str, Any]) -> str | None:
     return item.get("source") or item.get("id") or item.get("experiment_name")
 
 
@@ -78,16 +78,16 @@ class Distiller:
     Semantic Relationship: Distiller compacts Items into Skeleton (within budget)
     """
 
-    def __init__(self, *,
-                 writer: Optional[Callable] = None,
-                 critic: Optional[Callable] = None,
-                 max_chars_per_entry: int = 170):
-        self.writer = writer    # writer(items, token_budget, instruction) -> Distillation
-        self.critic = critic    # critic(items, skeleton, entries) -> (ok: bool, notes: list)
+    def __init__(
+        self, *, writer: Callable | None = None, critic: Callable | None = None, max_chars_per_entry: int = 170
+    ):
+        self.writer = writer  # writer(items, token_budget, instruction) -> Distillation
+        self.critic = critic  # critic(items, skeleton, entries) -> (ok: bool, notes: list)
         self.max_chars_per_entry = max_chars_per_entry
 
-    def distill(self, items: List[Dict[str, Any]], *, token_budget: int,
-                instruction: str = "", kind: str = "") -> Distillation:
+    def distill(
+        self, items: list[dict[str, Any]], *, token_budget: int, instruction: str = "", kind: str = ""
+    ) -> Distillation:
         """
         Compact `items` (already ranked best-first) into a skeleton within budget.
 
@@ -100,10 +100,10 @@ class Distiller:
         if self.writer is not None:
             return self.writer(items, token_budget, instruction)
 
-        entries: List[Dict[str, Any]] = []
-        included: List[str] = []
-        dropped: List[str] = []
-        lines: List[str] = []
+        entries: list[dict[str, Any]] = []
+        included: list[str] = []
+        dropped: list[str] = []
+        lines: list[str] = []
         used = 0
         skipped_no_source = 0
         for item in items:  # ranked best-first
@@ -135,9 +135,16 @@ class Distiller:
             cok, cnotes = self.critic(items, skeleton, entries)
             ok = ok and bool(cok)
             notes = notes + list(cnotes or [])
-        return Distillation(skeleton=skeleton, entries=entries, included_sources=included,
-                            dropped_sources=dropped, approx_tokens=used,
-                            critic_ok=ok, critic_notes=notes, skipped_no_source=skipped_no_source)
+        return Distillation(
+            skeleton=skeleton,
+            entries=entries,
+            included_sources=included,
+            dropped_sources=dropped,
+            approx_tokens=used,
+            critic_ok=ok,
+            critic_notes=notes,
+            skipped_no_source=skipped_no_source,
+        )
 
     @staticmethod
     def _heuristic_critic(entries, used, budget, dropped):

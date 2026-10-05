@@ -20,6 +20,7 @@ instead of forking a fourth variant.
 Run:  py scripts/generators/gen_report_scaffold.py --title "..." --out <path.html>
       py scripts/generators/gen_report_scaffold.py --crib     # just the primitive reference
 """
+
 import argparse
 import os
 import sys
@@ -31,31 +32,36 @@ KIT = os.path.join(ROOT, "design", "report-kit.css")
 #: class name: a primitive used off-purpose is how a design system becomes wallpaper. A pin
 #: checks this list against the kit, so a new primitive cannot ship undocumented.
 CRIB = [
-    ("header / .eyebrow / h1 / .standfirst",
-     "Opening. The standfirst is a serif thesis sentence, not a summary."),
-    ("hr.rule",
-     "Section break carrying the project's own colours. Use 2-4 times, never between every section."),
-    (".tiles > .tile > .v + .k",
-     "3-6 headline NUMBERS. Never prose. Digits are tabular by default."),
-    (".card[.go|.hold|.stop] > .head + .paths > .path > .plabel[.a|.b] + .ptext, then .rec",
-     "A DECISION WITH REAL COSTS ON BOTH SIDES. .plabel.a names the path you lean toward, "
-     ".plabel.b the one you do not; .rec carries the recommendation. If one path is obviously "
-     "wrong it is rhetoric wearing a choice's clothes -- use .rows instead."),
-    (".timeline > .tl > .when + .what",
-     "ONLY when order carries information the reader needs. Not decoration for a list."),
-    (".versus > .side  (+ .synth)",
-     "A GENUINE DISAGREEMENT, both sides stated fairly. NOT a pro/con list. Pair with "
-     ".synth when a reconciliation exists."),
-    ("blockquote > mark + .who",
-     "Someone's words verbatim. mark highlights the phrase that actually matters."),
-    (".rows > .row > .rt + .rd",
-     "A flat list where each item has a label and a consequence."),
-    (".scroll > table  (td.n, .v.ok/.no/.cl/.mo)",
-     "Comparison. Wide content scrolls ITSELF so the page never scrolls sideways."),
-    ("--go / --hold / --stop",
-     "SEMANTIC colour: cheap / needs judgement / costs either way. Never decoration."),
-    ("--aurora",
-     "The accent. Structure and emphasis only -- it must never carry status."),
+    ("header / .eyebrow / h1 / .standfirst", "Opening. The standfirst is a serif thesis sentence, not a summary."),
+    ("hr.rule", "Section break carrying the project's own colours. Use 2-4 times, never between every section."),
+    (".tiles > .tile > .v + .k", "3-6 headline NUMBERS. Never prose. Digits are tabular by default."),
+    (
+        ".card[.go|.hold|.stop] > .head + .paths > .path > .plabel[.a|.b] + .ptext, then .rec",
+        (
+            "A DECISION WITH REAL COSTS ON BOTH SIDES. .plabel.a names the path you lean toward, "
+            ".plabel.b the one you do not; .rec carries the recommendation. If one path is obviously "
+            "wrong it is rhetoric wearing a choice's clothes -- use .rows instead."
+        ),
+    ),
+    (
+        ".timeline > .tl > .when + .what",
+        "ONLY when order carries information the reader needs. Not decoration for a list.",
+    ),
+    (
+        ".versus > .side  (+ .synth)",
+        (
+            "A GENUINE DISAGREEMENT, both sides stated fairly. NOT a pro/con list. Pair with "
+            ".synth when a reconciliation exists."
+        ),
+    ),
+    ("blockquote > mark + .who", "Someone's words verbatim. mark highlights the phrase that actually matters."),
+    (".rows > .row > .rt + .rd", "A flat list where each item has a label and a consequence."),
+    (
+        ".scroll > table  (td.n, .v.ok/.no/.cl/.mo)",
+        "Comparison. Wide content scrolls ITSELF so the page never scrolls sideways.",
+    ),
+    ("--go / --hold / --stop", "SEMANTIC colour: cheap / needs judgement / costs either way. Never decoration."),
+    ("--aurora", "The accent. Structure and emphasis only -- it must never carry status."),
 ]
 
 
@@ -69,10 +75,11 @@ def crib_text(prefix="  "):
 
 def render(title: str, eyebrow: str) -> str:
     try:
-        kit = open(KIT, encoding="utf-8").read()
+        with open(KIT, encoding="utf-8") as fobj:
+            kit = fobj.read()
     except Exception as e:
         print(f"FAIL: cannot read {os.path.relpath(KIT, ROOT)}: {e}", file=sys.stderr)
-        raise SystemExit(1)
+        raise SystemExit(1) from e
     return f"""<title>{title}</title>
 
 <style>
@@ -129,8 +136,7 @@ def main():
         print(crib_text())
         return 0
     if not a.title:
-        print("FAIL: --title is required (it names the browser tab and the gallery card)",
-              file=sys.stderr)
+        print("FAIL: --title is required (it names the browser tab and the gallery card)", file=sys.stderr)
         return 2
 
     html = render(a.title, a.eyebrow)
@@ -140,8 +146,7 @@ def main():
     os.makedirs(os.path.dirname(os.path.abspath(a.out)) or ".", exist_ok=True)
     with open(a.out, "w", encoding="utf-8") as fh:
         fh.write(html)
-    print(f"wrote {a.out} ({len(html)} chars, kit inlined)\n"
-          f"compose it, then publish with the Artifact tool.")
+    print(f"wrote {a.out} ({len(html)} chars, kit inlined)\ncompose it, then publish with the Artifact tool.")
     return 0
 
 

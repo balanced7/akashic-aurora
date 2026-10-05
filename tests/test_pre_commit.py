@@ -5,44 +5,48 @@ human commits (no AKASHIC_AGENT_ID). Hermetic: monkeypatch the lock check.
 
 Run: py -m pytest tests/test_pre_commit.py -q
 """
+
+import errno
 import os
 import subprocess
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from scripts.githooks import pre_commit
 import core.comm.locks as L
-import core.trust.private_plane as PP   # the leak guard main() imports at call time
+import core.trust.private_plane as PP  # the leak guard main() imports at call time
+from scripts.githooks import pre_commit
 
 
 def _patch_locks(monkeypatch, locked_by):
     """Fake: any path in `locked_by` is held by that peer; others are free."""
+
     def fake(path, agent, client=None):
         who = locked_by.get(path)
         if who and who != agent:
             return {"conflict": True, "held_by": who, "reason": f"locked by {who}"}
         return {"conflict": False, "held_by": None, "reason": ""}
+
     monkeypatch.setattr(L, "path_conflict", fake)
 
 
 def test_blocks_commit_of_peer_locked_file(monkeypatch):
     _patch_locks(monkeypatch, {"scripts/gemini_web.py": "cursor"})
-    ok, reason = pre_commit.check_staged(
-        ["scripts/gemini_web.py", "agent_cli.py"], agent="claude")
+    ok, reason = pre_commit.check_staged(["scripts/gemini_web.py", "agent_cli.py"], agent="claude")
     assert ok is False
     assert "scripts/gemini_web.py -> locked by cursor" in reason
-    assert "agent_cli.py" not in reason          # only the conflicting file is named
+    assert "agent_cli.py" not in reason  # only the conflicting file is named
 
 
 def test_allows_when_no_peer_lock(monkeypatch):
     _patch_locks(monkeypatch, {})
     ok, reason = pre_commit.check_staged(["agent_cli.py"], agent="claude")
-    assert ok is True and reason == ""
+    assert ok is True
+    assert reason == ""
 
 
 def test_allows_own_locked_file(monkeypatch):
-    _patch_locks(monkeypatch, {"agent_cli.py": "claude"})   # I hold it -> fine to commit
+    _patch_locks(monkeypatch, {"agent_cli.py": "claude"})  # I hold it -> fine to commit
     ok, _ = pre_commit.check_staged(["agent_cli.py"], agent="claude")
     assert ok is True
 
@@ -52,13 +56,15 @@ def test_fails_closed_without_agent_id_when_locked(monkeypatch):
     # fails closed with a teaching message instead of fail-open.
     _patch_locks(monkeypatch, {"agent_cli.py": "cursor"})
     ok, reason = pre_commit.check_staged(["agent_cli.py"], agent=None)
-    assert ok is False and "AKASHIC_AGENT_ID" in reason
+    assert ok is False
+    assert "AKASHIC_AGENT_ID" in reason
 
 
 def test_allows_without_agent_id_when_nothing_locked(monkeypatch):
-    _patch_locks(monkeypatch, {})               # no locks -> a human commit is never blocked
+    _patch_locks(monkeypatch, {})  # no locks -> a human commit is never blocked
     ok, reason = pre_commit.check_staged(["agent_cli.py"], agent=None)
-    assert ok is True and reason == ""
+    assert ok is True
+    assert reason == ""
 
 
 # --- the guard must actually be able to RUN the thing it guards with -------------------------
@@ -68,6 +74,7 @@ def test_allows_without_agent_id_when_nothing_locked(monkeypatch):
 # gate silently no-opped on every commit from the move until 2026-08-01, reporting green while
 # doing nothing. Fail-open on a guard CRASH is deliberate policy; fail-open on a guard that
 # ISN'T THERE is a wiring defect, and it is invisible precisely because it looks like success.
+
 
 def test_comprehensibility_gate_actually_runs_in_this_repo():
     """BEHAVIOURAL, not shape-coupled: the gate must really execute against the live tree.
@@ -103,6 +110,7 @@ def test_missing_checker_is_loud_and_distinguishable_from_clean(monkeypatch):
 # refused this runner's author. The gate it measures was fine; the fixture had quietly widened
 # into an integration test of whatever main() happened to contain that week.
 
+
 def _hold_every_gate_open(monkeypatch):
     """Stub EVERY gate main() calls to its PASS shape, in main()'s own order.
 
@@ -112,7 +120,7 @@ def _hold_every_gate_open(monkeypatch):
     of environment-dependent: it returns the argv of every shell-out main() attempted, which the
     caller asserts stays empty (a raise would be swallowed by the gates' own fail-open excepts).
     """
-    monkeypatch.setattr(pre_commit, "_staged_files", lambda: [])
+    monkeypatch.setattr(pre_commit, "_staged_files", list)
     monkeypatch.setattr(pre_commit, "check_staged", lambda *a, **k: (True, ""))
     monkeypatch.setattr(pre_commit, "_git_author_ident", lambda: "")
     monkeypatch.setattr(pre_commit, "check_author_matches_seat", lambda *a, **k: (True, ""))
@@ -120,6 +128,7 @@ def _hold_every_gate_open(monkeypatch):
     # module attributes are the seam -- the same way _patch_locks reaches core.comm.locks.
     monkeypatch.setattr(PP, "report", lambda *a, **k: {"findings": []})
     monkeypatch.setattr(PP, "scan_text", lambda *a, **k: [])
+    monkeypatch.setattr(pre_commit, "_prek_staged", lambda: (0, ""))
     monkeypatch.setattr(pre_commit, "regenerate_derived", lambda *a, **k: (True, ""))
     monkeypatch.setattr(pre_commit, "ensure_baseline", lambda *a, **k: (False, ""))
     monkeypatch.setattr(pre_commit, "ratchet_ok", lambda *a, **k: (True, ""))
@@ -131,7 +140,7 @@ def _hold_every_gate_open(monkeypatch):
         shelled.append(list(argv))
         return subprocess.CompletedProcess(argv, 0, "", "")
 
-    class _NoShell:                                  # the real module, except run() is recorded
+    class _NoShell:  # the real module, except run() is recorded
         run = staticmethod(_record)
 
         def __getattr__(self, name):
@@ -141,8 +150,10 @@ def _hold_every_gate_open(monkeypatch):
     return shelled
 
 
-_LEAK = ("pre_commit.main() shelled out under full gate isolation -- a gate was added to main() "
-         "that _hold_every_gate_open does not stub. Add it there. argv: %r")
+_LEAK = (
+    "pre_commit.main() shelled out under full gate isolation -- a gate was added to main() "
+    "that _hold_every_gate_open does not stub. Add it there. argv: %r"
+)
 
 
 def test_fully_isolated_main_is_green_and_silent(monkeypatch, capsys):
@@ -164,3 +175,93 @@ def test_dead_gate_warns_but_does_not_block(monkeypatch, capsys):
     assert shelled == [], _LEAK % shelled
     assert rc == 0, "a dead gate must not brick every commit in the repo"
     assert "WARNING" in capsys.readouterr().err, "a dead gate must be LOUD about being dead"
+
+
+# --------------------------------------------------------------------------- PREK STAGE (G5.P2)
+# The .pre-commit-config.yaml hooks reach commits only through this backstop (never `prek
+# install`, which would fight core.hooksPath). Same policy as the comprehensibility gate: a
+# finding fails CLOSED, a missing or crashing prek fails OPEN and LOUD.
+
+_real_prek_staged = pre_commit._prek_staged  # _hold_every_gate_open stubs the module attribute
+_PREK_DEAD_RC = 2  # _prek_staged's "did not run" code: main() warns on it, never blocks
+
+
+def test_prek_finding_blocks_the_commit(monkeypatch, capsys):
+    """A prek hook finding on the staged files blocks the commit and shows the hook output."""
+    shelled = _hold_every_gate_open(monkeypatch)
+    monkeypatch.setattr(pre_commit, "_prek_staged", lambda: (1, "ruff format....Failed"))
+    rc = pre_commit.main()
+    assert shelled == [], _LEAK % shelled
+    assert rc == 1, "a hook finding on the staged files must block the commit"
+    err = capsys.readouterr().err
+    assert "BLOCKED" in err
+    assert "ruff format....Failed" in err, "the hook output must reach the committer"
+
+
+def test_prek_missing_warns_but_does_not_block(monkeypatch, capsys):
+    """A missing prek fails open: the commit goes through with a loud WARNING."""
+    shelled = _hold_every_gate_open(monkeypatch)
+    monkeypatch.setattr(pre_commit, "_prek_staged", _real_prek_staged)
+    monkeypatch.setattr(pre_commit, "_prek_executable", lambda: None)
+    rc = pre_commit.main()
+    assert shelled == [], _LEAK % shelled
+    assert rc == 0, "a missing prek must not brick every commit"
+    err = capsys.readouterr().err
+    assert "WARNING" in err
+    assert "prek is MISSING" in err, "a dead stage must say it is dead"
+
+
+def test_prek_crash_warns_but_does_not_block(monkeypatch, capsys):
+    """A prek that cannot be executed fails open with a WARNING after exactly one attempt."""
+    shelled = _hold_every_gate_open(monkeypatch)
+    monkeypatch.setattr(pre_commit, "_prek_staged", _real_prek_staged)
+    monkeypatch.setattr(pre_commit, "_prek_executable", lambda: "prek")
+
+    def _boom(argv, *_args, **_kwargs):
+        shelled.append(list(argv))
+        raise OSError(errno.ENOEXEC, os.strerror(errno.ENOEXEC))
+
+    monkeypatch.setattr(pre_commit.subprocess, "run", _boom, raising=False)
+    rc = pre_commit.main()
+    assert rc == 0, "a crashing prek must not brick every commit"
+    assert "WARNING" in capsys.readouterr().err
+    assert len(shelled) == 1
+
+
+def test_prek_unexpected_exit_code_is_a_crash_not_a_finding(monkeypatch):
+    """A prek exit code other than 0 or 1 is reported as a crash (rc 2), not as a finding."""
+    _hold_every_gate_open(monkeypatch)
+    monkeypatch.setattr(pre_commit, "_prek_executable", lambda: "prek")
+    monkeypatch.setattr(
+        pre_commit.subprocess,
+        "run",
+        lambda argv, *_args, **_kwargs: subprocess.CompletedProcess(argv, 2, "", "bad config"),
+    )
+    rc, out = _real_prek_staged()
+    assert rc == _PREK_DEAD_RC
+    assert "bad config" in out
+
+
+def test_prek_runs_on_the_staged_files_only(monkeypatch):
+    """Prek runs once, on the staged files only, with the repo config and never as `prek install`."""
+    shelled = _hold_every_gate_open(monkeypatch)
+    monkeypatch.setattr(pre_commit, "_prek_executable", lambda: "prek")
+    rc, _out = _real_prek_staged()
+    assert rc == 0
+    assert len(shelled) == 1
+    argv = shelled[0]
+    assert argv[:2] == ["prek", "run"]
+    assert "--all-files" not in argv, "the commit-time stage sees the STAGED files, not the tree"
+    assert "--files" not in argv
+    assert "install" not in argv, "never prek install: it would fight core.hooksPath"
+    assert argv[argv.index("--config") + 1].endswith(".pre-commit-config.yaml")
+
+
+def test_prek_missing_config_is_loud(monkeypatch, tmp_path):
+    """A missing .pre-commit-config.yaml is reported as a dead stage that names what is MISSING."""
+    _hold_every_gate_open(monkeypatch)
+    # a root without the config: the real condition, whatever API the stage checks it with
+    monkeypatch.setattr(pre_commit, "ROOT", str(tmp_path))
+    rc, out = _real_prek_staged()
+    assert rc == _PREK_DEAD_RC
+    assert "MISSING" in out

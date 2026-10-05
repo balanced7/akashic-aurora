@@ -14,7 +14,9 @@ whole point of the best-effort wrapping).
 Layering: this is narrative (System 4). It is bumped only from narrative-layer code -- the lower
 event/domain primitives must not depend upward on it, so their own failures stay in their logs.
 """
-from typing import Any, Dict, Optional
+
+import contextlib
+from typing import Any
 
 HEALTH_KEY = "narr:health"
 
@@ -30,9 +32,9 @@ def bump(store: Any, metric: str, n: int = 1) -> None:
         pass
 
 
-def snapshot(store: Any) -> Dict[str, Any]:
+def snapshot(store: Any) -> dict[str, Any]:
     """All health counters as a dict (ints where parseable). Never raises -> {} on any hiccup."""
-    out: Dict[str, Any] = {}
+    out: dict[str, Any] = {}
     if store is None:
         return out
     try:
@@ -48,7 +50,5 @@ def snapshot(store: Any) -> Dict[str, Any]:
 
 def reset(store: Any) -> None:
     """Clear all counters (tests / a fresh measurement window). Never raises."""
-    try:
+    with contextlib.suppress(Exception):
         store.delete(HEALTH_KEY)
-    except Exception:
-        pass

@@ -4,12 +4,12 @@ Tests for the Ranker shared primitive.
 Run: py tests/test_ranker.py
 """
 
-import sys
 import os
+import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.primitives.ranker import Ranker, Scored, keyword_relevance
+from core.primitives.ranker import Ranker
 
 NOW = 1_750_000_000.0  # fixed "now" for deterministic recency
 DAY = 86400.0
@@ -40,7 +40,8 @@ def test_relevance():
     miss = {"text": "configure nginx reverse proxy", "timestamp": NOW}
     out = r.rank([miss, match], query="comfyui install", now=NOW)
     assert out[0].item is match, "query-matching item should rank first"
-    assert out[0].components["relevance"] > 0 and out[1].components["relevance"] == 0
+    assert out[0].components["relevance"] > 0
+    assert out[1].components["relevance"] == 0
     print("--- relevance ---\n  query match outranks non-match OK")
 
 
@@ -49,7 +50,8 @@ def test_supersession_excluded():
     active = {"text": "x", "timestamp": NOW}
     retired = {"text": "x", "timestamp": NOW, "superseded": True}
     out = r.rank([active, retired], query="x", now=NOW)
-    assert len(out) == 1 and out[0].item is active, "superseded item must be excluded"
+    assert len(out) == 1, "superseded item must be excluded"
+    assert out[0].item is active, "superseded item must be excluded"
     print("--- supersession ---\n  superseded item excluded OK")
 
 

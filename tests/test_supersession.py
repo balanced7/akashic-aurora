@@ -4,25 +4,25 @@ Tests for Supersession: the primitive + AgentMemory integration + Ranker honorin
 Run: py tests/test_supersession.py
 """
 
-import sys
 import os
+import sys
 import tempfile
 
 os.environ["AI_SETUP"] = tempfile.mkdtemp()
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.primitives import supersession as S
-from core.primitives.ranker import Ranker
 from core.foundation.store import FileStore
 from core.learning.agent_memory import AgentMemory
+from core.primitives import supersession as S
+from core.primitives.ranker import Ranker
 
 
 def test_primitive():
     assert S.is_active({}) is True
     assert S.is_active({"superseded": True}) is False
     assert S.mark_supersedes({}, "old1")["supersedes"] == "old1"
-    assert S.mark_supersedes({}, None) == {}            # no-op when nothing to supersede
+    assert S.mark_supersedes({}, None) == {}  # no-op when nothing to supersede
     assert S.retire({})["superseded"] is True
     assert S.active_only([{"id": 1}, {"id": 2, "superseded": True}]) == [{"id": 1}]
     print("\n--- primitive ---\n  is_active/mark/retire/active_only OK")
@@ -43,7 +43,8 @@ def test_agent_memory_experience_supersession():
     old = mem.record(task="install comfyui nodes", success=False)
     new = mem.record(task="install comfyui nodes", success=True, supersedes=old)
     ids = [e.id for e in mem.get_similar("install comfyui nodes")]
-    assert new in ids and old not in ids, "superseded experience excluded from retrieval"
+    assert new in ids, "superseded experience excluded from retrieval"
+    assert old not in ids, "superseded experience excluded from retrieval"
     print("\n--- AgentMemory experiences ---\n  superseded experience retired from get_similar OK")
 
 

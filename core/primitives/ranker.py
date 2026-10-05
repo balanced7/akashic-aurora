@@ -22,24 +22,29 @@ item is active, so this is safe now and "just works" later.
 See docs/library/design/20260619_shared-primitives-interface-spec_03e098.md and docs/library/design/20260620_research-context-handling-compaction-and_e5960c.md.
 """
 
-import re
 import math
+import re
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any
 
 # Weighted blend of the four signals (each normalized to 0..1). Tune per caller.
-DEFAULT_WEIGHTS: Dict[str, float] = {
-    "relevance": 0.4, "importance": 0.2, "recency": 0.2, "relationship": 0.2,
+DEFAULT_WEIGHTS: dict[str, float] = {
+    "relevance": 0.4,
+    "importance": 0.2,
+    "recency": 0.2,
+    "relationship": 0.2,
 }
 
 
 @dataclass
 class Scored:
     """An item plus its score and the component breakdown (for transparency)."""
-    item: Dict[str, Any]
+
+    item: dict[str, Any]
     score: float
-    components: Dict[str, float]
+    components: dict[str, float]
 
 
 def keyword_relevance(text: str, query: str) -> float:
@@ -66,11 +71,15 @@ class Ranker:
     Semantic Relationship: Ranker scores Items using WeightedSignals
     """
 
-    def __init__(self, *, relevance_fn: Optional[Callable[[str, str], float]] = None,
-                 weights: Optional[Dict[str, float]] = None,
-                 half_life_days: float = 14.0,
-                 relationship_weights: Optional[Dict[str, float]] = None,
-                 neutral_relationship: float = 0.5):
+    def __init__(
+        self,
+        *,
+        relevance_fn: Callable[[str, str], float] | None = None,
+        weights: dict[str, float] | None = None,
+        half_life_days: float = 14.0,
+        relationship_weights: dict[str, float] | None = None,
+        neutral_relationship: float = 0.5,
+    ):
         self.relevance_fn = relevance_fn or keyword_relevance
         self.weights = {**DEFAULT_WEIGHTS, **(weights or {})}
         self.half_life_days = half_life_days
@@ -78,13 +87,15 @@ class Ranker:
         self.neutral_relationship = neutral_relationship
 
     @staticmethod
-    def is_active(item: Dict[str, Any]) -> bool:
+    def is_active(item: dict[str, Any]) -> bool:
         """An item is active unless explicitly superseded (Supersession-aware)."""
         from core.primitives import supersession
+
         return supersession.is_active(item)
 
-    def rank(self, items: List[Dict[str, Any]], query: str = "", *,
-             now: Optional[float] = None, top_k: Optional[int] = None) -> List[Scored]:
+    def rank(
+        self, items: list[dict[str, Any]], query: str = "", *, now: float | None = None, top_k: int | None = None
+    ) -> list[Scored]:
         """
         Score active items and return them ordered best-first.
 
@@ -97,7 +108,7 @@ class Ranker:
             top_k: cap the returned list.
         """
         now = now if now is not None else datetime.now().timestamp()
-        scored: List[Scored] = []
+        scored: list[Scored] = []
         for item in items:
             if not self.is_active(item):
                 continue
@@ -113,14 +124,14 @@ class Ranker:
         return scored[:top_k] if top_k else scored
 
     # ----- signal components (each returns 0..1) -----
-    def _importance_of(self, item: Dict[str, Any]) -> float:
+    def _importance_of(self, item: dict[str, Any]) -> float:
         try:
             imp = float(item.get("importance", 3))
         except (ValueError, TypeError):
             imp = 3.0
         return max(0.0, min(1.0, imp / 5.0))
 
-    def _recency_of(self, item: Dict[str, Any], now: float) -> float:
+    def _recency_of(self, item: dict[str, Any], now: float) -> float:
         ts = item.get("timestamp")
         if ts is None:
             return 0.5  # unknown age -> neutral, don't punish
@@ -133,13 +144,13 @@ class Ranker:
             return 1.0
         return math.exp(-age_days / self.half_life_days)
 
-    def _relationship_of(self, item: Dict[str, Any]) -> float:
+    def _relationship_of(self, item: dict[str, Any]) -> float:
         rt = item.get("relationship_type")
         if rt is None:
             return self.neutral_relationship
         return self.relationship_weights.get(rt, self.neutral_relationship)
 
-    def _text_of(self, item: Dict[str, Any]) -> str:
+    def _text_of(self, item: dict[str, Any]) -> str:
         """The text to match the query against: explicit 'text', else string fields."""
         if item.get("text"):
             return str(item["text"])

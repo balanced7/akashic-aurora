@@ -14,29 +14,29 @@ Pins:
 
 Run: py -m pytest tests/test_t079_e2_phase_lanes.py -q
 """
+
 import os
 import sys
 import time
 
-import pytest
-
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 try:
-    from core.comm import lane_depths as ld
     from core.comm import fence_phase as fp
+    from core.comm import lane_depths as ld
 except ImportError:
     ld = fp = None
 
 
 def _built():
-    assert ld is not None and fp is not None, \
-        "E2 build targets core/comm/lane_depths.py + fence_phase.py missing (RED until built)"
+    assert ld is not None, "E2 build targets core/comm/lane_depths.py + fence_phase.py missing (RED until built)"
+    assert fp is not None, "E2 build targets core/comm/lane_depths.py + fence_phase.py missing (RED until built)"
 
 
 class FakeRedis:
     def __init__(self, lens=None):
         self.lens = lens or {}
+
     def xlen(self, k):
         if k not in self.lens:
             raise Exception("no such key")
@@ -44,14 +44,19 @@ class FakeRedis:
 
 
 def test_l1_lane_depths():
+    assert ld is not None
     _built()
-    c = FakeRedis({"bifrost:work:inbox:claude": 3, "bifrost:inbox:claude": 7,
-                   "bifrost:trace": 100})
+    c = FakeRedis({"bifrost:work:inbox:claude": 3, "bifrost:inbox:claude": 7, "bifrost:trace": 100})
     d = ld.lane_depths("claude", c=c)
-    assert d["work"] == 3 and d["legacy"] == 7 and d["trace"] == 100 and d["sig"] == 0
+    assert d["work"] == 3
+    assert d["legacy"] == 7
+    assert d["trace"] == 100
+    assert d["sig"] == 0
+
     class Hostile:
         def __getattr__(self, _):
             raise RuntimeError("boom")
+
     d2 = ld.lane_depths("claude", c=Hostile())
     assert d2 == {"work": 0, "legacy": 0, "trace": 0, "sig": 0}, "L1: hostile -> zeros"
 
@@ -65,14 +70,15 @@ def _touch(d, name, age_s=0):
 
 
 def test_f1_phase_ladder(tmp_path):
+    assert fp is not None
     _built()
     d = str(tmp_path)
     _touch(d, "claude-widget-2026-07-15.md", 300)
-    assert fp.fence_phase("widget", reviewed_dir=d)["phase"] == "blind", \
-        "F1: one half filed -> blind"
+    assert fp.fence_phase("widget", reviewed_dir=d)["phase"] == "blind", "F1: one half filed -> blind"
     _touch(d, "deepseek-widget-2026-07-15.md", 200)
-    assert fp.fence_phase("widget", reviewed_dir=d)["phase"] == "reconciling", \
+    assert fp.fence_phase("widget", reviewed_dir=d)["phase"] == "reconciling", (
         "F1: both halves, no reconciliation -> reconciling"
+    )
     _touch(d, "widget-reconciliation-2026-07-15.md", 100)
     out = fp.fence_phase("widget", reviewed_dir=d)
     assert out["phase"] == "reconciled", "F1: reconciliation file -> reconciled"
@@ -80,10 +86,12 @@ def test_f1_phase_ladder(tmp_path):
 
 
 def test_f2_idle(tmp_path):
+    assert fp is not None
     _built()
     assert fp.fence_phase("nothing", reviewed_dir=str(tmp_path))["phase"] == "idle"
 
 
 def test_f3_never_raises():
+    assert fp is not None
     _built()
     assert fp.fence_phase("x", reviewed_dir="Z:/does/not/exist")["phase"] == "idle"

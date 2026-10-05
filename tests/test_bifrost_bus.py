@@ -8,6 +8,7 @@ CANONICAL port (not the old hardcoded 6379); and offline is EXPLICIT (no silent 
 Redis-backed tests use the real Redis in a throwaway namespace and skip if it's down; the offline
 test needs no Redis. Run: py -m pytest tests/test_bifrost_bus.py -q
 """
+
 import os
 import sys
 import uuid
@@ -16,14 +17,15 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.comm.bus import Bus, Message
+from core.comm.bus import Bus
 
 
 def _client():
-    from core.foundation.redis_connection import (
-        connect_to_redis_with_fail_fast, DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT)
-    c = connect_to_redis_with_fail_fast(host=DEFAULT_REDIS_HOST, port=DEFAULT_REDIS_PORT,
-                                        timeout_seconds=3, decode_responses=True)
+    from core.foundation.redis_connection import DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT, connect_to_redis_with_fail_fast
+
+    c = connect_to_redis_with_fail_fast(
+        host=DEFAULT_REDIS_HOST, port=DEFAULT_REDIS_PORT, timeout_seconds=3, decode_responses=True
+    )
     if c is None:
         pytest.skip("redis not available")
     return c
@@ -41,8 +43,8 @@ def _cleanup(client, ns):
 
 # ----------------------------------------------------------------- offline (no Redis needed)
 def test_offline_is_explicit():
-    b = Bus("x", client="dummy")      # any non-None client bypasses the real connect
-    b._client = None                  # force offline
+    b = Bus("x", client="dummy")  # any non-None client bypasses the real connect
+    b._client = None  # force offline
     assert b.online is False
     assert b.send("y", "chat", "hi") is None
     assert b.broadcast("k", "c") is None
@@ -52,8 +54,8 @@ def test_offline_is_explicit():
 
 # ----------------------------------------------------------------- redis-backed
 def test_bus_connects_on_canonical_port():
-    _client()                          # skip if down
-    assert Bus("probe", client=None).online is True   # default path uses the canonical connector
+    _client()  # skip if down
+    assert Bus("probe", client=None).online is True  # default path uses the canonical connector
 
 
 def test_direct_delivery_reaches_one():
@@ -65,7 +67,9 @@ def test_direct_delivery_reaches_one():
         mid = alice.send("bob", "chat", {"hi": "bob"})
         assert mid
         got = bob.inbox()
-        assert len(got) == 1 and got[0].frm == "alice" and got[0].to == "bob"
+        assert len(got) == 1
+        assert got[0].frm == "alice"
+        assert got[0].to == "bob"
         assert got[0].content == {"hi": "bob"}
         assert carol.inbox() == [], "a direct message must not reach a third agent"
     finally:
@@ -81,8 +85,9 @@ def test_broadcast_reaches_all_but_not_sender():
         alice.broadcast("announce", {"news": "ship it"})
         for agent in (bob, dave):
             got = agent.inbox()
-            assert len(got) == 1 and got[0].kind == "announce" and got[0].to == "*", \
-                "EVERY agent must see the broadcast (the fan-out fix)"
+            assert len(got) == 1, "EVERY agent must see the broadcast (the fan-out fix)"
+            assert got[0].kind == "announce", "EVERY agent must see the broadcast (the fan-out fix)"
+            assert got[0].to == "*", "EVERY agent must see the broadcast (the fan-out fix)"
         assert alice.inbox() == [], "the sender must not receive its own broadcast"
     finally:
         _cleanup(c, ns)
@@ -110,9 +115,9 @@ def test_pending_does_not_consume():
         bob = Bus("bob", c, namespace=ns)
         alice.send("bob", "chat", "x")
         alice.broadcast("note", "y")
-        assert bob.pending() == 2          # direct + broadcast, no consume
+        assert bob.pending() == 2  # direct + broadcast, no consume
         assert len(bob.inbox()) == 2
-        assert bob.pending() == 0          # now consumed
+        assert bob.pending() == 0  # now consumed
     finally:
         _cleanup(c, ns)
 
@@ -128,9 +133,11 @@ def test_content_and_meta_roundtrip():
         # T073 Phase 1 (@9d04797): transport stamps frm_incarnation into meta,
         # diagnostic-only. The contract is sender meta RIDES THROUGH UNCHANGED
         # plus the stamp -- not exact equality (stale pre-T073 assert).
-        assert m.meta.get("prio") == "high" and m.kind == "handoff"
-        assert m.meta.get("frm_incarnation", "").startswith("a:"), \
+        assert m.meta.get("prio") == "high"
+        assert m.kind == "handoff"
+        assert m.meta.get("frm_incarnation", "").startswith("a:"), (
             "transport must stamp the sender's incarnation (T073 Phase 1)"
+        )
     finally:
         _cleanup(c, ns)
 

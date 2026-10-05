@@ -3,15 +3,18 @@
 Nothing here is measured. Latency is what modules declare, and the plan says so; receipts carry
 measurements.
 """
+
 from __future__ import annotations
 
 import re
-from typing import Dict, List
+from typing import TYPE_CHECKING, cast
 
-from .graph import Graph
 from .mediatypes import MEDIA_PORT_TYPES
-from .registry import Registry
 from .timebase import MASTER_BY_MODE
+
+if TYPE_CHECKING:
+    from .graph import Graph
+    from .registry import Registry
 
 #: GPL-family copyleft (GPL, AGPL). The leading word boundary keeps LGPL out, because LGPL used
 #: dynamically stays in arsenal-core (contract F8).
@@ -25,20 +28,27 @@ def _is_gpl(licence: str) -> bool:
 def make_plan(graph: Graph, registry: Registry) -> dict:
     graph.require_valid(registry)
 
-    nodes: List[dict] = []
+    nodes: list[dict] = []
     for name, node in graph.nodes.items():
         manifest = registry.get(node["use"])
-        nodes.append({"name": name, "module": manifest["id"], "engine": manifest["engine"],
-                      "isolation": manifest.get("isolation", ""),
-                      "licence": manifest.get("licence") or "NOASSERTION"})
+        nodes.append(
+            {
+                "name": name,
+                "module": manifest["id"],
+                "engine": manifest["engine"],
+                "isolation": manifest.get("isolation", ""),
+                "licence": manifest.get("licence") or "NOASSERTION",
+            }
+        )
     engine = {n["name"]: n["engine"] for n in nodes}
 
-    edges: List[dict] = []
-    warnings: List[str] = []
+    edges: list[dict] = []
+    warnings: list[str] = []
     for src, dst in graph.edges:
         s_node, s_port = src.split(".")[:2]
         d_node = dst.split(".")[0]
-        port_type = registry.port(graph.nodes[s_node]["use"], s_port, "outputs")["type"]
+        out_port = cast("dict", registry.port(graph.nodes[s_node]["use"], s_port, "outputs"))
+        port_type = out_port["type"]  # require_valid above refuses an edge from a missing output
         crosses = engine[s_node] != engine[d_node]
         is_copy = crosses and port_type in MEDIA_PORT_TYPES
         if is_copy:
@@ -58,7 +68,9 @@ def make_plan(graph: Graph, registry: Registry) -> dict:
     profile = "arsenal-gpl" if any(_is_gpl(lic) for lic in licences) else "arsenal-core"
     for n in nodes:
         if n["licence"] == "NOASSERTION":
-            warnings.append(f"licence NOASSERTION for {n['name']} ({n['module']}, {n['engine']} engine): not asserted yet")
+            warnings.append(
+                f"licence NOASSERTION for {n['name']} ({n['module']}, {n['engine']} engine): not asserted yet"
+            )
         elif "unverified" in n["licence"].lower():
             warnings.append(f"licence unverified for {n['name']} ({n['module']}): {n['licence']}")
 
@@ -79,14 +91,14 @@ def make_plan(graph: Graph, registry: Registry) -> dict:
 
 
 def _longest_path_ms(graph: Graph, registry: Registry) -> int:
-    base: Dict[str, int] = {
+    base: dict[str, int] = {
         name: int((registry.get(node["use"]).get("latency_ms") or {}).get("base", 0))
         for name, node in graph.nodes.items()
     }
-    preds: Dict[str, List[str]] = {n: [] for n in graph.nodes}
+    preds: dict[str, list[str]] = {n: [] for n in graph.nodes}
     for s, d in graph.node_edges():
         preds[d].append(s)
-    memo: Dict[str, int] = {}
+    memo: dict[str, int] = {}
 
     def total(n: str) -> int:
         if n not in memo:
@@ -97,10 +109,16 @@ def _longest_path_ms(graph: Graph, registry: Registry) -> int:
 
 
 def render_plan(plan: dict) -> str:
-    lines = [f"PLAN {plan.get('graph') or '(unnamed)'}  ·  mode {plan['mode']}  ·  master clock: {plan.get('master_clock')}", "", "NODES"]
+    lines = [
+        f"PLAN {plan.get('graph') or '(unnamed)'}  ·  mode {plan['mode']}  ·  master clock: {plan.get('master_clock')}",
+        "",
+        "NODES",
+    ]
     width = max((len(n["name"]) for n in plan["nodes"]), default=4)
-    for n in plan["nodes"]:
-        lines.append(f"  {n['name']:<{width}}  {n['module']:<24} {n['engine']:<9} {n['isolation']:<12} {n['licence']}")
+    lines.extend(
+        f"  {n['name']:<{width}}  {n['module']:<24} {n['engine']:<9} {n['isolation']:<12} {n['licence']}"
+        for n in plan["nodes"]
+    )
     lines += ["", "EDGES"]
     for e in plan["edges"]:
         flag = "!" if e["copy"] else " "
@@ -111,8 +129,11 @@ def render_plan(plan: dict) -> str:
             rng = b.get("range")
             suffix = f" {{range: {rng[0]}..{rng[1]}}}" if isinstance(rng, list) and len(rng) == 2 else ""
             lines.append(f"  map {b['from']} -> {b['to']}{suffix}")
-    lines += ["", f"LATENCY  {plan['latency_ms']} ms along the longest path ({plan['latency_basis']})",
-              f"LICENCES {plan['licence_profile']}: {', '.join(plan['licences'])}"]
+    lines += [
+        "",
+        f"LATENCY  {plan['latency_ms']} ms along the longest path ({plan['latency_basis']})",
+        f"LICENCES {plan['licence_profile']}: {', '.join(plan['licences'])}",
+    ]
     if plan["warnings"]:
         lines += ["", "WARNINGS"] + [f"  ! {w}" for w in plan["warnings"]]
     return "\n".join(lines)

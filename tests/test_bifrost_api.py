@@ -5,6 +5,7 @@ and the broadcast stream, inbox reads them back, presence registers, and the wak
 string. Redis-backed in a throwaway namespace; skips if Redis is down. Also verifies fail-open shape
 offline. Run: py -m pytest tests/test_bifrost_api.py -q
 """
+
 import os
 import sys
 import uuid
@@ -13,8 +14,11 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.comm.bus import Bus
 from core.comm.bifrost_api import BifrostAPI
+from core.comm.bus import Bus
+from core.paths import python_launcher as _python_launcher
+
+_PYL = _python_launcher()  # `py` on Windows, `uv run` elsewhere
 
 
 def _online_or_skip(api):
@@ -48,9 +52,10 @@ def test_send_lands_in_peer_inbox_stream():
     ns = _ns()
     api_a = _api(a, ns)
     c = api_a.bus._client
+    assert c is not None
     try:
         mid = api_a.send(b, "hello from a", kind="chat")
-        assert mid                                        # got a message id (delegation happened)
+        assert mid  # got a message id (delegation happened)
         entries = c.xrevrange(f"{ns}:inbox:{b}", "+", "-", count=5) or []
         assert any(f.get("frm") == a and "hello from a" in str(f.get("content", "")) for _, f in entries)
     finally:
@@ -62,6 +67,7 @@ def test_broadcast_lands_on_broadcast_stream():
     ns = _ns()
     api_a = _api(a, ns)
     c = api_a.bus._client
+    assert c is not None
     try:
         marker = f"ping-{uuid.uuid4().hex[:8]}"
         mid = api_a.broadcast(marker)
@@ -75,7 +81,7 @@ def test_broadcast_lands_on_broadcast_stream():
 def test_presence_and_who():
     a = f"api-p-{uuid.uuid4().hex[:6]}"
     ns = _ns()
-    api = _api(a, ns)                            # presence keys honor bus.ns, so isolate them too
+    api = _api(a, ns)  # presence keys honor bus.ns, so isolate them too
     try:
         assert api.online() is True
         assert any(p.get("agent") == a for p in api.who())
@@ -85,7 +91,7 @@ def test_presence_and_who():
 
 def test_wake_cmd_is_the_arm_string():
     api = BifrostAPI("claude")
-    assert api.wake_cmd == "py scripts/bifrost_wake.py --agent claude"
+    assert api.wake_cmd == f"{_PYL} scripts/bifrost_wake.py --agent claude"
 
 
 def test_coordination_intent_lifecycle():
@@ -113,8 +119,8 @@ def test_coordination_plan_gives_verdict():
 
 def test_fail_open_offline(monkeypatch):
     api = BifrostAPI("x")
-    monkeypatch.setattr(api.bus, "_client", None)         # force offline
-    assert api.send("y", "hi") is None                    # degrades to None, no exception
+    monkeypatch.setattr(api.bus, "_client", None)  # force offline
+    assert api.send("y", "hi") is None  # degrades to None, no exception
     assert api.broadcast("hi") is None
     assert api.inbox() == []
     assert api.online() is False

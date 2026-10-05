@@ -27,14 +27,13 @@ nobody acts on. So the gate must be a ONE-WAY RATCHET:
 
 Run: py -m pytest tests/test_ship_baseline_gate.py -q
 """
+
 import os
 import sys
 
-import pytest
-
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.coord import suite_baseline as sb   # noqa: E402
+from core.coord import suite_baseline as sb
 
 
 def _mk(monkeypatch, tmp_path, nodes):
@@ -48,6 +47,7 @@ def _mk(monkeypatch, tmp_path, nodes):
 
 def test_p1_a_new_failure_aborts(monkeypatch, tmp_path):
     from scripts import ship_gate
+
     _mk(monkeypatch, tmp_path, ["tests/test_a.py::test_one"])
     v = ship_gate.evaluate(["tests/test_a.py::test_one", "tests/test_b.py::test_new"])
     assert v["blocked"] is True, "a failure absent from the baseline MUST abort the ship"
@@ -56,11 +56,13 @@ def test_p1_a_new_failure_aborts(monkeypatch, tmp_path):
 
 def test_p2_an_inherited_failure_does_not_abort(monkeypatch, tmp_path):
     from scripts import ship_gate
+
     _mk(monkeypatch, tmp_path, ["tests/test_a.py::test_one", "tests/test_b.py::test_two"])
     v = ship_gate.evaluate(["tests/test_a.py::test_one", "tests/test_b.py::test_two"])
     assert v["blocked"] is False, (
         "inherited failures must not abort -- an impassable door is why the method gate "
-        "was bypassed six times in one night")
+        "was bypassed six times in one night"
+    )
     assert len(v["inherited"]) == 2
 
 
@@ -69,15 +71,22 @@ def test_p3_a_fixed_failure_tightens_the_baseline(monkeypatch, tmp_path):
     Tightening is DELIBERATE (kimi P9) and requires collection evidence (P10) -- but once a
     seat asks for it with proof, the retirement must be permanent."""
     from scripts import ship_gate
+
     _mk(monkeypatch, tmp_path, ["tests/test_a.py::test_one", "tests/test_b.py::test_two"])
-    v = ship_gate.evaluate(["tests/test_a.py::test_one"], tighten=True,
-                           collected=["tests/test_a.py::test_one", "tests/test_b.py::test_two"])
+    v = ship_gate.evaluate(
+        ["tests/test_a.py::test_one"],
+        tighten=True,
+        collected=["tests/test_a.py::test_one", "tests/test_b.py::test_two"],
+    )
     assert "tests/test_b.py::test_two" in v["fixed"]
     assert v["blocked"] is False
-    remaining = {f["node"] for f in sb.read()["failures"]}
+    baseline = sb.read()
+    assert baseline is not None
+    remaining = {f["node"] for f in baseline["failures"]}
     assert "tests/test_b.py::test_two" not in remaining, (
         "a fixed test stayed in the amnesty -- the list must ratchet DOWN automatically or it "
-        "becomes a growing pile of permitted red")
+        "becomes a growing pile of permitted red"
+    )
     # and it can never quietly return: it is now NEW
     v2 = ship_gate.evaluate(["tests/test_a.py::test_one", "tests/test_b.py::test_two"])
     assert v2["blocked"] is True, "a regression of a FIXED test must block, not re-inherit"
@@ -85,14 +94,16 @@ def test_p3_a_fixed_failure_tightens_the_baseline(monkeypatch, tmp_path):
 
 def test_p4_inherited_failures_are_announced(monkeypatch, tmp_path):
     from scripts import ship_gate
+
     _mk(monkeypatch, tmp_path, ["tests/test_a.py::test_one"])
     v = ship_gate.evaluate(["tests/test_a.py::test_one"])
-    assert v["report"] and "1" in v["report"], (
-        "shipping over a red test must SAY SO -- silence is how a red becomes furniture")
+    assert v["report"], "shipping over a red test must SAY SO -- silence is how a red becomes furniture"
+    assert "1" in v["report"], "shipping over a red test must SAY SO -- silence is how a red becomes furniture"
 
 
 def test_p5_a_stale_baseline_is_announced(monkeypatch, tmp_path):
     from scripts import ship_gate
+
     _mk(monkeypatch, tmp_path, ["tests/test_a.py::test_one"])
     v = ship_gate.evaluate(["tests/test_a.py::test_one"], now=None, stale_after_s=0.0)
     assert "stale" in v["report"].lower(), "a rotting baseline must announce its own age"
@@ -102,10 +113,10 @@ def test_p6_no_baseline_fails_closed(monkeypatch, tmp_path):
     """Absence of evidence is not amnesty. A missing baseline must block every failure,
     never wave them all through -- that is the confident-zero failure in gate form."""
     from scripts import ship_gate
+
     _mk(monkeypatch, tmp_path, None)
     v = ship_gate.evaluate(["tests/test_a.py::test_one"])
-    assert v["blocked"] is True, (
-        "no baseline read as blanket amnesty -- absence must fail CLOSED")
+    assert v["blocked"] is True, "no baseline read as blanket amnesty -- absence must fail CLOSED"
 
 
 def test_p8_an_expired_baseline_revokes_the_exemption(monkeypatch, tmp_path):
@@ -115,13 +126,15 @@ def test_p8_an_expired_baseline_revokes_the_exemption(monkeypatch, tmp_path):
     the exemption is REVOKED and the inherited failures block again, because a failure that
     has been inherited for a week is not inherited -- it is owned."""
     from scripts import ship_gate
+
     _mk(monkeypatch, tmp_path, ["tests/test_a.py::test_one"])
-    fresh = ship_gate.evaluate(["tests/test_a.py::test_one"], ttl_s=10 ** 9)
+    fresh = ship_gate.evaluate(["tests/test_a.py::test_one"], ttl_s=10**9)
     assert fresh["blocked"] is False, "inside the TTL, inherited failures are exempt"
     expired = ship_gate.evaluate(["tests/test_a.py::test_one"], ttl_s=0.0)
     assert expired["blocked"] is True, (
         "past the TTL the exemption must be REVOKED -- otherwise the inherited list grows "
-        "monotonically and rots, which is amnesty wearing a different word")
+        "monotonically and rots, which is amnesty wearing a different word"
+    )
     assert "expired" in expired["report"].lower()
 
 
@@ -132,12 +145,16 @@ def test_p9_the_gate_is_read_only_by_default(monkeypatch, tmp_path):
     of passing is the same disease in miniature -- a silent state change nobody was asked
     about.' Baseline mutation is now a DELIBERATE act."""
     from scripts import ship_gate
+
     _mk(monkeypatch, tmp_path, ["tests/test_a.py::test_one", "tests/test_b.py::test_two"])
-    ship_gate.evaluate(["tests/test_a.py::test_one"])          # test_two passes; default call
-    remaining = {f["node"] for f in sb.read()["failures"]}
+    ship_gate.evaluate(["tests/test_a.py::test_one"])  # test_two passes; default call
+    baseline = sb.read()
+    assert baseline is not None
+    remaining = {f["node"] for f in baseline["failures"]}
     assert "tests/test_b.py::test_two" in remaining, (
         "the gate mutated the shared baseline just by being run -- shrinking is good, but "
-        "it must be something a seat CHOOSES, not a side effect of a green ship")
+        "it must be something a seat CHOOSES, not a side effect of a green ship"
+    )
 
 
 def test_p10_absence_is_not_evidence_of_passing(monkeypatch, tmp_path):
@@ -147,18 +164,23 @@ def test_p10_absence_is_not_evidence_of_passing(monkeypatch, tmp_path):
     Treating absence as a pass silently strips a lane's exemption and blocks its next ship
     on its own work in progress."""
     from scripts import ship_gate
+
     _mk(monkeypatch, tmp_path, ["tests/test_a.py::test_one", "tests/test_gone.py::test_x"])
     # test_a ran and passed; test_gone was never collected at all
-    v = ship_gate.evaluate(["tests/test_a.py::test_one"], tighten=True,
-                           collected=["tests/test_a.py::test_one"])
-    remaining = {f["node"] for f in sb.read()["failures"]}
+    v = ship_gate.evaluate(["tests/test_a.py::test_one"], tighten=True, collected=["tests/test_a.py::test_one"])
+    baseline = sb.read()
+    assert baseline is not None
+    remaining = {f["node"] for f in baseline["failures"]}
     assert "tests/test_gone.py::test_x" in remaining, (
-        "an uncollected node was removed as 'fixed' -- absence is UNCHECKABLE, never a pass")
+        "an uncollected node was removed as 'fixed' -- absence is UNCHECKABLE, never a pass"
+    )
     assert "tests/test_gone.py::test_x" not in v["fixed"]
 
 
 def test_p7_a_green_suite_is_always_clean(monkeypatch, tmp_path):
     from scripts import ship_gate
+
     _mk(monkeypatch, tmp_path, ["tests/test_a.py::test_one"])
     v = ship_gate.evaluate([])
-    assert v["blocked"] is False and not v["new"]
+    assert v["blocked"] is False
+    assert not v["new"]

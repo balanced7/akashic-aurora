@@ -11,6 +11,7 @@ Pins:
 
 Run: py -m pytest tests/test_t086_s6_reply_dedup.py -q
 """
+
 import os
 import sys
 import uuid
@@ -23,6 +24,7 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 def _runner_module():
     import scripts.bifrost_runner_deepseek as r
+
     return r
 
 
@@ -31,11 +33,12 @@ def test_s6_d1_reply_already_sent_redis_fast_path(monkeypatch):
     r = _runner_module()
 
     class FakeBus:
-        class _client:
+        class _Client:
             @staticmethod
             def exists(key):
                 return True
-        _client = _client()
+
+        _client = _Client()
 
     assert r._reply_already_sent(FakeBus(), "msg-1") is True
 
@@ -45,14 +48,16 @@ def test_s6_d2_reply_already_sent_store_backstop(monkeypatch):
     r = _runner_module()
 
     class FakeBus:
-        class _client:
+        class _Client:
             @staticmethod
             def exists(key):
                 raise Exception("redis down")
-        _client = _client()
+
+        _client = _Client()
 
     # Use a real FileStore (no Redis) as the durable backstop
     from core.foundation.store import FileStore
+
     store = FileStore()
     mid = f"t086s6-{uuid.uuid4().hex[:6]}"
     store.set(f"reply_sent:{mid}", "1")
@@ -69,18 +74,19 @@ def test_s6_d3_mark_reply_sent_writes_both(monkeypatch):
     """_mark_reply_sent writes to Redis AND Store."""
     r = _runner_module()
     redis_written = {}
-    store_written = {}
 
     class FakeBus:
-        class _client:
+        class _Client:
             @staticmethod
             def set(key, value, ex=None, nx=None):
                 redis_written["key"] = key
                 redis_written["value"] = value
                 return True
-        _client = _client()
+
+        _client = _Client()
 
     from core.foundation.store import FileStore
+
     store = FileStore()
     monkeypatch.setattr("core.foundation.store.create_store", lambda: store)
 
@@ -88,11 +94,9 @@ def test_s6_d3_mark_reply_sent_writes_both(monkeypatch):
     r._mark_reply_sent(FakeBus(), mid)
 
     # Redis written
-    assert r.REPLY_SENT_PREFIX + mid in redis_written.get("key", ""), \
-        f"Redis not written: {redis_written}"
+    assert r.REPLY_SENT_PREFIX + mid in redis_written.get("key", ""), f"Redis not written: {redis_written}"
     # Store written
-    assert store.get(f"reply_sent:{mid}") == "1", \
-        "Store not written"
+    assert store.get(f"reply_sent:{mid}") == "1", "Store not written"
 
     # Cleanup
     store.delete(f"reply_sent:{mid}")
@@ -104,14 +108,14 @@ def test_s6_d4_probe_error_fail_open(monkeypatch):
     r = _runner_module()
 
     class FakeBus:
-        class _client:
+        class _Client:
             @staticmethod
             def exists(key):
                 raise Exception("redis down")
-        _client = _client()
+
+        _client = _Client()
 
     # Make create_store raise too
-    monkeypatch.setattr("core.foundation.store.create_store",
-                        lambda: (_ for _ in ()).throw(RuntimeError("store down")))
+    monkeypatch.setattr("core.foundation.store.create_store", lambda: (_ for _ in ()).throw(RuntimeError("store down")))
 
     assert r._reply_already_sent(FakeBus(), "msg-any") is False

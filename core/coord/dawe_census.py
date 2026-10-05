@@ -26,11 +26,11 @@ has no business failing a commit until someone has hand-checked enough of its ou
 its false-positive rate. It reports, a human decides, and the day it earns a threshold it can
 become a ratchet.
 """
+
 from __future__ import annotations
 
 import ast
 from dataclasses import dataclass
-from typing import List
 
 #: Calls that write to a terminal rather than returning a value.
 TERMINAL_WRITES = {"print", "echo", "pprint"}
@@ -58,12 +58,11 @@ class VerbShape:
         return self.fused and self.body_lines >= BIG_ENOUGH_TO_HIDE
 
 
-def survey(source: str, prefix: str = "cmd_") -> List[VerbShape]:
+def survey(source: str, prefix: str = "cmd_") -> list[VerbShape]:
     """Shape every top-level `prefix*` function. Pure: takes source, returns data."""
     tree = ast.parse(source)
-    local = {n.name for n in tree.body
-             if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))}
-    out: List[VerbShape] = []
+    local = {n.name for n in tree.body if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))}
+    out: list[VerbShape] = []
     for node in tree.body:
         if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
             continue
@@ -76,32 +75,48 @@ def survey(source: str, prefix: str = "cmd_") -> List[VerbShape]:
                     helpers += 1
                 elif c.func.id in TERMINAL_WRITES:
                     writes += 1
-            elif isinstance(c, ast.Return) and c.value is not None:
+            elif (
+                isinstance(c, ast.Return)
+                and c.value is not None
+                and not (isinstance(c.value, ast.Constant) and c.value.value is None)
+            ):
                 # `return None` and a bare `return` are exits, not answers.
-                if not (isinstance(c.value, ast.Constant) and c.value.value is None):
-                    returns += 1
-        out.append(VerbShape(node.name, node.lineno,
-                             getattr(node, "end_lineno", node.lineno) - node.lineno + 1,
-                             helpers, writes, returns))
+                returns += 1
+        out.append(
+            VerbShape(
+                node.name,
+                node.lineno,
+                getattr(node, "end_lineno", node.lineno) - node.lineno + 1,
+                helpers,
+                writes,
+                returns,
+            )
+        )
     return out
 
 
-def render(shapes: List[VerbShape]) -> str:
+def render(shapes: list[VerbShape]) -> str:
     flagged = sorted((s for s in shapes if s.unverifiable), key=lambda s: -s.body_lines)
     fused_small = [s for s in shapes if s.fused and not s.unverifiable]
-    out = [f"DAWE CENSUS -- {len(shapes)} verb(s) surveyed",
-           "  This reports VERIFIABILITY, never quality. A flagged verb may answer perfectly;",
-           "  the finding is that nothing outside it can check whether it does."]
+    out = [
+        f"DAWE CENSUS -- {len(shapes)} verb(s) surveyed",
+        "  This reports VERIFIABILITY, never quality. A flagged verb may answer perfectly;",
+        "  the finding is that nothing outside it can check whether it does.",
+    ]
     if not flagged:
         out.append("  no verb is both fused and large enough to hide -- nothing to report")
     else:
-        out.append(f"  {len(flagged)} verb(s), {sum(s.body_lines for s in flagged):,} lines: "
-                   f"large AND no helper seam AND no value-returning path")
-        for s in flagged:
-            out.append(f"    {s.body_lines:>5}  {s.name:<24} :{s.lineno:<6} "
-                       f"{s.terminal_writes} terminal write(s)")
-    out.append(f"  ({len(fused_small)} more are fused but under {BIG_ENOUGH_TO_HIDE} lines -- "
-               f"small enough to read whole, so fusion costs nothing there)")
+        out.append(
+            f"  {len(flagged)} verb(s), {sum(s.body_lines for s in flagged):,} lines: "
+            f"large AND no helper seam AND no value-returning path"
+        )
+        out.extend(
+            f"    {s.body_lines:>5}  {s.name:<24} :{s.lineno:<6} {s.terminal_writes} terminal write(s)" for s in flagged
+        )
+    out.append(
+        f"  ({len(fused_small)} more are fused but under {BIG_ENOUGH_TO_HIDE} lines -- "
+        f"small enough to read whole, so fusion costs nothing there)"
+    )
     return "\n".join(out)
 
 
@@ -128,10 +143,10 @@ class ImportGuard:
     lineno: int
     enclosing: str
     modules: tuple
-    handler: str          # silent | loud | reraise
+    handler: str  # silent | loud | reraise
 
 
-def survey_import_guards(source: str) -> List[ImportGuard]:
+def survey_import_guards(source: str) -> list[ImportGuard]:
     """Every try-block that wraps an import, and what its handler does about failure."""
     tree = ast.parse(source)
     owner = {}
@@ -140,7 +155,7 @@ def survey_import_guards(source: str) -> List[ImportGuard]:
             for c in ast.walk(fn):
                 owner[id(c)] = fn.name
 
-    out: List[ImportGuard] = []
+    out: list[ImportGuard] = []
     for node in ast.walk(tree):
         if not isinstance(node, ast.Try):
             continue
@@ -159,26 +174,26 @@ def survey_import_guards(source: str) -> List[ImportGuard]:
                 kind = "reraise"
             elif len(body) == 1 and isinstance(body[0], ast.Pass):
                 kind = "silent"
-            elif (len(body) == 1 and isinstance(body[0], ast.Expr)
-                  and isinstance(body[0].value, ast.Constant)):
-                kind = "silent"          # a docstring-as-body is still a pass
+            elif len(body) == 1 and isinstance(body[0], ast.Expr) and isinstance(body[0].value, ast.Constant):
+                kind = "silent"  # a docstring-as-body is still a pass
             else:
-                kind = "loud"            # it logs, prints, records or sets a fallback flag
-            out.append(ImportGuard(h.lineno, owner.get(id(node), "<module>"),
-                                   tuple(sorted(set(mods))), kind))
+                kind = "loud"  # it logs, prints, records or sets a fallback flag
+            out.append(ImportGuard(h.lineno, owner.get(id(node), "<module>"), tuple(sorted(set(mods))), kind))
     return out
 
 
-def render_import_guards(guards: List[ImportGuard]) -> str:
+def render_import_guards(guards: list[ImportGuard]) -> str:
     silent = [g for g in guards if g.handler == "silent"]
     loud = [g for g in guards if g.handler == "loud"]
     by_fn = {}
     for g in silent:
         by_fn.setdefault(g.enclosing, []).append(g)
-    out = [f"SILENT-DEGRADATION CENSUS -- {len(guards)} import guard(s)",
-           "  A swallowed import means a moved or renamed module produces NO error and the",
-           "  caller simply omits a section. Some of these are deliberate and correct; the",
-           "  finding is that nothing distinguishes those from the accidental ones."]
+    out = [
+        f"SILENT-DEGRADATION CENSUS -- {len(guards)} import guard(s)",
+        "  A swallowed import means a moved or renamed module produces NO error and the",
+        "  caller simply omits a section. Some of these are deliberate and correct; the",
+        "  finding is that nothing distinguishes those from the accidental ones.",
+    ]
     out.append(f"  {len(silent)} SILENT (bare pass) | {len(loud)} loud (logs/records/falls back)")
     for fn, gs in sorted(by_fn.items(), key=lambda kv: -len(kv[1]))[:12]:
         mods = sorted({m for g in gs for m in g.modules})[:3]

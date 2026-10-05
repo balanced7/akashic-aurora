@@ -31,12 +31,25 @@ pattern, so a flip is honored live without reimport:
   FRAG_REASSEMBLY_TTL     (default 300s)  -- a whole whose fragments do not all arrive within
                           this window is dropped LOUD with the missing seq(s) named.
 """
+
+import contextlib
 import hashlib
 import json
 import os
 from collections import OrderedDict
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
+
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+
+        return python_launcher()
+    except Exception:
+        return "py"
+
 
 SPEC_VERSION = 2
 DEFAULT_MAX_MESSAGE_BYTES = 65536
@@ -76,7 +89,7 @@ def frag_reassembly_ttl() -> int:
 
 
 # ------------------------------------------------------------------ canonical len+sha
-def canonical_bytes(fields: Dict[str, Any]) -> bytes:
+def canonical_bytes(fields: dict[str, Any]) -> bytes:
     """The exact bytes hashed for integrity: the seven v1 wire fields as literal strings,
     in the spec's EXPLICIT canonical order (frm,to,kind,content,ts,meta,parts), compact-
     separated. Missing field => empty string (a v1 envelope always carries all seven, but be
@@ -90,19 +103,17 @@ def canonical_bytes(fields: Dict[str, Any]) -> bytes:
     dict in roster order and DO NOT sort (Python 3.7+ preserves insertion order; json.dumps
     honors it when sort_keys is False) so the digest matches the spec verbatim."""
     canon = {k: ("" if fields.get(k) is None else str(fields.get(k))) for k in CANONICAL_FIELDS}
-    return json.dumps(canon, sort_keys=False, separators=(",", ":"),
-                      ensure_ascii=False).encode("utf-8")
+    return json.dumps(canon, sort_keys=False, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
 
 
-def compute_len_sha(fields: Dict[str, Any]) -> Tuple[int, str]:
+def compute_len_sha(fields: dict[str, Any]) -> tuple[int, str]:
     """(byte length, sha256 hex) over the canonical serialization. The len is ALSO the size
     the MTU bounds -- one honest number for both 'is it too big' and 'did it arrive whole'."""
     b = canonical_bytes(fields)
     return len(b), hashlib.sha256(b).hexdigest()
 
 
-def stamp(env: Dict[str, Any], *, length: Optional[int] = None,
-          sha: Optional[str] = None) -> Dict[str, Any]:
+def stamp(env: dict[str, Any], *, length: int | None = None, sha: str | None = None) -> dict[str, Any]:
     """SEND door: stamp v + len + sha onto the envelope (mutates and returns it). Redis stream
     fields are strings, so the integrity fields are stringified too. Pass a precomputed
     (length, sha) to avoid re-hashing on the hot path when the caller already ran the MTU check."""
@@ -114,7 +125,7 @@ def stamp(env: Dict[str, Any], *, length: Optional[int] = None,
     return env
 
 
-def verify_integrity(fields: Dict[str, Any]) -> Tuple[bool, str]:
+def verify_integrity(fields: dict[str, Any]) -> tuple[bool, str]:
     """CONSUME door + reply filter: recompute len+sha over the canonical fields and compare
     to the stamped values. Returns (ok, reason).
 
@@ -142,12 +153,14 @@ def verify_integrity(fields: Dict[str, Any]) -> Tuple[bool, str]:
 
 
 # ------------------------------------------------------------------------- MTU gate
-def mtu_refusal_text(size: int, limit: Optional[int] = None) -> str:
+def mtu_refusal_text(size: int, limit: int | None = None) -> str:
     """The EXACT teaching text a refused oversize send emits (pin 1 asserts it verbatim)."""
     limit = max_message_bytes() if limit is None else limit
-    return (f"REFUSED: packet {size}B exceeds BUS_MAX_MESSAGE_BYTES {limit}B "
-            f"(never truncated). Fragment it (allow_frag=True), send large media as a "
-            f"blob-ref Part (media-by-reference), or split the payload.")
+    return (
+        f"REFUSED: packet {size}B exceeds BUS_MAX_MESSAGE_BYTES {limit}B "
+        f"(never truncated). Fragment it (allow_frag=True), send large media as a "
+        f"blob-ref Part (media-by-reference), or split the payload."
+    )
 
 
 def within_mtu(nbytes: int) -> bool:
@@ -161,7 +174,7 @@ def within_mtu(nbytes: int) -> bool:
 MTU_GATED_TOOLS = ("write_file", "edit_file", "knowledge_note")
 
 
-def tool_args_within_mtu(name: str, args: Any) -> Tuple[bool, str]:
+def tool_args_within_mtu(name: str, args: Any) -> tuple[bool, str]:
     """The runner tool-bridge gate (pin 8): (ok, refusal_text). For a storage-intake tool, refuse
     LOUD when the serialized args exceed the packet MTU -- replacing the old ~4k silent clip at the
     bite site with a visible refusal the model can act on. Non-gated tools always pass."""
@@ -174,41 +187,61 @@ def tool_args_within_mtu(name: str, args: Any) -> Tuple[bool, str]:
     size = len(payload.encode("utf-8"))
     if within_mtu(size):
         return True, ""
-    return False, (f"REFUSED: {name} args {size}B exceed the {max_message_bytes()}B limit "
-                   f"(never silently clipped -- T043). Split the content into multiple smaller "
-                   f"{name} calls, or write a blob and reference it.")
+    return False, (
+        f"REFUSED: {name} args {size}B exceed the {max_message_bytes()}B limit "
+        f"(never silently clipped -- T043). Split the content into multiple smaller "
+        f"{name} calls, or write a blob and reference it."
+    )
 
 
-# ------------------------------------------------------------------ lanes (T039a)
+# ------------------------------------------------------------------ lanes: T039a
 # Kind -> lane router. R6 rules this file the roster home (families/kinds are contracts,
 # not tunables); the lane CONTRACT (QoS/seat/wake/retention) lives in the LAW spec and the
 # governing design doc (docs/library/design/20260701_t039-purpose-keyed-lanes-latches-governi_7bc135.md, Daniel gate 2026-07-13).
 # Senders cannot choose lanes; the door derives lane from kind.
-LANES = ("work", "sig", "trace")            # + test-* per drill namespace (T039b formalizes)
+LANES = ("work", "sig", "trace")  # + test-* per drill namespace (T039b formalizes)
 
 KIND_LANE = {
     # work -- directed mail + coordination answers (QoS1/AF, RB-21 seat, THE wake lane)
-    "handoff": "work", "reply": "work", "request": "work", "question": "work",
-    "chat": "work", "inform": "work", "note": "work", "answer": "work", "query": "work",
-    "dispatch": "work", "status": "work",
-    "completion": "work",   # T061 census fix: a completion is an ANSWER kind (settles
-                            # expectations) -- it must ride the wake lane, never legacy-only
+    "handoff": "work",
+    "reply": "work",
+    "request": "work",
+    "question": "work",
+    "chat": "work",
+    "inform": "work",
+    "note": "work",
+    "answer": "work",
+    "query": "work",
+    "dispatch": "work",
+    "status": "work",
+    "completion": "work",  # T061 census fix: a completion is an ANSWER kind (settles
+    # expectations) -- it must ride the wake lane, never legacy-only
     # W07 census fix (2026-07-21): a decision (a fleet RULING, e.g. Daniel's T094 verdict)
     # and a blocker (wake-worthy) are salient coordination -- both rode legacy-only + loud
     # before this line; the test_w07 completeness pins keep the census from missing again.
-    "decision": "work", "blocker": "work",
+    "decision": "work",
+    "blocker": "work",
     # T122 census fix (2026-07-28): fyi was REAL send-door traffic riding legacy-only +
     # loud all night (ToolBox + CLI both emit it). An fyi is directed mail -- work lane.
     "fyi": "work",
     # unmapped-BY-DESIGN (T122 census, each needs a reason to stay off the table):
     #   "propose" -- core/coord/negotiation.py, S0 alpha; not a production sender yet.
     # sig -- fidelity-ladder control (QoS1/EF, seatless, never queues behind trace)
-    "halt": "sig", "interrupt": "sig", "pause": "sig", "resume": "sig",
-    "nudge": "sig", "steer": "sig",
+    "halt": "sig",
+    "interrupt": "sig",
+    "pause": "sig",
+    "resume": "sig",
+    "nudge": "sig",
+    "steer": "sig",
     # trace -- telemetry + re-derivable hints (QoS0/BE ring; the durable ledger is truth
     # for ledger_update/resolved/hint, so lossy retention is correct for them)
-    "trace": "trace", "thinking": "trace", "tool": "trace", "narration": "trace",
-    "ledger_update": "trace", "resolved": "trace", "hint": "trace",
+    "trace": "trace",
+    "thinking": "trace",
+    "tool": "trace",
+    "narration": "trace",
+    "ledger_update": "trace",
+    "resolved": "trace",
+    "hint": "trace",
 }
 
 # P0 retention (dual-write soak): approximate-trim everywhere; the per-lane REFUSE-WRITE
@@ -218,7 +251,7 @@ LANE_MAXLEN = {"work": 10000, "sig": 5000, "trace": 5000}
 DEFAULT_TRACE_SPOT_INTERVAL = 1000
 
 
-def lane_for(kind: Any) -> Optional[str]:
+def lane_for(kind: Any) -> str | None:
     """The pure router: lane for a kind, or None when unmapped. STRANGLER PHASE: None means
     legacy-only + loud (a sender must never break on a census miss); the spec's unknown-kind
     REFUSAL is the end state and activates at the T039b/d cutover."""
@@ -242,33 +275,73 @@ def is_trace_kind(kind: Any) -> bool:
 # pattern risks silencing a real orphan, so a deletion is a reviewed regression, never casual.
 EPHEMERAL_PREFIXES = (
     # bus transport: lane streams, cursors, doorbell, fragment reassembly, fencing, reply-dedup
-    "*:work:*", "*:work", "*:sig:*", "*:sig", "*:trace", "*:trace:*",
-    "*:inbox:*", "*:inbox", "*:bell:*", "*:bell", "*:cursor:*", "*:cursor",
-    "*:reasm:*", "*:generation:*", "*:generation", "*:reply_sent:*",
+    "*:work:*",
+    "*:work",
+    "*:sig:*",
+    "*:sig",
+    "*:trace",
+    "*:trace:*",
+    "*:inbox:*",
+    "*:inbox",
+    "*:bell:*",
+    "*:bell",
+    "*:cursor:*",
+    "*:cursor",
+    "*:reasm:*",
+    "*:generation:*",
+    "*:generation",
+    "*:reply_sent:*",
     # presence / liveness (TTL'd heartbeats)
-    "*:presence:*", "*:presence", "*:worklive:*", "*:progress:*", "*:stalled_since:*",
+    "*:presence:*",
+    "*:presence",
+    "*:worklive:*",
+    "*:progress:*",
+    "*:stalled_since:*",
     # control / coordination primitives (TTL'd flags + locks)
-    "*:control:*", "*:runner:*", "*:runner", "*:lock:*", "*:lock", "*:daemon:*",
-    "*:nudge:*", "*:intent:*", "*:expect:*", "*:paged:*", "*:doctor_paged:*",
-    # telemetry (regenerable / bounded)
-    "*:turn_metrics:*", "*:delta:*", "*:engine:*", "*:embed:*",
+    "*:control:*",
+    "*:runner:*",
+    "*:runner",
+    "*:lock:*",
+    "*:lock",
+    "*:daemon:*",
+    "*:nudge:*",
+    "*:intent:*",
+    "*:expect:*",
+    "*:paged:*",
+    "*:doctor_paged:*",
+    # telemetry keys, regenerable and bounded
+    "*:turn_metrics:*",
+    "*:delta:*",
+    "*:engine:*",
+    "*:embed:*",
     # T095 mailbox: a SHADOW INDEX over the append-only lanes (mailbox.py: "OBSERVATIONAL
     # ONLY ... writes nothing outside {ns}:mailbox:*") -- a regenerable projection, so
     # Redis-only is BY DESIGN (W38: the family was unregistered and grew 1472->1797 as
     # UNKNOWN across one night before this line).
-    "*:mailbox:*", "*:mailbox",
+    "*:mailbox:*",
+    "*:mailbox",
     # W38 systemic sweep 2026-07-21: five more ephemeral-by-design families the new
     # check_boundaries rule-7 guard surfaced as unregistered (each a latent mailbox-style
     # UNKNOWN wall): activity (TTL'd typing marker, control.py), pages (doctor page log,
     # engine_vitals), reply_seen (dedup sentinel twin of reply_sent, bus.py), seat (bus
     # seat-born marker), session (TTL'd session-ended tombstone, wake_seat).
-    "*:activity:*", "*:activity", "*:pages:*", "*:pages", "*:reply_seen:*",
-    "*:seat:*", "*:seat", "*:session:*", "*:session",
+    "*:activity:*",
+    "*:activity",
+    "*:pages:*",
+    "*:pages",
+    "*:reply_seen:*",
+    "*:seat:*",
+    "*:seat",
+    "*:session:*",
+    "*:session",
     # steer: fidelity-ladder control (same tier as the already-rostered nudge). triage:
     # S0-alpha's park bench -- classified by OPERATIONAL TRUTH (it is Redis-only today);
     # its "bottomed, never dropped" contract wants File-backing, flagged as a wish for
     # its owner (a Redis-only 'never dropped' is a latent RB-25 gap, not this slice's fix).
-    "*:steer:*", "*:steer", "*:triage:*", "*:triage",
+    "*:steer:*",
+    "*:steer",
+    "*:triage:*",
+    "*:triage",
     # T108 role queue (2026-08-16): three families the rule-7 guard surfaced as unregistered,
     # each an exact twin of a family already rostered above. `role` is the per-agent work
     # STREAM (same class as the registered `work` lane -- transport, not the record; the
@@ -277,26 +350,47 @@ EPHEMERAL_PREFIXES = (
     # short-lived -- the same class as the already-registered `*:generation:*`. Classified by
     # OPERATIONAL TRUTH (Redis-only today, regenerable by construction), matching how
     # mailbox/activity/seat were swept in W38.
-    "*:role:*", "*:role", "*:rolefence:*", "*:rolegen:*",
+    "*:role:*",
+    "*:role",
+    "*:rolefence:*",
+    "*:rolegen:*",
     # ephemeral streams / channels (per-agent event fan-out + broadcast pub/sub); note the durable
     # 'events:raw:*' family is caught by the file-family check FIRST, so it is never mis-swept here
-    "*:events", "*:events:*", "*:broadcast", "*:broadcast:*",
+    "*:events",
+    "*:events:*",
+    "*:broadcast",
+    "*:broadcast:*",
     # durable-ELSEWHERE: persisted by the subsystem's OWN File, not the Store's (ledger, incarnation)
-    "*:coord:*", "*:incarnation:*",
+    "*:coord:*",
+    "*:incarnation:*",
     # drill / test namespaces -- pollute the shared live keyspace; never production state. The real
     # namespace is 'bifrost:' (colon); 'bifrost_<hash>' (underscore) is only ever a test namespace.
-    "rb25*", "bifrost_*", "*:test:*", "test:*", "test-*", "*drill*",
+    "rb25*",
+    "bifrost_*",
+    "*:test:*",
+    "test:*",
+    "test-*",
+    "*drill*",
     # T118 ratified roster additions (Daniel gate 2026-07-28, receipts in
     # research/in-flight/t118-roster-proposal-2026-07-28.md): idalias = T117 reply-dedup
     # transport metadata (census: 740 keys evading this roster); the rest are live
     # telemetry counters/gauges regenerated by use -- never archived.
-    "*:idalias:*", "lookback:*", "context:*", "flow_trace:*", "knowledge_map:*",
+    "*:idalias:*",
+    "lookback:*",
+    "context:*",
+    "flow_trace:*",
+    "knowledge_map:*",
     # T118 census residue (the 20 stragglers): control-plane families minted by organs
     # NEWER than this roster's last census -- A1 process-age stamps, RB-29 redrive
     # dedup, seat liveness, expectation settle receipts, mail rehoming markers, doctor
     # escalation dedup, router shadow stats. All TTL'd or regenerated by use.
-    "*:pidstart:*", "*:reask:*", "*:seatseen:*", "*:reply_settled:*",
-    "*:rehomed:*", "*:doctor_escalated:*", "bifrost:route:*",
+    "*:pidstart:*",
+    "*:reask:*",
+    "*:seatseen:*",
+    "*:reply_settled:*",
+    "*:rehomed:*",
+    "*:doctor_escalated:*",
+    "bifrost:route:*",
     # W162 (2026-08-14): the T108 dual-delivery dedupe mark, bus.py:971. NOTE THE
     # UNDERSCORE -- this is NOT `seatseen` two entries above. They are one character apart
     # and are different families: `seatseen` is seat PRESENCE (19 live keys in prod);
@@ -318,6 +412,7 @@ def is_ephemeral_key(key: Any) -> bool:
     (mid-string wildcards like 'agent:*:events' need globbing, not startswith). Never raises; an
     UNMATCHED key is NOT ephemeral -- it stays a candidate orphan, so we never hide one."""
     import fnmatch
+
     k = str(key)
     for pat in EPHEMERAL_PREFIXES:
         try:
@@ -354,7 +449,7 @@ def lane_wants_integrity(lane: str, tick: int = 0) -> bool:
     return n > 0 and tick > 0 and tick % n == 0
 
 
-def lane_stream_key(ns: str, lane: str, to: Optional[str] = None) -> str:
+def lane_stream_key(ns: str, lane: str, to: str | None = None) -> str:
     """Per-lane key: the lane dimension inserted before the topology suffix (design B5).
     trace is ONE shared ring (no per-agent inbox, no bell, no cursor)."""
     if lane == "trace":
@@ -386,10 +481,10 @@ def lane_stream_key(ns: str, lane: str, to: Optional[str] = None) -> str:
 # a non-ask and dropped -- the one message whose entire purpose is to still be there when
 # somebody finally looks. Same shape as T174 above, same fix: make the token mean one thing.
 NEVER_DROP_WHEN_STALE = ("question", "request", "handoff", "blocker")
-DEFAULT_STALE_MS = 6 * 3600 * 1000        # kimi D2: 6h default; 0 disables the gate (P2)
+DEFAULT_STALE_MS = 6 * 3600 * 1000  # kimi D2: 6h default; 0 disables the gate (P2)
 
-TOOL_SEND_TEXT_MAX = 8000                 # D3 (deepseek verdict 2026-07-19): the 4000 door
-                                          # predates 1M-context seats; bounded, still confesses.
+TOOL_SEND_TEXT_MAX = 8000  # D3 (deepseek verdict 2026-07-19): the 4000 door
+# predates 1M-context seats; bounded, still confesses.
 
 
 def stale_gate_ms() -> int:
@@ -397,7 +492,7 @@ def stale_gate_ms() -> int:
     return _int_env("BIFROST_STALE_MS", DEFAULT_STALE_MS)
 
 
-def _timestamp_ms(value: Any) -> Optional[int]:
+def _timestamp_ms(value: Any) -> int | None:
     """Normalize an epoch-seconds/ms or ISO-8601 timestamp to epoch milliseconds."""
     if value in (None, ""):
         return None
@@ -412,7 +507,7 @@ def _timestamp_ms(value: Any) -> Optional[int]:
         return None
 
 
-def _message_meta(message: Any) -> Dict[str, Any]:
+def _message_meta(message: Any) -> dict[str, Any]:
     raw = message.get("meta") if isinstance(message, dict) else getattr(message, "meta", None)
     if isinstance(raw, dict):
         return raw
@@ -423,7 +518,7 @@ def _message_meta(message: Any) -> Dict[str, Any]:
         return {}
 
 
-def msg_age_ms(message_or_id: Any, now_ms: int) -> Optional[int]:
+def msg_age_ms(message_or_id: Any, now_ms: int) -> int | None:
     """Age from a message's authoritative clock.
 
     A normal packet uses its stream id ``{ms}-{seq}``. A re-homed packet first uses
@@ -432,16 +527,14 @@ def msg_age_ms(message_or_id: Any, now_ms: int) -> Optional[int]:
     Unknown clocks read as FRESH downstream: fail toward showing, never hiding.
     """
     value = message_or_id
-    if (isinstance(message_or_id, dict) or hasattr(message_or_id, "meta")
-            or hasattr(message_or_id, "id")):
+    if isinstance(message_or_id, dict) or hasattr(message_or_id, "meta") or hasattr(message_or_id, "id"):
         meta = _message_meta(message_or_id)
         original_ms = _timestamp_ms(meta.get("original_ts"))
         if original_ms is not None:
             return max(0, int(now_ms) - original_ms)
         value = meta.get("original_mid")
         if not value:
-            value = (message_or_id.get("id") if isinstance(message_or_id, dict)
-                     else getattr(message_or_id, "id", None))
+            value = message_or_id.get("id") if isinstance(message_or_id, dict) else getattr(message_or_id, "id", None)
     try:
         return max(0, int(now_ms) - int(str(value).split("-", 1)[0]))
     except (ValueError, TypeError):
@@ -456,8 +549,7 @@ def never_drop_when_stale(kind: Any) -> bool:
     return str(kind or "").strip().lower() in NEVER_DROP_WHEN_STALE
 
 
-def partition_stale(messages, *, now_ms: int, stale_ms: int,
-                    id_of=None, kind_of=None) -> Tuple[list, list, list]:
+def partition_stale(messages, *, now_ms: int, stale_ms: int, id_of=None, kind_of=None) -> tuple[list, list, list]:
     """The D2 gate's pure half: (fresh, stale_asks, stale_skips). stale_ms<=0 disables (P2).
     Stale ASKS are never dropped -- the caller surfaces them as ONE triage notice and never
     auto-acks (P4); stale non-asks skip the responder, and the caller's existing cursor sweep
@@ -487,8 +579,10 @@ def stale_notice(stale_asks, *, now_ms: int, id_of=None) -> str:
     id_of = id_of or (lambda m: m)
     ages = [a for a in (msg_age_ms(id_of(m), now_ms) for m in stale_asks) if a is not None]
     oldest_h = (max(ages) / 3600000.0) if ages else 0.0
-    return (f"{len(stale_asks)} stale ask(s) (oldest {oldest_h:.1f}h) -- triage with --traces "
-            "before consuming; nothing auto-acked (D2 stale-mail gate)")
+    return (
+        f"{len(stale_asks)} stale ask(s) (oldest {oldest_h:.1f}h) -- triage with --traces "
+        "before consuming; nothing auto-acked (D2 stale-mail gate)"
+    )
 
 
 def bound_tool_text(text: Any, limit: int = TOOL_SEND_TEXT_MAX) -> str:
@@ -498,17 +592,17 @@ def bound_tool_text(text: Any, limit: int = TOOL_SEND_TEXT_MAX) -> str:
     if len(text) <= limit:
         return text
     keep = max(0, limit - 100)
-    return text[:keep] + (f"\n[clipped at {limit} chars -- full content did NOT send; "
-                          "resend in chunks]")
+    return text[:keep] + (f"\n[clipped at {limit} chars -- full content did NOT send; resend in chunks]")
 
 
 def _blob_store():
     """Indirection so a test can break the store and prove the fallback (T113 P7)."""
     from core.comm.blobs import get_blob_store
+
     return get_blob_store()
 
 
-def spill_tool_text(text: Any, limit: int = TOOL_SEND_TEXT_MAX) -> Tuple[str, Dict[str, Any]]:
+def spill_tool_text(text: Any, limit: int = TOOL_SEND_TEXT_MAX) -> tuple[str, dict[str, Any]]:
     """T113: the ToolBox send door, LOSSLESS. Returns (text_for_the_wire, meta_to_merge).
 
     The bound stays -- 8000 chars in one runner turn is a real rendering concern -- but
@@ -538,17 +632,23 @@ def spill_tool_text(text: Any, limit: int = TOOL_SEND_TEXT_MAX) -> Tuple[str, Di
     except Exception:
         ref = ""
     if not ref:
-        return bound_tool_text(text, limit), {}          # P7: the old floor
+        return bound_tool_text(text, limit), {}  # P7: the old floor
 
-    note = (f"\n\n[spilled: {full_len} chars total, first {{keep}} shown. "
-            f"The FULL text is stored at {ref} -- fetch it, do NOT ask for a resend. "
-            f"Retrieve with: py agent_cli.py bifrost-fetch --get {ref}]")
+    note = (
+        f"\n\n[spilled: {full_len} chars total, first {{keep}} shown. "
+        f"The FULL text is stored at {ref} -- fetch it, do NOT ask for a resend. "
+        f"Retrieve with: {_pyl()} agent_cli.py bifrost-fetch --get {ref}]"
+    )
     keep = max(0, limit - len(note.format(keep=full_len)) - 8)
     return text[:keep] + note.format(keep=keep), {
-        "spilled": True, "spill_ref": ref, "spill_len": full_len, "spill_kept": keep}
+        "spilled": True,
+        "spill_ref": ref,
+        "spill_len": full_len,
+        "spill_kept": keep,
+    }
 
 
-def clip_stamp(text: Any, limit: int = TOOL_SEND_TEXT_MAX) -> Optional[Dict[str, Any]]:
+def clip_stamp(text: Any, limit: int = TOOL_SEND_TEXT_MAX) -> dict[str, Any] | None:
     """P2: durable CLIPPED stamp for envelope meta -- returns a dict with clip facts when
     the text exceeds the bound, or None when it fits. Callers merge this into their
     envelope meta so the clip fact survives transport (RB-5 durable, not just the text
@@ -556,12 +656,11 @@ def clip_stamp(text: Any, limit: int = TOOL_SEND_TEXT_MAX) -> Optional[Dict[str,
     text = "" if text is None else str(text)
     if len(text) <= limit:
         return None
-    return {"clipped": True, "clipped_at": limit, "clipped_len": len(text),
-            "clipped_kept": max(0, limit - 100)}
+    return {"clipped": True, "clipped_at": limit, "clipped_len": len(text), "clipped_kept": max(0, limit - 100)}
 
 
 # --------------------------------------------------------------------- fragmentation
-def parse_frag(fields: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+def parse_frag(fields: dict[str, Any]) -> dict[str, Any] | None:
     """The frag header {seq,of,whole_id,whole_len,whole_sha} from an envelope, or None if the
     packet is not a fragment. Tolerates the header arriving as a dict or a json string."""
     raw = fields.get("frag")
@@ -576,12 +675,12 @@ def parse_frag(fields: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         return None
 
 
-def _chunk_by_bytes(s: str, max_bytes: int) -> List[str]:
+def _chunk_by_bytes(s: str, max_bytes: int) -> list[str]:
     """Greedy split of a str into pieces each <= max_bytes when UTF-8 encoded, NEVER splitting
     a multibyte char. O(len(s)). Concatenating the pieces reproduces s exactly."""
     max_bytes = max(1, max_bytes)
-    chunks: List[str] = []
-    cur: List[str] = []
+    chunks: list[str] = []
+    cur: list[str] = []
     cur_bytes = 0
     for ch in s:
         cb = len(ch.encode("utf-8"))
@@ -595,7 +694,7 @@ def _chunk_by_bytes(s: str, max_bytes: int) -> List[str]:
     return chunks or [""]
 
 
-def fragment(fields: Dict[str, Any], *, max_bytes: Optional[int] = None) -> List[Dict[str, Any]]:
+def fragment(fields: dict[str, Any], *, max_bytes: int | None = None) -> list[dict[str, Any]]:
     """Split an oversize envelope into N fragment envelopes (opt-in: the send door calls this
     only when allow_frag=True and the packet exceeds the MTU). Each fragment replicates the
     small routing fields (frm,to,kind,ts,meta,parts), carries a slice of the content STRING,
@@ -609,17 +708,18 @@ def fragment(fields: Dict[str, Any], *, max_bytes: Optional[int] = None) -> List
     content = "" if fields.get("content") is None else str(fields.get("content"))
     template = {k: fields.get(k) for k in CANONICAL_FIELDS}
     template["content"] = ""
-    overhead = len(canonical_bytes(template)) + 160     # slack for the frag dict + v/len/sha
+    overhead = len(canonical_bytes(template)) + 160  # slack for the frag dict + v/len/sha
     budget = max(1, limit - overhead)
     pieces = _chunk_by_bytes(content, budget)
     of = len(pieces)
-    frags: List[Dict[str, Any]] = []
+    frags: list[dict[str, Any]] = []
     for seq, piece in enumerate(pieces):
         fenv = {k: fields.get(k) for k in CANONICAL_FIELDS}
         fenv["content"] = piece
-        fenv["frag"] = json.dumps({"seq": seq, "of": of, "whole_id": whole_id,
-                                   "whole_len": whole_len, "whole_sha": whole_sha})
-        stamp(fenv)                                     # each fragment is independently integrity-checked
+        fenv["frag"] = json.dumps(
+            {"seq": seq, "of": of, "whole_id": whole_id, "whole_len": whole_len, "whole_sha": whole_sha}
+        )
+        stamp(fenv)  # each fragment is independently integrity-checked
         frags.append(fenv)
     return frags
 
@@ -641,11 +741,11 @@ class Reassembler:
 
     def __init__(self, persist=None) -> None:
         # whole_id -> {"of", "pieces": {seq: content}, "first": float, "whole_len", "whole_sha"}
-        self._buf: Dict[str, Dict[str, Any]] = {}
-        self._done: "OrderedDict[str, None]" = OrderedDict()   # bounded LRU of finished whole_ids
-        self._persist = persist    # callable(whole_id, slot|None); None => in-memory only
+        self._buf: dict[str, dict[str, Any]] = {}
+        self._done: OrderedDict[str, None] = OrderedDict()  # bounded LRU of finished whole_ids
+        self._persist = persist  # callable(whole_id, slot|None); None => in-memory only
 
-    def rehydrate(self, slots: Dict[str, Dict[str, Any]]) -> None:
+    def rehydrate(self, slots: dict[str, dict[str, Any]]) -> None:
         """Load persisted partial slots at startup (crash recovery). seq keys are normalized back
         to int (json stringifies dict keys).
 
@@ -659,21 +759,17 @@ class Reassembler:
             pieces = slot.get("pieces", {})
             slot["pieces"] = {int(k): v for k, v in pieces.items()}
             of = slot.get("of", 0)
-            if of and len(slot["pieces"]) >= of:          # already-complete -> never resurrect
+            if of and len(slot["pieces"]) >= of:  # already-complete -> never resurrect
                 if self._persist is not None:
-                    try:
-                        self._persist(str(wid), None)     # clean up the orphaned durable slot
-                    except Exception:
-                        pass
+                    with contextlib.suppress(Exception):
+                        self._persist(str(wid), None)  # clean up the orphaned durable slot
                 continue
             self._buf[str(wid)] = slot
 
     def _save(self, wid: str) -> None:
         if self._persist is not None:
-            try:
-                self._persist(wid, self._buf.get(wid))     # slot when present, None once popped (delete)
-            except Exception:
-                pass
+            with contextlib.suppress(Exception):
+                self._persist(wid, self._buf.get(wid))  # slot when present, None once popped (delete)
 
     def _mark_done(self, wid: str) -> None:
         self._done[wid] = None
@@ -681,16 +777,15 @@ class Reassembler:
         while len(self._done) > _DONE_CAP:
             self._done.popitem(last=False)
 
-    def add(self, fields: Dict[str, Any], *, now: float
-            ) -> Tuple[Optional[Dict[str, Any]], Optional[Tuple[str, str]]]:
+    def add(self, fields: dict[str, Any], *, now: float) -> tuple[dict[str, Any] | None, tuple[str, str] | None]:
         """Feed one fragment. Returns (whole|None, problem|None):
-          - whole: the reassembled, whole-verified envelope, when this frag completes the set.
-          - problem: (kind, detail) with kind in {orphan, whole-corrupt, stale} for a LOUD log
-            (the frag is dropped).
-          - (None, None): buffered, set still incomplete (or a late dup of a finished whole)."""
+        - whole: the reassembled, whole-verified envelope, when this frag completes the set.
+        - problem: (kind, detail) with kind in {orphan, whole-corrupt, stale} for a LOUD log
+          (the frag is dropped).
+        - (None, None): buffered, set still incomplete (or a late dup of a finished whole)."""
         frag = parse_frag(fields)
         if frag is None:
-            return None, None                              # not a fragment
+            return None, None  # not a fragment
         wid = frag.get("whole_id")
         try:
             of = int(frag.get("of", 0))
@@ -700,47 +795,51 @@ class Reassembler:
         if not wid or of <= 0 or seq < 0 or seq >= of:
             return None, ("orphan", f"bad frag header seq={seq} of={of} whole={wid}")
         if wid in self._done:
-            return None, None                              # late/duplicate frag of a finished whole
+            return None, None  # late/duplicate frag of a finished whole
         slot = self._buf.get(wid)
         if slot is None:
-            slot = self._buf[wid] = {"of": of, "pieces": {}, "first": now,
-                                     "whole_len": frag.get("whole_len"),
-                                     "whole_sha": frag.get("whole_sha")}
-        if now - slot["first"] > frag_reassembly_ttl():    # a late arrival cannot complete a stale set
+            slot = self._buf[wid] = {
+                "of": of,
+                "pieces": {},
+                "first": now,
+                "whole_len": frag.get("whole_len"),
+                "whole_sha": frag.get("whole_sha"),
+            }
+        if now - slot["first"] > frag_reassembly_ttl():  # a late arrival cannot complete a stale set
             missing = [i for i in range(slot["of"]) if i not in slot["pieces"]]
             self._buf.pop(wid, None)
             self._mark_done(wid)
-            self._save(wid)                                # drop the durable slot too
+            self._save(wid)  # drop the durable slot too
             return None, ("stale", f"whole {wid} exceeded TTL; missing seq {missing}")
         slot["pieces"][seq] = "" if fields.get("content") is None else str(fields.get("content"))
         if len(slot["pieces"]) < slot["of"]:
-            self._save(wid)                                # persist the growing partial (crash-durable)
-            return None, None                              # incomplete
+            self._save(wid)  # persist the growing partial (crash-durable)
+            return None, None  # incomplete
         content = "".join(slot["pieces"][i] for i in range(slot["of"]))
         whole = {k: fields.get(k) for k in CANONICAL_FIELDS}
         whole["content"] = content
         self._buf.pop(wid, None)
         self._mark_done(wid)
-        self._save(wid)                                    # complete -> delete the durable slot
+        self._save(wid)  # complete -> delete the durable slot
         wl, ws = slot.get("whole_len"), slot.get("whole_sha")
         length, sha = compute_len_sha(whole)
         if ws and sha != ws:
             return None, ("whole-corrupt", f"reassembled {wid} sha {sha[:12]}.. != {str(ws)[:12]}..")
         if wl is not None and str(wl) != str(length):
             return None, ("whole-corrupt", f"reassembled {wid} len {length} != {wl}")
-        stamp(whole)                                       # deliver a clean v2 packet
+        stamp(whole)  # deliver a clean v2 packet
         return whole, None
 
-    def sweep_expired(self, now: float) -> List[Tuple[str, List[int]]]:
+    def sweep_expired(self, now: float) -> list[tuple[str, list[int]]]:
         """Drop wholes past TTL; return [(whole_id, [missing seqs])] for a LOUD fragment_timeout
         event. Call at drain time (cheap: iterates only in-flight partial sets)."""
         ttl = frag_reassembly_ttl()
-        dead: List[Tuple[str, List[int]]] = []
+        dead: list[tuple[str, list[int]]] = []
         for wid, slot in list(self._buf.items()):
             if now - slot["first"] > ttl:
                 missing = [i for i in range(slot["of"]) if i not in slot["pieces"]]
                 dead.append((wid, missing))
                 self._buf.pop(wid, None)
                 self._mark_done(wid)
-                self._save(wid)                            # drop the durable slot
+                self._save(wid)  # drop the durable slot
         return dead

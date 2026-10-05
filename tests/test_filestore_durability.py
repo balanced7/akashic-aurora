@@ -28,15 +28,15 @@ mutate, and both flush still lose each other's writes (last-writer-wins over a s
 snapshot). That is a coherence problem needing reload-under-lock, and it is a separate slice.
 These pins cover the DESTRUCTIVE classes only.
 """
-from pathlib import Path
+
 import json
-import os
 import sys
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from core.foundation.store import FileStore  # noqa: E402
+from core.foundation.store import FileStore  # noqa: E402  # sys.path bootstrap
 
 
 def _seed(path: Path, n: int = 50) -> int:
@@ -78,9 +78,7 @@ def test_unreadable_state_preserves_the_original_bytes(tmp_path):
     s2 = FileStore(path=str(p))
     s2.set("recall:vote", "useful")
 
-    recoverable = [p.read_bytes()] + [
-        q.read_bytes() for q in tmp_path.iterdir() if q != p and q.is_file()
-    ]
+    recoverable = [p.read_bytes()] + [q.read_bytes() for q in tmp_path.iterdir() if q != p and q.is_file()]
     assert any(original[:200] in blob for blob in recoverable), (
         "the original records are not recoverable from any file on disk"
     )

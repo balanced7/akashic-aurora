@@ -46,27 +46,21 @@ def _run_status(monkeypatch, capsys, tmp_path, *, backend, redis_up):
 
 
 def test_status_names_sqlite_mirror_when_redis_is_up(monkeypatch, capsys, tmp_path):
-    rc, payload = _run_status(
-        monkeypatch, capsys, tmp_path, backend="sqlite", redis_up=True
-    )
+    rc, payload = _run_status(monkeypatch, capsys, tmp_path, backend="sqlite", redis_up=True)
 
     assert rc == 0
     assert payload["backend"] == "Redis localhost:16379 (+ SQLite mirror)"
 
 
 def test_status_names_sqlite_fallback_when_redis_is_down(monkeypatch, capsys, tmp_path):
-    rc, payload = _run_status(
-        monkeypatch, capsys, tmp_path, backend="sqlite", redis_up=False
-    )
+    rc, payload = _run_status(monkeypatch, capsys, tmp_path, backend="sqlite", redis_up=False)
 
     assert rc == 0
     assert payload["backend"] == "SQLite (Redis down -> fallback active)"
 
 
 def test_status_preserves_file_labels_for_default_backend(monkeypatch, capsys, tmp_path):
-    rc, payload = _run_status(
-        monkeypatch, capsys, tmp_path, backend=None, redis_up=True
-    )
+    rc, payload = _run_status(monkeypatch, capsys, tmp_path, backend=None, redis_up=True)
 
     assert rc == 0
     assert payload["backend"] == "Redis localhost:16379 (+ File mirror)"

@@ -29,7 +29,7 @@ import pytest
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 
-from core.comm import discord_inbound as DI  # noqa: E402
+from core.comm import discord_inbound as DI  # noqa: E402  # sys.path bootstrap
 
 OAUTH = "Failed to authenticate: OAuth session expired and could not be refreshed"
 
@@ -51,7 +51,8 @@ def test_nonzero_exit_is_stillborn_and_carries_the_real_line():
 def test_known_fatal_line_is_stillborn_even_on_a_zero_exit():
     """A truthful exit code is not guaranteed; the log line is the harder evidence."""
     reason = DI.spawn_stillborn_reason(0, OAUTH + "\n")
-    assert reason and "authenticate" in reason.lower(), reason
+    assert reason, reason
+    assert "authenticate" in reason.lower(), reason
 
 
 def test_clean_fast_exit_is_not_an_alarm():
@@ -71,7 +72,8 @@ def test_reason_is_one_line_a_phone_reads_it():
 def test_empty_log_still_names_the_exit_code():
     """Silence plus a corpse is still a stillbirth; say what little is known."""
     reason = DI.spawn_stillborn_reason(2, "")
-    assert reason and "2" in reason, reason
+    assert reason, reason
+    assert "2" in reason, reason
 
 
 # ------------------------------------------------------- no receipt for a corpse
@@ -121,8 +123,8 @@ def test_proof_window_outlives_the_measured_death():
     all three of those a living seat. This pin holds the measurement so the next person
     to 'tidy' the constant has to argue with the stopwatch instead of their intuition."""
     import re
+
     src = (REPO / "scripts" / "bifrost_runner_discord.py").read_text(encoding="utf-8")
-    m = re.search(r'_SPAWN_PROOF_SECONDS\s*=\s*float\(.*?or\s*([\d.]+)\s*\)', src)
+    m = re.search(r"_SPAWN_PROOF_SECONDS\s*=\s*float\(.*?or\s*([\d.]+)\s*\)", src)
     assert m, "the proof window is no longer a readable default -- re-pin it"
-    assert float(m.group(1)) >= 20.0, (
-        f"proof window {m.group(1)}s is inside the measured 15.8-16.9s death window")
+    assert float(m.group(1)) >= 20.0, f"proof window {m.group(1)}s is inside the measured 15.8-16.9s death window"

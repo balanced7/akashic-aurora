@@ -37,48 +37,60 @@ halves of the original design:
 What remains is the value: the caller learns in one second which of four situations it is
 in and what to do about it. Same shape as T197 -- observe, report, never gate.
 """
+
 from __future__ import annotations
 
 import re
-from typing import Any, Dict, Optional
+from typing import Any
 
 #: Only a trailing session-shaped suffix is an incarnation marker. Same rule and same
 #: regex shape as liveness._INCARNATION_SUFFIX (T155), for the same reason: `codex_root`
 #: contains an underscore, so "strip the last _segment" would resolve it to `codex`.
 _INCARNATION_SUFFIX = re.compile(r"_([0-9a-f]{6,})$", re.I)
 
-CLASSES = ("SEAT_SILENT", "SEAT_DOWN", "STALE_INCARNATION", "UNKNOWN_PEER",
-           "UNCLASSIFIED")
+CLASSES = ("SEAT_SILENT", "SEAT_DOWN", "STALE_INCARNATION", "UNKNOWN_PEER", "UNCLASSIFIED")
 
-RECOVERY: Dict[str, str] = {
+RECOVERY: dict[str, str] = {
     # Attending the whole time and still nothing came back. More transport will not help;
     # the fault is downstream of delivery.
-    "SEAT_SILENT": ("the peer was attending and still did not answer -- this is "
-                    "consumer-side, not transport: check it is reading the lane the ask "
-                    "rode, check for a wedge, or nudge it. Re-asking the same way "
-                    "reproduces the same silence"),
+    "SEAT_SILENT": (
+        "the peer was attending and still did not answer -- this is "
+        "consumer-side, not transport: check it is reading the lane the ask "
+        "rode, check for a wedge, or nudge it. Re-asking the same way "
+        "reproduces the same silence"
+    ),
     # Down now, and that is a state that ENDS. The 540.9s answer came from exactly here.
-    "SEAT_DOWN": ("the seat is real but not attending: launch it (ask --peer <seat> "
-                  "--launch) if it is launchable, or leave the ask armed -- a seat that "
-                  "comes up later can still answer, and one measurably did at 540.9s"),
+    "SEAT_DOWN": (
+        "the seat is real but not attending: launch it (ask --peer <seat> "
+        "--launch) if it is launchable, or leave the ask armed -- a seat that "
+        "comes up later can still answer, and one measurably did at 540.9s"
+    ),
     # A routing HINT. Deliberately not a claim about the old address.
-    "STALE_INCARNATION": ("this is an incarnation id and its base seat {base} IS "
-                          "attending: re-address to {base}, which is cheaper and far "
-                          "likelier to be read. The original stays armed"),
-    "STALE_INCARNATION_BASE_DOWN": ("this is an incarnation id; its base seat {base} is "
-                                    "also down. Address {base} rather than the "
-                                    "incarnation -- a session id belongs to one process "
-                                    "and the next one will have a different id -- then "
-                                    "launch or wait for {base}"),
-    "UNKNOWN_PEER": ("no attending seat, no launchable tag, and no base form -- nothing "
-                     "here identifies a reader. Check the id, or ask a peer that exists; "
-                     "the stateless `ask` needs no seat at all"),
-    "UNCLASSIFIED": ("not enough was observed to name a cause -- absence of evidence is "
-                     "not evidence of absence. Re-read attendance for this peer"),
+    "STALE_INCARNATION": (
+        "this is an incarnation id and its base seat {base} IS "
+        "attending: re-address to {base}, which is cheaper and far "
+        "likelier to be read. The original stays armed"
+    ),
+    "STALE_INCARNATION_BASE_DOWN": (
+        "this is an incarnation id; its base seat {base} is "
+        "also down. Address {base} rather than the "
+        "incarnation -- a session id belongs to one process "
+        "and the next one will have a different id -- then "
+        "launch or wait for {base}"
+    ),
+    "UNKNOWN_PEER": (
+        "no attending seat, no launchable tag, and no base form -- nothing "
+        "here identifies a reader. Check the id, or ask a peer that exists; "
+        "the stateless `ask` needs no seat at all"
+    ),
+    "UNCLASSIFIED": (
+        "not enough was observed to name a cause -- absence of evidence is "
+        "not evidence of absence. Re-read attendance for this peer"
+    ),
 }
 
 
-def base_form(peer: Any) -> Optional[str]:
+def base_form(peer: Any) -> str | None:
     """The bare seat behind an incarnation id, or None when there is no suffix.
     `codex_root_019fab2d` -> `codex_root`; `codex_root` -> None."""
     p = str(peer or "")
@@ -86,8 +98,14 @@ def base_form(peer: Any) -> Optional[str]:
     return bare if bare and bare != p else None
 
 
-def classify(peer: Any, *, attending: Optional[bool], base_attending: Optional[bool],
-             launchable: Optional[bool], known_seat: Optional[bool]) -> Dict[str, Any]:
+def classify(
+    peer: Any,
+    *,
+    attending: bool | None,
+    base_attending: bool | None,
+    launchable: bool | None,
+    known_seat: bool | None,
+) -> dict[str, Any]:
     """Which of the four situations is this, and what should the caller do?
 
     PURE -- every observation is supplied by the caller, so the taxonomy is testable
@@ -98,12 +116,10 @@ def classify(peer: Any, *, attending: Optional[bool], base_attending: Optional[b
     base = base_form(name)
 
     if attending is None and base_attending is None and known_seat is None:
-        return {"klass": "UNCLASSIFIED", "peer": name, "base": base,
-                "recovery": RECOVERY["UNCLASSIFIED"]}
+        return {"klass": "UNCLASSIFIED", "peer": name, "base": base, "recovery": RECOVERY["UNCLASSIFIED"]}
 
     if attending:
-        return {"klass": "SEAT_SILENT", "peer": name, "base": base,
-                "recovery": RECOVERY["SEAT_SILENT"]}
+        return {"klass": "SEAT_SILENT", "peer": name, "base": base, "recovery": RECOVERY["SEAT_SILENT"]}
 
     # Not attending under THIS id. Carrying an incarnation suffix is a FACT ABOUT THE ID,
     # true whether or not the base happens to be up -- the first cut required
@@ -111,10 +127,8 @@ def classify(peer: Any, *, attending: Optional[bool], base_attending: Optional[b
     # UNKNOWN_PEER, which is both wrong and the most misleading answer available. Whether
     # the base is attending changes the STRENGTH of the advice, never the class.
     if base:
-        tail = (RECOVERY["STALE_INCARNATION"] if base_attending
-                else RECOVERY["STALE_INCARNATION_BASE_DOWN"])
-        return {"klass": "STALE_INCARNATION", "peer": name, "base": base,
-                "recovery": tail.format(base=base)}
+        tail = RECOVERY["STALE_INCARNATION"] if base_attending else RECOVERY["STALE_INCARNATION_BASE_DOWN"]
+        return {"klass": "STALE_INCARNATION", "peer": name, "base": base, "recovery": tail.format(base=base)}
 
     # UNKNOWN_PEER asserts NOTHING IDENTIFIES A READER, which is a claim about the world
     # and needs positive evidence. Absence of a launcher tag is not that evidence: kimi,
@@ -122,8 +136,6 @@ def classify(peer: Any, *, attending: Optional[bool], base_attending: Optional[b
     # cut called all three UNKNOWN_PEER. So the default for "not attending, cannot prove
     # it never existed" is the weaker, safer SEAT_DOWN.
     if known_seat is False and not launchable:
-        return {"klass": "UNKNOWN_PEER", "peer": name, "base": base,
-                "recovery": RECOVERY["UNKNOWN_PEER"]}
+        return {"klass": "UNKNOWN_PEER", "peer": name, "base": base, "recovery": RECOVERY["UNKNOWN_PEER"]}
 
-    return {"klass": "SEAT_DOWN", "peer": name, "base": base,
-            "recovery": RECOVERY["SEAT_DOWN"]}
+    return {"klass": "SEAT_DOWN", "peer": name, "base": base, "recovery": RECOVERY["SEAT_DOWN"]}

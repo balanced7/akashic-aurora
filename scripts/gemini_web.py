@@ -22,9 +22,11 @@ Use --headed only for login/debug. bifrost_runner keeps one warm invisible brows
 
 Requires: pip install playwright && playwright install chrome
 """
+
 from __future__ import annotations
 
 import argparse
+import contextlib
 import os
 import subprocess
 import sys
@@ -32,7 +34,21 @@ import threading
 import time
 import urllib.parse
 from pathlib import Path
-from typing import Literal
+from typing import TYPE_CHECKING, Any, Literal, cast
+
+if TYPE_CHECKING:
+    import io
+
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+
+        return python_launcher()
+    except Exception:
+        return "py"
+
 
 # Windows consoles/pipes default to cp1252; Gemini answers routinely carry
 # zero-width/typographic Unicode. Force UTF-8 (replace, never crash) so a
@@ -40,10 +56,8 @@ from typing import Literal
 # charmap failures through the MCP door).
 for _stream in (sys.stdout, sys.stderr):
     if _stream is not None and hasattr(_stream, "reconfigure"):
-        try:
-            _stream.reconfigure(encoding="utf-8", errors="replace")
-        except (ValueError, OSError):
-            pass
+        with contextlib.suppress(ValueError, OSError):
+            cast("io.TextIOWrapper", _stream).reconfigure(encoding="utf-8", errors="replace")
 
 ROOT = Path(__file__).resolve().parent.parent
 PROFILE = ROOT / ".secrets" / "gemini_web_profile"
@@ -107,10 +121,10 @@ def _resolve_engine(engine: str | None = None) -> Engine:
 
 def _sync_playwright_factory(engine: Engine):
     if engine == "patchright":
-        from patchright.sync_api import sync_playwright
+        from patchright.sync_api import sync_playwright  # pyright: ignore[reportMissingImports]  # optional dependency
 
         return sync_playwright
-    from playwright.sync_api import sync_playwright
+    from playwright.sync_api import sync_playwright  # pyright: ignore[reportMissingImports]  # optional dependency
 
     return sync_playwright
 
@@ -120,7 +134,7 @@ def _get_stealth():
     if _STEALTH is not None:
         return _STEALTH
     try:
-        from playwright_stealth import Stealth
+        from playwright_stealth import Stealth  # pyright: ignore[reportMissingImports]  # optional dependency
 
         # Real Chrome already has genuine UA/GPU/plugins — only patch automation leaks.
         _STEALTH = Stealth(
@@ -191,12 +205,14 @@ def _prompt_from_args(args) -> str:
 
 def _needs_playwright() -> bool:
     try:
-        import playwright  # noqa: F401
+        import playwright  # pyright: ignore[reportMissingImports]  # optional dependency  # noqa: F401  # availability probe
+
         return True
     except ImportError:
         pass
     try:
-        import patchright  # noqa: F401
+        import patchright  # pyright: ignore[reportMissingImports]  # optional dependency  # noqa: F401  # availability probe
+
         return True
     except ImportError:
         return False
@@ -205,9 +221,9 @@ def _needs_playwright() -> bool:
 def _install_hint() -> str:
     return (
         "BROWSER_DRIVER_MISSING: run once:\n"
-        "  py -m pip install playwright patchright playwright-stealth\n"
-        "  py -m playwright install chrome\n"
-        "  py -m patchright install chrome"
+        f"  {_pyl()} -m pip install playwright patchright playwright-stealth\n"
+        f"  {_pyl()} -m playwright install chrome\n"
+        f"  {_pyl()} -m patchright install chrome"
     )
 
 
@@ -299,15 +315,11 @@ def _acquire_context(
     stealth: bool,
     reuse_browser: bool,
     engine: Engine = "playwright",
-) -> tuple[object, bool]:
+) -> tuple[Any, bool]:
     """Return (context, should_close_after_use)."""
     with _POOL_LOCK:
         if reuse_browser and _POOL["ctx"] is not None:
-            if (
-                _POOL["browser_mode"] == browser_mode
-                and _POOL["stealth"] == stealth
-                and _POOL["engine"] == engine
-            ):
+            if _POOL["browser_mode"] == browser_mode and _POOL["stealth"] == stealth and _POOL["engine"] == engine:
                 return _POOL["ctx"], False
             _close_context(_POOL["ctx"])
             _POOL["ctx"] = None
@@ -355,7 +367,7 @@ def _login_hint() -> str:
     return (
         "LOGIN_REQUIRED: no saved Google session for the web UI.\n"
         "Run once (browser opens — sign in as your Google account):\n"
-        "  py scripts/gemini_web.py --login\n"
+        f"  {_pyl()} scripts/gemini_web.py --login\n"
         f"Profile dir: {PROFILE}"
     )
 
@@ -365,9 +377,9 @@ def _find_input(page):
         'div[contenteditable="true"][aria-label*="Enter"]',
         'div[contenteditable="true"]',
         'textarea[aria-label*="Enter"]',
-        'textarea',
+        "textarea",
         '[role="textbox"]',
-        '.ql-editor',
+        ".ql-editor",
     ]
     for sel in candidates:
         loc = page.locator(sel).last
@@ -384,8 +396,8 @@ def _extract_latest_model_text(page) -> str:
         "message-content",
         '[data-message-author-role="model"]',
         '[data-testid="model-response"]',
-        '.model-response-text',
-        '.markdown',
+        ".model-response-text",
+        ".markdown",
         "p[data-path-to-node]",
     ]
     for sel in selectors:
@@ -512,10 +524,8 @@ def _ask_ai_mode(page, prompt: str, timeout_ms: int) -> str:
         return _login_hint()
 
     body = ""
-    try:
+    with contextlib.suppress(Exception):
         body = page.locator("body").inner_text(timeout=3000)
-    except Exception:
-        pass
     if "AI Mode is not currently available" in body:
         return (
             "AI_MODE_UNAVAILABLE: Google AI Mode is not enabled for this account, "
@@ -570,7 +580,10 @@ def ask_web_message(
     resolved_mode = browser_mode or _resolve_browser_mode(mode, headed, headless)
     use_stealth = _resolve_stealth(stealth, no_stealth=False)
     ctx, should_close = _acquire_context(
-        resolved_mode, use_stealth, reuse_browser, engine=resolved_engine,
+        resolved_mode,
+        use_stealth,
+        reuse_browser,
+        engine=resolved_engine,
     )
     try:
         page = ctx.pages[0] if ctx.pages else ctx.new_page()

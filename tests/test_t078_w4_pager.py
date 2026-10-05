@@ -16,10 +16,9 @@ Pins:
 
 Run: py -m pytest tests/test_t078_w4_pager.py -q
 """
+
 import os
 import sys
-
-import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -36,19 +35,24 @@ def _built():
 class FakeRedis:
     def __init__(self):
         self.lists = {}
+
     def lpush(self, k, v):
         self.lists.setdefault(k, []).insert(0, v)
         return len(self.lists[k])
+
     def ltrim(self, k, a, b):
-        self.lists[k] = self.lists.get(k, [])[a:b + 1]
+        self.lists[k] = self.lists.get(k, [])[a : b + 1]
+
     def lrange(self, k, a, b):
         L = self.lists.get(k, [])
-        return L[a:] if b == -1 else L[a:b + 1]
+        return L[a:] if b == -1 else L[a : b + 1]
+
     def delete(self, k):
         self.lists.pop(k, None)
 
 
 def test_p1_p2_append_capped_and_peek():
+    assert pager is not None
     _built()
     c = FakeRedis()
     for i in range(55):
@@ -60,6 +64,7 @@ def test_p1_p2_append_capped_and_peek():
 
 
 def test_p3_ack_clears_idempotent():
+    assert pager is not None
     _built()
     c = FakeRedis()
     pager.page("a", "x", c=c)
@@ -69,14 +74,18 @@ def test_p3_ack_clears_idempotent():
 
 
 def test_p4_hook_lines_render():
+    assert pager is not None
     _built()
     c = FakeRedis()
     assert pager.hook_lines(c=c) == []
     pager.page("deepseek", "runner down 12m", c=c)
     lines = pager.hook_lines(c=c)
-    assert len(lines) == 1 and "[PAGE]" in lines[0] and "runner down 12m" in lines[0]
+    assert len(lines) == 1
+    assert "[PAGE]" in lines[0]
+    assert "runner down 12m" in lines[0]
 
 
 def test_p5_fail_open():
+    assert pager is not None
     _built()
     assert pager.page("a", "x", c=None, allow_fallback=False) is False

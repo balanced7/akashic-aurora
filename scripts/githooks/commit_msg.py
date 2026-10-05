@@ -22,8 +22,16 @@ cannot be printed: the decision never depends on the console.
 
 Install once per clone/worktree:  py scripts/githooks/install_git_hooks.py
 """
+
+import contextlib
 import os
 import sys
+from pathlib import Path
+from typing import TYPE_CHECKING, cast
+
+if TYPE_CHECKING:
+    import io
+
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, ROOT)
@@ -33,7 +41,7 @@ sys.path.insert(0, ROOT)
 # its own location.
 PLANE_ROOT_ENV = "AKASHIC_PRIVATE_PLANE_ROOT"
 LABEL = "commit message"
-COMMENT_CHAR = "#"          # git's default core.commentChar
+COMMENT_CHAR = "#"  # git's default core.commentChar
 SCISSORS = "------------------------ >8 ------------------------"
 
 
@@ -55,16 +63,16 @@ def message_body(text, comment_char=COMMENT_CHAR):
     return "\n".join(kept)
 
 
-def _plane_root(root):
-    if root is not None:
-        return root
-    return os.environ.get(PLANE_ROOT_ENV) or None
+def _plane_root(root) -> Path | None:
+    raw = root if root is not None else (os.environ.get(PLANE_ROOT_ENV) or None)
+    return Path(raw) if raw else None  # scan_text takes a Path; it wraps the value in Path() anyway
 
 
 def scan_message(path, root=None):
     """Findings for the message file git handed this stage. Raises when the guard itself is
     broken (unreadable path, missing module) so main() can fail open LOUDLY."""
     from core.trust.private_plane import scan_text
+
     with open(path, encoding="utf-8", errors="replace") as fh:
         text = fh.read()
     return scan_text(message_body(text), label=LABEL, root=_plane_root(root))
@@ -72,39 +80,40 @@ def scan_message(path, root=None):
 
 def refusal(findings):
     out = ["commit-msg BLOCKED: the commit message carries PRIVATE-PLANE identifiers.\n"]
-    for f in findings[:6]:
-        out.append(f"  {f['path']} -- marker {f['marker']!r}\n    {f['remedy']}\n")
-    out.append("  Existence metadata is a leak: an id or title alone is enough, no body "
-               "required.\n  Nothing was committed and the index is untouched: rewrite the "
-               "message and commit again.\n  Emergency bypass: `git commit --no-verify` -- "
-               "and if you use it, say so out loud, because this one does not fail safe.\n")
+    out.extend(f"  {f['path']} -- marker {f['marker']!r}\n    {f['remedy']}\n" for f in findings[:6])
+    out.append(
+        "  Existence metadata is a leak: an id or title alone is enough, no body "
+        "required.\n  Nothing was committed and the index is untouched: rewrite the "
+        "message and commit again.\n  Emergency bypass: `git commit --no-verify` -- "
+        "and if you use it, say so out loud, because this one does not fail safe.\n"
+    )
     return "".join(out)
 
 
 def _say(text):
     """Best-effort stderr. Printing must never decide the outcome."""
-    try:
+    with contextlib.suppress(Exception):
         sys.stderr.write(text)
-    except Exception:
-        pass
 
 
 def main(argv=None, root=None):
     argv = sys.argv if argv is None else argv
-    try:
+    with contextlib.suppress(Exception):
         # a marker the console's codepage cannot print must not turn a refusal into a crash
-        sys.stderr.reconfigure(errors="replace")
-    except Exception:
-        pass
+        cast("io.TextIOWrapper", sys.stderr).reconfigure(errors="replace")
     if len(argv) < 2 or not argv[1]:
-        _say("commit-msg WARNING: git passed no message path, so the private-plane message "
-             "guard did not run. Commit allowed; the gate is not protecting you.\n")
+        _say(
+            "commit-msg WARNING: git passed no message path, so the private-plane message "
+            "guard did not run. Commit allowed; the gate is not protecting you.\n"
+        )
         return 0
     try:
         findings = scan_message(argv[1], root=root)
     except Exception as exc:
-        _say("commit-msg WARNING: the private-plane message guard did not run (%s: %s). "
-             "Commit allowed; the gate is not protecting you.\n" % (type(exc).__name__, exc))
+        _say(
+            f"commit-msg WARNING: the private-plane message guard did not run ({type(exc).__name__}: {exc}). "
+            "Commit allowed; the gate is not protecting you.\n"
+        )
         return 0
     if not findings:
         # The message passed. Only now credit the operator as co-author -- appending to a
@@ -115,7 +124,7 @@ def main(argv=None, root=None):
             from scripts.githooks.coauthor import ensure_operator_coauthor
         except Exception:
             try:
-                from coauthor import ensure_operator_coauthor   # hook runs from its own dir
+                from coauthor import ensure_operator_coauthor  # hook runs from its own dir
             except Exception:
                 ensure_operator_coauthor = None
         if ensure_operator_coauthor is not None:

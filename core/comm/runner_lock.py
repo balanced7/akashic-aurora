@@ -14,17 +14,20 @@ semantics are TTL-only -- we never forcibly evict a live holder.
 Fail-open on Redis errors (a down bus means no runner anyway); ADVISORY, same trust model as the rest of
 core/comm. Instance token varies by pid so a respawn never collides with its own stale key value.
 """
+
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import time
 import uuid
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any
 
 from core.comm.timescale import scaled
 from core.foundation.timeutil import now_iso
+
 
 def _ns() -> str:
     # ns-isolation (2026-07-12): the consumer SEAT + fencing generation are per-namespace by design
@@ -36,10 +39,12 @@ def _lock_prefix() -> str:
     return f"{_ns()}:runner:"
 
 
-def _gen_prefix() -> str:                # L1b: monotone fencing-token source, INCR per acquisition
+def _gen_prefix() -> str:  # L1b: monotone fencing-token source, INCR per acquisition
     return f"{_ns()}:generation:"
-LOCK_TTL = scaled(20)    # seconds; the heartbeat must refresh well within this
-                         # (drill-shrinkable via AKASHIC_TIMEOUT_MULTIPLIER)
+
+
+LOCK_TTL = scaled(20)  # seconds; the heartbeat must refresh well within this
+# (drill-shrinkable via AKASHIC_TIMEOUT_MULTIPLIER)
 # RB-21: a turn-based SESSION cannot heartbeat in runner seconds -- its claim on the very
 # same lock carries this TTL instead, refreshed at every consume and every stop-hook
 # firing. Future T034 dial. (docs/library/design/20260711_rb-21-session-cursor-discipline-build-sp_9fbdcd.md)
@@ -58,12 +63,13 @@ def generation_of(token: str) -> int:
 
 
 def _now() -> str:
-    return now_iso()   # T119: the one clock (aware UTC), not the machine's naive wall
+    return now_iso()  # T119: the one clock (aware UTC), not the machine's naive wall
 
 
 def _client():
     try:
         from core.comm.bus import get_bus
+
         return get_bus("control")._client
     except Exception:
         return None
@@ -80,8 +86,7 @@ def instance_token(agent: str) -> str:
     return f"{agent}:{os.getpid()}:{uuid.uuid4().hex[:12]}"
 
 
-def acquire_waiting(agent: str, token: str, ttl: Optional[int] = None,
-                    wait_s: Optional[float] = None, on_wait=None) -> bool:
+def acquire_waiting(agent: str, token: str, ttl: int | None = None, wait_s: float | None = None, on_wait=None) -> bool:
     """acquire(), but willing to outwait a DEAD predecessor's key instead of refusing outright.
 
     THE FRICTION THIS REMOVES, paid for repeatedly on 2026-08-02: kill a runner, relaunch it three
@@ -104,15 +109,13 @@ def acquire_waiting(agent: str, token: str, ttl: Optional[int] = None,
         if time.time() >= deadline:
             return False
         if not announced and on_wait:
-            try:
+            with contextlib.suppress(Exception):
                 on_wait(holder(agent) or {})
-            except Exception:
-                pass
             announced = True
         time.sleep(1.0)
 
 
-def acquire(agent: str, token: str, ttl: Optional[int] = None) -> bool:
+def acquire(agent: str, token: str, ttl: int | None = None) -> bool:
     """Try to become THE runner for `agent`. Returns True if we now hold the lock (either it was free,
     or a prior holder's key had expired). False means another live runner holds it -- do not start.
     Fail-open: if the bus is offline we return True (nothing to race with).
@@ -130,9 +133,12 @@ def acquire(agent: str, token: str, ttl: Optional[int] = None) -> bool:
         # contender leaves a gap in the sequence, which is harmless -- monotonicity is the
         # only property the fence needs, and nobody ever WRITES with an unwon generation.
         gen = int(c.incr(_gen_prefix() + str(agent)))
-        if c.set(_key(agent), json.dumps({"token": token, "pid": os.getpid(), "ts": _now(),
-                                          "gen": gen}),
-                 nx=True, ex=int(ttl or LOCK_TTL)):
+        if c.set(
+            _key(agent),
+            json.dumps({"token": token, "pid": os.getpid(), "ts": _now(), "gen": gen}),
+            nx=True,
+            ex=int(ttl or LOCK_TTL),
+        ):
             _TENURE_GEN[token] = gen
             return True
         # Held. Re-entrant only for our OWN token (e.g. a heartbeat gap that let it expire+repopulate).
@@ -150,7 +156,7 @@ def acquire(agent: str, token: str, ttl: Optional[int] = None) -> bool:
         return True
 
 
-def heartbeat(agent: str, token: str, ttl: Optional[int] = None) -> bool:
+def heartbeat(agent: str, token: str, ttl: int | None = None) -> bool:
     """Refresh our hold (extend the TTL) -- call once per loop iteration. Only refreshes if WE still hold
     it (guards against clobbering a successor that took over after a stall). Returns True if refreshed.
     `ttl` overrides LOCK_TTL in raw seconds (RB-21: session refreshes pass SESSION_CONSUMER_TTL)."""
@@ -158,7 +164,7 @@ def heartbeat(agent: str, token: str, ttl: Optional[int] = None) -> bool:
     if c is None:
         return True
     try:
-        gen = generation_of(token)   # L1b: the tenure's generation rides every refresh
+        gen = generation_of(token)  # L1b: the tenure's generation rides every refresh
         raw = c.get(_key(agent))
         if not raw:
             # lock vanished (expired) -- reclaim ATOMICALLY (nx) so we never clobber a racing successor that
@@ -172,13 +178,18 @@ def heartbeat(agent: str, token: str, ttl: Optional[int] = None) -> bool:
                 # value would fence the session against its own cursor. Stand down; the
                 # next claim_consumer() acquires fresh with a properly minted generation.
                 return False
-            return bool(c.set(_key(agent), json.dumps({"token": token, "pid": os.getpid(), "ts": _now(),
-                                                       "gen": gen}),
-                              nx=True, ex=int(ttl or LOCK_TTL)))
+            return bool(
+                c.set(
+                    _key(agent),
+                    json.dumps({"token": token, "pid": os.getpid(), "ts": _now(), "gen": gen}),
+                    nx=True,
+                    ex=int(ttl or LOCK_TTL),
+                )
+            )
         try:
             rec = json.loads(raw)
             if rec.get("token") != token:
-                return False        # someone else owns it now; we should stand down
+                return False  # someone else owns it now; we should stand down
         except Exception:
             return False
         if not gen:
@@ -186,8 +197,11 @@ def heartbeat(agent: str, token: str, ttl: Optional[int] = None) -> bool:
             # tenure generation from the LOCK VALUE instead of clobbering it with 0 --
             # gen recovery on the next re-entrant claim depends on this field.
             gen = int(rec.get("gen", 0))
-        c.set(_key(agent), json.dumps({"token": token, "pid": os.getpid(), "ts": _now(), "gen": gen}),
-              ex=int(ttl or LOCK_TTL))
+        c.set(
+            _key(agent),
+            json.dumps({"token": token, "pid": os.getpid(), "ts": _now(), "gen": gen}),
+            ex=int(ttl or LOCK_TTL),
+        )
         return True
     except Exception:
         return True
@@ -212,7 +226,8 @@ def release(agent: str, token: str) -> bool:
 # claims -- one invariant, zero new primitives (docs/library/design/20260711_rb-21-session-cursor-discipline-build-sp_9fbdcd.md).
 # Holder tokens are "session:<id>"-prefixed so refusal messages can teach legibly.
 
-def session_holder_token() -> Optional[str]:
+
+def session_holder_token() -> str | None:
     """The stable session identity for consumer claims: the harness exports its session
     id to every subprocess, so one session's claims cohere across CLI invocations.
     None when no session env exists -- each door chooses its own fallback bucket
@@ -221,7 +236,7 @@ def session_holder_token() -> Optional[str]:
     return f"session:{sid}" if sid else None
 
 
-def claim_consumer(agent: str, holder_token: str, ttl: Optional[int] = None):
+def claim_consumer(agent: str, holder_token: str, ttl: int | None = None):
     """Claim (or refresh) the single-consumer seat for `agent` as a SESSION.
     Returns (ok, generation, holder_info): ok=True with OUR tenure generation, or
     ok=False with the live holder's record for the teaching error.
@@ -241,12 +256,13 @@ def claim_consumer(agent: str, holder_token: str, ttl: Optional[int] = None):
     if str(holder_token or "").startswith("session:"):
         try:
             from core.comm import wake_seat
-            if wake_seat.is_tombstoned(str(holder_token)[len("session:"):]):
+
+            if wake_seat.is_tombstoned(str(holder_token)[len("session:") :]):
                 return False, 0, holder(agent) or {}
         except Exception:
-            pass                      # tombstone unreadable -> fail toward the old behaviour
+            pass  # tombstone unreadable -> fail toward the old behaviour
     if acquire(agent, holder_token, ttl=t):
-        heartbeat(agent, holder_token, ttl=t)   # refresh on re-entrant claims; fresh = harmless
+        heartbeat(agent, holder_token, ttl=t)  # refresh on re-entrant claims; fresh = harmless
         return True, generation_of(holder_token), holder(agent) or {"token": holder_token}
     return False, 0, holder(agent) or {}
 
@@ -271,8 +287,9 @@ def stand_down(agent: str, holder_token: str) -> bool:
     ok = True
     try:
         from core.comm import wake_seat
+
         sid = str(holder_token or "")
-        wake_seat.write_tombstone(sid[len("session:"):] if sid.startswith("session:") else sid)
+        wake_seat.write_tombstone(sid[len("session:") :] if sid.startswith("session:") else sid)
     except Exception:
         ok = False
     try:
@@ -284,7 +301,7 @@ def stand_down(agent: str, holder_token: str) -> bool:
     return ok
 
 
-def refresh_consumer(agent: str, holder_token: str, ttl: Optional[int] = None) -> bool:
+def refresh_consumer(agent: str, holder_token: str, ttl: int | None = None) -> bool:
     """Best-effort seat refresh (stop-hook firing / any activity moment). No-ops safely
     when we do not hold the seat -- heartbeat() refuses a foreign token."""
     return heartbeat(agent, holder_token, ttl=int(ttl or SESSION_CONSUMER_TTL))
@@ -295,9 +312,15 @@ def release_consumer(agent: str, holder_token: str) -> bool:
     return release(agent, holder_token)
 
 
-def free_if_dead(agent: str, *, grace_s: int = 300, stale_s: int = 900,
-                 now: Optional[float] = None, tmp: Optional[str] = None,
-                 pid_alive=None) -> Dict[str, Any]:
+def free_if_dead(
+    agent: str,
+    *,
+    grace_s: int = 300,
+    stale_s: int = 900,
+    now: float | None = None,
+    tmp: str | None = None,
+    pid_alive=None,
+) -> dict[str, Any]:
     """T083-C1-1: free a SESSION-held consumer seat whose holder is PROVABLY dead -- the crash
     net's slow leg made fast. clean_death (T075 M1-beta) already frees the seat on a GRACEFUL
     SessionEnd; a crash-killed session leaves its seat to TTL (up to 30 min of blocked consumes,
@@ -330,8 +353,9 @@ def free_if_dead(agent: str, *, grace_s: int = 300, stale_s: int = 900,
             return verdict
         t_now = float(now if now is not None else time.time())
         age = t_now - _ts_epoch(rec.get("ts"), default=t_now)
-        sid = token[len("session:"):]
+        sid = token[len("session:") :]
         from core.comm import wake_seat
+
         # 0.5) T086 S1: a TOMBSTONED session is dead BY RECORD, not by inference -- no
         #      grace (its claim can never become live again; RB-21 fencing guards the
         #      rest). Probe errors read as not-tombstoned (fail toward alive, S1c).
@@ -389,15 +413,16 @@ def free_if_dead(agent: str, *, grace_s: int = 300, stale_s: int = 900,
                     verdict["reason"] = f"indeterminate (marker {int(marker_age)}s; TTL rules)"
                     return verdict
         if release(agent, token):
-            verdict.update({"freed": holder(agent) is None or holder(agent).get("token") != token,
-                            "reason": dead})
-            try:   # durable audit -- a freed seat must never look like a silent expiry
+            verdict.update({"freed": holder(agent) is None or holder(agent).get("token") != token, "reason": dead})  # pyright: ignore[reportOptionalMemberAccess]  # LATENT: two reads; lock may vanish between them
+            try:  # durable audit -- a freed seat must never look like a silent expiry
                 from core.events.event_log import capture_event
-                capture_event("seat_freed_dead_holder",
-                              f"consumer seat for '{agent}' freed: holder {token} {dead} "
-                              f"(claim age {int(age)}s)",
-                              agent_id=agent,
-                              detail={"holder": token, "evidence": dead, "claim_age_s": int(age)})
+
+                capture_event(
+                    "seat_freed_dead_holder",
+                    f"consumer seat for '{agent}' freed: holder {token} {dead} (claim age {int(age)}s)",
+                    agent_id=agent,
+                    detail={"holder": token, "evidence": dead, "claim_age_s": int(age)},
+                )
             except Exception:
                 pass
         return verdict
@@ -435,8 +460,10 @@ def _pid_alive_default(pid) -> bool:
     FAIL TOWARD ALIVE: a probe error must never justify freeing a seat."""
     try:
         import subprocess
-        out = subprocess.run(["tasklist", "/FI", f"PID eq {int(pid)}", "/NH"],
-                             capture_output=True, text=True, timeout=5)
+
+        out = subprocess.run(
+            ["tasklist", "/FI", f"PID eq {int(pid)}", "/NH"], capture_output=True, text=True, timeout=5
+        )
         return str(pid) in (out.stdout or "")
     except Exception:
         return True
@@ -465,7 +492,7 @@ def clear_if_pid(agent: str, pid) -> bool:
         return True
 
 
-def holder(agent: str) -> Optional[dict]:
+def holder(agent: str) -> dict | None:
     """{token, pid, ts} of the current runner for `agent`, or None. For diagnostics / the UI roster."""
     c = _client()
     if c is None:

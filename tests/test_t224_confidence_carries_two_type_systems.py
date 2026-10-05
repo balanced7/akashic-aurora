@@ -29,6 +29,7 @@ ONE FIELD, TWO TYPE SYSTEMS. Unlike `drained`, this one IS token-visible (the to
 shared), which makes it an instance of the catchable subset claude#42d00626 argued for -- and
 the argument for his ratchet, since nothing would have caught it landing.
 """
+
 from __future__ import annotations
 
 import sys
@@ -37,7 +38,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 
-from core.context.learning_loader import _importance_of  # noqa: E402
+from core.context.learning_loader import _importance_of  # noqa: E402  # sys.path bootstrap
 
 
 def _imp(conf, success=""):
@@ -66,7 +67,7 @@ def test_the_categorical_scale_is_unchanged():
     assert _imp("high") == 5
     assert _imp("medium") == 3
     assert _imp("low") == 2
-    assert _imp("high", success="yes") == 5      # capped
+    assert _imp("high", success="yes") == 5  # capped
     assert _imp("medium", success="yes") == 4
     assert _imp("medium", success="no") == 2
 

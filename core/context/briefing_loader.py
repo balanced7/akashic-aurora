@@ -9,10 +9,10 @@ handed to me." It replays the signal ledger for HANDOFF signals targeting this
 agent and returns the latest one's payload (task, context, blockers).
 """
 
-from typing import Any, Dict, Optional
+from typing import Any
 
 
-def _consumed(handoff: Dict[str, Any], agent: str, learning_store: Any = None) -> bool:
+def _consumed(handoff: dict[str, Any], agent: str, learning_store: Any = None) -> bool:
     """True once the target agent has recorded a LESSON after this handoff was written.
 
     A briefing's job is delivery: the target's next boot surfaces it, the target works. The
@@ -30,6 +30,7 @@ def _consumed(handoff: Dict[str, Any], agent: str, learning_store: Any = None) -
     try:
         if learning_store is None:
             from core.learning.learning_store import get_learning_store
+
             learning_store = get_learning_store()
         for rec in learning_store.load_learnings_contributed_by_agent(agent):
             if str(rec.get("timestamp") or "") > ts:
@@ -45,7 +46,7 @@ def load_briefing_from_previous_handoff(
     signal_ledger: Any = None,
     learning_store: Any = None,
     scan: int = 10000,
-) -> Optional[Dict[str, Any]]:
+) -> dict[str, Any] | None:
     """
     Return the most recent handoff briefing addressed to `agent`, or None.
 
@@ -57,6 +58,7 @@ def load_briefing_from_previous_handoff(
     """
     if signal_ledger is None:
         from core.signals.agent_signal_ledger import AgentSignalLedger
+
         signal_ledger = AgentSignalLedger()
 
     latest = None

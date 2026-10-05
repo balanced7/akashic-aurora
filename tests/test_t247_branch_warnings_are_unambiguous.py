@@ -28,6 +28,7 @@ branches to avoid repeating the same meta N times in the payload. That reasoning
 `context` -- a whole nested dict -- and not to `warnings`, which is a short string. I applied a
 real constraint to the field it did not govern.
 """
+
 import pytest
 
 from core.comm import ask as ask_mod
@@ -89,8 +90,7 @@ def big_and_small(tmp_path, monkeypatch):
 def test_a_shared_pack_branch_is_told_its_evidence_was_clipped(big_and_small):
     """The defect. Silence must not mean 'fine' for one branch and 'unknown' for another."""
     root, big, _small = big_and_small
-    out = ask_mod.ask_many(["q1", "q2"], with_files=[str(big)],
-                           context_root=str(root), client=FakeClient())
+    out = ask_mod.ask_many(["q1", "q2"], with_files=[str(big)], context_root=str(root), client=FakeClient())
     branches = (out.detail or {})["branches"]
 
     assert (out.detail or {}).get("warnings"), "fixture is wrong -- nothing was clipped"
@@ -98,7 +98,8 @@ def test_a_shared_pack_branch_is_told_its_evidence_was_clipped(big_and_small):
         assert b.get("warnings"), (
             f"branch {b['i']} rode a CLIPPED fan-wide pack and carries no warning. A caller "
             "iterating branches reads that silence as safety -- which is the exact failure "
-            "that cost two runs on 2026-08-08.")
+            "that cost two runs on 2026-08-08."
+        )
 
 
 def test_a_clean_branch_in_a_damaged_fan_stays_clean(big_and_small):
@@ -108,14 +109,16 @@ def test_a_clean_branch_in_a_damaged_fan_stays_clean(big_and_small):
     back to distrusting the whole run -- which T244 shipped to end.
     """
     root, big, small = big_and_small
-    out = ask_mod.ask_many([{"prompt": "clean", "files": [str(small)]},
-                            {"prompt": "damaged", "files": [str(big)]}],
-                           context_root=str(root), client=FakeClient())
+    out = ask_mod.ask_many(
+        [{"prompt": "clean", "files": [str(small)]}, {"prompt": "damaged", "files": [str(big)]}],
+        context_root=str(root),
+        client=FakeClient(),
+    )
     by_prompt = {b["prompt"][:5]: b for b in (out.detail or {})["branches"]}
 
-    assert not (by_prompt["clean"].get("warnings") or []), (
-        f"a branch with its own clean evidence inherited another's damage: "
-        f"{by_prompt['clean'].get('warnings')!r}")
+    assert not by_prompt["clean"].get("warnings"), (
+        f"a branch with its own clean evidence inherited another's damage: {by_prompt['clean'].get('warnings')!r}"
+    )
     assert by_prompt["damag"].get("warnings"), "the damaged branch must still be named"
 
 
@@ -124,14 +127,18 @@ def test_every_branch_names_where_its_evidence_came_from(big_and_small):
 
     'no warnings' is only interpretable next to 'and here is what I was given'.
     """
-    root, big, small = big_and_small
-    out = ask_mod.ask_many([{"prompt": "own", "files": [str(small)]}, "shared"],
-                           with_files=[str(small)],
-                           context_root=str(root), client=FakeClient())
+    root, _big, small = big_and_small
+    out = ask_mod.ask_many(
+        [{"prompt": "own", "files": [str(small)]}, "shared"],
+        with_files=[str(small)],
+        context_root=str(root),
+        client=FakeClient(),
+    )
 
     for b in (out.detail or {})["branches"]:
         assert b.get("evidence") in ("own", "fan", "none"), (
-            f"branch {b['i']} does not say where its evidence came from: {b.get('evidence')!r}")
+            f"branch {b['i']} does not say where its evidence came from: {b.get('evidence')!r}"
+        )
 
 
 def test_a_fan_with_no_evidence_at_all_says_so(big_and_small):
@@ -140,4 +147,4 @@ def test_a_fan_with_no_evidence_at_all_says_so(big_and_small):
     out = ask_mod.ask_many(["q"], context_root=str(root), client=FakeClient())
     b = (out.detail or {})["branches"][0]
     assert b.get("evidence") == "none", f"expected 'none', got {b.get('evidence')!r}"
-    assert not (b.get("warnings") or []), "no evidence requested is not a warning"
+    assert not b.get("warnings"), "no evidence requested is not a warning"

@@ -32,12 +32,11 @@ finding that it routes to no moment. If a later slice wants frequency to fire an
 a new dimension with its own gate, not an extension of this one.
 """
 
+import ast
 import importlib
 import inspect
-import ast
 
 import pytest
-
 
 MODULE = "core.recall.dimensions.recurrence"
 
@@ -58,12 +57,13 @@ def _resolve(name):
 
 def _ev(sig, at, *, tool="run", args=(), flags=(), ok=True):
     """One observed action. `at` is a caller-supplied integer tick -- never a clock read."""
-    return dict(signature=sig, at=at, tool=tool, args=tuple(args), flags=tuple(flags), ok=ok)
+    return {"signature": sig, "at": at, "tool": tool, "args": tuple(args), "flags": tuple(flags), "ok": ok}
 
 
 # ---------------------------------------------------------------------------
 # Pin 1 -- counting actually counts. A constant-returning stub must fail.
 # ---------------------------------------------------------------------------
+
 
 def test_p1_distinct_recurrence_counts_are_distinguishable():
     count = _resolve("recurrence_counts")
@@ -78,6 +78,7 @@ def test_p1_distinct_recurrence_counts_are_distinguishable():
 # ---------------------------------------------------------------------------
 # Pin 2 -- the window is bounded, explicit, and RIDES THE RESULT.
 # ---------------------------------------------------------------------------
+
 
 def test_p2_window_bounds_the_count_and_is_reported():
     count = _resolve("recurrence_counts")
@@ -97,6 +98,7 @@ def test_p2_window_bounds_the_count_and_is_reported():
 # Pin 3 -- no naked counters. A count without its denominator is refused.
 # ---------------------------------------------------------------------------
 
+
 def test_p3_every_emission_carries_its_denominator():
     observe = _resolve("observe")
     stream = [_ev("A", 1), _ev("A", 2), _ev("A", 3), _ev("B", 4), _ev("C", 5)]
@@ -105,8 +107,10 @@ def test_p3_every_emission_carries_its_denominator():
     assert report["signatures_observed"] == 3, report
     assert report["events_observed"] == 5, report
     for row in report["rows"]:
-        assert "count" in row and "signatures_observed" in row, (
-            f"a count rendered without the population it was drawn from is a naked counter: {row}")
+        assert "count" in row, f"a count rendered without the population it was drawn from is a naked counter: {row}"
+        assert "signatures_observed" in row, (
+            f"a count rendered without the population it was drawn from is a naked counter: {row}"
+        )
         assert row["signatures_observed"] == 3, row
 
 
@@ -114,27 +118,36 @@ def test_p3_every_emission_carries_its_denominator():
 # Pin 4 -- SILENCE IS A ROW. Below-threshold is reported, not absent.
 # ---------------------------------------------------------------------------
 
+
 def test_p4_below_threshold_signatures_are_explicit_rows_not_absence():
     observe = _resolve("observe")
     stream = [_ev("A", 1), _ev("A", 2), _ev("A", 3), _ev("B", 4), _ev("B", 5)]
     report = observe(stream, window=100, now=6, threshold=3)
 
     by_sig = {r["signature"]: r for r in report["rows"]}
-    assert "A" in by_sig and "B" in by_sig, (
+    assert "A" in by_sig, (
         "a signature observed below threshold must still produce a ROW -- dropping it makes "
         "'not enough evidence' indistinguishable from 'never seen', which is the exact failure "
-        "this house keeps paying for")
+        "this house keeps paying for"
+    )
+    assert "B" in by_sig, (
+        "a signature observed below threshold must still produce a ROW -- dropping it makes "
+        "'not enough evidence' indistinguishable from 'never seen', which is the exact failure "
+        "this house keeps paying for"
+    )
     assert by_sig["A"]["crossed"] is True, by_sig["A"]
     assert by_sig["B"]["crossed"] is False, by_sig["B"]
     assert by_sig["B"]["count"] == 2, by_sig["B"]
     # the negative: a stub that returns only crossed rows fails
     assert any(r["crossed"] is False for r in report["rows"]), (
-        "at least one below-threshold row must survive into the report")
+        "at least one below-threshold row must survive into the report"
+    )
 
 
 # ---------------------------------------------------------------------------
 # Pin 5 -- the SITE DEFINITION is a parameter. This is the whole design.
 # ---------------------------------------------------------------------------
+
 
 def test_p5_site_definition_is_variable_not_hardcoded():
     """Daniil's load-bearing move: the site is not given to us, so it must be a variable.
@@ -157,23 +170,26 @@ def test_p5_site_definition_is_variable_not_hardcoded():
     fine = observe(stream, window=100, now=4, threshold=3, site=site_tool_flags)
 
     assert coarse["signatures_observed"] == 1, (
-        f"under a tool-only site definition all three are one site -- got {coarse}")
-    assert fine["signatures_observed"] == 2, (
-        f"under a tool+flags definition --no-verify is its own site -- got {fine}")
+        f"under a tool-only site definition all three are one site -- got {coarse}"
+    )
+    assert fine["signatures_observed"] == 2, f"under a tool+flags definition --no-verify is its own site -- got {fine}"
 
     coarse_row = coarse["rows"][0]
-    assert coarse_row["count"] == 3 and coarse_row["crossed"] is True, coarse_row
+    assert coarse_row["count"] == 3, coarse_row
+    assert coarse_row["crossed"] is True, coarse_row
     assert all(r["crossed"] is False for r in fine["rows"]), (
-        "splitting the site must split the evidence -- neither fine site reaches 3")
+        "splitting the site must split the evidence -- neither fine site reaches 3"
+    )
 
 
 # ---------------------------------------------------------------------------
 # Pin 6 -- threshold is a parameter, not the literal 3 from the example.
 # ---------------------------------------------------------------------------
 
+
 def test_p6_threshold_is_not_hardcoded_to_the_example_value():
     observe = _resolve("observe")
-    stream = [_ev("A", i) for i in range(1, 6)]      # five occurrences
+    stream = [_ev("A", i) for i in range(1, 6)]  # five occurrences
     for t, expect in ((2, True), (5, True), (6, False)):
         report = observe(stream, window=100, now=6, threshold=t)
         row = report["rows"][0]
@@ -184,6 +200,7 @@ def test_p6_threshold_is_not_hardcoded_to_the_example_value():
 # ---------------------------------------------------------------------------
 # Pin 7 -- MARGINAL contribution is expressible, per the TAGE usefulness rule.
 # ---------------------------------------------------------------------------
+
 
 def test_p7_refuses_to_adjudicate_marginal_value_and_reports_containment_instead():
     """THIS PIN IS AN INVERSION, and the history matters more than the assertion.
@@ -216,20 +233,21 @@ def test_p7_refuses_to_adjudicate_marginal_value_and_reports_containment_instead
     site_tool = _resolve("SITE_TOOL")
     site_tool_flags = _resolve("SITE_TOOL_FLAGS")
 
-    mixed = ([_ev("x", i, tool="commit", flags=("--no-verify",)) for i in range(1, 4)]
-             + [_ev("x", i, tool="commit", flags=()) for i in range(4, 30)])
+    mixed = [_ev("x", i, tool="commit", flags=("--no-verify",)) for i in range(1, 4)] + [
+        _ev("x", i, tool="commit", flags=()) for i in range(4, 30)
+    ]
     rel = contains(mixed, fine=site_tool_flags, coarse=site_tool, window=100, now=30)
 
     # the observable, monotone fact -- and a stub returning constants fails both halves
     assert rel["coarse_count"] == 29, rel
     assert sorted(rel["fine_counts"]) == [3, 26], rel
     assert rel["monotone"] is True, "fine counts must never exceed the coarse count"
-    assert sum(rel["fine_counts"]) == rel["coarse_count"], (
-        "a partition must account for every observed event")
+    assert sum(rel["fine_counts"]) == rel["coarse_count"], "a partition must account for every observed event"
 
     # the refusal, stated as a value rather than an omission
     assert rel["marginal_value"] == "UNOBTAINABLE_FROM_COUNTS", (
-        f"the module must REFUSE the verdict it cannot ground, loudly and by name: {rel}")
+        f"the module must REFUSE the verdict it cannot ground, loudly and by name: {rel}"
+    )
     assert rel["reason"], "the refusal must state its ground"
 
 
@@ -237,16 +255,24 @@ def test_p7b_module_exposes_no_usefulness_or_promotion_surface():
     """The prohibition, structural rather than behavioural: there must be no function here that
     a later slice can quietly call to get the verdict pin 7 just refused."""
     mod = _mod()
-    forbidden = {"marginal_over", "fine_added", "usefulness", "usefulness_factor",
-                 "promote", "promotion", "is_useful", "value_of"}
+    forbidden = {
+        "marginal_over",
+        "fine_added",
+        "usefulness",
+        "usefulness_factor",
+        "promote",
+        "promotion",
+        "is_useful",
+        "value_of",
+    }
     present = sorted(n for n in dir(mod) if n in forbidden)
-    assert not present, (
-        f"these names offer a verdict this dimension cannot ground from counts: {present}")
+    assert not present, f"these names offer a verdict this dimension cannot ground from counts: {present}"
 
 
 # ---------------------------------------------------------------------------
 # Pin 8 -- deterministic. No clock, no randomness, replayable.
 # ---------------------------------------------------------------------------
+
 
 def test_p8_no_wallclock_or_randomness_in_module_source():
     mod = _mod()
@@ -256,14 +282,15 @@ def test_p8_no_wallclock_or_randomness_in_module_source():
         if isinstance(node, ast.Import):
             for a in node.names:
                 assert a.name.split(".")[0] not in forbidden_mods, (
-                    f"{a.name} makes replay non-deterministic; `now` is a caller-supplied tick")
+                    f"{a.name} makes replay non-deterministic; `now` is a caller-supplied tick"
+                )
         elif isinstance(node, ast.ImportFrom):
             root = (node.module or "").split(".")[0]
             assert root not in forbidden_mods, f"from {node.module} breaks replay determinism"
         elif isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name):
             assert not (node.value.id == "time" and node.attr in {"time", "time_ns", "monotonic"}), (
-                "reading the clock inside the dimension makes the same stream score differently "
-                "on replay")
+                "reading the clock inside the dimension makes the same stream score differently on replay"
+            )
 
 
 def test_p8b_same_stream_scores_identically_twice():
@@ -278,6 +305,7 @@ def test_p8b_same_stream_scores_identically_twice():
 # Pin 9 -- the dimension CANNOT REACH a canonical writer. Structural, not behavioural.
 # ---------------------------------------------------------------------------
 
+
 def test_p9_module_imports_cannot_reach_a_canonical_writer():
     """Same property that made T370 Slice 0 acceptable, and it is stronger than a behaviour
     test: the module must be UNABLE to write, not merely observed not writing."""
@@ -288,25 +316,27 @@ def test_p9_module_imports_cannot_reach_a_canonical_writer():
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             seen += [a.name.split(".")[0] for a in node.names]
-        elif isinstance(node, ast.ImportFrom):
-            if node.level == 0 and node.module:
-                seen.append(node.module.split(".")[0])
+        elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
+            seen.append(node.module.split(".")[0])
     offenders = [s for s in seen if s not in allowed_roots]
     assert not offenders, (
         f"the recurrence dimension must be a pure function over a supplied stream; these imports "
-        f"give it reach it must not have: {offenders}")
+        f"give it reach it must not have: {offenders}"
+    )
 
 
 # ---------------------------------------------------------------------------
 # Pin 10 -- an empty stream is UNEVALUATED, never a healthy zero.
 # ---------------------------------------------------------------------------
 
+
 def test_p10_empty_stream_is_unevaluated_not_a_clean_report():
     observe = _resolve("observe")
     report = observe([], window=100, now=1, threshold=3)
     assert report["state"] == "UNEVALUATED", (
         f"no data must read as UNEVALUATED, not as a clean zero -- a blind dimension that renders "
-        f"as a healthy one is how an absence gets read as normal: {report}")
+        f"as a healthy one is how an absence gets read as normal: {report}"
+    )
     assert report["rows"] == [], report
 
     live = observe([_ev("A", 1)], window=100, now=2, threshold=3)
@@ -324,8 +354,16 @@ def test_p10_empty_stream_is_unevaluated_not_a_clean_report():
 
 
 def _ev2(sig, at, *, subject="claude", episode="ep-1", tool="run", flags=()):
-    return dict(signature=sig, at=at, subject=subject, episode=episode,
-                tool=tool, args=(), flags=tuple(flags), ok=True)
+    return {
+        "signature": sig,
+        "at": at,
+        "subject": subject,
+        "episode": episode,
+        "tool": tool,
+        "args": (),
+        "flags": tuple(flags),
+        "ok": True,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -334,17 +372,16 @@ def _ev2(sig, at, *, subject="claude", episode="ep-1", tool="run", flags=()):
 # readable as a fact about seat X.
 # ---------------------------------------------------------------------------
 
+
 def test_p11_counts_do_not_cross_subjects():
     observe = _resolve("observe")
-    stream = [_ev2("A", 1, subject="claude"), _ev2("A", 2, subject="claude"),
-              _ev2("A", 3, subject="kimi")]
+    stream = [_ev2("A", 1, subject="claude"), _ev2("A", 2, subject="claude"), _ev2("A", 3, subject="kimi")]
 
     mine = observe(stream, window=100, now=4, threshold=3, subject="claude")
-    assert mine["rows"][0]["count"] == 2, (
-        f"three occurrences across two seats must NOT sum into one seat count: {mine}")
+    assert mine["rows"][0]["count"] == 2, f"three occurrences across two seats must NOT sum into one seat count: {mine}"
     assert mine["rows"][0]["crossed"] is False, (
-        "borrowing another seat occurrences to cross a threshold is the exact failure the "
-        "subject law exists to prevent")
+        "borrowing another seat occurrences to cross a threshold is the exact failure the subject law exists to prevent"
+    )
 
     for row in mine["rows"]:
         assert row["subject"] == "claude", f"every row must name its subject: {row}"
@@ -354,7 +391,8 @@ def test_p11_counts_do_not_cross_subjects():
     assert blind["rows"][0]["count"] == 3, blind
     assert blind["state"] == "SUBJECT_UNSCOPED", (
         "an unscoped read is legal for diagnostics but must SAY SO by name, so a cross-subject "
-        "number can never be mistaken for the seat own count")
+        "number can never be mistaken for the seat own count"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -366,41 +404,47 @@ def test_p11_counts_do_not_cross_subjects():
 # which makes the disagreement decidable instead of rhetorical.
 # ---------------------------------------------------------------------------
 
+
 def test_p12_recurrence_resets_at_episode_boundary_frequency_does_not():
     observe = _resolve("observe")
 
     # THE SAME three occurrences, arranged two ways
     one_episode = [_ev2("A", i, episode="ep-1") for i in (1, 2, 3)]
-    three_episodes = [_ev2("A", 1, episode="ep-1"),
-                      _ev2("A", 2, episode="ep-2"),
-                      _ev2("A", 3, episode="ep-3")]
+    three_episodes = [_ev2("A", 1, episode="ep-1"), _ev2("A", 2, episode="ep-2"), _ev2("A", 3, episode="ep-3")]
 
     a = observe(one_episode, window=100, now=4, threshold=3)
     b = observe(three_episodes, window=100, now=4, threshold=3)
     ra, rb = a["rows"][0], b["rows"][0]
 
     # RECURRENCE is a position within one run progress -- it RESETS
-    assert ra["count"] == 3 and ra["crossed"] is True, ra
+    assert ra["count"] == 3, ra
+    assert ra["crossed"] is True, ra
     assert rb["count"] == 1, (
         f"recurrence must reset at the episode boundary -- the third loop of this toolcall is a "
-        f"position in THIS run, not a lifetime tally: {rb}")
+        f"position in THIS run, not a lifetime tally: {rb}"
+    )
     assert rb["crossed"] is False, rb
 
     # FREQUENCY is a rate ACROSS runs -- it does not reset
-    assert ra["frequency"] == 3 and rb["frequency"] == 3, (
-        f"frequency must be identical for both arrangements -- it counts occurrences, not "
-        f"positions: {ra} vs {rb}")
+    assert ra["frequency"] == 3, (
+        f"frequency must be identical for both arrangements -- it counts occurrences, not positions: {ra} vs {rb}"
+    )
+    assert rb["frequency"] == 3, (
+        f"frequency must be identical for both arrangements -- it counts occurrences, not positions: {ra} vs {rb}"
+    )
 
     # the discriminating assertion: a stub computing one number for both fails
     assert rb["count"] != rb["frequency"], (
         "recurrence and frequency must be SEPARATELY COMPUTED, not aliases -- if they cannot "
-        "disagree on this fixture they are one dimension wearing two names")
+        "disagree on this fixture they are one dimension wearing two names"
+    )
 
     # and frequency must declare that it is not a firing signal
     assert b["frequency_is_advisory"] is True, (
         "frequency answers whether something is chronically recurring, which is a RETIREMENT "
         "question, not a fire-now question; the module must say so rather than let a caller "
-        "assume symmetry with recurrence")
+        "assume symmetry with recurrence"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -410,6 +454,7 @@ def test_p12_recurrence_resets_at_episode_boundary_frequency_does_not():
 # and the second returns the first envelope. Nothing here may be identified by
 # the words champion/challenger alone.
 # ---------------------------------------------------------------------------
+
 
 def test_p13_every_result_carries_its_arm_contract_hash():
     observe = _resolve("observe")
@@ -421,10 +466,12 @@ def test_p13_every_result_carries_its_arm_contract_hash():
     coarse = observe(stream, window=100, now=4, threshold=3, site=site_tool)
     fine = observe(stream, window=100, now=4, threshold=3, site=site_tool_flags)
 
-    assert coarse["arm_hash"] and fine["arm_hash"], "every result must carry an arm hash"
+    assert coarse["arm_hash"], "every result must carry an arm hash"
+    assert fine["arm_hash"], "every result must carry an arm hash"
     assert coarse["arm_hash"] != fine["arm_hash"], (
         "two runs differing ONLY in site definition MUST NOT share an arm hash -- this is the "
-        "collision Sunshine found in the shelf evaluation_id, reproduced one layer down")
+        "collision Sunshine found in the shelf evaluation_id, reproduced one layer down"
+    )
 
     # configuration is part of identity, not decoration
     w5 = observe(stream, window=5, now=4, threshold=3, site=site_tool)
@@ -435,7 +482,8 @@ def test_p13_every_result_carries_its_arm_contract_hash():
     # and the hash must be a pure function of the declared contract, not the data
     assert arm_hash(site=site_tool, window=100, threshold=3) == coarse["arm_hash"], (
         "the arm hash must be derivable from the contract ALONE, so a judgment can target a "
-        "persisted arm identity without replaying the stream")
+        "persisted arm identity without replaying the stream"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -445,16 +493,18 @@ def test_p13_every_result_carries_its_arm_contract_hash():
 # returning an unbounded row set spends every other dimension budget.
 # ---------------------------------------------------------------------------
 
+
 def test_p14_row_output_is_bounded_and_truncation_is_declared():
     observe = _resolve("observe")
-    stream = [_ev2(f"sig-{i}", i) for i in range(1, 51)]     # 50 distinct signatures
+    stream = [_ev2(f"sig-{i}", i) for i in range(1, 51)]  # 50 distinct signatures
 
     got = observe(stream, window=100, now=51, threshold=1, max_rows=10)
     assert len(got["rows"]) == 10, f"max_rows must actually bound the output: {len(got)}"
     assert got["truncated"] is True, got
     assert got["signatures_observed"] == 50, (
         "the DENOMINATOR must survive truncation -- reporting 10 rows without saying 10 of 50 is "
-        "how a bounded view gets read as a complete one")
+        "how a bounded view gets read as a complete one"
+    )
     assert got["rows_omitted"] == 40, got
 
     small = observe(stream[:5], window=100, now=6, threshold=1, max_rows=10)

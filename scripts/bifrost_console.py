@@ -16,6 +16,7 @@ In the input line:
 
 No Windows notifications, no sounds -- just the visible transcript.
 """
+
 import argparse
 import os
 import sys
@@ -25,15 +26,17 @@ from datetime import datetime
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.comm.bus import Bus, NS, _loads
+import contextlib
+
+from core.comm.bus import NS, Bus, _loads
 
 # ---- look: per-agent colors (Akashic Aurora palette) ---------------------------------------
 _FIXED = {
-    "claude": "#d97757",   # clay
-    "cursor": "#6cb6ff",   # blue
-    "human":  "#7ee787",   # green
-    "gemini": "#c29fff",   # violet
-    "system": "#8b949e",   # gray
+    "claude": "#d97757",  # clay
+    "cursor": "#6cb6ff",  # blue
+    "human": "#7ee787",  # green
+    "gemini": "#c29fff",  # violet
+    "system": "#8b949e",  # gray
 }
 _PALETTE = ["#e3b341", "#56d4bc", "#ff9bce", "#a5d6ff", "#d2a8ff", "#f0883e"]
 
@@ -56,16 +59,14 @@ def parse_input(text: str):
     if t.startswith("@"):
         head, _, body = t[1:].partition(" ")
         return {"action": "send", "to": head, "kind": "chat", "body": body.strip()}
-    return {"action": "send", "to": "*", "kind": "chat", "body": t}   # default: broadcast
+    return {"action": "send", "to": "*", "kind": "chat", "body": t}  # default: broadcast
 
 
 def format_message(frm, to, kind, content, ts):
     """A message -> prompt_toolkit FormattedText (list of (style, text)). Pure (testable)."""
     when = ""
-    try:
+    with contextlib.suppress(ValueError, TypeError):
         when = datetime.fromisoformat(str(ts)).strftime("%H:%M")
-    except (ValueError, TypeError):
-        pass
     arrow = "all" if to in ("*", "") else to
     body = content if isinstance(content, str) else str(content)
     head_style = f"fg:{color_for(frm)} bold"
@@ -81,21 +82,22 @@ def format_message(frm, to, kind, content, ts):
 def _streams(client):
     keys = []
     try:
-        keys = [k for k in client.keys(f"{NS}:inbox:*")]
+        keys = list(client.keys(f"{NS}:inbox:*"))
     except Exception:
         keys = []
-    return keys + [f"{NS}:broadcast"]
+    return [*keys, f"{NS}:broadcast"]
 
 
 def _render(pft):
     from prompt_toolkit import print_formatted_text
     from prompt_toolkit.formatted_text import FormattedText
+
     print_formatted_text(FormattedText(pft))
 
 
 def _reader(client, my_id, stop):
     """Monitor every inbox + broadcast stream and render new messages (skip our own echo)."""
-    last = {s: "$" for s in _streams(client)}   # live-only: from when the console opened
+    last = dict.fromkeys(_streams(client), "$")  # live-only: from when the console opened
     while not stop.is_set():
         streams = _streams(client)
         for s in streams:
@@ -110,9 +112,16 @@ def _reader(client, my_id, stop):
                 last[stream] = sid
                 frm = fields.get("frm", "")
                 if frm == my_id:
-                    continue                     # we already echoed our own line on send
-                _render(format_message(frm, fields.get("to", ""), fields.get("kind", ""),
-                                       _loads(fields.get("content")), fields.get("ts", "")))
+                    continue  # we already echoed our own line on send
+                _render(
+                    format_message(
+                        frm,
+                        fields.get("to", ""),
+                        fields.get("kind", ""),
+                        _loads(fields.get("content")),
+                        fields.get("ts", ""),
+                    )
+                )
 
 
 def _heartbeat(bus, stop):
@@ -124,14 +133,18 @@ def _heartbeat(bus, stop):
 def _banner(bus):
     from rich.console import Console
     from rich.panel import Panel
+
     c = Console()
     online = ", ".join(p["agent"] for p in bus.presence()) or "(nobody yet)"
-    c.print(Panel.fit(
-        "[bold #d97757]Bifrost Console[/]  ·  Akashic Aurora\n"
-        "[#8b949e]watch the agents talk; type to join. "
-        "[/][#7ee787]@agent[/][#8b949e] = direct, plain = broadcast, /who /help /quit[/]\n"
-        f"[#8b949e]online:[/] {online}",
-        border_style="#6cb6ff"))
+    c.print(
+        Panel.fit(
+            "[bold #d97757]Bifrost Console[/]  ·  Akashic Aurora\n"
+            "[#8b949e]watch the agents talk; type to join. "
+            "[/][#7ee787]@agent[/][#8b949e] = direct, plain = broadcast, /who /help /quit[/]\n"
+            f"[#8b949e]online:[/] {online}",
+            border_style="#6cb6ff",
+        )
+    )
 
 
 def main():
@@ -145,8 +158,11 @@ def main():
         print("Bifrost bus is OFFLINE (Redis unreachable). Start Redis and retry.")
         return 1
     bus.register()
-    reader_client = bus._client.__class__(connection_pool=bus._client.connection_pool) \
-        if hasattr(bus._client, "connection_pool") else bus._client
+    reader_client = (
+        bus._client.__class__(connection_pool=bus._client.connection_pool)
+        if hasattr(bus._client, "connection_pool")
+        else bus._client
+    )
 
     _banner(bus)
 
@@ -172,11 +188,15 @@ def main():
                 if cmd in ("quit", "q", "exit"):
                     break
                 if cmd == "who":
-                    print_formatted_text(FormattedText([("fg:#8b949e",
-                        "online: " + (", ".join(p["agent"] for p in bus.presence()) or "(nobody)"))]))
+                    print_formatted_text(
+                        FormattedText(
+                            [("fg:#8b949e", "online: " + (", ".join(p["agent"] for p in bus.presence()) or "(nobody)"))]
+                        )
+                    )
                 elif cmd == "help":
-                    print_formatted_text(FormattedText([("fg:#8b949e",
-                        "plain text = broadcast · @agent text = direct · /who · /quit")]))
+                    print_formatted_text(
+                        FormattedText([("fg:#8b949e", "plain text = broadcast · @agent text = direct · /who · /quit")])
+                    )
                 else:
                     print_formatted_text(FormattedText([("fg:#f0883e", f"unknown command /{cmd}")]))
                 continue

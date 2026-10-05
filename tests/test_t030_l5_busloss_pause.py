@@ -21,6 +21,7 @@ the kill-Redis drill runs against the sandbox instance with deepseek [verify].
 
 Run: py -m pytest tests/test_t030_l5_busloss_pause.py -q
 """
+
 import os
 import sys
 import time
@@ -32,17 +33,18 @@ _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 try:
     from core.comm import control, liveness
+
     _BUILT = hasattr(liveness, "BusLossGuard") and hasattr(control, "format_pause_line")
 except ImportError:
     control = liveness = None
     _BUILT = False
 
-pytestmark = pytest.mark.skipif(
-    not _BUILT, reason="L5 pins pre-registered; impl pending (assertions frozen)")
+pytestmark = pytest.mark.skipif(not _BUILT, reason="L5 pins pre-registered; impl pending (assertions frozen)")
 
 
 def _online() -> bool:
     try:
+        assert control is not None
         return control._client() is not None
     except Exception:
         return False
@@ -50,7 +52,9 @@ def _online() -> bool:
 
 # --- P1: a ttl'd pause self-heals; a plain pause persists (patched key, never live) ---
 
+
 def test_ttl_pause_self_heals(monkeypatch):
+    assert control is not None
     if not _online():
         pytest.skip("live-Redis pin; bus offline")
     # Repaired 2026-07-15: PAUSE_KEY became per-call _pause_key() in the 07-12
@@ -66,25 +70,39 @@ def test_ttl_pause_self_heals(monkeypatch):
         time.sleep(1.3)
         assert control.is_paused(), "ttl-less pause persists (human intent)"
     finally:
-        control._client().delete("rb30pin:control:paused")
+        client = control._client()
+        assert client is not None
+        client.delete("rb30pin:control:paused")
 
 
 # --- P2: the pause render line is pure, loud, and teaching ---
 
+
 def test_pause_line_pure_render():
+    assert control is not None
     assert control.format_pause_line({"paused": False, "online": True}) == ""
     line = control.format_pause_line(
-        {"paused": True, "online": True, "by": "deepseek",
-         "reason": "deepseek hit reply rate limit", "ts": "2026-07-11T10:00:00"},
-        now=time.mktime(time.strptime("2026-07-11T10:30:00", "%Y-%m-%dT%H:%M:%S")))
-    assert "PAUSED" in line and "deepseek" in line and "rate limit" in line
+        {
+            "paused": True,
+            "online": True,
+            "by": "deepseek",
+            "reason": "deepseek hit reply rate limit",
+            "ts": "2026-07-11T10:00:00",
+        },
+        now=time.mktime(time.strptime("2026-07-11T10:30:00", "%Y-%m-%dT%H:%M:%S")),
+    )
+    assert "PAUSED" in line
+    assert "deepseek" in line
+    assert "rate limit" in line
     assert "30m" in line, "age computed at render (clock-free store)"
     assert "bifrost-resume" in line, "the line TEACHES the resume verb"
 
 
 # --- P3: BusLossGuard -- degrade with capped growing backoff, stand down at max, reset ---
 
+
 def test_bus_loss_guard_sequence():
+    assert liveness is not None
     g = liveness.BusLossGuard(max_dead=10)
     assert g.beat(True) == "ok"
     backoffs = []
@@ -93,29 +111,35 @@ def test_bus_loss_guard_sequence():
         backoffs.append(g.backoff_s)
     assert g.beat(False) == "stand_down", "the 10th consecutive dead beat exits cleanly"
     assert backoffs == sorted(backoffs), "backoff never shrinks while dead"
-    assert backoffs[0] >= 1 and backoffs[-1] <= 30, "bounded: no busy-spin, no coma"
+    assert backoffs[0] >= 1, "bounded: no busy-spin, no coma"
+    assert backoffs[-1] <= 30, "bounded: no busy-spin, no coma"
     g2 = liveness.BusLossGuard(max_dead=10)
     for _ in range(5):
         g2.beat(False)
-    assert g2.beat(True) == "ok" and g2.dead_beats == 0, "one live beat resets fully"
+    assert g2.beat(True) == "ok", "one live beat resets fully"
+    assert g2.dead_beats == 0, "one live beat resets fully"
 
 
 # --- P4: the doors render the pause line (built != wired) ---
 
+
 def test_pause_line_wired_to_render_paths():
-    pull = open(os.path.join(_ROOT, "agent", "bifrost_pull.py"), encoding="utf-8").read()
-    doctor = open(os.path.join(_ROOT, "core", "comm", "doctor.py"), encoding="utf-8").read()
+    with open(os.path.join(_ROOT, "agent", "bifrost_pull.py"), encoding="utf-8") as fh:
+        pull = fh.read()
+    with open(os.path.join(_ROOT, "core", "comm", "doctor.py"), encoding="utf-8") as fh:
+        doctor = fh.read()
     assert "format_pause_line" in pull, "boot/bifrost-sync surface a leftover freeze"
     assert "format_pause_line" in doctor, "fleet doctor surfaces a leftover freeze"
 
 
 # --- P5: the runner wires both halves (ttl'd auto-pause + the guard) ---
 
+
 def test_runner_wired():
-    src = open(os.path.join(_ROOT, "scripts", "bifrost_runner_deepseek.py"),
-               encoding="utf-8").read()
+    with open(os.path.join(_ROOT, "scripts", "bifrost_runner_deepseek.py"), encoding="utf-8") as fh:
+        src = fh.read()
     assert "BusLossGuard" in src, "the runner loop runs the dead-beat guard"
     lines = src.splitlines()
-    idx = next(i for i, l in enumerate(lines) if "hit reply rate limit" in l)
-    stmt = " ".join(lines[max(0, idx - 1): idx + 2])
+    idx = next(i for i, ln in enumerate(lines) if "hit reply rate limit" in ln)
+    stmt = " ".join(lines[max(0, idx - 1) : idx + 2])
     assert "ttl=" in stmt, "the rate-limit auto-pause carries a ttl (self-healing backstop)"

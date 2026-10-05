@@ -44,6 +44,7 @@ capture door ships. It writes nothing to the live corpus and reads no credential
 
 Run: py -m pytest tests/test_eye_seat_capture.py -q
 """
+
 from __future__ import annotations
 
 import os
@@ -55,7 +56,7 @@ import pytest
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from core.eye import index as EYE  # noqa: E402
+from core.eye import index as EYE  # noqa: E402  # sys.path bootstrap
 
 # The seat-harness homes, in the same shape the eye's live root already uses
 # (Path.home()/".claude"/"projects"). One per seat that runs its own harness profile.
@@ -75,7 +76,8 @@ def test_corpus_definition_names_a_seat_root():
     assert any(tag in paths for tag in ("kimi-claude-home", "deepseek-claude-home")), (
         "no seat-harness root in the corpus manifest -- the eye cannot hear a seat because "
         "its own corpus definition never names the directory the seat writes to. Roots seen: "
-        + ", ".join(f"{lbl}={base}" for lbl, base, _f in roots))
+        + ", ".join(f"{lbl}={base}" for lbl, base, _f in roots)
+    )
 
 
 def test_seat_transcripts_exist_but_are_unreachable():
@@ -93,7 +95,8 @@ def test_seat_transcripts_exist_but_are_unreachable():
     assert not missing, (
         f"{len(missing)} kimi transcript(s) exist on disk but are unreachable by the corpus "
         f"definition (e.g. {sorted(missing)[0]}) -- the eye is blind to a seat that is already "
-        "writing sessions one directory over from the root it globs")
+        "writing sessions one directory over from the root it globs"
+    )
 
 
 # ---------------------------------------------------------------- provenance at ingest
@@ -113,17 +116,19 @@ def test_a_seat_record_reads_as_the_seat_not_the_operator():
         "timestamp": "2026-08-19T00:00:00Z",
     }
     try:
-        ev = EYE._event_from(rec, seat="kimi")  # noqa: CALL001 -- the door under test
+        ev = EYE._event_from(rec, seat="kimi")
     except TypeError:
         pytest.fail(
             "_event_from has no seat-provenance door -- a seat transcript ingested today is "
             "voice-classified by claude-shaped rules and its bus briefs read as OPERATOR speech "
             "(the measured a5afd360 contamination). Add a seat tag at ingest, stamped from the "
-            "source path like is_subagent.")
+            "source path like is_subagent."
+        )
     # When the door exists, it must not label the seat's prompt as the operator.
     assert ev is None or ev.get("voice") != "operator", (
         "a seat record resolved to voice='operator' -- the corpus would drown his axis in our "
-        "own prompts, the exact failure a5afd360 was built to stop")
+        "own prompts, the exact failure a5afd360 was built to stop"
+    )
 
 
 # ---------------------------------------------------------------- postal inertness

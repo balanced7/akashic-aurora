@@ -24,6 +24,7 @@ the fix that already landed would look like it covered them.
 
 Run: py -m pytest tests/test_t152_generic_runner_is_watchable_too.py -q
 """
+
 import os
 import re
 import sys
@@ -45,31 +46,39 @@ def _all_runners():
     T150's helper used `f.startswith("bifrost_runner_")`, which silently excludes
     `bifrost_runner.py`. This is the corrected enumeration and W4 exists to keep it honest.
     """
-    return sorted(f for f in os.listdir(RUNNER_DIR)
-                  if re.fullmatch(r"bifrost_runner(_[a-z0-9]+)?\.py", f))
+    return sorted(f for f in os.listdir(RUNNER_DIR) if re.fullmatch(r"bifrost_runner(_[a-z0-9]+)?\.py", f))
 
 
 def test_w1_generic_runner_is_line_buffered_and_utf8():
     m = re.search(r"sys\.stdout\.reconfigure\s*\(([^)]*)\)", _src(GENERIC))
-    assert m, (f"{GENERIC} never reconfigures stdout -- an orchestrator watching it sees nothing "
-               f"until it exits (the T150 defect, in the one runner T150's glob could not see)")
+    assert m, (
+        f"{GENERIC} never reconfigures stdout -- an orchestrator watching it sees nothing "
+        f"until it exits (the T150 defect, in the one runner T150's glob could not see)"
+    )
     args = m.group(1)
-    assert "line_buffering" in args and "True" in args, f"{GENERIC}: stdout not line-buffered: {args}"
-    assert "utf-8" in args and "replace" in args, f"{GENERIC}: stream encoding left to platform: {args}"
+    assert "line_buffering" in args, f"{GENERIC}: stdout not line-buffered: {args}"
+    assert "True" in args, f"{GENERIC}: stdout not line-buffered: {args}"
+    assert "utf-8" in args, f"{GENERIC}: stream encoding left to platform: {args}"
+    assert "replace" in args, f"{GENERIC}: stream encoding left to platform: {args}"
 
 
 def test_w2_generic_runner_reconfigures_stderr():
-    assert re.search(r"sys\.stderr\.reconfigure", _src(GENERIC)), \
+    assert re.search(r"sys\.stderr\.reconfigure", _src(GENERIC)), (
         f"{GENERIC}: stderr unconfigured -- bus _loud notices go there"
+    )
 
 
 def test_w3_generic_runner_guards_the_reconfigure():
     s = _src(GENERIC)
     m = re.search(r"sys\.stdout\.reconfigure", s)
     assert m, f"{GENERIC}: no stdout reconfigure to check"
-    window = s[max(0, m.start() - 400):m.start() + 400]
-    assert "try:" in window and "except" in window, \
+    window = s[max(0, m.start() - 400) : m.start() + 400]
+    assert "try:" in window, (
         f"{GENERIC}: unguarded reconfigure -- an unsupported stream would kill the runner at import"
+    )
+    assert "except" in window, (
+        f"{GENERIC}: unguarded reconfigure -- an unsupported stream would kill the runner at import"
+    )
 
 
 def test_w4_the_enumeration_covers_every_runner_including_the_bare_prefix():

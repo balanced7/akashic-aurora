@@ -15,6 +15,7 @@ These pins hold the four properties that keep this checker from becoming the sev
 prunes -- including the one the corpus warned about while it was being written: a meter whose
 inputs are fixtures proves the meter, never the measurement.
 """
+
 import ast
 import os
 import sys
@@ -25,7 +26,7 @@ os.environ.setdefault("AI_SETUP", tempfile.mkdtemp())
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-import scripts.checkers.check_organ_canaries as oc  # noqa: E402
+import scripts.checkers.check_organ_canaries as oc  # noqa: E402  # sys.path bootstrap
 
 
 def test_every_canary_declares_what_would_retire_it():
@@ -34,8 +35,8 @@ def test_every_canary_declares_what_would_retire_it():
     this checker from becoming another immortal entry -- so it is enforced, not documented."""
     for name, (fn, retire_when) in oc.CANARIES.items():
         assert callable(fn), f"{name} has no callable"
-        assert isinstance(retire_when, str) and len(retire_when.strip()) > 30, \
-            f"{name} has no real retirement condition: {retire_when!r}"
+        assert isinstance(retire_when, str), f"{name} has no real retirement condition: {retire_when!r}"
+        assert len(retire_when.strip()) > 30, f"{name} has no real retirement condition: {retire_when!r}"
         assert oc.self_test() == 0
 
 
@@ -51,17 +52,20 @@ def test_three_verdicts_not_a_boolean():
     that cannot say UNCHECKED will report a broken probe as a healthy organ."""
     assert len({oc.ALIVE, oc.DEAD, oc.UNCHECKED}) == 3
     src = Path(ROOT, "scripts", "checkers", "check_organ_canaries.py").read_text(encoding="utf-8")
-    assert "COULD-NOT-CHECK IS NOT A PASS" in src, \
+    assert "COULD-NOT-CHECK IS NOT A PASS" in src, (
         "the report must say out loud that an unrunnable canary is not a pass"
+    )
 
 
 def test_the_gate_fails_on_unchecked_not_only_on_dead(monkeypatch):
     """An unrunnable canary is an unwatched organ. If the gate only failed on DEAD, the cheapest
     way to go green would be to break the probe -- which is the shape of a guard that trains you
     to mutilate the instrument."""
-    monkeypatch.setattr(oc, "CANARIES",
-                        {"a probe that cannot run": (lambda: (oc.UNCHECKED, "no plane"),
-                                                     "retire when the plane it reads is removed")})
+    monkeypatch.setattr(
+        oc,
+        "CANARIES",
+        {"a probe that cannot run": (lambda: (oc.UNCHECKED, "no plane"), "retire when the plane it reads is removed")},
+    )
     assert oc.report(gate=True) == 1, "the gate passed with an unrunnable canary"
 
 
@@ -69,12 +73,13 @@ def test_a_raising_canary_is_unchecked_never_a_pass(monkeypatch):
     """A canary is a subprocess call against a live system; it WILL fail sometimes. It must
     degrade to 'could not check', never to silence and never to a crash that takes the gate with
     it."""
-    rc, out = oc.run("-c", "import sys; sys.exit(3)")
+    rc, _out = oc.run("-c", "import sys; sys.exit(3)")
     assert rc == 3, "run() must surface the real exit code"
-    rc2, out2 = oc.run("-c", "raise SystemExit(0)", timeout=60)
+    rc2, _out2 = oc.run("-c", "raise SystemExit(0)", timeout=60)
     assert rc2 == 0
     rc3, out3 = oc.run("nonexistent_file_that_cannot_be_run.py")
-    assert rc3 != 0 and out3, "a failed invocation must return a non-zero rc and say something"
+    assert rc3 != 0, "a failed invocation must return a non-zero rc and say something"
+    assert out3, "a failed invocation must return a non-zero rc and say something"
 
 
 def test_no_canary_supplies_its_own_input():
@@ -113,8 +118,9 @@ def test_every_canary_names_the_defect_it_was_born_from():
         if isinstance(node, ast.FunctionDef) and node.name.startswith("canary_"):
             doc = ast.get_docstring(node) or ""
             assert len(doc) > 120, f"{node.name} has no substantive docstring"
-            assert any(k in doc for k in ("Measured", "measured", "T41", "2026-")), \
+            assert any(k in doc for k in ("Measured", "measured", "T41", "2026-")), (
                 f"{node.name} does not cite the measurement or defect it was born from"
+            )
 
 
 def test_it_runs_against_the_live_system_and_reports_something():
@@ -127,7 +133,9 @@ def test_it_runs_against_the_live_system_and_reports_something():
 
 if __name__ == "__main__":
     import pytest
+
     raise SystemExit(pytest.main([__file__, "-q"]))
+
 
 def test_the_gate_ratchets_on_new_deaths_not_recorded_ones():
     """The gate must freeze the debt, not forgive it, and not paint itself red on day one.
@@ -149,33 +157,43 @@ def test_the_gate_ratchets_on_new_deaths_not_recorded_ones():
 
     bl = os.path.join(ROOT, "state", "ci", "organ_canary_baseline.json")
     assert os.path.exists(bl), "the ratchet has no baseline; the gate would fail on known debt"
-    keep = open(bl, encoding="utf-8").read()
+    with open(bl, encoding="utf-8") as fh:
+        keep = fh.read()
     recorded = (_json.loads(keep) or {}).get("dead") or {}
     assert recorded, "an empty baseline makes the gate stricter, not looser -- but records nothing"
     for name, reason in recorded.items():
         assert str(reason).strip(), f"{name} is recorded dead with no reason -- a silent zero"
 
     def _gate():
-        r = _sp.run([_sys.executable, "-X", "utf8",
-                     os.path.join(ROOT, "scripts", "checkers", "check_organ_canaries.py"),
-                     "--gate"], capture_output=True, text=True, cwd=ROOT)
+        r = _sp.run(
+            [
+                _sys.executable,
+                "-X",
+                "utf8",
+                os.path.join(ROOT, "scripts", "checkers", "check_organ_canaries.py"),
+                "--gate",
+            ],
+            capture_output=True,
+            text=True,
+            cwd=ROOT,
+        )
         return (r.stdout or "") + (r.stderr or "")
 
     with_all = _gate()
-    assert "NEWLY" not in with_all, (
-        "a death recorded in the baseline still reads as NEW debt: " + with_all[-500:])
+    assert "NEWLY" not in with_all, "a death recorded in the baseline still reads as NEW debt: " + with_all[-500:]
 
     victim = next(iter(recorded))
     try:
         d = _json.loads(keep)
         d["dead"].pop(victim)
-        open(bl, "w", encoding="utf-8", newline=chr(10)).write(_json.dumps(d, indent=2) + chr(10))
+        with open(bl, "w", encoding="utf-8", newline=chr(10)) as fh:
+            fh.write(_json.dumps(d, indent=2) + chr(10))
         without = _gate()
     finally:
-        open(bl, "w", encoding="utf-8", newline=chr(10)).write(keep)
+        with open(bl, "w", encoding="utf-8", newline=chr(10)) as fh:
+            fh.write(keep)
 
     assert "NEWLY" in without, (
-        "un-recording a dead organ did not raise NEW debt -- the ratchet is decorative: "
-        + without[-500:])
-    assert victim in without, (
-        "the gate must NAME the newly dead organ; an unattributed failure cannot be acted on")
+        "un-recording a dead organ did not raise NEW debt -- the ratchet is decorative: " + without[-500:]
+    )
+    assert victim in without, "the gate must NAME the newly dead organ; an unattributed failure cannot be acted on"

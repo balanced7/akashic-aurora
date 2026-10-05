@@ -16,14 +16,20 @@ NOTE: the prompt is sent to DeepSeek's API (pay-as-you-go -- real cost, usually 
 anything you wouldn't share with DeepSeek. DeepSeek's API is OpenAI-compatible, so this reuses the
 `openai` client pointed at DeepSeek's base_url.
 """
+
 import argparse
 import os
 import sys
+from typing import TYPE_CHECKING, cast
+
+if TYPE_CHECKING:
+    import io
+
 from pathlib import Path
 
 KEY_FILE = Path(__file__).resolve().parent.parent / ".secrets" / "deepseek.key"
 BASE_URL = "https://api.deepseek.com"
-DEFAULT_MODEL = os.getenv("DEEPSEEK_MODEL", "deepseek-v4-pro")   # smartest (1M ctx); v4-flash = cheaper/faster
+DEFAULT_MODEL = os.getenv("DEEPSEEK_MODEL", "deepseek-v4-pro")  # smartest (1M ctx); v4-flash = cheaper/faster
 # NB: deepseek-chat / deepseek-reasoner are deprecated 2026-07-24 -- v4-pro / v4-flash are the live models.
 
 
@@ -40,7 +46,8 @@ def load_key():
 
 def main():
     if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # Windows console defaults to cp1252
+        # Windows console defaults to cp1252
+        cast("io.TextIOWrapper", sys.stdout).reconfigure(encoding="utf-8", errors="replace")
     ap = argparse.ArgumentParser(description="Ask DeepSeek from the CLI.")
     ap.add_argument("prompt", nargs="*")
     ap.add_argument("--file")
@@ -65,7 +72,8 @@ def main():
         return 2
 
     from deepseek_chat import make_client
-    client = make_client(key)   # L0: timeout + explicit retries (shared hardened factory)
+
+    client = make_client(key)  # L0: timeout + explicit retries (shared hardened factory)
     messages = []
     if args.system:
         messages.append({"role": "system", "content": args.system})

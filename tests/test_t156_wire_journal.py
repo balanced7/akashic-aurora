@@ -35,9 +35,11 @@ TWO SCOPE DECISIONS ENCODED AS PINS, both deliberate:
 
 Run: py -m pytest tests/test_t156_wire_journal.py -q
 """
+
 import json
 import os
 import sys
+from pathlib import Path
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
@@ -45,6 +47,7 @@ sys.path.insert(0, ROOT)
 
 def _journal(tmp_path):
     from scripts.wire_journal import WireJournal
+
     return WireJournal(journal_dir=str(tmp_path))
 
 
@@ -66,20 +69,25 @@ def test_w2_no_bodies_are_ever_written(tmp_path):
     j = _journal(tmp_path)
     secret = "SUPER-SECRET-PROMPT-CONTENT-9e1f"
     j.record(model="m", status=200, prompt_text=secret, response_text=secret)
-    raw = "".join(open(p, encoding="utf-8").read() for p in j.files())
+    raw = "".join(Path(p).read_text(encoding="utf-8") for p in j.files())
     assert secret not in raw, "a request/response BODY reached the journal -- metadata only"
     rows = j.read_all()
-    assert rows and rows[0].get("prompt_sha"), "a prefix HASH must still be recorded for cache forensics"
+    assert rows, "a prefix HASH must still be recorded for cache forensics"
+    assert rows[0].get("prompt_sha"), "a prefix HASH must still be recorded for cache forensics"
     assert secret not in json.dumps(rows), "body leaked into a parsed field"
 
 
 def test_w3_the_discarded_fields_are_captured(tmp_path):
     """The fields deepseek measured as arriving-and-discarded."""
     j = _journal(tmp_path)
-    j.record(model="deepseek-chat", status=200,
-             system_fingerprint="fp_abc123", finish_reason="length",
-             usage={"total_tokens": 900, "completion_tokens_details": {"reasoning_tokens": 800}},
-             service_tier="default")
+    j.record(
+        model="deepseek-chat",
+        status=200,
+        system_fingerprint="fp_abc123",
+        finish_reason="length",
+        usage={"total_tokens": 900, "completion_tokens_details": {"reasoning_tokens": 800}},
+        service_tier="default",
+    )
     r = j.read_all()[0]
     assert r["system_fingerprint"] == "fp_abc123", "silent-model-swap detector not captured"
     assert r["finish_reason"] == "length"
@@ -91,8 +99,8 @@ def test_w3_the_discarded_fields_are_captured(tmp_path):
 def test_w4_the_recorder_never_takes_the_caller_down(tmp_path):
     """Point the journal at an unwritable location; record() must swallow, not raise."""
     j = _journal(tmp_path)
-    j._journal_dir = "\x00::not-a-writable-path::"     # force the write to fail
-    j.record(model="m", status=200)                     # must not raise
+    j._journal_dir = "\x00::not-a-writable-path::"  # force the write to fail
+    j.record(model="m", status=200)  # must not raise
 
 
 def test_w5_a_skipped_capture_is_counted(tmp_path):
@@ -106,10 +114,12 @@ def test_w5_a_skipped_capture_is_counted(tmp_path):
 def test_w6_a_reader_exists_and_summarizes(tmp_path):
     """The anti-T140 pin: the writer does not ship without a reader."""
     j = _journal(tmp_path)
-    j.record(model="deepseek-chat", status=200, finish_reason="stop",
-             usage={"total_tokens": 10}, system_fingerprint="fp_1")
-    j.record(model="deepseek-chat", status=200, finish_reason="length",
-             usage={"total_tokens": 20}, system_fingerprint="fp_2")
+    j.record(
+        model="deepseek-chat", status=200, finish_reason="stop", usage={"total_tokens": 10}, system_fingerprint="fp_1"
+    )
+    j.record(
+        model="deepseek-chat", status=200, finish_reason="length", usage={"total_tokens": 20}, system_fingerprint="fp_2"
+    )
     s = j.summarize()
     assert s["records"] == 2
     assert s["truncated"] == 1, "finish_reason=length is the truncation diagnostic"
@@ -128,17 +138,17 @@ def test_w8_a_full_current_file_must_not_eat_history(tmp_path):
     to make room for a write is the opposite of a forensic store -- the oldest records are exactly
     what an investigation reaches for.
     """
-    from scripts.wire_journal import WireJournal
     import scripts.wire_journal as WJ
+    from scripts.wire_journal import WireJournal
 
     d = str(tmp_path)
-    for i in range(1, 15):                       # 14 days of history already on disk
+    for i in range(1, 15):  # 14 days of history already on disk
         with open(os.path.join(d, f"wire-202607{i:02d}.jsonl"), "w", encoding="utf-8") as f:
             f.write('{"old":true}\n')
     j = WireJournal(journal_dir=d)
     before = len(j.files())
 
-    seg = j._segment_path()                      # fill the CURRENT segment past the byte cap
+    seg = j._segment_path()  # fill the CURRENT segment past the byte cap
     with open(seg, "w", encoding="utf-8") as f:
         f.write("x" * (WJ.MAX_BYTES + 1))
 
@@ -148,14 +158,16 @@ def test_w8_a_full_current_file_must_not_eat_history(tmp_path):
     after = len(j.files())
     assert after >= before, (
         f"history destroyed: {before} files -> {after} after 13 records. A full current segment "
-        f"must ROLL, never delete older days.")
+        f"must ROLL, never delete older days."
+    )
 
 
 def test_w7_unknown_is_not_zero(tmp_path):
     """A field the provider never sent must render UNKNOWN, not 0 -- the cognitive_metrics
     hazard, refused by construction rather than by discipline."""
     j = _journal(tmp_path)
-    j.record(model="m", status=200)                     # no usage at all
+    j.record(model="m", status=200)  # no usage at all
     s = j.summarize()
-    assert s["reasoning_tokens"] == "UNKNOWN", \
+    assert s["reasoning_tokens"] == "UNKNOWN", (
         f"an unsent field must be UNKNOWN, got {s['reasoning_tokens']!r} -- a measured zero is a lie"
+    )

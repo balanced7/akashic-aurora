@@ -41,11 +41,15 @@ AGENT = f"docpin#{uuid.uuid4().hex[:8]}"
 
 def _examine(worklive, progress=None):
     from core.comm import doctor
-    return doctor.examine(AGENT, probes={
-        "now": time.time(),
-        "worklive": lambda a: worklive,
-        "progress": lambda a: progress,
-    })
+
+    return doctor.examine(
+        AGENT,
+        probes={
+            "now": time.time(),
+            "worklive": lambda a: worklive,
+            "progress": lambda a: progress,
+        },
+    )
 
 
 def _kinds(findings):
@@ -64,7 +68,8 @@ def test_p1_beating_seat_never_pages_as_wedged():
         f"FALSE WEDGE PAGE: a seat beating 3s ago was paged as HARD WEDGE because since_ts "
         f"(phase entry) is old and it writes no runner pulse. The beat is the seat's liveness "
         f"evidence; demanding a runner organ from a non-runner is a category error -- and a "
-        f"false page trains the fleet to ignore the real one. Findings: {found}")
+        f"false page trains the fleet to ignore the real one. Findings: {found}"
+    )
 
 
 def test_p2_truly_dead_seat_still_pages():
@@ -75,7 +80,8 @@ def test_p2_truly_dead_seat_still_pages():
     assert ("hard_wedge", "page") in _kinds(found), (
         f"MISSED REAL WEDGE: a seat with an old phase AND a stale beat AND no pulse must "
         f"still page -- silencing the false positive must not blind the true one. "
-        f"Findings: {found}")
+        f"Findings: {found}"
+    )
 
 
 def test_p3_runner_beat_thread_never_masks_a_real_wedge():
@@ -86,14 +92,22 @@ def test_p3_runner_beat_thread_never_masks_a_real_wedge():
     the real wedge forever. Only a SEAT (per-incarnation id, single-threaded turn) may retract
     a page with its beat; for a bare agent id the PROGRESS PULSE governs."""
     from core.comm import doctor
+
     now = time.time()
-    wl = {"phase": "thinking", "since_ts": now - 3600, "beat_ts": now - 2}   # beat thread alive
-    found = doctor.examine("deepseek", probes={                              # BARE id = runner
-        "now": now, "worklive": lambda a: wl, "progress": lambda a: None})
+    wl = {"phase": "thinking", "since_ts": now - 3600, "beat_ts": now - 2}  # beat thread alive
+    found = doctor.examine(
+        "deepseek",
+        probes={  # BARE id = runner
+            "now": now,
+            "worklive": lambda a: wl,
+            "progress": lambda a: None,
+        },
+    )
     assert ("hard_wedge", "page") in {(f.get("state"), f.get("grade")) for f in found}, (
         f"RUNNER WEDGE MASKED: a runner whose work thread is hung but whose heartbeat THREAD "
         f"still beats must PAGE -- the beat is process liveness, not work progress. This is "
-        f"the exact streams.py flush wedge py-spy caught. Findings: {found}")
+        f"the exact streams.py flush wedge py-spy caught. Findings: {found}"
+    )
 
 
 if __name__ == "__main__":

@@ -11,6 +11,7 @@ A banner that outlives its work must confess, not command:
 (The ROOT-CAUSE half — wrap superseding next-focus — is W36, held for the deepseek
 counter per the night-consensus protocol; this stamp half is pure information-add.)
 """
+
 import json
 import os
 import sys
@@ -21,13 +22,12 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+import agent_cli
 from core.foundation.store import DictStore
 from core.learning.agent_memory import AgentMemory, Decision
 
-import agent_cli
 
-
-@pytest.fixture()
+@pytest.fixture
 def mem(monkeypatch):
     m = AgentMemory(store=DictStore())
     monkeypatch.setattr("core.learning.agent_memory.get_agent_memory", lambda: m)
@@ -36,18 +36,25 @@ def mem(monkeypatch):
 
 
 def _forge_note(mem, dec_id, title, body, created):
-    d = Decision(id=dec_id, title=title, status="accepted", context="", decision=body,
-                 rationale=[], alternatives=[], consequences={"positive": [], "negative": []},
-                 created_at=created, session_id="")
+    d = Decision(
+        id=dec_id,
+        title=title,
+        status="accepted",
+        context="",
+        decision=body,
+        rationale=[],
+        alternatives=[],
+        consequences={"positive": [], "negative": []},
+        created_at=created,
+        session_id="",
+    )
     mem.store.hset(mem.KEY_DECISIONS, field=dec_id, value=json.dumps(asdict(d)))
-    mem.store.zadd(mem.KEY_DECISION_INDEX,
-                   {dec_id: datetime.fromisoformat(created).timestamp()})
+    mem.store.zadd(mem.KEY_DECISION_INDEX, {dec_id: datetime.fromisoformat(created).timestamp()})
 
 
 def test_p1_fresh_directive_stamped_not_stale(mem):
     now = datetime.now()
-    _forge_note(mem, "ADR_nf_fresh000", "next-focus", "build the next slice",
-                now.isoformat())
+    _forge_note(mem, "ADR_nf_fresh000", "next-focus", "build the next slice", now.isoformat())
     head = agent_cli._orientation_header("claude")
     assert f"[as of {now.isoformat()[:10]}]" in head
     assert "STALE?" not in head
@@ -55,21 +62,22 @@ def test_p1_fresh_directive_stamped_not_stale(mem):
 
 def test_p2_old_directive_flagged(mem):
     old = datetime.now() - timedelta(days=10)
-    _forge_note(mem, "ADR_nf_old00000", "next-focus", "approve the old wave",
-                old.isoformat())
+    _forge_note(mem, "ADR_nf_old00000", "next-focus", "approve the old wave", old.isoformat())
     head = agent_cli._orientation_header("claude")
-    assert "[STALE?" in head and "d old" in head
+    assert "[STALE?" in head
+    assert "d old" in head
 
 
 def test_p3_ledger_done_task_disagrees(mem, monkeypatch):
     monkeypatch.setattr(
         "core.coord.task_ledger.state_view",
-        lambda *a, **k: {"done": [{"id": "T075", "status": "done"}],
-                         "active": [{"id": "T099", "status": "claimed"}]})
-    _forge_note(mem, "ADR_nf_done0000", "next-focus",
-                "approve/amend T075 M1 build wave", datetime.now().isoformat())
+        lambda *a, **k: {"done": [{"id": "T075", "status": "done"}], "active": [{"id": "T099", "status": "claimed"}]},
+    )
+    _forge_note(mem, "ADR_nf_done0000", "next-focus", "approve/amend T075 M1 build wave", datetime.now().isoformat())
     head = agent_cli._orientation_header("claude")
-    assert "LEDGER DISAGREES" in head and "T075 DONE" in head and "trust the ledger" in head
+    assert "LEDGER DISAGREES" in head
+    assert "T075 DONE" in head
+    assert "trust the ledger" in head
 
 
 def test_p5_parked_task_also_disagrees(mem, monkeypatch):
@@ -77,23 +85,32 @@ def test_p5_parked_task_also_disagrees(mem, monkeypatch):
     # DONE-only check stayed silent): parked and abandoned CONTRADICT do-this-FIRST too.
     monkeypatch.setattr(
         "core.coord.task_ledger.state_view",
-        lambda *a, **k: {"parked": [{"id": "T075", "status": "parked"}],
-                         "active": [{"id": "T071", "status": "claimed"}]})
-    _forge_note(mem, "ADR_nf_park0000", "next-focus",
-                "approve/amend T075 M1 build wave + T071 verdicts",
-                datetime.now().isoformat())
+        lambda *a, **k: {
+            "parked": [{"id": "T075", "status": "parked"}],
+            "active": [{"id": "T071", "status": "claimed"}],
+        },
+    )
+    _forge_note(
+        mem,
+        "ADR_nf_park0000",
+        "next-focus",
+        "approve/amend T075 M1 build wave + T071 verdicts",
+        datetime.now().isoformat(),
+    )
     head = agent_cli._orientation_header("claude")
-    assert "T075 PARKED" in head and "LEDGER DISAGREES" in head
-    assert "T071" not in head.split("LEDGER DISAGREES")[1].split("]")[0], \
+    assert "T075 PARKED" in head
+    assert "LEDGER DISAGREES" in head
+    assert "T071" not in head.split("LEDGER DISAGREES")[1].split("]")[0], (
         "an ACTIVE named task never rides the disagreement tag"
+    )
 
 
 def test_p4_ledger_down_fails_open(mem, monkeypatch):
     def boom(*a, **k):
         raise RuntimeError("redis down")
+
     monkeypatch.setattr("core.coord.task_ledger.state_view", boom)
-    _forge_note(mem, "ADR_nf_failopen", "next-focus",
-                "verify T031 enforcement", datetime.now().isoformat())
+    _forge_note(mem, "ADR_nf_failopen", "next-focus", "verify T031 enforcement", datetime.now().isoformat())
     head = agent_cli._orientation_header("claude")
     assert "verify T031 enforcement" in head
     assert "LEDGER DISAGREES" not in head

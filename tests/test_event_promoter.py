@@ -10,23 +10,25 @@ Acceptance bar (docs/library/design/20260714_cross-agent-auto-logger-design-slic
 Prior art grounding (in code docstring): Generative Agents importance + threshold-triggered
 reflection; GAM/SEEM write-isolation + provenance pointer; Nemori "heuristics are a baseline".
 """
+
 import os
 import sys
 import tempfile
 
-import isolate_canonical            # noqa: F401
+import isolate_canonical  # noqa: F401  # re-export or side-effect import
 
-_TESTS = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.dirname(_TESTS))
-sys.path.insert(0, _TESTS)
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from core.foundation.store import FileStore
-from core.foundation.ledger import FileLedger
 from core.events.event_log import EventLog
 from core.events.event_query import EventQuery
+from core.foundation.ledger import FileLedger
+from core.foundation.store import FileStore
 from core.narrative.beat_log import BeatLog
-from core.narrative.event_promoter import salience, promote_salient, PROMOTED_SET
 from core.narrative.event_bridge import raw_for_beat
+from core.narrative.event_promoter import PROMOTED_SET, promote_salient, salience
+
+_TESTS = os.path.dirname(os.path.abspath(__file__))
 
 
 def _ctx():
@@ -36,6 +38,7 @@ def _ctx():
 
 
 # ----------------------------------------------------------------- salience scoring
+
 
 def test_salience_mundane_vs_salient():
     assert salience({"kind": "note", "summary": "idle"}) == 1
@@ -52,9 +55,10 @@ def test_salience_clamped_0_5():
 
 # ----------------------------------------------------------------- coverage + no flood
 
+
 def test_coverage_and_no_flood():
     store, eq = _ctx()
-    # high-salience (eligible)
+    # high salience, so eligible
     eq.log.capture("command", "error: the build failed", at="2026-06-22T10:00:00")
     eq.log.capture("file_edit", "fixed the crash bug", at="2026-06-22T10:05:00")
     eq.log.capture("milestone", "shipped slice 5", at="2026-06-22T10:10:00")
@@ -68,15 +72,15 @@ def test_coverage_and_no_flood():
 
     rep = promote_salient(store, eq, threshold=3, max_promote=50)
     assert rep["eligible"] == 4
-    assert rep["promoted"] / rep["eligible"] >= 0.95          # coverage bar
+    assert rep["promoted"] / rep["eligible"] >= 0.95  # coverage bar
     assert rep["promoted"] == 4
-    assert rep["skipped_beat"] == 1                           # the git-ref one
+    assert rep["skipped_beat"] == 1  # the git-ref one
 
     beat_summaries = {b.summary for b in BeatLog(store).recent(100)}
     assert "shipped slice 5" in beat_summaries
-    assert "listed the files" not in beat_summaries           # mundane stayed out
+    assert "listed the files" not in beat_summaries  # mundane stayed out
     assert "misc scratch" not in beat_summaries
-    assert "git commit: wip" not in beat_summaries            # already-beat stayed out
+    assert "git commit: wip" not in beat_summaries  # already-beat stayed out
 
 
 def test_dedup_on_rerun():
@@ -86,7 +90,7 @@ def test_dedup_on_rerun():
     first = promote_salient(store, eq, threshold=3, max_promote=50)
     second = promote_salient(store, eq, threshold=3, max_promote=50)
     assert first["promoted"] == 2
-    assert second["promoted"] == 0                            # nothing re-promoted
+    assert second["promoted"] == 0  # nothing re-promoted
     assert second["skipped_dup"] == 2
     assert len(store.smembers(PROMOTED_SET)) == 2
 
@@ -96,29 +100,32 @@ def test_rate_limit_cap():
     for i in range(5):
         eq.log.capture("milestone", f"shipped milestone {i}", at=f"2026-06-22T10:0{i}:00")
     rep = promote_salient(store, eq, threshold=3, max_promote=2)
-    assert rep["eligible"] == 5 and rep["promoted"] == 2      # cap respected (no flood)
+    assert rep["eligible"] == 5
+    assert rep["promoted"] == 2
 
 
 def test_threshold_gates():
     store, eq = _ctx()
-    eq.log.capture("file_edit", "small tweak", at="2026-06-22T10:00:00")   # salience 2
+    eq.log.capture("file_edit", "small tweak", at="2026-06-22T10:00:00")  # salience 2
     rep = promote_salient(store, eq, threshold=3, max_promote=50)
     assert rep["promoted"] == 0
     rep2 = promote_salient(store, eq, threshold=2, max_promote=50)
-    assert rep2["promoted"] == 1                              # lowering threshold lets it in
+    assert rep2["promoted"] == 1  # lowering threshold lets it in
 
 
 # ----------------------------------------------------------------- provenance
+
 
 def test_promoted_beat_points_at_atom():
     store, eq = _ctx()
     ev = eq.log.capture("command", "error: critical failure", at="2026-06-22T12:00:00")
     promote_salient(store, eq, threshold=3, max_promote=50)
     beat = next(b for b in BeatLog(store).recent(100) if b.summary == "error: critical failure")
-    assert beat.source == ev.ref                             # provenance preserved
+    assert beat.source == ev.ref  # provenance preserved
     # and the bridge can drill back from the Beat to the raw atom
     res = raw_for_beat(beat.id, store=store, event_query=eq)
-    assert res["atom"] is not None and res["atom"]["summary"] == "error: critical failure"
+    assert res["atom"] is not None
+    assert res["atom"]["summary"] == "error: critical failure"
 
 
 def test_promote_empty_never_raises():

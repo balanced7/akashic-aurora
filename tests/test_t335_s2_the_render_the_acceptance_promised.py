@@ -41,6 +41,7 @@ a stray 3 from STEPS or a 1 from a version field.
 
 Run: py -m pytest tests/test_t335_s2_the_render_the_acceptance_promised.py -q
 """
+
 from __future__ import annotations
 
 import json
@@ -53,8 +54,8 @@ import pytest
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from core.eye import routes as R  # noqa: E402
-import agent_cli  # noqa: E402
+import agent_cli  # noqa: E402  # sys.path bootstrap
+from core.eye import routes as R  # noqa: E402  # sys.path bootstrap
 
 # A name no source file in this repo contains, so a render assertion can never pass by
 # matching some other route's output that happened to be printed.
@@ -64,13 +65,12 @@ STEPS = [
     {"type": "anchor", "target": "sessQ:11", "note": "the charter"},
     {"type": "observation", "target": "sessQ:12", "note": "the first sighting"},
     {"type": "discriminating-test", "target": "sessQ:13", "note": "the control"},
-    {"type": "dead-end", "target": "sessQ:14", "note": "the paraphrase trap",
-     "is_not": ["the-phrase-is-the-key"]},
+    {"type": "dead-end", "target": "sessQ:14", "note": "the paraphrase trap", "is_not": ["the-phrase-is-the-key"]},
     {"type": "decision", "target": "sessQ:15", "note": "filed"},
     {"type": "handoff", "target": "sessQ:16", "note": "passed on"},
     {"type": "anchor", "target": "sessQ:17", "note": "the closing tie"},
 ]
-LEGS = len(STEPS)          # 7 -- see the pin-discipline note above
+LEGS = len(STEPS)  # 7 -- see the pin-discipline note above
 
 
 def _seed_events(db_path, targets):
@@ -84,14 +84,15 @@ def _seed_events(db_path, targets):
         indexed_at REAL)""")
     for t in targets:
         sess, _, line = t.rpartition(":")
-        con.execute("INSERT OR IGNORE INTO events(event_id, session, line, voice, type, "
-                    "text) VALUES(?,?,?,?,?,?)",
-                    (t, sess, int(line), "operator", "message", f"body of {t}"))
+        con.execute(
+            "INSERT OR IGNORE INTO events(event_id, session, line, voice, type, text) VALUES(?,?,?,?,?,?)",
+            (t, sess, int(line), "operator", "message", f"body of {t}"),
+        )
     con.commit()
     con.close()
 
 
-@pytest.fixture()
+@pytest.fixture
 def tied(tmp_path, monkeypatch):
     """Both planes repointed together. A render pin that walked the LIVE route would write
     fake traversals into the very record this row exists to make trustworthy -- the walk is a
@@ -129,6 +130,7 @@ def _walk_records(tmp_path):
 
 # ---------------------------------------------------------------- clause 4: the flag
 
+
 def test_p1_the_drill_flag_exists_at_the_door():
     """CLAUSE 4, at its narrowest. The acceptance names a flag; either it parses or the
     clause is prose. Asserts the parsed VALUE, not the help text -- a --drill mentioned only
@@ -137,7 +139,8 @@ def test_p1_the_drill_flag_exists_at_the_door():
     args = p.parse_args(["eye", "route", "walk", ROUTE, "--drill"])
     assert getattr(args, "drill", None) is True, (
         "eye route walk has no --drill flag; T335 clause 4 names one. The drill= kwarg on "
-        "routes.walk() is reachable only by importing the module, which is not a door")
+        "routes.walk() is reachable only by importing the module, which is not a door"
+    )
 
 
 def test_p2_walking_with_drill_records_drilled_depth(tied):
@@ -148,11 +151,10 @@ def test_p2_walking_with_drill_records_drilled_depth(tied):
     _run(["eye", "route", "walk", ROUTE, "--drill"])
     recs = _walk_records(tied)
     assert len(recs) == 1, f"expected exactly one walk record, got {len(recs)}"
-    assert recs[0]["depth"] == "drilled", (
-        f"typed --drill, journal recorded depth={recs[0]['depth']!r}")
+    assert recs[0]["depth"] == "drilled", f"typed --drill, journal recorded depth={recs[0]['depth']!r}"
     assert recs[0]["legs_drilled"] == LEGS, (
-        f"clause 4 names a legs_drilled count; expected {LEGS}, got "
-        f"{recs[0]['legs_drilled']}")
+        f"clause 4 names a legs_drilled count; expected {LEGS}, got {recs[0]['legs_drilled']}"
+    )
 
 
 def test_p3_a_plain_walk_still_records_listed(tied):
@@ -160,12 +162,12 @@ def test_p3_a_plain_walk_still_records_listed(tied):
     pass: hardcoding drilled. s1's invariant is that depth reports what ACTUALLY ran."""
     _run(["eye", "route", "walk", ROUTE])
     recs = _walk_records(tied)
-    assert recs[0]["depth"] == "listed", (
-        f"a plain walk must record listed, got {recs[0]['depth']!r}")
+    assert recs[0]["depth"] == "listed", f"a plain walk must record listed, got {recs[0]['depth']!r}"
     assert recs[0]["legs_drilled"] == 0
 
 
 # ---------------------------------------------------------------- clause 7: the render
+
 
 def test_p4_the_walk_render_carries_the_breakdown_not_a_bare_total(tied, capsys):
     """CLAUSE 7, on the walk surface. Positive assertion: the breakdown's own labels must be
@@ -176,7 +178,8 @@ def test_p4_the_walk_render_carries_the_breakdown_not_a_bare_total(tied, capsys)
     out = capsys.readouterr().out
     assert "drilled" in out, (
         "the walk render never names the depth it just recorded; walk() already returns "
-        "depth and tally and the render reads neither")
+        "depth and tally and the render reads neither"
+    )
     assert f"{LEGS}" in out, "the render must carry the legs count it drilled"
 
 
@@ -201,7 +204,8 @@ def test_p4b_unknown_walks_are_named_in_the_render_not_folded_away(tied, capsys)
     assert "UNKNOWN=4" in out, (
         "four walks with no journal record behind them must render as UNKNOWN=4; folding "
         "them into a depth bucket is the guess T176 forbids, committed at the render side "
-        f"after s1 refused it at the read side. got: {out!r}")
+        f"after s1 refused it at the read side. got: {out!r}"
+    )
 
 
 def test_p5_the_ls_render_carries_the_breakdown_not_a_bare_total(tied, capsys):
@@ -220,8 +224,7 @@ def test_p5_the_ls_render_carries_the_breakdown_not_a_bare_total(tied, capsys):
     _run(["eye", "route", "ls"])
     out = capsys.readouterr().out
     assert ROUTE in out, "fixture route missing from ls -- the pin is not reading the render"
-    assert "drilled" in out, (
-        "ls renders a bare walked=N; clause 7 requires the depth breakdown beside it")
+    assert "drilled" in out, "ls renders a bare walked=N; clause 7 requires the depth breakdown beside it"
 
 
 def test_p5b_a_cold_route_renders_honestly_rather_than_blank(tied, capsys):
@@ -230,8 +233,7 @@ def test_p5b_a_cold_route_renders_honestly_rather_than_blank(tied, capsys):
     beside a zero reads as a broken render and a reader cannot tell it from a missing one."""
     _run(["eye", "route", "ls"])
     out = capsys.readouterr().out
-    assert "never walked" in out, (
-        f"a cold route must name its own emptiness, not render blank. got: {out!r}")
+    assert "never walked" in out, f"a cold route must name its own emptiness, not render blank. got: {out!r}"
 
 
 def test_p5c_a_depth_the_vocabulary_does_not_know_is_shown_not_dropped(tied, capsys):
@@ -242,19 +244,24 @@ def test_p5c_a_depth_the_vocabulary_does_not_know_is_shown_not_dropped(tied, cap
     case a reader most needs to see."""
     con = sqlite3.connect(str(tied / "eye.db"))
     con.execute("UPDATE routes SET walk_count = walk_count + 1 WHERE name = ?", (ROUTE,))
-    con.execute("INSERT INTO route_walks(walk_id, route_id, at, by, depth, legs_shown, "
-                "legs_drilled) SELECT 'w-probe', route_id, 1, 'claude', 'spelunked', 7, 7 "
-                "FROM routes WHERE name = ?", (ROUTE,))
+    con.execute(
+        "INSERT INTO route_walks(walk_id, route_id, at, by, depth, legs_shown, "
+        "legs_drilled) SELECT 'w-probe', route_id, 1, 'claude', 'spelunked', 7, 7 "
+        "FROM routes WHERE name = ?",
+        (ROUTE,),
+    )
     con.commit()
     con.close()
     _run(["eye", "route", "ls"])
     out = capsys.readouterr().out
     assert "spelunked=1" in out, (
         f"a depth outside DEPTHS must still render; dropping it makes the journal's truth "
-        f"invisible at the surface. got: {out!r}")
+        f"invisible at the surface. got: {out!r}"
+    )
 
 
 # ---------------------------------------------------------------- the s1 invariant, guarded
+
 
 def test_p6_wiring_the_flag_did_not_make_depth_caller_declarable(tied):
     """THE REGRESSION GUARD ON THE LOAD-BEARING INVARIANT. Heimdall confirmed depth is
@@ -262,7 +269,7 @@ def test_p6_wiring_the_flag_did_not_make_depth_caller_declarable(tied):
     threading a depth string through the new flag instead of a boolean, so the pin that
     mattered most in s1 is re-asserted here against the surface that could break it."""
     with pytest.raises(TypeError):
-        R.walk(ROUTE, depth="drilled")
+        R.walk(ROUTE, depth="drilled")  # pyright: ignore[reportCallIssue]  # deliberate: pins depth is not declarable
 
 
 def test_p7_legacy_walks_without_journal_backing_still_render_unknown(tied):
@@ -275,5 +282,5 @@ def test_p7_legacy_walks_without_journal_backing_still_render_unknown(tied):
     con.close()
     tally = R.walks(ROUTE)
     assert tally["unknown"] == 5, (
-        f"five phantom walks with no journal record must resolve UNKNOWN, got "
-        f"{tally['unknown']}")
+        f"five phantom walks with no journal record must resolve UNKNOWN, got {tally['unknown']}"
+    )

@@ -20,6 +20,7 @@ Fixtures are SYNTHETIC (tests/fixtures/eye/) -- pins never read the live corpus.
 
 Run: py -m pytest tests/test_t278_s0_eye_indexer.py -q
 """
+
 from __future__ import annotations
 
 import os
@@ -27,11 +28,9 @@ import shutil
 import sys
 from pathlib import Path
 
-import pytest
-
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.eye import index as EYE  # noqa: E402
+from core.eye import index as EYE
 
 ROOT = Path(__file__).resolve().parents[1]
 FIX = ROOT / "tests" / "fixtures" / "eye"
@@ -49,7 +48,8 @@ def _fresh(tmp_path, files=("session_alpha.jsonl", "session_beta.jsonl")):
 def test_p1_manifest_matches_indexed(tmp_path):
     corpus, db = _fresh(tmp_path)
     rep = EYE.ingest(paths=sorted(corpus.glob("*.jsonl")), db_path=db)
-    assert rep["files_seen"] == 2 and rep["files_indexed"] == 2
+    assert rep["files_seen"] == 2
+    assert rep["files_indexed"] == 2
     assert rep["files_failed"] == []
     assert rep["manifest_complete"] is True
     # alpha: 6 lines -> user(op) + assistant + user(system caveat) + queue-op + meta(system)
@@ -72,8 +72,10 @@ def test_p3_incremental_ingests_only_the_appended_line(tmp_path):
     r2 = EYE.ingest(paths=sorted(corpus.glob("*.jsonl")), db_path=db)
     assert r2["events_new"] == 0, "unchanged files re-ingest nothing"
     with open(corpus / "session_beta.jsonl", "a", encoding="utf-8") as f:
-        f.write('{"type":"user","isMeta":false,"timestamp":"2026-08-02T10:00:00.000Z",'
-                '"message":{"role":"user","content":"appended fixture line about the sword"}}\n')
+        f.write(
+            '{"type":"user","isMeta":false,"timestamp":"2026-08-02T10:00:00.000Z",'
+            '"message":{"role":"user","content":"appended fixture line about the sword"}}\n'
+        )
     r3 = EYE.ingest(paths=sorted(corpus.glob("*.jsonl")), db_path=db)
     assert r3["events_new"] == 1, "only the appended line ingests"
     assert r3["events_total"] == r1["events_total"] + 1
@@ -81,12 +83,12 @@ def test_p3_incremental_ingests_only_the_appended_line(tmp_path):
 
 def test_p4_coverage_names_the_gap(tmp_path):
     corpus, db = _fresh(tmp_path)
-    ghost = corpus / "session_ghost.jsonl"          # named in the manifest, not on disk
-    rep = EYE.ingest(paths=sorted(corpus.glob("*.jsonl")) + [ghost], db_path=db)
+    ghost = corpus / "session_ghost.jsonl"  # named in the manifest, not on disk
+    rep = EYE.ingest(paths=[*sorted(corpus.glob("*.jsonl")), ghost], db_path=db)
     assert rep["manifest_complete"] is False, (
-        "P4 THE COVERAGE PIN: one unreadable file and the index may not claim wholeness")
-    assert any("session_ghost" in f["path"] for f in rep["files_failed"]), (
-        "the gap is NAMED, never a bare count")
+        "P4 THE COVERAGE PIN: one unreadable file and the index may not claim wholeness"
+    )
+    assert any("session_ghost" in f["path"] for f in rep["files_failed"]), "the gap is NAMED, never a bare count"
     assert rep["files_indexed"] == 2
 
 
@@ -94,7 +96,8 @@ def test_p5_event_id_resolves_to_verbatim(tmp_path):
     corpus, db = _fresh(tmp_path)
     EYE.ingest(paths=sorted(corpus.glob("*.jsonl")), db_path=db)
     hits = EYE.find(q="measure fixture progress", db_path=db)["results"]
-    assert hits and hits[0]["session"] == "session_alpha"
+    assert hits
+    assert hits[0]["session"] == "session_alpha"
     ev = EYE.get_event(hits[0]["event_id"], db_path=db)
     assert ev is not None, "the address must resolve (grammar address space; T288 resolver)"
     assert "measure fixture progress" in ev["text"]
@@ -105,16 +108,27 @@ def test_p6_voice_labels_are_conservative(tmp_path):
     corpus, db = _fresh(tmp_path)
     EYE.ingest(paths=sorted(corpus.glob("*.jsonl")), db_path=db)
     caveat = EYE.find(q="command-name", db_path=db)["results"]
-    assert caveat and caveat[0]["voice"] == "system", (
-        "a command-caveat block inside a user record is SYSTEM -- the false-positive class "
-        "the sweep paid for")
+    assert caveat, (
+        "a command-caveat block inside a user record is SYSTEM -- the false-positive class the sweep paid for"
+    )
+    assert caveat[0]["voice"] == "system", (
+        "a command-caveat block inside a user record is SYSTEM -- the false-positive class the sweep paid for"
+    )
     qnoise = EYE.find(q="fixture noise", db_path=db)["results"]
-    assert qnoise and qnoise[0]["voice"] == "system", (
+    assert qnoise, (
         "a task-notification riding the QUEUE lane is SYSTEM too -- live S1 smoke caught "
-        "these polluting the operator axis; the law has a marker exception on every lane")
+        "these polluting the operator axis; the law has a marker exception on every lane"
+    )
+    assert qnoise[0]["voice"] == "system", (
+        "a task-notification riding the QUEUE lane is SYSTEM too -- live S1 smoke caught "
+        "these polluting the operator axis; the law has a marker exception on every lane"
+    )
     meta = EYE.find(q="meta housekeeping", db_path=db)["results"]
-    assert meta and meta[0]["voice"] == "system", "isMeta user records are never operator"
+    assert meta, "isMeta user records are never operator"
+    assert meta[0]["voice"] == "system", "isMeta user records are never operator"
     real = EYE.find(q="sharper every week", db_path=db)["results"]
-    assert real and real[0]["voice"] == "operator"
+    assert real
+    assert real[0]["voice"] == "operator"
     agent = EYE.find(q="Beta acknowledges", db_path=db)["results"]
-    assert agent and agent[0]["voice"] == "agent"
+    assert agent
+    assert agent[0]["voice"] == "agent"

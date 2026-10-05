@@ -29,7 +29,7 @@ import pytest
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-ADDR_RE = re.compile(r"[0-9a-f-]{8,}:\d+")          # session:line eye address
+ADDR_RE = re.compile(r"[0-9a-f-]{8,}:\d+")  # session:line eye address
 AGE_RE = re.compile(r"\b\d+\s*(day|week|hour|minute)s?\b", re.I)
 
 
@@ -63,8 +63,7 @@ def test_p2_section_order(rendered):
     i_od = rendered.find("OPEN DOOR")
     i_ym = rendered.find("YOUR MOVE")
     assert -1 not in (i_ev, i_od, i_ym), "a required section is missing from render"
-    assert i_ev < i_od < i_ym, (
-        "order law violated: must be evidence -> open door -> your move")
+    assert i_ev < i_od < i_ym, "order law violated: must be evidence -> open door -> your move"
 
 
 # ---- P3: open loops OFF by default, ON only by explicit flag -----------------
@@ -79,14 +78,11 @@ def test_p3_open_loops_default_absent(built, rendered):
 def test_p4_quotes_carry_addresses(built):
     last = built["since"].get("last_word")
     if last is not None:
-        assert ADDR_RE.search(str(last.get("addr", ""))), (
-            "last_word quoted without a resolvable eye address")
+        assert ADDR_RE.search(str(last.get("addr", ""))), "last_word quoted without a resolvable eye address"
     door = built["open_door"]
     if door is not None:
-        assert ADDR_RE.search(str(door.get("addr", ""))), (
-            "open door quoted without a resolvable eye address")
-        assert door.get("selected_by"), (
-            "open door must disclose its mechanical selection rule")
+        assert ADDR_RE.search(str(door.get("addr", ""))), "open door quoted without a resolvable eye address"
+        assert door.get("selected_by"), "open door must disclose its mechanical selection rule"
 
 
 # ---- P5: NO-GUILT LAW — your_move carries no counts, no ages -----------------
@@ -94,7 +90,7 @@ def test_p5_no_counts_no_ages(built, rendered):
     for item in built["your_move"]:
         for k in ("age", "days_waiting", "count", "waiting_since"):
             assert k not in item, f"guilt-ledger field '{k}' in your_move"
-    ym = rendered[rendered.find("YOUR MOVE"):]
+    ym = rendered[rendered.find("YOUR MOVE") :]
     assert not AGE_RE.search(ym), "an age crept into the YOUR MOVE section"
     assert "waiting" not in ym.lower(), "'waiting' framing in YOUR MOVE"
 
@@ -104,7 +100,8 @@ def test_p6_legend_declares_bounds(built, rendered):
     leg = built["legend"]
     for k in ("shown", "excluded", "why"):
         assert leg.get(k), f"legend missing '{k}'"
-    assert "shown:" in rendered.lower() and "excluded:" in rendered.lower()
+    assert "shown:" in rendered.lower()
+    assert "excluded:" in rendered.lower()
 
 
 # ---- P7: CAVEAT LAW — assembly, not charge, stated ---------------------------
@@ -119,9 +116,11 @@ def test_p8_quote_is_verbatim(built):
     if door is None:
         pytest.skip("no open door selected in this corpus state")
     from core.eye import index as eye
+
     ev = eye.get_event(door["addr"])
     if ev is None:
         pytest.fail(f"open door addr {door['addr']} does not resolve in the eye")
     assert door["text"] in ev["text"], (
         "open door text is not verbatim from the corpus — paraphrase is the "
-        "one forbidden operation (entry 8: a paraphrase cannot restore excitement)")
+        "one forbidden operation (entry 8: a paraphrase cannot restore excitement)"
+    )

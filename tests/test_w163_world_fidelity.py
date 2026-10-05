@@ -28,53 +28,48 @@ HONEST ABOUT ITS OWN LIMITS: a capability report that guesses is worse than none
 would be trusted. Each plane reports PRESENT, ABSENT or UNKNOWN, and UNKNOWN is a real state
 -- not a hopeful PRESENT.
 """
-import pytest
 
 from core.coord import world_fidelity as F
 
 
 def test_p1_every_declared_plane_is_reported_even_when_healthy():
     """Absence of output is indistinguishable from a probe that did not run."""
-    rows = F.assess(root="/nowhere", secrets_count=0, state_count=0,
-                    head_sha="abc", source_dirty=0)
+    rows = F.assess(root="/nowhere", secrets_count=0, state_count=0, head_sha="abc", source_dirty=0)
     assert {r.plane for r in rows} >= {"code", "memory", "file", "credentials"}
 
 
 def test_p2_a_missing_credential_plane_names_the_CONSEQUENCE_not_just_the_absence():
     """'.secrets: 0 files' is a fact. 'model asks and web search will refuse' is the answer."""
-    rows = {r.plane: r for r in F.assess(root="/x", secrets_count=0, state_count=5,
-                                         head_sha="abc", source_dirty=0)}
+    rows = {r.plane: r for r in F.assess(root="/x", secrets_count=0, state_count=5, head_sha="abc", source_dirty=0)}
     cred = rows["credentials"]
     assert cred.status == "absent"
     assert "refus" in cred.consequence.lower() or "closed" in cred.consequence.lower()
 
 
 def test_p3_a_present_credential_plane_says_so():
-    rows = {r.plane: r for r in F.assess(root="/x", secrets_count=10, state_count=5,
-                                         head_sha="abc", source_dirty=0)}
+    rows = {r.plane: r for r in F.assess(root="/x", secrets_count=10, state_count=5, head_sha="abc", source_dirty=0)}
     assert rows["credentials"].status == "present"
 
 
 def test_p4_uncommitted_work_in_the_SOURCE_is_reported_as_a_fidelity_limit():
     """The first loss. A twin cannot contain what the source never committed, so the
     source's dirty count is a property of the TWIN's fidelity, not of the source."""
-    rows = {r.plane: r for r in F.assess(root="/x", secrets_count=1, state_count=5,
-                                         head_sha="abc", source_dirty=21)}
+    rows = {r.plane: r for r in F.assess(root="/x", secrets_count=1, state_count=5, head_sha="abc", source_dirty=21)}
     code = rows["code"]
     assert code.status == "partial"
     assert "21" in code.consequence
 
 
 def test_p5_a_clean_source_makes_the_code_plane_fully_faithful():
-    rows = {r.plane: r for r in F.assess(root="/x", secrets_count=1, state_count=5,
-                                         head_sha="abc", source_dirty=0)}
+    rows = {r.plane: r for r in F.assess(root="/x", secrets_count=1, state_count=5, head_sha="abc", source_dirty=0)}
     assert rows["code"].status == "present"
 
 
 def test_p6_unknown_is_a_real_state_and_never_optimistic():
     """A probe that could not run must not report PRESENT. Guessing here would be trusted."""
-    rows = {r.plane: r for r in F.assess(root="/x", secrets_count=None, state_count=None,
-                                         head_sha=None, source_dirty=None)}
+    rows = {
+        r.plane: r for r in F.assess(root="/x", secrets_count=None, state_count=None, head_sha=None, source_dirty=None)
+    }
     for plane in ("code", "file", "credentials"):
         assert rows[plane].status == "unknown", plane
         assert rows[plane].consequence, "an unknown with no explanation teaches nothing"
@@ -105,8 +100,7 @@ def test_p9_a_MISSING_plane_is_absent_not_unknown():
     """Found by running it: `.secrets/` does not exist in a clone, and reporting that as
     "unknown -- could not read" understates a fact that was established. Unknown is for
     what could not be determined, never for what was."""
-    rows = {r.plane: r for r in F.assess(root="/x", secrets_count=0, state_count=5,
-                                         head_sha="abc", source_dirty=0)}
+    rows = {r.plane: r for r in F.assess(root="/x", secrets_count=0, state_count=5, head_sha="abc", source_dirty=0)}
     assert rows["credentials"].status == "absent"
     assert "unknown" not in rows["credentials"].status
 
@@ -115,25 +109,30 @@ def test_p10_the_memory_row_is_MEASURED_from_the_seed_manifest_not_asserted():
     """The first cut hardcoded 'seeded knowledge plane' for every world -- a claim about
     history the renderer never checked. It was FALSE in prod, whose store is native and was
     seeded by nobody. The organ built to report honestly was responding without answering."""
-    seeded = {r.plane: r for r in F.assess(root="/x", secrets_count=1, state_count=9,
-                                           head_sha="abc", source_dirty=0,
-                                           seeded_from="prod")}["memory"]
-    assert seeded.status == "present" and "seeded from prod" in seeded.detail
+    seeded = {
+        r.plane: r
+        for r in F.assess(root="/x", secrets_count=1, state_count=9, head_sha="abc", source_dirty=0, seeded_from="prod")
+    }["memory"]
+    assert seeded.status == "present"
+    assert "seeded from prod" in seeded.detail
 
 
 def test_p11_the_source_reports_a_NATIVE_store_never_a_seeded_one():
-    native = {r.plane: r for r in F.assess(root="/x", secrets_count=1, state_count=9,
-                                           head_sha="abc", source_dirty=0,
-                                           is_source=True)}["memory"]
+    native = {
+        r.plane: r
+        for r in F.assess(root="/x", secrets_count=1, state_count=9, head_sha="abc", source_dirty=0, is_source=True)
+    }["memory"]
     assert native.status == "present"
-    assert "native" in native.detail and "seeded" not in native.detail
+    assert "native" in native.detail
+    assert "seeded" not in native.detail
 
 
 def test_p12_no_manifest_and_not_the_source_is_UNKNOWN_never_a_guess():
     """A checkout with no manifest that is not the source cannot say where its memory came
     from, and must not pick the flattering answer."""
-    row = {r.plane: r for r in F.assess(root="/x", secrets_count=1, state_count=9,
-                                        head_sha="abc", source_dirty=0)}["memory"]
+    row = {r.plane: r for r in F.assess(root="/x", secrets_count=1, state_count=9, head_sha="abc", source_dirty=0)}[
+        "memory"
+    ]
     assert row.status == "unknown"
     assert "seeded from" not in row.detail
 
@@ -149,23 +148,30 @@ def test_p13_the_file_plane_asks_whether_the_TRACKED_files_are_here_not_how_many
 
     And some of that residue MUST NOT ride: daemon-*.pid and state/asks are IDENTITY, the
     same class as the bus cursors the seed already refuses."""
-    present = {r.plane: r for r in F.assess(root="/x", secrets_count=1, state_count=5,
-                                            head_sha="abc", source_dirty=0,
-                                            tracked_state_present=True)}["file"]
+    present = {
+        r.plane: r
+        for r in F.assess(
+            root="/x", secrets_count=1, state_count=5, head_sha="abc", source_dirty=0, tracked_state_present=True
+        )
+    }["file"]
     assert present.status == "present"
     assert "must NOT ride" in present.consequence
 
 
 def test_p14_a_MISSING_tracked_state_file_is_a_real_gap():
-    missing = {r.plane: r for r in F.assess(root="/x", secrets_count=1, state_count=99,
-                                            head_sha="abc", source_dirty=0,
-                                            tracked_state_present=False)}["file"]
+    missing = {
+        r.plane: r
+        for r in F.assess(
+            root="/x", secrets_count=1, state_count=99, head_sha="abc", source_dirty=0, tracked_state_present=False
+        )
+    }["file"]
     assert missing.status == "partial"
     assert "ledger" in missing.consequence
 
 
 def test_p15_an_unchecked_tracked_set_is_unknown_not_a_count_guess():
     """A big entry count must not be read as health when the tracked set was never checked."""
-    row = {r.plane: r for r in F.assess(root="/x", secrets_count=1, state_count=99,
-                                        head_sha="abc", source_dirty=0)}["file"]
+    row = {r.plane: r for r in F.assess(root="/x", secrets_count=1, state_count=99, head_sha="abc", source_dirty=0)}[
+        "file"
+    ]
     assert row.status == "unknown"

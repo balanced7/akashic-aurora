@@ -18,23 +18,25 @@ must be a SUBSET of the normal one (the audited fallback class).
 
 Run: py -m pytest tests/test_recall_agent_scope.py -q
 """
-import os
-import sys
-import subprocess
 
-import isolate_canonical  # noqa: F401 -- db 15 + temp AI_SETUP, flushed (child inherits via env)
+import os
+import subprocess
+import sys
+
+import isolate_canonical  # noqa: F401  # db 15 + temp AI_SETUP, flushed (child inherits via env)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-import pytest  # noqa: E402
+import pytest  # noqa: E402  # sys.path bootstrap
 
 
 def run(*args, timeout=120):
     env = os.environ.copy()
     env["PYTHONIOENCODING"] = "utf-8"
-    r = subprocess.run([sys.executable, "agent_cli.py", *args],
-                       cwd=ROOT, env=env, capture_output=True, text=True, timeout=timeout)
+    r = subprocess.run(
+        [sys.executable, "agent_cli.py", *args], cwd=ROOT, env=env, capture_output=True, text=True, timeout=timeout
+    )
     return r.returncode, r.stdout, r.stderr
 
 
@@ -51,31 +53,33 @@ def corpus():
         ("claude", "scope_claude_ledger", "convergence evidence needs an independence ledger"),
     ]
     for agent, exp, tried in rows:
-        rc, out, err = run("learn", agent, "--experiment", exp,
-                           "--tried", tried, "--result", "scope-pin seed")
+        rc, out, err = run("learn", agent, "--experiment", exp, "--tried", tried, "--result", "scope-pin seed")
         assert rc == 0, f"seed {exp} failed: {err or out}"
     return rows
 
 
 # ------------------------------------------------------------ P1: the scoped read exists
 
+
 def test_p1_scoped_search_returns_only_the_named_agents_records(corpus):
     from core.learning.learning_store import get_learning_store
+
     s = get_learning_store()
     hits = s.search_learnings_by_keyword("convergence pools completeness", agent="kimi")
     ids = [h.get("id") for h in hits]
     assert "scope_kimi_pools" in ids, "kimi's own lesson must be findable in scope"
     for h in hits:
-        assert (h.get("agent_id") or "").strip() == "kimi", \
+        assert (h.get("agent_id") or "").strip() == "kimi", (
             f"a kimi-scoped search returned {h.get('id')} authored by {h.get('agent_id')!r}"
+        )
 
 
 def test_p1b_unscoped_search_is_a_superset_of_scoped(corpus):
     """Scoping narrows. It must never surface something the unscoped search cannot see."""
     from core.learning.learning_store import get_learning_store
+
     s = get_learning_store()
-    scoped = {h.get("id") for h in
-              s.search_learnings_by_keyword("convergence", agent="kimi")}
+    scoped = {h.get("id") for h in s.search_learnings_by_keyword("convergence", agent="kimi")}
     unscoped = {h.get("id") for h in s.search_learnings_by_keyword("convergence")}
     assert scoped <= unscoped, f"scoped hits outside the unscoped set: {scoped - unscoped}"
 
@@ -83,6 +87,7 @@ def test_p1b_unscoped_search_is_a_superset_of_scoped(corpus):
 def test_p1c_agent_none_is_byte_identical_to_before(corpus):
     """Every existing caller passes no agent; their world must not move."""
     from core.learning.learning_store import get_learning_store
+
     s = get_learning_store()
     a = [h.get("id") for h in s.search_learnings_by_keyword("convergence")]
     b = [h.get("id") for h in s.search_learnings_by_keyword("convergence", agent=None)]
@@ -91,33 +96,40 @@ def test_p1c_agent_none_is_byte_identical_to_before(corpus):
 
 # ------------------------------------------------------------ P2: empty is empty
 
+
 def test_p2_an_agent_with_no_matches_returns_empty(corpus):
     from core.learning.learning_store import get_learning_store
+
     s = get_learning_store()
     assert s.search_learnings_by_keyword("convergence", agent="nobody_by_this_name") == []
 
 
 # ------------------------------------------------------------ P3: the weak-match fallback
 
+
 def test_p3_the_weak_match_confession_respects_the_scope(corpus):
     """A nine-word grab-bag that clears no floor triggers the flagged-weak fallback. Under an
     agent scope, that fallback may only confess THAT AGENT's lessons -- the degraded answer
     must be a subset of the normal one, never wider."""
     from core.learning.learning_store import get_learning_store
+
     s = get_learning_store()
     hits = s.search_learnings_by_keyword(
-        "fold selects narrative continuity checkpoint pools certify wire independence",
-        agent="kimi")
+        "fold selects narrative continuity checkpoint pools certify wire independence", agent="kimi"
+    )
     assert hits, "the grab-bag should surface SOMETHING for kimi (weak or strong)"
     for h in hits:
-        assert (h.get("agent_id") or "").strip() == "kimi", \
+        assert (h.get("agent_id") or "").strip() == "kimi", (
             f"weak-match fallback leaked {h.get('id')} by {h.get('agent_id')!r} into kimi's scope"
+        )
 
 
 # ------------------------------------------------------------ P4: composes with domain
 
+
 def test_p4_agent_scope_composes_with_domain_scope(corpus):
     from core.learning.learning_store import get_learning_store
+
     s = get_learning_store()
     # No seeded record carries a domain, so a domain filter must empty the scoped result --
     # BOTH filters applying is the claim; either alone letting records through is the defect.
@@ -127,16 +139,16 @@ def test_p4_agent_scope_composes_with_domain_scope(corpus):
 
 # ------------------------------------------------------------ P5: the door
 
+
 def test_p5_recall_agent_flag_scopes_the_cli(corpus):
     rc, out, _ = run("recall", "convergence", "--agent", "kimi")
     assert rc == 0
     assert "scope_kimi_pools" in out, "kimi's lesson must surface under --agent kimi"
-    assert "scope_claude_ledger" not in out, \
-        "claude's lesson must NOT surface under --agent kimi"
+    assert "scope_claude_ledger" not in out, "claude's lesson must NOT surface under --agent kimi"
 
 
 def test_p5b_recall_without_the_flag_is_unchanged(corpus):
     rc, out, _ = run("recall", "convergence")
     assert rc == 0
-    assert "scope_kimi_pools" in out and "scope_claude_ledger" in out, \
-        "unscoped recall must keep returning the whole fleet's matches"
+    assert "scope_kimi_pools" in out, "unscoped recall must keep returning the whole fleet's matches"
+    assert "scope_claude_ledger" in out, "unscoped recall must keep returning the whole fleet's matches"

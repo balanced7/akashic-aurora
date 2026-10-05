@@ -9,12 +9,12 @@ so the mechanism is built the other way round: the floor still runs, the number 
 printed, the frame is labelled `exempt` with its reason and owner, and the summary counts
 exemptions SEPARATELY from passes and failures.
 """
+
 from __future__ import annotations
 
+import av
 import numpy as np
 import pytest
-
-import av
 
 from arsenal import floors as F
 
@@ -46,7 +46,7 @@ def _decl(**over):
         "match": ["presetbank/visualizer-builtin"],
         "floors": ["not_dead"],
         "reason": "the builtin visualizer has no shader source, so an empty canvas is the "
-                  "declared expectation rather than a defect",
+        "declared expectation rather than a defect",
         "owner": "asta",
         "date": "2026-09-17",
     }
@@ -64,22 +64,22 @@ def test_the_shipped_table_is_empty_until_an_owner_declares_one():
 
 def test_a_declaration_without_a_reason_is_refused():
     bad = _decl(reason="")
-    with pytest.raises(ValueError) as err:
+    with pytest.raises(ValueError, match="reason is required") as err:
         F.validate_declarations(bad)
     assert "reason" in str(err.value)
 
 
 def test_a_declaration_without_an_owner_or_date_is_refused():
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="owner is required"):
         F.validate_declarations(_decl(owner=""))
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="date is required"):
         F.validate_declarations(_decl(date=""))
 
 
 def test_a_declaration_naming_an_unknown_floor_is_refused():
     """A typo'd floor name must be an ERROR, not a declaration that silently exempts nothing --
     that is the same disease (an absence rendering as normal) wearing a config file."""
-    with pytest.raises(ValueError) as err:
+    with pytest.raises(ValueError, match=r"unknown floor name\(s\)") as err:
         F.validate_declarations(_decl(floors=["not_dead2", "definitely_not_a_floor"]))
     assert "definitely_not_a_floor" in str(err.value)
 
@@ -88,13 +88,13 @@ def test_an_exempted_frame_keeps_its_measurement_and_is_labelled_exempt(tmp_path
     path = _png(tmp_path / "presetbank" / "visualizer-builtin" / "frame.png", _black())
     receipt = F.check(str(path), floors=["not_dead"], exemptions=_decl())
     entry = next(r for r in receipt["results"] if r["floor"] == "not_dead")
-    assert entry["pass"] is False                                   # the measurement stands
-    assert entry["measured"]["mean"] < entry["min_mean"]           # and the number is printed
-    assert entry["exempt"]["id"] == "visualizer-builtin-blank"     # with its declaration
+    assert entry["pass"] is False  # the measurement stands
+    assert entry["measured"]["mean"] < entry["min_mean"]  # and the number is printed
+    assert entry["exempt"]["id"] == "visualizer-builtin-blank"  # with its declaration
     assert "no shader source" in entry["exempt"]["reason"]
     assert entry["exempt"]["owner"] == "asta"
-    assert receipt["pass"] is False                                 # raw truth is unchanged
-    assert receipt["verdict"] == "exempt"                           # the honest label
+    assert receipt["pass"] is False  # raw truth is unchanged
+    assert receipt["verdict"] == "exempt"  # the honest label
 
 
 def test_an_exemption_excuses_only_the_floors_it_names(tmp_path):
@@ -125,16 +125,18 @@ def test_summarise_counts_exemptions_separately_and_names_its_blind_spot(tmp_pat
     exempted = _png(tmp_path / "presetbank" / "visualizer-builtin" / "frame.png", _black())
     dead = _png(tmp_path / "presetbank" / "other-preset" / "frame.png", _black())
     alive = _png(tmp_path / "presetbank" / "healthy-preset" / "frame.png", _alive())
-    receipts = F.check_many([str(exempted), str(dead), str(alive)],
-                            floors=["not_dead", "variety"],
-                            # the frame-level label is all-or-nothing: a declaration has to
-                            # cover EVERY failing floor of the frame for it to read `exempt`
-                            exemptions=_decl(floors=["not_dead", "variety"]))
+    receipts = F.check_many(
+        [str(exempted), str(dead), str(alive)],
+        floors=["not_dead", "variety"],
+        # the frame-level label is all-or-nothing: a declaration has to
+        # cover EVERY failing floor of the frame for it to read `exempt`
+        exemptions=_decl(floors=["not_dead", "variety"]),
+    )
     summary = F.summarise(receipts)
     assert summary["frames"] == 3
     assert summary["passed"] == 1
-    assert summary["failed"] == 2                  # raw failures: the exempted frame is one
-    assert summary["exempt"] == 1                  # counted on its own line, never folded in
+    assert summary["failed"] == 2  # raw failures: the exempted frame is one
+    assert summary["exempt"] == 1  # counted on its own line, never folded in
     assert summary["exempted_floors"] == {"not_dead": 1, "variety": 1}
     assert summary["declarations_used"]["visualizer-builtin-blank"] == 1
     assert any("exempt" in note for note in summary["blind"])

@@ -7,6 +7,7 @@ because a live listener pid outranked a 192-minute-stale renewal marker. These p
 each leg of that chain unrepresentable. Live-Redis pattern (rb21/t083 lineage): unique
 agent id per test = namespace isolation; teardown deletes touched keys.
 """
+
 import json
 import os
 import subprocess
@@ -17,6 +18,8 @@ import uuid
 import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+import contextlib
 
 from core.comm import runner_lock, session_exit, wake_seat
 from core.comm.bus import Bus
@@ -32,7 +35,7 @@ GRACE, STALE = 300, 900
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
-@pytest.fixture()
+@pytest.fixture
 def agent():
     aid = f"t086s1-{uuid.uuid4().hex[:8]}"
     yield aid
@@ -45,24 +48,20 @@ def agent():
             pass
 
 
-@pytest.fixture()
+@pytest.fixture
 def sid():
     s = f"t086sid{uuid.uuid4().hex[:10]}"
     yield s
     c = runner_lock._client()
     if c is not None:
-        try:
+        with contextlib.suppress(Exception):
             c.delete(f"bifrost:session:ended:{s}")
-        except Exception:
-            pass
-    try:
+    with contextlib.suppress(Exception):
         os.remove(wake_seat.tombstone_path(s))
-    except Exception:
-        pass
 
 
 def _claim(agent, sid):
-    ok, gen, _ = runner_lock.claim_consumer(agent, f"session:{sid}")
+    ok, _gen, _ = runner_lock.claim_consumer(agent, f"session:{sid}")
     assert ok
     return f"session:{sid}"
 
@@ -73,8 +72,9 @@ def test_tombstoned_holder_freed_instantly_no_grace(agent, sid, tmp_path):
     inside the grace window that protects every other fresh claim."""
     _claim(agent, sid)
     assert wake_seat.write_tombstone(sid, str(tmp_path))
-    v = runner_lock.free_if_dead(agent, tmp=str(tmp_path))   # now ~= claim ts -> age ~0
-    assert v["freed"] and v["reason"].startswith("session-tombstoned")
+    v = runner_lock.free_if_dead(agent, tmp=str(tmp_path))  # now ~= claim ts -> age ~0
+    assert v["freed"]
+    assert v["reason"].startswith("session-tombstoned")
     assert runner_lock.holder(agent) is None
 
 
@@ -82,7 +82,8 @@ def test_fresh_claim_without_tombstone_still_graced(agent, sid, tmp_path):
     """Control: absent a tombstone, grace protects exactly as before (C1-1 behavior kept)."""
     _claim(agent, sid)
     v = runner_lock.free_if_dead(agent, tmp=str(tmp_path))
-    assert not v["freed"] and v["reason"].startswith("grace")
+    assert not v["freed"]
+    assert v["reason"].startswith("grace")
 
 
 def test_clean_death_writes_tombstone(agent, sid, tmp_path):
@@ -97,20 +98,34 @@ def test_reap_decision_kills_tombstoned_watcher():
     """Janitor: a tombstoned session's live watcher is reaped even with a FRESH marker
     (marker freshness proves the host fired hooks recently -- not that the session lives)."""
     action, reason = wake_seat.reap_decision(
-        "someothersid", pid=4242, pid_alive=True, pid_is_watcher=True,
-        marker_age_min=1.0, fresh_min=30.0, chain_fn=lambda: (True, "chain intact"),
-        my_session="mysid", tombstoned=True)
-    assert action == "kill" and "session-tombstoned" in reason
+        "someothersid",
+        pid=4242,
+        pid_alive=True,
+        pid_is_watcher=True,
+        marker_age_min=1.0,
+        fresh_min=30.0,
+        chain_fn=lambda: (True, "chain intact"),
+        my_session="mysid",
+        tombstoned=True,
+    )
+    assert action == "kill"
+    assert "session-tombstoned" in reason
 
 
 def test_stop_hook_stands_down_for_tombstoned_session(sid):
     """The resurrection-loop breaker, exercised through the REAL hook: a turn ending in a
     tombstoned session gets NO block demand and touches nothing. (Replay of this morning:
     the ghost's stop hook would have demanded re-arming; now it stands down by record.)"""
-    assert wake_seat.write_tombstone(sid)   # default tempdir -- where the hook looks
+    assert wake_seat.write_tombstone(sid)  # default tempdir -- where the hook looks
     payload = json.dumps({"session_id": sid, "hook_event_name": "Stop"})
-    r = subprocess.run([sys.executable, os.path.join(REPO, "agent", "harness", "hooks", "claude_stop.py")],
-                       input=payload, capture_output=True, text=True, timeout=60, cwd=REPO)
+    r = subprocess.run(
+        [sys.executable, os.path.join(REPO, "agent", "harness", "hooks", "claude_stop.py")],
+        input=payload,
+        capture_output=True,
+        text=True,
+        timeout=60,
+        cwd=REPO,
+    )
     assert '"decision": "block"' not in (r.stdout or "")
     assert "tombstoned" in (r.stderr or "")
     marker = wake_seat.activity_marker_path(os.getenv("AKASHIC_AGENT_ID") or "claude", sid)
@@ -123,13 +138,15 @@ def test_stale_marker_beats_live_listener(agent, sid, tmp_path):
     listener pid is alive. Process liveness is not session liveness."""
     _claim(agent, sid)
     seat = wake_seat.seat_path(agent, sid, str(tmp_path))
-    open(seat, "w").write("99999")
+    with open(seat, "w") as fh:
+        fh.write("99999")
     marker = wake_seat.activity_marker_path(agent, sid, str(tmp_path))
-    open(marker, "w").write("x")                     # mtime = real now
-    aged_now = time.time() + STALE + 60              # marker_age ~= STALE+60; claim age same
-    v = runner_lock.free_if_dead(agent, now=aged_now, tmp=str(tmp_path),
-                                 pid_alive=lambda p: True)
-    assert v["freed"] and v["reason"].startswith("renewal-stale")
+    with open(marker, "w") as fh:
+        fh.write("x")  # mtime = real now
+    aged_now = time.time() + STALE + 60  # marker_age ~= STALE+60; claim age same
+    v = runner_lock.free_if_dead(agent, now=aged_now, tmp=str(tmp_path), pid_alive=lambda p: True)
+    assert v["freed"]
+    assert v["reason"].startswith("renewal-stale")
 
 
 def test_midband_marker_live_listener_still_alive(agent, sid, tmp_path):
@@ -137,20 +154,24 @@ def test_midband_marker_live_listener_still_alive(agent, sid, tmp_path):
     (an idle-but-live session inside the lease window keeps its seat)."""
     _claim(agent, sid)
     seat = wake_seat.seat_path(agent, sid, str(tmp_path))
-    open(seat, "w").write("99999")
+    with open(seat, "w") as fh:
+        fh.write("99999")
     marker = wake_seat.activity_marker_path(agent, sid, str(tmp_path))
-    open(marker, "w").write("x")
-    mid_now = time.time() + GRACE + 100              # marker_age ~= 400s: mid-band
-    v = runner_lock.free_if_dead(agent, now=mid_now, tmp=str(tmp_path),
-                                 pid_alive=lambda p: True)
-    assert not v["freed"] and v["reason"].startswith("listener-alive")
+    with open(marker, "w") as fh:
+        fh.write("x")
+    mid_now = time.time() + GRACE + 100  # marker_age ~= 400s: mid-band
+    v = runner_lock.free_if_dead(agent, now=mid_now, tmp=str(tmp_path), pid_alive=lambda p: True)
+    assert not v["freed"]
+    assert v["reason"].startswith("listener-alive")
 
 
 # ---------------------------------------------------------------- S1 watcher leg
 class _StubApi:
     online_now = True
+
     def online(self):
         pass
+
     def wake_block(self, timeout_ms=0):
         raise AssertionError("wake_block must never run for a tombstoned session")
 
@@ -159,15 +180,17 @@ def test_watcher_stands_down_for_tombstoned_session(sid, tmp_path, capsys):
     """The C1-5 resurrection vector closed at the watcher itself: a tombstoned session's
     listener exits benign on its next chunk boundary, BEFORE any bus read."""
     import importlib.util
-    spec = importlib.util.spec_from_file_location(
-        "bifrost_wake", os.path.join(REPO, "scripts", "bifrost_wake.py"))
+
+    spec = importlib.util.spec_from_file_location("bifrost_wake", os.path.join(REPO, "scripts", "bifrost_wake.py"))
+    assert spec is not None
+    assert spec.loader is not None
     bw = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(bw)
-    assert wake_seat.write_tombstone(sid)          # default tempdir -- where watch() looks
+    assert wake_seat.write_tombstone(sid)  # default tempdir -- where watch() looks
     hb = str(tmp_path / "seat.pid")
-    open(hb, "w").write(str(os.getpid()))
-    rc = bw.watch("t086probe", 3600, 1000, api=_StubApi(), hb_path=hb,
-                  my_pid=os.getpid(), session_id=sid)
+    with open(hb, "w") as fh:
+        fh.write(str(os.getpid()))
+    rc = bw.watch("t086probe", 3600, 1000, api=_StubApi(), hb_path=hb, my_pid=os.getpid(), session_id=sid)
     assert rc == 0
     assert "session tombstoned" in capsys.readouterr().out
 
@@ -176,31 +199,38 @@ def test_cycle_line_reports_elapsed(sid, tmp_path, capsys):
     """C1-6 diagnostic: the self-cycle line carries ELAPSED + configured + chunk, so a
     phantom early-cycle is self-evident from the print alone."""
     import importlib.util
-    spec = importlib.util.spec_from_file_location(
-        "bifrost_wake2", os.path.join(REPO, "scripts", "bifrost_wake.py"))
+
+    spec = importlib.util.spec_from_file_location("bifrost_wake2", os.path.join(REPO, "scripts", "bifrost_wake.py"))
+    assert spec is not None
+    assert spec.loader is not None
     bw = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(bw)
     hb = str(tmp_path / "seat2.pid")
-    open(hb, "w").write(str(os.getpid()))
-    rc = bw.watch("t086probe2", 1, 2000, api=_StubApi(), hb_path=hb,
-                  my_pid=os.getpid(), session_id="")   # chunk 2s >= total 1s -> instant cycle
+    with open(hb, "w") as fh:
+        fh.write(str(os.getpid()))
+    rc = bw.watch(
+        "t086probe2", 1, 2000, api=_StubApi(), hb_path=hb, my_pid=os.getpid(), session_id=""
+    )  # chunk 2s >= total 1s -> instant cycle
     out = capsys.readouterr().out
-    assert rc == 0 and "elapsed (configured" in out and "0.00h" in out
+    assert rc == 0
+    assert "elapsed (configured" in out
+    assert "0.00h" in out
 
 
 # ---------------------------------------------------------------- S1c: fail-open
 def test_tombstone_probe_error_fails_open(agent, sid, tmp_path, monkeypatch):
     """A raising tombstone probe changes NOTHING: fresh claim stays graced, no crash."""
     _claim(agent, sid)
-    monkeypatch.setattr(wake_seat, "is_tombstoned",
-                        lambda *a, **k: (_ for _ in ()).throw(RuntimeError("probe down")))
+    monkeypatch.setattr(wake_seat, "is_tombstoned", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("probe down")))
     v = runner_lock.free_if_dead(agent, tmp=str(tmp_path))
-    assert not v["freed"] and v["reason"].startswith("grace")
+    assert not v["freed"]
+    assert v["reason"].startswith("grace")
 
 
 def test_kill_switch_disables_tombstones(sid, tmp_path, monkeypatch):
     """AKASHIC_TOMBSTONE=0: write refuses, read says False even with a tomb file present."""
-    open(wake_seat.tombstone_path(sid, str(tmp_path)), "w").write("x")
+    with open(wake_seat.tombstone_path(sid, str(tmp_path)), "w") as fh:
+        fh.write("x")
     monkeypatch.setenv("AKASHIC_TOMBSTONE", "0")
     assert not wake_seat.write_tombstone(sid, str(tmp_path))
     assert not wake_seat.is_tombstoned(sid, str(tmp_path))

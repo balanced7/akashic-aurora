@@ -15,6 +15,7 @@ the sprout's own answer about this very bug.
 
 Run: py -m pytest tests/test_discord_feed_honesty.py -q
 """
+
 import os
 import sys
 import uuid
@@ -28,12 +29,11 @@ from core.comm.bus import Bus
 
 
 def _client():
-    from core.foundation.redis_connection import (
-        connect_to_redis_with_fail_fast, DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT)
-    c = connect_to_redis_with_fail_fast(host=DEFAULT_REDIS_HOST,
-                                        port=DEFAULT_REDIS_PORT,
-                                        timeout_seconds=3,
-                                        decode_responses=True)
+    from core.foundation.redis_connection import DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT, connect_to_redis_with_fail_fast
+
+    c = connect_to_redis_with_fail_fast(
+        host=DEFAULT_REDIS_HOST, port=DEFAULT_REDIS_PORT, timeout_seconds=3, decode_responses=True
+    )
     if c is None:
         pytest.skip("redis not available")
     return c
@@ -48,19 +48,18 @@ def test_feed_confesses_dead_webhook_and_never_retries(monkeypatch, capsys):
     monkeypatch.setattr(discord_feed, "configured", lambda: True)
     monkeypatch.setattr(discord_feed.DB, "should_forward", lambda m: True)
     monkeypatch.setattr(discord_feed.DB, "webhook_url", lambda: "http://x.invalid")
-    monkeypatch.setattr(discord_feed, "seat_channel_url",
-                        lambda frm: "http://lane.invalid")
-    monkeypatch.setattr(discord_feed.ROOMS, "persona",
-                        lambda f: {"username": "t", "avatar_url": ""})
+    monkeypatch.setattr(discord_feed, "seat_channel_url", lambda frm: "http://lane.invalid")
+    monkeypatch.setattr(discord_feed.ROOMS, "persona", lambda f: {"username": "t", "avatar_url": ""})
     monkeypatch.setattr(discord_feed.ROOMS, "render_room_parts", lambda m: ["x"])
 
     def _dead_post(*a, **k):
         raise RuntimeError("webhook is a corpse")
+
     monkeypatch.setattr(discord_feed.ROOMS, "_default_post", _dead_post)
 
     bus = Bus("claude", client=c, namespace=ns, promote=False)
     try:
-        discord_feed.pump(bus)                      # first contact: tail-init
+        discord_feed.pump(bus)  # first contact: tail-init
         mid = bus.send("daniil", "reply", "the answer that must not vanish")
         assert mid
 
@@ -73,9 +72,7 @@ def test_feed_confesses_dead_webhook_and_never_retries(monkeypatch, capsys):
 
         out2 = discord_feed.pump(bus)
         ref2 = str(getattr(out2, "ref", "") or out2)
-        assert "failed=0" in ref2, (
-            "the cursor advanced past the corpse -- no retry storm, "
-            "loud exactly once")
+        assert "failed=0" in ref2, "the cursor advanced past the corpse -- no retry storm, loud exactly once"
     finally:
         keys = c.keys(f"{ns}:*")
         if keys:

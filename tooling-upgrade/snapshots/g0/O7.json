@@ -1,0 +1,47 @@
+{
+ "_meta": {
+  "commit": "d5f0615decac5f2449c59b18e3e3a3c6effe823c",
+  "created": "2026-10-01T11:46:23+0200",
+  "digest": "b520b97aa258ae904c082f2da8f7adea7d9d4e41cca8855cda6459f6376ac164",
+  "dirty": false,
+  "partial_modules": null,
+  "select": []
+ },
+ "commands": {
+  "agent_cli.help": {
+   "headings": [
+    "gateway the INBOUND Discord ear (bifrost_runner_discord.py):",
+    "options:",
+    "positional arguments:"
+   ],
+   "lines": 251,
+   "rc": 0
+  },
+  "agent_cli.status": {
+   "headings": [
+    "# system status"
+   ],
+   "lines": 6,
+   "rc": 0
+  },
+  "agent_cli.task-list": {
+   "headings": [
+    "## TASK LEDGER -- obey THIS, not old messages",
+    "DONE (closed -- do NOT redo):",
+    "IN PROGRESS:"
+   ],
+   "lines": 378,
+   "rc": 0
+  },
+  "bootstrap.agent-init": {
+   "headings": [],
+   "lines": 21,
+   "rc": 0
+  },
+  "embedded_redis.status": {
+   "headings": [],
+   "lines": 5,
+   "rc": 0
+  }
+ }
+}

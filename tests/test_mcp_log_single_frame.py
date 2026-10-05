@@ -4,6 +4,7 @@ The default keyword-theme path must not import the opt-in embedding stack.  A
 fresh stdio MCP server must therefore answer ``log`` without needing a second
 inbound JSON-RPC frame to shake the first response loose.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -12,8 +13,12 @@ import os
 import sys
 import types
 from types import SimpleNamespace
+from typing import TYPE_CHECKING, cast
 
 from core.narrative.beat_log import BeatLog
+
+if TYPE_CHECKING:
+    from core.narrative.schema import Beat
 
 
 def _beat():
@@ -34,7 +39,7 @@ def test_default_keyword_path_does_not_import_embedding_discovery(monkeypatch):
 
     monkeypatch.setattr(builtins, "__import__", recording_import)
     beat = _beat()
-    BeatLog.__new__(BeatLog)._assign_themes(beat, hint=None)
+    BeatLog.__new__(BeatLog)._assign_themes(cast("Beat", beat), hint=None)
 
     assert attempted == [], (
         "default keyword theming imported the opt-in embedding module; on a fresh "
@@ -54,11 +59,11 @@ def test_explicit_embedding_opt_in_still_uses_discovery_selector(monkeypatch):
             return ["embedding-opt-in"]
 
     fake_module = types.ModuleType("core.narrative.theme_discovery")
-    fake_module.select_theme_assigner = lambda: FakeAssigner()
+    monkeypatch.setattr(fake_module, "select_theme_assigner", lambda: FakeAssigner(), raising=False)
     monkeypatch.setitem(sys.modules, "core.narrative.theme_discovery", fake_module)
 
     beat = _beat()
-    BeatLog.__new__(BeatLog)._assign_themes(beat, hint=None)
+    BeatLog.__new__(BeatLog)._assign_themes(cast("Beat", beat), hint=None)
 
     assert calls == [("routing verification", None)]
     assert beat.themes == ["embedding-opt-in"]
@@ -86,25 +91,23 @@ def test_fresh_stdio_mcp_log_returns_without_second_frame(tmp_path):
                 "AKASHIC_EMBED_THEMES": "0",
             },
         )
-        async with stdio_client(params) as (read, write):
-            async with ClientSession(read, write) as session:
-                await session.initialize()
-                out = await asyncio.wait_for(
-                    session.call_tool(
-                        "log",
-                        {
-                            "agent": "mcp-log-single-frame",
-                            "kind": "note",
-                            "summary": "single-frame transport pin",
-                            "source": "test:mcp-log-single-frame",
-                            "category": "test",
-                            "task": "T060",
-                        },
-                    ),
-                    timeout=5.0,
-                )
-                text = "".join(getattr(item, "text", "") for item in out.content)
-                assert "[OK] note: single-frame transport pin" in text
+        async with stdio_client(params) as (read, write), ClientSession(read, write) as session:
+            await session.initialize()
+            out = await asyncio.wait_for(
+                session.call_tool(
+                    "log",
+                    {
+                        "agent": "mcp-log-single-frame",
+                        "kind": "note",
+                        "summary": "single-frame transport pin",
+                        "source": "test:mcp-log-single-frame",
+                        "category": "test",
+                        "task": "T060",
+                    },
+                ),
+                timeout=5.0,
+            )
+            text = "".join(getattr(item, "text", "") for item in out.content)
+            assert "[OK] note: single-frame transport pin" in text
 
     asyncio.run(flow())
-

@@ -18,6 +18,7 @@ keys, does not change config, and does not send anything but its own report. If 
 is broken it says so and prints the report for you to paste by hand — a doctor whose
 findings depend on the thing being diagnosed is no doctor at all.
 """
+
 from __future__ import annotations
 
 import base64
@@ -35,7 +36,7 @@ ROOT = Path(__file__).resolve().parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from core.comm import remote_relay as RR  # noqa: E402
+from core.comm import remote_relay as RR  # noqa: E402  # sys.path bootstrap
 
 R = []
 
@@ -51,7 +52,8 @@ def main() -> int:
     print("BRIDGE DOCTOR — your side, reported across the bridge")
     print("=" * 74)
 
-    fp = lambda b: hashlib.sha256(b).hexdigest()[:12] if b else "(absent)"
+    def fp(b):
+        return hashlib.sha256(b).hexdigest()[:12] if b else "(absent)"
 
     # ---- keys ------------------------------------------------------------------
     # PER-PEER, because a machine can host several identities. This read hardcoded
@@ -69,13 +71,11 @@ def main() -> int:
         recv_k = RR._secret(str(row.get("inbound_secret_file") or RR.INBOUND_KEY_FILE))
         line(f"[{who}] key you SIGN with", f"{len(send_k)}B  fp={fp(send_k)}", bool(send_k))
         line(f"[{who}] key you VERIFY with", f"{len(recv_k)}B  fp={fp(recv_k)}", bool(recv_k))
-        line(f"[{who}] keys are distinct", str(send_k != recv_k),
-             bool(send_k) and send_k != recv_k)
+        line(f"[{who}] keys are distinct", str(send_k != recv_k), bool(send_k) and send_k != recv_k)
         for lbl, k in (("outbound", send_k), ("inbound", recv_k)):
             if k:
                 t = k.decode("utf-8", "replace")
-                bad = [f"U+{ord(c):04X}@{i}" for i, c in enumerate(t)
-                       if ord(c) < 32 or ord(c) > 126]
+                bad = [f"U+{ord(c):04X}@{i}" for i, c in enumerate(t) if ord(c) < 32 or ord(c) > 126]
                 line(f"[{who}] {lbl} ASCII-clean", "yes" if not bad else f"NO: {bad}", not bad)
                 line(f"[{who}] {lbl} bytes==chars", f"{len(k)}=={len(t)}", len(k) == len(t))
     send_k = RR._outbound_key_for("")
@@ -83,18 +83,29 @@ def main() -> int:
 
     # ---- route -----------------------------------------------------------------
     cfg = RR._config()
-    peer = (cfg.get("peer") or {})
+    peer = cfg.get("peer") or {}
     url = RR.peer_url()
     line("peer.name (what YOU call THEM)", peer.get("name") or "(unset)")
     line("peer.url", url or "(unset)", bool(url))
 
     # ---- your listener ---------------------------------------------------------
     try:
-        import shutil, subprocess
-        exe = shutil.which("tailscale") or r"C:\Program Files\Tailscale\tailscale.exe"
-        my_ip = subprocess.run([exe, "ip", "-4"], capture_output=True, text=True,
-                               timeout=10).stdout.strip().splitlines()[0].strip()
-    except Exception:                                             # noqa: BLE001
+        import os
+        import shutil
+        import subprocess
+
+        exe = shutil.which("tailscale") or os.path.join(
+            os.environ.get("ProgramFiles", ""),  # noqa: SIM112  # Windows spelling; POSIX lookups are case-sensitive
+            "Tailscale",
+            "tailscale.exe",
+        )
+        my_ip = (
+            subprocess.run([exe, "ip", "-4"], capture_output=True, text=True, timeout=10)
+            .stdout.strip()
+            .splitlines()[0]
+            .strip()
+        )
+    except Exception:  # noqa: BLE001  # fail-soft: falls back to a default value
         my_ip = ""
     line("your tailnet IP", my_ip or "(tailscale not answering)", bool(my_ip))
     listening = False
@@ -115,7 +126,7 @@ def main() -> int:
             h, _, p = host.partition(":")
             socket.create_connection((h, int(p or 80)), timeout=6).close()
             reachable = True
-        except Exception:                                         # noqa: BLE001
+        except Exception:  # noqa: BLE001  # fail-soft: best effort, skipped on any error
             pass
     line("their listener reachable", "YES" if reachable else "NO", reachable)
 
@@ -127,17 +138,16 @@ def main() -> int:
     for r in peer_mail[-6:]:
         t = datetime.datetime.fromtimestamp(int(r.get("admitted_at") or 0)).strftime("%H:%M:%S")
         skew = int(r.get("sent_at") or 0) - int(r.get("admitted_at") or 0)
-        line(f"  parked {str(r.get('id'))[:26]}",
-             f"frm={r.get('frm')} claimed={r.get('claimed_frm')} skew={skew:+d}s")
-        if str(r.get("frm", "")).startswith("remote:"):
-            prov_ok = True if prov_ok is None else prov_ok
-        else:
-            prov_ok = False
+        line(f"  parked {str(r.get('id'))[:26]}", f"frm={r.get('frm')} claimed={r.get('claimed_frm')} skew={skew:+d}s")
+        prov_ok = (True if prov_ok is None else prov_ok) if str(r.get("frm", "")).startswith("remote:") else False
     if peer_mail:
-        line("PROVENANCE REWRITE",
-             "correct — frm assigned from route, claim kept inert" if prov_ok
-             else "BROKEN — frm was read off the payload",
-             bool(prov_ok))
+        line(
+            "PROVENANCE REWRITE",
+            "correct — frm assigned from route, claim kept inert"
+            if prov_ok
+            else "BROKEN — frm was read off the payload",
+            bool(prov_ok),
+        )
     else:
         line("PROVENANCE REWRITE", "cannot judge — nothing received yet")
 
@@ -153,13 +163,19 @@ def main() -> int:
     if not (url and send_k):
         print("Cannot send the report — outbound is not configured. Paste the block above.")
         return 1
-    payload = {"v": 1, "id": f"doctor-{int(time.time())}", "frm": "peer", "kind": "note",
-               "content": report, "sent_at": int(time.time())}
+    payload = {
+        "v": 1,
+        "id": f"doctor-{int(time.time())}",
+        "frm": "peer",
+        "kind": "note",
+        "content": report,
+        "sent_at": int(time.time()),
+    }
     body = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
-    env = {"body": base64.b64encode(body).decode(),
-           "sig": hmac_sig(body, send_k)}
-    req = urllib.request.Request(url, data=json.dumps(env).encode(), method="POST",
-                                 headers={"Content-Type": "application/json"})
+    env = {"body": base64.b64encode(body).decode(), "sig": hmac_sig(body, send_k)}
+    req = urllib.request.Request(
+        url, data=json.dumps(env).encode(), method="POST", headers={"Content-Type": "application/json"}
+    )
     try:
         with urllib.request.urlopen(req, timeout=12) as resp:
             print(f"report sent across the bridge: {resp.status} {resp.read().decode()}")
@@ -168,13 +184,14 @@ def main() -> int:
         print(f"report REFUSED by their gate: {e.code} {e.read().decode()}")
         print("Their log holds the reason; the refusal is flat by design. Paste the block above.")
         return 1
-    except Exception as e:                                        # noqa: BLE001
+    except Exception as e:  # noqa: BLE001  # fail-soft: logged, caller continues
         print(f"could not reach them ({type(e).__name__}: {e}). Paste the block above.")
         return 1
 
 
 def hmac_sig(body: bytes, secret: bytes) -> str:
     import hmac as _h
+
     return _h.new(secret, body, hashlib.sha256).hexdigest()
 
 

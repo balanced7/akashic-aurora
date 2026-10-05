@@ -10,30 +10,36 @@ The triage (`should_escalate` / `handle_notice`) is pure and unit-tested without
 the live loop. `note`/`chat` never escalate (low-token: they're seen on the next natural boot);
 only actionable kinds or high importance spawn a turn.
 """
+
 from __future__ import annotations
 
+import contextlib
 import json
 import time
-from typing import Any, Callable, Dict, Iterable, List, Optional
+from typing import TYPE_CHECKING, Any
 
 from core.comm.bus import BELL_NS, Bus
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Iterable
 
 # Kinds/importance that justify spending a turn now (everything else waits for the next boot peek).
 ESCALATE_KINDS = {"request", "handoff", "question", "blocker"}
 ESCALATE_IMPORTANCE = {"high", "urgent"}
 
 
-def should_escalate(notice: Dict[str, Any]) -> bool:
+def should_escalate(notice: dict[str, Any]) -> bool:
     """Zero-token gate: does this notice warrant waking the agent NOW?"""
     kind = str(notice.get("kind") or "").lower()
     imp = str(notice.get("importance") or "").lower()
     return kind in ESCALATE_KINDS or imp in ESCALATE_IMPORTANCE
 
 
-def _default_peek(agent: str) -> List[str]:
+def _default_peek(agent: str) -> list[str]:
     """Non-consuming digest peek (cursor unchanged) -> compact lines. Never raises."""
     try:
-        from agent.bifrost_pull import peek_inbox, format_digest_line
+        from agent.bifrost_pull import format_digest_line, peek_inbox
+
         return [format_digest_line(m) for m in peek_inbox(agent, limit=8)]
     except Exception:
         return []
@@ -43,22 +49,28 @@ class Dispatcher:
     """Wakes the agents it manages when actionable mail arrives. `invoker(agent, digest, notice)`
     is the per-runtime turn-starter (W3); the default is a no-op recorder (observe, don't spawn)."""
 
-    def __init__(self, agents: Iterable[str], *, invoker: Optional[Callable] = None,
-                 peek: Optional[Callable] = None, client: Optional[Any] = None):
+    def __init__(
+        self,
+        agents: Iterable[str],
+        *,
+        invoker: Callable | None = None,
+        peek: Callable | None = None,
+        client: Any | None = None,
+    ):
         self.agents = set(agents)
         self._invoker = invoker or (lambda agent, digest, notice: None)
         self._peek = peek or _default_peek
-        self._client = client                      # redis client for pub/sub; None -> connect on run()
-        self.woke: List[Dict[str, Any]] = []       # audit trail of dispatch decisions
+        self._client = client  # redis client for pub/sub; None -> connect on run()
+        self.woke: list[dict[str, Any]] = []  # audit trail of dispatch decisions
 
-    def _targets(self, notice: Dict[str, Any]) -> List[str]:
+    def _targets(self, notice: dict[str, Any]) -> list[str]:
         """Which of MY agents this notice is for (broadcast = all but the sender; direct = the recipient)."""
         frm, to = notice.get("frm"), notice.get("to")
         if to in ("*", None):
             return sorted(a for a in self.agents if a != frm)
         return sorted(self.agents & {to})
 
-    def handle_notice(self, notice: Dict[str, Any]) -> Dict[str, Any]:
+    def handle_notice(self, notice: dict[str, Any]) -> dict[str, Any]:
         """Pure triage + dispatch for one bell notice. Returns a decision record (testable)."""
         results = []
         escalate = should_escalate(notice)
@@ -96,10 +108,8 @@ class Dispatcher:
                     if once:
                         break
                 elif once and msg is None:
-                    break                          # once + nothing within the timeout
+                    break  # once + nothing within the timeout
         finally:
-            try:
+            with contextlib.suppress(Exception):
                 ps.close()
-            except Exception:
-                pass
         return handled

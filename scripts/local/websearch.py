@@ -13,6 +13,7 @@ Output is deliberately COMPACT (one result = two lines) -- worker context is the
 resource. Search finds candidates; the worker must still FETCH what it cites
 (article-contract.md rule: fetch-before-cite).
 """
+
 import argparse
 import json
 import sys
@@ -30,14 +31,19 @@ def search(query: str, host: str, n: int):
     req = urllib.request.Request(url, headers={"Accept": "application/json"})
     with urllib.request.urlopen(req, timeout=30) as f:
         data = json.loads(f.read().decode("utf-8", errors="replace"))
-    unresponsive = [" ".join(str(x) for x in e) if isinstance(e, (list, tuple)) else str(e)
-                    for e in (data.get("unresponsive_engines") or [])]
-    out = []
-    for r in (data.get("results") or [])[:n]:
-        out.append({"title": (r.get("title") or "").strip(),
-                    "url": r.get("url") or "",
-                    "snippet": " ".join(((r.get("content") or "").strip()).split())[:240],
-                    "engine": r.get("engine") or ""})
+    unresponsive = [
+        " ".join(str(x) for x in e) if isinstance(e, (list, tuple)) else str(e)
+        for e in (data.get("unresponsive_engines") or [])
+    ]
+    out = [
+        {
+            "title": (r.get("title") or "").strip(),
+            "url": r.get("url") or "",
+            "snippet": " ".join(((r.get("content") or "").strip()).split())[:240],
+            "engine": r.get("engine") or "",
+        }
+        for r in (data.get("results") or [])[:n]
+    ]
     return out, unresponsive
 
 
@@ -51,8 +57,11 @@ def main() -> int:
     try:
         results, unresponsive = search(args.query, args.host.rstrip("/"), args.n)
     except Exception as e:
-        print(f"search unavailable: {type(e).__name__}: {e}\n"
-              f"(is the akashic-searxng container up? docker start akashic-searxng)", file=sys.stderr)
+        print(
+            f"search unavailable: {type(e).__name__}: {e}\n"
+            f"(is the akashic-searxng container up? docker start akashic-searxng)",
+            file=sys.stderr,
+        )
         return 1
     if args.json:
         print(json.dumps({"results": results, "unresponsive_engines": unresponsive}, indent=1))
@@ -68,16 +77,13 @@ def main() -> int:
             print("SEARCH IS WALLED -- this is NOT an empty web.", file=sys.stderr)
             for u in unresponsive:
                 print(f"  refused: {u}", file=sys.stderr)
-            print("  every configured engine refused; treat this as NO ANSWER, not as absence.",
-                  file=sys.stderr)
-            print("  drill: docker restart akashic-searxng  |  add engines in searxng settings.yml",
-                  file=sys.stderr)
+            print("  every configured engine refused; treat this as NO ANSWER, not as absence.", file=sys.stderr)
+            print("  drill: docker restart akashic-searxng  |  add engines in searxng settings.yml", file=sys.stderr)
             return 2
         print("(no results) -- all engines answered; the web genuinely returned nothing")
         return 0
     if unresponsive:
-        print(f"[partial: {len(unresponsive)} engine(s) refused -- "
-              f"{', '.join(unresponsive)}]", file=sys.stderr)
+        print(f"[partial: {len(unresponsive)} engine(s) refused -- {', '.join(unresponsive)}]", file=sys.stderr)
     for i, r in enumerate(results, 1):
         print(f"{i}. {r['title']}\n   {r['url']}\n   {r['snippet']}")
     return 0

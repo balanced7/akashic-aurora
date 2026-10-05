@@ -31,10 +31,12 @@ API (core/coord/task_ledger.read_ledger) -- the locked design names it as the tr
 import is function-local + fail-soft: without coord, those two triggers silently degrade and the
 switch/idle triggers still work. Best-effort everywhere; a suggester hiccup must never break a door.
 """
+
+import contextlib
 import json
 import os
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from core.foundation.store import Store, create_store
 from core.foundation.timeutil import to_epoch as _epoch
@@ -42,31 +44,32 @@ from core.narrative.beat_log import BeatLog
 from core.narrative.chapter_lifecycle import load_chapter_from_store
 from core.narrative.episode import EPISODE_OPEN_KEY, content_beats, draft_fields
 
-SUGGEST_STATE_KEY = "narr:episode:suggestion:state"   # {chapter_id, fingerprints, last_at, active}
+SUGGEST_STATE_KEY = "narr:episode:suggestion:state"  # {chapter_id, fingerprints, last_at, active}
 
-CONFIDENCE = {          # deterministic per-trigger confidence (contract example: impl-complete 0.88)
+CONFIDENCE = {  # deterministic per-trigger confidence (contract example: impl-complete 0.88)
     "impl-complete": 0.88,
     "subsystem-switch": 0.75,
     "new-objective": 0.70,
     "idle": 0.60,
 }
-IDLE_S = 900            # episode-level idle (review Q5c) -- NOT the 4h session gap
-MIN_SPAN_S = 300        # a just-opened episode never suggests (anti rapid-fire after each close)
-MIN_BEATS = 2           # a thin episode has nothing worth bookending
-COOLDOWN_S = 600        # min gap between DIFFERENT suggestions for the same episode
-_SWITCH_WINDOW = 3      # switch looks at the last N routed beats...
-_SWITCH_MIN_BEATS = 2   # ...and needs >=2 of them, unanimous, on a non-episode track
+IDLE_S = 900  # episode-level idle (review Q5c) -- NOT the 4h session gap
+MIN_SPAN_S = 300  # a just-opened episode never suggests (anti rapid-fire after each close)
+MIN_BEATS = 2  # a thin episode has nothing worth bookending
+COOLDOWN_S = 600  # min gap between DIFFERENT suggestions for the same episode
+_SWITCH_WINDOW = 3  # switch looks at the last N routed beats...
+_SWITCH_MIN_BEATS = 2  # ...and needs >=2 of them, unanimous, on a non-episode track
 
 
-def _now(now: Optional[str]) -> str:
+def _now(now: str | None) -> str:
     return now or datetime.utcnow().isoformat()
 
 
 # ---- pure trigger evaluation (unit-testable without a store) ---------------------------------------
 
-def evaluate(*, chapter_track: str, span_start: str, beats: List[Any],
-             task_events: List[Tuple[str, str, float]],
-             now: str) -> Optional[Dict[str, Any]]:
+
+def evaluate(
+    *, chapter_track: str, span_start: str, beats: list[Any], task_events: list[tuple[str, str, float]], now: str
+) -> dict[str, Any] | None:
     """All four triggers over already-loaded state -> the single strongest candidate
     {reason, confidence, fingerprint}, or None. `task_events` = (kind, task_id, at_epoch) with
     kind in {"new-objective", "impl-complete"}. Pure + deterministic; noise gates first.
@@ -84,41 +87,50 @@ def evaluate(*, chapter_track: str, span_start: str, beats: List[Any],
     if now_ep - start_ep < MIN_SPAN_S or len(beats) < MIN_BEATS:
         return None
 
-    candidates: List[Dict[str, Any]] = []
+    candidates: list[dict[str, Any]] = []
 
     for kind, tid, at_ep in task_events:
         if kind in CONFIDENCE and start_ep <= at_ep <= now_ep:
-            candidates.append({"reason": kind, "confidence": CONFIDENCE[kind],
-                               "fingerprint": f"{kind}:{tid}"})
+            candidates.append({"reason": kind, "confidence": CONFIDENCE[kind], "fingerprint": f"{kind}:{tid}"})
 
     recent = [getattr(b, "track", None) for b in beats[-_SWITCH_WINDOW:]]
     recent = [t for t in recent if t]
-    if (chapter_track and len(recent) >= _SWITCH_MIN_BEATS
-            and len(set(recent)) == 1 and recent[0] != chapter_track):
-        candidates.append({"reason": "subsystem-switch", "confidence": CONFIDENCE["subsystem-switch"],
-                           "fingerprint": f"subsystem-switch:{recent[0]}"})
+    if chapter_track and len(recent) >= _SWITCH_MIN_BEATS and len(set(recent)) == 1 and recent[0] != chapter_track:
+        candidates.append(
+            {
+                "reason": "subsystem-switch",
+                "confidence": CONFIDENCE["subsystem-switch"],
+                "fingerprint": f"subsystem-switch:{recent[0]}",
+            }
+        )
 
     newest = beats[-1] if beats else None
     if newest is not None:
         try:
             if now_ep - _epoch(getattr(newest, "at", "") or "") >= IDLE_S:
-                candidates.append({"reason": "idle", "confidence": CONFIDENCE["idle"],
-                                   "fingerprint": f"idle:{getattr(newest, 'id', '?')}"})
+                candidates.append(
+                    {
+                        "reason": "idle",
+                        "confidence": CONFIDENCE["idle"],
+                        "fingerprint": f"idle:{getattr(newest, 'id', '?')}",
+                    }
+                )
         except Exception:
             pass
 
     if not candidates:
         return None
-    return max(candidates, key=lambda c: c["confidence"])   # ties: first wins (dict order above)
+    return max(candidates, key=lambda c: c["confidence"])  # ties: first wins (dict order above)
 
 
-def _task_events(ledger_path: Optional[str]) -> List[Tuple[str, str, float]]:
+def _task_events(ledger_path: str | None) -> list[tuple[str, str, float]]:
     """Task-ledger history -> trigger events. Lateral coord read (see module docstring); fail-soft
     to [] so a missing/broken ledger only degrades these two triggers."""
     try:
-        from core.coord.task_ledger import read_ledger, LEDGER_PATH
-        led = read_ledger(ledger_path or LEDGER_PATH, client=None)   # git file = truth; no Redis dep
-        out: List[Tuple[str, str, float]] = []
+        from core.coord.task_ledger import LEDGER_PATH, read_ledger
+
+        led = read_ledger(ledger_path or LEDGER_PATH, client=None)  # git file = truth; no Redis dep
+        out: list[tuple[str, str, float]] = []
         for t in led.get("tasks", []):
             for h in t.get("history", []):
                 to, at = h.get("to"), h.get("at")
@@ -139,7 +151,8 @@ def _task_events(ledger_path: Optional[str]) -> List[Tuple[str, str, float]]:
 
 # ---- stateful shell: dedup + cooldown + standing suggestion + bus emission -------------------------
 
-def _load_state(store: Store) -> Dict[str, Any]:
+
+def _load_state(store: Store) -> dict[str, Any]:
     try:
         raw = store.get(SUGGEST_STATE_KEY)
         st = json.loads(raw) if raw else {}
@@ -148,15 +161,14 @@ def _load_state(store: Store) -> Dict[str, Any]:
         return {}
 
 
-def _save_state(store: Store, st: Dict[str, Any]) -> None:
-    try:
+def _save_state(store: Store, st: dict[str, Any]) -> None:
+    with contextlib.suppress(Exception):
         store.set(SUGGEST_STATE_KEY, json.dumps(st))
-    except Exception:
-        pass
 
 
-def suggest(store: Optional[Store] = None, *, now: Optional[str] = None,
-            ledger_path: Optional[str] = None) -> Optional[Dict[str, Any]]:
+def suggest(
+    store: Store | None = None, *, now: str | None = None, ledger_path: str | None = None
+) -> dict[str, Any] | None:
     """The advisory suggestion for the OPEN episode, or None. Idempotent at read time: the standing
     suggestion is returned on every poll until it is replaced (stronger trigger, post-cooldown),
     invalidated (idle broken by new activity), or the episode closes (chapter id changes). Emits one
@@ -173,45 +185,59 @@ def suggest(store: Optional[Store] = None, *, now: Optional[str] = None,
         # and must not count toward thin-gates, idle recency, switch unanimity, or the draft.
         beats = content_beats(BeatLog(store).in_window(ch.span_start, now_iso))
         st = _load_state(store)
-        if st.get("chapter_id") != ch.id:                      # fresh episode -> fresh slate
+        if st.get("chapter_id") != ch.id:  # fresh episode -> fresh slate
             st = {"chapter_id": ch.id, "fingerprints": [], "last_at": None, "active": None}
 
         active = st.get("active")
         newest_id = getattr(beats[-1], "id", None) if beats else None
-        if active and str(active.get("fingerprint", "")).startswith("idle:") \
-                and f"idle:{newest_id}" != active.get("fingerprint"):
-            active = None                                      # activity resumed -> idle self-clears
+        if (
+            active
+            and str(active.get("fingerprint", "")).startswith("idle:")
+            and f"idle:{newest_id}" != active.get("fingerprint")
+        ):
+            active = None  # activity resumed -> idle self-clears
             st["active"] = None
             _save_state(store, st)
 
-        cand = evaluate(chapter_track=ch.track or "", span_start=ch.span_start, beats=beats,
-                        task_events=_task_events(ledger_path), now=now_iso)
+        cand = evaluate(
+            chapter_track=ch.track or "",
+            span_start=ch.span_start,
+            beats=beats,
+            task_events=_task_events(ledger_path),
+            now=now_iso,
+        )
 
         if cand is None or cand["fingerprint"] in st.get("fingerprints", []):
-            return _public(active)                             # nothing new -> the standing view
+            return _public(active)  # nothing new -> the standing view
         if active is not None and cand["confidence"] <= active.get("confidence", 0.0):
-            return _public(active)                             # only a STRONGER trigger replaces
+            return _public(active)  # only a STRONGER trigger replaces
         last_at = st.get("last_at")
         if last_at:
             try:
                 if _epoch(now_iso) - _epoch(last_at) < COOLDOWN_S:
-                    return _public(active)                     # too soon after the previous one
+                    return _public(active)  # too soon after the previous one
             except Exception:
                 pass
 
-        suggestion = {**draft_fields(beats), "reason": cand["reason"],
-                      "confidence": cand["confidence"], "fingerprint": cand["fingerprint"]}
-        st["fingerprints"] = list(st.get("fingerprints", [])) + [cand["fingerprint"]]
+        suggestion = {
+            **draft_fields(beats),
+            "reason": cand["reason"],
+            "confidence": cand["confidence"],
+            "fingerprint": cand["fingerprint"],
+        }
+        st["fingerprints"] = [*list(st.get("fingerprints", [])), cand["fingerprint"]]
         st["last_at"] = now_iso
         st["active"] = suggestion
         _save_state(store, st)
-        try:                                                   # the RENEW-shared durable bus
+        try:  # the RENEW-shared durable bus
             from core.events.event_log import capture_event
-            capture_event("episode_suggestion",
-                          f"SUGGEST episode close: {cand['reason']} ({cand['confidence']:.2f}) "
-                          f"-- {suggestion['title']}"[:200],
-                          agent_id=os.getenv("AKASHIC_AGENT_ID") or "unknown",
-                          detail={"chapter_id": ch.id, **suggestion})
+
+            capture_event(
+                "episode_suggestion",
+                f"SUGGEST episode close: {cand['reason']} ({cand['confidence']:.2f}) -- {suggestion['title']}"[:200],
+                agent_id=os.getenv("AKASHIC_AGENT_ID") or "unknown",
+                detail={"chapter_id": ch.id, **suggestion},
+            )
         except Exception:
             pass
         return _public(suggestion)
@@ -219,7 +245,7 @@ def suggest(store: Optional[Store] = None, *, now: Optional[str] = None,
         return None
 
 
-def _public(suggestion: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+def _public(suggestion: dict[str, Any] | None) -> dict[str, Any] | None:
     """The contract view (#6): draft fields + reason/confidence; the fingerprint stays internal."""
     if not suggestion:
         return None

@@ -4,25 +4,23 @@ The MCP half runs in a fresh child process.  Importing ``ai_setup_mcp`` while
 pytest capture owns stdio can cache fixture streams in the MCP runtime and
 contaminate unrelated transport tests on Windows.
 """
+
 from __future__ import annotations
 
 import json
 import os
-from pathlib import Path
 import subprocess
 import sys
+from pathlib import Path
 
 import agent_cli
 from core.comm.toolbox import TOOLS, ToolBox
-
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_glance_parser_names_the_projection_and_bounds():
-    args = agent_cli.build_parser().parse_args(
-        ["glance", "program", "--brief", "--max-items", "3", "--compact"]
-    )
+    args = agent_cli.build_parser().parse_args(["glance", "program", "--brief", "--max-items", "3", "--compact"])
 
     assert args.fn is agent_cli.cmd_glance
     assert args.glance_projection == "program"
@@ -82,8 +80,10 @@ def test_mcp_glance_twin_emits_the_same_semantic_contract_in_fresh_process():
 
 def test_stdio_mcp_advertises_and_calls_glance_end_to_end():
     """Prove the real stdio membrane, not only the delegated Python wrapper."""
+
     async def flow():
         import asyncio
+
         from mcp import ClientSession, StdioServerParameters
         from mcp.client.stdio import stdio_client
 
@@ -93,28 +93,27 @@ def test_stdio_mcp_advertises_and_calls_glance_end_to_end():
             cwd=str(ROOT),
             env={**os.environ, "_AISETUP_TEST_ISOLATED": "1", "REDIS_DB": "15"},
         )
-        async with stdio_client(params) as (read, write):
-            async with ClientSession(read, write) as session:
-                await session.initialize()
-                names = {tool.name for tool in (await session.list_tools()).tools}
-                assert "glance" in names
-                result = await asyncio.wait_for(
-                    session.call_tool(
-                        "glance",
-                        {
-                            "projection": "program",
-                            "max_items": 1,
-                            "brief": True,
-                            "compact": True,
-                        },
-                    ),
-                    timeout=10.0,
-                )
-                text = "".join(getattr(block, "text", "") for block in result.content)
-                payload = json.loads(text)
-                assert payload["schema_version"] == "operational-brief/v1"
-                assert payload["identity_authority"] == "none"
-                assert payload["bounds"]["returned_items"] <= 1
+        async with stdio_client(params) as (read, write), ClientSession(read, write) as session:
+            await session.initialize()
+            names = {tool.name for tool in (await session.list_tools()).tools}
+            assert "glance" in names
+            result = await asyncio.wait_for(
+                session.call_tool(
+                    "glance",
+                    {
+                        "projection": "program",
+                        "max_items": 1,
+                        "brief": True,
+                        "compact": True,
+                    },
+                ),
+                timeout=10.0,
+            )
+            text = "".join(getattr(block, "text", "") for block in result.content)
+            payload = json.loads(text)
+            assert payload["schema_version"] == "operational-brief/v1"
+            assert payload["identity_authority"] == "none"
+            assert payload["bounds"]["returned_items"] <= 1
 
     import asyncio
 

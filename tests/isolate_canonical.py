@@ -18,10 +18,11 @@ flaky. Flushing on import guarantees each isolated test process starts empty.
 Usage (must precede `from core.foundation...`):
 
     import sys, os
-    import isolate_canonical            # noqa: F401  (side-effect: isolates + flushes)
+    import isolate_canonical            # noqa: F401  # side-effect: isolates + flushes
     sys.path.insert(0, <project root>)
     from core.foundation.store import ...
 """
+
 import os
 import sys
 import tempfile
@@ -31,6 +32,7 @@ from pathlib import Path
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
+
 
 def _already_redirected() -> bool:
     """Is isolation ACTUALLY in force -- not merely claimed?
@@ -54,9 +56,9 @@ def _already_redirected() -> bool:
         return False
     try:
         if Path(ai).resolve() == Path(_ROOT).resolve():
-            return False          # pointed at the live repo: not isolated, whatever the flag says
+            return False  # pointed at the live repo: not isolated, whatever the flag says
     except Exception:
-        return False              # cannot tell -> assume NOT isolated (fail safe, not silent)
+        return False  # cannot tell -> assume NOT isolated (fail safe, not silent)
     return str(db).strip() not in ("", "0")
 
 
@@ -73,6 +75,7 @@ if not _already_redirected():
     # "empty" test stores came back holding the live legacy corpus.
     try:
         from config import REDIS_TEST_DB
+
         os.environ["REDIS_DB"] = str(REDIS_TEST_DB)
     except Exception:
         os.environ["REDIS_DB"] = "15"
@@ -108,8 +111,11 @@ if not _already_redirected():
     # Start from an empty test DB so Redis-backed state can't accumulate across runs.
     try:
         import redis
+
         from config import REDIS_HOST, REDIS_PORT
-        redis.Redis(host=REDIS_HOST, port=REDIS_PORT, db=int(os.environ["REDIS_DB"]),
-                    socket_connect_timeout=0.5).flushdb()
+
+        redis.Redis(
+            host=REDIS_HOST, port=REDIS_PORT, db=int(os.environ["REDIS_DB"]), socket_connect_timeout=0.5
+        ).flushdb()
     except Exception:
-        pass   # Redis down -> file-only isolation is enough
+        pass  # Redis down -> file-only isolation is enough

@@ -11,19 +11,20 @@ Laws pinned (RED before core/toolbelt/play_sandbox.py is integrated into the fam
 
 Run: py -m pytest tests/test_s0_gamma_play_sandbox.py -q
 """
+
 import json
 import os
 import sys
-import time
-import uuid
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 # --- L1: discovery ------------------------------------------------------------
 
+
 def test_list_tools_finds_play_scripts():
-    from core.toolbelt.play_sandbox import list_tools, list_seats
+    from core.toolbelt.play_sandbox import list_seats, list_tools
+
     seats = list_seats()
     assert "kimi" in seats, "kimi has a play directory"
     tools = list_tools("kimi")
@@ -32,15 +33,19 @@ def test_list_tools_finds_play_scripts():
 
 def test_list_nonexistent_agent_returns_empty():
     from core.toolbelt.play_sandbox import list_tools
+
     assert list_tools("no-such-agent") == []
 
 
 # --- L2: sandboxed run --------------------------------------------------------
 
+
 def test_sandboxed_run_produces_receipt():
     """Run a trivial play tool and verify the receipt shape."""
     import tempfile
+
     from core.toolbelt.play_sandbox import sandboxed_run
+
     # Write a temporary play tool that just prints and exits 0
     with tempfile.TemporaryDirectory() as td:
         tool_path = os.path.join(td, "hello.py")
@@ -58,7 +63,9 @@ def test_sandboxed_run_produces_receipt():
 def test_sandboxed_run_timeout_is_receipt():
     """A tool that sleeps past timeout returns a crash receipt, never hangs."""
     import tempfile
+
     from core.toolbelt.play_sandbox import sandboxed_run
+
     with tempfile.TemporaryDirectory() as td:
         tool_path = os.path.join(td, "sleeper.py")
         with open(tool_path, "w") as f:
@@ -71,7 +78,9 @@ def test_sandboxed_run_timeout_is_receipt():
 def test_sandboxed_run_captures_output():
     """stdout is captured and the output_kb field is populated."""
     import tempfile
+
     from core.toolbelt.play_sandbox import sandboxed_run
+
     with tempfile.TemporaryDirectory() as td:
         tool_path = os.path.join(td, "chatter.py")
         with open(tool_path, "w") as f:
@@ -82,12 +91,13 @@ def test_sandboxed_run_captures_output():
 
 # --- L3: receipt persistence --------------------------------------------------
 
+
 def test_receipt_persisted_to_runs():
     """After sandboxed_run(), a receipt JSON exists in the runs directory."""
-    import tempfile
-    monkeypatch_setenv = os.environ.get("PYTEST_CURRENT_TEST")  # just verify we're in pytest
+
     # Use the REAL PLAY directory for this test (data/play) — sandboxed_run writes to it
-    from core.toolbelt.play_sandbox import sandboxed_run, PLAY
+    from core.toolbelt.play_sandbox import PLAY, sandboxed_run
+
     play_sub = os.path.join(PLAY, "test-gamma")
     os.makedirs(play_sub, exist_ok=True)
     runs_sub = os.path.join(PLAY, "test-gamma", "runs")
@@ -96,7 +106,7 @@ def test_receipt_persisted_to_runs():
     try:
         with open(tool_path, "w") as f:
             f.write("print('receipt me')\n")
-        rec = sandboxed_run("test-gamma", "meep", tool_path)
+        sandboxed_run("test-gamma", "meep", tool_path)
         # Check that a receipt JSON was written
         recs = [f for f in os.listdir(runs_sub) if f.startswith("meep-") and f.endswith(".json")]
         assert len(recs) >= 1, "receipt JSON was written to runs/"
@@ -118,9 +128,12 @@ def test_receipt_persisted_to_runs():
 
 # --- L4: find_tool validation -------------------------------------------------
 
+
 def test_find_tool_rejects_bad_refs():
-    from core.toolbelt.play_sandbox import find_tool
     import pytest
+
+    from core.toolbelt.play_sandbox import find_tool
+
     with pytest.raises(ValueError, match="bad tool ref"):
         find_tool("not-a-ref")
     with pytest.raises(FileNotFoundError):

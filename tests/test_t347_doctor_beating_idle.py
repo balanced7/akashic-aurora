@@ -30,22 +30,26 @@ import os
 import sys
 import time
 
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from core.comm import doctor, liveness
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, ROOT)
 
-from core.comm import doctor  # noqa: E402
-from core.comm import liveness  # noqa: E402
 
-RUNNER_ID = "deepseek#23444-de"          # the receipt's exact shape
-SEAT_ID = "docpin#abcd1234"              # 8-hex sid = true seat contract
+RUNNER_ID = "deepseek#23444-de"  # the receipt's exact shape
+SEAT_ID = "docpin#abcd1234"  # 8-hex sid = true seat contract
 
 
 def _examine(agent, worklive, progress=None):
-    return doctor.examine(agent, probes={
-        "now": time.time(),
-        "worklive": lambda a: worklive,
-        "progress": lambda a: progress,
-    })
+    return doctor.examine(
+        agent,
+        probes={
+            "now": time.time(),
+            "worklive": lambda a: worklive,
+            "progress": lambda a: progress,
+        },
+    )
 
 
 def _states(findings):
@@ -58,8 +62,7 @@ def _lines(findings):
 
 def _long_beat_only_wl():
     now = time.time()
-    return {"phase": "running", "since_ts": now - liveness.DEFAULT_WEDGE_S - 120,
-            "beat_ts": now - 2}
+    return {"phase": "running", "since_ts": now - liveness.DEFAULT_WEDGE_S - 120, "beat_ts": now - 2}
 
 
 def test_p1_runner_incarnation_beat_only_is_never_genuinely_working():
@@ -68,20 +71,23 @@ def test_p1_runner_incarnation_beat_only_is_never_genuinely_working():
         "RUNNER-IN-SEAT-COSTUME: a #pid-suffix runner incarnation with a fresh "
         "beat and NO pulse rendered as 'genuinely working' — the beat is its "
         "heartbeat THREAD, the exact evidence class Sol's no-go excluded "
-        "(live receipt 2026-08-17)")
+        "(live receipt 2026-08-17)"
+    )
 
 
 def test_p2_runner_beat_only_earns_the_third_state_naming_both_signals():
     f = _examine(RUNNER_ID, _long_beat_only_wl(), progress=None)
     hits = [x for x in f if x.get("state") == "beating_unproven"]
-    assert hits, (f"beat-only long work on a runner incarnation must yield the "
-                  f"distinct 'beating_unproven' finding; got {_states(f)}")
+    assert hits, (
+        f"beat-only long work on a runner incarnation must yield the "
+        f"distinct 'beating_unproven' finding; got {_states(f)}"
+    )
     line = hits[0].get("line", "").lower()
     # T282: a verdict names the signals it keyed on — both of them.
-    assert "beat" in line and "pulse" in line, (
-        "the third state must name BOTH signals: fresh beat, dead/absent pulse")
-    assert "alive" in line and "working" in line, (
-        "the third state must say the discriminating sentence: alive is not working")
+    assert "beat" in line, "the third state must name BOTH signals: fresh beat, dead/absent pulse"
+    assert "pulse" in line, "the third state must name BOTH signals: fresh beat, dead/absent pulse"
+    assert "alive" in line, "the third state must say the discriminating sentence: alive is not working"
+    assert "working" in line, "the third state must say the discriminating sentence: alive is not working"
 
 
 def test_p3_true_seat_beat_still_retracts():
@@ -89,27 +95,25 @@ def test_p3_true_seat_beat_still_retracts():
     turn, so its beat IS work evidence (P1 of test_doctor_wedge_vs_beat.py)."""
     f = _examine(SEAT_ID, _long_beat_only_wl(), progress=None)
     assert ("hard_wedge", "page") not in _states(f), (
-        "REGRESSION: the fix demoted true seats — a beating #sid8 seat must "
-        "never page as wedged")
+        "REGRESSION: the fix demoted true seats — a beating #sid8 seat must never page as wedged"
+    )
     assert not any(x.get("state") == "beating_unproven" for x in f), (
-        "REGRESSION: the third state fired on a true seat; it is a runner verdict")
+        "REGRESSION: the third state fired on a true seat; it is a runner verdict"
+    )
 
 
 def test_p4_runner_fresh_pulse_still_earns_genuinely_working():
     now = time.time()
-    wl = {"phase": "running", "since_ts": now - liveness.DEFAULT_WEDGE_S - 120,
-          "beat_ts": now - 2}
+    wl = {"phase": "running", "since_ts": now - liveness.DEFAULT_WEDGE_S - 120, "beat_ts": now - 2}
     prog = {"age_s": 3, "detail": "reviewing T335"}
     f = _examine(RUNNER_ID, wl, progress=prog)
-    assert "genuinely working" in _lines(f), (
-        "pulse evidence is work evidence — the fix must not demote it")
+    assert "genuinely working" in _lines(f), "pulse evidence is work evidence — the fix must not demote it"
 
 
 def test_p5_runner_dead_both_still_pages_hard_wedge():
     now = time.time()
-    wl = {"phase": "handling", "since_ts": now - liveness.DEFAULT_WEDGE_S - 120,
-          "beat_ts": now - 9999}
+    wl = {"phase": "handling", "since_ts": now - liveness.DEFAULT_WEDGE_S - 120, "beat_ts": now - 9999}
     f = _examine(RUNNER_ID, wl, progress=None)
     assert ("hard_wedge", "page") in _states(f), (
-        "dead pulse + dead beat must keep paging HARD WEDGE — the fix must not "
-        "soften the true-wedge branch")
+        "dead pulse + dead beat must keep paging HARD WEDGE — the fix must not soften the true-wedge branch"
+    )

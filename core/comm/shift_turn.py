@@ -22,28 +22,32 @@ KILL SWITCH: AKASHIC_SHIFT_LOOP=0 takes the autonomous loop out of every runner 
 with no code change -- same discipline as the recall kill switches, and the thing you
 reach for at 3am when the loop is doing something you did not intend.
 """
+
 import os
-from typing import Any, Dict, Optional
+from typing import Any
 
-_OFF = {"action": "idle", "task": None,
-        "reason": "shift loop disabled (AKASHIC_SHIFT_LOOP=0)"}
+_OFF = {"action": "idle", "task": None, "reason": "shift loop disabled (AKASHIC_SHIFT_LOOP=0)"}
 
 
-def _idle(reason: str) -> Dict[str, Any]:
+def _idle(reason: str) -> dict[str, Any]:
     return {"action": "idle", "task": None, "reason": reason}
 
 
-def _statuses() -> Dict[str, str]:
+def _statuses() -> dict[str, str]:
     """The reduced view next_beat needs: {task_id: status}. Reads the git-durable ledger,
     same source the shift daemon uses -- deliberately NOT a second gather implementation."""
     from core.coord import task_ledger as TL
+
     view = TL.state_view(client=None)
-    return {t["id"]: t["status"] for t in
-            (view["done"] + view["in_progress"] + view["next"]
-             + view["proposed"] + view["blocked"] + view["parked"])}
+    return {
+        t["id"]: t["status"]
+        for t in (
+            view["done"] + view["in_progress"] + view["next"] + view["proposed"] + view["blocked"] + view["parked"]
+        )
+    }
 
 
-def turn_beat(agent: Any, statuses: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
+def turn_beat(agent: Any, statuses: dict[str, str] | None = None) -> dict[str, Any]:
     """One autonomous decision for this turn. Never raises; always returns a decision.
 
     `statuses` is injectable so a caller (or a pin) can supply the view; when omitted it
@@ -60,13 +64,14 @@ def turn_beat(agent: Any, statuses: Optional[Dict[str, str]] = None) -> Dict[str
         if statuses is None:
             try:
                 statuses = _statuses()
-            except Exception as e:                                      # noqa: BLE001
+            except Exception as e:  # noqa: BLE001  # fail-soft: falls back to a default value
                 return _idle(f"ledger unavailable ({type(e).__name__}) -- idle (keep-running)")
         from core.coord import shift_loop
+
         decision = shift_loop.next_beat(statuses=statuses or {})
         if not isinstance(decision, dict) or "action" not in decision:
             return _idle("decision core returned an unusable shape -- idle (fail-closed)")
         return decision
-    except Exception as e:                                              # noqa: BLE001
+    except Exception as e:  # noqa: BLE001  # fail-soft: falls back to a default value
         # THE PIN THAT MATTERS: whatever went wrong, four runners keep turning.
         return _idle(f"turn boundary error ({type(e).__name__}) -- idle (fail-closed)")

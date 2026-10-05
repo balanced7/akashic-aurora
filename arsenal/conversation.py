@@ -1,4 +1,5 @@
 """Private question cards and explicitly saved piano answers; performance logs stay read-only."""
+
 from __future__ import annotations
 
 import copy
@@ -6,8 +7,9 @@ import json
 import math
 import re
 import threading
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
+from typing import cast
 
 from .performance import PerformanceStore
 from .pianocue import build_replay_cue, validate_cue
@@ -35,6 +37,7 @@ class ConversationStore:
 
     def publish(self, doc):
         from .replay import excerpt
+
         if not isinstance(doc, dict) or not isinstance(doc.get("cards"), list) or len(doc["cards"]) > 40:
             raise ValueError("provide an object with at most 40 cards")
         clean = copy.deepcopy(doc)
@@ -45,7 +48,13 @@ class ConversationStore:
             if card["id"] in seen:
                 raise ValueError("card ids must be unique")
             seen.add(card["id"])
-            for field, limit in (("title", 120), ("observation", 1200), ("question", 600), ("prompt", 600), ("group", 80)):
+            for field, limit in (
+                ("title", 120),
+                ("observation", 1200),
+                ("question", 600),
+                ("prompt", 600),
+                ("group", 80),
+            ):
                 value = card.get(field)
                 if not isinstance(value, str) or not value.strip() or len(value) > limit:
                     raise ValueError(f"{card['id']}: {field} needs 1-{limit} characters")
@@ -55,12 +64,13 @@ class ConversationStore:
             for clip in clips:
                 if not isinstance(clip, dict):
                     raise ValueError("each replay clip must be an object")
-                data = excerpt(self.performance, clip.get("session"), str(clip.get("at", "")),
-                               float(clip.get("seconds", 8)))
+                data = excerpt(
+                    self.performance, clip.get("session"), str(clip.get("at", "")), float(clip.get("seconds", 8))
+                )
                 clip.update(session=data["session"], seconds=data["seconds"])
                 if not isinstance(clip.get("label"), str) or not 1 <= len(clip["label"]) <= 160:
                     raise ValueError("each clip needs a short label")
-        clean.update(api=API, updated_at=datetime.now(timezone.utc).isoformat())
+        clean.update(api=API, updated_at=datetime.now(UTC).isoformat())
         with self.lock:
             self._write(self.root / "conversation.json", clean)
         return clean
@@ -75,8 +85,12 @@ class ConversationStore:
 
     def responses(self):
         with self.lock:
-            paths = sorted((self.root / "responses").glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True)[:100]
-            return [{k: v for k, v in json.loads(p.read_text(encoding="utf-8")).items() if k != "replay"} for p in paths]
+            paths = sorted((self.root / "responses").glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True)[
+                :100
+            ]
+            return [
+                {k: v for k, v in json.loads(p.read_text(encoding="utf-8")).items() if k != "replay"} for p in paths
+            ]
 
     def save_response(self, body):
         if not isinstance(body, dict):
@@ -87,7 +101,7 @@ class ConversationStore:
         start, end = body.get("start_ms"), body.get("end_ms")
         if any(isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(v) for v in (start, end)):
             raise ValueError("response times must be finite milliseconds")
-        start, end = round(start), round(end)
+        start, end = round(cast("float", start)), round(cast("float", end))  # finite: checked above
         if start < 0 or not 100 <= end - start <= 60000:
             raise ValueError("an answer can span 0.1 to 60 seconds")
         note = body.get("note", "")
@@ -111,8 +125,16 @@ class ConversationStore:
             # An in-memory cut boundary lets a note still held at Save ring to the cut. It is never logged as input.
             bounded = [e for e in events if e["t_ms"] <= end] + [{"kind": "replay-cut", "t_ms": end}]
             cue = validate_cue(build_replay_cue(bounded, start, (end - start) / 1000, session=identity["session"]))
-            data = {"api": API, "id": rid, **identity, "card_title": card["title"], "question": card["question"],
-                    "note": note, "note_count": len(ons), "saved_at": datetime.now(timezone.utc).isoformat(),
-                    "replay": {**identity, "seconds": (end - start) / 1000, "speed": 1, "cue": cue}}
+            data = {
+                "api": API,
+                "id": rid,
+                **identity,
+                "card_title": card["title"],
+                "question": card["question"],
+                "note": note,
+                "note_count": len(ons),
+                "saved_at": datetime.now(UTC).isoformat(),
+                "replay": {**identity, "seconds": (end - start) / 1000, "speed": 1, "cue": cue},
+            }
             self._write(path, data)
             return data

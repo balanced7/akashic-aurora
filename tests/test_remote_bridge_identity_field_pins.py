@@ -29,6 +29,7 @@ The general shape, worth carrying past this file: A FIELD THAT ANSWERS TWO QUEST
 UNTIL A TOPOLOGY MAKES THE ANSWERS DIFFER, and the topology that does it is usually the mirror
 image of the one you designed against.
 """
+
 from __future__ import annotations
 
 import base64
@@ -42,7 +43,7 @@ import pytest
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 
-from core.comm import remote_relay as RR  # noqa: E402
+from core.comm import remote_relay as RR  # noqa: E402  # sys.path bootstrap
 
 SERGE_OUT = b"serge-identity-outbound-key-aaaa"
 CHRONOS_OUT = b"chronos-identity-outbound-key-bb"
@@ -64,12 +65,29 @@ def _their_world(tmp_path, monkeypatch):
     (sec / "chronos_in.key").write_bytes(DANIIL_IN_B)
     monkeypatch.setenv("AKASHIC_SECRETS_DIR", str(sec))
     cfg = tmp_path / "cfg.json"
-    cfg.write_text(json.dumps({"peers": [
-        {"name": "daniil", "as": "serge-dsh", "url": "https://d.invalid/xfer",
-         "outbound_secret_file": "serge_out.key", "inbound_secret_file": "serge_in.key"},
-        {"name": "daniil", "as": "chronos", "url": "https://d.invalid/xfer",
-         "outbound_secret_file": "chronos_out.key", "inbound_secret_file": "chronos_in.key"},
-    ]}), encoding="utf-8")
+    cfg.write_text(
+        json.dumps(
+            {
+                "peers": [
+                    {
+                        "name": "daniil",
+                        "as": "serge-dsh",
+                        "url": "https://d.invalid/xfer",
+                        "outbound_secret_file": "serge_out.key",
+                        "inbound_secret_file": "serge_in.key",
+                    },
+                    {
+                        "name": "daniil",
+                        "as": "chronos",
+                        "url": "https://d.invalid/xfer",
+                        "outbound_secret_file": "chronos_out.key",
+                        "inbound_secret_file": "chronos_in.key",
+                    },
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
     monkeypatch.setattr(RR, "CONFIG_FILE", cfg)
     RR._reset_cache()
     yield
@@ -86,8 +104,7 @@ class Spy:
 
 
 def _env_from_daniil(secret, mid="d-1"):
-    p = {"v": 1, "id": mid, "frm": "vandor", "kind": "chat", "content": "hi",
-         "sent_at": int(time.time())}
+    p = {"v": 1, "id": mid, "frm": "vandor", "kind": "chat", "content": "hi", "sent_at": int(time.time())}
     b = json.dumps(p, sort_keys=True, separators=(",", ":")).encode()
     return {"body": base64.b64encode(b).decode(), "sig": RR.sign(b, secret)}
 
@@ -95,8 +112,7 @@ def _env_from_daniil(secret, mid="d-1"):
 # ------------------------------------------------------------------ outbound: `as` selects
 def test_outbound_selects_by_local_identity():
     spy = Spy()
-    out = RR.push({"frm": "chronos", "kind": "chat", "content": "x", "id": "m1"},
-                  peer="chronos", post=spy)
+    out = RR.push({"frm": "chronos", "kind": "chat", "content": "x", "id": "m1"}, peer="chronos", post=spy)
     assert out.ok, f"could not speak as chronos: {out.why}"
     body = base64.b64decode(spy.calls[0][1]["body"])
     assert spy.calls[0][1]["sig"] == RR.sign(body, CHRONOS_OUT), "signed with the wrong identity"
@@ -132,20 +148,27 @@ def test_rows_without_as_still_select_by_name(tmp_path, monkeypatch):
     (sec / "z.key").write_bytes(b"zad-out-key-eeeeeeeeeeeeeeeeeeee")
     monkeypatch.setenv("AKASHIC_SECRETS_DIR", str(sec))
     cfg = tmp_path / "ours.json"
-    cfg.write_text(json.dumps({"peers": [
-        {"name": "zadkiel", "url": "https://z.invalid/xfer", "outbound_secret_file": "z.key"},
-    ]}), encoding="utf-8")
+    cfg.write_text(
+        json.dumps(
+            {
+                "peers": [
+                    {"name": "zadkiel", "url": "https://z.invalid/xfer", "outbound_secret_file": "z.key"},
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
     monkeypatch.setattr(RR, "CONFIG_FILE", cfg)
     RR._reset_cache()
     spy = Spy()
     out = RR.push({"frm": "v", "kind": "chat", "content": "x", "id": "m"}, peer="zadkiel", post=spy)
-    assert out.ok and spy.calls, f"our own shape broke: {out.why}"
+    assert out.ok, f"our own shape broke: {out.why}"
+    assert spy.calls, f"our own shape broke: {out.why}"
 
 
 def test_an_ambiguous_selector_is_refused_not_guessed():
     """If two rows could answer to the same selector, picking the first is a silent
     misdelivery. Refusing names the ambiguity while it is still cheap to fix."""
-    out = RR.push({"frm": "x", "kind": "chat", "content": "x", "id": "amb"},
-                  peer="daniil", post=Spy())
+    out = RR.push({"frm": "x", "kind": "chat", "content": "x", "id": "amb"}, peer="daniil", post=Spy())
     assert not out.ok, "an ambiguous outbound selector silently picked a row"
     assert "ambiguous" in (out.why or "").lower()

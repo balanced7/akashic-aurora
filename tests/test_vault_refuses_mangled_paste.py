@@ -27,7 +27,7 @@ import pytest
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 
-from core.comm.secret_intake import IntakeError, save_secret  # noqa: E402
+from core.comm.secret_intake import IntakeError, save_secret  # noqa: E402  # sys.path bootstrap
 
 # the real shape of the defect, reconstructed without the real secret
 HEAD, TAIL = "sk-ant-oat01-" + "A" * 66, "B" * 29
@@ -60,7 +60,8 @@ def test_the_refusal_never_echoes_the_credential():
     with pytest.raises(IntakeError) as e:
         save_secret("claude_oauth.token", MANGLED)
     msg = str(e.value)
-    assert HEAD not in msg and TAIL not in msg, "the refusal leaked the value"
+    assert HEAD not in msg, "the refusal leaked the value"
+    assert TAIL not in msg, "the refusal leaked the value"
     assert "sk-ant-oat" not in msg, "the refusal leaked the prefix"
 
 
@@ -103,4 +104,5 @@ def test_refuses_a_byte_order_mark_from_a_shell_pipe():
 def test_the_bom_refusal_also_keeps_the_value_out_of_the_message():
     with pytest.raises(IntakeError) as e:
         save_secret("claude_oauth.token", "﻿" + CLEAN)
-    assert CLEAN not in str(e.value) and "sk-ant-oat" not in str(e.value)
+    assert CLEAN not in str(e.value)
+    assert "sk-ant-oat" not in str(e.value)

@@ -38,6 +38,7 @@ untouched.
 
 Run: py -m pytest tests/test_t174_ask_names_one_thing.py -q
 """
+
 import ast
 import os
 import re
@@ -46,7 +47,7 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from scripts.checkers import check_kind_policy as KP  # noqa: E402
+from scripts.checkers import check_kind_policy as KP  # noqa: E402  # sys.path bootstrap
 
 _SEND_FNS = {"send", "send_reply", "broadcast", "emit", "capture_event"}
 
@@ -59,7 +60,8 @@ def _producers_of(kind_literal):
     hits = []
     for path in KP._python_files(ROOT):
         try:
-            tree = ast.parse(open(path, encoding="utf-8").read())
+            with open(path, encoding="utf-8") as fh:
+                tree = ast.parse(fh.read())
         except (OSError, SyntaxError):
             continue
         for node in ast.walk(tree):
@@ -77,11 +79,11 @@ def _producers_of(kind_literal):
 
 
 def test_k1_ask_is_a_verb_not_a_kind():
-    holders = [f"{p}:{n}" for (p, n), members in KP.discover_kind_sets(ROOT).items()
-               if "ask" in members]
+    holders = [f"{p}:{n}" for (p, n), members in KP.discover_kind_sets(ROOT).items() if "ask" in members]
     assert holders == [], (
         f"'ask' is still a message kind in {holders}. It is the T171 CLI verb; one token may not "
-        f"mean a synchronous helper call AND a bus message.")
+        f"mean a synchronous helper call AND a bus message."
+    )
 
 
 def test_k2_no_producer_emits_kind_ask():
@@ -90,21 +92,25 @@ def test_k2_no_producer_emits_kind_ask():
     assert producers == [], (
         f"something now emits kind='ask' at {producers}. That token was RETIRED under T174 "
         f"because it woke nobody and armed nothing. Use request / question / handoff, or give "
-        f"the new kind full policy membership first -- see the merged record/wire census.")
+        f"the new kind full policy membership first -- see the merged record/wire census."
+    )
 
 
 def test_k3_the_concept_survives_only_the_token_is_retired():
     from core.comm import packet_spec
     from scripts import bifrost_wake as bw
+
     # T332: the set was renamed NEVER_DROP_WHEN_STALE and gained `blocker`. T174's invariant
     # is that the TOKEN `ask` stays retired -- pinned directly now, instead of riding on an
     # exact-equality assertion that also froze membership T174 never ruled on.
     assert "ask" not in packet_spec.NEVER_DROP_WHEN_STALE
     assert {"question", "request", "handoff"} <= set(packet_spec.NEVER_DROP_WHEN_STALE)
     assert {"question", "request", "handoff"} <= set(bw.WAKE_WORTHY_KINDS), (
-        "the real ask kinds must keep waking their recipient")
+        "the real ask kinds must keep waking their recipient"
+    )
 
 
 def test_k4_the_cli_verb_is_the_only_ask_in_the_lexicon():
-    src = open(os.path.join(ROOT, "agent_cli.py"), encoding="utf-8").read()
+    with open(os.path.join(ROOT, "agent_cli.py"), encoding="utf-8") as fh:
+        src = fh.read()
     assert re.search(r'add_parser\(\s*["\']ask["\']', src), "the T171 verb must still be there"

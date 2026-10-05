@@ -40,10 +40,12 @@ FOUR DEFECTS STACK HERE, and three of them are silent:
 Pins 3 and 4 are the ones worth keeping after the fix: they fail the day someone adds a second
 harness whose files share a basename, which is the general shape, not a DSH quirk.
 """
+
 import json
 import os
 import sys
 import tempfile
+from datetime import UTC
 from pathlib import Path
 
 os.environ.setdefault("AI_SETUP", tempfile.mkdtemp())
@@ -58,40 +60,67 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # records, because the real contract is a content BLOCK LIST plus a source stamp. A double
 # written from the code instead of from the contract is a mirror -- it can only agree.
 DSH_OPERATOR = {
-    "type": "user/message", "seq": 1250509, "time": 1790300029000, "surfaceOp": "append",
+    "type": "user/message",
+    "seq": 1250509,
+    "time": 1790300029000,
+    "surfaceOp": "append",
     "data": {
-        "content": [{"type": "text",
-                     "text": "Hey Rill! Check out the new find verb that we just built!"}],
+        "content": [{"type": "text", "text": "Hey Rill! Check out the new find verb that we just built!"}],
         "source": {"kind": "user", "rpcId": "ae33fa47"},
-        "role": "user", "id": "f67606c5-e55a-49f9-bec6-a0940ad4f7cc",
+        "role": "user",
+        "id": "f67606c5-e55a-49f9-bec6-a0940ad4f7cc",
     },
 }
 # The harness speaking through his record type. 2,096 of 2,522 user/message records are this.
 DSH_PLUGIN = {
-    "type": "user/message", "seq": 14, "time": 1787726777481,
+    "type": "user/message",
+    "seq": 14,
+    "time": 1787726777481,
     "data": {
-        "content": [{"type": "text", "text": "Current runtime context. This snapshot "
-                                             "supersedes earlier runtime-context snapshots."}],
+        "content": [
+            {
+                "type": "text",
+                "text": "Current runtime context. This snapshot supersedes earlier runtime-context snapshots.",
+            }
+        ],
         "source": {"kind": "plugin", "plugin": "dsh-akashic-recall"},
-        "role": "user", "id": "a1",
+        "role": "user",
+        "id": "a1",
     },
 }
 # The one that defeats marker-sniffing: no <system-reminder>, no known preamble, pure prose.
 DSH_GOAL = {
-    "type": "user/message", "seq": 99, "time": 1787726777999,
+    "type": "user/message",
+    "seq": 99,
+    "time": 1787726777999,
     "data": {
-        "content": [{"type": "text", "text": "<goal_round>\nObjective: \"Long-horizon night "
-                                             "run with Heimdall: build auto-handoff.\""}],
-        "source": {"kind": "goal"}, "role": "user", "id": "a2",
+        "content": [
+            {
+                "type": "text",
+                "text": '<goal_round>\nObjective: "Long-horizon night run with Heimdall: build auto-handoff."',
+            }
+        ],
+        "source": {"kind": "goal"},
+        "role": "user",
+        "id": "a2",
     },
 }
 DSH_AGENT = {
-    "type": "assistant/message", "seq": 1250922, "time": 1790300100000,
-    "data": {"turn": 171, "step": 1, "message": {"role": "assistant", "content": [
-        {"type": "reasoning", "text": "Daniel is excited about a new find verb."},
-        {"type": "text", "text": "That's a genuinely good one -- and the dogfood proves it."},
-        {"type": "tool-call", "id": "call_00", "name": "pwsh", "arguments": "{}"},
-    ]}},
+    "type": "assistant/message",
+    "seq": 1250922,
+    "time": 1790300100000,
+    "data": {
+        "turn": 171,
+        "step": 1,
+        "message": {
+            "role": "assistant",
+            "content": [
+                {"type": "reasoning", "text": "Daniel is excited about a new find verb."},
+                {"type": "text", "text": "That's a genuinely good one -- and the dogfood proves it."},
+                {"type": "tool-call", "id": "call_00", "name": "pwsh", "arguments": "{}"},
+            ],
+        },
+    },
 }
 
 
@@ -102,6 +131,7 @@ def _dsh_root() -> Path:
 def _skip_without_dsh():
     if not _dsh_root().is_dir():
         import pytest
+
         pytest.skip("no DSH plane on this machine")
 
 
@@ -112,13 +142,16 @@ def test_config_declares_the_dsh_root_once():
     The indexer must not carry its own literal, or the reader and whatever else needs to find
     DSH sessions can drift apart exactly the way the archiver and indexer did."""
     import config
+
     roots = getattr(config, "DSH_SESSION_ROOTS", None)
     assert roots, (
         "config.DSH_SESSION_ROOTS does not exist. The Eye's three roots are all Claude Code "
         "planes, so an entire harness -- Rill's -- is outside the corpus with nothing in the "
-        "codebase even naming where it lives.")
-    assert any(".dsh" in str(r).lower() for r in roots), \
+        "codebase even naming where it lives."
+    )
+    assert any(".dsh" in str(r).lower() for r in roots), (
         f"the DSH session root must be among the declared roots, got {roots}"
+    )
 
 
 # ---------------------------------------------------------------- reach
@@ -130,9 +163,11 @@ def test_corpus_reaches_every_dsh_session_not_just_one():
     a corpus that quietly contains one session out of twenty-five."""
     _skip_without_dsh()
     from core.eye.index import default_corpus
+
     on_disk = list(_dsh_root().rglob("session.jsonl*"))
     if not on_disk:
         import pytest
+
         pytest.skip("DSH root present but empty")
     seen = {str(p).lower() for p in default_corpus()}
     missing = [p for p in on_disk if str(p).lower() not in seen]
@@ -140,19 +175,22 @@ def test_corpus_reaches_every_dsh_session_not_just_one():
         f"{len(missing)} of {len(on_disk)} DSH transcript(s) are invisible to default_corpus(). "
         f"Two separate causes: the glob is '*.jsonl' (these are '.jsonl.zstd'), and _take() "
         f"dedups by p.name -- every one of these files is named 'session.jsonl.zstd', so even "
-        f"with the root declared, 24 of 25 would be dropped as duplicates.")
+        f"with the root declared, 24 of 25 would be dropped as duplicates."
+    )
 
 
 def test_coverage_publishes_the_dsh_root():
     """A corpus that does not state a plane cannot report that the plane went dark."""
     _skip_without_dsh()
     from core.eye.index import corpus_coverage
+
     cov = corpus_coverage()
     labels = {str(r.get("label", "")).lower() for r in cov.get("roots", [])}
     paths = " ".join(str(r.get("path", "")).lower() for r in cov.get("roots", []))
     assert "dsh" in labels or ".dsh" in paths, (
         f"corpus_coverage() does not name the DSH plane; roots reported: {cov.get('roots')}. "
-        "An unnamed plane cannot shrink visibly.")
+        "An unnamed plane cannot shrink visibly."
+    )
 
 
 # ---------------------------------------------------------------- identity
@@ -172,17 +210,21 @@ def test_dsh_sessions_get_distinct_ids():
             f"core.eye.index.session_id_for(path) does not exist ({e}). Session identity is "
             "currently inlined as `f.stem` inside ingest(), which cannot be correct for any "
             "harness that names transcripts by a constant filename. It needs to be one named "
-            "function so both the corpus and the ingest agree on what a session IS.")
+            "function so both the corpus and the ingest agree on what a session IS."
+        ) from e
     files = sorted(_dsh_root().rglob("session.jsonl*"))
     if len(files) < 2:
         import pytest
+
         pytest.skip("need two DSH sessions to prove ids do not collide")
     ids = [session_id_for(p) for p in files]
     assert len(set(ids)) == len(ids), (
         f"session_id_for() collides across DSH transcripts: {len(ids)} files -> "
-        f"{len(set(ids))} distinct ids. Colliding ids do not error, they DROP events.")
-    assert all(i and i != "session.jsonl" for i in ids), \
+        f"{len(set(ids))} distinct ids. Colliding ids do not error, they DROP events."
+    )
+    assert all(i and i != "session.jsonl" for i in ids), (
         f"ids must identify the session, not the filename; got e.g. {ids[:3]}"
+    )
 
 
 def test_claude_session_ids_are_unchanged():
@@ -194,11 +236,12 @@ def test_claude_session_ids_are_unchanged():
         from core.eye.index import session_id_for
     except ImportError:
         import pytest
+
         pytest.skip("session_id_for does not exist yet -- covered by its own pin")
     p = Path.home() / ".claude" / "projects" / "E--" / "deadbeef-1111-2222-3333-444455556666.jsonl"
     assert session_id_for(p) == "deadbeef-1111-2222-3333-444455556666", (
-        "a Claude Code transcript must still resolve to its stem, or every event_id already "
-        "in the database is orphaned")
+        "a Claude Code transcript must still resolve to its stem, or every event_id already in the database is orphaned"
+    )
 
 
 # ---------------------------------------------------------------- reading
@@ -215,15 +258,18 @@ def test_a_compressed_transcript_is_readable():
         raise AssertionError(
             f"core.eye.index.open_transcript(path) does not exist ({e}). ingest() calls "
             "open(f, encoding='utf-8', errors='replace') directly, which cannot read a "
-            "'.jsonl.zstd' and -- because of errors='replace' -- will not fail loudly either.")
+            "'.jsonl.zstd' and -- because of errors='replace' -- will not fail loudly either."
+        ) from e
     files = sorted(_dsh_root().rglob("session.jsonl.zstd"))
     if not files:
         import pytest
+
         pytest.skip("no compressed DSH transcript present")
     with open_transcript(files[0]) as fh:
         first = json.loads(next(iter(fh)))
-    assert first.get("type") == "session", \
+    assert first.get("type") == "session", (
         f"first record of a DSH transcript should be the session header, got {first!r}"
+    )
 
 
 # ---------------------------------------------------------------- mapping
@@ -233,12 +279,11 @@ def test_dsh_operator_message_is_operator_voice():
     `freq` and the standing-directive watcher rank by operator sessions, so a DSH message
     recorded as anything else is a directive that cannot be counted."""
     from core.eye.index import _event_from
+
     ev = _event_from(DSH_OPERATOR)
-    assert ev is not None, \
-        "a DSH user/message produced no event -- _event_from only knows Claude Code's shapes"
+    assert ev is not None, "a DSH user/message produced no event -- _event_from only knows Claude Code's shapes"
     assert ev["voice"] == "operator", f"expected operator voice, got {ev['voice']!r}"
-    assert "find verb" in ev["text"], \
-        f"text not extracted from the content block list: {ev['text'][:80]!r}"
+    assert "find verb" in ev["text"], f"text not extracted from the content block list: {ev['text'][:80]!r}"
 
 
 def test_the_harness_speaking_is_not_the_operator():
@@ -254,12 +299,14 @@ def test_the_harness_speaking_is_not_the_operator():
     data.source.kind it is what it is. This is the 419-of-523 dispatch-brief contamination
     with a different harness on the label, and the source stamp makes it unfalsifiable."""
     from core.eye.index import _event_from
+
     for label, rec in (("plugin", DSH_PLUGIN), ("goal", DSH_GOAL)):
         ev = _event_from(rec)
         assert ev is not None, f"the {label} record produced no event at all"
         assert ev["voice"] == "system", (
             f"a {label}-sourced record read as {ev['voice']!r}. data.source.kind says who "
-            f"wrote it; only kind=='user' is Daniel.")
+            f"wrote it; only kind=='user' is Daniel."
+        )
 
 
 def test_dsh_agent_message_keeps_speech_and_drops_reasoning():
@@ -269,13 +316,12 @@ def test_dsh_agent_message_keeps_speech_and_drops_reasoning():
     Indexing reasoning as speech would make one seat louder than the entire operator axis and
     would put private deliberation into a plane Daniel searches for what was SAID."""
     from core.eye.index import _event_from
+
     ev = _event_from(DSH_AGENT)
     assert ev is not None, "a DSH assistant/message produced no event"
     assert ev["voice"] == "agent", f"expected agent voice, got {ev['voice']!r}"
-    assert "dogfood proves it" in ev["text"], \
-        f"the spoken 'text' block was not extracted: {ev['text'][:80]!r}"
-    assert "Daniel is excited" not in ev["text"], \
-        "the 'reasoning' block leaked into the indexed utterance"
+    assert "dogfood proves it" in ev["text"], f"the spoken 'text' block was not extracted: {ev['text'][:80]!r}"
+    assert "Daniel is excited" not in ev["text"], "the 'reasoning' block leaked into the indexed utterance"
     assert "call_00" not in ev["text"], "the tool-call block leaked into the indexed utterance"
 
 
@@ -287,12 +333,14 @@ def test_dsh_epoch_milliseconds_parse():
     query is blind to. A whole harness landing in the fog is exactly the kind of quiet
     degradation the coverage contract exists to prevent."""
     from core.eye.index import _event_from
+
     ev = _event_from(DSH_OPERATOR)
-    assert ev is not None and ev["ts"], \
-        "DSH epoch-ms timestamps do not parse -- the whole plane would land in TIME-FOG"
+    assert ev is not None, "DSH epoch-ms timestamps do not parse -- the whole plane would land in TIME-FOG"
+    assert ev["ts"], "DSH epoch-ms timestamps do not parse -- the whole plane would land in TIME-FOG"
     # 1790300029000 ms -> 2026-09-24 local. Assert the year rather than an exact instant.
-    from datetime import datetime, timezone
-    year = datetime.fromtimestamp(ev["ts"], tz=timezone.utc).year
+    from datetime import datetime
+
+    year = datetime.fromtimestamp(ev["ts"], tz=UTC).year
     assert year == 2026, f"timestamp decoded to year {year} -- ms was probably read as seconds"
 
 

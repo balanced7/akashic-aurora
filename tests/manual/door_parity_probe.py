@@ -1,9 +1,15 @@
 """Probe: the door-parity guard PASSES on reality and FAILS on drift (new unclassified verb /
 shared regression). The first membrane slice's proof."""
-import os, sys
-_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # tests/manual -> ROOT
-sys.path.insert(0, os.path.join(_ROOT, "scripts"))
+
+import os
+import sys
+
+sys.path.insert(
+    0, os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "scripts")
+)
 import check_door_parity as c
+
+_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # tests/manual -> ROOT
 
 fails, gaps, cli, mcp = c.check()
 assert not fails, ("must PASS on current reality", fails)

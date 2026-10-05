@@ -34,10 +34,9 @@ by "L0 <5ms" in the abstract.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
 
-from core.screenspace.engine import ObservationStream, _current_focus, _stream
 from core.screenspace import canary  # §1 amended ruling: positive canary read
+from core.screenspace.engine import _current_focus, _stream
 
 
 @dataclass
@@ -49,10 +48,10 @@ class Pulse:
     higher ladder level and belongs to engine.peek / the text/walk increment.
     """
 
-    foreground: Optional[str] = None
-    focus_path: list = None
-    roster_delta: list = None
-    elevated: Optional[bool] = None
+    foreground: str | None = None
+    focus_path: list | None = None
+    roster_delta: list | None = None
+    elevated: bool | None = None
     activity: int = 0
     gen: int = 0
     stale_ms: int = 0
@@ -86,7 +85,7 @@ def pulse() -> Pulse:
     return Pulse(
         foreground=focus,
         focus_path=[focus] if focus else [],
-        roster_delta=[],   # roster + roster-delta is the v1 shadow model's job (F2)
+        roster_delta=[],  # roster + roster-delta is the v1 shadow model's job (F2)
         elevated=None,
         activity=1 if focus else 0,
         gen=gen,

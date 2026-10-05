@@ -19,6 +19,7 @@ makes replay self-contained instead of depending on a temp directory nobody clea
 
 The repository gets summaries and digests. Never the record.
 """
+
 import hashlib
 import json
 import os
@@ -34,8 +35,7 @@ if ROOT not in sys.path:
 
 #: Default home for round records: outside the repository, stable (not a temp dir that a
 #: cleanup sweep will take away with the evidence still in it).
-DEFAULT_ROUND_DIR = os.environ.get(
-    "AKASHIC_ROUND_DIR", os.path.join(os.path.expanduser("~"), ".akashic", "rounds"))
+DEFAULT_ROUND_DIR = os.environ.get("AKASHIC_ROUND_DIR", os.path.join(os.path.expanduser("~"), ".akashic", "rounds"))
 
 
 def _tracked_by_git(path: str) -> bool:
@@ -52,8 +52,9 @@ def _tracked_by_git(path: str) -> bool:
             return False
         probe = parent
     try:
-        r = subprocess.run(["git", "rev-parse", "--is-inside-work-tree"], cwd=probe,
-                           capture_output=True, text=True, timeout=20)
+        r = subprocess.run(
+            ["git", "rev-parse", "--is-inside-work-tree"], cwd=probe, capture_output=True, text=True, timeout=20
+        )
         return r.returncode == 0 and r.stdout.strip() == "true"
     except Exception:
         # Absence of an answer is not a permission. If git cannot be consulted, fall back to
@@ -68,13 +69,11 @@ def round_id(record: dict) -> str:
     # sanitised rather than trusted. The record keeps its real ended_at; only the NAME is safe.
     stamp = str(record.get("ended_at") or time.strftime("%Y-%m-%dT%H:%M:%S"))
     stamp = "".join(ch if (ch.isalnum() or ch in "-_") else "" for ch in stamp)
-    digest = hashlib.sha256(
-        json.dumps(record.get("claims", []), sort_keys=True, default=str).encode()
-    ).hexdigest()[:8]
+    digest = hashlib.sha256(json.dumps(record.get("claims", []), sort_keys=True, default=str).encode()).hexdigest()[:8]
     return f"{stamp}_seed{seed}_{player}_{digest}"
 
 
-def archive_round(record: dict, *, round_dir: str = None) -> str:
+def archive_round(record: dict, *, round_dir: str | None = None) -> str:
     """Write one round record outside git and return its path. Refuses a tracked directory."""
     target_dir = os.path.abspath(round_dir or DEFAULT_ROUND_DIR)
     if _tracked_by_git(target_dir):
@@ -82,10 +81,13 @@ def archive_round(record: dict, *, round_dir: str = None) -> str:
             f"refusing to archive a round inside a git working tree ({target_dir}). Claims carry "
             f"canary NAMES, so a committed record leaks name->class for this seed and lets a "
             f"replay of it cheat. Round records live beside the sealed key, outside the repo; "
-            f"commit summaries and digests instead.")
+            f"commit summaries and digests instead."
+        )
     if "claims" not in record:
-        raise ValueError("a round record without `claims` cannot be replayed -- refusing to "
-                         "archive a record that would read as an empty clean round")
+        raise ValueError(
+            "a round record without `claims` cannot be replayed -- refusing to "
+            "archive a record that would read as an empty clean round"
+        )
 
     record = dict(record)
     record.setdefault("ended_at", time.strftime("%Y-%m-%dT%H:%M:%S"))
@@ -104,10 +106,13 @@ def load_round(path: str) -> dict:
         raise ValueError(
             f"{path} records no `claims`. A round with no claims RECORDED and a round where the "
             f"player found nothing are different facts, and replaying the first as an empty clean "
-            f"round is the defect this archive exists to prevent.")
+            f"round is the defect this archive exists to prevent."
+        )
     if not record.get("manifest", {}).get("canaries"):
-        raise ValueError(f"{path} records no manifest -- there is nothing to score the claims "
-                         f"against, so any verdict would be manufactured")
+        raise ValueError(
+            f"{path} records no manifest -- there is nothing to score the claims "
+            f"against, so any verdict would be manufactured"
+        )
     return record
 
 
@@ -123,6 +128,7 @@ def replay_round(path: str, *, score_fn=None) -> dict:
 
     if score_fn is None:
         from scripts import canary_oracle as C
+
         score_fn = C.score
 
     return {
@@ -138,7 +144,7 @@ def replay_round(path: str, *, score_fn=None) -> dict:
     }
 
 
-def list_rounds(round_dir: str = None):
+def list_rounds(round_dir: str | None = None):
     d = os.path.abspath(round_dir or DEFAULT_ROUND_DIR)
     if not os.path.isdir(d):
         return []
@@ -147,6 +153,7 @@ def list_rounds(round_dir: str = None):
 
 if __name__ == "__main__":
     import argparse
+
     ap = argparse.ArgumentParser(description="list or replay archived Season rounds")
     ap.add_argument("--dir", default=None)
     ap.add_argument("--replay", default=None, help="path to one round record")

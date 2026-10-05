@@ -23,19 +23,16 @@ Pin coverage (the ones that matter):
 
 import json
 from fractions import Fraction
-from pathlib import Path
 
 import pytest
 
-from arsenal import timebase
-from arsenal import mediatypes
-from arsenal import registry
 from arsenal import graph as graphmod
+from arsenal import mediatypes, registry, timebase
 from arsenal import plan as planmod
 from arsenal import take as takemod
 
-
 # ---------------------------------------------------------------- timebase
+
 
 def test_exact_rational_over_long_runs():
     # tb is SECONDS PER TICK. 29.97 fps == 1001/30000 s per tick.
@@ -45,7 +42,7 @@ def test_exact_rational_over_long_runs():
     # 600 s at 1/90000 (the media timebase) is 54,000,000 ticks exactly.
     ten_min = timebase.TimeRef("media", 0, 54_000_000, timebase.tb(1, 90000))
     # exact rescale to film-frame timebase is not representable:
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="is not exactly representable at 1001/30000"):
         ten_min.rescale(frames_tb, exact=True)
     # inexact rounds to 17982 frames:
     got = ten_min.rescale(frames_tb, exact=False)
@@ -62,31 +59,31 @@ def test_timebase_parse_and_format():
 
 
 def test_tb_rejects_nonpositive():
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="timebase must be positive, got 0"):
         timebase.tb(0, 1)
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="timebase must be positive, got -1"):
         timebase.tb(-1, 1)
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="a timebase denominator must not be zero"):
         timebase.tb(1, 0)  # zero denominator -> ValueError (not ZeroDivisionError)
 
 
 def test_tb_rejects_above_one_second():
     # a timebase > 1 s per tick is a rate passed by mistake; refused with the inverse named
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match=r"for a rate of 30000/1001 per second use tb\(1001, 30000\)"):
         timebase.tb(30000, 1001)  # 29.97 s/tick -- the rate mistake, inverted
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match=r"for a rate of 48000/1 per second use tb\(1, 48000\)"):
         timebase.tb(48000, 1)  # 48000 s/tick
 
 
 def test_float_ticks_refused():
     with pytest.raises(TypeError):
-        timebase.TimeRef("media", 0, 1.5, Fraction(1, 48000))
+        timebase.TimeRef("media", 0, 1.5, Fraction(1, 48000))  # pyright: ignore[reportArgumentType]  # deliberate wrong type: the test pins the runtime refusal
 
 
 def test_integral_float_ticks_refused():
     # even a whole float is still a float, and must be refused
     with pytest.raises(TypeError):
-        timebase.TimeRef("media", 0, 1.0, Fraction(1, 48000))
+        timebase.TimeRef("media", 0, 1.0, Fraction(1, 48000))  # pyright: ignore[reportArgumentType]  # deliberate wrong type: the test pins the runtime refusal
 
 
 def test_bool_ticks_refused():
@@ -98,17 +95,18 @@ def test_bool_ticks_refused():
 
 def test_float_timebase_refused():
     with pytest.raises(TypeError):
-        timebase.TimeRef("media", 0, 48000, 1.0 / 48000)
+        timebase.TimeRef("media", 0, 48000, 1.0 / 48000)  # pyright: ignore[reportArgumentType]  # deliberate wrong type: the test pins the runtime refusal
 
 
 def test_timebase_accepts_int_and_fraction():
-    a = timebase.TimeRef("media", 0, 5, 1)  # int timebase of 1 == 1 s/tick
+    # int timebase of 1 == 1 s/tick
+    a = timebase.TimeRef("media", 0, 5, 1)  # pyright: ignore[reportArgumentType]  # int timebase is accepted at runtime; the field is annotated Fraction only
     assert a.seconds == Fraction(5)
     b = timebase.TimeRef("media", 0, 48000, Fraction(1, 48000))
     assert b.seconds == Fraction(1)
     # an int timebase above 1 s/tick is refused (a rate passed by mistake)
-    with pytest.raises(ValueError):
-        timebase.TimeRef("media", 0, 1, 48000)
+    with pytest.raises(ValueError, match=r"for a rate of 48000/1 per second use tb\(1, 48000\)"):
+        timebase.TimeRef("media", 0, 1, 48000)  # pyright: ignore[reportArgumentType]  # deliberate wrong type: the test pins the runtime refusal
 
 
 def test_seconds_is_fraction():
@@ -127,7 +125,7 @@ def test_rescale_exact():
 def test_rescale_exact_raises_when_inexact():
     # 1 tick at 1/7 s rescaled to 1/48000: 48000/7 is not an integer, so exact must refuse
     a = timebase.TimeRef("media", 0, 1, Fraction(1, 7))
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="is not exactly representable at 1/48000"):
         a.rescale(Fraction(1, 48000), exact=True)
 
 
@@ -171,26 +169,26 @@ def test_clock_mismatch_on_compare():
     a = timebase.TimeRef("media", 0, 0, Fraction(1, 48000))
     b = timebase.TimeRef("audio", 0, 0, Fraction(1, 48000))
     with pytest.raises(timebase.ClockMismatch):
-        a < b
+        _ = a < b
     with pytest.raises(timebase.ClockMismatch):
-        a == b
+        _ = a == b
 
 
 def test_stale_epoch_on_compare():
     a = timebase.TimeRef("media", 0, 0, Fraction(1, 48000))
     b = timebase.TimeRef("media", 1, 0, Fraction(1, 48000))
     with pytest.raises(timebase.StaleEpoch):
-        a < b
+        _ = a < b
     with pytest.raises(timebase.StaleEpoch):
-        a == b
+        _ = a == b
 
 
 def test_compare_non_timeref_raises():
     a = timebase.TimeRef("media", 0, 0, Fraction(1, 48000))
     with pytest.raises(TypeError):
-        a < 1
+        _ = a < 1
     with pytest.raises(TypeError):
-        a > 1
+        _ = a > 1
     # == returns False (not raises) for a non-TimeRef, per spec
     assert (a == 1) is False
     assert (a == "x") is False
@@ -256,7 +254,7 @@ def test_clock_lifecycle():
 
 def test_clock_domain_validated():
     timebase.Clock("x", "media")
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="unknown clock domain 'bogus'"):
         timebase.Clock("x", "bogus")
 
 
@@ -280,11 +278,21 @@ def test_master_by_mode():
 
 # ---------------------------------------------------------------- mediatypes
 
+
 def test_port_types_present():
-    for t in ("stream.video", "stream.audio", "media.video_frame", "media.audio_block",
-              "media.encoded_packet", "media.subtitle_cue", "control.event",
-              "control.curve", "analysis.features", "asset.reference",
-              "timeline.sequence"):
+    for t in (
+        "stream.video",
+        "stream.audio",
+        "media.video_frame",
+        "media.audio_block",
+        "media.encoded_packet",
+        "media.subtitle_cue",
+        "control.event",
+        "control.curve",
+        "analysis.features",
+        "asset.reference",
+        "timeline.sequence",
+    ):
         assert t in mediatypes.PORT_TYPES
 
 
@@ -338,6 +346,7 @@ def test_check_caps_only_checks_input_keys():
 
 # ---------------------------------------------------------------- registry
 
+
 def _write_manifest(tmp_path, mid, **extra):
     d = {
         "id": mid,
@@ -376,21 +385,31 @@ def test_registry_missing_raises(tmp_path):
 
 # ---------------------------------------------------------------- graph
 
+
 def _build_registry(tmp_path):
-    _write_manifest(tmp_path, "file.clip", engine="arsenal",
-                    outputs=[{"port": "media", "type": "asset.reference"}])
-    _write_manifest(tmp_path, "browser.decode", engine="browser",
-                    inputs=[{"port": "media", "type": "asset.reference"}],
-                    outputs=[{"port": "video", "type": "stream.video", "caps": {"memory": "browser"}}])
-    _write_manifest(tmp_path, "vfx.first-light-effect", engine="browser",
-                    inputs=[{"port": "video", "type": "stream.video", "caps": {"memory": "browser"}}],
-                    outputs=[{"port": "video", "type": "stream.video", "caps": {"memory": "webgl"}}],
-                    params=[{"name": "pulse", "unit": "ratio", "range": [0, 1]},
-                            {"name": "hue", "unit": "deg", "range": [0, 360]}])
-    _write_manifest(tmp_path, "webmidi.input", engine="browser",
-                    outputs=[{"port": "cc", "type": "control.event"}])
-    _write_manifest(tmp_path, "browser.present", engine="browser",
-                    inputs=[{"port": "video", "type": "stream.video", "caps": {"memory": "webgl"}}])
+    _write_manifest(tmp_path, "file.clip", engine="arsenal", outputs=[{"port": "media", "type": "asset.reference"}])
+    _write_manifest(
+        tmp_path,
+        "browser.decode",
+        engine="browser",
+        inputs=[{"port": "media", "type": "asset.reference"}],
+        outputs=[{"port": "video", "type": "stream.video", "caps": {"memory": "browser"}}],
+    )
+    _write_manifest(
+        tmp_path,
+        "vfx.first-light-effect",
+        engine="browser",
+        inputs=[{"port": "video", "type": "stream.video", "caps": {"memory": "browser"}}],
+        outputs=[{"port": "video", "type": "stream.video", "caps": {"memory": "webgl"}}],
+        params=[{"name": "pulse", "unit": "ratio", "range": [0, 1]}, {"name": "hue", "unit": "deg", "range": [0, 360]}],
+    )
+    _write_manifest(tmp_path, "webmidi.input", engine="browser", outputs=[{"port": "cc", "type": "control.event"}])
+    _write_manifest(
+        tmp_path,
+        "browser.present",
+        engine="browser",
+        inputs=[{"port": "video", "type": "stream.video", "caps": {"memory": "webgl"}}],
+    )
     return registry.load_registry(dirs=[str(tmp_path)])
 
 
@@ -438,12 +457,17 @@ def test_validate_clean(tmp_path):
 
 def test_validate_unknown_module(tmp_path):
     reg = _build_registry(tmp_path)
-    g = graphmod.load_graph(_graph_obj(nodes={
-        "src": {"use": "file.clip"},
-        "dec": {"use": "browser.decode"},
-        "ghost": {"use": "no.such.module"},
-        "out": {"use": "browser.present"},
-    }, edges=[]))
+    g = graphmod.load_graph(
+        _graph_obj(
+            nodes={
+                "src": {"use": "file.clip"},
+                "dec": {"use": "browser.decode"},
+                "ghost": {"use": "no.such.module"},
+                "out": {"use": "browser.present"},
+            },
+            edges=[],
+        )
+    )
     probs = g.validate(reg)
     assert probs
     assert any("no.such.module" in p for p in probs)
@@ -492,10 +516,14 @@ def test_validate_caps_mismatch(tmp_path):
 
 def test_validate_double_input(tmp_path):
     reg = _build_registry(tmp_path)
-    g = graphmod.load_graph(_graph_obj(edges=[
-        ["src.media", "dec.media"],
-        ["src.media", "dec.media"],
-    ]))
+    g = graphmod.load_graph(
+        _graph_obj(
+            edges=[
+                ["src.media", "dec.media"],
+                ["src.media", "dec.media"],
+            ]
+        )
+    )
     probs = g.validate(reg)
     assert probs
     assert any("more than once" in p.lower() or "connected" in p.lower() for p in probs)
@@ -503,9 +531,13 @@ def test_validate_double_input(tmp_path):
 
 def test_validate_binding_target_not_param(tmp_path):
     reg = _build_registry(tmp_path)
-    g = graphmod.load_graph(_graph_obj(bindings=[
-        {"from": "midi.cc", "to": "fx.not_a_param", "range": [0, 1]},
-    ]))
+    g = graphmod.load_graph(
+        _graph_obj(
+            bindings=[
+                {"from": "midi.cc", "to": "fx.not_a_param", "range": [0, 1]},
+            ]
+        )
+    )
     probs = g.validate(reg)
     assert probs
     assert any("not_a_param" in p or "param" in p.lower() for p in probs)
@@ -513,9 +545,13 @@ def test_validate_binding_target_not_param(tmp_path):
 
 def test_validate_binding_source_wrong_type(tmp_path):
     reg = _build_registry(tmp_path)
-    g = graphmod.load_graph(_graph_obj(bindings=[
-        {"from": "src.media", "to": "fx.hue", "range": [0, 360]},
-    ]))
+    g = graphmod.load_graph(
+        _graph_obj(
+            bindings=[
+                {"from": "src.media", "to": "fx.hue", "range": [0, 360]},
+            ]
+        )
+    )
     probs = g.validate(reg)
     assert probs
     assert any("hue" in p or "control" in p.lower() for p in probs)
@@ -523,27 +559,36 @@ def test_validate_binding_source_wrong_type(tmp_path):
 
 def test_validate_binding_range_outside_param(tmp_path):
     reg = _build_registry(tmp_path)
-    g = graphmod.load_graph(_graph_obj(bindings=[
-        {"from": "midi.cc", "to": "fx.hue", "range": [0, 999]},
-    ]))
+    g = graphmod.load_graph(
+        _graph_obj(
+            bindings=[
+                {"from": "midi.cc", "to": "fx.hue", "range": [0, 999]},
+            ]
+        )
+    )
     probs = g.validate(reg)
     assert probs
     assert any("range" in p.lower() for p in probs)
 
 
 def test_validate_feature_suffix_allowed(tmp_path):
-    reg = _build_registry(tmp_path)
-    _write_manifest(tmp_path, "ffmpeg.audio-features", engine="ffmpeg",
-                    outputs=[{"port": "features", "type": "analysis.features"}])
+    _build_registry(tmp_path)
+    _write_manifest(
+        tmp_path, "ffmpeg.audio-features", engine="ffmpeg", outputs=[{"port": "features", "type": "analysis.features"}]
+    )
     reg2 = registry.load_registry(dirs=[str(tmp_path)])
-    g = graphmod.load_graph(_graph_obj(nodes={
-        **_graph_obj()["nodes"],
-        "af": {"use": "ffmpeg.audio-features"},
-    }, bindings=[
-        {"from": "af.features.rms", "to": "fx.pulse", "range": [0, 1]},
-    ]))
-    probs = [p for p in g.validate(reg2)
-             if "pulse" in p and ("control" in p or "analysis" in p or "features" in p)]
+    g = graphmod.load_graph(
+        _graph_obj(
+            nodes={
+                **_graph_obj()["nodes"],
+                "af": {"use": "ffmpeg.audio-features"},
+            },
+            bindings=[
+                {"from": "af.features.rms", "to": "fx.pulse", "range": [0, 1]},
+            ],
+        )
+    )
+    probs = [p for p in g.validate(reg2) if "pulse" in p and ("control" in p or "analysis" in p or "features" in p)]
     assert probs == []
 
 
@@ -556,6 +601,7 @@ def test_require_valid_raises(tmp_path):
 
 
 # ---------------------------------------------------------------- parse_text
+
 
 def test_parse_text_multi_statement():
     src = """
@@ -660,6 +706,7 @@ def test_parse_text_map_feature_suffix():
 
 # ---------------------------------------------------------------- plan
 
+
 def test_make_plan_keys(tmp_path):
     reg = _build_registry(tmp_path)
     g = graphmod.load_graph(_graph_obj())
@@ -669,19 +716,29 @@ def test_make_plan_keys(tmp_path):
 
 
 def test_plan_copy_on_engine_crossing_media_edge(tmp_path):
-    reg = _build_registry(tmp_path)
-    _write_manifest(tmp_path, "ffmpeg.transcode", engine="ffmpeg",
-                    inputs=[{"port": "video", "type": "stream.video", "caps": {"memory": "any"}}],
-                    outputs=[{"port": "video", "type": "stream.video", "caps": {"memory": "cpu"}}])
+    _build_registry(tmp_path)
+    _write_manifest(
+        tmp_path,
+        "ffmpeg.transcode",
+        engine="ffmpeg",
+        inputs=[{"port": "video", "type": "stream.video", "caps": {"memory": "any"}}],
+        outputs=[{"port": "video", "type": "stream.video", "caps": {"memory": "cpu"}}],
+    )
     reg2 = registry.load_registry(dirs=[str(tmp_path)])
-    g = graphmod.load_graph(_graph_obj(nodes={
-        "src": {"use": "file.clip"},
-        "dec": {"use": "browser.decode"},
-        "tx": {"use": "ffmpeg.transcode"},
-    }, bindings=[], edges=[
-        ["src.media", "dec.media"],
-        ["dec.video", "tx.video"],
-    ]))
+    g = graphmod.load_graph(
+        _graph_obj(
+            nodes={
+                "src": {"use": "file.clip"},
+                "dec": {"use": "browser.decode"},
+                "tx": {"use": "ffmpeg.transcode"},
+            },
+            bindings=[],
+            edges=[
+                ["src.media", "dec.media"],
+                ["dec.video", "tx.video"],
+            ],
+        )
+    )
     p = planmod.make_plan(g, reg2)
     crossing = [e for e in p["edges"] if e["from"].startswith("dec.video") and e["to"].startswith("tx.video")]
     assert crossing
@@ -692,7 +749,7 @@ def test_plan_same_engine_note(tmp_path):
     reg = _build_registry(tmp_path)
     g = graphmod.load_graph(_graph_obj())
     p = planmod.make_plan(g, reg)
-    e = [e for e in p["edges"] if e["from"].startswith("dec.video") and e["to"].startswith("fx.video")][0]
+    e = next(e for e in p["edges"] if e["from"].startswith("dec.video") and e["to"].startswith("fx.video"))
     assert e["copy"] is False
     assert "same engine" in e["note"]
 
@@ -705,29 +762,46 @@ def test_plan_licence_profile_core(tmp_path):
 
 
 def test_plan_licence_profile_gpl(tmp_path):
-    reg = _build_registry(tmp_path)
-    _write_manifest(tmp_path, "gpl.decoder", engine="gstreamer", licence="GPL-2.0-or-later",
-                    inputs=[{"port": "media", "type": "asset.reference"}],
-                    outputs=[{"port": "video", "type": "stream.video", "caps": {"memory": "browser"}}])
+    _build_registry(tmp_path)
+    _write_manifest(
+        tmp_path,
+        "gpl.decoder",
+        engine="gstreamer",
+        licence="GPL-2.0-or-later",
+        inputs=[{"port": "media", "type": "asset.reference"}],
+        outputs=[{"port": "video", "type": "stream.video", "caps": {"memory": "browser"}}],
+    )
     reg2 = registry.load_registry(dirs=[str(tmp_path)])
-    g = graphmod.load_graph(_graph_obj(nodes={
-        "src": {"use": "file.clip"},
-        "dec": {"use": "gpl.decoder"},
-        "fx": {"use": "vfx.first-light-effect"},
-        "out": {"use": "browser.present"},
-    }, bindings=[], edges=[
-        ["src.media", "dec.media"],
-        ["dec.video", "fx.video"],
-        ["fx.video", "out.video"],
-    ]))
+    g = graphmod.load_graph(
+        _graph_obj(
+            nodes={
+                "src": {"use": "file.clip"},
+                "dec": {"use": "gpl.decoder"},
+                "fx": {"use": "vfx.first-light-effect"},
+                "out": {"use": "browser.present"},
+            },
+            bindings=[],
+            edges=[
+                ["src.media", "dec.media"],
+                ["dec.video", "fx.video"],
+                ["fx.video", "out.video"],
+            ],
+        )
+    )
     p = planmod.make_plan(g, reg2)
     assert p["licence_profile"] == "arsenal-gpl"
 
 
 def test_plan_licence_profile_agpl_counts_as_gpl(tmp_path):
-    reg = _build_registry(tmp_path)
-    _write_manifest(tmp_path, "agpl.mod", engine="arsenal", licence="AGPL-3.0-or-later",
-                    inputs=[], outputs=[{"port": "o", "type": "asset.reference"}])
+    _build_registry(tmp_path)
+    _write_manifest(
+        tmp_path,
+        "agpl.mod",
+        engine="arsenal",
+        licence="AGPL-3.0-or-later",
+        inputs=[],
+        outputs=[{"port": "o", "type": "asset.reference"}],
+    )
     reg2 = registry.load_registry(dirs=[str(tmp_path)])
     g = graphmod.load_graph(_graph_obj(nodes={"m": {"use": "agpl.mod"}}, bindings=[], edges=[]))
     p = planmod.make_plan(g, reg2)
@@ -735,9 +809,15 @@ def test_plan_licence_profile_agpl_counts_as_gpl(tmp_path):
 
 
 def test_plan_lgpl_stays_core(tmp_path):
-    reg = _build_registry(tmp_path)
-    _write_manifest(tmp_path, "lgpl.mod", engine="arsenal", licence="LGPL-2.1-or-later",
-                    inputs=[], outputs=[{"port": "o", "type": "asset.reference"}])
+    _build_registry(tmp_path)
+    _write_manifest(
+        tmp_path,
+        "lgpl.mod",
+        engine="arsenal",
+        licence="LGPL-2.1-or-later",
+        inputs=[],
+        outputs=[{"port": "o", "type": "asset.reference"}],
+    )
     reg2 = registry.load_registry(dirs=[str(tmp_path)])
     g = graphmod.load_graph(_graph_obj(nodes={"m": {"use": "lgpl.mod"}}, bindings=[], edges=[]))
     p = planmod.make_plan(g, reg2)
@@ -745,9 +825,15 @@ def test_plan_lgpl_stays_core(tmp_path):
 
 
 def test_plan_noassertion_warning(tmp_path):
-    reg = _build_registry(tmp_path)
-    _write_manifest(tmp_path, "mystery.mod", engine="arsenal", licence="NOASSERTION",
-                    inputs=[], outputs=[{"port": "o", "type": "asset.reference"}])
+    _build_registry(tmp_path)
+    _write_manifest(
+        tmp_path,
+        "mystery.mod",
+        engine="arsenal",
+        licence="NOASSERTION",
+        inputs=[],
+        outputs=[{"port": "o", "type": "asset.reference"}],
+    )
     reg2 = registry.load_registry(dirs=[str(tmp_path)])
     g = graphmod.load_graph(_graph_obj(nodes={"m": {"use": "mystery.mod"}}, bindings=[], edges=[]))
     p = planmod.make_plan(g, reg2)
@@ -764,6 +850,7 @@ def test_render_plan_returns_str(tmp_path):
 
 
 # ---------------------------------------------------------------- take
+
 
 def _tr(clock="media", epoch=0, ticks=0, tb="1/90000"):
     return {"clock": clock, "epoch": epoch, "ticks": ticks, "timebase": tb}
@@ -811,7 +898,7 @@ def test_take_non_incremental_epoch_refused(tmp_path):
     tid = led.open({"api": "arsenal.graph/v0", "name": "g"}, {}, {})
     led.append(tid, [{"kind": "epoch", "t": _tr(epoch=1)}])
     # epoch event must have t.epoch == latest+1 == 2, not a jump to 5
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="an epoch event must carry epoch 2, got 5"):
         led.append(tid, [{"kind": "epoch", "t": _tr(epoch=5)}])
 
 
@@ -819,7 +906,7 @@ def test_take_newer_epoch_without_announcement_refused(tmp_path):
     led = takemod.TakeLedger(str(tmp_path))
     tid = led.open({"api": "arsenal.graph/v0", "name": "g"}, {}, {})
     # a normal event at epoch 2 arrives with NO epoch event having announced it
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="before any epoch event announced it"):
         led.append(tid, [{"kind": "play", "t": _tr(epoch=2)}])
     assert len(led.load(tid)["events"]) == 0
 
@@ -828,7 +915,7 @@ def test_take_epoch_field_must_agree(tmp_path):
     led = takemod.TakeLedger(str(tmp_path))
     tid = led.open({"api": "arsenal.graph/v0", "name": "g"}, {}, {})
     # top-level epoch field, when present, must agree with t.epoch
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="an epoch event must carry epoch 1, got 2"):
         led.append(tid, [{"kind": "epoch", "t": _tr(epoch=1), "epoch": 2}])
 
 
@@ -836,5 +923,5 @@ def test_take_write_to_closed_refused(tmp_path):
     led = takemod.TakeLedger(str(tmp_path))
     tid = led.open({"api": "arsenal.graph/v0", "name": "g"}, {}, {})
     led.close(tid, {"ok": True})
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="is closed"):
         led.append(tid, [{"kind": "play", "t": _tr()}])

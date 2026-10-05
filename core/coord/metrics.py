@@ -16,32 +16,32 @@ solution paths it attempted. Across runs, we track:
 
 This is deterministic, like experiment.py: no randomness, pure structural measurement of the policy.
 """
+
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from math import log2
-from typing import Dict, List, FrozenSet, Tuple
-
 
 # --- approach vectors ---
 
-ApproachVector = FrozenSet[Tuple[str, str]]  # {(resource, intent), ...}
+ApproachVector = frozenset[tuple[str, str]]  # {(resource, intent), ...}
 
 
-def vector_from_run(actions: List[Tuple[str, str, str]]) -> ApproachVector:
+def vector_from_run(actions: list[tuple[str, str, str]]) -> ApproachVector:
     """Extract the approach vector from a run's approved actions: the set of (resource, intent) pairs."""
     return frozenset((a[1], a[2]) for a in actions)
 
 
 # --- entropy (pure function) ---
 
-def shannon_entropy(vectors: List[ApproachVector]) -> float:
+
+def shannon_entropy(vectors: list[ApproachVector]) -> float:
     """Shannon entropy H(X) of the multiset of approach vectors. A single uniform vector = 0 bits
     (no diversity). N distinct vectors each appearing once = log2(N) bits (max diversity)."""
     n = len(vectors)
     if n == 0:
         return 0.0
-    counts: Dict[ApproachVector, int] = {}
+    counts: dict[ApproachVector, int] = {}
     for v in vectors:
         counts[v] = counts.get(v, 0) + 1
     total = 0.0
@@ -52,12 +52,12 @@ def shannon_entropy(vectors: List[ApproachVector]) -> float:
     return round(total, 4)
 
 
-def uniqueness_ratio(vectors: List[ApproachVector]) -> float:
+def uniqueness_ratio(vectors: list[ApproachVector]) -> float:
     """Fraction of vectors that appeared EXACTLY once. 1.0 = every run tried a different approach."""
     n = len(vectors)
     if n == 0:
         return 0.0
-    counts: Dict[ApproachVector, int] = {}
+    counts: dict[ApproachVector, int] = {}
     for v in vectors:
         counts[v] = counts.get(v, 0) + 1
     unique = sum(1 for c in counts.values() if c == 1)
@@ -66,20 +66,19 @@ def uniqueness_ratio(vectors: List[ApproachVector]) -> float:
 
 # --- monotonicity detector ---
 
-def is_monotonic_decreasing(entropies: List[float]) -> bool:
+
+def is_monotonic_decreasing(entropies: list[float]) -> bool:
     """True if entropy is strictly non-increasing run over run (e_n >= e_n+1 for all n).
     A single value is trivially monotonic; fewer than 2 values is not enough data."""
     if len(entropies) < 2:
         return False
-    for i in range(len(entropies) - 1):
-        if entropies[i] < entropies[i + 1]:  # went UP — not monotonic decreasing
-            return False
-    return True
+    return all(entropies[i] >= entropies[i + 1] for i in range(len(entropies) - 1))
 
 
 # --- correctness (flat or rising?) ---
 
-def is_flat(values: List[float], epsilon: float = 0.001) -> bool:
+
+def is_flat(values: list[float], epsilon: float = 0.001) -> bool:
     """True if all values are within epsilon of each other (neither clearly rising nor falling).
     Fewer than 2 values = not enough data to judge."""
     if len(values) < 2:
@@ -87,7 +86,7 @@ def is_flat(values: List[float], epsilon: float = 0.001) -> bool:
     return max(values) - min(values) <= epsilon
 
 
-def is_rising(values: List[float]) -> bool:
+def is_rising(values: list[float]) -> bool:
     """True if non-decreasing with at least one strict increase."""
     if len(values) < 2:
         return False
@@ -102,18 +101,19 @@ def is_rising(values: List[float]) -> bool:
 
 # --- the watchdog ---
 
+
 @dataclass
 class ShrinkageVerdict:
     """What the cross-run tracker found."""
 
     runs: int
-    run_diversities: List[float]                # diversity signal PER RUN (e.g. approach count)
-    cross_entropy: float                        # symbol entropy across all run-vectors (strategy variety)
-    uniqueness: float                           # overall uniqueness ratio
-    diversity_dropping: bool                    # monotonic decreasing PER-RUN diversity
-    correctness_flat: bool                      # task scores not improving
-    collapse: bool                              # THE verdict: dropping + flat = Goodhart
-    diagnosis: str                              # human-readable summary
+    run_diversities: list[float]  # diversity signal PER RUN (e.g. approach count)
+    cross_entropy: float  # symbol entropy across all run-vectors (strategy variety)
+    uniqueness: float  # overall uniqueness ratio
+    diversity_dropping: bool  # monotonic decreasing PER-RUN diversity
+    correctness_flat: bool  # task scores not improving
+    collapse: bool  # THE verdict: dropping + flat = Goodhart
+    diagnosis: str  # human-readable summary
 
 
 def _run_diversity(v: ApproachVector) -> float:
@@ -127,8 +127,8 @@ def _run_diversity(v: ApproachVector) -> float:
 
 
 def assess(
-    run_vectors: List[ApproachVector],
-    run_scores: List[float],
+    run_vectors: list[ApproachVector],
+    run_scores: list[float],
     *,
     epsilon: float = 0.001,
 ) -> ShrinkageVerdict:
@@ -154,15 +154,18 @@ def assess(
         ValueError if len(run_vectors) != len(run_scores)
     """
     if len(run_vectors) != len(run_scores):
-        raise ValueError(
-            f"run_vectors ({len(run_vectors)}) and run_scores ({len(run_scores)}) must be same length"
-        )
+        raise ValueError(f"run_vectors ({len(run_vectors)}) and run_scores ({len(run_scores)}) must be same length")
 
     n = len(run_vectors)
     if n == 0:
         return ShrinkageVerdict(
-            runs=0, run_diversities=[], cross_entropy=0.0, uniqueness=0.0,
-            diversity_dropping=False, correctness_flat=False, collapse=False,
+            runs=0,
+            run_diversities=[],
+            cross_entropy=0.0,
+            uniqueness=0.0,
+            diversity_dropping=False,
+            correctness_flat=False,
+            collapse=False,
             diagnosis="No data: nothing to assess.",
         )
 
@@ -234,7 +237,7 @@ def run_metrics(
     scenario_fn,
     policy_fn,
     n_runs: int = 5,
-) -> Tuple[List[ApproachVector], List[float]]:
+) -> tuple[list[ApproachVector], list[float]]:
     """Run the same scenario+policy N times, return vectors and A_task scores.
     Deterministic: same seed, same output each time (isolates policy structure, not LLM variance)."""
     from core.coord.experiment import run, score  # local import: experiment.py is sibling

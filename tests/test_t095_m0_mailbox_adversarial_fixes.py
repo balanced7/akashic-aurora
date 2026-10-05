@@ -4,24 +4,23 @@ Run::
 
     py -m pytest tests/test_t095_m0_mailbox_adversarial_fixes.py -q
 """
+
 from __future__ import annotations
 
-import json
 import sys
 from pathlib import Path
 
-import pytest
-
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
-
-from core.comm.bus import Bus
-
-from tests.test_t095_m0_mailbox_shadow import (
-    _FakeRedis, _mk, _advance_cursor, NS,
-)
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import importlib as _il
+
+from tests.test_t095_m0_mailbox_shadow import (
+    NS,
+    _advance_cursor,
+    _mk,
+)
+
+ROOT = Path(__file__).resolve().parents[1]
 
 
 def _mailbox():
@@ -35,7 +34,7 @@ def test_lane_flip_no_double_count():
     fake, bus = _mk()
 
     # First copy: normal bus.send into work lane
-    mid = bus.send("deepseek", "handoff", "dual test")
+    bus.send("deepseek", "handoff", "dual test")
     # Get the sha from the mailbox after first catch_up
     mbx.catch_up(NS, "deepseek", client=fake)
     r1 = mbx.query(NS, "deepseek", client=fake, catch_up_budget=0)
@@ -43,15 +42,21 @@ def test_lane_flip_no_double_count():
     sha = r1["entries"][0]["sha"]
 
     # Second copy: manually xadd to legacy inbox with same sha
-    fake.xadd(f"{NS}:inbox:deepseek", {
-        "frm": "claude", "to": "deepseek", "kind": "handoff",
-        "content": "\"dual test\"", "ts": "1000000", "meta": "{}",
-        "sha": sha,
-    })
+    fake.xadd(
+        f"{NS}:inbox:deepseek",
+        {
+            "frm": "claude",
+            "to": "deepseek",
+            "kind": "handoff",
+            "content": '"dual test"',
+            "ts": "1000000",
+            "meta": "{}",
+            "sha": sha,
+        },
+    )
     mbx.catch_up(NS, "deepseek", client=fake)
     r2 = mbx.query(NS, "deepseek", client=fake, catch_up_budget=0)
-    assert r2["counts"].get("unhandled", 0) == 1, (
-        f"dual-write with same sha must dedupe to 1, got {r2['counts']}")
+    assert r2["counts"].get("unhandled", 0) == 1, f"dual-write with same sha must dedupe to 1, got {r2['counts']}"
 
 
 # A-D4 FIX: use bus.send() not fake.xadd
@@ -59,7 +64,7 @@ def test_legacy_only_straggler_detected_as_consumed():
     mbx = _mailbox()
     fake, bus = _mk()
 
-    mid = bus.send("deepseek", "chat", "legacy alone")
+    bus.send("deepseek", "chat", "legacy alone")
     mbx.catch_up(NS, "deepseek", client=fake)
     r = mbx.query(NS, "deepseek", client=fake, catch_up_budget=0)
     tiers = {e["kind"]: e["tier"] for e in r["entries"]}
@@ -108,8 +113,7 @@ def test_rebuild_after_stream_growth_recovers_all_messages():
     # Rebuild catches everything from scratch — divergence > 0 is EXPECTED
     # because the old index didn't have the post-crash messages
     rebuilt = mbx.rebuild(NS, "deepseek", client=fake)
-    assert rebuilt["entries"] == 10, (
-        f"rebuild must find all 10 messages, got {rebuilt['entries']}")
+    assert rebuilt["entries"] == 10, f"rebuild must find all 10 messages, got {rebuilt['entries']}"
     r = mbx.query(NS, "deepseek", client=fake, catch_up_budget=0)
     assert r["counts"].get("unhandled", 0) == 10
 
@@ -119,7 +123,7 @@ def test_legacy_stream_retirement_preserves_existing_entries():
     mbx = _mailbox()
     fake, bus = _mk()
 
-    mid = bus.send("deepseek", "handoff", "old legacy entry")
+    bus.send("deepseek", "handoff", "old legacy entry")
     mbx.catch_up(NS, "deepseek", client=fake)
 
     r = mbx.query(NS, "deepseek", client=fake, catch_up_budget=0)

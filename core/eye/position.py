@@ -26,28 +26,31 @@ yours.
 Position lives in the same projection as the rest of the eye (state/eye/eye.db). It is the
 one table here that is genuinely disposable: losing a bookmark costs a `go`.
 """
+
 from __future__ import annotations
 
 import json
 import os
 import time
-from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, cast
 
+from core.eye.connectome import _group, _steps
 from core.eye.index import _connect, get_event
-from core.eye.connectome import _steps, _group
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 def whoami(agent: str = "claude") -> str:
     """This seat's incarnation key: agent#sid8, the same derivation the bus uses so one
     incarnation means one thing fleet-wide. A seat with no session id in its environment
     gets '#local' -- named, so it can never be mistaken for a real incarnation."""
-    sid = (os.environ.get("BIFROST_INCARNATION")
-           or os.environ.get("CLAUDE_CODE_SESSION_ID") or "")
+    sid = os.environ.get("BIFROST_INCARNATION") or os.environ.get("CLAUDE_CODE_SESSION_ID") or ""
     if not sid:
         return f"{agent}#local"
-    from core.comm.bus import sid8   # the ONE derivation (defer 7e2670d54e): a DSH
-    return f"{agent}#{sid8(sid)}"    # 'session-<uuid>' keys by its hex head, never 'session-'
+    from core.comm.bus import sid8  # the ONE derivation (defer 7e2670d54e): a DSH
+
+    return f"{agent}#{sid8(sid)}"  # 'session-<uuid>' keys by its hex head, never 'session-'
 
 
 def _ensure_schema(con) -> None:
@@ -56,16 +59,23 @@ def _ensure_schema(con) -> None:
         marked_at REAL NOT NULL, moved_at REAL NOT NULL, inherited_from TEXT)""")
 
 
-def _row(con, seat: str) -> Optional[Dict[str, Any]]:
-    r = con.execute("SELECT seat, addr, trail, marked_at, moved_at, inherited_from "
-                    "FROM position WHERE seat=?", (seat,)).fetchone()
+def _row(con, seat: str) -> dict[str, Any] | None:
+    r = con.execute(
+        "SELECT seat, addr, trail, marked_at, moved_at, inherited_from FROM position WHERE seat=?", (seat,)
+    ).fetchone()
     if not r:
         return None
-    return {"seat": r[0], "addr": r[1], "trail": json.loads(r[2]), "marked_at": r[3],
-            "moved_at": r[4], "inherited_from": r[5]}
+    return {
+        "seat": r[0],
+        "addr": r[1],
+        "trail": json.loads(r[2]),
+        "marked_at": r[3],
+        "moved_at": r[4],
+        "inherited_from": r[5],
+    }
 
 
-def where(seat: str, db_path: Optional[Path] = None) -> Optional[Dict[str, Any]]:
+def where(seat: str, db_path: Path | None = None) -> dict[str, Any] | None:
     """This seat's standpoint, or None. None means NO POSITION -- never a default root:
     a fabricated standpoint would make `since=` report an interval the seat never lived."""
     con = _connect(db_path)
@@ -76,7 +86,7 @@ def where(seat: str, db_path: Optional[Path] = None) -> Optional[Dict[str, Any]]
         con.close()
 
 
-def go(seat: str, addr: str, db_path: Optional[Path] = None) -> Dict[str, Any]:
+def go(seat: str, addr: str, db_path: Path | None = None) -> dict[str, Any]:
     """Move. The previous standpoint is pushed onto the trail so `back` can undo it.
 
     A move to an address that does not resolve REFUSES with the expected shape (the
@@ -86,7 +96,8 @@ def go(seat: str, addr: str, db_path: Optional[Path] = None) -> Dict[str, Any]:
     if ev is None:
         raise ValueError(
             f"cannot go to {addr!r} -- an address on this plane is session:line "
-            f"(e.g. 2b1b8946-...:1955); get one from `eye find`. The seat has NOT moved.")
+            f"(e.g. 2b1b8946-...:1955); get one from `eye find`. The seat has NOT moved."
+        )
     con = _connect(db_path)
     _ensure_schema(con)
     now = time.time()
@@ -97,15 +108,15 @@ def go(seat: str, addr: str, db_path: Optional[Path] = None) -> Dict[str, Any]:
             "INSERT INTO position(seat, addr, trail, marked_at, moved_at, inherited_from) "
             "VALUES(?,?,?,?,?,?) ON CONFLICT(seat) DO UPDATE SET addr=excluded.addr, "
             "trail=excluded.trail, moved_at=excluded.moved_at",
-            (seat, addr, json.dumps(trail[-32:]), now, now,
-             cur["inherited_from"] if cur else None))
+            (seat, addr, json.dumps(trail[-32:]), now, now, cur["inherited_from"] if cur else None),
+        )
         con.commit()
-        return _row(con, seat)
+        return cast("dict[str, Any]", _row(con, seat))  # the row was just upserted
     finally:
         con.close()
 
 
-def back(seat: str, db_path: Optional[Path] = None) -> Dict[str, Any]:
+def back(seat: str, db_path: Path | None = None) -> dict[str, Any]:
     """Pop the trail. At the origin this is a no-op that SAYS it is one, rather than
     silently staying put and letting the caller believe it moved."""
     con = _connect(db_path)
@@ -113,21 +124,21 @@ def back(seat: str, db_path: Optional[Path] = None) -> Dict[str, Any]:
     try:
         cur = _row(con, seat)
         if cur is None:
-            raise ValueError(
-                f"{seat} has no position to go back from -- `eye go <addr>` first")
+            raise ValueError(f"{seat} has no position to go back from -- `eye go <addr>` first")
         if not cur["trail"]:
             return {**cur, "at_trail_origin": True}
         trail = list(cur["trail"])
         prev = trail.pop()
-        con.execute("UPDATE position SET addr=?, trail=?, moved_at=? WHERE seat=?",
-                    (prev, json.dumps(trail), time.time(), seat))
+        con.execute(
+            "UPDATE position SET addr=?, trail=?, moved_at=? WHERE seat=?", (prev, json.dumps(trail), time.time(), seat)
+        )
         con.commit()
-        return {**_row(con, seat), "at_trail_origin": False}
+        return {**cast("dict[str, Any]", _row(con, seat)), "at_trail_origin": False}  # row exists (cur above)
     finally:
         con.close()
 
 
-def inherit(seat: str, from_seat: str, db_path: Optional[Path] = None) -> Dict[str, Any]:
+def inherit(seat: str, from_seat: str, db_path: Path | None = None) -> dict[str, Any]:
     """Succession, explicitly. The predecessor is left untouched -- being inherited FROM is
     not a move -- and the inheritor's row records where the standpoint came from, so a
     later `since=` can be read for what it is: an interval that began at the handover."""
@@ -138,21 +149,23 @@ def inherit(seat: str, from_seat: str, db_path: Optional[Path] = None) -> Dict[s
         if src is None:
             raise ValueError(
                 f"{from_seat} has no position to inherit -- nothing to succeed to "
-                f"(a virgin seat reads None by design, never a default root)")
+                f"(a virgin seat reads None by design, never a default root)"
+            )
         now = time.time()
         con.execute(
             "INSERT INTO position(seat, addr, trail, marked_at, moved_at, inherited_from) "
             "VALUES(?,?,?,?,?,?) ON CONFLICT(seat) DO UPDATE SET addr=excluded.addr, "
             "trail=excluded.trail, marked_at=excluded.marked_at, "
             "moved_at=excluded.moved_at, inherited_from=excluded.inherited_from",
-            (seat, src["addr"], json.dumps(src["trail"]), now, now, from_seat))
+            (seat, src["addr"], json.dumps(src["trail"]), now, now, from_seat),
+        )
         con.commit()
-        return _row(con, seat)
+        return cast("dict[str, Any]", _row(con, seat))  # the row was just upserted
     finally:
         con.close()
 
 
-def look(seat: str, db_path: Optional[Path] = None) -> Dict[str, Any]:
+def look(seat: str, db_path: Path | None = None) -> dict[str, Any]:
     """The standpoint rendered -- THE default verb, so it must stay cheap.
 
     Neighbours are SILHOUETTES (one clipped line each), never full bodies: the whole point
@@ -166,42 +179,58 @@ def look(seat: str, db_path: Optional[Path] = None) -> Dict[str, Any]:
         cur = _row(con, seat)
         if cur is None:
             raise ValueError(
-                f"{seat} has no position -- `eye go <addr>` to take one "
-                f"(a standpoint is never assumed for you)")
+                f"{seat} has no position -- `eye go <addr>` to take one (a standpoint is never assumed for you)"
+            )
         node = get_event(cur["addr"], db_path=db_path)
         if node is None:
             raise ValueError(
                 f"{seat} stands at {cur['addr']!r}, which no longer resolves -- the index "
-                f"may have been rebuilt; `eye go` somewhere current")
+                f"may have been rebuilt; `eye go` somewhere current"
+            )
         ups = _steps(con, cur["addr"], up=True)
         downs = _steps(con, cur["addr"], up=False)
-        exits = [{"edge_kind": e["edge_kind"], "evidence": e["evidence"],
-                  "to": e["event_id"], "direction": d}
-                 for d, group in (("upstream", ups), ("downstream", downs))
-                 for e in group]
+        exits = [
+            {"edge_kind": e["edge_kind"], "evidence": e["evidence"], "to": e["event_id"], "direction": d}
+            for d, group in (("upstream", ups), ("downstream", downs))
+            for e in group
+        ]
         neighbors = []
         for e in (ups + downs)[:6]:
             ev = get_event(e["event_id"], db_path=db_path)
             if ev is None:
                 continue
-            neighbors.append({"event_id": e["event_id"], "voice": ev["voice"],
-                              "edge_kind": e["edge_kind"], "evidence": e["evidence"],
-                              "snippet": " ".join(ev["text"].split())[:160]})
+            neighbors.append(
+                {
+                    "event_id": e["event_id"],
+                    "voice": ev["voice"],
+                    "edge_kind": e["edge_kind"],
+                    "evidence": e["evidence"],
+                    "snippet": " ".join(ev["text"].split())[:160],
+                }
+            )
         after = con.execute(
-            "SELECT COUNT(*) FROM events WHERE session=? AND line > ?",
-            (node["session"], node["line"])).fetchone()[0]
+            "SELECT COUNT(*) FROM events WHERE session=? AND line > ?", (node["session"], node["line"])
+        ).fetchone()[0]
         group = _group(con, cur["addr"])
     finally:
         con.close()
 
     body = " ".join(node["text"].split())[:400]
     view = {
-        "seat": seat, "addr": cur["addr"],
-        "node": {"event_id": node["event_id"], "voice": node["voice"],
-                 "type": node["type"], "session": node["session"],
-                 "line": node["line"], "ts": node["ts"], "text": body},
+        "seat": seat,
+        "addr": cur["addr"],
+        "node": {
+            "event_id": node["event_id"],
+            "voice": node["voice"],
+            "type": node["type"],
+            "session": node["session"],
+            "line": node["line"],
+            "ts": node["ts"],
+            "text": body,
+        },
         "same_utterance": group,
-        "neighbors": neighbors, "exits": exits,
+        "neighbors": neighbors,
+        "exits": exits,
         "heat": {
             "staleness_s": (time.time() - node["ts"]) if node["ts"] else None,
             "session_events_after": int(after),
@@ -215,7 +244,7 @@ def look(seat: str, db_path: Optional[Path] = None) -> Dict[str, Any]:
     return view
 
 
-def since(seat: str, db_path: Optional[Path] = None) -> Dict[str, Any]:
+def since(seat: str, db_path: Path | None = None) -> dict[str, Any]:
     """The ambient delta: what arrived while this seat was away.
 
     Anchored on THIS seat's mark, which is why the key is the incarnation. The mark moves
@@ -226,9 +255,7 @@ def since(seat: str, db_path: Optional[Path] = None) -> Dict[str, Any]:
     try:
         cur = _row(con, seat)
         if cur is None:
-            raise ValueError(
-                f"{seat} has no position, so there is no interval to measure -- "
-                f"`eye go <addr>` first")
+            raise ValueError(f"{seat} has no position, so there is no interval to measure -- `eye go <addr>` first")
         mark = cur["marked_at"]
         # KNOWN_AT, not world time (grammar sec 1). "What changed while I was away" asks what
         # became KNOWABLE in the interval -- a transcript written last week and ingested this
@@ -236,24 +263,29 @@ def since(seat: str, db_path: Optional[Path] = None) -> Dict[str, Any]:
         # instead reports zero for exactly the arrivals a returning seat most needs to see.
         # NULL indexed_at is not a guess: it means the row predates the column, so it is
         # necessarily older than any mark takeable from now on, and is correctly excluded.
-        added = con.execute("SELECT COUNT(*) FROM events WHERE indexed_at > ?",
-                            (mark,)).fetchone()[0]
-        sessions = con.execute("SELECT COUNT(DISTINCT session) FROM events "
-                               "WHERE indexed_at > ?", (mark,)).fetchone()[0]
+        added = con.execute("SELECT COUNT(*) FROM events WHERE indexed_at > ?", (mark,)).fetchone()[0]
+        sessions = con.execute("SELECT COUNT(DISTINCT session) FROM events WHERE indexed_at > ?", (mark,)).fetchone()[0]
         operator = con.execute(
-            "SELECT COUNT(*) FROM events WHERE indexed_at > ? AND voice='operator'",
-            (mark,)).fetchone()[0]
-        edges = con.execute(
-            "SELECT COUNT(*) FROM edges WHERE formed_at > ?", (mark,)).fetchone()[0]
+            "SELECT COUNT(*) FROM events WHERE indexed_at > ? AND voice='operator'", (mark,)
+        ).fetchone()[0]
+        edges = con.execute("SELECT COUNT(*) FROM edges WHERE formed_at > ?", (mark,)).fetchone()[0]
         # Events with no parseable ts cannot be placed in the interval AT ALL -- the same
         # unevaluable class `find` reports under as_of. Counted, and declared.
         fogged = con.execute("SELECT COUNT(*) FROM events WHERE ts IS NULL").fetchone()[0]
     finally:
         con.close()
-    return {"seat": seat, "addr": cur["addr"], "since_ts": mark,
-            "events_added": int(added), "sessions_touched": int(sessions),
-            "operator_events": int(operator), "edges_formed": int(edges),
-            "degraded": bool(fogged),
-            "degraded_reason": (f"{fogged} event(s) carry no parseable timestamp and "
-                                f"cannot be placed in or out of this interval"
-                                if fogged else None)}
+    return {
+        "seat": seat,
+        "addr": cur["addr"],
+        "since_ts": mark,
+        "events_added": int(added),
+        "sessions_touched": int(sessions),
+        "operator_events": int(operator),
+        "edges_formed": int(edges),
+        "degraded": bool(fogged),
+        "degraded_reason": (
+            f"{fogged} event(s) carry no parseable timestamp and cannot be placed in or out of this interval"
+            if fogged
+            else None
+        ),
+    }

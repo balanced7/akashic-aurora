@@ -16,21 +16,23 @@ watcher -- and writes the trigger the existing spawner already knows how to cons
 It does NOT close the class. A session whose daemon never starts still produces no input; that
 remains the out-of-band enumerator's job (Wake Doctrine T1/S1, operator-gated).
 """
+
 from __future__ import annotations
 
 import os
-import pytest
+from pathlib import Path
 
 
 def _alive(tmp, agent, sid):
     p = os.path.join(tmp, f"bifrost_wake_{agent}_{sid}.alive")
-    open(p, "w").write("1")
+    Path(p).write_text("1")
     return p
 
 
 def test_startup_rearms_a_session_that_is_alive_but_seatless(tmp_path):
     """The incident, pinned: .alive present, no .pid seat -> a trigger must be written."""
     from core.comm import daemon_state as ds
+
     tmp = str(tmp_path)
     _alive(tmp, "claude", "sess-orphaned")
     n = ds.rearm_orphaned_sessions("claude", tmp=tmp)
@@ -43,11 +45,12 @@ def test_a_seated_session_is_left_alone(tmp_path):
     """Idempotence + no double-arm: a session that still holds its seat is not disturbed."""
     from core.comm import daemon_state as ds
     from core.comm import wake_seat
+
     tmp = str(tmp_path)
     _alive(tmp, "claude", "sess-seated")
     seat = wake_seat.seat_path("claude", "sess-seated", tmp)
     os.makedirs(os.path.dirname(seat), exist_ok=True)
-    open(seat, "w").write("4242")
+    Path(seat).write_text("4242")
     n = ds.rearm_orphaned_sessions("claude", tmp=tmp)
     assert n == 0, "a seated session already has a live watcher -- re-arming would double-arm"
     assert not os.path.exists(os.path.join(tmp, "bifrost_wake_claude_sess-seated.rearm"))
@@ -56,6 +59,7 @@ def test_a_seated_session_is_left_alone(tmp_path):
 def test_only_own_agent_is_touched(tmp_path):
     """A daemon may never re-arm another agent's seats (membrane law)."""
     from core.comm import daemon_state as ds
+
     tmp = str(tmp_path)
     _alive(tmp, "deepseek", "sess-theirs")
     n = ds.rearm_orphaned_sessions("claude", tmp=tmp)
@@ -66,6 +70,7 @@ def test_only_own_agent_is_touched(tmp_path):
 def test_existing_trigger_is_not_duplicated(tmp_path):
     """If a trigger already exists the count must not inflate -- safe to re-run."""
     from core.comm import daemon_state as ds
+
     tmp = str(tmp_path)
     _alive(tmp, "claude", "sess-twice")
     assert ds.rearm_orphaned_sessions("claude", tmp=tmp) == 1

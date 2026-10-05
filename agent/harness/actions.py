@@ -44,9 +44,9 @@ Fail-open by contract: any exception returns "" — recall must never brick an a
 Kill switches: AKASHIC_RECALL_AT_ACTION=0 (action altitude), AKASHIC_PLAN_RECALL=0
 (plan altitude) — "off" is a chosen normal state, silence not error.
 """
+
 import os
 import tempfile
-from typing import Optional
 
 
 def _nudge_dir() -> str:
@@ -56,12 +56,13 @@ def _nudge_dir() -> str:
     return os.path.join(root, "nudge")
 
 
-def _agent(agent_id: Optional[str]) -> Optional[str]:
+def _agent(agent_id: str | None) -> str | None:
     return agent_id or os.getenv("AKASHIC_AGENT_ID")
 
 
-def recall_block(session_key: str, seen_key: str, path: Optional[str],
-                 command: Optional[str], agent_id: Optional[str] = None) -> str:
+def recall_block(
+    session_key: str, seen_key: str, path: str | None, command: str | None, agent_id: str | None = None
+) -> str:
     """Unseen lessons + lock warnings for this target; marks seen/impressions and
     ledgers the push. Lifted in behavior from the two in-hook copies."""
     if os.getenv("AKASHIC_RECALL_AT_ACTION", "1") == "0":
@@ -69,57 +70,62 @@ def recall_block(session_key: str, seen_key: str, path: Optional[str],
     if not path and not command:
         return ""
     try:
-        from core.recall.at_action import (recall_at, render, mark_impression,
-                                           normalize_target, log_injection)
         from agent.harness.seen import load_seen, mark_seen
-        res = recall_at(path=path or None, command=command or None,
-                        agent_id=_agent(agent_id),
-                        exclude_sources=load_seen(seen_key), count_surface=True)
+        from core.recall.at_action import log_injection, mark_impression, normalize_target, recall_at, render
+
+        res = recall_at(
+            path=path or None,
+            command=command or None,
+            agent_id=_agent(agent_id),
+            exclude_sources=load_seen(seen_key),
+            count_surface=True,
+        )
         out = render(res)
         if out:
-            srcs = [l.get("source") for l in res.get("lessons", [])]
+            srcs = [lesson.get("source") for lesson in res.get("lessons", [])]
             mark_seen(seen_key, srcs)
             target = normalize_target(path or None, command or None)
             mark_impression(session_key, target, srcs)
             log_injection(session_key, "action", target, srcs, len(out))
         return out
     except Exception:
-        return ""   # recall must never brick the action
+        return ""  # recall must never brick the action
 
 
-def outcome_block(session_key: str, seen_key: str, target: str, success: bool,
-                  agent_id: Optional[str] = None) -> str:
+def outcome_block(session_key: str, seen_key: str, target: str, success: bool, agent_id: str | None = None) -> str:
     """Resolve the outcome; on a flip, credit + capture + return the JIT nudge under
     the rate limit. Lifted in behavior from cursor_posttooluse's outcome flow."""
     if not target:
         return ""
     try:
-        from core.recall.at_action import resolve_action_outcome, build_learn_nudge
-        rep = resolve_action_outcome(session_key, target, bool(success),
-                                     agent_id=_agent(agent_id))
+        from core.recall.at_action import build_learn_nudge, resolve_action_outcome
+
+        rep = resolve_action_outcome(session_key, target, bool(success), agent_id=_agent(agent_id))
         if not success or not rep.get("flipped"):
             return ""
-        try:   # durable funnel signal (flips observed vs lessons recorded) -- best-effort
+        try:  # durable funnel signal (flips observed vs lessons recorded) -- best-effort
             from core.events.event_log import capture_event
-            capture_event("flip", f"FAIL->SUCCESS: {target}",
-                          agent_id=_agent(agent_id) or "unknown",
-                          detail={"target": target, "credited": rep.get("credited", 0),
-                                  "sources": rep.get("sources", [])})
+
+            capture_event(
+                "flip",
+                f"FAIL->SUCCESS: {target}",
+                agent_id=_agent(agent_id) or "unknown",
+                detail={"target": target, "credited": rep.get("credited", 0), "sources": rep.get("sources", [])},
+            )
         except Exception:
             pass
-        from agent.harness.nudge import nudge_allowed, mark_nudged
+        from agent.harness.nudge import mark_nudged, nudge_allowed
+
         if nudge_allowed(_nudge_dir(), seen_key, target):
-            text = build_learn_nudge(target, rep.get("credited", 0), rep.get("sources"),
-                                     _agent(agent_id))
+            text = build_learn_nudge(target, rep.get("credited", 0), rep.get("sources"), _agent(agent_id))
             mark_nudged(_nudge_dir(), seen_key, target)
             return text or ""
         return ""
     except Exception:
-        return ""   # outcome credit must never brick the action
+        return ""  # outcome credit must never brick the action
 
 
-def plan_block(prompt: str, session_key: str, seen_key: str,
-               agent_id: Optional[str] = None) -> str:
+def plan_block(prompt: str, session_key: str, seen_key: str, agent_id: str | None = None) -> str:
     """Plan-altitude context for a fresh prompt, or "" for silence. Lifted in behavior
     from claude_userpromptsubmit.build_plan_recall."""
     if os.getenv("AKASHIC_PLAN_RECALL", "1") == "0":
@@ -127,16 +133,18 @@ def plan_block(prompt: str, session_key: str, seen_key: str,
     if not (prompt or "").strip():
         return ""
     try:
-        from core.recall.at_action import recall_at, render, log_injection
         from agent.harness.seen import load_seen, mark_seen
-        res = recall_at(command=prompt, agent_id=_agent(agent_id), limit=2,
-                        exclude_sources=load_seen(seen_key), count_surface=True)
+        from core.recall.at_action import log_injection, recall_at, render
+
+        res = recall_at(
+            command=prompt, agent_id=_agent(agent_id), limit=2, exclude_sources=load_seen(seen_key), count_surface=True
+        )
         out = render(res, header="Plan-time recall (Akashic) - corpus knowledge relevant to this request:")
         if not out:
             return ""
-        srcs = [l.get("source") for l in res.get("lessons", [])]
+        srcs = [lesson.get("source") for lesson in res.get("lessons", [])]
         mark_seen(seen_key, srcs)
         log_injection(session_key, "plan", "", srcs, len(out))
         return out
     except Exception:
-        return ""   # plan recall must never brick the prompt
+        return ""  # plan recall must never brick the prompt

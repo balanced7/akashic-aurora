@@ -23,22 +23,22 @@ Components (still to build):
 All functions use semantic naming with relationship types.
 """
 
-from .project_context import (  # noqa: F401
+from .aggregator import assemble_context
+from .blocker_loader import load_blockers_preventing_progress
+from .briefing_loader import load_briefing_from_previous_handoff
+from .decision_loader import load_decisions_applicable_to_task
+from .learning_loader import load_learnings_ranked_by_relevance
+from .project_context import (
     ProjectContextManager,
     get_project_context_manager_instance,
 )
-from .learning_loader import load_learnings_ranked_by_relevance  # noqa: F401
-from .decision_loader import load_decisions_applicable_to_task  # noqa: F401
-from .blocker_loader import load_blockers_preventing_progress  # noqa: F401
-from .briefing_loader import load_briefing_from_previous_handoff  # noqa: F401
-from .aggregator import assemble_context  # noqa: F401
 
 __all__ = [
     "ProjectContextManager",
+    "assemble_context",
     "get_project_context_manager_instance",
-    "load_learnings_ranked_by_relevance",
-    "load_decisions_applicable_to_task",
     "load_blockers_preventing_progress",
     "load_briefing_from_previous_handoff",
-    "assemble_context",
+    "load_decisions_applicable_to_task",
+    "load_learnings_ranked_by_relevance",
 ]

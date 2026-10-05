@@ -8,6 +8,7 @@ T074 Phase 1 (R5): the v1 SHAPE assertions (a `notes:` titles line, <=10 lines) 
 superseded by the whisper-v2 spec -- section shape pins live in test_t074_whisper_v2.py;
 THIS file keeps the tiering / silence / kill-switch / fail-soft contracts, which v2
 inherits unchanged."""
+
 import io
 import json
 import os
@@ -17,9 +18,9 @@ from datetime import datetime, timedelta
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from agent.harness import context as ctx
+from agent.harness.hooks import claude_sessionstart as hook
 from agent.harness.scope import repo_root
 from core.learning.agent_memory import Decision
-from agent.harness.hooks import claude_sessionstart as hook
 
 _REPO = repo_root()
 _HOME = os.path.expanduser("~")
@@ -28,13 +29,29 @@ _ELSEWHERE = "C:\\Somewhere\\Else" if os.name == "nt" else "/somewhere/else"
 
 def _note(title, body, hours_ago=2.0):
     created = (datetime.now() - timedelta(hours=hours_ago)).isoformat()
-    return Decision(id=f"ADR_test_{title}", title=title, status="accepted", context="",
-                    decision=body, rationale=[], alternatives=[],
-                    consequences={"positive": [], "negative": []}, created_at=created)
+    return Decision(
+        id=f"ADR_test_{title}",
+        title=title,
+        status="accepted",
+        context="",
+        decision=body,
+        rationale=[],
+        alternatives=[],
+        consequences={"positive": [], "negative": []},
+        created_at=created,
+    )
 
 
-def _quiet_sources(monkeypatch, notes=None, funnel="funnel: 10 lessons | helped 1",
-                   unread=0, draft=False, siblings=None, delta=0, journey=""):
+def _quiet_sources(
+    monkeypatch,
+    notes=None,
+    funnel="funnel: 10 lessons | helped 1",
+    unread=0,
+    draft=False,
+    siblings=None,
+    delta=0,
+    journey="",
+):
     if notes is None:
         notes = [_note("next-focus", "t1"), _note("where-we-are", "t2")]
     monkeypatch.setattr(ctx, "_fetch_notes", lambda: list(notes))
@@ -49,7 +66,9 @@ def _quiet_sources(monkeypatch, notes=None, funnel="funnel: 10 lessons | helped 
 def test_repo_cwd_gets_the_compact_whisper(monkeypatch):
     _quiet_sources(monkeypatch)
     out = ctx.build_autoboot_context(_REPO, "claude")
-    assert "[akashic]" in out and "DIRECTIVE:" in out and "funnel:" in out
+    assert "[akashic]" in out
+    assert "DIRECTIVE:" in out
+    assert "funnel:" in out
     assert "boot claude" in out, "the one-hop full-boot command is always taught"
     assert len(out.splitlines()) <= 12, "a whisper, not a wall (context rot; W6)"
 
@@ -74,8 +93,10 @@ def test_elsewhere_is_silent_when_nothing_new(monkeypatch):
 def test_elsewhere_whispers_one_line_when_mail_waits(monkeypatch):
     _quiet_sources(monkeypatch, unread=2, draft=True)
     out = ctx.build_autoboot_context(_ELSEWHERE, "claude")
-    assert out and len(out.splitlines()) == 1, "one line, pointing home"
-    assert "2 unread" in out and "boot claude" in out
+    assert out, "one line, pointing home"
+    assert len(out.splitlines()) == 1, "one line, pointing home"
+    assert "2 unread" in out
+    assert "boot claude" in out
 
 
 def test_kill_switch(monkeypatch):
@@ -88,7 +109,8 @@ def test_broken_source_drops_out_not_blanks(monkeypatch):
     _quiet_sources(monkeypatch)
     monkeypatch.setattr(ctx, "_funnel_line", lambda: (_ for _ in ()).throw(RuntimeError("db down")))
     out = ctx.build_autoboot_context(_REPO, "claude")
-    assert "DIRECTIVE:" in out and "funnel:" not in out
+    assert "DIRECTIVE:" in out
+    assert "funnel:" not in out
 
 
 def test_all_sources_empty_stays_silent(monkeypatch):

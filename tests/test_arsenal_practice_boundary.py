@@ -9,6 +9,7 @@ next chord's keys pressed a beat BEFORE the pedal comes up (legato pedalling), t
 - pedal mode: every window ends at a lift, the heard-extension stops at the first lift after the onset, and the window
   after the lift holds none of the pitch classes the lift cleared.
 """
+
 import sys
 from pathlib import Path
 
@@ -16,8 +17,9 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "tests"))
 
-from arsenal import practice as pr  # noqa: E402
-from test_arsenal_practice import n, perform  # noqa: E402  (the synthetic-session helpers)
+from test_arsenal_practice import n, perform  # noqa: E402  # the synthetic-session helpers
+
+from arsenal import practice as pr  # noqa: E402  # sys.path bootstrap
 
 C_MAJOR = ["C3", "E4", "G4"]
 F_MAJOR = ["F3", "A4", "C5"]
@@ -58,7 +60,8 @@ def test_pedal_mode_cuts_every_window_at_the_lift():
     cleared = {PC["E"], PC["G"], PC["D"]}
     for w in after:
         assert not (set(w["pcs"]) & cleared), f"prior notes captured after the lift: {sorted(w['pcs'])}"
-        assert PC["F"] in w["pcs"] and PC["A"] in w["pcs"]
+        assert PC["F"] in w["pcs"]
+        assert PC["A"] in w["pcs"]
     before = [w for w in windows if w["end_ms"] <= 1950]
     assert any({PC["C"], PC["E"], PC["G"]} <= set(w["pcs"]) for w in before), "the C major is named before the lift"
 
@@ -93,6 +96,7 @@ def test_analyze_reports_the_boundary_it_used():
 # ---- Heimdall's verification of the first cut (2026-09-29): the late merges leaked lift-spanning windows into the
 # output Daniel reads, and short chords struck and released between two lifts were dropped as transients.
 
+
 def lifts_of(events):
     return [p["up_ms"] for p in pr.sounding(events)["pedal"]]
 
@@ -126,8 +130,14 @@ def staccato_session():
     """A chord struck and released between two lifts 350 ms apart (Heimdall's dropped chords): C major 0-900 under
     the pedal (ringing); lift at 2000; pedal down at 2050; F major keys 2050-2250 (ringing until the next lift);
     lift at 2350; pedal down at 2400; G major 2500-4000; lift at 4000."""
-    acts = [(0, "down", 0, 0), (2000, "up", 0, 0), (2050, "down", 0, 0), (2350, "up", 0, 0), (2400, "down", 0, 0),
-            (4000, "up", 0, 0)]
+    acts = [
+        (0, "down", 0, 0),
+        (2000, "up", 0, 0),
+        (2050, "down", 0, 0),
+        (2350, "up", 0, 0),
+        (2400, "down", 0, 0),
+        (4000, "up", 0, 0),
+    ]
     for m in C_MAJOR:
         acts += [(0, "on", n(m), 80), (900, "off", n(m), 0)]
     for m in F_MAJOR:
@@ -147,39 +157,64 @@ def test_no_final_window_spans_a_lift():
 def test_the_late_merges_stop_at_a_lift():
     lifted = pr.analyze(twice_session(), boundary="pedal")["windows"]
     assert [(w["start_ms"], w["end_ms"], w["name"]) for w in lifted] == [(0, 2000, "C"), (2000, 3900, "C")], (
-        "the same chord twice, touching at the lift: two chords (merge_same stops at the lift)")
+        "the same chord twice, touching at the lift: two chords (merge_same stops at the lift)"
+    )
     joined = pr.analyze(twice_session(), boundary="notes")["windows"]
-    assert len(joined) == 1 and joined[0]["name"] == "C", "notes mode joins them as before"
+    assert len(joined) == 1, "notes mode joins them as before"
+    assert joined[0]["name"] == "C", "notes mode joins them as before"
     built = pr.analyze(build_session(), boundary="pedal")["windows"]
     assert [(w["start_ms"], w["end_ms"]) for w in built] == [(0, 350), (350, 3000)], (
-        "a build across a quick lift-and-repress is two chords (merge_built stops at the lift)")
-    assert set(built[0]["pcs"]) == {"C", "G"} and set(built[1]["pcs"]) == {"C", "E", "G"}
+        "a build across a quick lift-and-repress is two chords (merge_built stops at the lift)"
+    )
+    assert set(built[0]["pcs"]) == {"C", "G"}
+    assert set(built[1]["pcs"]) == {"C", "E", "G"}
     assert 350 not in [w["end_ms"] for w in pr.analyze(build_session(), boundary="notes")["windows"]], (
-        "notes mode: the pump is not a boundary")
+        "notes mode: the pump is not a boundary"
+    )
 
 
 def test_a_chord_struck_and_released_between_two_lifts_is_a_window_not_a_transient():
     events = staccato_session()
     doc = pr.analyze(events, boundary="pedal")
     assert doc["segmentation"]["transients_dropped"] == 0, doc["segmentation"]
-    assert [(w["start_ms"], w["end_ms"], w["name"]) for w in doc["windows"]] == [(0, 2000, "C"), (2000, 2350, "F"),
-                                                                                 (2350, 4000, "G")]
+    assert [(w["start_ms"], w["end_ms"], w["name"]) for w in doc["windows"]] == [
+        (0, 2000, "C"),
+        (2000, 2350, "F"),
+        (2350, 4000, "G"),
+    ]
     snd = pr.sounding(events)
     pieces = [p for ph in pr._phrases(snd["notes"]) for p in pr._cut_at_lifts(ph, lifts_of(events))]
-    assert [(p["start_ms"], p["end_ms"], p["attacked"]) for p in pieces] == [(0, 2000, True), (2000, 2350, True),
-                                                                             (2350, 4000, True)]
+    assert [(p["start_ms"], p["end_ms"], p["attacked"]) for p in pieces] == [
+        (0, 2000, True),
+        (2000, 2350, True),
+        (2350, 4000, True),
+    ]
 
 
 def test_a_pump_over_ringing_notes_with_nothing_struck_stays_a_transient():
     """C3 rings under the pedal to the lift at 1000; the pedal pumps again at 1200 with nothing struck in between;
     E4 at 1300. The 200 ms piece between the two lifts has no attack of its own: residue, a transient as before."""
-    events = perform([(0, "down", 0, 0), (0, "on", n("C3"), 80), (200, "off", n("C3"), 0), (1000, "up", 0, 0),
-                      (1010, "down", 0, 0), (1200, "up", 0, 0), (1210, "down", 0, 0), (1300, "on", n("E4"), 80),
-                      (3000, "off", n("E4"), 0), (3000, "up", 0, 0)])
+    events = perform(
+        [
+            (0, "down", 0, 0),
+            (0, "on", n("C3"), 80),
+            (200, "off", n("C3"), 0),
+            (1000, "up", 0, 0),
+            (1010, "down", 0, 0),
+            (1200, "up", 0, 0),
+            (1210, "down", 0, 0),
+            (1300, "on", n("E4"), 80),
+            (3000, "off", n("E4"), 0),
+            (3000, "up", 0, 0),
+        ]
+    )
     snd = pr.sounding(events)
     pieces = [p for ph in pr._phrases(snd["notes"]) for p in pr._cut_at_lifts(ph, lifts_of(events))]
-    assert [(p["start_ms"], p["end_ms"], p["attacked"]) for p in pieces] == [(0, 1000, True), (1000, 1200, False),
-                                                                             (1200, 3000, True)]
+    assert [(p["start_ms"], p["end_ms"], p["attacked"]) for p in pieces] == [
+        (0, 1000, True),
+        (1000, 1200, False),
+        (1200, 3000, True),
+    ]
     seg = pr.harmonic_windows(snd, "pedal")
     assert seg["transients"] == {"count": 1, "ms": 200}
     assert [(w["start_ms"], w["end_ms"]) for w in seg["windows"]] == [(0, 1000), (1200, 3000)]
