@@ -214,7 +214,26 @@ def default_deadline_s() -> int:
         pass
     if os.getenv("BIFROST_WAKE_LONGLIVED", "1") == "0":
         return 1800
-    return 14400
+    # 4h -> 8h, 2026-10-05, at Daniel's "Yes please" to a measured proposal.
+    #
+    # WHAT THE 4h COST, measured on the claude seat across one day: the standby counter read
+    # 30 wakes / 25 with mail / 5 deadline cycles, and earlier in the same day 26/19/7. A 4h
+    # deadline is 6 self-cycles per idle day BY ARITHMETIC (24/4) -- wake-ups that deliver
+    # NOTHING, each costing a whole turn and a hand re-arm, because the arm is consumed when
+    # it fires and only the seat can re-arm it (T073: a detached listener notifies nobody).
+    # So roughly a quarter of this seat's wakes were the watcher waking itself to say
+    # "still here". At 8h that is 3/day; at 12h, 2/day.
+    #
+    # WHAT THE SELF-CYCLE IS FOR, and why this is a trade rather than a free win: the cycle is
+    # also how a WEDGED listener gets noticed, so doubling the deadline doubles the worst-case
+    # time a dead watcher goes unreported. It is NOT the only detector -- `roster` renders beat
+    # age from an independent channel and the stop hook gates the turn end on
+    # harness_armed() -- so it is a slower second opinion, not the sole one. 8h rather than 12
+    # deliberately: halve the tax, keep the backstop inside a working day, and measure before
+    # going further.
+    #
+    # Revert is one token: BIFROST_WAKE_DEADLINE_S=14400, or edit this literal.
+    return 28800
 
 
 def rearm_trigger_path(agent: str, session_id: str = "", tmp: str = None) -> str:

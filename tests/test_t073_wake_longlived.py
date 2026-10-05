@@ -129,7 +129,19 @@ def test_r18_stand_down_writes_no_trigger(tmp_path, monkeypatch):
 def test_r17_default_deadline_is_long_and_killswitch_reverts(monkeypatch):
     monkeypatch.delenv("BIFROST_WAKE_DEADLINE_S", raising=False)
     monkeypatch.delenv("BIFROST_WAKE_LONGLIVED", raising=False)
-    assert bw.default_deadline_s() == 14400, "R17: 4 hours is the new default"
+    # 4h -> 8h, 2026-10-05, at Daniel's "Yes please" to a measured proposal. The NUMBER moved;
+    # the three properties this test exists to protect did not, and all three are still
+    # asserted below: the kill-switch reverts, the env dial wins, and the default is long.
+    #
+    # The measurement behind the change: a 4h deadline is 6 self-cycles per IDLE day by
+    # arithmetic, and the claude seat's standby counter showed 5-7 of ~26-30 daily wakes were
+    # deadline cycles delivering nothing -- each costing a turn and a hand re-arm, because the
+    # arm is consumed when it fires and only the seat can re-arm it (T073: a detached listener
+    # notifies nobody). 8h halves that. The trade, stated because it is real: the self-cycle is
+    # also how a WEDGED listener gets noticed, so this doubles the worst-case silence of a dead
+    # watcher. It is not the only detector -- `roster` renders beat age independently and the
+    # stop hook gates the turn end on harness_armed() -- so it is a slower second opinion.
+    assert bw.default_deadline_s() == 28800, "8 hours is the default (was 4h until 2026-10-05)"
     monkeypatch.setenv("BIFROST_WAKE_LONGLIVED", "0")
     assert bw.default_deadline_s() == 1800, "R17: the kill-switch restores the legacy 30min"
     monkeypatch.delenv("BIFROST_WAKE_LONGLIVED", raising=False)
