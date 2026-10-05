@@ -46,7 +46,9 @@ is guarded. But a swallowed failure that vanishes is exactly the "unpopulated co
 a MEASURED zero" defect this project keeps relearning -- so drops are COUNTED, and `summarize()`
 reports them. Fail-open is only honest when the failures are visible.
 """
+
 import atexit
+import contextlib
 import hashlib
 import json
 import os
@@ -65,11 +67,19 @@ MAX_BYTES = int(os.getenv("AKASHIC_WIRE_MAX_BYTES", str(8 * 1024 * 1024)))
 
 # Headers worth keeping. An allowlist, not a blocklist: a blocklist would leak the next header a
 # provider invents, and authorization is exactly the header that must never land on disk.
-KEEP_HEADERS = ("x-ds-trace-id", "x-request-id", "x-cache", "x-amz-cf-pop",
-                "content-type", "server", "retry-after",
-                "x-ratelimit-remaining-requests", "x-ratelimit-remaining-tokens")
+KEEP_HEADERS = (
+    "x-ds-trace-id",
+    "x-request-id",
+    "x-cache",
+    "x-amz-cf-pop",
+    "content-type",
+    "server",
+    "retry-after",
+    "x-ratelimit-remaining-requests",
+    "x-ratelimit-remaining-tokens",
+)
 
-UNKNOWN = "UNKNOWN"          # T141 vocabulary: a field the provider never sent is not a zero.
+UNKNOWN = "UNKNOWN"  # T141 vocabulary: a field the provider never sent is not a zero.
 
 
 def _sha(text: str) -> str:
@@ -86,8 +96,7 @@ _UNSAFE = re.compile(r"[^A-Za-z0-9._-]")
 # failure is an OSError at open() -- i.e. a silently dropped record on a machine that is our
 # primary dev target. POSIX does not care; we pay the stricter rule everywhere so a journal
 # copied between platforms stays readable.
-_RESERVED = {"con", "prn", "aux", "nul"} | {f"com{i}" for i in range(1, 10)} \
-    | {f"lpt{i}" for i in range(1, 10)}
+_RESERVED = {"con", "prn", "aux", "nul"} | {f"com{i}" for i in range(1, 10)} | {f"lpt{i}" for i in range(1, 10)}
 
 
 def shard_name(agent: str) -> str:
@@ -99,7 +108,7 @@ def shard_name(agent: str) -> str:
     read_all() re-checks it, so two ids that collide here still cannot read each other's rows.
     """
     s = _UNSAFE.sub("_", str(agent or "").strip())
-    s = s.strip(". ")                       # '..' and trailing dots/spaces: traversal + Windows
+    s = s.strip(". ")  # '..' and trailing dots/spaces: traversal + Windows
     if not s:
         s = "unknown"
     if s.split(".")[0].lower() in _RESERVED:
@@ -140,7 +149,7 @@ class _Shard:
     def __init__(self, root: str, name: str, queue_size: int):
         self.name = name
         self.dir = os.path.join(root, name)
-        self.day, self.n = "", 1              # segment cursor -- amortized O(1), see _segment_path
+        self.day, self.n = "", 1  # segment cursor -- amortized O(1), see _segment_path
         self.q = queue.Queue(maxsize=queue_size)
         self.thread = None
         # keyed by DIRECTORY, shared across every journal instance writing this shard -- the
@@ -156,11 +165,12 @@ class _Shard:
 class WireJournal:
     """Append-only JSONL of API round trips. One record per HTTP request, retries included."""
 
-    def __init__(self, journal_dir: str = None, agent: str = "",
-                 writer: str = None, queue_size: int = None):
+    def __init__(
+        self, journal_dir: str | None = None, agent: str = "", writer: str | None = None, queue_size: int | None = None
+    ):
         self._journal_dir = journal_dir or os.getenv("AKASHIC_WIRE_DIR") or DEFAULT_DIR
         self.agent = agent or os.getenv("BIFROST_AGENT") or "unknown"
-        self.dropped = 0                      # W5: swallowed failures are counted, never silent
+        self.dropped = 0  # W5: swallowed failures are counted, never silent
 
         # THE SEAM (T157). Two writers behind one record() signature:
         #   async  -- enqueue on the caller's thread, write on a per-shard background thread
@@ -172,11 +182,11 @@ class WireJournal:
         self.writer_kind = kind if kind in ("async", "sync") else "async"
 
         self._queue_size = int(queue_size or QUEUE_SIZE)
-        self._shards = {}                     # shard name -> _Shard
+        self._shards = {}  # shard name -> _Shard
         self._shards_lock = threading.Lock()
-        self._paused = threading.Event()      # test hook: hold the writers to fill the queue
+        self._paused = threading.Event()  # test hook: hold the writers to fill the queue
         self._closing = False
-        self._seg_day, self._seg_n = "", 1    # legacy cursor, kept for the no-arg _segment_path
+        self._seg_day, self._seg_n = "", 1  # legacy cursor, kept for the no-arg _segment_path
         self._lock = threading.Lock()
         atexit.register(self.flush)
 
@@ -212,10 +222,10 @@ class WireJournal:
             self._ensure_writer(shard)
             return True
         except Exception:
-            self.dropped += 1                 # W4 + W5: swallow for the caller, but COUNT it
+            self.dropped += 1  # W4 + W5: swallow for the caller, but COUNT it
             return False
 
-    # ------------------------------------------------------------ shards (T157)
+    # ------------------------------------------------------------ shards - T157
     def _shard_for(self, agent: str) -> "_Shard":
         """The shard owning `agent`, created on demand and CAPPED.
 
@@ -244,8 +254,7 @@ class WireJournal:
         with self._shards_lock:
             if shard.thread is not None and shard.thread.is_alive():
                 return
-            t = threading.Thread(target=self._drain, args=(shard,),
-                                 name=f"wire-{shard.name}", daemon=True)
+            t = threading.Thread(target=self._drain, args=(shard,), name=f"wire-{shard.name}", daemon=True)
             shard.thread = t
             t.start()
 
@@ -299,7 +308,7 @@ class WireJournal:
             self._ensure_writer(sh)
             while not sh.q.empty() and time.time() < deadline:
                 time.sleep(0.002)
-            with sh.lock:                     # the last record may be mid-write
+            with sh.lock:  # the last record may be mid-write
                 pass
         return all(sh.q.empty() for sh in list(self._shards.values()))
 
@@ -326,12 +335,12 @@ class WireJournal:
         usage = kw.get("usage") or {}
         details = (usage.get("completion_tokens_details") or {}) if isinstance(usage, dict) else {}
         prompt_details = (usage.get("prompt_tokens_details") or {}) if isinstance(usage, dict) else {}
-        rec = {
+        return {
             "ts": kw.get("ts") or time.time(),
             "agent": kw.get("agent") or self.agent,
             "model": kw.get("model"),
             "status": kw.get("status"),
-            "attempt": kw.get("attempt", 0),          # W1: retries are separate round trips
+            "attempt": kw.get("attempt", 0),  # W1: retries are separate round trips
             "stream": kw.get("stream"),
             "error": kw.get("error"),
             # -- the fields we measurably discard today --
@@ -344,23 +353,18 @@ class WireJournal:
             "completion_tokens": usage.get("completion_tokens") if isinstance(usage, dict) else None,
             "total_tokens": usage.get("total_tokens") if isinstance(usage, dict) else None,
             "reasoning_tokens": details.get("reasoning_tokens"),
-            "cache_hit_tokens": (usage.get("prompt_cache_hit_tokens")
-                                 if isinstance(usage, dict) else None),
-            "cache_miss_tokens": (usage.get("prompt_cache_miss_tokens")
-                                  if isinstance(usage, dict) else None),
+            "cache_hit_tokens": (usage.get("prompt_cache_hit_tokens") if isinstance(usage, dict) else None),
+            "cache_miss_tokens": (usage.get("prompt_cache_miss_tokens") if isinstance(usage, dict) else None),
             "cached_tokens": prompt_details.get("cached_tokens"),
             # -- timing --
             "ms_total": kw.get("ms_total"),
             "ms_first_byte": kw.get("ms_first_byte"),
             # -- content NEVER stored; hashes only, so a cache miss stays explicable (W2) --
             "prompt_sha": _sha(kw["prompt_text"]) if kw.get("prompt_text") is not None else None,
-            "prompt_prefix_sha": (_sha(str(kw["prompt_text"])[:2000])
-                                  if kw.get("prompt_text") is not None else None),
+            "prompt_prefix_sha": (_sha(str(kw["prompt_text"])[:2000]) if kw.get("prompt_text") is not None else None),
             "response_sha": _sha(kw["response_text"]) if kw.get("response_text") is not None else None,
-            "headers": {k: v for k, v in (kw.get("headers") or {}).items()
-                        if str(k).lower() in KEEP_HEADERS},
+            "headers": {k: v for k, v in (kw.get("headers") or {}).items() if str(k).lower() in KEEP_HEADERS},
         }
-        return rec
 
     def _segment_path(self, shard: "_Shard" = None) -> str:
         """The segment currently being appended to, ROLLING when it exceeds MAX_BYTES.
@@ -387,12 +391,10 @@ class WireJournal:
         # is always one a caller may append to. Costs the same stat the write path already paid,
         # and without it _segment_path() hands back a path inside a directory that does not exist
         # yet -- which is exactly how it broke the D1 regression pin when shards landed.
-        try:
+        with contextlib.suppress(OSError):  # unwritable dir is the write path's problem to count
             os.makedirs(shard.dir, exist_ok=True)
-        except OSError:
-            pass                               # unwritable dir is the write path's problem to count
         day = time.strftime("%Y%m%d")
-        if shard.day != day:                   # new day -> restart the cursor
+        if shard.day != day:  # new day -> restart the cursor
             shard.day, shard.n = day, 1
         while True:
             p = os.path.join(shard.dir, f"wire-{day}-{shard.n:03d}.jsonl")
@@ -400,7 +402,7 @@ class WireJournal:
                 if os.path.getsize(p) <= MAX_BYTES:
                     return p
             except OSError:
-                return p                       # does not exist yet -> this is the one to write
+                return p  # does not exist yet -> this is the one to write
             shard.n += 1
 
     def _rotate(self, shard: "_Shard" = None):
@@ -438,12 +440,15 @@ class WireJournal:
     def _shard_files(self, shard: "_Shard"):
         """One shard's segments -- the unit rotation and quota operate on."""
         try:
-            return sorted(os.path.join(shard.dir, f) for f in os.listdir(shard.dir)
-                          if f.startswith("wire-") and f.endswith(".jsonl"))
+            return sorted(
+                os.path.join(shard.dir, f)
+                for f in os.listdir(shard.dir)
+                if f.startswith("wire-") and f.endswith(".jsonl")
+            )
         except Exception:
             return []
 
-    def files(self, agent: str = None):
+    def files(self, agent: str | None = None):
         """Every segment: shard directories PLUS pre-T157 segments at the journal root.
 
         Legacy files are included deliberately. A telemetry store that loses its history on
@@ -454,7 +459,7 @@ class WireJournal:
         when it said this filter "becomes a file selection rather than a scan". It is a fast path
         only: sanitisation is lossy, so the caller must still verify the in-record agent.
         """
-        self._flush_for_read()                 # same reason as read_all: reads see what was accepted
+        self._flush_for_read()  # same reason as read_all: reads see what was accepted
         out = []
         root = self._journal_dir
         try:
@@ -463,15 +468,16 @@ class WireJournal:
                 if os.path.isdir(p):
                     if agent is not None and entry != shard_name(agent):
                         continue
-                    out += sorted(os.path.join(p, f) for f in os.listdir(p)
-                                  if f.startswith("wire-") and f.endswith(".jsonl"))
+                    out += sorted(
+                        os.path.join(p, f) for f in os.listdir(p) if f.startswith("wire-") and f.endswith(".jsonl")
+                    )
                 elif entry.startswith("wire-") and entry.endswith(".jsonl"):
-                    out.append(p)              # pre-T157 flat segment
+                    out.append(p)  # pre-T157 flat segment
         except Exception:
             return []
         return out
 
-    def read_all(self, limit: int = 0, agent: str = None):
+    def read_all(self, limit: int = 0, agent: str | None = None):
         """`agent` scopes to one seat's records.
 
         Needed the moment a reader iterates a fleet: doctor examines every agent, so an unscoped
@@ -501,14 +507,14 @@ class WireJournal:
                         try:
                             rows.append(json.loads(line))
                         except Exception:
-                            continue           # a torn line is one lost record, not a dead reader
+                            continue  # a torn line is one lost record, not a dead reader
             except Exception:
                 continue
         if agent:
             rows = [r for r in rows if str(r.get("agent") or "") == str(agent)]
         return rows[-limit:] if limit else rows
 
-    def summarize(self, limit: int = 0, agent: str = None) -> dict:
+    def summarize(self, limit: int = 0, agent: str | None = None) -> dict:
         """THE READER (W6). Ships with the writer, because `cognitive_metrics` is the standing
         proof of what happens otherwise: five runners feeding an accumulator nothing reads.
 
@@ -524,8 +530,15 @@ class WireJournal:
             "journal_dir": self._journal_dir,
         }
         if not rows:
-            for k in ("reasoning_tokens", "total_tokens", "cache_hit_rate", "truncated",
-                      "errors", "retries", "fingerprints"):
+            for k in (
+                "reasoning_tokens",
+                "total_tokens",
+                "cache_hit_rate",
+                "truncated",
+                "errors",
+                "retries",
+                "fingerprints",
+            ):
                 out[k] = UNKNOWN
             return out
 
@@ -539,8 +552,7 @@ class WireJournal:
         out["errors"] = sum(1 for r in rows if r.get("error"))
         out["retries"] = sum(1 for r in rows if (r.get("attempt") or 0) > 0)
         # A fingerprint CHANGE is the silent-model-swap signal -- the set, not a count.
-        out["fingerprints"] = sorted({r.get("system_fingerprint") for r in rows
-                                      if r.get("system_fingerprint")})
+        out["fingerprints"] = sorted({r.get("system_fingerprint") for r in rows if r.get("system_fingerprint")})
         hit, miss = _sum("cache_hit_tokens"), _sum("cache_miss_tokens")
         if isinstance(hit, (int, float)) and isinstance(miss, (int, float)) and (hit + miss) > 0:
             out["cache_hit_rate"] = round(hit / (hit + miss), 4)
@@ -548,7 +560,7 @@ class WireJournal:
             out["cache_hit_rate"] = UNKNOWN
         return out
 
-    def expert(self, limit: int = 0, agent: str = None):
+    def expert(self, limit: int = 0, agent: str | None = None):
         """Expert Info: the wrong things, named. Wireshark's real value is not the packet list.
 
         Each finding below is the LLM analogue of a transport diagnostic -- truncation is a cut
@@ -560,11 +572,21 @@ class WireJournal:
         if s["records"] == 0:
             return [("info", "no traffic captured", "journal is empty -- is the transport hooked?")]
         if isinstance(s.get("truncated"), int) and s["truncated"]:
-            findings.append(("warn", f"{s['truncated']} truncated response(s)",
-                             "finish_reason=length -- the answer was cut off, not finished"))
+            findings.append(
+                (
+                    "warn",
+                    f"{s['truncated']} truncated response(s)",
+                    "finish_reason=length -- the answer was cut off, not finished",
+                )
+            )
         if isinstance(s.get("retries"), int) and s["retries"]:
-            findings.append(("warn", f"{s['retries']} retried round trip(s)",
-                             "retransmission-class: the SDK re-sent inside one call"))
+            findings.append(
+                (
+                    "warn",
+                    f"{s['retries']} retried round trip(s)",
+                    "retransmission-class: the SDK re-sent inside one call",
+                )
+            )
         if isinstance(s.get("errors"), int) and s["errors"]:
             findings.append(("error", f"{s['errors']} failed round trip(s)", "see .error per record"))
         # Found by the first live run: a 401 produced no finding, because only EXCEPTIONS were
@@ -577,22 +599,43 @@ class WireJournal:
                 bad[st] = bad.get(st, 0) + 1
         for st, n in sorted(bad.items()):
             sev = "warn" if st in (408, 409, 429) or st >= 500 else "error"
-            findings.append((sev, f"HTTP {st} x{n}",
-                             "auth/quota/server-side -- correlate with x-ds-trace-id for support"))
+            findings.append(
+                (sev, f"HTTP {st} x{n}", "auth/quota/server-side -- correlate with x-ds-trace-id for support")
+            )
         if len(s.get("fingerprints") or []) > 1:
-            findings.append(("error", "system_fingerprint CHANGED mid-capture",
-                             f"{s['fingerprints']} -- the provider may have swapped the model "
-                             f"behind the endpoint; any A/B comparison spanning this is invalid"))
+            findings.append(
+                (
+                    "error",
+                    "system_fingerprint CHANGED mid-capture",
+                    (
+                        f"{s['fingerprints']} -- the provider may have swapped the model "
+                        f"behind the endpoint; any A/B comparison spanning this is invalid"
+                    ),
+                )
+            )
         if s.get("cache_hit_rate") == UNKNOWN:
-            findings.append(("info", "cache hit rate UNKNOWN",
-                             "provider reported no cache fields -- not the same as a 0% hit rate"))
+            findings.append(
+                ("info", "cache hit rate UNKNOWN", "provider reported no cache fields -- not the same as a 0% hit rate")
+            )
         elif isinstance(s["cache_hit_rate"], float) and s["cache_hit_rate"] < 0.2:
-            findings.append(("warn", f"cache hit rate {s['cache_hit_rate']:.0%}",
-                             "cached prompt tokens bill ~10x cheaper; a low rate is the largest "
-                             "cost lever available -- compare prompt_prefix_sha across turns"))
+            findings.append(
+                (
+                    "warn",
+                    f"cache hit rate {s['cache_hit_rate']:.0%}",
+                    (
+                        "cached prompt tokens bill ~10x cheaper; a low rate is the largest "
+                        "cost lever available -- compare prompt_prefix_sha across turns"
+                    ),
+                )
+            )
         if s.get("dropped_captures"):
-            findings.append(("warn", f"{s['dropped_captures']} capture(s) dropped",
-                             "the recorder failed open -- these round trips are NOT in the journal"))
+            findings.append(
+                (
+                    "warn",
+                    f"{s['dropped_captures']} capture(s) dropped",
+                    "the recorder failed open -- these round trips are NOT in the journal",
+                )
+            )
         return findings or [("info", "no anomalies", f"{s['records']} round trip(s) clean")]
 
 
@@ -660,7 +703,7 @@ def recording_http_client(timeout=None, **kw):
 
         def __init__(self, *a, **k):
             super().__init__(*a, **k)
-            self._last = None            # (url, attempt, ok, ts)
+            self._last = None  # (url, attempt, ok, ts)
 
         def _attempt_for(self, url):
             prev = self._last
@@ -676,17 +719,25 @@ def recording_http_client(timeout=None, **kw):
                 resp = super().handle_request(request)
             except Exception as e:
                 self._last = (url, attempt, False, time.time())
-                journal().record(status=None, error=type(e).__name__, attempt=attempt,
-                                 ms_first_byte=int((time.time() - t0) * 1000),
-                                 model=request.headers.get("x-model"), stream=None)
-                raise                     # never swallow the caller's error, only observe it
+                journal().record(
+                    status=None,
+                    error=type(e).__name__,
+                    attempt=attempt,
+                    ms_first_byte=int((time.time() - t0) * 1000),
+                    model=request.headers.get("x-model"),
+                    stream=None,
+                )
+                raise  # never swallow the caller's error, only observe it
             ok = 200 <= resp.status_code < 300
             self._last = (url, attempt, ok, time.time())
             # Headers are available HERE and nowhere upstream. The body is deliberately not read:
             # touching resp.stream would consume the SSE stream the caller is about to iterate.
-            journal().record(status=resp.status_code, attempt=attempt,
-                             headers=dict(resp.headers),
-                             ms_first_byte=int((time.time() - t0) * 1000))
+            journal().record(
+                status=resp.status_code,
+                attempt=attempt,
+                headers=dict(resp.headers),
+                ms_first_byte=int((time.time() - t0) * 1000),
+            )
             return resp
 
     return httpx.Client(transport=_RecordingTransport(), timeout=timeout, **kw)

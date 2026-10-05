@@ -48,9 +48,7 @@ import pytest
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-RUNNERS = ["scripts/bifrost_runner_deepseek.py",
-           "scripts/bifrost_runner_kimi.py",
-           "scripts/bifrost_runner_sol.py"]
+RUNNERS = ["scripts/bifrost_runner_deepseek.py", "scripts/bifrost_runner_kimi.py", "scripts/bifrost_runner_sol.py"]
 
 
 def _module_level_assignments(path):
@@ -83,4 +81,5 @@ def test_p1_no_runner_global_is_defined_twice(rel):
         f"import and the last one wins, so any real initial value in the first block "
         f"is silently discarded -- surfacing later as a meter reading zero, not as an "
         f"error. This file has already lost a whole process's token accounting to a "
-        f"binding mistake on one of these exact names (T078 W1). Keep one definition.")
+        f"binding mistake on one of these exact names (T078 W1). Keep one definition."
+    )

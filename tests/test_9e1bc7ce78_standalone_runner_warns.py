@@ -33,6 +33,7 @@ Pins:
 Run: py -m pytest tests/test_9e1bc7ce78_standalone_runner_warns.py -q -p no:cacheprovider
 (no live Redis needed; doctor's probes are fail-open and known_agents is patched out)
 """
+
 import os
 import re
 import sys
@@ -42,7 +43,7 @@ import pytest
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from core.comm import daemon_state as ds  # noqa: E402
+from core.comm import daemon_state as ds  # noqa: E402  # sys.path bootstrap
 
 
 class FakeRedis:
@@ -77,8 +78,9 @@ def test_p1_absent_daemon_key_yields_loud_text_naming_pump_and_flagged_relaunch(
     text = fn("deepseek", c=FakeRedis(), ns="bifrost")
     assert text, "P1: no <ns>:daemon:<agent> key -> the runner must be told it is standalone"
     assert "discord" in text.lower(), "P1: the warning must NAME the outbound pump it is not hosting"
-    assert "--agent deepseek --spawn-runner" in text, \
+    assert "--agent deepseek --spawn-runner" in text, (
         "P1: the relaunch hint must carry the mode flag (flagless = alpha = refuses under this runner)"
+    )
 
 
 def test_p1_present_daemon_key_yields_none():
@@ -86,40 +88,46 @@ def test_p1_present_daemon_key_yields_none():
     assert callable(fn), "P1: daemon_state.standalone_warning does not exist yet"
     c = FakeRedis()
     c.set("bifrost:daemon:deepseek", "{}")
-    assert fn("deepseek", c=c, ns="bifrost") is None, \
+    assert fn("deepseek", c=c, ns="bifrost") is None, (
         "P1: a live daemon means the runner is a managed child (or coexisting) -- no warning"
+    )
 
 
 def test_p1_kimi_hint_names_its_own_runner_script():
     fn = getattr(ds, "standalone_warning", None)
     assert callable(fn), "P1: daemon_state.standalone_warning does not exist yet"
     text = fn("kimi", c=FakeRedis(), ns="bifrost", runner_script="bifrost_runner_kimi.py")
-    assert text and "--runner-script bifrost_runner_kimi.py" in text, \
+    assert text, "P1: a kimi relaunch without --runner-script spawns the DEEPSEEK runner (daemon default)"
+    assert "--runner-script bifrost_runner_kimi.py" in text, (
         "P1: a kimi relaunch without --runner-script spawns the DEEPSEEK runner (daemon default)"
+    )
 
 
 # --------------------------------------------------------------- P2
-@pytest.mark.parametrize("runner", ["scripts/bifrost_runner_deepseek.py",
-                                    "scripts/bifrost_runner_kimi.py"])
+@pytest.mark.parametrize("runner", ["scripts/bifrost_runner_deepseek.py", "scripts/bifrost_runner_kimi.py"])
 def test_p2_bare_launchable_runners_call_the_warning_after_lock_acquisition(runner):
     src = _src(runner)
     assert "standalone_warning" in src, f"P2: {runner} never asks whether its daemon is live"
-    assert src.index("standalone_warning") > src.index("acquire_waiting("), \
+    assert src.index("standalone_warning") > src.index("acquire_waiting("), (
         f"P2: {runner} must warn AFTER holding runner_lock -- a refused runner is not standalone"
+    )
 
 
 # --------------------------------------------------------------- P3
 def test_p3_doctor_daemon_drill_carries_the_mode_flags(monkeypatch):
     from core.comm import doctor
-    monkeypatch.setattr(doctor, "known_agents", lambda: [])       # no live daemon -> DOWN
+
+    monkeypatch.setattr(doctor, "known_agents", list)  # no live daemon -> DOWN
     daemon = [f for f in doctor.examine_services() if f.get("agent") == "daemon"]
     assert daemon, "P3: examine_services must still report the daemon service"
     f = daemon[0]
     assert f["state"] == "service_down"
-    assert "--spawn-runner" in f["drill"], \
+    assert "--spawn-runner" in f["drill"], (
         "P3: a doctor-following operator lands in the alpha refusal without the mode flag"
-    assert "--manage-listener" in f["drill"], \
+    )
+    assert "--manage-listener" in f["drill"], (
         "P3: claude's daemon is a listener-manager (revive DAEMON_MODE); say so in the drill"
+    )
 
 
 # --------------------------------------------------------------- P4
@@ -131,14 +139,18 @@ def test_p4_daemon_usage_advertises_no_flagless_launch_for_a_real_seat():
     real = [(a, rest) for a, rest in usage if not a.endswith("drill")]
     assert real, "P4: the usage must show at least one real seat"
     for agent, rest in real:
-        assert "--spawn-runner" in rest or "--manage-listener" in rest, \
+        assert "--spawn-runner" in rest or "--manage-listener" in rest, (
             f"P4: usage advertises a flagless (alpha) launch for {agent}: it refuses under a bare runner"
+        )
 
 
 # --------------------------------------------------------------- P5
 def test_p5_stop_hook_nag_names_the_listener_manager_mode(tmp_path):
-    v = ds.stop_hook_wake_verdict("claude", "aaaabbbb-1111-2222-3333-444455556666",
-                                  c=FakeRedis(), ns="bifrost", tmp=str(tmp_path))
-    assert v["pass"] is False and v.get("nag")
-    assert "--manage-listener" in v["line"], \
+    v = ds.stop_hook_wake_verdict(
+        "claude", "aaaabbbb-1111-2222-3333-444455556666", c=FakeRedis(), ns="bifrost", tmp=str(tmp_path)
+    )
+    assert v["pass"] is False
+    assert v.get("nag")
+    assert "--manage-listener" in v["line"], (
         "P5: the nag prescribes a mode that cannot consume rearms (manage_listener only)"
+    )

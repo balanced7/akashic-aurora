@@ -36,18 +36,26 @@ _ROOT = Path(__file__).resolve().parents[1]
 API = "https://discord.com/api/v10"
 SEATS_FILE = _ROOT / "state" / "coord" / "discord_seat_channels.json"
 
-ROLES = [("Vandor", 0xE8A13C), ("Heimdall", 0x2B2B33), ("Navi", 0x27A17A),
-         ("Rill", 0x7AA2F7)]   # Rill = DeepSeek-family seat (dsh_agent); deepseek hue #7aa2f7
-SEAT_CHANNELS = [("vandor", "claude"), ("heimdall", "deepseek"), ("navi", "kimi"),
-                 ("rill", "dsh_agent"), ("sol", "sol")]
+ROLES = [
+    ("Vandor", 0xE8A13C),
+    ("Heimdall", 0x2B2B33),
+    ("Navi", 0x27A17A),
+    ("Rill", 0x7AA2F7),
+]  # Rill = DeepSeek-family seat (dsh_agent); deepseek hue #7aa2f7
+SEAT_CHANNELS = [
+    ("vandor", "claude"),
+    ("heimdall", "deepseek"),
+    ("navi", "kimi"),
+    ("rill", "dsh_agent"),
+    ("sol", "sol"),
+]
 
 
 def _token() -> str:
     v = os.getenv("AKASHIC_DISCORD_BOT_TOKEN")
     if v and v.strip():
         return v.strip()
-    return (VAULT.secrets_dir() / "discord_bot.token").read_text(
-        encoding="utf-8").strip()
+    return (VAULT.secrets_dir() / "discord_bot.token").read_text(encoding="utf-8").strip()
 
 
 class D:
@@ -56,11 +64,14 @@ class D:
         self.s.headers["Authorization"] = f"Bot {token}"
 
     def get(self, path):
-        r = self.s.get(API + path, timeout=15); r.raise_for_status(); return r.json()
+        r = self.s.get(API + path, timeout=15)
+        r.raise_for_status()
+        return r.json()
 
     def post(self, path, payload):
         r = self.s.post(API + path, json=payload, timeout=15)
-        r.raise_for_status(); return r.json()
+        r.raise_for_status()
+        return r.json()
 
 
 def main() -> int:
@@ -69,11 +80,14 @@ def main() -> int:
 
     guilds = d.get("/users/@me/guilds")
     if not guilds:
-        print("[setup] the bot is in no guild -- invite it first"); return 2
+        print("[setup] the bot is in no guild -- invite it first")
+        return 2
     g = guilds[0]
     gid = g["id"]
-    print(f"[setup] guild: {g['name']} ({gid})"
-          + (" [COMMUNITY]" if "COMMUNITY" in g.get("features", []) else " [no community]"))
+    print(
+        f"[setup] guild: {g['name']} ({gid})"
+        + (" [COMMUNITY]" if "COMMUNITY" in g.get("features", []) else " [no community]")
+    )
     forum_ok = "COMMUNITY" in g.get("features", [])
 
     # ---- roles (idempotent by name) ---------------------------------------------
@@ -83,9 +97,9 @@ def main() -> int:
             print(f"[setup] role {name}: already stands")
             continue
         if dry:
-            print(f"[setup] role {name}: WOULD create"); continue
-        d.post(f"/guilds/{gid}/roles",
-               {"name": name, "color": color, "mentionable": True})
+            print(f"[setup] role {name}: WOULD create")
+            continue
+        d.post(f"/guilds/{gid}/roles", {"name": name, "color": color, "mentionable": True})
         print(f"[setup] role {name}: created, mentionable, #{color:06x}")
 
     # ---- channels ----------------------------------------------------------------
@@ -116,9 +130,11 @@ def main() -> int:
     rooms_type = 15 if forum_ok else 0
     rooms = ensure_channel("aurora-rooms", rooms_type, cat_id)
 
-    registry: dict = {"mode": ("forum" if forum_ok else "text"),
-                      "rooms_channel_id": (rooms or {}).get("id", ""),
-                      "channels": {}}
+    registry: dict = {
+        "mode": ("forum" if forum_ok else "text"),
+        "rooms_channel_id": (rooms or {}).get("id", ""),
+        "channels": {},
+    }
     for chan_name, agent in SEAT_CHANNELS:
         c = ensure_channel(chan_name, 0, cat_id)
         if c:
@@ -132,20 +148,18 @@ def main() -> int:
         ours = next((h for h in hooks if h.get("token")), None)
         if not ours:
             if dry:
-                print(f"[setup] webhook on #{channel['name']}: WOULD create"); return
-            ours = d.post(f"/channels/{channel['id']}/webhooks",
-                          {"name": "Akashic Aurora"})
+                print(f"[setup] webhook on #{channel['name']}: WOULD create")
+                return
+            ours = d.post(f"/channels/{channel['id']}/webhooks", {"name": "Akashic Aurora"})
         if dry:
-            print(f"[setup] webhook on #{channel['name']}: already stands; "
-                  "vault unchanged [dry-run]")
+            print(f"[setup] webhook on #{channel['name']}: already stands; vault unchanged [dry-run]")
             return
         url = f"https://discord.com/api/webhooks/{ours['id']}/{ours['token']}"
         receipt = VAULT.save_secret(vault_target, url)
-        print(f"[setup] webhook on #{channel['name']}: in the vault "
-              f"({receipt['bytes']}B -> .secrets/{vault_target})")
+        print(f"[setup] webhook on #{channel['name']}: in the vault ({receipt['bytes']}B -> .secrets/{vault_target})")
 
     ensure_webhook(rooms, "discord_forum_webhook.url")
-    for chan_name, agent in SEAT_CHANNELS:
+    for chan_name, _agent in SEAT_CHANNELS:
         c = by_name.get(chan_name)
         if c:
             ensure_webhook(c, f"discord_channel_{chan_name}.url")
@@ -153,8 +167,9 @@ def main() -> int:
     if not dry:
         SEATS_FILE.parent.mkdir(parents=True, exist_ok=True)
         SEATS_FILE.write_text(json.dumps(registry, indent=1), encoding="utf-8")
-        print(f"[setup] seat-channel registry written ({len(registry['channels'])} lanes, "
-              f"rooms mode: {registry['mode']})")
+        print(
+            f"[setup] seat-channel registry written ({len(registry['channels'])} lanes, rooms mode: {registry['mode']})"
+        )
     return 0
 
 

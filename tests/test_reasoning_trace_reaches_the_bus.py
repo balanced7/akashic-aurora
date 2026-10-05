@@ -27,29 +27,26 @@ Run::
 
     py -m pytest tests/test_reasoning_trace_reaches_the_bus.py -q
 """
+
 from __future__ import annotations
 
 import os
-from pathlib import Path
 import sys
+from pathlib import Path
 from types import SimpleNamespace
-
-import pytest
 
 os.environ.setdefault("_AISETUP_TEST_ISOLATED", "1")
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-import scripts.deepseek_chat as dc  # noqa: E402
+import scripts.deepseek_chat as dc  # noqa: E402  # sys.path bootstrap
 
 
 def _chunk(*, content=None, reasoning=None):
     """One SSE chunk in the shape the openai SDK hands us (verified against the raw wire
     capture 2026-08-02: reasoning_content is a delta field, model_extra is always {})."""
-    delta = SimpleNamespace(content=content, reasoning_content=reasoning,
-                            tool_calls=None, model_extra={})
-    return SimpleNamespace(choices=[SimpleNamespace(delta=delta, finish_reason=None)],
-                           usage=None)
+    delta = SimpleNamespace(content=content, reasoning_content=reasoning, tool_calls=None, model_extra={})
+    return SimpleNamespace(choices=[SimpleNamespace(delta=delta, finish_reason=None)], usage=None)
 
 
 class _FakeStream:
@@ -70,9 +67,15 @@ class _FakeClient:
 
 def _agent(chunks, *, think):
     traces = []
-    a = dc.Agent(_FakeClient(chunks), toolbox=None, model="deepseek-v4-pro", system="s",
-                 think=think, tools_enabled=False,
-                 on_trace=lambda kind, text: traces.append((kind, text)))
+    a = dc.Agent(
+        _FakeClient(chunks),
+        toolbox=None,
+        model="deepseek-v4-pro",
+        system="s",
+        think=think,
+        tools_enabled=False,
+        on_trace=lambda kind, text: traces.append((kind, text)),
+    )
     a.messages = [{"role": "user", "content": "hi"}]
     return a, traces
 
@@ -96,7 +99,8 @@ def test_reasoning_is_traced_even_when_think_is_off():
     thinking = [t for k, t in traces if k == "thinking"]
     assert thinking, (
         "no thinking trace emitted with think=False -- reasoning the provider already "
-        "sent was discarded by a DISPLAY flag, so the operator never sees the agent think")
+        "sent was discarded by a DISPLAY flag, so the operator never sees the agent think"
+    )
     assert "check the ACL" in thinking[0], f"reasoning text lost: {thinking[0]!r}"
 
 
@@ -108,7 +112,8 @@ def test_reasoning_is_still_traced_when_think_is_on():
     agent._stream_turn()
 
     thinking = [t for k, t in traces if k == "thinking"]
-    assert thinking and "check the ACL" in thinking[0]
+    assert thinking
+    assert "check the ACL" in thinking[0]
 
 
 # ---------------------------------------------------------------- pin 3
@@ -144,6 +149,9 @@ def test_thinking_trace_is_bounded():
     agent._stream_turn()
 
     thinking = [t for k, t in traces if k == "thinking"]
-    assert thinking and len(thinking[0]) <= 600, (
-        f"unbounded thinking trace ({len(thinking[0]) if thinking else 0} chars) -- "
-        "the bus is not a transcript")
+    assert thinking, (
+        f"unbounded thinking trace ({len(thinking[0]) if thinking else 0} chars) -- the bus is not a transcript"
+    )
+    assert len(thinking[0]) <= 600, (
+        f"unbounded thinking trace ({len(thinking[0]) if thinking else 0} chars) -- the bus is not a transcript"
+    )

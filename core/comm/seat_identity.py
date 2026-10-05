@@ -28,12 +28,12 @@ PHYSICS: this module is in core/ and imports NOTHING outward -- no scripts/, no 
 harness. It touches one file per session in the OS temp dir, the same plane wake_seat uses for
 session markers, so a crashed session leaves no durable garbage in the repo.
 """
+
 from __future__ import annotations
 
 import os
 import re
 import tempfile
-from typing import Optional
 
 # A seat id is a short kebab/underscore token. Anything else is refused rather than trusted:
 # an id is used to build Redis keys and file names, so it is an injection surface.
@@ -43,11 +43,11 @@ _PREFIX = "akashic_seat_"
 _SUFFIX = ".id"
 
 
-def _dir(binding_dir: Optional[str]) -> str:
+def _dir(binding_dir: str | None) -> str:
     return binding_dir if binding_dir else tempfile.gettempdir()
 
 
-def _path(session_id: str, binding_dir: Optional[str]) -> str:
+def _path(session_id: str, binding_dir: str | None) -> str:
     return os.path.join(_dir(binding_dir), f"{_PREFIX}{session_id}{_SUFFIX}")
 
 
@@ -93,7 +93,7 @@ def valid(agent_id: str) -> bool:
     return bool(agent_id) and bool(_ID_RE.match(str(agent_id).strip()))
 
 
-def declare(agent_id: str, session_id: str, binding_dir: Optional[str] = None) -> bool:
+def declare(agent_id: str, session_id: str, binding_dir: str | None = None) -> bool:
     """Bind THIS session to a seat name. Idempotent; last declaration wins.
 
     Returns False rather than raising on any failure -- a seat that cannot write its binding
@@ -107,13 +107,13 @@ def declare(agent_id: str, session_id: str, binding_dir: Optional[str] = None) -
         tmp = _path(session_id, binding_dir) + ".tmp"
         with open(tmp, "w", encoding="utf-8") as fh:
             fh.write(str(agent_id).strip())
-        os.replace(tmp, _path(session_id, binding_dir))   # atomic: never a half-written id
+        os.replace(tmp, _path(session_id, binding_dir))  # atomic: never a half-written id
         return True
     except Exception:
         return False
 
 
-def declared(session_id: str, binding_dir: Optional[str] = None) -> Optional[str]:
+def declared(session_id: str, binding_dir: str | None = None) -> str | None:
     """The binding alone, with no env fallback. None when this session never declared."""
     if not session_id:
         return None
@@ -125,8 +125,7 @@ def declared(session_id: str, binding_dir: Optional[str] = None) -> Optional[str
         return None
 
 
-def resolve(session_id: str, binding_dir: Optional[str] = None,
-            env_var: str = "AKASHIC_AGENT_ID") -> str:
+def resolve(session_id: str, binding_dir: str | None = None, env_var: str = "AKASHIC_AGENT_ID") -> str:
     """binding -> env -> unknown-<sid8>. NEVER raises, NEVER returns a peer's name on a guess.
 
     Backward compatible by construction: with no binding file and the env set, this returns
@@ -145,8 +144,7 @@ def resolve(session_id: str, binding_dir: Optional[str] = None,
     return unknown_id(session_id)
 
 
-def resolved_from(session_id: str, binding_dir: Optional[str] = None,
-                  env_var: str = "AKASHIC_AGENT_ID") -> str:
+def resolved_from(session_id: str, binding_dir: str | None = None, env_var: str = "AKASHIC_AGENT_ID") -> str:
     """Which branch answered: 'binding' | 'env' | 'unknown'. For doors that must SHOW their
     work -- a surface that cannot say where an identity came from is how this defect hid."""
     if declared(session_id, binding_dir):
@@ -212,13 +210,15 @@ def git_identity_env(agent_id) -> dict:
     aid = str(agent_id).strip() if agent_id else ""
     if not valid(aid):
         return {}
-    return {"GIT_AUTHOR_NAME": OPERATOR_NAME,
-            "GIT_AUTHOR_EMAIL": OPERATOR_EMAIL,
-            "GIT_COMMITTER_NAME": OPERATOR_NAME,
-            "GIT_COMMITTER_EMAIL": OPERATOR_EMAIL}
+    return {
+        "GIT_AUTHOR_NAME": OPERATOR_NAME,
+        "GIT_AUTHOR_EMAIL": OPERATOR_EMAIL,
+        "GIT_COMMITTER_NAME": OPERATOR_NAME,
+        "GIT_COMMITTER_EMAIL": OPERATOR_EMAIL,
+    }
 
 
-def clear(session_id: str, binding_dir: Optional[str] = None) -> bool:
+def clear(session_id: str, binding_dir: str | None = None) -> bool:
     """Drop this session's binding (its own only -- a sibling's is unreachable from here)."""
     try:
         os.remove(_path(session_id, binding_dir))

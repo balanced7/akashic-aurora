@@ -14,6 +14,7 @@ Usage:
 
 PLAY laws: writes only under data/play/claude/threads/ + runs/ receipt. Evidence: GUESS.
 """
+
 import json
 import os
 import sys
@@ -23,8 +24,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(HERE)))
 THREADS = os.path.join(HERE, "threads")
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-KINDS = {"suggest": "\U0001F527", "praise": "\U0001F389", "vote": "⭐",
-         "question": "❓", "history-note": "\U0001F4D6"}
+KINDS = {"suggest": "\U0001f527", "praise": "\U0001f389", "vote": "⭐", "question": "❓", "history-note": "\U0001f4d6"}
 
 
 def _path(ref):
@@ -49,12 +49,12 @@ def _verb(ref):
 
 def comment(ref, author, kind, text):
     if kind not in KINDS:
-        print(f"[verbthread] kind must be one of {sorted(KINDS)}"); return 1
+        print(f"[verbthread] kind must be one of {sorted(KINDS)}")
+        return 1
     if _verb(ref) is None:
         print(f"[verbthread] no such verb {ref} (thread anyway? it's your funeral) --")
     os.makedirs(THREADS, exist_ok=True)
-    entry = {"ts": time.strftime("%Y-%m-%dT%H:%M:%S"), "author": author,
-             "kind": kind, "text": text}
+    entry = {"ts": time.strftime("%Y-%m-%dT%H:%M:%S"), "author": author, "kind": kind, "text": text}
     with open(_path(ref), "a", encoding="utf-8") as f:
         f.write(json.dumps(entry, ensure_ascii=False) + "\n")
     print(f"[verbthread] {KINDS[kind]} {kind} by {author} -> {ref}")
@@ -63,11 +63,14 @@ def comment(ref, author, kind, text):
 
 def show(ref):
     v = _verb(ref)
-    print(f"# \U0001F4D6 {ref}")
+    print(f"# \U0001f4d6 {ref}")
     if v:
-        print(f"  v{v['version']} [{v['evidence']}"
-              + (f" :{v['tested_against']}" if v.get("tested_against") else "") + "]"
-              + f"  steps: {' -> '.join(s[0] for s in v['steps'])}")
+        print(
+            f"  v{v['version']} [{v['evidence']}"
+            + (f" :{v['tested_against']}" if v.get("tested_against") else "")
+            + "]"
+            + f"  steps: {' -> '.join(s[0] for s in v['steps'])}"
+        )
         if v.get("why"):
             print(f"  born because: {v['why'][:160]}")
     rows = _load(ref)
@@ -85,7 +88,8 @@ def board():
         if not fn.endswith(".json"):
             continue
         try:
-            doc = json.load(open(os.path.join(reg_dir, fn), encoding="utf-8"))
+            with open(os.path.join(reg_dir, fn), encoding="utf-8") as f:
+                doc = json.load(f)
         except Exception:
             continue
         for name, e in doc.get("entries", {}).items():
@@ -97,11 +101,10 @@ def board():
             distinct = len({c["author"] for c in th})
             rows.append((votes * 2 + distinct + len(th) * 0.1, ref, e, th, votes, distinct))
     rows.sort(reverse=True)
-    print(f"# \U0001F3C6 verb board -- {len(rows)} verbs, threads weighted by votes x distinct voices")
-    for score, ref, e, th, votes, distinct in rows:
-        heat = "\U0001F525" * min(3, len(th))
-        print(f"  {ref:<32} v{e['version']} [{e['evidence']:<8}] "
-              f"⭐{votes} \U0001F5E3️{distinct} {heat}")
+    print(f"# \U0001f3c6 verb board -- {len(rows)} verbs, threads weighted by votes x distinct voices")
+    for _score, ref, e, th, votes, distinct in rows:
+        heat = "\U0001f525" * min(3, len(th))
+        print(f"  {ref:<32} v{e['version']} [{e['evidence']:<8}] ⭐{votes} \U0001f5e3️{distinct} {heat}")
         latest = [c for c in th if c["kind"] in ("suggest", "praise")][-1:]
         for c in latest:
             print(f"      └ {KINDS[c['kind']]} {c['author']}: {c['text'][:90]}")
@@ -112,7 +115,8 @@ def main():
     t0 = time.time()
     args = sys.argv[1:]
     if not args:
-        print(__doc__); return 2
+        print(__doc__)
+        return 2
     rc = 2
     if args[0] == "comment" and len(args) >= 5:
         rc = comment(args[1], args[2], args[3], " ".join(args[4:]))
@@ -125,9 +129,17 @@ def main():
     runs = os.path.join(HERE, "runs")
     os.makedirs(runs, exist_ok=True)
     with open(os.path.join(runs, f"verbthread-{int(time.time())}.json"), "w", encoding="utf-8") as f:
-        json.dump({"tool": "verbthread", "seat": "claude", "argv": args[:3],
-                   "rc": rc, "duration_s": round(time.time() - t0, 3),
-                   "ts": time.strftime("%Y-%m-%dT%H:%M:%S")}, f)
+        json.dump(
+            {
+                "tool": "verbthread",
+                "seat": "claude",
+                "argv": args[:3],
+                "rc": rc,
+                "duration_s": round(time.time() - t0, 3),
+                "ts": time.strftime("%Y-%m-%dT%H:%M:%S"),
+            },
+            f,
+        )
     return rc
 
 

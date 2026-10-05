@@ -25,6 +25,7 @@ and read_verdict still works. The journal is substrate only: no verdict logic, n
 threshold, no gate behaviour may change, because this gate blocks every seat's push and an
 instrumentation slice is not allowed to risk that.
 """
+
 import json
 import os
 import sys
@@ -36,7 +37,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from core.comm import door_probe as DP
 
 
-@pytest.fixture()
+@pytest.fixture
 def paths(tmp_path, monkeypatch):
     """Redirect BOTH sinks into tmp so a pin can never touch the live gate history."""
     cache = tmp_path / "door" / "last_probe.json"
@@ -51,29 +52,29 @@ def _v(verdict="GREEN", elapsed=2.5, cause=""):
 
 
 def test_a_verdict_appends_a_journal_line(paths):
-    cache, journal = paths
+    _cache, journal = paths
     DP.write_verdict(_v())
     assert journal.exists(), "no gate journal was written"
-    lines = [l for l in journal.read_text(encoding="utf-8").splitlines() if l.strip()]
+    lines = [line for line in journal.read_text(encoding="utf-8").splitlines() if line.strip()]
     assert len(lines) == 1
-    json.loads(lines[0])            # one JSON object per line, parseable alone
+    json.loads(lines[0])  # one JSON object per line, parseable alone
 
 
 def test_the_journal_appends_and_never_truncates(paths):
     """THE POINT. last_probe.json may clobber; the journal may only grow."""
-    cache, journal = paths
+    _cache, journal = paths
     DP.write_verdict(_v("GREEN", 2.52))
     DP.write_verdict(_v("RED", 5.29, "response_path_slow"))
     DP.write_verdict(_v("GREEN", 2.84))
 
-    lines = [json.loads(l) for l in journal.read_text(encoding="utf-8").splitlines() if l.strip()]
+    lines = [json.loads(line) for line in journal.read_text(encoding="utf-8").splitlines() if line.strip()]
     assert len(lines) == 3, "a verdict overwrote history instead of appending"
     assert [r["verdict"] for r in lines] == ["GREEN", "RED", "GREEN"]
     assert lines[1]["elapsed_s"] == 5.29, "the RED reading must survive the GREEN that follows"
 
 
 def test_the_line_carries_what_a_false_positive_rate_needs(paths):
-    cache, journal = paths
+    _cache, journal = paths
     DP.write_verdict(_v("RED", 5.29, "response_path_slow"))
     rec = json.loads(journal.read_text(encoding="utf-8").splitlines()[0])
     for field in ("gate", "verdict", "elapsed_s", "budget_s", "sha", "at", "cause"):
@@ -84,7 +85,7 @@ def test_the_line_carries_what_a_false_positive_rate_needs(paths):
 
 def test_the_clobbering_cache_is_unchanged(paths):
     """ADDITIVE: existing readers must see exactly what they saw before."""
-    cache, journal = paths
+    cache, _journal = paths
     DP.write_verdict(_v("GREEN", 2.52))
     DP.write_verdict(_v("RED", 5.29, "response_path_slow"))
     assert json.loads(cache.read_text(encoding="utf-8"))["verdict"] == "RED"
@@ -101,15 +102,15 @@ def test_a_journal_failure_never_breaks_the_caller(tmp_path, monkeypatch):
     blocker.write_text("not a directory", encoding="utf-8")
     monkeypatch.setattr(DP, "GATE_JOURNAL", blocker / "gate_journal.jsonl", raising=False)
 
-    DP.write_verdict(_v("GREEN", 2.5))          # must not raise
+    DP.write_verdict(_v("GREEN", 2.5))  # must not raise
     assert json.loads(cache.read_text(encoding="utf-8"))["verdict"] == "GREEN"
 
 
 def test_journal_records_survive_across_processes(paths):
     """The file is the record, not an in-memory list -- a fresh import must still append."""
-    cache, journal = paths
+    _cache, journal = paths
     DP.write_verdict(_v("GREEN", 2.5))
     journal.write_text(journal.read_text(encoding="utf-8"), encoding="utf-8")  # simulate reopen
     DP.write_verdict(_v("RED", 6.0, "response_path_slow"))
-    lines = [l for l in journal.read_text(encoding="utf-8").splitlines() if l.strip()]
+    lines = [line for line in journal.read_text(encoding="utf-8").splitlines() if line.strip()]
     assert len(lines) == 2

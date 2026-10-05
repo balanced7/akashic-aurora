@@ -19,6 +19,7 @@ already states this law for its own value: "None, never 0: a provider that does 
 reasoning must not read as 'reasoned zero' -- the fabricated-measurement lie." An empty string
 in a reasoning field is that same lie in text.
 """
+
 from core.comm import ask as ask_mod
 
 
@@ -69,7 +70,8 @@ def test_reasoning_content_reaches_the_caller():
     assert d.get("answer") == "391", "the answer path must be unchanged"
     assert d.get("reasoning") == trace, (
         "the provider returned reasoning_content and it did not reach detail. Measured live "
-        "2026-08-08: 357 chars available, dropped, while reasoning_tokens was recorded.")
+        "2026-08-08: 357 chars available, dropped, while reasoning_tokens was recorded."
+    )
 
 
 def test_absent_when_the_provider_returns_none():
@@ -81,16 +83,14 @@ def test_absent_when_the_provider_returns_none():
     """
     out = ask_mod.ask("q", client=_client("plain", reasoning=None))
     d = out.detail or {}
-    assert "reasoning" not in d, (
-        f"a provider that returned no trace must leave no key, got {d.get('reasoning')!r}")
+    assert "reasoning" not in d, f"a provider that returned no trace must leave no key, got {d.get('reasoning')!r}"
 
 
 def test_empty_string_from_the_provider_is_treated_as_absent():
     """A provider that sends "" has told us nothing, and "" must not render as a trace."""
     out = ask_mod.ask("q", client=_client("plain", reasoning=""))
     d = out.detail or {}
-    assert "reasoning" not in d, (
-        'an empty reasoning_content is an absence, not a trace; it must not create the key')
+    assert "reasoning" not in d, "an empty reasoning_content is an absence, not a trace; it must not create the key"
 
 
 def test_the_count_and_the_text_do_not_disagree():

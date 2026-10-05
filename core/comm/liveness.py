@@ -23,14 +23,15 @@ Two independent staleness signals a reader can derive:
   * ``now - since_ts`` large while phase != idle  -> stuck IN a phase (a wedge L0 didn't catch)
   * ``now - beat_ts``  large                      -> the heartbeat thread itself stopped
 """
+
 import json
 import os
 import re
 import threading
 import time
-from typing import Optional
 
 from core.comm.timescale import scaled as _scaled
+
 
 def _ns() -> str:
     # ns-isolation (2026-07-12): per-agent liveness is per-namespace observability; a drill agent's
@@ -42,7 +43,7 @@ def _worklive_prefix() -> str:
     return f"{_ns()}:worklive:"
 
 
-_CODE_SHA: Optional[str] = None
+_CODE_SHA: str | None = None
 
 
 def _safe_code_sha() -> str:
@@ -69,17 +70,26 @@ def _running_code_sha() -> str:
         _CODE_SHA = ""
         try:
             import subprocess
+
             root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-            r = subprocess.run(["git", "rev-parse", "--short=12", "HEAD"], cwd=root,
-                               capture_output=True, text=True, timeout=5,
-                               stdin=subprocess.DEVNULL, close_fds=True)
+            r = subprocess.run(
+                ["git", "rev-parse", "--short=12", "HEAD"],
+                cwd=root,
+                capture_output=True,
+                text=True,
+                timeout=5,
+                stdin=subprocess.DEVNULL,
+                close_fds=True,
+            )
             if r.returncode == 0:
                 _CODE_SHA = (r.stdout or "").strip()
         except Exception:
             _CODE_SHA = ""
     return _CODE_SHA or ""
+
+
 WORKLIVE_TTL = _scaled(45)  # > the ~5s heartbeat refresh, so a live record never flaps; a wedge
-                            # keeps it alive (drill-shrinkable via AKASHIC_TIMEOUT_MULTIPLIER)
+# keeps it alive (drill-shrinkable via AKASHIC_TIMEOUT_MULTIPLIER)
 
 # Phases that mean "not doing work" -- never counted as a wedge no matter how long they last.
 IDLE_PHASES = {"idle", "online", "replied"}
@@ -97,6 +107,7 @@ def _client():
     """Shared bus Redis client (same connector as control/bus). None when unreachable -> fail open."""
     try:
         from core.comm.bus import get_bus
+
         return get_bus("liveness")._client
     except Exception:
         return None
@@ -122,7 +133,7 @@ class BusLossGuard:
         self.dead_beats += 1
         if self.dead_beats >= self.max_dead:
             return "stand_down"
-        self.backoff_s = min(30, 2 ** (self.dead_beats - 1))   # 1,2,4,8,16,30,30,... capped
+        self.backoff_s = min(30, 2 ** (self.dead_beats - 1))  # 1,2,4,8,16,30,30,... capped
         return "degraded"
 
 
@@ -235,9 +246,9 @@ def live_incarnations(agent: str) -> list:
         out = []
         if c.get(pre + bare):
             out.append(bare)
-        for k in (c.keys(f"{pre}{bare}#*") or []):
+        for k in c.keys(f"{pre}{bare}#*") or []:
             key = k.decode() if isinstance(k, (bytes, bytearray)) else str(k)
-            out.append(key[len(pre):])
+            out.append(key[len(pre) :])
         return sorted(set(out))
     except Exception:
         return []
@@ -303,6 +314,7 @@ class Attendance(tuple):
     echo read as online. Absence of evidence is not evidence of absence -- and it is certainly
     not evidence of presence.
     """
+
     __slots__ = ()
 
     def __new__(cls, state, reason="", beat_age_s=None, agent=""):
@@ -317,8 +329,7 @@ class Attendance(tuple):
         return f"Attendance({self.state}, {self.reason!r}, beat_age_s={self.beat_age_s})"
 
 
-def attendance(agent: str, *, namespace: str = None, client=None,
-               roster_rows=None) -> "Attendance":
+def attendance(agent: str, *, namespace: str | None = None, client=None, roster_rows=None) -> "Attendance":
     """THE liveness verdict. One answer, so surfaces cannot contradict each other (T155).
 
     Measured 2026-08-03/04: four surfaces gave four answers about one seat, and a directed brief
@@ -360,6 +371,7 @@ def attendance(agent: str, *, namespace: str = None, client=None,
     if observed_rows is None:
         try:
             from core.comm import roster as _roster
+
             observed_rows = _roster.roster(namespace or _ns(), client=client)
         except Exception:
             observed_rows = None
@@ -368,8 +380,7 @@ def attendance(agent: str, *, namespace: str = None, client=None,
         try:
             if observed_rows is None:
                 raise RuntimeError("roster unreadable")
-            rows = [r for r in observed_rows
-                    if str(r.get("agent") or "").split("#")[0] == candidate]
+            rows = [r for r in observed_rows if str(r.get("agent") or "").split("#")[0] == candidate]
             ages = [r["beat_age_s"] for r in rows if r.get("beat_age_s") is not None]
             probed_anything = True
             if ages:
@@ -392,8 +403,7 @@ def attendance(agent: str, *, namespace: str = None, client=None,
             wl = worklive_beat_age(candidate)
             probed_anything = True
             if wl is not None and wl <= UNATTENDED_S:
-                return Attendance("ATTENDED", f"worklive beat {wl:.0f}s (idle, listening)",
-                                  youngest, candidate)
+                return Attendance("ATTENDED", f"worklive beat {wl:.0f}s (idle, listening)", youngest, candidate)
         except Exception:
             pass
 
@@ -437,13 +447,16 @@ def stuck_seconds(agent: str):
 # tenure's pulse is self-identifying).
 def _progress_prefix() -> str:
     return f"{_ns()}:progress:"
+
+
 PROGRESS_TTL = _scaled(5)
 
 
 def pulse(agent: str, detail: str = "", *, generation: int = 0) -> bool:
     """Touch the progress key at a REAL progress point. Fail-open, never raises."""
-    try:   # progress-bars data half: every pulse is a countable progress point
+    try:  # progress-bars data half: every pulse is a countable progress point
         from core.comm import turn_metrics
+
         turn_metrics.count_pulse(agent)
     except Exception:
         pass
@@ -451,10 +464,11 @@ def pulse(agent: str, detail: str = "", *, generation: int = 0) -> bool:
     if c is None:
         return False
     try:
-        c.set(_progress_prefix() + str(agent),
-              json.dumps({"ts": time.time(), "generation": int(generation),
-                          "detail": str(detail)[:120]}),
-              ex=PROGRESS_TTL)
+        c.set(
+            _progress_prefix() + str(agent),
+            json.dumps({"ts": time.time(), "generation": int(generation), "detail": str(detail)[:120]}),
+            ex=PROGRESS_TTL,
+        )
         return True
     except Exception:
         return False
@@ -490,10 +504,11 @@ def pulse_error(agent: str, reason: str, *, generation: int = 0) -> bool:
     if c is None:
         return False
     try:
-        c.set(_progress_prefix() + str(agent),
-              json.dumps({"ts": time.time(), "generation": int(generation),
-                          "detail": f"trigger:{str(reason)[:100]}"}),
-              ex=PROGRESS_TTL * 12)
+        c.set(
+            _progress_prefix() + str(agent),
+            json.dumps({"ts": time.time(), "generation": int(generation), "detail": f"trigger:{str(reason)[:100]}"}),
+            ex=PROGRESS_TTL * 12,
+        )
         return True
     except Exception:
         return False
@@ -509,14 +524,16 @@ def progress_read(agent: str):
         if not raw:
             return None
         rec = json.loads(raw)
-        return {"age_s": round(max(0.0, time.time() - float(rec.get("ts", 0))), 1),
-                "generation": int(rec.get("generation", 0)),
-                "detail": rec.get("detail", "")}
+        return {
+            "age_s": round(max(0.0, time.time() - float(rec.get("ts", 0))), 1),
+            "generation": int(rec.get("generation", 0)),
+            "detail": rec.get("detail", ""),
+        }
     except Exception:
         return None
 
 
-def wedge_view(agent: str, wedge_s: float = None):
+def wedge_view(agent: str, wedge_s: float | None = None):
     """A reader's summary for the roster / watchdog (L3/L2): current phase, time-in-phase,
     beat age, and a heuristic ``wedged`` flag (in a non-idle phase past the threshold).
     Observe-only -- callers DISPLAY this; acting on it (kill/revive) is a later, gated layer.

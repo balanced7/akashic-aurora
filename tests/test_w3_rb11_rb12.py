@@ -16,6 +16,7 @@ Boot-render empty-state [GAP] lines are integration-pinned in the RB-12 impl com
 
 Run: py -m pytest tests/test_w3_rb11_rb12.py -q
 """
+
 import json
 import os
 import sys
@@ -29,32 +30,44 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 try:
     from core.foundation.store import DictStore
     from core.learning.agent_memory import (
-        CHAIN_WARN_THRESHOLD, AgentMemory, Decision,
+        CHAIN_WARN_THRESHOLD,
+        AgentMemory,
+        Decision,
     )
-    _BUILT = hasattr(AgentMemory, "run_migration_once") and \
-        hasattr(AgentMemory, "get_long_chains")
+
+    _BUILT = hasattr(AgentMemory, "run_migration_once") and hasattr(AgentMemory, "get_long_chains")
 except ImportError:
     _BUILT = False
 
-pytestmark = pytest.mark.skipif(
-    not _BUILT, reason="RB-11/RB-12 pins pre-registered; impl pending (assertions frozen)")
+pytestmark = pytest.mark.skipif(not _BUILT, reason="RB-11/RB-12 pins pre-registered; impl pending (assertions frozen)")
 
 
-@pytest.fixture()
+@pytest.fixture
 def mem():
     return AgentMemory(store=DictStore())
 
 
 def _forge(mem, dec_id, title, created, superseded=False):
-    d = Decision(id=dec_id, title=title, status="accepted", context="", decision="x",
-                 rationale=[], alternatives=[], consequences={"positive": [], "negative": []},
-                 created_at=created, session_id="", supersedes=None, superseded=superseded)
+    d = Decision(
+        id=dec_id,
+        title=title,
+        status="accepted",
+        context="",
+        decision="x",
+        rationale=[],
+        alternatives=[],
+        consequences={"positive": [], "negative": []},
+        created_at=created,
+        session_id="",
+        supersedes=None,
+        superseded=superseded,
+    )
     mem.store.hset(mem.KEY_DECISIONS, field=dec_id, value=json.dumps(asdict(d)))
-    mem.store.zadd(mem.KEY_DECISION_INDEX,
-                   {dec_id: datetime.fromisoformat(created).timestamp()})
+    mem.store.zadd(mem.KEY_DECISION_INDEX, {dec_id: datetime.fromisoformat(created).timestamp()})
 
 
 # ---------------- RB-11 ----------------
+
 
 def test_migration_runs_once_and_only_once(mem):
     runs = []
@@ -67,18 +80,24 @@ def test_migration_pin_key_is_cas_guarded_per_name(mem):
     a, b = [], []
     mem.run_migration_once("mig-a", lambda: a.append(1))
     mem.run_migration_once("mig-b", lambda: b.append(1))
-    assert a == [1] and b == [1], "pin keys are per-name, not global"
+    assert a == [1], "pin keys are per-name, not global"
+    assert b == [1], "pin keys are per-name, not global"
 
 
 def test_chain_warning_boundary_51_not_49(mem):
     t = datetime(2026, 1, 1)
     for n, count in (("short-chain", 49), ("long-chain", 51)):
         for i in range(count):
-            _forge(mem, "ADR_%s_%08d" % (n[:2], i), n,
-                   t.replace(second=(i % 50), minute=i // 50).isoformat(),
-                   superseded=(i < count - 1))
+            _forge(
+                mem,
+                f"ADR_{n[:2]!s}_{i:08d}",
+                n,
+                t.replace(second=(i % 50), minute=i // 50).isoformat(),
+                superseded=(i < count - 1),
+            )
     long_titles = {c.get("title") for c in mem.get_long_chains()}
-    assert "long-chain" in long_titles and "short-chain" not in long_titles
+    assert "long-chain" in long_titles
+    assert "short-chain" not in long_titles
     assert CHAIN_WARN_THRESHOLD == 50
 
 
@@ -92,15 +111,17 @@ def test_default_read_path_does_not_scan_chains(mem):
 
 # ---------------- RB-12 ----------------
 
+
 def test_same_timestamp_ties_are_stable_and_total(mem):
     ts = datetime(2026, 3, 3, 3, 3, 3).isoformat()
     for i, title in enumerate(["zeta-status", "alpha-status", "mid-status"]):
-        _forge(mem, "ADR_tie_%08d" % i, title, ts)
+        _forge(mem, f"ADR_tie_{i:08d}", title, ts)
     orders = [tuple(d.id for d in mem.get_decisions(days=3650)) for _ in range(5)]
     assert len(set(orders)) == 1, "same corpus -> identical order, five reads"
     titles = [d.title for d in mem.get_decisions(days=3650)]
-    assert titles == sorted(titles, reverse=True), \
+    assert titles == sorted(titles, reverse=True), (
         "(created_at, title, id) descending: title is the tiebreak at equal timestamps"
+    )
 
 
 def test_empty_store_reads_are_calm(mem):

@@ -12,6 +12,7 @@ five-branch model fanout that died at the door because `.secrets/` is gitignored
 carries none. Neither was a bug. Both were discoverable in one command, if the command had
 existed.
 """
+
 from __future__ import annotations
 
 import subprocess
@@ -20,13 +21,14 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from core.coord import world_fidelity as F                        # noqa: E402
-from core.paths import repo_root                                  # noqa: E402
-from core.world import current                                    # noqa: E402
+from core.coord import world_fidelity as F
+from core.paths import repo_root
+from core.world import checkout_of, current
 
 ROOT = repo_root()
 #: Where each world's checkout lives, so the CODE plane can compare against its source.
-SOURCES = {"beta": "E:/AI-Setup", "alpha": "E:/AI-Setup"}
+#: Both twins are seeded from prod, whose checkout is derived rather than pinned to a drive.
+SOURCES = {"beta": str(checkout_of("prod")), "alpha": str(checkout_of("prod"))}
 
 
 def _count(path: Path):
@@ -66,22 +68,25 @@ def main() -> int:
         # fidelity. Measuring the wrong tree here would invert the finding.
         st = _git(source, "status", "--porcelain")
         if st is not None:
-            dirty = len([l for l in st.splitlines() if l and not l.lstrip().startswith("??")])
+            dirty = len([ln for ln in st.splitlines() if ln and not ln.lstrip().startswith("??")])
     elif w.name == "prod":
-        dirty = 0                                    # prod IS the source; nothing lags it
+        dirty = 0  # prod IS the source; nothing lags it
 
     seeded_from = None
     try:
         import redis
-        from core.world_seed import read_manifest
+
         from core.foundation.redis_connection import probe_redis_reachable
+        from core.world_seed import read_manifest
+
         # Same 48s trap as agent_cli._boot_world_line(). A connect timeout does NOT fix it --
         # measured 2026-09-27: socket_connect_timeout=2 still cost 47.95s and =1 cost 26.13s,
         # because redis-py retries per resolved address. Only the probe bounds it, at 1.02s.
         if not probe_redis_reachable("localhost", w.redis_port):
             raise ConnectionError(f"world {w.name!r} store at {w.redis_port} is not reachable")
-        m = read_manifest(redis.Redis(host="localhost", port=w.redis_port, db=w.redis_db,
-                                      socket_timeout=2, socket_connect_timeout=2))
+        m = read_manifest(
+            redis.Redis(host="localhost", port=w.redis_port, db=w.redis_db, socket_timeout=2, socket_connect_timeout=2)
+        )
         seeded_from = (m or {}).get("source_world")
     except Exception:
         seeded_from = None
@@ -89,17 +94,19 @@ def main() -> int:
     tracked_ok = None
     tracked = _git(ROOT, "ls-files", "state/")
     if tracked is not None:
-        wanted = [l for l in tracked.splitlines() if l.strip()]
+        wanted = [ln for ln in tracked.splitlines() if ln.strip()]
         tracked_ok = bool(wanted) and all((ROOT / w).exists() for w in wanted)
 
-    rows = F.assess(root=str(ROOT),
-                    secrets_count=_count(ROOT / ".secrets"),
-                    state_count=_count(ROOT / "state"),
-                    head_sha=head,
-                    source_dirty=dirty,
-                    seeded_from=seeded_from,
-                    is_source=(w.name == "prod"),
-                    tracked_state_present=tracked_ok)
+    rows = F.assess(
+        root=str(ROOT),
+        secrets_count=_count(ROOT / ".secrets"),
+        state_count=_count(ROOT / "state"),
+        head_sha=head,
+        source_dirty=dirty,
+        seeded_from=seeded_from,
+        is_source=(w.name == "prod"),
+        tracked_state_present=tracked_ok,
+    )
     print(F.render(rows, world=w.name))
     return 0
 

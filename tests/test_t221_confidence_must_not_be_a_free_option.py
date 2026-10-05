@@ -35,6 +35,7 @@ NOT FIXED HERE. Scoring is a POLICY question under an established rule: v2_aixcc
 "PROPOSED (W2), not the default... Nothing selects it until Daniil rules". These pins state
 the property the policy must satisfy; which knob buys it is the operator's call.
 """
+
 from __future__ import annotations
 
 import sys
@@ -43,34 +44,57 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 
-import pytest  # noqa: E402
+import pytest  # noqa: E402  # sys.path bootstrap
 
-from core.season import scoring as S  # noqa: E402
+from core.season import scoring as S  # noqa: E402  # sys.path bootstrap
 
 #: The proposal that satisfies these properties. The DEFAULTS are marked xfail(strict=True)
 #: rather than deleted: the exploit is real in both of them and the ruling is Daniil's, so
 #: the gap stays visible in CI without turning it red. strict=True means that if a default
 #: policy is ever fixed, the xfail FAILS loudly and nobody has to remember to come back.
-FIXED = 'v3_confidence_priced'
-OPEN = [pytest.param('v1_doc', marks=pytest.mark.xfail(strict=True,
-            reason='T221 hedge exploit OPEN in the default policy -- awaiting Daniil ruling')),
-        pytest.param('v2_aixcc', marks=pytest.mark.xfail(strict=True,
-            reason='T221 hedge exploit OPEN in the v2 proposal -- awaiting Daniil ruling')),
-        FIXED]
+FIXED = "v3_confidence_priced"
+OPEN = [
+    pytest.param(
+        "v1_doc",
+        marks=pytest.mark.xfail(
+            strict=True, reason="T221 hedge exploit OPEN in the default policy -- awaiting Daniil ruling"
+        ),
+    ),
+    pytest.param(
+        "v2_aixcc",
+        marks=pytest.mark.xfail(
+            strict=True, reason="T221 hedge exploit OPEN in the v2 proposal -- awaiting Daniil ruling"
+        ),
+    ),
+    FIXED,
+]
 
 
 def _claims(player, hits, misses, confidence):
-    out = []
-    for i in range(hits):
-        out.append({"player": player, "dedupe_key": f"{player}::h{i}",
-                    "claim_class": "needs-caller", "outcome": "confirmed",
-                    "confidence": confidence, "stream_id": f"1-{i}",
-                    "evidence": [f"evidence {i}"]})
-    for i in range(misses):
-        out.append({"player": player, "dedupe_key": f"{player}::m{i}",
-                    "claim_class": "needs-caller", "outcome": "refuted",
-                    "confidence": confidence, "stream_id": f"2-{i}",
-                    "evidence": [f"evidence m{i}"]})
+    out = [
+        {
+            "player": player,
+            "dedupe_key": f"{player}::h{i}",
+            "claim_class": "needs-caller",
+            "outcome": "confirmed",
+            "confidence": confidence,
+            "stream_id": f"1-{i}",
+            "evidence": [f"evidence {i}"],
+        }
+        for i in range(hits)
+    ]
+    out.extend(
+        {
+            "player": player,
+            "dedupe_key": f"{player}::m{i}",
+            "claim_class": "needs-caller",
+            "outcome": "refuted",
+            "confidence": confidence,
+            "stream_id": f"2-{i}",
+            "evidence": [f"evidence m{i}"],
+        }
+        for i in range(misses)
+    )
     return out
 
 
@@ -82,11 +106,11 @@ def _totals(claims, policy):
 def test_hedging_everything_must_not_beat_being_right(policy_):
     """THE PIN. Same three real findings; the hedger adds thirty wrong claims for free."""
     for policy in [policy_]:
-        t = _totals(_claims("hedge", 3, 30, "low") + _claims("honest", 3, 1, "high"),
-                    policy)
+        t = _totals(_claims("hedge", 3, 30, "low") + _claims("honest", 3, 1, "high"), policy)
         assert t["hedge"] <= t["honest"], (
             f"[{policy}] a player wrong THIRTY times outscored one wrong once "
-            f"({t['hedge']} vs {t['honest']}) -- low confidence is a free option")
+            f"({t['hedge']} vs {t['honest']}) -- low confidence is a free option"
+        )
 
 
 @pytest.mark.parametrize("policy_", OPEN)
@@ -99,7 +123,8 @@ def test_wrong_low_confidence_claims_are_not_unboundedly_free(policy_):
         many = _totals(_claims("p", 3, 60, "low"), policy)["p"]
         assert many < few, (
             f"[{policy}] 60 wrong low-confidence claims scored the same as 2 ({many} vs "
-            f"{few}) -- the cost of being wrong does not grow with how often you are wrong")
+            f"{few}) -- the cost of being wrong does not grow with how often you are wrong"
+        )
 
 
 @pytest.mark.parametrize("policy_", OPEN)
@@ -112,7 +137,8 @@ def test_confidence_is_a_tradeoff_not_a_free_put(policy_):
         hi = _totals(_claims("hi", 5, 0, "high"), policy)["hi"]
         assert lo < hi, (
             f"[{policy}] five low-confidence hits scored the same as five high-confidence "
-            f"hits ({lo} vs {hi}) -- hedging carries no cost, so hedging is dominant")
+            f"hits ({lo} vs {hi}) -- hedging carries no cost, so hedging is dominant"
+        )
 
 
 @pytest.mark.parametrize("policy_", ["v1_doc", "v2_aixcc", FIXED])
@@ -134,4 +160,5 @@ def test_an_honest_low_confidence_miss_stays_cheap(policy_):
         assert with_miss >= without - 1, (
             f"[{policy}] one honestly-flagged miss cost more than a point "
             f"({with_miss} vs {without}) -- that buys false confidence instead of honest "
-            f"reporting, and false confidence is worse than noise because it does not filter")
+            f"reporting, and false confidence is worse than noise because it does not filter"
+        )

@@ -66,15 +66,23 @@ class FakeStore:
         raise RuntimeError("cas conflict")
 
 
-@pytest.fixture()
+@pytest.fixture
 def fam(tmp_path):
     return at.AtomFamily(FakeStore(), jsonl_dir=str(tmp_path))
 
 
 def test_mint_roundtrip_and_indexes(fam):
-    a = fam.mint("design", "Substrate Atom Family", "body text", arc="library-schema",
-                 seats=["claude"], categories=["substrate", "library"], now=1000.0)
-    assert a["id"].startswith("art_") and a["body_sha"] == at._sha12("body text")
+    a = fam.mint(
+        "design",
+        "Substrate Atom Family",
+        "body text",
+        arc="library-schema",
+        seats=["claude"],
+        categories=["substrate", "library"],
+        now=1000.0,
+    )
+    assert a["id"].startswith("art_")
+    assert a["body_sha"] == at._sha12("body text")
     got = fam.get(a["id"])
     assert got == a
     assert got["header"]["category"] == ["substrate", "library"]
@@ -87,8 +95,9 @@ def test_jsonl_appended_per_type(fam):
     fam.mint("report", "Fence report", "b", now=1000.0)
     path = os.path.join(fam.jsonl_dir, "report.jsonl")
     with open(path, encoding="utf-8") as f:
-        lines = [json.loads(l) for l in f if l.strip()]
-    assert len(lines) == 1 and lines[0]["header"]["type"] == "report"
+        lines = [json.loads(line) for line in f if line.strip()]
+    assert len(lines) == 1
+    assert lines[0]["header"]["type"] == "report"
 
 
 def test_validation_refuses_loudly(fam):
@@ -123,19 +132,20 @@ def test_supersede_links_both_and_moves_indexes(fam):
     # append-only: the type JSONL now has 3 lines (mint, successor mint, flip)
     path = os.path.join(fam.jsonl_dir, "design.jsonl")
     with open(path, encoding="utf-8") as f:
-        assert sum(1 for l in f if l.strip()) == 3
+        assert sum(1 for line in f if line.strip()) == 3
 
 
 def test_set_arc_relabels_in_place_as_a_version_event(fam):
     a = fam.mint("design", "cap suite", "body", arc="SA-1 (docs/gone.md)", now=1000.0)
     got = fam.set_arc(a["id"], "SA-1", now=2000.0)
     assert (got["id"], got["body_sha"], got["version"], got["updated_ts"]) == (a["id"], a["body_sha"], 2, 2000.0)
-    assert got["header"]["arc"] == "SA-1" and fam.get(a["id"]) == got
+    assert got["header"]["arc"] == "SA-1"
+    assert fam.get(a["id"]) == got
     assert a["id"] not in fam.store.smembers("artifact:index:arc:SA-1 (docs/gone.md)")
     assert a["id"] in fam.store.smembers("artifact:index:arc:SA-1")
     path = os.path.join(fam.jsonl_dir, "design.jsonl")
     with open(path, encoding="utf-8") as f:
-        assert [json.loads(l)["version"] for l in f if l.strip()] == [1, 2]  # append-only: mint, relabel
+        assert [json.loads(line)["version"] for line in f if line.strip()] == [1, 2]  # append-only: mint, relabel
     assert fam.set_arc(a["id"], " SA-1 ", now=3000.0)["version"] == 2  # unchanged label: no event
     fresh = at.AtomFamily(FakeStore(), jsonl_dir=fam.jsonl_dir)
     fresh.rebuild()
@@ -146,16 +156,19 @@ def test_set_arc_relabels_in_place_as_a_version_event(fam):
 
 def test_doc_arc_door_relabels_and_rerenders_the_projection(tmp_path, capsys):
     import sys
+
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     if root not in sys.path:
         sys.path.insert(0, root)
     import agent_cli
+
     fam = at.AtomFamily(FakeStore(), jsonl_dir=str(tmp_path / "store"), repo_root=str(tmp_path))
     a = fam.mint("design", "cap suite", "body", arc="SA-1 (docs/gone.md)", now=1000.0)
     assert agent_cli._doc_arc(fam, a["id"], "SA-1", str(tmp_path)) == 0
-    proj = tmp_path / "docs" / "library" / "design" / (a["id"][len("art_"):] + ".md")
+    proj = tmp_path / "docs" / "library" / "design" / (a["id"][len("art_") :] + ".md")
     text = proj.read_text(encoding="utf-8")
-    assert "\narc: SA-1\n" in text and "docs/gone.md" not in text
+    assert "\narc: SA-1\n" in text
+    assert "docs/gone.md" not in text
     assert fam.get(a["id"])["version"] == 2
     assert agent_cli._doc_arc(fam, "art_20260101_missing_000000", "SA-1", str(tmp_path)) == 2
     assert agent_cli._doc_arc(fam, "", "SA-1", str(tmp_path)) == 2
@@ -172,18 +185,15 @@ def test_find_intersects_facets_newest_first(fam):
 
 def test_backlinks_are_derived_with_rel_and_status(fam):
     target = fam.mint("design", "the design", "b", now=1.0)
-    src = fam.mint("report", "counter", "b",
-                   citations=[{"target": target["id"], "rel": "contradicts"}], now=2.0)
+    src = fam.mint("report", "counter", "b", citations=[{"target": target["id"], "rel": "contradicts"}], now=2.0)
     bl = fam.backlinks(target["id"])
     # v1.1 disclosed shape update: rows gained 'target' (lineage-aggregated backlinks
     # must say WHICH chain member was cited); rel+status semantics unchanged.
-    assert bl == [{"source": src["id"], "target": target["id"],
-                   "rel": "contradicts", "status": "current"}]
+    assert bl == [{"source": src["id"], "target": target["id"], "rel": "contradicts", "status": "current"}]
 
 
 def test_category_sources_persisted_and_padded(fam):
-    a = fam.mint("design", "x", "b", categories=["bus", "ui"],
-                 category_sources=["flag"], now=1.0)
+    a = fam.mint("design", "x", "b", categories=["bus", "ui"], category_sources=["flag"], now=1.0)
     assert a["category_sources"] == ["flag", "unstated"]
 
 
@@ -196,11 +206,20 @@ def test_gist_born_with_and_capped(fam):
 
 
 def test_conversation_provenance_fields(fam):
-    a = fam.mint("chronicle", "thread capture", "deepseek: ...\nclaude: ...",
-                 origin="conversation", speakers=["deepseek", "claude"],
-                 source_thread="1784-0..1785-0", settled="live", now=5.0)
-    assert a["origin"] == "conversation" and a["settled"] == "live"
-    assert a["captured_at"] == 5.0 and a["speakers"] == ["deepseek", "claude"]
+    a = fam.mint(
+        "chronicle",
+        "thread capture",
+        "deepseek: ...\nclaude: ...",
+        origin="conversation",
+        speakers=["deepseek", "claude"],
+        source_thread="1784-0..1785-0",
+        settled="live",
+        now=5.0,
+    )
+    assert a["origin"] == "conversation"
+    assert a["settled"] == "live"
+    assert a["captured_at"] == 5.0
+    assert a["speakers"] == ["deepseek", "claude"]
 
 
 def test_rebuild_from_jsonl_restores_store(fam, tmp_path):

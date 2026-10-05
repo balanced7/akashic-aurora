@@ -1,4 +1,5 @@
 """Vandor's tests for the Play Night preset bank: header parsing, format rules, and the route."""
+
 import json
 import sys
 import threading
@@ -8,8 +9,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from arsenal.presets import list_presets, parse_preset  # noqa: E402
-from arsenal.serve import App, Server  # noqa: E402
+from arsenal.presets import list_presets, parse_preset  # noqa: E402  # sys.path bootstrap
+from arsenal.serve import App, Server  # noqa: E402  # sys.path bootstrap
 
 VALID = """#version 300 es
 //! {"id": "demo-one", "name": "Demo One", "author": "Vandor", "tags": ["test"], "params": [{"k": 1, "name": "trails", "default": 0.5}, {"k": 3, "name": "zoom", "default": 0}]}
@@ -37,7 +38,9 @@ def _write(directory: Path, stem: str, text: str) -> Path:
 def test_a_valid_preset_has_no_problems(tmp_path):
     info = parse_preset(_write(tmp_path, "demo-one", VALID))
     assert info["problems"] == []
-    assert info["name"] == "Demo One" and info["author"] == "Vandor" and info["tags"] == ["test"]
+    assert info["name"] == "Demo One"
+    assert info["author"] == "Vandor"
+    assert info["tags"] == ["test"]
     assert info["params"] == [{"k": 1, "name": "trails", "default": 0.5}, {"k": 3, "name": "zoom", "default": 0}]
     assert info["url"] == "/web/presets/demo-one.frag"
 
@@ -54,7 +57,10 @@ def test_each_format_rule_names_its_problem(tmp_path):
         (VALID.replace('"id": "demo-one"', '"id": "other"', 1), "must equal the file name"),
         (VALID.replace('"author": "Vandor"', '"author": ""', 1), "non-empty author"),
         (VALID.replace("uniform vec2 u_res;", "uniform float u_res;", 1), "must be vec2"),
-        (VALID.replace("in vec2 v_uv;", "in vec2 v_uv;\nuniform float u_nope;", 1), "not in the Play Night uniform list"),
+        (
+            VALID.replace("in vec2 v_uv;", "in vec2 v_uv;\nuniform float u_nope;", 1),
+            "not in the Play Night uniform list",
+        ),
         (VALID.replace("precision highp float;", "precision highp float;\nprecision mediump int;", 1), "highp only"),
         (VALID.replace("i < 4", "i < int(u_k1 * 8.0)", 1), "loop bound uses a uniform"),
         (VALID.replace("out vec4 outColor;", "out vec4 fragColor;", 1), "outColor"),

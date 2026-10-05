@@ -31,6 +31,7 @@ THE RULE: verify the CONDITION (are the paths actually redirected?), never the C
 flag say so?). A flag may be an optimisation to avoid re-flushing; it may never be the
 authority on whether isolation happened.
 """
+
 import os
 import subprocess
 import sys
@@ -42,7 +43,7 @@ _PROBE = r"""
 import os, sys
 os.environ["_AISETUP_TEST_ISOLATED"] = "1"      # the claim, with NO redirect behind it
 sys.path.insert(0, r"{tests}")
-import isolate_canonical            # noqa: F401
+import isolate_canonical            # noqa: F401  # re-export or side-effect import
 ai = os.environ.get("AI_SETUP", "")
 db = os.environ.get("REDIS_DB", "")
 print("AI_SETUP=" + ai)
@@ -53,10 +54,14 @@ print("REDIS_DB=" + db)
 def _run_probe() -> dict:
     """Run in a CHILD so this test's own already-isolated env cannot mask the bug."""
     code = _PROBE.format(tests=str(ROOT / "tests"))
-    env = {k: v for k, v in os.environ.items()
-           if k not in ("AI_SETUP", "REDIS_DB", "_AISETUP_TEST_ISOLATED", "AKASHIC_SPILL_DIR")}
-    r = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True,
-                       cwd=str(ROOT), env=env, timeout=120)
+    env = {
+        k: v
+        for k, v in os.environ.items()
+        if k not in ("AI_SETUP", "REDIS_DB", "_AISETUP_TEST_ISOLATED", "AKASHIC_SPILL_DIR")
+    }
+    r = subprocess.run(
+        [sys.executable, "-c", code], capture_output=True, text=True, cwd=str(ROOT), env=env, timeout=120
+    )
     out = {}
     for line in (r.stdout or "").splitlines():
         if "=" in line:

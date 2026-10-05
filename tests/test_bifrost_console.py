@@ -6,6 +6,7 @@ formats to readable text. No TTY / prompt_toolkit needed here (those imports are
 
 Run: py -m pytest tests/test_bifrost_console.py -q
 """
+
 import os
 import sys
 
@@ -27,7 +28,7 @@ def test_color_for_is_stable_and_themed():
     assert bc.color_for("claude") == "#d97757"
     assert bc.color_for("cursor") == "#6cb6ff"
     assert bc.color_for("human") == "#7ee787"
-    assert bc.color_for("CLAUDE") == "#d97757"               # case-insensitive
+    assert bc.color_for("CLAUDE") == "#d97757"  # case-insensitive
     assert bc.color_for("zephyr") == bc.color_for("zephyr")  # deterministic fallback
     assert bc.color_for("zephyr").startswith("#")
 
@@ -40,15 +41,21 @@ def test_format_message_is_readable():
     # broadcast renders as "all"; non-str content is coerced; a bad timestamp doesn't crash
     ft2 = bc.format_message("a", "*", "chat", {"x": 1}, "not-a-date")
     text2 = "".join(t for _, t in ft2)
-    assert "all" in text2 and "{'x': 1}" in text2
+    assert "all" in text2
+    assert "{'x': 1}" in text2
 
 
 def test_app_module_imports():
-    assert hasattr(bc, "main") and callable(bc.main)
+    assert hasattr(bc, "main")
+    assert callable(bc.main)
 
 
 if __name__ == "__main__":
-    for fn in [test_parse_input_routes, test_color_for_is_stable_and_themed,
-               test_format_message_is_readable, test_app_module_imports]:
+    for fn in [
+        test_parse_input_routes,
+        test_color_for_is_stable_and_themed,
+        test_format_message_is_readable,
+        test_app_module_imports,
+    ]:
         fn()
     print("BIFROST CONSOLE HELPER TESTS PASSED")

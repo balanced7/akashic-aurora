@@ -9,21 +9,24 @@ Acceptance bar (docs/library/design/20260714_cross-agent-auto-logger-design-slic
 
 Metric gates run on tests/fixtures/events_fixture.py (the local benchmark).
 """
+
 import os
 import sys
 import tempfile
 
-import isolate_canonical            # noqa: F401
+import isolate_canonical  # noqa: F401  # re-export or side-effect import
 
-_TESTS = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.dirname(_TESTS))
-sys.path.insert(0, _TESTS)
-sys.path.insert(0, os.path.join(_TESTS, "fixtures"))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "fixtures"))
 
-from core.foundation.ledger import FileLedger
+from events_fixture import build_events_fixture
+
 from core.events.event_log import EventLog
 from core.events.event_query import EventQuery
-from events_fixture import build_events_fixture
+from core.foundation.ledger import FileLedger
+
+_TESTS = os.path.dirname(os.path.abspath(__file__))
 
 
 def _fixture():
@@ -41,6 +44,7 @@ def _precision_at_k(returned, relevant, k):
 
 
 # ----------------------------------------------------------------- metric gates
+
 
 def test_window_recall_is_100pct():
     eq, gold = _fixture()
@@ -65,12 +69,13 @@ def test_search_precision_at_5():
 
 def test_search_ranks_relevant_first():
     eq, gold = _fixture()
-    qa = gold["queries"][0]                       # stemroller vocab
+    qa = gold["queries"][0]  # stemroller vocab
     top = eq.search(qa["q"], top_k=3)
     assert all(e["summary"] in qa["relevant"] for e in top)
 
 
-# ----------------------------------------------------------------- filters (exact)
+# ----------------------------------------------------------------- exact filters
+
 
 def test_filter_by_kind():
     eq, gold = _fixture()
@@ -97,22 +102,26 @@ def test_search_time_bounds():
     eq, _ = _fixture()
     # only Day 3 (stemroller) events fall in this since/until band
     got = eq.search("", since="2026-06-22T00:00:00", until="2026-06-22T23:59:59", top_k=100)
-    assert got and all(e["track"] == "stemroller" for e in got)
+    assert got
+    assert all(e["track"] == "stemroller" for e in got)
 
 
 def test_window_with_kind_filter():
     eq, _ = _fixture()
     got = eq.events_in_window("2026-06-22T00:00:00", "2026-06-22T23:59:59", kind="command")
-    assert len(got) == 1 and got[0]["kind"] == "command"
+    assert len(got) == 1
+    assert got[0]["kind"] == "command"
 
 
 # ----------------------------------------------------------------- robustness
+
 
 def test_get_resolves_ref_from_query():
     eq, _ = _fixture()
     hit = eq.search("demucs vocals", top_k=1)[0]
     again = eq.get(hit["_ref"])
-    assert again is not None and again["summary"] == hit["summary"]
+    assert again is not None
+    assert again["summary"] == hit["summary"]
 
 
 def test_empty_store_returns_empty():
@@ -125,12 +134,12 @@ def test_empty_store_returns_empty():
 def test_bad_input_never_crashes():
     eq, _ = _fixture()
     assert isinstance(eq.events_in_window("garbage", "also-garbage"), list)
-    assert isinstance(eq.search(None), list)            # None query -> falls back, no crash
+    assert isinstance(eq.search(None), list)  # None query -> falls back, no crash
     assert eq.get("not-a-ref") is None
 
 
 def test_reversed_window_bounds_tolerated():
     eq, gold = _fixture()
     w = gold["window"]
-    got = {e["summary"] for e in eq.events_in_window(w["end"], w["start"])}   # swapped
+    got = {e["summary"] for e in eq.events_in_window(w["end"], w["start"])}  # swapped
     assert got == w["expected"]

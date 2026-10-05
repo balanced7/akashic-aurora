@@ -5,19 +5,23 @@ FileStore/SqliteStore parity coverage missing from test_store_differential.py.
 They are intentionally not xfailed: the cutover implementation earns green by
 making every assertion true.
 """
+
 from __future__ import annotations
 
 import json
 import os
 import sys
 import time
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.foundation import migrate_to_sqlite as migration  # noqa: E402
-from core.foundation.sqlite_store import SqliteStore  # noqa: E402
-from core.foundation.store import FileStore, HybridStore, RedisStore, create_store  # noqa: E402
+from core.foundation import migrate_to_sqlite as migration
+from core.foundation.sqlite_store import SqliteStore
+from core.foundation.store import FileStore, HybridStore, RedisStore, create_store
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 def _payload(**overrides):
@@ -58,17 +62,11 @@ def test_d1_end_to_end_migration_cannot_succeed_with_target_only_data(tmp_path):
     rc = _main_rc(["--json", str(source_path), "--db", str(db_path)])
     result = SqliteStore(str(db_path))
     try:
-        exact_shadow = (
-            result.get("live") == "new"
-            and not result.exists("ghost")
-            and set(result.keys("*")) == {"live"}
-        )
+        exact_shadow = result.get("live") == "new" and not result.exists("ghost") and set(result.keys("*")) == {"live"}
     finally:
         result.close()
 
-    assert rc != 0 or exact_shadow, (
-        "migration returned success while stale target-only data survived"
-    )
+    assert rc != 0 or exact_shadow, "migration returned success while stale target-only data survived"
 
 
 def test_d2_verify_rejects_and_names_target_only_structures_and_expiry(tmp_path):
@@ -147,9 +145,7 @@ def test_d4_advertised_rollback_preserves_post_cutover_write(tmp_path, monkeypat
     finally:
         rolled_back.close()
 
-    assert value == "must-survive", (
-        "stopping use of SQLite stranded a write made after cutover"
-    )
+    assert value == "must-survive", "stopping use of SQLite stranded a write made after cutover"
 
 
 class _AvailabilityProbe:
@@ -173,7 +169,7 @@ def test_d5_sqlite_selector_reaches_both_hybrid_factory_branches(tmp_path, monke
         monkeypatch.setattr(
             RedisStore,
             "connect",
-            classmethod(lambda cls, **kwargs: cache),
+            classmethod(lambda cls, cache=cache, **kwargs: cache),
         )
         store = create_store(
             prefer_redis=True,
@@ -183,8 +179,7 @@ def test_d5_sqlite_selector_reaches_both_hybrid_factory_branches(tmp_path, monke
         store.close()
 
     assert all(isinstance(tier, SqliteStore) for tier in durable_tiers), (
-        "AKASHIC_STORE_BACKEND=sqlite must select SQLite inside HybridStore "
-        "whether Redis is available or unavailable"
+        "AKASHIC_STORE_BACKEND=sqlite must select SQLite inside HybridStore whether Redis is available or unavailable"
     )
 
 

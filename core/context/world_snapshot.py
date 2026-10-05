@@ -13,18 +13,19 @@ explicit 2026-09-02 build gate.  It is a high-level CQRS read model:
 It is intentionally unrelated to ``scripts/snapshot.py`` (knowledge/WAL
 snapshotting) and the ``core.world*`` family (runtime world resolution).
 """
+
 from __future__ import annotations
 
 import argparse
 import copy
-from datetime import datetime, timezone
 import hashlib
 import json
+from collections.abc import Callable, Iterable, Mapping, Sequence
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Sequence
+from typing import Any
 
 from core.primitives.epistemic import derive_epistemic_view
-
 
 SCHEMA_VERSION = "world-snapshot/v1"
 PROJECTION_VERSION = "subject-attention/v1"
@@ -49,7 +50,7 @@ _TASK_STATUS_VOCABULARY = frozenset(
 
 
 def _utc_now() -> str:
-    return datetime.now(tz=timezone.utc).isoformat().replace("+00:00", "Z")
+    return datetime.now(tz=UTC).isoformat().replace("+00:00", "Z")
 
 
 def _text(value: Any) -> str:
@@ -98,11 +99,9 @@ def _bounded_text(value: Any, limit: int = 240) -> tuple[str, int, bool]:
     return text[: limit - 1].rstrip() + "…", full_chars, True
 
 
-def _bounded_text_list(
-    values: Any, *, item_limit: int = 8, text_limit: int = 160
-) -> tuple[List[str], int, bool]:
+def _bounded_text_list(values: Any, *, item_limit: int = 8, text_limit: int = 160) -> tuple[list[str], int, bool]:
     if isinstance(values, (str, bytes)) or values is None:
-        raw: List[Any] = [] if values is None else [values]
+        raw: list[Any] = [] if values is None else [values]
     else:
         try:
             raw = list(values)
@@ -113,7 +112,7 @@ def _bounded_text_list(
     return bounded, len(raw), was_truncated
 
 
-def _normalize_source(raw: Mapping[str, Any], fallback_checked_at: str) -> Dict[str, Any]:
+def _normalize_source(raw: Mapping[str, Any], fallback_checked_at: str) -> dict[str, Any]:
     source = _json_clone(raw)
     required = ("name", "plane", "authority", "revision")
     missing = [field for field in required if not _text(source.get(field))]
@@ -133,7 +132,7 @@ def _normalize_source(raw: Mapping[str, Any], fallback_checked_at: str) -> Dict[
     return normalized
 
 
-def _normalize_capability(name: str, raw: Any) -> Dict[str, Any]:
+def _normalize_capability(name: str, raw: Any) -> dict[str, Any]:
     capability = _json_clone(raw) if isinstance(raw, Mapping) else {}
     state = _text(capability.get("state")).upper()
     if state == "SUPPORTED":
@@ -158,7 +157,7 @@ def _normalize_capability(name: str, raw: Any) -> Dict[str, Any]:
     }
 
 
-def _normalize_item(raw: Mapping[str, Any], known_sources: set[str]) -> Dict[str, Any]:
+def _normalize_item(raw: Mapping[str, Any], known_sources: set[str]) -> dict[str, Any]:
     item = _json_clone(raw)
     organ = _text(item.get("organ"))
     if not organ:
@@ -220,10 +219,10 @@ def assemble_world_snapshot(
     sources: Sequence[Mapping[str, Any]],
     items: Sequence[Mapping[str, Any]],
     capabilities: Mapping[str, Any],
-    generated_at: Optional[str] = None,
+    generated_at: str | None = None,
     max_items: int = 64,
     projection_label: str = "source projection",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Assemble one deterministic, bounded read model from named observations.
 
     The caller owns all reads.  This function performs no I/O and mutates none
@@ -249,39 +248,27 @@ def assemble_world_snapshot(
         raise ValueError("duplicate source name")
     known_sources = set(source_names)
 
-    normalized_capabilities = {
-        name: _normalize_capability(name, capabilities[name])
-        for name in sorted(capabilities)
-    }
+    normalized_capabilities = {name: _normalize_capability(name, capabilities[name]) for name in sorted(capabilities)}
     normalized_items = sorted(
         (_normalize_item(item, known_sources) for item in list(items)),
         key=_item_sort_key,
     )
     total = len(normalized_items)
     bounded_items = normalized_items[:max_items]
-    counts = {
-        state: sum(1 for item in normalized_items if item["attention"] == state)
-        for state in ATTENTION_STATES
-    }
+    counts = {state: sum(1 for item in normalized_items if item["attention"] == state) for state in ATTENTION_STATES}
     unknown_capabilities = [
-        name
-        for name, capability in normalized_capabilities.items()
-        if capability["state"] == "UNCHECKABLE"
+        name for name, capability in normalized_capabilities.items() if capability["state"] == "UNCHECKABLE"
     ]
 
     source_state = {
         "schema_version": SCHEMA_VERSION,
         "subject": subject_text,
         "sources": [
-            {
-                key: source[key]
-                for key in ("name", "plane", "authority", "revision", "cursor")
-                if key in source
-            }
+            {key: source[key] for key in ("name", "plane", "authority", "revision", "cursor") if key in source}
             for source in normalized_sources
         ],
     }
-    snapshot: Dict[str, Any] = {
+    snapshot: dict[str, Any] = {
         "schema_version": SCHEMA_VERSION,
         "projection_version": PROJECTION_VERSION,
         "snapshot_id": _hash_id("ws_", source_state),
@@ -348,7 +335,7 @@ def _task_attention(status: str) -> str:
     }.get(status, "ATTENTION")
 
 
-def _task_epistemic_view(source_basis: str, status: str, checked_at: str) -> Dict[str, Any]:
+def _task_epistemic_view(source_basis: str, status: str, checked_at: str) -> dict[str, Any]:
     if status == "blocked":
         risk = {"value": "blocked", "basis": ["field:task.status=blocked"]}
     elif status not in _TASK_STATUS_VOCABULARY:
@@ -374,7 +361,7 @@ def _task_epistemic_view(source_basis: str, status: str, checked_at: str) -> Dic
     }
 
 
-def _uncheckable(blocked_by: str, reason: str) -> Dict[str, str]:
+def _uncheckable(blocked_by: str, reason: str) -> dict[str, str]:
     return {"state": "UNCHECKABLE", "blocked_by": blocked_by, "reason": reason}
 
 
@@ -397,7 +384,7 @@ def _read_arcs_register(path: Any, client: Any = None) -> Mapping[str, Any]:
     return data
 
 
-def _arc_membership_capability(register: Optional[Mapping[str, Any]]) -> Dict[str, Any]:
+def _arc_membership_capability(register: Mapping[str, Any] | None) -> dict[str, Any]:
     """Capability over the A1-A15 arc register.
 
     SUPPORTED only when the register parses AND names at least one arc, with a
@@ -434,8 +421,8 @@ def _program_capabilities(
     ledger_supported: bool,
     ledger_basis: str = "",
     ledger_error: str = "",
-    arcs_register: Optional[Mapping[str, Any]] = None,
-) -> Dict[str, Any]:
+    arcs_register: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
     if ledger_supported:
         task_state = {"state": "SUPPORTED", "basis": [ledger_basis]}
         attention = {
@@ -459,42 +446,30 @@ def _program_capabilities(
         "artifact_authority": _uncheckable(
             "adapter-not-wired", "the atom/projection authority adapter is not in slice one"
         ),
-        "mail_state": _uncheckable(
-            "adapter-not-wired", "the Bifrost plane adapter is not in slice one"
-        ),
+        "mail_state": _uncheckable("adapter-not-wired", "the Bifrost plane adapter is not in slice one"),
         "runtime_attention": _uncheckable(
             "adapter-not-wired",
             "ledger workflow state does not prove a seat is live, aware, or acting",
         ),
-        "test_receipts": _uncheckable(
-            "adapter-not-wired", "the verification receipt adapter is not in slice one"
-        ),
-        "git_changes": _uncheckable(
-            "adapter-not-wired", "the Git change adapter is not in slice one"
-        ),
-        "deduplication": _uncheckable(
-            "T116", "logical message identity is not yet authoritative"
-        ),
-        "lineage": _uncheckable(
-            "T116", "complete original-to-redrive lineage is not yet authoritative"
-        ),
-        "settlement": _uncheckable(
-            "T116", "settlement cannot be inferred where outcome pointers are absent"
-        ),
+        "test_receipts": _uncheckable("adapter-not-wired", "the verification receipt adapter is not in slice one"),
+        "git_changes": _uncheckable("adapter-not-wired", "the Git change adapter is not in slice one"),
+        "deduplication": _uncheckable("T116", "logical message identity is not yet authoritative"),
+        "lineage": _uncheckable("T116", "complete original-to-redrive lineage is not yet authoritative"),
+        "settlement": _uncheckable("T116", "settlement cannot be inferred where outcome pointers are absent"),
     }
 
 
 def build_program_world_snapshot(
     *,
     subject: str = "akashic-aurora-program",
-    ledger_path: Optional[str] = None,
-    ledger_reader: Optional[Callable[..., Mapping[str, Any]]] = None,
-    arcs_register_path: Optional[str] = None,
-    arcs_register_reader: Optional[Callable[..., Mapping[str, Any]]] = None,
-    checked_at: Optional[str] = None,
-    generated_at: Optional[str] = None,
+    ledger_path: str | None = None,
+    ledger_reader: Callable[..., Mapping[str, Any]] | None = None,
+    arcs_register_path: str | None = None,
+    arcs_register_reader: Callable[..., Mapping[str, Any]] | None = None,
+    checked_at: str | None = None,
+    generated_at: str | None = None,
     max_items: int = 64,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Read the git-durable task ledger and build the first live projection.
 
     Redis is explicitly disabled for this authority read.  Unwired organs are
@@ -508,13 +483,13 @@ def build_program_world_snapshot(
     reader = ledger_reader or _read_task_ledger_file
     arcs_path = arcs_register_path or str(_ARCS_REGISTER_PATH)
     arcs_reader = arcs_register_reader or _read_arcs_register
-    sources: List[Dict[str, Any]] = []
-    items: List[Dict[str, Any]] = []
+    sources: list[dict[str, Any]] = []
+    items: list[dict[str, Any]] = []
     ledger_supported = False
     ledger_basis = ""
     ledger_error = ""
-    ledger: Optional[Mapping[str, Any]] = None
-    arcs_register: Optional[Mapping[str, Any]] = None
+    ledger: Mapping[str, Any] | None = None
+    arcs_register: Mapping[str, Any] | None = None
     try:
         candidate = _json_clone(reader(path, client=None))
         if not isinstance(candidate, Mapping) or not isinstance(candidate.get("tasks", []), list):
@@ -555,9 +530,7 @@ def build_program_world_snapshot(
             tid = _text(task["id"])
             title, title_full_chars, title_truncated = _bounded_text(task.get("title"), 240)
             deps, deps_total, deps_truncated = _bounded_text_list(task.get("deps"), item_limit=8)
-            files, files_total, files_truncated = _bounded_text_list(
-                task.get("files"), item_limit=8
-            )
+            files, files_total, files_truncated = _bounded_text_list(task.get("files"), item_limit=8)
             items.append(
                 {
                     "object_ref": f"task:{tid}",
@@ -582,27 +555,21 @@ def build_program_world_snapshot(
                         "commit": task.get("commit"),
                         "arc": _text(task.get("arc")) or "UNCLASSIFIED",
                     },
-                    "epistemic_view": _task_epistemic_view(
-                        ledger_basis, status, source_checked_at
-                    ),
+                    "epistemic_view": _task_epistemic_view(ledger_basis, status, source_checked_at),
                 }
             )
     return assemble_world_snapshot(
         subject=subject,
         sources=sources,
         items=items,
-        capabilities=_program_capabilities(
-            ledger_supported, ledger_basis, ledger_error, arcs_register
-        ),
+        capabilities=_program_capabilities(ledger_supported, ledger_basis, ledger_error, arcs_register),
         generated_at=one_clock,
         max_items=max_items,
         projection_label="ledger projection",
     )
 
 
-def project_operational_brief(
-    snapshot: Mapping[str, Any], *, max_items: int = 8
-) -> Dict[str, Any]:
+def project_operational_brief(snapshot: Mapping[str, Any], *, max_items: int = 8) -> dict[str, Any]:
     """Project a compact operational orientation packet from one snapshot.
 
     This deliberately is *not* an identity or relationship-continuity capsule.
@@ -616,20 +583,9 @@ def project_operational_brief(
     max_items = int(max_items)
     rows = _json_clone(snapshot.get("items") or [])
     focus = rows[:max_items]
-    source_refs = sorted(
-        {
-            ref
-            for item in focus
-            for ref in item.get("source_refs", [])
-            if _text(ref)
-        }
-    )
-    sources = [
-        _json_clone(source)
-        for source in snapshot.get("sources", [])
-        if source.get("name") in source_refs
-    ]
-    brief: Dict[str, Any] = {
+    source_refs = sorted({ref for item in focus for ref in item.get("source_refs", []) if _text(ref)})
+    sources = [_json_clone(source) for source in snapshot.get("sources", []) if source.get("name") in source_refs]
+    brief: dict[str, Any] = {
         "schema_version": BRIEF_SCHEMA_VERSION,
         "purpose": "operational_orientation",
         "identity_authority": "none",
@@ -654,10 +610,8 @@ def project_operational_brief(
     return brief
 
 
-def main(argv: Optional[Iterable[str]] = None) -> int:
-    parser = argparse.ArgumentParser(
-        description="Read-only WorldSnapshot SUBJECT / ATTENTION projection"
-    )
+def main(argv: Iterable[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="Read-only WorldSnapshot SUBJECT / ATTENTION projection")
     parser.add_argument("--subject", default="akashic-aurora-program")
     parser.add_argument("--ledger-path", default=None)
     parser.add_argument("--max-items", type=int, default=64)

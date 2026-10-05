@@ -35,6 +35,7 @@ Collapsing wedged into working is the silence this fixes. Collapsing wedged into
   D4  the wedge verdict is distinct from BOTH healthy and down
   D5  an unreadable probe reports unknown, never 'fine' -- the A4 law
 """
+
 import os
 import sys
 import time
@@ -56,15 +57,13 @@ def _trigger(tmp, agent, sid, age_s=0.0):
 
 def test_d1_a_fresh_trigger_is_not_a_wedge(tmp_path):
     _trigger(tmp_path, "claude", "s1", age_s=5)
-    state, detail = daemon_state.rearm_backlog_state("claude", tmp=str(tmp_path),
-                                                     tolerance_s=180)
+    state, detail = daemon_state.rearm_backlog_state("claude", tmp=str(tmp_path), tolerance_s=180)
     assert state == "working", detail
 
 
 def test_d2_a_stale_trigger_is_a_wedge(tmp_path):
     _trigger(tmp_path, "claude", "s1", age_s=900)
-    state, detail = daemon_state.rearm_backlog_state("claude", tmp=str(tmp_path),
-                                                     tolerance_s=180)
+    state, detail = daemon_state.rearm_backlog_state("claude", tmp=str(tmp_path), tolerance_s=180)
     assert state == "wedged", detail
     assert "s1" in detail or "1" in detail, "D2: the detail must name what is going unconsumed"
 
@@ -85,8 +84,7 @@ def test_d4_wedged_is_its_own_state(tmp_path):
 
 def test_d5_an_unreadable_probe_is_unknown_not_fine(tmp_path):
     """A4: claim neither direction when the probe cannot tell."""
-    state, detail = daemon_state.rearm_backlog_state(
-        "claude", tmp=str(tmp_path / "does-not-exist"), tolerance_s=180)
+    state, detail = daemon_state.rearm_backlog_state("claude", tmp=str(tmp_path / "does-not-exist"), tolerance_s=180)
     assert state in ("unknown", "working"), detail
     if state == "unknown":
         assert "unknown" in detail.lower() or "cannot" in detail.lower()

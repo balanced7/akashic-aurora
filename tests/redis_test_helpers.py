@@ -8,17 +8,20 @@ default 15), flushed clean first. If Redis is down they return None so the calle
 This is the root-cause fix for the 2026-06-20 incident where running the suite against
 the live Redis polluted the real knowledge store.
 """
+
 import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from config import REDIS_TEST_DB
+from core.foundation.ledger import RedisLedger
 from core.foundation.redis_connection import (
-    DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT, probe_redis_reachable,
+    DEFAULT_REDIS_HOST,
+    DEFAULT_REDIS_PORT,
+    probe_redis_reachable,
 )
 from core.foundation.store import RedisStore
-from core.foundation.ledger import RedisLedger
 
 
 def redis_up() -> bool:
@@ -32,7 +35,7 @@ def fresh_test_store():
     rs = RedisStore.connect(timeout_seconds=2.0, db=REDIS_TEST_DB)
     if not rs.is_available():
         return None
-    rs._client.flushdb()   # safe: this is the tests-only DB, never canonical db 0
+    rs._client.flushdb()  # safe: this is the tests-only DB, never canonical db 0
     return rs
 
 

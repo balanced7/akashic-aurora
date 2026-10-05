@@ -22,9 +22,9 @@ import time
 import requests
 from redis import Redis
 from redis.exceptions import RedisError
+from session_canonical import envelope_to_plaintext
 
 from config import SESSION_EVENTS_STREAM
-from session_canonical import envelope_to_plaintext
 
 # Config
 WSL_HOST = "127.0.0.1"
@@ -53,7 +53,7 @@ class SessionCompressor:
         for redis_inst, name in [(self.wsl_redis, "WSL"), (self.win_redis, "Windows")]:
             try:
                 redis_inst.execute_command("FT.INFO", "session_text_idx")
-                logger.info(f"{name}: text index exists")
+                logger.info("%s: text index exists", name)
             except Exception:
                 try:
                     redis_inst.execute_command(
@@ -72,16 +72,15 @@ class SessionCompressor:
                         "summary",
                         "TEXT",
                     )
-                    logger.info(f"{name}: created text index")
+                    logger.info("%s: created text index", name)
                 except Exception as e:
-                    logger.error(f"{name}: index creation failed: {e}")
+                    logger.error("%s: index creation failed: %s", name, e)
 
     def summarize_with_gemma(self, log_text):
         try:
             prompt = (
                 "Summarize this session log in 2-3 sentences. "
-                "Focus on decisions, outcomes, and key learnings.\n\n"
-                + log_text[:15000]
+                "Focus on decisions, outcomes, and key learnings.\n\n" + log_text[:15000]
             )
             resp = requests.post(
                 f"{GEMMA_URL}/api/chat",
@@ -105,7 +104,7 @@ class SessionCompressor:
                 return str(blob or "")
             if kt == "list":
                 lines = self.wsl_redis.lrange(log_key, 0, -1) or []
-                return "\n".join(str(l) for l in lines)
+                return "\n".join(str(ln) for ln in lines)
 
             kb = self.win_redis.type(log_key) if log_key else None
             kb_s = kb or ""
@@ -113,7 +112,7 @@ class SessionCompressor:
                 return str(self.win_redis.get(log_key) or "")
             if kb_s == "list":
                 lines = self.win_redis.lrange(log_key, 0, -1) or []
-                return "\n".join(str(l) for l in lines)
+                return "\n".join(str(ln) for ln in lines)
         except Exception as e:
             logger.warning("gather log %s (type=%s): %s", log_key, kt, e)
         return ""
@@ -169,7 +168,7 @@ class SessionCompressor:
                     for i in range(1, len(res), 2):
                         if i + 1 < len(res):
                             doc = res[i + 1]
-                            results.append(dict(zip(doc[::2], doc[1::2])))
+                            results.append(dict(zip(doc[::2], doc[1::2], strict=False)))
             except Exception as e:
                 logger.error("Search failed in %s: %s", name, e)
         return results[:limit]
@@ -178,10 +177,7 @@ class SessionCompressor:
         if not buf.strip():
             return
         combined = self._gather_raw_log(session_id)
-        if combined.strip():
-            merged = buf.rstrip() + "\n\n--- list/string log ---\n" + combined
-        else:
-            merged = buf
+        merged = buf.rstrip() + "\n\n--- list/string log ---\n" + combined if combined.strip() else buf
         self.compress_body_to_summaries(session_id, merged)
 
     def _stream_consumer_loop(self):
@@ -200,9 +196,7 @@ class SessionCompressor:
                     deadline.pop(sid, None)
 
             try:
-                out = self.wsl_redis.xread(
-                    {SESSION_EVENTS_STREAM: last_id}, count=80, block=STREAM_XREAD_MS
-                )
+                out = self.wsl_redis.xread({SESSION_EVENTS_STREAM: last_id}, count=80, block=STREAM_XREAD_MS)
             except RedisError as e:
                 logger.warning("XREAD stall: %s", e)
                 time.sleep(1)
@@ -272,11 +266,7 @@ class SessionCompressor:
                 channel = ""
 
             raw_key = msg.get("data")
-            key = (
-                raw_key.decode()
-                if isinstance(raw_key, (bytes, bytearray))
-                else str(raw_key or "")
-            )
+            key = raw_key.decode() if isinstance(raw_key, (bytes, bytearray)) else str(raw_key or "")
 
             trigger = ":set" in channel or ":rpush" in channel
             if not trigger:
@@ -295,10 +285,7 @@ class SessionCompressor:
 if __name__ == "__main__":
     c = SessionCompressor()
     if "--test" in sys.argv:
-        test_log = (
-            "Started Redis HA, installed redis-stack, created text indexes. "
-            "Session log compression working."
-        )
+        test_log = "Started Redis HA, installed redis-stack, created text indexes. Session log compression working."
         c.wsl_redis.set("session:test_001:log", test_log)
         c.compress_session("test_001")
         print("\nSearch test:")

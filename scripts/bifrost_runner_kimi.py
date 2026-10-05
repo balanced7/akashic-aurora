@@ -27,6 +27,7 @@ Run:  py scripts/bifrost_runner_kimi.py --agentic                    # phase-1 s
       py scripts/bifrost_runner_kimi.py --agentic --once             # smoke: one wake
 Key:  env KIMI_API_KEY else .secrets/kimi.key (same convention as ask_kimi.py).
 """
+
 import argparse
 import json
 import os
@@ -35,14 +36,14 @@ import threading
 import time
 from pathlib import Path
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.dirname(HERE))
-sys.path.insert(0, HERE)
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+import contextlib
+
+from core.comm import control, liveness, roster
+from core.comm import shift_turn as _shift_turn  # turn boundary
 from core.comm.bus import Bus
-from core.comm import control
-from core.comm import shift_turn as _shift_turn  # noqa: E402  (turn boundary)
-from core.comm import liveness, roster
 
 # T150: make this runner WATCHABLE. Python block-buffers stdout when it is not a TTY -- exactly the
 # case when an orchestrator captures it -- so a five-seat round on 2026-08-03 ran with every log at
@@ -52,26 +53,30 @@ from core.comm import liveness, roster
 # The same call pins the ENCODING, which closes a real crash: a check-mark in a trace line raises
 # UnicodeEncodeError under Windows cp1252. Guarded -- a stream that cannot be reconfigured (pytest
 # capture, an exotic wrapper) must degrade to the old behaviour, never take the runner down.
-try:
+try:  # noqa: SIM105  # tests t150/t152 pin a try/except guard here
     sys.stdout.reconfigure(encoding="utf-8", errors="replace", line_buffering=True)
 except Exception:
     pass
-try:
+try:  # noqa: SIM105  # tests t150/t152 pin a try/except guard here
     sys.stderr.reconfigure(encoding="utf-8", errors="replace", line_buffering=True)
 except Exception:
     pass
 
-from core.comm import nudge
-from core.comm import runner_lock
-from core.comm import daemon_state      # 9e1bc7ce78: a bare runner says so at startup
-from core.comm import self_restart
-from core.comm.conductor_gate import notice_conductor_absence
-from core.comm import context_hints
-from core.comm.timescale import scaled as _scaled
-from core.comm.toolbox import ToolBox, TOOLS   # K0 canonical seam -- first direct consumer
 
-from kimi_chat import (KimiAgent, SpendMeter, DEFAULT_MODEL, DEFAULT_EFFORT,
-                       MAX_COMPLETION_TOKENS, load_key)
+from kimi_chat import DEFAULT_EFFORT, DEFAULT_MODEL, MAX_COMPLETION_TOKENS, KimiAgent, SpendMeter, load_key
+
+from core.comm import (
+    context_hints,
+    daemon_state,  # 9e1bc7ce78: a bare runner says so at startup
+    nudge,
+    runner_lock,
+    self_restart,
+)
+from core.comm.conductor_gate import notice_conductor_absence
+from core.comm.timescale import scaled as _scaled
+from core.comm.toolbox import TOOLS, ToolBox  # K0 canonical seam -- first direct consumer
+
+HERE = os.path.dirname(os.path.abspath(__file__))
 
 CARD = {
     "runtime_class": "api",
@@ -83,16 +88,18 @@ CARD = {
 # 'steer' deliberately NOT answerable (folds via inject); 'reply' NOT answerable (echo-loop guard).
 ANSWERABLE = frozenset({"chat", "request", "question", "handoff", "nudge", "inform"})
 
-REPLY_TIMEOUT_SEC = _scaled(600)   # thinking turns run long; drill-shrinkable
+REPLY_TIMEOUT_SEC = _scaled(600)  # thinking turns run long; drill-shrinkable
 KIMI_MAX_HOPS = int(os.getenv("KIMI_MAX_HOPS", "30"))
-BUDGET_EXEMPT_SENDERS = frozenset({"user", "daniel"})   # directed human asks always answer
+BUDGET_EXEMPT_SENDERS = frozenset({"user", "daniel"})  # directed human asks always answer
 
-DEFAULT_SYSTEM = ("You are kimi (kimi-k3), operating as an agentic technical partner on "
-                  "Akashic Aurora -- the third frontier seat beside claude (Fable) and "
-                  "deepseek. You are reached over a shared message bus; each reply posts "
-                  "back to the sender, so make it self-contained. Your standing lanes: "
-                  "fence third voice, fresh-eyes dissent, tiebreaks, label honesty "
-                  "(VERIFIED/INFER/GUESS is your native register).")
+DEFAULT_SYSTEM = (
+    "You are kimi (kimi-k3), operating as an agentic technical partner on "
+    "Akashic Aurora -- the third frontier seat beside claude (Fable) and "
+    "deepseek. You are reached over a shared message bus; each reply posts "
+    "back to the sender, so make it self-contained. Your standing lanes: "
+    "fence third voice, fresh-eyes dissent, tiebreaks, label honesty "
+    "(VERIFIED/INFER/GUESS is your native register)."
+)
 
 # RB-27a: tenure fencing generation (one-slot mutable so closures see main()'s value).
 PULSE_GEN = [0]
@@ -133,6 +140,7 @@ def _reply_already_sent(bus, mid) -> bool:
         pass
     try:
         from core.foundation.store import create_store
+
         return bool(create_store().get(f"reply_sent:{mid}"))
     except Exception:
         return False
@@ -140,12 +148,11 @@ def _reply_already_sent(bus, mid) -> bool:
 
 def _mark_reply_sent(bus, mid) -> None:
     """Set AFTER the reply sends, BEFORE the cursor commits. Both writes best-effort."""
-    try:
+    with contextlib.suppress(Exception):
         bus._client.set(REPLY_SENT_PREFIX + str(mid), "1", ex=REPLY_TIMEOUT_SEC + 60, nx=True)
-    except Exception:
-        pass
     try:
         from core.foundation.store import create_store
+
         store = create_store()
         store.set(f"reply_sent:{mid}", "1")
         store.expire(f"reply_sent:{mid}", REPLY_TIMEOUT_SEC + 60)
@@ -159,27 +166,26 @@ KILLPOINT = os.environ.get("AKASHIC_KILLPOINT", "")
 
 
 def _killpoint(name: str) -> None:
-    if KILLPOINT and KILLPOINT == name:
+    if KILLPOINT and name == KILLPOINT:
         print(f"[kimi-runner] KILLPOINT {name} -- dying (drill)", flush=True)
         os._exit(137)
 
 
 # ---- onboarding (the same boot door every citizen walks) -------------------------------------
 
+
 def _trim_onboarding(digest: str, budget_chars: int) -> str:
     """T050 Q2 / T043 packet law: never silently truncate -- cut at budget, NAME every dropped
     section with a pull pointer.
-    
+
     T120 F2 (07-28, deepseek): the contour names total sections, how many were dropped,
     and the budget constraint so the agent can gauge the severity of the cut — not just
     which sections are gone."""
     if len(digest) <= budget_chars:
         return digest
     head, tail = digest[:budget_chars], digest[budget_chars:]
-    all_sections = [ln.strip().lstrip("#").strip() for ln in digest.splitlines()
-                    if ln.strip().startswith("##")]
-    dropped = [ln.strip().lstrip("#").strip() for ln in tail.splitlines()
-               if ln.strip().startswith("##")]
+    all_sections = [ln.strip().lstrip("#").strip() for ln in digest.splitlines() if ln.strip().startswith("##")]
+    dropped = [ln.strip().lstrip("#").strip() for ln in tail.splitlines() if ln.strip().startswith("##")]
     n_total = len(all_sections)
     n_dropped = len(dropped)
     n_kept = n_total - n_dropped
@@ -190,30 +196,37 @@ def _trim_onboarding(digest: str, budget_chars: int) -> str:
     named = "; ".join(distinct[:8]) if distinct else "tail content (cut mid-section)"
     more = f" (+{len(distinct) - 8} more distinct)" if len(distinct) > 8 else ""
     contour = f"{n_kept}/{n_total} sections kept"
-    return (head.rstrip()
-            + f"\n... [onboarding TRIMMED at its {budget_chars}-char budget "
-              f"({contour}). DROPPED: {named}{more}. "
-              f"Pull any of it: knowledge_boot(task=...) re-assembles the full briefing; "
-              f"knowledge_recall(query=...) fetches specifics. Never guess at what was cut.]")
+    return (
+        head.rstrip() + f"\n... [onboarding TRIMMED at its {budget_chars}-char budget "
+        f"({contour}). DROPPED: {named}{more}. "
+        f"Pull any of it: knowledge_boot(task=...) re-assembles the full briefing; "
+        f"knowledge_recall(query=...) fetches specifics. Never guess at what was cut.]"
+    )
 
 
-def onboarding_context(root: Path, agent_id: str, task: str, budget_chars: int = 6000,
-                       door_detail: str = "") -> str:
+def onboarding_context(root: Path, agent_id: str, task: str, budget_chars: int = 6000, door_detail: str = "") -> str:
     """Pull the project's startup briefing ONCE at boot and fold a TRIMMED digest into the
     system prompt. ONCE matters doubly here: the digest joins the FROZEN cache prefix.
     Never raises; '' on failure."""
     import subprocess
     import tempfile
+
     env = dict(os.environ)
     env["AKASHIC_SEAT_DOOR"] = "toolbox"
     if door_detail:
         env["AKASHIC_SEAT_DOOR_DETAIL"] = door_detail
     sources_file = os.path.join(tempfile.gettempdir(), f"boot_sources_{agent_id}_{os.getpid()}.json")
     try:
-        p = subprocess.run([sys.executable, "agent_cli.py", "boot", agent_id, "--task", task,
-                            "--sources-json", sources_file],
-                           cwd=str(root), capture_output=True, text=True,
-                           encoding="utf-8", errors="replace", timeout=90, env=env)
+        p = subprocess.run(
+            [sys.executable, "agent_cli.py", "boot", agent_id, "--task", task, "--sources-json", sources_file],
+            cwd=str(root),
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=90,
+            env=env,
+        )
         digest = (p.stdout or "").strip()
     except Exception:
         return ""
@@ -230,18 +243,21 @@ def onboarding_context(root: Path, agent_id: str, task: str, budget_chars: int =
     try:
         # T050 Q1: the agent's PRIVATE notes-to-self ride every boot (post-trim: small, never cut).
         from core.learning.agent_memory import get_agent_memory
+
         pref = f"scratch:{agent_id}:"
-        notes = [d for d in get_agent_memory().get_decisions(days=365)
-                 if str(d.title).startswith(pref) and not d.superseded][:8]
+        notes = [
+            d for d in get_agent_memory().get_decisions(days=365) if str(d.title).startswith(pref) and not d.superseded
+        ][:8]
         if notes:
             digest += "\n\n## YOUR PRIVATE NOTES (yours alone; memory_note updates, memory_recall lists)\n"
-            digest += "\n".join(f"- {d.title[len(pref):]}: {str(d.decision)[:160]}" for d in notes)
+            digest += "\n".join(f"- {d.title[len(pref) :]}: {str(d.decision)[:160]}" for d in notes)
     except Exception:
         pass
     return digest
 
 
 # ---- RB-23 quality gates (reused genus-level, sol precedent) ---------------------------------
+
 
 def _rb23_gates(answer: str, resend, agent_id: str, pulse=None) -> str:
     """T018 promise bounce + RB-23 content floor before any reply ships. Reused from
@@ -253,30 +269,49 @@ def _rb23_gates(answer: str, resend, agent_id: str, pulse=None) -> str:
         print(f"[kimi-runner] RB-23 gates unavailable ({type(e).__name__}: {e}) -- shipping ungated")
         return answer
     if pulse is None:
+
         def pulse(agent, reason, **kw):
             liveness.pulse_error(agent, reason, generation=PULSE_GEN[0])
+
     pre = answer
     answer = bounce_promise(answer, resend)
-    return content_floor_check(answer, resend, agent_id=agent_id,
-                               promise_bounce_fired=(answer is not pre), pulse=pulse)
+    return content_floor_check(answer, resend, agent_id=agent_id, promise_bounce_fired=(answer is not pre), pulse=pulse)
 
 
 # ---- the kimi responder (KimiAgent + guarded ToolBox) ----------------------------------------
 
-def make_kimi_replier(model: str, system: str, effort: str, root: Path, agent_id: str,
-                      allow_write: bool = False, allow_exec: bool = False, boot_sources=None):
+
+def make_kimi_replier(
+    model: str,
+    system: str,
+    effort: str,
+    root: Path,
+    agent_id: str,
+    allow_write: bool = False,
+    allow_exec: bool = False,
+    boot_sources=None,
+):
     """Tool-using bridge: kimi reads files, searches, inspects git, and queries the knowledge
     base WHILE composing its reply. Per-peer KimiAgent conversations for continuity; ONE
     shared SpendMeter across all of them (a budget is per-seat, not per-friendship)."""
     # T050 Q3+Q4: capabilities declared UP FRONT -- no hop wasted discovering what a session can do.
-    system = (f"[session capabilities] write_mode: "
-              f"{'ENABLED (guarded write_file/edit_file live; locks self-release at reply)' if allow_write else 'READ-ONLY -- write_file/edit_file will refuse; investigate and report'}"
-              f" | tool budget: {KIMI_MAX_HOPS} hops per task, running counter [hop N] rides every result"
-              f" | reasoning: always-on (kimi-k3), thinking streams to the bus | recall-at: off\n"
-              + system)
-    toolbox = ToolBox(root, allow_exec=allow_exec, trust=allow_exec, allow_secrets=False,
-                      confirm=lambda _p: False, agent_id=agent_id, allow_write=allow_write,
-                      boot_text=system, boot_sources=boot_sources)
+    system = (
+        f"[session capabilities] write_mode: "
+        f"{'ENABLED (guarded write_file/edit_file live; locks self-release at reply)' if allow_write else 'READ-ONLY -- write_file/edit_file will refuse; investigate and report'}"
+        f" | tool budget: {KIMI_MAX_HOPS} hops per task, running counter [hop N] rides every result"
+        f" | reasoning: always-on (kimi-k3), thinking streams to the bus | recall-at: off\n" + system
+    )
+    toolbox = ToolBox(
+        root,
+        allow_exec=allow_exec,
+        trust=allow_exec,
+        allow_secrets=False,
+        confirm=lambda _p: False,
+        agent_id=agent_id,
+        allow_write=allow_write,
+        boot_text=system,
+        boot_sources=boot_sources,
+    )
 
     _wl = liveness.worklive(agent_id)
 
@@ -290,15 +325,18 @@ def make_kimi_replier(model: str, system: str, effort: str, root: Path, agent_id
     def on_trace(kind, text):
         prefix = "🔧" if kind == "tool" else "💭"
         liveness.pulse(agent_id, f"{kind}:{str(text)[:60]}", generation=PULSE_GEN[0])
-        try:
-            trace_bus.broadcast("trace", f"{prefix} {text}",
-                                meta={"via": f"{agent_id}-runner", "hops": 0, "trace": kind,
-                                      "display_only": True})
-        except Exception:
-            pass
+        with contextlib.suppress(Exception):
+            trace_bus.broadcast(
+                "trace",
+                f"{prefix} {text}",
+                meta={"via": f"{agent_id}-runner", "hops": 0, "trace": kind, "display_only": True},
+            )
 
-    interrupt = lambda: control.is_halted(agent_id) or nudge.is_nudged(agent_id)
-    inject = lambda: nudge.steer_drain(agent_id)
+    def interrupt():
+        return control.is_halted(agent_id) or nudge.is_nudged(agent_id)
+
+    def inject():
+        return nudge.steer_drain(agent_id)
 
     def _dispatch(name, args):
         fn = getattr(toolbox, name, None)
@@ -314,12 +352,20 @@ def make_kimi_replier(model: str, system: str, effort: str, root: Path, agent_id
             # CACHE CONTRACT: system + TOOLS freeze inside KimiAgent at construction; the
             # per-peer history is append-only from here. All peers share the identical
             # prefix, so Moonshot's cache warms across conversations, not just turns.
-            ag = KimiAgent(instructions=system, model=model, effort=effort,
-                           max_completion_tokens=MAX_COMPLETION_TOKENS,
-                           tools_schemas=TOOLS, dispatch=_dispatch,
-                           interrupt=interrupt, inject=inject,
-                           on_trace=on_trace, on_activity=on_activity,
-                           max_hops=KIMI_MAX_HOPS, meter=METER)
+            ag = KimiAgent(
+                instructions=system,
+                model=model,
+                effort=effort,
+                max_completion_tokens=MAX_COMPLETION_TOKENS,
+                tools_schemas=TOOLS,
+                dispatch=_dispatch,
+                interrupt=interrupt,
+                inject=inject,
+                on_trace=on_trace,
+                on_activity=on_activity,
+                max_hops=KIMI_MAX_HOPS,
+                meter=METER,
+            )
             convos[frm] = ag
         try:
             hints = context_hints.drain(agent_id)
@@ -337,10 +383,8 @@ def make_kimi_replier(model: str, system: str, effort: str, root: Path, agent_id
             # gives a transient failure exactly one retry before it confesses.
             answer = f"(kimi agentic runner error: {type(e).__name__}: {e})"
         answer = _rb23_gates(answer, ag.send, agent_id)
-        try:
-            toolbox.release_written_locks()   # T048: task end = lock end
-        except Exception:
-            pass
+        with contextlib.suppress(Exception):
+            toolbox.release_written_locks()  # T048: task end = lock end
         return answer or "(kimi produced no final answer)"
 
     return respond
@@ -348,9 +392,11 @@ def make_kimi_replier(model: str, system: str, effort: str, root: Path, agent_id
 
 def make_one_shot_replier(model: str, system: str, effort: str, agent_id: str = "kimi"):
     """One-shot bridge: each message -> one completion -> reply. Fast, toolless, still metered."""
+
     def _one(prompt: str) -> str:
-        ag = KimiAgent(instructions=system, model=model, effort=effort,
-                       max_completion_tokens=MAX_COMPLETION_TOKENS, meter=METER)
+        ag = KimiAgent(
+            instructions=system, model=model, effort=effort, max_completion_tokens=MAX_COMPLETION_TOKENS, meter=METER
+        )
         return ag.send(prompt)
 
     def respond(prompt: str) -> str:
@@ -358,8 +404,11 @@ def make_one_shot_replier(model: str, system: str, effort: str, agent_id: str = 
             answer = _one(prompt)
         except Exception as e:
             answer = f"(kimi runner error: {type(e).__name__}: {e})"
+
         # RB-23 stateless path: the resend re-embeds the original ask.
-        resend = lambda reprompt: _one(prompt + "\n\n[system bounce] " + reprompt)
+        def resend(reprompt):
+            return _one(prompt + "\n\n[system bounce] " + reprompt)
+
         return _rb23_gates(answer, resend, agent_id)
 
     return respond
@@ -367,14 +416,17 @@ def make_one_shot_replier(model: str, system: str, effort: str, agent_id: str = 
 
 # ---- budget governance (deepseek sec-3 contract; kimi-specific pipeline stage) ----------------
 
+
 def budget_refusal(m, bus, agent_id: str, hops: int):
     """HARD-REFUSE a non-directed ask over the spend ceiling -- as kind='reply' WITH
     meta.answers so the sender's expectation SETTLES (RB-29: refusals reply, never vanish).
     Returns True when the refusal was sent (caller sentinels + advances as a handled turn)."""
-    text = (f"(kimi budget hard-refusal: ${METER.spent():.2f} spent of the "
-            f"${METER.budget:.0f} grant, past the ${'%.0f' % float(os.getenv('KIMI_SPEND_REFUSE', '95'))} ceiling. "
-            f"Non-directed work is refused. A super-admin can raise KIMI_SPEND_REFUSE or "
-            f"Daniel can direct this ask explicitly.)")
+    text = (
+        f"(kimi budget hard-refusal: ${METER.spent():.2f} spent of the "
+        f"${METER.budget:.0f} grant, past the ${'{:.0f}'.format(float(os.getenv('KIMI_SPEND_REFUSE', '95')))} ceiling. "
+        f"Non-directed work is refused. A super-admin can raise KIMI_SPEND_REFUSE or "
+        f"Daniel can direct this ask explicitly.)"
+    )
     meta = {"via": f"{agent_id}-runner", "hops": hops, "answers": m.id, "budget_refusal": True}
     if str(m.to) == "*":
         bus.broadcast("reply", text, meta=meta)
@@ -406,10 +458,10 @@ def _declare(agent, m, intent, note="", to=""):
     break the consume loop would trade a mail bug for a dead seat."""
     try:
         from core.comm import mailbox
-        r = mailbox.declare_for_message(agent, m, intent, incarnation=_INCARNATION,
-                                        note=note, to=to)
+
+        r = mailbox.declare_for_message(agent, m, intent, incarnation=_INCARNATION, note=note, to=to)
         if not r.get("ok"):
-            print(f"[kimi-runner] mail declare skipped ({intent}): {r.get('reason','?')}")
+            print(f"[kimi-runner] mail declare skipped ({intent}): {r.get('reason', '?')}")
         return r
     except Exception as exc:
         print(f"[kimi-runner] mail declare failed ({intent}): {exc}")
@@ -419,8 +471,8 @@ def _declare(agent, m, intent, note="", to=""):
 def _process_one(m, bus, args, responder, rate) -> None:
     """Process ONE incoming message: filter chain, budget gate, model turn, reply, sentinel.
     Cursor commit stays in the main loop."""
-    from core.coord import cognitive_metrics as cog
     from core.comm import turn_metrics as _tm
+    from core.coord import cognitive_metrics as cog
 
     # [1] R7/T058: a user's clarify-answer routes to the steer queue
     if str(m.kind) == "reply" and str(m.frm) == "user":
@@ -434,8 +486,7 @@ def _process_one(m, bus, args, responder, rate) -> None:
     if str(m.kind) == "hint":
         meta = m.meta or {}
         hint_data = meta.get("hint") or {}
-        ok = context_hints.push(args.agent, hint_data.get("key", "?"),
-                                hint_data.get("value", "?"), from_agent=m.frm)
+        ok = context_hints.push(args.agent, hint_data.get("key", "?"), hint_data.get("value", "?"), from_agent=m.frm)
         if ok:
             cog.record_file_read(args.agent, hint_data.get("key", "?"), from_hint=True)
             print(f"[kimi-runner] hint accepted ({hint_data.get('key', '?')}) from {m.frm}")
@@ -452,8 +503,7 @@ def _process_one(m, bus, args, responder, rate) -> None:
         # The single largest source of permanently-"unhandled" mail: this seat looked, decided the
         # message was not its to answer, and said nothing. Silence here is indistinguishable from
         # never having read it, which is what makes every later reader re-adjudicate.
-        _declare(args.agent, m, "decline",
-                 note=f"not answerable by this seat (kind={m.kind}, from={m.frm})")
+        _declare(args.agent, m, "decline", note=f"not answerable by this seat (kind={m.kind}, from={m.frm})")
         return
 
     # [5] RB-26 dedup sentinel check
@@ -464,9 +514,12 @@ def _process_one(m, bus, args, responder, rate) -> None:
     # [6] hop-count loop guard
     hops = control.next_hops(m.meta)
     if control.hops_exceeded(m.meta):
-        bus.send(m.frm, "note",
-                 f"[loop-guard] max hops ({control.MAX_HOPS}) reached -- returning to a human.",
-                 meta={"via": f"{args.agent}-runner", "hops": hops})
+        bus.send(
+            m.frm,
+            "note",
+            f"[loop-guard] max hops ({control.MAX_HOPS}) reached -- returning to a human.",
+            meta={"via": f"{args.agent}-runner", "hops": hops},
+        )
         print(f"[kimi-runner] loop-guard: hops>={control.MAX_HOPS}; not answering {m.frm}")
         _declare(args.agent, m, "decline", note=f"loop-guard: hops>={control.MAX_HOPS}")
         return
@@ -474,9 +527,12 @@ def _process_one(m, bus, args, responder, rate) -> None:
     # [7] rate-limit backstop
     if not rate.allow():
         control.pause(reason=f"{args.agent} hit reply rate limit", by=args.agent, ttl=3600)
-        bus.send(m.frm, "note",
-                 "[loop-guard] reply rate limit hit -- auto-paused (self-heals in <=1h).",
-                 meta={"via": f"{args.agent}-runner", "hops": hops})
+        bus.send(
+            m.frm,
+            "note",
+            "[loop-guard] reply rate limit hit -- auto-paused (self-heals in <=1h).",
+            meta={"via": f"{args.agent}-runner", "hops": hops},
+        )
         print("[kimi-runner] rate limit -> auto-paused (ttl 1h)")
         # DEFER, not decline: this mail is still owed an answer once the limiter clears. The
         # distinction is the whole point of a closed intent roster -- "I will not" and "not yet"
@@ -487,15 +543,19 @@ def _process_one(m, bus, args, responder, rate) -> None:
     # [7b] BUDGET GATE (kimi delta): over the ceiling, non-exempt sender -> loud settling refusal
     if METER.exceeded_hard_limit() and str(m.frm).lower() not in BUDGET_EXEMPT_SENDERS:
         budget_refusal(m, bus, args.agent, hops)
-        _mark_reply_sent(bus, m.id)          # a refusal IS the reply; dedupe redeliveries
+        _mark_reply_sent(bus, m.id)  # a refusal IS the reply; dedupe redeliveries
         _declare(args.agent, m, "decline", note="over the hard budget ceiling; settling refusal sent")
         return
 
     # [8] nudge / halt handling
     if str(m.kind) == "nudge" or nudge.is_nudged(args.agent):
         nudge.clear(args.agent)
-        bus.send(m.frm, "note", "[nudge ack] interrupting current work to look at this now.",
-                 meta={"via": f"{args.agent}-runner", "hops": hops})
+        bus.send(
+            m.frm,
+            "note",
+            "[nudge ack] interrupting current work to look at this now.",
+            meta={"via": f"{args.agent}-runner", "hops": hops},
+        )
         cog.record_human_interjection(args.agent)
         print(f"[kimi-runner] nudge from {m.frm} -> acked + cleared")
     if control.is_halted(args.agent) and str(m.kind) != "nudge":
@@ -565,17 +625,24 @@ def _process_one(m, bus, args, responder, rate) -> None:
     _mark_reply_sent(bus, m.id)
 
     # [15] P6 handoff auto-ack -- RB-29: timeout/error answers never ack
-    answered_ok = (finished and result_holder and not isinstance(result_holder[0], Exception)
-                   and not out.startswith("(kimi"))
+    answered_ok = (
+        finished and result_holder and not isinstance(result_holder[0], Exception) and not out.startswith("(kimi")
+    )
     # A timeout or a responder error is NOT an act -- it is work still owed. Declaring `act` on a
     # non-answer would launder a failure into a completion, which is the exact laundering this
     # whole layer exists to stop.
-    _declare(args.agent, m, "act" if answered_ok else "defer",
-             note="answered on the bus" if answered_ok
-             else f"reply attempt did not answer ({_RUN_STATS.get('last_error', 'non-answer')})")
+    _declare(
+        args.agent,
+        m,
+        "act" if answered_ok else "defer",
+        note="answered on the bus"
+        if answered_ok
+        else f"reply attempt did not answer ({_RUN_STATS.get('last_error', 'non-answer')})",
+    )
     if str(m.kind) == "handoff" and answered_ok:
         try:
             from core.comm.promoter import ack as _ack
+
             _ack(args.agent, m.id, note="answered on the bus")
             print(f"[kimi-runner] acked handoff {m.id}")
         except Exception:
@@ -584,18 +651,22 @@ def _process_one(m, bus, args, responder, rate) -> None:
     # [16] turn metrics + spend visibility
     try:
         cog.record_turn_complete(args.agent)
-        outcome = ("timeout" if not finished else "error" if nonanswer else "ok")
+        outcome = "timeout" if not finished else "error" if nonanswer else "ok"
         toks = _token_deltas.pop(m.frm, None)
-        _tm.record(args.agent, str(m.kind), duration_s=time.time() - turn_t0,
-                   progress_points=_tm.take_pulse_count(args.agent),
-                   outcome=outcome, prompt_len=len(str(m.content)),
-                   tokens=({"prompt": toks[0], "completion": toks[1]} if toks else None))
+        _tm.record(
+            args.agent,
+            str(m.kind),
+            duration_s=time.time() - turn_t0,
+            progress_points=_tm.take_pulse_count(args.agent),
+            outcome=outcome,
+            prompt_len=len(str(m.content)),
+            tokens=({"prompt": toks[0], "completion": toks[1]} if toks else None),
+        )
         _RUN_STATS["turns"] += 1
         # T078 W1: same seam deepseek's runner uses -- the delta is already drained above,
         # so this adds the daily aggregate without a second accounting path to drift from.
         if _token_journal is not None and toks:
-            _token_journal.add_turn(prompt=toks[0], completion=toks[1],
-                                    model=getattr(args, "model", ""))
+            _token_journal.add_turn(prompt=toks[0], completion=toks[1], model=getattr(args, "model", ""))
     except Exception:
         pass
 
@@ -607,9 +678,9 @@ def _process_one(m, bus, args, responder, rate) -> None:
 
 # ---- exit summary + continuity (sol hardening slice 1, verbatim pattern) ----------------------
 
+
 def default_summary_path(agent_id: str) -> str:
-    return os.path.join(os.path.dirname(HERE), "state", "runner",
-                        f"{agent_id}-exit-summary.json")
+    return os.path.join(os.path.dirname(HERE), "state", "runner", f"{agent_id}-exit-summary.json")
 
 
 def read_prior_summary(path: str) -> dict:
@@ -635,12 +706,14 @@ def continuity_header(prior: dict) -> str:
     except Exception:
         pass
     err = prior.get("last_error")
-    return (f"## RUNNER CONTINUITY (session {n}; automatic)\n"
-            f"Your last run: exit={prior.get('exit_code')} turns={prior.get('turns')} "
-            f"verdict={prior.get('verdict', '?')}{age}."
-            + (f" Last error: {err}." if err else "")
-            + " If that exit was abnormal, re-verify anything it claimed before building on "
-              "it -- the ledger and notes beat your memory of the run.\n")
+    return (
+        f"## RUNNER CONTINUITY (session {n}; automatic)\n"
+        f"Your last run: exit={prior.get('exit_code')} turns={prior.get('turns')} "
+        f"verdict={prior.get('verdict', '?')}{age}."
+        + (f" Last error: {err}." if err else "")
+        + " If that exit was abnormal, re-verify anything it claimed before building on "
+        "it -- the ledger and notes beat your memory of the run.\n"
+    )
 
 
 def _write_exit_summary(path, exit_code, session=1):
@@ -649,33 +722,41 @@ def _write_exit_summary(path, exit_code, session=1):
     try:
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, "w", encoding="utf-8") as f:
-            json.dump({"exit_code": exit_code, "turns": _RUN_STATS["turns"],
-                       "last_error": _RUN_STATS["last_error"] or None,
-                       "verdict": "ok" if exit_code == 0 else "abnormal",
-                       "session": session,
-                       "spent_usd": METER.spent(),
-                       "timestamp": time.time()}, f)
+            json.dump(
+                {
+                    "exit_code": exit_code,
+                    "turns": _RUN_STATS["turns"],
+                    "last_error": _RUN_STATS["last_error"] or None,
+                    "verdict": "ok" if exit_code == 0 else "abnormal",
+                    "session": session,
+                    "spent_usd": METER.spent(),
+                    "timestamp": time.time(),
+                },
+                f,
+            )
     except Exception:
         pass
 
 
 # ---- main ---------------------------------------------------------------------------------------
 
+
 def build_parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(description="Run Kimi (kimi-k3) as a Bifrost citizen.")
     ap.add_argument("--agent", default="kimi")
     ap.add_argument("--model", default=DEFAULT_MODEL)
     ap.add_argument("--system", default=DEFAULT_SYSTEM)
-    ap.add_argument("--effort", default=DEFAULT_EFFORT,
-                    help="reasoning effort (kimi-k3: 'max' is the only API level today)")
-    ap.add_argument("--agentic", action="store_true",
-                    help="give kimi tools (read files/search/git/knowledge base) while it replies")
-    ap.add_argument("--root", default=os.path.dirname(HERE),
-                    help="file-access root for --agentic (default: the repo)")
-    ap.add_argument("--allow-write", action="store_true",
-                    help="guarded write doors (phase-2; kimi's ACL record governs)")
-    ap.add_argument("--allow-exec", action="store_true",
-                    help="run_command door (phase-2; families-only under trust)")
+    ap.add_argument(
+        "--effort", default=DEFAULT_EFFORT, help="reasoning effort (kimi-k3: 'max' is the only API level today)"
+    )
+    ap.add_argument(
+        "--agentic", action="store_true", help="give kimi tools (read files/search/git/knowledge base) while it replies"
+    )
+    ap.add_argument("--root", default=os.path.dirname(HERE), help="file-access root for --agentic (default: the repo)")
+    ap.add_argument(
+        "--allow-write", action="store_true", help="guarded write doors (phase-2; kimi's ACL record governs)"
+    )
+    ap.add_argument("--allow-exec", action="store_true", help="run_command door (phase-2; families-only under trust)")
     ap.add_argument("--once", action="store_true", help="process one wake then exit (smoke)")
     ap.add_argument("--summary-file", default=None, dest="summary_file")
     ap.add_argument("--inject-summary", default=None, dest="inject_summary")
@@ -684,7 +765,8 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main() -> int:
     try:
-        from core.foundation.streams import self_bless_stdout   # RB-28: utf-8 + line-buffered
+        from core.foundation.streams import self_bless_stdout  # RB-28: utf-8 + line-buffered
+
         self_bless_stdout()
     except Exception:
         pass
@@ -692,7 +774,8 @@ def main() -> int:
     args = build_parser().parse_args()
     # T160: wire records must name the seat that made the call. Imported at the call site so a
     # telemetry import can never keep a runner from starting.
-    from core.comm.runner_lib import set_seat_agent, seat_session_id, retire_seat
+    from core.comm.runner_lib import retire_seat, seat_session_id, set_seat_agent
+
     set_seat_agent(args.agent)
     if args.summary_file is None:
         args.summary_file = default_summary_path(args.agent)
@@ -712,9 +795,12 @@ def main() -> int:
     global _token_journal
     try:
         from scripts.runner_token_journal import TokenJournal
+
         _token_journal = TokenJournal(args.agent)
-        print(f"[kimi-runner] token journal: {_token_journal.turns} turns, "
-              f"{_token_journal.prompt_tokens + _token_journal.completion_tokens} tokens today")
+        print(
+            f"[kimi-runner] token journal: {_token_journal.turns} turns, "
+            f"{_token_journal.prompt_tokens + _token_journal.completion_tokens} tokens today"
+        )
     except Exception:
         pass
 
@@ -722,13 +808,19 @@ def main() -> int:
     if not os.environ.get("AKASHIC_DRILL_ECHO"):
         try:
             from core.trust.registry import may_run_runner
+
             if not may_run_runner(args.agent):
-                print(f"bifrost_runner_kimi: '{args.agent}' is quarantined (deny-by-default) -- "
-                      f"refusing to start. A super-admin must grant it a role in security/acl.json.")
+                print(
+                    f"bifrost_runner_kimi: '{args.agent}' is quarantined (deny-by-default) -- "
+                    f"refusing to start. A super-admin must grant it a role in security/acl.json."
+                )
                 return 3
         except Exception as e:
-            print(f"[kimi-runner] may_run_runner check skipped ({type(e).__name__}) -- "
-                  f"guard NOT active for '{args.agent}'", file=sys.stderr)
+            print(
+                f"[kimi-runner] may_run_runner check skipped ({type(e).__name__}) -- "
+                f"guard NOT active for '{args.agent}'",
+                file=sys.stderr,
+            )
 
     # Singleton: at most ONE runner per agent id.
     lock_token = runner_lock.instance_token(args.agent)
@@ -736,16 +828,21 @@ def main() -> int:
     # seconds later used to be refused (the corpse's key still had TTL) and the seat simply stayed
     # down until a human noticed -- paid for repeatedly on 2026-08-02.
     if not runner_lock.acquire_waiting(
-            args.agent, lock_token,
-            on_wait=lambda h: print(
-                f"[kimi-runner] '{args.agent}' lock held by pid {h.get('pid')} -- waiting for it "
-                f"to lapse. A LIVE holder keeps refreshing it and we will stand down; only an "
-                f"unrefreshed key expires.")):
+        args.agent,
+        lock_token,
+        on_wait=lambda h: print(
+            f"[kimi-runner] '{args.agent}' lock held by pid {h.get('pid')} -- waiting for it "
+            f"to lapse. A LIVE holder keeps refreshing it and we will stand down; only an "
+            f"unrefreshed key expires."
+        ),
+    ):
         h = runner_lock.holder(args.agent) or {}
         tok = str(h.get("token", ""))
         if tok.startswith("session:"):
-            print(f"bifrost_runner_kimi: a session '{tok}' holds the consumer seat for "
-                  f"'{args.agent}' (since {h.get('ts')}). Wind it down or wait for TTL.")
+            print(
+                f"bifrost_runner_kimi: a session '{tok}' holds the consumer seat for "
+                f"'{args.agent}' (since {h.get('ts')}). Wind it down or wait for TTL."
+            )
         else:
             print(f"bifrost_runner_kimi: another '{args.agent}' runner is live (pid {h.get('pid')}).")
         return 3
@@ -758,73 +855,100 @@ def main() -> int:
     # The script name rides along: the daemon's --runner-script default is the deepseek
     # script, so a kimi relaunch hint without it would supervise the wrong runner.
     try:
-        _standalone = daemon_state.standalone_warning(
-            args.agent, runner_script=os.path.basename(__file__))
+        _standalone = daemon_state.standalone_warning(args.agent, runner_script=os.path.basename(__file__))
         if _standalone:
             print(_standalone, file=sys.stderr, flush=True)
-    except Exception as e:                                             # noqa: BLE001
-        print(f"[kimi-runner] standalone check skipped ({type(e).__name__}) -- cannot tell "
-              f"whether a daemon supervises '{args.agent}'", file=sys.stderr, flush=True)
+    except Exception as e:  # noqa: BLE001  # fail-soft: logged, caller continues
+        print(
+            f"[kimi-runner] standalone check skipped ({type(e).__name__}) -- cannot tell "
+            f"whether a daemon supervises '{args.agent}'",
+            file=sys.stderr,
+            flush=True,
+        )
     PULSE_GEN[0] = runner_lock.generation_of(lock_token)
     liveness.worklive(args.agent).set("starting", detail="onboarding")
     liveness.pulse(args.agent, "starting", generation=PULSE_GEN[0])
 
     # Budget conscience wakes FIRST: seed/reconcile against ground truth before any turn.
     bal = METER.reconcile(force=True)
-    print(f"[kimi-runner] {METER.status_line()}"
-          + ("" if bal is not None else " (balance endpoint unreachable -- ledger carries)"))
+    print(
+        f"[kimi-runner] {METER.status_line()}"
+        + ("" if bal is not None else " (balance endpoint unreachable -- ledger carries)")
+    )
     if METER.exceeded_hard_limit():
-        print("[kimi-runner] WARNING: seat is OVER the hard spend ceiling -- only "
-              f"{sorted(BUDGET_EXEMPT_SENDERS)} asks will be answered.")
+        print(
+            "[kimi-runner] WARNING: seat is OVER the hard spend ceiling -- only "
+            f"{sorted(BUDGET_EXEMPT_SENDERS)} asks will be answered."
+        )
 
     # Hardening slice 1: session-2+ continuity header rides BOTH replier modes.
     header = continuity_header(prior)
     base_system = (header + "\n" + args.system) if header else args.system
     if header:
-        print(f"[kimi-runner] continuity: session {session_n} "
-              f"(prior exit={prior.get('exit_code')}, turns={prior.get('turns')})")
+        print(
+            f"[kimi-runner] continuity: session {session_n} "
+            f"(prior exit={prior.get('exit_code')}, turns={prior.get('turns')})"
+        )
 
     if args.agentic:
         root = Path(args.root).resolve()
         system = base_system
-        door_detail = (f"{len(TOOLS)} tools, write={'on' if args.allow_write else 'off'}, "
-                       f"exec={'on' if args.allow_exec else 'off'}")
-        onboard = onboarding_context(root, args.agent,
-                                     "Live Bifrost session: third frontier seat (kimi-k3), "
-                                     "collaborating with claude and deepseek on Akashic Aurora "
-                                     "over the shared bus.",
-                                     door_detail=door_detail)
+        door_detail = (
+            f"{len(TOOLS)} tools, write={'on' if args.allow_write else 'off'}, "
+            f"exec={'on' if args.allow_exec else 'off'}"
+        )
+        onboard = onboarding_context(
+            root,
+            args.agent,
+            "Live Bifrost session: third frontier seat (kimi-k3), "
+            "collaborating with claude and deepseek on Akashic Aurora "
+            "over the shared bus.",
+            door_detail=door_detail,
+        )
         boot_sources = getattr(onboarding_context, "_last_sources", None)
         if boot_sources:
             print(f"[kimi-runner] boot sources from sidecar: {len(boot_sources)} entries")
         if onboard:
-            system += ("\n\n=== PROJECT ONBOARDING (you are a booted Akashic Aurora citizen; honor "
-                       "the AGENTS.md contract) ===\n" + onboard)
+            system += (
+                "\n\n=== PROJECT ONBOARDING (you are a booted Akashic Aurora citizen; honor "
+                "the AGENTS.md contract) ===\n" + onboard
+            )
             print(f"[kimi-runner] onboarded via boot ({len(onboard)} chars folded into system prompt)")
         else:
             print("[kimi-runner] onboarding skipped (boot returned nothing; check agent_cli.py boot)")
-        responder = make_kimi_replier(args.model, system, args.effort, root, args.agent,
-                                      allow_write=args.allow_write, allow_exec=args.allow_exec,
-                                      boot_sources=boot_sources)
-        mode = (f"agentic tools @ {root}{' +write' if args.allow_write else ''}"
-                f"{' +exec' if args.allow_exec else ''}")
+        responder = make_kimi_replier(
+            args.model,
+            system,
+            args.effort,
+            root,
+            args.agent,
+            allow_write=args.allow_write,
+            allow_exec=args.allow_exec,
+            boot_sources=boot_sources,
+        )
+        mode = f"agentic tools @ {root}{' +write' if args.allow_write else ''}{' +exec' if args.allow_exec else ''}"
     else:
-        responder = make_one_shot_replier(args.model, base_system, args.effort,
-                                          agent_id=args.agent)
+        responder = make_one_shot_replier(args.model, base_system, args.effort, agent_id=args.agent)
         mode = "one-shot bridge"
 
     if os.environ.get("AKASHIC_DRILL_ECHO"):
         args.agentic = False
-        responder = lambda prompt: f"[drill-echo] {str(prompt)[:120]}"
+
+        def responder(prompt):
+            return f"[drill-echo] {str(prompt)[:120]}"
+
         mode = "drill-echo (offline)"
 
     bus.register(card=dict(CARD, spend=METER.status_line()))
     # RB-25 F2: a virgin cursor fast-forwards to the live tail.
     if not os.environ.get("AKASHIC_DRILL_ECHO") and bus.seed_cursor_at_tail():
-        print(f"[kimi-runner] {args.agent} is new -- cursor seeded at the live tail "
-              f"(stale broadcast backlog skipped; only new mail wakes it)")
+        print(
+            f"[kimi-runner] {args.agent} is new -- cursor seeded at the live tail "
+            f"(stale broadcast backlog skipped; only new mail wakes it)"
+        )
 
     from core.coord import cognitive_metrics as cog
+
     cog.init(args.agent)
     rate = control.RateLimiter()
 
@@ -840,14 +964,13 @@ def main() -> int:
             beats += 1
             try:
                 runner_lock.heartbeat(args.agent, lock_token)
-                bus.register(card=dict(CARD, spend=METER.status_line()))   # W14: spend on the card
+                bus.register(card=dict(CARD, spend=METER.status_line()))  # W14: spend on the card
                 liveness.worklive(args.agent).refresh()
                 # T147: the roster reads a PER-INCARNATION key; the worklive refresh above writes the
                 # BARE one. Without this beat a live runner renders DEAD and reaper._provably_dead()
                 # agrees -- and roster.py:9 calls the roster "the reaper's only sensor".
-                roster.heartbeat(os.environ.get("BIFROST_NAMESPACE", "bifrost"), args.agent,
-                                 seat_sid, phase="running")
-                if beats % 120 == 0:                       # ~10 min: balance reconciliation
+                roster.heartbeat(os.environ.get("BIFROST_NAMESPACE", "bifrost"), args.agent, seat_sid, phase="running")
+                if beats % 120 == 0:  # ~10 min: balance reconciliation
                     METER.reconcile()
             except Exception:
                 pass
@@ -864,8 +987,8 @@ def main() -> int:
     # This listener shares nothing with the bus: no Redis, no wslrelay, no Docker NAT, no
     # disk. It answers on its own thread while the main loop is dead.
     from core.comm.control_channel import ControlChannel
-    _progress = {"last_msg_at": None, "last_msg_from": None, "handled": 0,
-                 "loop_beats": 0, "started": time.time()}
+
+    _progress = {"last_msg_at": None, "last_msg_from": None, "handled": 0, "loop_beats": 0, "started": time.time()}
 
     _control = ControlChannel(args.agent)
 
@@ -874,13 +997,14 @@ def main() -> int:
         # hours while the loop was dead; the number that would have exposed that is how long
         # since the loop last ADVANCED, so that is what this reports.
         now = time.time()
-        since_msg = (int(now - _progress["last_msg_at"])
-                     if _progress["last_msg_at"] else None)
-        return (f"agent={args.agent} pid={os.getpid()} "
-                f"uptime_s={int(now - _progress['started'])} "
-                f"loop_beats={_progress['loop_beats']} handled={_progress['handled']} "
-                f"last_msg_age_s={since_msg if since_msg is not None else 'never'} "
-                f"last_from={_progress['last_msg_from'] or '-'}")
+        since_msg = int(now - _progress["last_msg_at"]) if _progress["last_msg_at"] else None
+        return (
+            f"agent={args.agent} pid={os.getpid()} "
+            f"uptime_s={int(now - _progress['started'])} "
+            f"loop_beats={_progress['loop_beats']} handled={_progress['handled']} "
+            f"last_msg_age_s={since_msg if since_msg is not None else 'never'} "
+            f"last_from={_progress['last_msg_from'] or '-'}"
+        )
 
     def _cc_stand_down(arg: str) -> str:
         # os._exit, deliberately. A wedged process cannot unwind: the main thread is parked in
@@ -894,16 +1018,19 @@ def main() -> int:
         # wedged thread, and a beat that still lands late re-creates a FRESH card (since_ts=
         # now) that expires before it can age into a page.
         retire_seat(args.agent, seat_sid, stop_hb=stop_hb, hb_thread=hb_thread, hb_join_s=1.0)
-        threading.Timer(0.25, lambda: os._exit(0)).start()   # let the reply flush first
+        threading.Timer(0.25, lambda: os._exit(0)).start()  # let the reply flush first
         return f"standing down: {reason}"
 
     _control.register("status", _cc_status)
     _control.register("stand-down", _cc_stand_down)
     if not _control.start():
-        print("[kimi-runner] WARNING: no out-of-band control channel -- a wedge here would "
-              "be uncommandable, exactly as on 2026-07-26.")
+        print(
+            "[kimi-runner] WARNING: no out-of-band control channel -- a wedge here would "
+            "be uncommandable, exactly as on 2026-07-26."
+        )
 
     from core.comm.bifrost_api import BifrostAPI
+
     # DRAIN THE LANE THE MAIL IS ON. Found live 2026-08-03: this runner was ONLINE, healthy, and
     # not reaching its mail for hours, because BIFROST_CONSUME_LANE was unset -- so it read the
     # LEGACY lane from a cursor 480 entries behind while sends landed on the work lane. Nothing
@@ -917,9 +1044,11 @@ def main() -> int:
     os.environ.setdefault("BIFROST_CONSUME_LANE", "work")
     lane_mode = BifrostAPI.consume_lane_enabled()
     if not lane_mode:
-        print(f"[kimi-runner] WARNING: consuming the LEGACY lane "
-              f"(BIFROST_CONSUME_LANE={os.environ.get('BIFROST_CONSUME_LANE')!r}). Mail sent to "
-              f"the work lane will NOT be reached. Unset it, or set it to 'work'.")
+        print(
+            f"[kimi-runner] WARNING: consuming the LEGACY lane "
+            f"(BIFROST_CONSUME_LANE={os.environ.get('BIFROST_CONSUME_LANE')!r}). Mail sent to "
+            f"the work lane will NOT be reached. Unset it, or set it to 'work'."
+        )
     lane_key = bus.lane_cursor_key() if lane_mode else None
     api = BifrostAPI(args.agent) if lane_mode else None
     if lane_mode:
@@ -930,23 +1059,24 @@ def main() -> int:
     lock_gen = runner_lock.generation_of(lock_token)
     PULSE_GEN[0] = lock_gen
     liveness.worklive(args.agent).set("idle")
-    print(f"[kimi-runner] {args.agent} online (model={args.model}, effort={args.effort}, {mode}, "
-          f"max_hops={KIMI_MAX_HOPS}). Waiting for messages...")
+    print(
+        f"[kimi-runner] {args.agent} online (model={args.model}, effort={args.effort}, {mode}, "
+        f"max_hops={KIMI_MAX_HOPS}). Waiting for messages..."
+    )
 
     exit_code = 0
     bus_guard = liveness.BusLossGuard(max_dead=10)
-    next_conductor_check = 0.0                          # t384: conductor-absence notice cadence
+    next_conductor_check = 0.0  # t384: conductor-absence notice cadence
     try:
         while True:
-            _progress["loop_beats"] += 1   # cycling, not merely alive
+            _progress["loop_beats"] += 1  # cycling, not merely alive
             verdict = bus_guard.beat(bus.probe())
             if verdict == "stand_down":
                 print(f"[kimi-runner] bus LOST for {bus_guard.max_dead} beats -- standing down.")
                 exit_code = 4
                 break
             if verdict == "degraded":
-                print(f"[kimi-runner] bus unreachable "
-                      f"(beat {bus_guard.dead_beats}/{bus_guard.max_dead})")
+                print(f"[kimi-runner] bus unreachable (beat {bus_guard.dead_beats}/{bus_guard.max_dead})")
                 time.sleep(bus_guard.backoff_s)
                 continue
             if not runner_lock.heartbeat(args.agent, lock_token):
@@ -961,9 +1091,11 @@ def main() -> int:
             # because an exception here would wedge every runner at once.
             _beat = _shift_turn.turn_beat(args.agent)
             if _beat.get("action") not in ("idle", "blocked"):
-                print(f"[kimi-runner] shift: {_beat['action']}"
-                      + (f" {_beat['task']}" if _beat.get('task') else '')
-                      + f" -- {_beat.get('reason','')}")
+                print(
+                    f"[kimi-runner] shift: {_beat['action']}"
+                    + (f" {_beat['task']}" if _beat.get("task") else "")
+                    + f" -- {_beat.get('reason', '')}"
+                )
             _sr = self_restart.maybe_self_restart(args.agent)
             if _sr:
                 print(f"[kimi-runner] {_sr} -- exiting clean; the successor takes the lock.")
@@ -1001,15 +1133,15 @@ def main() -> int:
                 try:
                     _process_one(m, bus, args, responder, rate)
                 except Exception as e:
-                    print(f"[kimi-runner] !! unhandled error on message from {m.frm}: "
-                          f"{type(e).__name__}: {e}")
+                    print(f"[kimi-runner] !! unhandled error on message from {m.frm}: {type(e).__name__}: {e}")
                     liveness.pulse_error(args.agent, f"{type(e).__name__}: {e}", generation=lock_gen)
-                    try:
-                        bus.send(m.frm, "note",
-                                 f"[error] kimi runner hit an unhandled error: {type(e).__name__}: {e}",
-                                 meta={"via": f"{args.agent}-runner"})
-                    except Exception:
-                        pass
+                    with contextlib.suppress(Exception):
+                        bus.send(
+                            m.frm,
+                            "note",
+                            f"[error] kimi runner hit an unhandled error: {type(e).__name__}: {e}",
+                            meta={"via": f"{args.agent}-runner"},
+                        )
                 _killpoint("post-sentinel-pre-advance")
                 # Cursor law (RB-26): advance AFTER processing; lane filter as sol.
                 if lane_mode and (m.meta or {}).get("_lane_src") != "work":
@@ -1026,8 +1158,9 @@ def main() -> int:
 
             # Batch sweep: advance to the batch tail (idempotent when nothing moved).
             if batch_next and (batch_next.get("inbox") or batch_next.get("bc")):
-                status = bus.advance_to(inbox=batch_next.get("inbox"), bc=batch_next.get("bc"),
-                                        generation=lock_gen, cursor_key=lane_key)
+                status = bus.advance_to(
+                    inbox=batch_next.get("inbox"), bc=batch_next.get("bc"), generation=lock_gen, cursor_key=lane_key
+                )
                 if status == "STALE_GENERATION":
                     print("[kimi-runner] batch-sweep REFUSED -- standing down.")
                     break

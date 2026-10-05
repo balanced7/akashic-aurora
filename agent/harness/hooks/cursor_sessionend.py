@@ -9,6 +9,7 @@ surfaces a one-line pointer; promote with `py agent_cli.py wrap --commit` if wor
 Payload capture comes first (payload-truth discipline; shape unpinned until H2).
 Silent + fail-OPEN: a capture must never block the session ending.
 """
+
 import json
 import os
 import sys
@@ -27,25 +28,33 @@ def main() -> int:
         data = {}
     try:
         from agent.harness.capture import capture
+
         capture(data, _CAP_DIR, label="sessionEnd")
     except Exception:
         pass
     try:
         import agent_cli
         from core.learning.agent_memory import get_agent_memory
+
         commits = agent_cli._recent_commits(24)
         lessons = agent_cli._recent_lessons(8)
         notes = get_agent_memory().get_decisions(days=1)
-        try:   # FAIL->SUCCESS flips -> pre-filled candidate lessons in the draft (friction audit D5)
+        try:  # FAIL->SUCCESS flips -> pre-filled candidate lessons in the draft (friction audit D5)
             from core.recall.at_action import recent_flips
+
             flips = recent_flips(24)
         except Exception:
             flips = []
         agent_cli.write_last_session_draft(
-            agent_cli.last_session_draft_path(), commits, lessons, notes,
-            trigger="cursor " + str(data.get("hook_event_name") or "sessionEnd"), flips=flips)
+            agent_cli.last_session_draft_path(),
+            commits,
+            lessons,
+            notes,
+            trigger="cursor " + str(data.get("hook_event_name") or "sessionEnd"),
+            flips=flips,
+        )
     except Exception:
-        pass   # auto-capture is best-effort; never block the end
+        pass  # auto-capture is best-effort; never block the end
     return 0
 
 

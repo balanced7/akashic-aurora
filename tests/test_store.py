@@ -7,14 +7,14 @@ surface, and that HybridStore degrades gracefully when Redis is down.
 Run: py tests/test_store.py
 """
 
-import sys
 import os
-import time
+import sys
 import tempfile
+import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.foundation.store import Store, FileStore, RedisStore, HybridStore, create_store
+from core.foundation.store import FileStore, HybridStore, Store, create_store
 
 
 def _exercise_all_structures(store: Store, label: str) -> None:
@@ -62,7 +62,8 @@ def _exercise_all_structures(store: Store, label: str) -> None:
     assert store.zrange("z1", 0, -1, desc=True) == ["high", "mid", "low"]
     assert store.zscore("z1", "mid") == 50.0
     ws = store.zrange("z1", 0, 0, withscores=True)
-    assert ws[0][0] == "low" and float(ws[0][1]) == 0.0
+    assert ws[0][0] == "low"
+    assert float(ws[0][1]) == 0.0
     print("  zset: zadd/zrange(asc,desc,withscores)/zscore OK")
 
     # extended sorted-set ops (used by the agent-memory layer)
@@ -71,7 +72,8 @@ def _exercise_all_structures(store: Store, label: str) -> None:
     assert store.zrangebyscore("z1", 60, "+inf") == ["high"]
     assert store.zrangebyscore("z1", "-inf", "+inf") == ["low", "mid", "high"]
     removed = store.zremrangebyrank("z1", 0, 0)  # drop the lowest-scored
-    assert removed == 1 and store.zcard("z1") == 2
+    assert removed == 1
+    assert store.zcard("z1") == 2
     assert store.zrange("z1", 0, -1) == ["mid", "high"]
     print("  zset+: zrangebyscore/zcard/zremrangebyrank OK")
 
@@ -85,13 +87,13 @@ def _exercise_all_structures(store: Store, label: str) -> None:
     print("  ltrim: inclusive window + missing no-op OK")
 
     # TTL semantics (no sleeping; Redis-compatible return codes)
-    assert store.ttl("ttl_absent") == -2                       # no such key
+    assert store.ttl("ttl_absent") == -2  # no such key
     store.set("ttl_plain", "v")
-    assert store.ttl("ttl_plain") == -1                        # exists, no expiry
+    assert store.ttl("ttl_plain") == -1  # exists, no expiry
     assert store.setex("ttl_keyed", 100, "v") is True
     assert store.get("ttl_keyed") == "v"
-    assert 0 < store.ttl("ttl_keyed") <= 100                   # ticking down
-    assert store.expire("expire_absent", 50) is False          # can't expire a ghost
+    assert 0 < store.ttl("ttl_keyed") <= 100  # ticking down
+    assert store.expire("expire_absent", 50) is False  # can't expire a ghost
     store.set("expire_me", "v")
     assert store.expire("expire_me", 50) is True
     assert 0 < store.ttl("expire_me") <= 50
@@ -166,6 +168,7 @@ def _durable_tier_cls():
     SqliteStore, anything else FileStore. A mis-route in either direction still fails."""
     if (os.getenv("AKASHIC_STORE_BACKEND") or "").strip().lower() == "sqlite":
         from core.foundation.sqlite_store import SqliteStore
+
         return SqliteStore
     return FileStore
 
@@ -178,12 +181,14 @@ def test_factory():
             file_only = create_store(prefer_redis=False, file_path=os.path.join(d, "f.json"))
             assert isinstance(file_only, expected), (
                 f"prefer_redis=False must hand back the env-selected durable tier "
-                f"{expected.__name__}, got {type(file_only).__name__}")
+                f"{expected.__name__}, got {type(file_only).__name__}"
+            )
             hybrid = create_store(prefer_redis=True, port=63999, file_path=os.path.join(d, "h.json"))
             assert isinstance(hybrid, HybridStore)
             assert isinstance(hybrid._file, expected), (
                 f"HybridStore durable tier must be the env-selected {expected.__name__}, "
-                f"got {type(hybrid._file).__name__}")
+                f"got {type(hybrid._file).__name__}"
+            )
             print("\n--- factory ---\n  create_store routing OK")
         finally:
             # Both stores may hold a SqliteStore connection; close them even when
@@ -195,44 +200,99 @@ def test_factory():
 
 def test_redisstore_if_available():
     from redis_test_helpers import fresh_test_store
-    rs = fresh_test_store()   # isolated test DB (15), flushed clean; never canonical db 0
+
+    rs = fresh_test_store()  # isolated test DB (15), flushed clean; never canonical db 0
     if rs is None:
         print("\n--- RedisStore ---\n  SKIPPED (Redis not running)")
         return
     _exercise_all_structures(rs, "RedisStore (live)")
-    rs._client.flushdb()   # leave the test DB clean
+    rs._client.flushdb()  # leave the test DB clean
     print("  RedisStore live parity OK")
 
 
 class _NamespacedStore:
     """Prefix keys so a live-Redis test doesn't collide with real data."""
-    def __init__(self, store, ns): self._s, self._ns = store, ns
-    def _k(self, key): return f"{self._ns}:{key}"
-    def set(self, k, v): return self._s.set(self._k(k), v)
-    def get(self, k): return self._s.get(self._k(k))
-    def exists(self, k): return self._s.exists(self._k(k))
-    def delete(self, *ks): return self._s.delete(*[self._k(k) for k in ks])
-    def hset(self, k, field=None, value=None, mapping=None): return self._s.hset(self._k(k), field, value, mapping)
-    def hget(self, k, f): return self._s.hget(self._k(k), f)
-    def hgetall(self, k): return self._s.hgetall(self._k(k))
-    def setex(self, k, sec, v): return self._s.setex(self._k(k), sec, v)
-    def expire(self, k, sec): return self._s.expire(self._k(k), sec)
-    def ttl(self, k): return self._s.ttl(self._k(k))
-    def lpush(self, k, *v): return self._s.lpush(self._k(k), *v)
-    def rpush(self, k, *v): return self._s.rpush(self._k(k), *v)
-    def lrange(self, k, s, e): return self._s.lrange(self._k(k), s, e)
-    def ltrim(self, k, s, e): return self._s.ltrim(self._k(k), s, e)
-    def llen(self, k): return self._s.llen(self._k(k))
-    def sadd(self, k, *m): return self._s.sadd(self._k(k), *m)
-    def smembers(self, k): return self._s.smembers(self._k(k))
-    def sismember(self, k, m): return self._s.sismember(self._k(k), m)
-    def zadd(self, k, mapping): return self._s.zadd(self._k(k), mapping)
-    def zrange(self, k, s, e, desc=False, withscores=False): return self._s.zrange(self._k(k), s, e, desc=desc, withscores=withscores)
-    def zscore(self, k, m): return self._s.zscore(self._k(k), m)
-    def zrangebyscore(self, k, mn, mx): return self._s.zrangebyscore(self._k(k), mn, mx)
-    def zcard(self, k): return self._s.zcard(self._k(k))
-    def zremrangebyrank(self, k, s, e): return self._s.zremrangebyrank(self._k(k), s, e)
-    def keys(self, pattern="*"): return [x.replace(f"{self._ns}:", "") for x in self._s.keys(f"{self._ns}:{pattern}")]
+
+    def __init__(self, store, ns):
+        self._s, self._ns = store, ns
+
+    def _k(self, key):
+        return f"{self._ns}:{key}"
+
+    def set(self, k, v):
+        return self._s.set(self._k(k), v)
+
+    def get(self, k):
+        return self._s.get(self._k(k))
+
+    def exists(self, k):
+        return self._s.exists(self._k(k))
+
+    def delete(self, *ks):
+        return self._s.delete(*[self._k(k) for k in ks])
+
+    def hset(self, k, field=None, value=None, mapping=None):
+        return self._s.hset(self._k(k), field, value, mapping)
+
+    def hget(self, k, f):
+        return self._s.hget(self._k(k), f)
+
+    def hgetall(self, k):
+        return self._s.hgetall(self._k(k))
+
+    def setex(self, k, sec, v):
+        return self._s.setex(self._k(k), sec, v)
+
+    def expire(self, k, sec):
+        return self._s.expire(self._k(k), sec)
+
+    def ttl(self, k):
+        return self._s.ttl(self._k(k))
+
+    def lpush(self, k, *v):
+        return self._s.lpush(self._k(k), *v)
+
+    def rpush(self, k, *v):
+        return self._s.rpush(self._k(k), *v)
+
+    def lrange(self, k, s, e):
+        return self._s.lrange(self._k(k), s, e)
+
+    def ltrim(self, k, s, e):
+        return self._s.ltrim(self._k(k), s, e)
+
+    def llen(self, k):
+        return self._s.llen(self._k(k))
+
+    def sadd(self, k, *m):
+        return self._s.sadd(self._k(k), *m)
+
+    def smembers(self, k):
+        return self._s.smembers(self._k(k))
+
+    def sismember(self, k, m):
+        return self._s.sismember(self._k(k), m)
+
+    def zadd(self, k, mapping):
+        return self._s.zadd(self._k(k), mapping)
+
+    def zrange(self, k, s, e, desc=False, withscores=False):
+        return self._s.zrange(self._k(k), s, e, desc=desc, withscores=withscores)
+
+    def zscore(self, k, m):
+        return self._s.zscore(self._k(k), m)
+
+    def zrangebyscore(self, k, mn, mx):
+        return self._s.zrangebyscore(self._k(k), mn, mx)
+
+    def zcard(self, k):
+        return self._s.zcard(self._k(k))
+
+    def zremrangebyrank(self, k, s, e):
+        return self._s.zremrangebyrank(self._k(k), s, e)
+
+    def keys(self, pattern="*"):
+        return [x.replace(f"{self._ns}:", "") for x in self._s.keys(f"{self._ns}:{pattern}")]
 
 
 if __name__ == "__main__":

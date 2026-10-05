@@ -38,17 +38,28 @@ In-chat commands:
 NOTE: everything (files, command output, KB results) is sent to DeepSeek's API. Don't widen --root or
 --allow-secrets over anything you would not share with DeepSeek.
 """
+
 from __future__ import annotations
 
 import argparse
-import fnmatch
+import contextlib
 import json
 import os
-import re
-import subprocess
+import subprocess as subprocess  # re-export: tests patch deepseek_chat.subprocess.run
 import sys
 import time
 from pathlib import Path
+
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+
+        return python_launcher()
+    except Exception:
+        return "py"
+
 
 KEY_FILE = Path(__file__).resolve().parent.parent / ".secrets" / "deepseek.key"
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -59,8 +70,12 @@ PRO, FLASH = "deepseek-v4-pro", "deepseek-v4-flash"
 # A per-read timeout aborts pre-data AND mid-stream stalls (verified: tests/manual/l0_timeout_probe.py);
 # the Agent.send() try/except then revives the loop. Tunable via env.
 MODEL_CONNECT_TIMEOUT = float(os.getenv("DEEPSEEK_CONNECT_TIMEOUT", "15"))
-MODEL_READ_TIMEOUT    = float(os.getenv("DEEPSEEK_READ_TIMEOUT", "120"))   # per-chunk read gap; healthy streams beat it, a stall trips it
-MODEL_MAX_RETRIES     = int(os.getenv("DEEPSEEK_MAX_RETRIES", "1"))        # explicit: the SDK default (2) would ~3x the wall-clock before a wedge surfaces
+MODEL_READ_TIMEOUT = float(
+    os.getenv("DEEPSEEK_READ_TIMEOUT", "120")
+)  # per-chunk read gap; healthy streams beat it, a stall trips it
+MODEL_MAX_RETRIES = int(
+    os.getenv("DEEPSEEK_MAX_RETRIES", "1")
+)  # explicit: the SDK default (2) would ~3x the wall-clock before a wedge surfaces
 
 
 def make_client(api_key=None, base_url=BASE_URL):
@@ -76,19 +91,21 @@ def make_client(api_key=None, base_url=BASE_URL):
     back to the ordinary client. A runner that cannot start because its instrumentation failed
     would be a worse defect than the blindness it was built to cure.
     """
-    from openai import OpenAI
     import httpx
+    from openai import OpenAI
+
     timeout = httpx.Timeout(MODEL_READ_TIMEOUT, connect=MODEL_CONNECT_TIMEOUT)
     http_client = None
     if os.getenv("AKASHIC_WIRE", "1") != "0":
         try:
             from scripts.wire_journal import recording_http_client
+
             http_client = recording_http_client(timeout=timeout)
         except Exception:
             http_client = None
     kw = {"http_client": http_client} if http_client is not None else {"timeout": timeout}
-    return OpenAI(api_key=api_key or load_key(), base_url=base_url,
-                  max_retries=MODEL_MAX_RETRIES, **kw)
+    return OpenAI(api_key=api_key or load_key(), base_url=base_url, max_retries=MODEL_MAX_RETRIES, **kw)
+
 
 # ---- tool surface + guarded executor: EXTRACTED to core/comm/toolbox.py (K0 2026-07-18,
 # rule-of-three: the deepseek, sol, and kimi seats share one seam). Behavior-preserving move;
@@ -96,10 +113,22 @@ def make_client(api_key=None, base_url=BASE_URL):
 _HERE = os.path.dirname(os.path.abspath(__file__))
 if os.path.dirname(_HERE) not in sys.path:
     sys.path.insert(0, os.path.dirname(_HERE))
-from core.comm.toolbox import (   # noqa: F401,E402  (compat re-export)
-    MAX_CMD_TIMEOUT, EXCLUDE_DIRS, BINARY_SUFFIXES, MAX_FILE_BYTES, MAX_MATCHES,
-    MAX_LIST, MAX_CMD_OUT, CLARIFY_MAX_PER_TASK, CLARIFY_TIMEOUT_S, _fn, TOOLS, ToolBox,
+
+from core.comm.toolbox import (  # noqa: F401,E402  # compat re-export
+    BINARY_SUFFIXES,
+    CLARIFY_MAX_PER_TASK,
+    CLARIFY_TIMEOUT_S,
+    EXCLUDE_DIRS,
+    MAX_CMD_OUT,
+    MAX_CMD_TIMEOUT,
+    MAX_FILE_BYTES,
+    MAX_LIST,
+    MAX_MATCHES,
+    TOOLS,
+    ToolBox,
+    _fn,
 )
+
 # CLARIFY_TIMEOUT_S was missing from this list while the clarification-TIMEOUT branch below
 # uses it -- so the runner died with a NameError precisely when a clarification went
 # unanswered (2026-08-01, two attempts, mid-battery). The happy path never touches the name;
@@ -132,18 +161,19 @@ def clip_tool_result(result: str, limit: int = MAX_TOOL_RESULT_CHARS) -> str:
     if len(text) <= limit:
         return text
     dropped = len(text) - limit
-    return (f"{text[:limit]}\n[clipped {dropped} chars of {len(text)} -- re-read the "
-            f"specific range you need rather than the whole artifact]")
+    return (
+        f"{text[:limit]}\n[clipped {dropped} chars of {len(text)} -- re-read the "
+        f"specific range you need rather than the whole artifact]"
+    )
 
 
 # ---- terminal helpers -------------------------------------------------------
 
+
 def _enable_utf8_and_ansi() -> bool:
     for stream in (sys.stdout, sys.stdin, sys.stderr):
-        try:
+        with contextlib.suppress(Exception):
             stream.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[attr-defined]
-        except Exception:
-            pass
     try:
         color = sys.stdout.isatty()
     except Exception:
@@ -151,6 +181,7 @@ def _enable_utf8_and_ansi() -> bool:
     if color and os.name == "nt":
         try:
             import ctypes
+
             k = ctypes.windll.kernel32
             k.SetConsoleMode(k.GetStdHandle(-11), 7)  # ENABLE_VIRTUAL_TERMINAL_PROCESSING
         except Exception:
@@ -163,8 +194,14 @@ class C:
 
     @classmethod
     def enable(cls):
-        cls.dim = "\033[2m"; cls.grey = "\033[90m"; cls.cyan = "\033[36m"; cls.green = "\033[32m"
-        cls.yellow = "\033[33m"; cls.red = "\033[31m"; cls.bold = "\033[1m"; cls.reset = "\033[0m"
+        cls.dim = "\033[2m"
+        cls.grey = "\033[90m"
+        cls.cyan = "\033[36m"
+        cls.green = "\033[32m"
+        cls.yellow = "\033[33m"
+        cls.red = "\033[31m"
+        cls.bold = "\033[1m"
+        cls.reset = "\033[0m"
 
 
 def load_key() -> str | None:
@@ -180,6 +217,7 @@ def load_key() -> str | None:
 
 # ---- the agent (conversation + tool loop) -----------------------------------
 
+
 def default_system(root: Path) -> str:
     return (
         "You are DeepSeek, operating as an agentic technical partner with LIVE access to a software "
@@ -194,37 +232,68 @@ def default_system(root: Path) -> str:
 
 
 _TOOL_STATE = {
-    "read_file": "reading", "list_directory": "reading", "find_files": "searching",
-    "search_files": "searching", "git_log": "inspecting", "git_diff": "inspecting",
-    "git_show": "inspecting", "git_status": "inspecting", "knowledge_recall": "recalling",
-    "knowledge_boot": "recalling", "recall_at": "recalling", "knowledge_full": "recalling",
-    "memory_note": "recalling", "memory_recall": "recalling",
-    "knowledge_map": "recalling", "delta": "recalling",
-    "run_command": "running", "web_search": "searching",
+    "read_file": "reading",
+    "list_directory": "reading",
+    "find_files": "searching",
+    "search_files": "searching",
+    "git_log": "inspecting",
+    "git_diff": "inspecting",
+    "git_show": "inspecting",
+    "git_status": "inspecting",
+    "knowledge_recall": "recalling",
+    "knowledge_boot": "recalling",
+    "recall_at": "recalling",
+    "knowledge_full": "recalling",
+    "memory_note": "recalling",
+    "memory_recall": "recalling",
+    "knowledge_map": "recalling",
+    "delta": "recalling",
+    "run_command": "running",
+    "web_search": "searching",
 }
 
 
 def _tool_activity(name, args):
     """(state, short-detail) for the rich-presence indicator, from a tool call."""
     state = _TOOL_STATE.get(name, "working")
-    d = (args.get("path") or args.get("pattern") or args.get("query")
-         or args.get("command") or args.get("task") or args.get("directory") or "")
+    d = (
+        args.get("path")
+        or args.get("pattern")
+        or args.get("query")
+        or args.get("command")
+        or args.get("task")
+        or args.get("directory")
+        or ""
+    )
     return state, str(d)[:80]
 
 
 class Agent:
-    def __init__(self, client, toolbox: ToolBox, *, model, system, think, tools_enabled,
-                 interrupt=None, on_activity=None, inject=None, on_trace=None, agent_id=None):
+    def __init__(
+        self,
+        client,
+        toolbox: ToolBox,
+        *,
+        model,
+        system,
+        think,
+        tools_enabled,
+        interrupt=None,
+        on_activity=None,
+        inject=None,
+        on_trace=None,
+        agent_id=None,
+    ):
         self.client = client
         self.toolbox = toolbox
         self.model = model
         self.think = think
         self.tools_enabled = tools_enabled
-        self.interrupt = interrupt         # optional () -> bool; checked between rounds for true barge-in
-        self.on_activity = on_activity     # optional (state, detail) -> None; reports activity (rich presence)
-        self.inject = inject               # optional () -> list[str]; steering facts to fold in mid-task
-        self.on_trace = on_trace           # optional (kind, text) -> None; streams tool calls + thinking out
-        self.agent_id = agent_id           # optional str; when set, cognitive metrics are recorded
+        self.interrupt = interrupt  # optional () -> bool; checked between rounds for true barge-in
+        self.on_activity = on_activity  # optional (state, detail) -> None; reports activity (rich presence)
+        self.inject = inject  # optional () -> list[str]; steering facts to fold in mid-task
+        self.on_trace = on_trace  # optional (kind, text) -> None; streams tool calls + thinking out
+        self.agent_id = agent_id  # optional str; when set, cognitive metrics are recorded
         self.temperature = None
         self.max_tokens = None
         self.json_mode = False
@@ -280,19 +349,15 @@ class Agent:
 
     def _activity(self, state, detail=""):
         if self.on_activity:
-            try:
+            with contextlib.suppress(Exception):
                 self.on_activity(state, detail)
-            except Exception:
-                pass
 
     def _trace(self, kind, text):
         """Stream a step (a tool call, or a chunk of thinking) OUT of the loop -- the runner posts these
         to the bus so the console shows DeepSeek's live reasoning + tool use, not just the final answer."""
         if self.on_trace and text:
-            try:
+            with contextlib.suppress(Exception):
                 self.on_trace(kind, str(text))
-            except Exception:
-                pass
 
     def reset(self):
         self.messages = self.messages[:1] if self.messages[:1] and self.messages[0]["role"] == "system" else []
@@ -301,8 +366,7 @@ class Agent:
         self.messages = [{"role": "system", "content": text}]
 
     def _kwargs(self):
-        k = {"model": self.model, "messages": self.messages,
-             "stream": True, "stream_options": {"include_usage": True}}
+        k = {"model": self.model, "messages": self.messages, "stream": True, "stream_options": {"include_usage": True}}
         if self.tools_enabled:
             k["tools"] = TOOLS
             k["tool_choice"] = "auto"
@@ -328,11 +392,11 @@ class Agent:
         stream = self.client.chat.completions.create(**self._kwargs())
         content, slots = [], {}
         reasoning_buf = []
-        reasoning_live = []                  # small rolling buffer: flush LIVE to the bus, bounded
+        reasoning_live = []  # small rolling buffer: flush LIVE to the bus, bounded
         in_reasoning = header = streaming = False
         try:
             for chunk in stream:
-                if not streaming:                 # first token/data -> the call is live; thinking now
+                if not streaming:  # first token/data -> the call is live; thinking now
                     self._activity("thinking")
                     streaming = True
                 if getattr(chunk, "usage", None):
@@ -352,11 +416,12 @@ class Agent:
                     # the bus AS IT ARRIVES, not once at the end (that end-of-method dump is what
                     # made the UI go silent mid-turn: a 60s think showed NOTHING until it finished).
                     reasoning_buf.append(r)
-                    if self.think:                    # PRINTING stays opt-in (terminal noise)
+                    if self.think:  # PRINTING stays opt-in (terminal noise)
                         if not in_reasoning:
-                            print(f"{C.grey}💭 ", end="", flush=True); in_reasoning = True
+                            print(f"{C.grey}💭 ", end="", flush=True)
+                            in_reasoning = True
                         print(f"{C.grey}{r}", end="", flush=True)
-                    else:                              # non-REPL (runner): LIVE-stream, bounded flush
+                    else:  # non-REPL (runner): LIVE-stream, bounded flush
                         # DeepSeek streams reasoning in ~1-20 char shards. A per-shard bus
                         # broadcast would be a message storm (100+ traces + a liveness pulse each),
                         # so roll into a small buffer and flush as it crosses a threshold -- the
@@ -367,10 +432,13 @@ class Agent:
                             reasoning_live = []
                 if d.content:
                     if in_reasoning:
-                        print(C.reset); in_reasoning = False
+                        print(C.reset)
+                        in_reasoning = False
                     if not header:
-                        print(f"{C.green}{C.bold}DeepSeek:{C.reset} ", end="", flush=True); header = True
-                    print(d.content, end="", flush=True); content.append(d.content)
+                        print(f"{C.green}{C.bold}DeepSeek:{C.reset} ", end="", flush=True)
+                        header = True
+                    print(d.content, end="", flush=True)
+                    content.append(d.content)
                 if d.tool_calls:
                     for tc in d.tool_calls:
                         s = slots.setdefault(tc.index, {"id": None, "name": "", "arguments": ""})
@@ -383,25 +451,29 @@ class Agent:
         finally:
             if in_reasoning or header:
                 print(C.reset)
-            if reasoning_live:                         # flush the tail: the last partial live chunk
+            if reasoning_live:  # flush the tail: the last partial live chunk
                 self._trace("thinking", "".join(reasoning_live))
         return "".join(content), [slots[i] for i in sorted(slots)]
 
     def send(self, user_text):
         self.messages.append({"role": "user", "content": user_text})
         if getattr(self, "toolbox", None) is not None:
-            self.toolbox._clarify_count = 0   # R7 P2: the budget is per-task (per ask)
+            self.toolbox._clarify_count = 0  # R7 P2: the budget is per-task (per ask)
         for _round in range(MAX_TOOL_ROUNDS):
             # Sample BEFORE the call: this is the context this hop is about to re-send, and
             # it is the quantity the whole cost is quadratic in.
             self._mark_context()
-            if self.interrupt and self.interrupt():   # DeepSeek's fix: true barge-in mid-tool-loop
+            if self.interrupt and self.interrupt():  # DeepSeek's fix: true barge-in mid-tool-loop
                 print(f"{C.yellow}[interrupted by your interjection -- pausing mid-task]{C.reset}")
                 return "[paused mid-task by your interjection -- resume to continue]"
-            if self.inject:                           # STEER: fold new facts into the LIVE task, no restart
-                for fact in (self.inject() or []):
-                    self.messages.append({"role": "user",
-                        "content": f"[STEER -- new fact to adopt into your current task, keep going]: {fact}"})
+            if self.inject:  # STEER: fold new facts into the LIVE task, no restart
+                for fact in self.inject() or []:
+                    self.messages.append(
+                        {
+                            "role": "user",
+                            "content": f"[STEER -- new fact to adopt into your current task, keep going]: {fact}",
+                        }
+                    )
                     print(f"{C.cyan}[steered mid-task] {fact[:120]}{C.reset}")
             # R7 (T058): a pending clarification HOLDS this turn -- poll the steer queue
             # (the runner routes the user's answer onto it) until it folds or the deadline
@@ -413,8 +485,9 @@ class Agent:
                     got = (self.inject() or []) if self.inject else []
                     if got:
                         for fact in got:
-                            self.messages.append({"role": "user",
-                                "content": f"[STEER -- answer to your clarification ({cid})]: {fact}"})
+                            self.messages.append(
+                                {"role": "user", "content": f"[STEER -- answer to your clarification ({cid})]: {fact}"}
+                            )
                             print(f"{C.cyan}[clarify-answer folded] {str(fact)[:120]}{C.reset}")
                         tb._clarify_waiting = None
                         break
@@ -422,10 +495,14 @@ class Agent:
                     time.sleep(2)
                 if getattr(tb, "_clarify_waiting", None):
                     tb._clarify_waiting = None
-                    self.messages.append({"role": "user", "content":
-                        f"[CLARIFICATION TIMEOUT ({cid}) -- no answer within {CLARIFY_TIMEOUT_S}s. "
-                        "Proceed with your best judgment and state your assumption LOUDLY: "
-                        "'I'm assuming X; if that's wrong, steer me.']"})
+                    self.messages.append(
+                        {
+                            "role": "user",
+                            "content": f"[CLARIFICATION TIMEOUT ({cid}) -- no answer within {CLARIFY_TIMEOUT_S}s. "
+                            "Proceed with your best judgment and state your assumption LOUDLY: "
+                            "'I'm assuming X; if that's wrong, steer me.']",
+                        }
+                    )
                     print(f"{C.yellow}[clarify timeout {cid} -- proceeding with assumption]{C.reset}")
                 # THE STUCK-ON-AWAITING BUG (fixed): when a clarification RESOLVES or TIMES OUT,
                 # the phase must be reset to idle. Until now the loop set tb._clarify_waiting=None
@@ -445,9 +522,20 @@ class Agent:
                     self.messages.pop()
                 return ""
             if tool_calls:
-                self.messages.append({"role": "assistant", "content": content or None, "tool_calls": [
-                    {"id": s["id"], "type": "function",
-                     "function": {"name": s["name"], "arguments": s["arguments"] or "{}"}} for s in tool_calls]})
+                self.messages.append(
+                    {
+                        "role": "assistant",
+                        "content": content or None,
+                        "tool_calls": [
+                            {
+                                "id": s["id"],
+                                "type": "function",
+                                "function": {"name": s["name"], "arguments": s["arguments"] or "{}"},
+                            }
+                            for s in tool_calls
+                        ],
+                    }
+                )
                 for s in tool_calls:
                     try:
                         args = json.loads(s["arguments"] or "{}")
@@ -457,11 +545,12 @@ class Agent:
                     print(f"{C.yellow}🔧 {s['name']}({shown[:160]}){C.reset}")
                     self._trace("tool", f"{s['name']}({shown[:140]})")
                     self._activity(*_tool_activity(s["name"], args))
-                    from core.comm import packet_spec as _ps    # T043 pin 8: MTU gate at the bite site
+                    from core.comm import packet_spec as _ps  # T043 pin 8: MTU gate at the bite site
+
                     _ok, _refusal = _ps.tool_args_within_mtu(s["name"], args)
                     if not _ok:
                         print(f"{C.red}   ⛔ {_refusal}{C.reset}")
-                        result = _refusal    # the tool result the model sees -- refuse loud, never a silent clip
+                        result = _refusal  # the tool result the model sees -- refuse loud, never a silent clip
                     else:
                         # T055/R4: pre-flight recall rides the FRONT of the tool result
                         # (his P1 -- the model reads the file WITH context). Fail-silent.
@@ -482,8 +571,7 @@ class Agent:
                     # Clip the BODY, then append the marker: the hop counter is a suffix
                     # here (the siblings prefix theirs), so clipping the composed string
                     # would eat the very number the agent paces itself by.
-                    result = (f"{clip_tool_result(result)}\n"
-                              f"[hop {self._hops} | tool-round {_round + 1}{_budget}]")
+                    result = f"{clip_tool_result(result)}\n[hop {self._hops} | tool-round {_round + 1}{_budget}]"
                     self.messages.append({"role": "tool", "tool_call_id": s["id"], "content": result})
                 continue
             if content:
@@ -500,16 +588,21 @@ class Agent:
         # and a partial answer is scoreable. It is MARKED, because a partial answer that does not
         # say so is read as complete.
         print(f"{C.red}[stopped: hit {MAX_TOOL_ROUNDS} tool rounds -- forcing a final answer]{C.reset}")
-        _banner = (f"[BUDGET-TRUNCATED after {MAX_TOOL_ROUNDS} tool rounds -- "
-                   f"partial answer, no further tool calls were made]")
+        _banner = (
+            f"[BUDGET-TRUNCATED after {MAX_TOOL_ROUNDS} tool rounds -- partial answer, no further tool calls were made]"
+        )
         _tools_were = self.tools_enabled
         try:
-            self.tools_enabled = False          # no 31st round; this call must produce prose
-            self.messages.append({"role": "user", "content":
-                f"You have used your entire tool budget ({MAX_TOOL_ROUNDS} rounds) and may make NO "
-                f"further tool calls. Answer NOW using only what you have already gathered. State "
-                f"your findings and say plainly what you could not determine. A partial answer is "
-                f"expected and useful; silence is not."})
+            self.tools_enabled = False  # no 31st round; this call must produce prose
+            self.messages.append(
+                {
+                    "role": "user",
+                    "content": f"You have used your entire tool budget ({MAX_TOOL_ROUNDS} rounds) and may make NO "
+                    f"further tool calls. Answer NOW using only what you have already gathered. State "
+                    f"your findings and say plainly what you could not determine. A partial answer is "
+                    f"expected and useful; silence is not.",
+                }
+            )
             content, _tc = self._stream_turn()
             if content:
                 self.messages.append({"role": "assistant", "content": content})
@@ -519,15 +612,26 @@ class Agent:
         finally:
             self.tools_enabled = _tools_were
         # Never "" again: even with no model available, hand back the trail so the work is not lost.
-        _trail = [m.get("content") or "" for m in self.messages
-                  if m.get("role") == "tool" or m.get("role") == "assistant"]
+        _trail = [
+            m.get("content") or "" for m in self.messages if m.get("role") == "tool" or m.get("role") == "assistant"
+        ]
         _tail = " | ".join(t.strip().replace("\n", " ")[:200] for t in _trail[-3:] if t.strip())
         return f"{_banner} The forced answer could not be produced. Last work: {_tail or '(none)'}"
 
     def save(self, path):
-        Path(path).write_text(json.dumps({"model": self.model, "think": self.think,
-            "tools_enabled": self.tools_enabled, "messages": self.messages}, indent=2, ensure_ascii=False),
-            encoding="utf-8")
+        Path(path).write_text(
+            json.dumps(
+                {
+                    "model": self.model,
+                    "think": self.think,
+                    "tools_enabled": self.tools_enabled,
+                    "messages": self.messages,
+                },
+                indent=2,
+                ensure_ascii=False,
+            ),
+            encoding="utf-8",
+        )
 
     def load(self, path):
         doc = json.loads(Path(path).read_text(encoding="utf-8"))
@@ -566,49 +670,65 @@ def handle_command(ag: Agent, raw) -> bool:
     if cmd == "/help":
         print(f"{C.cyan}Commands:{C.reset}\n{HELP}")
     elif cmd == "/reset":
-        ag.reset(); print(f"{C.dim}thread cleared{C.reset}")
+        ag.reset()
+        print(f"{C.dim}thread cleared{C.reset}")
     elif cmd == "/system":
-        (ag.set_system(arg), print(f"{C.dim}system set; thread reset{C.reset}")) if arg else print(f"{C.yellow}usage: /system <text>{C.reset}")
+        (ag.set_system(arg), print(f"{C.dim}system set; thread reset{C.reset}")) if arg else print(
+            f"{C.yellow}usage: /system <text>{C.reset}"
+        )
     elif cmd == "/think":
-        ag.think = {"on": True, "off": False}.get(arg.lower(), not ag.think); print(f"{C.dim}thinking: {'on' if ag.think else 'off'}{C.reset}")
+        ag.think = {"on": True, "off": False}.get(arg.lower(), not ag.think)
+        print(f"{C.dim}thinking: {'on' if ag.think else 'off'}{C.reset}")
     elif cmd == "/tools":
-        ag.tools_enabled = {"on": True, "off": False}.get(arg.lower(), not ag.tools_enabled); print(f"{C.dim}tools: {'on' if ag.tools_enabled else 'off'}{C.reset}")
+        ag.tools_enabled = {"on": True, "off": False}.get(arg.lower(), not ag.tools_enabled)
+        print(f"{C.dim}tools: {'on' if ag.tools_enabled else 'off'}{C.reset}")
     elif cmd == "/trust":
         tb.trust = {"on": True, "off": False}.get(arg.lower(), not tb.trust)
         if tb.trust:
             tb.allow_exec = True
         print(f"{C.yellow}trust: {'ON -- shell/exec auto-approved' if tb.trust else 'off'}{C.reset}")
     elif cmd == "/exec":
-        tb.allow_exec = {"on": True, "off": False}.get(arg.lower(), not tb.allow_exec); print(f"{C.dim}run_command: {'enabled' if tb.allow_exec else 'disabled'}{C.reset}")
+        tb.allow_exec = {"on": True, "off": False}.get(arg.lower(), not tb.allow_exec)
+        print(f"{C.dim}run_command: {'enabled' if tb.allow_exec else 'disabled'}{C.reset}")
     elif cmd == "/root":
         if arg:
-            tb.root = Path(arg).resolve(); print(f"{C.dim}root -> {tb.root}{C.reset}")
+            tb.root = Path(arg).resolve()
+            print(f"{C.dim}root -> {tb.root}{C.reset}")
         else:
             print(f"{C.dim}root = {tb.root}{C.reset}")
     elif cmd == "/model":
-        (setattr(ag, "model", arg), print(f"{C.dim}model -> {arg}{C.reset}")) if arg in (PRO, FLASH) else print(f"{C.yellow}usage: /model {PRO}|{FLASH}{C.reset}")
+        (setattr(ag, "model", arg), print(f"{C.dim}model -> {arg}{C.reset}")) if arg in (PRO, FLASH) else print(
+            f"{C.yellow}usage: /model {PRO}|{FLASH}{C.reset}"
+        )
     elif cmd == "/temp":
         try:
-            ag.temperature = float(arg); print(f"{C.dim}temperature -> {ag.temperature}{C.reset}")
+            ag.temperature = float(arg)
+            print(f"{C.dim}temperature -> {ag.temperature}{C.reset}")
         except ValueError:
             print(f"{C.yellow}usage: /temp <float>{C.reset}")
     elif cmd == "/max":
         try:
-            ag.max_tokens = int(arg); print(f"{C.dim}max_tokens -> {ag.max_tokens}{C.reset}")
+            ag.max_tokens = int(arg)
+            print(f"{C.dim}max_tokens -> {ag.max_tokens}{C.reset}")
         except ValueError:
             print(f"{C.yellow}usage: /max <int>{C.reset}")
     elif cmd == "/json":
-        ag.json_mode = {"on": True, "off": False}.get(arg.lower(), not ag.json_mode); print(f"{C.dim}json mode: {'on (tools off)' if ag.json_mode else 'off'}{C.reset}")
+        ag.json_mode = {"on": True, "off": False}.get(arg.lower(), not ag.json_mode)
+        print(f"{C.dim}json mode: {'on (tools off)' if ag.json_mode else 'off'}{C.reset}")
     elif cmd == "/tokens":
-        print(f"{C.dim}prompt {ag.prompt_tokens} + completion {ag.completion_tokens} = {ag.prompt_tokens + ag.completion_tokens}{C.reset}")
+        print(
+            f"{C.dim}prompt {ag.prompt_tokens} + completion {ag.completion_tokens} = {ag.prompt_tokens + ag.completion_tokens}{C.reset}"
+        )
     elif cmd == "/save":
         try:
-            ag.save(arg); print(f"{C.dim}saved -> {arg}{C.reset}")
+            ag.save(arg)
+            print(f"{C.dim}saved -> {arg}{C.reset}")
         except Exception as e:
             print(f"{C.yellow}save failed: {e}{C.reset}")
     elif cmd == "/load":
         try:
-            ag.load(arg); print(f"{C.dim}loaded {len(ag.messages)} msgs{C.reset}")
+            ag.load(arg)
+            print(f"{C.dim}loaded {len(ag.messages)} msgs{C.reset}")
         except Exception as e:
             print(f"{C.yellow}load failed: {e}{C.reset}")
     elif cmd == "/paste":
@@ -637,11 +757,13 @@ def main() -> int:
 
     key = load_key()
     if not key:
-        print("NO_KEY: set DEEPSEEK_API_KEY or put it in .secrets/deepseek.key", file=sys.stderr); return 2
+        print("NO_KEY: set DEEPSEEK_API_KEY or put it in .secrets/deepseek.key", file=sys.stderr)
+        return 2
     try:
-        from openai import OpenAI
+        from openai import OpenAI as OpenAI  # the probe: MISSING_DEP when openai is absent
     except Exception:
-        print("MISSING_DEP: py -m pip install openai", file=sys.stderr); return 2
+        print(f"MISSING_DEP: {_pyl()} -m pip install openai", file=sys.stderr)
+        return 2
 
     root = Path(args.root).resolve()
 
@@ -651,27 +773,43 @@ def main() -> int:
         except EOFError:
             return False
 
-    toolbox = ToolBox(root, allow_exec=(args.allow_exec or args.trust), trust=args.trust,
-                      allow_secrets=args.allow_secrets, confirm=confirm)
-    client = make_client(key)   # L0: hardened against hung-stream wedges (timeout + explicit retries)
-    agent = Agent(client, toolbox, model=args.model, system=(args.system or default_system(root)),
-                  think=not args.no_think, tools_enabled=not args.no_tools)
+    toolbox = ToolBox(
+        root,
+        allow_exec=(args.allow_exec or args.trust),
+        trust=args.trust,
+        allow_secrets=args.allow_secrets,
+        confirm=confirm,
+    )
+    client = make_client(key)  # L0: hardened against hung-stream wedges (timeout + explicit retries)
+    agent = Agent(
+        client,
+        toolbox,
+        model=args.model,
+        system=(args.system or default_system(root)),
+        think=not args.no_think,
+        tools_enabled=not args.no_tools,
+    )
     if args.load:
         try:
             agent.load(args.load)
         except Exception as e:
             print(f"{C.yellow}load failed: {e}{C.reset}")
 
-    print(f"{C.cyan}{C.bold}DeepSeek agent{C.reset}  {C.dim}model={agent.model} · tools={'on' if agent.tools_enabled else 'off'} · "
-          f"think={'on' if agent.think else 'off'} · root={root}{C.reset}")
-    print(f"{C.dim}exec={'on' if toolbox.allow_exec else 'off'}"
-          f"{' · TRUST(auto-approve)' if toolbox.trust else ''} · /help for commands, /exit to quit{C.reset}")
+    print(
+        f"{C.cyan}{C.bold}DeepSeek agent{C.reset}  {C.dim}model={agent.model} · tools={'on' if agent.tools_enabled else 'off'} · "
+        f"think={'on' if agent.think else 'off'} · root={root}{C.reset}"
+    )
+    print(
+        f"{C.dim}exec={'on' if toolbox.allow_exec else 'off'}"
+        f"{' · TRUST(auto-approve)' if toolbox.trust else ''} · /help for commands, /exit to quit{C.reset}"
+    )
 
     while True:
         try:
             line = input(f"{C.cyan}you>{C.reset} ")
         except (EOFError, KeyboardInterrupt):
-            print(); break
+            print()
+            break
         if not line.strip():
             continue
         if line.lstrip().startswith("/"):

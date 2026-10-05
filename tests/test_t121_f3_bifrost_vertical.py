@@ -8,13 +8,13 @@ This file does not pretend that discovery was pre-registered.  It preserves the
 observed RED -> GREEN flip so the Python-to-JavaScript seam cannot silently
 disappear again.
 """
+
 from __future__ import annotations
 
 import json
 from pathlib import Path
 
 from scripts.bifrost_ui import _fmt
-
 
 ROOT = Path(__file__).resolve().parent.parent
 UI = ROOT / "scripts" / "bifrost_ui.py"
@@ -91,4 +91,3 @@ def test_glyph_block_consumes_only_the_typed_product_not_age_or_flat_meta():
     assert "meta.currency" not in block
     assert "meta.claim_kind" not in block
     assert "EPI_TIER_HOURS" not in block
-

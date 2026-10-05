@@ -8,6 +8,7 @@ Fix: known_agents() also enumerates agents whose DURABLE inbox holds RECENT unco
 stuck/absent consumer stays visible; recency-gated so long-retired agents' stale inboxes don't
 resurrect as findings.
 """
+
 import time
 
 import pytest
@@ -31,7 +32,7 @@ def test_recent_inbox_agent_is_visible_stale_is_not():
     try:
         c.delete(rkey, skey)
         c.xadd(rkey, {"kind": "request", "frm": "tester", "content": "fresh ask"})  # now
-        old_ms = int((time.time() - doctor.RECENT_INBOX_S - 3600) * 1000)           # past the window
+        old_ms = int((time.time() - doctor.RECENT_INBOX_S - 3600) * 1000)  # past the window
         c.xadd(skey, {"kind": "request", "frm": "tester", "content": "old ask"}, id=f"{old_ms}-0")
 
         ka = doctor.known_agents()
@@ -56,7 +57,8 @@ def test_visible_stalled_agent_pages():
         c.delete(key, scur)
         c.xadd(key, {"kind": "request", "frm": "tester", "content": "please answer"})
         from core.comm import liveness
-        liveness.worklive(agent).set("idle", detail="between turns")   # LIVE + idle
+
+        liveness.worklive(agent).set("idle", detail="between turns")  # LIVE + idle
         findings = doctor.examine(agent)
         states = {f["state"] for f in findings}
         assert "stalled_consumer" in states, f"expected a stalled_consumer finding, got {findings}"

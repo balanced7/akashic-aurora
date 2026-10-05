@@ -14,25 +14,42 @@ Never hand-edit any generated file.
     py scripts/generators/gen_library.py --readmes    # write only zone READMEs
     py scripts/generators/gen_library.py --verify     # projection-sha cross-read (drift meter)
 """
+
 from __future__ import annotations
 
 import argparse
 import os
 import re
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Optional
 
 ROOT = Path(__file__).resolve().parent.parent.parent  # T104-M1 depth
 
 SCAN_DIRS = ["docs", "research", "chronicles", "charters"]
-SKIP_PREFIXES = [".git", "__pycache__", "node_modules", ".venv", "backups",
-                 "dropbox", "data", "state", "sessions", ".claude", ".secrets",
-                 "blobs", "model_cache", "temp", ".codex", "ComfyUI-Zluda",
-                 "assets", "ollama_data", "rocm-lib",
-                 "_archive"]   # M3 2026-07-24: fossils (docs/_archive) stay out of the living census
-SKIP_FILES = {"SHELVES.md", "ARCS.md"}   # don't catalog ourselves
+SKIP_PREFIXES = [
+    ".git",
+    "__pycache__",
+    "node_modules",
+    ".venv",
+    "backups",
+    "dropbox",
+    "data",
+    "state",
+    "sessions",
+    ".claude",
+    ".secrets",
+    "blobs",
+    "model_cache",
+    "temp",
+    ".codex",
+    "ComfyUI-Zluda",
+    "assets",
+    "ollama_data",
+    "rocm-lib",
+    "_archive",
+]  # M3 2026-07-24: fossils (docs/_archive) stay out of the living census
+SKIP_FILES = {"SHELVES.md", "ARCS.md"}  # don't catalog ourselves
 SKIP_README_IN = {"docs", "research", "chronicles", "charters"}  # these get full READMEs, never inline-catalogued
 
 # --- header parser ---
@@ -45,7 +62,7 @@ _RE_SUPERSEDED = re.compile(r"(?:superseded by|superseded-by)\s*:?\s*(.+)", re.I
 _RE_HEADING = re.compile(r"^#\s+(.+)$", re.MULTILINE)
 
 
-def _safe_read(path: Path) -> Optional[str]:
+def _safe_read(path: Path) -> str | None:
     try:
         return path.read_text(encoding="utf-8")[:8000]
     except Exception:
@@ -73,8 +90,15 @@ def _extract(text: str) -> dict:
         if hm and "Status:" not in line and "Type:" not in line and line.strip().startswith("# "):
             heading = hm.group(1).strip()
             break
-    return {"status": status, "type": typ, "arc": arc, "seats": seats,
-            "date": date, "superseded": superseded, "heading": heading}
+    return {
+        "status": status,
+        "type": typ,
+        "arc": arc,
+        "seats": seats,
+        "date": date,
+        "superseded": superseded,
+        "heading": heading,
+    }
 
 
 def _should_skip(path: Path) -> bool:
@@ -101,9 +125,20 @@ def walk_docs() -> list[tuple[Path, dict]]:
                     continue
                 text = _safe_read(fp)
                 if text is None:
-                    entries.append((fp, {"status": "unreadable", "type": "unreadable",
-                                         "arc": "", "seats": "", "date": "",
-                                         "superseded": "", "heading": ""}))
+                    entries.append(
+                        (
+                            fp,
+                            {
+                                "status": "unreadable",
+                                "type": "unreadable",
+                                "arc": "",
+                                "seats": "",
+                                "date": "",
+                                "superseded": "",
+                                "heading": "",
+                            },
+                        )
+                    )
                     continue
                 entries.append((fp, _extract(text)))
     return entries
@@ -115,11 +150,13 @@ def _atoms_as_entries() -> list[tuple[Path, dict]]:
     (path, header) shape so every renderer below is untouched. The path is the atom's
     projection home (may not exist yet -- the census is of atoms, not files)."""
     import sys as _sys
+
     if str(ROOT) not in _sys.path:
         _sys.path.insert(0, str(ROOT))
     from core.foundation.store import create_store
     from core.library.atoms import AtomFamily
     from core.library.projection import projection_relpath
+
     fam = AtomFamily(create_store(), repo_root=str(ROOT))
     entries: list[tuple[Path, dict]] = []
     for a in fam.find():
@@ -127,12 +164,20 @@ def _atoms_as_entries() -> list[tuple[Path, dict]]:
         if h.get("visibility") == "local":
             continue  # P3b: redacted/local-only atoms stay out of the PUBLIC census
         h = a["header"]
-        entries.append((ROOT / projection_relpath(a), {
-            "status": h.get("status", ""), "type": h.get("type", ""),
-            "arc": h.get("arc") or "", "seats": ", ".join(h.get("seats", [])),
-            "date": h.get("date", ""), "superseded": a.get("superseded") or "",
-            "heading": h.get("title", ""),
-        }))
+        entries.append(
+            (
+                ROOT / projection_relpath(a),
+                {
+                    "status": h.get("status", ""),
+                    "type": h.get("type", ""),
+                    "arc": h.get("arc") or "",
+                    "seats": ", ".join(h.get("seats", [])),
+                    "date": h.get("date", ""),
+                    "superseded": a.get("superseded") or "",
+                    "heading": h.get("title", ""),
+                },
+            )
+        )
     return entries
 
 
@@ -154,10 +199,10 @@ def _zone_dir(p: Path) -> str:
 
 # Status sort helpers
 _STATUS_ORDER = {"current": 0, "unmarked": 5}
-_BADGE = {"current": "🟢", "superseded": "🟠", "fossil": "⚫",
-          "unmarked": "⚪", "unreadable": "🔴"}
+_BADGE = {"current": "🟢", "superseded": "🟠", "fossil": "⚫", "unmarked": "⚪", "unreadable": "🔴"}
 
-# ---------------------------------------------------------------- SHELVES (v1, unchanged)
+
+# ---------------------------------------------------------------- SHELVES - v1, unchanged
 def build_census(entries):
     by_type: dict[str, list] = {}
     for p, h in entries:
@@ -165,19 +210,25 @@ def build_census(entries):
     for t in by_type:
         # stable-sort cascade: path asc, then date DESC, then status asc (primary last)
         by_type[t].sort(key=lambda x: _relpath(x[0]))
-        by_type[t].sort(key=lambda x: (x[1]["date"] or "0000-00-00"), reverse=True)
+        by_type[t].sort(key=lambda x: x[1]["date"] or "0000-00-00", reverse=True)
         by_type[t].sort(key=lambda x: _STATUS_ORDER.get(x[1]["status"], 3))
     return by_type
 
 
 def render_shelves(by_type):
-    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    now = datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")
     lines = [
-        "# SHELVES — per-type census (auto-generated)", "",
+        "# SHELVES — per-type census (auto-generated)",
+        "",
         "Status: current  ",
-        f"Type: map (generated) · Arc: library-schema · Date: {datetime.now(timezone.utc).strftime('%Y-%m-%d')}",
-        "", f"**Generated:** {now} · **Source:** `scripts/generators/gen_library.py` · **Never hand-edit.**",
-        "", "This is door 1 of the library schema (docs/LIBRARY.md).", "", "---", "",
+        f"Type: map (generated) · Arc: library-schema · Date: {datetime.now(UTC).strftime('%Y-%m-%d')}",
+        "",
+        f"**Generated:** {now} · **Source:** `scripts/generators/gen_library.py` · **Never hand-edit.**",
+        "",
+        "This is door 1 of the library schema (docs/LIBRARY.md).",
+        "",
+        "---",
+        "",
     ]
     for typ in sorted(by_type):
         entries = by_type[typ]
@@ -251,7 +302,7 @@ def _build_zone_census(entries):
     for z in by_zone:
         # stable-sort cascade: path asc, then date DESC, then status asc (primary last)
         by_zone[z].sort(key=lambda x: _relpath(x[0]))
-        by_zone[z].sort(key=lambda x: (x[1]["date"] or "0000-00-00"), reverse=True)
+        by_zone[z].sort(key=lambda x: x[1]["date"] or "0000-00-00", reverse=True)
         by_zone[z].sort(key=lambda x: _STATUS_ORDER.get(x[1]["status"], 3))
     return by_zone
 
@@ -271,15 +322,16 @@ def _render_zone_readme(zone: str, zone_entries: list, now_str: str) -> str:
         "",
     ]
     if canon:
-        for c in canon:
-            lines.append(c)
+        lines.extend(canon)
         lines.append("")
-    lines.extend([
-        f"**Generated:** {now_str} · **Source:** `scripts/generators/gen_library.py` · **Never hand-edit.**",
-        "",
-        "---",
-        "",
-    ])
+    lines.extend(
+        [
+            f"**Generated:** {now_str} · **Source:** `scripts/generators/gen_library.py` · **Never hand-edit.**",
+            "",
+            "---",
+            "",
+        ]
+    )
 
     if not current:
         lines.append("*(no current files)*")
@@ -315,7 +367,7 @@ def _render_zone_readme(zone: str, zone_entries: list, now_str: str) -> str:
     if unclassified:
         lines.append("### Unclassified")
         lines.append("")
-        for p, h in unclassified:
+        for p, _h in unclassified:
             rel = _relpath(p)
             lines.append(f"- `{rel}` — no parseable header")
         lines.append("")
@@ -326,7 +378,7 @@ def _render_zone_readme(zone: str, zone_entries: list, now_str: str) -> str:
     return "\n".join(lines)
 
 
-# ---------------------------------------------------------------- ARCS (v2)
+# ---------------------------------------------------------------- ARCS - v2
 def _build_arc_census(entries):
     by_arc: dict[str, list] = {}
     for p, h in entries:
@@ -337,23 +389,29 @@ def _build_arc_census(entries):
     for a in by_arc:
         # stable-sort cascade: path asc, then date DESC, then status asc (primary last)
         by_arc[a].sort(key=lambda x: _relpath(x[0]))
-        by_arc[a].sort(key=lambda x: (x[1]["date"] or "0000-00-00"), reverse=True)
+        by_arc[a].sort(key=lambda x: x[1]["date"] or "0000-00-00", reverse=True)
         by_arc[a].sort(key=lambda x: _STATUS_ORDER.get(x[1]["status"], 3))
     return by_arc
 
 
 def render_arcs(by_arc):
-    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    now = datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")
     lines = [
-        "# ARCS — per-arc index (auto-generated)", "",
-        "Status: current  ",
-        f"Type: map (generated) · Arc: library-schema · Date: {datetime.now(timezone.utc).strftime('%Y-%m-%d')}",
-        "", f"**Generated:** {now} · **Source:** `scripts/generators/gen_library.py` · **Never hand-edit.**",
+        "# ARCS — per-arc index (auto-generated)",
         "",
-        "Every file declaring an `Arc:` header, grouped by arc. Current files first; "
-        "archived files collapsed. Use this to trace an arc's artifacts across zones — "
-        "the same arc may span `docs/`, `research/`, and `charters/`.",
-        "", "---", "",
+        "Status: current  ",
+        f"Type: map (generated) · Arc: library-schema · Date: {datetime.now(UTC).strftime('%Y-%m-%d')}",
+        "",
+        f"**Generated:** {now} · **Source:** `scripts/generators/gen_library.py` · **Never hand-edit.**",
+        "",
+        (
+            "Every file declaring an `Arc:` header, grouped by arc. Current files first; "
+            "archived files collapsed. Use this to trace an arc's artifacts across zones — "
+            "the same arc may span `docs/`, `research/`, and `charters/`."
+        ),
+        "",
+        "---",
+        "",
     ]
     for arc_display in sorted(by_arc, key=lambda a: (a == "(no arc)", a)):
         entries = by_arc[arc_display]
@@ -366,9 +424,11 @@ def render_arcs(by_arc):
             lines.append("*(all archived)*")
         for p, h in current:
             rel = _relpath(p)
-            lines.append(f"- 🟢 `{rel}` — {h['type']}" +
-                         (f" · {h['date']}" if h["date"] else "") +
-                         (f" · {h['heading'][:60]}" if h.get("heading") else ""))
+            lines.append(
+                f"- 🟢 `{rel}` — {h['type']}"
+                + (f" · {h['date']}" if h["date"] else "")
+                + (f" · {h['heading'][:60]}" if h.get("heading") else "")
+            )
         if archived:
             lines.append("")
             lines.append(f"<details><summary>{len(archived)} archived file(s)</summary>")
@@ -376,8 +436,9 @@ def render_arcs(by_arc):
             for p, h in archived:
                 rel = _relpath(p)
                 badge = _BADGE.get(h["status"], "⚪")
-                lines.append(f"- {badge} `{rel}` — {h['status']} · {h['type']}" +
-                             (f" · {h['date']}" if h["date"] else ""))
+                lines.append(
+                    f"- {badge} `{rel}` — {h['status']} · {h['type']}" + (f" · {h['date']}" if h["date"] else "")
+                )
             lines.append("")
             lines.append("</details>")
         lines.append("")
@@ -395,11 +456,13 @@ def _verify_projections() -> int:
     STATE = the atom's body_sha. Any mismatch, missing file, or orphan projection is a
     broken-after-import specimen, mechanically detected. Exit 1 on drift (ship-gateable)."""
     import sys as _sys
+
     if str(ROOT) not in _sys.path:
         _sys.path.insert(0, str(ROOT))
     from core.foundation.store import create_store
     from core.library.atoms import AtomFamily
     from core.library.projection import projection_relpath
+
     fam = AtomFamily(create_store(), repo_root=str(ROOT))
     atoms = fam.find()
     sha_re = re.compile(r"^akashic_sha:\s*\"?([0-9a-f]{12})\"?\s*$", re.MULTILINE)
@@ -409,7 +472,7 @@ def _verify_projections() -> int:
     for a in atoms:
         known_ids.add(a["id"])
         if a["header"].get("visibility") == "local":
-            skipped += 1        # P3b redaction: no public projection by design
+            skipped += 1  # P3b redaction: no public projection by design
             continue
         rel = _relpath(ROOT / projection_relpath(a))
         checked += 1
@@ -417,7 +480,7 @@ def _verify_projections() -> int:
         if not p.is_file():
             drift.append(f"MISSING  {rel}  (atom {a['id']})")
             continue
-        text = _safe_read(p) or ""      # frontmatter rides the top -- the 8k cap is fine
+        text = _safe_read(p) or ""  # frontmatter rides the top -- the 8k cap is fine
         m = sha_re.search(text)
         if not m:
             drift.append(f"NO-SHA   {rel}  (frontmatter unreadable)")
@@ -436,26 +499,35 @@ def _verify_projections() -> int:
     for o in orphans:
         print(f"[verify] ORPHAN   {o}  (no atom in the store)")
     verdict = "CLEAN" if not (drift or orphans) else "DRIFT"
-    print(f"[gen_library] --verify {verdict}: {checked} projection(s) cross-read, "
-          f"{skipped} local-redacted skipped, {len(drift)} drift row(s), {len(orphans)} orphan(s)")
+    print(
+        f"[gen_library] --verify {verdict}: {checked} projection(s) cross-read, "
+        f"{skipped} local-redacted skipped, {len(drift)} drift row(s), {len(orphans)} orphan(s)"
+    )
     return 0 if verdict == "CLEAN" else 1
 
 
 # ---------------------------------------------------------------- driver
 def main(argv=None) -> int:
-    ap = argparse.ArgumentParser(
-        description="Library census generator: SHELVES + zone READMEs + ARCS")
-    ap.add_argument("--stdout", action="store_true",
-                    help="print SHELVES to stdout (legacy mode)")
-    ap.add_argument("--readmes", action="store_true",
-                    help="write only zone READMEs + ARCS (skip SHELVES)")
-    ap.add_argument("--one", default="",
-                    help="incremental (A1): render ONE atom's projection file and exit; "
-                         "maps stay stale until the next full regen (mirror catches up)")
-    ap.add_argument("--from-store", action="store_true", dest="from_store",
-                    help="census ATOMS (the store) instead of walking .md files (A1)")
-    ap.add_argument("--verify", action="store_true",
-                    help="projection-sha cross-read: report DRIFT/MISSING/ORPHAN rows, exit 1 on any")
+    ap = argparse.ArgumentParser(description="Library census generator: SHELVES + zone READMEs + ARCS")
+    ap.add_argument("--stdout", action="store_true", help="print SHELVES to stdout (legacy mode)")
+    ap.add_argument("--readmes", action="store_true", help="write only zone READMEs + ARCS (skip SHELVES)")
+    ap.add_argument(
+        "--one",
+        default="",
+        help="incremental (A1): render ONE atom's projection file and exit; "
+        "maps stay stale until the next full regen (mirror catches up)",
+    )
+    ap.add_argument(
+        "--from-store",
+        action="store_true",
+        dest="from_store",
+        help="census ATOMS (the store) instead of walking .md files (A1)",
+    )
+    ap.add_argument(
+        "--verify",
+        action="store_true",
+        help="projection-sha cross-read: report DRIFT/MISSING/ORPHAN rows, exit 1 on any",
+    )
     args = ap.parse_args(argv)
 
     if args.verify:
@@ -463,11 +535,13 @@ def main(argv=None) -> int:
 
     if args.one:
         import sys as _sys
+
         if str(ROOT) not in _sys.path:
             _sys.path.insert(0, str(ROOT))
         from core.foundation.store import create_store
         from core.library.atoms import AtomFamily
         from core.library.projection import render_atom
+
         fam = AtomFamily(create_store(), repo_root=str(ROOT))
         atom = fam.get(args.one)
         if atom is None:
@@ -479,7 +553,7 @@ def main(argv=None) -> int:
         return 0
 
     entries = _atoms_as_entries() if args.from_store else walk_docs()
-    now_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    now_str = datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")
 
     # 1) SHELVES.md (type census)
     if not args.readmes:
@@ -490,8 +564,10 @@ def main(argv=None) -> int:
             return 0
         dest = ROOT / "docs" / "SHELVES.md"
         dest.write_text(output, encoding="utf-8")
-        print(f"[gen_library] SHELVES -> {dest}  "
-              f"({len(by_type)} type(s), {sum(len(v) for v in by_type.values())} file(s))")
+        print(
+            f"[gen_library] SHELVES -> {dest}  "
+            f"({len(by_type)} type(s), {sum(len(v) for v in by_type.values())} file(s))"
+        )
 
     # 2) Zone READMEs
     by_zone = _build_zone_census(entries)
@@ -512,8 +588,7 @@ def main(argv=None) -> int:
     arcs_dest = ROOT / "docs" / "ARCS.md"
     arcs_dest.write_text(arcs_out, encoding="utf-8")
     arc_count = sum(1 for a in by_arc if a != "(no arc)")
-    print(f"[gen_library] ARCS -> {arcs_dest}  "
-          f"({arc_count} arc(s), {sum(len(v) for v in by_arc.values())} file(s))")
+    print(f"[gen_library] ARCS -> {arcs_dest}  ({arc_count} arc(s), {sum(len(v) for v in by_arc.values())} file(s))")
 
     return 0
 

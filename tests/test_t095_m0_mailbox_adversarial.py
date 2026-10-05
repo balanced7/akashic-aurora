@@ -2,29 +2,33 @@
 
 Run:  py -m pytest tests/test_t095_m0_mailbox_adversarial.py -q
 """
+
 from __future__ import annotations
 
 import json
 import sys
 from pathlib import Path
 
-import pytest
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
+import importlib as _il
 
 from core.comm.bus import Bus
 from tests.test_t095_m0_mailbox_shadow import (
-    _FakeRedis, _mk, _advance_cursor, NS,
+    NS,
+    _advance_cursor,
+    _mk,
 )
-import importlib as _il
+
+ROOT = Path(__file__).resolve().parents[1]
 
 
 def _mailbox():
     return _il.import_module("core.comm.mailbox")
 
 
-_NO_ACKS = lambda ids: {}
+def _NO_ACKS(ids):
+    return {}
 
 
 def _q(mbx, ns, agent, client, **kw):
@@ -72,14 +76,25 @@ def test_lane_flip_no_double_count():
     r1 = _q(mbx, NS, "deepseek", fake, catch_up_budget=0)
     assert r1["counts"].get("unhandled", 0) == 1
     sha = r1["entries"][0]["sha"]
-    fake.xadd(f"{NS}:inbox:deepseek", {"frm": "claude", "to": "deepseek", "kind": "handoff",
-              "content": "\"dual\"", "ts": "1000000", "meta": "{}", "sha": sha})
+    fake.xadd(
+        f"{NS}:inbox:deepseek",
+        {
+            "frm": "claude",
+            "to": "deepseek",
+            "kind": "handoff",
+            "content": '"dual"',
+            "ts": "1000000",
+            "meta": "{}",
+            "sha": sha,
+        },
+    )
     mbx.catch_up(NS, "deepseek", client=fake)
     r2 = _q(mbx, NS, "deepseek", fake, catch_up_budget=0)
     assert r2["counts"].get("unhandled", 0) == 1
     ids = r2["entries"][0]["ids"]
     sources = list(ids.keys() if isinstance(ids, dict) else json.loads(ids).keys())
-    assert "legacy_inbox" in sources and "work_inbox" in sources
+    assert "legacy_inbox" in sources
+    assert "work_inbox" in sources
 
 
 # A-D4
@@ -101,13 +116,23 @@ def test_replied_evidence_ingested_via_sender_inbox():
     mbx = _mailbox()
     fake, bus = _mk()
     mid = bus.send("deepseek", "handoff", "ancestor")
-    fake.xadd(f"{NS}:work:inbox:claude", {"frm": "claude", "to": "deepseek", "kind": "reply",
-              "content": "\"done\"", "ts": "2000000", "meta": json.dumps({"answers": mid})})
+    fake.xadd(
+        f"{NS}:work:inbox:claude",
+        {
+            "frm": "claude",
+            "to": "deepseek",
+            "kind": "reply",
+            "content": '"done"',
+            "ts": "2000000",
+            "meta": json.dumps({"answers": mid}),
+        },
+    )
     mbx.catch_up(NS, "deepseek", client=fake)
     mbx.catch_up(NS, "claude", client=fake)
     r = _q(mbx, NS, "deepseek", fake, catch_up_budget=0)
     tier = list({e["sha"]: e["tier"] for e in r["entries"]}.values())
-    assert tier and tier[0] in ("replied", "auto_acked"), f"got {tier}"
+    assert tier, f"got {tier}"
+    assert tier[0] in ("replied", "auto_acked"), f"got {tier}"
 
 
 # A-D6
@@ -135,6 +160,7 @@ def test_claim_gated_on_index_position():
     sid = fake.streams[f"{NS}:work:inbox:deepseek"][-1][0]
     pos = fake.hashes.get(f"{NS}:mailbox:pos:deepseek", {}).get("work_inbox", "0-0")
     from core.comm.mailbox import _sid_lte
+
     assert _sid_lte(sid, pos)
 
 

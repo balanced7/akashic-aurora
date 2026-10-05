@@ -15,9 +15,10 @@ from being a remote control").
 Idempotency: a reply id that already posted never posts again (RB-26 one plane up -- the
 runner lane redelivers on crash; a guest must not receive the same answer twice).
 """
+
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 #: Discord's message cap is 2000; the runner already clips at 1900 (stillbirth confessor).
 MAX_POST_CHARS = 1900
@@ -26,9 +27,16 @@ MAX_POST_CHARS = 1900
 #: in this set may be posted; a seat's reply/chat/inform is an answer, these are steering.
 #: Membership is the bus plane's control family (halt/interrupt/pause/resume/nudge/steer),
 #: registered in check_kind_policy PLANES -- one home, no second taxonomy.
-CONTROL_KINDS = frozenset({
-    "halt", "interrupt", "pause", "resume", "nudge", "steer",
-})
+CONTROL_KINDS = frozenset(
+    {
+        "halt",
+        "interrupt",
+        "pause",
+        "resume",
+        "nudge",
+        "steer",
+    }
+)
 
 
 class GuestReplyTracker:
@@ -39,17 +47,17 @@ class GuestReplyTracker:
     """
 
     def __init__(self) -> None:
-        self._tracked: Dict[str, Any] = {}
+        self._tracked: dict[str, Any] = {}
         self._posted: set = set()
 
     def track(self, bus_id: str, channel_key: Any) -> None:
         """Register a guest message by its bus id, so replies to it can find their way out."""
         self._tracked[str(bus_id)] = channel_key
 
-    def poll(self, msgs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def poll(self, msgs: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Return the POST ops for this batch: {channel_key, frm, text} per reply that
         answers a tracked guest. Never raises; a malformed message is a no-op, not a crash."""
-        ops: List[Dict[str, Any]] = []
+        ops: list[dict[str, Any]] = []
         for m in msgs or []:
             if not isinstance(m, dict):
                 continue
@@ -61,17 +69,15 @@ class GuestReplyTracker:
             reply_to = str(meta.get("reply_id") or meta.get("answers") or "")
             chan = self._tracked.get(reply_to)
             if chan is None:
-                continue                       # not answering a guest we admitted -- ambient
+                continue  # not answering a guest we admitted -- ambient
             if str(m.get("kind") or "") in CONTROL_KINDS:
-                continue                       # answered, never steered -- the tier's law, outbound
+                continue  # answered, never steered -- the tier's law, outbound
             if rid and rid in self._posted:
-                continue                       # crash redelivery -- post once, ever
+                continue  # crash redelivery -- post once, ever
             text = str(m.get("text") or "").strip()
             if not text:
                 continue
-            ops.append({"channel_key": chan,
-                        "frm": str(m.get("frm") or "seat"),
-                        "text": text[:MAX_POST_CHARS]})
+            ops.append({"channel_key": chan, "frm": str(m.get("frm") or "seat"), "text": text[:MAX_POST_CHARS]})
             if rid:
                 self._posted.add(rid)
         return ops

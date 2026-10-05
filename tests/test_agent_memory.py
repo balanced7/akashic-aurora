@@ -6,8 +6,8 @@ DOWN, via the File backend -- the durability the old Redis-only version lacked.
 Run: py tests/test_agent_memory.py
 """
 
-import sys
 import os
+import sys
 import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -24,11 +24,13 @@ def _fresh_memory(d):
 def test_decisions():
     with tempfile.TemporaryDirectory() as d:
         mem = _fresh_memory(d)
-        dec_id = mem.decide(title="Use Sentinel", decision="Redis HA via Sentinel",
-                            rationale=["auto failover"], context="HA needed")
+        dec_id = mem.decide(
+            title="Use Sentinel", decision="Redis HA via Sentinel", rationale=["auto failover"], context="HA needed"
+        )
         assert dec_id, "decide should return an id"
         decisions = mem.get_decisions(days=30)
-        assert len(decisions) == 1 and decisions[0].title == "Use Sentinel"
+        assert len(decisions) == 1
+        assert decisions[0].title == "Use Sentinel"
         print("\n--- decisions (semantic) ---\n  decide/get_decisions OK")
 
 
@@ -40,7 +42,8 @@ def test_experiences_and_similarity():
         similar = mem.get_similar("install ComfyUI again")
         assert any("ComfyUI" in e.task for e in similar), f"expected a ComfyUI match: {similar}"
         stats = mem.get_stats()
-        assert stats["experiences"] == 2 and stats["recent_failures"] == 1
+        assert stats["experiences"] == 2
+        assert stats["recent_failures"] == 1
         assert 0 < stats["success_rate"] < 1
         print("\n--- experiences (episodic) ---\n  record/get_similar/get_stats OK")
 
@@ -49,13 +52,16 @@ def test_reflections_capped():
     with tempfile.TemporaryDirectory() as d:
         mem = _fresh_memory(d)
         for i in range(55):
-            mem.reflect(task=f"task {i}", what_went_wrong="x", what_would_help="y",
-                       confidence=0.9 if i % 2 == 0 else 0.3)
+            mem.reflect(
+                task=f"task {i}", what_went_wrong="x", what_would_help="y", confidence=0.9 if i % 2 == 0 else 0.3
+            )
         # index must be capped at MAX_REFLECTIONS
-        assert mem.store.zcard(mem.KEY_REFLECTION_INDEX) == mem.MAX_REFLECTIONS, \
+        assert mem.store.zcard(mem.KEY_REFLECTION_INDEX) == mem.MAX_REFLECTIONS, (
             "reflection index should be trimmed to the newest 50"
+        )
         insights = mem.get_insights(min_confidence=0.6)
-        assert insights and all(r["confidence"] >= 0.6 for r in insights)
+        assert insights
+        assert all(r["confidence"] >= 0.6 for r in insights)
         print("\n--- reflections (Reflexion) ---\n  reflect/cap-at-50/get_insights OK")
 
 
@@ -65,7 +71,8 @@ def test_approaches():
         mem.register_approach("vision", "florence2", "working", learnings=["fast"])
         mem.register_approach("vision", "blip", "failed")
         status = mem.get_component_status("vision")
-        assert len(status["working"]) == 1 and len(status["failed"]) == 1
+        assert len(status["working"]) == 1
+        assert len(status["failed"]) == 1
         assert status["working"][0]["name"] == "florence2"
         print("\n--- approaches (procedural) ---\n  register/get_component_status OK")
 
@@ -75,12 +82,17 @@ def test_log_failure_and_context():
         mem = _fresh_memory(d)
         mem.decide(title="d1", decision="x")
         mem.record(task="t1", success=True)
-        exp_id = mem.log_failure(title="redis timeout", root_cause="port filtered",
-                                fix_applied="raw socket probe", component="infrastructure",
-                                learnings=["fail-fast probe"])
+        exp_id = mem.log_failure(
+            title="redis timeout",
+            root_cause="port filtered",
+            fix_applied="raw socket probe",
+            component="infrastructure",
+            learnings=["fail-fast probe"],
+        )
         assert exp_id, "log_failure should return the experience id"
         stats = mem.get_stats()
-        assert stats["recent_failures"] >= 1 and stats["reflections"] >= 1
+        assert stats["recent_failures"] >= 1
+        assert stats["reflections"] >= 1
         ctx = mem.get_context("anything")
         assert set(ctx) == {"decisions", "recent_experiences", "insights", "stats"}
         assert ctx["stats"]["experiences"] >= 2

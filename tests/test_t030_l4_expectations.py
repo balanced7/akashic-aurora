@@ -20,6 +20,7 @@ Contract frozen here:
 
 Run: py -m pytest tests/test_t030_l4_expectations.py -q
 """
+
 import os
 import sys
 import time
@@ -33,6 +34,7 @@ _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 try:
     from core.comm import expectations
     from core.comm.bus import Bus
+
     _BUILT = hasattr(expectations, "arm") and hasattr(expectations, "sweep")
 except ImportError:
     expectations = Bus = None
@@ -49,7 +51,7 @@ pytestmark = [
 ]
 
 
-@pytest.fixture()
+@pytest.fixture
 def pair():
     """(sender, recipient) with teardown of every touched key. Both cursors park at the
     live broadcast tail (harness-only, the RB-21 _quiesce lesson: a live runner's trace
@@ -62,9 +64,15 @@ def pair():
     yield s, r
     try:
         c = Bus(s)._client
-        for k in (f"bifrost:expect:{s}", f"bifrost:inbox:{s}", f"bifrost:inbox:{r}",
-                  f"bifrost:cursor:{s}", f"bifrost:cursor:{r}",
-                  f"bifrost:presence:{s}", f"bifrost:presence:{r}"):
+        for k in (
+            f"bifrost:expect:{s}",
+            f"bifrost:inbox:{s}",
+            f"bifrost:inbox:{r}",
+            f"bifrost:cursor:{s}",
+            f"bifrost:cursor:{r}",
+            f"bifrost:presence:{s}",
+            f"bifrost:presence:{r}",
+        ):
             c.delete(k)
     except Exception:
         pass
@@ -79,26 +87,31 @@ def _arm(s, r, within=60, content="answer me"):
 
 # --- P1: arm records; sub-minimum deadlines clamp to >= 30s ---
 
+
 def test_arm_records_and_clamps(pair):
     s, r = pair
     t0 = time.time()
     _arm(s, r, within=5)
     res = expectations.sweep(s, now=t0 + 29)
-    assert res["redriven"] == [] and res["dead"] == [], \
-        "within=5 clamped to 30 -- nothing fires before the floor"
+    assert res["redriven"] == [], "within=5 clamped to 30 -- nothing fires before the floor"
+    assert res["dead"] == [], "within=5 clamped to 30 -- nothing fires before the floor"
 
 
 # --- P2: a sweep before the deadline is a no-op ---
+
 
 def test_sweep_before_deadline_noop(pair):
     s, r = pair
     t0 = time.time()
     _arm(s, r, within=60)
     res = expectations.sweep(s, now=t0 + 10)
-    assert res["redriven"] == [] and res["dead"] == [] and res["cleared"] == []
+    assert res["redriven"] == []
+    assert res["dead"] == []
+    assert res["cleared"] == []
 
 
 # --- P3: past deadline -> ONE redrive copy with linkage meta, budget decremented ---
+
 
 def test_redrive_past_deadline(pair):
     s, r = pair
@@ -106,28 +119,29 @@ def test_redrive_past_deadline(pair):
     orig = _arm(s, r, within=60)
     res = expectations.sweep(s, now=t0 + 61)
     assert res["redriven"] == [orig]
-    copies = [m for m in Bus(r).inbox(limit=50, advance=False)
-              if (m.meta or {}).get("redrive_of") == orig]
-    assert len(copies) == 1 and copies[0].meta.get("attempt") == 1
+    copies = [m for m in Bus(r).inbox(limit=50, advance=False) if (m.meta or {}).get("redrive_of") == orig]
+    assert len(copies) == 1
+    assert copies[0].meta.get("attempt") == 1
     res2 = expectations.sweep(s, now=t0 + 61)
     assert res2["redriven"] == [], "same sweep moment never double-fires (fresh deadline)"
 
 
 # --- P4: exhaustion after REDRIVES -> durable expectation_dead + record gone ---
 
+
 def test_exhaustion_emits_dead_event(pair, monkeypatch):
     s, r = pair
     seen = []
-    monkeypatch.setattr(expectations, "_emit_dead",
-                        lambda *a, **k: seen.append((a, k)))
+    monkeypatch.setattr(expectations, "_emit_dead", lambda *a, **k: seen.append((a, k)))
     t0 = time.time()
     orig = _arm(s, r, within=60)
     now = t0 + 61
-    for i in range(expectations.REDRIVES):
+    for _i in range(expectations.REDRIVES):
         assert expectations.sweep(s, now=now)["redriven"] == [orig]
         now += 3600
     res = expectations.sweep(s, now=now)
-    assert res["dead"] == [orig] and len(seen) == 1
+    assert res["dead"] == [orig]
+    assert len(seen) == 1
     assert expectations.sweep(s, now=now + 3600)["dead"] == [], "record deleted after death"
     assert expectations.REDRIVES == 3
 
@@ -135,13 +149,14 @@ def test_exhaustion_emits_dead_event(pair, monkeypatch):
 # --- P5: a LINKED reply clears exactly its expectation; unlinked clears FIFO;
 #         a reply CONSUMED before the sweep still clears (anchor beats cursor) ---
 
+
 def test_linked_reply_clears_exactly_and_survives_consumption(pair):
     s, r = pair
     t0 = time.time()
     first = _arm(s, r, within=60, content="q-first")
     second = _arm(s, r, within=60, content="q-second")
     Bus(r).send(s, "reply", "answering the SECOND", meta={"answers": second})
-    Bus(s).inbox(limit=50, advance=True)          # sender READS its mail before sweeping
+    Bus(s).inbox(limit=50, advance=True)  # sender READS its mail before sweeping
     res = expectations.sweep(s, now=t0 + 10)
     assert res["cleared"] == [second], "exact linkage; consumption cannot hide the reply"
     Bus(r).send(s, "reply", "unlinked answer")
@@ -153,29 +168,31 @@ def test_linked_reply_clears_exactly_and_survives_consumption(pair):
 #     TIMEOUT reply cleared the expectation guarding it -- a non-answer masquerading as
 #     the answer; that live incident is this pin's RED): non-answers never clear ---
 
+
 def test_nonanswer_note_does_not_clear(pair):
     s, r = pair
     t0 = time.time()
-    orig = _arm(s, r, within=60)
+    _arm(s, r, within=60)
     Bus(r).send(s, "note", "(runner timed out -- api call abandoned)")
     res = expectations.sweep(s, now=t0 + 10)
-    assert res["cleared"] == [], \
-        "kind=note is a NON-answer: the expectation stays armed and the redrive will fire"
+    assert res["cleared"] == [], "kind=note is a NON-answer: the expectation stays armed and the redrive will fire"
 
 
 def test_runner_sends_nonanswers_as_notes():
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    src = open(os.path.join(root, "scripts", "bifrost_runner_deepseek.py"),
-               encoding="utf-8").read()
-    assert 'reply_kind = "note" if nonanswer else "reply"' in src, \
+    with open(os.path.join(root, "scripts", "bifrost_runner_deepseek.py"), encoding="utf-8") as fh:
+        src = fh.read()
+    assert 'reply_kind = "note" if nonanswer else "reply"' in src, (
         "timeout/error outcomes ship as kind=note without the answers link (T026 doctrine)"
+    )
 
 
 # --- P6: the doors are wired (built != wired) ---
 
+
 def test_doors_wired():
-    cli = open(os.path.join(_ROOT, "agent_cli.py"), encoding="utf-8").read()
+    with open(os.path.join(_ROOT, "agent_cli.py"), encoding="utf-8") as fh:
+        cli = fh.read()
     assert "--expect-reply-within" in cli, "bifrost-send grew the flag"
-    assert "sweep" in open(os.path.join(_ROOT, "agent", "bifrost_pull.py"),
-                           encoding="utf-8").read(), \
-        "the pull floor (bifrost-sync/boot) sweeps expectations at render"
+    with open(os.path.join(_ROOT, "agent", "bifrost_pull.py"), encoding="utf-8") as fh:
+        assert "sweep" in fh.read(), "the pull floor (bifrost-sync/boot) sweeps expectations at render"

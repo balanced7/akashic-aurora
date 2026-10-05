@@ -47,8 +47,7 @@ NS = "t108lc"
 @pytest.fixture(autouse=True)
 def _restore_env():
     """T069: never leak namespace/incarnation env into sibling tests."""
-    saved = {k: os.environ.get(k) for k in
-             ("BIFROST_NAMESPACE", "BIFROST_INCARNATION", "CLAUDE_CODE_SESSION_ID")}
+    saved = {k: os.environ.get(k) for k in ("BIFROST_NAMESPACE", "BIFROST_INCARNATION", "CLAUDE_CODE_SESSION_ID")}
     yield
     for k, v in saved.items():
         if v is None:
@@ -71,8 +70,7 @@ def _bus(agent, incarnation=None):
 def test_p1_incarnation_suffixes_the_lane_cursor_key():
     b = _bus("deepseek", incarnation="a1b2c3d4")
     key = b.lane_cursor_key()
-    assert key.endswith("deepseek#a1b2c3d4"), (
-        f"lane cursor key must carry the incarnation when one is declared: {key}")
+    assert key.endswith("deepseek#a1b2c3d4"), f"lane cursor key must carry the incarnation when one is declared: {key}"
 
 
 # --------------------------------------------------------------- P2 the defect
@@ -84,7 +82,8 @@ def test_p2_two_incarnations_do_not_share_a_lane_cursor():
     assert one.lane_cursor_key() != two.lane_cursor_key(), (
         f"SHARED LANE CURSOR: both incarnations of deepseek advance "
         f"{one.lane_cursor_key()} -- whichever drains first consumes the other's work. "
-        f"This is the same misdelivery family T108 slice 1 closed for seat streams.")
+        f"This is the same misdelivery family T108 slice 1 closed for seat streams."
+    )
 
 
 # --------------------------------------------------------------- P3 compat
@@ -92,8 +91,7 @@ def test_p3_no_incarnation_is_the_unchanged_legacy_key():
     """Every existing caller constructs Bus without an incarnation. Their key must
     not move by a single byte, or the whole fleet's lane progress resets at once."""
     b = _bus("deepseek")
-    assert b.lane_cursor_key() == f"{NS}:cursor:lane:deepseek", (
-        f"legacy key changed: {b.lane_cursor_key()}")
+    assert b.lane_cursor_key() == f"{NS}:cursor:lane:deepseek", f"legacy key changed: {b.lane_cursor_key()}"
 
 
 # --------------------------------------------------------------- P4 peer queries
@@ -103,8 +101,8 @@ def test_p4_an_explicit_peer_argument_is_never_suffixed():
     which is a confident zero about someone else's progress."""
     b = _bus("deepseek", incarnation="a1b2c3d4")
     assert b.lane_cursor_key("kimi") == f"{NS}:cursor:lane:kimi", (
-        f"a peer query returned {b.lane_cursor_key('kimi')} -- my incarnation leaked "
-        f"onto another agent's cursor key.")
+        f"a peer query returned {b.lane_cursor_key('kimi')} -- my incarnation leaked onto another agent's cursor key."
+    )
 
 
 # --------------------------------------------------------------- P5 the storm guard
@@ -117,10 +115,8 @@ def test_p5_a_virgin_incarnation_cursor_inherits_the_agent_position():
     shared = _bus("deepseek")
     if not shared.online:
         pytest.skip("bus offline")
-    shared._client.delete(f"{NS}:cursor:lane:deepseek",
-                          f"{NS}:cursor:lane:deepseek#a1b2c3d4")
-    shared._client.hset(f"{NS}:cursor:lane:deepseek",
-                        mapping={"inbox": "1785000000000-0", "bc": "1785000000009-0"})
+    shared._client.delete(f"{NS}:cursor:lane:deepseek", f"{NS}:cursor:lane:deepseek#a1b2c3d4")
+    shared._client.hset(f"{NS}:cursor:lane:deepseek", mapping={"inbox": "1785000000000-0", "bc": "1785000000009-0"})
     try:
         fresh = _bus("deepseek", incarnation="a1b2c3d4")
         cur = fresh.read_lane_cursor()
@@ -128,8 +124,8 @@ def test_p5_a_virgin_incarnation_cursor_inherits_the_agent_position():
             f"REDELIVERY STORM: a new incarnation read inbox={cur['inbox']!r} instead of "
             f"inheriting the agent cursor's 1785000000000-0. '0' means drain-from-start -- "
             f"the entire lane history redelivered as new work, on every seat that adopts "
-            f"the split. This exact shape cost $12 and two runners overnight.")
+            f"the split. This exact shape cost $12 and two runners overnight."
+        )
         assert cur["bc"] == "1785000000009-0", "broadcast position must inherit too"
     finally:
-        shared._client.delete(f"{NS}:cursor:lane:deepseek",
-                              f"{NS}:cursor:lane:deepseek#a1b2c3d4")
+        shared._client.delete(f"{NS}:cursor:lane:deepseek", f"{NS}:cursor:lane:deepseek#a1b2c3d4")

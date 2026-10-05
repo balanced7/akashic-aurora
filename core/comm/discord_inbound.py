@@ -26,15 +26,33 @@ import json
 import os
 import re
 from pathlib import Path
-from typing import Any, Callable, Dict, Optional
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+
+        return python_launcher()
+    except Exception:
+        return "py"
+
 
 _ROOT = Path(__file__).resolve().parents[2]
+
 
 #: The R1 allowlist file — one line, all digits. env override is for pins only.
 #: T365: resolve through secret_intake.secrets_dir() so AKASHIC_SECRETS_DIR redirects the vault.
 def _secrets_file(name: str) -> Path:
     from core.comm.secret_intake import secrets_dir
+
     return secrets_dir() / name
+
+
 OPERATOR_ID_FILE = _secrets_file("discord_operator_id")
 
 #: R1 v2 (2026-08-20). Daniil, giving his friend the keys: "he has his own ID. This is
@@ -65,7 +83,7 @@ class EarConfigError(RuntimeError):
     """Refusal at the gate: inbound must never start on a guessed allowlist."""
 
 
-def _load_people() -> Dict[str, Dict[str, str]]:
+def _load_people() -> dict[str, dict[str, str]]:
     """The additional-people registry, or {} when the house has only its operator.
 
     A malformed ROW is dropped alone rather than taking the ear down with it: a typo in
@@ -79,7 +97,7 @@ def _load_people() -> Dict[str, Dict[str, str]]:
         return {}
     if not isinstance(raw, dict):
         return {}
-    out: Dict[str, Dict[str, str]] = {}
+    out: dict[str, dict[str, str]] = {}
     for key, val in raw.items():
         sid = str(key).strip()
         if not sid.isdigit() or not (15 <= len(sid) <= 22):
@@ -94,7 +112,7 @@ def _load_people() -> Dict[str, Dict[str, str]]:
     return out
 
 
-def _load_roots() -> Dict[str, Dict[str, str]]:
+def _load_roots() -> dict[str, dict[str, str]]:
     """The co-root registry, or {} when the house has only its founding operator.
 
     Same row-level tolerance as _load_people: one rotten row is dropped alone, because a
@@ -106,7 +124,7 @@ def _load_roots() -> Dict[str, Dict[str, str]]:
         return {}
     if not isinstance(raw, dict):
         return {}
-    out: Dict[str, Dict[str, str]] = {}
+    out: dict[str, dict[str, str]] = {}
     for key, val in raw.items():
         sid = str(key).strip()
         if not sid.isdigit() or not (15 <= len(sid) <= 22):
@@ -123,11 +141,11 @@ def _load_roots() -> Dict[str, Dict[str, str]]:
     return out
 
 
-def _people_of(cfg: Dict[str, Any]) -> Dict[str, Dict[str, str]]:
+def _people_of(cfg: dict[str, Any]) -> dict[str, dict[str, str]]:
     """Who the ear knows -- tolerant of a cfg built before R1 v2 (every pin hand-builds
     one from a single id). The root operator is ALWAYS present at operator tier, so no
     registry edit and no registry typo can ever lock him out of his own house."""
-    people: Dict[str, Dict[str, str]] = {}
+    people: dict[str, dict[str, str]] = {}
     for sid, row in (cfg.get("people") or {}).items():
         people[str(sid)] = dict(row)
     roots = [str(x) for x in (cfg.get("roots") or {})]
@@ -148,7 +166,7 @@ def _people_of(cfg: Dict[str, Any]) -> Dict[str, Dict[str, str]]:
     return people
 
 
-def build_config() -> Dict[str, Any]:
+def build_config() -> dict[str, Any]:
     """Read the operator id, refusing LOUDLY on absence or malformation.
 
     An absent allowlist must not resolve to 'allow' (the obvious sin) and must not
@@ -159,11 +177,12 @@ def build_config() -> Dict[str, Any]:
     try:
         raw = path.read_text(encoding="utf-8").strip()
     except OSError:
-        raw = ""                     # absent is survivable ONLY if a co-root exists
+        raw = ""  # absent is survivable ONLY if a co-root exists
     if raw and (not raw.isdigit() or not (15 <= len(raw) <= 22)):
         raise EarConfigError(
             f"operator id file exists but does not hold a single numeric Discord "
-            f"snowflake ({path}) — refusing rather than guessing the allowlist.")
+            f"snowflake ({path}) — refusing rather than guessing the allowlist."
+        )
 
     roots = _load_roots()
     if raw:
@@ -175,7 +194,8 @@ def build_config() -> Dict[str, Any]:
             f"co-root registry ({rpath}) yields a usable Discord snowflake. Discord: "
             f"User Settings -> Advanced -> Developer Mode, right-click a person -> Copy "
             f"User ID; save it as that file's one line, or as a "
-            f'{{"<id>": {{"agent": "name"}}}} row in the registry.')
+            f'{{"<id>": {{"agent": "name"}}}} row in the registry.'
+        )
 
     # The PRIMARY root is the founding id when present, else the lowest snowflake so the
     # choice is deterministic rather than dict-order luck. Primary buys exactly one thing
@@ -186,9 +206,9 @@ def build_config() -> Dict[str, Any]:
     for sid, row in roots.items():
         prow = dict(people.get(sid) or {})
         prow["tier"] = "operator"
-        prow["agent"] = (str(row.get("agent") or "").strip()
-                         or str(prow.get("agent") or "").strip()
-                         or ROOT_OPERATOR_AGENT_FALLBACK)
+        prow["agent"] = (
+            str(row.get("agent") or "").strip() or str(prow.get("agent") or "").strip() or ROOT_OPERATOR_AGENT_FALLBACK
+        )
         people[sid] = prow
     return {"operator_id": primary, "roots": roots, "people": people}
 
@@ -203,7 +223,7 @@ SPAWN_FATAL_MARKERS = (
     "invalid api key",
     "credit balance is too low",
     "please run /login",
-    "is not recognized as",          # Windows: the exe went missing under us
+    "is not recognized as",  # Windows: the exe went missing under us
     "command not found",
 )
 
@@ -224,7 +244,7 @@ SPAWN_ALREADY_UP_MARKERS = (
 _SPAWN_ADDR_RE = re.compile(r"\d{1,3}(?:\.\d{1,3}){3}:\d{2,5}")
 
 
-def spawn_already_up_reason(log_text: str) -> Optional[str]:
+def spawn_already_up_reason(log_text: str) -> str | None:
     """Did the spawn refuse because the seat is ALREADY alive on its port?
 
     None means no already-up marker was found -- the caller falls through to
@@ -233,8 +253,7 @@ def spawn_already_up_reason(log_text: str) -> Optional[str]:
     Callers MUST branch on `is not None`, never on truthiness, or the addressless
     case is mistaken for no match at all."""
     lines = [ln.strip() for ln in str(log_text or "").splitlines() if ln.strip()]
-    hit = next((ln for ln in lines
-               if any(m in ln.lower() for m in SPAWN_ALREADY_UP_MARKERS)), None)
+    hit = next((ln for ln in lines if any(m in ln.lower() for m in SPAWN_ALREADY_UP_MARKERS)), None)
     if hit is None:
         return None
     m = _SPAWN_ADDR_RE.search(hit)
@@ -245,8 +264,7 @@ def spawn_already_up_reason(log_text: str) -> Optional[str]:
 CREDENTIAL_CLIFF_DAYS = 7.0
 
 
-def spawn_credential_refusal(vault_token: str,
-                             cli_logged_in: Optional[bool]) -> Optional[str]:
+def spawn_credential_refusal(vault_token: str, cli_logged_in: bool | None) -> str | None:
     """Can a fresh seat authenticate at all? None means yes (or we cannot tell).
 
     T366, from the day it cost him: with no credential anywhere, !spawn spent 16 seconds
@@ -258,16 +276,18 @@ def spawn_credential_refusal(vault_token: str,
     than the failure it guards. Refuse only on a KNOWN bad state; T365's watcher catches
     whatever this lets through."""
     if str(vault_token or "").strip():
-        return None                     # the vault outlives the session: that is the point
+        return None  # the vault outlives the session: that is the point
     if cli_logged_in is False:
-        return ("no credential for a fresh seat: the CLI reports logged out and the vault "
-                "holds no claude_oauth.token. Either `claude auth login` to restore the "
-                "session, or `claude setup-token` and vault it with "
-                "`py agent_cli.py secret claude_oauth.token` for one that outlives it")
+        return (
+            "no credential for a fresh seat: the CLI reports logged out and the vault "
+            "holds no claude_oauth.token. Either `claude auth login` to restore the "
+            "session, or `claude setup-token` and vault it with "
+            f"`{_pyl()} agent_cli.py secret claude_oauth.token` for one that outlives it"
+        )
     return None
 
 
-def credential_horizon_days(creds: Dict[str, Any], now_ms: int) -> Optional[float]:
+def credential_horizon_days(creds: dict[str, Any], now_ms: int) -> float | None:
     """Days until the REFRESH token dies -- the clock that actually ends resuscitation.
 
     The access token expires every few hours and rolls over silently, which is why nobody
@@ -284,25 +304,27 @@ def credential_horizon_days(creds: Dict[str, Any], now_ms: int) -> Optional[floa
     return (float(exp) - float(now_ms)) / 86_400_000.0
 
 
-def credential_warning(days: Optional[float],
-                       cliff: float = CREDENTIAL_CLIFF_DAYS) -> Optional[str]:
+def credential_warning(days: float | None, cliff: float = CREDENTIAL_CLIFF_DAYS) -> str | None:
     """The line worth surfacing BEFORE he reaches for the lever. Silent when there is
     nothing to say -- a warning that fires at 28 days out teaches people to ignore it."""
     if days is None:
         return None
     if days < 0:
-        return (f"the spawn credential EXPIRED {abs(days):.0f} day(s) ago -- !spawn cannot "
-                f"build a seat until `claude auth login` runs, or a long-lived "
-                f"`claude setup-token` lands in the vault")
+        return (
+            f"the spawn credential EXPIRED {abs(days):.0f} day(s) ago -- !spawn cannot "
+            f"build a seat until `claude auth login` runs, or a long-lived "
+            f"`claude setup-token` lands in the vault"
+        )
     if days <= cliff:
-        return (f"the spawn credential dies in {days:.0f} day(s) -- renew before it takes "
-                f"the recovery path with it; a vaulted `claude setup-token` beats another "
-                f"`claude auth login` on a clock")
+        return (
+            f"the spawn credential dies in {days:.0f} day(s) -- renew before it takes "
+            f"the recovery path with it; a vaulted `claude setup-token` beats another "
+            f"`claude auth login` on a clock"
+        )
     return None
 
 
-def spawn_stillborn_reason(exit_code: Optional[int], log_text: str,
-                           max_len: int = 300) -> Optional[str]:
+def spawn_stillborn_reason(exit_code: int | None, log_text: str, max_len: int = 300) -> str | None:
     """Did the spawned seat LIVE? None means yes; a string is the reason it did not.
 
     `exit_code` is None while the child is still breathing after its grace window --
@@ -314,12 +336,11 @@ def spawn_stillborn_reason(exit_code: Optional[int], log_text: str,
     finished run, not a death. A gate with a false-positive rate is a gate nobody
     reads (sample_a_new_gate_for_its_false_positive_rate_before_trusting_it)."""
     if exit_code is None:
-        return None                    # still running: the sprout is true, so far
+        return None  # still running: the sprout is true, so far
     lines = [ln.strip() for ln in str(log_text or "").splitlines() if ln.strip()]
-    fatal = next((ln for ln in lines
-                  if any(m in ln.lower() for m in SPAWN_FATAL_MARKERS)), None)
+    fatal = next((ln for ln in lines if any(m in ln.lower() for m in SPAWN_FATAL_MARKERS)), None)
     if exit_code == 0 and fatal is None:
-        return None                    # it ran, it finished, it said nothing alarming
+        return None  # it ran, it finished, it said nothing alarming
     detail = fatal or (lines[-1] if lines else "(no output)")
     reason = " ".join(f"exit {exit_code}: {detail}".split())
     return reason[:max_len]
@@ -329,8 +350,13 @@ def spawn_stillborn_reason(exit_code: Optional[int], log_text: str,
 #: 2026-08-24 they were the LAST lines in the log -- so a naive "relay the tail" would have
 #: handed Daniil a file-not-found traceback instead of the seat saying it could not comply.
 _HARNESS_NOISE = (
-    "sessionend hook", "sessionstart hook", "pretooluse hook", "posttooluse hook",
-    "stop hook", "notification hook", "traceback (most recent call last)",
+    "sessionend hook",
+    "sessionstart hook",
+    "pretooluse hook",
+    "posttooluse hook",
+    "stop hook",
+    "notification hook",
+    "traceback (most recent call last)",
 )
 
 
@@ -340,19 +366,18 @@ def _seat_words(log_text: str, max_len: int = 1700) -> str:
     Keeps the TAIL, because a seat says what it concluded at the end -- and clips rather
     than truncates from the front, so the conclusion survives a long transcript."""
     lines = [ln.rstrip() for ln in str(log_text or "").splitlines()]
-    kept = [ln for ln in lines
-            if ln.strip() and not any(m in ln.lower() for m in _HARNESS_NOISE)]
+    kept = [ln for ln in lines if ln.strip() and not any(m in ln.lower() for m in _HARNESS_NOISE)]
     if not kept:
         return ""
     out = "\n".join(kept).strip()
     if len(out) > max_len:
-        out = "…(clipped)\n" + out[-(max_len - 12):]
+        out = "…(clipped)\n" + out[-(max_len - 12) :]
     return out
 
 
-def spawn_closing_report(exit_code: Optional[int], log_text: str, *,
-                         elapsed_s: float, deadline_s: float,
-                         max_len: int = 1900) -> Optional[str]:
+def spawn_closing_report(
+    exit_code: int | None, log_text: str, *, elapsed_s: float, deadline_s: float, max_len: int = 1900
+) -> str | None:
     """What to tell the requester about a spawn that has finished -- or overstayed.
 
     THE DEFECT THIS RETIRES (2026-08-24): the gateway read the child's entire output,
@@ -372,30 +397,32 @@ def spawn_closing_report(exit_code: Optional[int], log_text: str, *,
 
     if exit_code is None:
         if elapsed_s < deadline_s:
-            return None                 # genuinely working: his channel stays quiet
+            return None  # genuinely working: his channel stays quiet
         mins = elapsed_s / 60.0
         # `exit_code is None` means "still running", which is ALSO exactly what a hang
         # looks like. At the deadline that ambiguity is handed to him, not absorbed.
-        head = (f"still running after {mins:.0f}m")
-        body = (f" -- latest it said:\n{said}" if said else
-                " and has said nothing back -- breathing, not answering")
+        head = f"still running after {mins:.0f}m"
+        body = f" -- latest it said:\n{said}" if said else " and has said nothing back -- breathing, not answering"
         return (head + body)[:max_len]
 
     if not said:
-        return (f"the seat exited (code {exit_code}) and said nothing back -- no word, "
-                f"so there is no receipt beyond the exit code")[:max_len]
+        return (
+            f"the seat exited (code {exit_code}) and said nothing back -- no word, "
+            f"so there is no receipt beyond the exit code"
+        )[:max_len]
     return said[:max_len]
 
 
-def _rooms_reverse() -> Dict[str, str]:
+def _rooms_reverse() -> dict[str, str]:
     """thread_id -> ask_id, from the rooms registry. The registry maps the route;
     message content never does (R3)."""
     from core.comm.discord_rooms import _reg_path
+
     try:
         reg = json.loads(_reg_path().read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return {}
-    out: Dict[str, str] = {}
+    out: dict[str, str] = {}
     for ask_id, rec in reg.items():
         tid = str((rec or {}).get("thread_id") or "")
         if tid:
@@ -403,21 +430,22 @@ def _rooms_reverse() -> Dict[str, str]:
     return out
 
 
-def _mention_map() -> Dict[str, str]:
+def _mention_map() -> dict[str, str]:
     """role-name (lowercased) -> agent id, fed by the residents registry — never a
     second hand-kept roster. Agent ids map to themselves so @claude works alongside
     @Vandor; a role the registry doesn't know is simply not an address."""
     agents = ("claude", "deepseek", "kimi", "codex")
-    out: Dict[str, str] = {a: a for a in agents}
+    out: dict[str, str] = {a: a for a in agents}
     try:
         from core.fleet import residents as _R
+
         for a in agents:
             rec = _R.get(a)
             cs = str((rec or {}).get("callsign") or "").strip().lower()
             if cs:
                 out[cs] = a
-    except Exception:                                                   # noqa: BLE001
-        pass                       # registry down -> agent ids still resolve
+    except Exception:  # noqa: BLE001  # fail-soft: best effort, skipped on any error
+        pass  # registry down -> agent ids still resolve
     return out
 
 
@@ -426,7 +454,7 @@ def _mention_map() -> Dict[str, str]:
 SEATS_FILE = _ROOT / "state" / "coord" / "discord_seat_channels.json"
 
 
-def _seat_channels() -> Dict[str, Any]:
+def _seat_channels() -> dict[str, Any]:
     path = Path(os.getenv("AKASHIC_DISCORD_SEATS_REGISTRY") or SEATS_FILE)
     try:
         return json.loads(path.read_text(encoding="utf-8"))
@@ -456,12 +484,13 @@ COLD_SEAT_NOTICE = (
     "  `!spawn vandor --harness` — a real interactive Claude Code session (a window you "
     "can watch and type into; it persists)\n"
     "  `!spawn vandor --headless` — a one-shot `claude -p` worker (cheap, does the task, "
-    "exits)")
+    "exits)"
+)
 
 
-def _auto_wake(agent: str, task: str,
-               spawner: Optional[Callable[..., Any]],
-               is_seat_reachable: Optional[Callable[[str], bool]]) -> Optional[str]:
+def _auto_wake(
+    agent: str, task: str, spawner: Callable[..., Any] | None, is_seat_reachable: Callable[[str], bool] | None
+) -> str | None:
     """Reach the seat that EXISTS; never conjure one behind his back.
 
     HISTORY, because this function's meaning was inverted by ruling and the old shape is
@@ -486,9 +515,9 @@ def _auto_wake(agent: str, task: str,
         return None
     try:
         if is_seat_reachable(agent):
-            return None                   # live: the lane + its listener ARE the wake
-    except Exception:                                                     # noqa: BLE001
-        return None                       # cannot tell -> never claim he is unreachable
+            return None  # live: the lane + its listener ARE the wake
+    except Exception:  # noqa: BLE001  # fail-soft: falls back to a default value
+        return None  # cannot tell -> never claim he is unreachable
     return COLD_SEAT_NOTICE
 
 
@@ -504,52 +533,26 @@ def discord_help_text() -> str:
     !spawn <sentence> = a task for a fresh claude seat. A lever that swallows a
     sentence because it began with a name would be worse than the lever it replaced
     (seat_launchers.py module docstring)."""
-    return "\n".join([
-        "**Akashic Aurora — Discord commands**",
-        "",
-        "`!help` — this reference.",
-        "",
-        "`!spawn <seat>` — launch THAT seat (rill / heimdall / navi / sunshine / vandor).",
-        "    e.g. `!spawn vandor` — fresh Vandor seat.",
-        "`!spawn vandor --harness` — INTERACTIVE Claude Code session in its own window: "
-        "one you can watch and type into, and it persists.",
-        "`!spawn vandor --headless` — the one-shot `claude -p` worker: cheap, does the "
-        "task, exits. (What a bare spawn gives you.)",
-        "`!model` — which model new seats request + what each live session reports "
-        "running. `!model opus` pins; `!model default` unpins.",
-        "Talking to a live seat needs NO command: type in its channel (or @-mention it) "
-        "and the message wakes THAT session. Nothing is ever spawned behind your back — "
-        "if the seat is cold you get 📭 and choose the harness yourself.",
-        "`!spawn <task>` — spawn a claude seat to DO the task (any sentence).",
-        "    e.g. `!spawn take the handoff, prior seat wedged`",
-        "`!spawn <task> --arm` — same, but write+exec posture (self-arm, drain, build).",
-        "`!spawn <task> --dangerous` — break-glass: skip all permission gates (only when --arm is provably not enough).",
-        "",
-        "`!revive` — run the recovery reconciler (all rungs: redis, daemon, gateway).",
-        "`!revive <target>` — converge ONE rung. Targets: `redis` | `daemon` | `gateway`.",
-        "    e.g. `!revive daemon` — recycle daemon + its deepseek/kimi runners (picks up code changes).",
-        "    e.g. `!revive gateway` — revive the Discord pump (fixes 'Vandor not replying').",
-        "",
-        "`!status-deep` (or `!statusdeep`) — dry run: report health, heal nothing. Read-only; safe anytime.",
-        "",
-        "`@vandor` / `@heimdall` / `@navi` / `@rill` — summon THAT seat (directed, wakes it).",
-        "`@everyone` — summon every known seat at once (same directed wake, one per seat).",
-        "Plain text, no mention — lands as ambient chat everyone can read; nobody is woken for it.",
-        "",
-        "Heads-up: `!revive` is ROOT-only. `!spawn`/`!help`/`!status-deep` work for any operator.",
-    ])
+    return "**Akashic Aurora — Discord commands**\n\n`!help` — this reference.\n\n`!spawn <seat>` — launch THAT seat (rill / heimdall / navi / sunshine / vandor).\n    e.g. `!spawn vandor` — fresh Vandor seat.\n`!spawn vandor --harness` — INTERACTIVE Claude Code session in its own window: one you can watch and type into, and it persists.\n`!spawn vandor --headless` — the one-shot `claude -p` worker: cheap, does the task, exits. (What a bare spawn gives you.)\n`!model` — which model new seats request + what each live session reports running. `!model opus` pins; `!model default` unpins.\nTalking to a live seat needs NO command: type in its channel (or @-mention it) and the message wakes THAT session. Nothing is ever spawned behind your back — if the seat is cold you get 📭 and choose the harness yourself.\n`!spawn <task>` — spawn a claude seat to DO the task (any sentence).\n    e.g. `!spawn take the handoff, prior seat wedged`\n`!spawn <task> --arm` — same, but write+exec posture (self-arm, drain, build).\n`!spawn <task> --dangerous` — break-glass: skip all permission gates (only when --arm is provably not enough).\n\n`!revive` — run the recovery reconciler (all rungs: redis, daemon, gateway).\n`!revive <target>` — converge ONE rung. Targets: `redis` | `daemon` | `gateway`.\n    e.g. `!revive daemon` — recycle daemon + its deepseek/kimi runners (picks up code changes).\n    e.g. `!revive gateway` — revive the Discord pump (fixes 'Vandor not replying').\n\n`!status-deep` (or `!statusdeep`) — dry run: report health, heal nothing. Read-only; safe anytime.\n\n`@vandor` / `@heimdall` / `@navi` / `@rill` — summon THAT seat (directed, wakes it).\n`@everyone` — summon every known seat at once (same directed wake, one per seat).\nPlain text, no mention — lands as ambient chat everyone can read; nobody is woken for it.\n\nHeads-up: `!revive` is ROOT-only. `!spawn`/`!help`/`!status-deep` work for any operator."
 
 
-def handle_message(cfg: Dict[str, Any], *, author_id: str, author_name: str,
-                   channel_id: str, content: str,
-                   bus: Any, react: Callable[[str], Any],
-                   role_mentions: Any = None,
-                   spawner: Optional[Callable[[str], Any]] = None,
-                   message_id: Optional[str] = None,
-                   reviver: Optional[Callable[[Optional[str], bool], Any]] = None,
-                   attachments: Optional[list] = None,
-                   is_seat_reachable: Optional[Callable[[str], bool]] = None,
-                   mentions_everyone: bool = False) -> Dict[str, Any]:
+def handle_message(
+    cfg: dict[str, Any],
+    *,
+    author_id: str,
+    author_name: str,
+    channel_id: str,
+    content: str,
+    bus: Any,
+    react: Callable[[str], Any],
+    role_mentions: Any = None,
+    spawner: Callable[[str], Any] | None = None,
+    message_id: str | None = None,
+    reviver: Callable[[str | None, bool], Any] | None = None,
+    attachments: list | None = None,
+    is_seat_reachable: Callable[[str], bool] | None = None,
+    mentions_everyone: bool = False,
+) -> dict[str, Any]:
     """One inbound message, fully decided. Returns what happened and why.
 
     Raises nothing it can help; but a BUS failure raises to the caller — the runner
@@ -569,12 +572,13 @@ def handle_message(cfg: Dict[str, Any], *, author_id: str, author_name: str,
     parts = None
     if attachments:
         from core.comm.bus import file_part
+
         parts = []
         for p in attachments:
             try:
                 parts.append(file_part(p))
-            except Exception:                                           # noqa: BLE001
-                continue          # one unreadable file never silences the words
+            except Exception:  # noqa: BLE001  # fail-soft: best effort, skipped on any error
+                continue  # one unreadable file never silences the words
         parts = parts or None
         if not text and parts:
             names = ", ".join(os.path.basename(str(p)) for p in attachments)
@@ -591,14 +595,19 @@ def handle_message(cfg: Dict[str, Any], *, author_id: str, author_name: str,
     # meta, and carrying no lever at all. R3 to the letter -- reach, never authority.
     if not is_operator:
         if text.startswith("!"):
-            return {"acted": False,
-                    "reason": f"control word from a guest {author_id!r} "
-                              f"(name {author_name!r} is costume; the levers stay "
-                              f"behind R1 -- reach, never authority)"}
-        gmeta: Dict[str, Any] = {
-            "source": "discord", "operator": False, "guest": True,
+            return {
+                "acted": False,
+                "reason": f"control word from a guest {author_id!r} "
+                f"(name {author_name!r} is costume; the levers stay "
+                f"behind R1 -- reach, never authority)",
+            }
+        gmeta: dict[str, Any] = {
+            "source": "discord",
+            "operator": False,
+            "guest": True,
             "authority": "none",
-            "guest_name": str(author_name or "")[:64], "guest_id": str(author_id),
+            "guest_name": str(author_name or "")[:64],
+            "guest_id": str(author_id),
         }
         if message_id:
             # T376 S3a: derived from the Discord snowflake, never minted -- one
@@ -619,10 +628,17 @@ def handle_message(cfg: Dict[str, Any], *, author_id: str, author_name: str,
             raise RuntimeError(
                 "the bus accepted nothing for a guest's word (returned None -- Redis "
                 "down or both writes failed); a guest is owed the same honest failure "
-                "the operator gets, not a silent shrug")
+                "the operator gets, not a silent shrug"
+            )
         react("👁")
-        return {"acted": True, "guest": True, "authority": "none",
-                "id": str(gmid), "to": ([glane] if glane else None), "ask_id": gask}
+        return {
+            "acted": True,
+            "guest": True,
+            "authority": "none",
+            "id": str(gmid),
+            "to": ([glane] if glane else None),
+            "ask_id": gask,
+        }
 
     # An operator who is not the ROOT operator is announced on the wire. Without this
     # his friend's words would be indistinguishable from his own and the fleet would
@@ -631,7 +647,7 @@ def handle_message(cfg: Dict[str, Any], *, author_id: str, author_name: str,
     # R1's own doctrine, finally applied to attribution: the id is the law, the name is
     # costume. Branching on the NAME meant renaming the root operator silently changed
     # who rode bare, and a hardcoded name meant a different root wore Daniil's.
-    body = text if str(author_id) == str(cfg.get("operator_id") or "")         else f"[{speaker}] {text}"
+    body = text if str(author_id) == str(cfg.get("operator_id") or "") else f"[{speaker}] {text}"
 
     # !help — the operator's own command reference (2026-08-31). R1 already gated this
     # path (only his id reaches here). Like !spawn and !revive, it rides NO bus lane —
@@ -646,18 +662,17 @@ def handle_message(cfg: Dict[str, Any], *, author_id: str, author_name: str,
     # bus lane: it is an answer about the levers, like !help. Read-only when bare.
     if text.lower().startswith("!model"):
         from core.fleet import seat_model as _sm
-        arg = text[len("!model"):].strip()
+
+        arg = text[len("!model") :].strip()
         if not arg:
             return {"acted": True, "help": _sm.render(with_choices=True), "id": None}
         try:
-            st = (_sm.unpin(by=speaker) if arg.lower() in ("default", "unpin", "none")
-                  else _sm.pin(arg, by=speaker))
+            st = _sm.unpin(by=speaker) if arg.lower() in ("default", "unpin", "none") else _sm.pin(arg, by=speaker)
         except ValueError as e:
             react("❓")
             return {"acted": False, "reason": str(e), "help": str(e), "id": None}
         react("🎛")
-        return {"acted": True, "id": None, "model": st.get("model"),
-                "help": _sm.render(with_choices=False)}
+        return {"acted": True, "id": None, "model": st.get("model"), "help": _sm.render(with_choices=False)}
 
     # !status-deep -- the READ-ONLY dry lever (observe_only=True), available to
     # ANY operator (help line 474: "!status-deep work[s] for any operator... safe
@@ -668,13 +683,14 @@ def handle_message(cfg: Dict[str, Any], *, author_id: str, author_name: str,
     # It rides NO bus lane and needs no reviver credential beyond the dry run.
     if text.lower() in ("!status-deep", "!statusdeep"):
         if reviver is None:
-            raise RuntimeError("!status-deep received but no reviver is wired -- "
-                               "the runner must provide one; refusing beats "
-                               "pretending")
+            raise RuntimeError(
+                "!status-deep received but no reviver is wired -- "
+                "the runner must provide one; refusing beats "
+                "pretending"
+            )
         reviver(None, True)
         react("🚑")
-        return {"acted": True, "id": None,
-                "revive": {"target": None, "observe_only": True}}
+        return {"acted": True, "id": None, "revive": {"target": None, "observe_only": True}}
 
     if text.lower().startswith("!revive"):
         # R3 AMENDMENT (gate-2026-08-23-revive-ladder-ratified, Daniil verbatim
@@ -688,24 +704,22 @@ def handle_message(cfg: Dict[str, Any], *, author_id: str, author_name: str,
         if primary:
             roots.add(primary)
         if str(author_id) not in roots:
-            return {"acted": False,
-                    "reason": f"recovery levers are root-only (R3 amendment); "
-                              f"{author_id!r} is operator-tier, not root"}
+            return {
+                "acted": False,
+                "reason": f"recovery levers are root-only (R3 amendment); {author_id!r} is operator-tier, not root",
+            }
         if reviver is None:
-            raise RuntimeError("!revive received but no reviver is wired -- "
-                               "the runner must provide one; refusing beats "
-                               "pretending")
-        raw = text[len("!revive"):].strip().lower()
+            raise RuntimeError(
+                "!revive received but no reviver is wired -- the runner must provide one; refusing beats pretending"
+            )
+        raw = text[len("!revive") :].strip().lower()
         if raw and raw not in ("redis", "daemon", "gateway"):
             react("❓")
-            return {"acted": False,
-                    "reason": f"unknown revive target {raw!r} -- "
-                              f"redis|daemon|gateway, or bare !revive"}
+            return {"acted": False, "reason": f"unknown revive target {raw!r} -- redis|daemon|gateway, or bare !revive"}
         target, observe_only = (raw or None), False
         reviver(target, observe_only)
         react("🚑")
-        return {"acted": True, "id": None,
-                "revive": {"target": target, "observe_only": observe_only}}
+        return {"acted": True, "id": None, "revive": {"target": target, "observe_only": observe_only}}
 
     # !spawn — the operator's fresh-hands word (his ask, on the way to work
     # 2026-08-19: "a syntax that I can use to invoke a new instance, in case you
@@ -716,8 +730,9 @@ def handle_message(cfg: Dict[str, Any], *, author_id: str, author_name: str,
     # whole promise: the sprout is not the harvest.
     if text.lower().startswith("!spawn"):
         if spawner is None:
-            raise RuntimeError("!spawn received but no spawner is wired — the "
-                               "runner must provide one; refusing beats pretending")
+            raise RuntimeError(
+                "!spawn received but no spawner is wired — the runner must provide one; refusing beats pretending"
+            )
         # T366-adjacent (2026-08-23): spawn GRANT. Until now every !spawn-born seat
         # inherited the CLI's default read-only posture and could not arm its own wake
         # watcher, write, or exec remotely — the exact shape that left Vandor stranded
@@ -740,7 +755,7 @@ def handle_message(cfg: Dict[str, Any], *, author_id: str, author_name: str,
         # working, and a bare seat name plus a trailing flag (e.g. "vandor --dangerous")
         # now reduces to a bare seat name again, so seat_launchers.resolve_seat can
         # still see it.
-        rest = text[len("!spawn"):].strip()
+        rest = text[len("!spawn") :].strip()
         spawn_mode = "default"
         words = rest.split()
         for token, mode in (("--dangerous", "dangerous"), ("--arm", "arm")):
@@ -754,20 +769,20 @@ def handle_message(cfg: Dict[str, Any], *, author_id: str, author_name: str,
                 words = words[:-1]
                 break
         rest = " ".join(words)
-        task = rest or \
-            "fresh seat: operator-invoked spawn from Discord (no task given -- " \
+        task = (
+            rest
+            or "fresh seat: operator-invoked spawn from Discord (no task given -- "
             "boot, read the latest handoff, take the watch)"
+        )
         try:
             pid = spawner(task, mode=spawn_mode)
         except TypeError:
             # an older runner whose spawner does not take the mode kwarg yet
             pid = spawner(task)
         react("🌱")
-        return {"acted": True, "spawned": str(pid), "id": None,
-                "mode": spawn_mode}
+        return {"acted": True, "spawned": str(pid), "id": None, "mode": spawn_mode}
 
-    meta: Dict[str, Any] = {"source": "discord", "operator": True,
-                            "speaker": speaker}
+    meta: dict[str, Any] = {"source": "discord", "operator": True, "speaker": speaker}
     if message_id:
         # T376 S3a: same law as the guest path -- the relay self-identifies by
         # its Discord message id so double-relay dies at the bus door.
@@ -782,12 +797,13 @@ def handle_message(cfg: Dict[str, Any], *, author_id: str, author_name: str,
         if mid is None:
             raise RuntimeError(
                 f"the bus accepted nothing for the {lane_agent} lane (send "
-                f"returned None); no receipt for an undelivered word")
+                f"returned None); no receipt for an undelivered word"
+            )
         react("📨")
         out = {"acted": True, "id": str(mid), "to": [lane_agent]}
         cold = _auto_wake(lane_agent, body, spawner, is_seat_reachable)
         if cold:
-            react("📭")                   # landed, nobody home -- NOT a failure
+            react("📭")  # landed, nobody home -- NOT a failure
             out["cold_seat"] = cold
         return out
     ask = _rooms_reverse().get(str(channel_id))
@@ -802,7 +818,7 @@ def handle_message(cfg: Dict[str, Any], *, author_id: str, author_name: str,
     # message mentioning only those stays ambient like any other.
     mmap = _mention_map()
     targets = []
-    for r in (role_mentions or []):
+    for r in role_mentions or []:
         agent = mmap.get(str(r).strip().lower())
         if agent and agent not in targets:
             targets.append(agent)
@@ -828,8 +844,13 @@ def handle_message(cfg: Dict[str, Any], *, author_id: str, author_name: str,
                     f"the bus accepted nothing for @{agent} (send returned None — "
                     f"offline or refused); no receipt may be given for an "
                     f"undelivered summons"
-                    + (f" ({len(sent_ids)} earlier summons in this message DID "
-                       f"deliver — duplicates beat losses on retype)" if sent_ids else ""))
+                    + (
+                        f" ({len(sent_ids)} earlier summons in this message DID "
+                        f"deliver — duplicates beat losses on retype)"
+                        if sent_ids
+                        else ""
+                    )
+                )
             sent_ids.append(str(mid))
         react("📨")
         out = {"acted": True, "id": sent_ids[-1], "ask_id": ask, "to": targets}
@@ -848,6 +869,7 @@ def handle_message(cfg: Dict[str, Any], *, author_id: str, author_name: str,
         # docstring promises to prevent — raise so the runner's ⚠️ path fires.
         raise RuntimeError(
             "the bus accepted nothing (broadcast returned None — Redis down or "
-            "both writes failed); no receipt may be given for an undelivered word")
+            "both writes failed); no receipt may be given for an undelivered word"
+        )
     react("📨")
     return {"acted": True, "id": str(mid), "ask_id": ask}

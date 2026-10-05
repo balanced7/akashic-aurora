@@ -34,33 +34,38 @@ Run::
 
     py -m pytest tests/test_write_door_acl_scope.py -q
 """
+
 from __future__ import annotations
 
 import os
-from pathlib import Path
 import sys
-
-import pytest
+from pathlib import Path
 
 os.environ.setdefault("_AISETUP_TEST_ISOLATED", "1")
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from core.comm import toolbox as tb_mod          # noqa: E402
-from core.trust.capabilities import Cap          # noqa: E402
-from core.trust.registry import Grant            # noqa: E402
+from core.comm import toolbox as tb_mod  # noqa: E402  # sys.path bootstrap
+from core.trust.capabilities import Cap  # noqa: E402  # sys.path bootstrap
+from core.trust.registry import Grant  # noqa: E402  # sys.path bootstrap
 
 
 def _box(tmp_path: Path, agent_id="deepseek-red", allow_write=True):
     """A ToolBox rooted in a scratch dir. trust=False keeps the exec-family gate out of
     the way; these pins are about the WRITE door only."""
-    return tb_mod.ToolBox(tmp_path, allow_exec=False, trust=False, allow_secrets=False,
-                          confirm=lambda _p: True, agent_id=agent_id, allow_write=allow_write)
+    return tb_mod.ToolBox(
+        tmp_path,
+        allow_exec=False,
+        trust=False,
+        allow_secrets=False,
+        confirm=lambda _p: True,
+        agent_id=agent_id,
+        allow_write=allow_write,
+    )
 
 
 def _grant(agent_id, scope, caps=(Cap.READ, Cap.WRITE), role="member"):
-    return Grant(agent_id=agent_id, role=role, caps=set(caps), path_scope=list(scope),
-                 granted_by="test", reason="pin")
+    return Grant(agent_id=agent_id, role=role, caps=set(caps), path_scope=list(scope), granted_by="test", reason="pin")
 
 
 def _patch_resolve(monkeypatch, grant_or_raise):
@@ -68,6 +73,7 @@ def _patch_resolve(monkeypatch, grant_or_raise):
         if isinstance(grant_or_raise, Exception):
             raise grant_or_raise
         return grant_or_raise
+
     monkeypatch.setattr("core.trust.registry.resolve", _fake, raising=True)
 
 
@@ -85,7 +91,8 @@ def test_write_outside_path_scope_is_refused(tmp_path, monkeypatch):
 
     assert not (tmp_path / "core" / "pwned.py").exists(), (
         "the write door let a research/-scoped grant write into core/ -- path_scope "
-        "protects nothing (Grant.can_write is dead code at registry.py:51)")
+        "protects nothing (Grant.can_write is dead code at registry.py:51)"
+    )
     assert "REFUSED" in str(out).upper(), f"the refusal must be loud and named; got: {out!r}"
 
 
@@ -100,7 +107,8 @@ def test_write_inside_path_scope_still_works(tmp_path, monkeypatch):
     box.write_file("research/note.md", "hello")
 
     assert (tmp_path / "research" / "note.md").read_text(encoding="utf-8") == "hello", (
-        "a scoped grant lost access INSIDE its own scope -- fnmatch must cross '/'")
+        "a scoped grant lost access INSIDE its own scope -- fnmatch must cross '/'"
+    )
 
 
 # ---------------------------------------------------------------- pin 3
@@ -113,8 +121,7 @@ def test_wildcard_scope_writes_anywhere(tmp_path, monkeypatch):
 
     box.write_file("core/legit.py", "x = 1")
 
-    assert (tmp_path / "core" / "legit.py").exists(), (
-        "a '*'-scoped grant was refused -- this breaks every live runner")
+    assert (tmp_path / "core" / "legit.py").exists(), "a '*'-scoped grant was refused -- this breaks every live runner"
 
 
 # ---------------------------------------------------------------- pin 4
@@ -126,8 +133,7 @@ def test_quarantined_agent_is_refused(tmp_path, monkeypatch):
 
     out = box.write_file("research/x.md", "nope")
 
-    assert not (tmp_path / "research" / "x.md").exists(), (
-        "a quarantined id wrote through --allow-write")
+    assert not (tmp_path / "research" / "x.md").exists(), "a quarantined id wrote through --allow-write"
     assert "REFUSED" in str(out).upper()
 
 
@@ -142,7 +148,8 @@ def test_trust_error_fails_closed(tmp_path, monkeypatch):
     out = box.write_file("research/x.md", "nope")
 
     assert not (tmp_path / "research" / "x.md").exists(), (
-        "a trust-layer error fell through to the write -- must fail CLOSED")
+        "a trust-layer error fell through to the write -- must fail CLOSED"
+    )
     assert "REFUSED" in str(out).upper()
 
 
@@ -152,8 +159,10 @@ def test_no_agent_identity_skips_the_acl_check(tmp_path, monkeypatch):
     `if self.agent_id:` (toolbox.py:1039) so an identity-less ToolBox (CLI/interactive)
     still works. The write door must mirror that exactly -- otherwise every
     non-runner ToolBox loses writes."""
+
     def _boom(*a, **k):
         raise AssertionError("resolve() must not be called without an agent identity")
+
     monkeypatch.setattr("core.trust.registry.resolve", _boom, raising=True)
     box = _box(tmp_path, agent_id=None)
 

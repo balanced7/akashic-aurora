@@ -23,14 +23,16 @@ Design:
   - Zero-cost when disabled (all functions are no-ops if not initialized).
   - Snapshot-able: dump() returns a dict for the experiment harness to collect.
 """
+
 from __future__ import annotations
 
 import threading
 import time
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from dataclasses import dataclass
+from typing import Any
 
 # ── session accumulator (per agent) ────────────────────────────────────
+
 
 @dataclass
 class EfficiencySnapshot:
@@ -97,7 +99,7 @@ class EfficiencySnapshot:
             return float(self.human_interjections) if self.human_interjections > 0 else 0.0
         return round(self.human_interjections / self.total_tool_calls, 4)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "agent_id": self.agent_id,
             "started_at": self.started_at,
@@ -127,7 +129,7 @@ class EfficiencySnapshot:
 
 # ── per-agent store ────────────────────────────────────────────────────
 
-_store: Dict[str, EfficiencySnapshot] = {}
+_store: dict[str, EfficiencySnapshot] = {}
 _lock = threading.Lock()
 _enabled = True
 
@@ -144,7 +146,7 @@ def init(agent_id: str) -> EfficiencySnapshot:
     return snap
 
 
-def _snap(agent_id: str) -> Optional[EfficiencySnapshot]:
+def _snap(agent_id: str) -> EfficiencySnapshot | None:
     if not _enabled:
         return None
     with _lock:
@@ -153,19 +155,20 @@ def _snap(agent_id: str) -> Optional[EfficiencySnapshot]:
 
 # ── instrumentation calls (zero-cost when disabled) ─────────────────────
 
+
 def record_prompt_tokens(agent_id: str, n: int):
-    if (s := _snap(agent_id)):
+    if s := _snap(agent_id):
         s.total_prompt_tokens += n
 
 
 def record_completion_tokens(agent_id: str, n: int):
-    if (s := _snap(agent_id)):
+    if s := _snap(agent_id):
         s.total_completion_tokens += n
 
 
 def record_reasoning(agent_id: str, tokens: int, category: str = "productive"):
     """category: 'coordination' | 'productive'"""
-    if (s := _snap(agent_id)):
+    if s := _snap(agent_id):
         if category == "coordination":
             s.reasoning_tokens_coordination += tokens
         else:
@@ -174,13 +177,13 @@ def record_reasoning(agent_id: str, tokens: int, category: str = "productive"):
 
 def record_abandoned(agent_id: str, tokens: int):
     """Tokens wasted because a nudge/halt interrupted reasoning."""
-    if (s := _snap(agent_id)):
+    if s := _snap(agent_id):
         s.abandoned_tokens += tokens
 
 
 def record_file_read(agent_id: str, path: str, *, from_hint: bool = False):
     """Record a file read. If from_hint=True, this read was AVOIDED because a hint covered it."""
-    if (s := _snap(agent_id)):
+    if s := _snap(agent_id):
         if from_hint:
             s.file_reads_saved_by_hints += 1
         else:
@@ -194,24 +197,31 @@ def record_file_read(agent_id: str, path: str, *, from_hint: bool = False):
 
 
 def record_human_interjection(agent_id: str):
-    if (s := _snap(agent_id)):
+    if s := _snap(agent_id):
         s.human_interjections += 1
 
 
 def record_context_refresh(agent_id: str):
-    if (s := _snap(agent_id)):
+    if s := _snap(agent_id):
         s.context_refreshes += 1
 
 
 def record_tool_call(agent_id: str, tool_name: str):
     """Classify a tool call as coordination or productive."""
-    if (s := _snap(agent_id)):
+    if s := _snap(agent_id):
         s.total_tool_calls += 1
         # Coordination tool calls: bus operations, lock management, control
-        coord_tools = frozenset({
-            "bifrost_send", "bifrost_inbox", "bifrost_nudge", "bifrost_steer",
-            "bifrost_broadcast", "knowledge_recall", "knowledge_boot",
-        })
+        coord_tools = frozenset(
+            {
+                "bifrost_send",
+                "bifrost_inbox",
+                "bifrost_nudge",
+                "bifrost_steer",
+                "bifrost_broadcast",
+                "knowledge_recall",
+                "knowledge_boot",
+            }
+        )
         if tool_name in coord_tools:
             s.tool_calls_coordination += 1
         else:
@@ -220,7 +230,7 @@ def record_tool_call(agent_id: str, tool_name: str):
 
 def record_turn_complete(agent_id: str):
     """Update duration after each turn."""
-    if (s := _snap(agent_id)):
+    if s := _snap(agent_id):
         try:
             started = time.mktime(time.strptime(s.started_at, "%Y-%m-%dT%H:%M:%S"))
             s.duration_s = round(time.time() - started, 2)
@@ -230,20 +240,21 @@ def record_turn_complete(agent_id: str):
 
 # ── duplicate read tracking (per-agent path -> last read timestamp) ────
 
-_last_reads: Dict[str, Dict[str, float]] = {}
+_last_reads: dict[str, dict[str, float]] = {}
 
 
 # ── snapshot / dump ─────────────────────────────────────────────────────
 
-def dump(agent_id: str) -> Optional[Dict[str, Any]]:
+
+def dump(agent_id: str) -> dict[str, Any] | None:
     """Snapshot current metrics for one agent (for the experiment harness to collect)."""
-    if (s := _snap(agent_id)):
+    if s := _snap(agent_id):
         record_turn_complete(agent_id)
         return s.to_dict()
     return None
 
 
-def dump_all() -> Dict[str, Dict[str, Any]]:
+def dump_all() -> dict[str, dict[str, Any]]:
     """Snapshot ALL agents' metrics."""
     return {aid: dump(aid) for aid in list(_store.keys()) if dump(aid)}
 

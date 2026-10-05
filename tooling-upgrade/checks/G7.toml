@@ -1,0 +1,35 @@
+# G7 -- certification (fresh everything). Registered in G0. Append-only.
+goal = "G7"
+required_drills = ["D01", "D02", "D03", "D04", "D05", "D06", "D07", "D08", "D09", "D10", "D11", "D12", "D14", "D15"]   # + D13 when PF5 hooks are installed
+
+[[check]]
+id = "G7.final-snapshot-complete"
+phase = "G7.P1"
+cmd = ["{python}", "tooling-upgrade/oracle.py", "verify-snapshot", "final", "--suite-runs", "2"]
+expect = 0
+
+[[check]]
+id = "G7.compare-g0-final"
+phase = "G7.P1"
+cmd = ["{python}", "tooling-upgrade/oracle.py", "compare", "g0", "final"]
+expect = 0
+expect_stdout = "^ORACLE: 10/10 EQUAL$"
+
+[[check]]
+id = "G7.fresh-clone-gate"
+phase = "G7.P2"
+cmd = ["{python}", "tooling-upgrade/certify.py", "fresh-clone", "--gate"]
+expect = 0
+timeout_s = 7200
+
+[[check]]
+id = "G7.checks-append-only"
+phase = "G7.P4"
+cmd = ["{python}", "tooling-upgrade/certify.py", "assert-checks-files"]
+expect = 0
+
+[[check]]
+id = "G7.ledger-goals"
+phase = "G7.P5"
+cmd = ["{python}", "tooling-upgrade/certify.py", "assert-ledger-entry", "G7.P5"]
+expect = 0

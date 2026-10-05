@@ -38,10 +38,10 @@ copied is a RESPONSE. This one reports what it REFUSED to copy and why, because 
 classes are the ones that will surprise someone at 3am. "Copied 3,397 keys" is fluent and
 tells you nothing about whether your twin will behave.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
 
 #: Tier order. A world may only be seeded FROM a strictly higher tier.
 TIERS = {"prod": 3, "beta": 2, "alpha": 1}
@@ -49,10 +49,10 @@ TIERS = {"prod": 3, "beta": 2, "alpha": 1}
 #: Knowledge classes, as an ALLOWLIST. A new prefix nobody classified stays home by
 #: default -- the opposite choice ships unclassified state on every future slice.
 KNOWLEDGE_PREFIXES = (
-    "learn:",          # lessons -- the thing a twin most needs to behave like the house
-    "mem:",            # decisions, notes, where-we-are
-    "narr:",           # the narrative spine (Atlas/Track/Chapter/Beat)
-    "artifact:",       # artifacts
+    "learn:",  # lessons -- the thing a twin most needs to behave like the house
+    "mem:",  # decisions, notes, where-we-are
+    "narr:",  # the narrative spine (Atlas/Track/Chapter/Beat)
+    "artifact:",  # artifacts
     "knowledge_map:",
     "residents:",
     "lookback:",
@@ -60,16 +60,23 @@ KNOWLEDGE_PREFIXES = (
 
 #: Opt-in classes, each with the sentence a human needs before saying yes.
 OPTIONAL_PREFIXES = {
-    "events": ("events:", "the durable salient plane; its records reference bifrost stream "
-                          "ids that will NOT exist in the target"),
-    "recall": ("recall:", "derived ranking state; rebuildable from learn:, and importing it "
-                          "gives the twin prod's tuning as though it had earned it"),
+    "events": (
+        "events:",
+        "the durable salient plane; its records reference bifrost stream ids that will NOT exist in the target",
+    ),
+    "recall": (
+        "recall:",
+        (
+            "derived ranking state; rebuildable from learn:, and importing it "
+            "gives the twin prod's tuning as though it had earned it"
+        ),
+    ),
 }
 
 #: Never seeded, with the reason rendered in every report.
 REFUSED_PREFIXES = {
     "bifrost:": "transport and identity -- cursors, presence, runner locks. An inherited "
-                "cursor makes the twin believe it consumed mail it never saw.",
+    "cursor makes the twin believe it consumed mail it never saw.",
 }
 
 
@@ -87,12 +94,12 @@ class SeedRefusal(RuntimeError):
 class SeedPlan:
     source: str
     target: str
-    include: List[str] = field(default_factory=list)
-    prefixes: List[str] = field(default_factory=list)
+    include: list[str] = field(default_factory=list)
+    prefixes: list[str] = field(default_factory=list)
     #: prefix -> reason, for everything deliberately left behind.
-    excluded: Dict[str, str] = field(default_factory=dict)
+    excluded: dict[str, str] = field(default_factory=dict)
 
-    def render(self, counts: Optional[Dict[str, int]] = None, applied: bool = False) -> str:
+    def render(self, counts: dict[str, int] | None = None, applied: bool = False) -> str:
         head = "SEEDED" if applied else "PLAN (dry run -- pass apply=True to write)"
         lines = [f"{head}: {self.source} -> {self.target}"]
         lines.append("  CARRIED:")
@@ -106,14 +113,13 @@ class SeedPlan:
         return "\n".join(lines)
 
 
-def plan(source: str, target: str, include: Optional[List[str]] = None) -> SeedPlan:
+def plan(source: str, target: str, include: list[str] | None = None) -> SeedPlan:
     """Build and validate a seed plan. Raises SeedRefusal rather than guessing."""
     include = list(include or [])
 
     for name, role in ((source, "source"), (target, "target")):
         if name not in TIERS:
-            raise SeedRefusal(
-                f"{role} {name!r} is not a world (legal: {', '.join(TIERS)})")
+            raise SeedRefusal(f"{role} {name!r} is not a world (legal: {', '.join(TIERS)})")
 
     if target == "prod":
         raise SeedRefusal(
@@ -122,7 +128,8 @@ def plan(source: str, target: str, include: Optional[List[str]] = None) -> SeedP
             "so it is not a replayable input and must not arrive as bulk state.\n"
             "  The upward path is re-litigation: the higher tier grounds the claim against "
             "its OWN store, or files it as provenance-tagged and grounded:false -- a rumour, "
-            "not a fact.")
+            "not a fact."
+        )
 
     if source == target:
         raise SeedRefusal(f"source and target are both {source!r}; nothing to do")
@@ -130,7 +137,8 @@ def plan(source: str, target: str, include: Optional[List[str]] = None) -> SeedP
     if TIERS[source] <= TIERS[target]:
         raise SeedRefusal(
             f"refusing to seed {source} -> {target}: a world may only be seeded from a "
-            f"strictly HIGHER tier (prod > beta > alpha). {target} is not below {source}.")
+            f"strictly HIGHER tier (prod > beta > alpha). {target} is not below {source}."
+        )
 
     prefixes = list(KNOWLEDGE_PREFIXES)
     excluded = dict(REFUSED_PREFIXES)
@@ -144,13 +152,13 @@ def plan(source: str, target: str, include: Optional[List[str]] = None) -> SeedP
     if unknown:
         raise SeedRefusal(
             f"unknown include {unknown} (legal: {', '.join(OPTIONAL_PREFIXES)}). "
-            f"Transport is never includable: {', '.join(REFUSED_PREFIXES)}")
+            f"Transport is never includable: {', '.join(REFUSED_PREFIXES)}"
+        )
 
-    return SeedPlan(source=source, target=target, include=include,
-                    prefixes=prefixes, excluded=excluded)
+    return SeedPlan(source=source, target=target, include=include, prefixes=prefixes, excluded=excluded)
 
 
-def write_manifest(dst, plan: SeedPlan, counts: Dict[str, int], when: str) -> dict:
+def write_manifest(dst, plan: SeedPlan, counts: dict[str, int], when: str) -> dict:
     """Record in the TARGET what it inherited, from where, and when.
 
     THE HOLE THIS PARTIALLY FILLS, stated plainly because it is only partially filled.
@@ -171,21 +179,24 @@ def write_manifest(dst, plan: SeedPlan, counts: Dict[str, int], when: str) -> di
     trade that fidelity for a field that belongs at the write door anyway.
     """
     import json
+
     doc = {
         "seeded_at": when,
         "source_world": plan.source,
         "target_world": plan.target,
         "carried": {p: counts.get(p, 0) for p in plan.prefixes},
-        "refused": {p: why for p, why in plan.excluded.items()},
+        "refused": dict(plan.excluded.items()),
         "total_carried": sum(counts.get(p, 0) for p in plan.prefixes),
-        "caveat": ("corpus-level provenance only -- individual keys carry no world stamp, "
-                   "so a key copied out of here by hand is indistinguishable from a native one"),
+        "caveat": (
+            "corpus-level provenance only -- individual keys carry no world stamp, "
+            "so a key copied out of here by hand is indistinguishable from a native one"
+        ),
     }
     dst.set(MANIFEST_KEY, json.dumps(doc))
     return doc
 
 
-def read_manifest(client) -> Optional[dict]:
+def read_manifest(client) -> dict | None:
     """What this world inherited, or None if its memory is all its own.
 
     ZERO IS NOT NO -- AND THAT IS WHY A CONNECTION FAILURE PROPAGATES HERE.
@@ -205,13 +216,14 @@ def read_manifest(client) -> Optional[dict]:
     the distinction costs them nothing and buys them the ability to tell the two apart.
     """
     import json
-    raw = client.get(MANIFEST_KEY)      # deliberately unguarded: unreachable != absent
+
+    raw = client.get(MANIFEST_KEY)  # deliberately unguarded: unreachable != absent
     if not raw:
-        return None                     # reached the store, no manifest -- a real "no"
+        return None  # reached the store, no manifest -- a real "no"
     try:
         return json.loads(raw.decode() if isinstance(raw, bytes) else raw)
     except Exception:
-        return None                     # present but unparseable; the caller sees "no manifest"
+        return None  # present but unparseable; the caller sees "no manifest"
 
 
 def copy_prefix(src, dst, prefix: str, apply: bool = False, batch: int = 500) -> int:
@@ -229,7 +241,7 @@ def copy_prefix(src, dst, prefix: str, apply: bool = False, batch: int = 500) ->
         if not apply:
             continue
         payload = src.dump(key)
-        if payload is None:                      # raced with an expiry; nothing to carry
+        if payload is None:  # raced with an expiry; nothing to carry
             continue
         ttl = src.pttl(key)
         dst.restore(key, ttl if ttl and ttl > 0 else 0, payload, replace=True)

@@ -29,6 +29,7 @@ otherwise route it through the out-of-scope branch and certify nothing.
 
 Run: py -m pytest tests/test_cwd_guard_pins.py -q -p no:cacheprovider
 """
+
 from __future__ import annotations
 
 import importlib.util
@@ -47,8 +48,14 @@ if ROOT not in sys.path:
 
 LIVE_HOOK = os.path.join(ROOT, "scripts", "hooks", "claude_pretooluse.py")
 SENTINEL = "SENTINEL-RECALL-AT-ACTION"
-DRIFTED = "E:\\"            # where the harness shell lands after a rebuild
-REPO = "E:\\AI-Setup"       # the production topology the guard is written against
+# Derived from THIS checkout, never one machine's drive: on the original box REPO is
+# E:\\AI-Setup and DRIFTED is E:\\ (where the harness shell lands after a rebuild); anywhere
+# else they are the real checkout and its parent, so every case means the same thing.
+REPO = ROOT
+DRIFTED = os.path.dirname(ROOT)
+ELSEWHERE = os.path.join(DRIFTED, "someone-else")  # any other non-repo cwd
+# How the guard spells the remedy (git-bash /e/AI-Setup on a Windows drive, else the path).
+CD = (lambda f: f"/{f[0].lower()}{f[2:]}" if len(f) > 1 and f[1] == ":" else f)(ROOT.replace("\\", "/").rstrip("/"))
 
 
 @pytest.fixture(scope="module")
@@ -67,9 +74,10 @@ def hook():
     spec = importlib.util.spec_from_file_location("_cwd_guard_pin_live_pretooluse", LIVE_HOOK)
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
-    import agent.harness.scope      # noqa: F401  -- _in_scope
-    import agent.harness.guards     # noqa: F401  -- _check_bash
-    import agent.policy.git_guard   # noqa: F401  -- git_veto
+    import agent.harness.guards
+    import agent.harness.scope
+    import agent.policy.git_guard  # noqa: F401  # git_veto
+
     return mod
 
 
@@ -83,8 +91,7 @@ def quiet_recall(hook, monkeypatch):
 def _payload(cmd: str, cwd: str, tool: str = "Bash") -> dict:
     # A FRESH session id per payload: main()'s O_EXCL dedup marker (K0/C8-3) keys on
     # (session, tool, payload) and would silently skip a repeated case as a double-fire.
-    return {"session_id": uuid.uuid4().hex, "tool_name": tool,
-            "tool_input": {"command": cmd}, "cwd": cwd}
+    return {"session_id": uuid.uuid4().hex, "tool_name": tool, "tool_input": {"command": cmd}, "cwd": cwd}
 
 
 def _run(hook, payload: dict):
@@ -107,7 +114,8 @@ def _context(out: str) -> str:
     hso = json.loads(lines[0])["hookSpecificOutput"]
     assert hso["hookEventName"] == "PreToolUse"
     assert "permissionDecision" not in hso, (
-        f"the cwd-guard is a loud LINE, never a deny -- but the hook decided: {hso!r}")
+        f"the cwd-guard is a loud LINE, never a deny -- but the hook decided: {hso!r}"
+    )
     return hso["additionalContext"]
 
 
@@ -115,30 +123,48 @@ def _context(out: str) -> str:
 # Pinned directly as well as through main() so the contract survives a future reshuffle of
 # main()'s branches (the 5b65b7ab class: a guard that exists but is not wired on one branch).
 
-@pytest.mark.parametrize("tool, cwd, cmd", [
-    ("Bash", DRIFTED, "grep -rn foo scripts/ core/"),               # false-clean class (b095caa5)
-    ("Bash", DRIFTED, "py agent_cli.py boot claude"),                # in scope by text (5b65b7ab)
-    ("PowerShell", DRIFTED, "py agent_cli.py status"),               # the PRIMARY shell on Windows
-    ("Bash", "C:\\Users\\someone", "py -m pytest tests/test_x.py"),  # any non-repo cwd, not only E:\
-], ids=["grep-false-clean", "agent_cli-in-scope-by-text", "powershell", "home-cwd"])
+
+@pytest.mark.parametrize(
+    ("tool", "cwd", "cmd"),
+    [
+        ("Bash", DRIFTED, "grep -rn foo scripts/ core/"),  # false-clean class (b095caa5)
+        ("Bash", DRIFTED, "py agent_cli.py boot claude"),  # in scope by text (5b65b7ab)
+        ("PowerShell", DRIFTED, "py agent_cli.py status"),  # the PRIMARY shell on Windows
+        ("Bash", ELSEWHERE, "py -m pytest tests/test_x.py"),  # any non-repo cwd, not only DRIFTED
+    ],
+    ids=["grep-false-clean", "agent_cli-in-scope-by-text", "powershell", "home-cwd"],
+)
 def test_drift_speaks(hook, tool, cwd, cmd):
     line = hook._cwd_drift({"tool_name": tool, "tool_input": {"command": cmd}, "cwd": cwd})
     assert line.startswith("[cwd-guard]"), line
-    assert cwd in line and "cd /e/AI-Setup" in line     # names the drift AND the remedy
-    assert "\n" not in line                              # ONE loud line
+    assert cwd in line
+    assert f"cd {CD}" in line
+    assert "\n" not in line  # ONE loud line
 
 
-@pytest.mark.parametrize("tool, cwd, cmd", [
-    ("Bash", DRIFTED, "cd /e/AI-Setup && grep -rn foo scripts/"),               # anchored, git-bash
-    ("Bash", DRIFTED, "py E:/AI-Setup/agent_cli.py status"),                    # anchored, absolute
-    ("PowerShell", DRIFTED, "Set-Location E:\\AI-Setup; py agent_cli.py status"),  # anchored, win
-    ("Bash", REPO, "grep -rn foo scripts/"),                                     # cwd IS the repo
-    ("Bash", "e:/ai-setup/", "grep -rn foo scripts/"),                           # ... any spelling
-    ("Bash", REPO + "\\tests", "py agent_cli.py status"),                        # ... or inside it
-    ("Bash", DRIFTED, "ls"),                                                     # non-repo work
-    ("Edit", DRIFTED, "grep -rn foo scripts/"),                                  # file tools: by path
-], ids=["anchored-cd", "anchored-abs-path", "anchored-powershell", "in-repo", "in-repo-spelling",
-        "in-repo-subdir", "no-marker", "file-tool"])
+@pytest.mark.parametrize(
+    ("tool", "cwd", "cmd"),
+    [
+        ("Bash", DRIFTED, f"cd {CD} && grep -rn foo scripts/"),  # anchored, remedy form
+        ("Bash", DRIFTED, "py " + ROOT.replace("\\", "/") + "/agent_cli.py status"),  # anchored, absolute
+        ("PowerShell", DRIFTED, f"Set-Location {ROOT}; py agent_cli.py status"),  # anchored, native
+        ("Bash", REPO, "grep -rn foo scripts/"),  # cwd IS the repo
+        ("Bash", os.path.normcase(REPO).replace("\\", "/") + "/", "grep -rn foo scripts/"),  # ... any spelling
+        ("Bash", os.path.join(REPO, "tests"), "py agent_cli.py status"),  # ... or inside it
+        ("Bash", DRIFTED, "ls"),  # non-repo work
+        ("Edit", DRIFTED, "grep -rn foo scripts/"),  # file tools: by path
+    ],
+    ids=[
+        "anchored-cd",
+        "anchored-abs-path",
+        "anchored-powershell",
+        "in-repo",
+        "in-repo-spelling",
+        "in-repo-subdir",
+        "no-marker",
+        "file-tool",
+    ],
+)
 def test_guard_stays_quiet(hook, tool, cwd, cmd):
     assert hook._cwd_drift({"tool_name": tool, "tool_input": {"command": cmd}, "cwd": cwd}) == ""
 
@@ -146,12 +172,12 @@ def test_guard_stays_quiet(hook, tool, cwd, cmd):
 def test_guard_fails_open_on_odd_payloads(hook):
     """A bare-string tool_input (the 674f498b crash class) and a missing cwd must never raise --
     a guard that can brick the hook is worse than a silent one."""
-    assert hook._cwd_drift({"tool_name": "Bash", "tool_input": "grep -rn foo scripts/",
-                            "cwd": DRIFTED}) == ""
+    assert hook._cwd_drift({"tool_name": "Bash", "tool_input": "grep -rn foo scripts/", "cwd": DRIFTED}) == ""
     assert isinstance(hook._cwd_drift({"tool_name": "Bash", "tool_input": {"command": "ls"}}), str)
 
 
 # ------------------------------------------------------- main(): the 2026-09-01 stdin drill
+
 
 def test_drift_speaks_on_the_out_of_scope_branch(hook, quiet_recall):
     """Case 1 (b095caa5): repo-shaped command, drifted cwd, OUT of scope by text. The line is the
@@ -172,13 +198,13 @@ def test_drift_speaks_on_the_in_scope_by_text_branch(hook, quiet_recall):
     assert rc == 0
     ctx = _context(out)
     assert ctx.startswith("[cwd-guard]"), ctx
-    assert ctx.endswith("\n" + SENTINEL), ctx           # drift first, recall after, nothing lost
+    assert ctx.endswith("\n" + SENTINEL), ctx  # drift first, recall after, nothing lost
 
 
 def test_anchored_command_stays_guard_quiet(hook, quiet_recall):
     """Case 3: the remedy the guard prescribes must not trip the guard. Anchored -> in scope by
     text -> recall exactly as before, and the context carries NO drift line."""
-    rc, out = _run(hook, _payload("cd /e/AI-Setup && grep -rn foo scripts/", DRIFTED))
+    rc, out = _run(hook, _payload(f"cd {CD} && grep -rn foo scripts/", DRIFTED))
     assert rc == 0
     assert _context(out) == SENTINEL
 
@@ -189,10 +215,11 @@ def test_in_repo_call_is_untouched(hook, quiet_recall, monkeypatch):
     out-of-scope branch; pin the root to the production topology so the in-scope path is the one
     under test wherever the suite runs."""
     import agent.harness.scope as scope
+
     monkeypatch.setattr(scope, "_ROOT", os.path.normcase(REPO))
     rc, out = _run(hook, _payload("grep -rn foo scripts/", REPO))
     assert rc == 0
-    assert _context(out) == SENTINEL                      # byte-for-byte the pre-guard context
+    assert _context(out) == SENTINEL  # byte-for-byte the pre-guard context
 
 
 def test_non_repo_work_stays_silent(hook, quiet_recall):

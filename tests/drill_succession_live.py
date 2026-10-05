@@ -12,13 +12,16 @@ Cleanup is part of the drill: the mandate grant minted here is revoked at the en
 the drill asserts the revocation landed. A drill that leaves authority behind is a breach,
 not a receipt.
 """
-import sys, time, json, io
-sys.path.insert(0, r"E:\AI-Setup")
+
+import os
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import core.comm.conductor_gate as cg
 from core.trust import registry
 
-TARGET = "drill_seat_t384"          # throwaway; no real seat's authority moves
+TARGET = "drill_seat_t384"  # throwaway; no real seat's authority moves
 rows = []
 
 
@@ -32,7 +35,9 @@ def rung(name, fn):
 
 
 # probes that force each condition
-DEAD = lambda a=None, **k: "orphan: marker stale + parent chain dead (DRILL)"
+def DEAD(a=None, **k):
+    return "orphan: marker stale + parent chain dead (DRILL)"
+
 
 def ALIVE_SUCC(a=None, **k):
     """PER-AGENT, and the first drill run got this wrong: att_fn is asked about the
@@ -42,7 +47,9 @@ def ALIVE_SUCC(a=None, **k):
     read ATTENDED for condition 2."""
     return "UNATTENDED" if str(a) == cg.CONDUCTOR else "ATTENDED"
 
-NO_OP = lambda **k: False
+
+def NO_OP(**k):
+    return False
 
 
 def d1_baseline():
@@ -52,15 +59,22 @@ def d1_baseline():
 
 def d2_activates_when_all_three_hold():
     v = cg.decide_and_act(reap_fn=DEAD, att_fn=ALIVE_SUCC, op_present_fn=NO_OP)
-    return v.activate, (f"activate={v.activate} successor={v.successor!r} "
-                        f"alive={getattr(v,'successors_alive',None)} :: {v.reason[:120]}")
+    return v.activate, (
+        f"activate={v.activate} successor={v.successor!r} "
+        f"alive={getattr(v, 'successors_alive', None)} :: {v.reason[:120]}"
+    )
 
 
 def d3_acting_conductor_can_mint_a_timeboxed_grant():
     v = cg.evaluate_succession(reap_fn=DEAD, att_fn=ALIVE_SUCC, op_present_fn=NO_OP)
-    rep = cg.acting_conduct_grant(successor=v.successor, agent_id=TARGET, role="member",
-                                  reason="LIVE SUCCESSION DRILL 2026-08-24 -- revoked at drill end",
-                                  hours=1.0, caps=["read"])
+    cg.acting_conduct_grant(
+        successor=v.successor,
+        agent_id=TARGET,
+        role="member",
+        reason="LIVE SUCCESSION DRILL 2026-08-24 -- revoked at drill end",
+        hours=1.0,
+        caps=["read"],
+    )
     g = registry.resolve(TARGET)
     ok = g.role == "member" and any("read" in str(c).lower() for c in g.caps)
     return ok, f"minted by {v.successor!r}: resolve({TARGET}) -> role={g.role} caps={sorted(str(c) for c in g.caps)}"
@@ -68,13 +82,15 @@ def d3_acting_conductor_can_mint_a_timeboxed_grant():
 
 def d4_permanent_is_unexpressible():
     import inspect
+
     sig = inspect.signature(cg.acting_conduct_grant)
     has_perm = any("permanent" in p for p in sig.parameters)
     if has_perm:
         return False, "a 'permanent' parameter EXISTS -- the dangerous state is expressible"
     try:
-        cg.acting_conduct_grant(successor="deepseek", agent_id=TARGET, role="member",
-                                reason="drill", hours=None, caps=["read"])
+        cg.acting_conduct_grant(
+            successor="deepseek", agent_id=TARGET, role="member", reason="drill", hours=None, caps=["read"]
+        )
         return False, "hours=None was ACCEPTED -- lapse is not mandatory"
     except Exception as e:
         return True, f"no 'permanent' param, and hours=None refused ({type(e).__name__})"
@@ -82,8 +98,14 @@ def d4_permanent_is_unexpressible():
 
 def d5_self_widening_refused():
     try:
-        cg.acting_conduct_grant(successor="deepseek", agent_id="deepseek", role="admin",
-                                reason="drill self-widen", hours=1.0, caps=["admin.grant"])
+        cg.acting_conduct_grant(
+            successor="deepseek",
+            agent_id="deepseek",
+            role="admin",
+            reason="drill self-widen",
+            hours=1.0,
+            caps=["admin.grant"],
+        )
         return False, "SECURITY: the acting conductor widened ITS OWN grant"
     except Exception as e:
         return True, f"refused ({type(e).__name__}: {str(e)[:90]})"
@@ -91,24 +113,31 @@ def d5_self_widening_refused():
 
 def d6_admin_grant_refused():
     try:
-        cg.acting_conduct_grant(successor="deepseek", agent_id=TARGET, role="member",
-                                reason="drill escalate", hours=1.0, caps=["admin.grant"])
+        cg.acting_conduct_grant(
+            successor="deepseek",
+            agent_id=TARGET,
+            role="member",
+            reason="drill escalate",
+            hours=1.0,
+            caps=["admin.grant"],
+        )
         return False, "SECURITY: admin.grant was mintable by the acting conductor"
     except Exception as e:
         return True, f"refused ({type(e).__name__}: {str(e)[:90]})"
 
 
 def d7_stands_down_when_conductor_returns():
-    v = cg.decide_and_act(reap_fn=lambda a=None, **k: "alive-or-unknown",
-                          att_fn=ALIVE_SUCC, op_present_fn=NO_OP)
+    v = cg.decide_and_act(reap_fn=lambda a=None, **k: "alive-or-unknown", att_fn=ALIVE_SUCC, op_present_fn=NO_OP)
     return (not v.activate), f"conductor alive again -> activate={v.activate}; {v.reason[:110]}"
 
 
 def d8_cleanup_revokes_the_drill_grant():
     from core.trust import grant_writer
+
     try:
-        grant_writer.revoke(TARGET, by="claude",
-                            reason="LIVE SUCCESSION DRILL 2026-08-24 complete -- drill authority removed")
+        grant_writer.revoke(
+            TARGET, by="claude", reason="LIVE SUCCESSION DRILL 2026-08-24 complete -- drill authority removed"
+        )
     except TypeError:
         grant_writer.revoke(TARGET, by="claude")
     g = registry.resolve(TARGET)

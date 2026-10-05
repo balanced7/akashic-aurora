@@ -43,6 +43,7 @@ still reported.
 
 Run: py -m pytest tests/test_t134c_scripts_are_production.py -q
 """
+
 import glob
 import os
 import sys
@@ -51,7 +52,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 sys.path.insert(0, os.path.join(ROOT, "scripts", "checkers"))
 
-import check_wiring  # noqa: E402
+import check_wiring  # noqa: E402  # sys.path bootstrap
 
 
 def _write(tmp_path, rel, text):
@@ -62,40 +63,46 @@ def _write(tmp_path, rel, text):
 
 
 def test_g1_a_call_from_a_script_counts_as_wiring(tmp_path):
-    lib = _write(tmp_path, "core/comm/session_state.py",
-                 "def save(x):\n    return x\n\ndef list_snapshots():\n    return []\n")
-    tool = _write(tmp_path, "scripts/snapshot.py",
-                  "from core.comm.session_state import save, list_snapshots\n"
-                  "snaps = list_snapshots()\n")
-    got = {n for _m, n, _l in
-           check_wiring.unwired_functions([lib], [tool, lib], root=str(tmp_path))}
-    assert "list_snapshots" not in got, (
-        "a live backup door's only caller was invisible to the gate")
+    lib = _write(
+        tmp_path, "core/comm/session_state.py", "def save(x):\n    return x\n\ndef list_snapshots():\n    return []\n"
+    )
+    tool = _write(
+        tmp_path,
+        "scripts/snapshot.py",
+        "from core.comm.session_state import save, list_snapshots\nsnaps = list_snapshots()\n",
+    )
+    got = {n for _m, n, _l in check_wiring.unwired_functions([lib], [tool, lib], root=str(tmp_path))}
+    assert "list_snapshots" not in got, "a live backup door's only caller was invisible to the gate"
 
 
 def test_g2_a_script_without_a_main_guard_still_counts(tmp_path):
     """snapshot.py has no __main__ guard -- `py scripts/x.py` runs the module body. A rule that
     only recognised guarded scripts would still have missed it."""
     lib = _write(tmp_path, "core/comm/session_state.py", "def list_snapshots():\n    return []\n")
-    tool = _write(tmp_path, "scripts/snapshot.py",
-                  '"""Run before shutting down."""\n'
-                  "from core.comm.session_state import list_snapshots\n"
-                  "print(list_snapshots())\n")
+    tool = _write(
+        tmp_path,
+        "scripts/snapshot.py",
+        '"""Run before shutting down."""\n'
+        "from core.comm.session_state import list_snapshots\n"
+        "print(list_snapshots())\n",
+    )
     assert "__main__" not in (tmp_path / "scripts/snapshot.py").read_text(encoding="utf-8")
-    got = {n for _m, n, _l in
-           check_wiring.unwired_functions([lib], [tool, lib], root=str(tmp_path))}
+    got = {n for _m, n, _l in check_wiring.unwired_functions([lib], [tool, lib], root=str(tmp_path))}
     assert "list_snapshots" not in got
 
 
 def test_g3_the_gate_is_not_weakened(tmp_path):
     """Widening the production set must not become a way to stop reporting anything. A function
     nothing anywhere names is still dead."""
-    lib = _write(tmp_path, "core/comm/session_state.py",
-                 "def list_snapshots():\n    return []\n\ndef never_called():\n    return 1\n")
-    tool = _write(tmp_path, "scripts/snapshot.py",
-                  "from core.comm.session_state import list_snapshots\nlist_snapshots()\n")
-    got = {n for _m, n, _l in
-           check_wiring.unwired_functions([lib], [tool, lib], root=str(tmp_path))}
+    lib = _write(
+        tmp_path,
+        "core/comm/session_state.py",
+        "def list_snapshots():\n    return []\n\ndef never_called():\n    return 1\n",
+    )
+    tool = _write(
+        tmp_path, "scripts/snapshot.py", "from core.comm.session_state import list_snapshots\nlist_snapshots()\n"
+    )
+    got = {n for _m, n, _l in check_wiring.unwired_functions([lib], [tool, lib], root=str(tmp_path))}
     assert "never_called" in got
     assert "list_snapshots" not in got
 
@@ -109,4 +116,5 @@ def test_g4_every_script_is_in_the_production_set():
     missing = sorted(on_disk - set(prod))
     assert not missing, (
         f"{len(missing)} script(s) are not counted as production, so a call from any of them "
-        f"reads as no-caller: {missing[:6]}")
+        f"reads as no-caller: {missing[:6]}"
+    )

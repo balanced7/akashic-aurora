@@ -11,6 +11,7 @@ then pins itself OBSERVE-ONLY by its own identity check (index.js:135). Get this
 Rill comes up present, beating, listed on every dial, and deaf. That is the failure mode
 this whole day has been about, and here it is one environment variable wide.
 """
+
 from __future__ import annotations
 
 import os
@@ -27,16 +28,25 @@ def _which_ok(name):
 
 
 # ------------------------------------------------------------------ resolution
-@pytest.mark.parametrize("word,seat", [
-    ("rill", "dsh_agent"), ("Rill", "dsh_agent"), ("dsh_agent", "dsh_agent"),
-    ("heimdall", "deepseek"), ("DeepSeek", "deepseek"),
-    ("navi", "kimi"), ("kimi", "kimi"),
-    ("  navi  ", "kimi"), ("`rill`", "dsh_agent"),
-])
+@pytest.mark.parametrize(
+    ("word", "seat"),
+    [
+        ("rill", "dsh_agent"),
+        ("Rill", "dsh_agent"),
+        ("dsh_agent", "dsh_agent"),
+        ("heimdall", "deepseek"),
+        ("DeepSeek", "deepseek"),
+        ("navi", "kimi"),
+        ("kimi", "kimi"),
+        ("  navi  ", "kimi"),
+        ("`rill`", "dsh_agent"),
+    ],
+)
 def test_a_bare_seat_name_resolves_by_callsign_or_agent_id(word, seat):
     """He says 'rill', the ledger says 'dsh_agent', and neither is wrong."""
     rec = sl.resolve_seat(word)
-    assert rec and rec["seat"] == seat, f"{word!r} -> {rec}"
+    assert rec, f"{word!r} -> {rec}"
+    assert rec["seat"] == seat, f"{word!r} -> {rec}"
 
 
 # SUPERSEDED ENTRY, recorded rather than quietly dropped: `"vandor"` was in this list
@@ -44,11 +54,19 @@ def test_a_bare_seat_name_resolves_by_callsign_or_agent_id(word, seat):
 # `!spawn vandor` to launch the app and a seat, so the bare word now resolves BY
 # INSTRUCTION. The invariant it was protecting is unchanged and still pinned below —
 # a SENTENCE beginning with a seat name is still a task, vandor included.
-@pytest.mark.parametrize("word", [
-    "rill and check the ui", "fix the wedge", "", "   ",
-    "boot and take the watch", "spawn a seat to audit the gate",
-    "vandor and take the watch", "vandor please drain the lane",
-])
+@pytest.mark.parametrize(
+    "word",
+    [
+        "rill and check the ui",
+        "fix the wedge",
+        "",
+        "   ",
+        "boot and take the watch",
+        "spawn a seat to audit the gate",
+        "vandor and take the watch",
+        "vandor please drain the lane",
+    ],
+)
 def test_a_sentence_is_a_TASK_and_must_not_be_hijacked_into_a_launch(word):
     """The historical behaviour must stay reachable for everything that is not exactly a
     seat name. A lever that sometimes swallows your sentence because it began with a name
@@ -65,12 +83,12 @@ def test_rill_states_its_own_identity_and_does_not_inherit_the_launchers():
     argv, env, cwd = sl.launch_argv(rec, root=ROOT, which=_which_ok, dsh_home=r"C:\dsh")
     assert env.get("AKASHIC_AGENT_ID") == "dsh_agent", env
     assert env.get("DSH_HOME") == r"C:\dsh", env
-    assert argv[1] == "web" and "--no-open" in argv, argv
+    assert argv[1] == "web", argv
+    assert "--no-open" in argv, argv
     assert cwd == r"C:\dsh"
 
 
-@pytest.mark.parametrize("word,seat", [("rill", "dsh_agent"), ("heimdall", "deepseek"),
-                                       ("navi", "kimi")])
+@pytest.mark.parametrize(("word", "seat"), [("rill", "dsh_agent"), ("heimdall", "deepseek"), ("navi", "kimi")])
 def test_EVERY_seat_states_its_own_identity(word, seat):
     """Not just Rill. No seat may inherit the launching process's id — that is how a
     launched seat gets mis-attributed or silently muted."""
@@ -115,7 +133,8 @@ def test_heimdall_goes_through_the_daemon_which_owns_its_runner_child():
     rec = sl.resolve_seat("heimdall")
     argv, _, _ = sl.launch_argv(rec, root=ROOT, which=_which_ok)
     joined = " ".join(argv).replace("\\", "/")
-    assert "bifrost_daemon.py" in joined and "--spawn-runner" in joined, joined
+    assert "bifrost_daemon.py" in joined, joined
+    assert "--spawn-runner" in joined, joined
 
 
 # ------------------------------------------------- an undrilled lever says so
@@ -148,7 +167,8 @@ def test_a_spawned_claude_seat_can_ALWAYS_exec(mode):
     An unknown mode degrades to ARMED, never silently to read-only."""
     flags = " ".join(sl.claude_permission_flags(mode))
     assert "Bash" in flags, f"mode {mode!r} spawned a seat that cannot exec: {flags}"
-    assert "Write" in flags and "Edit" in flags, flags
+    assert "Write" in flags, flags
+    assert "Edit" in flags, flags
     assert "acceptEdits" in flags, flags
 
 
@@ -175,7 +195,9 @@ def test_a_spawned_claude_seat_can_ALSO_use_powershell(mode):
 # ------------------------------------------------------------------ flag parsing
 def test_flags_parse_off_so_a_flagged_seat_still_resolves():
     rec, flags = sl.parse_spawn_target("vandor --repair")
-    assert rec and rec["seat"] == "claude" and flags == {"--repair"}
+    assert rec
+    assert rec["seat"] == "claude"
+    assert flags == {"--repair"}
 
 
 def test_a_flagged_SENTENCE_is_still_a_task():
@@ -185,8 +207,13 @@ def test_a_flagged_SENTENCE_is_still_a_task():
 
 # --------------------------------------------------------- options, not surprises
 def _plan(**kw):
-    base = dict(app_healthy=False, app_repairable=True, app_detail="status Modified",
-                live_seats=0, flags=set())
+    base = {
+        "app_healthy": False,
+        "app_repairable": True,
+        "app_detail": "status Modified",
+        "live_seats": 0,
+        "flags": set(),
+    }
     base.update(kw)
     return sl.claude_seat_plan(**base)
 
@@ -203,26 +230,31 @@ def test_app_missing_with_no_flag_OFFERS_rather_than_acting():
 
 def test_the_options_message_does_not_read_like_it_acted():
     m = _plan()["message"].lower()
-    assert "spawning" not in m and "launched" not in m, m
+    assert "spawning" not in m, m
+    assert "launched" not in m, m
 
 
 def test_repair_is_opt_in_and_says_what_it_will_do():
     p = _plan(flags={"--repair"})
     assert p["action"] == "repair_then_spawn"
-    assert "verifying payload" in p["message"] and "stale status bit" in p["message"]
+    assert "verifying payload" in p["message"]
+    assert "stale status bit" in p["message"]
     # And it must not read as proven. The MSIX rung is drilled; the end-to-end
     # app-down -> repair -> seat chain is not, and cannot be from inside the app.
-    assert "NOT" in p["message"] and "end-to-end" in p["message"].lower(), p["message"]
+    assert "NOT" in p["message"], p["message"]
+    assert "end-to-end" in p["message"].lower(), p["message"]
 
 
 def test_seat_flag_skips_the_app_because_the_cli_works_without_it():
     p = _plan(flags={"--seat"})
-    assert p["action"] == "spawn" and "works without it" in p["message"]
+    assert p["action"] == "spawn"
+    assert "works without it" in p["message"]
 
 
 def test_a_healthy_app_just_spawns_without_a_menu():
     p = _plan(app_healthy=True, app_detail="status Ok", live_seats=2)
-    assert p["action"] == "spawn" and "2 live claude seat(s)" in p["message"]
+    assert p["action"] == "spawn"
+    assert "2 live claude seat(s)" in p["message"]
 
 
 def test_status_reports_and_never_acts_even_when_everything_is_fine():

@@ -1,6 +1,6 @@
 """
 Enterprise Redis Management System
-E:\AI-Setup\redis_manager.py
+E:\\AI-Setup\redis_manager.py
 ============================================================
 Built to mission-critical standards: fault tolerance, zero data loss,
 power-failure resilience, cryptographic integrity verification.
@@ -21,23 +21,18 @@ SURVIVABILITY DESIGN:
 10. Recovery testing - Verified restore procedures
 """
 
-import os
-import sys
-import json
-import time
-import socket
+import contextlib
 import hashlib
-import subprocess
-import threading
-import logging
+import json
+import os
 import shutil
-import zipfile
-from datetime import datetime, timedelta
-from pathlib import Path
-from typing import Dict, List, Optional, Tuple
-from dataclasses import dataclass, asdict
+import subprocess
+import sys
+import threading
+import time
+from dataclasses import asdict, dataclass
+from datetime import datetime
 from enum import Enum
-import struct
 
 # ============================================================================
 # CONFIGURATION - Enterprise Grade
@@ -49,7 +44,7 @@ REDIS_PORT = 6379
 # Primary backup location - E: drive
 PRIMARY_BACKUP_DIR = r"E:\AI-Setup\blackboard_data\redis_backups"
 
-# Secondary backup location - assets repo for redundancy  
+# Secondary backup location - assets repo for redundancy
 SECONDARY_BACKUP_DIR = r"E:\AI-Setup\assets\redis_backups"
 
 # Logging
@@ -67,7 +62,7 @@ MAX_BACKUP_AGE_CRITICAL = 1800  # 30 minutes - critical threshold
 
 # Retention policy - Google-scale
 RETENTION_HOURLY = 24  # Keep 24 hourly backups
-RETENTION_DAILY = 7  # Keep 7 daily backups  
+RETENTION_DAILY = 7  # Keep 7 daily backups
 RETENTION_WEEKLY = 4  # Keep 4 weekly backups
 
 # Integrity
@@ -84,12 +79,14 @@ for d in [PRIMARY_BACKUP_DIR, SECONDARY_BACKUP_DIR, LOG_DIR]:
 
 LOG_FILE = os.path.join(LOG_DIR, f"redis_manager_{datetime.now().strftime('%Y%m%d')}.log")
 
+
 class LogLevel(Enum):
     DEBUG = "DEBUG"
     INFO = "INFO"
     WARN = "WARN"
     ERROR = "ERROR"
     CRITICAL = "CRITICAL"
+
 
 def log(msg: str, level: LogLevel = LogLevel.INFO):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
@@ -98,16 +95,19 @@ def log(msg: str, level: LogLevel = LogLevel.INFO):
     try:
         with open(LOG_FILE, "a", encoding="utf-8") as f:
             f.write(entry + "\n")
-    except:
+    except Exception:
         pass  # Never fail on logging
+
 
 # ============================================================================
 # DATA STRUCTURES
 # ============================================================================
 
+
 @dataclass
 class BackupMetadata:
     """Cryptographically signed backup manifest."""
+
     backup_id: str
     timestamp_iso: str
     timestamp_unix: float
@@ -118,19 +118,19 @@ class BackupMetadata:
     checksum_sha256: str
     checksum_algorithm: str
     primary_path: str
-    secondary_path: Optional[str]
+    secondary_path: str | None
     verified: bool
-    verified_timestamp: Optional[str]
+    verified_timestamp: str | None
     retention_tier: str  # hourly, daily, weekly
     compressed: bool
     compression_ratio: float
-    
+
     def to_dict(self) -> dict:
         d = asdict(self)
         d["timestamp_iso"] = self.timestamp_iso
         d["timestamp_unix"] = self.timestamp_unix
         return d
-    
+
     @classmethod
     def from_dict(cls, d: dict) -> "BackupMetadata":
         return cls(**d)
@@ -139,6 +139,7 @@ class BackupMetadata:
 @dataclass
 class HealthStatus:
     """Comprehensive health check result."""
+
     timestamp: str
     connected: bool
     container_running: bool
@@ -146,12 +147,12 @@ class HealthStatus:
     keys_count: int
     memory_used_mb: float
     aof_enabled: bool
-    rdb_last_save: Optional[str]
-    last_backup_age_seconds: Optional[float]
+    rdb_last_save: str | None
+    last_backup_age_seconds: float | None
     backup_healthy: bool
-    issues: List[str]
-    alerts: List[str]
-    
+    issues: list[str]
+    alerts: list[str]
+
     @property
     def health_score(self) -> int:
         """0-100 health score."""
@@ -169,37 +170,41 @@ class HealthStatus:
 
 class BackupCatalog:
     """Indexed catalog of all backups - the source of truth."""
-    
+
     CATALOG_FILE = os.path.join(PRIMARY_BACKUP_DIR, "backup_catalog.json")
-    
+
     def __init__(self):
-        self.backups: List[BackupMetadata] = []
+        self.backups: list[BackupMetadata] = []
         self._lock = threading.Lock()
         self._load()
-    
+
     def _load(self):
         """Load catalog from disk."""
         if os.path.exists(self.CATALOG_FILE):
             try:
-                with open(self.CATALOG_FILE, "r") as f:
+                with open(self.CATALOG_FILE) as f:
                     data = json.load(f)
                     self.backups = [BackupMetadata.from_dict(b) for b in data.get("backups", [])]
                 log(f"Loaded catalog with {len(self.backups)} entries")
             except Exception as e:
                 log(f"Failed to load catalog: {e}", LogLevel.ERROR)
                 self.backups = []
-    
+
     def _save(self):
         """Persist catalog to disk - atomic write."""
         with self._lock:
             tmp_file = self.CATALOG_FILE + ".tmp"
             try:
                 with open(tmp_file, "w") as f:
-                    json.dump({
-                        "version": "1.0",
-                        "last_updated": datetime.now().isoformat(),
-                        "backups": [b.to_dict() for b in self.backups]
-                    }, f, indent=2)
+                    json.dump(
+                        {
+                            "version": "1.0",
+                            "last_updated": datetime.now().isoformat(),
+                            "backups": [b.to_dict() for b in self.backups],
+                        },
+                        f,
+                        indent=2,
+                    )
                 # Atomic rename
                 if os.path.exists(self.CATALOG_FILE):
                     os.remove(self.CATALOG_FILE)
@@ -207,11 +212,9 @@ class BackupCatalog:
             except Exception as e:
                 log(f"Failed to save catalog: {e}", LogLevel.ERROR)
                 if os.path.exists(tmp_file):
-                    try:
+                    with contextlib.suppress(BaseException):
                         os.remove(tmp_file)
-                    except:
-                        pass
-    
+
     def add(self, metadata: BackupMetadata):
         """Add new backup to catalog."""
         with self._lock:
@@ -220,57 +223,57 @@ class BackupCatalog:
             self.backups.append(metadata)
             self._apply_retention()
             self._save()
-    
-    def get_latest(self) -> Optional[BackupMetadata]:
+
+    def get_latest(self) -> BackupMetadata | None:
         """Get most recent backup."""
         if not self.backups:
             return None
         return max(self.backups, key=lambda b: b.timestamp_unix)
-    
-    def get_by_id(self, backup_id: str) -> Optional[BackupMetadata]:
+
+    def get_by_id(self, backup_id: str) -> BackupMetadata | None:
         """Get backup by ID."""
         for b in self.backups:
             if b.backup_id == backup_id:
                 return b
         return None
-    
-    def get_all(self) -> List[BackupMetadata]:
+
+    def get_all(self) -> list[BackupMetadata]:
         """Get all backups sorted by age."""
         return sorted(self.backups, key=lambda b: b.timestamp_unix, reverse=True)
-    
+
     def _apply_retention(self):
         """Apply retention policy - enterprise rotation."""
         now = datetime.now().timestamp()
-        
+
         def age_hours(b: BackupMetadata) -> float:
             return (now - b.timestamp_unix) / 3600
-        
+
         # Mark hourly backups older than retention
         hourly_backups = [b for b in self.backups if b.retention_tier == "hourly"]
         daily_backups = [b for b in self.backups if b.retention_tier == "daily"]
         weekly_backups = [b for b in self.backups if b.retention_tier == "weekly"]
-        
+
         # Keep newest RETENTION_HOURLY hourly backups
         if len(hourly_backups) > RETENTION_HOURLY:
             hourly_backups.sort(key=lambda b: b.timestamp_unix, reverse=True)
             for old in hourly_backups[RETENTION_HOURLY:]:
                 self._delete_backup_files(old)
                 self.backups.remove(old)
-        
+
         # Keep newest RETENTION_DAILY daily backups
         if len(daily_backups) > RETENTION_DAILY:
             daily_backups.sort(key=lambda b: b.timestamp_unix, reverse=True)
             for old in daily_backups[RETENTION_DAILY:]:
                 self._delete_backup_files(old)
                 self.backups.remove(old)
-        
+
         # Keep newest RETENTION_WEEKLY weekly backups
         if len(weekly_backups) > RETENTION_WEEKLY:
             weekly_backups.sort(key=lambda b: b.timestamp_unix, reverse=True)
             for old in weekly_backups[RETENTION_WEEKLY:]:
                 self._delete_backup_files(old)
                 self.backups.remove(old)
-    
+
     def _delete_backup_files(self, metadata: BackupMetadata):
         """Delete backup files from both locations."""
         for path in [metadata.primary_path, metadata.secondary_path]:
@@ -280,21 +283,21 @@ class BackupCatalog:
                     log(f"Deleted old backup: {path}")
                 except Exception as e:
                     log(f"Failed to delete {path}: {e}", LogLevel.WARN)
-    
-    def get_stats(self) -> Dict:
+
+    def get_stats(self) -> dict:
         """Get catalog statistics."""
         if not self.backups:
             return {
-                "total": 0, 
+                "total": 0,
                 "total_size_bytes": 0,
                 "latest_backup_age_seconds": None,
                 "verified_count": 0,
-                "by_tier": {"hourly": 0, "daily": 0, "weekly": 0}
+                "by_tier": {"hourly": 0, "daily": 0, "weekly": 0},
             }
-        
+
         total_size = sum(b.data_size_bytes for b in self.backups)
         latest = self.get_latest()
-        
+
         return {
             "total": len(self.backups),
             "total_size_bytes": total_size,
@@ -304,7 +307,7 @@ class BackupCatalog:
                 "hourly": len([b for b in self.backups if b.retention_tier == "hourly"]),
                 "daily": len([b for b in self.backups if b.retention_tier == "daily"]),
                 "weekly": len([b for b in self.backups if b.retention_tier == "weekly"]),
-            }
+            },
         }
 
 
@@ -312,13 +315,12 @@ class BackupCatalog:
 # WSL COMMAND EXECUTION
 # ============================================================================
 
-def run_wsl(command: str, timeout: int = 30) -> Tuple[str, int]:
+
+def run_wsl(command: str, timeout: int = 30) -> tuple[str, int]:
     """Execute command in WSL2 with timeout."""
-    cmd = ["wsl.exe", "-d", WSL_DISTRO, "-e"] + command.split()
+    cmd = ["wsl.exe", "-d", WSL_DISTRO, "-e", *command.split()]
     try:
-        result = subprocess.run(
-            cmd, capture_output=True, text=True, timeout=timeout
-        )
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
         return result.stdout.strip(), result.returncode
     except subprocess.TimeoutExpired:
         return "TIMEOUT", -1
@@ -330,43 +332,44 @@ def run_wsl(command: str, timeout: int = 30) -> Tuple[str, int]:
 # REDIS OPERATIONS
 # ============================================================================
 
+
 def check_redis_connection() -> bool:
     """Check Redis PING response."""
-    output, code = run_wsl(f"docker exec {CONTAINER_NAME} redis-cli PING")
+    output, _code = run_wsl(f"docker exec {CONTAINER_NAME} redis-cli PING")
     return output == "PONG"
 
 
-def get_redis_info() -> Dict:
+def get_redis_info() -> dict:
     """Get Redis INFO as dict."""
     output, code = run_wsl(f"docker exec {CONTAINER_NAME} redis-cli INFO")
     if code != 0:
         return {}
-    
+
     info = {}
     for line in output.split("\n"):
         if ":" in line and not line.startswith("#"):
             try:
                 key, value = line.strip().split(":", 1)
                 info[key] = value
-            except:
+            except Exception:
                 pass
     return info
 
 
 def get_redis_keys_count() -> int:
     """Get key count."""
-    output, code = run_wsl(f"docker exec {CONTAINER_NAME} redis-cli DBSIZE")
+    output, _code = run_wsl(f"docker exec {CONTAINER_NAME} redis-cli DBSIZE")
     try:
         return int(output) if output.isdigit() else 0
-    except:
+    except Exception:
         return 0
 
 
-def get_all_keys_with_types() -> List[Tuple[str, str]]:
+def get_all_keys_with_types() -> list[tuple[str, str]]:
     """Get all keys with their types."""
     output, _ = run_wsl(f"docker exec {CONTAINER_NAME} redis-cli KEYS '*'")
     keys = [k for k in output.split("\n") if k]
-    
+
     result = []
     for key in keys:
         type_output, _ = run_wsl(f"docker exec {CONTAINER_NAME} redis-cli TYPE {key}")
@@ -379,11 +382,11 @@ def get_key_value(key: str, key_type: str) -> any:
     if key_type == "string":
         output, _ = run_wsl(f"docker exec {CONTAINER_NAME} redis-cli GET {key}")
         return output
-    elif key_type == "list":
+    if key_type == "list":
         output, _ = run_wsl(f"docker exec {CONTAINER_NAME} redis-cli LRANGE {key} 0 -1")
         try:
             return json.loads(output) if output else []
-        except:
+        except Exception:
             return output.split("\n") if output else []
     elif key_type == "set":
         output, _ = run_wsl(f"docker exec {CONTAINER_NAME} redis-cli SMEMBERS {key}")
@@ -400,31 +403,36 @@ def get_key_value(key: str, key_type: str) -> any:
                 if i + 1 < len(pairs):
                     result[pairs[i]] = pairs[i + 1]
             return result
-        except:
+        except Exception:
             return {}
     return None
 
 
-def get_container_status() -> Dict:
+def get_container_status() -> dict:
     """Get Docker container status."""
-    output, code = run_wsl(f"docker ps -a --filter name={CONTAINER_NAME}")
+    output, _code = run_wsl(f"docker ps -a --filter name={CONTAINER_NAME}")
     if not output or "wsl-ai-redis" not in output:
         return {"running": False, "exists": False}
-    
+
     lines = output.split("\n")
     for line in lines:
         if CONTAINER_NAME in line:
             if "Up " in line or "running" in line.lower():
                 return {"exists": True, "running": True, "status": "running", "name": CONTAINER_NAME}
-            else:
-                return {"exists": True, "running": False, "status": line.split()[5] if len(line.split()) > 5 else "unknown", "name": CONTAINER_NAME}
-    
+            return {
+                "exists": True,
+                "running": False,
+                "status": line.split()[5] if len(line.split()) > 5 else "unknown",
+                "name": CONTAINER_NAME,
+            }
+
     return {"running": False, "exists": False}
 
 
 # ============================================================================
 # BACKUP OPERATIONS - Enterprise Grade
 # ============================================================================
+
 
 def compute_checksum(file_path: str) -> str:
     """Compute SHA-256 checksum of file."""
@@ -435,10 +443,10 @@ def compute_checksum(file_path: str) -> str:
     return sha256.hexdigest()
 
 
-def export_redis_to_dict() -> Tuple[Dict, int]:
+def export_redis_to_dict() -> tuple[dict, int]:
     """Export all Redis data to dict. Returns (data, total_size)."""
     keys_with_types = get_all_keys_with_types()
-    
+
     data = {
         "schema_version": "1.0",
         "export_time": datetime.now().isoformat(),
@@ -446,23 +454,20 @@ def export_redis_to_dict() -> Tuple[Dict, int]:
         "redis_host": REDIS_HOST,
         "redis_port": REDIS_PORT,
         "total_keys": len(keys_with_types),
-        "keys": {}
+        "keys": {},
     }
-    
+
     for key, key_type in keys_with_types:
         value = get_key_value(key, key_type)
-        data["keys"][key] = {
-            "type": key_type,
-            "value": value
-        }
-    
+        data["keys"][key] = {"type": key_type, "value": value}
+
     # Estimate size
     total_size = len(json.dumps(data, indent=2))
-    
+
     return data, total_size
 
 
-def create_backup() -> Optional[BackupMetadata]:
+def create_backup() -> BackupMetadata | None:
     """
     Create enterprise-grade backup with:
     - Atomic write
@@ -472,9 +477,9 @@ def create_backup() -> Optional[BackupMetadata]:
     """
     timestamp = datetime.now()
     backup_id = f"redis_backup_{timestamp.strftime('%Y%m%d_%H%M%S')}"
-    
+
     log(f"Starting enterprise backup: {backup_id}")
-    
+
     # Determine retention tier
     hour = timestamp.hour
     if hour == 0:  # Midnight
@@ -483,38 +488,37 @@ def create_backup() -> Optional[BackupMetadata]:
         tier = "weekly"
     else:
         tier = "hourly"
-    
+
     try:
         # Export Redis data
         data, data_size = export_redis_to_dict()
-        
+
         # Serialize to JSON
         json_content = json.dumps(data, indent=2)
-        
+
         # Create backup file paths
         primary_path = os.path.join(PRIMARY_BACKUP_DIR, f"{backup_id}.json")
         secondary_path = os.path.join(SECONDARY_BACKUP_DIR, f"{backup_id}.json")
-        
+
         # Atomic write to primary
         tmp_primary = primary_path + ".tmp"
         with open(tmp_primary, "w", encoding="utf-8") as f:
             f.write(json_content)
-        
+
         # Compute checksum BEFORE renaming
         checksum = compute_checksum(tmp_primary)
-        
+
         # Atomic rename
         os.rename(tmp_primary, primary_path)
-        
+
         # Copy to secondary (redundancy)
         try:
-            with open(primary_path, "rb") as src:
-                with open(secondary_path, "wb") as dst:
-                    shutil.copyfileobj(src, dst)
+            with open(primary_path, "rb") as src, open(secondary_path, "wb") as dst:
+                shutil.copyfileobj(src, dst)
         except Exception as e:
             log(f"Secondary backup failed: {e}", LogLevel.WARN)
             secondary_path = None
-        
+
         # Build metadata
         metadata = BackupMetadata(
             backup_id=backup_id,
@@ -532,23 +536,23 @@ def create_backup() -> Optional[BackupMetadata]:
             verified_timestamp=datetime.now().isoformat(),
             retention_tier=tier,
             compressed=False,
-            compression_ratio=1.0
+            compression_ratio=1.0,
         )
-        
+
         # Update catalog
         catalog = BackupCatalog()
         catalog.add(metadata)
-        
+
         # Verify backup integrity immediately
         if not verify_backup_integrity(primary_path):
             log("Backup verification FAILED", LogLevel.ERROR)
             metadata.verified = False
-        
+
         size_mb = data_size / (1024 * 1024)
         log(f"Backup complete: {data['total_keys']} keys, {size_mb:.2f} MB, checksum={checksum[:16]}...")
-        
+
         return metadata
-        
+
     except Exception as e:
         log(f"Backup failed: {e}", LogLevel.ERROR)
         return None
@@ -559,16 +563,16 @@ def verify_backup_integrity(backup_path: str) -> bool:
     if not os.path.exists(backup_path):
         log(f"Backup file not found: {backup_path}", LogLevel.ERROR)
         return False
-    
+
     try:
         # Load and validate JSON
-        with open(backup_path, "r") as f:
+        with open(backup_path) as f:
             data = json.load(f)
-        
+
         # Verify required fields (new format)
         required = ["schema_version", "export_time", "total_keys", "keys"]
         has_required = all(field in data for field in required)
-        
+
         # Fallback for old format: check for keys directly
         if not has_required:
             if "keys" not in data:
@@ -576,14 +580,14 @@ def verify_backup_integrity(backup_path: str) -> bool:
                 return False
             # Old format had "export_time" not "schema_version"
             log("Old backup format detected - accepting for migration", LogLevel.INFO)
-        
+
         # Verify key count matches
         actual_keys = len(data["keys"])
         stated_keys = data.get("total_keys", actual_keys)
         if actual_keys != stated_keys:
             log(f"Key count mismatch: {actual_keys} vs {stated_keys}", LogLevel.ERROR)
             return False
-        
+
         # Verify checksum if present (new format)
         stored_checksum = data.get("checksum_sha256")
         if stored_checksum:
@@ -591,9 +595,9 @@ def verify_backup_integrity(backup_path: str) -> bool:
             if stored_checksum != computed:
                 log("Checksum mismatch!", LogLevel.ERROR)
                 return False
-        
+
         return True
-        
+
     except json.JSONDecodeError as e:
         log(f"Invalid JSON in backup: {e}", LogLevel.ERROR)
         return False
@@ -611,31 +615,30 @@ def restore_redis(backup_path: str, verify_first: bool = True) -> bool:
     - Post-restore validation
     """
     log(f"Starting restore from: {backup_path}")
-    
-    if verify_first:
-        if not verify_backup_integrity(backup_path):
-            log("Pre-restore verification failed, aborting", LogLevel.ERROR)
-            return False
-    
+
+    if verify_first and not verify_backup_integrity(backup_path):
+        log("Pre-restore verification failed, aborting", LogLevel.ERROR)
+        return False
+
     try:
         # Load backup
-        with open(backup_path, "r") as f:
+        with open(backup_path) as f:
             data = json.load(f)
-        
+
         keys_restored = 0
-        
+
         # Start Redis transaction
         # Flush existing data
         output, code = run_wsl(f"docker exec {CONTAINER_NAME} redis-cli FLUSHALL")
         if code != 0:
             log(f"Failed to flush Redis: {output}", LogLevel.ERROR)
             return False
-        
+
         # Restore each key
         for key, item in data["keys"].items():
             key_type = item["type"]
             value = item["value"]
-            
+
             try:
                 if key_type == "string":
                     # Escape special characters for CLI
@@ -656,18 +659,18 @@ def restore_redis(backup_path: str, verify_first: bool = True) -> bool:
                     for v in value:
                         safe_v = str(v).replace('"', '\\"')
                         run_wsl(f'docker exec {CONTAINER_NAME} redis-cli SADD "{key}" "{safe_v}"')
-                
+
                 keys_restored += 1
-                
+
             except Exception as e:
                 log(f"Failed to restore key {key}: {e}", LogLevel.WARN)
-        
+
         # Verify restore
         restored_count = get_redis_keys_count()
         log(f"Restore complete: {restored_count}/{data['total_keys']} keys")
-        
+
         return restored_count > 0
-        
+
     except Exception as e:
         log(f"Restore failed: {e}", LogLevel.ERROR)
         return False
@@ -676,6 +679,7 @@ def restore_redis(backup_path: str, verify_first: bool = True) -> bool:
 # ============================================================================
 # HEALTH MONITORING - Enterprise
 # ============================================================================
+
 
 def check_health() -> HealthStatus:
     """Comprehensive health check."""
@@ -691,25 +695,25 @@ def check_health() -> HealthStatus:
         last_backup_age_seconds=None,
         backup_healthy=False,
         issues=[],
-        alerts=[]
+        alerts=[],
     )
-    
+
     # Container check
     container_status = get_container_status()
     status.container_running = container_status.get("running", False)
-    
+
     if not status.container_running:
         status.issues.append("Container not running")
         return status
-    
+
     # Connection check
     status.connected = check_redis_connection()
     if not status.connected:
         status.issues.append("Cannot connect to Redis")
         return status
-    
+
     status.container_healthy = True
-    
+
     # Redis info
     try:
         info = get_redis_info()
@@ -719,85 +723,85 @@ def check_health() -> HealthStatus:
             try:
                 keys_part = db0_value.split(",")[0]  # "keys=30"
                 status.keys_count = int(keys_part.split("=")[1])
-            except:
+            except Exception:
                 status.keys_count = get_redis_keys_count()
         else:
             status.keys_count = get_redis_keys_count()
-        
+
         status.memory_used_mb = int(info.get("used_memory", 0)) / (1024 * 1024)
         status.aof_enabled = info.get("aof_enabled", "no") == "yes"
-        
+
         # Last RDB save
         last_save = info.get("rdb_last_save_time")
         if last_save:
             try:
                 ts = int(last_save)
                 status.rdb_last_save = datetime.fromtimestamp(ts).isoformat()
-            except:
+            except Exception:
                 pass
-    except:
+    except Exception:
         pass
-    
+
     # Backup check
     catalog = BackupCatalog()
     latest = catalog.get_latest()
-    
+
     if latest:
         age_seconds = datetime.now().timestamp() - latest.timestamp_unix
         status.last_backup_age_seconds = age_seconds
-        
+
         # Backup healthy if within thresholds
         status.backup_healthy = age_seconds < MAX_BACKUP_AGE_ALERT
-        
+
         # Generate alerts
         if age_seconds > MAX_BACKUP_AGE_CRITICAL:
-            status.alerts.append(f"CRITICAL: Last backup {age_seconds/60:.1f} minutes ago")
+            status.alerts.append(f"CRITICAL: Last backup {age_seconds / 60:.1f} minutes ago")
         elif age_seconds > MAX_BACKUP_AGE_ALERT:
-            status.alerts.append(f"WARNING: Last backup {age_seconds/60:.1f} minutes ago")
-        
+            status.alerts.append(f"WARNING: Last backup {age_seconds / 60:.1f} minutes ago")
+
         if not latest.verified:
             status.alerts.append("WARNING: Latest backup not verified")
     else:
         status.alerts.append("CRITICAL: No backups found")
         status.backup_healthy = False
-    
+
     return status
 
 
 def start_redis_if_needed() -> bool:
     """Start Redis container with health verification."""
     container_status = get_container_status()
-    
+
     if container_status.get("running"):
         log("Redis already running")
         return True
-    
+
     log("Redis not running, starting...")
-    
+
     # Create network
     run_wsl("docker network create wsl_ai_network 2>/dev/null || true")
-    
+
     # Start container
     cmd = (
         f"docker run -d --name {CONTAINER_NAME} --network wsl_ai_network "
         f"-p 6379:6379 --restart unless-stopped "
         f"redis:alpine redis-server --appendonly yes --dir /data"
     )
-    
-    output, code = run_wsl(cmd)
-    
+
+    _output, code = run_wsl(cmd)
+
     if code == 0:
         # Wait for health
-        for i in range(10):
+        for _i in range(10):
             time.sleep(1)
             if check_redis_connection():
                 log("Redis started and healthy")
-                
+
                 # Create initial backup
                 create_backup()
-                
+
                 return True
-    
+
     log("Failed to start Redis", LogLevel.ERROR)
     return False
 
@@ -806,26 +810,27 @@ def start_redis_if_needed() -> bool:
 # MONITOR LOOP - Production Ready
 # ============================================================================
 
+
 class RedisMonitor:
     """Production-grade monitor with alerting."""
-    
+
     def __init__(self):
         self.running = False
         self.last_backup_time = datetime.now()
         self.last_health = None
         self.consecutive_failures = 0
         self.alert_cooldown = 300  # 5 min between alerts
-        
+
     def should_backup(self) -> bool:
         """Check if routine backup is due."""
         elapsed = (datetime.now() - self.last_backup_time).total_seconds()
         return elapsed >= BACKUP_INTERVAL
-    
+
     def run_cycle(self) -> HealthStatus:
         """Run one monitoring cycle."""
         health = check_health()
         self.last_health = health
-        
+
         # Auto-start if needed
         if not health.container_running:
             start_redis_if_needed()
@@ -834,20 +839,20 @@ class RedisMonitor:
             self.consecutive_failures += 1
         else:
             self.consecutive_failures = 0
-        
+
         # Routine backup
         if self.should_backup() and health.connected:
             backup = create_backup()
             if backup:
                 self.last_backup_time = datetime.now()
-        
+
         # Alert on issues
         if health.alerts and self.consecutive_failures < 3:
             for alert in health.alerts:
                 log(alert, LogLevel.WARN)
-        
+
         return health
-    
+
     def run_loop(self):
         """Main monitoring loop."""
         log("=" * 60)
@@ -856,24 +861,28 @@ class RedisMonitor:
         log(f"Backup interval: {BACKUP_INTERVAL}s")
         log(f"Alert threshold: {MAX_BACKUP_AGE_ALERT}s")
         log("=" * 60)
-        
+
         self.running = True
-        
+
         while self.running:
             try:
                 health = self.run_cycle()
-                
+
                 # Log health score
-                log(f"Health: {health.health_score}/100 | "
+                log(
+                    f"Health: {health.health_score}/100 | "
                     f"Keys: {health.keys_count} | "
-                    f"Backup age: {health.last_backup_age_seconds/60:.1f}m" if health.last_backup_age_seconds else "No backup")
-                
+                    f"Backup age: {health.last_backup_age_seconds / 60:.1f}m"
+                    if health.last_backup_age_seconds
+                    else "No backup"
+                )
+
                 # Sleep
                 for _ in range(HEALTH_CHECK_INTERVAL):
                     if not self.running:
                         break
                     time.sleep(1)
-                    
+
             except KeyboardInterrupt:
                 log("Monitor stopped by user")
                 self.running = False
@@ -881,7 +890,7 @@ class RedisMonitor:
             except Exception as e:
                 log(f"Monitor error: {e}", LogLevel.ERROR)
                 time.sleep(HEALTH_CHECK_INTERVAL)
-        
+
         log("Monitor loop ended")
 
 
@@ -889,19 +898,20 @@ class RedisMonitor:
 # STATUS AND REPORTING
 # ============================================================================
 
+
 def print_status_report():
     """Print comprehensive enterprise status."""
     print("\n" + "=" * 70)
     print("  ENTERPRISE REDIS MANAGEMENT SYSTEM - STATUS REPORT")
     print("=" * 70)
-    
+
     health = check_health()
     catalog = BackupCatalog()
     stats = catalog.get_stats()
-    
+
     # Health Status
-    print(f"\n  REDIS HEALTH")
-    print(f"  " + ("-" * 66))
+    print("\n  REDIS HEALTH")
+    print("  " + ("-" * 66))
     conn_status = "CONNECTED" if health.connected else "FAILED"
     health_score = health.health_score
     print(f"  Connection:      {conn_status:<20} Health Score: {health_score}/100")
@@ -910,11 +920,11 @@ def print_status_report():
     print(f"  Memory Used:     {health.memory_used_mb:.1f} MB")
     print(f"  AOF Enabled:     {'Yes' if health.aof_enabled else 'No'}")
     print(f"  Last RDB Save:   {health.rdb_last_save or 'N/A'}")
-    
+
     # Backup Status
-    print(f"\n  BACKUP STATUS")
-    print(f"  " + ("-" * 66))
-    
+    print("\n  BACKUP STATUS")
+    print("  " + ("-" * 66))
+
     latest = catalog.get_latest()
     if latest:
         age_min = (datetime.now().timestamp() - latest.timestamp_unix) / 60
@@ -927,37 +937,37 @@ def print_status_report():
         print(f"  Verified:        {verified_str}")
         print(f"  Tier:            {latest.retention_tier}")
     else:
-        print(f"  NO BACKUPS FOUND - CRITICAL!")
-    
+        print("  NO BACKUPS FOUND - CRITICAL!")
+
     # Catalog Stats
-    print(f"\n  BACKUP CATALOG")
-    print(f"  " + ("-" * 66))
+    print("\n  BACKUP CATALOG")
+    print("  " + ("-" * 66))
     print(f"  Total Backups:   {stats['total']}")
-    print(f"  Total Size:      {stats['total_size_bytes'] / (1024*1024):.1f} MB")
+    print(f"  Total Size:      {stats['total_size_bytes'] / (1024 * 1024):.1f} MB")
     print(f"  Verified:        {stats['verified_count']}")
     print(f"  Hourly:          {stats['by_tier']['hourly']} / {RETENTION_HOURLY}")
     print(f"  Daily:           {stats['by_tier']['daily']} / {RETENTION_DAILY}")
     print(f"  Weekly:          {stats['by_tier']['weekly']} / {RETENTION_WEEKLY}")
-    
+
     # Alerts
     if health.alerts:
-        print(f"\n  ALERTS")
-        print(f"  " + ("-" * 66))
+        print("\n  ALERTS")
+        print("  " + ("-" * 66))
         for alert in health.alerts:
             print(f"  ! {alert}")
-    
+
     if health.issues:
-        print(f"\n  ISSUES")
-        print(f"  " + ("-" * 66))
+        print("\n  ISSUES")
+        print("  " + ("-" * 66))
         for issue in health.issues:
             print(f"  X {issue}")
-    
+
     # Storage
-    print(f"\n  STORAGE LOCATIONS")
-    print(f"  " + ("-" * 66))
+    print("\n  STORAGE LOCATIONS")
+    print("  " + ("-" * 66))
     print(f"  Primary:   {PRIMARY_BACKUP_DIR}")
     print(f"  Secondary: {SECONDARY_BACKUP_DIR}")
-    
+
     print("\n" + "=" * 70 + "\n")
 
 
@@ -967,26 +977,27 @@ def print_status_report():
 
 if __name__ == "__main__":
     import argparse
-    
+
     parser = argparse.ArgumentParser(
-        description="Enterprise Redis Management System",
-        formatter_class=argparse.RawDescriptionHelpFormatter
+        description="Enterprise Redis Management System", formatter_class=argparse.RawDescriptionHelpFormatter
     )
-    
+
     parser.add_argument("--status", "-s", action="store_true", help="Show status report")
     parser.add_argument("--backup", "-b", action="store_true", help="Force immediate backup")
-    parser.add_argument("--restore", "-r", nargs="?", const="latest", help="Restore from backup (specify path or 'latest')")
+    parser.add_argument(
+        "--restore", "-r", nargs="?", const="latest", help="Restore from backup (specify path or 'latest')"
+    )
     parser.add_argument("--verify", "-v", nargs="?", const="latest", help="Verify backup integrity")
     parser.add_argument("--monitor", "-m", action="store_true", help="Run continuous monitor")
     parser.add_argument("--start", action="store_true", help="Start Redis if not running")
     parser.add_argument("--test-restore", action="store_true", help="Test restore to verify backup quality")
     parser.add_argument("--catalog", "-c", action="store_true", help="Show backup catalog")
-    
+
     args = parser.parse_args()
-    
+
     if args.status:
         print_status_report()
-        
+
     elif args.backup:
         backup = create_backup()
         if backup:
@@ -995,7 +1006,7 @@ if __name__ == "__main__":
         else:
             print("Backup failed")
             sys.exit(1)
-            
+
     elif args.restore:
         if args.restore == "latest":
             catalog = BackupCatalog()
@@ -1007,13 +1018,13 @@ if __name__ == "__main__":
                 sys.exit(1)
         else:
             path = args.restore
-        
+
         if restore_redis(path):
             print("Restore successful")
         else:
             print("Restore failed")
             sys.exit(1)
-            
+
     elif args.verify:
         if args.verify == "latest":
             catalog = BackupCatalog()
@@ -1025,24 +1036,24 @@ if __name__ == "__main__":
                 sys.exit(1)
         else:
             path = args.verify
-        
+
         if verify_backup_integrity(path):
             print(f"[OK] Backup verified: {path}")
         else:
             print(f"[FAIL] Verification failed: {path}")
             sys.exit(1)
-            
+
     elif args.monitor:
         monitor = RedisMonitor()
         monitor.run_loop()
-        
+
     elif args.start:
         if start_redis_if_needed():
             print("Redis started")
         else:
             print("Failed to start Redis")
             sys.exit(1)
-            
+
     elif args.test_restore:
         catalog = BackupCatalog()
         latest = catalog.get_latest()
@@ -1056,7 +1067,7 @@ if __name__ == "__main__":
         else:
             print("No backups to test")
             sys.exit(1)
-            
+
     elif args.catalog:
         catalog = BackupCatalog()
         backups = catalog.get_all()
@@ -1067,6 +1078,6 @@ if __name__ == "__main__":
             status = "OK" if b.verified else "FAIL"
             print(f"[{status}] {b.backup_id} | {b.keys_count} keys | {age:.1f}h old | {b.retention_tier}")
         print("=" * 80)
-        
+
     else:
         print_status_report()

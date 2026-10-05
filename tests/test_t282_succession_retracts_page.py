@@ -23,20 +23,19 @@ Pins:
 
 Run: py -m pytest tests/test_t282_succession_retracts_page.py -q
 """
+
 from __future__ import annotations
 
-import io
 import json
 import os
+import re
 import sys
 import time
 from pathlib import Path
 
-import pytest
-
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.comm import doctor, pager  # noqa: E402
+from core.comm import doctor, pager
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -45,17 +44,22 @@ class FakeRedis:
     def __init__(self):
         self.lists = {}
         self.kv = {}
+
     def lpush(self, k, v):
         self.lists.setdefault(k, []).insert(0, v)
         return len(self.lists[k])
+
     def ltrim(self, k, a, b):
-        self.lists[k] = self.lists.get(k, [])[a:b + 1]
+        self.lists[k] = self.lists.get(k, [])[a : b + 1]
+
     def lrange(self, k, a, b):
         L = self.lists.get(k, [])
-        return L[a:] if b == -1 else L[a:b + 1]
+        return L[a:] if b == -1 else L[a : b + 1]
+
     def delete(self, k):
         self.lists.pop(k, None)
         self.kv.pop(k, None)
+
     def set(self, k, v, nx=False, ex=None):
         if nx and k in self.kv:
             return None
@@ -65,8 +69,7 @@ class FakeRedis:
 
 def _page_for(c, agent, state="hard_wedge", age_s=300):
     """Seed a page the way the doctor emits one: keyed, recent."""
-    assert pager.page(agent, f"HARD WEDGE -- synthetic ({agent})", c=c,
-                      key=f"{agent}:{state}")
+    assert pager.page(agent, f"HARD WEDGE -- synthetic ({agent})", c=c, key=f"{agent}:{state}")
     # backdate: reconciliation reads ts from the record
     raw = c.lists[pager._key()][0]
     rec = json.loads(raw)
@@ -81,14 +84,14 @@ def _keys(c):
 def test_p1_succession_retracts(monkeypatch):
     """RED first: successor incarnation in scope -> the old incarnation's page clears."""
     c = FakeRedis()
-    _page_for(c, "kimi#10648-ki", age_s=300)          # 5 minutes old: inside the ghost gate
+    _page_for(c, "kimi#10648-ki", age_s=300)  # 5 minutes old: inside the ghost gate
     monkeypatch.setattr(doctor, "_client", lambda: c)
-    monkeypatch.setattr(doctor, "known_agents",
-                        lambda: ["kimi#60900-ki", "claude#af0ca6b8"])
+    monkeypatch.setattr(doctor, "known_agents", lambda: ["kimi#60900-ki", "claude#af0ca6b8"])
     doctor._reconcile_pages(pages=[], agents=["kimi#60900-ki", "claude#af0ca6b8"])
     assert "kimi#10648-ki:hard_wedge" not in _keys(c), (
         "P1: a live successor incarnation of the same base agent was examined this round; "
-        "the dead predecessor's page must retract NOW, not after GHOST_PAGE_AGE_S")
+        "the dead predecessor's page must retract NOW, not after GHOST_PAGE_AGE_S"
+    )
 
 
 def test_p2_no_successor_page_stands(monkeypatch):
@@ -100,12 +103,13 @@ def test_p2_no_successor_page_stands(monkeypatch):
     doctor._reconcile_pages(pages=[], agents=["claude#af0ca6b8"])
     assert "deepseek#63940-de:hard_wedge" in _keys(c), (
         "P2: no successor examined -- the page must STAND (the pager still fires for real "
-        "unsucceeded deaths inside the ghost window)")
+        "unsucceeded deaths inside the ghost window)"
+    )
 
 
 def test_p3_keyless_untouched(monkeypatch):
     c = FakeRedis()
-    assert pager.page("gauge", "storm", c=c)          # keyless, legacy form
+    assert pager.page("gauge", "storm", c=c)  # keyless, legacy form
     monkeypatch.setattr(doctor, "_client", lambda: c)
     monkeypatch.setattr(doctor, "known_agents", lambda: ["claude#af0ca6b8"])
     doctor._reconcile_pages(pages=[], agents=["claude#af0ca6b8"])
@@ -114,11 +118,14 @@ def test_p3_keyless_untouched(monkeypatch):
 
 def test_p4_page_text_names_its_signals():
     """Acceptance (T282): 'the detector names WHICH signal it keyed on in every page'."""
-    src = io.open(ROOT / "core" / "comm" / "doctor.py", encoding="utf-8").read()
-    i = src.find('"hard_wedge", "page"')
+    with open(ROOT / "core" / "comm" / "doctor.py", encoding="utf-8") as fh:
+        src = fh.read()
+    m = re.search(r'"hard_wedge",\s*"page"', src)
+    i = m.start() if m else -1
     assert i > 0, "P4: hard_wedge page emission site missing"
-    body = src[i:i + 500]
+    body = src[i : i + 500]
     for marker in ("pulse", "beat", "phase"):
         assert marker in body, (
             f"P4: the hard_wedge page body must name the '{marker}' signal it keyed on -- "
-            "a page that does not show its evidence cannot be recalibrated, only ignored")
+            "a page that does not show its evidence cannot be recalibrated, only ignored"
+        )

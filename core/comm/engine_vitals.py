@@ -14,14 +14,16 @@ journal file, pager list). Never raises -- a hostile or absent backend yields
 the all-quiet snapshot (P6): the engine room must render even when the engine
 is the thing that's broken.
 """
+
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import time
-from typing import Any, Dict, Optional
+from typing import Any
 
-IDLE_AFTER_S = 300          # his Zone-1 table: active < 5m <= idle
+IDLE_AFTER_S = 300  # his Zone-1 table: active < 5m <= idle
 _TS_FMT = "%Y-%m-%dT%H:%M:%S"
 
 
@@ -36,12 +38,13 @@ def _client(c=None, allow_fallback: bool = True):
         return None
     try:
         from core.comm.bus import get_bus
+
         return get_bus("control")._client
     except Exception:
         return None
 
 
-def _heartbeat(card: Optional[Dict[str, Any]], now: float) -> str:
+def _heartbeat(card: dict[str, Any] | None, now: float) -> str:
     if not card:
         return "offline"
     try:
@@ -49,13 +52,14 @@ def _heartbeat(card: Optional[Dict[str, Any]], now: float) -> str:
         then = time.mktime(time.strptime(ts, _TS_FMT))
         return "active" if (now - then) < IDLE_AFTER_S else "idle"
     except Exception:
-        return "idle"       # a card with an unreadable stamp is present but unproven
+        return "idle"  # a card with an unreadable stamp is present but unproven
 
 
-def _today_journal(agent: str, journal_dir: Optional[str]) -> Dict[str, int]:
+def _today_journal(agent: str, journal_dir: str | None) -> dict[str, int]:
     try:
         base = journal_dir or os.path.join(
-            os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "state")
+            os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "state"
+        )
         path = os.path.join(base, f"runner_{agent}_{time.strftime('%Y-%m-%d')}.json")
         with open(path, encoding="utf-8") as f:
             d = json.load(f)
@@ -64,15 +68,19 @@ def _today_journal(agent: str, journal_dir: Optional[str]) -> Dict[str, int]:
         return {"prompt": 0, "completion": 0}
 
 
-def gauge_snapshot(agent: str, c=None, allow_fallback: bool = True,
-                   journal_dir: Optional[str] = None,
-                   now: Optional[float] = None) -> Dict[str, Any]:
+def gauge_snapshot(
+    agent: str, c=None, allow_fallback: bool = True, journal_dir: str | None = None, now: float | None = None
+) -> dict[str, Any]:
     """The Zone-1 snapshot for one agent. Cheap (<=3 backend reads + 1 file
     stat), shape-stable, exception-free."""
     now_f = float(now if now is not None else time.time())
-    out: Dict[str, Any] = {"heartbeat": "offline", "runtimes": {},
-                           "tokens": {"prompt": 0, "completion": 0},
-                           "pages": 0, "daemon_live": False}
+    out: dict[str, Any] = {
+        "heartbeat": "offline",
+        "runtimes": {},
+        "tokens": {"prompt": 0, "completion": 0},
+        "pages": 0,
+        "daemon_live": False,
+    }
     cli = _client(c, allow_fallback)
     card = None
     if cli is not None:
@@ -81,19 +89,13 @@ def gauge_snapshot(agent: str, c=None, allow_fallback: bool = True,
             card = json.loads(raw) if raw else None
         except Exception:
             card = None
-        try:
+        with contextlib.suppress(Exception):
             out["daemon_live"] = bool(cli.exists(f"{_ns()}:daemon:{agent}"))
-        except Exception:
-            pass
-        try:
+        with contextlib.suppress(Exception):
             out["pages"] = len(cli.lrange(f"{_ns()}:pages", 0, -1) or [])
-        except Exception:
-            pass
     out["heartbeat"] = _heartbeat(card, now_f)
     if card:
-        try:
+        with contextlib.suppress(Exception):
             out["runtimes"] = dict(card.get("runtimes") or {})
-        except Exception:
-            pass
     out["tokens"] = _today_journal(agent, journal_dir)
     return out

@@ -35,6 +35,7 @@ Fixture truth (tests/fixtures/eye/):
 
 Run: py -m pytest tests/test_t278_s4_eye_connectome.py -q
 """
+
 from __future__ import annotations
 
 import os
@@ -46,8 +47,8 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.eye import connectome as CONN  # noqa: E402
-from core.eye import index as EYE  # noqa: E402
+from core.eye import connectome as CONN
+from core.eye import index as EYE
 
 ROOT = Path(__file__).resolve().parents[1]
 FIX = ROOT / "tests" / "fixtures" / "eye"
@@ -56,7 +57,7 @@ G = "session_gamma"
 D = "session_delta"
 
 
-@pytest.fixture()
+@pytest.fixture
 def db(tmp_path):
     corpus = tmp_path / "corpus"
     corpus.mkdir()
@@ -71,9 +72,8 @@ def db(tmp_path):
 # ---------------------------------------------------------------- P1: the chain
 def test_p1_recorded_chain_walks_upstream_in_order(db):
     """parentUuid becomes a walkable ancestry -- nearest first, no re-search."""
-    t = CONN.trace(f"{G}:9", db_path=db)          # a3
-    assert [u["event_id"] for u in t["upstream"]] == [
-        f"{G}:6", f"{G}:5", f"{G}:2", f"{G}:1"], "a2 <- u2 <- a1 <- u1"
+    t = CONN.trace(f"{G}:9", db_path=db)  # a3
+    assert [u["event_id"] for u in t["upstream"]] == [f"{G}:6", f"{G}:5", f"{G}:2", f"{G}:1"], "a2 <- u2 <- a1 <- u1"
     assert all(u["evidence"] == "recorded" for u in t["upstream"])
     assert t["degraded"] is False, "a purely recorded walk carries no flag"
 
@@ -84,20 +84,18 @@ def test_p1b_downstream_returns_descendants(db):
     downstream of the root and the walk says so -- flagged. Excluding it would make the
     orphan invisible from the chain side, which is the founding wound reintroduced inside
     the organ built to close it."""
-    t = CONN.trace(f"{G}:1", db_path=db)          # u1, the root
-    assert [d["event_id"] for d in t["downstream"]] == [
-        f"{G}:2", f"{G}:5", f"{G}:6", f"{G}:7", f"{G}:9"]
+    t = CONN.trace(f"{G}:1", db_path=db)  # u1, the root
+    assert [d["event_id"] for d in t["downstream"]] == [f"{G}:2", f"{G}:5", f"{G}:6", f"{G}:7", f"{G}:9"]
     assert t["upstream"] == [], "the root has no ancestors -- empty, not fabricated"
-    assert t["degraded"] is True and t["edges_inferred"] == 1, (
-        "reaching the orphan cost one guess, and the envelope charges for it")
+    assert t["degraded"] is True, "reaching the orphan cost one guess, and the envelope charges for it"
+    assert t["edges_inferred"] == 1, "reaching the orphan cost one guess, and the envelope charges for it"
 
 
 # ---------------------------------------------------------------- P2: the utterance set
 def test_p2_same_utterance_collapses_the_duplicate_pair(db):
     """One utterance, N records. The duplicate queue-op pair AND the user twin are one set."""
     grp = CONN.utterance_group(f"{G}:3", db_path=db)
-    assert grp == [f"{G}:3", f"{G}:4", f"{G}:5"], (
-        "enqueue + dequeue + the delivered user twin are the SAME utterance")
+    assert grp == [f"{G}:3", f"{G}:4", f"{G}:5"], "enqueue + dequeue + the delivered user twin are the SAME utterance"
     # the true orphan pair is a set of two, with no twin to join it
     assert CONN.utterance_group(f"{G}:7", db_path=db) == [f"{G}:7", f"{G}:8"]
     # a plain agent turn is its own singleton -- never grouped by accident
@@ -110,16 +108,18 @@ def test_p3_queued_operator_speech_reaches_the_recorded_chain(db):
     is reachable from the chain THROUGH the utterance set, not by inference."""
     t = CONN.trace(f"{G}:3", db_path=db)
     assert [u["event_id"] for u in t["upstream"]] == [f"{G}:2", f"{G}:1"], (
-        "hops to the twin (line 5), then walks the twin's recorded ancestry")
+        "hops to the twin (line 5), then walks the twin's recorded ancestry"
+    )
     bridge = [u for u in t["upstream"] if u["edge_kind"] == "same_utterance"]
-    assert bridge == [] and t["bridged_via"] == f"{G}:5", (
-        "the bridge is named in the envelope, not smuggled into the ancestor list")
+    assert bridge == [], "the bridge is named in the envelope, not smuggled into the ancestor list"
+    assert t["bridged_via"] == f"{G}:5", "the bridge is named in the envelope, not smuggled into the ancestor list"
     # PIN CORRECTED during the build: v1 asserted degraded is False for the whole envelope,
     # but this walk's DOWNSTREAM legitimately reaches the orphan across an inferred edge.
     # The claim being pinned is narrower and is the one that matters: crossing the bridge
     # itself costs no fog, because text identity is DERIVED, not guessed.
     assert all(u["evidence"] == "recorded" for u in t["upstream"]), (
-        "the ancestry reached through the twin is the harness's own chain, start to finish")
+        "the ancestry reached through the twin is the harness's own chain, start to finish"
+    )
 
 
 # ---------------------------------------------------------------- P4: the orphan
@@ -158,7 +158,8 @@ def test_p5_every_edge_this_slice_builds_carries_its_formation(db):
 def test_p5b_build_report_is_a_coverage_contract(db):
     rep = CONN.build(db_path=db)
     assert rep["edges_total"] == sum(rep["by_kind"].values())
-    assert rep["by_kind"]["follows"] > 0 and rep["by_kind"]["same_utterance"] > 0
+    assert rep["by_kind"]["follows"] > 0
+    assert rep["by_kind"]["same_utterance"] > 0
     assert rep["by_evidence"]["inferred"] == rep["by_kind"]["adjacent"]
     # rebuild is idempotent -- an edge table that grew on re-run would poison every count
     rep2 = CONN.build(db_path=db)
@@ -180,8 +181,8 @@ def test_p6_pre_contract_edges_are_flagged_never_dropped_never_backfilled(db):
 
     # no sentinel backfill -- rewriting history is the fossil class
     raw = [e for e in CONN.edges(db_path=db) if e["formed_via"] is None]
-    assert len(raw) == 1 and raw[0]["formed_by"] is None, (
-        "the pre-contract edge stays exactly as unlabelled as it was found")
+    assert len(raw) == 1, "the pre-contract edge stays exactly as unlabelled as it was found"
+    assert raw[0]["formed_by"] is None, "the pre-contract edge stays exactly as unlabelled as it was found"
 
 
 def test_p6b_unfiltered_walk_does_not_flag_pre_contract(db):
@@ -189,7 +190,8 @@ def test_p6b_unfiltered_walk_does_not_flag_pre_contract(db):
     nothing and so excludes nothing -- flagging it would train callers to ignore flags."""
     CONN._insert_pre_contract_edge(f"{G}:9", f"{G}:1", "follows", db_path=db)
     t = CONN.trace(f"{G}:9", db_path=db)
-    assert t["pre_contract_edges"] == 0 and t["degraded"] is False
+    assert t["pre_contract_edges"] == 0
+    assert t["degraded"] is False
 
 
 # ---------------------------------------------------------------- P7: the verdict flip
@@ -201,8 +203,7 @@ def test_p7_freq_counts_distinct_utterances_not_records(db):
     assert r["operator_records"] == 4, "two sessions x one utterance recorded twice"
     assert r["operator_events"] == 2, "...which is TWO distinct utterances"
     assert r["sessions"] == 2
-    assert r["verdict"] == "recurring", (
-        "4 records across 2 sessions would read STANDING-DIRECTIVE; 2 utterances do not")
+    assert r["verdict"] == "recurring", "4 records across 2 sessions would read STANDING-DIRECTIVE; 2 utterances do not"
 
 
 # ------------------------------------------------- P8: the chain through silent records
@@ -223,7 +224,8 @@ def test_p8_the_chain_resolves_through_unindexed_records(tmp_path):
 
     t = CONN.trace("session_epsilon:6", db_path=dbp)
     assert [u["event_id"] for u in t["upstream"]] == ["session_epsilon:1"], (
-        "four silent tool records sit between them; the walk still lands on the question")
+        "four silent tool records sit between them; the walk still lands on the question"
+    )
     hop = t["upstream"][0]
     assert hop["evidence"] == "recorded", "every hop was a real parentUuid link"
     assert hop["hops"] == 5, "and the count of records passed through is stated, not hidden"
@@ -241,23 +243,25 @@ def test_p9_migration_adds_columns_and_never_drops_rows(tmp_path):
     So: a migration may ADD columns and may rebuild DERIVED tables, and may never drop an
     event. A row whose source is gone keeps its place with NULLs."""
     import sqlite3
+
     dbp = tmp_path / "old.db"
     con = sqlite3.connect(str(dbp))
     con.execute("""CREATE TABLE events(
         event_id TEXT PRIMARY KEY, session TEXT NOT NULL, line INTEGER NOT NULL,
         ts REAL, voice TEXT NOT NULL, type TEXT NOT NULL, text TEXT NOT NULL,
-        cwd TEXT, branch TEXT, tokens INTEGER)""")      # the v1 shape, no uuid columns
-    con.execute("INSERT INTO events VALUES('rotated:1','rotated',1,1.0,'operator','user',"
-                "'a directive whose transcript no longer exists','','',9)")
+        cwd TEXT, branch TEXT, tokens INTEGER)""")  # the v1 shape, no uuid columns
+    con.execute(
+        "INSERT INTO events VALUES('rotated:1','rotated',1,1.0,'operator','user',"
+        "'a directive whose transcript no longer exists','','',9)"
+    )
     con.commit()
     con.close()
 
-    con = EYE._connect(dbp)                              # migrate
+    con = EYE._connect(dbp)  # migrate
     try:
         cols = {r[1] for r in con.execute("PRAGMA table_info(events)")}
         assert {"uuid", "parent_uuid"} <= cols, "the new columns arrived"
-        row = con.execute("SELECT text, uuid FROM events WHERE event_id='rotated:1'"
-                          ).fetchone()
+        row = con.execute("SELECT text, uuid FROM events WHERE event_id='rotated:1'").fetchone()
         assert row is not None, "THE ROW SURVIVED THE MIGRATION -- this is the whole pin"
         assert row[0] == "a directive whose transcript no longer exists"
         assert row[1] is None, "unknowable, and left honestly unknown -- no sentinel"
@@ -270,5 +274,6 @@ def test_p7b_a_singly_recorded_utterance_is_unaffected(db):
     and a phrase said once stays said once."""
     r = EYE.freq(["gamma queued directive with a twin"], db_path=db)
     assert r["operator_records"] == 3, "enqueue + dequeue + the delivered twin"
-    assert r["operator_events"] == 1 and r["sessions"] == 1
+    assert r["operator_events"] == 1
+    assert r["sessions"] == 1
     assert r["verdict"] == "mentioned-once"

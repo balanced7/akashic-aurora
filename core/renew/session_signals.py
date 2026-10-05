@@ -31,10 +31,11 @@ where `target` is core.recall.at_action.normalize_target() output ("p:<abspath>"
 targets, "c:<normalized command>" for shell, "" for tools without one) so targets join exactly
 against the `fail`/`flip` labels, and calls that never got a result are omitted by the adapter.
 """
+
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any
 
 # Progress marker: a SUCCEEDED shell command that lands work durably. Substring-matched against
 # the normalized (lowercased) "c:" target. ship.py and mirror.py are this repo's commit doors;
@@ -49,7 +50,7 @@ def _parse_at(s: str) -> datetime | None:
         return None
 
 
-def fold_signals(calls: List[Dict[str, Any]]) -> Dict[str, Any]:
+def fold_signals(calls: list[dict[str, Any]]) -> dict[str, Any]:
     """Fold an ordered per-session call list into the signal aggregates (see module docstring).
 
     Pure + total: bad/missing fields degrade to neutral values, never raise. Rates are 0.0 when
@@ -64,11 +65,11 @@ def fold_signals(calls: List[Dict[str, Any]]) -> Dict[str, Any]:
     flip_count = 0
     commit_count = 0
     seen_paths: set = set()
-    failed_open: set = set()          # targets with an unresolved failure (flip pending)
+    failed_open: set = set()  # targets with an unresolved failure (flip pending)
     fail_targets: set = set()
-    touch: Dict[str, int] = {}        # per-target hit count (any tool, targeted calls only)
+    touch: dict[str, int] = {}  # per-target hit count (any tool, targeted calls only)
     prev_key = None
-    last_progress_idx = -1            # call index of the newest commit-or-flip
+    last_progress_idx = -1  # call index of the newest commit-or-flip
     first_at = last_at = None
 
     for i, call in enumerate(calls):
@@ -115,7 +116,7 @@ def fold_signals(calls: List[Dict[str, Any]]) -> Dict[str, Any]:
         "total_calls": total,
         "path_calls": path_calls,
         "distinct_paths": len(seen_paths),
-        "reread_count": rereads,                       # DEMOTED signal -- see module docstring
+        "reread_count": rereads,  # DEMOTED signal -- see module docstring
         "reread_rate": round(rereads / path_calls, 4) if path_calls else 0.0,
         "repetition_count": repetitions,
         "repetition_rate": round(repetitions / total, 4) if total else 0.0,

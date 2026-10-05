@@ -10,16 +10,15 @@ Human Interface Guidelines and Samsung's One UI docs, kept out of this public re
 
 Every fixture here is invented text, never a vendor's.
 """
+
 import json
 import sys
 from pathlib import Path
 
-import pytest
-
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from core.manuals import convert, chunk, shelf as shelf_mod  # noqa: E402
-
+from core.manuals import chunk, convert
+from core.manuals import shelf as shelf_mod
 
 # ---- conversion ------------------------------------------------------------------
 
@@ -55,27 +54,67 @@ def test_markdown_sections_carry_breadcrumbs(tmp_path):
 DOCC = {
     "metadata": {"title": "Switches", "role": "article"},
     "abstract": [{"type": "text", "text": "A switch toggles one setting."}],
-    "primaryContentSections": [{"kind": "content", "content": [
-        {"type": "paragraph", "inlineContent": [{"type": "text", "text": "Opening words."}]},
-        {"type": "heading", "level": 2, "text": "Best practices", "anchor": "Best-practices"},
-        {"type": "paragraph", "inlineContent": [
-            {"type": "text", "text": "Label it clearly. See "},
-            {"type": "reference", "identifier": "doc://x/toggles", "isActive": True},
-            {"type": "text", "text": "."}]},
-        {"type": "unorderedList", "items": [
-            {"content": [{"type": "paragraph", "inlineContent": [{"type": "text", "text": "Keep labels short."}]}]},
-            {"content": [{"type": "paragraph", "inlineContent": [
-                {"type": "emphasis", "inlineContent": [{"type": "text", "text": "Avoid"}]},
-                {"type": "text", "text": " double negatives."}]}]}]},
-        {"type": "aside", "style": "note", "name": "Note", "content": [
-            {"type": "paragraph", "inlineContent": [{"type": "text", "text": "Switches act at once."}]}]},
-        {"type": "heading", "level": 3, "text": "Sizing", "anchor": "Sizing"},
-        {"type": "table", "header": "row", "rows": [
-            [[{"type": "paragraph", "inlineContent": [{"type": "text", "text": "Platform"}]}],
-             [{"type": "paragraph", "inlineContent": [{"type": "text", "text": "Height"}]}]],
-            [[{"type": "paragraph", "inlineContent": [{"type": "text", "text": "Phone"}]}],
-             [{"type": "paragraph", "inlineContent": [{"type": "text", "text": "31 pt"}]}]]]},
-    ]}],
+    "primaryContentSections": [
+        {
+            "kind": "content",
+            "content": [
+                {"type": "paragraph", "inlineContent": [{"type": "text", "text": "Opening words."}]},
+                {"type": "heading", "level": 2, "text": "Best practices", "anchor": "Best-practices"},
+                {
+                    "type": "paragraph",
+                    "inlineContent": [
+                        {"type": "text", "text": "Label it clearly. See "},
+                        {"type": "reference", "identifier": "doc://x/toggles", "isActive": True},
+                        {"type": "text", "text": "."},
+                    ],
+                },
+                {
+                    "type": "unorderedList",
+                    "items": [
+                        {
+                            "content": [
+                                {"type": "paragraph", "inlineContent": [{"type": "text", "text": "Keep labels short."}]}
+                            ]
+                        },
+                        {
+                            "content": [
+                                {
+                                    "type": "paragraph",
+                                    "inlineContent": [
+                                        {"type": "emphasis", "inlineContent": [{"type": "text", "text": "Avoid"}]},
+                                        {"type": "text", "text": " double negatives."},
+                                    ],
+                                }
+                            ]
+                        },
+                    ],
+                },
+                {
+                    "type": "aside",
+                    "style": "note",
+                    "name": "Note",
+                    "content": [
+                        {"type": "paragraph", "inlineContent": [{"type": "text", "text": "Switches act at once."}]}
+                    ],
+                },
+                {"type": "heading", "level": 3, "text": "Sizing", "anchor": "Sizing"},
+                {
+                    "type": "table",
+                    "header": "row",
+                    "rows": [
+                        [
+                            [{"type": "paragraph", "inlineContent": [{"type": "text", "text": "Platform"}]}],
+                            [{"type": "paragraph", "inlineContent": [{"type": "text", "text": "Height"}]}],
+                        ],
+                        [
+                            [{"type": "paragraph", "inlineContent": [{"type": "text", "text": "Phone"}]}],
+                            [{"type": "paragraph", "inlineContent": [{"type": "text", "text": "31 pt"}]}],
+                        ],
+                    ],
+                },
+            ],
+        }
+    ],
     "references": {"doc://x/toggles": {"title": "Toggles", "url": "/design/toggles"}},
 }
 
@@ -86,13 +125,14 @@ def test_docc_json_becomes_sections(tmp_path):
     doc = convert.to_document(p, url="https://example.test/design/switches")
     assert doc.title == "Switches"
     best = next(s for s in doc.sections if s.path[-1] == "Best practices")
-    assert "See Toggles." in best.text                       # references resolve to titles
-    assert "- Keep labels short." in best.text               # lists survive as lists
-    assert "Note: Switches act at once." in best.text        # asides keep their label
+    assert "See Toggles." in best.text  # references resolve to titles
+    assert "- Keep labels short." in best.text  # lists survive as lists
+    assert "Note: Switches act at once." in best.text  # asides keep their label
     assert best.anchor == "Best-practices"
     sizing = next(s for s in doc.sections if s.path[-1] == "Sizing")
     assert sizing.path == ("Switches", "Best practices", "Sizing")
-    assert "Phone" in sizing.text and "31 pt" in sizing.text  # tables keep their cells
+    assert "Phone" in sizing.text
+    assert "31 pt" in sizing.text
 
 
 HTML = """<html><head><title>Lamp Guide | Site</title></head><body>
@@ -108,32 +148,41 @@ def test_html_keeps_the_content_and_drops_the_chrome(tmp_path):
     p.write_text(HTML, encoding="utf-8")
     doc = convert.to_document(p)
     text = "\n".join(s.text for s in doc.sections)
-    assert "warm bulb" in text and "Unplug" in text
-    assert "Cookie settings" not in text and "Privacy" not in text
+    assert "warm bulb" in text
+    assert "Unplug" in text
+    assert "Cookie settings" not in text
+    assert "Privacy" not in text
     assert ("Lamp Guide", "Bulbs") in [s.path for s in doc.sections]
 
 
 # ---- chunking --------------------------------------------------------------------
+
 
 def test_chunker_merges_tiny_sections_and_splits_long_ones():
     Section = convert.Section
     # Siblings (same parent), as the assertion below says. The first draft used a parent and
     # its child here, which contradicted test_search_puts_the_answering_section_first: a child
     # merged into its parent loses its own breadcrumb and #anchor. Siblings-only keeps both.
-    doc = convert.Document(title="T", url=None, sections=[
-        Section(path=("T", "A", "a1"), text="short one."),
-        Section(path=("T", "A", "a2"), text="short two."),
-        Section(path=("T", "B"), text="\n\n".join(f"Paragraph {i} " + "word " * 60 for i in range(12))),
-    ])
+    doc = convert.Document(
+        title="T",
+        url=None,
+        sections=[
+            Section(path=("T", "A", "a1"), text="short one."),
+            Section(path=("T", "A", "a2"), text="short two."),
+            Section(path=("T", "B"), text="\n\n".join(f"Paragraph {i} " + "word " * 60 for i in range(12))),
+        ],
+    )
     chunks = chunk.chunk_document(doc, max_chars=1200, min_chars=200)
     assert all(len(c.text) <= 1200 for c in chunks)
     long_parts = [c for c in chunks if c.breadcrumb.endswith("B")]
     assert len(long_parts) >= 2, "a long section must be split at paragraph boundaries"
     merged = [c for c in chunks if "short one." in c.text]
-    assert len(merged) == 1 and "short two." in merged[0].text, "tiny siblings merge into one chunk"
+    assert len(merged) == 1, "tiny siblings merge into one chunk"
+    assert "short two." in merged[0].text, "tiny siblings merge into one chunk"
 
 
 # ---- the shelf -------------------------------------------------------------------
+
 
 def _make_corpus(root: Path):
     (root / "kettle.md").write_text(MD, encoding="utf-8")
@@ -142,11 +191,15 @@ def _make_corpus(root: Path):
 
 
 def test_ingest_is_idempotent_and_replaces_changed_documents(tmp_path):
-    corpus = tmp_path / "corpus"; corpus.mkdir(); _make_corpus(corpus)
+    corpus = tmp_path / "corpus"
+    corpus.mkdir()
+    _make_corpus(corpus)
     sh = shelf_mod.Shelf(tmp_path / "manuals.db")
     first = sh.ingest("home", corpus)
     again = sh.ingest("home", corpus)
-    assert first.docs_added == 3 and again.docs_added == 0 and again.docs_unchanged == 3
+    assert first.docs_added == 3
+    assert again.docs_added == 0
+    assert again.docs_unchanged == 3
     n = sh.stats()["chunks"]
     (corpus / "kettle.md").write_text(MD.replace("every month", "every week"), encoding="utf-8")
     changed = sh.ingest("home", corpus)
@@ -157,33 +210,42 @@ def test_ingest_is_idempotent_and_replaces_changed_documents(tmp_path):
 
 
 def test_search_puts_the_answering_section_first(tmp_path):
-    corpus = tmp_path / "corpus"; corpus.mkdir(); _make_corpus(corpus)
+    corpus = tmp_path / "corpus"
+    corpus.mkdir()
+    _make_corpus(corpus)
     sh = shelf_mod.Shelf(tmp_path / "manuals.db")
     sh.ingest("home", corpus)
     res = sh.search("how many watts should the bulb be?")
-    assert res.hits and "Bulbs" in res.hits[0].breadcrumb
+    assert res.hits
+    assert "Bulbs" in res.hits[0].breadcrumb
     res = sh.search("what height is a switch on a phone")
     assert "Sizing" in res.hits[0].breadcrumb
-    assert res.hits[0].url and res.hits[0].url.endswith("#Sizing")
+    assert res.hits[0].url
+    assert res.hits[0].url.endswith("#Sizing")
 
 
 def test_questions_with_punctuation_never_break_the_query(tmp_path):
-    corpus = tmp_path / "corpus"; corpus.mkdir(); _make_corpus(corpus)
+    corpus = tmp_path / "corpus"
+    corpus.mkdir()
+    _make_corpus(corpus)
     sh = shelf_mod.Shelf(tmp_path / "manuals.db")
     sh.ingest("home", corpus)
     for q in ['"unbalanced', "AND OR NOT", "near(bulb)", "44x44 pt?", "col:umn*", "' ; drop table chunks; --"]:
-        sh.search(q)                                   # must not raise
+        sh.search(q)  # must not raise
     assert sh.stats()["chunks"] > 0
 
 
 def test_zero_hits_say_what_was_searched(tmp_path):
-    corpus = tmp_path / "corpus"; corpus.mkdir(); _make_corpus(corpus)
+    corpus = tmp_path / "corpus"
+    corpus.mkdir()
+    _make_corpus(corpus)
     sh = shelf_mod.Shelf(tmp_path / "manuals.db")
     sh.ingest("home", corpus)
     res = sh.search("quantum chromodynamics")
     assert res.hits == []
     note = res.render()
-    assert "0 of" in note and "chunks" in note, f"a zero must name its denominator: {note}"
+    assert "0 of" in note, f"a zero must name its denominator: {note}"
+    assert "chunks" in note, f"a zero must name its denominator: {note}"
 
 
 def test_mirrored_pages_with_the_same_file_name_keep_their_own_urls(tmp_path):
@@ -194,7 +256,8 @@ def test_mirrored_pages_with_the_same_file_name_keep_their_own_urls(tmp_path):
         d = mirror / "guide" / topic
         d.mkdir(parents=True)
         (d / "intro.html").write_text(
-            f"<main><h1>{topic.title()}</h1><h2>Basics</h2><p>{topic} rules apply.</p></main>", encoding="utf-8")
+            f"<main><h1>{topic.title()}</h1><h2>Basics</h2><p>{topic} rules apply.</p></main>", encoding="utf-8"
+        )
     sh = shelf_mod.Shelf(tmp_path / "manuals.db")
     sh.ingest("mirror", mirror)
     urls = {h.title: h.url for h in sh.search("rules basics", limit=10).hits}
@@ -204,36 +267,43 @@ def test_mirrored_pages_with_the_same_file_name_keep_their_own_urls(tmp_path):
 
 def test_underscore_html_pages_are_content_but_underscore_json_files_are_metadata(tmp_path):
     """Samsung's landing page was saved as _root.html and silently skipped."""
-    corpus = tmp_path / "corpus"; corpus.mkdir(); _make_corpus(corpus)
+    corpus = tmp_path / "corpus"
+    corpus.mkdir()
+    _make_corpus(corpus)
     (corpus / "_root.html").write_text("<main><h1>Root</h1><p>Landing words zebra.</p></main>", encoding="utf-8")
     (corpus / "_manifest.json").write_text("[]", encoding="utf-8")
     sh = shelf_mod.Shelf(tmp_path / "manuals.db")
     rep = sh.ingest("home", corpus)
-    assert rep.docs_added == 4 and not rep.failed, rep.render()
+    assert rep.docs_added == 4, rep.render()
+    assert not rep.failed, rep.render()
     assert sh.search("zebra").hits, "the underscore-named HTML page must be shelved"
 
 
 def test_a_tight_cap_trims_the_next_passage_instead_of_dropping_it(tmp_path):
-    corpus = tmp_path / "corpus"; corpus.mkdir()
-    for i in range(3):   # distinct texts: identical passages are (correctly) returned once
+    corpus = tmp_path / "corpus"
+    corpus.mkdir()
+    for i in range(3):  # distinct texts: identical passages are (correctly) returned once
         (corpus / f"d{i}.md").write_text(f"# D{i}\n\n## Gears\n\n" + f"gear teeth mesh {i}. " * 50, encoding="utf-8")
     sh = shelf_mod.Shelf(tmp_path / "manuals.db")
     sh.ingest("g", corpus)
     res = sh.search("gear teeth", limit=3, max_chars=1300)
     assert len(res.hits) >= 2, "room for a trimmed second passage must be used"
-    assert sum(len(h.text) for h in res.hits) <= 1300 + 8 and res.truncated
+    assert sum(len(h.text) for h in res.hits) <= 1300 + 8
+    assert res.truncated
 
 
 def test_a_docc_page_links_to_its_human_page_not_its_raw_data(tmp_path):
     """Found in the blind eval (2026-09-24): Apple's crawler manifest records each page's DATA
     url (.../tutorials/data/.../x.json), and the shelf trusted it over the page's own identifier,
     so every Apple passage linked to raw JSON instead of the guideline page."""
-    corpus = tmp_path / "hig"; corpus.mkdir()
+    corpus = tmp_path / "hig"
+    corpus.mkdir()
     page = dict(DOCC, identifier={"url": "doc://com.example.Guide/design/guide/switches"})
     (corpus / "switches.json").write_text(json.dumps(page), encoding="utf-8")
-    (corpus / "_manifest.json").write_text(json.dumps([{
-        "path": "switches.json", "url": "https://example.com/tutorials/data/design/guide/switches.json"}]),
-        encoding="utf-8")
+    (corpus / "_manifest.json").write_text(
+        json.dumps([{"path": "switches.json", "url": "https://example.com/tutorials/data/design/guide/switches.json"}]),
+        encoding="utf-8",
+    )
     sh = shelf_mod.Shelf(tmp_path / "manuals.db")
     sh.ingest("hig", corpus)
     hit = sh.search("phone height sizing").hits[0]
@@ -243,7 +313,8 @@ def test_a_docc_page_links_to_its_human_page_not_its_raw_data(tmp_path):
 def test_the_same_passage_is_returned_once(tmp_path):
     """One UI's landing page repeats its overview, so one passage came back twice and spent
     half the answer budget on a copy."""
-    corpus = tmp_path / "corpus"; corpus.mkdir()
+    corpus = tmp_path / "corpus"
+    corpus.mkdir()
     body = "# Overview\n\n## Reach\n\nPut primary actions low on the screen for thumbs.\n"
     (corpus / "index.md").write_text(body, encoding="utf-8")
     (corpus / "landing.md").write_text(body, encoding="utf-8")
@@ -255,9 +326,11 @@ def test_the_same_passage_is_returned_once(tmp_path):
 
 # ---- hybrid (keywords + meaning) ---------------------------------------------------------
 
+
 class _StubEmbedder:
     """Maps texts about touch sizing to one direction and everything else to another, so a
     question that shares NO words with its answer can still land on it. Counts its calls."""
+
     SIZING = ("tappable", "touch", "finger", "fingers", "hit")
 
     def __init__(self):
@@ -265,6 +338,7 @@ class _StubEmbedder:
 
     def __call__(self, texts):
         import numpy as np
+
         self.calls += 1
         out = []
         for t in texts:
@@ -278,48 +352,64 @@ def _sizing_corpus(root: Path):
     # Each section is longer than the chunker's 300-char floor, so none merge with a sibling:
     # these pins are about ranking, and a merged "Touch areas + Colors" passage would blur that.
     (root / "controls.md").write_text(
-        "# Controls\n\n## Touch areas\n\n" + "Make each control at least 44 points square so fingers land on it. " * 5 +
-        "\n\n## Colors\n\n" + "Use the system palette for tint. " * 11 + "\n", encoding="utf-8")
-    (root / "sound.md").write_text("# Sound\n\n## Volume\n\n" + "Keep alerts quiet at night. " * 13 + "\n",
-                                   encoding="utf-8")
+        "# Controls\n\n## Touch areas\n\n"
+        + "Make each control at least 44 points square so fingers land on it. " * 5
+        + "\n\n## Colors\n\n"
+        + "Use the system palette for tint. " * 11
+        + "\n",
+        encoding="utf-8",
+    )
+    (root / "sound.md").write_text(
+        "# Sound\n\n## Volume\n\n" + "Keep alerts quiet at night. " * 13 + "\n", encoding="utf-8"
+    )
 
 
 def test_hybrid_finds_a_paraphrase_that_shares_no_words(tmp_path):
-    corpus = tmp_path / "corpus"; corpus.mkdir(); _sizing_corpus(corpus)
+    corpus = tmp_path / "corpus"
+    corpus.mkdir()
+    _sizing_corpus(corpus)
     sh = shelf_mod.Shelf(tmp_path / "manuals.db", embedder=_StubEmbedder())
     sh.ingest("ui", corpus)
     question = "how big should tappable things be"
     assert sh.search(question, mode="bm25").hits == [], "keywords alone cannot bridge this wording gap"
     hits = sh.search(question, mode="hybrid").hits
-    assert hits and "Touch areas" in hits[0].breadcrumb, [h.breadcrumb for h in hits]
+    assert hits, [h.breadcrumb for h in hits]
+    assert "Touch areas" in hits[0].breadcrumb, [h.breadcrumb for h in hits]
 
 
 def test_hybrid_without_an_embedder_falls_back_to_keywords_and_says_so(tmp_path):
-    corpus = tmp_path / "corpus"; corpus.mkdir(); _sizing_corpus(corpus)
+    corpus = tmp_path / "corpus"
+    corpus.mkdir()
+    _sizing_corpus(corpus)
     sh = shelf_mod.Shelf(tmp_path / "manuals.db", embedder=False)
     sh.ingest("ui", corpus)
     res = sh.search("system palette tint", mode="hybrid")
-    assert res.hits and "Colors" in res.hits[0].breadcrumb
+    assert res.hits
+    assert "Colors" in res.hits[0].breadcrumb
     assert "keyword" in res.render().lower(), "a silent downgrade reads as a hybrid answer"
 
 
 def test_passages_are_embedded_once(tmp_path):
-    corpus = tmp_path / "corpus"; corpus.mkdir(); _sizing_corpus(corpus)
+    corpus = tmp_path / "corpus"
+    corpus.mkdir()
+    _sizing_corpus(corpus)
     stub = _StubEmbedder()
     sh = shelf_mod.Shelf(tmp_path / "manuals.db", embedder=stub)
     sh.ingest("ui", corpus)
     after_first = stub.calls
-    sh.ingest("ui", corpus)                       # nothing changed: nothing to embed
+    sh.ingest("ui", corpus)  # nothing changed: nothing to embed
     assert stub.calls == after_first
     assert sh.stats()["embedded"] == sh.stats()["chunks"]
 
 
 # ---- scale (DeepSeek fence on 603b351a: three unbounded paths) ----------------------------
 
+
 def test_a_huge_run_on_paragraph_splits_in_linear_time():
     """chunk._split sliced the remaining suffix on every cut: quadratic copying on one giant
     paragraph with no sentence breaks (a PDF page of glued text, a minified file)."""
     import time as _t
+
     Section = convert.Section
     doc = convert.Document(title="T", url=None, sections=[Section(path=("T", "Blob"), text="x" * 8_000_000)])
     t0 = _t.perf_counter()
@@ -331,18 +421,23 @@ def test_a_huge_run_on_paragraph_splits_in_linear_time():
 
 def test_meaning_search_streams_vectors_in_bounded_batches(tmp_path, monkeypatch):
     """_by_meaning materialised every vector of the shelf per query."""
-    corpus = tmp_path / "corpus"; corpus.mkdir(); _sizing_corpus(corpus)
+    corpus = tmp_path / "corpus"
+    corpus.mkdir()
+    _sizing_corpus(corpus)
     sh = shelf_mod.Shelf(tmp_path / "manuals.db", embedder=_StubEmbedder())
     sh.ingest("ui", corpus)
     whole = [h.breadcrumb for h in sh.search("how big should tappable things be", mode="hybrid").hits]
     monkeypatch.setattr(shelf_mod, "VECTOR_BATCH", 1)
     streamed = [h.breadcrumb for h in sh.search("how big should tappable things be", mode="hybrid").hits]
-    assert streamed == whole and whole
+    assert streamed == whole
+    assert whole
 
 
 def test_embedding_runs_in_bounded_batches(tmp_path, monkeypatch):
     """_embed_missing loaded every missing passage's text before batching."""
-    corpus = tmp_path / "corpus"; corpus.mkdir(); _sizing_corpus(corpus)
+    corpus = tmp_path / "corpus"
+    corpus.mkdir()
+    _sizing_corpus(corpus)
     sizes = []
 
     class Recording(_StubEmbedder):
@@ -353,15 +448,18 @@ def test_embedding_runs_in_bounded_batches(tmp_path, monkeypatch):
     monkeypatch.setattr(shelf_mod, "EMBED_BATCH", 1)
     sh = shelf_mod.Shelf(tmp_path / "manuals.db", embedder=Recording())
     sh.ingest("ui", corpus)
-    assert sizes and max(sizes) == 1
+    assert sizes
+    assert max(sizes) == 1
     assert sh.stats()["embedded"] == sh.stats()["chunks"]
 
 
 def test_results_are_capped_by_size(tmp_path):
-    corpus = tmp_path / "corpus"; corpus.mkdir()
-    for i in range(20):   # distinct texts: identical passages are (correctly) returned once
-        (corpus / f"doc{i}.md").write_text(f"# Doc {i}\n\n## Widgets\n\n" + f"widget{i} widget " * 150,
-                                           encoding="utf-8")
+    corpus = tmp_path / "corpus"
+    corpus.mkdir()
+    for i in range(20):  # distinct texts: identical passages are (correctly) returned once
+        (corpus / f"doc{i}.md").write_text(
+            f"# Doc {i}\n\n## Widgets\n\n" + f"widget{i} widget " * 150, encoding="utf-8"
+        )
     sh = shelf_mod.Shelf(tmp_path / "manuals.db")
     sh.ingest("bulk", corpus)
     res = sh.search("widget", limit=20, max_chars=3000)

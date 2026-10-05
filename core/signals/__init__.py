@@ -17,6 +17,6 @@ Signal Types:
 """
 
 from .agent_signal_ledger import AgentSignalLedger
-from .coordinator_api import initialize, SignalEmitter
+from .coordinator_api import SignalEmitter, initialize
 
-__all__ = ["AgentSignalLedger", "initialize", "SignalEmitter"]
+__all__ = ["AgentSignalLedger", "SignalEmitter", "initialize"]

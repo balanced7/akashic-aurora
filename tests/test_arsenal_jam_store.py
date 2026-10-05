@@ -2,6 +2,7 @@
 
 Every card, session and run here is synthetic. The seed-like cards carry only the section 12 chord lines of the build
 spec (public text), never practice data. Tests that voice chords need node (the voicing bridge)."""
+
 import copy
 import json
 import re
@@ -17,16 +18,26 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from arsenal import nashville  # noqa: E402
-from arsenal.jam import align as A  # noqa: E402
-from arsenal.jam import schemas as S  # noqa: E402
-from arsenal.jam import tempomap as T  # noqa: E402
-from arsenal.jam.cards import DeckError, DeckStore, merge_patch  # noqa: E402
-from arsenal.jam.resolve import (STUB_WARNING, Resolver, ResolveError, chord_facts, degree_key,  # noqa: E402
-                                 parse_line, parse_notes, run_bridge, shift_notes, shift_of, suffix_tones,
-                                 transpose_key)
-from arsenal.jam.runs import RunError, RunStore  # noqa: E402
-from arsenal.performance import PerformanceStore  # noqa: E402
+from arsenal import nashville  # noqa: E402  # sys.path bootstrap
+from arsenal.jam import align as A  # noqa: E402  # sys.path bootstrap
+from arsenal.jam import schemas as S  # noqa: E402  # sys.path bootstrap
+from arsenal.jam.cards import DeckError, DeckStore, merge_patch  # noqa: E402  # sys.path bootstrap
+from arsenal.jam.resolve import (  # noqa: E402  # sys.path bootstrap
+    STUB_WARNING,
+    ResolveError,
+    Resolver,
+    chord_facts,
+    degree_key,
+    parse_line,
+    parse_notes,
+    run_bridge,
+    shift_notes,
+    shift_of,
+    suffix_tones,
+    transpose_key,
+)
+from arsenal.jam.runs import RunError, RunStore  # noqa: E402  # sys.path bootstrap
+from arsenal.performance import PerformanceStore  # noqa: E402  # sys.path bootstrap
 
 FIX = ROOT / "tests" / "fixtures" / "jam"
 needs_node = pytest.mark.skipif(shutil.which("node") is None, reason="the voicing bridge needs node")
@@ -40,9 +51,19 @@ def load(name):
 
 
 def card(cid, key, line=None, **kw):
-    c = {"api": "arsenal.jam.card/v0", "id": cid, "title": cid.replace("-", " "), "meaning": "a synthetic card",
-         "group": "moves", "kind": "loop", "key": key, "explanation": "x", "why": "x", "try": "x",
-         "created_by": "claude"}
+    c = {
+        "api": "arsenal.jam.card/v0",
+        "id": cid,
+        "title": cid.replace("-", " "),
+        "meaning": "a synthetic card",
+        "group": "moves",
+        "kind": "loop",
+        "key": key,
+        "explanation": "x",
+        "why": "x",
+        "try": "x",
+        "created_by": "claude",
+    }
     if line is not None:
         c["chords"] = parse_line(line) if isinstance(line, str) else line
     c.update(kw)
@@ -62,7 +83,7 @@ def exact(line, notes_by_slot, **per_slot):
 
 
 # ============================================================================================ the deck
-@pytest.fixture()
+@pytest.fixture
 def deck(tmp_path):
     return DeckStore(tmp_path / "jam")
 
@@ -72,34 +93,47 @@ def test_create_writes_the_server_fields_and_refuses_a_second_card_with_the_id(d
     c.update(rev=7, source={"kind": "seed", "seed_version": 1}, updated_by="daniel")
     out = deck.create(c, "claude")
     stored = deck.get("lydian-four")
-    assert out["rev"] == 1 and stored["rev"] == 1 and stored["source"] == {"kind": "claude"}
-    assert stored["updated_by"] == "claude" and S.validate_card(stored, stored=True)
+    assert out["rev"] == 1
+    assert stored["rev"] == 1
+    assert stored["source"] == {"kind": "claude"}
+    assert stored["updated_by"] == "claude"
+    assert S.validate_card(stored, stored=True)
     assert deck.deck() == {"api": "arsenal.jam.deck/v0", "rev": 1, "order": ["lydian-four"]}
     with pytest.raises(DeckError) as err:
         deck.create(c, "claude")
-    assert err.value.status == 409 and err.value.extra == {"rev": 1}
+    assert err.value.status == 409
+    assert err.value.extra == {"rev": 1}
     assert not list((deck.root / "deck").rglob("*.tmp"))
 
 
 def test_a_malformed_card_is_refused_naming_the_field_and_nothing_is_written(deck):
     with pytest.raises(DeckError) as err:
         deck.create(card("bad-beats", "Eb major", [{"n": "1maj9", "beats": 3.3}]))
-    assert err.value.status == 400 and err.value.field == "chords[0].beats"
-    assert not deck.exists("bad-beats") and deck.deck()["rev"] == 0
+    assert err.value.status == 400
+    assert err.value.field == "chords[0].beats"
+    assert not deck.exists("bad-beats")
+    assert deck.deck()["rev"] == 0
 
 
 def test_update_is_a_merge_patch_against_the_rev_it_was_made_on(deck):
     deck.create(card("vamp", "D minor", "1m11:4 | 4^13:4", tags=["dorian"], listen_for="B natural"))
-    for patch, if_rev, status, field in (({"title": "x"}, None, 400, "if_rev"), ({"title": "x"}, 3, 409, None),
-                                         ({"id": "other"}, 1, 400, "patch.id"),
-                                         ({"source": {"kind": "seed"}}, 1, 400, "patch.source")):
+    for patch, if_rev, status, field in (
+        ({"title": "x"}, None, 400, "if_rev"),
+        ({"title": "x"}, 3, 409, None),
+        ({"id": "other"}, 1, 400, "patch.id"),
+        ({"source": {"kind": "seed"}}, 1, 400, "patch.source"),
+    ):
         with pytest.raises(DeckError) as err:
             deck.update("vamp", patch, if_rev)
         assert (err.value.status, err.value.field) == (status, field)
     out = deck.update("vamp", {"title": "Two-chord vamp", "listen_for": None, "tempo": {"bpm": 88}}, 1, "daniel")
     stored = deck.get("vamp")
-    assert out["rev"] == 2 and stored["title"] == "Two-chord vamp" and "listen_for" not in stored
-    assert stored["tempo"] == {"bpm": 88} and stored["updated_by"] == "daniel" and deck.deck()["rev"] == 2
+    assert out["rev"] == 2
+    assert stored["title"] == "Two-chord vamp"
+    assert "listen_for" not in stored
+    assert stored["tempo"] == {"bpm": 88}
+    assert stored["updated_by"] == "daniel"
+    assert deck.deck()["rev"] == 2
     assert merge_patch({"a": {"b": 1, "c": 2}}, {"a": {"b": None, "d": 3}}) == {"a": {"c": 2, "d": 3}}
 
 
@@ -114,16 +148,20 @@ def test_delete_moves_to_the_trash_and_restore_brings_the_newest_back(deck):
     deck.create(card("b-card", "Eb major", "4maj9:4"))
     with pytest.raises(DeckError) as err:
         deck.delete("a-card", 2)
-    assert err.value.status == 409 and err.value.extra["rev"] == 1
+    assert err.value.status == 409
+    assert err.value.extra["rev"] == 1
     out = deck.delete("a-card", 1)
     assert re.fullmatch(r"trash/a-card\.rev1\.\d{8}T\d{9}Z\.json", out["trashed"])
-    assert not deck.exists("a-card") and deck.deck()["order"] == ["b-card"]
+    assert not deck.exists("a-card")
+    assert deck.deck()["order"] == ["b-card"]
     assert [t["id"] for t in deck.trash()] == ["a-card"]
     with pytest.raises(DeckError) as err:
         deck.restore("nothing-here")
     assert err.value.status == 404
     back = deck.restore("a-card", "daniel")
-    assert back["rev"] == 2 and deck.get("a-card")["rev"] == 2 and deck.trash() == []
+    assert back["rev"] == 2
+    assert deck.get("a-card")["rev"] == 2
+    assert deck.trash() == []
     assert deck.deck()["order"] == ["b-card", "a-card"]
     deck.delete("a-card", 2)
     deck.create(card("a-card", "Eb major", "1maj9:4"))
@@ -135,7 +173,8 @@ def test_delete_moves_to_the_trash_and_restore_brings_the_newest_back(deck):
 def test_find_takes_an_id_or_a_unique_prefix(deck):
     for cid in ("lydian-four", "lament-bass", "lament-two"):
         deck.create(card(cid, "Eb major", "1maj9:4"))
-    assert deck.find("lydian-four") == "lydian-four" and deck.find("lyd") == "lydian-four"
+    assert deck.find("lydian-four") == "lydian-four"
+    assert deck.find("lyd") == "lydian-four"
     for ref, status in (("lament", 400), ("zz", 404)):
         with pytest.raises(DeckError) as err:
             deck.find(ref)
@@ -149,7 +188,8 @@ def test_order_puts_the_listed_cards_first_and_needs_the_deck_rev(deck):
     assert [c["id"] for c in deck.all()] == ["c-card", "a-card", "b-card"]
     with pytest.raises(DeckError) as err:
         deck.order(["a-card"], 3)
-    assert err.value.status == 409 and err.value.extra == {"rev": 4}
+    assert err.value.status == 409
+    assert err.value.extra == {"rev": 4}
     with pytest.raises(DeckError) as err:
         deck.order(["nope"], 4)
     assert (err.value.status, err.value.field) == (400, "order[0]")
@@ -158,45 +198,88 @@ def test_order_puts_the_listed_cards_first_and_needs_the_deck_rev(deck):
 def test_keep_copies_into_kept_and_moves_exact_notes_by_the_nearest_interval(deck):
     long_id = "one-note-apart-" + "x" * 33
     notes = [44, 51, 55, 60, 62, 65, 70]
-    src = card(long_id, "Eb major", [{"n": "4maj13#11", "beats": 8, "notes": notes, "name": "Abmaj13#11"}],
-               pair={"role": "question", "with": "some-answer"}, favorite=True)
+    src = card(
+        long_id,
+        "Eb major",
+        [{"n": "4maj13#11", "beats": 8, "notes": notes, "name": "Abmaj13#11"}],
+        pair={"role": "question", "with": "some-answer"},
+        favorite=True,
+    )
     deck.create(src)
     kept = deck.keep(long_id, "daniel", key="A major")["card"]
-    assert re.fullmatch(r"k-[a-z0-9-]+-[0-9a-f]{4}", kept["id"]) and len(kept["id"]) <= 48
-    assert kept["group"] == "kept" and kept["key"] == "A major" and "pair" not in kept and "favorite" not in kept
-    assert kept["source"] == {"kind": "kept", "from": {"id": long_id, "rev": 1}} and kept["updated_by"] == "daniel"
+    assert re.fullmatch(r"k-[a-z0-9-]+-[0-9a-f]{4}", kept["id"])
+    assert len(kept["id"]) <= 48
+    assert kept["group"] == "kept"
+    assert kept["key"] == "A major"
+    assert "pair" not in kept
+    assert "favorite" not in kept
+    assert kept["source"] == {"kind": "kept", "from": {"id": long_id, "rev": 1}}
+    assert kept["updated_by"] == "daniel"
     assert shift_of("Eb major", "A major") == -6
-    assert kept["chords"][0]["notes"] == [n - 6 for n in notes] and "name" not in kept["chords"][0]
+    assert kept["chords"][0]["notes"] == [n - 6 for n in notes]
+    assert "name" not in kept["chords"][0]
 
 
 def test_a_page_capture_becomes_a_kept_chord_card(deck):
-    cap = {"notes": [42, 49, 54, 56, 58, 61, 65, 70, 75, 77, 80, 84], "name": "Gb Db Ab Bb F Eb C", "number": None,
-           "key": "Db major", "key_conf": "sure", "locked": False, "title": None, "page_id": "p-0a1b",
-           "perf_ms": 3753999.75, "log": {"local": "lg-0a1b", "session": SESSION, "t0_perf_ms": 3611999.75}}
+    cap = {
+        "notes": [42, 49, 54, 56, 58, 61, 65, 70, 75, 77, 80, 84],
+        "name": "Gb Db Ab Bb F Eb C",
+        "number": None,
+        "key": "Db major",
+        "key_conf": "sure",
+        "locked": False,
+        "title": None,
+        "page_id": "p-0a1b",
+        "perf_ms": 3753999.75,
+        "log": {"local": "lg-0a1b", "session": SESSION, "t0_perf_ms": 3611999.75},
+    }
     c = deck.template_from_capture(cap, "daniel")["card"]
-    assert re.fullmatch(r"t-\d{8}-\d{6}-[0-9a-f]{4}", c["id"]) and c["group"] == "kept" and c["kind"] == "chord"
-    assert c["created_by"] == "daniel" and c["key"] == "Db major"
+    assert re.fullmatch(r"t-\d{8}-\d{6}-[0-9a-f]{4}", c["id"])
+    assert c["group"] == "kept"
+    assert c["kind"] == "chord"
+    assert c["created_by"] == "daniel"
+    assert c["key"] == "Db major"
     assert c["chords"] == [{"n": None, "beats": 4, "notes": cap["notes"]}]
     assert c["moments"] == [{"session": SESSION, "at": "2:22", "until": None, "label": "saved from the page"}]
-    assert c["source"]["kind"] == "saved-live" and c["source"]["log_t_ms"] == 142000
-    assert c["title"].startswith("Gb Db Ab Bb F Eb C, ") and S.validate_card(c, stored=True)
-    rooted = deck.template_from_capture(dict(cap, key=None, name="Abmaj9", notes=[44, 55, 60, 63, 70], log=None),
-                                        "daniel")["card"]
-    assert rooted["key"] == "Ab major" and rooted["source"]["number_from"] == "root"
-    assert rooted["chords"][0]["n"] == "1maj9" and "moments" not in rooted
+    assert c["source"]["kind"] == "saved-live"
+    assert c["source"]["log_t_ms"] == 142000
+    assert c["title"].startswith("Gb Db Ab Bb F Eb C, ")
+    assert S.validate_card(c, stored=True)
+    rooted = deck.template_from_capture(
+        dict(cap, key=None, name="Abmaj9", notes=[44, 55, 60, 63, 70], log=None), "daniel"
+    )["card"]
+    assert rooted["key"] == "Ab major"
+    assert rooted["source"]["number_from"] == "root"
+    assert rooted["chords"][0]["n"] == "1maj9"
+    assert "moments" not in rooted
     with pytest.raises(DeckError) as err:
         deck.template_from_capture(dict(cap, notes=list(range(40, 57))), "daniel")
     assert (err.value.status, err.value.field) == (400, "capture.notes")
 
 
 def test_a_moment_from_the_log_becomes_a_card_saved_by_claude(deck):
-    moment = {"session": SESSION, "at_ms": 160000, "until_ms": 169000, "notes": [39, 51, 63, 65, 68, 70],
-              "name": "Bb7sus4/Eb", "number": "5^7sus4/1", "key": "Eb major"}
+    moment = {
+        "session": SESSION,
+        "at_ms": 160000,
+        "until_ms": 169000,
+        "notes": [39, 51, 63, 65, 68, 70],
+        "name": "Bb7sus4/Eb",
+        "number": "5^7sus4/1",
+        "key": "Eb major",
+    }
     c = deck.template_from_moment(moment, "claude")["card"]
     assert c["chords"] == [{"n": "5^7sus4/1", "beats": 4, "notes": [39, 51, 63, 65, 68, 70]}]
-    assert c["moments"][0] == {"session": SESSION, "at": "2:40", "until": "2:49", "label": "saved from your practice log"}
-    assert c["source"]["kind"] == "saved-from-moment" and c["source"]["saved_by"] == "claude"
-    assert c["created_by"] == "daniel" and c["updated_by"] == "claude" and c["title"] == "Bb7sus4/Eb, from 2:40"
+    assert c["moments"][0] == {
+        "session": SESSION,
+        "at": "2:40",
+        "until": "2:49",
+        "label": "saved from your practice log",
+    }
+    assert c["source"]["kind"] == "saved-from-moment"
+    assert c["source"]["saved_by"] == "claude"
+    assert c["created_by"] == "daniel"
+    assert c["updated_by"] == "claude"
+    assert c["title"] == "Bb7sus4/Eb, from 2:40"
 
 
 def _seed_doc():
@@ -213,24 +296,40 @@ def _seed_doc():
 def test_seed_installs_merges_moments_and_keeps_what_was_edited(deck):
     moments = deck.root / "seed" / "moments-v1.json"
     moments.parent.mkdir(parents=True)
-    moments.write_text(json.dumps({"api": "arsenal.jam.seed.moments/v0", "cards": {"float-question": {
-        "moments": [{"session": SESSION, "at": "0:12", "until": None, "label": "a synthetic moment"}]}}}),
-        encoding="utf-8")
+    moments.write_text(
+        json.dumps(
+            {
+                "api": "arsenal.jam.seed.moments/v0",
+                "cards": {
+                    "float-question": {
+                        "moments": [{"session": SESSION, "at": "0:12", "until": None, "label": "a synthetic moment"}]
+                    }
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
     doc = _seed_doc()
     dry = deck.seed(doc, dry_run=True)
-    assert dry["installed"] == ["float-question", "float-answer"] and not deck.exists("float-question")
+    assert dry["installed"] == ["float-question", "float-answer"]
+    assert not deck.exists("float-question")
     out = deck.seed(doc)
-    assert out["installed"] == ["float-question", "float-answer"] and out["moments"] == 1
+    assert out["installed"] == ["float-question", "float-answer"]
+    assert out["moments"] == 1
     q = deck.get("float-question")
-    assert q["source"] == {"kind": "seed", "seed_version": 1} and q["moments"][0]["at"] == "0:12" and q["rev"] == 1
+    assert q["source"] == {"kind": "seed", "seed_version": 1}
+    assert q["moments"][0]["at"] == "0:12"
+    assert q["rev"] == 1
     assert deck.seed(doc)["kept"] == ["float-question", "float-answer"]
     deck.update("float-answer", {"title": "The answer, my way"}, 1, "daniel")
     doc2 = copy.deepcopy(doc)
     doc2["cards"][0]["title"] = "The question, reworded"
     doc2["cards"][1]["title"] = "An answer nobody asked for"
     out = deck.seed(doc2, update=True)
-    assert out["updated"] == ["float-question"] and out["kept"] == ["float-answer"]
-    assert deck.get("float-question")["title"] == "The question, reworded" and deck.get("float-question")["rev"] == 1
+    assert out["updated"] == ["float-question"]
+    assert out["kept"] == ["float-answer"]
+    assert deck.get("float-question")["title"] == "The question, reworded"
+    assert deck.get("float-question")["rev"] == 1
     assert deck.get("float-answer")["title"] == "The answer, my way"
     leaky = copy.deepcopy(doc)
     leaky["cards"][0]["moments"] = [{"session": SESSION, "at": "0:12", "until": None, "label": "x"}]
@@ -249,15 +348,21 @@ def test_key_items_are_degrees_of_the_card_key_spelled_by_the_degree():
     assert degree_key("B major", "6 major") == "G# major"
     assert transpose_key("D minor", "E minor") == ("E minor", [])
     name, warnings = transpose_key("D minor", "Db major")
-    assert name == "C# minor" and "minor" in warnings[0]
+    assert name == "C# minor"
+    assert "minor" in warnings[0]
     with pytest.raises(ResolveError) as err:
         degree_key("Eb major", "9 major")
     assert err.value.field == "key"
 
 
 def test_exact_notes_shift_by_the_nearest_interval_and_fold_on_the_keyboard():
-    assert [shift_of("Eb major", k) for k in ("Eb major", "E major", "A major", "Bb major", "D major")] == \
-        [0, 1, -6, -5, -1]
+    assert [shift_of("Eb major", k) for k in ("Eb major", "E major", "A major", "Bb major", "D major")] == [
+        0,
+        1,
+        -6,
+        -5,
+        -1,
+    ]
     assert shift_notes([44, 51, 55], -6) == ([38, 45, 49], None, [])
     assert shift_notes([29, 40], -3) == ([38, 49], "up", [])
     assert shift_notes([90, 105], 1) == ([79, 94], "down", [])
@@ -265,16 +370,22 @@ def test_exact_notes_shift_by_the_nearest_interval_and_fold_on_the_keyboard():
 
 def test_the_chord_line_string_form_and_the_suffix_reader():
     assert parse_line("1maj9:4 | [6 major] | 1add9:4 | rest:2 | 5^7sus4/1") == [
-        {"n": "1maj9", "beats": 4}, {"key": "6 major"}, {"n": "1add9", "beats": 4}, {"rest": 2}, {"n": "5^7sus4/1"}]
+        {"n": "1maj9", "beats": 4},
+        {"key": "6 major"},
+        {"n": "1add9", "beats": 4},
+        {"rest": 2},
+        {"n": "5^7sus4/1"},
+    ]
     assert parse_line("1 4 | 5:2.5") == [{"n": "1"}, {"n": "4"}, {"n": "5", "beats": 2.5}]
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="the chord line is empty"):
         parse_line(" | ")
     assert suffix_tones("m11") == {"root": 0, "third": 3, "fifth": 7, "seventh": 10, "ninth": 2, "eleventh": 5}
     assert suffix_tones("maj7#11") == {"root": 0, "third": 4, "fifth": 7, "seventh": 11, "eleventh": 6}
     assert suffix_tones("7sus4") == {"root": 0, "sus": 5, "fifth": 7, "seventh": 10}
     assert suffix_tones("6/9") == {"root": 0, "third": 4, "fifth": 7, "sixth": 9, "ninth": 2}
     assert suffix_tones("m(add9)") == {"root": 0, "third": 3, "fifth": 7, "ninth": 2}
-    assert chord_facts("Bbm11/Gb")["bass_pc"] == 6 and chord_facts("Bbm11/Gb")["root_pc"] == 10
+    assert chord_facts("Bbm11/Gb")["bass_pc"] == 6
+    assert chord_facts("Bbm11/Gb")["root_pc"] == 10
 
 
 # ============================================================================================ A4, transposition half
@@ -283,46 +394,138 @@ def seed_like():
     n = parse_notes
     return [
         card("lydian-four", "Eb major", "1maj9:4 | 4maj7#11:4"),
-        card("gospel-five-over-four", "Eb major", "4maj9:4 | 5^11/4:4 | 1/3:4 | 1maj9:4",
-             variants=[{"id": "b", "chords": parse_line("4maj9:4 | 5^11/4:4 | 3m9:4 | 6m11:4")}]),
-        card("one-note-apart", "Eb major", kind="concept", variants=[
-            {"id": "a", "chords": [{"n": "4maj13#11", "beats": 8, "notes": n("Ab2 Eb3 G3 C4 D4 F4 Bb4"),
-                                    "name": "Abmaj13#11"}]},
-            {"id": "b", "chords": [{"n": "5^11/4", "beats": 8, "notes": n("Ab2 Eb3 C4 D4 F4 Bb4")}]},
-            {"id": "c", "chords": exact("4maj13#11:4 | 5^11/4:4 | 1/3:8", {0: "Ab2 Eb3 G3 C4 D4 F4 Bb4",
-                                                                           1: "Ab2 Eb3 C4 D4 F4 Bb4"})}]),
-        card("blooming-chord", "Eb major", exact("4sus2:4 | 4add9:4 | 4maj9:4 | 4maj13#11:8", {
-            0: "Ab2 Eb3 Bb3 Eb4", 1: "Ab2 Eb3 Bb3 C4 Eb4", 2: "Ab2 Eb3 G3 Bb3 C4 Eb4",
-            3: "Ab2 Eb3 G3 Bb3 C4 Eb4 D5 F5"}, arp_ms={0: 45, 1: 45, 2: 45, 3: 45}), kind="progression"),
-        card("half-step-slide", "Eb major", kind="concept", variants=[
-            {"id": "a", "chords": exact("2^9/#4:4 | 2m9/4:4 | 4maj7#11:8", {0: "A2 F3 Eb4 G4 C5",
-                                                                         1: "Ab2 F3 Eb4 G4 C5"})},
-            {"id": "b", "key": "b7 major", "chords": exact("#4m7/6:4 | 4maj7/6:8", {0: "Bb2 F3 G3 Bb3 D4",
-                                                                                   1: "Bb2 F3 Gb3 Bb3 Db4"})}]),
-        card("lament-bass", "Db major", exact("6m11:4 | 6m11/5:4 | 6m11/4:4 | 6m11/3:4", {
-            0: "Bb2 Bb3 Ab4 C5 Db5 Eb5 F5", 1: "Ab2 Bb3 Ab4 C5 Db5 Eb5 F5", 2: "Gb2 Bb3 Ab4 C5 Db5 Eb5 F5",
-            3: "F2 Bb3 Ab4 C5 Db5 Eb5 F5"}, upper={1: "same", 2: "same", 3: "same"})),
-        card("minor-third-drop", "F major", kind="concept", variants=[
-            {"id": "a", "chords": parse_line("1add9:4 | 4maj13:4 | 5^6:4 | [6 major] | 1add9:4 | 4maj13:4 | 1maj9:8")},
-            {"id": "b", "key": "b2 major", "chords": parse_line(
-                "4maj9:4 | 1maj9:4 | 5sus4:4 | [b7 major] | b3add9/b7:2 | 1add9:6 | 4maj9:4 | 1maj9:8")}]),
+        card(
+            "gospel-five-over-four",
+            "Eb major",
+            "4maj9:4 | 5^11/4:4 | 1/3:4 | 1maj9:4",
+            variants=[{"id": "b", "chords": parse_line("4maj9:4 | 5^11/4:4 | 3m9:4 | 6m11:4")}],
+        ),
+        card(
+            "one-note-apart",
+            "Eb major",
+            kind="concept",
+            variants=[
+                {
+                    "id": "a",
+                    "chords": [
+                        {"n": "4maj13#11", "beats": 8, "notes": n("Ab2 Eb3 G3 C4 D4 F4 Bb4"), "name": "Abmaj13#11"}
+                    ],
+                },
+                {"id": "b", "chords": [{"n": "5^11/4", "beats": 8, "notes": n("Ab2 Eb3 C4 D4 F4 Bb4")}]},
+                {
+                    "id": "c",
+                    "chords": exact(
+                        "4maj13#11:4 | 5^11/4:4 | 1/3:8", {0: "Ab2 Eb3 G3 C4 D4 F4 Bb4", 1: "Ab2 Eb3 C4 D4 F4 Bb4"}
+                    ),
+                },
+            ],
+        ),
+        card(
+            "blooming-chord",
+            "Eb major",
+            exact(
+                "4sus2:4 | 4add9:4 | 4maj9:4 | 4maj13#11:8",
+                {
+                    0: "Ab2 Eb3 Bb3 Eb4",
+                    1: "Ab2 Eb3 Bb3 C4 Eb4",
+                    2: "Ab2 Eb3 G3 Bb3 C4 Eb4",
+                    3: "Ab2 Eb3 G3 Bb3 C4 Eb4 D5 F5",
+                },
+                arp_ms={0: 45, 1: 45, 2: 45, 3: 45},
+            ),
+            kind="progression",
+        ),
+        card(
+            "half-step-slide",
+            "Eb major",
+            kind="concept",
+            variants=[
+                {
+                    "id": "a",
+                    "chords": exact("2^9/#4:4 | 2m9/4:4 | 4maj7#11:8", {0: "A2 F3 Eb4 G4 C5", 1: "Ab2 F3 Eb4 G4 C5"}),
+                },
+                {
+                    "id": "b",
+                    "key": "b7 major",
+                    "chords": exact("#4m7/6:4 | 4maj7/6:8", {0: "Bb2 F3 G3 Bb3 D4", 1: "Bb2 F3 Gb3 Bb3 Db4"}),
+                },
+            ],
+        ),
+        card(
+            "lament-bass",
+            "Db major",
+            exact(
+                "6m11:4 | 6m11/5:4 | 6m11/4:4 | 6m11/3:4",
+                {
+                    0: "Bb2 Bb3 Ab4 C5 Db5 Eb5 F5",
+                    1: "Ab2 Bb3 Ab4 C5 Db5 Eb5 F5",
+                    2: "Gb2 Bb3 Ab4 C5 Db5 Eb5 F5",
+                    3: "F2 Bb3 Ab4 C5 Db5 Eb5 F5",
+                },
+                upper={1: "same", 2: "same", 3: "same"},
+            ),
+        ),
+        card(
+            "minor-third-drop",
+            "F major",
+            kind="concept",
+            variants=[
+                {
+                    "id": "a",
+                    "chords": parse_line("1add9:4 | 4maj13:4 | 5^6:4 | [6 major] | 1add9:4 | 4maj13:4 | 1maj9:8"),
+                },
+                {
+                    "id": "b",
+                    "key": "b2 major",
+                    "chords": parse_line(
+                        "4maj9:4 | 1maj9:4 | 5sus4:4 | [b7 major] | b3add9/b7:2 | 1add9:6 | 4maj9:4 | 1maj9:8"
+                    ),
+                },
+            ],
+        ),
         card("borrowed-four-minor", "Eb major", "1maj9:4 | 4add9:4 | 4m(add9):4 | 1maj9:4"),
         card("borrowed-b6-b7-home", "Eb major", "b6maj9:4 | b7maj9:4 | 1maj9:8"),
-        card("float-or-pull", "Eb major", kind="concept", variants=[
-            {"id": "a", "chords": exact("1maj9:4 | 5^7sus4/1:8 | 1maj9:4", {1: "Eb2 Eb3 Eb4 F4 Ab4 Bb4"})},
-            {"id": "b", "chords": parse_line("1maj9:4 | 5^7:8 | 1maj9:4")},
-            {"id": "c", "chords": exact("1maj9:4 | 5^7sus4:4 | 5^7:4 | 1maj9:8", {1: "Bb2 F3 Ab3 Eb4",
-                                                                                2: "Bb2 F3 Ab3 D4"})}]),
-        card("lush-two-five-one", "Eb major", exact("2m9:4 | 5^13:4 | 1maj9:8", {
-            0: "F2 Eb3 Ab3 C4 G4", 1: "Bb2 D3 Ab3 C4 G4", 2: "Eb2 D3 G3 Bb3 F4"})),
-        card("sunrise-ending", "Eb major",
-             "1m11:4 | 1m11:4 | b6maj7#11:4 | 5^7sus4:2 | 5^7:2 | b3maj9:4 | b3maj9:4 | 4m6:4 | 1maj9:4",
-             variants=[{"id": "b", "chords": parse_line(
-                 "1m9:4 | 4m9:4 | b6maj9:4 | b7maj9:4 | [b3 major] | 4maj9:4 | 6m9:4 | 5sus4:4 | 1maj9:8 | "
-                 "[1 major] | b3add9/b7:4 | 1add9:4 | 4maj9:4 | 1maj9:8")}]),
-        card("db-opening", "Db major", exact("4maj9:2 | 4maj7#11:6 | 5^11/4:4 | 4maj7#11:4 | 6m9/1:8", {
-            1: "Gb2 Db3 Gb3 Ab3 Bb3 Db4 F4 Bb4 Eb5 F5 Ab5 C6", 3: "Gb2 Db3 Gb3 Ab3 Bb3 Db4 F4 Bb4 Eb5 F5 Ab5 C6"},
-            name={1: "Gbmaj13#11", 3: "Gbmaj13#11"})),
+        card(
+            "float-or-pull",
+            "Eb major",
+            kind="concept",
+            variants=[
+                {"id": "a", "chords": exact("1maj9:4 | 5^7sus4/1:8 | 1maj9:4", {1: "Eb2 Eb3 Eb4 F4 Ab4 Bb4"})},
+                {"id": "b", "chords": parse_line("1maj9:4 | 5^7:8 | 1maj9:4")},
+                {
+                    "id": "c",
+                    "chords": exact("1maj9:4 | 5^7sus4:4 | 5^7:4 | 1maj9:8", {1: "Bb2 F3 Ab3 Eb4", 2: "Bb2 F3 Ab3 D4"}),
+                },
+            ],
+        ),
+        card(
+            "lush-two-five-one",
+            "Eb major",
+            exact("2m9:4 | 5^13:4 | 1maj9:8", {0: "F2 Eb3 Ab3 C4 G4", 1: "Bb2 D3 Ab3 C4 G4", 2: "Eb2 D3 G3 Bb3 F4"}),
+        ),
+        card(
+            "sunrise-ending",
+            "Eb major",
+            "1m11:4 | 1m11:4 | b6maj7#11:4 | 5^7sus4:2 | 5^7:2 | b3maj9:4 | b3maj9:4 | 4m6:4 | 1maj9:4",
+            variants=[
+                {
+                    "id": "b",
+                    "chords": parse_line(
+                        "1m9:4 | 4m9:4 | b6maj9:4 | b7maj9:4 | [b3 major] | 4maj9:4 | 6m9:4 | 5sus4:4 | 1maj9:8 | "
+                        "[1 major] | b3add9/b7:4 | 1add9:4 | 4maj9:4 | 1maj9:8"
+                    ),
+                }
+            ],
+        ),
+        card(
+            "db-opening",
+            "Db major",
+            exact(
+                "4maj9:2 | 4maj7#11:6 | 5^11/4:4 | 4maj7#11:4 | 6m9/1:8",
+                {1: "Gb2 Db3 Gb3 Ab3 Bb3 Db4 F4 Bb4 Eb5 F5 Ab5 C6", 3: "Gb2 Db3 Gb3 Ab3 Bb3 Db4 F4 Bb4 Eb5 F5 Ab5 C6"},
+                name={1: "Gbmaj13#11", 3: "Gbmaj13#11"},
+            ),
+        ),
         card("held-sus-five", "Eb major", exact("5^7sus4/1:16", {0: "Eb2 Eb3 Eb4 F4 Ab4 Bb4"})),
         card("open-ending-b7", "Eb major", exact("b7maj9:16", {0: "Db3 Ab3 Eb4 F4 Ab4 C5 Db5 F5 Ab5"})),
         card("white-keys", "C major", "1maj9:4 | 6m11:4 | 4maj7#11:4 | 5^7sus4:2 | 5^13:2"),
@@ -347,39 +550,46 @@ def test_a4_numbers_pitch_classes_sections_and_exact_notes_move_with_the_key():
     cards = seed_like()
     for c in cards:
         S.validate_card(c)
-    jobs = [(c, v, k) for c in cards for v in _lines(c)
-            for k in (MINOR_KEYS if c["key"].endswith("minor") else MAJOR_KEYS)]
+    jobs = [
+        (c, v, k) for c in cards for v in _lines(c) for k in (MINOR_KEYS if c["key"].endswith("minor") else MAJOR_KEYS)
+    ]
     with ThreadPoolExecutor(6) as pool:
         defs = list(pool.map(lambda job: resolver.resolve(job[0], key=job[2], variant=job[1]), jobs))
     base = {(c["id"], v): resolver.resolve(c, variant=v) for c in cards for v in _lines(c)}
     slots_checked = exact_checked = 0
-    for (c, v, k), d in zip(jobs, defs):
+    for (c, v, k), d in zip(jobs, defs, strict=False):
         b = base[(c["id"], v)]
         s = shift_of(c["key"], k)
         assert -6 <= s <= 5
         assert [x["n"] for x in d["slots"]] == [x["n"] for x in b["slots"]], (c["id"], v, k)
-        assert [nashville.parse_key(sec["key"])["tonic"] for sec in d["sections"]] == \
-            [(nashville.parse_key(sec["key"])["tonic"] + s) % 12 for sec in b["sections"]]
+        assert [nashville.parse_key(sec["key"])["tonic"] for sec in d["sections"]] == [
+            (nashville.parse_key(sec["key"])["tonic"] + s) % 12 for sec in b["sections"]
+        ]
         assert [sec["from_beat"] for sec in d["sections"]] == [sec["from_beat"] for sec in b["sections"]]
         written = _written(c, v)
-        for x, y, item in zip(d["slots"], b["slots"], written):
+        for x, y, item in zip(d["slots"], b["slots"], written, strict=False):
             assert set(x["chord_pcs"]) == {(p + s) % 12 for p in y["chord_pcs"]}, (c["id"], v, k, x["i"])
             slots_checked += 1
             if item.get("notes"):
                 play = x["voicings"]["play"]
                 assert play == shift_notes(item["notes"], s)[0]
-                assert play[0] >= 28 and play[-1] <= 103
+                assert play[0] >= 28
+                assert play[-1] <= 103
                 assert [p - play[0] for p in play] == [p - min(item["notes"]) for p in sorted(item["notes"])]
                 exact_checked += 1
-    assert slots_checked >= 17 * 12 * 3 and exact_checked >= 12 * 20
+    assert slots_checked >= 17 * 12 * 3
+    assert exact_checked >= 12 * 20
 
 
-A4_NAMES = [("lydian-four", "Db major", ["Dbmaj9", "Gbmaj7#11"]), ("lydian-four", "F major", ["Fmaj9", "Bbmaj7#11"]),
-            ("gospel-five-over-four", "D major", ["Gmaj9", "A11/G", "D/F#", "Dmaj9"]),
-            ("lament-bass", "Eb major", ["Cm11", "Cm11/Bb", "Cm11/Ab", "Cm11/G"]),
-            ("borrowed-b6-b7-home", "F major", ["Dbmaj9", "Ebmaj9", "Fmaj9"]),
-            ("dorian-vamp", "E minor", ["Em11", "A13"]),
-            ("sunrise-ending", "F major", ["Fm11", "Fm11", "Dbmaj7#11"])]
+A4_NAMES = [
+    ("lydian-four", "Db major", ["Dbmaj9", "Gbmaj7#11"]),
+    ("lydian-four", "F major", ["Fmaj9", "Bbmaj7#11"]),
+    ("gospel-five-over-four", "D major", ["Gmaj9", "A11/G", "D/F#", "Dmaj9"]),
+    ("lament-bass", "Eb major", ["Cm11", "Cm11/Bb", "Cm11/Ab", "Cm11/G"]),
+    ("borrowed-b6-b7-home", "F major", ["Dbmaj9", "Ebmaj9", "Fmaj9"]),
+    ("dorian-vamp", "E minor", ["Em11", "A13"]),
+    ("sunrise-ending", "F major", ["Fm11", "Fm11", "Dbmaj7#11"]),
+]
 
 
 @needs_node
@@ -389,7 +599,7 @@ def test_a4_the_twenty_hand_written_names():
     got = []
     for cid, key, names in A4_NAMES:
         slots = resolver.resolve(by_id[cid], key=key)["slots"]
-        got.append([s["name"] for s in slots[:len(names)]])
+        got.append([s["name"] for s in slots[: len(names)]])
     assert got == [names for _, _, names in A4_NAMES]
     assert sum(len(names) for _, _, names in A4_NAMES) == 20
 
@@ -412,8 +622,10 @@ def test_a4_the_lament_keeps_its_upper_voices_and_its_f_in_every_key():
 
 @needs_node
 def test_a4_resolving_is_deterministic_and_fast():
-    line = parse_line("1m11:4 | 1m11:4 | b6maj7#11:4 | 5^7sus4:2 | 5^7:2 | b3maj9:4 | b3maj9:4 | 4m6:4 | 1maj9:4 | "
-                      "2m9:4 | 5^13:4 | 1maj9:4 | 4maj9:4 | 5^11/4:4 | 1/3:4 | 6m11:4")
+    line = parse_line(
+        "1m11:4 | 1m11:4 | b6maj7#11:4 | 5^7sus4:2 | 5^7:2 | b3maj9:4 | b3maj9:4 | 4m6:4 | 1maj9:4 | "
+        "2m9:4 | 5^13:4 | 1maj9:4 | 4maj9:4 | 5^11/4:4 | 1/3:4 | 6m11:4"
+    )
     sixteen = card("sixteen-slots", "Eb major", line)
     assert S.chord_count(line) == 16
     first = json.dumps(Resolver().resolve(sixteen, key="Gb major"), sort_keys=True)
@@ -442,7 +654,8 @@ def test_every_resolved_def_validates_and_its_band_keeps_the_registers():
             d = resolver.resolve(c, variant=v)
             S.validate_def(d)
             for s in d["slots"]:
-                assert s["voicings"]["full"][-1] <= 69 and s["voicings"]["comp"][-1] <= 64
+                assert s["voicings"]["full"][-1] <= 69
+                assert s["voicings"]["comp"][-1] <= 64
                 assert 28 <= s["voicings"]["bass"][0] <= 50
                 assert s["bass_pc"] in s["chord_pcs"]
 
@@ -453,15 +666,21 @@ def test_page_reads_name_what_the_page_calls_each_chord():
     resolver = Resolver()
     lydian = resolver.page_reads(by_id["lydian-four"])
     assert [(p["slot"], p["name"], p["match"], p["voicing"]) for p in lydian] == [
-        (0, "Ebmaj9", "exact", "spread"), (1, "Abmaj7#11", "exact", "spread")]
+        (0, "Ebmaj9", "exact", "spread"),
+        (1, "Abmaj7#11", "exact", "spread"),
+    ]
     apart = {p["variant"]: p for p in resolver.page_reads(by_id["one-note-apart"]) if p["slot"] == 0}
-    assert apart["a"]["name"] == "Cm11/Ab" and apart["a"]["match"] == "equivalent" and apart["a"]["voicing"] == "notes"
+    assert apart["a"]["name"] == "Cm11/Ab"
+    assert apart["a"]["match"] == "equivalent"
+    assert apart["a"]["voicing"] == "notes"
     assert "your screen calls this Cm11/Ab" in apart["a"]["note"]
-    assert apart["b"]["name"] == "Bb11/Ab" and apart["b"]["match"] == "exact"
+    assert apart["b"]["name"] == "Bb11/Ab"
+    assert apart["b"]["match"] == "exact"
     drop = resolver.resolve(by_id["minor-third-drop"], variant="b")
     assert [sec["key"] for sec in drop["sections"]] == ["Gb major", "Eb major"]
     d = resolver.resolve(by_id["float-or-pull"], variant="all")
-    assert d["card"]["variant"] is None and len(d["slots"]) == 10
+    assert d["card"]["variant"] is None
+    assert len(d["slots"]) == 10
 
 
 @needs_node
@@ -469,15 +688,23 @@ def test_the_bridge_band_style_is_used_when_the_bridge_has_it():
     requests = []
 
     def band_results(req, comp_top=55):
-        named = run_bridge({"items": [it["text"] for it in req["items"]], "key": req["items"][0]["key"],
-                            "voicing": "close"})
+        named = run_bridge(
+            {"items": [it["text"] for it in req["items"]], "key": req["items"][0]["key"], "voicing": "close"}
+        )
         out = []
         for r in named:
             b = 36 + chord_facts(r["name"])["bass_pc"]
-            out.append({"band": {"full": {"notes": [b, 60], "roles": ["bass", "root"]},
-                                 "comp": {"notes": [b, comp_top], "roles": ["bass", "fifth"]},
-                                 "bass": {"notes": [b], "roles": ["bass"]}},
-                        "reads_as": None, "warnings": ["a band note"]})
+            out.append(
+                {
+                    "band": {
+                        "full": {"notes": [b, 60], "roles": ["bass", "root"]},
+                        "comp": {"notes": [b, comp_top], "roles": ["bass", "fifth"]},
+                        "bass": {"notes": [b], "roles": ["bass"]},
+                    },
+                    "reads_as": None,
+                    "warnings": ["a band note"],
+                }
+            )
         return out
 
     def with_band(req):
@@ -488,20 +715,26 @@ def test_the_bridge_band_style_is_used_when_the_bridge_has_it():
 
     lament = next(c for c in seed_like() if c["id"] == "lament-bass")
     d = Resolver(bridge=with_band, band=True).resolve(lament)
-    assert STUB_WARNING not in d["warnings"] and [s["voicings"]["full"][1:] for s in d["slots"]] == [[60]] * 4
+    assert STUB_WARNING not in d["warnings"]
+    assert [s["voicings"]["full"][1:] for s in d["slots"]] == [[60]] * 4
     assert all("a band note" in s["warnings"] for s in d["slots"])
-    assert requests[0]["line"] == "ring" and requests[0]["voicing"] == "band"
-    assert requests[0]["items"] == [{"text": "6m11", "key": "Db major"},
-                                    {"text": "6m11/5", "key": "Db major", "upper": "same"},
-                                    {"text": "6m11/4", "key": "Db major", "upper": "same"},
-                                    {"text": "6m11/3", "key": "Db major", "upper": "same"}]
+    assert requests[0]["line"] == "ring"
+    assert requests[0]["voicing"] == "band"
+    assert requests[0]["items"] == [
+        {"text": "6m11", "key": "Db major"},
+        {"text": "6m11/5", "key": "Db major", "upper": "same"},
+        {"text": "6m11/4", "key": "Db major", "upper": "same"},
+        {"text": "6m11/3", "key": "Db major", "upper": "same"},
+    ]
 
     def off_contract(req):  # a comp above E4 breaks the frozen def: the stand-in takes over, and the def says why
         return band_results(req, comp_top=70) if req.get("voicing") == "band" else run_bridge(req)
 
     d = Resolver(bridge=off_contract, band=True).resolve(lament)
-    assert STUB_WARNING in d["warnings"] and any("did not fit the def" in w for w in d["warnings"])
-    assert all("a band note" not in s["warnings"] for s in d["slots"]) and d["slots"][0]["voicings"]["comp"][-1] <= 64
+    assert STUB_WARNING in d["warnings"]
+    assert any("did not fit the def" in w for w in d["warnings"])
+    assert all("a band note" not in s["warnings"] for s in d["slots"])
+    assert d["slots"][0]["voicings"]["comp"][-1] <= 64
 
     def refusing_band(req):
         if req.get("voicing") == "band":
@@ -518,10 +751,27 @@ def _lydian():
 
 
 def _spec(mode="loop", bpm=66, count_in=1, now=True, passes=0):
-    return {"mode": mode, "bpm": bpm, "count_in": count_in, "now": now, "lead_ms": 800, "slot": None,
-            "velocity": None, "settings0": {"from_bar": 0, "groove": "hold", "backing": "full", "level": 44,
-                                            "humanize": 0, "seed": 7, "walk": 1, "try_backing": None,
-                                            "passes": passes, "ending": "cut"}}
+    return {
+        "mode": mode,
+        "bpm": bpm,
+        "count_in": count_in,
+        "now": now,
+        "lead_ms": 800,
+        "slot": None,
+        "velocity": None,
+        "settings0": {
+            "from_bar": 0,
+            "groove": "hold",
+            "backing": "full",
+            "level": 44,
+            "humanize": 0,
+            "seed": 7,
+            "walk": 1,
+            "try_backing": None,
+            "passes": passes,
+            "ending": "cut",
+        },
+    }
 
 
 def test_a_whole_run_writes_a_valid_run_json_and_timeline(tmp_path):
@@ -530,17 +780,31 @@ def test_a_whole_run_writes_a_valid_run_json_and_timeline(tmp_path):
     store = RunStore(tmp_path / "jam")
     reply, frames = store.start(_spec(), d, c, "claude", t)
     rid = reply["run"]
-    assert reply["state"] == "running" and reply["start_epoch_ms"] == t + 800
-    assert frames[-1]["op"] == "start" and frames[-1]["def"] == d
+    assert reply["state"] == "running"
+    assert reply["start_epoch_ms"] == t + 800
+    assert frames[-1]["op"] == "start"
+    assert frames[-1]["def"] == d
     bar_ms = 4 * 60000 / 66
     assert reply["bar0_epoch_ms"] == pytest.approx(t + 800 + bar_ms, abs=1e-6)
-    store.ack(rid, {"page_id": "p-1", "role": "owner", "version": 1, "bar": 0, "bar_epoch_ms": reply["bar0_epoch_ms"],
-                    "perf_ms": 5000.0, "perf_offset_ms": t - 4000}, t + 900)
+    store.ack(
+        rid,
+        {
+            "page_id": "p-1",
+            "role": "owner",
+            "version": 1,
+            "bar": 0,
+            "bar_epoch_ms": reply["bar0_epoch_ms"],
+            "perf_ms": 5000.0,
+            "perf_offset_ms": t - 4000,
+        },
+        t + 900,
+    )
     change, _ = store.control(rid, "tempo", {"bpm": "+6"}, "claude", t + 5000)
     assert change["bpm"] == 72
     store.mark("a synthetic mark", rid, None, "claude", t + 6000)
-    stop, frames = store.control(rid, "stop", {"at": "pass"}, "claude", t + 9000)
-    assert frames[0]["op"] == "stop" and frames[0]["reason"] == "cli"
+    _stop, frames = store.control(rid, "stop", {"at": "pass"}, "claude", t + 9000)
+    assert frames[0]["op"] == "stop"
+    assert frames[0]["reason"] == "cli"
     run = json.loads((tmp_path / "jam" / "runs" / rid / "run.json").read_text(encoding="utf-8"))
     S.validate_run(run)
     lines = [json.loads(x) for x in (tmp_path / "jam" / "runs" / rid / "events.jsonl").read_text().splitlines()]
@@ -548,12 +812,14 @@ def test_a_whole_run_writes_a_valid_run_json_and_timeline(tmp_path):
         S.validate_run_event(line)
     assert [x["kind"] for x in lines] == ["start", "ack", "change", "mark", "stop"]
     assert [x["seq"] for x in lines] == [0, 1, 2, 3, 4]
-    assert run["stop_bar"] % 2 == 0 and run["last_version"] == 3
+    assert run["stop_bar"] % 2 == 0
+    assert run["last_version"] == 3
     with pytest.raises(RunError) as err:
         store.control(rid, "tempo", {"bpm": 70}, "claude", t + 9500)
     assert err.value.status == 409
     fresh = RunStore(tmp_path / "jam")
-    assert fresh.get(rid)["run"] == run and len(fresh.get(rid)["events"]) == 5
+    assert fresh.get(rid)["run"] == run
+    assert len(fresh.get(rid)["events"]) == 5
 
 
 def test_restart_close_is_explicit_and_approximate(tmp_path):
@@ -569,8 +835,12 @@ def test_restart_close_is_explicit_and_approximate(tmp_path):
         got = fresh.get(rid)
         run, last = got["run"], got["events"][-1]
         S.validate_run(run)
-        assert run["stop_reason"] == "server-restart" and run["approx"] is True and run["state"] == "stopped"
-        assert last["kind"] == "stop" and last["by"] == "server" and last["approx"] is True
+        assert run["stop_reason"] == "server-restart"
+        assert run["approx"] is True
+        assert run["state"] == "stopped"
+        assert last["kind"] == "stop"
+        assert last["by"] == "server"
+        assert last["approx"] is True
         assert run["stopped_epoch_ms"] == max(e["recorded_epoch_ms"] for e in got["events"][:-1])
     assert fresh.get(pending)["run"]["stop_bar"] is None
     assert fresh.close_unclosed(t + 70000) == []
@@ -581,32 +851,45 @@ def _l1():
     folder = FIX / "run_loop_l1"
     run = json.loads((folder / "run.json").read_text(encoding="utf-8"))
     events = [json.loads(x) for x in (folder / "events.jsonl").read_text(encoding="utf-8").splitlines() if x]
-    return run, events, json.loads((folder / "expected.json").read_text(encoding="utf-8")), \
-        PerformanceStore(folder / "session")
+    return (
+        run,
+        events,
+        json.loads((folder / "expected.json").read_text(encoding="utf-8")),
+        PerformanceStore(folder / "session"),
+    )
 
 
 def test_the_alignment_ladder_on_the_synthetic_run():
     run, events, expected, store = _l1()
     got = A.align(run, events, store)
-    assert len(got) == 1 and got[0]["session"] == expected["session"] and got[0]["method"] == "L1"
-    assert got[0]["error_ms"] == 2 and got[0]["page_id"] == expected["alignment"]["page_id"]
+    assert len(got) == 1
+    assert got[0]["session"] == expected["session"]
+    assert got[0]["method"] == "L1"
+    assert got[0]["error_ms"] == 2
+    assert got[0]["page_id"] == expected["alignment"]["page_id"]
     assert abs(got[0]["bar0_t_ms"] - expected["alignment"]["bar0_t_ms"]) <= 0.001
     for b in expected["bars"]:
         assert abs(A.bar_t_ms(got[0], run, b["bar"]) - b["t_ms"]) <= 0.001, b
     info = store.info(expected["session"])
     no_logs = [dict(e, log=None) if e["kind"] == "ack" else e for e in events]
     l2 = A.align_session(run, no_logs, info)
-    assert l2["method"] == "L2" and abs(l2["bar0_t_ms"] - expected["alignment"]["bar0_t_ms"]) <= 0.001
+    assert l2["method"] == "L2"
+    assert abs(l2["bar0_t_ms"] - expected["alignment"]["bar0_t_ms"]) <= 0.001
     meta = dict(info["meta"])
     meta.pop("page_id")
     l3 = A.align_session(run, no_logs, dict(info, meta=meta))
-    assert l3["method"] == "L3" and l3["error_ms"] == 50
+    assert l3["method"] == "L3"
+    assert l3["error_ms"] == 50
     assert abs(l3["bar0_t_ms"] - expected["alignment"]["bar0_t_ms"]) <= 0.001
     meta.pop("opened_at_client")
     l4 = A.align_session(run, no_logs, dict(info, meta=meta))
-    assert l4["method"] == "L4" and l4["approx"] is True and l4["error_ms"] == 150
+    assert l4["method"] == "L4"
+    assert l4["approx"] is True
+    assert l4["error_ms"] == 150
     assert abs(l4["bar0_t_ms"] - expected["alignment"]["bar0_t_ms"]) <= 150
     refused = A.align_session(run, no_logs, dict(info, meta=dict(meta, buffered=True)))
-    assert refused["refused"] is True and refused["method"] == "L4" and "opened_at_client" in refused["reason"]
+    assert refused["refused"] is True
+    assert refused["method"] == "L4"
+    assert "opened_at_client" in refused["reason"]
     assert A.align(run, events, None)[0]["reason"] == "no log"
     assert A.align_session(dict(run, segments=[]), events, info)["refused"] is True

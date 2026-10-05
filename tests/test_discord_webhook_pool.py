@@ -37,11 +37,11 @@ import requests
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from core.comm import discord_bridge as DB  # noqa: E402
-from core.comm import discord_feed as F  # noqa: E402
-
+from core.comm import discord_bridge as DB  # noqa: E402  # sys.path bootstrap
+from core.comm import discord_feed as F  # noqa: E402  # sys.path bootstrap
 
 # ============================================================================ webhook_urls()
+
 
 def test_single_pipe_is_unchanged_when_only_one_is_configured(monkeypatch):
     """Calibration: the common case (one webhook) must behave exactly as before."""
@@ -51,15 +51,18 @@ def test_single_pipe_is_unchanged_when_only_one_is_configured(monkeypatch):
 
 
 def test_env_list_overrides_with_multiple_pipes(monkeypatch):
-    monkeypatch.setenv("AKASHIC_DISCORD_WEBHOOKS",
-                       "https://discord.com/api/webhooks/1/a,"
-                       "https://discord.com/api/webhooks/2/b\n"
-                       "https://discord.com/api/webhooks/3/c")
+    monkeypatch.setenv(
+        "AKASHIC_DISCORD_WEBHOOKS",
+        "https://discord.com/api/webhooks/1/a,"
+        "https://discord.com/api/webhooks/2/b\n"
+        "https://discord.com/api/webhooks/3/c",
+    )
     urls = DB.webhook_urls()
-    assert urls == ["https://discord.com/api/webhooks/1/a",
-                    "https://discord.com/api/webhooks/2/b",
-                    "https://discord.com/api/webhooks/3/c"], (
-        "comma AND newline separated, blanks dropped, order preserved")
+    assert urls == [
+        "https://discord.com/api/webhooks/1/a",
+        "https://discord.com/api/webhooks/2/b",
+        "https://discord.com/api/webhooks/3/c",
+    ], "comma AND newline separated, blanks dropped, order preserved"
 
 
 def test_no_pipes_configured_is_an_empty_list_not_an_error(monkeypatch, tmp_path):
@@ -73,16 +76,14 @@ def test_vault_pool_slots_are_read_in_order(monkeypatch, tmp_path):
     monkeypatch.delenv("AKASHIC_DISCORD_WEBHOOKS", raising=False)
     monkeypatch.delenv("AKASHIC_DISCORD_WEBHOOK", raising=False)
     monkeypatch.setenv("AKASHIC_SECRETS_DIR", str(tmp_path))
-    (tmp_path / "discord_webhook.url").write_text(
-        "https://discord.com/api/webhooks/1/g", encoding="utf-8")
-    (tmp_path / "discord_webhook_3.url").write_text(
-        "https://discord.com/api/webhooks/3/c", encoding="utf-8")
+    (tmp_path / "discord_webhook.url").write_text("https://discord.com/api/webhooks/1/g", encoding="utf-8")
+    (tmp_path / "discord_webhook_3.url").write_text("https://discord.com/api/webhooks/3/c", encoding="utf-8")
     # slot 2 deliberately absent -- a gap must not break the pool, just shrink it
-    assert DB.webhook_urls() == ["https://discord.com/api/webhooks/1/g",
-                                 "https://discord.com/api/webhooks/3/c"]
+    assert DB.webhook_urls() == ["https://discord.com/api/webhooks/1/g", "https://discord.com/api/webhooks/3/c"]
 
 
 # ============================================================================ post_via_pool()
+
 
 class _Resp:
     def __init__(self, status_code):
@@ -118,8 +119,7 @@ def test_a_429_exhausted_pipe_hands_off_to_the_next_one():
 
     out = DB.post_via_pool(["p1", "p2"], "hi", poster)
     assert out == "ok-from-p2"
-    assert calls == ["p1", "p2"], (
-        "a pipe still 429 after its own retry budget must hand off, not block the beat")
+    assert calls == ["p1", "p2"], "a pipe still 429 after its own retry budget must hand off, not block the beat"
 
 
 def test_all_pipes_429_raises_the_last_429_not_a_generic_error():
@@ -139,8 +139,7 @@ def test_a_non_429_failure_is_never_hopped_it_is_a_real_outage():
 
     with pytest.raises(RuntimeError):
         DB.post_via_pool(["p1", "p2"], "hi", poster)
-    assert calls == ["p1"], (
-        "hopping past a non-429 failure would mask a real outage as a rate-limit hiccup")
+    assert calls == ["p1"], "hopping past a non-429 failure would mask a real outage as a rate-limit hiccup"
 
 
 def test_empty_pool_refuses_loudly():
@@ -149,6 +148,7 @@ def test_empty_pool_refuses_loudly():
 
 
 # ============================================================================ pump_if_owner()
+
 
 class _FakeClient:
     def __init__(self):
@@ -164,7 +164,7 @@ class _FakeClient:
     def xrevrange(self, key, count=1):
         return list(reversed(self.streams.get(key, [])))[:count]
 
-    def xrange(self, key, min="-", count=100):
+    def xrange(self, key, min="-", count=100):  # noqa: A002  # mirrors the redis-py xrange(min=, max=) keyword API
         s = self.streams.get(key, [])
         if min.startswith("("):
             floor = min[1:]
@@ -185,7 +185,7 @@ class _FakeBus:
         return f"bifrost:inbox:{agent}"
 
 
-@pytest.fixture()
+@pytest.fixture
 def wired(monkeypatch):
     monkeypatch.setenv("AKASHIC_DISCORD_WEBHOOK", "https://discord.com/api/webhooks/1/g")
     monkeypatch.setenv("AKASHIC_DISCORD_FORUM_WEBHOOK", "https://discord.com/api/webhooks/2/f")
@@ -196,6 +196,7 @@ def test_the_election_loser_never_calls_pump(wired, monkeypatch):
     """This is the whole mechanism: a daemon that loses the beat must not touch the
     cursor or the webhook at all -- not 'pump but skip', genuinely never called."""
     from core.comm import runner_lock
+
     monkeypatch.setattr(runner_lock, "acquire", lambda *a, **k: False)
     called = {"n": 0}
     monkeypatch.setattr(F, "pump", lambda *a, **k: called.__setitem__("n", called["n"] + 1))
@@ -208,6 +209,7 @@ def test_the_election_loser_never_calls_pump(wired, monkeypatch):
 
 def test_the_election_winner_pumps_and_releases(wired, monkeypatch):
     from core.comm import runner_lock
+
     monkeypatch.setattr(runner_lock, "acquire", lambda *a, **k: True)
     released = []
     monkeypatch.setattr(runner_lock, "release", lambda key, token: released.append(key))
@@ -217,11 +219,13 @@ def test_the_election_winner_pumps_and_releases(wired, monkeypatch):
     assert out.ok
     assert released == ["discord-pump"], (
         "the winner must release the lock so the NEXT beat (any daemon) can compete "
-        "again, rather than squatting the lock for its full TTL")
+        "again, rather than squatting the lock for its full TTL"
+    )
 
 
 def test_the_winner_releases_even_if_pump_itself_raises(wired, monkeypatch):
     from core.comm import runner_lock
+
     monkeypatch.setattr(runner_lock, "acquire", lambda *a, **k: True)
     released = []
     monkeypatch.setattr(runner_lock, "release", lambda key, token: released.append(key))
@@ -235,4 +239,5 @@ def test_the_winner_releases_even_if_pump_itself_raises(wired, monkeypatch):
         F.pump_if_owner(wired)
     assert released == ["discord-pump"], (
         "a crash mid-pump must not leave the lock held for the daemon's own process "
-        "lifetime -- release belongs in a finally, not after a successful return")
+        "lifetime -- release belongs in a finally, not after a successful return"
+    )

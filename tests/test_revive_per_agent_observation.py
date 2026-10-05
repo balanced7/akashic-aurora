@@ -19,6 +19,7 @@ EVERY expected agent is present, and the detail NAMES who is missing.
 
 Run: py -m pytest tests/test_revive_per_agent_observation.py -q
 """
+
 import os
 import sys
 
@@ -33,6 +34,7 @@ def _observe(cmdlines):
     """_cmdlines() returns ONE newline-joined string (counting is substring-based),
     so the fixture must be that same shape or the pins test a fiction."""
     import scripts.revive as revive
+
     orig = revive._cmdlines
     revive._cmdlines = lambda: "\n".join(cmdlines) + "\n"
     try:
@@ -43,11 +45,8 @@ def _observe(cmdlines):
 
 def test_one_live_daemon_does_not_mark_a_dead_agent_healthy():
     """THE DEFECT: deepseek's daemon alive, kimi's dead -> must NOT report healthy."""
-    out = _observe([DAEMON.format(a="deepseek"),
-                    RUNNER.format(a="deepseek"),
-                    GATEWAY])
-    assert not out["daemon"]["healthy"], (
-        "a live deepseek daemon masked kimi's dead one: " + out["daemon"]["detail"])
+    out = _observe([DAEMON.format(a="deepseek"), RUNNER.format(a="deepseek"), GATEWAY])
+    assert not out["daemon"]["healthy"], "a live deepseek daemon masked kimi's dead one: " + out["daemon"]["detail"]
 
 
 def test_dead_agent_is_named_in_the_detail():
@@ -60,10 +59,16 @@ def test_dead_agent_is_named_in_the_detail():
 def test_all_daemons_present_is_healthy():
     # roster grew 2026-09-03 (S1): claude's manage-listener daemon is now a rung,
     # so "all present" includes it -- fixture premise updated, assertion unchanged.
-    out = _observe([DAEMON.format(a="deepseek"), DAEMON.format(a="kimi"),
-                    "python.exe E:\\AI-Setup\\scripts\\bifrost_daemon.py "
-                    "--agent claude --manage-listener",
-                    RUNNER.format(a="deepseek"), RUNNER.format(a="kimi"), GATEWAY])
+    out = _observe(
+        [
+            DAEMON.format(a="deepseek"),
+            DAEMON.format(a="kimi"),
+            "python.exe E:\\AI-Setup\\scripts\\bifrost_daemon.py --agent claude --manage-listener",
+            RUNNER.format(a="deepseek"),
+            RUNNER.format(a="kimi"),
+            GATEWAY,
+        ]
+    )
     assert out["daemon"]["healthy"], out["daemon"]["detail"]
     assert out["runners"]["healthy"], out["runners"]["detail"]
 
@@ -71,16 +76,24 @@ def test_all_daemons_present_is_healthy():
 def test_runner_is_counted_by_agent_not_by_script_name():
     """Every runner agent runs bifrost_runner_deepseek.py; only --agent distinguishes
     them. Counting script names made kimi invisible and double-counted deepseek."""
-    out = _observe([DAEMON.format(a="deepseek"), DAEMON.format(a="kimi"),
-                    RUNNER.format(a="deepseek"), GATEWAY])   # kimi RUNNER missing
+    out = _observe(
+        [DAEMON.format(a="deepseek"), DAEMON.format(a="kimi"), RUNNER.format(a="deepseek"), GATEWAY]
+    )  # kimi RUNNER missing
     assert not out["runners"]["healthy"], out["runners"]["detail"]
     assert "kimi" in out["runners"]["detail"]
 
 
 def test_two_deepseek_runners_do_not_satisfy_a_missing_kimi():
     """The old sum() could reach the threshold from duplicates of ONE agent."""
-    out = _observe([DAEMON.format(a="deepseek"), DAEMON.format(a="kimi"),
-                    RUNNER.format(a="deepseek"), RUNNER.format(a="deepseek"), GATEWAY])
+    out = _observe(
+        [
+            DAEMON.format(a="deepseek"),
+            DAEMON.format(a="kimi"),
+            RUNNER.format(a="deepseek"),
+            RUNNER.format(a="deepseek"),
+            GATEWAY,
+        ]
+    )
     assert not out["runners"]["healthy"], out["runners"]["detail"]
 
 
@@ -94,4 +107,5 @@ def test_gateway_unaffected():
 
 if __name__ == "__main__":
     import pytest
+
     raise SystemExit(pytest.main([__file__, "-q"]))

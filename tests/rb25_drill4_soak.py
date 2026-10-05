@@ -30,7 +30,9 @@ Subcommands:
               fast smoke (10 / 30 / 90 s).
   disarm      stop the subject, finalize the ledger
 """
+
 import argparse
+import contextlib
 import glob
 import json
 import os
@@ -47,11 +49,15 @@ sys.path.insert(0, str(REPO))
 # control plane off the live bus. K4 still probes the LIVE firehose explicitly (see _firehose_len).
 os.environ.setdefault("BIFROST_NAMESPACE", "rb25soak")
 
-import psutil  # noqa: E402
-from core.comm.bus import Bus                 # noqa: E402
-from core.comm import expectations            # noqa: E402
-from core.comm import wake_seat               # noqa: E402
-from core.comm import runner_lock             # noqa: E402
+
+import psutil  # noqa: E402  # sys.path bootstrap
+
+from core.comm import (  # noqa: E402  # sys.path bootstrap
+    expectations,
+    runner_lock,
+    wake_seat,
+)
+from core.comm.bus import Bus  # noqa: E402  # sys.path bootstrap
 
 PY = sys.executable
 LEDGER = REPO / "research" / "reviewed" / "rb25-drill4-soak-ledger.json"
@@ -60,9 +66,9 @@ RUNNER_ID = "rb25-soak-runner"
 WATCHER_ID = "rb25-soak-watcher"
 DRIVER_ID = "rb25-soak-driver"
 SESSION = "rb25soak"
-RSS_TOLERANCE = 0.15          # K1: +15% of T0
-K4_SLACK = 1.10               # K4: XADD MAXLEN ~ trims approximately; allow 10% over the bound
-PING_WITHIN_S = 300           # K5 reply window
+RSS_TOLERANCE = 0.15  # K1: +15% of T0
+K4_SLACK = 1.10  # K4: XADD MAXLEN ~ trims approximately; allow 10% over the bound
+PING_WITHIN_S = 300  # K5 reply window
 
 
 # ------------------------------------------------------------------ ledger
@@ -85,7 +91,7 @@ def _rss(pid) -> int:
     try:
         return int(psutil.Process(int(pid)).memory_info().rss)
     except Exception:
-        return -1                 # -1 = process gone / unreadable (K1 flags it)
+        return -1  # -1 = process gone / unreadable (K1 flags it)
 
 
 def _alive(pid) -> bool:
@@ -98,11 +104,11 @@ def _alive(pid) -> bool:
 # ------------------------------------------------------------------ subject
 def _child_env() -> dict:
     e = dict(os.environ)
-    e["AKASHIC_DRILL_ECHO"] = "1"          # echo responder: no LLM calls
+    e["AKASHIC_DRILL_ECHO"] = "1"  # echo responder: no LLM calls
     e["PYTHONIOENCODING"] = "utf-8"
     e["PYTHONUTF8"] = "1"
-    e["BIFROST_MAX_REPLIES_PER_MIN"] = "1000"   # 30-min pings are far under this; belt+suspenders
-    e["BIFROST_NAMESPACE"] = "rb25soak"          # subject isolated; Fix A keeps its control plane off live
+    e["BIFROST_MAX_REPLIES_PER_MIN"] = "1000"  # 30-min pings are far under this; belt+suspenders
+    e["BIFROST_NAMESPACE"] = "rb25soak"  # subject isolated; Fix A keeps its control plane off live
     return e
 
 
@@ -110,12 +116,13 @@ def _spawn_detached(argv, log_path):
     """Launch a subject process that OUTLIVES this harness invocation (so the monitor can be a
     separate, re-armable process). Returns pid."""
     LOGDIR.mkdir(parents=True, exist_ok=True)
-    f = open(log_path, "a", encoding="utf-8")
+    f = open(log_path, "a", encoding="utf-8")  # noqa: SIM115  # handle outlives this function: inherited by the detached child as stdout
     flags = 0
     if os.name == "nt":
         flags = subprocess.CREATE_NEW_PROCESS_GROUP | 0x00000008  # DETACHED_PROCESS
-    p = subprocess.Popen([PY] + argv, cwd=str(REPO), env=_child_env(),
-                         stdout=f, stderr=subprocess.STDOUT, creationflags=flags)
+    p = subprocess.Popen(
+        [PY, *argv], cwd=str(REPO), env=_child_env(), stdout=f, stderr=subprocess.STDOUT, creationflags=flags
+    )
     return p.pid
 
 
@@ -126,7 +133,7 @@ def _seat_orphans() -> int:
     seat_dir = os.path.dirname(wake_seat.seat_path(WATCHER_ID, SESSION))
     for f in glob.glob(os.path.join(seat_dir, "bifrost_wake_rb25-soak-*.pid")):
         try:
-            pid = int(open(f).read().strip() or "0")
+            pid = int(Path(f).read_text().strip() or "0")
             if pid and not _alive(pid):
                 orphans += 1
         except Exception:
@@ -150,8 +157,10 @@ def take_checkpoint(led: dict, label: str) -> dict:
     cp = {
         "label": label,
         "ts": _now(),
-        "runner_alive": _alive(r_pid), "watcher_alive": _alive(w_pid),
-        "runner_rss": _rss(r_pid), "watcher_rss": _rss(w_pid),
+        "runner_alive": _alive(r_pid),
+        "watcher_alive": _alive(w_pid),
+        "runner_rss": _rss(r_pid),
+        "watcher_rss": _rss(w_pid),
         "seat_present": os.path.exists(wake_seat.seat_path(WATCHER_ID, SESSION)),
         "seat_orphans": _seat_orphans(),
         "firehose": _firehose_len(),
@@ -175,16 +184,22 @@ def do_sample(led: dict) -> dict:
     answered = False
     deadline = time.time() + 6
     while time.time() < deadline:
-        if any(str(getattr(m, "kind", "")) == "reply" and tag in str(getattr(m, "content", ""))
-               for m in drv.inbox(limit=200, advance=False)):
+        if any(
+            str(getattr(m, "kind", "")) == "reply" and tag in str(getattr(m, "content", ""))
+            for m in drv.inbox(limit=200, advance=False)
+        ):
             answered = True
             break
         time.sleep(0.5)
-    expectations.sweep(DRIVER_ID)                 # clear the now-answered expectation (no false redrive)
-    drv.inbox(limit=1000, advance=True)           # consume replies so the driver inbox stays bounded
+    expectations.sweep(DRIVER_ID)  # clear the now-answered expectation (no false redrive)
+    drv.inbox(limit=1000, advance=True)  # consume replies so the driver inbox stays bounded
     row = {
-        "ts": ts, "mid": mid, "armed": armed, "answered": answered,
-        "dead": swept.get("dead", []), "redriven": swept.get("redriven", []),
+        "ts": ts,
+        "mid": mid,
+        "armed": armed,
+        "answered": answered,
+        "dead": swept.get("dead", []),
+        "redriven": swept.get("redriven", []),
         "runner_alive": _alive(led["subject"]["runner_pid"]),
     }
     led.setdefault("samples", []).append(row)
@@ -202,14 +217,16 @@ def evaluate(led: dict) -> dict:
     # settle that then plateaus is NOT a leak; only a sustained climb past tolerance is. So FAIL only
     # when the final growth exceeds tolerance AND memory is still climbing at the last checkpoint.
     if t0 and len(cps) >= 2:
+
         def _growth(cp, who):
             base, cur = t0.get(who, 0), cp.get(who, 0)
             return (cur - base) / base if base > 0 and cur > 0 else 0.0
+
         k1 = {"verdict": "PASS", "tolerance": RSS_TOLERANCE}
         for who in ("runner_rss", "watcher_rss"):
             series = [_growth(cp, who) for cp in cps]
             final = series[-1]
-            climbing = final > series[-2] + 0.005      # still rising >0.5% at the end = trend, not settle
+            climbing = final > series[-2] + 0.005  # still rising >0.5% at the end = trend, not settle
             if final > k1.get("final_growth", -1):
                 k1.update({"who": who, "final_growth": round(final, 4), "still_climbing": climbing})
             if final > RSS_TOLERANCE and climbing:
@@ -221,26 +238,40 @@ def evaluate(led: dict) -> dict:
     # K2 SEAT HYGIENE
     orphan_max = max([cp.get("seat_orphans", 0) for cp in cps], default=0)
     seat_ok = all(cp.get("seat_present") for cp in cps) if cps else False
-    res["K2"] = {"verdict": "PASS" if (seat_ok and orphan_max == 0) else ("PENDING" if not cps else "FAIL"),
-                 "seat_present_all": seat_ok, "max_orphans": orphan_max}
+    res["K2"] = {
+        "verdict": "PASS" if (seat_ok and orphan_max == 0) else ("PENDING" if not cps else "FAIL"),
+        "seat_present_all": seat_ok,
+        "max_orphans": orphan_max,
+    }
 
     # K4 FIREHOSE BOUNDED -- approximate trimming (XADD MAXLEN ~) legitimately sits a little over the
     # bound; fail only on real UNBOUNDED growth (>K4_SLACK over maxlen), not macro-node granularity.
-    overs = [cp for cp in cps if cp.get("firehose", {}).get("bc_len", -1) >
-             cp.get("firehose", {}).get("maxlen", 1 << 30) * K4_SLACK]
-    res["K4"] = {"verdict": "PASS" if (cps and not overs) else ("PENDING" if not cps else "FAIL"),
-                 "breaches": len(overs)}
+    overs = [
+        cp
+        for cp in cps
+        if cp.get("firehose", {}).get("bc_len", -1) > cp.get("firehose", {}).get("maxlen", 1 << 30) * K4_SLACK
+    ]
+    res["K4"] = {
+        "verdict": "PASS" if (cps and not overs) else ("PENDING" if not cps else "FAIL"),
+        "breaches": len(overs),
+    }
 
     # K5 TRAFFIC ANSWERED
     n = len(samples)
     unanswered = [s for s in samples if not s.get("answered")]
     dead = [d for s in samples for d in s.get("dead", [])]
-    res["K5"] = {"verdict": "PASS" if (n > 0 and not unanswered and not dead) else ("PENDING" if n == 0 else "FAIL"),
-                 "pings": n, "unanswered": len(unanswered), "expectation_dead": len(dead)}
+    res["K5"] = {
+        "verdict": "PASS" if (n > 0 and not unanswered and not dead) else ("PENDING" if n == 0 else "FAIL"),
+        "pings": n,
+        "unanswered": len(unanswered),
+        "expectation_dead": len(dead),
+    }
 
     # K3 is a manual mid-window step
-    res["K3"] = {"verdict": led.get("k3", {}).get("verdict", "MANUAL_PENDING"),
-                 "note": "induced Redis restart, mid-window; record via `k3` marker"}
+    res["K3"] = {
+        "verdict": led.get("k3", {}).get("verdict", "MANUAL_PENDING"),
+        "note": "induced Redis restart, mid-window; record via `k3` marker",
+    }
 
     overall = "PASS"
     for k in ("K1", "K2", "K4", "K5"):
@@ -264,29 +295,43 @@ def cmd_arm(args):
         h = runner_lock.holder(aid) or {}
         if h.get("pid") and not _alive(h["pid"]):
             runner_lock.clear_if_pid(aid, h["pid"])
-    r_pid = _spawn_detached(["scripts/bifrost_runner_deepseek.py", "--agent", RUNNER_ID],
-                            LOGDIR / "soak_runner.log")
-    w_pid = _spawn_detached(["scripts/bifrost_wake.py", "--agent", WATCHER_ID, "--session", SESSION,
-                             "--deadline", "999999"], LOGDIR / "soak_watcher.log")
-    time.sleep(6)                              # let them register + claim the seat
+    r_pid = _spawn_detached(["scripts/bifrost_runner_deepseek.py", "--agent", RUNNER_ID], LOGDIR / "soak_runner.log")
+    w_pid = _spawn_detached(
+        ["scripts/bifrost_wake.py", "--agent", WATCHER_ID, "--session", SESSION, "--deadline", "999999"],
+        LOGDIR / "soak_watcher.log",
+    )
+    time.sleep(6)  # let them register + claim the seat
     led = {
-        "drill": "rb25-drill4-soak", "started_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-        "t0_ts": _now(), "namespace": "bifrost (live)",
-        "subject": {"runner_id": RUNNER_ID, "watcher_id": WATCHER_ID, "driver_id": DRIVER_ID,
-                    "runner_pid": r_pid, "watcher_pid": w_pid, "armed": True},
-        "checkpoints": [], "samples": [],
+        "drill": "rb25-drill4-soak",
+        "started_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "t0_ts": _now(),
+        "namespace": "bifrost (live)",
+        "subject": {
+            "runner_id": RUNNER_ID,
+            "watcher_id": WATCHER_ID,
+            "driver_id": DRIVER_ID,
+            "runner_pid": r_pid,
+            "watcher_pid": w_pid,
+            "armed": True,
+        },
+        "checkpoints": [],
+        "samples": [],
     }
     take_checkpoint(led, "T0")
     do_sample(led)
     save(led)
-    ev = evaluate(led)
+    evaluate(led)
     t0 = led["checkpoints"][0]
     clean = t0["runner_alive"] and t0["watcher_alive"] and led["samples"][-1]["answered"]
-    print(f"SOAK ARMED @ T0 -- runner pid {r_pid} alive={t0['runner_alive']} rss={t0['runner_rss']}; "
-          f"watcher pid {w_pid} alive={t0['watcher_alive']}; seat={t0['seat_present']}; "
-          f"first ping answered={led['samples'][-1]['answered']}")
-    print(f"T0 baseline clean: {clean}  ->  certify-at-soak-start "
-          f"{'GRANTED (arm the monitor next)' if clean else 'BLOCKED (T0 not clean, investigate)'}")
+    print(
+        f"SOAK ARMED @ T0 -- runner pid {r_pid} alive={t0['runner_alive']} rss={t0['runner_rss']}; "
+        f"watcher pid {w_pid} alive={t0['watcher_alive']}; seat={t0['seat_present']}; "
+        f"first ping answered={led['samples'][-1]['answered']}"
+    )
+    print(
+        f"T0 baseline clean: {clean}  ->  certify-at-soak-start "
+        f"{'GRANTED (arm the monitor next)' if clean else 'BLOCKED (T0 not clean, investigate)'}"
+    )
     print(f"ledger -> {LEDGER}")
     return 0 if clean else 2
 
@@ -298,8 +343,10 @@ def cmd_sample(args):
         return 1
     row = do_sample(led)
     save(led)
-    print(f"sample @ {time.strftime('%H:%M:%S')}: answered={row['answered']} dead={row['dead']} "
-          f"runner_alive={row['runner_alive']}")
+    print(
+        f"sample @ {time.strftime('%H:%M:%S')}: answered={row['answered']} dead={row['dead']} "
+        f"runner_alive={row['runner_alive']}"
+    )
     return 0
 
 
@@ -308,10 +355,12 @@ def cmd_checkpoint(args):
     if not led.get("subject", {}).get("armed"):
         print("not armed -- run `arm` first")
         return 1
-    cp = take_checkpoint(led, args.label or f"T+{int((_now()-led['t0_ts'])/3600)}h")
+    cp = take_checkpoint(led, args.label or f"T+{int((_now() - led['t0_ts']) / 3600)}h")
     save(led)
-    print(f"checkpoint {cp['label']}: runner_rss={cp['runner_rss']} watcher_rss={cp['watcher_rss']} "
-          f"seat={cp['seat_present']} orphans={cp['seat_orphans']} firehose={cp['firehose']}")
+    print(
+        f"checkpoint {cp['label']}: runner_rss={cp['runner_rss']} watcher_rss={cp['watcher_rss']} "
+        f"seat={cp['seat_present']} orphans={cp['seat_orphans']} firehose={cp['firehose']}"
+    )
     return 0
 
 
@@ -322,8 +371,10 @@ def cmd_status(args):
         return 1
     ev = evaluate(led)
     elapsed_h = (_now() - led["t0_ts"]) / 3600
-    print(f"RB-25 DRILL 4 SOAK -- {elapsed_h:.2f}h elapsed, {len(led.get('samples', []))} samples, "
-          f"{len(led.get('checkpoints', []))} checkpoints")
+    print(
+        f"RB-25 DRILL 4 SOAK -- {elapsed_h:.2f}h elapsed, {len(led.get('samples', []))} samples, "
+        f"{len(led.get('checkpoints', []))} checkpoints"
+    )
     for k in ("K1", "K2", "K3", "K4", "K5"):
         print(f"  {k}: {ev[k]['verdict']:14s} {json.dumps({x: y for x, y in ev[k].items() if x != 'verdict'})}")
     print(f"  OVERALL: {ev['overall']}")
@@ -331,12 +382,14 @@ def cmd_status(args):
 
 
 def cmd_monitor(args):
-    interval, cp_every, duration = (10, 30, 90) if args.compress else (args.interval, args.checkpoint_every, args.duration)
+    interval, cp_every, duration = (
+        (10, 30, 90) if args.compress else (args.interval, args.checkpoint_every, args.duration)
+    )
     led = load()
     if not led.get("subject", {}).get("armed"):
         print("not armed -- run `arm` first")
         return 1
-    led["monitor_pid"] = os.getpid()          # so disarm can stop the loop; re-armable if it dies
+    led["monitor_pid"] = os.getpid()  # so disarm can stop the loop; re-armable if it dies
     save(led)
     t_start = _now()
     last_cp = t_start
@@ -345,7 +398,7 @@ def cmd_monitor(args):
         led = load()
         do_sample(led)
         if _now() - last_cp >= cp_every:
-            take_checkpoint(led, f"T+{int((_now()-led['t0_ts'])/3600)}h")
+            take_checkpoint(led, f"T+{int((_now() - led['t0_ts']) / 3600)}h")
             last_cp = _now()
         save(led)
         time.sleep(max(1, interval))
@@ -360,13 +413,14 @@ def cmd_monitor(args):
 
 def cmd_disarm(args):
     led = load()
-    for pid in (led.get("subject", {}).get("runner_pid"), led.get("subject", {}).get("watcher_pid"),
-                led.get("monitor_pid")):
+    for pid in (
+        led.get("subject", {}).get("runner_pid"),
+        led.get("subject", {}).get("watcher_pid"),
+        led.get("monitor_pid"),
+    ):
         if pid:
-            try:
+            with contextlib.suppress(Exception):
                 subprocess.run(["taskkill", "/F", "/T", "/PID", str(pid)], capture_output=True)
-            except Exception:
-                pass
     h = runner_lock.holder(RUNNER_ID) or {}
     if h.get("pid"):
         runner_lock.clear_if_pid(RUNNER_ID, h["pid"])
@@ -381,9 +435,11 @@ def cmd_disarm(args):
 def main():
     ap = argparse.ArgumentParser(description="RB-25 drill 4 soak harness")
     sub = ap.add_subparsers(dest="cmd", required=True)
-    a = sub.add_parser("arm"); a.add_argument("--force", action="store_true")
+    a = sub.add_parser("arm")
+    a.add_argument("--force", action="store_true")
     sub.add_parser("sample")
-    cp = sub.add_parser("checkpoint"); cp.add_argument("--label", default="")
+    cp = sub.add_parser("checkpoint")
+    cp.add_argument("--label", default="")
     sub.add_parser("status")
     m = sub.add_parser("monitor")
     m.add_argument("--interval", type=int, default=1800)
@@ -392,8 +448,14 @@ def main():
     m.add_argument("--compress", action="store_true", help="fast smoke: 10/30/90s")
     sub.add_parser("disarm")
     args = ap.parse_args()
-    return {"arm": cmd_arm, "sample": cmd_sample, "checkpoint": cmd_checkpoint,
-            "status": cmd_status, "monitor": cmd_monitor, "disarm": cmd_disarm}[args.cmd](args)
+    return {
+        "arm": cmd_arm,
+        "sample": cmd_sample,
+        "checkpoint": cmd_checkpoint,
+        "status": cmd_status,
+        "monitor": cmd_monitor,
+        "disarm": cmd_disarm,
+    }[args.cmd](args)
 
 
 if __name__ == "__main__":

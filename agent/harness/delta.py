@@ -19,16 +19,29 @@ loss degrades to today's full boot (C6). Raw bus positions are deliberately ABSE
 (D2 ruling): live mail belongs to the UNREAD/wake surfaces; the delta tracks only the
 durable-salient promoted stream.
 """
+
+import contextlib
 import os
 import subprocess
 import time
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from collections.abc import Callable
+
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+
+        return python_launcher()
+    except Exception:
+        return "py"
+
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 FIELDS = ("git_commit", "ledger_seq", "notes_head", "promoted_id")
 BUDGET_DEFAULT = 1200
-RENDER_TTL_S = 30          # X1: turn_metrics EST_CACHE_TTL pattern
-GIT_CAP = 10               # commits listed before the pull pointer takes over
+RENDER_TTL_S = 30  # X1: turn_metrics EST_CACHE_TTL pattern
+GIT_CAP = 10  # commits listed before the pull pointer takes over
 
 
 def _ns() -> str:
@@ -38,22 +51,31 @@ def _ns() -> str:
 def _redis():
     try:
         from core.foundation.redis_connection import (
-            connect_to_redis_with_fail_fast, DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT)
-        return connect_to_redis_with_fail_fast(host=DEFAULT_REDIS_HOST,
-                                               port=DEFAULT_REDIS_PORT,
-                                               timeout_seconds=3, decode_responses=True)
+            DEFAULT_REDIS_HOST,
+            DEFAULT_REDIS_PORT,
+            connect_to_redis_with_fail_fast,
+        )
+
+        return connect_to_redis_with_fail_fast(
+            host=DEFAULT_REDIS_HOST, port=DEFAULT_REDIS_PORT, timeout_seconds=3, decode_responses=True
+        )
     except Exception:
         return None
 
 
 # ---------------------------------------------------------------- position sources
-def _git(*args: str) -> Optional[str]:
+def _git(*args: str) -> str | None:
     try:
         # C7-4: sever stdin -- a child inheriting the door's stdin wedges the MCP boot
         # path (the class the stdin-sever pin guards); close_fds per the same pin.
-        r = subprocess.run(["git", "-C", REPO] + list(args), capture_output=True,
-                           text=True, timeout=10, stdin=subprocess.DEVNULL,
-                           close_fds=True)
+        r = subprocess.run(
+            ["git", "-C", REPO, *list(args)],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            stdin=subprocess.DEVNULL,
+            close_fds=True,
+        )
         return r.stdout.strip() if r.returncode == 0 else None
     except Exception:
         return None
@@ -63,7 +85,7 @@ def _git_head() -> str:
     return _git("rev-parse", "HEAD") or "?"
 
 
-def _git_log_range(frm: str, to: str) -> Optional[List[str]]:
+def _git_log_range(frm: str, to: str) -> list[str] | None:
     """Oneline subjects with author initials, oldest range capped upstream. None on any
     git failure (unknown sha, backwards range) -- the caller classifies."""
     out = _git("log", f"{frm}..{to}", "--pretty=format:%h %an: %s", f"--max-count={200}")
@@ -78,21 +100,21 @@ def _git_has_commit(sha: str) -> bool:
     from divergence. Conflating them printed a remedy (`git log A..B`) that fatals with
     'unknown revision', sending the reader to debug a rewrite that never happened."""
     try:
-        r = subprocess.run(["git", "-C", REPO, "cat-file", "-e", f"{sha}^{{commit}}"],
-                           capture_output=True, timeout=10)
+        r = subprocess.run(["git", "-C", REPO, "cat-file", "-e", f"{sha}^{{commit}}"], capture_output=True, timeout=10)
         return r.returncode == 0
     except Exception:
         return False
 
 
-def _git_is_forward(mark_sha: str, head_sha: str) -> Optional[bool]:
+def _git_is_forward(mark_sha: str, head_sha: str) -> bool | None:
     """True = mark is an ancestor of HEAD (normal forward motion); False = backwards or
     diverged or unknown sha (all deserve the loud path); None never returned -- errors
     classify as False because 'cannot prove forward' and 'moved backwards' get the same
     honest render (P4)."""
     try:
-        r = subprocess.run(["git", "-C", REPO, "merge-base", "--is-ancestor",
-                            mark_sha, head_sha], capture_output=True, timeout=10)
+        r = subprocess.run(
+            ["git", "-C", REPO, "merge-base", "--is-ancestor", mark_sha, head_sha], capture_output=True, timeout=10
+        )
         return r.returncode == 0
     except Exception:
         return False
@@ -102,13 +124,14 @@ def _ledger_seq() -> str:
     c = _redis()
     if c is not None:
         try:
-            v = c.get("bifrost:coord:ledger:v")     # GLOBAL by design (task_ledger.py)
+            v = c.get("bifrost:coord:ledger:v")  # GLOBAL by design (task_ledger.py)
             if v is not None:
                 return str(v)
         except Exception:
             pass
     try:
         from core.coord.task_ledger import TaskLedger
+
         return str(TaskLedger()._seq)
     except Exception:
         return "?"
@@ -118,14 +141,12 @@ def _notes_head() -> str:
     """Fingerprint of note freshness across BOTH stores (D4): the max created_at."""
     try:
         from core.learning.agent_memory import get_agent_memory
+
         mem = get_agent_memory()
-        stamps: List[str] = []
-        for pull in (lambda: mem.get_decisions(days=90),
-                     lambda: mem.get_experiences(days=90)):
-            try:
+        stamps: list[str] = []
+        for pull in (lambda: mem.get_decisions(days=90), lambda: mem.get_experiences(days=90)):
+            with contextlib.suppress(Exception):
                 stamps += [str(x.created_at) for x in (pull() or [])]
-            except Exception:
-                pass
         return max(stamps) if stamps else "0"
     except Exception:
         return "?"
@@ -136,6 +157,7 @@ def _promoted_id() -> str:
     -- the same seam the boot's RECENT DECISIONS section reads)."""
     try:
         from core.comm.promoter import promoted_page
+
         evs, _more = promoted_page(limit=1, now=time.time())
         if not evs:
             return "0"
@@ -146,10 +168,14 @@ def _promoted_id() -> str:
         return "?"
 
 
-def current_positions(agent: str) -> Dict[str, str]:
-    out: Dict[str, str] = {}
-    for field, fn in (("git_commit", _git_head), ("ledger_seq", _ledger_seq),
-                      ("notes_head", _notes_head), ("promoted_id", _promoted_id)):
+def current_positions(agent: str) -> dict[str, str]:
+    out: dict[str, str] = {}
+    for field, fn in (
+        ("git_commit", _git_head),
+        ("ledger_seq", _ledger_seq),
+        ("notes_head", _notes_head),
+        ("promoted_id", _promoted_id),
+    ):
         try:
             out[field] = str(fn())
         except Exception:
@@ -168,7 +194,7 @@ class DeltaMark:
     def key(self) -> str:
         return f"{_ns()}:delta:mark:{self.agent}"
 
-    def read(self) -> Optional[Dict[str, str]]:
+    def read(self) -> dict[str, str] | None:
         c = _redis()
         if c is None:
             return None
@@ -178,7 +204,7 @@ class DeltaMark:
             return None
         return {f: str(h.get(f, "?")) for f in FIELDS} if h else None
 
-    def write(self, positions: Dict[str, str]) -> bool:
+    def write(self, positions: dict[str, str]) -> bool:
         c = _redis()
         if c is None:
             return False
@@ -195,8 +221,8 @@ def _moved(mark_v: str, cur_v: str) -> bool:
     return mark_v != cur_v and "?" not in (mark_v, cur_v)
 
 
-def _sections(agent: str, mark: Dict[str, str], cur: Dict[str, str]) -> List[str]:
-    parts: List[str] = []
+def _sections(agent: str, mark: dict[str, str], cur: dict[str, str]) -> list[str]:
+    parts: list[str] = []
     # git -- range attempt first (P3's monkeypatch seam), classify on failure (P4)
     if _moved(mark["git_commit"], cur["git_commit"]):
         lines = _git_log_range(mark["git_commit"], cur["git_commit"])
@@ -204,8 +230,9 @@ def _sections(agent: str, mark: Dict[str, str], cur: Dict[str, str]) -> List[str
             shown = lines[:GIT_CAP]
             more = len(lines) - len(shown)
             body = "\n".join(f"    {ln}" for ln in shown)
-            tail = (f"\n    [+{more} more -- git log "
-                    f"{mark['git_commit'][:7]}..{cur['git_commit'][:7]}]") if more else ""
+            tail = (
+                (f"\n    [+{more} more -- git log {mark['git_commit'][:7]}..{cur['git_commit'][:7]}]") if more else ""
+            )
             parts.append(f"  git: {len(lines)} commit(s)\n{body}{tail}")
         elif lines is None and not _git_has_commit(mark["git_commit"]):
             # W62: unresolvable mark FIRST -- it looks identical to divergence from here
@@ -215,32 +242,36 @@ def _sections(agent: str, mark: Dict[str, str], cur: Dict[str, str]) -> List[str
                 f"  git: your last-boot mark ({mark['git_commit'][:7]}) is not in this "
                 f"repo -- rewritten history, a different clone, or a pruned object. "
                 f"Nothing to diff against; the mark re-stamps at this boot "
-                f"(HEAD is {cur['git_commit'][:7]}).")
+                f"(HEAD is {cur['git_commit'][:7]})."
+            )
         elif lines is None and not _git_is_forward(mark["git_commit"], cur["git_commit"]):
             parts.append(
                 f"  git: HEAD moved BACKWARDS or diverged "
                 f"({mark['git_commit'][:7]} -> {cur['git_commit'][:7]}); history changed "
-                f"under you -- inspect: git log {cur['git_commit'][:7]}..{mark['git_commit'][:7]}")
+                f"under you -- inspect: git log {cur['git_commit'][:7]}..{mark['git_commit'][:7]}"
+            )
         # lines == [] (empty forward range): same tree, nothing to say
     elif cur["git_commit"] == "?":
         parts.append("  git: (unavailable -- repository not readable)")
     if _moved(mark["ledger_seq"], cur["ledger_seq"]):
-        parts.append(f"  ledger: moved {mark['ledger_seq']} -> {cur['ledger_seq']} -- "
-                     f"transitions: py agent_cli.py task list")
+        parts.append(
+            f"  ledger: moved {mark['ledger_seq']} -> {cur['ledger_seq']} -- "
+            f"transitions: {_pyl()} agent_cli.py task list"
+        )
     elif cur["ledger_seq"] == "?":
         parts.append("  ledger: (unavailable)")
     if _moved(mark["notes_head"], cur["notes_head"]):
-        parts.append(f"  notes: updated since your mark -- py agent_cli.py notes")
+        parts.append(f"  notes: updated since your mark -- {_pyl()} agent_cli.py notes")
     elif cur["notes_head"] == "?":
         parts.append("  notes: (unavailable)")
     if _moved(mark["promoted_id"], cur["promoted_id"]):
-        parts.append(f"  bus: new promoted salient(s) -- py agent_cli.py promoted")
+        parts.append(f"  bus: new promoted salient(s) -- {_pyl()} agent_cli.py promoted")
     elif cur["promoted_id"] == "?":
         parts.append("  bus: (unavailable)")
     return parts
 
 
-def delta_boot_block(agent: str, budget: int = BUDGET_DEFAULT) -> Tuple[str, Callable[[], bool]]:
+def delta_boot_block(agent: str, budget: int = BUDGET_DEFAULT) -> tuple[str, Callable[[], bool]]:
     """(text, commit_fn). Text is "" for newborns (no mark -> full boot unchanged, C3)
     and for an unmoved world (P6 zero-cost silence). commit_fn stamps the mark at
     CURRENT positions -- call it only after delivery (mark-lag)."""
@@ -255,21 +286,22 @@ def delta_boot_block(agent: str, budget: int = BUDGET_DEFAULT) -> Tuple[str, Cal
     cur = current_positions(agent)
     parts = _sections(agent, mark, cur)
     if not any(_moved(mark[f], cur[f]) for f in FIELDS):
-        return "", commit                      # P6: silence is free
-    head = (f"[delta {agent}] since your last boot "
-            f"({mark['git_commit'][:7]} -> {cur['git_commit'][:7]}):")
-    text = "\n".join([head] + parts)
+        return "", commit  # P6: silence is free
+    head = f"[delta {agent}] since your last boot ({mark['git_commit'][:7]} -> {cur['git_commit'][:7]}):"
+    text = "\n".join([head, *parts])
     if len(text) > budget:
-        counts = f"[delta truncated: {len(parts)} section(s), {len(text)} chars -- " \
-                 f"full: py agent_cli.py delta {agent}]"
-        keep: List[str] = [head]
+        counts = (
+            f"[delta truncated: {len(parts)} section(s), {len(text)} chars -- "
+            f"full: {_pyl()} agent_cli.py delta {agent}]"
+        )
+        keep: list[str] = [head]
         for p in parts:
-            if len("\n".join(keep + [p, counts])) > budget:
+            if len("\n".join([*keep, p, counts])) > budget:
                 break
             keep.append(p)
-        text = "\n".join(keep + [counts])
-        if len(text) > budget:                 # even one section overflows: counts only
-            text = "\n".join([head, counts])[:budget]
+        text = "\n".join([*keep, counts])
+        if len(text) > budget:  # even one section overflows: counts only
+            text = f"{head}\n{counts}"[:budget]
     return text, commit
 
 
@@ -289,17 +321,15 @@ def render_full(agent: str) -> str:
     if mark is None:
         # Reviewer nit (t052 build review): do NOT cache the newborn message -- the first
         # boot stamps a mark within the TTL and a cached "no mark yet" would mask it.
-        return (f"[delta {agent}] no mark yet (newborn) -- the mark writes at your next "
-                f"boot; until then the full boot is the orientation")
-    else:
-        cur = current_positions(agent)
-        parts = _sections(agent, mark, cur)
-        head = (f"[delta {agent}] since your last boot "
-                f"({mark['git_commit'][:7]} -> {cur['git_commit'][:7]}):")
-        text = "\n".join([head] + parts) if parts else f"[delta {agent}] no changes since your last boot"
+        return (
+            f"[delta {agent}] no mark yet (newborn) -- the mark writes at your next "
+            f"boot; until then the full boot is the orientation"
+        )
+    cur = current_positions(agent)
+    parts = _sections(agent, mark, cur)
+    head = f"[delta {agent}] since your last boot ({mark['git_commit'][:7]} -> {cur['git_commit'][:7]}):"
+    text = "\n".join([head, *parts]) if parts else f"[delta {agent}] no changes since your last boot"
     if c is not None:
-        try:
+        with contextlib.suppress(Exception):
             c.set(ckey, text, ex=RENDER_TTL_S)
-        except Exception:
-            pass
     return text

@@ -21,11 +21,11 @@ This is the canonical connector. All backends and stores build on it so the
 fail-fast guarantee lives in exactly one place.
 """
 
-import os
-import time
-import socket
 import logging
-from typing import Optional, Any, Tuple
+import os
+import socket
+import time
+from typing import Any
 
 logger = logging.getLogger("redis_connection")
 
@@ -41,14 +41,16 @@ def clear_reachability_cache() -> None:
     """Forget cached probe results (e.g. after starting/stopping Redis)."""
     _REACHABILITY_CACHE.clear()
 
+
 try:
     import redis
+
     REDIS_LIBRARY_AVAILABLE = True
 except ImportError:
     REDIS_LIBRARY_AVAILABLE = False
 
 
-def _resolve_default_redis_endpoint() -> Tuple[str, int]:
+def _resolve_default_redis_endpoint() -> tuple[str, int]:
     """
     The single source of truth for "where is Redis?", resolved once.
 
@@ -66,7 +68,8 @@ def _resolve_default_redis_endpoint() -> Tuple[str, int]:
     # Base = config.py (the SSOT); env vars override PER FIELD, so setting just
     # REDIS_PORT (or just REDIS_HOST) works. Fallback if config is unimportable.
     try:
-        from config import REDIS_HOST as host, REDIS_PORT as port
+        from config import REDIS_HOST as host
+        from config import REDIS_PORT as port
     except Exception:
         host, port = "localhost", 6380
 
@@ -79,14 +82,17 @@ def _resolve_default_redis_endpoint() -> Tuple[str, int]:
     # test isolation in order to add world isolation.
     try:
         from core.world import current as _world
+
         w = _world()
         if w.redis_port is not None:
             port = w.redis_port
         else:
             # Loud, never silent: silence here is the original defect in a new coat.
-            print(f"[world] UNKNOWN checkout -- {w.why}; falling back to config "
-                  f"REDIS_PORT={port}. Declare it: echo alpha > .aurora-world")
-    except Exception as exc:                     # pragma: no cover - import guard
+            print(
+                f"[world] UNKNOWN checkout -- {w.why}; falling back to config "
+                f"REDIS_PORT={port}. Declare it: echo alpha > .aurora-world"
+            )
+    except Exception as exc:  # pragma: no cover - import guard
         print(f"[world] unresolved ({exc.__class__.__name__}); using config REDIS_PORT={port}")
 
     env_host, env_port = os.getenv("REDIS_HOST"), os.getenv("REDIS_PORT")
@@ -115,6 +121,7 @@ def _resolve_default_redis_endpoint() -> Tuple[str, int]:
         # alive, which a raise does not.
         try:
             from core.world import current, owner_of_port
+
             if owner_of_port(port) is not None:
                 w = current()
                 try:
@@ -122,7 +129,7 @@ def _resolve_default_redis_endpoint() -> Tuple[str, int]:
                 except Exception as refusal:
                     print(f"[world] IGNORING REDIS_PORT={port}: {refusal}")
                     port = w.redis_port if w.redis_port is not None else port
-        except ImportError:                          # pragma: no cover - import guard
+        except ImportError:  # pragma: no cover - import guard
             pass
     return host, port
 
@@ -138,6 +145,7 @@ def _resolve_default_redis_db() -> int:
         return int(env_db)
     try:
         from config import REDIS_DB
+
         return REDIS_DB
     except Exception:
         return 0
@@ -179,10 +187,46 @@ def probe_redis_reachable(
         sock.close()
         result = True
     except Exception as e:
-        logger.debug(f"Redis not reachable at {host}:{port}: {type(e).__name__}: {e}")
+        logger.debug("Redis not reachable at %s:%s: %s: %s", host, port, type(e).__name__, e)
         result = False
     _REACHABILITY_CACHE[key] = (time.monotonic(), result)
     return result
+
+
+def _note_reachable(port: int) -> None:
+    """First sight of an answering Redis on a world port records this checkout as `external`,
+    so a later outage never conjures an embedded server that would split the bus in two."""
+    try:
+        from core.foundation import embedded_redis as _emb
+
+        if _emb.configured_backend() is None and _emb.is_world_port(port):
+            # An embedded server already answering (started by another checkout process or by
+            # hand) is not a real Redis: record `embedded`, or nothing would restart it later.
+            embedded = False
+            try:
+                info = redis.Redis(host=DEFAULT_REDIS_HOST, port=port, socket_timeout=2).info()
+                embedded = info.get("aurora_backend") == "embedded"
+            except Exception:
+                pass
+            _emb.record_backend(reachable=not embedded)
+    except Exception:  # pragma: no cover - never block a connect
+        pass
+
+
+def ensure_redis_server(host: str = DEFAULT_REDIS_HOST, port: int = DEFAULT_REDIS_PORT) -> bool:
+    """True when something answers Redis on host:port, starting the embedded server first if
+    this checkout's backend is `embedded`. For callers that build redis.Redis(...) themselves."""
+    if probe_redis_reachable(host, port):
+        _note_reachable(port)
+        return True
+    try:
+        from core.foundation.embedded_redis import ensure_running
+    except Exception:
+        return False
+    if ensure_running(host, port):
+        _REACHABILITY_CACHE.pop((host, port), None)
+        return True
+    return False
 
 
 def connect_to_redis_with_fail_fast(
@@ -192,7 +236,7 @@ def connect_to_redis_with_fail_fast(
     decode_responses: bool = True,
     probe_timeout_seconds: float = 0.5,
     db: int = DEFAULT_REDIS_DB,
-) -> Optional[Any]:
+) -> Any | None:
     """
     Connect to Redis, returning a live client or None — never hangs.
 
@@ -223,7 +267,14 @@ def connect_to_redis_with_fail_fast(
         return None
 
     if not probe_redis_reachable(host, port, probe_timeout_seconds):
-        return None
+        # No Redis answering. If this checkout runs on the EMBEDDED backend (no Redis server
+        # installed; see core/foundation/embedded_redis.py), start it and carry on -- every
+        # caller below keeps speaking Redis. A checkout recorded as `external` (a real Redis
+        # that is merely down) keeps the old behaviour: None, fast.
+        if not ensure_redis_server(host, port):
+            return None
+    else:
+        _note_reachable(port)
 
     try:
         client = redis.Redis(
@@ -245,11 +296,10 @@ def connect_to_redis_with_fail_fast(
             # sockets that Redis had NO record of (zero in CLIENT LIST), and its main loop sat
             # blocked in xread for 12+ hours. Keepalive cannot see this; only an
             # application-level PING can, because only Redis can answer it.
-            health_check_interval=int(
-                os.getenv("AKASHIC_REDIS_HEALTH_CHECK_SEC", "30") or 30),
+            health_check_interval=int(os.getenv("AKASHIC_REDIS_HEALTH_CHECK_SEC", "30") or 30),
         )
         client.ping()
         return client
     except Exception as e:
-        logger.warning(f"Redis reachable but PING failed at {host}:{port}: {e}")
+        logger.warning("Redis reachable but PING failed at %s:%s: %s", host, port, e)
         return None

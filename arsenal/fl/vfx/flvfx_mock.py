@@ -32,9 +32,11 @@ Also a small CLI for offline rehearsal:
       [--gaps 1,4,2 | --gaps buffer:512] [--dropout Rare|Often --dropout-seed N] [--clock "Follow song position"]
       [--loop-ticks N]
 """
+
 from __future__ import annotations
 
 import argparse
+import contextlib
 import importlib.util
 import itertools
 import json
@@ -48,19 +50,39 @@ HERE = Path(__file__).resolve().parent
 BAND_SCRIPT = HERE / "arsenal_band.py"
 PATTERN_MODULE = "arsenal_patterns"
 
-VOICE_DEFAULTS = {"note": 60.0, "finePitch": 0.0, "velocity": 100 / 127, "pan": 0.0, "length": 0, "output": 0,
-                  "fcut": 0.0, "fres": 0.0, "color": 0, "releaseVelocity": 0.5}
+VOICE_DEFAULTS = {
+    "note": 60.0,
+    "finePitch": 0.0,
+    "velocity": 100 / 127,
+    "pan": 0.0,
+    "length": 0,
+    "output": 0,
+    "fcut": 0.0,
+    "fres": 0.0,
+    "color": 0,
+    "releaseVelocity": 0.5,
+}
 FLVFX_NAMES = ("context", "Voice", "ScriptDialog", "addOutputController", "setOutputController")
 CONTEXT_NAMES = ("ticks", "PPQ", "isPlaying", "tempo", "voices", "form")
-FORM_NAMES = ("addGroup", "endGroup", "addInputKnob", "addInputKnobInt", "addInputCheckbox", "addInputCombo",
-              "addInputText", "addInputSurface", "getInputValue", "setNormalizedValue")
+FORM_NAMES = (
+    "addGroup",
+    "endGroup",
+    "addInputKnob",
+    "addInputKnobInt",
+    "addInputCheckbox",
+    "addInputCombo",
+    "addInputText",
+    "addInputSurface",
+    "getInputValue",
+    "setNormalizedValue",
+)
 
 _ids = itertools.count(1)
 _ABSENT = object()
 
 
 class _Input:
-    __slots__ = ("kind", "lo", "hi", "options", "value")
+    __slots__ = ("hi", "kind", "lo", "options", "value")
 
     def __init__(self, kind, lo, hi, options, value):
         self.kind, self.lo, self.hi, self.options, self.value = kind, lo, hi, options, value
@@ -100,9 +122,9 @@ class ScriptDialog:
         self._group = None
 
     def _add(self, name, inp):
-        full = "%s: %s" % (self._group, name) if self._group else name
+        full = f"{self._group}: {name}" if self._group else name
         if full in self._inputs:
-            raise ValueError("duplicate input %r" % full)
+            raise ValueError(f"duplicate input {full!r}")
         self._inputs[full] = inp
 
     def addInputKnob(self, name, default, lo, hi, hint=""):
@@ -117,7 +139,7 @@ class ScriptDialog:
     def addInputCombo(self, name, options, default, hint=""):
         opts = options.split(",") if isinstance(options, str) else list(options)
         if not opts:
-            raise ValueError("combo %r has no options" % name)
+            raise ValueError(f"combo {name!r} has no options")
         self._add(name, _Input("combo", 0, len(opts) - 1, opts, int(min(max(default, 0), len(opts) - 1))))
 
     def addInputText(self, name, default="", hint=""):
@@ -131,7 +153,7 @@ class ScriptDialog:
         try:
             return self._inputs[name].value
         except KeyError:
-            raise KeyError("no input named %r (inputs: %s)" % (name, ", ".join(self._inputs))) from None
+            raise KeyError("no input named {!r} (inputs: {})".format(name, ", ".join(self._inputs))) from None
 
     def setNormalizedValue(self, name, value):
         inp = self._inputs[name]
@@ -141,7 +163,7 @@ class ScriptDialog:
             inp.value = inp.lo + n * (inp.hi - inp.lo)
         elif inp.kind in ("knob_int", "combo"):
             x = inp.lo + stored_normalized(n, self.knob_store) * (inp.hi - inp.lo)
-            inp.value = int(math.floor(x)) if self.knob_read == "floor" else int(round(x))
+            inp.value = math.floor(x) if self.knob_read == "floor" else round(x)
         elif inp.kind == "checkbox":
             inp.value = 1 if n >= 0.5 else 0
 
@@ -194,6 +216,7 @@ class Context:
 
 class VoiceView:
     """A wrapper FL might hand back from vfx.context.voices: the same voice underneath, a new object on every read."""
+
     __slots__ = ("_host", "_voice")
 
     def __init__(self, host, voice):
@@ -228,7 +251,7 @@ def make_flvfx(host):
 
         def __setattr__(self, name, value):
             if type(self) is Voice and name not in VOICE_DEFAULTS:
-                raise AttributeError("vfx.Voice has no attribute %r (subclass it to add fields)" % name)
+                raise AttributeError(f"vfx.Voice has no attribute {name!r} (subclass it to add fields)")
             object.__setattr__(self, name, value)
 
         def copyFrom(self, other):
@@ -246,7 +269,7 @@ def make_flvfx(host):
 
     def setOutputController(name, value):
         if name not in host.controllers:
-            raise KeyError("no output controller named %r" % name)
+            raise KeyError(f"no output controller named {name!r}")
         host.controllers[name].append(value)
 
     class Dialog(ScriptDialog):
@@ -264,9 +287,25 @@ def make_flvfx(host):
 class Host:
     """FL's side of a VFX Script: the transport, the tick loop and the voices, recorded as note events."""
 
-    def __init__(self, script=BAND_SCRIPT, *, ppq=96, bpm=120.0, first_tick=0, auto_release="after",
-                 patterns=_ABSENT, patterns_dir=None, loop_ticks=None, tick_step=1, gaps=None,
-                 buffer_samples=None, sample_rate=44100, voice_views=False, knob_store="float", knob_read="round"):
+    def __init__(
+        self,
+        script=BAND_SCRIPT,
+        *,
+        ppq=96,
+        bpm=120.0,
+        first_tick=0,
+        auto_release="after",
+        patterns=_ABSENT,
+        patterns_dir=None,
+        loop_ticks=None,
+        tick_step=1,
+        gaps=None,
+        buffer_samples=None,
+        sample_rate=44100,
+        voice_views=False,
+        knob_store="float",
+        knob_read="round",
+    ):
         if auto_release not in ("before", "after"):
             raise ValueError("auto_release is 'before' or 'after'")
         if not isinstance(tick_step, int) or tick_step < 1:
@@ -278,7 +317,7 @@ class Host:
             if not gaps or any(not isinstance(g, int) or g < 0 for g in gaps) or not any(gaps):
                 raise ValueError("gaps are whole tick counts, not all 0")
         if knob_store not in KNOB_STORES or knob_read not in KNOB_READS:
-            raise ValueError("knob_store is one of %s, knob_read one of %s" % (KNOB_STORES, KNOB_READS))
+            raise ValueError(f"knob_store is one of {KNOB_STORES}, knob_read one of {KNOB_READS}")
         self.tick_step = tick_step
         self.gaps = gaps
         self.buffer_samples = buffer_samples
@@ -286,7 +325,7 @@ class Host:
         self.voice_views = voice_views
         self.knob_store = knob_store
         self.knob_read = knob_read
-        self.call_log = []        # (host_tick, ticks FL reported, playing) for every onTick
+        self.call_log = []  # (host_tick, ticks FL reported, playing) for every onTick
         self.play_host_tick = None
         self._carry = 0.0
         self.script = Path(script)
@@ -337,7 +376,7 @@ class Host:
             sys.path.insert(0, str(self.patterns_dir))
             self._path_added = True
         try:
-            spec = importlib.util.spec_from_file_location("arsenal_band_sim_%d" % next(_ids), self.script)
+            spec = importlib.util.spec_from_file_location(f"arsenal_band_sim_{next(_ids)}", self.script)
             module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(module)
             self.module = module
@@ -356,10 +395,8 @@ class Host:
                 sys.modules[name] = value
         self._saved = {}
         if self._path_added:
-            try:
+            with contextlib.suppress(ValueError):
                 sys.path.remove(str(self.patterns_dir))
-            except ValueError:
-                pass
             self._path_added = False
 
     @property
@@ -389,9 +426,20 @@ class Host:
             self.anomalies.append(("output outside 0..15", self.host_tick, v.output))
         self.active.append(v)
         self.triggered.append(v)  # held so id(v) stays unique for the whole take
-        self.events.append({"kind": "on", "host_tick": self.host_tick, "tick": self.position, "seconds": self.seconds,
-                            "note": v.note, "velocity": v.velocity, "output": v.output, "length": v.length,
-                            "voice": id(v), "auto": False})
+        self.events.append(
+            {
+                "kind": "on",
+                "host_tick": self.host_tick,
+                "tick": self.position,
+                "seconds": self.seconds,
+                "note": v.note,
+                "velocity": v.velocity,
+                "output": v.output,
+                "length": v.length,
+                "voice": id(v),
+                "auto": False,
+            }
+        )
         if isinstance(v.length, int) and v.length > 0:
             self._auto.setdefault(self.host_tick + v.length, []).append(v)
 
@@ -403,9 +451,20 @@ class Host:
                 self.anomalies.append(("release of a silent voice", self.host_tick, v.note))
             return
         self.active = [x for x in self.active if x is not v]
-        self.events.append({"kind": "off", "host_tick": self.host_tick, "tick": self.position, "seconds": self.seconds,
-                            "note": v.note, "velocity": v.velocity, "output": v.output, "length": v.length,
-                            "voice": id(v), "auto": auto})
+        self.events.append(
+            {
+                "kind": "off",
+                "host_tick": self.host_tick,
+                "tick": self.position,
+                "seconds": self.seconds,
+                "note": v.note,
+                "velocity": v.velocity,
+                "output": v.output,
+                "length": v.length,
+                "voice": id(v),
+                "auto": auto,
+            }
+        )
 
     def _auto_release(self):
         if self.tick_step == 1 and self.regular:
@@ -519,11 +578,12 @@ class Host:
 
 # -- CLI --------------------------------------------------------------------------------------------------------
 
+
 def load_band_parsers():
     """arsenal_band.py loaded outside FL (no flvfx): its parse functions only."""
     saved = sys.modules.pop("flvfx", _ABSENT)
     try:
-        spec = importlib.util.spec_from_file_location("arsenal_band_parsers_%d" % next(_ids), BAND_SCRIPT)
+        spec = importlib.util.spec_from_file_location(f"arsenal_band_parsers_{next(_ids)}", BAND_SCRIPT)
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
         return module
@@ -533,7 +593,7 @@ def load_band_parsers():
 
 
 def load_patterns_module(path):
-    spec = importlib.util.spec_from_file_location("%s_checked_%d" % (PATTERN_MODULE, next(_ids)), path)
+    spec = importlib.util.spec_from_file_location(f"{PATTERN_MODULE!s}_checked_{next(_ids)}", path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
@@ -559,10 +619,10 @@ def check(path, out=print):
             problems.append("PATTERNS must be a non-empty list")
             patterns = []
         if len(patterns) > band.MAX_PATTERNS:
-            problems.append("at most %d PATTERNS" % band.MAX_PATTERNS)
+            problems.append(f"at most {int(band.MAX_PATTERNS)} PATTERNS")
         for i, p in enumerate(patterns):
             try:
-                titles.append(band.parse_pattern_set(p, "PATTERNS[%d]" % i)["title"])
+                titles.append(band.parse_pattern_set(p, f"PATTERNS[{i}]")["title"])
             except band.PatternError as exc:
                 problems.append(str(exc))
         if getattr(module, "DRUM_MAPS", None):
@@ -575,9 +635,9 @@ def check(path, out=print):
     for p in problems:
         out("refused: " + p)
     if not problems:
-        out("ok: %d pattern sets" % len(titles))
+        out(f"ok: {len(titles)} pattern sets")
         for i, t in enumerate(titles):
-            out("  %d  %s" % (i, t))
+            out(f"  {i}  {t!s}")
     return 1 if problems else 0
 
 
@@ -590,9 +650,24 @@ def parse_gaps(text):
     return {"gaps": [int(g) for g in text.split(",")]}
 
 
-def simulate(path, *, bars=4, bpm=120.0, ppq=96, pattern=0, lane="All lanes on outputs 1-4", drum_map="GM",
-             swing=0.0, humanize=0.0, gaps=None, dropout="Off", dropout_seed=0, clock="Keep counting", loop_ticks=None,
-             out=print):
+def simulate(
+    path,
+    *,
+    bars=4,
+    bpm=120.0,
+    ppq=96,
+    pattern=0,
+    lane="All lanes on outputs 1-4",
+    drum_map="GM",
+    swing=0.0,
+    humanize=0.0,
+    gaps=None,
+    dropout="Off",
+    dropout_seed=0,
+    clock="Keep counting",
+    loop_ticks=None,
+    out=print,
+):
     module = load_patterns_module(path)
     with Host(ppq=ppq, bpm=bpm, patterns=module, loop_ticks=loop_ticks, **parse_gaps(gaps)) as host:
         host.set("Band: Pattern", pattern)
@@ -608,19 +683,24 @@ def simulate(path, *, bars=4, bpm=120.0, ppq=96, pattern=0, lane="All lanes on o
         host.run_ticks(int(bars * host.band.pattern["bar_beats"] * ppq))
         host.stop()
         host.run(1)
-        bar_ticks = int(round(host.band.pattern["bar_beats"] * ppq))
+        bar_ticks = round(host.band.pattern["bar_beats"] * ppq)
         for e in host.events:
             bar, rest = divmod(e["tick"], bar_ticks)
             beat, tick = divmod(rest, ppq)
-            out("%3d.%d.%03d  %-3s  out %d  note %3d  vel %3d%s" % (bar + 1, beat + 1, tick, e["kind"], e["output"], e["note"],
-                                                                     round(e["velocity"] * 127), "  (FL length)" if e["auto"] else ""))
+            out(
+                f"{int(bar + 1):3d}.{int(beat + 1)}.{int(tick):03d}  {e['kind']!s:<3}  out {int(e['output'])}  "
+                f"note {int(e['note']):3d}  vel {round(e['velocity'] * 127):3d}"
+                f"{'  (FL length)' if e['auto'] else ''}"
+            )
         for a in host.anomalies:
-            out("ANOMALY: %r" % (a,))
+            out(f"ANOMALY: {a!r}")
         return 1 if host.anomalies else 0
 
 
 def main(argv=None):
-    ap = argparse.ArgumentParser(prog="flvfx_mock", description="Rehearse the arsenal band VFX Script without FL Studio.")
+    ap = argparse.ArgumentParser(
+        prog="flvfx_mock", description="Rehearse the arsenal band VFX Script without FL Studio."
+    )
     sub = ap.add_subparsers(dest="verb", required=True)
     c = sub.add_parser("check", help="validate a patterns module (.py) or a live playlist (.json)")
     c.add_argument("path")
@@ -645,9 +725,21 @@ def main(argv=None):
         parse_gaps(args.gaps)
     except ValueError:
         ap.error('--gaps reads like "1,4,2" or "buffer:512"')
-    return simulate(args.path, bars=args.bars, bpm=args.bpm, ppq=args.ppq, pattern=args.pattern,
-                    drum_map=args.drum_map, swing=args.swing, humanize=args.humanize, gaps=args.gaps,
-                    dropout=args.dropout, dropout_seed=args.dropout_seed, clock=args.clock, loop_ticks=args.loop_ticks)
+    return simulate(
+        args.path,
+        bars=args.bars,
+        bpm=args.bpm,
+        ppq=args.ppq,
+        pattern=args.pattern,
+        drum_map=args.drum_map,
+        swing=args.swing,
+        humanize=args.humanize,
+        gaps=args.gaps,
+        dropout=args.dropout,
+        dropout_seed=args.dropout_seed,
+        clock=args.clock,
+        loop_ticks=args.loop_ticks,
+    )
 
 
 if __name__ == "__main__":

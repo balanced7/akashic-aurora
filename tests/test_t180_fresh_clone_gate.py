@@ -24,6 +24,7 @@ Contract pinned here:
     clone_verdict(returncode, collected, errors, floor) -> {"ok": bool,
         "reasons": [str, ...]} -- a pure judgment, testable without cloning.
 """
+
 from __future__ import annotations
 
 import os
@@ -32,13 +33,16 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from scripts.check_fresh_clone import clone_verdict, scan_static  # noqa: E402
+from scripts.check_fresh_clone import clone_verdict, scan_static
 
 
 def _git(cwd, *args):
     return subprocess.run(
         ["git", "-c", "user.email=pin@t180", "-c", "user.name=t180-pin", *args],
-        cwd=cwd, capture_output=True, text=True, check=True,
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+        check=True,
     )
 
 
@@ -61,7 +65,11 @@ def test_static_scan_flags_tracked_import_of_untracked_module(tmp_path):
 
     assert violations, "tracked->untracked import must be flagged, not silent"
     rendered = " ".join(str(v) for v in violations)
-    assert "app.py" in rendered and "helper_util" in rendered, (
+    assert "app.py" in rendered, (
+        "a violation must NAME the importer and the stranded module -- "
+        "a loud gate that doesn't say where is only half loud"
+    )
+    assert "helper_util" in rendered, (
         "a violation must NAME the importer and the stranded module -- "
         "a loud gate that doesn't say where is only half loud"
     )

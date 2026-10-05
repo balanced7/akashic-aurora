@@ -49,6 +49,7 @@ a migration event, not a store primitive. Additive beats migratory: durability o
 
 Run: py -m pytest tests/test_t332_s1_ruling_the_forks.py -q
 """
+
 from __future__ import annotations
 
 import ast
@@ -60,21 +61,23 @@ import pytest
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from core.comm import kinds as K            # noqa: E402
-from core.comm import packet_spec           # noqa: E402
-
+from core.comm import kinds as K  # noqa: E402  # sys.path bootstrap
+from core.comm import packet_spec  # noqa: E402  # sys.path bootstrap
 
 # ============================================================ RULING 1: the three questions
+
 
 def test_p1_the_stale_gate_set_says_what_it_gates():
     """The rename is the ruling. `STALE_ASK_KINDS` describes neither its members nor its
     effect -- it gates whether a stale message is SURFACED or DROPPED, and a blocker is not
     an ask. A name that lies is the defect class this whole arc exists to kill."""
     assert hasattr(packet_spec, "NEVER_DROP_WHEN_STALE"), (
-        "the set that decides surfaced-vs-dropped must be named for that, not for 'ask'")
+        "the set that decides surfaced-vs-dropped must be named for that, not for 'ask'"
+    )
     assert not hasattr(packet_spec, "STALE_ASK_KINDS"), (
         "the old name must be GONE, not aliased -- an alias keeps the lie resolvable and "
-        "lets the fork silently reappear under the name that caused it")
+        "lets the fork silently reappear under the name that caused it"
+    )
 
 
 def test_p2_a_tripped_breaker_is_never_silently_dropped():
@@ -83,7 +86,8 @@ def test_p2_a_tripped_breaker_is_never_silently_dropped():
     stale was classified a non-ask and skipped past by the cursor sweep."""
     assert packet_spec.never_drop_when_stale("blocker"), (
         "a tripped circuit breaker must survive the stale gate -- it is the message whose "
-        "whole purpose is to still be there when someone finally looks")
+        "whole purpose is to still be there when someone finally looks"
+    )
 
 
 def test_p3_t174s_invariant_survives_the_rename():
@@ -91,9 +95,9 @@ def test_p3_t174s_invariant_survives_the_rename():
     That ruling is older than this one and is NOT being reopened -- pinned explicitly rather
     than left to the exact-equality assertion it used to ride on."""
     assert not packet_spec.never_drop_when_stale("ask"), (
-        "T174 retired kind='ask'; adding blocker must not smuggle it back")
-    assert set(packet_spec.NEVER_DROP_WHEN_STALE) == {
-        "question", "request", "handoff", "blocker"}
+        "T174 retired kind='ask'; adding blocker must not smuggle it back"
+    )
+    assert set(packet_spec.NEVER_DROP_WHEN_STALE) == {"question", "request", "handoff", "blocker"}
 
 
 def test_p4_the_gate_surfaces_a_stale_blocker_instead_of_skipping_it():
@@ -104,24 +108,24 @@ def test_p4_the_gate_surfaces_a_stale_blocker_instead_of_skipping_it():
     # treats as fresh. The first draft of this pin failed for that reason instead of the one
     # it was testing, which is the pin-supplies-its-own-input class caught early.
     now = 1_786_900_000_000
-    old = now - (7 * 3600 * 1000)          # 7h old, past the 6h default
-    msgs = [{"id": f"{old}-0", "kind": "blocker"},
-            {"id": f"{old}-1", "kind": "trace"}]
+    old = now - (7 * 3600 * 1000)  # 7h old, past the 6h default
+    msgs = [{"id": f"{old}-0", "kind": "blocker"}, {"id": f"{old}-1", "kind": "trace"}]
     fresh, surfaced, dropped = packet_spec.partition_stale(
-        msgs, now_ms=now, stale_ms=6 * 3600 * 1000,
-        id_of=lambda m: m["id"], kind_of=lambda m: m["kind"])
+        msgs, now_ms=now, stale_ms=6 * 3600 * 1000, id_of=lambda m: m["id"], kind_of=lambda m: m["kind"]
+    )
     assert fresh == []
-    assert [m["kind"] for m in surfaced] == ["blocker"], (
-        "the stale breaker must be surfaced for triage")
+    assert [m["kind"] for m in surfaced] == ["blocker"], "the stale breaker must be surfaced for triage"
     assert [m["kind"] for m in dropped] == ["trace"], (
-        "telemetry still skips -- the change is scoped to blocker, not a widening of the net")
+        "telemetry still skips -- the change is scoped to blocker, not a widening of the net"
+    )
 
 
 def test_p5_the_redrive_set_says_it_is_about_directed_sends():
     """agent_cli's set gates ONE thing: whether a DIRECTED send auto-arms a reply deadline.
     `blocker` stays out -- not as an oversight, as a consequence. Broadcasts have no single
     answerer to redrive, and the CLI already refuses to arm one."""
-    src = open(os.path.join(ROOT, "agent_cli.py"), encoding="utf-8").read()
+    with open(os.path.join(ROOT, "agent_cli.py"), encoding="utf-8") as fh:
+        src = fh.read()
     assert "AUTO_REDRIVE_KINDS" in src, "the set must be named for the machinery it gates"
     assert "ASK_KINDS = {" not in src, "the old ambiguous name must be gone"
 
@@ -130,9 +134,11 @@ def test_p5b_the_broadcast_refusal_that_makes_blocker_n_a_still_stands():
     """P5's reasoning depends on this guard existing. If it ever goes, `blocker`'s absence
     from the redrive set stops being a consequence and becomes an unexamined exclusion --
     so the reason is pinned, not just the conclusion."""
-    src = open(os.path.join(ROOT, "agent_cli.py"), encoding="utf-8").read()
+    with open(os.path.join(ROOT, "agent_cli.py"), encoding="utf-8") as fh:
+        src = fh.read()
     assert "has no single answerer to redrive" in src, (
-        "the broadcast-cannot-be-redriven refusal is the premise of the n/a ruling")
+        "the broadcast-cannot-be-redriven refusal is the premise of the n/a ruling"
+    )
 
 
 def test_p6_the_attention_bucket_says_it_is_about_attention():
@@ -140,8 +146,10 @@ def test_p6_the_attention_bucket_says_it_is_about_attention():
     is 'must the seat DO something', and for a tripped breaker the answer was already yes --
     this site was right all along and only its name was wrong."""
     from agent import bifrost_pull
+
     assert hasattr(bifrost_pull, "_NEEDS_ATTENTION_KINDS"), (
-        "the triage bucket must be named for attention, not for asks")
+        "the triage bucket must be named for attention, not for asks"
+    )
     assert not hasattr(bifrost_pull, "_ASK_KINDS"), "the old name must be gone"
     summary = bifrost_pull.kind_summary([{"kind": "blocker"}])
     assert summary["asks"] == 1, "a tripped breaker needs the seat to act"
@@ -151,18 +159,18 @@ def test_p7_the_registry_no_longer_reports_a_fork_that_was_ruled_on():
     """The loop closes here. A ruling that leaves the instrument still shouting 'FORK' has
     not been applied -- it has been remembered, which is the failure mode the registry was
     built to end."""
-    assert "ask" not in K.forks(), (
-        "the ask fork is ruled: three questions, three names, no shared concept left")
+    assert "ask" not in K.forks(), "the ask fork is ruled: three questions, three names, no shared concept left"
 
 
 # ============================================================ RULING 2: the plane is required
+
 
 def test_p8_you_cannot_ask_a_kind_question_without_naming_the_plane():
     """DANIIL'S RULING, as a type error. `note` means three different things and the old
     two-argument call could not tell which one was being asked about -- so it answered
     confidently about the bus every time, including when the caller meant a beat."""
     with pytest.raises(TypeError):
-        K.resolve("note", "salient")        # type: ignore[call-arg]
+        K.resolve("note", "salient")  # type: ignore[call-arg]
 
 
 def test_p9_a_plane_mismatch_is_unclassified_with_a_reason_never_a_silent_false():
@@ -194,7 +202,8 @@ def test_p11_the_plane_vocabulary_does_not_fork_the_way_ask_did():
 
 def test_p12_an_unknown_plane_is_unclassified_not_an_exception():
     v = K.resolve("note", "salient", plane="no_such_plane")
-    assert v.classified is False and v.value is None
+    assert v.classified is False
+    assert v.value is None
     assert v.why, "an unclassified verdict without a reason is unrepresentable"
 
 
@@ -203,7 +212,8 @@ def test_p13_the_collision_stays_visible_after_the_ruling():
     report note and decision -- the registry's census is how the next seat learns the planes
     overlap at all, and a ruling that erased the evidence would be a worse instrument."""
     collisions = K.plane_collisions()
-    assert "note" in collisions and len(collisions["note"]) == 3
+    assert "note" in collisions
+    assert len(collisions["note"]) == 3
     assert "decision" in collisions, "the collision nobody had named stays on the record"
 
 
@@ -211,13 +221,12 @@ def test_p14_the_checker_manifest_knows_the_renamed_sets():
     """K-D in check_kind_policy FAILS a *KINDS set with no declared plane. The renames must
     land in that manifest in the SAME commit, or the guard that exists to catch exactly this
     fires on my own work -- which is the bedside test doing its job, twice before."""
-    src = open(os.path.join(ROOT, "scripts", "checkers", "check_kind_policy.py"),
-               encoding="utf-8").read()
+    with open(os.path.join(ROOT, "scripts", "checkers", "check_kind_policy.py"), encoding="utf-8") as fh:
+        src = fh.read()
     tree = ast.parse(src)
     manifest: dict = {}
     for node in ast.walk(tree):
-        if isinstance(node, ast.Assign) and any(
-                getattr(t, "id", None) == "PLANES" for t in node.targets):
+        if isinstance(node, ast.Assign) and any(getattr(t, "id", None) == "PLANES" for t in node.targets):
             manifest = ast.literal_eval(node.value)
             break
     assert manifest, "PLANES manifest not found -- K-D cannot run without it"

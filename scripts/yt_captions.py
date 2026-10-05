@@ -16,13 +16,14 @@ Two halves, deliberately unequal:
 Standalone: py scripts/yt_captions.py <url> [--out DIR]
 House door:  py agent_cli.py captions <url> [--out DIR] [--langs SPEC] [--keep-vtt]
 """
+
 from __future__ import annotations
 
+import contextlib
 import re
 import subprocess
 import sys
 from pathlib import Path
-from typing import List
 
 MISSING_YTDLP_HINT = (
     "yt-dlp is not importable from this interpreter. Install it into the fleet python:\n"
@@ -33,8 +34,7 @@ MISSING_YTDLP_HINT = (
 
 _TAG = re.compile(r"<[^>]+>")
 _TERMINAL = set(".!?;:\"'")
-_CUE_TS = re.compile(
-    r"(\d{1,2}):(\d{2}):(\d{2})[.,](\d{3})\s*-->\s*(\d{1,2}):(\d{2}):(\d{2})[.,](\d{3})")
+_CUE_TS = re.compile(r"(\d{1,2}):(\d{2}):(\d{2})[.,](\d{3})\s*-->\s*(\d{1,2}):(\d{2}):(\d{2})[.,](\d{3})")
 
 MODEL_PUNCT_HINT = (
     "the model punctuator is not installed. Install the optional challenger into the fleet python:\n"
@@ -54,7 +54,7 @@ def _close_sentence(s: str) -> str:
         return s
     for i, ch in enumerate(s):
         if ch.isalpha():
-            s = s[:i] + ch.upper() + s[i + 1:]
+            s = s[:i] + ch.upper() + s[i + 1 :]
             break
     if s[-1] not in _TERMINAL:
         s += "."
@@ -67,8 +67,8 @@ def punctuate_gaps(vtt_text: str, gap_s: float = 0.7) -> str:
     A cue starting after a long pause (> gap_s) opens a new sentence; a quick
     roll joins the current one. Rolling duplicate cues collapse. Deterministic,
     meaning-safe, free -- the raw VTT stays the receipt behind --keep-vtt."""
-    sentences: List[str] = []
-    cur: List[str] = []
+    sentences: list[str] = []
+    cur: list[str] = []
     prev_end = None
     prev_line = None
     for raw in (vtt_text or "").splitlines():
@@ -103,7 +103,7 @@ def _capitalize_sentences(text: str) -> str:
     first word after every sentence terminal that is followed by whitespace. Known limit,
     inherited from the model: abbreviation terminals ('e.g. something') also capitalize
     the following word -- the tier is honest about it, the raw VTT stays the receipt."""
-    res: List[str] = []
+    res: list[str] = []
     cap_next = True
     i, n = 0, len(text)
     while i < n:
@@ -117,7 +117,7 @@ def _capitalize_sentences(text: str) -> str:
                 j = i + 1
                 while j < n and text[j] == " ":
                     j += 1
-                if j > i + 1 or j >= n:      # a real sentence break, not an abbreviation dot
+                if j > i + 1 or j >= n:  # a real sentence break, not an abbreviation dot
                     cap_next = True
         i += 1
     return "".join(res)
@@ -137,7 +137,7 @@ def punctuate_model(text: str) -> str:
     first use, then cached."""
     global _RP
     try:
-        from deepmultilingualpunctuation import PunctuationModel  # noqa: PLC0415
+        from deepmultilingualpunctuation import PunctuationModel
     except ImportError as e:
         raise RuntimeError(MODEL_PUNCT_HINT) from e
     if _RP is None:
@@ -147,12 +147,11 @@ def punctuate_model(text: str) -> str:
 
 def clean_vtt_text(vtt_text: str) -> str:
     """WEBVTT -> plain deduplicated text. Pure; order-preserving; never raises."""
-    lines: List[str] = []
+    lines: list[str] = []
     prev = None
     for ln in (vtt_text or "").splitlines():
         ln = ln.strip()
-        if (not ln or "-->" in ln or ln.isdigit()
-                or ln.startswith(("WEBVTT", "Kind:", "Language:", "NOTE"))):
+        if not ln or "-->" in ln or ln.isdigit() or ln.startswith(("WEBVTT", "Kind:", "Language:", "NOTE")):
             continue
         ln = _TAG.sub("", ln).strip()
         if ln and ln != prev:
@@ -169,14 +168,14 @@ def punctuate_captions(text: str) -> str:
     with a period unless terminal punctuation or a closing quote is already
     present. No model, no meaning risk, idempotent -- the DERIVED text; the raw
     VTT stays the receipt behind --keep-vtt."""
-    out: List[str] = []
+    out: list[str] = []
     for ln in (text or "").splitlines():
         s = ln.strip()
         if not s:
             continue
-        for i, ch in enumerate(s):          # capitalize first alpha (a leading quote stays)
+        for i, ch in enumerate(s):  # capitalize first alpha (a leading quote stays)
             if ch.isalpha():
-                s = s[:i] + ch.upper() + s[i + 1:]
+                s = s[:i] + ch.upper() + s[i + 1 :]
                 break
         if s[-1] not in _TERMINAL:
             s += "."
@@ -184,8 +183,7 @@ def punctuate_captions(text: str) -> str:
     return "\n".join(out)
 
 
-def fetch(url: str, out_dir: str, langs: str = "en.*", keep_vtt: bool = False,
-          punctuate: str = "hybrid") -> List[Path]:
+def fetch(url: str, out_dir: str, langs: str = "en.*", keep_vtt: bool = False, punctuate: str = "hybrid") -> list[Path]:
     """Pull caption files for `url` into out_dir, convert each to .txt, return txt paths.
 
     `punctuate` picks the derived-text pass: hybrid (model boundaries + deterministic
@@ -198,9 +196,20 @@ def fetch(url: str, out_dir: str, langs: str = "en.*", keep_vtt: bool = False,
     out = Path(out_dir).expanduser()
     out.mkdir(parents=True, exist_ok=True)
     before = set(out.glob("*.vtt"))
-    cmd = [sys.executable, "-m", "yt_dlp", "--skip-download",
-           "--write-subs", "--write-auto-subs", "--sub-langs", langs,
-           "--restrict-filenames", "-P", str(out), url]
+    cmd = [
+        sys.executable,
+        "-m",
+        "yt_dlp",
+        "--skip-download",
+        "--write-subs",
+        "--write-auto-subs",
+        "--sub-langs",
+        langs,
+        "--restrict-filenames",
+        "-P",
+        str(out),
+        url,
+    ]
     try:
         r = subprocess.run(cmd, capture_output=True, text=True, timeout=180)
     except FileNotFoundError as e:
@@ -212,7 +221,7 @@ def fetch(url: str, out_dir: str, langs: str = "en.*", keep_vtt: bool = False,
     fresh = sorted(set(out.glob("*.vtt")) - before)
     # Prefer the plain .en.vtt over .en-orig.vtt twins (identical content, less noise).
     fresh = [p for p in fresh if not p.name.endswith(".en-orig.vtt")] or fresh
-    txts: List[Path] = []
+    txts: list[Path] = []
     for vtt in fresh:
         txt = vtt.with_suffix("").with_suffix(".txt") if vtt.suffix == ".vtt" else vtt
         txt = Path(str(vtt)[: -len(".vtt")] + ".txt")
@@ -230,22 +239,19 @@ def fetch(url: str, out_dir: str, langs: str = "en.*", keep_vtt: bool = False,
         txt.write_text(text + "\n", encoding="utf-8")
         txts.append(txt)
         if not keep_vtt:
-            try:
+            with contextlib.suppress(OSError):
                 vtt.unlink()
-            except OSError:
-                pass
     # drop the -orig twins we skipped converting, unless the caller wants raw vtt kept
     if not keep_vtt:
         for stray in set(out.glob("*.en-orig.vtt")):
-            try:
+            with contextlib.suppress(OSError):
                 stray.unlink()
-            except OSError:
-                pass
     return txts
 
 
-def main(argv: List[str] | None = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     import argparse
+
     ap = argparse.ArgumentParser(description="YouTube captions -> clean text (captions only, never video)")
     ap.add_argument("url")
     ap.add_argument("--out", default=str(Path.home() / "Desktop" / "captions"))

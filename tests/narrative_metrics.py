@@ -6,9 +6,10 @@ the benchmark metrics from the relevant research fields. Reused across slices.
   Segmentation:                  boundaries(), windowdiff(), pk(), boundary_f1()
   Multi-label (themes):          multilabel_prf(), jaccard_multilabel()
 """
+
 import math
 from collections import Counter, defaultdict
-from typing import Iterable, List, Sequence, Tuple
+from collections.abc import Iterable, Sequence
 
 
 def _comb2(x: int) -> int:
@@ -21,7 +22,7 @@ def ari(gold: Sequence, pred: Sequence) -> float:
     n = len(gold)
     if n == 0:
         return 1.0
-    pair = Counter(zip(gold, pred))
+    pair = Counter(zip(gold, pred, strict=False))
     a = sum(_comb2(v) for v in pair.values())
     b = sum(_comb2(v) for v in Counter(gold).values())
     c = sum(_comb2(v) for v in Counter(pred).values())
@@ -47,7 +48,7 @@ def nmi(gold: Sequence, pred: Sequence) -> float:
 
     gc, pc = Counter(gold), Counter(pred)
     mi = 0.0
-    for (g, p), v in Counter(zip(gold, pred)).items():
+    for (g, p), v in Counter(zip(gold, pred, strict=False)).items():
         pij, pi, pj = v / n, gc[g] / n, pc[p] / n
         mi += pij * math.log(pij / (pi * pj))
     denom = (H(gold) + H(pred)) / 2
@@ -59,7 +60,7 @@ def purity(gold: Sequence, pred: Sequence) -> float:
     if n == 0:
         return 1.0
     clusters = defaultdict(list)
-    for g, p in zip(gold, pred):
+    for g, p in zip(gold, pred, strict=False):
         clusters[p].append(g)
     return sum(max(Counter(v).values()) for v in clusters.values()) / n
 
@@ -67,21 +68,21 @@ def purity(gold: Sequence, pred: Sequence) -> float:
 def accuracy(gold: Sequence, pred: Sequence) -> float:
     if not gold:
         return 1.0
-    return sum(1 for g, p in zip(gold, pred) if g == p) / len(gold)
+    return sum(1 for g, p in zip(gold, pred, strict=False) if g == p) / len(gold)
 
 
-def boundaries(labels: Sequence) -> List[int]:
+def boundaries(labels: Sequence) -> list[int]:
     """Per-position label sequence -> boundary array (1 where label changes)."""
     return [1 if labels[i] != labels[i + 1] else 0 for i in range(len(labels) - 1)]
 
 
-def _k_from(gold_b: List[int]) -> int:
+def _k_from(gold_b: list[int]) -> int:
     n = len(gold_b) + 1
     nseg = sum(gold_b) + 1
     return max(1, round((n / nseg) / 2))
 
 
-def windowdiff(gold_b: List[int], pred_b: List[int], k: int = None) -> float:
+def windowdiff(gold_b: list[int], pred_b: list[int], k: int | None = None) -> float:
     """WindowDiff — slide a window; penalize where boundary counts differ.
     0 = perfect, ~1 = worst. (topic-segmentation standard)"""
     m = len(gold_b)
@@ -91,15 +92,16 @@ def windowdiff(gold_b: List[int], pred_b: List[int], k: int = None) -> float:
         k = _k_from(gold_b)
     k = min(k, m)
     errors = count = 0
-    for i in range(0, m - k + 1):
-        if sum(gold_b[i:i + k]) != sum(pred_b[i:i + k]):
+    for i in range(m - k + 1):
+        if sum(gold_b[i : i + k]) != sum(pred_b[i : i + k]):
             errors += 1
         count += 1
     return errors / count if count else 0.0
 
 
-def pk(gold_b: List[int], pred_b: List[int], k: int = None) -> float:
+def pk(gold_b: list[int], pred_b: list[int], k: int | None = None) -> float:
     """Pk — probability two positions k apart are wrongly judged same/different segment."""
+
     def seg_ids(b):
         ids, cur = [0], 0
         for x in b:
@@ -115,14 +117,14 @@ def pk(gold_b: List[int], pred_b: List[int], k: int = None) -> float:
         k = _k_from(gold_b)
     k = min(k, n - 1)
     errors = count = 0
-    for i in range(0, n - k):
+    for i in range(n - k):
         if (g[i] == g[i + k]) != (p[i] == p[i + k]):
             errors += 1
         count += 1
     return errors / count if count else 0.0
 
 
-def boundary_f1(gold_b: List[int], pred_b: List[int], tol: int = 1) -> float:
+def boundary_f1(gold_b: list[int], pred_b: list[int], tol: int = 1) -> float:
     """F1 of boundary positions, matched within +/- tol."""
     gold_idx = [i for i, x in enumerate(gold_b) if x]
     pred_idx = [i for i, x in enumerate(pred_b) if x]
@@ -142,7 +144,7 @@ def boundary_f1(gold_b: List[int], pred_b: List[int], tol: int = 1) -> float:
 def multilabel_prf(
     gold_sets: Iterable[Iterable[str]],
     pred_sets: Iterable[Iterable[str]],
-) -> Tuple[float, float, float]:
+) -> tuple[float, float, float]:
     """Micro-averaged precision / recall / F1 over (item, label) membership pairs.
 
     The correct metric for MULTI-LABEL assignment (themes): NMI assumes a partition,
@@ -150,7 +152,7 @@ def multilabel_prf(
     weights every membership equally and degrades gracefully on empty label sets.
     """
     tp = fp = fn = 0
-    for g, p in zip(gold_sets, pred_sets):
+    for g, p in zip(gold_sets, pred_sets, strict=False):
         g, p = set(g), set(p)
         tp += len(g & p)
         fp += len(p - g)
@@ -167,7 +169,7 @@ def jaccard_multilabel(
 ) -> float:
     """Mean per-item Jaccard overlap of label sets (1.0 = identical sets each item)."""
     scores, n = 0.0, 0
-    for g, p in zip(gold_sets, pred_sets):
+    for g, p in zip(gold_sets, pred_sets, strict=False):
         g, p = set(g), set(p)
         union = g | p
         scores += (len(g & p) / len(union)) if union else 1.0

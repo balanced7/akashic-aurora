@@ -15,6 +15,7 @@ derive from it. Hypothesis (a) from kimi's W43 confirmed; (b) ruled out for clau
   P4  a REAL unread (beyond both cursors) still counts -- no false negatives
   P5  pending() honors per-stream floors (direct vs broadcast never cross-compare)
 """
+
 import os
 import sys
 import time
@@ -33,24 +34,26 @@ def _ns_env(monkeypatch):
 
 def _online():
     from core.comm.bus import Bus
+
     return Bus("t-w43").online
 
 
 def test_p1_legacy_only_byte_identical(monkeypatch):
-    ns = _ns_env(monkeypatch)
+    _ns_env(monkeypatch)
     if not _online():
         pytest.skip("redis not available")
     from core.comm.bus import Bus
+
     b = Bus(f"t-w43-leg-{uuid.uuid4().hex[:6]}")
-    assert b.effective_cursor() == b.cursor(), \
-        "all-zero lane hash -> effective is exactly the shared cursor"
+    assert b.effective_cursor() == b.cursor(), "all-zero lane hash -> effective is exactly the shared cursor"
 
 
 def test_p2_lane_shadow_wins_when_ahead(monkeypatch):
-    ns = _ns_env(monkeypatch)
+    _ns_env(monkeypatch)
     if not _online():
         pytest.skip("redis not available")
     from core.comm.bus import Bus
+
     b = Bus(f"t-w43-lane-{uuid.uuid4().hex[:6]}")
     ahead = f"{int(time.time() * 1000)}-5"
     b._client.hset(b.lane_cursor_key(), "shadow_inbox", ahead)
@@ -59,37 +62,39 @@ def test_p2_lane_shadow_wins_when_ahead(monkeypatch):
 
 
 def test_p3_doctor_backlog_zero_for_lane_drained(monkeypatch):
-    ns = _ns_env(monkeypatch)
+    _ns_env(monkeypatch)
     if not _online():
         pytest.skip("redis not available")
     from core.comm.bus import Bus
     from core.comm.doctor import _probe_backlog
+
     agent = f"t-w43-drained-{uuid.uuid4().hex[:6]}"
     b = Bus(agent)
     Bus(f"{agent}-peer").send(agent, "question", "already drained via the lane")
     tail = b._client.xrevrange(b._inbox_key(agent), count=1)[0][0]
     # simulate the lane-mode drain: shadow advanced to tail, shared cursor untouched
     b._client.hset(b.lane_cursor_key(), "shadow_inbox", str(tail))
-    assert _probe_backlog(agent) == 0, \
-        "lane-drained mail never pages as a stalled backlog (the W40/W43 lie)"
+    assert _probe_backlog(agent) == 0, "lane-drained mail never pages as a stalled backlog (the W40/W43 lie)"
 
 
 def test_p4_real_unread_still_counts(monkeypatch):
-    ns = _ns_env(monkeypatch)
+    _ns_env(monkeypatch)
     if not _online():
         pytest.skip("redis not available")
     from core.comm.bus import Bus
     from core.comm.doctor import _probe_backlog
+
     agent = f"t-w43-real-{uuid.uuid4().hex[:6]}"
     Bus(f"{agent}-peer").send(agent, "question", "genuinely unread")
     assert _probe_backlog(agent) == 1, "mail beyond BOTH cursors still counts"
 
 
 def test_p5_pending_per_stream_floors(monkeypatch):
-    ns = _ns_env(monkeypatch)
+    _ns_env(monkeypatch)
     if not _online():
         pytest.skip("redis not available")
     from core.comm.bus import Bus
+
     agent = f"t-w43-mix-{uuid.uuid4().hex[:6]}"
     b = Bus(agent)
     peer = Bus(f"{agent}-peer")
@@ -98,5 +103,4 @@ def test_p5_pending_per_stream_floors(monkeypatch):
     tail = b._client.xrevrange(b._inbox_key(agent), count=1)[0][0]
     b._client.hset(b.lane_cursor_key(), "shadow_inbox", str(tail))
     # direct is lane-drained; the broadcast is genuinely unread
-    assert b.pending() == 1, \
-        "per-stream floors: drained direct excluded, fresh broadcast still counts"
+    assert b.pending() == 1, "per-stream floors: drained direct excluded, fresh broadcast still counts"

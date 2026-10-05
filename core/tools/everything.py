@@ -28,28 +28,38 @@ The seat-facing contract is ``SearchResult``: (``paths``, ``query``, ``ok``,
 ``ok=False`` + empty ``paths`` means WE failed to search (not "there is no such
 file") — the distinction a silent empty list would destroy.
 """
+
 from __future__ import annotations
 
 import fnmatch
 import json
 import os
+import re
 import shutil
 import subprocess
 import time
 from dataclasses import dataclass, field
-from typing import List, Optional
 
-#: Everything's own suggested install roots (checked when it is not on PATH).
+
+#: Everything's own suggested install roots (checked when it is not on PATH), built from the
+#: OS's own env vars rather than drive literals -- unset (any non-Windows box) means skipped.
 #: es.exe lives next to Everything.exe; if the user installed to a non-default dir
 #: we still accept it via $PATH or the ES_EXE override.
-_EVERYTHING_ROOTS = (
+def _basename(path) -> str:
+    """Final path component, splitting on BOTH separators. Everything's es.exe always answers
+    with Windows paths while the fallback walk yields native ones, and posixpath.basename on
+    'C:\\x\\target.exe' returns the whole string -- which silently broke exact-basename ranking
+    for es.exe output read anywhere but Windows."""
+    return re.split(r"[\\/]", str(path).rstrip("\\/"))[-1]
+
+
+_EVERYTHING_ROOTS = tuple(
+    os.path.join(os.environ[var], "Everything")
     # %LOCALAPPDATA%\Everything FIRST: es.exe is a SEPARATE voidtools download from the
     # Everything app, so it does not appear beside Everything.exe unless someone put it there.
     # Installing it here needs no admin and leaves the vendor's Program Files directory alone.
-    os.path.join(os.environ.get("LOCALAPPDATA", ""), "Everything"),
-    r"C:\Program Files\Everything",
-    r"C:\Program Files (x86)\Everything",
-    r"C:\Tools\Everything",
+    for var in ("LOCALAPPDATA", "ProgramFiles", "ProgramFiles(x86)")
+    if os.environ.get(var)
 )
 
 
@@ -63,16 +73,17 @@ class Hit:
     the `find` verb can answer "where is the file AND how old is it AND how big", which
     is the fuel for the inventory/provenance join (mtime ↔ file_edit events).
     """
+
     path: str
     name: str = ""
-    size: Optional[int] = None
+    size: int | None = None
     date_modified: str = ""
     date_created: str = ""
     date_accessed: str = ""
     extension: str = ""
     attributes: str = ""
-    run_count: Optional[int] = None
-    raw: Optional[dict] = None
+    run_count: int | None = None
+    raw: dict | None = None
 
     @property
     def mtime(self) -> str:
@@ -83,13 +94,13 @@ class Hit:
 @dataclass
 class SearchResult:
     query: str
-    paths: List[str] = field(default_factory=list)
+    paths: list[str] = field(default_factory=list)
     ok: bool = False
-    error: Optional[str] = None
+    error: str | None = None
     #: Structured per-hit records (the full capability surface). Populated when
     #: format='json' is requested; `paths` remains the bare-path projection for
     #: backward-compatible callers and rendering.
-    hits: List[Hit] = field(default_factory=list)
+    hits: list[Hit] = field(default_factory=list)
     #: WHICH ENGINE ANSWERED. "everything" is the indexed whole-machine answer;
     #: "walk" is the bounded fallback. A caller that cannot tell them apart will read a
     #: bounded miss as machine-wide absence, which is the failure this whole module exists
@@ -100,7 +111,7 @@ class SearchResult:
     #: never "not on this machine".
     exhaustive: bool = True
     scanned_dirs: int = 0
-    roots: List[str] = field(default_factory=list)
+    roots: list[str] = field(default_factory=list)
     elapsed_s: float = 0.0
 
     @property
@@ -108,7 +119,7 @@ class SearchResult:
         return len(self.paths)
 
 
-def resolve_es() -> Optional[str]:
+def resolve_es() -> str | None:
     """Return the full path to ``es.exe``, or None if it cannot be found.
 
     Order: an explicit ``ES_EXE`` env override (for a non-default install), then
@@ -117,10 +128,9 @@ def resolve_es() -> Optional[str]:
     import os
 
     override = os.environ.get("ES_EXE")
-    if override and shutil.which(override) is None:
-        # ES_EXE may be an absolute path, not a bare name on PATH.
-        if __import__("os").path.isfile(override):
-            return override
+    # ES_EXE may be an absolute path, not a bare name on PATH.
+    if override and shutil.which(override) is None and __import__("os").path.isfile(override):
+        return override
     from_path = shutil.which("es") or shutil.which("es.exe") or (override and shutil.which(override))
     if from_path:
         return from_path
@@ -131,27 +141,47 @@ def resolve_es() -> Optional[str]:
     return None
 
 
+def _default_walk_roots() -> tuple:
+    """Roots the fallback walks, in order. AKASHIC_SEARCH_ROOTS (absolute paths, os.pathsep-
+    separated) replaces the defaults -- that is where a machine's own tool dirs belong (the
+    original box added its C-drive Tools and ffmpeg folders here as literals). Deliberately
+    NOT a bare volume root: a full-volume walk spends its entire budget in WinSxS / package
+    caches and never reaches the places software actually installs to."""
+    from core.paths import env_paths
 
-#: Roots the fallback walks, in order. Deliberately NOT bare ``C:\\``: a full-volume walk
-#: on Windows spends its entire budget in WinSxS and package caches and never reaches the
-#: places software actually installs to.
-_WALK_ROOTS = (
-    os.environ.get("LOCALAPPDATA") or r"C:\Users\Default\AppData\Local",
-    os.environ.get("APPDATA") or "",
-    os.environ.get("USERPROFILE") or "",
-    os.environ.get("ProgramFiles") or r"C:\Program Files",
-    os.environ.get("ProgramFiles(x86)") or r"C:\Program Files (x86)",
-    r"C:\Tools",
-    r"C:\ffmpeg",
-)
+    configured = env_paths("AKASHIC_SEARCH_ROOTS")
+    if configured:
+        return tuple(str(p) for p in configured)
+    if os.name == "nt":
+        return tuple(
+            os.environ.get(v, "")
+            for v in ("LOCALAPPDATA", "APPDATA", "USERPROFILE", "ProgramFiles", "ProgramFiles(x86)")
+        )
+    # POSIX: per-user install dirs first (the ~/.local analogue of %LOCALAPPDATA%), then the
+    # system's, then the rest of home LAST -- home is the budget sink (caches, projects), and
+    # the walk's visited-set means the dirs already covered are not walked twice.
+    home = os.path.expanduser("~")
+    return (os.path.join(home, ".local"), os.path.join(home, "bin"), "/usr/local", "/opt", "/Applications", home)
+
+
+_WALK_ROOTS = _default_walk_roots()
 
 #: Directories with enormous fan-out and near-zero chance of holding a program a human
 #: installed. Skipped by name at any depth. Each one is a budget sink, not a hiding place.
-_WALK_SKIP = frozenset({
-    "winsxs", "$recycle.bin", "system volume information", "node_modules",
-    ".git", "__pycache__", "packages", "servicing", "installer", "assembly",
-})
-
+_WALK_SKIP = frozenset(
+    {
+        "winsxs",
+        "$recycle.bin",
+        "system volume information",
+        "node_modules",
+        ".git",
+        "__pycache__",
+        "packages",
+        "servicing",
+        "installer",
+        "assembly",
+    }
+)
 
 
 def _rank_exact_first(paths, needle):
@@ -168,8 +198,8 @@ def _rank_exact_first(paths, needle):
     not. Fixing the instance and leaving the class open is the recurring defect of this
     session; a shared helper is the version that cannot drift apart.
     """
-    base = os.path.basename(str(needle or "").strip().lower())
-    return sorted(paths, key=lambda p: (os.path.basename(p).lower() != base, len(p)))
+    base = _basename(str(needle or "").strip().lower())
+    return sorted(paths, key=lambda p: (_basename(p).lower() != base, len(p)))
 
 
 #: es.exe's -sort keys (verified against -h); the named flag surfaces these verbatim.
@@ -177,11 +207,22 @@ def _rank_exact_first(paths, needle):
 #: so `recent`/`biggest` can mean most-recent / largest FIRST instead of forcing the reader
 #: to scan to the end of a long list -- which is how a "recent first" intent silently became
 #: "recent last" when the descending form was not representable.
-_SORT_KEYS = frozenset({
-    "name", "path", "size", "extension", "date-created", "date-modified",
-    "date-accessed", "attributes", "filelist-filename", "run-count",
-    "date-recently-changed", "date-run",
-})
+_SORT_KEYS = frozenset(
+    {
+        "name",
+        "path",
+        "size",
+        "extension",
+        "date-created",
+        "date-modified",
+        "date-accessed",
+        "attributes",
+        "filelist-filename",
+        "run-count",
+        "date-recently-changed",
+        "date-run",
+    }
+)
 
 
 def is_valid_sort_key(sort: str) -> bool:
@@ -206,15 +247,15 @@ def is_valid_sort_key(sort: str) -> bool:
 #: one in FIRST so an explicit flag always beats the preset (the preset is a default, not a
 #: lock). ``recent``/``biggest`` map to DESCENDING sorts so the most-relevant hit is FIRST.
 PRESETS = {
-    "recent":   {"sort": "date-modified-descending"},
-    "newest":   {"sort": "date-created-descending"},
-    "oldest":   {"sort": "date-created"},
-    "biggest":  {"sort": "size-descending"},
+    "recent": {"sort": "date-modified-descending"},
+    "newest": {"sort": "date-created-descending"},
+    "oldest": {"sort": "date-created"},
+    "biggest": {"sort": "size-descending"},
     "smallest": {"sort": "size"},
     # deep modes -- the capabilities the research pass found but a newcomer would never
     # name (-get-result-count / -get-total-size / journal are es.exe internals, not goals):
-    "folders":  {"dirs_only": True},
-    "files":    {"files_only": True},
+    "folders": {"dirs_only": True},
+    "files": {"files_only": True},
     "recently-changed": {"sort": "date-recently-changed-descending"},
 }
 
@@ -229,7 +270,7 @@ def resolve_preset(name: str):
     return PRESETS.get(str(name or "").strip().lower())
 
 
-def _parse_csv_hits(text: str) -> List[Hit]:
+def _parse_csv_hits(text: str) -> list[Hit]:
     """Parse es.exe -csv output into Hit records (the same shape _parse_json_hits yields).
 
     es.exe -csv emits a header row then one row per hit; the path is the ``Filename``
@@ -240,7 +281,8 @@ def _parse_csv_hits(text: str) -> List[Hit]:
     """
     import csv as _csv
     import io as _io
-    hits: List[Hit] = []
+
+    hits: list[Hit] = []
     text = (text or "").strip()
     if not text:
         return hits
@@ -260,19 +302,28 @@ def _parse_csv_hits(text: str) -> List[Hit]:
         col[key2] = idx
     # es.exe's natural column names -> Hit fields.
     name_of = {
-        "filename": "path", "name": "name",
-        "size": "size", "date_modified": "date_modified", "dm": "date_modified",
-        "date_created": "date_created", "dc": "date_created",
-        "date_accessed": "date_accessed", "da": "date_accessed",
-        "extension": "extension", "ext": "extension",
-        "attributes": "attributes", "attrib": "attributes",
+        "filename": "path",
+        "name": "name",
+        "size": "size",
+        "date_modified": "date_modified",
+        "dm": "date_modified",
+        "date_created": "date_created",
+        "dc": "date_created",
+        "date_accessed": "date_accessed",
+        "da": "date_accessed",
+        "extension": "extension",
+        "ext": "extension",
+        "attributes": "attributes",
+        "attrib": "attributes",
         "run_count": "run_count",
     }
+
     def field(row, fname):
         idx = col.get(fname)
         if idx is not None and idx < len(row):
             return row[idx].strip()
         return ""
+
     for row in rows:
         if header is None:
             # headerless: first cell is the path (bare -csv emits 'filename' first by default)
@@ -283,8 +334,8 @@ def _parse_csv_hits(text: str) -> List[Hit]:
         path = rec.get("filename") or field(row, "filename") or (row[0].strip() if len(row) else "")
         if not path:
             continue
-        h = Hit(path=path, name=os.path.basename(path))
-        for hdr, idx in (col or {}).items():
+        h = Hit(path=path, name=_basename(path))
+        for hdr in col or {}:
             hf = name_of.get(hdr)
             if not hf:
                 continue
@@ -303,8 +354,9 @@ def _parse_csv_hits(text: str) -> List[Hit]:
     return hits
 
 
-def _build_query_flags(*, regex=False, case=False, whole_word=False, dirs_only=False,
-                       files_only=False, scope=None, attributes=None):
+def _build_query_flags(
+    *, regex=False, case=False, whole_word=False, dirs_only=False, files_only=False, scope=None, attributes=None
+):
     """Map the clean named query flags to es.exe argv (module-level so it is pinnable).
 
     The grammar is es.exe's own (verified 1.1.0.38 -h): regex -> -r, case -> -i,
@@ -331,7 +383,7 @@ def _build_query_flags(*, regex=False, case=False, whole_word=False, dirs_only=F
     return argv
 
 
-def _parse_json_hits(text: str) -> List[Hit]:
+def _parse_json_hits(text: str) -> list[Hit]:
     """Parse es.exe -json output into structured Hit records.
 
     es.exe -json emits a SINGLE JSON ARRAY (verified live against 1.1.0.38), each
@@ -343,7 +395,7 @@ def _parse_json_hits(text: str) -> List[Hit]:
     Tolerates BOTH the array form and line-delimited JSON (defensive: different es.exe
     builds have emitted both; the array form is authoritative for 1.1.0.38).
     """
-    hits: List[Hit] = []
+    hits: list[Hit] = []
     text = (text or "").strip()
     if not text:
         return hits
@@ -352,9 +404,7 @@ def _parse_json_hits(text: str) -> List[Hit]:
     try:
         decoded = json.loads(text)
         if isinstance(decoded, list):
-            for rec in decoded:
-                if isinstance(rec, dict) and _record_path(rec):
-                    hits.append(_hit_from_record(rec))
+            hits.extend(_hit_from_record(rec) for rec in decoded if isinstance(rec, dict) and _record_path(rec))
             return hits
         if isinstance(decoded, dict) and _record_path(decoded):
             hits.append(_hit_from_record(decoded))
@@ -379,15 +429,14 @@ def _parse_json_hits(text: str) -> List[Hit]:
 def _record_path(rec: dict) -> str:
     """The path field of an es.exe JSON record (key is `filename`, the only field -json
     emits unless columns are requested; tolerate the obvious aliases)."""
-    return (rec.get("filename") or rec.get("full_path") or rec.get("path")
-            or rec.get("name") or "")
+    return rec.get("filename") or rec.get("full_path") or rec.get("path") or rec.get("name") or ""
 
 
 def _hit_from_record(rec: dict) -> Hit:
     path = _record_path(rec)
     return Hit(
         path=path,
-        name=rec.get("name") or os.path.basename(path),
+        name=rec.get("name") or _basename(path),
         size=rec.get("size"),
         date_modified=rec.get("date_modified") or rec.get("dm") or "",
         date_created=rec.get("date_created") or rec.get("dc") or "",
@@ -399,9 +448,15 @@ def _hit_from_record(rec: dict) -> Hit:
     )
 
 
-def walk_search(query: str, *, max_results: int = None, match_path: bool = False,
-                roots=None, budget_s: float = 25.0,
-                max_dirs: int = 400_000) -> SearchResult:
+def walk_search(
+    query: str,
+    *,
+    max_results: int | None = None,
+    match_path: bool = False,
+    roots=None,
+    budget_s: float = 25.0,
+    max_dirs: int = 400_000,
+) -> SearchResult:
     """The engine this module has when Everything is not installed.
 
     Everything is an INDEX; this is a walk. It is slower and it is bounded, and both of
@@ -430,7 +485,7 @@ def walk_search(query: str, *, max_results: int = None, match_path: bool = False
     exhaustive = True
     cap = None if max_results is None or int(max_results) <= 0 else int(max_results)
 
-    for root in (roots if roots is not None else _WALK_ROOTS):
+    for root in roots if roots is not None else _WALK_ROOTS:
         if not root or not os.path.isdir(root):
             continue
         seen_roots.append(root)
@@ -466,26 +521,36 @@ def walk_search(query: str, *, max_results: int = None, match_path: bool = False
 
     hits = _rank_exact_first(hits, needle)
 
-    return SearchResult(query=q, paths=hits, ok=True, engine="walk",
-                        exhaustive=exhaustive, scanned_dirs=scanned,
-                        roots=seen_roots, elapsed_s=round(time.monotonic() - started, 2))
+    return SearchResult(
+        query=q,
+        paths=hits,
+        ok=True,
+        engine="walk",
+        exhaustive=exhaustive,
+        scanned_dirs=scanned,
+        roots=seen_roots,
+        elapsed_s=round(time.monotonic() - started, 2),
+    )
 
 
-def search(query: str, *,
-           max_results: int = 200,
-           match_path: bool = False,
-           sort_by_name: bool = True,
-           timeout: float = 15.0,
-           sort: str = "",
-           columns: Optional[List[str]] = None,
-           format: str = "",
-           regex: bool = False,
-           case: bool = False,
-           whole_word: bool = False,
-           dirs_only: bool = False,
-           files_only: bool = False,
-           scope: Optional[str] = None,
-           attributes: Optional[str] = None) -> SearchResult:
+def search(
+    query: str,
+    *,
+    max_results: int = 200,
+    match_path: bool = False,
+    sort_by_name: bool = True,
+    timeout: float = 15.0,
+    sort: str = "",
+    columns: list[str] | None = None,
+    format: str = "",  # noqa: A002  # public API name
+    regex: bool = False,
+    case: bool = False,
+    whole_word: bool = False,
+    dirs_only: bool = False,
+    files_only: bool = False,
+    scope: str | None = None,
+    attributes: str | None = None,
+) -> SearchResult:
     """Search the Everything index for ``query`` and return full paths.
 
     ``query`` is an Everything search — a bare word matches any substring of a file
@@ -526,8 +591,9 @@ def search(query: str, *,
         argv.append("-match-path")
     if sort:
         if not is_valid_sort_key(sort):
-            return SearchResult(query=query, ok=False,
-                                error=f"unknown sort key {sort!r} (allowed: {sorted(_SORT_KEYS)} + -descending)")
+            return SearchResult(
+                query=query, ok=False, error=f"unknown sort key {sort!r} (allowed: {sorted(_SORT_KEYS)} + -descending)"
+            )
         argv.extend(["-sort", sort])
     elif sort_by_name:
         argv.append("-s")
@@ -540,13 +606,18 @@ def search(query: str, *,
         # columns. When the caller asked for a structured format but no columns, request the
         # full metadata set so the structured result is actually useful (the whole point).
         if not columns:
-            argv.extend(["-add-columns",
-                         "size;date-modified;date-created;date-accessed;extension;attributes"])
-    argv.extend(_build_query_flags(
-        regex=regex, case=case, whole_word=whole_word,
-        dirs_only=dirs_only, files_only=files_only,
-        scope=scope, attributes=attributes,
-    ))
+            argv.extend(["-add-columns", "size;date-modified;date-created;date-accessed;extension;attributes"])
+    argv.extend(
+        _build_query_flags(
+            regex=regex,
+            case=case,
+            whole_word=whole_word,
+            dirs_only=dirs_only,
+            files_only=files_only,
+            scope=scope,
+            attributes=attributes,
+        )
+    )
     # OVER-FETCH, THEN RANK, THEN TRUNCATE. es.exe applies `-n` with ITS OWN sort order, so
     # asking for exactly max_results lets the cap discard the exact-basename match before we
     # ever see it -- ranking afterwards can only reorder what survived. Measured: `es.exe`
@@ -573,36 +644,47 @@ def search(query: str, *,
 
     if format in ("json", "csv"):
         parsed = _parse_json_hits(proc.stdout or "") if format == "json" else _parse_csv_hits(proc.stdout or "")
-        base = os.path.basename(str(query or "").strip().lower())
+        base = _basename(str(query or "").strip().lower())
         # rank exact-basename-first, same rule as the path form (shared intent, Hits not paths)
-        parsed.sort(key=lambda h: (os.path.basename(h.path).lower() != base, len(h.path)))
-        sliced = parsed[:int(max_results)]
+        parsed.sort(key=lambda h: (_basename(h.path).lower() != base, len(h.path)))
+        sliced = parsed[: int(max_results)]
         return SearchResult(
-            query=query, paths=[h.path for h in sliced], hits=sliced,
-            ok=True, engine="everything", exhaustive=len(parsed) < _fetch,
+            query=query,
+            paths=[h.path for h in sliced],
+            hits=sliced,
+            ok=True,
+            engine="everything",
+            exhaustive=len(parsed) < _fetch,
         )
 
     lines = [ln.rstrip() for ln in (proc.stdout or "").splitlines() if ln.strip()]
     ranked = _rank_exact_first(lines, query)
     # `exhaustive` reports whether ES had MORE than our fetch window, not whether we trimmed
     # to max_results -- the caller asked for a page, and a page is not a bounded search.
-    return SearchResult(query=query, paths=ranked[:int(max_results)], ok=True,
-                        engine="everything", exhaustive=len(lines) < _fetch)
+    return SearchResult(
+        query=query, paths=ranked[: int(max_results)], ok=True, engine="everything", exhaustive=len(lines) < _fetch
+    )
 
 
-def search_page(query: str, *, limit: int = None, offset: int = 0,
-                match_path: bool = False, sort_by_name: bool = True,
-                timeout: float = 15.0,
-                sort: str = "",
-                columns: Optional[List[str]] = None,
-                format: str = "",
-                regex: bool = False,
-                case: bool = False,
-                whole_word: bool = False,
-                dirs_only: bool = False,
-                files_only: bool = False,
-                scope: Optional[str] = None,
-                attributes: Optional[str] = None) -> SearchResult:
+def search_page(
+    query: str,
+    *,
+    limit: int | None = None,
+    offset: int = 0,
+    match_path: bool = False,
+    sort_by_name: bool = True,
+    timeout: float = 15.0,
+    sort: str = "",
+    columns: list[str] | None = None,
+    format: str = "",  # noqa: A002  # public API name
+    regex: bool = False,
+    case: bool = False,
+    whole_word: bool = False,
+    dirs_only: bool = False,
+    files_only: bool = False,
+    scope: str | None = None,
+    attributes: str | None = None,
+) -> SearchResult:
     """Search the Everything index and return a PAGED slice of the ranked result.
 
     search() hard-caps at ``max_results`` because it asks ES for a fixed over-fetch
@@ -640,9 +722,8 @@ def search_page(query: str, *, limit: int = None, offset: int = 0,
     if es is None:
         # Fall back to the bounded walk; it has no paging, so honour offset/limit by
         # slicing its ranked result (best effort -- the walk may itself be bounded).
-        walked = walk_search(query, max_results=0 if unlimited else offset + limit,
-                             match_path=match_path)
-        walked.paths = walked.paths[offset:] if unlimited else walked.paths[offset:offset + limit]
+        walked = walk_search(query, max_results=0 if unlimited else offset + limit, match_path=match_path)
+        walked.paths = walked.paths[offset:] if unlimited else walked.paths[offset : offset + limit]
         return walked
 
     # OVER-FETCH, THEN RANK, THEN (optionally) SLICE. When unlimited, ask ES for
@@ -656,8 +737,9 @@ def search_page(query: str, *, limit: int = None, offset: int = 0,
         argv.append("-match-path")
     if sort:
         if not is_valid_sort_key(sort):
-            return SearchResult(query=query, ok=False,
-                                error=f"unknown sort key {sort!r} (allowed: {sorted(_SORT_KEYS)} + -descending)")
+            return SearchResult(
+                query=query, ok=False, error=f"unknown sort key {sort!r} (allowed: {sorted(_SORT_KEYS)} + -descending)"
+            )
         argv.extend(["-sort", sort])
     elif sort_by_name:
         argv.append("-s")
@@ -667,13 +749,18 @@ def search_page(query: str, *, limit: int = None, offset: int = 0,
         argv.append("-json" if format == "json" else "-csv")
         argv.extend(["-date-format", "1"])
         if not columns:
-            argv.extend(["-add-columns",
-                         "size;date-modified;date-created;date-accessed;extension;attributes"])
-    argv.extend(_build_query_flags(
-        regex=regex, case=case, whole_word=whole_word,
-        dirs_only=dirs_only, files_only=files_only,
-        scope=scope, attributes=attributes,
-    ))
+            argv.extend(["-add-columns", "size;date-modified;date-created;date-accessed;extension;attributes"])
+    argv.extend(
+        _build_query_flags(
+            regex=regex,
+            case=case,
+            whole_word=whole_word,
+            dirs_only=dirs_only,
+            files_only=files_only,
+            scope=scope,
+            attributes=attributes,
+        )
+    )
     if fetch is not None:
         argv.extend(["-n", str(fetch)])
 
@@ -690,23 +777,27 @@ def search_page(query: str, *, limit: int = None, offset: int = 0,
 
     if format in ("json", "csv"):
         parsed = _parse_json_hits(proc.stdout or "") if format == "json" else _parse_csv_hits(proc.stdout or "")
-        base = os.path.basename(str(query or "").strip().lower())
-        parsed.sort(key=lambda h: (os.path.basename(h.path).lower() != base, len(h.path)))
-        sliced = parsed[offset:] if unlimited else parsed[offset:offset + limit]
+        base = _basename(str(query or "").strip().lower())
+        parsed.sort(key=lambda h: (_basename(h.path).lower() != base, len(h.path)))
+        sliced = parsed[offset:] if unlimited else parsed[offset : offset + limit]
         return SearchResult(
-            query=query, paths=[h.path for h in sliced], hits=sliced,
-            ok=True, engine="everything",
+            query=query,
+            paths=[h.path for h in sliced],
+            hits=sliced,
+            ok=True,
+            engine="everything",
             exhaustive=True if unlimited else len(parsed) < fetch,
         )
 
     lines = [ln.rstrip() for ln in (proc.stdout or "").splitlines() if ln.strip()]
     ranked = _rank_exact_first(lines, query)
-    sliced = ranked[offset:] if unlimited else ranked[offset:offset + limit]
+    sliced = ranked[offset:] if unlimited else ranked[offset : offset + limit]
     # Unlimited means we returned everything ES gave us, therefore exhaustive by
     # definition (there is no further page). Bounded means ES may hold more than our
     # fetch window -- report it honestly so the caller can page.
-    return SearchResult(query=query, paths=sliced, ok=True,
-                        engine="everything", exhaustive=True if unlimited else len(lines) < fetch)
+    return SearchResult(
+        query=query, paths=sliced, ok=True, engine="everything", exhaustive=True if unlimited else len(lines) < fetch
+    )
 
 
 def format_result(res: SearchResult) -> str:
@@ -716,20 +807,19 @@ def format_result(res: SearchResult) -> str:
         return f"ERROR: {res.error or 'search unavailable'}"
 
     if res.engine == "walk":
-        scope = (f"walked {res.scanned_dirs} dir(s) under {len(res.roots)} root(s) "
-                 f"in {res.elapsed_s}s")
+        scope = f"walked {res.scanned_dirs} dir(s) under {len(res.roots)} root(s) in {res.elapsed_s}s"
         if not res.paths:
             if res.exhaustive:
-                return (f"(no matches for {res.query!r} -- the walk COMPLETED: {scope}. "
-                        f"Not present under those roots.)")
+                return f"(no matches for {res.query!r} -- the walk COMPLETED: {scope}. Not present under those roots.)"
             # THE LINE THAT MATTERS. A bounded miss must never read as absence.
-            return (f"(no matches for {res.query!r}, but THE SEARCH WAS BOUNDED: {scope} "
-                    f"and hit its budget before finishing. This is NOT evidence the file "
-                    f"is absent -- raise --timeout, narrow with --path, or install "
-                    f"Everything (voidtools.com) for the indexed whole-machine answer.)")
+            return (
+                f"(no matches for {res.query!r}, but THE SEARCH WAS BOUNDED: {scope} "
+                f"and hit its budget before finishing. This is NOT evidence the file "
+                f"is absent -- raise --timeout, narrow with --path, or install "
+                f"Everything (voidtools.com) for the indexed whole-machine answer.)"
+            )
         tail = "" if res.exhaustive else "  [BOUNDED -- more may exist beyond the budget]"
-        return (f"{res.count} match(es) for {res.query!r}  [engine: walk, {scope}]{tail}:"
-                + "\n" + "\n".join(res.paths))
+        return f"{res.count} match(es) for {res.query!r}  [engine: walk, {scope}]{tail}:" + "\n" + "\n".join(res.paths)
 
     if not res.paths:
         return f"(no matches for {res.query!r} — Everything answered, nothing found)"
@@ -752,17 +842,19 @@ def format_hits(res: SearchResult) -> str:
     if not res.hits:
         return f"(no matches for {res.query!r} — Everything answered, nothing found)"
 
-    base = os.path.basename(str(res.query or "").strip().lower())
+    base = _basename(str(res.query or "").strip().lower())
     rows = []
     for h in res.hits:
-        is_exact = os.path.basename(h.path).lower() == base
+        is_exact = _basename(h.path).lower() == base
         mark = "★" if is_exact else " "
         mtime = h.date_modified or ""
         size = "" if h.size is None else f"{h.size:>11}"
         rows.append(f"{mark} {mtime[:19]:<19} {size}  {h.path}")
 
-    header = (f"{len(res.hits)} match(es) for {res.query!r}  [engine: {res.engine}, "
-              f"structured; ★ = exact basename; columns: mtime, size]:")
+    header = (
+        f"{len(res.hits)} match(es) for {res.query!r}  [engine: {res.engine}, "
+        f"structured; ★ = exact basename; columns: mtime, size]:"
+    )
     return header + "\n" + "\n".join(rows)
 
 
@@ -776,13 +868,25 @@ def format_csv(res: SearchResult) -> str:
     """
     import csv as _csv
     import io as _io
+
     buf = _io.StringIO()
     w = _csv.writer(buf)
-    w.writerow(["Filename", "Size", "Date Modified", "Date Created", "Date Accessed",
-                "Extension", "Attributes", "Run Count"])
+    w.writerow(
+        ["Filename", "Size", "Date Modified", "Date Created", "Date Accessed", "Extension", "Attributes", "Run Count"]
+    )
     for h in res.hits:
-        w.writerow([h.path, h.size or "", h.date_modified, h.date_created,
-                    h.date_accessed, h.extension, h.attributes, h.run_count or ""])
+        w.writerow(
+            [
+                h.path,
+                h.size or "",
+                h.date_modified,
+                h.date_created,
+                h.date_accessed,
+                h.extension,
+                h.attributes,
+                h.run_count or "",
+            ]
+        )
     return buf.getvalue().rstrip("\r\n")
 
 
@@ -790,17 +894,23 @@ def format_result_json(res: SearchResult) -> str:
     """Serialize the full result (paths + structured hits) as JSON for callers that
     want machine-readable output rather than the human render."""
     import dataclasses
+
     def _hit(h):
         d = dataclasses.asdict(h)
         d.pop("raw", None)
         return d
-    return json.dumps({
-        "query": res.query,
-        "ok": res.ok,
-        "error": res.error,
-        "engine": res.engine,
-        "exhaustive": res.exhaustive,
-        "count": res.count,
-        "paths": res.paths,
-        "hits": [_hit(h) for h in res.hits],
-    }, ensure_ascii=False, indent=2)
+
+    return json.dumps(
+        {
+            "query": res.query,
+            "ok": res.ok,
+            "error": res.error,
+            "engine": res.engine,
+            "exhaustive": res.exhaustive,
+            "count": res.count,
+            "paths": res.paths,
+            "hits": [_hit(h) for h in res.hits],
+        },
+        ensure_ascii=False,
+        indent=2,
+    )

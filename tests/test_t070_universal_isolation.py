@@ -30,6 +30,7 @@ non-ASCII into an ASCII pin).
 
 So: isolate by default, opt OUT explicitly. Deny-by-default, matching the security schema.
 """
+
 import os
 import sys
 from pathlib import Path
@@ -54,17 +55,16 @@ def test_ai_setup_is_not_the_real_repo():
 
 def test_redis_db_is_not_canonical():
     db = os.environ.get("REDIS_DB")
-    assert db not in (None, "", "0"), (
-        f"REDIS_DB={db!r} -- the suite would read and write the canonical logical DB"
-    )
+    assert db not in (None, "", "0"), f"REDIS_DB={db!r} -- the suite would read and write the canonical logical DB"
 
 
 def test_canonical_state_file_is_unreachable_from_here():
     """The concrete artifact the hazard destroyed: session_logs/store_state.json."""
     from core.foundation.store import create_store
+
     s = create_store()
     path = getattr(s, "_path", None)
-    if path is None:                      # Redis-backed: the db pin above covers it
+    if path is None:  # Redis-backed: the db pin above covers it
         return
     resolved = Path(str(path)).resolve()
     canonical = (ROOT / "session_logs" / "store_state.json").resolve()
@@ -79,7 +79,9 @@ def test_isolation_is_idempotent():
     before = os.environ.get("AI_SETUP")
     sys.path.insert(0, str(ROOT / "tests"))
     import importlib
+
     import isolate_canonical
+
     importlib.reload(isolate_canonical)
     assert os.environ.get("AI_SETUP") == before, (
         "re-importing isolate_canonical moved AI_SETUP mid-run -- state would split"
@@ -106,14 +108,10 @@ def test_spill_dir_is_isolated_too(tmp_path):
     """
     spill = os.environ.get("AKASHIC_SPILL_DIR")
     assert spill, "AKASHIC_SPILL_DIR is unset -- spills fall back to the LIVE repo"
-    assert Path(spill).resolve() != (ROOT / "state" / "spill").resolve(), (
-        f"spill dir resolves to canonical {spill}"
-    )
+    assert Path(spill).resolve() != (ROOT / "state" / "spill").resolve(), f"spill dir resolves to canonical {spill}"
 
 
 def test_an_explicit_opt_out_exists_and_is_documented():
     """Deny-by-default needs a legible escape hatch, or someone edits conftest instead."""
     conftest = (ROOT / "tests" / "conftest.py").read_text(encoding="utf-8")
-    assert "AKASHIC_TEST_USE_CANONICAL" in conftest, (
-        "no documented way to run against real backends deliberately"
-    )
+    assert "AKASHIC_TEST_USE_CANONICAL" in conftest, "no documented way to run against real backends deliberately"

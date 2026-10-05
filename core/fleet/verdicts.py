@@ -46,12 +46,13 @@ NOT IN THIS MODULE, deliberately: rendering and rates (RC2/T291), routing by cal
 (needs RC2 data first), wiring into the ask door (RC3/T292), and any identity verification
 stronger than the operator set (that is T088a's registration plane).
 """
+
 from __future__ import annotations
 
 import json
 import os
 import time
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from core.foundation.store import create_store
 
@@ -76,14 +77,17 @@ def _store():
 def _corrupt_row(where: str, index: int, raw: str) -> None:
     """A dropped record announces itself. Never silent (the T262 law, inherited verbatim)."""
     import sys as _sys
-    print(f"[verdicts] CORRUPT ROW at {where}[{index}] -- unreadable and SKIPPED "
-          f"({str(raw)[:60]!r}). The remaining rows are intact; this one is lost.",
-          file=_sys.stderr)
+
+    print(
+        f"[verdicts] CORRUPT ROW at {where}[{index}] -- unreadable and SKIPPED "
+        f"({str(raw)[:60]!r}). The remaining rows are intact; this one is lost.",
+        file=_sys.stderr,
+    )
 
 
-def _rows(key: str) -> List[Dict[str, Any]]:
+def _rows(key: str) -> list[dict[str, Any]]:
     raw = _store().lrange(key, 0, -1) or []
-    out: List[Dict[str, Any]] = []
+    out: list[dict[str, Any]] = []
     for i, r in enumerate(raw):
         try:
             out.append(json.loads(r))
@@ -100,9 +104,16 @@ def adjudicators() -> set:
     return {s.strip().lower() for s in raw.split(",") if s.strip()}
 
 
-def file_verdict(*, agent: str, ask_id: str, question_shape: str, gist: str,
-                 geometry: str = "", role: str = "",
-                 cold_twin_of: str = "") -> Dict[str, Any]:
+def file_verdict(
+    *,
+    agent: str,
+    ask_id: str,
+    question_shape: str,
+    gist: str,
+    geometry: str = "",
+    role: str = "",
+    cold_twin_of: str = "",
+) -> dict[str, Any]:
     """Record what a branch answered. One verdict per ask_id -- dedup is idempotency
     (the LearningStore law: a second write with the same key is a retry, not a sibling).
 
@@ -114,10 +125,10 @@ def file_verdict(*, agent: str, ask_id: str, question_shape: str, gist: str,
     if not agent:
         raise ValueError(
             "file_verdict needs an agent -- the resident that answered, or 'blind' for a "
-            "cold tier-0 branch (T261 tier vocabulary)")
+            "cold tier-0 branch (T261 tier vocabulary)"
+        )
     if not ask_id:
-        raise ValueError("file_verdict needs an ask_id -- a verdict nothing can join is "
-                         "a record about nothing")
+        raise ValueError("file_verdict needs an ask_id -- a verdict nothing can join is a record about nothing")
 
     shape = str(question_shape or "").strip().lower()
     if not shape:
@@ -129,16 +140,20 @@ def file_verdict(*, agent: str, ask_id: str, question_shape: str, gist: str,
             f"unknown question_shape '{question_shape}' -- this plane speaks: "
             f"{', '.join(SHAPES)} (or omit it and the verdict files as 'undeclared'). "
             f"Shapes are the fan doctrine's rubric rows; a new one is a doctrine "
-            f"amendment, not a typo.")
+            f"amendment, not a typo."
+        )
 
     if any(r.get("ask_id") == ask_id for r in _rows(_VERDICTS_KEY)):
         raise ValueError(
             f"refused: a verdict for ask '{ask_id}' is already filed -- one verdict per "
             f"ask, dedup is idempotency. A corrected view is an ADJUDICATION, not a "
-            f"second verdict.")
+            f"second verdict."
+        )
 
     rec = {
-        "agent_id": agent, "ask_id": ask_id, "question_shape": shape,
+        "agent_id": agent,
+        "ask_id": ask_id,
+        "question_shape": shape,
         "gist": " ".join(str(gist or "").split())[:500],
         "geometry": str(geometry or "").strip(),
         "role": str(role or "").strip(),
@@ -149,8 +164,7 @@ def file_verdict(*, agent: str, ask_id: str, question_shape: str, gist: str,
     return rec
 
 
-def adjudicate(*, ask_id: str, outcome: str, by: str,
-               receipt: str = "") -> Dict[str, Any]:
+def adjudicate(*, ask_id: str, outcome: str, by: str, receipt: str = "") -> dict[str, Any]:
     """Record what a NON-AUTHOR established about a filed verdict.
 
     OPERATOR-ONLY BY DEFAULT (fence r2 H-C1): `by` must be in adjudicators() and must not
@@ -165,7 +179,8 @@ def adjudicate(*, ask_id: str, outcome: str, by: str,
         raise ValueError(
             f"unknown outcome '{outcome}' -- an adjudication says one of: "
             f"{', '.join(OUTCOMES)}. 'Unadjudicated' is not an outcome; it is the "
-            f"absence this record would end.")
+            f"absence this record would end."
+        )
 
     verdict = None
     for r in _rows(_VERDICTS_KEY):
@@ -176,7 +191,8 @@ def adjudicate(*, ask_id: str, outcome: str, by: str,
         raise ValueError(
             f"refused: no filed verdict for ask '{ask_id}' -- an adjudication with "
             f"nothing to join is a record about nothing. File the verdict first "
-            f"(resident verdict-file).")
+            f"(resident verdict-file)."
+        )
 
     if by.lower() not in adjudicators():
         raise ValueError(
@@ -184,23 +200,34 @@ def adjudicate(*, ask_id: str, outcome: str, by: str,
             f"OPERATOR-ONLY by default (fence r2 H-C1: `by` is caller-declared and "
             f"nothing verifies it, so the set is the guard -- env AKASHIC_ADJUDICATORS). "
             f"A resident's confirmation belongs in a reply or a lesson; neither moves "
-            f"calibration.")
+            f"calibration."
+        )
 
     if by.lower() == str(verdict.get("agent_id") or "").lower():
         raise ValueError(
             f"refused: '{by}' filed this verdict and may not adjudicate their own "
             f"answer -- author==adjudicator is the sock-puppet case, refused even "
-            f"inside the operator set.")
+            f"inside the operator set."
+        )
 
-    rec = {"ask_id": ask_id, "outcome": oc, "by": by,
-           "receipt": " ".join(str(receipt or "").split())[:300], "ts": time.time()}
+    rec = {
+        "ask_id": ask_id,
+        "outcome": oc,
+        "by": by,
+        "receipt": " ".join(str(receipt or "").split())[:300],
+        "ts": time.time(),
+    }
     _store().rpush(_ADJUD_KEY, json.dumps(rec, ensure_ascii=False))
     return rec
 
 
-def verdicts(*, agent: Optional[str] = None, role: Optional[str] = None,
-             shape: Optional[str] = None,
-             cold_twin_of: Optional[str] = None) -> List[Dict[str, Any]]:
+def verdicts(
+    *,
+    agent: str | None = None,
+    role: str | None = None,
+    shape: str | None = None,
+    cold_twin_of: str | None = None,
+) -> list[dict[str, Any]]:
     """Every verdict matching every given filter, oldest first. A filter nothing matches
     returns [] -- never the unfiltered log (the degraded answer must be a SUBSET)."""
     out = []
@@ -217,8 +244,7 @@ def verdicts(*, agent: Optional[str] = None, role: Optional[str] = None,
     return out
 
 
-def calibration(*, shape: Optional[str] = None,
-                resident: Optional[str] = None) -> Dict[str, Any]:
+def calibration(*, shape: str | None = None, resident: str | None = None) -> dict[str, Any]:
     """COUNTS ONLY: per (shape, resident) cell and per-shape pool -- filed, adjudicated,
     confirmed, refuted. The latest adjudication per ask_id wins (append-only projection).
 
@@ -226,18 +252,16 @@ def calibration(*, shape: Optional[str] = None,
     (fence r2, convergent H-C2 + N-C2). RC2 renders rates behind its own n-floors; this
     function hands it honest integers.
     """
-    latest: Dict[str, Dict[str, Any]] = {}
+    latest: dict[str, dict[str, Any]] = {}
     for a in _rows(_ADJUD_KEY):
-        latest[a.get("ask_id")] = a          # oldest-first scan -> last write wins
+        latest[a.get("ask_id")] = a  # oldest-first scan -> last write wins
 
-    cells: Dict[Tuple[str, str], Dict[str, int]] = {}
-    shapes: Dict[str, Dict[str, int]] = {}
+    cells: dict[tuple[str, str], dict[str, int]] = {}
+    shapes: dict[str, dict[str, int]] = {}
     for v in verdicts(shape=shape, agent=resident):
         key = (v.get("question_shape") or "undeclared", v.get("agent_id") or "?")
-        cell = cells.setdefault(key, {"filed": 0, "adjudicated": 0,
-                                      "confirmed": 0, "refuted": 0})
-        pool = shapes.setdefault(key[0], {"filed": 0, "adjudicated": 0,
-                                          "confirmed": 0, "refuted": 0})
+        cell = cells.setdefault(key, {"filed": 0, "adjudicated": 0, "confirmed": 0, "refuted": 0})
+        pool = shapes.setdefault(key[0], {"filed": 0, "adjudicated": 0, "confirmed": 0, "refuted": 0})
         cell["filed"] += 1
         pool["filed"] += 1
         adj = latest.get(v.get("ask_id"))

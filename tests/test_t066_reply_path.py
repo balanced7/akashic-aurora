@@ -21,6 +21,7 @@ Pins (deepseek's P1-P7, with ONE build refinement on P4 recorded for his verify 
 Redis-backed (throwaway namespace per test, the t039a pattern; skip if down).
 Run: py -m pytest tests/test_t066_reply_path.py -q
 """
+
 import json
 import os
 import sys
@@ -35,10 +36,11 @@ from core.comm.bus import Bus
 
 
 def _client():
-    from core.foundation.redis_connection import (
-        connect_to_redis_with_fail_fast, DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT)
-    c = connect_to_redis_with_fail_fast(host=DEFAULT_REDIS_HOST, port=DEFAULT_REDIS_PORT,
-                                        timeout_seconds=3, decode_responses=True)
+    from core.foundation.redis_connection import DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT, connect_to_redis_with_fail_fast
+
+    c = connect_to_redis_with_fail_fast(
+        host=DEFAULT_REDIS_HOST, port=DEFAULT_REDIS_PORT, timeout_seconds=3, decode_responses=True
+    )
     if c is None:
         pytest.skip("redis not available")
     return c
@@ -93,16 +95,18 @@ def test_p1_reply_is_lane_first():
     assert mid, "send_reply must return a message id"
     lane_writes = [k for k in b._client.xadd_keys if ":work:inbox:claude" in k]
     legacy_writes = [k for k in b._client.xadd_keys if k.endswith(":inbox:claude") and ":work:" not in k]
-    assert lane_writes and legacy_writes, "both streams must be written"
-    assert b._client.xadd_keys.index(lane_writes[0]) < b._client.xadd_keys.index(legacy_writes[0]), \
+    assert lane_writes, "both streams must be written"
+    assert legacy_writes, "both streams must be written"
+    assert b._client.xadd_keys.index(lane_writes[0]) < b._client.xadd_keys.index(legacy_writes[0]), (
         "the LANE write must come FIRST (it is the load-bearing consume surface)"
+    )
     assert len(_entries(b._client, f"{ns}:work:inbox:claude")) == 1
     assert len(_entries(b._client, f"{ns}:inbox:claude")) == 1
 
 
 def test_p2_lane_failure_retries_then_falls_back_loud(capsys):
     ns = _ns()
-    b = _bus("deepseek", ns, fail={":work:inbox:claude": 2})   # initial + retry both fail
+    b = _bus("deepseek", ns, fail={":work:inbox:claude": 2})  # initial + retry both fail
     mid = b.send_reply("claude", "the answer")
     assert mid, "legacy fallback must still deliver"
     lane_attempts = [k for k in b._client.xadd_keys if ":work:inbox:claude" in k]
@@ -129,6 +133,7 @@ def test_p4_receiver_drops_legacy_duplicate_keeps_work_copy(monkeypatch):
     drain (straggler re-race / shared-cursor path) and must be SKIPPED. Work copies are
     never dropped (RB-26 crash-redelivery stays intact -- build refinement, see header)."""
     from core.comm.bifrost_api import BifrostAPI
+
     monkeypatch.setenv("BIFROST_CONSUME_LANE", "work")
     ns = _ns()
     sender = _bus("deepseek", ns)
@@ -143,16 +148,18 @@ def test_p4_receiver_drops_legacy_duplicate_keeps_work_copy(monkeypatch):
     rid = (getattr(replies[0], "meta", {}) or {}).get("reply_id")
     assert rid, "delivered reply carries its reply_id"
     # the consumer contract (pin R3): commit the work cursor AFTER processing
-    api.bus.advance_to(inbox=nxt.get("inbox"), bc=nxt.get("bc"),
-                       cursor_key=api.bus.lane_cursor_key())
+    api.bus.advance_to(inbox=nxt.get("inbox"), bc=nxt.get("bc"), cursor_key=api.bus.lane_cursor_key())
 
     # the legacy twin re-surfaces later (same envelope, same reply_id, fresh stream id)
     twin = dict(_entries(sender._client, f"{ns}:inbox:claude")[0])
     twin.pop("_id", None)
     sender._client.xadd(f"{ns}:inbox:claude", twin)
     second = api.work_drain(timeout_ms=1)
-    dup = [m for m in second if str(getattr(m, "kind", "")) == "reply"
-           and (getattr(m, "meta", {}) or {}).get("reply_id") == rid]
+    dup = [
+        m
+        for m in second
+        if str(getattr(m, "kind", "")) == "reply" and (getattr(m, "meta", {}) or {}).get("reply_id") == rid
+    ]
     assert dup == [], "the legacy duplicate must be skipped by the reply_id dedup"
 
 
@@ -162,7 +169,8 @@ def test_p4_unit_is_duplicate_reply_marks_and_ttls():
     assert b.is_duplicate_reply("rid-1") is False, "first sight marks, reports not-duplicate"
     assert b.is_duplicate_reply("rid-1") is True, "second sight within TTL is a duplicate"
     ttl = b._client.ttl(f"{ns}:reply_seen:rid-1")
-    assert ttl and ttl > 0, "the dedup mark must expire (TTL), never accrete forever"
+    assert ttl, "the dedup mark must expire (TTL), never accrete forever"
+    assert ttl > 0, "the dedup mark must expire (TTL), never accrete forever"
     assert b.is_duplicate_reply("") is False, "empty id never dedupes"
 
 
@@ -177,9 +185,11 @@ def test_p5_p6_non_reply_kinds_now_lane_first_and_legacy_compat():
     b.send("claude", "handoff", "take this")
     lane_first = [k for k in b._client.xadd_keys if ":work:inbox:claude" in k]
     legacy_first = [k for k in b._client.xadd_keys if k.endswith(":inbox:claude") and ":work:" not in k]
-    assert legacy_first and lane_first, "handoff still dual-writes"
-    assert b._client.xadd_keys.index(lane_first[0]) < b._client.xadd_keys.index(legacy_first[0]), \
+    assert legacy_first, "handoff still dual-writes"
+    assert lane_first, "handoff still dual-writes"
+    assert b._client.xadd_keys.index(lane_first[0]) < b._client.xadd_keys.index(legacy_first[0]), (
         "C6-7: non-reply kinds are now LANE-first (was legacy-first in T039a P0)"
+    )
     # P6: a reply is visible to a pre-lane legacy consumer
     b.send_reply("claude", "the answer")
     legacy_kinds = [e.get("kind") for e in _entries(b._client, f"{ns}:inbox:claude")]
@@ -198,7 +208,8 @@ def test_p7_lane_write_failure_is_loud_for_all_kinds(capsys):
     err = capsys.readouterr().err
     assert "lane write FAILED" in err, (
         "C6-7: lane write failures are LOUD for ALL kinds -- the lane is the primary "
-        "path now, not an advisory mirror. A kind riding legacy-only is a visible degradation.")
+        "path now, not an advisory mirror. A kind riding legacy-only is a visible degradation."
+    )
     assert len(_entries(b._client, f"{ns}:inbox:claude")) == 1
 
 

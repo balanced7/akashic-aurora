@@ -24,20 +24,23 @@ and a library importing a script inverts the dependency. The format therefore li
 store that writes it, and scripts/piano_roll_pack.py is a thin door onto this module. One copy:
 two implementations of a format drift, which is a lesson this repo has paid for elsewhere.
 """
+
 from __future__ import annotations
 
-from typing import Any, Dict, Iterable, List, Tuple
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 API = "roll/1"
 
 
-def pack_events(events: Iterable[Dict[str, Any]], session: str = "",
-                keep_chords: bool = False) -> str:
+def pack_events(events: Iterable[dict[str, Any]], session: str = "", keep_chords: bool = False) -> str:
     """Note/pedal events -> roll/1 text. Pure: takes the events, returns the document."""
-    ons: Dict[int, List[Tuple[int, int]]] = {}
-    notes: List[Tuple[int, int, int, int]] = []
-    pedal: List[Tuple[int, int]] = []
-    chords: List[Tuple[int, str, str]] = []
+    ons: dict[int, list[tuple[int, int]]] = {}
+    notes: list[tuple[int, int, int, int]] = []
+    pedal: list[tuple[int, int]] = []
+    chords: list[tuple[int, str, str]] = []
     tmax = 0
     pdown = None
     for e in events:
@@ -51,30 +54,32 @@ def pack_events(events: Iterable[Dict[str, Any]], session: str = "",
             ons.setdefault(int(e.get("note", -1)), []).append((t, int(e.get("vel", 64) or 64)))
         elif kind in ("off", "sound_end"):
             n = e.get("note")
-            if n in ons and ons[n]:
+            if ons.get(n):
                 t0, v = ons[n].pop(0)
                 notes.append((t0, int(n), max(t - t0, 1), v))
         elif kind == "pedal":
             if e.get("down") and pdown is None:
                 pdown = t
             elif not e.get("down") and pdown is not None:
-                pedal.append((pdown, t)); pdown = None
-        elif kind == "chord" and keep_chords and e.get("chord"):
-            if not chords or chords[-1][1] != e["chord"]:
-                chords.append((t, str(e["chord"]), str(e.get("key") or "")))
-    for n, rest in ons.items():                 # held at session end -- real, not dropped
+                pedal.append((pdown, t))
+                pdown = None
+        elif kind == "chord" and keep_chords and e.get("chord") and (not chords or chords[-1][1] != e["chord"]):
+            chords.append((t, str(e["chord"]), str(e.get("key") or "")))
+    for n, rest in ons.items():  # held at session end -- real, not dropped
         for t0, v in rest:
             notes.append((t0, int(n), max(tmax - t0, 1), v))
     if pdown is not None:
         pedal.append((pdown, tmax))
     notes.sort()
 
-    out = [f"#{API} session={session} dur_ms={tmax} notes={len(notes)} pedal={len(pedal)}"
-           f" src=events.jsonl",
-           "#n dt note dur vel   (dt=ms since previous onset)"]
+    out = [
+        f"#{API} session={session} dur_ms={tmax} notes={len(notes)} pedal={len(pedal)} src=events.jsonl",
+        "#n dt note dur vel   (dt=ms since previous onset)",
+    ]
     prev = 0
     for t0, n, dur, vel in notes:
-        out.append(f"{t0 - prev} {n} {dur} {vel}"); prev = t0
+        out.append(f"{t0 - prev} {n} {dur} {vel}")
+        prev = t0
     if pedal:
         out.append("#p t0 dur")
         for a, b in pedal:
@@ -88,16 +93,17 @@ def pack_events(events: Iterable[Dict[str, Any]], session: str = "",
 
 def unpack(text: str):
     """Read it back. A format nobody round-trips is a format that silently rots."""
-    meta: Dict[str, str] = {}
-    notes: List[Tuple[int, int, int, int]] = []
-    pedal: List[Tuple[int, int]] = []
-    chords: List[Tuple[int, str, str]] = []
+    meta: dict[str, str] = {}
+    notes: list[tuple[int, int, int, int]] = []
+    pedal: list[tuple[int, int]] = []
+    chords: list[tuple[int, str, str]] = []
     sec = "n"
     for line in text.splitlines():
         if line.startswith(f"#{API}"):
             for kv in line.split()[1:]:
                 if "=" in kv:
-                    k, v = kv.split("=", 1); meta[k] = v
+                    k, v = kv.split("=", 1)
+                    meta[k] = v
         elif line.startswith("#n"):
             sec = "n"
         elif line.startswith("#p"):
@@ -111,7 +117,8 @@ def unpack(text: str):
             t0 = (notes[-1][0] + dt) if notes else dt
             notes.append((t0, n, dur, vel))
         elif sec == "p":
-            a, d = (int(x) for x in line.split()); pedal.append((a, a + d))
+            a, d = (int(x) for x in line.split())
+            pedal.append((a, a + d))
         elif sec == "c":
             p = line.split(None, 2)
             chords.append((int(p[0]), p[1], p[2] if len(p) > 2 else ""))

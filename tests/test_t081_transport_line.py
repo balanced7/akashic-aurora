@@ -5,6 +5,7 @@ project context. The door is set by the invocation path (MCP tool server / runne
 bare CLI each stamp AKASHIC_SEAT_DOOR); an unset or unknown signal degrades to
 cli-shell, the P1 fragility case, and the line must name its own remedy (T081-W2).
 """
+
 import agent_cli
 
 
@@ -37,8 +38,9 @@ def test_cli_shell_does_not_assert_what_it_cannot_observe():
     remedy it did not need. The safe DEFAULT is still cli-shell; only the wording changes.
     """
     out = _line("cli-shell").lower()
-    assert "cannot tell" in out or "if yours are attached" in out, \
+    assert "cannot tell" in out or "if yours are attached" in out, (
         "the line must hedge a door it cannot observe, not assert its absence"
+    )
 
 
 def test_unknown_door_degrades_to_cli_shell():

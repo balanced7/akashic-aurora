@@ -16,17 +16,19 @@ READS; it never broadcasts (so it never pollutes the very stream it measures).
   py scripts/runners/renew_bus_recorder.py            # tail forever, append to today's JSONL
   py scripts/runners/renew_bus_recorder.py --once     # drain the current backlog and exit (smoke test)
 """
+
 import argparse
 import json
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
+from core.comm.bus import Bus
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(os.path.dirname(HERE))
-sys.path.insert(0, REPO)
-
-from core.comm.bus import Bus
 
 OUT_DIR = os.path.join(REPO, "research", "in-flight")
 AGENT_ID = "renew-recorder"
@@ -34,37 +36,39 @@ AGENT_ID = "renew-recorder"
 
 def _outfile() -> str:
     os.makedirs(OUT_DIR, exist_ok=True)
-    day = datetime.now(timezone.utc).strftime("%Y%m%d")
+    day = datetime.now(UTC).strftime("%Y%m%d")
     return os.path.join(OUT_DIR, f"bus-{day}.jsonl")
 
 
 def _record(fh, m) -> None:
     """One bus Message -> one flat JSONL row keyed for later item-A parsing."""
     row = {
-        "id": m.id,            # ms-based stream id -> time-orderable
-        "ts": m.ts,            # emitter wall-clock
-        "frm": m.frm,          # which agent (multi-agent-in-flight dimension)
+        "id": m.id,  # ms-based stream id -> time-orderable
+        "ts": m.ts,  # emitter wall-clock
+        "frm": m.frm,  # which agent (multi-agent-in-flight dimension)
         "to": m.to,
-        "kind": m.kind,        # "tool", "say", "think", ... (trace.emit uses "tool")
+        "kind": m.kind,  # "tool", "say", "think", ... (trace.emit uses "tool")
         "content": m.content,  # the tool summary string (parse Read/Edit targets from here)
         "meta": m.meta,
-        "captured_at": datetime.now(timezone.utc).isoformat(),
+        "captured_at": datetime.now(UTC).isoformat(),
     }
     fh.write(json.dumps(row, default=str, ensure_ascii=False) + "\n")
 
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--once", action="store_true",
-                    help="drain the current backlog once and exit (smoke test), don't block")
+    ap.add_argument(
+        "--once", action="store_true", help="drain the current backlog once and exit (smoke test), don't block"
+    )
     args = ap.parse_args()
 
     bus = Bus(AGENT_ID)
     if not bus.online:
         print("[renew-recorder] bus offline (Redis unreachable); nothing to record", file=sys.stderr)
         return 1
-    bus.register(card={"role": "research recorder",
-                       "note": "read-only; captures in-flight telemetry for RENEW research"})
+    bus.register(
+        card={"role": "research recorder", "note": "read-only; captures in-flight telemetry for RENEW research"}
+    )
 
     path = _outfile()
     n = 0
@@ -78,7 +82,7 @@ def main() -> int:
             return 0
         print(f"[renew-recorder] tailing Bifrost -> {path} (Ctrl-C to stop)")
         while True:
-            msgs = bus.wait(timeout_ms=0, advance=True, limit=200)   # block forever, ~0 cost
+            msgs = bus.wait(timeout_ms=0, advance=True, limit=200)  # block forever, ~0 cost
             if not msgs:
                 continue
             for m in msgs:

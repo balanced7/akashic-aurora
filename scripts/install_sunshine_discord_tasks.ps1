@@ -9,7 +9,7 @@ param(
     [string]$SourceThreadId,
 
     [string]$RepoRoot = '',
-    [string]$PythonExe = 'C:\Users\L5\AppData\Local\Programs\Python\Python311\python.exe',
+    [string]$PythonExe = '',
     [string]$FleetTaskName = 'AkashicAurora-SunshineFleet',
     [string]$DiscordTaskName = 'AkashicAurora-SunshineDiscord'
 )
@@ -19,6 +19,12 @@ $ErrorActionPreference = 'Stop'
 
 if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
     $RepoRoot = Split-Path -Parent (Split-Path -Parent $PSCommandPath)
+}
+# Resolved from PATH rather than one user's install folder, so the installer runs on any machine.
+if ([string]::IsNullOrWhiteSpace($PythonExe)) {
+    $found = Get-Command python.exe, python -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+    if (-not $found) { throw 'python.exe not found on PATH; pass -PythonExe <path to python.exe>' }
+    $PythonExe = $found.Source
 }
 
 $resolvedRoot = (Resolve-Path -LiteralPath $RepoRoot).Path

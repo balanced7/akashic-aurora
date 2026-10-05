@@ -27,29 +27,27 @@ observed and the doctrine's own reason dissolves.
 
 Run: py -m pytest tests/test_t151_grant_expiry_is_visible.py -q
 """
+
 import os
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from core.trust import registry as REG  # noqa: E402
+from core.trust import registry as REG  # noqa: E402  # sys.path bootstrap
 
 
 def _iso(dt):
-    return dt.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+    return dt.astimezone(UTC).isoformat().replace("+00:00", "Z")
 
 
 def _recs(**over):
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     base = [
-        {"agent_id": "perm", "role": "member", "caps": ["read"],
-         "expires_at": None},
-        {"agent_id": "soon", "role": "member", "caps": ["read", "write"],
-         "expires_at": _iso(now + timedelta(hours=6))},
-        {"agent_id": "gone", "role": "member", "caps": ["read", "write"],
-         "expires_at": _iso(now - timedelta(hours=2))},
+        {"agent_id": "perm", "role": "member", "caps": ["read"], "expires_at": None},
+        {"agent_id": "soon", "role": "member", "caps": ["read", "write"], "expires_at": _iso(now + timedelta(hours=6))},
+        {"agent_id": "gone", "role": "member", "caps": ["read", "write"], "expires_at": _iso(now - timedelta(hours=2))},
     ]
     base.append(over) if over else None
     return base
@@ -59,7 +57,7 @@ def test_x1_a_grant_expiring_inside_the_window_is_reported():
     rows = REG.expiring_grants(within_h=24, grants=_recs())
     ids = {r["agent_id"] for r in rows}
     assert "soon" in ids, "a grant lapsing in 6 hours is invisible to the fleet"
-    row = [r for r in rows if r["agent_id"] == "soon"][0]
+    row = next(r for r in rows if r["agent_id"] == "soon")
     assert row["expires_at"], "the report must name the deadline, not just the fact"
     assert row["expired"] is False
 
@@ -80,8 +78,7 @@ def test_x3_a_permanent_grant_is_never_reported():
 
 def test_x4_the_reporter_is_read_only_and_never_raises():
     """Observability must never be able to gate trust. Malformed input degrades to silence."""
-    assert REG.expiring_grants(within_h=24, grants=[{"agent_id": "x", "expires_at": "not-a-date"}]) \
-        is not None
+    assert REG.expiring_grants(within_h=24, grants=[{"agent_id": "x", "expires_at": "not-a-date"}]) is not None
     assert REG.expiring_grants(within_h=24, grants=None) == []
     assert REG.expiring_grants(within_h=24, grants=[{}]) == []
 
@@ -93,6 +90,8 @@ def test_x5_the_live_acl_shows_the_codex_root_time_box():
     rows = REG.expiring_grants(within_h=24 * 400)
     ids = {r["agent_id"] for r in rows}
     import json
-    recs = json.load(open(os.path.join(ROOT, "security", "acl.json"), encoding="utf-8"))["grants"]
+
+    with open(os.path.join(ROOT, "security", "acl.json"), encoding="utf-8") as fh:
+        recs = json.load(fh)["grants"]
     boxed = {g["agent_id"] for g in recs if g.get("expires_at")}
     assert ids == boxed, f"reporter disagrees with the file: reported {ids}, time-boxed {boxed}"

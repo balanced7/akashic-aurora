@@ -1,4 +1,5 @@
 """Hermetic CLI pins for the structured awareness snapshot."""
+
 import argparse
 import io
 import json
@@ -6,9 +7,8 @@ from contextlib import redirect_stdout
 
 import pytest
 
-from core.coord.observations import Observation, Snapshot
 from agent_cli import build_sweep
-
+from core.coord.observations import Observation, Snapshot
 
 SUBJECT = "synthetic-seat-sweep"
 

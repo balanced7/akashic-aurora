@@ -17,13 +17,13 @@ crash. Keys:
     bifrost:lock:<norm_path>  -> JSON {agent, token, path, ts, ttl}
     bifrost:lock:_seq         -> INCR fencing-token sequence
 """
+
 from __future__ import annotations
 
 import json
-import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 # ns-isolation GLOBAL (2026-07-12, deliberate -- do NOT scope to BIFROST_NAMESPACE): advisory PATH
 # LOCKS protect the SHARED FILESYSTEM, which is one resource across ALL namespaces. Scoping would let
@@ -32,17 +32,18 @@ from typing import Any, Dict, List, Optional
 # tests/test_coordination_namespace_isolation.py).
 NS = "bifrost"
 SEQ_KEY = f"{NS}:lock:_seq"
-DEFAULT_TTL = 900   # 15 min -- long enough for a slice, short enough to self-heal a crash
+DEFAULT_TTL = 900  # 15 min -- long enough for a slice, short enough to self-heal a crash
 _ROOT = Path(__file__).resolve().parents[2]
 
 
 def _now() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def _connect():
     try:
         from core.comm.bus import _connect as bus_connect
+
         return bus_connect()
     except Exception:
         return None
@@ -70,7 +71,7 @@ def _lock_key(path: str) -> str:
 class LockManager:
     """An agent's handle on the advisory path-locks. One per agent identity."""
 
-    def __init__(self, agent_id: str, client: Optional[Any] = None):
+    def __init__(self, agent_id: str, client: Any | None = None):
         self.agent_id = str(agent_id or "unknown")
         self._client = client if client is not None else _connect()
 
@@ -81,42 +82,73 @@ class LockManager:
     def _next_token(self) -> int:
         return int(self._client.incr(SEQ_KEY))
 
-    def acquire(self, path: str, ttl: int = DEFAULT_TTL, note: str = "") -> Dict[str, Any]:
+    def acquire(self, path: str, ttl: int = DEFAULT_TTL, note: str = "") -> dict[str, Any]:
         """Claim `path`. Returns {ok, online, mine, token, held_by, path}. Re-claiming a
         lock you already hold refreshes its TTL (re-entrant) and keeps your token.
         `note` (T050 Q5): WHY the lock exists -- rendered by `locks` so a peer diagnoses a
         held path without reconstructing the holder's task history."""
         norm = normalize_path(path)
         if not self.online:
-            return {"ok": False, "online": False, "mine": False, "token": None,
-                    "held_by": None, "path": norm}
+            return {"ok": False, "online": False, "mine": False, "token": None, "held_by": None, "path": norm}
         key = _lock_key(norm)
         try:
             existing = self._client.get(key)
             if existing:
                 cur = json.loads(existing)
                 if cur.get("agent") == self.agent_id:
-                    cur["ts"] = _now(); cur["ttl"] = ttl
+                    cur["ts"] = _now()
+                    cur["ttl"] = ttl
                     if note:
                         cur["note"] = str(note)[:120]
-                    self._client.set(key, json.dumps(cur), ex=ttl)   # extend (re-entrant)
-                    return {"ok": True, "online": True, "mine": True,
-                            "token": cur.get("token"), "held_by": self.agent_id, "path": norm}
-                return {"ok": False, "online": True, "mine": False,
-                        "token": cur.get("token"), "held_by": cur.get("agent"), "path": norm}
+                    self._client.set(key, json.dumps(cur), ex=ttl)  # extend (re-entrant)
+                    return {
+                        "ok": True,
+                        "online": True,
+                        "mine": True,
+                        "token": cur.get("token"),
+                        "held_by": self.agent_id,
+                        "path": norm,
+                    }
+                return {
+                    "ok": False,
+                    "online": True,
+                    "mine": False,
+                    "token": cur.get("token"),
+                    "held_by": cur.get("agent"),
+                    "path": norm,
+                }
             token = self._next_token()
-            value = json.dumps({"agent": self.agent_id, "token": token, "path": norm,
-                                "ts": _now(), "ttl": ttl, "note": str(note)[:120]})
+            value = json.dumps(
+                {
+                    "agent": self.agent_id,
+                    "token": token,
+                    "path": norm,
+                    "ts": _now(),
+                    "ttl": ttl,
+                    "note": str(note)[:120],
+                }
+            )
             if self._client.set(key, value, nx=True, ex=ttl):
-                return {"ok": True, "online": True, "mine": True, "token": token,
-                        "held_by": self.agent_id, "path": norm}
+                return {
+                    "ok": True,
+                    "online": True,
+                    "mine": True,
+                    "token": token,
+                    "held_by": self.agent_id,
+                    "path": norm,
+                }
             # lost the race -- report the winner
             cur = json.loads(self._client.get(key) or "{}")
-            return {"ok": False, "online": True, "mine": False,
-                    "token": cur.get("token"), "held_by": cur.get("agent"), "path": norm}
+            return {
+                "ok": False,
+                "online": True,
+                "mine": False,
+                "token": cur.get("token"),
+                "held_by": cur.get("agent"),
+                "path": norm,
+            }
         except Exception:
-            return {"ok": False, "online": False, "mine": False, "token": None,
-                    "held_by": None, "path": norm}
+            return {"ok": False, "online": False, "mine": False, "token": None, "held_by": None, "path": norm}
 
     def release(self, path: str) -> bool:
         """Release `path` -- only if YOU hold it (advisory: don't steal a peer's lock)."""
@@ -132,7 +164,7 @@ class LockManager:
             pass
         return False
 
-    def holder(self, path: str) -> Optional[Dict[str, Any]]:
+    def holder(self, path: str) -> dict[str, Any] | None:
         if not self.online:
             return None
         try:
@@ -141,7 +173,7 @@ class LockManager:
         except Exception:
             return None
 
-    def validate_token(self, path: str, token: Any, agent: Optional[str] = None) -> bool:
+    def validate_token(self, path: str, token: Any, agent: str | None = None) -> bool:
         """The fencing check for a commit gate: True iff `path` is CURRENTLY held by
         `agent` (default: me) with exactly `token`. A stale token (lock expired and
         reclaimed by a peer) returns False."""
@@ -149,10 +181,10 @@ class LockManager:
         who = agent or self.agent_id
         return bool(h and h.get("agent") == who and h.get("token") == token)
 
-    def list_locks(self) -> List[Dict[str, Any]]:
+    def list_locks(self) -> list[dict[str, Any]]:
         if not self.online:
             return []
-        out: List[Dict[str, Any]] = []
+        out: list[dict[str, Any]] = []
         try:
             for key in self._client.scan_iter(f"{NS}:lock:*"):
                 if key.endswith(":_seq"):
@@ -165,22 +197,28 @@ class LockManager:
         return sorted(out, key=lambda d: d.get("path", ""))
 
 
-def path_conflict(path: str, agent: str, client: Optional[Any] = None) -> Dict[str, Any]:
+def path_conflict(path: str, agent: str, client: Any | None = None) -> dict[str, Any]:
     """Would `agent` editing `path` collide with a peer's advisory lock?
     Returns {conflict: bool, held_by, reason}. Fail-open: no Redis / no lock -> no conflict."""
     lm = LockManager(agent, client=client)
     h = lm.holder(path)
     if h and h.get("agent") and h.get("agent") != lm.agent_id:
         who = h.get("agent")
-        return {"conflict": True, "held_by": who, "reason": (
-            f"'{normalize_path(path)}' is locked by {who} (token {h.get('token')}). "
-            f"Edit a file you hold, request a handoff via the bus, or wait for release "
-            f"(advisory lock, see docs/library/design/20260709_concurrent-agents-reinforcing-two-peers_5f6723.md C2).")}
+        return {
+            "conflict": True,
+            "held_by": who,
+            "reason": (
+                f"'{normalize_path(path)}' is locked by {who} (token {h.get('token')}). "
+                f"Edit a file you hold, request a handoff via the bus, or wait for release "
+                f"(advisory lock, see docs/library/design/20260709_concurrent-agents-reinforcing-two-peers_5f6723.md C2)."
+            ),
+        }
     return {"conflict": False, "held_by": None, "reason": ""}
 
 
-def guard_write(path: str, agent: str, ttl: int = DEFAULT_TTL, client: Optional[Any] = None,
-                note: str = "") -> Dict[str, Any]:
+def guard_write(
+    path: str, agent: str, ttl: int = DEFAULT_TTL, client: Any | None = None, note: str = ""
+) -> dict[str, Any]:
     """The ONE environmental write-gate an agent calls BEFORE editing `path` (A0.1).
 
     Turns coordination from social (negotiate: 'stand down please') into environmental (read shared
@@ -193,13 +231,19 @@ def guard_write(path: str, agent: str, ttl: int = DEFAULT_TTL, client: Optional[
     Returns {ok, held_by, claimed, reason}. When ok is False the caller should YIELD (not retry) and
     surface `reason` on the bus so the yield is visible, not silent."""
     lm = LockManager(agent, client=client)
-    res = lm.acquire(path, ttl=ttl, note=note)          # re-entrant: extends the TTL if already mine
+    res = lm.acquire(path, ttl=ttl, note=note)  # re-entrant: extends the TTL if already mine
     if res.get("ok"):
         return {"ok": True, "held_by": agent, "claimed": True, "reason": ""}
-    if res.get("online"):                               # a peer holds it -> yield, don't clobber
+    if res.get("online"):  # a peer holds it -> yield, don't clobber
         h = lm.holder(path) or {}
         who = h.get("agent") or res.get("held_by")
-        return {"ok": False, "held_by": who, "claimed": False, "reason": (
-            f"'{normalize_path(path)}' is being edited by {who} (advisory lock). Yielding -- "
-            f"coordinate on the bus or wait for release (C2, docs/library/design/20260709_concurrent-agents-reinforcing-two-peers_5f6723.md).")}
-    return {"ok": True, "held_by": agent, "claimed": False, "reason": ""}   # offline -> fail-open
+        return {
+            "ok": False,
+            "held_by": who,
+            "claimed": False,
+            "reason": (
+                f"'{normalize_path(path)}' is being edited by {who} (advisory lock). Yielding -- "
+                f"coordinate on the bus or wait for release (C2, docs/library/design/20260709_concurrent-agents-reinforcing-two-peers_5f6723.md)."
+            ),
+        }
+    return {"ok": True, "held_by": agent, "claimed": False, "reason": ""}  # offline -> fail-open

@@ -6,6 +6,7 @@ routing decision (answer others' questions, never our own echoes, never 'reply' 
 
 Run: py -m pytest tests/test_bifrost_runner.py -q
 """
+
 import os
 import sys
 
@@ -19,13 +20,14 @@ def test_should_answer_routing():
     assert r.should_answer("chat", "cursor", "gemini") is True
     assert r.should_answer("request", "claude", "gemini") is True
     assert r.should_answer("handoff", "claude", "gemini") is True
-    assert r.should_answer("chat", "gemini", "gemini") is False     # our own echo
-    assert r.should_answer("note", "cursor", "gemini") is False     # not a question
-    assert r.should_answer("reply", "cursor", "gemini") is False    # never answer a reply (no loops)
+    assert r.should_answer("chat", "gemini", "gemini") is False  # our own echo
+    assert r.should_answer("note", "cursor", "gemini") is False  # not a question
+    assert r.should_answer("reply", "cursor", "gemini") is False  # never answer a reply (no loops)
 
 
 def test_card_is_api_runner():
-    assert r.CARD_API["runtime_class"] == "api" and r.CARD_API["wake_mode"] == "runner"
+    assert r.CARD_API["runtime_class"] == "api"
+    assert r.CARD_API["wake_mode"] == "runner"
     assert r.CARD_WEB["runtime_class"] == "web"
 
 
@@ -42,7 +44,9 @@ def test_card_for_provider():
 
 
 def test_module_smoke():
-    assert callable(r.main) and callable(r.provider_reply) and callable(r.provider_reply_web)
+    assert callable(r.main)
+    assert callable(r.provider_reply)
+    assert callable(r.provider_reply_web)
 
 
 if __name__ == "__main__":

@@ -5,6 +5,7 @@ Kernel API v0. See arsenal/FIRST-LIGHT-SPEC.md, section "analysis.py (PyAV)".
 This module is standalone: it does not import any other arsenal.* module, so it works
 whether or not arsenal/__init__.py exists yet.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -12,13 +13,15 @@ import json
 import os
 from fractions import Fraction
 from pathlib import Path
-from typing import Callable, Optional
-
-import numpy as np
-from numpy.lib.stride_tricks import sliding_window_view
+from typing import TYPE_CHECKING
 
 import av
+import numpy as np
 from av.codec.hwaccel import HWAccel
+from numpy.lib.stride_tricks import sliding_window_view
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 # state/arsenal/ lives next to this file's package, not at the process cwd, so this module
 # behaves the same whether it's run from E:\AI-Setup or imported from anywhere else.
@@ -37,8 +40,18 @@ _COLOR_UNSPECIFIED = 2  # shared by primaries, transfer (trc) and matrix (colors
 # (av_hwdevice_get_type_name-adjacent). Any other format PyAV reports (yuv420p, nv12 that
 # was downloaded to system memory, ...) means the decode is software.
 _HW_PIX_FMTS = {
-    "d3d11", "d3d12", "cuda", "vaapi", "dxva2_vld", "qsv",
-    "videotoolbox", "vulkan", "drm_prime", "mediacodec", "opencl", "vdpau",
+    "d3d11",
+    "d3d12",
+    "cuda",
+    "vaapi",
+    "dxva2_vld",
+    "qsv",
+    "videotoolbox",
+    "vulkan",
+    "drm_prime",
+    "mediacodec",
+    "opencl",
+    "vdpau",
 }
 
 HOP_TICKS = 480
@@ -55,7 +68,7 @@ def _format_tb(frac) -> str:
     return f"{frac.numerator}/{frac.denominator}"
 
 
-def _color_field(value, unspecified: int) -> Optional[int]:
+def _color_field(value, unspecified: int) -> int | None:
     """Pass a real PyAV colour int through as-is; the documented 'unspecified' sentinel
     (or PyAV itself returning None) becomes None. Never a guessed/default value."""
     if value is None or value == unspecified:
@@ -75,6 +88,7 @@ def _computed_with() -> dict:
 # ---------------------------------------------------------------------------
 # probe
 # ---------------------------------------------------------------------------
+
 
 def probe(path: str) -> dict:
     """Read container/stream/codec metadata with PyAV's real attributes.
@@ -137,6 +151,7 @@ def probe(path: str) -> dict:
 # hw_decode_evidence
 # ---------------------------------------------------------------------------
 
+
 def hw_decode_evidence(path: str, devices=("d3d12va", "d3d11va"), frames: int = 30) -> dict:
     """Decode a few frames per device with PyAV 17's real hwaccel API and report the frame
     format PyAV actually returns. Never raises: each device's failure is recorded on its
@@ -169,7 +184,7 @@ def hw_decode_evidence(path: str, devices=("d3d12va", "d3d11va"), frames: int = 
                     entry["frames"] = count
                     entry["frame_format"] = frame_format
                     entry["ok"] = frame_format in _HW_PIX_FMTS
-        except Exception as exc:  # noqa: BLE001 -- deliberately broad: never raise, ever
+        except Exception as exc:  # noqa: BLE001  # deliberately broad: never raise, ever
             entry["error"] = f"{type(exc).__name__}: {exc}"
         tried.append(entry)
         if entry["ok"] and ok_device is None:
@@ -182,8 +197,9 @@ def hw_decode_evidence(path: str, devices=("d3d12va", "d3d11va"), frames: int = 
 # audio_features
 # ---------------------------------------------------------------------------
 
+
 def _cache_path(abspath: str, size: int, mtime_ns: int) -> Path:
-    key = hashlib.sha1(f"{abspath}|{size}|{mtime_ns}".encode("utf-8")).hexdigest()
+    key = hashlib.sha1(f"{abspath}|{size}|{mtime_ns}".encode()).hexdigest()
     return CACHE_DIR / f"{key}.json"
 
 
@@ -208,14 +224,18 @@ def _no_audio_result(abspath: str, size: int, mtime_ns: int) -> dict:
         "no_audio": True,
         "normalization": "per-band p5..p99 of dB mapped to 0..1, clipped",
         "source": {
-            "path": abspath, "size": size, "mtime": mtime_ns,
-            "audio_stream": None, "sample_rate_in": None, "channels_in": None,
+            "path": abspath,
+            "size": size,
+            "mtime": mtime_ns,
+            "audio_stream": None,
+            "sample_rate_in": None,
+            "channels_in": None,
         },
         "computed_with": _computed_with(),
     }
 
 
-def audio_features(path: str, *, progress: Optional[Callable[[float], None]] = None) -> dict:
+def audio_features(path: str, *, progress: Callable[[float], None] | None = None) -> dict:
     """Mono 48kHz band/rms/flux features, hop 480 / window 2048 / Hann, cached on disk.
 
     start_ticks is the first audio frame's pts rescaled EXACTLY (fractions.Fraction, never
@@ -254,9 +274,7 @@ def audio_features(path: str, *, progress: Optional[Callable[[float], None]] = N
         astream = container.streams.audio[0]
         sample_rate_in = astream.codec_context.rate
         channels_in = astream.codec_context.channels
-        total_duration_s = (
-            float(Fraction(container.duration, av.time_base)) if container.duration else None
-        )
+        total_duration_s = float(Fraction(container.duration, av.time_base)) if container.duration else None
 
         resampler = av.AudioResampler(format="flt", layout="mono", rate=FEATURE_SAMPLE_RATE)
 
@@ -280,12 +298,9 @@ def audio_features(path: str, *, progress: Optional[Callable[[float], None]] = N
 
         samples = np.concatenate(chunks) if chunks else np.zeros(0, dtype=np.float32)
 
-        if first_pts is None:
-            start_ticks = 0
-        else:
-            # Exact rational rescale to 1/48000 ticks -- Fraction arithmetic throughout,
-            # round() on a Fraction is exact (no float ever enters this computation).
-            start_ticks = round(Fraction(first_pts) * first_tb * FEATURE_SAMPLE_RATE)
+        # Exact rational rescale to 1/48000 ticks -- Fraction arithmetic throughout,
+        # round() on a Fraction is exact (no float ever enters this computation).
+        start_ticks = 0 if first_pts is None else round(Fraction(first_pts) * first_tb * FEATURE_SAMPLE_RATE)
 
         rows = _extract_features(samples, lambda v: report(0.5 + 0.5 * v))
 
@@ -301,9 +316,12 @@ def audio_features(path: str, *, progress: Optional[Callable[[float], None]] = N
             "frames": rows,
             "normalization": "per-band p5..p99 of dB mapped to 0..1, clipped",
             "source": {
-                "path": abspath, "size": size, "mtime": mtime_ns,
+                "path": abspath,
+                "size": size,
+                "mtime": mtime_ns,
                 "audio_stream": astream.index,
-                "sample_rate_in": sample_rate_in, "channels_in": channels_in,
+                "sample_rate_in": sample_rate_in,
+                "channels_in": channels_in,
             },
             "computed_with": _computed_with(),
         }

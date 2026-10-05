@@ -24,12 +24,12 @@ been about. So the decision moves into one pure function that ship-time and audi
 
 Run: py -m pytest tests/test_m11_gating_is_measured.py -q
 """
+
 import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                                "scripts", "checkers"))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts", "checkers"))
 
 
 def _spec(tmp_path, name="docs/spec.md", body="GATE: reconciled by claude+deepseek"):
@@ -41,21 +41,26 @@ def _spec(tmp_path, name="docs/spec.md", body="GATE: reconciled by claude+deepse
 
 def test_p1_decide_is_pure_and_shared():
     import check_reconciliation_gate as g
+
     assert hasattr(g, "decide"), (
         "no pure decide() -- an audit would have to reimplement the gate's predicate, and a "
-        "second implementation drifts from the live gate. Measuring a copy is the disease.")
+        "second implementation drifts from the live gate. Measuring a copy is the disease."
+    )
 
 
 def test_p2_a_non_substrate_commit_is_not_in_the_denominator(tmp_path):
     import check_reconciliation_gate as g
+
     v = g.decide("fix a typo in docs/ARCHITECTURE.md", ["README.md"], root=str(tmp_path))
     assert v["status"] == "NOT_APPLICABLE", (
         "a commit touching no substrate was scored -- most commits never needed a gate, so "
-        "counting them makes the rate meaningless in both directions")
+        "counting them makes the rate meaningless in both directions"
+    )
 
 
 def test_p3_a_substrate_commit_citing_a_real_artifact_passes(tmp_path):
     import check_reconciliation_gate as g
+
     rel = _spec(tmp_path)
     v = g.decide(f"bus change per {rel}", ["core/comm/bus.py"], root=str(tmp_path))
     assert v["status"] == "PASS", v
@@ -65,17 +70,19 @@ def test_p4_a_doc_mention_is_not_a_gate(tmp_path):
     """deepseek's exact example: a message naming a .md that carries no reconciliation
     record. The old scorecard counted this as gated."""
     import check_reconciliation_gate as g
+
     rel = _spec(tmp_path, "docs/ARCHITECTURE.md", body="just a map, no record here")
     v = g.decide(f"tweak per {rel}", ["core/comm/bus.py"], root=str(tmp_path))
     assert v["status"] == "FAIL", (
         "citing a doc with no reconciliation/GATE marker counted as gated -- that is the "
-        "doc-mention trap, and targeting it upward yields more doc paths, not more gates")
+        "doc-mention trap, and targeting it upward yields more doc paths, not more gates"
+    )
 
 
 def test_p5_the_hatch_is_a_counted_exception(tmp_path, monkeypatch):
     import check_reconciliation_gate as g
+
     monkeypatch.setenv("AKASHIC_GATE_NO_CEILING", "1")
-    v = g.decide("emergency [ungated: prod down, wrap ruling to follow]",
-                 ["core/comm/bus.py"], root=str(tmp_path))
+    v = g.decide("emergency [ungated: prod down, wrap ruling to follow]", ["core/comm/bus.py"], root=str(tmp_path))
     assert v["status"] == "UNGATED", "a deliberate exception must be counted, never a silent pass"
     assert "prod down" in v["detail"]

@@ -25,8 +25,10 @@ Known limits (documented, not fixed):
   - the sparse-edge trim (EDGE_SPARSE) can cut up to EDGE_TRIM of the frame off a canvas whose outer
     strip is pure black, because those lines look like a cursor or tab touching the canvas.
 """
+
 from __future__ import annotations
 
+import contextlib
 import math
 import os
 import re
@@ -35,9 +37,21 @@ import statistics
 import subprocess
 import sys
 import threading
+from collections.abc import Sequence  # noqa: TC003  # runtime-evaluated annotations (inventory annotation_sensitive)
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, NamedTuple, Optional, Sequence, Tuple
+from typing import NamedTuple
+
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+
+        return python_launcher()
+    except Exception:
+        return "py"
+
 
 TARGET_W, TARGET_H = 1080, 1920
 VIDEO_SUFFIXES = (".mp4", ".mkv", ".mov")
@@ -48,21 +62,21 @@ FFMPEG_ENV = "ARSENAL_FFMPEG"
 
 # --- detection tuning (grey levels 0..255; fractions of the frame dimension) -------------------
 SAMPLE_FRAMES = 5
-RING_FRACTION = 0.01      # the outer ring the background level is read from
-RING_UNIFORM = 0.5        # at least half the ring must sit at the background level, or there is no border
-LIT_DELTA_MIN = 2         # a pixel is "lit" when it differs from the background by more than this
-LIT_DELTA_MAX = 12        # (raised to the ring's noise, but never past this)
-LIT_FRACTION = 0.10       # a line is part of the scene when this share of its pixels is lit...
-MEAN_DELTA = 1.5          # ...or its mean difference from the background is at least this
-MIN_RUN = 0.15            # the scene must span at least 15% of the frame
-GAP = 0.05                # dark gaps up to this wide inside the scene are bridged
-PIECE = 0.02              # thin bits hanging off the scene's ends across a gap are dropped
-EDGE_SPARSE = 0.25        # end lines lit under this share of the scene's typical line are trimmed
-EDGE_TRIM = 0.05          # (a cursor or tab touching the canvas; at most this much per end)
-QUIET_DELTA = 4           # outside the box, pixels this close to the background count as border...
+RING_FRACTION = 0.01  # the outer ring the background level is read from
+RING_UNIFORM = 0.5  # at least half the ring must sit at the background level, or there is no border
+LIT_DELTA_MIN = 2  # a pixel is "lit" when it differs from the background by more than this
+LIT_DELTA_MAX = 12  # (raised to the ring's noise, but never past this)
+LIT_FRACTION = 0.10  # a line is part of the scene when this share of its pixels is lit...
+MEAN_DELTA = 1.5  # ...or its mean difference from the background is at least this
+MIN_RUN = 0.15  # the scene must span at least 15% of the frame
+GAP = 0.05  # dark gaps up to this wide inside the scene are bridged
+PIECE = 0.02  # thin bits hanging off the scene's ends across a gap are dropped
+EDGE_SPARSE = 0.25  # end lines lit under this share of the scene's typical line are trimmed
+EDGE_TRIM = 0.05  # (a cursor or tab touching the canvas; at most this much per end)
+QUIET_DELTA = 4  # outside the box, pixels this close to the background count as border...
 OUTSIDE_NOISY_MAX = 0.05  # ...and no more than this share may be anything else
-EDGE_MARGIN = 0.01        # margins thinner than this are not borders
-NEAR_RATIO = 0.01         # within 1% of 9:16 scales exactly, no padding
+EDGE_MARGIN = 0.01  # margins thinner than this are not borders
+NEAR_RATIO = 0.01  # within 1% of 9:16 scales exactly, no padding
 UPSCALE_WARN = 2.5
 LONG_WARN_S = 600.0
 BIG_WARN_BYTES = 250 * 1024 * 1024
@@ -70,14 +84,14 @@ BIG_WARN_BYTES = 250 * 1024 * 1024
 # --- trim --------------------------------------------------------------------------------------
 SILENCE_DB = -50
 SILENCE_MIN_S = 0.25
-MIN_SOUND_S = 0.3         # shorter sounds at either end are clicks, not the first or last note...
-CLICK_GAP_S = 1.0         # ...but only when this much silence cuts them off from the playing...
-STOP_CLICK_S = 1.0        # ...and, at the end, only when they start this close to the end of the file
-BLIP_REPORT_S = 0.05      # (clicks at least this long are named in the report)
-FADE_S = 0.3              # the fade-out, whenever the copy is cut short of the end of the recording
-FADE_IN_S = 0.4           # the fade-in, when the copy starts inside sound (a ringing pedal would pop in)
-START_SOUND_S = 0.1       # "inside sound": sound within this much of the copy's start (or end)
-END_SLACK_S = 0.05        # --to may overshoot the recording's end by this much (the length is shown to 10 ms)
+MIN_SOUND_S = 0.3  # shorter sounds at either end are clicks, not the first or last note...
+CLICK_GAP_S = 1.0  # ...but only when this much silence cuts them off from the playing...
+STOP_CLICK_S = 1.0  # ...and, at the end, only when they start this close to the end of the file
+BLIP_REPORT_S = 0.05  # (clicks at least this long are named in the report)
+FADE_S = 0.3  # the fade-out, whenever the copy is cut short of the end of the recording
+FADE_IN_S = 0.4  # the fade-in, when the copy starts inside sound (a ringing pedal would pop in)
+START_SOUND_S = 0.1  # "inside sound": sound within this much of the copy's start (or end)
+END_SLACK_S = 0.05  # --to may overshoot the recording's end by this much (the length is shown to 10 ms)
 
 # --- audio clock -------------------------------------------------------------------------------
 # Every audio path starts with this, so the sound stays on its picture whatever the flags:
@@ -106,15 +120,17 @@ class TikTokError(Exception):
 # ffmpeg discovery
 # =================================================================================================
 
-NO_FFMPEG = ("no ffmpeg found. Fix it one of three ways: install the bundled copy with "
-             "'py -m pip install imageio-ffmpeg', put ffmpeg.exe on PATH, or set "
-             f"{FFMPEG_ENV} to the full path of ffmpeg.exe")
+NO_FFMPEG = (
+    "no ffmpeg found. Fix it one of three ways: install the bundled copy with "
+    f"'{_pyl()} -m pip install imageio-ffmpeg', put ffmpeg.exe on PATH, or set "
+    f"{FFMPEG_ENV} to the full path of ffmpeg.exe"
+)
 
 
-def _bundled_ffmpeg() -> Optional[str]:
+def _bundled_ffmpeg() -> str | None:
     """imageio-ffmpeg's bundled binary, if that package is installed (it is optional)."""
     try:
-        import imageio_ffmpeg  # type: ignore
+        import imageio_ffmpeg  # type: ignore[import-not-found]
     except ImportError:
         return None
     try:
@@ -133,8 +149,9 @@ def find_ffmpeg() -> str:
         found = shutil.which(configured)
         if found:
             return found
-        raise TikTokError(f"{FFMPEG_ENV} is set to {configured!r}, but there is no ffmpeg there; "
-                          f"fix the path or clear {FFMPEG_ENV}")
+        raise TikTokError(
+            f"{FFMPEG_ENV} is set to {configured!r}, but there is no ffmpeg there; fix the path or clear {FFMPEG_ENV}"
+        )
     found = shutil.which("ffmpeg")
     if found:
         return found
@@ -148,23 +165,24 @@ def find_ffmpeg() -> str:
 # "ffmpeg -i" stderr parsing
 # =================================================================================================
 
+
 @dataclass
 class Stream:
     index: int
-    kind: str                      # "video" | "audio" | "subtitle" | "data" | "attachment"
+    kind: str  # "video" | "audio" | "subtitle" | "data" | "attachment"
     codec: str
     width: int = 0
     height: int = 0
-    fps: Optional[float] = None
-    pix_fmt: Optional[str] = None
+    fps: float | None = None
+    pix_fmt: str | None = None
     bit_depth: int = 8
-    sample_rate: Optional[int] = None
-    channels: Optional[str] = None
+    sample_rate: int | None = None
+    channels: str | None = None
     rotation: float = 0.0
     attached_pic: bool = False
 
     @property
-    def display_size(self) -> Tuple[int, int]:
+    def display_size(self) -> tuple[int, int]:
         """Frame size after ffmpeg's autorotate (a phone clip tagged -90 decodes portrait)."""
         if round(abs(self.rotation)) % 180 == 90:
             return self.height, self.width
@@ -173,23 +191,25 @@ class Stream:
 
 @dataclass
 class MediaInfo:
-    duration: Optional[float]
+    duration: float | None
     container: str = ""
-    streams: List[Stream] = field(default_factory=list)
+    streams: list[Stream] = field(default_factory=list)
 
     @property
-    def video(self) -> Optional[Stream]:
+    def video(self) -> Stream | None:
         return next((s for s in self.streams if s.kind == "video" and not s.attached_pic), None)
 
     @property
-    def audio(self) -> Optional[Stream]:
+    def audio(self) -> Stream | None:
         return next((s for s in self.streams if s.kind == "audio"), None)
 
 
 _INPUT_RE = re.compile(r"^Input #0, (.+?), from ", re.M)
 _DURATION_RE = re.compile(r"Duration:\s*(\d+):(\d{2}):(\d{2}(?:\.\d+)?)")
-_STREAM_RE = re.compile(r"^\s*Stream #0:(\d+)(?:\[0x[0-9a-fA-F]+\])?(?:\([^)]*\))?:\s*"
-                        r"(Video|Audio|Subtitle|Data|Attachment):\s*(.*)$")
+_STREAM_RE = re.compile(
+    r"^\s*Stream #0:(\d+)(?:\[0x[0-9a-fA-F]+\])?(?:\([^)]*\))?:\s*"
+    r"(Video|Audio|Subtitle|Data|Attachment):\s*(.*)$"
+)
 _SIZE_RE = re.compile(r"(?<![\w.])(\d{2,5})x(\d{2,5})(?![\w.])")
 _FPS_RE = re.compile(r"(\d+(?:\.\d+)?)(k?)\s*fps\b")
 _TBR_RE = re.compile(r"(\d+(?:\.\d+)?)(k?)\s*tbr\b")
@@ -198,7 +218,7 @@ _HZ_RE = re.compile(r"(\d+)\s*Hz\b")
 _DEPTH_RE = re.compile(r"p(\d{2})(?:le|be)?$")
 
 
-def split_top_level(text: str) -> List[str]:
+def split_top_level(text: str) -> list[str]:
     """Split on commas that are not inside parentheses or brackets."""
     parts, depth, current = [], 0, []
     for ch in text:
@@ -228,15 +248,14 @@ def parse_media_info(text: str) -> MediaInfo:
         duration = int(m.group(1)) * 3600 + int(m.group(2)) * 60 + float(m.group(3))
     m = _INPUT_RE.search(text)
     info = MediaInfo(duration=duration, container=m.group(1) if m else "")
-    current: Optional[Stream] = None
+    current: Stream | None = None
     for line in text.splitlines():
         sm = _STREAM_RE.match(line)
         if sm:
             kind, rest = sm.group(2).lower(), sm.group(3)
             parts = split_top_level(rest)
             codec = parts[0].split()[0] if parts and parts[0].split() else "unknown"
-            current = Stream(index=int(sm.group(1)), kind=kind, codec=codec,
-                             attached_pic="attached pic" in rest)
+            current = Stream(index=int(sm.group(1)), kind=kind, codec=codec, attached_pic="attached pic" in rest)
             if kind == "video":
                 for part in parts[1:]:
                     size = _SIZE_RE.search(part)
@@ -261,7 +280,7 @@ def parse_media_info(text: str) -> MediaInfo:
         rot = _ROTATION_RE.search(line)
         if rot and current is not None and current.kind == "video":
             current.rotation = float(rot.group(1))
-        elif line.startswith("Input #") or line.startswith("Output #"):
+        elif line.startswith(("Input #", "Output #")):
             current = None
     return info
 
@@ -290,6 +309,7 @@ def probe(ffmpeg: str, path) -> MediaInfo:
 # content detection (pure Python over raw grey frames)
 # =================================================================================================
 
+
 class Box(NamedTuple):
     x: int
     y: int
@@ -305,7 +325,7 @@ class Box(NamedTuple):
         return self.y + self.h
 
 
-def _runs(active: Sequence[bool]) -> List[Tuple[int, int]]:
+def _runs(active: Sequence[bool]) -> list[tuple[int, int]]:
     runs, start = [], None
     for i, on in enumerate(active):
         if on and start is None:
@@ -318,7 +338,7 @@ def _runs(active: Sequence[bool]) -> List[Tuple[int, int]]:
     return runs
 
 
-def scene_span(active: Sequence[bool], size: int) -> Optional[Tuple[int, int]]:
+def scene_span(active: Sequence[bool], size: int) -> tuple[int, int] | None:
     """The longest stretch of active lines, bridging short dark gaps and ignoring thin strays.
 
     Runs closer than GAP merge into one scene (a dark stripe inside the canvas does not split it);
@@ -330,7 +350,7 @@ def scene_span(active: Sequence[bool], size: int) -> Optional[Tuple[int, int]]:
         return None
     gap = max(2, round(size * GAP))
     piece = max(2, round(size * PIECE))
-    groups: List[List[Tuple[int, int]]] = [[runs[0]]]
+    groups: list[list[tuple[int, int]]] = [[runs[0]]]
     for run in runs[1:]:
         if run[0] - groups[-1][-1][1] <= gap:
             groups[-1].append(run)
@@ -350,7 +370,7 @@ def scene_span(active: Sequence[bool], size: int) -> Optional[Tuple[int, int]]:
     return best
 
 
-def trim_sparse_ends(span: Tuple[int, int], counts: Sequence[int], size: int) -> Optional[Tuple[int, int]]:
+def trim_sparse_ends(span: tuple[int, int], counts: Sequence[int], size: int) -> tuple[int, int] | None:
     """Cut sparse lines off the span's ends: a cursor or UI tab touching the canvas edge.
 
     scene_span only drops strays across a gap; one that touches the scene joins it. Its lines are
@@ -374,12 +394,12 @@ def _table(fn) -> bytes:
     return bytes(fn(v) for v in range(256))
 
 
-def background_level(frame: bytes, width: int, height: int) -> Tuple[int, float, int]:
+def background_level(frame: bytes, width: int, height: int) -> tuple[int, float, int]:
     """(background level, share of the outer ring at that level, lit threshold) from the frame's ring."""
     t = max(1, round(min(width, height) * RING_FRACTION))
-    pieces = [frame[: t * width], frame[(height - t) * width: height * width]]
-    pieces += [frame[x: width * height: width] for x in range(t)]
-    pieces += [frame[width - 1 - x: width * height: width] for x in range(t)]
+    pieces = [frame[: t * width], frame[(height - t) * width : height * width]]
+    pieces += [frame[x : width * height : width] for x in range(t)]
+    pieces += [frame[width - 1 - x : width * height : width] for x in range(t)]
     ring = b"".join(pieces)
     ordered = sorted(ring)
     bg = ordered[len(ordered) // 2]
@@ -393,7 +413,7 @@ def background_level(frame: bytes, width: int, height: int) -> Tuple[int, float,
     return bg, uniform, delta
 
 
-def detect_frame_box(frame: bytes, width: int, height: int) -> Optional[Box]:
+def detect_frame_box(frame: bytes, width: int, height: int) -> Box | None:
     """The lit scene's box in one grey frame; the full frame when there is no border; None when empty.
 
     None means "no content found here" (black, blank): such frames do not vote in combine_boxes.
@@ -422,8 +442,8 @@ def detect_frame_box(frame: bytes, width: int, height: int) -> Optional[Box]:
     active_rows, row_counts = [], []
     for y in range(height):
         a = y * width + x0
-        row_counts.append(mask[a:a + band].count(1))
-        active_rows.append(row_counts[-1] >= lit_row or sum(diff[a:a + band]) >= mean_row)
+        row_counts.append(mask[a : a + band].count(1))
+        active_rows.append(row_counts[-1] >= lit_row or sum(diff[a : a + band]) >= mean_row)
     rows = scene_span(active_rows, height)
     if rows is not None:
         rows = trim_sparse_ends(rows, row_counts, height)
@@ -437,13 +457,13 @@ def detect_frame_box(frame: bytes, width: int, height: int) -> Optional[Box]:
     if outside_area <= 0:
         return full
     noisy = frame.translate(_table(lambda v: 1 if abs(v - bg) > max(QUIET_DELTA, delta) else 0))
-    inside = sum(noisy[y * width + x0: y * width + x1].count(1) for y in range(y0, y1))
+    inside = sum(noisy[y * width + x0 : y * width + x1].count(1) for y in range(y0, y1))
     if noisy.count(1) - inside > OUTSIDE_NOISY_MAX * outside_area:
         return full
     return Box(x0, y0, band, y1 - y0)
 
 
-def snap_box(x0: int, y0: int, x1: int, y1: int, width: int, height: int) -> Optional[Box]:
+def snap_box(x0: int, y0: int, x1: int, y1: int, width: int, height: int) -> Box | None:
     """Even origin and size, snapped inward (never a border line), clamped to the frame."""
     x0 = min(max(0, x0 + (x0 % 2)), width)
     y0 = min(max(0, y0 + (y0 % 2)), height)
@@ -463,26 +483,31 @@ def fills_frame(box: Box, width: int, height: int) -> bool:
 
 @dataclass
 class Detection:
-    box: Optional[Box]   # None: crop nothing
-    found: int           # sample frames that found content
-    sampled: int         # sample frames read
-    reason: str          # "borders" | "no-borders" | "no-content"
+    box: Box | None  # None: crop nothing
+    found: int  # sample frames that found content
+    sampled: int  # sample frames read
+    reason: str  # "borders" | "no-borders" | "no-content"
 
 
-def combine_boxes(boxes: Sequence[Optional[Box]], width: int, height: int) -> Detection:
+def combine_boxes(boxes: Sequence[Box | None], width: int, height: int) -> Detection:
     """The median box of the frames that found content, snapped even; None when nothing to cut."""
     found = [b for b in boxes if b is not None]
     if not found:
         return Detection(None, 0, len(boxes), "no-content")
-    box = snap_box(statistics.median_low(b.x for b in found), statistics.median_low(b.y for b in found),
-                   statistics.median_low(b.x1 for b in found), statistics.median_low(b.y1 for b in found),
-                   width, height)
+    box = snap_box(
+        statistics.median_low(b.x for b in found),
+        statistics.median_low(b.y for b in found),
+        statistics.median_low(b.x1 for b in found),
+        statistics.median_low(b.y1 for b in found),
+        width,
+        height,
+    )
     if box is None or fills_frame(box, width, height):
         return Detection(None, len(found), len(boxes), "no-borders")
     return Detection(box, len(found), len(boxes), "borders")
 
 
-def sample_times(duration: Optional[float], count: int = SAMPLE_FRAMES, start: float = 0.0) -> List[float]:
+def sample_times(duration: float | None, count: int = SAMPLE_FRAMES, start: float = 0.0) -> list[float]:
     """Frames spread across the middle 90% of the stretch that begins at `start` and lasts `duration`
     (the whole video, or the --from/--to window: a dark intro outside it never votes)."""
     if not duration or duration <= 0:
@@ -492,9 +517,27 @@ def sample_times(duration: Optional[float], count: int = SAMPLE_FRAMES, start: f
     return [round(start + duration * (0.05 + 0.9 * i / (count - 1)), 3) for i in range(count)]
 
 
-def grab_gray_frame(ffmpeg: str, path, t: float, stream_index: int, width: int, height: int) -> Optional[bytes]:
-    cmd = [ffmpeg, "-hide_banner", "-nostdin", "-v", "error", "-ss", f"{t:.3f}", "-i", str(path),
-           "-map", f"0:{stream_index}", "-frames:v", "1", "-f", "rawvideo", "-pix_fmt", "gray", "-"]
+def grab_gray_frame(ffmpeg: str, path, t: float, stream_index: int, width: int, height: int) -> bytes | None:
+    cmd = [
+        ffmpeg,
+        "-hide_banner",
+        "-nostdin",
+        "-v",
+        "error",
+        "-ss",
+        f"{t:.3f}",
+        "-i",
+        str(path),
+        "-map",
+        f"0:{stream_index}",
+        "-frames:v",
+        "1",
+        "-f",
+        "rawvideo",
+        "-pix_fmt",
+        "gray",
+        "-",
+    ]
     data = _run(cmd).stdout
     return data if len(data) == width * height else None
 
@@ -502,6 +545,7 @@ def grab_gray_frame(ffmpeg: str, path, t: float, stream_index: int, width: int, 
 # =================================================================================================
 # aspect math
 # =================================================================================================
+
 
 def _even_round(v: float) -> int:
     return max(2, 2 * round(v / 2))
@@ -517,11 +561,11 @@ def _even_down(v: float) -> int:
 
 @dataclass
 class Framing:
-    mode: str       # "exact" | "fit" | "fill"
-    scale: float    # picture scale factor
+    mode: str  # "exact" | "fit" | "fill"
+    scale: float  # picture scale factor
     scaled_w: int
     scaled_h: int
-    offset_x: int   # fit: padding left/top; fill: crop left/top
+    offset_x: int  # fit: padding left/top; fill: crop left/top
     offset_y: int
 
 
@@ -542,7 +586,7 @@ def plan_framing(w: int, h: int, mode: str = "fit") -> Framing:
     return Framing("fit", s, sw, sh, _even_down((TARGET_W - sw) / 2), _even_down((TARGET_H - sh) / 2))
 
 
-def choose_fps(source_fps: Optional[float], choice: str = "auto") -> Tuple[str, float]:
+def choose_fps(source_fps: float | None, choice: str = "auto") -> tuple[str, float]:
     """(ffmpeg fps value, number): the source's own rate capped at 60, or a forced 30/60."""
     if choice in ("30", "60"):
         return choice, float(choice)
@@ -558,7 +602,7 @@ def choose_fps(source_fps: Optional[float], choice: str = "auto") -> Tuple[str, 
     return f"{source_fps:.3f}", source_fps
 
 
-def video_filter(box: Optional[Box], framing: Framing, fps: Optional[str] = None) -> str:
+def video_filter(box: Box | None, framing: Framing, fps: str | None = None) -> str:
     # fps goes first: after a scale, ffmpeg 7.1's fps filter drops the final frame at end of stream
     # (a 150-frame clip came out as 149); first, it keeps them all and scales only the frames kept
     parts = [f"fps={fps}"] if fps else []
@@ -585,9 +629,9 @@ _MAX_RE = re.compile(r"max_volume:\s*" + _NUM + r"\s*dB")
 _TIME_RE = re.compile(r"time=\s*(\d+):(\d{2}):(\d{2}(?:\.\d+)?)")
 
 
-def parse_silence(text: str) -> List[Tuple[float, Optional[float]]]:
+def parse_silence(text: str) -> list[tuple[float, float | None]]:
     """silencedetect output as (start, end) pairs; end is None when the silence ran off the end."""
-    spans: List[Tuple[float, Optional[float]]] = []
+    spans: list[tuple[float, float | None]] = []
     for kind, value in _SILENCE_RE.findall(text):
         if kind == "start":
             spans.append((max(0.0, float(value)), None))
@@ -596,13 +640,13 @@ def parse_silence(text: str) -> List[Tuple[float, Optional[float]]]:
     return spans
 
 
-def parse_volume(text: str) -> Tuple[Optional[float], Optional[float]]:
+def parse_volume(text: str) -> tuple[float | None, float | None]:
     """The last volumedetect (mean dB, max dB) in the text."""
     means, maxes = _MEAN_RE.findall(text), _MAX_RE.findall(text)
     return (float(means[-1]) if means else None, float(maxes[-1]) if maxes else None)
 
 
-def parse_last_time(text: str) -> Optional[float]:
+def parse_last_time(text: str) -> float | None:
     """The final time= of ffmpeg's progress line: where the decoded stream actually ended."""
     found = _TIME_RE.findall(text)
     if not found:
@@ -611,8 +655,7 @@ def parse_last_time(text: str) -> Optional[float]:
     return int(h) * 3600 + int(m) * 60 + float(s)
 
 
-def sound_segments(silences: Sequence[Tuple[float, Optional[float]]],
-                   audio_end: float) -> List[Tuple[float, float]]:
+def sound_segments(silences: Sequence[tuple[float, float | None]], audio_end: float) -> list[tuple[float, float]]:
     """The stretches between the silences: where there is sound."""
     segments, cursor = [], 0.0
     for start, end in silences:
@@ -624,9 +667,13 @@ def sound_segments(silences: Sequence[Tuple[float, Optional[float]]],
     return [(a, b) for a, b in segments if b - a > 1e-6]
 
 
-def sound_window(silences: Sequence[Tuple[float, Optional[float]]], audio_end: float,
-                 min_sound: float = MIN_SOUND_S, click_gap: float = CLICK_GAP_S,
-                 stop_click: float = STOP_CLICK_S) -> Optional[Tuple[float, float]]:
+def sound_window(
+    silences: Sequence[tuple[float, float | None]],
+    audio_end: float,
+    min_sound: float = MIN_SOUND_S,
+    click_gap: float = CLICK_GAP_S,
+    stop_click: float = STOP_CLICK_S,
+) -> tuple[float, float] | None:
     """(first sound, last sound) in seconds; None when there is no real sound at all.
 
     A blip shorter than min_sound at either end (the OBS hotkey click, a mouse click, codec
@@ -641,53 +688,63 @@ def sound_window(silences: Sequence[Tuple[float, Optional[float]]], audio_end: f
     audio. Anything earlier stays as music; what was dropped is named in the report (edge_blips).
     """
     segments = sound_segments(silences, audio_end)
-    while (segments and segments[0][1] - segments[0][0] < min_sound
-           and (segments[1][0] if len(segments) > 1 else audio_end) - segments[0][1] >= click_gap):
+    while (
+        segments
+        and segments[0][1] - segments[0][0] < min_sound
+        and (segments[1][0] if len(segments) > 1 else audio_end) - segments[0][1] >= click_gap
+    ):
         segments.pop(0)
-    while (segments and segments[-1][1] - segments[-1][0] < min_sound
-           and segments[-1][0] >= audio_end - stop_click
-           and segments[-1][0] - (segments[-2][1] if len(segments) > 1 else 0.0) >= click_gap):
+    while (
+        segments
+        and segments[-1][1] - segments[-1][0] < min_sound
+        and segments[-1][0] >= audio_end - stop_click
+        and segments[-1][0] - (segments[-2][1] if len(segments) > 1 else 0.0) >= click_gap
+    ):
         segments.pop()
     if not segments:
         return None
     return segments[0][0], segments[-1][1]
 
 
-def edge_blips(silences: Sequence[Tuple[float, Optional[float]]], audio_end: float,
-               window: Optional[Tuple[float, float]]) -> List[Tuple[float, float]]:
+def edge_blips(
+    silences: Sequence[tuple[float, float | None]], audio_end: float, window: tuple[float, float] | None
+) -> list[tuple[float, float]]:
     """(start, length) of the audible blips sound_window passed over, for the report."""
     if window is None:
         return []
-    return [(a, b - a) for a, b in sound_segments(silences, audio_end)
-            if (b <= window[0] or a >= window[1]) and b - a >= BLIP_REPORT_S]
+    return [
+        (a, b - a)
+        for a, b in sound_segments(silences, audio_end)
+        if (b <= window[0] or a >= window[1]) and b - a >= BLIP_REPORT_S
+    ]
 
 
-def sound_near(silences: Sequence[Tuple[float, Optional[float]]], audio_end: float,
-               a: float, b: float) -> bool:
+def sound_near(silences: Sequence[tuple[float, float | None]], audio_end: float, a: float, b: float) -> bool:
     """True when some sound (a stretch silencedetect did not call silent) touches [a, b]."""
     return any(s < b and e > a for s, e in sound_segments(silences, audio_end))
 
 
 class Window(NamedTuple):
     """The stretch of the recording the copy is confined to (--from/--to), in seconds from its start."""
+
     start: float = 0.0
-    end: Optional[float] = None          # None: to the end of the recording
+    end: float | None = None  # None: to the end of the recording
 
     @property
-    def length(self) -> Optional[float]:
+    def length(self) -> float | None:
         return None if self.end is None else self.end - self.start
 
 
 @dataclass
 class Trim:
     start: float = 0.0
-    end: Optional[float] = None          # None: keep to the end of the recording
-    first_sound: Optional[float] = None
-    last_sound: Optional[float] = None
+    end: float | None = None  # None: keep to the end of the recording
+    first_sound: float | None = None
+    last_sound: float | None = None
     note: str = ""
-    ignored: List[Tuple[float, float]] = field(default_factory=list)
-    fade_in: bool = False                # the copy starts inside sound: fade the audio in (given the room)
-    ends_in_sound: bool = False          # the copy is cut inside sound (no tail room): said in the report
+    ignored: list[tuple[float, float]] = field(default_factory=list)
+    fade_in: bool = False  # the copy starts inside sound: fade the audio in (given the room)
+    ends_in_sound: bool = False  # the copy is cut inside sound (no tail room): said in the report
 
     @property
     def fade(self) -> bool:
@@ -699,8 +756,9 @@ class Trim:
         return self.end is not None
 
 
-def plan_trim(sound: Optional[Tuple[float, float]], duration: float, lead: float, tail: float,
-              window: Optional[Window] = None) -> Trim:
+def plan_trim(
+    sound: tuple[float, float] | None, duration: float, lead: float, tail: float, window: Window | None = None
+) -> Trim:
     """Where the copy starts and ends: `lead` before the first sound and `tail` after the last, kept
     inside the window (the whole recording when None). All times count from the recording's start.
 
@@ -712,13 +770,14 @@ def plan_trim(sound: Optional[Tuple[float, float]], duration: float, lead: float
     w1 = window.end if window is not None else None
     if sound is None:
         where = " in the window" if window is not None else ""
-        return Trim(round(w0, 3), w1, note=f"no sound found{where} (silent all the way through), "
-                                            "so nothing was trimmed")
+        return Trim(
+            round(w0, 3), w1, note=f"no sound found{where} (silent all the way through), so nothing was trimmed"
+        )
     first, last = sound[0], min(sound[1], duration if w1 is None else w1)
     start = max(w0, first - lead)
     if start - w0 < 0.05:
         start = w0
-    end: Optional[float] = last + tail
+    end: float | None = last + tail
     if w1 is not None:
         if end >= w1 or end <= start + 1.0:
             end = w1
@@ -727,7 +786,7 @@ def plan_trim(sound: Optional[Tuple[float, float]], duration: float, lead: float
     return Trim(round(start, 3), None if end is None else round(end, 3), first, last)
 
 
-def fades_for(trim: Trim) -> Tuple[bool, bool]:
+def fades_for(trim: Trim) -> tuple[bool, bool]:
     """(fade in, fade out): the fades the audio filter applies, so the report names exactly those.
 
     A copy too short to hold a ramp gets none there: the fade-in needs more than FADE_IN_S + FADE_S
@@ -755,8 +814,9 @@ def parse_time(text: str) -> float:
     if raw.startswith("-"):
         raise TikTokError(f"{raw} is a negative time; the recording starts at 0:00")
     parts = raw.split(":")
-    if not (1 <= len(parts) <= 3 and all(_TIME_PART.fullmatch(p) for p in parts[:-1])
-            and _TIME_LAST.fullmatch(parts[-1])):
+    if not (
+        1 <= len(parts) <= 3 and all(_TIME_PART.fullmatch(p) for p in parts[:-1]) and _TIME_LAST.fullmatch(parts[-1])
+    ):
         raise TikTokError(f"cannot read the time {raw!r}; give {TIME_FORMS}")
     values = [float(p) for p in parts]
     if any(v >= 60 for v in values[1:]):
@@ -778,7 +838,7 @@ def name_time(seconds: float) -> str:
     return text + (fraction[1:] if fraction != "0." else "")
 
 
-def window_tag(start: Optional[float], end: Optional[float]) -> str:
+def window_tag(start: float | None, end: float | None) -> str:
     """' 28-52-end' for the output name; '' when neither --from nor --to was given."""
     if start is None and end is None:
         return ""
@@ -803,7 +863,7 @@ def _looks_like_dir(out: str) -> bool:
     return out.endswith(("/", "\\")) or path.is_dir() or (not path.suffix and not path.exists())
 
 
-def output_path_for(source: Path, out: Optional[str] = None, many: bool = False, tag: str = "") -> Path:
+def output_path_for(source: Path, out: str | None = None, many: bool = False, tag: str = "") -> Path:
     """'<stem> tiktok.mp4' beside the source, inside --out when it is a folder, or --out itself.
 
     tag: window_tag(--from, --to), so a windowed copy is '<stem> tiktok 28-52-end.mp4' and never
@@ -815,11 +875,11 @@ def output_path_for(source: Path, out: Optional[str] = None, many: bool = False,
     if _looks_like_dir(out):
         return Path(out) / name
     if not Path(out).suffix:
-        raise TikTokError(f"--out {out} is an existing file with no extension; "
-                          "give a folder, or a file name ending in .mp4")
+        raise TikTokError(
+            f"--out {out} is an existing file with no extension; give a folder, or a file name ending in .mp4"
+        )
     if many:
-        raise TikTokError("--out names one file, but more than one video was given; "
-                          "point --out at a folder instead")
+        raise TikTokError("--out names one file, but more than one video was given; point --out at a folder instead")
     path = Path(out)
     if path.suffix.lower() not in (".mp4", ".m4v", ".mov"):
         path = path.with_name(path.name + ".mp4")
@@ -849,8 +909,10 @@ def check_output(source: Path, output: Path, force: bool, dropped: bool = False)
         raise TikTokError(f"refusing: {output} is the source video itself; it is never overwritten")
     if output.exists() and not force:
         if dropped:  # a drag-and-drop cannot add --force, so do not suggest it
-            raise TikTokError(f"a TikTok copy of this video already exists: {output}. "
-                              "Delete or rename that copy, then drop the video again.")
+            raise TikTokError(
+                f"a TikTok copy of this video already exists: {output}. "
+                "Delete or rename that copy, then drop the video again."
+            )
         raise TikTokError(f"{output} already exists; add --force to replace it")
 
 
@@ -863,11 +925,14 @@ def default_folder() -> Path:
     """The library root py -m arsenal serve uses when given no --root."""
     try:
         from .serve import DEFAULT_ROOTS
+
         root = DEFAULT_ROOTS[0]
     except Exception as exc:  # serve.py is busy shared code: a broken import is a sentence, not a traceback
-        raise TikTokError("could not find the default recordings folder, because arsenal/serve.py did not "
-                          f"load ({type(exc).__name__}: {exc}). Say where the recordings are with --folder, "
-                          "for example: py -m arsenal tiktok --latest --folder \"D:\\my recordings\"") from exc
+        raise TikTokError(
+            "could not find the default recordings folder, because arsenal/serve.py did not "
+            f"load ({type(exc).__name__}: {exc}). Say where the recordings are with --folder, "
+            f'for example: {_pyl()} -m arsenal tiktok --latest --folder "D:\\my recordings"'
+        ) from exc
     return Path(root).resolve()
 
 
@@ -892,7 +957,8 @@ def latest_video(folder: Path) -> Path:
 # commands
 # =================================================================================================
 
-def silence_command(ffmpeg: str, source, audio_index: int, window: Optional[Window] = None) -> List[str]:
+
+def silence_command(ffmpeg: str, source, audio_index: int, window: Window | None = None) -> list[str]:
     # volumedetect first, so "before" measures the recording's own samples. Then the encode's audio
     # clock: audio that starts after the video (a late track in an MKV) is silence from 0 up to its
     # first sample, not an unheard stretch that silencedetect would count as the first sound.
@@ -904,12 +970,22 @@ def silence_command(ffmpeg: str, source, audio_index: int, window: Optional[Wind
     cmd += ["-i", str(source)]
     if window is not None and window.end is not None:
         cmd += ["-t", f"{window.length:.3f}"]
-    return cmd + ["-map", f"0:{audio_index}",
-                  "-af", f"volumedetect,{AUDIO_CLOCK},silencedetect=noise={SILENCE_DB}dB:d={SILENCE_MIN_S}",
-                  "-vn", "-sn", "-dn", "-f", "null", "-"]
+    return [
+        *cmd,
+        "-map",
+        f"0:{audio_index}",
+        "-af",
+        f"volumedetect,{AUDIO_CLOCK},silencedetect=noise={SILENCE_DB}dB:d={SILENCE_MIN_S}",
+        "-vn",
+        "-sn",
+        "-dn",
+        "-f",
+        "null",
+        "-",
+    ]
 
 
-def audio_filter(trim: Trim, lufs: Optional[float]) -> str:
+def audio_filter(trim: Trim, lufs: float | None) -> str:
     # Holes in the source audio (dropouts) are filled with silence first (AUDIO_CLOCK), then the
     # stamps are rebuilt from the sample count, on every path: sync never depends on --no-loudnorm.
     parts = [AUDIO_CLOCK]
@@ -930,10 +1006,30 @@ def audio_filter(trim: Trim, lufs: Optional[float]) -> str:
     return ",".join(parts)
 
 
-def encode_command(ffmpeg: str, source, output, *, video_index: int, audio_index: Optional[int],
-                   vf: str, af: Optional[str], trim: Trim, crf: int, force: bool) -> List[str]:
-    cmd = [ffmpeg, "-hide_banner", "-nostdin", "-v", "error", "-nostats", "-progress", "pipe:1",
-           "-y" if force else "-n"]
+def encode_command(
+    ffmpeg: str,
+    source,
+    output,
+    *,
+    video_index: int,
+    audio_index: int | None,
+    vf: str,
+    af: str | None,
+    trim: Trim,
+    crf: int,
+    force: bool,
+) -> list[str]:
+    cmd = [
+        ffmpeg,
+        "-hide_banner",
+        "-nostdin",
+        "-v",
+        "error",
+        "-nostats",
+        "-progress",
+        "pipe:1",
+        "-y" if force else "-n",
+    ]
     if trim.start > 0:
         cmd += ["-ss", f"{trim.start:.3f}"]
     cmd += ["-i", str(source)]
@@ -942,8 +1038,20 @@ def encode_command(ffmpeg: str, source, output, *, video_index: int, audio_index
     cmd += ["-map", f"0:{video_index}"]
     if audio_index is not None:
         cmd += ["-map", f"0:{audio_index}"]
-    cmd += ["-vf", vf, "-c:v", "libx264", "-profile:v", "high", "-pix_fmt", "yuv420p",
-            "-preset", "medium", "-crf", str(crf)]
+    cmd += [
+        "-vf",
+        vf,
+        "-c:v",
+        "libx264",
+        "-profile:v",
+        "high",
+        "-pix_fmt",
+        "yuv420p",
+        "-preset",
+        "medium",
+        "-crf",
+        str(crf),
+    ]
     if audio_index is not None:
         if af:
             cmd += ["-af", af]
@@ -954,10 +1062,28 @@ def encode_command(ffmpeg: str, source, output, *, video_index: int, audio_index
     return cmd
 
 
-def preview_command(ffmpeg: str, source, preview, *, video_index: int, vf: str, at: float) -> List[str]:
-    return [ffmpeg, "-hide_banner", "-nostdin", "-v", "error", "-y", "-ss", f"{max(0.0, at):.3f}",
-            "-i", str(source), "-map", f"0:{video_index}", "-frames:v", "1", "-vf", vf,
-            "-q:v", "3", str(preview)]
+def preview_command(ffmpeg: str, source, preview, *, video_index: int, vf: str, at: float) -> list[str]:
+    return [
+        ffmpeg,
+        "-hide_banner",
+        "-nostdin",
+        "-v",
+        "error",
+        "-y",
+        "-ss",
+        f"{max(0.0, at):.3f}",
+        "-i",
+        str(source),
+        "-map",
+        f"0:{video_index}",
+        "-frames:v",
+        "1",
+        "-vf",
+        vf,
+        "-q:v",
+        "3",
+        str(preview),
+    ]
 
 
 _PLAIN_ARG = re.compile(r"^[A-Za-z0-9_\-+./:=\\]+$")
@@ -972,9 +1098,10 @@ def show_command(cmd: Sequence[str]) -> str:
 # run layer
 # =================================================================================================
 
+
 @dataclass
 class Options:
-    out: Optional[str] = None
+    out: str | None = None
     force: bool = False
     dry_run: bool = False
     preview: bool = False
@@ -986,12 +1113,12 @@ class Options:
     loudnorm: bool = True
     crf: int = 17
     fps: str = "auto"
-    dropped: bool = False   # started by dragging videos onto tiktok-ready.cmd (messages cannot say --force)
-    start: Optional[float] = None   # --from, seconds (None: the start of the recording)
-    end: Optional[float] = None     # --to, seconds (None: the end of the recording)
+    dropped: bool = False  # started by dragging videos onto tiktok-ready.cmd (messages cannot say --force)
+    start: float | None = None  # --from, seconds (None: the start of the recording)
+    end: float | None = None  # --to, seconds (None: the end of the recording)
 
 
-def window_problem(start: Optional[float], end: Optional[float]) -> Optional[str]:
+def window_problem(start: float | None, end: float | None) -> str | None:
     """Why --from/--to make no window: --to at or before the start, which is 0:00 without --from
     ('--to 0' alone used to slip through and leave a zero-length, stream-less copy)."""
     if end is not None and end <= (start or 0.0):
@@ -1000,7 +1127,7 @@ def window_problem(start: Optional[float], end: Optional[float]) -> Optional[str
     return None
 
 
-def validate(opts: Options) -> List[str]:
+def validate(opts: Options) -> list[str]:
     problems = []
     problem = window_problem(opts.start, opts.end)
     if problem:
@@ -1020,36 +1147,37 @@ def validate(opts: Options) -> List[str]:
     return problems
 
 
-def _loudness(ffmpeg: str, path, audio_index: int,
-              window: Optional[Window] = None) -> Tuple[str, Tuple[Optional[float], Optional[float]]]:
+def _loudness(
+    ffmpeg: str, path, audio_index: int, window: Window | None = None
+) -> tuple[str, tuple[float | None, float | None]]:
     text = _text(_run(silence_command(ffmpeg, path, audio_index, window)).stderr)
     return text, parse_volume(text)
 
 
-def fit_window(opts: Options, duration: Optional[float]) -> Optional[Window]:
+def fit_window(opts: Options, duration: float | None) -> Window | None:
     """The --from/--to window checked against the recording's length; None when neither was given."""
     if opts.start is None and opts.end is None:
         return None
-    problem = window_problem(opts.start, opts.end)   # validate said so at the prompt; process() callers too
+    problem = window_problem(opts.start, opts.end)  # validate said so at the prompt; process() callers too
     if problem:
         raise TikTokError(problem)
     start, end = opts.start or 0.0, opts.end
     if duration is not None:
         if start >= duration:
-            raise TikTokError(f"--from {clock(start)} is past the end of the recording, "
-                              f"which is {clock(duration)} long")
+            raise TikTokError(
+                f"--from {clock(start)} is past the end of the recording, which is {clock(duration)} long"
+            )
         if end is not None and end > duration + END_SLACK_S:
-            raise TikTokError(f"--to {clock(end)} is past the end of the recording, "
-                              f"which is {clock(duration)} long")
+            raise TikTokError(f"--to {clock(end)} is past the end of the recording, which is {clock(duration)} long")
         if end is not None:
             end = min(end, duration)
     return Window(start, end)
 
 
-def _encode(cmd: List[str], seconds: float, output: Path) -> None:
+def _encode(cmd: list[str], seconds: float, output: Path) -> None:
     show = sys.stdout.isatty()
     proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.DEVNULL)
-    errors: List[bytes] = []
+    errors: list[bytes] = []
     reader = threading.Thread(target=lambda: errors.append(proc.stderr.read()), daemon=True)
     reader.start()
     try:
@@ -1075,18 +1203,17 @@ def _encode(cmd: List[str], seconds: float, output: Path) -> None:
     if proc.returncode != 0:
         _remove(output)
         detail = [ln for ln in _text(b"".join(errors)).strip().splitlines() if ln.strip()]
-        raise TikTokError("ffmpeg stopped with an error: " + (" | ".join(detail[-3:]) if detail else
-                                                              f"exit code {proc.returncode}"))
+        raise TikTokError(
+            "ffmpeg stopped with an error: " + (" | ".join(detail[-3:]) if detail else f"exit code {proc.returncode}")
+        )
 
 
 def _remove(path: Path) -> None:
-    try:
+    with contextlib.suppress(OSError):
         path.unlink()
-    except OSError:
-        pass
 
 
-def process(source, opts: Options, ffmpeg: Optional[str] = None, many: bool = False) -> dict:
+def process(source, opts: Options, ffmpeg: str | None = None, many: bool = False) -> dict:
     """Detect, plan, and (unless dry-run) encode one video. Returns the facts the report prints."""
     ff = ffmpeg or find_ffmpeg()
     src = Path(source)
@@ -1116,7 +1243,7 @@ def process(source, opts: Options, ffmpeg: Optional[str] = None, many: bool = Fa
     # the copy's bounds before any trim: the window, or the whole recording
     w0 = window.start if window is not None else 0.0
     w1 = window.end if window is not None else None
-    bound = w1 if w1 is not None else duration           # where the copy can run to (None: unknown length)
+    bound = w1 if w1 is not None else duration  # where the copy can run to (None: unknown length)
 
     boxes = []
     for t in sample_times(None if bound is None else bound - w0, start=w0):
@@ -1131,7 +1258,7 @@ def process(source, opts: Options, ffmpeg: Optional[str] = None, many: bool = Fa
     fps_text, fps_value = choose_fps(video.fps, opts.fps)
 
     audio = info.audio
-    loud_before: Tuple[Optional[float], Optional[float]] = (None, None)
+    loud_before: tuple[float | None, float | None] = (None, None)
     trim = Trim(round(w0, 3), w1)
     if audio is None:
         trim.note = "no audio track: kept video-only and not trimmed"
@@ -1146,8 +1273,9 @@ def process(source, opts: Options, ffmpeg: Optional[str] = None, many: bool = Fa
             stop_click = 0.0 if w1 is not None else STOP_CLICK_S
             sound = sound_window(silences, audio_end, stop_click=stop_click)
             total = duration if duration is not None else w0 + audio_end
-            trim = plan_trim(None if sound is None else (sound[0] + w0, sound[1] + w0),
-                             total, opts.lead, opts.tail, window)
+            trim = plan_trim(
+                None if sound is None else (sound[0] + w0, sound[1] + w0), total, opts.lead, opts.tail, window
+            )
             trim.ignored = [(at + w0, length) for at, length in edge_blips(silences, audio_end, sound)]
         else:
             trim.note = "trimming is off (--no-trim)"
@@ -1164,37 +1292,79 @@ def process(source, opts: Options, ffmpeg: Optional[str] = None, many: bool = Fa
     vf = video_filter(detection.box, framing, fps_text)
     af = audio_filter(trim, opts.lufs if opts.loudnorm else None) if audio is not None else None
     # force=True only lets ffmpeg replace a stale partial file (ours); the real output was checked above
-    cmd = encode_command(ff, src, partial, video_index=video.index,
-                         audio_index=audio.index if audio is not None else None,
-                         vf=vf, af=af, trim=trim, crf=opts.crf, force=True)
+    cmd = encode_command(
+        ff,
+        src,
+        partial,
+        video_index=video.index,
+        audio_index=audio.index if audio is not None else None,
+        vf=vf,
+        af=af,
+        trim=trim,
+        crf=opts.crf,
+        force=True,
+    )
     # what --dry-run prints: the same encode written straight to the final name, so a copy-pasted
     # command makes '<stem> tiktok.mp4' (and, like the verb, refuses to replace it without --force)
-    shown = encode_command(ff, src, output, video_index=video.index,
-                           audio_index=audio.index if audio is not None else None,
-                           vf=vf, af=af, trim=trim, crf=opts.crf, force=opts.force)
-    keep = ((trim.end if trim.end is not None else (duration or 0.0)) - trim.start)
+    shown = encode_command(
+        ff,
+        src,
+        output,
+        video_index=video.index,
+        audio_index=audio.index if audio is not None else None,
+        vf=vf,
+        af=af,
+        trim=trim,
+        crf=opts.crf,
+        force=opts.force,
+    )
+    keep = (trim.end if trim.end is not None else (duration or 0.0)) - trim.start
 
     result = {
-        "source": src, "source_bytes": src.stat().st_size, "duration": duration,
-        "width": width, "height": height, "fps": video.fps, "video_codec": video.codec,
-        "bit_depth": video.bit_depth, "audio_codec": audio.codec if audio else None,
-        "detection": detection, "framing": framing, "trim": trim, "keep": keep, "window": window,
-        "fps_text": fps_text, "fps_value": fps_value, "loud_before": loud_before, "loud_after": (None, None),
-        "loudnorm": opts.loudnorm and audio is not None, "output": output, "output_existed": output_existed,
-        "force": opts.force, "command": cmd, "shown_command": shown, "partial": partial,
-        "dry_run": opts.dry_run, "preview": None,
-        "out_info": None, "out_bytes": None, "warnings": [],
+        "source": src,
+        "source_bytes": src.stat().st_size,
+        "duration": duration,
+        "width": width,
+        "height": height,
+        "fps": video.fps,
+        "video_codec": video.codec,
+        "bit_depth": video.bit_depth,
+        "audio_codec": audio.codec if audio else None,
+        "detection": detection,
+        "framing": framing,
+        "trim": trim,
+        "keep": keep,
+        "window": window,
+        "fps_text": fps_text,
+        "fps_value": fps_value,
+        "loud_before": loud_before,
+        "loud_after": (None, None),
+        "loudnorm": opts.loudnorm and audio is not None,
+        "output": output,
+        "output_existed": output_existed,
+        "force": opts.force,
+        "command": cmd,
+        "shown_command": shown,
+        "partial": partial,
+        "dry_run": opts.dry_run,
+        "preview": None,
+        "out_info": None,
+        "out_bytes": None,
+        "warnings": [],
     }
 
     if opts.preview:
         preview = preview_path_for(src, output, tag)
         preview.parent.mkdir(parents=True, exist_ok=True)
         at = trim.start + keep / 2 if keep > 0 else 0.0
-        proc = _run(preview_command(ff, src, preview, video_index=video.index,
-                                    vf=video_filter(detection.box, framing), at=at))
+        proc = _run(
+            preview_command(ff, src, preview, video_index=video.index, vf=video_filter(detection.box, framing), at=at)
+        )
         if proc.returncode != 0 or not preview.is_file():
-            raise TikTokError(f"could not write the preview {preview.name}: "
-                              f"{_text(proc.stderr).strip().splitlines()[-1:] or 'no details'}")
+            raise TikTokError(
+                f"could not write the preview {preview.name}: "
+                f"{_text(proc.stderr).strip().splitlines()[-1:] or 'no details'}"
+            )
         result["preview"] = preview
 
     if not opts.dry_run:
@@ -1205,8 +1375,7 @@ def process(source, opts: Options, ffmpeg: Optional[str] = None, many: bool = Fa
             os.replace(partial, output)
         except OSError as exc:
             _remove(partial)
-            raise TikTokError(f"could not save {output.name} (is it open in a player?): "
-                              f"{exc.strerror or exc}") from exc
+            raise TikTokError(f"could not save {output.name} (is it open in a player?): {exc.strerror or exc}") from exc
         out_info = probe(ff, output)
         result["out_info"] = out_info
         result["out_bytes"] = output.stat().st_size
@@ -1217,18 +1386,20 @@ def process(source, opts: Options, ffmpeg: Optional[str] = None, many: bool = Fa
     return result
 
 
-def warnings_for(result: dict) -> List[str]:
+def warnings_for(result: dict) -> list[str]:
     notes = []
     if result["framing"].scale > UPSCALE_WARN:
-        notes.append(f"the picture is enlarged {result['framing'].scale:.1f}x (more than {UPSCALE_WARN}x), "
-                     "so it may look soft")
+        notes.append(
+            f"the picture is enlarged {result['framing'].scale:.1f}x (more than {UPSCALE_WARN}x), so it may look soft"
+        )
     out_info = result.get("out_info")
     length = out_info.duration if out_info and out_info.duration else result["keep"]
     if length and length > LONG_WARN_S:
         notes.append(f"it is {clock(length)} long; TikTok uploads stop at 10 minutes")
     if result.get("out_bytes") and result["out_bytes"] > BIG_WARN_BYTES:
-        notes.append(f"the file is {megabytes(result['out_bytes'])}, over 250 MB; "
-                     "a slower upload, and some apps may refuse it")
+        notes.append(
+            f"the file is {megabytes(result['out_bytes'])}, over 250 MB; a slower upload, and some apps may refuse it"
+        )
     return notes
 
 
@@ -1236,7 +1407,8 @@ def warnings_for(result: dict) -> List[str]:
 # report
 # =================================================================================================
 
-def clock(seconds: Optional[float]) -> str:
+
+def clock(seconds: float | None) -> str:
     if seconds is None:
         return "unknown length"
     seconds = max(0.0, seconds)
@@ -1247,17 +1419,17 @@ def clock(seconds: Optional[float]) -> str:
     return f"{minutes}:{secs:05.2f}"
 
 
-def megabytes(n: Optional[int]) -> str:
+def megabytes(n: int | None) -> str:
     return "unknown size" if n is None else f"{n / (1024 * 1024):.1f} MB"
 
 
-def _fps(value: Optional[float]) -> str:
+def _fps(value: float | None) -> str:
     if not value:
         return "unknown fps"
     return f"{value:g} fps" if abs(value - round(value)) < 0.005 else f"{value:.2f} fps"
 
 
-def _db(pair: Tuple[Optional[float], Optional[float]]) -> str:
+def _db(pair: tuple[float | None, float | None]) -> str:
     mean, peak = pair
     if mean is None:
         return "not measured"
@@ -1271,11 +1443,15 @@ def format_report(r: dict) -> str:
     lines = [f"{r['source'].name}" + ("  (dry run: nothing encoded)" if r["dry_run"] else "")]
     depth = f", {r['bit_depth']}-bit" if r["bit_depth"] != 8 else ""
     audio = f", {r['audio_codec']} audio" if r["audio_codec"] else ", no audio"
-    lines.append(f"  source    {clock(r['duration'])}, {r['width']}x{r['height']}, {_fps(r['fps'])}, "
-                 f"{r['video_codec']}{depth}{audio}, {megabytes(r['source_bytes'])}")
+    lines.append(
+        f"  source    {clock(r['duration'])}, {r['width']}x{r['height']}, {_fps(r['fps'])}, "
+        f"{r['video_codec']}{depth}{audio}, {megabytes(r['source_bytes'])}"
+    )
     if d.box is not None:
-        lines.append(f"  borders   box {d.box.w}x{d.box.h} at x={d.box.x}, y={d.box.y} "
-                     f"(found in {d.found} of {d.sampled} sample frames)")
+        lines.append(
+            f"  borders   box {d.box.w}x{d.box.h} at x={d.box.x}, y={d.box.y} "
+            f"(found in {d.found} of {d.sampled} sample frames)"
+        )
     elif d.reason == "no-content":
         lines.append(f"  borders   no borders found (no picture found in {d.sampled} sample frames); nothing cropped")
     else:
@@ -1288,7 +1464,7 @@ def format_report(r: dict) -> str:
         how = f"fills the screen; {f.scaled_w}x{f.scaled_h} with the edges cut"
     lines.append(f"  scale     x{f.scale:.2f} to {TARGET_W}x{TARGET_H} ({how})")
     duration = r["duration"] or 0.0
-    w: Optional[Window] = r.get("window")
+    w: Window | None = r.get("window")
     if w is not None:
         to = "the end" if w.end is None else clock(w.end)
         bound = w.end if w.end is not None else r["duration"]
@@ -1299,15 +1475,19 @@ def format_report(r: dict) -> str:
     elif w is None:
         cut_end = max(0.0, duration - t.end) if t.end is not None else 0.0
         blips = "".join(f"; ignored a {length:.2f} s click at {at:.2f} s" for at, length in t.ignored[:2])
-        lines.append(f"  trim      cut {t.start:.2f} s at the start and {cut_end:.2f} s at the end "
-                     f"(first sound {t.first_sound:.2f} s, last sound {t.last_sound:.2f} s{blips})")
+        lines.append(
+            f"  trim      cut {t.start:.2f} s at the start and {cut_end:.2f} s at the end "
+            f"(first sound {t.first_sound:.2f} s, last sound {t.last_sound:.2f} s{blips})"
+        )
     else:
         bound = w.end if w.end is not None else duration
         cut_end = max(0.0, bound - t.end) if t.end is not None else 0.0
         blips = "".join(f"; ignored a {length:.2f} s click at {clock(at)}" for at, length in t.ignored[:2])
-        lines.append(f"  trim      cut {t.start - w.start:.2f} s at the start and {cut_end:.2f} s at the end "
-                     f"of the window (first sound {clock(t.first_sound)}, last sound {clock(t.last_sound)}{blips})")
-    fade_in, fade_out = fades_for(t)     # the fades the filter chain applies, never one it dropped
+        lines.append(
+            f"  trim      cut {t.start - w.start:.2f} s at the start and {cut_end:.2f} s at the end "
+            f"of the window (first sound {clock(t.first_sound)}, last sound {clock(t.last_sound)}{blips})"
+        )
+    fade_in, fade_out = fades_for(t)  # the fades the filter chain applies, never one it dropped
     fades = []
     if fade_in:
         fades.append(f"in over the first {FADE_IN_S:g} s (the copy starts inside sound)")
@@ -1322,24 +1502,30 @@ def format_report(r: dict) -> str:
         lines.append(f"  final     {TARGET_W}x{TARGET_H}, {_fps(r['fps_value'])}, about {clock(r['keep'])} long")
         state = ""
         if r["output_existed"]:
-            state = " (already exists: a real run would replace it)" if r["force"] else \
-                " (already exists: a real run would refuse without --force)"
+            state = (
+                " (already exists: a real run would replace it)"
+                if r["force"]
+                else " (already exists: a real run would refuse without --force)"
+            )
         lines.append(f"  output    {r['output']}{state}")
     else:
         o: MediaInfo = r["out_info"]
         ov = o.video if o else None
         size = f"{ov.width}x{ov.height}" if ov else "unknown size"
-        lines.append(f"  output    {clock(o.duration if o else None)}, {size}, {_fps(ov.fps if ov else None)}, "
-                     f"{megabytes(r['out_bytes'])}")
+        lines.append(
+            f"  output    {clock(o.duration if o else None)}, {size}, {_fps(ov.fps if ov else None)}, "
+            f"{megabytes(r['out_bytes'])}"
+        )
         lines.append(f"  saved     {r['output']}")
     if r["preview"] is not None:
         lines.append(f"  preview   {r['preview']}")
     if r["dry_run"]:
         lines.append(f"  command   {show_command(r['shown_command'])}")
-        lines.append(f"  note      a real run writes '{r['partial'].name}' first and renames it to "
-                     f"'{r['output'].name}' when the encode finishes")
-    for note in r["warnings"]:
-        lines.append(f"  warning   {note}")
+        lines.append(
+            f"  note      a real run writes '{r['partial'].name}' first and renames it to "
+            f"'{r['output'].name}' when the encode finishes"
+        )
+    lines.extend(f"  warning   {note}" for note in r["warnings"])
     return "\n".join(lines)
 
 
@@ -1368,10 +1554,23 @@ def options_from_args(args) -> Options:
             times[name] = None if text is None else parse_time(text)
         except TikTokError as exc:
             raise TikTokError(f"{flag}: {exc}") from exc
-    return Options(out=args.out, force=args.force, dry_run=args.dry_run, preview=args.preview,
-                   mode=args.shape, trim=not args.no_trim, lead=args.lead, tail=args.tail,
-                   lufs=args.lufs, loudnorm=not args.no_loudnorm, crf=args.crf, fps=args.fps,
-                   dropped=getattr(args, "dropped", False), start=times["start"], end=times["end"])
+    return Options(
+        out=args.out,
+        force=args.force,
+        dry_run=args.dry_run,
+        preview=args.preview,
+        mode=args.shape,
+        trim=not args.no_trim,
+        lead=args.lead,
+        tail=args.tail,
+        lufs=args.lufs,
+        loudnorm=not args.no_loudnorm,
+        crf=args.crf,
+        fps=args.fps,
+        dropped=getattr(args, "dropped", False),
+        start=times["start"],
+        end=times["end"],
+    )
 
 
 def run_cli(args) -> int:
@@ -1387,8 +1586,10 @@ def run_cli(args) -> int:
     if args.folder and not args.latest:
         problems.append("--folder only goes with --latest")
     if not args.latest and not args.videos:
-        problems.append("give one or more videos, or --latest for the newest recording "
-                        "(example: py -m arsenal tiktok --latest)")
+        problems.append(
+            "give one or more videos, or --latest for the newest recording "
+            f"(example: {_pyl()} -m arsenal tiktok --latest)"
+        )
     if problems:
         for problem in problems:
             _say(f"tiktok: {problem}", sys.stderr)
@@ -1399,8 +1600,9 @@ def run_cli(args) -> int:
             try:
                 folder = Path(args.folder) if args.folder else default_folder()
             except (OSError, ImportError) as exc:
-                raise TikTokError(f"could not work out the recordings folder ({os_problem(exc)}); "
-                                  "name it with --folder") from exc
+                raise TikTokError(
+                    f"could not work out the recordings folder ({os_problem(exc)}); name it with --folder"
+                ) from exc
             videos = [str(latest_video(folder))]
             _say(f"newest recording in {folder}: {Path(videos[0]).name}")
         else:

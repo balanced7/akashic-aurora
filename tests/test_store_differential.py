@@ -12,6 +12,7 @@ contention schedule; (3) seeded random op soup (fixed seed); (4) same-score zset
 
 Run: py -m pytest tests/test_store_differential.py -q
 """
+
 import json
 import os
 import random
@@ -22,7 +23,7 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.foundation.store import DictStore, RedisStore  # noqa: E402
+from core.foundation.store import DictStore, RedisStore
 
 NS = "w3diff:" + uuid.uuid4().hex[:8] + ":"
 
@@ -37,7 +38,7 @@ def _redis():
     return None
 
 
-@pytest.fixture()
+@pytest.fixture
 def pair():
     r = _redis()
     if r is None:
@@ -58,8 +59,7 @@ def _run(pair, seq):
     for i, (method, args) in enumerate(seq):
         rv_d = getattr(d, method)(*args)
         rv_r = getattr(r, method)(*args)
-        assert rv_d == rv_r, (
-            "DIVERGENCE at op %d: %s%r -> dict=%r redis=%r" % (i, method, args, rv_d, rv_r))
+        assert rv_d == rv_r, f"DIVERGENCE at op {i}: {method!s}{args!r} -> dict={rv_d!r} redis={rv_r!r}"
 
 
 def _dump(store, typed_keys):
@@ -85,21 +85,22 @@ def _assert_final_state(pair, typed_keys):
 
 # --- (1) the RB-8 protocol, as raw store ops ---
 
+
 def test_rb8_protocol_ops_agree(pair):
     H, IDX, HEAD = NS + "decisions", NS + "decisions:idx", NS + "head:where-we-are"
     rec_a = json.dumps({"id": "A", "superseded": False})
     rec_b = json.dumps({"id": "B", "superseded": False})
     seq = [
-        ("hset", (H, "A", rec_a)),                 # record A
+        ("hset", (H, "A", rec_a)),  # record A
         ("zadd", (IDX, {"A": 1.0})),
-        ("cas", (HEAD, None, "A")),                # first-note claims fresh head (nx)
-        ("cas", (HEAD, None, "A-rival")),          # rival first-note MUST fail on both
-        ("hset", (H, "B", rec_b)),                 # record B
+        ("cas", (HEAD, None, "A")),  # first-note claims fresh head (nx)
+        ("cas", (HEAD, None, "A-rival")),  # rival first-note MUST fail on both
+        ("hset", (H, "B", rec_b)),  # record B
         ("zadd", (IDX, {"B": 2.0})),
-        ("get", (HEAD,)),                          # read expected
-        ("cas", (HEAD, "A", "B")),                 # supersede claim wins
-        ("cas", (HEAD, "A", "B-stale")),           # stale expected MUST fail on both
-        ("hset", (H, "A", json.dumps({"id": "A", "superseded": True}))),   # retire old
+        ("get", (HEAD,)),  # read expected
+        ("cas", (HEAD, "A", "B")),  # supersede claim wins
+        ("cas", (HEAD, "A", "B-stale")),  # stale expected MUST fail on both
+        ("hset", (H, "A", json.dumps({"id": "A", "superseded": True}))),  # retire old
         ("hget", (H, "A")),
         ("hgetall", (H,)),
         ("zrangebyscore", (IDX, "-inf", "+inf")),
@@ -111,16 +112,17 @@ def test_rb8_protocol_ops_agree(pair):
 
 # --- (2) deterministic two-handle contention schedule ---
 
+
 def test_cas_contention_schedule_agrees(pair):
     K = NS + "contended"
     seq = [
-        ("cas", (K, None, "h1")),      # handle 1 wins the fresh key
-        ("cas", (K, None, "h2")),      # handle 2 loses
-        ("cas", (K, "h1", "h2")),      # handle 2 retries with fresh read -> wins
-        ("cas", (K, "h1", "h3")),      # handle 3 raced on a stale read -> loses
+        ("cas", (K, None, "h1")),  # handle 1 wins the fresh key
+        ("cas", (K, None, "h2")),  # handle 2 loses
+        ("cas", (K, "h1", "h2")),  # handle 2 retries with fresh read -> wins
+        ("cas", (K, "h1", "h3")),  # handle 3 raced on a stale read -> loses
         ("get", (K,)),
         ("delete", (K,)),
-        ("cas", (K, None, "h4")),      # deleted key is fresh again
+        ("cas", (K, None, "h4")),  # deleted key is fresh again
         ("get", (K,)),
     ]
     _run(pair, seq)
@@ -129,45 +131,43 @@ def test_cas_contention_schedule_agrees(pair):
 
 # --- (3) seeded random op soup: divergence anywhere is the finding ---
 
+
 def test_seeded_soup_agrees(pair):
     rng = random.Random(4242)
-    kv_keys = [NS + "kv%d" % i for i in range(4)]
-    h_keys = [NS + "h%d" % i for i in range(3)]
-    z_keys = [NS + "z%d" % i for i in range(3)]
+    kv_keys = [NS + f"kv{i}" for i in range(4)]
+    h_keys = [NS + f"h{i}" for i in range(3)]
+    z_keys = [NS + f"z{i}" for i in range(3)]
     fields = ["f1", "f2", "f3"]
     seq = []
     for _ in range(220):
         roll = rng.random()
         if roll < 0.20:
-            seq.append(("set", (rng.choice(kv_keys), "v%d" % rng.randint(0, 9))))
+            seq.append(("set", (rng.choice(kv_keys), f"v{rng.randint(0, 9)}")))
         elif roll < 0.32:
             seq.append(("get", (rng.choice(kv_keys),)))
         elif roll < 0.44:
-            seq.append(("cas", (rng.choice(kv_keys),
-                                rng.choice([None, "v1", "v2", "v3"]),
-                                "c%d" % rng.randint(0, 9))))
+            seq.append(("cas", (rng.choice(kv_keys), rng.choice([None, "v1", "v2", "v3"]), f"c{rng.randint(0, 9)}")))
         elif roll < 0.58:
-            seq.append(("hset", (rng.choice(h_keys), rng.choice(fields),
-                                 "hv%d" % rng.randint(0, 9))))
+            seq.append(("hset", (rng.choice(h_keys), rng.choice(fields), f"hv{rng.randint(0, 9)}")))
         elif roll < 0.68:
             seq.append(("hget", (rng.choice(h_keys), rng.choice(fields))))
         elif roll < 0.76:
             seq.append(("hgetall", (rng.choice(h_keys),)))
         elif roll < 0.88:
-            seq.append(("zadd", (rng.choice(z_keys),
-                                 {"m%d" % rng.randint(0, 5): float(rng.randint(0, 4))})))
+            seq.append(("zadd", (rng.choice(z_keys), {f"m{rng.randint(0, 5)}": float(rng.randint(0, 4))})))
         elif roll < 0.96:
             seq.append(("zrangebyscore", (rng.choice(z_keys), "-inf", "+inf")))
         else:
             seq.append(("delete", (rng.choice(kv_keys + h_keys + z_keys),)))
     _run(pair, seq)
-    typed = {k: "kv" for k in kv_keys}
-    typed.update({k: "hash" for k in h_keys})
-    typed.update({k: "zset" for k in z_keys})
+    typed = dict.fromkeys(kv_keys, "kv")
+    typed.update(dict.fromkeys(h_keys, "hash"))
+    typed.update(dict.fromkeys(z_keys, "zset"))
     _assert_final_state(pair, typed)
 
 
 # --- (4) same-score zset ordering: lexicographic by member on BOTH backends ---
+
 
 def test_zset_same_score_ordering_agrees(pair):
     Z = NS + "ties"
@@ -177,11 +177,12 @@ def test_zset_same_score_ordering_agrees(pair):
         ("zadd", (Z, {"bravo": 5.0})),
         ("zadd", (Z, {"zulu": 1.0})),
         ("zrange", (Z, 0, -1)),
-        ("zrange", (Z, 0, -1, True)),              # desc
+        ("zrange", (Z, 0, -1, True)),  # desc
         ("zrangebyscore", (Z, 5, 5)),
         ("zcard", (Z,)),
     ]
     _run(pair, seq)
-    d, r = pair
-    assert d.zrange(Z, 0, -1) == ["zulu", "alpha", "bravo", "charlie"], \
+    d, _r = pair
+    assert d.zrange(Z, 0, -1) == ["zulu", "alpha", "bravo", "charlie"], (
         "score then lexicographic-by-member is the documented Redis order"
+    )

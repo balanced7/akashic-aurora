@@ -25,11 +25,11 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 
-from core.comm import discord_inbound as DI      # noqa: E402
-from core.comm import secret_intake as SI        # noqa: E402
+from core.comm import discord_inbound as DI  # noqa: E402  # sys.path bootstrap
+from core.comm import secret_intake as SI  # noqa: E402  # sys.path bootstrap
 
 DAY_MS = 86_400_000
-NOW = 1_787_100_000_000            # a fixed clock: pins do not ask the wall what time it is
+NOW = 1_787_100_000_000  # a fixed clock: pins do not ask the wall what time it is
 
 
 # ------------------------------------------------------------------- the vault slot
@@ -91,7 +91,8 @@ def test_warning_stays_quiet_until_the_cliff_is_close():
 
 def test_warning_names_the_days_and_the_fix_when_close():
     warn = DI.credential_warning(3.0)
-    assert warn and "3" in warn, warn
+    assert warn, warn
+    assert "3" in warn, warn
     assert "setup-token" in warn.lower() or "login" in warn.lower(), warn
 
 

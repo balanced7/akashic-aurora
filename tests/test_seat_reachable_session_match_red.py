@@ -29,6 +29,7 @@ neither asks "is anything armed that can actually reach a living session".
   S5  no live sessions at all                   -> NOT reachable
   S6  live_sessions not supplied                -> prior behaviour, unchanged (strangler)
 """
+
 import os
 import sys
 
@@ -50,16 +51,15 @@ def _seat(tmp, session, pid=None):
 
 
 def _reach(tmp, live_sessions):
-    return wake_seat.reachable("claude", presence_live=True,
-                               live_sessions=live_sessions, tmp=str(tmp))
+    return wake_seat.reachable("claude", presence_live=True, live_sessions=live_sessions, tmp=str(tmp))
 
 
 def test_s1_armed_for_a_dead_session_is_not_reachable(tmp_path):
     """THE PIN THIS FILE EXISTS FOR. A real watcher, a session that no longer exists."""
     _seat(tmp_path, GONE)
-    assert _reach(tmp_path, {LIVE}) is False, \
-        "S1: a watcher whose owning session is gone exits into nothing -- it must not make the " \
-        "agent read as reachable"
+    assert _reach(tmp_path, {LIVE}) is False, (
+        "S1: a watcher whose owning session is gone exits into nothing -- it must not make the agent read as reachable"
+    )
 
 
 def test_s2_armed_for_a_live_session_is_reachable(tmp_path):

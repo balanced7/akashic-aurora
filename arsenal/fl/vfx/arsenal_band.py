@@ -40,6 +40,7 @@ try:
     import flvfx as vfx
 except ImportError:  # outside FL the pattern parsers below still work; the tests inject a mock flvfx
     vfx = None
+import contextlib
 import sys
 
 try:
@@ -60,7 +61,7 @@ DRUM_LANE = 1
 MAX_PATTERNS = 64
 MAX_NOTES_PER_LANE = 4096
 HUMANIZE_SPAN = 20  # velocity steps either way at Humanize = 1
-GAP_MEMORY = 32     # onTick gaps remembered, to judge how far FL can move between two calls
+GAP_MEMORY = 32  # onTick gaps remembered, to judge how far FL can move between two calls
 
 SWITCH_CHOICES = ["Next bar", "Next loop"]
 LANE_CHOICES = ["All lanes on outputs 1-4", "Bass", "Drums", "Comp", "Pad"]
@@ -73,7 +74,7 @@ PHRASE_WEIGHT = (0.5, 0.75, 0.5, 2.25)  # by place in a 4-bar phrase: bar 4 (bef
 DROPOUT_SEEDS = 100
 SWITCH_NEXT_BAR, SWITCH_NEXT_LOOP = 0, 1
 CLOCK_COUNT, CLOCK_SONG = 0, 1
-WRAP = None         # in a tick window: FL's loop wraps here (Follow song position ends everything ringing)
+WRAP = None  # in a tick window: FL's loop wraps here (Follow song position ends everything ringing)
 HELD_LANES = (2, 3)  # comp and pad: struck again on the bar after a dropout bar if they would still ring
 
 C_PATTERN = "Band: Pattern"
@@ -137,17 +138,27 @@ AD2_DEFAULT = {
 DRUM_MAPS = [("GM", {}, True), ("FPC", FPC_FOLD, True), ("AD2 default", AD2_DEFAULT, False)]
 
 FALLBACK_PATTERN = {
-    "version": 1, "id": "arsenal-band-fallback", "title": "Fallback groove (no arsenal_patterns module)",
-    "key": "C major", "bpm_hint": 90, "meter": [4, 4], "length_beats": 4,
+    "version": 1,
+    "id": "arsenal-band-fallback",
+    "title": "Fallback groove (no arsenal_patterns module)",
+    "key": "C major",
+    "bpm_hint": 90,
+    "meter": [4, 4],
+    "length_beats": 4,
     "chords": [{"beat": 0, "name": "C", "nns": "1"}],
     "lanes": {
-        "bass": {"notes": [{"beat": 0, "len": 1.5, "note": 36, "vel": 100},
-                           {"beat": 2.5, "len": 0.5, "note": 43, "vel": 88}]},
-        "drums": {"notes": [{"beat": 0, "len": 0.25, "note": 36, "vel": 110},
-                            {"beat": 2.5, "len": 0.25, "note": 36, "vel": 96},
-                            {"beat": 1, "len": 0.25, "note": 38, "vel": 104},
-                            {"beat": 3, "len": 0.25, "note": 38, "vel": 104}]
-                           + [{"beat": b * 0.5, "len": 0.1, "note": 42, "vel": 72 if b % 2 == 0 else 46} for b in range(8)]},
+        "bass": {
+            "notes": [{"beat": 0, "len": 1.5, "note": 36, "vel": 100}, {"beat": 2.5, "len": 0.5, "note": 43, "vel": 88}]
+        },
+        "drums": {
+            "notes": [
+                {"beat": 0, "len": 0.25, "note": 36, "vel": 110},
+                {"beat": 2.5, "len": 0.25, "note": 36, "vel": 96},
+                {"beat": 1, "len": 0.25, "note": 38, "vel": 104},
+                {"beat": 3, "len": 0.25, "note": 38, "vel": 104},
+            ]
+            + [{"beat": b * 0.5, "len": 0.1, "note": 42, "vel": 72 if b % 2 == 0 else 46} for b in range(8)]
+        },
         "comp": {"notes": []},
         "pad": {"notes": [{"beat": 0, "len": 4, "note": n, "vel": 56} for n in (52, 55, 60)]},
     },
@@ -175,7 +186,7 @@ def parse_pattern_set(d, where="pattern"):
     if not isinstance(d, dict):
         raise PatternError(where + ": a pattern set must be an object")
     if d.get("version") != PATTERN_FORMAT_VERSION:
-        raise PatternError(where + ": version must be 1, got %r" % (d.get("version"),))
+        raise PatternError(where + ": version must be 1, got {!r}".format(d.get("version")))
     pid = d.get("id")
     if not isinstance(pid, str) or not pid:
         raise PatternError(where + ": id must be a non-empty string")
@@ -183,16 +194,22 @@ def parse_pattern_set(d, where="pattern"):
     if not isinstance(title, str):
         raise PatternError(where + ": title must be a string")
     meter = d.get("meter", [4, 4])
-    if (not isinstance(meter, (list, tuple)) or len(meter) != 2 or not _is_int(meter[0]) or not _is_int(meter[1])
-            or meter[0] < 1 or meter[1] not in (1, 2, 4, 8, 16, 32)):
-        raise PatternError(where + ": meter must be [beats, 1|2|4|8|16|32], got %r" % (meter,))
+    if (
+        not isinstance(meter, (list, tuple))
+        or len(meter) != 2
+        or not _is_int(meter[0])
+        or not _is_int(meter[1])
+        or meter[0] < 1
+        or meter[1] not in (1, 2, 4, 8, 16, 32)
+    ):
+        raise PatternError(where + f": meter must be [beats, 1|2|4|8|16|32], got {meter!r}")
     bar_beats = meter[0] * 4.0 / meter[1]
     length = d.get("length_beats")
     if not _is_number(length) or length <= 0:
         raise PatternError(where + ": length_beats must be a positive number")
     bars = length / bar_beats
     if bars < 1 or abs(bars - round(bars)) > 1e-9:
-        raise PatternError(where + ": length_beats %r is not whole bars of %d/%d" % (length, meter[0], meter[1]))
+        raise PatternError(where + f": length_beats {length!r} is not whole bars of {int(meter[0])}/{int(meter[1])}")
     chords = d.get("chords", [])
     if not isinstance(chords, list):
         raise PatternError(where + ": chords must be a list")
@@ -201,7 +218,7 @@ def parse_pattern_set(d, where="pattern"):
         raise PatternError(where + ": lanes must be an object")
     for name in lanes:
         if name not in LANES:
-            raise PatternError(where + ": unknown lane %r (lanes are bass, drums, comp, pad)" % (name,))
+            raise PatternError(where + f": unknown lane {name!r} (lanes are bass, drums, comp, pad)")
     parsed = {}
     for lane in LANES:
         spec = lanes.get(lane)
@@ -210,12 +227,12 @@ def parse_pattern_set(d, where="pattern"):
             continue
         notes = spec.get("notes") if isinstance(spec, dict) else None
         if not isinstance(notes, list):
-            raise PatternError(where + ": lanes.%s must be an object with a notes list" % lane)
+            raise PatternError(where + f": lanes.{lane} must be an object with a notes list")
         if len(notes) > MAX_NOTES_PER_LANE:
-            raise PatternError(where + ": lanes.%s has more than %d notes" % (lane, MAX_NOTES_PER_LANE))
+            raise PatternError(where + f": lanes.{lane!s} has more than {MAX_NOTES_PER_LANE} notes")
         out = []
         for i, n in enumerate(notes):
-            w = "%s: lanes.%s.notes[%d]" % (where, lane, i)
+            w = f"{where!s}: lanes.{lane!s}.notes[{i}]"
             if not isinstance(n, dict):
                 raise PatternError(w + " must be an object")
             beat, ln, note, vel = n.get("beat"), n.get("len"), n.get("note"), n.get("vel")
@@ -229,8 +246,14 @@ def parse_pattern_set(d, where="pattern"):
                 raise PatternError(w + ": vel must be an integer 1-127")
             out.append((float(beat), float(ln), note, vel))
         parsed[lane] = out
-    return {"id": pid, "title": title, "meter": (meter[0], meter[1]), "bar_beats": bar_beats,
-            "length_beats": float(length), "lanes": parsed}
+    return {
+        "id": pid,
+        "title": title,
+        "meter": (meter[0], meter[1]),
+        "bar_beats": bar_beats,
+        "length_beats": float(length),
+        "lanes": parsed,
+    }
 
 
 def parse_playlist(doc, where="playlist"):
@@ -247,7 +270,7 @@ def parse_playlist(doc, where="playlist"):
         items = doc
     elif isinstance(doc, dict):
         if doc.get("version") != PATTERN_FORMAT_VERSION:
-            raise PatternError(where + ": version must be 1, got %r" % (doc.get("version"),))
+            raise PatternError(where + ": version must be 1, got {!r}".format(doc.get("version")))
         items = doc.get("patterns")
         current = doc.get("current", 0)
         rev = doc.get("rev")
@@ -258,8 +281,8 @@ def parse_playlist(doc, where="playlist"):
     if not isinstance(items, list) or not items:
         raise PatternError(where + ": patterns must be a non-empty list")
     if len(items) > MAX_PATTERNS:
-        raise PatternError(where + ": at most %d patterns" % MAX_PATTERNS)
-    patterns = [parse_pattern_set(p, "%s: patterns[%d]" % (where, i)) for i, p in enumerate(items)]
+        raise PatternError(where + f": at most {MAX_PATTERNS} patterns")
+    patterns = [parse_pattern_set(p, f"{where!s}: patterns[{i}]") for i, p in enumerate(items)]
     return {"patterns": patterns, "current": min(current, len(patterns) - 1), "rev": rev}
 
 
@@ -275,7 +298,7 @@ def parse_drum_maps(obj, where="DRUM_MAPS"):
         for k, v in table.items():
             key = int(k) if isinstance(k, str) and k.isdigit() else k
             if not _is_int(key) or not _is_int(v) or not 0 <= key <= 127 or not 0 <= v <= 127:
-                raise PatternError(where + ": map %r must map notes 0-127 to notes 0-127" % (name,))
+                raise PatternError(where + f": map {name!r} must map notes 0-127 to notes 0-127")
             clean[key] = v
         out.append((name, clean, False))
     return out
@@ -283,14 +306,20 @@ def parse_drum_maps(obj, where="DRUM_MAPS"):
 
 def placeholder_pattern(message, index):
     """A silent 4/4 bar standing in for a refused baked pattern, so the Pattern knob's indexes stay put."""
-    return {"id": "invalid-%d" % index, "title": "INVALID: " + message[:120], "meter": (4, 4), "bar_beats": 4.0,
-            "length_beats": 4.0, "lanes": dict((lane, []) for lane in LANES)}
+    return {
+        "id": f"invalid-{int(index)}",
+        "title": "INVALID: " + message[:120],
+        "meter": (4, 4),
+        "bar_beats": 4.0,
+        "length_beats": 4.0,
+        "lanes": {lane: [] for lane in LANES},
+    }
 
 
 def swing_beat(beat, amount, grid):
     """Delay notes on the off positions of the swing grid by amount * grid / 3 (amount 1 = triplet feel)."""
     g = beat / grid
-    k = int(round(g))
+    k = round(g)
     if k % 2 == 1 and abs(g - k) < 1e-6:
         return beat + amount * grid / 3.0
     return beat
@@ -307,7 +336,7 @@ def _hash32(a, b):
 def humanize_velocity(vel, eid, loop_n, amount):
     """Velocity nudged by up to amount * HUMANIZE_SPAN, fixed for a given note and loop so a take can be replayed."""
     r = _hash32(eid, loop_n & 0xFFFF) / 2147483647.5 - 1.0
-    v = int(round(vel + r * amount * HUMANIZE_SPAN))
+    v = round(vel + r * amount * HUMANIZE_SPAN)
     return 1 if v < 1 else (127 if v > 127 else v)
 
 
@@ -345,19 +374,20 @@ def _ascii(text):
 
 
 def _short(exc):
-    return _ascii("%s: %s" % (type(exc).__name__, exc))[:160]
+    return _ascii(f"{type(exc).__name__}: {exc}")[:160]
 
 
-class Compiled(object):
+class Compiled:
     """One pattern laid out in ticks: loop and bar length, the events starting at each tick of the loop, and the
     comp and pad events in start order (held, for striking a chord again after a dropout bar)."""
-    __slots__ = ("ppq", "loop", "bar", "read_at", "at", "count", "held")
+
+    __slots__ = ("at", "bar", "count", "held", "loop", "ppq", "read_at")
 
     def __init__(self, pattern, ppq, swing=0.0, grid=0.25):
         self.ppq = ppq
         length = pattern["length_beats"]
-        self.bar = max(1, int(round(pattern["bar_beats"] * ppq)))
-        self.loop = self.bar * max(1, int(round(length / pattern["bar_beats"])))
+        self.bar = max(1, round(pattern["bar_beats"] * ppq))
+        self.loop = self.bar * max(1, round(length / pattern["bar_beats"]))
         self.read_at = self.bar - min(ppq, self.bar)  # the live file is read one beat before each bar line
         at = {}
         held = []
@@ -367,8 +397,8 @@ class Compiled(object):
                 b = beat % length
                 if swing > 0.0:
                     b = swing_beat(b, swing, grid)
-                tick = int(round(b * ppq)) % self.loop
-                ticks = max(1, int(round(ln * ppq)))
+                tick = round(b * ppq) % self.loop
+                ticks = max(1, round(ln * ppq))
                 at.setdefault(tick, []).append((eid, lane_i, note, vel, ticks))
                 if lane_i in HELD_LANES:
                     held.append((tick, eid, lane_i, note, vel, ticks))
@@ -379,20 +409,21 @@ class Compiled(object):
         self.held = held
 
 
-class _Entry(object):
+class _Entry:
     """The band's own record of one voice it triggered: which note on which output, from which band tick to which,
     and in which onTick call."""
-    __slots__ = ("voice", "lane", "output", "note", "start", "end", "alive", "call", "vel")
+
+    __slots__ = ("alive", "call", "end", "lane", "note", "output", "start", "vel", "voice")
 
     def __init__(self, voice, lane, output, note, start, end, call=0, vel=0):
         self.voice, self.lane, self.output, self.note = voice, lane, output, note
         self.start, self.end, self.alive, self.call, self.vel = start, end, True, call, vel
 
 
-class Band(object):
+class Band:
     def __init__(self):
         self.log = []
-        self.switches = []        # (tick or None when stopped, index, anchor before, bar ticks before)
+        self.switches = []  # (tick or None when stopped, index, anchor before, bar ticks before)
         self.live_reads = 0
         self.module_status = "patterns module not loaded"
         self.baked = [parse_pattern_set(FALLBACK_PATTERN, "fallback")]
@@ -406,16 +437,16 @@ class Band(object):
         self.pattern = self.baked[0]
         self.pending = None
         self.compiled = None
-        self.anchor = 0           # band tick where the running pattern's beat 0 sits
-        self.band_t = -1          # last band tick processed
-        self.last_ticks = None    # FL ticks at the last played onTick
-        self.gaps = []            # recent FL ticks between played onTicks (forward moves of at most a beat)
-        self.loop_span = None     # FL's loop span (end - start), once a loop wrap has shown it
+        self.anchor = 0  # band tick where the running pattern's beat 0 sits
+        self.band_t = -1  # last band tick processed
+        self.last_ticks = None  # FL ticks at the last played onTick
+        self.gaps = []  # recent FL ticks between played onTicks (forward moves of at most a beat)
+        self.loop_span = None  # FL's loop span (end - start), once a loop wrap has shown it
         self.parked_at_zero = False  # FL reported tick 0 while stopped since the last played onTick (a Stop)
-        self.quiet = 0            # how many leading ticks of this onTick's window are counted but not sounded
-        self.deferred = []        # entries whose release waits for the next onTick (they started in this one)
+        self.quiet = 0  # how many leading ticks of this onTick's window are counted but not sounded
+        self.deferred = []  # entries whose release waits for the next onTick (they started in this one)
         self.was_playing = False
-        self.restart = True       # the next Play starts fresh at bar 1
+        self.restart = True  # the next Play starts fresh at bar 1
         self.ppq = None
         self.poll_every = 4
         self.calls = 0
@@ -435,9 +466,9 @@ class Band(object):
         self.drum_map = 0
         self.dropout = 0
         self.dropout_seed = 0
-        self.drop_t = None        # band tick of the bar the dropout decision below is for
-        self.drop_now = False     # whether that bar rests
-        self.switch_t = None      # band tick of the last pattern switch
+        self.drop_t = None  # band tick of the bar the dropout decision below is for
+        self.drop_now = False  # whether that bar rests
+        self.switch_t = None  # band tick of the last pattern switch
         self.mutes = [False, False, False, False]
         self.live_on = False
 
@@ -446,10 +477,8 @@ class Band(object):
     def _log(self, message):
         self.log.append(message)
         del self.log[:-50]
-        try:
+        with contextlib.suppress(Exception):
             print("[arsenal band] " + message)
-        except Exception:
-            pass
 
     def load_module(self):
         """Import (or re-import) arsenal_patterns. A missing or broken module leaves the band playing something."""
@@ -458,6 +487,7 @@ class Band(object):
             cached = sys.modules.get(PATTERN_MODULE)
             if cached is not None and getattr(cached, "__file__", None):
                 import importlib
+
                 mod = importlib.reload(cached)  # a recompile or Reload picks up a regenerated file
             elif cached is not None:
                 mod = cached
@@ -466,13 +496,17 @@ class Band(object):
         except Exception as exc:
             mod = sys.modules.get(PATTERN_MODULE)
             if mod is None:
-                self.module_status = "%s not importable (%s); playing the fallback groove" % (PATTERN_MODULE, _short(exc))
+                self.module_status = f"{PATTERN_MODULE} not importable ({_short(exc)}); playing the fallback groove"
                 self._log(self.module_status)
                 self.baked = [parse_pattern_set(FALLBACK_PATTERN, "fallback")]
                 return False
         patterns = getattr(mod, "PATTERNS", None)
-        if getattr(mod, "VERSION", PATTERN_FORMAT_VERSION) != PATTERN_FORMAT_VERSION or not isinstance(patterns, (list, tuple)) or not patterns:
-            self.module_status = "%s has no version 1 PATTERNS list; playing the fallback groove" % PATTERN_MODULE
+        if (
+            getattr(mod, "VERSION", PATTERN_FORMAT_VERSION) != PATTERN_FORMAT_VERSION
+            or not isinstance(patterns, (list, tuple))
+            or not patterns
+        ):
+            self.module_status = f"{PATTERN_MODULE} has no version 1 PATTERNS list; playing the fallback groove"
             self._log(self.module_status)
             self.baked = [parse_pattern_set(FALLBACK_PATTERN, "fallback")]
             return False
@@ -480,7 +514,7 @@ class Band(object):
         refused = 0
         for i, p in enumerate(list(patterns)[:MAX_PATTERNS]):
             try:
-                baked.append(parse_pattern_set(p, "PATTERNS[%d]" % i))
+                baked.append(parse_pattern_set(p, f"PATTERNS[{i}]"))
             except PatternError as exc:
                 refused += 1
                 baked.append(placeholder_pattern(str(exc), i))
@@ -496,7 +530,9 @@ class Band(object):
             except PatternError as exc:
                 self._log("refused " + _ascii(str(exc)))
         self.drum_maps = maps
-        self.module_status = "%d patterns from %s%s" % (len(baked), PATTERN_MODULE, (" (%d refused)" % refused) if refused else "")
+        self.module_status = (
+            f"{len(baked)} patterns from {PATTERN_MODULE!s}{(f' ({refused} refused)') if refused else ''}"
+        )
         self._log(self.module_status)
         return True
 
@@ -506,10 +542,13 @@ class Band(object):
         return self.baked
 
     def describe(self):
-        lines = ["Arsenal band v%d. Plays Claude's patterns on FL's clock; pattern switches land on bar lines." % BAND_VERSION,
-                 "", _ascii(self.module_status)]
+        lines = [
+            f"Arsenal band v{BAND_VERSION}. Plays Claude's patterns on FL's clock; pattern switches land on bar lines.",
+            "",
+            _ascii(self.module_status),
+        ]
         for i, p in enumerate(self.baked[:16]):
-            lines.append("%d  %s" % (i, _ascii(p["title"])))
+            lines.append(f"{i}  {_ascii(p['title'])!s}")
         if self.live_path:
             lines.append("Live file: " + _ascii(self.live_path))
         return "\r\n".join(lines)
@@ -530,11 +569,8 @@ class Band(object):
                 sig = (st.st_mtime_ns, st.st_size)
                 if sig == self.live_sig:
                     return
-            f = open(path, "r", encoding="utf-8")
-            try:
+            with open(path, encoding="utf-8") as f:
                 text = f.read()
-            finally:
-                f.close()
         except Exception as exc:
             self._live_problem("cannot read the live file: " + _short(exc))
             return
@@ -549,7 +585,10 @@ class Band(object):
             return
         self.live = playlist
         self.live_error = None
-        self._log("live file: %d patterns, current %d, rev %r" % (len(playlist["patterns"]), playlist["current"], playlist["rev"]))
+        self._log(
+            f"live file: {len(playlist['patterns'])} patterns, current {int(playlist['current'])}, "
+            f"rev {playlist['rev']!r}"
+        )
         self.request(playlist["current"], defer, force=True, reflect=True)
 
     def _live_problem(self, message):
@@ -586,8 +625,13 @@ class Band(object):
         old = self.pattern
         bar_before = self.compiled.bar if self.compiled is not None else None
         self.switches.append((t, index, self.anchor, bar_before))
-        keep = (t is not None and old is not None and new["id"] == old["id"]
-                and new["length_beats"] == old["length_beats"] and new["bar_beats"] == old["bar_beats"])
+        keep = (
+            t is not None
+            and old is not None
+            and new["id"] == old["id"]
+            and new["length_beats"] == old["length_beats"]
+            and new["bar_beats"] == old["bar_beats"]
+        )
         self.release_all()
         self.pending = None
         self.fired = {}
@@ -600,7 +644,7 @@ class Band(object):
         self.current = index
         self.pattern = new
         self.compiled = None
-        self._log("pattern %d: %s" % (index, _ascii(new["title"])))
+        self._log(f"pattern {int(index)}: {_ascii(new['title'])!s}")
 
     # -- voices -------------------------------------------------------------------------------------------------
 
@@ -630,10 +674,8 @@ class Band(object):
                 self.deferred.append(e)
             return
         e.alive = False
-        try:
+        with contextlib.suppress(ValueError):
             self.sounding.remove(e)
-        except ValueError:
-            pass
         x = self.listed_voice(e)
         if x is not None:
             x.release()
@@ -815,7 +857,7 @@ class Band(object):
         return min(self.ppq, tight), min(self.ppq, 2 * tight + 1)
 
     def bar_ticks(self):
-        return self.compiled.bar if self.compiled is not None else max(1, int(round(self.pattern["bar_beats"] * self.ppq)))
+        return self.compiled.bar if self.compiled is not None else max(1, round(self.pattern["bar_beats"] * self.ppq))
 
     def wrap_info(self, d):
         """(gap, exact) when FL's ticks fell by -d between two onTicks and the fall is a loop wrap; None for a seek.
@@ -857,7 +899,7 @@ class Band(object):
             end = head.start + span
             if 0 <= end - self.last_ticks - 1 < gap:
                 tail = list(range(self.last_ticks + 1, end))
-        return tail + [WRAP] + list(head)
+        return [*tail, WRAP, *list(head)]
 
     def jump_window(self, ticks, gap):
         """The ticks to play at once after FL moved the playhead to ticks, having passed at most gap ticks since it
@@ -908,7 +950,7 @@ class Band(object):
             if self.clock == CLOCK_SONG:
                 return [ticks - 1, ticks] if ticks >= 1 else [0]
             # Keep counting starts at bar 1 in step with FL's bar grid: Play from mid-bar joins bar 1 at that beat.
-            bar = max(1, int(round(self.pattern["bar_beats"] * self.ppq)))
+            bar = max(1, round(self.pattern["bar_beats"] * self.ppq))
             b0 = ticks % bar
             self.band_t = -1
             return [b0 - 1, b0] if b0 >= 1 else [0]
@@ -1100,7 +1142,9 @@ def onTick():
 def createDialog():
     form = vfx.ScriptDialog("", BAND.describe())
     form.addGroup("Band")
-    form.addInputKnobInt("Pattern", 0, 0, MAX_PATTERNS - 1, hint="Pattern to play; the switch lands on the next bar line")
+    form.addInputKnobInt(
+        "Pattern", 0, 0, MAX_PATTERNS - 1, hint="Pattern to play; the switch lands on the next bar line"
+    )
     form.addInputCombo("Switch at", SWITCH_CHOICES, 0, hint="Switch on the next bar line, or on the top of the loop")
     form.addInputCombo("Lane", LANE_CHOICES, 0, hint="All lanes on voice outputs 1-4, or one lane on output 1")
     form.addInputCombo("Clock", CLOCK_CHOICES, 0, hint="Keep counting through FL loops, or follow FL's song position")
@@ -1109,9 +1153,13 @@ def createDialog():
     form.addInputKnob("Swing", 0, 0, 1, hint="0 straight, 1 full triplet swing on the grid below")
     form.addInputCombo("Swing grid", GRID_CHOICES, 0, hint="Which off-beats swing")
     form.addInputKnob("Humanize", 0, 0, 1, hint="Velocity variation, up to 20 steps either way")
-    form.addInputCombo("Drum map", BAND.drum_map_names(), 0, hint="GM notes as they are, or mapped for FPC or Addictive Drums 2")
+    form.addInputCombo(
+        "Drum map", BAND.drum_map_names(), 0, hint="GM notes as they are, or mapped for FPC or Addictive Drums 2"
+    )
     form.addInputCombo("Dropout", DROPOUT_CHOICES, 0, hint="Now and then a bar where every lane but bass rests")
-    form.addInputKnobInt("Dropout seed", 0, 0, DROPOUT_SEEDS - 1, hint="Which bars drop out; the same seed drops the same bars")
+    form.addInputKnobInt(
+        "Dropout seed", 0, 0, DROPOUT_SEEDS - 1, hint="Which bars drop out; the same seed drops the same bars"
+    )
     form.endGroup()
     form.addGroup("Mute")
     for name in ("Bass", "Drums", "Comp", "Pad"):

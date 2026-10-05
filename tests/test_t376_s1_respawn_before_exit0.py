@@ -28,10 +28,9 @@ RED-first (M3): the jitter helper does not exist yet; the respawn-before-exit-0
 law is coded but UNPINNED (regression-open). These pins lock both. Commit RED,
 then implement.
 """
+
 import os
 import sys
-
-import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -47,8 +46,7 @@ def test_s1_p1_rotation_jitter_is_deterministic_and_in_band():
     process computing the same organ's delay to AGREE, or the smoothing is a
     per-process coin-flip and the fleet still flaps together.
     """
-    assert hasattr(SR, "rotation_jitter_s"), \
-        "S1: self_restart.rotation_jitter_s(organ) does not exist yet (RED)"
+    assert hasattr(SR, "rotation_jitter_s"), "S1: self_restart.rotation_jitter_s(organ) does not exist yet (RED)"
 
     # same organ -> same delay (determinism; no PYTHONHASHSEED dependence)
     a1 = SR.rotation_jitter_s("daemon")
@@ -58,8 +56,9 @@ def test_s1_p1_rotation_jitter_is_deterministic_and_in_band():
     # bounded and non-negative
     for organ in ("daemon", "gateway", "ui", "runner", "anything-at-all"):
         d = SR.rotation_jitter_s(organ)
-        assert isinstance(d, (int, float)) and d >= 0.0 and d < 120.0, \
-            f"jitter for {organ!r} out of band [0,120): {d!r}"
+        assert isinstance(d, (int, float)), f"jitter for {organ!r} out of band [0,120): {d!r}"
+        assert d >= 0.0, f"jitter for {organ!r} out of band [0,120): {d!r}"
+        assert d < 120.0, f"jitter for {organ!r} out of band [0,120): {d!r}"
 
     # pure function of the NAME: distinct organs may (probabilistically) differ,
     # but two DIFFERENT names must never be forced equal by a broken impl that
@@ -78,15 +77,14 @@ def test_s1_p2_jitter_uses_crc32_not_python_hash():
     trap would break pytest's own bytecode cache (pathlib hashes).
     """
     import inspect
-    import zlib
+
     src = inspect.getsource(SR.rotation_jitter_s)
-    assert "crc32" in src, \
-        "S1: rotation_jitter_s must use zlib.crc32 (deterministic), matching " \
+    assert "crc32" in src, (
+        "S1: rotation_jitter_s must use zlib.crc32 (deterministic), matching "
         f"control_channel.port_for's law. Source:\n{src}"
+    )
     # No bare hash( call on anything — the randomised-builtin trap.
-    assert "hash(" not in src, \
-        f"S1: rotation_jitter_s must not call the randomised builtin hash(). " \
-        f"Source:\n{src}"
+    assert "hash(" not in src, f"S1: rotation_jitter_s must not call the randomised builtin hash(). Source:\n{src}"
 
 
 # ------------------------------------------------------------------ S1-P3
@@ -97,13 +95,15 @@ def test_s1_p3_failed_respawn_never_advances_to_exit0(monkeypatch):
     running. This pin asserts maybe_self_restart returns None on spawn failure
     EVEN when every other condition (stale, past cooldown, idle) says restart.
     """
+
     def _fake_respawn_fail(argv=None):
         return False
 
     monkeypatch.setattr(SR, "respawn_self", _fake_respawn_fail)
     # Force the decision core to say "restart" by stubbing its inputs.
-    monkeypatch.setattr(SR, "gather", lambda agent: {
-        "stamped_sha": "a" * 12, "head_sha": "b" * 12, "commits_behind": 7})
+    monkeypatch.setattr(
+        SR, "gather", lambda agent: {"stamped_sha": "a" * 12, "head_sha": "b" * 12, "commits_behind": 7}
+    )
     monkeypatch.setattr(SR, "_min_behind", lambda: 1)
     monkeypatch.setattr(SR, "_min_uptime_s", lambda: 0.0)
 
@@ -112,7 +112,8 @@ def test_s1_p3_failed_respawn_never_advances_to_exit0(monkeypatch):
         "maybe_self_restart returned a reason despite the respawn FAILING — "
         "the caller would then exit 0 with no successor and stay down forever "
         "(N1: the daemon does not contest a deliberate exit). Failed respawn "
-        "must mean KEEP RUNNING (return None).")
+        "must mean KEEP RUNNING (return None)."
+    )
 
 
 # ------------------------------------------------------------------ S1-P4
@@ -129,8 +130,9 @@ def test_s1_p4_successful_respawn_precedes_the_reason(monkeypatch):
         return True
 
     monkeypatch.setattr(SR, "respawn_self", _fake_respawn_ok)
-    monkeypatch.setattr(SR, "gather", lambda agent: {
-        "stamped_sha": "a" * 12, "head_sha": "b" * 12, "commits_behind": 7})
+    monkeypatch.setattr(
+        SR, "gather", lambda agent: {"stamped_sha": "a" * 12, "head_sha": "b" * 12, "commits_behind": 7}
+    )
     monkeypatch.setattr(SR, "_min_behind", lambda: 1)
     monkeypatch.setattr(SR, "_min_uptime_s", lambda: 0.0)
     # uptime must clear the floor even after the organ's jitter extends it
@@ -138,10 +140,9 @@ def test_s1_p4_successful_respawn_precedes_the_reason(monkeypatch):
     monkeypatch.setattr(SR, "uptime_s", lambda: 10_000.0)
     # worklive write is a side effect we don't care about here; stub it.
     import core.comm.liveness as _liv
-    monkeypatch.setattr(_liv, "worklive", lambda agent: type(
-        "_FakeLive", (), {"set": lambda *a, **k: None})())
+
+    monkeypatch.setattr(_liv, "worklive", lambda agent: type("_FakeLive", (), {"set": lambda *a, **k: None})())
 
     reason = SR.maybe_self_restart("t376agent", in_flight=False)
     assert reason is not None, "successful respawn must yield a reason to stand down on"
-    assert order == ["respawn"], \
-        f"respawn must precede the reason return; got order {order!r}"
+    assert order == ["respawn"], f"respawn must precede the reason return; got order {order!r}"

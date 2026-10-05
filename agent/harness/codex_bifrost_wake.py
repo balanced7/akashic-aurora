@@ -5,19 +5,22 @@ direct inbox from a private, persisted baseline; it never advances the shared
 mailbox cursor and never scans messages older than the moment it was armed.
 Only an allowlisted peer and an explicit message class can spend a Codex turn.
 """
+
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
+import contextlib
 import json
 import os
-from pathlib import Path
-import signal
 import shlex
+import signal
 import threading
 import time
 import uuid
-from typing import Any, Callable, Dict, FrozenSet, List, Mapping, Optional
+from collections.abc import Callable, Mapping
+from dataclasses import dataclass, field
+from datetime import UTC, datetime
+from pathlib import Path
+from typing import Any
 
 from agent.harness.codex_app_server import (
     CodexAppServer,
@@ -26,11 +29,10 @@ from agent.harness.codex_app_server import (
     TurnResult,
 )
 from core.comm import packet_spec
-from core.comm.bus import Bus, Message
+from core.comm.bus import Bus, Message  # noqa: TC001  # runtime-evaluated annotations (annotation_sensitive module)
 from core.comm.toolbox import ToolBox
 from core.fleet import residents
 from core.toolbelt.registry import Toolbelt
-
 
 DIRECT_ACTION_KINDS = frozenset({"request", "question", "handoff", "blocker"})
 ANSWER_KINDS = frozenset({"response", "reply", "answer", "completion"})
@@ -137,7 +139,7 @@ AURORA_COMBO_CATALOG_TOOL = {
 }
 
 
-def _aurora_read_combo_tool(names: List[str]) -> Dict[str, Any]:
+def _aurora_read_combo_tool(names: list[str]) -> dict[str, Any]:
     """Build the per-turn schema from the subject seat's currently safe combos."""
     return {
         "type": "function",
@@ -163,7 +165,7 @@ def _aurora_read_combo_tool(names: List[str]) -> Dict[str, Any]:
     }
 
 
-def _safe_read_args_refusal(verb: str, args: List[str]) -> Optional[str]:
+def _safe_read_args_refusal(verb: str, args: list[str]) -> str | None:
     """Return why argv is outside Sunshine's bridge-local read grammar, else None."""
     grammar = AURORA_SAFE_READ_GRAMMAR.get(verb)
     if grammar is None:
@@ -211,7 +213,7 @@ class SubjectIdentity:
     """One authoritative identity snapshot, resolved once for one admitted turn."""
 
     agent_id: str
-    callsign: Optional[str]
+    callsign: str | None
     status: str
     authority: str
 
@@ -242,11 +244,7 @@ def resolve_subject_identity(agent: str) -> SubjectIdentity:
             agent_id=subject,
             callsign=hint,
             status="registry-unavailable",
-            authority=(
-                "environment-hint;resident-registry-unavailable"
-                if hint
-                else "resident-registry-unavailable"
-            ),
+            authority=("environment-hint;resident-registry-unavailable" if hint else "resident-registry-unavailable"),
         )
 
     callsign = str((record or {}).get("callsign") or "").strip() or None
@@ -258,9 +256,7 @@ def resolve_subject_identity(agent: str) -> SubjectIdentity:
             authority="resident-registry",
         )
     if hint:
-        status = "registry-mismatch" if hinted_status == "ratified" else (
-            hinted_status or "historical-unratified"
-        )
+        status = "registry-mismatch" if hinted_status == "ratified" else (hinted_status or "historical-unratified")
         return SubjectIdentity(
             agent_id=subject,
             callsign=hint,
@@ -276,10 +272,10 @@ def resolve_subject_identity(agent: str) -> SubjectIdentity:
 
 
 def _now() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
-def _usage_accounting(usage: Mapping[str, Any]) -> Dict[str, Any]:
+def _usage_accounting(usage: Mapping[str, Any]) -> dict[str, Any]:
     """Label whole-turn usage separately from the final model step.
 
     App Server reports both ``total`` and ``last``. They are identical for a
@@ -313,10 +309,8 @@ def _atomic_json(path: Path, payload: Mapping[str, Any]) -> None:
             os.fsync(handle.fileno())
         os.replace(temporary, path)
     finally:
-        try:
+        with contextlib.suppress(OSError):
             temporary.unlink(missing_ok=True)
-        except OSError:
-            pass
 
 
 def _append_jsonl(path: Path, payload: Mapping[str, Any]) -> None:
@@ -331,11 +325,11 @@ class WakePolicy:
     """The deterministic gate that is allowed to spend a model turn."""
 
     agent: str
-    allowed_senders: FrozenSet[str]
-    expected_answers: FrozenSet[str] = frozenset()
-    direct_kinds: FrozenSet[str] = DIRECT_ACTION_KINDS
-    answer_kinds: FrozenSet[str] = ANSWER_KINDS
-    required_source: Optional[str] = None
+    allowed_senders: frozenset[str]
+    expected_answers: frozenset[str] = frozenset()
+    direct_kinds: frozenset[str] = DIRECT_ACTION_KINDS
+    answer_kinds: frozenset[str] = ANSWER_KINDS
+    required_source: str | None = None
 
     def accepts(self, message: Message) -> bool:
         if message.to != self.agent or message.frm not in self.allowed_senders:
@@ -360,11 +354,11 @@ class WakeState:
     path: Path
     agent: str
     last_seen: str
-    thread_id: Optional[str] = None
-    source_thread_id: Optional[str] = None
+    thread_id: str | None = None
+    source_thread_id: str | None = None
     binding_kind: str = "unbound"
-    bound_at: Optional[str] = None
-    records: List[Dict[str, Any]] = field(default_factory=list)
+    bound_at: str | None = None
+    records: list[dict[str, Any]] = field(default_factory=list)
     created_at: str = field(default_factory=_now)
 
     @classmethod
@@ -374,10 +368,10 @@ class WakeState:
         *,
         agent: str,
         baseline: str,
-        thread_id: Optional[str] = None,
-        source_thread_id: Optional[str] = None,
-        binding_kind: Optional[str] = None,
-    ) -> "WakeState":
+        thread_id: str | None = None,
+        source_thread_id: str | None = None,
+        binding_kind: str | None = None,
+    ) -> WakeState:
         target = Path(path).expanduser().resolve()
         if target.exists():
             try:
@@ -391,9 +385,7 @@ class WakeState:
         if raw:
             stored_agent = str(raw.get("agent") or "")
             if stored_agent != str(agent):
-                raise WakeError(
-                    f"Wake state belongs to {stored_agent!r}, not requested agent {agent!r}: {target}"
-                )
+                raise WakeError(f"Wake state belongs to {stored_agent!r}, not requested agent {agent!r}: {target}")
             stored_thread_id = str(raw.get("thread_id") or "").strip() or None
             requested_thread_id = str(thread_id or "").strip() or None
             if stored_thread_id and requested_thread_id and stored_thread_id != requested_thread_id:
@@ -412,11 +404,7 @@ class WakeState:
                 )
             stored_binding = str(raw.get("binding_kind") or "").strip() or "unbound"
             requested_binding = str(binding_kind or "").strip() or None
-            if (
-                stored_binding != "unbound"
-                and requested_binding
-                and stored_binding != requested_binding
-            ):
+            if stored_binding != "unbound" and requested_binding and stored_binding != requested_binding:
                 raise WakeError(
                     "Wake state already records continuity binding "
                     f"{stored_binding!r}; refusing to replace it with {requested_binding!r}: "
@@ -454,10 +442,7 @@ class WakeState:
             last_seen=str(baseline or "0-0"),
             thread_id=requested_thread_id,
             source_thread_id=requested_source_id,
-            binding_kind=(
-                str(binding_kind or "").strip()
-                or ("explicit" if requested_thread_id else "unbound")
-            ),
+            binding_kind=(str(binding_kind or "").strip() or ("explicit" if requested_thread_id else "unbound")),
             bound_at=(_now() if requested_thread_id else None),
         )
         state._persist()
@@ -484,7 +469,7 @@ class WakeState:
         self,
         thread_id: str,
         *,
-        source_thread_id: Optional[str] = None,
+        source_thread_id: str | None = None,
         binding_kind: str = "watcher-created-persistent",
     ) -> None:
         """Bind once. Replacing a conversation is an explicit migration, never recovery."""
@@ -492,10 +477,7 @@ class WakeState:
         if not requested:
             raise WakeError("Cannot bind an empty continuity thread id")
         if self.thread_id and self.thread_id != requested:
-            raise WakeError(
-                f"Wake state already binds {self.thread_id!r}; refusing to replace it with "
-                f"{requested!r}"
-            )
+            raise WakeError(f"Wake state already binds {self.thread_id!r}; refusing to replace it with {requested!r}")
         requested_source = str(source_thread_id or "").strip() or None
         if self.source_thread_id and requested_source and self.source_thread_id != requested_source:
             raise WakeError(
@@ -544,13 +526,11 @@ def decode_stream_message(bus: Bus, mid: str, fields: Mapping[str, Any]) -> Mess
     return bus._to_msg(str(mid), normalized)
 
 
-def decode_exact_message(bus: Bus, mid: str) -> Optional[Message]:
+def decode_exact_message(bus: Bus, mid: str) -> Message | None:
     """Fetch one direct message by id.  No inbox/cursor door is called."""
     if bus._client is None:
         raise WakeError("Bifrost is offline")
-    rows = bus._client.xrange(
-        bus._inbox_key(bus.agent_id), min=str(mid), max=str(mid), count=1
-    )
+    rows = bus._client.xrange(bus._inbox_key(bus.agent_id), min=str(mid), max=str(mid), count=1)
     if not rows:
         return None
     found_mid, fields = rows[0]
@@ -564,8 +544,8 @@ def build_wake_prompt(
     message: Message,
     *,
     identity: SubjectIdentity,
-    continuity_thread_id: Optional[str] = None,
-    continuity_source_thread_id: Optional[str] = None,
+    continuity_thread_id: str | None = None,
+    continuity_source_thread_id: str | None = None,
     continuity_binding: str = "unbound",
 ) -> str:
     """Render the exact subject, identity snapshot, and peer message."""
@@ -661,9 +641,9 @@ class CodexBifrostWake:
         self.server_factory = server_factory
         self.identity_resolver = identity_resolver
         self.toolbelt_factory = toolbelt_factory
-        self._server: Optional[CodexAppServer] = None
-        self._server_identity_signature: Optional[tuple[str, str, str, str]] = None
-        self._loaded_thread_id: Optional[str] = None
+        self._server: CodexAppServer | None = None
+        self._server_identity_signature: tuple[str, str, str, str] | None = None
+        self._loaded_thread_id: str | None = None
         self._stop = threading.Event()
         self._toolbox = ToolBox(
             self.cwd,
@@ -676,7 +656,7 @@ class CodexBifrostWake:
         )
 
     @property
-    def dynamic_tools(self) -> List[Dict[str, Any]]:
+    def dynamic_tools(self) -> list[dict[str, Any]]:
         """Tools advertised to the model; launch posture is visible at admission time."""
         if not self.allow_exec:
             return []
@@ -686,7 +666,7 @@ class CodexBifrostWake:
             tools.append(_aurora_read_combo_tool(safe_names))
         return tools
 
-    def _combo_admission_rows(self) -> tuple[List[Dict[str, Any]], Optional[str]]:
+    def _combo_admission_rows(self) -> tuple[list[dict[str, Any]], str | None]:
         """Evaluate subject-owned active combos without executing a primitive."""
         try:
             belt = self.toolbelt_factory(self.policy.agent)
@@ -694,9 +674,9 @@ class CodexBifrostWake:
         except (OSError, ValueError, KeyError, json.JSONDecodeError) as exc:
             return [], f"{type(exc).__name__}: {exc}"
 
-        rows: List[Dict[str, Any]] = []
+        rows: list[dict[str, Any]] = []
         for name in names:
-            row: Dict[str, Any] = {
+            row: dict[str, Any] = {
                 "name": name,
                 "evidence": "UNKNOWN",
                 "family": "UNSORTED",
@@ -754,37 +734,33 @@ class CodexBifrostWake:
             )
         admitted = sum(1 for row in rows if row["admitted"])
         lines = [
-            f"# combo admission: {self.policy.agent} -- active={len(rows)} "
-            f"admitted={admitted} omitted={len(rows) - admitted}",
+            (
+                f"# combo admission: {self.policy.agent} -- active={len(rows)} "
+                f"admitted={admitted} omitted={len(rows) - admitted}"
+            ),
         ]
         if not rows:
             lines.append("  no active subject-authored combos")
         for row in rows:
             verdict = "ADMITTED" if row["admitted"] else "OMITTED"
-            lines.append(
-                f"  [{verdict}] {row['name']} [{row['evidence']}; {row['family']}] -- "
-                f"{row['reason']}"
-            )
+            lines.append(f"  [{verdict}] {row['name']} [{row['evidence']}; {row['family']}] -- {row['reason']}")
         body = "\n".join(lines)
         if len(body) > AURORA_COMBO_OUTPUT_CHARS:
             marker = "\n[combo catalog capped; remainder omitted]"
             body = body[: AURORA_COMBO_OUTPUT_CHARS - len(marker)] + marker
         return body, True
 
-    def _safe_combo_catalog(self) -> Dict[str, List[List[str]]]:
+    def _safe_combo_catalog(self) -> dict[str, list[list[str]]]:
         """Resolve safe zero-argument combos; registry blindness fails this surface closed."""
         rows, error = self._combo_admission_rows()
         if error is not None:
             return {}
-        return {
-            str(row["name"]): [list(step) for step in row["steps"]]
-            for row in rows
-            if row["admitted"]
-        }
+        return {str(row["name"]): [list(step) for step in row["steps"]] for row in rows if row["admitted"]}
 
-    def handle_dynamic_tool_call(self, params: Mapping[str, Any]) -> Dict[str, Any]:
+    def handle_dynamic_tool_call(self, params: Mapping[str, Any]) -> dict[str, Any]:
         """Execute one structured read verb through the bridge and ToolBox walls."""
-        def response(success: bool, text: str) -> Dict[str, Any]:
+
+        def response(success: bool, text: str) -> dict[str, Any]:
             return {
                 "success": bool(success),
                 "contentItems": [{"type": "inputText", "text": str(text)}],
@@ -819,15 +795,13 @@ class CodexBifrostWake:
                     f"REFUSED by Codex bridge safe read grammar: combo {name!r} is not a "
                     "currently safe zero-argument combo for this subject seat.",
                 )
-            rendered: List[str] = []
+            rendered: list[str] = []
             total = len(steps)
             for index, argv in enumerate(steps, start=1):
                 command = shlex.join(["py", "agent_cli.py", *argv])
                 output = self._toolbox.run_command(command, timeout=120)
                 rendered.append(f"[{name} {index}/{total}] {' '.join(argv)}\n{output}")
-                refused = output.startswith(
-                    ("REFUSED", "ERROR:", "DENIED", "run_command is DISABLED")
-                )
+                refused = output.startswith(("REFUSED", "ERROR:", "DENIED", "run_command is DISABLED"))
                 failed_exit = "\n[exit " in output
                 if refused or failed_exit:
                     return response(False, "\n\n".join(rendered)[:AURORA_COMBO_OUTPUT_CHARS])
@@ -910,9 +884,7 @@ class CodexBifrostWake:
         """Load the one bound conversation, or durably create and bind it exactly once."""
         if self._loaded_thread_id:
             if self.state.thread_id != self._loaded_thread_id:
-                raise WakeError(
-                    "Loaded App Server thread no longer matches the durable watcher binding"
-                )
+                raise WakeError("Loaded App Server thread no longer matches the durable watcher binding")
             return ThreadHandle(
                 self._loaded_thread_id,
                 {"thread": {"id": self._loaded_thread_id}, "source": "already-loaded"},
@@ -922,9 +894,7 @@ class CodexBifrostWake:
             "sandbox": "read-only",
             "cwd": self.cwd,
             "model": self.model,
-            "developer_instructions": wake_developer_instructions(
-                self.policy.agent, identity
-            ),
+            "developer_instructions": wake_developer_instructions(self.policy.agent, identity),
             "approval_policy": "never",
             "personality": "friendly",
             "dynamic_tools": self.dynamic_tools or None,
@@ -955,7 +925,7 @@ class CodexBifrostWake:
         )
         return thread
 
-    def handle(self, mid: str, fields: Mapping[str, Any]) -> Dict[str, Any]:
+    def handle(self, mid: str, fields: Mapping[str, Any]) -> dict[str, Any]:
         mid = str(mid)
         if self.state.seen(mid):
             return {"mid": mid, "outcome": "duplicate"}
@@ -974,9 +944,7 @@ class CodexBifrostWake:
             )
             return {"mid": mid, "outcome": "ignored"}
 
-        exact_size = len(
-            json.dumps(message.content, ensure_ascii=False, default=str)
-        )
+        exact_size = len(json.dumps(message.content, ensure_ascii=False, default=str))
         if exact_size > self.max_message_chars:
             detail = (
                 f"exact content {exact_size} chars exceeds wake cap {self.max_message_chars}; "
@@ -1073,7 +1041,7 @@ class CodexBifrostWake:
         message: Message,
         result: TurnResult,
         identity: SubjectIdentity,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         usage = result.token_usage or {}
         usage_accounting = _usage_accounting(usage)
         if result.status != "completed" or not result.text.strip():
@@ -1180,9 +1148,7 @@ class CodexBifrostWake:
         try:
             while not self._stop.is_set():
                 try:
-                    rows = blocking_client.xread(
-                        {inbox: self.state.last_seen}, count=10, block=self.block_ms
-                    )
+                    rows = blocking_client.xread({inbox: self.state.last_seen}, count=10, block=self.block_ms)
                 except Exception as exc:
                     try:
                         from redis.exceptions import ConnectionError as RedisConnectionError
@@ -1205,7 +1171,7 @@ class CodexBifrostWake:
                     if once:
                         break
                     continue
-                retry_delay: Optional[float] = None
+                retry_delay: float | None = None
                 for _stream, messages in rows:
                     for mid, fields in messages:
                         result = self.handle(str(mid), fields)
@@ -1225,10 +1191,8 @@ class CodexBifrostWake:
                     # Do not process later rows and leapfrog the blocked conversation.
                     self._stop.wait(retry_delay)
         finally:
-            try:
+            with contextlib.suppress(Exception):
                 blocking_client.close()
-            except Exception:
-                pass
             self.close()
             self._log("stopped", handled=handled, last_seen=self.state.last_seen)
         return handled
@@ -1247,15 +1211,13 @@ def install_signal_stops(watcher: CodexBifrostWake) -> None:
     for name in ("SIGINT", "SIGTERM", "SIGBREAK"):
         sig = getattr(signal, name, None)
         if sig is not None:
-            try:
+            with contextlib.suppress(OSError, ValueError):
                 signal.signal(sig, stop)
-            except (OSError, ValueError):
-                pass
 
 
 __all__ = [
-    "CodexBifrostWake",
     "DIRECT_ACTION_KINDS",
+    "CodexBifrostWake",
     "SubjectIdentity",
     "WakeError",
     "WakePolicy",

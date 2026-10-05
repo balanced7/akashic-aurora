@@ -19,14 +19,15 @@ A render that mixes them without labels is the failure mode: the operator asked 
 precisely so a model change cannot happen quietly, and a display that shows a request while
 implying a receipt would hide the change it exists to reveal.
 """
+
 from __future__ import annotations
 
 import json
-import os
 import time
-from core.comm.seat_identity import sid8 as _sid8
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
+
+from core.comm.seat_identity import sid8 as _sid8
 
 ROOT = Path(__file__).resolve().parents[2]
 #: The pin. Instance-scoped operator preference; small, and the durable record of his choice.
@@ -38,11 +39,11 @@ REPORT_TTL_SEC = 900
 
 #: The roster the operator picks from. Full ids are accepted too (see `pin`) -- the vendor
 #: ships models faster than we alias them, and our lag must never block his choice.
-MODELS: Dict[str, Dict[str, str]] = {
-    "fable":  {"id": "claude-fable-5",             "label": "Fable 5"},
-    "opus":   {"id": "claude-opus-5",              "label": "Opus 5"},
-    "sonnet": {"id": "claude-sonnet-5",            "label": "Sonnet 5"},
-    "haiku":  {"id": "claude-haiku-4-5-20251001",  "label": "Haiku 4.5"},
+MODELS: dict[str, dict[str, str]] = {
+    "fable": {"id": "claude-fable-5", "label": "Fable 5"},
+    "opus": {"id": "claude-opus-5", "label": "Opus 5"},
+    "sonnet": {"id": "claude-sonnet-5", "label": "Sonnet 5"},
+    "haiku": {"id": "claude-haiku-4-5-20251001", "label": "Haiku 4.5"},
 }
 
 DEFAULT_LABEL = "CLI default (unpinned)"
@@ -52,10 +53,10 @@ def _label_for(model_id: str) -> str:
     for spec in MODELS.values():
         if spec["id"] == model_id:
             return spec["label"]
-    return model_id          # a raw id the roster has not aliased: show it verbatim
+    return model_id  # a raw id the roster has not aliased: show it verbatim
 
 
-def resolve() -> Dict[str, Any]:
+def resolve() -> dict[str, Any]:
     """The pin, or the honest absence of one. NEVER raises -- a broken config file must not
     wedge every spawn (that would turn a preference into an outage)."""
     try:
@@ -63,13 +64,18 @@ def resolve() -> Dict[str, Any]:
         model = str(raw.get("model") or "").strip()
         if not model:
             raise ValueError("no model pinned")
-        return {"pinned": True, "model": model, "label": _label_for(model),
-                "by": str(raw.get("by") or ""), "at": str(raw.get("at") or "")}
-    except Exception:                                                     # noqa: BLE001
+        return {
+            "pinned": True,
+            "model": model,
+            "label": _label_for(model),
+            "by": str(raw.get("by") or ""),
+            "at": str(raw.get("at") or ""),
+        }
+    except Exception:  # noqa: BLE001  # fail-soft: falls back to a default value
         return {"pinned": False, "model": None, "label": DEFAULT_LABEL, "by": "", "at": ""}
 
 
-def model_flag() -> List[str]:
+def model_flag() -> list[str]:
     """The argv fragment for a launch. Empty when unpinned -- inherit, never guess."""
     st = resolve()
     return ["--model", st["model"]] if st["pinned"] else []
@@ -82,33 +88,38 @@ def resolve_model_id(alias_or_id: str) -> str:
     if want in MODELS:
         return MODELS[want]["id"]
     if want.startswith("claude-"):
-        return want                       # unaliased vendor id: the operator outranks our roster
+        return want  # unaliased vendor id: the operator outranks our roster
     raise ValueError(
         f"unknown model {alias_or_id!r} -- pick one of: {', '.join(sorted(MODELS))} "
-        f"(or pass a full model id like claude-opus-5)")
+        f"(or pass a full model id like claude-opus-5)"
+    )
 
 
-def pin(alias_or_id: str, *, by: str) -> Dict[str, Any]:
+def pin(alias_or_id: str, *, by: str) -> dict[str, Any]:
     """Pin the model future spawns request. Accepts a roster alias or a full model id."""
     model = resolve_model_id(alias_or_id)
     STORE.parent.mkdir(parents=True, exist_ok=True)
-    rec = {"model": model, "by": str(by or "unknown"),
-           "at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
+    rec = {"model": model, "by": str(by or "unknown"), "at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
     STORE.write_text(json.dumps(rec, indent=1) + "\n", encoding="utf-8")
     return resolve()
 
 
-def unpin(*, by: str) -> Dict[str, Any]:
+def unpin(*, by: str) -> dict[str, Any]:
     """Return to the CLI default. Recorded as an act, not a deletion."""
     STORE.parent.mkdir(parents=True, exist_ok=True)
-    STORE.write_text(json.dumps(
-        {"model": None, "by": str(by or "unknown"),
-         "at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}, indent=1) + "\n",
-        encoding="utf-8")
+    STORE.write_text(
+        json.dumps(
+            {"model": None, "by": str(by or "unknown"), "at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())},
+            indent=1,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
     return resolve()
 
 
 # --- the self-report plane: what a LIVE session says it is running -------------------------
+
 
 def _client(c=None):
     """The house's control-bus Redis client -- the SAME accessor incarnation.py uses.
@@ -120,8 +131,9 @@ def _client(c=None):
         return c
     try:
         from core.comm.bus import get_bus
+
         return get_bus("control")._client
-    except Exception:                                                     # noqa: BLE001
+    except Exception:  # noqa: BLE001  # fail-soft: falls back to a default value
         return None
 
 
@@ -132,22 +144,30 @@ def report(agent: str, session: str, model: str, *, harness: str = "", c=None) -
     if cli is None or not (agent and session and model):
         return False
     try:
-        cli.set(_REPORT_KEY.format(agent=agent, session=_sid8(session)),
-                json.dumps({"model": str(model), "label": _label_for(str(model)),
-                            "harness": str(harness or ""), "at": int(time.time())}),
-                ex=REPORT_TTL_SEC)
+        cli.set(
+            _REPORT_KEY.format(agent=agent, session=_sid8(session)),
+            json.dumps(
+                {
+                    "model": str(model),
+                    "label": _label_for(str(model)),
+                    "harness": str(harness or ""),
+                    "at": int(time.time()),
+                }
+            ),
+            ex=REPORT_TTL_SEC,
+        )
         return True
-    except Exception:                                                     # noqa: BLE001
+    except Exception:  # noqa: BLE001  # fail-soft: falls back to a default value
         return False
 
 
-def running(agent: str = "claude", c=None) -> List[Dict[str, Any]]:
+def running(agent: str = "claude", c=None) -> list[dict[str, Any]]:
     """Every live session's self-reported model for `agent`. Empty means NOBODY REPORTED --
     which is a different fact from 'nobody is running', and the render must say so."""
     cli = _client(c)
     if cli is None:
         return []
-    out: List[Dict[str, Any]] = []
+    out: list[dict[str, Any]] = []
     try:
         pattern = _REPORT_KEY.format(agent=agent, session="*")
         for key in cli.scan_iter(match=pattern) if hasattr(cli, "scan_iter") else []:
@@ -160,9 +180,9 @@ def running(agent: str = "claude", c=None) -> List[Dict[str, Any]]:
                 rec["session"] = k.rsplit(":", 1)[-1]
                 rec["age_s"] = max(0, int(time.time()) - int(rec.get("at") or 0))
                 out.append(rec)
-            except Exception:                                             # noqa: BLE001
+            except Exception:  # noqa: BLE001  # fail-soft: best effort, skipped on any error
                 continue
-    except Exception:                                                     # noqa: BLE001
+    except Exception:  # noqa: BLE001  # fail-soft: falls back to a default value
         return out
     return sorted(out, key=lambda r: r.get("age_s", 0))
 
@@ -184,17 +204,18 @@ def render(*, with_choices: bool = False, agent: str = "claude") -> str:
         for r in live:
             stale = "  ⚠️ stale" if r.get("age_s", 0) > REPORT_TTL_SEC // 2 else ""
             harness = f" · {r['harness']}" if r.get("harness") else ""
-            lines.append(f"  `{r.get('session')}` — {r.get('label')}{harness} "
-                         f"(reported {r.get('age_s')}s ago){stale}")
+            lines.append(f"  `{r.get('session')}` — {r.get('label')}{harness} (reported {r.get('age_s')}s ago){stale}")
     else:
-        lines.append("**Running now:** no session has reported a model. That means nobody "
-                     "stamped one — not that nobody is running.")
+        lines.append(
+            "**Running now:** no session has reported a model. That means nobody "
+            "stamped one — not that nobody is running."
+        )
 
     if with_choices:
         lines.append("")
         lines.append("`!model` — show this · `!model <name>` — pin · `!model default` — unpin")
-        lines.append("Choices: " + " · ".join(
-            f"`{a}` ({MODELS[a]['label']})" for a in sorted(MODELS)))
-        lines.append("A pin applies to seats launched AFTER it; a running session keeps its "
-                     "own model until it is replaced.")
+        lines.append("Choices: " + " · ".join(f"`{a}` ({MODELS[a]['label']})" for a in sorted(MODELS)))
+        lines.append(
+            "A pin applies to seats launched AFTER it; a running session keeps its own model until it is replaced."
+        )
     return "\n".join(lines)

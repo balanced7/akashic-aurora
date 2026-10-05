@@ -13,18 +13,20 @@ touched paths. Then it runs the Chronicler so `story` and `boot` reflect reality
 
 Snapshot first if you're nervous:  py scripts/ops/snapshot_knowledge.py snapshot
 """
+
 import json
 import os
 import subprocess
 import sys
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, ROOT)
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.foundation.store import create_store
-from core.narrative.beat_log import BeatLog, TIMELINE
-from core.narrative.schema import Beat, beat_key, track_key, Track
-from core.narrative.track_router import get_track_router, RouteHint
+from core.narrative.beat_log import TIMELINE, BeatLog
+from core.narrative.schema import Beat, Track, beat_key, track_key
+from core.narrative.track_router import RouteHint, get_track_router
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def _git(*args):
@@ -76,6 +78,7 @@ def _repair_unrouted(store, router, dry):
     """
     try:
         from core.narrative.theme_assigner import get_theme_assigner
+
         ta = get_theme_assigner()
     except Exception:
         ta = None
@@ -109,8 +112,10 @@ def _repair_unrouted(store, router, dry):
         if new_track == old_track and new_themes == b.themes:
             continue
 
-        print(f"  repair   {bid}  track {old_track}->{new_track} (basis={res.basis})  "
-              f"themes={new_themes}  {b.summary[:45]}")
+        print(
+            f"  repair   {bid}  track {old_track}->{new_track} (basis={res.basis})  "
+            f"themes={new_themes}  {b.summary[:45]}"
+        )
         if not dry:
             b.track = new_track
             b.themes = new_themes
@@ -119,9 +124,12 @@ def _repair_unrouted(store, router, dry):
                 store.set("narr:router:active", new_track)
                 store.zadd(f"narr:track:{new_track}:beats", {bid: 0})
                 if not store.get(track_key(new_track)):
-                    store.set(track_key(new_track), json.dumps(
-                        Track(id=new_track, title=new_track.replace("-", " ").title(),
-                              created_at=b.at).to_dict()))
+                    store.set(
+                        track_key(new_track),
+                        json.dumps(
+                            Track(id=new_track, title=new_track.replace("-", " ").title(), created_at=b.at).to_dict()
+                        ),
+                    )
         fixed += 1
     return fixed
 
@@ -141,7 +149,7 @@ def main():
 
         prior = existing.get(source)
         if prior is not None:
-            if prior.track is None:                 # legacy unrouted -> repair in place
+            if prior.track is None:  # legacy unrouted -> repair in place
                 res = router.route_one(prior, hint, store.get("narr:router:active"))
                 if not dry:
                     prior.track = res.track
@@ -149,9 +157,14 @@ def main():
                     store.set("narr:router:active", res.track)
                     store.zadd(f"narr:track:{res.track}:beats", {prior.id: 0})
                     if not store.get(track_key(res.track)):
-                        store.set(track_key(res.track), json.dumps(
-                            Track(id=res.track, title=res.track.replace("-", " ").title(),
-                                  created_at=prior.at).to_dict()))
+                        store.set(
+                            track_key(res.track),
+                            json.dumps(
+                                Track(
+                                    id=res.track, title=res.track.replace("-", " ").title(), created_at=prior.at
+                                ).to_dict()
+                            ),
+                        )
                 rerouted += 1
                 print(f"  reroute  {sha}  -> {res.track}  {subject[:50]}")
             else:
@@ -167,14 +180,19 @@ def main():
 
     repaired = _repair_unrouted(store, router, dry)
 
-    print(f"\n[seed] {'(dry-run) ' if dry else ''}added={added} rerouted={rerouted} "
-          f"skipped={skipped} repaired_unrouted={repaired}")
+    print(
+        f"\n[seed] {'(dry-run) ' if dry else ''}added={added} rerouted={rerouted} "
+        f"skipped={skipped} repaired_unrouted={repaired}"
+    )
 
     if not dry:
         from core.narrative.chronicler import Chronicler
+
         rep = Chronicler(beat_log=bl, store=store).chronicle_all()
-        print(f"[seed] chronicled {rep['chapters']} chapters across {rep['tracks']} tracks "
-              f"({rep['total_beats']} beats); story -> {rep['story_md']}")
+        print(
+            f"[seed] chronicled {rep['chapters']} chapters across {rep['tracks']} tracks "
+            f"({rep['total_beats']} beats); story -> {rep['story_md']}"
+        )
 
 
 if __name__ == "__main__":

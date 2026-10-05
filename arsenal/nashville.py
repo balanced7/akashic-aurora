@@ -32,10 +32,10 @@ Conventions (the same words head nashville.js):
 The result dict has the same keys and values as the JS result: text, degree, acc, root, suffix,
 bass ({degree, acc, text} or None), upper (the interval's top note, same shape, or None), diatonic, kind.
 """
+
 from __future__ import annotations
 
 import re
-from typing import Dict, Optional
 
 LETTERS = "CDEFGAB"
 LETTER_PC = (0, 2, 4, 5, 7, 9, 11)  # also the major scale, degree 1..7
@@ -44,34 +44,104 @@ MAJOR_KEY_NAMES = ("C", "Db", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "
 MINOR_KEY_NAMES = ("C", "C#", "D", "Eb", "E", "F", "F#", "G", "G#", "A", "Bb", "B")
 
 FAMILY = {
-    "": "maj", "m": "min", "dim": "dim", "aug": "aug", "sus4": "sus", "sus2": "sus", "5": "power",
-    "7": "maj", "maj7": "maj", "m7": "min", "m7b5": "dim", "dim7": "dim", "6": "maj", "m6": "min", "add9": "maj",
-    "m(add9)": "min", "m(maj7)": "min", "7sus4": "sus", "add11": "maj", "7#5": "aug", "maj7#5": "aug", "7b5": "other",
-    "6/9": "maj", "m6/9": "min", "9": "maj", "maj9": "maj", "m9": "min", "9sus4": "sus", "7b9": "maj", "7#9": "maj",
-    "maj7#11": "maj", "7#11": "maj", "13": "maj", "maj13": "maj", "m11": "min", "m13": "min", "11": "maj",
+    "": "maj",
+    "m": "min",
+    "dim": "dim",
+    "aug": "aug",
+    "sus4": "sus",
+    "sus2": "sus",
+    "5": "power",
+    "7": "maj",
+    "maj7": "maj",
+    "m7": "min",
+    "m7b5": "dim",
+    "dim7": "dim",
+    "6": "maj",
+    "m6": "min",
+    "add9": "maj",
+    "m(add9)": "min",
+    "m(maj7)": "min",
+    "7sus4": "sus",
+    "add11": "maj",
+    "7#5": "aug",
+    "maj7#5": "aug",
+    "7b5": "other",
+    "6/9": "maj",
+    "m6/9": "min",
+    "9": "maj",
+    "maj9": "maj",
+    "m9": "min",
+    "9sus4": "sus",
+    "7b9": "maj",
+    "7#9": "maj",
+    "maj7#11": "maj",
+    "7#11": "maj",
+    "13": "maj",
+    "maj13": "maj",
+    "m11": "min",
+    "m13": "min",
+    "11": "maj",
 }
 FITS = {  # tonic-numbered degree text -> triad families that fit
     "major": {"1": ("maj",), "2": ("min",), "3": ("min",), "4": ("maj",), "5": ("maj",), "6": ("min",), "7": ("dim",)},
-    "minor": {"1": ("min",), "2": ("dim",), "b3": ("maj",), "4": ("min",), "5": ("min", "maj"), "b6": ("maj",),
-              "b7": ("maj",), "7": ("dim",)},
+    "minor": {
+        "1": ("min",),
+        "2": ("dim",),
+        "b3": ("maj",),
+        "4": ("min",),
+        "5": ("min", "maj"),
+        "b6": ("maj",),
+        "b7": ("maj",),
+        "7": ("dim",),
+    },
 }
 # Letter steps of each chord tone above the root, by semitones above it: Theory.detect's TEMPLATES in piano.js (the
 # tests check both twins against them), except dim7's 7th, a diminished 7th here (G#dim7/F in A major is 7°7/b6).
 # detect spells it as a 6th but always names a dim7 from its bass, so only a written name reaches that entry. A bass
 # that is no chord tone is spelled as detect spells a foreign bass.
 IV_STEPS = (0, 1, 1, 2, 2, 3, 3, 4, 5, 5, 6, 6)
-TONE_STEPS = {suffix: {int(s): int(n) for s, n in (x.split(":") for x in tones.split())} for suffix, tones in {
-    "": "0:0 4:2 7:4", "m": "0:0 3:2 7:4", "dim": "0:0 3:2 6:4", "aug": "0:0 4:2 8:4", "sus4": "0:0 5:3 7:4",
-    "sus2": "0:0 2:1 7:4", "5": "0:0 7:4", "7": "0:0 4:2 7:4 10:6", "maj7": "0:0 4:2 7:4 11:6", "m7": "0:0 3:2 7:4 10:6",
-    "m7b5": "0:0 3:2 6:4 10:6", "dim7": "0:0 3:2 6:4 9:6", "6": "0:0 4:2 7:4 9:5", "m6": "0:0 3:2 7:4 9:5",
-    "add9": "0:0 2:1 4:2 7:4", "m(add9)": "0:0 2:1 3:2 7:4", "m(maj7)": "0:0 3:2 7:4 11:6", "7sus4": "0:0 5:3 7:4 10:6",
-    "add11": "0:0 4:2 5:3 7:4", "7#5": "0:0 4:2 8:4 10:6", "maj7#5": "0:0 4:2 8:4 11:6", "7b5": "0:0 4:2 6:4 10:6",
-    "6/9": "0:0 2:1 4:2 7:4 9:5", "m6/9": "0:0 2:1 3:2 7:4 9:5", "9": "0:0 2:1 4:2 7:4 10:6",
-    "maj9": "0:0 2:1 4:2 7:4 11:6", "m9": "0:0 2:1 3:2 7:4 10:6", "9sus4": "0:0 2:1 5:3 7:4 10:6",
-    "7b9": "0:0 1:1 4:2 7:4 10:6", "7#9": "0:0 3:1 4:2 7:4 10:6", "maj7#11": "0:0 4:2 6:3 7:4 11:6",
-    "7#11": "0:0 4:2 6:3 7:4 10:6", "13": "0:0 2:1 4:2 7:4 9:5 10:6", "maj13": "0:0 2:1 4:2 7:4 9:5 11:6",
-    "m11": "0:0 2:1 3:2 5:3 7:4 10:6", "m13": "0:0 2:1 3:2 7:4 9:5 10:6", "11": "0:0 2:1 4:2 5:3 7:4 10:6",
-}.items()}
+TONE_STEPS = {
+    suffix: {int(s): int(n) for s, n in (x.split(":") for x in tones.split())}
+    for suffix, tones in {
+        "": "0:0 4:2 7:4",
+        "m": "0:0 3:2 7:4",
+        "dim": "0:0 3:2 6:4",
+        "aug": "0:0 4:2 8:4",
+        "sus4": "0:0 5:3 7:4",
+        "sus2": "0:0 2:1 7:4",
+        "5": "0:0 7:4",
+        "7": "0:0 4:2 7:4 10:6",
+        "maj7": "0:0 4:2 7:4 11:6",
+        "m7": "0:0 3:2 7:4 10:6",
+        "m7b5": "0:0 3:2 6:4 10:6",
+        "dim7": "0:0 3:2 6:4 9:6",
+        "6": "0:0 4:2 7:4 9:5",
+        "m6": "0:0 3:2 7:4 9:5",
+        "add9": "0:0 2:1 4:2 7:4",
+        "m(add9)": "0:0 2:1 3:2 7:4",
+        "m(maj7)": "0:0 3:2 7:4 11:6",
+        "7sus4": "0:0 5:3 7:4 10:6",
+        "add11": "0:0 4:2 5:3 7:4",
+        "7#5": "0:0 4:2 8:4 10:6",
+        "maj7#5": "0:0 4:2 8:4 11:6",
+        "7b5": "0:0 4:2 6:4 10:6",
+        "6/9": "0:0 2:1 4:2 7:4 9:5",
+        "m6/9": "0:0 2:1 3:2 7:4 9:5",
+        "9": "0:0 2:1 4:2 7:4 10:6",
+        "maj9": "0:0 2:1 4:2 7:4 11:6",
+        "m9": "0:0 2:1 3:2 7:4 10:6",
+        "9sus4": "0:0 2:1 5:3 7:4 10:6",
+        "7b9": "0:0 1:1 4:2 7:4 10:6",
+        "7#9": "0:0 3:1 4:2 7:4 10:6",
+        "maj7#11": "0:0 4:2 6:3 7:4 11:6",
+        "7#11": "0:0 4:2 6:3 7:4 10:6",
+        "13": "0:0 2:1 4:2 7:4 9:5 10:6",
+        "maj13": "0:0 2:1 4:2 7:4 9:5 11:6",
+        "m11": "0:0 2:1 3:2 5:3 7:4 10:6",
+        "m13": "0:0 2:1 3:2 7:4 9:5 10:6",
+        "11": "0:0 2:1 4:2 5:3 7:4 10:6",
+    }.items()
+}
 EXACT = {"dim": "°", "dim7": "°7", "m7b5": "ø7", "aug": "+"}
 # chart degrees for the pitches between two scale notes, by semitones above the tonic numbered from
 CHART = {"major": {1: "b2", 3: "b3", 6: "#4", 8: "b6", 10: "b7"}, "minor": {1: "b2", 4: "3", 6: "#4", 9: "6"}}
@@ -109,7 +179,7 @@ def _parse_note(text: str):
         return None
     acc_s = m.group(2) or ""
     acc = len(acc_s) if acc_s.startswith("#") else -len(acc_s)
-    return (LETTERS.index(m.group(1).upper()), acc), text[m.end():]
+    return (LETTERS.index(m.group(1).upper()), acc), text[m.end() :]
 
 
 def bias_of(tonic: int, mode: str, sp=None) -> int:
@@ -130,7 +200,7 @@ def key_name_of(tonic: int, mode: str) -> str:
     return (MAJOR_KEY_NAMES if mode == "major" else MINOR_KEY_NAMES)[tonic % 12] + " " + mode
 
 
-def parse_key(key_name) -> Optional[Dict]:
+def parse_key(key_name) -> dict | None:
     """'F major', 'C# minor', 'Bbm', 'A' (major) -> {tonic, mode, name, bias}, or None when unreadable."""
     if key_name is None:
         return None
@@ -149,7 +219,7 @@ def parse_key(key_name) -> Optional[Dict]:
     return {"tonic": tonic, "mode": mode, "name": f"{_name(sp)} {mode}", "bias": bias_of(tonic, mode, sp)}
 
 
-def _key_context(key) -> Optional[Dict]:
+def _key_context(key) -> dict | None:
     if isinstance(key, dict):
         if isinstance(key.get("name"), str):
             k = parse_key(key["name"])
@@ -164,7 +234,7 @@ def _key_context(key) -> Optional[Dict]:
     return {**k, "sp": _parse_note(k["name"])[0]}
 
 
-def parse_chord(name, kind: Optional[str] = None) -> Optional[Dict]:
+def parse_chord(name, kind: str | None = None) -> dict | None:
     """A chord name as Theory.detect writes one -> {kind, root, suffix, bass, upper}, spellings as (letter, acc).
 
     'Fmaj7/A', 'Bbm7b5', 'C6/9/E', 'C5' (power chord), 'C-E' (interval), 'E4' (a note with its octave).
@@ -176,7 +246,11 @@ def parse_chord(name, kind: Optional[str] = None) -> Optional[Dict]:
         return None
     root, rest = head
     if kind == "note":
-        return {"kind": "note", "root": root, "suffix": "", "bass": None, "upper": None} if re.fullmatch(r"(-?\d+)?", rest) else None
+        return (
+            {"kind": "note", "root": root, "suffix": "", "bass": None, "upper": None}
+            if re.fullmatch(r"(-?\d+)?", rest)
+            else None
+        )
     iv = _INTERVAL_RE.match(rest)
     if iv:
         return {"kind": "interval", "root": root, "suffix": "", "bass": None, "upper": _parse_note(iv.group(1))[0]}
@@ -185,7 +259,7 @@ def parse_chord(name, kind: Optional[str] = None) -> Optional[Dict]:
     suffix, bass = rest, None
     slash = suffix.rfind("/")
     if slash >= 0:
-        b = _parse_note(suffix[slash + 1:])
+        b = _parse_note(suffix[slash + 1 :])
         if b and b[1] == "":
             bass, suffix = b[0], suffix[:slash]
     if re.search(r"\s", suffix):
@@ -208,7 +282,7 @@ def _scale_offset(sp, ctx) -> int:
     return best
 
 
-def _degree_from(sp, tonic_sp) -> Dict:
+def _degree_from(sp, tonic_sp) -> dict:
     d = (sp[0] - tonic_sp[0]) % 7
     acc = _signed(_pc(sp) - (_pc(tonic_sp) + LETTER_PC[d]))
     return {"degree": d + 1, "acc": acc, "text": _acc_text(acc) + str(d + 1)}
@@ -219,7 +293,7 @@ def _relative_major(ctx):
     return letter, _signed(ctx["tonic"] + 3 - LETTER_PC[letter])
 
 
-def _respell(sp, ctx, minor: str = "tonic", family: Optional[str] = None):
+def _respell(sp, ctx, minor: str = "tonic", family: str | None = None):
     """The spelling numbers are read from: the one closest to the key's scale (double sharps and flats too: G dim
     in G# minor is F## dim, 7°). Enharmonic ties go to the chart degree, then to the fewer accidentals in the
     degree, then to the spelling given. family: FAMILY of a chord root's suffix, or None for a note, bass or interval."""
@@ -241,7 +315,8 @@ def _respell(sp, ctx, minor: str = "tonic", family: Optional[str] = None):
     table = "major" if relative else ctx["mode"]
     above = (pc - _pc(home)) % 12
     want = (CHART_DIM[table].get(above) if family == "dim" else None) or (
-        "b5" if family == "maj" and above == 6 else CHART[table].get(above))
+        "b5" if family == "maj" and above == 6 else CHART[table].get(above)
+    )
 
     def rank(s):
         d = _degree_from(s, home)
@@ -250,7 +325,7 @@ def _respell(sp, ctx, minor: str = "tonic", family: Optional[str] = None):
     return min(ties, key=rank)  # min keeps the first of equals, as the JS stable sort does
 
 
-def spell_in_key(sp, key, minor: str = "tonic", suffix: Optional[str] = None) -> Optional[Dict]:
+def spell_in_key(sp, key, minor: str = "tonic", suffix: str | None = None) -> dict | None:
     """A spelling (letter, acc) as it reads in a key: {letter, acc, in_scale}, or None without a readable key.
     The twin of nashville.js spellInKey (which piano.js uses to spell chord names in the shown key)."""
     ctx = _key_context(key)
@@ -261,14 +336,14 @@ def spell_in_key(sp, key, minor: str = "tonic", suffix: Optional[str] = None) ->
     return {"letter": s[0], "acc": s[1], "in_scale": _scale_offset(s, ctx) == 0}
 
 
-def _number_spelled(s, ctx, minor: str) -> Dict:
+def _number_spelled(s, ctx, minor: str) -> dict:
     """{degree, acc, text} of a spelling already read in the key, plus tonic-numbered tdeg/tacc for the diatonic test."""
     t = _degree_from(s, ctx["sp"])
     out = _degree_from(s, _relative_major(ctx)) if ctx["mode"] == "minor" and minor == "relative" else t
     return {**out, "tdeg": t["degree"], "tacc": t["acc"]}
 
 
-def _number(sp, ctx, minor: str, family: Optional[str] = None) -> Dict:
+def _number(sp, ctx, minor: str, family: str | None = None) -> dict:
     return _number_spelled(_respell(sp, ctx, minor, family), ctx, minor)
 
 
@@ -295,7 +370,7 @@ def _spell_from(sp, steps: int, root_sp, ctx, minor: str):
     return own if _scale_offset(moved, ctx) != 0 and _scale_offset(own, ctx) == 0 else moved
 
 
-def _pub(n) -> Optional[Dict]:
+def _pub(n) -> dict | None:
     return {"degree": n["degree"], "acc": n["acc"], "text": n["text"]} if n else None
 
 
@@ -328,31 +403,64 @@ def _join_suffix(base: str, suffix: str) -> str:
     return base + "-^" + m.group(1) if m else base + suffix
 
 
-def _build(chord: Dict, ctx: Dict, minor: str, minor_mark: str) -> Dict:
+def _build(chord: dict, ctx: dict, minor: str, minor_mark: str) -> dict:
     minor = "relative" if minor == "relative" else "tonic"
     minor_mark = "m" if minor_mark is None else str(minor_mark)
     kind = chord["kind"]
     root_sp = _respell(chord["root"], ctx, minor, FAMILY.get(chord["suffix"], "other") if kind == "chord" else None)
     r = _number_spelled(root_sp, ctx, minor)
     if kind == "note":
-        return {"text": r["text"], "degree": r["degree"], "acc": r["acc"], "root": r["text"], "suffix": "",
-                "bass": None, "upper": None, "diatonic": _in_scale(r, ctx), "kind": kind}
+        return {
+            "text": r["text"],
+            "degree": r["degree"],
+            "acc": r["acc"],
+            "root": r["text"],
+            "suffix": "",
+            "bass": None,
+            "upper": None,
+            "diatonic": _in_scale(r, ctx),
+            "kind": kind,
+        }
     if kind == "interval":
         steps = (chord["upper"][0] - chord["root"][0]) % 7  # an interval keeps the letters it is written with
         u = _number_spelled(_spell_from(chord["upper"], steps, root_sp, ctx, minor), ctx, minor)
-        return {"text": f"{r['text']}-{u['text']}", "degree": r["degree"], "acc": r["acc"], "root": r["text"],
-                "suffix": "", "bass": None, "upper": _pub(u), "diatonic": _in_scale(r, ctx) and _in_scale(u, ctx),
-                "kind": kind}
+        return {
+            "text": f"{r['text']}-{u['text']}",
+            "degree": r["degree"],
+            "acc": r["acc"],
+            "root": r["text"],
+            "suffix": "",
+            "bass": None,
+            "upper": _pub(u),
+            "diatonic": _in_scale(r, ctx) and _in_scale(u, ctx),
+            "kind": kind,
+        }
     sfx = _suffix_text(chord["suffix"], minor_mark)
-    b = _number_spelled(_spell_from(chord["bass"], _bass_steps(chord["bass"], root_sp, chord["suffix"]), root_sp, ctx, minor),
-                        ctx, minor) if chord["bass"] else None
-    return {"text": _join_suffix(r["text"], sfx) + ("/" + b["text"] if b else ""), "degree": r["degree"],
-            "acc": r["acc"], "root": r["text"], "suffix": sfx, "bass": _pub(b), "upper": None,
-            "diatonic": _chord_fits(r, chord["suffix"], ctx), "kind": "chord"}
+    b = (
+        _number_spelled(
+            _spell_from(chord["bass"], _bass_steps(chord["bass"], root_sp, chord["suffix"]), root_sp, ctx, minor),
+            ctx,
+            minor,
+        )
+        if chord["bass"]
+        else None
+    )
+    return {
+        "text": _join_suffix(r["text"], sfx) + ("/" + b["text"] if b else ""),
+        "degree": r["degree"],
+        "acc": r["acc"],
+        "root": r["text"],
+        "suffix": sfx,
+        "bass": _pub(b),
+        "upper": None,
+        "diatonic": _chord_fits(r, chord["suffix"], ctx),
+        "kind": "chord",
+    }
 
 
-def nashville_from_name(chord_name, key_name, minor: str = "tonic", minor_mark: str = "m",
-                        kind: Optional[str] = None) -> Optional[Dict]:
+def nashville_from_name(
+    chord_name, key_name, minor: str = "tonic", minor_mark: str = "m", kind: str | None = None
+) -> dict | None:
     """Number a chord name ('Fmaj7/A') in a key ('F major', or a {tonic, mode, name} dict). None for a cluster or no key."""
     ctx = _key_context(key_name)
     chord = parse_chord(chord_name, kind)

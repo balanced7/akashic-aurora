@@ -35,6 +35,7 @@ Lens 4 found the drift from the cost side and framed it as "the default is sting
 true of the library door and false of the CLI. Both branches were right about the mechanism and
 wrong about its scope, and neither could have known: I refused them the file that says so.
 """
+
 from __future__ import annotations
 
 import inspect
@@ -51,8 +52,7 @@ def test_ask_many_accepts_the_continuation_controls():
     from core.comm.ask import ask_many
 
     params = inspect.signature(ask_many).parameters
-    assert "continue_on_cut" in params, \
-        "--continuations/--no-continue are accepted by the CLI and reach nothing"
+    assert "continue_on_cut" in params, "--continuations/--no-continue are accepted by the CLI and reach nothing"
     assert "max_continuations" in params
 
 
@@ -64,9 +64,10 @@ def test_the_cli_actually_threads_them_into_the_fan():
     """
     src = (REPO / "agent_cli.py").read_text(encoding="utf-8", errors="replace")
     i = src.index("o = ask_many(")
-    call = src[i:i + 500]
-    assert "continue_on_cut" in call, \
+    call = src[i : i + 500]
+    assert "continue_on_cut" in call, (
         "cmd_ask calls ask_many without the continuation controls -- the flags evaporate here"
+    )
     assert "max_continuations" in call or "continuations" in call
 
 
@@ -79,10 +80,12 @@ def test_fan_branches_continue_a_cut_answer_when_asked():
     from core.comm.ask import ask_many
 
     class _Msg:
-        def __init__(self, content): self.content = content
+        def __init__(self, content):
+            self.content = content
 
     class _Choice:
-        def __init__(self, content, finish): self.message, self.finish_reason = _Msg(content), finish
+        def __init__(self, content, finish):
+            self.message, self.finish_reason = _Msg(content), finish
 
     class _Usage:
         prompt_tokens = 10
@@ -94,17 +97,20 @@ def test_fan_branches_continue_a_cut_answer_when_asked():
             self.choices, self.usage, self.model = [_Choice(content, finish)], _Usage(), "fake"
 
     class _Completions:
-        def __init__(self): self.calls = 0
+        def __init__(self):
+            self.calls = 0
 
         def create(self, **kw):
             self.calls += 1
             return _Resp("part one", "length") if self.calls == 1 else _Resp(" and part two", "stop")
 
     class _Chat:
-        def __init__(self): self.completions = _Completions()
+        def __init__(self):
+            self.completions = _Completions()
 
     class _Client:
-        def __init__(self): self.chat = _Chat()
+        def __init__(self):
+            self.chat = _Chat()
 
     o = ask_many(["q"], client=_Client(), continue_on_cut=True, max_continuations=1)
     answer = (o.detail or {}).get("branches", [{}])[0].get("answer") or ""
@@ -121,8 +127,8 @@ def _ask_parser_defaults():
     (a_pin_that_passes_only_while_the_feature_is_broken, one step upstream).
     """
     import agent_cli
-    ns = agent_cli.build_parser().parse_args(["ask", "q"])
-    return ns
+
+    return agent_cli.build_parser().parse_args(["ask", "q"])
 
 
 def test_the_library_never_continues_unasked():
@@ -156,8 +162,8 @@ def test_the_cli_passes_its_own_policy_to_every_path_it_owns():
     assert ns.continue_on_cut is True, "the CLI's own default is opt-IN, and that is deliberate"
 
     src = (REPO / "agent_cli.py").read_text(encoding="utf-8", errors="replace")
-    fan = src[src.index("o = ask_many("):][:600]
-    single = src[src.index("o = ask_helper("):][:600]
+    fan = src[src.index("o = ask_many(") :][:600]
+    single = src[src.index("o = ask_helper(") :][:600]
     for name, block in (("fan", fan), ("single", single)):
         assert "continue_on_cut" in block, f"the {name} path does not receive the CLI's choice"
         assert "continuations" in block, f"the {name} path does not receive max_continuations"
@@ -172,7 +178,7 @@ def test_every_ask_flag_is_forwarded_by_bg_or_explicitly_is_not():
     """
     import agent_cli
 
-    sub = [a for a in agent_cli.build_parser()._subparsers._group_actions[0].choices.items()]
+    sub = list(agent_cli.build_parser()._subparsers._group_actions[0].choices.items())
     ask_parser = dict(sub)["ask"]
     dests = {a.dest for a in ask_parser._actions if a.dest != "help"}
 
@@ -180,7 +186,8 @@ def test_every_ask_flag_is_forwarded_by_bg_or_explicitly_is_not():
     unclassified = dests - known
     assert not unclassified, (
         f"--bg would silently drop these ask flags: {sorted(unclassified)}. Add each to "
-        "_BG_FORWARD, or to _BG_NOT_FORWARDED with the reason it is excluded.")
+        "_BG_FORWARD, or to _BG_NOT_FORWARDED with the reason it is excluded."
+    )
 
 
 def test_bg_forwards_the_fan():
@@ -192,11 +199,14 @@ def test_bg_forwards_the_fan():
     import agent_cli
 
     ns = agent_cli.build_parser().parse_args(
-        ["ask", "--bg", "--fan", "5", "--system", "S", "--continuations", "4", "q"])
+        ["ask", "--bg", "--fan", "5", "--system", "S", "--continuations", "4", "q"]
+    )
     argv = agent_cli._bg_forward_argv(ns)
 
-    assert "--fan" in argv and argv[argv.index("--fan") + 1] == "5", \
+    assert "--fan" in argv, "--bg dropped --fan: the caller asked for 5 branches and got 1, silently"
+    assert argv[argv.index("--fan") + 1] == "5", (
         "--bg dropped --fan: the caller asked for 5 branches and got 1, silently"
+    )
     assert "--system" in argv, "--bg dropped --system"
     assert "--continuations" in argv, "--bg dropped --continuations"
 
@@ -215,8 +225,9 @@ def test_the_fan_path_writes_the_background_record():
     src = (REPO / "agent_cli.py").read_text(encoding="utf-8", errors="replace")
     fan_call = src.index("o = ask_many(")
     fan_return = src.index("return 0 if o.ok else 1", fan_call)
-    assert "_bg.finish(" in src[fan_call:fan_return], \
+    assert "_bg.finish(" in src[fan_call:fan_return], (
         "the fan path returns without writing the bg record -- --bg --fan reports ORPHANED"
+    )
 
 
 def test_get_renders_a_backgrounded_fan():
@@ -232,13 +243,23 @@ def test_get_renders_a_backgrounded_fan():
     # same-prompt fan and a collapsed different-prompts fan now say different (opposite) things,
     # and this pin is about the same-prompt one. Written before that distinction existed, it
     # relied on a default; naming the shape keeps it testing what it meant to test.
-    rec = {"handle": "h", "status": "done", "result": {
-        "n": 3, "n_ok": 3, "usd": 0.01, "diversity": "collapsed", "homogeneous": True,
-        "branches": [{"i": i, "ok": True, "partial": False, "answer": f"A{i}"} for i in range(3)]}}
+    rec = {
+        "handle": "h",
+        "status": "done",
+        "result": {
+            "n": 3,
+            "n_ok": 3,
+            "usd": 0.01,
+            "diversity": "collapsed",
+            "homogeneous": True,
+            "branches": [{"i": i, "ok": True, "partial": False, "answer": f"A{i}"} for i in range(3)],
+        },
+    }
     s = summarize(rec)
 
     assert s["state"] == "DONE"
-    assert "A0" in s["answer"] and "A2" in s["answer"], "the branch bodies must be readable"
+    assert "A0" in s["answer"], "the branch bodies must be readable"
+    assert "A2" in s["answer"], "the branch bodies must be readable"
     assert "3 of 3" in s["next"]
     assert "COLLAPSED" in s["next"], "a collapsed fan must say so, or it reads as 3 findings"
 
@@ -248,7 +269,8 @@ def test_get_still_renders_a_single_ask():
     from core.comm.ask_bg import summarize
 
     s = summarize({"handle": "h", "status": "done", "result": {"answer": "just one"}})
-    assert s["answer"] == "just one" and s["next"] == "read the answer"
+    assert s["answer"] == "just one"
+    assert s["next"] == "read the answer"
 
 
 def test_bg_never_forwards_bg_itself():
@@ -257,7 +279,8 @@ def test_bg_never_forwards_bg_itself():
 
     ns = agent_cli.build_parser().parse_args(["ask", "--bg", "q"])
     argv = agent_cli._bg_forward_argv(ns)
-    assert "--bg" not in argv and "--bg-child" not in argv
+    assert "--bg" not in argv
+    assert "--bg-child" not in argv
 
 
 def test_the_flags_are_not_silently_swallowed_by_the_parser():
@@ -266,8 +289,13 @@ def test_the_flags_are_not_silently_swallowed_by_the_parser():
     Guards the order that makes the other pins affordable: a typo must never cost a fan.
     """
     r = subprocess.run(
-        [sys.executable, "agent_cli.py", "ask", "--prompts-file", "no/such/prompts/t226.txt",
-         "--continuations", "99"],
-        cwd=REPO, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=120)
+        [sys.executable, "agent_cli.py", "ask", "--prompts-file", "no/such/prompts/t226.txt", "--continuations", "99"],
+        cwd=REPO,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        timeout=120,
+    )
     assert r.returncode == 2
     assert "cannot read --prompts-file" in r.stderr

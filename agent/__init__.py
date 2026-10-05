@@ -19,14 +19,14 @@ All functions use semantic naming with relationship types.
 
 from .initializer import (
     derive_agent_context_from_startup_sources,
-    initialize_agent_with_minimal_output,
     initialize_agent_with_full_diagnostics,
+    initialize_agent_with_minimal_output,
     initialize_and_load_context,  # Backward-compat alias
 )
 
 __all__ = [
     "derive_agent_context_from_startup_sources",
-    "initialize_agent_with_minimal_output",
     "initialize_agent_with_full_diagnostics",
+    "initialize_agent_with_minimal_output",
     "initialize_and_load_context",
 ]

@@ -26,8 +26,8 @@ Contract frozen:
 
 Run: py -m pytest tests/test_rb25_amendment2.py -q
 """
+
 import inspect
-import io
 import os
 import sys
 
@@ -35,8 +35,8 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.trust import registry
 from core.comm.bus import Bus
+from core.trust import registry
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -54,73 +54,98 @@ def _runner_src(name):
 
 # ---------------- A2-1: bootstrap floor on a broken trust door ----------------
 
+
 @pytest.mark.skipif(not _A21, reason="A2-1 pre-registered; bootstrap-floor except pending")
 def test_broken_door_keeps_core_fleet_available(monkeypatch, capsys):
     def _boom(agent_id, **kw):
         raise RuntimeError("trust door broken (drill)")
+
     monkeypatch.setattr(registry, "resolve", _boom)
-    assert registry.may_run_runner("deepseek") is True, \
+    assert registry.may_run_runner("deepseek") is True, (
         "core fleet rides the bootstrap floor through a broken door (availability bar)"
+    )
     err = capsys.readouterr().err
-    assert "may_run_runner" in err and "RuntimeError" in err, \
-        "the broken door + the decision are LOUD on stderr (heal_report precedent)"
+    assert "may_run_runner" in err, "the broken door + the decision are LOUD on stderr (heal_report precedent)"
+    assert "RuntimeError" in err, "the broken door + the decision are LOUD on stderr (heal_report precedent)"
 
 
 @pytest.mark.skipif(not _A21, reason="A2-1 pre-registered; bootstrap-floor except pending")
 def test_broken_door_refuses_everyone_else(monkeypatch, capsys):
     def _boom(agent_id, **kw):
         raise RuntimeError("trust door broken (drill)")
+
     monkeypatch.setattr(registry, "resolve", _boom)
-    assert registry.may_run_runner("rb25-a2-unknown-id") is False, \
+    assert registry.may_run_runner("rb25-a2-unknown-id") is False, (
         "a NON-core id never gets a runner through a broken door (deny-by-default bar)"
+    )
     assert "REFUSED" in capsys.readouterr().err, "the refusal is LOUD, not silent"
 
 
 # ---------------- A2-2: call-site guard failure is LOUD ----------------
+
 
 @pytest.mark.skipif(not _A21, reason="A2-2 lands with A2-1 (coupled commit)")
 def test_both_runner_call_sites_are_loud_on_guard_failure():
     for runner in ("bifrost_runner_deepseek.py", "bifrost_runner.py"):
         src = _runner_src(runner)
         f1_block = src.split("may_run_runner", 1)[-1]
-        assert "guard NOT active" in f1_block, \
+        assert "guard NOT active" in f1_block, (
             f"{runner}: a guard exception prints the LOUD skip line (never silent pass)"
+        )
 
 
 # ---------------- A2-3: seed returns the truth of the guarded commit ----------------
 
+
 class _SeedProbe(Bus):
     """Unit harness: virgin cursor + non-empty tail, advance_to outcome injectable."""
+
     def __init__(self, advance_status):
-        self._advance_status = advance_status          # no super().__init__: pure unit probe
+        self._advance_status = advance_status  # no super().__init__: pure unit probe
         self.online = True
+
     def probe(self):
         return True
+
     def _read_cursor(self):
         return {"inbox": "0", "bc": "0"}
+
     def tail(self):
         return {"inbox": "9-1", "bc": "9-1"}
+
     def advance_to(self, **kw):
         return self._advance_status
 
 
 @pytest.mark.skipif(not _A23, reason="A2-3 pre-registered; truth-return pending")
-@pytest.mark.parametrize("status,expected", [
-    ("OK", True), ("OK_NOOP", True),
-    ("ERROR", False), ("BACKWARDS", False), ("STALE_GENERATION", False), ("OFFLINE", False),
-])
+@pytest.mark.parametrize(
+    ("status", "expected"),
+    [
+        ("OK", True),
+        ("OK_NOOP", True),
+        ("ERROR", False),
+        ("BACKWARDS", False),
+        ("STALE_GENERATION", False),
+        ("OFFLINE", False),
+    ],
+)
 def test_seed_reports_only_a_committed_advance(status, expected):
-    assert _SeedProbe(status).seed_cursor_at_tail() is expected, \
+    assert _SeedProbe(status).seed_cursor_at_tail() is expected, (
         "seed's bool == the guarded commit's truth; a failed write may NOT read as 'seeded'"
+    )
 
 
 # ---------------- A2-4: no crash and no lie when Redis dies mid-onboarding ----------------
 
+
 @pytest.mark.skipif(not _A24, reason="A2-4 pre-registered; exception guard pending")
 def test_redis_death_mid_seed_degrades_to_false():
     probe = _SeedProbe("OK")
+
     def _die(**kw):
         raise ConnectionError("redis died between register and seed (drill)")
+
     probe.advance_to = _die
-    assert probe.seed_cursor_at_tail() is False, \
+    assert probe.seed_cursor_at_tail() is False, (
         "a dead Redis mid-onboarding degrades to False (old behavior), never a runner crash"
+    )

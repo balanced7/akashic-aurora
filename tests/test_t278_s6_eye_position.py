@@ -20,6 +20,7 @@ Fixture: session_gamma / session_delta / session_epsilon (see the S4 pins for th
 
 Run: py -m pytest tests/test_t278_s6_eye_position.py -q
 """
+
 from __future__ import annotations
 
 import os
@@ -31,9 +32,9 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.eye import connectome as CONN  # noqa: E402
-from core.eye import index as EYE  # noqa: E402
-from core.eye import position as POS  # noqa: E402
+from core.eye import connectome as CONN
+from core.eye import index as EYE
+from core.eye import position as POS
 
 ROOT = Path(__file__).resolve().parents[1]
 FIX = ROOT / "tests" / "fixtures" / "eye"
@@ -42,7 +43,7 @@ G = "session_gamma"
 D = "session_delta"
 
 
-@pytest.fixture()
+@pytest.fixture
 def db(tmp_path):
     corpus = tmp_path / "corpus"
     corpus.mkdir()
@@ -66,7 +67,8 @@ def test_p1_two_incarnations_hold_independent_positions(db):
 
     POS.go("claude#aaaaaaaa", f"{G}:6", db_path=db)
     assert POS.where("claude#bbbbbbbb", db_path=db)["addr"] == f"{D}:1", (
-        "one seat moving must not drag its twin -- this is the whole pin")
+        "one seat moving must not drag its twin -- this is the whole pin"
+    )
 
 
 def test_p1b_a_virgin_seat_has_no_position_and_says_so(db):
@@ -91,7 +93,8 @@ def test_p3_go_pushes_a_trail_and_back_pops_it(db):
     assert POS.back("claude#aaaaaaaa", db_path=db)["addr"] == f"{G}:1"
     # at the origin of the trail, back is a no-op that SAYS it is one
     r = POS.back("claude#aaaaaaaa", db_path=db)
-    assert r["addr"] == f"{G}:1" and r["at_trail_origin"] is True
+    assert r["addr"] == f"{G}:1"
+    assert r["at_trail_origin"] is True
 
 
 # ---------------------------------------------------------------- P4: look
@@ -106,7 +109,8 @@ def test_p4_look_renders_the_standpoint_with_numeric_heat(db):
     assert isinstance(v["heat"]["staleness_s"], (int, float))
     assert v["heat"]["credit"] is None, (
         "the transcript plane has no funnel credit -- UNKNOWN, not 0 "
-        "(an unpopulated counter rendering as a measured zero is a named hazard here)")
+        "(an unpopulated counter rendering as a measured zero is a named hazard here)"
+    )
     # neighbours are SILHOUETTES: one line each, never full bodies
     assert v["exits"], "a node in a connectome has edges out; they are the exits"
     for n in v["neighbors"]:
@@ -115,7 +119,7 @@ def test_p4_look_renders_the_standpoint_with_numeric_heat(db):
 
 
 def test_p4b_look_without_a_position_teaches_instead_of_guessing(db):
-    with pytest.raises(ValueError) as e:
+    with pytest.raises(ValueError, match="has no position") as e:
         POS.look("claude#cccccccc", db_path=db)
     assert "no position" in str(e.value).lower()
     assert "eye go" in str(e.value), "the refusal names the verb that fixes it"
@@ -150,8 +154,7 @@ def test_p6_succession_is_explicit_and_recorded(db):
     is an ACT, and the inheritor can tell that it inherited."""
     POS.go("claude#aaaaaaaa", f"{G}:6", db_path=db)
 
-    assert POS.where("claude#dddddddd", db_path=db) is None, (
-        "a successor is virgin until it says otherwise")
+    assert POS.where("claude#dddddddd", db_path=db) is None, "a successor is virgin until it says otherwise"
 
     got = POS.inherit("claude#dddddddd", "claude#aaaaaaaa", db_path=db)
     assert got["addr"] == f"{G}:6"
@@ -162,7 +165,7 @@ def test_p6_succession_is_explicit_and_recorded(db):
 
 
 def test_p6b_inheriting_from_a_seat_with_no_position_refuses(db):
-    with pytest.raises(ValueError) as e:
+    with pytest.raises(ValueError, match="has no position to inherit") as e:
         POS.inherit("claude#dddddddd", "claude#zzzzzzzz", db_path=db)
     assert "no position" in str(e.value).lower()
 
@@ -170,9 +173,10 @@ def test_p6b_inheriting_from_a_seat_with_no_position_refuses(db):
 # ---------------------------------------------------------------- P7: the grammar's 422
 def test_p7_go_to_a_bad_address_refuses_with_the_shape(db):
     """The grammar's 422 rule at this door: a bad selector never silent-empties."""
-    with pytest.raises(ValueError) as e:
+    with pytest.raises(ValueError, match="cannot go to 'not-an-address'") as e:
         POS.go("claude#aaaaaaaa", "not-an-address", db_path=db)
     msg = str(e.value)
     assert "session:line" in msg, "the refusal states the expected shape"
     assert POS.where("claude#aaaaaaaa", db_path=db) is None, (
-        "a refused move leaves the seat where it was -- never half-moved")
+        "a refused move leaves the seat where it was -- never half-moved"
+    )

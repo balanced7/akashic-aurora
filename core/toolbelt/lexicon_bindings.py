@@ -30,13 +30,14 @@ UNKNOWN IS FIRST-CLASS. A file this process cannot read is UNKNOWN, never DRIFT:
 as drift would be the absence-inference this whole arc exists to end, committed by the guard
 built to end it.
 """
+
 from __future__ import annotations
 
 import json
 import os
 import re
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 def _Row(**kw):
@@ -50,6 +51,7 @@ def _Row(**kw):
     than a naming accident.
     """
     from core.toolbelt.audit import Row
+
     return Row(**kw)
 
 
@@ -57,7 +59,7 @@ ROOT = Path(__file__).resolve().parents[2]
 BINDINGS_PATH = ROOT / "data" / "lexicon-bindings.json"
 
 
-def load_bindings(path: Optional[Path] = None) -> Dict[str, Any]:
+def load_bindings(path: Path | None = None) -> dict[str, Any]:
     """The table, minus its README block. {} when absent -- an unconfigured guard is a state."""
     p = Path(path or BINDINGS_PATH)
     try:
@@ -67,18 +69,18 @@ def load_bindings(path: Optional[Path] = None) -> Dict[str, Any]:
     return {k: v for k, v in raw.items() if not k.startswith("_")}
 
 
-def _read(rel: str) -> Optional[str]:
+def _read(rel: str) -> str | None:
     try:
         return (ROOT / rel).read_text(encoding="utf-8", errors="replace")
     except OSError:
         return None
 
 
-def audit_bindings(bindings: Optional[Dict[str, Any]] = None) -> List[Any]:
+def audit_bindings(bindings: dict[str, Any] | None = None) -> list[Any]:
     """Cross-read the binding table (belief) against the live tree (ground truth)."""
     tbl = load_bindings() if bindings is None else bindings
-    rows: List[Any] = []
-    seen_mech: Dict[str, str] = {}          # "file::pattern" -> first concept that claimed it
+    rows: list[Any] = []
+    seen_mech: dict[str, str] = {}  # "file::pattern" -> first concept that claimed it
 
     for concept, rec in sorted(tbl.items()):
         mechs = rec.get("mechanisms") or []
@@ -90,64 +92,115 @@ def audit_bindings(bindings: Optional[Dict[str, Any]] = None) -> List[Any]:
             key = f"{f}::{pat}"
 
             if key in seen_mech and seen_mech[key] != concept:
-                rows.append(_Row(
-                    domain="LEXICON", entry_ref=ref,
-                    belief_a=concept, source_a="bindings",
-                    belief_b=seen_mech[key], source_b="bindings",
-                    verdict="DRIFT", rule="DOUBLE-BOUND",
-                    detail=(f"{f}:{pat!r} is bound to BOTH {seen_mech[key]!r} and "
+                rows.append(
+                    _Row(
+                        domain="LEXICON",
+                        entry_ref=ref,
+                        belief_a=concept,
+                        source_a="bindings",
+                        belief_b=seen_mech[key],
+                        source_b="bindings",
+                        verdict="DRIFT",
+                        rule="DOUBLE-BOUND",
+                        detail=(
+                            f"{f}:{pat!r} is bound to BOTH {seen_mech[key]!r} and "
                             f"{concept!r} -- two concepts sharing one implementation means "
-                            f"one of them is lying about what it is")))
+                            f"one of them is lying about what it is"
+                        ),
+                    )
+                )
                 continue
             seen_mech.setdefault(key, concept)
 
             src = _read(f)
             if src is None:
-                rows.append(_Row(
-                    domain="LEXICON", entry_ref=ref,
-                    belief_a=pat, source_a="bindings",
-                    belief_b=None, source_b="tree",
-                    verdict="UNKNOWN", rule="",
-                    detail=(f"cannot read {f} -- UNKNOWN, not drift. An unreadable file is "
-                            f"not evidence that a binding rotted")))
+                rows.append(
+                    _Row(
+                        domain="LEXICON",
+                        entry_ref=ref,
+                        belief_a=pat,
+                        source_a="bindings",
+                        belief_b=None,
+                        source_b="tree",
+                        verdict="UNKNOWN",
+                        rule="",
+                        detail=(
+                            f"cannot read {f} -- UNKNOWN, not drift. An unreadable file is "
+                            f"not evidence that a binding rotted"
+                        ),
+                    )
+                )
                 continue
 
             if pat and pat in src:
-                rows.append(_Row(
-                    domain="LEXICON", entry_ref=ref,
-                    belief_a=pat, source_a="bindings", belief_b=pat, source_b="tree",
-                    verdict="MATCH",
-                    detail=f"{m.get('sense') or pat}"))
+                rows.append(
+                    _Row(
+                        domain="LEXICON",
+                        entry_ref=ref,
+                        belief_a=pat,
+                        source_a="bindings",
+                        belief_b=pat,
+                        source_b="tree",
+                        verdict="MATCH",
+                        detail=f"{m.get('sense') or pat}",
+                    )
+                )
             else:
-                rows.append(_Row(
-                    domain="LEXICON", entry_ref=ref,
-                    belief_a=pat, source_a="bindings", belief_b=None, source_b="tree",
-                    verdict="DRIFT", rule="MISSING",
-                    detail=(f"{f} no longer contains {pat!r} -- the binding rotted "
-                            f"(renamed or deleted while the table still claims it)")))
+                rows.append(
+                    _Row(
+                        domain="LEXICON",
+                        entry_ref=ref,
+                        belief_a=pat,
+                        source_a="bindings",
+                        belief_b=None,
+                        source_b="tree",
+                        verdict="DRIFT",
+                        rule="MISSING",
+                        detail=(
+                            f"{f} no longer contains {pat!r} -- the binding rotted "
+                            f"(renamed or deleted while the table still claims it)"
+                        ),
+                    )
+                )
 
         # ---- R2 UNCLAIMED: the ratchet
         disc = rec.get("discover")
         if not disc:
             continue
         claimed = [str(m.get("pattern", "")) for m in mechs]
-        for f in (rec.get("discover_files") or []):
+        for f in rec.get("discover_files") or []:
             src = _read(str(f))
             if src is None:
-                rows.append(_Row(
-                    domain="LEXICON", entry_ref=f"{concept}::discover",
-                    belief_a=disc, source_a="bindings", belief_b=None, source_b="tree",
-                    verdict="UNKNOWN", rule="",
-                    detail=f"cannot read discover_file {f}"))
+                rows.append(
+                    _Row(
+                        domain="LEXICON",
+                        entry_ref=f"{concept}::discover",
+                        belief_a=disc,
+                        source_a="bindings",
+                        belief_b=None,
+                        source_b="tree",
+                        verdict="UNKNOWN",
+                        rule="",
+                        detail=f"cannot read discover_file {f}",
+                    )
+                )
                 continue
             try:
                 rx = re.compile(disc)
             except re.error as e:
-                rows.append(_Row(
-                    domain="LEXICON", entry_ref=f"{concept}::discover",
-                    belief_a=disc, source_a="bindings", belief_b=None, source_b="tree",
-                    verdict="UNKNOWN", rule="",
-                    detail=f"discover pattern does not compile: {e}"))
+                rows.append(
+                    _Row(
+                        domain="LEXICON",
+                        entry_ref=f"{concept}::discover",
+                        belief_a=disc,
+                        source_a="bindings",
+                        belief_b=None,
+                        source_b="tree",
+                        verdict="UNKNOWN",
+                        rule="",
+                        detail=f"discover pattern does not compile: {e}",
+                    )
+                )
                 continue
             for line in src.splitlines():
                 if not rx.search(line):
@@ -155,14 +208,23 @@ def audit_bindings(bindings: Optional[Dict[str, Any]] = None) -> List[Any]:
                 # A hit is CLAIMED when some bound pattern appears on the same line.
                 if any(c and c in line for c in claimed):
                     continue
-                rows.append(_Row(
-                    domain="LEXICON", entry_ref=f"{concept}::discover",
-                    belief_a=sorted(set(claimed)), source_a="bindings",
-                    belief_b=line.strip()[:120], source_b="tree",
-                    verdict="DRIFT", rule="UNCLAIMED",
-                    detail=(f"{f}: {line.strip()[:100]!r} matches {concept!r}'s discover "
+                rows.append(
+                    _Row(
+                        domain="LEXICON",
+                        entry_ref=f"{concept}::discover",
+                        belief_a=sorted(set(claimed)),
+                        source_a="bindings",
+                        belief_b=line.strip()[:120],
+                        source_b="tree",
+                        verdict="DRIFT",
+                        rule="UNCLAIMED",
+                        detail=(
+                            f"{f}: {line.strip()[:100]!r} matches {concept!r}'s discover "
                             f"pattern but is bound to no mechanism -- either add it to the "
-                            f"table or say why it is not this concept")))
+                            f"table or say why it is not this concept"
+                        ),
+                    )
+                )
     return rows
 
 
@@ -174,5 +236,5 @@ class LexiconDomain:
     def __init__(self, ground_truth_source: str = "bindings"):
         self._ground = ground_truth_source
 
-    def run(self) -> List[Any]:
+    def run(self) -> list[Any]:
         return audit_bindings()

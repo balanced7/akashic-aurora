@@ -14,11 +14,25 @@ The module is deliberately strict:
 * reducing density moves landmarks to a named periphery instead of dropping them;
 * reducing depth leaves a drillable contour and never removes the epistemic floor.
 """
+
 from __future__ import annotations
 
-from typing import Any, Callable, Dict, Mapping, Optional
+from typing import TYPE_CHECKING, Any
 
 from core.primitives.epistemic import derive_epistemic_view
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Mapping
+
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+
+        return python_launcher()
+    except Exception:
+        return "py"
 
 
 SCHEMA = "orient.scene.v1"
@@ -27,7 +41,7 @@ _DEPTHS = {"surface", "evidence"}
 _TARGET_KINDS = {"verb", "seat", "thread"}
 
 
-def _default_providers() -> Dict[str, Callable[..., Any]]:
+def _default_providers() -> dict[str, Callable[..., Any]]:
     from core.comm.awareness import build_snapshot
     from core.comm.thread_capture import collect_thread
     from core.coord.ground import ground
@@ -35,27 +49,21 @@ def _default_providers() -> Dict[str, Callable[..., Any]]:
     return {"snapshot": build_snapshot, "ground": ground, "capture": collect_thread}
 
 
-def _parse_target(subject: str, target: str) -> Optional[Dict[str, str]]:
+def _parse_target(subject: str, target: str) -> dict[str, str] | None:
     raw = str(target or "").strip()
     if not raw:
         return None
     if ":" not in raw:
-        raise ValueError(
-            "orient destination must be typed: verb:<name>, seat:<your-id>, or thread:<ref>"
-        )
+        raise ValueError("orient destination must be typed: verb:<name>, seat:<your-id>, or thread:<ref>")
     kind, name = raw.split(":", 1)
     kind = kind.strip().lower().replace("-", "_")
     name = name.strip()
     if kind not in _TARGET_KINDS:
-        raise ValueError(
-            f"unsupported orient destination kind {kind!r}; use verb, seat, or thread"
-        )
+        raise ValueError(f"unsupported orient destination kind {kind!r}; use verb, seat, or thread")
     if not name:
         raise ValueError("orient destination name is required")
     if kind == "seat" and name != subject:
-        raise ValueError(
-            f"seat orientation cannot borrow a foreign identity; bound subject is {subject!r}"
-        )
+        raise ValueError(f"seat orientation cannot borrow a foreign identity; bound subject is {subject!r}")
     normalized = name.lower().replace("-", "_") if kind == "verb" else name
     return {
         "kind": kind,
@@ -68,12 +76,10 @@ def _parse_target(subject: str, target: str) -> Optional[Dict[str, str]]:
 def _assert_pure(payload: Mapping[str, Any], label: str) -> None:
     effects = list(payload.get("effects") or [])
     if effects:
-        raise RuntimeError(
-            f"orient refuses an effectful {label} provider: {effects!r}; orientation is read-only"
-        )
+        raise RuntimeError(f"orient refuses an effectful {label} provider: {effects!r}; orientation is read-only")
 
 
-def _epistemic(sources: Any, *, effects: Any = ()) -> Dict[str, Any]:
+def _epistemic(sources: Any, *, effects: Any = ()) -> dict[str, Any]:
     refs = [str(item) for item in (sources or []) if str(item or "").strip()]
     if not refs:
         refs = ["orient.scene:provider-result"]
@@ -90,7 +96,7 @@ def _epistemic(sources: Any, *, effects: Any = ()) -> Dict[str, Any]:
     return derive_epistemic_view(evidence).to_dict()
 
 
-def _landmark(row: Mapping[str, Any]) -> Dict[str, Any]:
+def _landmark(row: Mapping[str, Any]) -> dict[str, Any]:
     sources = list(row.get("source") or [])
     effects = list(row.get("effects") or [])
     return {
@@ -107,7 +113,7 @@ def _landmark(row: Mapping[str, Any]) -> Dict[str, Any]:
     }
 
 
-def _contour(card: Mapping[str, Any]) -> Dict[str, Any]:
+def _contour(card: Mapping[str, Any]) -> dict[str, Any]:
     folded_fields = len(card.get("details") or {}) + len(card.get("source") or [])
     return {
         "name": card.get("name"),
@@ -133,18 +139,18 @@ def _focus_sources(result: Mapping[str, Any]) -> list[str]:
     return sources
 
 
-def _focus_drill(target: Mapping[str, str], result: Mapping[str, Any], subject: str,
-                 per_stream: int) -> str:
+def _focus_drill(target: Mapping[str, str], result: Mapping[str, Any], subject: str, per_stream: int) -> str:
     for rung in result.get("rungs") or []:
         drill = str((rung or {}).get("drill") or "").strip()
         if drill:
             return drill
     if target["kind"] == "thread":
-        return (f"py agent_cli.py capture --thread {target['name']} --agent {subject} "
-                f"--per-stream {per_stream} --json")
+        return (
+            f"{_pyl()} agent_cli.py capture --thread {target['name']} --agent {subject} "
+            f"--per-stream {per_stream} --json"
+        )
     continuity = " --continuity" if target["kind"] == "seat" else ""
-    return (f"py agent_cli.py ground {target['address']} --agent {subject}"
-            f"{continuity} --json")
+    return f"{_pyl()} agent_cli.py ground {target['address']} --agent {subject}{continuity} --json"
 
 
 def _focus_summary(target: Mapping[str, str], result: Mapping[str, Any]) -> str:
@@ -155,27 +161,23 @@ def _focus_summary(target: Mapping[str, str], result: Mapping[str, Any]) -> str:
         return f"thread {found}; messages={count}; truncated={'yes' if truncated else 'no'}"
     rungs = result.get("rungs") or []
     if rungs:
-        return "; ".join(
-            f"{row.get('name')}={row.get('state')}" for row in rungs[:4]
-        )
+        return "; ".join(f"{row.get('name')}={row.get('state')}" for row in rungs[:4])
     regions = result.get("regions") or []
     if regions:
         return f"continuity regions={len(regions)}"
     return str(result.get("schema") or result.get("mode") or "focus observed")
 
 
-def _focus_route(target: Mapping[str, str], subject: str, per_stream: int) -> Dict[str, Any]:
+def _focus_route(target: Mapping[str, str], subject: str, per_stream: int) -> dict[str, Any]:
     if target["kind"] == "thread":
         step = {
             "verb": "capture",
-            "args": {"thread": target["name"], "as_doc": False,
-                     "per_stream": per_stream},
+            "args": {"thread": target["name"], "as_doc": False, "per_stream": per_stream},
         }
     else:
         step = {
             "verb": "ground",
-            "args": {"target": target["address"], "agent": subject,
-                     "continuity": target["kind"] == "seat"},
+            "args": {"target": target["address"], "agent": subject, "continuity": target["kind"] == "seat"},
         }
     return {
         "name": "focus",
@@ -188,7 +190,7 @@ def _focus_route(target: Mapping[str, str], subject: str, per_stream: int) -> Di
     }
 
 
-def _return_route(subject: str) -> Dict[str, Any]:
+def _return_route(subject: str) -> dict[str, Any]:
     return {
         "name": "return",
         "style": "return_tether",
@@ -207,8 +209,8 @@ def build_orientation(
     density: str = "compact",
     depth: str = "surface",
     per_stream: int = 1000,
-    providers: Optional[Mapping[str, Callable[..., Any]]] = None,
-) -> Dict[str, Any]:
+    providers: Mapping[str, Callable[..., Any]] | None = None,
+) -> dict[str, Any]:
     """Build one pure ``orient.scene.v1`` view for an explicit subject."""
     subject = str(subject or "").strip()
     if not subject:
@@ -221,16 +223,15 @@ def build_orientation(
         raise ValueError(f"unknown depth {depth!r}; choose {sorted(_DEPTHS)}")
     try:
         per_stream = max(1, min(int(per_stream), 5000))
-    except (TypeError, ValueError):
-        raise ValueError("per_stream must be an integer in 1..5000")
+    except (TypeError, ValueError) as err:
+        raise ValueError("per_stream must be an integer in 1..5000") from err
 
     target_row = _parse_target(subject, target)
     seams = _default_providers()
     seams.update(dict(providers or {}))
 
     snapshot = seams["snapshot"](subject)
-    snapshot_payload = (snapshot.as_dict() if hasattr(snapshot, "as_dict")
-                        else dict(snapshot or {}))
+    snapshot_payload = snapshot.as_dict() if hasattr(snapshot, "as_dict") else dict(snapshot or {})
     if str(snapshot_payload.get("subject") or "") != subject:
         raise ValueError("snapshot provider returned a foreign subject")
     _assert_pure(snapshot_payload, "snapshot")
@@ -240,8 +241,7 @@ def build_orientation(
         _assert_pure(row, f"landmark:{row['name']}")
     nearby_count = min(_DENSITY_NEARBY[density], len(landmarks))
     nearby_full = landmarks[:nearby_count]
-    nearby = (nearby_full if depth == "evidence"
-              else [_contour(row) for row in nearby_full])
+    nearby = nearby_full if depth == "evidence" else [_contour(row) for row in nearby_full]
     periphery = [_contour(row) for row in landmarks[nearby_count:]]
     # The observations live exactly once, in nearby/periphery.  Position is the
     # stable scene stamp; embedding the full snapshot here would duplicate every
@@ -260,12 +260,11 @@ def build_orientation(
     aggregate_blind = []
     if target_row is not None:
         if target_row["kind"] == "thread":
-            result = seams["capture"](
-                subject, target_row["name"], per_stream=per_stream
-            )
+            result = seams["capture"](subject, target_row["name"], per_stream=per_stream)
         else:
             result = seams["ground"](
-                target_row["address"], subject=subject,
+                target_row["address"],
+                subject=subject,
                 continuity=target_row["kind"] == "seat",
             )
         result = dict(result or {})
@@ -332,8 +331,10 @@ def render_orientation(scene: Mapping[str, Any]) -> str:
     aperture = scene.get("aperture") or {}
     effects = list(scene.get("effects") or [])
     lines = [
-        f"# orient subject={subject} target={target} density={aperture.get('density')} "
-        f"depth={aperture.get('depth')} effects={'none' if not effects else effects}"
+        (
+            f"# orient subject={subject} target={target} density={aperture.get('density')} "
+            f"depth={aperture.get('depth')} effects={effects if effects else 'none'}"
+        )
     ]
     focus = scene.get("focus")
     if focus:
@@ -353,8 +354,7 @@ def render_orientation(scene: Mapping[str, Any]) -> str:
     lines.append("  nearby " + (", ".join(str(row.get("name")) for row in nearby) or "none"))
     periphery = list(scene.get("periphery") or [])
     lines.append(
-        f"  periphery {len(periphery)} contour(s): "
-        + (", ".join(str(row.get("name")) for row in periphery) or "none")
+        f"  periphery {len(periphery)} contour(s): " + (", ".join(str(row.get("name")) for row in periphery) or "none")
     )
     return_step = next((r for r in scene.get("routes") or [] if r.get("name") == "return"), None)
     lines.append(f"  return {((return_step or {}).get('steps') or [{}])[0]}")

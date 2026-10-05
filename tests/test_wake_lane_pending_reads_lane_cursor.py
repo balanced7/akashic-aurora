@@ -34,6 +34,7 @@ THE GUARANTEE THESE PINS STATE:
 Redis-backed pins use throwaway namespaces (skip if Redis is down); the first pin is a pure
 seam pin on a fake bus. Run: py -m pytest tests/test_wake_lane_pending_reads_lane_cursor.py -q
 """
+
 import logging
 import os
 import sys
@@ -45,15 +46,16 @@ os.environ.setdefault("_AISETUP_TEST_ISOLATED", "1")
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from core.comm.bus import Bus  # noqa: E402
-from core.comm.bifrost_api import BifrostAPI  # noqa: E402
+from core.comm.bifrost_api import BifrostAPI  # noqa: E402  # sys.path bootstrap
+from core.comm.bus import Bus  # noqa: E402  # sys.path bootstrap
 
 
 def _client():
-    from core.foundation.redis_connection import (
-        connect_to_redis_with_fail_fast, DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT)
-    c = connect_to_redis_with_fail_fast(host=DEFAULT_REDIS_HOST, port=DEFAULT_REDIS_PORT,
-                                        timeout_seconds=3, decode_responses=True)
+    from core.foundation.redis_connection import DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT, connect_to_redis_with_fail_fast
+
+    c = connect_to_redis_with_fail_fast(
+        host=DEFAULT_REDIS_HOST, port=DEFAULT_REDIS_PORT, timeout_seconds=3, decode_responses=True
+    )
     if c is None:
         pytest.skip("redis not available")
     return c
@@ -87,10 +89,15 @@ class _FamilyBus:
     def __init__(self):
         self.ns = "test"
         self.legacy_pending = [_Msg("chat"), _Msg("reply", frm="deepseek")]
-        self.lane_cur = {"inbox": "1788729020181-0", "bc": "1788729038626-0",
-                         "sig_inbox": "1788712362319-0", "sig_bc": "0",
-                         "shadow_inbox": "1788729020181-0", "shadow_bc": "1787705526844-0"}
-        self.peeks = []            # (since, streams) of every 1ms peek
+        self.lane_cur = {
+            "inbox": "1788729020181-0",
+            "bc": "1788729038626-0",
+            "sig_inbox": "1788712362319-0",
+            "sig_bc": "0",
+            "shadow_inbox": "1788729020181-0",
+            "shadow_bc": "1787705526844-0",
+        }
+        self.peeks = []  # (since, streams) of every 1ms peek
 
     def read_lane_cursor(self):
         return dict(self.lane_cur)
@@ -99,8 +106,8 @@ class _FamilyBus:
         if timeout_ms == 1:
             self.peeks.append((since, streams))
         if since is None and streams is None:
-            return list(self.legacy_pending)      # the legacy family: stale 08-29 mail
-        return []                                  # the lane family: at tail, nothing behind
+            return list(self.legacy_pending)  # the legacy family: stale 08-29 mail
+        return []  # the lane family: at tail, nothing behind
 
     def cursor(self):
         return {"inbox": "1787969686471-0", "bc": "1787679775378-0"}
@@ -129,12 +136,14 @@ def test_pending_peek_reads_the_lane_family_when_the_seat_has_a_lane_cursor(monk
 
     assert got == [], (
         f"stale legacy mail reported as pending ({_kinds(got)}) although the lane consumer "
-        f"is at tail -- the peek read the legacy cursor family (frozen since 08-29)")
+        f"is at tail -- the peek read the legacy cursor family (frozen since 08-29)"
+    )
     assert bus.peeks, "the arm-time pending peek did not happen"
     since, streams = bus.peeks[0]
     assert streams == api._lane_streams(), "the pending peek must read the WORK-lane streams"
     assert since == {"inbox": bus.lane_cur["inbox"], "bc": bus.lane_cur["bc"]}, (
-        "the pending peek must start from the lane cursor the consumer commits")
+        "the pending peek must start from the lane cursor the consumer commits"
+    )
 
 
 # ------------------------------------------ 1: committed-by-lane mail is NOT pending
@@ -157,13 +166,14 @@ def test_mail_the_lane_consumer_already_committed_is_not_pending(monkeypatch):
     assert c.hgetall(shared_key) == {}, "test precondition: legacy cursor never advanced"
     lane_before, shared_before = c.hgetall(lane_key), c.hgetall(shared_key)
 
-    fresh = BifrostAPI("alice", namespace=ns)                 # a NEW arm, new process shape
+    fresh = BifrostAPI("alice", namespace=ns)  # a NEW arm, new process shape
     got = fresh.wake_block(timeout_ms=50)
 
     assert got == [], (
         f"fresh arm fired on {_kinds(got)} -- the legacy copy of mail the lane consumer already "
         f"committed. 'pending' must mean behind the LANE cursor, not behind a legacy cursor "
-        f"nobody advances (defer 224ac54766)")
+        f"nobody advances (defer 224ac54766)"
+    )
     assert c.hgetall(lane_key) == lane_before, "detection wrote the lane cursor"
     assert c.hgetall(shared_key) == shared_before, "detection wrote the shared cursor"
 
@@ -188,16 +198,20 @@ def test_mail_behind_the_lane_cursor_is_pending_whatever_legacy_says(monkeypatch
     assert lane_bc != "0", "test precondition: the inform dual-wrote to the lane broadcast"
     assert consumer.bus.advance_to(bc=lane_bc, cursor_key=lane_key) == "OK"
     # legacy family: a co-tenant swept the shared cursor to the tails -- "all consumed"
-    assert consumer.bus.advance_to(inbox=str(legacy_mid),
-                                   bc=_lane_tail(c, f"{ns}:broadcast")) == "OK"
+    assert consumer.bus.advance_to(inbox=str(legacy_mid), bc=_lane_tail(c, f"{ns}:broadcast")) == "OK"
     lane_before, shared_before = c.hgetall(lane_key), c.hgetall(shared_key)
 
     fresh = BifrostAPI("alice", namespace=ns)
     got = fresh.wake_block(timeout_ms=50)
 
-    assert got and "chat" in _kinds(got), (
+    assert got, (
         f"got {_kinds(got)}: mail still behind the LANE cursor must wake a fresh arm -- the "
-        f"lane consumer will redeliver it, and the watcher's 'unread' must mean the consumer's")
+        f"lane consumer will redeliver it, and the watcher's 'unread' must mean the consumer's"
+    )
+    assert "chat" in _kinds(got), (
+        f"got {_kinds(got)}: mail still behind the LANE cursor must wake a fresh arm -- the "
+        f"lane consumer will redeliver it, and the watcher's 'unread' must mean the consumer's"
+    )
     assert c.hgetall(lane_key) == lane_before, "detection wrote the lane cursor"
     assert c.hgetall(shared_key) == shared_before, "detection wrote the shared cursor"
 
@@ -216,21 +230,25 @@ def test_seed_warning_names_the_lane_family_it_peeked(caplog, monkeypatch):
     sender.broadcast("inform", "establishes the lane cursor")
     sender.send("alice", "chat", "behind the lane cursor")
     consumer = BifrostAPI("alice", namespace=ns)
-    assert consumer.bus.advance_to(bc=_lane_tail(c, f"{ns}:work:broadcast"),
-                                   cursor_key=consumer.bus.lane_cursor_key()) == "OK"
+    assert (
+        consumer.bus.advance_to(bc=_lane_tail(c, f"{ns}:work:broadcast"), cursor_key=consumer.bus.lane_cursor_key())
+        == "OK"
+    )
 
     fresh = BifrostAPI("alice", namespace=ns)
     with caplog.at_level(logging.WARNING, logger="bifrost"):
         got = fresh.wake_block(timeout_ms=50)
 
-    assert got and "chat" in _kinds(got)
+    assert got
+    assert "chat" in _kinds(got)
     warned = " ".join(r.getMessage() for r in caplog.records)
     assert "wake-worthy" in warned, "seeding over non-empty pending must stay announced"
     assert "BIFROST_CONSUME_LANE=work" in warned, (
-        f"the drain instruction must name the family that is behind (the lane family); got: "
-        f"{warned[-400:]!r}")
+        f"the drain instruction must name the family that is behind (the lane family); got: {warned[-400:]!r}"
+    )
     assert "BIFROST_CONSUME_LANE=legacy" not in warned, (
-        "the instruction still points at the legacy cursor, which is not the one behind")
+        "the instruction still points at the legacy cursor, which is not the one behind"
+    )
 
 
 # ---------------------------- 4: virgin lane hash -> legacy family stays the authority
@@ -248,7 +266,7 @@ def test_a_virgin_lane_hash_keeps_the_legacy_family_as_authority(monkeypatch):
     sender = Bus("boss", c, namespace=ns, promote=False)
     first = sender.send("alice", "handoff", "consumed via legacy long ago")
     consumer = BifrostAPI("alice", namespace=ns)
-    assert consumer.bus.advance_to(inbox=str(first)) == "OK"          # legacy progress
+    assert consumer.bus.advance_to(inbox=str(first)) == "OK"  # legacy progress
     assert c.hgetall(consumer.bus.lane_cursor_key()) == {}, "test precondition: virgin lane"
     sender.send("alice", "chat", "unconsumed legacy backlog")
 
@@ -257,9 +275,11 @@ def test_a_virgin_lane_hash_keeps_the_legacy_family_as_authority(monkeypatch):
 
     assert _kinds(got) == ["chat"], (
         f"got {_kinds(got)}: a migrant's unconsumed legacy backlog must wake a fresh arm "
-        f"while its lane hash is virgin (legacy is still the family it consumes)")
+        f"while its lane hash is virgin (legacy is still the family it consumes)"
+    )
     assert c.hgetall(consumer.bus.lane_cursor_key()) == {}, (
-        "detection seeded the lane hash -- the watcher must stay detect-only")
+        "detection seeded the lane hash -- the watcher must stay detect-only"
+    )
 
 
 if __name__ == "__main__":
@@ -285,8 +305,12 @@ def test_a_note_heavy_backlog_does_not_hide_the_chat_behind_it(monkeypatch):
     shared_key = consumer.bus._cursor_key()
     streams = consumer._lane_streams()
     # lane family: ESTABLISHED at both tails -- everything so far is committed
-    assert consumer.bus.advance_to(inbox=_lane_tail(c, streams["inbox"]),
-                                   bc=_lane_tail(c, streams["bc"]), cursor_key=lane_key) == "OK"
+    assert (
+        consumer.bus.advance_to(
+            inbox=_lane_tail(c, streams["inbox"]), bc=_lane_tail(c, streams["bc"]), cursor_key=lane_key
+        )
+        == "OK"
+    )
     # then a note storm OLDER than the one directed chat, all behind the lane cursor
     for i in range(12):
         sender.broadcast("note", f"room noise {i}")
@@ -296,8 +320,13 @@ def test_a_note_heavy_backlog_does_not_hide_the_chat_behind_it(monkeypatch):
     fresh = BifrostAPI("alice", namespace=ns)
     got = fresh.wake_block(timeout_ms=50)
 
-    assert got and "chat" in _kinds(got), (
+    assert got, (
         f"got {_kinds(got)}: twelve notes older than one directed chat must never read as "
-        f"'nothing pending' -- the peek must filter skip-kinds BEFORE it decides, and page")
+        f"'nothing pending' -- the peek must filter skip-kinds BEFORE it decides, and page"
+    )
+    assert "chat" in _kinds(got), (
+        f"got {_kinds(got)}: twelve notes older than one directed chat must never read as "
+        f"'nothing pending' -- the peek must filter skip-kinds BEFORE it decides, and page"
+    )
     assert c.hgetall(lane_key) == lane_before, "detection wrote the lane cursor"
     assert c.hgetall(shared_key) == shared_before, "detection wrote the shared cursor"

@@ -20,6 +20,7 @@ Bars:
 Redis-backed pins use the real Redis in a throwaway namespace (skip if down).
 Run: py -m pytest tests/test_c6_7_door_census.py -q
 """
+
 import json
 import os
 import sys
@@ -30,17 +31,17 @@ import pytest
 os.environ.setdefault("_AISETUP_TEST_ISOLATED", "1")
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.comm import packet_spec as ps
 from core.comm.bus import Bus
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def _client():
-    from core.foundation.redis_connection import (
-        connect_to_redis_with_fail_fast, DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT)
-    c = connect_to_redis_with_fail_fast(host=DEFAULT_REDIS_HOST, port=DEFAULT_REDIS_PORT,
-                                        timeout_seconds=3, decode_responses=True)
+    from core.foundation.redis_connection import DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT, connect_to_redis_with_fail_fast
+
+    c = connect_to_redis_with_fail_fast(
+        host=DEFAULT_REDIS_HOST, port=DEFAULT_REDIS_PORT, timeout_seconds=3, decode_responses=True
+    )
     if c is None:
         pytest.skip("redis not available")
     return c
@@ -58,65 +59,87 @@ def _ns():
 DOOR_CENSUS = {
     # core/comm/bus.py -- the Bus class (central write machinery)
     "bus._emit.lane_xadd": {
-        "file": "core/comm/bus.py", "method": "_emit",
-        "lane_routed": True, "exempt": False,
+        "file": "core/comm/bus.py",
+        "method": "_emit",
+        "lane_routed": True,
+        "exempt": False,
         "note": "C6-7: lane-first primary write (was legacy-only before this slice)",
     },
     "bus._emit.legacy_xadd": {
-        "file": "core/comm/bus.py", "method": "_emit",
-        "lane_routed": False, "exempt": False,
+        "file": "core/comm/bus.py",
+        "method": "_emit",
+        "lane_routed": False,
+        "exempt": False,
         "note": "C6-7: legacy fallback write (always attempted; primary for unmapped kinds)",
     },
     "bus._emit_fragments.lane_xadd": {
-        "file": "core/comm/bus.py", "method": "_emit_fragments",
-        "lane_routed": True, "exempt": False,
+        "file": "core/comm/bus.py",
+        "method": "_emit_fragments",
+        "lane_routed": True,
+        "exempt": False,
         "note": "C6-7: lane-first fragment write",
     },
     "bus._emit_fragments.legacy_xadd": {
-        "file": "core/comm/bus.py", "method": "_emit_fragments",
-        "lane_routed": False, "exempt": False,
+        "file": "core/comm/bus.py",
+        "method": "_emit_fragments",
+        "lane_routed": False,
+        "exempt": False,
         "note": "C6-7: legacy fallback fragment write",
     },
     "bus.send_reply.lane_xadd": {
-        "file": "core/comm/bus.py", "method": "send_reply",
-        "lane_routed": True, "exempt": False,
+        "file": "core/comm/bus.py",
+        "method": "send_reply",
+        "lane_routed": True,
+        "exempt": False,
         "note": "T066: lane-first reply path (the original, now generalized)",
     },
     "bus.send_reply.legacy_xadd": {
-        "file": "core/comm/bus.py", "method": "send_reply",
-        "lane_routed": False, "exempt": False,
+        "file": "core/comm/bus.py",
+        "method": "send_reply",
+        "lane_routed": False,
+        "exempt": False,
         "note": "T066: legacy fallback for replies",
     },
     "bus._lane_write": {
-        "file": "core/comm/bus.py", "method": "_lane_write",
-        "lane_routed": False, "exempt": True,
+        "file": "core/comm/bus.py",
+        "method": "_lane_write",
+        "lane_routed": False,
+        "exempt": True,
         "note": "C6-7: DEPRECATED no-op stub (was advisory mirror; lane write lives in _emit now)",
     },
     "bus._ring_bell": {
-        "file": "core/comm/bus.py", "method": "_ring_bell",
-        "lane_routed": False, "exempt": True,
+        "file": "core/comm/bus.py",
+        "method": "_ring_bell",
+        "lane_routed": False,
+        "exempt": True,
         "note": "pub/sub doorbell (not a stream write -- lanes don't apply to pub/sub)",
     },
     "bus.register": {
-        "file": "core/comm/bus.py", "method": "register",
-        "lane_routed": False, "exempt": True,
+        "file": "core/comm/bus.py",
+        "method": "register",
+        "lane_routed": False,
+        "exempt": True,
         "note": "presence SET (not a stream write -- TTL'd key, not lane traffic)",
     },
     "bus.is_duplicate_reply": {
-        "file": "core/comm/bus.py", "method": "is_duplicate_reply",
-        "lane_routed": False, "exempt": True,
+        "file": "core/comm/bus.py",
+        "method": "is_duplicate_reply",
+        "lane_routed": False,
+        "exempt": True,
         "note": "reply_seen SETNX dedup (not a stream write -- sentinel key)",
     },
     # core/foundation/ledger.py -- the durable ledger (separate concern)
     "ledger.xadd": {
         "file": "core/foundation/ledger.py",
-        "lane_routed": False, "exempt": True,
+        "lane_routed": False,
+        "exempt": True,
         "note": "durable event ledger (not bus transport -- separate Redis key family)",
     },
     # scripts/ops/snapshot_knowledge.py -- knowledge snapshot tool
     "snapshot_knowledge.xadd": {
         "file": "scripts/ops/snapshot_knowledge.py",
-        "lane_routed": False, "exempt": True,
+        "lane_routed": False,
+        "exempt": True,
         "note": "knowledge snapshot (not bus transport -- separate tool)",
     },
 }
@@ -125,6 +148,7 @@ DOOR_CENSUS = {
 def _xadd_calls_in_file(filepath: str) -> list:
     """Parse a Python file for .xadd( calls, returning list of (lineno, context)."""
     import re
+
     calls = []
     try:
         with open(os.path.join(REPO, filepath), encoding="utf-8") as f:
@@ -134,7 +158,7 @@ def _xadd_calls_in_file(filepath: str) -> list:
     for i, line in enumerate(lines, 1):
         # Skip comments
         stripped = line.split("#")[0]
-        if re.search(r'\.xadd\(', stripped):
+        if re.search(r"\.xadd\(", stripped):
             context = stripped.strip()
             calls.append((i, context[:120]))
     return calls
@@ -144,7 +168,7 @@ def test_b1_door_census_all_xadd_sites_registered():
     """Acceptance #1: every xadd call site in the bus-write surface is registered in
     DOOR_CENSUS. A new xadd without a matching entry FAILS this test -- the author must
     register the door, classifying it as lane-routed or exempt with reason."""
-    census_files = set(e["file"] for e in DOOR_CENSUS.values())
+    census_files = {e["file"] for e in DOOR_CENSUS.values()}
     all_calls = []
     for fp in sorted(census_files):
         for lineno, ctx in _xadd_calls_in_file(fp):
@@ -153,13 +177,10 @@ def test_b1_door_census_all_xadd_sites_registered():
     # Every xadd in bus.py must be registered.  We verify by checking that every
     # xadd in bus.py matches a known method name.  This is a coarse check --
     # the census table above IS the artifact; this test just proves it's honest.
-    bus_xadds = [(ln, ctx) for ln, ctx in
-                 [_xadd_calls_in_file("core/comm/bus.py")][0] if True]
+    bus_xadds = [(ln, ctx) for ln, ctx in [_xadd_calls_in_file("core/comm/bus.py")][0] if True]
     # Actually let me redo this properly
     bus_xadds = _xadd_calls_in_file("core/comm/bus.py")
-    registered_methods = {e["method"] for e in DOOR_CENSUS.values()
-                          if e["file"] == "core/comm/bus.py"}
-    
+
     # The number of xadd sites in bus.py should match what we know
     # (currently: _emit lane+legacy, _emit_fragments lane+legacy, send_reply lane+legacy,
     #  _lane_write stub is no-op so no xadd there)
@@ -167,8 +188,9 @@ def test_b1_door_census_all_xadd_sites_registered():
     assert len(bus_xadds) >= 6, (
         f"Expected at least 6 xadd sites in bus.py, found {len(bus_xadds)}. "
         f"If you added one, register it in DOOR_CENSUS. Sites:\n"
-        + "\n".join(f"  {fp}:{ln}: {ctx}" for ln, ctx in bus_xadds))
-    
+        + "\n".join(f"  {fp}:{ln}: {ctx}" for ln, ctx in bus_xadds)
+    )
+
     print(f"Census OK: {len(bus_xadds)} xadd sites in bus.py, all registered in DOOR_CENSUS.")
 
 
@@ -176,12 +198,13 @@ def test_b1_door_census_all_xadd_sites_registered():
 # Verify every send routes through lane_for().  Uses a recording proxy on the Redis
 # client to capture xadd call order, then proves lane-first ordering.
 
+
 class _Recorder:
     """Records xadd stream keys in call order."""
 
     def __init__(self, real):
         self._real = real
-        self.xadd_keys = []    # list of (key, fields_kind) in order
+        self.xadd_keys = []  # list of (key, fields_kind) in order
         self.set_keys = []
 
     def xadd(self, key, fields, **kwargs):
@@ -219,8 +242,20 @@ def test_b2_work_kinds_are_lane_first():
     ns = _ns()
     b = _bus("census-tester", ns)
 
-    work_kinds = ["handoff", "request", "question", "chat", "inform", "note",
-                  "answer", "dispatch", "status", "completion", "decision", "blocker"]
+    work_kinds = [
+        "handoff",
+        "request",
+        "question",
+        "chat",
+        "inform",
+        "note",
+        "answer",
+        "dispatch",
+        "status",
+        "completion",
+        "decision",
+        "blocker",
+    ]
     for kind in work_kinds:
         b.send("peer", kind, f"census probe: {kind}")
         # Check the last two xadds for this send: the first should be a lane key,
@@ -229,14 +264,12 @@ def test_b2_work_kinds_are_lane_first():
         assert len(keys) >= 2, f"No xadds recorded for kind={kind}"
         lane_write = keys[-2]
         legacy_write = keys[-1]
-        lane_key, lane_kind = lane_write
+        lane_key, _lane_kind = lane_write
         legacy_key, _ = legacy_write
-        assert f":work:inbox:peer" in lane_key, (
-            f"kind={kind}: first write should be lane key, got {lane_key}")
-        assert lane_key.startswith(f"{ns}:work:"), (
-            f"kind={kind}: lane key should be {ns}:work:..., got {lane_key}")
-        assert legacy_key.endswith(":inbox:peer") and ":work:" not in legacy_key, (
-            f"kind={kind}: legacy key should be inbox:peer, got {legacy_key}")
+        assert ":work:inbox:peer" in lane_key, f"kind={kind}: first write should be lane key, got {lane_key}"
+        assert lane_key.startswith(f"{ns}:work:"), f"kind={kind}: lane key should be {ns}:work:..., got {lane_key}"
+        assert legacy_key.endswith(":inbox:peer"), f"kind={kind}: legacy key should be inbox:peer, got {legacy_key}"
+        assert ":work:" not in legacy_key, f"kind={kind}: legacy key should be inbox:peer, got {legacy_key}"
         # Clear for next kind
         b._client.xadd_keys.clear()
 
@@ -253,8 +286,7 @@ def test_b2_sig_kinds_are_lane_first():
         keys = b._client.xadd_keys
         assert len(keys) >= 2
         lane_key, _ = keys[-2]
-        assert f":sig:inbox:peer" in lane_key, (
-            f"kind={kind}: should be sig lane, got {lane_key}")
+        assert ":sig:inbox:peer" in lane_key, f"kind={kind}: should be sig lane, got {lane_key}"
         b._client.xadd_keys.clear()
 
     print("B2 OK: sig kinds are lane-first.")
@@ -270,8 +302,7 @@ def test_b2_trace_kinds_are_lane_first():
         keys = b._client.xadd_keys
         assert len(keys) >= 2
         lane_key, _ = keys[-2]
-        assert f":trace" in lane_key, (
-            f"kind={kind}: should be trace lane, got {lane_key}")
+        assert ":trace" in lane_key, f"kind={kind}: should be trace lane, got {lane_key}"
         b._client.xadd_keys.clear()
 
     print("B2 OK: trace kinds are lane-first.")
@@ -296,6 +327,7 @@ def test_b2_unmapped_kind_legacy_only_loud(capsys):
 # ====================================================================== B3: LIVE DRILL
 # N mixed sends then a fresh work_drain shows ZERO legacy stragglers.
 
+
 def test_b3_mixed_sends_no_legacy_stragglers_on_work_drain():
     """Acceptance #4: after sending reply, note, handoff, and nudge, a work_drain
     (consuming the work lane) sees ALL work-lane kinds. The legacy inbox should NOT
@@ -310,15 +342,15 @@ def test_b3_mixed_sends_no_legacy_stragglers_on_work_drain():
         pytest.skip("redis not available")
 
     # Send mixed kinds: work-lane (reply, note, handoff, chat, inform),
-    # sig-lane (nudge, steer), trace-lane (trace)
+    # the sig lane (nudge, steer) and the trace lane (trace)
     kinds_sent = [
         ("reply", "peer", "the answer"),
         ("note", "peer", "FYI"),
         ("handoff", "peer", "take this task"),
         ("chat", "peer", "hello"),
         ("inform", "peer", "status update"),
-        ("nudge", "peer", "look now"),       # sig lane, not work
-        ("steer", "peer", "fold this"),      # sig lane, not work
+        ("nudge", "peer", "look now"),  # sig lane, not work
+        ("steer", "peer", "fold this"),  # sig lane, not work
     ]
     for kind, to, text in kinds_sent:
         sender.send(to, kind, text)
@@ -336,25 +368,25 @@ def test_b3_mixed_sends_no_legacy_stragglers_on_work_drain():
     # All work-lane kinds must appear on the work lane
     for wk in ("reply", "note", "handoff", "chat", "inform"):
         assert wk in work_kinds_seen, (
-            f"kind={wk} MUST be on the work lane (lane-first router). "
-            f"work kinds seen: {work_kinds_seen}")
+            f"kind={wk} MUST be on the work lane (lane-first router). work kinds seen: {work_kinds_seen}"
+        )
 
     # sig-lane kinds must appear on the sig lane
     for sk in ("nudge", "steer"):
-        assert sk in sig_kinds_seen, (
-            f"kind={sk} MUST be on the sig lane. sig kinds seen: {sig_kinds_seen}")
+        assert sk in sig_kinds_seen, f"kind={sk} MUST be on the sig lane. sig kinds seen: {sig_kinds_seen}"
 
     # Legacy should still have everything (fallback copies)
     for k in ("reply", "note", "handoff", "chat", "inform", "nudge", "steer"):
-        assert k in legacy_kinds_seen, (
-            f"kind={k} should still have a legacy fallback copy for pre-lane consumers")
+        assert k in legacy_kinds_seen, f"kind={k} should still have a legacy fallback copy for pre-lane consumers"
 
     # The KEY assertion: a work_drain (the lane consumer) sees ALL work-lane kinds.
     # This is what was broken before -- only replies appeared on work_drain.
     # We can't easily test work_drain without the full wake machinery, but we CAN
     # verify the lane keys contain the expected data directly.
-    print(f"B3 OK: work lane has {work_kinds_seen}, sig lane has {sig_kinds_seen}, "
-          f"legacy has {legacy_kinds_seen}. ZERO work-lane kinds are legacy-only.")
+    print(
+        f"B3 OK: work lane has {work_kinds_seen}, sig lane has {sig_kinds_seen}, "
+        f"legacy has {legacy_kinds_seen}. ZERO work-lane kinds are legacy-only."
+    )
 
 
 def test_b3_reply_still_lane_first_via_send_reply():
@@ -367,15 +399,17 @@ def test_b3_reply_still_lane_first_via_send_reply():
     # send_reply writes lane xadd first, then legacy xadd
     assert len(keys) >= 2
     lane_key, _ = keys[-2]
-    assert f":work:inbox:peer" in lane_key, f"send_reply lane write: got {lane_key}"
+    assert ":work:inbox:peer" in lane_key, f"send_reply lane write: got {lane_key}"
     legacy_key, _ = keys[-1]
-    assert legacy_key.endswith(":inbox:peer") and ":work:" not in legacy_key
+    assert legacy_key.endswith(":inbox:peer")
+    assert ":work:" not in legacy_key
     print("B3 OK: send_reply still lane-first, unchanged.")
 
 
 # ====================================================================== B4: REGRESSION GATE
 # Verify the T066 reply-path test suite still passes.  This is done by running the
 # existing test file; here we do a fast smoke test.
+
 
 def test_b4_send_reply_carries_reply_id():
     """T066 P3: every reply carries meta.reply_id -- unchanged by C6-7."""

@@ -39,9 +39,11 @@ Choices this module makes where the spec leaves room (all written into the outpu
   each chord's downbeat strikes (bass always, the upper voices when humanize is 0), ties skipped.
 - Free play (no run) has no grid: a nominal FREE_BEAT_MS beat, no passing class, phrases in seconds, no T10 or T14.
 """
+
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import math
 import re
@@ -50,17 +52,30 @@ import subprocess
 import sys
 import time
 from bisect import bisect_left, bisect_right
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Sequence, Tuple
+from typing import TYPE_CHECKING
 
 from . import nashville
 from . import practice as pr
-from .jam import DEF_API, RIFF_API
-from .jam import schemas
+from .jam import DEF_API, RIFF_API, schemas
 from .jam import tempomap as tm
 from .jam.resolve import tone_name
 from .performance import PerformanceError, PerformanceStore
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+
+        return python_launcher()
+    except Exception:
+        return "py"
+
 
 HERE = Path(__file__).resolve().parent
 DEFAULT_JAM_ROOT = HERE.parent / "state" / "arsenal" / "jam"
@@ -68,31 +83,31 @@ GROOVE_BRIDGE = HERE / "groove_bridge.mjs"
 
 # ============================================================================================ constants (11.3, 11.4)
 ONSET_GROUP_MS = pr.ONSET_GROUP_MS  # 50: note-ons this close to an attack's first onset belong to that attack
-LINE_MIN_NOTE = 60                  # C4: the top line starts here...
-LINE_FULL_MAX = 70                  # ...or above backing full's top voice, at most A4 + 1
-LINE_LEN_CAP_BEATS = 2              # a note's length is capped here (the pedal never stretches it)
-GRID_TOL = 0.08                     # beat
+LINE_MIN_NOTE = 60  # C4: the top line starts here...
+LINE_FULL_MAX = 70  # ...or above backing full's top voice, at most A4 + 1
+LINE_LEN_CAP_BEATS = 2  # a note's length is capped here (the pedal never stretches it)
+GRID_TOL = 0.08  # beat
 METRIC_WEIGHTS = {"downbeat": 1.0, "beat3": 0.8, "beat": 0.6, "offbeat": 0.4, "other": 0.3}
-WEIGHT_LEN = (0.25, 2.0)            # w = w_m * clamp(length in beats, 0.25, 2)
-ANTICIPATE_MAX = (0.5, 300)         # min(0.5 beat, 300 ms)
-ONSET_EPS_MS = 1.0                  # the log keeps whole ms: an onset this close before a bar or chord line is on it
-PASSING_MAX_BEATS = 1               # a passing rub is shorter than this...
-PASSING_W_MAX = 0.6                 # ...on a weaker position than this...
-PASSING_STEP = 2                    # ...and steps at most this many semitones...
-PASSING_WITHIN_BEATS = 0.5          # ...to a chord tone or colour within this long after it ends
-SLIDE_IN_MAX = (0.5, 300)           # a slide-in lasts at most min(0.5 beat, 300 ms)...
-SLIDE_IN_RESOLVE_BEATS = 1          # ...and the next top-line note, this soon, is a half step away
+WEIGHT_LEN = (0.25, 2.0)  # w = w_m * clamp(length in beats, 0.25, 2)
+ANTICIPATE_MAX = (0.5, 300)  # min(0.5 beat, 300 ms)
+ONSET_EPS_MS = 1.0  # the log keeps whole ms: an onset this close before a bar or chord line is on it
+PASSING_MAX_BEATS = 1  # a passing rub is shorter than this...
+PASSING_W_MAX = 0.6  # ...on a weaker position than this...
+PASSING_STEP = 2  # ...and steps at most this many semitones...
+PASSING_WITHIN_BEATS = 0.5  # ...to a chord tone or colour within this long after it ends
+SLIDE_IN_MAX = (0.5, 300)  # a slide-in lasts at most min(0.5 beat, 300 ms)...
+SLIDE_IN_RESOLVE_BEATS = 1  # ...and the next top-line note, this soon, is a half step away
 SCALE_MIN_NOTES = 12
 SCALE_SIZE_COST = 0.04
 SCALE_UNUSED_COST = 0.05
 SCALE_UNUSED_SHARE = 0.02
 MODE_OWN_NOTE_MIN = 0.05
 PENT_LEFT_OUT_MAX = 0.03
-LANDING_BEFORE = (0.5, 300)         # a landing is his first top-line onset from min(0.5 beat, 300 ms) before a chord...
-LANDING_AFTER_MS = 250              # ...to 250 ms after it
-PHRASE_GAP = (1, 600)               # a top-line gap of max(1 beat, 600 ms) ends a phrase
-PHRASE_MAX_BARS = 4                 # a longer phrase splits at its longest inner gap...
-PHRASE_SPLIT_MIN_BEATS = 0.5        # ...of at least this long
+LANDING_BEFORE = (0.5, 300)  # a landing is his first top-line onset from min(0.5 beat, 300 ms) before a chord...
+LANDING_AFTER_MS = 250  # ...to 250 ms after it
+PHRASE_GAP = (1, 600)  # a top-line gap of max(1 beat, 600 ms) ends a phrase
+PHRASE_MAX_BARS = 4  # a longer phrase splits at its longest inner gap...
+PHRASE_SPLIT_MIN_BEATS = 0.5  # ...of at least this long
 CONTOUR_STEP = 3
 CONTOUR_FLAT_RANGE = 4
 READING_MIN_NOTES = 3
@@ -100,8 +115,18 @@ LOOPBACK_MS = 15
 LOOPBACK_SHARE = 0.5
 MIN_ONSETS = 8
 CHAT_POINTS = 6
-TP_WEIGHTS = {"T1": 1.0, "T2": 1.1, "T3": 0.9, "T4": 1.0, "T5": 1.0, "T6": 0.8, "T7": 0.8, "T10": 0.8, "T13": 0.8,
-              "T14": 0.7}
+TP_WEIGHTS = {
+    "T1": 1.0,
+    "T2": 1.1,
+    "T3": 0.9,
+    "T4": 1.0,
+    "T5": 1.0,
+    "T6": 0.8,
+    "T7": 0.8,
+    "T10": 0.8,
+    "T13": 0.8,
+    "T14": 0.7,
+}
 SALIENCE_COUNT = 5
 CONCEPT_BOOST = 1.25
 REPEAT_DAMP = 0.5
@@ -115,8 +140,8 @@ T7_MIN = 3
 T10_MIN_PHRASES = 6
 T13_MIN_PASSES = 4
 T13_MIN_CHANGE = 0.10
-T13_MIN_PASS_NOTES = 4    # a pass counts toward T13 only when it holds his playing (top-line notes)
-T13_MIN_NOTES = 8         # and each side of the comparison needs this many top-line notes
+T13_MIN_PASS_NOTES = 4  # a pass counts toward T13 only when it holds his playing (top-line notes)
+T13_MIN_NOTES = 8  # and each side of the comparison needs this many top-line notes
 TRY_EARLY_MIN_PHRASES = 3  # try rule 4 ("start one phrase a beat early") needs a few phrases to speak of
 T14_MIN = 3
 QUESTION_RARE_LANDING = 0.10
@@ -124,7 +149,7 @@ QUESTION_WEIGHTS = {"rub": 1.0, "outside": 0.9, "landing": 0.8}
 QUESTION_REPLAY_S = 4
 TRY_CONCEPT_MIN = 2
 TRY_HELD_RUBS = 3
-TRY_TARGET_LOW = 70                 # Bb4: his register, where a target note is offered
+TRY_TARGET_LOW = 70  # Bb4: his register, where a target note is offered
 HIGHLIGHTS = 3
 HIGHLIGHT_LEAD_S = 3
 HIGHLIGHT_SECONDS = 6
@@ -132,9 +157,25 @@ ALIGN_ERROR_MS = {"L1": 2.0, "L2": 2.0, "L3": 50.0, "L4": 150.0}
 FREE_BEAT_MS = 1000.0
 FREE_W_M = 0.6
 FORBIDDEN_WORDS = ("wrong", "mistake", "error", "score", "best", "should", "correct")
-THEORY_WORDS = ("Lydian", "Dorian", "Mixolydian", "Aeolian", "Phrygian", "Locrian", "pentatonic", "blues", "diminished",
-                "whole tone", "melodic minor", "harmonic minor", "altered", "borrowed", "modal", "chromatic",
-                "secondary dominant")
+THEORY_WORDS = (
+    "Lydian",
+    "Dorian",
+    "Mixolydian",
+    "Aeolian",
+    "Phrygian",
+    "Locrian",
+    "pentatonic",
+    "blues",
+    "diminished",
+    "whole tone",
+    "melodic minor",
+    "harmonic minor",
+    "altered",
+    "borrowed",
+    "modal",
+    "chromatic",
+    "secondary dominant",
+)
 
 # (name, intervals above the root, own-note groups (one note of each group carries MODE_OWN_NOTE_MIN), notes used with)
 SCALE_CANDIDATES = (
@@ -160,17 +201,63 @@ SCALE_CANDIDATES = (
 PENT_LEFT_OUT = {"major pentatonic": (5, 11), "minor pentatonic": (2, 8)}  # the two notes of its parent scale it drops
 
 CHORD_LABELS = {0: "R", 3: "b3", 4: "3", 5: "4", 6: "b5", 7: "5", 8: "#5", 9: "6", 10: "b7", 11: "7"}
-INTERVAL_LABELS = {0: "R", 1: "b9", 2: "9", 3: "b3", 4: "3", 5: "11", 6: "#11", 7: "5", 8: "b13", 9: "13", 10: "b7",
-                   11: "7"}
-ROLE_INTERVALS = {"1": 0, "b3": 3, "3": 4, "4": 5, "#4": 6, "5": 7, "b6": 8, "6": 9, "b7": 10, "7": 11, "b9": 1, "9": 2,
-                  "#9": 3, "11": 5, "#11": 6, "b13": 8, "13": 9}
+INTERVAL_LABELS = {
+    0: "R",
+    1: "b9",
+    2: "9",
+    3: "b3",
+    4: "3",
+    5: "11",
+    6: "#11",
+    7: "5",
+    8: "b13",
+    9: "13",
+    10: "b7",
+    11: "7",
+}
+ROLE_INTERVALS = {
+    "1": 0,
+    "b3": 3,
+    "3": 4,
+    "4": 5,
+    "#4": 6,
+    "5": 7,
+    "b6": 8,
+    "6": 9,
+    "b7": 10,
+    "7": 11,
+    "b9": 1,
+    "9": 2,
+    "#9": 3,
+    "11": 5,
+    "#11": 6,
+    "b13": 8,
+    "13": 9,
+}
 CLASSES = ("in_chord", "colour", "rub", "passing", "slide_in", "outside")
-WORD_OF = {"in_chord": "in_chord", "colour": "colour", "passing": "colour", "rub": "colour", "slide_in": "outside",
-           "outside": "outside"}
-CONTROL_WORDS = {"in_chord": "in the chord", "colour": "a colour", "rub": "a rub", "passing": "a colour",
-                 "slide_in": "outside", "outside": "outside"}
-METHOD_WORDS = {"L1": "the page's own clock", "L2": "the page clock the session named", "L3": "the page's wall clock",
-                "L4": "the server's open time (approximate)", "assumed": "the start time you gave (assumed)"}
+WORD_OF = {
+    "in_chord": "in_chord",
+    "colour": "colour",
+    "passing": "colour",
+    "rub": "colour",
+    "slide_in": "outside",
+    "outside": "outside",
+}
+CONTROL_WORDS = {
+    "in_chord": "in the chord",
+    "colour": "a colour",
+    "rub": "a rub",
+    "passing": "a colour",
+    "slide_in": "outside",
+    "outside": "outside",
+}
+METHOD_WORDS = {
+    "L1": "the page's own clock",
+    "L2": "the page clock the session named",
+    "L3": "the page's wall clock",
+    "L4": "the server's open time (approximate)",
+    "assumed": "the start time you gave (assumed)",
+}
 
 
 class RiffError(Exception):
@@ -205,7 +292,7 @@ def _times(n: int) -> str:
     return f"{n} time" if n == 1 else f"{n} times"
 
 
-def _iso_epoch_ms(text) -> Optional[float]:
+def _iso_epoch_ms(text) -> float | None:
     if not isinstance(text, str):
         return None
     try:
@@ -213,17 +300,17 @@ def _iso_epoch_ms(text) -> Optional[float]:
     except ValueError:
         return None
     if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=timezone.utc)
+        dt = dt.replace(tzinfo=UTC)
     return dt.timestamp() * 1000
 
 
-def _local(epoch_ms: Optional[float]) -> str:
+def _local(epoch_ms: float | None) -> str:
     if epoch_ms is None:
         return "an unknown time"
     return datetime.fromtimestamp(epoch_ms / 1000).astimezone().strftime("%Y-%m-%d %H:%M:%S")
 
 
-def _median(values: Sequence[float]) -> Optional[float]:
+def _median(values: Sequence[float]) -> float | None:
     v = sorted(values)
     if not v:
         return None
@@ -231,27 +318,27 @@ def _median(values: Sequence[float]) -> Optional[float]:
     return v[mid] if len(v) % 2 else (v[mid - 1] + v[mid]) / 2
 
 
-def _p90(values: Sequence[float]) -> Optional[float]:
+def _p90(values: Sequence[float]) -> float | None:
     v = sorted(values)
     return v[max(0, math.ceil(0.9 * len(v)) - 1)] if v else None
 
 
-def _pc_of_name(name: str) -> Optional[int]:
+def _pc_of_name(name: str) -> int | None:
     sp = pr._parse_name(name or "")
     return pr._sp_pc(sp) if sp else None
 
 
-def _degree(number: Optional[str]) -> Optional[str]:
+def _degree(number: str | None) -> str | None:
     m = re.match(r"^(#{1,2}|b{1,2})?[1-7]", number or "")
     return m.group(0) if m else None
 
 
 def replay_command(session: str, t_ms: float, seconds: float) -> str:
-    return f"py -m arsenal.pianocue replay {session} {pr.clock(max(0.0, t_ms))} --seconds {_fmt(seconds)}"
+    return f"{_pyl()} -m arsenal.pianocue replay {session} {pr.clock(max(0.0, t_ms))} --seconds {_fmt(seconds)}"
 
 
 def save_command(session: str, t_ms: float) -> str:
-    return f"py -m arsenal.pianocue template save-from-moment {session} {pr.clock(t_ms)}"
+    return f"{_pyl()} -m arsenal.pianocue template save-from-moment {session} {pr.clock(t_ms)}"
 
 
 # ========================================================================================= chord facts
@@ -273,11 +360,24 @@ def slot_facts(slot: dict) -> dict:
     if sus and (root + 4) % 12 in scale and (root + 4) % 12 not in chord:
         rubs.add((root + 4) % 12)
     voicings = slot.get("voicings") or {}
-    return {"root": root, "bass": slot.get("bass_pc", root), "chord": chord, "scale": scale, "rubs": rubs,
-            "dominant": dominant, "sus": sus, "major_third": rel.get("third") == 4,
-            "roles": {pc: r for r, pc in tones.items()}, "key": kinfo["name"] if kinfo else key,
-            "key_scale": key_pcs, "name": slot.get("name"), "number": slot.get("n"), "class": slot.get("class"),
-            "full_top": max(voicings.get("full") or [0]) or None, "slot": slot}
+    return {
+        "root": root,
+        "bass": slot.get("bass_pc", root),
+        "chord": chord,
+        "scale": scale,
+        "rubs": rubs,
+        "dominant": dominant,
+        "sus": sus,
+        "major_third": rel.get("third") == 4,
+        "roles": {pc: r for r, pc in tones.items()},
+        "key": kinfo["name"] if kinfo else key,
+        "key_scale": key_pcs,
+        "name": slot.get("name"),
+        "number": slot.get("n"),
+        "class": slot.get("class"),
+        "full_top": max(voicings.get("full") or [0]) or None,
+        "slot": slot,
+    }
 
 
 def tone_label(f: dict, pc: int) -> str:
@@ -303,7 +403,7 @@ def bass_label(f: dict, pc: int) -> str:
     return INTERVAL_LABELS[(pc - f["bass"]) % 12]
 
 
-def score_scales(hist: Dict[int, float]) -> List[dict]:
+def score_scales(hist: dict[int, float]) -> list[dict]:
     """Every candidate scale scored over a weighted interval histogram (shares summing to 1), best first (MUSIC 9.7)."""
     out = []
     for order, (name, steps, own, used_with) in enumerate(SCALE_CANDIDATES):
@@ -315,7 +415,7 @@ def score_scales(hist: Dict[int, float]) -> List[dict]:
     return out
 
 
-def scale_gate(cand: dict, hist: Dict[int, float]) -> Tuple[bool, Optional[int], float]:
+def scale_gate(cand: dict, hist: dict[int, float]) -> tuple[bool, int | None, float]:
     """(named, own interval, its share): the honesty gate. A mode is named only when its own note carries
     MODE_OWN_NOTE_MIN of the weight (and the notes it is used with sound); a pentatonic only when all 5 degrees are used
     and the two notes it leaves out carry PENT_LEFT_OUT_MAX or less."""
@@ -334,13 +434,21 @@ def scale_gate(cand: dict, hist: Dict[int, float]) -> Tuple[bool, Optional[int],
     return ok, first_i, first_share
 
 
-def scale_for_class(pcs: Sequence[int], root: Optional[int], key: str, cls: Optional[str], suffix: str = "",
-                    fits: Sequence[str] = (), detail: str = "", target: Optional[str] = None) -> List[int]:
+def scale_for_class(
+    pcs: Sequence[int],
+    root: int | None,
+    key: str,
+    cls: str | None,
+    suffix: str = "",
+    fits: Sequence[str] = (),
+    detail: str = "",
+    target: str | None = None,
+) -> list[int]:
     """A chord's scale S from its practice.classify class (MUSIC 9.5 table), for chords read from his own playing.
     Any chord tone missing from S replaces the scale note a half step from it."""
     k = nashville.parse_key(key)
     tonic, mode = k["tonic"], k["mode"]
-    on = lambda base, steps: {(base + s) % 12 for s in steps}  # noqa: E731
+    on = lambda base, steps: {(base + s) % 12 for s in steps}  # noqa: E731  # local one-line key function
     rel = {(p - root) % 12 for p in pcs} if root is not None else set()
     if cls == "borrowed":
         options = ("natural minor", "harmonic minor") if mode == "major" else ("major",)
@@ -384,7 +492,7 @@ def scale_for_class(pcs: Sequence[int], root: Optional[int], key: str, cls: Opti
 
 
 # ==================================================================================== runs and sessions
-def _read_jsonl(path: Path) -> Tuple[List[dict], int]:
+def _read_jsonl(path: Path) -> tuple[list[dict], int]:
     try:
         text = path.read_text(encoding="utf-8", errors="replace")
     except OSError:
@@ -431,8 +539,11 @@ def load_run(jam_root, run_id: str) -> dict:
     defs, acks = {}, []
     for line in lines:
         kind = line.get("kind")
-        if kind in ("start", "change") and isinstance(line.get("def"), dict) and \
-                (kind == "start" or line.get("op") == "next"):
+        if (
+            kind in ("start", "change")
+            and isinstance(line.get("def"), dict)
+            and (kind == "start" or line.get("op") == "next")
+        ):
             defs[int(line.get("version") or 1)] = line["def"]
         elif kind == "ack":
             acks.append(line)
@@ -442,7 +553,7 @@ def load_run(jam_root, run_id: str) -> dict:
     return {"run": run, "lines": lines, "defs": defs, "acks": acks, "problems": problems}
 
 
-def list_runs(jam_root) -> List[dict]:
+def list_runs(jam_root) -> list[dict]:
     """Every readable run.json under jam_root/runs, newest first (by created_at, then id)."""
     runs_dir = Path(jam_root) / "runs"
     out = []
@@ -462,13 +573,16 @@ def list_runs(jam_root) -> List[dict]:
     return out
 
 
-def session_window(info: dict) -> Tuple[Optional[float], Optional[float]]:
+def session_window(info: dict) -> tuple[float | None, float | None]:
     """The session's wall-clock span in epoch ms: from the page's open time (opened_at_client) or the server's."""
     meta = info.get("meta") if isinstance(info.get("meta"), dict) else {}
     start = _iso_epoch_ms(meta.get("opened_at_client"))
     if start is None:
-        start = info["opened_ns"] / 1e6 if _num(info.get("opened_ns")) and info["opened_ns"] > 0 else \
-            _iso_epoch_ms(info.get("opened_at"))
+        start = (
+            info["opened_ns"] / 1e6
+            if _num(info.get("opened_ns")) and info["opened_ns"] > 0
+            else _iso_epoch_ms(info.get("opened_at"))
+        )
     if start is None:
         return None, None
     length = max(float(info.get("last_t_ms") or 0), float(info.get("duration_s") or 0) * 1000)
@@ -487,21 +601,29 @@ def run_end_epoch(loaded: dict) -> float:
     return max(bar0, min(time.time() * 1000, bar0 + 6 * 3600 * 1000))
 
 
-def run_window(loaded: dict) -> Tuple[float, float]:
+def run_window(loaded: dict) -> tuple[float, float]:
     """A run's wall-clock span for finding sessions (MUSIC 9.1): one bar before bar 0 to two beats after the stop."""
     run = loaded["run"]
     m, segs = run["beats_per_bar"], run["segments"]
     bar0 = tm.t_epoch(segs, m, 0)
     end = run_end_epoch(loaded)
-    return bar0 - tm.bar_ms(tm.segment_at(segs, 0)["bpm"], m), end + 2 * tm.beat_ms(tm.segment_at_epoch(segs, end)["bpm"])
+    return bar0 - tm.bar_ms(tm.segment_at(segs, 0)["bpm"], m), end + 2 * tm.beat_ms(
+        tm.segment_at_epoch(segs, end)["bpm"]
+    )
 
 
 # ============================================================================================ alignment
 class Clock:
     """Epoch ms <-> session t_ms through clock pairs (anchors), each used near its own time."""
 
-    def __init__(self, method: str, anchors: List[Tuple[float, float]], error_ms: Optional[float], page_id=None,
-                 output_latency_ms=None):
+    def __init__(
+        self,
+        method: str,
+        anchors: list[tuple[float, float]],
+        error_ms: float | None,
+        page_id=None,
+        output_latency_ms=None,
+    ):
         self.method = method
         self.anchors = sorted(anchors)
         self._epochs = [e for e, _ in self.anchors]
@@ -511,7 +633,7 @@ class Clock:
         self.output_latency_ms = output_latency_ms
 
     @staticmethod
-    def _nearest(values: List[float], x: float) -> int:
+    def _nearest(values: list[float], x: float) -> int:
         i = bisect_left(values, x)
         if i <= 0:
             return 0
@@ -545,26 +667,40 @@ def align(loaded: dict, session: str, info: dict) -> Clock:
         mine = [p for p in pairs if p[2] == owner]
         return mine or pairs
 
-    l1 = prefer_owner([(a["bar_epoch_ms"], a["perf_ms"] - a["log"]["t0_perf_ms"], a.get("page_id")) for a in usable
-                       if isinstance(a.get("log"), dict) and a["log"].get("session") == session
-                       and _num(a["log"].get("t0_perf_ms"))])
+    l1 = prefer_owner(
+        [
+            (a["bar_epoch_ms"], a["perf_ms"] - a["log"]["t0_perf_ms"], a.get("page_id"))
+            for a in usable
+            if isinstance(a.get("log"), dict)
+            and a["log"].get("session") == session
+            and _num(a["log"].get("t0_perf_ms"))
+        ]
+    )
     method, pairs = None, []
     if l1:
         method, pairs = "L1", l1
     elif meta.get("page_id") and _num(meta.get("t0_perf_ms")):
-        pairs = [(a["bar_epoch_ms"], a["perf_ms"] - meta["t0_perf_ms"], a.get("page_id")) for a in usable
-                 if a.get("page_id") == meta["page_id"]]
+        pairs = [
+            (a["bar_epoch_ms"], a["perf_ms"] - meta["t0_perf_ms"], a.get("page_id"))
+            for a in usable
+            if a.get("page_id") == meta["page_id"]
+        ]
         method = "L2" if pairs else None
     if method is None:
         client = _iso_epoch_ms(meta.get("opened_at_client"))
         if client is not None:
             method, pairs = "L3", [(client, 0.0, None)]
         elif meta.get("buffered"):
-            raise RiffError(f"session {session} was buffered in the browser and has no meta.opened_at_client, so run "
-                            f"{run.get('run')} cannot be lined up with it (L4 is refused for a buffered session)")
+            raise RiffError(
+                f"session {session} was buffered in the browser and has no meta.opened_at_client, so run "
+                f"{run.get('run')} cannot be lined up with it (L4 is refused for a buffered session)"
+            )
         else:
-            opened = info["opened_ns"] / 1e6 if _num(info.get("opened_ns")) and info["opened_ns"] > 0 else \
-                _iso_epoch_ms(info.get("opened_at"))
+            opened = (
+                info["opened_ns"] / 1e6
+                if _num(info.get("opened_ns")) and info["opened_ns"] > 0
+                else _iso_epoch_ms(info.get("opened_at"))
+            )
             if opened is None:
                 raise RiffError(f"session {session} has no open time to line run {run.get('run')} up with")
             method, pairs = "L4", [(opened, 0.0, None)]
@@ -576,11 +712,11 @@ def align(loaded: dict, session: str, info: dict) -> Clock:
 
 
 # ============================================================================================ timelines
-def grid_of(beat: float, meter: int) -> Tuple[str, float]:
+def grid_of(beat: float, meter: int) -> tuple[str, float]:
     """(grid class, metric weight w_m) of a beat position inside a bar (11.3 step 3)."""
     p = beat - math.floor(beat)
     if p <= GRID_TOL or p >= 1 - GRID_TOL:
-        whole = int(round(beat)) % meter
+        whole = round(beat) % meter
         if whole == 0:
             return "beat", METRIC_WEIGHTS["downbeat"]
         return "beat", METRIC_WEIGHTS["beat3"] if meter == 4 and whole == 2 else METRIC_WEIGHTS["beat"]
@@ -598,7 +734,7 @@ class RunTimeline:
 
     grid = True
 
-    def __init__(self, loaded: dict, clock: Clock, end_epoch: Optional[float] = None):
+    def __init__(self, loaded: dict, clock: Clock, end_epoch: float | None = None):
         run = loaded["run"]
         self.loaded, self.clock = loaded, clock
         self.m = run["beats_per_bar"]
@@ -607,14 +743,15 @@ class RunTimeline:
         self.settings = sorted(run.get("settings") or [{"from_bar": 0}], key=lambda s: s.get("from_bar", 0))
         self.mode = run.get("mode")
         self.end_epoch = run_end_epoch(loaded) if end_epoch is None else end_epoch
-        self._facts: Dict[tuple, dict] = {}
-        spans: List[dict] = []
+        self._facts: dict[tuple, dict] = {}
+        spans: list[dict] = []
         for s in self.segs:
             ident = (s["def_version"], s["def_from_bar"])
             if not spans or ident != (spans[-1]["version"], spans[-1]["from_bar"]):
                 d = self.defs[s["def_version"]]
-                spans.append({"version": s["def_version"], "from_bar": s["def_from_bar"], "cycle": d["cycle_beats"],
-                              "offset": 0})
+                spans.append(
+                    {"version": s["def_version"], "from_bar": s["def_from_bar"], "cycle": d["cycle_beats"], "offset": 0}
+                )
         for k in range(1, len(spans)):
             prev = spans[k - 1]
             used = max(0, spans[k]["from_bar"] - prev["from_bar"])
@@ -646,7 +783,7 @@ class RunTimeline:
                 chosen = s
         return chosen
 
-    def _build(self) -> List[dict]:
+    def _build(self) -> list[dict]:
         m, segs, out = self.m, self.segs, []
         bar = 0
         while bar < 1_000_000:
@@ -673,12 +810,23 @@ class RunTimeline:
                 if end <= start + tm.EPS_MS:
                     continue
                 f = self.facts(sp["version"], i)
-                out.append({"key": (sp["version"], i), "slot": i, "def_version": sp["version"], "facts": f,
-                            "start_e": start, "end_e": end, "start_t": self.clock.t_of(start),
-                            "end_t": self.clock.t_of(end),
-                            "pass": sp["offset"] + math.floor((bar - sp["from_bar"]) * m / cycle) + 1,
-                            "run_bar": bar + 1, "bar": math.floor(cb / m) + 1,
-                            "beat_ms": tm.beat_ms(tm.segment_at(segs, bar)["bpm"]), "bar_ix": bar})
+                out.append(
+                    {
+                        "key": (sp["version"], i),
+                        "slot": i,
+                        "def_version": sp["version"],
+                        "facts": f,
+                        "start_e": start,
+                        "end_e": end,
+                        "start_t": self.clock.t_of(start),
+                        "end_t": self.clock.t_of(end),
+                        "pass": sp["offset"] + math.floor((bar - sp["from_bar"]) * m / cycle) + 1,
+                        "run_bar": bar + 1,
+                        "bar": math.floor(cb / m) + 1,
+                        "beat_ms": tm.beat_ms(tm.segment_at(segs, bar)["bpm"]),
+                        "bar_ix": bar,
+                    }
+                )
             bar += 1
         for n, inst in enumerate(out):
             inst["i"] = n
@@ -699,8 +847,16 @@ class RunTimeline:
             rel = max(0, bar - sp["from_bar"]) * self.m
             p = sp["offset"] + math.floor(rel / sp["cycle"]) + 1
             cbar = math.floor((rel % sp["cycle"]) / self.m) + 1
-        return {"pass": p, "run_bar": bar + 1, "bar": cbar, "beat": beat, "beat_ms": tm.beat_ms(s["bpm"]), "grid": grid,
-                "w_m": w_m, "bar_ix": bar}
+        return {
+            "pass": p,
+            "run_bar": bar + 1,
+            "bar": cbar,
+            "beat": beat,
+            "beat_ms": tm.beat_ms(s["bpm"]),
+            "grid": grid,
+            "w_m": w_m,
+            "bar_ix": bar,
+        }
 
     def beats_between(self, t1: float, t2: float) -> float:
         a = tm.bar_at(self.segs, self.m, self.clock.epoch_of(t1))
@@ -714,7 +870,7 @@ class RunTimeline:
     def bar_t(self, bar_ix: int) -> float:
         return self.clock.t_of(tm.t_epoch(self.segs, self.m, bar_ix))
 
-    def threshold(self, inst: Optional[dict]) -> int:
+    def threshold(self, inst: dict | None) -> int:
         """The top line's lowest note at an instance: C4, or above backing full's top voice (at most A4 + 1)."""
         if inst is None:
             return LINE_MIN_NOTE
@@ -728,7 +884,7 @@ class RunTimeline:
         return LINE_MIN_NOTE
 
 
-def _tones_from_pcs(pcs: Sequence[int], root: int) -> Dict[str, int]:
+def _tones_from_pcs(pcs: Sequence[int], root: int) -> dict[str, int]:
     """Roles for a chord read from his playing (free play): the tones_pc a def would carry."""
     rel = {(p - root) % 12: p for p in pcs}
     tones = {"root": root}
@@ -749,8 +905,15 @@ def _tones_from_pcs(pcs: Sequence[int], root: int) -> Dict[str, int]:
         tones["seventh"] = rel[10]
     elif 11 in rel:
         tones["seventh"] = rel[11]
-    for i, role in ((1, "ninth"), (2, "ninth"), (3, "ninth"), (5, "eleventh"), (6, "eleventh"), (8, "thirteenth"),
-                    (9, "thirteenth")):
+    for i, role in (
+        (1, "ninth"),
+        (2, "ninth"),
+        (3, "ninth"),
+        (5, "eleventh"),
+        (6, "eleventh"),
+        (8, "thirteenth"),
+        (9, "thirteenth"),
+    ):
         p = (root + i) % 12
         if p in pcs and p not in tones.values() and role not in tones:
             tones["sixth" if i == 9 and "seventh" not in tones else role] = p
@@ -766,9 +929,9 @@ class FreeTimeline:
 
     def __init__(self, doc: dict, duration_ms: float):
         home = doc.get("home_key")
-        self.instances: List[dict] = []
-        self._facts: Dict[tuple, dict] = {}
-        self.slot_keys: List[tuple] = []
+        self.instances: list[dict] = []
+        self._facts: dict[tuple, dict] = {}
+        self.slot_keys: list[tuple] = []
         for row in doc.get("windows") or []:
             if not pr.is_chord(row):
                 continue
@@ -783,17 +946,42 @@ class FreeTimeline:
             skey = (key, name)
             if skey not in self._facts:
                 chord = sorted(set(pcs) | {bass_pc})
-                slot = {"name": name, "n": row.get("number"), "key": key, "tones_pc": _tones_from_pcs(pcs, root),
-                        "bass_pc": bass_pc, "chord_pcs": chord, "class": row.get("class"),
-                        "scale": scale_for_class(chord, root, key, row.get("class"), row.get("suffix") or "",
-                                                 row.get("fits") or (), row.get("class_detail") or "",
-                                                 row.get("target"))}
+                slot = {
+                    "name": name,
+                    "n": row.get("number"),
+                    "key": key,
+                    "tones_pc": _tones_from_pcs(pcs, root),
+                    "bass_pc": bass_pc,
+                    "chord_pcs": chord,
+                    "class": row.get("class"),
+                    "scale": scale_for_class(
+                        chord,
+                        root,
+                        key,
+                        row.get("class"),
+                        row.get("suffix") or "",
+                        row.get("fits") or (),
+                        row.get("class_detail") or "",
+                        row.get("target"),
+                    ),
+                }
                 self._facts[skey] = slot_facts(slot)
                 self.slot_keys.append(skey)
-            self.instances.append({"key": skey, "slot": self.slot_keys.index(skey), "def_version": None,
-                                   "facts": self._facts[skey], "start_t": float(row["start_ms"]),
-                                   "end_t": float(row["end_ms"]), "pass": None, "run_bar": None, "bar": None,
-                                   "beat_ms": FREE_BEAT_MS, "bar_ix": None})
+            self.instances.append(
+                {
+                    "key": skey,
+                    "slot": self.slot_keys.index(skey),
+                    "def_version": None,
+                    "facts": self._facts[skey],
+                    "start_t": float(row["start_ms"]),
+                    "end_t": float(row["end_ms"]),
+                    "pass": None,
+                    "run_bar": None,
+                    "bar": None,
+                    "beat_ms": FREE_BEAT_MS,
+                    "bar_ix": None,
+                }
+            )
         self.instances.sort(key=lambda x: x["start_t"])
         for n, inst in enumerate(self.instances):
             inst["i"] = n
@@ -805,8 +993,16 @@ class FreeTimeline:
         return self._facts[self.slot_keys[i]]
 
     def position(self, t_ms: float) -> dict:
-        return {"pass": None, "run_bar": None, "bar": None, "beat": None, "beat_ms": FREE_BEAT_MS, "grid": None,
-                "w_m": FREE_W_M, "bar_ix": None}
+        return {
+            "pass": None,
+            "run_bar": None,
+            "bar": None,
+            "beat": None,
+            "beat_ms": FREE_BEAT_MS,
+            "grid": None,
+            "w_m": FREE_W_M,
+            "bar_ix": None,
+        }
 
     def beats_between(self, t1: float, t2: float) -> float:
         return (t2 - t1) / FREE_BEAT_MS
@@ -816,22 +1012,30 @@ class FreeTimeline:
 
 
 # ============================================================================================ his notes
-def _window_ms(beat_ms: float, rule: Tuple[float, float]) -> float:
+def _window_ms(beat_ms: float, rule: tuple[float, float]) -> float:
     return min(rule[0] * beat_ms, rule[1])
 
 
-def read_notes(tl, snd: dict, lo_t: float, hi_t: float) -> Tuple[List[dict], List[dict], List[List[dict]]]:
+def read_notes(tl, snd: dict, lo_t: float, hi_t: float) -> tuple[list[dict], list[dict], list[list[dict]]]:
     """(notes, top line, attacks) of his inside [lo_t, hi_t): positions, top line, lengths, weights, the chord each
     note is heard against (with anticipations) and its class and label (11.3 steps 2-5)."""
     recs = []
     for n in snd["notes"]:
         if lo_t <= n["on_ms"] < hi_t:
             end = n["end_ms"] if n["off_ms"] is None else min(n["off_ms"], n["end_ms"])
-            recs.append({"note": n["note"], "on": float(n["on_ms"]), "key_end": float(end), "vel": n["vel"],
-                         "top": False, "flags": []})
+            recs.append(
+                {
+                    "note": n["note"],
+                    "on": float(n["on_ms"]),
+                    "key_end": float(end),
+                    "vel": n["vel"],
+                    "top": False,
+                    "flags": [],
+                }
+            )
     recs.sort(key=lambda r: (r["on"], r["note"]))
     insts, starts = tl.instances, tl.starts
-    attacks: List[List[dict]] = []
+    attacks: list[list[dict]] = []
     for r in recs:
         r["pos"] = tl.position(r["on"])
         if attacks and r["on"] - attacks[-1][0]["on"] <= ONSET_GROUP_MS:
@@ -866,7 +1070,7 @@ def read_notes(tl, snd: dict, lo_t: float, hi_t: float) -> Tuple[List[dict], Lis
     return recs, tops, attacks
 
 
-def _judge(tl, r: dict) -> Tuple[Optional[dict], List[str]]:
+def _judge(tl, r: dict) -> tuple[dict | None, list[str]]:
     """The slot instance a note is heard against (MUSIC 9.4): the one sounding, or the next when the note anticipates
     it (the change at most min(0.5 beat, 300 ms) away, the note in the next chord and not in the current one)."""
     insts, t, pc = tl.instances, r["on"], r["note"] % 12
@@ -881,9 +1085,13 @@ def _judge(tl, r: dict) -> Tuple[Optional[dict], List[str]]:
     cur = insts[i]
     nxt = insts[i + 1] if i + 1 < len(insts) else None
     sounding = t + ONSET_EPS_MS < cur["end_t"]
-    if tl.grid and nxt is not None \
-            and ONSET_EPS_MS < nxt["start_t"] - t <= _window_ms(cur["beat_ms"], ANTICIPATE_MAX) + ONSET_EPS_MS \
-            and pc in nxt["facts"]["chord"] and not (sounding and pc in cur["facts"]["chord"]):
+    if (
+        tl.grid
+        and nxt is not None
+        and ONSET_EPS_MS < nxt["start_t"] - t <= _window_ms(cur["beat_ms"], ANTICIPATE_MAX) + ONSET_EPS_MS
+        and pc in nxt["facts"]["chord"]
+        and not (sounding and pc in cur["facts"]["chord"])
+    ):
         return nxt, ["anticipates"]
     return cur, ([] if sounding else ["in a rest"])
 
@@ -896,22 +1104,31 @@ def _sits(r: dict) -> bool:
     return pc in f["chord"] or (pc in f["scale"] and pc not in f["rubs"])
 
 
-def classify_note(r: dict, f: dict) -> Tuple[str, Optional[str]]:
+def classify_note(r: dict, f: dict) -> tuple[str, str | None]:
     """(class, slide direction) of a note against chord facts f (11.3 step 5, first match wins)."""
     pc, nxt, beat_ms = r["note"] % 12, r.get("next_top"), r["pos"]["beat_ms"]
     if pc in f["chord"]:
         return "in_chord", None
     if pc in f["rubs"]:
-        if r["len_beats"] < PASSING_MAX_BEATS and r["pos"]["w_m"] < PASSING_W_MAX and nxt is not None \
-                and 1 <= abs(nxt["note"] - r["note"]) <= PASSING_STEP \
-                and nxt["on"] - (r["on"] + r["len_ms"]) <= PASSING_WITHIN_BEATS * beat_ms + 1 and _sits(nxt):
+        if (
+            r["len_beats"] < PASSING_MAX_BEATS
+            and r["pos"]["w_m"] < PASSING_W_MAX
+            and nxt is not None
+            and 1 <= abs(nxt["note"] - r["note"]) <= PASSING_STEP
+            and nxt["on"] - (r["on"] + r["len_ms"]) <= PASSING_WITHIN_BEATS * beat_ms + 1
+            and _sits(nxt)
+        ):
             return "passing", None
         return "rub", None
     if pc in f["scale"]:
         return "colour", None
-    if r["len_ms"] <= _window_ms(beat_ms, SLIDE_IN_MAX) + 1 and nxt is not None \
-            and nxt["on"] - r["on"] <= SLIDE_IN_RESOLVE_BEATS * beat_ms + 1 and abs(nxt["note"] - r["note"]) == 1 \
-            and _sits(nxt):
+    if (
+        r["len_ms"] <= _window_ms(beat_ms, SLIDE_IN_MAX) + 1
+        and nxt is not None
+        and nxt["on"] - r["on"] <= SLIDE_IN_RESOLVE_BEATS * beat_ms + 1
+        and abs(nxt["note"] - r["note"]) == 1
+        and _sits(nxt)
+    ):
         return "slide_in", "below" if nxt["note"] > r["note"] else "above"
     return "outside", None
 
@@ -936,8 +1153,8 @@ def _in_filter(pos: dict, opts: dict) -> bool:
     return not bars or (pos.get("run_bar") is not None and bars[0] <= pos["run_bar"] <= bars[1])
 
 
-def _count(items, key) -> Dict[str, int]:
-    out: Dict[str, int] = {}
+def _count(items, key) -> dict[str, int]:
+    out: dict[str, int] = {}
     for x in items:
         k = key(x)
         if k is not None:
@@ -945,7 +1162,7 @@ def _count(items, key) -> Dict[str, int]:
     return dict(sorted(out.items(), key=lambda kv: (-kv[1], kv[0])))
 
 
-def _landing(tl, tops: List[dict], top_on: List[float], inst: dict):
+def _landing(tl, tops: list[dict], top_on: list[float], inst: dict):
     """(note, class, label) of his first top-line onset from just before an instance's start to 250 ms after it."""
     lo = inst["start_t"] - _window_ms(inst["beat_ms"], LANDING_BEFORE)
     j = bisect_left(top_on, lo - 1e-6)
@@ -958,12 +1175,12 @@ def _landing(tl, tops: List[dict], top_on: List[float], inst: dict):
     return r, cls, tone_label(inst["facts"], r["note"] % 12)
 
 
-def _slot_scale(f: dict, tops: List[dict]) -> Optional[dict]:
+def _slot_scale(f: dict, tops: list[dict]) -> dict | None:
     """The scale his top line made over a slot (11.3 step 6), with the naming gate."""
     total = sum(r["w"] for r in tops)
     if len(tops) < SCALE_MIN_NOTES or total <= 0:
         return None
-    hist: Dict[int, float] = {}
+    hist: dict[int, float] = {}
     for r in tops:
         i = (r["note"] - f["root"]) % 12
         hist[i] = hist.get(i, 0.0) + r["w"] / total
@@ -972,16 +1189,22 @@ def _slot_scale(f: dict, tops: List[dict]) -> Optional[dict]:
     named, own_i, own_share = scale_gate(best, hist)
     root = pr.pc_name(f["root"], f["key"])
     own_pc = (f["root"] + own_i) % 12 if own_i is not None else None
-    return {"best": f"{root} {best['name']}", "score": _r(best["score"]), "runner_up": f"{root} {runner['name']}",
-            "margin": _r(best["score"] - runner["score"]), "named": bool(named),
-            "own_note": pr.pc_name(own_pc, f["key"]) if own_pc is not None else None,
-            "own_label": tone_label(f, own_pc) if own_pc is not None else None,
-            "own_count": sum(1 for r in tops if r["note"] % 12 == own_pc) if own_pc is not None else None,
-            "own_share": _r(own_share), "notes": len(tops),
-            "say": f"{root} {best['name']}" if named else f"the notes of {f['key']}"}
+    return {
+        "best": f"{root} {best['name']}",
+        "score": _r(best["score"]),
+        "runner_up": f"{root} {runner['name']}",
+        "margin": _r(best["score"] - runner["score"]),
+        "named": bool(named),
+        "own_note": pr.pc_name(own_pc, f["key"]) if own_pc is not None else None,
+        "own_label": tone_label(f, own_pc) if own_pc is not None else None,
+        "own_count": sum(1 for r in tops if r["note"] % 12 == own_pc) if own_pc is not None else None,
+        "own_share": _r(own_share),
+        "notes": len(tops),
+        "say": f"{root} {best['name']}" if named else f"the notes of {f['key']}",
+    }
 
 
-def _contour(notes: List[int]) -> str:
+def _contour(notes: list[int]) -> str:
     if len(notes) < 2 or max(notes) - min(notes) <= CONTOUR_FLAT_RANGE:
         return "flat"
     k, start, end, hi, lo = len(notes), notes[0], notes[-1], max(notes), min(notes)
@@ -997,9 +1220,9 @@ def _contour(notes: List[int]) -> str:
     return "wave"
 
 
-def _split_phrases(tl, tops: List[dict]) -> List[List[dict]]:
+def _split_phrases(tl, tops: list[dict]) -> list[list[dict]]:
     """Top-line gaps of max(1 beat, 600 ms) end a phrase; a phrase over 4 bars splits at its longest inner gap."""
-    groups: List[List[dict]] = []
+    groups: list[list[dict]] = []
     for r in tops:
         if groups:
             prev = groups[-1][-1]
@@ -1010,23 +1233,25 @@ def _split_phrases(tl, tops: List[dict]) -> List[List[dict]]:
             groups[-1].append(r)
         else:
             groups.append([r])
-    out: List[List[dict]] = []
+    out: list[list[dict]] = []
     stack = list(reversed(groups))
     while stack:
         g = stack.pop()
         span = tl.beats_between(g[0]["on"], g[-1]["on"] + g[-1]["len_ms"]) / tl.m if tl.grid else 0
-        gaps = [((g[k + 1]["on"] - (g[k]["on"] + g[k]["len_ms"])) / g[k]["pos"]["beat_ms"], k) for k in range(len(g) - 1)]
+        gaps = [
+            ((g[k + 1]["on"] - (g[k]["on"] + g[k]["len_ms"])) / g[k]["pos"]["beat_ms"], k) for k in range(len(g) - 1)
+        ]
         gaps = [x for x in gaps if x[0] >= PHRASE_SPLIT_MIN_BEATS]
         if span > PHRASE_MAX_BARS and gaps:
             _, k = max(gaps, key=lambda x: (x[0], -x[1]))
-            stack.append(g[k + 1:])
-            stack.append(g[:k + 1])
+            stack.append(g[k + 1 :])
+            stack.append(g[: k + 1])
         else:
             out.append(g)
     return out
 
 
-def _phrases(tl, tops: List[dict]) -> List[dict]:
+def _phrases(tl, tops: list[dict]) -> list[dict]:
     groups = _split_phrases(tl, tops)
     out = []
     for n, g in enumerate(groups):
@@ -1035,10 +1260,16 @@ def _phrases(tl, tops: List[dict]) -> List[dict]:
         breath_end = min(groups[n + 1][0]["on"] if n + 1 < len(groups) else math.inf, e["on"] + e["len_ms"] + gap)
         notes = [r["note"] for r in g]
         key = s["inst"]["facts"]["key"] if s.get("inst") else None
-        ph = {"at": pr.clock(s["on"]), "t_ms": s["on"], "notes": len(g),
-              "range": [pr.midi_name(min(notes), key), pr.midi_name(max(notes), key)], "contour": _contour(notes),
-              "landing": {"class": e.get("class"), "label": e.get("label"), "name": e.get("name")},
-              "_last": e, "_first": s}
+        ph = {
+            "at": pr.clock(s["on"]),
+            "t_ms": s["on"],
+            "notes": len(g),
+            "range": [pr.midi_name(min(notes), key), pr.midi_name(max(notes), key)],
+            "contour": _contour(notes),
+            "landing": {"class": e.get("class"), "label": e.get("label"), "name": e.get("name")},
+            "_last": e,
+            "_first": s,
+        }
         if tl.grid:
             pos, m = s["pos"], tl.m
             line = tl.bar_line_after(s["on"])
@@ -1058,7 +1289,7 @@ def _phrases(tl, tops: List[dict]) -> List[dict]:
     return out
 
 
-def _concepts(tl, card: Optional[dict], variant, version) -> List[dict]:
+def _concepts(tl, card: dict | None, variant, version) -> list[dict]:
     """The card's concept notes (11.4): its checks' roles, its landing, and the #11 on a lydian card."""
     if version is None or not card:
         return []
@@ -1085,12 +1316,13 @@ def _concepts(tl, card: Optional[dict], variant, version) -> List[dict]:
             continue
         seen.add((slot, pc))
         f = tl.facts(version, slot)
-        out.append({"slot": slot, "pc": pc, "note": pr.pc_name(pc, f["key"]), "label": tone_label(f, pc),
-                    "source": source})
+        out.append(
+            {"slot": slot, "pc": pc, "note": pr.pc_name(pc, f["key"]), "label": tone_label(f, pc), "source": source}
+        )
     return out
 
 
-def analyse_block(tl, snd: dict, opts: Optional[dict] = None, card: Optional[dict] = None, variant=None) -> dict:
+def analyse_block(tl, snd: dict, opts: dict | None = None, card: dict | None = None, variant=None) -> dict:
     """Everything 11.3 reports for one run (or free play), before readings, highlights and talking points."""
     opts = opts or {}
     insts_all = tl.instances
@@ -1102,10 +1334,11 @@ def analyse_block(tl, snd: dict, opts: Optional[dict] = None, card: Optional[dic
     top_on = [r["on"] for r in tops]
     landings = {x["i"]: _landing(tl, tops, top_on, x) for x in insts}
 
-    slot_meta: Dict[tuple, dict] = {}
+    slot_meta: dict[tuple, dict] = {}
     for x in insts_all:
-        slot_meta.setdefault(x["key"], {"facts": x["facts"], "slot": x["slot"], "def_version": x["def_version"],
-                                        "insts": []})
+        slot_meta.setdefault(
+            x["key"], {"facts": x["facts"], "slot": x["slot"], "def_version": x["def_version"], "insts": []}
+        )
     for x in insts:
         slot_meta[x["key"]]["insts"].append(x)
     versions = sorted({x["def_version"] for x in insts_all if x["def_version"] is not None})
@@ -1115,44 +1348,105 @@ def analyse_block(tl, snd: dict, opts: Optional[dict] = None, card: Optional[dic
         st = [r for r in tops_c if r["inst"]["key"] == sk]
         sa = [r for r in counted if r["inst"]["key"] == sk]
         land = [landings[x["i"]] for x in s["insts"] if landings.get(x["i"])]
-        block = {"slot": s["slot"], "name": f["name"], "number": f["number"], "class": f["class"],
-                 "instances": len(s["insts"]),
-                 "classes": {c: sum(1 for r in st if r["class"] == c) for c in CLASSES},
-                 "all_notes": {c: sum(1 for r in sa if r["class"] == c) for c in CLASSES},
-                 "labels": _count(st, lambda r: r["label"]), "bass_labels": _count(st, lambda r: r["bass_label"]),
-                 "landings": _count(land, lambda x: x[2]), "reharmonized": [],
-                 "outside": [{"at": pr.clock(r["on"]), "t_ms": r["on"], "name": r["name"], "beats": _r(r["len_beats"], 2),
-                              "in_key": "in the key, not this chord" in r["flags"]}
-                             for r in st if r["class"] == "outside"],
-                 "rubs": [{"at": pr.clock(r["on"]), "t_ms": r["on"], "name": r["name"], "beats": _r(r["len_beats"], 2),
-                           "against": pr.pc_name((r["note"] - 1) % 12 if (r["note"] - 1) % 12 in f["chord"]
-                                                 else (r["note"] + 1) % 12, f["key"])}
-                          for r in st if r["class"] == "rub"],
-                 "passing": [{"at": pr.clock(r["on"]), "t_ms": r["on"], "name": r["name"],
-                              "beats": _r(r["len_beats"], 2)} for r in st if r["class"] == "passing"],
-                 "scale": _slot_scale(f, st)}
+        block = {
+            "slot": s["slot"],
+            "name": f["name"],
+            "number": f["number"],
+            "class": f["class"],
+            "instances": len(s["insts"]),
+            "classes": {c: sum(1 for r in st if r["class"] == c) for c in CLASSES},
+            "all_notes": {c: sum(1 for r in sa if r["class"] == c) for c in CLASSES},
+            "labels": _count(st, lambda r: r["label"]),
+            "bass_labels": _count(st, lambda r: r["bass_label"]),
+            "landings": _count(land, lambda x: x[2]),
+            "reharmonized": [],
+            "outside": [
+                {
+                    "at": pr.clock(r["on"]),
+                    "t_ms": r["on"],
+                    "name": r["name"],
+                    "beats": _r(r["len_beats"], 2),
+                    "in_key": "in the key, not this chord" in r["flags"],
+                }
+                for r in st
+                if r["class"] == "outside"
+            ],
+            "rubs": [
+                {
+                    "at": pr.clock(r["on"]),
+                    "t_ms": r["on"],
+                    "name": r["name"],
+                    "beats": _r(r["len_beats"], 2),
+                    "against": pr.pc_name(
+                        (r["note"] - 1) % 12 if (r["note"] - 1) % 12 in f["chord"] else (r["note"] + 1) % 12, f["key"]
+                    ),
+                }
+                for r in st
+                if r["class"] == "rub"
+            ],
+            "passing": [
+                {"at": pr.clock(r["on"]), "t_ms": r["on"], "name": r["name"], "beats": _r(r["len_beats"], 2)}
+                for r in st
+                if r["class"] == "passing"
+            ],
+            "scale": _slot_scale(f, st),
+        }
         if len(versions) > 1:
             block["def_version"] = s["def_version"]
         block["_key"], block["_facts"], block["_tops"] = sk, f, st
         slots.append(block)
 
-    out = {"coverage": {}, "slots": slots, "passes": [], "phrases": _phrases(tl, tops_c),
-           "anticipations": [{"at": pr.clock(r["on"]), "t_ms": r["on"], "to_slot": r["inst"]["slot"],
-                              "early_ms": _r(r["inst"]["start_t"] - r["on"], 1), "name": r["name"]}
-                             for r in counted if "anticipates" in r["flags"]] if tl.grid else [],
-           "slide_ins": [{"at": pr.clock(r["on"]), "t_ms": r["on"], "name": r["name"],
-                          "to": r["next_top"]["name"] if r["next_top"] else None, "direction": r["direction"]}
-                         for r in counted if r["class"] == "slide_in"],
-           "_recs": counted, "_tops": tops_c, "_attacks": attacks, "_insts": insts, "_landings": landings, "_tl": tl}
+    out = {
+        "coverage": {},
+        "slots": slots,
+        "passes": [],
+        "phrases": _phrases(tl, tops_c),
+        "anticipations": [
+            {
+                "at": pr.clock(r["on"]),
+                "t_ms": r["on"],
+                "to_slot": r["inst"]["slot"],
+                "early_ms": _r(r["inst"]["start_t"] - r["on"], 1),
+                "name": r["name"],
+            }
+            for r in counted
+            if "anticipates" in r["flags"]
+        ]
+        if tl.grid
+        else [],
+        "slide_ins": [
+            {
+                "at": pr.clock(r["on"]),
+                "t_ms": r["on"],
+                "name": r["name"],
+                "to": r["next_top"]["name"] if r["next_top"] else None,
+                "direction": r["direction"],
+            }
+            for r in counted
+            if r["class"] == "slide_in"
+        ],
+        "_recs": counted,
+        "_tops": tops_c,
+        "_attacks": attacks,
+        "_insts": insts,
+        "_landings": landings,
+        "_tl": tl,
+    }
 
     if tl.grid:
         bars_set = set()
         for x in insts:
             last = tl.position(max(x["start_t"], x["end_t"] - ONSET_EPS_MS - 1))["bar_ix"]  # the bar it ends in
-            bars_set.update(b for b in range(x["bar_ix"], last + 1) if _in_filter({"pass": x["pass"], "run_bar": b + 1}, opts))
-        out["coverage"] = {"passes": len({x["pass"] for x in insts}), "bars": len(bars_set),
-                           "bars_with_his_notes": len({r["pos"]["bar_ix"] for r in counted} & bars_set),
-                           "notes": len(counted), "top_line_notes": len(tops_c)}
+            bars_set.update(
+                b for b in range(x["bar_ix"], last + 1) if _in_filter({"pass": x["pass"], "run_bar": b + 1}, opts)
+            )
+        out["coverage"] = {
+            "passes": len({x["pass"] for x in insts}),
+            "bars": len(bars_set),
+            "bars_with_his_notes": len({r["pos"]["bar_ix"] for r in counted} & bars_set),
+            "notes": len(counted),
+            "top_line_notes": len(tops_c),
+        }
         out["degrees_by_bar"] = _degrees(tl, insts, tops_c)
         out["passes"] = _passes(tl, insts, counted, attacks, snd, bars_set)
     else:
@@ -1160,9 +1454,9 @@ def analyse_block(tl, snd: dict, opts: Optional[dict] = None, card: Optional[dic
     return out
 
 
-def _degrees(tl, insts: List[dict], tops: List[dict]) -> dict:
+def _degrees(tl, insts: list[dict], tops: list[dict]) -> dict:
     """The top line's degree per bar (11.3 step 8): per pass, and the label that wins each bar in the most passes."""
-    cells: Dict[tuple, Dict[str, float]] = {}
+    cells: dict[tuple, dict[str, float]] = {}
     for r in tops:
         if r["pos"]["bar"] is None:
             continue
@@ -1199,7 +1493,7 @@ def _degrees(tl, insts: List[dict], tops: List[dict]) -> dict:
     return out
 
 
-def _passes(tl, insts: List[dict], recs: List[dict], attacks: List[List[dict]], snd: dict, bars_set: set) -> List[dict]:
+def _passes(tl, insts: list[dict], recs: list[dict], attacks: list[list[dict]], snd: dict, bars_set: set) -> list[dict]:
     """Per pass (11.3 step 10): range, velocity, shares, rests, pedal, onsets per bar, and at most one picking fact."""
     rows = []
     seen_colours: set = set()
@@ -1224,17 +1518,31 @@ def _passes(tl, insts: List[dict], recs: List[dict], attacks: List[List[dict]], 
         new_colours = sorted(colours - seen_colours) if seen_colours or p != min(x["pass"] for x in insts) else []
         seen_colours |= colours
         pass_attacks = sum(1 for a in attacks if a[0] in pr_all)
-        rows.append({"pass": p, "range": [pr.midi_name(min(notes), key), pr.midi_name(max(notes), key)] if notes else None,
-                     "vel_median": _median(vels), "vel_p90": _p90(vels),
-                     "shares": {k: _r(v / total, 3) if total else 0.0 for k, v in weight.items()}, "counts": counts,
-                     "rests": sum(1 for b in bars if b not in with_notes), "pedal": _r(pedal / (t1 - t0), 2) if t1 > t0 else 0.0,
-                     "onsets_per_bar": _r(pass_attacks / len(bars), 1) if bars else None, "notes": len(pr_all),
-                     "top_line_notes": len(pr_top), "fact": None,
-                     "_span": (max(notes) - min(notes)) if notes else -1, "_colour_w": weight["colour"],
-                     "_new": new_colours})
+        rows.append(
+            {
+                "pass": p,
+                "range": [pr.midi_name(min(notes), key), pr.midi_name(max(notes), key)] if notes else None,
+                "vel_median": _median(vels),
+                "vel_p90": _p90(vels),
+                "shares": {k: _r(v / total, 3) if total else 0.0 for k, v in weight.items()},
+                "counts": counts,
+                "rests": sum(1 for b in bars if b not in with_notes),
+                "pedal": _r(pedal / (t1 - t0), 2) if t1 > t0 else 0.0,
+                "onsets_per_bar": _r(pass_attacks / len(bars), 1) if bars else None,
+                "notes": len(pr_all),
+                "top_line_notes": len(pr_top),
+                "fact": None,
+                "_span": (max(notes) - min(notes)) if notes else -1,
+                "_colour_w": weight["colour"],
+                "_new": new_colours,
+            }
+        )
     if len(rows) >= 2:
-        picks = (("_span", "your widest top line"), ("vel_p90", "your strongest touch"),
-                 ("_colour_w", "your most colour"))
+        picks = (
+            ("_span", "your widest top line"),
+            ("vel_p90", "your strongest touch"),
+            ("_colour_w", "your most colour"),
+        )
         for field, words in picks:
             vals = [r[field] for r in rows if r[field] is not None]
             if not vals or max(vals) <= 0:
@@ -1253,14 +1561,14 @@ def _passes(tl, insts: List[dict], recs: List[dict], attacks: List[List[dict]], 
 
 
 # ================================================================================= readings and loopback
-def apply_readings(blocks: List[dict], theory_source=None, node: Optional[str] = None) -> None:
+def apply_readings(blocks: list[dict], theory_source=None, node: str | None = None) -> None:
     """His own reading (11.3 step 9): Theory.detect over the notes of his struck chords (attacks of 3 or more notes)
     in each slot instance, one node call for every block. A root or bass that differs from the loop's is reharmonized."""
     items, where = [], []
     for b in blocks:
         b["readings"] = "no struck chords of 3 or more notes"
         counted = {id(r) for r in b["_recs"]}
-        per_inst: Dict[int, Tuple[dict, set, float]] = {}
+        per_inst: dict[int, tuple[dict, set, float]] = {}
         for a in b["_attacks"]:
             if len(a) < READING_MIN_NOTES or id(a[0]) not in counted or a[0]["inst"] is None:
                 continue
@@ -1278,7 +1586,7 @@ def apply_readings(blocks: List[dict], theory_source=None, node: Optional[str] =
         b["readings"] = "piano.js Theory.detect via node" if answer else f"unavailable ({why})"
     if not answer:
         return
-    for (b, inst, notes, first), info in zip(where, answer["results"]):
+    for (b, inst, notes, first), info in zip(where, answer["results"], strict=False):
         f = inst["facts"]
         spelled = pr.spell_detect(info, f["key"])
         if not spelled or spelled["kind"] != "chord" or not spelled.get("root"):
@@ -1288,16 +1596,23 @@ def apply_readings(blocks: List[dict], theory_source=None, node: Optional[str] =
         if root_pc == f["root"] and not (bass_pc != f["bass"] and min(notes) < pr.BASS_MAX_MIDI):
             continue
         number = pr._number(spelled["name"], f["key"])
-        entry = {"at": pr.clock(first), "t_ms": first, "pass": inst["pass"], "played": spelled["name"],
-                 "played_number": number, "over": f["name"], "over_number": f["number"],
-                 "text": f"over {f['number'] or f['name']} you played {number or spelled['name']}"}
+        entry = {
+            "at": pr.clock(first),
+            "t_ms": first,
+            "pass": inst["pass"],
+            "played": spelled["name"],
+            "played_number": number,
+            "over": f["name"],
+            "over_number": f["number"],
+            "text": f"over {f['number'] or f['name']} you played {number or spelled['name']}",
+        }
         inst["_reharm"] = entry
         for s in b["slots"]:
             if s["_key"] == inst["key"]:
                 s["reharmonized"].append(entry)
 
 
-def _def_onsets(tl) -> List[Tuple[float, int]]:
+def _def_onsets(tl) -> list[tuple[float, int]]:
     """Claude's notes rebuilt from the def when groove_bridge.mjs cannot answer: every chord's downbeat strikes. The bass
     always; the upper voices when humanize is 0 (a rolled or humanized upper voice can sit past LOOPBACK_MS) and the
     groove strikes them together (hold, ballad); a note held over from the chord before (hold, or upper: same) is not
@@ -1321,7 +1636,9 @@ def _def_onsets(tl) -> List[Tuple[float, int]]:
             prev = None
             continue
         bass, upper = notes[0], notes[1:] if backing != "bass" else []
-        joined = prev is not None and abs(prev[0]["end_e"] - x["start_e"]) < 1 and prev[0]["def_version"] == x["def_version"]
+        joined = (
+            prev is not None and abs(prev[0]["end_e"] - x["start_e"]) < 1 and prev[0]["def_version"] == x["def_version"]
+        )
         if not (joined and groove == "hold" and prev[1] == bass):
             out.append((x["start_t"], bass))
         tie_upper = joined and (groove == "hold" or x["facts"]["slot"].get("upper_same"))
@@ -1331,7 +1648,7 @@ def _def_onsets(tl) -> List[Tuple[float, int]]:
     return out
 
 
-def _bridge_onsets(tl, node: Optional[str] = None) -> Tuple[Optional[List[Tuple[float, int]]], Optional[str]]:
+def _bridge_onsets(tl, node: str | None = None) -> tuple[list[tuple[float, int]] | None, str | None]:
     """Claude's notes from arsenal/groove_bridge.mjs (J2), its run form: one node call for bars 0..the stop, `flat`
     for every struck note (no carries, no ticks) with its epoch_ms through the tempo map. (onsets, None) or
     (None, why)."""
@@ -1339,25 +1656,39 @@ def _bridge_onsets(tl, node: Optional[str] = None) -> Tuple[Optional[List[Tuple[
     if not node:
         return None, "node not found on PATH"
     run = {**tl.loaded["run"], "segments": tl.segs, "settings": tl.settings}
-    request = {"run": run, "defs": {str(v): d for v, d in tl.defs.items()}, "from_bar": 0, "to_bar": max(0, tl.bars),
-               "flat": True}
+    request = {
+        "run": run,
+        "defs": {str(v): d for v, d in tl.defs.items()},
+        "from_bar": 0,
+        "to_bar": max(0, tl.bars),
+        "flat": True,
+    }
     try:
-        proc = subprocess.run([node, str(GROOVE_BRIDGE)], input=json.dumps(request), capture_output=True, text=True,
-                              encoding="utf-8", timeout=60)
+        proc = subprocess.run(
+            [node, str(GROOVE_BRIDGE)],
+            input=json.dumps(request),
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            timeout=60,
+        )
         answer = json.loads(proc.stdout or "{}")
     except (OSError, subprocess.TimeoutExpired, ValueError) as exc:
         return None, f"{type(exc).__name__}: {exc}"
     if not isinstance(answer, dict) or not answer.get("ok") or not isinstance(answer.get("notes"), list):
         return None, (answer.get("error") if isinstance(answer, dict) else None) or f"exit {proc.returncode}, no notes"
-    onsets = []
-    for e in answer["notes"]:
-        if isinstance(e, dict) and isinstance(e.get("midi"), int) and _num(e.get("epoch_ms")) \
-                and e["epoch_ms"] < tl.end_epoch:
-            onsets.append((tl.clock.t_of(e["epoch_ms"]), e["midi"]))
+    onsets = [
+        (tl.clock.t_of(e["epoch_ms"]), e["midi"])
+        for e in answer["notes"]
+        if isinstance(e, dict)
+        and isinstance(e.get("midi"), int)
+        and _num(e.get("epoch_ms"))
+        and e["epoch_ms"] < tl.end_epoch
+    ]
     return onsets, None
 
 
-def loopback(tl, snd: dict, node: Optional[str] = None, rebuild: Optional[str] = None) -> dict:
+def loopback(tl, snd: dict, node: str | None = None, rebuild: str | None = None) -> dict:
     """The loopback guard (11.3 step 13): more than half of Claude's onsets met by one of his at the same pitch within
     LOOPBACK_MS means the loop may be echoing into the log. rebuild: None (the bridge when it answers, else the def),
     'def' or 'bridge'."""
@@ -1369,7 +1700,7 @@ def loopback(tl, snd: dict, node: Optional[str] = None, rebuild: Optional[str] =
         why = f"{GROOVE_BRIDGE.name} is not built yet"
     if onsets is None:
         onsets, source = _def_onsets(tl), "the def's downbeat strikes" + (f" ({why})" if why else "")
-    his: Dict[int, List[float]] = {}
+    his: dict[int, list[float]] = {}
     for n in snd["notes"]:
         his.setdefault(n["note"], []).append(float(n["on_ms"]))
     for v in his.values():
@@ -1382,12 +1713,17 @@ def loopback(tl, snd: dict, node: Optional[str] = None, rebuild: Optional[str] =
             matched += 1
     share = matched / len(onsets) if onsets else 0.0
     suspected = share > LOOPBACK_SHARE
-    return {"suspected": suspected, "mirrored_share": _r(share, 2), "claude_onsets": len(onsets), "source": source,
-            "say": "the loop may be echoing into the log (MIDI loopback)" if suspected else None}
+    return {
+        "suspected": suspected,
+        "mirrored_share": _r(share, 2),
+        "claude_onsets": len(onsets),
+        "source": source,
+        "say": "the loop may be echoing into the log (MIDI loopback)" if suspected else None,
+    }
 
 
 # ================================================================================ checks and highlights
-def card_checks(tl, block: dict, card: Optional[dict], variant, version) -> List[dict]:
+def card_checks(tl, block: dict, card: dict | None, variant, version) -> list[dict]:
     """The card's checks (DATA 2.8), each passing or not, with its say line and the counts behind it."""
     if not card or version is None:
         return []
@@ -1400,46 +1736,84 @@ def card_checks(tl, block: dict, card: Optional[dict], variant, version) -> List
         pc = ((f["bass"] if c.get("relative_to") == "bass" else f["root"]) + ROLE_INTERVALS.get(c.get("role"), 0)) % 12
         mine = [r for r in block["_recs"] if r["inst"]["slot"] == c["slot"] and r["inst"]["def_version"] == version]
         count = sum(1 for r in mine if r["note"] % 12 == pc)
-        landed = sum(1 for x in block["_insts"] if x["slot"] == c["slot"] and x["def_version"] == version
-                     and block["_landings"].get(x["i"]) and block["_landings"][x["i"]][0]["note"] % 12 == pc)
+        landed = sum(
+            1
+            for x in block["_insts"]
+            if x["slot"] == c["slot"]
+            and x["def_version"] == version
+            and block["_landings"].get(x["i"])
+            and block["_landings"][x["i"]][0]["note"] % 12 == pc
+        )
         want = c.get("want") or "present"
         ok = count >= 1 if want == "present" else landed >= 1 if want == "landing" else count == 0
         # the note is spelled from the chord's own tones (jam-rulings), as the card names it: Cb over Abm(add9), not B
-        note = tone_name(d["slots"][c["slot"]], c.get("role"), c.get("relative_to") or "root") or pr.pc_name(pc, f["key"])
-        out.append({"id": c.get("id"), "slot": c["slot"], "role": c.get("role"), "want": want, "pass": ok,
-                    "note": note, "count": count, "landings": landed, "say": c.get("say")})
+        note = tone_name(d["slots"][c["slot"]], c.get("role"), c.get("relative_to") or "root") or pr.pc_name(
+            pc, f["key"]
+        )
+        out.append(
+            {
+                "id": c.get("id"),
+                "slot": c["slot"],
+                "role": c.get("role"),
+                "want": want,
+                "pass": ok,
+                "note": note,
+                "count": count,
+                "landings": landed,
+                "say": c.get("say"),
+            }
+        )
     return out
 
 
-def card_landing(tl, block: dict, version) -> Optional[dict]:
+def card_landing(tl, block: dict, version) -> dict | None:
     """The card's landing (house idea): how often his first note on the landing chord was the note it names."""
     if version is None:
         return None
     landing = tl.defs[version].get("landing")
-    if not isinstance(landing, dict) or not isinstance(landing.get("slot"), int) or not isinstance(landing.get("pc"), int):
+    if (
+        not isinstance(landing, dict)
+        or not isinstance(landing.get("slot"), int)
+        or not isinstance(landing.get("pc"), int)
+    ):
         return None
     f = tl.facts(version, landing["slot"])
     insts = [x for x in block["_insts"] if x["slot"] == landing["slot"] and x["def_version"] == version]
     # only the times he played over the chord: passes before he joined or after he stopped are not misses
     played = {r["inst"]["i"] for r in block["_recs"]} | {i for i, ld in block["_landings"].items() if ld}
     heard = [x for x in insts if x["i"] in played]
-    landed = sum(1 for x in heard if block["_landings"].get(x["i"])
-                 and block["_landings"][x["i"]][0]["note"] % 12 == landing["pc"] % 12)
+    landed = sum(
+        1
+        for x in heard
+        if block["_landings"].get(x["i"]) and block["_landings"][x["i"]][0]["note"] % 12 == landing["pc"] % 12
+    )
     # spelled from the chord's own tones (jam-rulings); a def recorded before resolve named it is spelled here the same way
-    note = landing.get("note") or tone_name(tl.defs[version]["slots"][landing["slot"]], landing.get("role"),
-                                            landing.get("relative_to") or "root") or pr.pc_name(landing["pc"], f["key"])
-    return {"slot": landing["slot"], "name": f["name"], "note": note,
-            "label": tone_label(f, landing["pc"] % 12), "pull": landing.get("pull"), "instances": len(heard),
-            "instances_all": len(insts), "landed": landed}
+    note = (
+        landing.get("note")
+        or tone_name(
+            tl.defs[version]["slots"][landing["slot"]], landing.get("role"), landing.get("relative_to") or "root"
+        )
+        or pr.pc_name(landing["pc"], f["key"])
+    )
+    return {
+        "slot": landing["slot"],
+        "name": f["name"],
+        "note": note,
+        "label": tone_label(f, landing["pc"] % 12),
+        "pull": landing.get("pull"),
+        "instances": len(heard),
+        "instances_all": len(insts),
+        "landed": landed,
+    }
 
 
-def highlights(block: dict, session: str) -> List[dict]:
+def highlights(block: dict, session: str) -> list[dict]:
     """The top slot instances (11.3 step 14) by new colour labels + 2 x reharmonized + the velocity peak's z-score."""
     recs = block["_recs"]
     vels = [r["vel"] for r in recs if r["vel"] is not None]
     mean = sum(vels) / len(vels) if vels else 0.0
     std = math.sqrt(sum((v - mean) ** 2 for v in vels) / len(vels)) if vels else 0.0
-    by_inst: Dict[int, List[dict]] = {}
+    by_inst: dict[int, list[dict]] = {}
     for r in recs:
         by_inst.setdefault(r["inst"]["i"], []).append(r)
     seen, cands = set(), []
@@ -1468,20 +1842,34 @@ def highlights(block: dict, session: str) -> List[dict]:
         else:
             t, why = peak["on"], f"a peak in your touch (velocity {peak['vel']})"
             evidence = {"velocity": peak["vel"]}
-        cands.append((-score, t, {"at": pr.clock(t), "t_ms": t, "slot": x["slot"], "pass": x["pass"], "name": f["name"],
-                                  "why": why, "evidence": evidence, "rank": _r(score, 3),
-                                  "replay": replay_command(session, t - HIGHLIGHT_LEAD_S * 1000, HIGHLIGHT_SECONDS),
-                                  "save": save_command(session, t)}))
+        cands.append(
+            (
+                -score,
+                t,
+                {
+                    "at": pr.clock(t),
+                    "t_ms": t,
+                    "slot": x["slot"],
+                    "pass": x["pass"],
+                    "name": f["name"],
+                    "why": why,
+                    "evidence": evidence,
+                    "rank": _r(score, 3),
+                    "replay": replay_command(session, t - HIGHLIGHT_LEAD_S * 1000, HIGHLIGHT_SECONDS),
+                    "save": save_command(session, t),
+                },
+            )
+        )
     cands.sort(key=lambda c: (c[0], c[1]))
     return [c[2] for c in cands[:HIGHLIGHTS]]
 
 
 # ============================================================================ talking points (11.4)
-def _label_words(label: Optional[str]) -> str:
+def _label_words(label: str | None) -> str:
     return "root" if label == "R" else str(label)
 
 
-def _span_words(tl, r: dict) -> Tuple[str, float]:
+def _span_words(tl, r: dict) -> tuple[str, float]:
     """('2 beats', 2.0) on a loop's grid, ('1.4 seconds', 1.4) in free play, where there is no beat."""
     if tl.grid:
         beats = max(0.5, _half(r["len_beats"]))
@@ -1494,40 +1882,69 @@ def _against(f: dict, pc: int) -> str:
     return pr.pc_name((pc - 1) % 12 if (pc - 1) % 12 in f["chord"] else (pc + 1) % 12, f["key"])
 
 
-def talking_points(block: dict, session: str, run_id: Optional[str], concepts: List[dict],
-                   last_types: Sequence[str] = ()) -> List[dict]:
+def talking_points(
+    block: dict, session: str, run_id: str | None, concepts: list[dict], last_types: Sequence[str] = ()
+) -> list[dict]:
     """Every talking point whose gate passes, with its salience: type weight x min(1, count/5) x 1.25 for the card's
     concept note x 0.5 when the card's last saved riff made the same type of point. Counts, never percentages."""
     tl, slots, recs, phrases = block["_tl"], block["slots"], block["_recs"], block["phrases"]
     concept_set = {(c["slot"], c["pc"]) for c in concepts}
-    pts: List[dict] = []
+    pts: list[dict] = []
 
     def add(kind, count, text, times, evidence, concept=False):
-        sal = TP_WEIGHTS[kind] * min(1.0, count / SALIENCE_COUNT) * (CONCEPT_BOOST if concept else 1.0) \
+        sal = (
+            TP_WEIGHTS[kind]
+            * min(1.0, count / SALIENCE_COUNT)
+            * (CONCEPT_BOOST if concept else 1.0)
             * (REPEAT_DAMP if kind in last_types else 1.0)
+        )
         if sal <= 0:
             return
         times = sorted(times)
-        pts.append({"type": kind, "run": run_id, "text": text, "times": [pr.clock(t) for t in times[:6]],
-                    "replay": replay_command(session, times[0] - HIGHLIGHT_LEAD_S * 1000, HIGHLIGHT_SECONDS)
-                    if times else None, "evidence": evidence, "salience": _r(sal), "concept": bool(concept)})
+        pts.append(
+            {
+                "type": kind,
+                "run": run_id,
+                "text": text,
+                "times": [pr.clock(t) for t in times[:6]],
+                "replay": replay_command(session, times[0] - HIGHLIGHT_LEAD_S * 1000, HIGHLIGHT_SECONDS)
+                if times
+                else None,
+                "evidence": evidence,
+                "salience": _r(sal),
+                "concept": bool(concept),
+            }
+        )
 
     for s in slots:
         f, tops = s["_facts"], s["_tops"]
         colour = [r for r in tops if r["class"] == "colour"]
         cw = sum(r["w"] for r in colour)
         if colour and cw > 0:
-            by: Dict[str, List[dict]] = {}
+            by: dict[str, list[dict]] = {}
             for r in colour:
                 by.setdefault(r["label"], []).append(r)
             label, rs = max(by.items(), key=lambda kv: (sum(r["w"] for r in kv[1]), len(kv[1]), kv[0]))
             if sum(r["w"] for r in rs) / cw >= T1_LABEL_SHARE and len(rs) >= T1_MIN:
                 note = pr.pc_name(rs[0]["note"] % 12, f["key"])
                 where = f"{s['name']} ({s['number']})" if s["number"] else s["name"]
-                add("T1", len(rs), f"Over {where} your top line leaned on the {_label_words(label)}, {note}: "
-                    f"{len(rs)} of {len(tops)} notes, first at {pr.clock(rs[0]['on'])}.", [r["on"] for r in rs],
-                    {"name": s["name"], "number": s["number"], "label": label, "note": note, "count": len(rs),
-                     "notes": len(tops), "first": pr.clock(rs[0]["on"])}, (s["slot"], rs[0]["note"] % 12) in concept_set)
+                add(
+                    "T1",
+                    len(rs),
+                    f"Over {where} your top line leaned on the {_label_words(label)}, {note}: "
+                    f"{len(rs)} of {len(tops)} notes, first at {pr.clock(rs[0]['on'])}.",
+                    [r["on"] for r in rs],
+                    {
+                        "name": s["name"],
+                        "number": s["number"],
+                        "label": label,
+                        "note": note,
+                        "count": len(rs),
+                        "notes": len(tops),
+                        "first": pr.clock(rs[0]["on"]),
+                    },
+                    (s["slot"], rs[0]["note"] % 12) in concept_set,
+                )
         sc = s["scale"]
         if sc and sc["named"]:
             degree = _degree(s["number"])
@@ -1535,16 +1952,32 @@ def talking_points(block: dict, session: str, run_id: Optional[str], concepts: L
             if sc["own_note"]:
                 own_pc = _pc_of_name(sc["own_note"])
                 times = [r["on"] for r in tops if r["note"] % 12 == own_pc]
-                add("T2", sc["own_count"], f"Over {where} your notes made one scale ({sc['best']}): the "
-                    f"{sc['own_note']}, its {_label_words(sc['own_label'])}, came {_times(sc['own_count'])}.", times,
-                    {"name": s["name"], "degree": degree, "scale": sc["best"], "note": sc["own_note"],
-                     "label": sc["own_label"], "count": sc["own_count"]}, (s["slot"], own_pc) in concept_set)
+                add(
+                    "T2",
+                    sc["own_count"],
+                    f"Over {where} your notes made one scale ({sc['best']}): the "
+                    f"{sc['own_note']}, its {_label_words(sc['own_label'])}, came {_times(sc['own_count'])}.",
+                    times,
+                    {
+                        "name": s["name"],
+                        "degree": degree,
+                        "scale": sc["best"],
+                        "note": sc["own_note"],
+                        "label": sc["own_label"],
+                        "count": sc["own_count"],
+                    },
+                    (s["slot"], own_pc) in concept_set,
+                )
             else:
-                add("T2", sc["notes"], f"Over {where} your notes kept to five ({sc['best']}), {sc['notes']} of them "
-                    f"in all.", [r["on"] for r in tops], {"name": s["name"], "degree": degree, "scale": sc["best"],
-                                                          "count": sc["notes"]})
+                add(
+                    "T2",
+                    sc["notes"],
+                    f"Over {where} your notes kept to five ({sc['best']}), {sc['notes']} of them in all.",
+                    [r["on"] for r in tops],
+                    {"name": s["name"], "degree": degree, "scale": sc["best"], "count": sc["notes"]},
+                )
         if s["class"] == "borrowed":
-            hits: Dict[int, List[dict]] = {}
+            hits: dict[int, list[dict]] = {}
             for r in tops:
                 pc = r["note"] % 12
                 if r["class"] in ("outside", "slide_in") and pc in f["key_scale"] and pc not in f["scale"]:
@@ -1554,37 +1987,64 @@ def talking_points(block: dict, session: str, run_id: Optional[str], concepts: L
                 if len(rs) >= T5_MIN:
                     name = pr.pc_name(pc, f["key"])
                     word = f"{name} natural" if len(name) == 1 else name
-                    has = next((pr.pc_name(q, f["key"]) for q in sorted(f["scale"])
-                                if abs(pr._signed(q - pc)) == 1 and pr.pc_name(q, f["key"])[0] == name[0]), None)
+                    has = next(
+                        (
+                            pr.pc_name(q, f["key"])
+                            for q in sorted(f["scale"])
+                            if abs(pr._signed(q - pc)) == 1 and pr.pc_name(q, f["key"])[0] == name[0]
+                        ),
+                        None,
+                    )
                     where = f"{s['name']} ({s['number']}, borrowed)" if s["number"] else f"{s['name']} (borrowed)"
-                    add("T5", len(rs), f"Over {where} you played {word}, the key's note, {_times(len(rs))}"
-                        + (f"; the chord's scale has {has}." if has else "."), [r["on"] for r in rs],
+                    add(
+                        "T5",
+                        len(rs),
+                        f"Over {where} you played {word}, the key's note, {_times(len(rs))}"
+                        + (f"; the chord's scale has {has}." if has else "."),
+                        [r["on"] for r in rs],
                         {"name": s["name"], "number": s["number"], "note": name, "count": len(rs), "scale_note": has},
-                        (s["slot"], pc) in concept_set)
+                        (s["slot"], pc) in concept_set,
+                    )
 
     if len(phrases) >= T3_MIN_PHRASES:
         col = [p for p in phrases if p["landing"]["class"] in ("colour", "passing")]
         if col:
             labels = _count(col, lambda p: p["landing"]["label"])
             mostly = next(iter(labels))
-            add("T3", len(col), f"{len(col)} of your {len(phrases)} phrases landed on a colour, mostly the "
-                f"{_label_words(mostly)}.", [p["t_ms"] for p in col],
+            add(
+                "T3",
+                len(col),
+                f"{len(col)} of your {len(phrases)} phrases landed on a colour, mostly the {_label_words(mostly)}.",
+                [p["t_ms"] for p in col],
                 {"landed": len(col), "phrases": len(phrases), "label": mostly},
-                any((p["_last"]["inst"]["slot"], p["_last"]["note"] % 12) in concept_set for p in col))
+                any((p["_last"]["inst"]["slot"], p["_last"]["note"] % 12) in concept_set for p in col),
+            )
 
-    rubs = [(s, r) for s in slots for r in s["_tops"]
-            if r["class"] == "rub" and (tl.grid or r["len_beats"] >= PASSING_MAX_BEATS)]
+    rubs = [
+        (s, r)
+        for s in slots
+        for r in s["_tops"]
+        if r["class"] == "rub" and (tl.grid or r["len_beats"] >= PASSING_MAX_BEATS)
+    ]
     if rubs:
         s, r = max(rubs, key=lambda sr: (sr[1]["len_beats"], -sr[1]["on"]))
         f, pc = s["_facts"], r["note"] % 12
         name = pr.pc_name(pc, f["key"])
         span, amount = _span_words(tl, r)
-        text = (f"At {pr.clock(r['on'])} you held {name} over {s['name']} for {span}: it rubs a half step against the "
-                f"{_against(f, pc)}.")
+        text = (
+            f"At {pr.clock(r['on'])} you held {name} over {s['name']} for {span}: it rubs a half step against the "
+            f"{_against(f, pc)}."
+        )
         passing = [q for s2 in slots for q in s2["_tops"] if q["class"] == "passing" and q["note"] % 12 == pc]
         times = [r["on"]]
-        evidence = {"at": pr.clock(r["on"]), "note": name, "name": s["name"], "length": amount,
-                    "against": _against(f, pc), "count": len(rubs)}
+        evidence = {
+            "at": pr.clock(r["on"]),
+            "note": name,
+            "name": s["name"],
+            "length": amount,
+            "against": _against(f, pc),
+            "count": len(rubs),
+        }
         if passing:
             text += f" At {pr.clock(passing[0]['on'])} the same {name} passed quickly."
             times.append(passing[0]["on"])
@@ -1595,33 +2055,55 @@ def talking_points(block: dict, session: str, run_id: Optional[str], concepts: L
     if len(recs) >= T6_MIN_NOTES and out_n < len(recs) * T6_MAX_RATE:
         keys = sorted({x["facts"]["key"] for x in block["_insts"]})
         key_text = keys[0] if len(keys) == 1 else "the loop's keys"
-        add("T6", len(recs), (f"None of your {len(recs)} notes left {key_text}." if out_n == 0 else
-                              f"Only {out_n} of your {len(recs)} notes left {key_text}."), [],
-            {"notes": len(recs), "outside": out_n, "key": key_text})
+        add(
+            "T6",
+            len(recs),
+            (
+                f"None of your {len(recs)} notes left {key_text}."
+                if out_n == 0
+                else f"Only {out_n} of your {len(recs)} notes left {key_text}."
+            ),
+            [],
+            {"notes": len(recs), "outside": out_n, "key": key_text},
+        )
 
     slides = sorted((r for r in recs if r["class"] == "slide_in"), key=lambda r: r["on"])
     if len(slides) >= T7_MIN:
-        targets = _count(slides, lambda r: f"{pr.pc_name(r['next_top']['note'] % 12, r['inst']['facts']['key'])}|{r['direction']}")
+        targets = _count(
+            slides, lambda r: f"{pr.pc_name(r['next_top']['note'] % 12, r['inst']['facts']['key'])}|{r['direction']}"
+        )
         top_target, k = next(iter(targets.items()))
         tname, direction = top_target.split("|")
         first = pr.clock(slides[0]["on"])
         if k == len(slides):
             text = f"You slid into {tname} from a half step {direction} {len(slides)} times, first at {first}."
         else:
-            text = (f"You slid into a note from a half step away {len(slides)} times, most often into {tname} from "
-                    f"{direction} ({k}), first at {first}.")
-        add("T7", len(slides), text, [r["on"] for r in slides],
+            text = (
+                f"You slid into a note from a half step away {len(slides)} times, most often into {tname} from "
+                f"{direction} ({k}), first at {first}."
+            )
+        add(
+            "T7",
+            len(slides),
+            text,
+            [r["on"] for r in slides],
             {"count": len(slides), "target": tname, "direction": direction, "most": k, "first": first},
-            any((r["inst"]["slot"], r["next_top"]["note"] % 12) in concept_set for r in slides))
+            any((r["inst"]["slot"], r["next_top"]["note"] % 12) in concept_set for r in slides),
+        )
 
     if tl.grid and len(phrases) >= T10_MIN_PHRASES:
         lengths = _count(phrases, lambda p: _fmt(p["bars"]))
         bars_text, k = next(iter(lengths.items()))
         pickups = sum(1 for p in phrases if p["pickup"])
-        add("T10", k, f"Your phrases were mostly {bars_text} bar{'' if bars_text == '1' else 's'} ({k} of "
-            f"{len(phrases)}), and " + (f"{pickups} started with a pickup." if pickups else "none started with a pickup."),
-            [p["t_ms"] for p in phrases], {"bars": float(bars_text), "count": k, "phrases": len(phrases),
-                                           "pickups": pickups})
+        add(
+            "T10",
+            k,
+            f"Your phrases were mostly {bars_text} bar{'' if bars_text == '1' else 's'} ({k} of "
+            f"{len(phrases)}), and "
+            + (f"{pickups} started with a pickup." if pickups else "none started with a pickup."),
+            [p["t_ms"] for p in phrases],
+            {"bars": float(bars_text), "count": k, "phrases": len(phrases), "pickups": pickups},
+        )
 
     passes = block.get("passes") or []
     # only passes that hold his playing: a loop that ran before he joined, or on after he stopped, is not growth
@@ -1633,46 +2115,75 @@ def talking_points(block: dict, session: str, run_id: Optional[str], concepts: L
         if na >= T13_MIN_NOTES and nb >= T13_MIN_NOTES and abs(b / nb - a / na) >= T13_MIN_CHANGE:
             p1, p2 = head[0]["pass"], head[-1]["pass"]
             q1, q2 = tail[0]["pass"], tail[-1]["pass"]
-            pair = lambda x, y: f"{x}-{y}" if y == x + 1 else f"{x} and {y}"  # noqa: E731
+            pair = lambda x, y: f"{x}-{y}" if y == x + 1 else f"{x} and {y}"  # noqa: E731  # local one-line key function
             last_two = [p["pass"] for p in passes[-2:]] == [q1, q2]
             where = "the last two" if last_two else f"passes {pair(q1, q2)}"
-            add("T13", max(a, b), f"Colour notes went from {a} of {na} in passes {pair(p1, p2)} to {b} of {nb} in "
-                f"{where}.", [], {"from": a, "from_notes": na, "passes": [p1, p2], "to": b, "to_notes": nb,
-                                  "to_passes": [q1, q2]})
+            add(
+                "T13",
+                max(a, b),
+                f"Colour notes went from {a} of {na} in passes {pair(p1, p2)} to {b} of {nb} in {where}.",
+                [],
+                {"from": a, "from_notes": na, "passes": [p1, p2], "to": b, "to_notes": nb, "to_passes": [q1, q2]},
+            )
 
     ants = block["anticipations"]
     if tl.grid and len(ants) >= T14_MIN:
-        add("T14", len(ants), f"You arrived early on the chord change {len(ants)} times.", [a["t_ms"] for a in ants],
-            {"count": len(ants)})
+        add(
+            "T14",
+            len(ants),
+            f"You arrived early on the chord change {len(ants)} times.",
+            [a["t_ms"] for a in ants],
+            {"count": len(ants)},
+        )
     order = list(TP_WEIGHTS)
     pts.sort(key=lambda p: (-p["salience"], order.index(p["type"])))
     return pts
 
 
-def question_candidates(block: dict, session: str, concepts: List[dict]) -> List[dict]:
+def question_candidates(block: dict, session: str, concepts: list[dict]) -> list[dict]:
     """Ambiguous moments to ask about (11.4): a held rub, an outside note of a beat or more, a rare landing."""
     concept_set = {(c["slot"], c["pc"]) for c in concepts}
     out = []
 
     def add(kind, r, slot, weight, text, evidence):
         sal = QUESTION_WEIGHTS[kind] * weight * (CONCEPT_BOOST if (slot, r["note"] % 12) in concept_set else 1.0)
-        out.append({"text": text, "at": pr.clock(r["on"]), "t_ms": r["on"], "kind": kind, "salience": _r(sal),
-                    "replay": replay_command(session, r["on"] - QUESTION_REPLAY_S * 1000, 2 * QUESTION_REPLAY_S),
-                    "evidence": evidence})
+        out.append(
+            {
+                "text": text,
+                "at": pr.clock(r["on"]),
+                "t_ms": r["on"],
+                "kind": kind,
+                "salience": _r(sal),
+                "replay": replay_command(session, r["on"] - QUESTION_REPLAY_S * 1000, 2 * QUESTION_REPLAY_S),
+                "evidence": evidence,
+            }
+        )
 
     for s in block["slots"]:
         f = s["_facts"]
         for r in s["_tops"]:
             name = pr.pc_name(r["note"] % 12, f["key"])
             if r["class"] == "rub":
-                add("rub", r, s["slot"], max(0.5, r["len_beats"]),
+                add(
+                    "rub",
+                    r,
+                    s["slot"],
+                    max(0.5, r["len_beats"]),
                     f"At {pr.clock(r['on'])} the {name} rubbed against the {_against(f, r['note'] % 12)} in {s['name']}. "
-                    f"Did you want that rub?", {"note": name, "name": s["name"], "against": _against(f, r["note"] % 12)})
+                    f"Did you want that rub?",
+                    {"note": name, "name": s["name"], "against": _against(f, r["note"] % 12)},
+                )
             elif r["class"] == "outside" and r["len_beats"] >= 1 - 1e-6:
                 span, amount = _span_words(block["_tl"], r)
-                add("outside", r, s["slot"], r["len_beats"],
+                add(
+                    "outside",
+                    r,
+                    s["slot"],
+                    r["len_beats"],
                     f"At {pr.clock(r['on'])} the {name} sat outside {s['name']} for {span}. Was that a sound you were "
-                    f"reaching for?", {"note": name, "name": s["name"], "length": amount})
+                    f"reaching for?",
+                    {"note": name, "name": s["name"], "length": amount},
+                )
     lands = [(x, block["_landings"][x["i"]]) for x in block["_insts"] if block["_landings"].get(x["i"])]
     if lands:
         per = _count(lands, lambda xv: xv[1][1])
@@ -1680,50 +2191,76 @@ def question_candidates(block: dict, session: str, concepts: List[dict]) -> List
             if per[cls] / len(lands) < QUESTION_RARE_LANDING:
                 f = x["facts"]
                 name = pr.pc_name(r["note"] % 12, f["key"])
-                add("landing", r, x["slot"], 1.0,
+                add(
+                    "landing",
+                    r,
+                    x["slot"],
+                    1.0,
                     f"At {pr.clock(r['on'])} you landed on {name}, the {_label_words(label)} of {f['name']}, which you "
                     f"did only {_times(per[cls])}. Did you mean that landing?",
-                    {"note": name, "label": label, "name": f["name"], "count": per[cls]})
+                    {"note": name, "label": label, "name": f["name"], "count": per[cls]},
+                )
     out.sort(key=lambda q: (-q["salience"], q["t_ms"]))
     return out
 
 
-def choose_try(block: dict, card: Optional[dict], concepts: List[dict], point_types: Sequence[str], version) -> dict:
+def choose_try(block: dict, card: dict | None, concepts: list[dict], point_types: Sequence[str], version) -> dict:
     """One thing to try (11.4): the first rule that applies."""
     tl, tops = block["_tl"], block["_tops"]
     for c in concepts:
-        c["count"] = sum(1 for r in tops if r["inst"]["slot"] == c["slot"] and r["note"] % 12 == c["pc"]
-                         and r["inst"]["def_version"] == version)
+        c["count"] = sum(
+            1
+            for r in tops
+            if r["inst"]["slot"] == c["slot"] and r["note"] % 12 == c["pc"] and r["inst"]["def_version"] == version
+        )
     low = [c for c in concepts if c["count"] < TRY_CONCEPT_MIN]
     if low and version is not None:
         c = low[0]
         bar = int(tl.defs[version]["slots"][c["slot"]]["at_beat"] // tl.m) + 1
         target = TRY_TARGET_LOW + (c["pc"] - TRY_TARGET_LOW) % 12
-        return {"text": f"Land your top note on {c['note']} in bar {bar}.", "rule": 1,
-                "card": {"id": (card or {}).get("id"), "target_notes": [target], "bar": bar},
-                "evidence": {"note": c["note"], "bar": bar, "count": c["count"]}}
+        return {
+            "text": f"Land your top note on {c['note']} in bar {bar}.",
+            "rule": 1,
+            "card": {"id": (card or {}).get("id"), "target_notes": [target], "bar": bar},
+            "evidence": {"note": c["note"], "bar": bar, "count": c["count"]},
+        }
     rubs = [r for r in tops if r["class"] == "rub"]
     if len(rubs) >= TRY_HELD_RUBS:
         common = _count(rubs, lambda r: r["note"] % 12)
         pc = next(iter(common))
         f = next(r["inst"]["facts"] for r in rubs if r["note"] % 12 == pc)
         tone = _against(f, pc)
-        return {"text": f"Let the rub pass quickly, or step it down to {tone}.", "rule": 2,
-                "card": {"id": (card or {}).get("id")}, "evidence": {"note": pr.pc_name(pc, f["key"]), "tone": tone,
-                                                                     "count": len(rubs)}}
+        return {
+            "text": f"Let the rub pass quickly, or step it down to {tone}.",
+            "rule": 2,
+            "card": {"id": (card or {}).get("id")},
+            "evidence": {"note": pr.pc_name(pc, f["key"]), "tone": tone, "count": len(rubs)},
+        }
     if "T6" in point_types and block["_insts"]:
         f = block["_insts"][0]["facts"]
         third = next((pc for pc, role in f["roles"].items() if role == "third"), None)
         if third is not None:
-            return {"text": f"Slide into the 3rd of {f['name']} from a half step below.", "rule": 3,
-                    "card": {"id": (card or {}).get("id"),
-                             "target_notes": [TRY_TARGET_LOW + (third - TRY_TARGET_LOW) % 12]},
-                    "evidence": {"role": "3rd", "name": f["name"]}}
+            return {
+                "text": f"Slide into the 3rd of {f['name']} from a half step below.",
+                "rule": 3,
+                "card": {
+                    "id": (card or {}).get("id"),
+                    "target_notes": [TRY_TARGET_LOW + (third - TRY_TARGET_LOW) % 12],
+                },
+                "evidence": {"role": "3rd", "name": f["name"]},
+            }
     phrases = block["phrases"]
-    if tl.grid and len(phrases) >= TRY_EARLY_MIN_PHRASES and all(
-            p.get("beat") is not None and abs(p["beat"]) <= GRID_TOL and not p["pickup"] for p in phrases):
-        return {"text": "Start one phrase a beat early.", "rule": 4, "card": {"id": (card or {}).get("id")},
-                "evidence": {"phrases": len(phrases)}}
+    if (
+        tl.grid
+        and len(phrases) >= TRY_EARLY_MIN_PHRASES
+        and all(p.get("beat") is not None and abs(p["beat"]) <= GRID_TOL and not p["pickup"] for p in phrases)
+    ):
+        return {
+            "text": "Start one phrase a beat early.",
+            "rule": 4,
+            "card": {"id": (card or {}).get("id")},
+            "evidence": {"phrases": len(phrases)},
+        }
     if card and card.get("try"):
         return {"text": card["try"], "rule": 5, "card": {"id": card.get("id")}, "evidence": {"card_try": card["try"]}}
     words = "Keep the loop going and follow" if tl.grid else "Pick"
@@ -1731,14 +2268,41 @@ def choose_try(block: dict, card: Optional[dict], concepts: List[dict], point_ty
 
 
 # ================================================================================================ riff
-RUN_ORDER = ("run", "card", "mode", "key", "bpm", "beats_per_bar", "alignment", "window", "loopback", "coverage",
-             "readings", "slots", "degrees_by_bar", "passes", "phrases", "anticipations", "slide_ins", "checks",
-             "card_landing", "concept", "highlights", "enough", "say", "problems", "notes")
+RUN_ORDER = (
+    "run",
+    "card",
+    "mode",
+    "key",
+    "bpm",
+    "beats_per_bar",
+    "alignment",
+    "window",
+    "loopback",
+    "coverage",
+    "readings",
+    "slots",
+    "degrees_by_bar",
+    "passes",
+    "phrases",
+    "anticipations",
+    "slide_ins",
+    "checks",
+    "card_landing",
+    "concept",
+    "highlights",
+    "enough",
+    "say",
+    "problems",
+    "notes",
+)
 
 
 def constants() -> dict:
-    return {k: v for k, v in globals().items() if k.isupper() and isinstance(v, (int, float, str, tuple, dict))
-            and k not in ("RUN_ORDER",)}
+    return {
+        k: v
+        for k, v in globals().items()
+        if k.isupper() and isinstance(v, (int, float, str, tuple, dict)) and k not in ("RUN_ORDER",)
+    }
 
 
 def _strip(obj):
@@ -1751,13 +2315,29 @@ def _strip(obj):
 
 def _note_out(r: dict) -> dict:
     pos = r["pos"]
-    return {"t_ms": r["on"], "at": pr.clock_tenths(r["on"]), "pass": pos["pass"], "bar": pos["bar"],
-            "run_bar": pos["run_bar"], "beat": _r(pos["beat"]), "note": r["note"], "name": r["name"], "top": r["top"],
-            "slot": r["inst"]["slot"], "class": r["class"], "label": r["label"], "bass_label": r["bass_label"],
-            "w": _r(r["w"]), "grid": pos["grid"], "beats": _r(r["len_beats"]), "vel": r["vel"], "flags": r["flags"]}
+    return {
+        "t_ms": r["on"],
+        "at": pr.clock_tenths(r["on"]),
+        "pass": pos["pass"],
+        "bar": pos["bar"],
+        "run_bar": pos["run_bar"],
+        "beat": _r(pos["beat"]),
+        "note": r["note"],
+        "name": r["name"],
+        "top": r["top"],
+        "slot": r["inst"]["slot"],
+        "class": r["class"],
+        "label": r["label"],
+        "bass_label": r["bass_label"],
+        "w": _r(r["w"]),
+        "grid": pos["grid"],
+        "beats": _r(r["len_beats"]),
+        "vel": r["vel"],
+        "flags": r["flags"],
+    }
 
 
-def _last_types(jam_root, card_id: Optional[str], run_id: Optional[str]) -> List[str]:
+def _last_types(jam_root, card_id: str | None, run_id: str | None) -> list[str]:
     """The talking-point types of the card's last saved riff (for REPEAT_DAMP)."""
     if not card_id:
         return []
@@ -1769,23 +2349,34 @@ def _last_types(jam_root, card_id: Optional[str], run_id: Optional[str]) -> List
             doc = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, ValueError):
             continue
-        if not isinstance(doc, dict) or not any(((b.get("card") or {}).get("id") == card_id)
-                                                for b in doc.get("runs") or [] if isinstance(b, dict)):
+        if not isinstance(doc, dict) or not any(
+            ((b.get("card") or {}).get("id") == card_id) for b in doc.get("runs") or [] if isinstance(b, dict)
+        ):
             continue
         if best is None or str(doc.get("saved_at") or "") > str(best.get("saved_at") or ""):
             best = doc
     return [p.get("type") for p in (best or {}).get("talking_points") or [] if isinstance(p, dict)]
 
 
-def run_block(loaded: dict, session: str, info: dict, snd: dict, opts: Optional[dict] = None,
-              clock: Optional[Clock] = None, node: Optional[str] = None, rebuild: Optional[str] = None) -> dict:
+def run_block(
+    loaded: dict,
+    session: str,
+    info: dict,
+    snd: dict,
+    opts: dict | None = None,
+    clock: Clock | None = None,
+    node: str | None = None,
+    rebuild: str | None = None,
+) -> dict:
     run = loaded["run"]
     clock = clock or align(loaded, session, info)
     tl = RunTimeline(loaded, clock)
     duration = float(info.get("last_t_ms") or 0) or float(snd["duration_ms"])
     if clock.method != "assumed" and (tl.end_t <= 0 or tl.start_t >= duration + 1):
-        raise RiffError(f"run {run.get('run')} ({pr.clock(max(0.0, tl.start_t))} to {pr.clock(max(0.0, tl.end_t))} on "
-                        f"the session's clock) does not overlap session {session}")
+        raise RiffError(
+            f"run {run.get('run')} ({pr.clock(max(0.0, tl.start_t))} to {pr.clock(max(0.0, tl.end_t))} on "
+            f"the session's clock) does not overlap session {session}"
+        )
     card = run.get("card_snapshot") if isinstance(run.get("card_snapshot"), dict) else None
     variant = (run.get("card") or {}).get("variant")
     version = tl.segs[0]["def_version"]
@@ -1793,31 +2384,57 @@ def run_block(loaded: dict, session: str, info: dict, snd: dict, opts: Optional[
     ref = run.get("card") or {}
     bpms = sorted({s["bpm"] for s in tl.segs})
     concepts = _concepts(tl, card, variant, version)
-    block.update({
-        "run": run.get("run"),
-        "card": {"id": ref.get("id"), "rev": ref.get("rev"), "variant": variant, "title": ref.get("title")}
-        if ref.get("id") else None,
-        "mode": run.get("mode"), "key": run.get("key") or tl.defs[version].get("key"), "bpm": bpms,
-        "beats_per_bar": tl.m,
-        "alignment": {"method": clock.method, "error_ms": clock.error_ms, "bar0_t_ms": _r(tl.bar0_t, 1),
-                      "approx": clock.approx, "output_latency_ms": clock.output_latency_ms, "page_id": clock.page_id,
-                      "anchors": len(clock.anchors)},
-        "window": {"from": pr.clock(max(0.0, tl.start_t)), "to": pr.clock(max(0.0, tl.end_t)),
-                   "from_t_ms": _r(tl.start_t, 1), "to_t_ms": _r(tl.end_t, 1), "stop_bar": run.get("stop_bar"),
-                   "stop_reason": run.get("stop_reason")},
-        "loopback": loopback(tl, snd, node, rebuild),
-        "checks": card_checks(tl, block, card, variant, version),
-        "card_landing": card_landing(tl, block, version),
-        "problems": list(loaded.get("problems") or []),
-        "_card": card, "_concepts": concepts, "_version": version})
+    block.update(
+        {
+            "run": run.get("run"),
+            "card": {"id": ref.get("id"), "rev": ref.get("rev"), "variant": variant, "title": ref.get("title")}
+            if ref.get("id")
+            else None,
+            "mode": run.get("mode"),
+            "key": run.get("key") or tl.defs[version].get("key"),
+            "bpm": bpms,
+            "beats_per_bar": tl.m,
+            "alignment": {
+                "method": clock.method,
+                "error_ms": clock.error_ms,
+                "bar0_t_ms": _r(tl.bar0_t, 1),
+                "approx": clock.approx,
+                "output_latency_ms": clock.output_latency_ms,
+                "page_id": clock.page_id,
+                "anchors": len(clock.anchors),
+            },
+            "window": {
+                "from": pr.clock(max(0.0, tl.start_t)),
+                "to": pr.clock(max(0.0, tl.end_t)),
+                "from_t_ms": _r(tl.start_t, 1),
+                "to_t_ms": _r(tl.end_t, 1),
+                "stop_bar": run.get("stop_bar"),
+                "stop_reason": run.get("stop_reason"),
+            },
+            "loopback": loopback(tl, snd, node, rebuild),
+            "checks": card_checks(tl, block, card, variant, version),
+            "card_landing": card_landing(tl, block, version),
+            "problems": list(loaded.get("problems") or []),
+            "_card": card,
+            "_concepts": concepts,
+            "_version": version,
+        }
+    )
     if clock.approx:
         for x in block["anticipations"] + block["phrases"]:
             x["approx"] = True
     return block
 
 
-def finish(session: str, info: Optional[dict], blocks: List[dict], jam_root, free: Optional[dict] = None,
-           theory_source=None, node: Optional[str] = None) -> dict:
+def finish(
+    session: str,
+    info: dict | None,
+    blocks: list[dict],
+    jam_root,
+    free: dict | None = None,
+    theory_source=None,
+    node: str | None = None,
+) -> dict:
     """Readings, highlights, talking points, the question and the try over every block; the output document."""
     every = blocks + ([free] if free else [])
     apply_readings(every, theory_source, node)
@@ -1832,8 +2449,9 @@ def finish(session: str, info: Optional[dict], blocks: List[dict], jam_root, fre
             b["concept"] = []
             continue
         card = b.get("_card")
-        pts = talking_points(b, session, b.get("run"), concepts,
-                             _last_types(jam_root, (card or {}).get("id"), b.get("run")))
+        pts = talking_points(
+            b, session, b.get("run"), concepts, _last_types(jam_root, (card or {}).get("id"), b.get("run"))
+        )
         points += pts
         for q in question_candidates(b, session, concepts):
             q["run"] = b.get("run")
@@ -1853,18 +2471,27 @@ def finish(session: str, info: Optional[dict], blocks: List[dict], jam_root, fre
         return _strip(head)
 
     start, _ = session_window(info or {})
-    doc = {"api": RIFF_API, "constants": constants(), "session": session, "session_start": _local(start),
-           "runs": [shaped(b) for b in blocks]}
+    doc = {
+        "api": RIFF_API,
+        "constants": constants(),
+        "session": session,
+        "session_start": _local(start),
+        "runs": [shaped(b) for b in blocks],
+    }
     if free is not None:
         doc["free_play"] = shaped(free)
-    doc.update({"talking_points": points[:CHAT_POINTS],
-                "question": questions[0] if questions else None,
-                "try": max(tries, key=lambda x: x[0])[1] if tries else None})
+    doc.update(
+        {
+            "talking_points": points[:CHAT_POINTS],
+            "question": questions[0] if questions else None,
+            "try": max(tries, key=lambda x: x[0])[1] if tries else None,
+        }
+    )
     return doc
 
 
 # ------------------------------------------------------------------------------------------ finding runs
-def _session_rows(store: PerformanceStore) -> List[Tuple[str, dict]]:
+def _session_rows(store: PerformanceStore) -> list[tuple[str, dict]]:
     rows = []
     for row in store.list():
         try:
@@ -1874,7 +2501,7 @@ def _session_rows(store: PerformanceStore) -> List[Tuple[str, dict]]:
     return rows
 
 
-def _candidates(store: PerformanceStore, loaded: dict, rows=None) -> List[Tuple[str, dict]]:
+def _candidates(store: PerformanceStore, loaded: dict, rows=None) -> list[tuple[str, dict]]:
     """Sessions a run overlaps on the wall clock, best first: one its acks name, then by overlap. An ack naming a
     session that does not overlap (a clock or copy mix-up) is not a match: the no-overlap guard reports it."""
     named = {a["log"]["session"] for a in loaded["acks"] if isinstance(a.get("log"), dict) and a["log"].get("session")}
@@ -1897,21 +2524,24 @@ def _no_overlap(store: PerformanceStore, loaded: dict, rows=None) -> RiffError:
         if s0 is not None:
             near.append((min(abs(s0 - r1), abs(r0 - s1)), sid, s0, s1))
     near.sort()
-    lines = [f"no practice session overlaps run {loaded['run'].get('run')}, which played from {_local(r0)} to "
-             f"{_local(r1)}"]
+    lines = [
+        f"no practice session overlaps run {loaded['run'].get('run')}, which played from {_local(r0)} to {_local(r1)}"
+    ]
     if near:
-        lines.append("nearest sessions: " + "; ".join(f"{sid} ({_local(s0)}, {pr.clock(s1 - s0)} long)"
-                                                     for _, sid, s0, s1 in near[:3]))
+        lines.append(
+            "nearest sessions: "
+            + "; ".join(f"{sid} ({_local(s0)}, {pr.clock(s1 - s0)} long)" for _, sid, s0, s1 in near[:3])
+        )
     return RiffError("\n".join(lines))
 
 
-def _read_session(store: PerformanceStore, session: str) -> Tuple[dict, dict, List[str]]:
+def _read_session(store: PerformanceStore, session: str) -> tuple[dict, dict, list[str]]:
     info = store.info(session)
     events, problems = pr.read_events(store, session)
     return info, pr.sounding(events), problems
 
 
-def _card_def(card: str, key: Optional[str], jam_root: Path) -> Tuple[dict, Optional[dict]]:
+def _card_def(card: str, key: str | None, jam_root: Path) -> tuple[dict, dict | None]:
     path = Path(card)
     if path.suffix.lower() == ".json" and path.is_file():
         try:
@@ -1928,18 +2558,32 @@ def _card_def(card: str, key: Optional[str], jam_root: Path) -> Tuple[dict, Opti
     try:
         from .jam import resolve as jam_resolve  # built by phase J3
     except ImportError as exc:
-        raise RiffError("resolving a card needs arsenal/jam/resolve.py, which is not built yet; pass a resolved def "
-                        "file (*.json) as --card") from exc
+        raise RiffError(
+            "resolving a card needs arsenal/jam/resolve.py, which is not built yet; pass a resolved def "
+            "file (*.json) as --card"
+        ) from exc
     try:
         return jam_resolve.Resolver().resolve(cdoc, key=key), cdoc
     except (jam_resolve.ResolveError, jam_resolve.BridgeUnavailable) as exc:
         raise RiffError(f"--card {card} could not be resolved ({exc})") from exc
 
 
-def riff(run: Optional[str] = None, session: Optional[str] = None, root=None, jam_root=None, card: Optional[str] = None,
-         key: Optional[str] = None, bpm: Optional[float] = None, start: Optional[str] = None, end: Optional[str] = None,
-         bars: Optional[Tuple[int, int]] = None, pass_: Optional[int] = None, rebuild: Optional[str] = None,
-         node: Optional[str] = None, theory_source=None) -> dict:
+def riff(
+    run: str | None = None,
+    session: str | None = None,
+    root=None,
+    jam_root=None,
+    card: str | None = None,
+    key: str | None = None,
+    bpm: float | None = None,
+    start: str | None = None,
+    end: str | None = None,
+    bars: tuple[int, int] | None = None,
+    pass_: int | None = None,
+    rebuild: str | None = None,
+    node: str | None = None,
+    theory_source=None,
+) -> dict:
     """The riff document for one invocation form of 11.1 (see main). Raises RiffError for the 11.5 guards."""
     store = PerformanceStore(root)
     jam_root = Path(jam_root) if jam_root else DEFAULT_JAM_ROOT
@@ -1962,19 +2606,42 @@ def riff(run: Optional[str] = None, session: Optional[str] = None, root=None, ja
         if t1 <= t0:
             raise RiffError(f"--from {start} must come before --to {end}")
         tempo = (cdoc or {}).get("tempo") or {}
-        loaded = {"run": {"run": None, "mode": "loop", "key": d.get("key"), "beats_per_bar": d["beats_per_bar"],
-                          "segments": [{"from_bar": 0, "bpm": float(bpm or tempo.get("bpm") or 66), "epoch_ms": t0,
-                                        "def_version": 1, "def_from_bar": 0}],
-                          "settings": [{"from_bar": 0, "backing": d.get("backing") or "comp", "groove": "hold",
-                                        "humanize": 0.6}],
-                          "stopped_epoch_ms": t1, "card": {"id": (cdoc or d.get("card") or {}).get("id"),
-                                                           "rev": (cdoc or d.get("card") or {}).get("rev"),
-                                                           "variant": (d.get("card") or {}).get("variant"),
-                                                           "title": (cdoc or d.get("card") or {}).get("title")},
-                          "card_snapshot": cdoc},
-                  "defs": {1: d}, "acks": [], "lines": [], "problems": problems}
-        if key and nashville.parse_key(key) and d.get("key") and nashville.parse_key(key)["name"] != \
-                nashville.parse_key(d["key"])["name"]:
+        loaded = {
+            "run": {
+                "run": None,
+                "mode": "loop",
+                "key": d.get("key"),
+                "beats_per_bar": d["beats_per_bar"],
+                "segments": [
+                    {
+                        "from_bar": 0,
+                        "bpm": float(bpm or tempo.get("bpm") or 66),
+                        "epoch_ms": t0,
+                        "def_version": 1,
+                        "def_from_bar": 0,
+                    }
+                ],
+                "settings": [{"from_bar": 0, "backing": d.get("backing") or "comp", "groove": "hold", "humanize": 0.6}],
+                "stopped_epoch_ms": t1,
+                "card": {
+                    "id": (cdoc or d.get("card") or {}).get("id"),
+                    "rev": (cdoc or d.get("card") or {}).get("rev"),
+                    "variant": (d.get("card") or {}).get("variant"),
+                    "title": (cdoc or d.get("card") or {}).get("title"),
+                },
+                "card_snapshot": cdoc,
+            },
+            "defs": {1: d},
+            "acks": [],
+            "lines": [],
+            "problems": problems,
+        }
+        if (
+            key
+            and nashville.parse_key(key)
+            and d.get("key")
+            and nashville.parse_key(key)["name"] != nashville.parse_key(d["key"])["name"]
+        ):
             loaded["problems"].append(f"the def is in {d['key']}, not {key}")
         block = run_block(loaded, sid, info, snd, opts, Clock("assumed", [(0.0, 0.0)], None), node, rebuild)
         return finish(sid, info, [block], jam_root, theory_source=theory_source, node=node)
@@ -2000,8 +2667,14 @@ def riff(run: Optional[str] = None, session: Optional[str] = None, root=None, ja
         analysed = pr.analyze(events, theory_source, node)
         tl = FreeTimeline(analysed, snd["duration_ms"])
         free = analyse_block(tl, snd)
-        free.update({"mode": "free play", "key": analysed.get("home_key"),
-                     "chords": "chords read from your own playing", "problems": problems})
+        free.update(
+            {
+                "mode": "free play",
+                "key": analysed.get("home_key"),
+                "chords": "chords read from your own playing",
+                "problems": problems,
+            }
+        )
         return finish(sid, info, [], jam_root, free=free, theory_source=theory_source, node=node)
 
     if run in (None, "latest"):
@@ -2018,8 +2691,10 @@ def riff(run: Optional[str] = None, session: Optional[str] = None, root=None, ja
                 sid = wanted or ids[0]
                 break
         else:
-            raise RiffError(f"no stopped loop or try run under {jam_root / 'runs'} overlaps "
-                            f"{'session ' + wanted if wanted else 'a practice session'}")
+            raise RiffError(
+                f"no stopped loop or try run under {jam_root / 'runs'} overlaps "
+                f"{'session ' + wanted if wanted else 'a practice session'}"
+            )
     else:
         loaded = load_run(jam_root, run)
         if session:
@@ -2035,18 +2710,22 @@ def riff(run: Optional[str] = None, session: Optional[str] = None, root=None, ja
     return finish(sid, info, [block], jam_root, theory_source=theory_source, node=node)
 
 
-def save(doc: dict, jam_root=None) -> List[Path]:
+def save(doc: dict, jam_root=None) -> list[Path]:
     """--save: state/arsenal/jam/riffs/<run>.json per run, holding that run's block and its talking points."""
     folder = (Path(jam_root) if jam_root else DEFAULT_JAM_ROOT) / "riffs"
     written = []
-    stamp = datetime.now(timezone.utc).isoformat(timespec="milliseconds")
+    stamp = datetime.now(UTC).isoformat(timespec="milliseconds")
     for b in doc.get("runs") or []:
         if not b.get("run"):
             continue
-        one = {**doc, "saved_at": stamp, "runs": [b],
-               "talking_points": [p for p in doc.get("talking_points") or [] if p.get("run") == b["run"]],
-               "question": doc["question"] if (doc.get("question") or {}).get("run") == b["run"] else None,
-               "try": doc["try"] if (doc.get("try") or {}).get("run") == b["run"] else None}
+        one = {
+            **doc,
+            "saved_at": stamp,
+            "runs": [b],
+            "talking_points": [p for p in doc.get("talking_points") or [] if p.get("run") == b["run"]],
+            "question": doc["question"] if (doc.get("question") or {}).get("run") == b["run"] else None,
+            "try": doc["try"] if (doc.get("try") or {}).get("run") == b["run"] else None,
+        }
         folder.mkdir(parents=True, exist_ok=True)
         path = folder / f"{b['run']}.json"
         tmp = path.with_name(path.name + ".tmp")
@@ -2059,7 +2738,7 @@ def save(doc: dict, jam_root=None) -> List[Path]:
 # ================================================================================ render and wording guard
 def render(doc: dict) -> str:
     """The chat-ready block: coverage, up to 6 talking points with times, checks, highlights, the question, the try."""
-    out: List[str] = []
+    out: list[str] = []
     for b in doc.get("runs") or []:
         card = b.get("card") or {}
         what = f"{card['title']} ({card['id']})" if card.get("id") else "a loop with no card"
@@ -2068,9 +2747,13 @@ def render(doc: dict) -> str:
         out.append(f"Riff on {what}: {b['mode']} in {b['key']} at {bpm} bpm, run {b['run'] or '(no run)'}.")
         within = f", within {_fmt(a['error_ms'])} ms" if a.get("error_ms") is not None else ""
         level = f": {a['method']}{within}" if a["method"] != "assumed" else ""
-        out.append(f"Session {doc['session']} ({doc['session_start']}), lined up by {METHOD_WORDS[a['method']]}{level}.")
-        out.append(f"{c['passes']} passes, {c['bars']} bars, {c['notes']} notes of yours ({c['top_line_notes']} in "
-                   f"the top line), from {b['window']['from']} to {b['window']['to']}.")
+        out.append(
+            f"Session {doc['session']} ({doc['session_start']}), lined up by {METHOD_WORDS[a['method']]}{level}."
+        )
+        out.append(
+            f"{c['passes']} passes, {c['bars']} bars, {c['notes']} notes of yours ({c['top_line_notes']} in "
+            f"the top line), from {b['window']['from']} to {b['window']['to']}."
+        )
         if b["loopback"]["suspected"]:
             out.append(f"Heads up: {b['loopback']['say']}.")
         if not b.get("enough"):
@@ -2078,9 +2761,11 @@ def render(doc: dict) -> str:
         out += [f"Note: {p}" for p in b.get("problems") or []]
     free = doc.get("free_play")
     if free:
-        out.append(f"Free play in session {doc['session']} ({doc['session_start']}): no loop, so no beat to measure "
-                   f"against. {free['coverage']['chords_read']} chords read from your own playing, "
-                   f"{free['coverage']['notes']} notes of yours.")
+        out.append(
+            f"Free play in session {doc['session']} ({doc['session_start']}): no loop, so no beat to measure "
+            f"against. {free['coverage']['chords_read']} chords read from your own playing, "
+            f"{free['coverage']['notes']} notes of yours."
+        )
         if not free.get("enough"):
             out.append(free["say"])
     if doc.get("talking_points"):
@@ -2097,7 +2782,9 @@ def render(doc: dict) -> str:
         out.append("Card checks:")
         for _, ch in checks:
             if ch["pass"]:
-                out.append(f"- {ch['say'] or ch['id']}" + (f" ({_times(ch['count'])})" if ch["want"] == "present" else ""))
+                out.append(
+                    f"- {ch['say'] or ch['id']}" + (f" ({_times(ch['count'])})" if ch["want"] == "present" else "")
+                )
             elif ch["want"] == "present":
                 out.append(f"- {ch['id']}: {ch['note']} did not come up this time")
             elif ch["want"] == "landing":
@@ -2106,11 +2793,15 @@ def render(doc: dict) -> str:
                 out.append(f"- {ch['id']}: {ch['note']} came up {_times(ch['count'])}")
         for ld in landings:
             if ld["instances"]:
-                out.append(f"- the landing ({ld['note']}, the {_label_words(ld['label'])} of {ld['name']}): you "
-                           f"started on it {ld['landed']} of the {ld['instances']} times you played over it")
+                out.append(
+                    f"- the landing ({ld['note']}, the {_label_words(ld['label'])} of {ld['name']}): you "
+                    f"started on it {ld['landed']} of the {ld['instances']} times you played over it"
+                )
             else:
-                out.append(f"- the landing ({ld['note']}, the {_label_words(ld['label'])} of {ld['name']}): you did "
-                           f"not play over that chord this time")
+                out.append(
+                    f"- the landing ({ld['note']}, the {_label_words(ld['label'])} of {ld['name']}): you did "
+                    f"not play over that chord this time"
+                )
             if ld.get("pull"):
                 out.append(f"    {ld['pull']}")
     hl = [(b, h) for b in (doc.get("runs") or []) + ([free] if free else []) for h in b.get("highlights") or []]
@@ -2135,7 +2826,7 @@ SENTENCE_KEYS = ("text", "why", "fact", "say")
 _TOKEN_RE = re.compile(r"[A-Za-z#]*\d[A-Za-z0-9#:./\-]*")
 
 
-def sentences(doc: dict) -> List[str]:
+def sentences(doc: dict) -> list[str]:
     """The prose this module writes (the card's own lines are the card's words, not ours)."""
     out = [p["text"] for p in doc.get("talking_points") or []]
     if doc.get("question"):
@@ -2175,14 +2866,11 @@ def _backed(token: str, strings: set, numbers: set) -> bool:
     return len(parts) > 1 and all(_backed(p, strings, numbers) for p in parts)
 
 
-def wording_problems(doc: dict, text: Optional[str] = None) -> List[str]:
+def wording_problems(doc: dict, text: str | None = None) -> list[str]:
     """The wording guard (11.4): no forbidden word or % anywhere in the render; every number in our sentences is a
     field of the JSON; theory names only in brackets after the plain words."""
     text = render(doc) if text is None else text
-    problems = []
-    for word in FORBIDDEN_WORDS:
-        if re.search(rf"\b{word}\b", text, re.I):
-            problems.append(f"forbidden word {word!r}")
+    problems = [f"forbidden word {word!r}" for word in FORBIDDEN_WORDS if re.search(rf"\b{word}\b", text, re.I)]
     if "%" in text:
         problems.append("forbidden token '%'")
     strings, numbers = set(), set()
@@ -2193,14 +2881,12 @@ def wording_problems(doc: dict, text: Optional[str] = None) -> List[str]:
             if tok and not _backed(tok, strings, numbers):
                 problems.append(f"{tok!r} in {s!r} is not a field of the JSON")
         bare = re.sub(r"\([^)]*\)", "", s)
-        for word in THEORY_WORDS:
-            if word in bare:
-                problems.append(f"theory name {word!r} outside brackets in {s!r}")
+        problems.extend(f"theory name {word!r} outside brackets in {s!r}" for word in THEORY_WORDS if word in bare)
     return problems
 
 
 # ================================================================================================ CLI
-def _parse_bars(text: str) -> Tuple[int, int]:
+def _parse_bars(text: str) -> tuple[int, int]:
     m = re.fullmatch(r"\s*(\d+)\s*(?:-\s*(\d+))?\s*", text or "")
     if not m or int(m.group(1)) < 1 or (m.group(2) and int(m.group(2)) < int(m.group(1))):
         raise ValueError(f"--bars takes A-B with 1 <= A <= B (got {text!r})")
@@ -2208,10 +2894,16 @@ def _parse_bars(text: str) -> Tuple[int, int]:
 
 
 def main(argv=None) -> int:
-    parser = argparse.ArgumentParser(prog="py -m arsenal.practice riff",
-                                     description="His notes against a jam run's bars and chords (read only).")
-    parser.add_argument("run", nargs="?", default=None,
-                        help="a run id or latest (the default; with --session alone, every run in that session)")
+    parser = argparse.ArgumentParser(
+        prog=f"{_pyl()} -m arsenal.practice riff",
+        description="His notes against a jam run's bars and chords (read only).",
+    )
+    parser.add_argument(
+        "run",
+        nargs="?",
+        default=None,
+        help="a run id or latest (the default; with --session alone, every run in that session)",
+    )
     parser.add_argument("--session", help="a session id or latest")
     parser.add_argument("--root", help="the sessions directory (default: state/arsenal/performance)")
     parser.add_argument("--jam-root", help="the jam directory (default: state/arsenal/jam)")
@@ -2222,18 +2914,20 @@ def main(argv=None) -> int:
     parser.add_argument("--to", dest="end", help="with --card: m:ss where he stopped")
     parser.add_argument("--bars", help="only run bars A-B (counted from 1)")
     parser.add_argument("--pass", dest="pass_", type=int, help="only pass N (counted from 1)")
-    parser.add_argument("--rebuild", choices=("auto", "def", "bridge"), default="auto",
-                        help="how the loopback guard rebuilds Claude's notes (default: the groove bridge if it answers)")
+    parser.add_argument(
+        "--rebuild",
+        choices=("auto", "def", "bridge"),
+        default="auto",
+        help="how the loopback guard rebuilds Claude's notes (default: the groove bridge if it answers)",
+    )
     parser.add_argument("--json", action="store_true", help="print JSON instead of text")
     parser.add_argument("--out", help="also write the output to this file")
     parser.add_argument("--save", action="store_true", help="write state/arsenal/jam/riffs/<run>.json")
     args = parser.parse_args(argv)
     for stream in (sys.stdout, sys.stderr):
         if (getattr(stream, "encoding", "") or "").lower().replace("-", "") != "utf8":
-            try:
+            with contextlib.suppress(AttributeError, ValueError, OSError):
                 stream.reconfigure(encoding="utf-8")
-            except (AttributeError, ValueError, OSError):
-                pass
     try:
         if args.out and Path(args.out).is_dir():
             raise ValueError(f"--out {args.out} is a directory; give a file path")
@@ -2242,13 +2936,25 @@ def main(argv=None) -> int:
         if args.bpm is not None and not (math.isfinite(args.bpm) and 30 <= args.bpm <= 240):
             raise ValueError(f"--bpm must be 30..240 (got {args.bpm:g})")
         bars = _parse_bars(args.bars) if args.bars else None
-        doc = riff(args.run, args.session, args.root, args.jam_root, args.card, args.key, args.bpm, args.start,
-                   args.end, bars, args.pass_, None if args.rebuild == "auto" else args.rebuild)
+        doc = riff(
+            args.run,
+            args.session,
+            args.root,
+            args.jam_root,
+            args.card,
+            args.key,
+            args.bpm,
+            args.start,
+            args.end,
+            bars,
+            args.pass_,
+            None if args.rebuild == "auto" else args.rebuild,
+        )
     except RiffError as exc:
         print(exc, file=sys.stderr)
         return exc.code
     except PerformanceError as exc:
-        print(f"{exc}; try: py -m arsenal.practice sessions", file=sys.stderr)
+        print(f"{exc}; try: {_pyl()} -m arsenal.practice sessions", file=sys.stderr)
         return 2
     except ValueError as exc:
         print(exc, file=sys.stderr)

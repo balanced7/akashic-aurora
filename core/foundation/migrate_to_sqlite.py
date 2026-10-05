@@ -28,6 +28,7 @@ snapshot stays current forever, which is what the previous docstring claimed.
     py -m core.foundation.migrate_to_sqlite             # shadow-build + swap + verify
     py -m core.foundation.migrate_to_sqlite --verify    # re-compare both stores
 """
+
 from __future__ import annotations
 
 import argparse
@@ -36,9 +37,9 @@ import os
 import sys
 import time
 from pathlib import Path
-from typing import Dict, List, Tuple
 
 from core.foundation.sqlite_store import SqliteStore
+
 
 def _repo_root_str() -> str:
     """AI_SETUP override, else the root DERIVED from this file (core/paths).
@@ -48,8 +49,10 @@ def _repo_root_str() -> str:
     every call here silently used that literal and the repo only ran from one
     directory on one disk.
     """
-    from core.paths import root_str
     import os as _os
+
+    from core.paths import root_str
+
     return (_os.getenv("AI_SETUP") or "").strip() or root_str()
 
 
@@ -64,18 +67,18 @@ def _default_db() -> Path:
     return Path(_repo_root_str()) / "session_logs" / "store_state.db"
 
 
-def load_json(path: Path) -> Dict:
+def load_json(path: Path) -> dict:
     if not path.exists():
         return {}
     with open(path, encoding="utf-8") as f:
         return json.load(f)
 
 
-def census(data: Dict) -> Dict[str, int]:
+def census(data: dict) -> dict[str, int]:
     return {b: len(data.get(b, {}) or {}) for b in _BUCKETS}
 
 
-def _expired_keys(data: Dict, now: float) -> set:
+def _expired_keys(data: dict, now: float) -> set:
     """Keys whose __expiry__ lies in the past: tombstones, not data."""
     return {k for k, ts in (data.get("__expiry__") or {}).items() if float(ts) <= now}
 
@@ -87,7 +90,7 @@ def _drop_sidecars(db_path: Path) -> None:
             p.unlink()
 
 
-def migrate(json_path: Path, db_path: Path) -> Tuple[Dict[str, int], Dict[str, int], Dict[str, int]]:
+def migrate(json_path: Path, db_path: Path) -> tuple[dict[str, int], dict[str, int], dict[str, int]]:
     """Shadow-build the target and swap it in. Returns (live source census,
     written census, skipped-expired census); the caller enforces the census law.
 
@@ -99,10 +102,9 @@ def migrate(json_path: Path, db_path: Path) -> Tuple[Dict[str, int], Dict[str, i
     data = load_json(json_path)
     dead = _expired_keys(data, now)
 
-    live: Dict = {b: {k: v for k, v in (data.get(b) or {}).items() if k not in dead}
-                  for b in _BUCKETS}
+    live: dict = {b: {k: v for k, v in (data.get(b) or {}).items() if k not in dead} for b in _BUCKETS}
     src = census(live)
-    skipped = {b: len((data.get(b) or {})) - len(live[b]) for b in _BUCKETS}
+    skipped = {b: len(data.get(b) or {}) - len(live[b]) for b in _BUCKETS}
 
     shadow_path = Path(str(db_path) + ".shadow")
     if shadow_path.exists():
@@ -138,19 +140,23 @@ def migrate(json_path: Path, db_path: Path) -> Tuple[Dict[str, int], Dict[str, i
             if remaining > 0 and store.exists(k):
                 store.expire(k, max(1, int(remaining)))
 
-        written = {b: _count(store, t) for b, t in
-                   zip(_BUCKETS, ("kv", "hash", "list", "set_members", "zset"))}
+        written = {
+            b: _count(store, t) for b, t in zip(_BUCKETS, ("kv", "hash", "list", "set_members", "zset"), strict=False)
+        }
 
         if written != src:
-            raise SystemExit(f"[migrate] CENSUS VIOLATION -- source(live) {src} != "
-                             f"written {written}; shadow deleted, target untouched")
+            raise SystemExit(
+                f"[migrate] CENSUS VIOLATION -- source(live) {src} != "
+                f"written {written}; shadow deleted, target untouched"
+            )
 
         # Quiesce assert (codex: counts moved during the live census probe): if the
         # source advanced while the shadow was building, the shadow is already stale.
         recheck = load_json(json_path)
         if recheck != data:
-            raise SystemExit("[migrate] SOURCE MOVED during shadow build -- quiesce "
-                             "writers first; shadow deleted, target untouched")
+            raise SystemExit(
+                "[migrate] SOURCE MOVED during shadow build -- quiesce writers first; shadow deleted, target untouched"
+            )
     except BaseException:
         store.close()
         if shadow_path.exists():
@@ -176,7 +182,7 @@ def _count(store: SqliteStore, table: str) -> int:
     return store._conn.execute(f"SELECT COUNT(DISTINCT key) FROM {table}").fetchone()[0]
 
 
-def verify(json_path: Path, db_path: Path) -> Tuple[bool, list]:
+def verify(json_path: Path, db_path: Path) -> tuple[bool, list]:
     """BIDIRECTIONAL, value-level comparison. Forward: every live source value equal
     in the target (a logically expired source key must instead be ABSENT). Backward:
     every target key, member, and expiry row must be claimed by the live source --
@@ -187,7 +193,7 @@ def verify(json_path: Path, db_path: Path) -> Tuple[bool, list]:
     data = load_json(json_path)
     dead = _expired_keys(data, now)
     store = SqliteStore(str(db_path))
-    problems: List[str] = []
+    problems: list[str] = []
 
     try:
         # ---- forward: live source values present and equal; expired absent ----
@@ -230,14 +236,11 @@ def verify(json_path: Path, db_path: Path) -> Tuple[bool, list]:
         snap = store.snapshot()
         for bucket in _BUCKETS:
             src_keys = {k for k in (data.get(bucket) or {}) if k not in dead}
-            for k in snap[bucket]:
-                if k not in src_keys:
-                    problems.append(f"{bucket}[{k}]: target-only (source does not hold it)")
-        live_expiry = {k for k, ts in (data.get("__expiry__") or {}).items()
-                       if k not in dead and float(ts) > now}
-        for k in snap["expiry"]:
-            if k not in live_expiry:
-                problems.append(f"expiry[{k}]: target-only expiry row")
+            problems.extend(
+                f"{bucket}[{k}]: target-only (source does not hold it)" for k in snap[bucket] if k not in src_keys
+            )
+        live_expiry = {k for k, ts in (data.get("__expiry__") or {}).items() if k not in dead and float(ts) > now}
+        problems.extend(f"expiry[{k}]: target-only expiry row" for k in snap["expiry"] if k not in live_expiry)
     finally:
         store.close()
     return (not problems), problems
@@ -265,16 +268,20 @@ def main(argv=None) -> int:
         data = load_json(json_path)
         c = census(data)
         dead = len(_expired_keys(data, time.time()))
-        print(f"[migrate] would shadow-build: {c}  (total keys {sum(c.values())}, "
-              f"of which {dead} expired tombstone(s) will be dropped)")
+        print(
+            f"[migrate] would shadow-build: {c}  (total keys {sum(c.values())}, "
+            f"of which {dead} expired tombstone(s) will be dropped)"
+        )
         print("[migrate] --check writes nothing; the source is never modified by any mode")
         return 0
 
     if a.verify:
         ok, problems = verify(json_path, db_path)
         if ok:
-            print("[migrate] VERIFY OK -- bidirectional: every live JSON value present in "
-                  "SQLite, nothing in SQLite the JSON does not claim")
+            print(
+                "[migrate] VERIFY OK -- bidirectional: every live JSON value present in "
+                "SQLite, nothing in SQLite the JSON does not claim"
+            )
             return 0
         print(f"[migrate] VERIFY FAILED -- {len(problems)} divergence(s):")
         for p in problems[:20]:
@@ -292,9 +299,11 @@ def main(argv=None) -> int:
         for p in problems[:20]:
             print(f"  {p}")
         return 1
-    print("[migrate] OK -- shadow-built, swapped, verified bidirectionally. The JSON "
-          "source is untouched; the sqlite era echoes state back to it on close, and "
-          "check_dual_authority watches the twins.")
+    print(
+        "[migrate] OK -- shadow-built, swapped, verified bidirectionally. The JSON "
+        "source is untouched; the sqlite era echoes state back to it on close, and "
+        "check_dual_authority watches the twins."
+    )
     return 0
 
 

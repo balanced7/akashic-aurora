@@ -37,6 +37,7 @@ surface is s2. walks() below is the read side the render will consume.
 
 Run: py -m pytest tests/test_t335_s1_walk_fidelity.py -q
 """
+
 from __future__ import annotations
 
 import json
@@ -48,13 +49,11 @@ import pytest
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from core.eye import routes as R  # noqa: E402
-
+from core.eye import routes as R  # noqa: E402  # sys.path bootstrap
 
 STEPS = [
     {"type": "anchor", "target": "sess:1", "note": "the charter"},
-    {"type": "dead-end", "target": "sess:2", "note": "the paraphrase trap",
-     "is_not": ["the-phrase-is-the-key"]},
+    {"type": "dead-end", "target": "sess:2", "note": "the paraphrase trap", "is_not": ["the-phrase-is-the-key"]},
     {"type": "decision", "target": "sess:3", "note": "filed"},
 ]
 
@@ -63,6 +62,7 @@ def _seed_events(db_path, targets):
     """A drill reads leg BODIES out of the Eye's events table, so the fixture has to have
     one. Seeding it is what makes P6 test the mechanism instead of testing `len(STEPS)`."""
     import sqlite3
+
     con = sqlite3.connect(str(db_path))
     con.execute("""CREATE TABLE IF NOT EXISTS events(
         event_id TEXT PRIMARY KEY, session TEXT NOT NULL, line INTEGER NOT NULL,
@@ -71,14 +71,15 @@ def _seed_events(db_path, targets):
         indexed_at REAL)""")
     for t in targets:
         sess, _, line = t.rpartition(":")
-        con.execute("INSERT OR IGNORE INTO events(event_id, session, line, voice, type, "
-                    "text) VALUES(?,?,?,?,?,?)",
-                    (t, sess, int(line), "operator", "message", f"body of {t}"))
+        con.execute(
+            "INSERT OR IGNORE INTO events(event_id, session, line, voice, type, text) VALUES(?,?,?,?,?,?)",
+            (t, sess, int(line), "operator", "message", f"body of {t}"),
+        )
     con.commit()
     con.close()
 
 
-@pytest.fixture()
+@pytest.fixture
 def tied(tmp_path, monkeypatch):
     """Both planes repointed together -- the module says they are repointable for exactly
     this reason, and a walk-fidelity pin that wrote to the live journal would be recording
@@ -104,6 +105,7 @@ def _journal_kinds(monkeypatched_path) -> list:
 
 # ============================================================ durability: the worse defect
 
+
 def test_p1_a_walk_is_journaled_not_only_counted(tied, tmp_path):
     """A walk must land on the DURABLE plane, beside the save. Today it exists only as an
     incremented integer in a projection the module calls rebuildable."""
@@ -112,7 +114,8 @@ def test_p1_a_walk_is_journaled_not_only_counted(tied, tmp_path):
     walked = [r for r in recs if r.get("kind") == "route_walked"]
     assert len(walked) == 1, (
         "a walk that leaves nothing on the journal is a traversal the truth plane cannot "
-        "attest to -- and the projection holding it is wiped by design")
+        "attest to -- and the projection holding it is wiped by design"
+    )
     assert walked[0].get("route_id") == tied
 
 
@@ -122,11 +125,10 @@ def test_p2_wiping_the_projection_loses_no_walk_history(tied, tmp_path):
     walk ever taken is currently the exception to that sentence."""
     R.walk("test-string")
     R.walk("test-string")
-    (tmp_path / "eye.db").unlink()          # the wipe the module says is safe
+    (tmp_path / "eye.db").unlink()  # the wipe the module says is safe
     R.rebuild()
     w = R.walks("test-string")
-    assert w["total"] == 2, (
-        "walk history did not survive the rebuild the module advertises as lossless")
+    assert w["total"] == 2, "walk history did not survive the rebuild the module advertises as lossless"
     assert w["by_depth"].get("listed") == 2
 
 
@@ -135,13 +137,14 @@ def test_p3_a_walk_is_an_event_so_two_walks_are_two_records(tied, tmp_path):
     HAPPENED; collapsing two into one state would re-create the ambiguity one layer down."""
     R.walk("test-string")
     R.walk("test-string")
-    walked = [r for r in _journal_kinds(tmp_path / "routes.jsonl")
-              if r.get("kind") == "route_walked"]
+    walked = [r for r in _journal_kinds(tmp_path / "routes.jsonl") if r.get("kind") == "route_walked"]
     assert len(walked) == 2
-    assert walked[0].get("at") is not None and walked[1].get("at") is not None
+    assert walked[0].get("at") is not None
+    assert walked[1].get("at") is not None
 
 
 # ============================================================ ambiguity: depth is recorded
+
 
 def test_p4_a_plain_walk_records_that_it_only_listed(tied):
     """The pin that encodes what I actually did to route #1. Printing the index is a real
@@ -149,8 +152,7 @@ def test_p4_a_plain_walk_records_that_it_only_listed(tied):
     R.walk("test-string")
     w = R.walks("test-string")
     assert w["by_depth"].get("listed") == 1
-    assert not w["by_depth"].get("drilled"), (
-        "a plain walk must never be able to record itself as drilled")
+    assert not w["by_depth"].get("drilled"), "a plain walk must never be able to record itself as drilled"
 
 
 def test_p5_resolve_is_a_deeper_walk_and_says_so(tied):
@@ -182,13 +184,12 @@ def test_p6b_a_drill_over_a_dangling_leg_counts_what_it_actually_read(tmp_path, 
     monkeypatch.setattr(R, "JOURNAL_PATH", tmp_path / "routes.jsonl")
     monkeypatch.setattr(R, "DB_PATH", tmp_path / "eye.db")
     R.save("partial", STEPS, by="claude")
-    _seed_events(tmp_path / "eye.db", [STEPS[0]["target"]])     # only leg 1 is reachable
+    _seed_events(tmp_path / "eye.db", [STEPS[0]["target"]])  # only leg 1 is reachable
 
     R.walk("partial", drill=True)
     rec = R.walks("partial")["records"][-1]
     assert rec["legs_shown"] == 3
-    assert rec["legs_drilled"] == 1, (
-        "two legs dangle -- a drill must report the bodies it got, not the legs it wanted")
+    assert rec["legs_drilled"] == 1, "two legs dangle -- a drill must report the bodies it got, not the legs it wanted"
 
 
 def test_p7_depth_is_derived_from_the_executed_path_not_declared(tied):
@@ -196,10 +197,11 @@ def test_p7_depth_is_derived_from_the_executed_path_not_declared(tied):
     the caller did. A depth argument would make the fidelity field exactly as trustworthy as
     the number it replaced -- and would let a glance file itself as a traversal."""
     with pytest.raises(TypeError):
-        R.walk("test-string", depth="drilled")   # type: ignore[call-arg]
+        R.walk("test-string", depth="drilled")  # type: ignore[call-arg]
 
 
 # ============================================================ the legacy population
+
 
 def test_p8_unbacked_walk_count_resolves_UNKNOWN_never_backfilled(tied, tmp_path):
     """THE PIN THAT KEEPS THE FIX HONEST ABOUT ITSELF. Route #1 already carries walk_count=3
@@ -207,14 +209,14 @@ def test_p8_unbacked_walk_count_resolves_UNKNOWN_never_backfilled(tied, tmp_path
     so the only true answer is UNKNOWN. Backfilling them as 'listed' would be a guess wearing
     a measurement's clothes -- the T176 defect, committed by the commit that closes it."""
     import sqlite3
+
     con = sqlite3.connect(str(tmp_path / "eye.db"))
     con.execute("UPDATE routes SET walk_count = 3 WHERE route_id=?", (tied,))
     con.commit()
     con.close()
 
     w = R.walks("test-string")
-    assert w["unknown"] == 3, (
-        "three counted walks with no journal record behind them are UNKNOWN, not listed")
+    assert w["unknown"] == 3, "three counted walks with no journal record behind them are UNKNOWN, not listed"
     assert w["total"] == 3
     assert not w["by_depth"], "no depth may be attributed to a walk nobody recorded"
 

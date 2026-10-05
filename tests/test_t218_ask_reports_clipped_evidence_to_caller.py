@@ -22,6 +22,7 @@ The law this pins is W137's, one door over: a clip is only safe if the party who
 a conclusion from it is told. Being honest to the model and silent to the human is half a
 guarantee.
 """
+
 from __future__ import annotations
 
 import subprocess
@@ -32,9 +33,16 @@ REPO = Path(__file__).resolve().parents[1]
 
 
 def _run(args, **kw):
-    return subprocess.run([sys.executable, "agent_cli.py", *args], cwd=REPO,
-                          capture_output=True, text=True, encoding="utf-8",
-                          errors="replace", timeout=120, **kw)
+    return subprocess.run(
+        [sys.executable, "agent_cli.py", *args],
+        cwd=REPO,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        timeout=120,
+        **kw,
+    )
 
 
 def test_build_context_marks_truncation_in_its_meta():
@@ -46,7 +54,8 @@ def test_build_context_marks_truncation_in_its_meta():
     assert meta["truncated"] is True, "bus.py is ~80k chars; it must clip at the 40k budget"
     assert "TRUNCATED" in ctx, "the HELPER's in-band notice is the half that already works"
     inc = meta["included"][0]
-    assert inc["truncated"] is True and inc["chars"] < 80000
+    assert inc["truncated"] is True
+    assert inc["chars"] < 80000
 
 
 def test_caller_is_told_when_its_evidence_was_clipped():
@@ -64,12 +73,13 @@ def test_caller_is_told_when_its_evidence_was_clipped():
     notice = unusable_evidence_notice(meta)
     assert notice, "evidence was clipped and the caller-facing notice was empty"
     assert "bus.py" in notice, "a clip notice that does not name the file is unactionable"
-    assert "40000" in notice and "80052" in notice, \
-        "must state how much was shown OF how much, not merely that something was cut"
+    assert "40000" in notice, "must state how much was shown OF how much, not merely that something was cut"
+    assert "80052" in notice, "must state how much was shown OF how much, not merely that something was cut"
     low = notice.lower()
     assert "absen" in low or "missing" in low or "not there" in low, (
         "the notice must warn that an abstention may be about the WINDOW rather than about "
-        "the code -- that inference is the whole failure being prevented")
+        "the code -- that inference is the whole failure being prevented"
+    )
 
 
 def test_no_notice_when_nothing_was_clipped():

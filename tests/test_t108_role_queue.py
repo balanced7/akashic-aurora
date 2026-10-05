@@ -53,11 +53,13 @@ SEAT_B = "bbbb2222"
 
 def _rq():
     from core.comm import role_queue
+
     return role_queue
 
 
 def _client():
     from core.comm.bus import get_bus
+
     return get_bus(AGENT)._client
 
 
@@ -69,8 +71,8 @@ def test_p1_exactly_once_claim():
     b = rq.claim_next(NS, AGENT, SEAT_B, block_ms=0)
     got = [c for c in (a, b) if c is not None]
     assert len(got) == 1, (
-        f"EXACTLY-ONCE violated: {len(got)} consumers received the one message "
-        f"(a={a and a.msg_id}, b={b and b.msg_id})")
+        f"EXACTLY-ONCE violated: {len(got)} consumers received the one message (a={a and a.msg_id}, b={b and b.msg_id})"
+    )
     rq.commit(got[0])
 
 
@@ -84,7 +86,8 @@ def test_p2_stall_recovery():
     reclaimed = rq.reclaim_stalled(NS + "s", AGENT, SEAT_B, min_idle_s=1)
     assert reclaimed, (
         "STALL RECOVERY missing: claim unacked past TTL was not reclaimable by another "
-        "consumer -- the lane_stall shape applied to role work (deepseek's fence point)")
+        "consumer -- the lane_stall shape applied to role work (deepseek's fence point)"
+    )
     rq.commit(reclaimed[0])
 
 
@@ -100,7 +103,8 @@ def test_p3_stale_claimant_cannot_commit():
     ok_a = rq.commit(a)
     assert not ok_a, (
         "SIDE-EFFECT FENCE missing: a RECLAIMED claimant's commit was accepted -- the stale "
-        "writer's side effect crossed the hop (kimi's claim-fence violated)")
+        "writer's side effect crossed the hop (kimi's claim-fence violated)"
+    )
     ok_b = rq.commit(reclaimed[0])
     assert ok_b, "the CURRENT claimant's commit must succeed"
 
@@ -108,11 +112,12 @@ def test_p3_stale_claimant_cannot_commit():
 def test_p4_stale_message_dropped_never_delivered():
     rq = _rq()
     rq.publish(NS + "t", AGENT, "task", f"fresh-{NS}", freshness_s=1)
-    time.sleep(1.3)                    # the message ages out BEFORE any consumer arrives
+    time.sleep(1.3)  # the message ages out BEFORE any consumer arrives
     c = rq.claim_next(NS + "t", AGENT, SEAT_A, block_ms=0)
     assert c is None or f"fresh-{NS}" not in str(getattr(c, "fields", "")), (
         "FRESHNESS violated: a message past its freshness window was DELIVERED -- the resent "
-        "packet that arrived too late must be dropped-as-stale, never re-executed")
+        "packet that arrived too late must be dropped-as-stale, never re-executed"
+    )
 
 
 def test_p5_claim_state_is_a_projection_of_the_durable_layer():
@@ -121,14 +126,21 @@ def test_p5_claim_state_is_a_projection_of_the_durable_layer():
     a = rq.claim_next(NS + "p", AGENT, SEAT_A, block_ms=0)
     assert a is not None
     st = rq.claim_state(NS + "p", AGENT, mid)
-    assert st and st.get("claimed_by") == SEAT_A, (
+    assert st, (
         f"PROJECTION missing: claim state not readable from the durable layer (got {st}) -- "
         f"per the Sol amendment, claims live in stream PEL + fence records and any fresh "
-        f"reader must see them; the mailbox projects, never owns")
+        f"reader must see them; the mailbox projects, never owns"
+    )
+    assert st.get("claimed_by") == SEAT_A, (
+        f"PROJECTION missing: claim state not readable from the durable layer (got {st}) -- "
+        f"per the Sol amendment, claims live in stream PEL + fence records and any fresh "
+        f"reader must see them; the mailbox projects, never owns"
+    )
     rq.commit(a)
     st2 = rq.claim_state(NS + "p", AGENT, mid)
     assert not (st2 and st2.get("claimed_by")), (
-        f"PROJECTION stale after commit: {st2} -- a committed claim must read as released")
+        f"PROJECTION stale after commit: {st2} -- a committed claim must read as released"
+    )
 
 
 def test_p6_aba_same_name_reclaim_does_not_resurrect_old_claim():
@@ -154,7 +166,8 @@ def test_p6_aba_same_name_reclaim_does_not_resurrect_old_claim():
     assert not ok_old, (
         "ABA VIOLATION: the ORIGINAL stale claim committed successfully because the fence "
         "again names the same consumer. Fence-by-name resurrects dead claims across "
-        "reclaim cycles; the fence must compare CLAIM GENERATION, not consumer identity.")
+        "reclaim cycles; the fence must compare CLAIM GENERATION, not consumer identity."
+    )
     assert rq.commit(taken_a2[0]), "the CURRENT-generation claim must still commit"
 
 

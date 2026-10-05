@@ -20,6 +20,7 @@ automation belongs on the pointer, not the payload.
   D4  no git / no HEAD -> silent, never raises (fail-soft; boot must not break)
   D5  the line does NOT spend the head-16 the cold-start contract owns
 """
+
 import os
 import sys
 import time
@@ -38,6 +39,7 @@ class _Note:
 
 def _iso(epoch):
     from datetime import datetime
+
     return datetime.fromtimestamp(epoch).isoformat()
 
 
@@ -47,7 +49,7 @@ ALL = ("where-we-are", "next-focus", "grounding-pointer")
 def test_d1_stale_notes_fire_the_drift_line(monkeypatch):
     head = time.time()
     monkeypatch.setattr(agent_cli, "_head_commit_epoch", lambda: head)
-    old = [_Note(t, _iso(head - 86400)) for t in ALL]          # a day behind HEAD
+    old = [_Note(t, _iso(head - 86400)) for t in ALL]  # a day behind HEAD
     line = agent_cli._continuity_drift(notes=old)
     assert "continuity DRIFT" in line
     for t in ALL:
@@ -68,7 +70,8 @@ def test_d3_missing_organ_is_named(monkeypatch):
     monkeypatch.setattr(agent_cli, "_head_commit_epoch", lambda: head)
     only_one = [_Note("where-we-are", _iso(time.time()))]
     line = agent_cli._continuity_drift(notes=only_one)
-    assert "next-focus MISSING" in line and "grounding-pointer MISSING" in line
+    assert "next-focus MISSING" in line
+    assert "grounding-pointer MISSING" in line
     # the FRESH organ must not be reported as drifting. Assert on the named-drift list
     # only -- the remediation tail legitimately mentions where-we-are as a fix command.
     named = line.split("written:")[1].split("--")[0]

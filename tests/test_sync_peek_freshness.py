@@ -19,8 +19,8 @@ import uuid
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.comm.bus import Bus  # noqa: E402
-from agent.bifrost_pull import peek_inbox  # noqa: E402
+from agent.bifrost_pull import peek_inbox
+from core.comm.bus import Bus
 
 AGENT = f"peekpin_{uuid.uuid4().hex[:6]}"
 
@@ -39,7 +39,8 @@ def test_newest_mail_visible_through_stale_backlog():
     assert "THE-FRESH-REPLY-THAT-MATTERS" in bodies, (
         f"FRESHNESS MASKED: 31 unread, peek limit 10 rendered only the oldest -- the newest "
         f"message (a REPLY) is invisible. This is the exact failure that hid three real "
-        f"replies behind ten stale notices at boot. Peek rendered: {bodies[:400]}")
+        f"replies behind ten stale notices at boot. Peek rendered: {bodies[:400]}"
+    )
 
 
 def test_windowed_peek_confesses_the_hidden_middle():
@@ -58,7 +59,8 @@ def test_windowed_peek_confesses_the_hidden_middle():
     assert total > len([m for m in msgs if not m.get("gap")]), (
         f"WINDOW WITHOUT CONFESSION: 25 unread, 8 shown, and nothing in the peek result "
         f"carries pending_at_least > shown. A truncated view that does not say so reads as "
-        f"the whole inbox. Result keys: {[sorted(m.keys()) for m in msgs[:2]]}")
+        f"the whole inbox. Result keys: {[sorted(m.keys()) for m in msgs[:2]]}"
+    )
 
 
 def test_true_tail_visible_beyond_the_overread_cap():
@@ -81,7 +83,8 @@ def test_true_tail_visible_beyond_the_overread_cap():
     assert "deep-backlog-079" in bodies, (
         f"TRUE TAIL INVISIBLE: 80 unread, over-read cap 50 -- the window's 'newest' is the "
         f"newest of the OLDEST 50, and the genuinely newest message is hidden. Sol's "
-        f"reproduction, pinned. Rendered: ...{bodies[-300:]}")
+        f"reproduction, pinned. Rendered: ...{bodies[-300:]}"
+    )
 
 
 if __name__ == "__main__":

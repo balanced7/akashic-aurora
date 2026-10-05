@@ -3,8 +3,10 @@
 The routes are listed in arsenal/FIRST-LIGHT-SPEC.md. Media is served only for clips found under
 the configured library roots, addressed by id, with HTTP Range support so the browser can seek.
 """
+
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import json
 import os
@@ -17,14 +19,12 @@ import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
 from urllib.parse import parse_qs, unquote, urlsplit
 
-from . import __version__
+from . import __version__, pianolooks
 from .graph import GraphError, load_graph
-from .performance import SESSION_PATTERN, PerformanceError, PerformanceStore
 from .jam.runs import JamApi
-from . import pianolooks
+from .performance import SESSION_PATTERN, PerformanceError, PerformanceStore
 from .pianocue import MAX_CUE_BODY, CueError, CueHub, validate_cue
 from .plan import make_plan, render_plan
 from .presets import list_presets
@@ -37,26 +37,42 @@ PACKAGE = Path(__file__).resolve().parent
 WEB = PACKAGE / "web"
 GRAPHS = PACKAGE / "graphs"
 DEFAULT_ROOTS = [r"E:\Video Output E"]
-MEDIA_TYPES = {".mp4": "video/mp4", ".m4v": "video/mp4", ".mov": "video/quicktime",
-               ".webm": "video/webm", ".mkv": "video/x-matroska"}
-STATIC_TYPES = {".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8",
-                ".mjs": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8",
-                ".json": "application/json", ".frag": "text/plain; charset=utf-8",
-                ".vert": "text/plain; charset=utf-8", ".glsl": "text/plain; charset=utf-8",
-                ".svg": "image/svg+xml", ".png": "image/png"}
+MEDIA_TYPES = {
+    ".mp4": "video/mp4",
+    ".m4v": "video/mp4",
+    ".mov": "video/quicktime",
+    ".webm": "video/webm",
+    ".mkv": "video/x-matroska",
+}
+STATIC_TYPES = {
+    ".html": "text/html; charset=utf-8",
+    ".js": "text/javascript; charset=utf-8",
+    ".mjs": "text/javascript; charset=utf-8",
+    ".css": "text/css; charset=utf-8",
+    ".json": "application/json",
+    ".frag": "text/plain; charset=utf-8",
+    ".vert": "text/plain; charset=utf-8",
+    ".glsl": "text/plain; charset=utf-8",
+    ".svg": "image/svg+xml",
+    ".png": "image/png",
+}
 MAX_CLIPS = 500
 MAX_BODY = 16 * 1024 * 1024
 CHUNK = 1024 * 1024
 RECORDINGS_DIR = "arsenal-renders"
 RECORDING_TYPES = {"video/webm": ".webm", "video/mp4": ".mp4", "video/x-matroska": ".mkv"}
-MAX_RECORDING = 4 * 1024 ** 3
+MAX_RECORDING = 4 * 1024**3
 _ID = r"[0-9a-f]{16}"
 _TAKE = r"\d{8}-\d{6}-[0-9a-f]{8}"
 
 
 def _is_jam_path(path: str) -> bool:
-    return path == "/api/piano/replay" or path == "/api/piano/deck" or path.startswith("/api/piano/deck/") or \
-        path == "/api/piano/jam" or path.startswith("/api/piano/jam/")
+    return (
+        path == "/api/piano/replay"
+        or path == "/api/piano/deck"
+        or path.startswith(("/api/piano/deck/", "/api/piano/jam/"))
+        or path == "/api/piano/jam"
+    )
 
 
 def clip_id_for(path) -> str:
@@ -66,9 +82,9 @@ def clip_id_for(path) -> str:
 class Library:
     """Media files under the library roots, rescanned at most every ten seconds."""
 
-    def __init__(self, roots: List[str]):
+    def __init__(self, roots: list[str]):
         self.roots = [Path(r).resolve() for r in roots]
-        self._clips: Dict[str, dict] = {}
+        self._clips: dict[str, dict] = {}
         self._scanned = 0.0
         self._lock = threading.Lock()
 
@@ -89,24 +105,31 @@ class Library:
                             st = path.stat()
                         except OSError:
                             continue
-                        found.append({"id": clip_id_for(path), "name": name, "path": str(path),
-                                      "size": st.st_size, "mtime": int(st.st_mtime),
-                                      "ext": path.suffix.lower().lstrip(".")})
+                        found.append(
+                            {
+                                "id": clip_id_for(path),
+                                "name": name,
+                                "path": str(path),
+                                "size": st.st_size,
+                                "mtime": int(st.st_mtime),
+                                "ext": path.suffix.lower().lstrip("."),
+                            }
+                        )
             found.sort(key=lambda c: c["mtime"], reverse=True)
             self._clips = {c["id"]: c for c in found[:MAX_CLIPS]}
             self._scanned = time.monotonic()
 
-    def clips(self) -> List[dict]:
+    def clips(self) -> list[dict]:
         self._scan()
         return sorted(self._clips.values(), key=lambda c: c["mtime"], reverse=True)
 
-    def get(self, clip_id: str) -> Optional[dict]:
+    def get(self, clip_id: str) -> dict | None:
         self._scan()
         if clip_id not in self._clips:
             self._scan(force=True)
         return self._clips.get(clip_id)
 
-    def resolve(self, name: str, size: int) -> Optional[dict]:
+    def resolve(self, name: str, size: int) -> dict | None:
         for attempt in (False, True):
             self._scan(force=attempt)
             for clip in self._clips.values():
@@ -119,17 +142,16 @@ class Jobs:
     """Background feature analysis per clip: 202 while computing, 200 when ready, 500 once on error."""
 
     def __init__(self):
-        self._jobs: Dict[str, dict] = {}
+        self._jobs: dict[str, dict] = {}
         self._lock = threading.Lock()
 
-    def features(self, clip: dict) -> Tuple[int, dict]:
+    def features(self, clip: dict) -> tuple[int, dict]:
         with self._lock:
             job = self._jobs.get(clip["id"])
             if job is None:
                 job = {"status": "computing", "progress": 0.0}
                 self._jobs[clip["id"]] = job
-                threading.Thread(target=self._run, args=(clip, job), daemon=True,
-                                 name=f"features-{clip['id']}").start()
+                threading.Thread(target=self._run, args=(clip, job), daemon=True, name=f"features-{clip['id']}").start()
             if job["status"] == "ready":
                 return 200, {"status": "ready", "features": job["features"]}
             if job["status"] == "error":
@@ -153,8 +175,16 @@ class Jobs:
 
 
 class App:
-    def __init__(self, roots: List[str], takes_root=None, presets_dir=None, performance_root=None,
-                 performance_log: bool = True, jam_root=None, looks_root=None):
+    def __init__(
+        self,
+        roots: list[str],
+        takes_root=None,
+        presets_dir=None,
+        performance_root=None,
+        performance_log: bool = True,
+        jam_root=None,
+        looks_root=None,
+    ):
         self.presets_dir = presets_dir
         self.registry = load_registry()
         self.library = Library(roots)
@@ -162,7 +192,7 @@ class App:
         # None switches the practice-log routes off: they answer 404 "no route", like a server from before them.
         self.performance = PerformanceStore(performance_root) if performance_log else None
         self.jobs = Jobs()
-        self.probes: Dict[str, dict] = {}
+        self.probes: dict[str, dict] = {}
         self.cues = CueHub()  # Claude's hand on the piano page (arsenal/pianocue.py)
         # The jam space: deck, runs and their routes (arsenal/jam). Its files sit beside the practice log's
         # (state/arsenal/jam by default; <performance root>/../jam for a server given --performance-root). Nothing is
@@ -209,7 +239,7 @@ class Handler(BaseHTTPRequestHandler):
         sys.stderr.write(f"[arsenal] {fmt % args}\n")
 
     # ----------------------------------------------------------------- responses
-    def _send(self, status: int, body: bytes, content_type: str, headers: Optional[dict] = None) -> None:
+    def _send(self, status: int, body: bytes, content_type: str, headers: dict | None = None) -> None:
         self.send_response(status)
         if self._body_unread():
             self.send_header("Connection", "close")  # (send_header sets close_connection too)
@@ -283,7 +313,7 @@ class Handler(BaseHTTPRequestHandler):
                     self.send_header("Location", "/first-light")
                     self.send_header("Content-Length", "0")
                     self.end_headers()
-                    return
+                    return None
                 if path == "/favicon.ico":
                     return self._send(204, b"", "image/x-icon")
                 if path == "/first-light":
@@ -293,12 +323,13 @@ class Handler(BaseHTTPRequestHandler):
                 if path == "/piano":
                     return self._static(WEB / "piano.html")
                 if path.startswith("/web/"):
-                    return self._static_under(unquote(path[len("/web/"):]))
+                    return self._static_under(unquote(path[len("/web/") :]))
                 if path == "/api/health":
                     return self._json(200, {"ok": True, "api": "arsenal.serve/v0", "version": __version__})
                 if path == "/api/library":
-                    return self._json(200, {"roots": [str(r) for r in self.app.library.roots],
-                                            "clips": self.app.library.clips()})
+                    return self._json(
+                        200, {"roots": [str(r) for r in self.app.library.roots], "clips": self.app.library.clips()}
+                    )
                 if path == "/api/resolve":
                     return self._resolve(query)
                 if path == "/api/takes":
@@ -316,11 +347,13 @@ class Handler(BaseHTTPRequestHandler):
                 logging = self.app.performance is not None
                 if path == "/api/performance" and logging:
                     return self._json(200, {"sessions": self.app.performance.list()})
-                routes = [(rf"/api/media/({_ID})", self._media),
-                          (rf"/api/probe/({_ID})", lambda cid: self._probe(cid, query)),
-                          (rf"/api/analysis/({_ID})", self._analysis),
-                          (r"/api/graph/([A-Za-z0-9_-]+)", self._graph),
-                          (rf"/api/take/({_TAKE})", self._take_get)]
+                routes = [
+                    (rf"/api/media/({_ID})", self._media),
+                    (rf"/api/probe/({_ID})", lambda cid: self._probe(cid, query)),
+                    (rf"/api/analysis/({_ID})", self._analysis),
+                    (r"/api/graph/([A-Za-z0-9_-]+)", self._graph),
+                    (rf"/api/take/({_TAKE})", self._take_get),
+                ]
                 if logging:
                     routes.append((rf"/api/performance/({SESSION_PATTERN})", self._performance_get))
                 for pattern, handler in routes:
@@ -352,12 +385,10 @@ class Handler(BaseHTTPRequestHandler):
                     return self._looks("PUT")
             return self._json(404, {"error": f"no route for {method} {path}"})
         except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError):
-            return  # the browser cancelled, usually a seek
+            return None  # the browser cancelled, usually a seek
         except Exception as exc:
-            try:
+            with contextlib.suppress(OSError):
                 self._json(500, {"error": f"{type(exc).__name__}: {exc}"})
-            except OSError:
-                pass
 
     # --------------------------------------------------------------------- static
     def _static(self, file: Path) -> None:
@@ -373,6 +404,7 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         if self.command != "HEAD":
             self.wfile.write(body)
+        return None
 
     def _static_under(self, rel: str) -> None:
         target = (WEB / rel).resolve()
@@ -412,7 +444,7 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Content-Range", f"bytes {start}-{end}/{size}")
         self.end_headers()
         if self.command == "HEAD":
-            return
+            return None
         with open(path, "rb") as fh:
             fh.seek(start)
             remaining = length
@@ -422,6 +454,7 @@ class Handler(BaseHTTPRequestHandler):
                     break
                 self.wfile.write(chunk)
                 remaining -= len(chunk)
+        return None
 
     def _unsatisfiable(self, size: int) -> None:
         self.send_response(416)
@@ -436,8 +469,7 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(400, {"error": "resolve needs name and size"})
         clip = self.app.library.resolve(name, int(size))
         if not clip:
-            return self._json(404, {"error": "not in library roots",
-                                    "roots": [str(r) for r in self.app.library.roots]})
+            return self._json(404, {"error": "not in library roots", "roots": [str(r) for r in self.app.library.roots]})
         return self._json(200, {"clip": clip})
 
     def _probe(self, clip_id: str, query) -> None:
@@ -445,6 +477,7 @@ class Handler(BaseHTTPRequestHandler):
         if not clip:
             return self._json(404, {"error": "no such clip in the library roots"})
         from . import analysis
+
         want_hw = (query.get("hw") or ["0"])[0] == "1"
         key = f"{clip_id}:{clip['size']}:{clip['mtime']}:{int(want_hw)}"
         if key not in self.app.probes:
@@ -496,8 +529,13 @@ class Handler(BaseHTTPRequestHandler):
         clip_id = body.get("clip_id")
         clip = self.app.library.get(clip_id) if isinstance(clip_id, str) and re.fullmatch(_ID, clip_id) else None
         if clip:
-            meta.update(clip_id=clip["id"], clip_name=clip["name"], clip_path=clip["path"],
-                        clip_size=clip["size"], clip_mtime=clip["mtime"])
+            meta.update(
+                clip_id=clip["id"],
+                clip_name=clip["name"],
+                clip_path=clip["path"],
+                clip_size=clip["size"],
+                clip_mtime=clip["mtime"],
+            )
         elif clip_id:
             meta.update(clip_id=clip_id, clip_outside_library=True)
         return self._json(200, {"take_id": self.app.ledger.open(graph.to_json(), plan, meta)})
@@ -528,7 +566,7 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(404, {"error": f"no take {take_id}"})
 
     # ------------------------------------------------------------ practice log
-    def _performance_post(self, session: Optional[str], action: str) -> None:
+    def _performance_post(self, session: str | None, action: str) -> None:
         """open, events and close (PIANO-V2-SPEC section 4): 400 malformed, 404 unknown, 409 closed.
 
         Optional for uploads that must not double up (the browser's offline buffer): open takes client_id and
@@ -592,7 +630,7 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(400, {"error": str(exc)})
         return self._json(200, self.app.cues.publish(cue))
 
-    def _cue_stream(self, query: Optional[dict] = None) -> None:
+    def _cue_stream(self, query: dict | None = None) -> None:
         """GET /api/piano/cues: an event stream held open on this connection's own thread until the page goes away.
 
         The Last-Event-ID header wins; ?lastEventId=N is the fallback for a page that had to open a fresh EventSource
@@ -655,8 +693,9 @@ class Handler(BaseHTTPRequestHandler):
             raw = self.rfile.read(length) if length > 0 else b""
             origin = self.headers.get("Origin")
             if origin is not None and urlsplit(origin).hostname not in ("127.0.0.1", "localhost"):
-                return self._json(403, {"error": f"jam requests are accepted from this machine's pages only, not "
-                                                 f"{origin}"})
+                return self._json(
+                    403, {"error": f"jam requests are accepted from this machine's pages only, not {origin}"}
+                )
             try:
                 body = json.loads(raw.decode("utf-8") or "null")
             except ValueError as exc:
@@ -714,8 +753,10 @@ class Handler(BaseHTTPRequestHandler):
         kind = (self.headers.get("Content-Type") or "").split(";")[0].strip().lower()
         ext = RECORDING_TYPES.get(kind)
         if not ext:
-            return self._json(415, {"error": f"a recording must be video/webm, video/mp4 or video/x-matroska, "
-                                             f"not {kind or 'untyped'}"})
+            return self._json(
+                415,
+                {"error": f"a recording must be video/webm, video/mp4 or video/x-matroska, not {kind or 'untyped'}"},
+            )
         length = int(self.headers.get("Content-Length") or 0)
         if not 0 < length <= MAX_RECORDING:
             return self._json(413 if length else 411, {"error": "a recording needs a Content-Length of at most 4 GB"})
@@ -754,8 +795,13 @@ class Server(ThreadingHTTPServer):
         self.app = app
 
 
-def serve(port: int = 8793, roots: Optional[List[str]] = None, takes_root=None, performance_root=None,
-          performance_log: bool = True) -> None:
+def serve(
+    port: int = 8793,
+    roots: list[str] | None = None,
+    takes_root=None,
+    performance_root=None,
+    performance_log: bool = True,
+) -> None:
     app = App(roots or DEFAULT_ROOTS, takes_root, performance_root=performance_root, performance_log=performance_log)
     server = Server(port, app)
     roots_text = ", ".join(str(r) for r in app.library.roots)
@@ -764,8 +810,11 @@ def serve(port: int = 8793, roots: Optional[List[str]] = None, takes_root=None, 
     log_text = f"sessions in {app.performance.root}" if app.performance else "off (the routes answer 404)"
     print(f"[arsenal] practice log: {log_text}", flush=True)
     closed = app.jam.runs.close_unclosed()  # a run left open by an earlier server ends with server-restart
-    print(f"[arsenal] jam: deck and runs in {app.jam.root}"
-          + (f"; closed {len(closed)} run(s) an earlier server left open" if closed else ""), flush=True)
+    print(
+        f"[arsenal] jam: deck and runs in {app.jam.root}"
+        + (f"; closed {len(closed)} run(s) an earlier server left open" if closed else ""),
+        flush=True,
+    )
     ticking = threading.Event()
 
     def tick() -> None:  # passes that end by themselves, pending runs nobody launched

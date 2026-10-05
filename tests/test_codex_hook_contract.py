@@ -5,6 +5,7 @@ Codex hook contract documented on 2026-08-26; the adapter also captures bounded 
 under ``%TEMP%/akashic_recall/codex_payloads`` so a fresh-task drill can promote observed shapes
 to fixtures later.  The distinction is load-bearing: configured is not observed.
 """
+
 from __future__ import annotations
 
 import io
@@ -12,13 +13,10 @@ import json
 import os
 from pathlib import Path
 
-import pytest
-
 from agent.harness import registry
 from agent.harness.hooks import codex_common as common
 from agent.harness.hooks import codex_posttooluse as post
 from agent.harness.hooks import codex_pretooluse as pre
-
 
 ROOT = Path(__file__).resolve().parents[1]
 FIX = ROOT / "tests" / "fixtures" / "codex_payloads"
@@ -60,7 +58,8 @@ def test_subject_header_names_address_session_and_unratified_hint(monkeypatch):
     out = common.subject_context("sol", "session-123")
     assert "subject: sol" in out
     assert "session: session-123" in out
-    assert "Sunshine" in out and "historical-unratified" in out
+    assert "Sunshine" in out
+    assert "historical-unratified" in out
     assert "attribution is not verification" in out.lower()
     assert "identity-history pointer [subject=sol]" in out
     assert "sol-sunshine-identity-history" in out
@@ -129,9 +128,7 @@ def test_posttool_resolves_direct_failure_for_the_same_command(monkeypatch):
     monkeypatch.setattr(post, "capture_failure", lambda *_args: None)
     monkeypatch.setattr("sys.stdin", io.StringIO(json.dumps(payload)))
     assert post.main() == 0
-    assert calls == [
-        ("codex-docs-session", common.action_targets(payload)[0], False, "sol")
-    ]
+    assert calls == [("codex-docs-session", common.action_targets(payload)[0], False, "sol")]
 
 
 def test_repo_hooks_are_codex_native_and_single_handler_per_event():
@@ -139,7 +136,8 @@ def test_repo_hooks_are_codex_native_and_single_handler_per_event():
     hooks = cfg["hooks"]
     for event in ("SessionStart", "UserPromptSubmit", "PreToolUse", "PostToolUse"):
         commands = [h["command"] for group in hooks[event] for h in group["hooks"]]
-        assert commands and all("codex_" in command for command in commands)
+        assert commands
+        assert all("codex_" in command for command in commands)
         assert all("claude_" not in command for command in commands)
     assert len(hooks["PreToolUse"]) == 1
     assert len(hooks["PostToolUse"]) == 1

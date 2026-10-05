@@ -28,11 +28,11 @@ After a rewrite, `rekey` walks the T410 commit-maps to find each row's successor
 against the stable key before writing it. Two independent routes to the same answer, and it
 refuses when they disagree.
 """
+
 from __future__ import annotations
 
 import argparse
 import json
-import os
 import subprocess
 import sys
 from collections import Counter
@@ -50,8 +50,9 @@ PLACEHOLDER = "you@email.com"
 
 
 def git(*a, root=None):
-    p = subprocess.run(["git", "-C", str(root or ROOT), *a], capture_output=True, text=True,
-                       encoding="utf-8", errors="replace")
+    p = subprocess.run(
+        ["git", "-C", str(root or ROOT), *a], capture_output=True, text=True, encoding="utf-8", errors="replace"
+    )
     return p.stdout or ""
 
 
@@ -72,8 +73,17 @@ def cmd_build(args):
         if ae == OPERATOR:
             continue
         seat = "operator-unconfigured-git" if ae == PLACEHOLDER else ae.split("@")[0]
-        rows.append({"sha": sha, "seat": seat, "seat_name": an, "seat_email": ae,
-                     "at": at, "subject": subj, "committer_email": ce})
+        rows.append(
+            {
+                "sha": sha,
+                "seat": seat,
+                "seat_name": an,
+                "seat_email": ae,
+                "at": at,
+                "subject": subj,
+                "committer_email": ce,
+            }
+        )
         seats[seat] += 1
     if not rows:
         raise SystemExit("no non-operator-authored commits found -- nothing to record")
@@ -138,11 +148,13 @@ def cmd_rekey(args):
         if res.ok and res.sha and res.sha not in {s for v in live.values() for s in v}:
             hits += 1
     if sample and hits > len(sample) * 0.5:
-        print(f"REFUSING: {hits} of {len(sample)} sampled map targets do not exist in this "
-              f"repository.\n"
-              f"  The maps describe a rewrite that has NOT been applied here yet, so every\n"
-              f"  comparison would disagree and the output would look like mass corruption.\n"
-              f"  Apply the rewrite first, then run rekey. Nothing was changed.")
+        print(
+            f"REFUSING: {hits} of {len(sample)} sampled map targets do not exist in this "
+            f"repository.\n"
+            f"  The maps describe a rewrite that has NOT been applied here yet, so every\n"
+            f"  comparison would disagree and the output would look like mass corruption.\n"
+            f"  Apply the rewrite first, then run rekey. Nothing was changed."
+        )
         return 1
 
     moved = kept = refused = lost = 0
@@ -175,8 +187,7 @@ def cmd_rekey(args):
             kept += 1
             continue
         row["was_sha"], row["sha"] = row["sha"], target
-        row["rekey"] = "map+key agree" if (by_map and by_key) else (
-            "map only" if by_map else "stable key only")
+        row["rekey"] = "map+key agree" if (by_map and by_key) else ("map only" if by_map else "stable key only")
         moved += 1
 
     print(f"rows: {len(rows):,}")
@@ -226,8 +237,7 @@ def cmd_verify(args):
         raise SystemExit(f"no ledger at {LEDGER.relative_to(ROOT)}")
     byhash = {sha: (at, subj) for sha, _n, _e, at, subj, _c in history()}
     missing = [r for r in rows if r["sha"] not in byhash]
-    drifted = [r for r in rows if r["sha"] in byhash
-               and byhash[r["sha"]] != (r["at"], r["subject"])]
+    drifted = [r for r in rows if r["sha"] in byhash and byhash[r["sha"]] != (r["at"], r["subject"])]
     print(f"rows: {len(rows):,}")
     print(f"  SHA names no commit here : {len(missing):,}")
     print(f"  stable key disagrees     : {len(drifted):,}")

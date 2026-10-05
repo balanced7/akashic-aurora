@@ -37,9 +37,9 @@ import json
 import logging
 import unicodedata
 import uuid
+from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
-from typing import List, Dict, Optional, Any
-from dataclasses import dataclass, asdict
+from typing import Any
 
 from core.foundation.store import CASConflict, Store, create_store
 
@@ -85,17 +85,17 @@ class Decision:
     status: str
     context: str
     decision: str
-    rationale: List[str]
-    alternatives: List[Dict]
-    consequences: Dict[str, List[str]]
+    rationale: list[str]
+    alternatives: list[dict]
+    consequences: dict[str, list[str]]
     created_at: str
     session_id: str = ""
-    supersedes: Optional[str] = None   # id of the decision this one replaces
-    superseded: bool = False           # set True when a newer decision supersedes it
+    supersedes: str | None = None  # id of the decision this one replaces
+    superseded: bool = False  # set True when a newer decision supersedes it
     # T074 W2: provenance of the CONTENT -- True = hand-curated (an agent/human wrote it
     # deliberately), False = mechanically distilled (wrap/hooks), None = legacy/unflagged.
     # None renders age-only downstream: the flag beats inference, absence claims nothing.
-    curated: Optional[bool] = None
+    curated: bool | None = None
 
 
 @dataclass
@@ -106,10 +106,10 @@ class Experience:
     result: str
     success: bool
     score: float
-    learnings: List[str]
+    learnings: list[str]
     timestamp: str
     session_id: str = ""
-    supersedes: Optional[str] = None
+    supersedes: str | None = None
     superseded: bool = False
 
 
@@ -149,7 +149,7 @@ class AgentMemory:
 
     MAX_REFLECTIONS = 50  # keep only the newest N reflections in the index
 
-    def __init__(self, store: Optional[Store] = None):
+    def __init__(self, store: Store | None = None):
         self.store = store if store is not None else create_store(prefer_redis=True)
 
     @property
@@ -166,16 +166,24 @@ class AgentMemory:
     def _retire_record(self, hash_key: str, record_id: str) -> None:
         """Mark a stored record superseded (inactive) so reads/ranking skip it."""
         from core.primitives import supersession
+
         data = self.store.hget(hash_key, record_id)
         if data:
             rec = supersession.retire(json.loads(data))
             self.store.hset(hash_key, field=record_id, value=json.dumps(rec))
 
-    def decide(self, title: str, decision: str, context: str = "",
-               rationale: List[str] = None, alternatives: List[Dict] = None,
-               consequences: Dict[str, List[str]] = None, session_id: str = "",
-               supersedes: Optional[str] = None,
-               curated: Optional[bool] = None) -> str:
+    def decide(
+        self,
+        title: str,
+        decision: str,
+        context: str = "",
+        rationale: list[str] | None = None,
+        alternatives: list[dict] | None = None,
+        consequences: dict[str, list[str]] | None = None,
+        session_id: str = "",
+        supersedes: str | None = None,
+        curated: bool | None = None,
+    ) -> str:
         """Record an architectural decision. If `supersedes` is given, the named prior
         decision is retired (Supersession), so reads/ranking surface only this.
 
@@ -194,17 +202,24 @@ class AgentMemory:
         dec_id = self._gen_id("ADR")
         created = datetime.now().isoformat()
         dec = Decision(
-            id=dec_id, title=title, status="accepted", context=context,
-            decision=decision, rationale=rationale or [], alternatives=alternatives or [],
+            id=dec_id,
+            title=title,
+            status="accepted",
+            context=context,
+            decision=decision,
+            rationale=rationale or [],
+            alternatives=alternatives or [],
             consequences=consequences or {"positive": [], "negative": []},
-            created_at=created, session_id=session_id, supersedes=supersedes,
+            created_at=created,
+            session_id=session_id,
+            supersedes=supersedes,
             curated=curated,
         )
         try:
             self.store.hset(self.KEY_DECISIONS, field=dec_id, value=json.dumps(asdict(dec)))
             self.store.zadd(self.KEY_DECISION_INDEX, {dec_id: datetime.fromisoformat(created).timestamp()})
         except Exception as e:
-            logger.error(f"Failed to record decision: {e}")
+            logger.error("Failed to record decision: %s", e)
             return ""
         # Claim the title head. Claimable = fresh title, the id we expected to replace,
         # or a current head that no longer names an ACTIVE record (dangling after manual
@@ -212,27 +227,28 @@ class AgentMemory:
         # sentinel by design; reconciled Q4).
         head_key = HEAD_KEY_PREFIX + title
 
-        def _claim(current: Optional[str]) -> Optional[str]:
+        def _claim(current: str | None) -> str | None:
             if current is None or current == supersedes or not self._is_active(current):
                 return dec_id
-            return None   # a foreign ACTIVE head owns this title -- lose cleanly
+            return None  # a foreign ACTIVE head owns this title -- lose cleanly
 
         try:
             result = self.store.update_atomic(head_key, _claim, retries=1)
         except CASConflict:
-            result = self.store.get(head_key)   # the cycle itself raced; whoever's there won
+            result = self.store.get(head_key)  # the cycle itself raced; whoever's there won
         except Exception as e:
-            logger.error(f"Head claim failed for '{title}': {e}")
+            logger.error("Head claim failed for '%s': %s", title, e)
             result = None
         if result != dec_id:
             # Lost: never leave our record active-but-unheaded (that IS the fork).
             self._retire_record(self.KEY_DECISIONS, dec_id)
             raise SupersedeRaceError(
                 f"lost the title race for '{title}': current head is {result}; "
-                f"re-read and retry against it (decide_with_retry does this)")
+                f"re-read and retry against it (decide_with_retry does this)"
+            )
         if supersedes:
             self._retire_record(self.KEY_DECISIONS, supersedes)
-        logger.info(f"Decision {dec_id}: {title}")
+        logger.info("Decision %s: %s", dec_id, title)
         return dec_id
 
     def _is_active(self, dec_id: str) -> bool:
@@ -243,15 +259,14 @@ class AgentMemory:
         except Exception:
             return False
 
-    def _resolve_head(self, title_n: str) -> Optional[str]:
+    def _resolve_head(self, title_n: str) -> str | None:
         """Current ACTIVE head id for a normalized title. Reads the sentinel; when it is
         missing, dangling, or names a retired record, falls back to the newest ACTIVE
         record by scan (the RB-8 lazy bootstrap for pre-head corpora). None = fresh."""
         cur = self.store.get(HEAD_KEY_PREFIX + title_n)
         if cur and self._is_active(cur):
             return cur
-        cands = [d for d in self.get_decisions(days=3650)
-                 if normalize_title(d.title) == title_n]
+        cands = [d for d in self.get_decisions(days=3650) if normalize_title(d.title) == title_n]
         if not cands:
             return None
         cands.sort(key=lambda d: (d.created_at, d.id), reverse=True)
@@ -266,7 +281,7 @@ class AgentMemory:
         HERE and not in decide() so a conflict never re-generates ids or rewrites bodies
         wastefully (reconciled Wave 3 spec)."""
         title_n = normalize_title(title)
-        last: Optional[SupersedeRaceError] = None
+        last: SupersedeRaceError | None = None
         for _ in range(max(1, retries)):
             head = self._resolve_head(title_n)
             try:
@@ -276,7 +291,7 @@ class AgentMemory:
         raise last
 
     # ----- RB-9: normalization collision scan -----
-    def find_normalization_collisions(self) -> List[Dict]:
+    def find_normalization_collisions(self) -> list[dict]:
         """Scan active decisions for title pairs that normalize-equal but STORED different.
         RB-9 (W3): flags pre-existing near-duplicates for manual ruling; never auto-merges.
         FULL-corpus scan: legacy twins are old by nature (pre-RB-9 writes), so a lookback
@@ -284,16 +299,17 @@ class AgentMemory:
         tests/test_w3_rb9_rb10.py with 2026-01 forgeries). Doctor/boot frequency, never
         the default read path. Returns {title, stored_variants, ids, count} per collision."""
         decisions = self.get_decisions(days=3650)
-        by_norm: Dict[str, List[Decision]] = {}
+        by_norm: dict[str, list[Decision]] = {}
         for d in decisions:
             n = normalize_title(d.title)
             by_norm.setdefault(n, []).append(d)
         hits = []
         for norm, group in by_norm.items():
-            distinct = sorted(set(d.title for d in group))
+            distinct = sorted({d.title for d in group})
             if len(distinct) > 1:
-                hits.append({"title": norm, "stored_variants": distinct,
-                              "ids": [d.id for d in group], "count": len(group)})
+                hits.append(
+                    {"title": norm, "stored_variants": distinct, "ids": [d.id for d in group], "count": len(group)}
+                )
         hits.sort(key=lambda h: h["title"])
         return hits
 
@@ -311,12 +327,16 @@ class AgentMemory:
             title_n = normalize_title(rec.get("title", ""))
             head = self.store.get(HEAD_KEY_PREFIX + title_n)
             if head and self._is_active(head):
-                return (f"supersede target '{supersedes}' is already superseded "
-                        f"(current head is '{head}'); drop --supersedes to auto-resolve, "
-                        f"or name the current head explicitly")
-            return (f"supersede target '{supersedes}' is already superseded "
-                    f"and the sentinel for its title is missing/dangling; "
-                    f"drop --supersedes to auto-resolve")
+                return (
+                    f"supersede target '{supersedes}' is already superseded "
+                    f"(current head is '{head}'); drop --supersedes to auto-resolve, "
+                    f"or name the current head explicitly"
+                )
+            return (
+                f"supersede target '{supersedes}' is already superseded "
+                f"and the sentinel for its title is missing/dangling; "
+                f"drop --supersedes to auto-resolve"
+            )
         return None
 
     def retire_decision(self, dec_id: str) -> bool:
@@ -331,17 +351,17 @@ class AgentMemory:
             data = self.store.hget(self.KEY_DECISIONS, dec_id)
             return bool(data and json.loads(data).get("superseded"))
         except Exception as e:
-            logger.error(f"Failed to retire decision {dec_id}: {e}")
+            logger.error("Failed to retire decision %s: %s", dec_id, e)
             return False
 
     # ----- RB-10: all-retired-title detector -----
-    def get_retired_titles(self) -> List[Dict]:
+    def get_retired_titles(self) -> list[dict]:
         """Return titles whose every record is retired (vanished groups). Additive surface:
         default get_decisions() unchanged. Time-bounded to 90 days per the FM2 mitigation;
         older vanished groups surface only via --all. Each entry: {title, last_active_id,
         retired_count, last_retired_at}."""
         decisions = self.get_decisions(days=90, include_superseded=True)
-        by_title: Dict[str, List[Decision]] = {}
+        by_title: dict[str, list[Decision]] = {}
         for d in decisions:
             n = normalize_title(d.title)
             by_title.setdefault(n, []).append(d)
@@ -349,9 +369,14 @@ class AgentMemory:
         for title_n, group in by_title.items():
             if all(d.superseded for d in group):
                 newest = max(group, key=lambda d: d.created_at)
-                gone.append({"title": title_n, "last_active_id": newest.id,
-                             "retired_count": len(group),
-                             "last_retired_at": newest.created_at})
+                gone.append(
+                    {
+                        "title": title_n,
+                        "last_active_id": newest.id,
+                        "retired_count": len(group),
+                        "last_retired_at": newest.created_at,
+                    }
+                )
         gone.sort(key=lambda g: g["title"])
         return gone
 
@@ -368,12 +393,12 @@ class AgentMemory:
         try:
             fn()
         except Exception:
-            self.store.delete(key)   # roll back the pin so a retry can re-attempt
+            self.store.delete(key)  # roll back the pin so a retry can re-attempt
             raise
         return True
 
     # ----- RB-11: chain-length warning -----
-    def get_long_chains(self, threshold: int | None = None) -> List[Dict]:
+    def get_long_chains(self, threshold: int | None = None) -> list[dict]:
         """Return titles whose superseded chain length exceeds the threshold (default
         CHAIN_WARN_THRESHOLD=50). Render-side only -- never on the default read path.
         FULL-corpus count: a chain that took months to grow is precisely the pathology
@@ -382,7 +407,7 @@ class AgentMemory:
         2026-07-11). Each entry: {title, count, oldest_id, newest_id}."""
         t = threshold if threshold is not None else CHAIN_WARN_THRESHOLD
         decisions = self.get_decisions(days=3650, include_superseded=True)
-        by_title: Dict[str, List[Decision]] = {}
+        by_title: dict[str, list[Decision]] = {}
         for d in decisions:
             n = normalize_title(d.title)
             by_title.setdefault(n, []).append(d)
@@ -391,12 +416,11 @@ class AgentMemory:
             if len(group) > t:
                 newest = max(group, key=lambda d: d.created_at)
                 oldest = min(group, key=lambda d: d.created_at)
-                long.append({"title": title_n, "count": len(group),
-                             "oldest_id": oldest.id, "newest_id": newest.id})
+                long.append({"title": title_n, "count": len(group), "oldest_id": oldest.id, "newest_id": newest.id})
         long.sort(key=lambda c: -c["count"])
         return long
 
-    def get_decisions(self, days: int = 30, include_superseded: bool = False) -> List[Decision]:
+    def get_decisions(self, days: int = 30, include_superseded: bool = False) -> list[Decision]:
         """Get decisions from the last `days`, newest first. Active (not superseded) only by
         default; `include_superseded=True` is the archaeology path (notes --all)."""
         decisions = []
@@ -414,22 +438,36 @@ class AgentMemory:
             # at the store level per the differential harness finding).
             decisions.sort(key=lambda x: (x.created_at, x.title, x.id), reverse=True)
         except Exception as e:
-            logger.error(f"Failed to get decisions: {e}")
+            logger.error("Failed to get decisions: %s", e)
         return decisions
 
     # ----- experiences (episodic) -----
-    def record(self, task: str, success: bool, approach: str = "", result: str = "",
-               score: float = 0, learnings: List[str] = None, session_id: str = "",
-               supersedes: Optional[str] = None) -> str:
+    def record(
+        self,
+        task: str,
+        success: bool,
+        approach: str = "",
+        result: str = "",
+        score: float = 0,
+        learnings: list[str] | None = None,
+        session_id: str = "",
+        supersedes: str | None = None,
+    ) -> str:
         """Record an experience. If `supersedes` is given, the named prior
         experience is retired (Supersession)."""
         exp_id = self._gen_id("exp")
         created = datetime.now().isoformat()
         exp = Experience(
-            id=exp_id, task=task[:200], approach=approach[:100] if approach else "",
+            id=exp_id,
+            task=task[:200],
+            approach=approach[:100] if approach else "",
             result=result[:200] if result else ("Success" if success else "Failed"),
-            success=success, score=score, learnings=learnings or [],
-            timestamp=created, session_id=session_id, supersedes=supersedes,
+            success=success,
+            score=score,
+            learnings=learnings or [],
+            timestamp=created,
+            session_id=session_id,
+            supersedes=supersedes,
         )
         try:
             self.store.hset(self.KEY_EXPERIENCES, field=exp_id, value=json.dumps(asdict(exp)))
@@ -437,13 +475,13 @@ class AgentMemory:
             self.store.zadd(key, {exp_id: datetime.fromisoformat(created).timestamp()})
             if supersedes:
                 self._retire_record(self.KEY_EXPERIENCES, supersedes)
-            logger.info(f"Experience {exp_id}: {task[:40]}")
+            logger.info("Experience %s: %s", exp_id, task[:40])
             return exp_id
         except Exception as e:
-            logger.error(f"Failed to record experience: {e}")
+            logger.error("Failed to record experience: %s", e)
             return ""
 
-    def get_similar(self, task: str, limit: int = 5) -> List[Experience]:
+    def get_similar(self, task: str, limit: int = 5) -> list[Experience]:
         """Find similar past experiences (keyword overlap; richer retrieval is Phase C)."""
         similar = []
         seen = set()
@@ -464,10 +502,10 @@ class AgentMemory:
                             if len(similar) >= limit:
                                 break
         except Exception as e:
-            logger.error(f"Failed to get similar experiences: {e}")
+            logger.error("Failed to get similar experiences: %s", e)
         return similar
 
-    def load_all_experiences(self) -> List[Experience]:
+    def load_all_experiences(self) -> list[Experience]:
         """All active (not superseded) experiences, newest first across success+failure."""
         out, seen = [], set()
         try:
@@ -483,20 +521,26 @@ class AgentMemory:
                         seen.add(exp_id)
                         out.append(Experience(**parsed))
         except Exception as e:
-            logger.error(f"Failed to load all experiences: {e}")
+            logger.error("Failed to load all experiences: %s", e)
         return out
 
     # ----- reflections (Reflexion loop) -----
-    def reflect(self, task: str, what_went_wrong: str, what_would_help: str,
-                attempt: int = 1, confidence: float = 0.5) -> str:
+    def reflect(
+        self, task: str, what_went_wrong: str, what_would_help: str, attempt: int = 1, confidence: float = 0.5
+    ) -> str:
         """Record a reflection on a failure."""
         refl_id = self._gen_id("refl")
         created = datetime.now().isoformat()
         refl = Reflection(
-            id=refl_id, task=task[:100], attempt=attempt,
-            what_went_wrong=what_went_wrong[:200], why_it_failed="",
-            what_would_help=what_would_help[:200], corrective_action="",
-            confidence=confidence, created_at=created,
+            id=refl_id,
+            task=task[:100],
+            attempt=attempt,
+            what_went_wrong=what_went_wrong[:200],
+            why_it_failed="",
+            what_would_help=what_would_help[:200],
+            corrective_action="",
+            confidence=confidence,
+            created_at=created,
         )
         try:
             self.store.hset(self.KEY_REFLECTIONS, field=refl_id, value=json.dumps(asdict(refl)))
@@ -505,10 +549,10 @@ class AgentMemory:
             self.store.zremrangebyrank(self.KEY_REFLECTION_INDEX, 0, -(self.MAX_REFLECTIONS + 1))
             return refl_id
         except Exception as e:
-            logger.error(f"Failed to reflect: {e}")
+            logger.error("Failed to reflect: %s", e)
             return ""
 
-    def get_insights(self, min_confidence: float = 0.6) -> List[Dict]:
+    def get_insights(self, min_confidence: float = 0.6) -> list[dict]:
         """Get actionable insights from recent reflections above a confidence floor."""
         insights = []
         try:
@@ -519,17 +563,22 @@ class AgentMemory:
                     if r.get("confidence", 0) >= min_confidence:
                         insights.append(r)
         except Exception as e:
-            logger.error(f"Failed to get insights: {e}")
+            logger.error("Failed to get insights: %s", e)
         return insights
 
     # ----- approaches (procedural) -----
-    def register_approach(self, component: str, name: str, status: str,
-                          learnings: List[str] = None, evidence: Dict = None) -> str:
+    def register_approach(
+        self, component: str, name: str, status: str, learnings: list[str] | None = None, evidence: dict | None = None
+    ) -> str:
         """Register an approach (working/failed/in_progress) for a component."""
         app_id = f"{component}_{name[:20].lower().replace(' ', '_')}_{datetime.now().strftime('%m%d%H%M')}"
         app = {
-            "id": app_id, "component": component, "name": name, "status": status,
-            "learnings": learnings or [], "evidence": evidence or {},
+            "id": app_id,
+            "component": component,
+            "name": name,
+            "status": status,
+            "learnings": learnings or [],
+            "evidence": evidence or {},
             "created_at": datetime.now().isoformat(),
         }
         try:
@@ -539,10 +588,10 @@ class AgentMemory:
             self.store.hset(self.KEY_APPROACH_BY_COMPONENT, field=component, value=",".join(parts))
             return app_id
         except Exception as e:
-            logger.error(f"Failed to register approach: {e}")
+            logger.error("Failed to register approach: %s", e)
             return ""
 
-    def get_component_status(self, component: str) -> Dict[str, List[Dict]]:
+    def get_component_status(self, component: str) -> dict[str, list[dict]]:
         """Get all approaches for a component, grouped by status."""
         result = {"working": [], "failed": [], "in_progress": []}
         try:
@@ -557,11 +606,11 @@ class AgentMemory:
                     if status in result:
                         result[status].append(app)
         except Exception as e:
-            logger.error(f"Failed to get component status: {e}")
+            logger.error("Failed to get component status: %s", e)
         return result
 
     # ----- retrieval + stats -----
-    def get_context(self, query: str = "") -> Dict[str, Any]:
+    def get_context(self, query: str = "") -> dict[str, Any]:
         """Assemble relevant memory for a task: decisions, experiences, insights, stats."""
         decisions = self.get_decisions(days=30)
         recent_experiences = []
@@ -571,7 +620,7 @@ class AgentMemory:
                 if data:
                     recent_experiences.append(Experience(**json.loads(data)))
         except Exception as e:
-            logger.error(f"Failed to load recent experiences: {e}")
+            logger.error("Failed to load recent experiences: %s", e)
 
         return {
             "decisions": [asdict(d) for d in decisions[:5]],
@@ -580,7 +629,7 @@ class AgentMemory:
             "stats": self.get_stats(),
         }
 
-    def get_stats(self) -> Dict:
+    def get_stats(self) -> dict:
         """Overall memory statistics."""
         try:
             decisions = self.store.zcard(self.KEY_DECISION_INDEX)
@@ -599,55 +648,69 @@ class AgentMemory:
         except Exception as e:
             return {"status": "error", "message": str(e)}
 
-    def log_failure(self, title: str, root_cause: str, fix_applied: str = "",
-                    component: str = "system", learnings: List[str] = None,
-                    session_id: str = "") -> str:
+    def log_failure(
+        self,
+        title: str,
+        root_cause: str,
+        fix_applied: str = "",
+        component: str = "system",
+        learnings: list[str] | None = None,
+        session_id: str = "",
+    ) -> str:
         """
         Log a failure: records it as an experience, a reflection, and indexed detail.
 
         Semantic Relationship: Failure recorded_as Experience AND Reflection
         """
         exp_id = self.record(
-            task=title, success=False,
+            task=title,
+            success=False,
             approach=f"fix_attempt:{fix_applied[:50]}" if fix_applied else "",
-            result=f"Failed: {root_cause[:100]}", score=0,
-            learnings=learnings or [root_cause], session_id=session_id,
+            result=f"Failed: {root_cause[:100]}",
+            score=0,
+            learnings=learnings or [root_cause],
+            session_id=session_id,
         )
 
         if component:
             try:
-                self.store.zadd(f"{self.PREFIX}:experience:by_task:{component}",
-                                {exp_id: datetime.now().timestamp()})
+                self.store.zadd(f"{self.PREFIX}:experience:by_task:{component}", {exp_id: datetime.now().timestamp()})
             except Exception as e:
-                logger.error(f"Failed to index failure by component: {e}")
+                logger.error("Failed to index failure by component: %s", e)
 
         refl_id = self.reflect(
-            task=title[:100], what_went_wrong=title,
+            task=title[:100],
+            what_went_wrong=title,
             what_would_help=(fix_applied or (learnings[0] if learnings else "Unknown")),
-            attempt=1, confidence=0.8,
+            attempt=1,
+            confidence=0.8,
         )
 
         try:
             failure_data = {
-                "id": exp_id, "title": title, "root_cause": root_cause,
-                "fix_applied": fix_applied, "component": component,
-                "learnings": learnings or [], "timestamp": datetime.now().isoformat(),
+                "id": exp_id,
+                "title": title,
+                "root_cause": root_cause,
+                "fix_applied": fix_applied,
+                "component": component,
+                "learnings": learnings or [],
+                "timestamp": datetime.now().isoformat(),
                 "reflection_id": refl_id,
             }
             self.store.hset(f"{self.PREFIX}:failures:detailed", field=exp_id, value=json.dumps(failure_data))
             self.store.zadd(f"{self.PREFIX}:failures:index", {exp_id: datetime.now().timestamp()})
         except Exception as e:
-            logger.error(f"Failed to store failure detail: {e}")
+            logger.error("Failed to store failure detail: %s", e)
 
-        logger.info(f"Failure logged: {title[:50]}")
+        logger.info("Failure logged: %s", title[:50])
         return exp_id
 
 
 # Global instance
-_agent_memory: Optional[AgentMemory] = None
+_agent_memory: AgentMemory | None = None
 
 
-def get_agent_memory(store: Optional[Store] = None) -> AgentMemory:
+def get_agent_memory(store: Store | None = None) -> AgentMemory:
     """
     Get or create the global AgentMemory instance.
 
@@ -660,6 +723,7 @@ def get_agent_memory(store: Optional[Store] = None) -> AgentMemory:
     Semantic Relationship: AgentMemoryInstance references_to GlobalInstance
     """
     import os
+
     global _agent_memory
     if store is not None:
         return AgentMemory(store=store)

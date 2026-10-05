@@ -21,11 +21,13 @@ isolation; teardown deletes the touched keys.
 
 Run: py -m pytest tests/test_rb21_consumer_seat.py -q
 """
+
 import ast
 import os
 import sys
 import time
 import uuid
+from pathlib import Path
 
 import pytest
 
@@ -34,6 +36,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 try:
     from core.comm import runner_lock
     from core.comm.bus import Bus
+
     _BUILT = hasattr(runner_lock, "claim_consumer")
 except ImportError:
     runner_lock = Bus = None
@@ -50,16 +53,20 @@ pytestmark = [
 ]
 
 
-@pytest.fixture()
+@pytest.fixture
 def agent():
     aid = f"rb21test-{uuid.uuid4().hex[:8]}"
     yield aid
     c = runner_lock._client()
     if c is not None:
         try:
-            for k in (f"bifrost:runner:{aid}", f"bifrost:generation:{aid}",
-                      f"bifrost:cursor:{aid}", f"bifrost:inbox:{aid}",
-                      f"bifrost:presence:{aid}"):
+            for k in (
+                f"bifrost:runner:{aid}",
+                f"bifrost:generation:{aid}",
+                f"bifrost:cursor:{aid}",
+                f"bifrost:inbox:{aid}",
+                f"bifrost:presence:{aid}",
+            ):
                 c.delete(k)
         except Exception:
             pass
@@ -85,32 +92,40 @@ def _quiesce(agent):
 
 # --- P1: a session claim mints a usable fencing generation ---
 
+
 def test_session_claim_mints_generation(agent):
-    ok, gen, info = runner_lock.claim_consumer(agent, "session:pin-a")
-    assert ok and gen > 0
+    ok, gen, _info = runner_lock.claim_consumer(agent, "session:pin-a")
+    assert ok
+    assert gen > 0
     assert Bus(agent).advance_to(inbox="1-1", generation=gen) == "OK"
-    assert runner_lock.SESSION_CONSUMER_TTL > runner_lock.LOCK_TTL, \
+    assert runner_lock.SESSION_CONSUMER_TTL > runner_lock.LOCK_TTL, (
         "a turn-based session cannot heartbeat in runner seconds"
+    )
 
 
 # --- P2: second claimant refused while the holder lives, holder named ---
 
+
 def test_second_claimant_refused_while_holder_alive(agent):
-    ok_a, gen_a, _ = runner_lock.claim_consumer(agent, "session:pin-a")
-    ok_b, gen_b, info_b = runner_lock.claim_consumer(agent, "session:pin-b")
-    assert ok_a and not ok_b
+    ok_a, _gen_a, _ = runner_lock.claim_consumer(agent, "session:pin-a")
+    ok_b, _gen_b, info_b = runner_lock.claim_consumer(agent, "session:pin-b")
+    assert ok_a
+    assert not ok_b
     assert "session:pin-a" in str(info_b), "the refusal names the live holder"
 
 
 # --- P3: an expired-but-still-writing predecessor is fenced AT THE RESOURCE ---
 
+
 def test_stale_generation_fenced_at_resource(agent):
     bus = Bus(agent)
     ok_a, g1, _ = runner_lock.claim_consumer(agent, "session:pin-a")
-    assert ok_a and bus.advance_to(inbox="1-1", generation=g1) == "OK"
-    runner_lock.release(agent, "session:pin-a")          # simulate expiry
+    assert ok_a
+    assert bus.advance_to(inbox="1-1", generation=g1) == "OK"
+    runner_lock.release(agent, "session:pin-a")  # simulate expiry
     ok_b, g2, _ = runner_lock.claim_consumer(agent, "session:pin-b")
-    assert ok_b and g2 > g1
+    assert ok_b
+    assert g2 > g1
     assert bus.advance_to(inbox="2-1", generation=g2) == "OK"
     assert bus.advance_to(inbox="3-1", generation=g1) == "STALE_GENERATION"
     assert bus.cursor()["inbox"] == "2-1", "the fenced-out write moved NOTHING"
@@ -118,32 +133,38 @@ def test_stale_generation_fenced_at_resource(agent):
 
 # --- P4: a dead holder's seat frees by TTL alone (no janitor, no SessionStart) ---
 
+
 def test_ttl_frees_dead_holder_alone(agent):
     ok_a, gen_a, _ = runner_lock.claim_consumer(agent, "session:pin-a", ttl=1)
     assert ok_a
-    time.sleep(1.3)                                      # holder vanishes, releases nothing
+    time.sleep(1.3)  # holder vanishes, releases nothing
     ok_b, gen_b, _ = runner_lock.claim_consumer(agent, "session:pin-b")
-    assert ok_b and gen_b > gen_a
+    assert ok_b
+    assert gen_b > gen_a
 
 
 # --- P5: the raw unguarded cursor write is RETIRED ---
 
+
 def test_raw_write_cursor_retired():
-    assert not hasattr(Bus, "_write_cursor"), \
+    assert not hasattr(Bus, "_write_cursor"), (
         "the unguarded HSET path is gone; the guarded Lua is the only cursor writer"
+    )
 
 
 # --- P6: never-fenced agents keep working at generation 0 (strangler back-compat) ---
 
+
 def test_unfenced_backcompat_gen0_consume(agent):
     bus = _quiesce(agent)
     _seed(agent, 2)
-    got = bus.inbox(limit=10, advance=True)              # no claim anywhere, gen 0
+    got = bus.inbox(limit=10, advance=True)  # no claim anywhere, gen 0
     assert len(got) == 2
     assert bus.inbox(limit=10, advance=True) == [], "cursor advanced normally"
 
 
 # --- P7: peeking touches neither lock nor generation ---
+
 
 def test_peek_stays_seatless(agent):
     _quiesce(agent)
@@ -157,16 +178,19 @@ def test_peek_stays_seatless(agent):
 
 # --- P8: the door degrades to peek under a foreign live holder (mail visible, not eaten) ---
 
+
 def test_door_degrade_shape_under_foreign_holder(agent):
     from agent.bifrost_pull import consume_inbox
+
     _quiesce(agent)
     _seed(agent, 2)
     ok, _, _ = runner_lock.claim_consumer(agent, "session:pin-holder")
     assert ok
     bus = Bus(agent)
     before = dict(bus.cursor())
-    res = consume_inbox(agent, limit=10)                 # a DIFFERENT session's door call
-    assert isinstance(res, dict) and res.get("seat_held") is True
+    res = consume_inbox(agent, limit=10)  # a DIFFERENT session's door call
+    assert isinstance(res, dict)
+    assert res.get("seat_held") is True
     assert "session:pin-holder" in str(res.get("holder"))
     assert len(res.get("peeked") or []) == 2, "the mail is SHOWN, never eaten"
     assert dict(bus.cursor()) == before, "degraded read moved nothing"
@@ -175,22 +199,27 @@ def test_door_degrade_shape_under_foreign_holder(agent):
 # --- P10 (post-review registration, deepseek N1, added pre-impl at gate GREEN):
 #     same-session re-claim is a refresh, never a refusal ---
 
+
 def test_same_session_reclaim_refreshes_not_refuses(agent):
     ok1, g1, _ = runner_lock.claim_consumer(agent, "session:pin-a")
     ok2, g2, _ = runner_lock.claim_consumer(agent, "session:pin-a")
-    assert ok1 and ok2 and g2 == g1, \
-        "re-entrant for the own token: refresh TTL, keep the tenure generation"
+    assert ok1, "re-entrant for the own token: refresh TTL, keep the tenure generation"
+    assert ok2, "re-entrant for the own token: refresh TTL, keep the tenure generation"
+    assert g2 == g1, "re-entrant for the own token: refresh TTL, keep the tenure generation"
 
 
 # --- P11 (post-review registration, deepseek Q3/Option A, added pre-impl at gate GREEN):
 #     the door's happy path is the SAME dict shape ---
 
+
 def test_door_happy_path_dict_shape(agent):
     from agent.bifrost_pull import consume_inbox
+
     _quiesce(agent)
     _seed(agent, 1)
     res = consume_inbox(agent, limit=10)
-    assert isinstance(res, dict) and res.get("seat_held") is False
+    assert isinstance(res, dict)
+    assert res.get("seat_held") is False
     assert len(res.get("consumed") or []) == 1, "one consistent type for JSON callers"
 
 
@@ -200,31 +229,37 @@ def test_door_happy_path_dict_shape(agent):
 #     heartbeat re-wrote the lock value with gen=0 -> the next re-entrant claim recovered
 #     0 -> advance_to == STALE_GENERATION against our own cursor. Self-fencing. ---
 
+
 def test_cross_process_refresh_preserves_generation(agent):
     ok, g1, _ = runner_lock.claim_consumer(agent, "session:pin-a")
-    assert ok and g1 > 0
-    assert Bus(agent).advance_to(inbox="1-1", generation=g1) == "OK"   # cursor gen = g1
-    runner_lock._TENURE_GEN.clear()          # simulate a FRESH process (the stop hook)
+    assert ok
+    assert g1 > 0
+    assert Bus(agent).advance_to(inbox="1-1", generation=g1) == "OK"  # cursor gen = g1
+    runner_lock._TENURE_GEN.clear()  # simulate a FRESH process (the stop hook)
     assert runner_lock.refresh_consumer(agent, "session:pin-a")
-    ok2, g2, _ = runner_lock.claim_consumer(agent, "session:pin-a")    # next consume
-    assert ok2 and g2 == g1, "the refresher preserved the tenure generation"
-    assert Bus(agent).advance_to(inbox="2-1", generation=g2) == "OK", \
+    ok2, g2, _ = runner_lock.claim_consumer(agent, "session:pin-a")  # next consume
+    assert ok2, "the refresher preserved the tenure generation"
+    assert g2 == g1, "the refresher preserved the tenure generation"
+    assert Bus(agent).advance_to(inbox="2-1", generation=g2) == "OK", (
         "a session must never fence ITSELF via its own hook refresh"
+    )
 
 
 # --- P9: the MCP door defaults to PEEK (silent consume-by-default retired) ---
 
+
 def test_mcp_door_peek_default():
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    tree = ast.parse(open(os.path.join(root, "ai_setup_mcp.py"), encoding="utf-8").read())
+    tree = ast.parse(Path(os.path.join(root, "ai_setup_mcp.py")).read_text(encoding="utf-8"))
     # O1 (2026-07-23): MCP tools are async now -> AsyncFunctionDef, not FunctionDef.
     # The peek-default guarantee this test pins is unchanged; accept both node types.
-    fn = next(n for n in ast.walk(tree)
-              if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))
-              and n.name == "bifrost_inbox")
+    fn = next(
+        n
+        for n in ast.walk(tree)
+        if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)) and n.name == "bifrost_inbox"
+    )
     args = fn.args
-    named = {a.arg: d for a, d in
-             zip(args.args[len(args.args) - len(args.defaults):], args.defaults)}
-    named.update({a.arg: d for a, d in zip(args.kwonlyargs, args.kw_defaults) if d})
+    named = {a.arg: d for a, d in zip(args.args[len(args.args) - len(args.defaults) :], args.defaults, strict=False)}
+    named.update({a.arg: d for a, d in zip(args.kwonlyargs, args.kw_defaults, strict=False) if d})
     assert "consume" in named, "bifrost_inbox grows an explicit consume arg"
     assert getattr(named["consume"], "value", None) is False, "and it defaults to PEEK"

@@ -19,11 +19,11 @@ no word said. Now the floor is lower, and a note the floor still cannot hold REF
 render naming the slide and the overflow, since a footnote that ends mid-sentence is a drop
 the manifest never declared (--no-footnotes is the escape).
 """
+
 from __future__ import annotations
 
 import math
 from pathlib import Path
-from typing import List, Optional
 
 from .. import scene as sc
 from . import _core as C
@@ -31,9 +31,9 @@ from . import slides_html
 from ._core import esc
 
 MODULE_ID = "present.pdf"
-FOOT_SIDE = 64          # the footnote's side margins
-FOOT_GAP = 16           # between the scaled slide and the footnote
-FOOT_LINE = 34          # caption role 24 x 1.4
+FOOT_SIDE = 64  # the footnote's side margins
+FOOT_GAP = 16  # between the scaled slide and the footnote
+FOOT_LINE = 34  # caption role 24 x 1.4
 MIN_SCALE, MAX_SCALE = 0.5, 0.85
 
 
@@ -48,7 +48,7 @@ def _footnote_need(scene: dict):
     col_w = (sc.CANVAS["w"] - 2 * FOOT_SIDE - 32) / 2
     cpl = max(1, int(col_w / (0.6 * 24)))
     lines = math.ceil(longest / cpl) if longest else 1
-    rows = math.ceil(lines / 2) + 1                        # + the section line
+    rows = math.ceil(lines / 2) + 1  # + the section line
     need = rows * FOOT_LINE + FOOT_GAP + 48
     return who, longest, lines, rows, need
 
@@ -62,16 +62,18 @@ def footnote_scale(scene: dict) -> float:
     return max(MIN_SCALE, min(MAX_SCALE, round(s, 3)))
 
 
-def footnote_overflow(scene: dict) -> Optional[str]:
+def footnote_overflow(scene: dict) -> str | None:
     """A sentence naming the slide whose note cannot fit its footnote even at MIN_SCALE, or
     None when every note fits (by the estimate)."""
-    who, longest, lines, rows, need = _footnote_need(scene)
+    who, longest, lines, _rows, need = _footnote_need(scene)
     room = sc.CANVAS["h"] - round(sc.CANVAS["h"] * MIN_SCALE) - FOOT_GAP - 24
-    if need <= room + 48:                                   # the same 48 the estimate reserves
+    if need <= room + 48:  # the same 48 the estimate reserves
         return None
-    return (f"slide {who}: its note is {longest} characters ({lines} lines at caption role in two columns), "
-            f"more than the footnote holds at the {MIN_SCALE:g} floor; shorten the note or render with "
-            f"footnotes off (--no-footnotes), which drops it openly")
+    return (
+        f"slide {who}: its note is {longest} characters ({lines} lines at caption role in two columns), "
+        f"more than the footnote holds at the {MIN_SCALE:g} floor; shorten the note or render with "
+        f"footnotes off (--no-footnotes), which drops it openly"
+    )
 
 
 def _css(tk: dict, scale: float, footnotes: bool) -> str:
@@ -85,18 +87,21 @@ def _css(tk: dict, scale: float, footnotes: bool) -> str:
         f"body {{ font-family: {tk['faces']['sans']} }}\n"
         + C.browser_reset_css(".page")
         + f".page {{ position: relative; width: {w}px; height: {h}px; overflow: hidden; background: #FFFFFF; "
-          "break-after: page; page-break-after: always }\n"
+        "break-after: page; page-break-after: always }\n"
         f".page > section {{ position: absolute; left: {ox}px; top: 0; transform-origin: 0 0; transform: scale({scale:g}) }}\n"
-        + (f".footnote {{ position: absolute; left: {FOOT_SIDE}px; right: {FOOT_SIDE}px; top: {foot_top}px; bottom: 24px; "
-           f"overflow: hidden; columns: 2; column-gap: 32px; font-size: 24px; line-height: 1.4; color: {p['muted']} }}\n"
-           f".footnote .section {{ font-family: {tk['faces']['mono']}; font-weight: 500; font-size: 24px; line-height: 1.2; "
-           f"letter-spacing: 2px; text-transform: uppercase; color: {p['accent_deep']}; column-span: all; margin-bottom: 12px }}\n"
-           if footnotes else "")
+        + (
+            f".footnote {{ position: absolute; left: {FOOT_SIDE}px; right: {FOOT_SIDE}px; top: {foot_top}px; bottom: 24px; "
+            f"overflow: hidden; columns: 2; column-gap: 32px; font-size: 24px; line-height: 1.4; color: {p['muted']} }}\n"
+            f".footnote .section {{ font-family: {tk['faces']['mono']}; font-weight: 500; font-size: 24px; line-height: 1.2; "
+            f"letter-spacing: 2px; text-transform: uppercase; color: {p['accent_deep']}; column-span: all; margin-bottom: 12px }}\n"
+            if footnotes
+            else ""
+        )
         + "@media screen { body { background: #6B7680 } .page { margin: 24px auto; box-shadow: 0 8px 32px rgba(0,0,0,.35) } }\n"
     )
 
 
-def document(scene: dict, tk: Optional[dict] = None, footnotes: bool = True) -> str:
+def document(scene: dict, tk: dict | None = None, footnotes: bool = True) -> str:
     tk = tk or C.tokens(scene)
     starts = C.section_starts(scene)
     if footnotes:
@@ -104,27 +109,29 @@ def document(scene: dict, tk: Optional[dict] = None, footnotes: bool = True) -> 
         if overflow:
             raise RuntimeError(f"present.pdf refuses: {overflow}")
     scale = footnote_scale(scene) if footnotes else 1.0
-    pages: List[str] = []
+    pages: list[str] = []
     for slide in C.ordered_slides(scene):
         sid = slide["id"]
-        section = slides_html.section_html(scene, slide, tk, mode="browser", tag="section",
-                                           section=starts.get(sid), aside=False)
+        section = slides_html.section_html(
+            scene, slide, tk, mode="browser", tag="section", section=starts.get(sid), aside=False
+        )
         foot = ""
         if footnotes:
             note = C.note_of(slide)
-            lines: List[str] = []
+            lines: list[str] = []
             if starts.get(sid):
                 lines.append(f'<p class="section">{esc(starts[sid])}</p>')
             lines.append(f"<p>{esc((note or {}).get('script', ''))}</p>")
             foot = '\n<div class="footnote">' + "".join(lines) + "</div>"
         pages.append(f'<div class="page">\n{section}{foot}\n</div>')
     link = f'<link rel="stylesheet" href="{esc(tk["href"])}">\n' if tk.get("href") else ""
-    return ("<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n"
-            f"<title>{esc(scene.get('title', ''))}</title>\n{link}"
-            f"<style>\n{_css(tk, scale, footnotes)}</style>\n</head>\n<body>\n"
-            + "\n".join(pages) + "\n</body>\n</html>\n")
+    return (
+        '<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'
+        f"<title>{esc(scene.get('title', ''))}</title>\n{link}"
+        f"<style>\n{_css(tk, scale, footnotes)}</style>\n</head>\n<body>\n" + "\n".join(pages) + "\n</body>\n</html>\n"
+    )
 
 
-def render(scene: dict, out_dir, footnotes: bool = True, **opts) -> List[Path]:
+def render(scene: dict, out_dir, footnotes: bool = True, **opts) -> list[Path]:
     """Write <out_dir>/print.html. The PDF is the browser's print of it; nothing is launched."""
     return [C.write_bytes(Path(out_dir) / "print.html", document(scene, footnotes=bool(footnotes)))]

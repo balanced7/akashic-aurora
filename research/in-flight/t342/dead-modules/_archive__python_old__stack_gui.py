@@ -24,12 +24,13 @@ Usage:
   python stack_gui.py --no-browser    # Don't open browser
 """
 
+import base64
+import contextlib
+import json
 import os
 import sys
-import json
-import time
 import threading
-import base64
+import time
 import urllib.error
 import urllib.request
 from datetime import datetime
@@ -37,24 +38,30 @@ from pathlib import Path
 
 # Fix Windows console encoding for Unicode box-drawing chars
 if sys.platform == "win32":
-    try:
+    with contextlib.suppress(Exception):
         sys.stdout.reconfigure(encoding="utf-8")
-    except Exception:
-        pass
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+import uvicorn
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
+from stack_manager import (
+    SERVICES,
+    MemoryMonitor,
+    PortManager,
+    ResourceTracker,
+    RoutingTable,
+    _run_ps,
+    _run_wsl,
+    check_health,
+    launch_service,
+    resolve_tiers,
+    wait_for_healthy,
+)
 
 _BASE = Path(__file__).resolve().parent
-sys.path.insert(0, str(_BASE))
-
-from fastapi import FastAPI, HTTPException, Query, Request
-from fastapi.responses import HTMLResponse, JSONResponse
-from fastapi.middleware.cors import CORSMiddleware
-import uvicorn
-
-from stack_manager import (
-    SERVICES, resolve_tiers, check_health, launch_service, wait_for_healthy,
-    PortManager, RoutingTable, ResourceTracker, MemoryMonitor,
-    _run_wsl, _run_ps, _run_cmd, c, log,
-)
 
 # ──────────────────────────────────────────────────────────────
 # FASTAPI APP
@@ -82,6 +89,7 @@ memory_mon = MemoryMonitor()
 # taking down the whole API response
 # ──────────────────────────────────────────────────────────────
 
+
 def safe_call(func, default=None):
     """Wrap a subsystem call; returns default on failure."""
     try:
@@ -94,6 +102,7 @@ def safe_call(func, default=None):
 # ══════════════════════════════════════════════════════════════
 # PANEL 1: DASHBOARD — overview, quick status, resource gauges
 # ══════════════════════════════════════════════════════════════
+
 
 @app.get("/api/dashboard")
 async def api_dashboard():
@@ -133,6 +142,7 @@ def _get_tier(name: str) -> int:
 # ══════════════════════════════════════════════════════════════
 # PANEL 2: LAUNCHER — start/stop/restart, dependency viz
 # ══════════════════════════════════════════════════════════════
+
 
 @app.get("/api/launcher/tiers")
 async def api_launcher_tiers():
@@ -204,7 +214,7 @@ async def api_restart_service(name: str):
             _run_wsl(stop_cmd, timeout=10)
         else:
             _run_ps(stop_cmd, timeout=10)
-        time.sleep(1)
+        time.sleep(1)  # noqa: ASYNC251  # archived code: the blocking call stays (no behaviour change)
     routes_tbl.update_status(name, "restarting")
     launch_service(name, cfg)
     healthy = wait_for_healthy(name, cfg, routes_tbl)
@@ -224,7 +234,13 @@ async def api_start_all():
             results[name] = healthy
             if cfg.get("endpoint"):
                 ep = cfg["endpoint"]
-                routes_tbl.register(name, ep.get("host", "127.0.0.1"), ep.get("port", 0), ep.get("protocol", "tcp"), status="healthy" if healthy else "failed")
+                routes_tbl.register(
+                    name,
+                    ep.get("host", "127.0.0.1"),
+                    ep.get("port", 0),
+                    ep.get("protocol", "tcp"),
+                    status="healthy" if healthy else "failed",
+                )
     ports_mgr.sync_to_redis()
     return {"results": results}
 
@@ -232,6 +248,7 @@ async def api_start_all():
 # ══════════════════════════════════════════════════════════════
 # PANEL 3: METRICS — memory, CPU, health history
 # ══════════════════════════════════════════════════════════════
+
 
 @app.get("/api/metrics/memory")
 async def api_metrics_memory():
@@ -252,7 +269,7 @@ async def api_metrics_memory():
 
 
 @app.get("/api/metrics/history")
-async def api_metrics_history(service: str = None, limit: int = 20):
+async def api_metrics_history(service: str | None = None, limit: int = 20):
     """Historical memory snapshots from Redis or in-memory."""
     try:
         r = _redis()
@@ -286,6 +303,7 @@ async def api_metrics_resources():
 # ══════════════════════════════════════════════════════════════
 # PANEL 4: TROUBLESHOOT — logs, health runner, dep graph
 # ══════════════════════════════════════════════════════════════
+
 
 @app.get("/api/troubleshoot/logs/{name}")
 async def api_troubleshoot_logs(name: str, lines: int = 30):
@@ -330,16 +348,17 @@ async def api_troubleshoot_dep_graph():
     edges = []
     for name, cfg in SERVICES.items():
         healthy = safe_call(lambda n=name, c=cfg: check_health(n, c), default=False)
-        nodes.append({
-            "id": name,
-            "label": name,
-            "description": cfg["description"],
-            "healthy": healthy,
-            "tier": _get_tier(name),
-            "ports": cfg.get("ports", []),
-        })
-        for dep in cfg.get("depends", []):
-            edges.append({"from": dep, "to": name})
+        nodes.append(
+            {
+                "id": name,
+                "label": name,
+                "description": cfg["description"],
+                "healthy": healthy,
+                "tier": _get_tier(name),
+                "ports": cfg.get("ports", []),
+            }
+        )
+        edges.extend({"from": dep, "to": name} for dep in cfg.get("depends", []))
 
     return {"nodes": nodes, "edges": edges, "tiers": [sorted(t) for t in tiers]}
 
@@ -347,6 +366,7 @@ async def api_troubleshoot_dep_graph():
 # ══════════════════════════════════════════════════════════════
 # PANEL 5: MODERATION — manual controls, overrides, maintenance
 # ══════════════════════════════════════════════════════════════
+
 
 @app.get("/api/moderation/config")
 async def api_moderation_config():
@@ -405,6 +425,7 @@ async def api_moderation_status():
 
 _redis_conn = None
 
+
 def _redis():
     global _redis_conn
     if _redis_conn is not None:
@@ -415,6 +436,7 @@ def _redis():
             _redis_conn = None
     try:
         import redis as redis_lib
+
         from config import get_redis_config
 
         r = redis_lib.Redis(**get_redis_config())
@@ -488,8 +510,8 @@ async def api_ai_chat(request: Request):
     """
     try:
         body = await request.json()
-    except Exception:
-        raise HTTPException(400, "Expected JSON body")
+    except Exception as exc:
+        raise HTTPException(400, "Expected JSON body") from exc
 
     msg = (body.get("message") or "").strip()
     model = (body.get("model") or "gemma2:2b").strip()
@@ -919,8 +941,10 @@ async def serve_stack_dashboard():
 # ENTRY POINT
 # ──────────────────────────────────────────────────────────────
 
+
 def main():
     import argparse
+
     parser = argparse.ArgumentParser(description="Stack Manager GUI Server")
     parser.add_argument("--port", type=int, default=8090, help="Server port (default: 8090)")
     parser.add_argument("--host", type=str, default="127.0.0.1", help="Bind host (default: 127.0.0.1)")
@@ -932,12 +956,13 @@ def main():
     print(f"  AI Console -> http://{args.host}:{args.port}/")
     print(f"  Stack Status -> http://{args.host}:{args.port}/dashboard")
     print("  " + "=" * 48)
-    print(f"  Stack panels: Dashboard | Launcher | Metrics | Troubleshoot | Moderation")
+    print("  Stack panels: Dashboard | Launcher | Metrics | Troubleshoot | Moderation")
     print(f"  API docs: http://{args.host}:{args.port}/api/docs")
     print()
 
     if not args.no_browser:
         import webbrowser
+
         threading.Timer(1.5, lambda: webbrowser.open(f"http://{args.host}:{args.port}")).start()
 
     uvicorn.run(app, host=args.host, port=args.port, log_level="warning")

@@ -22,14 +22,13 @@ covers the store planes.
 
 import os
 import sys
-import time
 import uuid
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.comm.bus import Bus  # noqa: E402
-
 import pytest
+
+from core.comm.bus import Bus
 
 
 @pytest.fixture(autouse=True)
@@ -45,13 +44,14 @@ def _restore_incarnation_env():
         else:
             os.environ[k] = v
 
+
 NS = f"t108pin{uuid.uuid4().hex[:6]}"
 AGENT = "claude"
 SEAT_A = "aaaa1111-0000-0000-0000-000000000000"
 SEAT_B = "bbbb2222-0000-0000-0000-000000000000"
 
 
-def _seat_bus(session_id: str, ns: str = None) -> Bus:
+def _seat_bus(session_id: str, ns: str | None = None) -> Bus:
     """A bus handle AS a specific incarnation of AGENT (env carries the incarnation identity,
     matching how live seats derive it)."""
     os.environ["BIFROST_INCARNATION"] = session_id
@@ -85,15 +85,16 @@ def test_pin1_directed_mail_never_crosses_seats():
     bodies_b = " | ".join(str(getattr(m, "content", m)) for m in seen_b)
     assert f"for-seat-A-{NS}" not in bodies_b, (
         "TWIN THEFT: seat B consumed mail directed to seat A. This is the lived 2026-07-27 "
-        "defect (prior seat answering the new seat's mail) as an assertion. Seat B saw: "
-        + bodies_b[:300])
+        "defect (prior seat answering the new seat's mail) as an assertion. Seat B saw: " + bodies_b[:300]
+    )
 
     # And seat A must still be able to receive its own mail afterwards.
     seen_a = _drain_all(_seat_bus(SEAT_A))
     bodies_a = " | ".join(str(getattr(m, "content", m)) for m in seen_a)
     assert f"for-seat-A-{NS}" in bodies_a, (
         "STARVED SUCCESSOR: seat A's directed mail is gone -- consumed by another seat's "
-        "cursor advance or lost. Seat A saw: " + (bodies_a[:300] or "(nothing)"))
+        "cursor advance or lost. Seat A saw: " + (bodies_a[:300] or "(nothing)")
+    )
 
 
 def test_pin2_dead_seat_directed_mail_rehomes():
@@ -111,14 +112,17 @@ def test_pin2_dead_seat_directed_mail_rehomes():
         print("SKIPPED (Redis not running)")
         return
 
-    from core.comm import roster as ro, reaper
-    sid8 = SEAT_A[:8]                                       # roster/seat keys use sid8
-    ro.heartbeat(ns, AGENT, sid8, phase="building")         # A lives, registers its witness
+    from core.comm import reaper
+    from core.comm import roster as ro
+
+    sid8 = SEAT_A[:8]  # roster/seat keys use sid8
+    ro.heartbeat(ns, AGENT, sid8, phase="building")  # A lives, registers its witness
     sender.send(AGENT, "note", f"stranded-{NS}", meta={"to_incarnation": SEAT_A})
     # A dies for real: worklive expires (simulated), seatseen witnesses -> roster says DEAD.
     sender._client.delete(f"{ns}:worklive:{AGENT}#{sid8}")
     dead = [r for r in ro.roster(ns) if r["seat"] == f"{AGENT}#{sid8}"]
-    assert dead and dead[0]["state"] == "DEAD", f"precondition: A must be PROVABLY dead: {dead}"
+    assert dead, f"precondition: A must be PROVABLY dead: {dead}"
+    assert dead[0]["state"] == "DEAD", f"precondition: A must be PROVABLY dead: {dead}"
 
     rehomed = reaper.reap(ns)
     assert any(r["original_mid"] for r in rehomed), f"the reaper must report its re-homes: {rehomed}"
@@ -128,7 +132,8 @@ def test_pin2_dead_seat_directed_mail_rehomes():
     bodies_b = " | ".join(str(getattr(m, "content", m)) for m in seen_b)
     assert f"stranded-{NS}" in bodies_b, (
         "SILENT STRANDING: seat A died holding directed mail, the reaper ran, and the "
-        "survivor still cannot reach it. Survivor saw: " + (bodies_b[:300] or "(nothing)"))
+        "survivor still cannot reach it. Survivor saw: " + (bodies_b[:300] or "(nothing)")
+    )
 
 
 def test_pin3_never_beaten_orphan_stream_still_reaped():
@@ -145,14 +150,16 @@ def test_pin3_never_beaten_orphan_stream_still_reaped():
         print("SKIPPED (Redis not running)")
         return
     from core.comm import reaper
+
     # Mail lands on a seat that NEVER beats (no heartbeat call at all)...
     sender.send(AGENT, "note", f"orphan-{NS}", meta={"to_incarnation": SEAT_A})
     # ...and it is OLD (backdate the stream entry's age by rewriting with an old id is not
     # possible on XADD *, so the pin injects the age floor instead).
-    rehomed = reaper.reap(ns, _orphan_min_age_s=0)          # age floor 0 = eligible now
+    rehomed = reaper.reap(ns, _orphan_min_age_s=0)  # age floor 0 = eligible now
     assert any(f"{AGENT}#" in str(r.get("seat")) for r in rehomed), (
         "ORPHAN STRAND: a never-beaten seat's mail is invisible to a roster-row-only reaper "
-        f"-- kimi's seam, narrowed. reap() must scan orphan seat streams too. Got: {rehomed}")
+        f"-- kimi's seam, narrowed. reap() must scan orphan seat streams too. Got: {rehomed}"
+    )
     seen_b = _drain_all(_seat_bus(SEAT_B, ns))
     bodies = " | ".join(str(getattr(m, "content", m)) for m in seen_b)
     assert f"orphan-{NS}" in bodies, f"survivor must receive the orphan's mail: {bodies[:200]}"
@@ -161,17 +168,19 @@ def test_pin3_never_beaten_orphan_stream_still_reaped():
     assert not reaper.reap(ns), (
         "JUST-BORN SEAT ROBBED: a fresh orphan stream (younger than the age floor) was "
         "reaped -- the discrimination that protects a seat whose mail arrived before its "
-        "first boot-beat is missing")
+        "first boot-beat is missing"
+    )
 
 
-import pytest as _pytest
-
-
-@_pytest.mark.xfail(strict=False, reason=(
-    "PRE-REGISTERED (kimi S4 fence, defect not delta): a re-homed DIRECTED ask must re-point "
-    "the original asker's EXPECTATION at the claiming seat, or the answer never settles it "
-    "(T026 settle-on-answer bent -- the asker's expectation stays aimed at a dead seat). "
-    "Closes with the XREADGROUP claimable-home upgrade; flips to hard then."))
+@pytest.mark.xfail(
+    strict=False,
+    reason=(
+        "PRE-REGISTERED (kimi S4 fence, defect not delta): a re-homed DIRECTED ask must re-point "
+        "the original asker's EXPECTATION at the claiming seat, or the answer never settles it "
+        "(T026 settle-on-answer bent -- the asker's expectation stays aimed at a dead seat). "
+        "Closes with the XREADGROUP claimable-home upgrade; flips to hard then."
+    ),
+)
 def test_pin4_rehomed_ask_expectation_repoints_on_claim():
     raise AssertionError("expectation re-pointing not built until the claimable-home upgrade")
 

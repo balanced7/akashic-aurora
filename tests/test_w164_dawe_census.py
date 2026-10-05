@@ -11,26 +11,26 @@ VERIFIABILITY: a large body with no helper seam and no value-returning path has 
 transform and render fused, which is not proof of a bad answer but is proof that no seam
 exists at which an answer could be inspected, tested or reused.
 """
+
 from core.coord import dawe_census as D
 
 FUSED_BIG = "def cmd_big():\n" + "\n".join(f"    print({i})" for i in range(120))
-SEAMED_BIG = ("def _helper():\n    return 1\n\n"
-              "def cmd_seamed():\n    x = _helper()\n"
-              + "\n".join(f"    print({i})" for i in range(120)))
-ANSWERING_BIG = ("def cmd_answers():\n"
-                 + "\n".join(f"    print({i})" for i in range(118))
-                 + "\n    return {'rows': 1}\n")
+SEAMED_BIG = "def _helper():\n    return 1\n\ndef cmd_seamed():\n    x = _helper()\n" + "\n".join(
+    f"    print({i})" for i in range(120)
+)
+ANSWERING_BIG = "def cmd_answers():\n" + "\n".join(f"    print({i})" for i in range(118)) + "\n    return {'rows': 1}\n"
 FUSED_SMALL = "def cmd_small():\n    print(1)\n    print(2)\n"
 
 
 def test_d1_a_large_fused_verb_is_flagged_unverifiable():
     s = D.survey(FUSED_BIG)[0]
-    assert s.fused is True and s.unverifiable is True
+    assert s.fused is True
+    assert s.unverifiable is True
 
 
 def test_d2_a_helper_seam_clears_it_however_large():
     """One call to a local helper is a seam: the answer exists somewhere inspectable."""
-    s = [v for v in D.survey(SEAMED_BIG) if v.name == "cmd_seamed"][0]
+    s = next(v for v in D.survey(SEAMED_BIG) if v.name == "cmd_seamed")
     assert s.helper_calls >= 1
     assert s.unverifiable is False
 
@@ -62,7 +62,8 @@ def test_d6_the_render_states_that_it_measures_VERIFIABILITY_not_quality():
     """The tool must not assert what its evidence cannot carry -- that would be the exact
     Dawe failure, committed by the instrument named after it."""
     out = D.render(D.survey(FUSED_BIG)).lower()
-    assert "verifiability" in out and "never quality" in out
+    assert "verifiability" in out
+    assert "never quality" in out
 
 
 def test_d7_an_empty_finding_says_so_rather_than_going_quiet():
@@ -88,27 +89,30 @@ def test_d8_the_real_monolith_comes_back_CLEAN_and_that_is_the_finding():
     conclusion rather than the number. This pin exists so the correction survives the
     conversation that produced it."""
     from core.paths import repo_root
+
     src = (repo_root() / "agent_cli.py").read_text(encoding="utf-8", errors="replace")
     shapes = D.survey(src)
     assert len(shapes) >= 80, f"expected ~87 cmd_* verbs, surveyed {len(shapes)}"
     flagged = [s.name for s in shapes if s.unverifiable]
     assert not flagged, (
         f"verbs are now structurally unverifiable: {flagged}. If that is real, good -- the "
-        f"census earned its keep. Update this pin with the reason rather than deleting it.")
+        f"census earned its keep. Update this pin with the reason rather than deleting it."
+    )
 
 
 # --------------------------------------------------------------- silent degradation
 
 GUARD_SILENT = "def f():\n    try:\n        from core.x import y\n    except Exception:\n        pass\n"
-GUARD_LOUD = ("def g():\n    try:\n        from core.x import y\n"
-              "    except Exception as e:\n        print('x unavailable', e)\n")
-GUARD_RERAISE = ("def h():\n    try:\n        from core.x import y\n"
-                 "    except Exception:\n        raise\n")
+GUARD_LOUD = (
+    "def g():\n    try:\n        from core.x import y\n    except Exception as e:\n        print('x unavailable', e)\n"
+)
+GUARD_RERAISE = "def h():\n    try:\n        from core.x import y\n    except Exception:\n        raise\n"
 
 
 def test_s1_a_swallowed_import_is_classified_silent():
     g = D.survey_import_guards(GUARD_SILENT)[0]
-    assert g.handler == "silent" and g.enclosing == "f"
+    assert g.handler == "silent"
+    assert g.enclosing == "f"
     assert "core.x" in g.modules
 
 
@@ -141,9 +145,11 @@ def test_s6_the_real_monolith_shows_BOTH_kinds_which_is_the_finding():
     house already knows how to announce a failed optional import, so the 42 are drift rather
     than a uniform policy. If loud ever reaches 0 this pin should fail and be re-read."""
     from core.paths import repo_root
+
     src = (repo_root() / "agent_cli.py").read_text(encoding="utf-8", errors="replace")
     guards = D.survey_import_guards(src)
     silent = [g for g in guards if g.handler == "silent"]
     loud = [g for g in guards if g.handler == "loud"]
     assert len(guards) >= 40, f"only {len(guards)} import guards surveyed"
-    assert silent and loud, "both kinds must exist for the drift argument to hold"
+    assert silent, "both kinds must exist for the drift argument to hold"
+    assert loud, "both kinds must exist for the drift argument to hold"

@@ -31,8 +31,8 @@ a classification with a reason, never as an oversight.
 
 Run: py -m pytest tests/test_t200_ask_friction_mcp_twins.py -q
 """
+
 import ast
-import inspect
 import os
 import sys
 
@@ -74,6 +74,7 @@ def _fn(name):
 # The twins exist and are reachable.
 # --------------------------------------------------------------------------------------
 
+
 def test_ask_and_friction_are_on_the_mcp_door():
     names = _tool_names()
     assert "ask" in names, "the front door must be reachable from the door the conductor uses"
@@ -92,6 +93,7 @@ def test_manifest_no_longer_calls_them_gaps():
     """The debt is paid DOWN, not renamed. check_door_parity must now class both as
     shared, so the guard fails if a future edit removes a twin."""
     from scripts.checkers import check_door_parity as dp
+
     assert dp.MANIFEST["ask"] == "shared"
     assert dp.MANIFEST["friction"] == "shared"
 
@@ -100,6 +102,7 @@ def test_door_parity_guard_passes():
     """The guard is the falsifier for this whole slice: it compares the manifest against
     the ACTUAL surfaces, so a manifest edit without a real tool fails here."""
     from scripts.checkers import check_door_parity as dp
+
     rc = dp.main() if hasattr(dp, "main") else 0
     assert rc == 0, "door parity must pass with ask/friction reclassified as shared"
 
@@ -108,6 +111,7 @@ def test_door_parity_guard_passes():
 # The fidelity contract: nothing the CLI tells an operator may be lost in transport.
 # --------------------------------------------------------------------------------------
 
+
 def test_ask_twin_returns_the_structured_record_not_stdout_text():
     """cmd_ask writes the T197 peer verdict to STDERR, and the MCP adapter captures
     stdout only. A text twin would return the answer while silently dropping 'NOBODY
@@ -115,7 +119,8 @@ def test_ask_twin_returns_the_structured_record_not_stdout_text():
     src = ast.unparse(_fn("ask"))
     assert "json=True" in src, (
         "the ask twin must request the structured record, or the peer verdict "
-        "(stderr-only on the CLI) vanishes on the MCP door")
+        "(stderr-only on the CLI) vanishes on the MCP door"
+    )
 
 
 def test_friction_twin_keeps_the_blind_list():
@@ -136,6 +141,7 @@ def test_twins_delegate_to_the_cli_command_never_reimplement(name):
 # --------------------------------------------------------------------------------------
 # The deliberate omission, recorded as a decision.
 # --------------------------------------------------------------------------------------
+
 
 def test_launch_is_not_exposed_on_the_mcp_door():
     """Spawning a peer process is a privileged side effect. On the CLI the caller already

@@ -12,8 +12,10 @@ in the API call then self-renders as 'calling-model' aged (P-S1-0 surfaces it at
 Hermetic: a fake client captures the worklive phase (via on_activity) at create()-time. No network.
 Run: py -m pytest tests/test_t097_s1_call_issued_phase.py -q
 """
+
 import os
 import sys
+from typing import ClassVar
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts"))
@@ -21,13 +23,14 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(
 
 class _EmptyStream:
     def __iter__(self):
-        return iter(())          # create() returns, but yields NO tokens (the pure API-hang shape)
+        return iter(())  # create() returns, but yields NO tokens (the pure API-hang shape)
 
 
 def test_calling_model_phase_is_set_before_create():
     """P-S1-5: at the instant create() is entered, the worklive phase must be the DISTINCT
     'calling-model' (so a hang there is legible as an API stall), not the ambiguous 'thinking'."""
     import deepseek_chat as dc
+
     captured = {"phase": None, "at_create": None}
 
     def on_activity(state, detail=""):
@@ -35,7 +38,7 @@ def test_calling_model_phase_is_set_before_create():
 
     class _Completions:
         def create(self, **kw):
-            captured["at_create"] = captured["phase"]     # the phase set immediately before create()
+            captured["at_create"] = captured["phase"]  # the phase set immediately before create()
             return _EmptyStream()
 
     class _Chat:
@@ -44,17 +47,20 @@ def test_calling_model_phase_is_set_before_create():
     class _Client:
         chat = _Chat()
 
-    ag = dc.Agent(_Client(), None, model="deepseek-test", system="s", think=False,
-                  tools_enabled=False, on_activity=on_activity)
+    ag = dc.Agent(
+        _Client(), None, model="deepseek-test", system="s", think=False, tools_enabled=False, on_activity=on_activity
+    )
     ag.send("hello")
     assert captured["at_create"] == "calling-model", (
-        f"expected 'calling-model' phase at the blocking create(), got {captured['at_create']!r}")
+        f"expected 'calling-model' phase at the blocking create(), got {captured['at_create']!r}"
+    )
 
 
 def test_phase_flips_to_thinking_once_the_stream_yields():
     """Guard: the pre-call phase must NOT persist -- once the stream yields a token the phase
     flips to 'thinking', so a normal (non-hung) call doesn't linger as 'calling-model'."""
     import deepseek_chat as dc
+
     seq = []
 
     def on_activity(state, detail=""):
@@ -70,7 +76,7 @@ def test_phase_flips_to_thinking_once_the_stream_yields():
         delta = _Delta()
 
     class _Chunk:
-        choices = [_Choice()]
+        choices: ClassVar[list] = [_Choice()]
         usage = None
 
     class _OneStream:
@@ -87,10 +93,12 @@ def test_phase_flips_to_thinking_once_the_stream_yields():
     class _Client:
         chat = _Chat()
 
-    ag = dc.Agent(_Client(), None, model="deepseek-test", system="s", think=False,
-                  tools_enabled=False, on_activity=on_activity)
+    ag = dc.Agent(
+        _Client(), None, model="deepseek-test", system="s", think=False, tools_enabled=False, on_activity=on_activity
+    )
     ag.send("hello")
     assert "calling-model" in seq, "the call-issued phase must be marked before create()"
     assert "thinking" in seq, "the phase must flip to 'thinking' once the stream yields"
-    assert seq.index("calling-model") < seq.index("thinking"), \
+    assert seq.index("calling-model") < seq.index("thinking"), (
         "calling-model precedes thinking (the flip happens on the first streamed token)"
+    )

@@ -21,17 +21,17 @@ hybrid still returns an honest zero when nothing is close. Passages are embedded
 ingest, and stored beside the text. With no model available, hybrid answers with keywords and
 says so in the result.
 """
+
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import json
-import os
 import re
 import sqlite3
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List, Optional
 
 from core.manuals import chunk as chunk_mod
 from core.manuals import convert
@@ -40,11 +40,11 @@ SCHEMA_VERSION = "manuals.shelf/1"
 # Folded into every document's fingerprint: bump it when conversion or chunking changes, and
 # the next ingest re-cuts every document instead of trusting passages cut by older code.
 PIPELINE_VERSION = "2026-09-24.3"
-BM25_WEIGHTS = (4.0, 2.0, 1.0)                # title, breadcrumb, text
+BM25_WEIGHTS = (4.0, 2.0, 1.0)  # title, breadcrumb, text
 EMBED_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
-RRF_K = 60                                    # reciprocal rank fusion constant (the usual 60)
-CANDIDATES = 50                               # per ranking, before fusion
-VECTOR_FLOOR = 0.25                           # cosine a meaning-only match must reach
+RRF_K = 60  # reciprocal rank fusion constant (the usual 60)
+CANDIDATES = 50  # per ranking, before fusion
+VECTOR_FLOOR = 0.25  # cosine a meaning-only match must reach
 # Bounded memory on any shelf size (DeepSeek fence on 603b351a): vectors are scored in
 # batches with a running top-N, and passages are embedded a batch at a time.
 VECTOR_BATCH = 4096
@@ -52,7 +52,7 @@ EMBED_BATCH = 256
 
 
 DEFAULT_TAG = "all-MiniLM-L6-v2"
-_DEFAULT_EMBEDDER: Dict[str, object] = {}
+_DEFAULT_EMBEDDER: dict[str, object] = {}
 
 
 def load_default_embedder():
@@ -66,32 +66,109 @@ def load_default_embedder():
 
 def _load_minilm():
     import warnings
+
     try:
-        with warnings.catch_warnings():       # transformers' tokenizer FutureWarning is noise here
+        with warnings.catch_warnings():  # transformers' tokenizer FutureWarning is noise here
             warnings.simplefilter("ignore", FutureWarning)
             from sentence_transformers import SentenceTransformer
+
             try:
                 model = SentenceTransformer(EMBED_MODEL, device="cpu", local_files_only=True)
-            except TypeError:                 # older sentence-transformers: no local_files_only
+            except TypeError:  # older sentence-transformers: no local_files_only
                 model = SentenceTransformer(EMBED_MODEL, device="cpu")
     except Exception:
         return None
 
     def embed(texts):
-        return model.encode(list(texts), batch_size=64, normalize_embeddings=True,
-                            convert_to_numpy=True, show_progress_bar=False).astype("float32")
+        return model.encode(
+            list(texts), batch_size=64, normalize_embeddings=True, convert_to_numpy=True, show_progress_bar=False
+        ).astype("float32")
 
     embed.model_name = DEFAULT_TAG
     return embed
 
-_STOP = set("""a an and are as at be but by can could do does did for from had has have how i if in
-into is it its me my not of on or our should so than that the their them then there these they this
-those to us was we were what when where which while who whom why will with would you your
-many much any some about use using used need""".split())
+
+_STOP = {
+    "a",
+    "an",
+    "and",
+    "are",
+    "as",
+    "at",
+    "be",
+    "but",
+    "by",
+    "can",
+    "could",
+    "do",
+    "does",
+    "did",
+    "for",
+    "from",
+    "had",
+    "has",
+    "have",
+    "how",
+    "i",
+    "if",
+    "in",
+    "into",
+    "is",
+    "it",
+    "its",
+    "me",
+    "my",
+    "not",
+    "of",
+    "on",
+    "or",
+    "our",
+    "should",
+    "so",
+    "than",
+    "that",
+    "the",
+    "their",
+    "them",
+    "then",
+    "there",
+    "these",
+    "they",
+    "this",
+    "those",
+    "to",
+    "us",
+    "was",
+    "we",
+    "were",
+    "what",
+    "when",
+    "where",
+    "which",
+    "while",
+    "who",
+    "whom",
+    "why",
+    "will",
+    "with",
+    "would",
+    "you",
+    "your",
+    "many",
+    "much",
+    "any",
+    "some",
+    "about",
+    "use",
+    "using",
+    "used",
+    "need",
+}
 
 
 def default_db_path() -> Path:
     from core.paths import data_root
+
     return data_root() / "state" / "manuals" / "manuals.db"
 
 
@@ -105,12 +182,14 @@ class IngestReport:
     chunks_written: int = 0
     embedded: int = 0
     vector_note: str = ""
-    failed: List[str] = field(default_factory=list)
+    failed: list[str] = field(default_factory=list)
 
     def render(self) -> str:
-        line = (f"manual ingest [{self.shelf}]: {self.docs_added} added, {self.docs_replaced} replaced, "
-                f"{self.docs_unchanged} unchanged, {self.docs_removed} removed; "
-                f"{self.chunks_written} chunks written, {self.embedded} embedded")
+        line = (
+            f"manual ingest [{self.shelf}]: {self.docs_added} added, {self.docs_replaced} replaced, "
+            f"{self.docs_unchanged} unchanged, {self.docs_removed} removed; "
+            f"{self.chunks_written} chunks written, {self.embedded} embedded"
+        )
         if self.vector_note:
             line += f" ({self.vector_note})"
         if self.failed:
@@ -125,8 +204,8 @@ class Hit:
     shelf: str
     title: str
     breadcrumb: str
-    url: Optional[str]
-    page: Optional[int]
+    url: str | None
+    page: int | None
     score: float
     text: str
 
@@ -134,14 +213,14 @@ class Hit:
 @dataclass
 class SearchResult:
     query: str
-    terms: List[str]
-    hits: List[Hit]
+    terms: list[str]
+    hits: list[Hit]
     searched_chunks: int
-    shelves: List[str]
+    shelves: list[str]
     truncated: bool = False
-    error: Optional[str] = None
+    error: str | None = None
     mode: str = "bm25"
-    note: Optional[str] = None
+    note: str | None = None
 
     def render(self) -> str:
         text = self._render()
@@ -152,11 +231,17 @@ class SearchResult:
         if self.error:
             return f"manual search: could not search ({self.error}); 0 of {self.searched_chunks} chunks in [{where}]"
         if not self.hits:
-            return (f"manual search: 0 of {self.searched_chunks} chunks in [{where}] matched "
-                    f"{self.terms or '(no searchable words)'} -- the shelf may use other words for this; "
-                    f"try synonyms, or `manual list` to see what is shelved")
-        out = [f"manual search: {len(self.hits)} passage(s) for {self.query!r} "
-               f"(from {self.searched_chunks} chunks in [{where}])"]
+            return (
+                f"manual search: 0 of {self.searched_chunks} chunks in [{where}] matched "
+                f"{self.terms or '(no searchable words)'} -- the shelf may use other words for this; "
+                f"try synonyms, or `manual list` to see what is shelved"
+            )
+        out = [
+            (
+                f"manual search: {len(self.hits)} passage(s) for {self.query!r} "
+                f"(from {self.searched_chunks} chunks in [{where}])"
+            )
+        ]
         for i, h in enumerate(self.hits, 1):
             where_line = h.url or ""
             if h.page:
@@ -168,20 +253,31 @@ class SearchResult:
         return "\n".join(out)
 
     def to_json(self) -> str:
-        return json.dumps({"query": self.query, "terms": self.terms, "searched_chunks": self.searched_chunks,
-                           "shelves": self.shelves, "truncated": self.truncated, "error": self.error,
-                           "mode": self.mode, "note": self.note,
-                           "hits": [h.__dict__ for h in self.hits]}, ensure_ascii=False)
+        return json.dumps(
+            {
+                "query": self.query,
+                "terms": self.terms,
+                "searched_chunks": self.searched_chunks,
+                "shelves": self.shelves,
+                "truncated": self.truncated,
+                "error": self.error,
+                "mode": self.mode,
+                "note": self.note,
+                "hits": [h.__dict__ for h in self.hits],
+            },
+            ensure_ascii=False,
+        )
 
 
-def terms_of(query: str) -> List[str]:
+def terms_of(query: str) -> list[str]:
     words = [w.lower() for w in re.findall(r"\w+", query or "")]
     content = [w for w in words if w not in _STOP and (len(w) > 1 or w.isdigit())]
     chosen = content or [w for w in words if len(w) > 1]
     seen, out = set(), []
     for w in chosen:
         if w not in seen:
-            seen.add(w); out.append(w)
+            seen.add(w)
+            out.append(w)
     return out[:24]
 
 
@@ -231,18 +327,29 @@ class Shelf:
         """Embed every passage that has no vector from this model yet, EMBED_BATCH at a time
         (only the ids are held in full). Returns how many."""
         import numpy as np
+
         tag = self._model_tag(fn)
-        ids = [r[0] for r in c.execute("SELECT c.chunk_id FROM chunks c "
-                                       "LEFT JOIN chunk_vecs v ON v.chunk_id = c.chunk_id AND v.model = ? "
-                                       "WHERE v.chunk_id IS NULL", (tag,))]
+        ids = [
+            r[0]
+            for r in c.execute(
+                "SELECT c.chunk_id FROM chunks c "
+                "LEFT JOIN chunk_vecs v ON v.chunk_id = c.chunk_id AND v.model = ? "
+                "WHERE v.chunk_id IS NULL",
+                (tag,),
+            )
+        ]
         batch = max(1, int(EMBED_BATCH))
         for i in range(0, len(ids), batch):
-            part_ids = ids[i:i + batch]
-            part = c.execute(f"SELECT chunk_id, breadcrumb, text FROM chunks "
-                             f"WHERE chunk_id IN ({','.join('?' * len(part_ids))})", part_ids).fetchall()
+            part_ids = ids[i : i + batch]
+            part = c.execute(
+                f"SELECT chunk_id, breadcrumb, text FROM chunks WHERE chunk_id IN ({','.join('?' * len(part_ids))})",
+                part_ids,
+            ).fetchall()
             vecs = np.asarray(fn([f"{crumb}\n{text}" for _, crumb, text in part]), dtype="float32")
-            c.executemany("INSERT OR REPLACE INTO chunk_vecs(chunk_id, model, vec) VALUES (?,?,?)",
-                          [(cid, tag, v.tobytes()) for (cid, _, _), v in zip(part, vecs)])
+            c.executemany(
+                "INSERT OR REPLACE INTO chunk_vecs(chunk_id, model, vec) VALUES (?,?,?)",
+                [(cid, tag, v.tobytes()) for (cid, _, _), v in zip(part, vecs, strict=False)],
+            )
             c.commit()
         return len(ids)
 
@@ -255,7 +362,7 @@ class Shelf:
     # ---- ingest --------------------------------------------------------------------
 
     @staticmethod
-    def _load_manifest(root: Path) -> Dict[str, str]:
+    def _load_manifest(root: Path) -> dict[str, str]:
         """file name -> source url, from a fetcher's _manifest.json when one is present.
 
         Only names that occur ONCE are kept: One UI has several intro.html pages in different
@@ -274,59 +381,74 @@ class Shelf:
         for e in entries if isinstance(entries, list) else []:
             if not isinstance(e, dict) or not e.get("url"):
                 continue
-            name = next((Path(str(e[k])).name for k in ("file", "filename", "local_path", "saved_as", "local_file")
-                         if e.get(k)), None)
+            name = next(
+                (
+                    Path(str(e[k])).name
+                    for k in ("file", "filename", "local_path", "saved_as", "local_file")
+                    if e.get(k)
+                ),
+                None,
+            )
             if name is None and e.get("path"):
                 raw_path = str(e["path"]).strip("/")
-                name = (Path(raw_path).name if Path(raw_path).suffix.lower() in convert.SUPPORTED
-                        else raw_path.replace("/", "__") + ".json")
+                name = (
+                    Path(raw_path).name
+                    if Path(raw_path).suffix.lower() in convert.SUPPORTED
+                    else raw_path.replace("/", "__") + ".json"
+                )
             if name:
                 pairs.append((name, e["url"]))
-        counts: Dict[str, int] = {}
+        counts: dict[str, int] = {}
         for name, _ in pairs:
             counts[name] = counts.get(name, 0) + 1
         return {name: url for name, url in pairs if counts[name] == 1}
 
     @staticmethod
-    def _mirror_url(root: Path, p: Path) -> Optional[str]:
+    def _mirror_url(root: Path, p: Path) -> str | None:
         """A page saved under a host-named folder (docs.example.com/guide/x.html) gets that url."""
-        parts = [root.name] + list(p.relative_to(root).parts)
+        parts = [root.name, *list(p.relative_to(root).parts)]
         for i, part in enumerate(parts[:-1]):
             if re.fullmatch(r"[a-z0-9-]+(\.[a-z0-9-]+)+", part.lower()):
                 return "https://" + "/".join(parts[i:])
         return None
 
-    def ingest(self, shelf: str, root, html_selector: Optional[str] = None,
-               max_chars: int = 1800, prune: bool = True) -> IngestReport:
+    def ingest(
+        self, shelf: str, root, html_selector: str | None = None, max_chars: int = 1800, prune: bool = True
+    ) -> IngestReport:
         root = Path(root)
         rep = IngestReport(shelf=shelf)
         cfg_path = root / "_shelf.json"
         if html_selector is None and cfg_path.exists():
-            try:
+            with contextlib.suppress(OSError, json.JSONDecodeError):
                 html_selector = json.loads(cfg_path.read_text(encoding="utf-8")).get("html_selector")
-            except (OSError, json.JSONDecodeError):
-                pass
         urls = self._load_manifest(root)
         # "_manifest.json", "_index.json" and friends are a fetcher's metadata; an HTML page
         # that happens to start with "_" (One UI's _root.html) is content.
-        files = sorted(p for p in root.rglob("*") if p.is_file()
-                       and p.suffix.lower() in convert.SUPPORTED
-                       and not (p.name.startswith("_") and p.suffix.lower() == ".json"))
+        files = sorted(
+            p
+            for p in root.rglob("*")
+            if p.is_file()
+            and p.suffix.lower() in convert.SUPPORTED
+            and not (p.name.startswith("_") and p.suffix.lower() == ".json")
+        )
         seen_sources = set()
         with self._conn() as c:
             for p in files:
                 source = str(p.resolve())
                 seen_sources.add(source)
-                sha = hashlib.sha256(p.read_bytes() + f"|{PIPELINE_VERSION}|{max_chars}|{html_selector}".encode()).hexdigest()
+                sha = hashlib.sha256(
+                    p.read_bytes() + f"|{PIPELINE_VERSION}|{max_chars}|{html_selector}".encode()
+                ).hexdigest()
                 row = c.execute("SELECT doc_id, sha256 FROM docs WHERE source = ?", (source,)).fetchone()
                 if row and row[1] == sha:
                     rep.docs_unchanged += 1
                     continue
                 try:
-                    doc = convert.to_document(p, url=self._mirror_url(root, p) or urls.get(p.name),
-                                              html_selector=html_selector)
+                    doc = convert.to_document(
+                        p, url=self._mirror_url(root, p) or urls.get(p.name), html_selector=html_selector
+                    )
                     chunks = chunk_mod.chunk_document(doc, max_chars=max_chars, source_uri=p.resolve().as_uri())
-                except Exception as e:                     # one bad file never sinks the shelf
+                except Exception as e:  # one bad file never sinks the shelf
                     rep.failed.append(f"{p.name}: {type(e).__name__}: {e}"[:300])
                     continue
                 if row:
@@ -336,20 +458,23 @@ class Shelf:
                     rep.docs_added += 1
                 cur = c.execute(
                     "INSERT INTO docs(shelf, source, title, url, sha256, n_chunks, ingested_at) VALUES (?,?,?,?,?,?,?)",
-                    (shelf, source, doc.title, doc.url, sha, len(chunks), time.strftime("%Y-%m-%dT%H:%M:%S")))
+                    (shelf, source, doc.title, doc.url, sha, len(chunks), time.strftime("%Y-%m-%dT%H:%M:%S")),
+                )
                 doc_id = cur.lastrowid
                 for ch in chunks:
                     cur = c.execute(
                         "INSERT INTO chunks(doc_id, shelf, seq, title, breadcrumb, url, page, text) VALUES (?,?,?,?,?,?,?,?)",
-                        (doc_id, shelf, ch.seq, ch.title, ch.breadcrumb, ch.url, ch.page, ch.text))
-                    c.execute("INSERT INTO chunks_fts(rowid, title, breadcrumb, text) VALUES (?,?,?,?)",
-                              (cur.lastrowid, ch.title, ch.breadcrumb, ch.text))
+                        (doc_id, shelf, ch.seq, ch.title, ch.breadcrumb, ch.url, ch.page, ch.text),
+                    )
+                    c.execute(
+                        "INSERT INTO chunks_fts(rowid, title, breadcrumb, text) VALUES (?,?,?,?)",
+                        (cur.lastrowid, ch.title, ch.breadcrumb, ch.text),
+                    )
                 rep.chunks_written += len(chunks)
                 c.commit()
             if prune:
                 prefix = str(root.resolve())
-                for doc_id, source in c.execute(
-                        "SELECT doc_id, source FROM docs WHERE shelf = ?", (shelf,)).fetchall():
+                for doc_id, source in c.execute("SELECT doc_id, source FROM docs WHERE shelf = ?", (shelf,)).fetchall():
                     if source.startswith(prefix) and source not in seen_sources:
                         self._drop_doc(c, doc_id)
                         rep.docs_removed += 1
@@ -360,9 +485,11 @@ class Shelf:
             # Count what is missing before loading anything: a re-ingest that changed nothing
             # must not pay the model's load time.
             tag = DEFAULT_TAG if self._embedder_opt == "default" else self._model_tag(self._embedder_opt)
-            missing = c.execute("SELECT count(*) FROM chunks c LEFT JOIN chunk_vecs v "
-                                "ON v.chunk_id = c.chunk_id AND v.model = ? WHERE v.chunk_id IS NULL",
-                                (tag,)).fetchone()[0]
+            missing = c.execute(
+                "SELECT count(*) FROM chunks c LEFT JOIN chunk_vecs v "
+                "ON v.chunk_id = c.chunk_id AND v.model = ? WHERE v.chunk_id IS NULL",
+                (tag,),
+            ).fetchone()[0]
             if not missing:
                 return rep
             fn = self._embedder()
@@ -371,7 +498,7 @@ class Shelf:
             else:
                 try:
                     rep.embedded = self._embed_missing(c, fn)
-                except Exception as e:                  # vectors are an upgrade, never a blocker
+                except Exception as e:  # vectors are an upgrade, never a blocker
                     rep.vector_note = f"embedding failed, keyword search still works: {type(e).__name__}: {e}"[:200]
         return rep
 
@@ -385,26 +512,32 @@ class Shelf:
 
     # ---- search --------------------------------------------------------------------
 
-    def _bm25(self, c: sqlite3.Connection, terms: List[str], shelf: Optional[str], n: int):
+    def _bm25(self, c: sqlite3.Connection, terms: list[str], shelf: str | None, n: int):
         """[(chunk_id, bm25)] best first; raises sqlite3.Error for the caller to report."""
         if not terms:
             return []
         match = " OR ".join('"' + t.replace('"', "") + '"' for t in terms)
-        sql = (f"SELECT c.chunk_id, bm25(chunks_fts, {BM25_WEIGHTS[0]}, {BM25_WEIGHTS[1]}, {BM25_WEIGHTS[2]}) AS s "
-               f"FROM chunks_fts JOIN chunks c ON c.chunk_id = chunks_fts.rowid "
-               f"WHERE chunks_fts MATCH ?" + (" AND c.shelf = ?" if shelf else "") + " ORDER BY s LIMIT ?")
+        sql = (
+            f"SELECT c.chunk_id, bm25(chunks_fts, {BM25_WEIGHTS[0]}, {BM25_WEIGHTS[1]}, {BM25_WEIGHTS[2]}) AS s "
+            f"FROM chunks_fts JOIN chunks c ON c.chunk_id = chunks_fts.rowid "
+            f"WHERE chunks_fts MATCH ?" + (" AND c.shelf = ?" if shelf else "") + " ORDER BY s LIMIT ?"
+        )
         return c.execute(sql, [match] + ([shelf] if shelf else []) + [n]).fetchall()
 
-    def _by_meaning(self, c: sqlite3.Connection, fn, query: str, shelf: Optional[str], n: int):
+    def _by_meaning(self, c: sqlite3.Connection, fn, query: str, shelf: str | None, n: int):
         """[(chunk_id, cosine)] best first, above VECTOR_FLOOR only; [] when nothing is embedded."""
         import heapq
+
         import numpy as np
+
         tag = self._model_tag(fn)
-        cur = c.execute("SELECT v.chunk_id, v.vec FROM chunk_vecs v JOIN chunks c ON c.chunk_id = v.chunk_id "
-                        "WHERE v.model = ?" + (" AND c.shelf = ?" if shelf else ""),
-                        [tag] + ([shelf] if shelf else []))
+        cur = c.execute(
+            "SELECT v.chunk_id, v.vec FROM chunk_vecs v JOIN chunks c ON c.chunk_id = v.chunk_id "
+            "WHERE v.model = ?" + (" AND c.shelf = ?" if shelf else ""),
+            [tag] + ([shelf] if shelf else []),
+        )
         q = None
-        best: List = []                                # min-heap of (cosine, chunk_id), at most n
+        best: list = []  # min-heap of (cosine, chunk_id), at most n
         while True:
             rows = cur.fetchmany(max(1, int(VECTOR_BATCH)))
             if not rows:
@@ -423,8 +556,9 @@ class Shelf:
                     heapq.heapreplace(best, (s, rows[i][0]))
         return [(cid, s) for s, cid in sorted(best, key=lambda t: (-t[0], t[1]))]
 
-    def search(self, query: str, shelf: Optional[str] = None, limit: int = 8,
-               max_chars: int = 6000, mode: str = "bm25") -> SearchResult:
+    def search(
+        self, query: str, shelf: str | None = None, limit: int = 8, max_chars: int = 6000, mode: str = "bm25"
+    ) -> SearchResult:
         terms = terms_of(query)
         # Over-fetch so duplicates can be dropped without shortening the answer: sites repeat
         # passages (One UI's landing page repeats its overview word for word).
@@ -436,8 +570,9 @@ class Shelf:
             else:
                 shelves = [r[0] for r in c.execute("SELECT DISTINCT shelf FROM chunks ORDER BY shelf")]
                 searched = c.execute("SELECT count(*) FROM chunks").fetchone()[0]
-            res = SearchResult(query=query, terms=terms, hits=[], searched_chunks=searched,
-                               shelves=shelves, mode="bm25")
+            res = SearchResult(
+                query=query, terms=terms, hits=[], searched_chunks=searched, shelves=shelves, mode="bm25"
+            )
             if not searched:
                 return res
             fn = self._embedder() if mode == "hybrid" else None
@@ -453,7 +588,7 @@ class Shelf:
                 meaning = self._by_meaning(c, fn, query, shelf, CANDIDATES)
                 if not meaning:
                     res.note = "no passages are embedded yet (run manual ingest): keyword ranking only"
-                fused: Dict[int, float] = {}
+                fused: dict[int, float] = {}
                 for ranking in (keyword, meaning):
                     for rank, (cid, _) in enumerate(ranking, 1):
                         fused[cid] = fused.get(cid, 0.0) + 1.0 / (RRF_K + rank)
@@ -463,9 +598,14 @@ class Shelf:
             if not ranked:
                 return res
             ids = [cid for cid, _ in ranked]
-            info = {r[0]: r[1:] for r in c.execute(
-                f"SELECT chunk_id, shelf, title, breadcrumb, url, page, text FROM chunks "
-                f"WHERE chunk_id IN ({','.join('?' * len(ids))})", ids)}
+            info = {
+                r[0]: r[1:]
+                for r in c.execute(
+                    f"SELECT chunk_id, shelf, title, breadcrumb, url, page, text FROM chunks "
+                    f"WHERE chunk_id IN ({','.join('?' * len(ids))})",
+                    ids,
+                )
+            }
             rows = [info[cid] + (score,) for cid, score in ranked if cid in info]
         # Fill the budget in rank order. A passage that does not fit whole is trimmed to the
         # room left, as long as that room can hold a useful few lines (200 chars); below that
@@ -486,19 +626,27 @@ class Shelf:
                 res.truncated = True
                 break
             if len(text) > room:
-                text = text[:max(0, room - 4)].rstrip() + " ..."
+                text = text[: max(0, room - 4)].rstrip() + " ..."
                 res.truncated = True
-            res.hits.append(Hit(shelf=s, title=title, breadcrumb=crumb, url=url, page=page,
-                                score=round(float(score), 3), text=text))
+            res.hits.append(
+                Hit(shelf=s, title=title, breadcrumb=crumb, url=url, page=page, score=round(float(score), 3), text=text)
+            )
             used += len(text)
         return res
 
-    def stats(self) -> Dict[str, object]:
+    def stats(self) -> dict[str, object]:
         with self._conn() as c:
-            per = {s: {"docs": d, "chunks": n} for s, d, n in c.execute(
-                "SELECT d.shelf, count(DISTINCT d.doc_id), count(c.chunk_id) FROM docs d "
-                "LEFT JOIN chunks c ON c.doc_id = d.doc_id GROUP BY d.shelf ORDER BY d.shelf")}
-            return {"docs": c.execute("SELECT count(*) FROM docs").fetchone()[0],
-                    "chunks": c.execute("SELECT count(*) FROM chunks").fetchone()[0],
-                    "embedded": c.execute("SELECT count(*) FROM chunk_vecs").fetchone()[0],
-                    "shelves": per, "db": str(self.path)}
+            per = {
+                s: {"docs": d, "chunks": n}
+                for s, d, n in c.execute(
+                    "SELECT d.shelf, count(DISTINCT d.doc_id), count(c.chunk_id) FROM docs d "
+                    "LEFT JOIN chunks c ON c.doc_id = d.doc_id GROUP BY d.shelf ORDER BY d.shelf"
+                )
+            }
+            return {
+                "docs": c.execute("SELECT count(*) FROM docs").fetchone()[0],
+                "chunks": c.execute("SELECT count(*) FROM chunks").fetchone()[0],
+                "embedded": c.execute("SELECT count(*) FROM chunk_vecs").fetchone()[0],
+                "shelves": per,
+                "db": str(self.path),
+            }

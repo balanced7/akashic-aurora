@@ -20,9 +20,9 @@ import uuid
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.comm.bus import Bus  # noqa: E402
+from core.comm.bus import Bus
 
-AGENT = "claude"          # a GRANTED id -- unknown ids are correctly quarantined by acl
+AGENT = "claude"  # a GRANTED id -- unknown ids are correctly quarantined by acl
 TAG = uuid.uuid4().hex[:8]
 
 
@@ -37,18 +37,22 @@ def test_mailbox_sha_prefix_resolves_and_acks():
     assert mid
 
     from core.comm import mailbox
+
     ns = sender.ns
     mailbox.catch_up(ns, AGENT)
-    hit = mailbox.explain(ns, AGENT, mid)            # OUR entry, located by stream id
-    assert hit.get("available") and hit.get("found"), f"mailbox must index the handoff: {hit}"
-    sha_ref = str(hit["sha"])[:10]                   # exactly what the mailbox renders
+    hit = mailbox.explain(ns, AGENT, mid)  # OUR entry, located by stream id
+    assert hit.get("available"), f"mailbox must index the handoff: {hit}"
+    assert hit.get("found"), f"mailbox must index the handoff: {hit}"
+    sha_ref = str(hit["sha"])[:10]  # exactly what the mailbox renders
 
-    from core.comm.promoter import resolve_ack_ref, ack_verdict, ack
+    from core.comm.promoter import ack, ack_verdict, resolve_ack_ref
+
     resolved = resolve_ack_ref(AGENT, sha_ref)
     assert resolved, (
         f"ROUND-TRIP BROKEN: the mailbox's own printed ref '{sha_ref}' does not resolve to "
         f"an ackable stream id. The operator's copy-paste from mailbox output into "
-        f"bifrost-ack fails, and the refusal blames message class instead of id form.")
+        f"bifrost-ack fails, and the refusal blames message class instead of id form."
+    )
     allowed, why = ack_verdict(AGENT, resolved)
     assert allowed, f"resolved id {resolved} must pass the ack verdict (got: {why})"
     assert ack(AGENT, resolved, note="t063 pin")
@@ -63,12 +67,13 @@ def test_resolved_but_unackable_blames_content_not_form():
     refusal must carry the TRUE content reason (not promoted / quarantined / wrong addressee)
     and must NOT append the id-form hint -- otherwise the fix launders a content refusal into
     a form refusal, re-creating the doubly-misleading class it exists to kill."""
-    sender = Bus("kimi", promote=False)          # NOT promoted -> unackable by content
+    sender = Bus("kimi", promote=False)  # NOT promoted -> unackable by content
     if not sender.online:
         print("SKIPPED (Redis not running)")
         return
     mid = sender.send(AGENT, "handoff", f"unpromoted-{TAG}")
     from core.comm import mailbox
+
     ns = sender.ns
     mailbox.catch_up(ns, AGENT)
     hit = mailbox.explain(ns, AGENT, mid)
@@ -76,15 +81,17 @@ def test_resolved_but_unackable_blames_content_not_form():
     sha_ref = str(hit["sha"])[:10]
 
     from core.comm.promoter import resolve_ack_ref
+
     resolved = resolve_ack_ref(AGENT, sha_ref)
     assert resolved, "resolution itself must succeed -- the message exists in the mailbox"
     # The door-level contract: hint fires ONLY when resolution FAILED.
     from agent_cli import _ack_refusal_hint
+
     assert _ack_refusal_hint(sha_ref, resolved is None) == "", (
         "FORM-BLAME LAUNDERING: resolution succeeded but the door still appends the "
-        "id-form hint, blaming the ref for a content refusal.")
-    assert _ack_refusal_hint(sha_ref, True) != "", (
-        "the hint must still fire when a hex ref genuinely fails to resolve")
+        "id-form hint, blaming the ref for a content refusal."
+    )
+    assert _ack_refusal_hint(sha_ref, True) != "", "the hint must still fire when a hex ref genuinely fails to resolve"
 
 
 if __name__ == "__main__":

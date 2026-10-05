@@ -30,6 +30,7 @@ K6 exists because "no claims" and "no findings" are the two facts this project k
 
 Run: py -m pytest tests/test_t190_a_round_can_be_rescored_without_replaying_it.py -q
 """
+
 import json
 import os
 import sys
@@ -37,33 +38,50 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-import pytest  # noqa: E402
+import pytest  # noqa: E402  # sys.path bootstrap
 
-from scripts import round_archive as A  # noqa: E402
+from scripts import round_archive as A  # noqa: E402  # sys.path bootstrap
 
 
 def _manifest():
-    return {"universe": {"source": "test", "size": 3},
-            "canaries": [
-                {"id": "c00_aaa", "cls": "catchable", "name": "route_aaa", "shape": "t143"},
-                {"id": "c01_bbb", "cls": "undetectable", "name": "emit_bbb", "shape": "a5"},
-                {"id": "c02_ccc", "cls": "bait", "name": "apply_ccc", "shape": "live"},
-            ]}
+    return {
+        "universe": {"source": "test", "size": 3},
+        "canaries": [
+            {"id": "c00_aaa", "cls": "catchable", "name": "route_aaa", "shape": "t143"},
+            {"id": "c01_bbb", "cls": "undetectable", "name": "emit_bbb", "shape": "a5"},
+            {"id": "c02_ccc", "cls": "bait", "name": "apply_ccc", "shape": "live"},
+        ],
+    }
 
 
 def _claims(ids=("c00_aaa",)):
-    return [{"player": "llm", "dedupe_key": f"canary::x{i}", "claim_class": "needs-caller",
-             "outcome": "confirmed", "confidence": "high", "stream_id": f"{i}-0",
-             "evidence": ["window shows no invocation"], "_canary_id": cid}
-            for i, cid in enumerate(ids)]
+    return [
+        {
+            "player": "llm",
+            "dedupe_key": f"canary::x{i}",
+            "claim_class": "needs-caller",
+            "outcome": "confirmed",
+            "confidence": "high",
+            "stream_id": f"{i}-0",
+            "evidence": ["window shows no invocation"],
+            "_canary_id": cid,
+        }
+        for i, cid in enumerate(ids)
+    ]
 
 
 def _record(ids=("c00_aaa",)):
-    return {"seed": 20260804, "k": 3, "key_sha256": "deadbeef" * 8,
-            "player_name": "llm", "player_config": {"batch_size": 20, "workers": 6},
-            "manifest": _manifest(), "claims": _claims(ids),
-            "player_report": {"candidates": 630, "unjudged": 4, "usd": 0.349},
-            "scoring": {"policy": "v1_doc", "totals": {"llm": 9}}}
+    return {
+        "seed": 20260804,
+        "k": 3,
+        "key_sha256": "deadbeef" * 8,
+        "player_name": "llm",
+        "player_config": {"batch_size": 20, "workers": 6},
+        "manifest": _manifest(),
+        "claims": _claims(ids),
+        "player_report": {"candidates": 630, "unjudged": 4, "usd": 0.349},
+        "scoring": {"policy": "v1_doc", "totals": {"llm": 9}},
+    }
 
 
 def test_k1_archiving_returns_a_path_that_exists(tmp_path):
@@ -74,16 +92,18 @@ def test_k1_archiving_returns_a_path_that_exists(tmp_path):
 
 def test_k2_the_record_carries_the_claims(tmp_path):
     path = A.archive_round(_record(("c00_aaa", "c01_bbb")), round_dir=str(tmp_path))
-    stored = json.loads(open(path, encoding="utf-8").read())
+    with open(path, encoding="utf-8") as fh:
+        stored = json.loads(fh.read())
     assert [c["_canary_id"] for c in stored["claims"]] == ["c00_aaa", "c01_bbb"], (
-        "the claims are the whole point -- everything else is reconstructible")
+        "the claims are the whole point -- everything else is reconstructible"
+    )
     assert stored["manifest"]["canaries"], "replay needs the key it was scored against"
 
 
 def test_k3_it_refuses_to_write_anywhere_git_tracks():
     """By construction, matching canary_oracle.seal's own rule. A round record carries
     dedupe_key canary::<name>, so committing one leaks name->class for that seed."""
-    with pytest.raises(ValueError) as e:
+    with pytest.raises(ValueError, match="refusing to archive a round inside a git working tree") as e:
         A.archive_round(_record(), round_dir=os.path.join(ROOT, "research", "rounds"))
     assert "repositor" in str(e.value).lower() or "git" in str(e.value).lower()
 
@@ -119,10 +139,12 @@ def test_k6_a_record_without_claims_is_a_named_failure(tmp_path):
     bad = _record()
     bad.pop("claims")
     path = os.path.join(str(tmp_path), "broken.json")
-    open(path, "w", encoding="utf-8").write(json.dumps(bad))
-    with pytest.raises(ValueError) as e:
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write(json.dumps(bad))
+    with pytest.raises(ValueError, match="records no `claims`") as e:
         A.replay_round(path)
     assert "claim" in str(e.value).lower(), (
         "a round with no claims recorded and a round where the player found nothing are "
         "different facts; replaying the first as an empty clean round is the defect this "
-        "whole slice exists to stop")
+        "whole slice exists to stop"
+    )

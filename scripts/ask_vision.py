@@ -32,9 +32,11 @@ HOUSE RULES FOR THE QUESTION (not enforced -- they are the discipline):
     carries no information;
   * when the model and a metric disagree, the metric wins, and the disagreement is a finding.
 """
+
 from __future__ import annotations
 
 import argparse
+import contextlib
 import hashlib
 import json
 import subprocess
@@ -57,8 +59,9 @@ def crop_to(src: Path, region: str, dest: Path) -> None:
     """Region is fractional x,y,w,h in 0..1 -- the same convention the floors use, so a question
     about 'the top octave' means the same thing to the eye, the metric and the model."""
     sys.path.insert(0, str(ROOT))
-    from arsenal import floors as F          # imported here so a cache hit needs no numpy/av
+    from arsenal import floors as F  # imported here so a cache hit needs no numpy/av
     from arsenal import storyboard as S
+
     x, y, w, h = (float(v) for v in region.split(","))
     rgb = F.load_rgb(str(src))
     S._write_png(F.crop(rgb, (x, y, w, h)), str(dest))
@@ -76,7 +79,7 @@ def cache_lookup(key: str):
         except json.JSONDecodeError:
             continue
         if row.get("key") == key:
-            hit = row                                   # last one wins: a re-ask may supersede
+            hit = row  # last one wins: a re-ask may supersede
     return hit
 
 
@@ -92,8 +95,13 @@ def ask(image: Path, question: str, model: str, attempts: int):
     delay = 2.0
     last = None
     for i in range(attempts):
-        proc = subprocess.run([sys.executable, str(DOOR), str(image), question, "--model", model],
-                              capture_output=True, text=True, encoding="utf-8", errors="replace")
+        proc = subprocess.run(
+            [sys.executable, str(DOOR), str(image), question, "--model", model],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+        )
         out = (proc.stdout or "").strip()
         err = (proc.stderr or "").strip()
         if out and proc.returncode == 0:
@@ -130,7 +138,7 @@ def main() -> int:
         try:
             crop_to(src, args.region, tmp)
             subject = tmp
-        except Exception as exc:                       # a bad region is a caller bug, loudly
+        except Exception as exc:  # a bad region is a caller bug, loudly
             print(f"NO_EYES: could not crop {args.region}: {type(exc).__name__}: {exc}", file=sys.stderr)
             return 2
 
@@ -140,25 +148,31 @@ def main() -> int:
     if not args.no_cache:
         hit = cache_lookup(key)
         if hit:
-            text, err, cached, attempts_used = hit.get("answer"), None, True, 0
+            text, err, cached, _attempts_used = hit.get("answer"), None, True, 0
         else:
-            text, err, cached, attempts_used = None, None, False, 0
+            text, err, cached, _attempts_used = None, None, False, 0
     else:
-        text, err, cached, attempts_used = None, None, False, 0
+        text, err, cached, _attempts_used = None, None, False, 0
 
     if text is None:
         text, err = ask(subject, args.question, args.model, args.attempts)
-        attempts_used = args.attempts if err else 1
         if text is not None and not args.no_cache:
-            cache_store({"key": key, "ts": time.strftime("%Y-%m-%dT%H:%M:%S"), "image": str(src),
-                         "region": args.region, "sha12": stamp, "model": args.model,
-                         "question": args.question, "answer": text})
+            cache_store(
+                {
+                    "key": key,
+                    "ts": time.strftime("%Y-%m-%dT%H:%M:%S"),
+                    "image": str(src),
+                    "region": args.region,
+                    "sha12": stamp,
+                    "model": args.model,
+                    "question": args.question,
+                    "answer": text,
+                }
+            )
 
     if tmp is not None:
-        try:
+        with contextlib.suppress(OSError):
             tmp.unlink()
-        except OSError:
-            pass
 
     if text is None:
         # The whole point: a look that did not happen must never read as "nothing there".
@@ -167,12 +181,26 @@ def main() -> int:
         return 3
 
     # PROVENANCE, always: this text is a description by another model, never a first-hand sighting.
-    prov = (f"[described by {args.model}, {stamp}{', cached' if cached else ''}, "
-            f"q={args.question!r}] -- A DESCRIPTION, NOT AN OBSERVATION BY THIS SEAT")
+    prov = (
+        f"[described by {args.model}, {stamp}{', cached' if cached else ''}, "
+        f"q={args.question!r}] -- A DESCRIPTION, NOT AN OBSERVATION BY THIS SEAT"
+    )
     if args.json:
-        print(json.dumps({"answer": text, "provenance": prov, "model": args.model,
-                          "sha12": stamp, "region": args.region, "cached": cached,
-                          "question": args.question}, indent=2, ensure_ascii=False))
+        print(
+            json.dumps(
+                {
+                    "answer": text,
+                    "provenance": prov,
+                    "model": args.model,
+                    "sha12": stamp,
+                    "region": args.region,
+                    "cached": cached,
+                    "question": args.question,
+                },
+                indent=2,
+                ensure_ascii=False,
+            )
+        )
     else:
         print(text)
         print(prov, file=sys.stderr)

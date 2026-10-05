@@ -1,6 +1,8 @@
 """Second census pass: extract title + first content lines per CURRENT-stamped file
 so the megaread classifies from evidence, not filenames. Output is the megaread corpus."""
-import os, re, sys
+
+import os
+import re
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STATUS_RE = re.compile(r"^Status:\s*(\w+)", re.M)
@@ -11,7 +13,7 @@ GENERATED = {"SHELVES.md", "LIBRARY.md", "INDEX.md"}
 
 def _iter_md():
     for base in SWEEP_DIRS:
-        for dirpath, dirnames, filenames in os.walk(os.path.join(ROOT, base)):
+        for dirpath, _dirnames, filenames in os.walk(os.path.join(ROOT, base)):
             for fn in sorted(filenames):
                 if not fn.endswith(".md"):
                     continue

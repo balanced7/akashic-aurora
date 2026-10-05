@@ -4,24 +4,36 @@ A preset opens with `#version 300 es` on line 1, because GLSL ES requires it the
 `//! {json}` header on line 2. PLAY-NIGHT-SPEC.md defines the format, the uniforms and the floors.
 Problems are reported, never raised, so the page can list a broken preset instead of hiding it.
 """
+
 from __future__ import annotations
 
 import json
 import re
 from pathlib import Path
-from typing import List
 
 PRESET_DIR = Path(__file__).resolve().parent / "web" / "presets"
 ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]{1,40}$")
 
 #: Uniforms v1 and their required types.
 UNIFORMS = {
-    "u_video": "sampler2D", "u_prev": "sampler2D", "u_audio": "sampler2D",
-    "u_res": "vec2", "u_video_res": "vec2",
-    "u_time": "float", "u_media_time": "float", "u_frame": "float", "u_has_video": "float",
-    "u_pulse": "float", "u_beat": "float", "u_level": "float",
-    "u_bass": "float", "u_mid": "float", "u_high": "float", "u_flux": "float",
-    "u_hue": "float", "u_intensity": "float",
+    "u_video": "sampler2D",
+    "u_prev": "sampler2D",
+    "u_audio": "sampler2D",
+    "u_res": "vec2",
+    "u_video_res": "vec2",
+    "u_time": "float",
+    "u_media_time": "float",
+    "u_frame": "float",
+    "u_has_video": "float",
+    "u_pulse": "float",
+    "u_beat": "float",
+    "u_level": "float",
+    "u_bass": "float",
+    "u_mid": "float",
+    "u_high": "float",
+    "u_flux": "float",
+    "u_hue": "float",
+    "u_intensity": "float",
     **{f"u_k{i}": "float" for i in range(1, 9)},
 }
 
@@ -40,9 +52,17 @@ def _strip_comments(text: str) -> str:
 
 def parse_preset(path) -> dict:
     path = Path(path)
-    problems: List[str] = []
-    info = {"id": path.stem, "file": path.name, "url": f"/web/presets/{path.name}", "name": path.stem,
-            "author": "", "tags": [], "params": [], "problems": problems}
+    problems: list[str] = []
+    info = {
+        "id": path.stem,
+        "file": path.name,
+        "url": f"/web/presets/{path.name}",
+        "name": path.stem,
+        "author": "",
+        "tags": [],
+        "params": [],
+        "problems": problems,
+    }
     if not ID_RE.match(path.stem):
         problems.append(f"file name {path.stem!r} must use lowercase letters, digits and dashes (2 to 41 characters)")
     try:
@@ -70,7 +90,7 @@ def parse_preset(path) -> dict:
     return info
 
 
-def _check_header(header: dict, stem: str, info: dict, problems: List[str]) -> None:
+def _check_header(header: dict, stem: str, info: dict, problems: list[str]) -> None:
     if header.get("id") != stem:
         problems.append(f"header id {header.get('id')!r} must equal the file name {stem!r}")
     for key in ("name", "author"):
@@ -113,7 +133,7 @@ def _check_header(header: dict, stem: str, info: dict, problems: List[str]) -> N
             info["params"].append({"k": k, "name": name.strip(), "default": default})
 
 
-def _check_source(body: str, problems: List[str]) -> None:
+def _check_source(body: str, problems: list[str]) -> None:
     if re.search(r"\b(mediump|lowp)\b", body):
         problems.append("use highp only (no mediump or lowp)")
     if not re.search(r"^\s*precision\s+highp\s+float\s*;", body, re.MULTILINE):
@@ -131,12 +151,14 @@ def _check_source(body: str, problems: List[str]) -> None:
                 problems.append(f"uniform {name} is not in the Play Night uniform list")
             elif wanted != declared_type:
                 problems.append(f"uniform {name} must be {wanted}, not {declared_type}")
-    for match in _FOR_CONDITION.finditer(body):
-        if re.search(r"\bu_\w+", match.group(1)):
-            problems.append(f"a loop bound uses a uniform ({match.group(1).strip()}); bounds must be constant")
+    problems.extend(
+        f"a loop bound uses a uniform ({match.group(1).strip()}); bounds must be constant"
+        for match in _FOR_CONDITION.finditer(body)
+        if re.search(r"\bu_\w+", match.group(1))
+    )
 
 
-def list_presets(directory=None) -> List[dict]:
+def list_presets(directory=None) -> list[dict]:
     directory = Path(directory) if directory else PRESET_DIR
     if not directory.is_dir():
         return []
@@ -166,7 +188,7 @@ def coupling(path) -> dict:
     """
     path = Path(path)
     text = path.read_text(encoding="utf-8")
-    body = _UNIFORM_DECL.sub("", _strip_comments(text))      # a declaration is never a use
+    body = _UNIFORM_DECL.sub("", _strip_comments(text))  # a declaration is never a use
     used = {}
     for name in AUDIO_UNIFORMS:
         count = len(re.findall(rf"\b{name}\b", body))
@@ -175,8 +197,7 @@ def coupling(path) -> dict:
     references = sum(used.values())
     distinct = len(used)
     glow_lines = [ln for ln in body.splitlines() if _GLOW_IDIOM.search(ln)]
-    glow_refs = sum(len(re.findall(r"\bu_(?:pulse|beat|level|bass|mid|high|flux)\b", ln))
-                    for ln in glow_lines)
+    glow_refs = sum(len(re.findall(r"\bu_(?:pulse|beat|level|bass|mid|high|flux)\b", ln)) for ln in glow_lines)
     glow_only = references > 0 and glow_refs == references
     if references == 0:
         verdict = "silent"
@@ -188,11 +209,18 @@ def coupling(path) -> dict:
         verdict = "cosmetic"
     else:
         verdict = "listening"
-    return {"id": path.stem, "file": path.name, "distinct": distinct, "references": references,
-            "used": used, "glow_references": glow_refs, "verdict": verdict}
+    return {
+        "id": path.stem,
+        "file": path.name,
+        "distinct": distinct,
+        "references": references,
+        "used": used,
+        "glow_references": glow_refs,
+        "verdict": verdict,
+    }
 
 
-def coupling_table(directory=None) -> List[dict]:
+def coupling_table(directory=None) -> list[dict]:
     """The whole bank's listening profile, most-coupled first (ties broken by name)."""
     directory = Path(directory) if directory else PRESET_DIR
     if not directory.is_dir():

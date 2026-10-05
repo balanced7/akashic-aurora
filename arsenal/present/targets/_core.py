@@ -9,49 +9,92 @@ coordinates belong to the renderer), and the byte writer (write_text would CRLF 
 Nothing here knows what a <section>, a print page or a three.js plane is; those live in the
 target modules.
 """
+
 from __future__ import annotations
 
 import html
 import math
 import re
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import TYPE_CHECKING, Any
 
 from .. import scene as sc
 
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
 # ---------------------------------------------------------------- the family's defaults by role
-DEFAULT_PALETTE: Dict[str, str] = {
-    "dark": "#13202B", "light": "#F6F7F5", "accent": "#C8762E", "accent_deep": "#9C5A1E",
-    "secondary": "#3E7CA6", "muted": "#5A6B78", "muted_on_dark": "#9FB3C0", "card": "#FFFFFF",
-    "card_on_dark": "#1C2E3D", "line": "#DDE2E1", "line_on_dark": "#2C4356", "tint": "#FBF3EA",
+DEFAULT_PALETTE: dict[str, str] = {
+    "dark": "#13202B",
+    "light": "#F6F7F5",
+    "accent": "#C8762E",
+    "accent_deep": "#9C5A1E",
+    "secondary": "#3E7CA6",
+    "muted": "#5A6B78",
+    "muted_on_dark": "#9FB3C0",
+    "card": "#FFFFFF",
+    "card_on_dark": "#1C2E3D",
+    "line": "#DDE2E1",
+    "line_on_dark": "#2C4356",
+    "tint": "#FBF3EA",
 }
-DEFAULT_TYPE: Dict[str, int] = {
-    "display": 160, "h1": 80, "h2": 64, "h3": 32, "body": 32, "lede": 32, "kicker": 32, "quote": 64,
-    "number": 160, "number_inline": 80, "caption": 24, "eyebrow": 24, "code": 24, "receipt": 24,
-    "node": 24, "label": 24,
+DEFAULT_TYPE: dict[str, int] = {
+    "display": 160,
+    "h1": 80,
+    "h2": 64,
+    "h3": 32,
+    "body": 32,
+    "lede": 32,
+    "kicker": 32,
+    "quote": 64,
+    "number": 160,
+    "number_inline": 80,
+    "caption": 24,
+    "eyebrow": 24,
+    "code": 24,
+    "receipt": 24,
+    "node": 24,
+    "label": 24,
 }
-DEFAULT_FONTS: Dict[str, Any] = {
+DEFAULT_FONTS: dict[str, Any] = {
     "href": "https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600"
-            "&family=JetBrains+Mono:wght@400;500&display=swap",
+    "&family=JetBrains+Mono:wght@400;500&display=swap",
     "families": ["IBM Plex Sans", "JetBrains Mono"],
 }
 #: per type role: (weight, line-height, face, letter-spacing in logical units)
-TYPE_STYLE: Dict[str, Tuple[int, float, str, int]] = {
-    "display": (600, 1.0, "sans", -4), "h1": (600, 1.1, "sans", -2), "h2": (600, 1.1, "sans", -1),
-    "h3": (600, 1.2, "sans", 0), "body": (400, 1.45, "sans", 0), "lede": (400, 1.4, "sans", 0),
-    "kicker": (400, 1.45, "sans", 0), "quote": (400, 1.2, "sans", 0), "number": (600, 1.0, "mono", 0),
-    "number_inline": (600, 1.0, "mono", 0), "caption": (400, 1.4, "sans", 0),
-    "eyebrow": (500, 1.2, "mono", 2), "code": (400, 1.55, "mono", 0), "receipt": (400, 1.4, "mono", 0),
-    "node": (500, 1.2, "sans", 0), "label": (400, 1.4, "sans", 0),
+TYPE_STYLE: dict[str, tuple[int, float, str, int]] = {
+    "display": (600, 1.0, "sans", -4),
+    "h1": (600, 1.1, "sans", -2),
+    "h2": (600, 1.1, "sans", -1),
+    "h3": (600, 1.2, "sans", 0),
+    "body": (400, 1.45, "sans", 0),
+    "lede": (400, 1.4, "sans", 0),
+    "kicker": (400, 1.45, "sans", 0),
+    "quote": (400, 1.2, "sans", 0),
+    "number": (600, 1.0, "mono", 0),
+    "number_inline": (600, 1.0, "mono", 0),
+    "caption": (400, 1.4, "sans", 0),
+    "eyebrow": (500, 1.2, "mono", 2),
+    "code": (400, 1.55, "mono", 0),
+    "receipt": (400, 1.4, "mono", 0),
+    "node": (500, 1.2, "sans", 0),
+    "label": (400, 1.4, "sans", 0),
 }
-GAP = 32                       # the flow gap between blocks on every template
-DIAGRAM_GAP = 16               # 70 + 16 + 700 = 786 of the 792 budget (diagrams.md)
+GAP = 32  # the flow gap between blocks on every template
+DIAGRAM_GAP = 16  # 70 + 16 + 700 = 786 of the 792 budget (diagrams.md)
 STACK_TEMPLATES = ("cover", "section", "statement", "closing")
 HEADLINE_TAG = {"display": "h1", "h1": "h1", "h2": "h2", "h3": "h3"}
-DEFAULT_HEADLINE_ROLE = {"cover": "display", "section": "h1", "statement": "h1", "closing": "h1",
-                         "content": "h2", "diagram": "h2", "comparison": "h2"}
-BUS_OFFSET = 24                # diagram-recipes.md: the bus bar sits 24 before the children's edge
-HEAD_SHORTEN = 3               # diagrams.md: end a headed line 2-3 short of the target edge
+DEFAULT_HEADLINE_ROLE = {
+    "cover": "display",
+    "section": "h1",
+    "statement": "h1",
+    "closing": "h1",
+    "content": "h2",
+    "diagram": "h2",
+    "comparison": "h2",
+}
+BUS_OFFSET = 24  # diagram-recipes.md: the bus bar sits 24 before the children's edge
+HEAD_SHORTEN = 3  # diagrams.md: end a headed line 2-3 short of the target edge
 
 
 def esc(text: Any) -> str:
@@ -82,22 +125,49 @@ def tokens(scene: dict) -> dict:
     return {"palette": palette, "type": sizes, "faces": faces, "families": families, "href": href}
 
 
-def surface(background: str, palette: Dict[str, str]) -> Dict[str, str]:
+def surface(background: str, palette: dict[str, str]) -> dict[str, str]:
     """What each role means on this background (projection idiom: colours by surface)."""
     p = palette
-    common = {"accent": p["accent"], "secondary": p["secondary"], "tint": p["tint"],
-              "tint_text": p["dark"], "tint_muted": p["muted"], "name": background}
+    common = {
+        "accent": p["accent"],
+        "secondary": p["secondary"],
+        "tint": p["tint"],
+        "tint_text": p["dark"],
+        "tint_muted": p["muted"],
+        "name": background,
+    }
     if background == "dark":
-        return {**common, "background": p["dark"], "text": p["light"], "muted": p["muted_on_dark"],
-                "card": p["card_on_dark"], "line": p["line_on_dark"], "eyebrow": p["accent"]}
+        return {
+            **common,
+            "background": p["dark"],
+            "text": p["light"],
+            "muted": p["muted_on_dark"],
+            "card": p["card_on_dark"],
+            "line": p["line_on_dark"],
+            "eyebrow": p["accent"],
+        }
     if background == "accent":
-        return {**common, "background": p["accent"], "text": p["dark"], "muted": p["dark"],
-                "card": p["tint"], "line": p["accent_deep"], "eyebrow": p["dark"]}
-    return {**common, "background": p["light"], "text": p["dark"], "muted": p["muted"],
-            "card": p["card"], "line": p["line"], "eyebrow": p["accent_deep"]}
+        return {
+            **common,
+            "background": p["accent"],
+            "text": p["dark"],
+            "muted": p["dark"],
+            "card": p["tint"],
+            "line": p["accent_deep"],
+            "eyebrow": p["dark"],
+        }
+    return {
+        **common,
+        "background": p["light"],
+        "text": p["dark"],
+        "muted": p["muted"],
+        "card": p["card"],
+        "line": p["line"],
+        "eyebrow": p["accent_deep"],
+    }
 
 
-def tone_colour(tone: Optional[str], surf: Dict[str, str], default: Optional[str] = None) -> str:
+def tone_colour(tone: str | None, surf: dict[str, str], default: str | None = None) -> str:
     """The text or stroke colour a tone names. Ghost draws in accent (dashed, by the caller);
     muted is the surface's muted; None is the caller's default."""
     if tone == "accent" or tone == "ghost":
@@ -114,7 +184,7 @@ def slide_background(slide: dict) -> str:
 
 
 # ---------------------------------------------------------------- deck walking
-def ordered_slides(scene: dict) -> List[dict]:
+def ordered_slides(scene: dict) -> list[dict]:
     slides = [s for s in scene.get("slides") or [] if isinstance(s, dict)]
     order = scene.get("order")
     if not order:
@@ -123,25 +193,25 @@ def ordered_slides(scene: dict) -> List[dict]:
     return [by_id[i] for i in order if i in by_id]
 
 
-def section_starts(scene: dict) -> Dict[str, str]:
+def section_starts(scene: dict) -> dict[str, str]:
     """{slide_id: section description} for every slide that starts a section."""
-    out: Dict[str, str] = {}
+    out: dict[str, str] = {}
     for sec in (scene.get("sections") or {}).values():
         if isinstance(sec, dict) and isinstance(sec.get("start"), str):
             out[sec["start"]] = str(sec.get("description") or "")
     return out
 
 
-def note_of(slide: dict) -> Optional[dict]:
+def note_of(slide: dict) -> dict | None:
     for a in slide.get("atoms") or []:
         if isinstance(a, dict) and a.get("kind") == "note":
             return a
     return None
 
 
-def cue_map(slide: dict) -> Dict[str, str]:
+def cue_map(slide: dict) -> dict[str, str]:
     note = note_of(slide)
-    out: Dict[str, str] = {}
+    out: dict[str, str] = {}
     for c in (note or {}).get("cues") or []:
         if isinstance(c, dict) and isinstance(c.get("atom_id"), str):
             out[c["atom_id"]] = str(c.get("text") or "")
@@ -158,8 +228,8 @@ def duration_s(slide: dict) -> float:
     return max(8.0, words / 2.5)
 
 
-def atoms_by_region(slide: dict) -> Dict[str, List[dict]]:
-    out: Dict[str, List[dict]] = {}
+def atoms_by_region(slide: dict) -> dict[str, list[dict]]:
+    out: dict[str, list[dict]] = {}
     for a in slide.get("atoms") or []:
         if isinstance(a, dict):
             out.setdefault(a.get("region"), []).append(a)
@@ -167,11 +237,11 @@ def atoms_by_region(slide: dict) -> Dict[str, List[dict]]:
 
 
 # ---------------------------------------------------------------- runs
-def runs_list(runs: Any) -> List[Tuple[str, str]]:
+def runs_list(runs: Any) -> list[tuple[str, str]]:
     """[(text, mark)] for a runs payload; a bare string is one plain run."""
     if isinstance(runs, str):
         return [(runs, "plain")]
-    out: List[Tuple[str, str]] = []
+    out: list[tuple[str, str]] = []
     for r in runs or []:
         if isinstance(r, str):
             out.append((r, "plain"))
@@ -196,14 +266,15 @@ def est_lines(text: str, width: float, size: float, weight: int = 400) -> int:
 
 
 # ---------------------------------------------------------------- diagram geometry (I8)
-def _box(n: dict) -> Tuple[float, float, float, float]:
+def _box(n: dict) -> tuple[float, float, float, float]:
     return float(n["x"]), float(n["y"]), float(n["w"]), float(n["h"])
 
 
-def _mid(n: dict, side: str) -> Tuple[float, float]:
+def _mid(n: dict, side: str) -> tuple[float, float]:
     x, y, w, h = _box(n)
-    return {"left": (x, y + h / 2), "right": (x + w, y + h / 2),
-            "top": (x + w / 2, y), "bottom": (x + w / 2, y + h)}[side]
+    return {"left": (x, y + h / 2), "right": (x + w, y + h / 2), "top": (x + w / 2, y), "bottom": (x + w / 2, y + h)}[
+        side
+    ]
 
 
 def _overlap_x(a: dict, b: dict) -> bool:
@@ -218,7 +289,7 @@ def _overlap_y(a: dict, b: dict) -> bool:
     return ay < by + bh and by < ay + ah
 
 
-def edge_points(a: dict, b: dict, route: Optional[str]) -> Tuple[float, float, float, float]:
+def edge_points(a: dict, b: dict, route: str | None) -> tuple[float, float, float, float]:
     """Where a connector from node a to node b starts and ends (diagrams.md, "Draw connectors
     from edge point to edge point"). Straight: side edges when the boxes are beside each other,
     top/bottom edges when one is above the other; when the source's centre line falls inside
@@ -259,7 +330,7 @@ def edge_points(a: dict, b: dict, route: Optional[str]) -> Tuple[float, float, f
     return (ax + aw if dx >= 0 else ax, y, bx if dx >= 0 else bx + bw, y)
 
 
-def polyline(conn: dict) -> List[Tuple[float, float]]:
+def polyline(conn: dict) -> list[tuple[float, float]]:
     """The points a routed connector visits (hv: across then down; vh: down then across;
     elbow: three legs bending at the midpoint of the longer run)."""
     x1, y1, x2, y2 = conn["x1"], conn["y1"], conn["x2"], conn["y2"]
@@ -277,7 +348,7 @@ def polyline(conn: dict) -> List[Tuple[float, float]]:
     return [(x1, y1), (x2, y2)]
 
 
-def shorten(points: Sequence[Tuple[float, float]], head: str, by: float = HEAD_SHORTEN) -> List[Tuple[float, float]]:
+def shorten(points: Sequence[tuple[float, float]], head: str, by: float = HEAD_SHORTEN) -> list[tuple[float, float]]:
     """Pull a headed line's end(s) back a few units so the arrowhead touches the box edge
     instead of poking into it."""
     pts = [tuple(p) for p in points]
@@ -299,11 +370,20 @@ def shorten(points: Sequence[Tuple[float, float]], head: str, by: float = HEAD_S
 
 
 def _conn(x1, y1, x2, y2, *, head="end", route="straight", dashed=False, tone=None, kind="edge") -> dict:
-    return {"x1": x1, "y1": y1, "x2": x2, "y2": y2, "head": head, "route": route,
-            "dashed": bool(dashed), "tone": tone, "kind": kind}
+    return {
+        "x1": x1,
+        "y1": y1,
+        "x2": x2,
+        "y2": y2,
+        "head": head,
+        "route": route,
+        "dashed": bool(dashed),
+        "tone": tone,
+        "kind": kind,
+    }
 
 
-def bus_parts(bus: dict, nodes: Dict[str, dict]) -> List[dict]:
+def bus_parts(bus: dict, nodes: dict[str, dict]) -> list[dict]:
     """diagram-recipes.md, Rows: a drop from each parent, a bar 24 before the children's edge,
     one stub per child carrying the head. The recipe is vertical; it is mirrored when the
     children sit beside the parents (the same numbers turned on their side)."""
@@ -330,12 +410,11 @@ def bus_parts(bus: dict, nodes: Dict[str, dict]) -> List[dict]:
             below, above = kcy >= scy, kcy < scy
         else:
             right, left = kcx >= scx, kcx < scx
-    parts: List[dict] = []
+    parts: list[dict] = []
 
     def stub_kw(sink: dict) -> dict:
         s = stubs.get(sink.get("id")) or {}
-        return {"head": s.get("head") or head, "dashed": bool(s.get("dashed", dashed)),
-                "tone": s.get("tone") or tone}
+        return {"head": s.get("head") or head, "dashed": bool(s.get("dashed", dashed)), "tone": s.get("tone") or tone}
 
     if below or above:
         p_edge = max(y + h for _, y, _, h in s_boxes) if below else min(y for _, y, _, _ in s_boxes)
@@ -347,11 +426,10 @@ def bus_parts(bus: dict, nodes: Dict[str, dict]) -> List[dict]:
         k_centres = [x + w / 2 for x, _, w, _ in k_boxes]
         if len(sources) == 1 and len(sinks) == 1 and abs(s_centres[0] - k_centres[0]) < 1:
             return [_conn(s_centres[0], p_edge, k_centres[0], c_edge, **stub_kw(sinks[0]), kind="bus")]
-        for cx in s_centres:
-            parts.append(_conn(cx, p_edge, cx, bar, head="none", dashed=dashed, tone=tone, kind="bus"))
+        parts.extend(_conn(cx, p_edge, cx, bar, head="none", dashed=dashed, tone=tone, kind="bus") for cx in s_centres)
         lo, hi = min(s_centres + k_centres), max(s_centres + k_centres)
         parts.append(_conn(lo, bar, hi, bar, head="none", dashed=dashed, tone=tone, kind="bus"))
-        for sink, cx in zip(sinks, k_centres):
+        for sink, cx in zip(sinks, k_centres, strict=False):
             parts.append(_conn(cx, bar, cx, c_edge, **stub_kw(sink), kind="bus"))
         return parts
     p_edge = max(x + w for x, _, w, _ in s_boxes) if right else min(x for x, _, _, _ in s_boxes)
@@ -363,11 +441,10 @@ def bus_parts(bus: dict, nodes: Dict[str, dict]) -> List[dict]:
     k_centres = [y + h / 2 for _, y, _, h in k_boxes]
     if len(sources) == 1 and len(sinks) == 1 and abs(s_centres[0] - k_centres[0]) < 1:
         return [_conn(p_edge, s_centres[0], c_edge, k_centres[0], **stub_kw(sinks[0]), kind="bus")]
-    for cy in s_centres:
-        parts.append(_conn(p_edge, cy, bar, cy, head="none", dashed=dashed, tone=tone, kind="bus"))
+    parts.extend(_conn(p_edge, cy, bar, cy, head="none", dashed=dashed, tone=tone, kind="bus") for cy in s_centres)
     lo, hi = min(s_centres + k_centres), max(s_centres + k_centres)
     parts.append(_conn(bar, lo, bar, hi, head="none", dashed=dashed, tone=tone, kind="bus"))
-    for sink, cy in zip(sinks, k_centres):
+    for sink, cy in zip(sinks, k_centres, strict=False):
         parts.append(_conn(bar, cy, c_edge, cy, **stub_kw(sink), kind="bus"))
     return parts
 
@@ -376,26 +453,47 @@ def diagram_geometry(diagram: dict) -> dict:
     """Everything a renderer draws, in host units: lanes, nodes, connectors (edges and bus
     parts resolved to endpoints), paths (as given) and labels."""
     nodes = {n["id"]: n for n in diagram.get("nodes") or [] if isinstance(n, dict) and "id" in n}
-    connectors: List[dict] = []
+    connectors: list[dict] = []
     for e in diagram.get("edges") or []:
         if not isinstance(e, dict) or e.get("from") not in nodes or e.get("to") not in nodes:
             continue
         route = e.get("route") or "straight"
         x1, y1, x2, y2 = edge_points(nodes[e["from"]], nodes[e["to"]], route)
-        connectors.append(_conn(x1, y1, x2, y2, head=e.get("head") or "end", route=route,
-                                dashed=bool(e.get("dashed")), tone=e.get("tone"), kind="edge"))
+        connectors.append(
+            _conn(
+                x1,
+                y1,
+                x2,
+                y2,
+                head=e.get("head") or "end",
+                route=route,
+                dashed=bool(e.get("dashed")),
+                tone=e.get("tone"),
+                kind="edge",
+            )
+        )
     for b in diagram.get("buses") or []:
         if isinstance(b, dict):
             connectors.extend(bus_parts(b, nodes))
-    paths = []
-    for p in diagram.get("paths") or []:
-        if isinstance(p, dict) and isinstance(p.get("points"), list):
-            paths.append({"id": p.get("id"), "points": [(float(x), float(y)) for x, y in p["points"]],
-                          "head": p.get("head") or "none", "dashed": bool(p.get("dashed")), "tone": p.get("tone")})
-    return {"lanes": [l for l in diagram.get("lanes") or [] if isinstance(l, dict)],
-            "nodes": list(nodes.values()), "connectors": connectors, "paths": paths,
-            "labels": [l for l in diagram.get("labels") or [] if isinstance(l, dict)],
-            "aria_label": diagram.get("aria_label")}
+    paths = [
+        {
+            "id": p.get("id"),
+            "points": [(float(x), float(y)) for x, y in p["points"]],
+            "head": p.get("head") or "none",
+            "dashed": bool(p.get("dashed")),
+            "tone": p.get("tone"),
+        }
+        for p in diagram.get("paths") or []
+        if isinstance(p, dict) and isinstance(p.get("points"), list)
+    ]
+    return {
+        "lanes": [lane for lane in diagram.get("lanes") or [] if isinstance(lane, dict)],
+        "nodes": list(nodes.values()),
+        "connectors": connectors,
+        "paths": paths,
+        "labels": [label for label in diagram.get("labels") or [] if isinstance(label, dict)],
+        "aria_label": diagram.get("aria_label"),
+    }
 
 
 def fmt(n: float) -> str:

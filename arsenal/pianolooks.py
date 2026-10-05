@@ -18,16 +18,21 @@ the server only keeps the values simple. The starter looks are built into the pa
 The file is state/arsenal/looks/presets.json (git-ignored). It is written whole to a temp file in the same folder and
 moved over the old one with os.replace, so a failed write leaves the previous file as it was.
 """
+
 from __future__ import annotations
 
+import contextlib
 import json
 import math
 import os
 import re
 import threading
 from pathlib import Path
-from typing import Mapping, Optional, Tuple
+from typing import TYPE_CHECKING
 from urllib.parse import urlsplit
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 API = "arsenal.piano.looks/v1"
 PATH = "/api/piano/looks"
@@ -56,7 +61,7 @@ class LooksError(Exception):
 
 
 # ------------------------------------------------------------------ requests
-def request_problem(method: str, headers: Mapping[str, str], port: int) -> Optional[Tuple[int, str]]:
+def request_problem(method: str, headers: Mapping[str, str], port: int) -> tuple[int, str] | None:
     """(status, message) when a looks request must be refused before its body is looked at, else None."""
     host = (headers.get("Host") or "").strip()
     try:
@@ -71,8 +76,14 @@ def request_problem(method: str, headers: Mapping[str, str], port: int) -> Optio
     if origin is not None:
         try:
             o = urlsplit(origin.strip())
-            same = (o.scheme == "http" and o.hostname == host_name and o.port == port and o.path in ("", "/")
-                    and not o.query and o.username is None)
+            same = (
+                o.scheme == "http"
+                and o.hostname == host_name
+                and o.port == port
+                and o.path in ("", "/")
+                and not o.query
+                and o.username is None
+            )
         except ValueError:
             same = False
         if not same:
@@ -88,7 +99,7 @@ def _refuse_constant(name: str):
     raise ValueError(f"{name} is not a number JSON allows")
 
 
-def parse_body(raw: bytes) -> Tuple[int, list]:
+def parse_body(raw: bytes) -> tuple[int, list]:
     """The PUT body as (rev, presets), checked; LooksError(400) for anything else."""
     try:
         body = json.loads(raw.decode("utf-8"), parse_constant=_refuse_constant)
@@ -157,7 +168,12 @@ def validate_presets(presets) -> list:
         for stamp in ("created", "updated"):
             if stamp in preset:
                 value = preset[stamp]
-                if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or value < 0:
+                if (
+                    isinstance(value, bool)
+                    or not isinstance(value, (int, float))
+                    or not math.isfinite(value)
+                    or value < 0
+                ):
                     raise LooksError(400, f"{where}: {stamp} must be a time in epoch milliseconds")
                 clean[stamp] = value
         out.append(clean)
@@ -194,9 +210,13 @@ class LooksStore:
         with self._lock:
             current = self.read()
             if rev != current["rev"]:
-                raise LooksError(409, f"the saved looks changed since rev {rev} (now rev {current['rev']}); "
-                                      "load them again and reapply the change", rev=current["rev"],
-                                 presets=current["presets"])
+                raise LooksError(
+                    409,
+                    f"the saved looks changed since rev {rev} (now rev {current['rev']}); "
+                    "load them again and reapply the change",
+                    rev=current["rev"],
+                    presets=current["presets"],
+                )
             doc = {"api": API, "rev": current["rev"] + 1, "presets": presets}
             self._write(doc)
             return doc
@@ -212,8 +232,6 @@ class LooksStore:
                 os.fsync(fh.fileno())
             os.replace(tmp, self.path)
         except BaseException:
-            try:
+            with contextlib.suppress(OSError):
                 tmp.unlink()
-            except OSError:
-                pass
             raise

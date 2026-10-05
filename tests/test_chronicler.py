@@ -4,23 +4,30 @@ Tests for the Chronicler (Slice 3). Shape + robustness + acceptance bar
 
 Run: py tests/test_chronicler.py
 """
+
 import json
 import os
 import sys
 import tempfile
+from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.foundation.store import FileStore
-from core.narrative.beat_log import BeatLog, TIMELINE
-from core.narrative.chronicler import Chronicler, BoundaryDetector
+from core.narrative.beat_log import TIMELINE, BeatLog
+from core.narrative.chronicler import BoundaryDetector, Chronicler
 from core.narrative.schema import (
-    Beat, Chapter, Track, Atlas, Edge,
-    beat_key, chapter_key, track_key,
-    validate_beat, STORY_FORMAT_VERSION,
+    STORY_FORMAT_VERSION,
+    Atlas,
+    Beat,
+    Chapter,
+    Track,
+    beat_key,
+    chapter_key,
+    track_key,
 )
-from core.primitives.ranker import Ranker
 from core.primitives.distiller import Distiller
+from core.primitives.ranker import Ranker
 
 
 def _log():
@@ -42,10 +49,8 @@ def _chronicler(log=None, store=None):
 # =========================== BoundaryDetector ===========================
 
 
-def _beat(at: str, weight: int = 1, kind: str = "note",
-          summary: str = "x", source: str = "ledger:1") -> Beat:
-    return Beat(id=f"b_{at}", at=at, kind=kind, summary=summary,
-                source=source, weight=weight)
+def _beat(at: str, weight: int = 1, kind: str = "note", summary: str = "x", source: str = "ledger:1") -> Beat:
+    return Beat(id=f"b_{at}", at=at, kind=kind, summary=summary, source=source, weight=weight)
 
 
 def test_detect_no_boundaries():
@@ -67,7 +72,7 @@ def test_detect_time_gap():
     beats = [
         _beat("2026-06-27T10:00:00"),
         _beat("2026-06-27T10:30:00"),
-        _beat("2026-06-28T06:00:00"),   # >19h gap
+        _beat("2026-06-28T06:00:00"),  # >19h gap
         _beat("2026-06-28T07:00:00"),
     ]
     cuts = d.detect(beats)
@@ -127,14 +132,14 @@ def test_chronicler_empty():
 def test_chronicler_single_beat():
     """Single beat → one chapter with that beat."""
     c = _chronicler()
-    b = c.beat_log.emit("note", "single beat", "ledger:1",
-                        at="2026-06-27T10:00:00")
+    b = c.beat_log.emit("note", "single beat", "ledger:1", at="2026-06-27T10:00:00")
     report = c.chronicle_all()
     assert report["chapters"] == 1
     assert report["total_beats"] == 1
-    ch_key = chapter_key(f"chapter_{hashlib_mock(b.track, 0, '2026-06-27T10:00:00')}")
+    chapter_key(f"chapter_{hashlib_mock(b.track, 0, '2026-06-27T10:00:00')}")
     # Actually let's use the real key: the md5 of f"{track}_{seg_index}_{span_start}"
     import hashlib
+
     expected_id = f"chapter_{hashlib.md5(f'{b.track}_0_2026-06-27T10:00:00'.encode()).hexdigest()[:12]}"
     raw = c.store.get(chapter_key(expected_id))
     assert raw is not None, "chapter should be persisted"
@@ -146,23 +151,29 @@ def test_chronicler_single_beat():
 
 def hashlib_mock(track, seg_idx, span):
     import hashlib
+
     return hashlib.md5(f"{track}_{seg_idx}_{span}".encode()).hexdigest()[:12]
 
 
 def test_chronicler_shape():
     """Emit a multi-track sequence → verify chapter shape + beat grouping."""
     from core.narrative.track_router import RouteHint
+
     c = _chronicler()
-    beats = [
-        c.beat_log.emit("commit", "add store", "git:1",
-                        at="2026-06-27T10:00:00",
-                        hint=RouteHint(paths=["core/foundation/store.py"])),
-        c.beat_log.emit("commit", "add ledgers", "git:2",
-                        at="2026-06-27T10:30:00",
-                        hint=RouteHint(paths=["core/foundation/ledger.py"])),
-        c.beat_log.emit("learning", "prior art RAPTOR", "learn:exp:1",
-                        at="2026-06-27T12:00:00",
-                        hint=RouteHint(category="research")),
+    _beats = [
+        c.beat_log.emit(
+            "commit", "add store", "git:1", at="2026-06-27T10:00:00", hint=RouteHint(paths=["core/foundation/store.py"])
+        ),
+        c.beat_log.emit(
+            "commit",
+            "add ledgers",
+            "git:2",
+            at="2026-06-27T10:30:00",
+            hint=RouteHint(paths=["core/foundation/ledger.py"]),
+        ),
+        c.beat_log.emit(
+            "learning", "prior art RAPTOR", "learn:exp:1", at="2026-06-27T12:00:00", hint=RouteHint(category="research")
+        ),
     ]
 
     report = c.chronicle_all()
@@ -182,10 +193,11 @@ def test_chronicler_shape():
 def test_chronicler_uses_route_hint():
     """Use RouteHint for track routing during emit."""
     from core.narrative.track_router import RouteHint
+
     c = _chronicler()
-    b = c.beat_log.emit("commit", "core fix", "git:3",
-                        at="2026-06-27T10:00:00",
-                        hint=RouteHint(paths=["core/foundation/store.py"]))
+    b = c.beat_log.emit(
+        "commit", "core fix", "git:3", at="2026-06-27T10:00:00", hint=RouteHint(paths=["core/foundation/store.py"])
+    )
     assert b.track == "ai-setup"
     report = c.chronicle_all()
     assert report["total_beats"] == 1
@@ -196,6 +208,7 @@ def test_chronicler_uses_route_hint():
 def test_chronicler_idempotent():
     """Running chronicle_all twice on the same data → same output."""
     import json as _json
+
     cdir = tempfile.mkdtemp()
     s = FileStore(os.path.join(tempfile.mkdtemp(), "s.json"))
 
@@ -204,8 +217,7 @@ def test_chronicler_idempotent():
     # First run
     c1 = Chronicler(beat_log=BeatLog(s), store=s, chronicle_dir=cdir)
     for i in range(5):
-        c1.beat_log.emit("note", f"beat {i}", f"ledger:{i}",
-                         at=f"2026-06-27T{10 + i}:00:00")
+        c1.beat_log.emit("note", f"beat {i}", f"ledger:{i}", at=f"2026-06-27T{10 + i}:00:00")
     r1 = c1.chronicle_all(now=FIXED_NOW)
 
     # Snapshot chapter contents from store after r1
@@ -245,27 +257,23 @@ def test_chronicler_idempotent():
                         chapters_after_r2[cid] = raw_ch
 
     for cid, content in chapters_after_r1.items():
-        assert content == chapters_after_r2.get(cid), \
-            f"chapter {cid} content differs between runs"
+        assert content == chapters_after_r2.get(cid), f"chapter {cid} content differs between runs"
     print(f"  idempotent: chapters={r1['chapters']} identical on re-run OK")
 
 
 def test_chronicler_chronological_integrity():
     """Beats in chapters appear in chronological order."""
     c = _chronicler()
-    c.beat_log.emit("note", "first", "ledger:1",
-                    at="2026-06-27T10:00:00")
-    c.beat_log.emit("milestone", "second", "ledger:2",
-                    at="2026-06-27T11:00:00", weight=5)
-    c.beat_log.emit("note", "third", "ledger:3",
-                    at="2026-06-27T12:00:00")
+    c.beat_log.emit("note", "first", "ledger:1", at="2026-06-27T10:00:00")
+    c.beat_log.emit("milestone", "second", "ledger:2", at="2026-06-27T11:00:00", weight=5)
+    c.beat_log.emit("note", "third", "ledger:3", at="2026-06-27T12:00:00")
 
-    report = c.chronicle_all()
+    c.chronicle_all()
     raw_atlas = c.store.get("narr:atlas:current")
     assert raw_atlas is not None
     atlas = Atlas.from_dict(json.loads(raw_atlas))
 
-    for ch_dict in json.loads(c.store.get("narr:atlas:current")):
+    for _ch_dict in json.loads(c.store.get("narr:atlas:current")):
         pass  # atlas doesn't contain chapters directly
 
     # Load all chapters and verify their beats are sorted
@@ -274,6 +282,7 @@ def test_chronicler_chronological_integrity():
         if not raw:
             continue
         from core.narrative.schema import Track as Tr
+
         t = Tr.from_dict(json.loads(raw))
         for cid in t.chapters:
             raw_ch = c.store.get(chapter_key(cid))
@@ -295,11 +304,16 @@ def test_chronicler_faithfulness():
     Faithfulness bar = 100% (the Distiller's lossless-pointer invariant).
     """
     from core.narrative.track_router import RouteHint
+
     c = _chronicler()
     for i in range(3):
-        c.beat_log.emit("learning", f"lesson {i}", f"learn:exp:{i}",
-                        at=f"2026-06-27T{10 + i}:00:00",
-                        hint=RouteHint(category="research"))
+        c.beat_log.emit(
+            "learning",
+            f"lesson {i}",
+            f"learn:exp:{i}",
+            at=f"2026-06-27T{10 + i}:00:00",
+            hint=RouteHint(category="research"),
+        )
 
     report = c.chronicle_all()
     assert report["faithful"] is True, "all chapters must have resolvable beat sources"
@@ -310,16 +324,12 @@ def test_chronicler_coverage():
     """At least 95% of weight->=4 Beats appear in a chapter."""
     c = _chronicler()
     # Emit two high-weight and one low-weight beat
-    c.beat_log.emit("milestone", "major milestone", "git:m1",
-                    at="2026-06-27T10:00:00", weight=5)
-    c.beat_log.emit("decision", "key decision", "ledger:d1",
-                    at="2026-06-27T11:00:00", weight=4)
-    c.beat_log.emit("note", "low-weight note", "ledger:n1",
-                    at="2026-06-27T12:00:00", weight=1)
+    c.beat_log.emit("milestone", "major milestone", "git:m1", at="2026-06-27T10:00:00", weight=5)
+    c.beat_log.emit("decision", "key decision", "ledger:d1", at="2026-06-27T11:00:00", weight=4)
+    c.beat_log.emit("note", "low-weight note", "ledger:n1", at="2026-06-27T12:00:00", weight=1)
 
     report = c.chronicle_all()
-    assert report["coverage"] >= 95.0, \
-        f"coverage {report['coverage']} < 95%"
+    assert report["coverage"] >= 95.0, f"coverage {report['coverage']} < 95%"
     print(f"  coverage: {report['coverage']}% (bar >= 95%) OK")
 
 
@@ -333,18 +343,17 @@ def test_chronicler_md_and_json_rendered():
         chronicle_dir=cdir,
         token_budget=4000,
     )
-    c.beat_log.emit("note", "test beat", "ledger:1",
-                    at="2026-06-27T10:00:00")
+    c.beat_log.emit("note", "test beat", "ledger:1", at="2026-06-27T10:00:00")
     report = c.chronicle_all()
 
     assert os.path.exists(report["story_md"]), "story.md must exist"
     assert os.path.exists(report["story_json"]), "story.index.json must exist"
 
-    md = open(report["story_md"], encoding="utf-8").read()
+    md = Path(report["story_md"]).read_text(encoding="utf-8")
     assert "Story" in md
     assert "Atlas" in md
 
-    idx = json.loads(open(report["story_json"], encoding="utf-8").read())
+    idx = json.loads(Path(report["story_json"]).read_text(encoding="utf-8"))
     assert idx["version"] == STORY_FORMAT_VERSION
     assert "atlas" in idx
     assert "chapters" in idx
@@ -356,19 +365,14 @@ def test_chronicler_multi_chapter_by_gap():
     """Beats with >4h gap produce separate chapters."""
     c = _chronicler()
     # Beat 1-2: same session
-    c.beat_log.emit("note", "morning work", "ledger:1",
-                    at="2026-06-27T10:00:00")
-    c.beat_log.emit("note", "more morning", "ledger:2",
-                    at="2026-06-27T11:00:00")
+    c.beat_log.emit("note", "morning work", "ledger:1", at="2026-06-27T10:00:00")
+    c.beat_log.emit("note", "more morning", "ledger:2", at="2026-06-27T11:00:00")
     # Beat 3-4: next day (big gap)
-    c.beat_log.emit("note", "next day work", "ledger:3",
-                    at="2026-06-28T10:00:00")
-    c.beat_log.emit("note", "more next day", "ledger:4",
-                    at="2026-06-28T11:00:00")
+    c.beat_log.emit("note", "next day work", "ledger:3", at="2026-06-28T10:00:00")
+    c.beat_log.emit("note", "more next day", "ledger:4", at="2026-06-28T11:00:00")
 
     report = c.chronicle_all()
-    assert report["chapters"] >= 2, \
-        f"expected >=2 chapters from a day gap, got {report['chapters']}"
+    assert report["chapters"] >= 2, f"expected >=2 chapters from a day gap, got {report['chapters']}"
     print(f"  multi-chapter: {report['chapters']} chapters from time gap OK")
 
 
@@ -376,8 +380,7 @@ def test_chronicler_skip_corrupt_beat():
     """A corrupt/invalid beat in the store is skipped, not fatal."""
     c = _chronicler()
     # Emit one valid beat
-    b = c.beat_log.emit("note", "valid", "ledger:1",
-                        at="2026-06-27T10:00:00")
+    c.beat_log.emit("note", "valid", "ledger:1", at="2026-06-27T10:00:00")
     # Manually inject a corrupt beat
     c.store.set("narr:beat:corrupt_beat", "not valid json{{{")
     c.store.zadd(TIMELINE, {"corrupt_beat": _epoch("2026-06-27T09:00:00")})
@@ -390,6 +393,7 @@ def test_chronicler_skip_corrupt_beat():
 
 def _epoch(iso: str) -> float:
     from datetime import datetime
+
     try:
         return datetime.fromisoformat(iso).timestamp()
     except (ValueError, TypeError):

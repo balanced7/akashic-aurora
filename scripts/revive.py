@@ -25,15 +25,18 @@ two duties.
 decide() is PURE (observation in, plan out) and pinned in
 tests/test_t382_revive.py; the I/O lives in observe()/_heal_step()/_verify().
 """
+
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import subprocess
-_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)  # windowless: never flash a console (2026-09-05, cmd-spam fix)
 import sys
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any
+
+_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)  # windowless: never flash a console (2026-09-05, cmd-spam fix)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT not in sys.path:
@@ -42,19 +45,17 @@ if ROOT not in sys.path:
 LOCK_PATH = os.path.join(ROOT, "state", "revive.lock")
 LOCK_TTL_S = 300.0
 REDIS_CONTAINER = "akashic-redis"
-DAEMON_AGENTS = ("deepseek", "kimi", "claude")   # the DaemonLock absorbs duplicates
+DAEMON_AGENTS = ("deepseek", "kimi", "claude")  # the DaemonLock absorbs duplicates
 # S1 (wake doctrine, 2026-09-03): each agent's daemon has a MODE. deepseek/kimi
 # daemons spawn+supervise a runner; claude's daemon supervises WAKE LISTENERS
 # (--manage-listener) -- there is no bifrost_runner_claude by design (Token
 # Frugality), so planning --spawn-runner for claude would be the F13 wrong-script
 # class, and expecting a claude runner would page a phantom death forever. The
 # mode map keeps one rung with per-agent truth instead of a second roster.
-DAEMON_MODE = {"deepseek": "--spawn-runner", "kimi": "--spawn-runner",
-               "claude": "--manage-listener"}
+DAEMON_MODE = {"deepseek": "--spawn-runner", "kimi": "--spawn-runner", "claude": "--manage-listener"}
 # runner children exist only for spawn-runner daemons; observe()'s runner rung
 # and count lines derive from THIS, never from DAEMON_AGENTS directly.
-RUNNER_AGENTS = tuple(a for a in DAEMON_AGENTS
-                      if DAEMON_MODE.get(a) == "--spawn-runner")
+RUNNER_AGENTS = tuple(a for a in DAEMON_AGENTS if DAEMON_MODE.get(a) == "--spawn-runner")
 # the runner SCRIPT each spawn-runner daemon must supervise. bifrost_daemon.py's
 # --runner-script default is bifrost_runner_deepseek.py, so a resurrected daemon that
 # omitted it would spawn a DeepSeek runner under the WRONG seat's identity
@@ -62,14 +63,13 @@ RUNNER_AGENTS = tuple(a for a in DAEMON_AGENTS
 # path already carries os.path.basename(__file__) for this; the necromancer must do the
 # same per-agent, or raising kimi from the dead re-creates the cross-seat-script bug on
 # the recovery path.
-RUNNER_SCRIPT = {"deepseek": "bifrost_runner_deepseek.py",
-                 "kimi": "bifrost_runner_kimi.py"}
+RUNNER_SCRIPT = {"deepseek": "bifrost_runner_deepseek.py", "kimi": "bifrost_runner_kimi.py"}
 # `app` is FIRST because it is the deepest layer and the one this ladder was blind to
 # until 2026-08-24: the MSIX package that HOSTS the conductor seat. On that day the
 # ladder began at redis, so a dead Claude Desktop was not merely unhealed -- it was
 # invisible, and !revive ran twice reporting that it ran. See core/fleet/app_package.py.
-_ORDER = ("app", "redis", "daemon", "gateway")   # runners are the daemon's children:
-                                          # it spawns them; we verify, not heal
+_ORDER = ("app", "redis", "daemon", "gateway")  # runners are the daemon's children:
+# it spawns them; we verify, not heal
 
 
 class ReviveLocked(RuntimeError):
@@ -77,17 +77,33 @@ class ReviveLocked(RuntimeError):
 
 
 # ------------------------------------------------------------------- observe
-def _procs() -> List[str]:
+def _embedded_backend() -> bool:
+    """True when this checkout's bus runs on the embedded Redis (no Redis server here)."""
     try:
-        r = subprocess.run(["tasklist", "/FO", "CSV", "/V"], capture_output=True,
-                           text=True, timeout=20, encoding="utf-8",
-                           errors="replace", creationflags=_NO_WINDOW)
+        from core.foundation.embedded_redis import configured_backend
+
+        return configured_backend() == "embedded"
+    except Exception:  # noqa: BLE001  # fail-soft: falls back to a default value
+        return False
+
+
+def _procs() -> list[str]:
+    try:
+        r = subprocess.run(
+            ["tasklist", "/FO", "CSV", "/V"],
+            capture_output=True,
+            text=True,
+            timeout=20,
+            encoding="utf-8",
+            errors="replace",
+            creationflags=_NO_WINDOW,
+        )
         return (r.stdout or "").splitlines()
-    except Exception:                                                   # noqa: BLE001
+    except Exception:  # noqa: BLE001  # fail-soft: falls back to a default value
         return []
 
 
-def _cmdlines() -> Optional[str]:
+def _cmdlines() -> str | None:
     """Full python command lines (tasklist hides args; wmic-era fallback).
 
     Returns None when the process table could NOT BE READ -- a timeout, a shell failure,
@@ -100,43 +116,74 @@ def _cmdlines() -> Optional[str]:
     minutes and put four concurrent gateways up before the 2026-08-26 exhaustion.
 
     An empty STRING still means a genuine zero -- the probe answered and found nothing.
+
+    Outside Windows there is no CIM: psutil reads the same command lines (one per line, the
+    shape every consumer below already parses), with the same None-means-unreadable contract.
     """
+    if os.name != "nt":
+        try:
+            import psutil
+
+            lines = []
+            for p in psutil.process_iter(["name", "cmdline"]):
+                cmd = p.info.get("cmdline") or []
+                if cmd and "python" in (p.info.get("name") or os.path.basename(cmd[0])).lower():
+                    lines.append(" ".join(cmd))
+            return "\n".join(lines)
+        except Exception:  # noqa: BLE001  # fail-soft: falls back to a default value
+            return None
     try:
         r = subprocess.run(
-            ["powershell", "-NoProfile", "-Command",
-             "Get-CimInstance Win32_Process -Filter \"Name like '%python%'\" "
-             "| Select-Object -ExpandProperty CommandLine"],
-            capture_output=True, text=True, timeout=25, encoding="utf-8",
-            errors="replace", creationflags=_NO_WINDOW)
+            [
+                "powershell",
+                "-NoProfile",
+                "-Command",
+                (
+                    "Get-CimInstance Win32_Process -Filter \"Name like '%python%'\" "
+                    "| Select-Object -ExpandProperty CommandLine"
+                ),
+            ],
+            capture_output=True,
+            text=True,
+            timeout=25,
+            encoding="utf-8",
+            errors="replace",
+            creationflags=_NO_WINDOW,
+        )
         if r.returncode != 0:
-            return None          # the shell failed: we did not learn anything
+            return None  # the shell failed: we did not learn anything
         return r.stdout or ""
-    except Exception:                                                   # noqa: BLE001
-        return None              # timeout / spawn failure: unreadable, NOT empty
+    except Exception:  # noqa: BLE001  # fail-soft: falls back to a default value
+        return None  # timeout / spawn failure: unreadable, NOT empty
 
 
-def observe(include_app: bool = True) -> Dict[str, Dict[str, Any]]:
-    out: Dict[str, Dict[str, Any]] = {}
+def observe(include_app: bool = True) -> dict[str, dict[str, Any]]:
+    out: dict[str, dict[str, Any]] = {}
     if include_app:
         # Cheap probe: status only. The 629 MB block-map verification is part of the
         # HEAL, never of a probe that a scheduled task runs every few minutes.
         try:
             from core.fleet import app_package
+
             out["app"] = app_package.observe_app()
-        except Exception as e:                                          # noqa: BLE001
+        except Exception as e:  # noqa: BLE001  # fail-soft: falls back to a default value
             # A probe that cannot run must read as NOT healthy. An unreadable answer
             # reported as health is the defect this whole rung exists to end.
-            out["app"] = {"healthy": False, "repairable": False, "pkg": None,
-                          "detail": f"app probe failed ({type(e).__name__}: "
-                                    f"{str(e)[:60]}) -- cannot prove healthy"}
+            out["app"] = {
+                "healthy": False,
+                "repairable": False,
+                "pkg": None,
+                "detail": f"app probe failed ({type(e).__name__}: {str(e)[:60]}) -- cannot prove healthy",
+            }
     try:
         from core.comm.bus import Bus
+
         ok = bool(Bus("revive-probe", promote=False)._client.ping())
         out["redis"] = {"healthy": ok, "detail": "ping ok" if ok else "no ping"}
-    except Exception as e:                                              # noqa: BLE001
-        out["redis"] = {"healthy": False,
-                        "detail": f"{type(e).__name__}: {str(e)[:80]}"}
+    except Exception as e:  # noqa: BLE001  # fail-soft: falls back to a default value
+        out["redis"] = {"healthy": False, "detail": f"{type(e).__name__}: {str(e)[:80]}"}
     cmds = _cmdlines()
+
     # PER AGENT, never in aggregate (drill 2026-08-24). Counting processes asked
     # "is anything alive?" when the only useful question is "is EVERY seat alive?" --
     # so one surviving daemon reported the whole rung healthy and PROVE confirmed a
@@ -146,19 +193,19 @@ def observe(include_app: bool = True) -> Dict[str, Dict[str, Any]]:
     # matched both. The discriminator is `--agent <name>`, which is the only place
     # a process states which seat it IS.
     def _live(pattern_agent: str, script: str) -> bool:
-        return any(script in ln and f"--agent {pattern_agent}" in ln
-                   for ln in cmds.splitlines())
+        return any(script in ln and f"--agent {pattern_agent}" in ln for ln in cmds.splitlines())
 
     if cmds is None:
         # THE REFUSAL. Same discipline the app rung above already applies: a probe that
         # cannot run reads as NOT healthy AND NOT repairable, so decide() plans nothing
         # and unreachable_report names it. We cannot prove absence, so we do not "heal"
         # it -- spawning against an unreadable process table is how duplicates breed.
-        blind = ("process table unreadable (probe timed out or failed) -- cannot prove "
-                 "absence, so this rung REFUSES to spawn; re-run when the host is calmer")
+        blind = (
+            "process table unreadable (probe timed out or failed) -- cannot prove "
+            "absence, so this rung REFUSES to spawn; re-run when the host is calmer"
+        )
         for organ in ("daemon", "runners", "gateway"):
-            out[organ] = {"healthy": False, "repairable": False, "detail": blind,
-                          "dead": []}
+            out[organ] = {"healthy": False, "repairable": False, "detail": blind, "dead": []}
         return out
 
     dead_daemons = [a for a in DAEMON_AGENTS if not _live(a, "bifrost_daemon.py")]
@@ -174,49 +221,59 @@ def observe(include_app: bool = True) -> Dict[str, Dict[str, Any]]:
     wedged = []
     try:
         from core.comm import daemon_state as _ds
+
         for _a in DAEMON_AGENTS:
             if _a in dead_daemons:
-                continue                       # down, not wedged -- different remedy
+                continue  # down, not wedged -- different remedy
             _state, _why = _ds.rearm_backlog_state(_a)
             if _state == "wedged":
                 wedged.append((_a, _why))
-    except Exception:                                                   # noqa: BLE001
-        pass                                   # probe unavailable -> claim nothing, as ever
-    _alive_note = (f"all {len(DAEMON_AGENTS)} daemon(s) alive: {', '.join(DAEMON_AGENTS)}"
-                   if not dead_daemons else
-                   f"DOWN: {', '.join(dead_daemons)} "
-                   f"(alive: {', '.join(a for a in DAEMON_AGENTS if a not in dead_daemons) or 'none'})")
+    except Exception:  # noqa: BLE001  # fail-soft: best effort, skipped on any error
+        pass  # probe unavailable -> claim nothing, as ever
+    _alive_note = (
+        f"all {len(DAEMON_AGENTS)} daemon(s) alive: {', '.join(DAEMON_AGENTS)}"
+        if not dead_daemons
+        else f"DOWN: {', '.join(dead_daemons)} "
+        f"(alive: {', '.join(a for a in DAEMON_AGENTS if a not in dead_daemons) or 'none'})"
+    )
     if wedged:
-        _alive_note += ("  ||  WEDGED (alive but not consuming rearms; RESTART, do not spawn): "
-                        + "; ".join(f"{a}: {why}" for a, why in wedged))
+        _alive_note += "  ||  WEDGED (alive but not consuming rearms; RESTART, do not spawn): " + "; ".join(
+            f"{a}: {why}" for a, why in wedged
+        )
     out["daemon"] = {
         "healthy": (not dead_daemons) and (not wedged),
         "detail": _alive_note,
-        "repairable": True,      # the probe ANSWERED -- a zero here is a real absence
+        "repairable": True,  # the probe ANSWERED -- a zero here is a real absence
         "wedged": [a for a, _ in wedged],
-        "dead": dead_daemons}
+        "dead": dead_daemons,
+    }
     out["runners"] = {
         "healthy": not dead_runners,
-        "detail": (f"all {len(RUNNER_AGENTS)} runner(s) alive: {', '.join(RUNNER_AGENTS)}"
-                   if not dead_runners else
-                   f"DOWN: {', '.join(dead_runners)} (daemon's children -- healed by "
-                   f"the daemon rung, verified here)"),
+        "detail": (
+            f"all {len(RUNNER_AGENTS)} runner(s) alive: {', '.join(RUNNER_AGENTS)}"
+            if not dead_runners
+            else f"DOWN: {', '.join(dead_runners)} (daemon's children -- healed by the daemon rung, verified here)"
+        ),
         "repairable": True,
-        "dead": dead_runners}
+        "dead": dead_runners,
+    }
     # EXACT-ONE, not any (Sol audit R3 / T376): a gateway is a SINGLETON. `> 0`
     # certified 2+ simultaneous gateways healthy and never reconciled the
     # duplicate/OOM class that ran four concurrent gateways before the 2026-08-26
     # exhaustion. `== 1` is the only healthy count; zero is dead (healed by the
     # gateway rung), and > 1 is a DUPLICATE defect that must be NAMED so a root
     # reading a phone sees which fault, not "healthy".
-    gw_detail = (f"1 gateway process" if gateway_n == 1 else
-                 f"{gateway_n} gateway process(es)"
-                 + (" -- DUPLICATE: more than one gateway is running; a singleton "
-                    "must be restored (T376 layered defense)" if gateway_n > 1
-                    else ""))
-    out["gateway"] = {"healthy": gateway_n == 1,
-                      "repairable": True,
-                      "detail": gw_detail}
+    gw_detail = (
+        "1 gateway process"
+        if gateway_n == 1
+        else f"{gateway_n} gateway process(es)"
+        + (
+            " -- DUPLICATE: more than one gateway is running; a singleton must be restored (T376 layered defense)"
+            if gateway_n > 1
+            else ""
+        )
+    )
+    out["gateway"] = {"healthy": gateway_n == 1, "repairable": True, "detail": gw_detail}
     return out
 
 
@@ -224,13 +281,12 @@ def observe(include_app: bool = True) -> Dict[str, Dict[str, Any]]:
 _DEPS = {"app": (), "redis": (), "daemon": ("redis",), "gateway": ()}
 
 
-def decide(observed: Dict[str, Dict[str, Any]],
-           target: Optional[str] = None) -> List[Dict[str, Any]]:
+def decide(observed: dict[str, dict[str, Any]], target: str | None = None) -> list[dict[str, Any]]:
     """PURE: the heal plan for this observation. Healthy rungs are skipped;
     a rung whose dependency is unhealthy is DEFERRED (the next converge sees
     a healthier world and plans further). Runners are never healed directly
     -- the daemon owns its children."""
-    plan: List[Dict[str, Any]] = []
+    plan: list[dict[str, Any]] = []
     for organ in _ORDER:
         if target and organ != target:
             continue
@@ -238,7 +294,7 @@ def decide(observed: Dict[str, Dict[str, Any]],
         if row.get("healthy"):
             continue
         if any(not (observed.get(d) or {}).get("healthy") for d in _DEPS[organ]):
-            continue                       # deferred: dependency is dead
+            continue  # deferred: dependency is dead
         if row.get("repairable") is False:
             # A rung that told us it CANNOT be proven broken is never "healed". This is
             # the app rung's discipline generalised to every organ: an unknown bad state
@@ -251,12 +307,14 @@ def decide(observed: Dict[str, Dict[str, Any]],
             # report -- we never treat an unknown bad state as the one we can fix.
             if not row.get("repairable"):
                 continue
-            plan.append({"organ": "app", "kind": "msix-repair",
-                         "pkg": row.get("pkg")})
+            plan.append({"organ": "app", "kind": "msix-repair", "pkg": row.get("pkg")})
         elif organ == "redis":
-            plan.append({"organ": "redis",
-                         "cmd": ["docker", "start", REDIS_CONTAINER],
-                         "kind": "docker-start"})
+            if _embedded_backend():
+                # No Redis server installed: the bus runs on the embedded server, and
+                # healing it means starting that, not a Docker container that is not there.
+                plan.append({"organ": "redis", "kind": "embedded-start"})
+            else:
+                plan.append({"organ": "redis", "cmd": ["docker", "start", REDIS_CONTAINER], "kind": "docker-start"})
         elif organ == "daemon":
             # HEAL-ONLY-THE-DEAD (Sol audit R2): observed carries `dead` per agent
             # (observe() populates it from _live()). Looping over every DAEMON_AGENTS
@@ -269,13 +327,11 @@ def decide(observed: Dict[str, Dict[str, Any]],
             dead_agents = row.get("dead") or list(DAEMON_AGENTS)
             for agent in dead_agents:
                 if agent not in DAEMON_AGENTS:
-                    continue          # never plan an agent this rung doesn't own
+                    continue  # never plan an agent this rung doesn't own
                 # S1: the mode map, not a hardcoded flag -- claude's daemon is a
                 # listener-manager, and --spawn-runner for it would be F13 again.
                 mode = DAEMON_MODE.get(agent, "--spawn-runner")
-                cmd = [sys.executable,
-                       os.path.join(ROOT, "scripts", "bifrost_daemon.py"),
-                       "--agent", agent, mode]
+                cmd = [sys.executable, os.path.join(ROOT, "scripts", "bifrost_daemon.py"), "--agent", agent, mode]
                 if mode == "--spawn-runner":
                     # relaunch_must_carry_the_lane_env (page-proven): the daemon's
                     # lane default is None, so a resurrected daemon without this
@@ -291,22 +347,24 @@ def decide(observed: Dict[str, Dict[str, Any]],
                     if agent not in RUNNER_SCRIPT:
                         raise ValueError(
                             f"spawn-runner agent {agent!r} has no RUNNER_SCRIPT entry "
-                            f"-- refusing to plan a cross-seat-script resurrection")
+                            f"-- refusing to plan a cross-seat-script resurrection"
+                        )
                     cmd += ["--runner-script", RUNNER_SCRIPT[agent]]
-                plan.append({"organ": "daemon", "cmd": cmd,
-                             "kind": "detached-spawn", "agent": agent})
+                plan.append({"organ": "daemon", "cmd": cmd, "kind": "detached-spawn", "agent": agent})
         elif organ == "gateway":
-            plan.append({"organ": "gateway",
-                         "cmd": [sys.executable,
-                                 os.path.join(ROOT, "scripts",
-                                              "bifrost_runner_discord.py")],
-                         "kind": "detached-spawn"})
+            plan.append(
+                {
+                    "organ": "gateway",
+                    "cmd": [sys.executable, os.path.join(ROOT, "scripts", "bifrost_runner_discord.py")],
+                    "kind": "detached-spawn",
+                }
+            )
     return plan
 
 
-def unreachable_report(observed: Dict[str, Dict[str, Any]],
-                       plan: List[Dict[str, Any]],
-                       target: Optional[str] = None) -> List[str]:
+def unreachable_report(
+    observed: dict[str, dict[str, Any]], plan: list[dict[str, Any]], target: str | None = None
+) -> list[str]:
     """Name every organ that is DOWN and that this run will NOT heal, and say why.
 
     THE SENTENCE THIS EXISTS TO PRODUCE. On 2026-08-24 Daniil ran !revive twice while
@@ -321,29 +379,29 @@ def unreachable_report(observed: Dict[str, Dict[str, Any]],
     anything this ladder can reach.
     """
     planned = {s.get("organ") for s in plan}
-    lines: List[str] = []
-    for organ in _ORDER + ("runners",):
+    lines: list[str] = []
+    for organ in (*_ORDER, "runners"):
         if target and organ != target:
             continue
         row = observed.get(organ) or {}
         if row.get("healthy") or organ in planned:
             continue
-        deps_down = [d for d in _DEPS.get(organ, ())
-                     if not (observed.get(d) or {}).get("healthy")]
+        deps_down = [d for d in _DEPS.get(organ, ()) if not (observed.get(d) or {}).get("healthy")]
         if deps_down:
-            lines.append(f"{organ}: DOWN, deferred -- dependency {', '.join(deps_down)} "
-                         f"is down; the next converge plans further")
+            lines.append(
+                f"{organ}: DOWN, deferred -- dependency {', '.join(deps_down)} is down; the next converge plans further"
+            )
         elif organ == "runners":
-            lines.append(f"{organ}: DOWN -- the daemon owns its children; the daemon "
-                         f"rung heals them")
+            lines.append(f"{organ}: DOWN -- the daemon owns its children; the daemon rung heals them")
         else:
-            lines.append(f"{organ}: DOWN and no rung here reaches it -- "
-                         f"{row.get('detail')}. The fault is below this ladder.")
+            lines.append(
+                f"{organ}: DOWN and no rung here reaches it -- {row.get('detail')}. The fault is below this ladder."
+            )
     return lines
 
 
 # ---------------------------------------------------------------------- heal
-def _heal_app(step: Dict[str, Any]) -> bool:
+def _heal_app(step: dict[str, Any]) -> bool:
     """Sol's 2026-08-24 repair, as a rung: prove the payload, clear ONLY the stale
     status bit, then prove recovery BY LAUNCHING -- never by re-reading the field we
     just wrote.
@@ -353,14 +411,16 @@ def _heal_app(step: Dict[str, Any]) -> bool:
     just that something did not happen."""
     from core.fleet import app_package as ap
 
-    receipt: List[str] = []
+    receipt: list[str] = []
     step["receipt"] = receipt
     pkg = step.get("pkg") or ap.query_package()
     elevated = ap.is_elevated()
 
     loc = (pkg or {}).get("install_location") or ""
-    receipt.append(f"verifying payload at {loc or '<unknown>'} (this reads the whole "
-                   f"package; it is the expensive half and it is the point)")
+    receipt.append(
+        f"verifying payload at {loc or '<unknown>'} (this reads the whole "
+        f"package; it is the expensive half and it is the point)"
+    )
     proof = ap.verify_payload(loc)
     receipt.append(ap.proof_receipt(proof))
 
@@ -380,28 +440,35 @@ def _heal_app(step: Dict[str, Any]) -> bool:
     return recovered
 
 
-def _heal_step(step: Dict[str, Any]) -> bool:
+def _heal_step(step: dict[str, Any]) -> bool:
     kind = step.get("kind")
     try:
         if kind == "msix-repair":
             return _heal_app(step)
+        if kind == "embedded-start":
+            from core.foundation.embedded_redis import ensure_running
+            from core.foundation.redis_connection import DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT
+
+            return ensure_running(DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT)
         if kind == "docker-start":
-            r = subprocess.run(step["cmd"], capture_output=True, text=True,
-                               timeout=60, creationflags=_NO_WINDOW)
+            r = subprocess.run(step["cmd"], capture_output=True, text=True, timeout=60, creationflags=_NO_WINDOW)
             return r.returncode == 0
         if kind == "detached-spawn":
             os.makedirs(os.path.join(ROOT, "state", "logs"), exist_ok=True)
-            log = open(os.path.join(
-                ROOT, "state", "logs",
-                f"revive-{step['organ']}-{int(time.time())}.log"),
-                "a", encoding="utf-8")
-            flags = 0x00000008 | 0x00000200      # DETACHED | NEW_PROCESS_GROUP
+            log = open(  # noqa: SIM115  # handle outlives the block: the detached child's stdout/stderr (GC closes the parent copy)
+                os.path.join(ROOT, "state", "logs", f"revive-{step['organ']}-{int(time.time())}.log"),
+                "a",
+                encoding="utf-8",
+            )
             env = dict(os.environ)
             env.setdefault("BIFROST_CONSUME_LANE", "work")
-            subprocess.Popen(step["cmd"], stdout=log, stderr=log, cwd=ROOT,
-                             creationflags=flags, env=env)
+            if os.name == "nt":
+                flags = 0x00000008 | 0x00000200  # DETACHED | NEW_PROCESS_GROUP
+                subprocess.Popen(step["cmd"], stdout=log, stderr=log, cwd=ROOT, creationflags=flags, env=env)
+            else:  # POSIX: its own session outlives us
+                subprocess.Popen(step["cmd"], stdout=log, stderr=log, cwd=ROOT, start_new_session=True, env=env)
             return True
-    except Exception:                                                   # noqa: BLE001
+    except Exception:  # noqa: BLE001  # fail-soft: falls back to a default value
         return False
     return False
 
@@ -433,43 +500,41 @@ def _take_lock() -> None:
     try:
         # Atomic create-and-write: succeeds iff the file did NOT already exist.
         fd = os.open(LOCK_PATH, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o644)
-    except FileExistsError:
+    except FileExistsError as exc:
         age = time.time() - os.path.getmtime(LOCK_PATH)
         if age < LOCK_TTL_S:
             try:
-                holder = open(LOCK_PATH, encoding="utf-8").read().strip()
+                with open(LOCK_PATH, encoding="utf-8") as fh:
+                    holder = fh.read().strip()
             except OSError:
                 holder = "?"
             raise ReviveLocked(
                 f"revive already in progress (holder pid {holder}, "
                 f"{age:.0f}s old) -- follow its confession; the lock "
-                f"expires in {LOCK_TTL_S - age:.0f}s")
+                f"expires in {LOCK_TTL_S - age:.0f}s"
+            ) from exc
         # Stale lock: a prior converger crashed before dropping. Reclaim it
         # (remove + retry the atomic create once).
-        try:
+        with contextlib.suppress(OSError):
             os.remove(LOCK_PATH)
-        except OSError:
-            pass
         try:
             fd = os.open(LOCK_PATH, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o644)
-        except FileExistsError:
+        except FileExistsError as exc:
             raise ReviveLocked(
                 "revive already in progress (a concurrent converger re-took the "
-                "lock before this one could reclaim the stale holder)")
+                "lock before this one could reclaim the stale holder)"
+            ) from exc
     with os.fdopen(fd, "w", encoding="utf-8") as f:
         f.write(str(os.getpid()))
 
 
 def _drop_lock() -> None:
-    try:
+    with contextlib.suppress(OSError):
         os.remove(LOCK_PATH)
-    except OSError:
-        pass
 
 
-def converge(target: Optional[str] = None,
-             observe_only: bool = False) -> Dict[str, Any]:
-    say = lambda s: print(s, flush=True)                     # noqa: E731
+def converge(target: str | None = None, observe_only: bool = False) -> dict[str, Any]:
+    say = lambda s: print(s, flush=True)  # noqa: E731  # local one-line key function
     observed = observe()
     for organ in ("app", "redis", "daemon", "runners", "gateway"):
         row = observed.get(organ) or {}
@@ -477,9 +542,13 @@ def converge(target: Optional[str] = None,
         say(f"[revive] SAW {mark} {organ}: {row.get('detail')}")
     plan = decide(observed, target=target)
     unreachable = unreachable_report(observed, plan, target=target)
-    report: Dict[str, Any] = {"observed": observed, "plan": plan,
-                              "healed": [], "stopped_at": None,
-                              "unreachable": unreachable}
+    report: dict[str, Any] = {
+        "observed": observed,
+        "plan": plan,
+        "healed": [],
+        "stopped_at": None,
+        "unreachable": unreachable,
+    }
     if observe_only:
         say(f"[revive] observe-only: {len(plan)} rung(s) would heal")
         for line in unreachable:
@@ -490,21 +559,18 @@ def converge(target: Optional[str] = None,
         # good news. So say WHICH, always, and never claim health for an organ this
         # ladder merely cannot see (2026-08-24).
         if unreachable:
-            say(f"[revive] recovered NOTHING -- {len(unreachable)} organ(s) down that "
-                f"this run will not heal:")
+            say(f"[revive] recovered NOTHING -- {len(unreachable)} organ(s) down that this run will not heal:")
             for line in unreachable:
                 say(f"[revive]   {line}")
         else:
-            say("[revive] all rungs healthy -- touched NOTHING "
-                "(a boring run is a successful run)")
+            say("[revive] all rungs healthy -- touched NOTHING (a boring run is a successful run)")
         return report
     _take_lock()
     try:
         healed_organs = []
         for step in plan:
             organ = step["organ"]
-            say(f"[revive] HEAL {organ}: {step['kind']} "
-                f"{step.get('agent', '')}".rstrip())
+            say(f"[revive] HEAL {organ}: {step['kind']} {step.get('agent', '')}".rstrip())
             ok = _heal_step(step)
             for line in step.get("receipt") or ():
                 say(f"[revive]   {line}")
@@ -517,12 +583,13 @@ def converge(target: Optional[str] = None,
                 # would have blocked redis/daemon recovery too.
                 if organ == "app":
                     report.setdefault("refused", []).append(organ)
-                    say(f"[revive] {organ} not repaired -- see its receipt above; "
-                        f"continuing (nothing downstream depends on it)")
+                    say(
+                        f"[revive] {organ} not repaired -- see its receipt above; "
+                        f"continuing (nothing downstream depends on it)"
+                    )
                     continue
                 report["stopped_at"] = organ
-                say(f"[revive] STOP: {organ} heal failed -- nothing "
-                    f"downstream attempted; fix this rung and re-run")
+                say(f"[revive] STOP: {organ} heal failed -- nothing downstream attempted; fix this rung and re-run")
                 return report
         for organ in healed_organs:
             if organ == "app":
@@ -534,8 +601,7 @@ def converge(target: Optional[str] = None,
                 continue
             proved = _verify(organ)
             report["healed"].append({"organ": organ, "verified": proved})
-            verdict = ("verified alive" if proved else
-                       "NOT verified in time -- inspect its log in state/logs/")
+            verdict = "verified alive" if proved else "NOT verified in time -- inspect its log in state/logs/"
             say(f"[revive] PROVE {organ}: {verdict}")
     finally:
         _drop_lock()
@@ -544,12 +610,12 @@ def converge(target: Optional[str] = None,
 
 def main() -> int:
     import argparse
+
     ap = argparse.ArgumentParser(description="the house's recovery reconciler")
-    ap.add_argument("--observe", action="store_true",
-                    help="dry run: report health, heal nothing (=!status-deep)")
-    ap.add_argument("--target", default=None,
-                    choices=["app", "redis", "daemon", "gateway"],
-                    help="converge one rung only")
+    ap.add_argument("--observe", action="store_true", help="dry run: report health, heal nothing (=!status-deep)")
+    ap.add_argument(
+        "--target", default=None, choices=["app", "redis", "daemon", "gateway"], help="converge one rung only"
+    )
     ap.add_argument("--json", action="store_true")
     a = ap.parse_args()
     try:

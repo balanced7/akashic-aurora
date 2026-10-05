@@ -5,14 +5,15 @@ AgentSignalLedger that runs on top of it.
 Run: py tests/test_ledger.py
 """
 
-import sys
 import os
+import sys
 import tempfile
-import isolate_canonical  # noqa: F401 -- isolates file store (AI_SETUP) + Redis db 15 BEFORE foundation import
+
+import isolate_canonical  # noqa: F401  # isolates file store (AI_SETUP) + Redis db 15 BEFORE foundation import
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.foundation.ledger import Ledger, FileLedger, RedisLedger, HybridLedger, create_ledger
+from core.foundation.ledger import FileLedger, HybridLedger, Ledger, create_ledger
 from core.signals.agent_signal_ledger import AgentSignalLedger
 
 
@@ -24,7 +25,9 @@ def _exercise_ledger(ledger: Ledger, label: str) -> None:
     id1 = ledger.emit(stream, {"n": 1, "msg": "first"})
     id2 = ledger.emit(stream, {"n": 2, "msg": "second"})
     id3 = ledger.emit(stream, {"n": 3, "msg": "third"})
-    assert id1 and id2 and id3, "emit must return ids"
+    assert id1, "emit must return ids"
+    assert id2, "emit must return ids"
+    assert id3, "emit must return ids"
 
     events = ledger.consume(stream, after_id="0")
     assert [e["n"] for _id, e in events] == [1, 2, 3], f"replay order wrong: {events}"
@@ -110,7 +113,8 @@ def test_agent_signal_ledger():
 
 def test_redisledger_if_available():
     from redis_test_helpers import fresh_test_ledger
-    rl = fresh_test_ledger()   # isolated test DB (15), flushed clean; never canonical db 0
+
+    rl = fresh_test_ledger()  # isolated test DB (15), flushed clean; never canonical db 0
     if rl is None:
         print("\n--- RedisLedger ---\n  SKIPPED (Redis not running)")
         return
@@ -121,7 +125,7 @@ def test_redisledger_if_available():
     assert [e["n"] for _id, e in events] == [1, 2], f"live replay wrong: {events}"
     after = rl.consume(stream, after_id=id1)
     assert [e["n"] for _id, e in after] == [2]
-    rl._client.flushdb()   # leave the test DB clean
+    rl._client.flushdb()  # leave the test DB clean
     print("\n--- RedisLedger (live) ---\n  live append+replay+cursor OK")
 
 

@@ -14,6 +14,7 @@ These pins run real processes (not threads) against one stream file, because the
 lives between processes. Greppable context: research/reviewed/duckdb-lane-fit-2026-09-24.md,
 research/reviewed/duckdb-deep-dive-synthesis-2026-09-24.md (slice L0).
 """
+
 import json
 import os
 import subprocess
@@ -21,12 +22,10 @@ import sys
 import time
 from pathlib import Path
 
-import pytest
-
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 
-from core.foundation.ledger import FileLedger  # noqa: E402
+from core.foundation.ledger import FileLedger  # noqa: E402  # sys.path bootstrap
 
 WORKER = r"""
 import json, os, sys, time
@@ -47,12 +46,17 @@ def _race(tmp_path, stream, writers, per_writer, maxlen="none"):
     """Start `writers` processes that emit `per_writer` events each, all at the same instant."""
     go = tmp_path / "go"
     code = WORKER.format(repo=str(REPO))
-    procs = [subprocess.Popen([sys.executable, "-c", code, str(tmp_path), stream, f"w{k}",
-                               str(per_writer), str(go), str(maxlen)],
-                              stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
-                              stderr=subprocess.PIPE, text=True)
-             for k in range(writers)]
-    time.sleep(0.8)                      # let every interpreter reach the start line
+    procs = [
+        subprocess.Popen(
+            [sys.executable, "-c", code, str(tmp_path), stream, f"w{k}", str(per_writer), str(go), str(maxlen)],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        for k in range(writers)
+    ]
+    time.sleep(0.8)  # let every interpreter reach the start line
     go.write_text("go")
     returned = []
     for p in procs:
@@ -63,11 +67,7 @@ def _race(tmp_path, stream, writers, per_writer, maxlen="none"):
 
 
 def _rows(path: Path):
-    rows = []
-    for line in path.read_text(encoding="utf-8").splitlines():
-        if line.strip():
-            rows.append(json.loads(line))
-    return rows
+    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
 
 
 def test_concurrent_processes_lose_no_rows(tmp_path):
@@ -116,7 +116,7 @@ def test_a_torn_last_line_does_not_swallow_the_next_record(tmp_path):
     for i in range(3):
         led.emit("torn", {"i": i})
     with open(tmp_path / "torn.jsonl", "a", encoding="utf-8") as fh:
-        fh.write('{"id": "4", "event": {"i": ')   # no closing brace, no newline
+        fh.write('{"id": "4", "event": {"i": ')  # no closing brace, no newline
     new_id = led.emit("torn", {"i": 99})
     events = led.consume("torn", after_id="0", count=100)
     assert (new_id, {"i": 99}) in events, f"record after a torn line was lost: {events}"
@@ -127,7 +127,10 @@ def test_a_lock_timeout_returns_the_newest_id_not_zero(tmp_path, monkeypatch):
     """Found by the DeepSeek fence on de217307: a LockTimeout before the tail read returned
     "0", which a caller would use as a cursor and replay the whole stream from."""
     import contextlib
-    from core.foundation import filelock, ledger as ledger_mod
+
+    from core.foundation import filelock
+    from core.foundation import ledger as ledger_mod
+
     led = FileLedger(str(tmp_path))
     for i in range(3):
         led.emit("busy", {"i": i})
@@ -147,9 +150,10 @@ def test_emit_survives_a_reader_holding_the_file_open(tmp_path):
     """On Windows os.replace fails while another handle is open; an append must not."""
     led = FileLedger(str(tmp_path))
     led.emit("held", {"i": 0}, maxlen=3)
-    with open(tmp_path / "held.jsonl", "r", encoding="utf-8") as reader:
+    with open(tmp_path / "held.jsonl", encoding="utf-8") as reader:
         reader.readline()
         for i in range(1, 6):
             led.emit("held", {"i": i}, maxlen=3)
     got = [e["i"] for _id, e in led.consume("held", after_id="0", count=100)]
-    assert got[-1] == 5 and 5 in got, f"the newest row was lost while a reader held the file: {got}"
+    assert got[-1] == 5, f"the newest row was lost while a reader held the file: {got}"
+    assert 5 in got, f"the newest row was lost while a reader held the file: {got}"

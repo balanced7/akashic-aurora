@@ -82,9 +82,17 @@ def _arm(sender, oid, to, anchor, created, deadline_past=True, redrives=2):
     c = E._client()
     if c is None:
         pytest.skip("redis offline")
-    rec = {"to": to, "kind": "question", "content": "please review", "anchor": anchor,
-           "created": created, "within_s": 1800, "redrives_left": redrives, "attempt": 0,
-           "deadline_ts": (time.time() - 60) if deadline_past else (time.time() + 3600)}
+    rec = {
+        "to": to,
+        "kind": "question",
+        "content": "please review",
+        "anchor": anchor,
+        "created": created,
+        "within_s": 1800,
+        "redrives_left": redrives,
+        "attempt": 0,
+        "deadline_ts": (time.time() - 60) if deadline_past else (time.time() + 3600),
+    }
     c.hset(E._key(sender), oid, json.dumps(rec))
 
 
@@ -108,12 +116,12 @@ def test_p1_an_unrecognised_answers_id_still_clears_via_fifo(sender, monkeypatch
     expectation keyed '...154-0'. Exact linkage rejected it; the FIFO fallback then
     SKIPPED it because `answers` was truthy. An unrecognised link is unlinked."""
     _arm(sender, "1785226575154-0", "kimi", "1785226472805-0", 1785226575.19)
-    out = _sweep_with(sender, [_Reply("1785228386835-0", "kimi",
-                                      answers="1785226575153-0")], monkeypatch)
+    out = _sweep_with(sender, [_Reply("1785228386835-0", "kimi", answers="1785226575153-0")], monkeypatch)
     assert "1785226575154-0" in out["cleared"], (
         f"REDRIVE ON AN ANSWERED ASK: the reply named an id we do not hold, so exact "
         f"linkage rejected it -- and the FIFO fallback skipped it anyway because "
-        f"`answers` was merely PRESENT. kimi paid three extra turns for this. out={out}")
+        f"`answers` was merely PRESENT. kimi paid three extra turns for this. out={out}"
+    )
     assert not out["redriven"], f"an answered ask must never redrive: {out}"
 
 
@@ -122,44 +130,37 @@ def test_p2_the_dual_write_id_pair_resolves(sender, monkeypatch):
     """One send, two stream ids one apart (lane + legacy). The expectation is armed
     on the id send() returned; the peer answers against the id it received."""
     _arm(sender, "1785226575154-0", "kimi", "1785226472805-0", 1785226575.19)
-    out = _sweep_with(sender, [_Reply("1785228386835-0", "kimi",
-                                      answers="1785226575153-0")], monkeypatch)
-    assert out["cleared"] == ["1785226575154-0"], (
-        f"the sibling id of the SAME send must settle the ask: {out}")
+    out = _sweep_with(sender, [_Reply("1785228386835-0", "kimi", answers="1785226575153-0")], monkeypatch)
+    assert out["cleared"] == ["1785226575154-0"], f"the sibling id of the SAME send must settle the ask: {out}"
 
 
 # --------------------------------------------------------------- P3
 def test_p3_an_answered_ask_never_redrives(sender, monkeypatch):
     """The end-to-end property, stated where a reader will find it."""
     _arm(sender, "1785226575154-0", "kimi", "1785226472805-0", 1785226575.19)
-    _sweep_with(sender, [_Reply("1785228386835-0", "kimi",
-                                answers="1785226575153-0")], monkeypatch)
+    _sweep_with(sender, [_Reply("1785228386835-0", "kimi", answers="1785226575153-0")], monkeypatch)
     c = E._client()
     assert "1785226575154-0" not in (c.hgetall(E._key(sender)) or {}), (
-        "the expectation must be GONE, not merely reported cleared")
+        "the expectation must be GONE, not merely reported cleared"
+    )
 
 
 # --------------------------------------------------------------- P4
 def test_p4_exact_linkage_still_wins(sender, monkeypatch):
     """Widening the fallback must not blunt the precise path: an exactly-linked reply
     clears ITS OWN expectation, not merely the oldest one."""
-    _arm(sender, "1785220000000-0", "kimi", "1785219000000-0", 1785220000.0)   # older
+    _arm(sender, "1785220000000-0", "kimi", "1785219000000-0", 1785220000.0)  # older
     _arm(sender, "1785226575154-0", "kimi", "1785226472805-0", 1785226575.19)  # newer
-    out = _sweep_with(sender, [_Reply("1785228386835-0", "kimi",
-                                      answers="1785226575154-0")], monkeypatch)
-    assert out["cleared"] == ["1785226575154-0"], (
-        f"an exact link must clear the ask it NAMES, never the oldest: {out}")
+    out = _sweep_with(sender, [_Reply("1785228386835-0", "kimi", answers="1785226575154-0")], monkeypatch)
+    assert out["cleared"] == ["1785226575154-0"], f"an exact link must clear the ask it NAMES, never the oldest: {out}"
 
 
 # --------------------------------------------------------------- P5
 def test_p5_a_reply_from_the_wrong_agent_clears_nothing(sender, monkeypatch):
     """Widening the match must not let anyone's reply settle anyone's ask."""
-    _arm(sender, "1785226575154-0", "kimi", "1785226472805-0", 1785226575.19,
-         deadline_past=False)
-    out = _sweep_with(sender, [_Reply("1785228386835-0", "deepseek",
-                                      answers="1785226575153-0")], monkeypatch)
-    assert not out["cleared"], (
-        f"deepseek's reply must not settle an ask addressed to kimi: {out}")
+    _arm(sender, "1785226575154-0", "kimi", "1785226472805-0", 1785226575.19, deadline_past=False)
+    out = _sweep_with(sender, [_Reply("1785228386835-0", "deepseek", answers="1785226575153-0")], monkeypatch)
+    assert not out["cleared"], f"deepseek's reply must not settle an ask addressed to kimi: {out}"
 
 
 # --------------------------------------------------------------- P6/P7 sol's NO-GO
@@ -175,7 +176,7 @@ def test_p6_the_reply_settles_the_ASK_IT_NAMES_not_the_fifo_oldest(sender, monke
     The fix must resolve by EVIDENCE (the dual-id alias captured at _emit, where
     both ids are actually known), never by id arithmetic -- Sol's words: independent
     streams can share or differ in ms, and adjacent sends collide."""
-    from core.comm.bus import Bus as _Bus
+
     s = sender
     c = E._client()
     # Arm two expectations to the same target. The OLDER is the FIFO trap.
@@ -184,13 +185,13 @@ def test_p6_the_reply_settles_the_ASK_IT_NAMES_not_the_fifo_oldest(sender, monke
     # The alias a real dual-write send records: sibling lane id -> returned id.
     c.set(f"{E._ns()}:idalias:1785226575153-0", "1785226575154-0", ex=600)
     try:
-        out = _sweep_with(s, [_Reply("1785228386835-0", "kimi",
-                                     answers="1785226575153-0")], monkeypatch)
+        out = _sweep_with(s, [_Reply("1785228386835-0", "kimi", answers="1785226575153-0")], monkeypatch)
         assert out["cleared"] == ["1785226575154-0"], (
             f"WRONG WORK SETTLED: the reply names the sibling of the NEWER ask, and the "
             f"sweep cleared {out['cleared']} -- FIFO ate the oldest while the intended "
             f"ask stays armed to redrive. Resolution must follow the alias, not the "
-            f"queue order: {out}")
+            f"queue order: {out}"
+        )
         left = c.hgetall(E._key(s)) or {}
         assert "1785226575000-0" in left, "the OLDER unanswered ask must remain armed"
     finally:
@@ -202,7 +203,9 @@ def test_p7_the_bus_records_the_dual_id_alias_at_emit():
     and legacy writes both return. Everywhere else is reconstruction; here it is a
     fact. Redis-ephemeral with a TTL, same lifecycle as the expectation itself."""
     import uuid as _uuid
+
     from core.comm.bus import Bus as _Bus
+
     ns = "t117p7"
     a, b = f"snd{_uuid.uuid4().hex[:6]}", f"rcv{_uuid.uuid4().hex[:6]}"
     bus = _Bus(a, namespace=ns, promote=False)
@@ -217,7 +220,8 @@ def test_p7_the_bus_records_the_dual_id_alias_at_emit():
             f"NO ALIAS RECORDED: a dual-write send produced no idalias -> {mid}. "
             f"Without it, a reply naming the sibling id can only be resolved by "
             f"arithmetic (proven wrong) or FIFO (proven to settle the wrong work). "
-            f"aliases={aliases}")
+            f"aliases={aliases}"
+        )
     finally:
         for k in bus._client.scan_iter(match=f"{ns}:*", count=500):
             bus._client.delete(k)
@@ -239,21 +243,22 @@ def test_p8_one_reply_settles_exactly_one_ask_across_sweeps(sender, monkeypatch)
     expectation whose anchor predates it."""
     s = sender
     c = E._client()
-    _arm(s, "1785226575000-0", "kimi", "1785226574000-0", 1785226575.0,
-         deadline_past=False)                                  # older, UNANSWERED
-    _arm(s, "1785226575200-0", "kimi", "1785226575100-0", 1785226575.2)   # newer
+    _arm(s, "1785226575000-0", "kimi", "1785226574000-0", 1785226575.0, deadline_past=False)  # older, UNANSWERED
+    _arm(s, "1785226575200-0", "kimi", "1785226575100-0", 1785226575.2)  # newer
     reply = _Reply("1785228386835-0", "kimi", answers="1785226575200-0")
 
     out1 = _sweep_with(s, [reply], monkeypatch)
     assert out1["cleared"] == ["1785226575200-0"], f"sweep 1 must clear the newer: {out1}"
 
-    out2 = _sweep_with(s, [reply], monkeypatch)    # same stored reply, next pass
+    out2 = _sweep_with(s, [reply], monkeypatch)  # same stored reply, next pass
     assert not out2["cleared"], (
         f"ONE REPLY SETTLED TWO ASKS: the same stored reply cleared again on the "
         f"second sweep -- FIFO handed it the older ask whose real answer has not "
-        f"arrived. Settlement must be idempotent per reply: {out2}")
+        f"arrived. Settlement must be idempotent per reply: {out2}"
+    )
     assert "1785226575000-0" in (c.hgetall(E._key(s)) or {}), (
-        "the older unanswered ask must still be armed after both sweeps")
+        "the older unanswered ask must still be armed after both sweeps"
+    )
 
 
 # --------------------------------------------------------------- P9-P11 sol's fence round 2
@@ -261,13 +266,12 @@ def test_p9_a_wrong_sender_exact_id_never_clears(sender, monkeypatch):
     """sol: the exact-linkage path never checked WHO answered. A reply from agent X
     naming an id armed for agent Y cleared Y's ask -- the one property P5 guarded on
     the FIFO path was absent from the precise path."""
-    _arm(sender, "1785226575154-0", "kimi", "1785226472805-0", 1785226575.19,
-         deadline_past=False)
-    out = _sweep_with(sender, [_Reply("1785228386835-0", "deepseek",
-                                      answers="1785226575154-0")], monkeypatch)
+    _arm(sender, "1785226575154-0", "kimi", "1785226472805-0", 1785226575.19, deadline_past=False)
+    out = _sweep_with(sender, [_Reply("1785228386835-0", "deepseek", answers="1785226575154-0")], monkeypatch)
     assert not out["cleared"], (
         f"WRONG SENDER SETTLED THE ASK: deepseek's reply cleared an expectation "
-        f"addressed to kimi via the exact-id path: {out}")
+        f"addressed to kimi via the exact-id path: {out}"
+    )
 
 
 def test_p10_marker_write_failure_never_reopens_double_settlement(sender, monkeypatch):
@@ -277,16 +281,17 @@ def test_p10_marker_write_failure_never_reopens_double_settlement(sender, monkey
     written, the expectation must survive (loud redrive beats silent wrong-work)."""
     s = sender
     c = E._client()
-    _arm(s, "1785226575000-0", "kimi", "1785226574000-0", 1785226575.0,
-         deadline_past=False)                                  # older, UNANSWERED
-    _arm(s, "1785226575200-0", "kimi", "1785226575100-0", 1785226575.2)   # newer
+    _arm(s, "1785226575000-0", "kimi", "1785226574000-0", 1785226575.0, deadline_past=False)  # older, UNANSWERED
+    _arm(s, "1785226575200-0", "kimi", "1785226575100-0", 1785226575.2)  # newer
     reply = _Reply("1785228386835-0", "kimi", answers="1785226575200-0")
 
     real_set = c.set
+
     def _failing_set(k, *a, **kw):
         if "reply_settled" in str(k):
             raise RuntimeError("marker plane down")
         return real_set(k, *a, **kw)
+
     monkeypatch.setattr(c, "set", _failing_set)
     out1 = _sweep_with(s, [reply], monkeypatch)
     monkeypatch.setattr(c, "set", real_set)
@@ -296,7 +301,8 @@ def test_p10_marker_write_failure_never_reopens_double_settlement(sender, monkey
     assert "1785226575000-0" in still, (
         f"DOUBLE SETTLEMENT REOPENED: marker write failed, HDEL succeeded anyway, and "
         f"the re-read reply FIFO-cleared the older ask on the next sweep. "
-        f"sweep1={out1} sweep2={out2} remaining={sorted(still)}")
+        f"sweep1={out1} sweep2={out2} remaining={sorted(still)}"
+    )
 
 
 def test_p11_a_reply_to_the_redrive_settles_the_original(sender, monkeypatch):
@@ -305,11 +311,11 @@ def test_p11_a_reply_to_the_redrive_settles_the_original(sender, monkeypatch):
     expectation redrove again -- the T117 disease reborn one generation down.
     The redrive branch must alias its new ids back to the ORIGINAL ask."""
     s = sender
-    c = E._client()
-    _arm(s, "1785226575154-0", "kimi", "1785226472805-0", 1785226575.19,
-         deadline_past=True, redrives=2)
+    E._client()
+    _arm(s, "1785226575154-0", "kimi", "1785226472805-0", 1785226575.19, deadline_past=True, redrives=2)
 
     sent = {}
+
     class _FakeBus:
         """TEST-DOUBLE WIDTH LESSON, learned by three rounds of ghost-chasing: sweep
         reaches core.comm.bus TWICE -- the redrive's `Bus(sender).send`, and
@@ -318,9 +324,11 @@ def test_p11_a_reply_to_the_redrive_settles_the_original(sender, monkeypatch):
         the except returned None, and sweep exited at the top looking exactly like
         'the redrive never fired'. A double must satisfy EVERY door the seam uses,
         or it tests a system that does not exist."""
-        _client = E._client()                     # the real client: get_bus path stays alive
 
-        def __init__(self, *a, **k): pass
+        _client = E._client()  # the real client: get_bus path stays alive
+
+        def __init__(self, *a, **k):
+            pass
 
         def send(self, to, kind, content, meta=None):
             sent["mid"] = "1785228000000-0"
@@ -328,17 +336,19 @@ def test_p11_a_reply_to_the_redrive_settles_the_original(sender, monkeypatch):
 
         def tail(self):
             return {"inbox": "0", "bc": "0"}
+
     import core.comm.bus as bus_mod
+
     monkeypatch.setattr(bus_mod, "Bus", _FakeBus)
 
-    out1 = _sweep_with(s, [], monkeypatch)          # deadline passed -> redrives
+    out1 = _sweep_with(s, [], monkeypatch)  # deadline passed -> redrives
     assert "1785226575154-0" in out1["redriven"], f"precondition: must redrive: {out1}"
 
-    out2 = _sweep_with(s, [_Reply("1785228386900-0", "kimi",
-                                  answers=sent["mid"])], monkeypatch)
+    out2 = _sweep_with(s, [_Reply("1785228386900-0", "kimi", answers=sent["mid"])], monkeypatch)
     assert out2["cleared"] == ["1785226575154-0"], (
         f"REPLY TO THE REDRIVE LOST: the peer answered the only id it ever saw "
-        f"(the redrive's) and the original ask did not settle: {out2}")
+        f"(the redrive's) and the original ask did not settle: {out2}"
+    )
 
 
 # --------------------------------------------------------------- P12/P13 sol's receipts
@@ -349,17 +359,14 @@ def test_p12_a_broken_settle_transition_preserves_everything(sender, monkeypatch
     both asks armed, cleared=[]. Loud redrive beats deletion without receipt."""
     s = sender
     c = E._client()
-    _arm(s, "1785226575000-0", "kimi", "1785226574000-0", 1785226575.0,
-         deadline_past=False)
-    _arm(s, "1785226575200-0", "kimi", "1785226575100-0", 1785226575.2,
-         deadline_past=False)
+    _arm(s, "1785226575000-0", "kimi", "1785226574000-0", 1785226575.0, deadline_past=False)
+    _arm(s, "1785226575200-0", "kimi", "1785226575100-0", 1785226575.2, deadline_past=False)
     monkeypatch.setattr(E, "_settle_once", lambda *a, **k: False)
-    out = _sweep_with(s, [_Reply("1785228386835-0", "kimi",
-                                 answers="1785226575200-0")], monkeypatch)
+    out = _sweep_with(s, [_Reply("1785228386835-0", "kimi", answers="1785226575200-0")], monkeypatch)
     assert out["cleared"] == [], f"a failed transition must clear NOTHING: {out}"
     still = c.hgetall(E._key(s)) or {}
-    assert "1785226575000-0" in still and "1785226575200-0" in still, (
-        f"BOTH expectations must survive a broken settle plane: {sorted(still)}")
+    assert "1785226575000-0" in still, f"BOTH expectations must survive a broken settle plane: {sorted(still)}"
+    assert "1785226575200-0" in still, f"BOTH expectations must survive a broken settle plane: {sorted(still)}"
 
 
 def test_p13_redrive_lane_id_settles_only_the_original_never_the_fifo_trap(sender, monkeypatch):
@@ -371,15 +378,17 @@ def test_p13_redrive_lane_id_settles_only_the_original_never_the_fifo_trap(sende
     original may clear; the trap must survive."""
     s = sender
     c = E._client()
-    _arm(s, "1785226570000-0", "kimi", "1785226569000-0", 1785226570.0,
-         deadline_past=False)                                   # the FIFO trap
-    _arm(s, "1785226575154-0", "kimi", "1785226575100-0", 1785226575.19,
-         deadline_past=True, redrives=2)                        # the original
+    _arm(s, "1785226570000-0", "kimi", "1785226569000-0", 1785226570.0, deadline_past=False)  # the FIFO trap
+    _arm(s, "1785226575154-0", "kimi", "1785226575100-0", 1785226575.19, deadline_past=True, redrives=2)  # the original
 
     sent = {}
+
     class _FakeBus:
         _client = E._client()
-        def __init__(self, *a, **k): pass
+
+        def __init__(self, *a, **k):
+            pass
+
         def send(self, to, kind, content, meta=None):
             sent["legacy"] = "1785228000000-0"
             sent["lane"] = "1785227999999-0"
@@ -387,18 +396,21 @@ def test_p13_redrive_lane_id_settles_only_the_original_never_the_fifo_trap(sende
             c.set(f"{E._ns()}:idalias:{sent['lane']}", sent["legacy"], ex=600)
             c.set(f"{E._ns()}:idalias:{sent['legacy']}", sent["lane"], ex=600)
             return sent["legacy"]
+
         def tail(self):
             return {"inbox": "0", "bc": "0"}
+
     import core.comm.bus as bus_mod
+
     monkeypatch.setattr(bus_mod, "Bus", _FakeBus)
 
     out1 = _sweep_with(s, [], monkeypatch)
     assert "1785226575154-0" in out1["redriven"], f"precondition: {out1}"
 
-    out2 = _sweep_with(s, [_Reply("1785228386900-0", "kimi",
-                                  answers=sent["lane"])], monkeypatch)   # LANE id
+    out2 = _sweep_with(s, [_Reply("1785228386900-0", "kimi", answers=sent["lane"])], monkeypatch)  # LANE id
     assert out2["cleared"] == ["1785226575154-0"], (
         f"the reply names the redrive's LANE id; it must reach the ORIGINAL through "
-        f"lane->legacy->original and never fall to FIFO: {out2}")
+        f"lane->legacy->original and never fall to FIFO: {out2}"
+    )
     still = c.hgetall(E._key(s)) or {}
     assert "1785226570000-0" in still, f"the FIFO trap must survive: {sorted(still)}"

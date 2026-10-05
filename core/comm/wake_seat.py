@@ -17,26 +17,32 @@ Every decision appends one line to the provenance log (bifrost_wake_<agent>.reap
 a reap is auditable from the log alone -- never again mistaken for a watcher crash.
 Fenced design + reconciliation: docs/library/design/20260701_wave-2-design-claude-fenced-wake-seat-ow_7c4aaf.md.
 """
+
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import re
 import subprocess
-_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)  # windowless: never flash a console (2026-09-05, cmd-spam fix)
 import tempfile
 import time
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)  # windowless: never flash a console (2026-09-05, cmd-spam fix)
 
 # Names that identify a live harness ancestor (Claude Desktop engine, CLI engine, or a
 # node-hosted harness). Substring match, case-insensitive, on the process NAME only.
 HARNESS_NAME_HINTS = ("claude", "node")
-FRESH_MIN_DEFAULT = 30                     # AKASHIC_WAKE_MARKER_FRESH_MIN overrides
-_RECYCLE_SLACK_MS = 1000                   # parent may not be YOUNGER than child by more
+FRESH_MIN_DEFAULT = 30  # AKASHIC_WAKE_MARKER_FRESH_MIN overrides
+_RECYCLE_SLACK_MS = 1000  # parent may not be YOUNGER than child by more
 
 
 # ---------------------------------------------------------------- paths + seat files
-def seat_path(agent: str, session_id: Optional[str] = None, tmp: Optional[str] = None) -> str:
+def seat_path(agent: str, session_id: str | None = None, tmp: str | None = None) -> str:
     """Session-scoped seat file; the legacy per-agent path when session_id is falsy."""
     base = tmp or tempfile.gettempdir()
     if session_id:
@@ -44,16 +50,16 @@ def seat_path(agent: str, session_id: Optional[str] = None, tmp: Optional[str] =
     return os.path.join(base, f"bifrost_wake_{agent}.pid")
 
 
-def activity_marker_path(agent: str, session_id: str, tmp: Optional[str] = None) -> str:
+def activity_marker_path(agent: str, session_id: str, tmp: str | None = None) -> str:
     """Touched at every hook firing for the session -- the cheap liveness fast path."""
     return os.path.join(tmp or tempfile.gettempdir(), f"bifrost_wake_{agent}_{session_id}.alive")
 
 
-def iter_seats(agent: str, tmp: Optional[str] = None) -> List[Tuple[str, Optional[str]]]:
+def iter_seats(agent: str, tmp: str | None = None) -> list[tuple[str, str | None]]:
     """All seat files for THIS agent: [(path, session_id_or_None_for_legacy)].
     Prefix-exact so agent 'claude' never enumerates 'claude-2' seats."""
     base = tmp or tempfile.gettempdir()
-    out: List[Tuple[str, Optional[str]]] = []
+    out: list[tuple[str, str | None]] = []
     legacy = seat_path(agent, None, base)
     if os.path.exists(legacy):
         out.append((legacy, None))
@@ -66,7 +72,7 @@ def iter_seats(agent: str, tmp: Optional[str] = None) -> List[Tuple[str, Optiona
             # A raw prefix made agent "codex" enumerate codex_root's seats and
             # parse "root_<sid>" as a session id -- one agent's janitor reaping
             # another's watchers. Underscore agent ids still own their own seats.
-            parts = name[len("bifrost_wake_"):-4].split("_")
+            parts = name[len("bifrost_wake_") : -4].split("_")
             if len(parts) == len(agent_parts) + 1 and parts[:-1] == agent_parts:
                 out.append((os.path.join(base, name), parts[-1]))
     except Exception:
@@ -74,14 +80,14 @@ def iter_seats(agent: str, tmp: Optional[str] = None) -> List[Tuple[str, Optiona
     return out
 
 
-def read_pid(path: str) -> Optional[int]:
+def read_pid(path: str) -> int | None:
     try:
         return int(open(path).read().strip())
     except Exception:
         return None
 
 
-def _pid_alive_tristate(pid: int) -> Optional[bool]:
+def _pid_alive_tristate(pid: int) -> bool | None:
     """True / False / None(cannot tell) -- the ask_bg probe semantics, NOT the reaper's.
 
     K8's "fail toward alive" above governs DESTRUCTIVE decisions (a false-dead re-opens
@@ -90,20 +96,43 @@ def _pid_alive_tristate(pid: int) -> Optional[bool]:
     timeout is the exact over-claim W149 exists to end (fence dissent, 2026-08-13:
     deepseek's half reused the stop hook's fail-open probe and would have rendered
     wakeable on probe failure, violating its own A4)."""
+    if os.name != "nt":
+        # No tasklist off Windows: psutil answers the same question with the same tristate
+        # (a zombie is dead -- it can never listen again; any probe error is cannot-tell).
+        try:
+            import psutil
+
+            if not psutil.pid_exists(pid):
+                return False
+            return psutil.Process(pid).status() != psutil.STATUS_ZOMBIE
+        except Exception as e:
+            try:
+                import psutil
+
+                if isinstance(e, psutil.NoSuchProcess):
+                    return False
+            except Exception:
+                pass
+            return None
     try:
-        out = subprocess.run(["tasklist", "/FI", f"PID eq {pid}", "/NH"],
-                             capture_output=True, text=True, timeout=6,
-                             stdin=subprocess.DEVNULL, creationflags=_NO_WINDOW)
+        out = subprocess.run(
+            ["tasklist", "/FI", f"PID eq {pid}", "/NH"],
+            capture_output=True,
+            text=True,
+            timeout=6,
+            stdin=subprocess.DEVNULL,
+            creationflags=_NO_WINDOW,
+        )
         if out.returncode != 0:
-            return None                    # the probe failed: cannot tell
+            return None  # the probe failed: cannot tell
         return str(pid) in (out.stdout or "")
     except Exception:
-        return None                        # timeout/probe failure: cannot tell
+        return None  # timeout/probe failure: cannot tell
 
 
-def watcher_state(agent: str, session_id: Optional[str] = None,
-                  tmp: Optional[str] = None,
-                  pid_probe=None) -> Tuple[str, Optional[int]]:
+def watcher_state(
+    agent: str, session_id: str | None = None, tmp: str | None = None, pid_probe=None
+) -> tuple[str, int | None]:
     """PURE read of THIS session's watcher seat: (state, pid). Writes nothing, spawns
     nothing, consumes nothing -- the W149 boot line's only probe primitive.
 
@@ -130,7 +159,7 @@ def watcher_state(agent: str, session_id: Optional[str] = None,
         return "unknown", None
 
 
-def touch_activity(agent: str, session_id: str, tmp: Optional[str] = None) -> None:
+def touch_activity(agent: str, session_id: str, tmp: str | None = None) -> None:
     try:
         with open(activity_marker_path(agent, session_id, tmp), "w") as f:
             f.write(str(time.time()))
@@ -138,11 +167,11 @@ def touch_activity(agent: str, session_id: str, tmp: Optional[str] = None) -> No
         pass
 
 
-def activity_age_min(agent: str, session_id: str, now: Optional[float] = None,
-                     tmp: Optional[str] = None) -> Optional[float]:
+def activity_age_min(agent: str, session_id: str, now: float | None = None, tmp: str | None = None) -> float | None:
     """Minutes since the session's last hook firing; None when no marker exists."""
     try:
-        ts = float(open(activity_marker_path(agent, session_id, tmp)).read().strip())
+        with open(activity_marker_path(agent, session_id, tmp)) as f:
+            ts = float(f.read().strip())
         return max(0.0, ((now if now is not None else time.time()) - ts) / 60.0)
     except Exception:
         return None
@@ -156,16 +185,16 @@ def activity_age_min(agent: str, session_id: str, now: Optional[float] = None,
 # (a resurrected turn of an ended session stands down unarmed). Kill switch: AKASHIC_TOMBSTONE=0.
 # Reconciliation D2 (t086-seat-reconciliation-2026-07-16.md): durable state beats signal games.
 
-def tombstone_path(session_id: str, tmp: Optional[str] = None) -> str:
+
+def tombstone_path(session_id: str, tmp: str | None = None) -> str:
     return os.path.join(tmp or tempfile.gettempdir(), f"akashic_session_ended_{session_id}.tomb")
 
 
-def _tombstone_key(session_id: str, namespace: Optional[str] = None) -> str:
+def _tombstone_key(session_id: str, namespace: str | None = None) -> str:
     return f"{namespace or os.environ.get('BIFROST_NAMESPACE', 'bifrost')}:session:ended:{session_id}"
 
 
-def write_tombstone(session_id: str, tmp: Optional[str] = None, c=None,
-                    namespace: Optional[str] = None) -> bool:
+def write_tombstone(session_id: str, tmp: str | None = None, c=None, namespace: str | None = None) -> bool:
     """Record that `session_id` ENDED: local file (bus-independent) + Redis key (shared,
     7d TTL). Best-effort both legs; True if either landed."""
     if not session_id or os.getenv("AKASHIC_TOMBSTONE", "1") == "0":
@@ -181,18 +210,17 @@ def write_tombstone(session_id: str, tmp: Optional[str] = None, c=None,
         cli = c
         if cli is None:
             from core.comm.bus import get_bus
+
             cli = get_bus("control")._client
         if cli is not None:
-            cli.set(_tombstone_key(session_id, namespace), str(time.time()),
-                    ex=7 * 24 * 3600)
+            cli.set(_tombstone_key(session_id, namespace), str(time.time()), ex=7 * 24 * 3600)
             ok = True
     except Exception:
         pass
     return ok
 
 
-def clear_tombstone(session_id: str, tmp: Optional[str] = None, c=None,
-                    namespace: Optional[str] = None) -> bool:
+def clear_tombstone(session_id: str, tmp: str | None = None, c=None, namespace: str | None = None) -> bool:
     """T086 S1b: the resurrection edge. SessionEnd writes a tombstone; a later SessionStart
     for the SAME session id clears it -- the harness owns BOTH edges, so restart/compact
     cycles that end-and-continue one session heal themselves (live receipt 2026-07-19: a
@@ -213,17 +241,16 @@ def clear_tombstone(session_id: str, tmp: Optional[str] = None, c=None,
         cli = c
         if cli is None:
             from core.comm.bus import get_bus
+
             cli = get_bus("control")._client
-        if cli is not None:
-            if cli.delete(_tombstone_key(session_id, namespace)):
-                existed = True
+        if cli is not None and cli.delete(_tombstone_key(session_id, namespace)):
+            existed = True
     except Exception:
         pass
     return existed
 
 
-def is_tombstoned(session_id: str, tmp: Optional[str] = None, c=None,
-                  namespace: Optional[str] = None) -> bool:
+def is_tombstoned(session_id: str, tmp: str | None = None, c=None, namespace: str | None = None) -> bool:
     """Has this session ENDED? File first (cheap, offline-safe), Redis second.
     FAIL TOWARD ALIVE: any probe error reads as not-tombstoned -- a tombstone may only
     ACCELERATE a release, never cause one on a guess (S1c pin)."""
@@ -238,6 +265,7 @@ def is_tombstoned(session_id: str, tmp: Optional[str] = None, c=None,
         cli = c
         if cli is None:
             from core.comm.bus import get_bus
+
             cli = get_bus("control")._client
         if cli is not None:
             return bool(cli.exists(_tombstone_key(session_id, namespace)))
@@ -247,11 +275,11 @@ def is_tombstoned(session_id: str, tmp: Optional[str] = None, c=None,
 
 
 # ---------------------------------------------------------------- provenance log
-def provenance_path(agent: str, tmp: Optional[str] = None) -> str:
+def provenance_path(agent: str, tmp: str | None = None) -> str:
     return os.path.join(tmp or tempfile.gettempdir(), f"bifrost_wake_{agent}.reap.log")
 
 
-def append_provenance(agent: str, line: str, tmp: Optional[str] = None, keep: int = 400) -> None:
+def append_provenance(agent: str, line: str, tmp: str | None = None, keep: int = 400) -> None:
     """One auditable line per decision. Best-effort; trims to the last `keep` lines."""
     path = provenance_path(agent, tmp)
     try:
@@ -262,28 +290,58 @@ def append_provenance(agent: str, line: str, tmp: Optional[str] = None, keep: in
             # W153 K5': ROTATE, never discard -- both fence halves independently
             # chose rotation so "auditable from the log alone" stays true across
             # the current + previous window instead of being false by construction.
-            try:
+            with contextlib.suppress(Exception):
                 os.replace(path, path + ".1")
-            except Exception:
-                pass
     except Exception:
         pass
 
 
 # ---------------------------------------------------------------- process evidence
-def process_snapshot(timeout_s: int = 10) -> Optional[Dict[int, Dict]]:
-    """One WMI pass -> {pid: {ppid, name, cmdline, created_ms}}. None on any failure (K8)."""
+def process_snapshot(timeout_s: int = 10) -> dict[int, dict] | None:
+    """One WMI pass -> {pid: {ppid, name, cmdline, created_ms}}. None on any failure (K8).
+
+    Off Windows there is no WMI: psutil yields the same shape (cmdline re-joined with
+    Windows-style quoting so _argv_tokens parses it identically, created in epoch ms)."""
+    if os.name != "nt":
+        try:
+            import psutil
+
+            snap_: dict[int, dict] = {}
+            for pr in psutil.process_iter(["pid", "ppid", "name", "cmdline", "create_time"]):
+                info = pr.info
+                try:
+                    snap_[int(info["pid"])] = {
+                        "ppid": int(info.get("ppid") or 0),
+                        "name": str(info.get("name") or ""),
+                        "cmdline": subprocess.list2cmdline(info.get("cmdline") or []),
+                        "created": int((info.get("create_time") or 0) * 1000) or None,
+                    }
+                except Exception:
+                    continue
+            return snap_ or None
+        except Exception:
+            return None
     try:
         out = subprocess.run(
-            ["powershell", "-NoProfile", "-NonInteractive", "-Command",
-             "Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId,"
-             "Name,CommandLine,CreationDate | ConvertTo-Json -Compress"],
-            capture_output=True, text=True, timeout=timeout_s,
-            creationflags=_NO_WINDOW).stdout
+            [
+                "powershell",
+                "-NoProfile",
+                "-NonInteractive",
+                "-Command",
+                (
+                    "Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId,"
+                    "Name,CommandLine,CreationDate | ConvertTo-Json -Compress"
+                ),
+            ],
+            capture_output=True,
+            text=True,
+            timeout=timeout_s,
+            creationflags=_NO_WINDOW,
+        ).stdout
         rows = json.loads(out)
         if isinstance(rows, dict):
             rows = [rows]
-        snap: Dict[int, Dict] = {}
+        snap: dict[int, dict] = {}
         for r in rows:
             try:
                 created = None
@@ -314,12 +372,18 @@ class CensusUnavailable(RuntimeError):
 
 
 _PY_INTERPRETERS = {
-    "python.exe", "pythonw.exe", "py.exe", "pyw.exe", "python3.exe",
-    "python", "python3", "py",
+    "python.exe",
+    "pythonw.exe",
+    "py.exe",
+    "pyw.exe",
+    "python3.exe",
+    "python",
+    "python3",
+    "py",
 }
 
 
-def _argv_tokens(cmdline: str) -> List[str]:
+def _argv_tokens(cmdline: str) -> list[str]:
     """Split a Windows command line into argv tokens, quotes stripped. Never raises."""
     import shlex
 
@@ -342,10 +406,10 @@ def _path_basename(token: str) -> str:
 
 
 def script_processes(
-    snap: Optional[Dict[int, Dict]],
+    snap: dict[int, dict] | None,
     script_name: str,
-    exclude_pids: Optional[set] = None,
-) -> List[int]:
+    exclude_pids: set | None = None,
+) -> list[int]:
     """PIDs of python processes actually RUNNING <script_name>, matched by launch SHAPE.
 
     THE RULE (sol, learn:experiment:gateway_status_probe_must_exclude_self_pid): require
@@ -382,7 +446,7 @@ def script_processes(
 
     wanted = _path_basename(script_name)
     omit = {os.getpid()} | set(exclude_pids or ())
-    hits: List[int] = []
+    hits: list[int] = []
 
     for pid, rec in snap.items():
         if pid in omit:
@@ -415,8 +479,7 @@ def script_processes(
     # the child is the one kept. Two hits with no parent/child relationship remain TWO,
     # which is what the singleton guard exists to catch.
     hit_set = set(hits)
-    hits = [p for p in hits
-            if not any(snap[q].get("ppid") == p for q in hit_set if q != p)]
+    hits = [p for p in hits if not any(snap[q].get("ppid") == p for q in hit_set if q != p)]
 
     return sorted(hits)
 
@@ -424,7 +487,7 @@ def script_processes(
 WATCHER_SCRIPTS = ("bifrost_wake.py", "codex_bifrost_wake.py")
 
 
-def is_watcher(pid: int, snap: Dict[int, Dict]) -> bool:
+def is_watcher(pid: int, snap: dict[int, dict]) -> bool:
     """Identity check: the pid is OUR kind of process (never judge a recycled pid).
 
     LENIENT means kind-only -- it does not ask WHICH agent (that is agent_watcher, the
@@ -449,13 +512,12 @@ def is_watcher(pid: int, snap: Dict[int, Dict]) -> bool:
     if pid not in (snap or {}):
         return False
     try:
-        return any(pid in script_processes(snap, script, exclude_pids=set())
-                   for script in WATCHER_SCRIPTS)
+        return any(pid in script_processes(snap, script, exclude_pids=set()) for script in WATCHER_SCRIPTS)
     except CensusUnavailable:
         return False
 
 
-def agent_watcher(pid: int, snap: Dict[int, Dict], agent: str) -> bool:
+def agent_watcher(pid: int, snap: dict[int, dict], agent: str) -> bool:
     """The KILL-warRANT identity (W153 K1', fence-amended): our KIND and our AGENT.
 
     deepseek's dissent: name-match alone is not a kill warrant -- a recycled pid
@@ -464,13 +526,13 @@ def agent_watcher(pid: int, snap: Dict[int, Dict], agent: str) -> bool:
     token is word-bounded because --agent codex is a substring of
     --agent codex_root (the K4 collision, one level down). is_watcher above stays
     the lenient kind-only check for non-lethal consumers."""
-    if not is_watcher(pid, snap):            # KIND, now by launch shape (2026-09-23)
+    if not is_watcher(pid, snap):  # KIND, now by launch shape (2026-09-23)
         return False
     cmd = (snap.get(pid, {}) or {}).get("cmdline") or ""
     return bool(re.search(rf"--agent\s+{re.escape(agent)}(?!\S)", cmd))
 
 
-def chain_alive(pid: int, snap: Dict[int, Dict], max_depth: int = 12) -> Tuple[bool, str]:
+def chain_alive(pid: int, snap: dict[int, dict], max_depth: int = 12) -> tuple[bool, str]:
     """Walk the watcher's parent chain. Dead/recycled link before a harness ancestor =
     the owning session is gone. Ambiguity fails toward alive (K8 direction)."""
     cur = snap.get(pid)
@@ -478,7 +540,7 @@ def chain_alive(pid: int, snap: Dict[int, Dict], max_depth: int = 12) -> Tuple[b
         return False, f"pid {pid} not in snapshot"
     for _ in range(max_depth):
         ppid = cur.get("ppid") or 0
-        if ppid <= 4:                                  # System/Idle -- walked off the top
+        if ppid <= 4:  # System/Idle -- walked off the top
             return True, "chain intact to system root (no harness ancestor named -- fail-safe alive)"
         parent = snap.get(ppid)
         if parent is None:
@@ -498,19 +560,35 @@ def taskkill(pid: int) -> bool:
     claiming those as kills let the janitor remove the seat file of a LIVE
     watcher, leaving it running but invisible -- the caller keeps the seat on
     False so the next pass retries with evidence intact."""
+    if os.name != "nt":
+        try:
+            import signal
+
+            os.kill(pid, signal.SIGTERM)  # same contract: True only if the signal landed
+            return True
+        except Exception:
+            return False
     try:
-        r = subprocess.run(["taskkill", "/PID", str(pid), "/F"],
-                           capture_output=True, timeout=5, creationflags=_NO_WINDOW)
+        r = subprocess.run(
+            ["taskkill", "/PID", str(pid), "/F"], capture_output=True, timeout=5, creationflags=_NO_WINDOW
+        )
         return r.returncode == 0
     except Exception:
         return False
 
 
 # ---------------------------------------------------------------- the decision (pure)
-def reap_decision(session_id: Optional[str], pid: Optional[int], pid_alive: bool,
-                  pid_is_watcher: bool, marker_age_min: Optional[float], fresh_min: float,
-                  chain_fn: Callable[[], Tuple[bool, str]],
-                  my_session: Optional[str] = None, tombstoned: bool = False) -> Tuple[str, str]:
+def reap_decision(
+    session_id: str | None,
+    pid: int | None,
+    pid_alive: bool,
+    pid_is_watcher: bool,
+    marker_age_min: float | None,
+    fresh_min: float,
+    chain_fn: Callable[[], tuple[bool, str]],
+    my_session: str | None = None,
+    tombstoned: bool = False,
+) -> tuple[str, str]:
     """(action, reason) for one seat: 'skip' | 'clean' (remove file, no kill) | 'kill'.
     Pure given its inputs; chain_fn is called ONLY on the stale-marker slow path (K7)
     and any exception it raises means alive (K8). `tombstoned` (T086 S1) outranks marker
@@ -553,16 +631,20 @@ def fresh_minutes() -> float:
         return FRESH_MIN_DEFAULT
 
 
-def janitor(agent: str, my_session: Optional[str] = None, tmp: Optional[str] = None,
-            snapshot_fn: Callable[[], Optional[Dict[int, Dict]]] = process_snapshot,
-            kill_fn: Callable[[int], bool] = taskkill,
-            now: Optional[float] = None) -> List[Tuple[str, str, str]]:
+def janitor(
+    agent: str,
+    my_session: str | None = None,
+    tmp: str | None = None,
+    snapshot_fn: Callable[[], dict[int, dict] | None] = process_snapshot,
+    kill_fn: Callable[[int], bool] = taskkill,
+    now: float | None = None,
+) -> list[tuple[str, str, str]]:
     """The session-start pass: walk every seat for this agent, decide, act, log.
     The WMI snapshot is taken LAZILY -- the marker-fresh fast path never pays for it.
     Returns [(seat_path, action, reason)] for tests/telemetry. Never raises."""
-    results: List[Tuple[str, str, str]] = []
+    results: list[tuple[str, str, str]] = []
     fresh = fresh_minutes()
-    snap: Optional[Dict[int, Dict]] = None
+    snap: dict[int, dict] | None = None
     snap_taken = False
     for path, sid in iter_seats(agent, tmp):
         try:
@@ -573,22 +655,22 @@ def janitor(agent: str, my_session: Optional[str] = None, tmp: Optional[str] = N
                 # same garbage past the gate is just garbage; fall through and
                 # reap_decision cleans it (the janitor never goes hoarder).
                 try:
-                    raw = open(path, encoding="utf-8", errors="replace").read().strip()
-                    age_min = ((now if now is not None else time.time())
-                               - os.path.getmtime(path)) / 60.0
+                    with open(path, encoding="utf-8", errors="replace") as f:
+                        raw = f.read().strip()
+                    age_min = ((now if now is not None else time.time()) - os.path.getmtime(path)) / 60.0
                 except Exception:
                     raw, age_min = "", None
                 if raw and age_min is not None and age_min < fresh:
-                    results.append((path, "skip",
-                                    "seat unreadable but YOUNG -- possible torn write, assuming alive (K8/W153)"))
+                    results.append(
+                        (path, "skip", "seat unreadable but YOUNG -- possible torn write, assuming alive (K8/W153)")
+                    )
                     append_provenance(agent, f"skip seat {os.path.basename(path)}: unreadable young (K8/W153)", tmp)
                     continue
             tomb = bool(sid and is_tombstoned(sid, tmp))
             pid_alive = False
-            pid_is_watcher: Optional[bool] = None      # tri-state (W153): None = unverified
+            pid_is_watcher: bool | None = None  # tri-state (W153): None = unverified
             marker_age = activity_age_min(agent, sid, now=now, tmp=tmp) if sid else None
-            fresh_fast = bool(sid and marker_age is not None and marker_age < fresh
-                              and sid != (my_session or ""))
+            fresh_fast = bool(sid and marker_age is not None and marker_age < fresh and sid != (my_session or ""))
             # A fresh marker alone cannot prove the PID is alive -- but it does not need
             # to: a fresh marker means the session lives, and a dead pid under a live
             # session heals at that session's own next stop (wake_armed sees it dead).
@@ -604,42 +686,50 @@ def janitor(agent: str, my_session: Optional[str] = None, tmp: Optional[str] = N
                     append_provenance(agent, f"skip seat {os.path.basename(path)}: snapshot unavailable (K8)", tmp)
                     continue
                 pid_alive = pid in snap
-                pid_is_watcher = agent_watcher(pid, snap, agent)   # kill-warrant form (K1')
+                pid_is_watcher = agent_watcher(pid, snap, agent)  # kill-warrant form (K1')
             elif pid is not None:
-                pid_alive = True                       # the session lives (fresh marker)
-                pid_is_watcher = None                  # identity NEVER synthesized (W153)
+                pid_alive = True  # the session lives (fresh marker)
+                pid_is_watcher = None  # identity NEVER synthesized (W153)
             action, reason = reap_decision(
-                sid, pid, pid_alive, pid_is_watcher, marker_age, fresh,
-                (lambda p=pid: chain_alive(p, snap or {})), my_session,
-                tombstoned=tomb)
+                sid,
+                pid,
+                pid_alive,
+                pid_is_watcher,
+                marker_age,
+                fresh,
+                (lambda p=pid, s=snap: chain_alive(p, s or {})),
+                my_session,
+                tombstoned=tomb,
+            )
             if action == "kill":
                 # W153 choke-point backstop (claude half): whatever decision path
                 # produced "kill" -- present or future -- no pid dies unidentified.
                 if pid_is_watcher is not True:
                     results.append((path, "skip", "kill WITHHELD: identity unverified (W153 K1')"))
-                    append_provenance(agent, f"skip seat {os.path.basename(path)}: kill withheld, identity unverified (W153)", tmp)
+                    append_provenance(
+                        agent, f"skip seat {os.path.basename(path)}: kill withheld, identity unverified (W153)", tmp
+                    )
                     continue
                 if not kill_fn(pid):
                     results.append((path, "skip", "kill FAILED (taskkill rc!=0) -- seat kept for retry (K3/W153)"))
-                    append_provenance(agent, f"skip seat {os.path.basename(path)}: kill FAILED, seat kept (K3/W153)", tmp)
+                    append_provenance(
+                        agent, f"skip seat {os.path.basename(path)}: kill FAILED, seat kept (K3/W153)", tmp
+                    )
                     continue
             if action in ("kill", "clean"):
-                try:
+                with contextlib.suppress(Exception):
                     os.remove(path)
-                except Exception:
-                    pass
                 # W42: sweep the reaped session's SIDECARS too -- the gamma-a wake-dedup
                 # .seen (else it litters tempdir until reboot, the fence's "acceptable
                 # litter, file a WISH") and the .alive activity marker. Best-effort;
                 # session-scoped naming mirrors seat_path. A SKIP reaps nothing (fail-open).
                 if sid:
-                    for extra in (os.path.join(os.path.dirname(path),
-                                               f"bifrost_wake_{agent}_{sid}.seen"),
-                                  activity_marker_path(agent, sid, tmp)):
-                        try:
+                    for extra in (
+                        os.path.join(os.path.dirname(path), f"bifrost_wake_{agent}_{sid}.seen"),
+                        activity_marker_path(agent, sid, tmp),
+                    ):
+                        with contextlib.suppress(OSError):
                             os.remove(extra)
-                        except OSError:
-                            pass
             results.append((path, action, reason))
             append_provenance(agent, f"{action} seat {os.path.basename(path)}: {reason}", tmp)
         except Exception as e:
@@ -655,7 +745,7 @@ def janitor(agent: str, my_session: Optional[str] = None, tmp: Optional[str] = N
 _ARMED_PRECEDENCE = ("armed", "unknown", "dead-seat", "unarmed")
 
 
-def any_armed(agent: str, tmp: Optional[str] = None, pid_probe=None) -> str:
+def any_armed(agent: str, tmp: str | None = None, pid_probe=None) -> str:
     """Is ANY session of `agent` holding a live wake listener? One of the four
     `watcher_state` states, aggregated across every seat file the agent owns.
 
@@ -673,17 +763,16 @@ def any_armed(agent: str, tmp: Optional[str] = None, pid_probe=None) -> str:
     return "unknown"
 
 
-def armed_sessions(agent: str, tmp: Optional[str] = None, pid_probe=None) -> List[Optional[str]]:
+def armed_sessions(agent: str, tmp: str | None = None, pid_probe=None) -> list[str | None]:
     """Session ids whose watcher is ARMED right now (None = a legacy per-agent seat)."""
-    out: List[Optional[str]] = []
+    out: list[str | None] = []
     for _path, sid in iter_seats(agent, tmp):
         if watcher_state(agent, sid, tmp, pid_probe)[0] == "armed":
             out.append(sid)
     return out
 
 
-def reachable(agent: str, *, presence_live: bool, tmp: Optional[str] = None,
-              pid_probe=None, live_sessions=None) -> bool:
+def reachable(agent: str, *, presence_live: bool, tmp: str | None = None, pid_probe=None, live_sessions=None) -> bool:
     """Will a durable send to `agent` actually be READ, without anyone intervening?
 
     PRESENCE IS NOT REACHABILITY, and conflating them cost the operator four messages --
@@ -711,7 +800,7 @@ def reachable(agent: str, *, presence_live: bool, tmp: Optional[str] = None,
     if state not in ("armed", "unknown"):
         return False
     if live_sessions is None or state == "unknown":
-        return True                       # prior contract / probe cannot tell -> assert nothing
+        return True  # prior contract / probe cannot tell -> assert nothing
 
     # THE SESSION MUST STILL EXIST (2026-09-23, found by the previous fix verifying itself
     # wrong). The wake mechanism is PROCESS EXIT RE-INVOKING THE OWNING SESSION, so a watcher
@@ -722,5 +811,4 @@ def reachable(agent: str, *, presence_live: bool, tmp: Optional[str] = None,
     # one layer down. A legacy seat (sid None) predates per-session seats and cannot be
     # matched either way, so it keeps the benefit of the doubt rather than inventing a verdict.
     live = {str(s) for s in live_sessions}
-    return any(sid is None or str(sid) in live
-               for sid in armed_sessions(agent, tmp, pid_probe))
+    return any(sid is None or str(sid) in live for sid in armed_sessions(agent, tmp, pid_probe))

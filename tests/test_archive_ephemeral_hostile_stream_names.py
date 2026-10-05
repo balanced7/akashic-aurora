@@ -9,15 +9,16 @@ Two laws pinned:
 2. One stream's failure is a loud line in the report -- never an abort of the
    remaining streams, and never a lost cursor save.
 """
+
 from __future__ import annotations
 
 import json
-import sys
 import os
+import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from scripts.ops.archive_ephemeral import _safe_name, export_bus  # noqa: E402
+from scripts.ops.archive_ephemeral import _safe_name, export_bus
 
 
 def test_safe_name_neutralizes_every_windows_invalid_character():
@@ -44,7 +45,7 @@ class _FakeRedis:
     def type(self, key):
         return "stream"
 
-    def xrange(self, key, min="-"):
+    def xrange(self, key, min="-"):  # noqa: A002  # mirrors the redis-py xrange(min=, max=) keyword API
         if key == "bifrost:inbox:*":
             # simulate the incident class: ANY per-stream explosion, not just
             # the filename one -- the containment must be general.

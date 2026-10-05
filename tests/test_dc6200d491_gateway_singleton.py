@@ -16,22 +16,21 @@ Two kinds of pin, both offline (no live Redis, no live Discord socket):
 
 Run:  py -m pytest tests/test_dc6200d491_gateway_singleton.py -v
 """
+
 from __future__ import annotations
 
 import importlib.util
-import inspect
-import json
-import os
 import sys
 from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 
-REPO = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(REPO))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from scripts.bifrost_child import DaemonLock
+
+REPO = Path(__file__).resolve().parents[1]
 
 
 class FakeRedis:
@@ -80,7 +79,8 @@ def test_main_imports_and_keys_the_lock_by_the_gateways_own_agent_id():
     assert "from scripts.bifrost_child import DaemonLock" in src
     assert "DaemonLock(bus._client, bus.ns, GATEWAY_AGENT_ID" in src, (
         "the lock must be keyed by GATEWAY_AGENT_ID ('discord'), not a caller-supplied "
-        "agent -- otherwise a twin under a different id would never collide")
+        "agent -- otherwise a twin under a different id would never collide"
+    )
 
 
 def test_failed_acquire_refuses_before_opening_a_socket():
@@ -89,7 +89,8 @@ def test_failed_acquire_refuses_before_opening_a_socket():
     connect_at = src.index("client.run(")
     assert acquire_at < connect_at, (
         "the guard must run before client.run() -- refusing after the websocket is "
-        "already open defeats the point of a singleton")
+        "already open defeats the point of a singleton"
+    )
     # the refusal path itself: loud, and a non-zero exit so a supervisor never mistakes
     # a refused twin for a clean idle exit.
     refuse_block = src[acquire_at:connect_at]
@@ -102,7 +103,7 @@ def test_pulse_heartbeats_the_lock_not_just_worklive():
     twin-refusal on the process's OWN restart path, or worse: a stale lock outliving a
     crashed gateway blocks the real replacement from starting at all."""
     src = _gateway_source()
-    pulse_src = src[src.index("def _pulse():"):src.index("threading.Thread(target=_pulse")]
+    pulse_src = src[src.index("def _pulse():") : src.index("threading.Thread(target=_pulse")]
     assert "_dlock.heartbeat()" in pulse_src
 
 
@@ -170,7 +171,8 @@ def test_a_second_gateway_copy_refuses_to_start():
     second = DaemonLock(c, "bifrost", "discord", ttl=30)
     assert not second.acquire(), (
         "a twin gateway must refuse while the first is still live -- this is the exact "
-        "shape of the 4-concurrent-gateways incident at 00:20 on 2026-08-26")
+        "shape of the 4-concurrent-gateways incident at 00:20 on 2026-08-26"
+    )
 
     # the surviving copy keeps working; heartbeating never lets the loser's later
     # retries suddenly succeed just because time passed.
@@ -188,6 +190,7 @@ def test_gateways_own_lock_key_never_collides_with_the_bifrost_daemon_agents():
     namespace (bifrost_daemon.py's per-agent daemon lock). The gateway is not in that
     tuple and must not silently start sharing a key with one of them."""
     from scripts import revive
+
     assert "discord" not in revive.DAEMON_AGENTS
     c = FakeRedis()
     gw = DaemonLock(c, "bifrost", "discord", ttl=30)

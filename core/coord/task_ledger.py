@@ -19,13 +19,15 @@ Gates enforced here:
 - one-in-progress gate — Phase 1: at most ONE task IN_PROGRESS globally (sequential-correct).
 - done gate            — cannot close without a commit SHA + a verification record. No proof, no close.
 """
+
 from __future__ import annotations
 
+import contextlib
 import json
 import os
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
-from core.foundation import filelock   # the OS-arbitrated sidecar lock save() serializes under
+from core.foundation import filelock  # the OS-arbitrated sidecar lock save() serializes under
 
 # repo root is two dirs up from core/coord/
 _ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -53,6 +55,7 @@ def _bus_client():
     """The shared bus Redis client, or None if unreachable. Same connector control.py uses."""
     try:
         from core.comm.bus import get_bus
+
         return get_bus("coord")._client
     except Exception:
         return None
@@ -61,15 +64,24 @@ def _bus_client():
 def _decode(v):
     return v.decode() if isinstance(v, (bytes, bytearray)) else v
 
+
 # --- lifecycle ---------------------------------------------------------------------------------
 PROPOSED, APPROVED, CLAIMED, IN_PROGRESS, VERIFYING, DONE, BLOCKED, ABANDONED, PARKED = (
-    "proposed", "approved", "claimed", "in_progress", "verifying", "done", "blocked", "abandoned",
-    "parked")
+    "proposed",
+    "approved",
+    "claimed",
+    "in_progress",
+    "verifying",
+    "done",
+    "blocked",
+    "abandoned",
+    "parked",
+)
 
 STATUSES = (PROPOSED, APPROVED, CLAIMED, IN_PROGRESS, VERIFYING, DONE, BLOCKED, ABANDONED, PARKED)
 
 # who may move where. DONE/ABANDONED are terminal (empty set).
-TRANSITIONS: Dict[str, set] = {
+TRANSITIONS: dict[str, set] = {
     # 2026-08-11: PARKED reachable from PROPOSED -- "still valid, just not now". The only exits
     # were ABANDONED (asserts the intent DIED when it merely DRIFTED) and the three-event detour
     # APPROVED -> CLAIMED -> PARKED, which manufactures a file claim to record one decision. Same
@@ -77,9 +89,9 @@ TRANSITIONS: Dict[str, set] = {
     # 68 proposals standing, 32 rendered stale, every one facing those two bad doors. The mandatory
     # --reason gate is unchanged and pinned from this new origin, so the shorter route is a route
     # and not a hole.
-    PROPOSED:    {APPROVED, ABANDONED, PARKED},
-    APPROVED:    {CLAIMED, ABANDONED},
-    CLAIMED:     {IN_PROGRESS, VERIFYING, APPROVED, ABANDONED, PARKED},
+    PROPOSED: {APPROVED, ABANDONED, PARKED},
+    APPROVED: {CLAIMED, ABANDONED},
+    CLAIMED: {IN_PROGRESS, VERIFYING, APPROVED, ABANDONED, PARKED},
     #            ^ release: APPROVED drops it silently, PARKED shelves it WITH a reason.
     #
     # T139 (2026-08-03): VERIFYING is reachable from CLAIMED so a COMPLETION RECORD can be closed
@@ -98,8 +110,8 @@ TRANSITIONS: Dict[str, set] = {
     # since it tests `to == IN_PROGRESS` specifically. A fresh proposal still walks the whole
     # lifecycle: APPROVED -> VERIFYING is not legal, only CLAIMED -> VERIFYING.
     IN_PROGRESS: {VERIFYING, BLOCKED, ABANDONED, PARKED},
-    VERIFYING:   {DONE, IN_PROGRESS, BLOCKED, PARKED},  # verification can bounce it back, or shelve
-    BLOCKED:     {APPROVED, IN_PROGRESS, ABANDONED},
+    VERIFYING: {DONE, IN_PROGRESS, BLOCKED, PARKED},  # verification can bounce it back, or shelve
+    BLOCKED: {APPROVED, IN_PROGRESS, ABANDONED},
     # T352 (2026-08-18): DONE gains exactly one exit, and it is OPERATOR-GATED.
     # Receipt: 16 phantom 'done' rows (test drills with @deadbee shas) sat unremovable --
     # the only alternatives were silent JSON surgery (defeats every gate this ledger
@@ -108,8 +120,8 @@ TRANSITIONS: Dict[str, set] = {
     # is recorded in the history entry. Daniil's ruling for the founding cleanup,
     # verbatim: "Clean". A reasoned route with recorded authority is a route, not a
     # hole -- same law as PROPOSED->PARKED above.
-    DONE:        {ABANDONED},
-    ABANDONED:   set(),
+    DONE: {ABANDONED},
+    ABANDONED: set(),
     # T083-C5-1: PARKED = deliberately shelved mid-flight (reason mandatory). Unlike BLOCKED
     # (waiting on something external, still "the" current work), a parked wave FREES the Phase-1
     # sequential slot (the gate checks status==IN_PROGRESS specifically) while KEEPING its owner +
@@ -124,10 +136,10 @@ TRANSITIONS: Dict[str, set] = {
     # rationale is lost). Receipt: 21 ACTIVE / 16 CLAIMED-not-started, unparkable without routing each
     # through the one serialized IN_PROGRESS slot -- 16 FALSE in_progress events in an audited ledger
     # purely to reach a legal state. A ledger you cannot cut honestly is a ledger that grows.
-    PARKED:      {IN_PROGRESS, ABANDONED},
+    PARKED: {IN_PROGRESS, ABANDONED},
 }
-ACTIVE = {CLAIMED, IN_PROGRESS, VERIFYING}   # occupies the sequential slot / working set
-FILE_HOLDING = ACTIVE | {PARKED}             # parked work still owns its files (no mid-park grabs)
+ACTIVE = {CLAIMED, IN_PROGRESS, VERIFYING}  # occupies the sequential slot / working set
+FILE_HOLDING = ACTIVE | {PARKED}  # parked work still owns its files (no mid-park grabs)
 
 #: Ruling 369243 (2026-09-03, Daniil verbatim "Approve"): the fleet's width of attention is TWO
 #: watches -- one build, one design/research. ONE named constant with TWO readers, so the number
@@ -152,9 +164,9 @@ WATCH_CAP = 2
 #: a gate that fires on everything is the 5.2%-value recall funnel again: it trains the reader
 #: to route around it. Docs and tests are deliberately absent.
 LOAD_BEARING = (
-    "core/",          # the substrate every seat runs on
-    "agent_cli.py",   # the door every agent enters through
-    "scripts/hooks/", # fires unbidden in every session; a defect here is silent and global
+    "core/",  # the substrate every seat runs on
+    "agent_cli.py",  # the door every agent enters through
+    "scripts/hooks/",  # fires unbidden in every session; a defect here is silent and global
 )
 
 
@@ -168,7 +180,7 @@ def is_load_bearing(files) -> bool:
     exactly that. A guard believed to be a wall is more dangerous than one known to be a bump.
 
     The same threat model covers a second bypass a reviewer found and I am not fixing: a
-    homoglyph path (`сore/x.py` with a Cyrillic U+0441) fails segment equality and slips
+    homoglyph path (`\u0441ore/x.py` with a Cyrillic U+0441) fails segment equality and slips
     through. Defeating that means confusable-detection, and NFKC does not even solve it -- a
     large mechanism against an attacker this gate has already conceded, while the honest
     omission it exists to catch is caught. Both limits are here so the next reader inherits the
@@ -183,17 +195,17 @@ def is_load_bearing(files) -> bool:
     """
     import posixpath
 
-    for f in (files or []):
+    for f in files or []:
         p = str(f).replace("\\", "/")
-        p = posixpath.normpath(p).lstrip("/")     # resolves ../, strips a leading / or ./
+        p = posixpath.normpath(p).lstrip("/")  # resolves ../, strips a leading / or ./
         segs = p.split("/")
         for prefix in LOAD_BEARING:
             pre = prefix.rstrip("/").split("/")
             if prefix.endswith("/"):
                 # a directory prefix matches at ANY depth, so an absolute path still counts
-                if any(segs[i:i + len(pre)] == pre for i in range(len(segs))):
+                if any(segs[i : i + len(pre)] == pre for i in range(len(segs))):
                     return True
-            elif segs and segs[-1] == prefix:     # a bare filename, e.g. agent_cli.py
+            elif segs and segs[-1] == prefix:  # a bare filename, e.g. agent_cli.py
                 return True
     return False
 
@@ -211,7 +223,7 @@ class LedgerConflict(LedgerError):
     the one refusal that is."""
 
 
-def _rev_of(data: Dict[str, Any]) -> int:
+def _rev_of(data: dict[str, Any]) -> int:
     """The write-REVISION a ledger payload carries: advanced by every save, of any kind.
 
     Files written before the rev anchor (77e485bb23) carry only `seq`. Read that AS the
@@ -224,7 +236,7 @@ def _rev_of(data: Dict[str, Any]) -> int:
 
 
 class TaskLedger:
-    def __init__(self, path: Optional[str] = None, client: Any = "auto"):
+    def __init__(self, path: str | None = None, client: Any = "auto"):
         # T352: AKASHIC_TASKS_PATH is the isolation door for drills that walk the
         # REAL verbs -- resolved at construction (not import) so a test can point a
         # subprocess-shelled CLI *and* its own in-process readers at one tmp store.
@@ -234,7 +246,7 @@ class TaskLedger:
         # client: "auto" resolves the bus Redis client lazily; None disables the mirror (git-only,
         # used by tests); or pass an object with get/set for an injected/fake client.
         self._client = client
-        self.tasks: Dict[str, Dict[str, Any]] = {}
+        self.tasks: dict[str, dict[str, Any]] = {}
         self._seq = 0
         # T270 / 77e485bb23 CAS: `_base_rev` is the on-disk write-REVISION this instance last
         # loaded or wrote. save() refuses to clobber a peer's newer write by comparing the
@@ -248,14 +260,14 @@ class TaskLedger:
 
     def _mirror_client(self):
         if self._client == "auto":
-            self._client = _bus_client()   # resolve once
+            self._client = _bus_client()  # resolve once
         return self._client
 
-    def _payload(self) -> Dict[str, Any]:
+    def _payload(self) -> dict[str, Any]:
         """The on-disk shape: the id allocator, the write-revision, the rows."""
         return {"seq": self._seq, "rev": self._base_rev, "tasks": list(self.tasks.values())}
 
-    def _mirror(self, payload: Optional[Dict[str, Any]] = None) -> None:
+    def _mirror(self, payload: dict[str, Any] | None = None) -> None:
         """Write-through the whole ledger to Redis (fast reads). Best-effort; git file is the truth."""
         c = self._mirror_client()
         if c is None:
@@ -264,7 +276,7 @@ class TaskLedger:
             c.set(REDIS_LEDGER_KEY, json.dumps(payload if payload is not None else self._payload()))
             c.set(REDIS_VER_KEY, str(self._seq))
         except Exception:
-            pass   # fail-open
+            pass  # fail-open
 
     # --- persistence (git-durable source of truth) ---------------------------------------------
     def load(self) -> None:
@@ -280,9 +292,9 @@ class TaskLedger:
             self._seq = int(data.get("seq", len(self.tasks)))
             self._base_rev = _rev_of(data)  # T270/77e485bb23: the watermark save() CASes against
         except Exception as e:
-            raise LedgerError(f"ledger unreadable at {self.path}: {e}")
+            raise LedgerError(f"ledger unreadable at {self.path}: {e}") from e
 
-    _UNREADABLE = -1   # an anchor nobody can hold: never equal to a real rev, so never matched
+    _UNREADABLE = -1  # an anchor nobody can hold: never equal to a real rev, so never matched
 
     def _on_disk_rev(self) -> int:
         """The ledger's CURRENT on-disk rev: `_base_rev` when the file is absent (nothing
@@ -326,26 +338,28 @@ class TaskLedger:
                     raise LedgerError(
                         f"save refused: the ledger at {self.path} exists but cannot be read, "
                         f"so nothing can be compared against it. Not overwriting damage — "
-                        f"restore the file from git and re-apply.")
+                        f"restore the file from git and re-apply."
+                    )
                 if disk != self._base_rev:
                     raise LedgerConflict(
                         f"save refused (lost-update): the ledger on disk is at rev {disk}, not "
                         f"rev {self._base_rev} which this instance last saw — another process "
                         f"wrote since. Re-read the ledger and re-apply; never clobber a peer's "
-                        f"commit.")
-                payload = {"seq": self._seq, "rev": self._base_rev + 1,
-                           "tasks": list(self.tasks.values())}
-                tmp = self.path + ".tmp"   # shared name: the lock is what keeps two savers apart
+                        f"commit."
+                    )
+                payload = {"seq": self._seq, "rev": self._base_rev + 1, "tasks": list(self.tasks.values())}
+                tmp = self.path + ".tmp"  # shared name: the lock is what keeps two savers apart
                 with open(tmp, "w", encoding="utf-8") as fh:
                     json.dump(payload, fh, indent=2)
-                os.replace(tmp, self.path)   # atomic write — never a half-written ledger
-                self._base_rev += 1          # advance the watermark to what we just committed
-                self._mirror(payload)        # write-through to the Redis read cache (best-effort);
-                                             # inside the lock so mirror order == file order
+                os.replace(tmp, self.path)  # atomic write — never a half-written ledger
+                self._base_rev += 1  # advance the watermark to what we just committed
+                self._mirror(payload)  # write-through to the Redis read cache (best-effort);
+                # inside the lock so mirror order == file order
         except filelock.LockTimeout as e:
             raise LedgerConflict(
                 f"save refused (lock timeout): {e}. A peer is mid-save or wedged; the ledger "
-                f"was NOT written. Re-read and re-apply.") from e
+                f"was NOT written. Re-read and re-apply."
+            ) from e
 
     def _resync(self) -> None:
         """After a refused save: the mutation this instance attempted was NEVER written, so
@@ -354,29 +368,27 @@ class TaskLedger:
         (scripts/shift_daemon.py, which reuses its instance beat after beat) is refused
         forever. Best-effort: if the file cannot be read right now the instance stays as it
         was and the next save is refused again."""
-        try:
+        with contextlib.suppress(Exception):
             self.load()
-        except Exception:
-            pass
 
     # --- reads (what agents obey instead of the backlog) ---------------------------------------
-    def get(self, tid: str) -> Optional[Dict[str, Any]]:
+    def get(self, tid: str) -> dict[str, Any] | None:
         return self.tasks.get(tid)
 
-    def by_status(self, status: str) -> List[Dict[str, Any]]:
+    def by_status(self, status: str) -> list[dict[str, Any]]:
         return [t for t in self.tasks.values() if t["status"] == status]
 
-    def in_progress(self) -> List[Dict[str, Any]]:
+    def in_progress(self) -> list[dict[str, Any]]:
         return [t for t in self.tasks.values() if t["status"] in ACTIVE]
 
     def is_done(self, tid: str) -> bool:
         t = self.tasks.get(tid)
         return bool(t) and t["status"] == DONE
 
-    def files_held(self, exclude: Optional[str] = None) -> Dict[str, str]:
+    def files_held(self, exclude: str | None = None) -> dict[str, str]:
         """path -> task_id for every file a FILE_HOLDING task holds (exclude one task if given).
         T083-C5-1: parked tasks keep their claims -- shelved work must not lose its files."""
-        held: Dict[str, str] = {}
+        held: dict[str, str] = {}
         for t in self.tasks.values():
             if t["id"] == exclude or t["status"] not in FILE_HOLDING:
                 continue
@@ -385,33 +397,63 @@ class TaskLedger:
         return held
 
     # --- writes (all validated) ----------------------------------------------------------------
-    def propose(self, title: str, *, desc: str = "", owner: str = "", deps: Optional[List[str]] = None,
-                files: Optional[List[str]] = None, acceptance: str = "", by: str = "claude",
-                at: str = "") -> Dict[str, Any]:
+    def propose(
+        self,
+        title: str,
+        *,
+        desc: str = "",
+        owner: str = "",
+        deps: list[str] | None = None,
+        files: list[str] | None = None,
+        acceptance: str = "",
+        by: str = "claude",
+        at: str = "",
+    ) -> dict[str, Any]:
         """Add a task in PROPOSED. `at` is an ISO timestamp passed in (this module never reads the clock,
         so it stays pure + testable). Unknown deps are allowed at propose time; the CLAIM gate enforces
         that deps are DONE, so a not-yet-created dep just keeps the task un-claimable until it exists+done."""
         self._seq += 1
         tid = f"T{self._seq:03d}"
         task = {
-            "id": tid, "title": title, "desc": desc, "owner": owner,
-            "deps": list(deps or []), "files": list(files or []), "acceptance": acceptance,
+            "id": tid,
+            "title": title,
+            "desc": desc,
+            "owner": owner,
+            "deps": list(deps or []),
+            "files": list(files or []),
+            "acceptance": acceptance,
             # T248: reviewed_by is WHO (and whether they are the author); verified_by is the
             # EVIDENCE. Collapsed into one field, a sentence describing evidence satisfied a
             # gate about independence -- four times in one day.
-            "status": PROPOSED, "commit": None, "verified_by": None,
-            "reviewed_by": None, "self_verified": None,
-            "created": at, "updated": at,
+            "status": PROPOSED,
+            "commit": None,
+            "verified_by": None,
+            "reviewed_by": None,
+            "self_verified": None,
+            "created": at,
+            "updated": at,
             "history": [{"to": PROPOSED, "by": by, "at": at}],
         }
         self.tasks[tid] = task
         self.save()
         return task
 
-    def transition(self, tid: str, to: str, *, by: str = "", at: str = "", commit: str = "",
-                   verified_by: str = "", owner: str = "", reason: str = "",
-                   reviewed_by: str = "", self_verified: str = "",
-                   operator_ruling: str = "", pauses: str = "") -> Dict[str, Any]:
+    def transition(
+        self,
+        tid: str,
+        to: str,
+        *,
+        by: str = "",
+        at: str = "",
+        commit: str = "",
+        verified_by: str = "",
+        owner: str = "",
+        reason: str = "",
+        reviewed_by: str = "",
+        self_verified: str = "",
+        operator_ruling: str = "",
+        pauses: str = "",
+    ) -> dict[str, Any]:
         """The one guarded mutation. Validates the move against every gate, then applies + persists.
         Raises LedgerError (naming the gate) on any violation — nothing partial is written."""
         t = self.tasks.get(tid)
@@ -421,15 +463,18 @@ class TaskLedger:
         if to not in STATUSES:
             raise LedgerError(f"unknown status {to!r}")
         if to not in TRANSITIONS.get(frm, set()):
-            raise LedgerError(f"illegal transition {frm} -> {to} for {tid} "
-                              f"(allowed: {sorted(TRANSITIONS.get(frm, set())) or 'none — terminal'})")
+            raise LedgerError(
+                f"illegal transition {frm} -> {to} for {tid} "
+                f"(allowed: {sorted(TRANSITIONS.get(frm, set())) or 'none — terminal'})"
+            )
 
         # --- T352 gate: leaving DONE requires recorded operator authority ---
         if frm == DONE and to == ABANDONED and not operator_ruling.strip():
             raise LedgerError(
                 f"done is closed: abandoning {tid} from DONE requires an explicit "
                 f"--operator-ruling (the operator's words, recorded in history). "
-                f"A terminal-state exit with no recorded authority is a hole, not a route.")
+                f"A terminal-state exit with no recorded authority is a hole, not a route."
+            )
 
         # --- claim gate ---
         if to == CLAIMED:
@@ -443,8 +488,7 @@ class TaskLedger:
 
         # --- park gate (T083-C5-1): shelving without a why is exactly the ambiguity P5 ended ---
         if to == PARKED and not reason:
-            raise LedgerError("park blocked: needs a --reason (why is this wave shelved, and "
-                              "what unparks it)")
+            raise LedgerError("park blocked: needs a --reason (why is this wave shelved, and what unparks it)")
 
         # --- two-watch gate (Phase 2: ORG Part 3 given teeth by operator ruling 369243) ---
         # Phase 1 serialized to ONE in flight. The width ruling (2026-09-03 night, Daniil
@@ -460,26 +504,28 @@ class TaskLedger:
                     f"two-watch cap: already IN_PROGRESS {others} (ORG Part 3, ruling 369243). "
                     f"A third watch opens only with pauses=<what stops> or the operator's "
                     f"recorded word (operator_ruling=). Silence about the cost is the only "
-                    f"thing refused here.")
+                    f"thing refused here."
+                )
 
         # --- done gate ---
         if to == DONE:
             c = commit or t.get("commit")
             v = verified_by or t.get("verified_by")
             if not c or not v:
-                raise LedgerError("done blocked: needs a commit SHA AND a verification record "
-                                  "(no proof, no close)")
+                raise LedgerError("done blocked: needs a commit SHA AND a verification record (no proof, no close)")
             # T297: "needs a commit SHA" accepted the STRING 'HEAD' for weeks -- ~8 rows
             # carry symbolic receipts that dangle the moment the ref moves (the 1,483-
             # citation repair was this class at repo scale). A receipt is an immutable
             # address: hex, 7-40 chars, validated HERE at the meaning so every door
             # inherits it -- never at a caller, where the next door forgets.
             import re as _re
+
             if not _re.fullmatch(r"[0-9a-fA-F]{7,40}", str(c).strip()):
                 raise LedgerError(
                     f"done blocked: commit {str(c)!r} is not a hex SHA (7-40 hex chars). "
                     f"'HEAD' and branch names dangle when the ref moves -- pass the address "
-                    f"itself: git rev-parse --short=8 HEAD")
+                    f"itself: git rev-parse --short=8 HEAD"
+                )
 
             # T248: verification and INDEPENDENCE are two claims, and one field could only
             # carry one. Measured on the author of this gate: four consecutive load-bearing
@@ -496,15 +542,15 @@ class TaskLedger:
             # T250: compare NORMALISED, or " claude" and "Claude" review claude's own work.
             closer = (by or t.get("owner") or "").strip()
             same = bool(r) and bool(closer) and r.casefold() == closer.casefold()
-            if is_load_bearing(t.get("files")):
+            if is_load_bearing(t.get("files")) and not closer and not sv:
                 # A gate about IDENTITY must not run when it cannot establish who is acting.
                 # Before T250 an empty closer compared against "", so any reviewer name passed
                 # -- a check that reported success without having checked.
-                if not closer and not sv:
-                    raise LedgerError(
-                        f"done blocked: {tid} touches load-bearing paths and the CLOSER is "
-                        f"unknown (no --by, no owner), so independence cannot be established. "
-                        f"Pass --by <you>, or --self-verified '<why not>'.")
+                raise LedgerError(
+                    f"done blocked: {tid} touches load-bearing paths and the CLOSER is "
+                    f"unknown (no --by, no owner), so independence cannot be established. "
+                    f"Pass --by <you>, or --self-verified '<why not>'."
+                )
             if is_load_bearing(t.get("files")) and (not r or same):
                 if not sv:
                     who = f" (reviewed_by={r!r} is the closer)" if r else ""
@@ -513,13 +559,15 @@ class TaskLedger:
                         f"{[f for f in (t.get('files') or []) if is_load_bearing([f])]} and has "
                         f"no independent review{who}. Either pass --reviewed-by <someone else>, "
                         f"or --self-verified '<why not>' to close it anyway and be counted. "
-                        f"Threshold: task_ledger.LOAD_BEARING.")
+                        f"Threshold: task_ledger.LOAD_BEARING."
+                    )
                 t["self_verified"] = sv
             t["commit"], t["verified_by"] = c, v
             if r:
                 t["reviewed_by"] = r
-            try:                              # T056: finalize the cost accumulator (fail-open;
-                from core.coord.task_costs import finalize   # absent accumulator stamps nothing)
+            try:  # T056: finalize the cost accumulator (fail-open;
+                from core.coord.task_costs import finalize  # absent accumulator stamps nothing)
+
                 finalize(tid, t)
             except Exception:
                 pass
@@ -537,39 +585,66 @@ class TaskLedger:
         if reason:
             entry["reason"] = reason
         if operator_ruling:
-            entry["operator_ruling"] = operator_ruling   # T352: the authority that opened DONE
+            entry["operator_ruling"] = operator_ruling  # T352: the authority that opened DONE
         if pauses:
-            t["pauses"] = pauses                         # ruling 369243: the named cost of width
-            entry["pauses"] = pauses                     # announcements are receipts (ORG P8.4)
+            t["pauses"] = pauses  # ruling 369243: the named cost of width
+            entry["pauses"] = pauses  # announcements are receipts (ORG P8.4)
         t["history"].append(entry)
         self.save()
         return t
 
 
 # convenience wrappers (each is just a named transition — readable call sites)
-def _t(ledger: TaskLedger, tid: str, to: str, **kw): return ledger.transition(tid, to, **kw)
-def approve(ledger, tid, **kw):  return _t(ledger, tid, APPROVED, **kw)
-def claim(ledger, tid, owner, **kw):  return _t(ledger, tid, CLAIMED, owner=owner, **kw)
-def start(ledger, tid, **kw):    return _t(ledger, tid, IN_PROGRESS, **kw)
-def verifying(ledger, tid, **kw):return _t(ledger, tid, VERIFYING, **kw)
-def done(ledger, tid, commit, verified_by, **kw): return _t(ledger, tid, DONE, commit=commit, verified_by=verified_by, **kw)
-def block(ledger, tid, reason, **kw): return _t(ledger, tid, BLOCKED, reason=reason, **kw)
-def abandon(ledger, tid, reason, **kw): return _t(ledger, tid, ABANDONED, reason=reason, **kw)   # P5: terminal, reasoned
-def park(ledger, tid, reason, **kw): return _t(ledger, tid, PARKED, reason=reason, **kw)         # C5-1: shelved, reasoned, slot freed
-def unpark(ledger, tid, **kw): return _t(ledger, tid, IN_PROGRESS, **kw)                         # C5-1: resumes through the two-watch gate
+def _t(ledger: TaskLedger, tid: str, to: str, **kw):
+    return ledger.transition(tid, to, **kw)
+
+
+def approve(ledger, tid, **kw):
+    return _t(ledger, tid, APPROVED, **kw)
+
+
+def claim(ledger, tid, owner, **kw):
+    return _t(ledger, tid, CLAIMED, owner=owner, **kw)
+
+
+def start(ledger, tid, **kw):
+    return _t(ledger, tid, IN_PROGRESS, **kw)
+
+
+def verifying(ledger, tid, **kw):
+    return _t(ledger, tid, VERIFYING, **kw)
+
+
+def done(ledger, tid, commit, verified_by, **kw):
+    return _t(ledger, tid, DONE, commit=commit, verified_by=verified_by, **kw)
+
+
+def block(ledger, tid, reason, **kw):
+    return _t(ledger, tid, BLOCKED, reason=reason, **kw)
+
+
+def abandon(ledger, tid, reason, **kw):
+    return _t(ledger, tid, ABANDONED, reason=reason, **kw)  # P5: terminal, reasoned
+
+
+def park(ledger, tid, reason, **kw):
+    return _t(ledger, tid, PARKED, reason=reason, **kw)  # C5-1: shelved, reasoned, slot freed
+
+
+def unpark(ledger, tid, **kw):
+    return _t(ledger, tid, IN_PROGRESS, **kw)  # C5-1: resumes through the two-watch gate
 
 
 # --- the width gauge's READ half (ruling 369243, observability; defer 2955dae7eb) --------------
-def _authority_recorded(t: Dict[str, Any]) -> bool:
+def _authority_recorded(t: dict[str, Any]) -> bool:
     """True when the row carries a RECORDED cost or authority for its width: pauses= on the row or
     in its history, or operator_ruling= in its history -- the two doors the two-watch gate accepts."""
     if str(t.get("pauses") or "").strip():
         return True
-    return any(str(h.get("pauses") or h.get("operator_ruling") or "").strip()
-               for h in (t.get("history") or []))
+    return any(str(h.get("pauses") or h.get("operator_ruling") or "").strip() for h in (t.get("history") or []))
 
 
-def open_watches(path: Optional[str] = None) -> Dict[str, Any]:
+def open_watches(path: str | None = None) -> dict[str, Any]:
     """Read-only door for the doctor: the open-watch count against WATCH_CAP, with ids.
 
     Git-only (client=None: no Redis mirror, nothing written), resolved through the same
@@ -584,15 +659,27 @@ def open_watches(path: Optional[str] = None) -> Dict[str, Any]:
         L = TaskLedger(path, client=None)
         rows = [t for t in L.tasks.values() if t.get("status") == IN_PROGRESS]
         ids = [t["id"] for t in rows]
-        return {"open": len(ids), "cap": WATCH_CAP, "ids": ids, "over": len(ids) > WATCH_CAP,
-                "silent": [t["id"] for t in rows if not _authority_recorded(t)], "error": None}
-    except Exception as e:                    # LedgerError (unreadable), PermissionError, ...
-        return {"open": None, "cap": WATCH_CAP, "ids": [], "over": False, "silent": [],
-                "error": str(e) or type(e).__name__}
+        return {
+            "open": len(ids),
+            "cap": WATCH_CAP,
+            "ids": ids,
+            "over": len(ids) > WATCH_CAP,
+            "silent": [t["id"] for t in rows if not _authority_recorded(t)],
+            "error": None,
+        }
+    except Exception as e:  # LedgerError (unreadable), PermissionError, ...
+        return {
+            "open": None,
+            "cap": WATCH_CAP,
+            "ids": [],
+            "over": False,
+            "silent": [],
+            "error": str(e) or type(e).__name__,
+        }
 
 
 # --- fast reads (Slice B): what agents obey instead of the message backlog ---------------------
-def read_ledger(path: str = LEDGER_PATH, client: Any = "auto") -> Dict[str, Any]:
+def read_ledger(path: str = LEDGER_PATH, client: Any = "auto") -> dict[str, Any]:
     """Read the current ledger FAST. Prefers the Redis mirror (one GET); falls back to the git file
     (the source of truth) if Redis is empty or unreachable. Returns {"seq", "tasks": [...]}"."""
     c = _bus_client() if client == "auto" else client
@@ -612,12 +699,13 @@ def read_ledger(path: str = LEDGER_PATH, client: Any = "auto") -> Dict[str, Any]
     return {"seq": 0, "tasks": []}
 
 
-STALE_PROPOSED_DAYS = 7   # default; render callers may override via env AKASHIC_PROPOSED_STALE_DAYS
+STALE_PROPOSED_DAYS = 7  # default; render callers may override via env AKASHIC_PROPOSED_STALE_DAYS
 
 
-def _age_days(t: Dict[str, Any], now_ts: float) -> Any:
+def _age_days(t: dict[str, Any], now_ts: float) -> Any:
     """Days since the task was last TOUCHED (updated stamp; created as fallback). None if unparseable."""
     from datetime import datetime
+
     raw = t.get("updated") or t.get("created") or ""
     try:
         return max(0.0, (now_ts - datetime.fromisoformat(raw).timestamp()) / 86400)
@@ -628,33 +716,32 @@ def _age_days(t: Dict[str, Any], now_ts: float) -> Any:
 TASK_SETTLED_STATUSES = frozenset({"done", "parked", "abandoned"})
 
 
-def settled_tasks(text: str) -> Tuple[List[str], List[str]]:
+def settled_tasks(text: str) -> tuple[list[str], list[str]]:
     """(settled, live): T-numbers named in `text` whose ledger status contradicts acting
     on them (done/parked/abandoned, rendered 'T075 PARKED') vs those still open. Unknown
     ids read LIVE (fail toward answering/acting). Fail-open ([], []) when the ledger is
     unreachable. Shared by the boot directive cross-check (W04) and the runner's
     premise-gate -- this module's own WHY paragraph, made a callable."""
     import re
+
     ids = sorted(set(re.findall(r"\bT\d{3}\b", str(text or ""))))
     if not ids:
         return [], []
     try:
-        status: Dict[str, str] = {}
+        status: dict[str, str] = {}
         for v in state_view().values():
             if isinstance(v, list):
                 for t in v:
                     if isinstance(t, dict) and t.get("id"):
                         status[str(t["id"])] = str(t.get("status", ""))
-        settled = [f"{i} {status[i].upper()}" for i in ids
-                   if status.get(i, "").lower() in TASK_SETTLED_STATUSES]
+        settled = [f"{i} {status[i].upper()}" for i in ids if status.get(i, "").lower() in TASK_SETTLED_STATUSES]
         live = [i for i in ids if status.get(i, "").lower() not in TASK_SETTLED_STATUSES]
         return settled, live
     except Exception:
         return [], []
 
 
-def premise_settled(kind: str, age_ms: Optional[int], text: str, *,
-                    min_age_ms: Optional[int] = None) -> List[str]:
+def premise_settled(kind: str, age_ms: int | None, text: str, *, min_age_ms: int | None = None) -> list[str]:
     """The premise-gate's pure verdict: the settled list when a short-circuit should
     fire, else []. Fires ONLY when: the kind is an ask, the message is OLDER than the
     age floor (a fresh ask about closed work is deliberate; an old one is a backlog
@@ -662,10 +749,10 @@ def premise_settled(kind: str, age_ms: Optional[int], text: str, *,
     FRESH; min_age_ms<=0 disables (the P2-style kill switch); ledger errors fail open
     to answering. Env dial: BIFROST_PREMISE_GATE_MIN_AGE_MS (default 2h)."""
     from core.comm import packet_spec
+
     if min_age_ms is None:
         try:
-            min_age_ms = int(os.environ.get("BIFROST_PREMISE_GATE_MIN_AGE_MS",
-                                            2 * 3600 * 1000))
+            min_age_ms = int(os.environ.get("BIFROST_PREMISE_GATE_MIN_AGE_MS", 2 * 3600 * 1000))
         except (TypeError, ValueError):
             min_age_ms = 2 * 3600 * 1000
     if min_age_ms <= 0 or not packet_spec.never_drop_when_stale(kind):
@@ -676,8 +763,9 @@ def premise_settled(kind: str, age_ms: Optional[int], text: str, *,
     return settled if settled and not live else []
 
 
-def state_view(path: str = LEDGER_PATH, client: Any = "auto", *,
-               now: Any = None, stale_days: int = STALE_PROPOSED_DAYS) -> Dict[str, Any]:
+def state_view(
+    path: str = LEDGER_PATH, client: Any = "auto", *, now: Any = None, stale_days: int = STALE_PROPOSED_DAYS
+) -> dict[str, Any]:
     """The read-state-first view (used by boot/wake in Slice C). 'next' = APPROVED tasks whose deps
     are all DONE (claimable now). This is the curated current truth agents read, not the backlog.
 
@@ -689,10 +777,16 @@ def state_view(path: str = LEDGER_PATH, client: Any = "auto", *,
     done_ids = {t["id"] for t in tasks if t["status"] == DONE}
 
     def summ(t):
-        s = {"id": t["id"], "title": t["title"], "owner": t.get("owner", ""),
-             "status": t["status"], "commit": t.get("commit"), "files": t.get("files", [])}
+        s = {
+            "id": t["id"],
+            "title": t["title"],
+            "owner": t.get("owner", ""),
+            "status": t["status"],
+            "commit": t.get("commit"),
+            "files": t.get("files", []),
+        }
         for ck in ("cost_turns", "cost_duration_s", "cost_tool_calls", "cost_tokens"):
-            if ck in t:                       # T056: cost stamps ride the summary (done-only render)
+            if ck in t:  # T056: cost stamps ride the summary (done-only render)
                 s[ck] = t[ck]
         if now is not None and t["status"] == PROPOSED:
             age = _age_days(t, float(now))
@@ -709,12 +803,12 @@ def state_view(path: str = LEDGER_PATH, client: Any = "auto", *,
     return {
         "done": [summ(t) for t in tasks if t["status"] == DONE],
         "in_progress": [summ(t) for t in tasks if t["status"] in ACTIVE],
-        "next": [summ(t) for t in tasks if t["status"] == APPROVED
-                 and all(d in done_ids for d in t.get("deps", []))],
+        "next": [summ(t) for t in tasks if t["status"] == APPROVED and all(d in done_ids for d in t.get("deps", []))],
         "proposed": [summ(t) for t in tasks if t["status"] == PROPOSED],
         "blocked": [summ(t) for t in tasks if t["status"] == BLOCKED],
-        "parked": [{**summ(t), "reason": _park_reason(t)}
-                   for t in tasks if t["status"] == PARKED],   # C5-1: shelved, reasoned, visible
+        "parked": [
+            {**summ(t), "reason": _park_reason(t)} for t in tasks if t["status"] == PARKED
+        ],  # C5-1: shelved, reasoned, visible
         "counts": {s: sum(1 for t in tasks if t["status"] == s) for s in STATUSES},
         # T248: how many closed WITHOUT independent review. In the view rather than scraped by
         # one renderer, so every surface reads the same number -- two renderers computing the
@@ -723,23 +817,19 @@ def state_view(path: str = LEDGER_PATH, client: Any = "auto", *,
     }
 
 
-def format_state(agent: str = "", path: str = LEDGER_PATH, client: Any = "auto",
-                 now: Any = None) -> str:
+def format_state(agent: str = "", path: str = LEDGER_PATH, client: Any = "auto", now: Any = None) -> str:
     """The READ-STATE-FIRST block shown at boot + wake (Slice C). Agents obey THIS, not the message
     backlog — an old 'apply the fix' message can't cause rework because the ledger says it's DONE.
     An empty ledger prints a clear 'no governed tasks yet' line so it never reads as a bug.
     With `now` (P5), stale proposals are counted and listed for a verdict instead of passing
     as live intent."""
     stale_days = STALE_PROPOSED_DAYS
-    try:
+    with contextlib.suppress(ValueError, TypeError):
         stale_days = int(os.environ.get("AKASHIC_PROPOSED_STALE_DAYS", stale_days))
-    except (ValueError, TypeError):
-        pass
     v = state_view(path, client, now=now, stale_days=stale_days)
     c = v["counts"]
     if sum(c.values()) == 0:
-        return ("## TASK LEDGER (governed coordination)\n"
-                "  (empty -- no governed tasks yet; nothing to redo or claim)\n")
+        return "## TASK LEDGER (governed coordination)\n  (empty -- no governed tasks yet; nothing to redo or claim)\n"
 
     def sha(t):
         return (t.get("commit") or "")[:8]
@@ -747,39 +837,41 @@ def format_state(agent: str = "", path: str = LEDGER_PATH, client: Any = "auto",
     out = ["## TASK LEDGER -- obey THIS, not old messages"]
     if v["done"]:
         out.append("DONE (closed -- do NOT redo):")
+
         def _cost(t):
-            try:                              # T056: retro-only cost line (fail-soft)
+            try:  # T056: retro-only cost line (fail-soft)
                 from core.coord.task_costs import cost_line
+
                 cl = cost_line(t)
                 return f"  [{cl}]" if cl else ""
             except Exception:
                 return ""
-        out += [f"  {t['id']} - {t['title']}" + (f"  @{sha(t)}" if sha(t) else "") + _cost(t)
-                for t in v["done"]]
+
+        out += [f"  {t['id']} - {t['title']}" + (f"  @{sha(t)}" if sha(t) else "") + _cost(t) for t in v["done"]]
     if v["in_progress"]:
         out.append("IN PROGRESS:")
-        out += [f"  {t['id']} - {t['title']}  ({t['status']}"
-                + (f", {t['owner']}" if t['owner'] else "") + ")" for t in v["in_progress"]]
+        out += [
+            f"  {t['id']} - {t['title']}  ({t['status']}" + (f", {t['owner']}" if t["owner"] else "") + ")"
+            for t in v["in_progress"]
+        ]
     if v.get("parked"):
         out.append("PARKED (shelved with a reason -- slot freed; unpark to resume):")
-        out += [f"  {t['id']} - {t['title'][:90]}  ({t.get('reason', '')[:80]})"
-                for t in v["parked"]]
+        out += [f"  {t['id']} - {t['title'][:90]}  ({t.get('reason', '')[:80]})" for t in v["parked"]]
     if v["next"]:
         # W15: this header must speak the same one-at-a-time gate as `task next`
         # (conductor.next_task refuses while ANY task is ACTIVE) -- "claimable now"
         # over an occupied slot made the two surfaces contradict each other.
         if v["in_progress"]:
-            out.append(f"NEXT (slot occupied by {len(v['in_progress'])} active -- "
-                       "claimable when one closes/parks):")
+            out.append(f"NEXT (slot occupied by {len(v['in_progress'])} active -- claimable when one closes/parks):")
         else:
             out.append("NEXT (claimable now):")
-        out += [f"  {t['id']} - {t['title']}"
-                + ("  <- you" if agent and t['owner'] == agent else "") for t in v["next"]]
+        out += [
+            f"  {t['id']} - {t['title']}" + ("  <- you" if agent and t["owner"] == agent else "") for t in v["next"]
+        ]
     stale = [t for t in v["proposed"] if t.get("stale")]
     if stale:
         out.append("PROPOSED BUT STALE (parked intent -- re-approve or abandon, do not treat as live):")
-        out += [f"  {t['id']} - {t['title'][:90]}  (untouched {t.get('age_days', 0):.0f}d)"
-                for t in stale]
+        out += [f"  {t['id']} - {t['title'][:90]}  (untouched {t.get('age_days', 0):.0f}d)" for t in stale]
     prop = f"proposed {c[PROPOSED]}" + (f" ({len(stale)} stale)" if stale else "")
     parked_bar = f" | parked {c[PARKED]}" if c.get(PARKED) else ""
     # T248: the override COUNT is the instrument -- the refusal only keeps it honest. Rendered
@@ -788,10 +880,14 @@ def format_state(agent: str = "", path: str = LEDGER_PATH, client: Any = "auto",
     # which is the same rule the evidence notice follows one subsystem over.
     sv = v.get("self_verified", 0)
     sv_bar = f" | SELF-VERIFIED {sv}" if sv else ""
-    out.append(f"(done {c[DONE]} | active {c[CLAIMED] + c[IN_PROGRESS] + c[VERIFYING]} | "
-               f"next {len(v['next'])} | {prop} | blocked {c[BLOCKED]}{parked_bar}{sv_bar})")
-    out.append("RULE: anything in DONE is closed. Work only your assigned/NEXT task. "
-               "Ignore backlog messages that contradict the ledger.")
+    out.append(
+        f"(done {c[DONE]} | active {c[CLAIMED] + c[IN_PROGRESS] + c[VERIFYING]} | "
+        f"next {len(v['next'])} | {prop} | blocked {c[BLOCKED]}{parked_bar}{sv_bar})"
+    )
+    out.append(
+        "RULE: anything in DONE is closed. Work only your assigned/NEXT task. "
+        "Ignore backlog messages that contradict the ledger."
+    )
     return "\n".join(out) + "\n"
 
 

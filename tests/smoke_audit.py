@@ -1,8 +1,10 @@
 """Quick smoke test for core.toolbelt.audit — runs against live registry files."""
+
 import sys
+
 sys.path.insert(0, ".")
 
-from core.toolbelt.audit import run, render, VerbsDomain
+from core.toolbelt.audit import VerbsDomain, render
 
 # Run VERBS domain only
 domain = VerbsDomain()

@@ -13,12 +13,12 @@ by every harness. This adapter only parses Claude's stdin shape, warms the recal
 cache, and emits Claude's additionalContext envelope.
 Fail-OPEN and silent on ANY error -- session start must never be delayed or broken.
 """
+
 import json
 import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-
 
 
 def _seat(session_id: str = "") -> str:
@@ -31,10 +31,13 @@ def _seat(session_id: str = "") -> str:
     """
     try:
         from core.comm.seat_identity import resolve
+
         return resolve(session_id)
     except Exception:
         import os as _os
+
         return (_os.getenv("AKASHIC_AGENT_ID") or "").strip() or "unknown"
+
 
 def _reap_stale_watcher(my_session: str = "") -> None:
     """T029 Wave 2 (supersedes the T017 D4 identity-only reap -- battery sec. 6): the janitor.
@@ -48,9 +51,10 @@ def _reap_stale_watcher(my_session: str = "") -> None:
     agent = _seat(my_session)
     try:
         from core.comm import wake_seat
+
         wake_seat.janitor(agent, my_session=my_session or None)
     except Exception:
-        pass                         # fail-open: the janitor is a bonus, never a gate
+        pass  # fail-open: the janitor is a bonus, never a gate
 
 
 def main() -> int:
@@ -59,17 +63,19 @@ def main() -> int:
     except Exception:
         data = {}
     try:
-        from core.recall.at_action import warm_cache, prune_state
+        from core.recall.at_action import prune_state, warm_cache
+
         warm_cache()
         prune_state()
     except Exception:
-        pass   # warm-up is best-effort; never block session start
+        pass  # warm-up is best-effort; never block session start
     try:
         # Stamp THIS session alive the moment it exists -- the janitor's K7 fast path
         # (and the twin-session proof-of-life) starts at first breath, not first stop.
         sid = str(data.get("session_id") or "")
         if sid:
             from core.comm import wake_seat
+
             # T086 S1b resurrection: SessionEnd writes the tombstone, SessionStart clears it
             # -- the harness owns both edges. Restart/compact cycles fire SessionEnd on a
             # session that then breathes again (live receipt 2026-07-19: this seat's watcher
@@ -84,6 +90,7 @@ def main() -> int:
         # whispers render it, --to-incarnation has an address, TTL reaps it if we die.
         if sid:
             from core.comm import incarnation
+
             incarnation.publish_card(_seat(sid), sid)
     except Exception:
         pass
@@ -98,16 +105,23 @@ def main() -> int:
         pass
     try:
         from agent.harness.context import build_autoboot_context
-        ctx = build_autoboot_context(data.get("cwd") or os.getcwd(),
-                                     _seat(sid),
-                                     session_id=str(data.get("session_id") or ""))
+
+        ctx = build_autoboot_context(
+            data.get("cwd") or os.getcwd(), _seat(sid), session_id=str(data.get("session_id") or "")
+        )
         if ctx:
-            print(json.dumps({"hookSpecificOutput": {
-                "hookEventName": "SessionStart",
-                "additionalContext": ctx,
-            }}))
+            print(
+                json.dumps(
+                    {
+                        "hookSpecificOutput": {
+                            "hookEventName": "SessionStart",
+                            "additionalContext": ctx,
+                        }
+                    }
+                )
+            )
     except Exception:
-        pass   # the whisper is a bonus; silence beats a broken session start
+        pass  # the whisper is a bonus; silence beats a broken session start
     return 0
 
 

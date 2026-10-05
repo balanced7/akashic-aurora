@@ -9,11 +9,10 @@ phrase. Deterministic, free, meaning-safe.
 MODEL-BASED: a lazy, optional challenger (rpunct). The core verb must never
 hard-depend on it -- a missing package raises the teaching error.
 """
+
 import pytest
 
-from scripts.yt_captions import (punctuate_gaps, punctuate_model, punctuate_hybrid,
-                                 MODEL_PUNCT_HINT)
-
+from scripts.yt_captions import MODEL_PUNCT_HINT, punctuate_gaps, punctuate_hybrid, punctuate_model
 
 VTT_GAPS = """WEBVTT
 
@@ -61,16 +60,17 @@ def test_m2_model_punctuates_when_available():
     try:
         out = punctuate_model("this is a sentence and another one")
     except RuntimeError as e:
-        assert "deepmultilingualpunctuation" in str(e)
+        assert "deepmultilingualpunctuation" in str(e)  # noqa: PT017  # optional model: the error is the skip path
         pytest.skip("model challenger offline (honest contract)")
-    assert out and "." in out
+    assert out
+    assert "." in out
 
 
 def test_h1_hybrid_capitalizes_and_punctuates():
     try:
         out = punctuate_hybrid("this is a sentence and another one")
     except RuntimeError as e:
-        assert "deepmultilingualpunctuation" in str(e)
+        assert "deepmultilingualpunctuation" in str(e)  # noqa: PT017  # optional model: the error is the skip path
         pytest.skip("hybrid offline (model absent -- honest contract)")
     assert out[0].isupper()
     assert out.rstrip()[-1] in ".!?"
@@ -78,10 +78,11 @@ def test_h1_hybrid_capitalizes_and_punctuates():
 
 def test_h2_hybrid_has_no_lowercase_sentence_openings():
     import re
+
     try:
         out = punctuate_hybrid("this is a sentence and another one. and then some more")
     except RuntimeError as e:
-        assert "deepmultilingualpunctuation" in str(e)
+        assert "deepmultilingualpunctuation" in str(e)  # noqa: PT017  # optional model: the error is the skip path
         pytest.skip("hybrid offline (model absent -- honest contract)")
     assert re.search(r"(^|[.!?] )[a-z]", out) is None
 

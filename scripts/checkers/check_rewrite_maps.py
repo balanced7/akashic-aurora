@@ -34,15 +34,26 @@ absence that reads as success is the defect this family of checkers exists for.
 
 REPORT BY DEFAULT. `--gate` opts into the ratchet.
 """
+
 from __future__ import annotations
 
 import argparse
 import json
-import os
 import re
 import subprocess
 import sys
 from pathlib import Path
+
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+
+        return python_launcher()
+    except Exception:
+        return "py"
+
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
@@ -67,8 +78,7 @@ class NotARepo(Exception):
 
 def git(*a, root=None):
     root = root or ROOT
-    p = subprocess.run(["git", "-C", str(root), *a], capture_output=True, text=True,
-                       encoding="utf-8", errors="replace")
+    p = subprocess.run(["git", "-C", str(root), *a], capture_output=True, text=True, encoding="utf-8", errors="replace")
     if p.returncode and "not a git repository" in (p.stderr or "").lower():
         raise NotARepo(str(root))
     return p.stdout or ""
@@ -93,11 +103,11 @@ def unarchived_map(maps):
 
 # --------------------------------------------------------------- 2. the unmapped rewrite
 def rewrite_refs():
-    out = []
-    for line in git("for-each-ref", "--format=%(refname)").splitlines():
-        if any(p in line for p in REWRITE_REF_PATTERNS):
-            out.append(line.strip())
-    return out
+    return [
+        line.strip()
+        for line in git("for-each-ref", "--format=%(refname)").splitlines()
+        if any(p in line for p in REWRITE_REF_PATTERNS)
+    ]
 
 
 def awaiting_push():
@@ -110,8 +120,11 @@ def awaiting_push():
     The rewrite-fingerprint refs are excluded deliberately: pre-rewrite-backup IS a local
     branch, so including it would relabel every rewrite orphan as merely unpushed.
     """
-    refs = [r for r in git("for-each-ref", "--format=%(refname)", "refs/heads/").split()
-            if not any(pat in r for pat in REWRITE_REF_PATTERNS)]
+    refs = [
+        r
+        for r in git("for-each-ref", "--format=%(refname)", "refs/heads/").split()
+        if not any(pat in r for pat in REWRITE_REF_PATTERNS)
+    ]
     if not refs:
         return set()
     return set(git("rev-list", *refs).split())
@@ -141,8 +154,7 @@ def accepted():
             bad.append(f"{sha[:14]!r} is not a full 40-character oid")
             continue
         if git("cat-file", "-t", key).strip() != "commit":
-            bad.append(f"{key[:12]} names no commit in this repository -- a guessed or stale "
-                       f"hash waives nothing")
+            bad.append(f"{key[:12]} names no commit in this repository -- a guessed or stale hash waives nothing")
             continue
         if isinstance(why, str) and why.strip():
             ok[key] = why
@@ -163,12 +175,17 @@ def unmapped_rewrites(resolver, waived):
         if not lineage:
             continue
         orphans = [o for o in lineage if o not in visible]
-        lost = [o for o in orphans
-                if o not in waived and not resolver.resolve(o, check_remote=False).ok]
+        lost = [o for o in orphans if o not in waived and not resolver.resolve(o, check_remote=False).ok]
         if lost:
-            findings.append({"ref": ref, "lineage": len(lineage),
-                             "orphans": len(orphans), "unresolvable": len(lost),
-                             "examples": lost[:3]})
+            findings.append(
+                {
+                    "ref": ref,
+                    "lineage": len(lineage),
+                    "orphans": len(orphans),
+                    "unresolvable": len(lost),
+                    "examples": lost[:3],
+                }
+            )
     return findings
 
 
@@ -187,12 +204,13 @@ def stranded_citations(resolver, waived, local=frozenset()):
         return {"checked": False, "reason": "no tracked corpus files matched", "stranded": []}
 
     probe = "\n".join(f"{s}^{{commit}}" for s in cand) + "\n"
-    out = subprocess.run(["git", "-C", str(ROOT), "cat-file", "--batch-check"], input=probe,
-                         capture_output=True, text=True).stdout.splitlines()
-    real = [sha for line, sha in zip(out, cand) if " commit " in line]
+    out = subprocess.run(
+        ["git", "-C", str(ROOT), "cat-file", "--batch-check"], input=probe, capture_output=True, text=True
+    ).stdout.splitlines()
+    real = [sha for line, sha in zip(out, cand, strict=False) if " commit " in line]
 
     full = {}
-    for line, sha in zip(out, cand):
+    for line, sha in zip(out, cand, strict=False):
         q = line.split()
         if len(q) == 3 and q[1] == "commit":
             full[sha] = q[0]
@@ -208,10 +226,8 @@ def stranded_citations(resolver, waived, local=frozenset()):
         if full.get(sha) in local:
             unpushed.append({"sha": sha, "files": sorted(cand[sha])[:2]})
             continue
-        stranded.append({"sha": sha, "status": res.status,
-                         "files": sorted(cand[sha])[:2]})
-    return {"checked": True, "commits": len(real), "stranded": stranded,
-            "waived": waived_hits, "unpushed": unpushed}
+        stranded.append({"sha": sha, "status": res.status, "files": sorted(cand[sha])[:2]})
+    return {"checked": True, "commits": len(real), "stranded": stranded, "waived": waived_hits, "unpushed": unpushed}
 
 
 def report(gate=False, freeze=False):
@@ -219,8 +235,7 @@ def report(gate=False, freeze=False):
 
     r = Resolver(repo=ROOT)
     waived, waiver_problems = accepted()
-    out = {"maps": [{"label": m.label, "rows": len(m.rows), "durable": m.durable,
-                     "method": m.method} for m in r.maps]}
+    out = {"maps": [{"label": m.label, "rows": len(m.rows), "durable": m.durable, "method": m.method} for m in r.maps]}
     out["unarchived"] = unarchived_map(r.maps)
     out["unmapped"] = unmapped_rewrites(r, waived)
     out["citations"] = stranded_citations(r, waived, local=awaiting_push())
@@ -234,8 +249,7 @@ def report(gate=False, freeze=False):
 
     findings = 0
     if waived:
-        print(f"  {len(waived)} commit(s) accepted as unrecoverable "
-              f"({ACCEPTED.name}), each with a stated reason")
+        print(f"  {len(waived)} commit(s) accepted as unrecoverable ({ACCEPTED.name}), each with a stated reason")
     for problem in waiver_problems:
         findings += 1
         print(f"\n  BAD WAIVER -- {problem}")
@@ -248,7 +262,7 @@ def report(gate=False, freeze=False):
         print(f"\n  UNCAPTURED REWRITE -- {u['path']}")
         print(f"    {u['uncovered']:,} of {u['rows']:,} rows are in no committed map. This file")
         print("    is overwritten by the next filter-repo run. Capture it now:")
-        print("      py scripts/rewrite_recover.py capture --label <slug> --why \"...\"")
+        print(f'      {_pyl()} scripts/rewrite_recover.py capture --label <slug> --why "..."')
 
     if out["unmapped"]:
         findings += 1
@@ -256,9 +270,8 @@ def report(gate=False, freeze=False):
         print("  resolve. A rewrite ran and left no map; reconstruct one from content identity:")
         for f in out["unmapped"]:
             print(f"    {f['ref']}")
-            print(f"      lineage {f['lineage']:,}, orphaned {f['orphans']:,}, "
-                  f"unresolvable {f['unresolvable']:,}")
-        print("      py scripts/rewrite_recover.py reconstruct --from-ref <ref>")
+            print(f"      lineage {f['lineage']:,}, orphaned {f['orphans']:,}, unresolvable {f['unresolvable']:,}")
+        print(f"      {_pyl()} scripts/rewrite_recover.py reconstruct --from-ref <ref>")
 
     cit = out["citations"]
     if not cit["checked"]:
@@ -281,14 +294,20 @@ def report(gate=False, freeze=False):
 
     if freeze:
         BASELINE.parent.mkdir(parents=True, exist_ok=True)
-        BASELINE.write_text(json.dumps(
-            {"stranded": len(cit.get("stranded") or []),
-             "frozen_at": git("rev-parse", "--short", "HEAD").strip(),
-             "note": "Stranded citations at freeze time. The gate ratchets: this may fall, "
-                     "never rise. A rise means a rewrite ran without capturing its map."},
-            indent=2) + "\n", encoding="utf-8")
-        print(f"\n[rewrite-maps] froze {len(cit.get('stranded') or []):,} stranded at "
-              f"{BASELINE.relative_to(ROOT)}")
+        BASELINE.write_text(
+            json.dumps(
+                {
+                    "stranded": len(cit.get("stranded") or []),
+                    "frozen_at": git("rev-parse", "--short", "HEAD").strip(),
+                    "note": "Stranded citations at freeze time. The gate ratchets: this may fall, "
+                    "never rise. A rise means a rewrite ran without capturing its map.",
+                },
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        print(f"\n[rewrite-maps] froze {len(cit.get('stranded') or []):,} stranded at {BASELINE.relative_to(ROOT)}")
         return 0
 
     if gate:
@@ -298,8 +317,9 @@ def report(gate=False, freeze=False):
         try:
             base = json.loads(BASELINE.read_text(encoding="utf-8"))["stranded"]
         except Exception:
-            print("\n[rewrite-maps] GATE FAIL -- no baseline to ratchet against. Freeze one "
-                  "deliberately with --freeze.")
+            print(
+                "\n[rewrite-maps] GATE FAIL -- no baseline to ratchet against. Freeze one deliberately with --freeze."
+            )
             return 1
         now = len(cit["stranded"])
         if now > base:

@@ -28,9 +28,13 @@ desktop needed to prove the wiring).
 
 from __future__ import annotations
 
+import contextlib
 import ctypes
 import threading
-from typing import Callable, List, Optional
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 # WinEvent constants ------------------------------------------------------------------
 EVENT_SYSTEM_FOREGROUND = 0x0003
@@ -42,19 +46,19 @@ class ForegroundTracker:
     """Event-based foreground source. Pure delivery is testable without Windows."""
 
     def __init__(self) -> None:
-        self._focus: Optional[str] = None
+        self._focus: str | None = None
         self._gen: int = 0
-        self._observers: List[Callable[[Optional[str]], None]] = []
+        self._observers: list[Callable[[str | None], None]] = []
         self._hook = None
-        self._thread: Optional[threading.Thread] = None
+        self._thread: threading.Thread | None = None
         self._stop = threading.Event()
         self._lock = threading.Lock()
         self._wake = threading.Event()  # signals the worker a hwnd is pending
-        self._pending_hwnd: Optional[int] = None
+        self._pending_hwnd: int | None = None
 
     # ------------------------------------------------------------------ pure seam
     @property
-    def focus(self) -> Optional[str]:
+    def focus(self) -> str | None:
         """The cached foreground window name (None until a real change is delivered)."""
         with self._lock:
             return self._focus
@@ -65,12 +69,12 @@ class ForegroundTracker:
         with self._lock:
             return self._gen
 
-    def subscribe(self, observer: Callable[[Optional[str]], None]) -> None:
+    def subscribe(self, observer: Callable[[str | None], None]) -> None:
         """Register a callback invoked with the new focus name on each delivery."""
         with self._lock:
             self._observers.append(observer)
 
-    def on_foreground_change(self, name: Optional[str]) -> None:
+    def on_foreground_change(self, name: str | None) -> None:
         """Pure delivery: record the RESOLVED foreground name and notify observers.
 
         The name arrives PRE-RESOLVED — the worker resolves it off the hook thread
@@ -141,14 +145,14 @@ class ForegroundTracker:
         self._thread.start()
         return True
 
-    def _resolve_name(self, hwnd: int) -> Optional[str]:
+    def _resolve_name(self, hwnd: int) -> str | None:
         """Resolve an HWND to a window name via UIA, OFF the hook thread (§1.2)."""
         try:
-            import uiautomation as auto  # type: ignore
+            import uiautomation as auto  # type: ignore[import-not-found]
 
             control = auto.ControlFromHandle(hwnd)
             return control.Name if control else None
-        except Exception:  # noqa: BLE001
+        except Exception:  # noqa: BLE001  # fail-soft: falls back to a default value
             return None  # defer to None rather than throw on the worker
 
     def _run(self) -> None:
@@ -159,8 +163,8 @@ class ForegroundTracker:
             wintypes = ctypes.wintypes
         else:
             try:
-                import ctypes.wintypes as wintypes  # noqa: F811
-            except Exception:  # noqa: BLE001
+                import ctypes.wintypes as wintypes
+            except Exception:  # noqa: BLE001  # fail-soft: falls back to a default value
                 wintypes = None
         msg = wintypes.MSG() if wintypes is not None else None
 
@@ -187,10 +191,8 @@ class ForegroundTracker:
         self._stop.set()
         self._wake.set()
         if self._hook and hasattr(ctypes, "windll"):
-            try:
+            with contextlib.suppress(Exception):
                 ctypes.windll.user32.UnhookWinEvent(self._hook)
-            except Exception:  # noqa: BLE001
-                pass
             self._hook = None
         if self._thread is not None:
             self._thread.join(timeout=1.0)

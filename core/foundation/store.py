@@ -32,19 +32,20 @@ float. This keeps RedisStore a thin pass-through and FileStore byte-compatible
 with what callers already expect.
 """
 
-import os
-from core.paths import data_root
-import json
-import time
-import shutil
 import fnmatch
-import threading
+import json
 import logging
+import os
+import shutil
+import threading
+import time
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Iterable, Tuple
+from typing import Any
 
-from core.foundation.redis_connection import DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT, DEFAULT_REDIS_DB
+from core.foundation.redis_connection import DEFAULT_REDIS_DB, DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT
+from core.paths import data_root
+
 
 def _repo_root_str() -> str:
     """Instance-state root as a string: core.paths.data_root().
@@ -55,6 +56,7 @@ def _repo_root_str() -> str:
     it, and this name survives only for the call sites below.
     """
     from core.paths import data_root_str
+
     return data_root_str()
 
 
@@ -79,7 +81,7 @@ class Store(ABC):
 
     # ----- key/value -----
     @abstractmethod
-    def get(self, key: str) -> Optional[str]: ...
+    def get(self, key: str) -> str | None: ...
 
     @abstractmethod
     def set(self, key: str, value: str) -> bool: ...
@@ -109,14 +111,19 @@ class Store(ABC):
 
     # ----- hash -----
     @abstractmethod
-    def hset(self, key: str, field: Optional[str] = None, value: Optional[str] = None,
-             mapping: Optional[Dict[str, str]] = None) -> int: ...
+    def hset(
+        self,
+        key: str,
+        field: str | None = None,
+        value: str | None = None,
+        mapping: dict[str, str] | None = None,
+    ) -> int: ...
 
     @abstractmethod
-    def hget(self, key: str, field: str) -> Optional[str]: ...
+    def hget(self, key: str, field: str) -> str | None: ...
 
     @abstractmethod
-    def hgetall(self, key: str) -> Dict[str, str]: ...
+    def hgetall(self, key: str) -> dict[str, str]: ...
 
     # ----- list (lpush prepends, like Redis) -----
     @abstractmethod
@@ -126,7 +133,7 @@ class Store(ABC):
     def rpush(self, key: str, *values: str) -> int: ...
 
     @abstractmethod
-    def lrange(self, key: str, start: int, end: int) -> List[str]: ...
+    def lrange(self, key: str, start: int, end: int) -> list[str]: ...
 
     @abstractmethod
     def ltrim(self, key: str, start: int, end: int) -> bool:
@@ -141,7 +148,7 @@ class Store(ABC):
     def sadd(self, key: str, *members: str) -> int: ...
 
     @abstractmethod
-    def smembers(self, key: str) -> set: ...
+    def smembers(self, key: str) -> set: ...  # noqa: A003  # annotation value must not change (Store.set is public API)
 
     @abstractmethod
     def sismember(self, key: str, member: str) -> bool: ...
@@ -155,17 +162,16 @@ class Store(ABC):
 
     # ----- sorted set -----
     @abstractmethod
-    def zadd(self, key: str, mapping: Dict[str, float]) -> int: ...
+    def zadd(self, key: str, mapping: dict[str, float]) -> int: ...
 
     @abstractmethod
-    def zrange(self, key: str, start: int, end: int, desc: bool = False,
-               withscores: bool = False) -> List[Any]: ...
+    def zrange(self, key: str, start: int, end: int, desc: bool = False, withscores: bool = False) -> list[Any]: ...
 
     @abstractmethod
-    def zscore(self, key: str, member: str) -> Optional[float]: ...
+    def zscore(self, key: str, member: str) -> float | None: ...
 
     @abstractmethod
-    def zrangebyscore(self, key: str, min_score: Any, max_score: Any) -> List[str]:
+    def zrangebyscore(self, key: str, min_score: Any, max_score: Any) -> list[str]:
         """Members with min_score <= score <= max_score, ascending. Bounds accept
         numbers or the strings '-inf' / '+inf'."""
         ...
@@ -188,9 +194,9 @@ class Store(ABC):
 
     # ----- keyspace -----
     @abstractmethod
-    def keys(self, pattern: str = "*") -> List[str]: ...
+    def keys(self, pattern: str = "*") -> list[str]: ...
 
-    def hgetall_prefix(self, prefix: str) -> Dict[str, Dict[str, str]]:
+    def hgetall_prefix(self, prefix: str) -> dict[str, dict[str, str]]:
         """Every hash whose key starts with `prefix`, as {key: {field: value}}. ONE round-trip.
 
         The default below is the naive loop, so no backend breaks by not overriding it -- but
@@ -205,7 +211,7 @@ class Store(ABC):
         Backends answer this in one operation: SQLite with a single indexed SELECT, FileStore
         straight from the in-memory dict, Redis with a pipeline.
         """
-        out: Dict[str, Dict[str, str]] = {}
+        out: dict[str, dict[str, str]] = {}
         for k in self.keys(f"{prefix}*"):
             got = self.hgetall(k)
             if got:
@@ -213,7 +219,7 @@ class Store(ABC):
         return out
 
     # ----- optimistic concurrency (C3) -----
-    def cas(self, key: str, expected: Optional[str], value: str) -> bool:
+    def cas(self, key: str, expected: str | None, value: str) -> bool:
         """Compare-and-set: atomically set key=value IFF its current value equals
         `expected` (expected=None means "the key must not exist yet"). Returns True
         if the write happened. This is the lost-update guard for two agents writing
@@ -227,7 +233,7 @@ class Store(ABC):
             return self.set(key, value)
         return False
 
-    def update_atomic(self, key: str, fn, retries: int = 8) -> Optional[str]:
+    def update_atomic(self, key: str, fn, retries: int = 8) -> str | None:
         """Read-modify-write under optimistic concurrency: read the current value,
         compute fn(current)->new, and cas() it; retry on conflict. Returns the value
         written. Raises CASConflict if `retries` are exhausted. If fn returns None,
@@ -249,7 +255,7 @@ class Store(ABC):
 
     def close(self) -> None:
         """Release resources. Default: no-op."""
-        return None
+        return
 
 
 # =====================================================================
@@ -266,13 +272,19 @@ class RedisStore(Store):
     than a ~48s stall.
     """
 
-    def __init__(self, client: Optional[Any]):
+    def __init__(self, client: Any | None):
         self._client = client
 
     @classmethod
-    def connect(cls, host: str = DEFAULT_REDIS_HOST, port: int = DEFAULT_REDIS_PORT,
-                timeout_seconds: float = 2.0, db: int = DEFAULT_REDIS_DB) -> "RedisStore":
+    def connect(
+        cls,
+        host: str = DEFAULT_REDIS_HOST,
+        port: int = DEFAULT_REDIS_PORT,
+        timeout_seconds: float = 2.0,
+        db: int = DEFAULT_REDIS_DB,
+    ) -> "RedisStore":
         from core.foundation.redis_connection import connect_to_redis_with_fail_fast
+
         client = connect_to_redis_with_fail_fast(
             host=host, port=port, timeout_seconds=timeout_seconds, decode_responses=True, db=db
         )
@@ -282,10 +294,17 @@ class RedisStore(Store):
         return self._client is not None
 
     # key/value
-    def get(self, key): return self._client.get(key)
-    def set(self, key, value): return bool(self._client.set(key, value))
-    def delete(self, *keys): return int(self._client.delete(*keys)) if keys else 0
-    def exists(self, key): return bool(self._client.exists(key))
+    def get(self, key):
+        return self._client.get(key)
+
+    def set(self, key, value):
+        return bool(self._client.set(key, value))
+
+    def delete(self, *keys):
+        return int(self._client.delete(*keys)) if keys else 0
+
+    def exists(self, key):
+        return bool(self._client.exists(key))
 
     # optimistic concurrency (C3): atomic in Redis -- NX for create, Lua for compare
     _CAS_LUA = "if redis.call('GET',KEYS[1])==ARGV[1] then redis.call('SET',KEYS[1],ARGV[2]) return 1 else return 0 end"
@@ -295,49 +314,84 @@ class RedisStore(Store):
             return bool(self._client.set(key, str(value), nx=True))
         return bool(self._client.eval(self._CAS_LUA, 1, key, str(expected), str(value)))
 
-    # expiry (TTL)
-    def setex(self, key, seconds, value): return bool(self._client.setex(key, int(seconds), value))
-    def expire(self, key, seconds): return bool(self._client.expire(key, int(seconds)))
-    def ttl(self, key): return int(self._client.ttl(key))
+    # TTL expiry
+    def setex(self, key, seconds, value):
+        return bool(self._client.setex(key, int(seconds), value))
+
+    def expire(self, key, seconds):
+        return bool(self._client.expire(key, int(seconds)))
+
+    def ttl(self, key):
+        return int(self._client.ttl(key))
 
     # hash
     def hset(self, key, field=None, value=None, mapping=None):
-        return int(self._client.hset(key, key=field, value=value, mapping=mapping)) \
-            if field is not None or mapping else 0
-    def hget(self, key, field): return self._client.hget(key, field)
-    def hgetall(self, key): return dict(self._client.hgetall(key))
+        return (
+            int(self._client.hset(key, key=field, value=value, mapping=mapping)) if field is not None or mapping else 0
+        )
+
+    def hget(self, key, field):
+        return self._client.hget(key, field)
+
+    def hgetall(self, key):
+        return dict(self._client.hgetall(key))
 
     # list
-    def lpush(self, key, *values): return int(self._client.lpush(key, *values))
-    def rpush(self, key, *values): return int(self._client.rpush(key, *values))
-    def lrange(self, key, start, end): return list(self._client.lrange(key, start, end))
-    def ltrim(self, key, start, end): self._client.ltrim(key, start, end); return True
-    def llen(self, key): return int(self._client.llen(key))
+    def lpush(self, key, *values):
+        return int(self._client.lpush(key, *values))
+
+    def rpush(self, key, *values):
+        return int(self._client.rpush(key, *values))
+
+    def lrange(self, key, start, end):
+        return list(self._client.lrange(key, start, end))
+
+    def ltrim(self, key, start, end):
+        self._client.ltrim(key, start, end)
+        return True
+
+    def llen(self, key):
+        return int(self._client.llen(key))
 
     # set
-    def sadd(self, key, *members): return int(self._client.sadd(key, *members))
-    def smembers(self, key): return set(self._client.smembers(key))
-    def sismember(self, key, member): return bool(self._client.sismember(key, member))
+    def sadd(self, key, *members):
+        return int(self._client.sadd(key, *members))
+
+    def smembers(self, key):
+        return set(self._client.smembers(key))
+
+    def sismember(self, key, member):
+        return bool(self._client.sismember(key, member))
+
     def srem(self, key, *members):
         return int(self._client.srem(key, *members)) if members else 0
 
     # sorted set
-    def zadd(self, key, mapping): return int(self._client.zadd(key, mapping))
+    def zadd(self, key, mapping):
+        return int(self._client.zadd(key, mapping))
+
     def zrange(self, key, start, end, desc=False, withscores=False):
         return list(self._client.zrange(key, start, end, desc=desc, withscores=withscores))
+
     def zscore(self, key, member):
         s = self._client.zscore(key, member)
         return float(s) if s is not None else None
+
     def zrangebyscore(self, key, min_score, max_score):
         return list(self._client.zrangebyscore(key, min_score, max_score))
-    def zcard(self, key): return int(self._client.zcard(key))
+
+    def zcard(self, key):
+        return int(self._client.zcard(key))
+
     def zremrangebyrank(self, key, start, end):
         return int(self._client.zremrangebyrank(key, start, end))
+
     def zrem(self, key, *members):
         return int(self._client.zrem(key, *members)) if members else 0
 
     # keyspace
-    def keys(self, pattern="*"): return list(self._client.keys(pattern))
+    def keys(self, pattern="*"):
+        return list(self._client.keys(pattern))
 
     def close(self):
         try:
@@ -365,17 +419,17 @@ class FileStore(Store):
     # key-scoped metadata (see _expiry), exactly like Redis treats TTL.
     DATA_BUCKETS = ("kv", "hash", "list", "set", "zset")
 
-    def __init__(self, path: Optional[str] = None):
+    def __init__(self, path: str | None = None):
         base = data_root() / "session_logs"
         base.mkdir(parents=True, exist_ok=True)
         self._path = Path(path) if path else base / "store_state.json"
         self._lock = threading.RLock()
-        self._data: Dict[str, Dict[str, Any]] = {b: {} for b in self.DATA_BUCKETS}
-        self._expiry: Dict[str, float] = {}  # key -> unix expiry timestamp
+        self._data: dict[str, dict[str, Any]] = {b: {} for b in self.DATA_BUCKETS}
+        self._expiry: dict[str, float] = {}  # key -> unix expiry timestamp
         # Set when the on-disk state could not be read. While set, this store serves reads
         # and writes from memory but REFUSES to persist -- it will not overwrite bytes it
         # was unable to parse. See _load().
-        self._degraded: Optional[str] = None
+        self._degraded: str | None = None
         self._load()
 
     def is_available(self) -> bool:
@@ -390,9 +444,7 @@ class FileStore(Store):
         "Extra data: line 1 column N" corruption reported live on 2026-07-25 -- two JSON
         documents concatenated in one temp file.
         """
-        return self._path.with_suffix(
-            f"{self._path.suffix}.{os.getpid()}.{id(self)}.tmp"
-        )
+        return self._path.with_suffix(f"{self._path.suffix}.{os.getpid()}.{id(self)}.tmp")
 
     def _load(self) -> None:
         if not self._path.exists():
@@ -402,8 +454,9 @@ class FileStore(Store):
         except Exception as e:
             self._degraded = f"unreadable: {e}"
             logger.error(
-                f"FileStore REFUSING TO PERSIST over {self._path}: {e}. "
-                f"In-memory operation continues; the file is left untouched."
+                "FileStore REFUSING TO PERSIST over %s: %s. In-memory operation continues; the file is left untouched.",
+                self._path,
+                e,
             )
             return
         if not raw.strip():
@@ -427,9 +480,12 @@ class FileStore(Store):
             kept = self._preserve_corrupt_bytes()
             if kept:
                 logger.error(
-                    f"FileStore REFUSING TO PERSIST over {self._path}: {e}. "
-                    f"Original bytes preserved at {kept}; in-memory operation continues. "
-                    f"Redis remains authoritative -- reconcile the mirror before trusting it."
+                    "FileStore REFUSING TO PERSIST over %s: %s. "
+                    "Original bytes preserved at %s; in-memory operation continues. "
+                    "Redis remains authoritative -- reconcile the mirror before trusting it.",
+                    self._path,
+                    e,
+                    kept,
                 )
             else:
                 # Never claim a side effect we did not verify. The old code logged
@@ -438,13 +494,16 @@ class FileStore(Store):
                 # Same genus as a census OK-line that reads healthy whether or not the work
                 # happened; caught by kimi, who had already found that shape twice today.
                 logger.error(
-                    f"FileStore REFUSING TO PERSIST over {self._path}: {e}. "
-                    f"PRESERVATION FAILED -- the corrupt bytes exist ONLY at {self._path} "
-                    f"and nothing else holds a copy. Back it up before any recovery attempt. "
-                    f"Redis remains authoritative."
+                    "FileStore REFUSING TO PERSIST over %s: %s. "
+                    "PRESERVATION FAILED -- the corrupt bytes exist ONLY at %s "
+                    "and nothing else holds a copy. Back it up before any recovery attempt. "
+                    "Redis remains authoritative.",
+                    self._path,
+                    e,
+                    self._path,
                 )
 
-    def _preserve_corrupt_bytes(self) -> Optional[Path]:
+    def _preserve_corrupt_bytes(self) -> Path | None:
         """Copy (never move) the unreadable file aside. Returns the copy, or None on failure.
 
         Copy, because a move races every other process that is about to read it, and
@@ -456,9 +515,7 @@ class FileStore(Store):
         that case the corrupt file is the only copy left.
         """
         try:
-            keep = self._path.with_suffix(
-                f"{self._path.suffix}.corrupt.{int(time.time())}.{os.getpid()}"
-            )
+            keep = self._path.with_suffix(f"{self._path.suffix}.corrupt.{int(time.time())}.{os.getpid()}")
             if not keep.exists():
                 shutil.copy2(self._path, keep)
             return keep if keep.exists() else None
@@ -468,9 +525,7 @@ class FileStore(Store):
     def _flush(self) -> None:
         if self._degraded:
             # Fail CLOSED on persistence only. Reads and writes still work in memory.
-            logger.debug(
-                f"FileStore not persisting ({self._degraded}); {self._path} left intact."
-            )
+            logger.debug("FileStore not persisting (%s); %s left intact.", self._degraded, self._path)
             return
         tmp = self._temp_path()
         try:
@@ -481,7 +536,7 @@ class FileStore(Store):
             # Windows raises WinError 32 when the destination is briefly held open by
             # another reader; that is contention, not corruption, so a short retry is the
             # correct response rather than surfacing an error and dropping the write.
-            last: Optional[Exception] = None
+            last: Exception | None = None
             for attempt in range(5):
                 try:
                     os.replace(tmp, self._path)
@@ -491,7 +546,7 @@ class FileStore(Store):
                     time.sleep(0.02 * (attempt + 1))
             raise last if last else OSError("replace failed")
         except Exception as e:
-            logger.error(f"FileStore could not persist {self._path}: {e}")
+            logger.error("FileStore could not persist %s: %s", self._path, e)
         finally:
             try:
                 if tmp.exists():
@@ -659,7 +714,7 @@ class FileStore(Store):
             # Redis end index is inclusive; -1 means last element.
             if end == -1:
                 return lst[start:]
-            return lst[start:end + 1]
+            return lst[start : end + 1]
 
     def ltrim(self, key, start, end):
         with self._lock:
@@ -667,7 +722,7 @@ class FileStore(Store):
             lst = self._data["list"].get(key)
             if lst is None:
                 return True  # Redis LTRIM on a missing key is a no-op success
-            self._data["list"][key] = lst[start:] if end == -1 else lst[start:end + 1]
+            self._data["list"][key] = lst[start:] if end == -1 else lst[start : end + 1]
             self._flush()
             return True
 
@@ -704,7 +759,7 @@ class FileStore(Store):
             if s:
                 self._data["set"][key] = list(s)
             else:
-                self._data["set"].pop(key, None)   # empty set = absent, like Redis
+                self._data["set"].pop(key, None)  # empty set = absent, like Redis
             self._flush()
             return before - len(s)
 
@@ -728,7 +783,7 @@ class FileStore(Store):
             # by member; score-only sort leaked dict insertion order and made renders
             # differ by backend (the RB-12 instability, caught by test_store_differential).
             ordered = sorted(z.items(), key=lambda kv: (kv[1], kv[0]), reverse=desc)
-            sliced = ordered[start:] if end == -1 else ordered[start:end + 1]
+            sliced = ordered[start:] if end == -1 else ordered[start : end + 1]
             if withscores:
                 return [(m, s) for m, s in sliced]
             return [m for m, _ in sliced]
@@ -796,7 +851,7 @@ class FileStore(Store):
             if e < 0 or s > e:
                 return 0
             removed = 0
-            for m in ordered[s:e + 1]:
+            for m in ordered[s : e + 1]:
                 del z[m]
                 removed += 1
             if removed:
@@ -815,7 +870,7 @@ class FileStore(Store):
             return [k for k in all_keys if fnmatch.fnmatch(k, pattern)]
 
     # ---- snapshot (for reconciliation) ----
-    def snapshot(self) -> Dict[str, Any]:
+    def snapshot(self) -> dict[str, Any]:
         """
         Return a copy of all structures + expiry, for backfilling another backend.
 
@@ -848,14 +903,19 @@ class HybridStore(Store):
     Redis. Reads prefer Redis when available, else fall back to File.
     """
 
-    def __init__(self, redis_store: Optional[RedisStore], file_store: FileStore):
+    def __init__(self, redis_store: RedisStore | None, file_store: FileStore):
         self._redis = redis_store
         self._file = file_store
 
     @classmethod
-    def create(cls, host: str = DEFAULT_REDIS_HOST, port: int = DEFAULT_REDIS_PORT,
-               timeout_seconds: float = 2.0, file_path: Optional[str] = None,
-               db: int = DEFAULT_REDIS_DB) -> "HybridStore":
+    def create(
+        cls,
+        host: str = DEFAULT_REDIS_HOST,
+        port: int = DEFAULT_REDIS_PORT,
+        timeout_seconds: float = 2.0,
+        file_path: str | None = None,
+        db: int = DEFAULT_REDIS_DB,
+    ) -> "HybridStore":
         rs = RedisStore.connect(host=host, port=port, timeout_seconds=timeout_seconds, db=db)
         # T118 D5: the durable tier comes from the ONE backend selector. Hardcoding
         # FileStore here made AKASHIC_STORE_BACKEND=sqlite a lie for every canonical
@@ -880,17 +940,25 @@ class HybridStore(Store):
             try:
                 getattr(self._redis, method)(*args, **kwargs)
             except Exception as e:
-                logger.warning(f"HybridStore Redis write '{method}' failed: {e}")
+                logger.warning("HybridStore Redis write '%s' failed: %s", method, e)
         return result
 
     # key/value
-    def get(self, key): return self._read().get(key)
+    def get(self, key):
+        return self._read().get(key)
+
     def hgetall_prefix(self, prefix):
         """Reads follow the same preference as every other read: Redis when up, else File."""
         return self._read().hgetall_prefix(prefix)
-    def set(self, key, value): return self._write("set", key, value)
-    def delete(self, *keys): return self._write("delete", *keys)
-    def exists(self, key): return self._read().exists(key)
+
+    def set(self, key, value):
+        return self._write("set", key, value)
+
+    def delete(self, *keys):
+        return self._write("delete", *keys)
+
+    def exists(self, key):
+        return self._read().exists(key)
 
     def cas(self, key, expected, value):
         """CAS against the authoritative backend, then heal the other. When Redis is up
@@ -900,52 +968,87 @@ class HybridStore(Store):
         if self.redis_available:
             ok = self._redis.cas(key, expected, value)
             if ok:
-                self._file.set(key, value)   # heal: durable record matches Redis
+                self._file.set(key, value)  # heal: durable record matches Redis
             return ok
         return self._file.cas(key, expected, value)
 
-    # expiry (TTL)
-    def setex(self, key, seconds, value): return self._write("setex", key, seconds, value)
-    def expire(self, key, seconds): return self._write("expire", key, seconds)
-    def ttl(self, key): return self._read().ttl(key)
+    # TTL expiry
+    def setex(self, key, seconds, value):
+        return self._write("setex", key, seconds, value)
+
+    def expire(self, key, seconds):
+        return self._write("expire", key, seconds)
+
+    def ttl(self, key):
+        return self._read().ttl(key)
 
     # hash
     def hset(self, key, field=None, value=None, mapping=None):
         return self._write("hset", key, field=field, value=value, mapping=mapping)
-    def hget(self, key, field): return self._read().hget(key, field)
-    def hgetall(self, key): return self._read().hgetall(key)
+
+    def hget(self, key, field):
+        return self._read().hget(key, field)
+
+    def hgetall(self, key):
+        return self._read().hgetall(key)
 
     # list
-    def lpush(self, key, *values): return self._write("lpush", key, *values)
-    def rpush(self, key, *values): return self._write("rpush", key, *values)
-    def lrange(self, key, start, end): return self._read().lrange(key, start, end)
-    def ltrim(self, key, start, end): return self._write("ltrim", key, start, end)
-    def llen(self, key): return self._read().llen(key)
+    def lpush(self, key, *values):
+        return self._write("lpush", key, *values)
+
+    def rpush(self, key, *values):
+        return self._write("rpush", key, *values)
+
+    def lrange(self, key, start, end):
+        return self._read().lrange(key, start, end)
+
+    def ltrim(self, key, start, end):
+        return self._write("ltrim", key, start, end)
+
+    def llen(self, key):
+        return self._read().llen(key)
 
     # set
-    def sadd(self, key, *members): return self._write("sadd", key, *members)
-    def smembers(self, key): return self._read().smembers(key)
-    def sismember(self, key, member): return self._read().sismember(key, member)
-    def srem(self, key, *members): return self._write("srem", key, *members)
+    def sadd(self, key, *members):
+        return self._write("sadd", key, *members)
+
+    def smembers(self, key):
+        return self._read().smembers(key)
+
+    def sismember(self, key, member):
+        return self._read().sismember(key, member)
+
+    def srem(self, key, *members):
+        return self._write("srem", key, *members)
 
     # sorted set
-    def zadd(self, key, mapping): return self._write("zadd", key, mapping)
+    def zadd(self, key, mapping):
+        return self._write("zadd", key, mapping)
+
     def zrange(self, key, start, end, desc=False, withscores=False):
         return self._read().zrange(key, start, end, desc=desc, withscores=withscores)
-    def zscore(self, key, member): return self._read().zscore(key, member)
+
+    def zscore(self, key, member):
+        return self._read().zscore(key, member)
+
     def zrangebyscore(self, key, min_score, max_score):
         return self._read().zrangebyscore(key, min_score, max_score)
-    def zcard(self, key): return self._read().zcard(key)
+
+    def zcard(self, key):
+        return self._read().zcard(key)
+
     def zremrangebyrank(self, key, start, end):
         return self._write("zremrangebyrank", key, start, end)
+
     def zrem(self, key, *members):
         return self._write("zrem", key, *members)
 
     # keyspace
-    def keys(self, pattern="*"): return self._read().keys(pattern)
+    def keys(self, pattern="*"):
+        return self._read().keys(pattern)
 
     # ----- reconciliation: keep the two backends consistent -----
-    def check_drift(self) -> Dict[str, Any]:
+    def check_drift(self) -> dict[str, Any]:
         """
         Report divergence between the File (durable) and Redis backends.
 
@@ -955,8 +1058,7 @@ class HybridStore(Store):
         be backfilled with (the usual case after Redis was down during writes).
         """
         if not self.redis_available:
-            return {"redis_available": False, "missing_in_redis": [],
-                    "missing_in_file": [], "in_sync": False}
+            return {"redis_available": False, "missing_in_redis": [], "missing_in_file": [], "in_sync": False}
         file_keys = set(self._file.keys("*"))
         redis_keys = set(self._redis.keys("*"))
         missing_in_redis = sorted(file_keys - redis_keys)
@@ -968,7 +1070,7 @@ class HybridStore(Store):
             "in_sync": not missing_in_redis and not missing_in_file,
         }
 
-    def reconcile(self) -> Dict[str, Any]:
+    def reconcile(self) -> dict[str, Any]:
         """
         Heal divergence by backfilling Redis from the durable File snapshot.
 
@@ -987,10 +1089,12 @@ class HybridStore(Store):
         skipped = {"list": 0}
         try:
             for k, v in snap["kv"].items():
-                self._redis.set(k, v); written["kv"] += 1
+                self._redis.set(k, v)
+                written["kv"] += 1
             for k, h in snap["hash"].items():
                 if h:
-                    self._redis.hset(k, mapping=h); written["hash"] += 1
+                    self._redis.hset(k, mapping=h)
+                    written["hash"] += 1
             for k, lst in snap["list"].items():
                 # BACKFILL ONLY -- never overwrite a list Redis already holds.
                 #
@@ -1007,7 +1111,7 @@ class HybridStore(Store):
                 # is the live authority (matches read-Redis-first and cas()), so we leave it
                 # alone and SAY we did. Backfilling a key Redis lacks stays exactly as it was.
                 #
-                # Pin: tests/test_heal_clobbers_richer_redis_list.py
+                # Pinned by tests/test_heal_clobbers_richer_redis_list.py
                 # Evidence: research/reviewed/index-blindness-RECURRENCE-2026-07-27.md
                 if self._redis.exists(k):
                     skipped["list"] += 1
@@ -1017,21 +1121,24 @@ class HybridStore(Store):
                 written["list"] += 1
             for k, members in snap["set"].items():
                 if members:
-                    self._redis.sadd(k, *members); written["set"] += 1
+                    self._redis.sadd(k, *members)
+                    written["set"] += 1
             for k, zmap in snap["zset"].items():
                 if zmap:
-                    self._redis.zadd(k, zmap); written["zset"] += 1
+                    self._redis.zadd(k, zmap)
+                    written["zset"] += 1
             now = time.time()
             for k, exp in snap["expiry"].items():
                 remaining = int(exp - now)
                 if remaining > 0:
-                    self._redis.expire(k, remaining); written["expire"] += 1
+                    self._redis.expire(k, remaining)
+                    written["expire"] += 1
             return {"status": "success", "written": written, "skipped": skipped}
         except Exception as e:
-            logger.error(f"HybridStore reconcile failed: {e}")
+            logger.error("HybridStore reconcile failed: %s", e)
             return {"status": "error", "error": str(e), "written": written, "skipped": skipped}
 
-    def heal_report(self) -> List[str]:
+    def heal_report(self) -> list[str]:
         """RB-25 Drill 2 (H2/H2b): the OPERATOR-FACING cold-start heal. check_drift ->
         reconcile the File-ahead side (Redis was behind) -> return render lines that say
         BOTH what was healed AND what was NOT. The reconciler is unidirectional (File is
@@ -1039,7 +1146,7 @@ class HybridStore(Store):
         backfill into File -- but silence about it is the H2b gap: an operator never learns
         the divergence exists. Returns [] when the backends are in sync (no noise).
         Never raises -- a heal that bricks boot is worse than a skipped heal."""
-        lines: List[str] = []
+        lines: list[str] = []
         try:
             if not self.redis_available:
                 return lines
@@ -1047,14 +1154,17 @@ class HybridStore(Store):
             if drift.get("missing_in_redis"):
                 rep = self.reconcile()
                 n = sum((rep.get("written") or {}).values())
-                lines.append(f"[heal] Redis was behind -- backfilled {n} key-structure(s) "
-                             f"from the durable File (File is source of truth).")
+                lines.append(
+                    f"[heal] Redis was behind -- backfilled {n} key-structure(s) "
+                    f"from the durable File (File is source of truth)."
+                )
             orphans = drift.get("missing_in_file") or []
             if orphans:
-                lines.extend(self._classify_orphans(orphans))   # T081-W5: 3-way honest heal
+                lines.extend(self._classify_orphans(orphans))  # T081-W5: 3-way honest heal
         except Exception as e:
-            lines.append(f"[heal] divergence check failed ({type(e).__name__}) -- skipped, "
-                         f"start from the durable File.")
+            lines.append(
+                f"[heal] divergence check failed ({type(e).__name__}) -- skipped, start from the durable File."
+            )
         return lines
 
     @staticmethod
@@ -1067,10 +1177,11 @@ class HybridStore(Store):
     @classmethod
     def _top_families(cls, keys, n: int = 4) -> str:
         from collections import Counter
+
         c = Counter(cls._orphan_family(k) for k in keys)
         return ", ".join(f"{fam}({cnt})" for fam, cnt in c.most_common(n))
 
-    def _classify_orphans(self, orphans: List[str]) -> List[str]:
+    def _classify_orphans(self, orphans: list[str]) -> list[str]:
         """T081-W5: read the Store-owned durable families (from File), then render the 3-way heal.
         Fail-open: if the File read raises, file_fams=None -> the whole batch stays LOUD."""
         try:
@@ -1080,7 +1191,7 @@ class HybridStore(Store):
         return self._render_orphans(orphans, file_fams)
 
     @classmethod
-    def _render_orphans(cls, orphans: List[str], file_fams) -> List[str]:
+    def _render_orphans(cls, orphans: list[str], file_fams) -> list[str]:
         """T081-W5 (reconciled 2026-07-16, safety-critical) -- the honest heal, pure + testable.
         A Redis-only key is one of THREE things, not one, so the 4867-key wall becomes a signal:
           (2) DURABLE-family drift -- its family is Store-owned (in File); Redis just holds more
@@ -1094,35 +1205,46 @@ class HybridStore(Store):
         # booting seat's task -- the [fleet-hygiene] tag says so, so an all-caps INVESTIGATE
         # stops reading as a newcomer's first-minute assignment (their walk mis-diagnosed it).
         TAG = "[heal][fleet-hygiene]"
-        if file_fams is None:                             # classification unavailable -> all loud
+        if file_fams is None:  # classification unavailable -> all loud
             shown = ", ".join(orphans[:5]) + (" ..." if len(orphans) > 5 else "")
-            return [f"{TAG} {len(orphans)} Redis-only key(s) have NO File record "
+            return [
+                (
+                    f"{TAG} {len(orphans)} Redis-only key(s) have NO File record "
                     f"(classification unavailable -- ALL flagged): {shown}. "
-                    f"Investigate -- a write that never reached the durable side."]
+                    f"Investigate -- a write that never reached the durable side."
+                )
+            ]
         from core.comm.packet_spec import is_ephemeral_key
+
         durable, ephemeral, unknown = [], [], []
         for k in orphans:
-            if cls._orphan_family(k) in file_fams:        # File is truth -- checked FIRST
+            if cls._orphan_family(k) in file_fams:  # File is truth -- checked FIRST
                 durable.append(k)
             elif is_ephemeral_key(k):
                 ephemeral.append(k)
             else:
                 unknown.append(k)
-        out: List[str] = []
-        if unknown:                                       # most-severe first -- the real signal
+        out: list[str] = []
+        if unknown:  # most-severe first -- the real signal
             shown = ", ".join(unknown[:5]) + (" ..." if len(unknown) > 5 else "")
-            out.append(f"{TAG} {len(unknown)} UNKNOWN Redis-only key(s) -- no File record, not "
-                       f"ephemeral-by-design: {shown}. INVESTIGATE (owner: whoever mints this "
-                       f"family, not the booting seat) -- a write that never reached the "
-                       f"durable side.")
+            out.append(
+                f"{TAG} {len(unknown)} UNKNOWN Redis-only key(s) -- no File record, not "
+                f"ephemeral-by-design: {shown}. INVESTIGATE (owner: whoever mints this "
+                f"family, not the booting seat) -- a write that never reached the "
+                f"durable side."
+            )
         if durable:
-            out.append(f"{TAG} {len(durable)} durable-family key(s) Redis-ahead of File "
-                       f"({cls._top_families(durable)}) -- expected for append/TTL-trimmed "
-                       f"families; investigate only if growing.")
+            out.append(
+                f"{TAG} {len(durable)} durable-family key(s) Redis-ahead of File "
+                f"({cls._top_families(durable)}) -- expected for append/TTL-trimmed "
+                f"families; investigate only if growing."
+            )
         if ephemeral:
-            out.append(f"{TAG} {len(ephemeral)} expected Redis-only key(s) "
-                       f"({cls._top_families(ephemeral)}) -- transport/control/telemetry/drill, "
-                       f"no action.")
+            out.append(
+                f"{TAG} {len(ephemeral)} expected Redis-only key(s) "
+                f"({cls._top_families(ephemeral)}) -- transport/control/telemetry/drill, "
+                f"no action."
+            )
         return out
 
     def close(self):
@@ -1176,9 +1298,14 @@ class DictStore(FileStore):
 # =====================================================================
 # Factory
 # =====================================================================
-def create_store(prefer_redis: bool = True, host: str = DEFAULT_REDIS_HOST, port: int = DEFAULT_REDIS_PORT,
-                  timeout_seconds: float = 2.0, file_path: Optional[str] = None,
-                  db: int = DEFAULT_REDIS_DB) -> Store:
+def create_store(
+    prefer_redis: bool = True,
+    host: str = DEFAULT_REDIS_HOST,
+    port: int = DEFAULT_REDIS_PORT,
+    timeout_seconds: float = 2.0,
+    file_path: str | None = None,
+    db: int = DEFAULT_REDIS_DB,
+) -> Store:
     """
     Create the default Store for the system.
 
@@ -1191,11 +1318,10 @@ def create_store(prefer_redis: bool = True, host: str = DEFAULT_REDIS_HOST, port
     """
     if not prefer_redis:
         return _file_tier(file_path)
-    return HybridStore.create(host=host, port=port, timeout_seconds=timeout_seconds,
-                              file_path=file_path, db=db)
+    return HybridStore.create(host=host, port=port, timeout_seconds=timeout_seconds, file_path=file_path, db=db)
 
 
-def _file_tier(file_path: Optional[str] = None) -> Store:
+def _file_tier(file_path: str | None = None) -> Store:
     """The durable file tier: SqliteStore when opted in, FileStore otherwise.
 
     OPT-IN ON PURPOSE, and it must stay opt-in until the canonical store is migrated.
@@ -1214,15 +1340,15 @@ def _file_tier(file_path: Optional[str] = None) -> Store:
     """
     if (os.getenv("AKASHIC_STORE_BACKEND") or "").strip().lower() == "sqlite":
         from core.foundation.sqlite_store import SqliteStore  # late: avoids an import cycle
+
         path = file_path
         echo = file_path
         if path and path.endswith(".json"):
-            path = path[:-len(".json")] + ".db"
+            path = path[: -len(".json")] + ".db"
         elif path is None:
             # Defaults pair store_state.db with store_state.json -- the same twin the
             # migration and the dual-authority checker reason about.
-            echo = os.path.join(_repo_root_str(),
-                                "session_logs", "store_state.json")
+            echo = os.path.join(_repo_root_str(), "session_logs", "store_state.json")
         else:
             echo = None  # a bare .db path names no JSON twin; nothing to escrow to
         # T118 D4: while the cutover era lasts, closing a sqlite-selected store exports

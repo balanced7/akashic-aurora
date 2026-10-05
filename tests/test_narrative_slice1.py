@@ -7,20 +7,23 @@ These guard the three things finished in Slice 1's tail:
   - end_session is idempotent (no orphan session-end Beats on repeated calls).
   - a `mark` Beat forces a chapter boundary AND names the chapter (explicit intent).
 """
+
+import json
 import os
 import sys
 import tempfile
 
-_TESTS = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.dirname(_TESTS))
-sys.path.insert(0, _TESTS)
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 
 from core.foundation.store import FileStore
 from core.narrative.beat_log import BeatLog
-from core.narrative.chronicler import Chronicler, BoundaryDetector
-from core.narrative.schema import Beat, BEAT_KINDS, beat_key
-from core.narrative.session import start_session, end_session, SESSION_OPEN_KEY
-import json
+from core.narrative.chronicler import BoundaryDetector, Chronicler
+from core.narrative.schema import BEAT_KINDS, Beat
+from core.narrative.session import SESSION_OPEN_KEY, end_session, start_session
+
+_TESTS = os.path.dirname(os.path.abspath(__file__))
 
 
 def _store():
@@ -29,10 +32,11 @@ def _store():
 
 def _beats_in(store):
     bl = BeatLog(store)
-    return [b for b in bl.recent(1000)]
+    return list(bl.recent(1000))
 
 
 # ---------------- session kind ----------------
+
 
 def test_session_is_a_real_kind():
     assert "session" in BEAT_KINDS
@@ -43,10 +47,12 @@ def test_session_beat_keeps_kind():
     s = _store()
     bl = BeatLog(s)
     b = bl.emit("session", "Session started", "session:start")
-    assert b is not None and b.kind == "session"   # not downgraded to "note"
+    assert b is not None
+    assert b.kind == "session"
 
 
 # ---------------- auto-capture lifecycle ----------------
+
 
 def test_start_session_opens_marker():
     s = _store()
@@ -54,7 +60,7 @@ def test_start_session_opens_marker():
     assert rep["closed_prior"] is False
     assert s.get(SESSION_OPEN_KEY) == "2026-06-01T10:00:00"
     kinds = [b.kind for b in _beats_in(s)]
-    assert kinds.count("session") == 1            # one start, no end yet
+    assert kinds.count("session") == 1  # one start, no end yet
 
 
 def test_second_start_closes_prior():
@@ -74,13 +80,15 @@ def test_end_session_idempotent():
     start_session(s, now="2026-06-01T10:00:00", chronicle=False)
     r1 = end_session(s, now="2026-06-01T18:00:00", chronicle=False)
     r2 = end_session(s, now="2026-06-01T19:00:00", chronicle=False)
-    assert r1["closed"] is True and r2["closed"] is False
+    assert r1["closed"] is True
+    assert r2["closed"] is False
     ends = [b for b in _beats_in(s) if b.summary == "Session ended"]
-    assert len(ends) == 1                          # no orphan end on the 2nd call
+    assert len(ends) == 1  # no orphan end on the 2nd call
     assert s.get(SESSION_OPEN_KEY) is None
 
 
 # ---------------- mark_chapter ----------------
+
 
 def test_mark_kind_forces_boundary():
     bd = BoundaryDetector()
@@ -90,23 +98,22 @@ def test_mark_kind_forces_boundary():
         Beat(id="c", at="2026-06-01T10:06:00", kind="note", summary="y", source="s3", weight=1),
     ]
     cuts = bd.detect(beats)
-    assert 1 in cuts                                # the mark starts a new chapter
+    assert 1 in cuts  # the mark starts a new chapter
 
 
 def test_mark_titles_its_chapter():
     s = _store()
     bl = BeatLog(s)
     # one segment whose most salient non-mark beat differs from the mark title
-    bl.emit("mark", "Build the evaluation harness", "mark:1",
-            at="2026-06-01T10:00:00", track="ai-setup")
+    bl.emit("mark", "Build the evaluation harness", "mark:1", at="2026-06-01T10:00:00", track="ai-setup")
     bl.emit("commit", "wip", "git:abc", at="2026-06-01T10:30:00", track="ai-setup", weight=2)
     c = Chronicler(beat_log=bl, store=s, chronicle_dir=tempfile.mkdtemp())
     c.chronicle_all(now="2026-06-02T00:00:00")
-    titles = []
-    for k in s.keys("narr:chapter:*") if hasattr(s, "keys") else []:
+    for _k in s.keys("narr:chapter:*") if hasattr(s, "keys") else []:
         pass
     # load chapters via atlas/track listing
-    from core.narrative.schema import Atlas, Track, track_key, chapter_key, ATLAS_KEY
+    from core.narrative.schema import ATLAS_KEY, Atlas, Track, chapter_key, track_key
+
     atlas = Atlas.from_dict(json.loads(s.get(ATLAS_KEY)))
     found = False
     for t in atlas.tracks:
