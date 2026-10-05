@@ -617,7 +617,7 @@
   "research/reviewed/origin-prelog-2026-04-11/dump_april_redis.py",
   "research/reviewed/origin-prelog-2026-04-11/extract_opencode.py"
  ],
- "commit": "7f4987a4caf89069e9724409c7975027d027c6a7",
+ "commit": "5688adf8ffae9ba9a227af90c87e97c6419d0238",
  "counts": {
   "ARCHIVAL": 261,
   "RUNTIME": 360,
@@ -13477,10 +13477,9 @@
   "tests/test_install_showcase.py": {
    "argparse": false,
    "class": "TEST",
-   "import_safe": false,
-   "import_unsafe_reason": "top-level call print()",
-   "lines": 82,
-   "main_guard": false,
+   "import_safe": true,
+   "lines": 94,
+   "main_guard": true,
    "module": "tests.test_install_showcase",
    "parse_ok": true
   },
@@ -18415,7 +18414,7 @@
    "argparse": true,
    "class": "TOOLING",
    "import_safe": true,
-   "lines": 2604,
+   "lines": 2605,
    "main_guard": true,
    "module": null,
    "parse_ok": true
@@ -19823,12 +19822,12 @@
   },
   {
    "file": "CONTRIBUTING.md",
-   "line": 44,
+   "line": 66,
    "text": "# Windows fallback without uv:  py scripts/githooks/install_git_hooks.py"
   },
   {
    "file": "CONTRIBUTING.md",
-   "line": 98,
+   "line": 120,
    "text": "`scripts/checkers/check_doc_freshness.py` (only living entry-point docs at the repo root). Windows"
   },
   {
