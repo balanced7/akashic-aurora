@@ -45,6 +45,7 @@ in the tree the players are given (`exclude_self()` below), and the seed stays s
 player doing ordinary analysis the oracle is sound; against one attacking the oracle itself it is
 not, and that is a Red Team bounty in its own right rather than a property to claim.
 """
+
 import hashlib
 import json
 import os
@@ -68,16 +69,24 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # COMPARABILITY: catch_rate figures recorded BEFORE this change were taken on an easier board.
 # Do not compare across this line.
 _CATCHABLE = [
-    ('if {flag}:\n    def {name}():\n        """Helper."""\n        return None\n',
-     'compound-statement def (T143 shape)'),
-    ('try:\n    import json as _j\n\n    def {name}():\n        """Helper."""\n        return _j\nexcept ImportError:\n    pass\n',
-     'try-block def (T143 shape)'),
-    ('for _ in range(1):\n    def {name}():\n        """Helper."""\n        return 0\n',
-     'loop-scoped def (T143 shape)'),
+    (
+        'if {flag}:\n    def {name}():\n        """Helper."""\n        return None\n',
+        "compound-statement def (T143 shape)",
+    ),
+    (
+        'try:\n    import json as _j\n\n    def {name}():\n        """Helper."""\n        return _j\nexcept ImportError:\n    pass\n',
+        "try-block def (T143 shape)",
+    ),
+    (
+        'for _ in range(1):\n    def {name}():\n        """Helper."""\n        return 0\n',
+        "loop-scoped def (T143 shape)",
+    ),
 ]
 _UNDETECTABLE = [
-    ('def {name}():\n    """Helper."""\n    return 1\n\n\n_DISPATCH = {{"{name}": {name}}}\n',
-     'string-dispatch only (A5 shape)'),
+    (
+        'def {name}():\n    """Helper."""\n    return 1\n\n\n_DISPATCH = {{"{name}": {name}}}\n',
+        "string-dispatch only (A5 shape)",
+    ),
     # CALIBRATED TWICE, 2026-08-04, and the second failure taught the real lesson: I had the
     # detector's semantics INVERTED. This gate does not ask "is the function reachable"; it asks
     # "does any production path NAME it". So a runtime-assembled name -- my first attempt at
@@ -88,13 +97,13 @@ _UNDETECTABLE = [
     # WIRING SIGNAL, so the gate sees a mention and waves it through. Both templates here do
     # that -- a dispatch table and a handler list, each naming the function, neither ever
     # invoked. That is the class the season must report it cannot see.
-    ('def {name}():\n    """Helper."""\n    return 2\n\n\n'
-     '_HANDLERS = [{name}]\n',
-     'registered-never-invoked (A5 shape)'),
+    (
+        'def {name}():\n    """Helper."""\n    return 2\n\n\n_HANDLERS = [{name}]\n',
+        "registered-never-invoked (A5 shape)",
+    ),
 ]
 _BAIT = [
-    ('def {name}():\n    """Helper."""\n    return 3\n\n\n_USED = {name}()\n',
-     'live function that reads dead'),
+    ('def {name}():\n    """Helper."""\n    return 3\n\n\n_USED = {name}()\n', "live function that reads dead"),
 ]
 
 
@@ -135,18 +144,22 @@ def _resolve_universe(shadow_root: str):
         detail = ""
         try:
             r = subprocess.run(
-                [sys.executable, os.path.join("scripts", "checkers", "check_wiring.py"),
-                 "--candidates"],
-                cwd=shadow_root, capture_output=True, text=True, timeout=600)
+                [sys.executable, os.path.join("scripts", "checkers", "check_wiring.py"), "--candidates"],
+                cwd=shadow_root,
+                capture_output=True,
+                text=True,
+                timeout=600,
+            )
             if r.returncode == 0 and r.stdout.strip():
                 rels = json.loads(r.stdout)
                 if rels:
-                    return sorted(os.path.join(shadow_root, p.replace("/", os.sep))
-                                  for p in rels), "detector"
+                    return sorted(os.path.join(shadow_root, p.replace("/", os.sep)) for p in rels), "detector"
                 detail = "the detector answered with an EMPTY candidate list"
             else:
-                detail = (f"--candidates exited {r.returncode} and did not print JSON "
-                          f"(first line: {(r.stdout or r.stderr).strip().splitlines()[:1]})")
+                detail = (
+                    f"--candidates exited {r.returncode} and did not print JSON "
+                    f"(first line: {(r.stdout or r.stderr).strip().splitlines()[:1]})"
+                )
         except (OSError, ValueError, subprocess.SubprocessError) as exc:
             detail = f"{type(exc).__name__}: {exc}"
 
@@ -159,14 +172,14 @@ def _resolve_universe(shadow_root: str):
             f"guess: a canary planted outside the gate's scope is scored as a detector failure, "
             f"which is how T158 published 0.67 health for a healthy detector (twice). If this "
             f"shadow predates the --candidates door, either rebuild it from a commit that has "
-            f"the door or pass targets= explicitly and own the choice.")
+            f"the door or pass targets= explicitly and own the choice."
+        )
 
     out = []
     core = os.path.join(shadow_root, "core")
     for base, dirs, files in os.walk(core):
         dirs[:] = [d for d in dirs if not d.startswith((".", "__"))]
-        out += [os.path.join(base, f) for f in files
-                if f.endswith(".py") and f != "__init__.py"]
+        out += [os.path.join(base, f) for f in files if f.endswith(".py") and f != "__init__.py"]
     return sorted(out), "structural-fallback"
 
 
@@ -196,7 +209,8 @@ def plant(shadow_root: str, k: int = 6, seed: int = 0, targets=None) -> dict:
     if _inside_repo(shadow_root):
         raise ValueError(
             f"refusing to plant inside the live repository ({shadow_root}). Canaries go in a "
-            f"shadow copy (git worktree); the live tree is READ-ONLY for the season.")
+            f"shadow copy (git worktree); the live tree is READ-ONLY for the season."
+        )
     if not os.path.isdir(shadow_root):
         raise ValueError(f"shadow root does not exist: {shadow_root}")
 
@@ -209,12 +223,15 @@ def plant(shadow_root: str, k: int = 6, seed: int = 0, targets=None) -> dict:
     if not targets:
         raise ValueError(
             f"no plantable target files under {shadow_root}. With the default selector this means "
-            f"core/ is missing -- a canary outside the detector's scan universe measures nothing.")
+            f"core/ is missing -- a canary outside the detector's scan universe measures nothing."
+        )
 
     rng = random.Random(seed)
-    plan = ([("catchable", _CATCHABLE)] * ((k + 2) // 3)
-            + [("undetectable", _UNDETECTABLE)] * ((k + 1) // 3)
-            + [("bait", _BAIT)] * (k // 3))[:k]
+    plan = (
+        [("catchable", _CATCHABLE)] * ((k + 2) // 3)
+        + [("undetectable", _UNDETECTABLE)] * ((k + 1) // 3)
+        + [("bait", _BAIT)] * (k // 3)
+    )[:k]
 
     canaries = []
     for i, (cls, pool) in enumerate(plan):
@@ -222,20 +239,28 @@ def plant(shadow_root: str, k: int = 6, seed: int = 0, targets=None) -> dict:
         name = f"{rng.choice(['route', 'emit', 'resolve', 'collect', 'apply'])}_{rng.randrange(16**6):06x}"
         target = targets[rng.randrange(len(targets))]
         cut = len(name) // 2
-        body = tmpl.format(name=name, flag=f"_FLAG_{rng.randrange(16**4):04x}",
-                           half_a=name[:cut], half_b=name[cut:])
+        body = tmpl.format(name=name, flag=f"_FLAG_{rng.randrange(16**4):04x}", half_a=name[:cut], half_b=name[cut:])
         with open(target, "a", encoding="utf-8") as f:
             f.write("\n\n" + body)
-        canaries.append({
-            "id": f"c{i:02d}_{hashlib.sha256(f'{seed}:{i}:{name}'.encode()).hexdigest()[:8]}",
-            "cls": cls, "shape": shape, "name": name,
-            "file": os.path.relpath(target, shadow_root).replace("\\", "/"),
-        })
-    return {"seed": seed, "k": k, "shadow_root": shadow_root, "canaries": canaries,
-            # T159 receipt: WHICH universe this round was measured against, and how big it was.
-            # Detector health is only interpretable next to the field of view it was scored over
-            # -- narrowing the universe raises the number without improving anything.
-            "universe": {"source": universe_source, "size": len(targets)}}
+        canaries.append(
+            {
+                "id": f"c{i:02d}_{hashlib.sha256(f'{seed}:{i}:{name}'.encode()).hexdigest()[:8]}",
+                "cls": cls,
+                "shape": shape,
+                "name": name,
+                "file": os.path.relpath(target, shadow_root).replace("\\", "/"),
+            }
+        )
+    return {
+        "seed": seed,
+        "k": k,
+        "shadow_root": shadow_root,
+        "canaries": canaries,
+        # T159 receipt: WHICH universe this round was measured against, and how big it was.
+        # Detector health is only interpretable next to the field of view it was scored over
+        # -- narrowing the universe raises the number without improving anything.
+        "universe": {"source": universe_source, "size": len(targets)},
+    }
 
 
 def exclude_self(shadow_root: str) -> bool:
@@ -253,8 +278,7 @@ def exclude_self(shadow_root: str) -> bool:
 
 
 def _digest(manifest: dict) -> str:
-    return hashlib.sha256(
-        json.dumps(manifest, sort_keys=True, ensure_ascii=False).encode("utf-8")).hexdigest()
+    return hashlib.sha256(json.dumps(manifest, sort_keys=True, ensure_ascii=False).encode("utf-8")).hexdigest()
 
 
 def seal(manifest: dict, path: str) -> str:
@@ -268,7 +292,8 @@ def seal(manifest: dict, path: str) -> str:
         raise ValueError(
             f"refusing to seal inside the repository ({path}). An answer key must not enter any "
             f"retrieval plane -- not the library, not notes, not a commit message. Keep it "
-            f"untracked and commit only the sha256 as the integrity receipt.")
+            f"untracked and commit only the sha256 as the integrity receipt."
+        )
     digest = _digest(manifest)
     with open(path, "w", encoding="utf-8") as f:
         json.dump({"sha256": digest, "manifest": manifest}, f, sort_keys=True)
@@ -307,23 +332,28 @@ def score(manifest: dict, claims) -> dict:
     for cls in ("catchable", "undetectable", "bait"):
         by_class.setdefault(cls, {"caught": 0, "missed": 0, "total": 0, "ids": []})
 
-    undetectable_hits = [c["id"] for c in manifest.get("canaries", [])
-                         if c["cls"] == "undetectable" and c["id"] in claimed]
+    undetectable_hits = [
+        c["id"] for c in manifest.get("canaries", []) if c["cls"] == "undetectable" and c["id"] in claimed
+    ]
     cat = by_class["catchable"]
     catch_rate = (cat["caught"] / cat["total"]) if cat["total"] else None
 
     known = {c["id"] for c in manifest.get("canaries", [])}
     return {
         "by_class": by_class,
-        "catch_rate": catch_rate,                      # DETECTOR HEALTH -- the only headline
-        "coverage_honesty": (by_class["undetectable"]["missed"]
-                             / by_class["undetectable"]["total"]) if by_class["undetectable"]["total"] else None,
+        "catch_rate": catch_rate,  # DETECTOR HEALTH -- the only headline
+        "coverage_honesty": (by_class["undetectable"]["missed"] / by_class["undetectable"]["total"])
+        if by_class["undetectable"]["total"]
+        else None,
         "false_positives": by_class["bait"]["caught"],  # bait "caught" is a PRECISION failure
-        "unknown_claims": sorted(claimed - known),      # claims naming no canary at all
+        "unknown_claims": sorted(claimed - known),  # claims naming no canary at all
         "voided": bool(undetectable_hits),
-        "void_reason": (f"claimed undetectable canary/canaries {undetectable_hits} -- the key "
-                        f"leaked or the instrument is being gamed; this round's evidence is void"
-                        if undetectable_hits else ""),
+        "void_reason": (
+            f"claimed undetectable canary/canaries {undetectable_hits} -- the key "
+            f"leaked or the instrument is being gamed; this round's evidence is void"
+            if undetectable_hits
+            else ""
+        ),
     }
 
 
@@ -351,12 +381,10 @@ def score_v2(manifest: dict, claims, *, assigned, judged) -> dict:
 
     if not claimed <= judged:
         extra = sorted(claimed - judged)
-        raise ValueError(
-            f"claimed ids must be a subset of judged ids; unjudged claims: {extra}")
+        raise ValueError(f"claimed ids must be a subset of judged ids; unjudged claims: {extra}")
     if not judged <= assigned:
         extra = sorted(judged - assigned)
-        raise ValueError(
-            f"judged ids must be a subset of assigned ids; unassigned judgments: {extra}")
+        raise ValueError(f"judged ids must be a subset of assigned ids; unassigned judgments: {extra}")
 
     canaries = list(manifest.get("canaries", []))
     ids = [c["id"] for c in canaries]
@@ -392,8 +420,7 @@ def score_v2(manifest: dict, claims, *, assigned, judged) -> dict:
         # positive and the rate is recall.  Bait is live code: its claim rate is useful, but
         # calling that rate "recall" would invert the meaning again.
         row["recall"] = row["claim_rate"] if cls != "bait" else None
-        row["assigned_recall"] = (
-            row["assigned_claim_rate"] if cls != "bait" else None)
+        row["assigned_recall"] = row["assigned_claim_rate"] if cls != "bait" else None
         by_class[cls] = row
 
     known = set(ids)
@@ -409,8 +436,7 @@ def score_v2(manifest: dict, claims, *, assigned, judged) -> dict:
         "precision": _ratio(len(true_claims), len(claimed)),
         "false_positives": len(bait_claims),
         "unknown_claims": sorted(claimed - known),
-        "capability_findings": sorted(
-            claimed & {c["id"] for c in canaries if c["cls"] == "undetectable"}),
+        "capability_findings": sorted(claimed & {c["id"] for c in canaries if c["cls"] == "undetectable"}),
     }
 
 
@@ -443,15 +469,11 @@ def protocol_verdict(*, seal_verified, archive_complete, key_leak_detected) -> d
             "facts": facts,
         }
 
-    if (seal_verified is True
-            and archive_complete is True
-            and key_leak_detected is False):
+    if seal_verified is True and archive_complete is True and key_leak_detected is False:
         return {
             "validity": "VALID",
             "voided": False,
-            "basis": [
-                "seal verified, archive complete, and no answer-key leak was detected"
-            ],
+            "basis": ["seal verified, archive complete, and no answer-key leak was detected"],
             "facts": facts,
         }
 
@@ -460,8 +482,7 @@ def protocol_verdict(*, seal_verified, archive_complete, key_leak_detected) -> d
         if value is None:
             unknown_basis.append(f"{name}=None: the fact was not established")
         elif name == "archive_complete" and value is False:
-            unknown_basis.append(
-                "archive_complete=False: the evidence record is incomplete")
+            unknown_basis.append("archive_complete=False: the evidence record is incomplete")
     return {
         "validity": "UNKNOWN",
         "voided": None,

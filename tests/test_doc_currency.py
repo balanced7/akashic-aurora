@@ -8,6 +8,7 @@ superseded-by. Guard behavior pins run against a temp docs tree.
 
 Run: py -m pytest tests/test_doc_currency.py -q
 """
+
 from scripts.checkers import check_doc_currency as g  # T104-M1 home; conftest puts repo root on sys.path
 
 
@@ -18,21 +19,26 @@ def _classify(tmp_path, head):
 
 
 def test_current_variants_parse(tmp_path):
-    for head in ("# T\n\nStatus: current\n",
-                 "# T\nStatus: current (plan awaiting picks)\n",
-                 "# T\n**Status:** current\n",
-                 "# T\nSTATUS: Current as of 2026-07\n"):
+    for head in (
+        "# T\n\nStatus: current\n",
+        "# T\nStatus: current (plan awaiting picks)\n",
+        "# T\n**Status:** current\n",
+        "# T\nSTATUS: Current as of 2026-07\n",
+    ):
         verdict, _ = _classify(tmp_path, head)
         assert verdict == "current", head
 
 
 def test_superseded_requires_target(tmp_path):
     v, target = _classify(tmp_path, "# T\nStatus: superseded-by docs/newer-plan.md\n")
-    assert v == "superseded" and target == "docs/newer-plan.md"
+    assert v == "superseded"
+    assert target == "docs/newer-plan.md"
     v, target = _classify(tmp_path, "# T\n**Status:** superseded-by: docs/x.md (see there)\n")
-    assert v == "superseded" and target.startswith("docs/x.md")
+    assert v == "superseded"
+    assert target.startswith("docs/x.md")
     v, target = _classify(tmp_path, "# T\nStatus: superseded\n")
-    assert v == "superseded" and target == "", "no target -> guard fails it upstream"
+    assert v == "superseded", "no target -> guard fails it upstream"
+    assert target == "", "no target -> guard fails it upstream"
 
 
 def test_historical_parses(tmp_path):
@@ -41,10 +47,12 @@ def test_historical_parses(tmp_path):
 
 
 def test_vocabulary_is_strict(tmp_path):
-    for head in ("# T\nStatus: execution plan\n",
-                 "# T\nStatus: SETTLED -- full ACK\n",
-                 "# T\nStatus: v2.1 LOCKED\n",
-                 "# T\nno status here at all\n"):
+    for head in (
+        "# T\nStatus: execution plan\n",
+        "# T\nStatus: SETTLED -- full ACK\n",
+        "# T\nStatus: v2.1 LOCKED\n",
+        "# T\nno status here at all\n",
+    ):
         v, _ = _classify(tmp_path, head)
         assert v == "unstamped", head
 
@@ -52,4 +60,5 @@ def test_vocabulary_is_strict(tmp_path):
 def test_status_must_be_near_the_top(tmp_path):
     body = "# T\n" + "filler\n" * 20 + "Status: current\n"
     v, detail = _classify(tmp_path, body)
-    assert v == "unstamped" and "first 12" in detail
+    assert v == "unstamped"
+    assert "first 12" in detail

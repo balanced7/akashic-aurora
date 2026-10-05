@@ -3,6 +3,7 @@ attempt (S3a) or against a live twin's held seat (S3b); a tombstoned holder fall
 Cites t086-seat-reconciliation-2026-07-16.md. Receipts: 2026-07-16 ~09:16 (nag mid-retry-loop)
 and ~09:11 (nag would have demanded a watcher while the ghost held the seat).
 Exercised through the REAL hook subprocess (the t086-s1 pattern)."""
+
 import json
 import os
 import subprocess
@@ -13,6 +14,8 @@ import uuid
 import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+import contextlib
 
 from core.comm import runner_lock, wake_seat
 from core.comm.bus import Bus
@@ -29,14 +32,14 @@ HOOK = os.path.join(REPO, "agent", "harness", "hooks", "claude_stop.py")
 
 
 def _run_hook(agent: str, session_id: str):
-    env = {**os.environ, "AKASHIC_AGENT_ID": agent, "AKASHIC_DAEMON_WAKE": "0",
-           "AKASHIC_STOP_PROMISE": "0"}
+    env = {**os.environ, "AKASHIC_AGENT_ID": agent, "AKASHIC_DAEMON_WAKE": "0", "AKASHIC_STOP_PROMISE": "0"}
     payload = json.dumps({"session_id": session_id, "hook_event_name": "Stop"})
-    return subprocess.run([sys.executable, HOOK], input=payload, capture_output=True,
-                          text=True, timeout=60, cwd=REPO, env=env)
+    return subprocess.run(
+        [sys.executable, HOOK], input=payload, capture_output=True, text=True, timeout=60, cwd=REPO, env=env
+    )
 
 
-@pytest.fixture()
+@pytest.fixture
 def agent():
     aid = f"t086s3-{uuid.uuid4().hex[:8]}"
     yield aid
@@ -56,7 +59,8 @@ def _sid() -> str:
 def test_s3a_fresh_arming_marker_suppresses_nag(agent):
     sid = _sid()
     m = os.path.join(__import__("tempfile").gettempdir(), f"bifrost_wake_{agent}_{sid}.arming")
-    open(m, "w").write(str(time.time()))
+    with open(m, "w") as fh:
+        fh.write(str(time.time()))
     try:
         r = _run_hook(agent, sid)
         assert '"decision": "block"' not in (r.stdout or "")
@@ -83,10 +87,8 @@ def test_s3b_tombstoned_twin_falls_through_to_nag(agent):
         r = _run_hook(agent, sid)
         assert '"decision": "block"' in (r.stdout or ""), (r.stdout, r.stderr)
     finally:
-        try:
+        with contextlib.suppress(Exception):
             os.remove(wake_seat.tombstone_path(ghost))
-        except Exception:
-            pass
         c = runner_lock._client()
         if c is not None:
             c.delete(f"bifrost:session:ended:{ghost}")

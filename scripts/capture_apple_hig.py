@@ -20,6 +20,7 @@ this script + INDEX.md are the committed, reproducible part):
 
 Rerunnable: skips files that already exist (pass --force to refetch).
 """
+
 import argparse
 import json
 import re
@@ -31,8 +32,7 @@ from pathlib import Path
 BASE = "https://developer.apple.com"
 DATA = BASE + "/tutorials/data/design/human-interface-guidelines/{slug}.json"
 ROOT = Path(__file__).resolve().parent.parent / "design" / "refs" / "apple-hig"
-UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-      "(KHTML, like Gecko) Chrome/126.0 Safari/537.36")
+UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
 DELAY = 0.25  # politeness between requests
 
 
@@ -43,7 +43,7 @@ def fetch(url: str, binary: bool = False, retries: int = 3):
             with urllib.request.urlopen(req, timeout=60) as r:
                 data = r.read()
             return data if binary else json.loads(data)
-        except Exception as e:  # noqa: BLE001 — log and retry; the summary reports misses
+        except Exception as e:  # noqa: BLE001  # fail-soft: logged, caller continues — log and retry; the summary reports misses
             if attempt == retries - 1:
                 print(f"  MISS {url} ({type(e).__name__}: {e})", file=sys.stderr)
                 return None
@@ -107,7 +107,8 @@ def harvest_page(slug: str, force: bool) -> dict | None:
         text_p.parent.mkdir(parents=True, exist_ok=True)
         text_p.write_text(
             f"# {title}\n\n_{abstract}_\n\nSource: {BASE}/design/human-interface-guidelines/{slug}\n\n"
-            + extract_text(page) + "\n",
+            + extract_text(page)
+            + "\n",
             encoding="utf-8",
         )
 
@@ -208,22 +209,23 @@ def main() -> int:
     lines = [
         "# Apple HIG components capture — INDEX",
         "",
-        f"Captured {len(rows)} page(s), {sum(r['images'] for r in rows)} image file(s) "
-        f"(variants counted); misses: {misses or 'none'}.",
+        (
+            f"Captured {len(rows)} page(s), {sum(r['images'] for r in rows)} image file(s) "
+            f"(variants counted); misses: {misses or 'none'}."
+        ),
         "Assets live beside this index (raw/, text/, images/) and are GITIGNORED —",
         "copyrighted material stays local; rerun scripts/capture_apple_hig.py to refetch.",
         "",
         "| Group | Component | Images | Source |",
         "|---|---|---|---|",
     ]
-    for r in rows:
-        lines.append(
-            f"| {r['group']} | [{r['title']}](text/{r['slug']}.md) | {r['images']} | "
-            f"{BASE}/design/human-interface-guidelines/{r['slug']} |"
-        )
+    lines.extend(
+        f"| {r['group']} | [{r['title']}](text/{r['slug']}.md) | {r['images']} | "
+        f"{BASE}/design/human-interface-guidelines/{r['slug']} |"
+        for r in rows
+    )
     (ROOT / "INDEX.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
-    print(f"[hig] DONE: {len(rows)} pages, {sum(r['images'] for r in rows)} images, "
-          f"{len(misses)} miss(es) -> {ROOT}")
+    print(f"[hig] DONE: {len(rows)} pages, {sum(r['images'] for r in rows)} images, {len(misses)} miss(es) -> {ROOT}")
     return 0
 
 

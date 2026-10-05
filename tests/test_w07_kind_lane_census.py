@@ -12,6 +12,7 @@ legacy-only again (the W38 register-at-ship-time spirit, applied to lane kinds).
   P3  COMPLETENESS: every wake_worthy kind maps to a lane
   P4  COMPLETENESS: every ACL bus_send_kind maps to a lane (no legacy-only salient mail)
 """
+
 import os
 import sys
 
@@ -30,6 +31,7 @@ def test_p2_blocker_routes_work():
 
 def test_p3_every_wake_worthy_kind_is_routed():
     from scripts.bifrost_wake import WAKE_WORTHY_KINDS
+
     unmapped = sorted(k for k in WAKE_WORTHY_KINDS if ps.lane_for(k) is None)
     assert unmapped == [], f"wake-worthy kinds routing legacy-only (they'd miss the wake lane): {unmapped}"
 
@@ -37,7 +39,20 @@ def test_p3_every_wake_worthy_kind_is_routed():
 def test_p4_every_acl_send_kind_is_routed():
     # the kinds any admin seat may send (security/acl.json bus_send_kinds union) must all
     # route -- a salient kind on nobody's lane is the T094-ruling bug.
-    acl_kinds = {"chat", "note", "request", "question", "reply", "nudge", "steer",
-                 "inform", "hint", "handoff", "completion", "decision", "blocker"}
+    acl_kinds = {
+        "chat",
+        "note",
+        "request",
+        "question",
+        "reply",
+        "nudge",
+        "steer",
+        "inform",
+        "hint",
+        "handoff",
+        "completion",
+        "decision",
+        "blocker",
+    }
     unmapped = sorted(k for k in acl_kinds if ps.lane_for(k) is None)
     assert unmapped == [], f"ACL-grantable kinds routing legacy-only: {unmapped}"

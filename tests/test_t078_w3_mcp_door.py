@@ -20,11 +20,10 @@ Pins speak real MCP over stdio (the exact transport the harness uses):
 
 Run: py -m pytest tests/test_t078_w3_mcp_door.py -q
 """
+
 import json
 import os
 import sys
-
-import pytest
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
@@ -34,17 +33,21 @@ MCPJSON = os.path.join(ROOT, ".mcp.json")
 
 
 async def _session(extra_env=None):
-    from mcp import ClientSession, StdioServerParameters
+    from mcp import StdioServerParameters
     from mcp.client.stdio import stdio_client
-    params = StdioServerParameters(command=sys.executable, args=[SERVER],
-                                   cwd=ROOT,
-                                   env={**os.environ, "_AISETUP_TEST_ISOLATED": "1",
-                                        **(extra_env or {})})
+
+    params = StdioServerParameters(
+        command=sys.executable,
+        args=[SERVER],
+        cwd=ROOT,
+        env={**os.environ, "_AISETUP_TEST_ISOLATED": "1", **(extra_env or {})},
+    )
     return stdio_client(params)
 
 
 def _run(coro):
     import asyncio
+
     return asyncio.new_event_loop().run_until_complete(coro)
 
 
@@ -52,59 +55,69 @@ def _run(coro):
 def test_p1_to_p4_handshake_roster_roundtrip_task():
     async def flow():
         from mcp import ClientSession
+
         client = await _session()
-        async with client as (read, write):
-            async with ClientSession(read, write) as s:
-                await s.initialize()                              # P1
-                tools = {t.name for t in (await s.list_tools()).tools}
-                core = {"boot", "notes", "status", "handoff", "bifrost_send",
-                        "bifrost_sync", "learn", "recall"}
-                missing = core - tools
-                assert not missing, f"P2: core roster missing {missing}"      # P2
-                out = await s.call_tool("status", {})
-                text = "".join(getattr(c, "text", "") for c in out.content)
-                assert text.strip(), "P3: status round-trip returned nothing"  # P3
-                assert "task" in tools, \
-                    "P4: the task ledger verb must be an MCP tool (the missing verb)"
+        async with client as (read, write), ClientSession(read, write) as s:
+            await s.initialize()  # P1
+            tools = {t.name for t in (await s.list_tools()).tools}
+            core = {"boot", "notes", "status", "handoff", "bifrost_send", "bifrost_sync", "learn", "recall"}
+            missing = core - tools
+            assert not missing, f"P2: core roster missing {missing}"  # P2
+            out = await s.call_tool("status", {})
+            text = "".join(getattr(c, "text", "") for c in out.content)
+            assert text.strip(), "P3: status round-trip returned nothing"  # P3
+            assert "task" in tools, "P4: the task ledger verb must be an MCP tool (the missing verb)"
+
     _run(flow())
 
 
 # ------------------------------------------------------------- P6 C7-4 regression
 def test_p6_boot_returns_without_a_second_inbound_frame(tmp_path):
     """Cold and warm MCP boots must answer without a later frame flushing them."""
+
     async def flow():
         import asyncio
         import uuid
+
         from mcp import ClientSession
+
         agent = f"mcp-boot-regression-{uuid.uuid4().hex[:12]}"
-        client = await _session({
-            "AI_SETUP": str(tmp_path),
-            "REDIS_DB": "15",
-            "AKASHIC_RECALL_STATE_DIR": str(tmp_path / "recall"),
-        })
-        async with client as (read, write):
-            async with ClientSession(read, write) as s:
-                await s.initialize()
-                for state in ("cold", "warm"):
-                    out = await asyncio.wait_for(
-                        s.call_tool("boot", {
+        client = await _session(
+            {
+                "AI_SETUP": str(tmp_path),
+                "REDIS_DB": "15",
+                "AKASHIC_RECALL_STATE_DIR": str(tmp_path / "recall"),
+            }
+        )
+        async with client as (read, write), ClientSession(read, write) as s:
+            await s.initialize()
+            for state in ("cold", "warm"):
+                out = await asyncio.wait_for(
+                    s.call_tool(
+                        "boot",
+                        {
                             "agent": agent,
                             "task": f"C7-4 {state} single-frame response pin",
-                        }),
-                        timeout=5.0,
-                    )
-                    text = "".join(getattr(c, "text", "") for c in out.content)
-                    assert f"# CONTEXT for {agent}" in text
-                    assert "door: MCP-native" in text
+                        },
+                    ),
+                    timeout=5.0,
+                )
+                text = "".join(getattr(c, "text", "") for c in out.content)
+                assert f"# CONTEXT for {agent}" in text
+                assert "door: MCP-native" in text
 
-                audit = await s.call_tool("events", {
+            audit = await s.call_tool(
+                "events",
+                {
                     "search": agent,
                     "agent": agent,
                     "kind": "boot",
                     "limit": 10,
-                })
-                audit_text = "".join(getattr(c, "text", "") for c in audit.content)
-                assert "# 2 event(s) matching" in audit_text, audit_text
+                },
+            )
+            audit_text = "".join(getattr(c, "text", "") for c in audit.content)
+            assert "# 2 event(s) matching" in audit_text, audit_text
+
     _run(flow())
 
 

@@ -9,6 +9,7 @@ relevant) rather than suspect. Pure render over warm_cache's count.
   P2  a zero-count corpus still confirms ARMED (empty != broken)
   P3  a warm failure (count None) renders the honest "could not warm" variant
 """
+
 import os
 import sys
 
@@ -19,13 +20,16 @@ import agent_cli
 
 def test_p1_armed_line_names_count():
     line = agent_cli._recall_armed_line(34)
-    assert "recall-at" in line and "armed" in line and "34" in line
+    assert "recall-at" in line
+    assert "armed" in line
+    assert "34" in line
     assert "silence" in line.lower(), "the line teaches that later silence is calibrated"
 
 
 def test_p2_zero_corpus_still_armed():
     line = agent_cli._recall_armed_line(0)
-    assert "armed" in line and "0" in line, "an empty corpus is armed, not broken"
+    assert "armed" in line, "an empty corpus is armed, not broken"
+    assert "0" in line, "an empty corpus is armed, not broken"
 
 
 def test_p3_warm_failure_is_honest():

@@ -14,6 +14,7 @@ Laws pinned (RED before core/comm/triage_park.py exists):
 Redis-backed in an isolated namespace; skips offline (pulse-test precedent).
 Run: py -m pytest tests/test_s0_triage_park.py -q
 """
+
 import os
 import sys
 import uuid
@@ -29,63 +30,102 @@ def _ns_env(monkeypatch):
 
 def _online():
     from core.comm.bus import Bus
+
     return Bus("t-park").online
 
 
 def test_park_is_durable_and_receipted(monkeypatch):
     import pytest
+
     _ns_env(monkeypatch)
     if not _online():
         pytest.skip("redis not available")
     from core.comm import triage_park
-    msg = {"id": "1000-0", "frm": "t-sender", "to": "t-agent", "kind": "question",
-           "content": "an old ask", "ts": "2026-07-18T00:00:00"}
+
+    msg = {
+        "id": "1000-0",
+        "frm": "t-sender",
+        "to": "t-agent",
+        "kind": "question",
+        "content": "an old ask",
+        "ts": "2026-07-18T00:00:00",
+    }
     entry = triage_park.park("t-agent", msg, reason="stale 72h", by="t-test")
     assert entry["parked_id"], "park returns the entry (caller advances its cursor past it)"
     bench = triage_park.list_parked("t-agent")
-    assert len(bench) == 1 and bench[0]["msg"]["content"] == "an old ask"
+    assert len(bench) == 1
+    assert bench[0]["msg"]["content"] == "an old ask"
     assert bench[0]["reason"] == "stale 72h"
 
 
 def test_scry_to_bottom_unpark_returns_intact(monkeypatch):
     import pytest
+
     _ns_env(monkeypatch)
     if not _online():
         pytest.skip("redis not available")
     from core.comm import triage_park
-    msg = {"id": "2000-0", "frm": "t-sender", "to": "t-agent", "kind": "handoff",
-           "content": "bottomed, not dropped", "ts": "2026-07-18T00:00:00"}
+
+    msg = {
+        "id": "2000-0",
+        "frm": "t-sender",
+        "to": "t-agent",
+        "kind": "handoff",
+        "content": "bottomed, not dropped",
+        "ts": "2026-07-18T00:00:00",
+    }
     e = triage_park.park("t-agent", msg, reason="test", by="t-test")
     back = triage_park.unpark("t-agent", e["parked_id"])
+    assert back is not None
     assert back["msg"] == msg, "unpark returns the message INTACT (scry-to-bottom law)"
     assert triage_park.list_parked("t-agent") == [], "the bench forgets what it returned"
 
 
 def test_parking_notifies_the_sender_loudly(monkeypatch):
     import pytest
+
     ns = _ns_env(monkeypatch)
     if not _online():
         pytest.skip("redis not available")
     from core.comm import triage_park
     from core.comm.bus import Bus
-    msg = {"id": "3000-0", "frm": "t-sender", "to": "t-agent", "kind": "question",
-           "content": "will be parked", "ts": "2026-07-18T00:00:00"}
+
+    msg = {
+        "id": "3000-0",
+        "frm": "t-sender",
+        "to": "t-agent",
+        "kind": "question",
+        "content": "will be parked",
+        "ts": "2026-07-18T00:00:00",
+    }
     triage_park.park("t-agent", msg, reason="stale", by="t-test")
-    inbox = Bus("t-sender")._client.xrevrange(f"{ns}:inbox:t-sender", count=5)
+    sender_client = Bus("t-sender")._client
+    assert sender_client is not None
+    inbox = sender_client.xrevrange(f"{ns}:inbox:t-sender", count=5)
     joined = " ".join(str(f) for _sid, f in inbox)
     assert "parked" in joined.lower(), "RB-29: the sender HEARS about the parking (never silent)"
 
 
 def test_doctor_renders_the_bench(monkeypatch):
     import pytest
+
     _ns_env(monkeypatch)
     if not _online():
         pytest.skip("redis not available")
-    from core.comm import triage_park, doctor
-    msg = {"id": "4000-0", "frm": "t-sender", "to": "t-agent", "kind": "question",
-           "content": "benched", "ts": "2026-07-18T00:00:00"}
+    from core.comm import doctor, triage_park
+
+    msg = {
+        "id": "4000-0",
+        "frm": "t-sender",
+        "to": "t-agent",
+        "kind": "question",
+        "content": "benched",
+        "ts": "2026-07-18T00:00:00",
+    }
     triage_park.park("t-agent", msg, reason="stale", by="t-test")
     findings = doctor.examine("t-agent")
     bench = [f for f in findings if f["state"] == "triage_bench"]
-    assert bench and bench[0]["grade"] == "dashboard", "the doctor sees the bench"
-    assert "1" in bench[0]["line"] and bench[0]["drill"], "count + drill in the line"
+    assert bench, "the doctor sees the bench"
+    assert bench[0]["grade"] == "dashboard", "the doctor sees the bench"
+    assert "1" in bench[0]["line"], "count + drill in the line"
+    assert bench[0]["drill"], "count + drill in the line"

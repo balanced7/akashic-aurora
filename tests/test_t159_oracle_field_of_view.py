@@ -41,6 +41,7 @@ drifts. The oracle must ASK the detector what it examines.
 
 Run: py -m pytest tests/test_t159_oracle_field_of_view.py -q
 """
+
 import json
 import os
 import subprocess
@@ -54,11 +55,13 @@ sys.path.insert(0, ROOT)
 
 def _wiring():
     from scripts.checkers import check_wiring
+
     return check_wiring
 
 
 def _oracle():
     from scripts import canary_oracle
+
     return canary_oracle
 
 
@@ -66,16 +69,15 @@ def _oracle():
 def worktree(tmp_path_factory):
     """A real detached worktree of HEAD -- the oracle's shadow, outside the live tree."""
     path = str(tmp_path_factory.mktemp("t159_shadow") / "wt")
-    r = subprocess.run(["git", "worktree", "add", "--detach", path, "HEAD"],
-                       cwd=ROOT, capture_output=True, text=True)
+    r = subprocess.run(["git", "worktree", "add", "--detach", path, "HEAD"], cwd=ROOT, capture_output=True, text=True)
     if r.returncode != 0:
         pytest.skip(f"git worktree unavailable: {r.stderr.strip()}")
     yield path
-    subprocess.run(["git", "worktree", "remove", "--force", path],
-                   cwd=ROOT, capture_output=True)
+    subprocess.run(["git", "worktree", "remove", "--force", path], cwd=ROOT, capture_output=True)
 
 
 # --------------------------------------------------------------------------- K9
+
 
 def test_k9_one_definition_of_the_gates_field_of_view():
     """check_wiring OWNS the definition, and function_level() consumes it.
@@ -86,20 +88,21 @@ def test_k9_one_definition_of_the_gates_field_of_view():
     W = _wiring()
     assert hasattr(W, "candidate_modules"), (
         "check_wiring must expose candidate_modules() -- the single definition of what the "
-        "FUNCTION gate actually examines. Without it every consumer re-implements the filter.")
+        "FUNCTION gate actually examines. Without it every consumer re-implements the filter."
+    )
 
     cand = W.candidate_modules()
-    assert isinstance(cand, (list, tuple)) and cand, "candidate_modules() returned nothing"
+    assert isinstance(cand, (list, tuple)), "candidate_modules() returned nothing"
+    assert cand, "candidate_modules() returned nothing"
 
     # the gate's own analysis must agree with the exported definition, or they have drifted
     core_universe, reachable, _unwired = W.analyze()
-    expected = sorted(m for m in core_universe
-                      if m in reachable and m not in W.EXCEPTIONS)
-    assert sorted(cand) == expected, (
-        "candidate_modules() disagrees with the filter check_wiring applies internally")
+    expected = sorted(m for m in core_universe if m in reachable and m not in W.EXCEPTIONS)
+    assert sorted(cand) == expected, "candidate_modules() disagrees with the filter check_wiring applies internally"
 
 
 # --------------------------------------------------------------------------- K10
+
 
 def test_k10_the_field_of_view_excludes_the_blind_region():
     """Unreachable and excepted modules are OUTSIDE the function gate, by design."""
@@ -116,11 +119,13 @@ def test_k10_the_field_of_view_excludes_the_blind_region():
     if t in core_universe:
         assert t not in reachable, (
             "T159 asserted this module IS reachable; if that ever becomes true this pin must be "
-            "re-derived rather than deleted")
+            "re-derived rather than deleted"
+        )
         assert t not in cand
 
 
 # --------------------------------------------------------------------------- K11
+
 
 def test_k11_oracle_targets_are_derived_from_the_detector(worktree):
     """The default selector ASKS the shadow's own detector. It never re-implements it."""
@@ -136,10 +141,12 @@ def test_k11_oracle_targets_are_derived_from_the_detector(worktree):
     leaked = rel - cand
     assert not leaked, (
         f"the oracle offered {len(leaked)} target(s) the gate structurally cannot report on -- "
-        f"a canary planted there is a MISLABEL, not a miss. Sample: {sorted(leaked)[:5]}")
+        f"a canary planted there is a MISLABEL, not a miss. Sample: {sorted(leaked)[:5]}"
+    )
 
 
 # --------------------------------------------------------------------------- K12
+
 
 def test_k12_the_manifest_records_how_the_universe_was_resolved(worktree):
     """A shrinking field of view must be visible in the receipts, never silent."""
@@ -149,24 +156,33 @@ def test_k12_the_manifest_records_how_the_universe_was_resolved(worktree):
     assert "universe" in m, (
         "the manifest must record the field of view it planted into -- otherwise a fix that "
         "improves detector health by narrowing the universe is indistinguishable from a real "
-        "improvement, which is the exact failure this ticket is made of")
+        "improvement, which is the exact failure this ticket is made of"
+    )
     u = m["universe"]
     assert u.get("source") == "detector", (
-        f"a real worktree must resolve its universe by ASKING the detector; got {u.get('source')!r}")
-    assert isinstance(u.get("size"), int) and u["size"] > 0
+        f"a real worktree must resolve its universe by ASKING the detector; got {u.get('source')!r}"
+    )
+    assert isinstance(u.get("size"), int)
+    assert u["size"] > 0
 
     # Against the SHADOW's own detector, not this tree's. They legitimately differ: a worktree
     # holds only TRACKED files, so an untracked core module present here is absent there (that
     # exact case, core/comm/room_feed.py, made this assertion fail the first time it was written).
     # Comparing to the live number would reintroduce T159's mistake in the pin itself -- asserting
     # against a universe that is not the one being measured.
-    r = subprocess.run([sys.executable, "scripts/checkers/check_wiring.py", "--candidates"],
-                       cwd=worktree, capture_output=True, text=True, timeout=600)
+    r = subprocess.run(
+        [sys.executable, "scripts/checkers/check_wiring.py", "--candidates"],
+        cwd=worktree,
+        capture_output=True,
+        text=True,
+        timeout=600,
+    )
     assert r.returncode == 0, "the shadow's own detector could not report its field of view"
     assert u["size"] == len(json.loads(r.stdout))
 
 
 # --------------------------------------------------------------------------- K13
+
 
 def test_k13_every_catchable_canary_is_caught_end_to_end(worktree):
     """The claim T159 actually made, measured against the real gate.
@@ -176,8 +192,13 @@ def test_k13_every_catchable_canary_is_caught_end_to_end(worktree):
     C = _oracle()
     manifest = C.plant(worktree, k=9, seed=4242)
 
-    r = subprocess.run([sys.executable, "scripts/checkers/check_wiring.py", "--report"],
-                       cwd=worktree, capture_output=True, text=True, timeout=600)
+    r = subprocess.run(
+        [sys.executable, "scripts/checkers/check_wiring.py", "--report"],
+        cwd=worktree,
+        capture_output=True,
+        text=True,
+        timeout=600,
+    )
     out = r.stdout + r.stderr
 
     catchable = [c for c in manifest["canaries"] if c["cls"] == "catchable"]
@@ -187,16 +208,19 @@ def test_k13_every_catchable_canary_is_caught_end_to_end(worktree):
     health = 1.0 - (len(missed) / len(catchable))
     assert not missed, (
         f"detector health {health:.2f} -- {len(missed)}/{len(catchable)} catchable canaries "
-        f"missed: {[(c['name'], c['file'], c['shape']) for c in missed]}")
+        f"missed: {[(c['name'], c['file'], c['shape']) for c in missed]}"
+    )
 
     # the try-block shape specifically, since that is what T159 accused
     tryblock = [c for c in catchable if "try-block" in (c.get("shape") or "")]
     if tryblock:
         assert all(c["name"] in out for c in tryblock), (
-            "the T143 try-block shape was missed -- T159's original diagnosis would be back")
+            "the T143 try-block shape was missed -- T159's original diagnosis would be back"
+        )
 
 
 # --------------------------------------------------------------------------- K14
+
 
 def test_k14_narrowing_the_universe_hides_nothing():
     """The fix NARROWS what the oracle plants into (151 -> 134). Prove nothing falls in the gap.
@@ -214,20 +238,22 @@ def test_k14_narrowing_the_universe_hides_nothing():
     W = _wiring()
     core_universe, reachable, unwired = W.analyze()
     fn_gate = set(W.candidate_modules(reachable, core_universe))
-    mod_gate = set(unwired)          # every module the module-level gate names
+    mod_gate = set(unwired)  # every module the module-level gate names
 
     uncovered = core_universe - fn_gate - mod_gate
     assert not uncovered, (
         f"{len(uncovered)} core module(s) are examined by NEITHER surface -- the narrowing "
-        f"created a blind spot: {sorted(uncovered)[:5]}")
+        f"created a blind spot: {sorted(uncovered)[:5]}"
+    )
 
     # and the boundary between the two surfaces is itself guarded: an EXCEPTIONS entry that
     # becomes wired again is reported stale rather than silently granting amnesty forever.
     stale = sorted(e for e in W.EXCEPTIONS if e not in unwired)
-    assert isinstance(stale, list)   # the guard exists; its content is the gate's business
+    assert isinstance(stale, list)  # the guard exists; its content is the gate's business
 
 
 # --------------------------------------------------------------------------- K15
+
 
 def test_k15_version_skew_is_loud_not_silent(tmp_path):
     """A detector that is PRESENT but cannot answer must raise, never quietly fall back.
@@ -245,8 +271,8 @@ def test_k15_version_skew_is_loud_not_silent(tmp_path):
 
     # a detector that exists and does NOT understand --candidates (the pre-T159 door)
     (shadow / "scripts" / "checkers" / "check_wiring.py").write_text(
-        "import sys\nprint('PASS: legacy detector, no --candidates door')\nsys.exit(0)\n",
-        encoding="utf-8")
+        "import sys\nprint('PASS: legacy detector, no --candidates door')\nsys.exit(0)\n", encoding="utf-8"
+    )
 
     with pytest.raises(RuntimeError, match="field of view"):
         C.plant(str(shadow), k=3, seed=1)

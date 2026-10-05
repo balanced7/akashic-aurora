@@ -36,6 +36,7 @@ Fixture truth (session_watch_a / session_watch_b):
 
 Run: py -m pytest tests/test_t278_s7_directive_watcher.py -q
 """
+
 from __future__ import annotations
 
 import os
@@ -47,8 +48,8 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.eye import directives as DIR  # noqa: E402
-from core.eye import index as EYE  # noqa: E402
+from core.eye import directives as DIR
+from core.eye import index as EYE
 
 ROOT = Path(__file__).resolve().parents[1]
 FIX = ROOT / "tests" / "fixtures" / "eye"
@@ -57,7 +58,7 @@ FENCE = "always fence the migration path before shipping it"
 HARVEST = "make the harvest ledger visible on every boot"
 
 
-@pytest.fixture()
+@pytest.fixture
 def db(tmp_path):
     corpus = tmp_path / "corpus"
     corpus.mkdir()
@@ -79,7 +80,8 @@ def test_p1_a_recurring_uncited_directive_is_surfaced(db):
     assert rep["items"], "the watcher found nothing in a corpus that contains the case"
     top = rep["items"][0]
     assert "fence the migration path" in top["phrase"]
-    assert top["sessions"] >= 2 and top["utterances"] >= 2
+    assert top["sessions"] >= 2
+    assert top["utterances"] >= 2
     assert top["cited"] is False
 
 
@@ -91,7 +93,8 @@ def test_p1b_every_item_carries_addresses_that_resolve(db):
         assert item["refs"], "no refs = an unfalsifiable assertion about what he said"
         for ref in item["refs"]:
             ev = EYE.get_event(ref, db_path=db)
-            assert ev is not None and ev["voice"] == "operator"
+            assert ev is not None
+            assert ev["voice"] == "operator"
             assert item["phrase"] in " ".join(ev["text"].lower().split())
 
 
@@ -102,10 +105,12 @@ def test_p2_once_a_durable_plane_cites_it_it_stops_being_reported(db):
     before = DIR.unheeded(db_path=db, durable_texts=[])
     assert FENCE in _phrases(before["items"]) or "fence the migration path" in _phrases(before["items"])
 
-    after = DIR.unheeded(db_path=db, durable_texts=[
-        "T301: always fence the migration path before shipping it -- shipped @abc123"])
+    after = DIR.unheeded(
+        db_path=db, durable_texts=["T301: always fence the migration path before shipping it -- shipped @abc123"]
+    )
     assert "fence the migration path" not in _phrases(after["items"]), (
-        "the ledger cites it now; the watcher must fall silent about it")
+        "the ledger cites it now; the watcher must fall silent about it"
+    )
 
 
 def test_p2b_citation_matching_is_not_fooled_by_a_single_shared_word(db):
@@ -130,9 +135,8 @@ def test_p4_agent_echoes_and_duplicate_records_never_inflate_the_count(db):
     """Both fixtures echo the directive back in the agent's voice, and session b records
     the operator's line TWICE (queue-op + user). The count is HIS utterances."""
     rep = DIR.unheeded(db_path=db, durable_texts=[])
-    top = [i for i in rep["items"] if "fence the migration path" in i["phrase"]][0]
-    assert top["utterances"] == 2, (
-        "two sessions, one utterance each -- not 4 records, not 2 echoes")
+    top = next(i for i in rep["items"] if "fence the migration path" in i["phrase"])
+    assert top["utterances"] == 2, "two sessions, one utterance each -- not 4 records, not 2 echoes"
     assert top["sessions"] == 2
 
 
@@ -140,10 +144,13 @@ def test_p4_agent_echoes_and_duplicate_records_never_inflate_the_count(db):
 def test_p5_when_everything_recurring_is_cited_it_reports_nothing_affirmatively(db):
     """The state this thing is in almost every day. It must be trustworthy BEFORE the
     populated case is worth anything -- and it must SAY it looked, not just return []."""
-    rep = DIR.unheeded(db_path=db, durable_texts=[
-        "always fence the migration path before shipping it",
-        "make the harvest ledger visible on every boot",
-    ])
+    rep = DIR.unheeded(
+        db_path=db,
+        durable_texts=[
+            "always fence the migration path before shipping it",
+            "make the harvest ledger visible on every boot",
+        ],
+    )
     assert rep["items"] == []
     assert rep["checked"] > 0, "it must report HOW MANY candidates it examined"
     assert rep["clear"] is True, "an affirmative all-clear, distinguishable from a crash"
@@ -163,7 +170,8 @@ def test_p6b_ranking_puts_the_strongest_evidence_first(db):
     """With a cap, ORDER is the whole product: the one item shown must be the best one."""
     rep = DIR.unheeded(db_path=db, durable_texts=[], limit=1)
     assert "fence the migration path" in rep["items"][0]["phrase"], (
-        "the directive he repeated across sessions outranks the one-session case")
+        "the directive he repeated across sessions outranks the one-session case"
+    )
 
 
 # ---------------------------------------------------------------- P7: no self-ratifying
@@ -186,21 +194,24 @@ def test_p7_the_watcher_has_no_write_path(db):
         elif isinstance(node, ast.ImportFrom) and node.module:
             imported.add(node.module.split(".")[0])
     assert not (imported & {"subprocess", "shutil", "requests", "redis"}), (
-        f"the watcher imported something that can act on the world: {imported}")
+        f"the watcher imported something that can act on the world: {imported}"
+    )
 
     called = set()
     for node in ast.walk(tree):
         if isinstance(node, ast.Call):
             f = node.func
-            called.add(f.attr if isinstance(f, ast.Attribute) else
-                       getattr(f, "id", ""))
+            called.add(f.attr if isinstance(f, ast.Attribute) else getattr(f, "id", ""))
     for forbidden in ("system", "run", "popen", "learn", "propose", "commit", "send"):
         assert forbidden not in called, f"the watcher calls {forbidden!r}"
 
     # ...and the only file access it makes is READING.
-    assert "write_text" not in called and "open" not in called, (
-        "the watcher has no write path at all -- reading is its entire relationship "
-        "with the world")
+    assert "write_text" not in called, (
+        "the watcher has no write path at all -- reading is its entire relationship with the world"
+    )
+    assert "open" not in called, (
+        "the watcher has no write path at all -- reading is its entire relationship with the world"
+    )
 
 
 # ------------------------------------------------- P8: A FAN IS ONE VOICE, NOT MANY
@@ -230,7 +241,7 @@ def test_p7_the_watcher_has_no_write_path(db):
 # matching the 104 real sessions exactly. It was never persisted into `events`, so no
 # consumer could apply it. Three read the operator axis (directives, position, stats); all
 # three inherited the contamination. Persisting the flag fixes the class, not the site.
-@pytest.fixture()
+@pytest.fixture
 def db_with_fan(tmp_path):
     """Two real operator sessions, plus a three-voter fan carrying ONE authored brief --
     the live shape in miniature. The fan lives under `subagents/`, which is the marker
@@ -252,10 +263,10 @@ def test_p8_a_subagent_brief_is_never_reported_as_his_directive(db_with_fan):
     only thing wrong with it is that he never said it."""
     rep = DIR.unheeded(db_path=db_with_fan, durable_texts=[])
     said = _phrases(rep["items"])
-    assert "16gb vram" not in said, (
-        f"a subagent brief was reported as the operator's standing directive: {said}")
+    assert "16gb vram" not in said, f"a subagent brief was reported as the operator's standing directive: {said}"
     assert "vague generalities" not in said, (
-        f"a subagent brief was reported as the operator's standing directive: {said}")
+        f"a subagent brief was reported as the operator's standing directive: {said}"
+    )
 
 
 def test_p8b_a_fan_cannot_outrank_him(db_with_fan):
@@ -264,8 +275,8 @@ def test_p8b_a_fan_cannot_outrank_him(db_with_fan):
     rep = DIR.unheeded(db_path=db_with_fan, durable_texts=[], limit=1)
     assert rep["items"], "the real directive vanished entirely"
     assert "fence the migration path" in rep["items"][0]["phrase"], (
-        f"a fan of 3 briefs outranked the directive he said across 2 sittings: "
-        f"{_phrases(rep['items'])}")
+        f"a fan of 3 briefs outranked the directive he said across 2 sittings: {_phrases(rep['items'])}"
+    )
 
 
 def test_p8c_the_operator_axis_counts_only_operator_bearing_sessions(db_with_fan):
@@ -275,5 +286,6 @@ def test_p8c_the_operator_axis_counts_only_operator_bearing_sessions(db_with_fan
     utts = DIR._operator_utterances(db_with_fan)
     sessions = {u["session"] for u in utts}
     assert not any(s.startswith("agent-fan") for s in sessions), (
-        f"subagent sessions are still on the operator axis: {sorted(sessions)}")
+        f"subagent sessions are still on the operator axis: {sorted(sessions)}"
+    )
     assert len(sessions) == 2, f"expected his 2 sessions, got {sorted(sessions)}"

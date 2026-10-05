@@ -45,31 +45,51 @@ SEAT_A = "aaaa1111"
 
 def test_p1_resume_marker_reported_after_gap():
     from core.comm import roster
+
     base = time.time() - 3600
     roster.heartbeat(NS, AGENT, SEAT_A, phase="sync", _beat_ts=base)
-    hb = roster.heartbeat(NS, AGENT, SEAT_A, phase="sync")   # one hour later: a RESUME
-    assert isinstance(hb, dict) and hb.get("resumed_after_s") and hb["resumed_after_s"] > 600, (
+    hb = roster.heartbeat(NS, AGENT, SEAT_A, phase="sync")  # one hour later: a RESUME
+    assert isinstance(hb, dict), (
         f"RESUME UNMARKED: a beat after a 1h gap must report resumed_after_s (Discord's "
         f"'Resumed' marker -- replay and live are different states and the seat must know "
-        f"which side of the line it is on). Got: {hb!r}")
+        f"which side of the line it is on). Got: {hb!r}"
+    )
+    assert hb.get("resumed_after_s"), (
+        f"RESUME UNMARKED: a beat after a 1h gap must report resumed_after_s (Discord's "
+        f"'Resumed' marker -- replay and live are different states and the seat must know "
+        f"which side of the line it is on). Got: {hb!r}"
+    )
+    assert hb["resumed_after_s"] > 600, (
+        f"RESUME UNMARKED: a beat after a 1h gap must report resumed_after_s (Discord's "
+        f"'Resumed' marker -- replay and live are different states and the seat must know "
+        f"which side of the line it is on). Got: {hb!r}"
+    )
     hb2 = roster.heartbeat(NS, AGENT, SEAT_A, phase="sync")  # immediate next beat: NOT a resume
     assert not (isinstance(hb2, dict) and hb2.get("resumed_after_s")), (
-        f"a fresh consecutive beat must NOT report a resume: {hb2!r}")
+        f"a fresh consecutive beat must NOT report a resume: {hb2!r}"
+    )
 
 
 def test_p2_tombstoned_consume_names_invalid_session():
-    from core.comm import wake_seat
     from agent.bifrost_pull import consume_inbox
+    from core.comm import wake_seat
+
     sid = f"deadsess-{uuid.uuid4().hex[:8]}"
     os.environ["CLAUDE_CODE_SESSION_ID"] = sid
     os.environ["BIFROST_INCARNATION"] = sid
     wake_seat.write_tombstone(sid)
     res = consume_inbox(AGENT, limit=3)
     teach = str(res.get("teach") or "").lower()
-    assert res.get("invalid_session") and "invalid session" in teach, (
+    assert res.get("invalid_session"), (
         f"INVALID MASQUERADES AS CONTENTION: a tombstoned session's consume must be refused "
         f"with INVALID-SESSION language (ended by record; boot fresh; never consume/arm) -- "
-        f"not the generic seat-held teach that blames a phantom holder. Got: {res!r}")
+        f"not the generic seat-held teach that blames a phantom holder. Got: {res!r}"
+    )
+    assert "invalid session" in teach, (
+        f"INVALID MASQUERADES AS CONTENTION: a tombstoned session's consume must be refused "
+        f"with INVALID-SESSION language (ended by record; boot fresh; never consume/arm) -- "
+        f"not the generic seat-held teach that blames a phantom holder. Got: {res!r}"
+    )
     assert not res.get("consumed"), "a tombstoned session must consume NOTHING"
 
 

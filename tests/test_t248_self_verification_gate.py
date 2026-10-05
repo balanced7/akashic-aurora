@@ -28,6 +28,7 @@ THE THRESHOLD IS NOT MINE TO SET. LOAD_BEARING is one named constant so it is vi
 tunable in one place. I am the one being gated, so picking my own threshold is the
 ratified-my-own-drafts defect (T227) one level up.
 """
+
 import pytest
 
 from core.coord import task_ledger as TL
@@ -52,21 +53,33 @@ def test_a_load_bearing_slice_cannot_close_self_verified(ledger):
     """The defect, in the shape it actually occurred four times."""
     tid = _mk(ledger, ["core/comm/ask.py"])
     with pytest.raises(TL.LedgerError) as e:
-        ledger.transition(tid, TL.DONE, by="claude", at="2026-08-08T00:01:00",
-                          commit="abc1234",
-                          verified_by="4 pins + 209 tests. SELF-VERIFIED by claude -- no second seat.")
+        ledger.transition(
+            tid,
+            TL.DONE,
+            by="claude",
+            at="2026-08-08T00:01:00",
+            commit="abc1234",
+            verified_by="4 pins + 209 tests. SELF-VERIFIED by claude -- no second seat.",
+        )
     msg = str(e.value)
     assert "review" in msg.lower(), f"the refusal must name what is missing: {msg}"
     assert "self-verified" in msg.lower() or "--self-verified" in msg, (
-        f"the refusal must name the escape hatch, or it just blocks work: {msg}")
+        f"the refusal must name the escape hatch, or it just blocks work: {msg}"
+    )
 
 
 def test_the_same_slice_closes_when_someone_else_reviewed_it(ledger):
     """The gate must be passable by doing the right thing, not only by overriding."""
     tid = _mk(ledger, ["core/comm/ask.py"])
-    t = ledger.transition(tid, TL.DONE, by="claude", at="2026-08-08T00:01:00",
-                          commit="abc1234", verified_by="4 pins + 209 tests",
-                          reviewed_by="deepseek")
+    t = ledger.transition(
+        tid,
+        TL.DONE,
+        by="claude",
+        at="2026-08-08T00:01:00",
+        commit="abc1234",
+        verified_by="4 pins + 209 tests",
+        reviewed_by="deepseek",
+    )
     assert t["status"] == TL.DONE
     assert t["reviewed_by"] == "deepseek"
 
@@ -75,36 +88,56 @@ def test_reviewing_yourself_does_not_count(ledger):
     """The obvious way around it, closed at the same time as the door it bypasses."""
     tid = _mk(ledger, ["core/comm/ask.py"])
     with pytest.raises(TL.LedgerError):
-        ledger.transition(tid, TL.DONE, by="claude", at="2026-08-08T00:01:00",
-                          commit="abc1234", verified_by="pins", reviewed_by="claude")
+        ledger.transition(
+            tid,
+            TL.DONE,
+            by="claude",
+            at="2026-08-08T00:01:00",
+            commit="abc1234",
+            verified_by="pins",
+            reviewed_by="claude",
+        )
 
 
 def test_a_non_load_bearing_slice_is_unaffected(ledger):
     """Docs and tests must not need a fence, or the gate becomes noise and gets routed around."""
     tid = _mk(ledger, ["docs/TROUBLESHOOTING.md"])
-    t = ledger.transition(tid, TL.DONE, by="claude", at="2026-08-08T00:01:00",
-                          commit="abc1234", verified_by="read it")
+    t = ledger.transition(tid, TL.DONE, by="claude", at="2026-08-08T00:01:00", commit="abc1234", verified_by="read it")
     assert t["status"] == TL.DONE
 
 
 def test_the_override_closes_the_task_and_records_its_reason(ledger):
     """A gate with no exit gets routed around by abandoning the ledger entirely."""
     tid = _mk(ledger, ["core/comm/ask.py"])
-    t = ledger.transition(tid, TL.DONE, by="claude", at="2026-08-08T00:01:00",
-                          commit="abc1234", verified_by="pins",
-                          self_verified="no peer awake at 03:00, defect is a one-line typo")
+    t = ledger.transition(
+        tid,
+        TL.DONE,
+        by="claude",
+        at="2026-08-08T00:01:00",
+        commit="abc1234",
+        verified_by="pins",
+        self_verified="no peer awake at 03:00, defect is a one-line typo",
+    )
     assert t["status"] == TL.DONE
     assert "no peer awake" in (t.get("self_verified") or ""), (
         "the override must persist its REASON -- an override nobody can count is an "
-        "exemption, and this whole task exists because an unread record is not a control")
+        "exemption, and this whole task exists because an unread record is not a control"
+    )
 
 
 def test_an_override_with_no_reason_is_refused(ledger):
     """An escape hatch that costs nothing to use is not an escape hatch, it is the default."""
     tid = _mk(ledger, ["core/comm/ask.py"])
     with pytest.raises(TL.LedgerError):
-        ledger.transition(tid, TL.DONE, by="claude", at="2026-08-08T00:01:00",
-                          commit="abc1234", verified_by="pins", self_verified="   ")
+        ledger.transition(
+            tid,
+            TL.DONE,
+            by="claude",
+            at="2026-08-08T00:01:00",
+            commit="abc1234",
+            verified_by="pins",
+            self_verified="   ",
+        )
 
 
 def test_the_threshold_is_one_visible_constant():
@@ -114,20 +147,22 @@ def test_the_threshold_is_one_visible_constant():
     T227 ratified-my-own-drafts defect one level up.
     """
     assert hasattr(TL, "LOAD_BEARING"), "the threshold must be a named, findable constant"
-    assert any("core/" in p for p in TL.LOAD_BEARING), (
-        f"the default must at least cover core/: {TL.LOAD_BEARING}")
+    assert any("core/" in p for p in TL.LOAD_BEARING), f"the default must at least cover core/: {TL.LOAD_BEARING}"
 
 
 def test_overrides_are_countable(ledger):
     """The count is the instrument. The refusal only makes the count honest."""
     a = _mk(ledger, ["core/comm/ask.py"], "one")
-    ledger.transition(a, TL.DONE, by="claude", at="2026-08-08T00:01:00", commit="a1",
-                      verified_by="pins", self_verified="reason one")
+    ledger.transition(
+        a, TL.DONE, by="claude", at="2026-08-08T00:01:00", commit="a1", verified_by="pins", self_verified="reason one"
+    )
     b = _mk(ledger, ["core/comm/bus.py"], "two")
-    ledger.transition(b, TL.DONE, by="claude", at="2026-08-08T00:02:00", commit="b1",
-                      verified_by="pins", reviewed_by="deepseek")
+    ledger.transition(
+        b, TL.DONE, by="claude", at="2026-08-08T00:02:00", commit="b1", verified_by="pins", reviewed_by="deepseek"
+    )
 
     overridden = [t for t in ledger.tasks.values() if t.get("self_verified")]
     assert len(overridden) == 1, (
         f"exactly one task used the override; found {len(overridden)}. If this cannot be "
-        "counted, nobody can tell a rare exception from the new normal.")
+        "counted, nobody can tell a rare exception from the new normal."
+    )

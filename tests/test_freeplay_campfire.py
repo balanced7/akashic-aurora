@@ -9,9 +9,12 @@ The ritual:
   2. story --themes          # active themes
   3. story --chapter         # current chapter
 """
-from core.toolbelt.registry import Toolbelt
+
+import tempfile
+
 import agent_cli
-import tempfile, os
+from core.toolbelt.registry import Toolbelt
+
 
 def test_campfire_mint_and_kata():
     tmp = tempfile.mkdtemp(prefix="campfire-")
@@ -27,8 +30,8 @@ def test_campfire_mint_and_kata():
         ],
         evidence="GUESS",
         why="deepseek FREE PLAY 2026-07-20: narrative gathering ritual -- "
-            "gather round the chronicle, see the themes, know the chapter. "
-            "From the tools-hunt leaderboard (campfire = 3 renderings).",
+        "gather round the chronicle, see the themes, know the chapter. "
+        "From the tools-hunt leaderboard (campfire = 3 renderings).",
     )
     assert entry["name"] == "campfire"
     assert entry["evidence"] == "GUESS"
@@ -53,10 +56,11 @@ def test_campfire_mint_and_kata():
 
     # ---- Clean and confirm
     assert tb.get("campfire")["evidence"] == "VERIFIED"
-    print(f"\n  >>> CAMPFIRE IS VERIFIED. The fleet can gather. <<<")
+    print("\n  >>> CAMPFIRE IS VERIFIED. The fleet can gather. <<<")
 
     # cleanup
     import shutil
+
     shutil.rmtree(tmp, ignore_errors=True)
 
 
@@ -64,11 +68,14 @@ def test_campfire_resolve():
     """Verify the resolved argv matches design intent."""
     tmp = tempfile.mkdtemp(prefix="campfire-")
     tb = Toolbelt("deepseek-campfire", root=tmp)
-    tb.mint("campfire", steps=[
-        ["story", "--chronicle"],
-        ["story", "--themes"],
-        ["story", "--chapter"],
-    ])
+    tb.mint(
+        "campfire",
+        steps=[
+            ["story", "--chronicle"],
+            ["story", "--themes"],
+            ["story", "--chapter"],
+        ],
+    )
     resolved = tb.resolve("campfire")
     assert resolved == [
         ["story", "--chronicle"],
@@ -77,4 +84,5 @@ def test_campfire_resolve():
     ], f"unexpected resolution: {resolved}"
     print("\n  [RESOLVE] campfire resolves to 3 story invocations: chronicle, themes, chapter")
     import shutil
+
     shutil.rmtree(tmp, ignore_errors=True)

@@ -7,16 +7,32 @@ The RAW firehose beneath the narrative spine: every agent's tool calls / file ed
 commands / observations land here as append-only "raw events", which the salient
 narrative Beats can point at (event:<stream>:<id>) for timeline drill-down.
 """
+
 from core.events.event_log import (
-    EventLog, get_event_log, reset_event_log_singleton, capture_event,
-    per_agent_stream, event_ref,
-    RAW_STREAM, CANONICAL_MAXLEN, PER_AGENT_MAXLEN, EVENT_KINDS,
+    CANONICAL_MAXLEN,
+    EVENT_KINDS,
+    PER_AGENT_MAXLEN,
+    RAW_STREAM,
+    EventLog,
+    capture_event,
+    event_ref,
+    get_event_log,
+    per_agent_stream,
+    reset_event_log_singleton,
 )
 from core.events.event_query import EventQuery, get_event_query
 
 __all__ = [
-    "EventLog", "get_event_log", "reset_event_log_singleton", "capture_event",
-    "per_agent_stream", "event_ref",
-    "RAW_STREAM", "CANONICAL_MAXLEN", "PER_AGENT_MAXLEN", "EVENT_KINDS",
-    "EventQuery", "get_event_query",
+    "CANONICAL_MAXLEN",
+    "EVENT_KINDS",
+    "PER_AGENT_MAXLEN",
+    "RAW_STREAM",
+    "EventLog",
+    "EventQuery",
+    "capture_event",
+    "event_ref",
+    "get_event_log",
+    "get_event_query",
+    "per_agent_stream",
+    "reset_event_log_singleton",
 ]

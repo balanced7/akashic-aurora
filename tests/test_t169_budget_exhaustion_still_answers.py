@@ -30,8 +30,10 @@ F5 exists because the obvious fix has an obvious trap: if the forced call itself
 
 Run: py -m pytest tests/test_t169_budget_exhaustion_still_answers.py -q
 """
+
 import os
 import sys
+from typing import Any
 
 import pytest
 
@@ -39,8 +41,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 sys.path.insert(0, os.path.join(ROOT, "scripts"))
 
-import deepseek_chat as DC  # noqa: E402
-
+import deepseek_chat as DC  # noqa: E402  # sys.path bootstrap
 
 TEST_TOOL_ROUNDS = 3
 
@@ -54,6 +55,7 @@ def _bounded_tool_budget(monkeypatch):
 
 class _Box:
     """Minimal ToolBox stand-in: every tool call succeeds and returns a short string."""
+
     _clarify_count = 0
 
     def execute(self, name, args):
@@ -62,7 +64,7 @@ class _Box:
 
 def _agent(turns, tools_enabled=True):
     """An Agent whose _stream_turn is scripted. `turns` is a list of (content, tool_calls)."""
-    a = DC.Agent.__new__(DC.Agent)
+    a: Any = DC.Agent.__new__(DC.Agent)  # a hand-assembled fake: attributes are set ad hoc
     a.messages = []
     a.model = "fake"
     a.think = False
@@ -79,7 +81,7 @@ def _agent(turns, tools_enabled=True):
     seq = list(turns)
 
     def _stream_turn():
-        a._seen.append(dict(tools_enabled=a.tools_enabled))
+        a._seen.append({"tools_enabled": a.tools_enabled})
         return seq.pop(0) if seq else ("", [])
 
     a._stream_turn = _stream_turn
@@ -105,15 +107,16 @@ def test_f2_the_forced_call_has_tools_disabled():
     a.send("investigate deeply")
     assert a._seen, "no model calls recorded"
     assert a._seen[-1]["tools_enabled"] is False, (
-        "the forced final call still had tools enabled -- it can spend another round and "
-        "return nothing")
+        "the forced final call still had tools enabled -- it can spend another round and return nothing"
+    )
 
 
 def test_f3_the_answer_is_marked_budget_truncated():
     a = _agent([_toolcall(i) for i in range(DC.MAX_TOOL_ROUNDS)] + [("PARTIAL", [])])
     out = a.send("investigate deeply")
     assert "truncat" in out.lower() or "budget" in out.lower(), (
-        f"a partial answer that does not say it is partial will be read as complete: {out!r}")
+        f"a partial answer that does not say it is partial will be read as complete: {out!r}"
+    )
 
 
 def test_f4_a_normal_turn_is_unchanged():

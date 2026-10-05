@@ -21,19 +21,18 @@ Routes
 
 from __future__ import annotations
 
-import html
 import json
 import sys
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
+from typing import Any
 
 ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from core.library import reports as rs  # noqa: E402
+from core.library import reports as rs  # noqa: E402  # sys.path bootstrap
 
-Response = Tuple[int, str, bytes]
+Response = tuple[int, str, bytes]
 
 _FAMILY = None
 _FAMILY_TRIED = False
@@ -50,19 +49,20 @@ def family():
         return _FAMILY
     _FAMILY_TRIED = True
     try:
+        from core.foundation.store import create_store
         from core.library.atoms import AtomFamily
-        from core.foundation.store import create_store  # type: ignore
+
         _FAMILY = AtomFamily(create_store(), repo_root=str(ROOT))
     except Exception:
         _FAMILY = None
     return _FAMILY
 
 
-def _json(payload: Dict[str, Any], status: int = 200) -> Response:
+def _json(payload: dict[str, Any], status: int = 200) -> Response:
     return status, "application/json; charset=utf-8", json.dumps(payload, ensure_ascii=False).encode("utf-8")
 
 
-def _one(query: Dict[str, Any], key: str, default: Optional[str] = None) -> Optional[str]:
+def _one(query: dict[str, Any], key: str, default: str | None = None) -> str | None:
     """Query values arrive as lists from parse_qs; take the first, keep the type honest."""
     val = query.get(key, default)
     if isinstance(val, list):
@@ -70,23 +70,25 @@ def _one(query: Dict[str, Any], key: str, default: Optional[str] = None) -> Opti
     return val
 
 
-def handle(path: str, query: Optional[Dict[str, Any]] = None) -> Optional[Response]:
+def handle(path: str, query: dict[str, Any] | None = None) -> Response | None:
     query = query or {}
     if path == "/reports":
         return 200, "text/html; charset=utf-8", PAGE.encode("utf-8")
 
     if path == "/api/reports":
         status = _one(query, "status", "current")
-        return _json(rs.list_reports(
-            family(),
-            shelf=_one(query, "shelf"),
-            category=_one(query, "category"),
-            arc=_one(query, "arc"),
-            status=None if status in ("", "all", "any") else status,
-            q=_one(query, "q"),
-            limit=int(_one(query, "limit", "200") or 200),
-            offset=int(_one(query, "offset", "0") or 0),
-        ))
+        return _json(
+            rs.list_reports(
+                family(),
+                shelf=_one(query, "shelf"),
+                category=_one(query, "category"),
+                arc=_one(query, "arc"),
+                status=None if status in ("", "all", "any") else status,
+                q=_one(query, "q"),
+                limit=int(_one(query, "limit", "200") or 200),
+                offset=int(_one(query, "offset", "0") or 0),
+            )
+        )
 
     if path == "/api/report":
         rid = _one(query, "id", "") or ""
@@ -96,8 +98,7 @@ def handle(path: str, query: Optional[Dict[str, Any]] = None) -> Optional[Respon
         return _json(rep)
 
     if path == "/api/reports/compare":
-        return _json(rs.compare(family(), _one(query, "left", "") or "",
-                                _one(query, "right", "") or ""))
+        return _json(rs.compare(family(), _one(query, "left", "") or "", _one(query, "right", "") or ""))
     return None
 
 

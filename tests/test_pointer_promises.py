@@ -32,10 +32,9 @@ DESIGN, reconciled from a fenced two-seat round (deepseek mechanism / kimi adver
 
 Per docs/method-baseline-2026-07.md, these pins commit BEFORE the code they gate.
 """
-from pathlib import Path
-import sys
 
-import pytest
+import sys
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -43,7 +42,7 @@ sys.path.insert(0, str(ROOT))
 # NOT importorskip. A pin that SKIPS when its subject is missing reads as green and is
 # exactly the fails-open genus this checker exists to catch (see the door-parity parser:
 # 0 verbs seen, 66 phantom passes). These fail loudly until the checker lands.
-from scripts.checkers import check_pointer_promises as cpp  # noqa: E402
+from scripts.checkers import check_pointer_promises as cpp  # noqa: E402  # sys.path bootstrap
 
 
 def _doc(tmp_path: Path, name: str, text: str) -> Path:
@@ -91,8 +90,7 @@ def test_p2_passes_on_a_correct_claim(tmp_path):
     doc = _doc(
         tmp_path,
         "README.md",
-        "114 review and verification records live in "
-        "[`docs/library/report/`](docs/library/report/).",
+        "114 review and verification records live in [`docs/library/report/`](docs/library/report/).",
     )
 
     findings = cpp.scan_doc(doc, root=tmp_path)
@@ -113,8 +111,7 @@ def test_p3_one_compliant_file_does_not_resilence(tmp_path):
     doc = _doc(
         tmp_path,
         "README.md",
-        "The verdicts are preserved verbatim in "
-        "[`research/reviewed/`](research/reviewed/) -- ~180 records.",
+        "The verdicts are preserved verbatim in [`research/reviewed/`](research/reviewed/) -- ~180 records.",
     )
 
     findings = cpp.scan_doc(doc, root=tmp_path)
@@ -193,9 +190,7 @@ def test_p8_ok_line_cannot_claim_clean_when_nothing_was_examined(tmp_path):
     stats = cpp.census_stats(root=tmp_path, live_docs=["EMPTY.md"])
     assert stats["examined"] == 0
     assert stats["flagged"] == 0
-    assert stats["clean_claim"] is False, (
-        "with nothing examined the census must NOT assert everything matches"
-    )
+    assert stats["clean_claim"] is False, "with nothing examined the census must NOT assert everything matches"
 
 
 def test_p9_cardinal_binds_to_the_nearest_promise_not_the_first(tmp_path):
@@ -214,9 +209,7 @@ def test_p9_cardinal_binds_to_the_nearest_promise_not_the_first(tmp_path):
 
     findings = cpp.scan_doc(doc, root=tmp_path)
     mismatches = [f for f in findings if f.verdict == "MISMATCH"]
-    assert not mismatches, (
-        f"bound the far cardinal '3 reports' instead of the near '~180 records': {findings!r}"
-    )
+    assert not mismatches, f"bound the far cardinal '3 reports' instead of the near '~180 records': {findings!r}"
     assert any(f.claimed == 180 for f in findings), f"expected claimed=180, got {findings!r}"
 
 
@@ -238,9 +231,7 @@ def test_p9b_cardinal_preceding_the_pointer_is_still_bound(tmp_path):
     )
 
     findings = cpp.scan_doc(doc, root=tmp_path)
-    assert any(f.claimed == 114 for f in findings), (
-        f"a cardinal PRECEDING its pointer was dropped: {findings!r}"
-    )
+    assert any(f.claimed == 114 for f in findings), f"a cardinal PRECEDING its pointer was dropped: {findings!r}"
     assert any(f.verdict == "MISMATCH" for f in findings)
 
 

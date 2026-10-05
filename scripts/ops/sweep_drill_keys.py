@@ -17,6 +17,7 @@ this class stops accumulating -- tracked as a T118 follow-up.
     py scripts/ops/sweep_drill_keys.py            # dry-run: list the doomed
     py scripts/ops/sweep_drill_keys.py --apply    # audit, then delete
 """
+
 from __future__ import annotations
 
 import argparse
@@ -26,7 +27,7 @@ import os
 import sys
 import time
 from pathlib import Path
-from typing import Dict, List
+
 
 def _repo_root_str() -> str:
     """AI_SETUP override, else the root DERIVED from this file (core/paths).
@@ -36,8 +37,10 @@ def _repo_root_str() -> str:
     every call here silently used that literal and the repo only ran from one
     directory on one disk.
     """
-    from core.paths import root_str
     import os as _os
+
+    from core.paths import root_str
+
     return (_os.getenv("AI_SETUP") or "").strip() or root_str()
 
 
@@ -46,11 +49,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 SWEEP_PATTERNS = ("t-*", "t056_*", "t117dbg:*", "census_test")
 
 
-def _doomed(store) -> List[str]:
-    out = []
-    for key in store.keys("*"):
-        if any(fnmatch.fnmatch(str(key), p) for p in SWEEP_PATTERNS):
-            out.append(str(key))
+def _doomed(store) -> list[str]:
+    out = [str(key) for key in store.keys("*") if any(fnmatch.fnmatch(str(key), p) for p in SWEEP_PATTERNS)]
     return sorted(out)
 
 
@@ -78,18 +78,18 @@ def _typed_value(store, key):
         return {"type": "set", "value": sorted(s)}
     z = _quiet(lambda: store.zrange(key, 0, -1, withscores=True), [])
     if z:
-        return {"type": "zset", "value": {m: sc for m, sc in z}}
+        return {"type": "zset", "value": dict(z)}
     return {"type": "empty", "value": None}
 
 
-def sweep(store, audit_path, apply: bool = False) -> List[str]:
+def sweep(store, audit_path, apply: bool = False) -> list[str]:
     """Returns the doomed key list. apply=False (default) touches nothing."""
     doomed = _doomed(store)
     if not apply or not doomed:
         return doomed
     audit_path = Path(audit_path)
     audit_path.parent.mkdir(parents=True, exist_ok=True)
-    record: Dict[str, Dict] = {k: _typed_value(store, k) for k in doomed}
+    record: dict[str, dict] = {k: _typed_value(store, k) for k in doomed}
     tmp = Path(f"{audit_path}.tmp.{os.getpid()}")
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump(record, f, indent=1)
@@ -105,14 +105,14 @@ def main(argv=None) -> int:
     a = ap.parse_args(argv)
 
     from core.foundation.store import RedisStore
+
     r = RedisStore.connect()
     if not r.is_available():
         print("[sweep] Redis down -- nothing to sweep")
         return 1
 
     stamp = int(time.time())
-    audit = Path(_repo_root_str()) / "session_logs" / \
-        f"sweep-drill-{stamp}.json"
+    audit = Path(_repo_root_str()) / "session_logs" / f"sweep-drill-{stamp}.json"
     doomed = sweep(r, audit_path=audit, apply=a.apply)
     mode = "SWEPT" if a.apply else "DRY-RUN (would sweep)"
     print(f"[sweep] {mode}: {len(doomed)} key(s)")

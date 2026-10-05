@@ -40,14 +40,13 @@ Run::
 
     py -m pytest tests/test_t095_m1_mailbox_intent.py -q
 """
+
 from __future__ import annotations
 
 import importlib
 import json
-from pathlib import Path
 import sys
-
-import pytest
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -64,10 +63,12 @@ def _mailbox():
 
 def _fake():
     from test_t095_m0_mailbox_shadow import _FakeRedis  # reuse the M0 double, do not fork it
+
     return _FakeRedis()
 
 
 # --------------------------------------------------------------- D1: durable bodies
+
 
 def test_m1_1_entry_carries_the_body():
     """A mailbox entry must carry the body, or a durable pointer that still resolves after the
@@ -89,24 +90,36 @@ def test_m1_2_body_survives_transport_eviction():
     """
     mbx = _mailbox()
     client = _fake()
-    fields = {"frm": "kimi", "to": "claude", "kind": "reply", "ts": "1785500000",
-              "content": "the cold-seat critique that was minutes from being lost"}
+    fields = {
+        "frm": "kimi",
+        "to": "claude",
+        "kind": "reply",
+        "ts": "1785500000",
+        "content": "the cold-seat critique that was minutes from being lost",
+    }
     sha = mbx._ingest_one(client, NS, "claude", "work_inbox", "1785500000-0", fields)
     assert sha, "ingest refused a normal directed reply"
 
     got = mbx.body_of(NS, "claude", sha, client=client)
-    assert got and got["body"] == fields["content"], "body not retrievable right after ingest"
+    assert got, "body not retrievable right after ingest"
+    assert got["body"] == fields["content"], "body not retrievable right after ingest"
 
-    client.streams.clear()          # the ephemeral lane is gone -- aged out, trimmed, or evicted
+    client.streams.clear()  # the ephemeral lane is gone -- aged out, trimmed, or evicted
     after = mbx.body_of(NS, "claude", sha, client=client)
-    assert after and after["body"] == fields["content"], (
+    assert after, (
         "D1: the body died with the transport. A mailbox whose contents vanish with the stream is "
         "an index of envelopes, not a mailbox."
     )
-    assert after["truncated"] is False and after["body_len"] == len(fields["content"])
+    assert after["body"] == fields["content"], (
+        "D1: the body died with the transport. A mailbox whose contents vanish with the stream is "
+        "an index of envelopes, not a mailbox."
+    )
+    assert after["truncated"] is False
+    assert after["body_len"] == len(fields["content"])
 
 
 # --------------------------------------------------------------- D2: one taxonomy
+
 
 def test_m1_3_no_entry_outlives_its_body():
     """THE INVARIANT: an index entry may never outlive the body it points at.
@@ -121,7 +134,11 @@ def test_m1_3_no_entry_outlives_its_body():
     implementation choose how.
     """
     mbx = _mailbox()
-    assert hasattr(mbx, "retention_s_for") and hasattr(mbx, "body_of"), (
+    assert hasattr(mbx, "retention_s_for"), (
+        "D2: nothing ties an entry's advertised retention to its body's durability, so a 30-day "
+        "index entry can point at a 7-day stream -- a promise the system cannot keep."
+    )
+    assert hasattr(mbx, "body_of"), (
         "D2: nothing ties an entry's advertised retention to its body's durability, so a 30-day "
         "index entry can point at a 7-day stream -- a promise the system cannot keep."
     )
@@ -144,6 +161,7 @@ def test_m1_4_reply_body_survives_the_ephemeral_lane():
 
 # --------------------------------------------------------------- D3: identity
 
+
 def test_m1_5_identity_is_not_derived_from_content():
     """Two INTENTIONAL sends of identical text are different mail. A retry of one send is not.
 
@@ -160,6 +178,7 @@ def test_m1_5_identity_is_not_derived_from_content():
 
 
 # --------------------------------------------------------------- D4: intent
+
 
 def test_m1_6_open_appends_exactly_one_seen_receipt():
     """`open` says SEEN and nothing else. It must not advance a cursor or imply handled.
@@ -183,6 +202,7 @@ def test_m1_7_intent_is_declarable_and_distinct_from_seen():
 
 # --------------------------------------------------------------- the receipt, end to end
 
+
 def test_m1_9_open_leaves_every_cursor_byte_identical():
     """The MUST NOT, with an executable falsifier.
 
@@ -193,12 +213,17 @@ def test_m1_9_open_leaves_every_cursor_byte_identical():
     """
     mbx = _mailbox()
     client = _fake()
-    fields = {"frm": "codex", "to": "claude", "kind": "question", "ts": "1785500001",
-              "content": "does opening this move anything?"}
+    fields = {
+        "frm": "codex",
+        "to": "claude",
+        "kind": "question",
+        "ts": "1785500001",
+        "content": "does opening this move anything?",
+    }
     sha = mbx._ingest_one(client, NS, "claude", "work_inbox", "1785500001-0", fields)
 
     keys = [f"{NS}:cursor:lane:claude", f"{NS}:cursor:claude"]
-    for k in keys:                      # give the cursors real content to be damaged
+    for k in keys:  # give the cursors real content to be damaged
         client.hset(k, "inbox", "1785400000-0")
     before = {k: dict(client.hgetall(k) or {}) for k in keys}
 
@@ -219,15 +244,15 @@ def test_m1_10_seen_receipt_is_idempotent_across_retries():
     a DIFFERENT incarnation must."""
     mbx = _mailbox()
     client = _fake()
-    fields = {"frm": "kimi", "to": "claude", "kind": "handoff", "ts": "1785500002",
-              "content": "one body"}
+    fields = {"frm": "kimi", "to": "claude", "kind": "handoff", "ts": "1785500002", "content": "one body"}
     sha = mbx._ingest_one(client, NS, "claude", "work_inbox", "1785500002-0", fields)
     for _ in range(4):
         mbx.open(NS, "claude", sha, incarnation="seat-A", client=client)
     assert len(mbx.seen_by(NS, "claude", sha, client=client)) == 1, "retries minted extra receipts"
     mbx.open(NS, "claude", sha, incarnation="seat-B", client=client)
     seen = mbx.seen_by(NS, "claude", sha, client=client)
-    assert len(seen) == 2 and {r["incarnation"] for r in seen} == {"seat-A", "seat-B"}, (
+    assert len(seen) == 2, "a genuinely different incarnation reading the same mail is a NEW fact and must record"
+    assert {r["incarnation"] for r in seen} == {"seat-A", "seat-B"}, (
         "a genuinely different incarnation reading the same mail is a NEW fact and must record"
     )
 
@@ -239,7 +264,8 @@ def test_m1_11_unknown_intent_is_refused_not_stored():
     fields = {"frm": "x", "to": "claude", "kind": "request", "ts": "1785500003", "content": "b"}
     sha = mbx._ingest_one(client, NS, "claude", "work_inbox", "1785500003-0", fields)
     out = mbx.declare_intent(NS, "claude", sha, "maybe_later", incarnation="s", client=client)
-    assert out["ok"] is False and "unknown intent" in out["reason"]
+    assert out["ok"] is False
+    assert "unknown intent" in out["reason"]
     assert mbx.state_for(NS, "claude", sha, client=client)["intent"] is None, "refused but stored"
 
 
@@ -253,9 +279,14 @@ def test_m1_12_fragment_body_is_never_reported_whole():
     """
     mbx = _mailbox()
     client = _fake()
-    fields = {"frm": "deepseek", "to": "claude", "kind": "handoff", "ts": "1785500010",
-              "content": "x" * 50,           # comfortably under BODY_MAX -- that is the trap
-              "meta": json.dumps({"frag": {"seq": 1, "of": 4, "whole_id": "w1"}})}
+    fields = {
+        "frm": "deepseek",
+        "to": "claude",
+        "kind": "handoff",
+        "ts": "1785500010",
+        "content": "x" * 50,  # comfortably under BODY_MAX -- that is the trap
+        "meta": json.dumps({"frag": {"seq": 1, "of": 4, "whole_id": "w1"}}),
+    }
     sha = mbx._ingest_one(client, NS, "claude", "work_inbox", "1785500010-0", fields)
     got = mbx.body_of(NS, "claude", sha, client=client)
     assert got["body_fragment"] is True, "fragment not recognised as a fragment"
@@ -271,11 +302,11 @@ def test_m1_13_whole_small_body_is_not_flagged_as_partial():
     must still render as whole, or the flag becomes noise and gets ignored."""
     mbx = _mailbox()
     client = _fake()
-    fields = {"frm": "kimi", "to": "claude", "kind": "reply", "ts": "1785500011",
-              "content": "a complete short message"}
+    fields = {"frm": "kimi", "to": "claude", "kind": "reply", "ts": "1785500011", "content": "a complete short message"}
     sha = mbx._ingest_one(client, NS, "claude", "work_inbox", "1785500011-0", fields)
     got = mbx.body_of(NS, "claude", sha, client=client)
-    assert got["body_fragment"] is False and got["truncated"] is False
+    assert got["body_fragment"] is False
+    assert got["truncated"] is False
 
 
 def test_m1_14_rebuild_does_not_eat_bodies_whose_transport_is_gone():
@@ -289,17 +320,26 @@ def test_m1_14_rebuild_does_not_eat_bodies_whose_transport_is_gone():
     """
     mbx = _mailbox()
     client = _fake()
-    fields = {"frm": "codex", "to": "claude", "kind": "handoff", "ts": "1785500020",
-              "content": "the body a rebuild must not eat"}
+    fields = {
+        "frm": "codex",
+        "to": "claude",
+        "kind": "handoff",
+        "ts": "1785500020",
+        "content": "the body a rebuild must not eat",
+    }
     sha = mbx._ingest_one(client, NS, "claude", "work_inbox", "1785500020-0", fields)
     assert mbx.body_of(NS, "claude", sha, client=client)["body"] == fields["content"]
 
-    client.streams.clear()                      # transport evicted: unregenerable from here on
+    client.streams.clear()  # transport evicted: unregenerable from here on
     out = mbx.rebuild(NS, "claude", client=client)
     assert out.get("available"), f"rebuild failed: {out}"
 
     after = mbx.body_of(NS, "claude", sha, client=client)
-    assert after is not None and after["body"] == fields["content"], (
+    assert after is not None, (
+        "rebuild destroyed a body it could not regenerate -- a determinism receipt that eats "
+        f"message bodies is not a receipt. result={out}"
+    )
+    assert after["body"] == fields["content"], (
         "rebuild destroyed a body it could not regenerate -- a determinism receipt that eats "
         f"message bodies is not a receipt. result={out}"
     )

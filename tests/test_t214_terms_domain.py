@@ -29,6 +29,7 @@ to mean three things.
 
 Run: py -m pytest tests/test_t214_terms_domain.py -q
 """
+
 import os
 import sys
 
@@ -36,7 +37,7 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.coord import terms as TM  # noqa: E402
+from core.coord import terms as TM
 
 
 @pytest.fixture
@@ -44,12 +45,12 @@ def tree(tmp_path):
     (tmp_path / "a.py").write_text(
         '"""The cursor is drained when the consumer advances past it."""\n'
         "def f():\n    # a drained lane is not the same as an empty lane\n    pass\n",
-        encoding="utf-8")
+        encoding="utf-8",
+    )
     (tmp_path / "b.py").write_text(
-        '"""Wakeable seats beat their key; a drained lane looks wakeable."""\n'
-        "x = 1  # drained\n", encoding="utf-8")
-    (tmp_path / "c.py").write_text(
-        "# the lane is drained by the sweep\ny = 2\n", encoding="utf-8")
+        '"""Wakeable seats beat their key; a drained lane looks wakeable."""\nx = 1  # drained\n', encoding="utf-8"
+    )
+    (tmp_path / "c.py").write_text("# the lane is drained by the sweep\ny = 2\n", encoding="utf-8")
     return tmp_path
 
 
@@ -79,7 +80,9 @@ def test_min_files_filters_local_jargon(tree):
 def test_stopwords_and_code_noise_are_dropped(tree):
     (tree / "d.py").write_text(
         "# the return value should be a string that we return for the caller\n"
-        "# self param kwargs args None True False\n", encoding="utf-8")
+        "# self param kwargs args None True False\n",
+        encoding="utf-8",
+    )
     got = TM.extract(root=str(tree), min_files=1)
     for noise in ("the", "return", "value", "self", "none", "true", "string"):
         assert noise not in got, f"{noise} is noise, not vocabulary"
@@ -87,16 +90,21 @@ def test_stopwords_and_code_noise_are_dropped(tree):
 
 def test_lexicon_terms_are_read_from_the_lexicon(tmp_path):
     lex = tmp_path / "LEXICON.md"
-    lex.write_text("# Lexicon\n\n## Drained\nthe cursor advanced.\n\n"
-                   "### `worklive`\na heartbeat key.\n\n"
-                   "**Attendance** -- the verdict.\n", encoding="utf-8")
+    lex.write_text(
+        "# Lexicon\n\n## Drained\nthe cursor advanced.\n\n"
+        "### `worklive`\na heartbeat key.\n\n"
+        "**Attendance** -- the verdict.\n",
+        encoding="utf-8",
+    )
     got = TM.lexicon_terms(path=str(lex))
     assert {"drained", "worklive", "attendance"} <= got
 
 
 def test_the_domains_register_and_share_a_key_type():
     from core.coord import compare as CMP
-    assert "terms:code" in CMP.DOMAINS and "terms:lexicon" in CMP.DOMAINS
+
+    assert "terms:code" in CMP.DOMAINS
+    assert "terms:lexicon" in CMP.DOMAINS
     assert CMP.DOMAINS["terms:code"][1] == CMP.DOMAINS["terms:lexicon"][1]
 
 
@@ -111,7 +119,8 @@ def test_the_result_is_labelled_candidates_never_violations():
 
 def test_blindness_is_named(tree):
     """Heuristic extraction that does not confess its heuristics gets read as a census."""
-    assert TM.BLIND and len(TM.BLIND) >= 3
+    assert TM.BLIND
+    assert len(TM.BLIND) >= 3
 
 
 def test_the_known_positives_are_recorded_as_a_calibration_set():
@@ -148,7 +157,8 @@ def test_the_blind_list_does_not_claim_high_spread_is_safe():
     the 07-30 relationship design forbids. This pin makes the correction non-revertible."""
     blind = " ".join(TM.BLIND).lower()
     assert "mechanism is unknown" in blind
-    assert "falsified" in blind and "61 files" in blind
+    assert "falsified" in blind
+    assert "61 files" in blind
     assert "selection bias" in blind, "the calibration set is survivors-of-pain, not a sample"
     assert "socialised" not in blind or "falsified" in blind
 
@@ -157,7 +167,8 @@ def test_scoring_is_still_exercised_so_a_future_fix_is_measurable(tree):
     """The score stays computed -- the calibration set is only useful if the number it
     grades still exists."""
     got = TM.extract(root=str(tree), min_files=1)
-    assert "score" in got["drained"] and "dirs" in got["drained"]
+    assert "score" in got["drained"]
+    assert "dirs" in got["drained"]
     # The IDF property, stated as the test rather than assumed: a word in EVERY file
     # carries no information and scores 0, while a rarer word outranks it. (drained is in
     # all 3 fixture files; wakeable in 1.) My first assertion here demanded drained > 0

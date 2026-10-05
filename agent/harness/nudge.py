@@ -9,6 +9,7 @@ repeats is noise, and hooks are fresh processes per call, so the three-way rate 
 Callers own their directory (they all pass <state root>/nudge; session keys differ per
 harness, so sharing the directory is safe).
 """
+
 import json
 import os
 

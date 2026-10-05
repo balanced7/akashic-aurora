@@ -11,12 +11,13 @@ Integration:
   - bifrost_ui.py: GET /session/snapshot (save) + POST /session/resume (restore)
   - agent_cli.py: py agent_cli.py session --snapshot  /  py agent_cli.py session --resume
 """
+
 from __future__ import annotations
 
 import json
 import os
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from core.foundation.timeutil import now_iso
 
@@ -31,10 +32,10 @@ def _ts() -> str:
 
 
 def _now() -> str:
-    return now_iso()   # T119: the one clock (aware UTC), not the machine's naive wall
+    return now_iso()  # T119: the one clock (aware UTC), not the machine's naive wall
 
 
-def save(label: str = "") -> Dict[str, Any]:
+def save(label: str = "") -> dict[str, Any]:
     """Capture the current Bifrost session state. Returns the snapshot dict + path.
 
     Captures:
@@ -47,30 +48,34 @@ def save(label: str = "") -> Dict[str, Any]:
     os.makedirs(SNAPSHOT_DIR, exist_ok=True)
 
     # ── Gather state ──────────────────────────────────────────────────
-    agents: List[Dict[str, Any]] = []
+    agents: list[dict[str, Any]] = []
     try:
         from core.comm.launcher import get_launcher
+
         agents = get_launcher().registry()
     except Exception:
         pass
 
-    presence: List[Dict[str, Any]] = []
+    presence: list[dict[str, Any]] = []
     try:
         from core.comm.bus import Bus
+
         presence = Bus("snapshot").presence()
     except Exception:
         pass
 
-    activities: Dict[str, Any] = {}
+    activities: dict[str, Any] = {}
     try:
         from core.comm import control
+
         activities = control.get_activities()
     except Exception:
         pass
 
-    pause: Dict[str, Any] = {}
+    pause: dict[str, Any] = {}
     try:
         from core.comm import control
+
         pause = control.pause_status()
     except Exception:
         pass
@@ -92,7 +97,8 @@ def save(label: str = "") -> Dict[str, Any]:
                 "description": a.get("description", ""),
                 "activity": activities.get(a["agent_id"], {}),
             }
-            for a in agents if a.get("status") == "running"
+            for a in agents
+            if a.get("status") == "running"
         ],
         "configured_agents": [
             {
@@ -122,11 +128,17 @@ def save(label: str = "") -> Dict[str, Any]:
     # Alias as latest
     LATEST.write_text(json.dumps(snapshot, indent=2, default=str), encoding="utf-8")
 
-    return {"ok": True, "path": str(path), "latest": str(LATEST),
-            "running": running_tags, "online": online_ids, "snapshot": snapshot}
+    return {
+        "ok": True,
+        "path": str(path),
+        "latest": str(LATEST),
+        "running": running_tags,
+        "online": online_ids,
+        "snapshot": snapshot,
+    }
 
 
-def load(path: Optional[str] = None) -> Dict[str, Any]:
+def load(path: str | None = None) -> dict[str, Any]:
     """Load a saved snapshot. Defaults to latest.json."""
     target = Path(path) if path else LATEST
     if not target.exists():
@@ -138,7 +150,7 @@ def load(path: Optional[str] = None) -> Dict[str, Any]:
         return {"ok": False, "error": str(e)}
 
 
-def resume(path: Optional[str] = None, *, label: str = "") -> Dict[str, Any]:
+def resume(path: str | None = None, *, label: str = "") -> dict[str, Any]:
     """Read a snapshot and relaunch the agents that were running.
 
     Spawns each running agent via the launcher. Returns which succeeded and which failed.
@@ -154,6 +166,7 @@ def resume(path: Optional[str] = None, *, label: str = "") -> Dict[str, Any]:
         return {"ok": False, "error": "snapshot has no running agents to resume"}
 
     from core.comm.launcher import get_launcher
+
     launcher = get_launcher()
 
     results = []
@@ -174,13 +187,15 @@ def resume(path: Optional[str] = None, *, label: str = "") -> Dict[str, Any]:
             prompt = f"[SESSION RESUME] Relaunched from session '{label}'. Check inbox and continue."
 
         result = launcher.launch(tag, prompt=prompt)
-        results.append({
-            "tag": tag,
-            "agent_id": agent["agent_id"],
-            "ok": result.get("ok", False),
-            "pid": result.get("pid"),
-            "error": result.get("error", ""),
-        })
+        results.append(
+            {
+                "tag": tag,
+                "agent_id": agent["agent_id"],
+                "ok": result.get("ok", False),
+                "pid": result.get("pid"),
+                "error": result.get("error", ""),
+            }
+        )
 
     all_ok = all(r["ok"] for r in results)
 
@@ -188,6 +203,7 @@ def resume(path: Optional[str] = None, *, label: str = "") -> Dict[str, Any]:
     if snap.get("pause", {}).get("paused"):
         try:
             from core.comm import control
+
             control.resume()
         except Exception:
             pass
@@ -202,7 +218,7 @@ def resume(path: Optional[str] = None, *, label: str = "") -> Dict[str, Any]:
     }
 
 
-def list_snapshots() -> List[Dict[str, Any]]:
+def list_snapshots() -> list[dict[str, Any]]:
     """All saved snapshots, newest first."""
     if not SNAPSHOT_DIR.exists():
         return []
@@ -212,13 +228,15 @@ def list_snapshots() -> List[Dict[str, Any]]:
             continue
         try:
             data = json.loads(f.read_text(encoding="utf-8"))
-            out.append({
-                "file": f.name,
-                "saved_at": data.get("saved_at", ""),
-                "label": data.get("label", ""),
-                "running_agents": len(data.get("running_agents", [])),
-                "online_agents": len(data.get("online_agents", [])),
-            })
+            out.append(
+                {
+                    "file": f.name,
+                    "saved_at": data.get("saved_at", ""),
+                    "label": data.get("label", ""),
+                    "running_agents": len(data.get("running_agents", [])),
+                    "online_agents": len(data.get("online_agents", [])),
+                }
+            )
         except Exception:
             out.append({"file": f.name, "saved_at": "", "label": "(corrupt)", "running_agents": 0, "online_agents": 0})
     return out

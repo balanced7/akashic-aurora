@@ -4,6 +4,7 @@ Hermetic: the caller and the availability probe take an injectable `opener`, so 
 network. The roster reads the bundled models.json (local file), so it needs no injection. Design:
 docs/library/design/20260709_fleet-dispatch-an-intelligent-easy-struc_303d15.md.
 """
+
 import json
 import os
 import sys
@@ -13,7 +14,7 @@ import pytest
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.fleet import model_roster as roster
-from core.fleet.caller import call, FleetCallError
+from core.fleet.caller import FleetCallError, call
 
 
 # ------------------------------------------------------------------ fake transport
@@ -37,12 +38,14 @@ def _opener(body, capture=None):
             capture["url"] = req.full_url
             capture["payload"] = json.loads(req.data.decode("utf-8")) if getattr(req, "data", None) else None
         return _FakeResp(body)
+
     return _open
 
 
 def _raising_opener(exc):
     def _open(req, timeout=None):
         raise exc
+
     return _open
 
 
@@ -53,20 +56,25 @@ def test_roster_loads_and_filters_by_status_and_capability():
     active = {m["tag"] for m in roster.models(status="active")}
     gated = {m["tag"] for m in roster.models(status="gated")}
     assert "glm-4.7-flash" in active
-    assert "gpt-oss:20b" in gated and "qwen3-coder:30b" in gated
+    assert "gpt-oss:20b" in gated
+    assert "qwen3-coder:30b" in gated
     faithful = {m["tag"] for m in roster.models(capability="faithful")}
-    assert "granite-4.0-h-small" in faithful and "gemma-3-12b-it" in faithful
+    assert "granite-4.0-h-small" in faithful
+    assert "gemma-3-12b-it" in faithful
 
 
 def test_get_returns_spec_or_none():
-    assert roster.get("glm-4.7-flash")["status"] == "active"
+    spec = roster.get("glm-4.7-flash")
+    assert spec is not None
+    assert spec["status"] == "active"
     assert roster.get("does-not-exist") is None
     assert roster.get("") is None
 
 
 def test_select_picks_active_by_capability_and_skips_gated():
-    pick = roster.select("tool-use")            # default status=active
-    assert pick and pick["tag"] == "glm-4.7-flash"
+    pick = roster.select("tool-use")  # default status=active
+    assert pick
+    assert pick["tag"] == "glm-4.7-flash"
     # gpt-oss has 'reasoning' but is GATED -> never selected even when it's the only match
     assert roster.select("reasoning") is None
 
@@ -74,7 +82,8 @@ def test_select_picks_active_by_capability_and_skips_gated():
 def test_select_respects_vram_and_context_constraints():
     # among candidates with 'extract', a 5GB cap keeps qwen3.5:4b (4GB, measured) as the top pick
     pick = roster.select("extract", status="candidate", max_vram=5)
-    assert pick and pick["tag"] == "qwen3.5:4b"
+    assert pick
+    assert pick["tag"] == "qwen3.5:4b"
     # an impossible context requirement excludes the only active model -> None
     assert roster.select("generalist", min_context=10_000_000) is None
     # a capability nobody declares -> None
@@ -85,21 +94,25 @@ def test_select_unknown_vram_is_not_excluded():
     """A candidate with unmeasured VRAM must still be selectable (so it can get a first manual call),
     i.e. unknown vram is NOT treated as too-big."""
     pick = roster.select("faithful", status="candidate", max_vram=1)
-    assert pick is not None and pick.get("vram_gb") is None
+    assert pick is not None
+    assert pick.get("vram_gb") is None
 
 
 def test_probe_availability_injected():
     body = json.dumps({"models": [{"name": "glm-4.7-flash:latest"}, {"name": "qwen3.5:9b"}]})
     out = roster.probe_availability(opener=_opener(body))
     assert out["ok"] is True
-    assert "glm-4.7-flash" in out["declared_present"] and "qwen3.5:9b" in out["declared_present"]
+    assert "glm-4.7-flash" in out["declared_present"]
+    assert "qwen3.5:9b" in out["declared_present"]
     assert "gpt-oss:20b" not in out["declared_present"]
 
 
 def test_probe_availability_fail_soft():
     import urllib.error
+
     out = roster.probe_availability(opener=_raising_opener(urllib.error.URLError("down")))
-    assert out["ok"] is False and out["present"] == []
+    assert out["ok"] is False
+    assert out["present"] == []
 
 
 # ------------------------------------------------------------------ caller
@@ -113,8 +126,10 @@ def test_call_pins_num_ctx_and_defaults_from_roster():
     call("glm-4.7-flash", "hi", opener=_opener(json.dumps({"response": "x"}), capture=cap))
     opts = cap["payload"]["options"]
     assert opts["num_ctx"] == 64000, "num_ctx pinned from the glm spec (not the 4K trap)"
-    assert opts["temperature"] == 0.2 and opts["num_predict"] == 512
-    assert cap["url"].endswith("/api/generate") and cap["payload"]["model"] == "glm-4.7-flash"
+    assert opts["temperature"] == 0.2
+    assert opts["num_predict"] == 512
+    assert cap["url"].endswith("/api/generate")
+    assert cap["payload"]["model"] == "glm-4.7-flash"
 
 
 def test_call_unknown_tag_uses_safe_ctx_floor():
@@ -125,14 +140,20 @@ def test_call_unknown_tag_uses_safe_ctx_floor():
 
 def test_call_fmt_json_and_system_are_wired():
     cap = {}
-    call("qwen3.5:4b", "extract", system="be terse", fmt="json",
-         opener=_opener(json.dumps({"response": "{}"}), capture=cap))
+    call(
+        "qwen3.5:4b",
+        "extract",
+        system="be terse",
+        fmt="json",
+        opener=_opener(json.dumps({"response": "{}"}), capture=cap),
+    )
     assert cap["payload"]["format"] == "json"
     assert cap["payload"]["system"] == "be terse"
 
 
 def test_call_raises_on_network_error():
     import urllib.error
+
     with pytest.raises(FleetCallError):
         call("glm-4.7-flash", "hi", opener=_raising_opener(urllib.error.URLError("boom")))
 
@@ -159,7 +180,9 @@ def test_call_requires_tag_and_prompt():
 def test_roster_data_is_self_consistent():
     """Every row has a tag + capabilities; gated rows explain WHY (disqualifier), active rows don't."""
     for m in roster.models():
-        assert m.get("tag") and isinstance(m.get("capabilities"), list) and m["capabilities"]
+        assert m.get("tag")
+        assert isinstance(m.get("capabilities"), list)
+        assert m["capabilities"]
         if m["status"] == "gated":
             assert m.get("disqualifier"), f"{m['tag']} is gated but has no disqualifier"
         if m["status"] == "active":

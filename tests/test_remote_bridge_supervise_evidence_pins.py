@@ -14,18 +14,17 @@ PORT-FREE: ManagedChild is replaced by a fake honouring the same public surface 
 hook, tripped, pid, spawn(), poll()); door_open is stubbed shut; time.sleep is a no-op.
 Safe to run in one pytest invocation with any other file.
 """
+
 from __future__ import annotations
 
 import os
 import sys
 
-import pytest
-
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
-import scripts.remote_bridge_supervise as sup  # noqa: E402
+import scripts.remote_bridge_supervise as sup  # noqa: E402  # sys.path bootstrap
 
 SENTINEL = "evidence-of-death"
 
@@ -35,10 +34,12 @@ SENTINEL = "evidence-of-death"
 TAIL = "\n".join(
     ["akashic remote-bridge listener on http://127.0.0.1:1/xfer  peer=serge-dsh"]
     + [f"[12:05:{10 + i:02d}] 100.86.106.36 POST /xfer 200 id=rb-{i:04d}" for i in range(24)]
-    + ["Traceback (most recent call last):",
-       "  File \"scripts/remote_bridge_listener.py\", line 340, in main",
-       "    srv.serve_forever()",
-       f"OSError: [WinError 10048] {SENTINEL}: only one usage of each socket address"]
+    + [
+        "Traceback (most recent call last):",
+        '  File "scripts/remote_bridge_listener.py", line 340, in main',
+        "    srv.serve_forever()",
+        f"OSError: [WinError 10048] {SENTINEL}: only one usage of each socket address",
+    ]
 )
 
 
@@ -81,7 +82,7 @@ class HandoverChild(FakeChild):
 
 
 def _run(monkeypatch, capsys, tmp_path, extra_argv=(), child_cls=FakeChild):
-    monkeypatch.setattr(sup, "REPO", tmp_path)          # the default sink resolves under tmp
+    monkeypatch.setattr(sup, "REPO", tmp_path)  # the default sink resolves under tmp
     monkeypatch.setattr(sup, "ManagedChild", child_cls)
     monkeypatch.setattr(sup, "door_open", lambda *a, **k: False)
     monkeypatch.setattr(sup.time, "sleep", lambda s: None)
@@ -97,15 +98,15 @@ def test_child_death_evidence_reaches_the_supervisor_stdout_on_exit(monkeypatch,
 
 
 def test_breaker_trip_prints_the_evidence_adjacent_to_the_trip_line(monkeypatch, capsys, tmp_path):
-    rc, out = _run(monkeypatch, capsys, tmp_path)
+    _rc, out = _run(monkeypatch, capsys, tmp_path)
     assert "BREAKER TRIPPED" in out
-    after_trip = out[out.index("BREAKER TRIPPED"):]
+    after_trip = out[out.index("BREAKER TRIPPED") :]
     assert SENTINEL in after_trip, "the trip line and the death evidence must be adjacent"
 
 
 def test_the_file_the_breaker_names_actually_receives_the_evidence(monkeypatch, capsys, tmp_path):
-    rc, out = _run(monkeypatch, capsys, tmp_path)
-    after_trip = out[out.index("BREAKER TRIPPED"):]
+    _rc, out = _run(monkeypatch, capsys, tmp_path)
+    after_trip = out[out.index("BREAKER TRIPPED") :]
     assert "remote-bridge-listener.log" in after_trip
     log = tmp_path / "state" / "logs" / "remote-bridge-listener.log"
     assert log.exists(), "the breaker message names a file the supervised child never writes"
@@ -118,12 +119,13 @@ def test_child_log_flag_redirects_the_tee_and_the_breaker_names_it(monkeypatch, 
     assert rc == 1
     assert sink.exists(), "--child-log sink never written"
     assert SENTINEL in sink.read_text(encoding="utf-8")
-    assert str(sink) in out[out.index("BREAKER TRIPPED"):], \
+    assert str(sink) in out[out.index("BREAKER TRIPPED") :], (
         "the breaker must name the sink that actually received the evidence"
+    )
 
 
 def test_a_deliberate_exit_0_also_surfaces_the_tail(monkeypatch, capsys, tmp_path):
     rc, out = _run(monkeypatch, capsys, tmp_path, child_cls=HandoverChild)
-    assert rc == 0                                   # Ctrl-C path: supervisor stops cleanly
+    assert rc == 0  # Ctrl-C path: supervisor stops cleanly
     assert "code=0" in out, "an exit-0 handover must still be announced with its code"
     assert SENTINEL in out, "what the child said on its way out is owed on EVERY exit"

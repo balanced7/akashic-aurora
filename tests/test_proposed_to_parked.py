@@ -20,6 +20,7 @@ Every one of them faces the same two bad doors today.
 The evidence bar does not move. PARKED's mandatory --reason gate is untouched and is
 pinned here from the new origin, so a shorter route stays a route and not a hole.
 """
+
 import os
 import sys
 
@@ -30,7 +31,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from core.coord import task_ledger as TL
 
 
-@pytest.fixture()
+@pytest.fixture
 def led(tmp_path):
     return TL.TaskLedger(str(tmp_path / "ledger.json"), client=None)
 

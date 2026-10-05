@@ -11,27 +11,28 @@ Run::
 
     py -m pytest tests/test_t060_n0_shadow_router.py -q
 """
+
 from __future__ import annotations
 
 import asyncio
 import importlib
 import json
 import os
-from pathlib import Path
 import statistics
 import subprocess
 import sys
 import time
 import uuid
+from pathlib import Path
 
 import pytest
 
-
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from core.comm import packet_spec
 from core.comm.bus import Bus
+
+ROOT = Path(__file__).resolve().parents[1]
 
 
 def _router():
@@ -43,8 +44,7 @@ def _router():
 class _FakeRedis:
     """Small transport double: Redis-shaped enough for Bus send-door pins."""
 
-    def __init__(self, *, fail_lane_writes: bool = False,
-                 fail_metrics: bool = False) -> None:
+    def __init__(self, *, fail_lane_writes: bool = False, fail_metrics: bool = False) -> None:
         self.fail_lane_writes = fail_lane_writes
         self.fail_metrics = fail_metrics
         self.streams: dict[str, list[tuple[str, dict]]] = {}
@@ -73,8 +73,7 @@ class _FakeRedis:
     def xadd(self, key, fields, **_kwargs):
         key = str(key)
         self.xadd_keys.append(key)
-        if self.fail_lane_writes and any(
-                marker in key for marker in (":work:", ":sig:", ":trace")):
+        if self.fail_lane_writes and any(marker in key for marker in (":work:", ":sig:", ":trace")):
             raise RuntimeError("injected lane mirror failure")
         bucket = self.streams.setdefault(key, [])
         mid = f"{len(bucket) + 1}-0"
@@ -244,8 +243,7 @@ def test_reply_lane_first_dedup_and_expectation_semantics_unchanged(monkeypatch)
 
 def test_cli_and_mcp_route_json_are_identical():
     cli = subprocess.run(
-        [sys.executable, str(ROOT / "agent_cli.py"),
-         "packet-trace", "handoff", "--json"],
+        [sys.executable, str(ROOT / "agent_cli.py"), "packet-trace", "handoff", "--json"],
         cwd=ROOT,
         text=True,
         capture_output=True,
@@ -277,18 +275,17 @@ def test_fresh_stdio_mcp_registers_route_tools_and_returns_single_frame():
             cwd=str(ROOT),
             env={**os.environ, "PYTHONUTF8": "1", "PYTHONUNBUFFERED": "1"},
         )
-        async with stdio_client(params) as (read, write):
-            async with ClientSession(read, write) as session:
-                await session.initialize()
-                listed = await session.list_tools()
-                names = {tool.name for tool in listed.tools}
-                assert {"packet_route", "packet_route_stats"} <= names
-                result = await asyncio.wait_for(
-                    session.call_tool("packet_route", {"kind": "handoff"}),
-                    timeout=5.0,
-                )
-                text = "".join(getattr(item, "text", "") for item in result.content)
-                assert json.loads(text) == _router().route("handoff").as_dict()
+        async with stdio_client(params) as (read, write), ClientSession(read, write) as session:
+            await session.initialize()
+            listed = await session.list_tools()
+            names = {tool.name for tool in listed.tools}
+            assert {"packet_route", "packet_route_stats"} <= names
+            result = await asyncio.wait_for(
+                session.call_tool("packet_route", {"kind": "handoff"}),
+                timeout=5.0,
+            )
+            text = "".join(getattr(item, "text", "") for item in result.content)
+            assert json.loads(text) == _router().route("handoff").as_dict()
 
     asyncio.run(flow())
 

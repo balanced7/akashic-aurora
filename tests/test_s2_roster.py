@@ -26,15 +26,14 @@ import sys
 import time
 import uuid
 
+import pytest
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 NS = f"t108ro{uuid.uuid4().hex[:6]}"
 AGENT = "claude"
 SEAT_A = "aaaa1111"
 SEAT_B = "bbbb2222"
-
-
-import pytest
 
 
 @pytest.fixture(autouse=True)
@@ -54,12 +53,16 @@ def _restore_incarnation_env():
 
 def _ro():
     from core.comm import roster
+
     return roster
 
 
 def _client():
     from core.comm.bus import get_bus
-    return get_bus(AGENT)._client
+
+    c = get_bus(AGENT)._client
+    assert c is not None
+    return c
 
 
 def test_p1_provably_live_vs_stale():
@@ -67,22 +70,27 @@ def test_p1_provably_live_vs_stale():
     ro.heartbeat(NS, AGENT, SEAT_A, phase="building")
     rows = ro.roster(NS)
     mine = [r for r in rows if r.get("seat") == f"{AGENT}#{SEAT_A}"]
-    assert mine and mine[0]["state"] == "LIVE", f"fresh beat must render LIVE: {mine}"
+    assert mine, f"fresh beat must render LIVE: {mine}"
+    assert mine[0]["state"] == "LIVE", f"fresh beat must render LIVE: {mine}"
     # Replay the same seat with an ANCIENT beat via the raw key (simulating a stale key
     # that has not yet TTL'd): state must be STALE, not LIVE. Key-exists != alive.
     ro.heartbeat(NS, AGENT, SEAT_B, phase="idle", _beat_ts=time.time() - 3600)
     rows = ro.roster(NS)
     other = [r for r in rows if r.get("seat") == f"{AGENT}#{SEAT_B}"]
-    assert other and other[0]["state"] == "STALE", (
+    assert other, (
         f"a beat older than the freshness window must render STALE even while the key "
-        f"exists -- key-exists is not alive (kimi P1): {other}")
+        f"exists -- key-exists is not alive (kimi P1): {other}"
+    )
+    assert other[0]["state"] == "STALE", (
+        f"a beat older than the freshness window must render STALE even while the key "
+        f"exists -- key-exists is not alive (kimi P1): {other}"
+    )
 
 
 def test_p2_dead_seat_never_live():
     ro = _ro()
     rows = ro.roster(NS + "d")
-    assert all(r.get("state") != "LIVE" for r in rows), (
-        f"an empty namespace must contain no LIVE seats: {rows}")
+    assert all(r.get("state") != "LIVE" for r in rows), f"an empty namespace must contain no LIVE seats: {rows}"
 
 
 def test_p3_w84_contract_in_render():
@@ -90,9 +98,14 @@ def test_p3_w84_contract_in_render():
     ro.heartbeat(NS + "w", AGENT, SEAT_A, phase="idle")
     lines = ro.render_roster(NS + "w")
     joined = "\n".join(lines).lower()
-    assert "checked" in joined and "not checked" in joined, (
+    assert "checked" in joined, (
         "W84: the roster must render what it CHECKED and what it did NOT -- a roster that "
-        "cannot confess its blind spots is unwedge all over again:\n" + "\n".join(lines))
+        "cannot confess its blind spots is unwedge all over again:\n" + "\n".join(lines)
+    )
+    assert "not checked" in joined, (
+        "W84: the roster must render what it CHECKED and what it did NOT -- a roster that "
+        "cannot confess its blind spots is unwedge all over again:\n" + "\n".join(lines)
+    )
 
 
 def test_p4_have_summary_present():
@@ -100,9 +113,14 @@ def test_p4_have_summary_present():
     ro.heartbeat(NS + "h", AGENT, SEAT_A, phase="building")
     rows = ro.roster(NS + "h")
     mine = [r for r in rows if r.get("seat") == f"{AGENT}#{SEAT_A}"]
-    assert mine and "have" in mine[0], (
+    assert mine, (
         f"each row carries the seat's consumed-through positions (torrent bitfield, T3) so "
-        f"a successor can DIFF a dead seat's inventory: {mine}")
+        f"a successor can DIFF a dead seat's inventory: {mine}"
+    )
+    assert "have" in mine[0], (
+        f"each row carries the seat's consumed-through positions (torrent bitfield, T3) so "
+        f"a successor can DIFF a dead seat's inventory: {mine}"
+    )
 
 
 def test_p5_replayed_beat_cannot_resurrect():
@@ -114,7 +132,8 @@ def test_p5_replayed_beat_cannot_resurrect():
     after = ro.roster(ns)[0]["beat_ts"]
     assert float(after) >= float(fresh), (
         "MONOTONIC BEAT violated: a replayed/older heartbeat overwrote a fresher one -- a "
-        "replay could resurrect a stale seat or mask a death (kimi P1, never-replayed half)")
+        "replay could resurrect a stale seat or mask a death (kimi P1, never-replayed half)"
+    )
 
 
 def test_p6_just_died_seat_renders_dead_not_absent():
@@ -128,10 +147,16 @@ def test_p6_just_died_seat_renders_dead_not_absent():
     _client().delete(f"{ns}:worklive:{AGENT}#{SEAT_A}")
     rows = ro.roster(ns)
     mine = [r for r in rows if r.get("seat") == f"{AGENT}#{SEAT_A}"]
-    assert mine and mine[0]["state"] == "DEAD", (
+    assert mine, (
         f"JUST-DIED SEAT INVISIBLE: worklive expired and the seat vanished from the roster "
         f"instead of rendering DEAD -- absence-as-dead is fine for the reaper's predicate, "
-        f"never for the render's claim (kimi F1). rows={rows}")
+        f"never for the render's claim (kimi F1). rows={rows}"
+    )
+    assert mine[0]["state"] == "DEAD", (
+        f"JUST-DIED SEAT INVISIBLE: worklive expired and the seat vanished from the roster "
+        f"instead of rendering DEAD -- absence-as-dead is fine for the reaper's predicate, "
+        f"never for the render's claim (kimi F1). rows={rows}"
+    )
 
 
 def test_p7_have_summary_reads_through_the_bus_door():
@@ -140,7 +165,9 @@ def test_p7_have_summary_reads_through_the_bus_door():
     successor diffs against (T1). The seat-cursor half must agree with the Bus's own
     door-derived read after a real slice-1 consume."""
     import os as _os
+
     from core.comm.bus import Bus
+
     ro = _ro()
     ns = NS + "b"
     sender = Bus("deepseek", namespace=ns)
@@ -151,15 +178,17 @@ def test_p7_have_summary_reads_through_the_bus_door():
     _os.environ["BIFROST_INCARNATION"] = SEAT_A
     _os.environ["CLAUDE_CODE_SESSION_ID"] = SEAT_A
     b = Bus(AGENT, namespace=ns)
-    b.inbox(advance=True)                       # real consume advances the seat cursor
+    b.inbox(advance=True)  # real consume advances the seat cursor
     ro.heartbeat(ns, AGENT, SEAT_A, phase="sync")
     rows = ro.roster(ns)
-    mine = [r for r in rows if r.get("seat") == f"{AGENT}#{SEAT_A}"][0]
+    mine = next(r for r in rows if r.get("seat") == f"{AGENT}#{SEAT_A}")
+    assert b._client is not None
     door_val = str(b._client.hget(b._seat_cursor_key(SEAT_A), "seat") or "0")
     assert str(mine["have"].get("seat_inbox")) == door_val != "0", (
         f"HAVE-SUMMARY DOOR MISMATCH: roster's seat_inbox={mine['have'].get('seat_inbox')} "
         f"vs the Bus door's {door_val} -- the bitfield must be built through the organ that "
-        f"owns the key, not a raw parallel format (kimi F2 / T1).")
+        f"owns the key, not a raw parallel format (kimi F2 / T1)."
+    )
 
 
 def test_p8_live_window_derives_from_the_seats_own_cadence():
@@ -169,14 +198,15 @@ def test_p8_live_window_derives_from_the_seats_own_cadence():
     ro = _ro()
     ns = NS + "c"
     base = time.time() - 30
-    for i in range(6):                          # establish ~2s cadence, ending 20s ago
+    for i in range(6):  # establish ~2s cadence, ending 20s ago
         ro.heartbeat(ns, AGENT, SEAT_A, phase="building", _beat_ts=base + i * 2)
     rows = ro.roster(ns)
-    mine = [r for r in rows if r.get("seat") == f"{AGENT}#{SEAT_A}"][0]
+    mine = next(r for r in rows if r.get("seat") == f"{AGENT}#{SEAT_A}")
     assert mine["state"] == "STALE", (
         f"LIVE OVERCLAIMS (kimi F3): seat cadence ~2s, last beat ~20s ago, and the roster "
         f"still says {mine['state']} because a fixed 45s dial ignores the seat's own "
-        f"rhythm. The false-LIVE window must be bounded by the seat's real cadence. {mine}")
+        f"rhythm. The false-LIVE window must be bounded by the seat's real cadence. {mine}"
+    )
 
 
 if __name__ == "__main__":

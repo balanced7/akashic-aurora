@@ -32,13 +32,18 @@ AND IT PROPOSES, NEVER RATIFIES. There is no write path in this module -- no tas
 no lesson writing, no subprocess. It surfaces; the human decides. Four independent arrivals
 in this house landed on that law; this one inherits it rather than rediscovering it.
 """
+
 from __future__ import annotations
 
+import contextlib
 import re
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Set, Tuple
+from typing import TYPE_CHECKING, Any
 
 from core.eye.index import _connect, utterance_key
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Sequence
 
 # Phrase length in words. Short enough that a rephrasing still overlaps, long enough that
 # the match means something -- 5 words is the floor at which "fence the migration path"
@@ -57,13 +62,85 @@ _MAX_DOC_FREQ = 0.34
 # a phrase is dropped only if it is ENTIRELY made of these, so "always fence the migration
 # path" survives while "can we make sure that" does not.
 _FILLER = {
-    "i", "you", "we", "it", "the", "a", "an", "to", "of", "and", "or", "is", "are", "be",
-    "can", "could", "would", "should", "will", "want", "need", "make", "let", "lets",
-    "this", "that", "these", "those", "there", "here", "do", "does", "did", "so", "if",
-    "for", "on", "in", "at", "with", "as", "but", "not", "what", "how", "why", "when",
-    "just", "really", "very", "please", "thing", "things", "get", "got", "keep", "now",
-    "up", "out", "about", "our", "your", "my", "me", "us", "have", "has", "had", "was",
-    "were", "then", "them", "they", "he", "she", "its", "it's", "build", "building",
+    "i",
+    "you",
+    "we",
+    "it",
+    "the",
+    "a",
+    "an",
+    "to",
+    "of",
+    "and",
+    "or",
+    "is",
+    "are",
+    "be",
+    "can",
+    "could",
+    "would",
+    "should",
+    "will",
+    "want",
+    "need",
+    "make",
+    "let",
+    "lets",
+    "this",
+    "that",
+    "these",
+    "those",
+    "there",
+    "here",
+    "do",
+    "does",
+    "did",
+    "so",
+    "if",
+    "for",
+    "on",
+    "in",
+    "at",
+    "with",
+    "as",
+    "but",
+    "not",
+    "what",
+    "how",
+    "why",
+    "when",
+    "just",
+    "really",
+    "very",
+    "please",
+    "thing",
+    "things",
+    "get",
+    "got",
+    "keep",
+    "now",
+    "up",
+    "out",
+    "about",
+    "our",
+    "your",
+    "my",
+    "me",
+    "us",
+    "have",
+    "has",
+    "had",
+    "was",
+    "were",
+    "then",
+    "them",
+    "they",
+    "he",
+    "she",
+    "its",
+    "it's",
+    "build",
+    "building",
 }
 
 _WORD = re.compile(r"[a-z0-9']+")
@@ -80,16 +157,43 @@ _WORD = re.compile(r"[a-z0-9']+")
 # This is a HEURISTIC and is reported as one. It trades recall for precision on purpose:
 # a watcher that surfaces noise gets ignored, and an ignored watcher's silence reads as
 # all-clear, which is strictly worse than having no watcher at all.
-_STRONG = ("always", "never", "from now on", "every time", "must", "make sure",
-           "remember", "going forward", "stop ", "don't ", "dont ", "do not ",
-           "ensure", "avoid")
-_WEAK = ("i want", "we should", "you should", "need to", "lets ", "let's ",
-         "prefer", "i'd like", "id like", "please ")
-_INTERROGATIVE = ("what", "how", "why", "when", "where", "who", "is ", "are ", "can ",
-                  "could ", "do ", "does ", "did ", "should we", "any ")
+_STRONG = (
+    "always",
+    "never",
+    "from now on",
+    "every time",
+    "must",
+    "make sure",
+    "remember",
+    "going forward",
+    "stop ",
+    "don't ",
+    "dont ",
+    "do not ",
+    "ensure",
+    "avoid",
+)
+_WEAK = ("i want", "we should", "you should", "need to", "lets ", "let's ", "prefer", "i'd like", "id like", "please ")
+_INTERROGATIVE = (
+    "what",
+    "how",
+    "why",
+    "when",
+    "where",
+    "who",
+    "is ",
+    "are ",
+    "can ",
+    "could ",
+    "do ",
+    "does ",
+    "did ",
+    "should we",
+    "any ",
+)
 
 
-def _marker_starts(text: str) -> List[int]:
+def _marker_starts(text: str) -> list[int]:
     """Token positions where an instruction begins. The clause runs from here forward, so
     "remember to fan out so you dont get bogged" is one candidate rather than forty.
 
@@ -97,14 +201,12 @@ def _marker_starts(text: str) -> List[int]:
     fire on every "i" and "we should" on every "we", which is how "i am heading to sleep"
     and "we have done a lot" ranked as standing directives on the second live run."""
     words = _tokens(text)
-    starts: List[int] = []
+    starts: list[int] = []
     for marker in _STRONG + _WEAK:
         mtok = _tokens(marker)
         if not mtok:
             continue
-        for i in range(len(words) - len(mtok) + 1):
-            if words[i:i + len(mtok)] == mtok:
-                starts.append(i)
+        starts.extend(i for i in range(len(words) - len(mtok) + 1) if words[i : i + len(mtok)] == mtok)
     return sorted(set(starts))
 
 
@@ -126,7 +228,7 @@ def directive_shape(text: str) -> str:
     return ""
 
 
-def _tokens(text: str) -> List[str]:
+def _tokens(text: str) -> list[str]:
     return _WORD.findall((text or "").lower())
 
 
@@ -136,7 +238,7 @@ def _content_ratio(words: Sequence[str]) -> float:
     return sum(1 for w in words if w not in _FILLER) / len(words)
 
 
-def _operator_utterances(db_path: Optional[Path]) -> List[Dict[str, Any]]:
+def _operator_utterances(db_path: Path | None) -> list[dict[str, Any]]:
     """His voice, deduped to UTTERANCES. The harness records one turn as a queue-operation
     enqueue, a dequeue and a delivered `user` twin; counting rows would treat one sentence
     as three and inflate every verdict built on top.
@@ -159,23 +261,22 @@ def _operator_utterances(db_path: Optional[Path]) -> List[Dict[str, Any]]:
     try:
         rows = con.execute(
             "SELECT event_id, session, text FROM events WHERE voice='operator' "
-            "AND COALESCE(is_subagent, 0) = 0 ORDER BY session, line").fetchall()
+            "AND COALESCE(is_subagent, 0) = 0 ORDER BY session, line"
+        ).fetchall()
     finally:
         con.close()
-    seen: Set[Tuple[str, str]] = set()
-    out: List[Dict[str, Any]] = []
+    seen: set[tuple[str, str]] = set()
+    out: list[dict[str, Any]] = []
     for eid, session, text in rows:
         key = utterance_key(session, text)
         if key in seen:
             continue
         seen.add(key)
-        out.append({"event_id": eid, "session": session,
-                    "text": " ".join((text or "").split())})
+        out.append({"event_id": eid, "session": session, "text": " ".join((text or "").split())})
     return out
 
 
-def candidates(db_path: Optional[Path] = None, *, min_utterances: int = 2,
-               min_sessions: int = 2) -> List[Dict[str, Any]]:
+def candidates(db_path: Path | None = None, *, min_utterances: int = 2, min_sessions: int = 2) -> list[dict[str, Any]]:
     """Recurring phrases on the operator axis, boilerplate removed. Mechanical throughout."""
     utts = _operator_utterances(db_path)
     total = len(utts)
@@ -183,12 +284,12 @@ def candidates(db_path: Optional[Path] = None, *, min_utterances: int = 2,
         return []
 
     # phrase -> the utterances containing it (indices, so one utterance counts once)
-    index: Dict[str, Set[int]] = {}
-    shape_of: Dict[int, str] = {}
+    index: dict[str, set[int]] = {}
+    shape_of: dict[int, str] = {}
     for i, u in enumerate(utts):
         shape = directive_shape(u["text"])
         if not shape:
-            continue                          # recurring, but not an instruction
+            continue  # recurring, but not an instruction
         shape_of[i] = shape
         # THE PHRASE IS THE DIRECTIVE CLAUSE, anchored at its marker -- not every window
         # of the sentence containing one. Sliding a plain n-gram over the whole utterance
@@ -205,35 +306,36 @@ def candidates(db_path: Optional[Path] = None, *, min_utterances: int = 2,
             # The shorter windows are what match; the merge step below prefers the longest
             # form that all of them share.
             for width in range(_NGRAM, _CLAUSE + 1):
-                gram = words[start:start + width]
+                gram = words[start : start + width]
                 if len(gram) < width or _content_ratio(gram) < 0.4:
                     continue
                 index.setdefault(" ".join(gram), set()).add(i)
 
-    hits: List[Dict[str, Any]] = []
+    hits: list[dict[str, Any]] = []
     for phrase, idxs in index.items():
         if len(idxs) < min_utterances:
             continue
         if len(idxs) / total > _MAX_DOC_FREQ:
-            continue                          # filler by construction
+            continue  # filler by construction
         sessions = {utts[i]["session"] for i in idxs}
         if len(sessions) < min_sessions:
             continue
-        hits.append({
-            "phrase": phrase,
-            "utterances": len(idxs),
-            "sessions": len(sessions),
-            "shape": ("strong" if any(shape_of.get(i) == "strong" for i in idxs)
-                      else "weak"),
-            "refs": [utts[i]["event_id"] for i in sorted(idxs)][:6],
-            "_idxs": idxs,
-        })
+        hits.append(
+            {
+                "phrase": phrase,
+                "utterances": len(idxs),
+                "sessions": len(sessions),
+                "shape": ("strong" if any(shape_of.get(i) == "strong" for i in idxs) else "weak"),
+                "refs": [utts[i]["event_id"] for i in sorted(idxs)][:6],
+                "_idxs": idxs,
+            }
+        )
 
     # Collapse overlapping n-grams of one sentence into the LONGEST phrase: three
     # overlapping windows of the same directive are one directive, and reporting them
     # separately is exactly the noise the cap exists to prevent.
     hits.sort(key=lambda h: (-len(h["_idxs"]), -len(h["phrase"])))
-    kept: List[Dict[str, Any]] = []
+    kept: list[dict[str, Any]] = []
     for h in hits:
         merged = False
         for k in kept:
@@ -275,7 +377,7 @@ def _is_cited(phrase: str, durable: Iterable[str]) -> bool:
     for text in durable:
         hay = " ".join(_tokens(text))
         for start in range(len(words) - need + 1):
-            run = " ".join(words[start:start + need])
+            run = " ".join(words[start : start + need])
             if run and run in hay:
                 return True
         # also accept the phrase verbatim, filler included
@@ -284,9 +386,14 @@ def _is_cited(phrase: str, durable: Iterable[str]) -> bool:
     return False
 
 
-def unheeded(db_path: Optional[Path] = None, *, durable_texts: Optional[Iterable[str]] = None,
-             limit: int = 2, min_utterances: int = 2,
-             min_sessions: int = 2) -> Dict[str, Any]:
+def unheeded(
+    db_path: Path | None = None,
+    *,
+    durable_texts: Iterable[str] | None = None,
+    limit: int = 2,
+    min_utterances: int = 2,
+    min_sessions: int = 2,
+) -> dict[str, Any]:
     """Recurring operator directives that no durable plane cites.
 
     Returns an envelope that is honest in the empty case: `clear` says the watcher looked
@@ -296,7 +403,7 @@ def unheeded(db_path: Optional[Path] = None, *, durable_texts: Optional[Iterable
     durable = list(durable_texts) if durable_texts is not None else collect_durable()
     cands = candidates(db_path, min_utterances=min_utterances, min_sessions=min_sessions)
 
-    found: List[Dict[str, Any]] = []
+    found: list[dict[str, Any]] = []
     for c in cands:
         if _is_cited(c["phrase"], durable):
             continue
@@ -305,9 +412,10 @@ def unheeded(db_path: Optional[Path] = None, *, durable_texts: Optional[Iterable
     # Strongest evidence first: his repetition across SESSIONS is the signal (a thing said
     # three times in one sitting is emphasis; across three sittings it is a standing
     # directive), then raw utterance count, then specificity.
-    found.sort(key=lambda h: (0 if h.get("shape") == "strong" else 1,
-                              -h["sessions"], -h["utterances"], -len(h["phrase"])))
-    shown = found[:max(0, int(limit))]
+    found.sort(
+        key=lambda h: (0 if h.get("shape") == "strong" else 1, -h["sessions"], -h["utterances"], -len(h["phrase"]))
+    )
+    shown = found[: max(0, int(limit))]
     return {
         "items": shown,
         "checked": len(cands),
@@ -317,27 +425,23 @@ def unheeded(db_path: Optional[Path] = None, *, durable_texts: Optional[Iterable
     }
 
 
-def collect_durable(root: Optional[Path] = None) -> List[str]:
+def collect_durable(root: Path | None = None) -> list[str]:
     """Every plane where 'we acted on it' would leave a mark: the ledger, lessons, atoms,
     and recent commit subjects. Read-only, and failure of any one source degrades the
     answer rather than the run -- a missing plane means the watcher is MORE likely to
     report something, never less, so the honest direction is preserved."""
     root = Path(root) if root else Path(__file__).resolve().parents[2]
-    out: List[str] = []
+    out: list[str] = []
     for rel in ("state/coord/tasks.json", "session_logs/learnings.jsonl"):
         p = root / rel
-        try:
+        with contextlib.suppress(Exception):
             out.append(p.read_text(encoding="utf-8", errors="replace"))
-        except Exception:
-            pass
     for sub in ("docs/library", "docs"):
         d = root / sub
         if not d.is_dir():
             continue
         for f in list(d.rglob("*.md"))[:2000]:
-            try:
+            with contextlib.suppress(Exception):
                 out.append(f.read_text(encoding="utf-8", errors="replace"))
-            except Exception:
-                pass
         break
     return out

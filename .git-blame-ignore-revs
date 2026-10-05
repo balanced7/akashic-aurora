@@ -1,0 +1,4 @@
+# Mechanical reformat commits (class B, plan G2): git blame skips them.
+# Local setup: git config blame.ignoreRevsFile .git-blame-ignore-revs
+# style: apply ruff format repo-wide (ruff 0.16.9, G2.P3)
+5913ce76928385389921ad9fbe53340c14dae4a5

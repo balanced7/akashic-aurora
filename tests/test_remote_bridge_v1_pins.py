@@ -36,6 +36,7 @@ failure — write them down before they are re-derived expensively:
 
 Every pin runs offline. No listener, no network, no Redis.
 """
+
 from __future__ import annotations
 
 import base64
@@ -49,7 +50,7 @@ import pytest
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 
-from core.comm import remote_relay as RR  # noqa: E402
+from core.comm import remote_relay as RR  # noqa: E402  # sys.path bootstrap
 
 OUT_SECRET = b"test-outbound-secret"
 IN_SECRET = b"test-inbound-secret"
@@ -81,7 +82,7 @@ def _isolate_state(tmp_path, monkeypatch):
     RR._reset_cache()
 
 
-@pytest.fixture()
+@pytest.fixture
 def outbox(tmp_path, monkeypatch):
     """A private outbox file per test — durability is pinned by re-reading from disk."""
     p = tmp_path / "outbox.jsonl"
@@ -99,6 +100,7 @@ def _msg(kind="chat", **kw):
 # ===========================================================================================
 # A. THE DURABLE OUTBOX — "a message that is sent is delivered eventually" (design §3.4)
 # ===========================================================================================
+
 
 def test_failed_push_retains_the_message_for_replay(outbox):
     """THE PIN THE MODULE DOCSTRING ALREADY PROMISED. v0.1's existing pin only asserts a
@@ -175,6 +177,7 @@ def test_tick_is_ordered_and_a_stuck_head_does_not_block_the_tail(outbox):
 # B. THE INBOUND GATE — "not everyone has access" (design §3.3), the dangerous half
 # ===========================================================================================
 
+
 def _envelope(msg, secret=IN_SECRET, sent_at=None):
     """Build a wire envelope as a PEER would — including a hostile one, which is the point:
     the gate must be exercised with payloads we did not write."""
@@ -220,14 +223,14 @@ def test_claimed_frm_cannot_impersonate_the_operator():
     assert delivered["frm"] != "daniil", "a remote peer successfully impersonated the operator"
     assert "serge-dsh" in delivered["frm"], (
         "admitted mail must carry the VERIFIED route as its provenance, so a reader can "
-        "never mistake a remote claim for a local one")
+        "never mistake a remote claim for a local one"
+    )
 
 
 def test_operator_claim_does_not_bypass_the_kind_allowlist():
     """TRAP 1, sharper. should_forward() short-circuits to True for an operator sender. If
     the inbound gate reuses it, claiming `frm: daniil` smuggles ANY kind past the allowlist."""
-    out = RR.accept(_envelope(_msg(frm="daniil", kind="halt")), secret=IN_SECRET,
-                    peer="serge-dsh")
+    out = RR.accept(_envelope(_msg(frm="daniil", kind="halt")), secret=IN_SECRET, peer="serge-dsh")
     assert not out.ok, "an operator-costumed sender walked a control kind through the gate"
 
 
@@ -251,8 +254,7 @@ def test_bridge_allowlist_contains_no_control_kind():
 
 def test_unknown_kind_is_refused_not_denylisted():
     """Allowlist never denylist: a kind invented after this line was written must NOT cross."""
-    out = RR.accept(_envelope(_msg(kind="kind_invented_next_tuesday")), secret=IN_SECRET,
-                    peer="serge-dsh")
+    out = RR.accept(_envelope(_msg(kind="kind_invented_next_tuesday")), secret=IN_SECRET, peer="serge-dsh")
     assert not out.ok
 
 
@@ -263,7 +265,8 @@ def test_inbound_content_is_redacted():
     out = RR.accept(_envelope(_msg(content=leak)), secret=IN_SECRET, peer="serge-dsh")
     assert out.ok
     assert "sk-ant-api03-AAAA" not in RR.last_admitted()["content"], (
-        "an inbound credential landed unredacted on our bus")
+        "an inbound credential landed unredacted on our bus"
+    )
 
 
 def test_duplicate_inbound_id_is_admitted_once(monkeypatch):
@@ -282,7 +285,11 @@ def test_duplicate_inbound_id_is_admitted_once(monkeypatch):
 def test_gate_never_raises_on_a_malformed_envelope():
     """The boundary law this house already paid for: a listener that raises is a listener an
     attacker can turn into a denial-of-service with one malformed byte."""
-    for junk in ({}, {"body": "!!!not-base64!!!", "sig": "x"}, {"body": "", "sig": ""},
-                 {"body": base64.b64encode(b"not json").decode(), "sig": "x"}):
+    for junk in (
+        {},
+        {"body": "!!!not-base64!!!", "sig": "x"},
+        {"body": "", "sig": ""},
+        {"body": base64.b64encode(b"not json").decode(), "sig": "x"},
+    ):
         out = RR.accept(junk, secret=IN_SECRET, peer="serge-dsh")
         assert not out.ok, f"malformed envelope {junk} was admitted"

@@ -29,18 +29,17 @@ Run::
 
     py -m pytest tests/test_t108_u3_lane_cursor_composition.py -q
 """
+
 from __future__ import annotations
 
 import importlib
-from pathlib import Path
 import sys
-
-import pytest
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from core.comm.bus import Bus  # noqa: E402
+from core.comm.bus import Bus  # noqa: E402  # sys.path bootstrap
 
 
 def _mailbox():
@@ -104,7 +103,7 @@ class _FakeRedis:
         self.streams.setdefault(str(key), []).append((sid, dict(fields)))
         return sid
 
-    def xrange(self, key, min="-", max="+", count=None):
+    def xrange(self, key, min="-", max="+", count=None):  # noqa: A002  # mirrors redis-py xrange(min=, max=)
         entries = list(self.streams.get(str(key), []))
         out = []
         for sid, fields in entries:
@@ -167,10 +166,7 @@ class _FakeRedis:
 
     def zrange(self, key, start, end, withscores=False):
         items = sorted(self.zsets.get(str(key), {}).items(), key=lambda kv: kv[1])
-        if end == -1:
-            end = len(items)
-        else:
-            end = end + 1
+        end = len(items) if end == -1 else end + 1
         sliced = items[start:end]
         return sliced if withscores else [m for m, _ in sliced]
 
@@ -244,13 +240,15 @@ def test_suffixed_cursor_is_visible_to_the_mailbox():
     # exactly what bus.py:1182-1183 writes when an incarnation is declared.
     _set_cursor(fake, "deepseek", sid8=SID_A, inbox=sid)
     assert f"{NS}:cursor:lane:deepseek" not in fake.hashes, (
-        "precondition: no unsuffixed cursor exists -- the suffixed one is the only truth")
+        "precondition: no unsuffixed cursor exists -- the suffixed one is the only truth"
+    )
 
     entries = mbx.query(NS, "deepseek", client=fake)
     assert _tier_of(entries, "handoff") != "unhandled", (
         "the suffixed lane cursor is invisible to the mailbox: a consumed message "
         "reports unhandled forever (bus.py:1182-1183 writes '#sid8', mailbox.py:330 "
-        "reads bare)")
+        "reads bare)"
+    )
 
 
 # ---------------------------------------------------------------- pin 2
@@ -264,11 +262,12 @@ def test_unincarnated_seat_is_unchanged():
     mbx = _mailbox()
     fake, bus = _mk()
     sid = bus.send("deepseek", "handoff", "do the thing")
-    _set_cursor(fake, "deepseek", inbox=sid)          # unsuffixed, the status quo
+    _set_cursor(fake, "deepseek", inbox=sid)  # unsuffixed, the status quo
 
     entries = mbx.query(NS, "deepseek", client=fake)
     assert _tier_of(entries, "handoff") != "unhandled", (
-        "the unsuffixed path regressed -- this must pass BEFORE and AFTER the fix")
+        "the unsuffixed path regressed -- this must pass BEFORE and AFTER the fix"
+    )
 
 
 # ---------------------------------------------------------------- pin 3
@@ -295,9 +294,9 @@ def test_discovery_uses_scan_never_keys():
 
     assert fake.keys_calls == [], (
         f"KEYS is a blocking O(keyspace) scan and must never be used on a hot read; "
-        f"called with {fake.keys_calls}. Use scan_iter.")
-    assert fake.scan_calls, (
-        "the suffixed cursor was never looked for -- discovery must go through SCAN")
+        f"called with {fake.keys_calls}. Use scan_iter."
+    )
+    assert fake.scan_calls, "the suffixed cursor was never looked for -- discovery must go through SCAN"
 
 
 # ---------------------------------------------------------------- pin 4
@@ -326,10 +325,8 @@ def test_merge_is_per_field_max_across_incarnations():
     _set_cursor(fake, "deepseek", sid8=SID_B, inbox=first, bc="9999-0")
 
     merged = mbx.merged_lane_cursor(NS, "deepseek", client=fake)
-    assert merged.get("inbox") == second, (
-        f"per-field max lost A's inbox lead: {merged}")
-    assert merged.get("bc") == "9999-0", (
-        f"per-field max lost B's bc lead: {merged}")
+    assert merged.get("inbox") == second, f"per-field max lost A's inbox lead: {merged}"
+    assert merged.get("bc") == "9999-0", f"per-field max lost B's bc lead: {merged}"
 
 
 # ---------------------------------------------------------------- pin 5
@@ -349,5 +346,4 @@ def test_cursor_snapshot_semantics_survive_discovery():
     mbx.query(NS, "deepseek", client=fake)
 
     seen = fake.cursor_hgetall_calls
-    assert len(seen) == len(set(seen)), (
-        f"a cursor hash was read more than once -- snapshot semantics broken: {seen}")
+    assert len(seen) == len(set(seen)), f"a cursor hash was read more than once -- snapshot semantics broken: {seen}"

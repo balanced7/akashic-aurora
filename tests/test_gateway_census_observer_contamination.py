@@ -47,6 +47,7 @@ honest answer; see learn:experiment:discord_persistent_services_must_pin_one_run
 
 Run:  py -m pytest tests/test_gateway_census_observer_contamination.py -v
 """
+
 from __future__ import annotations
 
 import inspect
@@ -65,10 +66,7 @@ GATEWAY_SCRIPT = "bifrost_runner_discord.py"
 # --------------------------------------------------------------------------- fixtures
 def _snap(rows):
     """rows: iterable of (pid, name, cmdline) -> a process_snapshot()-shaped dict."""
-    return {
-        pid: {"ppid": 1, "name": name, "cmdline": cmdline, "created": 0}
-        for pid, name, cmdline in rows
-    }
+    return {pid: {"ppid": 1, "name": name, "cmdline": cmdline, "created": 0} for pid, name, cmdline in rows}
 
 
 REAL_GATEWAY_CMD = (
@@ -127,9 +125,7 @@ def test_census_excludes_a_shell_that_merely_greps_for_it():
             (18260, "bash.exe", OBSERVER_BASH_CMD),
         ]
     )
-    assert sorted(sp(snap, GATEWAY_SCRIPT)) == [61020], (
-        "a shell that greps for the gateway was counted as a gateway"
-    )
+    assert sorted(sp(snap, GATEWAY_SCRIPT)) == [61020], "a shell that greps for the gateway was counted as a gateway"
 
 
 def test_census_excludes_a_python_that_only_mentions_it_in_a_c_program():
@@ -216,9 +212,7 @@ def test_census_excludes_the_observer_itself():
             (me, "python.exe", f"python.exe agent_cli.py gateway status {GATEWAY_SCRIPT}"),
         ]
     )
-    assert me not in sp(snap, GATEWAY_SCRIPT, exclude_pids={me}), (
-        "the census counted the process performing the census"
-    )
+    assert me not in sp(snap, GATEWAY_SCRIPT, exclude_pids={me}), "the census counted the process performing the census"
 
 
 def test_census_never_reports_absence_it_could_not_measure():
@@ -229,7 +223,7 @@ def test_census_never_reports_absence_it_could_not_measure():
     NOT RUNNING, which an operator reads as a measured verdict.
     """
     sp = _script_processes()
-    with pytest.raises(Exception):
+    with pytest.raises(Exception, match=r"process_snapshot\(\) returned None"):
         sp(None, GATEWAY_SCRIPT)
 
 
@@ -244,9 +238,11 @@ def test_restart_waits_for_the_daemon_lease_not_a_fixed_socket_sleep():
     """The contended resource is DaemonLock (TTL 120s, released only on clean exit),
     not the socket. A 1-second sleep races the corpse's lease and loses."""
     src = _restart_source()
-    assert "daemon" in src.lower() and (
-        "lease" in src.lower() or "DaemonLock" in src or "bifrost:daemon:" in src
-    ), (
+    assert "daemon" in src.lower(), (
+        "restart still does not consult the daemon lock before relaunching; it sleeps a "
+        "fixed interval sized for a socket and is refused by the singleton guard"
+    )
+    assert "lease" in src.lower() or "DaemonLock" in src or "bifrost:daemon:" in src, (
         "restart still does not consult the daemon lock before relaunching; it sleeps a "
         "fixed interval sized for a socket and is refused by the singleton guard"
     )

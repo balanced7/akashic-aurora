@@ -26,6 +26,7 @@ Same word today, two different epistemic states.
 
 Run: py -m pytest tests/test_t337_scorecard_unrecorded_is_not_absent.py -q
 """
+
 from __future__ import annotations
 
 import os
@@ -35,15 +36,16 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-SRC = open(os.path.join(ROOT, "scripts", "arc_scorecard.py"), encoding="utf-8").read()
+with open(os.path.join(ROOT, "scripts", "arc_scorecard.py"), encoding="utf-8") as fh:
+    SRC = fh.read()
 
 
 def test_p1_a_self_reported_metric_renders_unrecorded_not_no_signal():
     """The whole slice. A metric whose only signal is an annotation cannot report a zero -- it can
     only report that nobody wrote it down."""
     assert "UNRECORDED" in SRC, (
-        "self-reported metrics must render UNRECORDED; '(no signal)' claims a measurement that "
-        "was never taken")
+        "self-reported metrics must render UNRECORDED; '(no signal)' claims a measurement that was never taken"
+    )
 
 
 # A source-shaped pin cannot see through the ways Python lets one string be written. The first
@@ -62,7 +64,8 @@ def test_p2_unrecorded_says_it_is_not_evidence_of_absence():
     assert "unrecorded" in NORM, "UNRECORDED not rendered"
     assert "not evidence of absence" in NORM, (
         "the UNRECORDED render must SAY it is not evidence of absence -- otherwise the rename "
-        "moves the lie rather than removing it")
+        "moves the lie rather than removing it"
+    )
 
 
 def test_p3_the_two_states_are_distinguished_by_whether_a_detector_exists():
@@ -74,9 +77,9 @@ def test_p3_the_two_states_are_distinguished_by_whether_a_detector_exists():
     branch = re.search(r"elif\s+mid\s+in\s+SELF_REPORT\s*:", SRC)
     assert branch, (
         "UNRECORDED must be gated on SELF_REPORT membership, not applied to every silent "
-        "metric -- a measured zero and an unrecorded unknown are different findings")
-    assert SRC.index("UNRECORDED") > branch.start(), (
-        "the UNRECORDED render must sit INSIDE the SELF_REPORT branch")
+        "metric -- a measured zero and an unrecorded unknown are different findings"
+    )
+    assert SRC.index("UNRECORDED") > branch.start(), "the UNRECORDED render must sit INSIDE the SELF_REPORT branch"
 
 
 def test_p4_a_measured_metric_keeps_its_honest_zero():

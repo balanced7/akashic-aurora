@@ -3,6 +3,7 @@ policy, anti-repeat seen-state, payload capture, veto policy, nudge rate limit, 
 The Claude adapters exercise these through their own suites (test_sessionstart_autoboot,
 test_plan_recall, test_learn_nudge, test_git_guard, test_locks); this file pins the lib's
 own contracts so a future adapter can't bend them silently."""
+
 import json
 import os
 import sys
@@ -10,11 +11,10 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from agent.harness import capture as capmod
-from agent.harness import guards, nudge, registry, seen
-from agent.harness import scope
-
+from agent.harness import guards, nudge, registry, scope, seen
 
 # --- scope: one policy, every adapter ---------------------------------------------------------
+
 
 def test_repo_root_is_this_repo():
     assert os.path.isfile(os.path.join(scope.repo_root(), "agent_cli.py"))
@@ -49,11 +49,12 @@ def test_shell_scope_cwd_or_command():
     elsewhere = "C:\\Somewhere\\Else" if os.name == "nt" else "/somewhere/else"
     assert scope.shell_in_scope(scope.repo_root(), "echo hi")
     assert scope.shell_in_scope(elsewhere, "py agent_cli.py list"), "the command names the repo's door"
-    assert scope.shell_in_scope(elsewhere, "cd E:/AI-Setup && ls")
+    assert scope.shell_in_scope(elsewhere, f"cd {scope.repo_root()} && ls"), "the command names the checkout"
     assert not scope.shell_in_scope(elsewhere, "echo hi")
 
 
 # --- seen: shared anti-repeat state ------------------------------------------------------------
+
 
 def test_seen_roundtrip_and_empty_session():
     sid = "harness-lib-seen"
@@ -62,16 +63,18 @@ def test_seen_roundtrip_and_empty_session():
     seen.mark_seen(sid, ["learn:experiment:b"])
     assert seen.load_seen(sid) == {"learn:experiment:a", "learn:experiment:b"}
     assert seen.load_seen("") == set()
-    seen.mark_seen("", ["learn:experiment:x"])   # no session -> silently dropped, never a crash
+    seen.mark_seen("", ["learn:experiment:x"])  # no session -> silently dropped, never a crash
 
 
 # --- capture: payload truth, bounded and truncated ---------------------------------------------
+
 
 def test_capture_writes_truncated_snapshot(tmp_path):
     d = str(tmp_path / "cap")
     capmod.capture({"tool": "Shell", "blob": "x" * 1000}, d, label="probe")
     files = os.listdir(d)
-    assert len(files) == 1 and "_probe_" in files[0]
+    assert len(files) == 1
+    assert "_probe_" in files[0]
     with open(os.path.join(d, files[0]), encoding="utf-8") as f:
         rec = json.load(f)
     assert rec["blob"].endswith("...[+600 chars]"), "shape survives, content is cut"
@@ -94,6 +97,7 @@ def test_capture_kill_switch(tmp_path, monkeypatch):
 
 # --- guards: one rulebook, fail-closed on unverifiable locks ------------------------------------
 
+
 def test_git_veto_real_policy():
     assert guards.git_veto("git add -A") != ""
     assert guards.git_veto("git add foo.py") == ""
@@ -102,27 +106,36 @@ def test_git_veto_real_policy():
 
 def test_lock_veto_unset_id_fails_closed_with_teaching(monkeypatch):
     import core.comm.locks as L
-    monkeypatch.setattr(L, "path_conflict",
-                        lambda p, a, client=None: {"conflict": True, "held_by": "cursor",
-                                                   "reason": "locked by cursor"})
+
+    monkeypatch.setattr(
+        L,
+        "path_conflict",
+        lambda p, a, client=None: {"conflict": True, "held_by": "cursor", "reason": "locked by cursor"},
+    )
     msg = guards.lock_veto("scripts/x.py", None, "set it in <YOUR-HARNESS-CONFIG>")
-    assert "AKASHIC_AGENT_ID" in msg and "cursor" in msg and "<YOUR-HARNESS-CONFIG>" in msg, \
-        "the teaching must name a place THIS harness's reader can actually reach"
+    assert "AKASHIC_AGENT_ID" in msg, "the teaching must name a place THIS harness's reader can actually reach"
+    assert "cursor" in msg, "the teaching must name a place THIS harness's reader can actually reach"
+    assert "<YOUR-HARNESS-CONFIG>" in msg, "the teaching must name a place THIS harness's reader can actually reach"
 
 
 def test_lock_veto_peer_conflict_and_clean_path(monkeypatch):
     import core.comm.locks as L
-    monkeypatch.setattr(L, "path_conflict",
-                        lambda p, a, client=None: {"conflict": True, "held_by": "cursor",
-                                                   "reason": "locked by cursor"})
+
+    monkeypatch.setattr(
+        L,
+        "path_conflict",
+        lambda p, a, client=None: {"conflict": True, "held_by": "cursor", "reason": "locked by cursor"},
+    )
     assert guards.lock_veto("scripts/x.py", "claude", "hint") == "locked by cursor"
-    monkeypatch.setattr(L, "path_conflict",
-                        lambda p, a, client=None: {"conflict": False, "held_by": None, "reason": ""})
+    monkeypatch.setattr(
+        L, "path_conflict", lambda p, a, client=None: {"conflict": False, "held_by": None, "reason": ""}
+    )
     assert guards.lock_veto("scripts/x.py", "claude", "hint") == ""
     assert guards.lock_veto("", None, "hint") == ""
 
 
 # --- nudge: three-way rate limit ----------------------------------------------------------------
+
 
 def test_nudge_once_per_target_capped_and_killable(tmp_path, monkeypatch):
     d = str(tmp_path)
@@ -138,6 +151,7 @@ def test_nudge_once_per_target_capped_and_killable(tmp_path, monkeypatch):
 
 
 # --- registry: the capability matrix can't drift into flattery ----------------------------------
+
 
 def test_every_harness_declares_every_tier():
     for h in registry.harnesses():
@@ -164,18 +178,22 @@ def test_deepseek_harness_row_is_honest_not_flattering():
     row = registry.HARNESSES["deepseek-harness"]
     assert row["default_agent_id"] == "dsh_agent"
     assert registry.supported("deepseek-harness", "T0"), "exec proven: drives the house CLI"
-    assert registry.supported("deepseek-harness", "T1"), \
+    assert registry.supported("deepseek-harness", "T1"), (
         "identity is the adapter's floor: dsh-launch-environment stamps AKASHIC_AGENT_ID (afd5b4aa)"
-    assert row["default_agent_id"] in registry.capability("deepseek-harness", "T1"), \
+    )
+    assert row["default_agent_id"] in registry.capability("deepseek-harness", "T1"), (
         "T1's evidence must name the id it stamps; the stamp and the default id cannot drift"
+    )
     for t in registry.TIERS:
         how = registry.capability("deepseek-harness", t)
         verdict, sep, evidence = how.partition(" -- ")
-        assert sep and evidence.strip(), \
-            f"{t}: {how!r} -- every tier states a verdict AND the mechanism or the limitation"
+        assert sep, f"{t}: {how!r} -- every tier states a verdict AND the mechanism or the limitation"
+        assert evidence.strip(), f"{t}: {how!r} -- every tier states a verdict AND the mechanism or the limitation"
         if verdict.lower().startswith("pending"):
-            assert not registry.supported("deepseek-harness", t), \
+            assert not registry.supported("deepseek-harness", t), (
                 f"{t} is pending, not automated -- must not count toward the tier scoreboard"
+            )
         elif verdict.lower().startswith("yes"):
-            assert registry.supported("deepseek-harness", t), \
+            assert registry.supported("deepseek-harness", t), (
                 f"{t} says yes but supported() says no -- verdict word and scoreboard drifted"
+            )

@@ -23,6 +23,7 @@ Rill; `!spawn rill and check the ui` is a task for a claude seat, unchanged. A l
 sometimes swallows your sentence because it began with a name would be a worse lever than
 the one this replaces.
 """
+
 from __future__ import annotations
 
 import os
@@ -30,15 +31,20 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path as _P
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 #: callsign / agent-id -> the seat it names. Both spellings resolve, because he says
 #: "rill" and the ledger says "dsh_agent" and neither is wrong.
 _ALIASES = {
-    "rill": "rill", "dsh_agent": "rill", "dsh": "rill",
-    "heimdall": "heimdall", "deepseek": "heimdall",
-    "navi": "navi", "kimi": "navi",
-    "sunshine": "sunshine", "sol": "sunshine",
+    "rill": "rill",
+    "dsh_agent": "rill",
+    "dsh": "rill",
+    "heimdall": "heimdall",
+    "deepseek": "heimdall",
+    "navi": "navi",
+    "kimi": "navi",
+    "sunshine": "sunshine",
+    "sol": "sunshine",
 }
 
 #: One entry per launchable seat.
@@ -48,7 +54,7 @@ _ALIASES = {
 #: actually raised a dead seat and which has only been shown to be safe when the seat is
 #: already up. It is read by the caller and shown to the operator; it must never be set
 #: from the armchair.
-_SEATS: Dict[str, Dict[str, Any]] = {
+_SEATS: dict[str, dict[str, Any]] = {
     "rill": {
         "seat": "dsh_agent",
         "callsign": "Rill",
@@ -66,14 +72,14 @@ _SEATS: Dict[str, Dict[str, Any]] = {
         "callsign": "Heimdall",
         "kind": "daemon",
         "url": None,
-        "drilled": "",   # safe-when-up only; raising it from the dead is NOT yet drilled
+        "drilled": "",  # safe-when-up only; raising it from the dead is NOT yet drilled
     },
     "navi": {
         "seat": "kimi",
         "callsign": "Navi",
         "kind": "runner",
         "url": None,
-        "drilled": "",   # safe-when-up only; raising it from the dead is NOT yet drilled
+        "drilled": "",  # safe-when-up only; raising it from the dead is NOT yet drilled
         # hand_spawned_runner_narrows_the_door_below_the_acl: without --agentic the runner
         # comes up as a one-shot bridge (read-only, no tools), and --agentic alone is still
         # read-only -- --allow-exec/--allow-write are separate. kimi's acl.json grant
@@ -94,7 +100,7 @@ _SEATS: Dict[str, Dict[str, Any]] = {
         "kind": "runner",
         "url": None,
         # ADDED 2026-08-28. He was the one seat with NO lever: revive.py cannot target him
-        # (DAEMON_AGENTS is deepseek/kimi, --target is app/redis/daemon/gateway), so
+        # (DAEMON_AGENTS holds deepseek/kimi, --target takes app/redis/daemon/gateway), so
         # `!spawn sunshine` fell through to the task path and would have launched a claude
         # session whose job was the word "sunshine" -- the 2026-08-24 defect this module
         # exists to kill, reproduced under a different name.
@@ -127,14 +133,14 @@ _SEATS: Dict[str, Dict[str, Any]] = {
 }
 
 
-def resolve_seat(word: str) -> Optional[Dict[str, Any]]:
+def resolve_seat(word: str) -> dict[str, Any] | None:
     """The seat a BARE name refers to, or None. Pure.
 
     None means "this is a task, not a seat" -- which is the historical behaviour and must
     stay reachable for every word that is not exactly a seat name."""
     key = str(word or "").strip().strip("`\"'").lower()
     if not key or len(key.split()) != 1:
-        return None                     # a sentence is a task, never a launch
+        return None  # a sentence is a task, never a launch
     slug = _ALIASES.get(key)
     if not slug:
         return None
@@ -143,32 +149,35 @@ def resolve_seat(word: str) -> Optional[Dict[str, Any]]:
     return rec
 
 
-def launch_argv(rec: Dict[str, Any], *, root: str,
-                which=shutil.which,
-                dsh_home: Optional[str] = None) -> Tuple[List[str], Dict[str, str], str]:
+def launch_argv(
+    rec: dict[str, Any], *, root: str, which=shutil.which, dsh_home: str | None = None
+) -> tuple[list[str], dict[str, str], str]:
     """(argv, env-overlay, cwd) for a resolved seat. Raises if the launcher is unavailable,
     because a lever that pretends is the thing this whole day was about."""
     kind = rec.get("kind")
     seat = str(rec.get("seat"))
     # EVERY seat states its own identity. Never inherited -- see the module docstring.
-    env: Dict[str, str] = {"AKASHIC_AGENT_ID": seat, "BIFROST_CONSUME_LANE": "work"}
+    env: dict[str, str] = {"AKASHIC_AGENT_ID": seat, "BIFROST_CONSUME_LANE": "work"}
 
     if kind == "dsh":
-        home = dsh_home or os.environ.get("DSH_HOME") or os.path.join(
-            os.path.expanduser("~"), ".dsh")
+        home = dsh_home or os.environ.get("DSH_HOME") or os.path.join(os.path.expanduser("~"), ".dsh")
         exe = which("dsh")
         if not exe:
             raise RuntimeError(
                 "dsh is not on PATH -- cannot launch Rill; install the DSH CLI "
-                "(npm) or set DSH_HOME and put dsh on PATH")
+                "(npm) or set DSH_HOME and put dsh on PATH"
+            )
         env["DSH_HOME"] = home
         return [exe, "web", "--no-open"], env, home
 
     if kind == "daemon":
         # The daemon owns its runner child and absorbs a duplicate via DaemonLock, so this
         # is safe to run when the seat is already up.
-        return ([sys.executable, os.path.join(root, "scripts", "bifrost_daemon.py"),
-                 "--agent", seat, "--spawn-runner"], env, root)
+        return (
+            [sys.executable, os.path.join(root, "scripts", "bifrost_daemon.py"), "--agent", seat, "--spawn-runner"],
+            env,
+            root,
+        )
 
     if kind == "runner":
         # NOT the daemon. bifrost_daemon.py hardcodes bifrost_runner_deepseek.py for
@@ -182,22 +191,23 @@ def launch_argv(rec: Dict[str, Any], *, root: str,
         # never reaches the launch line is not a capability -- the seat cannot tell the
         # difference between "policy" and "the lever forgot a flag". launch_flags is how a
         # registry entry states the posture its process must launch behind, opt-in per seat.
-        return ([sys.executable, script, "--agent", seat] + list(rec.get("launch_flags") or []),
-                env, root)
+        return ([sys.executable, script, "--agent", seat, *list(rec.get("launch_flags") or [])], env, root)
 
     raise RuntimeError(f"unknown launcher kind {kind!r} for seat {seat!r}")
 
 
-def launch_note(rec: Dict[str, Any]) -> str:
+def launch_note(rec: dict[str, Any]) -> str:
     """The line the operator gets. Names what is PROVEN and what is merely wired -- an
     undrilled lever must not read like a drilled one."""
     who = f"{rec.get('callsign')} ({rec.get('seat')})"
     where = f" — {rec['url']}" if rec.get("url") else ""
     if rec.get("drilled"):
         return f"launching {who}{where}; lever drilled {rec['drilled']}"
-    return (f"launching {who}{where}; NOTE: this lever is wired but NOT yet drilled from "
-            f"cold — it is safe to run when the seat is already up, and unproven at "
-            f"raising a dead one")
+    return (
+        f"launching {who}{where}; NOTE: this lever is wired but NOT yet drilled from "
+        f"cold — it is safe to run when the seat is already up, and unproven at "
+        f"raising a dead one"
+    )
 
 
 # ---------------------------------------------------------------- the claude seat
@@ -207,9 +217,11 @@ def launch_note(rec: Dict[str, Any]) -> str:
 # CLI, which kept working the entire time the app was down. So the app is ensured
 # DELIBERATELY, and never as a side effect of asking for a seat.
 _SEATS["vandor"] = {
-    "seat": "claude", "callsign": "Vandor", "kind": "claude_seat",
+    "seat": "claude",
+    "callsign": "Vandor",
+    "kind": "claude_seat",
     "url": None,
-    "drilled": "",     # the app-then-seat path is NOT yet drilled from cold
+    "drilled": "",  # the app-then-seat path is NOT yet drilled from cold
 }
 _ALIASES.update({"vandor": "vandor", "claude": "vandor"})
 
@@ -224,7 +236,7 @@ _ALIASES.update({"vandor": "vandor", "claude": "vandor"})
 SPAWN_FLAGS = ("--repair", "--seat", "--status", "--harness", "--headless")
 
 
-def parse_spawn_target(text: str) -> Tuple[Optional[Dict[str, Any]], set]:
+def parse_spawn_target(text: str) -> tuple[dict[str, Any] | None, set]:
     """(seat, flags) for an operator's `!spawn` argument. Pure.
 
     A seat resolves only when what REMAINS after removing known flags is a bare name,
@@ -235,7 +247,7 @@ def parse_spawn_target(text: str) -> Tuple[Optional[Dict[str, Any]], set]:
     return resolve_seat(rest), flags
 
 
-def claude_permission_flags(mode: str = "default") -> List[str]:
+def claude_permission_flags(mode: str = "default") -> list[str]:
     """The CLI permission flags a spawned claude seat launches with.
 
     THIS IS THE ONE THAT KEEPS BITING. A seat spawned read-only cannot arm its own wake
@@ -256,12 +268,12 @@ def claude_permission_flags(mode: str = "default") -> List[str]:
     m = str(mode or "default").strip().lower()
     if m == "dangerous":
         return ["--dangerously-skip-permissions"]
-    return ["--permission-mode", "acceptEdits",
-            "--allowedTools", "Bash,PowerShell,Read,Write,Edit,Glob,Grep"]
+    return ["--permission-mode", "acceptEdits", "--allowedTools", "Bash,PowerShell,Read,Write,Edit,Glob,Grep"]
 
 
-def harness_argv(*, root: str, task: str, model_flag: Optional[List[str]] = None,
-                 which=shutil.which) -> Tuple[List[str], Dict[str, Any]]:
+def harness_argv(
+    *, root: str, task: str, model_flag: list[str] | None = None, which=shutil.which
+) -> tuple[list[str], dict[str, Any]]:
     """argv + Popen kwargs for an INTERACTIVE Claude Code Vandor (ruling 2026-09-04).
 
     The difference from the headless spawn is the whole point, so it is stated here rather
@@ -273,22 +285,25 @@ def harness_argv(*, root: str, task: str, model_flag: Optional[List[str]] = None
     if not exe:
         raise RuntimeError(
             "the `claude` CLI is not on PATH -- cannot open an interactive Vandor "
-            "(the headless lever has the same dependency; this is not a harness-only fault)")
+            "(the headless lever has the same dependency; this is not a harness-only fault)"
+        )
     # The npm .cmd shim mangles rich argv on Windows, so prefer the native binary when it
     # exists -- the same trick the headless path learned the hard way.
     native = _P(exe).with_name("node_modules") / "@anthropic-ai" / "claude-code" / "bin" / "claude.exe"
     argv0 = str(native) if native.exists() else exe
     argv = [argv0, *(model_flag or []), *claude_permission_flags("arm"), task]
-    kwargs: Dict[str, Any] = {
+    kwargs: dict[str, Any] = {
         "cwd": str(root),
-        "creationflags": (getattr(subprocess, "CREATE_NEW_CONSOLE", 0)
-                          | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)),
+        "creationflags": (
+            getattr(subprocess, "CREATE_NEW_CONSOLE", 0) | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
+        ),
     }
     return argv, kwargs
 
 
-def claude_seat_plan(*, app_healthy: bool, app_repairable: bool, app_detail: str,
-                     live_seats: int, flags: set) -> Dict[str, Any]:
+def claude_seat_plan(
+    *, app_healthy: bool, app_repairable: bool, app_detail: str, live_seats: int, flags: set
+) -> dict[str, Any]:
     """What `!spawn vandor` should DO, given the world. Pure.
 
     When the app is missing, this REPORTS AND OFFERS rather than acting. Package surgery
@@ -298,40 +313,48 @@ def claude_seat_plan(*, app_healthy: bool, app_repairable: bool, app_detail: str
     """
     seats = f"{live_seats} live claude seat(s)"
     if "--status" in flags:
-        return {"action": "options", "message":
-                f"Claude Code app: {'UP' if app_healthy else 'DOWN'} — {app_detail}\n"
-                f"{seats}\n" + _choices(app_healthy, app_repairable)}
+        return {
+            "action": "options",
+            "message": f"Claude Code app: {'UP' if app_healthy else 'DOWN'} — {app_detail}\n"
+            f"{seats}\n" + _choices(app_healthy, app_repairable),
+        }
     if app_healthy or "--seat" in flags:
-        return {"action": "spawn", "message":
-                (f"app UP ({app_detail}); {seats} — spawning a fresh seat"
-                 if app_healthy else
-                 f"app DOWN ({app_detail}) — skipping it as asked; spawning a CLI seat, "
-                 f"which works without it")}
+        return {
+            "action": "spawn",
+            "message": (
+                f"app UP ({app_detail}); {seats} — spawning a fresh seat"
+                if app_healthy
+                else f"app DOWN ({app_detail}) — skipping it as asked; spawning a CLI seat, which works without it"
+            ),
+        }
     if "--repair" in flags:
         if not app_repairable:
-            return {"action": "options", "message":
-                    f"app DOWN and NOT repairable by this lever — {app_detail}\n"
-                    + _choices(app_healthy, app_repairable)}
-        return {"action": "repair_then_spawn", "message":
-                f"app DOWN ({app_detail}) — verifying payload, then clearing only the "
-                f"stale status bit, then proving by launch, then spawning a seat.\n"
-                f"NOTE: the repair rung itself is drilled (executed falsifiers, real "
-                f"package verifies 2348/2348 files, 11411/11411 blocks), but this "
-                f"END-TO-END app-down → repair → seat chain is NOT — it cannot be "
-                f"drilled from inside the app it repairs."}
-    return {"action": "options", "message":
-            f"Claude Code app NOT DETECTED — {app_detail}\n{seats}\n"
-            + _choices(app_healthy, app_repairable)}
+            return {
+                "action": "options",
+                "message": f"app DOWN and NOT repairable by this lever — {app_detail}\n"
+                + _choices(app_healthy, app_repairable),
+            }
+        return {
+            "action": "repair_then_spawn",
+            "message": f"app DOWN ({app_detail}) — verifying payload, then clearing only the "
+            f"stale status bit, then proving by launch, then spawning a seat.\n"
+            f"NOTE: the repair rung itself is drilled (executed falsifiers, real "
+            f"package verifies 2348/2348 files, 11411/11411 blocks), but this "
+            f"END-TO-END app-down → repair → seat chain is NOT — it cannot be "
+            f"drilled from inside the app it repairs.",
+        }
+    return {
+        "action": "options",
+        "message": f"Claude Code app NOT DETECTED — {app_detail}\n{seats}\n" + _choices(app_healthy, app_repairable),
+    }
 
 
 def _choices(app_healthy: bool, app_repairable: bool) -> str:
     lines = ["How to proceed:"]
     if not app_healthy and app_repairable:
-        lines.append("  `!spawn vandor --repair`  verify payload → clear the stale MSIX "
-                     "bit → launch → then a seat")
+        lines.append("  `!spawn vandor --repair`  verify payload → clear the stale MSIX bit → launch → then a seat")
     elif not app_healthy:
         lines.append("  (no repair offered: this lever has no rung for that state)")
-    lines.append("  `!spawn vandor --seat`    skip the app; spawn a CLI seat, which works "
-                 "without it")
+    lines.append("  `!spawn vandor --seat`    skip the app; spawn a CLI seat, which works without it")
     lines.append("  `!revive --target app`    the app alone, no seat")
     return "\n".join(lines)

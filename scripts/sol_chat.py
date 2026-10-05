@@ -26,23 +26,27 @@ DESIGN (T090, fenced with deepseek-review before mirror):
 
 Key: env OPENAI_API_KEY else .secrets/openai.key (shared with ask_gpt.py -- same provider).
 """
+
 import json
 import os
 import sys
 import time
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, HERE)
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from ask_gpt import load_key   # same provider, same key convention; ask_gpt is provider- not seat-named
+import contextlib
+
+from ask_gpt import load_key  # same provider, same key convention; ask_gpt is provider- not seat-named
+
+HERE = os.path.dirname(os.path.abspath(__file__))
 
 BASE_URL = "https://api.openai.com/v1"
 SOL, TERRA, LUNA = "gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna"
 DEFAULT_MODEL = os.getenv("SOL_MODEL", SOL)
 
-EFFORTS = ("none", "low", "medium", "high", "xhigh")          # API-enumerated 2026-07-17
+EFFORTS = ("none", "low", "medium", "high", "xhigh")  # API-enumerated 2026-07-17
 VERBOSITIES = ("low", "medium", "high")
-DEFAULT_EFFORT = os.getenv("SOL_EFFORT", "medium")             # omitted-default per docs; explicit here
+DEFAULT_EFFORT = os.getenv("SOL_EFFORT", "medium")  # omitted-default per docs; explicit here
 DEFAULT_VERBOSITY = os.getenv("SOL_VERBOSITY", "medium")
 # T018 philosophy carried over: a reasoning model with no output cap wraps long turns in a
 # short promise instead of the deliverable. 8K default =~ $0.24 worst-case turn at $30/M out.
@@ -66,10 +70,14 @@ def make_client(api_key=None, base_url=BASE_URL):
     here, which is the boundary runner_lib documents.
     """
     from core.comm.runner_lib import make_openai_compat_client
-    return make_openai_compat_client(api_key or load_key(), base_url,
-                                     connect_timeout=SOL_CONNECT_TIMEOUT,
-                                     read_timeout=SOL_READ_TIMEOUT,
-                                     max_retries=SOL_MAX_RETRIES)
+
+    return make_openai_compat_client(
+        api_key or load_key(),  # pyright: ignore[reportArgumentType]  # LATENT: no key passes None; the SDK then reads OPENAI_API_KEY
+        base_url,
+        connect_timeout=SOL_CONNECT_TIMEOUT,
+        read_timeout=SOL_READ_TIMEOUT,
+        max_retries=SOL_MAX_RETRIES,
+    )
 
 
 def to_responses_tools(tools):
@@ -83,13 +91,18 @@ def to_responses_tools(tools):
     out = []
     for t in tools:
         if t.get("type") != "function":
-            out.append(t)               # hosted tools (web_search, ...) ride through untouched
+            out.append(t)  # hosted tools (web_search, ...) ride through untouched
             continue
         if "function" in t:
             fn = t["function"]
-            out.append({"type": "function", "name": fn["name"],
-                        "description": fn.get("description", ""),
-                        "parameters": fn.get("parameters", {})})
+            out.append(
+                {
+                    "type": "function",
+                    "name": fn["name"],
+                    "description": fn.get("description", ""),
+                    "parameters": fn.get("parameters", {}),
+                }
+            )
         elif "name" in t:
             out.append(t)
         else:
@@ -103,7 +116,7 @@ def preview_401_retry(fn, retries=None, label="sol call", exception_cls=None, sl
     exception_cls is injectable for pins; defaults to openai.AuthenticationError.
     """
     if exception_cls is None:
-        from openai import AuthenticationError as exception_cls   # noqa: N813
+        from openai import AuthenticationError as exception_cls  # noqa: N813  # public API name
     n = PREVIEW_401_RETRIES if retries is None else retries
     for attempt in range(n + 1):
         try:
@@ -112,9 +125,13 @@ def preview_401_retry(fn, retries=None, label="sol call", exception_cls=None, sl
             if attempt >= n:
                 print(f"[sol] preview-401 EXHAUSTED after {n} retries on {label} -- raising", flush=True)
                 raise
-            print(f"[sol] preview-401 retry {attempt + 1}/{n} on {label} "
-                  f"(limited-preview access gate; see sol-probe-receipts)", flush=True)
+            print(
+                f"[sol] preview-401 retry {attempt + 1}/{n} on {label} "
+                f"(limited-preview access gate; see sol-probe-receipts)",
+                flush=True,
+            )
             time.sleep(sleep_s)
+    return None
 
 
 class SolTransport:
@@ -122,15 +139,22 @@ class SolTransport:
     {"role":"user"/"assistant","content":...} turns, the model's function_call items echoed
     verbatim, and {"type":"function_call_output","call_id":...,"output":...} results."""
 
-    def __init__(self, model=DEFAULT_MODEL, effort=DEFAULT_EFFORT, verbosity=DEFAULT_VERBOSITY,
-                 max_output_tokens=MAX_OUTPUT_TOKENS, service_tier=None, client=None):
+    def __init__(
+        self,
+        model=DEFAULT_MODEL,
+        effort=DEFAULT_EFFORT,
+        verbosity=DEFAULT_VERBOSITY,
+        max_output_tokens=MAX_OUTPUT_TOKENS,
+        service_tier=None,
+        client=None,
+    ):
         if effort not in EFFORTS:
             raise ValueError(f"effort {effort!r} not in {EFFORTS} (API-enumerated ladder)")
         if verbosity not in VERBOSITIES:
             raise ValueError(f"verbosity {verbosity!r} not in {VERBOSITIES}")
         self.model, self.effort, self.verbosity = model, effort, verbosity
         self.max_output_tokens, self.service_tier = max_output_tokens, service_tier
-        self._client = client   # lazy: pins inject a fake; live use builds on first call
+        self._client = client  # lazy: pins inject a fake; live use builds on first call
 
     @property
     def client(self):
@@ -140,9 +164,15 @@ class SolTransport:
 
     def request_kwargs(self, instructions, history, tools=None):
         """The exact responses.create kwargs -- split out so pins can assert the shape offline."""
-        kw = {"model": self.model, "instructions": instructions, "input": list(history),
-              "store": False, "max_output_tokens": self.max_output_tokens,
-              "reasoning": {"effort": self.effort}, "text": {"verbosity": self.verbosity}}
+        kw = {
+            "model": self.model,
+            "instructions": instructions,
+            "input": list(history),
+            "store": False,
+            "max_output_tokens": self.max_output_tokens,
+            "reasoning": {"effort": self.effort},
+            "text": {"verbosity": self.verbosity},
+        }
         t = to_responses_tools(tools)
         if t:
             kw["tools"] = t
@@ -152,8 +182,7 @@ class SolTransport:
 
     def respond(self, instructions, history, tools=None):
         kw = self.request_kwargs(instructions, history, tools)
-        return preview_401_retry(lambda: self.client.responses.create(**kw),
-                                 label=f"responses.create[{self.model}]")
+        return preview_401_retry(lambda: self.client.responses.create(**kw), label=f"responses.create[{self.model}]")
 
     @staticmethod
     def extract(response):
@@ -194,8 +223,19 @@ class SolAgent:
     stateless resend means every output item echoes back into input verbatim, and
     function_call_output pairs by call_id (see SolTransport docstring)."""
 
-    def __init__(self, transport, *, instructions, tools_schemas=None, dispatch=None,
-                 interrupt=None, inject=None, on_trace=None, on_activity=None, max_hops=None):
+    def __init__(
+        self,
+        transport,
+        *,
+        instructions,
+        tools_schemas=None,
+        dispatch=None,
+        interrupt=None,
+        inject=None,
+        on_trace=None,
+        on_activity=None,
+        max_hops=None,
+    ):
         self.transport = transport
         self.instructions = instructions
         self.tools = tools_schemas or None
@@ -209,17 +249,13 @@ class SolAgent:
 
     def _trace(self, kind, text):
         if self.on_trace and text:
-            try:
+            with contextlib.suppress(Exception):
                 self.on_trace(kind, str(text))
-            except Exception:
-                pass
 
     def _activity(self, state, detail=""):
         if self.on_activity:
-            try:
+            with contextlib.suppress(Exception):
                 self.on_activity(state, detail)
-            except Exception:
-                pass
 
     def reset(self):
         self.history = []
@@ -241,9 +277,13 @@ class SolAgent:
             if self.interrupt and self.interrupt():
                 return "[sol paused mid-task by interjection -- resume to continue]"
             if self.inject:
-                for fact in (self.inject() or []):
-                    self.history.append({"role": "user",
-                        "content": f"[STEER -- new fact to fold into the live task, keep going]: {fact}"})
+                for fact in self.inject() or []:
+                    self.history.append(
+                        {
+                            "role": "user",
+                            "content": f"[STEER -- new fact to fold into the live task, keep going]: {fact}",
+                        }
+                    )
             self._activity("thinking", f"hop {hop}")
             resp = self.transport.respond(self.instructions, self.history, tools=self.tools)
             self.last_response = resp
@@ -252,10 +292,10 @@ class SolAgent:
                 self.input_tokens += getattr(u, "input_tokens", 0) or 0
                 self.output_tokens += getattr(u, "output_tokens", 0) or 0
             text, calls, reasoning, items = SolTransport.extract(resp)
-            if reasoning:                       # surface sol's hidden chain-of-thought, LIKE kimi/gemini
+            if reasoning:  # surface sol's hidden chain-of-thought, LIKE kimi/gemini
                 for i in range(0, len(reasoning), 700):
-                    self._trace("think", reasoning[i:i + 700])
-            self.history.extend(items)   # stateless resend: output items echo back verbatim
+                    self._trace("think", reasoning[i : i + 700])
+            self.history.extend(items)  # stateless resend: output items echo back verbatim
             if not calls:
                 return text or "(sol produced no final text)"
             partial = text
@@ -263,10 +303,17 @@ class SolAgent:
                 self._trace("tool", f"{c['name']}({json.dumps(c['arguments'])[:200]})")
                 self._activity("tool", c["name"])
                 out = self._run_tool(c["name"], c["arguments"])
-                self.history.append({"type": "function_call_output", "call_id": c["call_id"],
-                                     "output": f"[hop {hop}/{self.max_hops}] {out}"[:20000]})
-        return (f"{partial}\n[sol tool budget exhausted at {self.max_hops} hops -- "
-                f"partial answer above; re-ask to continue]").strip()
+                self.history.append(
+                    {
+                        "type": "function_call_output",
+                        "call_id": c["call_id"],
+                        "output": f"[hop {hop}/{self.max_hops}] {out}"[:20000],
+                    }
+                )
+        return (
+            f"{partial}\n[sol tool budget exhausted at {self.max_hops} hops -- "
+            f"partial answer above; re-ask to continue]"
+        ).strip()
 
 
 if __name__ == "__main__":
@@ -274,22 +321,45 @@ if __name__ == "__main__":
     if "--smoke" in sys.argv:
         t = SolTransport(effort="low", verbosity="low")
         text, calls, reasoning, items = SolTransport.extract(
-            t.respond("You are sol, smoke-testing your transport.",
-                      [{"role": "user", "content": "Reply with exactly: SOL TRANSPORT LIVE"}]))
+            t.respond(
+                "You are sol, smoke-testing your transport.",
+                [{"role": "user", "content": "Reply with exactly: SOL TRANSPORT LIVE"}],
+            )
+        )
         print(f"text={text!r} calls={calls} reasoning={bool(reasoning)}")
         hist = [{"role": "user", "content": "What is 6*7? Use the calc tool."}]
-        r1 = t.respond("Use tools when asked.", hist,
-                       tools=[{"type": "function", "name": "calc", "description": "evaluate arithmetic",
-                               "parameters": {"type": "object", "properties": {"expr": {"type": "string"}},
-                                              "required": ["expr"]}}])
+        r1 = t.respond(
+            "Use tools when asked.",
+            hist,
+            tools=[
+                {
+                    "type": "function",
+                    "name": "calc",
+                    "description": "evaluate arithmetic",
+                    "parameters": {"type": "object", "properties": {"expr": {"type": "string"}}, "required": ["expr"]},
+                }
+            ],
+        )
         _, calls, reasoning, items = SolTransport.extract(r1)
         print(f"tool call: {calls} reasoning={bool(reasoning)}")
         if calls:
             hist += [it for it in items if getattr(it, "type", "") == "function_call"]
             hist.append({"type": "function_call_output", "call_id": calls[0]["call_id"], "output": "42"})
-            r2 = t.respond("Use tools when asked.", hist,
-                           tools=[{"type": "function", "name": "calc", "description": "evaluate arithmetic",
-                                   "parameters": {"type": "object", "properties": {"expr": {"type": "string"}},
-                                                  "required": ["expr"]}}])
+            r2 = t.respond(
+                "Use tools when asked.",
+                hist,
+                tools=[
+                    {
+                        "type": "function",
+                        "name": "calc",
+                        "description": "evaluate arithmetic",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {"expr": {"type": "string"}},
+                            "required": ["expr"],
+                        },
+                    }
+                ],
+            )
             print(f"final: {SolTransport.extract(r2)[0]!r}")
         print("== smoke complete ==")

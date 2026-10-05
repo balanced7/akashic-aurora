@@ -1,0 +1,11 @@
+{
+ "_meta": {
+  "commit": "d5f0615decac5f2449c59b18e3e3a3c6effe823c",
+  "created": "2026-10-01T11:46:23+0200",
+  "digest": "b520b97aa258ae904c082f2da8f7adea7d9d4e41cca8855cda6459f6376ac164",
+  "dirty": false,
+  "partial_modules": null,
+  "select": []
+ },
+ "note": "O2 is evaluated at compare time over the format commits between the two snapshots (oracle.py ast-equal)."
+}

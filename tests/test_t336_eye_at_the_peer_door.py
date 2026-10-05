@@ -28,6 +28,7 @@ refactor to computed names cannot silently blind the guard.
 
 Run: py -m pytest tests/test_t336_eye_at_the_peer_door.py -q
 """
+
 from __future__ import annotations
 
 import ast
@@ -39,7 +40,7 @@ import pytest
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from core.comm import toolbox as TB  # noqa: E402
+from core.comm import toolbox as TB  # noqa: E402  # sys.path bootstrap
 
 EYE_TOOLS = ("eye_find", "eye_freq", "eye_get", "eye_zoom")
 
@@ -52,8 +53,7 @@ def _declared_names():
 @pytest.mark.parametrize("name", EYE_TOOLS)
 def test_p1_each_eye_verb_is_declared_at_the_door(name):
     """A tool a peer cannot see is a tool a peer does not have. This is the whole slice."""
-    assert name in _declared_names(), (
-        f"{name} is not in TOOLS -- the seat cannot call what the door never offered")
+    assert name in _declared_names(), f"{name} is not in TOOLS -- the seat cannot call what the door never offered"
 
 
 @pytest.mark.parametrize("name", EYE_TOOLS)
@@ -61,7 +61,8 @@ def test_p2_each_eye_verb_dispatches(name):
     """Dispatch is getattr(self, name) at toolbox.py:1247, so a declared name with no method is a
     tool that answers 'ERROR: unknown tool' -- worse than absent, because it advertises."""
     assert callable(getattr(TB.ToolBox, name, None)), (
-        f"{name} is declared in TOOLS but has no method -- getattr dispatch will refuse it")
+        f"{name} is declared in TOOLS but has no method -- getattr dispatch will refuse it"
+    )
 
 
 # ------------------------------------------------------------------ the contract of the answers
@@ -80,7 +81,8 @@ def test_p4_get_advertises_the_address_shape():
     """An address resolver whose description omits the address shape sends every caller through a
     guess. The corpus addresses as session:line and nothing else."""
     d = {t.get("function", t)["name"]: t.get("function", t)["description"] for t in TB.TOOLS}
-    assert "session" in d["eye_get"].lower() and "line" in d["eye_get"].lower()
+    assert "session" in d["eye_get"].lower()
+    assert "line" in d["eye_get"].lower()
 
 
 # ------------------------------------------------------------------ the guard that must keep seeing
@@ -88,13 +90,14 @@ def test_p5_the_names_stay_string_literals_so_check_wiring_can_see_them():
     """deepseek-red's A5 lesson: check_wiring matches ast.Constant string values, so any dispatch
     that COMPUTES a tool name ('eye_' + verb) goes invisible and the reachability guard silently
     stops covering this surface. Pinned at the source rather than trusted."""
-    src = open(os.path.join(ROOT, "core", "comm", "toolbox.py"), encoding="utf-8").read()
-    literals = {n.value for n in ast.walk(ast.parse(src))
-                if isinstance(n, ast.Constant) and isinstance(n.value, str)}
+    with open(os.path.join(ROOT, "core", "comm", "toolbox.py"), encoding="utf-8") as fh:
+        src = fh.read()
+    literals = {n.value for n in ast.walk(ast.parse(src)) if isinstance(n, ast.Constant) and isinstance(n.value, str)}
     for name in EYE_TOOLS:
         assert name in literals, (
             f"{name} is not a bare string literal in toolbox.py -- if the name is computed, "
-            f"check_wiring cannot see the method and this door leaves the guard's view")
+            f"check_wiring cannot see the method and this door leaves the guard's view"
+        )
 
 
 # ------------------------------------------------------------------ read-only, by construction
@@ -122,12 +125,14 @@ def test_p6_no_TOOLBOX_eye_verb_can_write_the_corpus():
     the instrument-blindness class this suite exists to catch, committed by this suite. The
     pin now names the thing it actually protects: the CORPUS."""
     import inspect
+
     src = "".join(inspect.getsource(getattr(TB.ToolBox, n)) for n in EYE_TOOLS)
-    src += inspect.getsource(TB.ToolBox._eye_disclose)   # follow the call, do not stop at it
+    src += inspect.getsource(TB.ToolBox._eye_disclose)  # follow the call, do not stop at it
     for forbidden in ("ingest", "--persist", "eye.db", "DB_PATH"):
         assert forbidden not in src, (
             f"an Eye door (or its helper) references {forbidden!r} -- these surfaces read the "
-            f"corpus and must never write it")
+            f"corpus and must never write it"
+        )
 
 
 def test_p7_every_corpus_read_discloses_itself():
@@ -139,10 +144,10 @@ def test_p7_every_corpus_read_discloses_itself():
     The corpus holds his transcripts. A read of them must not be able to happen quietly, and
     that has to be structural: an agent that must REMEMBER to disclose will not."""
     import inspect
+
     for name in EYE_TOOLS:
         src = inspect.getsource(getattr(TB.ToolBox, name))
-        assert "_eye_disclose" in src, (
-            f"{name} can read the operator's transcripts without leaving a trace")
+        assert "_eye_disclose" in src, f"{name} can read the operator's transcripts without leaving a trace"
 
 
 def test_p8_a_failed_disclosure_confesses_and_never_blocks_the_read():
@@ -151,8 +156,10 @@ def test_p8_a_failed_disclosure_confesses_and_never_blocks_the_read():
     was chosen to avoid. But a silent audit failure would be worse than no audit at all,
     because it would look identical to a disclosed read."""
     import inspect
+
     src = inspect.getsource(TB.ToolBox._eye_disclose)
     assert "except Exception" in src, "the audit must never break the read"
     assert "DISCLOSURE FAILED" in src, (
         "a failed audit must say so in the returned text -- silence here is indistinguishable "
-        "from a disclosed read, which is the T176 defect wearing an audit's coat")
+        "from a disclosed read, which is the T176 defect wearing an audit's coat"
+    )

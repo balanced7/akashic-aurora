@@ -31,22 +31,20 @@ clean `done` that hides a stitched-and-still-incomplete answer.
 
 Run: py -m pytest tests/test_t204_untruncate.py -q
 """
+
 import os
 import sys
 
-import pytest
-
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.comm import ask as ask_mod  # noqa: E402
+from core.comm import ask as ask_mod
 
 
 class _Usage:
     def __init__(self, pt=10, ct=20, reasoning=None):
         self.prompt_tokens, self.completion_tokens = pt, ct
         if reasoning is not None:
-            self.completion_tokens_details = type(
-                "D", (), {"reasoning_tokens": reasoning})()
+            self.completion_tokens_details = type("D", (), {"reasoning_tokens": reasoning})()
 
 
 def _resp(content, finish, usage=None):
@@ -76,11 +74,12 @@ class ScriptedClient:
 # CUT: there is an answer, it just stopped. Continue it.
 # --------------------------------------------------------------------------------------
 
+
 def test_a_cut_answer_is_continued_and_stitched():
-    c = ScriptedClient(_resp("The first half", "length"),
-                       _resp(" and the second half.", "stop"))
+    c = ScriptedClient(_resp("The first half", "length"), _resp(" and the second half.", "stop"))
     o = ask_mod.ask("q", client=c, continue_on_cut=True)
-    assert o.ok and not o.partial, "a fully continued answer is DONE"
+    assert o.ok, "a fully continued answer is DONE"
+    assert not o.partial, "a fully continued answer is DONE"
     assert o.detail["answer"] == "The first half and the second half."
     assert o.detail["continuations"] == 1
     assert len(c.calls) == 2
@@ -111,12 +110,14 @@ def test_continuation_is_opt_in():
     established. Spending extra calls must be asked for."""
     c = ScriptedClient(_resp("cut here", "length"))
     o = ask_mod.ask("q", client=c)
-    assert o.partial and len(c.calls) == 1
+    assert o.partial
+    assert len(c.calls) == 1
 
 
 # --------------------------------------------------------------------------------------
 # STARVED: reasoning ate the budget. Continuation cannot help.
 # --------------------------------------------------------------------------------------
+
 
 def test_an_empty_length_answer_is_starved_not_cut():
     """THE CASE MEASURED TODAY. Nothing was emitted, so there is nothing to continue --
@@ -134,7 +135,8 @@ def test_starved_says_how_much_reasoning_ate():
     c = ScriptedClient(_resp("", "length", _Usage(pt=8662, ct=1200, reasoning=1200)))
     o = ask_mod.ask("q", client=c, continue_on_cut=True, max_tokens=1200)
     assert o.detail.get("reasoning_tokens") == 1200
-    assert "1200" in o.why and "reasoning" in o.why.lower()
+    assert "1200" in o.why
+    assert "reasoning" in o.why.lower()
 
 
 def test_reasoning_tokens_are_recorded_even_on_success():
@@ -142,7 +144,8 @@ def test_reasoning_tokens_are_recorded_even_on_success():
     starvation threshold learnable instead of guessed."""
     c = ScriptedClient(_resp("fine", "stop", _Usage(pt=10, ct=50, reasoning=30)))
     o = ask_mod.ask("q", client=c)
-    assert o.ok and o.detail.get("reasoning_tokens") == 30
+    assert o.ok
+    assert o.detail.get("reasoning_tokens") == 30
 
 
 def test_absent_reasoning_field_is_none_never_zero():

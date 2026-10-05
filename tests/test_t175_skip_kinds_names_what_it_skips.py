@@ -24,33 +24,38 @@ comment already supplies the truthful name. Minimum blast radius wins.
 
 Run: py -m pytest tests/test_t175_skip_kinds_names_what_it_skips.py -q
 """
+
 import os
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from scripts.checkers import check_kind_policy as KP  # noqa: E402
+from scripts.checkers import check_kind_policy as KP  # noqa: E402  # sys.path bootstrap
 
 
 def test_k1_no_identifier_means_two_things_in_this_tree():
     conflicts = KP.duplicate_identifier_conflicts(KP.discover_kind_sets(ROOT))
     assert conflicts == [], (
         f"one identifier, two memberships: {conflicts}. A reader who greps the name gets a "
-        f"different answer depending on which file they landed in.")
+        f"different answer depending on which file they landed in."
+    )
 
 
 def test_k2_the_checkers_set_is_named_for_what_it_excludes():
     from scripts.checkers import check_bus_atom_pointers as CB
+
     assert hasattr(CB, "NON_CARGO_KINDS"), (
         "the checker excludes telemetry and control because they are not CARGO needing a "
-        "library home -- the name must say that, not the unrelated word 'skip'")
+        "library home -- the name must say that, not the unrelated word 'skip'"
+    )
     assert not hasattr(CB, "SKIP_KINDS"), "the colliding name must be gone, not aliased"
     assert {"trace", "heartbeat", "presence"} <= CB.NON_CARGO_KINDS
 
 
 def test_k3_behaviour_is_unchanged_by_the_rename():
     from scripts.checkers import check_bus_atom_pointers as CB
+
     design_shaped = "Proposal:\n- one\n- two\n- three\n- four\n"
     assert CB.classify_body(design_shaped, kind="trace") is None, "telemetry is still not cargo"
     assert CB.classify_body(design_shaped, kind="heartbeat") is None
@@ -61,6 +66,7 @@ def test_k4_the_wake_side_is_untouched():
     """The rename must not disturb the set that IS load-bearing, nor the L7 relationship."""
     from core.comm import bifrost_api
     from scripts import bifrost_wake as bw
-    assert bw.SKIP_KINDS == {"trace", "steer", "resolved", "ledger_update"}
-    assert bw.SKIP_KINDS_LANE == bw.SKIP_KINDS | {"note", "status"}
+
+    assert {"trace", "steer", "resolved", "ledger_update"} == bw.SKIP_KINDS
+    assert bw.SKIP_KINDS | {"note", "status"} == bw.SKIP_KINDS_LANE
     assert bifrost_api.PENDING_SKIP_KINDS == bw.SKIP_KINDS_LANE, "L7 parity still holds"

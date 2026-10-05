@@ -4,6 +4,7 @@ OR-match terms and rank by how many hit -- NOT require the whole phrase verbatim
 
 Run: py -m pytest tests/test_recall_match.py -q
 """
+
 import os
 import sys
 import tempfile
@@ -20,12 +21,22 @@ def _store():
 
 def test_multiword_query_or_matches_and_ranks():
     ls = _store()
-    ls.record_learning({"experiment_name": "salience_promotion",
-                        "what_tried": "score events, promote salient ones to beats",
-                        "recommendation": "threshold + cap + dedup", "category": "research"})
-    ls.record_learning({"experiment_name": "track_routing",
-                        "what_tried": "route beats to tracks", "recommendation": "heuristic baseline",
-                        "category": "infrastructure"})
+    ls.record_learning(
+        {
+            "experiment_name": "salience_promotion",
+            "what_tried": "score events, promote salient ones to beats",
+            "recommendation": "threshold + cap + dedup",
+            "category": "research",
+        }
+    )
+    ls.record_learning(
+        {
+            "experiment_name": "track_routing",
+            "what_tried": "route beats to tracks",
+            "recommendation": "heuristic baseline",
+            "category": "infrastructure",
+        }
+    )
     # the phrase appears in NO single learning verbatim -> old code returned 0
     hits = ls.search_learnings_by_keyword("salience promotion consolidation track")
     assert hits, "multi-word query must OR-match, not require the whole phrase"

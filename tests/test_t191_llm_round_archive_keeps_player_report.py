@@ -17,13 +17,14 @@ No model call, worktree, key write, or filesystem archive occurs in this pin.
 
 Run: py -m pytest tests/test_t191_llm_round_archive_keeps_player_report.py -q
 """
+
 import os
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from scripts import season_dryrun as D  # noqa: E402
+from scripts import season_dryrun as D  # noqa: E402  # sys.path bootstrap
 
 
 def _manifest():
@@ -37,9 +38,9 @@ def _manifest():
 
 def _isolate(monkeypatch):
     """Replace every outward seam; retain only player -> run -> archive data flow."""
+    from core.season import scoring as S
     from scripts import canary_oracle as C
     from scripts import round_archive as A
-    from core.season import scoring as S
 
     monkeypatch.setattr(D, "_fresh_worktree", lambda _path: None)
     monkeypatch.setattr(C, "plant", lambda *_a, **_k: _manifest())

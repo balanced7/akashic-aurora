@@ -34,21 +34,22 @@ Run::
 
     py -m pytest tests/test_find_bounded_is_not_absent.py -q
 """
+
 from __future__ import annotations
 
-from pathlib import Path
 import sys
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from core.tools import everything as ev  # noqa: E402
+from core.tools import everything as ev  # noqa: E402  # sys.path bootstrap
 
 
 def test_the_verb_has_an_engine_even_without_search_everything(monkeypatch, tmp_path):
     """THE PIN THE INCIDENT NEEDED. Not "it refuses politely" -- it must SEARCH."""
     (tmp_path / "needle_file.txt").write_text("x", encoding="utf-8")
-    monkeypatch.setattr(ev, "resolve_es", lambda: None)          # Everything absent
+    monkeypatch.setattr(ev, "resolve_es", lambda: None)  # Everything absent
     monkeypatch.setattr(ev, "_WALK_ROOTS", (str(tmp_path),))
 
     res = ev.search("needle_file")
@@ -62,9 +63,16 @@ def test_the_verb_has_an_engine_even_without_search_everything(monkeypatch, tmp_
 def test_a_bounded_miss_never_renders_as_absence(monkeypatch, tmp_path):
     """The load-bearing one. Zero results from a BUDGET-STOPPED search must say so, in the
     text a human reads, not merely in a field a caller might inspect."""
-    res = ev.SearchResult(query="ffmpeg.exe", paths=[], ok=True, engine="walk",
-                          exhaustive=False, scanned_dirs=73513, roots=["C:/Users/L5"],
-                          elapsed_s=25.02)
+    res = ev.SearchResult(
+        query="ffmpeg.exe",
+        paths=[],
+        ok=True,
+        engine="walk",
+        exhaustive=False,
+        scanned_dirs=73513,
+        roots=["C:/Users/L5"],
+        elapsed_s=25.02,
+    )
     out = ev.format_result(res)
     low = out.lower()
     assert "bounded" in low, f"a budget-stopped miss did not say it was bounded: {out!r}"
@@ -79,26 +87,51 @@ def test_a_COMPLETED_walk_that_finds_nothing_says_THAT_instead(tmp_path):
     """The other half, and it must not be collapsed into the first: a walk that genuinely
     finished and found nothing IS evidence, and must read differently from a bounded miss.
     Reporting both as one sentence is the defect, whichever way it is resolved."""
-    res = ev.SearchResult(query="nothing_here", paths=[], ok=True, engine="walk",
-                          exhaustive=True, scanned_dirs=12, roots=[str(tmp_path)],
-                          elapsed_s=0.01)
+    res = ev.SearchResult(
+        query="nothing_here",
+        paths=[],
+        ok=True,
+        engine="walk",
+        exhaustive=True,
+        scanned_dirs=12,
+        roots=[str(tmp_path)],
+        elapsed_s=0.01,
+    )
     out = ev.format_result(res)
     assert "completed" in out.lower(), f"a finished walk did not say so: {out!r}"
 
-    bounded = ev.format_result(ev.SearchResult(query="nothing_here", paths=[], ok=True,
-                                               engine="walk", exhaustive=False,
-                                               scanned_dirs=12, roots=[str(tmp_path)]))
+    bounded = ev.format_result(
+        ev.SearchResult(
+            query="nothing_here",
+            paths=[],
+            ok=True,
+            engine="walk",
+            exhaustive=False,
+            scanned_dirs=12,
+            roots=[str(tmp_path)],
+        )
+    )
     assert out != bounded, "a completed miss and a bounded miss render identically"
 
 
 def test_the_render_always_names_which_engine_answered(tmp_path):
     """An indexed whole-machine answer and a bounded partial walk are different evidence.
     A reader who cannot tell them apart cannot weigh either."""
-    walk = ev.format_result(ev.SearchResult(query="q", paths=[r"C:\a\b.exe"], ok=True,
-                                            engine="walk", exhaustive=True, scanned_dirs=5,
-                                            roots=["C:/a"], elapsed_s=0.1))
-    idx = ev.format_result(ev.SearchResult(query="q", paths=[r"C:\a\b.exe"], ok=True,
-                                           engine="everything", exhaustive=True))
+    walk = ev.format_result(
+        ev.SearchResult(
+            query="q",
+            paths=[r"C:\a\b.exe"],
+            ok=True,
+            engine="walk",
+            exhaustive=True,
+            scanned_dirs=5,
+            roots=["C:/a"],
+            elapsed_s=0.1,
+        )
+    )
+    idx = ev.format_result(
+        ev.SearchResult(query="q", paths=[r"C:\a\b.exe"], ok=True, engine="everything", exhaustive=True)
+    )
     assert "walk" in walk.lower()
     assert "everything" in idx.lower()
     assert walk != idx, "the two engines' results are indistinguishable to a reader"
@@ -112,11 +145,11 @@ def test_the_walk_does_not_descend_the_same_real_directory_twice(monkeypatch, tm
     real.mkdir()
     (real / "target.bin").write_text("x", encoding="utf-8")
     monkeypatch.setattr(ev, "resolve_es", lambda: None)
-    monkeypatch.setattr(ev, "_WALK_ROOTS", (str(real), str(real)))   # same root twice
+    monkeypatch.setattr(ev, "_WALK_ROOTS", (str(real), str(real)))  # same root twice
 
     res = ev.search("target.bin")
-    assert res.ok and res.paths, "the duplicated root broke the search entirely"
+    assert res.ok, "the duplicated root broke the search entirely"
+    assert res.paths, "the duplicated root broke the search entirely"
     assert len(res.paths) == 1, (
-        f"the same real directory was walked twice and the file reported {len(res.paths)} "
-        f"times: {res.paths}"
+        f"the same real directory was walked twice and the file reported {len(res.paths)} times: {res.paths}"
     )

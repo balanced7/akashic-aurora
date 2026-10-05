@@ -12,22 +12,19 @@ Usage:
     result = engine.analyze_screen(task="ocr")
 """
 
-import os
-import json
-import hashlib
 import base64
+import hashlib
 import io
+import json
+import os
 import time
-import uuid
-import shutil
-from pathlib import Path
-from typing import Optional, Dict, Any, List, Tuple
 from datetime import datetime
-from urllib import request, parse
-import urllib.error
+from typing import Any
+from urllib import parse, request
 
 try:
     import redis
+
     REDIS_AVAILABLE = True
 except ImportError:
     REDIS_AVAILABLE = False
@@ -59,10 +56,10 @@ def get_redis():
     if not REDIS_AVAILABLE:
         return None
     try:
-        r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, db=0, decode_responses=True)
+        r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, db=0, decode_responses=True)  # pyright: ignore[reportPossiblyUnboundVariable]  # bound when REDIS_AVAILABLE, checked above
         r.ping()
         return r
-    except:
+    except Exception:
         return None
 
 
@@ -74,42 +71,40 @@ def check_comfyui_running() -> bool:
         with request.urlopen(f"{COMFYUI_URL}/system_stats", timeout=2) as resp:
             COMFYUI_AVAILABLE = resp.status == 200
             return COMFYUI_AVAILABLE
-    except:
+    except Exception:
         COMFYUI_AVAILABLE = False
         return False
 
 
-def upload_image(image_path: str) -> Tuple[bool, str]:
-    with open(image_path, 'rb') as f:
+def upload_image(image_path: str) -> tuple[bool, str]:
+    with open(image_path, "rb") as f:
         image_data = f.read()
     req = request.Request(
-        f"{COMFYUI_URL}/upload/image",
-        data=image_data,
-        headers={'Content-Type': 'application/octet-stream'}
+        f"{COMFYUI_URL}/upload/image", data=image_data, headers={"Content-Type": "application/octet-stream"}
     )
     try:
         resp = request.urlopen(req)
         result = json.loads(resp.read())
-        return True, result.get('name', '')
+        return True, result.get("name", "")
     except Exception as e:
         print(f"[vision] Upload failed: {e}")
         return False, ""
 
 
-def queue_prompt(prompt: dict) -> Optional[str]:
+def queue_prompt(prompt: dict) -> str | None:
     p = {"prompt": prompt}
-    data = json.dumps(p).encode('utf-8')
+    data = json.dumps(p).encode("utf-8")
     req = request.Request(f"{COMFYUI_URL}/prompt", data=data)
     try:
         resp = request.urlopen(req, timeout=10)
         result = json.loads(resp.read())
-        return result.get('prompt_id')
+        return result.get("prompt_id")
     except Exception as e:
         print(f"[vision] Queue failed: {e}")
         return None
 
 
-def get_history(prompt_id: str) -> Optional[dict]:
+def get_history(prompt_id: str) -> dict | None:
     try:
         with request.urlopen(f"{COMFYUI_URL}/history/{prompt_id}", timeout=30) as resp:
             return json.loads(resp.read())
@@ -128,18 +123,20 @@ def wait_for_completion(prompt_id: str, timeout: int = 300) -> bool:
     return False
 
 
-def get_image_output(history: dict, node_id: str) -> Optional[bytes]:
+def get_image_output(history: dict, node_id: str) -> bytes | None:
     try:
-        outputs = history.get(prompt_id_from_history(history), {}).get('outputs', {})
+        outputs = history.get(prompt_id_from_history(history), {}).get("outputs", {})
         if node_id in outputs:
             output = outputs[node_id]
-            if 'images' in output:
-                img_info = output['images'][0]
-                params = parse.urlencode({
-                    'filename': img_info['filename'],
-                    'subfolder': img_info['subfolder'],
-                    'type': img_info.get('type', 'output')
-                })
+            if "images" in output:
+                img_info = output["images"][0]
+                params = parse.urlencode(
+                    {
+                        "filename": img_info["filename"],
+                        "subfolder": img_info["subfolder"],
+                        "type": img_info.get("type", "output"),
+                    }
+                )
                 with request.urlopen(f"{COMFYUI_URL}/view?{params}") as resp:
                     return resp.read()
     except Exception as e:
@@ -147,27 +144,16 @@ def get_image_output(history: dict, node_id: str) -> Optional[bytes]:
     return None
 
 
-def prompt_id_from_history(history: dict) -> Optional[str]:
-    for key in history.keys():
+def prompt_id_from_history(history: dict) -> str | None:
+    for key in history:
         return key
     return None
 
 
 def create_florence_workflow(image_filename: str, task: str = "ocr") -> dict:
     return {
-        "1": {
-            "class_type": "DownloadAndLoadFlorence2Model",
-            "inputs": {
-                "model": FLORENCE_MODEL,
-                "precision": "fp16"
-            }
-        },
-        "2": {
-            "class_type": "LoadImage",
-            "inputs": {
-                "image": image_filename
-            }
-        },
+        "1": {"class_type": "DownloadAndLoadFlorence2Model", "inputs": {"model": FLORENCE_MODEL, "precision": "fp16"}},
+        "2": {"class_type": "LoadImage", "inputs": {"image": image_filename}},
         "3": {
             "class_type": "Florence2Run",
             "inputs": {
@@ -176,9 +162,9 @@ def create_florence_workflow(image_filename: str, task: str = "ocr") -> dict:
                 "text_input": "",
                 "task": task,
                 "fill_mask": True,
-                "do_sample": False
-            }
-        }
+                "do_sample": False,
+            },
+        },
     }
 
 
@@ -188,7 +174,7 @@ class ComfyVisionEngine:
         self._redis = get_redis()
         self._workflow_cache = {}
 
-    def analyze(self, image: Image.Image, task: str = "ocr") -> Dict[str, Any]:
+    def analyze(self, image: Image.Image, task: str = "ocr") -> dict[str, Any]:
         img_hash = hashlib.md5(image.tobytes()).hexdigest()[:12]
         cache_key = f"{REDIS_PREFIX}analysis:{task}:{img_hash}"
 
@@ -227,7 +213,7 @@ class ComfyVisionEngine:
 
         result_text = ""
         try:
-            outputs = history.get(prompt_id_from_history(history), {}).get('outputs', {})
+            outputs = history.get(prompt_id_from_history(history), {}).get("outputs", {})
             if "3" in outputs:
                 result_text = outputs["3"].get("caption", "")
         except Exception as e:
@@ -239,7 +225,7 @@ class ComfyVisionEngine:
             "image_hash": img_hash,
             "device": "ComfyUI+ZLUDA",
             "timestamp": datetime.now().isoformat(),
-            "cached": False
+            "cached": False,
         }
 
         if self._redis and result_text:
@@ -250,7 +236,7 @@ class ComfyVisionEngine:
 
         return result
 
-    def analyze_screen(self, task: str = "ocr") -> Dict[str, Any]:
+    def analyze_screen(self, task: str = "ocr") -> dict[str, Any]:
         image = capture_screen()
         if image is None:
             return {"error": "Screen capture failed"}
@@ -259,7 +245,7 @@ class ComfyVisionEngine:
         return result
 
 
-def capture_screen() -> Optional[Image.Image]:
+def capture_screen() -> Image.Image | None:
     try:
         return ImageGrab.grab(include_layered_windows=False)
     except Exception as e:
@@ -291,7 +277,7 @@ def save_to_redis(image: Image.Image, tag: str = "capture") -> str:
             "width": image.width,
             "height": image.height,
             "data": b64_data,
-            "disk_path": disk_path
+            "disk_path": disk_path,
         }
         r.setex(redis_key, CACHE_TTL, json.dumps(redis_data))
         r.sadd(f"{REDIS_PREFIX}screenshot_keys", img_hash)
@@ -301,7 +287,7 @@ def save_to_redis(image: Image.Image, tag: str = "capture") -> str:
     return disk_path
 
 
-def capture_and_analyze(task: str = "ocr") -> Dict[str, Any]:
+def capture_and_analyze(task: str = "ocr") -> dict[str, Any]:
     image = capture_screen()
     if image is None:
         return {"error": "Screen capture failed"}
@@ -321,7 +307,7 @@ def capture_and_analyze(task: str = "ocr") -> Dict[str, Any]:
     return result
 
 
-def get_cached_analysis(img_hash: str, task: str = "ocr") -> Optional[Dict]:
+def get_cached_analysis(img_hash: str, task: str = "ocr") -> dict | None:
     r = get_redis()
     if not r:
         return None

@@ -23,30 +23,57 @@ SOFT signal (observed, not gated): token grounding overlap of the line to its ci
 The heuristic Distiller writer copies each item's own text + source into the line, so faithfulness
 is trivially 100% today -- this critic is the forward gate for an LLM writer that can mis-attribute.
 """
+
 from __future__ import annotations
 
 import re
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import TYPE_CHECKING, Any
 
 from core.primitives.distiller import _SUMMARY_FIELDS, _source_of
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 # Line-final source capture (paren-safe: a source like learn:experiment:...(prior art) is whole).
 _SOURCE_RE = re.compile(r"\(source:\s*(.+)\)\s*$")
 _RELATES_RE = re.compile(r"\[relates:[^\]]*\]")
-_NUM_RE = re.compile(r"\d[\d,.]*\d|\d")          # numbers/figures inside a line
+_NUM_RE = re.compile(r"\d[\d,.]*\d|\d")  # numbers/figures inside a line
 _WORD_RE = re.compile(r"[a-z0-9_]+")
-_STOP = {"the", "a", "an", "and", "or", "to", "of", "in", "on", "for", "with", "is", "it",
-         "this", "that", "via", "use", "using", "from", "by", "at", "as", "be"}
+_STOP = {
+    "the",
+    "a",
+    "an",
+    "and",
+    "or",
+    "to",
+    "of",
+    "in",
+    "on",
+    "for",
+    "with",
+    "is",
+    "it",
+    "this",
+    "that",
+    "via",
+    "use",
+    "using",
+    "from",
+    "by",
+    "at",
+    "as",
+    "be",
+}
 
 
 def _words(s: str) -> set:
     return {w for w in _WORD_RE.findall((s or "").lower()) if len(w) > 2 and w not in _STOP}
 
 
-def _source_text(items: Sequence[Dict[str, Any]]) -> Dict[str, str]:
+def _source_text(items: Sequence[dict[str, Any]]) -> dict[str, str]:
     """Map each input source -> its concatenated textual content (the same fields the Distiller
     summarizes from), so we can check a line's content/numbers against the record it cites."""
-    out: Dict[str, str] = {}
+    out: dict[str, str] = {}
     for it in items:
         src = _source_of(it)
         if not src:
@@ -56,24 +83,28 @@ def _source_text(items: Sequence[Dict[str, Any]]) -> Dict[str, str]:
     return out
 
 
-def faithfulness_report(items: Sequence[Dict[str, Any]], skeleton: str,
-                        entries: Optional[Sequence[Dict[str, Any]]] = None,
-                        *, grounding_tau: float = 0.5) -> Dict[str, Any]:
+def faithfulness_report(
+    items: Sequence[dict[str, Any]],
+    skeleton: str,
+    entries: Sequence[dict[str, Any]] | None = None,
+    *,
+    grounding_tau: float = 0.5,
+) -> dict[str, Any]:
     """Deterministic per-line grounding check. Returns the full report (verdict + signals)."""
     src_text = _source_text(items)
     known = set(src_text)
     lines = [ln for ln in (skeleton or "").splitlines() if ln.strip()]
     untraceable = unresolved = number_fail = low_grounding = 0
     grounded_sum = 0.0
-    per_line: List[Dict[str, Any]] = []
+    per_line: list[dict[str, Any]] = []
     for ln in lines:
         m = _SOURCE_RE.search(ln)
-        if not m:                                    # a claim with no pointer can't be traced
+        if not m:  # a claim with no pointer can't be traced
             untraceable += 1
             per_line.append({"ok": False, "reason": "no source pointer"})
             continue
         src = m.group(1).strip()
-        content = _RELATES_RE.sub("", ln[:m.start()]).lstrip("- ").strip()
+        content = _RELATES_RE.sub("", ln[: m.start()]).lstrip("- ").strip()
         resolves = src in known
         cited = _words(src_text.get(src, ""))
         cw = _words(content)
@@ -88,25 +119,37 @@ def faithfulness_report(items: Sequence[Dict[str, Any]], skeleton: str,
             number_fail += 1
         if resolves and overlap < grounding_tau:
             low_grounding += 1
-        per_line.append({"src": src, "resolves": resolves, "overlap": round(overlap, 2),
-                         "nums_ok": nums_ok, "ok": resolves and nums_ok})
+        per_line.append(
+            {
+                "src": src,
+                "resolves": resolves,
+                "overlap": round(overlap, 2),
+                "nums_ok": nums_ok,
+                "ok": resolves and nums_ok,
+            }
+        )
     n = len(lines) or 1
     # HARD verdict: robust signals only (pointer resolves + no fabricated numbers + traceable).
-    faithful = (untraceable == 0 and unresolved == 0 and number_fail == 0)
+    faithful = untraceable == 0 and unresolved == 0 and number_fail == 0
     return {
         "faithful": faithful,
-        "confidence": round(grounded_sum / n, 3),    # SOFT: mean grounding overlap (observed)
-        "lines": len(lines), "untraceable": untraceable, "unresolved": unresolved,
-        "number_fail": number_fail, "low_grounding": low_grounding, "per_line": per_line,
+        "confidence": round(grounded_sum / n, 3),  # SOFT: mean grounding overlap (observed)
+        "lines": len(lines),
+        "untraceable": untraceable,
+        "unresolved": unresolved,
+        "number_fail": number_fail,
+        "low_grounding": low_grounding,
+        "per_line": per_line,
     }
 
 
-def faithfulness_critic(items: Sequence[Dict[str, Any]], skeleton: str,
-                        entries: Optional[Sequence[Dict[str, Any]]] = None) -> Tuple[bool, List[str]]:
+def faithfulness_critic(
+    items: Sequence[dict[str, Any]], skeleton: str, entries: Sequence[dict[str, Any]] | None = None
+) -> tuple[bool, list[str]]:
     """Distiller-critic adapter -> (ok, notes). HARD-gates fabricated/untraceable pointers + fabricated
     numbers; REPORTS low grounding without failing (paraphrase-safe, the FP trap)."""
     r = faithfulness_report(items, skeleton, entries)
-    notes: List[str] = []
+    notes: list[str] = []
     if r["untraceable"]:
         notes.append(f"unfaithful: {r['untraceable']} claim(s) with no source pointer")
     if r["unresolved"]:

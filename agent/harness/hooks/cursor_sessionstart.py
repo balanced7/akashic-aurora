@@ -14,6 +14,7 @@ shape has no pinned fixture yet, so field reads are defensive until H2 pins capt
 from %TEMP%/akashic_recall/payloads_cursor/ into tests/fixtures/cursor_payloads/.
 Fail-OPEN and silent on any error -- session start must never be delayed or broken.
 """
+
 import json
 import os
 import sys
@@ -32,28 +33,30 @@ def main() -> int:
         data = {}
     try:
         from agent.harness.capture import capture
+
         capture(data, _CAP_DIR, label="sessionStart")
     except Exception:
         pass
     try:
-        from core.recall.at_action import warm_cache, prune_state
+        from core.recall.at_action import prune_state, warm_cache
+
         warm_cache()
         prune_state()
     except Exception:
-        pass   # warm-up is best-effort; never block session start
+        pass  # warm-up is best-effort; never block session start
     agent_id = os.getenv("AKASHIC_AGENT_ID") or "composer"
-    out = {"env": {"AKASHIC_AGENT_ID": agent_id}}
+    out: dict[str, object] = {"env": {"AKASHIC_AGENT_ID": agent_id}}
     try:
         from agent.harness.context import build_autoboot_context
-        cwd = (data.get("cwd") or data.get("workspace_root")
-               or os.getenv("CURSOR_PROJECT_DIR") or os.getcwd())
-        ctx = build_autoboot_context(cwd, agent_id,
-                                     session_id=str(data.get("session_id")
-                                                    or data.get("conversation_id") or ""))
+
+        cwd = data.get("cwd") or data.get("workspace_root") or os.getenv("CURSOR_PROJECT_DIR") or os.getcwd()
+        ctx = build_autoboot_context(
+            cwd, agent_id, session_id=str(data.get("session_id") or data.get("conversation_id") or "")
+        )
         if ctx:
             out["additional_context"] = ctx
     except Exception:
-        pass   # the whisper is a bonus; identity still ships
+        pass  # the whisper is a bonus; identity still ships
     print(json.dumps(out))
     return 0
 

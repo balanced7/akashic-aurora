@@ -35,18 +35,17 @@ Usage:
     recommendations = load_recommendations_from_store("code_optimization")
 """
 
-import uuid
+import contextlib
 import json
 import logging
 import re
-from typing import Dict, List, Optional, Any
+import uuid
 from datetime import datetime
-from pathlib import Path
-import os
-from core.paths import data_root
+from typing import Any, ClassVar
 
 from core.foundation.store import Store, create_store
 from core.learning.domains import DEFAULT_DOMAIN, infer_domain
+from core.paths import data_root
 
 # ---- RETRIEVAL VOCABULARY ----------------------------------------------------------------------
 # The flood, measured 2026-08-02: asking the corpus a shader question returned 77, 707 and 675 rows,
@@ -60,13 +59,115 @@ from core.learning.domains import DEFAULT_DOMAIN, infer_domain
 # returned ten identical confident errors; a metric suite that scored three visibly different images
 # as identical). AN INSTRUMENT THAT CANNOT SEE ITS SUBJECT RETURNS A CONFIDENT ANSWER, NOT SILENCE.
 # Recall is allowed to answer "nothing" -- and must, or every other honesty guarantee is decoration.
-_STOPWORDS = frozenset("""
-a an and are as at be been being both but by can could did do does for from had has have how i if
-in into is it its may might most must no not of on once one only or other our over own same should
-so some such than that the their them then there these they this those through to too two under
-until up very was we were what when where which while who why will with would you your about after
-again all also any because before between during each few more much never new now off out same
-""".split())
+_STOPWORDS = frozenset(
+    [
+        "a",
+        "an",
+        "and",
+        "are",
+        "as",
+        "at",
+        "be",
+        "been",
+        "being",
+        "both",
+        "but",
+        "by",
+        "can",
+        "could",
+        "did",
+        "do",
+        "does",
+        "for",
+        "from",
+        "had",
+        "has",
+        "have",
+        "how",
+        "i",
+        "if",
+        "in",
+        "into",
+        "is",
+        "it",
+        "its",
+        "may",
+        "might",
+        "most",
+        "must",
+        "no",
+        "not",
+        "of",
+        "on",
+        "once",
+        "one",
+        "only",
+        "or",
+        "other",
+        "our",
+        "over",
+        "own",
+        "same",
+        "should",
+        "so",
+        "some",
+        "such",
+        "than",
+        "that",
+        "the",
+        "their",
+        "them",
+        "then",
+        "there",
+        "these",
+        "they",
+        "this",
+        "those",
+        "through",
+        "to",
+        "too",
+        "two",
+        "under",
+        "until",
+        "up",
+        "very",
+        "was",
+        "we",
+        "were",
+        "what",
+        "when",
+        "where",
+        "which",
+        "while",
+        "who",
+        "why",
+        "will",
+        "with",
+        "would",
+        "you",
+        "your",
+        "about",
+        "after",
+        "again",
+        "all",
+        "also",
+        "any",
+        "because",
+        "before",
+        "between",
+        "during",
+        "each",
+        "few",
+        "more",
+        "much",
+        "never",
+        "new",
+        "now",
+        "off",
+        "out",
+        "same",
+    ]
+)
 
 # UNDERSCORE IS PART OF A TOKEN; HYPHEN IS A SEPARATOR. That asymmetry is deliberate and was caught
 # by an existing pin: splitting on '_' made the query `gamma_lesson` match the record `alpha_lesson`
@@ -83,22 +184,37 @@ _TOKEN = re.compile(r"[a-z0-9_]+")
 # old substring test caught "track" inside "tracks" by accident. Folding a few suffixes serves both
 # bars honestly instead of weakening either: word forms match, fragments still do not.
 # Longest suffix first; the stem must stay >=4 characters so short words are left alone.
-_SUFFIXES = ("ations", "ation", "ions", "ion", "ences", "ence", "ances", "ance",
-             "ents", "ent", "ings", "ing", "ed", "es", "s", "e")
+_SUFFIXES = (
+    "ations",
+    "ation",
+    "ions",
+    "ion",
+    "ences",
+    "ence",
+    "ances",
+    "ance",
+    "ents",
+    "ent",
+    "ings",
+    "ing",
+    "ed",
+    "es",
+    "s",
+    "e",
+)
 
 
 def _stem(tok: str) -> str:
     for suf in _SUFFIXES:
         if tok.endswith(suf) and len(tok) - len(suf) >= 4:
-            return tok[:-len(suf)]
+            return tok[: -len(suf)]
     return tok
 
 
-def _content_terms(query: str) -> List[str]:
+def _content_terms(query: str) -> list[str]:
     """Query words that carry meaning, folded to stems. Single characters go too: they cannot
     discriminate and they were half the flood."""
-    return [_stem(t) for t in _TOKEN.findall(str(query or "").lower())
-            if t not in _STOPWORDS and len(t) > 1]
+    return [_stem(t) for t in _TOKEN.findall(str(query or "").lower()) if t not in _STOPWORDS and len(t) > 1]
 
 
 def _tokens_of(text: str) -> set:
@@ -116,19 +232,67 @@ def _min_hits(n_terms: int) -> int:
     """
     if n_terms <= 2:
         return 1
-    return max(2, -(-n_terms // 4))         # ceil(n/4), never below 2
+    return max(2, -(-n_terms // 4))  # ceil(n/4), never below 2
+
 
 # Generic verbs/nouns that describe *that* something failed rather than *what* the known-bad is;
 # stripped so an auto-drafted slug names the pattern, not the failure event.
-_DRAFT_STOP = {"the", "and", "for", "with", "this", "that", "use", "used", "using", "via", "from",
-               "into", "was", "were", "then", "when", "because", "cause", "only", "gave", "made",
-               "make", "does", "did", "not", "but", "our", "its", "have", "has", "had", "will",
-               "would", "could", "should", "must", "tried", "trying", "failed", "fails", "fail",
-               "error", "errors", "issue", "problem", "result", "results", "instead", "again"}
+_DRAFT_STOP = {
+    "the",
+    "and",
+    "for",
+    "with",
+    "this",
+    "that",
+    "use",
+    "used",
+    "using",
+    "via",
+    "from",
+    "into",
+    "was",
+    "were",
+    "then",
+    "when",
+    "because",
+    "cause",
+    "only",
+    "gave",
+    "made",
+    "make",
+    "does",
+    "did",
+    "not",
+    "but",
+    "our",
+    "its",
+    "have",
+    "has",
+    "had",
+    "will",
+    "would",
+    "could",
+    "should",
+    "must",
+    "tried",
+    "trying",
+    "failed",
+    "fails",
+    "fail",
+    "error",
+    "errors",
+    "issue",
+    "problem",
+    "result",
+    "results",
+    "instead",
+    "again",
+}
 
 
-def draft_anti_pattern_slug(what_tried: str = "", root_cause: str = "", recommendation: str = "",
-                            max_words: int = 4) -> str:
+def draft_anti_pattern_slug(
+    what_tried: str = "", root_cause: str = "", recommendation: str = "", max_words: int = 4
+) -> str:
     """Auto-draft a candidate anti-pattern slug from a failure lesson's own words -- removes the
     'what do I even name it' cost of capturing a known-bad (Slice 2). Prefers root_cause (it names
     WHY it failed), then what_tried, then recommendation. Returns a snake_case slug of the most
@@ -136,7 +300,7 @@ def draft_anti_pattern_slug(what_tried: str = "", root_cause: str = "", recommen
     source = (root_cause or "").strip() or (what_tried or "").strip() or (recommendation or "").strip()
     if not source:
         return ""
-    words: List[str] = []
+    words: list[str] = []
     for w in re.findall(r"[A-Za-z0-9]+", source.lower()):
         if len(w) > 3 and w not in _DRAFT_STOP and w not in words:
             words.append(w)
@@ -157,16 +321,27 @@ class LearningStore:
 
     # Canonical success vocabulary. Every stored learning uses exactly one of
     # these three values so reads, scoring, and ranking are unambiguous.
-    SUCCESS_SCORES = {"yes": 100, "partial": 50, "no": 0}
+    SUCCESS_SCORES: ClassVar[dict[str, int]] = {"yes": 100, "partial": 50, "no": 0}
 
     # Maps the messy real-world representations that have shown up in signals
     # (booleans, prose, pass/fail) onto the canonical vocabulary above.
-    _SUCCESS_SYNONYMS = {
-        "yes": "yes", "true": "yes", "success": "yes", "succeeded": "yes",
-        "pass": "yes", "passed": "yes", "ok": "yes",
-        "partial": "partial", "partially": "partial", "mixed": "partial",
-        "no": "no", "false": "no", "failure": "no", "failed": "no",
-        "fail": "no", "error": "no",
+    _SUCCESS_SYNONYMS: ClassVar[dict[str, str]] = {
+        "yes": "yes",
+        "true": "yes",
+        "success": "yes",
+        "succeeded": "yes",
+        "pass": "yes",
+        "passed": "yes",
+        "ok": "yes",
+        "partial": "partial",
+        "partially": "partial",
+        "mixed": "partial",
+        "no": "no",
+        "false": "no",
+        "failure": "no",
+        "failed": "no",
+        "fail": "no",
+        "error": "no",
     }
 
     @classmethod
@@ -186,7 +361,7 @@ class LearningStore:
             return "no"
         return cls._SUCCESS_SYNONYMS.get(str(raw).strip().lower(), "no")
 
-    def __init__(self, store: Optional[Store] = None, redis_client: Optional[Any] = None):
+    def __init__(self, store: Store | None = None, redis_client: Any | None = None):
         """
         Initialize the Learning Store.
 
@@ -198,14 +373,15 @@ class LearningStore:
         """
         log_dir = data_root() / "coordinator_logs"
         log_dir.mkdir(parents=True, exist_ok=True)
-        logging.basicConfig(level=logging.INFO, format='[LEARNING_STORE] [%(asctime)s] %(message)s')
+        logging.basicConfig(level=logging.INFO, format="[LEARNING_STORE] [%(asctime)s] %(message)s")
         self.logger = logging.getLogger("learning_store")
 
         if store is not None:
             self.store = store
         elif redis_client is not None:
             # Back-compat: wrap a passed-in client, keep file durability.
-            from core.foundation.store import RedisStore, FileStore, HybridStore
+            from core.foundation.store import FileStore, HybridStore, RedisStore
+
             self.store = HybridStore(RedisStore(redis_client), FileStore())
         else:
             self.store = create_store(prefer_redis=True)
@@ -229,7 +405,7 @@ class LearningStore:
             if not legacy_file.exists():
                 return
             imported = 0
-            with open(legacy_file, "r", encoding="utf-8") as f:
+            with open(legacy_file, encoding="utf-8") as f:
                 for line in f:
                     if not line.strip():
                         continue
@@ -245,12 +421,12 @@ class LearningStore:
                     self._index_learning(signal)
                     imported += 1
             if imported:
-                self.logger.info(f"Imported {imported} legacy learning(s) from learnings.jsonl into Store")
+                self.logger.info("Imported %s legacy learning(s) from learnings.jsonl into Store", imported)
         except Exception as e:
-            self.logger.warning(f"Legacy learning import skipped: {e}")
+            self.logger.warning("Legacy learning import skipped: %s", e)
 
     # ----- write -----
-    def persist_learning_derived_from_experiment(self, learning_signal: Dict[str, Any]) -> bool:
+    def persist_learning_derived_from_experiment(self, learning_signal: dict[str, Any]) -> bool:
         """
         Persist learning derived from experiment to the Store.
 
@@ -265,14 +441,14 @@ class LearningStore:
         try:
             self._index_learning(learning_signal)
             exp = learning_signal.get("experiment_name", "unknown")
-            self.logger.info(f"Learning recorded: {exp} ({learning_signal.get('success')})")
+            self.logger.info("Learning recorded: %s (%s)", exp, learning_signal.get("success"))
             return True
         except Exception as e:
-            self.logger.error(f"Error recording learning: {e}")
+            self.logger.error("Error recording learning: %s", e)
             return False
 
     # Backward compatibility alias
-    def record_learning(self, learning_signal: Dict[str, Any]) -> bool:
+    def record_learning(self, learning_signal: dict[str, Any]) -> bool:
         """Deprecated: Use persist_learning_derived_from_experiment() instead"""
         return self.persist_learning_derived_from_experiment(learning_signal)
 
@@ -291,8 +467,7 @@ class LearningStore:
     #: it replaces. `repeat_report()` refuses to emit one and says so in its own payload.
     REPEAT_INDEX = "learn:repeats"
 
-    def record_repeat(self, of: str, agent_id: str = "", what: str = "",
-                      recall_outcome: str = "") -> Dict[str, Any]:
+    def record_repeat(self, of: str, agent_id: str = "", what: str = "", recall_outcome: str = "") -> dict[str, Any]:
         """Record that a lesson which ALREADY EXISTED was violated anyway.
 
         `recall_outcome` is the field that earns its place: a repeat where recall FIRED is a
@@ -306,7 +481,8 @@ class LearningStore:
         if not of or not self.store.exists(key):
             raise ValueError(
                 f"cannot record a repeat of {of!r}: no such lesson. A repeat is a pointer AT a "
-                f"lesson; without a resolvable target it is just an unverifiable claim.")
+                f"lesson; without a resolvable target it is just an unverifiable claim."
+            )
 
         original = self._load_experiment(of) or {}
         now = datetime.utcnow()
@@ -316,21 +492,27 @@ class LearningStore:
             if ts:
                 elapsed = max(0.0, (now - datetime.fromisoformat(str(ts))).total_seconds())
         except Exception:
-            elapsed = 0.0                       # unparseable original timestamp -> 0, not a guess
+            elapsed = 0.0  # unparseable original timestamp -> 0, not a guess
 
         # A timestamp alone is NOT unique here. Windows clock granularity let two repeats
         # recorded in the same tick produce the same id, and `sadd` then silently deduped them
         # -- three became two. Caught by this slice's own pin. In a counter whose only claim is
         # to be an honest FLOOR, silently merging two real events is the one unacceptable bug.
         rid = f"{of}:{now.strftime('%Y%m%dT%H%M%S%f')}:{uuid.uuid4().hex[:8]}"
-        rec = {"id": rid, "of": of, "agent_id": str(agent_id or ""), "what": str(what or ""),
-               "recall_outcome": str(recall_outcome or ""), "at": now.isoformat(),
-               "elapsed_s": round(elapsed, 3)}
+        rec = {
+            "id": rid,
+            "of": of,
+            "agent_id": str(agent_id or ""),
+            "what": str(what or ""),
+            "recall_outcome": str(recall_outcome or ""),
+            "at": now.isoformat(),
+            "elapsed_s": round(elapsed, 3),
+        }
         try:
             self.store.hset(f"learn:repeat:{rid}", mapping={k: str(v) for k, v in rec.items()})
             self.store.sadd(self.REPEAT_INDEX, rid)
         except Exception as e:
-            self.logger.warning(f"repeat not persisted: {e}")
+            self.logger.warning("repeat not persisted: %s", e)
         return rec
 
     # NOTE: there is deliberately no `repeat_count()`. The first draft had one, check_wiring
@@ -338,7 +520,7 @@ class LearningStore:
     # `repeat_report()["count"]` already answers it. A second way to ask the same question is
     # a second thing to keep in agreement.
 
-    def repeat_report(self) -> Dict[str, Any]:
+    def repeat_report(self) -> dict[str, Any]:
         """The multifaceted record, deliberately not a score.
 
         Returns a count, the lessons ranked by how often they were violated, and the split by
@@ -350,17 +532,17 @@ class LearningStore:
         violated anyway is a targeting failure WITH A KNOWN RIGHT ANSWER, which is the rarest
         thing in the corpus and exactly the training set the recall trigger problem needs.
         """
-        entries: List[Dict[str, Any]] = []
+        entries: list[dict[str, Any]] = []
         try:
-            for rid in (self.store.smembers(self.REPEAT_INDEX) or []):
+            for rid in self.store.smembers(self.REPEAT_INDEX) or []:
                 rec = self.store.hgetall(f"learn:repeat:{rid}") or {}
                 if rec:
                     entries.append(rec)
         except Exception:
             pass
 
-        by_lesson: Dict[str, int] = {}
-        by_outcome: Dict[str, int] = {}
+        by_lesson: dict[str, int] = {}
+        by_outcome: dict[str, int] = {}
         for e in entries:
             by_lesson[e.get("of", "?")] = by_lesson.get(e.get("of", "?"), 0) + 1
             o = e.get("recall_outcome") or "unrecorded"
@@ -390,18 +572,21 @@ class LearningStore:
         if not name or not self.store.exists(key):
             return False
         try:
-            self.store.hset(key, mapping={"anti_pattern": str(name)})   # merge: only this field
+            self.store.hset(key, mapping={"anti_pattern": str(name)})  # merge: only this field
             self.store.sadd("learn:anti_patterns", str(name))
             existing = self._load_experiment(experiment_id)
-            self.store.hset(f"learn:anti_pattern:{name}", mapping={
-                "experiments": experiment_id,
-                "reason": str(reason or existing.get("root_cause") or existing.get("recommendation") or ""),
-                "severity": "medium",
-                "first_seen": datetime.utcnow().isoformat(),
-            })
+            self.store.hset(
+                f"learn:anti_pattern:{name}",
+                mapping={
+                    "experiments": experiment_id,
+                    "reason": str(reason or existing.get("root_cause") or existing.get("recommendation") or ""),
+                    "severity": "medium",
+                    "first_seen": datetime.utcnow().isoformat(),
+                },
+            )
             return True
         except Exception as e:
-            self.logger.error(f"tag_anti_pattern failed for {experiment_id}: {e}")
+            self.logger.error("tag_anti_pattern failed for %s: %s", experiment_id, e)
             return False
 
     def mark_graduated(self, experiment_id: str, enforced_by: str = "", *, undo: bool = False) -> bool:
@@ -420,13 +605,16 @@ class LearningStore:
         try:
             if not self.store.exists(key):
                 return False
-            self.store.hset(key, mapping={
-                "graduated": "" if undo else datetime.utcnow().isoformat(),
-                "enforced_by": "" if undo else str(enforced_by or ""),
-            })
+            self.store.hset(
+                key,
+                mapping={
+                    "graduated": "" if undo else datetime.utcnow().isoformat(),
+                    "enforced_by": "" if undo else str(enforced_by or ""),
+                },
+            )
             return True
         except Exception as e:
-            self.logger.error(f"mark_graduated failed for {experiment_id}: {e}")
+            self.logger.error("mark_graduated failed for %s: %s", experiment_id, e)
             return False
 
     def mark_benched(self, experiment_id: str, reason: str = "", *, undo: bool = False) -> bool:
@@ -444,16 +632,19 @@ class LearningStore:
         try:
             if not self.store.exists(key):
                 return False
-            self.store.hset(key, mapping={
-                "benched": "" if undo else datetime.utcnow().isoformat(),
-                "bench_reason": "" if undo else str(reason or ""),
-            })
+            self.store.hset(
+                key,
+                mapping={
+                    "benched": "" if undo else datetime.utcnow().isoformat(),
+                    "bench_reason": "" if undo else str(reason or ""),
+                },
+            )
             return True
         except Exception as e:
-            self.logger.error(f"mark_benched failed for {experiment_id}: {e}")
+            self.logger.error("mark_benched failed for %s: %s", experiment_id, e)
             return False
 
-    def mark_related(self, experiment_id: str, related: List[Dict[str, Any]]) -> bool:
+    def mark_related(self, experiment_id: str, related: list[dict[str, Any]]) -> bool:
         """Persist the near-duplicate edges `find_related` computed at capture time. The write door
         has ALWAYS warned on overlap (advisory print) -- but the edge itself evaporated with the
         console line, so the consolidation/merge pass it points at had nothing durable to act on.
@@ -469,18 +660,28 @@ class LearningStore:
         try:
             if not related or not self.store.exists(key):
                 return False
-            self.store.hset(key, mapping={
-                "related_to": json.dumps([{"experiment_name": r.get("experiment_name"),
-                                           "dims": r.get("dims"),
-                                           "matched": r.get("matched")} for r in related[:5]]),
-                "related_stamped": datetime.utcnow().isoformat(),
-            })
+            self.store.hset(
+                key,
+                mapping={
+                    "related_to": json.dumps(
+                        [
+                            {
+                                "experiment_name": r.get("experiment_name"),
+                                "dims": r.get("dims"),
+                                "matched": r.get("matched"),
+                            }
+                            for r in related[:5]
+                        ]
+                    ),
+                    "related_stamped": datetime.utcnow().isoformat(),
+                },
+            )
             return True
         except Exception as e:
-            self.logger.error(f"mark_related failed for {experiment_id}: {e}")
+            self.logger.error("mark_related failed for %s: %s", experiment_id, e)
             return False
 
-    def mark_forge_rejected(self, experiment_id: str, draft: str, reasons: List[str]) -> bool:
+    def mark_forge_rejected(self, experiment_id: str, draft: str, reasons: list[str]) -> bool:
         """Append a rejected Forge edit to the record's durable negative-feedback buffer
         (design decision 6, locked KEEP as a plain field). The optimizer prompt includes
         this buffer so a failed edit is never re-proposed; capped to the last 8 rejections
@@ -494,17 +695,22 @@ class LearningStore:
                 buf = json.loads(str(rec.get("forge_rejected") or "[]"))
             except Exception:
                 buf = []
-            buf.append({"at": datetime.utcnow().isoformat(),
-                        "draft": str(draft or "")[:400],
-                        "reasons": [str(r)[:200] for r in (reasons or [])][:5]})
+            buf.append(
+                {
+                    "at": datetime.utcnow().isoformat(),
+                    "draft": str(draft or "")[:400],
+                    "reasons": [str(r)[:200] for r in (reasons or [])][:5],
+                }
+            )
             self.store.hset(key, mapping={"forge_rejected": json.dumps(buf[-8:])})
             return True
         except Exception as e:
-            self.logger.error(f"mark_forge_rejected failed for {experiment_id}: {e}")
+            self.logger.error("mark_forge_rejected failed for %s: %s", experiment_id, e)
             return False
 
-    def stamp_forge_proposal(self, experiment_id: str, draft: str, verdict: str, *,
-                             by: str = "", rationale: str = "") -> bool:
+    def stamp_forge_proposal(
+        self, experiment_id: str, draft: str, verdict: str, *, by: str = "", rationale: str = ""
+    ) -> bool:
         """Queue an optimizer proposal for HUMAN review (F2): one pending proposal per
         lesson, overwritten by a newer one, swept by the curator after PROPOSAL_TTL_DAYS.
         Holds the draft + the gate's verdict (PASS or UNMEASURABLE) -- FAILs never queue."""
@@ -512,13 +718,23 @@ class LearningStore:
         try:
             if not self.store.exists(key) or not str(draft or "").strip():
                 return False
-            self.store.hset(key, mapping={"forge_proposal": json.dumps({
-                "draft": str(draft), "verdict": str(verdict or ""),
-                "at": datetime.utcnow().isoformat(), "by": str(by or ""),
-                "rationale": str(rationale or "")[:200]})})
+            self.store.hset(
+                key,
+                mapping={
+                    "forge_proposal": json.dumps(
+                        {
+                            "draft": str(draft),
+                            "verdict": str(verdict or ""),
+                            "at": datetime.utcnow().isoformat(),
+                            "by": str(by or ""),
+                            "rationale": str(rationale or "")[:200],
+                        }
+                    )
+                },
+            )
             return True
         except Exception as e:
-            self.logger.error(f"stamp_forge_proposal failed for {experiment_id}: {e}")
+            self.logger.error("stamp_forge_proposal failed for %s: %s", experiment_id, e)
             return False
 
     def clear_forge_proposal(self, experiment_id: str) -> bool:
@@ -530,12 +746,16 @@ class LearningStore:
             self.store.hset(key, mapping={"forge_proposal": ""})
             return True
         except Exception as e:
-            self.logger.error(f"clear_forge_proposal failed for {experiment_id}: {e}")
+            self.logger.error("clear_forge_proposal failed for %s: %s", experiment_id, e)
             return False
 
-    def apply_forge_edit(self, experiment_id: str, new_recommendation: str,
-                         gate_summary: Dict[str, Any],
-                         baseline: Optional[Dict[str, Any]] = None) -> bool:
+    def apply_forge_edit(
+        self,
+        experiment_id: str,
+        new_recommendation: str,
+        gate_summary: dict[str, Any],
+        baseline: dict[str, Any] | None = None,
+    ) -> bool:
         """Apply a gate-PASSED, human-approved Forge edit: swap the recommendation text,
         retaining the incumbent for rollback (reversible by construction -- the same bet
         bench/unbench makes) and stamping provenance + the provisional watch marker the
@@ -546,20 +766,23 @@ class LearningStore:
             rec = self._load_experiment(experiment_id)
             if not rec or not str(new_recommendation or "").strip():
                 return False
-            self.store.hset(key, mapping={
-                "recommendation": str(new_recommendation),
-                "forge_previous_text": str(rec.get("recommendation") or ""),
-                "forged_at": datetime.utcnow().isoformat(),
-                "forge_provisional": datetime.utcnow().isoformat(),
-                "forge_gate": json.dumps(gate_summary or {}, default=str),
-                # counters snapshot at apply time -- the Tier-1 watch (F4) computes its
-                # rollback/confirm deltas against exactly this
-                "forge_baseline": json.dumps(baseline or {}, default=str),
-                "forge_proposal": "",   # an applied proposal is no longer pending
-            })
+            self.store.hset(
+                key,
+                mapping={
+                    "recommendation": str(new_recommendation),
+                    "forge_previous_text": str(rec.get("recommendation") or ""),
+                    "forged_at": datetime.utcnow().isoformat(),
+                    "forge_provisional": datetime.utcnow().isoformat(),
+                    "forge_gate": json.dumps(gate_summary or {}, default=str),
+                    # counters snapshot at apply time -- the Tier-1 watch (F4) computes its
+                    # rollback/confirm deltas against exactly this
+                    "forge_baseline": json.dumps(baseline or {}, default=str),
+                    "forge_proposal": "",  # an applied proposal is no longer pending
+                },
+            )
             return True
         except Exception as e:
-            self.logger.error(f"apply_forge_edit failed for {experiment_id}: {e}")
+            self.logger.error("apply_forge_edit failed for %s: %s", experiment_id, e)
             return False
 
     def rollback_forge_edit(self, experiment_id: str) -> bool:
@@ -571,12 +794,18 @@ class LearningStore:
             prev = str((rec or {}).get("forge_previous_text") or "")
             if not rec or not prev:
                 return False
-            self.store.hset(key, mapping={"recommendation": prev, "forge_previous_text": "",
-                                          "forge_provisional": "", "forge_rolled_back":
-                                          datetime.utcnow().isoformat()})
+            self.store.hset(
+                key,
+                mapping={
+                    "recommendation": prev,
+                    "forge_previous_text": "",
+                    "forge_provisional": "",
+                    "forge_rolled_back": datetime.utcnow().isoformat(),
+                },
+            )
             return True
         except Exception as e:
-            self.logger.error(f"rollback_forge_edit failed for {experiment_id}: {e}")
+            self.logger.error("rollback_forge_edit failed for %s: %s", experiment_id, e)
             return False
 
     def _rebuild_index(self) -> None:
@@ -601,7 +830,7 @@ class LearningStore:
         has no rename today, so that is a named follow-up rather than a silent omission.
         """
         prefix = "learn:experiment:"
-        rows: Dict[str, str] = {}
+        rows: dict[str, str] = {}
         for key, val in (self.store.hgetall_prefix(prefix) or {}).items():
             if prefix not in key:
                 continue
@@ -609,23 +838,20 @@ class LearningStore:
             if name:
                 rows[name] = str((val or {}).get("timestamp") or "")
         for name in self.store.lrange("learn:experiments:all", 0, -1):
-            rows.setdefault(name, "")          # union-only: never drop what we cannot resolve
+            rows.setdefault(name, "")  # union-only: never drop what we cannot resolve
         if not rows:
             return
-        ordered = [n for n, _ in sorted(rows.items(), key=lambda kv: (kv[1], kv[0]),
-                                        reverse=True)]
+        ordered = [n for n, _ in sorted(rows.items(), key=lambda kv: (kv[1], kv[0]), reverse=True)]
         self.store.delete("learn:experiments:all")
         self.store.rpush("learn:experiments:all", *ordered)
 
-    def _index_learning(self, learning_signal: Dict[str, Any]) -> None:
+    def _index_learning(self, learning_signal: dict[str, Any]) -> None:
         """
         Index a learning signal into all Store structures (single code path).
 
         Semantic Relationship: Learning indexed_in Store
         """
-        experiment_id = learning_signal.get(
-            "experiment_name", f"exp_{datetime.utcnow().isoformat()}"
-        )
+        experiment_id = learning_signal.get("experiment_name", f"exp_{datetime.utcnow().isoformat()}")
 
         # Normalize success once, here, so the stored field and the success
         # score are derived from the same canonical value -- they can never
@@ -689,8 +915,8 @@ class LearningStore:
         try:
             if experiment_id not in set(self.store.lrange("learn:experiments:all", 0, -1)):
                 self._rebuild_index()
-        except Exception as e:                    # never let indexing lose the record itself
-            self.logger.warning(f"index rebuild skipped for {experiment_id}: {e}")
+        except Exception as e:  # never let indexing lose the record itself
+            self.logger.warning("index rebuild skipped for %s: %s", experiment_id, e)
         if experiment_id not in set(self.store.lrange(f"learn:agent:{agent_id}", 0, -1)):
             self.store.lpush(f"learn:agent:{agent_id}", experiment_id)
 
@@ -703,29 +929,30 @@ class LearningStore:
         anti_pattern = learning_signal.get("anti_pattern")
         if anti_pattern:
             self.store.sadd("learn:anti_patterns", str(anti_pattern))
-            self.store.hset(f"learn:anti_pattern:{anti_pattern}", mapping={
-                "experiments": experiment_id,
-                "reason": _s(learning_signal.get("root_cause")),
-                "severity": _s(learning_signal.get("severity"), "medium"),
-                "first_seen": datetime.utcnow().isoformat(),
-            })
+            self.store.hset(
+                f"learn:anti_pattern:{anti_pattern}",
+                mapping={
+                    "experiments": experiment_id,
+                    "reason": _s(learning_signal.get("root_cause")),
+                    "severity": _s(learning_signal.get("severity"), "medium"),
+                    "first_seen": datetime.utcnow().isoformat(),
+                },
+            )
 
     # ----- read helpers -----
-    def _load_experiment(self, exp_id: str) -> Dict[str, Any]:
+    def _load_experiment(self, exp_id: str) -> dict[str, Any]:
         """Load one experiment hash and parse its metrics JSON."""
         data = self.store.hgetall(f"learn:experiment:{exp_id}")
         for field in ("metrics", "files_affected"):
             if data and field in data and isinstance(data[field], str):
-                try:
+                with contextlib.suppress(json.JSONDecodeError, TypeError):
                     data[field] = json.loads(data[field])
-                except (json.JSONDecodeError, TypeError):
-                    pass
         return data
 
     # ----- read: search -----
-    def search_learnings_by_keyword(self, keyword: str,
-                                    domain: Optional[str] = None,
-                                    agent: Optional[str] = None) -> List[Dict[str, Any]]:
+    def search_learnings_by_keyword(
+        self, keyword: str, domain: str | None = None, agent: str | None = None
+    ) -> list[dict[str, Any]]:
         """
         Search learnings by keyword, optionally scoped to one domain and/or one agent.
 
@@ -774,7 +1001,7 @@ class LearningStore:
                     scored.append((hits, {"id": exp_id, **data}))
                 elif hits:
                     weak.append((hits, {"id": exp_id, **data}))
-            scored.sort(key=lambda x: -x[0])   # most terms matched first
+            scored.sort(key=lambda x: -x[0])  # most terms matched first
             if scored:
                 return [d for _, d in scored]
             # NOTHING CLEARED THE FLOOR, BUT SOMETHING TOUCHED. Returning silence here would be the
@@ -786,16 +1013,16 @@ class LearningStore:
             weak.sort(key=lambda x: -x[0])
             return [dict(d, weak_match=True) for _, d in weak[:5]]
         except Exception as e:
-            self.logger.error(f"Error searching learnings: {e}")
+            self.logger.error("Error searching learnings: %s", e)
             return []
 
     # Backward compatibility alias
-    def get_learnings(self, query: str) -> List[Dict[str, Any]]:
+    def get_learnings(self, query: str) -> list[dict[str, Any]]:
         """Deprecated: Use search_learnings_by_keyword() instead"""
         return self.search_learnings_by_keyword(query)
 
     # search_learnings_by_keywords is kept as a distinct public name (same logic)
-    def search_learnings_by_keywords(self, keywords: str) -> List[Dict[str, Any]]:
+    def search_learnings_by_keywords(self, keywords: str) -> list[dict[str, Any]]:
         """
         Search learnings by keywords.
 
@@ -804,12 +1031,12 @@ class LearningStore:
         return self.search_learnings_by_keyword(keywords)
 
     # Backward compatibility alias
-    def search_learnings(self, keywords: str) -> List[Dict[str, Any]]:
+    def search_learnings(self, keywords: str) -> list[dict[str, Any]]:
         """Deprecated: Use search_learnings_by_keywords() instead"""
         return self.search_learnings_by_keywords(keywords)
 
     # ----- read: category analysis -----
-    def analyze_learning_patterns_in_category(self, category: str) -> Dict[str, Any]:
+    def analyze_learning_patterns_in_category(self, category: str) -> dict[str, Any]:
         """
         Analyze what consistently works vs doesn't in a category.
 
@@ -838,16 +1065,16 @@ class LearningStore:
                 "experiments": results,
             }
         except Exception as e:
-            self.logger.error(f"Error analyzing patterns: {e}")
+            self.logger.error("Error analyzing patterns: %s", e)
             return {}
 
     # Backward compatibility alias
-    def get_patterns(self, category: str) -> Dict[str, Any]:
+    def get_patterns(self, category: str) -> dict[str, Any]:
         """Deprecated: Use analyze_learning_patterns_in_category() instead"""
         return self.analyze_learning_patterns_in_category(category)
 
     # ----- read: anti-patterns -----
-    def load_documented_anti_patterns(self, topic: Optional[str] = None) -> List[Dict[str, Any]]:
+    def load_documented_anti_patterns(self, topic: str | None = None) -> list[dict[str, Any]]:
         """
         Load documented anti-patterns (things that don't work), by severity.
 
@@ -865,28 +1092,30 @@ class LearningStore:
             for pattern in matching:
                 data = self.store.hgetall(f"learn:anti_pattern:{pattern}")
                 if data:
-                    results.append({
-                        "pattern": pattern,
-                        "severity": data.get("severity", "medium"),
-                        "reason": data.get("reason", ""),
-                        "experiments": data.get("experiments", ""),
-                        "first_seen": data.get("first_seen", ""),
-                    })
+                    results.append(
+                        {
+                            "pattern": pattern,
+                            "severity": data.get("severity", "medium"),
+                            "reason": data.get("reason", ""),
+                            "experiments": data.get("experiments", ""),
+                            "first_seen": data.get("first_seen", ""),
+                        }
+                    )
 
             severity_order = {"high": 3, "medium": 2, "low": 1}
             results.sort(key=lambda x: severity_order.get(x["severity"], 0), reverse=True)
             return results
         except Exception as e:
-            self.logger.error(f"Error getting anti-patterns: {e}")
+            self.logger.error("Error getting anti-patterns: %s", e)
             return []
 
     # Backward compatibility alias
-    def get_anti_patterns(self, topic: Optional[str] = None) -> List[Dict[str, Any]]:
+    def get_anti_patterns(self, topic: str | None = None) -> list[dict[str, Any]]:
         """Deprecated: Use load_documented_anti_patterns() instead"""
         return self.load_documented_anti_patterns(topic)
 
     # ----- read: recommendations -----
-    def load_recommendations_for_task(self, task: str) -> List[Dict[str, Any]]:
+    def load_recommendations_for_task(self, task: str) -> list[dict[str, Any]]:
         """
         Load recommendations for a task from past learnings, by success.
 
@@ -899,38 +1128,36 @@ class LearningStore:
                 if task and task_lower not in exp_id.lower():
                     data = self._load_experiment(exp_id)
                     # also match against content, not just id
-                    if not data or task_lower not in " ".join(
-                        str(v).lower() for v in data.values()
-                    ):
+                    if not data or task_lower not in " ".join(str(v).lower() for v in data.values()):
                         continue
                 else:
                     data = self._load_experiment(exp_id)
                 if data and data.get("recommendation"):
-                    recommendations.append({
-                        "experiment": exp_id,
-                        "recommendation": data.get("recommendation", ""),
-                        "success": data.get("success", ""),
-                        "what_tried": data.get("what_tried", ""),
-                        "metrics": data.get("metrics", {}),
-                        "category": data.get("category", ""),
-                    })
+                    recommendations.append(
+                        {
+                            "experiment": exp_id,
+                            "recommendation": data.get("recommendation", ""),
+                            "success": data.get("success", ""),
+                            "what_tried": data.get("what_tried", ""),
+                            "metrics": data.get("metrics", {}),
+                            "category": data.get("category", ""),
+                        }
+                    )
 
             success_scores = {"yes": 3, "partial": 2, "no": 1}
-            recommendations.sort(
-                key=lambda x: success_scores.get(x["success"], 0), reverse=True
-            )
+            recommendations.sort(key=lambda x: success_scores.get(x["success"], 0), reverse=True)
             return recommendations
         except Exception as e:
-            self.logger.error(f"Error getting recommendations: {e}")
+            self.logger.error("Error getting recommendations: %s", e)
             return []
 
     # Backward compatibility alias
-    def get_recommendations(self, task: str) -> List[Dict[str, Any]]:
+    def get_recommendations(self, task: str) -> list[dict[str, Any]]:
         """Deprecated: Use load_recommendations_for_task() instead"""
         return self.load_recommendations_for_task(task)
 
     # ----- read: category summary -----
-    def summarize_learnings_by_category(self) -> Dict[str, Dict[str, Any]]:
+    def summarize_learnings_by_category(self) -> dict[str, dict[str, Any]]:
         """
         Summarize learnings grouped by category.
 
@@ -943,16 +1170,16 @@ class LearningStore:
                 categories[category] = self.analyze_learning_patterns_in_category(category)
             return categories
         except Exception as e:
-            self.logger.error(f"Error getting category summary: {e}")
+            self.logger.error("Error getting category summary: %s", e)
             return {}
 
     # Backward compatibility alias
-    def get_category_summary(self) -> Dict[str, Dict[str, Any]]:
+    def get_category_summary(self) -> dict[str, dict[str, Any]]:
         """Deprecated: Use summarize_learnings_by_category() instead"""
         return self.summarize_learnings_by_category()
 
     # ----- read: by agent -----
-    def load_learnings_contributed_by_agent(self, agent_id: str) -> List[Dict[str, Any]]:
+    def load_learnings_contributed_by_agent(self, agent_id: str) -> list[dict[str, Any]]:
         """
         Load all learnings contributed by a specific agent.
 
@@ -966,16 +1193,16 @@ class LearningStore:
                     results.append({"id": exp_id, **data})
             return results
         except Exception as e:
-            self.logger.error(f"Error getting agent learnings: {e}")
+            self.logger.error("Error getting agent learnings: %s", e)
             return []
 
     # Backward compatibility alias
-    def get_agent_learnings(self, agent_id: str) -> List[Dict[str, Any]]:
+    def get_agent_learnings(self, agent_id: str) -> list[dict[str, Any]]:
         """Deprecated: Use load_learnings_contributed_by_agent() instead"""
         return self.load_learnings_contributed_by_agent(agent_id)
 
     # ----- read: all -----
-    def load_all_learnings_from_store(self) -> List[Dict[str, Any]]:
+    def load_all_learnings_from_store(self) -> list[dict[str, Any]]:
         """
         Load all learnings from the Store (newest first).
 
@@ -1002,23 +1229,21 @@ class LearningStore:
                 data = dict(data)
                 for field in ("metrics", "files_affected"):
                     if field in data and isinstance(data[field], str):
-                        try:
+                        with contextlib.suppress(json.JSONDecodeError, TypeError):
                             data[field] = json.loads(data[field])
-                        except (json.JSONDecodeError, TypeError):
-                            pass
                 results.append(data)
             return results
         except Exception as e:
-            self.logger.error(f"Error getting all learnings: {e}")
+            self.logger.error("Error getting all learnings: %s", e)
             return []
 
     # Backward compatibility alias
-    def get_all_learnings(self) -> List[Dict[str, Any]]:
+    def get_all_learnings(self) -> list[dict[str, Any]]:
         """Deprecated: Use load_all_learnings_from_store() instead"""
         return self.load_all_learnings_from_store()
 
     # ----- stats -----
-    def get_learning_store_stats(self) -> Dict[str, Any]:
+    def get_learning_store_stats(self) -> dict[str, Any]:
         """
         Statistics about the learning store.
 
@@ -1031,16 +1256,16 @@ class LearningStore:
             redis_up = bool(getattr(self.store, "redis_available", False))
             return {
                 "total_experiments": len(all_learnings),
-                "successful": len([l for l in all_learnings if l.get("success") == "yes"]),
-                "failed": len([l for l in all_learnings if l.get("success") == "no"]),
-                "partial": len([l for l in all_learnings if l.get("success") == "partial"]),
+                "successful": len([entry for entry in all_learnings if entry.get("success") == "yes"]),
+                "failed": len([entry for entry in all_learnings if entry.get("success") == "no"]),
+                "partial": len([entry for entry in all_learnings if entry.get("success") == "partial"]),
                 "redis_connected": redis_up,
             }
         except Exception as e:
             return {"status": "error", "message": str(e)}
 
     # Backward compatibility alias
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Deprecated: Use get_learning_store_stats() instead"""
         return self.get_learning_store_stats()
 
@@ -1052,7 +1277,7 @@ def _dim_tokens(s: Any) -> set:
     return {t.lower() for t in _DIM_TOKEN_RE.findall(str(s or "")) if len(t) > 3}
 
 
-def _dims_of(rec: Dict[str, Any]) -> Dict[str, set]:
+def _dims_of(rec: dict[str, Any]) -> dict[str, set]:
     """The five comparison dimensions for near-duplicate detection, adapted from Every's
     ce-compound overlap rule (docs/library/design/20260701_field-survey-what-the-best-practitioners_3c9d20.md C5): problem / root cause /
     solution / referenced paths / kind. Purely lexical on purpose -- deterministic, no
@@ -1076,22 +1301,31 @@ def _overlap(a: set, b: set) -> float:
     return len(a & b) / min(len(a), len(b))
 
 
-def find_related(signal: Dict[str, Any], existing: List[Dict[str, Any]], *,
-                 threshold: float = 0.5, min_dims: int = 2,
-                 exclude_name: str = "") -> List[Dict[str, Any]]:
+def find_related(
+    signal: dict[str, Any],
+    existing: list[dict[str, Any]],
+    *,
+    threshold: float = 0.5,
+    min_dims: int = 2,
+    exclude_name: str = "",
+) -> list[dict[str, Any]]:
     """Deterministic near-duplicate scan for a lesson about to be recorded. Returns
     [{'experiment_name', 'dims', 'matched'}] sorted by dims desc, for records matching the
     candidate on >= min_dims of the five dimensions. The write door uses it as an ADVISORY
     (4-5 dims: 'update the existing one instead'; 2-3: 'flag for consolidation') -- it never
     blocks a write (append-only ethos; the consolidation pass merges later)."""
-    cand = _dims_of({"what_tried": signal.get("what_tried"),
-                     "expected": signal.get("expected_outcome"),
-                     "recommendation": signal.get("recommendation"),
-                     "actual": signal.get("actual_outcome"),
-                     "root_cause": signal.get("root_cause"),
-                     "category": signal.get("category"),
-                     "anti_pattern": signal.get("anti_pattern")})
-    out: List[Dict[str, Any]] = []
+    cand = _dims_of(
+        {
+            "what_tried": signal.get("what_tried"),
+            "expected": signal.get("expected_outcome"),
+            "recommendation": signal.get("recommendation"),
+            "actual": signal.get("actual_outcome"),
+            "root_cause": signal.get("root_cause"),
+            "category": signal.get("category"),
+            "anti_pattern": signal.get("anti_pattern"),
+        }
+    )
+    out: list[dict[str, Any]] = []
     for rec in existing or []:
         name = str(rec.get("experiment_name") or "")
         if not name or name == exclude_name:
@@ -1104,7 +1338,7 @@ def find_related(signal: Dict[str, Any], existing: List[Dict[str, Any]], *,
     return out
 
 
-def is_graduated(rec: Dict[str, Any]) -> bool:
+def is_graduated(rec: dict[str, Any]) -> bool:
     """True when a lesson's rule is enforced by automation (see mark_graduated). The contract:
     graduated lessons stay OUT of recall SURFACES (recall-at cache, boot ranking) but stay IN
     full-corpus queries (list / recall / --full) wearing a [graduated] tag -- history preserved,
@@ -1112,7 +1346,7 @@ def is_graduated(rec: Dict[str, Any]) -> bool:
     return bool(str((rec or {}).get("graduated") or "").strip())
 
 
-def is_benched(rec: Dict[str, Any]) -> bool:
+def is_benched(rec: dict[str, Any]) -> bool:
     """True when the curator has benched this lesson (surfaced-often-never-credited; see
     mark_benched). Same surface contract as graduation: out of recall surfaces, in full-corpus
     queries with a [benched] tag. Reversed automatically on new credit."""
@@ -1120,11 +1354,10 @@ def is_benched(rec: Dict[str, Any]) -> bool:
 
 
 # Global instance
-_learning_store: Optional[LearningStore] = None
+_learning_store: LearningStore | None = None
 
 
-def get_learning_store_instance(redis_client: Optional[Any] = None,
-                                store: Optional[Store] = None) -> LearningStore:
+def get_learning_store_instance(redis_client: Any | None = None, store: Store | None = None) -> LearningStore:
     """
     Get or create the global learning store instance.
 
@@ -1135,6 +1368,7 @@ def get_learning_store_instance(redis_client: Optional[Any] = None,
     Semantic Relationship: LearningStoreInstance references_to GlobalInstance
     """
     import os
+
     global _learning_store
     if store is not None or redis_client is not None:
         return LearningStore(store=store, redis_client=redis_client)
@@ -1146,12 +1380,12 @@ def get_learning_store_instance(redis_client: Optional[Any] = None,
 
 
 # Backward compatibility alias
-def get_learning_store(redis_client: Optional[Any] = None) -> LearningStore:
+def get_learning_store(redis_client: Any | None = None) -> LearningStore:
     """Deprecated: Use get_learning_store_instance() instead"""
     return get_learning_store_instance(redis_client=redis_client)
 
 
-def persist_learning_to_store(learning_signal: Dict[str, Any]) -> bool:
+def persist_learning_to_store(learning_signal: dict[str, Any]) -> bool:
     """
     Persist a learning signal to the global learning store.
 
@@ -1161,12 +1395,12 @@ def persist_learning_to_store(learning_signal: Dict[str, Any]) -> bool:
 
 
 # Backward compatibility alias
-def record_learning(learning_signal: Dict[str, Any]) -> bool:
+def record_learning(learning_signal: dict[str, Any]) -> bool:
     """Deprecated: Use persist_learning_to_store() instead"""
     return persist_learning_to_store(learning_signal)
 
 
-def search_learnings_in_store(keyword: str) -> List[Dict[str, Any]]:
+def search_learnings_in_store(keyword: str) -> list[dict[str, Any]]:
     """
     Search learnings in the global store by keyword.
 
@@ -1176,12 +1410,12 @@ def search_learnings_in_store(keyword: str) -> List[Dict[str, Any]]:
 
 
 # Backward compatibility alias
-def get_learnings(query: str) -> List[Dict[str, Any]]:
+def get_learnings(query: str) -> list[dict[str, Any]]:
     """Deprecated: Use search_learnings_in_store() instead"""
     return search_learnings_in_store(query)
 
 
-def load_recommendations_from_store(task: str) -> List[Dict[str, Any]]:
+def load_recommendations_from_store(task: str) -> list[dict[str, Any]]:
     """
     Load recommendations from the global store for a task.
 
@@ -1191,12 +1425,12 @@ def load_recommendations_from_store(task: str) -> List[Dict[str, Any]]:
 
 
 # Backward compatibility alias
-def get_recommendations(task: str) -> List[Dict[str, Any]]:
+def get_recommendations(task: str) -> list[dict[str, Any]]:
     """Deprecated: Use load_recommendations_from_store() instead"""
     return load_recommendations_from_store(task)
 
 
-def load_anti_patterns_from_store(topic: Optional[str] = None) -> List[Dict[str, Any]]:
+def load_anti_patterns_from_store(topic: str | None = None) -> list[dict[str, Any]]:
     """
     Load anti-patterns from the global store.
 
@@ -1206,6 +1440,6 @@ def load_anti_patterns_from_store(topic: Optional[str] = None) -> List[Dict[str,
 
 
 # Backward compatibility alias
-def get_anti_patterns(topic: Optional[str] = None) -> List[Dict[str, Any]]:
+def get_anti_patterns(topic: str | None = None) -> list[dict[str, Any]]:
     """Deprecated: Use load_anti_patterns_from_store() instead"""
     return load_anti_patterns_from_store(topic)

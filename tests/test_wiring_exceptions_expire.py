@@ -18,6 +18,7 @@ to the next author rather than to today's tree.
 
 Run: py -m pytest tests/test_wiring_exceptions_expire.py -q
 """
+
 import os
 import sys
 
@@ -27,7 +28,9 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(
 
 def _mod():
     import importlib
+
     import check_wiring
+
     return importlib.reload(check_wiring)
 
 
@@ -76,7 +79,8 @@ def test_every_NEW_entry_must_carry_an_expiry():
     undated = [k for k, v in cw.EXCEPTIONS.items() if isinstance(v, str)]
     assert len(undated) <= cw.GRANDFATHERED_UNDATED, (
         f"a NEW undated exception was added ({len(undated)} > {cw.GRANDFATHERED_UNDATED}). "
-        "Give it an expiry: {'reason': ..., 'expires': 'YYYY-MM-DD'}")
+        "Give it an expiry: {'reason': ..., 'expires': 'YYYY-MM-DD'}"
+    )
 
 
 def test_retiring_an_undated_entry_tightens_the_ratchet():
@@ -92,9 +96,11 @@ def test_retiring_an_undated_entry_tightens_the_ratchet():
     assert len(undated) == cw.GRANDFATHERED_UNDATED, (
         f"{len(undated)} undated entries but GRANDFATHERED_UNDATED = {cw.GRANDFATHERED_UNDATED}: "
         "an entry was retired without lowering the constant (or added without a date). "
-        "Set the constant to the live count; it only ever moves down.")
+        "Set the constant to the live count; it only ever moves down."
+    )
 
 
 if __name__ == "__main__":
     import pytest
+
     raise SystemExit(pytest.main([__file__, "-q"]))

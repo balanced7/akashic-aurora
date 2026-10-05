@@ -32,6 +32,7 @@ sufficient alone: per docs/issue #24908 it does not fire for tool_use_error fail
 tools (e.g. Edit old_string-not-found -- confirmed live), so the transcript synthesis above stays
 the primary, version-tolerant mechanism. Disable with AKASHIC_RECALL_AT_ACTION=0.
 """
+
 import json
 import os
 import sys
@@ -49,6 +50,7 @@ def _in_scope(tool, data):
     the shared scope policy (agent/harness/scope.py), same mapping as the PreToolUse guard:
     file tools scope by target path, shell tools by session cwd or the command itself."""
     from agent.harness.scope import file_in_scope, shell_in_scope
+
     ti = data.get("tool_input") or {}
     if tool in _FILE_TOOLS:
         return file_in_scope(ti.get("file_path") or "")
@@ -66,9 +68,10 @@ _CAP_DIR = os.path.join(_STATE_ROOT, "payloads")
 def _capture(data) -> None:
     try:
         from agent.harness.capture import capture
+
         capture(data, _CAP_DIR, label=data.get("tool_name") or "unknown")
     except Exception:
-        pass   # capture is diagnostics; it must never affect the agent
+        pass  # capture is diagnostics; it must never affect the agent
 
 
 def _is_success(data) -> bool:
@@ -118,7 +121,7 @@ def _tail_lines(path: str):
         blob = f.read()
     if start > 0:
         nl = blob.find(b"\n")
-        blob = blob[nl + 1:] if nl >= 0 else b""
+        blob = blob[nl + 1 :] if nl >= 0 else b""
     for raw in blob.splitlines():
         yield raw.decode("utf-8", errors="ignore")
 
@@ -130,6 +133,7 @@ def _latest_failure_id(transcript_path: str, target: str):
         return None
     try:
         from core.recall.at_action import normalize_target
+
         uses = {}
         latest = None
         for line in _tail_lines(transcript_path):
@@ -169,19 +173,27 @@ _NUDGE_DIR = os.path.join(_STATE_ROOT, "nudge")
 
 def _nudge_allowed(session_id: str, target: str) -> bool:
     from agent.harness.nudge import nudge_allowed
+
     return nudge_allowed(_NUDGE_DIR, session_id, target)
 
 
 def _mark_nudged(session_id: str, target: str) -> None:
     from agent.harness.nudge import mark_nudged
+
     mark_nudged(_NUDGE_DIR, session_id, target)
 
 
 def _emit_context(text: str) -> None:
-    print(json.dumps({"hookSpecificOutput": {
-        "hookEventName": "PostToolUse",
-        "additionalContext": text,
-    }}))
+    print(
+        json.dumps(
+            {
+                "hookSpecificOutput": {
+                    "hookEventName": "PostToolUse",
+                    "additionalContext": text,
+                }
+            }
+        )
+    )
 
 
 # --- RENEW Strand A' (label capture): a tool action that FAILED (and is being retried) is a REWORK
@@ -194,9 +206,13 @@ def _emit_context(text: str) -> None:
 def _capture_fail(target: str, tool: str) -> None:
     try:
         from core.events.event_log import capture_event
-        capture_event("fail", f"FAIL: {target}",
-                      agent_id=os.getenv("AKASHIC_AGENT_ID") or "unknown",
-                      detail={"target": target, "tool": tool})
+
+        capture_event(
+            "fail",
+            f"FAIL: {target}",
+            agent_id=os.getenv("AKASHIC_AGENT_ID") or "unknown",
+            detail={"target": target, "tool": tool},
+        )
     except Exception:
         pass
 
@@ -250,6 +266,7 @@ def _beat_seat(data) -> None:
         return
     try:
         from agent.harness.scope import session_in_scope
+
         d = data or {}
         if not session_in_scope(d.get("cwd") or os.getcwd()):
             return
@@ -260,9 +277,12 @@ def _beat_seat(data) -> None:
         # the same wrong-attribution class that already rendered one physical session as two
         # roster rows under two names. A beat that names the wrong seat is worse than no beat:
         # it marks a corpse alive and leaves the real worker reapable.
-        sid = (str(d.get("session_id") or "")
-               or os.environ.get("BIFROST_INCARNATION")
-               or os.environ.get("CLAUDE_CODE_SESSION_ID") or "").strip()
+        sid = (
+            str(d.get("session_id") or "")
+            or os.environ.get("BIFROST_INCARNATION")
+            or os.environ.get("CLAUDE_CODE_SESSION_ID")
+            or ""
+        ).strip()
         if not sid:
             return
         # AGENT AXIS, the other half of the same bug. The payload-first fix above settled WHICH
@@ -274,20 +294,22 @@ def _beat_seat(data) -> None:
         # W4 IS PRESERVED DELIBERATELY: when nothing is bound and no env is set the identity is
         # genuinely unknown, and we still emit NO ROW rather than a phantom -- a beat naming
         # unknown-<sid8> would be honest but would still invent a seat.
-        from core.comm.seat_identity import resolve as _resolve, resolved_from as _resolved_from
+        from core.comm.seat_identity import resolve as _resolve
+        from core.comm.seat_identity import resolved_from as _resolved_from
+
         if _resolved_from(sid) == "unknown":
             return
         agent = _resolve(sid)
         from core.comm import roster as _roster
         from core.comm.bus import NS as _DEFAULT_NS
+
         # CAPTURE THE RETURN. heartbeat() never raises -- it swallows internally and returns
         # {"ok": False} (roster.py:153-154). bus._connect() returns None when Redis is
         # unreachable, so the most likely production failure is a caught AttributeError inside
         # heartbeat, not an exception out here. Discarding this value made the receipt below
         # unable to fire for exactly that case: exit 0, empty log, no row -- byte-identical to
         # the no-op this whole slice exists to end. Found by the audit's critic pass.
-        _r = _roster.heartbeat(os.environ.get("BIFROST_NAMESPACE", _DEFAULT_NS),
-                               agent, sid, phase="working")
+        _r = _roster.heartbeat(os.environ.get("BIFROST_NAMESPACE", _DEFAULT_NS), agent, sid, phase="working")
         if _r is False or (isinstance(_r, dict) and not _r.get("ok", True)):
             raise RuntimeError(f"heartbeat refused: {_r!r} (seat {agent}#{sid[:8]})")
     except Exception as e:
@@ -295,8 +317,7 @@ def _beat_seat(data) -> None:
         # made today's other no-op invisible, so leave a bounded receipt: the unpatched pin
         # catches absence in CI, this catches it at 3am in production.
         try:
-            with open(os.path.join(tempfile.gettempdir(), "akashic_heartbeat_err.log"), "a",
-                      encoding="utf-8") as fh:
+            with open(os.path.join(tempfile.gettempdir(), "akashic_heartbeat_err.log"), "a", encoding="utf-8") as fh:
                 fh.write(f"{time.time():.0f} {type(e).__name__}: {e}\n")
         except Exception:
             pass
@@ -316,6 +337,7 @@ def main() -> int:
     # feature's kill switch. A seat that turns recall off must still show as working.
     try:
         from agent.harness.hooks._activity import report
+
         report("thinking", "", data.get("cwd") or "", data.get("session_id") or "")
     except Exception:
         pass
@@ -327,9 +349,13 @@ def main() -> int:
     # DONE transition finalizes them; this adds an input, not a second ledger.
     try:
         from core.coord.session_focus import record_call
-        _ti = data.get("tool_input") if isinstance(data.get("tool_input"), dict) else {}
-        record_call(data.get("session_id") or "", data.get("tool_name") or "",
-                    str(_ti.get("file_path") or _ti.get("command") or _ti.get("pattern") or ""))
+
+        _ti = _raw_ti if isinstance(_raw_ti := data.get("tool_input"), dict) else {}
+        record_call(
+            data.get("session_id") or "",
+            data.get("tool_name") or "",
+            str(_ti.get("file_path") or _ti.get("command") or _ti.get("pattern") or ""),
+        )
     except Exception:
         pass
     if os.getenv("AKASHIC_RECALL_AT_ACTION", "1") == "0":
@@ -343,6 +369,7 @@ def main() -> int:
         # Session-scoped: repo/home sessions only, so unrelated projects never land here.
         try:
             from agent.harness.scope import session_in_scope
+
             if session_in_scope(data.get("cwd") or os.getcwd()):
                 _capture(data)
         except Exception:
@@ -354,7 +381,8 @@ def main() -> int:
         return 0
     _capture(data)
     try:
-        from core.recall.at_action import normalize_target, resolve_action_outcome, build_learn_nudge
+        from core.recall.at_action import build_learn_nudge, normalize_target, resolve_action_outcome
+
         ti = data.get("tool_input") or {}
         target = normalize_target(ti.get("file_path") or None, ti.get("command") or None)
         sid = data.get("session_id") or ""
@@ -366,7 +394,7 @@ def main() -> int:
                 fresh = not (fid and _failure_processed(sid, target, fid))
                 resolve_action_outcome(sid, target, False)
                 if fresh:
-                    _capture_fail(target, tool)   # durable degraded-output label (RENEW A'), exactly-once
+                    _capture_fail(target, tool)  # durable degraded-output label (RENEW A'), exactly-once
                 if fid:
                     _mark_failure_processed(sid, target, fid)
             return 0
@@ -377,12 +405,13 @@ def main() -> int:
             fid = _latest_failure_id(data.get("transcript_path") or "", target)
             if fid and not _failure_processed(sid, target, fid):
                 resolve_action_outcome(sid, target, False)
-                _capture_fail(target, tool)       # durable degraded-output label (RENEW A'), exactly-once
+                _capture_fail(target, tool)  # durable degraded-output label (RENEW A'), exactly-once
                 _mark_failure_processed(sid, target, fid)
         rep = resolve_action_outcome(sid, target, ok)
         if rep.get("flipped"):
-            try:   # durable funnel signal (flips observed vs lessons recorded) -- best-effort
+            try:  # durable funnel signal (flips observed vs lessons recorded) -- best-effort
                 from core.events.event_log import capture_event
+
                 # F0b: carry the full retrieval context with the credit (this event is the
                 # Forge gate's axis-A validation set; at ~5/week the enrichment is free).
                 # alt is "action" by construction: plan-time impressions open no action
@@ -391,24 +420,33 @@ def main() -> int:
                 try:
                     from core.recall.at_action import _query_from
                     from core.recall.replay import parse_target
+
                     p, c = parse_target(target)
                     q = _query_from(p, c) if (p or c) else ""
                 except Exception:
                     q = ""
-                capture_event("flip", f"FAIL->SUCCESS: {target}",
-                              agent_id=os.getenv("AKASHIC_AGENT_ID") or "unknown",
-                              detail={"target": target, "credited": rep.get("credited", 0),
-                                      "sources": rep.get("sources", []),
-                                      "alt": "action", "query": q})
+                capture_event(
+                    "flip",
+                    f"FAIL->SUCCESS: {target}",
+                    agent_id=os.getenv("AKASHIC_AGENT_ID") or "unknown",
+                    detail={
+                        "target": target,
+                        "credited": rep.get("credited", 0),
+                        "sources": rep.get("sources", []),
+                        "alt": "action",
+                        "query": q,
+                    },
+                )
             except Exception:
                 pass
             # JIT learn nudge at the moment of insight (friction audit D5) -- rate-limited.
             if _nudge_allowed(sid, target):
-                _emit_context(build_learn_nudge(target, rep.get("credited", 0), rep.get("sources"),
-                                                os.getenv("AKASHIC_AGENT_ID")))
+                _emit_context(
+                    build_learn_nudge(target, rep.get("credited", 0), rep.get("sources"), os.getenv("AKASHIC_AGENT_ID"))
+                )
                 _mark_nudged(sid, target)
     except Exception:
-        pass   # resolving a credit must never affect the agent
+        pass  # resolving a credit must never affect the agent
     return 0
 
 

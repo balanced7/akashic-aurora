@@ -1,5 +1,6 @@
 """Pin W12 (2026-07-18): the `wish` door appends an auto-numbered, attributed block to the
 wishlist and echoes the W## back. Isolated via AKASHIC_WISHLIST_FILE; no git, no bus."""
+
 import os
 import subprocess
 import sys
@@ -24,8 +25,9 @@ SEED = """# WISHLIST — test double
 
 def _run(tmp, *argv):
     env = {**os.environ, "AKASHIC_WISHLIST_FILE": str(tmp)}
-    return subprocess.run([sys.executable, CLI, "wish", *argv],
-                          capture_output=True, text=True, timeout=30, env=env, cwd=REPO)
+    return subprocess.run(
+        [sys.executable, CLI, "wish", *argv], capture_output=True, text=True, timeout=30, env=env, cwd=REPO
+    )
 
 
 def test_wish_appends_numbered_attributed(tmp_path):
@@ -35,8 +37,12 @@ def test_wish_appends_numbered_attributed(tmp_path):
     assert r.returncode == 0, r.stderr[:300]
     assert "filed W08" in r.stdout, f"expected next number 8 (max was 7): {r.stdout}"
     text = f.read_text(encoding="utf-8")
-    assert "- [ ] W08" in text and "(07-" in text and "pin-seat" in text
-    assert "a brand new wish" in text and "Trigger: it hurt." in text and "Land: T000." in text
+    assert "- [ ] W08" in text
+    assert "(07-" in text
+    assert "pin-seat" in text
+    assert "a brand new wish" in text
+    assert "Trigger: it hurt." in text
+    assert "Land: T000." in text
     open_sec = text.split("## Folded")[0]
     assert "W08" in open_sec, "new wish must land in Open, above the Folded anchor"
 
@@ -62,7 +68,8 @@ def test_wish_text_file_path(tmp_path):
     body = tmp_path / "body.md"
     body.write_text("a wish with --flag-shaped prose (parens, colons: yes)", encoding="utf-8")
     r = _run(f, "seat", "--text-file", str(body))
-    assert r.returncode == 0 and "filed W08" in r.stdout
+    assert r.returncode == 0
+    assert "filed W08" in r.stdout
     assert "--flag-shaped prose" in f.read_text(encoding="utf-8")
 
 
@@ -95,7 +102,8 @@ def test_wish_reports_a_collided_ledger_instead_of_extending_it_silently(tmp_pat
     p.write_text(DUPED, encoding="utf-8")
     r = _run(p, "claude", "a new wish")
     out = (r.stdout or "") + (r.stderr or "")
-    assert "W04" in out and ("collid" in out.lower() or "duplicate" in out.lower()), (
+    assert "W04" in out, "the door appended to a ledger whose id space is already corrupt and said nothing:\n" + out
+    assert "collid" in out.lower() or "duplicate" in out.lower(), (
         "the door appended to a ledger whose id space is already corrupt and said nothing:\n" + out
     )
 
@@ -103,6 +111,7 @@ def test_wish_reports_a_collided_ledger_instead_of_extending_it_silently(tmp_pat
 def test_wish_never_reuses_an_existing_id(tmp_path):
     """Whatever id is allocated must not already exist in the file."""
     import re
+
     p = tmp_path / "WISHLIST.md"
     p.write_text(SEED, encoding="utf-8")
     before = set(re.findall(r"- \[[ x~]\] W(\d+)", p.read_text(encoding="utf-8")))

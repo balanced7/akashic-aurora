@@ -9,7 +9,7 @@ in the way. Each entry carries a `source` pointer to the full blocker record.
 """
 
 from dataclasses import asdict
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from core.primitives.ranker import Ranker
 
@@ -22,9 +22,9 @@ def load_blockers_preventing_progress(
     top_k: int = 10,
     *,
     context_manager: Any = None,
-    ranker: Optional[Ranker] = None,
-    now: Optional[float] = None,
-) -> List[Dict[str, Any]]:
+    ranker: Ranker | None = None,
+    now: float | None = None,
+) -> list[dict[str, Any]]:
     """
     Load active blockers, ranked by severity x recency (x relevance to `task`).
 
@@ -34,19 +34,22 @@ def load_blockers_preventing_progress(
     """
     if context_manager is None:
         from core.context.project_context import get_project_context_manager_instance
+
         context_manager = get_project_context_manager_instance()
     ranker = ranker or Ranker()
 
     items = []
     for blocker in context_manager.load_blockers_filtered_by_status(status="active"):
         b = asdict(blocker)
-        items.append({
-            "text": b.get("description", ""),
-            "importance": _SEVERITY_IMPORTANCE.get(str(b.get("severity", "medium")).lower(), 3),
-            "timestamp": b.get("created_at"),
-            "source": b.get("id"),
-            "_blocker": b,
-        })
+        items.append(
+            {
+                "text": b.get("description", ""),
+                "importance": _SEVERITY_IMPORTANCE.get(str(b.get("severity", "medium")).lower(), 3),
+                "timestamp": b.get("created_at"),
+                "source": b.get("id"),
+                "_blocker": b,
+            }
+        )
 
     ranked = ranker.rank(items, query=task, now=now, top_k=top_k)
     return [

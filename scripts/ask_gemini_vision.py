@@ -4,11 +4,12 @@ Thin wrapper over ask_gemini.py's key resolution + the Gemini SDK's vision suppo
 
   py scripts/ask_gemini_vision.py dropbox/image.png "Describe this UI screenshot in detail"
 """
+
 import argparse
-import base64
 import os
 import sys
 from pathlib import Path
+from typing import Any
 
 KEY_FILE = Path(__file__).resolve().parent.parent / ".secrets" / "gemini.key"
 DEFAULT_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
@@ -29,8 +30,7 @@ def load_key():
 def main():
     ap = argparse.ArgumentParser(description="Ask Gemini to describe an image.")
     ap.add_argument("image", help="path to the image file (png, jpg, webp, etc.)")
-    ap.add_argument("prompt", nargs="*", default=["Describe this image in detail."],
-                    help="prompt for the vision model")
+    ap.add_argument("prompt", nargs="*", default=["Describe this image in detail."], help="prompt for the vision model")
     ap.add_argument("--model", default=DEFAULT_MODEL)
     ap.add_argument("--system", default="", help="optional system instruction")
     args = ap.parse_args()
@@ -50,19 +50,26 @@ def main():
     # Read and encode the image
     data = img_path.read_bytes()
     ext = img_path.suffix.lower().lstrip(".")
-    mime_map = {"png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg",
-                "webp": "image/webp", "gif": "image/gif", "bmp": "image/bmp"}
+    mime_map = {
+        "png": "image/png",
+        "jpg": "image/jpeg",
+        "jpeg": "image/jpeg",
+        "webp": "image/webp",
+        "gif": "image/gif",
+        "bmp": "image/bmp",
+    }
     mime = mime_map.get(ext, "image/png")
-    b64 = base64.b64encode(data).decode("ascii")
 
     from google import genai
     from google.genai import types
+
     client = genai.Client(api_key=key)
     cfg = types.GenerateContentConfig(system_instruction=args.system) if args.system else None
 
-    parts = [
+    parts: list[Any] = [  # Parts; the SDK's PartUnionDict alias is conditional, not a type form
         types.Part.from_text(text=prompt),
-        types.Part.from_bytes(data=b64, mime_type=mime),
+        # raw bytes: the SDK base64-encodes them for the wire (same request as the old b64 str)
+        types.Part.from_bytes(data=data, mime_type=mime),
     ]
     try:
         resp = client.models.generate_content(model=args.model, contents=parts, config=cfg)

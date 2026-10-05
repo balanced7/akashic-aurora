@@ -24,19 +24,21 @@ is the bigger RB-30 event and voids the expectations with it (design-review AFFI
 Spec: docs/library/design/20260701_agent-liveness-tier-stuck-lost-agent-fai_8c0d79.md L4 BUILD SPEC.
 Review: docs/library/report/20260711_t030-l4-design-review-deepseek-fenced-ga_6a89fd.md (AFFIRM x5).
 """
+
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import re
 import time
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 # T076c: task ids an ask's text references -- the settle probe's extraction surface.
 _TASK_IDS = re.compile(r"\bT\d{3}\b")
 
 
-def _terminal_task_settle(content: Any) -> Optional[str]:
+def _terminal_task_settle(content: Any) -> str | None:
     """T076c root spigot: if the ask's text references task ids and ALL of them are
     TERMINAL in the ledger (done/abandoned), the ask is an echo of finished work --
     return the settle reason. No ids / any unknown id / any probe error -> None
@@ -48,8 +50,8 @@ def _terminal_task_settle(content: Any) -> Optional[str]:
         return None
     try:
         from core.coord.task_ledger import read_ledger
-        status = {str(t.get("id")): str(t.get("status") or "")
-                  for t in (read_ledger().get("tasks") or [])}
+
+        status = {str(t.get("id")): str(t.get("status") or "") for t in (read_ledger().get("tasks") or [])}
         if all(status.get(i) in ("done", "abandoned") for i in ids):
             return "referenced tasks terminal: " + ", ".join(f"{i}={status[i]}" for i in ids)
     except Exception:
@@ -65,13 +67,16 @@ def _ns() -> str:
 
 def _expect_prefix() -> str:
     return f"{_ns()}:expect:"
+
+
 REDRIVES = 3
-MIN_WITHIN_S = 30      # clamp floor: sub-30s reply deadlines on a turn-based bus are noise
+MIN_WITHIN_S = 30  # clamp floor: sub-30s reply deadlines on a turn-based bus are noise
 
 
 def _client():
     try:
         from core.comm.bus import get_bus
+
         return get_bus("expect")._client
     except Exception:
         return None
@@ -105,7 +110,7 @@ def reply_has_settled(client, sender: str, reply_id: Any) -> bool:
         return False
 
 
-def _id_tuple(sid: str) -> Tuple[int, int]:
+def _id_tuple(sid: str) -> tuple[int, int]:
     """Stream ids compare as (ms, seq) -- string compare lies across digit widths."""
     try:
         ms, _, seq = str(sid).partition("-")
@@ -114,8 +119,17 @@ def _id_tuple(sid: str) -> Tuple[int, int]:
         return (0, 0)
 
 
-def arm(sender: str, orig_id: str, to: str, kind: str, content: Any, within_s: int,
-        *, peer_state: Optional[str] = None, peer_why: Optional[str] = None) -> bool:
+def arm(
+    sender: str,
+    orig_id: str,
+    to: str,
+    kind: str,
+    content: Any,
+    within_s: int,
+    *,
+    peer_state: str | None = None,
+    peer_why: str | None = None,
+) -> bool:
     """Record a reply expectation for an already-sent message. Clamps within_s to
     >= MIN_WITHIN_S. The anchor is the sender-inbox tail AT ARM TIME (the sender's own
     send never lands in its own inbox, so the anchor cleanly precedes any reply).
@@ -132,12 +146,20 @@ def arm(sender: str, orig_id: str, to: str, kind: str, content: Any, within_s: i
         return False
     try:
         from core.comm.bus import Bus
+
         anchor = Bus(str(sender)).tail().get("inbox", "0")
         within = max(MIN_WITHIN_S, int(within_s))
-        rec = {"to": str(to), "kind": str(kind), "content": content,
-               "within_s": within, "deadline_ts": time.time() + within,
-               "redrives_left": REDRIVES, "attempt": 0,
-               "anchor": anchor, "created": time.time()}
+        rec = {
+            "to": str(to),
+            "kind": str(kind),
+            "content": content,
+            "within_s": within,
+            "deadline_ts": time.time() + within,
+            "redrives_left": REDRIVES,
+            "attempt": 0,
+            "anchor": anchor,
+            "created": time.time(),
+        }
         if peer_state is not None:
             rec["peer_at_ask"] = str(peer_state)
             rec["peer_at_ask_why"] = str(peer_why or "")
@@ -147,7 +169,7 @@ def arm(sender: str, orig_id: str, to: str, kind: str, content: Any, within_s: i
         return False
 
 
-def snapshot(sender: str) -> Dict[str, Dict[str, Any]]:
+def snapshot(sender: str) -> dict[str, dict[str, Any]]:
     """READ-ONLY view of the armed records (T196a). Observation split from action
     (T025): never consumes, never advances, never settles, never heals -- the sweep
     owns every transition, including dropping unparseable records; a reader SKIPS
@@ -156,7 +178,7 @@ def snapshot(sender: str) -> Dict[str, Dict[str, Any]]:
     if c is None:
         return {}
     try:
-        out: Dict[str, Dict[str, Any]] = {}
+        out: dict[str, dict[str, Any]] = {}
         for oid, v in (c.hgetall(_key(str(sender))) or {}).items():
             try:
                 out[str(oid)] = json.loads(v)
@@ -167,7 +189,7 @@ def snapshot(sender: str) -> Dict[str, Dict[str, Any]]:
         return {}
 
 
-def _peer_at_death(to: Any) -> Optional[str]:
+def _peer_at_death(to: Any) -> str | None:
     """T197: was the peer attending AT THE MOMENT THE ASK GAVE UP?
 
     The second half of the pair, and the reason the pair exists. deepseek's fence
@@ -184,20 +206,25 @@ def _peer_at_death(to: Any) -> Optional[str]:
     """
     try:
         from core.comm.liveness import attendance
+
         return str(attendance(str(to)).state)
     except Exception:
         return None
 
 
-def _emit_dead(sender: str, orig_id: str, rec: Dict[str, Any]) -> None:
+def _emit_dead(sender: str, orig_id: str, rec: dict[str, Any]) -> None:
     """Durable exhaustion record; the sweep's caller prints the loud line."""
     try:
         from core.events.event_log import capture_event
-        detail = {"to": rec.get("to"), "kind": rec.get("kind"),
-                  "attempts": rec.get("attempt"),
-                  # T196b parity: the record dies with this event, so episode
-                  # duration must be computable from the event ALONE.
-                  "created": rec.get("created")}
+
+        detail = {
+            "to": rec.get("to"),
+            "kind": rec.get("kind"),
+            "attempts": rec.get("attempt"),
+            # T196b parity: the record dies with this event, so episode
+            # duration must be computable from the event ALONE.
+            "created": rec.get("created"),
+        }
         # T197: both ends of the pair ride the terminal event, for the same reason
         # duration does -- the record is deleted in the transition that closes it, so
         # a field absent here is a field lost forever.
@@ -207,14 +234,18 @@ def _emit_dead(sender: str, orig_id: str, rec: Dict[str, Any]) -> None:
         at_death = _peer_at_death(rec.get("to"))
         if at_death is not None:
             detail["peer_at_death"] = at_death
-        capture_event("expectation_dead",
-                      f"{rec.get('to')} never answered {orig_id} after {REDRIVES} redrives",
-                      agent_id=str(sender), refs=[str(orig_id)], detail=detail)
+        capture_event(
+            "expectation_dead",
+            f"{rec.get('to')} never answered {orig_id} after {REDRIVES} redrives",
+            agent_id=str(sender),
+            refs=[str(orig_id)],
+            detail=detail,
+        )
     except Exception:
         pass
 
 
-def _emit_settled(sender: str, orig_id: str, reply_id: Any, rec: Dict[str, Any]) -> None:
+def _emit_settled(sender: str, orig_id: str, reply_id: Any, rec: dict[str, Any]) -> None:
     """Durable ANSWERED evidence (T196b). DEAD and ECHO settles already leave firehose
     events; ANSWERED -- the state most asks end in -- left only a TTL'd marker and a
     trimmable stream entry (bus maxlen ~10k). Terminal truth must not live in evidence
@@ -225,21 +256,28 @@ def _emit_settled(sender: str, orig_id: str, reply_id: Any, rec: Dict[str, Any])
     Best-effort like _emit_dead: never raises into the sweep."""
     try:
         from core.events.event_log import capture_event
+
         attempt = int(rec.get("attempt", 0) or 0)
-        detail = {"to": rec.get("to"), "kind": rec.get("kind"),
-                  "attempt": attempt, "created": rec.get("created"),
-                  "answer_id": str(reply_id)}
+        detail = {
+            "to": rec.get("to"),
+            "kind": rec.get("kind"),
+            "attempt": attempt,
+            "created": rec.get("created"),
+            "answer_id": str(reply_id),
+        }
         # T197: answered episodes carry the ask-time end too. A partition defined only
         # over failures cannot answer "do attended peers actually answer more often?",
         # which is the question the whole arc is ultimately for -- and a success with
         # no peer column is a control group thrown away.
         if rec.get("peer_at_ask") is not None:
             detail["peer_at_ask"] = rec.get("peer_at_ask")
-        capture_event("expectation_settled_answered",
-                      f"{rec.get('to')} answered {orig_id}"
-                      + (f" after {attempt} redrive(s)" if attempt else ""),
-                      agent_id=str(sender), refs=[str(orig_id), str(reply_id)],
-                      detail=detail)
+        capture_event(
+            "expectation_settled_answered",
+            f"{rec.get('to')} answered {orig_id}" + (f" after {attempt} redrive(s)" if attempt else ""),
+            agent_id=str(sender),
+            refs=[str(orig_id), str(reply_id)],
+            detail=detail,
+        )
     except Exception:
         pass
 
@@ -259,13 +297,14 @@ def _emit_settled(sender: str, orig_id: str, reply_id: Any, rec: Dict[str, Any])
 ANSWER_KINDS = {"reply", "handoff", "completion"}
 
 
-def _answers_since(sender: str, anchor: str) -> List[Any]:
+def _answers_since(sender: str, anchor: str) -> list[Any]:
     """Directed ANSWER-kind messages in the sender's inbox stream AFTER `anchor` -- read
     from the stream position, not the cursor, so consumption cannot hide them. The bc
     lane is pinned at its current tail (broadcast answers are room chatter, never
     settle)."""
     try:
         from core.comm.bus import Bus
+
         b = Bus(str(sender))
         bc_now = b.tail().get("bc", "0")
         msgs = b.wait(timeout_ms=1, limit=200, since={"inbox": anchor, "bc": bc_now})
@@ -274,7 +313,7 @@ def _answers_since(sender: str, anchor: str) -> List[Any]:
         return []
 
 
-def _resolve_link(answers_id: Any, recs: Dict[str, Dict[str, Any]]) -> Optional[str]:
+def _resolve_link(answers_id: Any, recs: dict[str, dict[str, Any]]) -> str | None:
     """The expectation `answers_id` refers to, tolerating the DUAL-WRITE ID PAIR.
 
     One send lands on both the lane stream and the legacy stream under two ids. The
@@ -323,26 +362,27 @@ def _resolve_link(answers_id: Any, recs: Dict[str, Dict[str, Any]]) -> Optional[
 # the pin, not the code: nested inside sweep it was unfaultable, so P10 could only
 # patch an obsolete seam and would have gone nominal the moment the code moved.
 # The suite owns the receipt only if it can break the real transition.
-_SETTLE_LUA = ("redis.call('SET', KEYS[1], '1', 'EX', tonumber(ARGV[2]), 'NX') "
-               "redis.call('HDEL', KEYS[2], ARGV[1]) return 1")
+_SETTLE_LUA = (
+    "redis.call('SET', KEYS[1], '1', 'EX', tonumber(ARGV[2]), 'NX') redis.call('HDEL', KEYS[2], ARGV[1]) return 1"
+)
 
 
-def _settle_once(c, sender: str, key: str, oid: str, rid, rec: Dict[str, Any]) -> bool:
+def _settle_once(c, sender: str, key: str, oid: str, rid, rec: dict[str, Any]) -> bool:
     try:
-        horizon = max(172800, int(float(rec.get("within_s", MIN_WITHIN_S)))
-                      * (int(rec.get("redrives_left", 0)) + 2) * 4)
-        c.eval(_SETTLE_LUA, 2, _settled_key(sender, rid), key,
-               oid, horizon)
+        horizon = max(
+            172800, int(float(rec.get("within_s", MIN_WITHIN_S))) * (int(rec.get("redrives_left", 0)) + 2) * 4
+        )
+        c.eval(_SETTLE_LUA, 2, _settled_key(sender, rid), key, oid, horizon)
         return True
     except Exception:
-        return False                       # expectation stays armed; never half-settle
+        return False  # expectation stays armed; never half-settle
 
 
-def sweep(sender: str, now: Optional[float] = None) -> Dict[str, List[str]]:
+def sweep(sender: str, now: float | None = None) -> dict[str, list[str]]:
     """One render-time pass: clear answered, redrive expired, kill exhausted.
     Returns {"redriven": [ids], "dead": [ids], "cleared": [ids]}; `now` injectable so
     pins never sleep. Never raises."""
-    out: Dict[str, List[str]] = {"redriven": [], "dead": [], "cleared": [], "settled": []}
+    out: dict[str, list[str]] = {"redriven": [], "dead": [], "cleared": [], "settled": []}
     c = _client()
     if c is None:
         return out
@@ -352,15 +392,16 @@ def sweep(sender: str, now: Optional[float] = None) -> Dict[str, List[str]]:
         if not raw:
             return out
         now = time.time() if now is None else float(now)
-        recs: Dict[str, Dict[str, Any]] = {}
+        recs: dict[str, dict[str, Any]] = {}
         for oid, v in raw.items():
             try:
                 recs[str(oid)] = json.loads(v)
             except Exception:
-                c.hdel(key, oid)               # unparseable record: drop, never wedge
+                c.hdel(key, oid)  # unparseable record: drop, never wedge
         if not recs:
             return out
         oldest = min((r.get("anchor", "0") for r in recs.values()), key=_id_tuple)
+
         # T117 P8 (sol's third NO-GO): SETTLEMENT IS IDEMPOTENT PER REPLY. sweep()
         # re-reads from the oldest anchor every pass, so a stored reply that settled
         # an ask on sweep N is read again on sweep N+1 -- its target now gone from
@@ -377,10 +418,10 @@ def sweep(sender: str, now: Optional[float] = None) -> Dict[str, List[str]]:
             return _settle_once(c, sender, key, oid, rid, rec)
 
         replies = _answers_since(sender, oldest)
-        linked = set()                         # T117: replies whose link RESOLVED
-        for r in replies:                      # 1) exact linkage clears first
+        linked = set()  # T117: replies whose link RESOLVED
+        for r in replies:  # 1) exact linkage clears first
             if _settled(getattr(r, "id", None)):
-                linked.add(getattr(r, "id", None))   # spent: never reaches FIFO either
+                linked.add(getattr(r, "id", None))  # spent: never reaches FIFO either
                 continue
             a = _resolve_link((getattr(r, "meta", None) or {}).get("answers"), recs)
             # T117 P9 (sol): the precise path checks WHO answered -- P5 guarded FIFO
@@ -395,31 +436,31 @@ def sweep(sender: str, now: Optional[float] = None) -> Dict[str, List[str]]:
                 # T196b: guarded AT THE CALL SITE, not just inside the seam -- a broken
                 # emit (even one whose own try/except is gone) must never reach sweep's
                 # outer catch and poison the transition bookkeeping.
-                try:
+                with contextlib.suppress(Exception):
                     _emit_settled(sender, a, getattr(r, "id", None), rec_settled)
-                except Exception:
-                    pass
-        for r in replies:                      # 2) FIFO fallback: one clear per reply
+        for r in replies:  # 2) FIFO fallback: one clear per reply
             # T117: skip only replies whose link actually RESOLVED (or that already
             # settled an ask on a PRIOR sweep). A reply naming an id we do not hold
             # is UNLINKED, and the fallback exists for exactly that.
             if getattr(r, "id", None) in linked:
                 continue
             cands = sorted(
-                ((oid, rec) for oid, rec in recs.items()
-                 if rec.get("to") == getattr(r, "frm", None)
-                 and _id_tuple(rec.get("anchor", "0")) < _id_tuple(getattr(r, "id", "0"))),
-                key=lambda kv: float(kv[1].get("created", 0)))
+                (
+                    (oid, rec)
+                    for oid, rec in recs.items()
+                    if rec.get("to") == getattr(r, "frm", None)
+                    and _id_tuple(rec.get("anchor", "0")) < _id_tuple(getattr(r, "id", "0"))
+                ),
+                key=lambda kv: float(kv[1].get("created", 0)),
+            )
             if cands and _settle_atomic(cands[0][0], getattr(r, "id", None), cands[0][1]):
                 oid = cands[0][0]
                 rec_settled = cands[0][1]
                 del recs[oid]
                 out["cleared"].append(oid)
-                try:                              # T196b: same call-site guard as above
+                with contextlib.suppress(Exception):  # T196b: same call-site guard as above
                     _emit_settled(sender, oid, getattr(r, "id", None), rec_settled)
-                except Exception:
-                    pass
-        for oid, rec in list(recs.items()):    # 3) deadlines
+        for oid, rec in list(recs.items()):  # 3) deadlines
             if now < float(rec.get("deadline_ts", 0)):
                 continue
             # T117 P11 debug find: this probe reads the TASK PLANE, and in an isolated
@@ -427,17 +468,20 @@ def sweep(sender: str, now: Optional[float] = None) -> Dict[str, List[str]]:
             # swallowed the whole deadline loop, so REDRIVES silently stopped. A
             # settle-probe failure means "cannot prove settled", never "stop redriving".
             try:
-                settle = _terminal_task_settle(rec.get("content"))   # T076c: echoes of DONE
+                settle = _terminal_task_settle(rec.get("content"))  # T076c: echoes of DONE
             except Exception:
                 settle = None
-            if settle is not None:                               # work settle, never redrive
+            if settle is not None:  # work settle, never redrive
                 try:
                     from core.events.event_log import capture_event
-                    capture_event("expectation_settled_done_task",
-                                  f"ask {oid} to {rec.get('to')} auto-settled: {settle}",
-                                  agent_id=str(sender), refs=[str(oid)],
-                                  detail={"to": rec.get("to"), "settle": settle,
-                                          "attempt": rec.get("attempt")})
+
+                    capture_event(
+                        "expectation_settled_done_task",
+                        f"ask {oid} to {rec.get('to')} auto-settled: {settle}",
+                        agent_id=str(sender),
+                        refs=[str(oid)],
+                        detail={"to": rec.get("to"), "settle": settle, "attempt": rec.get("attempt")},
+                    )
                 except Exception:
                     pass
                 c.hdel(key, oid)
@@ -445,23 +489,27 @@ def sweep(sender: str, now: Optional[float] = None) -> Dict[str, List[str]]:
                 continue
             if int(rec.get("redrives_left", 0)) > 0:
                 from core.comm.bus import Bus
+
                 attempt = int(rec.get("attempt", 0)) + 1
-                new_mid = Bus(str(sender)).send(rec["to"], rec.get("kind", "request"),
-                                                rec.get("content"),
-                                                meta={"redrive_of": oid, "attempt": attempt})
+                new_mid = Bus(str(sender)).send(
+                    rec["to"],
+                    rec.get("kind", "request"),
+                    rec.get("content"),
+                    meta={"redrive_of": oid, "attempt": attempt},
+                )
                 # T117 P11 (sol): the peer answers the only id it ever SAW -- the
                 # redrive's. Alias it to the ORIGINAL ask, or the reply resolves to
                 # nothing and the original redrives again: the disease reborn one
                 # generation down. (_resolve_link follows aliases, so the redrive's
                 # lane sibling reaches the original in two hops.)
                 if new_mid:
-                    try:
+                    with contextlib.suppress(Exception):
                         c.set(f"{_ns()}:idalias:{new_mid}", oid, ex=172800)
-                    except Exception:
-                        pass
-                rec.update(attempt=attempt,
-                           redrives_left=int(rec.get("redrives_left", 0)) - 1,
-                           deadline_ts=now + int(rec.get("within_s", MIN_WITHIN_S)))
+                rec.update(
+                    attempt=attempt,
+                    redrives_left=int(rec.get("redrives_left", 0)) - 1,
+                    deadline_ts=now + int(rec.get("within_s", MIN_WITHIN_S)),
+                )
                 c.hset(key, oid, json.dumps(rec, default=str))
                 out["redriven"].append(oid)
             else:
@@ -473,15 +521,19 @@ def sweep(sender: str, now: Optional[float] = None) -> Dict[str, List[str]]:
         return out
 
 
-def format_sweep_lines(res: Dict[str, List[str]]) -> List[str]:
+def format_sweep_lines(res: dict[str, list[str]]) -> list[str]:
     """Render-side: loud lines for what the sweep did (empty list = quiet)."""
-    lines = []
-    for oid in res.get("settled", []):
-        lines.append(f"= settled {oid} (T076c: its referenced tasks are DONE in the ledger -- "
-                     f"echo, not a live ask; durable event recorded)")
-    for oid in res.get("redriven", []):
-        lines.append(f"~ redrove {oid} (no reply by deadline -- copy sent, meta redrive_of)")
-    for oid in res.get("dead", []):
-        lines.append(f"!! EXPECTATION DEAD: {oid} unanswered after {REDRIVES} redrives "
-                     f"-- durable event recorded; chase it or let it go")
+    lines = [
+        f"= settled {oid} (T076c: its referenced tasks are DONE in the ledger -- "
+        f"echo, not a live ask; durable event recorded)"
+        for oid in res.get("settled", [])
+    ]
+    lines.extend(
+        f"~ redrove {oid} (no reply by deadline -- copy sent, meta redrive_of)" for oid in res.get("redriven", [])
+    )
+    lines.extend(
+        f"!! EXPECTATION DEAD: {oid} unanswered after {REDRIVES} redrives "
+        f"-- durable event recorded; chase it or let it go"
+        for oid in res.get("dead", [])
+    )
     return lines

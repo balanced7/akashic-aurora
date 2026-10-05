@@ -1,4 +1,5 @@
 """RED contracts for the isolated Discord-to-Codex wake policy."""
+
 from __future__ import annotations
 
 import json
@@ -42,16 +43,26 @@ def test_discord_operator_policy_requires_sender_kind_and_source_together():
 
 
 def test_cli_exposes_an_explicit_additive_kind_and_required_source_gate():
-    args = build_parser().parse_args([
-        "--allow-from", "daniil",
-        "--allow-kind", "chat",
-        "--require-source", "discord",
-        "--state-path", "sol-discord.state.json",
-        "--log-path", "sol-discord.events.jsonl",
-        "--thread-id", "thread-discord",
-        "--source-thread-id", "thread-desktop",
-        "--binding-kind", "completed-history-fork",
-    ])
+    args = build_parser().parse_args(
+        [
+            "--allow-from",
+            "daniil",
+            "--allow-kind",
+            "chat",
+            "--require-source",
+            "discord",
+            "--state-path",
+            "sol-discord.state.json",
+            "--log-path",
+            "sol-discord.events.jsonl",
+            "--thread-id",
+            "thread-discord",
+            "--source-thread-id",
+            "thread-desktop",
+            "--binding-kind",
+            "completed-history-fork",
+        ]
+    )
 
     assert args.allow_from == ["daniil"]
     assert args.allow_kind == ["chat"]

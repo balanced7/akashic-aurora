@@ -11,21 +11,33 @@ MODULE_INDEX surveys + agent/harness (the seat-side organs).
 Run:  py scripts/generators/gen_master_map.py            # writes docs/MAP.md
       py scripts/generators/gen_master_map.py --check    # exit 1 if stale vs code (CI/pre-ship)
 """
+
 import os
-import re
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # T104-M1 depth
 
 # Tracked content only -- a derived doc describes the repo, not this box.
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _tracked import tracked_py, is_tracked_dir, _tracked_paths  # noqa: E402
+from _tracked import _tracked_paths, is_tracked_dir, tracked_py  # noqa: E402  # sys.path bootstrap
+
 OUT = os.path.join(ROOT, "docs", "MAP.md")
 sys.path.insert(0, ROOT)
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from gen_arch_index import CORE_ORDER, first_doc          # noqa: E402
-from gen_physics_sheet import scan as physics_scan        # noqa: E402
+from gen_arch_index import CORE_ORDER, first_doc  # noqa: E402  # sys.path bootstrap
+from gen_physics_sheet import scan as physics_scan  # noqa: E402  # sys.path bootstrap
+
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+
+        return python_launcher()
+    except Exception:
+        return "py"
+
 
 AREAS = [f"core/{a}" for a in CORE_ORDER] + ["agent/harness", "agent"]
 
@@ -57,8 +69,8 @@ def _name_index(dirpath, exts):
         for p in tracked:
             if not p.startswith(prefix):
                 continue
-            f = p[len(prefix):]
-            if "/" in f:                         # deeper than this directory
+            f = p[len(prefix) :]
+            if "/" in f:  # deeper than this directory
                 continue
             if any(f.endswith(e) for e in exts):
                 out.append((p, f.lower()))
@@ -80,9 +92,10 @@ def build():
     tests = _name_index(["tests"], (".py",))
     # T104 sweep: papers live in the atom projections now (P3 deleted the flat corpora);
     # research/reviewed kept as a harmless no-op guard for any straggler restore.
-    _shelves = [os.path.join("docs", "library", t)
-                for t in ("design", "report", "brief", "contract", "chronicle",
-                          "ledger", "ruling", "map")]
+    _shelves = [
+        os.path.join("docs", "library", t)
+        for t in ("design", "report", "brief", "contract", "chronicle", "ledger", "ruling", "map")
+    ]
     papers = _name_index(["docs", os.path.join("research", "reviewed"), *_shelves], (".md",))
 
     def _squash(s):
@@ -96,13 +109,11 @@ def build():
             stem = fname[:-3].lower().lstrip("_")
             doc = first_doc(os.path.join(ROOT, area, fname))
             pin = next((p for p, low in tests if _squash(stem) in _squash(low)), "")
-            paper = next((p for p, low in papers
-                          if len(stem) > 3 and _squash(stem) in _squash(low)), "")
+            paper = next((p for p, low in papers if len(stem) > 3 and _squash(stem) in _squash(low)), "")
             mod_flags = sorted(flags_by_file.get(rel, ()))
             rows.setdefault(area, []).append(
-                {"module": fname, "doc": doc, "pin": pin, "paper": paper,
-                 "flags": mod_flags,
-                 "gap": not (pin or paper)})
+                {"module": fname, "doc": doc, "pin": pin, "paper": paper, "flags": mod_flags, "gap": not (pin or paper)}
+            )
     return rows
 
 
@@ -115,7 +126,7 @@ def render(rows):
         "Status: current",
         "Class: reference",
         "",
-        "> Do NOT edit by hand. Regenerate with `py scripts/generators/gen_master_map.py`.",
+        f"> Do NOT edit by hand. Regenerate with `{_pyl()} scripts/generators/gen_master_map.py`.",
         "> Columns: line-1 docstring (the module's own spec) | name-matched pin file |",
         "> name-matched design/reference doc (v0 HEURISTIC -- ranks the M3 backfill queue,",
         "> does not certify coverage) | env flags read (physics scan). GAP = neither a",
@@ -130,14 +141,23 @@ def render(rows):
     for area in AREAS:
         if not rows.get(area):
             continue
-        lines += ["", f"## {area}/  ({len(rows[area])} modules)", "",
-                  "| Module | One-line spec | Pin | Paper | Flags |",
-                  "|---|---|---|---|---|"]
+        lines += [
+            "",
+            f"## {area}/  ({len(rows[area])} modules)",
+            "",
+            "| Module | One-line spec | Pin | Paper | Flags |",
+            "|---|---|---|---|---|",
+        ]
         for r in rows[area]:
-            lines.append("| `{m}` | {d} | {p} | {pp} | {f} |".format(
-                m=r["module"], d=r["doc"].replace("|", "/"),
-                p=(r["pin"] or "GAP"), pp=(r["paper"] or "GAP"),
-                f=", ".join(f"`{x}`" for x in r["flags"]) or ""))
+            lines.append(
+                "| `{m}` | {d} | {p} | {pp} | {f} |".format(
+                    m=r["module"],
+                    d=r["doc"].replace("|", "/"),
+                    p=(r["pin"] or "GAP"),
+                    pp=(r["paper"] or "GAP"),
+                    f=", ".join(f"`{x}`" for x in r["flags"]) or "",
+                )
+            )
     lines.append("")
     return "\n".join(lines)
 
@@ -146,12 +166,16 @@ def main():
     text = render(build())
     if "--check" in sys.argv:
         try:
-            old = open(OUT, encoding="utf-8").read()
+            with open(OUT, encoding="utf-8") as fobj:
+                old = fobj.read()
         except OSError:
-            print("MAP.md missing -- regenerate"); return 1
+            print("MAP.md missing -- regenerate")
+            return 1
         if old != text:
-            print("MAP.md STALE vs code -- regenerate (py scripts/generators/gen_master_map.py)"); return 1
-        print("MAP.md current"); return 0
+            print(f"MAP.md STALE vs code -- regenerate ({_pyl()} scripts/generators/gen_master_map.py)")
+            return 1
+        print("MAP.md current")
+        return 0
     with open(OUT, "w", encoding="utf-8", newline="\n") as fh:
         fh.write(text)
     n = sum(len(v) for v in build().values())

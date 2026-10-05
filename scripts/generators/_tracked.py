@@ -20,6 +20,7 @@ NO SILENT FALLBACK. If git cannot answer, this raises. Falling back to os.listdi
 restore the original defect quietly, on exactly the machines where it is hardest to see --
 which is the failure this module exists to end.
 """
+
 from __future__ import annotations
 
 import os
@@ -37,16 +38,15 @@ class TrackedLookupError(RuntimeError):
 def _tracked_paths() -> frozenset:
     """Every tracked/staged path, repo-relative with forward slashes. One git call."""
     try:
-        r = subprocess.run(["git", "ls-files"], cwd=ROOT,
-                           capture_output=True, text=True, timeout=120)
-    except (OSError, subprocess.SubprocessError) as e:      # git absent / unrunnable
+        r = subprocess.run(["git", "ls-files"], cwd=ROOT, capture_output=True, text=True, timeout=120)
+    except (OSError, subprocess.SubprocessError) as e:  # git absent / unrunnable
         raise TrackedLookupError(
             f"cannot run `git ls-files` in {ROOT}: {e}. Derived docs describe TRACKED "
             f"content; generating from the filesystem instead would silently restore the "
-            f"untracked-contamination defect this module exists to prevent.") from e
+            f"untracked-contamination defect this module exists to prevent."
+        ) from e
     if r.returncode != 0:
-        raise TrackedLookupError(
-            f"`git ls-files` failed in {ROOT} (exit {r.returncode}): {r.stderr.strip()[:300]}")
+        raise TrackedLookupError(f"`git ls-files` failed in {ROOT} (exit {r.returncode}): {r.stderr.strip()[:300]}")
     return frozenset(line.strip() for line in r.stdout.splitlines() if line.strip())
 
 
@@ -62,8 +62,8 @@ def tracked_py(rel: str) -> list:
     for p in _tracked_paths():
         if not p.startswith(prefix):
             continue
-        tail = p[len(prefix):]
-        if "/" in tail:                      # deeper than this directory
+        tail = p[len(prefix) :]
+        if "/" in tail:  # deeper than this directory
             continue
         if tail.endswith(".py") and tail != "__init__.py":
             out.append(tail)

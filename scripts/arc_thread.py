@@ -19,13 +19,14 @@ later; runnable now as:
     py scripts/arc_thread.py T094 --json
     py scripts/arc_thread.py library-schema --no-store   # file+git only (fast, offline)
 """
+
 import argparse
 import json
 import os
 import re
 import subprocess
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -58,7 +59,7 @@ def _arc_matches(header_val: str, want: str) -> bool:
 def _read_header(path: str) -> tuple[str, str, str] | None:
     """Return (arc_field, status, date) from the first ~1500 chars, or None."""
     try:
-        with open(path, "r", encoding="utf-8", errors="replace") as f:
+        with open(path, encoding="utf-8", errors="replace") as f:
             head = f.read(1500)
     except OSError:
         return None
@@ -75,8 +76,7 @@ def _read_header(path: str) -> tuple[str, str, str] | None:
         if am and am.group(1).strip().lower() not in ("null", ""):
             sm = _FM_STATUS_RE.search(fm)
             dm = _FM_DATE_RE.search(fm)
-            return (am.group(1).strip(), sm.group(1).strip()[:32] if sm else "",
-                    dm.group(1) if dm else "")
+            return (am.group(1).strip(), sm.group(1).strip()[:32] if sm else "", dm.group(1) if dm else "")
     return None
 
 
@@ -97,19 +97,20 @@ def files_for_arc(want: str) -> list[dict]:
                 arc_field, status, date = hdr
                 rel = os.path.relpath(path, ROOT).replace("\\", "/")
                 if not date:  # fall back to mtime for ordering
-                    date = datetime.fromtimestamp(
-                        os.path.getmtime(path), tz=timezone.utc).date().isoformat()
-                out.append({"plane": "file", "date": date, "ref": rel,
-                            "status": status, "note": arc_field.strip()})
+                    date = datetime.fromtimestamp(os.path.getmtime(path), tz=UTC).date().isoformat()
+                out.append({"plane": "file", "date": date, "ref": rel, "status": status, "note": arc_field.strip()})
     return out
 
 
 def commits_for_arc(want: str) -> list[dict]:
     try:
         r = subprocess.run(
-            ["git", "log", "--all", f"--grep={want}", "-i",
-             "--pretty=%cd|%h|%s", "--date=short"],
-            cwd=ROOT, text=True, capture_output=True, timeout=30)
+            ["git", "log", "--all", f"--grep={want}", "-i", "--pretty=%cd|%h|%s", "--date=short"],
+            cwd=ROOT,
+            text=True,
+            capture_output=True,
+            timeout=30,
+        )
     except Exception:
         return []
     if r.returncode != 0:
@@ -119,8 +120,7 @@ def commits_for_arc(want: str) -> list[dict]:
         parts = line.split("|", 2)
         if len(parts) == 3:
             date, sha, subj = parts
-            out.append({"plane": "git", "date": date, "ref": sha,
-                        "status": "", "note": subj[:100]})
+            out.append({"plane": "git", "date": date, "ref": sha, "status": "", "note": subj[:100]})
     return out
 
 
@@ -128,22 +128,23 @@ def store_for_arc(want: str) -> list[dict]:
     """Best-effort: lessons/notes/decisions the firehose tagged with the arc."""
     try:
         r = subprocess.run(
-            [sys.executable, os.path.join(ROOT, "agent_cli.py"),
-             "events", "--search", want, "--limit", "40"],
-            cwd=ROOT, text=True, capture_output=True, timeout=45)
+            [sys.executable, os.path.join(ROOT, "agent_cli.py"), "events", "--search", want, "--limit", "40"],
+            cwd=ROOT,
+            text=True,
+            capture_output=True,
+            timeout=45,
+        )
     except Exception:
         return []
     if r.returncode != 0 or not r.stdout:
         return []
     out = []
     # parse the human events render: "  [kind] YYYY-MM-DDTHH..  summary"
-    for m in re.finditer(r"^\s*\[(\w+)\]\s+(\d{4}-\d{2}-\d{2})\S*\s+(.+)$",
-                         r.stdout, re.M):
+    for m in re.finditer(r"^\s*\[(\w+)\]\s+(\d{4}-\d{2}-\d{2})\S*\s+(.+)$", r.stdout, re.M):
         kind, date, summary = m.group(1), m.group(2), m.group(3).strip()
         if kind in ("command",):  # git commits already covered by the git plane
             continue
-        out.append({"plane": "store", "date": date, "ref": kind,
-                    "status": "", "note": summary[:100]})
+        out.append({"plane": "store", "date": date, "ref": kind, "status": "", "note": summary[:100]})
     return out
 
 
@@ -161,8 +162,10 @@ _PLANE_GLYPH = {"file": "DOC", "git": "GIT", "store": "MEM"}
 
 def render(want: str, items: list[dict]) -> str:
     if not items:
-        return (f"arc '{want}': no artifacts found across file/git/store planes.\n"
-                f"  (check the id -- header Arc: fields, commit subjects, event summaries)")
+        return (
+            f"arc '{want}': no artifacts found across file/git/store planes.\n"
+            f"  (check the id -- header Arc: fields, commit subjects, event summaries)"
+        )
     lines = [f"# arc-thread: {want}   ({len(items)} artifact(s), oldest first)", ""]
     by_plane = {}
     for it in items:

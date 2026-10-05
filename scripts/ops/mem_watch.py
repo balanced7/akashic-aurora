@@ -36,6 +36,7 @@ power cut) and this recorder named nothing, for two reasons:
      handles. Under pressure it samples faster and writes a full snapshot of
      every process with its command line, so the next post-mortem has a name.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -44,15 +45,31 @@ import json
 import os
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+
+        return python_launcher()
+    except Exception:
+        return "py"
+
 
 try:
     import psutil
-except ImportError:  # pragma: no cover - environment guard
-    print("mem_watch: psutil is required (py -m pip install psutil)", file=sys.stderr)
-    raise SystemExit(2)
+except ImportError as err:  # pragma: no cover - environment guard
+    print(f"mem_watch: psutil is required ({_pyl()} -m pip install psutil)", file=sys.stderr)
+    raise SystemExit(2) from err
 
-DEFAULT_LOG = r"E:\AI-Setup\state\mem-watch\mem_watch.jsonl"
+DEFAULT_LOG = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+    "state",
+    "mem-watch",
+    "mem_watch.jsonl",
+)
 
 # Processes whose RSS is OS memory ACCOUNTING, not consumption. MemCompression's
 # working set IS other processes' compressed pages: it grows when Windows is SAVING
@@ -69,7 +86,7 @@ IS_WINDOWS = sys.platform == "win32"
 
 
 def _utc() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def _rotate(path: str) -> None:
@@ -102,14 +119,22 @@ def _win_perf() -> dict:
         from ctypes import wintypes
 
         class PERFORMANCE_INFORMATION(ctypes.Structure):
-            _fields_ = [("cb", wintypes.DWORD),
-                        ("CommitTotal", ctypes.c_size_t), ("CommitLimit", ctypes.c_size_t),
-                        ("CommitPeak", ctypes.c_size_t), ("PhysicalTotal", ctypes.c_size_t),
-                        ("PhysicalAvailable", ctypes.c_size_t), ("SystemCache", ctypes.c_size_t),
-                        ("KernelTotal", ctypes.c_size_t), ("KernelPaged", ctypes.c_size_t),
-                        ("KernelNonpaged", ctypes.c_size_t), ("PageSize", ctypes.c_size_t),
-                        ("HandleCount", wintypes.DWORD), ("ProcessCount", wintypes.DWORD),
-                        ("ThreadCount", wintypes.DWORD)]
+            _fields_ = [
+                ("cb", wintypes.DWORD),
+                ("CommitTotal", ctypes.c_size_t),
+                ("CommitLimit", ctypes.c_size_t),
+                ("CommitPeak", ctypes.c_size_t),
+                ("PhysicalTotal", ctypes.c_size_t),
+                ("PhysicalAvailable", ctypes.c_size_t),
+                ("SystemCache", ctypes.c_size_t),
+                ("KernelTotal", ctypes.c_size_t),
+                ("KernelPaged", ctypes.c_size_t),
+                ("KernelNonpaged", ctypes.c_size_t),
+                ("PageSize", ctypes.c_size_t),
+                ("HandleCount", wintypes.DWORD),
+                ("ProcessCount", wintypes.DWORD),
+                ("ThreadCount", wintypes.DWORD),
+            ]
 
         pi = PERFORMANCE_INFORMATION()
         pi.cb = ctypes.sizeof(pi)
@@ -145,32 +170,34 @@ def _pool_tags(top: int | None = 8, min_mb: float = 0.0) -> list[dict]:
         return []
     try:
         import ctypes
+
         if ctypes.sizeof(ctypes.c_void_p) != 8:  # the record layout below is x64's
             return []
         size, status, raw = 1 << 20, None, b""
         for _ in range(6):
             buf = ctypes.create_string_buffer(size)
             ret = ctypes.c_ulong(0)
-            status = ctypes.windll.ntdll.NtQuerySystemInformation(
-                22, buf, size, ctypes.byref(ret)) & 0xFFFFFFFF
+            status = ctypes.windll.ntdll.NtQuerySystemInformation(22, buf, size, ctypes.byref(ret)) & 0xFFFFFFFF
             if status == 0xC0000004:  # STATUS_INFO_LENGTH_MISMATCH: grow and retry
                 size = max(size * 2, ret.value + 4096)
                 continue
-            raw = buf.raw[:ret.value or size]
+            raw = buf.raw[: ret.value or size]
             break
         if status != 0 or len(raw) < 8:
             return []
         count = int.from_bytes(raw[0:4], "little")
         rows = []
         for i in range(count):
-            rec = raw[8 + i * 40: 8 + (i + 1) * 40]
+            rec = raw[8 + i * 40 : 8 + (i + 1) * 40]
             if len(rec) < 40:
                 break
-            rows.append({
-                "tag": rec[0:4].decode("ascii", "replace").replace("\x00", " "),
-                "nonpaged_mb": round(int.from_bytes(rec[32:40], "little") / MB, 1),
-                "paged_mb": round(int.from_bytes(rec[16:24], "little") / MB, 1),
-            })
+            rows.append(
+                {
+                    "tag": rec[0:4].decode("ascii", "replace").replace("\x00", " "),
+                    "nonpaged_mb": round(int.from_bytes(rec[32:40], "little") / MB, 1),
+                    "paged_mb": round(int.from_bytes(rec[16:24], "little") / MB, 1),
+                }
+            )
         if top is None:
             keep = [r for r in rows if r["nonpaged_mb"] + r["paged_mb"] >= min_mb]
         else:
@@ -214,11 +241,13 @@ def sample(top_n: int, track_substrings: list[str]) -> dict:
             # so a slow leak in a small process is still visible in the trail.
             low = cmd.lower()
             if any(s in low for s in track_substrings):
-                tracked.append({
-                    **row,
-                    "age_s": int(time.time() - (info.get("create_time") or time.time())),
-                    "cmd": cmd[:200],
-                })
+                tracked.append(
+                    {
+                        **row,
+                        "age_s": int(time.time() - (info.get("create_time") or time.time())),
+                        "cmd": cmd[:200],
+                    }
+                )
         except (psutil.NoSuchProcess, psutil.AccessDenied):
             continue
 
@@ -226,8 +255,7 @@ def sample(top_n: int, track_substrings: list[str]) -> dict:
     # a process whose pages were trimmed or never touched still holds commit.
     by_rss = sorted(procs, key=lambda r: r["rss_mb"], reverse=True)[:top_n]
     by_private = sorted(procs, key=lambda r: r["private_mb"], reverse=True)[:top_n]
-    top = list({r["pid"]: {k: v for k, v in r.items() if k != "cmd"}
-                for r in by_rss + by_private}.values())
+    top = list({r["pid"]: {k: v for k, v in r.items() if k != "cmd"} for r in by_rss + by_private}.values())
     top.sort(key=lambda r: r["rss_mb"], reverse=True)
     swap = psutil.swap_memory()
     host = {
@@ -242,8 +270,10 @@ def sample(top_n: int, track_substrings: list[str]) -> dict:
         "at": _utc(),
         "host": host,
         "top": top,
-        "top_handles": [{"pid": r["pid"], "name": r["name"], "handles": r["handles"]}
-                        for r in sorted(procs, key=lambda r: r["handles"], reverse=True)[:5]],
+        "top_handles": [
+            {"pid": r["pid"], "name": r["name"], "handles": r["handles"]}
+            for r in sorted(procs, key=lambda r: r["handles"], reverse=True)[:5]
+        ],
         "pools": _pool_tags(8),
         "tracked": sorted(tracked, key=lambda r: r["rss_mb"], reverse=True),
         "proc_count": len(procs),
@@ -251,8 +281,7 @@ def sample(top_n: int, track_substrings: list[str]) -> dict:
     }
 
 
-def process_alert(*, name, pid, rss, first_seen, last_alert, peak,
-                  proc_alert_mb, growth_alert_mb):
+def process_alert(*, name, pid, rss, first_seen, last_alert, peak, proc_alert_mb, growth_alert_mb):
     """The per-process leak decision, pure so it can be pinned. Alert line, or None.
 
     A process that is merely BIG was probably always big (WSL's VM sits at gigabytes
@@ -286,8 +315,7 @@ def process_alert(*, name, pid, rss, first_seen, last_alert, peak,
         return None
     else:
         since = f"since the {last_alert:.0f}MB alert"
-    return (f"ALERT process {name} pid={pid} rss={rss}MB peak={peak:.0f}MB "
-            f"(grew {growth:+.1f}MB {since})")
+    return f"ALERT process {name} pid={pid} rss={rss}MB peak={peak:.0f}MB (grew {growth:+.1f}MB {since})"
 
 
 def host_commit_alert(*, commit_mb, limit_mb, warn_pct, alert_pct, top_private):
@@ -308,8 +336,7 @@ def host_commit_alert(*, commit_mb, limit_mb, warn_pct, alert_pct, top_private):
     return f"{level} host commit {pct:.1f}% ({commit_mb}/{limit_mb} MB) -- top private: {who}"
 
 
-def should_snapshot(*, now, last_snapshot_at, commit_pct, available_mb,
-                    pct_threshold, min_available_mb, min_gap_s):
+def should_snapshot(*, now, last_snapshot_at, commit_pct, available_mb, pct_threshold, min_available_mb, min_gap_s):
     """Whether to write a full pressure snapshot now. Pure, so it can be pinned.
 
     Pressure is high commit OR little available RAM (either one froze this machine).
@@ -358,29 +385,42 @@ def main() -> int:
     ap.add_argument("--top", type=int, default=12, help="how many processes to record per sample")
     ap.add_argument("--warn-pct", type=float, default=80.0, help="host used%% that emits WARN")
     ap.add_argument("--alert-pct", type=float, default=90.0, help="host used%% that emits ALERT")
-    ap.add_argument("--proc-alert-mb", type=float, default=4096.0,
-                    help="single-process RSS floor before growth is worth alerting on")
-    ap.add_argument("--growth-alert-mb", type=float, default=512.0,
-                    help="RSS growth since first sighting that emits ALERT")
-    ap.add_argument("--track", default="ai-setup,akashic,bifrost,bridge,discord,ollama,vmmem",
-                    help="comma-separated substrings marking processes we always record")
-    ap.add_argument("--commit-warn-pct", type=float, default=80.0,
-                    help="system commit %% of the commit limit that emits WARN")
-    ap.add_argument("--commit-alert-pct", type=float, default=90.0,
-                    help="system commit %% of the commit limit that emits ALERT")
-    ap.add_argument("--pressure-pct", type=float, default=85.0,
-                    help="commit %% at which sampling switches to --pressure-interval")
-    ap.add_argument("--pressure-interval", type=int, default=30,
-                    help="seconds between samples while under pressure")
-    ap.add_argument("--snapshot-pct", type=float, default=88.0,
-                    help="commit %% that triggers a full pressure snapshot")
-    ap.add_argument("--snapshot-min-avail-mb", type=float, default=2048.0,
-                    help="available RAM below which a snapshot is taken regardless of commit")
-    ap.add_argument("--snapshot-gap", type=int, default=600,
-                    help="minimum seconds between pressure snapshots")
+    ap.add_argument(
+        "--proc-alert-mb",
+        type=float,
+        default=4096.0,
+        help="single-process RSS floor before growth is worth alerting on",
+    )
+    ap.add_argument(
+        "--growth-alert-mb", type=float, default=512.0, help="RSS growth since first sighting that emits ALERT"
+    )
+    ap.add_argument(
+        "--track",
+        default="ai-setup,akashic,bifrost,bridge,discord,ollama,vmmem",
+        help="comma-separated substrings marking processes we always record",
+    )
+    ap.add_argument(
+        "--commit-warn-pct", type=float, default=80.0, help="system commit %% of the commit limit that emits WARN"
+    )
+    ap.add_argument(
+        "--commit-alert-pct", type=float, default=90.0, help="system commit %% of the commit limit that emits ALERT"
+    )
+    ap.add_argument(
+        "--pressure-pct", type=float, default=85.0, help="commit %% at which sampling switches to --pressure-interval"
+    )
+    ap.add_argument("--pressure-interval", type=int, default=30, help="seconds between samples while under pressure")
+    ap.add_argument("--snapshot-pct", type=float, default=88.0, help="commit %% that triggers a full pressure snapshot")
+    ap.add_argument(
+        "--snapshot-min-avail-mb",
+        type=float,
+        default=2048.0,
+        help="available RAM below which a snapshot is taken regardless of commit",
+    )
+    ap.add_argument("--snapshot-gap", type=int, default=600, help="minimum seconds between pressure snapshots")
     ap.add_argument("--snapshot-keep", type=int, default=40, help="snapshots to retain")
-    ap.add_argument("--force-snapshot", action="store_true",
-                    help="write one snapshot now regardless of pressure (for drills)")
+    ap.add_argument(
+        "--force-snapshot", action="store_true", help="write one snapshot now regardless of pressure (for drills)"
+    )
     ap.add_argument("--once", action="store_true", help="take one sample and exit")
     args = ap.parse_args()
 
@@ -393,7 +433,7 @@ def main() -> int:
     # whose RSS only ever climbs is the leak.
     highwater: dict[int, float] = {}
     first_seen: dict[int, float] = {}
-    alerted_at: dict[int, float] = {}   # RSS at each pid's last ALERT -- the re-arm floor
+    alerted_at: dict[int, float] = {}  # RSS at each pid's last ALERT -- the re-arm floor
     last_snapshot_at: float | None = None
 
     while True:
@@ -416,9 +456,12 @@ def main() -> int:
 
             top_private = sorted(snap["_all"], key=lambda r: r["private_mb"], reverse=True)
             line = host_commit_alert(
-                commit_mb=host.get("commit_mb", 0), limit_mb=host.get("commit_limit_mb", 0),
-                warn_pct=args.commit_warn_pct, alert_pct=args.commit_alert_pct,
-                top_private=top_private)
+                commit_mb=host.get("commit_mb", 0),
+                limit_mb=host.get("commit_limit_mb", 0),
+                warn_pct=args.commit_warn_pct,
+                alert_pct=args.commit_alert_pct,
+                top_private=top_private,
+            )
             if line:
                 alerts.append(line)
 
@@ -429,18 +472,29 @@ def main() -> int:
                     highwater[pid] = rss
                 first_seen.setdefault(pid, rss)
                 line = process_alert(
-                    name=row["name"], pid=pid, rss=rss, first_seen=first_seen[pid],
-                    last_alert=alerted_at.get(pid), peak=highwater.get(pid, rss),
-                    proc_alert_mb=args.proc_alert_mb, growth_alert_mb=args.growth_alert_mb)
+                    name=row["name"],
+                    pid=pid,
+                    rss=rss,
+                    first_seen=first_seen[pid],
+                    last_alert=alerted_at.get(pid),
+                    peak=highwater.get(pid, rss),
+                    proc_alert_mb=args.proc_alert_mb,
+                    growth_alert_mb=args.growth_alert_mb,
+                )
                 if line:
                     alerted_at[pid] = rss
                     alerts.append(line)
 
             now = time.time()
             if args.force_snapshot or should_snapshot(
-                    now=now, last_snapshot_at=last_snapshot_at, commit_pct=commit_pct,
-                    available_mb=host["available_mb"], pct_threshold=args.snapshot_pct,
-                    min_available_mb=args.snapshot_min_avail_mb, min_gap_s=args.snapshot_gap):
+                now=now,
+                last_snapshot_at=last_snapshot_at,
+                commit_pct=commit_pct,
+                available_mb=host["available_mb"],
+                pct_threshold=args.snapshot_pct,
+                min_available_mb=args.snapshot_min_avail_mb,
+                min_gap_s=args.snapshot_gap,
+            ):
                 snap["snapshot"] = write_snapshot(snap_dir, snap, args.snapshot_keep)
                 last_snapshot_at = now
 

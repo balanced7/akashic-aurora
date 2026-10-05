@@ -11,6 +11,7 @@ anywhere; the ablation gate runs wherever the model is present (here it is, cach
 
 Run: py -m pytest tests/test_embedder.py -q
 """
+
 import os
 import sys
 import tempfile
@@ -20,8 +21,9 @@ import pytest
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.foundation.store import FileStore
+
 pytest.importorskip("numpy")  # optional embedding subsystem -> skip cleanly when numpy is absent
-from core.primitives.embedder import Embedder, get_embedder
+from core.primitives.embedder import Embedder
 from core.primitives.ranker import Ranker, keyword_relevance
 
 
@@ -39,49 +41,64 @@ def _real_embedder():
 # meaning-not-words fixture: the correct doc shares (almost) no vocabulary with the query,
 # so a keyword matcher scores it ~0; embeddings should still rank it first.
 FIXTURE = [
-    ("audio stem separation tool",      "stemroller pulls vocals out of a finished track",
-     ["the redis store persists agent coordination state", "word-boundary regex keeps routing precise"]),
-    ("image recognition on a screenshot", "florence reads the text in a captured picture",
-     ["half-life decay fades unused association edges", "an append-only firehose of raw events"]),
-    ("turning speech into text",         "whisper transcribes a spoken voice recording",
-     ["the chronicler distills beats into chapters", "confidence-gated append-only tag history"]),
-    ("undo a bad automatic label",       "roll back a mis-applied tag to the prior value",
-     ["benchmark the router on the gold fixture", "bounded saturating hebbian reinforcement"]),
+    (
+        "audio stem separation tool",
+        "stemroller pulls vocals out of a finished track",
+        ["the redis store persists agent coordination state", "word-boundary regex keeps routing precise"],
+    ),
+    (
+        "image recognition on a screenshot",
+        "florence reads the text in a captured picture",
+        ["half-life decay fades unused association edges", "an append-only firehose of raw events"],
+    ),
+    (
+        "turning speech into text",
+        "whisper transcribes a spoken voice recording",
+        ["the chronicler distills beats into chapters", "confidence-gated append-only tag history"],
+    ),
+    (
+        "undo a bad automatic label",
+        "roll back a mis-applied tag to the prior value",
+        ["benchmark the router on the gold fixture", "bounded saturating hebbian reinforcement"],
+    ),
 ]
 
 
 def _rank_first_accuracy(relevance_fn) -> float:
     hits = 0
     for query, correct, distractors in FIXTURE:
-        docs = [correct] + distractors
+        docs = [correct, *distractors]
         best = max(docs, key=lambda d: relevance_fn(d, query))
-        hits += (best == correct)
+        hits += best == correct
     return hits / len(FIXTURE)
 
 
 # ---------------------------------------------------------------- always-on (no model needed)
 def test_relevance_signature_and_range():
-    emb = Embedder(model_name="definitely/not-a-real-model", store=_store())   # forces fallback
+    emb = Embedder(model_name="definitely/not-a-real-model", store=_store())  # forces fallback
     assert emb.available is False
     r = emb.relevance("the redis store keeps state", "redis store")
     assert 0.0 <= r <= 1.0
-    assert emb.relevance("anything", "") == 0.0                 # empty query -> 0
+    assert emb.relevance("anything", "") == 0.0  # empty query -> 0
 
 
 def test_fallback_is_keyword_when_model_absent():
     emb = Embedder(model_name="definitely/not-a-real-model", store=_store())
     text, query = "the chronicler distills beats into chapters", "chronicler chapters"
     assert emb.relevance(text, query) == keyword_relevance(text, query)
-    assert emb.embed("anything") is None                        # no vector without a model
+    assert emb.embed("anything") is None  # no vector without a model
 
 
 # ---------------------------------------------------------------- model-dependent (skip if absent)
 def test_cache_roundtrip_and_content_invalidation():
     from core.primitives.embedder import _hash
+
     emb = _real_embedder()
     store = emb.store
+    assert store is not None
     v1 = emb.embed("alpha beta gamma")
-    assert v1 is not None and len(v1) > 0
+    assert v1 is not None
+    assert len(v1) > 0
     # it was written to the Store cache, keyed by content hash (survives a cold process)
     assert store.get(emb._cache_key(_hash("alpha beta gamma"))) is not None
     # a fresh Embedder on the SAME store hits that cache (separate in-mem map) -> identical vector
@@ -115,7 +132,7 @@ def test_ranker_seam_end_to_end():
         {"text": "the redis store persists agent coordination state", "importance": 3},
     ]
     q = "audio stem separation"
-    kw_top = Ranker().rank(items, q)[0].item["text"]
+    Ranker().rank(items, q)[0].item["text"]
     emb_top = Ranker(relevance_fn=emb.relevance).rank(items, q)[0].item["text"]
     assert emb_top.startswith("stemroller"), f"embedding seam should surface the audio item, got: {emb_top}"
 

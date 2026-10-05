@@ -35,6 +35,7 @@ policy set from a guard against silent omission would be the joke writing itself
 Run:  py scripts/checkers/check_kind_policy.py            # gate
       py scripts/checkers/check_kind_policy.py --report   # full matrix + coverage
 """
+
 import ast
 import os
 import sys
@@ -52,10 +53,16 @@ NOT_A_MESSAGE_KIND = "not-a-message-kind"
 # data rather than as a step someone performs from memory. A set absent from this map fails.
 PLANES = {
     # the bus plane -- messages between seats
-    "ANSWER_KINDS": "bus", "ESCALATE_KINDS": "bus", "LONG_KINDS": "bus",
-    "SALIENT_KINDS": "bus", "FLAGGABLE_KINDS": "bus",
-    "PENDING_SKIP_KINDS": "bus", "SKIP_KINDS": "bus", "SKIP_KINDS_LANE": "bus",
-    "WAKE_WORTHY_KINDS": "bus", "CONSOLE_KINDS": "bus",
+    "ANSWER_KINDS": "bus",
+    "ESCALATE_KINDS": "bus",
+    "LONG_KINDS": "bus",
+    "SALIENT_KINDS": "bus",
+    "FLAGGABLE_KINDS": "bus",
+    "PENDING_SKIP_KINDS": "bus",
+    "SKIP_KINDS": "bus",
+    "SKIP_KINDS_LANE": "bus",
+    "WAKE_WORTHY_KINDS": "bus",
+    "CONSOLE_KINDS": "bus",
     # T332 (Daniil's ruling, 2026-08-17): STALE_ASK_KINDS, ASK_KINDS and _ASK_KINDS were three
     # DIFFERENT questions sharing one word, which is why K-A never saw them -- it compares
     # identical identifiers across files, and these were three distinct identifiers telling the
@@ -63,7 +70,8 @@ PLANES = {
     # what this checker structurally could not, and its own blind spot is the mirror image:
     # forks() groups by NAME, so it reported one forked concept where there were three honest
     # ones. Neither instrument is wrong; each is blind where the other looks.
-    "NEVER_DROP_WHEN_STALE": "bus", "AUTO_REDRIVE_KINDS": "bus",
+    "NEVER_DROP_WHEN_STALE": "bus",
+    "AUTO_REDRIVE_KINDS": "bus",
     "_NEEDS_ATTENTION_KINDS": "bus",
     # T175: was SKIP_KINDS in check_bus_atom_pointers, colliding with bifrost_wake's. Renamed for
     # what it excludes (cargo), not for what the code does with it. K-D caught the rename the
@@ -105,15 +113,14 @@ PLANES = {
     # expectation_settled_done_task), so the set lives on the event plane.
     "TERMINAL_KINDS": "event",
     # the narrative plane -- beats on the story spine
-    "BEAT_KINDS": "beat", "BOUNDARY_KINDS": "beat",
-
+    "BEAT_KINDS": "beat",
+    "BOUNDARY_KINDS": "beat",
     # T084 (landed; all three files now TRACKED, retiring the baseline note that called them
     # uncommittable). intent_shadow's send vocabulary IS the bus vocabulary -- chat/note/request/
     # handoff/nudge/hint -- and its absence from this map was the sole cause of the four
     # "cross-plane-collision" fails on chat/handoff/nudge/request. One honest declaration, five
     # violations retired.
     "_SEND_KINDS": "bus",
-
     # ------------------------------------------------------------------ the third answer
     # NOT A MESSAGE KIND AT ALL. This checker discovers sets by NAME (*_KINDS), so it collects
     # identifiers that are unrelated taxonomies which merely end in the same word. For those,
@@ -128,10 +135,10 @@ PLANES = {
     #
     # A set listed here is EXCLUDED from bus coverage, orphan counting and collision detection --
     # deliberately, with its real subject named. This is a declaration, never a suppression.
-    "_TARGET_KINDS": NOT_A_MESSAGE_KIND,   # orient.py:49 -- what you can orient TOWARD
-                                           # (verb / seat / thread), not what you can send
-    "SOURCE_KINDS": NOT_A_MESSAGE_KIND,    # college.py:503 -- evidence provenance
-                                           # (primary / secondary / measurement / analysis)
+    "_TARGET_KINDS": NOT_A_MESSAGE_KIND,  # orient.py:49 -- what you can orient TOWARD
+    # (verb / seat / thread), not what you can send
+    "SOURCE_KINDS": NOT_A_MESSAGE_KIND,  # college.py:503 -- evidence provenance
+    # i.e. primary, secondary, measurement or analysis
 }
 
 # A cross-plane name collision with a WRITTEN rationale is a recorded decision, not drift.
@@ -146,16 +153,20 @@ ALLOWED_COLLISIONS = {
     # than rename around it. Renaming per plane was the alternative and was rejected because
     # it rewrites the meaning of records already at rest -- a migration event, not a store
     # primitive (note durability-over-legibility-2026-08-16).
-    "note": ("three planes, opposite policies, ruled T332: resolve() requires `plane`, so the "
-             "ambiguous question cannot be asked. Verified by this checker (bus+event)."),
+    "note": (
+        "three planes, opposite policies, ruled T332: resolve() requires `plane`, so the "
+        "ambiguous question cannot be asked. Verified by this checker (bus+event)."
+    ),
     # Same ruling, different instrument. THIS CHECKER CANNOT SEE THIS ONE: BEAT_KINDS reads as
     # UNRESOLVED (a computed membership), so K-B never had the beat plane in view. The registry
     # did -- kinds.plane_collisions() reports decision on bus_kind+beat_kind -- which is the
     # complementarity worth keeping: the checker is blind where the registry looks, and the
     # registry groups by name where the checker compares identifiers. Recorded here so that if
     # BEAT_KINDS ever becomes statically resolvable this does not fire as a fresh surprise.
-    "decision": ("bus + beat, ruled T332 with `note`; found by kinds.plane_collisions(), NOT "
-                 "by this checker -- BEAT_KINDS is UNRESOLVED here."),
+    "decision": (
+        "bus + beat, ruled T332 with `note`; found by kinds.plane_collisions(), NOT "
+        "by this checker -- BEAT_KINDS is UNRESOLVED here."
+    ),
 }
 
 ADVISORY = {"redundancy"}
@@ -205,7 +216,8 @@ def _scan(root: str):
     found, unresolved = {}, []
     for path in _python_files(root):
         try:
-            tree = ast.parse(open(path, encoding="utf-8").read())
+            with open(path, encoding="utf-8") as fh:
+                tree = ast.parse(fh.read())
         except (OSError, SyntaxError):
             continue
         rel, seen = os.path.relpath(path, root).replace("\\", "/"), {}
@@ -261,10 +273,8 @@ def unassigned_sets(sets, planes=PLANES):
 
 def _signatures(sets, planes, plane):
     cols = [n for _, n in sets if planes.get(n) == plane]
-    universe = sorted(set().union(*[m for (_, n), m in sets.items()
-                                    if planes.get(n) == plane]) if cols else set())
-    return {k: frozenset(n for (_, n), m in sets.items()
-                         if planes.get(n) == plane and k in m) for k in universe}
+    universe = sorted(set().union(*[m for (_, n), m in sets.items() if planes.get(n) == plane]) if cols else set())
+    return {k: frozenset(n for (_, n), m in sets.items() if planes.get(n) == plane and k in m) for k in universe}
 
 
 def cross_plane_collisions(sets, planes=PLANES, allowed=ALLOWED_COLLISIONS):
@@ -273,8 +283,7 @@ def cross_plane_collisions(sets, planes=PLANES, allowed=ALLOWED_COLLISIONS):
     for (_, name), members in sets.items():
         for k in members:
             homes[k].add(planes.get(name, "UNASSIGNED"))
-    return [(k, sorted(p)) for k, p in sorted(homes.items())
-            if len(p) > 1 and k not in allowed]
+    return [(k, sorted(p)) for k, p in sorted(homes.items()) if len(p) > 1 and k not in allowed]
 
 
 def orphans(sets, planes=PLANES, plane="bus"):
@@ -288,8 +297,7 @@ def redundancy_candidates(sets, planes=PLANES, plane="bus"):
     groups = defaultdict(list)
     for k, s in _signatures(sets, planes, plane).items():
         groups[s].append(k)
-    return [sorted(ks) for s, ks in sorted(groups.items(), key=lambda x: -len(x[1]))
-            if len(ks) > 1 and s]
+    return [sorted(ks) for s, ks in sorted(groups.items(), key=lambda x: -len(x[1])) if len(ks) > 1 and s]
 
 
 def resolve(kind, set_name, sets):
@@ -313,21 +321,27 @@ def main(argv):
     for name, paths, disagreement in conflicts:
         fails.append(f"[same-name-different-membership] {name} in {paths} -- disagree on {disagreement}")
 
-    for name in unassigned_sets(sets):
-        fails.append(f"[unassigned-plane] {name} declares no plane -- add it to PLANES "
-                     f"(bus / event / beat), or NOT_A_MESSAGE_KIND if it is a different "
-                     f"taxonomy that merely ends in _KINDS, so nobody has to REMEMBER to "
-                     f"classify it")
+    fails.extend(
+        f"[unassigned-plane] {name} declares no plane -- add it to PLANES "
+        f"(bus / event / beat), or NOT_A_MESSAGE_KIND if it is a different "
+        f"taxonomy that merely ends in _KINDS, so nobody has to REMEMBER to "
+        f"classify it"
+        for name in unassigned_sets(sets)
+    )
 
     for kind, planes_hit in cross_plane_collisions(sets):
-        fails.append(f"[cross-plane-collision] '{kind}' lives on {planes_hit} -- one word, two "
-                     f"taxonomies. Name the planes or record a rationale in ALLOWED_COLLISIONS")
+        fails.append(
+            f"[cross-plane-collision] '{kind}' lives on {planes_hit} -- one word, two "
+            f"taxonomies. Name the planes or record a rationale in ALLOWED_COLLISIONS"
+        )
 
     orph = orphans(sets)
     total = len(_signatures(sets, PLANES, "bus"))
     classified = total - len(orph)
-    print(f"kind policy coverage (bus plane): {classified}/{total} kinds in 2+ policy sets "
-          f"({(100 * classified / total) if total else 0:.0f}%)")
+    print(
+        f"kind policy coverage (bus plane): {classified}/{total} kinds in 2+ policy sets "
+        f"({(100 * classified / total) if total else 0:.0f}%)"
+    )
     print(f"orphans (<=1 set, born silent): {len(orph)}")
 
     if unresolved:
@@ -340,9 +354,11 @@ def main(argv):
         print("\n-- redundancy CANDIDATES (advisory; this instrument has been wrong) --")
         for g in redundancy_candidates(sets):
             print(f"   {g}")
-        print("\n   Redundancy licenses DEPRECATION, never a silent merge: the substrate is "
-              "append-only and\n   the boundary is open (public repo, MCP door, agents minting "
-              "kinds at runtime).")
+        print(
+            "\n   Redundancy licenses DEPRECATION, never a silent merge: the substrate is "
+            "append-only and\n   the boundary is open (public repo, MCP door, agents minting "
+            "kinds at runtime)."
+        )
 
     # OUTPUT CONTRACT -- not cosmetic. pre_commit._count_violations enters counting mode on a
     # line starting "VIOLATIONS", then counts lines starting "- [", and treats "PASS" as the

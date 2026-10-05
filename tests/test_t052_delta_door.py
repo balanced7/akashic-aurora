@@ -28,6 +28,7 @@ Pins (expected RED today -- the module does not exist):
 
 Run: py -m pytest tests/test_t052_delta_door.py -q  (Redis pins skip when down)
 """
+
 import os
 import sys
 import uuid
@@ -40,6 +41,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 def _mod():
     import importlib
+
     try:
         return importlib.import_module("agent.harness.delta")
     except ImportError:
@@ -47,10 +49,11 @@ def _mod():
 
 
 def _client():
-    from core.foundation.redis_connection import (
-        connect_to_redis_with_fail_fast, DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT)
-    c = connect_to_redis_with_fail_fast(host=DEFAULT_REDIS_HOST, port=DEFAULT_REDIS_PORT,
-                                        timeout_seconds=3, decode_responses=True)
+    from core.foundation.redis_connection import DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT, connect_to_redis_with_fail_fast
+
+    c = connect_to_redis_with_fail_fast(
+        host=DEFAULT_REDIS_HOST, port=DEFAULT_REDIS_PORT, timeout_seconds=3, decode_responses=True
+    )
     if c is None:
         pytest.skip("redis not available")
     return c
@@ -69,9 +72,8 @@ def test_p1_block_never_writes_commit_fn_does(monkeypatch):
     _client()
     d = _mod()
     agent = _agent()
-    text, commit = d.delta_boot_block(agent)
-    assert d.DeltaMark(agent).read() is None, \
-        "P1: building the block must NEVER write the mark (mark-lag, D1 ruling)"
+    _text, commit = d.delta_boot_block(agent)
+    assert d.DeltaMark(agent).read() is None, "P1: building the block must NEVER write the mark (mark-lag, D1 ruling)"
     commit()
     assert d.DeltaMark(agent).read() is not None, "P1: commit_fn writes the mark"
 
@@ -90,8 +92,8 @@ def test_p2_newborn_empty_then_delta_after_movement(monkeypatch):
     pos["ledger_seq"] = "-1"
     mark.write(pos)
     text2, _ = d.delta_boot_block(agent)
-    assert text2 != "" and "ledger" in text2, \
-        "P2: after the mark exists and a source moved, the block renders the delta"
+    assert text2 != "", "P2: after the mark exists and a source moved, the block renders the delta"
+    assert "ledger" in text2, "P2: after the mark exists and a source moved, the block renders the delta"
 
 
 # ------------------------------------------------------------------ P3: budget
@@ -99,18 +101,23 @@ def test_p3_oversize_render_degrades_loud_within_budget(monkeypatch):
     _client()
     d = _mod()
     agent = _agent()
-    monkeypatch.setattr(d, "_git_log_range",
-                        lambda a, b: [f"{i:07x} very long synthetic commit subject line "
-                                      f"padding padding padding {i}" for i in range(400)],
-                        raising=False)
+    monkeypatch.setattr(
+        d,
+        "_git_log_range",
+        lambda a, b: [
+            f"{i:07x} very long synthetic commit subject line padding padding padding {i}" for i in range(400)
+        ],
+        raising=False,
+    )
     mark = d.DeltaMark(agent)
     pos = d.current_positions(agent)
-    pos["git_commit"] = "0" * 7            # force a "moved" git range
+    pos["git_commit"] = "0" * 7  # force a "moved" git range
     mark.write(pos)
     text, _ = d.delta_boot_block(agent, budget=1200)
     assert len(text) <= 1200, "P3: the block must fit its declared budget"
-    assert "delta truncated" in text or "more" in text, \
+    assert "delta truncated" in text or "more" in text, (
         "P3: over-budget must degrade LOUDLY with a pull pointer (packet law)"
+    )
 
 
 # ------------------------------------------------------------------ P4: backwards git
@@ -120,7 +127,7 @@ def test_p4_backwards_git_loud_and_mark_unmoved(monkeypatch):
     agent = _agent()
     mark = d.DeltaMark(agent)
     pos = d.current_positions(agent)
-    pos["git_commit"] = "f" * 40           # not an ancestor of HEAD -> backwards/diverged
+    pos["git_commit"] = "f" * 40  # not an ancestor of HEAD -> backwards/diverged
     mark.write(pos)
     # W62 (2026-07-25): 'f'*40 is not IN the repo, so it exercised the unresolvable-mark
     # path, not divergence -- the two were indistinguishable until delta learned to tell
@@ -128,10 +135,8 @@ def test_p4_backwards_git_loud_and_mark_unmoved(monkeypatch):
     # case has its own pin (test_status_line_honesty_2026_07_25.py::test_p6).
     monkeypatch.setattr(d, "_git_has_commit", lambda sha: True)
     text, _ = d.delta_boot_block(agent)
-    assert "backwards" in text.lower() or "diverged" in text.lower(), \
-        "P4: backwards movement must render LOUD"
-    assert d.DeltaMark(agent).read()["git_commit"] == "f" * 40, \
-        "P4: the mark is never auto-reset on backwards movement"
+    assert "backwards" in text.lower() or "diverged" in text.lower(), "P4: backwards movement must render LOUD"
+    assert d.DeltaMark(agent).read()["git_commit"] == "f" * 40, "P4: the mark is never auto-reset on backwards movement"
 
 
 # ------------------------------------------------------------------ P5: fail-soft
@@ -141,11 +146,11 @@ def test_p5_one_broken_source_does_not_blank_the_block(monkeypatch):
     agent = _agent()
     mark = d.DeltaMark(agent)
     pos = d.current_positions(agent)
-    pos["ledger_seq"] = "-1"               # ledger moved
+    pos["ledger_seq"] = "-1"  # ledger moved
     mark.write(pos)
-    monkeypatch.setattr(d, "_notes_head",
-                        lambda: (_ for _ in ()).throw(RuntimeError("notes store down")),
-                        raising=False)
+    monkeypatch.setattr(
+        d, "_notes_head", lambda: (_ for _ in ()).throw(RuntimeError("notes store down")), raising=False
+    )
     text, _ = d.delta_boot_block(agent)
     assert "ledger" in text, "P5: healthy sources must still render"
     # the broken source either renders an unavailable line or drops out -- never raises
@@ -157,11 +162,10 @@ def test_p6_unmoved_world_renders_empty_block(monkeypatch):
     _client()
     d = _mod()
     agent = _agent()
-    text, commit = d.delta_boot_block(agent)
-    commit()                                # mark == current positions
+    _text, commit = d.delta_boot_block(agent)
+    commit()  # mark == current positions
     text2, _ = d.delta_boot_block(agent)
-    assert text2 == "", \
-        "P6: with a mark and nothing moved, the delta block is EXACTLY empty (zero cost)"
+    assert text2 == "", "P6: with a mark and nothing moved, the delta block is EXACTLY empty (zero cost)"
 
 
 # ------------------------------------------------------------------ P7: ledger delta
@@ -192,11 +196,10 @@ def test_p8_render_cache_within_ttl(monkeypatch):
     first = d.render_full(agent)
     mark = d.DeltaMark(agent)
     pos = mark.read()
-    pos["ledger_seq"] = "-9"               # a source moves AFTER the first render
+    pos["ledger_seq"] = "-9"  # a source moves AFTER the first render
     mark.write(pos)
     second = d.render_full(agent)
-    assert second == first, \
-        "P8: within the TTL the cached render returns -- identical block, movement unseen"
+    assert second == first, "P8: within the TTL the cached render returns -- identical block, movement unseen"
 
 
 if __name__ == "__main__":

@@ -15,12 +15,13 @@ no live ticker, never codify pace), one line <=120 chars, tokens drop first (K6)
 absent stamps render absent (K7 -- pre-T056 tasks look exactly as they always did).
 UNDER-report is the only permitted error direction (C5).
 """
+
 from __future__ import annotations
 
 import os
-from typing import Any, Dict, Optional
+from typing import Any
 
-FIELDS = ("turns", "duration_cs", "tool_calls", "tokens")   # duration in centiseconds (int HINCRBY)
+FIELDS = ("turns", "duration_cs", "tool_calls", "tokens")  # duration in centiseconds (int HINCRBY)
 COST_KEYS = ("cost_turns", "cost_duration_s", "cost_tool_calls", "cost_tokens")
 LINE_BUDGET = 120
 
@@ -36,22 +37,26 @@ def _acc_key(tid: str) -> str:
 def _client():
     try:
         from core.comm.bus import get_bus
+
         return get_bus("task-costs")._client
     except Exception:
         return None
 
 
-def _active_task_for(agent: str, ledger=None) -> Optional[str]:
+def _active_task_for(agent: str, ledger=None) -> str | None:
     """The ONE task owned by `agent` in IN_PROGRESS or VERIFYING, else None. The
     one-in-progress serialize gate (task_ledger.py:195-199) makes this at most one."""
     try:
         if ledger is None:
             from core.coord.task_ledger import TaskLedger
+
             ledger = TaskLedger()
-        hits = [t["id"] for t in ledger.tasks.values()
-                if t.get("owner") == str(agent)
-                and t.get("status") in ("in_progress", "verifying")]
-        return hits[0] if len(hits) == 1 else None   # 0 or (defensively) >1 -> refuse
+        hits = [
+            t["id"]
+            for t in ledger.tasks.values()
+            if t.get("owner") == str(agent) and t.get("status") in ("in_progress", "verifying")
+        ]
+        return hits[0] if len(hits) == 1 else None  # 0 or (defensively) >1 -> refuse
     except Exception:
         return None
 
@@ -71,7 +76,7 @@ def _token_total(tokens: Any) -> int:
     return 0
 
 
-def attribute_turn(agent: str, row: Dict[str, Any], ledger=None) -> Optional[str]:
+def attribute_turn(agent: str, row: dict[str, Any], ledger=None) -> str | None:
     """HOT PATH (called from turn_metrics.record, inside its fail-open try): attribute
     one turn's facts to the agent's active task. Returns the tid or None. Never raises."""
     try:
@@ -83,7 +88,7 @@ def attribute_turn(agent: str, row: Dict[str, Any], ledger=None) -> Optional[str
             return None
         key = _acc_key(tid)
         c.hincrby(key, "turns", 1)
-        c.hincrby(key, "duration_cs", int(round(float(row.get("duration_s", 0) or 0) * 100)))
+        c.hincrby(key, "duration_cs", round(float(row.get("duration_s", 0) or 0) * 100))
         c.hincrby(key, "tool_calls", int(row.get("tool_count", 0) or 0))
         token_total = _token_total(row.get("tokens"))
         if token_total:
@@ -93,7 +98,7 @@ def attribute_turn(agent: str, row: Dict[str, Any], ledger=None) -> Optional[str
         return None
 
 
-def finalize(tid: str, task: Dict[str, Any]) -> Dict[str, Any]:
+def finalize(tid: str, task: dict[str, Any]) -> dict[str, Any]:
     """COLD PATH (called at the DONE transition): accumulator -> durable cost_* keys on
     the task dict; the Redis key is deleted. Missing/empty accumulator -> {} and the
     task is untouched (absent honesty, K3/K7; a verifying bounce that already finalized
@@ -127,16 +132,16 @@ def finalize(tid: str, task: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def _fmt_tokens(n: int) -> str:
-    if n >= 10 ** 9:
+    if n >= 10**9:
         return f"{n / 10**9:.1f}G tok"
-    if n >= 10 ** 6:
+    if n >= 10**6:
         return f"{n / 10**6:.1f}M tok"
     if n >= 1000:
         return f"{round(n / 1000)}k tok"
     return f"{n} tok"
 
 
-def cost_line(task: Dict[str, Any]) -> str:
+def cost_line(task: dict[str, Any]) -> str:
     """RETRO-ONLY render: '' unless the task is DONE and carries cost_turns (K5/K7).
     One line, <=LINE_BUDGET chars; under pressure tokens drop first, then duration --
     the turn count always renders (K6). Never raises."""
@@ -150,10 +155,11 @@ def cost_line(task: Dict[str, Any]) -> str:
         # when present (K6); tool calls lead only when they are all there is.
         if not turns and not tools:
             return ""
-        parts = [f"cost: {int(turns)} turn(s)"] if turns else [f"cost: {int(tools)} tool call(s)"]
+        # `or 0` never fires: with turns falsy, tools is truthy (both-falsy returned above)
+        parts = [f"cost: {int(turns)} turn(s)"] if turns else [f"cost: {int(tools or 0)} tool call(s)"]
         dur = task.get("cost_duration_s")
         if dur:
-            parts.append(f"{int(round(float(dur)))}s")
+            parts.append(f"{round(float(dur))}s")
         if tools and turns:
             parts.append(f"{int(tools)} tools")
         toks = task.get("cost_tokens")
@@ -161,7 +167,7 @@ def cost_line(task: Dict[str, Any]) -> str:
             parts.append(_fmt_tokens(int(toks)))
         line = " · ".join(parts) + "  (fleet-shared window)"
         while len(line) > LINE_BUDGET and len(parts) > 1:
-            parts.pop()                       # tokens first, then tools, then duration
+            parts.pop()  # tokens first, then tools, then duration
             line = " · ".join(parts) + "  (fleet-shared window)"
         return line[:LINE_BUDGET]
     except Exception:

@@ -14,9 +14,9 @@ Laws pinned (RED before bifrost_runner_deepseek.py integration exists):
 
 Run: py -m pytest tests/test_s0_beta_auto_park.py -q
 """
+
 import os
 import sys
-import time
 import uuid
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -30,35 +30,54 @@ def _ns_env(monkeypatch):
 
 def _online():
     from core.comm.bus import Bus
+
     return Bus("t-park").online
 
 
 # --- L1: auto-park on stale ask ------------------------------------------------
 
+
 def test_auto_park_on_d2_stale_partition(monkeypatch):
     """A stale ask is parked to the durable bench when D2 partitions it. The cursor
     advances past it (the bench holds the only copy)."""
     import pytest
+
     _ns_env(monkeypatch)
     if not _online():
         pytest.skip("redis not available")
-    from core.comm import triage_park
     from dataclasses import dataclass
+
+    from core.comm import triage_park
+
     @dataclass
     class M:
-        id: str; frm: str; to: str; kind: str; content: str; ts: str; meta: dict = None
+        id: str
+        frm: str
+        to: str
+        kind: str
+        content: str
+        ts: str
+        meta: dict | None = None
+
         def __post_init__(self):
             if self.meta is None:
                 self.meta = {}
-    stale = M("s0b-1000-0", "t-sender", "deepseek", "question",
-              "an old ask from yesterday",
-              "2026-07-17T00:00:00")
+
+    stale = M("s0b-1000-0", "t-sender", "deepseek", "question", "an old ask from yesterday", "2026-07-17T00:00:00")
     # Simulate what the runner does with a stale ask
-    triage_park.park("deepseek",
-                     {"id": stale.id, "frm": stale.frm, "to": stale.to,
-                      "kind": stale.kind, "content": stale.content, "ts": stale.ts},
-                     reason="stale 72.0h (D2 auto-triage)",
-                     by="deepseek-runner")
+    triage_park.park(
+        "deepseek",
+        {
+            "id": stale.id,
+            "frm": stale.frm,
+            "to": stale.to,
+            "kind": stale.kind,
+            "content": stale.content,
+            "ts": stale.ts,
+        },
+        reason="stale 72.0h (D2 auto-triage)",
+        by="deepseek-runner",
+    )
     bench = triage_park.list_parked("deepseek")
     assert len(bench) == 1
     assert bench[0]["msg"]["content"] == "an old ask from yesterday"
@@ -69,10 +88,12 @@ def test_stale_non_ask_not_parked(monkeypatch):
     """Stale informs/traces are never parked — only ask kinds (question/handoff/request)
     land on the bench. Non-asks are skipped silently (D2 P3)."""
     import pytest
+
     _ns_env(monkeypatch)
     if not _online():
         pytest.skip("redis not available")
-    from core.comm import triage_park, packet_spec
+    from core.comm import packet_spec, triage_park
+
     bench_before = triage_park.count("deepseek")
     # Inform is NOT an ask kind — should never be parked
     # T332: is_ask_kind -> never_drop_when_stale, named for what it decides (surfaced vs
@@ -86,8 +107,7 @@ def test_stale_non_ask_not_parked(monkeypatch):
     # The runner only parks stale_asks, never stale_skips — the non-ask kinds are
     # skipped by partition_stale, and nothing in the runner calls park() on them.
     # This pin verifies the contract: the bench count doesn't grow from non-asks.
-    assert triage_park.count("deepseek") == bench_before, \
-        "non-ask kinds never land on the bench"
+    assert triage_park.count("deepseek") == bench_before, "non-ask kinds never land on the bench"
 
 
 def test_park_fails_open(monkeypatch):
@@ -95,18 +115,28 @@ def test_park_fails_open(monkeypatch):
     The stale notice still fires and the cursor still advances — a miscount is better
     than a stuck runner."""
     import pytest
+
     _ns_env(monkeypatch)
     if not _online():
         pytest.skip("redis not available")
     from core.comm import triage_park
+
     # Simulate the try/except pattern the runner uses
     parked = False
     try:
-        triage_park.park("deepseek",
-                         {"id": "s0b-3000-0", "frm": "t-sender", "to": "deepseek",
-                          "kind": "question", "content": "will fail-open",
-                          "ts": "2026-07-17T00:00:00"},
-                         reason="stale", by="deepseek-runner")
+        triage_park.park(
+            "deepseek",
+            {
+                "id": "s0b-3000-0",
+                "frm": "t-sender",
+                "to": "deepseek",
+                "kind": "question",
+                "content": "will fail-open",
+                "ts": "2026-07-17T00:00:00",
+            },
+            reason="stale",
+            by="deepseek-runner",
+        )
         parked = True
     except Exception:
         parked = False
@@ -119,18 +149,25 @@ def test_sender_notified_on_auto_park(monkeypatch):
     """RB-29: when auto-park bottoms a stale ask, the sender receives a notification.
     park() already does this — we verify the notification lands in the sender's inbox."""
     import pytest
+
     ns = _ns_env(monkeypatch)
     if not _online():
         pytest.skip("redis not available")
     from core.comm import triage_park
     from core.comm.bus import Bus
-    msg = {"id": "s0b-4000-0", "frm": "t-sender", "to": "deepseek",
-           "kind": "question", "content": "park me",
-           "ts": "2026-07-17T00:00:00"}
-    triage_park.park("deepseek", msg, reason="stale 72h (D2 auto-triage)",
-                     by="deepseek-runner")
+
+    msg = {
+        "id": "s0b-4000-0",
+        "frm": "t-sender",
+        "to": "deepseek",
+        "kind": "question",
+        "content": "park me",
+        "ts": "2026-07-17T00:00:00",
+    }
+    triage_park.park("deepseek", msg, reason="stale 72h (D2 auto-triage)", by="deepseek-runner")
     # The sender's inbox should contain the triage notification
-    inbox = Bus("t-sender")._client.xrevrange(f"{ns}:inbox:t-sender", count=5)
+    sender_client = Bus("t-sender")._client
+    assert sender_client is not None
+    inbox = sender_client.xrevrange(f"{ns}:inbox:t-sender", count=5)
     joined = " ".join(str(f) for _sid, f in inbox)
-    assert "parked" in joined.lower(), \
-        "RB-29: sender notified that their ask was parked (never silent)"
+    assert "parked" in joined.lower(), "RB-29: sender notified that their ask was parked (never silent)"

@@ -3,6 +3,7 @@
 Caller-side added latency per record() call. Baseline (note wire-perf-baseline) at 20 threads:
   A monolith (shipped) 7458us mean / 18492 p99 / 30854 max
 """
+
 import os
 import statistics
 import sys
@@ -10,8 +11,8 @@ import tempfile
 import threading
 import time
 
-sys.path.insert(0, r"E:\AI-Setup")
-from scripts.wire_journal import WireJournal   # noqa: E402
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+from scripts.wire_journal import WireJournal
 
 N_THREADS, PER = 20, 200
 
@@ -19,8 +20,7 @@ N_THREADS, PER = 20, 200
 def bench(writer, agents):
     d = tempfile.mkdtemp(prefix=f"wire_{writer}_{agents}_")
     lat, lock = [], threading.Lock()
-    js = [WireJournal(journal_dir=d, agent=f"player{i:02d}", writer=writer)
-          for i in range(N_THREADS)]
+    js = [WireJournal(journal_dir=d, agent=f"player{i:02d}", writer=writer) for i in range(N_THREADS)]
 
     def work(i):
         j = js[i] if agents > 1 else js[0]
@@ -53,13 +53,12 @@ def bench(writer, agents):
     }
 
 
-print(f"{N_THREADS} threads x {PER} records = {N_THREADS*PER} calls, caller-side us\n")
+print(f"{N_THREADS} threads x {PER} records = {N_THREADS * PER} calls, caller-side us\n")
 print(f"{'strategy':<28} {'mean':>10} {'p99':>10} {'max':>10} {'wall s':>8} {'dropped':>8}")
 for label, writer, agents in (
-        ("A sync, 1 shard (shipped)", "sync", 1),
-        ("B sync, sharded", "sync", 20),
-        ("D async + sharded (new)", "async", 20),
+    ("A sync, 1 shard (shipped)", "sync", 1),
+    ("B sync, sharded", "sync", 20),
+    ("D async + sharded (new)", "async", 20),
 ):
     r = bench(writer, agents)
-    print(f"{label:<28} {r['mean']:>10.1f} {r['p99']:>10.1f} {r['max']:>10.1f} "
-          f"{r['wall_s']:>8.2f} {r['dropped']:>8}")
+    print(f"{label:<28} {r['mean']:>10.1f} {r['p99']:>10.1f} {r['max']:>10.1f} {r['wall_s']:>8.2f} {r['dropped']:>8}")

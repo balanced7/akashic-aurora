@@ -16,27 +16,34 @@ NOTE: pay-as-you-go against the seat's $105 grant; every call is METERED into th
 spend ledger (state/kimi_spend.json) alongside the runner's spend. Thinking is always on and
 bills as output -- the default max-tokens leaves headroom (a skimpy cap returns EMPTY content).
 """
+
 import argparse
 import sys
+from typing import TYPE_CHECKING, cast
+
+if TYPE_CHECKING:
+    import io
+
 from pathlib import Path
 
-HERE = Path(__file__).resolve().parent
-sys.path.insert(0, str(HERE))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from kimi_chat import DEFAULT_MODEL, SpendMeter, load_key, make_client
+
+HERE = Path(__file__).resolve().parent
 
 
 def main():
     if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # Windows console cp1252 guard
+        # Windows console cp1252 guard
+        cast("io.TextIOWrapper", sys.stdout).reconfigure(encoding="utf-8", errors="replace")
     ap = argparse.ArgumentParser(description="Ask Kimi from the CLI.")
     ap.add_argument("prompt", nargs="*")
     ap.add_argument("--file")
     ap.add_argument("--model", default=DEFAULT_MODEL)
     ap.add_argument("--system", default="")
     ap.add_argument("--max-tokens", type=int, default=4000)
-    ap.add_argument("--show-thinking", action="store_true",
-                    help="print reasoning_content to stderr before the answer")
+    ap.add_argument("--show-thinking", action="store_true", help="print reasoning_content to stderr before the answer")
     args = ap.parse_args()
 
     if not load_key():
@@ -59,11 +66,13 @@ def main():
     meter = SpendMeter()
     try:
         resp = make_client().chat.completions.create(
-            model=args.model, messages=messages, max_completion_tokens=args.max_tokens)
+            model=args.model, messages=messages, max_completion_tokens=args.max_tokens
+        )
         cost = meter.record(getattr(resp, "usage", None), args.model)
         msg = resp.choices[0].message
-        if args.show_thinking and getattr(msg, "reasoning_content", None):
-            print(f"[thinking]\n{msg.reasoning_content}\n[/thinking]", file=sys.stderr)
+        thinking = getattr(msg, "reasoning_content", None)  # provider extension, not in the SDK type
+        if args.show_thinking and thinking:
+            print(f"[thinking]\n{thinking}\n[/thinking]", file=sys.stderr)
         print(msg.content or "(no content -- raise --max-tokens; thinking may have consumed the cap)")
         print(f"[ask_kimi] ${cost:.4f} this call | {meter.status_line()}", file=sys.stderr)
         return 0

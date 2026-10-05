@@ -34,8 +34,10 @@ Integration with the Bifrost UI (scripts/bifrost_ui.py):
   POST /launcher/kill            {"agent_id": "deepseek"}  -> terminate
   POST /launcher/launch-primed   {"agent_id": "deepseek", "prompt": "..."} -> spawn + inject prompt
 """
+
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import random
@@ -46,14 +48,14 @@ import threading
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import IO, Any, cast
 
 # Restart-storm guard (L3c): exponential backoff, a hard cap, and a reset window so a runner that
 # ran healthily for a while starts fresh. A deterministic boot-crash must not crash-loop forever.
-RESTART_BACKOFF_BASE = float(os.getenv("LAUNCHER_RESTART_BACKOFF", "3"))   # seconds, first retry
+RESTART_BACKOFF_BASE = float(os.getenv("LAUNCHER_RESTART_BACKOFF", "3"))  # seconds, first retry
 RESTART_BACKOFF_MAX = float(os.getenv("LAUNCHER_RESTART_BACKOFF_MAX", "60"))
-RESTART_MAX_ATTEMPTS = int(os.getenv("LAUNCHER_RESTART_MAX", "5"))          # then escalate + stop
-RESTART_RESET_S = float(os.getenv("LAUNCHER_RESTART_RESET", "300"))         # healthy-for-this-long -> reset the counter
+RESTART_MAX_ATTEMPTS = int(os.getenv("LAUNCHER_RESTART_MAX", "5"))  # then escalate + stop
+RESTART_RESET_S = float(os.getenv("LAUNCHER_RESTART_RESET", "300"))  # healthy-for-this-long -> reset the counter
 
 # Auto-revive arming is PERSISTED in Redis (not just in-process) so it survives a UI/supervisor
 # restart, is shared across processes (CLI can arm/disarm), and stays consistent everywhere.
@@ -70,52 +72,58 @@ def _bus_redis():
     """Shared bus Redis client (same connector as the rest of core/comm). None -> fail open."""
     try:
         from core.comm.bus import get_bus
+
         return get_bus("launcher")._client
     except Exception:
         return None
+
 
 HERE = Path(__file__).resolve().parent.parent.parent  # core/comm -> repo root
 SCRIPTS = HERE / "scripts"
 SECURITY_DIR = HERE / "security"
 REGISTRY_PATH = SECURITY_DIR / "launcher.json"
-SESSION_FILE = HERE / "state" / "bifrost-session.json"   # durable across Redis + OS restarts
+SESSION_FILE = HERE / "state" / "bifrost-session.json"  # durable across Redis + OS restarts
 
 # ------------------------------------------------------------------ data types
+
 
 @dataclass
 class AgentSpec:
     """A declared launchable agent. The registry holds these; the Launcher spawns from them."""
+
     agent_id: str
-    runtime: str           # "python_runner" | "powershell" | "claude_headless" | "shell"
+    runtime: str  # "python_runner" | "powershell" | "claude_headless" | "shell"
     description: str
-    command: List[str]     # executable + base args (e.g. ["py", "scripts/bifrost_runner_deepseek.py", "--agentic"])
-    env: Dict[str, str] = field(default_factory=dict)
-    cwd: str = ""          # relative to repo root, or absolute; "" = repo root
+    command: list[str]  # executable + base args (e.g. ["py", "scripts/bifrost_runner_deepseek.py", "--agentic"])
+    env: dict[str, str] = field(default_factory=dict)
+    cwd: str = ""  # relative to repo root, or absolute; "" = repo root
     auto_restart: bool = False
-    enabled: bool = True   # False = greyed out in the UI
+    enabled: bool = True  # False = greyed out in the UI
 
 
 @dataclass
 class AgentProcess:
     """A tracked running (or recently exited) agent process."""
+
     agent_id: str
     pid: int = 0
-    handle: Optional[subprocess.Popen] = None
-    drainers: Optional[list] = None  # pipe-drainer threads (T019); joined at exit for final flush
-    status: str = "never_launched"   # running | exited | crashed | killed | never_launched
+    handle: subprocess.Popen | None = None
+    drainers: list | None = None  # pipe-drainer threads (T019); joined at exit for final flush
+    status: str = "never_launched"  # running | exited | crashed | killed | never_launched
     started_at: str = ""
-    exit_code: Optional[int] = None
-    exit_reason: str = ""            # clean | token_exhausted | error | killed | auth_error
+    exit_code: int | None = None
+    exit_reason: str = ""  # clean | token_exhausted | error | killed | auth_error
     exit_seen_at: str = ""
-    stdout_tail: str = ""            # last ~500 chars of stdout for diagnostics
-    stderr_tail: str = ""            # last ~500 chars of stderr
-    drainer_dead: bool = False       # RB-3 (T029): a drainer died while the child still ran (live tail frozen)
+    stdout_tail: str = ""  # last ~500 chars of stdout for diagnostics
+    stderr_tail: str = ""  # last ~500 chars of stderr
+    drainer_dead: bool = False  # RB-3 (T029): a drainer died while the child still ran (live tail frozen)
     drain_flush_timeout: bool = False  # RB-3: exit flush outlived its join window (tail may be partial)
 
 
 # ------------------------------------------------------------------ registry
 
-def _default_registry() -> Dict[str, AgentSpec]:
+
+def _default_registry() -> dict[str, AgentSpec]:
     """The built-in launchable agents. Override/augment via security/launcher.json."""
     repo = str(HERE)
     py = sys.executable or "py"
@@ -152,7 +160,15 @@ def _default_registry() -> Dict[str, AgentSpec]:
             agent_id="deepseek",
             runtime="python_runner",
             description="DeepSeek API peer (admin) — agentic + write + shell (build while claude is down)",
-            command=[py, str(SCRIPTS / "bifrost_runner_deepseek.py"), "--agentic", "--allow-write", "--allow-exec", "--root", repo],
+            command=[
+                py,
+                str(SCRIPTS / "bifrost_runner_deepseek.py"),
+                "--agentic",
+                "--allow-write",
+                "--allow-exec",
+                "--root",
+                repo,
+            ],
             env={"PYTHONUNBUFFERED": "1"},
             cwd=repo,
             enabled=True,
@@ -169,7 +185,7 @@ def _default_registry() -> Dict[str, AgentSpec]:
     }
 
 
-def _load_registry() -> Dict[str, AgentSpec]:
+def _load_registry() -> dict[str, AgentSpec]:
     """Merge the built-in defaults with any overrides in security/launcher.json."""
     specs = _default_registry()
     try:
@@ -196,6 +212,7 @@ def _load_registry() -> Dict[str, AgentSpec]:
 
 # ------------------------------------------------------------------ exit reason detection
 
+
 def _drain_pipe(pipe, proc, attr):
     """Continuously read a child's pipe so the OS buffer can never fill and FREEZE the child
     mid-print (T019: an undrained stdout PIPE wedged the deepseek runner mid-reply on
@@ -208,10 +225,8 @@ def _drain_pipe(pipe, proc, attr):
     except Exception:
         pass
     finally:
-        try:
+        with contextlib.suppress(Exception):
             pipe.close()
-        except Exception:
-            pass
 
 
 # RB-3 (T029): how long the exit flush waits per drainer before recording a timed-out flush.
@@ -223,8 +238,9 @@ def _start_drainers(handle, proc) -> list:
     drainers = []
     for pipe, attr in ((handle.stdout, "stdout_tail"), (handle.stderr, "stderr_tail")):
         if pipe is not None:
-            t = threading.Thread(target=_drain_pipe, args=(pipe, proc, attr),
-                                 daemon=True, name=f"drain-{proc.agent_id}-{attr[:6]}")
+            t = threading.Thread(
+                target=_drain_pipe, args=(pipe, proc, attr), daemon=True, name=f"drain-{proc.agent_id}-{attr[:6]}"
+            )
             t.start()
             drainers.append(t)
     return drainers
@@ -234,17 +250,36 @@ def _start_drainers(handle, proc) -> list:
 _TOKEN_EXHAUSTED_PATTERNS = [
     # Multi-word phrases (safe substring match) + single words only when strongly indicative.
     # Bare "token", "limit", "429", "balance" removed — too eager; the phrases below cover real cases.
-    "credit", "quota", "billing", "rate limit",
-    "exceeded your", "run out of", "insufficient",
-    "you've reached", "too many requests",
-    "context length", "context window", "maximum context",
-    "token budget", "token limit", "max tokens",
-    "out of credit", "out of token",
+    "credit",
+    "quota",
+    "billing",
+    "rate limit",
+    "exceeded your",
+    "run out of",
+    "insufficient",
+    "you've reached",
+    "too many requests",
+    "context length",
+    "context window",
+    "maximum context",
+    "token budget",
+    "token limit",
+    "max tokens",
+    "out of credit",
+    "out of token",
 ]
 _AUTH_ERROR_PATTERNS = [
-    "api_key", "api key", "unauthorized", "authentication",
-    "invalid key", "not authorized", "401", "403",
-    "login required", "sign in", "LOGIN_REQUIRED",
+    "api_key",
+    "api key",
+    "unauthorized",
+    "authentication",
+    "invalid key",
+    "not authorized",
+    "401",
+    "403",
+    "login required",
+    "sign in",
+    "LOGIN_REQUIRED",
 ]
 
 
@@ -266,21 +301,22 @@ def _classify_exit(exit_code: int, stdout_tail: str, stderr_tail: str, killed_by
 
 # ------------------------------------------------------------------ Launcher
 
+
 class Launcher:
     """Singleton: spawns and monitors agent processes."""
 
     def __init__(self):
-        self._specs: Dict[str, AgentSpec] = {}
-        self._procs: Dict[str, AgentProcess] = {}
+        self._specs: dict[str, AgentSpec] = {}
+        self._procs: dict[str, AgentProcess] = {}
         self._lock = threading.Lock()
         self._monitor_stop = threading.Event()
-        self._monitor_thread: Optional[threading.Thread] = None
-        self._restart_attempts: Dict[str, int] = {}    # agent_id -> consecutive restart count (L3c backoff)
-        self._restart_last: Dict[str, float] = {}       # agent_id -> ts of last restart (for the reset window)
-        self._auto_revive: set = set()                  # agent_ids armed for auto-revive-on-wedge (L3b, opt-in, default off)
-        self._auto_attempts: Dict[str, int] = {}        # L3b-auto: auto-revive storm counter (separate from manual)
-        self._auto_last: Dict[str, float] = {}          # L3b-auto: ts of last auto-revive
-        self._reviving: set = set()                     # L3b-auto: agents with an auto-revive in flight (double-trigger guard)
+        self._monitor_thread: threading.Thread | None = None
+        self._restart_attempts: dict[str, int] = {}  # agent_id -> consecutive restart count (L3c backoff)
+        self._restart_last: dict[str, float] = {}  # agent_id -> ts of last restart (for the reset window)
+        self._auto_revive: set = set()  # agent_ids armed for auto-revive-on-wedge (L3b, opt-in, default off)
+        self._auto_attempts: dict[str, int] = {}  # L3b-auto: auto-revive storm counter (separate from manual)
+        self._auto_last: dict[str, float] = {}  # L3b-auto: ts of last auto-revive
+        self._reviving: set = set()  # L3b-auto: agents with an auto-revive in flight (double-trigger guard)
         self._reload()
 
     def _reload(self):
@@ -289,38 +325,43 @@ class Launcher:
 
     # -- public API ----------------------------------------------------------
 
-    def registry(self) -> List[Dict[str, Any]]:
+    def registry(self) -> list[dict[str, Any]]:
         """All launchable agents + their current run status. For the UI."""
-        from core.comm import liveness   # L3a: observe-only wedge view (fail-open; None when no record)
+        from core.comm import liveness  # L3a: observe-only wedge view (fail-open; None when no record)
+
         self._reload()
-        armed = self._armed_set()          # L3b-auto: persisted arm state (shared UI/CLI/supervisor)
+        armed = self._armed_set()  # L3b-auto: persisted arm state (shared UI/CLI/supervisor)
         out = []
         with self._lock:
             for tag, spec in sorted(self._specs.items()):
                 proc = self._procs.get(spec.agent_id)
-                out.append({
-                    "tag": tag,
-                    "agent_id": spec.agent_id,
-                    "runtime": spec.runtime,
-                    "description": spec.description,
-                    "enabled": spec.enabled,
-                    "auto_restart": spec.auto_restart,
-                    "status": proc.status if proc else "never_launched",
-                    "pid": proc.pid if proc and proc.status == "running" else 0,
-                    "started_at": proc.started_at if proc else "",
-                    "exit_code": proc.exit_code if proc else None,
-                    "exit_reason": proc.exit_reason if proc else "",
-                    "exit_seen_at": proc.exit_seen_at if proc else "",
-                    "stdout_tail": (proc.stdout_tail or "")[-200:] if proc else "",
-                    "stderr_tail": (proc.stderr_tail or "")[-200:] if proc else "",
-                    "drainer_dead": proc.drainer_dead if proc else False,          # RB-3
-                    "drain_flush_timeout": proc.drain_flush_timeout if proc else False,  # RB-3
-                    "liveness": liveness.wedge_view(spec.agent_id),   # L3a: observe-only phase + stuck-time + wedged flag
-                    "auto_revive": spec.agent_id in armed,  # L3b-auto: armed for auto-revive-on-wedge (persisted)
-                })
+                out.append(
+                    {
+                        "tag": tag,
+                        "agent_id": spec.agent_id,
+                        "runtime": spec.runtime,
+                        "description": spec.description,
+                        "enabled": spec.enabled,
+                        "auto_restart": spec.auto_restart,
+                        "status": proc.status if proc else "never_launched",
+                        "pid": proc.pid if proc and proc.status == "running" else 0,
+                        "started_at": proc.started_at if proc else "",
+                        "exit_code": proc.exit_code if proc else None,
+                        "exit_reason": proc.exit_reason if proc else "",
+                        "exit_seen_at": proc.exit_seen_at if proc else "",
+                        "stdout_tail": (proc.stdout_tail or "")[-200:] if proc else "",
+                        "stderr_tail": (proc.stderr_tail or "")[-200:] if proc else "",
+                        "drainer_dead": proc.drainer_dead if proc else False,  # RB-3
+                        "drain_flush_timeout": proc.drain_flush_timeout if proc else False,  # RB-3
+                        "liveness": liveness.wedge_view(
+                            spec.agent_id
+                        ),  # L3a: observe-only phase + stuck-time + wedged flag
+                        "auto_revive": spec.agent_id in armed,  # L3b-auto: armed for auto-revive-on-wedge (persisted)
+                    }
+                )
         return out
 
-    def launch(self, tag: str, *, prompt: str = "", extra_args: List[str] | None = None) -> Dict[str, Any]:
+    def launch(self, tag: str, *, prompt: str = "", extra_args: list[str] | None = None) -> dict[str, Any]:
         """Spawn the agent identified by `tag`. Returns {ok, agent_id, pid, error?}.
 
         If the agent is already running, returns ok=False with a reason.
@@ -341,7 +382,8 @@ class Launcher:
                 existing.status = "exited"
                 existing.exit_code = existing.handle.returncode if existing.handle else -1
                 existing.exit_reason = _classify_exit(
-                    existing.exit_code or -1, existing.stdout_tail, existing.stderr_tail, False)
+                    existing.exit_code or -1, existing.stdout_tail, existing.stderr_tail, False
+                )
 
         # Singleton gate (D3): refuse to spawn a duplicate when a live runner already holds the lock.
         # The child runner acquires + heartbeats + releases its OWN lock, so the launcher must only
@@ -350,12 +392,17 @@ class Launcher:
         # holder's key clears via runner_lock.LOCK_TTL, after which a relaunch succeeds.
         if spec.runtime == "python_runner":
             from core.comm import runner_lock
+
             h = runner_lock.holder(spec.agent_id)
             if h:
-                return {"ok": False, "agent_id": spec.agent_id, "pid": h.get("pid"),
-                        "error": f"'{spec.agent_id}' already has a live runner (pid {h.get('pid')}); "
-                                 f"refusing to spawn a duplicate. If it crashed, retry in "
-                                 f"~{runner_lock.LOCK_TTL}s once its lock expires (or kill it first)."}
+                return {
+                    "ok": False,
+                    "agent_id": spec.agent_id,
+                    "pid": h.get("pid"),
+                    "error": f"'{spec.agent_id}' already has a live runner (pid {h.get('pid')}); "
+                    f"refusing to spawn a duplicate. If it crashed, retry in "
+                    f"~{runner_lock.LOCK_TTL}s once its lock expires (or kill it first).",
+                }
 
         cwd = spec.cwd or str(HERE)
         cmd = list(spec.command)
@@ -367,7 +414,7 @@ class Launcher:
         # Claude headless: prompt goes as a positional argument, not stdin
         if spec.runtime == "claude_headless" and prompt:
             cmd.append(prompt)
-            prompt = ""   # don't pipe to stdin below
+            prompt = ""  # don't pipe to stdin below
 
         try:
             handle = subprocess.Popen(
@@ -387,10 +434,16 @@ class Launcher:
                 # otherwise hand every spawned runner its own cmd box.
                 # AKASHIC_SHOW_CONSOLES=1 to watch a runner that dies before it can log.
                 creationflags=(
-                    (subprocess.CREATE_NEW_PROCESS_GROUP
-                     | (0 if os.environ.get("AKASHIC_SHOW_CONSOLES")
-                        else getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)))
-                    if sys.platform == "win32" else 0
+                    (
+                        subprocess.CREATE_NEW_PROCESS_GROUP
+                        | (
+                            0
+                            if os.environ.get("AKASHIC_SHOW_CONSOLES")
+                            else getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
+                        )
+                    )
+                    if sys.platform == "win32"
+                    else 0
                 ),
             )
         except Exception as e:
@@ -398,8 +451,9 @@ class Launcher:
 
         if prompt:
             try:
-                handle.stdin.write(prompt)
-                handle.stdin.close()
+                stdin = cast("IO[str]", handle.stdin)  # stdin=PIPE whenever prompt is set
+                stdin.write(prompt)
+                stdin.close()
             except Exception:
                 pass
 
@@ -410,16 +464,16 @@ class Launcher:
             status="running",
             started_at=time.strftime("%Y-%m-%dT%H:%M:%S"),
         )
-        proc.drainers = _start_drainers(handle, proc)   # T019: never let a pipe wedge the child
+        proc.drainers = _start_drainers(handle, proc)  # T019: never let a pipe wedge the child
 
         with self._lock:
             self._procs[spec.agent_id] = proc
 
         self._ensure_monitor()
-        self._save_session_to_disk()     # persist: tomorrow's 1-click restore
+        self._save_session_to_disk()  # persist: tomorrow's 1-click restore
         return {"ok": True, "agent_id": spec.agent_id, "pid": handle.pid, "tag": tag}
 
-    def kill(self, tag: str) -> Dict[str, Any]:
+    def kill(self, tag: str) -> dict[str, Any]:
         """Terminate the running agent. Graceful first (SIGTERM/CTRL_BREAK), then force (SIGKILL/Terminate)."""
         spec = self._specs.get(tag)
         if spec is None:
@@ -463,13 +517,14 @@ class Launcher:
             # fight them for the pipes; a short join gives the final flush instead.
             self._flush_drainers(proc)
 
-        self._save_session_to_disk()     # persist the change
+        self._save_session_to_disk()  # persist the change
         return {"ok": True, "agent_id": spec.agent_id, "tag": tag}
 
     def _bus_note(self, text: str) -> None:
         """Post a supervisor note to the bus (escalation to the human). Best-effort."""
         try:
             from core.comm.bus import get_bus
+
             get_bus("launcher").broadcast("note", text, meta={"via": "launcher-supervisor"})
         except Exception:
             pass
@@ -479,13 +534,14 @@ class Launcher:
         a holder is present, so a killed runner whose `finally` didn't release would block its own
         relaunch until the TTL. Wait briefly for a graceful release, then force-free ONLY the dead pid."""
         from core.comm import runner_lock
+
         deadline = time.time() + 4
         while runner_lock.holder(aid) and time.time() < deadline:
             time.sleep(0.25)
         if dead_pid is not None:
             runner_lock.clear_if_pid(aid, dead_pid)
 
-    def revive(self, tag: str, reason: str = "manual") -> Dict[str, Any]:
+    def revive(self, tag: str, reason: str = "manual") -> dict[str, Any]:
         """Recover a wedged or dead runner: kill it (if up), free its singleton lock, relaunch.
         This is the primitive behind the UI 'Revive' button and (when armed) the auto-revive monitor."""
         spec = self._specs.get(tag)
@@ -496,7 +552,7 @@ class Launcher:
             proc = self._procs.get(aid)
             dead_pid = proc.pid if (proc and proc.status == "running") else None
         if dead_pid is not None:
-            self.kill(tag)                       # graceful -> force; the runner's finally usually frees the lock
+            self.kill(tag)  # graceful -> force; the runner's finally usually frees the lock
         self._free_lock_for_relaunch(aid, dead_pid)
         # a human/explicit revive is a fresh start -> clear the crash-backoff counter
         self._restart_attempts.pop(aid, None)
@@ -522,12 +578,10 @@ class Launcher:
             (self._auto_revive.add if on else self._auto_revive.discard)(aid)
         r = _bus_redis()
         if r is not None:
-            try:
+            with contextlib.suppress(Exception):
                 (r.sadd if on else r.srem)(AUTO_REVIVE_KEY, aid)
-            except Exception:
-                pass
 
-    def arm_revive(self, tag: str, on: bool = True) -> Dict[str, Any]:
+    def arm_revive(self, tag: str, on: bool = True) -> dict[str, Any]:
         """Opt in/out of automatic revive-on-wedge for this agent (default OFF -> observe-only).
         PERSISTED in Redis, so it survives a UI/supervisor restart and can be toggled from the UI OR
         the CLI. CONTRACT: this governs recovery from a WEDGE (agent alive but stuck past the
@@ -540,7 +594,7 @@ class Launcher:
         self._set_armed(spec.agent_id, on)
         return {"ok": True, "tag": tag, "agent_id": spec.agent_id, "auto_revive": on}
 
-    def status(self, tag: str) -> Dict[str, Any]:
+    def status(self, tag: str) -> dict[str, Any]:
         """Quick status for one agent tag."""
         for row in self.registry():
             if row["tag"] == tag:
@@ -555,18 +609,22 @@ class Launcher:
         try:
             with self._lock:
                 running_tags = [
-                    tag for tag, spec in self._specs.items()
+                    tag
+                    for tag, spec in self._specs.items()
                     if self._procs.get(spec.agent_id) and self._procs[spec.agent_id].status == "running"
                 ]
             os.makedirs(SESSION_FILE.parent, exist_ok=True)
-            payload = {"tags": sorted(running_tags), "saved_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
-                       "saved_by": "launcher"}
+            payload = {
+                "tags": sorted(running_tags),
+                "saved_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
+                "saved_by": "launcher",
+            }
             SESSION_FILE.write_text(json.dumps(payload, indent=2), encoding="utf-8")
             return True
         except Exception:
             return False
 
-    def session_snapshot(self) -> Dict[str, Any]:
+    def session_snapshot(self) -> dict[str, Any]:
         """What a restore would do — for the UI 'Restore' button to preview."""
         try:
             if not SESSION_FILE.exists():
@@ -577,19 +635,28 @@ class Launcher:
             enriched = []
             for tag in tags:
                 spec = self._specs.get(tag)
-                enriched.append({
-                    "tag": tag,
-                    "description": spec.description if spec else "?",
-                    "already_running": (self._procs.get(spec.agent_id) and
-                                        self._procs[spec.agent_id].status == "running") if spec else False,
-                })
-            return {"ok": True, "tags": enriched, "saved_at": data.get("saved_at", ""),
-                    "count": len(tags),
-                    "already_running": sum(1 for e in enriched if e["already_running"])}
+                enriched.append(
+                    {
+                        "tag": tag,
+                        "description": spec.description if spec else "?",
+                        "already_running": (
+                            self._procs.get(spec.agent_id) and self._procs[spec.agent_id].status == "running"
+                        )
+                        if spec
+                        else False,
+                    }
+                )
+            return {
+                "ok": True,
+                "tags": enriched,
+                "saved_at": data.get("saved_at", ""),
+                "count": len(tags),
+                "already_running": sum(1 for e in enriched if e["already_running"]),
+            }
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
-    def restore_session(self) -> Dict[str, Any]:
+    def restore_session(self) -> dict[str, Any]:
         """Re-launch every agent tag saved from the last session. Skips agents already running.
         Returns {ok, results: [{tag, launched, error?}], total, launched_count}."""
         snapshot = self.session_snapshot()
@@ -598,8 +665,7 @@ class Launcher:
 
         tags = [t["tag"] for t in snapshot.get("tags", [])]
         if not tags:
-            return {"ok": True, "results": [], "total": 0, "launched_count": 0,
-                    "message": "no agents in saved session"}
+            return {"ok": True, "results": [], "total": 0, "launched_count": 0, "message": "no agents in saved session"}
 
         results = []
         launched_count = 0
@@ -610,8 +676,7 @@ class Launcher:
                 with self._lock:
                     proc = self._procs.get(spec.agent_id)
                 if proc and proc.status == "running":
-                    results.append({"tag": tag, "launched": False,
-                                    "reason": "already running", "pid": proc.pid})
+                    results.append({"tag": tag, "launched": False, "reason": "already running", "pid": proc.pid})
                     continue
             # Launch it
             r = self.launch(tag)
@@ -619,13 +684,16 @@ class Launcher:
                 results.append({"tag": tag, "launched": True, "pid": r.get("pid")})
                 launched_count += 1
             else:
-                results.append({"tag": tag, "launched": False,
-                                "reason": r.get("error", "launch failed")})
+                results.append({"tag": tag, "launched": False, "reason": r.get("error", "launch failed")})
 
         self._save_session_to_disk()
-        return {"ok": True, "results": results, "total": len(tags),
-                "launched_count": launched_count,
-                "message": f"{launched_count}/{len(tags)} agents launched"}
+        return {
+            "ok": True,
+            "results": results,
+            "total": len(tags),
+            "launched_count": launched_count,
+            "message": f"{launched_count}/{len(tags)} agents launched",
+        }
 
     # -- process monitor ----------------------------------------------------
 
@@ -649,26 +717,24 @@ class Launcher:
                         continue
                     code = handle.poll()
                     if code is None:
-                        still_running.append(proc)   # RB-3: liveness-checked after the lock drops
+                        still_running.append(proc)  # RB-3: liveness-checked after the lock drops
                         continue
                     # Process exited
                     proc.exit_code = code
                     proc.exit_seen_at = time.strftime("%Y-%m-%dT%H:%M:%S")
                     # Tails accrue live via drainers (T019); join for the final flush.
                     self._flush_drainers(proc)
-                    proc.exit_reason = _classify_exit(
-                        code, proc.stdout_tail, proc.stderr_tail, proc.status == "killed")
+                    proc.exit_reason = _classify_exit(code, proc.stdout_tail, proc.stderr_tail, proc.status == "killed")
                     proc.status = "exited"
 
                     # Auto-restart if configured
-                    spec = self._specs.get(aid) or next(
-                        (s for t, s in self._specs.items() if s.agent_id == aid), None)
+                    spec = self._specs.get(aid) or next((s for t, s in self._specs.items() if s.agent_id == aid), None)
                     if spec and spec.auto_restart and proc.exit_reason != "killed":
                         tag = next((t for t, s in self._specs.items() if s.agent_id == aid), aid)
                         threading.Thread(target=self._restart, args=(tag,), daemon=True).start()
             for proc in still_running:
-                self._flag_dead_drainers(proc)   # RB-3: flag + one note; bus I/O stays off the lock
-            self._check_auto_revive()      # L3b-auto: opt-in auto-revive of ARMED wedged agents (no-op if none armed)
+                self._flag_dead_drainers(proc)  # RB-3: flag + one note; bus I/O stays off the lock
+            self._check_auto_revive()  # L3b-auto: opt-in auto-revive of ARMED wedged agents (no-op if none armed)
 
     def _flag_dead_drainers(self, proc):
         """RB-3 (T029, observe-only): a drainer that died while its child still runs is the risk
@@ -683,9 +749,11 @@ class Launcher:
         if not dead:
             return
         proc.drainer_dead = True
-        self._bus_note(f"[launcher] drainer(s) {', '.join(dead)} died while {proc.agent_id} "
-                       f"(pid {proc.pid}) is still running -- live tail frozen, diagnostics "
-                       f"degraded (RB-3 flag; clears at exit)")
+        self._bus_note(
+            f"[launcher] drainer(s) {', '.join(dead)} died while {proc.agent_id} "
+            f"(pid {proc.pid}) is still running -- live tail frozen, diagnostics "
+            f"degraded (RB-3 flag; clears at exit)"
+        )
 
     def _flush_drainers(self, proc):
         """Final flush at exit: join each drainer briefly so the tails catch the last output.
@@ -693,11 +761,9 @@ class Launcher:
         can hold a pipe open past the child's exit, so _classify_exit may be reading a partial
         tail, and the record keeps that honest. The live-risk flag clears here: it means
         dead-drainer-on-LIVE-child, and at exit drainers end by design."""
-        for t in (proc.drainers or []):
-            try:
+        for t in proc.drainers or []:
+            with contextlib.suppress(Exception):
                 t.join(timeout=DRAIN_FLUSH_JOIN_SEC)
-            except Exception:
-                pass
         if any(t.is_alive() for t in (proc.drainers or [])):
             proc.drain_flush_timeout = True
         proc.drainer_dead = False
@@ -706,15 +772,16 @@ class Launcher:
         """For each ARMED agent that is running + flagged wedged, spin an auto-revive. Opt-in: with
         nobody armed this is a no-op, so the observe-only default holds. Runs OUTSIDE the exit-loop
         lock; revive itself (kill+launch) is spawned in a thread so the monitor never blocks."""
-        armed = self._armed_set()          # read-through from Redis (shared, survives restart)
+        armed = self._armed_set()  # read-through from Redis (shared, survives restart)
         with self._lock:
             reviving = set(self._reviving)
         if not armed:
             return
         from core.comm import liveness
+
         for aid in armed:
             if aid in reviving:
-                continue                         # a revive is already in flight for this agent
+                continue  # a revive is already in flight for this agent
             with self._lock:
                 proc = self._procs.get(aid)
                 running = bool(proc and proc.status == "running")
@@ -722,7 +789,7 @@ class Launcher:
                 continue
             view = liveness.wedge_view(aid)
             if not (view and view.get("wedged")):
-                continue                          # observe-only unless genuinely wedged past the threshold
+                continue  # observe-only unless genuinely wedged past the threshold
             tag = next((t for t, s in self._specs.items() if s.agent_id == aid), None)
             if not tag:
                 continue
@@ -737,22 +804,28 @@ class Launcher:
         try:
             now = time.time()
             if now - self._auto_last.get(aid, 0) > RESTART_RESET_S:
-                self._auto_attempts[aid] = 0     # healthy for a while -> fresh count
+                self._auto_attempts[aid] = 0  # healthy for a while -> fresh count
             attempts = self._auto_attempts.get(aid, 0) + 1
             self._auto_attempts[aid] = attempts
             self._auto_last[aid] = now
             if attempts > RESTART_MAX_ATTEMPTS:
-                self._set_armed(aid, False)          # disarm (persisted) to break the loop
-                self._bus_note(f"[supervisor] '{aid}' auto-revived {attempts - 1}x and still wedging "
-                               f"-- DISARMED auto-revive. Needs a human.")
+                self._set_armed(aid, False)  # disarm (persisted) to break the loop
+                self._bus_note(
+                    f"[supervisor] '{aid}' auto-revived {attempts - 1}x and still wedging "
+                    f"-- DISARMED auto-revive. Needs a human."
+                )
                 return
             if AUTO_REVIVE_JITTER > 0:
-                time.sleep(random.uniform(0, AUTO_REVIVE_JITTER))   # stagger simultaneous multi-wedge revives (no thundering herd)
-            self._bus_note(f"[supervisor] auto-reviving '{aid}': wedged in '{view.get('phase')}' for "
-                           f"{view.get('stuck_seconds')}s (attempt {attempts}/{RESTART_MAX_ATTEMPTS}).")
+                time.sleep(
+                    random.uniform(0, AUTO_REVIVE_JITTER)
+                )  # stagger simultaneous multi-wedge revives (no thundering herd)
+            self._bus_note(
+                f"[supervisor] auto-reviving '{aid}': wedged in '{view.get('phase')}' for "
+                f"{view.get('stuck_seconds')}s (attempt {attempts}/{RESTART_MAX_ATTEMPTS})."
+            )
             self.revive(tag, reason="auto-wedge")
         finally:
-            time.sleep(RESTART_BACKOFF_BASE)         # let the fresh runner emit worklive before re-eligible
+            time.sleep(RESTART_BACKOFF_BASE)  # let the fresh runner emit worklive before re-eligible
             with self._lock:
                 self._reviving.discard(aid)
 
@@ -764,20 +837,22 @@ class Launcher:
         aid = spec.agent_id if spec else tag
         now = time.time()
         if now - self._restart_last.get(aid, 0) > RESTART_RESET_S:
-            self._restart_attempts[aid] = 0            # ran healthy long enough -> fresh count
+            self._restart_attempts[aid] = 0  # ran healthy long enough -> fresh count
         attempts = self._restart_attempts.get(aid, 0) + 1
         self._restart_attempts[aid] = attempts
         self._restart_last[aid] = now
         if attempts > RESTART_MAX_ATTEMPTS:
-            self._bus_note(f"[supervisor] '{aid}' failed {RESTART_MAX_ATTEMPTS}x ({reason}); auto-restart "
-                           f"stopped -- needs a human (check stderr_tail / Revive).")
+            self._bus_note(
+                f"[supervisor] '{aid}' failed {RESTART_MAX_ATTEMPTS}x ({reason}); auto-restart "
+                f"stopped -- needs a human (check stderr_tail / Revive)."
+            )
             return
         backoff = min(RESTART_BACKOFF_BASE * (2 ** (attempts - 1)), RESTART_BACKOFF_MAX)
         time.sleep(backoff)
         with self._lock:
             proc = self._procs.get(aid)
             dead_pid = proc.pid if proc else None
-        self._free_lock_for_relaunch(aid, dead_pid)    # clear the dead predecessor's lock so L5 doesn't block us
+        self._free_lock_for_relaunch(aid, dead_pid)  # clear the dead predecessor's lock so L5 doesn't block us
         self.launch(tag)
 
     def shutdown(self):
@@ -789,7 +864,7 @@ class Launcher:
 
 # ------------------------------------------------------------------ singleton
 
-_LAUNCHER: Optional[Launcher] = None
+_LAUNCHER: Launcher | None = None
 
 
 def get_launcher() -> Launcher:

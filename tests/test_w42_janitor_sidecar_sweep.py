@@ -10,10 +10,9 @@ the same session-scoped naming. A SKIP (assumed-alive) touches nothing.
   P2  a skipped (assumed-alive) seat's sidecars SURVIVE (fail-open, never reap live state)
   P3  the sweep is best-effort: a missing sidecar is silent, no raise
 """
+
 import os
 import sys
-
-import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -37,9 +36,13 @@ def test_p1_cleaned_seat_sweeps_sidecars(tmp_path):
     agent = "twjan"
     # a DEAD seat: pid present, but the process snapshot says it's gone -> reap=clean
     pidp, seenp, alivep = _seat_set(tmp_path, agent, "deadsess1", 999999)
-    res = ws.janitor(agent, my_session="mysess", tmp=str(tmp_path),
-                     snapshot_fn=lambda: {},           # empty snapshot: pid not alive
-                     kill_fn=lambda p: True)
+    res = ws.janitor(
+        agent,
+        my_session="mysess",
+        tmp=str(tmp_path),
+        snapshot_fn=dict,  # empty snapshot: pid not alive
+        kill_fn=lambda p: True,
+    )
     actions = {os.path.basename(p): a for p, a, _ in res}
     assert actions.get(os.path.basename(pidp)) in ("clean", "kill")
     assert not os.path.exists(pidp), "the .pid is reaped"
@@ -49,15 +52,13 @@ def test_p1_cleaned_seat_sweeps_sidecars(tmp_path):
 
 def test_p2_skipped_seat_keeps_sidecars(tmp_path, monkeypatch):
     agent = "twjan2"
-    pidp, seenp, alivep = _seat_set(tmp_path, agent, "livesess", os.getpid())
+    _pidp, seenp, alivep = _seat_set(tmp_path, agent, "livesess", os.getpid())
     # snapshot unavailable -> K8 assume-alive -> skip; sidecars must survive
-    res = ws.janitor(agent, my_session="other", tmp=str(tmp_path),
-                     snapshot_fn=lambda: None,
-                     kill_fn=lambda p: True)
+    res = ws.janitor(agent, my_session="other", tmp=str(tmp_path), snapshot_fn=lambda: None, kill_fn=lambda p: True)
     actions = {a for _, a, _ in res}
     assert "skip" in actions
-    assert os.path.exists(seenp) and os.path.exists(alivep), \
-        "an assumed-alive seat's sidecars are never reaped (fail-open)"
+    assert os.path.exists(seenp), "an assumed-alive seat's sidecars are never reaped (fail-open)"
+    assert os.path.exists(alivep), "an assumed-alive seat's sidecars are never reaped (fail-open)"
 
 
 def test_p3_missing_sidecar_is_silent(tmp_path):
@@ -66,6 +67,6 @@ def test_p3_missing_sidecar_is_silent(tmp_path):
     with open(pidp, "w") as f:
         f.write("999999")
     # no .seen / .alive written -- the sweep must not raise
-    res = ws.janitor(agent, my_session="mysess", tmp=str(tmp_path),
-                     snapshot_fn=lambda: {}, kill_fn=lambda p: True)
-    assert res and not os.path.exists(pidp)
+    res = ws.janitor(agent, my_session="mysess", tmp=str(tmp_path), snapshot_fn=dict, kill_fn=lambda p: True)
+    assert res
+    assert not os.path.exists(pidp)

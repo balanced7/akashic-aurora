@@ -27,6 +27,7 @@ it is true in. "The clipped-evidence warning exists" is TRUE at the CLI door and
 library boundary. Stated unqualified, it does not merely omit -- it lies, and it told a caller
 it was protected while it was not.
 """
+
 import pytest
 
 from core.comm import ask as ask_mod
@@ -70,6 +71,7 @@ class FakeClient:
     Deliberately NOT a mock of build_context: the whole point is to exercise the real
     evidence path and assert on what the real boundary hands back.
     """
+
     chat = _Chat()
 
 
@@ -92,26 +94,27 @@ def clean_file(tmp_path):
 # --------------------------------------------------------------------------- the pins
 def test_ask_tells_a_library_caller_its_evidence_was_clipped(clipped_file, tmp_path):
     """The core defect. A caller who never touches agent_cli must still be warned."""
-    out = ask_mod.ask("q", with_files=[str(clipped_file)], context_root=str(tmp_path),
-                      client=FakeClient())
+    out = ask_mod.ask("q", with_files=[str(clipped_file)], context_root=str(tmp_path), client=FakeClient())
     d = out.detail or {}
 
     assert d.get("context", {}).get("truncated") is True, (
-        "fixture is wrong -- this test is meaningless unless the evidence really was clipped")
+        "fixture is wrong -- this test is meaningless unless the evidence really was clipped"
+    )
 
     warn = d.get("warnings")
     assert warn, (
         "a LIBRARY caller got clipped evidence and no warning. detail carried "
         f"context={d.get('context')!r} but no 'warnings' key. This is the whole defect: the "
-        "notice is rendered in agent_cli.py and nothing on the import path renders it.")
+        "notice is rendered in agent_cli.py and nothing on the import path renders it."
+    )
     assert any("CLIP" in str(w).upper() for w in (warn if isinstance(warn, list) else [warn])), (
-        f"warnings present but does not name the clip: {warn!r}")
+        f"warnings present but does not name the clip: {warn!r}"
+    )
 
 
 def test_ask_many_tells_a_library_caller_too(clipped_file, tmp_path):
     """The fan path is where this was actually paid for -- N branches, one shared pack."""
-    out = ask_mod.ask_many(["a", "b"], with_files=[str(clipped_file)],
-                           context_root=str(tmp_path), client=FakeClient())
+    out = ask_mod.ask_many(["a", "b"], with_files=[str(clipped_file)], context_root=str(tmp_path), client=FakeClient())
     d = out.detail or {}
 
     assert d.get("context", {}).get("truncated") is True, "fixture is wrong -- nothing was clipped"
@@ -119,7 +122,8 @@ def test_ask_many_tells_a_library_caller_too(clipped_file, tmp_path):
     warn = d.get("warnings")
     assert warn, (
         "ask_many handed back N branches built on CLIPPED shared evidence with no warning. "
-        "Measured 2026-08-08: 5 branches, 40000 chars, line 744 of 889, twice.")
+        "Measured 2026-08-08: 5 branches, 40000 chars, line 744 of 889, twice."
+    )
 
 
 def test_clean_evidence_carries_no_warnings_key_at_all(clean_file, tmp_path):
@@ -129,12 +133,10 @@ def test_clean_evidence_carries_no_warnings_key_at_all(clean_file, tmp_path):
     warning that is always present is not a warning, it is a banner -- which is precisely how
     a real one goes unread.
     """
-    out = ask_mod.ask("q", with_files=[str(clean_file)], context_root=str(tmp_path),
-                      client=FakeClient())
+    out = ask_mod.ask("q", with_files=[str(clean_file)], context_root=str(tmp_path), client=FakeClient())
     d = out.detail or {}
     assert d.get("context", {}).get("truncated") is False, "fixture is wrong -- evidence was clipped"
-    assert "warnings" not in d, (
-        f"clean evidence must carry NO warnings key, got {d.get('warnings')!r}")
+    assert "warnings" not in d, f"clean evidence must carry NO warnings key, got {d.get('warnings')!r}"
 
 
 def test_the_notice_has_exactly_one_implementation(clean_file):
@@ -151,11 +153,16 @@ def test_the_notice_has_exactly_one_implementation(clean_file):
     cli = pathlib.Path(__file__).resolve().parents[1] / "agent_cli.py"
     tree = ast.parse(cli.read_text(encoding="utf-8", errors="replace"))
     calls = sum(
-        1 for n in ast.walk(tree)
+        1
+        for n in ast.walk(tree)
         if isinstance(n, ast.Call)
-        and (getattr(n.func, "attr", None) == "unusable_evidence_notice"
-             or getattr(n.func, "id", None) == "unusable_evidence_notice"))
+        and (
+            getattr(n.func, "attr", None) == "unusable_evidence_notice"
+            or getattr(n.func, "id", None) == "unusable_evidence_notice"
+        )
+    )
     assert calls == 0, (
         f"agent_cli.py still calls unusable_evidence_notice {calls}x. After T242 the boundary "
         "mints the notice and the door RENDERS what it is handed; a door that recomputes it "
-        "is a second implementation that will drift from the first.")
+        "is a second implementation that will drift from the first."
+    )

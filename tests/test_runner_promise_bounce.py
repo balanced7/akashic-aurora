@@ -9,6 +9,7 @@ Seen live 2026-07-09: the T017 seat-2 diff review arrived only after a manual de
 reprompt -- the runner's first reply promised the review instead of delivering it.
 Run: py -m pytest tests/test_runner_promise_bounce.py -q
 """
+
 import os
 import sys
 

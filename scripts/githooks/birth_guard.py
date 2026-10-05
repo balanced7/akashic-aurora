@@ -22,11 +22,24 @@ import re
 import subprocess
 import sys
 
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+
+        return python_launcher()
+    except Exception:
+        return "py"
+
+
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 _CROWN = re.compile(r"^docs/[A-Z0-9_]+\.md$")
-_TEACH = ("  -> knowledge artifacts are born through the door now: "
-          "py agent_cli.py doc new --type <t> --title <x> [--draft]")
+_TEACH = (
+    "  -> knowledge artifacts are born through the door now: "
+    f"{_pyl()} agent_cli.py doc new --type <t> --title <x> [--draft]"
+)
 
 
 def classify(relpath: str) -> str:
@@ -34,7 +47,7 @@ def classify(relpath: str) -> str:
     p = relpath.replace("\\", "/")
     if not p.endswith(".md"):
         return "allow"
-    if p.startswith("docs/library/") or p.startswith("docs/_archive/"):
+    if p.startswith(("docs/library/", "docs/_archive/")):
         return "allow"
     if p.endswith("/README.md") or p == "README.md":
         return "allow"
@@ -49,8 +62,12 @@ def classify(relpath: str) -> str:
     if p.startswith("chronicles/"):
         # P3b flip (2026-07-23 night): write-once records migrated to atoms; only the
         # four LIVE machinery projections exist as files (reprojected, never hand-born).
-        if p in ("chronicles/memory.md", "chronicles/last-session-draft.md",
-                 "chronicles/lessons.md", "chronicles/story.md"):
+        if p in (
+            "chronicles/memory.md",
+            "chronicles/last-session-draft.md",
+            "chronicles/lessons.md",
+            "chronicles/story.md",
+        ):
             return "allow"
         return "refuse"
     if p.startswith("charters/"):
@@ -60,7 +77,7 @@ def classify(relpath: str) -> str:
     return "allow"
 
 
-def staged_added(paths: "list[str] | None" = None) -> list[str]:
+def staged_added(paths: list[str] | None = None) -> list[str]:
     """New .md in the index. `paths` pathspec-limits the query -- C2-4.
 
     The index is SHARED between seats. Called bare (the pre-commit hook) this judges the whole
@@ -76,7 +93,7 @@ def staged_added(paths: "list[str] | None" = None) -> list[str]:
     return [ln.strip() for ln in r.stdout.splitlines() if ln.strip()]
 
 
-def main(argv: "list[str] | None" = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     argv = sys.argv[1:] if argv is None else argv
     mode = os.environ.get("AKASHIC_BIRTH_GUARD", "").strip().lower()
     if mode == "off":

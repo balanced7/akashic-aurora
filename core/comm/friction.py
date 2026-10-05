@@ -15,10 +15,11 @@ number here follows the house honesty laws: a duration without evidence is None 
 zero closed episodes is None, and the report carries a structurally NON-EMPTY `blind`
 list because a report that names no blindness is claiming omniscience.
 """
+
 from __future__ import annotations
 
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from core.foundation.timeutil import to_epoch
 
@@ -35,32 +36,52 @@ TERMINAL_KINDS = {
 # Named blindness (no-silent-caps made structural). Static by design: these are facts
 # about the ANCHORS, not about any one report.
 BLIND = [
-    "answered/dead durations exist only where the terminal event carries `created` "
-    "(T196b, 2026-08-05) -- older episodes report duration None",
-    "answered episodes are visible only from T196b onward: before it, an answered ask "
-    "left no durable terminal event at all",
-    "commands are not counted: CLI door captures are selective (boot/handoff/decision/"
-    "learning), so operator keystrokes and shell work are invisible (fence C)",
-    "silent stalls are invisible: an ask that never redrives and never settles renders "
-    "as open, not as troubled (fence C2)",
-    "usefulness is not measured: time-to-settle says an answer ARRIVED, not that it "
-    "helped -- v2 candidates: re-ask window, self-reclamation rate (fence C2)",
-    "reads the per-agent event stream (an index): an event whose index write degraded "
-    "(T179 PARTIALLY) is on the canonical firehose but absent here",
-    "the peer partition rests on TWO POINT SAMPLES (attendance at ask, attendance at "
-    "death) and observes nothing in between: a peer that died and recovered inside the "
-    "window reads as `ignored`, and one that flapped repeatedly reads as whichever "
-    "state the two samples happened to catch (T197)",
-    "episodes closed before T197 (2026-08-06) carry no peer observation at all and "
-    "count as dead_peer_unknown -- they are NOT back-filled, because the reader is not "
-    "entitled to a verdict it never took",
-    "presence_effect is a CORRELATION and licenses no causal claim: the same conductor "
-    "who launches a peer also asks better-formed questions to peers worth launching, so "
-    "a higher attended answer-rate is not proof that launching caused it (T199)",
-    "Sol's collaboration-friction list is only PARTLY built: commands per task, "
-    "operator interventions, and recovery time are all still unmeasured -- none of the "
-    "three has a durable anchor yet, and time-to-first-useful-output is approximated by "
-    "time-to-settle, which says an answer ARRIVED, not that it helped",
+    (
+        "answered/dead durations exist only where the terminal event carries `created` "
+        "(T196b, 2026-08-05) -- older episodes report duration None"
+    ),
+    (
+        "answered episodes are visible only from T196b onward: before it, an answered ask "
+        "left no durable terminal event at all"
+    ),
+    (
+        "commands are not counted: CLI door captures are selective (boot/handoff/decision/"
+        "learning), so operator keystrokes and shell work are invisible (fence C)"
+    ),
+    (
+        "silent stalls are invisible: an ask that never redrives and never settles renders "
+        "as open, not as troubled (fence C2)"
+    ),
+    (
+        "usefulness is not measured: time-to-settle says an answer ARRIVED, not that it "
+        "helped -- v2 candidates: re-ask window, self-reclamation rate (fence C2)"
+    ),
+    (
+        "reads the per-agent event stream (an index): an event whose index write degraded "
+        "(T179 PARTIALLY) is on the canonical firehose but absent here"
+    ),
+    (
+        "the peer partition rests on TWO POINT SAMPLES (attendance at ask, attendance at "
+        "death) and observes nothing in between: a peer that died and recovered inside the "
+        "window reads as `ignored`, and one that flapped repeatedly reads as whichever "
+        "state the two samples happened to catch (T197)"
+    ),
+    (
+        "episodes closed before T197 (2026-08-06) carry no peer observation at all and "
+        "count as dead_peer_unknown -- they are NOT back-filled, because the reader is not "
+        "entitled to a verdict it never took"
+    ),
+    (
+        "presence_effect is a CORRELATION and licenses no causal claim: the same conductor "
+        "who launches a peer also asks better-formed questions to peers worth launching, so "
+        "a higher attended answer-rate is not proof that launching caused it (T199)"
+    ),
+    (
+        "Sol's collaboration-friction list is only PARTLY built: commands per task, "
+        "operator interventions, and recovery time are all still unmeasured -- none of the "
+        "three has a durable anchor yet, and time-to-first-useful-output is approximated by "
+        "time-to-settle, which says an answer ARRIVED, not that it helped"
+    ),
 ]
 
 
@@ -98,7 +119,7 @@ def dead_verdict(at_ask: Any, at_death: Any) -> str:
     return _DEAD_VERDICT.get((str(at_ask or ""), str(at_death or "")), "unknown")
 
 
-def _redrives(detail: Dict[str, Any]) -> int:
+def _redrives(detail: dict[str, Any]) -> int:
     """Both spellings live: settled events carry `attempt`, dead events `attempts`."""
     for k in ("attempt", "attempts"):
         v = detail.get(k)
@@ -110,7 +131,7 @@ def _redrives(detail: Dict[str, Any]) -> int:
     return 0
 
 
-def _span(later: Optional[float], earlier: Any) -> Optional[float]:
+def _span(later: float | None, earlier: Any) -> float | None:
     """Seconds between two moments, or None when either side lacks evidence."""
     if later is None or earlier is None:
         return None
@@ -120,39 +141,36 @@ def _span(later: Optional[float], earlier: Any) -> Optional[float]:
         return None
 
 
-def fold(terminal_events: Optional[List[Dict[str, Any]]],
-         open_records: Optional[Dict[str, Dict[str, Any]]], *,
-         now: float) -> Dict[str, Any]:
+def fold(
+    terminal_events: list[dict[str, Any]] | None, open_records: dict[str, dict[str, Any]] | None, *, now: float
+) -> dict[str, Any]:
     """PURE fold of evidence into the friction report. No I/O; `now` injected so
     pins never sleep (the expectations-suite idiom)."""
-    episodes: List[Dict[str, Any]] = []
-    durations: List[float] = []
+    episodes: list[dict[str, Any]] = []
+    durations: list[float] = []
     counts = {"answered": 0, "dead": 0, "echo": 0}
-    dead_by_verdict = {v: 0 for v in DEAD_VERDICTS}
+    dead_by_verdict: dict[str, int] = dict.fromkeys(DEAD_VERDICTS, 0)
     # T199 v2 accumulators. by_peer answers "which peer is broken" (one fleet rate hides
     # it); presence_effect answers "does a present peer actually answer", the question
     # T197 shipped autolaunch on and could not test.
-    peers: Dict[str, Dict[str, Any]] = {}
-    presence = {"ATTENDED": {"n": 0, "n_answered": 0},
-                "UNATTENDED": {"n": 0, "n_answered": 0}, "n_unobserved": 0}
+    peers: dict[str, dict[str, Any]] = {}
+    presence = {"ATTENDED": {"n": 0, "n_answered": 0}, "UNATTENDED": {"n": 0, "n_answered": 0}, "n_unobserved": 0}
 
-    def _peer_row(name: Any) -> Optional[Dict[str, Any]]:
+    def _peer_row(name: Any) -> dict[str, Any] | None:
         """The bucket for one peer, or None when the event names no peer -- a malformed
         record must not mint a peer called None and then get reported as one."""
         if name is None or str(name) == "":
             return None
-        return peers.setdefault(str(name), {
-            "n_open": 0, "n_answered": 0, "n_dead": 0, "n_echo": 0,
-            "_durations": []})
+        return peers.setdefault(str(name), {"n_open": 0, "n_answered": 0, "n_dead": 0, "n_echo": 0, "_durations": []})
 
     for ev in terminal_events or []:
         outcome = TERMINAL_KINDS.get(str(ev.get("kind") or ""))
         if not outcome:
-            continue                                  # not an episode event
+            continue  # not an episode event
         detail = ev.get("detail") or {}
         refs = ev.get("refs") or []
         if not refs:
-            continue                                  # malformed: no ask to attribute to
+            continue  # malformed: no ask to attribute to
         try:
             closed_at = to_epoch(ev.get("at"))
         except Exception:
@@ -160,11 +178,15 @@ def fold(terminal_events: Optional[List[Dict[str, Any]]],
         duration = _span(closed_at, detail.get("created"))
         at_ask, at_death = detail.get("peer_at_ask"), detail.get("peer_at_death")
         row = {
-            "ask_id": str(refs[0]), "peer": detail.get("to"), "outcome": outcome,
-            "duration_s": duration, "redrives": _redrives(detail),
+            "ask_id": str(refs[0]),
+            "peer": detail.get("to"),
+            "outcome": outcome,
+            "duration_s": duration,
+            "redrives": _redrives(detail),
             "closed_at": ev.get("at"),
             "answer_id": detail.get("answer_id"),
-            "peer_at_ask": at_ask, "peer_at_death": at_death,
+            "peer_at_ask": at_ask,
+            "peer_at_death": at_death,
         }
         if outcome == "dead":
             verdict = dead_verdict(at_ask, at_death)
@@ -206,13 +228,18 @@ def fold(terminal_events: Optional[List[Dict[str, Any]]],
             deadline_in = (float(deadline) - float(now)) if deadline is not None else None
         except (TypeError, ValueError):
             deadline_in = None
-        episodes.append({
-            "ask_id": str(oid), "peer": rec.get("to"), "outcome": "open",
-            "state": "redriving" if attempt > 0 else "dispatched",
-            "age_s": _span(now, rec.get("created")), "redrives": attempt,
-            "deadline_in_s": deadline_in,
-            "peer_at_ask": rec.get("peer_at_ask"),
-        })
+        episodes.append(
+            {
+                "ask_id": str(oid),
+                "peer": rec.get("to"),
+                "outcome": "open",
+                "state": "redriving" if attempt > 0 else "dispatched",
+                "age_s": _span(now, rec.get("created")),
+                "redrives": attempt,
+                "deadline_in_s": deadline_in,
+                "peer_at_ask": rec.get("peer_at_ask"),
+            }
+        )
         prow = _peer_row(rec.get("to"))
         if prow is not None:
             prow["n_open"] += 1
@@ -220,35 +247,38 @@ def fold(terminal_events: Optional[List[Dict[str, Any]]],
     n_closed = sum(counts.values())
     durations.sort()
 
-    def _pct(p: float) -> Optional[float]:
+    def _pct(p: float) -> float | None:
         if not durations:
-            return None                # a percentile of nothing is not a number
-        i = int(round(p * (len(durations) - 1)))
+            return None  # a percentile of nothing is not a number
+        i = round(p * (len(durations) - 1))
         return durations[min(len(durations) - 1, max(0, i))]
 
     def _median(vals):
         s = sorted(vals)
-        return s[len(s) // 2] if s else None      # None, never 0.0, over an empty set
+        return s[len(s) // 2] if s else None  # None, never 0.0, over an empty set
 
-    by_peer: Dict[str, Dict[str, Any]] = {}
+    by_peer: dict[str, dict[str, Any]] = {}
     for name, row in peers.items():
         closed = row["n_answered"] + row["n_dead"] + row["n_echo"]
         by_peer[name] = {
-            "n_open": row["n_open"], "n_answered": row["n_answered"],
-            "n_dead": row["n_dead"], "n_echo": row["n_echo"], "n_closed": closed,
+            "n_open": row["n_open"],
+            "n_answered": row["n_answered"],
+            "n_dead": row["n_dead"],
+            "n_echo": row["n_echo"],
+            "n_closed": closed,
             "dead_rate": (row["n_dead"] / closed) if closed else None,
             "settle_median_s": _median(row["_durations"]),
         }
     # Ordered by PAIN, not alphabet: the reader's job is to surface the broken peer, and
     # an alphabetical listing buries it. Name breaks ties so the order is stable.
-    by_peer = dict(sorted(by_peer.items(),
-                          key=lambda kv: (-kv[1]["n_dead"], kv[0])))
+    by_peer = dict(sorted(by_peer.items(), key=lambda kv: (-kv[1]["n_dead"], kv[0])))
 
     presence_effect = {"n_unobserved": presence["n_unobserved"]}
     for state in ("ATTENDED", "UNATTENDED"):
         b = presence[state]
         presence_effect[state] = {
-            "n": b["n"], "n_answered": b["n_answered"],
+            "n": b["n"],
+            "n_answered": b["n_answered"],
             # None over an empty cell. Early on every denominator is 0 or 1, and 0.0
             # rendered against n=0 would read as "attended peers never answer".
             "answer_rate": (b["n_answered"] / b["n"]) if b["n"] else None,
@@ -256,12 +286,16 @@ def fold(terminal_events: Optional[List[Dict[str, Any]]],
 
     agg = {
         "n_open": len(open_records or {}),
-        "by_peer": by_peer, "presence_effect": presence_effect,
-        "n_answered": counts["answered"], "n_dead": counts["dead"],
-        "n_echo": counts["echo"], "n_closed": n_closed,
+        "by_peer": by_peer,
+        "presence_effect": presence_effect,
+        "n_answered": counts["answered"],
+        "n_dead": counts["dead"],
+        "n_echo": counts["echo"],
+        "n_closed": n_closed,
         # 0/0 rendered as 0.0 would read as "nothing ever dies" -- None is the truth.
         "dead_rate": (counts["dead"] / n_closed) if n_closed else None,
-        "settle_p50_s": _pct(0.5), "settle_p90_s": _pct(0.9),
+        "settle_p50_s": _pct(0.5),
+        "settle_p90_s": _pct(0.9),
         "n_duration_unknown": n_closed - len(durations),
         # T197: the partition, keyed `dead_<verdict>` and summing EXACTLY to n_dead.
         # A partition that does not sum is a set of overlapping guesses, and the rows
@@ -272,13 +306,13 @@ def fold(terminal_events: Optional[List[Dict[str, Any]]],
     return {"episodes": episodes, "agg": agg, "blind": list(BLIND)}
 
 
-def gather(agent: str, *, window_h: float = 168, log=None,
-           now: Optional[float] = None) -> Dict[str, Any]:
+def gather(agent: str, *, window_h: float = 168, log=None, now: float | None = None) -> dict[str, Any]:
     """Compose the reads: per-agent firehose scan + armed-record snapshot -> fold.
     ZERO writes to any stream, record, or cursor (pinned). `log`/`now` injectable."""
     now = time.time() if now is None else float(now)
     if log is None:
         from core.events.event_log import EventLog
+
         log = EventLog()
     try:
         raw = log.scan(agent=str(agent))
@@ -292,9 +326,10 @@ def gather(agent: str, *, window_h: float = 168, log=None,
         try:
             at = to_epoch(ev.get("at"))
         except Exception:
-            at = None                  # unparseable timestamp: keep (never silently drop)
+            at = None  # unparseable timestamp: keep (never silently drop)
         if at is not None and at < horizon:
             continue
         events.append(ev)
     from core.comm.expectations import snapshot
+
     return fold(events, snapshot(str(agent)), now=now)

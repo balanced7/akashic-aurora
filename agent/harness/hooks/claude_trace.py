@@ -16,6 +16,7 @@ to mutating tools and able to DENY. This one only observes -- it emits and alway
 influencing whether the tool runs. Scope-gated to this repo's sessions (safe for user-level
 registration). Fail-open and silent: a trace is a nicety, never a blocker. Kill: AKASHIC_TRACE=0.
 """
+
 import json
 import os
 import sys
@@ -37,12 +38,14 @@ def main() -> int:
         # Gate by SESSION cwd, not per-target: a read/glob has no path to scope by, and we want
         # every tool call in an in-repo session to show -- while staying a no-op everywhere else.
         from agent.harness.scope import session_in_scope
+
         if not session_in_scope(data.get("cwd") or os.getcwd()):
             return 0
         from agent.harness.trace import emit, summarize
+
         emit("tool", summarize(tool, data.get("tool_input") or {}))
     except Exception:
-        pass   # observation must never affect the action
+        pass  # observation must never affect the action
     return 0
 
 

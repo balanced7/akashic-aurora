@@ -38,6 +38,7 @@ cmd_ask the shell reaches, with exactly one thing faked: the wire. Vendor resolu
 loading, the client-construction seam, build_context, attach_evidence, _ask_payload and
 both render paths all run for real (the T242 pattern, one layer up).
 """
+
 from __future__ import annotations
 
 import json
@@ -50,15 +51,15 @@ REPO = Path(__file__).resolve().parents[1]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
-import agent_cli                                    # noqa: E402  (the door under test)
-from core.comm import ask as ask_mod                # noqa: E402
-from core.comm import runner_lib as _runner_lib     # noqa: E402
+import agent_cli  # noqa: E402  # the door under test
+from core.comm import ask as ask_mod  # noqa: E402  # sys.path bootstrap
+from core.comm import runner_lib as _runner_lib  # noqa: E402  # sys.path bootstrap
 
 # ABSOLUTE on purpose: build_context resolves a relative path against the process cwd, and an
 # in-process pin must not care where pytest was launched from. Both stay inside the repo root,
 # which the CLI door (no context_root parameter) requires.
-BUS = str(REPO / "core" / "comm" / "bus.py")        # ~83k chars: clips at the 40k budget
-CLEAN = str(REPO / "core" / "outcome.py")           # ~6k chars: fits with room to spare
+BUS = str(REPO / "core" / "comm" / "bus.py")  # ~83k chars: clips at the 40k budget
+CLEAN = str(REPO / "core" / "outcome.py")  # ~6k chars: fits with room to spare
 
 
 # --------------------------------------------------------------------------- fakes
@@ -99,12 +100,14 @@ class FakeClient:
     Deliberately NOT a mock of build_context or of ask() itself: the whole point is that the
     real evidence path runs and the door renders what the real boundary hands it.
     """
+
     chat = _Chat()
 
 
 class _Wire:
     """What the fake factory saw. `calls` proves the REAL construction path was traversed
     (vendor -> key -> factory) rather than bypassed by handing ask() a client directly."""
+
     def __init__(self):
         self.calls = 0
 
@@ -154,13 +157,15 @@ def _ask_json(capsys, *extra):
 def test_a_json_caller_gets_a_discoverable_warning_when_evidence_was_clipped(capsys, wire):
     """THE PIN. bus.py is ~80k chars against a 40k budget, so this always clips."""
     d, rc, _ = _ask_json(capsys, "--with", BUS)
-    assert rc == 0 and wire.calls == 1, "precondition: the fake wire answered through the real door"
+    assert rc == 0, "precondition: the fake wire answered through the real door"
+    assert wire.calls == 1, "precondition: the fake wire answered through the real door"
     assert (d.get("context") or {}).get("truncated") is True, "precondition: it clipped"
     warnings = d.get("warnings")
     assert warnings, (
         "the payload carries context.truncated but no top-level `warnings` -- a machine "
         "caller must know a nested key to learn its evidence was incomplete, and four "
-        "probes tonight did not")
+        "probes tonight did not"
+    )
     joined = " ".join(str(w) for w in warnings).lower()
     assert "clip" in joined or "partial" in joined
     assert "bus.py" in joined, "a warning that does not name the file is unactionable"
@@ -170,7 +175,8 @@ def test_a_clean_run_carries_no_warnings(capsys, wire):
     """Noise on clean runs gets filtered out mentally, and that is how the real one is missed.
     An empty or absent list on a clean call, never a placeholder."""
     d, rc, _ = _ask_json(capsys, "--with", CLEAN)
-    assert rc == 0 and wire.calls == 1, "precondition: the fake wire answered through the real door"
+    assert rc == 0, "precondition: the fake wire answered through the real door"
+    assert wire.calls == 1, "precondition: the fake wire answered through the real door"
     assert (d.get("context") or {}).get("truncated") is False, "precondition: fits the budget"
     assert not d.get("warnings")
 
@@ -179,5 +185,6 @@ def test_the_human_path_still_prints_to_stderr(capsys, wire):
     """REGRESSION. The machine channel is ADDITIVE -- T218's stderr notice is what a person
     reads, and gaining a field must not cost the line."""
     rc, out, err = _run_cli(capsys, "--with", BUS, "reply with just: OK")
-    assert rc == 0 and "ANSWER" in out, "precondition: the fake wire answered through the real door"
+    assert rc == 0, "precondition: the fake wire answered through the real door"
+    assert "ANSWER" in out, "precondition: the fake wire answered through the real door"
     assert "CLIPPED" in (err or ""), "the human notice regressed"

@@ -29,21 +29,21 @@ Bounded in lockstep with the firehose (CANONICAL_MAXLEN): each add evicts the ol
 score so the index can't outgrow the stream it indexes. Best-effort throughout -- an index hiccup
 must never break capture (the Ledger write already succeeded; the event is safe and re-indexable).
 """
+
 import json
 import logging
-from typing import Any, Dict, Iterable, List, Optional
+from collections.abc import Iterable
+from typing import Any
 
 from core.foundation.store import Store, create_store
+from core.foundation.timeutil import to_epoch as _epoch  # unified tz-safe epoch (S5)
 
 logger = logging.getLogger("event_index")
 
 TINDEX = "events:raw:tindex"
 BYID_PREFIX = "events:raw:byid:"
 BYREF_PREFIX = "events:raw:byref:"
-DEFAULT_MAXLEN = 100_000          # match the firehose (event_log.CANONICAL_MAXLEN)
-
-
-from core.foundation.timeutil import to_epoch as _epoch   # unified tz-safe epoch (S5)
+DEFAULT_MAXLEN = 100_000  # match the firehose (event_log.CANONICAL_MAXLEN)
 
 
 def byid_key(event_id: str) -> str:
@@ -57,12 +57,12 @@ def byref_key(ref: str) -> str:
 class EventIndex:
     """A time-ordered, range-queryable projection of the raw firehose, on the Store."""
 
-    def __init__(self, store: Optional[Store] = None, *, maxlen: int = DEFAULT_MAXLEN):
+    def __init__(self, store: Store | None = None, *, maxlen: int = DEFAULT_MAXLEN):
         self.store = store if store is not None else create_store()
         self.maxlen = maxlen
 
     # ------------------------------------------------------------------ write
-    def add(self, event: Dict[str, Any]) -> bool:
+    def add(self, event: dict[str, Any]) -> bool:
         """Index one captured event (must carry `id` + `at`). Best-effort -- returns
         True if indexed, False on any refusal/hiccup. NEVER raises."""
         try:
@@ -72,13 +72,13 @@ class EventIndex:
             score = _epoch(event.get("at", ""))
             self.store.set(byid_key(eid), json.dumps(event))
             self.store.zadd(TINDEX, {eid: score})
-            for ref in (event.get("refs") or []):          # RB-4: exact per-ref lookup
+            for ref in event.get("refs") or []:  # RB-4: exact per-ref lookup
                 if ref:
                     self.store.sadd(byref_key(str(ref)), eid)
             self._trim()
             return True
         except Exception as e:
-            logger.warning(f"index add failed (ignored): {type(e).__name__}: {e}")
+            logger.warning("index add failed (ignored): %s: %s", type(e).__name__, e)
             return False
 
     def _trim(self) -> None:
@@ -93,12 +93,12 @@ class EventIndex:
             overflow = n - self.maxlen
             if overflow <= 0:
                 return
-            evict = self.store.zrange(TINDEX, 0, overflow - 1)   # oldest by score
+            evict = self.store.zrange(TINDEX, 0, overflow - 1)  # oldest by score
             if not evict:
                 return
             for eid in evict:
                 ev = self.get(eid)
-                for ref in ((ev or {}).get("refs") or []):
+                for ref in (ev or {}).get("refs") or []:
                     k = byref_key(str(ref))
                     self.store.srem(k, eid)
                     if not self.store.smembers(k):
@@ -109,8 +109,7 @@ class EventIndex:
             pass
 
     # ------------------------------------------------------------------ read
-    def window(self, start_iso: str, end_iso: str, *,
-               limit: Optional[int] = None) -> List[Dict[str, Any]]:
+    def window(self, start_iso: str, end_iso: str, *, limit: int | None = None) -> list[dict[str, Any]]:
         """Every indexed event whose `at` is in [start, end] (inclusive), OLDEST-first.
 
         Total recall within retention (the bug this fixes): a range-scan, not a capped
@@ -120,8 +119,8 @@ class EventIndex:
             lo, hi = _epoch(start_iso), _epoch(end_iso)
             if lo > hi:
                 lo, hi = hi, lo
-            ids = self.store.zrangebyscore(TINDEX, lo, hi)        # ascending by score
-            out: List[Dict[str, Any]] = []
+            ids = self.store.zrangebyscore(TINDEX, lo, hi)  # ascending by score
+            out: list[dict[str, Any]] = []
             for eid in ids:
                 ev = self.get(eid)
                 if ev is not None:
@@ -132,7 +131,7 @@ class EventIndex:
         except Exception:
             return []
 
-    def get(self, event_id: str) -> Optional[Dict[str, Any]]:
+    def get(self, event_id: str) -> dict[str, Any] | None:
         """Resolve one event's payload by id (O(1)). None if absent/corrupt."""
         raw = self.store.get(byid_key(str(event_id)))
         if not raw:
@@ -142,7 +141,7 @@ class EventIndex:
         except (ValueError, TypeError):
             return None
 
-    def events_for_ref(self, ref: str) -> List[Dict[str, Any]]:
+    def events_for_ref(self, ref: str) -> list[dict[str, Any]]:
         """Every indexed event carrying `ref`, oldest-first -- exact and unbounded per
         ref (RB-4). Dangling members (payload evicted between srem passes) are filtered
         through get(), the same honesty pattern window() uses. [] on any hiccup."""
@@ -164,7 +163,7 @@ class EventIndex:
             return 0
 
     # ------------------------------------------------------------------ heal
-    def rebuild(self, events: Iterable[Dict[str, Any]]) -> int:
+    def rebuild(self, events: Iterable[dict[str, Any]]) -> int:
         """(Re)build the index from a full event replay -- backfills events captured before
         the index existed, or repopulates a cold/lost index. Idempotent: re-adding an event
         overwrites its entry, never duplicates (zset member = id; byref member = id). RB-4

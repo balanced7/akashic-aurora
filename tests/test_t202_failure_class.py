@@ -43,26 +43,24 @@ shape as T197 -- observe, report, never gate.
 
 Run: py -m pytest tests/test_t202_failure_class.py -q
 """
+
 import inspect
 import os
 import sys
 
-import pytest
-
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.comm import failure_class as FC  # noqa: E402
-
+from core.comm import failure_class as FC
 
 # --------------------------------------------------------------------------------------
 # The four classes, each keyed to a real row from the measurement above.
 # --------------------------------------------------------------------------------------
 
+
 def test_attending_but_silent_is_not_a_transport_problem():
     """deepseek x9 / claude x2. The peer was home the whole time. Retrying transport
     cannot fix a consumer that is reading the wrong lane or is wedged."""
-    v = FC.classify("deepseek", attending=True, base_attending=False,
-                    launchable=True, known_seat=True)
+    v = FC.classify("deepseek", attending=True, base_attending=False, launchable=True, known_seat=True)
     assert v["klass"] == "SEAT_SILENT"
     assert "retry" not in v["recovery"].lower() or "not" in v["recovery"].lower()
     assert any(w in v["recovery"].lower() for w in ("lane", "consum", "wedge", "nudge"))
@@ -71,15 +69,13 @@ def test_attending_but_silent_is_not_a_transport_problem():
 def test_known_seat_down_keeps_the_late_binding_answer_alive():
     """kimi / sol / deepseek-review. Down now, can come up -- the 540.9s case. The
     advice must NOT be 'give up'; it must be launch-or-wait."""
-    v = FC.classify("kimi", attending=False, base_attending=False,
-                    launchable=False, known_seat=True)
+    v = FC.classify("kimi", attending=False, base_attending=False, launchable=False, known_seat=True)
     assert v["klass"] == "SEAT_DOWN"
     assert "give up" not in v["recovery"].lower()
 
 
 def test_launchable_down_seat_is_told_to_launch():
-    v = FC.classify("deepseek", attending=False, base_attending=False,
-                    launchable=True, known_seat=True)
+    v = FC.classify("deepseek", attending=False, base_attending=False, launchable=True, known_seat=True)
     assert v["klass"] == "SEAT_DOWN"
     assert "launch" in v["recovery"].lower()
 
@@ -88,20 +84,19 @@ def test_stale_incarnation_is_a_routing_hint_not_a_verdict():
     """THE CORRECTED CLASS (deepseek's A). codex_root_019fab2d -> re-address codex_root.
     It must recommend the cheaper route WITHOUT claiming the old address is hopeless --
     the reaper re-homes orphan mail, so futility is not ours to assert."""
-    v = FC.classify("codex_root_019fab2d", attending=False, base_attending=True,
-                    launchable=False, known_seat=True)
+    v = FC.classify("codex_root_019fab2d", attending=False, base_attending=True, launchable=False, known_seat=True)
     assert v["klass"] == "STALE_INCARNATION"
     assert "codex_root" in v["recovery"], "must name the base seat to re-address"
     for forbidden in ("never", "futile", "impossible", "cannot be answered", "hopeless"):
         assert forbidden not in v["recovery"].lower(), (
             f"'{forbidden}' overclaims: reaper.py re-homes orphan mail, so this address "
-            f"is unlikely to be read, not provably dead")
+            f"is unlikely to be read, not provably dead"
+        )
 
 
 def test_unknown_peer_says_so_without_claiming_certainty():
     """t147probe: no seat, no base, no history."""
-    v = FC.classify("t147probe", attending=False, base_attending=False,
-                    launchable=False, known_seat=False)
+    v = FC.classify("t147probe", attending=False, base_attending=False, launchable=False, known_seat=False)
     assert v["klass"] == "UNKNOWN_PEER"
 
 
@@ -114,6 +109,7 @@ def test_every_class_carries_an_actionable_recovery():
 # --------------------------------------------------------------------------------------
 # The two laws the fence bought. These are the pins that matter most.
 # --------------------------------------------------------------------------------------
+
 
 def test_classification_changes_no_transport_policy():
     """DEEPSEEK'S (B), PINNED AS LAW: 'redrive is still a send'. This module must be a
@@ -145,10 +141,20 @@ def test_classification_changes_no_transport_policy():
         elif isinstance(node, ast.Name):
             referenced.add(node.id)
 
-    for forbidden in ("REDRIVES", "redrives_left", "send", "send_reply", "arm", "sweep",
-                      "settle", "xadd", "hset", "Bus", "capture_event"):
-        assert forbidden not in referenced, (
-            f"{forbidden}: classification DIAGNOSES, it never changes transport policy")
+    for forbidden in (
+        "REDRIVES",
+        "redrives_left",
+        "send",
+        "send_reply",
+        "arm",
+        "sweep",
+        "settle",
+        "xadd",
+        "hset",
+        "Bus",
+        "capture_event",
+    ):
+        assert forbidden not in referenced, f"{forbidden}: classification DIAGNOSES, it never changes transport policy"
 
 
 def test_classify_is_pure():
@@ -169,7 +175,6 @@ def test_no_class_asserts_futility_anywhere():
 
 def test_unknown_is_reachable_when_observations_are_missing():
     """The house law one layer up: absence of evidence is not evidence of absence."""
-    v = FC.classify("whoever", attending=None, base_attending=None,
-                    launchable=None, known_seat=None)
+    v = FC.classify("whoever", attending=None, base_attending=None, launchable=None, known_seat=None)
     assert v["klass"] == "UNCLASSIFIED"
     assert v["recovery"]

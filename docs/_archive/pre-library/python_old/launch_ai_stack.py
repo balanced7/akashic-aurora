@@ -51,7 +51,7 @@ def python_for_subprocess() -> str:
     return "python"
 
 
-def _append_log(q: queue.Queue, widget: Text, line: str) -> None:
+def _append_log(q: queue.Queue, widget: Text | None, line: str) -> None:
     q.put(line)
 
 

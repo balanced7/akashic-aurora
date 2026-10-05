@@ -19,6 +19,7 @@ Pins:
 
 Run: py -m pytest tests/test_t081_w8a_gauge_labels.py -q
 """
+
 import os
 import sys
 
@@ -26,26 +27,23 @@ os.environ.setdefault("_AISETUP_TEST_ISOLATED", "1")
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
-def _whisper(cwd=None, agent_id="test-agent", session_id="",
-             monkeypatch=None, unread=0, lane_env=None):
+def _whisper(cwd=None, agent_id="test-agent", session_id="", monkeypatch=None, unread=0, lane_env=None):
     """Build the whisper with controlled inputs."""
     import agent.harness.context as ctx
+
     if monkeypatch is not None:
         monkeypatch.setattr(ctx, "_unread_count", lambda aid: unread)
         monkeypatch.setattr(ctx, "_draft_fresh", lambda: False)
         monkeypatch.setattr(ctx, "_delta_count", lambda aid: 0)
         monkeypatch.setattr(ctx, "_funnel_line", lambda: "")
-        monkeypatch.setattr(ctx, "_fetch_notes", lambda: [])
+        monkeypatch.setattr(ctx, "_fetch_notes", list)
         monkeypatch.setattr(ctx, "_live_siblings", lambda aid, sid: [])
         monkeypatch.setattr(ctx, "session_in_scope", lambda cwd: True)
         if lane_env is not None:
             monkeypatch.setenv("BIFROST_CONSUME_LANE", lane_env)
         else:
             monkeypatch.delenv("BIFROST_CONSUME_LANE", raising=False)
-    return ctx.build_autoboot_context(
-        cwd=cwd or os.path.dirname(__file__),
-        agent_id=agent_id,
-        session_id=session_id)
+    return ctx.build_autoboot_context(cwd=cwd or os.path.dirname(__file__), agent_id=agent_id, session_id=session_id)
 
 
 # ------------------------------------------------------------------ W8A-P1: scope label present
@@ -76,17 +74,19 @@ def test_w8a_p3_lane_disabled_shows_all_lanes(monkeypatch):
 def test_w8a_p4_import_failure_falls_back(monkeypatch):
     """If BifrostAPI import fails, scope falls back to 'legacy peek'."""
     import agent.harness.context as ctx
+
     monkeypatch.setattr(ctx, "_unread_count", lambda aid: 3)
     monkeypatch.setattr(ctx, "_draft_fresh", lambda: False)
     monkeypatch.setattr(ctx, "_delta_count", lambda aid: 0)
     monkeypatch.setattr(ctx, "_funnel_line", lambda: "")
-    monkeypatch.setattr(ctx, "_fetch_notes", lambda: [])
+    monkeypatch.setattr(ctx, "_fetch_notes", list)
     monkeypatch.setattr(ctx, "_live_siblings", lambda aid, sid: [])
     monkeypatch.setattr(ctx, "session_in_scope", lambda cwd: True)
 
     # Force the import path to fail
     def _fake_import(*args, **kwargs):
         raise ImportError("simulated")
+
     monkeypatch.setattr("core.comm.bifrost_api.BifrostAPI", None, raising=False)
     # Simpler: just delenv BIFROST_CONSUME_LANE and the try/except around import
     # won't fail — but we want to test the *inner* except. Let's just verify
@@ -108,6 +108,7 @@ def test_w8a_p5_zero_unread_no_mail_line(monkeypatch):
 def test_w8a_p6_out_of_repo_whisper_unchanged(monkeypatch):
     """Out-of-repo whisper keeps the bare message (no scope label clutter)."""
     import agent.harness.context as ctx
+
     monkeypatch.setattr(ctx, "_unread_count", lambda aid: 4)
     monkeypatch.setattr(ctx, "_draft_fresh", lambda: False)
     monkeypatch.setattr(ctx, "session_in_scope", lambda cwd: False)

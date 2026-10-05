@@ -20,21 +20,25 @@ canonical-store writer. These tests FAIL (RED) until the module ships. Run ONLY 
 
 Import target: ``core.recall.shadow_shelf`` (intended public module; does not exist yet).
 """
+
 import os
 import sys
 
+import pytest
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-try:  # noqa: E402  (RED if absent)
+try:
     from core.recall.shadow_shelf import (
         CategoryContract,
-        ObservationStore,
         JudgmentStore,
+        ObservationStore,
         ShadowShelfReader,
     )
+
     _HAS = True
 except ImportError:
-    CategoryContract = ObservationStore = JudgmentStore = ShadowShelfReader = None  # type: ignore[assignment]
+    CategoryContract = ObservationStore = JudgmentStore = ShadowShelfReader = None
     _HAS = False
 
 
@@ -50,21 +54,27 @@ def _require():
 # Deterministic fixtures (no model). DATA handed to the real stores.
 # ---------------------------------------------------------------------------
 
+
 def _slot(role, terminal, items=(), version=1, error_reason=""):
     """One versioned candidate slot. terminal in {emitted, silent, abstained, error}."""
-    return {"role": role, "version": version, "terminal": terminal,
-            "items": list(items), "error_reason": error_reason}
+    return {"role": role, "version": version, "terminal": terminal, "items": list(items), "error_reason": error_reason}
 
 
-def _envelope(cohort_id, champion, challenger, state="agreement", source="evt-1",
-              subject="s", purpose="p"):
+def _envelope(cohort_id, champion, challenger, state="agreement", source="evt-1", subject="s", purpose="p"):
     """A complete cohort envelope carrying the subject/purpose the peek filters on. Every
     peek in this file filters subject="s", purpose="p", so envelopes default to those."""
-    return {"cohort_id": cohort_id, "source": source, "subject": subject,
-            "purpose": purpose,
-            "category": "recall.at_action.rank.v1",
-            "category_contract_hash": "rank-v1-hash-0000", "version": 1,
-            "champion": champion, "challenger": challenger, "state": state}
+    return {
+        "cohort_id": cohort_id,
+        "source": source,
+        "subject": subject,
+        "purpose": purpose,
+        "category": "recall.at_action.rank.v1",
+        "category_contract_hash": "rank-v1-hash-0000",
+        "version": 1,
+        "champion": champion,
+        "challenger": challenger,
+        "state": state,
+    }
 
 
 def _control_envelope(cohort_id="ctrl-known-wrong"):
@@ -80,6 +90,7 @@ def _control_envelope(cohort_id="ctrl-known-wrong"):
 def _ok_reader(tmp_path, Obs, Jud, Reader, *, cohorts=(), judgments=()):
     """Build a reader over a READABLE observation store AND a READABLE judgment store, so
     peek may reach status=ok. Seeds any envelopes + appends any judgments first."""
+    assert ShadowShelfReader is not None
     obs = Obs(str(tmp_path / "obs.sqlite"))
     jud = Jud(str(tmp_path / "jud.sqlite"))
     for env in cohorts:
@@ -93,24 +104,32 @@ def _ok_reader(tmp_path, Obs, Jud, Reader, *, cohorts=(), judgments=()):
 # Pin 1 -- CategoryContract identity vs facets (facets never change identity).
 # ---------------------------------------------------------------------------
 
+
 def test_facets_do_not_change_category_identity(tmp_path):
-    Cat, Obs, Jud, Reader = _require()
-    cat = Cat(input_schema={"kind": "action"}, candidate_schema={"outcome": "ranked"},
-              comparison="bounded-id-set", retention="visible-death",
-              writers=("observer", "judge"), reader="disagreements-first", delivery="none")
+    Cat, _Obs, _Jud, _Reader = _require()
+    assert Cat is not None
+    cat = Cat(
+        input_schema={"kind": "action"},
+        candidate_schema={"outcome": "ranked"},
+        comparison="bounded-id-set",
+        retention="visible-death",
+        writers=("observer", "judge"),
+        reader="disagreements-first",
+        delivery="none",
+    )
     base_id = cat.identity()
-    faceted = cat.with_facets(domain="drafting", urgency="low", theme="review",
-                              confidence=0.5, favorite=False)
+    faceted = cat.with_facets(domain="drafting", urgency="low", theme="review", confidence=0.5, favorite=False)
     assert faceted is not cat, "with_facets returns a new contract object"
     assert faceted.identity() == base_id, "facets must not change category identity"
 
 
 def test_two_contracts_same_tuple_are_one_identity(tmp_path):
-    Cat, Obs, Jud, Reader = _require()
-    a = Cat(input_schema=1, candidate_schema=2, comparison=3, retention=4,
-            writers=5, reader=6, delivery=7)
-    b = Cat(input_schema=1, candidate_schema=2, comparison=3, retention=4,
-            writers=5, reader=6, delivery=7).with_facets(theme="different-facet")
+    Cat, _Obs, _Jud, _Reader = _require()
+    assert Cat is not None
+    a = Cat(input_schema=1, candidate_schema=2, comparison=3, retention=4, writers=5, reader=6, delivery=7)
+    b = Cat(input_schema=1, candidate_schema=2, comparison=3, retention=4, writers=5, reader=6, delivery=7).with_facets(
+        theme="different-facet"
+    )
     assert a.identity() == b.identity(), "same tuple == same identity, facets excluded"
 
 
@@ -119,9 +138,12 @@ def test_two_contracts_same_tuple_are_one_identity(tmp_path):
 #          same-path cross-type construction refuses loudly.
 # ---------------------------------------------------------------------------
 
+
 def test_observation_and_judgment_require_separate_existing_paths(tmp_path):
-    Cat, Obs, Jud, Reader = _require()
+    _Cat, Obs, Jud, _Reader = _require()
+    assert Obs is not None
     obs = Obs(str(tmp_path / "obs.sqlite"))
+    assert Jud is not None
     jud = Jud(str(tmp_path / "jud.sqlite"))
     assert type(obs) is not type(jud), "observation and judgment are different classes"
     assert obs.path != jud.path, "stores must be on different resolved paths"
@@ -131,21 +153,24 @@ def test_observation_and_judgment_require_separate_existing_paths(tmp_path):
 
 
 def test_same_path_across_store_types_refuses(tmp_path):
-    Cat, Obs, Jud, Reader = _require()
+    _Cat, Obs, Jud, _Reader = _require()
     shared = str(tmp_path / "same.sqlite")
+    assert Obs is not None
     Obs(shared)
+    assert Jud is not None
     try:
         Jud(shared)
-        assert False, "opening a judgment store on the observation path must refuse loudly"
-    except (ValueError, RuntimeError, IOError, OSError):
+        pytest.fail("opening a judgment store on the observation path must refuse loudly")
+    except (ValueError, RuntimeError, OSError):
         pass
 
 
 def test_observation_write_then_peek_roundtrips(tmp_path):
-    Cat, Obs, Jud, Reader = _require()
-    reader, obs, jud = _ok_reader(tmp_path, Obs, Jud, Reader)
-    env = _envelope("c-1", _slot("champion", "emitted", items=["A"]),
-                    _slot("challenger", "emitted", items=["A"]), state="agreement")
+    _Cat, Obs, Jud, Reader = _require()
+    reader, obs, _jud = _ok_reader(tmp_path, Obs, Jud, Reader)
+    env = _envelope(
+        "c-1", _slot("champion", "emitted", items=["A"]), _slot("challenger", "emitted", items=["A"]), state="agreement"
+    )
     obs.write_envelope(env)
     got = reader.peek(subject="s", purpose="p", limit=10)
     assert got["status"] == "ok", got
@@ -153,14 +178,19 @@ def test_observation_write_then_peek_roundtrips(tmp_path):
 
 
 def test_judgment_append_persists_exact_version_verbatim(tmp_path):
-    Cat, Obs, Jud, Reader = _require()
+    _Cat, _Obs, Jud, _Reader = _require()
+    assert Jud is not None
     jud = Jud(str(tmp_path / "jud.sqlite"))
-    jud.append(cohort_id="c-1", candidate_id="champion", candidate_version=7,
-               principal="evaluator", pref="KEEP")
-    jud.append(cohort_id="c-1", candidate_id="challenger", candidate_version=7,
-               principal="evaluator", pref="DROP")
+    jud.append(cohort_id="c-1", candidate_id="champion", candidate_version=7, principal="evaluator", pref="KEEP")
+    jud.append(cohort_id="c-1", candidate_id="challenger", candidate_version=7, principal="evaluator", pref="DROP")
     # Persistence asserted through a real read, not the append return value.
-    rows = jud.list() if hasattr(jud, "list") else jud.judgments() if hasattr(jud, "judgments") else None
+    rows = (
+        jud.list()
+        if hasattr(jud, "list")
+        else jud.judgments()  # pyright: ignore[reportAttributeAccessIssue]  # contract probe: either read name
+        if hasattr(jud, "judgments")
+        else None
+    )
     assert rows is not None, "JudgmentStore must expose a real read (list()/judgments())"
     by_candidate = {r["candidate_id"]: r for r in rows}
     assert by_candidate["champion"]["candidate_version"] == 7, "exact version persisted verbatim"
@@ -172,31 +202,44 @@ def test_judgment_missing_version_refuses(tmp_path):
     """Missing/None/empty candidate_version must refuse; a supplied exact version is the
     only accepted target. JudgmentStore has no observation authority, so it validates the
     version is PRESENT and well-formed, never that it names a real observation slot."""
-    Cat, Obs, Jud, Reader = _require()
+    _Cat, _Obs, Jud, _Reader = _require()
+    assert Jud is not None
     jud = Jud(str(tmp_path / "jud.sqlite"))
     for bad_version in (None, "", 0, -1):
         try:
-            jud.append(cohort_id="c", candidate_id="champion", candidate_version=bad_version,
-                       principal="e", pref="KEEP")
-            assert False, f"candidate_version {bad_version!r} must be rejected"
+            jud.append(
+                cohort_id="c",
+                candidate_id="champion",
+                candidate_version=bad_version,  # pyright: ignore[reportArgumentType]  # deliberate invalid input
+                principal="e",
+                pref="KEEP",
+            )
+            pytest.fail(f"candidate_version {bad_version!r} must be rejected")
         except (ValueError, TypeError):
             pass
 
 
 def test_judgment_appends_only_keep_or_drop(tmp_path):
-    Cat, Obs, Jud, Reader = _require()
+    _Cat, _Obs, Jud, _Reader = _require()
+    assert Jud is not None
     jud = Jud(str(tmp_path / "jud.sqlite"))
     for bad in ("ADOPT", "PROMOTE", "useful", "", None, 1):
         try:
-            jud.append(cohort_id="c", candidate_id="champion", candidate_version=1,
-                       principal="e", pref=bad)
-            assert False, f"pref {bad!r} must be rejected"
+            jud.append(
+                cohort_id="c",
+                candidate_id="champion",
+                candidate_version=1,
+                principal="e",
+                pref=bad,  # pyright: ignore[reportArgumentType]  # deliberate invalid input
+            )
+            pytest.fail(f"pref {bad!r} must be rejected")
         except (ValueError, TypeError):
             pass
 
 
 def test_judgment_has_no_promotion_or_usefulness_surface(tmp_path):
-    Cat, Obs, Jud, Reader = _require()
+    _Cat, _Obs, Jud, _Reader = _require()
+    assert Jud is not None
     jud = Jud(str(tmp_path / "jud.sqlite"))
     for forbidden in ("promote", "promote_candidate", "set_useful", "claim_usefulness"):
         assert not hasattr(jud, forbidden), f"judgment must not advertise {forbidden}"
@@ -206,21 +249,40 @@ def test_judgment_has_no_promotion_or_usefulness_surface(tmp_path):
 # Pin 6 -- every numerator carries its denominator; no naked win/keep rate.
 # ---------------------------------------------------------------------------
 
+
 def test_peek_counters_carry_numerator_and_denominator(tmp_path):
     """Seed two cohorts + one KEEP judgment, then require peek()['counters'] to expose
     processing, comparison, and judgment counts -- each as an explicit numerator/denominator
     pair, never a naked rate."""
-    Cat, Obs, Jud, Reader = _require()
-    reader, obs, jud = _ok_reader(
-        tmp_path, Obs, Jud, Reader,
+    _Cat, Obs, Jud, Reader = _require()
+    reader, _obs, _jud = _ok_reader(
+        tmp_path,
+        Obs,
+        Jud,
+        Reader,
         cohorts=[
-            _envelope("c-1", _slot("champion", "emitted", items=["A"]),
-                      _slot("challenger", "emitted", items=["A"]), state="agreement"),
-            _envelope("c-2", _slot("champion", "emitted", items=["B"]),
-                      _slot("challenger", "silent", items=[]), state="disagreement"),
+            _envelope(
+                "c-1",
+                _slot("champion", "emitted", items=["A"]),
+                _slot("challenger", "emitted", items=["A"]),
+                state="agreement",
+            ),
+            _envelope(
+                "c-2",
+                _slot("champion", "emitted", items=["B"]),
+                _slot("challenger", "silent", items=[]),
+                state="disagreement",
+            ),
         ],
-        judgments=[dict(cohort_id="c-1", candidate_id="champion", candidate_version=1,
-                        principal="evaluator", pref="KEEP")],
+        judgments=[
+            {
+                "cohort_id": "c-1",
+                "candidate_id": "champion",
+                "candidate_version": 1,
+                "principal": "evaluator",
+                "pref": "KEEP",
+            }
+        ],
     )
     got = reader.peek(subject="s", purpose="p", limit=10)
     counters = got["counters"]
@@ -250,28 +312,33 @@ def test_peek_counters_carry_numerator_and_denominator(tmp_path):
     # never a bare float/int. Walk every counter section.
     for section in counters.values():
         for key, val in section.items():
-            if key.endswith("_rate") or key in ("coverage", "keep_rate", "drop_rate",
-                                                "agreement_rate", "disagreement_rate"):
+            if key.endswith("_rate") or key in (
+                "coverage",
+                "keep_rate",
+                "drop_rate",
+                "agreement_rate",
+                "disagreement_rate",
+            ):
                 assert isinstance(val, dict), f"rate '{key}' must be a dict, got {val!r}"
-                assert "numerator" in val and "denominator" in val, (
-                    f"rate '{key}' must carry numerator AND denominator, got {val!r}"
-                )
-                assert isinstance(val["numerator"], int) and isinstance(val["denominator"], int), (
-                    f"rate '{key}' components must be integers, got {val!r}"
-                )
+                assert "numerator" in val, f"rate '{key}' must carry numerator AND denominator, got {val!r}"
+                assert "denominator" in val, f"rate '{key}' must carry numerator AND denominator, got {val!r}"
+                assert isinstance(val["numerator"], int), f"rate '{key}' components must be integers, got {val!r}"
+                assert isinstance(val["denominator"], int), f"rate '{key}' components must be integers, got {val!r}"
 
 
 # ---------------------------------------------------------------------------
 # Pin 7 -- peek status transitions, exercised causally.
 # ---------------------------------------------------------------------------
 
+
 def test_first_peek_is_unpeeked_then_mark_peeked_makes_fresh(tmp_path):
     """The first peek of a real cohort is 'unpeeked'; mark_peeked writes a seen receipt and
     the NEXT peek reports 'fresh' -- the state transition, not a set-membership guess."""
-    Cat, Obs, Jud, Reader = _require()
-    reader, obs, jud = _ok_reader(tmp_path, Obs, Jud, Reader)
-    obs.write_envelope(_envelope("c-1", _slot("champion", "emitted", items=["A"]),
-                                 _slot("challenger", "emitted", items=["A"])))
+    _Cat, Obs, Jud, Reader = _require()
+    reader, obs, _jud = _ok_reader(tmp_path, Obs, Jud, Reader)
+    obs.write_envelope(
+        _envelope("c-1", _slot("champion", "emitted", items=["A"]), _slot("challenger", "emitted", items=["A"]))
+    )
     first = reader.peek(subject="s", purpose="p", limit=10)
     row = first["rows"][0]
     assert row["peek_state"] == "unpeeked", row
@@ -285,10 +352,11 @@ def test_first_peek_is_unpeeked_then_mark_peeked_makes_fresh(tmp_path):
 def test_compacted_cohort_surfaces_stale_when_included(tmp_path):
     """After compaction, a normal peek omits (or renders stale) the cohort, but
     peek(..., include_stale=True) must include a 'stale' manifest row."""
-    Cat, Obs, Jud, Reader = _require()
-    reader, obs, jud = _ok_reader(tmp_path, Obs, Jud, Reader)
-    obs.write_envelope(_envelope("c-1", _slot("champion", "emitted", items=["A"]),
-                                 _slot("challenger", "emitted", items=["A"])))
+    _Cat, Obs, Jud, Reader = _require()
+    reader, obs, _jud = _ok_reader(tmp_path, Obs, Jud, Reader)
+    obs.write_envelope(
+        _envelope("c-1", _slot("champion", "emitted", items=["A"]), _slot("challenger", "emitted", items=["A"]))
+    )
     obs.compact(cohort_id="c-1", reason="expired")
     got = reader.peek(subject="s", purpose="p", limit=10, include_stale=True)
     stale_rows = [r for r in got["rows"] if r.get("peek_state") == "stale"]
@@ -300,12 +368,16 @@ def test_contract_head_resolver_failure_status_unknown(tmp_path):
     with a reason -- never a silent ok or a fabricated fresh/stale. A cohort must exist so
     the resolver is actually invoked (a correct reader resolves heads only for returned
     rows), otherwise no reader would ever call it and the test would pass vacuously."""
-    Cat, Obs, Jud, Reader = _require()
+    assert ShadowShelfReader is not None
+    _Cat, Obs, Jud, _Reader = _require()
+    assert Obs is not None
     obs = Obs(str(tmp_path / "obs.sqlite"))
+    assert Jud is not None
     jud = Jud(str(tmp_path / "jud.sqlite"))
     # Seed one matching envelope FIRST, so peek has a row whose head it must resolve.
-    obs.write_envelope(_envelope("c-1", _slot("champion", "emitted", items=["A"]),
-                                 _slot("challenger", "emitted", items=["A"])))
+    obs.write_envelope(
+        _envelope("c-1", _slot("champion", "emitted", items=["A"]), _slot("challenger", "emitted", items=["A"]))
+    )
     reader = ShadowShelfReader(obs, jud)
 
     def failing_resolver(cohort_id):
@@ -320,11 +392,14 @@ def test_contract_head_resolver_failure_status_unknown(tmp_path):
 def test_peek_is_bounded_by_limit(tmp_path):
     """Seed more rows than limit; the reader must return at most `limit` rows. A reader
     that ignores its bound (returns everything) fails here."""
-    Cat, Obs, Jud, Reader = _require()
-    reader, obs, jud = _ok_reader(tmp_path, Obs, Jud, Reader)
+    _Cat, Obs, Jud, Reader = _require()
+    reader, obs, _jud = _ok_reader(tmp_path, Obs, Jud, Reader)
     for i in range(10):
-        obs.write_envelope(_envelope(f"c-{i}", _slot("champion", "emitted", items=[f"A{i}"]),
-                                     _slot("challenger", "emitted", items=[f"A{i}"])))
+        obs.write_envelope(
+            _envelope(
+                f"c-{i}", _slot("champion", "emitted", items=[f"A{i}"]), _slot("challenger", "emitted", items=[f"A{i}"])
+            )
+        )
     got = reader.peek(subject="s", purpose="p", limit=3)
     assert got["status"] == "ok", got
     assert len(got["rows"]) <= 3, f"peek(limit=3) must return at most 3 rows, got {len(got['rows'])}"
@@ -334,18 +409,31 @@ def test_disagreement_ranks_before_agreement_independent_of_order(tmp_path):
     """Disagreements-first: seed an OLDER disagreement and a NEWER agreement, in that
     insertion order; the disagreement must still surface BEFORE the agreement. Ordinary
     newest-first ordering would put the agreement first, so only state priority can pass."""
-    Cat, Obs, Jud, Reader = _require()
-    reader, obs, jud = _ok_reader(tmp_path, Obs, Jud, Reader)
+    _Cat, Obs, Jud, Reader = _require()
+    reader, obs, _jud = _ok_reader(tmp_path, Obs, Jud, Reader)
     # Older disagreement inserted first.
-    obs.write_envelope(_envelope("c-disagree", _slot("champion", "emitted", items=["X"]),
-                                 _slot("challenger", "silent", items=[]), state="disagreement"))
+    obs.write_envelope(
+        _envelope(
+            "c-disagree",
+            _slot("champion", "emitted", items=["X"]),
+            _slot("challenger", "silent", items=[]),
+            state="disagreement",
+        )
+    )
     # Newer agreement inserted second. A recency-only reader would put this first.
-    obs.write_envelope(_envelope("c-agree", _slot("champion", "emitted", items=["X"]),
-                                 _slot("challenger", "emitted", items=["X"]), state="agreement"))
+    obs.write_envelope(
+        _envelope(
+            "c-agree",
+            _slot("champion", "emitted", items=["X"]),
+            _slot("challenger", "emitted", items=["X"]),
+            state="agreement",
+        )
+    )
     got = reader.peek(subject="s", purpose="p", limit=10)
     rows = got["rows"]
     states = [r.get("state") for r in rows]
-    assert "disagreement" in states and "agreement" in states, states
+    assert "disagreement" in states, states
+    assert "agreement" in states, states
     assert states.index("disagreement") < states.index("agreement"), (
         "disagreement must precede agreement regardless of insertion order, got " + str(states)
     )
@@ -355,11 +443,12 @@ def test_disagreement_ranks_before_agreement_independent_of_order(tmp_path):
 # Pin 7b -- healthy-empty / unavailable / partial are three DISTINCT shapes.
 # ---------------------------------------------------------------------------
 
+
 def test_healthy_empty_peek_is_ok_not_failure(tmp_path):
     """An empty but READABLE observation register is status=ok with reasons empty and
     rows=[]. Needs a readable judgment store to be ok."""
-    Cat, Obs, Jud, Reader = _require()
-    reader, obs, jud = _ok_reader(tmp_path, Obs, Jud, Reader)
+    _Cat, Obs, Jud, Reader = _require()
+    reader, _obs, _jud = _ok_reader(tmp_path, Obs, Jud, Reader)
     got = reader.peek(subject="s", purpose="p", limit=10)
     assert got["status"] == "ok", got
     assert got["reasons"] == [], got
@@ -370,8 +459,11 @@ def test_missing_observation_register_is_unavailable_exact_dict(tmp_path):
     """A degraded observation store (unreadable DB) must yield an EXACT dict with
     status=unavailable, nonempty reasons, rows=[]. Construction returns a degraded store,
     it does not raise, so the reader can render the state."""
-    Cat, Obs, Jud, Reader = _require()
+    assert ShadowShelfReader is not None
+    _Cat, Obs, Jud, _Reader = _require()
+    assert Jud is not None
     jud = Jud(str(tmp_path / "jud.sqlite"))
+    assert Obs is not None
     obs = Obs(str(tmp_path / "does_not_exist" / "nope.sqlite"))  # degraded, not raising
     reader = ShadowShelfReader(obs, jud)
     got = reader.peek(subject="s", purpose="p", limit=10)
@@ -384,10 +476,13 @@ def test_missing_observation_register_is_unavailable_exact_dict(tmp_path):
 def test_missing_judgment_with_observations_is_partial(tmp_path):
     """Readable observations + judgment_store=None -> status=partial with rows still
     surfacing; the judgment gap is named in reasons."""
-    Cat, Obs, Jud, Reader = _require()
+    assert ShadowShelfReader is not None
+    _Cat, Obs, _Jud, _Reader = _require()
+    assert Obs is not None
     obs = Obs(str(tmp_path / "obs.sqlite"))
-    obs.write_envelope(_envelope("c-1", _slot("champion", "emitted", items=["A"]),
-                                 _slot("challenger", "emitted", items=["A"])))
+    obs.write_envelope(
+        _envelope("c-1", _slot("champion", "emitted", items=["A"]), _slot("challenger", "emitted", items=["A"]))
+    )
     reader = ShadowShelfReader(obs, judgment_store=None)
     got = reader.peek(subject="s", purpose="p", limit=10)
     assert got["status"] == "partial", got
@@ -399,17 +494,20 @@ def test_missing_judgment_with_observations_is_partial(tmp_path):
 # Pin 8 -- seeded known-wrong unanimous cohort appears in the control sample.
 # ---------------------------------------------------------------------------
 
+
 def test_control_sample_returns_labeled_seeded_rows(tmp_path):
     """Control sampling must discriminate, not relabel the whole shelf as control."""
-    Cat, Obs, Jud, Reader = _require()
-    reader, obs, jud = _ok_reader(tmp_path, Obs, Jud, Reader)
+    _Cat, Obs, Jud, Reader = _require()
+    reader, obs, _jud = _ok_reader(tmp_path, Obs, Jud, Reader)
     obs.write_envelope(_control_envelope("ctrl-known-wrong"))
-    obs.write_envelope(_envelope(
-        "organic-agreement",
-        _slot("champion", "emitted", items=["A"]),
-        _slot("challenger", "emitted", items=["A"]),
-        state="agreement",
-    ))
+    obs.write_envelope(
+        _envelope(
+            "organic-agreement",
+            _slot("champion", "emitted", items=["A"]),
+            _slot("challenger", "emitted", items=["A"]),
+            state="agreement",
+        )
+    )
     ctrl = reader.control_sample(limit=10)
     assert ctrl, "control_sample must return the seeded cohort"
     found = [r for r in ctrl if r.get("cohort_id") == "ctrl-known-wrong"]
@@ -426,11 +524,13 @@ def test_control_sample_returns_labeled_seeded_rows(tmp_path):
 # Pin 9 (reader-facing) -- compaction manifest keeps expired cohorts visible.
 # ---------------------------------------------------------------------------
 
+
 def test_compacted_cohort_stays_visible_via_manifests(tmp_path):
-    Cat, Obs, Jud, Reader = _require()
-    reader, obs, jud = _ok_reader(tmp_path, Obs, Jud, Reader)
-    obs.write_envelope(_envelope("c-1", _slot("champion", "emitted", items=["A"]),
-                                 _slot("challenger", "emitted", items=["A"])))
+    _Cat, Obs, Jud, Reader = _require()
+    reader, obs, _jud = _ok_reader(tmp_path, Obs, Jud, Reader)
+    obs.write_envelope(
+        _envelope("c-1", _slot("champion", "emitted", items=["A"]), _slot("challenger", "emitted", items=["A"]))
+    )
     obs.compact(cohort_id="c-1", reason="expired")
     mans = reader.manifests(limit=10)
     m = [x for x in mans if x.get("cohort_id") == "c-1"]
@@ -444,9 +544,10 @@ def test_compacted_cohort_stays_visible_via_manifests(tmp_path):
 # Pin 11 (reader-facing) -- health is explicit and complete.
 # ---------------------------------------------------------------------------
 
+
 def test_health_reports_all_required_keys(tmp_path):
-    Cat, Obs, Jud, Reader = _require()
-    reader, obs, jud = _ok_reader(tmp_path, Obs, Jud, Reader)
+    _Cat, Obs, Jud, Reader = _require()
+    reader, _obs, _jud = _ok_reader(tmp_path, Obs, Jud, Reader)
     h = reader.health()
     for key in ("rows", "bytes_per_envelope", "db_bytes", "wal_bytes", "backlog"):
         assert key in h, f"health must contain {key}"

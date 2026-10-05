@@ -10,6 +10,7 @@ characterize the critic's behavior on the signals it claims to judge:
   - it REGRESSION-guards the old paren bug (a source containing ')'),
   - low grounding overlap is SOFT (reported, never fails the verdict -- the ROUGE/FP trap).
 """
+
 import os
 import sys
 import tempfile
@@ -23,12 +24,19 @@ from core.primitives.faithfulness import faithfulness_critic, faithfulness_repor
 
 # Representative real records (mirrors the learning/memory items consolidation projects).
 _ITEMS = [
-    Consolidator.item(text="probe reachability first; a filtered port hangs connect for 48s",
-                      source="learn:experiment:redis_probe", importance=4),
-    Consolidator.item(text="use the node manager to install custom nodes",
-                      source="mem:exp:comfyui_install", importance=3),
-    Consolidator.item(text="memoization gave a 52% speedup; loop unrolling only 2%",
-                      source="learn:experiment:perf(prior art)", importance=4),  # source HAS parens
+    Consolidator.item(
+        text="probe reachability first; a filtered port hangs connect for 48s",
+        source="learn:experiment:redis_probe",
+        importance=4,
+    ),
+    Consolidator.item(
+        text="use the node manager to install custom nodes", source="mem:exp:comfyui_install", importance=3
+    ),
+    Consolidator.item(
+        text="memoization gave a 52% speedup; loop unrolling only 2%",
+        source="learn:experiment:perf(prior art)",
+        importance=4,
+    ),  # source HAS parens
 ]
 
 
@@ -44,7 +52,9 @@ def test_no_false_positive_on_real_output():
     ok, notes = faithfulness_critic(_ITEMS, skeleton)
     assert ok is True, f"false-positive on faithful output! notes={notes}"
     rep = faithfulness_report(_ITEMS, skeleton)
-    assert rep["unresolved"] == 0 and rep["untraceable"] == 0 and rep["number_fail"] == 0
+    assert rep["unresolved"] == 0
+    assert rep["untraceable"] == 0
+    assert rep["number_fail"] == 0
     print(f"\n--- no false-positive ---\n  faithful real output passes (conf={rep['confidence']}) OK")
 
 
@@ -54,8 +64,8 @@ def test_source_with_parens_resolves():
     skeleton = _real_skeleton()
     rep = faithfulness_report(_ITEMS, skeleton)
     paren_lines = [p for p in rep["per_line"] if p.get("src", "").endswith("(prior art)")]
-    assert paren_lines and all(p["resolves"] for p in paren_lines), \
-        f"paren source was truncated/unresolved: {paren_lines}"
+    assert paren_lines, f"paren source was truncated/unresolved: {paren_lines}"
+    assert all(p["resolves"] for p in paren_lines), f"paren source was truncated/unresolved: {paren_lines}"
     print("--- paren-safe ---\n  source containing ')' resolves whole OK")
 
 
@@ -63,7 +73,8 @@ def test_catches_fabricated_pointer():
     """An LLM writer that cites a source not among the inputs must be caught (citation hallucination)."""
     bad = "- some plausible but invented lesson  (source: learn:experiment:ghost_999)"
     ok, notes = faithfulness_critic(_ITEMS, bad)
-    assert ok is False and any("fabricated" in n or "unresolvable" in n for n in notes), notes
+    assert ok is False, notes
+    assert any("fabricated" in n or "unresolvable" in n for n in notes), notes
     print("--- fabricated pointer ---\n  unresolvable source -> unfaithful OK")
 
 
@@ -71,14 +82,16 @@ def test_catches_fabricated_number():
     """A line citing a real source but introducing a number absent from it = fabricated figure."""
     bad = "- probe reachability first; a filtered port hangs connect for 999s  (source: learn:experiment:redis_probe)"
     ok, notes = faithfulness_critic(_ITEMS, bad)
-    assert ok is False and any("number" in n for n in notes), notes
+    assert ok is False, notes
+    assert any("number" in n for n in notes), notes
     print("--- fabricated number ---\n  number absent from source -> unfaithful OK")
 
 
 def test_untraceable_line_caught():
     """A content claim with no source pointer can't be traced -> unfaithful."""
     ok, notes = faithfulness_critic(_ITEMS, "- a claim with no pointer at all")
-    assert ok is False and any("no source pointer" in n for n in notes), notes
+    assert ok is False, notes
+    assert any("no source pointer" in n for n in notes), notes
     print("--- untraceable ---\n  claim without a pointer -> unfaithful OK")
 
 

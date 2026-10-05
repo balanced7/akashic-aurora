@@ -48,6 +48,7 @@ package, so if it were live the import graph would already show it. 4 of 4.
 
 Run: py -m pytest tests/test_t134_self_invoking_is_not_a_library.py -q
 """
+
 import os
 import sys
 
@@ -55,7 +56,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 sys.path.insert(0, os.path.join(ROOT, "scripts", "checkers"))
 
-import check_wiring  # noqa: E402
+import check_wiring  # noqa: E402  # sys.path bootstrap
 
 MAIN_STUB = "def main():\n    return 1\n\nif __name__ == '__main__':\n    r = main()\n"
 
@@ -70,26 +71,29 @@ def _pkg(tmp_path, pkg, mod, body, init=None):
 
 
 def test_s1_a_reexported_main_module_is_a_library_not_an_entry_point(tmp_path):
-    rel = _pkg(tmp_path, "state", "session_recovery", MAIN_STUB,
-               init="from .session_recovery import SessionRecovery\n\n"
-                    "__all__ = ['SessionRecovery']\n")
+    rel = _pkg(
+        tmp_path,
+        "state",
+        "session_recovery",
+        MAIN_STUB,
+        init="from .session_recovery import SessionRecovery\n\n__all__ = ['SessionRecovery']\n",
+    )
     got = check_wiring.self_invoking_modules({rel}, root=str(tmp_path))
     assert rel not in got, (
         "a library whose package re-exports it was absolved by its own demo stub -- the gate "
-        "stopped asking about a module that never became wired")
+        "stopped asking about a module that never became wired"
+    )
 
 
 def test_s2_a_genuine_self_invoking_tool_still_counts(tmp_path):
     """durable_reconcile / migrate_to_sqlite / pack_replay must not regress. Fixing a silent
     false negative must not re-open the loud false positive the rule was built to close."""
-    rel = _pkg(tmp_path, "foundation", "durable_reconcile",
-               "import argparse\n" + MAIN_STUB, init="# no re-exports\n")
+    rel = _pkg(tmp_path, "foundation", "durable_reconcile", "import argparse\n" + MAIN_STUB, init="# no re-exports\n")
     assert rel in check_wiring.self_invoking_modules({rel}, root=str(tmp_path))
 
 
 def test_s3_no_main_guard_is_never_self_invoking(tmp_path):
-    plain = _pkg(tmp_path, "util", "helpers", "def helper():\n    return 1\n",
-                 init="from .helpers import helper\n")
+    plain = _pkg(tmp_path, "util", "helpers", "def helper():\n    return 1\n", init="from .helpers import helper\n")
     assert check_wiring.self_invoking_modules({plain}, root=str(tmp_path)) == set()
 
 

@@ -33,6 +33,7 @@ THE FIX IS ONE PATH FOR ALL SIZES. No "if len(prompt) > N use a file" branch: a 
 code path is precisely where this class of defect hides, since every small test passes and only
 production hits the threshold.
 """
+
 from __future__ import annotations
 
 import os
@@ -50,8 +51,9 @@ def test_the_prompt_never_rides_the_argv():
     i = src.index('if getattr(args, "bg", False):')
     j = src.index("_bg.write_record(", i)
     block = src[i:j]
-    assert "child.append(prompt)" not in block, \
+    assert "child.append(prompt)" not in block, (
         "the resolved prompt is still appended to the child argv -- WinError 206 above ~32k"
+    )
 
 
 def test_a_large_prompt_spawns(tmp_path):
@@ -75,11 +77,16 @@ def test_a_large_prompt_spawns(tmp_path):
 
     r = subprocess.run(
         [sys.executable, "agent_cli.py", "ask", "--bg", "--prompt-file", str(big)],
-        cwd=REPO, capture_output=True, text=True, encoding="utf-8", errors="replace",
-        timeout=180, env=env)
+        cwd=REPO,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        timeout=180,
+        env=env,
+    )
 
-    assert "could not spawn" not in (r.stdout + r.stderr), \
-        f"spawn failed: {r.stderr.strip()[:300]}"
+    assert "could not spawn" not in (r.stdout + r.stderr), f"spawn failed: {r.stderr.strip()[:300]}"
     assert "206" not in r.stderr, "the argv-length error must be gone, not merely rarer"
     assert r.returncode == 0
 
@@ -95,8 +102,9 @@ def test_small_and_large_prompts_take_the_same_path(tmp_path):
     j = src.index("_bg.write_record(", i)
     block = src[i:j]
     for smell in ("len(prompt) >", "len(prompt)>", "32767", "32000", "8191"):
-        assert smell not in block, \
+        assert smell not in block, (
             f"size-dependent spawn path ({smell!r}) -- one path for all sizes, or the big case rots"
+        )
 
 
 def test_the_prompt_is_recoverable_from_the_handle(tmp_path):
@@ -107,7 +115,7 @@ def test_the_prompt_is_recoverable_from_the_handle(tmp_path):
     """
     from core.comm import ask_bg
 
-    assert hasattr(ask_bg, "prompt_path"), \
-        "the background prompt needs a handle-scoped location the record can name"
+    assert hasattr(ask_bg, "prompt_path"), "the background prompt needs a handle-scoped location the record can name"
     p = ask_bg.prompt_path("deadbeef")
-    assert str(p).endswith(".prompt") and "deadbeef" in str(p)
+    assert str(p).endswith(".prompt")
+    assert "deadbeef" in str(p)

@@ -38,9 +38,8 @@ No new thresholds -- the floor imports the existing liveness.DEFAULT_WEDGE_S
 (300s, env BIFROST_WEDGE_SECONDS); everything else is a passed input from the
 signals the doctor already computes (phase age, pulse age, beat age).
 """
-from __future__ import annotations
 
-from typing import Optional
+from __future__ import annotations
 
 # The thread-stack signatures that NAME the disease. These are meaning, not
 # membership: a stack "blocked in a write/flush/socket-recv" is the T019
@@ -54,29 +53,29 @@ from typing import Optional
 # T019 pipe family. Written as substrings the stack text will contain when the
 # MainThread is genuinely wedged on undrained I/O.
 _BLOCKED_IO_MARKERS = (
-    "streams.py",            # core/foundation/streams.py write/flush
-    "_stream_turn",          # the runner's stream-flush path
-    "flush",                 # a flush call in the stack
-    "socket.py",             # raw socket recv/sendall
-    ".recv(",                # blocked read on a socket
-    "sendall",               # blocked write on a socket
+    "streams.py",  # core/foundation/streams.py write/flush
+    "_stream_turn",  # the runner's stream-flush path
+    "flush",  # a flush call in the stack
+    "socket.py",  # raw socket recv/sendall
+    ".recv(",  # blocked read on a socket
+    "sendall",  # blocked write on a socket
 )
 
 # Frames that say "this thread is waiting on work, not stuck" -- a clean
 # producer-consumer / worker wait. A live beat PLUS these is the healthy kimi
 # receipt, not a wedge.
 _HEALTHY_WAIT_MARKERS = (
-    "_process_one",          # the runner's per-message worker loop
-    "threading",             # threading.Event.wait / Condition.wait
-    ".wait(",                # any explicit wait primitive
-    "chan.receive",          # channel recv (producer-consumer)
+    "_process_one",  # the runner's per-message worker loop
+    "threading",  # threading.Event.wait / Condition.wait
+    ".wait(",  # any explicit wait primitive
+    "chan.receive",  # channel recv (producer-consumer)
 )
 
 # Frames that say "this thread is inside a model call" -- thinking, not wedged.
 _MODEL_CALL_MARKERS = (
-    ".create(",              # openai-style client .create / completions
-    "chat.py",               # the seat's chat module above the client
-    "_completion",           # a completion entry point
+    ".create(",  # openai-style client .create / completions
+    "chat.py",  # the seat's chat module above the client
+    "_completion",  # a completion entry point
     "openai/",
     "responses",
 )
@@ -89,10 +88,14 @@ def _has(stack: str, markers: tuple) -> bool:
     return any(m in stack for m in markers)
 
 
-def classify(stack: Optional[str], *, phase_age_s: Optional[float],
-             pulse_age_s: Optional[float],
-             beat_age_s: Optional[float],
-             wedge_floor_s: Optional[float] = None) -> str:
+def classify(
+    stack: str | None,
+    *,
+    phase_age_s: float | None,
+    pulse_age_s: float | None,
+    beat_age_s: float | None,
+    wedge_floor_s: float | None = None,
+) -> str:
     """Classify a runner's state as 'wedged' | 'thinking' | 'instrument_fault'.
 
     `stack` is the py-spy dump text (may be None/empty -- that means no stack
@@ -106,8 +109,10 @@ def classify(stack: Optional[str], *, phase_age_s: Optional[float],
     """
     try:
         from core.comm import liveness
-        floor = float(wedge_floor_s) if wedge_floor_s is not None \
-            else float(getattr(liveness, "DEFAULT_WEDGE_S", 300.0))
+
+        floor = (
+            float(wedge_floor_s) if wedge_floor_s is not None else float(getattr(liveness, "DEFAULT_WEDGE_S", 300.0))
+        )
     except Exception:
         floor = float(wedge_floor_s) if wedge_floor_s is not None else 300.0
 
@@ -137,13 +142,12 @@ def classify(stack: Optional[str], *, phase_age_s: Optional[float],
     # Precedence: instrument-fault is the SUB-floor form (phase not yet aged);
     # once the phase is at/over the floor, the same signature is plain thinking
     # (never a kill). Blocked I/O always wins over both -- that is the wedge.
-    beat_fresh = beat_age <= 60.0          # fresh enough to read as alive
-    pulse_dead = pulse_age >= 10.0         # older than ~2x PROGRESS_TTL (5s)
+    beat_fresh = beat_age <= 60.0  # fresh enough to read as alive
+    pulse_dead = pulse_age >= 10.0  # older than ~2x PROGRESS_TTL (5s)
     healthy_wait = _has(lowered, _HEALTHY_WAIT_MARKERS)
     blocked_io = _has(lowered, _BLOCKED_IO_MARKERS)
 
-    if not blocked_io and healthy_wait and beat_fresh and pulse_dead \
-            and phase_age < floor:
+    if not blocked_io and healthy_wait and beat_fresh and pulse_dead and phase_age < floor:
         return "instrument_fault"
 
     # WEDGED: the full AND chain from §2.3 -- aged non-idle phase, dead pulse,

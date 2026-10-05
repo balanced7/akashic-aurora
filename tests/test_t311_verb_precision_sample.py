@@ -19,6 +19,7 @@ silencing the exact case the slice exists for, and this sample caught it on the 
 
 Lesson: green_pins_are_not_a_good_gate_sample_the_false_positive_rate.
 """
+
 import os
 import sys
 import tempfile
@@ -73,11 +74,13 @@ def test_verb_channel_precision_and_recall_hold():
 
     assert len(false_positives) <= MAX_FALSE_POSITIVES, (
         f"verb channel got chatty: {len(false_positives)} false positive(s) "
-        f"(bar {MAX_FALSE_POSITIVES}).\n  " + "\n  ".join(f"{c!r} -> {n}" for c, n in false_positives)
-        + "\nA pushed surface that fires when it should not trains its reader to skip it.")
-    assert hits >= MIN_HITS, (
-        f"verb channel went deaf: {hits} hit(s), bar {MIN_HITS}. Missed:\n  "
-        + "\n  ".join(f"{c!r} wanted {e}, got {n}" for c, e, n in misses))
+        f"(bar {MAX_FALSE_POSITIVES}).\n  "
+        + "\n  ".join(f"{c!r} -> {n}" for c, n in false_positives)
+        + "\nA pushed surface that fires when it should not trains its reader to skip it."
+    )
+    assert hits >= MIN_HITS, f"verb channel went deaf: {hits} hit(s), bar {MIN_HITS}. Missed:\n  " + "\n  ".join(
+        f"{c!r} wanted {e}, got {n}" for c, e, n in misses
+    )
 
 
 def test_silence_is_the_common_case():
@@ -86,7 +89,8 @@ def test_silence_is_the_common_case():
     spoke = sum(1 for cmd, _ in SAMPLE if _surfaced(cmd))
     assert spoke <= len(SAMPLE) // 2, (
         f"verb channel spoke on {spoke}/{len(SAMPLE)} triggers -- a surface that always speaks "
-        "is a surface nobody reads")
+        "is a surface nobody reads"
+    )
 
 
 if __name__ == "__main__":
@@ -101,6 +105,5 @@ if __name__ == "__main__":
                 print(f"  FAIL  {name}\n        {e}")
     fp = sum(1 for c, e in SAMPLE if e is None and _surfaced(c))
     silent = sum(1 for c, e in SAMPLE if e is None)
-    print(f"\nsample: {silent} should-stay-silent, {fp} false positive(s) "
-          f"({100.0 * fp / max(1, silent):.0f}%)")
+    print(f"\nsample: {silent} should-stay-silent, {fp} false positive(s) ({100.0 * fp / max(1, silent):.0f}%)")
     sys.exit(1 if failures else 0)

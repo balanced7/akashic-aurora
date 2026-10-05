@@ -3,6 +3,7 @@
 Distinct from agent diagnosis (examine): this answers 'what's running?' -- the P2 gap.
 Each service renders LIVE (dashboard, no drill) or DOWN (banner, carrying a start command).
 """
+
 from core.comm import doctor
 
 

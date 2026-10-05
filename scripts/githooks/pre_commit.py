@@ -13,10 +13,22 @@ file after pre-commit runs, so the private-plane message guard lives in the comm
 
 Install once per clone/worktree:  py scripts/githooks/install_git_hooks.py
 """
+
 import os
 import re
 import subprocess
 import sys
+
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+
+        return python_launcher()
+    except Exception:
+        return "py"
+
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, ROOT)
@@ -49,11 +61,17 @@ def check_staged(files, agent, client=None):
         return True, ""
     body = "\n".join(f"  {f} -> locked by {who}" for f, who in conflicts)
     if not agent:
-        return False, ("pre-commit BLOCKED: AKASHIC_AGENT_ID is not set, so lock ownership can't be "
-                       "verified and you staged file(s) a peer may hold a lock on:\n" + body +
-                       "\nSet AKASHIC_AGENT_ID=<your agent id> (e.g. in .claude/settings.json env).")
-    return False, ("pre-commit BLOCKED: you staged file(s) a peer holds an advisory lock on:\n" + body +
-                   "\nCommit only files you hold, or coordinate via the bus (see docs/library/design/20260709_concurrent-agents-reinforcing-two-peers_5f6723.md C2/C4).")
+        return False, (
+            "pre-commit BLOCKED: AKASHIC_AGENT_ID is not set, so lock ownership can't be "
+            "verified and you staged file(s) a peer may hold a lock on:\n"
+            + body
+            + "\nSet AKASHIC_AGENT_ID=<your agent id> (e.g. in .claude/settings.json env)."
+        )
+    return False, (
+        "pre-commit BLOCKED: you staged file(s) a peer holds an advisory lock on:\n"
+        + body
+        + "\nCommit only files you hold, or coordinate via the bus (see docs/library/design/20260709_concurrent-agents-reinforcing-two-peers_5f6723.md C2/C4)."
+    )
 
 
 def _comprehensibility_fast():
@@ -69,17 +87,20 @@ def _comprehensibility_fast():
     # wiring defect, and it is invisible precisely because absence looks exactly like success.
     checker = os.path.join(ROOT, "scripts", "checkers", "check_comprehensibility.py")
     if not os.path.exists(checker):
-        return 2, ("pre-commit: comprehensibility checker MISSING at " + checker +
-                   " -- this gate is NOT running. Wiring defect, not drift: fix the path.\n")
+        return 2, (
+            "pre-commit: comprehensibility checker MISSING at "
+            + checker
+            + " -- this gate is NOT running. Wiring defect, not drift: fix the path.\n"
+        )
     try:
-        r = subprocess.run([sys.executable, checker, "--fast"],
-                           capture_output=True, text=True, timeout=60)
+        r = subprocess.run([sys.executable, checker, "--fast"], capture_output=True, text=True, timeout=60)
         return r.returncode, (r.stdout or "") + (r.stderr or "")
     except Exception:
-        return 0, ""   # guard crashed/slow -> fail open, per the policy in the docstring
+        return 0, ""  # guard crashed/slow -> fail open, per the policy in the docstring
 
 
 # --------------------------------------------------------------------------- ATTRIBUTION GATE
+
 
 def check_author_matches_seat(agent, author_ident):
     """T411: in a SEAT context, git must record the OPERATOR as both author and committer.
@@ -107,32 +128,36 @@ def check_author_matches_seat(agent, author_ident):
     worse than the drift it watches for (same policy as the comprehensibility backstop below).
     """
     if not agent:
-        return True, ""                      # not a seat context -- the human's own commit
+        return True, ""  # not a seat context -- the human's own commit
     if not author_ident:
-        return True, ""                      # unreadable -> fail open, never brick the commit
+        return True, ""  # unreadable -> fail open, never brick the commit
     try:
         sys.path.insert(0, ROOT)
         from core.comm.seat_identity import git_identity_env
+
         want = git_identity_env(agent)
     except Exception:
-        return True, ""                      # guard unavailable -> fail open
+        return True, ""  # guard unavailable -> fail open
     if not want:
-        return True, ""                      # malformed id: nothing to assert against
+        return True, ""  # malformed id: nothing to assert against
     expected = f"{want['GIT_AUTHOR_NAME']} <{want['GIT_AUTHOR_EMAIL']}>"
-    fix = (f"Fix -- stamp the identity in the LAUNCHER that spawned this process, or for a\n"
-           f"one-off:\n"
-           f"  GIT_AUTHOR_NAME={want['GIT_AUTHOR_NAME']} "
-           f"GIT_AUTHOR_EMAIL={want['GIT_AUTHOR_EMAIL']} \\\n"
-           f"  GIT_COMMITTER_NAME={want['GIT_COMMITTER_NAME']} "
-           f"GIT_COMMITTER_EMAIL={want['GIT_COMMITTER_EMAIL']} git commit ...\n"
-           f"(Which seat did the work is recorded in state/authorship/seats.jsonl -- "
-           f"`py scripts/authorship_ledger.py who <sha>`.)")
+    fix = (
+        f"Fix -- stamp the identity in the LAUNCHER that spawned this process, or for a\n"
+        f"one-off:\n"
+        f"  GIT_AUTHOR_NAME={want['GIT_AUTHOR_NAME']} "
+        f"GIT_AUTHOR_EMAIL={want['GIT_AUTHOR_EMAIL']} \\\n"
+        f"  GIT_COMMITTER_NAME={want['GIT_COMMITTER_NAME']} "
+        f"GIT_COMMITTER_EMAIL={want['GIT_COMMITTER_EMAIL']} git commit ...\n"
+        f"(Which seat did the work is recorded in state/authorship/seats.jsonl -- "
+        f"`{_pyl()} scripts/authorship_ledger.py who <sha>`.)"
+    )
     if not str(author_ident).startswith(expected):
         return False, (
             f"pre-commit BLOCKED: AKASHIC_AGENT_ID is '{agent}' but git will record the AUTHOR "
             f"as\n    {author_ident}\n"
             f"and the author field is what GitHub displays and counts, so this commit would not "
-            f"carry the operator's name (T411).\nExpected: {expected}\n" + fix)
+            f"carry the operator's name (T411).\nExpected: {expected}\n" + fix
+        )
 
     # BOTH FIELDS, because GitHub renders and credits the committer too -- a correct author beside
     # a drifted committer still prints a foreign name on the project page and still costs a green
@@ -143,7 +168,8 @@ def check_author_matches_seat(agent, author_ident):
             f"pre-commit BLOCKED: the AUTHOR is right but git will record the COMMITTER as\n"
             f"    {committer_ident}\n"
             f"which GitHub also renders and credits, so the commit would still not read as the "
-            f"operator's (T411).\nExpected: {expected}\n" + fix)
+            f"operator's (T411).\nExpected: {expected}\n" + fix
+        )
     return True, ""
 
 
@@ -161,8 +187,7 @@ def _git_committer_ident():
 
 def _git_var(name):
     try:
-        r = subprocess.run(["git", "var", name],
-                           capture_output=True, text=True, timeout=10, cwd=ROOT)
+        r = subprocess.run(["git", "var", name], capture_output=True, text=True, timeout=10, cwd=ROOT)
         return (r.stdout or "").strip()
     except Exception:
         return ""
@@ -176,15 +201,27 @@ def _git_var(name):
 # self-severing: once the badge sits red a NEW red carries no information. That is how thirty
 # days passed unnoticed. These two functions move the gates to the write.
 
-GUARDRAILS = ("check_boundaries", "check_doc_freshness", "check_comprehensibility",
-              "check_wiring", "check_door_parity", "check_kind_policy")
+GUARDRAILS = (
+    "check_boundaries",
+    "check_doc_freshness",
+    "check_comprehensibility",
+    "check_wiring",
+    "check_door_parity",
+    "check_kind_policy",
+)
 
 # GENERATED, not authored. Committing a derivative and then gating on its freshness is a
 # category error: every code commit invalidates it, so the gate fires on whoever commits next
 # rather than on whoever caused it. Measured: regenerated twice in one hour, stale both times.
 # The commit REGENERATES them; it does not check them.
-GENERATORS = ("gen_arch_index", "gen_physics_sheet", "gen_master_map",
-              "gen_doors", "gen_prior_art_register", "gen_ports")
+GENERATORS = (
+    "gen_arch_index",
+    "gen_physics_sheet",
+    "gen_master_map",
+    "gen_doors",
+    "gen_prior_art_register",
+    "gen_ports",
+)
 
 BASELINE_PATH = os.path.join(ROOT, "state", "ci", "guardrail_baseline.json")
 
@@ -233,11 +270,16 @@ def guardrail_counts(names=GUARDRAILS) -> dict:
             out[name] = -1
             continue
         try:
-            r = subprocess.run([sys.executable, "-X", "utf8", path], capture_output=True,
-                               text=True, timeout=120, cwd=ROOT,
-                               stdin=subprocess.DEVNULL, close_fds=True)
-            out[name] = 0 if r.returncode == 0 else max(
-                1, _count_violations((r.stdout or "") + (r.stderr or "")))
+            r = subprocess.run(
+                [sys.executable, "-X", "utf8", path],
+                capture_output=True,
+                text=True,
+                timeout=120,
+                cwd=ROOT,
+                stdin=subprocess.DEVNULL,
+                close_fds=True,
+            )
+            out[name] = 0 if r.returncode == 0 else max(1, _count_violations((r.stdout or "") + (r.stderr or "")))
         except Exception:
             out[name] = -1
     return out
@@ -256,6 +298,7 @@ def _load_baseline():
         return {}, "missing"
     try:
         import json
+
         with open(BASELINE_PATH, encoding="utf-8") as fh:
             return json.load(fh).get("counts", {}), "present"
     except Exception:
@@ -284,12 +327,14 @@ def ensure_baseline(live=None) -> tuple:
     Adoption is the side effect; ratchet_ok stays a predicate.
     """
     import json
+
     now = guardrail_counts() if live is None else live
     counts, status = _load_baseline()
     if status == "unreadable":
-        return False, ("baseline at %s is UNREADABLE -- refusing to overwrite it blindly. Fix "
-                       "or delete it; a corrupt ratchet must not be silently replaced."
-                       % BASELINE_PATH)
+        return False, (
+            f"baseline at {BASELINE_PATH} is UNREADABLE -- refusing to overwrite it blindly. Fix "
+            "or delete it; a corrupt ratchet must not be silently replaced."
+        )
 
     # A guard that CRASHED reports -1. Adopting that as a debt level would launder a broken
     # guard into an allowance, so it is left out and ratchet_ok fails on it instead.
@@ -307,19 +352,25 @@ def ensure_baseline(live=None) -> tuple:
         except Exception:
             payload = {}
     payload["counts"] = merged
-    payload.setdefault("_why", "Write-edge ratchet baseline. Debt may fall or hold; it may "
-                               "never rise without editing this file in the same commit.")
+    payload.setdefault(
+        "_why",
+        "Write-edge ratchet baseline. Debt may fall or hold; it may "
+        "never rise without editing this file in the same commit.",
+    )
     os.makedirs(os.path.dirname(BASELINE_PATH), exist_ok=True)
     with open(BASELINE_PATH, "w", encoding="utf-8") as fh:
         json.dump(payload, fh, indent=2)
         fh.write("\n")
 
     if status == "missing":
-        return True, ("no guardrail baseline existed -- created %s adopting today's debt %s. "
-                      "Enforcement starts NOW; it was not running before this."
-                      % (BASELINE_PATH, merged))
-    return True, ("guardrail(s) with no baseline entry were never being compared: adopted %s at "
-                  "today's level. They enforce from the next commit on." % adopt)
+        return True, (
+            f"no guardrail baseline existed -- created {BASELINE_PATH} adopting today's debt {merged}. "
+            "Enforcement starts NOW; it was not running before this."
+        )
+    return True, (
+        f"guardrail(s) with no baseline entry were never being compared: adopted {adopt} at "
+        "today's level. They enforce from the next commit on."
+    )
 
 
 def ratchet_ok(baseline=None, live=None):
@@ -333,29 +384,35 @@ def ratchet_ok(baseline=None, live=None):
     if baseline is None:
         base, status = _load_baseline()
         if status != "present":
-            return False, ("no readable guardrail baseline at %s (%s). A MISSING baseline is "
-                           "UNKNOWN debt, NEVER zero -- this gate used to pass here, which is "
-                           "how it silently did not run on any fresh clone (T178). Let the hook "
-                           "materialise one via ensure_baseline()." % (BASELINE_PATH, status))
+            return False, (
+                f"no readable guardrail baseline at {BASELINE_PATH} ({status}). A MISSING baseline is "
+                "UNKNOWN debt, NEVER zero -- this gate used to pass here, which is "
+                "how it silently did not run on any fresh clone (T178). Let the hook "
+                "materialise one via ensure_baseline()."
+            )
     else:
         base = baseline
     now = guardrail_counts() if live is None else live
     if not base:
-        return False, ("the guardrail baseline is EMPTY, so it ratchets nothing -- which is not "
-                       "the same as clean. Populate it, or remove the gate deliberately.")
+        return False, (
+            "the guardrail baseline is EMPTY, so it ratchets nothing -- which is not "
+            "the same as clean. Populate it, or remove the gate deliberately."
+        )
     worse = []
     for name, was in base.items():
         is_now = now.get(name, 0)
         if is_now == -1:
-            worse.append("%s: the guardrail did not RUN (crash/missing) -- absence is not a pass"
-                         % name)
+            worse.append(f"{name}: the guardrail did not RUN (crash/missing) -- absence is not a pass")
         elif is_now > was:
-            worse.append("%s: %d -> %d violation(s)" % (name, was, is_now))
+            worse.append(f"{name!s}: {int(was)} -> {int(is_now)} violation(s)")
     if worse:
-        return False, ("guardrail debt INCREASED:\n    " + "\n    ".join(worse) +
-                       "\n  Fix it, or pay something else down first. To accept a deliberate "
-                       "rise, update state/ci/guardrail_baseline.json in the same commit so the "
-                       "increase is a RECORDED decision rather than a silent one.")
+        return False, (
+            "guardrail debt INCREASED:\n    "
+            + "\n    ".join(worse)
+            + "\n  Fix it, or pay something else down first. To accept a deliberate "
+            "rise, update state/ci/guardrail_baseline.json in the same commit so the "
+            "increase is a RECORDED decision rather than a silent one."
+        )
     return True, ""
 
 
@@ -372,9 +429,15 @@ def regenerate_derived(stage: bool = True):
             broke.append(g + " (missing)")
             continue
         try:
-            r = subprocess.run([sys.executable, "-X", "utf8", path], capture_output=True,
-                               text=True, timeout=120, cwd=ROOT,
-                               stdin=subprocess.DEVNULL, close_fds=True)
+            r = subprocess.run(
+                [sys.executable, "-X", "utf8", path],
+                capture_output=True,
+                text=True,
+                timeout=120,
+                cwd=ROOT,
+                stdin=subprocess.DEVNULL,
+                close_fds=True,
+            )
             if r.returncode != 0:
                 broke.append(g)
         except Exception:
@@ -383,21 +446,28 @@ def regenerate_derived(stage: bool = True):
         for doc in ("MODULE_INDEX.md", "PHYSICS.md", "MAP.md", "DOORS.md", "PRIOR_ART.md"):
             rel = "docs/" + doc
             try:
-                d = subprocess.run(["git", "diff", "--quiet", "--", rel], cwd=ROOT,
-                                   stdin=subprocess.DEVNULL, close_fds=True)
+                d = subprocess.run(
+                    ["git", "diff", "--quiet", "--", rel], cwd=ROOT, stdin=subprocess.DEVNULL, close_fds=True
+                )
                 if d.returncode != 0:
-                    subprocess.run(["git", "add", "--", rel], cwd=ROOT,
-                                   capture_output=True, stdin=subprocess.DEVNULL,
-                                   close_fds=True)
+                    subprocess.run(
+                        ["git", "add", "--", rel],
+                        cwd=ROOT,
+                        capture_output=True,
+                        stdin=subprocess.DEVNULL,
+                        close_fds=True,
+                    )
                     changed.append(rel)
             except Exception:
                 pass
     note = ""
     if changed:
-        note += "pre-commit: regenerated and staged %s\n" % ", ".join(changed)
+        note += "pre-commit: regenerated and staged {}\n".format(", ".join(changed))
     if broke:
-        note += ("pre-commit WARNING: generator(s) did not run: %s -- derived docs may be stale "
-                 "and the comprehensibility gate is not protecting you.\n" % ", ".join(broke))
+        note += (
+            "pre-commit WARNING: generator(s) did not run: {} -- derived docs may be stale "
+            "and the comprehensibility gate is not protecting you.\n".format(", ".join(broke))
+        )
     return (not broke), note
 
 
@@ -431,23 +501,23 @@ def main():
     # The commit-msg stage is handed the live message: scripts/githooks/commit_msg.py
     # (defer dd0c36b406).
     try:
-        sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(
-            os.path.abspath(__file__)))))
+        sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
         from core.trust.private_plane import report as _pp_report
+
         _pp = _pp_report(_staged_files())
         if _pp["findings"]:
-            sys.stderr.write(
-                "pre-commit BLOCKED: staged file(s) carry PRIVATE-PLANE identifiers.\n")
+            sys.stderr.write("pre-commit BLOCKED: staged file(s) carry PRIVATE-PLANE identifiers.\n")
             for _f in _pp["findings"][:6]:
-                sys.stderr.write(f"  {_f['path']}:{_f['line']} -- marker "
-                                 f"{_f['marker']!r}\n    {_f['remedy']}\n")
-            sys.stderr.write("  Existence metadata is a leak: an id or title alone is "
-                             "enough, no body required.\n  Emergency bypass: "
-                             "`git commit --no-verify` -- and if you use it, say so out "
-                             "loud, because this one does not fail safe.\n")
+                sys.stderr.write(f"  {_f['path']}:{_f['line']} -- marker {_f['marker']!r}\n    {_f['remedy']}\n")
+            sys.stderr.write(
+                "  Existence metadata is a leak: an id or title alone is "
+                "enough, no body required.\n  Emergency bypass: "
+                "`git commit --no-verify` -- and if you use it, say so out "
+                "loud, because this one does not fail safe.\n"
+            )
             return 1
     except Exception:
-        pass   # a guard that crashes must not wedge every commit; the checker run reports it
+        pass  # a guard that crashes must not wedge every commit; the checker run reports it
 
     # DERIVED DOCS FIRST: regenerate and stage BEFORE any freshness gate looks at them.
     # Ordering is the whole point -- checking a derivative before refreshing it is what made
@@ -465,21 +535,25 @@ def main():
     # THE RATCHET: debt may fall or hold, never rise.
     _r_ok, _r_msg = ratchet_ok()
     if not _r_ok:
-        sys.stderr.write("pre-commit BLOCKED: " + _r_msg + "\n  Emergency bypass: "
-                         "`git commit --no-verify`.\n")
+        sys.stderr.write("pre-commit BLOCKED: " + _r_msg + "\n  Emergency bypass: `git commit --no-verify`.\n")
         return 1
 
     rc, out = _comprehensibility_fast()
     if rc == 1:
-        sys.stderr.write("pre-commit BLOCKED: comprehensibility drift (a stale repo reference or a "
-                         "filename case-mismatch):\n" + out +
-                         "\nFix it, or `git commit --no-verify` to bypass in a genuine emergency.\n")
+        sys.stderr.write(
+            "pre-commit BLOCKED: comprehensibility drift (a stale repo reference or a "
+            "filename case-mismatch):\n"
+            + out
+            + "\nFix it, or `git commit --no-verify` to bypass in a genuine emergency.\n"
+        )
         return 1
     if rc not in (0, 1):
         # Do NOT block -- fail-open on a non-working guard is the standing policy. But never let
         # a dead gate look like a passing one: the whole cost of this defect was its silence.
-        sys.stderr.write("pre-commit WARNING: the comprehensibility gate did not run "
-                         "(rc=%d). Commit allowed; the gate is not protecting you.\n%s" % (rc, out))
+        sys.stderr.write(
+            "pre-commit WARNING: the comprehensibility gate did not run "
+            f"(rc={int(rc)}). Commit allowed; the gate is not protecting you.\n{out!s}"
+        )
     return 0
 
 

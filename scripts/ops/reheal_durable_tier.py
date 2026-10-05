@@ -36,21 +36,26 @@ SAFETY
 - Snapshot first (scripts/ops/snapshot_knowledge.py snapshot "pre-reheal").
 - --check reports what WOULD move and writes nothing.
 """
+
 from __future__ import annotations
 
 import argparse
 import os
 import sys
 from collections import Counter
+from typing import Any, cast
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from core.foundation.store import RedisStore, FileStore  # noqa: E402
+import contextlib
+
+from core.foundation.store import FileStore, RedisStore
 
 
 def _target(backend: str):
     if backend == "sqlite":
         from core.foundation.sqlite_store import SqliteStore
+
         return SqliteStore()
     return FileStore()
 
@@ -58,8 +63,10 @@ def _target(backend: str):
 def reheal(pattern: str, backend: str, dry_run: bool, overwrite: bool) -> int:
     r = RedisStore.connect()
     if r is None or not r.is_available():
-        print("[reheal] REFUSING: Redis is down. It currently holds the only copy of the "
-              "missing records -- without it there is nothing to heal FROM.")
+        print(
+            "[reheal] REFUSING: Redis is down. It currently holds the only copy of the "
+            "missing records -- without it there is nothing to heal FROM."
+        )
         return 2
 
     dst = _target(backend)
@@ -125,15 +132,14 @@ def reheal(pattern: str, backend: str, dry_run: bool, overwrite: bool) -> int:
                         skipped["present"] += 1
                         continue
                     if not dry_run:
-                        dst.zadd(k, {m: s for m, s in pairs})
+                        dst.zadd(k, dict(pairs))
                     moved["zset"] += 1
             else:
                 skipped[f"type:{kind}"] += 1
         except Exception as e:
             failed.append((k, f"{type(e).__name__}: {e}"))
 
-    print(f"[reheal] {'WOULD MOVE' if dry_run else 'MOVED'}: {dict(moved)}  "
-          f"(total {sum(moved.values())})")
+    print(f"[reheal] {'WOULD MOVE' if dry_run else 'MOVED'}: {dict(moved)}  (total {sum(moved.values())})")
     if skipped:
         print(f"[reheal] skipped: {dict(skipped)}  (already present; --overwrite to replace)")
     if failed:
@@ -142,13 +148,10 @@ def reheal(pattern: str, backend: str, dry_run: bool, overwrite: bool) -> int:
             print(f"    {k}: {e}")
 
     if not dry_run:
-        try:
-            dst.checkpoint()
-        except AttributeError:
-            pass
+        with contextlib.suppress(AttributeError):
+            cast("Any", dst).checkpoint()  # only some backends have it; the suppress covers the rest
         after = len(dst.keys(pattern))
-        print(f"[reheal] target now holds {after} key(s) matching {pattern!r} "
-              f"(redis has {len(keys)})")
+        print(f"[reheal] target now holds {after} key(s) matching {pattern!r} (redis has {len(keys)})")
         if after < len(keys):
             print(f"[reheal] STILL SHORT by {len(keys) - after} -- not claiming success")
             return 1
@@ -160,8 +163,7 @@ def main(argv=None) -> int:
     ap.add_argument("--pattern", default="*", help="key pattern to heal (default: everything)")
     ap.add_argument("--backend", default="sqlite", choices=["sqlite", "file"])
     ap.add_argument("--check", action="store_true", help="report only; write nothing")
-    ap.add_argument("--overwrite", action="store_true",
-                    help="replace values that already differ in the target")
+    ap.add_argument("--overwrite", action="store_true", help="replace values that already differ in the target")
     a = ap.parse_args(argv)
     return reheal(a.pattern, a.backend, a.check, a.overwrite)
 

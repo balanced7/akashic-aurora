@@ -10,22 +10,18 @@ Collects timing metrics for each startup phase, tracks failures, and generates
 health report with recommendations for optimization.
 """
 
-import time
-import logging
-from typing import Dict, Any, List, Optional
-from datetime import datetime
-from pathlib import Path
-import os
-from core.paths import data_root
 import json
+import logging
+import time
+from datetime import datetime
+from typing import Any
+
+from core.paths import data_root
 
 log_dir = data_root() / "session_logs"
 log_dir.mkdir(parents=True, exist_ok=True)
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='[STARTUP_DIAGNOSTICS] [%(asctime)s] %(message)s'
-)
+logging.basicConfig(level=logging.INFO, format="[STARTUP_DIAGNOSTICS] [%(asctime)s] %(message)s")
 logger = logging.getLogger("startup_diagnostics")
 
 
@@ -40,11 +36,12 @@ class StartupDiagnostics:
         """Initialize diagnostics collector"""
         self.agent_id = agent_id
         self.start_time = time.time()
-        self.phases: List[Dict[str, Any]] = []
+        self.phases: list[dict[str, Any]] = []
         self.logger = logger
 
-    def record_startup_phase_with_metrics(self, phase_name: str, success: bool, duration_ms: float,
-                    details: Optional[str] = None) -> None:
+    def record_startup_phase_with_metrics(
+        self, phase_name: str, success: bool, duration_ms: float, details: str | None = None
+    ) -> None:
         """
         Record a startup phase.
 
@@ -56,17 +53,18 @@ class StartupDiagnostics:
             duration_ms: How long it took (milliseconds)
             details: Optional details/error message
         """
-        self.phases.append({
-            "phase": phase_name,
-            "success": success,
-            "duration_ms": duration_ms,
-            "details": details,
-            "timestamp": datetime.utcnow().isoformat(),
-        })
+        self.phases.append(
+            {
+                "phase": phase_name,
+                "success": success,
+                "duration_ms": duration_ms,
+                "details": details,
+                "timestamp": datetime.utcnow().isoformat(),
+            }
+        )
 
     # Backward compatibility alias
-    def record_phase(self, phase_name: str, success: bool, duration_ms: float,
-                    details: Optional[str] = None) -> None:
+    def record_phase(self, phase_name: str, success: bool, duration_ms: float, details: str | None = None) -> None:
         """Deprecated: Use record_startup_phase_with_metrics() instead"""
         return self.record_startup_phase_with_metrics(phase_name, success, duration_ms, details)
 
@@ -86,7 +84,7 @@ class StartupDiagnostics:
         """Deprecated: Use get_total_startup_time_in_milliseconds() instead"""
         return self.get_total_startup_time_in_milliseconds()
 
-    def generate_startup_diagnostics_report(self) -> Dict[str, Any]:
+    def generate_startup_diagnostics_report(self) -> dict[str, Any]:
         """
         Generate complete startup diagnostics report.
 
@@ -125,7 +123,7 @@ class StartupDiagnostics:
         return report
 
     # Backward compatibility alias
-    def generate_report(self) -> Dict[str, Any]:
+    def generate_report(self) -> dict[str, Any]:
         """Deprecated: Use generate_startup_diagnostics_report() instead"""
         return self.generate_startup_diagnostics_report()
 
@@ -137,38 +135,38 @@ class StartupDiagnostics:
         """
         report = self.generate_startup_diagnostics_report()
 
-        print(f"\n{'='*70}")
+        print(f"\n{'=' * 70}")
         print(f"STARTUP DIAGNOSTICS - {self.agent_id}")
-        print(f"{'='*70}\n")
+        print(f"{'=' * 70}\n")
 
         print(f"Total Time: {report['total_startup_time_ms']:.0f}ms")
         print(f"Phases: {report['phases_passed']}/{report['phases_total']} passed ({report['success_rate']:.0f}%)\n")
 
         print("TIMELINE:")
-        for phase in report['phases']:
-            status = "OK" if phase['success'] else "FAIL"
+        for phase in report["phases"]:
+            status = "OK" if phase["success"] else "FAIL"
             print(f"  {status} {phase['phase']:<30} {phase['duration_ms']:>6.0f}ms")
-            if phase['details']:
+            if phase["details"]:
                 print(f"     {phase['details']}")
 
-        if report.get('slow_phases'):
-            print(f"\nSLOW PHASES (>100ms):")
-            for phase in report['slow_phases']:
+        if report.get("slow_phases"):
+            print("\nSLOW PHASES (>100ms):")
+            for phase in report["slow_phases"]:
                 print(f"  WARN {phase['phase']}: {phase['duration_ms']:.0f}ms")
 
-        if report.get('failed_phases'):
-            print(f"\nFAILED PHASES:")
-            for phase in report['failed_phases']:
+        if report.get("failed_phases"):
+            print("\nFAILED PHASES:")
+            for phase in report["failed_phases"]:
                 print(f"  FAIL {phase['phase']}")
-                if phase['details']:
+                if phase["details"]:
                     print(f"       {phase['details']}")
 
-        if report['recommendations']:
-            print(f"\nRECOMMENDATIONS:")
-            for i, rec in enumerate(report['recommendations'], 1):
+        if report["recommendations"]:
+            print("\nRECOMMENDATIONS:")
+            for i, rec in enumerate(report["recommendations"], 1):
                 print(f"  {i}. {rec}")
 
-        print(f"\n{'='*70}\n")
+        print(f"\n{'=' * 70}\n")
 
         # Log the report
         self._persist_diagnostics_report_to_file(report)
@@ -178,7 +176,7 @@ class StartupDiagnostics:
         """Deprecated: Use print_diagnostic_report_for_agent() instead"""
         return self.print_diagnostic_report_for_agent()
 
-    def _derive_recommendations_from_diagnostics(self, report: Dict[str, Any]) -> List[str]:
+    def _derive_recommendations_from_diagnostics(self, report: dict[str, Any]) -> list[str]:
         """
         Generate recommendations based on diagnostics.
 
@@ -192,23 +190,23 @@ class StartupDiagnostics:
         """
         recommendations = []
 
-        if report['total_startup_time_ms'] > 1000:
+        if report["total_startup_time_ms"] > 1000:
             recommendations.append("Startup took >1s. Consider optimizing slow phases.")
 
-        slow_phases = report.get('slow_phases', [])
+        slow_phases = report.get("slow_phases", [])
         for phase in slow_phases:
-            if "redis" in phase['phase'].lower():
+            if "redis" in phase["phase"].lower():
                 recommendations.append("Redis connection slow. Check network/Redis health.")
-            elif "learning" in phase['phase'].lower():
+            elif "learning" in phase["phase"].lower():
                 recommendations.append("Learning load slow. Consider archiving old learnings.")
-            elif "briefing" in phase['phase'].lower():
+            elif "briefing" in phase["phase"].lower():
                 recommendations.append("Briefing load slow. Consider compressing context.")
 
-        failed_phases = report.get('failed_phases', [])
+        failed_phases = report.get("failed_phases", [])
         for phase in failed_phases:
-            if "redis" in phase['phase'].lower():
+            if "redis" in phase["phase"].lower():
                 recommendations.append("Redis unavailable. File fallback in use.")
-            elif "briefing" in phase['phase'].lower():
+            elif "briefing" in phase["phase"].lower():
                 recommendations.append("No previous briefing available. Starting fresh.")
 
         if not recommendations:
@@ -217,11 +215,11 @@ class StartupDiagnostics:
         return recommendations
 
     # Backward compatibility alias
-    def _generate_recommendations(self, report: Dict[str, Any]) -> List[str]:
+    def _generate_recommendations(self, report: dict[str, Any]) -> list[str]:
         """Deprecated: Use _derive_recommendations_from_diagnostics() instead"""
         return self._derive_recommendations_from_diagnostics(report)
 
-    def _persist_diagnostics_report_to_file(self, report: Dict[str, Any]) -> None:
+    def _persist_diagnostics_report_to_file(self, report: dict[str, Any]) -> None:
         """
         Save diagnostics report to file.
 
@@ -232,14 +230,14 @@ class StartupDiagnostics:
         """
         try:
             report_file = log_dir / f"startup_diagnostics_{self.agent_id}.json"
-            with open(report_file, 'w', encoding='utf-8') as f:
+            with open(report_file, "w", encoding="utf-8") as f:
                 json.dump(report, f, indent=2)
-            self.logger.info(f"Diagnostics report saved to {report_file}")
+            self.logger.info("Diagnostics report saved to %s", report_file)
         except Exception as e:
-            self.logger.error(f"Could not save diagnostics: {e}")
+            self.logger.error("Could not save diagnostics: %s", e)
 
     # Backward compatibility alias
-    def _save_report(self, report: Dict[str, Any]) -> None:
+    def _save_report(self, report: dict[str, Any]) -> None:
         """Deprecated: Use _persist_diagnostics_report_to_file() instead"""
         return self._persist_diagnostics_report_to_file(report)
 
@@ -259,10 +257,7 @@ class StartupTimer:
         duration_ms = (time.time() - self.start_time) * 1000
         success = exc_type is None
 
-        if exc_type:
-            details = f"{exc_type.__name__}: {exc_val}"
-        else:
-            details = None
+        details = f"{exc_type.__name__}: {exc_val}" if exc_type else None
 
         self.diagnostics.record_phase(self.phase_name, success, duration_ms, details)
         return False  # Don't suppress exceptions
@@ -315,7 +310,7 @@ def check_infrastructure_health(
     redis_host: str = "localhost",
     redis_port: int = 6379,
     timeout_seconds: float = 2.0,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Probe ancillary infrastructure and report what is available.
 
@@ -337,7 +332,7 @@ def check_infrastructure_health(
             "checked_at": ISO timestamp,
         }
     """
-    report: Dict[str, Any] = {
+    report: dict[str, Any] = {
         "redis": {"available": False, "latency_ms": None, "error": None},
         "healthy": False,
         "checked_at": datetime.utcnow().isoformat(),
@@ -351,9 +346,7 @@ def check_infrastructure_health(
     try:
         from core.foundation.redis_connection import connect_to_redis_with_fail_fast
 
-        client = connect_to_redis_with_fail_fast(
-            host=redis_host, port=redis_port, timeout_seconds=timeout_seconds
-        )
+        client = connect_to_redis_with_fail_fast(host=redis_host, port=redis_port, timeout_seconds=timeout_seconds)
         if client is not None:
             report["redis"]["available"] = True
             report["redis"]["latency_ms"] = round((time.time() - start) * 1000, 2)

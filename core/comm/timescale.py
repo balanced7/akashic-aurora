@@ -10,6 +10,7 @@ production never sets it -> 1.0). A drill at 0.05 turns the 20s lock TTL into 1s
 Import-time by design: the constants it feeds are module-level and the consumers are
 short-lived drill subprocesses; a live process never legitimately rescales itself.
 """
+
 import os
 
 
@@ -25,5 +26,5 @@ def scaled(seconds, *, floor=1):
         m = 1.0
     v = seconds * m
     if isinstance(seconds, int):
-        return max(int(floor), int(round(v)))
+        return max(int(floor), round(v))
     return max(float(floor), v)

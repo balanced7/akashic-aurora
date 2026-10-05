@@ -3,20 +3,20 @@
 DeepSeek authored the impl (ToolBox boot_sources + mem: arm + bifrost_dashboard) but has no
 exec to run tests; these pins are the run-it-for-real half of the fenced cross-check.
 """
+
 import sys
 from pathlib import Path
 
 _SCRIPTS = str(Path(__file__).resolve().parent.parent / "scripts")
 if _SCRIPTS not in sys.path:
     sys.path.insert(0, _SCRIPTS)
-import deepseek_chat as dc  # noqa: E402
+import deepseek_chat as dc  # noqa: E402  # sys.path bootstrap
 
 REPO = Path(__file__).resolve().parent.parent
 
 
 def _tb(**kw):
-    return dc.ToolBox(REPO, allow_exec=False, trust=False, allow_secrets=False,
-                      confirm=lambda p: False, **kw)
+    return dc.ToolBox(REPO, allow_exec=False, trust=False, allow_secrets=False, confirm=lambda p: False, **kw)
 
 
 def test_w6p2_boot_sources_used_directly_when_provided():
@@ -50,4 +50,5 @@ def test_w7_bifrost_dashboard_registered_in_toolbox():
 
 def test_w7_bifrost_dashboard_returns_nonempty_string_never_raises():
     d = _tb().bifrost_dashboard()
-    assert isinstance(d, str) and d
+    assert isinstance(d, str)
+    assert d

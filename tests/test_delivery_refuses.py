@@ -25,18 +25,20 @@ gets read as a filename; a global-webhook default) are a second slice.
 
 Written before the implementation (M3). RED on arrival.
 """
+
 from __future__ import annotations
 
-import pytest
-
 from core.comm import discord_bridge as DB
+from core.comm import discord_feed as DF
 
 
 def _sent(calls):
     """A post() double that records instead of posting, so every pin runs offline."""
+
     def _post(url, content):
         calls.append((url, content))
         return True
+
     return _post
 
 
@@ -46,8 +48,12 @@ def test_an_empty_body_REFUSES_instead_of_posting_a_bare_header():
     delivered answer and contains nothing -- indistinguishable, to the reader, from a
     delivery failure. It must never leave the house."""
     calls = []
-    out = DB.forward({"frm": "claude", "kind": "reply", "content": ""},
-                     url="https://example.invalid/hook", force=True, post=_sent(calls))
+    out = DB.forward(
+        {"frm": "claude", "kind": "reply", "content": ""},
+        url="https://example.invalid/hook",
+        force=True,
+        post=_sent(calls),
+    )
     assert not out.ok, f"an empty body must FAIL, got {out}"
     assert calls == [], "nothing may be posted for an empty body"
 
@@ -56,8 +62,12 @@ def test_the_refusal_NAMES_the_condition_so_the_caller_can_fix_it():
     """A refusal that says only 'failed' is the original silence with punctuation. This one
     must say the body was empty -- which is what would have told me, instantly, that I had
     passed 'text' where the renderer wanted 'content'."""
-    out = DB.forward({"frm": "claude", "kind": "reply", "content": ""},
-                     url="https://example.invalid/hook", force=True, post=_sent([]))
+    out = DB.forward(
+        {"frm": "claude", "kind": "reply", "content": ""},
+        url="https://example.invalid/hook",
+        force=True,
+        post=_sent([]),
+    )
     assert "empty" in out.why.lower() or "no body" in out.why.lower(), out.why
 
 
@@ -65,8 +75,12 @@ def test_the_WRONG_FIELD_case_refuses_rather_than_posting_a_header():
     """The exact call I made three times: a bus-shaped dict whose body lives in 'text'.
     render_parts reads 'content', finds nothing, and used to post the head alone."""
     calls = []
-    out = DB.forward({"frm": "claude", "kind": "reply", "text": "a real message body"},
-                     url="https://example.invalid/hook", force=True, post=_sent(calls))
+    out = DB.forward(
+        {"frm": "claude", "kind": "reply", "text": "a real message body"},
+        url="https://example.invalid/hook",
+        force=True,
+        post=_sent(calls),
+    )
     assert not out.ok, f"a body in the wrong field must FAIL, got {out}"
     assert calls == [], "a headers-only post must never be sent"
 
@@ -75,18 +89,23 @@ def test_a_real_body_still_posts_normally():
     """Calibration: the refusal must not eat the working path, or it is not a guard, it is
     an outage."""
     calls = []
-    out = DB.forward({"frm": "claude", "kind": "reply", "content": "a real body"},
-                     url="https://example.invalid/hook", force=True, post=_sent(calls))
-    assert out.ok and not out.partial, out
-    assert len(calls) == 1 and "a real body" in calls[0][1]
+    out = DB.forward(
+        {"frm": "claude", "kind": "reply", "content": "a real body"},
+        url="https://example.invalid/hook",
+        force=True,
+        post=_sent(calls),
+    )
+    assert out.ok, out
+    assert not out.partial, out
+    assert len(calls) == 1
+    assert "a real body" in calls[0][1]
 
 
 def test_forward_still_NEVER_RAISES_on_a_refusal():
     """It is a listener on a substrate that must not care about it. A refusal is a returned
     verdict, never an exception into a bus caller."""
     for bad in ({}, {"frm": "claude"}, {"content": None}, {"content": "   "}):
-        out = DB.forward(dict(bad, kind="reply"), url="https://example.invalid/hook",
-                         force=True, post=_sent([]))
+        out = DB.forward(dict(bad, kind="reply"), url="https://example.invalid/hook", force=True, post=_sent([]))
         assert not out.ok, bad
 
 
@@ -107,20 +126,28 @@ def test_a_partial_delivery_is_not_reported_as_done():
             raise RuntimeError("second chunk rejected")
         return True
 
-    body = "x" * (DB.DISCORD_MAX + 500)          # forces >1 part
-    out = DB.forward({"frm": "claude", "kind": "reply", "content": body},
-                     url="https://example.invalid/hook", force=True, post=flaky)
-    assert not (out.ok and not out.partial), \
-        f"a half-sent message must not read as done: {out}"
+    body = "x" * (DB.DISCORD_MAX + 500)  # forces >1 part
+    out = DB.forward(
+        {"frm": "claude", "kind": "reply", "content": body}, url="https://example.invalid/hook", force=True, post=flaky
+    )
+    assert not (out.ok and not out.partial), f"a half-sent message must not read as done: {out}"
 
 
 def test_the_house_vocabulary_is_expressible_from_the_outcome():
     """done / PARTIALLY / failed must each be derivable, so a caller branching
     failed -> partial -> done (in that order) can be written at all."""
-    ok = DB.forward({"frm": "claude", "kind": "reply", "content": "body"},
-                    url="https://example.invalid/hook", force=True, post=_sent([]))
-    bad = DB.forward({"frm": "claude", "kind": "reply", "content": ""},
-                     url="https://example.invalid/hook", force=True, post=_sent([]))
+    ok = DB.forward(
+        {"frm": "claude", "kind": "reply", "content": "body"},
+        url="https://example.invalid/hook",
+        force=True,
+        post=_sent([]),
+    )
+    bad = DB.forward(
+        {"frm": "claude", "kind": "reply", "content": ""},
+        url="https://example.invalid/hook",
+        force=True,
+        post=_sent([]),
+    )
     assert (ok.ok and not ok.partial) is True, "the good path must render as done"
     assert (not bad.ok) is True, "the refusal must render as failed"
 
@@ -137,14 +164,12 @@ def test_the_house_vocabulary_is_expressible_from_the_outcome():
 # arrival. The guard is not "remember to pass a lane" -- it is that the target is chosen
 # BY CONSTRUCTION and any fallback is SAID OUT LOUD.
 # ============================================================================
-from core.comm import discord_feed as DF
 
 
 def test_send_prefers_the_callers_own_seat_lane():
     """His lane with THIS seat is where he is reading. That must be the default, not an
     option I have to remember at 1am."""
-    url, source, note = DF.send_target("claude", seat_url="https://lane/vandor",
-                                       global_url="https://global/hook")
+    url, source, _note = DF.send_target("claude", seat_url="https://lane/vandor", global_url="https://global/hook")
     assert url == "https://lane/vandor", (url, source)
     assert "lane" in source.lower() or "seat" in source.lower(), source
 
@@ -152,22 +177,22 @@ def test_send_prefers_the_callers_own_seat_lane():
 def test_a_fallback_to_global_is_ANNOUNCED_never_silent():
     """A silent fallback is how a reply ends up in the wrong room while the sender reads
     'posted'. If we cannot resolve the lane, the operator hears about it."""
-    url, source, note = DF.send_target("claude", seat_url="",
-                                       global_url="https://global/hook")
+    url, _source, note = DF.send_target("claude", seat_url="", global_url="https://global/hook")
     assert url == "https://global/hook"
     assert note, "falling back to the global channel must produce a spoken note"
     assert "global" in note.lower(), note
 
 
 def test_no_target_at_all_REFUSES_rather_than_returning_something_falsy_and_quiet():
-    url, source, note = DF.send_target("claude", seat_url="", global_url="")
+    url, _source, note = DF.send_target("claude", seat_url="", global_url="")
     assert not url
-    assert note and ("not configured" in note.lower() or "no " in note.lower()), note
+    assert note, note
+    assert "not configured" in note.lower() or "no " in note.lower(), note
 
 
 def test_the_happy_path_says_WHERE_it_is_going():
     """Yesterday's whole arc: a receipt must name what it proved. 'posted' is not a
     receipt if it cannot tell you which room."""
-    _, source, _ = DF.send_target("claude", seat_url="https://lane/vandor",
-                                  global_url="https://global/hook")
-    assert source and source.strip(), "the target must be nameable in the receipt"
+    _, source, _ = DF.send_target("claude", seat_url="https://lane/vandor", global_url="https://global/hook")
+    assert source, "the target must be nameable in the receipt"
+    assert source.strip(), "the target must be nameable in the receipt"

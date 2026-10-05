@@ -36,7 +36,7 @@ import pytest
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 
-from core.comm import liveness as L  # noqa: E402
+from core.comm import liveness as L  # noqa: E402  # sys.path bootstrap
 
 
 class _FakeClient:
@@ -48,6 +48,7 @@ class _FakeClient:
 
     def keys(self, pattern):
         import fnmatch
+
         return [k for k in self._keys if fnmatch.fnmatch(k, pattern)]
 
     def get(self, key):
@@ -57,10 +58,10 @@ class _FakeClient:
 @pytest.fixture
 def bus(monkeypatch):
     import json
+
     pre = L._worklive_prefix()
     live = json.dumps({"phase": "running", "beat_ts": 1_787_000_000.0, "seq": 19})
-    client = _FakeClient({f"{pre}claude#06528775": live,
-                          f"{pre}deepseek": live})
+    client = _FakeClient({f"{pre}claude#06528775": live, f"{pre}deepseek": live})
     monkeypatch.setattr(L, "_client", lambda: client)
     return client
 

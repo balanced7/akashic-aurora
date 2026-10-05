@@ -14,10 +14,10 @@ Pins:
 
 Run: py -m pytest tests/test_t048_recall_surfaces.py -q
 """
+
 import json
 import os
 import sys
-from pathlib import Path
 
 import pytest
 
@@ -25,15 +25,16 @@ os.environ.setdefault("_AISETUP_TEST_ISOLATED", "1")
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts"))
 
-from core.recall.at_action import render
 import deepseek_chat as dc
+
+from core.recall.at_action import render
 
 
 def _repo_root():
     """Derived: the old literal pinned one machine."""
     from core.paths import repo_root
-    return repo_root()
 
+    return repo_root()
 
 
 def _result(lessons, total=None):
@@ -41,8 +42,13 @@ def _result(lessons, total=None):
 
 
 def _lesson(source="learn:experiment:x", use=None, success="yes"):
-    return {"text": "use when testing, do the thing", "source": source,
-            "success": success, "agent_id": "claude", "_use": use or {}}
+    return {
+        "text": "use when testing, do the thing",
+        "source": source,
+        "success": success,
+        "agent_id": "claude",
+        "_use": use or {},
+    }
 
 
 # ---------------------------------------------------------------- H1: hint styles
@@ -62,7 +68,8 @@ def test_hint_style_default_stays_cli():
 # ---------------------------------------------------------------- H2: legend gate
 def test_legend_renders_on_credibility_markers():
     out = render(_result([_lesson(use={"helped": 2, "useful": 1})]))
-    assert "[legend]" in out and "helped=auto credit" in out
+    assert "[legend]" in out
+    assert "helped=auto credit" in out
 
 
 def test_legend_silent_on_plain_lessons():
@@ -79,8 +86,15 @@ def test_new_tools_registered():
 
 
 def _toolbox(boot_text=""):
-    return dc.ToolBox(_repo_root(), allow_exec=False, trust=False, allow_secrets=False,
-                      confirm=lambda _p: False, agent_id="testagent", boot_text=boot_text)
+    return dc.ToolBox(
+        _repo_root(),
+        allow_exec=False,
+        trust=False,
+        allow_secrets=False,
+        confirm=lambda _p: False,
+        agent_id="testagent",
+        boot_text=boot_text,
+    )
 
 
 # ---------------------------------------------------------------- T2: recall_at mapping
@@ -90,8 +104,11 @@ def test_recall_at_tool_maps_args(monkeypatch):
     monkeypatch.setattr(tb, "_agent_cli", lambda args, timeout=90: calls.append(args) or "ok")
     tb.recall_at(limit=7, path="core/comm/bus.py")
     args = calls[0]
-    assert args[0] == "recall-at" and "--limit" in args and "7" in args
-    assert "--hint-style" in args and "tool" in args, "tool-loop pulls must get tool-shaped hints"
+    assert args[0] == "recall-at"
+    assert "--limit" in args
+    assert "7" in args
+    assert "--hint-style" in args, "tool-loop pulls must get tool-shaped hints"
+    assert "tool" in args, "tool-loop pulls must get tool-shaped hints"
     assert "--path" in args
 
 
@@ -133,7 +150,8 @@ def test_release_written_locks(monkeypatch):
     calls = []
     monkeypatch.setattr(tb, "_agent_cli", lambda args, timeout=90: calls.append(args) or "released")
     n = tb.release_written_locks()
-    assert n == 2 and tb._written_lock_paths == []
+    assert n == 2
+    assert tb._written_lock_paths == []
     assert all(a[0] == "unlock" and a[1] == "testagent" for a in calls)
 
 

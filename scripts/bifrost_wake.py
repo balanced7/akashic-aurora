@@ -19,12 +19,25 @@ REUSABLE ONBOARDING: any turn-based agent becomes bus-wakeable by arming its wak
   py scripts/bifrost_wake.py --agent claude --session <session-id>   # per-session seat (preferred)
   py scripts/bifrost_wake.py --agent deepseek                        # legacy per-agent seat
 """
+
 import argparse
+import contextlib
 import json
 import os
 import sys
 import tempfile
 import time
+
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+
+        return python_launcher()
+    except Exception:
+        return "py"
+
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -54,8 +67,7 @@ SKIP_KINDS_LANE = SKIP_KINDS | {"note", "status"}
 # silent-by-default until someone argues it onto this list (the check_door_parity
 # pattern applied to kinds). Deviation from the design's six, flagged for verify:
 # `nudge` is here because the fidelity ladder's barge-in MUST wake an idle seat.
-WAKE_WORTHY_KINDS = frozenset(
-    {"request", "handoff", "reply", "blocker", "question", "completion", "nudge"})
+WAKE_WORTHY_KINDS = frozenset({"request", "handoff", "reply", "blocker", "question", "completion", "nudge"})
 
 
 def _operator_ids() -> frozenset:
@@ -79,11 +91,15 @@ def _declared_intent_for(m, agent: str):
     mailbox being reachable.
     """
     from core.comm import mailbox
+
     meta = getattr(m, "meta", None) or {}
-    fields = {"frm": str(getattr(m, "frm", "") or ""), "to": str(getattr(m, "to", "") or ""),
-              "kind": str(getattr(m, "kind", "") or ""),
-              "content": str(getattr(m, "content", "") or ""),
-              "ts": str(getattr(m, "ts", "") or "")}
+    fields = {
+        "frm": str(getattr(m, "frm", "") or ""),
+        "to": str(getattr(m, "to", "") or ""),
+        "kind": str(getattr(m, "kind", "") or ""),
+        "content": str(getattr(m, "content", "") or ""),
+        "ts": str(getattr(m, "ts", "") or ""),
+    }
     sha, _basis = mailbox.identity_of(fields, meta if isinstance(meta, dict) else {})
     ns = os.environ.get("BIFROST_NAMESPACE", "bifrost")
     st = mailbox.state_for(ns, agent, sha)
@@ -105,6 +121,7 @@ def _reply_is_settled(m, agent: str) -> bool:
     """
     try:
         from core.comm import expectations as _E
+
         rid = str(getattr(m, "id", "") or (getattr(m, "meta", None) or {}).get("reply_id") or "")
         if not rid:
             return False
@@ -143,9 +160,8 @@ def wake_worthy(m, *, agent: str, incarnation: str = "") -> bool:
     # the operator sends -- a DIRECTED chat (seat channel, @mention, @everyone's
     # per-seat fan-out all use bus.send, never broadcast) or any non-chat broadcast --
     # still outranks the allowlist exactly as the 2026-07-15 fix requires.
-    if str(getattr(m, "frm", "")) in _operator_ids():
-        if not (kind == "chat" and str(getattr(m, "to", "")) == "*"):
-            return True
+    if str(getattr(m, "frm", "")) in _operator_ids() and not (kind == "chat" and str(getattr(m, "to", "")) == "*"):
+        return True
     if kind not in WAKE_WORTHY_KINDS:
         return False
     if str(getattr(m, "frm", "")) == agent:
@@ -184,6 +200,7 @@ def wake_worthy(m, *, agent: str, incarnation: str = "") -> bool:
 
 def _hb_path(agent, session_id=None):
     from core.comm import wake_seat
+
     return wake_seat.seat_path(agent, session_id)
 
 
@@ -217,33 +234,33 @@ def default_deadline_s() -> int:
     return 14400
 
 
-def rearm_trigger_path(agent: str, session_id: str = "", tmp: str = None) -> str:
+def rearm_trigger_path(agent: str, session_id: str = "", tmp: str | None = None) -> str:
     """The deadline self-cycle's note to the waking session (P8). Mirrors seat naming."""
-    name = (f"bifrost_wake_{agent}_{session_id}.rearm" if session_id
-            else f"bifrost_wake_{agent}.rearm")
+    name = f"bifrost_wake_{agent}_{session_id}.rearm" if session_id else f"bifrost_wake_{agent}.rearm"
     return os.path.join(tmp or tempfile.gettempdir(), name)
 
 
-def write_rearm_trigger(agent: str, session_id: str = "", tmp: str = None) -> None:
+def write_rearm_trigger(agent: str, session_id: str = "", tmp: str | None = None) -> None:
     """R18: written ONLY on a deadline self-cycle -- never on mail exits (the session is
     already waking for work) and never on stand-downs (the seat owner re-arms via the
     stop-hook backstop; a trigger there would double-arm)."""
     try:
         with open(rearm_trigger_path(agent, session_id, tmp), "w", encoding="utf-8") as f:
-            f.write(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] deadline self-cycle: re-arm the "
-                    f"watcher ONCE -- BIFROST_WAKE_LANE=work py scripts/bifrost_wake.py "
-                    f"--agent {agent}" + (f" --session {session_id}" if session_id else "") +
-                    " (run_in_background; it stays armed for hours)")
+            f.write(
+                f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] deadline self-cycle: re-arm the "
+                f"watcher ONCE -- BIFROST_WAKE_LANE=work {_pyl()} scripts/bifrost_wake.py "
+                f"--agent {agent}"
+                + (f" --session {session_id}" if session_id else "")
+                + " (run_in_background; it stays armed for hours)"
+            )
     except Exception:
         pass
 
 
-def clear_rearm_trigger(agent: str, session_id: str = "", tmp: str = None) -> None:
+def clear_rearm_trigger(agent: str, session_id: str = "", tmp: str | None = None) -> None:
     """R19: arming IS the requested re-arm -- the trigger clears at arm time."""
-    try:
+    with contextlib.suppress(Exception):
         os.remove(rearm_trigger_path(agent, session_id, tmp))
-    except Exception:
-        pass
 
 
 # ------------------------------------------------------------- S0-gamma: wake-detection dedup
@@ -261,21 +278,19 @@ def clear_rearm_trigger(agent: str, session_id: str = "", tmp: str = None) -> No
 #   FAIL-OPEN: any sidecar error reads as never-seen -- a broken file can only cost an extra
 #     wake, never a missed one.
 
-SEEN_CAP = 1000   # newest-last trim on save; a session outliving 1000 wakes re-earns a twin wake
+SEEN_CAP = 1000  # newest-last trim on save; a session outliving 1000 wakes re-earns a twin wake
 
 
-def seen_path(agent: str, session_id: str = "", tmp: str = None) -> str:
+def seen_path(agent: str, session_id: str = "", tmp: str | None = None) -> str:
     """The dedup sidecar's path. Mirrors seat naming; removed on tombstone stand-down."""
-    name = (f"bifrost_wake_{agent}_{session_id}.seen" if session_id
-            else f"bifrost_wake_{agent}.seen")
+    name = f"bifrost_wake_{agent}_{session_id}.seen" if session_id else f"bifrost_wake_{agent}.seen"
     return os.path.join(tmp or tempfile.gettempdir(), name)
 
 
 def logical_key(m) -> str:
     """A packet's dual-write-stable identity, joined for JSON: mirrors BifrostAPI._dedup_key
     (frm, ts, kind) -- twins carry identical env fields but different stream auto-ids."""
-    return "|".join((str(getattr(m, "frm", "")), str(getattr(m, "ts", "")),
-                     str(getattr(m, "kind", ""))))
+    return "|".join((str(getattr(m, "frm", "")), str(getattr(m, "ts", "")), str(getattr(m, "kind", ""))))
 
 
 def outage_key(m) -> str:
@@ -302,6 +317,7 @@ def runner_still_down(frm: str) -> bool:
     wake_worthy's mailbox checks)."""
     try:
         from core.comm import incarnation as inc
+
         rt = inc.daemon_runtimes(str(frm or ""))
         return str((rt or {}).get("runner") or "") in ("down", "blocked")
     except Exception:
@@ -339,6 +355,7 @@ def say_seen_at_fire(agent: str, delivered: list, session_id: str = "") -> int:
     try:
         from core.comm import mailbox as _mbx
         from core.comm.seat_identity import sid8 as _sid8
+
         inc = (_sid8(session_id) if session_id else "") or "wake"
         for m in delivered:
             try:
@@ -351,11 +368,20 @@ def say_seen_at_fire(agent: str, delivered: list, session_id: str = "") -> int:
     return n
 
 
-def watch(agent: str, total_deadline_s: int, inner_block_ms: int, *,
-          api=None, hb_path: str = None, my_pid: int = None,
-          session_id: str = "", seen_file: str = None,
-          min_tier: int = 3) -> int:   # 3 == wake_tiers.AMBIENT (literal: T050 Q6 keeps core.comm lazy)
+def watch(
+    agent: str,
+    total_deadline_s: int,
+    inner_block_ms: int,
+    *,
+    api=None,
+    hb_path: str | None = None,
+    my_pid: int | None = None,
+    session_id: str = "",
+    seen_file: str | None = None,
+    min_tier: int = 3,
+) -> int:  # 3 == wake_tiers.AMBIENT (literal: T050 Q6 keeps core.comm lazy)
     from core.comm.bifrost_api import BifrostAPI
+
     api = api if api is not None else BifrostAPI(agent)
     if not api.online_now:
         print("BIFROST_WAKE: bus OFFLINE (Redis unreachable)")
@@ -375,11 +401,12 @@ def watch(agent: str, total_deadline_s: int, inner_block_ms: int, *,
     _beat = None
     try:
         from core.comm.liveness import WorkLive
+
         _ident = f"{agent}#{session_id[:8]}" if session_id else str(agent)
         _beat = WorkLive(_ident)
         _beat.set("idle", "armed: blocked on inbox")
     except Exception:
-        _beat = None                     # never let a heartbeat stop the thing it describes
+        _beat = None  # never let a heartbeat stop the thing it describes
     # AND THE ROSTER, which is the plane the PRODUCTION Discord ear actually reads.
     # bifrost_runner_discord's _is_seat_live is `any(row.agent == agent and row.state ==
     # LIVE)` over roster rows, and the roster beat for an interactive seat is written by
@@ -390,7 +417,9 @@ def watch(agent: str, total_deadline_s: int, inner_block_ms: int, *,
     _roster_beat = None
     if session_id:
         try:
-            from core.comm import roster as _R, liveness as _L
+            from core.comm import liveness as _L
+            from core.comm import roster as _R
+
             _roster_beat = (_R, _L._ns())
             _R.heartbeat(_roster_beat[1], agent, session_id, phase="idle")
         except Exception:
@@ -411,10 +440,10 @@ def watch(agent: str, total_deadline_s: int, inner_block_ms: int, *,
     # (T073: the skip-set assignment that lived here is gone -- wake_worthy() is the sole
     # wake gate; SKIP_KINDS/SKIP_KINDS_LANE remain for the lane-mode arm-time pending check.)
     out, seen = [], []
-    delivered = []        # the Message objects behind `out` -- say_seen_at_fire stamps these
-    steers = 0            # skipped steers are counted so the quiet exit says "check at next boot"
-    below_floor = 0       # passed wake_worthy but ranked below the arm's tier floor
-    woke_tiers = []       # tiers of the mail that actually fired this arm
+    delivered = []  # the Message objects behind `out` -- say_seen_at_fire stamps these
+    steers = 0  # skipped steers are counted so the quiet exit says "check at next boot"
+    below_floor = 0  # passed wake_worthy but ranked below the arm's tier floor
+    woke_tiers = []  # tiers of the mail that actually fired this arm
     deadline = time.time() + total_deadline_s
     chunk_s = max(1.0, inner_block_ms / 1000.0)
     cycled = False
@@ -432,13 +461,14 @@ def watch(agent: str, total_deadline_s: int, inner_block_ms: int, *,
         if session_id:
             try:
                 from core.comm import wake_seat as _ws
+
                 if _ws.is_tombstoned(session_id):
-                    try:
-                        os.remove(sf)   # S0-gamma P7: dead-by-record -> no orphan sidecar
-                    except OSError:
-                        pass
-                    print(f"BIFROST_WAKE: standing down for {lane} (session tombstoned -- "
-                          f"ended by record, T086 S1) -- benign")
+                    with contextlib.suppress(OSError):
+                        os.remove(sf)  # S0-gamma P7: dead-by-record -> no orphan sidecar
+                    print(
+                        f"BIFROST_WAKE: standing down for {lane} (session tombstoned -- "
+                        f"ended by record, T086 S1) -- benign"
+                    )
                     return 0
             except Exception:
                 pass
@@ -458,7 +488,7 @@ def watch(agent: str, total_deadline_s: int, inner_block_ms: int, *,
             print(f"BIFROST_WAKE: standing down for {lane} (seat lost -- heartbeat file gone) -- benign")
             return 0
         if holder == me:
-            had_seat = True              # seat observed OURS at least once -> loss is detectable
+            had_seat = True  # seat observed OURS at least once -> loss is detectable
         # ATTENTION IS NOT ACTIVITY (2026-09-23). Until now this listener held a seat file and
         # beat nothing, so attendance()'s three rungs -- roster beat, progress pulse, worklive --
         # were all keyed on a seat DOING something. An interactive seat refreshes the roster from
@@ -474,19 +504,16 @@ def watch(agent: str, total_deadline_s: int, inner_block_ms: int, *,
         # worse than the blind spot it replaces. Best-effort throughout: a heartbeat must never
         # be able to take down the listener it describes.
         if _beat is not None:
-            try:
+            with contextlib.suppress(Exception):
                 _beat.refresh()
-            except Exception:
-                pass
         if _roster_beat is not None:
-            try:
+            with contextlib.suppress(Exception):
                 _roster_beat[0].heartbeat(_roster_beat[1], agent, session_id, phase="idle")
-            except Exception:
-                pass
         try:
             msgs = api.wake_block(timeout_ms=inner_block_ms)
         except Exception as e:
-            print("WAKE_ERROR: " + str(e)); return 1
+            print("WAKE_ERROR: " + str(e))
+            return 1
         # TOLERANT BY DESIGN: watch() accepts an INJECTED api (its own docstring names
         # embedders), so an api without reachable_now keeps exactly its pre-fix behaviour
         # rather than crashing. An absent probe means the check is SKIPPED -- never that the
@@ -520,10 +547,12 @@ def watch(agent: str, total_deadline_s: int, inner_block_ms: int, *,
             # transient blip therefore costs one cheap re-arm; a real outage is now loud at the
             # minute it starts instead of at the hour it ends.
             elapsed_s = time.time() - (deadline - total_deadline_s)
-            print(f"BIFROST_WAKE: bus went OFFLINE mid-watch for {lane} after "
-                  f"{elapsed_s / 60.0:.1f} min of a {total_deadline_s / 60.0:.0f}-min shift "
-                  f"(Redis unreachable) -- SHIFT TRUNCATED, this is NOT a quiet watch; "
-                  f"anything that arrived from here on is unobserved, not absent")
+            print(
+                f"BIFROST_WAKE: bus went OFFLINE mid-watch for {lane} after "
+                f"{elapsed_s / 60.0:.1f} min of a {total_deadline_s / 60.0:.0f}-min shift "
+                f"(Redis unreachable) -- SHIFT TRUNCATED, this is NOT a quiet watch; "
+                f"anything that arrived from here on is unobserved, not absent"
+            )
             return 2
         for m in msgs:
             frm = str(getattr(m, "frm", "?"))
@@ -552,9 +581,9 @@ def watch(agent: str, total_deadline_s: int, inner_block_ms: int, *,
             # backlog while CONSUMING NOTHING: the backlog stays intact for whoever reads it.
             #
             # Default is AMBIENT, so this admits everything it admitted before.
-            from core.comm import wake_tiers   # LAZY: T050 Q6 (arm-vs-stop-hook race)
-            tier = wake_tiers.wake_tier(m, agent=agent, incarnation=str(session_id or ""),
-                                        operator_ids=_operator_ids())
+            from core.comm import wake_tiers  # LAZY: T050 Q6 (arm-vs-stop-hook race)
+
+            tier = wake_tiers.wake_tier(m, agent=agent, incarnation=str(session_id or ""), operator_ids=_operator_ids())
             if not wake_tiers.admits(tier, min_tier):
                 below_floor += 1
                 continue
@@ -580,7 +609,7 @@ def watch(agent: str, total_deadline_s: int, inner_block_ms: int, *,
             delivered.append(m)
             out.append({"frm": frm, "kind": kind, "text": str(getattr(m, "content", "") or "")[:2000]})
     if out:
-        save_seen(sf, seen_keys)   # S0-gamma: delivered -> remembered (before any print can throw)
+        save_seen(sf, seen_keys)  # S0-gamma: delivered -> remembered (before any print can throw)
         # T380 v1.3 (Daniil: "the thinking receipt should land the instant you make
         # your first toolcall or have commenced working -- I saw the read happen in
         # claude code before the thinking notification"): the watcher's render IS
@@ -593,30 +622,38 @@ def watch(agent: str, total_deadline_s: int, inner_block_ms: int, *,
     # agent obeys DONE/NEXT and never acts on a stale backlog message. Fail-open.
     try:
         from core.coord.task_ledger import format_state
-        print(format_state(agent=agent, now=time.time()))   # P5: stale proposals labeled at wake
+
+        print(format_state(agent=agent, now=time.time()))  # P5: stale proposals labeled at wake
     except Exception:
         pass
     deduped = f"; {twins} twin(s) deduped" if twins else ""
     twin_tag = f" ({twins} twin(s) deduped)" if twins else ""
     if out:
-        print(f"BIFROST WAKE -- messages for {agent}{twin_tag} (DETECTED, not consumed -- read them via "
-              f"bifrost-sync/inbox):")
-        print(json.dumps(out, indent=1))          # ensure_ascii=True -> cp1252-safe stdout on Windows
+        print(
+            f"BIFROST WAKE -- messages for {agent}{twin_tag} (DETECTED, not consumed -- read them via "
+            f"bifrost-sync/inbox):"
+        )
+        print(json.dumps(out, indent=1))  # ensure_ascii=True -> cp1252-safe stdout on Windows
     elif cycled:
         # C1-6 diagnostic: ELAPSED is the truth; the configured total alone masked a
         # phantom early-cycle (2026-07-16: "after 4.0h" on a minutes-old watcher).
         elapsed_s = time.time() - (deadline - total_deadline_s)
-        print(f"BIFROST_WAKE: deadline self-cycle for {lane} after {elapsed_s / 3600.0:.2f}h "
-              f"elapsed (configured {total_deadline_s / 3600.0:.1f}h, chunk {chunk_s:.0f}s) -- "
-              f"re-arm trigger written; relaunch ONCE (saw: " + ", ".join(seen[-8:]) + deduped + ")")
+        print(
+            f"BIFROST_WAKE: deadline self-cycle for {lane} after {elapsed_s / 3600.0:.2f}h "
+            f"elapsed (configured {total_deadline_s / 3600.0:.1f}h, chunk {chunk_s:.0f}s) -- "
+            f"re-arm trigger written; relaunch ONCE (saw: " + ", ".join(seen[-8:]) + deduped + ")"
+        )
     else:
         queued = f"; {steers} steer(s) queued for next boot" if steers else ""
         # THE FLOOR MUST CONFESS. Mail that passed wake_worthy() and was then held back by the
         # tier floor is NOT "quiet" -- it is present and deliberately unwaked-for. Reporting the
         # count is what keeps a floor from becoming the very thing this house spent the night
         # naming: a silence that reads as an absence.
-        held = (f"; {below_floor} held below tier floor {min_tier} "
-                f"({wake_tiers_name(min_tier)}) -- present, not absent" if below_floor else "")
+        held = (
+            f"; {below_floor} held below tier floor {min_tier} ({wake_tiers_name(min_tier)}) -- present, not absent"
+            if below_floor
+            else ""
+        )
         print(f"BIFROST_WAKE: quiet for {agent} (saw: " + ", ".join(seen[-12:]) + queued + held + deduped + ")")
     return 0
 
@@ -625,6 +662,7 @@ def wake_tiers_name(tier: int) -> str:
     """Name a tier for the report. LAZY import (T050 Q6) and fails open to the number."""
     try:
         from core.comm import wake_tiers
+
         return wake_tiers.tier_name(tier)
     except Exception:
         return str(tier)
@@ -637,6 +675,7 @@ def _migrate_legacy_ghost(agent: str) -> None:
     process snapshot, kill only a verified watcher, remove the legacy seat, log provenance.
     The single remaining live-process kill in the protocol, bounded to the migration moment."""
     from core.comm import wake_seat
+
     legacy = wake_seat.seat_path(agent, None)
     if not os.path.exists(legacy):
         return
@@ -645,9 +684,10 @@ def _migrate_legacy_ghost(agent: str) -> None:
         if pid is not None and pid != os.getpid():
             snap = wake_seat.process_snapshot()
             if snap is None:
-                wake_seat.append_provenance(agent, f"K6 migration deferred: snapshot unavailable "
-                                                   f"(legacy seat pid {pid} left in place)")
-                return                       # K8 direction: cannot verify -> touch nothing
+                wake_seat.append_provenance(
+                    agent, f"K6 migration deferred: snapshot unavailable (legacy seat pid {pid} left in place)"
+                )
+                return  # K8 direction: cannot verify -> touch nothing
             # THE WARRANT, not the lenient kind check (2026-09-23). agent_watcher's own
             # docstring records deepseek's dissent -- "is_watcher above stays the lenient
             # kind-only check for NON-LETHAL consumers" -- and this is the one lethal
@@ -657,32 +697,42 @@ def _migrate_legacy_ghost(agent: str) -> None:
             # 2026-07-10 loop the Wave-2 fence dissolved.
             if pid in snap and wake_seat.agent_watcher(pid, snap, agent):
                 wake_seat.taskkill(pid)
-                wake_seat.append_provenance(agent, f"K6 migration: killed legacy name-keyed ghost "
-                                                   f"watcher pid {pid}")
+                wake_seat.append_provenance(agent, f"K6 migration: killed legacy name-keyed ghost watcher pid {pid}")
             elif pid in snap:
                 wake_seat.append_provenance(
-                    agent, f"K6 migration: legacy seat pid {pid} is NOT {agent}'s watcher "
-                           f"(no warrant) -- seat file removed, process left alone")
+                    agent,
+                    f"K6 migration: legacy seat pid {pid} is NOT {agent}'s watcher "
+                    f"(no warrant) -- seat file removed, process left alone",
+                )
         os.remove(legacy)
         wake_seat.append_provenance(agent, "K6 migration: legacy seat file removed")
     except Exception:
-        pass                                 # best-effort; the janitor sweeps stragglers
+        pass  # best-effort; the janitor sweeps stragglers
 
 
 def main() -> int:
     ap = argparse.ArgumentParser(description="Block until a Bifrost message wakes this agent.")
     ap.add_argument("--agent", default="claude", help="the agent whose inbox to watch")
     ap.add_argument("--session", default="", help="owning session id -> per-session seat (Wave 2)")
-    ap.add_argument("--deadline", type=int, default=None,
-                    help="seconds before an idle self-cycle (default: 4h long-lived watcher, "
-                         "T073 P3; BIFROST_WAKE_DEADLINE_S dials, BIFROST_WAKE_LONGLIVED=0 "
-                         "reverts to the legacy 1800)")
+    ap.add_argument(
+        "--deadline",
+        type=int,
+        default=None,
+        help="seconds before an idle self-cycle (default: 4h long-lived watcher, "
+        "T073 P3; BIFROST_WAKE_DEADLINE_S dials, BIFROST_WAKE_LONGLIVED=0 "
+        "reverts to the legacy 1800)",
+    )
     ap.add_argument("--block", type=int, default=120_000, help="ms per inner blocking read")
-    ap.add_argument("--min-tier", type=int, default=3, choices=[0, 1, 2, 3],
-                    help="wake only for mail at or above this priority: 0 operator, "
-                         "1 +directed asks, 2 +settlements of my own asks, 3 everything "
-                         "(default, unchanged behaviour). A FLOOR lets a seat stay armed "
-                         "over an informational backlog WITHOUT consuming it.")
+    ap.add_argument(
+        "--min-tier",
+        type=int,
+        default=3,
+        choices=[0, 1, 2, 3],
+        help="wake only for mail at or above this priority: 0 operator, "
+        "1 +directed asks, 2 +settlements of my own asks, 3 everything "
+        "(default, unchanged behaviour). A FLOOR lets a seat stay armed "
+        "over an informational backlog WITHOUT consuming it.",
+    )
     a = ap.parse_args()
     if a.deadline is None:
         a.deadline = default_deadline_s()
@@ -697,10 +747,9 @@ def main() -> int:
         pass
     if a.session:
         _migrate_legacy_ghost(a.agent)
-    clear_rearm_trigger(a.agent, a.session)   # R19: this arm IS the requested re-arm
+    clear_rearm_trigger(a.agent, a.session)  # R19: this arm IS the requested re-arm
     try:
-        return watch(a.agent, a.deadline, a.block, hb_path=hb, my_pid=me,
-                     session_id=a.session, min_tier=a.min_tier)
+        return watch(a.agent, a.deadline, a.block, hb_path=hb, my_pid=me, session_id=a.session, min_tier=a.min_tier)
     finally:
         # Remove the seat only if it is still OURS -- a newer watcher may have taken it
         # (newest-wins singleton); deleting its seat would un-arm a live listener.
