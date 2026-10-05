@@ -174,8 +174,16 @@ def arm_command(agent: str, session_id: Optional[str] = None, *, repo: Optional[
     root = repo or os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     cli = os.path.join(root, "agent_cli.py").replace("\\", "/")
     sess = f" --session {session_id}" if session_id else ""
-    return (f"BIFROST_CONSUME_LANE=work BIFROST_WAKE_LANE=work py {cli} "
-            f"bifrost-standby {agent}{sess}")
+    # THE ENV PREFIX IS GONE (2026-10-05), and only because the DOOR now sets it. Until
+    # today `cmd_bifrost_standby` never defaulted BIFROST_CONSUME_LANE -- its sibling
+    # cmd_bifrost_sync did (T133) and wake_lane() follows the consume lane (T198) -- so this
+    # prefix was compensating, in an instruction string, for a default missing in the code.
+    # Measured before the fix: wake_lane() -> '' with no env, 'work' with it set. It now
+    # lives in bifrost_api.ensure_lane_defaults(), which runs at import, so the shortest
+    # correct command is also the safe one. Three fewer tokens is three fewer chances to
+    # mistype an arm the memory records going subtly wrong three-plus times, once causing a
+    # measured outage.
+    return f"py {cli} bifrost-standby {agent}{sess}"
 
 
 def harness_armed(agent: str, session_id: Optional[str] = None,
@@ -309,7 +317,7 @@ def wake_findings(agents: Optional[List[str]] = None, tmp: Optional[str] = None,
             alive_txt = (f"alive {alive:.0f}m ago" if alive is not None else "no activity marker")
             reachable = r["state"] in {f"armed-{o}" for o in WAKEABLE_ORIGINS}
             drill = (arm_hint(agent, r["session_id"]) if (arm_hint and r["session_id"]) else
-                     f"py agent_cli.py bifrost-standby {agent} --session {r['session_id']}")
+                     arm_command(agent, r["session_id"] or None))
             if reachable:
                 since = (time.strftime("%H:%M", time.localtime(r["armed_since"]))
                          if r["armed_since"] else "?")

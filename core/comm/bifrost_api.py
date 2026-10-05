@@ -112,6 +112,45 @@ def wake_lane() -> str:
             or "").strip()
 
 
+def ensure_lane_defaults() -> str:
+    """Settle the consume lane for THIS process, once, where no door can miss it.
+
+    THE DEFAULT BELONGS IN CODE, NOT IN AN INSTRUCTION STRING. The same defect has now been
+    paid for three times, each time by a door that did not self-default while its siblings
+    did:
+
+      T133  cmd_bifrost_sync -- "the runners self-default onto `work`; this door did not", so
+            the harness seat read LEGACY from a cursor 22 HOURS behind while real mail sat on
+            `work` unread. Fixed in that ONE door.
+      T198  wake_lane() above -- asked only for BIFROST_WAKE_LANE, "set NOWHERE in the
+            house". Cost: eight hand re-arms in one day. Found by chronos in Serge's fleet
+            reading our PUBLIC repo, because they cannot see our working tree.
+      2026-10-05  cmd_bifrost_standby -- the verb whose entire job is drain-then-arm never
+            set it at all. Measured: wake_lane() -> '' with no env, 'work' with it set. So
+            `py agent_cli.py bifrost-standby <seat>` watched the empty/legacy lane while its
+            mail landed on `work`. It had not bitten only because the PRESCRIBED arm command
+            carried the variables explicitly -- a prescription compensating, in prose, for a
+            missing default, which holds exactly as long as every seat types the long form
+            correctly every time.
+
+    So it lives HERE and runs at import, because `when_a_fix_primitive_is_born_sweep_the
+    class_that_birthed_it` -- patching a third door would have minted a fourth instance.
+    `work` is the right value by measurement, not taste: it is "the family every consumer in
+    the house advances" (see _pending_peek below), while the legacy cursor is the unnamed
+    co-tenant that produced five band-aids in one session.
+
+    SETDEFAULT, so this is a floor and never an override: a seat that deliberately splits the
+    planes still wins by exporting the variable itself. Returns the settled lane.
+    """
+    os.environ.setdefault("BIFROST_CONSUME_LANE", "work")
+    return os.environ["BIFROST_CONSUME_LANE"]
+
+
+#: At import, so that merely reaching the bus settles the lane -- a door cannot forget to call
+#: something it never knew about. Explicit env still wins (setdefault).
+ensure_lane_defaults()
+
+
 def _id_key(sid: str):
     """Sort key for Redis stream ids. "$" (tail) sorts above everything; "0" (virgin cursor)
     and malformed ids sort BELOW every real id -- "0" must lose to "0-0" (seat-2 review

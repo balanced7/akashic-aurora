@@ -459,7 +459,7 @@ def main():
                 _cli = os.path.join(
                     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
                     "agent_cli.py").replace("\\", "/")
-                arm_cmd = (f"BIFROST_CONSUME_LANE=work BIFROST_WAKE_LANE=work py {_cli} "
+                arm_cmd = (f"py {_cli} "
                            f"bifrost-standby {AGENT}" + (f" --session {session_id}" if session_id else ""))
             # T073 P3: this block is the BACKSTOP, not a per-turn chore -- the watcher is
             # long-lived (hours). Distinguish a planned deadline cycle from a death, and name

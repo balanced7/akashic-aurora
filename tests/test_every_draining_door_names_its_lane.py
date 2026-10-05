@@ -132,20 +132,36 @@ def test_the_wake_lane_is_non_empty_for_a_seat_that_only_ran_the_verb():
         "lane default must live in the code, not in the instruction string.")
 
 
-def test_the_prescribed_arm_command_matches_what_the_verb_actually_needs():
-    """RATCHET ON THE PRESCRIPTION. Once the door self-defaults, the printed arm command must
-    stop demanding the variables -- otherwise the house keeps teaching ceremony it no longer
-    needs, and every extra token is another chance to get the arm subtly wrong (three-plus
-    recorded recurrences, one measured outage).
+def test_the_import_failure_fallback_agrees_with_the_canonical_arm_command():
+    """RATCHET ON AGREEMENT, which is stronger than the string-absence this pin first asserted.
 
-    Deliberately scoped to the ENV PREFIX, not the whole command: `--session` and the seat id
-    stay, because an explicit session is still worth printing for a seat that has several.
+    The stop hook builds an arm string BY HAND in one place, and correctly so: it is the
+    `except Exception` path for when `core.comm.wake_seat` cannot be imported, and a fallback
+    that imports the thing it is falling back from is not a fallback. But a hand-built twin
+    must AGREE with the canonical command, or the gate can refuse the very command the hook
+    just told the seat to run -- which is exactly what happened on 2026-10-02, when boot
+    advertised a form stamping origin "unknown" that this same hook then rejected.
+
+    My first version of this pin asserted only that the long env prefix was ABSENT from the
+    two files. That was weak in the way that matters: it would have passed while the fallback
+    and the canonical command disagreed in any other way, and I had in fact already created
+    exactly that divergence by hand-shortening the printers while wake_seat still emitted the
+    long form. Absence of one wrong string is not presence of the right one.
     """
-    src = (ROOT / "agent_cli.py").read_text(encoding="utf-8-sig")
-    hook = (ROOT / "scripts" / "hooks" / "claude_stop.py").read_text(encoding="utf-8-sig")
-    offenders = [name for name, text in (("agent_cli.py", src), ("claude_stop.py", hook))
-                 if "BIFROST_CONSUME_LANE=work BIFROST_WAKE_LANE=work" in text]
-    assert not offenders, (
-        "%s still print an arm command whose env prefix the verb now sets for itself: %s. "
-        "A prescription that outlives its reason becomes ceremony, and ceremony is where the "
-        "inline-& recurrence lives." % (len(offenders), ", ".join(offenders)))
+    import re
+
+    from core.comm import wake_seat as WS
+
+    canon = WS.arm_command("claude", "deadbeefdeadbeefdeadbeefdeadbeef")
+    assert "BIFROST_CONSUME_LANE" not in canon, (
+        "the canonical arm command still carries a lane prefix the door now sets itself")
+
+    for rel in ("scripts/hooks/claude_stop.py", "agent/harness/hooks/claude_stop.py"):
+        text = (ROOT / rel).read_text(encoding="utf-8-sig")
+        # the fallback's shape, as written: f"py {_cli} " f"bifrost-standby {AGENT}" ...
+        assert "BIFROST_CONSUME_LANE=work BIFROST_WAKE_LANE=work" not in text, (
+            "%s prescribes a lane prefix that wake_seat.arm_command no longer emits -- two "
+            "surfaces, two commands for one job, which is the 2026-10-02 defect" % rel)
+        assert re.search(r"bifrost-standby \{AGENT\}", text), (
+            "%s no longer contains the hand-built fallback this pin tracks; if it now "
+            "delegates entirely, delete this assertion deliberately" % rel)

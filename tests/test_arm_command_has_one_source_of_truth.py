@@ -80,10 +80,42 @@ def test_the_command_carries_the_session_so_the_seat_is_per_session():
         "wrong seat or none"
 
 
-def test_the_command_carries_the_lane_env():
-    cmd = _canonical()
+def test_the_armed_listener_consumes_the_RIGHT_LANE():
+    """THE PROPERTY, kept; the mechanism that delivers it, moved.
+
+    This pin asserted that BIFROST_CONSUME_LANE and BIFROST_WAKE_LANE appeared IN the command
+    string, because "the listener consumes the wrong lane without it". That was exactly true
+    when written and is no longer the mechanism: on 2026-10-05 the lane default moved from the
+    instruction string into the code, because the prefix was compensating for a default that
+    `cmd_bifrost_standby` -- the ARMING door -- never set. Its sibling `cmd_bifrost_sync` had
+    it (T133) and `wake_lane()` follows the consume lane (T198), so the one door whose entire
+    job is drain-then-arm was the one door that could not name its own lane. Measured before
+    the fix: wake_lane() -> '' with no env, 'work' with it set.
+
+    So the requirement is unchanged and the assertion follows it to where it now lives:
+    bifrost_api.ensure_lane_defaults(), which runs at import. Deleting this pin because its
+    string vanished would have discarded the guarantee along with the mechanism.
+    """
+    import os
+
     for var in ("BIFROST_CONSUME_LANE", "BIFROST_WAKE_LANE"):
-        assert var in cmd, f"{var} missing; the listener consumes the wrong lane without it"
+        os.environ.pop(var, None)
+
+    import importlib
+
+    from core.comm import bifrost_api
+    importlib.reload(bifrost_api)
+
+    assert bifrost_api.wake_lane() == "work", (
+        "a seat that runs the canonical arm command with nothing exported would watch lane "
+        "%r -- the listener and the drain must address the same thing (T198)."
+        % bifrost_api.wake_lane())
+
+    os.environ["BIFROST_CONSUME_LANE"] = "legacy"
+    assert bifrost_api.wake_lane() == "legacy", (
+        "the default must be a FLOOR, not an override: a seat that deliberately splits the "
+        "planes has to be able to.")
+    os.environ.pop("BIFROST_CONSUME_LANE", None)
 
 
 # ---------------------------------------------------------------- P5-P6: the two surfaces AGREE
@@ -117,9 +149,29 @@ def test_the_stop_hook_and_boot_do_not_disagree(monkeypatch):
     boot = _norm(context._reach_line(AGENT))
     if "bifrost-standby" not in boot:
         raise AssertionError(f"boot does not advertise the canonical command. boot: {boot!r}")
-    # the canonical command's distinctive tokens must all appear in whatever boot prints
-    for tok in ("BIFROST_CONSUME_LANE", "bifrost-standby", AGENT):
-        assert tok in boot, f"boot's arm advice is missing {tok!r}: {boot!r}"
+    # The canonical command's distinctive tokens must all appear in whatever boot prints --
+    # DERIVED from arm_command rather than hardcoded. The hardcoded list named
+    # BIFROST_CONSUME_LANE, so when the lane moved from the prescription into the door
+    # (2026-10-05) this pin failed for a change that made the house MORE correct. A pin on
+    # "the two surfaces agree" should not also freeze WHAT they agree on.
+    canon = _norm(_canonical())
+    # Compare STRUCTURAL tokens only. The session id legitimately differs -- the canonical
+    # command is built for this test's fixture session while boot reports the live ambient
+    # one -- so including it compares two correct answers and calls them a disagreement.
+    _toks, _skip = [], False
+    for t in canon.split():
+        if _skip:
+            _skip = False
+            continue
+        if t == "--session":
+            _skip = True                      # the id after it is per-session, not structural
+        if "=" in t or t.endswith(".py"):
+            continue
+        _toks.append(t)
+    for tok in _toks:
+        assert tok in boot, (
+            "boot's arm advice is missing %r from the canonical command -- "
+            "boot=%r canon=%r" % (tok, boot, canon))
 
 
 # ---------------------------------------------------------------- P7: it must be the real thing

@@ -5835,9 +5835,11 @@ def cmd_doctor(args):
                 print(f"              start: {f['drill']}")
     try:   # S5 (T423): who can be reached from idle -- listener origin, since when, what wakes cost;
         from core.comm import wake_seat as _wake   # PAGE on a live session with no harness listener
-        _cli = os.path.abspath(__file__).replace("\\", "/")
-        _wf = _wake.wake_findings(arm_hint=lambda a, s: (
-            f"BIFROST_CONSUME_LANE=work BIFROST_WAKE_LANE=work py {_cli} bifrost-standby {a} --session {s}"))
+        # Hand over wake_seat.arm_command ITSELF -- a lookalike lambda here is how boot and
+        # the stop hook came to advertise two different commands for one job (2026-10-02),
+        # one of which stamped origin "unknown" and was then REFUSED by the gate it was
+        # meant to satisfy. One source of truth means passing the function, not copying it.
+        _wf = _wake.wake_findings(arm_hint=_wake.arm_command)
         rep["wake"] = _wf
         if _wf:
             print("## WAKE (who can be reached from idle -- origin, since, cost)")
@@ -6638,7 +6640,10 @@ def cmd_bifrost_sync(args):
     # 22 hours behind while real mail sat on `work` unread. Aligning the two ends the drift at its
     # source instead of re-discovering it with a cursor-vs-tail query every few days.
     # Per-process and still overridable: set BIFROST_CONSUME_LANE explicitly to pin either side.
-    os.environ.setdefault("BIFROST_CONSUME_LANE", "work")
+    # Delegated 2026-10-05 -- bifrost_api.ensure_lane_defaults() is the ONE place this is
+    # decided, because patching it per-door is what produced three instances of this defect.
+    from core.comm.bifrost_api import ensure_lane_defaults
+    ensure_lane_defaults()
     if args.consume:
         res = consume_inbox(args.agent_id, limit=args.limit or 20)
         if args.json:
@@ -6760,6 +6765,12 @@ def cmd_bifrost_standby(args):
     listener's parent. Run THIS as the harness background task; its exit (the listener detecting
     wake-worthy mail) re-invokes the harness. --no-listen = drain + report only."""
     from agent.bifrost_pull import standby
+    from core.comm.bifrost_api import ensure_lane_defaults
+    # THE ARMING DOOR MUST NAME ITS OWN LANE. Until 2026-10-05 it did not, so
+    # `bifrost-standby <seat>` watched the empty/legacy lane while mail landed on `work` --
+    # T133 and T198 a third time, invisible only because the PRESCRIBED command carried
+    # BIFROST_CONSUME_LANE=work in its env prefix.
+    ensure_lane_defaults()
     floor = standby_min_tier(getattr(args, "min_tier", None))
 
     def _listen(agent_id, session_id):

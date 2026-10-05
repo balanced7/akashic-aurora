@@ -138,7 +138,18 @@ def test_hook_arm_line_is_absolute_and_lane_pinned(tmp_path, sleeper):
     m = re.search(r"`([^`]+)`", reason)
     assert m, reason
     cmd = m.group(1)
-    assert cmd.startswith("BIFROST_CONSUME_LANE=work BIFROST_WAKE_LANE=work py ")
+    # LANE PINNING MOVED FROM THE PRESCRIPTION TO THE DOOR (2026-10-05). This asserted the
+    # env prefix `BIFROST_CONSUME_LANE=work BIFROST_WAKE_LANE=work`, which was compensating in
+    # an instruction string for a default missing in `cmd_bifrost_standby` -- its sibling
+    # cmd_bifrost_sync had it (T133) and wake_lane() follows the consume lane (T198), but the
+    # ARMING door never set it, so `bifrost-standby <seat>` watched the empty/legacy lane.
+    # It now lives in bifrost_api.ensure_lane_defaults(), which runs at import, so the pin
+    # moved to the property that actually matters: the command the hook prints is the one
+    # canonical command, byte for byte.
+    from core.comm import wake_seat as _ws
+    assert cmd == _ws.arm_command(AGENT, sid), (
+        "the hook prints an arm command that is not wake_seat.arm_command's -- "
+        "hook=%r canon=%r" % (cmd, _ws.arm_command(AGENT, sid)))
     assert "/agent_cli.py bifrost-standby" in cmd and "scripts/bifrost_wake.py" not in cmd
     assert ":/" in cmd or cmd.split(" py ")[1].startswith("/")   # absolute, never cwd-relative
 
