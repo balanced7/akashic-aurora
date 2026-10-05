@@ -185,7 +185,18 @@ GUARDRAILS = ("check_boundaries", "check_doc_freshness", "check_comprehensibilit
               # carried a session id while touch was at 796/796. Counted rather than swept
               # because several sites sit in other seats' lanes; adopted at today's 16, may
               # fall, may never rise.
-              "check_session_resolvers")
+              "check_session_resolvers",
+              # 2026-10-05: an outside contributor's basedpyright pass found SIX undefined
+              # names in agent_cli.py, and three failed SILENTLY because the unbound name sat
+              # inside `except Exception: pass` -- a handler for runtime DATA errors eating a
+              # STATIC defect, which is the purest mechanical generator of a false zero in
+              # this tree. Measured consequence: the continuity-drift line had NEVER rendered
+              # (its only caller passes no args; all four of its tests pass one), and the wish
+              # door had emitted 0 events against 254 filed wishes. A seventh was then found
+              # by the checker itself (geminiAgent/GeminiAgent). Adversarially validated by
+              # four independent lenses against 43 constructed scope cases: 43/43. Cached by
+              # content hash, so it costs ~750ms warm rather than 5.9s.
+              "check_unbound_names")
 
 # GENERATED, not authored. Committing a derivative and then gating on its freshness is a
 # category error: every code commit invalidates it, so the gate fires on whoever commits next
@@ -321,6 +332,21 @@ def ensure_baseline(live=None) -> tuple:
     with open(BASELINE_PATH, "w", encoding="utf-8") as fh:
         json.dump(payload, fh, indent=2)
         fh.write("\n")
+
+    # AND STAGE IT, or the adoption never leaves this workstation. The baseline is TRACKED,
+    # so writing it mid-commit leaves it unstaged: the commit lands without the new entry,
+    # the next clone has no baseline for that guard, and ratchet_ok -- which iterates the
+    # BASELINE's keys -- never compares it. That is verbatim the check_kind_policy fate this
+    # function's own docstring describes ("enforced on exactly one workstation: it blocked
+    # nobody, and it protected nobody"), and it was measured happening AGAIN to the 7th
+    # guardrail: origin/master's baseline carries 6 keys while local HEAD carries 7. Found by
+    # an adversarial reader of the 8th. Adopting a debt level is a decision about the repo,
+    # so it belongs in the commit that makes it.
+    try:
+        subprocess.run(["git", "add", "--", os.path.relpath(BASELINE_PATH, ROOT)], cwd=ROOT,
+                       capture_output=True, stdin=subprocess.DEVNULL, close_fds=True)
+    except Exception:                                                        # noqa: BLE001
+        pass                      # a failed stage must not fail the commit; the note still prints
 
     if status == "missing":
         return True, ("no guardrail baseline existed -- created %s adopting today's debt %s. "
