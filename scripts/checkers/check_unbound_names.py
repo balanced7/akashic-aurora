@@ -87,6 +87,7 @@ from __future__ import annotations
 import argparse
 import ast
 import builtins
+import hashlib
 import json
 import sys
 from pathlib import Path
@@ -469,6 +470,47 @@ class _Resolver(ast.NodeVisitor):
 
 
 # ------------------------------------------------------------------------------------- driver
+#: Per-file result cache. The gate runs EVERY guardrail on EVERY commit (pre_commit.py:238),
+#: so an uncached 5.9s is a flat tax on every seat's every commit -- and W252, filed the same
+#: day, is about exactly that kind of per-commit friction. Keyed by content hash, so a typical
+#: commit re-parses only what it touched.
+#:
+#: THE CHECKER'S OWN SOURCE IS IN THE KEY. Any edit to the resolver invalidates the whole
+#: cache, because a stale finding from an older rule set is worse than no cache: it would let
+#: a resolver fix silently fail to apply, and the ratchet would read the difference as a
+#: paydown. state/ci/* is gitignored apart from the two baselines, so this never enters git.
+CACHE_PATH = ROOT / "state" / "ci" / "unbound_names_cache.json"
+
+
+def _self_hash() -> str:
+    try:
+        return hashlib.sha256(Path(__file__).read_bytes()).hexdigest()[:16]
+    except Exception:                                            # noqa: BLE001
+        return "nohash"
+
+
+def _load_cache() -> dict:
+    try:
+        raw = json.loads(CACHE_PATH.read_text(encoding="utf-8"))
+    except Exception:                                            # noqa: BLE001
+        return {}
+    if not isinstance(raw, dict) or raw.get("rules") != _self_hash():
+        return {}                                                # rules moved -> drop it all
+    files = raw.get("files")
+    return files if isinstance(files, dict) else {}
+
+
+def _save_cache(files: dict) -> None:
+    try:
+        CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
+        tmp = CACHE_PATH.with_suffix(".tmp")
+        tmp.write_text(json.dumps({"rules": _self_hash(), "files": files}),
+                       encoding="utf-8")
+        tmp.replace(CACHE_PATH)
+    except Exception:                                            # noqa: BLE001
+        pass            # a cache that cannot be written must never fail the check
+
+
 def _py_files() -> Tuple[List[Path], int]:
     """Returns (files, skipped_by_path_count). The count is REPORTED, never silent."""
     out: List[Path] = []
@@ -521,6 +563,10 @@ def check(as_json: bool = False, scan_foreign: bool = False) -> int:
                 keep.append(p)
         files = keep
 
+    cache = _load_cache()
+    fresh: dict = {}
+    hits = misses = 0
+
     for path in files:
         rel = path.relative_to(ROOT).as_posix()
         try:
@@ -534,21 +580,41 @@ def check(as_json: bool = False, scan_foreign: bool = False) -> int:
             src = path.read_text(encoding="utf-8-sig")
         except Exception as e:                                   # noqa: BLE001
             unparsed.append((rel, f"unreadable: {e}")); continue
+
+        digest = hashlib.sha256(src.encode("utf-8", "replace")).hexdigest()[:16]
+        cached = cache.get(rel)
+        if isinstance(cached, dict) and cached.get("h") == digest:
+            hits += 1
+            fresh[rel] = cached
+            bucket = not_ours if _NOT_OURS(rel) else offenders
+            if cached.get("star"):
+                skipped_star.append(rel); continue
+            if cached.get("bad"):
+                unparsed.append((rel, cached["bad"])); continue
+            for ln, nm, wh in cached.get("v", []):
+                bucket.append((rel, ln, nm, wh))
+            continue
+        misses += 1
         try:
             tree = ast.parse(src, filename=rel)
         except SyntaxError as e:
-            unparsed.append((rel, f"SyntaxError line {e.lineno}")); continue
+            why = f"SyntaxError line {e.lineno}"
+            fresh[rel] = {"h": digest, "bad": why}
+            unparsed.append((rel, why)); continue
         except Exception as e:                                   # noqa: BLE001
             # NOT just SyntaxError. A deeply nested expression raises RecursionError (seen at
             # AST depth 497), which escaped the narrow handler, killed the run, and -- at any
             # baseline above zero -- read to the ratchet as "the debt FELL". A dead checker
             # must never look like a paydown.
-            unparsed.append((rel, f"{type(e).__name__}: {e}")); continue
+            why = f"{type(e).__name__}: {e}"
+            fresh[rel] = {"h": digest, "bad": why}
+            unparsed.append((rel, why)); continue
         if any(isinstance(n, ast.ImportFrom) and any(a.name == "*" for a in n.names)
                for n in tree.body):
             # tree.body, not ast.walk: a star-import is only legal at module level, and
             # walking the whole tree let a `from x import *` ANYWHERE (including inside a
             # string-compiled block or a nested module in a test fixture) excuse the file.
+            fresh[rel] = {"h": digest, "star": True}
             skipped_star.append(rel); continue
         lazy = any(isinstance(n, ast.ImportFrom) and n.module == "__future__"
                    and any(a.name == "annotations" for a in n.names)
@@ -557,6 +623,8 @@ def check(as_json: bool = False, scan_foreign: bool = False) -> int:
         for st in tree.body:
             r.visit(st)
         bucket = not_ours if _NOT_OURS(rel) else offenders
+        rows = [[ln, nm, wh] for ln, nm, wh in r.violations]
+        fresh[rel] = {"h": digest, "v": rows}
         for lineno, name, where in r.violations:
             bucket.append((rel, lineno, name, where))
 
@@ -575,6 +643,7 @@ def check(as_json: bool = False, scan_foreign: bool = False) -> int:
         return 1 if offenders else 0
 
     # Typed absence, every time: a skip is REPORTED, never silently passed. Zero is not no.
+    print("# cache: %d hit(s), %d parsed" % (hits, misses))
     print("# scanned %d .py file(s); %d skipped by path policy (caches, top-level archive/"
           "logs/state/X, .claude/.codex/.cursor, tooling-upgrade)"
           % (len(files), skipped_by_path))
@@ -603,6 +672,8 @@ def check(as_json: bool = False, scan_foreign: bool = False) -> int:
         for f in nf:
             print("  ~ %s (%d)" % (f, sum(1 for g, _, _, _ in not_ours if g == f)))
         print()
+
+    _save_cache(fresh)
 
     # A SKIP IN OUR OWN CODE COSTS A COUNTED SLOT, and this is the single most important
     # line in the file for the gate's integrity. Measured by an adversarial reader: adding
