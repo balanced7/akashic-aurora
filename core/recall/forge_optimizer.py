@@ -15,24 +15,23 @@ Proposal lifecycle: stamped -> reviewed by the human (--forge-check --apply on P
 ordinary re-record on UNMEASURABLE) -> or EXPIRED by the curator after PROPOSAL_TTL_DAYS
 (sec.5: unreviewed proposals expire; the process-level textual learning rate).
 """
+
 from __future__ import annotations
 
 import json
 import re
 from typing import Any, Callable, Dict, List, Optional
 
-MAX_TARGETS_PER_PASS = 2          # locked design decision 1
-PROPOSAL_TTL_DAYS = 7.0           # unreviewed proposals expire (curator sweeps)
-REHAB_MIN_SURFACED = 10           # rehab class definition (mirrors the audit / curator)
+MAX_TARGETS_PER_PASS = 2  # locked design decision 1
+PROPOSAL_TTL_DAYS = 7.0  # unreviewed proposals expire (curator sweeps)
+REHAB_MIN_SURFACED = 10  # rehab class definition (mirrors the audit / curator)
 
-_DRAFT_RE = re.compile(r"PROPOSED-RECOMMENDATION-BEGIN\s*(.+?)\s*PROPOSED-RECOMMENDATION-END",
-                       re.S | re.I)
+_DRAFT_RE = re.compile(r"PROPOSED-RECOMMENDATION-BEGIN\s*(.+?)\s*PROPOSED-RECOMMENDATION-END", re.S | re.I)
 _RATIONALE_RE = re.compile(r"RATIONALE:\s*(.+)", re.I)
 
 
 # --------------------------------------------------------------------- selection
-def select_targets(limit: int = MAX_TARGETS_PER_PASS, *,
-                   store=None, learning_store=None) -> List[Dict[str, Any]]:
+def select_targets(limit: int = MAX_TARGETS_PER_PASS, *, store=None, learning_store=None) -> List[Dict[str, Any]]:
     """Curator-named rehab targets (surfaced >= 10, zero credit, active), minus lessons
     already provisional or carrying an unexpired pending proposal. Ordered by surfaced
     desc (the biggest surface-cost first). Fail-soft to []."""
@@ -41,6 +40,7 @@ def select_targets(limit: int = MAX_TARGETS_PER_PASS, *,
         from core.learning.learning_store import get_learning_store, is_graduated, is_benched
         from core.recall.at_action import _load_use, _store
         from core.recall.curator import _credit
+
         ls = learning_store or get_learning_store()
         st = store or _store()
         for rec in ls.load_all_learnings_from_store():
@@ -48,9 +48,9 @@ def select_targets(limit: int = MAX_TARGETS_PER_PASS, *,
             if not name or is_graduated(rec) or is_benched(rec):
                 continue
             if str(rec.get("forge_provisional") or "").strip():
-                continue          # one edit in flight per lesson (echo-loop guard, sec.11)
+                continue  # one edit in flight per lesson (echo-loop guard, sec.11)
             if _proposal_pending(rec):
-                continue          # already queued for the human this cycle
+                continue  # already queued for the human this cycle
             use = _load_use(st, f"learn:experiment:{name}")
             surfaced = int(use.get("surfaced", 0) or 0)
             if surfaced >= REHAB_MIN_SURFACED and _credit(use) == 0:
@@ -58,7 +58,7 @@ def select_targets(limit: int = MAX_TARGETS_PER_PASS, *,
         out.sort(key=lambda r: -r["surfaced"])
     except Exception:
         return []
-    return out[:max(0, int(limit))]
+    return out[: max(0, int(limit))]
 
 
 def _proposal_pending(rec: Dict[str, Any]) -> bool:
@@ -70,22 +70,27 @@ def _proposal_pending(rec: Dict[str, Any]) -> bool:
         return False
     from core.foundation.timeutil import to_epoch
     import time
+
     at = to_epoch(prop.get("at") or 0)
     return bool(at and (time.time() - at) / 86400.0 <= PROPOSAL_TTL_DAYS)
 
 
 # --------------------------------------------------------------------- payload
-def build_prompt(rec: Dict[str, Any], *, counters: Optional[Dict[str, Any]] = None,
-                 trigger_terms: Optional[List[str]] = None) -> str:
+def build_prompt(
+    rec: Dict[str, Any], *, counters: Optional[Dict[str, Any]] = None, trigger_terms: Optional[List[str]] = None
+) -> str:
     """The BLINDED optimizer prompt for one lesson. Contains the record, aggregates,
     mined vocabulary, and the rejected buffer -- and none of the replay contexts."""
     try:
         rejected = json.loads(str(rec.get("forge_rejected") or "[]"))
     except Exception:
         rejected = []
-    rej_block = "\n".join(
-        f"- REJECTED ({', '.join(r.get('reasons', [])[:2])}): {r.get('draft', '')[:200]}"
-        for r in rejected[-5:]) or "(none yet)"
+    rej_block = (
+        "\n".join(
+            f"- REJECTED ({', '.join(r.get('reasons', [])[:2])}): {r.get('draft', '')[:200]}" for r in rejected[-5:]
+        )
+        or "(none yet)"
+    )
     counters = counters or {}
     parts = [
         # Goal framing per the red-team's own critique of its seat: "earn recall credit"
@@ -152,17 +157,23 @@ def parse_reply(text: str) -> Dict[str, str]:
 
 
 # --------------------------------------------------------------------- the pass
-def run_pass(propose_fn: Callable[[str], str], *, limit: int = MAX_TARGETS_PER_PASS,
-             store=None, learning_store=None,
-             events: Optional[List[Dict[str, Any]]] = None,
-             injections: Optional[List[Dict[str, Any]]] = None,
-             min_relevance: Optional[float] = None) -> List[Dict[str, Any]]:
+def run_pass(
+    propose_fn: Callable[[str], str],
+    *,
+    limit: int = MAX_TARGETS_PER_PASS,
+    store=None,
+    learning_store=None,
+    events: Optional[List[Dict[str, Any]]] = None,
+    injections: Optional[List[Dict[str, Any]]] = None,
+    min_relevance: Optional[float] = None,
+) -> List[Dict[str, Any]]:
     """One optimizer pass: select -> prompt -> propose_fn (the injected model call) ->
     parse -> Tier-0 gate -> stamp pending proposal (PASS / UNMEASURABLE only; FAIL is
     closed by the gate's rejected buffer). Returns a row per target for the operator."""
     from core.recall.forge import gate_edit
     from core.recall.at_action import _load_use, _store, _cached_items
     from core.learning.learning_store import get_learning_store
+
     ls = learning_store or get_learning_store()
     st = store or _store()
 
@@ -182,16 +193,25 @@ def run_pass(propose_fn: Callable[[str], str], *, limit: int = MAX_TARGETS_PER_P
                 row["outcome"] = "malformed-reply (dropped)"
                 rows.append(row)
                 continue
-            rep = gate_edit(name, parsed["draft"], learning_store=learning_store,
-                            events=events, injections=injections, min_relevance=min_relevance)
+            rep = gate_edit(
+                name,
+                parsed["draft"],
+                learning_store=learning_store,
+                events=events,
+                injections=injections,
+                min_relevance=min_relevance,
+            )
             row["verdict"] = rep["verdict"]
             row["rationale"] = parsed.get("rationale", "")
             if rep["verdict"] in ("PASS", "UNMEASURABLE"):
-                stamped = ls.stamp_forge_proposal(name, parsed["draft"], rep["verdict"],
-                                                  by="deepseek-optimizer",
-                                                  rationale=parsed.get("rationale", ""))
-                row["outcome"] = ("queued for human review" if stamped
-                                  else "STAMP FAILED (store write)")
+                stamped = ls.stamp_forge_proposal(
+                    name,
+                    parsed["draft"],
+                    rep["verdict"],
+                    by="deepseek-optimizer",
+                    rationale=parsed.get("rationale", ""),
+                )
+                row["outcome"] = "queued for human review" if stamped else "STAMP FAILED (store write)"
             else:
                 row["outcome"] = "rejected by gate (buffered)"
                 row["reasons"] = rep.get("reasons", [])[:3]
@@ -206,15 +226,22 @@ def pending_proposals(*, learning_store=None) -> List[Dict[str, Any]]:
     out: List[Dict[str, Any]] = []
     try:
         from core.learning.learning_store import get_learning_store
+
         ls = learning_store or get_learning_store()
         for rec in ls.load_all_learnings_from_store():
             if not _proposal_pending(rec):
                 continue
             prop = json.loads(str(rec.get("forge_proposal")))
-            out.append({"experiment": rec.get("experiment_name"),
-                        "verdict": prop.get("verdict"), "at": prop.get("at"),
-                        "by": prop.get("by"), "rationale": prop.get("rationale", ""),
-                        "draft": prop.get("draft", "")})
+            out.append(
+                {
+                    "experiment": rec.get("experiment_name"),
+                    "verdict": prop.get("verdict"),
+                    "at": prop.get("at"),
+                    "by": prop.get("by"),
+                    "rationale": prop.get("rationale", ""),
+                    "draft": prop.get("draft", ""),
+                }
+            )
         out.sort(key=lambda p: str(p.get("at") or ""), reverse=True)
     except Exception:
         pass

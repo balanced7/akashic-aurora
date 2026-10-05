@@ -26,6 +26,7 @@ recommendation of a private server with one private channel.
 Setup is five minutes and is documented in
 research/in-flight/discord-bridge-design-2026-08-07.md.
 """
+
 from __future__ import annotations
 
 import os
@@ -70,8 +71,7 @@ def _retry_after_seconds(resp: Any) -> float:
         return 1.0
 
 
-def post_with_rate_limit_retry(post_fn: Callable[[], Any], *,
-                               sleep: Callable[[float], None] = time.sleep) -> Any:
+def post_with_rate_limit_retry(post_fn: Callable[[], Any], *, sleep: Callable[[float], None] = time.sleep) -> Any:
     """Call `post_fn()` (a `requests.post(...)` invocation), retrying ONLY on HTTP 429,
     up to `_RATE_LIMIT_MAX_RETRIES` times, waiting exactly what Discord reports it wants.
     Any other status (or exhausted retries) raises via the caller's own `raise_for_status`,
@@ -85,6 +85,7 @@ def post_with_rate_limit_retry(post_fn: Callable[[], Any], *,
         resp = post_fn()
     return resp
 
+
 #: Same env-first-then-gitignored-file order every other credential here uses.
 #: T365: route through secret_intake.secrets_dir() so AKASHIC_SECRETS_DIR redirects the vault
 #: (a module-path constant can't be redirected; that class already leaked a credential once).
@@ -96,17 +97,29 @@ def url_file() -> Path:
     before ``AKASHIC_SECRETS_DIR`` can redirect it.
     """
     from core.comm.secret_intake import secrets_dir
+
     return secrets_dir() / "discord_webhook.url"
+
 
 #: AN ALLOWLIST, NEVER A DENYLIST. A denylist silently leaks every kind added after it was
 #: written, and this repo adds kinds regularly -- 31 at the T177 census, with 14 hand-kept
 #: policy sets already disagreeing about them. An unknown kind therefore does NOT forward.
 #: `trace` is deliberately absent: it is the firehose and would make the channel unreadable
 #: within an hour, which is how a notification surface gets muted and stops being read at all.
-FORWARD_KINDS = frozenset({
-    "handoff", "blocker", "resolved", "ledger_update", "question", "reply",
-    "completion", "nudge", "halt", "chat",
-})
+FORWARD_KINDS = frozenset(
+    {
+        "handoff",
+        "blocker",
+        "resolved",
+        "ledger_update",
+        "question",
+        "reply",
+        "completion",
+        "nudge",
+        "halt",
+        "chat",
+    }
+)
 
 #: Senders whose mail always forwards regardless of kind -- a message from a person is the one
 #: thing worth a phone buzz. Mirrors bifrost_wake's operator override rather than inventing a
@@ -128,10 +141,14 @@ _SECRET_PATTERNS = (
     #
     # The body now admits internal hyphens but must still START and END alphanumeric, so a
     # trailing "-" or a bare "sk--" is not swallowed and prose is left alone.
-    (re.compile(r"\b(sk-[A-Za-z0-9][A-Za-z0-9\-]{6,}[A-Za-z0-9]|ghp_[A-Za-z0-9]{8,}"
-                r"|xox[baprs]-[A-Za-z0-9-]{8,}|AIza[A-Za-z0-9_\-]{10,})"), "[REDACTED-KEY]"),
-    (re.compile(r"((?:API_?KEY|TOKEN|SECRET|PASSWORD)\s*[=:]\s*)(\S{6,})", re.IGNORECASE),
-     r"\1[REDACTED]"),
+    (
+        re.compile(
+            r"\b(sk-[A-Za-z0-9][A-Za-z0-9\-]{6,}[A-Za-z0-9]|ghp_[A-Za-z0-9]{8,}"
+            r"|xox[baprs]-[A-Za-z0-9-]{8,}|AIza[A-Za-z0-9_\-]{10,})"
+        ),
+        "[REDACTED-KEY]",
+    ),
+    (re.compile(r"((?:API_?KEY|TOKEN|SECRET|PASSWORD)\s*[=:]\s*)(\S{6,})", re.IGNORECASE), r"\1[REDACTED]"),
     # a webhook URL leaking through the channel it posts to
     (re.compile(r"(https://discord(?:app)?\.com/api/webhooks/\d+/)(\S+)"), r"\1[REDACTED]"),
 )
@@ -157,8 +174,7 @@ def webhook_url() -> str:
 #: URL, not by the channel it posts into, so N webhooks on one channel are N independent
 #: rate-limit buckets. Named like `url_file()`'s single slot so the paste-window UX
 #: (secret_intake) that already exists for one credential just... works for four.
-_POOL_SLOT_NAMES = ("discord_webhook.url", "discord_webhook_2.url",
-                    "discord_webhook_3.url", "discord_webhook_4.url")
+_POOL_SLOT_NAMES = ("discord_webhook.url", "discord_webhook_2.url", "discord_webhook_3.url", "discord_webhook_4.url")
 
 
 def webhook_urls() -> list:
@@ -205,6 +221,7 @@ def post_via_pool(urls: list, content: str, post_fn: Callable[[str, str], Any]) 
     changes.
     """
     import requests
+
     last_exc: Optional[Exception] = None
     for u in urls:
         if not u:
@@ -247,8 +264,8 @@ def redact(text: str) -> str:
 def _default_post(url: str, content: str) -> bool:
     """The only network call in this module, isolated so every pin runs offline."""
     import requests
-    r = post_with_rate_limit_retry(
-        lambda: requests.post(url, json={"content": content}, timeout=10))
+
+    r = post_with_rate_limit_retry(lambda: requests.post(url, json={"content": content}, timeout=10))
     r.raise_for_status()
     return True
 
@@ -391,8 +408,13 @@ def _content_str(c: Any) -> str:
     return str(c)
 
 
-def forward(msg: Dict[str, Any], *, url: Optional[str] = None, force: bool = False,
-            post: Optional[Callable[[str, str], bool]] = None) -> BoundaryOutcome:
+def forward(
+    msg: Dict[str, Any],
+    *,
+    url: Optional[str] = None,
+    force: bool = False,
+    post: Optional[Callable[[str, str], bool]] = None,
+) -> BoundaryOutcome:
     """Post one message to the channel. NEVER RAISES.
 
     This is a LISTENER on a substrate that must not care about it: a Discord outage, a revoked
@@ -407,13 +429,15 @@ def forward(msg: Dict[str, Any], *, url: Optional[str] = None, force: bool = Fal
         return BoundaryOutcome.failed(
             f"kind {str(msg.get('kind') or '?')!r} is not on the forward allowlist -- not an "
             f"error, a filter. Unknown kinds default to NOT forwarded so a kind added next "
-            f"week cannot silently start paging a phone.")
+            f"week cannot silently start paging a phone."
+        )
     targets = ([url] if url else []) if url is not None else webhook_urls()
     if not targets:
         return BoundaryOutcome.failed(
             "discord bridge not configured -- set AKASHIC_DISCORD_WEBHOOK or write "
             ".secrets/discord_webhook.url. This is a configuration state, not a delivery "
-            "failure: the bridge is opt-in and most seats will never set it.")
+            "failure: the bridge is opt-in and most seats will never set it."
+        )
     # REFUSE AN EMPTY BODY (2026-08-25). render_parts returns the head alone when there is
     # no body, and forward used to post it -- so a message with nothing in it arrived
     # looking like a delivered reply. Simon, on the receiving end: "getting empty responses
@@ -429,15 +453,16 @@ def forward(msg: Dict[str, Any], *, url: Optional[str] = None, force: bool = Fal
             "refusing to post an EMPTY body -- a header with nothing under it reads as a "
             "delivered reply and carries no information, which the reader cannot tell from "
             "a failed send. If your message came off the bus, its body is in 'text' and "
-            "this renderer reads 'content'; that mismatch is the usual cause.")
+            "this renderer reads 'content'; that mismatch is the usual cause."
+        )
     parts = render_parts(msg)
     poster = post or _default_post
     try:
         for content in parts:
             post_via_pool(targets, content, poster)
-    except Exception as e:                                              # noqa: BLE001
+    except Exception as e:  # noqa: BLE001
         return BoundaryOutcome.failed(
             f"discord post failed ({type(e).__name__}: {e}) -- the bus is unaffected; this "
-            f"bridge is a listener and never blocks a send")
-    return BoundaryOutcome.done(ref=str(msg.get("id") or ""),
-                                chars=sum(len(p) for p in parts))
+            f"bridge is a listener and never blocks a send"
+        )
+    return BoundaryOutcome.done(ref=str(msg.get("id") or ""), chars=sum(len(p) for p in parts))

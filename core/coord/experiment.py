@@ -29,6 +29,7 @@ distinction is the whole argument, made measurable.
 A Policy decides admit/block for each action given the already-admitted ones. Run a scenario, score
 A/B/C. Policies: social (no gate), lock_gate (A0.1 semantics), intent_gate (proposed Policy 0).
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -38,8 +39,8 @@ from typing import Callable, Dict, List, Tuple
 @dataclass(frozen=True)
 class Action:
     agent: str
-    resource: str      # what a file-lock keys on (coarse)
-    intent: str        # what intent-declaration keys on (fine)
+    resource: str  # what a file-lock keys on (coarse)
+    intent: str  # what intent-declaration keys on (fine)
 
 
 @dataclass
@@ -67,7 +68,9 @@ def intent_gate(a: Action, admitted: List[Action]) -> bool:
 
 
 POLICIES: Dict[str, Callable[[Action, List[Action]], bool]] = {
-    "social": social, "lock_gate": lock_gate, "intent_gate": intent_gate,
+    "social": social,
+    "lock_gate": lock_gate,
+    "intent_gate": intent_gate,
 }
 
 
@@ -89,10 +92,10 @@ def score(scenario: List[Action], outcome: Outcome) -> Dict[str, float]:
     redundant, not destructive -> they cost W (wasted re-execution), not A. A stricter whole-file-clobber
     scenario (different intents overwrite each other) is a deliberate future addition, not modeled here."""
     intents = {a.intent for a in scenario}
-    approaches = {(a.resource, a.intent) for a in scenario}       # distinct proposed approaches
-    delivered = {a.intent for a in outcome.admitted}              # region-merge: admitted intent == delivered
+    approaches = {(a.resource, a.intent) for a in scenario}  # distinct proposed approaches
+    delivered = {a.intent for a in outcome.admitted}  # region-merge: admitted intent == delivered
     admitted_approaches = {(a.resource, a.intent) for a in outcome.admitted}
-    redundant = len(outcome.admitted) - len({a.intent for a in outcome.admitted})   # dup executions
+    redundant = len(outcome.admitted) - len({a.intent for a in outcome.admitted})  # dup executions
     return {
         "A_task": round(len(delivered & intents) / max(1, len(intents)), 4),
         "B_cost": len(outcome.blocked),
@@ -113,20 +116,20 @@ def compare(scenario: List[Action]) -> Dict[str, Dict[str, float]]:
 # --- scenario generators (deterministic; no randomness) ---
 def collision_heavy(n: int = 6) -> List[Action]:
     """Every pair targets the SAME resource AND intent -- pure duplicate waste. Gates should win on A."""
-    return [Action(f"ag{i%2}", "api.py", "add-rate-limiting") for i in range(n)]
+    return [Action(f"ag{i % 2}", "api.py", "add-rate-limiting") for i in range(n)]
 
 
 def parallel_useful(n: int = 6) -> List[Action]:
     """Same resource, DIFFERENT intents -- genuine parallel work. lock_gate should tank on C here."""
-    return [Action(f"ag{i%2}", "api.py", f"feature-{i}") for i in range(n)]
+    return [Action(f"ag{i % 2}", "api.py", f"feature-{i}") for i in range(n)]
 
 
 def mixed() -> List[Action]:
     """A realistic mix: some duplicate waste, some parallel-useful, some fully distinct."""
     return [
         Action("claude", "ui.py", "restyle-composer"),
-        Action("deepseek", "ui.py", "restyle-composer"),   # duplicate waste (same resource+intent)
-        Action("deepseek", "ui.py", "add-hint-cards"),      # parallel-useful (same file, diff intent)
-        Action("claude", "locks.py", "add-guard-write"),    # distinct
-        Action("deepseek", "docs.md", "write-thesis"),      # distinct
+        Action("deepseek", "ui.py", "restyle-composer"),  # duplicate waste (same resource+intent)
+        Action("deepseek", "ui.py", "add-hint-cards"),  # parallel-useful (same file, diff intent)
+        Action("claude", "locks.py", "add-guard-write"),  # distinct
+        Action("deepseek", "docs.md", "write-thesis"),  # distinct
     ]

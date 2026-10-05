@@ -17,6 +17,7 @@ this class stops accumulating -- tracked as a T118 follow-up.
     py scripts/ops/sweep_drill_keys.py            # dry-run: list the doomed
     py scripts/ops/sweep_drill_keys.py --apply    # audit, then delete
 """
+
 from __future__ import annotations
 
 import argparse
@@ -28,6 +29,7 @@ import time
 from pathlib import Path
 from typing import Dict, List
 
+
 def _repo_root_str() -> str:
     """AI_SETUP override, else the root DERIVED from this file (core/paths).
 
@@ -38,6 +40,7 @@ def _repo_root_str() -> str:
     """
     from core.paths import root_str
     import os as _os
+
     return (_os.getenv("AI_SETUP") or "").strip() or root_str()
 
 
@@ -105,14 +108,14 @@ def main(argv=None) -> int:
     a = ap.parse_args(argv)
 
     from core.foundation.store import RedisStore
+
     r = RedisStore.connect()
     if not r.is_available():
         print("[sweep] Redis down -- nothing to sweep")
         return 1
 
     stamp = int(time.time())
-    audit = Path(_repo_root_str()) / "session_logs" / \
-        f"sweep-drill-{stamp}.json"
+    audit = Path(_repo_root_str()) / "session_logs" / f"sweep-drill-{stamp}.json"
     doomed = sweep(r, audit_path=audit, apply=a.apply)
     mode = "SWEPT" if a.apply else "DRY-RUN (would sweep)"
     print(f"[sweep] {mode}: {len(doomed)} key(s)")

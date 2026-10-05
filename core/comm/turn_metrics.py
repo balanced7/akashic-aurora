@@ -24,6 +24,7 @@ estimate, and elapsed-vs-ETA. All three come from HISTORY of similar turns:
 
 Everything fail-open: a metrics hiccup must never touch the turn it measures.
 """
+
 from __future__ import annotations
 
 import json
@@ -36,6 +37,8 @@ HISTORY_CAP = 200
 MIN_N = 3
 LOW_CONFIDENCE_N = 8
 EST_CACHE_TTL = 30.0
+
+
 def _ns() -> str:
     # ns-isolation (2026-07-12): per-agent turn stats are per-namespace; a drill agent's metrics must
     # not pollute a live agent's history. Default "bifrost" preserved; per-call.
@@ -44,6 +47,7 @@ def _ns() -> str:
 
 def _key_prefix() -> str:
     return f"{_ns()}:turn_metrics:"
+
 
 _est_cache: Dict[str, Any] = {}
 _pulse_counts: Dict[str, int] = {}
@@ -77,6 +81,7 @@ def _key(agent: str, kind: str) -> str:
 def _client():
     try:
         from core.comm.bus import get_bus
+
         return get_bus("turn-metrics")._client
     except Exception:
         return None
@@ -95,7 +100,7 @@ def _read_rows(key: str):
     if c is None:
         return []
     out = []
-    for raw in (c.lrange(key, 0, -1) or []):
+    for raw in c.lrange(key, 0, -1) or []:
         try:
             out.append(json.loads(raw))
         except (ValueError, TypeError):
@@ -105,20 +110,34 @@ def _read_rows(key: str):
 
 def _worklive_read(agent: str):
     from core.comm import liveness
+
     return liveness.read(agent)
 
 
 # ------------------------------------------------------------------ record
-def record(agent: str, ask_kind: str, *, duration_s: float, progress_points: int,
-           outcome: str, prompt_len: int = 0, tool_count: int = 0,
-           tokens: Optional[Dict[str, int]] = None) -> None:
+def record(
+    agent: str,
+    ask_kind: str,
+    *,
+    duration_s: float,
+    progress_points: int,
+    outcome: str,
+    prompt_len: int = 0,
+    tool_count: int = 0,
+    tokens: Optional[Dict[str, int]] = None,
+) -> None:
     """One turn's facts, at turn close. Best-effort, never raises into the turn."""
     try:
-        row = {"ts": time.time(), "agent": str(agent), "ask_kind": str(ask_kind),
-               "prompt_len_band": len_band(prompt_len),
-               "duration_s": round(float(duration_s), 2),
-               "progress_points": int(progress_points),
-               "outcome": str(outcome), "tool_count": int(tool_count)}
+        row = {
+            "ts": time.time(),
+            "agent": str(agent),
+            "ask_kind": str(ask_kind),
+            "prompt_len_band": len_band(prompt_len),
+            "duration_s": round(float(duration_s), 2),
+            "progress_points": int(progress_points),
+            "outcome": str(outcome),
+            "tool_count": int(tool_count),
+        }
         if tokens:
             row["tokens"] = tokens
         _push_row(_key(agent, ask_kind), row, HISTORY_CAP)
@@ -127,9 +146,13 @@ def record(agent: str, ask_kind: str, *, duration_s: float, progress_points: int
         # closed); a fresh fact waits at most EST_CACHE_TTL to influence the ETA.
         try:
             from core.events.event_log import capture_event
-            capture_event("turn_metrics", f"{agent} {ask_kind} {row['duration_s']}s "
-                          f"pts={row['progress_points']} {outcome}",
-                          agent_id=str(agent), detail=row)
+
+            capture_event(
+                "turn_metrics",
+                f"{agent} {ask_kind} {row['duration_s']}s pts={row['progress_points']} {outcome}",
+                agent_id=str(agent),
+                detail=row,
+            )
         except Exception:
             pass
         try:
@@ -137,6 +160,7 @@ def record(agent: str, ask_kind: str, *, duration_s: float, progress_points: int
             # matched, fail-open, <=4 Redis ops (reconciliation K1/K2; the hot path
             # stays untouched on any error by attribute_turn's own contract).
             from core.coord.task_costs import attribute_turn
+
             attribute_turn(agent, row)
         except Exception:
             pass
@@ -158,12 +182,14 @@ def estimate(agent: str, ask_kind: str) -> Optional[Dict[str, Any]]:
         durs = sorted(r["duration_s"] for r in rows)
         pts = sorted(int(r.get("progress_points", 0)) for r in rows)
         p90_i = max(0, min(len(durs) - 1, int(round(0.9 * (len(durs) - 1)))))
-        est = {"median_s": statistics.median(durs),
-               "p90_s": durs[p90_i],
-               "median_points": statistics.median(pts) if pts else 0,
-               "n": len(rows),
-               "confidence": "ok" if len(rows) >= LOW_CONFIDENCE_N else "low"}
-    if est is not None:    # absence is never cached: the ETA appears the moment n>=MIN_N
+        est = {
+            "median_s": statistics.median(durs),
+            "p90_s": durs[p90_i],
+            "median_points": statistics.median(pts) if pts else 0,
+            "n": len(rows),
+            "confidence": "ok" if len(rows) >= LOW_CONFIDENCE_N else "low",
+        }
+    if est is not None:  # absence is never cached: the ETA appears the moment n>=MIN_N
         _est_cache[key] = {"at": time.time(), "est": est}
     return est
 
@@ -189,10 +215,15 @@ def progress_view(agent: str, *, peek: bool = True, _wl=None) -> Optional[Dict[s
         started = float(wl.get("since_ts", time.time()))
         points = peek_pulse_count(agent) if peek else take_pulse_count(agent)
         est = estimate(agent, ask_kind)
-        return {"agent": str(agent), "phase": wl.get("phase"), "ask_kind": ask_kind,
-                "started_ts": started,
-                "elapsed_s": round(max(0.0, time.time() - started), 1),
-                "points_seen": points, "eta": est,
-                "pct_estimate": pct_estimate(points, est)}
+        return {
+            "agent": str(agent),
+            "phase": wl.get("phase"),
+            "ask_kind": ask_kind,
+            "started_ts": started,
+            "elapsed_s": round(max(0.0, time.time() - started), 1),
+            "points_seen": points,
+            "eta": est,
+            "pct_estimate": pct_estimate(points, est),
+        }
     except Exception:
         return None

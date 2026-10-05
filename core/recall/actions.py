@@ -54,6 +54,7 @@ Return-shape contract (subset of recall_at's dict the plugin may rely on):
     # present ONLY on failure (fail-open): "error": str, "error_detail": str
   }
 """
+
 from __future__ import annotations
 
 import os
@@ -68,9 +69,17 @@ _KILL_SWITCH = "AKASHIC_RECALL_AT_ACTION"
 # seat that just asked for silence. It is the exact same 'shown 0, no error' shape recall_at
 # returns for an honest empty result, so the plugin's renderer needs no special case.
 _EMPTY = {
-    "path": None, "command": None, "query": "", "lessons": [], "locks": [],
-    "counter": None, "verbs": [], "shown": 0, "total": 0,
-    "faithful": True, "confidence": 1.0,
+    "path": None,
+    "command": None,
+    "query": "",
+    "lessons": [],
+    "locks": [],
+    "counter": None,
+    "verbs": [],
+    "shown": 0,
+    "total": 0,
+    "faithful": True,
+    "confidence": 1.0,
 }
 
 # The engine seam. Module-level (not a function-local import) because an EXTERNAL consumer pins
@@ -95,13 +104,19 @@ def _resolve_engine():
     global _engine
     if _engine is _UNRESOLVED:
         from core.recall.at_action import recall_at
+
         _engine = recall_at
     return _engine
 
 
-def recall_context(session_key: Optional[str], path: Optional[str] = None,
-                   command: Optional[str] = None, *, limit: int = 3,
-                   exclude_sources: Optional[set] = None) -> Dict[str, Any]:
+def recall_context(
+    session_key: Optional[str],
+    path: Optional[str] = None,
+    command: Optional[str] = None,
+    *,
+    limit: int = 3,
+    exclude_sources: Optional[set] = None,
+) -> Dict[str, Any]:
     """Recall-at-action for an external runtime: the few highest-signal lessons (+ locks + verbs)
     for a point of action, under a stable, plugin-facing contract.
 
@@ -121,21 +136,32 @@ def recall_context(session_key: Optional[str], path: Optional[str] = None,
     # shape, not a silent wrong agent) rather than attach to the inherited env.
     if not session_key:
         out = dict(_EMPTY, path=path, command=command)
-        out.update(error="MissingSessionKey",
-                   error_detail="recall_context requires session_key (a plain agent id); the "
-                                "harness env may be inherited and mis-attributed -- pass it "
-                                "explicitly, never fall back to AKASHIC_AGENT_ID.")
+        out.update(
+            error="MissingSessionKey",
+            error_detail="recall_context requires session_key (a plain agent id); the "
+            "harness env may be inherited and mis-attributed -- pass it "
+            "explicitly, never fall back to AKASHIC_AGENT_ID.",
+        )
         return out
     try:
-        res = _resolve_engine()(path=path or None, command=command or None,
-                                agent_id=session_key,
-                                limit=limit, exclude_sources=exclude_sources)
+        res = _resolve_engine()(
+            path=path or None,
+            command=command or None,
+            agent_id=session_key,
+            limit=limit,
+            exclude_sources=exclude_sources,
+        )
         return {
-            "path": res.get("path"), "command": res.get("command"),
-            "query": res.get("query"), "lessons": res.get("lessons"),
-            "locks": res.get("locks"), "counter": res.get("counter"),
-            "verbs": res.get("verbs"), "shown": res.get("shown"),
-            "total": res.get("total"), "faithful": res.get("faithful"),
+            "path": res.get("path"),
+            "command": res.get("command"),
+            "query": res.get("query"),
+            "lessons": res.get("lessons"),
+            "locks": res.get("locks"),
+            "counter": res.get("counter"),
+            "verbs": res.get("verbs"),
+            "shown": res.get("shown"),
+            "total": res.get("total"),
+            "faithful": res.get("faithful"),
             "confidence": res.get("confidence"),
         }
     except Exception as e:

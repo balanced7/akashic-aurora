@@ -20,6 +20,7 @@ This is the coercion class recorded earlier today: `str()` at a door turns a wro
 plausible one instead of into an error, so the failure survives every test that only asserts
 the call succeeded.
 """
+
 import json
 
 import pytest
@@ -27,22 +28,26 @@ import pytest
 from agent_cli import load_fan_prompts
 
 
-@pytest.mark.parametrize("raw,label", [
-    ('[{"prompt": null}]', "object with a null prompt"),
-    ('[null]', "bare null element"),
-    ('[{"prompt": 0}]', "object with a zero prompt"),
-    ('[{"prompt": false}]', "object with a false prompt"),
-    ('[{"prompt": "   "}]', "object whose prompt is only whitespace"),
-    ('[""]', "bare empty string"),
-    ('["   "]', "bare whitespace string"),
-])
+@pytest.mark.parametrize(
+    "raw,label",
+    [
+        ('[{"prompt": null}]', "object with a null prompt"),
+        ("[null]", "bare null element"),
+        ('[{"prompt": 0}]', "object with a zero prompt"),
+        ('[{"prompt": false}]', "object with a false prompt"),
+        ('[{"prompt": "   "}]', "object whose prompt is only whitespace"),
+        ('[""]', "bare empty string"),
+        ('["   "]', "bare whitespace string"),
+    ],
+)
 def test_a_falsy_prompt_is_refused_not_stringified(raw, label):
     """Every one of these was ACCEPTED and sent to a paid helper as its repr."""
     with pytest.raises(ValueError) as e:
         load_fan_prompts(raw)
     assert "0" in str(e.value), (
         f"{label}: the refusal must name the offending INDEX -- in a fan of twenty, "
-        f"'something was wrong' is not actionable: {e.value}")
+        f"'something was wrong' is not actionable: {e.value}"
+    )
 
 
 def test_the_refusal_names_the_offending_value():
@@ -51,8 +56,7 @@ def test_the_refusal_names_the_offending_value():
         load_fan_prompts('[{"prompt": "fine"}, {"prompt": null}]')
     msg = str(e.value)
     assert "1" in msg, f"must name index 1, not index 0: {msg}"
-    assert "None" in msg or "null" in msg.lower(), (
-        f"must show the value that was refused: {msg}")
+    assert "None" in msg or "null" in msg.lower(), f"must show the value that was refused: {msg}"
 
 
 def test_a_non_string_prompt_is_refused_even_when_truthy():

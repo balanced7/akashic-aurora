@@ -24,6 +24,7 @@ A seal is append-only state, not cryptography: the enforcement layer is the door
 guards, same trust model as the task ledger. Root overridable via AKASHIC_FENCE_ROOT
 (tests run hermetic); default lives under the repo so fences are git-durable.
 """
+
 from __future__ import annotations
 
 import json
@@ -35,8 +36,7 @@ from typing import Any, Dict, List, Optional, Tuple
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 SLOTS = ("brief", "half_a", "half_b", "reconciliation")
-_SLOT_FILES = {"brief": "brief.md", "half_a": "half_a.md", "half_b": "half_b.md",
-               "reconciliation": "reconciliation.md"}
+_SLOT_FILES = {"brief": "brief.md", "half_a": "half_a.md", "half_b": "half_b.md", "reconciliation": "reconciliation.md"}
 _ID_RE = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$")
 
 # M1-BRIEF: the five mandatory sections, matched loosely on the heading text.
@@ -87,8 +87,15 @@ def open_fence(fence_id: str, *, question: str, tier: str = "full", by: str = ""
     if os.path.exists(_state_path(fence_id)):
         return _load(fence_id)
     os.makedirs(d, exist_ok=True)
-    state = {"id": fence_id, "question": question, "tier": tier, "opened_by": by,
-             "opened_at": _now(), "seals": {}, "pv": None}
+    state = {
+        "id": fence_id,
+        "question": question,
+        "tier": tier,
+        "opened_by": by,
+        "opened_at": _now(),
+        "seals": {},
+        "pv": None,
+    }
     _save(fence_id, state)
     return state
 
@@ -97,7 +104,7 @@ def slot_path(fence_id: str, slot: str) -> str:
     """THE anti-confabulation seam: the tool derives the path; an unknown slot is a refusal."""
     if slot not in _SLOT_FILES:
         raise KeyError(f"unknown slot {slot!r} -- slots are exactly {list(_SLOT_FILES)}")
-    _load(fence_id)   # fence must exist
+    _load(fence_id)  # fence must exist
     return os.path.join(_dir(fence_id), _SLOT_FILES[slot])
 
 
@@ -145,8 +152,7 @@ def run_pv(fence_id: str, *, repo_root: Optional[str] = None) -> Dict[str, Any]:
                 except OSError:
                     ok = False
             (verified if ok else missing).append(f"{slot}: {cite}")
-    report = {"ran_at": _now(), "verified": sorted(set(verified)),
-              "missing": sorted(set(missing))}
+    report = {"ran_at": _now(), "verified": sorted(set(verified)), "missing": sorted(set(missing))}
     with open(os.path.join(_dir(fence_id), "pv_report.json"), "w", encoding="utf-8") as f:
         json.dump(report, f, indent=2)
     state["pv"] = {"ran_at": report["ran_at"], "missing_count": len(report["missing"])}
@@ -166,13 +172,11 @@ def _check_half(text: str) -> List[str]:
         problems.append("no verdict lines found (expected V1./V2./... items)")
     for line in text.splitlines():
         if re.match(r"^\s*V\d+[.)]\s", line) and not _TAG_RE.search(line):
-            problems.append(f"M1-CF tag missing on verdict: {line.strip()[:80]!r} "
-                            f"(tag with one of {list(_CF_TAGS)})")
+            problems.append(f"M1-CF tag missing on verdict: {line.strip()[:80]!r} (tag with one of {list(_CF_TAGS)})")
     return problems
 
 
-def _check_reconciliation(fence_id: str, text: str, state: Dict[str, Any],
-                          by: str) -> List[str]:
+def _check_reconciliation(fence_id: str, text: str, state: Dict[str, Any], by: str) -> List[str]:
     problems = []
     for h in ("half_a", "half_b"):
         if h not in state["seals"]:
@@ -188,13 +192,16 @@ def _check_reconciliation(fence_id: str, text: str, state: Dict[str, Any],
         for cite in report.get("missing", []):
             bare = cite.split(": ", 1)[-1].split(":")[0]
             if bare not in text:
-                problems.append(f"M1-PV MISSING citation unacknowledged: {cite} -- name it "
-                                "and retire its section (section-scoped invalidation)")
+                problems.append(
+                    f"M1-PV MISSING citation unacknowledged: {cite} -- name it "
+                    "and retire its section (section-scoped invalidation)"
+                )
     authors = state.get("authors", {})
     a, b = authors.get("half_a"), authors.get("half_b")
     if a and b and a == b:
-        problems.append(f"author independence violated: both halves by {a!r} "
-                        "(P2 -- separate contexts or it is not a fence)")
+        problems.append(
+            f"author independence violated: both halves by {a!r} (P2 -- separate contexts or it is not a fence)"
+        )
     return problems
 
 
@@ -204,7 +211,7 @@ def seal(fence_id: str, slot: str, *, by: str = "") -> Tuple[bool, List[str]]:
     if slot not in _SLOT_FILES:
         raise KeyError(f"unknown slot {slot!r}")
     if slot in state["seals"]:
-        return True, []   # idempotent: already sealed
+        return True, []  # idempotent: already sealed
     text = read_slot(fence_id, slot)
     if not text.strip():
         return False, [f"slot {slot!r} is empty -- nothing to seal"]
@@ -226,12 +233,20 @@ def fence_status(fence_id: str) -> Dict[str, Any]:
     state = _load(fence_id)
     slots = {}
     for s in SLOTS:
-        slots[s] = {"written": bool(read_slot(fence_id, s).strip()),
-                    "sealed": s in state["seals"],
-                    "author": state.get("authors", {}).get(s, "")}
-    return {"id": state["id"], "question": state["question"], "tier": state["tier"],
-            "slots": slots, "seals": state["seals"], "pv": state.get("pv"),
-            "closed": "reconciliation" in state["seals"]}
+        slots[s] = {
+            "written": bool(read_slot(fence_id, s).strip()),
+            "sealed": s in state["seals"],
+            "author": state.get("authors", {}).get(s, ""),
+        }
+    return {
+        "id": state["id"],
+        "question": state["question"],
+        "tier": state["tier"],
+        "slots": slots,
+        "seals": state["seals"],
+        "pv": state.get("pv"),
+        "closed": "reconciliation" in state["seals"],
+    }
 
 
 def list_fences() -> List[Dict[str, Any]]:

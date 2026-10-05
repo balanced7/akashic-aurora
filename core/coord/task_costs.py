@@ -15,12 +15,13 @@ no live ticker, never codify pace), one line <=120 chars, tokens drop first (K6)
 absent stamps render absent (K7 -- pre-T056 tasks look exactly as they always did).
 UNDER-report is the only permitted error direction (C5).
 """
+
 from __future__ import annotations
 
 import os
 from typing import Any, Dict, Optional
 
-FIELDS = ("turns", "duration_cs", "tool_calls", "tokens")   # duration in centiseconds (int HINCRBY)
+FIELDS = ("turns", "duration_cs", "tool_calls", "tokens")  # duration in centiseconds (int HINCRBY)
 COST_KEYS = ("cost_turns", "cost_duration_s", "cost_tool_calls", "cost_tokens")
 LINE_BUDGET = 120
 
@@ -36,6 +37,7 @@ def _acc_key(tid: str) -> str:
 def _client():
     try:
         from core.comm.bus import get_bus
+
         return get_bus("task-costs")._client
     except Exception:
         return None
@@ -47,11 +49,14 @@ def _active_task_for(agent: str, ledger=None) -> Optional[str]:
     try:
         if ledger is None:
             from core.coord.task_ledger import TaskLedger
+
             ledger = TaskLedger()
-        hits = [t["id"] for t in ledger.tasks.values()
-                if t.get("owner") == str(agent)
-                and t.get("status") in ("in_progress", "verifying")]
-        return hits[0] if len(hits) == 1 else None   # 0 or (defensively) >1 -> refuse
+        hits = [
+            t["id"]
+            for t in ledger.tasks.values()
+            if t.get("owner") == str(agent) and t.get("status") in ("in_progress", "verifying")
+        ]
+        return hits[0] if len(hits) == 1 else None  # 0 or (defensively) >1 -> refuse
     except Exception:
         return None
 
@@ -127,9 +132,9 @@ def finalize(tid: str, task: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def _fmt_tokens(n: int) -> str:
-    if n >= 10 ** 9:
+    if n >= 10**9:
         return f"{n / 10**9:.1f}G tok"
-    if n >= 10 ** 6:
+    if n >= 10**6:
         return f"{n / 10**6:.1f}M tok"
     if n >= 1000:
         return f"{round(n / 1000)}k tok"
@@ -161,7 +166,7 @@ def cost_line(task: Dict[str, Any]) -> str:
             parts.append(_fmt_tokens(int(toks)))
         line = " · ".join(parts) + "  (fleet-shared window)"
         while len(line) > LINE_BUDGET and len(parts) > 1:
-            parts.pop()                       # tokens first, then tools, then duration
+            parts.pop()  # tokens first, then tools, then duration
             line = " · ".join(parts) + "  (fleet-shared window)"
         return line[:LINE_BUDGET]
     except Exception:

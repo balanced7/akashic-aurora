@@ -19,6 +19,7 @@ Result: original_slug -> art_id, deterministic and self-verifying -- the very ar
 design promised. Rebuild is idempotent; a slug that matches no atom is recorded UNMATCHED
 (loud, never silently dropped) so the gap is visible rather than absorbed.
 """
+
 from __future__ import annotations
 
 import os
@@ -28,8 +29,8 @@ from typing import Any, Dict, List, Optional
 from core.library import atoms as _atoms
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-MIGRATION_COMMIT = "425cf52"          # "Delete the 643!" -- the sprawl retirement
-MAP_PATH = os.path.join("store", "docs", "legacy_map.json")   # the committed map artifact
+MIGRATION_COMMIT = "425cf52"  # "Delete the 643!" -- the sprawl retirement
+MAP_PATH = os.path.join("store", "docs", "legacy_map.json")  # the committed map artifact
 # Independent live census (codex, 2026-07-28): all 103 deleted docs matched exactly
 # one atom, zero were ambiguous, and the shortest matching atom tail was 3,225
 # characters -- more than 16x this conservative anti-trivial-match floor.
@@ -41,12 +42,16 @@ def _deleted_docs(commit: str = MIGRATION_COMMIT) -> List[str]:
     try:
         raw = subprocess.run(
             ["git", "show", "--pretty=", "--name-only", "--diff-filter=D", commit],
-            cwd=ROOT, capture_output=True, text=True, encoding="utf-8",
-            errors="replace", timeout=30).stdout
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=30,
+        ).stdout
     except Exception:
         return []
-    return [ln.strip() for ln in raw.splitlines()
-            if ln.strip().startswith("docs/") and ln.strip().endswith(".md")]
+    return [ln.strip() for ln in raw.splitlines() if ln.strip().startswith("docs/") and ln.strip().endswith(".md")]
 
 
 def _pre_delete_body(path: str, commit: str = MIGRATION_COMMIT) -> Optional[str]:
@@ -54,8 +59,13 @@ def _pre_delete_body(path: str, commit: str = MIGRATION_COMMIT) -> Optional[str]
     try:
         raw = subprocess.run(
             ["git", "show", f"{commit}^:{path}"],
-            cwd=ROOT, capture_output=True, text=True, encoding="utf-8",
-            errors="replace", timeout=30)
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=30,
+        )
         return raw.stdout if raw.returncode == 0 else None
     except Exception:
         return None
@@ -115,6 +125,7 @@ def build_map(family: Optional[Any] = None) -> Dict[str, Any]:
 def write_map(path: str = MAP_PATH, family: Optional[Any] = None) -> Dict[str, Any]:
     """Build and persist the map (the committed artifact the design promised)."""
     import json
+
     m = build_map(family)
     full = path if os.path.isabs(path) else os.path.join(ROOT, path)
     os.makedirs(os.path.dirname(full), exist_ok=True)
@@ -127,6 +138,7 @@ def load_map(path: str = MAP_PATH) -> Dict[str, Any]:
     """The persisted map; {} when absent (fail-soft -- a missing map means the corpus
     still answers by content, just not by original handle)."""
     import json
+
     full = path if os.path.isabs(path) else os.path.join(ROOT, path)
     try:
         with open(full, encoding="utf-8") as f:
@@ -138,6 +150,7 @@ def load_map(path: str = MAP_PATH) -> Dict[str, Any]:
 def _default_store() -> Any:
     try:
         from core.foundation.store import create_store
+
         return create_store(prefer_redis=True)
     except Exception:
         return None
@@ -146,6 +159,7 @@ def _default_store() -> Any:
 def main(argv: Optional[List[str]] = None) -> int:
     """py -m core.library.legacy_map [--write] -- build (and optionally persist) the map."""
     import argparse
+
     ap = argparse.ArgumentParser(description="build the legacy_path -> art_id map")
     ap.add_argument("--write", action="store_true", help="persist to store/docs/legacy_map.json")
     args = ap.parse_args(argv)

@@ -6,6 +6,7 @@ NEW message, times out cleanly to [], and DETECTS without consuming (the agent s
 
 Redis-backed (skip if down). Run: py -m pytest tests/test_bifrost_wake.py -q
 """
+
 import os
 import sys
 import threading
@@ -20,10 +21,11 @@ from core.comm.bus import Bus
 
 
 def _client():
-    from core.foundation.redis_connection import (
-        connect_to_redis_with_fail_fast, DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT)
-    c = connect_to_redis_with_fail_fast(host=DEFAULT_REDIS_HOST, port=DEFAULT_REDIS_PORT,
-                                        timeout_seconds=3, decode_responses=True)
+    from core.foundation.redis_connection import connect_to_redis_with_fail_fast, DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT
+
+    c = connect_to_redis_with_fail_fast(
+        host=DEFAULT_REDIS_HOST, port=DEFAULT_REDIS_PORT, timeout_seconds=3, decode_responses=True
+    )
     if c is None:
         pytest.skip("redis not available")
     return c
@@ -45,7 +47,7 @@ def test_wait_returns_pending_immediately_without_consuming():
         a = Bus("alice", c, namespace=ns)
         b = Bus("bob", c, namespace=ns)
         a.send("bob", "chat", "wake up")
-        got = b.wait(timeout_ms=2000)               # pending -> returns at once, advance=False
+        got = b.wait(timeout_ms=2000)  # pending -> returns at once, advance=False
         assert len(got) == 1 and got[0].content == "wake up"
         assert [m.content for m in b.inbox()] == ["wake up"], "detect-only: inbox still delivers it"
     finally:
@@ -75,7 +77,7 @@ def test_wait_wakes_on_a_new_message():
 
         t = threading.Thread(target=waiter)
         t.start()
-        time.sleep(0.3)                              # block first, then a message arrives
+        time.sleep(0.3)  # block first, then a message arrives
         a.send("bob", "chat", "incoming")
         t.join(6)
         assert result.get("msgs") and result["msgs"][0].content == "incoming"
@@ -97,11 +99,12 @@ def test_wait_blocks_past_the_fast_socket_timeout():
 
         t = threading.Thread(target=waiter)
         t.start()
-        time.sleep(4.5)                              # well past the ~3s fail-fast socket timeout
+        time.sleep(4.5)  # well past the ~3s fail-fast socket timeout
         a.send("bob", "chat", "late but here")
         t.join(9)
-        assert result.get("m") and result["m"][0].content == "late but here", \
+        assert result.get("m") and result["m"][0].content == "late but here", (
             "wait() must keep blocking past the fast socket timeout"
+        )
     finally:
         _cleanup(c, ns)
 

@@ -27,6 +27,7 @@ observed and the doctrine's own reason dissolves.
 
 Run: py -m pytest tests/test_t151_grant_expiry_is_visible.py -q
 """
+
 import os
 import sys
 from datetime import datetime, timedelta, timezone
@@ -44,12 +45,9 @@ def _iso(dt):
 def _recs(**over):
     now = datetime.now(timezone.utc)
     base = [
-        {"agent_id": "perm", "role": "member", "caps": ["read"],
-         "expires_at": None},
-        {"agent_id": "soon", "role": "member", "caps": ["read", "write"],
-         "expires_at": _iso(now + timedelta(hours=6))},
-        {"agent_id": "gone", "role": "member", "caps": ["read", "write"],
-         "expires_at": _iso(now - timedelta(hours=2))},
+        {"agent_id": "perm", "role": "member", "caps": ["read"], "expires_at": None},
+        {"agent_id": "soon", "role": "member", "caps": ["read", "write"], "expires_at": _iso(now + timedelta(hours=6))},
+        {"agent_id": "gone", "role": "member", "caps": ["read", "write"], "expires_at": _iso(now - timedelta(hours=2))},
     ]
     base.append(over) if over else None
     return base
@@ -80,8 +78,7 @@ def test_x3_a_permanent_grant_is_never_reported():
 
 def test_x4_the_reporter_is_read_only_and_never_raises():
     """Observability must never be able to gate trust. Malformed input degrades to silence."""
-    assert REG.expiring_grants(within_h=24, grants=[{"agent_id": "x", "expires_at": "not-a-date"}]) \
-        is not None
+    assert REG.expiring_grants(within_h=24, grants=[{"agent_id": "x", "expires_at": "not-a-date"}]) is not None
     assert REG.expiring_grants(within_h=24, grants=None) == []
     assert REG.expiring_grants(within_h=24, grants=[{}]) == []
 
@@ -93,6 +90,7 @@ def test_x5_the_live_acl_shows_the_codex_root_time_box():
     rows = REG.expiring_grants(within_h=24 * 400)
     ids = {r["agent_id"] for r in rows}
     import json
+
     recs = json.load(open(os.path.join(ROOT, "security", "acl.json"), encoding="utf-8"))["grants"]
     boxed = {g["agent_id"] for g in recs if g.get("expires_at")}
     assert ids == boxed, f"reporter disagrees with the file: reported {ids}, time-boxed {boxed}"

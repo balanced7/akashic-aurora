@@ -43,13 +43,13 @@ def _quiet_bootstrap() -> None:
     """
     import os
     import sys
+
     if sys.platform != "win32":
         return
     if os.environ.get("AKASHIC_SHOW_CONSOLES") or os.environ.get("AKASHIC_TEST_SHOW_CONSOLES"):
         return
     try:
-        qdir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                            "scripts", "quiet")
+        qdir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts", "quiet")
         if not os.path.isdir(qdir):
             return
         # Load it BY PATH, never via sys.path. core/ must not reach outward into scripts/ --
@@ -61,6 +61,7 @@ def _quiet_bootstrap() -> None:
         # sys.modules['sitecustomize'] where a later real sitecustomize would collide.
         try:
             import importlib.util as _ilu
+
             _src = os.path.join(qdir, "sitecustomize.py")
             if os.path.isfile(_src):
                 _spec = _ilu.spec_from_file_location("_akashic_quiet_boot", _src)

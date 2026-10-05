@@ -14,49 +14,54 @@ Reconciled contract (claude half + deepseek fence half, 2026-08-13):
   B4 non-residents render "" unchanged;
   layering: core/fleet must NOT import agent_cli for _clip (cycle) -- local clip.
 """
+
 import pytest
 
 from core.fleet import residents
 
 
-RECEIPTS = ["wake_drain_the_lane_you_ARMED_not_the_one_docs_name",
-            "operator_speech_hides_in_queue_operation_records"]
+RECEIPTS = ["wake_drain_the_lane_you_ARMED_not_the_one_docs_name", "operator_speech_hides_in_queue_operation_records"]
 
-REC1 = ("Use when a wake watcher insta-fires on a stable pending count: drain the lane "
-        "you ARMED, not the one the docs name. BIFROST_WAKE_LANE=X implies "
-        "BIFROST_CONSUME_LANE=X; peeking the shared cursor lies to you about the lane.")
+REC1 = (
+    "Use when a wake watcher insta-fires on a stable pending count: drain the lane "
+    "you ARMED, not the one the docs name. BIFROST_WAKE_LANE=X implies "
+    "BIFROST_CONSUME_LANE=X; peeking the shared cursor lies to you about the lane."
+)
 
 
 @pytest.fixture
 def resident(monkeypatch):
-    monkeypatch.setattr(residents, "get",
-                        lambda agent_id: {"receipts": list(RECEIPTS)})
-    monkeypatch.setattr(residents, "designation",
-                        lambda agent_id: "Anthropic | Amber | Blue | 1 - Vandor")
+    monkeypatch.setattr(residents, "get", lambda agent_id: {"receipts": list(RECEIPTS)})
+    monkeypatch.setattr(residents, "designation", lambda agent_id: "Anthropic | Amber | Blue | 1 - Vandor")
     monkeypatch.setattr(residents, "current_role", lambda agent_id: None)
     return monkeypatch
 
 
 def test_b1_receipts_carry_their_recommendation(resident):
-    lookup = {RECEIPTS[0]: {"recommendation": REC1},
-              RECEIPTS[1]: {"recommendation": "Queue operation records hide operator speech."}}
+    lookup = {
+        RECEIPTS[0]: {"recommendation": REC1},
+        RECEIPTS[1]: {"recommendation": "Queue operation records hide operator speech."},
+    }
     block = residents.boot_block("claude", lesson_lookup=lambda slug: lookup[slug])
     assert RECEIPTS[0] in block
-    assert "drain the lane" in block           # the payload, inline
+    assert "drain the lane" in block  # the payload, inline
     assert "hide operator speech" in block.lower() or "operator speech" in block
 
 
 def test_b2_missing_lesson_degrades_to_slug_alone(resident):
     """One unreachable lesson: its slug still renders, the OTHER receipt still gets
     its payload, boot completes. Both the empty-record and the raising-store shape."""
-    lookup = {RECEIPTS[0]: {},                       # recorded but empty
-              RECEIPTS[1]: {"recommendation": "Queue records."}}
+    lookup = {
+        RECEIPTS[0]: {},  # recorded but empty
+        RECEIPTS[1]: {"recommendation": "Queue records."},
+    }
     block = residents.boot_block("claude", lesson_lookup=lambda slug: lookup[slug])
     assert RECEIPTS[0] in block
     assert "Queue records." in block
 
     def explode(slug):
         raise ConnectionError("store down")
+
     block2 = residents.boot_block("claude", lesson_lookup=explode)
     assert RECEIPTS[0] in block2 and RECEIPTS[1] in block2
     assert "YOU ARE" in block2
@@ -67,7 +72,7 @@ def test_b3_long_recommendation_clips_and_drill_stays(resident):
     block = residents.boot_block("claude", lesson_lookup=lambda slug: lookup[slug])
     for line in block.splitlines():
         assert len(line) <= 220, f"unbounded badge line: {len(line)} chars"
-    assert "recall --full learn:experiment:" in block   # the drill survives (B3)
+    assert "recall --full learn:experiment:" in block  # the drill survives (B3)
 
 
 def test_b4_non_resident_unchanged(monkeypatch):
@@ -79,19 +84,23 @@ def test_b6_role_lookup_failure_never_costs_the_boot(resident, monkeypatch):
     """Night-fan finding A3 (2026-08-13, CONFIRMED): the receipts loop was fenced
     but current_role() was not -- a role-store outage raised straight through
     boot_block. Same law as B2/B5: the badge NEVER costs a boot."""
+
     def explode(agent_id):
         raise ConnectionError("role store down")
+
     monkeypatch.setattr(residents, "current_role", explode)
     block = residents.boot_block("claude", lesson_lookup=lambda s: {})
-    assert "YOU ARE" in block           # sheet renders, role line absent
+    assert "YOU ARE" in block  # sheet renders, role line absent
 
 
 def test_b5_default_lookup_fails_open(resident, monkeypatch):
     """No injected lookup + no reachable store: the block still renders with bare
     slugs -- the badge NEVER costs a boot."""
     import core.learning.learning_store as ls
+
     def explode(*a, **kw):
         raise ConnectionError("redis down")
+
     monkeypatch.setattr(ls, "get_learning_store_instance", explode)
     block = residents.boot_block("claude")
     assert "YOU ARE" in block

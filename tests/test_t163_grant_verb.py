@@ -39,6 +39,7 @@ with a flag, never by forgetting to pass --hours.
 
 Run: py -m pytest tests/test_t162_grant_verb.py -q
 """
+
 import json
 import os
 import shutil
@@ -52,8 +53,9 @@ sys.path.insert(0, ROOT)
 
 
 def _cli(*args, **kw):
-    return subprocess.run([sys.executable, "agent_cli.py", *args],
-                          cwd=ROOT, capture_output=True, text=True, timeout=180, **kw)
+    return subprocess.run(
+        [sys.executable, "agent_cli.py", *args], cwd=ROOT, capture_output=True, text=True, timeout=180, **kw
+    )
 
 
 @pytest.fixture
@@ -77,10 +79,12 @@ def _grant_for(p, agent):
 def _mod():
     import importlib
     from core.trust import grant_writer
+
     return importlib.reload(grant_writer)
 
 
 # --------------------------------------------------------------------------- V1
+
 
 def test_v1_authority_is_resolved_not_asserted(acl):
     g = _mod()
@@ -91,6 +95,7 @@ def test_v1_authority_is_resolved_not_asserted(acl):
 
 # --------------------------------------------------------------------------- V2
 
+
 def test_v2_no_self_grant(acl):
     g = _mod()
     with pytest.raises(PermissionError):
@@ -98,6 +103,7 @@ def test_v2_no_self_grant(acl):
 
 
 # --------------------------------------------------------------------------- V3
+
 
 def test_v3_cannot_grant_what_you_do_not_hold(acl):
     """deepseek is `admin` and does NOT hold admin.grant, so it cannot mint a super_admin."""
@@ -108,24 +114,27 @@ def test_v3_cannot_grant_what_you_do_not_hold(acl):
 
 # --------------------------------------------------------------------------- V4
 
+
 def test_v4_time_boxed_by_default(acl):
     g = _mod()
     with pytest.raises(ValueError):
-        g.grant("newbie", role="member", by="claude", reason="r")          # neither hours nor permanent
+        g.grant("newbie", role="member", by="claude", reason="r")  # neither hours nor permanent
 
     rec = g.grant("newbie", role="member", by="claude", reason="r", hours=4)
     assert rec["expires_at"], "a time-boxed grant has no expiry"
 
     with pytest.raises(ValueError):
-        g.grant("newbie2", role="member", by="claude", reason="r", hours=10 ** 6)
+        g.grant("newbie2", role="member", by="claude", reason="r", hours=10**6)
 
     perm = g.grant("newbie3", role="member", by="claude", reason="r", permanent=True)
     assert perm["expires_at"] is None, (
         "a permanent grant must stay expressible -- 10 of the 11 existing grants are permanent, "
-        "and a guard that cannot reproduce the current state gets bypassed on first use")
+        "and a guard that cannot reproduce the current state gets bypassed on first use"
+    )
 
 
 # --------------------------------------------------------------------------- V5
+
 
 def test_v5_audit_by_construction(acl):
     g = _mod()
@@ -137,6 +146,7 @@ def test_v5_audit_by_construction(acl):
 
 
 # --------------------------------------------------------------------------- V6
+
 
 def test_v6_a_failed_write_never_corrupts_the_acl(acl, monkeypatch):
     """The highest-severity pin, and it is an AVAILABILITY property, not a permissions one.
@@ -160,10 +170,11 @@ def test_v6_a_failed_write_never_corrupts_the_acl(acl, monkeypatch):
 
     after = open(acl, encoding="utf-8").read()
     assert after == before, "a failed write left the ACL modified"
-    json.loads(after)                     # and still parseable -- the fallback must not trigger
+    json.loads(after)  # and still parseable -- the fallback must not trigger
 
 
 # --------------------------------------------------------------------------- V7
+
 
 def test_v7_revocable(acl):
     g = _mod()
@@ -171,18 +182,20 @@ def test_v7_revocable(acl):
     assert _grant_for(acl, "newbie") is not None
     g.revoke("newbie", by="claude", reason="no longer needed")
     rec = _grant_for(acl, "newbie")
-    assert rec is None or rec.get("role") == "quarantined", (
-        "revoke neither removed the grant nor quarantined it")
+    assert rec is None or rec.get("role") == "quarantined", "revoke neither removed the grant nor quarantined it"
 
 
 # --------------------------------------------------------------------------- V8
+
 
 def test_v8_the_verb_is_registered_and_no_longer_merely_planned():
     r = _cli("grant", "--list")
     assert r.returncode == 0, f"`grant --list` did not run: {(r.stderr or r.stdout)[:300]}"
 
     from scripts.checkers import check_advertised_verbs as C
+
     assert "grant" in C.registered_verbs(), "argparse does not know the verb"
     assert "grant" not in C.PLANNED, (
         "grant is built but still listed as PLANNED -- the promise list must shrink when a "
-        "promise is kept, or it becomes an amnesty instead of a backlog")
+        "promise is kept, or it becomes an amnesty instead of a backlog"
+    )

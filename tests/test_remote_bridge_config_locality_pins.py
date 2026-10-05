@@ -18,6 +18,7 @@ These pins run against git's index, not the working tree — the distinction tha
 night, and the only one that can catch this class. A pin that read the working tree would
 pass happily on the machine where the mistake was made.
 """
+
 from __future__ import annotations
 
 import json
@@ -35,8 +36,7 @@ EXAMPLE = "state/coord/remote_bridge.example.json"
 
 
 def _tracked(path: str) -> bool:
-    r = subprocess.run(["git", "ls-files", "--error-unmatch", path],
-                       cwd=REPO, capture_output=True, text=True)
+    r = subprocess.run(["git", "ls-files", "--error-unmatch", path], cwd=REPO, capture_output=True, text=True)
     return r.returncode == 0
 
 
@@ -46,7 +46,8 @@ def test_live_route_config_is_not_tracked():
     assert not _tracked(LIVE), (
         f"{LIVE} is tracked by git. It holds THIS machine's peer route — instance-local "
         f"truth, same class as security/acl.json (t384). Untrack it: "
-        f"`git rm --cached {LIVE}` and keep the tracked template instead.")
+        f"`git rm --cached {LIVE}` and keep the tracked template instead."
+    )
 
 
 def test_a_tracked_template_exists():
@@ -59,17 +60,17 @@ def test_the_template_carries_no_instance_values():
     """The template must be inert. A peer url or a peer name baked into it is the original
     defect wearing a different filename — and it would be COPIED into every new instance,
     which is worse than the conflict it was meant to prevent."""
-    raw = subprocess.run(["git", "show", f"HEAD:{EXAMPLE}"], cwd=REPO,
-                         capture_output=True, text=True).stdout
+    raw = subprocess.run(["git", "show", f"HEAD:{EXAMPLE}"], cwd=REPO, capture_output=True, text=True).stdout
     cfg = json.loads(raw)
     peer = cfg.get("peer") or {}
     assert not (peer.get("url") or "").strip(), (
         f"the tracked template ships a peer.url ({peer.get('url')!r}) — that is one "
-        f"machine's route asserted as everyone's")
+        f"machine's route asserted as everyone's"
+    )
     for banned in ("100.", "127.0.0.1", "localhost", "http"):
         assert banned not in json.dumps(peer), (
-            f"the template's peer block contains {banned!r} — an address of any kind is an "
-            f"instance value")
+            f"the template's peer block contains {banned!r} — an address of any kind is an instance value"
+        )
 
 
 def test_the_reader_still_works_with_no_config_at_all():
@@ -77,6 +78,7 @@ def test_the_reader_still_works_with_no_config_at_all():
     inert-until-keyed property the whole bridge leans on."""
     from core.comm import remote_relay as RR
     import os
+
     old = os.environ.pop("AKASHIC_REMOTE_BRIDGE_PEER_URL", None)
     try:
         cfg = RR._config()
@@ -91,6 +93,7 @@ def test_env_override_beats_the_file():
     which is what a service or a container needs."""
     from core.comm import remote_relay as RR
     import os
+
     old = os.environ.get("AKASHIC_REMOTE_BRIDGE_PEER_URL")
     os.environ["AKASHIC_REMOTE_BRIDGE_PEER_URL"] = "https://override.invalid/xfer"
     try:

@@ -16,6 +16,7 @@ hash, so a later read can distinguish an intact history from plausible-looking
 edited evidence.  ``lecture.md`` is the human-readable sealed body and is checked
 against the hash in the event chain on every ``show``.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -46,7 +47,12 @@ CLAIM_SPECIES = (
     "continuity_provenance",
 )
 AUDIT_VERDICTS = (
-    "supported", "qualified", "disputed", "unresolved", "metaphor", "prescription",
+    "supported",
+    "qualified",
+    "disputed",
+    "unresolved",
+    "metaphor",
+    "prescription",
 )
 
 _COURSE_RE = re.compile(r"[a-z0-9](?:[a-z0-9._-]{0,78}[a-z0-9])?")
@@ -73,9 +79,7 @@ def college_root(root: Optional[os.PathLike | str] = None) -> Path:
 def _course_dir(course: str, root: Optional[os.PathLike | str]) -> Path:
     ident = str(course or "").strip()
     if not _COURSE_RE.fullmatch(ident):
-        raise CollegeError(
-            "course id must be 1..80 lowercase letters, digits, dot, dash, or underscore"
-        )
+        raise CollegeError("course id must be 1..80 lowercase letters, digits, dot, dash, or underscore")
     return college_root(root) / ident
 
 
@@ -139,9 +143,7 @@ def _string_list(data: Mapping[str, Any], key: str) -> List[str]:
 
 
 def _canonical(value: Mapping[str, Any]) -> bytes:
-    return json.dumps(
-        value, ensure_ascii=False, sort_keys=True, separators=(",", ":")
-    ).encode("utf-8")
+    return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
 
 
 def _event_hash(event_without_hash: Mapping[str, Any]) -> str:
@@ -188,8 +190,9 @@ def _read_events(path: Path, *, course: str) -> Tuple[List[Dict[str, Any]], bool
     return rows, not problems, problems
 
 
-def _append_event(path: Path, events: List[Dict[str, Any]], *, course: str,
-                  kind: str, actor: str, payload: Dict[str, Any], at: str) -> Dict[str, Any]:
+def _append_event(
+    path: Path, events: List[Dict[str, Any]], *, course: str, kind: str, actor: str, payload: Dict[str, Any], at: str
+) -> Dict[str, Any]:
     seq = len(events) + 1
     event: Dict[str, Any] = {
         "schema": EVENT_SCHEMA,
@@ -221,10 +224,13 @@ def _fold(events: Iterable[Mapping[str, Any]]) -> Dict[str, Any]:
     errata: List[Dict[str, Any]] = []
     for event in events:
         payload = dict(event.get("payload") or {})
-        payload.update({
-            "actor": event.get("actor"), "at": event.get("at"),
-            "event_id": event.get("event_id"),
-        })
+        payload.update(
+            {
+                "actor": event.get("actor"),
+                "at": event.get("at"),
+                "event_id": event.get("event_id"),
+            }
+        )
         kind = event.get("kind")
         if kind == "course.started":
             course = payload
@@ -280,16 +286,27 @@ def _safe_lecture_path(raw: str, root: Optional[os.PathLike | str]) -> Path:
         raise CollegeError("lecture path is outside the allowed root")
     parts = {part.lower() for part in path.parts}
     name = path.name.lower()
-    if ".secrets" in parts or name in _SECRET_NAMES or name.startswith(".env.") \
-            or path.suffix.lower() in _SECRET_SUFFIXES:
+    if (
+        ".secrets" in parts
+        or name in _SECRET_NAMES
+        or name.startswith(".env.")
+        or path.suffix.lower() in _SECRET_SUFFIXES
+    ):
         raise CollegeError("refusing to copy a secret or credential-shaped lecture path")
     return path
 
 
-def _view(course: str, course_dir: Path, events: List[Dict[str, Any]], *,
-          chain_ok: bool, chain_problems: List[str], action: str,
-          effects: Optional[List[Dict[str, Any]]] = None,
-          subject: str = "") -> Dict[str, Any]:
+def _view(
+    course: str,
+    course_dir: Path,
+    events: List[Dict[str, Any]],
+    *,
+    chain_ok: bool,
+    chain_problems: List[str],
+    action: str,
+    effects: Optional[List[Dict[str, Any]]] = None,
+    subject: str = "",
+) -> Dict[str, Any]:
     state = _fold(events)
     started = state["course"] or {}
     course_card = {
@@ -303,8 +320,7 @@ def _view(course: str, course_dir: Path, events: List[Dict[str, Any]], *,
     }
     source_rows = sorted(state["sources"].values(), key=lambda row: str(row.get("source_id")))
     verified_primary = sum(
-        1 for row in source_rows
-        if row.get("source_kind") == "primary" and row.get("status") == "verified"
+        1 for row in source_rows if row.get("source_kind") == "primary" and row.get("status") == "verified"
     )
 
     lecture_event = state["lecture"]
@@ -314,15 +330,17 @@ def _view(course: str, course_dir: Path, events: List[Dict[str, Any]], *,
     if lecture_event:
         actual_sha = _sha256(lecture_path) if lecture_path.is_file() else None
         lecture_integrity = actual_sha == lecture_event.get("sha256")
-        lecture_card.update({
-            "sealed": True,
-            "sha256": lecture_event.get("sha256"),
-            "bytes": lecture_event.get("bytes"),
-            "actor": lecture_event.get("actor"),
-            "at": lecture_event.get("at"),
-            "event_id": lecture_event.get("event_id"),
-            "source_path": lecture_event.get("source_path"),
-        })
+        lecture_card.update(
+            {
+                "sealed": True,
+                "sha256": lecture_event.get("sha256"),
+                "bytes": lecture_event.get("bytes"),
+                "actor": lecture_event.get("actor"),
+                "at": lecture_event.get("at"),
+                "event_id": lecture_event.get("event_id"),
+                "source_path": lecture_event.get("source_path"),
+            }
+        )
 
     gaps: List[str] = []
     if not chain_ok:
@@ -350,9 +368,7 @@ def _view(course: str, course_dir: Path, events: List[Dict[str, Any]], *,
             "lecture": {"sealed": bool(lecture_event)},
             "audit": {
                 "records": len(state["audit"]),
-                "coverage_declared": any(
-                    bool(row.get("coverage_complete")) for row in state["audit"]
-                ),
+                "coverage_declared": any(bool(row.get("coverage_complete")) for row in state["audit"]),
             },
             "teachback": {"records": len(state["teachbacks"])},
             "errata": {"records": len(state["errata"])},
@@ -430,9 +446,15 @@ def _atomic_write_new(path: Path, body: bytes) -> None:
         raise CollegeError("lecture is already sealed; corrections belong in errata") from exc
 
 
-def run_college(action: str, course: str, data: Optional[Dict[str, Any]] = None, *,
-                actor: str = "", root: Optional[os.PathLike | str] = None,
-                now: Optional[str] = None) -> Dict[str, Any]:
+def run_college(
+    action: str,
+    course: str,
+    data: Optional[Dict[str, Any]] = None,
+    *,
+    actor: str = "",
+    root: Optional[os.PathLike | str] = None,
+    now: Optional[str] = None,
+) -> Dict[str, Any]:
     """Run one college action through the native structured provider.
 
     Write actions are serialized by a cross-process lock and append exactly one
@@ -440,14 +462,17 @@ def run_college(action: str, course: str, data: Optional[Dict[str, Any]] = None,
     performs no write, lock, cursor advance, network call, or model call.
     """
     action = str(action or "").strip().lower().replace("-", "_")
-    aliases = {"add_source": "source", "seal_lecture": "lecture",
-               "add_audit": "audit", "teach_back": "teachback",
-               "add_erratum": "erratum", "status": "show"}
+    aliases = {
+        "add_source": "source",
+        "seal_lecture": "lecture",
+        "add_audit": "audit",
+        "teach_back": "teachback",
+        "add_erratum": "erratum",
+        "status": "show",
+    }
     action = aliases.get(action, action)
     if action not in {"start", "source", "lecture", "audit", "teachback", "erratum", "show"}:
-        raise CollegeError(
-            "action must be start|source|lecture|audit|teachback|erratum|show"
-        )
+        raise CollegeError("action must be start|source|lecture|audit|teachback|erratum|show")
     if data is None:
         data = {}
     if not isinstance(data, dict):
@@ -460,8 +485,14 @@ def run_college(action: str, course: str, data: Optional[Dict[str, Any]] = None,
         if not events:
             raise CollegeError(f"unknown college course {course!r}")
         return _view(
-            course, course_dir, events, chain_ok=chain_ok, chain_problems=problems,
-            action="show", effects=[], subject=_actor(actor, required=False),
+            course,
+            course_dir,
+            events,
+            chain_ok=chain_ok,
+            chain_problems=problems,
+            action="show",
+            effects=[],
+            subject=_actor(actor, required=False),
         )
 
     who = _actor(actor)
@@ -537,7 +568,8 @@ def run_college(action: str, course: str, data: Optional[Dict[str, Any]] = None,
                 if who.casefold() != lecturer.casefold():
                     raise CollegeError("only the designated lecturer may seal the lecture")
                 verified_primary = [
-                    row for row in _known_sources(state).values()
+                    row
+                    for row in _known_sources(state).values()
                     if row.get("source_kind") == "primary" and row.get("status") == "verified"
                 ]
                 if not verified_primary:
@@ -575,25 +607,31 @@ def run_college(action: str, course: str, data: Optional[Dict[str, Any]] = None,
                         )
                     if sealed_path.is_file():
                         if _sha256(sealed_path) != body_sha:
-                            raise CollegeError(
-                                "sealed lecture hash mismatch; refusing to overwrite possible tampering"
-                            )
+                            raise CollegeError("sealed lecture hash mismatch; refusing to overwrite possible tampering")
                         return _view(
-                            course, course_dir, events, chain_ok=True, chain_problems=[],
-                            action="lecture", effects=[], subject=who,
+                            course,
+                            course_dir,
+                            events,
+                            chain_ok=True,
+                            chain_problems=[],
+                            action="lecture",
+                            effects=[],
+                            subject=who,
                         )
                     _atomic_write_new(sealed_path, body)
                     return _view(
-                        course, course_dir, events, chain_ok=True, chain_problems=[],
+                        course,
+                        course_dir,
+                        events,
+                        chain_ok=True,
+                        chain_problems=[],
                         action="lecture",
                         effects=[{"kind": "create", "path": str(sealed_path)}],
                         subject=who,
                     )
                 if sealed_path.exists():
                     if not sealed_path.is_file() or _sha256(sealed_path) != body_sha:
-                        raise CollegeError(
-                            "unrecorded lecture bytes already exist and differ; refusing to overwrite"
-                        )
+                        raise CollegeError("unrecorded lecture bytes already exist and differ; refusing to overwrite")
                 else:
                     _atomic_write_new(sealed_path, body)
                     extra_effects.append({"kind": "create", "path": str(sealed_path)})
@@ -633,9 +671,7 @@ def run_college(action: str, course: str, data: Optional[Dict[str, Any]] = None,
                 coverage_complete = data.get("coverage_complete", False)
                 if not isinstance(coverage_complete, bool):
                     raise CollegeError("coverage_complete must be a boolean")
-                coverage_receipt = _text(
-                    data, "coverage_receipt", limit=20_000, required=coverage_complete
-                )
+                coverage_receipt = _text(data, "coverage_receipt", limit=20_000, required=coverage_complete)
                 payload = {
                     "claim_id": claim_id,
                     "claim": _text(data, "claim", limit=8000),
@@ -676,15 +712,30 @@ def run_college(action: str, course: str, data: Optional[Dict[str, Any]] = None,
                 kind = "erratum.recorded"
 
         event = _append_event(
-            events_path, events, course=course, kind=kind, actor=who,
-            payload=payload, at=stamp,
+            events_path,
+            events,
+            course=course,
+            kind=kind,
+            actor=who,
+            payload=payload,
+            at=stamp,
         )
-        effects = extra_effects + [{
-            "kind": "append", "path": str(events_path), "event_id": event["event_id"],
-        }]
+        effects = extra_effects + [
+            {
+                "kind": "append",
+                "path": str(events_path),
+                "event_id": event["event_id"],
+            }
+        ]
         return _view(
-            course, course_dir, events, chain_ok=True, chain_problems=[],
-            action=action, effects=effects, subject=who,
+            course,
+            course_dir,
+            events,
+            chain_ok=True,
+            chain_problems=[],
+            action=action,
+            effects=effects,
+            subject=who,
         )
 
 
@@ -696,9 +747,9 @@ def render_college(record: Mapping[str, Any]) -> str:
     lines = [
         f"# college {course.get('id', '?')} -- {course.get('title') or '(untitled)'}",
         f"roles lecturer={course.get('lecturer') or '?'}  auditor={course.get('auditor') or '?'}",
-        "stages " + "  ".join(
-            f"{name}={row.get('records', 'sealed' if row.get('sealed') else 0)}"
-            for name, row in stages.items()
+        "stages "
+        + "  ".join(
+            f"{name}={row.get('records', 'sealed' if row.get('sealed') else 0)}" for name, row in stages.items()
         ),
         f"integrity events={'OK' if integrity.get('event_chain') else 'FAIL'}  "
         f"lecture={('OK' if integrity.get('lecture') else 'FAIL') if integrity.get('lecture') is not None else 'UNSEALED'}",
@@ -706,7 +757,9 @@ def render_college(record: Mapping[str, Any]) -> str:
     gaps = list(record.get("gaps") or [])
     lines.append("gaps none" if not gaps else "gaps " + " | ".join(gaps))
     effects = list(record.get("effects") or [])
-    lines.append("effects none" if not effects else "effects " + ", ".join(
-        f"{row.get('kind')}:{row.get('path')}" for row in effects
-    ))
+    lines.append(
+        "effects none"
+        if not effects
+        else "effects " + ", ".join(f"{row.get('kind')}:{row.get('path')}" for row in effects)
+    )
     return "\n".join(lines)

@@ -4,6 +4,7 @@ Wiring test only -- conductor's own lifecycle logic is covered by test_conductor
 agent_cli surfaces `task` and delegates verbatim to conductor.main (so the write path is on the ONE
 door, not just a standalone script), and that argparse.REMAINDER passes flags through untouched.
 """
+
 import os
 import sys
 
@@ -35,8 +36,9 @@ def test_task_delegates_to_conductor(monkeypatch):
 
 def test_task_empty_rest_is_safe(monkeypatch):
     import core.coord.conductor as conductor
+
     monkeypatch.setattr(conductor, "main", lambda argv: 0 if argv == [] else 99)
-    assert agent_cli.cmd_task(_Args(None)) == 0        # None -> [] (no crash, conductor prints usage)
+    assert agent_cli.cmd_task(_Args(None)) == 0  # None -> [] (no crash, conductor prints usage)
 
 
 def test_task_verb_is_registered_in_parser():

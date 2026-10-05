@@ -19,6 +19,7 @@ adopted. This slice keeps both guards, because (B) was right:
 
 Run: py -m pytest tests/test_t197c_peer_ready.py -q
 """
+
 import os
 import sys
 
@@ -50,8 +51,7 @@ class FakeLauncher:
 
     def launch(self, tag, **kw):
         self.launched.append(tag)
-        return ({"ok": True, "pid": self._pid} if self._ok
-                else {"ok": False, "error": self._error, "pid": self._pid})
+        return {"ok": True, "pid": self._pid} if self._ok else {"ok": False, "error": self._error, "pid": self._pid}
 
 
 def _attend(monkeypatch, *states):
@@ -126,6 +126,7 @@ def test_resolve_tag_is_pure():
 # What it does, and refuses to do, about launching.
 # --------------------------------------------------------------------------------------
 
+
 def test_an_attending_peer_is_never_relaunched(monkeypatch):
     """The cheapest correct outcome, and the guard against a retry loop turning into a
     launch storm (deepseek's B): if it is up, nothing is spawned."""
@@ -148,8 +149,7 @@ def test_ambiguous_peer_spawns_nothing(monkeypatch):
 def test_launch_then_attended_reports_launched(monkeypatch):
     _attend(monkeypatch, "UNATTENDED", "ATTENDED")
     lz = FakeLauncher()
-    out = PR.ensure_peer("deepseek-think", launcher=lz, wait_s=5, poll_s=0,
-                         sleep=lambda s: None)
+    out = PR.ensure_peer("deepseek-think", launcher=lz, wait_s=5, poll_s=0, sleep=lambda s: None)
     assert out["action"] == "launched" and out["attending"] is True
     assert lz.launched == ["deepseek-think"] and out["pid"] == 4242
 
@@ -209,7 +209,8 @@ def test_no_single_flight_lock_is_reimplemented():
     for forbidden in ("runner_lock", "acquire", "setnx", "SETNX", "lock"):
         assert forbidden not in referenced, (
             f"{forbidden}: single-flight belongs to the launcher, which checks the lock "
-            f"cross-process and deliberately never holds it")
+            f"cross-process and deliberately never holds it"
+        )
 
 
 def test_never_raises_when_everything_is_broken(monkeypatch):

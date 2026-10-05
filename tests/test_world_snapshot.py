@@ -7,6 +7,7 @@ This is the SUBJECT / ATTENTION read model, not ``scripts/snapshot.py`` and not
 the ``core.world`` runtime-routing family.  It has no action, identity, cursor,
 settlement, or wake authority.
 """
+
 from __future__ import annotations
 
 import copy
@@ -154,9 +155,7 @@ def test_render_id_includes_visible_summary_and_bounds_for_off_edge_rows():
     narrow = build(base)
     with_hidden_row = build(expanded)
 
-    assert [row["object_ref"] for row in narrow["items"]] == [
-        row["object_ref"] for row in with_hidden_row["items"]
-    ]
+    assert [row["object_ref"] for row in narrow["items"]] == [row["object_ref"] for row in with_hidden_row["items"]]
     assert narrow["items"][0]["data"] == with_hidden_row["items"][0]["data"]
     assert narrow["snapshot_id"] != with_hidden_row["snapshot_id"]
     assert (

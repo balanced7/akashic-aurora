@@ -8,6 +8,7 @@ existing suites staying green.
 
 Run: py -m pytest tests/test_consolidator.py -q
 """
+
 import os
 import sys
 
@@ -17,10 +18,22 @@ from core.primitives.consolidator import Consolidator, get_consolidator
 
 
 def test_item_contract():
-    it = Consolidator.item(text="t", source="git:x", importance=4, timestamp="2026-01-01T00:00:00",
-                           relationship_type="causes", kind="lesson")
-    assert it == {"text": "t", "source": "git:x", "importance": 4,
-                  "timestamp": "2026-01-01T00:00:00", "relationship_type": "causes", "kind": "lesson"}
+    it = Consolidator.item(
+        text="t",
+        source="git:x",
+        importance=4,
+        timestamp="2026-01-01T00:00:00",
+        relationship_type="causes",
+        kind="lesson",
+    )
+    assert it == {
+        "text": "t",
+        "source": "git:x",
+        "importance": 4,
+        "timestamp": "2026-01-01T00:00:00",
+        "relationship_type": "causes",
+        "kind": "lesson",
+    }
     # defaults
     d = Consolidator.item(text="t", source="s")
     assert d["importance"] == 1 and d["timestamp"] is None and d["relationship_type"] is None
@@ -29,10 +42,8 @@ def test_item_contract():
 def test_consolidate_ranks_then_distills_with_pointers():
     c = Consolidator(token_budget=4000)
     items = [
-        Consolidator.item(text="low importance note", source="git:a", importance=1,
-                          timestamp="2026-01-01T00:00:00"),
-        Consolidator.item(text="a salient milestone", source="git:b", importance=5,
-                          timestamp="2026-01-02T00:00:00"),
+        Consolidator.item(text="low importance note", source="git:a", importance=1, timestamp="2026-01-01T00:00:00"),
+        Consolidator.item(text="a salient milestone", source="git:b", importance=5, timestamp="2026-01-02T00:00:00"),
     ]
     dist = c.consolidate(items, instruction="test", kind="beat", now=None)
     # every entry keeps a lossless source pointer; the skeleton names them
@@ -46,8 +57,10 @@ def test_empty_and_determinism():
     c = Consolidator()
     empty = c.consolidate([], instruction="x")
     assert empty.entries == [] and empty.skeleton == ""
-    items = [Consolidator.item(text=f"item {i}", source=f"git:{i}", importance=i % 5,
-                               timestamp=f"2026-01-0{i+1}T00:00:00") for i in range(4)]
+    items = [
+        Consolidator.item(text=f"item {i}", source=f"git:{i}", importance=i % 5, timestamp=f"2026-01-0{i + 1}T00:00:00")
+        for i in range(4)
+    ]
     a = c.consolidate(items, now=1_750_000_000.0)
     b = c.consolidate(items, now=1_750_000_000.0)
     assert a.skeleton == b.skeleton, "same input + now -> identical output (deterministic)"
@@ -58,7 +71,11 @@ def test_singleton():
 
 
 if __name__ == "__main__":
-    for fn in [test_item_contract, test_consolidate_ranks_then_distills_with_pointers,
-               test_empty_and_determinism, test_singleton]:
+    for fn in [
+        test_item_contract,
+        test_consolidate_ranks_then_distills_with_pointers,
+        test_empty_and_determinism,
+        test_singleton,
+    ]:
         fn()
     print("ALL S1 CONSOLIDATOR TESTS PASSED")

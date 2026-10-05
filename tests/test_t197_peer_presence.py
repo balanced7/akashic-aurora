@@ -55,6 +55,7 @@ answer. A reader that guesses the past is the exact defect this arc exists to re
 
 Run: py -m pytest tests/test_t197_peer_presence.py -q
 """
+
 import inspect
 import os
 import sys
@@ -70,13 +71,14 @@ from core.foundation.timeutil import now_iso  # noqa: E402
 try:
     from core.comm import expectations, friction
     from core.comm.bus import Bus
-except ImportError:                                             # pragma: no cover
+except ImportError:  # pragma: no cover
     expectations = friction = Bus = None
 
 
 def _redis_up():
     try:
         from core.comm.bus import _connect
+
         c = _connect()
         return c is not None and c.ping()
     except Exception:
@@ -89,6 +91,7 @@ needs_redis = pytest.mark.skipif(not _redis_up(), reason="bus Redis unreachable"
 # --------------------------------------------------------------------------------------
 # 1. The pure fold: the partition, and its refusal to guess about the past.
 # --------------------------------------------------------------------------------------
+
 
 def _dead_ev(ask_id, *, at_ask=None, at_death=None, created=1000.0, at="2026-08-06T00:00:00Z"):
     detail = {"to": "deepseek", "kind": "request", "attempts": 3, "created": created}
@@ -103,10 +106,10 @@ def test_dead_partition_names_four_different_bugs():
     """The 2x2 that turns one row into four actions. This is the finding the whole
     slice exists to produce; if it collapses, the reader is back to 'they all died'."""
     events = [
-        _dead_ev("a-1", at_ask="UNATTENDED", at_death="UNATTENDED"),   # absent
-        _dead_ev("a-2", at_ask="ATTENDED", at_death="UNATTENDED"),     # vanished
-        _dead_ev("a-3", at_ask="ATTENDED", at_death="ATTENDED"),       # ignored
-        _dead_ev("a-4", at_ask="UNATTENDED", at_death="ATTENDED"),     # arrived_late
+        _dead_ev("a-1", at_ask="UNATTENDED", at_death="UNATTENDED"),  # absent
+        _dead_ev("a-2", at_ask="ATTENDED", at_death="UNATTENDED"),  # vanished
+        _dead_ev("a-3", at_ask="ATTENDED", at_death="ATTENDED"),  # ignored
+        _dead_ev("a-4", at_ask="UNATTENDED", at_death="ATTENDED"),  # arrived_late
     ]
     agg = friction.fold(events, {}, now=2000.0)["agg"]
     assert agg["n_dead"] == 4
@@ -122,13 +125,12 @@ def test_partition_sums_to_n_dead_exactly():
     guesses, and the missing rows would be invisible rather than named."""
     events = [
         _dead_ev("b-1", at_ask="UNATTENDED", at_death="UNATTENDED"),
-        _dead_ev("b-2"),                                            # legacy: no fields
-        _dead_ev("b-3", at_ask="UNKNOWN", at_death="UNATTENDED"),   # probe unreadable
-        _dead_ev("b-4", at_ask="ATTENDED"),                         # half-observed
+        _dead_ev("b-2"),  # legacy: no fields
+        _dead_ev("b-3", at_ask="UNKNOWN", at_death="UNATTENDED"),  # probe unreadable
+        _dead_ev("b-4", at_ask="ATTENDED"),  # half-observed
     ]
     agg = friction.fold(events, {}, now=2000.0)["agg"]
-    keys = ("dead_absent", "dead_vanished", "dead_ignored",
-            "dead_arrived_late", "dead_peer_unknown")
+    keys = ("dead_absent", "dead_vanished", "dead_ignored", "dead_arrived_late", "dead_peer_unknown")
     assert sum(agg[k] for k in keys) == agg["n_dead"] == 4
 
 
@@ -151,8 +153,7 @@ def test_a_half_observed_episode_is_unknown_not_half_credited():
 
 def test_episode_rows_carry_both_ends():
     """The aggregate is the headline; the row is what an operator acts on."""
-    rows = friction.fold([_dead_ev("e-1", at_ask="UNATTENDED", at_death="ATTENDED")],
-                         {}, now=2000.0)["episodes"]
+    rows = friction.fold([_dead_ev("e-1", at_ask="UNATTENDED", at_death="ATTENDED")], {}, now=2000.0)["episodes"]
     assert rows[0]["peer_at_ask"] == "UNATTENDED"
     assert rows[0]["peer_at_death"] == "ATTENDED"
     assert rows[0]["peer_verdict"] == "arrived_late"
@@ -171,6 +172,7 @@ def test_blind_list_names_the_new_blindness():
 # 2. The law the fence bought: preflight OBSERVES, it never gates.
 # --------------------------------------------------------------------------------------
 
+
 def test_preflight_never_gates_the_send():
     """DEEPSEEK'S (C), PINNED AS LAW. An UNATTENDED verdict must not stop the send:
     a peer absent at t=0 can be alive by the second redrive, and refusing fast would
@@ -183,17 +185,19 @@ def test_preflight_never_gates_the_send():
     a peer gate -- and a pin that cannot tell those apart would fire on the wrong thing.
     """
     from core.comm import ask as ask_mod
+
     src = inspect.getsource(ask_mod.ask_peer)
-    probe = src.index("attendance(")                 # the call, not the prose
-    verdict = src.index("peer_state, peer_why")      # the moment the answer exists
+    probe = src.index("attendance(")  # the call, not the prose
+    verdict = src.index("peer_state, peer_why")  # the moment the answer exists
     send = src.index("b.send(")
     assert probe < verdict < send, (
-        "the verdict must be observed BEFORE the send, or it cannot be armed onto the "
-        "record the death event inherits")
+        "the verdict must be observed BEFORE the send, or it cannot be armed onto the record the death event inherits"
+    )
     for forbidden in ("return _BO.failed", "return BoundaryOutcome.failed", "return None"):
         assert forbidden not in src[verdict:send], (
             "preflight refused to send -- that is the design deepseek's (C) argument "
-            "removed. Observe, report, arm, and SEND anyway.")
+            "removed. Observe, report, arm, and SEND anyway."
+        )
 
 
 def test_ask_peer_is_durable_but_still_not_a_seat():
@@ -214,8 +218,7 @@ def test_ask_peer_is_durable_but_still_not_a_seat():
     from core.comm import ask as ask_mod
 
     tree = ast.parse(open(ask_mod.__file__, encoding="utf-8").read())
-    fn = next(n for n in tree.body
-              if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)) and n.name == "ask_peer")
+    fn = next(n for n in tree.body if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)) and n.name == "ask_peer")
 
     referenced = set()
     for node in ast.walk(fn):
@@ -231,19 +234,29 @@ def test_ask_peer_is_durable_but_still_not_a_seat():
         elif isinstance(node, ast.Name):
             referenced.add(node.id)
 
-    forbidden = {"runner_lock", "seed_cursor", "roster", "mailbox", "worklive",
-                 "acquire", "bifrost_send", "heartbeat", "role_queue"}
-    assert not sorted(forbidden & referenced), (
-        "ask_peer acquired seat machinery -- it is a durable CALL, not a seat")
+    forbidden = {
+        "runner_lock",
+        "seed_cursor",
+        "roster",
+        "mailbox",
+        "worklive",
+        "acquire",
+        "bifrost_send",
+        "heartbeat",
+        "role_queue",
+    }
+    assert not sorted(forbidden & referenced), "ask_peer acquired seat machinery -- it is a durable CALL, not a seat"
     assert "expectations" in referenced, (
         "and it must still be durable: an ask_peer that stopped arming an expectation "
-        "would pass this law by becoming the wrong thing")
+        "would pass this law by becoming the wrong thing"
+    )
 
 
 def test_ask_peer_signature_does_not_grow_a_gate_flag():
     """No `require_live=` / `skip_if_dead=` escape hatch: an option to gate is a gate
     with a default, and defaults migrate."""
     from core.comm.ask import ask_peer
+
     params = set(inspect.signature(ask_peer).parameters)
     assert not (params & {"require_live", "skip_if_dead", "only_if_attended", "gate"})
 
@@ -252,12 +265,14 @@ def test_ask_peer_signature_does_not_grow_a_gate_flag():
 # 3. arm() carries the verdict, and never invents one.
 # --------------------------------------------------------------------------------------
 
+
 @needs_redis
 def test_arm_stores_the_verdict_when_given():
     sender = f"t197arm{uuid.uuid4().hex[:6]}"
-    oid = f"{int(time.time()*1000)}-0"
-    assert expectations.arm(sender, oid, "deepseek", "request", "q", 1800,
-                            peer_state="UNATTENDED", peer_why="no beat, pulse, or worklive")
+    oid = f"{int(time.time() * 1000)}-0"
+    assert expectations.arm(
+        sender, oid, "deepseek", "request", "q", 1800, peer_state="UNATTENDED", peer_why="no beat, pulse, or worklive"
+    )
     rec = expectations.snapshot(sender)[oid]
     assert rec["peer_at_ask"] == "UNATTENDED"
     assert "worklive" in rec["peer_at_ask_why"]
@@ -270,7 +285,7 @@ def test_arm_omits_the_field_rather_than_defaulting_it():
     had been probed. The reader distinguishes 'we looked and could not tell' from 'we
     never looked', and a default would erase that distinction at the source."""
     sender = f"t197arm{uuid.uuid4().hex[:6]}"
-    oid = f"{int(time.time()*1000)}-1"
+    oid = f"{int(time.time() * 1000)}-1"
     assert expectations.arm(sender, oid, "deepseek", "request", "q", 1800)
     assert "peer_at_ask" not in expectations.snapshot(sender)[oid]
     expectations._client().delete(expectations._key(sender))
@@ -290,6 +305,7 @@ def test_arm_keeps_its_old_positional_contract():
 # 4. The death-time observation: the half of the pair that makes it diagnostic.
 # --------------------------------------------------------------------------------------
 
+
 @needs_redis
 def test_dead_event_carries_both_ends(monkeypatch):
     """The record dies in the transition that closes it (T196b's law), so the closing
@@ -301,13 +317,24 @@ def test_dead_event_carries_both_ends(monkeypatch):
         captured["kind"], captured["detail"] = kind, kw.get("detail") or {}
 
     monkeypatch.setattr("core.events.event_log.capture_event", fake_capture)
-    monkeypatch.setattr("core.comm.liveness.attendance",
-                        lambda a, **kw: __import__("core.comm.liveness", fromlist=["x"])
-                        .Attendance("ATTENDED", "roster beat 3s", 3.0, a))
-    expectations._emit_dead("s1", "9-0",
-                            {"to": "deepseek", "kind": "request", "attempt": 3,
-                             "created": 100.0, "peer_at_ask": "UNATTENDED",
-                             "peer_at_ask_why": "no beat, pulse, or worklive"})
+    monkeypatch.setattr(
+        "core.comm.liveness.attendance",
+        lambda a, **kw: __import__("core.comm.liveness", fromlist=["x"]).Attendance(
+            "ATTENDED", "roster beat 3s", 3.0, a
+        ),
+    )
+    expectations._emit_dead(
+        "s1",
+        "9-0",
+        {
+            "to": "deepseek",
+            "kind": "request",
+            "attempt": 3,
+            "created": 100.0,
+            "peer_at_ask": "UNATTENDED",
+            "peer_at_ask_why": "no beat, pulse, or worklive",
+        },
+    )
     assert captured["kind"] == "expectation_dead"
     assert captured["detail"]["peer_at_ask"] == "UNATTENDED"
     assert captured["detail"]["peer_at_death"] == "ATTENDED", "observed FRESH at death"
@@ -328,8 +355,7 @@ def test_death_probe_failure_never_breaks_the_sweep(monkeypatch):
 
     monkeypatch.setattr("core.events.event_log.capture_event", fake_capture)
     monkeypatch.setattr("core.comm.liveness.attendance", boom)
-    expectations._emit_dead("s1", "9-1", {"to": "deepseek", "created": 100.0,
-                                          "peer_at_ask": "UNATTENDED"})
+    expectations._emit_dead("s1", "9-1", {"to": "deepseek", "created": 100.0, "peer_at_ask": "UNATTENDED"})
     assert captured, "the dead event must still be emitted"
     assert captured["detail"].get("peer_at_death") in (None, "UNKNOWN")
 
@@ -340,11 +366,12 @@ def test_settled_event_carries_the_ask_end_too(monkeypatch):
     cannot answer 'do live peers answer more often?' -- the question the whole arc is
     ultimately for."""
     captured = {}
-    monkeypatch.setattr("core.events.event_log.capture_event",
-                        lambda kind, msg, **kw: captured.update(kw.get("detail") or {}))
-    expectations._emit_settled("s1", "9-2", "10-0",
-                               {"to": "deepseek", "attempt": 0, "created": 100.0,
-                                "peer_at_ask": "ATTENDED"})
+    monkeypatch.setattr(
+        "core.events.event_log.capture_event", lambda kind, msg, **kw: captured.update(kw.get("detail") or {})
+    )
+    expectations._emit_settled(
+        "s1", "9-2", "10-0", {"to": "deepseek", "attempt": 0, "created": 100.0, "peer_at_ask": "ATTENDED"}
+    )
     assert captured["peer_at_ask"] == "ATTENDED"
 
 
@@ -352,13 +379,16 @@ def test_settled_event_carries_the_ask_end_too(monkeypatch):
 # 5. The readout: what the caller is told at t=0, which is the friction being removed.
 # --------------------------------------------------------------------------------------
 
+
 @needs_redis
 def test_state_of_surfaces_the_ask_end_for_an_open_record():
     from core.comm.ask_state import state_of
+
     sender = f"t197st{uuid.uuid4().hex[:6]}"
-    oid = f"{int(time.time()*1000)}-2"
-    expectations.arm(sender, oid, "deepseek", "request", "q", 1800,
-                     peer_state="UNATTENDED", peer_why="no beat, pulse, or worklive")
+    oid = f"{int(time.time() * 1000)}-2"
+    expectations.arm(
+        sender, oid, "deepseek", "request", "q", 1800, peer_state="UNATTENDED", peer_why="no beat, pulse, or worklive"
+    )
     st = state_of(sender, oid)
     assert st["state"].startswith("OPEN")
     assert st["peer_at_ask"] == "UNATTENDED"
@@ -373,9 +403,10 @@ def test_ask_peer_reports_the_verdict_at_t0_without_waiting(monkeypatch):
     command."""
     from core.comm.ask import ask_peer
     import core.comm.liveness as _lv
-    monkeypatch.setattr(_lv, "attendance",
-                        lambda a, **kw: _lv.Attendance("UNATTENDED", "no beat, pulse, or "
-                                                       "worklive", None, a))
+
+    monkeypatch.setattr(
+        _lv, "attendance", lambda a, **kw: _lv.Attendance("UNATTENDED", "no beat, pulse, or worklive", None, a)
+    )
     sender = f"t197p{uuid.uuid4().hex[:6]}"
     o = ask_peer(sender, f"nobody{uuid.uuid4().hex[:6]}", "ping", wait_s=0.1, poll_s=0.05)
     d = o.detail or {}

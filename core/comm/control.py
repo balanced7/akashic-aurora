@@ -22,6 +22,7 @@ Both fail-open on any Redis error (never wedge the bus) and are ADVISORY -- hono
 runners, same trust model as the advisory path-locks. Tunable via env: BIFROST_MAX_HOPS,
 BIFROST_MAX_REPLIES_PER_MIN.
 """
+
 from __future__ import annotations
 
 import json
@@ -32,6 +33,17 @@ from datetime import datetime
 from typing import Any, Dict, Optional
 
 from core.foundation.timeutil import now_iso
+
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+
+        return python_launcher()
+    except Exception:
+        return "py"
+
 
 # --- namespace-scoped control plane (2026-07-12 isolation fix; claude fenced half, deepseek review
 # pending) -----------------------------------------------------------------------------------------
@@ -51,22 +63,22 @@ def _pause_key() -> str:
     return f"{_ns()}:control:paused"
 
 
-def _soft_pause_key() -> str:              # "pause nudge" (Daniil, 2026-07-30): finish the turn, THEN hold
+def _soft_pause_key() -> str:  # "pause nudge" (Daniil, 2026-07-30): finish the turn, THEN hold
     # Deliberately a SEPARATE key from _pause_key so is_halted() -- which runners pass as
     # a MID-TURN interrupt -- can never see it. That separation IS the feature: a soft
     # pause must not abandon the message a seat is holding.
     return f"{_ns()}:control:paused:soft"
 
 
-def _halt_prefix() -> str:                 # per-agent targeted halt (A1); union'd with the pause by is_halted
+def _halt_prefix() -> str:  # per-agent targeted halt (A1); union'd with the pause by is_halted
     return f"{_ns()}:control:halt:"
 
 
-def _narration_key() -> str:               # off|key|full -- how much of claude's reasoning streams to the bus
+def _narration_key() -> str:  # off|key|full -- how much of claude's reasoning streams to the bus
     return f"{_ns()}:control:narration"
 
 
-def _activity_prefix() -> str:             # rich-presence activity keys (same class, also ns-scoped)
+def _activity_prefix() -> str:  # rich-presence activity keys (same class, also ns-scoped)
     return f"{_ns()}:activity:"
 
 
@@ -76,7 +88,7 @@ MAX_REPLIES_PER_MIN = int(os.getenv("BIFROST_MAX_REPLIES_PER_MIN", "12"))
 
 
 def _now() -> str:
-    return now_iso()   # T119: the one clock (aware UTC), not the machine's naive wall
+    return now_iso()  # T119: the one clock (aware UTC), not the machine's naive wall
 
 
 def _client():
@@ -84,6 +96,7 @@ def _client():
     Redis is unreachable -- every function below then fails open."""
     try:
         from core.comm.bus import get_bus
+
         return get_bus("control")._client
     except Exception:
         return None
@@ -107,8 +120,7 @@ def drain(agent: str, by: str = "user", reason: str = "") -> bool:
     if c is None:
         return False
     try:
-        c.set(_drain_key(agent), json.dumps({"by": by, "reason": reason, "ts": _now()}),
-              ex=DRAIN_TTL_S)
+        c.set(_drain_key(agent), json.dumps({"by": by, "reason": reason, "ts": _now()}), ex=DRAIN_TTL_S)
         return True
     except Exception:
         return False
@@ -137,8 +149,7 @@ def clear_drain(agent: str) -> None:
 
 
 # ------------------------------------------------------------------ pause
-def pause(reason: str = "", by: str = "user", ttl: Optional[int] = None,
-          soft: bool = False) -> bool:
+def pause(reason: str = "", by: str = "user", ttl: Optional[int] = None, soft: bool = False) -> bool:
     """Freeze the auto-responders. Idempotent. Returns False if the bus is offline.
     RB-30 (T030 L5): `ttl` seconds makes the pause SELF-HEAL -- automated backstops
     (rate-limit guards) must never freeze the fleet forever if everyone forgets them.
@@ -162,8 +173,11 @@ def pause(reason: str = "", by: str = "user", ttl: Optional[int] = None,
         return False
     try:
         key = _soft_pause_key() if soft else _pause_key()
-        c.set(key, json.dumps({"reason": reason, "by": by, "ts": _now(), "soft": bool(soft)}),
-              ex=int(ttl) if ttl else None)
+        c.set(
+            key,
+            json.dumps({"reason": reason, "by": by, "ts": _now(), "soft": bool(soft)}),
+            ex=int(ttl) if ttl else None,
+        )
         return True
     except Exception:
         return False
@@ -182,8 +196,7 @@ def format_pause_line(status: Dict[str, Any], now: Optional[float] = None) -> st
         dt = datetime.fromisoformat(ts_s)
         # T119 dual-era read: one-clock stamps (now_iso) carry their offset; legacy naive
         # rows were written as LOCAL wall-clock, so they keep their historical meaning.
-        then = dt.timestamp() if dt.tzinfo is not None \
-            else time.mktime(time.strptime(ts_s, "%Y-%m-%dT%H:%M:%S"))
+        then = dt.timestamp() if dt.tzinfo is not None else time.mktime(time.strptime(ts_s, "%Y-%m-%dT%H:%M:%S"))
         mins = max(0, int(((now if now is not None else time.time()) - then) / 60))
         age = f"{mins // 60}h{mins % 60:02d}m" if mins >= 60 else f"{mins}m"
     except Exception:
@@ -192,12 +205,16 @@ def format_pause_line(status: Dict[str, Any], now: Optional[float] = None) -> st
         # Never let a soft pause hide behind the same words as a hard one: the fleet
         # already has two organs answering "is it paused" at different scopes with no way
         # to tell them apart. A third invisible pause state would be that bug on purpose.
-        return (f"~~ SOFT PAUSE / winding down (by {status.get('by', '?')}: "
-                f"{status.get('reason') or 'no reason given'}, {age} old) -- seats FINISH "
-                f"the message in hand, then hold; in-flight work is NOT abandoned; "
-                f"resume: py agent_cli.py bifrost-resume")
-    return (f"!! PAUSED (by {status.get('by', '?')}: {status.get('reason') or 'no reason given'}, "
-            f"{age} old) -- auto-responders frozen; resume: py agent_cli.py bifrost-resume")
+        return (
+            f"~~ SOFT PAUSE / winding down (by {status.get('by', '?')}: "
+            f"{status.get('reason') or 'no reason given'}, {age} old) -- seats FINISH "
+            f"the message in hand, then hold; in-flight work is NOT abandoned; "
+            f"resume: {_pyl()} agent_cli.py bifrost-resume"
+        )
+    return (
+        f"!! PAUSED (by {status.get('by', '?')}: {status.get('reason') or 'no reason given'}, "
+        f"{age} old) -- auto-responders frozen; resume: {_pyl()} agent_cli.py bifrost-resume"
+    )
 
 
 def resume(targets=None) -> bool:
@@ -211,8 +228,8 @@ def resume(targets=None) -> bool:
     try:
         if not ts:
             c.delete(_pause_key())
-            c.delete(_soft_pause_key())   # a pause that survives its own resume is the
-                                          # RB-30 forever-freeze failure, softly
+            c.delete(_soft_pause_key())  # a pause that survives its own resume is the
+            # RB-30 forever-freeze failure, softly
             keys = c.keys(_halt_prefix() + "*") or []
             if keys:
                 c.delete(*keys)
@@ -336,7 +353,7 @@ def halt(targets=None, reason: str = "", by: str = "user") -> bool:
     freeze only those agents via per-agent flags; the rest keep running. Idempotent. False if offline."""
     ts = _norm_targets(targets)
     if not ts:
-        return pause(reason=reason, by=by)          # halt-all == the global pause (backward compat)
+        return pause(reason=reason, by=by)  # halt-all == the global pause (backward compat)
     c = _client()
     if c is None:
         return False
@@ -371,7 +388,7 @@ def halted_agents() -> Dict[str, Any]:
         return {}
     out: Dict[str, Any] = {}
     try:
-        for k in (c.keys(_halt_prefix() + "*") or []):
+        for k in c.keys(_halt_prefix() + "*") or []:
             agent = str(k).rsplit(":", 1)[-1]
             raw = c.get(k)
             if raw:
@@ -434,9 +451,11 @@ def set_activity(agent: str, state: str, detail: str = "") -> bool:
     if c is None:
         return False
     try:
-        c.set(_activity_prefix() + str(agent),
-              json.dumps({"state": str(state), "detail": str(detail)[:120], "ts": _now()}),
-              ex=ACTIVITY_TTL)
+        c.set(
+            _activity_prefix() + str(agent),
+            json.dumps({"state": str(state), "detail": str(detail)[:120], "ts": _now()}),
+            ex=ACTIVITY_TTL,
+        )
         return True
     except Exception:
         return False
@@ -461,7 +480,7 @@ def get_activities() -> Dict[str, Any]:
         return {}
     out: Dict[str, Any] = {}
     try:
-        for k in (c.keys(_activity_prefix() + "*") or []):
+        for k in c.keys(_activity_prefix() + "*") or []:
             agent = str(k).rsplit(":", 1)[-1]
             raw = c.get(k)
             if raw:

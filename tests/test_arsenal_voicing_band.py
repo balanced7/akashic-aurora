@@ -5,6 +5,7 @@ keys. The checks: registers and low-interval limits, the round-trip gate with it
 numbers and pitch classes that follow the key, the ring's wrap move, the lament's shared hands, determinism and speed.
 Nothing here reads Daniel's practice log: the lines are the spec's own text.
 """
+
 import json
 import shutil
 import statistics
@@ -28,34 +29,85 @@ pytestmark = pytest.mark.skipif(NODE is None, reason="the voicing bridge needs n
 # upper "same" slot. variant_keys: a variant's own key, as a degree of the card key.
 SEED = [
     {"id": "lydian-four", "key": "Eb major", "kind": "loop", "lines": {"main": "1maj9 | 4maj7#11"}},
-    {"id": "gospel-five-over-four", "key": "Eb major", "kind": "loop",
-     "lines": {"main": "4maj9 | 5^11/4 | 1/3 | 1maj9", "b": "4maj9 | 5^11/4 | 3m9 | 6m11"}},
-    {"id": "one-note-apart", "key": "Eb major", "kind": "concept",
-     "lines": {"a": "4maj13#11", "b": "5^11/4", "c": "4maj13#11 | 5^11/4 | 1/3"}},
-    {"id": "blooming-chord", "key": "Eb major", "kind": "progression",
-     "lines": {"main": "4sus2 | 4add9 | 4maj9 | 4maj13#11"}},
-    {"id": "half-step-slide", "key": "Eb major", "kind": "concept",
-     "lines": {"a": "2^9/#4 | 2m9/4 | 4maj7#11", "b": "#4m7/6 | 4maj7/6"}, "variant_keys": {"b": "b7 major"}},
-    {"id": "lament-bass", "key": "Db major", "kind": "loop",
-     "lines": {"main": "6m11 | 6m11/5 same | 6m11/4 same | 6m11/3 same"}},
-    {"id": "minor-third-drop", "key": "F major", "kind": "progression",
-     "lines": {"a": "1add9 | 4maj13 | 5^6 | [6 major] | 1add9 | 4maj13 | 1maj9",
-               "b": "4maj9 | 1maj9 | 5sus4 | [b7 major] | b3add9/b7 | 1add9 | 4maj9 | 1maj9"},
-     "variant_keys": {"b": "b2 major"}},
-    {"id": "borrowed-four-minor", "key": "Eb major", "kind": "loop", "lines": {"main": "1maj9 | 4add9 | 4m(add9) | 1maj9"}},
+    {
+        "id": "gospel-five-over-four",
+        "key": "Eb major",
+        "kind": "loop",
+        "lines": {"main": "4maj9 | 5^11/4 | 1/3 | 1maj9", "b": "4maj9 | 5^11/4 | 3m9 | 6m11"},
+    },
+    {
+        "id": "one-note-apart",
+        "key": "Eb major",
+        "kind": "concept",
+        "lines": {"a": "4maj13#11", "b": "5^11/4", "c": "4maj13#11 | 5^11/4 | 1/3"},
+    },
+    {
+        "id": "blooming-chord",
+        "key": "Eb major",
+        "kind": "progression",
+        "lines": {"main": "4sus2 | 4add9 | 4maj9 | 4maj13#11"},
+    },
+    {
+        "id": "half-step-slide",
+        "key": "Eb major",
+        "kind": "concept",
+        "lines": {"a": "2^9/#4 | 2m9/4 | 4maj7#11", "b": "#4m7/6 | 4maj7/6"},
+        "variant_keys": {"b": "b7 major"},
+    },
+    {
+        "id": "lament-bass",
+        "key": "Db major",
+        "kind": "loop",
+        "lines": {"main": "6m11 | 6m11/5 same | 6m11/4 same | 6m11/3 same"},
+    },
+    {
+        "id": "minor-third-drop",
+        "key": "F major",
+        "kind": "progression",
+        "lines": {
+            "a": "1add9 | 4maj13 | 5^6 | [6 major] | 1add9 | 4maj13 | 1maj9",
+            "b": "4maj9 | 1maj9 | 5sus4 | [b7 major] | b3add9/b7 | 1add9 | 4maj9 | 1maj9",
+        },
+        "variant_keys": {"b": "b2 major"},
+    },
+    {
+        "id": "borrowed-four-minor",
+        "key": "Eb major",
+        "kind": "loop",
+        "lines": {"main": "1maj9 | 4add9 | 4m(add9) | 1maj9"},
+    },
     {"id": "borrowed-b6-b7-home", "key": "Eb major", "kind": "loop", "lines": {"main": "b6maj9 | b7maj9 | 1maj9"}},
-    {"id": "float-or-pull", "key": "Eb major", "kind": "concept",
-     "lines": {"a": "1maj9 | 5^7sus4/1 | 1maj9", "b": "1maj9 | 5^7 | 1maj9", "c": "1maj9 | 5^7sus4 | 5^7 | 1maj9"}},
+    {
+        "id": "float-or-pull",
+        "key": "Eb major",
+        "kind": "concept",
+        "lines": {"a": "1maj9 | 5^7sus4/1 | 1maj9", "b": "1maj9 | 5^7 | 1maj9", "c": "1maj9 | 5^7sus4 | 5^7 | 1maj9"},
+    },
     {"id": "lush-two-five-one", "key": "Eb major", "kind": "loop", "lines": {"main": "2m9 | 5^13 | 1maj9"}},
-    {"id": "sunrise-ending", "key": "Eb major", "kind": "loop",
-     "lines": {"main": "1m11 | 1m11 | b6maj7#11 | 5^7sus4 | 5^7 | b3maj9 | b3maj9 | 4m6 | 1maj9",
-               "b": "1m9 | 4m9 | b6maj9 | b7maj9 | [b3 major] | 4maj9 | 6m9 | 5sus4 | 1maj9 | [1 major] | b3add9/b7 | "
-                    "1add9 | 4maj9 | 1maj9"}},
-    {"id": "db-opening", "key": "Db major", "kind": "loop",
-     "lines": {"main": "4maj9 | 4maj7#11 | 5^11/4 | 4maj7#11 | 6m9/1"}},
+    {
+        "id": "sunrise-ending",
+        "key": "Eb major",
+        "kind": "loop",
+        "lines": {
+            "main": "1m11 | 1m11 | b6maj7#11 | 5^7sus4 | 5^7 | b3maj9 | b3maj9 | 4m6 | 1maj9",
+            "b": "1m9 | 4m9 | b6maj9 | b7maj9 | [b3 major] | 4maj9 | 6m9 | 5sus4 | 1maj9 | [1 major] | b3add9/b7 | "
+            "1add9 | 4maj9 | 1maj9",
+        },
+    },
+    {
+        "id": "db-opening",
+        "key": "Db major",
+        "kind": "loop",
+        "lines": {"main": "4maj9 | 4maj7#11 | 5^11/4 | 4maj7#11 | 6m9/1"},
+    },
     {"id": "held-sus-five", "key": "Eb major", "kind": "moment", "lines": {"main": "5^7sus4/1"}},
     {"id": "open-ending-b7", "key": "Eb major", "kind": "moment", "lines": {"main": "b7maj9"}},
-    {"id": "white-keys", "key": "C major", "kind": "loop", "lines": {"main": "1maj9 | 6m11 | 4maj7#11 | 5^7sus4 | 5^13"}},
+    {
+        "id": "white-keys",
+        "key": "C major",
+        "kind": "loop",
+        "lines": {"main": "1maj9 | 6m11 | 4maj7#11 | 5^7sus4 | 5^13"},
+    },
     {"id": "dorian-vamp", "key": "D minor", "kind": "loop", "lines": {"main": "1m11 | 4^13"}},
 ]
 assert len(SEED) == 17
@@ -119,8 +171,9 @@ def items_for(card, variant, shift):
 
 
 def bridge(request, raw=False):
-    proc = subprocess.run([NODE, str(BRIDGE)], input=json.dumps(request), capture_output=True, text=True,
-                          encoding="utf-8", timeout=300)
+    proc = subprocess.run(
+        [NODE, str(BRIDGE)], input=json.dumps(request), capture_output=True, text=True, encoding="utf-8", timeout=300
+    )
     assert proc.stdout.strip(), proc.stderr
     return proc.stdout if raw else json.loads(proc.stdout)
 
@@ -134,6 +187,7 @@ def band(items, **kw):
 @pytest.fixture(scope="module")
 def seed():
     """(card id, variant, shift) -> results, for every seed line in all 12 keys (one batched node call per card)."""
+
     def one(card):
         keys = [(v, s) for v in card["lines"] for s in range(12)]
         reply = bridge({"requests": [{"items": items_for(card, v, s), "voicing": "band"} for v, s in keys]})
@@ -188,14 +242,25 @@ def test_band_registers_spacing_and_the_bass(seed):
             # Loosening the seed deck may need where nothing else fits, always said in a warning: a minor 2nd on top, or
             # an inner comp voice over B3 (never a broken low-interval limit or a wider span)
             loose = [w for w in r["warnings"] if w.startswith("nothing else fits")]
-            assert all("minor 2nd between its top two" in w or "inner voice over the top" in w for w in loose), (where, loose)
-            group_loose = loose + [w for j in range(i, -1, -1) if results[j]["upper_same"] or j == i
-                                   for w in results[j - 1 if results[j]["upper_same"] else j]["warnings"]
-                                   if w.startswith("nothing else fits")]
+            assert all("minor 2nd between its top two" in w or "inner voice over the top" in w for w in loose), (
+                where,
+                loose,
+            )
+            group_loose = loose + [
+                w
+                for j in range(i, -1, -1)
+                if results[j]["upper_same"] or j == i
+                for w in results[j - 1 if results[j]["upper_same"] else j]["warnings"]
+                if w.startswith("nothing else fits")
+            ]
             for backing, notes in (("full", full), ("comp", comp)):
                 assert notes[1] - notes[0] >= 7 and notes[-1] - notes[1] <= 24, (where, notes)
                 if notes[-1] - notes[-2] == 1:
-                    assert any(f"the {backing} voicing" in w and "minor 2nd" in w for w in group_loose), (where, backing, notes)
+                    assert any(f"the {backing} voicing" in w and "minor 2nd" in w for w in group_loose), (
+                        where,
+                        backing,
+                        notes,
+                    )
             assert full[1] >= 50 and comp[1] >= 48, (where, full, comp)
             # comp's inner voices sit in C3-B3; only the top voice or an altered colour reaches up to E4
             for note, role in zip(comp[1:-1], r["band"]["comp"]["roles"][1:-1]):
@@ -230,7 +295,7 @@ def test_the_twenty_names():
     for (cid, key), names in NAMES.items():
         card = by_id[cid]
         shift = (key_pc(key)[0] - key_pc(card["key"])[0]) % 12
-        items = items_for(card, "main", shift)[:len(names)]
+        items = items_for(card, "main", shift)[: len(names)]
         assert items[0]["key"] == key
         results = band(items)
         assert [r["name"] for r in results] == names, (cid, key, [r["name"] for r in results])
@@ -294,8 +359,10 @@ def test_band_output_is_byte_identical_on_repeat_and_inside_a_batch():
 
 
 def test_a_sixteen_slot_band_line_costs_little_over_a_plain_voicing():
-    items = [{"text": t, "key": "Eb major"} for t in
-             "1m11 1m11 b6maj7#11 5^7sus4 5^7 b3maj9 b3maj9 4m6 1maj9 4maj9 5^11/4 1/3 1maj9 2m9 5^13 1maj9".split()]
+    items = [
+        {"text": t, "key": "Eb major"}
+        for t in "1m11 1m11 b6maj7#11 5^7sus4 5^7 b3maj9 b3maj9 4m6 1maj9 4maj9 5^11/4 1/3 1maj9 2m9 5^13 1maj9".split()
+    ]
     assert len(items) == 16
 
     def median_ms(request):
@@ -326,15 +393,19 @@ def test_upper_same_shares_the_shape_and_a_failed_gate_is_a_warning_not_a_refusa
 
 def test_upper_same_without_a_chord_before_it_is_voiced_on_its_own():
     results = band([{"text": "6m11/5", "key": "Db major", "upper": "same"}, "bogus chord!"], key="Db major")
-    assert results[0]["upper_same"] is False and any("upper \"same\" needs a chord" in w for w in results[0]["warnings"])
+    assert results[0]["upper_same"] is False and any('upper "same" needs a chord' in w for w in results[0]["warnings"])
     assert results[1].get("error")
     bad = band([{"text": "1", "upper": "held"}], key="C major")
     assert "upper must be" in bad[0]["error"]
 
 
 def test_a_line_through_a_key_change_notes_items_and_a_chain():
-    items = [{"text": "5^6", "key": "F major"}, {"text": "1add9", "key": "D major"}, "Ab2 Eb3 G3 C4 D4 F4 Bb4",
-             {"text": "1maj9", "key": "D major"}]
+    items = [
+        {"text": "5^6", "key": "F major"},
+        {"text": "1add9", "key": "D major"},
+        "Ab2 Eb3 G3 C4 D4 F4 Bb4",
+        {"text": "1maj9", "key": "D major"},
+    ]
     ring = band(items, key="Eb major")
     assert [r["name"] for r in ring[:2]] == ["C6", "Dadd9"] and ring[1]["key"] == "D major"
     assert ring[2]["kind"] == "notes" and ring[2]["name"] == "Cm11/Ab" and ring[2]["bass_pc"] == 8

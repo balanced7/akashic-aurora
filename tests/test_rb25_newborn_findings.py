@@ -21,6 +21,7 @@ Contract frozen:
 
 Run: py -m pytest tests/test_rb25_newborn_findings.py -q
 """
+
 import os
 import sys
 import uuid
@@ -34,6 +35,7 @@ from core.comm.bus import Bus
 
 try:
     from core.trust.registry import may_run_runner
+
     _F1 = True
 except ImportError:
     _F1 = False
@@ -48,11 +50,13 @@ except Exception:
 
 # ---------------- F1: runner self-refusal for a quarantined id ----------------
 
+
 @pytest.mark.skipif(not _F1, reason="F1 pre-registered; may_run_runner pending")
 def test_quarantined_id_may_not_run_a_runner():
     assert resolve("newborn-gauntlet-1").role == "quarantined"
-    assert may_run_runner("newborn-gauntlet-1") is False, \
+    assert may_run_runner("newborn-gauntlet-1") is False, (
         "a quarantined id gets no runner -- its reply/trace lanes would otherwise reach the bus"
+    )
 
 
 @pytest.mark.skipif(not _F1, reason="F1 pre-registered; may_run_runner pending")
@@ -71,8 +75,9 @@ def test_runner_startup_wired_to_the_check():
         assert "may_run_runner" in src, f"{runner} self-refuses at startup (built != wired)"
         # The offline-drill escape exists and is gated on the never-in-production signal, so
         # throwaway-id kill-window drills still run while production stays airtight.
-        assert "AKASHIC_DRILL_ECHO" in src.split("may_run_runner")[0].rsplit("RB-25 F1", 1)[-1], \
+        assert "AKASHIC_DRILL_ECHO" in src.split("may_run_runner")[0].rsplit("RB-25 F1", 1)[-1], (
             f"{runner}'s quarantine refusal is bypassed ONLY under the offline-drill signal"
+        )
 
 
 # ---------------- F2: virgin cursor seeds at the live tail ----------------
@@ -100,13 +105,14 @@ def test_virgin_cursor_seeds_at_tail_and_skips_backlog():
     backlog_sender.broadcast("chat", "months-old directive nobody should act on")
     newborn = Bus(aid, namespace=_NS)
     try:
-        newborn.seed_cursor_at_tail()                 # onboarding step
+        newborn.seed_cursor_at_tail()  # onboarding step
         fresh = newborn.inbox(limit=50, advance=False)
         assert fresh == [], "a seeded newborn sees NO stale backlog -- only new mail after it"
         backlog_sender.broadcast("chat", "a NEW message after onboarding")
         after = newborn.inbox(limit=50, advance=False)
-        assert any("NEW message" in str(m.content) for m in after), \
+        assert any("NEW message" in str(m.content) for m in after), (
             "new mail after seeding still arrives -- seed skips backlog, not the future"
+        )
     finally:
         _cleanup_ns(newborn._client)
 
@@ -120,9 +126,9 @@ def test_seed_is_idempotent_and_spares_a_returning_agent():
         backlog.broadcast("chat", "m1")
         a.seed_cursor_at_tail()
         backlog.broadcast("chat", "m2 real work the agent consumed")
-        a.inbox(limit=50, advance=True)               # agent makes real progress
+        a.inbox(limit=50, advance=True)  # agent makes real progress
         before = dict(a.cursor())
-        a.seed_cursor_at_tail()                        # a second call must NOT rewind
+        a.seed_cursor_at_tail()  # a second call must NOT rewind
         assert dict(a.cursor()) == before, "seed only acts on a virgin cursor, never rewinds progress"
     finally:
         _cleanup_ns(a._client)

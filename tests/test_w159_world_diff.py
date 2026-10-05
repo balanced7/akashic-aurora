@@ -30,6 +30,7 @@ finding the tool can make -- something bypassed the seed. That is not hypothetic
 2026-08-14 a restore drill wrote prod's full snapshot into alpha and imported 7,870
 bifrost:* keys the seed exists to refuse. Nothing noticed until a human looked.
 """
+
 import pytest
 
 from core.coord import world_diff as WD
@@ -37,9 +38,11 @@ from core.coord import world_diff as WD
 
 # ------------------------------------------------------------------ the oracle
 
+
 def _manifest(carried=("learn:", "mem:"), refused=("bifrost:", "events:")):
     return {
-        "source_world": "prod", "target_world": "alpha",
+        "source_world": "prod",
+        "target_world": "alpha",
         "seeded_at": "2026-08-14T02:00:00+00:00",
         "carried": {p: 100 for p in carried},
         "refused": {p: "reason" for p in refused},
@@ -56,8 +59,7 @@ def test_o1_a_refused_prefix_absent_in_the_target_is_EXPECTED():
 def test_o2_a_BULK_import_into_a_refused_plane_is_the_loudest_finding():
     """The restore-contamination case, 2026-08-14: a full-fidelity restore into a twin
     imported 7,870 bifrost:* keys against prod's 8,276, and nothing noticed."""
-    v = WD.classify("bifrost:", present_in_target=True, manifest=_manifest(),
-                    n_source=8276, n_target=7870)
+    v = WD.classify("bifrost:", present_in_target=True, manifest=_manifest(), n_source=8276, n_target=7870)
     assert v.expected is False
     assert v.severity == "alarm"
     assert "bulk" in v.why.lower()
@@ -69,8 +71,7 @@ def test_o2b_a_LIVE_twins_own_transport_is_not_an_alarm():
     own sid> and a handful of events -- the twin having a life, which is the whole point of
     standing it up. An alarm that fires on normal operation trains the reader to ignore it,
     which is the same argument that shaped last night's env guard."""
-    v = WD.classify("bifrost:", present_in_target=True, manifest=_manifest(),
-                    n_source=8281, n_target=2)
+    v = WD.classify("bifrost:", present_in_target=True, manifest=_manifest(), n_source=8281, n_target=2)
     assert v.severity == "report"
     assert "own activity" in v.why.lower()
 
@@ -120,6 +121,7 @@ def test_o6_no_manifest_means_no_oracle_and_the_tool_says_so():
 
 # ------------------------------------------------------------------ the render
 
+
 def test_r1_the_render_leads_with_findings_not_with_the_expected_bulk():
     """'At a glance' is the requirement. 13,963 expected differences must not be able to
     push 10 real ones below the fold."""
@@ -165,8 +167,7 @@ def test_c1_ephemeral_singletons_collapse_into_one_row():
     reproducing, one level up, the exact burial it was built to prevent. A prefix that is
     tiny AND unnamed by the manifest is not a plane; planes are the recurring structural
     prefixes."""
-    rows = [WD.PlaneRow(f"t-w43-{i:08x}", 11, 0, WD.classify(f"t-w43-{i:08x}", False, _manifest()))
-            for i in range(20)]
+    rows = [WD.PlaneRow(f"t-w43-{i:08x}", 11, 0, WD.classify(f"t-w43-{i:08x}", False, _manifest())) for i in range(20)]
     rows.append(WD.PlaneRow("learn:", 1061, 1060, WD.classify("learn:", True, _manifest())))
     kept, collapsed = WD.collapse_minor(rows, manifest=_manifest())
     assert len(kept) == 1 and kept[0].prefix == "learn:"
@@ -175,12 +176,10 @@ def test_c1_ephemeral_singletons_collapse_into_one_row():
 
 def test_c2_a_collapsed_group_is_counted_never_dropped():
     """Same law as the expected bulk: not shouted, never not-shown."""
-    rows = [WD.PlaneRow(f"t-w43-{i}", 11, 0, WD.classify(f"t-w43-{i}", False, _manifest()))
-            for i in range(20)]
+    rows = [WD.PlaneRow(f"t-w43-{i}", 11, 0, WD.classify(f"t-w43-{i}", False, _manifest())) for i in range(20)]
     _, collapsed = WD.collapse_minor(rows, manifest=_manifest())
     assert collapsed["n_keys_source"] == 220
-    out = WD.render([], source="prod", target="alpha", manifest=_manifest(),
-                    collapsed=collapsed)
+    out = WD.render([], source="prod", target="alpha", manifest=_manifest(), collapsed=collapsed)
     assert "20" in out and "220" in out
 
 

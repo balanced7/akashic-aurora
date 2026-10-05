@@ -22,6 +22,7 @@ Run before shipping (wired into ship.py, CI, and the pre-commit hook). Exit 1 on
 
 `--fast` runs only F+G (the cheap stat-based drift checks) for the pre-commit hook; ship/CI run all.
 """
+
 import os
 import re
 import subprocess
@@ -31,6 +32,17 @@ from datetime import datetime
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # T104-M1 depth
 sys.path.insert(0, os.path.join(ROOT, "scripts", "generators"))  # T104-M1
 import gen_arch_index as gen  # reuse the same module survey (single source of truth)
+
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+
+        return python_launcher()
+    except Exception:
+        return "py"
+
 
 STALE_DAYS = 14
 
@@ -59,17 +71,17 @@ REF_ALLOWLIST = {
     "docs/security-amendment-deepseek-scoped-admin-2026-07-22.md": {
         "expires": "2026-09-30",
         "reason": "RENEWED 2026-09-16 by Daniel's call (the 09-15 expiry blocked every commit, "
-                  "including the mirror.py publish guard; the atom fix would commit other seats' "
-                  "uncommitted store/docs/design.jsonl). RENEWED 2026-08-24 (first expiry lapsed "
-                  "mid-marathon): the path lives as "
-                  "PROSE inside the SA-1 arc label on atoms, rendered into generated ARCS/"
-                  "SHELVES; real file is docs/library/design/20260722_security-schema-"
-                  "amendment-scoped-admin-g_17c9ca.md. ATOM SIDE DONE 2026-09-16: "
-                  "art_20260723_sa-1-cap-enforcement-pre-registered-acce_1c0784 relabelled arc "
-                  "'SA-1' (AtomFamily.set_arc, v3) and its projection re-rendered; its JSONL line "
-                  "waits in the working tree with the other seats' uncommitted atom lines. What is "
-                  "left: the ARCS/SHELVES full regen, which also cites ~10 uncommitted 09-01..05 "
-                  "projections (21 F FAILs if committed alone). Remove this entry when it lands.",
+        "including the mirror.py publish guard; the atom fix would commit other seats' "
+        "uncommitted store/docs/design.jsonl). RENEWED 2026-08-24 (first expiry lapsed "
+        "mid-marathon): the path lives as "
+        "PROSE inside the SA-1 arc label on atoms, rendered into generated ARCS/"
+        "SHELVES; real file is docs/library/design/20260722_security-schema-"
+        "amendment-scoped-admin-g_17c9ca.md. ATOM SIDE DONE 2026-09-16: "
+        "art_20260723_sa-1-cap-enforcement-pre-registered-acce_1c0784 relabelled arc "
+        "'SA-1' (AtomFamily.set_arc, v3) and its projection re-rendered; its JSONL line "
+        "waits in the working tree with the other seats' uncommitted atom lines. What is "
+        "left: the ARCS/SHELVES full regen, which also cites ~10 uncommitted 09-01..05 "
+        "projections (21 F FAILs if committed alone). Remove this entry when it lands.",
     },
 }
 
@@ -87,13 +99,14 @@ def _tracked_paths():
     would put the platform newline translation and the console codepage between us and git (the
     CRLF class in _gitignored). RAISES on any trouble so _run() turns it into a broken-check FAIL:
     a guard that cannot see the index must fail LOUD, never excuse everything with an empty set."""
-    p = subprocess.run(["git", "-C", ROOT, "ls-files", "-z", "--", *_REF_ROOTS, *_ROOT_DOCS],
-                       capture_output=True, timeout=60)
+    p = subprocess.run(
+        ["git", "-C", ROOT, "ls-files", "-z", "--", *_REF_ROOTS, *_ROOT_DOCS], capture_output=True, timeout=60
+    )
     if p.returncode != 0:
-        raise RuntimeError(f"`git ls-files` failed (rc {p.returncode}) in {ROOT}: "
-                           f"{p.stderr.decode('utf-8', 'replace').strip()[:300]}")
-    return frozenset(x.decode("utf-8", "replace").replace("\\", "/")
-                     for x in p.stdout.split(b"\0") if x)
+        raise RuntimeError(
+            f"`git ls-files` failed (rc {p.returncode}) in {ROOT}: {p.stderr.decode('utf-8', 'replace').strip()[:300]}"
+        )
+    return frozenset(x.decode("utf-8", "replace").replace("\\", "/") for x in p.stdout.split(b"\0") if x)
 
 
 def _living_docs(tracked=None):
@@ -105,8 +118,7 @@ def _living_docs(tracked=None):
     out = []
     for p in sorted(tracked):
         d, _, f = p.rpartition("/")
-        if d == "docs" and f.endswith(".md") and f == f.upper().replace(".MD", ".md") \
-                and f[0].isupper():
+        if d == "docs" and f.endswith(".md") and f == f.upper().replace(".MD", ".md") and f[0].isupper():
             out.append(p)
     out.extend(f for f in _ROOT_DOCS if f in tracked)
     return out
@@ -127,12 +139,16 @@ def _core_docstring_sources():
     """(rel, text) for every core/ module's docstring -- so a docstring that name-lies about a
     renamed/deleted sibling (`see core/old.py`) is caught by the same stale-ref check (DeepSeek Q4)."""
     out = []
-    for sub in sorted(d for d in os.listdir(os.path.join(ROOT, "core"))
-                      if os.path.isdir(os.path.join(ROOT, "core", d)) and not d.startswith("__")):
+    for sub in sorted(
+        d
+        for d in os.listdir(os.path.join(ROOT, "core"))
+        if os.path.isdir(os.path.join(ROOT, "core", d)) and not d.startswith("__")
+    ):
         for m in gen.modules(f"core/{sub}"):
             p = os.path.join(ROOT, "core", sub, m)
             try:
                 import ast
+
                 doc = ast.get_docstring(ast.parse(open(p, encoding="utf-8").read())) or ""
             except Exception:
                 doc = ""
@@ -142,6 +158,7 @@ def _core_docstring_sources():
 
 
 # ---- F: stale repo-path references (rename/delete rot) ---------------------------------------------
+
 
 def scan_refs(text):
     """Root-anchored repo-path references found in `text` (deduped, order-stable, normalized). Pure +
@@ -180,10 +197,13 @@ def _gitignored(refs):
     # were missing -- every clean checkout on the workstation (11 false FAILs, af5759c5a2) --
     # while a single-ref probe stayed green. NUL separation also survives non-ASCII paths.
     try:
-        p = subprocess.run(["git", "-C", ROOT, "check-ignore", "--stdin", "-z"],
-                           input=b"".join(r.encode("utf-8") + b"\0" for r in sorted(refs)),
-                           capture_output=True, timeout=20)
-    except Exception:                                                   # noqa: BLE001
+        p = subprocess.run(
+            ["git", "-C", ROOT, "check-ignore", "--stdin", "-z"],
+            input=b"".join(r.encode("utf-8") + b"\0" for r in sorted(refs)),
+            capture_output=True,
+            timeout=20,
+        )
+    except Exception:  # noqa: BLE001
         return set()
     # 0 = at least one ignored, 1 = none ignored (NOT an error), anything else = no answer.
     if p.returncode not in (0, 1):
@@ -245,15 +265,19 @@ def _stale_refs():
     # expired exemptions are themselves failures (the allowlist must not rot)
     for ref, meta in REF_ALLOWLIST.items():
         if str(meta.get("expires", "")) < today:
-            fails.append(f"stale-ref exemption EXPIRED for '{ref}' (expired {meta.get('expires')}) "
-                         f"-> re-verify the reference and remove or renew the allowlist entry")
+            fails.append(
+                f"stale-ref exemption EXPIRED for '{ref}' (expired {meta.get('expires')}) "
+                f"-> re-verify the reference and remove or renew the allowlist entry"
+            )
 
     missing = _missing_refs()
     drift, _ = partition_missing(missing, _gitignored({ref for _, ref in missing}))
     for rel, ref in drift:
-        fails.append(f"{rel} references a repo path that is not in the git index: '{ref}' "
-                     f"(renamed, deleted, or never committed -- it may well exist on this box) "
-                     f"-> fix the reference, `git add` the target, or add a dated REF_ALLOWLIST entry")
+        fails.append(
+            f"{rel} references a repo path that is not in the git index: '{ref}' "
+            f"(renamed, deleted, or never committed -- it may well exist on this box) "
+            f"-> fix the reference, `git add` the target, or add a dated REF_ALLOWLIST entry"
+        )
     return fails
 
 
@@ -266,12 +290,15 @@ def _instance_local_refs():
     """
     missing = _missing_refs()
     _, instance_local = partition_missing(missing, _gitignored({ref for _, ref in missing}))
-    return [f"{rel} references '{ref}', which git deliberately ignores -- absent by design in "
-            f"a fresh clone (instance-local), so a reader cannot follow it there"
-            for rel, ref in instance_local]
+    return [
+        f"{rel} references '{ref}', which git deliberately ignores -- absent by design in "
+        f"a fresh clone (instance-local), so a reader cannot follow it there"
+        for rel, ref in instance_local
+    ]
 
 
 # ---- G: filename case-canonicalization (cross-OS; the lexicon.md vs LEXICON.md class) --------------
+
 
 def case_mismatches(paths, list_dir):
     """Pure: given tracked rel-paths + a `list_dir(reldir)->set(entries)` fn, return (rel, actual_or_None)
@@ -293,7 +320,7 @@ def _filename_case():
     on-disk directory entry. Case-insensitive filesystems (Windows/macOS) hide this locally; it ships
     and breaks case-sensitive CI (Linux) or half-commits (git pathspecs are case-sensitive)."""
     try:
-        paths = sorted(_tracked_paths())           # one door for "what does git track"
+        paths = sorted(_tracked_paths())  # one door for "what does git track"
     except Exception as e:
         return [f"could not list git-tracked files for the case check: {type(e).__name__}: {e}"]
 
@@ -303,12 +330,15 @@ def _filename_case():
         except Exception:
             return set()
 
-    return [f"filename case mismatch: git tracks '{rel}' but on disk it is '{actual or '(missing)'}' "
-            f"-> canonicalize the case (git mv via a temp name) so it survives case-sensitive CI"
-            for rel, actual in case_mismatches(paths, _list)]
+    return [
+        f"filename case mismatch: git tracks '{rel}' but on disk it is '{actual or '(missing)'}' "
+        f"-> canonicalize the case (git mv via a temp name) so it survives case-sensitive CI"
+        for rel, actual in case_mismatches(paths, _list)
+    ]
 
 
 # ---- the existing structural checks (A/B/C/D/E), unchanged in intent ------------------------------
+
 
 def _core_subpackages():
     """core/ subpackages AS THE INDEX SEES THEM (tracked + staged), not as the disk has them.
@@ -336,14 +366,20 @@ def _core_subpackages():
 
 def _subpackages_in_arch(arch, subs=None):
     subs = _core_subpackages() if subs is None else subs
-    return [f"ARCHITECTURE.md is missing core/ subpackage(s): {', '.join(m)} -> add one line each "
-            f"(a new subsystem the map doesn't know about)"
-            for m in [[s for s in subs if f"core/{s}" not in arch]] if m]
+    return [
+        f"ARCHITECTURE.md is missing core/ subpackage(s): {', '.join(m)} -> add one line each "
+        f"(a new subsystem the map doesn't know about)"
+        for m in [[s for s in subs if f"core/{s}" not in arch]]
+        if m
+    ]
 
 
 def _index_current():
-    return ([] if _read("docs/MODULE_INDEX.md").strip() == gen.render().strip()
-            else ["docs/MODULE_INDEX.md is stale -> run `py scripts/generators/gen_arch_index.py`"])
+    return (
+        []
+        if _read("docs/MODULE_INDEX.md").strip() == gen.render().strip()
+        else [f"docs/MODULE_INDEX.md is stale -> run `{_pyl()} scripts/generators/gen_arch_index.py`"]
+    )
 
 
 def _derived_docs_current():
@@ -354,21 +390,24 @@ def _derived_docs_current():
     out = []
     try:
         import gen_physics_sheet as phys
+
         strip = lambda t: "\n".join(l for l in t.splitlines() if not l.startswith("> Derived at "))
         if strip(_read("docs/PHYSICS.md")) != strip(phys.render(*phys.scan(), sha="_")):
-            out.append("docs/PHYSICS.md is stale -> run `py scripts/generators/gen_physics_sheet.py`")
+            out.append(f"docs/PHYSICS.md is stale -> run `{_pyl()} scripts/generators/gen_physics_sheet.py`")
     except Exception as e:
         out.append(f"docs/PHYSICS.md check could not run ({type(e).__name__}: {e})")
     try:
         import gen_master_map as mapgen
+
         if _read("docs/MAP.md") != mapgen.render(mapgen.build()):
-            out.append("docs/MAP.md is stale -> run `py scripts/generators/gen_master_map.py`")
+            out.append(f"docs/MAP.md is stale -> run `{_pyl()} scripts/generators/gen_master_map.py`")
     except Exception as e:
         out.append(f"docs/MAP.md check could not run ({type(e).__name__}: {e})")
     try:
         import gen_doors
+
         if _read("docs/DOORS.md") != gen_doors.render(gen_doors.cli_verbs()):
-            out.append("docs/DOORS.md is stale -> run `py scripts/generators/gen_doors.py`")
+            out.append(f"docs/DOORS.md is stale -> run `{_pyl()} scripts/generators/gen_doors.py`")
     except Exception as e:
         out.append(f"docs/DOORS.md check could not run ({type(e).__name__}: {e})")
     try:
@@ -380,9 +419,9 @@ def _derived_docs_current():
         # to date"; a register that quietly lags the code it describes is the same failure
         # genus as every stale instrument found this week.
         import gen_prior_art_register as pa
+
         if _read("docs/PRIOR_ART.md") != pa.render(pa.build()):
-            out.append("docs/PRIOR_ART.md is stale -> run "
-                       "`py scripts/generators/gen_prior_art_register.py`")
+            out.append(f"docs/PRIOR_ART.md is stale -> run `{_pyl()} scripts/generators/gen_prior_art_register.py`")
     except Exception as e:
         out.append(f"docs/PRIOR_ART.md check could not run ({type(e).__name__}: {e})")
     return out
@@ -390,10 +429,17 @@ def _derived_docs_current():
 
 def _docstring_coverage(subs=None):
     subs = _core_subpackages() if subs is None else subs
-    nodoc = [f"core/{s}/{m}" for s in subs for m in gen.modules(f"core/{s}")
-             if gen.first_doc(os.path.join(ROOT, "core", s, m)) == "(no docstring)"]
-    return ([f"{len(nodoc)} module(s) have no line-1 docstring: " + ", ".join(nodoc[:8])
-             + ("…" if len(nodoc) > 8 else "")] if nodoc else [])
+    nodoc = [
+        f"core/{s}/{m}"
+        for s in subs
+        for m in gen.modules(f"core/{s}")
+        if gen.first_doc(os.path.join(ROOT, "core", s, m)) == "(no docstring)"
+    ]
+    return (
+        [f"{len(nodoc)} module(s) have no line-1 docstring: " + ", ".join(nodoc[:8]) + ("…" if len(nodoc) > 8 else "")]
+        if nodoc
+        else []
+    )
 
 
 def _doc_age():
@@ -407,10 +453,19 @@ def _doc_age():
 
 def _living_docs_indexed():
     index = _read("docs/INDEX.md")
-    unlisted = [f for f in _living_docs() if f.startswith("docs/") and os.path.basename(f) not in index
-                and os.path.basename(f) != "INDEX.md"]
-    return ([f"living doc(s) not in the docs map (INDEX.md): {', '.join(unlisted)} "
-             f"-> add them, or rename to lowercase if they're just history"] if unlisted else [])
+    unlisted = [
+        f
+        for f in _living_docs()
+        if f.startswith("docs/") and os.path.basename(f) not in index and os.path.basename(f) != "INDEX.md"
+    ]
+    return (
+        [
+            f"living doc(s) not in the docs map (INDEX.md): {', '.join(unlisted)} "
+            f"-> add them, or rename to lowercase if they're just history"
+        ]
+        if unlisted
+        else []
+    )
 
 
 def _run(label, fn, *a):
@@ -420,8 +475,12 @@ def _run(label, fn, *a):
         return fn(*a), None
     except Exception as e:
         import traceback
-        return [], f"CHECK '{label}' CRASHED ({type(e).__name__}: {e}) -> the guard itself is broken, " \
-                   f"fix it (a crashing check must never pass silently).\n" + traceback.format_exc()
+
+        return (
+            [],
+            f"CHECK '{label}' CRASHED ({type(e).__name__}: {e}) -> the guard itself is broken, "
+            f"fix it (a crashing check must never pass silently).\n" + traceback.format_exc(),
+        )
 
 
 def main():
@@ -434,16 +493,21 @@ def main():
     if not fast:
         # `subs` is derived inside the check, from the INDEX, so a git failure surfaces through
         # _run as a broken-check FAIL rather than excusing everything with an empty set.
-        fail_checks = [("A subpackages", _subpackages_in_arch, arch),
-                       ("B index-current", _index_current),
-                       ("B2 derived-docs-current", _derived_docs_current)] + fail_checks
+        fail_checks = [
+            ("A subpackages", _subpackages_in_arch, arch),
+            ("B index-current", _index_current),
+            ("B2 derived-docs-current", _derived_docs_current),
+        ] + fail_checks
     for label, fn, *a in fail_checks:
         got, crash = _run(label, fn, *a)
         (broken.append(crash) if crash else fails.extend(got))
     if not fast:
-        for label, fn, *a in [("C docstrings", _docstring_coverage),
-                              ("D doc-age", _doc_age), ("E living-indexed", _living_docs_indexed),
-                              ("F2 instance-local-refs", _instance_local_refs)]:
+        for label, fn, *a in [
+            ("C docstrings", _docstring_coverage),
+            ("D doc-age", _doc_age),
+            ("E living-indexed", _living_docs_indexed),
+            ("F2 instance-local-refs", _instance_local_refs),
+        ]:
             got, crash = _run(label, fn, *a)
             (broken.append(crash) if crash else warns.extend(got))
 
@@ -454,11 +518,16 @@ def main():
     for b in broken:
         print("FAIL:", b)
     if fails or broken:
-        print(f"\n{len(fails)} drift FAIL(s), {len(broken)} broken-check FAIL(s), {len(warns)} WARN "
-              f"-- the comprehension layer has drifted (or a guard broke). Fix before shipping.")
+        print(
+            f"\n{len(fails)} drift FAIL(s), {len(broken)} broken-check FAIL(s), {len(warns)} WARN "
+            f"-- the comprehension layer has drifted (or a guard broke). Fix before shipping."
+        )
         return 1
-    print(f"PASS: the comprehension layer matches the code ({len(warns)} warning(s)"
-          + (", fast mode" if fast else "") + ").")
+    print(
+        f"PASS: the comprehension layer matches the code ({len(warns)} warning(s)"
+        + (", fast mode" if fast else "")
+        + ")."
+    )
     return 0
 
 

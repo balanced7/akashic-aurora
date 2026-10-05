@@ -22,6 +22,7 @@ The claim is the mutex. Every actionable pick must surface as action='claim' wit
 task id the CALLER then routes through TaskLedger.claim() — this module never claims
 directly, it only DECIDES; the existing ledger claim gate stays the single door.
 """
+
 from __future__ import annotations
 
 from typing import Any, Dict, Optional
@@ -35,12 +36,12 @@ from typing import Any, Dict, Optional
 SHIFT_STATE_TITLE = "shift-state"
 
 _DEFAULT_SHIFT_STATE: Dict[str, Any] = {
-    "opened": "",            # "<who> @ <iso>"
-    "claimed": "none",       # task id, or 'none'
-    "landed": "nothing yet", # git sha, or 'nothing yet'
-    "handoff_for": "any",    # next-waker agent, or 'any'
-    "context": "",           # <3 lines: what to continue, what NOT to redo
-    "cadence_note": "",      # why this beat ended here
+    "opened": "",  # "<who> @ <iso>"
+    "claimed": "none",  # task id, or 'none'
+    "landed": "nothing yet",  # git sha, or 'nothing yet'
+    "handoff_for": "any",  # next-waker agent, or 'any'
+    "context": "",  # <3 lines: what to continue, what NOT to redo
+    "cadence_note": "",  # why this beat ended here
 }
 
 
@@ -63,10 +64,18 @@ def shift_state_is_complete(s: Dict[str, Any]) -> bool:
 # Every input is passed in, so the pins need no ledger, no Redis, no clock, no git. The
 # caller gathers the real state; this function only decides. Fail direction: idle.
 
-def next_beat(*, statuses: Dict[str, str], files_held_by_other: bool = False,
-              deps_done: bool = True, current_task_done: bool = True,
-              stale_behind: int = 0, stale_min: int = 3,
-              uptime_s: float = 0.0, uptime_min: float = 900.0):
+
+def next_beat(
+    *,
+    statuses: Dict[str, str],
+    files_held_by_other: bool = False,
+    deps_done: bool = True,
+    current_task_done: bool = True,
+    stale_behind: int = 0,
+    stale_min: int = 3,
+    uptime_s: float = 0.0,
+    uptime_min: float = 900.0,
+):
     """Decide the next autonomous action from a REDUCED view.
 
     Returns a dict:
@@ -80,41 +89,61 @@ def next_beat(*, statuses: Dict[str, str], files_held_by_other: bool = False,
     # restarts are only ever at a boundary with nothing in flight (the caller passes
     # current_task_done=False when something is mid-flight).
     if current_task_done and 0 < stale_min <= stale_behind and uptime_s >= uptime_min:
-        return {"action": "restart", "task": None,
-                "reason": f"stale-code: {stale_behind} commits behind, idle, uptime {int(uptime_s)}s"}
+        return {
+            "action": "restart",
+            "task": None,
+            "reason": f"stale-code: {stale_behind} commits behind, idle, uptime {int(uptime_s)}s",
+        }
 
     # claimable = APPROVED with deps done and files free; the ledger's own claim() gate is
     # the real mutex — here we only decide WHAT to try.
     claimable = [tid for tid, st in statuses.items() if st == "approved"]
     if claimable:
         if not deps_done:
-            return {"action": "blocked", "task": claimable[0],
-                    "reason": "a task is APPROVED but its deps are not DONE — cannot claim yet"}
+            return {
+                "action": "blocked",
+                "task": claimable[0],
+                "reason": "a task is APPROVED but its deps are not DONE — cannot claim yet",
+            }
         if files_held_by_other:
-            return {"action": "blocked", "task": claimable[0],
-                    "reason": "a task is APPROVED but its files are held by another active task"}
+            return {
+                "action": "blocked",
+                "task": claimable[0],
+                "reason": "a task is APPROVED but its files are held by another active task",
+            }
 
     # something is mid-claim/mid-work and not done -> keep working it
     active = [tid for tid, st in statuses.items() if st in ("claimed", "in_progress", "verifying")]
     if active and not current_task_done:
-        return {"action": "work", "task": active[0],
-                "reason": f"task {active[0]} is active — continue the work"}
+        return {"action": "work", "task": active[0], "reason": f"task {active[0]} is active — continue the work"}
 
     # active but done working -> land it (commit + verify)
     if active and current_task_done:
-        return {"action": "land", "task": active[0],
-                "reason": f"task {active[0]} is done working — commit and move toward DONE"}
+        return {
+            "action": "land",
+            "task": active[0],
+            "reason": f"task {active[0]} is done working — commit and move toward DONE",
+        }
 
     # claimable and nothing blocking -> claim it
     if claimable:
-        return {"action": "claim", "task": claimable[0],
-                "reason": f"task {claimable[0]} is APPROVED with deps done and files free — claim it"}
+        return {
+            "action": "claim",
+            "task": claimable[0],
+            "reason": f"task {claimable[0]} is APPROVED with deps done and files free — claim it",
+        }
 
     # nothing claimable and nothing active -> emit a handoff and idle (a valid beat)
-    return {"action": "idle", "task": None,
-            "reason": "nothing claimable and nothing active — honest idle (not a failure)"}
+    return {
+        "action": "idle",
+        "task": None,
+        "reason": "nothing claimable and nothing active — honest idle (not a failure)",
+    }
 
 
 __all__ = [
-    "SHIFT_STATE_TITLE", "new_shift_state", "shift_state_is_complete", "next_beat",
+    "SHIFT_STATE_TITLE",
+    "new_shift_state",
+    "shift_state_is_complete",
+    "next_beat",
 ]

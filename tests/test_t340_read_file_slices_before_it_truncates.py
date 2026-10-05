@@ -30,6 +30,7 @@ design doc. Heimdall hit it while doing the one job nobody else in this house ca
 
 Run: py -m pytest tests/test_t340_read_file_slices_before_it_truncates.py -q
 """
+
 from __future__ import annotations
 
 import os
@@ -46,8 +47,7 @@ from core.comm import toolbox as TB  # noqa: E402
 
 @pytest.fixture()
 def box(tmp_path):
-    return TB.ToolBox(tmp_path, allow_exec=False, trust="member",
-                      allow_secrets=False, confirm=None)
+    return TB.ToolBox(tmp_path, allow_exec=False, trust="member", allow_secrets=False, confirm=None)
 
 
 # 17,777 rather than a round 20,000 ON PURPOSE. The first draft used 20000 and P3 asserted
@@ -62,8 +62,7 @@ _N = 17777
 def _big(tmp_path, name="big.txt", lines=_N):
     """A file whose interesting content lives well past MAX_FILE_BYTES, like the ledger."""
     p = tmp_path / name
-    p.write_text("\n".join(f"line-{i:05d} " + "x" * 40 for i in range(1, lines + 1)),
-                 encoding="utf-8")
+    p.write_text("\n".join(f"line-{i:05d} " + "x" * 40 for i in range(1, lines + 1)), encoding="utf-8")
     assert p.stat().st_size > TB.MAX_FILE_BYTES * 2, "fixture must exceed the cap"
     return p
 
@@ -75,7 +74,8 @@ def test_p1_a_range_past_the_byte_cap_returns_the_actual_lines(box, tmp_path):
     out = box.execute("read_file", {"path": "big.txt", "start_line": 15000, "end_line": 15002})
     assert "line-15000" in out, (
         "the byte cap ate the file before the slice ran -- the requested range was never "
-        "reachable, which is what forced a verifier to grep a ledger row by hand")
+        "reachable, which is what forced a verifier to grep a ledger row by hand"
+    )
     assert "line-15002" in out and "line-15003" not in out
 
 
@@ -100,7 +100,8 @@ def test_p3_an_out_of_range_request_confesses_with_the_real_line_count(box, tmp_
     assert "(empty file)" not in out
     assert str(_N) in out, (
         f"an out-of-range range must name the file's real line count ({_N}) so the caller can "
-        f"correct the request rather than conclude the content is gone")
+        f"correct the request rather than conclude the content is gone"
+    )
 
 
 def test_p4_the_whole_file_path_still_truncates_and_confesses(box, tmp_path):
@@ -127,15 +128,13 @@ def test_p6_the_ledger_row_that_started_this_is_reachable():
     ledger = Path(ROOT) / "state" / "coord" / "tasks.json"
     if not ledger.exists() or ledger.stat().st_size <= TB.MAX_FILE_BYTES:
         pytest.skip("ledger absent or no longer exceeds the cap")
-    box = TB.ToolBox(Path(ROOT), allow_exec=False, trust="member",
-                     allow_secrets=False, confirm=None)
+    box = TB.ToolBox(Path(ROOT), allow_exec=False, trust="member", allow_secrets=False, confirm=None)
     total = sum(1 for _ in open(ledger, encoding="utf-8", errors="replace"))
     mid = total // 2
-    out = box.execute("read_file", {"path": "state/coord/tasks.json",
-                                    "start_line": mid, "end_line": mid + 2})
+    out = box.execute("read_file", {"path": "state/coord/tasks.json", "start_line": mid, "end_line": mid + 2})
     # POSITIVE assertion again: a bare "[truncated at ...]" notice is non-empty and contains no
     # "(empty file)", so the weaker form of this pin passed against the broken code. The ledger
     # is JSON, so real content from its middle must carry a quote or a brace.
-    assert ('"' in out or "{" in out or "}" in out), (
-        "the middle of the ledger must be READABLE through the door a verifier actually has -- "
-        "not merely non-empty")
+    assert '"' in out or "{" in out or "}" in out, (
+        "the middle of the ledger must be READABLE through the door a verifier actually has -- not merely non-empty"
+    )

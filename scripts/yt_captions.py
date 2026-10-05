@@ -16,6 +16,7 @@ Two halves, deliberately unequal:
 Standalone: py scripts/yt_captions.py <url> [--out DIR]
 House door:  py agent_cli.py captions <url> [--out DIR] [--langs SPEC] [--keep-vtt]
 """
+
 from __future__ import annotations
 
 import re
@@ -33,8 +34,7 @@ MISSING_YTDLP_HINT = (
 
 _TAG = re.compile(r"<[^>]+>")
 _TERMINAL = set(".!?;:\"'")
-_CUE_TS = re.compile(
-    r"(\d{1,2}):(\d{2}):(\d{2})[.,](\d{3})\s*-->\s*(\d{1,2}):(\d{2}):(\d{2})[.,](\d{3})")
+_CUE_TS = re.compile(r"(\d{1,2}):(\d{2}):(\d{2})[.,](\d{3})\s*-->\s*(\d{1,2}):(\d{2}):(\d{2})[.,](\d{3})")
 
 MODEL_PUNCT_HINT = (
     "the model punctuator is not installed. Install the optional challenger into the fleet python:\n"
@@ -54,7 +54,7 @@ def _close_sentence(s: str) -> str:
         return s
     for i, ch in enumerate(s):
         if ch.isalpha():
-            s = s[:i] + ch.upper() + s[i + 1:]
+            s = s[:i] + ch.upper() + s[i + 1 :]
             break
     if s[-1] not in _TERMINAL:
         s += "."
@@ -117,7 +117,7 @@ def _capitalize_sentences(text: str) -> str:
                 j = i + 1
                 while j < n and text[j] == " ":
                     j += 1
-                if j > i + 1 or j >= n:      # a real sentence break, not an abbreviation dot
+                if j > i + 1 or j >= n:  # a real sentence break, not an abbreviation dot
                     cap_next = True
         i += 1
     return "".join(res)
@@ -151,8 +151,7 @@ def clean_vtt_text(vtt_text: str) -> str:
     prev = None
     for ln in (vtt_text or "").splitlines():
         ln = ln.strip()
-        if (not ln or "-->" in ln or ln.isdigit()
-                or ln.startswith(("WEBVTT", "Kind:", "Language:", "NOTE"))):
+        if not ln or "-->" in ln or ln.isdigit() or ln.startswith(("WEBVTT", "Kind:", "Language:", "NOTE")):
             continue
         ln = _TAG.sub("", ln).strip()
         if ln and ln != prev:
@@ -174,9 +173,9 @@ def punctuate_captions(text: str) -> str:
         s = ln.strip()
         if not s:
             continue
-        for i, ch in enumerate(s):          # capitalize first alpha (a leading quote stays)
+        for i, ch in enumerate(s):  # capitalize first alpha (a leading quote stays)
             if ch.isalpha():
-                s = s[:i] + ch.upper() + s[i + 1:]
+                s = s[:i] + ch.upper() + s[i + 1 :]
                 break
         if s[-1] not in _TERMINAL:
             s += "."
@@ -184,8 +183,7 @@ def punctuate_captions(text: str) -> str:
     return "\n".join(out)
 
 
-def fetch(url: str, out_dir: str, langs: str = "en.*", keep_vtt: bool = False,
-          punctuate: str = "hybrid") -> List[Path]:
+def fetch(url: str, out_dir: str, langs: str = "en.*", keep_vtt: bool = False, punctuate: str = "hybrid") -> List[Path]:
     """Pull caption files for `url` into out_dir, convert each to .txt, return txt paths.
 
     `punctuate` picks the derived-text pass: hybrid (model boundaries + deterministic
@@ -198,9 +196,20 @@ def fetch(url: str, out_dir: str, langs: str = "en.*", keep_vtt: bool = False,
     out = Path(out_dir).expanduser()
     out.mkdir(parents=True, exist_ok=True)
     before = set(out.glob("*.vtt"))
-    cmd = [sys.executable, "-m", "yt_dlp", "--skip-download",
-           "--write-subs", "--write-auto-subs", "--sub-langs", langs,
-           "--restrict-filenames", "-P", str(out), url]
+    cmd = [
+        sys.executable,
+        "-m",
+        "yt_dlp",
+        "--skip-download",
+        "--write-subs",
+        "--write-auto-subs",
+        "--sub-langs",
+        langs,
+        "--restrict-filenames",
+        "-P",
+        str(out),
+        url,
+    ]
     try:
         r = subprocess.run(cmd, capture_output=True, text=True, timeout=180)
     except FileNotFoundError as e:
@@ -246,6 +255,7 @@ def fetch(url: str, out_dir: str, langs: str = "en.*", keep_vtt: bool = False,
 
 def main(argv: List[str] | None = None) -> int:
     import argparse
+
     ap = argparse.ArgumentParser(description="YouTube captions -> clean text (captions only, never video)")
     ap.add_argument("url")
     ap.add_argument("--out", default=str(Path.home() / "Desktop" / "captions"))

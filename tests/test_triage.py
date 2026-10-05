@@ -1,6 +1,7 @@
 """Sharpening-loop S1: the value-rate triage (core/recall/funnel.triage) -- read-only
 buckets over the recall:use:* counters. Injectable fakes, same pattern as snapshot();
 the report proposes, a human disposes (F2 Goodhart guard: no auto-pruning path exists)."""
+
 import json
 import os
 import sys
@@ -36,19 +37,20 @@ def _t(use, n_corpus=10, injections=(), corpus_names=None, **kw):
     # Realistic default: every lesson-shaped counter names a REAL lesson (so nothing reads as a
     # ghost), padded with fillers to n_corpus. Pass corpus_names explicitly to test ghosts.
     if corpus_names is None:
-        live = [k[len(_LP):] for k in use if k.startswith(_LP)]
+        live = [k[len(_LP) :] for k in use if k.startswith(_LP)]
         corpus_names = live + [f"_filler{i}" for i in range(max(0, n_corpus - len(live)))]
-    return triage(store=_FakeStore(use), learning_store=_FakeLearning(corpus_names),
-                  injections=list(injections), **kw)
+    return triage(store=_FakeStore(use), learning_store=_FakeLearning(corpus_names), injections=list(injections), **kw)
 
 
 def test_buckets_route_correctly():
-    t = _t({
-        "learn:experiment:hero":    {"surfaced": 9, "useful": 1, "noise": 0, "helped": 2},
-        "learn:experiment:freeload": {"surfaced": 8, "useful": 0, "noise": 0, "helped": 0},
-        "learn:experiment:noisy":   {"surfaced": 3, "useful": 0, "noise": 2, "helped": 0},
-        "learn:experiment:young":   {"surfaced": 2, "useful": 0, "noise": 0, "helped": 0},
-    })
+    t = _t(
+        {
+            "learn:experiment:hero": {"surfaced": 9, "useful": 1, "noise": 0, "helped": 2},
+            "learn:experiment:freeload": {"surfaced": 8, "useful": 0, "noise": 0, "helped": 0},
+            "learn:experiment:noisy": {"surfaced": 3, "useful": 0, "noise": 2, "helped": 0},
+            "learn:experiment:young": {"surfaced": 2, "useful": 0, "noise": 0, "helped": 0},
+        }
+    )
     assert [r["source"] for r in t["protect"]] == ["learn:experiment:hero"]
     assert [r["source"] for r in t["cost_no_return"]] == ["learn:experiment:freeload"]
     assert [r["source"] for r in t["noise_voted"]] == ["learn:experiment:noisy"]
@@ -66,24 +68,32 @@ def test_credit_shields_from_cost_bucket():
 
 def test_min_surfaced_threshold_moves_the_line():
     use = {"learn:experiment:x": {"surfaced": 3, "useful": 0, "noise": 0, "helped": 0}}
-    assert _t(use)["cost_no_return"] == []                     # default 5: too early
+    assert _t(use)["cost_no_return"] == []  # default 5: too early
     assert len(_t(use, min_surfaced=3)["cost_no_return"]) == 1  # lowered: now costs
 
 
 def test_cost_bucket_ranked_by_surfaced_desc():
-    t = _t({
-        "learn:experiment:a": {"surfaced": 6, "useful": 0, "noise": 0, "helped": 0},
-        "learn:experiment:b": {"surfaced": 12, "useful": 0, "noise": 0, "helped": 0},
-    })
+    t = _t(
+        {
+            "learn:experiment:a": {"surfaced": 6, "useful": 0, "noise": 0, "helped": 0},
+            "learn:experiment:b": {"surfaced": 12, "useful": 0, "noise": 0, "helped": 0},
+        }
+    )
     assert [r["source"] for r in t["cost_no_return"]] == ["learn:experiment:b", "learn:experiment:a"]
 
 
 def test_window_token_cost_attributed_per_source():
-    inj = [{"s": ["learn:experiment:a", "learn:experiment:b"], "chars": 800},
-           {"s": ["learn:experiment:a"], "chars": 400}]
-    t = _t({"learn:experiment:a": {"surfaced": 6, "useful": 0, "noise": 0, "helped": 0},
-            "learn:experiment:b": {"surfaced": 6, "useful": 0, "noise": 0, "helped": 0}},
-           injections=inj)
+    inj = [
+        {"s": ["learn:experiment:a", "learn:experiment:b"], "chars": 800},
+        {"s": ["learn:experiment:a"], "chars": 400},
+    ]
+    t = _t(
+        {
+            "learn:experiment:a": {"surfaced": 6, "useful": 0, "noise": 0, "helped": 0},
+            "learn:experiment:b": {"surfaced": 6, "useful": 0, "noise": 0, "helped": 0},
+        },
+        injections=inj,
+    )
     by = {r["source"]: r["window_tokens_approx"] for r in t["cost_no_return"]}
     assert by["learn:experiment:a"] == 200 and by["learn:experiment:b"] == 100
     assert t["window_injected_tokens_approx"] == 300
@@ -93,10 +103,13 @@ def test_ghosts_split_out_of_adjudication_buckets():
     """A learn:experiment:* counter naming no live lesson is a GHOST -- bookkeeping debt, not
     knowledge. It must not land in cost_no_return (that would propose retiring a phantom); it
     goes to its own bucket, and `tracked_lessons` counts only live-lesson counters."""
-    t = _t({
-        "learn:experiment:live":    {"surfaced": 8, "useful": 0, "noise": 0, "helped": 0},  # live freeloader
-        "learn:experiment:retired": {"surfaced": 7, "useful": 0, "noise": 0, "helped": 0},  # ghost (absent below)
-    }, corpus_names=["live"] + [f"f{i}" for i in range(9)])  # 10 lessons; 'retired' is gone
+    t = _t(
+        {
+            "learn:experiment:live": {"surfaced": 8, "useful": 0, "noise": 0, "helped": 0},  # live freeloader
+            "learn:experiment:retired": {"surfaced": 7, "useful": 0, "noise": 0, "helped": 0},  # ghost (absent below)
+        },
+        corpus_names=["live"] + [f"f{i}" for i in range(9)],
+    )  # 10 lessons; 'retired' is gone
     assert [r["source"] for r in t["ghosts"]] == ["learn:experiment:retired"]
     assert [r["source"] for r in t["cost_no_return"]] == ["learn:experiment:live"], "ghost not proposed as cost"
     assert t["tracked_lessons"] == 1 and t["tracked"] == 2
@@ -106,8 +119,7 @@ def test_ghosts_split_out_of_adjudication_buckets():
 def test_broken_corpus_read_ghosts_nothing():
     """If the corpus read yields no names, NOTHING is a ghost (a broken read must not phantom
     the whole store into the ghost bucket)."""
-    t = _t({"learn:experiment:x": {"surfaced": 6, "useful": 0, "noise": 0, "helped": 0}},
-           corpus_names=[])
+    t = _t({"learn:experiment:x": {"surfaced": 6, "useful": 0, "noise": 0, "helped": 0}}, corpus_names=[])
     assert t["ghosts"] == [] and [r["source"] for r in t["cost_no_return"]] == ["learn:experiment:x"]
 
 

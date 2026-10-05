@@ -33,7 +33,10 @@ and the helper obeyed it exactly: it refused to answer and named the file it lac
 in-band line is an anti-confabulation device and it earned its keep here. The defect is that
 the same fact never reaches the human who is about to conclude something from the answer.
 """
+
 from __future__ import annotations
+
+import re
 
 import sys
 from pathlib import Path
@@ -49,11 +52,13 @@ def test_build_context_records_refusals_and_misses():
     outside = str(Path(REPO).anchor) + "definitely_not_in_this_repo_t225.txt"
     _ctx, meta = build_context(["README.md", outside, "no/such/file/t225.py"], root=str(REPO))
 
-    assert [r["path"] for r in meta["refused"]] == [outside], \
+    assert [r["path"] for r in meta["refused"]] == [outside], (
         "a path outside the repo root must be REFUSED, and recorded as such"
+    )
     assert meta["refused"][0]["why"] == "outside the repo root"
-    assert [m["path"] for m in meta["missing"]] == ["no/such/file/t225.py"], \
+    assert [m["path"] for m in meta["missing"]] == ["no/such/file/t225.py"], (
         "an unreadable path must be recorded as MISSING, distinctly from a refusal"
+    )
     assert meta["included"], "the readable file must still be delivered -- one bad path is not a fan-wide failure"
 
 
@@ -105,12 +110,12 @@ def test_the_three_classes_are_reported_together_and_stay_distinguishable():
     from core.comm.ask import build_context, unusable_evidence_notice
 
     outside = str(Path(REPO).anchor) + "definitely_not_in_this_repo_t225.txt"
-    _ctx, meta = build_context(
-        ["core/comm/bus.py", outside, "no/such/file/t225.py"], root=str(REPO))
+    _ctx, meta = build_context(["core/comm/bus.py", outside, "no/such/file/t225.py"], root=str(REPO))
 
     notice = unusable_evidence_notice(meta)
-    assert "CLIPPED" in notice and "REFUSED" in notice and "MISSING" in notice, \
+    assert "CLIPPED" in notice and "REFUSED" in notice and "MISSING" in notice, (
         "bus.py clips at the 40k budget; the other two are refused and missing"
+    )
     assert notice.count("--") >= 1, "each class must carry its own next move, not one shared one"
 
 
@@ -157,10 +162,10 @@ def test_both_cli_doors_render_the_widened_notice():
       T242      -- the boundary MINTS it, and this file never recomputes it
     """
     src = (REPO / "agent_cli.py").read_text(encoding="utf-8", errors="replace")
-    assert src.count('for _clip in (d.get("warnings") or []):') == 2, \
+    assert len(re.findall(r'for _clip in \(?d\.get\("warnings"\) or \[\]\)?:', src)) == 2, (
         "both the fan render and the single-ask render must emit the boundary's warnings"
-    assert "clipped_evidence_notice" not in src, \
-        "no CLI door should still reach for the retired CLIP-only name"
+    )
+    assert "clipped_evidence_notice" not in src, "no CLI door should still reach for the retired CLIP-only name"
 
 
 def test_t218_notice_survives_as_the_clip_case():

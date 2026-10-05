@@ -25,6 +25,7 @@ The definition stays; only the provably-stale path is repaired.
 
 Run: py -m pytest tests/test_m10_guard_detector.py -q
 """
+
 import os
 import sys
 
@@ -35,6 +36,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 def _match(path):
     """The detector's own predicate, applied to one path."""
     import importlib
+
     sc = importlib.import_module("scripts.arc_scorecard")
     return sc.is_guard_path(path)
 
@@ -42,17 +44,20 @@ def _match(path):
 def test_p1_a_guard_in_the_current_location_is_detected():
     assert _match("scripts/checkers/check_pointer_promises.py"), (
         "a guard added under scripts/checkers/ is invisible to M10 -- the prefix was left "
-        "behind by the T104 move and the organ has been reporting no-signal ever since")
+        "behind by the T104 move and the organ has been reporting no-signal ever since"
+    )
 
 
 def test_p2_the_legacy_location_still_counts():
     assert _match("scripts/check_boundaries.py"), (
-        "historical windows must not silently lose their guards when the detector is repaired")
+        "historical windows must not silently lose their guards when the detector is repaired"
+    )
 
 
 def test_p3_the_definition_is_not_widened_to_flatter_us():
     assert not _match("scripts/ship_gate.py"), (
         "ship_gate.py is a guard in spirit but not a check_* checker. Counting it would be "
         "adjusting the instrument until it agrees with the operator -- the failure mode that "
-        "makes a self-measured method loop worthless")
+        "makes a self-measured method loop worthless"
+    )
     assert not _match("core/comm/doctor.py")

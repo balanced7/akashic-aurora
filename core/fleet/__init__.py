@@ -7,8 +7,8 @@ The AGENTIC path (a full Claude Code session backed by a model) stays in scripts
 feeds those scripts their model choice. The DIRECT caller here is the new primitive that lets bounded
 subtasks run without a whole session.
 """
+
 from core.fleet.caller import FleetCallError, call
 from core.fleet.model_roster import default_host, get, models, probe_availability, select
 
-__all__ = ["models", "get", "select", "probe_availability", "default_host",
-           "call", "FleetCallError"]
+__all__ = ["models", "get", "select", "probe_availability", "default_host", "call", "FleetCallError"]

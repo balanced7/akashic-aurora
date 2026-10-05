@@ -186,9 +186,7 @@ def ensure_infra(tier: str, agent: str = "") -> Dict[str, Any]:
     }
 
     if not report["allowed"]:
-        report["error"] = (
-            f"Launch blocked: set {ALLOW_INFRA_ENV}=1 to allow starting services from MCP."
-        )
+        report["error"] = f"Launch blocked: set {ALLOW_INFRA_ENV}=1 to allow starting services from MCP."
         report["status"] = infra_status()
         return report
 
@@ -232,12 +230,7 @@ def bootstrap_context_snapshot(
     sid_eff = session_id.strip()
     if not sid_eff and SESSION_STATE_FILE.exists():
         try:
-            sid_eff = str(
-                json.loads(Path(SESSION_STATE_FILE).read_text(encoding="utf-8")).get(
-                    "session_id"
-                )
-                or ""
-            )
+            sid_eff = str(json.loads(Path(SESSION_STATE_FILE).read_text(encoding="utf-8")).get("session_id") or "")
         except Exception:
             sid_eff = ""
 

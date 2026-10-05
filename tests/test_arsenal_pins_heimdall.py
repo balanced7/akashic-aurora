@@ -37,6 +37,7 @@ from arsenal import take as takemod
 
 # ---------------------------------------------------------------- timebase
 
+
 def test_exact_rational_over_long_runs():
     # tb is SECONDS PER TICK. 29.97 fps == 1001/30000 s per tick.
     # 10 minutes == 600 s, which is NOT a whole number of 29.97 frames (17982.018...).
@@ -280,11 +281,21 @@ def test_master_by_mode():
 
 # ---------------------------------------------------------------- mediatypes
 
+
 def test_port_types_present():
-    for t in ("stream.video", "stream.audio", "media.video_frame", "media.audio_block",
-              "media.encoded_packet", "media.subtitle_cue", "control.event",
-              "control.curve", "analysis.features", "asset.reference",
-              "timeline.sequence"):
+    for t in (
+        "stream.video",
+        "stream.audio",
+        "media.video_frame",
+        "media.audio_block",
+        "media.encoded_packet",
+        "media.subtitle_cue",
+        "control.event",
+        "control.curve",
+        "analysis.features",
+        "asset.reference",
+        "timeline.sequence",
+    ):
         assert t in mediatypes.PORT_TYPES
 
 
@@ -338,6 +349,7 @@ def test_check_caps_only_checks_input_keys():
 
 # ---------------------------------------------------------------- registry
 
+
 def _write_manifest(tmp_path, mid, **extra):
     d = {
         "id": mid,
@@ -376,21 +388,31 @@ def test_registry_missing_raises(tmp_path):
 
 # ---------------------------------------------------------------- graph
 
+
 def _build_registry(tmp_path):
-    _write_manifest(tmp_path, "file.clip", engine="arsenal",
-                    outputs=[{"port": "media", "type": "asset.reference"}])
-    _write_manifest(tmp_path, "browser.decode", engine="browser",
-                    inputs=[{"port": "media", "type": "asset.reference"}],
-                    outputs=[{"port": "video", "type": "stream.video", "caps": {"memory": "browser"}}])
-    _write_manifest(tmp_path, "vfx.first-light-effect", engine="browser",
-                    inputs=[{"port": "video", "type": "stream.video", "caps": {"memory": "browser"}}],
-                    outputs=[{"port": "video", "type": "stream.video", "caps": {"memory": "webgl"}}],
-                    params=[{"name": "pulse", "unit": "ratio", "range": [0, 1]},
-                            {"name": "hue", "unit": "deg", "range": [0, 360]}])
-    _write_manifest(tmp_path, "webmidi.input", engine="browser",
-                    outputs=[{"port": "cc", "type": "control.event"}])
-    _write_manifest(tmp_path, "browser.present", engine="browser",
-                    inputs=[{"port": "video", "type": "stream.video", "caps": {"memory": "webgl"}}])
+    _write_manifest(tmp_path, "file.clip", engine="arsenal", outputs=[{"port": "media", "type": "asset.reference"}])
+    _write_manifest(
+        tmp_path,
+        "browser.decode",
+        engine="browser",
+        inputs=[{"port": "media", "type": "asset.reference"}],
+        outputs=[{"port": "video", "type": "stream.video", "caps": {"memory": "browser"}}],
+    )
+    _write_manifest(
+        tmp_path,
+        "vfx.first-light-effect",
+        engine="browser",
+        inputs=[{"port": "video", "type": "stream.video", "caps": {"memory": "browser"}}],
+        outputs=[{"port": "video", "type": "stream.video", "caps": {"memory": "webgl"}}],
+        params=[{"name": "pulse", "unit": "ratio", "range": [0, 1]}, {"name": "hue", "unit": "deg", "range": [0, 360]}],
+    )
+    _write_manifest(tmp_path, "webmidi.input", engine="browser", outputs=[{"port": "cc", "type": "control.event"}])
+    _write_manifest(
+        tmp_path,
+        "browser.present",
+        engine="browser",
+        inputs=[{"port": "video", "type": "stream.video", "caps": {"memory": "webgl"}}],
+    )
     return registry.load_registry(dirs=[str(tmp_path)])
 
 
@@ -438,12 +460,17 @@ def test_validate_clean(tmp_path):
 
 def test_validate_unknown_module(tmp_path):
     reg = _build_registry(tmp_path)
-    g = graphmod.load_graph(_graph_obj(nodes={
-        "src": {"use": "file.clip"},
-        "dec": {"use": "browser.decode"},
-        "ghost": {"use": "no.such.module"},
-        "out": {"use": "browser.present"},
-    }, edges=[]))
+    g = graphmod.load_graph(
+        _graph_obj(
+            nodes={
+                "src": {"use": "file.clip"},
+                "dec": {"use": "browser.decode"},
+                "ghost": {"use": "no.such.module"},
+                "out": {"use": "browser.present"},
+            },
+            edges=[],
+        )
+    )
     probs = g.validate(reg)
     assert probs
     assert any("no.such.module" in p for p in probs)
@@ -492,10 +519,14 @@ def test_validate_caps_mismatch(tmp_path):
 
 def test_validate_double_input(tmp_path):
     reg = _build_registry(tmp_path)
-    g = graphmod.load_graph(_graph_obj(edges=[
-        ["src.media", "dec.media"],
-        ["src.media", "dec.media"],
-    ]))
+    g = graphmod.load_graph(
+        _graph_obj(
+            edges=[
+                ["src.media", "dec.media"],
+                ["src.media", "dec.media"],
+            ]
+        )
+    )
     probs = g.validate(reg)
     assert probs
     assert any("more than once" in p.lower() or "connected" in p.lower() for p in probs)
@@ -503,9 +534,13 @@ def test_validate_double_input(tmp_path):
 
 def test_validate_binding_target_not_param(tmp_path):
     reg = _build_registry(tmp_path)
-    g = graphmod.load_graph(_graph_obj(bindings=[
-        {"from": "midi.cc", "to": "fx.not_a_param", "range": [0, 1]},
-    ]))
+    g = graphmod.load_graph(
+        _graph_obj(
+            bindings=[
+                {"from": "midi.cc", "to": "fx.not_a_param", "range": [0, 1]},
+            ]
+        )
+    )
     probs = g.validate(reg)
     assert probs
     assert any("not_a_param" in p or "param" in p.lower() for p in probs)
@@ -513,9 +548,13 @@ def test_validate_binding_target_not_param(tmp_path):
 
 def test_validate_binding_source_wrong_type(tmp_path):
     reg = _build_registry(tmp_path)
-    g = graphmod.load_graph(_graph_obj(bindings=[
-        {"from": "src.media", "to": "fx.hue", "range": [0, 360]},
-    ]))
+    g = graphmod.load_graph(
+        _graph_obj(
+            bindings=[
+                {"from": "src.media", "to": "fx.hue", "range": [0, 360]},
+            ]
+        )
+    )
     probs = g.validate(reg)
     assert probs
     assert any("hue" in p or "control" in p.lower() for p in probs)
@@ -523,9 +562,13 @@ def test_validate_binding_source_wrong_type(tmp_path):
 
 def test_validate_binding_range_outside_param(tmp_path):
     reg = _build_registry(tmp_path)
-    g = graphmod.load_graph(_graph_obj(bindings=[
-        {"from": "midi.cc", "to": "fx.hue", "range": [0, 999]},
-    ]))
+    g = graphmod.load_graph(
+        _graph_obj(
+            bindings=[
+                {"from": "midi.cc", "to": "fx.hue", "range": [0, 999]},
+            ]
+        )
+    )
     probs = g.validate(reg)
     assert probs
     assert any("range" in p.lower() for p in probs)
@@ -533,17 +576,22 @@ def test_validate_binding_range_outside_param(tmp_path):
 
 def test_validate_feature_suffix_allowed(tmp_path):
     reg = _build_registry(tmp_path)
-    _write_manifest(tmp_path, "ffmpeg.audio-features", engine="ffmpeg",
-                    outputs=[{"port": "features", "type": "analysis.features"}])
+    _write_manifest(
+        tmp_path, "ffmpeg.audio-features", engine="ffmpeg", outputs=[{"port": "features", "type": "analysis.features"}]
+    )
     reg2 = registry.load_registry(dirs=[str(tmp_path)])
-    g = graphmod.load_graph(_graph_obj(nodes={
-        **_graph_obj()["nodes"],
-        "af": {"use": "ffmpeg.audio-features"},
-    }, bindings=[
-        {"from": "af.features.rms", "to": "fx.pulse", "range": [0, 1]},
-    ]))
-    probs = [p for p in g.validate(reg2)
-             if "pulse" in p and ("control" in p or "analysis" in p or "features" in p)]
+    g = graphmod.load_graph(
+        _graph_obj(
+            nodes={
+                **_graph_obj()["nodes"],
+                "af": {"use": "ffmpeg.audio-features"},
+            },
+            bindings=[
+                {"from": "af.features.rms", "to": "fx.pulse", "range": [0, 1]},
+            ],
+        )
+    )
+    probs = [p for p in g.validate(reg2) if "pulse" in p and ("control" in p or "analysis" in p or "features" in p)]
     assert probs == []
 
 
@@ -556,6 +604,7 @@ def test_require_valid_raises(tmp_path):
 
 
 # ---------------------------------------------------------------- parse_text
+
 
 def test_parse_text_multi_statement():
     src = """
@@ -660,6 +709,7 @@ def test_parse_text_map_feature_suffix():
 
 # ---------------------------------------------------------------- plan
 
+
 def test_make_plan_keys(tmp_path):
     reg = _build_registry(tmp_path)
     g = graphmod.load_graph(_graph_obj())
@@ -670,18 +720,28 @@ def test_make_plan_keys(tmp_path):
 
 def test_plan_copy_on_engine_crossing_media_edge(tmp_path):
     reg = _build_registry(tmp_path)
-    _write_manifest(tmp_path, "ffmpeg.transcode", engine="ffmpeg",
-                    inputs=[{"port": "video", "type": "stream.video", "caps": {"memory": "any"}}],
-                    outputs=[{"port": "video", "type": "stream.video", "caps": {"memory": "cpu"}}])
+    _write_manifest(
+        tmp_path,
+        "ffmpeg.transcode",
+        engine="ffmpeg",
+        inputs=[{"port": "video", "type": "stream.video", "caps": {"memory": "any"}}],
+        outputs=[{"port": "video", "type": "stream.video", "caps": {"memory": "cpu"}}],
+    )
     reg2 = registry.load_registry(dirs=[str(tmp_path)])
-    g = graphmod.load_graph(_graph_obj(nodes={
-        "src": {"use": "file.clip"},
-        "dec": {"use": "browser.decode"},
-        "tx": {"use": "ffmpeg.transcode"},
-    }, bindings=[], edges=[
-        ["src.media", "dec.media"],
-        ["dec.video", "tx.video"],
-    ]))
+    g = graphmod.load_graph(
+        _graph_obj(
+            nodes={
+                "src": {"use": "file.clip"},
+                "dec": {"use": "browser.decode"},
+                "tx": {"use": "ffmpeg.transcode"},
+            },
+            bindings=[],
+            edges=[
+                ["src.media", "dec.media"],
+                ["dec.video", "tx.video"],
+            ],
+        )
+    )
     p = planmod.make_plan(g, reg2)
     crossing = [e for e in p["edges"] if e["from"].startswith("dec.video") and e["to"].startswith("tx.video")]
     assert crossing
@@ -706,28 +766,45 @@ def test_plan_licence_profile_core(tmp_path):
 
 def test_plan_licence_profile_gpl(tmp_path):
     reg = _build_registry(tmp_path)
-    _write_manifest(tmp_path, "gpl.decoder", engine="gstreamer", licence="GPL-2.0-or-later",
-                    inputs=[{"port": "media", "type": "asset.reference"}],
-                    outputs=[{"port": "video", "type": "stream.video", "caps": {"memory": "browser"}}])
+    _write_manifest(
+        tmp_path,
+        "gpl.decoder",
+        engine="gstreamer",
+        licence="GPL-2.0-or-later",
+        inputs=[{"port": "media", "type": "asset.reference"}],
+        outputs=[{"port": "video", "type": "stream.video", "caps": {"memory": "browser"}}],
+    )
     reg2 = registry.load_registry(dirs=[str(tmp_path)])
-    g = graphmod.load_graph(_graph_obj(nodes={
-        "src": {"use": "file.clip"},
-        "dec": {"use": "gpl.decoder"},
-        "fx": {"use": "vfx.first-light-effect"},
-        "out": {"use": "browser.present"},
-    }, bindings=[], edges=[
-        ["src.media", "dec.media"],
-        ["dec.video", "fx.video"],
-        ["fx.video", "out.video"],
-    ]))
+    g = graphmod.load_graph(
+        _graph_obj(
+            nodes={
+                "src": {"use": "file.clip"},
+                "dec": {"use": "gpl.decoder"},
+                "fx": {"use": "vfx.first-light-effect"},
+                "out": {"use": "browser.present"},
+            },
+            bindings=[],
+            edges=[
+                ["src.media", "dec.media"],
+                ["dec.video", "fx.video"],
+                ["fx.video", "out.video"],
+            ],
+        )
+    )
     p = planmod.make_plan(g, reg2)
     assert p["licence_profile"] == "arsenal-gpl"
 
 
 def test_plan_licence_profile_agpl_counts_as_gpl(tmp_path):
     reg = _build_registry(tmp_path)
-    _write_manifest(tmp_path, "agpl.mod", engine="arsenal", licence="AGPL-3.0-or-later",
-                    inputs=[], outputs=[{"port": "o", "type": "asset.reference"}])
+    _write_manifest(
+        tmp_path,
+        "agpl.mod",
+        engine="arsenal",
+        licence="AGPL-3.0-or-later",
+        inputs=[],
+        outputs=[{"port": "o", "type": "asset.reference"}],
+    )
     reg2 = registry.load_registry(dirs=[str(tmp_path)])
     g = graphmod.load_graph(_graph_obj(nodes={"m": {"use": "agpl.mod"}}, bindings=[], edges=[]))
     p = planmod.make_plan(g, reg2)
@@ -736,8 +813,14 @@ def test_plan_licence_profile_agpl_counts_as_gpl(tmp_path):
 
 def test_plan_lgpl_stays_core(tmp_path):
     reg = _build_registry(tmp_path)
-    _write_manifest(tmp_path, "lgpl.mod", engine="arsenal", licence="LGPL-2.1-or-later",
-                    inputs=[], outputs=[{"port": "o", "type": "asset.reference"}])
+    _write_manifest(
+        tmp_path,
+        "lgpl.mod",
+        engine="arsenal",
+        licence="LGPL-2.1-or-later",
+        inputs=[],
+        outputs=[{"port": "o", "type": "asset.reference"}],
+    )
     reg2 = registry.load_registry(dirs=[str(tmp_path)])
     g = graphmod.load_graph(_graph_obj(nodes={"m": {"use": "lgpl.mod"}}, bindings=[], edges=[]))
     p = planmod.make_plan(g, reg2)
@@ -746,8 +829,14 @@ def test_plan_lgpl_stays_core(tmp_path):
 
 def test_plan_noassertion_warning(tmp_path):
     reg = _build_registry(tmp_path)
-    _write_manifest(tmp_path, "mystery.mod", engine="arsenal", licence="NOASSERTION",
-                    inputs=[], outputs=[{"port": "o", "type": "asset.reference"}])
+    _write_manifest(
+        tmp_path,
+        "mystery.mod",
+        engine="arsenal",
+        licence="NOASSERTION",
+        inputs=[],
+        outputs=[{"port": "o", "type": "asset.reference"}],
+    )
     reg2 = registry.load_registry(dirs=[str(tmp_path)])
     g = graphmod.load_graph(_graph_obj(nodes={"m": {"use": "mystery.mod"}}, bindings=[], edges=[]))
     p = planmod.make_plan(g, reg2)
@@ -764,6 +853,7 @@ def test_render_plan_returns_str(tmp_path):
 
 
 # ---------------------------------------------------------------- take
+
 
 def _tr(clock="media", epoch=0, ticks=0, tb="1/90000"):
     return {"clock": clock, "epoch": epoch, "ticks": ticks, "timebase": tb}

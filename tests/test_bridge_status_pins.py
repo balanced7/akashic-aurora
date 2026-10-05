@@ -19,6 +19,7 @@ THE RULE THAT SHAPES BOTH: a panel that can act is a door, and a door needs the 
 discipline as the gate behind it. Nothing here trusts a name in a payload, and nothing here
 does work because a page was loaded.
 """
+
 from __future__ import annotations
 
 import json
@@ -34,7 +35,7 @@ REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 
 from core.comm import bridge_status as BS  # noqa: E402
-from core.comm import remote_relay as RR   # noqa: E402
+from core.comm import remote_relay as RR  # noqa: E402
 
 
 @pytest.fixture(autouse=True)
@@ -48,11 +49,22 @@ def _world(tmp_path, monkeypatch):
     (sec / "a_out.key").write_bytes(b"peer-a-outbound-key-bbbbbbbbbb")
     monkeypatch.setenv("AKASHIC_SECRETS_DIR", str(sec))
     cfg = tmp_path / "cfg.json"
-    cfg.write_text(json.dumps({"peers": [
-        {"name": "peer-a", "url": "https://a.invalid/xfer",
-         "inbound_secret_file": "a_in.key", "outbound_secret_file": "a_out.key"},
-        {"name": "peer-unkeyed", "url": "", "inbound_secret_file": "missing.key"},
-    ]}), encoding="utf-8")
+    cfg.write_text(
+        json.dumps(
+            {
+                "peers": [
+                    {
+                        "name": "peer-a",
+                        "url": "https://a.invalid/xfer",
+                        "inbound_secret_file": "a_in.key",
+                        "outbound_secret_file": "a_out.key",
+                    },
+                    {"name": "peer-unkeyed", "url": "", "inbound_secret_file": "missing.key"},
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
     monkeypatch.setattr(RR, "CONFIG_FILE", cfg)
     RR._reset_cache()
     yield
@@ -139,8 +151,17 @@ def test_drain_parked_carries_the_guest_tier_posture():
     posted = []
     RR._reset_cache()
     rows = RR._read_jsonl(RR.inbox_path())
-    rows.append({"id": "p1", "frm": "remote:peer-a", "claimed_frm": "somebody",
-                 "kind": "chat", "content": "hello", "sent_at": 0, "admitted_at": 0})
+    rows.append(
+        {
+            "id": "p1",
+            "frm": "remote:peer-a",
+            "claimed_frm": "somebody",
+            "kind": "chat",
+            "content": "hello",
+            "sent_at": 0,
+            "admitted_at": 0,
+        }
+    )
     RR._write_jsonl(RR.inbox_path(), rows)
 
     out = BS.act("drain_parked", confirm=True, bus_send=lambda **kw: posted.append(kw) or "id-1")
@@ -165,13 +186,14 @@ def test_act_never_raises(monkeypatch):
             returncode = 0
             stdout = ""
             stderr = ""
+
         return R()
+
     monkeypatch.setattr(subprocess, "run", recorder)
     for aid in ("tick_outbox", "drain_parked", "restart_listener", "", None, 123):
         try:
-            BS.act(aid, confirm=True, bus_send=lambda **kw: None,
-                   process_table=lambda: [], kill=lambda pid: True)
-        except Exception as e:                                    # noqa: BLE001
+            BS.act(aid, confirm=True, bus_send=lambda **kw: None, process_table=lambda: [], kill=lambda pid: True)
+        except Exception as e:  # noqa: BLE001
             pytest.fail(f"act({aid!r}) raised {type(e).__name__}: {e}")
     assert spawned == [], f"act() reached the host from a test: {spawned}"
 
@@ -194,8 +216,7 @@ def test_act_never_raises(monkeypatch):
 #       act(..., bus_send=), so no test in this house has to touch the host to pin the action.
 def _rows(*specs):
     """(pid, ppid, exe name, command line) tuples -> the process-table rows the seam takes."""
-    return [{"pid": pid, "ppid": ppid, "name": name, "cmdline": cmd}
-            for pid, ppid, name, cmd in specs]
+    return [{"pid": pid, "ppid": ppid, "name": name, "cmdline": cmd} for pid, ppid, name, cmd in specs]
 
 
 def _fake_run_speaking_both_dialects(rows, calls):
@@ -204,6 +225,7 @@ def _fake_run_speaking_both_dialects(rows, calls):
     parser. It speaks both dialects on purpose -- the whitespace pid list the original query
     produced and the ConvertTo-Json table the fixed query asks for -- so the pin is red by
     mechanism at the defect and stays a mechanism pin after it. Nothing here reaches the host."""
+
     def fake_run(argv, *_a, **_kw):
         argv = [str(x) for x in argv]
         calls.append(argv)
@@ -212,14 +234,24 @@ def _fake_run_speaking_both_dialects(rows, calls):
             returncode = 0
             stdout = ""
             stderr = ""
+
         if argv and "powershell" in argv[0].lower():
             if "ConvertTo-Json" in " ".join(argv):
-                R.stdout = json.dumps([{"ProcessId": r["pid"], "ParentProcessId": r["ppid"],
-                                        "Name": r["name"], "CommandLine": r["cmdline"]}
-                                       for r in rows])
+                R.stdout = json.dumps(
+                    [
+                        {
+                            "ProcessId": r["pid"],
+                            "ParentProcessId": r["ppid"],
+                            "Name": r["name"],
+                            "CommandLine": r["cmdline"],
+                        }
+                        for r in rows
+                    ]
+                )
             else:
                 R.stdout = "\n".join(str(r["pid"]) for r in rows) + "\n"
         return R()
+
     return fake_run
 
 
@@ -235,8 +267,8 @@ def test_restart_listener_never_targets_its_own_process_tree(monkeypatch):
     out = BS._restart_listener()
     aimed = [c[2] for c in calls if len(c) > 2 and c[0].lower().startswith("taskkill")]
     assert str(me) not in aimed and str(parent) not in aimed, (
-        f"taskkill was aimed at the caller's own process tree: {aimed} "
-        f"(me={me}, parent={parent}); outcome={out}")
+        f"taskkill was aimed at the caller's own process tree: {aimed} (me={me}, parent={parent}); outcome={out}"
+    )
     assert out.ok, f"a refusal is a report, not an exception: {out.why}"
     assert "refused" in (out.why or "").lower(), f"self-refusal was swallowed: {out.why!r}"
 
@@ -247,34 +279,57 @@ def test_restart_listener_selects_the_listener_process_not_any_mention_of_its_na
     file, the shell carrying that command, the query's own powershell, an editor with the file
     open and a grep all MENTION the name; none of them may be stopped."""
     table = _rows(
-        (101, 1, "py.exe", "py -m pytest tests/test_bridge_status_pins.py "
-                           "tests/test_remote_bridge_listener_pins.py"),
-        (102, 101, "python.exe", r"C:\Python311\python.exe -m pytest tests/test_bridge_status_pins.py "
-                                 r"tests/test_remote_bridge_listener_pins.py"),
-        (103, 1, "bash.exe", 'bash.exe -c "py -m pytest '
-                             'tests/test_remote_bridge_listener_pins.py"'),
-        (104, 102, "powershell.exe", "powershell -NoProfile -Command Get-CimInstance Win32_Process | "
-                                     "Where-Object { $_.CommandLine -like '*remote_bridge_listener*' }"),
-        (105, 1, "Code.exe", r'"C:\Users\x\AppData\Local\Programs\Microsoft VS Code\Code.exe" '
-                             r"E:\AI-Setup\scripts\remote_bridge_listener.py"),
+        (101, 1, "py.exe", "py -m pytest tests/test_bridge_status_pins.py tests/test_remote_bridge_listener_pins.py"),
+        (
+            102,
+            101,
+            "python.exe",
+            r"C:\Python311\python.exe -m pytest tests/test_bridge_status_pins.py "
+            r"tests/test_remote_bridge_listener_pins.py",
+        ),
+        (103, 1, "bash.exe", 'bash.exe -c "py -m pytest tests/test_remote_bridge_listener_pins.py"'),
+        (
+            104,
+            102,
+            "powershell.exe",
+            "powershell -NoProfile -Command Get-CimInstance Win32_Process | "
+            "Where-Object { $_.CommandLine -like '*remote_bridge_listener*' }",
+        ),
+        (
+            105,
+            1,
+            "Code.exe",
+            r'"C:\Users\x\AppData\Local\Programs\Microsoft VS Code\Code.exe" '
+            r"E:\AI-Setup\scripts\remote_bridge_listener.py",
+        ),
         (106, 103, "grep.exe", "grep -rn remote_bridge_listener scripts tests"),
-        (107, 1, "python.exe", r"C:\Python311\python.exe E:\AI-Setup\scripts\remote_bridge_listener.py "
-                               r"--host 127.0.0.1 --port 8791 --peer serge"),
+        (
+            107,
+            1,
+            "python.exe",
+            r"C:\Python311\python.exe E:\AI-Setup\scripts\remote_bridge_listener.py "
+            r"--host 127.0.0.1 --port 8791 --peer serge",
+        ),
         (108, 1, "py.exe", "py scripts/remote_bridge_listener.py --port 9000"),
-        (109, 1, "python.exe", r"C:\Python311\python.exe E:\AI-Setup\scripts\remote_bridge_listener.py "
-                               r"--port 0 --peer pytest-probe"),
+        (
+            109,
+            1,
+            "python.exe",
+            r"C:\Python311\python.exe E:\AI-Setup\scripts\remote_bridge_listener.py "
+            r"--port 0 --peer pytest-probe",
+        ),
     )
     killed = []
-    out = BS._restart_listener(process_table=lambda: table,
-                               kill=lambda pid: killed.append(pid) or True)
+    out = BS._restart_listener(process_table=lambda: table, kill=lambda pid: killed.append(pid) or True)
     assert sorted(killed) == [107, 108], (
         f"stopped {sorted(killed)}; only 107 (the supervisor's launch form) and 108 (the "
-        f"documented `py scripts/...` form) are the door")
+        f"documented `py scripts/...` form) are the door"
+    )
     assert out.ok, out.why
     why = out.why or ""
     assert "109" in why and "pytest" in why.lower(), (
-        f"a listener-shaped process running under pytest must be refused BY PID in the report: "
-        f"{why!r}")
+        f"a listener-shaped process running under pytest must be refused BY PID in the report: {why!r}"
+    )
 
 
 def test_restart_listener_refuses_its_ancestors_even_when_they_look_like_the_listener():
@@ -284,14 +339,17 @@ def test_restart_listener_refuses_its_ancestors_even_when_they_look_like_the_lis
     pid is in the report."""
     me, parent, grand = os.getpid(), os.getppid(), 424242
     shape = r"C:\Python311\python.exe E:\AI-Setup\scripts\remote_bridge_listener.py --port 8791"
-    table = _rows((me, parent, "python.exe", shape), (parent, grand, "py.exe", shape),
-                  (grand, 1, "python.exe", shape), (207, 1, "python.exe", shape + " --peer other"))
+    table = _rows(
+        (me, parent, "python.exe", shape),
+        (parent, grand, "py.exe", shape),
+        (grand, 1, "python.exe", shape),
+        (207, 1, "python.exe", shape + " --peer other"),
+    )
     killed = []
-    out = BS._restart_listener(process_table=lambda: table,
-                               kill=lambda pid: killed.append(pid) or True)
+    out = BS._restart_listener(process_table=lambda: table, kill=lambda pid: killed.append(pid) or True)
     assert killed == [207], (
-        f"stopped {killed}; expected only the unrelated listener 207 "
-        f"(me={me}, parent={parent}, grand={grand})")
+        f"stopped {killed}; expected only the unrelated listener 207 (me={me}, parent={parent}, grand={grand})"
+    )
     assert out.ok, out.why
     for pid in (me, parent, grand):
         assert str(pid) in (out.why or ""), f"refused pid {pid} missing from the report: {out.why!r}"
@@ -302,8 +360,7 @@ def test_restart_listener_reports_a_kill_that_failed_as_not_stopped():
     and 'stopped 2' over one dead and one living process is the green receipt this module's
     docstring exists to forbid."""
     shape = r"C:\Python311\python.exe E:\AI-Setup\scripts\remote_bridge_listener.py"
-    table = _rows((301, 1, "python.exe", shape + " --port 8791"),
-                  (302, 1, "python.exe", shape + " --port 8792"))
+    table = _rows((301, 1, "python.exe", shape + " --port 8791"), (302, 1, "python.exe", shape + " --port 8792"))
     out = BS._restart_listener(process_table=lambda: table, kill=lambda pid: pid == 301)
     assert out.ok, out.why
     why = out.why or ""

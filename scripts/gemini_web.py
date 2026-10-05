@@ -22,6 +22,7 @@ Use --headed only for login/debug. bifrost_runner keeps one warm invisible brows
 
 Requires: pip install playwright && playwright install chrome
 """
+
 from __future__ import annotations
 
 import argparse
@@ -33,6 +34,17 @@ import time
 import urllib.parse
 from pathlib import Path
 from typing import Literal
+
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+
+        return python_launcher()
+    except Exception:
+        return "py"
+
 
 # Windows consoles/pipes default to cp1252; Gemini answers routinely carry
 # zero-width/typographic Unicode. Force UTF-8 (replace, never crash) so a
@@ -192,11 +204,13 @@ def _prompt_from_args(args) -> str:
 def _needs_playwright() -> bool:
     try:
         import playwright  # noqa: F401
+
         return True
     except ImportError:
         pass
     try:
         import patchright  # noqa: F401
+
         return True
     except ImportError:
         return False
@@ -205,9 +219,9 @@ def _needs_playwright() -> bool:
 def _install_hint() -> str:
     return (
         "BROWSER_DRIVER_MISSING: run once:\n"
-        "  py -m pip install playwright patchright playwright-stealth\n"
-        "  py -m playwright install chrome\n"
-        "  py -m patchright install chrome"
+        f"  {_pyl()} -m pip install playwright patchright playwright-stealth\n"
+        f"  {_pyl()} -m playwright install chrome\n"
+        f"  {_pyl()} -m patchright install chrome"
     )
 
 
@@ -303,11 +317,7 @@ def _acquire_context(
     """Return (context, should_close_after_use)."""
     with _POOL_LOCK:
         if reuse_browser and _POOL["ctx"] is not None:
-            if (
-                _POOL["browser_mode"] == browser_mode
-                and _POOL["stealth"] == stealth
-                and _POOL["engine"] == engine
-            ):
+            if _POOL["browser_mode"] == browser_mode and _POOL["stealth"] == stealth and _POOL["engine"] == engine:
                 return _POOL["ctx"], False
             _close_context(_POOL["ctx"])
             _POOL["ctx"] = None
@@ -355,7 +365,7 @@ def _login_hint() -> str:
     return (
         "LOGIN_REQUIRED: no saved Google session for the web UI.\n"
         "Run once (browser opens — sign in as your Google account):\n"
-        "  py scripts/gemini_web.py --login\n"
+        f"  {_pyl()} scripts/gemini_web.py --login\n"
         f"Profile dir: {PROFILE}"
     )
 
@@ -365,9 +375,9 @@ def _find_input(page):
         'div[contenteditable="true"][aria-label*="Enter"]',
         'div[contenteditable="true"]',
         'textarea[aria-label*="Enter"]',
-        'textarea',
+        "textarea",
         '[role="textbox"]',
-        '.ql-editor',
+        ".ql-editor",
     ]
     for sel in candidates:
         loc = page.locator(sel).last
@@ -384,8 +394,8 @@ def _extract_latest_model_text(page) -> str:
         "message-content",
         '[data-message-author-role="model"]',
         '[data-testid="model-response"]',
-        '.model-response-text',
-        '.markdown',
+        ".model-response-text",
+        ".markdown",
         "p[data-path-to-node]",
     ]
     for sel in selectors:
@@ -570,7 +580,10 @@ def ask_web_message(
     resolved_mode = browser_mode or _resolve_browser_mode(mode, headed, headless)
     use_stealth = _resolve_stealth(stealth, no_stealth=False)
     ctx, should_close = _acquire_context(
-        resolved_mode, use_stealth, reuse_browser, engine=resolved_engine,
+        resolved_mode,
+        use_stealth,
+        reuse_browser,
+        engine=resolved_engine,
     )
     try:
         page = ctx.pages[0] if ctx.pages else ctx.new_page()

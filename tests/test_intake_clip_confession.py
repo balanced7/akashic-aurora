@@ -16,6 +16,7 @@ display only. So the door contract is pinned HERE, at cmd_note:
 
 Run: py tests/test_intake_clip_confession.py   (or via pytest)
 """
+
 import io
 import json
 import os
@@ -40,6 +41,7 @@ class _quiet_fanout:
         import core.events.event_log as ev
         import core.narrative.beat_log as bl
         import core.learning.agent_memory as am
+
         self._ev, self._bl, self._am = ev, bl, am
         # T069 (repaired 2026-07-15): under _AISETUP_TEST_ISOLATED the doors
         # construct FRESH instances and ignore the cache global this context
@@ -48,8 +50,7 @@ class _quiet_fanout:
         # This context IS its own sandbox (temp FileStore + silenced fanouts), so
         # the ambient flag is cleared for its scope and restored on exit.
         self._iso = os.environ.pop("_AISETUP_TEST_ISOLATED", None)
-        self._saved = (agent_cli.project_notes, ev.capture_event, bl.get_beat_log,
-                       am._agent_memory)
+        self._saved = (agent_cli.project_notes, ev.capture_event, bl.get_beat_log, am._agent_memory)
         agent_cli.project_notes = lambda *a, **k: None
         ev.capture_event = lambda *a, **k: None
         bl.get_beat_log = lambda: SimpleNamespace(emit=lambda *a, **k: None)
@@ -60,14 +61,22 @@ class _quiet_fanout:
     def __exit__(self, *exc):
         if self._iso is not None:
             os.environ["_AISETUP_TEST_ISOLATED"] = self._iso
-        (agent_cli.project_notes, self._ev.capture_event, self._bl.get_beat_log,
-         self._am._agent_memory) = self._saved
+        (agent_cli.project_notes, self._ev.capture_event, self._bl.get_beat_log, self._am._agent_memory) = self._saved
         return False
 
 
 def _note_args(**kw):
-    base = dict(agent_id="clipbot", title="clip-probe", note="", context=None,
-                supersedes=None, session=None, retire=None, json=False, category=None)
+    base = dict(
+        agent_id="clipbot",
+        title="clip-probe",
+        note="",
+        context=None,
+        supersedes=None,
+        session=None,
+        retire=None,
+        json=False,
+        category=None,
+    )
     base.update(kw)
     return SimpleNamespace(**base)
 
@@ -88,7 +97,7 @@ def _stored(mem, title):
 def test_5k_note_arg_stores_whole():
     """THE named acceptance: a >5k-char note tool-arg stores whole -- no silent clip,
     no lying [OK], no legacy ' ...[truncated]' marker."""
-    body = ("the quick brown clip probe sentence %04d. " % 7) * 130   # ~5.6k, word-boundary rich
+    body = ("the quick brown clip probe sentence %04d. " % 7) * 130  # ~5.6k, word-boundary rich
     assert len(body) > 5000
     with _quiet_fanout() as f:
         rc, out = _run_note(_note_args(title="clip-probe-5k", note=body))
@@ -112,11 +121,10 @@ def test_over_cap_note_confesses_in_result_and_in_band(monkeypatch, tmp_path):
         rc, out = _run_note(_note_args(title="clip-probe-overcap", note=body))
         stored = _stored(f.mem, "clip-probe-overcap")
     assert rc == 0 and "[OK] noted" in out
-    assert "[CLIPPED]" in out and "note body" in out and \
-           ("spilled to" in out or "resend" in out.lower()), \
+    assert "[CLIPPED]" in out and "note body" in out and ("spilled to" in out or "resend" in out.lower()), (
         f"over-cap store did not confess in the result: {out!r}"
-    assert stored.startswith("x" * 100) and "...[clipped at" in stored, \
-        "stored text lacks the in-band clip marker"
+    )
+    assert stored.startswith("x" * 100) and "...[clipped at" in stored, "stored text lacks the in-band clip marker"
     spills = os.listdir(str(tmp_path))
     assert spills, "T064: the full original must spill to a file"
     with open(os.path.join(str(tmp_path), spills[0]), encoding="utf-8") as fh:
@@ -131,14 +139,15 @@ def test_json_mode_carries_confession():
         rc, out = _run_note(_note_args(title="clip-probe-json", note="y" * (cap + 100), json=True))
     doc = json.loads(out)
     assert rc == 0 and doc["recorded"] is True
-    assert doc["clipped"] and any("note body" in c for c in doc["clipped"]), \
+    assert doc["clipped"] and any("note body" in c for c in doc["clipped"]), (
         f"--json result lacks the clip confession: {doc}"
+    )
     print("  --json result carries the confession OK")
 
 
 def test_small_note_unchanged():
     """The historical common case must stay byte-identical -- no marker, no confession."""
-    body = "small durable note body. " * 40   # ~1k
+    body = "small durable note body. " * 40  # ~1k
     with _quiet_fanout() as f:
         rc, out = _run_note(_note_args(title="clip-probe-small", note=body))
         stored = _stored(f.mem, "clip-probe-small")

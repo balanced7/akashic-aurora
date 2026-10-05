@@ -11,6 +11,7 @@ skill promises (isSupported / setState / setRate / destroy) must still be there;
 must still speak the bench's dialect; every verb the loop names must still take the flags it
 names. RED before the skill exists (P0), and RED again the day any of it drifts.
 """
+
 from __future__ import annotations
 
 import re
@@ -24,20 +25,17 @@ COOKBOOK = SKILL_DIR / "references" / "house-glsl-cookbook.md"
 # (file the cookbook says it quotes from, the exact line it quotes). Both directions are bound:
 # the line must be in the source AND in the cookbook, so neither can drift without the other.
 QUOTED = [
-    ("scripts/activity-line.js",
-     "void main(){vec2 p=vec2((gl_VertexID<<1)&2,gl_VertexID&2);gl_Position=vec4(p*2.0-1.0,0.0,1.0);}"),
-    ("scripts/aurora-shader.js",
-     "global.matchMedia('(prefers-reduced-motion: reduce)').matches"),
+    (
+        "scripts/activity-line.js",
+        "void main(){vec2 p=vec2((gl_VertexID<<1)&2,gl_VertexID&2);gl_Position=vec4(p*2.0-1.0,0.0,1.0);}",
+    ),
+    ("scripts/aurora-shader.js", "global.matchMedia('(prefers-reduced-motion: reduce)').matches"),
     ("scripts/aurora-shader.js", ".replace(/NPT/g,      String(NPT))"),
-    ("scripts/aurora-shader.js",
-     "float jit = fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453);"),
-    ("scripts/aurora-shader.js",
-     "outColor.rgb = mix(texture(u_history, uv).rgb, outColor.rgb, u_motion);"),
-    ("design/vfx-sketches/fibshell.frag",
-     "float aa = clamp(length(fwidth(m)) * sqrt(N) * 0.75, 0.02, 0.10);"),
+    ("scripts/aurora-shader.js", "float jit = fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453);"),
+    ("scripts/aurora-shader.js", "outColor.rgb = mix(texture(u_history, uv).rgb, outColor.rgb, u_motion);"),
+    ("design/vfx-sketches/fibshell.frag", "float aa = clamp(length(fwidth(m)) * sqrt(N) * 0.75, 0.02, 0.10);"),
     ("design/vfx-sketches/fibshell.frag", "for (int j = -26; j <= 26; j++) {"),
-    ("scripts/agent-avatar.js",
-     "if (sinceTick > 55) this._slowStreak = (this._slowStreak || 0) + 1;"),
+    ("scripts/agent-avatar.js", "if (sinceTick > 55) this._slowStreak = (this._slowStreak || 0) + 1;"),
     ("scripts/agent-avatar.js", "if ((this._slowStreak || 0) >= 45) {"),
     # Heimdall's refuter (ask 1db70283, 2026-09-09): the avatar renders at native device pixels
     # and antialiases its silhouette by cone tracking; the skill had copied a stale header.
@@ -55,9 +53,19 @@ SEAM = {
 
 # The verbs and flags the skill's loop names.
 VERBS = {
-    "scripts/vfx_render.py": ['add_parser("thumb"', 'add_parser("sheet"', 'add_parser("grid"',
-                              'add_parser("state"', 'add_parser("ingest"', '"--file"', '"--t"', "--say", '"--frames"', '"--from"',
-                              '"--to"'],
+    "scripts/vfx_render.py": [
+        'add_parser("thumb"',
+        'add_parser("sheet"',
+        'add_parser("grid"',
+        'add_parser("state"',
+        'add_parser("ingest"',
+        '"--file"',
+        '"--t"',
+        "--say",
+        '"--frames"',
+        '"--from"',
+        '"--to"',
+    ],
     "scripts/ui_shot.py": ["--label", "--fps", "--viewport"],
     "scripts/bifrost_ui.py": ['"/aurora-shader.js"', "aurora-fallback-hide", "isSupported()"],
 }
@@ -145,6 +153,7 @@ def test_p7_every_quoted_line_is_in_head_not_only_in_the_working_tree():
     August. A skill that describes uncommitted code lies to every fresh clone, so the quote
     must be in HEAD's copy of the file too, not only on this disk."""
     import subprocess
+
     try:
         subprocess.run(["git", "--version"], capture_output=True, check=True)
     except Exception as e:  # pragma: no cover - a repo without git cannot make this claim
@@ -152,8 +161,14 @@ def test_p7_every_quoted_line_is_in_head_not_only_in_the_working_tree():
     stale, cache = [], {}
     for rel, line in QUOTED:
         if rel not in cache:
-            r = subprocess.run(["git", "show", f"HEAD:{rel}"], cwd=str(REPO), capture_output=True,
-                               text=True, encoding="utf-8", errors="replace")
+            r = subprocess.run(
+                ["git", "show", f"HEAD:{rel}"],
+                cwd=str(REPO),
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+            )
             cache[rel] = r.stdout if r.returncode == 0 else ""
         if line not in cache[rel]:
             stale.append(f"HEAD:{rel} lacks: {line[:60]} (uncommitted work on disk?)")
@@ -162,7 +177,11 @@ def test_p7_every_quoted_line_is_in_head_not_only_in_the_working_tree():
 
 def test_p6_the_skill_names_the_lessons_it_is_the_fold_back_of():
     text = SKILL.read_text(encoding="utf-8")
-    for lesson in ("fibshell_shader_two_defect_classes", "rAF_throttle_reads_as_fps_freeze",
-                   "claude_embedded_preview_crash_trigger_2026_08_12", "hud_fingerprint_diff_pattern"):
+    for lesson in (
+        "fibshell_shader_two_defect_classes",
+        "rAF_throttle_reads_as_fps_freeze",
+        "claude_embedded_preview_crash_trigger_2026_08_12",
+        "hud_fingerprint_diff_pattern",
+    ):
         assert lesson in text, f"SKILL.md does not name lesson {lesson}"
     assert "design/CONTRACT.md" in text, "SKILL.md must route taste to the design contract"

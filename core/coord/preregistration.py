@@ -16,6 +16,7 @@ self-allowlist its own gate, and that refusal is now doctrine.
 
 No outward imports. Nothing here may import from scripts/, agent/, or any harness.
 """
+
 from __future__ import annotations
 
 import os
@@ -42,10 +43,18 @@ def audit_stats(n: int, root: str = "") -> Dict[str, Any]:
     {total, clean, violations, pct, offenders}; callers render, this computes.
     """
     cwd = root or ROOT
-    log = subprocess.run(
-        ["git", "log", f"-n{n}", "--diff-filter=A", "--name-only", "--format=%x01%h %s"],
-        capture_output=True, cwd=cwd, encoding="utf-8", errors="replace",
-        stdin=subprocess.DEVNULL, close_fds=True).stdout or ""
+    log = (
+        subprocess.run(
+            ["git", "log", f"-n{n}", "--diff-filter=A", "--name-only", "--format=%x01%h %s"],
+            capture_output=True,
+            cwd=cwd,
+            encoding="utf-8",
+            errors="replace",
+            stdin=subprocess.DEVNULL,
+            close_fds=True,
+        ).stdout
+        or ""
+    )
     total = viol = 0
     offenders = []
     for block in log.split("\x01"):
@@ -59,14 +68,27 @@ def audit_stats(n: int, root: str = "") -> Dict[str, Any]:
         total += 1
         # The same commit's FULL touch set (adds + modifications):
         sha = header.split()[0]
-        touched = (subprocess.run(["git", "show", "--name-only", "--format=", sha],
-                                  capture_output=True, cwd=cwd, encoding="utf-8",
-                                  errors="replace", stdin=subprocess.DEVNULL,
-                                  close_fds=True).stdout or "").split()
+        touched = (
+            subprocess.run(
+                ["git", "show", "--name-only", "--format=", sha],
+                capture_output=True,
+                cwd=cwd,
+                encoding="utf-8",
+                errors="replace",
+                stdin=subprocess.DEVNULL,
+                close_fds=True,
+            ).stdout
+            or ""
+        ).split()
         src = [f for f in map(_norm, touched) if f and not f.startswith(NONSOURCE_PREFIXES)]
         if src:
             viol += 1
             offenders.append((header, added_tests, src[:3]))
     ok = total - viol
-    return {"total": total, "clean": ok, "violations": viol,
-            "pct": (100.0 * ok / total) if total else 100.0, "offenders": offenders}
+    return {
+        "total": total,
+        "clean": ok,
+        "violations": viol,
+        "pct": (100.0 * ok / total) if total else 100.0,
+        "offenders": offenders,
+    }

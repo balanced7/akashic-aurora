@@ -23,6 +23,7 @@ Retention is tiered by kind (deepseek counter sec 3): handoff/request/question/
 blocker entries outlive chat-tier entries, and cap eviction drops non-long kinds
 first so a chatty session can never evict an unhandled handoff.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -58,12 +59,12 @@ TIER_RANK = {"unhandled": 0, "consumed": 1, "auto_acked": 2, "replied": 2, "acke
 # source name -> (stream key template, cursor hash kind, cursor field)
 #   cursor hash kind: "lane" -> {ns}:cursor:lane:{agent} ; "legacy" -> {ns}:cursor:{agent}
 _SOURCES: Tuple[Tuple[str, str, str, str], ...] = (
-    ("work_inbox",   "{ns}:work:inbox:{agent}", "lane",   "inbox"),
-    ("sig_inbox",    "{ns}:sig:inbox:{agent}",  "lane",   "sig_inbox"),
-    ("legacy_inbox", "{ns}:inbox:{agent}",      "legacy", "inbox"),
-    ("work_bc",      "{ns}:work:broadcast",     "lane",   "bc"),
-    ("sig_bc",       "{ns}:sig:broadcast",      "lane",   "sig_bc"),
-    ("legacy_bc",    "{ns}:broadcast",          "legacy", "bc"),
+    ("work_inbox", "{ns}:work:inbox:{agent}", "lane", "inbox"),
+    ("sig_inbox", "{ns}:sig:inbox:{agent}", "lane", "sig_inbox"),
+    ("legacy_inbox", "{ns}:inbox:{agent}", "legacy", "inbox"),
+    ("work_bc", "{ns}:work:broadcast", "lane", "bc"),
+    ("sig_bc", "{ns}:sig:broadcast", "lane", "sig_bc"),
+    ("legacy_bc", "{ns}:broadcast", "legacy", "bc"),
 )
 
 
@@ -73,10 +74,12 @@ def enabled() -> bool:
 
 def _connect():
     from core.comm.bus import _connect as bus_connect
+
     return bus_connect()
 
 
 # ------------------------------------------------------------------ helpers
+
 
 def _sid_tuple(sid: str) -> Tuple[int, int]:
     ms, _, seq = str(sid).partition("-")
@@ -104,8 +107,7 @@ def _fallback_sha(fields: Dict[str, str]) -> str:
 # then the content fallback still runs, but it is now LABELLED: every entry records which basis
 # its identity came from, so degraded identity is visible instead of silently equivalent to real
 # identity. Ranked strongest-first.
-_IDENTITY_FIELDS = (("message_id", "message_id"), ("idempotency_key", "idempotency_key"),
-                    ("sha", "packet_sha"))
+_IDENTITY_FIELDS = (("message_id", "message_id"), ("idempotency_key", "idempotency_key"), ("sha", "packet_sha"))
 
 
 def identity_of(fields: Dict[str, str], meta: Optional[Dict[str, Any]] = None) -> Tuple[str, str]:
@@ -127,6 +129,7 @@ def _entry_ts_s(fields: Dict[str, str], sid: str) -> float:
         pass
     try:
         from datetime import datetime
+
         return datetime.fromisoformat(ts.replace("Z", "+00:00")).timestamp()
     except Exception:
         ms, _, _seq = str(sid).partition("-")
@@ -153,26 +156,31 @@ def _keys(ns: str, agent: str) -> Dict[str, str]:
     return {
         "pos": f"{ns}:mailbox:pos:{agent}",
         "z": f"{ns}:mailbox:z:{agent}",
-        "msg": f"{ns}:mailbox:msg:{agent}:",          # + sha
+        "msg": f"{ns}:mailbox:msg:{agent}:",  # + sha
         "evicted": f"{ns}:mailbox:evicted:{agent}",
-        "answered": f"{ns}:mailbox:answered",          # global answers map
+        "answered": f"{ns}:mailbox:answered",  # global answers map
         # M1 additions. Both stay inside {ns}:mailbox:* so M0's containment invariant holds:
         # the mailbox still writes no cursors, no acks, no sends, no wake state.
-        "seen": f"{ns}:mailbox:seen:{agent}",          # field "<sha>|<incarnation>" -> ts
-        "intent": f"{ns}:mailbox:intent:{agent}",      # field "<sha>" -> json declaration
+        "seen": f"{ns}:mailbox:seen:{agent}",  # field "<sha>|<incarnation>" -> ts
+        "intent": f"{ns}:mailbox:intent:{agent}",  # field "<sha>" -> json declaration
     }
 
 
 def _unavailable(reason: str) -> Dict[str, Any]:
-    return {"available": False,
-            "reason": f"{reason} -- fall back to bifrost-sync peek",
-            "entries": [], "counts": {}, "index_lag": -1, "evicted": 0}
+    return {
+        "available": False,
+        "reason": f"{reason} -- fall back to bifrost-sync peek",
+        "entries": [],
+        "counts": {},
+        "index_lag": -1,
+        "evicted": 0,
+    }
 
 
 # ------------------------------------------------------------------ ingest
 
-def _ingest_one(client, ns: str, agent: str, source: str, sid: str,
-                fields: Dict[str, str]) -> Optional[str]:
+
+def _ingest_one(client, ns: str, agent: str, source: str, sid: str, fields: Dict[str, str]) -> Optional[str]:
     kind = str(fields.get("kind", "_unknown") or "_unknown")
     try:
         meta = json.loads(fields.get("meta") or "{}")
@@ -184,8 +192,11 @@ def _ingest_one(client, ns: str, agent: str, source: str, sid: str,
         k = _keys(ns, agent)
         try:
             if len(client.hgetall(k["answered"])) < _ANSWERED_KEY_CAP:
-                client.hset(k["answered"], str(answers), json.dumps(
-                    {"by": fields.get("frm", "?"), "ts": fields.get("ts", ""), "sid": sid}))
+                client.hset(
+                    k["answered"],
+                    str(answers),
+                    json.dumps({"by": fields.get("frm", "?"), "ts": fields.get("ts", ""), "sid": sid}),
+                )
         except Exception:
             raise
     if not _is_mailbox_kind(kind, meta):
@@ -218,9 +229,12 @@ def _ingest_one(client, ns: str, agent: str, source: str, sid: str,
     if not body and existing.get("body"):
         kept, truncated = existing.get("body", ""), existing.get("body_truncated") == "1"
     mapping = {
-        "sha": sha, "kind": kind, "frm": str(fields.get("frm", "?")),
+        "sha": sha,
+        "kind": kind,
+        "frm": str(fields.get("frm", "?")),
         "to": str(fields.get("to", "") or existing.get("to", "")),
-        "ts": str(fields.get("ts", "")), "ids": json.dumps(ids),
+        "ts": str(fields.get("ts", "")),
+        "ids": json.dumps(ids),
         "ts_s": str(existing.get("ts_s") or _entry_ts_s(fields, sid)),
         "body": kept,
         # Declared, never silent: a reader must be able to tell a whole body from a clipped one
@@ -232,13 +246,11 @@ def _ingest_one(client, ns: str, agent: str, source: str, sid: str,
         "frag_of": str((frag or {}).get("of") or "") if is_fragment else existing.get("frag_of", ""),
     }
     client.hset(mkey, mapping=mapping)
-    client.zadd(k["z"], {sha: float(mapping["ts_s"]) if float(mapping["ts_s"]) > 0
-                         else float(_sid_tuple(sid)[0])})
+    client.zadd(k["z"], {sha: float(mapping["ts_s"]) if float(mapping["ts_s"]) > 0 else float(_sid_tuple(sid)[0])})
     return sha
 
 
-def catch_up(ns: str, agent: str, *, client=None,
-             budget: Optional[int] = DEFAULT_BUDGET) -> Dict[str, Any]:
+def catch_up(ns: str, agent: str, *, client=None, budget: Optional[int] = DEFAULT_BUDGET) -> Dict[str, Any]:
     """Incremental follower: ingest new entries beyond the per-source index position.
     ``budget=0`` counts lag without ingesting (pin 7). Only ``{ns}:mailbox:*`` is
     written."""
@@ -264,6 +276,7 @@ def catch_up(ns: str, agent: str, *, client=None,
 
 
 # ------------------------------------------------------------------ eviction
+
 
 def _evict(client, ns: str, agent: str, cap: int) -> int:
     k = _keys(ns, agent)
@@ -314,9 +327,11 @@ def _evicted_total(client, ns: str, agent: str) -> int:
 
 # ------------------------------------------------------------------ resolve
 
+
 def _default_acks(ids: List[str]) -> Dict[str, List[Dict[str, Any]]]:
     try:
         from core.comm.promoter import acks_for
+
         return acks_for(ids)
     except Exception:
         return {}
@@ -330,12 +345,14 @@ def _stream_id_gt(a: Any, b: Any) -> bool:
     cursor by nine entries.  Unparseable input sorts as earliest, so a corrupt
     field can never win a merge and resurrect handled mail.
     """
+
     def _parts(v: Any) -> Tuple[int, int]:
         try:
             ms, _, seq = str(v).partition("-")
             return int(ms), int(seq or 0)
         except (TypeError, ValueError):
             return (-1, -1)
+
     return _parts(a) > _parts(b)
 
 
@@ -385,8 +402,9 @@ def merged_lane_cursor(ns: str, agent: str, *, client=None) -> Dict[str, str]:
     return merged
 
 
-def _resolve(client, ns: str, agent: str,
-             acks_lookup: Optional[Callable[[List[str]], Dict[str, Any]]]) -> List[Dict[str, Any]]:
+def _resolve(
+    client, ns: str, agent: str, acks_lookup: Optional[Callable[[List[str]], Dict[str, Any]]]
+) -> List[Dict[str, Any]]:
     """Tier every live entry. Cursor hashes are read EXACTLY ONCE (snapshot
     semantics, pin 12); acks use the exact per-id lookup; answers ride the global
     map fed at ingest time."""
@@ -407,10 +425,17 @@ def _resolve(client, ns: str, agent: str,
         except (ValueError, TypeError):
             ids = {}
         all_ids.extend(ids.values())
-        raw.append({"sha": str(sha), "kind": m.get("kind", "_unknown"),
-                    "frm": m.get("frm", "?"), "ts": m.get("ts", ""),
-                    "ts_s": float(m.get("ts_s") or 0), "score": float(score),
-                    "ids": ids})
+        raw.append(
+            {
+                "sha": str(sha),
+                "kind": m.get("kind", "_unknown"),
+                "frm": m.get("frm", "?"),
+                "ts": m.get("ts", ""),
+                "ts_s": float(m.get("ts_s") or 0),
+                "score": float(score),
+                "ids": ids,
+            }
+        )
     acks = (acks_lookup or _default_acks)(all_ids) if all_ids else {}
     out: List[Dict[str, Any]] = []
     for e in raw:
@@ -431,17 +456,23 @@ def _resolve(client, ns: str, agent: str,
         e2 = {key: e[key] for key in ("sha", "kind", "frm", "ts", "ids")}
         e2["tier"] = tier
         out.append(e2)
-    out.sort(key=lambda e: (min(_sid_tuple(s) for s in e["ids"].values())
-                            if e["ids"] else (0, 0), e["sha"]))
+    out.sort(key=lambda e: (min(_sid_tuple(s) for s in e["ids"].values()) if e["ids"] else (0, 0), e["sha"]))
     return out
 
 
 # ------------------------------------------------------------------ public
 
-def query(ns: str, agent: str, *, client=None,
-          acks_lookup: Optional[Callable[[List[str]], Dict[str, Any]]] = None,
-          cap: int = DEFAULT_CAP, catch_up_budget: Optional[int] = DEFAULT_BUDGET,
-          min_evidence: Optional[str] = None) -> Dict[str, Any]:
+
+def query(
+    ns: str,
+    agent: str,
+    *,
+    client=None,
+    acks_lookup: Optional[Callable[[List[str]], Dict[str, Any]]] = None,
+    cap: int = DEFAULT_CAP,
+    catch_up_budget: Optional[int] = DEFAULT_BUDGET,
+    min_evidence: Optional[str] = None,
+) -> Dict[str, Any]:
     """The free question: what is addressed to `agent`, in what state, and why."""
     if not enabled():
         return _unavailable("mailbox disabled (AKASHIC_MAILBOX=0)")
@@ -456,15 +487,21 @@ def query(ns: str, agent: str, *, client=None,
         counts: Dict[str, int] = {"unhandled": 0}
         for e in entries:
             counts[e["tier"]] = counts.get(e["tier"], 0) + 1
-        return {"available": True, "agent": agent, "entries": entries,
-                "counts": counts, "index_lag": int(cu["lag"]),
-                "evicted": _evicted_total(client, ns, agent)}
-    except Exception as exc:                                  # loud to operator,
-        return _unavailable(f"index unavailable ({exc})")      # silent to transport
+        return {
+            "available": True,
+            "agent": agent,
+            "entries": entries,
+            "counts": counts,
+            "index_lag": int(cu["lag"]),
+            "evicted": _evicted_total(client, ns, agent),
+        }
+    except Exception as exc:  # loud to operator,
+        return _unavailable(f"index unavailable ({exc})")  # silent to transport
 
 
-def rebuild(ns: str, agent: str, *, client=None,
-            acks_lookup: Optional[Callable[[List[str]], Dict[str, Any]]] = None) -> Dict[str, Any]:
+def rebuild(
+    ns: str, agent: str, *, client=None, acks_lookup: Optional[Callable[[List[str]], Dict[str, Any]]] = None
+) -> Dict[str, Any]:
     """Drop the agent's index and rebuild from the log; report divergence vs the
     incremental state (pin 3: must be 0 -- the determinism receipt)."""
     if not enabled():
@@ -506,8 +543,14 @@ def rebuild(ns: str, agent: str, *, client=None,
         for sha, keep in preserved.items():
             if client.hgetall(k["msg"] + sha):
                 # Entry re-derived from the log: re-attach only the fields the log cannot carry.
-                client.hset(k["msg"] + sha, mapping={f: v for f, v in keep.items() if f in (
-                    "body", "body_len", "body_truncated", "body_fragment", "frag_of")})
+                client.hset(
+                    k["msg"] + sha,
+                    mapping={
+                        f: v
+                        for f, v in keep.items()
+                        if f in ("body", "body_len", "body_truncated", "body_fragment", "frag_of")
+                    },
+                )
                 restored += 1
             else:
                 # The log can no longer produce this entry. Keeping it is the whole point: its
@@ -518,14 +561,20 @@ def rebuild(ns: str, agent: str, *, client=None,
         new_entries = _resolve(client, ns, agent, acks_lookup)
         new = {e["sha"]: e["tier"] for e in new_entries}
         divergence = sum(1 for sha in set(old) | set(new) if old.get(sha) != new.get(sha))
-        return {"available": True, "divergence": divergence, "entries": len(new_entries),
-                "bodies_preserved": restored, "entries_kept_unregenerable": readded}
+        return {
+            "available": True,
+            "divergence": divergence,
+            "entries": len(new_entries),
+            "bodies_preserved": restored,
+            "entries_kept_unregenerable": readded,
+        }
     except Exception as exc:
         return _unavailable(f"rebuild failed ({exc})")
 
 
-def explain(ns: str, agent: str, ref: str, *, client=None,
-            acks_lookup: Optional[Callable[[List[str]], Dict[str, Any]]] = None) -> Dict[str, Any]:
+def explain(
+    ns: str, agent: str, ref: str, *, client=None, acks_lookup: Optional[Callable[[List[str]], Dict[str, Any]]] = None
+) -> Dict[str, Any]:
     """Evidence chain for one message: which sources carry it, every cursor
     comparison, ack records, answers linkage, and the tier verdict."""
     if not enabled():
@@ -534,8 +583,7 @@ def explain(ns: str, agent: str, ref: str, *, client=None,
         client = client if client is not None else _connect()
         entries = _resolve(client, ns, agent, acks_lookup)
         ref = str(ref)
-        hit = next((e for e in entries if e["sha"].startswith(ref)
-                    or ref in e["ids"].values()), None)
+        hit = next((e for e in entries if e["sha"].startswith(ref) or ref in e["ids"].values()), None)
         if hit is None:
             return {"available": True, "found": False, "ref": ref}
         lane_cursor = client.hgetall(f"{ns}:cursor:lane:{agent}") or {}
@@ -547,16 +595,27 @@ def explain(ns: str, agent: str, ref: str, *, client=None,
             if spec is None:
                 continue
             cursor_val = (lane_cursor if spec[2] == "lane" else legacy_cursor).get(spec[3], "")
-            comparisons.append({"source": source, "stream_id": sid,
-                                "cursor": cursor_val or None,
-                                "consumed": bool(cursor_val and _sid_lte(sid, cursor_val))})
+            comparisons.append(
+                {
+                    "source": source,
+                    "stream_id": sid,
+                    "cursor": cursor_val or None,
+                    "consumed": bool(cursor_val and _sid_lte(sid, cursor_val)),
+                }
+            )
         acks = (acks_lookup or _default_acks)(list(hit["ids"].values()))
-        return {"available": True, "found": True, "sha": hit["sha"], "kind": hit["kind"],
-                "frm": hit["frm"], "ts": hit["ts"], "tier": hit["tier"],
-                "cursor_comparisons": comparisons,
-                "acks": {sid: acks.get(str(sid), []) for sid in hit["ids"].values()},
-                "answered_by": {sid: json.loads(answered[sid]) for sid in hit["ids"].values()
-                                if sid in answered}}
+        return {
+            "available": True,
+            "found": True,
+            "sha": hit["sha"],
+            "kind": hit["kind"],
+            "frm": hit["frm"],
+            "ts": hit["ts"],
+            "tier": hit["tier"],
+            "cursor_comparisons": comparisons,
+            "acks": {sid: acks.get(str(sid), []) for sid in hit["ids"].values()},
+            "answered_by": {sid: json.loads(answered[sid]) for sid in hit["ids"].values() if sid in answered},
+        }
     except Exception as exc:
         return _unavailable(f"explain failed ({exc})")
 
@@ -572,6 +631,7 @@ def explain(ns: str, agent: str, ref: str, *, client=None,
 #    to forget."
 # Hence: open() appends exactly one idempotent seen receipt and touches nothing else. Consumption
 # stays the cursor's business; settlement stays the instrument's; judgement stays the agent's.
+
 
 def retention_s_for(kind: str) -> int:
     """How long an entry is promised. D2's fix is structural rather than by policy: because the
@@ -594,16 +654,23 @@ def body_of(ns: str, agent: str, sha: str, *, client=None) -> Optional[Dict[str,
     # the index quietly claim it holds something it never stored -- the precise failure this arc
     # exists to end. The presence of the key is the discriminator.
     stored = "body" in m
-    return {"sha": str(sha), "kind": m.get("kind", "_unknown"), "frm": m.get("frm", "?"),
-            "to": m.get("to", ""), "ts": m.get("ts", ""), "body": m.get("body", ""),
-            "truncated": m.get("body_truncated") == "1",
-            "body_len": int(m.get("body_len") or 0),
-            "body_fragment": m.get("body_fragment") == "1",
-            "frag_of": m.get("frag_of", ""),
-            "body_available": stored,
-            "body_unavailable_reason": None if stored else
-            "indexed before M1 body storage -- run `mailbox <agent> --backfill` to recover any "
-            "whose transport entry still exists"}
+    return {
+        "sha": str(sha),
+        "kind": m.get("kind", "_unknown"),
+        "frm": m.get("frm", "?"),
+        "to": m.get("to", ""),
+        "ts": m.get("ts", ""),
+        "body": m.get("body", ""),
+        "truncated": m.get("body_truncated") == "1",
+        "body_len": int(m.get("body_len") or 0),
+        "body_fragment": m.get("body_fragment") == "1",
+        "frag_of": m.get("frag_of", ""),
+        "body_available": stored,
+        "body_unavailable_reason": None
+        if stored
+        else "indexed before M1 body storage -- run `mailbox <agent> --backfill` to recover any "
+        "whose transport entry still exists",
+    }
 
 
 def orientation_counts(ns: str, agent: str, *, client=None) -> Dict[str, int]:
@@ -662,14 +729,24 @@ def backfill_bodies(ns: str, agent: str, *, client=None, limit: int = 5000) -> D
             if body:
                 break
         if body:
-            client.hset(mkey, mapping={"body": body[:BODY_MAX], "body_len": str(len(body)),
-                                       "body_truncated": "1" if len(body) > BODY_MAX else "0"})
+            client.hset(
+                mkey,
+                mapping={
+                    "body": body[:BODY_MAX],
+                    "body_len": str(len(body)),
+                    "body_truncated": "1" if len(body) > BODY_MAX else "0",
+                },
+            )
             filled += 1
         else:
             unrecoverable += 1
-    return {"scanned": scanned, "filled": filled, "unrecoverable": unrecoverable,
-            "note": "unrecoverable entries keep their state and stay marked body_available=False; "
-                    "their transport entry is gone and no body was ever stored"}
+    return {
+        "scanned": scanned,
+        "filled": filled,
+        "unrecoverable": unrecoverable,
+        "note": "unrecoverable entries keep their state and stay marked body_available=False; "
+        "their transport entry is gone and no body was ever stored",
+    }
 
 
 # ------------------------------------------------------------------ T095 M2: identifier resolution
@@ -703,8 +780,13 @@ def resolve_sha(ns: str, agent: str, sha: str, *, client=None) -> Dict[str, Any]
     k = _keys(ns, agent)
 
     if not s:
-        return {"how": "absent", "sha": None, "candidates": [], "matched": 0,
-                "reason": "empty id -- nothing to look up"}
+        return {
+            "how": "absent",
+            "sha": None,
+            "candidates": [],
+            "matched": 0,
+            "reason": "empty id -- nothing to look up",
+        }
 
     # Exact first, and it stays the cheap path.
     if client.hgetall(k["msg"] + s):
@@ -718,20 +800,37 @@ def resolve_sha(ns: str, agent: str, sha: str, *, client=None) -> Dict[str, Any]
     hits = [m for m in known if m.startswith(s)]
 
     if len(hits) == 1:
-        return {"how": "prefix", "sha": hits[0], "candidates": [hits[0]], "matched": 1,
-                "reason": (f"{s} is a {len(s)}-char prefix of {hits[0]} -- resolved, because it "
-                           f"names exactly one entry")}
+        return {
+            "how": "prefix",
+            "sha": hits[0],
+            "candidates": [hits[0]],
+            "matched": 1,
+            "reason": (f"{s} is a {len(s)}-char prefix of {hits[0]} -- resolved, because it names exactly one entry"),
+        }
     if len(hits) > 1:
         # `matched` is the TRUE count; `candidates` is a capped SAMPLE of it. Carrying only
         # the capped list lets a caller print "20 candidates" when 35 matched -- a surface
         # misreporting its own completeness, which is this very defect one turn deeper.
-        return {"how": "ambiguous", "sha": None, "candidates": sorted(hits)[:20],
-                "matched": len(hits),
-                "reason": (f"{s} names {len(hits)} entries -- give more characters. NOT absent: "
-                           f"the mail is here, the id is too short to pick one")}
-    return {"how": "absent", "sha": None, "candidates": [], "matched": 0,
-            "reason": (f"no entry matches {s}, at any length -- {len(known)} entr(ies) were "
-                       f"checked. This is genuine absence, not a short id")}
+        return {
+            "how": "ambiguous",
+            "sha": None,
+            "candidates": sorted(hits)[:20],
+            "matched": len(hits),
+            "reason": (
+                f"{s} names {len(hits)} entries -- give more characters. NOT absent: "
+                f"the mail is here, the id is too short to pick one"
+            ),
+        }
+    return {
+        "how": "absent",
+        "sha": None,
+        "candidates": [],
+        "matched": 0,
+        "reason": (
+            f"no entry matches {s}, at any length -- {len(known)} entr(ies) were "
+            f"checked. This is genuine absence, not a short id"
+        ),
+    }
 
 
 def _refusal(resolved: Dict[str, Any], asked: str) -> Dict[str, Any]:
@@ -742,9 +841,14 @@ def _refusal(resolved: Dict[str, Any], asked: str) -> Dict[str, Any]:
     caller branching on `"no mailbox entry" in reason` is coupled to wording, and the next honest
     rewording silently breaks it. `how` is the state; `reason` is how a human reads it.
     """
-    return {"ok": False, "how": resolved["how"], "asked": str(asked),
-            "candidates": resolved.get("candidates") or [],
-            "matched": resolved.get("matched", 0), "reason": resolved["reason"]}
+    return {
+        "ok": False,
+        "how": resolved["how"],
+        "asked": str(asked),
+        "candidates": resolved.get("candidates") or [],
+        "matched": resolved.get("matched", 0),
+        "reason": resolved["reason"],
+    }
 
 
 def _resolve_or_refuse(ns: str, agent: str, sha: str, client) -> Tuple[Optional[str], Optional[Dict[str, Any]]]:
@@ -774,9 +878,13 @@ def open(ns: str, agent: str, sha: str, *, incarnation: str, client=None) -> Dic
     if entry is None:
         # Indexed but the entry hash is gone. A FIFTH fact, and not the same as absent: the index
         # still lists it, so "nothing here" would be a lie about a row we can see.
-        return {"ok": False, "how": "indexed-without-entry", "asked": str(asked), "candidates": [],
-                "reason": f"{sha} is indexed but its entry hash is gone -- "
-                          f"run `mailbox {agent} --rebuild`"}
+        return {
+            "ok": False,
+            "how": "indexed-without-entry",
+            "asked": str(asked),
+            "candidates": [],
+            "reason": f"{sha} is indexed but its entry hash is gone -- run `mailbox {agent} --rebuild`",
+        }
     k = _keys(ns, agent)
     field = f"{sha}|{incarnation}"
     first = not (client.hgetall(k["seen"]) or {}).get(field)
@@ -785,8 +893,12 @@ def open(ns: str, agent: str, sha: str, *, incarnation: str, client=None) -> Dic
     # The seen receipt is recorded either way -- a seat DID read this entry, and that fact is true
     # whether or not the body survived. But `open` must not hand back an empty string as though it
     # were the message.
-    return {"ok": True, "first_open_by_this_incarnation": first,
-            "seen_by": seen_by(ns, agent, sha, client=client), **entry}
+    return {
+        "ok": True,
+        "first_open_by_this_incarnation": first,
+        "seen_by": seen_by(ns, agent, sha, client=client),
+        **entry,
+    }
 
 
 def seen_by(ns: str, agent: str, sha: str, *, client=None) -> List[Dict[str, Any]]:
@@ -801,8 +913,9 @@ def seen_by(ns: str, agent: str, sha: str, *, client=None) -> List[Dict[str, Any
     return sorted(out, key=lambda r: r["at"])
 
 
-def declare_intent(ns: str, agent: str, sha: str, intent: str, *, incarnation: str,
-                   note: str = "", to: str = "", client=None) -> Dict[str, Any]:
+def declare_intent(
+    ns: str, agent: str, sha: str, intent: str, *, incarnation: str, note: str = "", to: str = "", client=None
+) -> Dict[str, Any]:
     """Declare what you will DO about this mail. The gap Daniil named: without it, 'read and
     declined' is indistinguishable from 'never seen', and every reader re-adjudicates.
 
@@ -819,11 +932,14 @@ def declare_intent(ns: str, agent: str, sha: str, intent: str, *, incarnation: s
     if refusal:
         return refusal
     if body_of(ns, agent, sha, client=client) is None:
-        return {"ok": False, "how": "indexed-without-entry", "asked": str(asked), "candidates": [],
-                "reason": f"{sha} is indexed but its entry hash is gone -- "
-                          f"run `mailbox {agent} --rebuild`"}
-    rec = {"intent": str(intent), "by": incarnation, "at": time.time(),
-           "note": str(note)[:500], "to": str(to)}
+        return {
+            "ok": False,
+            "how": "indexed-without-entry",
+            "asked": str(asked),
+            "candidates": [],
+            "reason": f"{sha} is indexed but its entry hash is gone -- run `mailbox {agent} --rebuild`",
+        }
+    rec = {"intent": str(intent), "by": incarnation, "at": time.time(), "note": str(note)[:500], "to": str(to)}
     # Append-only in spirit: a later declaration supersedes rather than erases, and the prior one
     # stays readable under its own key (corrections are new entries, never edits).
     k = _keys(ns, agent)
@@ -863,8 +979,9 @@ def intents_of(ns: str, agent: str, sha: str, *, client=None) -> List[Dict[str, 
     return out
 
 
-def open_for_message(agent: str, msg: Any, *, incarnation: str, ns: Optional[str] = None,
-                     client=None) -> Dict[str, Any]:
+def open_for_message(
+    agent: str, msg: Any, *, incarnation: str, ns: Optional[str] = None, client=None
+) -> Dict[str, Any]:
     """Say SEEN about a message this seat just read, WITHOUT inventing a decision.
 
     The gap the counts exposed on 2026-08-03: kimi 8 seen, deepseek 7, claude 2. The runners record
@@ -888,10 +1005,13 @@ def open_for_message(agent: str, msg: Any, *, incarnation: str, ns: Optional[str
             # Pass the resolution state THROUGH. Re-deriving a narrower dict here is how the
             # richer answer got lost before: the door knew which of the four states it was in and
             # this wrapper kept only the prose, leaving every caller back to grepping English.
-            return {**opened, "sha": sha, "identity_basis": basis,
-                    "reason": opened.get("reason", "open failed")}
-        return {"ok": True, "sha": sha, "identity_basis": basis,
-                "first_open_by_this_incarnation": opened.get("first_open_by_this_incarnation")}
+            return {**opened, "sha": sha, "identity_basis": basis, "reason": opened.get("reason", "open failed")}
+        return {
+            "ok": True,
+            "sha": sha,
+            "identity_basis": basis,
+            "first_open_by_this_incarnation": opened.get("first_open_by_this_incarnation"),
+        }
     except Exception as exc:
         return {"ok": False, "reason": f"mailbox open failed ({exc})"}
 
@@ -906,9 +1026,10 @@ def _msg_fields(msg: Any) -> "tuple[Dict[str, str], Dict[str, Any]]":
     meta = getattr(msg, "meta", None)
     if meta is None and isinstance(msg, dict):
         meta = msg.get("meta")
-    return ({"frm": _f("frm"), "to": _f("to"), "kind": _f("kind"),
-             "content": _f("content"), "ts": _f("ts")},
-            meta if isinstance(meta, dict) else {})
+    return (
+        {"frm": _f("frm"), "to": _f("to"), "kind": _f("kind"), "content": _f("content"), "ts": _f("ts")},
+        meta if isinstance(meta, dict) else {},
+    )
 
 
 def _identity_for_message(msg: Any) -> "tuple[str, str]":
@@ -927,15 +1048,24 @@ def _ensure_indexed(client, ns: str, agent: str, msg: Any, sha: str) -> None:
         return
     fields, meta = _msg_fields(msg)
     try:
-        _ingest_one(client, ns, agent, "declare", str(getattr(msg, "id", "") or "0-0"),
-                    {**fields, "meta": json.dumps(meta)})
+        _ingest_one(
+            client, ns, agent, "declare", str(getattr(msg, "id", "") or "0-0"), {**fields, "meta": json.dumps(meta)}
+        )
     except Exception:
-        pass                     # the caller's open() reports the miss honestly
+        pass  # the caller's open() reports the miss honestly
 
 
-def declare_for_message(agent: str, msg: Any, intent: str, *, incarnation: str,
-                        note: str = "", to: str = "", ns: Optional[str] = None,
-                        client=None) -> Dict[str, Any]:
+def declare_for_message(
+    agent: str,
+    msg: Any,
+    intent: str,
+    *,
+    incarnation: str,
+    note: str = "",
+    to: str = "",
+    ns: Optional[str] = None,
+    client=None,
+) -> Dict[str, Any]:
     """THE RUNNER SEAM: record that this seat read a message and what it decided to do about it.
 
     This is the call that was missing. `open()` and `declare_intent()` have shipped since M1 with
@@ -961,10 +1091,9 @@ def declare_for_message(agent: str, msg: Any, intent: str, *, incarnation: str,
         if not opened.get("ok"):
             return opened
         sha, basis = opened["sha"], opened["identity_basis"]
-        res = declare_intent(ns, agent, sha, intent, incarnation=incarnation,
-                             note=note, to=to, client=client)
+        res = declare_intent(ns, agent, sha, intent, incarnation=incarnation, note=note, to=to, client=client)
         return {**res, "sha": sha, "identity_basis": basis}
-    except Exception as exc:                                  # fail-open, always
+    except Exception as exc:  # fail-open, always
         return {"ok": False, "reason": f"mailbox declare failed ({exc})"}
 
 
@@ -997,19 +1126,27 @@ def _sender_can_return(sender: str) -> bool:
     s = str(sender or "")
     m = _INCARNATION_SUFFIX.search(s)
     if not m:
-        return True                     # a fleet member, however quiet
+        return True  # a fleet member, however quiet
     try:
         from core.comm.incarnation import live_incarnations
-        base, sid = s[:m.start()], m.group(1)
-        return any(str(x.get("session_id") or "").startswith(sid[:8])
-                   for x in live_incarnations(base))
+
+        base, sid = s[: m.start()], m.group(1)
+        return any(str(x.get("session_id") or "").startswith(sid[:8]) for x in live_incarnations(base))
     except Exception:
-        return True                     # never retire because liveness was unreadable
+        return True  # never retire because liveness was unreadable
 
 
-def retire_ghost_mail(ns: str, agent: str, *, min_age_h: float = 24.0, dry_run: bool = True,
-                      client=None, is_live=None, incarnation: str = "ghost-sweep",
-                      limit: int = DEFAULT_CAP) -> Dict[str, Any]:
+def retire_ghost_mail(
+    ns: str,
+    agent: str,
+    *,
+    min_age_h: float = 24.0,
+    dry_run: bool = True,
+    client=None,
+    is_live=None,
+    incarnation: str = "ghost-sweep",
+    limit: int = DEFAULT_CAP,
+) -> Dict[str, Any]:
     """Declare `decline` on old, unadjudicated mail from seats that no longer exist.
 
     THE FAILURE THIS TREATS, from 2026-08-02: kimi spent three turns answering
@@ -1078,26 +1215,42 @@ def retire_ghost_mail(ns: str, agent: str, *, min_age_h: float = 24.0, dry_run: 
             continue
         if _live(frm):
             continue
-        candidates.append({"sha": str(sha), "frm": frm, "kind": str(e.get("kind") or ""),
-                           "age_h": round(age_h, 1)})
+        candidates.append({"sha": str(sha), "frm": frm, "kind": str(e.get("kind") or ""), "age_h": round(age_h, 1)})
 
     retired = 0
     if not dry_run:
         for c in candidates:
             r = declare_intent(
-                ns, agent, c["sha"], "decline", incarnation=incarnation, client=client,
-                note=(f"ghost sweep: sender {c['frm']} has no live seat and this is {c['age_h']}h "
-                      f"old -- declined so it stops competing with live work"))
+                ns,
+                agent,
+                c["sha"],
+                "decline",
+                incarnation=incarnation,
+                client=client,
+                note=(
+                    f"ghost sweep: sender {c['frm']} has no live seat and this is {c['age_h']}h "
+                    f"old -- declined so it stops competing with live work"
+                ),
+            )
             if r.get("ok"):
                 retired += 1
 
-    return {"ok": True, "scanned": len(shas), "total": total, "truncated": truncated,
-            "unscanned": max(0, total - len(shas)), "candidates": candidates,
-            "would_retire": len(candidates), "retired": retired, "dry_run": bool(dry_run)}
+    return {
+        "ok": True,
+        "scanned": len(shas),
+        "total": total,
+        "truncated": truncated,
+        "unscanned": max(0, total - len(shas)),
+        "candidates": candidates,
+        "would_retire": len(candidates),
+        "retired": retired,
+        "dry_run": bool(dry_run),
+    }
 
 
-def maybe_retire_ghosts(ns: str, agent: str, *, every_h: float = 12.0, client=None,
-                        incarnation: str = "boot-sweep") -> Dict[str, Any]:
+def maybe_retire_ghosts(
+    ns: str, agent: str, *, every_h: float = 12.0, client=None, incarnation: str = "boot-sweep"
+) -> Dict[str, Any]:
     """Run the ghost sweep on a CADENCE, not on a ritual.
 
     Ghost mail recurs by construction: the index ingests on READ, so it grows as it is queried, and
@@ -1129,8 +1282,13 @@ def maybe_retire_ghosts(ns: str, agent: str, *, every_h: float = 12.0, client=No
         pass
     # The stamp is set even on a failed sweep: retrying a broken scan on every boot of every session
     # would turn one fault into a permanent tax on startup.
-    return {"ok": bool(res.get("ok")), "due": True, "retired": int(res.get("retired") or 0),
-            "truncated": bool(res.get("truncated")), "unscanned": int(res.get("unscanned") or 0)}
+    return {
+        "ok": bool(res.get("ok")),
+        "due": True,
+        "retired": int(res.get("retired") or 0),
+        "truncated": bool(res.get("truncated")),
+        "unscanned": int(res.get("unscanned") or 0),
+    }
 
 
 def state_for(ns: str, agent: str, sha: str, *, client=None) -> Dict[str, Any]:
@@ -1155,30 +1313,39 @@ def state_for(ns: str, agent: str, sha: str, *, client=None) -> Dict[str, Any]:
     sha = resolved["sha"]
     entry = body_of(ns, agent, sha, client=client)
     if entry is None:
-        return {"available": True, "found": False, "sha": None, "asked": str(sha),
-                "how": "indexed-without-entry",
-                "reason": f"{sha} is indexed but its entry hash is gone -- "
-                          f"run `mailbox {agent} --rebuild`",
-                "candidates": []}
+        return {
+            "available": True,
+            "found": False,
+            "sha": None,
+            "asked": str(sha),
+            "how": "indexed-without-entry",
+            "reason": f"{sha} is indexed but its entry hash is gone -- run `mailbox {agent} --rebuild`",
+            "candidates": [],
+        }
     seen = seen_by(ns, agent, sha, client=client)
     raw = (client.hgetall(_keys(ns, agent)["intent"]) or {}).get(str(sha))
     try:
         intent = json.loads(raw) if raw else None
     except (ValueError, TypeError):
         intent = None
-    return {"available": True, "found": True, **entry,
-            "seen_by": seen, "intent": intent,
-            "read_but_undeclared": bool(seen) and intent is None,
-            "retention_s": retention_s_for(entry["kind"]),
-            # KD-2 (deepseek's oracle): the index half is re-derivable from the streams, but seen
-            # receipts and intents are NOT -- rebuild() never touches them and nothing in the log
-            # can regenerate them. So the product receipt's "a new incarnation sees that the prior
-            # one read it" holds only WITHIN A SINGLE REDIS LIFETIME. A flush is a total amnesia
-            # event for M1 state while the streams survive -- the worst asymmetry, because the mail
-            # comes back looking never-read. Declared on every response rather than documented in a
-            # module nobody reads: an unstated bound is how a surface starts lying about itself.
-            "durability": {
-                "index": "re-derivable from the log via rebuild()",
-                "seen_and_intent": "Redis-only; NOT re-derivable; lost on flush",
-                "receipt_scope": "survives incarnation death within one Redis lifetime",
-            }}
+    return {
+        "available": True,
+        "found": True,
+        **entry,
+        "seen_by": seen,
+        "intent": intent,
+        "read_but_undeclared": bool(seen) and intent is None,
+        "retention_s": retention_s_for(entry["kind"]),
+        # KD-2 (deepseek's oracle): the index half is re-derivable from the streams, but seen
+        # receipts and intents are NOT -- rebuild() never touches them and nothing in the log
+        # can regenerate them. So the product receipt's "a new incarnation sees that the prior
+        # one read it" holds only WITHIN A SINGLE REDIS LIFETIME. A flush is a total amnesia
+        # event for M1 state while the streams survive -- the worst asymmetry, because the mail
+        # comes back looking never-read. Declared on every response rather than documented in a
+        # module nobody reads: an unstated bound is how a surface starts lying about itself.
+        "durability": {
+            "index": "re-derivable from the log via rebuild()",
+            "seen_and_intent": "Redis-only; NOT re-derivable; lost on flush",
+            "receipt_scope": "survives incarnation death within one Redis lifetime",
+        },
+    }

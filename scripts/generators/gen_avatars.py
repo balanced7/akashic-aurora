@@ -45,8 +45,9 @@ def render(callsign: str, family: str, team: str) -> str:
     letter = (callsign or "?")[0].upper()
     bbox = d.textbbox((0, 0), letter, font=font)
     w, h = bbox[2] - bbox[0], bbox[3] - bbox[1]
-    d.text(((SIZE - w) / 2 - bbox[0], (SIZE - h) / 2 - bbox[1]), letter,
-           fill=MARK.get(family, (255, 255, 255)), font=font)
+    d.text(
+        ((SIZE - w) / 2 - bbox[0], (SIZE - h) / 2 - bbox[1]), letter, fill=MARK.get(family, (255, 255, 255)), font=font
+    )
     os.makedirs(OUT, exist_ok=True)
     path = os.path.join(OUT, f"{callsign.lower()}.png")
     img.save(path)
@@ -59,8 +60,10 @@ def main() -> int:
         rec = R.get(agent)
         place = R.current_placement(agent)
         if not rec or not place:
-            print(f"[avatars] {agent}: unplaced in the residents registry -- no avatar "
-                  f"(honest absence; ratification mints the face)")
+            print(
+                f"[avatars] {agent}: unplaced in the residents registry -- no avatar "
+                f"(honest absence; ratification mints the face)"
+            )
             continue
         cs = rec.get("callsign", agent)
         p = render(cs, place.get("family", ""), place.get("team", ""))

@@ -21,6 +21,7 @@ Run (arm BEFORE the walk; attaches to the first transcript that appears after st
 Replay a finished transcript (verification / post-hoc rendering):
   py scripts/kimi_walk_narrator.py --replay <path.jsonl>
 """
+
 import argparse
 import json
 import os
@@ -31,25 +32,25 @@ from pathlib import Path
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(HERE))
 
-from agent.harness.trace import emit   # broadcast kind=trace, display_only -- UI already renders
+from agent.harness.trace import emit  # broadcast kind=trace, display_only -- UI already renders
 
 
 def _repo_root():
     """Derived, not hardcoded -- the old default pinned one machine's disk."""
     from core.paths import repo_root
+
     return repo_root()
 
 
-HOME = Path(os.getenv("KIMI_CLAUDE_HOME")
-     or (_repo_root() / ".kimi-claude-home")) / "projects"
-CHUNK = 700          # thinking arrives in paragraphs; bus lines stay skimmable
+HOME = Path(os.getenv("KIMI_CLAUDE_HOME") or (_repo_root() / ".kimi-claude-home")) / "projects"
+CHUNK = 700  # thinking arrives in paragraphs; bus lines stay skimmable
 POLL_S = 1.0
 
 
 def chunks(text, n=CHUNK):
     text = (text or "").strip()
     for i in range(0, len(text), n):
-        yield text[i:i + n]
+        yield text[i : i + n]
 
 
 def narrate_entry(entry, agent="kimi") -> int:
@@ -130,8 +131,11 @@ def main() -> int:
                 if path is not None:
                     offset = 0
                     print(f"[narrator] attached: {path}")
-                    emit("say", "(narrator attached -- kimi's reasoning streams here from this point)",
-                         agent_id=args.agent)
+                    emit(
+                        "say",
+                        "(narrator attached -- kimi's reasoning streams here from this point)",
+                        agent_id=args.agent,
+                    )
             if path is not None:
                 offset, sent = tail(path, args.agent, seen, offset)
                 if sent:
@@ -140,7 +144,7 @@ def main() -> int:
             print("[narrator] stopped")
             return 0
         except Exception as e:
-            print(f"[narrator] tolerated: {type(e).__name__}: {e}")   # telemetry never dies loudly
+            print(f"[narrator] tolerated: {type(e).__name__}: {e}")  # telemetry never dies loudly
         time.sleep(POLL_S)
 
 

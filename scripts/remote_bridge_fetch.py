@@ -16,6 +16,7 @@ were caught only because a human thought to hash them.
 It writes to a temp file and renames on success, so a failed or interrupted fetch never leaves
 a half-file wearing the name of a whole one.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -38,8 +39,7 @@ def fetch(ref: str, peer: str = "", timeout: int = 120):
     """Request one blob from a peer. Returns (bytes, error). NEVER RAISES."""
     url = RR.peer_url(peer)
     if not url:
-        return None, (f"no route to peer {peer or '(default)'} — set peer.url in "
-                      f"state/coord/remote_bridge.json")
+        return None, (f"no route to peer {peer or '(default)'} — set peer.url in state/coord/remote_bridge.json")
     key = RR._outbound_key_for(peer)
     if not key:
         return None, f"no outbound key for peer {peer or '(default)'} — the bridge is unkeyed"
@@ -48,18 +48,21 @@ def fetch(ref: str, peer: str = "", timeout: int = 120):
     body = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
     env = {"body": base64.b64encode(body).decode(), "sig": RR.sign(body, key)}
     blob_url = url.rsplit("/", 1)[0] + "/blob"
-    req = urllib.request.Request(blob_url, data=json.dumps(env).encode(), method="POST",
-                                 headers={"Content-Type": "application/json"})
+    req = urllib.request.Request(
+        blob_url, data=json.dumps(env).encode(), method="POST", headers={"Content-Type": "application/json"}
+    )
     try:
         with urllib.request.urlopen(req, timeout=timeout) as r:
             return r.read(), None
     except urllib.error.HTTPError as e:
         # Their refusal is flat BY DESIGN and tells us nothing — not a bug, and not something
         # to retry blindly. The reason exists in THEIR log; ask, do not guess.
-        return None, (f"peer refused ({e.code}). The refusal is deliberately uninformative — "
-                      f"the reason is in THEIR listener log. Common causes, in order: they do "
-                      f"not hold that ref, clock skew beyond the window, or a key mismatch.")
-    except Exception as e:                                        # noqa: BLE001
+        return None, (
+            f"peer refused ({e.code}). The refusal is deliberately uninformative — "
+            f"the reason is in THEIR listener log. Common causes, in order: they do "
+            f"not hold that ref, clock skew beyond the window, or a key mismatch."
+        )
+    except Exception as e:  # noqa: BLE001
         return None, f"could not reach {blob_url} ({type(e).__name__}: {e})"
 
 
@@ -84,8 +87,11 @@ def main(argv=None) -> int:
         # The whole point. Do not write it, do not report success, do not let the caller
         # decide -- bytes that are not the ref are not the file, and writing them under the
         # intended name is how a corrupted transfer becomes a mystery three days later.
-        print(f"INTEGRITY FAILURE: {len(data)} bytes received, but they do not hash to "
-              f"{a.ref}. NOT WRITTEN. Ask for a re-announce.", file=sys.stderr)
+        print(
+            f"INTEGRITY FAILURE: {len(data)} bytes received, but they do not hash to "
+            f"{a.ref}. NOT WRITTEN. Ask for a re-announce.",
+            file=sys.stderr,
+        )
         return 1
 
     out = Path(a.out)
@@ -93,7 +99,7 @@ def main(argv=None) -> int:
     try:
         out.parent.mkdir(parents=True, exist_ok=True)
         tmp.write_bytes(data)
-        tmp.replace(out)                        # rename on success: no half-file wearing a whole name
+        tmp.replace(out)  # rename on success: no half-file wearing a whole name
     except OSError as e:
         print(f"could not write {out}: {e}", file=sys.stderr)
         return 1

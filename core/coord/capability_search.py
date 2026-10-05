@@ -29,6 +29,7 @@ labelled a MODEL READ rather than a lookup, because letting an inference inherit
 lookup's authority is exactly the laundering the relationship-plane design forbids one
 level up.
 """
+
 from __future__ import annotations
 
 import os
@@ -57,12 +58,13 @@ NEAREST MISS: the closest thing that is NOT it, and why it is not"""
 def _ask(prompt: str, files: List[str], **kw):
     """Seam. Injected in pins so the taxonomy is testable without spending a call."""
     from core.comm.ask import ask
+
     return ask(prompt, with_files=files, **kw)
 
 
 def _field(text: str, name: str) -> str:
     m = re.search(rf"^{name}\s*:\s*(.+)$", text or "", re.I | re.M)
-    return (m.group(1).strip() if m else "")
+    return m.group(1).strip() if m else ""
 
 
 def _verb_table() -> Optional[str]:
@@ -70,12 +72,12 @@ def _verb_table() -> Optional[str]:
     cannot be produced, the module index alone still answers most questions."""
     try:
         from agent_cli import list_verbs
+
         rows = list_verbs(None)
         path = _ROOT / "research" / "in-flight" / "_verbs_snapshot.txt"
         path.parent.mkdir(parents=True, exist_ok=True)
         width = max((len(n) for n, _ in rows), default=0)
-        path.write_text("\n".join(f"{n.ljust(width)}  {h}" for n, h in rows),
-                        encoding="utf-8")
+        path.write_text("\n".join(f"{n.ljust(width)}  {h}" for n, h in rows), encoding="utf-8")
         return str(path.relative_to(_ROOT)).replace("\\", "/")
     except Exception:
         return None
@@ -89,20 +91,28 @@ def find(query: str, *, files: Optional[List[str]] = None) -> Dict[str, Any]:
     malformed, or the call failed -- so a caller can require confidence before acting on
     a "no", which is the only direction that can cost real work.
     """
-    def _unknown(why: str, **extra) -> Dict[str, Any]:
-        return {"exists": "UNKNOWN", "what": "", "gap": "", "nearest_miss": "",
-                "confident": False, "source": "model", "why": why, "usd": None,
-                "model": None, **extra}
 
-    paths = list(files) if files else [p for p in DEFAULT_FILES
-                                       if (_ROOT / p).exists()]
+    def _unknown(why: str, **extra) -> Dict[str, Any]:
+        return {
+            "exists": "UNKNOWN",
+            "what": "",
+            "gap": "",
+            "nearest_miss": "",
+            "confident": False,
+            "source": "model",
+            "why": why,
+            "usd": None,
+            "model": None,
+            **extra,
+        }
+
+    paths = list(files) if files else [p for p in DEFAULT_FILES if (_ROOT / p).exists()]
     if files is None:
         vt = _verb_table()
         if vt:
             paths.insert(0, vt)
     if not paths:
-        return _unknown("no substrate surfaces available to search "
-                        "(module index missing and verb table unbuildable)")
+        return _unknown("no substrate surfaces available to search (module index missing and verb table unbuildable)")
 
     try:
         o = _ask(_SHAPE.format(query=str(query)), paths)
@@ -112,23 +122,34 @@ def find(query: str, *, files: Optional[List[str]] = None) -> Dict[str, Any]:
     detail = getattr(o, "detail", None) or {}
     if not getattr(o, "ok", False):
         # A closed door, a timeout, a starved answer. NOT a statement about the world.
-        return _unknown(f"could not be answered: {getattr(o, 'why', '') or 'unreported'}",
-                        usd=detail.get("usd"), model=detail.get("model"))
+        return _unknown(
+            f"could not be answered: {getattr(o, 'why', '') or 'unreported'}",
+            usd=detail.get("usd"),
+            model=detail.get("model"),
+        )
 
     text = str(detail.get("answer") or "")
     raw = _field(text, "EXISTS").lower()
     exists = next((v for v in ("yes", "partially", "no") if raw.startswith(v)), None)
     if exists is None:
         # The model wandered off the format. A parsing failure must never become a claim.
-        return _unknown("the answer did not follow the required shape, so its verdict "
-                        "cannot be read -- re-ask rather than assuming absence",
-                        usd=detail.get("usd"), model=detail.get("model"))
+        return _unknown(
+            "the answer did not follow the required shape, so its verdict "
+            "cannot be read -- re-ask rather than assuming absence",
+            usd=detail.get("usd"),
+            model=detail.get("model"),
+        )
 
-    return {"exists": exists, "what": _field(text, "WHAT"),
-            "gap": _field(text, "GAP"), "nearest_miss": _field(text, "NEAREST MISS"),
-            # A truncated answer may have been on its way to saying the opposite.
-            "confident": not bool(getattr(o, "partial", False)),
-            "source": "model", "model": detail.get("model"),
-            "usd": detail.get("usd"),
-            "why": (getattr(o, "why", "") if getattr(o, "partial", False) else ""),
-            "answer": text}
+    return {
+        "exists": exists,
+        "what": _field(text, "WHAT"),
+        "gap": _field(text, "GAP"),
+        "nearest_miss": _field(text, "NEAREST MISS"),
+        # A truncated answer may have been on its way to saying the opposite.
+        "confident": not bool(getattr(o, "partial", False)),
+        "source": "model",
+        "model": detail.get("model"),
+        "usd": detail.get("usd"),
+        "why": (getattr(o, "why", "") if getattr(o, "partial", False) else ""),
+        "answer": text,
+    }

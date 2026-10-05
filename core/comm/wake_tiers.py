@@ -40,18 +40,18 @@ STRANGLER DISCIPLINE. The default floor is AMBIENT (3), which admits everything 
 already admits, so importing this module changes no behaviour anywhere. Tiering is opt-in per
 arm.
 """
+
 from __future__ import annotations
 
 from typing import Any, Optional
 
 # ---------------------------------------------------------------- the ladder
-OPERATOR = 0      # the human. Never queues behind fleet traffic, never starved.
+OPERATOR = 0  # the human. Never queues behind fleet traffic, never starved.
 DIRECTED_ASK = 1  # an ask addressed to ME and awaiting my answer.
-SETTLEMENT = 2    # an answer to something I asked -- closes my own open loop.
-AMBIENT = 3       # everything else. Visible, never urgent.
+SETTLEMENT = 2  # an answer to something I asked -- closes my own open loop.
+AMBIENT = 3  # everything else. Visible, never urgent.
 
-NAMES = {OPERATOR: "operator", DIRECTED_ASK: "directed-ask",
-         SETTLEMENT: "settlement", AMBIENT: "ambient"}
+NAMES = {OPERATOR: "operator", DIRECTED_ASK: "directed-ask", SETTLEMENT: "settlement", AMBIENT: "ambient"}
 
 # Kinds that ASK something of the recipient (they open an obligation).
 ASK_KINDS = frozenset({"request", "handoff", "question", "blocker"})
@@ -66,8 +66,7 @@ def _s(m: Any, attr: str) -> str:
     return str(getattr(m, attr, "") or "")
 
 
-def wake_tier(m: Any, *, agent: str, incarnation: str = "",
-              operator_ids: Optional[frozenset] = None) -> int:
+def wake_tier(m: Any, *, agent: str, incarnation: str = "", operator_ids: Optional[frozenset] = None) -> int:
     """How much does this message outrank other mail for THIS seat? Lower is louder.
 
     Deliberately total: every message resolves to a tier, and the unlisted case is

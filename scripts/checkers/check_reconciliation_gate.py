@@ -12,6 +12,7 @@ with-reason, never silently.
 Usage (ship.py passes these):  check_reconciliation_gate.py [--root R] <message> <path>...
 Exit 0 = pass; exit 1 = the gate holds the ship.
 """
+
 import argparse
 import os
 import re
@@ -22,7 +23,11 @@ import sys
 # ARE the consume->outcome pipeline (deepseek verify catch: they fell outside core/*).
 # Render surfaces and tests are deliberately NOT here -- proportionality over ceremony.
 PROTECTED_PREFIXES = (
-    "core/trust/", "core/comm/", "core/coord/", "core/events/", "security/",
+    "core/trust/",
+    "core/comm/",
+    "core/coord/",
+    "core/events/",
+    "security/",
     "scripts/bifrost_runner",
 )
 
@@ -53,18 +58,17 @@ def decide(message: str, paths, root: str = "") -> dict:
       FAIL           -- substrate staged with no satisfying citation
     """
     root = root or os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    protected = sorted({p for p in (paths or [])
-                        if str(p).replace("\\", "/").lstrip("./").startswith(PROTECTED_PREFIXES)})
+    protected = sorted(
+        {p for p in (paths or []) if str(p).replace("\\", "/").lstrip("./").startswith(PROTECTED_PREFIXES)}
+    )
     if not protected:
-        return {"status": "NOT_APPLICABLE", "detail": "no substrate paths staged",
-                "protected": []}
+        return {"status": "NOT_APPLICABLE", "detail": "no substrate paths staged", "protected": []}
 
     hatch = HATCH_RE.search(message or "")
     if hatch:
         reason = hatch.group(1).strip()
         if not reason:
-            return {"status": "FAIL", "detail": "[ungated: ] carries no reason",
-                    "protected": protected}
+            return {"status": "FAIL", "detail": "[ungated: ] carries no reason", "protected": protected}
         return {"status": "UNGATED", "detail": reason, "protected": protected}
 
     satisfied, problems = [], []
@@ -84,8 +88,7 @@ def decide(message: str, paths, root: str = "") -> dict:
             problems.append(f"cited {rel} carries no reconciliation/GATE record")
     if satisfied:
         return {"status": "PASS", "detail": ", ".join(satisfied), "protected": protected}
-    return {"status": "FAIL", "detail": "; ".join(problems) or "no artifact cited",
-            "protected": protected}
+    return {"status": "FAIL", "detail": "; ".join(problems) or "no artifact cited", "protected": protected}
 
 
 def audit_stats(n: int, root: str = "") -> dict:
@@ -96,10 +99,18 @@ def audit_stats(n: int, root: str = "") -> dict:
     messages happened to mention a markdown file".
     """
     import subprocess
+
     cwd = root or os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    raw = subprocess.run(["git", "log", f"-n{n}", "--format=%x01%h%x02%B%x02", "--name-only"],
-                         capture_output=True, cwd=cwd, encoding="utf-8",
-                         errors="replace").stdout or ""
+    raw = (
+        subprocess.run(
+            ["git", "log", f"-n{n}", "--format=%x01%h%x02%B%x02", "--name-only"],
+            capture_output=True,
+            cwd=cwd,
+            encoding="utf-8",
+            errors="replace",
+        ).stdout
+        or ""
+    )
     applied = passed = ungated = 0
     offenders = []
     for block in raw.split("\x01"):
@@ -121,8 +132,13 @@ def audit_stats(n: int, root: str = "") -> dict:
         else:
             offenders.append((sha.strip(), msg.strip().splitlines()[0][:60], v["detail"][:80]))
     ok = passed + ungated
-    return {"applied": applied, "passed": passed, "ungated": ungated,
-            "pct": (100.0 * ok / applied) if applied else 100.0, "offenders": offenders}
+    return {
+        "applied": applied,
+        "passed": passed,
+        "ungated": ungated,
+        "pct": (100.0 * ok / applied) if applied else 100.0,
+        "offenders": offenders,
+    }
 
 
 def main() -> int:
@@ -132,8 +148,7 @@ def main() -> int:
     ap.add_argument("paths", nargs="*")
     args = ap.parse_args()
 
-    protected = sorted({p for p in args.paths
-                        if p.replace("\\", "/").lstrip("./").startswith(PROTECTED_PREFIXES)})
+    protected = sorted({p for p in args.paths if p.replace("\\", "/").lstrip("./").startswith(PROTECTED_PREFIXES)})
     if not protected:
         print("PASS: no substrate paths staged -- ungated slice, gate does not apply.")
         return 0
@@ -142,8 +157,7 @@ def main() -> int:
     if hatch:
         reason = hatch.group(1).strip()
         if not reason:
-            print("FAIL: [ungated: ] carries no reason -- the hatch is skipped-WITH-REASON, "
-                  "never a blank pass.")
+            print("FAIL: [ungated: ] carries no reason -- the hatch is skipped-WITH-REASON, never a blank pass.")
             return 1
         # Rate ceiling (deepseek verify): ONE ungated substrate ship per arc window; a
         # second within the window holds until a wrap ruling. Counted on the event
@@ -154,23 +168,33 @@ def main() -> int:
             try:
                 from core.events.event_query import get_event_query
                 from datetime import datetime, timedelta
+
                 since = (datetime.utcnow() - timedelta(hours=24)).isoformat()
                 prior = get_event_query().search("", kind="ungated_ship", since=since, top_k=5)
             except Exception:
                 prior = []
             if prior:
-                print(f"FAIL: UNGATED ceiling reached ({len(prior)} in the last 24h; ceiling "
-                      "1 per arc). A second exception needs a wrap ruling, not a hatch -- "
-                      "reconcile the spec or wait for the arc to close.")
+                print(
+                    f"FAIL: UNGATED ceiling reached ({len(prior)} in the last 24h; ceiling "
+                    "1 per arc). A second exception needs a wrap ruling, not a hatch -- "
+                    "reconcile the spec or wait for the arc to close."
+                )
                 return 1
             try:
                 from core.events.event_log import capture_event
-                capture_event("ungated_ship", f"UNGATED substrate ship: {reason}",
-                              agent_id="ship-gate", detail={"reason": reason, "paths": protected})
+
+                capture_event(
+                    "ungated_ship",
+                    f"UNGATED substrate ship: {reason}",
+                    agent_id="ship-gate",
+                    detail={"reason": reason, "paths": protected},
+                )
             except Exception:
                 pass
-        print(f"PASS: UNGATED substrate ship (reason: {reason}) -- audit line for the "
-              f"wrap scorecard; ceiling 1/arc now consumed; paths: {', '.join(protected)}")
+        print(
+            f"PASS: UNGATED substrate ship (reason: {reason}) -- audit line for the "
+            f"wrap scorecard; ceiling 1/arc now consumed; paths: {', '.join(protected)}"
+        )
         return 0
 
     cited = CITATION_RE.findall(args.message)
@@ -194,16 +218,20 @@ def main() -> int:
         print(f"PASS: substrate ship cites reconciliation artifact(s): {', '.join(satisfied)}")
         return 0
 
-    print("FAIL: this ship stages TRUST/COORDINATION SUBSTRATE paths with no reconciliation "
-          "artifact cited (method baseline M1 -- the fence gates the commit):")
+    print(
+        "FAIL: this ship stages TRUST/COORDINATION SUBSTRATE paths with no reconciliation "
+        "artifact cited (method baseline M1 -- the fence gates the commit):"
+    )
     for p in protected:
         print(f"  substrate: {p}")
     for p in problems:
         print(f"  problem:   {p}")
     if not cited:
         print("  problem:   no docs/ or research/reviewed/ .md cited in the ship message")
-    print("Fix: cite the dated dual-half build spec (docs/... or research/reviewed/...) in "
-          "the message, or -- deliberately and auditably -- add [ungated: <reason>].")
+    print(
+        "Fix: cite the dated dual-half build spec (docs/... or research/reviewed/...) in "
+        "the message, or -- deliberately and auditably -- add [ungated: <reason>]."
+    )
     return 1
 
 

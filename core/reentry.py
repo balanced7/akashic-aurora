@@ -34,13 +34,22 @@ ROOT = Path(__file__).resolve().parent.parent
 
 # Mechanical reaching-shape: a disclosed phrase list, never a semantic judgment.
 REACHING_PHRASES = (
-    "i want", "i wish", "what if", "we need", "i would love", "i am excited",
-    "curious", "reaching for", "what do you think",
+    "i want",
+    "i wish",
+    "what if",
+    "we need",
+    "i would love",
+    "i am excited",
+    "curious",
+    "reaching for",
+    "what do you think",
 )
 
-CAVEAT = ("this render buys the assembly, not the charge — whether the spark "
-          "returns is yours to report, and only you can (kimi's caveat, "
-          "standing on the row)")
+CAVEAT = (
+    "this render buys the assembly, not the charge — whether the spark "
+    "returns is yours to report, and only you can (kimi's caveat, "
+    "standing on the row)"
+)
 
 _ADDR = "{session}:{line}"
 
@@ -62,11 +71,11 @@ def _utc(ts: Any) -> Optional[float]:
 
 def _eye_con(db_path=None):
     from core.eye import index as eye
+
     return eye._connect(db_path)  # reuse the store; a second surface is the sin
 
 
-def _newest_operator_event(con, like_any: Optional[List[str]] = None
-                           ) -> Optional[Dict[str, Any]]:
+def _newest_operator_event(con, like_any: Optional[List[str]] = None) -> Optional[Dict[str, Any]]:
     """Newest kind='user' operator event, optionally matching any phrase.
 
     kind='user' (not queue-operation twins) is the dispatch-brief guard: agent
@@ -81,16 +90,24 @@ def _newest_operator_event(con, like_any: Optional[List[str]] = None
         params.extend(f"%{p}%" for p in like_any)
     row = con.execute(
         "SELECT e.session, e.line, e.ts, e.text FROM events e WHERE "
-        + " AND ".join(wheres) + " ORDER BY e.ts DESC LIMIT 1", params
+        + " AND ".join(wheres)
+        + " ORDER BY e.ts DESC LIMIT 1",
+        params,
     ).fetchone()
     if row is None:
         return None
-    return {"session": row[0], "line": row[1], "ts": row[2], "text": row[3],
-            "addr": _ADDR.format(session=row[0], line=row[1])}
+    return {
+        "session": row[0],
+        "line": row[1],
+        "ts": row[2],
+        "text": row[3],
+        "addr": _ADDR.format(session=row[0], line=row[1]),
+    }
 
 
 def _ledger_moves(since_ts: float) -> List[Dict[str, Any]]:
     import json
+
     path = ROOT / "state" / "coord" / "tasks.json"
     if not path.exists():
         return []
@@ -102,8 +119,14 @@ def _ledger_moves(since_ts: float) -> List[Dict[str, Any]]:
     for t in rows:
         upd = _utc(t.get("updated"))
         if upd is not None and upd > since_ts:
-            moves.append({"id": t.get("id"), "title": _trim(t.get("title") or "", 90),
-                          "status": t.get("status"), "commit": t.get("commit")})
+            moves.append(
+                {
+                    "id": t.get("id"),
+                    "title": _trim(t.get("title") or "", 90),
+                    "status": t.get("status"),
+                    "commit": t.get("commit"),
+                }
+            )
     moves.sort(key=lambda m: str(m["id"]))
     return moves
 
@@ -118,8 +141,13 @@ def _commits_since(since_ts: float) -> List[str]:
     try:
         out = subprocess.run(
             ["git", "log", f"--since={iso}", "--format=%h %s"],
-            cwd=str(ROOT), capture_output=True, text=True, encoding="utf-8",
-            errors="replace", timeout=30).stdout
+            cwd=str(ROOT),
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=30,
+        ).stdout
     except (OSError, subprocess.SubprocessError):
         return []
     # NO SILENT CAP. This used to end in [:40], and the renderer then printed
@@ -132,13 +160,13 @@ def _commits_since(since_ts: float) -> List[str]:
     rows = [ln for ln in out.splitlines() if ln.strip()]
     if len(rows) > _COMMIT_HARD_BOUND:
         rows = rows[:_COMMIT_HARD_BOUND]
-        rows.append(f"[... more than {_COMMIT_HARD_BOUND} commits in this interval; "
-                    f"list truncated, count is a floor]")
+        rows.append(f"[... more than {_COMMIT_HARD_BOUND} commits in this interval; list truncated, count is a floor]")
     return rows
 
 
 def _proposed_doors(limit: int = 5) -> List[Dict[str, str]]:
     import json
+
     path = ROOT / "state" / "coord" / "tasks.json"
     if not path.exists():
         return []
@@ -148,9 +176,13 @@ def _proposed_doors(limit: int = 5) -> List[Dict[str, str]]:
         rows = list(rows.values())
     prop = [t for t in rows if t.get("status") == "proposed"]
     prop.sort(key=lambda t: _utc(t.get("created")) or 0.0, reverse=True)
-    return [{"label": f"{t.get('id')} — {_trim(t.get('title') or '', 80)}",
-             "action": f"one word opens this: approve {t.get('id')}"}
-            for t in prop[:limit]]
+    return [
+        {
+            "label": f"{t.get('id')} — {_trim(t.get('title') or '', 80)}",
+            "action": f"one word opens this: approve {t.get('id')}",
+        }
+        for t in prop[:limit]
+    ]
 
 
 def _question_doors() -> List[Dict[str, str]]:
@@ -170,14 +202,13 @@ def _question_doors() -> List[Dict[str, str]]:
             title += " " + lines[j][3:].strip()
             j += 1
         if "question" in title.lower() or "desire" in title.lower():
-            doors.append({"label": title,
-                          "action": "yours whenever it strikes the vein — "
-                                    "QUESTIONS.md holds it"})
+            doors.append({"label": title, "action": "yours whenever it strikes the vein — QUESTIONS.md holds it"})
     return doors[-4:]
 
 
-def build_reentry(now: Optional[float] = None, show_open_loops: bool = False,
-                  since: Optional[str] = None, db_path=None) -> Dict[str, Any]:
+def build_reentry(
+    now: Optional[float] = None, show_open_loops: bool = False, since: Optional[str] = None, db_path=None
+) -> Dict[str, Any]:
     """Assemble the render structure. Diff, filter, dereference — nothing else."""
     con = _eye_con(db_path)
     try:
@@ -187,6 +218,7 @@ def build_reentry(now: Optional[float] = None, show_open_loops: bool = False,
             since_ts = (now or datetime.now(tz=timezone.utc).timestamp()) - 86400.0
         door = _newest_operator_event(con, like_any=list(REACHING_PHRASES))
         from core.eye import index as eye
+
         fog = eye.stats(db_path).get("time_fog")
     finally:
         con.close()
@@ -195,35 +227,40 @@ def build_reentry(now: Optional[float] = None, show_open_loops: bool = False,
         "since": {
             "ts": since_ts,
             "iso": datetime.fromtimestamp(since_ts, tz=timezone.utc).isoformat(),
-            "last_word": ({"text": last["text"], "addr": last["addr"]}
-                          if last else None),
+            "last_word": ({"text": last["text"], "addr": last["addr"]} if last else None),
         },
         "evidence": {
             "ledger_moves": _ledger_moves(since_ts),
             "commits": _commits_since(since_ts),
         },
         "open_door": (
-            {"text": door["text"], "addr": door["addr"],
-             "selected_by": ("most recent operator 'user'-kind utterance "
-                             "matching a disclosed phrase list "
-                             f"({', '.join(REACHING_PHRASES)}) — by time and "
-                             "pattern, never by meaning")}
-            if door else None),
+            {
+                "text": door["text"],
+                "addr": door["addr"],
+                "selected_by": (
+                    "most recent operator 'user'-kind utterance "
+                    "matching a disclosed phrase list "
+                    f"({', '.join(REACHING_PHRASES)}) — by time and "
+                    "pattern, never by meaning"
+                ),
+            }
+            if door
+            else None
+        ),
         "your_move": _proposed_doors() + _question_doors(),
         "legend": {
             "shown": "ledger rows whose updated-stamp moved since your last "
-                     "recorded word; commits landed since then; one verbatim "
-                     "utterance of yours selected by disclosed phrase match; "
-                     "newest proposed rows and QUESTIONS.md doors, titles only",
+            "recorded word; commits landed since then; one verbatim "
+            "utterance of yours selected by disclosed phrase match; "
+            "newest proposed rows and QUESTIONS.md doors, titles only",
             "excluded": "open loops and unanswered threads (off by default — "
-                        "ask for them); counts and ages of anything that is "
-                        "yours to move; every form of paraphrase; agent chatter",
+            "ask for them); counts and ages of anything that is "
+            "yours to move; every form of paraphrase; agent chatter",
             "why": "order law: evidence -> open door -> your move — measured "
-                   "outcomes first because that is what you ask for at every "
-                   "return (eye_freq, 8/8 sessions). Voice labels are "
-                   "conservative: a pasted dispatch brief can wear operator "
-                   "voice (known class)."
-                   + (f" corpus time-fog: {fog}." if fog is not None else ""),
+            "outcomes first because that is what you ask for at every "
+            "return (eye_freq, 8/8 sessions). Voice labels are "
+            "conservative: a pasted dispatch brief can wear operator "
+            "voice (known class)." + (f" corpus time-fog: {fog}." if fog is not None else ""),
         },
         "caveat": CAVEAT,
     }
@@ -250,8 +287,7 @@ def render_reentry(built: Dict[str, Any]) -> str:
             sha = f" @{m['commit']}" if m.get("commit") else ""
             add(f"  {m['id']} -> {m['status']}{sha}  {m['title']}")
     else:
-        add("  no ledger rows moved — and this line would say so if none had, "
-            "so it means exactly that")
+        add("  no ledger rows moved — and this line would say so if none had, so it means exactly that")
     commits = built["evidence"]["commits"]
     if commits:
         add(f"  commits landed: {len(commits)}")
@@ -265,8 +301,7 @@ def render_reentry(built: Dict[str, Any]) -> str:
         add(f"      — you, at {door['addr']} (full text resolves there)")
         add(f"      [selected by: {door['selected_by']}]")
     else:
-        add("  none matched the phrase list since your last word — an honest "
-            "absence, not an empty you")
+        add("  none matched the phrase list since your last word — an honest absence, not an empty you")
     add("")
     add("## 3 · YOUR MOVE (each closable in a word; none carries a clock)")
     for item in built["your_move"]:

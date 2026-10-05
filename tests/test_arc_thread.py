@@ -8,6 +8,7 @@ that is the whole point of the one-facet law. These pins hold that contract:
   A4  an unknown arc returns cleanly (no crash, honest empty)
   A5  --no-store never shells the store (offline-safe, fast)
 """
+
 import os
 import sys
 
@@ -28,8 +29,8 @@ def test_a1_library_schema_arc_finds_its_law():
 def test_a2_arc_match_is_field_based_and_tolerant():
     assert arc_thread._arc_matches("library-schema", "library-schema")
     assert arc_thread._arc_matches("recall, library-schema", "library-schema")  # multi-arc
-    assert arc_thread._arc_matches("library_schema", "library-schema")          # underscore
-    assert arc_thread._arc_matches("T094 / recall", "t094")                     # case + slash
+    assert arc_thread._arc_matches("library_schema", "library-schema")  # underscore
+    assert arc_thread._arc_matches("T094 / recall", "t094")  # case + slash
     assert not arc_thread._arc_matches("recall", "library-schema")
 
 

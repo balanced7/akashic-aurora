@@ -29,6 +29,7 @@ Dials: AKASHIC_SELF_RESTART=0 (off), AKASHIC_SELF_RESTART_MIN_BEHIND (default 3)
 AKASHIC_SELF_RESTART_MIN_UPTIME_S (default 900 -- the anti-thrash floor: a
 restart that re-triggers on boot would flap forever on a busy repo).
 """
+
 from __future__ import annotations
 
 import os
@@ -91,9 +92,9 @@ def uptime_s() -> float:
     return time.time() - _PROC_START
 
 
-def should_restart(*, stamped_sha: str, head_sha: str, commits_behind: int,
-                   uptime_s: float, in_flight: bool,
-                   jitter_s: float = 0.0) -> Optional[str]:
+def should_restart(
+    *, stamped_sha: str, head_sha: str, commits_behind: int, uptime_s: float, in_flight: bool, jitter_s: float = 0.0
+) -> Optional[str]:
     """A reason string when the ceremony should fire, else None.
 
     Pure decision core -- every input is passed in so pins never need a repo,
@@ -109,24 +110,26 @@ def should_restart(*, stamped_sha: str, head_sha: str, commits_behind: int,
         if not _truthy("AKASHIC_SELF_RESTART", True):
             return None
         if in_flight:
-            return None                    # the turn boundary IS the safe point
+            return None  # the turn boundary IS the safe point
         stamped = str(stamped_sha or "").strip()
         head = str(head_sha or "").strip()
         if not stamped or not head or stamped == head:
-            return None                    # unknown or current: keep running
+            return None  # unknown or current: keep running
         try:
             behind = int(commits_behind)
         except Exception:
             return None
         if behind < _min_behind():
-            return None                    # differing stamp alone is UNPROVEN age
+            return None  # differing stamp alone is UNPROVEN age
         if float(uptime_s) < _min_uptime_s() + float(jitter_s):
-            return None                    # anti-thrash cooldown + fleet-blackout spread
-        return (f"stale-code self-restart: running {stamped[:12]}, HEAD is "
-                f"{head[:12]}, {behind} commit(s) behind; uptime "
-                f"{int(uptime_s)}s >= floor, idle at turn boundary")
+            return None  # anti-thrash cooldown + fleet-blackout spread
+        return (
+            f"stale-code self-restart: running {stamped[:12]}, HEAD is "
+            f"{head[:12]}, {behind} commit(s) behind; uptime "
+            f"{int(uptime_s)}s >= floor, idle at turn boundary"
+        )
     except Exception:
-        return None                        # P8: this runs every turn, everywhere
+        return None  # P8: this runs every turn, everywhere
 
 
 # P9, THE FROZEN-HEAD TRAP (caught during wiring, before any fence):
@@ -140,11 +143,15 @@ _HEAD_TTL_S = 60.0
 
 def _resolve_head_fresh() -> str:
     try:
-        r = subprocess.run(["git", "rev-parse", "--short=12", "HEAD"],
-                           cwd=os.path.dirname(os.path.dirname(
-                               os.path.dirname(os.path.abspath(__file__)))),
-                           capture_output=True, text=True, timeout=5,
-                           stdin=subprocess.DEVNULL, close_fds=True)
+        r = subprocess.run(
+            ["git", "rev-parse", "--short=12", "HEAD"],
+            cwd=os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+            capture_output=True,
+            text=True,
+            timeout=5,
+            stdin=subprocess.DEVNULL,
+            close_fds=True,
+        )
         return (r.stdout or "").strip() if r.returncode == 0 else ""
     except Exception:
         return ""
@@ -167,15 +174,19 @@ def gather(agent: str) -> Dict[str, Any]:
     out = {"stamped_sha": "", "head_sha": "", "commits_behind": 0}
     try:
         from core.comm import liveness
+
         out["stamped_sha"] = liveness._safe_code_sha()
         out["head_sha"] = fresh_head_sha()
         if out["stamped_sha"] and out["head_sha"] and out["stamped_sha"] != out["head_sha"]:
-            r = subprocess.run(["git", "rev-list", "--count",
-                                f"{out['stamped_sha']}..{out['head_sha']}"],
-                               cwd=os.path.dirname(os.path.dirname(
-                                   os.path.dirname(os.path.abspath(__file__)))),
-                               capture_output=True, text=True, timeout=10,
-                               stdin=subprocess.DEVNULL, close_fds=True)
+            r = subprocess.run(
+                ["git", "rev-list", "--count", f"{out['stamped_sha']}..{out['head_sha']}"],
+                cwd=os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+                capture_output=True,
+                text=True,
+                timeout=10,
+                stdin=subprocess.DEVNULL,
+                close_fds=True,
+            )
             if r.returncode == 0:
                 out["commits_behind"] = int((r.stdout or "0").strip() or 0)
     except Exception:
@@ -193,13 +204,18 @@ def respawn_self(argv: Optional[List[str]] = None) -> bool:
         args = [sys.executable] + list(argv if argv is not None else sys.argv)
         flags = 0
         if sys.platform == "win32":
-            flags = (getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
-                     | getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000))
-        p = subprocess.Popen(args, env=dict(os.environ), close_fds=True,
-                             creationflags=flags,
-                             stdin=subprocess.DEVNULL,
-                             stdout=subprocess.DEVNULL,
-                             stderr=subprocess.DEVNULL)
+            flags = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0) | getattr(
+                subprocess, "CREATE_NO_WINDOW", 0x08000000
+            )
+        p = subprocess.Popen(
+            args,
+            env=dict(os.environ),
+            close_fds=True,
+            creationflags=flags,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
         return bool(getattr(p, "pid", 0))
     except Exception:
         return False
@@ -217,22 +233,28 @@ def maybe_self_restart(agent: str, *, in_flight: bool = False) -> Optional[str]:
     distinct crc32-derived delays in [0,120)s."""
     try:
         facts = gather(agent)
-        reason = should_restart(stamped_sha=facts["stamped_sha"],
-                                head_sha=facts["head_sha"],
-                                commits_behind=facts["commits_behind"],
-                                uptime_s=uptime_s(), in_flight=in_flight,
-                                jitter_s=rotation_jitter_s(agent))
+        reason = should_restart(
+            stamped_sha=facts["stamped_sha"],
+            head_sha=facts["head_sha"],
+            commits_behind=facts["commits_behind"],
+            uptime_s=uptime_s(),
+            in_flight=in_flight,
+            jitter_s=rotation_jitter_s(agent),
+        )
         if not reason:
             return None
         if not respawn_self():
-            return None                    # spawn failed -> keep running, stay loud
+            return None  # spawn failed -> keep running, stay loud
         try:
             from core.comm import liveness
+
             liveness.worklive(agent).set("restarting", detail=reason[:100])
         except Exception:
             pass
-        print(f"[self-restart] {agent}: {reason} -- fresh process launched; "
-              f"standing down via runner-lock takeover", flush=True)
+        print(
+            f"[self-restart] {agent}: {reason} -- fresh process launched; standing down via runner-lock takeover",
+            flush=True,
+        )
         return reason
     except Exception:
         return None

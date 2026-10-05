@@ -4,6 +4,7 @@ Deterministic ORIENTATION: project the stable architecture map down to the subsy
 task. The acceptance bar is precision (right task -> right subsystem + path) and the show-nothing floor
 (an unrelated task orients on NOTHING rather than surfacing an off-topic map -- context-rot discipline).
 """
+
 import os
 import sys
 
@@ -17,6 +18,7 @@ def _headings(rows):
 
 
 # --- precision: the right task orients on the right subsystem, top-ranked, with its code path -------
+
 
 def test_bifrost_task_surfaces_bifrost_subsystem_first():
     rows = load_arch_slice("bifrost bus runner lock supervision wake doorbell")
@@ -38,6 +40,7 @@ def test_foundation_task_surfaces_foundation_first():
 
 # --- show-nothing floor: silence beats an off-topic map --------------------------------------------
 
+
 def test_unrelated_task_orients_on_nothing():
     assert load_arch_slice("xyzzy nonsense unrelated flibbertigibbet") == []
 
@@ -49,9 +52,11 @@ def test_empty_task_orients_on_nothing():
 
 # --- projection hygiene: only real subsystems (path >= 2 segments), never meta sections ------------
 
+
 def test_only_subsystem_sections_are_targets():
-    rows = load_arch_slice("core knowledge memory learning recall bifrost coordination foundation events",
-                           top_k=20, min_relevance=0.0)
+    rows = load_arch_slice(
+        "core knowledge memory learning recall bifrost coordination foundation events", top_k=20, min_relevance=0.0
+    )
     headings = _headings(rows).lower()
     # meta sections must never be orientation targets
     assert "where to start reading" not in headings
@@ -68,6 +73,7 @@ def test_topk_and_relevance_are_respected():
 
 
 # --- fail-soft: a missing/renamed doc degrades to [], never raises ---------------------------------
+
 
 def test_missing_docs_dir_is_empty_not_error(tmp_path):
     assert load_arch_slice("bifrost bus", docs_dir=str(tmp_path)) == []

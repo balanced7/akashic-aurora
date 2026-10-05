@@ -8,6 +8,7 @@ ref is non-fatal; and a Message can carry Parts (inline or blob refs) that the r
 BlobStore tests are filesystem-only (always run); the message-with-media-part test uses real Redis
 (skips if down). Run: py -m pytest tests/test_bifrost_parts.py -q
 """
+
 import os
 import sys
 import tempfile
@@ -32,12 +33,12 @@ def test_blob_roundtrip_and_ref_shape():
     assert ref.startswith("blob:")
     assert bs.get(ref) == b"hello bifrost"
     assert bs.exists(ref)
-    assert bs.put("a string") and bs.get(bs.put("a string")) == b"a string"   # str -> utf-8
+    assert bs.put("a string") and bs.get(bs.put("a string")) == b"a string"  # str -> utf-8
 
 
 def test_blob_dedup_same_content_same_ref():
     bs = _blobs()
-    assert bs.put(b"same") == bs.put(b"same")            # content-addressed -> identical ref
+    assert bs.put(b"same") == bs.put(b"same")  # content-addressed -> identical ref
     assert bs.put(b"same") != bs.put(b"different")
 
 
@@ -59,7 +60,7 @@ def test_missing_ref_is_not_fatal():
 
 def test_large_blob_roundtrip():
     bs = _blobs()
-    data = bytes((i * 7) % 256 for i in range(1_000_000))   # ~1 MB
+    data = bytes((i * 7) % 256 for i in range(1_000_000))  # ~1 MB
     ref = bs.put(data)
     assert bs.get(ref) == data
 
@@ -70,15 +71,16 @@ def test_part_resolve_inline_and_ref():
     assert json_part({"a": 1}).resolve() == {"a": 1}
     p = media_part(b"\x89PNG fake bytes", "image/png", blobs=bs)
     assert p.is_ref and p.resolve(blobs=bs) == b"\x89PNG fake bytes"
-    assert Part.from_dict(p.to_dict()).ref == p.ref            # serialization round-trip
+    assert Part.from_dict(p.to_dict()).ref == p.ref  # serialization round-trip
 
 
 # ----------------------------------------------------------------- message carries Parts (real Redis)
 def _client():
-    from core.foundation.redis_connection import (
-        connect_to_redis_with_fail_fast, DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT)
-    c = connect_to_redis_with_fail_fast(host=DEFAULT_REDIS_HOST, port=DEFAULT_REDIS_PORT,
-                                        timeout_seconds=3, decode_responses=True)
+    from core.foundation.redis_connection import connect_to_redis_with_fail_fast, DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT
+
+    c = connect_to_redis_with_fail_fast(
+        host=DEFAULT_REDIS_HOST, port=DEFAULT_REDIS_PORT, timeout_seconds=3, decode_responses=True
+    )
     if c is None:
         pytest.skip("redis not available")
     return c
@@ -98,8 +100,8 @@ def test_message_with_media_part_roundtrips():
         assert len(got) == 1
         m = got[0]
         assert m.content == {"note": "context attached"} and len(m.parts) == 2
-        assert m.parts[0].resolve() == "see attached log"          # inline survives
-        assert m.parts[1].is_ref and m.parts[1].resolve(blobs=bs) == payload   # media by ref
+        assert m.parts[0].resolve() == "see attached log"  # inline survives
+        assert m.parts[1].is_ref and m.parts[1].resolve(blobs=bs) == payload  # media by ref
     finally:
         keys = c.keys(f"{ns}:*")
         if keys:
@@ -107,8 +109,13 @@ def test_message_with_media_part_roundtrips():
 
 
 if __name__ == "__main__":
-    for fn in [test_blob_roundtrip_and_ref_shape, test_blob_dedup_same_content_same_ref,
-               test_blob_before_pointer, test_missing_ref_is_not_fatal, test_large_blob_roundtrip,
-               test_part_resolve_inline_and_ref]:
+    for fn in [
+        test_blob_roundtrip_and_ref_shape,
+        test_blob_dedup_same_content_same_ref,
+        test_blob_before_pointer,
+        test_missing_ref_is_not_fatal,
+        test_large_blob_roundtrip,
+        test_part_resolve_inline_and_ref,
+    ]:
         fn()
     print("BlobStore/Part tests passed; the message-with-media test runs under pytest")

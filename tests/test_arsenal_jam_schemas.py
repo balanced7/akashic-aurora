@@ -4,6 +4,7 @@ Every fixture under tests/fixtures/jam is accepted; malformed objects are refuse
 Python tempo map agrees with tests/fixtures/jam/tempomap_cases.json to 0.001 ms, and so does its JS twin
 (tests/jam_tempomap.test.mjs, run here when node is present). All data is synthetic: nothing reads Daniel's practice log.
 """
+
 import copy
 import json
 import shutil
@@ -17,9 +18,21 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from arsenal.jam import API, schemas, tempomap  # noqa: E402
-from arsenal.jam.schemas import (JamSchemaError, card_settings, chord_count, line_beats, pair_problems,  # noqa: E402
-                                 validate_ack, validate_card, validate_def, validate_run, validate_run_event,
-                                 validate_seed, validate_seed_moments, wording_problems)
+from arsenal.jam.schemas import (
+    JamSchemaError,
+    card_settings,
+    chord_count,
+    line_beats,
+    pair_problems,  # noqa: E402
+    validate_ack,
+    validate_card,
+    validate_def,
+    validate_run,
+    validate_run_event,
+    validate_seed,
+    validate_seed_moments,
+    wording_problems,
+)
 from arsenal.performance import PerformanceStore, validate_events  # noqa: E402
 
 FIX = ROOT / "tests" / "fixtures" / "jam"
@@ -86,14 +99,16 @@ def test_def_fixtures_cover_sections_rests_exact_notes_and_no_card():
     assert any(any(s["upper_same"] for s in d["slots"]) for d in defs)
     assert any(d["beats_per_bar"] == 3 for d in defs)
     assert any(d.get("landing") for d in defs)
-    rests = [d for d in defs if any(a["at_beat"] + a["beats"] < b["at_beat"] for a, b in zip(d["slots"], d["slots"][1:]))]
+    rests = [
+        d for d in defs if any(a["at_beat"] + a["beats"] < b["at_beat"] for a, b in zip(d["slots"], d["slots"][1:]))
+    ]
     assert rests
 
 
 def test_lament_def_keeps_its_upper_voices_with_f():
     d = load("def_lament_bass.json")
     uppers = {tuple(s["voicings"]["full"][1:]) for s in d["slots"]}
-    assert len(uppers) == 1 and 65 in next(iter(uppers))          # F4 stays in the shared shape
+    assert len(uppers) == 1 and 65 in next(iter(uppers))  # F4 stays in the shared shape
     assert [s["voicings"]["bass"][0] for s in d["slots"]] == [46, 44, 42, 41]
 
 
@@ -113,8 +128,11 @@ def test_run_events_validate_and_agree_with_run_json():
     changes = [line for line in lines if line["kind"] == "change"]
     assert changes[-1]["segments"] == run["segments"]
     stop = next(line for line in lines if line["kind"] == "stop")
-    assert (stop["reason"], stop["effective_bar"], stop["version"]) == (run["stop_reason"], run["stop_bar"],
-                                                                        run["last_version"])
+    assert (stop["reason"], stop["effective_bar"], stop["version"]) == (
+        run["stop_reason"],
+        run["stop_bar"],
+        run["last_version"],
+    )
     assert stop["epoch_ms"] == run["stopped_epoch_ms"]
     common = set(schemas.EVENT_COMMON_KEYS)
     for line in lines:
@@ -187,7 +205,11 @@ def _differ(got, want, key, op, path=""):
             return f"{where}: got {got!r} want {want!r}"
         if key in INT_KEYS or (key is None and op in ("pass_of", "slot_at")):
             return None if got == want else f"{where}: got {got!r} want {want!r}"
-        tol = TEMPO["tolerance_beats"] if key in BEAT_KEYS or (key is None and op == "cycle_beat") else TEMPO["tolerance_ms"]
+        tol = (
+            TEMPO["tolerance_beats"]
+            if key in BEAT_KEYS or (key is None and op == "cycle_beat")
+            else TEMPO["tolerance_ms"]
+        )
         return None if abs(got - want) <= tol else f"{where}: got {got!r} want {want!r} (|d| {abs(got - want)})"
     if isinstance(want, list):
         if not isinstance(got, list) or len(got) != len(want):
@@ -244,7 +266,9 @@ def _run_case(case):
             out = tempomap.add_segment(out, m, ch["bar"], ch.get("bpm"), ch.get("def_version"), ch.get("def_from_bar"))
         return out
     if op == "next_line":
-        return tempomap.next_line(segs, m, a["received_epoch_ms"], a["at"], defs, a.get("lead_ms", tempomap.CHANGE_LEAD_MS))
+        return tempomap.next_line(
+            segs, m, a["received_epoch_ms"], a["at"], defs, a.get("lead_ms", tempomap.CHANGE_LEAD_MS)
+        )
     if op == "handoff_epoch":
         return tempomap.handoff_epoch(segs, m, a["bar"], a.get("margin_ms", tempomap.HANDOFF_MARGIN_MS))
     if op == "session_t_ms":
@@ -263,8 +287,18 @@ def test_tempomap_fixture_size_ops_and_constants():
     assert TEMPO["api"] == API["tempomap_cases"]
     assert len(cases) >= 40
     assert len({c["id"] for c in cases}) == len(cases)
-    assert {c["op"] for c in cases} >= {"t_epoch", "bar_at", "pass_of", "cycle_beat", "slot_at", "position",
-                                        "add_segment", "next_line", "handoff_epoch", "session_t_ms"}
+    assert {c["op"] for c in cases} >= {
+        "t_epoch",
+        "bar_at",
+        "pass_of",
+        "cycle_beat",
+        "slot_at",
+        "position",
+        "add_segment",
+        "next_line",
+        "handoff_epoch",
+        "session_t_ms",
+    }
     assert len(TEMPO["maps"]["many"]["segments"]) >= 6
     for name, value in TEMPO["constants"].items():
         assert getattr(tempomap, name) == value, name
@@ -289,8 +323,9 @@ def test_add_segment_leaves_its_input_alone():
 
 @needs_node
 def test_tempomap_js_twin_agrees_with_fixture():
-    res = subprocess.run([NODE, str(ROOT / "tests" / "jam_tempomap.test.mjs")], capture_output=True, text=True,
-                         cwd=str(ROOT), timeout=60)
+    res = subprocess.run(
+        [NODE, str(ROOT / "tests" / "jam_tempomap.test.mjs")], capture_output=True, text=True, cwd=str(ROOT), timeout=60
+    )
     assert res.returncode == 0, res.stdout + res.stderr
     assert " 0 failed" in res.stdout
 
@@ -313,9 +348,16 @@ def _run():
 
 
 def _ack():
-    return {"page_id": "p-0a1b", "role": "owner", "version": 1, "bar": 0, "bar_epoch_ms": 1893456023636.36,
-            "perf_ms": 3623636.11, "perf_offset_ms": 1893452400000.25,
-            "log": {"local": "lg-0a1b", "session": "20300101-000012-5e55a0f1", "t0_perf_ms": 3611999.75}}
+    return {
+        "page_id": "p-0a1b",
+        "role": "owner",
+        "version": 1,
+        "bar": 0,
+        "bar_epoch_ms": 1893456023636.36,
+        "perf_ms": 3623636.11,
+        "perf_offset_ms": 1893452400000.25,
+        "log": {"local": "lg-0a1b", "session": "20300101-000012-5e55a0f1", "t0_perf_ms": 3611999.75},
+    }
 
 
 def _line(kind):
@@ -360,8 +402,13 @@ MALFORMED = [
     ("card-bad-key", _stored_card, _lydian, lambda c: _set(c, ["key"], "H major"), "key"),
     ("card-beats-off-grid", _stored_card, _lydian, lambda c: _set(c, ["chords", 1, "beats"], 3.3), "chords[1].beats"),
     ("card-bad-number", _stored_card, _lydian, lambda c: _set(c, ["chords", 0, "n"], "8maj7"), "chords[0].n"),
-    ("card-upper-same-first", _stored_card, _lydian, lambda c: _set(c, ["chords", 0, "upper"], "same"),
-     "chords[0].upper"),
+    (
+        "card-upper-same-first",
+        _stored_card,
+        _lydian,
+        lambda c: _set(c, ["chords", 0, "upper"], "same"),
+        "chords[0].upper",
+    ),
     ("card-bad-key-item", _stored_card, _lydian, lambda c: c["chords"].append({"key": "6 Major"}), "chords[2].key"),
     ("card-bpm-too-fast", _stored_card, _lydian, lambda c: _set(c, ["tempo", "bpm"], 300), "tempo.bpm"),
     ("card-meter-9", _stored_card, _lydian, lambda c: _set(c, ["tempo", "beats_per_bar"], 9), "tempo.beats_per_bar"),
@@ -371,72 +418,190 @@ MALFORMED = [
     ("card-unknown-field", _stored_card, _lydian, lambda c: _set(c, ["display"], {"in_recording": True}), "display"),
     ("card-landing-without-pull", _stored_card, _lydian, lambda c: _del(c, ["landing", "pull"]), "landing.pull"),
     ("card-landing-slot-past-line", _stored_card, _lydian, lambda c: _set(c, ["landing", "slot"], 5), "landing.slot"),
-    ("card-pair-with-itself", _stored_card, _lydian, lambda c: _set(c, ["pair"], {"role": "question",
-                                                                                  "with": "lydian-four"}), "pair.with"),
-    ("card-pair-bad-role", _stored_card, _lydian, lambda c: _set(c, ["pair"], {"role": "call", "with": "x"}),
-     "pair.role"),
-    ("card-moment-bad-session", _stored_card, _lydian,
-     lambda c: _set(c, ["moments"], [{"session": "S4", "at": "0:00", "until": None, "label": "x"}]),
-     "moments[0].session"),
+    (
+        "card-pair-with-itself",
+        _stored_card,
+        _lydian,
+        lambda c: _set(c, ["pair"], {"role": "question", "with": "lydian-four"}),
+        "pair.with",
+    ),
+    (
+        "card-pair-bad-role",
+        _stored_card,
+        _lydian,
+        lambda c: _set(c, ["pair"], {"role": "call", "with": "x"}),
+        "pair.role",
+    ),
+    (
+        "card-moment-bad-session",
+        _stored_card,
+        _lydian,
+        lambda c: _set(c, ["moments"], [{"session": "S4", "at": "0:00", "until": None, "label": "x"}]),
+        "moments[0].session",
+    ),
     ("card-stored-without-rev", _stored_card, _lydian, lambda c: _del(c, ["rev"]), "rev"),
-    ("card-note-off-keyboard", _stored_card, _lydian, lambda c: _set(c, ["chords", 0, "notes"], [20, 60]),
-     "chords[0].notes[0]"),
+    (
+        "card-note-off-keyboard",
+        _stored_card,
+        _lydian,
+        lambda c: _set(c, ["chords", 0, "notes"], [20, 60]),
+        "chords[0].notes[0]",
+    ),
     ("card-bad-groove", _stored_card, _lydian, lambda c: _set(c, ["groove"], "swing"), "groove"),
     ("card-bad-author", _stored_card, _lydian, lambda c: _set(c, ["created_by"], "vandor"), "created_by"),
     ("card-too-big", _stored_card, _lydian, lambda c: _set(c, ["style"], "x" * 70000), "card"),
     ("card-variant-id-g", _stored_card, _one, lambda c: _set(c, ["variants", 0, "id"], "g"), "variants[0].id"),
-    ("card-concept-check-unknown-variant", _stored_card, _one,
-     lambda c: _set(c, ["checks"], [{"id": "x", "variant": "e", "slot": 0, "role": "7", "want": "present",
-                                     "say": "you played G"}]), "checks[0].variant"),
-    ("card-page-read-bad-match", _stored_card, _lydian, lambda c: _set(c, ["page_reads", 0, "match"], "close"),
-     "page_reads[0].match"),
+    (
+        "card-concept-check-unknown-variant",
+        _stored_card,
+        _one,
+        lambda c: _set(
+            c,
+            ["checks"],
+            [{"id": "x", "variant": "e", "slot": 0, "role": "7", "want": "present", "say": "you played G"}],
+        ),
+        "checks[0].variant",
+    ),
+    (
+        "card-page-read-bad-match",
+        _stored_card,
+        _lydian,
+        lambda c: _set(c, ["page_reads", 0, "match"], "close"),
+        "page_reads[0].match",
+    ),
     ("def-overlapping-slots", validate_def, _lament, lambda d: _set(d, ["slots", 1, "at_beat"], 2), "slots[1].at_beat"),
     ("def-cycle-not-whole-bars", validate_def, _lament, lambda d: _set(d, ["cycle_beats"], 18), "cycle_beats"),
-    ("def-full-above-a4", validate_def, _lament, lambda d: d["slots"][0]["voicings"]["full"].append(70),
-     "slots[0].voicings.full"),
-    ("def-chord-pcs-without-bass", validate_def, _lament, lambda d: d["slots"][2]["chord_pcs"].remove(6),
-     "slots[2].chord_pcs"),
-    ("def-upper-same-moved", validate_def, _lament, lambda d: _set(d, ["slots", 1, "voicings", "full", 1], 57),
-     "slots[1].voicings.full"),
-    ("def-first-role-not-bass", validate_def, _lament, lambda d: _set(d, ["slots", 0, "roles", "full", 0], "root"),
-     "slots[0].roles.full[0]"),
-    ("def-slot-key-not-section", validate_def, _lament, lambda d: _set(d, ["slots", 3, "key"], "Eb major"),
-     "slots[3].key"),
-    ("def-bass-pc-not-in-chord", validate_def, _lament, lambda d: _set(d, ["slots", 0, "bass_pc"], 9),
-     "slots[0].chord_pcs"),
-    ("def-bass-below-e1", validate_def, _lament, lambda d: _set(d, ["slots", 0, "voicings", "bass"], [22]),
-     "slots[0].voicings.bass[0]"),
-    ("def-bad-tone-role", validate_def, _lament, lambda d: _set(d, ["slots", 0, "tones_pc", "fourth"], 3),
-     "slots[0].tones_pc.fourth"),
-    ("run-segment-off-the-map", validate_run, _run, lambda r: _set(r, ["segments", 1, "epoch_ms"],
-                                                                   r["segments"][1]["epoch_ms"] + 5),
-     "segments[1].epoch_ms"),
-    ("run-first-segment-not-count-in", validate_run, _run, lambda r: _set(r, ["segments", 0, "from_bar"], 0),
-     "segments[0].from_bar"),
+    (
+        "def-full-above-a4",
+        validate_def,
+        _lament,
+        lambda d: d["slots"][0]["voicings"]["full"].append(70),
+        "slots[0].voicings.full",
+    ),
+    (
+        "def-chord-pcs-without-bass",
+        validate_def,
+        _lament,
+        lambda d: d["slots"][2]["chord_pcs"].remove(6),
+        "slots[2].chord_pcs",
+    ),
+    (
+        "def-upper-same-moved",
+        validate_def,
+        _lament,
+        lambda d: _set(d, ["slots", 1, "voicings", "full", 1], 57),
+        "slots[1].voicings.full",
+    ),
+    (
+        "def-first-role-not-bass",
+        validate_def,
+        _lament,
+        lambda d: _set(d, ["slots", 0, "roles", "full", 0], "root"),
+        "slots[0].roles.full[0]",
+    ),
+    (
+        "def-slot-key-not-section",
+        validate_def,
+        _lament,
+        lambda d: _set(d, ["slots", 3, "key"], "Eb major"),
+        "slots[3].key",
+    ),
+    (
+        "def-bass-pc-not-in-chord",
+        validate_def,
+        _lament,
+        lambda d: _set(d, ["slots", 0, "bass_pc"], 9),
+        "slots[0].chord_pcs",
+    ),
+    (
+        "def-bass-below-e1",
+        validate_def,
+        _lament,
+        lambda d: _set(d, ["slots", 0, "voicings", "bass"], [22]),
+        "slots[0].voicings.bass[0]",
+    ),
+    (
+        "def-bad-tone-role",
+        validate_def,
+        _lament,
+        lambda d: _set(d, ["slots", 0, "tones_pc", "fourth"], 3),
+        "slots[0].tones_pc.fourth",
+    ),
+    (
+        "run-segment-off-the-map",
+        validate_run,
+        _run,
+        lambda r: _set(r, ["segments", 1, "epoch_ms"], r["segments"][1]["epoch_ms"] + 5),
+        "segments[1].epoch_ms",
+    ),
+    (
+        "run-first-segment-not-count-in",
+        validate_run,
+        _run,
+        lambda r: _set(r, ["segments", 0, "from_bar"], 0),
+        "segments[0].from_bar",
+    ),
     ("run-bad-stop-reason", validate_run, _run, lambda r: _set(r, ["stop_reason"], "bored"), "stop_reason"),
     ("run-running-but-closed", validate_run, _run, lambda r: _set(r, ["state"], "running"), "closed"),
-    ("run-try-backing-on-loop", validate_run, _run, lambda r: _set(r, ["settings", 0, "try_backing"], "bass"),
-     "settings[0].try_backing"),
-    ("run-snapshot-without-title", validate_run, _run, lambda r: _del(r, ["card_snapshot", "title"]),
-     "card_snapshot.title"),
-    ("run-bar0-off-the-map", validate_run, _run, lambda r: _set(r, ["bar0_epoch_ms"], r["bar0_epoch_ms"] + 1),
-     "bar0_epoch_ms"),
+    (
+        "run-try-backing-on-loop",
+        validate_run,
+        _run,
+        lambda r: _set(r, ["settings", 0, "try_backing"], "bass"),
+        "settings[0].try_backing",
+    ),
+    (
+        "run-snapshot-without-title",
+        validate_run,
+        _run,
+        lambda r: _del(r, ["card_snapshot", "title"]),
+        "card_snapshot.title",
+    ),
+    (
+        "run-bar0-off-the-map",
+        validate_run,
+        _run,
+        lambda r: _set(r, ["bar0_epoch_ms"], r["bar0_epoch_ms"] + 1),
+        "bar0_epoch_ms",
+    ),
     ("run-ramp-is-v2", validate_run, _run, lambda r: _set(r, ["segments", 1, "to_bpm"], 90), "segments[1].to_bpm"),
     ("ack-bad-role", validate_ack, _ack, lambda a: _set(a, ["role"], "listener"), "role"),
     ("ack-bad-log-session", validate_ack, _ack, lambda a: _set(a, ["log", "session"], "S1"), "log.session"),
     ("ack-missing-perf-ms", validate_ack, _ack, lambda a: _del(a, ["perf_ms"]), "perf_ms"),
     ("ack-bad-stopped", validate_ack, _ack, lambda a: _set(a, ["stopped"], "tired"), "stopped"),
-    ("event-change-version-1", validate_run_event, lambda: _line("change"), lambda e: _set(e, ["version"], 1),
-     "version"),
-    ("event-start-def-velocity-0", validate_run_event, lambda: _line("start"),
-     lambda e: _set(e, ["def", "slots", 0, "vel"], 0), "def.slots[0].vel"),
+    (
+        "event-change-version-1",
+        validate_run_event,
+        lambda: _line("change"),
+        lambda e: _set(e, ["version"], 1),
+        "version",
+    ),
+    (
+        "event-start-def-velocity-0",
+        validate_run_event,
+        lambda: _line("start"),
+        lambda e: _set(e, ["def", "slots", 0, "vel"], 0),
+        "def.slots[0].vel",
+    ),
     ("event-unknown-kind", validate_run_event, lambda: _line("mark"), lambda e: _set(e, ["kind"], "pause"), "kind"),
-    ("seed-card-with-moments", validate_seed, lambda: _seed([_lydian()]),
-     lambda s: _set(s, ["cards", 0, "moments"], [{"session": "20300101-000012-5e55a0f1", "at": "0:10", "until": None,
-                                                  "label": "x"}]), "cards[0].moments"),
-    ("seed-pair-missing-partner", validate_seed,
-     lambda: _seed([_lydian(), load("card_pair_question.json"), load("card_pair_answer.json")]),
-     lambda s: s["cards"].pop(2), "cards[1].pair"),
+    (
+        "seed-card-with-moments",
+        validate_seed,
+        lambda: _seed([_lydian()]),
+        lambda s: _set(
+            s,
+            ["cards", 0, "moments"],
+            [{"session": "20300101-000012-5e55a0f1", "at": "0:10", "until": None, "label": "x"}],
+        ),
+        "cards[0].moments",
+    ),
+    (
+        "seed-pair-missing-partner",
+        validate_seed,
+        lambda: _seed([_lydian(), load("card_pair_question.json"), load("card_pair_answer.json")]),
+        lambda s: s["cards"].pop(2),
+        "cards[1].pair",
+    ),
 ]
 
 
@@ -449,7 +614,7 @@ def test_at_least_24_malformed_cases():
 def test_malformed_is_refused_with_the_field_named(case):
     _, validator, make, mutate, field = case
     base = make()
-    validator(copy.deepcopy(base))          # the base itself is accepted
+    validator(copy.deepcopy(base))  # the base itself is accepted
     mutate(base)
     with pytest.raises(JamSchemaError) as info:
         validator(base)
@@ -469,8 +634,17 @@ def test_ack_defaults_are_filled_and_input_untouched():
 
 def test_pending_run_has_no_epochs_and_a_play_run_no_count_in():
     run = _run()
-    run.update(state="pending", closed=False, stop_reason=None, stopped_epoch_ms=None, stop_bar=None,
-               start_epoch_ms=None, bar0_epoch_ms=None, segments=[], last_version=1)
+    run.update(
+        state="pending",
+        closed=False,
+        stop_reason=None,
+        stopped_epoch_ms=None,
+        stop_bar=None,
+        start_epoch_ms=None,
+        bar0_epoch_ms=None,
+        segments=[],
+        last_version=1,
+    )
     run["courtesy"] = {"held_ms": 0, "via": None}
     assert validate_run(run) == run
     run["mode"] = "play"
@@ -528,11 +702,17 @@ def test_wording_and_pair_helpers():
 def test_seed_validates_and_keeps_moments_out():
     doc = _seed([_lydian(), load("card_pair_question.json"), load("card_pair_answer.json")])
     assert validate_seed(doc) == doc
-    moments = {"api": "arsenal.jam.seed.moments/v0",
-               "cards": {"lydian-four": {"moments": [{"session": "20300101-000012-5e55a0f1", "at": "0:00",
-                                                      "until": "0:22", "label": "synthetic"}],
-                                         "replay": {"session": "20300101-000012-5e55a0f1", "at": "0:02",
-                                                    "seconds": 18, "speed": 1}}}}
+    moments = {
+        "api": "arsenal.jam.seed.moments/v0",
+        "cards": {
+            "lydian-four": {
+                "moments": [
+                    {"session": "20300101-000012-5e55a0f1", "at": "0:00", "until": "0:22", "label": "synthetic"}
+                ],
+                "replay": {"session": "20300101-000012-5e55a0f1", "at": "0:02", "seconds": 18, "speed": 1},
+            }
+        },
+    }
     assert validate_seed_moments(moments) == moments
     moments["cards"]["lydian-four"]["replay"]["seconds"] = 0
     with pytest.raises(JamSchemaError) as info:

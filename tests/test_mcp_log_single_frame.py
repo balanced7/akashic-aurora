@@ -4,6 +4,7 @@ The default keyword-theme path must not import the opt-in embedding stack.  A
 fresh stdio MCP server must therefore answer ``log`` without needing a second
 inbound JSON-RPC frame to shake the first response loose.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -107,4 +108,3 @@ def test_fresh_stdio_mcp_log_returns_without_second_frame(tmp_path):
                 assert "[OK] note: single-frame transport pin" in text
 
     asyncio.run(flow())
-

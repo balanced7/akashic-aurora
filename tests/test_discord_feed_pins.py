@@ -22,13 +22,13 @@ from core.comm import discord_feed as F  # noqa: E402
 
 class _FakeClient:
     """Just enough Redis: two streams with history, a cursor hash."""
+
     def __init__(self):
         self.streams = {
-            "bifrost:broadcast": [("100-0", {"frm": "daniil", "kind": "chat",
-                                             "content": "old history line"})],
-            "bifrost:inbox:claude": [("200-0", {"frm": "deepseek", "kind": "reply",
-                                                "content": "old reply",
-                                                "meta": '{"ask_id": "ask-1"}'})],
+            "bifrost:broadcast": [("100-0", {"frm": "daniil", "kind": "chat", "content": "old history line"})],
+            "bifrost:inbox:claude": [
+                ("200-0", {"frm": "deepseek", "kind": "reply", "content": "old reply", "meta": '{"ask_id": "ask-1"}'})
+            ],
         }
         self.hash: dict = {}
 
@@ -74,36 +74,43 @@ def wired(monkeypatch):
 def test_p1_first_contact_forwards_nothing(wired):
     bus, client = wired
     sent = []
-    out = F.pump(bus, post=lambda m, **k: sent.append(m),
-                 room_post=lambda m, **k: sent.append(m))
+    out = F.pump(bus, post=lambda m, **k: sent.append(m), room_post=lambda m, **k: sent.append(m))
     assert out.ok
     assert not sent, (
         "FIRST CONTACT MUST BE SILENT: the archive stays home; cursors "
-        "tail-initialize instead of replaying history to a phone")
+        "tail-initialize instead of replaying history to a phone"
+    )
     assert client.hash["bifrost:broadcast"] == "100-0"
     assert client.hash["bifrost:inbox:claude"] == "200-0"
 
 
 def test_p2_new_mail_forwards_to_both_and_advances(wired):
     bus, client = wired
-    F.pump(bus, post=lambda m, **k: None, room_post=lambda m, **k: None)   # init
+    F.pump(bus, post=lambda m, **k: None, room_post=lambda m, **k: None)  # init
     # the REAL envelope (bus.py _emit): content is json.dumps'd with ensure_ascii,
     # so an em-dash rides as a literal — inside a QUOTED json string. The live
     # receipt is on Daniil's phone, 2026-08-18: first-light rendered with wrapping
     # quotes and raw — escapes.
     client.streams["bifrost:inbox:claude"].append(
-        ("201-0", {"frm": "deepseek", "kind": "reply",
-                   "content": '"fresh verdict \\u2014 with a newline\\nbelow"',
-                   "meta": '{"ask_id": "ask-2"}'}))
+        (
+            "201-0",
+            {
+                "frm": "deepseek",
+                "kind": "reply",
+                "content": '"fresh verdict \\u2014 with a newline\\nbelow"',
+                "meta": '{"ask_id": "ask-2"}',
+            },
+        )
+    )
     glob, rooms = [], []
-    out = F.pump(bus, post=lambda m, **k: glob.append(m),
-                 room_post=lambda m, **k: rooms.append(m))
+    out = F.pump(bus, post=lambda m, **k: glob.append(m), room_post=lambda m, **k: rooms.append(m))
     assert out.detail["forwarded"] == 1
     assert len(glob) == 1 and len(rooms) == 1, "every new message offers to BOTH surfaces"
     assert glob[0]["content"] == "fresh verdict — with a newline\nbelow", (
         "content must arrive DECODED — no wrapping quotes, no raw \\u2014, real "
         "newlines; the envelope json-encodes every field and the phone is not a "
-        "JSON parser")
+        "JSON parser"
+    )
     assert glob[0]["meta"]["ask_id"] == "ask-2", "meta must arrive decoded, not as a string"
     assert client.hash["bifrost:inbox:claude"] == "201-0", "cursor advances AFTER the attempt"
 
@@ -117,8 +124,11 @@ def test_p3_unconfigured_is_a_fast_no_op(wired, monkeypatch):
     # A pin must not depend on whether the repo it runs in is wired to Discord.
     monkeypatch.setattr(F.DB, "webhook_url", lambda: "")
     monkeypatch.setattr(F.ROOMS, "forum_url", lambda: "")
-    out = F.pump(bus, post=lambda m, **k: (_ for _ in ()).throw(AssertionError),
-                 room_post=lambda m, **k: (_ for _ in ()).throw(AssertionError))
+    out = F.pump(
+        bus,
+        post=lambda m, **k: (_ for _ in ()).throw(AssertionError),
+        room_post=lambda m, **k: (_ for _ in ()).throw(AssertionError),
+    )
     assert not out.ok and "not configured" in str(out.why).lower()
 
 
@@ -129,29 +139,33 @@ def test_p5_global_feed_posts_as_the_seat_itself(wired, monkeypatch):
     while the manual bridge verbs keep their who-in-body contract untouched."""
     bus, client = wired
     from core.comm import discord_rooms as R
+
     calls = []
     monkeypatch.setattr(
-        R, "_default_post",
-        lambda url, content, **kw: calls.append({"url": url, "content": content, **kw}))
+        R, "_default_post", lambda url, content, **kw: calls.append({"url": url, "content": content, **kw})
+    )
     # the registry is empty under conftest isolation (T070) — the persona seam is
     # rooms' contract (its own P8-P10); the FEED's contract is faithful pass-through.
     monkeypatch.setattr(
-        R, "persona",
-        lambda frm: {"username": "🧵 Vandor (claude)",
-                     "avatar_url": "https://example.invalid/vandor.png"})
-    F.pump(bus)                                             # init (silent)
+        R, "persona", lambda frm: {"username": "🧵 Vandor (claude)", "avatar_url": "https://example.invalid/vandor.png"}
+    )
+    F.pump(bus)  # init (silent)
     client.streams["bifrost:broadcast"].append(
-        ("101-0", {"frm": "claude", "kind": "chat", "content": '"a line of mine"'}))
+        ("101-0", {"frm": "claude", "kind": "chat", "content": '"a line of mine"'})
+    )
     F.pump(bus)
     glob = [c for c in calls if "webhooks/1/g" in c["url"]]
     assert glob, "the default global path must post through the persona transport"
     assert glob[0].get("username") == "🧵 Vandor (claude)", (
         "the seat speaks as itself on the global feed — the Species-A law on both "
-        "surfaces, wearing whatever icon the seat chose")
+        "surfaces, wearing whatever icon the seat chose"
+    )
     assert glob[0].get("avatar_url", "").endswith("vandor.png"), (
-        "the face rides with the name — persona fields pass through whole")
+        "the face rides with the name — persona fields pass through whole"
+    )
     assert "**claude**" not in glob[0]["content"], (
-        "the narrator head leaves the body once the username carries the speaker")
+        "the narrator head leaves the body once the username carries the speaker"
+    )
 
 
 def test_p6_his_own_words_never_bounce_back(wired, monkeypatch):
@@ -159,25 +173,33 @@ def test_p6_his_own_words_never_bounce_back(wired, monkeypatch):
     meta.source=discord) must not be pumped back TO Discord — else every phone
     message returns to its sender wearing the fleet's face, at pump cadence."""
     bus, client = wired
-    F.pump(bus, post=lambda m, **k: None, room_post=lambda m, **k: None)   # init
+    F.pump(bus, post=lambda m, **k: None, room_post=lambda m, **k: None)  # init
     client.streams["bifrost:broadcast"].append(
-        ("102-0", {"frm": "daniil", "kind": "chat",
-                   "content": '"hello from my phone"',
-                   "meta": '{"source": "discord", "operator": true}'}))
+        (
+            "102-0",
+            {
+                "frm": "daniil",
+                "kind": "chat",
+                "content": '"hello from my phone"',
+                "meta": '{"source": "discord", "operator": true}',
+            },
+        )
+    )
     echoes = []
-    F.pump(bus, post=lambda m, **k: echoes.append(m),
-           room_post=lambda m, **k: echoes.append(m))
+    F.pump(bus, post=lambda m, **k: echoes.append(m), room_post=lambda m, **k: echoes.append(m))
     assert not echoes, (
         "meta.source=discord must short-circuit BEFORE the operator-always-"
         "forwards rule — the override that makes his words loud is exactly the "
-        "rule that would make them echo")
+        "rule that would make them echo"
+    )
 
 
 def test_p4_feed_exposes_no_inbound_door():
     for banned in ("receive", "poll", "listen", "on_message", "read_channel"):
         assert not hasattr(F, banned), (
             f"discord_feed exposes {banned!r} — the feed reads the BUS and writes "
-            f"Discord, never the reverse; phase 2 ships behind R1-R3 or not at all")
+            f"Discord, never the reverse; phase 2 ships behind R1-R3 or not at all"
+        )
 
 
 def test_p7_seat_questions_land_in_their_own_lane(wired, monkeypatch):
@@ -187,26 +209,36 @@ def test_p7_seat_questions_land_in_their_own_lane(wired, monkeypatch):
     lane with that seat — never the global feed."""
     bus, client = wired
     from core.comm import discord_rooms as R
-    monkeypatch.setattr(R, "persona", lambda frm: {"username": "🗿 Heimdall (deepseek)",
-                                                   "avatar_url": None})
-    monkeypatch.setattr(F, "seat_channel_url",
-                        lambda agent: ("https://hooks.invalid/heimdall-lane"
-                                       if agent == "deepseek" else ""))
+
+    monkeypatch.setattr(R, "persona", lambda frm: {"username": "🗿 Heimdall (deepseek)", "avatar_url": None})
+    monkeypatch.setattr(
+        F, "seat_channel_url", lambda agent: "https://hooks.invalid/heimdall-lane" if agent == "deepseek" else ""
+    )
     calls = []
-    monkeypatch.setattr(R, "_default_post",
-                        lambda url, content, **kw: calls.append({"url": url, **kw}))
+    monkeypatch.setattr(R, "_default_post", lambda url, content, **kw: calls.append({"url": url, **kw}))
     # the lane exists BEFORE tail-init (first contact is silent by law); the old
     # entry is the archive that must stay home, the appended one is the question.
     client.streams["bifrost:inbox:daniil"] = [
-        ("299-0", {"frm": "kimi", "to": "daniil", "kind": "question",
-                   "content": '"old question, already his"'})]
-    F.pump(bus)                                             # tail-init
+        ("299-0", {"frm": "kimi", "to": "daniil", "kind": "question", "content": '"old question, already his"'})
+    ]
+    F.pump(bus)  # tail-init
     client.streams["bifrost:inbox:daniil"].append(
-        ("300-0", {"frm": "deepseek", "to": "daniil", "kind": "question",
-                   "content": '"which of the two forks should I keep?"'}))
+        (
+            "300-0",
+            {
+                "frm": "deepseek",
+                "to": "daniil",
+                "kind": "question",
+                "content": '"which of the two forks should I keep?"',
+            },
+        )
+    )
     F.pump(bus)
     lane = [c for c in calls if "heimdall-lane" in c["url"]]
-    assert lane, ("a seat's question for HIM rides HIS lane with that seat — "
-                  "the feed must tail the operator inboxes and route by frm")
+    assert lane, (
+        "a seat's question for HIM rides HIS lane with that seat — "
+        "the feed must tail the operator inboxes and route by frm"
+    )
     assert not [c for c in calls if "webhooks/1/g" in c["url"]], (
-        "no global double-post: a question addressed to him is not ambient")
+        "no global double-post: a question addressed to him is not ambient"
+    )

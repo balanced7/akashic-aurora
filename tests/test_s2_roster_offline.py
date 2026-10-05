@@ -16,6 +16,7 @@ doctor/router/render the truth: the seat LEFT, on purpose, at a known time.
   O4  RANKED: by_agent's best-row pick orders OFFLINE above DEAD but below STALE, and
       offline departures never count as churn deaths (churn is crash-loops, not goodbyes).
 """
+
 import os
 import sys
 import time
@@ -30,11 +31,13 @@ SEAT_A = "aaaa1111"
 
 def _ro():
     from core.comm import roster
+
     return roster
 
 
 def _client():
     from core.comm.bus import get_bus
+
     return get_bus(AGENT)._client
 
 
@@ -52,7 +55,8 @@ def test_o1_offline_removes_worklive_immediately():
     assert rep.get("ok"), f"go_offline must report ok: {rep}"
     assert not _client().exists(f"{ns}:worklive:{AGENT}#{SEAT_A}"), (
         "O1: the worklive key must be removed NOW -- a declared departure that lingers "
-        "renders STALE for the rest of the TTL, which is a lie about a seat that LEFT")
+        "renders STALE for the rest of the TTL, which is a lie about a seat that LEFT"
+    )
 
 
 def test_o2_offline_renders_offline_not_dead():
@@ -63,7 +67,8 @@ def test_o2_offline_renders_offline_not_dead():
     mine = _mine(ns, ro)
     assert mine and mine[0]["state"] == "OFFLINE", (
         f"O2: a declared departure must render OFFLINE, not DEAD -- DEAD claims an "
-        f"unexplained expiry when the seat told us it left: {mine}")
+        f"unexplained expiry when the seat told us it left: {mine}"
+    )
 
 
 def test_o3_next_heartbeat_revives():
@@ -76,7 +81,8 @@ def test_o3_next_heartbeat_revives():
     mine = _mine(ns, ro)
     assert mine and mine[0]["state"] == "LIVE", (
         f"O3: offline must be reversible -- the next beat re-creates the worklive key and "
-        f"the seat is LIVE again, not stuck offline: {mine}")
+        f"the seat is LIVE again, not stuck offline: {mine}"
+    )
 
 
 def test_o4_rank_and_no_churn_from_goodbyes():
@@ -87,7 +93,8 @@ def test_o4_rank_and_no_churn_from_goodbyes():
     groups = ro.by_agent(ro.roster(ns))
     mine = [g for g in groups if g["agent"] == AGENT]
     assert mine and mine[0]["state"] == "OFFLINE", (
-        f"O4: the per-agent best row must render OFFLINE for an all-offline agent: {mine}")
+        f"O4: the per-agent best row must render OFFLINE for an all-offline agent: {mine}"
+    )
     assert mine[0]["deaths_in_window"] == 0 and not mine[0]["churning"], (
-        "O4: a declared goodbye must never count as a churn death -- churn flags crash "
-        "loops, not departures")
+        "O4: a declared goodbye must never count as a churn death -- churn flags crash loops, not departures"
+    )

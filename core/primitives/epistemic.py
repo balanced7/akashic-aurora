@@ -19,6 +19,7 @@ prose, age, CSS, or presentation context.  The output is intentionally plain
 JSON so the same bytes can cross the Python/JavaScript boundary without an
 implicit promotion.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, replace

@@ -15,6 +15,7 @@ bifrost_runner_claude by design -- the Token Frugality Directive).
 Design authority: note wake-supervision-reconciliation-2026-08-28 (the L0-L4
 ladder; this is the L2 reconciler learning the rung, heal-only-the-ABSENT).
 """
+
 from __future__ import annotations
 
 import os
@@ -53,9 +54,7 @@ def _observe(monkeypatch, table: str):
 
 
 def test_claude_is_on_the_daemon_roster():
-    assert "claude" in revive.DAEMON_AGENTS, (
-        "H1: the claude autopilot daemon is unsupervised until the roster knows it"
-    )
+    assert "claude" in revive.DAEMON_AGENTS, "H1: the claude autopilot daemon is unsupervised until the roster knows it"
 
 
 def test_absent_claude_daemon_is_observed_dead(monkeypatch):
@@ -70,12 +69,8 @@ def test_dead_claude_daemon_plans_manage_listener_never_spawn_runner(monkeypatch
     claude_steps = [p for p in plan if p.get("agent") == "claude"]
     assert claude_steps, "a dead claude daemon must be planned for revival"
     cmd = claude_steps[0]["cmd"]
-    assert "--manage-listener" in cmd, (
-        "claude's daemon supervises wake listeners; --manage-listener is its mode"
-    )
-    assert "--spawn-runner" not in cmd, (
-        "F13 class: the wrong launch flag would spawn a runner claude does not have"
-    )
+    assert "--manage-listener" in cmd, "claude's daemon supervises wake listeners; --manage-listener is its mode"
+    assert "--spawn-runner" not in cmd, "F13 class: the wrong launch flag would spawn a runner claude does not have"
 
 
 def test_live_claude_daemon_is_never_touched(monkeypatch):
@@ -100,8 +95,7 @@ def test_resurrected_spawn_runner_daemons_carry_the_work_lane(monkeypatch):
     default is None, so a revive-resurrected daemon without the explicit flag
     spawns runners with divergent cursors -- the insta-fire wake loop returns.
     Spawn-runner launches carry it; claude's listener-manager takes no runner flags."""
-    obs = _observe(monkeypatch, _table(
-        "python.exe E:\\AI-Setup\\scripts\\bifrost_runner_discord.py"))
+    obs = _observe(monkeypatch, _table("python.exe E:\\AI-Setup\\scripts\\bifrost_runner_discord.py"))
     plan = revive.decide(obs, target="daemon")
     for step in plan:
         if step.get("organ") != "daemon":
@@ -109,10 +103,10 @@ def test_resurrected_spawn_runner_daemons_carry_the_work_lane(monkeypatch):
         cmd = step["cmd"]
         if "--spawn-runner" in cmd:
             assert "--runner-consume-lane" in cmd and "work" in cmd, (
-                f"{step['agent']}: resurrection without the lane flag diverges cursors")
+                f"{step['agent']}: resurrection without the lane flag diverges cursors"
+            )
         else:
-            assert "--runner-consume-lane" not in cmd, (
-                "claude's manage-listener daemon takes no runner flags")
+            assert "--runner-consume-lane" not in cmd, "claude's manage-listener daemon takes no runner flags"
 
 
 def test_deepseek_and_kimi_rungs_are_unchanged(monkeypatch):
@@ -138,12 +132,15 @@ def test_resurrected_kimi_daemon_carries_its_OWN_runner_script(monkeypatch):
     daemon that omitted it would hand Kimi the DEEPSEEK runner under her identity --
     the cross-seat-script class the kimi runner's own hint already guards against
     (test_9e1bc7ce78 P1). The necromancer must carry the per-agent script too."""
-    obs = _observe(monkeypatch, _table(
-        "python.exe E:\\AI-Setup\\scripts\\bifrost_daemon.py --agent deepseek --spawn-runner",
-        "python.exe E:\\AI-Setup\\scripts\\bifrost_runner_deepseek.py --agent deepseek",
-        "python.exe E:\\AI-Setup\\scripts\\bifrost_daemon.py --agent claude --manage-listener",
-        "python.exe E:\\AI-Setup\\scripts\\bifrost_runner_discord.py",
-    ))
+    obs = _observe(
+        monkeypatch,
+        _table(
+            "python.exe E:\\AI-Setup\\scripts\\bifrost_daemon.py --agent deepseek --spawn-runner",
+            "python.exe E:\\AI-Setup\\scripts\\bifrost_runner_deepseek.py --agent deepseek",
+            "python.exe E:\\AI-Setup\\scripts\\bifrost_daemon.py --agent claude --manage-listener",
+            "python.exe E:\\AI-Setup\\scripts\\bifrost_runner_discord.py",
+        ),
+    )
     plan = revive.decide(obs, target="daemon")
     kimi_cmd = [p for p in plan if p.get("agent") == "kimi"][0]["cmd"]
     assert "--runner-script" in kimi_cmd and "bifrost_runner_kimi.py" in kimi_cmd, (
@@ -155,12 +152,16 @@ def test_spawn_runner_agent_without_a_script_entry_refuses_to_plan(monkeypatch):
     """A spawn-runner agent missing from RUNNER_SCRIPT is a defect, not a fallback:
     planning it silently mis-scripted would resurrect a cross-seat runner."""
     monkeypatch.setattr(revive, "RUNNER_SCRIPT", {"deepseek": "bifrost_runner_deepseek.py"})
-    obs = _observe(monkeypatch, _table(
-        "python.exe E:\\AI-Setup\\scripts\\bifrost_daemon.py --agent deepseek --spawn-runner",
-        "python.exe E:\\AI-Setup\\scripts\\bifrost_runner_deepseek.py --agent deepseek",
-        "python.exe E:\\AI-Setup\\scripts\\bifrost_daemon.py --agent claude --manage-listener",
-        "python.exe E:\\AI-Setup\\scripts\\bifrost_runner_discord.py",
-    ))
+    obs = _observe(
+        monkeypatch,
+        _table(
+            "python.exe E:\\AI-Setup\\scripts\\bifrost_daemon.py --agent deepseek --spawn-runner",
+            "python.exe E:\\AI-Setup\\scripts\\bifrost_runner_deepseek.py --agent deepseek",
+            "python.exe E:\\AI-Setup\\scripts\\bifrost_daemon.py --agent claude --manage-listener",
+            "python.exe E:\\AI-Setup\\scripts\\bifrost_runner_discord.py",
+        ),
+    )
     import pytest
+
     with pytest.raises(ValueError):
         revive.decide(obs, target="daemon")

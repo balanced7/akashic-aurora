@@ -26,6 +26,7 @@ Run:  py scripts/generators/gen_datasheet.py --explain core/comm/bus.py   # one 
       py scripts/generators/gen_datasheet.py --json                       # whole graph
       py scripts/generators/gen_datasheet.py --coverage                   # manifest only
 """
+
 import ast
 import collections
 import itertools
@@ -52,16 +53,22 @@ def _git_files():
     walking the filesystem and excluding paths by pattern: an exclusion list is something a
     later edit can forget, and this cannot be forgotten.
     """
-    r = subprocess.run(["git", "-C", ROOT, "ls-files", "*.py"],
-                       capture_output=True, text=True, encoding="utf-8", errors="replace")
+    r = subprocess.run(
+        ["git", "-C", ROOT, "ls-files", "*.py"], capture_output=True, text=True, encoding="utf-8", errors="replace"
+    )
     if r.returncode != 0:
         return [], f"git ls-files failed rc={r.returncode}: {(r.stderr or '').strip()[:200]}"
     return [ln.strip() for ln in r.stdout.splitlines() if ln.strip()], ""
 
 
 def _rev():
-    r = subprocess.run(["git", "-C", ROOT, "rev-parse", "--short", "HEAD"],
-                       capture_output=True, text=True, encoding="utf-8", errors="replace")
+    r = subprocess.run(
+        ["git", "-C", ROOT, "rev-parse", "--short", "HEAD"],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+    )
     return (r.stdout or "").strip() or "UNKNOWN"
 
 
@@ -139,22 +146,20 @@ def _path_refs(tree):
     for node in ast.walk(tree):
         if isinstance(node, ast.Call):
             f = node.func
-            name = (f.attr if isinstance(f, ast.Attribute) else getattr(f, "id", ""))
+            name = f.attr if isinstance(f, ast.Attribute) else getattr(f, "id", "")
             if name == "join":
-                parts = [a.value for a in node.args
-                         if isinstance(a, ast.Constant) and isinstance(a.value, str)]
+                parts = [a.value for a in node.args if isinstance(a, ast.Constant) and isinstance(a.value, str)]
                 if not (parts and any(p.endswith(_PATH_EXT) for p in parts)):
                     continue
                 if len(parts) >= 2 and parts[0] in roots:
-                    refs.add("/".join(parts))          # root-anchored: resolvable
+                    refs.add("/".join(parts))  # root-anchored: resolvable
                 else:
-                    unresolved += 1                    # directory came from a variable: UNKNOWN
+                    unresolved += 1  # directory came from a variable: UNKNOWN
         elif isinstance(node, ast.Constant) and isinstance(node.value, str):
             v = node.value.strip()
-            if any(c in v for c in "\\[]*+()?"):       # a regex, not a path
+            if any(c in v for c in "\\[]*+()?"):  # a regex, not a path
                 continue
-            if (v.endswith(_PATH_EXT) and "/" in v and " " not in v
-                    and v.lstrip("./").split("/")[0] in roots):
+            if v.endswith(_PATH_EXT) and "/" in v and " " not in v and v.lstrip("./").split("/")[0] in roots:
                 refs.add(v.lstrip("./"))
     return sorted(refs), unresolved
 
@@ -181,8 +186,13 @@ def _history():
     move together 2 times in 3 with no edge between them (the same verbs behind two doors).
     Sweeps are excluded: a commit touching everything couples everything and means nothing.
     """
-    raw = subprocess.run(["git", "-C", ROOT, "log", "--format=@%at", "--name-only"],
-                         capture_output=True, text=True, encoding="utf-8", errors="replace").stdout
+    raw = subprocess.run(
+        ["git", "-C", ROOT, "log", "--format=@%at", "--name-only"],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+    ).stdout
     commits, cur, ts = [], None, None
     for ln in raw.splitlines():
         ln = ln.strip()
@@ -198,13 +208,12 @@ def _history():
     last, touches = {}, collections.Counter()
     pair, solo = collections.Counter(), collections.Counter()
     horizon = min((t for t, _ in commits), default=None)
-    for t, fs in commits:                                  # newest-first: first sighting wins
+    for t, fs in commits:  # newest-first: first sighting wins
         for f in set(fs):
             touches[f] += 1
             last.setdefault(f, t)
-        py = [f for f in set(fs)
-              if f.endswith(".py") and not f.startswith(("tests/", "docs/_archive"))]
-        if 2 <= len(py) <= 12:                             # sweep guard
+        py = [f for f in set(fs) if f.endswith(".py") and not f.startswith(("tests/", "docs/_archive"))]
+        if 2 <= len(py) <= 12:  # sweep guard
             for f in py:
                 solo[f] += 1
             for a, b in itertools.combinations(sorted(py), 2):
@@ -237,9 +246,11 @@ def build():
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and not node.name.startswith("_"):
                 exposes.append({"kind": "function", "name": node.name, **_signature(node)})
             elif isinstance(node, ast.ClassDef) and not node.name.startswith("_"):
-                methods = [n.name for n in node.body
-                           if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))
-                           and not n.name.startswith("_")]
+                methods = [
+                    n.name
+                    for n in node.body
+                    if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)) and not n.name.startswith("_")
+                ]
                 exposes.append({"kind": "class", "name": node.name, "methods": methods})
         for node in ast.walk(tree):
             if isinstance(node, ast.Import):
@@ -278,8 +289,8 @@ def build():
     by_module = {s["module"]: rel for rel, s in sheets.items()}
     for rel, s in sheets.items():
         for imp in s["imports_internal"]:
-            target = by_module.get(imp)             # dotted submodule names now come from the
-                                                    # ImportFrom aliases above, so no guessing here
+            target = by_module.get(imp)  # dotted submodule names now come from the
+            # ImportFrom aliases above, so no guessing here
             if target and target != rel:
                 sheets[target]["depended_on_by"].append(rel)
     for s in sheets.values():
@@ -317,6 +328,7 @@ def build():
     flag_err = ""
     try:
         from gen_physics_sheet import scan as physics_scan
+
         flags, _bounds = physics_scan()
         for name, sites in flags.items():
             for site, _default in sites:
@@ -343,19 +355,29 @@ def build():
         # Only NON-import partners: an import edge is already visible in depends_on, so surfacing it
         # again as "coupling" would inflate the signal with things the reader can already see.
         s["changes_with"] = sorted(
-            [c for c in cochange.get(rel, []) if c["with"] not in
-             {by_module.get(m, "") for m in s["imports_internal"]} | set(s["depended_on_by"])],
-            key=lambda c: -c["confidence"])
+            [
+                c
+                for c in cochange.get(rel, [])
+                if c["with"] not in {by_module.get(m, "") for m in s["imports_internal"]} | set(s["depended_on_by"])
+            ],
+            key=lambda c: -c["confidence"],
+        )
 
     coverage = {
         "revision": _rev(),
         "history_horizon_days": horizon_days,
-        "horizon_note": ("Git history begins here; the project predates it. at_horizon=true means "
-                         "NOT TOUCHED SINCE THE HORIZON, not 'last changed that many days ago'."),
-        "liveness_note": ("COMMITTED state only. A peer editing uncommitted right now is invisible "
-                          "here -- that is the advisory locks' plane. Nothing here implies who is active."),
-        "authorship": ("UNAVAILABLE from git: all commits carry one author (sole-committer pattern), "
-                       "so per-agent attribution must come from the ledger. Omitted rather than faked."),
+        "horizon_note": (
+            "Git history begins here; the project predates it. at_horizon=true means "
+            "NOT TOUCHED SINCE THE HORIZON, not 'last changed that many days ago'."
+        ),
+        "liveness_note": (
+            "COMMITTED state only. A peer editing uncommitted right now is invisible "
+            "here -- that is the advisory locks' plane. Nothing here implies who is active."
+        ),
+        "authorship": (
+            "UNAVAILABLE from git: all commits carry one author (sole-committer pattern), "
+            "so per-agent attribution must come from the ledger. Omitted rather than faked."
+        ),
         "universe": "git ls-files *.py (ONE revision; linked worktrees structurally excluded)",
         "in_universe": len(files),
         "scanned": len(sheets),
@@ -373,8 +395,14 @@ def build():
 
 
 def render_sheet(s, cov):
-    L = [f"# {s['path']}", "", f"**spec**  {s['spec']}", "",
-         f"rev {cov['revision']} · mechanical v0 · no field here is VERIFIED (no gate receipts exist)", ""]
+    L = [
+        f"# {s['path']}",
+        "",
+        f"**spec**  {s['spec']}",
+        "",
+        f"rev {cov['revision']} · mechanical v0 · no field here is VERIFIED (no gate receipts exist)",
+        "",
+    ]
     L.append("## exposes")
     if not s["exposes"]:
         L.append("- (nothing public)")
@@ -387,20 +415,28 @@ def render_sheet(s, cov):
     L += ["", "## depends on (internal)"] + ([f"- {i}" for i in s["imports_internal"]] or ["- (none)"])
     L += ["", f"## blast radius — {len(s['depended_on_by'])} module(s) import this"]
     L += [f"- {d}" for d in s["depended_on_by"]] or ["- (none in universe)"]
-    L += ["", "## verified by (tests naming it)"] + ([f"- {t}" for t in s["tested_by"]] or ["- UNKNOWN (no test names this module)"])
+    L += ["", "## verified by (tests naming it)"] + (
+        [f"- {t}" for t in s["tested_by"]] or ["- UNKNOWN (no test names this module)"]
+    )
     L += ["", "## env flags read"] + ([f"- `{f}`" for f in s["flags"]] or ["- (none)"])
     L += ["", "## external surface"] + ([f"- {i}" for i in s["imports_external"][:20]] or ["- (none)"])
     if s["broken_path_refs"]:
         L += ["", "## !! BROKEN path references (named, but not in the universe)"]
         L += [f"- `{b}`" for b in s["broken_path_refs"]]
-    age = (f">= {cov['history_horizon_days']}d (at horizon -- not touched since history begins)"
-           if s.get("at_horizon") else f"{s.get('last_touch_days')}d ago")
-    L += ["", "## temporal (committed state only -- says nothing about who is active NOW)",
-          f"- last changed: {age}", f"- touches in history: {s.get('touches')}"]
+    age = (
+        f">= {cov['history_horizon_days']}d (at horizon -- not touched since history begins)"
+        if s.get("at_horizon")
+        else f"{s.get('last_touch_days')}d ago"
+    )
+    L += [
+        "",
+        "## temporal (committed state only -- says nothing about who is active NOW)",
+        f"- last changed: {age}",
+        f"- touches in history: {s.get('touches')}",
+    ]
     if s.get("changes_with"):
         L += ["", "## changes together with (no import edge -- coupling the import graph cannot see)"]
-        L += [f"- `{c['with']}` — {c['confidence']:.0%} of the time ({c['times']}x)"
-              for c in s["changes_with"]]
+        L += [f"- `{c['with']}` — {c['confidence']:.0%} of the time ({c['times']}x)" for c in s["changes_with"]]
     L += ["", "## not derived in v0"] + [f"- {n}" for n in cov["not_derived_in_v0"]]
     return "\n".join(L)
 
@@ -453,11 +489,15 @@ def main():
     if "--pulse" in argv:
         # The at-a-glance orientation snapshot. THREE bands of five -- a surface you must read
         # forty rows of is not "at a glance", it is another thing to get through.
-        live = {p: s for p, s in sheets.items()
-                if not p.startswith(("tests/", "docs/_archive"))
-                and isinstance(s.get("last_touch_days"), (int, float))}
-        print(f"PULSE @{cov['revision']} | {cov['scanned']}/{cov['in_universe']} scanned, "
-              f"{len(cov['skipped'])} UNSCANNED | history horizon {cov['history_horizon_days']}d")
+        live = {
+            p: s
+            for p, s in sheets.items()
+            if not p.startswith(("tests/", "docs/_archive")) and isinstance(s.get("last_touch_days"), (int, float))
+        }
+        print(
+            f"PULSE @{cov['revision']} | {cov['scanned']}/{cov['in_universe']} scanned, "
+            f"{len(cov['skipped'])} UNSCANNED | history horizon {cov['history_horizon_days']}d"
+        )
         print("committed state only -- says nothing about who is editing right now\n")
 
         print("MOVING (most recently committed):")
@@ -478,14 +518,17 @@ def main():
             print("  (none)")
 
         print("\nRISK (churn x blast radius):")
-        for p, s in sorted(live.items(),
-                           key=lambda kv: -(kv[1]["touches"] * max(len(kv[1]["depended_on_by"]), 1)))[:5]:
-            print(f"  {s['touches']:4d} touches x fan-in {len(s['depended_on_by']):3d}  {p:<40}"
-                  f" tested={'yes' if s['tested_by'] else 'NO'}")
+        for p, s in sorted(live.items(), key=lambda kv: -(kv[1]["touches"] * max(len(kv[1]["depended_on_by"]), 1)))[:5]:
+            print(
+                f"  {s['touches']:4d} touches x fan-in {len(s['depended_on_by']):3d}  {p:<40}"
+                f" tested={'yes' if s['tested_by'] else 'NO'}"
+            )
         return 0
 
-    print(f"datasheets: {cov['scanned']} scanned of {cov['in_universe']} in universe "
-          f"@{cov['revision']}; {len(cov['skipped'])} UNSCANNED")
+    print(
+        f"datasheets: {cov['scanned']} scanned of {cov['in_universe']} in universe "
+        f"@{cov['revision']}; {len(cov['skipped'])} UNSCANNED"
+    )
     print("try: --explain <path> | --impact <path> | --pulse | --json | --coverage")
     return 0
 

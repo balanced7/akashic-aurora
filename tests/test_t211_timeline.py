@@ -34,6 +34,7 @@ never silently absent.
 
 Run: py -m pytest tests/test_t211_timeline.py -q
 """
+
 import os
 import sys
 
@@ -46,10 +47,12 @@ from core.coord import timeline as TL  # noqa: E402
 
 def _src(name, rows, ok=True, why=""):
     """A fake domain source: (name, callable) -> rows or raise."""
+
     def _fn(**kw):
         if not ok:
             raise RuntimeError(why or "source down")
         return rows
+
     return (name, _fn)
 
 
@@ -59,11 +62,12 @@ def _row(ts, actor, kind, summary, ref="r1"):
 
 def test_rows_from_many_domains_merge_in_time_order():
     """The whole point: interleaving is what makes the cause visible."""
-    r = TL.gather(sources=[
-        _src("git", [_row(300, "claude", "commit", "T197")]),
-        _src("events", [_row(100, "claude", "ask_completed", "handle a"),
-                        _row(200, "deepseek", "reply", "ALIVE")]),
-    ])
+    r = TL.gather(
+        sources=[
+            _src("git", [_row(300, "claude", "commit", "T197")]),
+            _src("events", [_row(100, "claude", "ask_completed", "handle a"), _row(200, "deepseek", "reply", "ALIVE")]),
+        ]
+    )
     assert [x["ts"] for x in r["rows"]] == [100, 200, 300]
     assert [x["domain"] for x in r["rows"]] == ["events", "events", "git"]
 
@@ -80,10 +84,12 @@ def test_a_failed_domain_is_named_never_silently_absent():
     """THE LOAD-BEARING PIN. A timeline missing a domain looks like a timeline where
     nothing happened in that domain -- which is how a set difference invents findings.
     I shipped that exact bug today and caught it four minutes later."""
-    r = TL.gather(sources=[
-        _src("events", [_row(1, "a", "k", "s")]),
-        _src("git", [], ok=False, why="git not reachable"),
-    ])
+    r = TL.gather(
+        sources=[
+            _src("events", [_row(1, "a", "k", "s")]),
+            _src("git", [], ok=False, why="git not reachable"),
+        ]
+    )
     assert "git" in r["coverage"]["failed"]
     assert "events" in r["coverage"]["read"]
     assert "git" not in r["coverage"]["read"]
@@ -93,18 +99,18 @@ def test_a_failed_domain_is_named_never_silently_absent():
 def test_an_empty_domain_is_distinct_from_a_failed_one():
     """'Nothing happened there' and 'I could not look there' are different facts, and
     collapsing them is the one-word-two-meanings bug in a fifth costume."""
-    r = TL.gather(sources=[
-        _src("git", []),
-        _src("events", [], ok=False),
-    ])
+    r = TL.gather(
+        sources=[
+            _src("git", []),
+            _src("events", [], ok=False),
+        ]
+    )
     assert "git" in r["coverage"]["read"] and r["coverage"]["counts"]["git"] == 0
     assert "events" in r["coverage"]["failed"]
 
 
 def test_the_window_is_reported_and_applied():
-    r = TL.gather(sources=[_src("events", [_row(10, "a", "k", "old"),
-                                           _row(1000, "a", "k", "new")])],
-                  since=100)
+    r = TL.gather(sources=[_src("events", [_row(10, "a", "k", "old"), _row(1000, "a", "k", "new")])], since=100)
     assert [x["summary"] for x in r["rows"]] == ["new"]
     assert r["coverage"]["since"] == 100
 
@@ -121,8 +127,7 @@ def test_rows_are_data_not_a_rendering():
 def test_a_row_missing_a_timestamp_is_kept_and_flagged():
     """Dropping undateable evidence is how a timeline lies by omission. Forensics keeps
     it and marks it, because 'when' unknown is not 'did not happen'."""
-    r = TL.gather(sources=[_src("events", [{"actor": "a", "kind": "k",
-                                            "summary": "no ts", "ref": "x"}])])
+    r = TL.gather(sources=[_src("events", [{"actor": "a", "kind": "k", "summary": "no ts", "ref": "x"}])])
     assert len(r["rows"]) == 1
     assert r["rows"][0]["ts"] is None
     assert r["coverage"]["undated"] == 1
@@ -131,19 +136,25 @@ def test_a_row_missing_a_timestamp_is_kept_and_flagged():
 def test_undated_rows_sort_last_not_at_epoch():
     """Sorting a None to 0 would place unknown-time evidence at the dawn of the record
     and silently rewrite the story."""
-    r = TL.gather(sources=[_src("events", [{"summary": "undated", "ref": "u"},
-                                           _row(5, "a", "k", "dated")])])
+    r = TL.gather(sources=[_src("events", [{"summary": "undated", "ref": "u"}, _row(5, "a", "k", "dated")])])
     assert [x["summary"] for x in r["rows"]] == ["dated", "undated"]
 
 
-@pytest.mark.parametrize("raw,expect", [
-    ("1786079938", 1786079938.0),      # git's %at -- a BARE EPOCH STRING
-    (1786079938, 1786079938.0),
-    ("", None), (None, None), ("not a time", None),
-    # 0 from ANY source means "could not read", never 1 Jan 1970 -- as an int, as a
-    # string, or as a parser's failure return.
-    (0, None), ("0", None), (0.0, None),
-])
+@pytest.mark.parametrize(
+    "raw,expect",
+    [
+        ("1786079938", 1786079938.0),  # git's %at -- a BARE EPOCH STRING
+        (1786079938, 1786079938.0),
+        ("", None),
+        (None, None),
+        ("not a time", None),
+        # 0 from ANY source means "could not read", never 1 Jan 1970 -- as an int, as a
+        # string, or as a parser's failure return.
+        (0, None),
+        ("0", None),
+        (0.0, None),
+    ],
+)
 def test_epoch_parses_real_stamps_and_refuses_to_invent_1970(raw, expect):
     """CAUGHT LIVE on this module's first real run, one function below the pin that
     forbids exactly this. git's %at is a bare epoch STRING; to_epoch parses ISO and
@@ -184,6 +195,7 @@ def test_git_rows_carry_readable_timestamps():
 def test_gather_never_raises_on_a_broken_source():
     def explode(**kw):
         raise ValueError("boom")
+
     r = TL.gather(sources=[("bad", explode)])
     assert r["rows"] == [] and "bad" in r["coverage"]["failed"]
 

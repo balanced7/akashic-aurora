@@ -19,6 +19,7 @@ battery -- the lease's hard boundary):
 
 Run: py -m pytest tests/test_t109_lookback_migration_completion.py -q
 """
+
 from __future__ import annotations
 
 import os
@@ -47,7 +48,8 @@ def test_p1_library_projection_is_in_the_docs_corpus():
     assert hits, "no docs-layer hits at all for a question the library corpus answers"
     assert "docs/library/" in sources, (
         f"every docs hit came from the top-level docs/ sweep; the projection plane "
-        f"(docs/library/) is outside the corpus. Sources seen: {sources[:400]}")
+        f"(docs/library/) is outside the corpus. Sources seen: {sources[:400]}"
+    )
 
 
 def test_p2_original_slug_resolves_to_its_atom():
@@ -57,9 +59,9 @@ def test_p2_original_slug_resolves_to_its_atom():
     # 425cf52; its content lives on as
     # docs/library/design/20260710_multi-agent-coordination-layer-synthesis_283c99.md.
     hits = _hits("why is the task ledger the coordination substrate")
-    blob = " | ".join(
-        f"{h.get('layer')}:{h.get('source')}:{h.get('excerpt')}" for h in hits).lower()
+    blob = " | ".join(f"{h.get('layer')}:{h.get('source')}:{h.get('excerpt')}" for h in hits).lower()
     assert "coordination-plan-synthesis" in blob or "coordination" in blob, (
         "the original slug does not resolve: a cold agent asking by the deleted doc's "
         "name finds nothing that names it. Handle unreachable = migration incomplete. "
-        f"Blob head: {blob[:400]}")
+        f"Blob head: {blob[:400]}"
+    )

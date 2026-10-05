@@ -36,6 +36,7 @@ because a store was unreachable.
 
 Run: py -m pytest tests/test_t338_handoff_briefing_not_clipped.py -q
 """
+
 from __future__ import annotations
 
 import os
@@ -53,6 +54,7 @@ def _briefing_fn():
     """The helper under test, whatever it ends up called -- resolved by contract, not name,
     so the pin does not fail merely because the fix chose a different word."""
     import agent_cli
+
     for cand in ("_briefing_intake", "_intake_briefing", "_handoff_note_intake"):
         fn = getattr(agent_cli, cand, None)
         if callable(fn):
@@ -66,7 +68,8 @@ def test_p1_a_briefing_helper_exists_and_is_distinct_from_intake():
     fn = _briefing_fn()
     assert fn is not None, (
         "no briefing-intake helper found; the handoff note path must not share _intake's "
-        "clip-and-spill-to-file behaviour")
+        "clip-and-spill-to-file behaviour"
+    )
 
 
 def test_p2_an_over_cap_briefing_leads_with_a_resolvable_pointer(tmp_path, monkeypatch):
@@ -80,7 +83,8 @@ def test_p2_an_over_cap_briefing_leads_with_a_resolvable_pointer(tmp_path, monke
     assert len(out) <= 1000, "the stored field must still respect the cap"
     head = out[:200].lower()
     assert "note" in head and "--get" in out[:300], (
-        "the stored briefing must OPEN with the retrieval command, not end with it")
+        "the stored briefing must OPEN with the retrieval command, not end with it"
+    )
 
 
 def test_p3_the_confession_names_the_note_not_only_a_file():
@@ -94,7 +98,8 @@ def test_p3_the_confession_names_the_note_not_only_a_file():
     assert joined, "an overflowing briefing must confess"
     assert "note" in joined, (
         "the confession must name the NOTE that holds the full body -- a state/spill path "
-        "alone tells the writer where it went and the reader nothing")
+        "alone tells the writer where it went and the reader nothing"
+    )
 
 
 def test_p4_under_cap_briefings_are_untouched():
@@ -118,6 +123,7 @@ def test_p5_a_store_failure_degrades_and_never_raises():
     # rather than a defect: a monkeypatch that misses its target tests nothing, and would have
     # gone green the moment the helper started failing for unrelated reasons.
     import core.learning.agent_memory as _am
+
     fn = _briefing_fn()
     assert fn is not None
 
@@ -125,7 +131,7 @@ def test_p5_a_store_failure_degrades_and_never_raises():
         raise RuntimeError("store down")
 
     real = _am.get_agent_memory
-    _am.get_agent_memory = _boom                # type: ignore[assignment]
+    _am.get_agent_memory = _boom  # type: ignore[assignment]
     try:
         confessions: list = []
         out = fn("Z" * 4000, 1000, "note", confessions, to_agent="claude", by_agent="claude")
@@ -133,6 +139,7 @@ def test_p5_a_store_failure_degrades_and_never_raises():
         assert confessions, "a degraded path must still confess"
         assert any("FAILED" in c for c in confessions), (
             "the degraded path must say the note write FAILED -- falling back silently would "
-            "leave the writer believing the body is reachable when it is not")
+            "leave the writer believing the body is reachable when it is not"
+        )
     finally:
-        _am.get_agent_memory = real             # type: ignore[assignment]
+        _am.get_agent_memory = real  # type: ignore[assignment]

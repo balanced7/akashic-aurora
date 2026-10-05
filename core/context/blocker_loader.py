@@ -34,19 +34,22 @@ def load_blockers_preventing_progress(
     """
     if context_manager is None:
         from core.context.project_context import get_project_context_manager_instance
+
         context_manager = get_project_context_manager_instance()
     ranker = ranker or Ranker()
 
     items = []
     for blocker in context_manager.load_blockers_filtered_by_status(status="active"):
         b = asdict(blocker)
-        items.append({
-            "text": b.get("description", ""),
-            "importance": _SEVERITY_IMPORTANCE.get(str(b.get("severity", "medium")).lower(), 3),
-            "timestamp": b.get("created_at"),
-            "source": b.get("id"),
-            "_blocker": b,
-        })
+        items.append(
+            {
+                "text": b.get("description", ""),
+                "importance": _SEVERITY_IMPORTANCE.get(str(b.get("severity", "medium")).lower(), 3),
+                "timestamp": b.get("created_at"),
+                "source": b.get("id"),
+                "_blocker": b,
+            }
+        )
 
     ranked = ranker.rank(items, query=task, now=now, top_k=top_k)
     return [

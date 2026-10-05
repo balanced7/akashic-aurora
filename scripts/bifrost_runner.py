@@ -12,6 +12,7 @@ on the bus. Degrades gracefully: web-first auto mode falls back to the API bridg
   py scripts/bifrost_runner.py --provider web          # free web UI only (gemini_web.py)
   py scripts/bifrost_runner.py --model gemini-2.5-flash-lite --system "Be concise."
 """
+
 import argparse
 import os
 import subprocess
@@ -77,7 +78,7 @@ def _run_bridge(script: str, prompt: str, extra_args: list[str], timeout: int = 
     cmd = [sys.executable, os.path.join(HERE, script)] + extra_args
     try:
         p = subprocess.run(cmd, input=prompt, capture_output=True, text=True, timeout=timeout)
-        return (p.stdout.strip() or p.stderr.strip() or "(no output from provider)")
+        return p.stdout.strip() or p.stderr.strip() or "(no output from provider)"
     except Exception as e:
         return f"(runner error calling {script}: {type(e).__name__}: {e})"
 
@@ -155,9 +156,15 @@ def main() -> int:
         choices=("gemini", "ai_mode"),
         help="web surface when provider is web or auto",
     )
-    ap.add_argument("--system", default="You are Gemini, collaborating with Claude and Cursor over a shared bus. Be concise and direct.")
-    ap.add_argument("--accept-hints", action="store_true",
-                    help="accept context hints from peer agents (pre-digested summaries folded into system prompt)")
+    ap.add_argument(
+        "--system",
+        default="You are Gemini, collaborating with Claude and Cursor over a shared bus. Be concise and direct.",
+    )
+    ap.add_argument(
+        "--accept-hints",
+        action="store_true",
+        help="accept context hints from peer agents (pre-digested summaries folded into system prompt)",
+    )
     ap.add_argument("--once", action="store_true", help="process one wake then exit (for testing)")
     args = ap.parse_args()
 
@@ -172,24 +179,30 @@ def main() -> int:
     if not os.environ.get("AKASHIC_DRILL_ECHO"):
         try:
             from core.trust.registry import may_run_runner
+
             if not may_run_runner(args.agent):
-                print(f"bifrost_runner: '{args.agent}' is quarantined (deny-by-default) -- refusing "
-                      f"to start. Its reply/trace lanes would otherwise reach the bus. A super-admin "
-                      f"must grant it a role in security/acl.json first.")
+                print(
+                    f"bifrost_runner: '{args.agent}' is quarantined (deny-by-default) -- refusing "
+                    f"to start. Its reply/trace lanes would otherwise reach the bus. A super-admin "
+                    f"must grant it a role in security/acl.json first."
+                )
                 return 3
         except Exception as e:
             # A2-2: a broken guard must be LOUD -- silence here silently disables F1.
-            print(f"[bifrost_runner] may_run_runner check skipped ({type(e).__name__}) -- "
-                  f"guard NOT active for '{args.agent}'", file=sys.stderr)
+            print(
+                f"[bifrost_runner] may_run_runner check skipped ({type(e).__name__}) -- "
+                f"guard NOT active for '{args.agent}'",
+                file=sys.stderr,
+            )
     bus.register(card=card)
     # RB-25 F2: a brand-NEW agent seeds its cursor at the live tail so it never acts on the
     # stale broadcast backlog as current. Virgin-guarded (established runners keep draining
     # their real backlog); same AKASHIC_DRILL_ECHO escape as F1.
     if not os.environ.get("AKASHIC_DRILL_ECHO") and bus.seed_cursor_at_tail():
-        print(f"[runner] {args.agent} is new -- cursor seeded at the live tail "
-              f"(stale broadcast backlog skipped)")
+        print(f"[runner] {args.agent} is new -- cursor seeded at the live tail (stale broadcast backlog skipped)")
     # T045 stage 2: work-lane consume behind the strangler env gate.
     from core.comm.bifrost_api import BifrostAPI
+
     lane_mode = BifrostAPI.consume_lane_enabled()
     api = BifrostAPI(args.agent) if lane_mode else None
     if lane_mode:
@@ -209,23 +222,25 @@ def main() -> int:
                 batch_next: dict = {}
                 msgs = api.work_drain(timeout_ms=30_000, since_out=batch_next)
                 if batch_next.get("inbox") or batch_next.get("bc"):
-                    bus.advance_to(inbox=batch_next.get("inbox"), bc=batch_next.get("bc"),
-                                   cursor_key=bus.lane_cursor_key())
+                    bus.advance_to(
+                        inbox=batch_next.get("inbox"), bc=batch_next.get("bc"), cursor_key=bus.lane_cursor_key()
+                    )
             else:
-                msgs = bus.wait(timeout_ms=0, advance=True)   # block until a message, then CONSUME it
-            bus.register(card=card)                       # refresh presence
+                msgs = bus.wait(timeout_ms=0, advance=True)  # block until a message, then CONSUME it
+            bus.register(card=card)  # refresh presence
             for m in msgs:
                 # HINT interception: context hints are NOT answered -- stored for next turn.
                 if str(m.kind) == "hint":
                     meta = m.meta or {}
                     hint_data = meta.get("hint") or {}
-                    ok = context_hints.push(args.agent,
-                                           hint_data.get("key", "?"),
-                                           hint_data.get("value", "?"),
-                                           from_agent=m.frm)
+                    ok = context_hints.push(
+                        args.agent, hint_data.get("key", "?"), hint_data.get("value", "?"), from_agent=m.frm
+                    )
                     if ok:
-                        print(f"[runner] hint accepted ({hint_data.get('key','?')}) "
-                              f"from {m.frm}: {hint_data.get('value','?')[:100]}")
+                        print(
+                            f"[runner] hint accepted ({hint_data.get('key', '?')}) "
+                            f"from {m.frm}: {hint_data.get('value', '?')[:100]}"
+                        )
                     continue
                 if not should_answer(m.kind, m.frm, args.agent):
                     continue

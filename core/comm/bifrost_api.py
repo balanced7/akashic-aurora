@@ -15,6 +15,7 @@ signals / intent) behind one agent-facing interface. Every method is a thin, hon
 underlying primitive -- no new behavior, just one place to reach them. Fail-open like the primitives:
 a bus outage degrades to no-ops / empty, never an exception into the agent's loop.
 """
+
 from __future__ import annotations
 
 import logging
@@ -23,6 +24,17 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from core.comm.bus import Bus
 from core.comm import control, nudge
+
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+
+        return python_launcher()
+    except Exception:
+        return "py"
+
 
 _log = logging.getLogger("bifrost")
 
@@ -82,11 +94,15 @@ def render_straggler_summary(counts: Dict[str, int]) -> str:
         return ""
     parts = []
     if failed:
-        parts.append(f"{failed} LANE WRITE FAILED (absent from the work lane -- a real "
-                     f"transport defect; investigate the sender side)")
+        parts.append(
+            f"{failed} LANE WRITE FAILED (absent from the work lane -- a real "
+            f"transport defect; investigate the sender side)"
+        )
     if skew:
-        parts.append(f"{skew} cursor-skew (present on the work lane, outside this read's "
-                     f"window -- delivery is correct and idempotent, nothing to chase)")
+        parts.append(
+            f"{skew} cursor-skew (present on the work lane, outside this read's "
+            f"window -- delivery is correct and idempotent, nothing to chase)"
+        )
     if unknown:
         parts.append(f"{unknown} unknown (membership uncheckable -- not claimed either way)")
     return "; ".join(parts)
@@ -107,9 +123,7 @@ def wake_lane() -> str:
     The rule: an explicit BIFROST_WAKE_LANE still wins (a seat may deliberately split the
     planes); absent that, the wake lane FOLLOWS the consume lane, so the thing that wakes
     you and the thing you drain are the same thing by default."""
-    return (os.environ.get("BIFROST_WAKE_LANE")
-            or os.environ.get("BIFROST_CONSUME_LANE")
-            or "").strip()
+    return (os.environ.get("BIFROST_WAKE_LANE") or os.environ.get("BIFROST_CONSUME_LANE") or "").strip()
 
 
 def _id_key(sid: str):
@@ -141,9 +155,9 @@ class BifrostAPI:
     def __init__(self, agent: str, namespace: Optional[str] = None):
         self.agent = str(agent)
         self.bus = Bus(self.agent, namespace=namespace) if namespace else Bus(self.agent)
-        self._wake_since: Optional[Dict[str, str]] = None   # the wake watcher's LOCAL cursor (P0)
-        self._lane_since: Optional[Dict[str, str]] = None   # T045: the lane watcher's LOCAL cursor
-        self.last_seat: Optional[Dict[str, Any]] = None     # RB-21: holder info when a consume degraded
+        self._wake_since: Optional[Dict[str, str]] = None  # the wake watcher's LOCAL cursor (P0)
+        self._lane_since: Optional[Dict[str, str]] = None  # T045: the lane watcher's LOCAL cursor
+        self.last_seat: Optional[Dict[str, Any]] = None  # RB-21: holder info when a consume degraded
 
     @property
     def online_now(self) -> bool:
@@ -167,7 +181,7 @@ class BifrostAPI:
         """
         try:
             return bool(self.bus.probe())
-        except Exception:                                                   # noqa: BLE001
+        except Exception:  # noqa: BLE001
             return False
 
     # ---- send ----
@@ -198,6 +212,7 @@ class BifrostAPI:
             return self.bus.inbox(advance=False)
         from core.comm import runner_lock
         import os
+
         token = runner_lock.session_holder_token() or f"session:api:{os.getpid()}"
         ok, gen, info = runner_lock.claim_consumer(self.agent, token)
         if not ok:
@@ -213,12 +228,11 @@ class BifrostAPI:
             fields = {k: v for k, v in nxt.items() if v}
             if fields:
                 status["status"] = self.bus.advance_to(
-                    inbox=nxt.get("inbox"), bc=nxt.get("bc"),
-                    generation=gen, cursor_key=self.bus.lane_cursor_key())
+                    inbox=nxt.get("inbox"), bc=nxt.get("bc"), generation=gen, cursor_key=self.bus.lane_cursor_key()
+                )
         else:
             msgs = self.bus.inbox(advance=True, generation=gen, commit_status_out=status)
-        self.last_seat = (runner_lock.holder(self.agent) or {}) \
-            if status.get("status") == "STALE_GENERATION" else None
+        self.last_seat = (runner_lock.holder(self.agent) or {}) if status.get("status") == "STALE_GENERATION" else None
         return msgs
 
     def wake_block(self, timeout_ms: int = 120_000) -> List[Any]:
@@ -241,11 +255,11 @@ class BifrostAPI:
           concurrent live session already consumed never wakes the watcher; a trimmed-away local
           position degrades to bounded paging from the stream head, not an error loop."""
         if wake_lane() == "work":
-            return self._wake_block_lane(timeout_ms)   # T045 stage 1: watch the WORK LANE only
+            return self._wake_block_lane(timeout_ms)  # T045 stage 1: watch the WORK LANE only
         if self._wake_since is None:
             seed = dict(self.bus.cursor())
             if seed.get("inbox", "0") == "0" and seed.get("bc", "0") == "0":
-                seed = self.bus.tail()             # virgin/offline cursor: only NEW mail wakes
+                seed = self.bus.tail()  # virgin/offline cursor: only NEW mail wakes
             self._wake_since = seed
         else:
             shared = self.bus.cursor()
@@ -262,9 +276,12 @@ class BifrostAPI:
     def _lane_streams(self) -> Dict[str, str]:
         """The work-lane pair the T045 watcher reads (logical inbox/bc -> lane keys)."""
         from core.comm import packet_spec
+
         ns = self.bus.ns
-        return {"inbox": packet_spec.lane_stream_key(ns, "work", to=self.agent),
-                "bc": packet_spec.lane_stream_key(ns, "work")}
+        return {
+            "inbox": packet_spec.lane_stream_key(ns, "work", to=self.agent),
+            "bc": packet_spec.lane_stream_key(ns, "work"),
+        }
 
     def _lane_tails(self) -> Dict[str, str]:
         """Concrete last-ids of the lane pair -- the A4 tail-at-flip seed (dual-write history
@@ -313,15 +330,13 @@ class BifrostAPI:
         peek: one possible false wake, never a missed one."""
         cur = self.bus.read_lane_cursor()
         if any(str(v) != "0" for v in cur.values()):
-            return (self._peek_wake_worthy({"inbox": cur["inbox"], "bc": cur["bc"]},
-                                           self._lane_streams()), "work")
-        return self._peek_wake_worthy(None, None), "legacy"      # shared-cursor peek, no advance
+            return (self._peek_wake_worthy({"inbox": cur["inbox"], "bc": cur["bc"]}, self._lane_streams()), "work")
+        return self._peek_wake_worthy(None, None), "legacy"  # shared-cursor peek, no advance
 
-    _PEEK_PAGE = 50      # entries read per page behind the cursor
-    _PEEK_PAGES = 10     # bound per arm: 500 entries, then the peek confesses nothing found
+    _PEEK_PAGE = 50  # entries read per page behind the cursor
+    _PEEK_PAGES = 10  # bound per arm: 500 entries, then the peek confesses nothing found
 
-    def _peek_wake_worthy(self, since: Optional[Dict[str, str]],
-                          streams: Optional[Dict[str, str]]) -> List[Any]:
+    def _peek_wake_worthy(self, since: Optional[Dict[str, str]], streams: Optional[Dict[str, str]]) -> List[Any]:
         """Page behind `since` on `streams` (None, None = the legacy family from the shared
         cursor) and return the first WAKE-WORTHY messages found.
 
@@ -366,14 +381,13 @@ class BifrostAPI:
         (2) the lane cursor is caller-owned and seeded at the lane TAILS (A4 tail-at-flip).
         Detect-only, same as the legacy path: nothing here consumes or writes a cursor."""
         if self._lane_since is None:
-            pending, family = self._pending_peek()        # family-aware 1ms peek, no advance
+            pending, family = self._pending_peek()  # family-aware 1ms peek, no advance
             # Only WAKE-WORTHY pending mail counts (caught live, first lane soak 2026-07-14):
             # nothing consumes legacy broadcast junk, so skip-kind traces pending there would
             # otherwise trap this check forever -- lane_since never seeds and the watcher
             # busy-peeks legacy for its whole deadline instead of watching the lane.
             # Keep PENDING_SKIP_KINDS == bifrost_wake.SKIP_KINDS_LANE (parity pin L7).
-            live = [m for m in pending
-                    if str(getattr(m, "kind", "")) not in PENDING_SKIP_KINDS]
+            live = [m for m in pending if str(getattr(m, "kind", "")) not in PENDING_SKIP_KINDS]
             # SEED BEFORE RETURNING. Returning `live` without seeding meant the next call
             # peeked again, found the same mail (detect-only never consumes -- T017), and
             # returned instantly again: the "blocking" read never blocked for as long as any
@@ -430,18 +444,18 @@ class BifrostAPI:
                         "if you see this line again the pending set is not clearing and RE-ARMING "
                         "WILL NOT REDUCE IT (the watcher is fine either way). Detection PEEKED the "
                         "%s cursor family (the one this seat's consumer advances), so drain THAT "
-                        "one: BIFROST_CONSUME_LANE=%s py agent_cli.py bifrost-sync %s --consume",
+                        f"one: BIFROST_CONSUME_LANE=%s {_pyl()} agent_cli.py bifrost-sync %s --consume",
                         len(live),
                         ",".join(sorted({str(getattr(m, "kind", "?")) for m in live})),
-                        family, family,
+                        family,
+                        family,
                         getattr(self, "agent", "<agent>"),
                     )
                 except Exception:
                     pass
                 return live
         nxt: Dict[str, str] = {}
-        msgs = self.bus.wait(timeout_ms=timeout_ms, since=self._lane_since, since_out=nxt,
-                             streams=self._lane_streams())
+        msgs = self.bus.wait(timeout_ms=timeout_ms, since=self._lane_since, since_out=nxt, streams=self._lane_streams())
         if nxt:
             self._lane_since.update(nxt)
         return msgs
@@ -456,16 +470,18 @@ class BifrostAPI:
     def _sig_streams(self) -> Dict[str, str]:
         """The sig-lane pair (fidelity-ladder traffic: nudge/steer/halt/pause)."""
         from core.comm import packet_spec
+
         ns = self.bus.ns
-        return {"inbox": packet_spec.lane_stream_key(ns, "sig", to=self.agent),
-                "bc": packet_spec.lane_stream_key(ns, "sig")}
+        return {
+            "inbox": packet_spec.lane_stream_key(ns, "sig", to=self.agent),
+            "bc": packet_spec.lane_stream_key(ns, "sig"),
+        }
 
     @staticmethod
     def _dedup_key(m) -> tuple:
         """Logical identity of a packet ACROSS its dual-write twins (lane copy and legacy
         copy carry identical env fields but different stream auto-ids)."""
-        return (str(getattr(m, "frm", "")), str(getattr(m, "ts", "")),
-                str(getattr(m, "kind", "")))
+        return (str(getattr(m, "frm", "")), str(getattr(m, "ts", "")), str(getattr(m, "kind", "")))
 
     #: The legacy net's twin lookup (2026-09-15). A dual-write puts the lane copy and the legacy
     #: copy on one Redis server milliseconds apart, so a legacy packet's twin is searched for in
@@ -488,10 +504,12 @@ class BifrostAPI:
     def _stream_windows(client, reqs: List[Tuple[str, str, str, str, int]]) -> List[Any]:
         """Run ("rev"|"fwd", key, a, b, count) range reads in one pipeline round trip when the
         client offers one, else one call each. rev = XREVRANGE max=a min=b; fwd = XRANGE."""
+
         def _one(target, op, key, a, b, n):
             if op == "rev":
                 return target.xrevrange(key, max=a, min=b, count=n)
             return target.xrange(key, min=a, max=b, count=n)
+
         if not reqs:
             return []
         try:
@@ -513,6 +531,7 @@ class BifrostAPI:
         either too short to have been trimmed or still holding entries older than the window.
         Anything else is UNKNOWN, which delivers and claims nothing."""
         from core.comm import packet_spec
+
         if not cands:
             return []
         client = self.bus._client
@@ -529,7 +548,7 @@ class BifrostAPI:
                 reqs.append(("rev", key, str(at), str(lo), cap))
                 reqs.append(("fwd", key, str(at + 1), str(hi), cap))
         try:
-            heads: Dict[str, int] = {}      # only streams long enough to have been trimmed
+            heads: Dict[str, int] = {}  # only streams long enough to have been trimmed
             for lg, key in streams:
                 if int(client.xlen(key) or 0) >= int(packet_spec.lane_maxlen("work") * 0.9):
                     first = client.xrange(key, "-", "+", count=1)
@@ -549,9 +568,11 @@ class BifrostAPI:
                     rows = windows[i * per + 2 * j + half] or []
                     for sid, fields in rows:
                         g = fields.get if hasattr(fields, "get") else (lambda k, d="": d)
-                        if ((str(g("frm", "") or ""), str(g("ts", "") or ""),
-                             str(g("kind", "") or "")) == want
-                                and packet_spec.verify_integrity(dict(fields))[0]):
+                        if (
+                            str(g("frm", "") or ""),
+                            str(g("ts", "") or ""),
+                            str(g("kind", "") or ""),
+                        ) == want and packet_spec.verify_integrity(dict(fields))[0]:
                             twin = (lg, str(sid))
                             break
                     if twin:
@@ -573,9 +594,14 @@ class BifrostAPI:
             out.append((classify_straggler(want, _lane_has), twin))
         return out
 
-    def work_drain(self, timeout_ms: int = 1500, *, limit: int = 50,
-                   since_out: Optional[Dict[str, str]] = None,
-                   generation: int = 0) -> List[Any]:
+    def work_drain(
+        self,
+        timeout_ms: int = 1500,
+        *,
+        limit: int = 50,
+        since_out: Optional[Dict[str, str]] = None,
+        generation: int = 0,
+    ) -> List[Any]:
         """T045 stage 2 (T039b): the lane-mode consume door -- runner and session door both
         cut onto THIS seam. Gated by BIFROST_CONSUME_LANE=work (unset = legacy wait(),
         byte-identical, strangler discipline). In lane mode, per fence-reconciled scope
@@ -600,6 +626,7 @@ class BifrostAPI:
         if not self.consume_lane_enabled():
             return self.bus.wait(timeout_ms=timeout_ms, limit=limit, since_out=since_out)
         from core.comm import packet_spec
+
         cur = self.bus.read_lane_cursor()
         # ONBOARDING SEED (once per api instance; storm-cfdcb65f find): a VIRGIN lane
         # cursor -- newborn or migrant -- seeds at tails before the first read: history
@@ -617,31 +644,40 @@ class BifrostAPI:
         seen: set = set()
         # (1) sig first -- 1ms peek (block=0 would wait forever; the L2/L5 lesson)
         snxt: Dict[str, str] = {}
-        sig = self.bus.wait(timeout_ms=1, limit=limit,
-                            since={"inbox": cur["sig_inbox"], "bc": cur["sig_bc"]},
-                            since_out=snxt, streams=self._sig_streams())
+        sig = self.bus.wait(
+            timeout_ms=1,
+            limit=limit,
+            since={"inbox": cur["sig_inbox"], "bc": cur["sig_bc"]},
+            since_out=snxt,
+            streams=self._sig_streams(),
+        )
         for m in sig:
             seen.add(self._dedup_key(m))
             try:
-                m.meta["_lane_src"] = "sig"     # consumers must NOT advance work fields for these
+                m.meta["_lane_src"] = "sig"  # consumers must NOT advance work fields for these
             except Exception:
                 pass
         out += sig
-        sig_fields = {f: snxt[k] for f, k in (("sig_inbox", "inbox"), ("sig_bc", "bc"))
-                      if snxt.get(k) and snxt[k] != cur[f]}
+        sig_fields = {
+            f: snxt[k] for f, k in (("sig_inbox", "inbox"), ("sig_bc", "bc")) if snxt.get(k) and snxt[k] != cur[f]
+        }
         if sig_fields:
             # generation rides through: once a fenced consumer stamps the hash, a gen-0
             # internal advance would be refused as stale and sig would replay forever
             self.bus.advance_cursor_fields(lane_key, sig_fields, generation=generation)
         # (2) work primary -- caller's blocking budget; NO auto-advance (pin R3)
         wnxt: Dict[str, str] = {}
-        work = self.bus.wait(timeout_ms=timeout_ms, limit=limit,
-                             since={"inbox": cur["inbox"], "bc": cur["bc"]},
-                             since_out=wnxt, streams=self._lane_streams())
+        work = self.bus.wait(
+            timeout_ms=timeout_ms,
+            limit=limit,
+            since={"inbox": cur["inbox"], "bc": cur["bc"]},
+            since_out=wnxt,
+            streams=self._lane_streams(),
+        )
         for m in work:
             seen.add(self._dedup_key(m))
             try:
-                m.meta["_lane_src"] = "work"    # the ONLY source whose ids advance inbox/bc
+                m.meta["_lane_src"] = "work"  # the ONLY source whose ids advance inbox/bc
             except Exception:
                 pass
         out += work
@@ -661,6 +697,7 @@ class BifrostAPI:
                 seeded_now = sh_in != "0" or sh_bc != "0"
             import sys
             import time as _time
+
             # PAGE, don't peek (2026-09-15). One `limit`-sized read per drain could never keep
             # up with a trace-flooded legacy broadcast, so the shadow fell days behind the work
             # cursor and later surfaced week-old twins in bulk. Pages holding only junk or twins
@@ -674,15 +711,17 @@ class BifrostAPI:
             deadline = _time.monotonic() + float(self.LEGACY_NET_TIME_BUDGET_S)
             for _page in range(max(1, int(self.LEGACY_NET_SCAN_BUDGET) // max(1, int(limit)))):
                 shnxt: Dict[str, str] = {}
-                legacy = self.bus.wait(timeout_ms=1, limit=limit, since=dict(pos),
-                                       since_out=shnxt)
+                legacy = self.bus.wait(timeout_ms=1, limit=limit, since=dict(pos), since_out=shnxt)
                 # R12 (post-ship soak find): only WORK-lane-eligible kinds can be stragglers.
                 # A legacy message whose kind routes to trace/sig was never a lane-write
                 # failure -- its absence from the work lane is the ROUTER working. Unmapped
                 # kinds (lane_for None) stay netted: legacy-only by census gap = deliver.
-                cands = [m for m in legacy
-                         if self._dedup_key(m) not in seen
-                         and packet_spec.lane_for(str(getattr(m, "kind", ""))) in ("work", None)]
+                cands = [
+                    m
+                    for m in legacy
+                    if self._dedup_key(m) not in seen
+                    and packet_spec.lane_for(str(getattr(m, "kind", ""))) in ("work", None)
+                ]
                 # W166: classify before claiming -- now against the packet's own twin window.
                 for m, (verdict, twin) in zip(cands, self._lane_twins(cands)):
                     counts[verdict] += 1
@@ -704,28 +743,39 @@ class BifrostAPI:
                     break
             if stragglers:
                 delivered = dict(counts, **{"cursor-skew": counts["cursor-skew"] - skipped})
-                print(f"[work-drain] {len(stragglers)} legacy-net packet(s) for "
-                      f"{self.agent}: {render_straggler_summary(delivered)}", file=sys.stderr)
+                print(
+                    f"[work-drain] {len(stragglers)} legacy-net packet(s) for "
+                    f"{self.agent}: {render_straggler_summary(delivered)}",
+                    file=sys.stderr,
+                )
                 # W97 (T122 scope 3): name the sender + id per straggler -- the
                 # investigation starts at the defect, not at a census. getattr-safe.
                 for m in stragglers[:20]:
-                    print(f"[work-drain]   from {getattr(m, 'frm', '?')} "
-                          f"[{getattr(m, 'kind', '?')}] id={getattr(m, 'id', '?')}",
-                          file=sys.stderr)
+                    print(
+                        f"[work-drain]   from {getattr(m, 'frm', '?')} "
+                        f"[{getattr(m, 'kind', '?')}] id={getattr(m, 'id', '?')}",
+                        file=sys.stderr,
+                    )
                 if len(stragglers) > 20:
                     print(f"[work-drain]   (+{len(stragglers) - 20} more)", file=sys.stderr)
             if skipped:
-                print(f"[work-drain] legacy net for {self.agent}: {skipped} twin(s) already on "
-                      f"the work lane, not re-delivered (the work cursor owns them -- nothing "
-                      f"to chase)", file=sys.stderr)
+                print(
+                    f"[work-drain] legacy net for {self.agent}: {skipped} twin(s) already on "
+                    f"the work lane, not re-delivered (the work cursor owns them -- nothing "
+                    f"to chase)",
+                    file=sys.stderr,
+                )
             for m in stragglers:
                 try:
-                    m.meta["_lane_src"] = "legacy"   # consumed via shadow; never advances work fields
+                    m.meta["_lane_src"] = "legacy"  # consumed via shadow; never advances work fields
                 except Exception:
                     pass
             out += stragglers
-            sh_fields = {f: pos[k] for f, k in (("shadow_inbox", "inbox"), ("shadow_bc", "bc"))
-                         if pos.get(k) and pos[k] != cur[f]}
+            sh_fields = {
+                f: pos[k]
+                for f, k in (("shadow_inbox", "inbox"), ("shadow_bc", "bc"))
+                if pos.get(k) and pos[k] != cur[f]
+            }
             if not sh_fields and seeded_now:
                 # persist the one-time shared-cursor seed even on a quiet peek
                 sh_fields = {"shadow_inbox": sh_in, "shadow_bc": sh_bc}
@@ -763,15 +813,18 @@ class BifrostAPI:
             deduped.append(m)
         if dropped:
             import sys
-            print(f"[work-drain] {dropped} duplicate reply(ies) skipped for {self.agent} "
-                  f"(reply_id dedup, T066)", file=sys.stderr)
+
+            print(
+                f"[work-drain] {dropped} duplicate reply(ies) skipped for {self.agent} (reply_id dedup, T066)",
+                file=sys.stderr,
+            )
         return deduped
 
     @property
     def wake_cmd(self) -> str:
         """The command to arm this agent's wake listener (run it as a background task so its completion
         re-invokes an idle, turn-based agent). Onboarding: 'give an agent its wake_cmd and it's reachable'."""
-        return f"py scripts/bifrost_wake.py --agent {self.agent}"
+        return f"{_pyl()} scripts/bifrost_wake.py --agent {self.agent}"
 
     # ---- presence ----
     def online(self, card: Optional[Dict[str, Any]] = None) -> bool:
@@ -797,37 +850,44 @@ class BifrostAPI:
         """Propose a plan in the current round (what / scope / estimate / intent tag). Returns the round
         state with the green/amber/red conflict verdict. Delegates to core.coord.intent.propose."""
         from core.coord import intent as _intent
+
         return _intent.propose(self.agent, {"what": what, "scope": scope, "estimate": estimate, "intent": intent})
 
     def round_state(self) -> Dict[str, Any]:
         """The current planning round: every proposal + the green/amber/red verdict."""
         from core.coord import intent as _intent
+
         return _intent.round_state()
 
     def council(self, context: str = "") -> Dict[str, Any]:
         """Run a full planning round (open -> wait -> verdict). Call after user input, before work."""
         from core.coord import negotiation
+
         return negotiation.auto_close(triggered_by=self.agent, context=context)
 
     # ---- coordination: active intent (Policy 0) ----
     def declare(self, intent: str, scope=None) -> Dict[str, Any]:
         """Declare an intent before acting: admitted unless a peer holds the same intent (then yield)."""
         from core.coord import intent as _intent
+
         return _intent.declare(self.agent, intent, scope)
 
     def intents(self, *, mine_only: bool = False) -> List[Dict[str, Any]]:
         """The intent influence map -- who's working on what (all agents, or just mine)."""
         from core.coord import intent as _intent
+
         return _intent.active(agent=self.agent if mine_only else None)
 
     def covers(self, path: str) -> bool:
         """True iff I hold an active intent whose scope covers `path` (the enforcement backstop)."""
         from core.coord import intent as _intent
+
         return _intent.covers(self.agent, path)
 
     def release_intent(self, intent: str) -> bool:
         """Withdraw one of my active intents (work done or abandoned)."""
         from core.coord import intent as _intent
+
         return _intent.release(self.agent, intent)
 
     # ---- control ----

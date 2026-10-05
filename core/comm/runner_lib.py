@@ -8,6 +8,7 @@ and defaults; that keeps every seat's tuning surface local and greppable, per th
 The Agent/loop layer deliberately does NOT live here ("premature generalization" ruling):
 chat-completions loops stay species-specific until two of them stabilize side by side.
 """
+
 from __future__ import annotations
 
 import os
@@ -28,16 +29,21 @@ def set_seat_agent(agent: str) -> str:
     """
     try:
         from scripts.wire_journal import set_seat_agent as _set
+
         return _set(agent)
     except Exception:
         return ""
 
 
-def make_openai_compat_client(api_key: str, base_url: str, *,
-                              connect_timeout: float = 15.0,
-                              read_timeout: float = 120.0,
-                              max_retries: int = 1,
-                              record_wire: bool = True):
+def make_openai_compat_client(
+    api_key: str,
+    base_url: str,
+    *,
+    connect_timeout: float = 15.0,
+    read_timeout: float = 120.0,
+    max_retries: int = 1,
+    record_wire: bool = True,
+):
     """OpenAI-compatible client hardened against hung-stream wedges (G4/L0): a per-read
     streaming timeout turns a stalled model call into a caught httpx.ReadTimeout the caller's
     try/except revives from, and an explicit max_retries stops the SDK default (2) from
@@ -58,20 +64,20 @@ def make_openai_compat_client(api_key: str, base_url: str, *,
     """
     from openai import OpenAI
     import httpx
+
     timeout = httpx.Timeout(read_timeout, connect=connect_timeout)
 
     if record_wire:
         try:
             from scripts.wire_journal import recording_http_client
+
             http_client = recording_http_client(timeout=timeout)
             if http_client is not None:
-                return OpenAI(api_key=api_key, base_url=base_url,
-                              http_client=http_client, max_retries=max_retries)
+                return OpenAI(api_key=api_key, base_url=base_url, http_client=http_client, max_retries=max_retries)
         except Exception:
-            pass          # telemetry never blocks a launch -- fall through uninstrumented
+            pass  # telemetry never blocks a launch -- fall through uninstrumented
 
-    return OpenAI(api_key=api_key, base_url=base_url,
-                  timeout=timeout, max_retries=max_retries)
+    return OpenAI(api_key=api_key, base_url=base_url, timeout=timeout, max_retries=max_retries)
 
 
 def seat_session_id(agent: str, session=None) -> str:
@@ -83,8 +89,17 @@ def seat_session_id(agent: str, session=None) -> str:
     return str(session or os.environ.get("BIFROST_INCARNATION") or f"{os.getpid()}-{agent}")
 
 
-def retire_seat(agent: str, session_id: str, *, stop_hb=None, hb_thread=None,
-                hb_join_s: float = 6.0, ns=None, client=None, bare_phase=None) -> dict:
+def retire_seat(
+    agent: str,
+    session_id: str,
+    *,
+    stop_hb=None,
+    hb_thread=None,
+    hb_join_s: float = 6.0,
+    ns=None,
+    client=None,
+    bare_phase=None,
+) -> dict:
     """A planned exit retracts its own phase card, HONESTLY (defer 8c881ab628, amended).
 
     WHY: every runner's heartbeat thread beats {ns}:worklive:{agent}#{sid8} with phase='running'
@@ -113,9 +128,15 @@ def retire_seat(agent: str, session_id: str, *, stop_hb=None, hb_thread=None,
                                      shared Redis. bare_phase=None skips it (probe/test callers).
     Never raises -- an exit path must not fail on its own bookkeeping. Reversible by
     construction (roster O3): a later beat under the same id is LIVE again."""
-    out = {"ok": False, "agent": str(agent), "session_id": str(session_id or ""),
-           "sid8": str(session_id or "")[:8], "hb_joined": None, "offline_ts": None,
-           "retracted": False}
+    out = {
+        "ok": False,
+        "agent": str(agent),
+        "session_id": str(session_id or ""),
+        "sid8": str(session_id or "")[:8],
+        "hb_joined": None,
+        "offline_ts": None,
+        "retracted": False,
+    }
     try:
         if stop_hb is not None:
             stop_hb.set()
@@ -134,12 +155,15 @@ def retire_seat(agent: str, session_id: str, *, stop_hb=None, hb_thread=None,
         # and reporting a clean retraction that does not hold is a false page in reverse.
         if hb_thread is not None and hb_joined is False:
             out["retracted"] = False
-            out["reason"] = ("beat thread still alive after join -- card NOT deleted "
-                             "(a delete here would be resurrected by an in-flight beat)")
+            out["reason"] = (
+                "beat thread still alive after join -- card NOT deleted "
+                "(a delete here would be resurrected by an in-flight beat)"
+            )
             return out
 
         _ns = ns or os.environ.get("BIFROST_NAMESPACE", "bifrost")
         from core.comm import roster
+
         rep = roster.go_offline(_ns, str(agent), str(session_id or ""), client=client) or {}
         out["ok"] = bool(rep.get("ok"))
         out["offline_ts"] = rep.get("offline_ts")
@@ -156,6 +180,7 @@ def retire_seat(agent: str, session_id: str, *, stop_hb=None, hb_thread=None,
                     client.delete(f"{_ns}:worklive:{agent}")
                 else:
                     from core.comm import liveness as _liveness
+
                     _liveness.worklive(str(agent)).set(str(bare_phase))
             except Exception:
                 pass

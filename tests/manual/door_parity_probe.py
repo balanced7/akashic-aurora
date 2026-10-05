@@ -1,6 +1,8 @@
 """Probe: the door-parity guard PASSES on reality and FAILS on drift (new unclassified verb /
 shared regression). The first membrane slice's proof."""
+
 import os, sys
+
 _ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # tests/manual -> ROOT
 sys.path.insert(0, os.path.join(_ROOT, "scripts"))
 import check_door_parity as c

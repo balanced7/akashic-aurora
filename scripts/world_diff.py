@@ -17,6 +17,7 @@ The FILE plane (state/, research/) is deliberately absent rather than half-measu
 clone carries only tracked files, and a differ that reported those two things as one number
 would repeat the exact error this tool exists to prevent.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -27,14 +28,15 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-import redis                                                        # noqa: E402
+import redis  # noqa: E402
 
-from core.coord import world_diff as WD                             # noqa: E402
-from core.world import WORLDS, current                              # noqa: E402
-from core.world_seed import read_manifest                           # noqa: E402
+from core.coord import world_diff as WD  # noqa: E402
+from core.world import WORLDS, checkout_of, current  # noqa: E402
+from core.world_seed import read_manifest  # noqa: E402
 
 #: Where each world's checkout lives, so the CODE plane can be read without guessing.
-CHECKOUTS = {"prod": "E:/AI-Setup", "beta": "E:/AI-Setup-Beta", "alpha": "E:/AI-Setup-Alpha"}
+#: Derived from this checkout's location (siblings sharing a base name), never a drive letter.
+CHECKOUTS = {w: str(checkout_of(w)) for w in WORLDS}
 
 
 def _client(world: str):
@@ -72,18 +74,20 @@ def _git(world: str) -> dict:
         return {"ok": False, "why": f"no checkout registered for {world}"}
 
     def g(*args):
-        return subprocess.run(["git", "-C", root, *args],
-                              capture_output=True, text=True).stdout.strip()
+        return subprocess.run(["git", "-C", root, *args], capture_output=True, text=True).stdout.strip()
+
     dirty = [l for l in g("status", "--porcelain").splitlines() if l and not l.startswith("??")]
-    return {"ok": True, "head": g("rev-parse", "--short", "HEAD"),
-            "subject": g("log", "-1", "--format=%s")[:60],
-            "uncommitted": len(dirty), "untracked": len(
-                [l for l in g("status", "--porcelain").splitlines() if l.startswith("??")])}
+    return {
+        "ok": True,
+        "head": g("rev-parse", "--short", "HEAD"),
+        "subject": g("log", "-1", "--format=%s")[:60],
+        "uncommitted": len(dirty),
+        "untracked": len([l for l in g("status", "--porcelain").splitlines() if l.startswith("??")]),
+    }
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description=__doc__,
-                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--from", dest="source", default="prod")
     ap.add_argument("--to", dest="target", default=None)
     ap.add_argument("--json", action="store_true")
@@ -91,8 +95,10 @@ def main() -> int:
 
     target = args.target or current().name
     if target == "unknown":
-        print("REFUSING: this checkout has not declared its world and no --to was given.\n"
-              "  FIX: echo alpha > .aurora-world   (or pass --to alpha)")
+        print(
+            "REFUSING: this checkout has not declared its world and no --to was given.\n"
+            "  FIX: echo alpha > .aurora-world   (or pass --to alpha)"
+        )
         return 2
     if target == args.source:
         print(f"REFUSING: {args.source} and {target} are the same world.")
@@ -104,39 +110,60 @@ def main() -> int:
     rows = []
     for prefix in _prefixes(manifest, src, dst):
         n_s, n_t = _count(src, prefix), _count(dst, prefix)
-        rows.append(WD.PlaneRow(prefix, n_s, n_t,
-                                WD.classify(prefix, present_in_target=n_t > 0,
-                                            manifest=manifest,
-                                            n_source=n_s, n_target=n_t)))
+        rows.append(
+            WD.PlaneRow(
+                prefix,
+                n_s,
+                n_t,
+                WD.classify(prefix, present_in_target=n_t > 0, manifest=manifest, n_source=n_s, n_target=n_t),
+            )
+        )
 
     rows, collapsed = WD.collapse_minor(rows, manifest=manifest)
     gs, gt = _git(args.source), _git(target)
 
     if args.json:
-        print(json.dumps({"source": args.source, "target": target,
-                          "manifest": manifest,
-                          "memory": [{"prefix": r.prefix, "source": r.n_source,
-                                      "target": r.n_target,
-                                      "severity": r.verdict.severity,
-                                      "expected": r.verdict.expected,
-                                      "why": r.verdict.why} for r in rows],
-                          "code": {"source": gs, "target": gt}}, indent=2))
+        print(
+            json.dumps(
+                {
+                    "source": args.source,
+                    "target": target,
+                    "manifest": manifest,
+                    "memory": [
+                        {
+                            "prefix": r.prefix,
+                            "source": r.n_source,
+                            "target": r.n_target,
+                            "severity": r.verdict.severity,
+                            "expected": r.verdict.expected,
+                            "why": r.verdict.why,
+                        }
+                        for r in rows
+                    ],
+                    "code": {"source": gs, "target": gt},
+                },
+                indent=2,
+            )
+        )
         return 0
 
-    print(WD.render(rows, source=args.source, target=target, manifest=manifest,
-                    collapsed=collapsed))
+    print(WD.render(rows, source=args.source, target=target, manifest=manifest, collapsed=collapsed))
     print()
     print(f"CODE  {args.source} -> {target}")
     if gs.get("ok") and gt.get("ok"):
         same = gs["head"] == gt["head"]
-        print(f"  [{'identical' if same else '  differs':>9}] HEAD           "
-              f"{gs['head']:>8} vs {gt['head']:>8}   "
-              f"{'same commit' if same else gt['subject']}")
+        print(
+            f"  [{'identical' if same else '  differs':>9}] HEAD           "
+            f"{gs['head']:>8} vs {gt['head']:>8}   "
+            f"{'same commit' if same else gt['subject']}"
+        )
         # The 2026-08-14 lesson, rendered rather than remembered.
-        print(f"  [{'context':>9}] uncommitted    {gs['uncommitted']:>8,} vs "
-              f"{gt['uncommitted']:>8,}   a twin is faithful to HEAD; "
-              f"{args.source} carries {gs['uncommitted']} tracked edits HEAD does not have, "
-              f"and each one can surface downstream as a real-looking failure")
+        print(
+            f"  [{'context':>9}] uncommitted    {gs['uncommitted']:>8,} vs "
+            f"{gt['uncommitted']:>8,}   a twin is faithful to HEAD; "
+            f"{args.source} carries {gs['uncommitted']} tracked edits HEAD does not have, "
+            f"and each one can surface downstream as a real-looking failure"
+        )
     else:
         print(f"  unavailable: {gs.get('why') or gt.get('why')}")
     return 0

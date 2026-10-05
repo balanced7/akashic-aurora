@@ -69,17 +69,17 @@ class ScreenFrame:
     """
 
     available: bool = False
-    pixels: Optional[bytes] = None                      # PNG bytes when available
+    pixels: Optional[bytes] = None  # PNG bytes when available
     width: int = 0
     height: int = 0
     dpi_scale: float = 1.0
     ts_ms: int = 0
     source: str = "mss"
     sha256: str = ""
-    long_edge_budget: Optional[int] = None               # the budget that was applied
-    resized: bool = False                                # True if we downscaled
-    refuse_reason: Optional[str] = None                  # set when available=False
-    transient_path: Optional[str] = None                 # only when caller persists
+    long_edge_budget: Optional[int] = None  # the budget that was applied
+    resized: bool = False  # True if we downscaled
+    refuse_reason: Optional[str] = None  # set when available=False
+    transient_path: Optional[str] = None  # only when caller persists
 
     def to_dict(self) -> dict:
         """Structured form (never a bare string) — the §4.1 provenance surface."""
@@ -102,9 +102,7 @@ def _png_from_shot(shot_image) -> Tuple[int, int, bytes]:
     # shot_image is a PIL.Image in mss >= 6; older versions give a raw byte str.
     from PIL import Image  # type: ignore
 
-    img = shot_image if isinstance(shot_image, Image.Image) else Image.frombytes(
-        "RGB", shot_image.size, shot_image.rgb
-    )
+    img = shot_image if isinstance(shot_image, Image.Image) else Image.frombytes("RGB", shot_image.size, shot_image.rgb)
     if img.mode != "RGB":
         img = img.convert("RGB")
     w, h = img.size
@@ -176,9 +174,7 @@ def screen(region=None, downscale_budget: Optional[int] = None) -> ScreenFrame:
         return frame
 
     if downscale_budget and downscale_budget > 0:
-        png, width, height, resized = _resize_to_budget(
-            png, width, height, downscale_budget
-        )
+        png, width, height, resized = _resize_to_budget(png, width, height, downscale_budget)
         frame.resized = resized
 
     frame.available = True

@@ -19,6 +19,7 @@ THE RULE: A PEER IS A PAIR OF DIRECTIONS, NOT AN INBOX. If a fleet can be told a
 speaks to us but not when we speak to it, we have not modelled a peer — we have modelled a
 mailbox with several locks and one return address.
 """
+
 from __future__ import annotations
 
 import json
@@ -48,12 +49,17 @@ def _world(tmp_path, monkeypatch):
     (secrets / "chr_out.key").write_bytes(CHR_OUT)
     monkeypatch.setenv("AKASHIC_SECRETS_DIR", str(secrets))
     cfg = tmp_path / "cfg.json"
-    cfg.write_text(json.dumps({"peers": [
-        {"name": "zadkiel", "url": "https://zad.invalid/xfer",
-         "outbound_secret_file": "zad_out.key"},
-        {"name": "chronos", "url": "https://chr.invalid/xfer",
-         "outbound_secret_file": "chr_out.key"},
-    ]}), encoding="utf-8")
+    cfg.write_text(
+        json.dumps(
+            {
+                "peers": [
+                    {"name": "zadkiel", "url": "https://zad.invalid/xfer", "outbound_secret_file": "zad_out.key"},
+                    {"name": "chronos", "url": "https://chr.invalid/xfer", "outbound_secret_file": "chr_out.key"},
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
     monkeypatch.setattr(RR, "CONFIG_FILE", cfg)
     RR._reset_cache()
     yield
@@ -88,6 +94,7 @@ def test_each_peer_gets_its_own_identity():
     RR.push(_msg("a"), peer="zadkiel", post=spy)
     RR.push(_msg("b"), peer="chronos", post=spy)
     import base64
+
     (u1, e1), (u2, e2) = spy.calls
     assert u1 != u2
     assert e1["sig"] == RR.sign(base64.b64decode(e1["body"]), ZAD_OUT)
@@ -112,6 +119,7 @@ def test_enqueue_remembers_which_peer_and_tick_honours_it():
     seen = {u: e for u, e in spy.calls}
     assert "https://zad.invalid/xfer" in seen and "https://chr.invalid/xfer" in seen
     import base64
+
     z = seen["https://zad.invalid/xfer"]
     assert z["sig"] == RR.sign(base64.b64decode(z["body"]), ZAD_OUT)
 

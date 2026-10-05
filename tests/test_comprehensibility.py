@@ -6,6 +6,7 @@ anchoring, dated exemptions) hold, (4) prove a CRASHING check fails LOUD, never 
 
 Design: docs/library/design/20260701_the-comprehensibility-immune-system-desi_339b01.md.
 """
+
 import os
 import sys
 
@@ -19,6 +20,7 @@ import check_comprehensibility as cm
 
 
 # --- green baseline: the guard passes on the real repo (trustworthy = green for the RIGHT reason) ----
+
 
 def test_guard_is_green_on_the_real_repo(monkeypatch):
     monkeypatch.setattr(sys, "argv", ["check_comprehensibility.py"])
@@ -37,8 +39,9 @@ def test_stale_refs_and_case_are_clean_now():
 
 # --- B2: the derived maps (PHYSICS.md, MAP.md) join the immune system (drift-injected FAIL) ---------
 
+
 def test_derived_docs_current_is_green_now():
-    assert cm._derived_docs_current() == []          # both generators match their on-disk output
+    assert cm._derived_docs_current() == []  # both generators match their on-disk output
 
 
 def test_derived_docs_drift_is_flagged(monkeypatch):
@@ -54,10 +57,11 @@ def test_derived_docs_drift_is_flagged(monkeypatch):
     monkeypatch.setattr(cm, "_read", fake_read)
     out = cm._derived_docs_current()
     assert any("PHYSICS.md is stale" in m for m in out)
-    assert all("MAP.md is stale" not in m for m in out)   # MAP untouched -> not falsely flagged
+    assert all("MAP.md is stale" not in m for m in out)  # MAP untouched -> not falsely flagged
 
 
 # --- F: stale-ref scanner -- root-anchoring is the false-positive firewall --------------------------
+
 
 def test_scan_refs_extracts_root_anchored_paths():
     refs = cm.scan_refs("see `tests/foo.py` and core/bar/baz.py plus docs/FAQ.md")
@@ -67,7 +71,7 @@ def test_scan_refs_extracts_root_anchored_paths():
 def test_scan_refs_ignores_deployment_and_midpath_prefixes():
     # the DEPLOY.md false-positive class: `scripts/...` inside `aurora/scripts/...` must NOT be a ref
     assert cm.scan_refs("deploy to aurora/agent/harness/hooks/claude_pretooluse.py") == []
-    assert cm.scan_refs("vendored at thirdparty/core/utils.py") == []   # mid-path core/ not anchored
+    assert cm.scan_refs("vendored at thirdparty/core/utils.py") == []  # mid-path core/ not anchored
 
 
 def test_scan_refs_dedupes_case_insensitively():
@@ -85,27 +89,30 @@ def test_stale_ref_is_flagged_but_a_real_path_is_not(tmp_path):
 
 # --- NON-EVADABLE: exemptions are dated; an expired one is itself a failure -------------------------
 
+
 def test_exemption_active_respects_expiry():
     ref = "some/gone.py"
     monkeypatch_al = {ref: {"expires": "2999-01-01", "reason": "future"}}
     orig = dict(cm.REF_ALLOWLIST)
-    cm.REF_ALLOWLIST.clear(); cm.REF_ALLOWLIST.update(monkeypatch_al)
+    cm.REF_ALLOWLIST.clear()
+    cm.REF_ALLOWLIST.update(monkeypatch_al)
     try:
-        assert cm.exemption_active(ref, "2026-07-07") is True          # unexpired -> active
-        assert cm.exemption_active(ref, "3000-01-01") is False         # past expiry -> not active
+        assert cm.exemption_active(ref, "2026-07-07") is True  # unexpired -> active
+        assert cm.exemption_active(ref, "3000-01-01") is False  # past expiry -> not active
         assert cm.exemption_active("other/x.py", "2026-07-07") is False
     finally:
-        cm.REF_ALLOWLIST.clear(); cm.REF_ALLOWLIST.update(orig)
+        cm.REF_ALLOWLIST.clear()
+        cm.REF_ALLOWLIST.update(orig)
 
 
 def test_expired_exemption_is_itself_a_fail(monkeypatch):
-    monkeypatch.setattr(cm, "REF_ALLOWLIST",
-                        {"nowhere/x.py": {"expires": "2000-01-01", "reason": "long expired"}})
+    monkeypatch.setattr(cm, "REF_ALLOWLIST", {"nowhere/x.py": {"expires": "2000-01-01", "reason": "long expired"}})
     fails = cm._stale_refs()
     assert any("EXPIRED" in f and "nowhere/x.py" in f for f in fails), fails
 
 
 # --- G: filename case-drift (the lexicon.md vs LEXICON.md class) ------------------------------------
+
 
 def test_case_mismatches_detects_wrong_case_and_passes_clean():
     # git tracks docs/LEXICON.md but disk has lexicon.md -> a mismatch
@@ -119,9 +126,11 @@ def test_case_mismatches_detects_wrong_case_and_passes_clean():
 
 # --- crash-loud: a broken check FAILs, never silently passes (the false-confidence guard) -----------
 
+
 def test_run_wrapper_turns_a_crash_into_a_loud_fail():
     def boom():
         raise ValueError("simulated broken check")
+
     got, crash = cm._run("boomcheck", boom)
     assert got == [] and crash is not None and "CRASHED" in crash and "boomcheck" in crash
 

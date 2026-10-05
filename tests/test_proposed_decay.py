@@ -8,6 +8,7 @@ line says so -- silent parked intent was the T002-T007 disease.
 
 Run: py -m pytest tests/test_proposed_decay.py -q
 """
+
 import os
 import sys
 import time
@@ -22,17 +23,15 @@ from core.coord import task_ledger as TL
 
 def test_abandon_is_terminal_and_reasoned(tmp_path, monkeypatch):
     sent = []
-    monkeypatch.setattr(conductor, "_broadcast",
-                        lambda kind, text, meta: sent.append((kind, meta.get("to"))))
+    monkeypatch.setattr(conductor, "_broadcast", lambda kind, text, meta: sent.append((kind, meta.get("to"))))
     path = str(tmp_path / "tasks.json")
     t = conductor.propose("lane-era leftover", by="claude", client=None, path=path)
-    out = conductor.abandon(t["id"], "lane era ended; re-propose if wanted", by="user",
-                            client=None, path=path)
+    out = conductor.abandon(t["id"], "lane era ended; re-propose if wanted", by="user", client=None, path=path)
     assert out["status"] == "abandoned"
     assert out["history"][-1]["reason"].startswith("lane era ended")
     assert ("ledger_update", "abandoned") in sent, "P3 uniformity: abandon rings the doorbell"
     with pytest.raises(TL.LedgerError):
-        conductor.approve(t["id"], client=None, path=path)   # terminal: no way back
+        conductor.approve(t["id"], client=None, path=path)  # terminal: no way back
 
 
 def _seed(tmp_path, created_days_ago):
@@ -61,5 +60,5 @@ def test_format_state_lists_stale_and_counts_them(tmp_path):
     assert "PROPOSED BUT STALE" in text
     assert "re-approve or abandon" in text
     assert "proposed 1 (1 stale)" in text
-    fresh = TL.format_state(path=path, client=None)   # no clock -> no annotation
+    fresh = TL.format_state(path=path, client=None)  # no clock -> no annotation
     assert "PROPOSED BUT STALE" not in fresh

@@ -6,6 +6,7 @@ the reconciliation is <slug>-reconciliation-*.md or *-<slug>-reconciliation-*).
 Ladder: idle -> blind (one half) -> reconciling (both halves) -> reconciled.
 Pure mtime reader; never raises (F3) -- the board renders through anything.
 """
+
 from __future__ import annotations
 
 import os
@@ -13,8 +14,9 @@ from typing import Any, Dict
 
 
 def _default_dir() -> str:
-    return os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
-        os.path.abspath(__file__)))), "research", "reviewed")
+    return os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "research", "reviewed"
+    )
 
 
 def fence_phase(slug: str, reviewed_dir: str = "") -> Dict[str, Any]:
@@ -35,11 +37,9 @@ def fence_phase(slug: str, reviewed_dir: str = "") -> Dict[str, Any]:
     except Exception:
         return {"phase": "idle", "slug": slug, "files": []}
     if recon:
-        return {"phase": "reconciled", "slug": slug, "agents": sorted(halves),
-                "files": sorted(recon)}
+        return {"phase": "reconciled", "slug": slug, "agents": sorted(halves), "files": sorted(recon)}
     if len(halves) >= 2:
-        return {"phase": "reconciling", "slug": slug, "agents": sorted(halves),
-                "files": []}
+        return {"phase": "reconciling", "slug": slug, "agents": sorted(halves), "files": []}
     if halves:
         return {"phase": "blind", "slug": slug, "agents": sorted(halves), "files": []}
     return {"phase": "idle", "slug": slug, "files": []}

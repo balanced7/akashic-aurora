@@ -30,13 +30,17 @@ from typing import Any, Callable, Dict, List, Optional
 
 # Weighted blend of the four signals (each normalized to 0..1). Tune per caller.
 DEFAULT_WEIGHTS: Dict[str, float] = {
-    "relevance": 0.4, "importance": 0.2, "recency": 0.2, "relationship": 0.2,
+    "relevance": 0.4,
+    "importance": 0.2,
+    "recency": 0.2,
+    "relationship": 0.2,
 }
 
 
 @dataclass
 class Scored:
     """An item plus its score and the component breakdown (for transparency)."""
+
     item: Dict[str, Any]
     score: float
     components: Dict[str, float]
@@ -66,11 +70,15 @@ class Ranker:
     Semantic Relationship: Ranker scores Items using WeightedSignals
     """
 
-    def __init__(self, *, relevance_fn: Optional[Callable[[str, str], float]] = None,
-                 weights: Optional[Dict[str, float]] = None,
-                 half_life_days: float = 14.0,
-                 relationship_weights: Optional[Dict[str, float]] = None,
-                 neutral_relationship: float = 0.5):
+    def __init__(
+        self,
+        *,
+        relevance_fn: Optional[Callable[[str, str], float]] = None,
+        weights: Optional[Dict[str, float]] = None,
+        half_life_days: float = 14.0,
+        relationship_weights: Optional[Dict[str, float]] = None,
+        neutral_relationship: float = 0.5,
+    ):
         self.relevance_fn = relevance_fn or keyword_relevance
         self.weights = {**DEFAULT_WEIGHTS, **(weights or {})}
         self.half_life_days = half_life_days
@@ -81,10 +89,12 @@ class Ranker:
     def is_active(item: Dict[str, Any]) -> bool:
         """An item is active unless explicitly superseded (Supersession-aware)."""
         from core.primitives import supersession
+
         return supersession.is_active(item)
 
-    def rank(self, items: List[Dict[str, Any]], query: str = "", *,
-             now: Optional[float] = None, top_k: Optional[int] = None) -> List[Scored]:
+    def rank(
+        self, items: List[Dict[str, Any]], query: str = "", *, now: Optional[float] = None, top_k: Optional[int] = None
+    ) -> List[Scored]:
         """
         Score active items and return them ordered best-first.
 

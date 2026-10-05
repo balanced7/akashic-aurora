@@ -29,6 +29,7 @@ to mean three things.
 
 Run: py -m pytest tests/test_t214_terms_domain.py -q
 """
+
 import os
 import sys
 
@@ -44,12 +45,12 @@ def tree(tmp_path):
     (tmp_path / "a.py").write_text(
         '"""The cursor is drained when the consumer advances past it."""\n'
         "def f():\n    # a drained lane is not the same as an empty lane\n    pass\n",
-        encoding="utf-8")
+        encoding="utf-8",
+    )
     (tmp_path / "b.py").write_text(
-        '"""Wakeable seats beat their key; a drained lane looks wakeable."""\n'
-        "x = 1  # drained\n", encoding="utf-8")
-    (tmp_path / "c.py").write_text(
-        "# the lane is drained by the sweep\ny = 2\n", encoding="utf-8")
+        '"""Wakeable seats beat their key; a drained lane looks wakeable."""\nx = 1  # drained\n', encoding="utf-8"
+    )
+    (tmp_path / "c.py").write_text("# the lane is drained by the sweep\ny = 2\n", encoding="utf-8")
     return tmp_path
 
 
@@ -79,7 +80,9 @@ def test_min_files_filters_local_jargon(tree):
 def test_stopwords_and_code_noise_are_dropped(tree):
     (tree / "d.py").write_text(
         "# the return value should be a string that we return for the caller\n"
-        "# self param kwargs args None True False\n", encoding="utf-8")
+        "# self param kwargs args None True False\n",
+        encoding="utf-8",
+    )
     got = TM.extract(root=str(tree), min_files=1)
     for noise in ("the", "return", "value", "self", "none", "true", "string"):
         assert noise not in got, f"{noise} is noise, not vocabulary"
@@ -87,15 +90,19 @@ def test_stopwords_and_code_noise_are_dropped(tree):
 
 def test_lexicon_terms_are_read_from_the_lexicon(tmp_path):
     lex = tmp_path / "LEXICON.md"
-    lex.write_text("# Lexicon\n\n## Drained\nthe cursor advanced.\n\n"
-                   "### `worklive`\na heartbeat key.\n\n"
-                   "**Attendance** -- the verdict.\n", encoding="utf-8")
+    lex.write_text(
+        "# Lexicon\n\n## Drained\nthe cursor advanced.\n\n"
+        "### `worklive`\na heartbeat key.\n\n"
+        "**Attendance** -- the verdict.\n",
+        encoding="utf-8",
+    )
     got = TM.lexicon_terms(path=str(lex))
     assert {"drained", "worklive", "attendance"} <= got
 
 
 def test_the_domains_register_and_share_a_key_type():
     from core.coord import compare as CMP
+
     assert "terms:code" in CMP.DOMAINS and "terms:lexicon" in CMP.DOMAINS
     assert CMP.DOMAINS["terms:code"][1] == CMP.DOMAINS["terms:lexicon"][1]
 

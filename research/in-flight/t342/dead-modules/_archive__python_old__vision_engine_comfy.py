@@ -28,6 +28,7 @@ import urllib.error
 
 try:
     import redis
+
     REDIS_AVAILABLE = True
 except ImportError:
     REDIS_AVAILABLE = False
@@ -80,17 +81,15 @@ def check_comfyui_running() -> bool:
 
 
 def upload_image(image_path: str) -> Tuple[bool, str]:
-    with open(image_path, 'rb') as f:
+    with open(image_path, "rb") as f:
         image_data = f.read()
     req = request.Request(
-        f"{COMFYUI_URL}/upload/image",
-        data=image_data,
-        headers={'Content-Type': 'application/octet-stream'}
+        f"{COMFYUI_URL}/upload/image", data=image_data, headers={"Content-Type": "application/octet-stream"}
     )
     try:
         resp = request.urlopen(req)
         result = json.loads(resp.read())
-        return True, result.get('name', '')
+        return True, result.get("name", "")
     except Exception as e:
         print(f"[vision] Upload failed: {e}")
         return False, ""
@@ -98,12 +97,12 @@ def upload_image(image_path: str) -> Tuple[bool, str]:
 
 def queue_prompt(prompt: dict) -> Optional[str]:
     p = {"prompt": prompt}
-    data = json.dumps(p).encode('utf-8')
+    data = json.dumps(p).encode("utf-8")
     req = request.Request(f"{COMFYUI_URL}/prompt", data=data)
     try:
         resp = request.urlopen(req, timeout=10)
         result = json.loads(resp.read())
-        return result.get('prompt_id')
+        return result.get("prompt_id")
     except Exception as e:
         print(f"[vision] Queue failed: {e}")
         return None
@@ -130,16 +129,18 @@ def wait_for_completion(prompt_id: str, timeout: int = 300) -> bool:
 
 def get_image_output(history: dict, node_id: str) -> Optional[bytes]:
     try:
-        outputs = history.get(prompt_id_from_history(history), {}).get('outputs', {})
+        outputs = history.get(prompt_id_from_history(history), {}).get("outputs", {})
         if node_id in outputs:
             output = outputs[node_id]
-            if 'images' in output:
-                img_info = output['images'][0]
-                params = parse.urlencode({
-                    'filename': img_info['filename'],
-                    'subfolder': img_info['subfolder'],
-                    'type': img_info.get('type', 'output')
-                })
+            if "images" in output:
+                img_info = output["images"][0]
+                params = parse.urlencode(
+                    {
+                        "filename": img_info["filename"],
+                        "subfolder": img_info["subfolder"],
+                        "type": img_info.get("type", "output"),
+                    }
+                )
                 with request.urlopen(f"{COMFYUI_URL}/view?{params}") as resp:
                     return resp.read()
     except Exception as e:
@@ -155,19 +156,8 @@ def prompt_id_from_history(history: dict) -> Optional[str]:
 
 def create_florence_workflow(image_filename: str, task: str = "ocr") -> dict:
     return {
-        "1": {
-            "class_type": "DownloadAndLoadFlorence2Model",
-            "inputs": {
-                "model": FLORENCE_MODEL,
-                "precision": "fp16"
-            }
-        },
-        "2": {
-            "class_type": "LoadImage",
-            "inputs": {
-                "image": image_filename
-            }
-        },
+        "1": {"class_type": "DownloadAndLoadFlorence2Model", "inputs": {"model": FLORENCE_MODEL, "precision": "fp16"}},
+        "2": {"class_type": "LoadImage", "inputs": {"image": image_filename}},
         "3": {
             "class_type": "Florence2Run",
             "inputs": {
@@ -176,9 +166,9 @@ def create_florence_workflow(image_filename: str, task: str = "ocr") -> dict:
                 "text_input": "",
                 "task": task,
                 "fill_mask": True,
-                "do_sample": False
-            }
-        }
+                "do_sample": False,
+            },
+        },
     }
 
 
@@ -227,7 +217,7 @@ class ComfyVisionEngine:
 
         result_text = ""
         try:
-            outputs = history.get(prompt_id_from_history(history), {}).get('outputs', {})
+            outputs = history.get(prompt_id_from_history(history), {}).get("outputs", {})
             if "3" in outputs:
                 result_text = outputs["3"].get("caption", "")
         except Exception as e:
@@ -239,7 +229,7 @@ class ComfyVisionEngine:
             "image_hash": img_hash,
             "device": "ComfyUI+ZLUDA",
             "timestamp": datetime.now().isoformat(),
-            "cached": False
+            "cached": False,
         }
 
         if self._redis and result_text:
@@ -291,7 +281,7 @@ def save_to_redis(image: Image.Image, tag: str = "capture") -> str:
             "width": image.width,
             "height": image.height,
             "data": b64_data,
-            "disk_path": disk_path
+            "disk_path": disk_path,
         }
         r.setex(redis_key, CACHE_TTL, json.dumps(redis_data))
         r.sadd(f"{REDIS_PREFIX}screenshot_keys", img_hash)

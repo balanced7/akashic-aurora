@@ -31,6 +31,7 @@ Run::
 
     py -m pytest tests/test_seat_beat_retracts_wedge.py -q
 """
+
 from __future__ import annotations
 
 import io
@@ -45,8 +46,7 @@ ACT = ROOT / "agent" / "harness" / "hooks" / "_activity.py"
 # reference agent/harness/hooks/*. That divergence already cost an hour today when a fix landed in
 # the copy that does not run, so every pin here checks the pair.
 TRACE_HOOKS = [ROOT / "scripts" / "hooks" / "claude_trace.py"]
-STOP_HOOKS = [ROOT / "scripts" / "hooks" / "claude_stop.py",
-              ROOT / "agent" / "harness" / "hooks" / "claude_stop.py"]
+STOP_HOOKS = [ROOT / "scripts" / "hooks" / "claude_stop.py", ROOT / "agent" / "harness" / "hooks" / "claude_stop.py"]
 
 
 def _read(p: Path) -> str:
@@ -58,9 +58,9 @@ def test_the_activity_reporter_beats_the_seat():
     happened, therefore this turn is alive."""
     src = _read(ACT)
     assert "roster.heartbeat" in src, (
-        "_activity.report no longer beats the seat -- a long turn will page HARD WEDGE again")
-    assert "phase=" in src, (
-        "the beat must carry the PHASE; a beat with no phase cannot distinguish working from idle")
+        "_activity.report no longer beats the seat -- a long turn will page HARD WEDGE again"
+    )
+    assert "phase=" in src, "the beat must carry the PHASE; a beat with no phase cannot distinguish working from idle"
 
 
 def test_the_beat_needs_a_session_id_and_says_so():
@@ -79,7 +79,8 @@ def test_every_tool_call_carries_the_session_id(hook):
     assert "report(" in src, f"{hook.name} no longer reports activity at all"
     assert "session_id" in src, (
         f"{hook.name} calls report() without a session id -- the beat is silently a no-op and the "
-        "page returns on the next long turn")
+        "page returns on the next long turn"
+    )
 
 
 @pytest.mark.parametrize("hook", STOP_HOOKS, ids=lambda p: str(p.parent.name) + "/" + p.name)
@@ -104,12 +105,15 @@ def test_a_fresh_seat_beat_suppresses_the_page_and_a_stale_one_does_not():
     # the seat carve-out and its guard must both still be present
     assert 'is_seat = "#" in str(agent)' in src, (
         "the seat/runner distinction is gone -- a runner's off-thread heartbeat would now be able "
-        "to retract a page it cannot possibly speak to")
+        "to retract a page it cannot possibly speak to"
+    )
     assert "beat_fresh = is_seat" in src, "beat freshness no longer gated on being a seat"
     assert "alive_signal = pulse_fresh or beat_fresh" in src, (
-        "the alive signal no longer accepts a seat beat; the retraction path is starved again")
+        "the alive signal no longer accepts a seat beat; the retraction path is starved again"
+    )
 
     # and the page itself must still exist for the case it was written for
     assert "hard_wedge" in src and "DEAD pulse" in src, (
-        "the hard_wedge page is gone entirely -- a real wedge would now be silent")
+        "the hard_wedge page is gone entirely -- a real wedge would now be silent"
+    )
     assert liveness.DEFAULT_WEDGE_S > 0

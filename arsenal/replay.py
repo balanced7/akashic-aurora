@@ -3,6 +3,7 @@
 py -m arsenal.replay serve                       # read-only player on localhost:8796
 py -m arsenal.pianocue replay-link latest 3:43 --seconds 12 --label "The A bass"
 """
+
 from __future__ import annotations
 
 import argparse
@@ -62,11 +63,22 @@ def excerpt(store, session, at, seconds=8.0, speed=1.0):
         raise ValueError(f"excerpt ends beyond the logged take ({clock_text(recorded_end)}); shorten --seconds")
     cue = validate_cue(build_replay_cue(events, start, seconds, speed, at_text=at, session=session))
     # The pedal lifts inside the excerpt, in ms from its start: the chord strip cuts at them in pedal mode.
-    lifts = sorted(e["t_ms"] - start for e in events
-                   if e.get("kind") == "pedal" and not e.get("down") and start <= e["t_ms"] <= end)
-    return {"session": session, "start_ms": start, "end_ms": end, "seconds": seconds, "speed": speed,
-            "cue": cue, "lifts_ms": lifts, "carried": carried_at(events, start),
-            "sound": "MIDI reconstruction with the built-in keys voice; not recorded piano audio"}
+    lifts = sorted(
+        e["t_ms"] - start
+        for e in events
+        if e.get("kind") == "pedal" and not e.get("down") and start <= e["t_ms"] <= end
+    )
+    return {
+        "session": session,
+        "start_ms": start,
+        "end_ms": end,
+        "seconds": seconds,
+        "speed": speed,
+        "cue": cue,
+        "lifts_ms": lifts,
+        "carried": carried_at(events, start),
+        "sound": "MIDI reconstruction with the built-in keys voice; not recorded piano audio",
+    }
 
 
 def link(session, at, seconds=8.0, speed=1.0, label=None, port=DEFAULT_PORT, root=None, boundary="notes"):
@@ -78,14 +90,28 @@ def link(session, at, seconds=8.0, speed=1.0, label=None, port=DEFAULT_PORT, roo
     label = (label or "Replay this passage").strip()
     if not label or len(label) > 160 or any(ord(c) < 32 for c in label):
         raise ValueError("label must be 1-160 characters on one line")
-    query = urlencode({"session": data["session"], "at": at, "seconds": f"{seconds:g}",
-                       "speed": f"{speed:g}", "label": label, **({"boundary": "pedal"} if boundary == "pedal" else {})})
+    query = urlencode(
+        {
+            "session": data["session"],
+            "at": at,
+            "seconds": f"{seconds:g}",
+            "speed": f"{speed:g}",
+            "label": label,
+            **({"boundary": "pedal"} if boundary == "pedal" else {}),
+        }
+    )
     url = f"http://127.0.0.1:{port}/web/replay.html?{query}"
     title = f"{label} · {clock_text(data['start_ms'])}–{clock_text(data['end_ms'])}"
     escaped = title.replace("\\", "\\\\").replace("[", "\\[").replace("]", "\\]")
-    return {"url": url, "markdown": f"[{escaped}]({url})", "session": data["session"],
-            "start_ms": data["start_ms"], "end_ms": data["end_ms"], "speed": speed,
-            "steps": len(data["cue"]["steps"])}
+    return {
+        "url": url,
+        "markdown": f"[{escaped}]({url})",
+        "session": data["session"],
+        "start_ms": data["start_ms"],
+        "end_ms": data["end_ms"],
+        "speed": speed,
+        "steps": len(data["cue"]["steps"]),
+    }
 
 
 def add_verb(subparsers):
@@ -97,15 +123,27 @@ def add_verb(subparsers):
     p.add_argument("--label", help="what to listen for")
     p.add_argument("--port", type=int, default=DEFAULT_PORT, help="replay server port (default 8796)")
     p.add_argument("--root", help="practice sessions directory")
-    p.add_argument("--boundary", choices=("notes", "pedal"), default="notes",
-                   help="what ends a chord in the strip: the notes changing (default) or a pedal lift")
+    p.add_argument(
+        "--boundary",
+        choices=("notes", "pedal"),
+        default="notes",
+        help="what ends a chord in the strip: the notes changing (default) or a pedal lift",
+    )
     p.add_argument("--json", action="store_true")
 
 
 def run_link(args, out):
     try:
-        result = link(args.session, args.at, args.seconds, args.speed, args.label, args.port, args.root,
-                      getattr(args, "boundary", "notes"))
+        result = link(
+            args.session,
+            args.at,
+            args.seconds,
+            args.speed,
+            args.label,
+            args.port,
+            args.root,
+            getattr(args, "boundary", "notes"),
+        )
     except (ValueError, PerformanceError, OSError) as exc:
         print(f"cannot make replay link: {exc}", file=out)
         return 2
@@ -138,7 +176,9 @@ class Handler(BaseHTTPRequestHandler):
             file, content_type = ASSETS[url.path]
             return self._send(200, (WEB / file).read_bytes(), content_type)
         if url.path == "/api/conversation":
-            return self._send(200, {**self.server.conversation.cards(), "responses": self.server.conversation.responses()})
+            return self._send(
+                200, {**self.server.conversation.cards(), "responses": self.server.conversation.responses()}
+            )
         if url.path.startswith("/api/conversation/replay/"):
             try:
                 data = self.server.conversation.response(url.path.rsplit("/", 1)[-1])["replay"]
@@ -149,12 +189,24 @@ class Handler(BaseHTTPRequestHandler):
             q = parse_qs(url.query)
             get = lambda key, default="": q.get(key, [default])[0]
             try:
-                result = excerpt(self.server.performance, get("session"), get("at"),
-                                 float(get("seconds", "8")), float(get("speed", "1")))
+                result = excerpt(
+                    self.server.performance,
+                    get("session"),
+                    get("at"),
+                    float(get("seconds", "8")),
+                    float(get("speed", "1")),
+                )
                 boundary = "pedal" if get("boundary") == "pedal" else "notes"
-                return self._send(200, {**result, "boundary": boundary,
-                                        "chords": harmony(result["cue"], result["speed"], result["lifts_ms"], boundary,
-                                                          result["carried"])})
+                return self._send(
+                    200,
+                    {
+                        **result,
+                        "boundary": boundary,
+                        "chords": harmony(
+                            result["cue"], result["speed"], result["lifts_ms"], boundary, result["carried"]
+                        ),
+                    },
+                )
             except PerformanceError as exc:
                 return self._send(getattr(exc, "status", 404), {"error": str(exc)})
             except (ValueError, OSError) as exc:
@@ -191,6 +243,7 @@ class Server(ThreadingHTTPServer):
     def __init__(self, port=DEFAULT_PORT, root=None, conversation_root=None):
         self.performance = PerformanceStore(root)
         from .conversation import ConversationStore
+
         self.conversation = ConversationStore(conversation_root, self.performance)
         super().__init__(("127.0.0.1", port), Handler)
 
@@ -216,10 +269,15 @@ def main(argv=None):
         return run_link(args, sys.stdout)
     if args.verb in ("cards", "responses"):
         from .conversation import ConversationStore
+
         store = ConversationStore(args.conversation_root, PerformanceStore(args.root))
         try:
             if args.verb == "cards":
-                data = store.publish(json.loads(Path(args.from_json).read_text(encoding="utf-8"))) if args.from_json else store.cards()
+                data = (
+                    store.publish(json.loads(Path(args.from_json).read_text(encoding="utf-8")))
+                    if args.from_json
+                    else store.cards()
+                )
             else:
                 data = {"responses": store.responses()}
             print(json.dumps(data, ensure_ascii=False, indent=2))

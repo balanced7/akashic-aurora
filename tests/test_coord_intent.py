@@ -7,6 +7,7 @@ over file locks); re-declaring your own is a re-entrant refresh; scope `covers` 
 fail-open when Redis is down. Redis-backed but isolated to throwaway agent ids + cleaned up. Skips if
 Redis is down. Run: py -m pytest tests/test_coord_intent.py -q
 """
+
 import os
 import sys
 import uuid
@@ -33,7 +34,7 @@ def agents(monkeypatch):
     a, b = f"tA-{uuid.uuid4().hex[:6]}", f"tB-{uuid.uuid4().hex[:6]}"
     yield a, b
     c = I._client()
-    for k in (c.keys(f"{I._intent_prefix()}*") or []):
+    for k in c.keys(f"{I._intent_prefix()}*") or []:
         c.delete(k)
 
 
@@ -47,7 +48,7 @@ def test_free_intent_is_admitted(agents):
 def test_same_intent_by_peer_yields(agents):
     a, b = agents
     I.declare(a, "add rate limiting", scope=["api.py"])
-    r = I.declare(b, "Add-Rate-Limiting", scope=["api.py"])         # same tag (normalized) -> duplicate
+    r = I.declare(b, "Add-Rate-Limiting", scope=["api.py"])  # same tag (normalized) -> duplicate
     assert r["ok"] is False
     assert a in {c["agent"] for c in r["conflicts"]}
     assert "coordinate" in r["reason"].lower()
@@ -57,7 +58,7 @@ def test_different_intent_same_file_proceeds(agents):
     """The parallel-useful win a file lock would block: same file, different intent -> both admitted."""
     a, b = agents
     assert I.declare(a, "restyle composer", scope=["ui.py"])["ok"] is True
-    assert I.declare(b, "add hint cards", scope=["ui.py"])["ok"] is True    # same file, different intent
+    assert I.declare(b, "add hint cards", scope=["ui.py"])["ok"] is True  # same file, different intent
     tags = {I.slug(x["intent"]) for x in I.active()}
     assert {"restyle-composer", "add-hint-cards"} <= tags
 
@@ -65,7 +66,7 @@ def test_different_intent_same_file_proceeds(agents):
 def test_reentrant_refresh(agents):
     a, _ = agents
     assert I.declare(a, "build intent")["ok"] is True
-    assert I.declare(a, "build intent")["ok"] is True               # same agent, same intent -> refresh
+    assert I.declare(a, "build intent")["ok"] is True  # same agent, same intent -> refresh
 
 
 def test_release(agents):
@@ -84,5 +85,5 @@ def test_covers_by_scope_prefix(agents):
 
 def test_fail_open_offline(monkeypatch):
     monkeypatch.setattr(I, "_client", lambda: None)
-    assert I.declare("x", "anything")["ok"] is True                 # never wedge a local agent
+    assert I.declare("x", "anything")["ok"] is True  # never wedge a local agent
     assert I.active() == [] and I.conflicts("x", "y") == []

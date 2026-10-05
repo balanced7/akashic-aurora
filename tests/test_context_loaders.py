@@ -29,8 +29,9 @@ def test_decision_loader():
     assert out, "should return ranked decisions"
     assert all(r["source"] for r in out), "every decision carries a source pointer"
     titles = [r["title"] for r in out]
-    assert titles.index("use ledger for signals") < titles.index("use nginx"), \
+    assert titles.index("use ledger for signals") < titles.index("use nginx"), (
         f"query-relevant decision should rank first, got {titles}"
+    )
     empty = AgentMemory(store=FileStore(os.path.join(tempfile.mkdtemp(), "e.json")))
     assert load_decisions_applicable_to_task("x", agent_memory=empty) == []
     print("\n--- decision_loader ---\n  ranks applicable decisions + source pointers + empty OK")
@@ -38,7 +39,8 @@ def test_decision_loader():
 
 def test_blocker_loader():
     import core.context.project_context as pcmod
-    pcmod.ProjectContextManager._instance = None      # fresh isolated singleton
+
+    pcmod.ProjectContextManager._instance = None  # fresh isolated singleton
     mgr = pcmod.ProjectContextManager()
     # Blockers persist in a shared store hash; clear it so this test is hermetic even
     # when an earlier test in the same run recorded blockers into the same test DB.
@@ -53,13 +55,31 @@ def test_blocker_loader():
 
 def test_briefing_loader():
     sl = AgentSignalLedger(ledger=FileLedger(tempfile.mkdtemp()))
-    sl.append_signal({"agent_id": "A", "signal_type": "handoff", "signal_number": 0,
-                      "target_agent": "B", "task": "first task", "context": {"k": 1}})
+    sl.append_signal(
+        {
+            "agent_id": "A",
+            "signal_type": "handoff",
+            "signal_number": 0,
+            "target_agent": "B",
+            "task": "first task",
+            "context": {"k": 1},
+        }
+    )
     sl.append_signal({"agent_id": "A", "signal_type": "action", "signal_number": 1, "action_name": "noise"})
-    sl.append_signal({"agent_id": "C", "signal_type": "handoff", "signal_number": 0,
-                      "target_agent": "B", "task": "latest task", "context": {"k": 2}, "blockers": ["x"]})
-    sl.append_signal({"agent_id": "A", "signal_type": "handoff", "signal_number": 2,
-                      "target_agent": "OTHER", "task": "not for B"})
+    sl.append_signal(
+        {
+            "agent_id": "C",
+            "signal_type": "handoff",
+            "signal_number": 0,
+            "target_agent": "B",
+            "task": "latest task",
+            "context": {"k": 2},
+            "blockers": ["x"],
+        }
+    )
+    sl.append_signal(
+        {"agent_id": "A", "signal_type": "handoff", "signal_number": 2, "target_agent": "OTHER", "task": "not for B"}
+    )
     b = load_briefing_from_previous_handoff("B", signal_ledger=sl)
     assert b is not None and b["task"] == "latest task", f"should get most recent handoff to B, got {b}"
     assert b["from_agent"] == "C" and b["blockers"] == ["x"] and b["source"]

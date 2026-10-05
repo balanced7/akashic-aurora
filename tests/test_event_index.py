@@ -13,6 +13,7 @@ Worst-cases are executable here:
 
 Isolated: throwaway FileLedger + FileStore. Run: py -m pytest tests/test_event_index.py -q
 """
+
 import os
 import sys
 import tempfile
@@ -45,7 +46,7 @@ def test_recall_beyond_scan_horizon():
     el = _indexed_log()
     for i in range(8):
         el.capture("command", f"event {i}", at=f"2026-01-01T0{i}:00:00")
-    eq = EventQuery(event_log=el, scan=3)        # tiny scan -- would cap the old path
+    eq = EventQuery(event_log=el, scan=3)  # tiny scan -- would cap the old path
     got = eq.events_in_window("2026-01-01T00:00:00", "2026-01-01T09:00:00")
     assert len(got) == 8, f"index must return ALL 8 in-window events, got {len(got)}"
     # oldest-first ordering preserved
@@ -104,7 +105,7 @@ def test_bounded_growth_evicts_oldest_in_lockstep():
 def test_rebuild_backfills_preexisting_events():
     """Events captured BEFORE an index existed must become queryable after rebuild."""
     ledger = _ledger()
-    el_noidx = EventLog(ledger)                  # no store -> no index (old behavior)
+    el_noidx = EventLog(ledger)  # no store -> no index (old behavior)
     for i in range(6):
         el_noidx.capture("command", f"old {i}", at=f"2026-02-01T0{i}:00:00")
     # now attach an index over the SAME ledger and heal it
@@ -120,11 +121,11 @@ def test_rebuild_backfills_preexisting_events():
 
 def test_graceful_fallback_without_store():
     """A ledger-only EventLog (no index) still answers windows via the bounded scan."""
-    el = EventLog(_ledger())                     # no store
+    el = EventLog(_ledger())  # no store
     assert el.index is None
     for i in range(4):
         el.capture("command", f"e{i}", at=f"2026-03-01T0{i}:00:00")
-    eq = EventQuery(event_log=el, scan=100)      # scan big enough -> recall holds
+    eq = EventQuery(event_log=el, scan=100)  # scan big enough -> recall holds
     got = eq.events_in_window("2026-03-01T00:00:00", "2026-03-01T09:00:00")
     assert len(got) == 4, "fallback path still correct when scan covers the events"
 
@@ -134,6 +135,7 @@ def test_flat_latency_at_scale():
     return exactly 1 -- the whole point of the index (no O(n) scan per query)."""
     import json
     from datetime import datetime, timezone
+
     store = _store()
     idx = EventIndex(store, maxlen=200_000)
     base = 1_750_000_000
@@ -145,10 +147,9 @@ def test_flat_latency_at_scale():
     target = base + 50_000
     # Build the iso as tz-aware UTC so to_epoch round-trips back to `target` (the zset score).
     iso = datetime.fromtimestamp(target, tz=timezone.utc).isoformat()
-    store.set(f"events:raw:byid:id50000", json.dumps(
-        {"id": "id50000", "at": iso, "summary": "needle"}))
+    store.set(f"events:raw:byid:id50000", json.dumps({"id": "id50000", "at": iso, "summary": "needle"}))
     t0 = time.perf_counter()
-    got = idx.window(iso, iso)                   # 1-event-wide window deep in the middle
+    got = idx.window(iso, iso)  # 1-event-wide window deep in the middle
     dt = time.perf_counter() - t0
     assert len(got) == 1 and got[0]["summary"] == "needle", f"exactly the one in-window event, got {got}"
     assert dt < 1.0, f"range-scan must stay fast at 100k (took {dt:.3f}s)"
@@ -158,16 +159,15 @@ def test_flat_latency_at_scale():
 # Deepseek design-review GATE GREEN with mandate: byref must SHRINK with eviction (srem on
 # trim + empty-key delete + full clearance on rebuild) or it leaks members forever.
 
+
 def test_byref_exact_lookup_oldest_first():
     el = _indexed_log()
     el.capture("msg_ack", "ack one", refs=["bifrost:m1"], at="2026-01-01T01:00:00")
     el.capture("note", "unrelated", refs=["file:x"], at="2026-01-01T02:00:00")
-    el.capture("msg_ack", "ack two", refs=["bifrost:m1", "bifrost:m2"],
-               at="2026-01-01T03:00:00")
+    el.capture("msg_ack", "ack two", refs=["bifrost:m1", "bifrost:m2"], at="2026-01-01T03:00:00")
     eq = EventQuery(event_log=el)
     got = eq.events_for_ref("bifrost:m1")
-    assert [e["summary"] for e in got] == ["ack one", "ack two"], \
-        "exactly the carriers of the ref, oldest-first"
+    assert [e["summary"] for e in got] == ["ack one", "ack two"], "exactly the carriers of the ref, oldest-first"
     assert [e["summary"] for e in eq.events_for_ref("bifrost:m2")] == ["ack two"]
     assert eq.events_for_ref("bifrost:never") == []
 
@@ -176,17 +176,15 @@ def test_byref_shrinks_in_lockstep_with_eviction():
     """The deepseek mandate: an evicted event's ids leave every byref set it was in,
     and a fully-emptied byref key is deleted -- no leak across trim cycles."""
     from core.events.event_index import byref_key
+
     store = _store()
     idx = EventIndex(store, maxlen=3)
     for i in range(6):
-        idx.add({"id": str(i + 1), "at": f"2026-01-01T0{i}:00:00",
-                 "refs": [f"ref:only{i}", "ref:shared"]})
+        idx.add({"id": str(i + 1), "at": f"2026-01-01T0{i}:00:00", "refs": [f"ref:only{i}", "ref:shared"]})
     survivors = {e["id"] for e in idx.events_for_ref("ref:shared")}
-    assert survivors == {"4", "5", "6"}, \
-        f"shared ref keeps exactly the surviving ids, got {survivors}"
+    assert survivors == {"4", "5", "6"}, f"shared ref keeps exactly the surviving ids, got {survivors}"
     for i in range(3):
-        assert store.smembers(byref_key(f"ref:only{i}")) == set(), \
-            "an evicted event's solo ref set is emptied"
+        assert store.smembers(byref_key(f"ref:only{i}")) == set(), "an evicted event's solo ref set is emptied"
         assert idx.events_for_ref(f"ref:only{i}") == []
     assert store.smembers(byref_key("ref:only5")), "surviving solo refs intact"
 
@@ -197,8 +195,7 @@ def test_rebuild_clears_stale_byref():
     idx.add({"id": "old1", "at": "2026-01-01T01:00:00", "refs": ["ref:gone"]})
     n = idx.rebuild([{"id": "new1", "at": "2026-01-02T01:00:00", "refs": ["ref:kept"]}])
     assert n == 1
-    assert idx.events_for_ref("ref:gone") == [], \
-        "a rebuild never inherits members absent from the replay"
+    assert idx.events_for_ref("ref:gone") == [], "a rebuild never inherits members absent from the replay"
     assert [e["id"] for e in idx.events_for_ref("ref:kept")] == ["new1"]
 
 
@@ -224,15 +221,20 @@ def test_filestore_srem_contract():
 
 
 if __name__ == "__main__":
-    for fn in [test_recall_beyond_scan_horizon, test_empty_and_degenerate_windows,
-               test_inclusive_boundaries, test_filters_in_window,
-               test_bounded_growth_evicts_oldest_in_lockstep,
-               test_rebuild_backfills_preexisting_events,
-               test_graceful_fallback_without_store, test_flat_latency_at_scale,
-               test_byref_exact_lookup_oldest_first,
-               test_byref_shrinks_in_lockstep_with_eviction,
-               test_rebuild_clears_stale_byref,
-               test_events_for_ref_fallback_without_index,
-               test_filestore_srem_contract]:
+    for fn in [
+        test_recall_beyond_scan_horizon,
+        test_empty_and_degenerate_windows,
+        test_inclusive_boundaries,
+        test_filters_in_window,
+        test_bounded_growth_evicts_oldest_in_lockstep,
+        test_rebuild_backfills_preexisting_events,
+        test_graceful_fallback_without_store,
+        test_flat_latency_at_scale,
+        test_byref_exact_lookup_oldest_first,
+        test_byref_shrinks_in_lockstep_with_eviction,
+        test_rebuild_clears_stale_byref,
+        test_events_for_ref_fallback_without_index,
+        test_filestore_srem_contract,
+    ]:
         fn()
     print("ALL V1 TIME-INDEX TESTS PASSED")

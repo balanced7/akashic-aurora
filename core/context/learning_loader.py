@@ -26,9 +26,13 @@ from core.primitives.ranker import Ranker
 from core.learning.learning_store import LearningStore, get_learning_store_instance, is_graduated
 
 
-def load_learnings_for_boot(task: str, *, learning_store: Optional[LearningStore] = None,
-                            now: Optional[float] = None,
-                            cap_chars: Optional[int] = None) -> List[Dict[str, Any]]:
+def load_learnings_for_boot(
+    task: str,
+    *,
+    learning_store: Optional[LearningStore] = None,
+    now: Optional[float] = None,
+    cap_chars: Optional[int] = None,
+) -> List[Dict[str, Any]]:
     """T071-R1 boot door: MOST-RELEVANT lessons under the fixed relevance budget
     (context/relevance_budget.py; deepseek Part 5 governs). Kill switch R1-d:
     AKASHIC_RELEVANCE_BUDGET=0 serves the legacy recency/Ranker selection, same
@@ -36,12 +40,13 @@ def load_learnings_for_boot(task: str, *, learning_store: Optional[LearningStore
     if os.getenv("AKASHIC_RELEVANCE_BUDGET", "1") != "0":
         try:
             from core.context import relevance_budget as rb
+
             store = learning_store or get_learning_store_instance()
             return rb.select_within_budget(store, task, cap_chars=cap_chars, now=now)
         except Exception:
             pass
-    return load_learnings_ranked_by_relevance(
-        task, top_k=8, learning_store=learning_store, now=now)
+    return load_learnings_ranked_by_relevance(task, top_k=8, learning_store=learning_store, now=now)
+
 
 # confidence -> base importance (1..5)
 _CONFIDENCE_IMPORTANCE = {"high": 5, "medium": 3, "low": 2}
@@ -72,7 +77,7 @@ def _confidence_base(raw: Any) -> int:
             val = float(s)
         except (TypeError, ValueError):
             return 3
-    if not (val == val) or val in (float("inf"), float("-inf")):   # NaN / inf
+    if not (val == val) or val in (float("inf"), float("-inf")):  # NaN / inf
         return 3
     val = max(0.0, min(1.0, val))
     # Same three bands the categorical scale expresses, so the two type systems agree.
@@ -83,9 +88,9 @@ def _importance_of(learning: Dict[str, Any]) -> int:
     base = _confidence_base(learning.get("confidence", "medium"))
     success = str(learning.get("success", "")).lower()
     if success == "yes":
-        base = min(5, base + 1)   # a proven win is worth surfacing
+        base = min(5, base + 1)  # a proven win is worth surfacing
     elif success == "no":
-        base = max(1, base - 1)   # a known failure still matters, slightly less
+        base = max(1, base - 1)  # a known failure still matters, slightly less
     return base
 
 
@@ -137,13 +142,15 @@ def load_learnings_ranked_by_relevance(
     results: List[Dict[str, Any]] = []
     for s in ranked:
         l = s.item["_learning"]
-        results.append({
-            "source": s.item["source"],            # pointer to the full record
-            "recommendation": l.get("recommendation", ""),
-            "what_tried": l.get("what_tried", ""),
-            "success": l.get("success", ""),
-            "confidence": l.get("confidence", ""),
-            "category": l.get("category", ""),
-            "score": round(s.score, 4),
-        })
+        results.append(
+            {
+                "source": s.item["source"],  # pointer to the full record
+                "recommendation": l.get("recommendation", ""),
+                "what_tried": l.get("what_tried", ""),
+                "success": l.get("success", ""),
+                "confidence": l.get("confidence", ""),
+                "category": l.get("category", ""),
+                "score": round(s.score, 4),
+            }
+        )
     return results

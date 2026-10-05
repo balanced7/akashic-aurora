@@ -6,6 +6,7 @@ Pin 2 (stale-receipt): ask-peer's live registry row fires Rule 1 -> DRIFT
 Pin 3 (argparse-eaten): ask-peer's step 2 fires Rule 2 -> DRIFT
 Pin 4 (guess-honesty): GUESS+tested_against -> DRIFT
 """
+
 import pytest
 import sys
 import os
@@ -14,15 +15,23 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.toolbelt.audit import (
-    Row, VerbsDomain, run, render, json_result,
-    _parse_kata_ts, _parse_iso_ts, _detect_argparse_eaten_tokens,
-    _load_registry, _all_agents,
+    Row,
+    VerbsDomain,
+    run,
+    render,
+    json_result,
+    _parse_kata_ts,
+    _parse_iso_ts,
+    _detect_argparse_eaten_tokens,
+    _load_registry,
+    _all_agents,
 )
 
 
 # ---------------------------------------------------------------------------
 # Unit: helpers
 # ---------------------------------------------------------------------------
+
 
 class TestKataTimestampParsing:
     def test_parse_valid(self):
@@ -58,8 +67,22 @@ class TestKataTimestampParsing:
 class TestArgparseEatenDetection:
     def test_detects_bare_dashdash(self):
         steps = [
-            ["bifrost-nudge", "claude", "--to", "$1", "--mode", "inform",
-             "Ask", "on", "your", "lane", "--", "see", "the", "question"],
+            [
+                "bifrost-nudge",
+                "claude",
+                "--to",
+                "$1",
+                "--mode",
+                "inform",
+                "Ask",
+                "on",
+                "your",
+                "lane",
+                "--",
+                "see",
+                "the",
+                "question",
+            ],
         ]
         eaten = _detect_argparse_eaten_tokens(steps)
         assert len(eaten) == 1
@@ -82,6 +105,7 @@ class TestArgparseEatenDetection:
 # ---------------------------------------------------------------------------
 # Integration: live registry
 # ---------------------------------------------------------------------------
+
 
 class TestLiveRegistry:
     """Tests that reach the real data/verb-registry/ files."""
@@ -108,6 +132,7 @@ class TestLiveRegistry:
 # Pin 1: clean-belt — known-good entry => MATCH
 # ---------------------------------------------------------------------------
 
+
 class TestPin1CleanBelt:
     """Entries whose kata receipt is NOT stale should render MATCH.
 
@@ -132,11 +157,8 @@ class TestPin1CleanBelt:
         domain = VerbsDomain()
         rows = domain.run()
         vitals_rows = [r for r in rows if r.entry_ref == "deepseek:vitals"]
-        drift = [r for r in vitals_rows
-                 if r.verdict == "DRIFT" and r.rule == "sugar-only"]
-        assert len(drift) == 1, (
-            f"vitals should have sugar-only DRIFT for bifrost_dashboard; got {vitals_rows}"
-        )
+        drift = [r for r in vitals_rows if r.verdict == "DRIFT" and r.rule == "sugar-only"]
+        assert len(drift) == 1, f"vitals should have sugar-only DRIFT for bifrost_dashboard; got {vitals_rows}"
         assert "bifrost_dashboard" in drift[0].detail
 
     def test_claude_standby_hard_has_stale_receipt(self):
@@ -145,11 +167,8 @@ class TestPin1CleanBelt:
         domain = VerbsDomain()
         rows = domain.run()
         standby_rows = [r for r in rows if r.entry_ref == "claude:standby-hard"]
-        stale = [r for r in standby_rows
-                 if r.verdict == "DRIFT" and r.rule == "stale-receipt"]
-        assert len(stale) == 1, (
-            f"standby-hard should also have stale receipt; got {standby_rows}"
-        )
+        stale = [r for r in standby_rows if r.verdict == "DRIFT" and r.rule == "stale-receipt"]
+        assert len(stale) == 1, f"standby-hard should also have stale receipt; got {standby_rows}"
 
     def test_claude_drain_decide_has_stale_receipt(self):
         """Bonus discovery: drain-decide ALSO has a stale receipt.
@@ -157,16 +176,14 @@ class TestPin1CleanBelt:
         domain = VerbsDomain()
         rows = domain.run()
         dd_rows = [r for r in rows if r.entry_ref == "claude:drain-decide"]
-        stale = [r for r in dd_rows
-                 if r.verdict == "DRIFT" and r.rule == "stale-receipt"]
-        assert len(stale) == 1, (
-            f"drain-decide should also have stale receipt; got {dd_rows}"
-        )
+        stale = [r for r in dd_rows if r.verdict == "DRIFT" and r.rule == "stale-receipt"]
+        assert len(stale) == 1, f"drain-decide should also have stale receipt; got {dd_rows}"
 
 
 # ---------------------------------------------------------------------------
 # Pin 2: stale-receipt — ask-peer fires Rule 1 => DRIFT
 # ---------------------------------------------------------------------------
+
 
 class TestPin2StaleReceipt:
     """ask-peer: updated_at 00:55:11 > kata-20260721-005225 (00:52:25) => DRIFT."""
@@ -177,11 +194,9 @@ class TestPin2StaleReceipt:
         ask_peer_rows = [r for r in rows if r.entry_ref == "claude:ask-peer"]
         assert len(ask_peer_rows) >= 1
 
-        stale = [r for r in ask_peer_rows
-                 if r.verdict == "DRIFT" and r.rule == "stale-receipt"]
+        stale = [r for r in ask_peer_rows if r.verdict == "DRIFT" and r.rule == "stale-receipt"]
         assert len(stale) == 1, (
-            f"expected exactly 1 stale-receipt DRIFT for claude:ask-peer, "
-            f"got {stale} from {ask_peer_rows}"
+            f"expected exactly 1 stale-receipt DRIFT for claude:ask-peer, got {stale} from {ask_peer_rows}"
         )
         r = stale[0]
         assert "kata-20260721-005225" in r.detail
@@ -192,6 +207,7 @@ class TestPin2StaleReceipt:
 # Pin 3: argparse-eaten — ask-peer step 2 fires Rule 2 => DRIFT
 # ---------------------------------------------------------------------------
 
+
 class TestPin3ArgparseEaten:
     """ask-peer step 2 has a bare '--' that argparse consumes."""
 
@@ -201,11 +217,9 @@ class TestPin3ArgparseEaten:
         ask_peer_rows = [r for r in rows if r.entry_ref == "claude:ask-peer"]
         assert len(ask_peer_rows) >= 1
 
-        eaten = [r for r in ask_peer_rows
-                 if r.verdict == "DRIFT" and r.rule == "argparse-eaten"]
+        eaten = [r for r in ask_peer_rows if r.verdict == "DRIFT" and r.rule == "argparse-eaten"]
         assert len(eaten) == 1, (
-            f"expected exactly 1 argparse-eaten DRIFT for claude:ask-peer, "
-            f"got {eaten} from {ask_peer_rows}"
+            f"expected exactly 1 argparse-eaten DRIFT for claude:ask-peer, got {eaten} from {ask_peer_rows}"
         )
         r = eaten[0]
         assert "step[1][9]" in r.detail or "step" in r.detail
@@ -215,6 +229,7 @@ class TestPin3ArgparseEaten:
 # Pin 4: GUESS honesty — GUESS + tested_against => DRIFT
 # ---------------------------------------------------------------------------
 
+
 class TestPin4GuessHonesty:
     """A GUESS entry with tested_against set is dishonest."""
 
@@ -223,8 +238,7 @@ class TestPin4GuessHonesty:
         If there IS, it must render DRIFT."""
         domain = VerbsDomain()
         rows = domain.run()
-        dishonest = [r for r in rows
-                     if r.verdict == "DRIFT" and r.rule == "guess-honesty"]
+        dishonest = [r for r in rows if r.verdict == "DRIFT" and r.rule == "guess-honesty"]
         # We don't assert zero — if there are any, they're correctly flagged
         for r in dishonest:
             assert "GUESS" in str(r.belief_a)
@@ -234,6 +248,7 @@ class TestPin4GuessHonesty:
 # ---------------------------------------------------------------------------
 # Render / JSON
 # ---------------------------------------------------------------------------
+
 
 class TestRender:
     def test_render_returns_string(self):

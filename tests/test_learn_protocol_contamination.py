@@ -6,6 +6,7 @@ the lessons fail FAITH.  The public learn door must reject that exact collapsed 
 before any store write while still allowing ordinary prose to mention one protocol
 token.
 """
+
 from types import SimpleNamespace
 
 import agent_cli

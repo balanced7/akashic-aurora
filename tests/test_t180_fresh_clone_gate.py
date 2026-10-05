@@ -24,6 +24,7 @@ Contract pinned here:
     clone_verdict(returncode, collected, errors, floor) -> {"ok": bool,
         "reasons": [str, ...]} -- a pure judgment, testable without cloning.
 """
+
 from __future__ import annotations
 
 import os
@@ -38,7 +39,10 @@ from scripts.check_fresh_clone import clone_verdict, scan_static  # noqa: E402
 def _git(cwd, *args):
     return subprocess.run(
         ["git", "-c", "user.email=pin@t180", "-c", "user.name=t180-pin", *args],
-        cwd=cwd, capture_output=True, text=True, check=True,
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+        check=True,
     )
 
 

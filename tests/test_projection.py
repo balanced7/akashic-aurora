@@ -11,14 +11,16 @@ def _mint(tmp_path, **kw):
     fam = at.AtomFamily(FakeStore(), jsonl_dir=str(tmp_path / "jsonl"))
     defaults = dict(arc="t101", seats=["claude"], categories=["substrate"], now=1000.0)
     defaults.update(kw)
-    return fam, fam.mint(kw.pop("type_", "design") if "type_" in kw else "design",
-                         kw.pop("title", "My Design") if "title" in kw else "My Design",
-                         kw.pop("body", "the body") if "body" in kw else "the body",
-                         **{k: v for k, v in defaults.items() if k not in ("type_", "title", "body")})
+    return fam, fam.mint(
+        kw.pop("type_", "design") if "type_" in kw else "design",
+        kw.pop("title", "My Design") if "title" in kw else "My Design",
+        kw.pop("body", "the body") if "body" in kw else "the body",
+        **{k: v for k, v in defaults.items() if k not in ("type_", "title", "body")},
+    )
 
 
 def test_relpath_is_type_and_id_only():
-    fam, a = _mint(__import__("pathlib").Path(os.getenv("TEMP", "/tmp")))
+    fam, a = _mint(__import__("pathlib").Path(__import__("tempfile").gettempdir()))
     rel = pj.projection_relpath(a)
     assert rel.startswith(os.path.join("docs", "library", "design"))
     assert "substrate" not in rel and "t101" not in rel  # one-facet law: no facet in path

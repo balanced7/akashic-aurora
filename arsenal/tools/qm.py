@@ -9,6 +9,7 @@ Daniel, 2026-09-13: "feel free to set up helpers for yourself and naming them fo
 and reducing your cognative load." Re-arming the Bifrost standby stays a harness-tracked background
 command; this helper never starts long-lived listeners.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -30,8 +31,9 @@ _FETCH = re.compile(r"bifrost-fetch --get (\S+?)\]")
 
 # --------------------------------------------------------------------------- git lock
 def git_process_count() -> int:
-    out = subprocess.run(["tasklist", "/FI", "IMAGENAME eq git.exe", "/FO", "CSV", "/NH"],
-                         capture_output=True, text=True).stdout
+    out = subprocess.run(
+        ["tasklist", "/FI", "IMAGENAME eq git.exe", "/FO", "CSV", "/NH"], capture_output=True, text=True
+    ).stdout
     return sum(1 for line in out.splitlines() if line.lower().startswith('"git.exe"'))
 
 
@@ -39,14 +41,19 @@ def lock_state() -> dict:
     if not LOCK.exists():
         return {"present": False}
     st = LOCK.stat()
-    return {"present": True, "bytes": st.st_size, "age_s": int(time.time() - st.st_mtime),
-            "git_processes": git_process_count()}
+    return {
+        "present": True,
+        "bytes": st.st_size,
+        "age_s": int(time.time() - st.st_mtime),
+        "git_processes": git_process_count(),
+    }
 
 
 def is_stale(state: dict) -> bool:
     # Only a lock nobody can still be writing: empty, old, and no git process alive right now.
-    return state.get("present") and state["bytes"] == 0 and state["age_s"] > STALE_LOCK_S \
-        and state["git_processes"] == 0
+    return (
+        state.get("present") and state["bytes"] == 0 and state["age_s"] > STALE_LOCK_S and state["git_processes"] == 0
+    )
 
 
 def clear_stale_lock() -> str:
@@ -72,8 +79,15 @@ def wait_for_lock(max_wait_s: int = 90) -> bool:
 # --------------------------------------------------------------------------- commands
 def cmd_mail(args) -> int:
     env = dict(os.environ, BIFROST_CONSUME_LANE="work")
-    done = subprocess.run([sys.executable, "agent_cli.py", "bifrost-sync", args.agent, "--consume", "--limit", "60"],
-                          cwd=REPO, env=env, capture_output=True, text=True, encoding="utf-8", errors="replace")
+    done = subprocess.run(
+        [sys.executable, "agent_cli.py", "bifrost-sync", args.agent, "--consume", "--limit", "60"],
+        cwd=REPO,
+        env=env,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+    )
     messages, current = [], None
     for line in done.stdout.splitlines():
         header = _HEADER.match(line)
@@ -89,7 +103,7 @@ def cmd_mail(args) -> int:
         return done.returncode
     for msg in messages:
         tail = f"  [full: bifrost-fetch --get {msg['fetch']}]" if msg["fetch"] else ""
-        print(f"[{msg['kind']}] {msg['from']}: {msg['first'][:args.width]}{tail}")
+        print(f"[{msg['kind']}] {msg['from']}: {msg['first'][: args.width]}{tail}")
     print(f"({len(messages)} consumed; re-arm the standby as a harness-tracked background command)")
     return 0
 
@@ -102,11 +116,16 @@ def cmd_commit(args) -> int:
     if not wait_for_lock():
         print(f"the git lock is still held after waiting: {lock_state()}")
         return 3
-    env = dict(os.environ, AKASHIC_AGENT_ID=args.seat, GIT_AUTHOR_NAME=args.seat,
-               GIT_AUTHOR_EMAIL=f"{args.seat}@akashic-aurora.local")
+    env = dict(
+        os.environ,
+        AKASHIC_AGENT_ID=args.seat,
+        GIT_AUTHOR_NAME=args.seat,
+        GIT_AUTHOR_EMAIL=f"{args.seat}@akashic-aurora.local",
+    )
     for argv in (["git", "add", "--", *args.paths], ["git", "commit", "-F", str(msg), "--", *args.paths]):
-        done = subprocess.run(argv, cwd=REPO, env=env, capture_output=True, text=True, encoding="utf-8",
-                              errors="replace")
+        done = subprocess.run(
+            argv, cwd=REPO, env=env, capture_output=True, text=True, encoding="utf-8", errors="replace"
+        )
         if done.returncode != 0:
             lines = [l for l in (done.stdout + done.stderr).splitlines() if "LF will be replaced" not in l]
             print("\n".join(lines[-15:]))
@@ -125,8 +144,15 @@ def cmd_receipts(args) -> int:
             worst = 2
             continue
         started = time.time()
-        proc = subprocess.Popen(["node", script], cwd=REPO, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                                text=True, encoding="utf-8", errors="replace")
+        proc = subprocess.Popen(
+            ["node", script],
+            cwd=REPO,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+        )
         try:
             out, _ = proc.communicate(timeout=args.timeout)
         except subprocess.TimeoutExpired:
@@ -157,8 +183,11 @@ def main(argv=None) -> int:
     mail.add_argument("--agent", default="claude")
     mail.add_argument("--width", type=int, default=220)
     lock = sub.add_parser("lock", help="report the git index lock")
-    lock.add_argument("--clear-stale", action="store_true",
-                      help="remove it only if it is empty, over 5 minutes old, and no git process is running")
+    lock.add_argument(
+        "--clear-stale",
+        action="store_true",
+        help="remove it only if it is empty, over 5 minutes old, and no git process is running",
+    )
     commit = sub.add_parser("commit", help="lock-aware commit authored as a seat")
     commit.add_argument("--as", dest="seat", required=True)
     commit.add_argument("--msg", required=True, help="a commit message file")

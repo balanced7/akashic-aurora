@@ -4,6 +4,7 @@ The feature does not exist in the RED commit.  These pins establish that a
 static declaration, an effective grant, a test reference, and a live receipt
 remain different evidence rungs.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -102,8 +103,7 @@ def test_cli_refuses_to_borrow_a_foreign_subject(monkeypatch, capsys):
     import agent_cli
 
     monkeypatch.delenv("AKASHIC_AGENT_ID", raising=False)
-    rc = agent_cli.cmd_ground(SimpleNamespace(target="verb:sweep", agent="", json=True,
-                                               continuity=False))
+    rc = agent_cli.cmd_ground(SimpleNamespace(target="verb:sweep", agent="", json=True, continuity=False))
     assert rc == 2
     assert "subject is required" in capsys.readouterr().out
 
@@ -115,22 +115,22 @@ def test_mcp_and_toolbox_use_the_native_grounding_seam(monkeypatch, tmp_path):
     advertised = {row["function"]["name"] for row in TOOLS}
     assert {"sweep", "ground"} <= advertised
 
-    raw = asyncio.run(ai_setup_mcp.ground(target="verb:sweep", agent="sol",
-                                          continuity=False))
+    raw = asyncio.run(ai_setup_mcp.ground(target="verb:sweep", agent="sol", continuity=False))
     assert json.loads(raw)["schema"] == "ground.result.v1"
 
-    tb = ToolBox(tmp_path, allow_exec=False, trust=False, allow_secrets=False,
-                 confirm=lambda *_: False, agent_id="sol")
-    monkeypatch.setattr(tb, "_agent_cli", lambda *_a, **_k: (_ for _ in ()).throw(
-        AssertionError("ground must not shell through agent_cli")))
+    tb = ToolBox(tmp_path, allow_exec=False, trust=False, allow_secrets=False, confirm=lambda *_: False, agent_id="sol")
+    monkeypatch.setattr(
+        tb,
+        "_agent_cli",
+        lambda *_a, **_k: (_ for _ in ()).throw(AssertionError("ground must not shell through agent_cli")),
+    )
     assert json.loads(tb.ground("verb:sweep"))["subject"] == "sol"
 
 
 def test_toolbox_without_identity_requires_an_explicit_subject(tmp_path):
     from core.comm.toolbox import ToolBox
 
-    tb = ToolBox(tmp_path, allow_exec=False, trust=False, allow_secrets=False,
-                 confirm=lambda *_: False)
+    tb = ToolBox(tmp_path, allow_exec=False, trust=False, allow_secrets=False, confirm=lambda *_: False)
     try:
         tb.ground("verb:sweep")
     except ValueError as exc:

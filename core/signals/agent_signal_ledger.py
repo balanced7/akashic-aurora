@@ -47,14 +47,12 @@ class AgentSignalLedger:
     retention). Backed by Redis when up, File always; degrades gracefully.
     """
 
-    CANONICAL_STREAM = "agent:events"   # the firehose: every agent's signals
-    PER_AGENT_MAXLEN = 10_000           # signals retained per agent stream
-    CANONICAL_MAXLEN = 100_000          # signals retained on the canonical stream
+    CANONICAL_STREAM = "agent:events"  # the firehose: every agent's signals
+    PER_AGENT_MAXLEN = 10_000  # signals retained per agent stream
+    CANONICAL_MAXLEN = 100_000  # signals retained on the canonical stream
 
-    def __init__(self, ledger: Optional[Ledger] = None,
-                 host: str = DEFAULT_REDIS_HOST, port: int = DEFAULT_REDIS_PORT):
-        self.ledger = ledger if ledger is not None else \
-            create_ledger(prefer_redis=True, host=host, port=port)
+    def __init__(self, ledger: Optional[Ledger] = None, host: str = DEFAULT_REDIS_HOST, port: int = DEFAULT_REDIS_PORT):
+        self.ledger = ledger if ledger is not None else create_ledger(prefer_redis=True, host=host, port=port)
 
     @property
     def redis_available(self) -> bool:
@@ -74,12 +72,10 @@ class AgentSignalLedger:
         self.ledger.emit(self.stream_for_agent(agent_id), signal, maxlen=self.PER_AGENT_MAXLEN)
         self.ledger.emit(self.CANONICAL_STREAM, signal, maxlen=self.CANONICAL_MAXLEN)
 
-    def replay_signals(self, after_id: str = "0", count: int = 100,
-                       block_ms: int = 0) -> List[Signal]:
+    def replay_signals(self, after_id: str = "0", count: int = 100, block_ms: int = 0) -> List[Signal]:
         """
         Replay signals from the canonical firehose, oldest first, after a cursor.
 
         Semantic Relationship: Signals replayed_from AgentSignalLedger
         """
-        return self.ledger.consume(self.CANONICAL_STREAM, after_id=after_id,
-                                   count=count, block_ms=block_ms)
+        return self.ledger.consume(self.CANONICAL_STREAM, after_id=after_id, count=count, block_ms=block_ms)

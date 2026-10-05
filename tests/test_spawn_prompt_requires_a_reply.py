@@ -21,7 +21,10 @@ a prompt template instead of a comment.
 
 Run:  py -m pytest tests/test_spawn_prompt_requires_a_reply.py -v
 """
+
 from __future__ import annotations
+
+import re
 
 from pathlib import Path
 
@@ -32,7 +35,7 @@ SRC = (REPO / "scripts" / "bifrost_runner_discord.py").read_text(encoding="utf-8
 def _spawn_prompt_block() -> str:
     """The literal source slice that builds `prompt` inside `_spawn`, isolated from the
     rest of the (large) file so a match elsewhere can never fake this pin green."""
-    start = SRC.index('prompt = (f"You were spawned by the operator')
+    start = re.search(r'prompt = \(\s*f"You were spawned by the operator', SRC).start()  # any line layout
     end = SRC.index(")\n", start)
     return SRC[start:end]
 
@@ -44,7 +47,8 @@ def test_the_prompt_names_wrap_as_insufficient():
     assert "wrap" in block.lower()
     assert "never reaches him" in block or "distills" in block, (
         "the prompt must say, in words, that wrap alone does not reach Daniil -- "
-        "otherwise a spawned seat has no reason not to repeat the silent-completion bug")
+        "otherwise a spawned seat has no reason not to repeat the silent-completion bug"
+    )
 
 
 def test_the_prompt_gives_the_exact_reply_command():

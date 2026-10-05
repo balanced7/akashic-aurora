@@ -16,6 +16,7 @@ Two datasets, one per route the gate will serve:
     action-warning channel). Hand-labelled: each anti-pattern paired with an action that DOES it, one
     that does the opposite/fix, and an off-topic one.
 """
+
 from __future__ import annotations
 
 from typing import Any, Dict, List
@@ -38,36 +39,38 @@ def contradiction_pairs() -> List[Dict[str, Any]]:
             nm = item["experiment_name"]
             if nm == th["experiment_name"]:
                 continue
-            pairs.append({"a": a, "b": _text(item), "contradicts": nm in gold,
-                          "case": c["id"], "b_source": nm})
+            pairs.append({"a": a, "b": _text(item), "contradicts": nm in gold, "case": c["id"], "b_source": nm})
     return pairs
 
 
 # Each anti-pattern -> the text that describes its known-bad practice.
 _AP = {
-    "capability_without_a_door":
-        "shipped a capability in a lower layer but never exposed it on the door agents use, so it went unused",
-    "sync_blocking_flush":
-        "a synchronous blocking flush hung the store under load; never block the write path",
-    "python_loop_unrolling":
-        "manual loop unrolling in Python gained ~2% and hurt readability; not worth it",
+    "capability_without_a_door": "shipped a capability in a lower layer but never exposed it on the door agents use, so it went unused",
+    "sync_blocking_flush": "a synchronous blocking flush hung the store under load; never block the write path",
+    "python_loop_unrolling": "manual loop unrolling in Python gained ~2% and hurt readability; not worth it",
 }
 
 
 def action_applicability_cases() -> List[Dict[str, Any]]:
     """Labeled (action, anti_pattern, instantiates) cases: does the action DO the known-bad thing?"""
+
     def C(action, ap, instantiates):
         return {"action": action, "anti_pattern": ap, "ap_text": _AP[ap], "instantiates": instantiates}
+
     return [
-        C("add a method to LearningStore but skip wiring it into agent_cli this slice",
-          "capability_without_a_door", True),
-        C("add --anti-pattern to agent_cli learn and the store method together in one slice",
-          "capability_without_a_door", False),
+        C(
+            "add a method to LearningStore but skip wiring it into agent_cli this slice",
+            "capability_without_a_door",
+            True,
+        ),
+        C(
+            "add --anti-pattern to agent_cli learn and the store method together in one slice",
+            "capability_without_a_door",
+            False,
+        ),
         C("edit the README badge", "capability_without_a_door", False),
-        C("make the store flush synchronously and block until each write is durable",
-          "sync_blocking_flush", True),
-        C("make the store flush async and non-blocking so the write path never stalls",
-          "sync_blocking_flush", False),
+        C("make the store flush synchronously and block until each write is durable", "sync_blocking_flush", True),
+        C("make the store flush async and non-blocking so the write path never stalls", "sync_blocking_flush", False),
         C("rename a variable in the ranker", "sync_blocking_flush", False),
         C("manually unroll the hot loop in the scorer for speed", "python_loop_unrolling", True),
         C("add memoization to the scorer hot path", "python_loop_unrolling", False),

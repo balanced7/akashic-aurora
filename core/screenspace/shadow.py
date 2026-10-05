@@ -86,7 +86,7 @@ def pulse() -> Pulse:
     return Pulse(
         foreground=focus,
         focus_path=[focus] if focus else [],
-        roster_delta=[],   # roster + roster-delta is the v1 shadow model's job (F2)
+        roster_delta=[],  # roster + roster-delta is the v1 shadow model's job (F2)
         elevated=None,
         activity=1 if focus else 0,
         gen=gen,

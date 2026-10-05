@@ -3,6 +3,7 @@ CITIZENSHIP (the {ns}:seat:born marker), not cursor virginity -- 'virginity is a
 the cursor; citizenship is a property of the seat.' Real Redis, isolated namespace per test
 (house t045 pattern). Deploy note: existing live seats are grandfathered by an explicit
 backfill (marker written, no seed) BEFORE any runner reboots on this code."""
+
 import os
 import sys
 import uuid
@@ -16,10 +17,11 @@ from core.comm.bus import Bus  # noqa: E402
 
 
 def _client():
-    from core.foundation.redis_connection import (
-        connect_to_redis_with_fail_fast, DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT)
-    c = connect_to_redis_with_fail_fast(host=DEFAULT_REDIS_HOST, port=DEFAULT_REDIS_PORT,
-                                        timeout_seconds=3, decode_responses=True)
+    from core.foundation.redis_connection import connect_to_redis_with_fail_fast, DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT
+
+    c = connect_to_redis_with_fail_fast(
+        host=DEFAULT_REDIS_HOST, port=DEFAULT_REDIS_PORT, timeout_seconds=3, decode_responses=True
+    )
     if c is None:
         pytest.skip("redis not available")
     return c
@@ -43,8 +45,8 @@ def test_p1_walk_polluted_seat_seeds_at_tail():
     c, ns = _client(), _ns()
     _fill_backlog(c, ns)
     seat = Bus("newborn", c, namespace=ns, promote=False)
-    seat.inbox(limit=1, advance=True)            # the 'walk': consumes one, pollutes virginity
-    _fill_backlog(c, ns)                         # more history lands after the walk
+    seat.inbox(limit=1, advance=True)  # the 'walk': consumes one, pollutes virginity
+    _fill_backlog(c, ns)  # more history lands after the walk
     assert seat.seed_cursor_at_tail() is True, "walk-polluted no-marker seat must seed (P1)"
     assert c.hget(f"{ns}:seat:born:newborn", "ts"), "birth certificate must be written"
     assert seat.pending() == 0, "post-seed, the ancient backlog is skipped"
@@ -54,8 +56,8 @@ def test_p2_returning_citizen_never_rewound():
     c, ns = _client(), _ns()
     _fill_backlog(c, ns)
     seat = Bus("veteran", c, namespace=ns, promote=False)
-    assert seat.seed_cursor_at_tail() is True    # first citizen boot: marked
-    _fill_backlog(c, ns, n=2)                    # real unread mail arrives
+    assert seat.seed_cursor_at_tail() is True  # first citizen boot: marked
+    _fill_backlog(c, ns, n=2)  # real unread mail arrives
     before = seat.pending()
     assert before > 0
     assert seat.seed_cursor_at_tail() is False, "marked seat must never re-seed (P2)"
@@ -89,9 +91,10 @@ def test_p5_generation_zero_semantics_preserved():
     assert seat.seed_cursor_at_tail() is True
     boss = Bus("boss", c, namespace=ns, promote=False)
     boss.send("genzero", "chat", "fresh mail")
-    msgs = seat.inbox(limit=5, advance=True)     # normal advance after the seeded start
-    assert any("fresh mail" in str(getattr(m, "content", "")) for m in msgs), \
+    msgs = seat.inbox(limit=5, advance=True)  # normal advance after the seeded start
+    assert any("fresh mail" in str(getattr(m, "content", "")) for m in msgs), (
         "post-seed delivery must work normally (P5)"
+    )
 
 
 def test_backfill_grandfather_marks_without_seed():
@@ -100,8 +103,8 @@ def test_backfill_grandfather_marks_without_seed():
     c, ns = _client(), _ns()
     _fill_backlog(c, ns)
     seat = Bus("elder", c, namespace=ns, promote=False)
-    seat.inbox(limit=1, advance=True)            # real progress, pre-fix era
-    _fill_backlog(c, ns, n=2)                    # unread they must keep
+    seat.inbox(limit=1, advance=True)  # real progress, pre-fix era
+    _fill_backlog(c, ns, n=2)  # unread they must keep
     # the backfill (what deploy runs): mark WITHOUT seeding
     c.hset(f"{ns}:seat:born:elder", mapping={"ts": "backfill", "had_prior_cursor": "1"})
     before = seat.pending()

@@ -10,6 +10,7 @@ finish the current message, release the lock, exit 0 at the next loop top.
   P3  the CLI verb parses and sets the flag through control
   P4  offline bus -> drain refuses loudly (rc 1), never half-requests
 """
+
 import os
 import sys
 import uuid
@@ -38,6 +39,7 @@ def _ns_env(monkeypatch):
 
 def _online():
     from core.comm.bus import Bus
+
     return Bus("t-drain").online
 
 
@@ -59,11 +61,11 @@ def test_p2_flag_carries_ttl(monkeypatch):
     if not _online():
         pytest.skip("redis not available")
     from core.comm.bus import Bus
+
     agent = f"t-drain-ttl-{uuid.uuid4().hex[:6]}"
     control.drain(agent, by="tester")
     ttl = Bus("t-drain")._client.ttl(f"{ns}:control:drain:{agent}")
-    assert 0 < ttl <= control.DRAIN_TTL_S, \
-        "an unhonored drain must self-clear -- never a forever-flag"
+    assert 0 < ttl <= control.DRAIN_TTL_S, "an unhonored drain must self-clear -- never a forever-flag"
 
 
 def test_p3_cli_verb_sets_flag(monkeypatch):

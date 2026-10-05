@@ -17,6 +17,7 @@ FAIL-OPEN: any spine error returns coherent=True, so a drift-check machinery fau
     if not v.coherent:
         print("DRIFT:", v.kind, "--", v.reason)
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -28,6 +29,7 @@ from core.narrative.track_router import RouteHint, get_track_router
 @dataclass
 class _Cand:
     """A candidate beat -- just the fields the router reads (summary/source)."""
+
     summary: str
     source: str = ""
 
@@ -35,7 +37,7 @@ class _Cand:
 @dataclass
 class DriftVerdict:
     coherent: bool
-    kind: str        # "" | "scope" | "rework" | "homeless"
+    kind: str  # "" | "scope" | "rework" | "homeless"
     reason: str
     track: str
 
@@ -53,6 +55,7 @@ def _similar(a: str, b: str) -> float:
 def _active_track() -> Optional[str]:
     try:
         from core.narrative.beat_log import ROUTER_ACTIVE, get_beat_log
+
         return get_beat_log().store.get(ROUTER_ACTIVE)
     except Exception:
         return None
@@ -61,33 +64,48 @@ def _active_track() -> Optional[str]:
 def _recent_beats(limit: int = 40) -> List:
     try:
         from core.narrative.beat_log import get_beat_log
+
         return get_beat_log().recent(limit=limit)
     except Exception:
         return []
 
 
-def drift_check(summary: str, *, source: str = "", task: str = "", paths=None, category: str = "",
-                active: Optional[str] = "auto", recent_beats: Optional[List] = None,
-                dup_threshold: float = 0.6, router=None) -> DriftVerdict:
+def drift_check(
+    summary: str,
+    *,
+    source: str = "",
+    task: str = "",
+    paths=None,
+    category: str = "",
+    active: Optional[str] = "auto",
+    recent_beats: Optional[List] = None,
+    dup_threshold: float = 0.6,
+    router=None,
+) -> DriftVerdict:
     """Coherent, or drifted-because? See module docstring. Fail-open on any error."""
     try:
         router = router or get_track_router()
         if active == "auto":
             active = _active_track()
-        res = router.route_one(_Cand(summary=summary, source=source),
-                               RouteHint(paths=list(paths or []), category=category, task=task),
-                               active=active)
+        res = router.route_one(
+            _Cand(summary=summary, source=source),
+            RouteHint(paths=list(paths or []), category=category, task=task),
+            active=active,
+        )
 
         # 1. SCOPE -- routes to a different track than the one we're in
         if active and res.switched:
-            return DriftVerdict(False, "scope",
-                                f"routes to '{res.track}' but you're in '{active}' (by {res.basis}) "
-                                f"-- this belongs to a different thread", res.track)
+            return DriftVerdict(
+                False,
+                "scope",
+                f"routes to '{res.track}' but you're in '{active}' (by {res.basis}) "
+                f"-- this belongs to a different thread",
+                res.track,
+            )
 
         # 2. HOMELESS -- can't place it in any track and there's no thread to persist into
         if res.basis == "unknown" and not active:
-            return DriftVerdict(False, "homeless",
-                                "routes to no track -- can't place this in the story", res.track)
+            return DriftVerdict(False, "homeless", "routes to no track -- can't place this in the story", res.track)
 
         # 3. REWORK -- a near-identical beat already exists
         beats = recent_beats if recent_beats is not None else _recent_beats()
@@ -95,9 +113,14 @@ def drift_check(summary: str, *, source: str = "", task: str = "", paths=None, c
             bs = b if isinstance(b, str) else getattr(b, "summary", "")
             if _similar(summary, bs) >= dup_threshold:
                 src = "" if isinstance(b, str) else getattr(b, "source", "")
-                return DriftVerdict(False, "rework",
-                                    f"near-duplicate of an earlier beat: '{bs[:60]}'"
-                                    + (f" ({src})" if src else "") + " -- likely already done", res.track)
+                return DriftVerdict(
+                    False,
+                    "rework",
+                    f"near-duplicate of an earlier beat: '{bs[:60]}'"
+                    + (f" ({src})" if src else "")
+                    + " -- likely already done",
+                    res.track,
+                )
 
         return DriftVerdict(True, "", f"coheres with track '{res.track}' (by {res.basis})", res.track)
     except Exception as e:

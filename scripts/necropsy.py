@@ -20,6 +20,7 @@ Two halves:
                                   DEATH-DELTA section. Draft-flagged; a human or the
                                   dying seat's successor ratifies by superseding.
 """
+
 from __future__ import annotations
 
 import json
@@ -30,9 +31,15 @@ from typing import List, Optional, Tuple
 WINDOW_H_DEFAULT = 72.0
 
 
-def classify_session(*, transcript_mtime: float, tombstoned: bool, seat_exists: bool,
-                     marker_age_min: Optional[float], window_h: float = WINDOW_H_DEFAULT,
-                     now: Optional[float] = None) -> str:
+def classify_session(
+    *,
+    transcript_mtime: float,
+    tombstoned: bool,
+    seat_exists: bool,
+    marker_age_min: Optional[float],
+    window_h: float = WINDOW_H_DEFAULT,
+    now: Optional[float] = None,
+) -> str:
     """'unclean' | 'clean' | 'live' | 'out-of-window'. Pure.
 
     Order matters and is honesty-ordered: liveness first (a necropsy on a live
@@ -47,8 +54,7 @@ def classify_session(*, transcript_mtime: float, tombstoned: bool, seat_exists: 
     return "clean" if tombstoned else "unclean"
 
 
-def census(agent: str = "claude", window_h: float = WINDOW_H_DEFAULT,
-           now: Optional[float] = None) -> List[dict]:
+def census(agent: str = "claude", window_h: float = WINDOW_H_DEFAULT, now: Optional[float] = None) -> List[dict]:
     """All unclean deaths in the window, newest first. Read-only; never writes.
 
     Transcript universe: the eye's corpus (live harness dirs + rescued archive --
@@ -57,13 +63,14 @@ def census(agent: str = "claude", window_h: float = WINDOW_H_DEFAULT,
     from core.comm import wake_seat as ws
     from core.eye.index import default_corpus
     import os
+
     now_f = float(now if now is not None else time.time())
     out: List[dict] = []
     for p in default_corpus():
         if "recovered" in str(p):
             continue
         sid = p.stem
-        if len(sid) < 30:                    # uuid-shaped session ids only
+        if len(sid) < 30:  # uuid-shaped session ids only
             continue
         try:
             mtime = p.stat().st_mtime
@@ -74,21 +81,31 @@ def census(agent: str = "claude", window_h: float = WINDOW_H_DEFAULT,
             tombstoned=ws.is_tombstoned(sid),
             seat_exists=os.path.exists(ws.seat_path(agent, sid)),
             marker_age_min=ws.activity_age_min(agent, sid),
-            window_h=window_h, now=now_f)
+            window_h=window_h,
+            now=now_f,
+        )
         if verdict == "unclean":
-            out.append({"sid": sid, "path": str(p), "age_h": round((now_f - mtime) / 3600, 1),
-                        "mb": round(p.stat().st_size / 1e6, 2), "root": p.parent.name})
+            out.append(
+                {
+                    "sid": sid,
+                    "path": str(p),
+                    "age_h": round((now_f - mtime) / 3600, 1),
+                    "mb": round(p.stat().st_size / 1e6, 2),
+                    "root": p.parent.name,
+                }
+            )
     out.sort(key=lambda d: d["age_h"])
     return out
 
 
-def digest_transcript_text(text: str, asst_clip: int = 400, user_clip: int = 1500
-                           ) -> List[Tuple[str, str, str]]:
+def digest_transcript_text(text: str, asst_clip: int = 400, user_clip: int = 1500) -> List[Tuple[str, str, str]]:
     """Transcript JSONL text -> [(timestamp, KIND, content)]. KIND in USER/ASST/TOOL.
     The 08-13 salvage digester, promoted. Never raises; garbage lines skip."""
+
     def clip(s, n):
         s = " ".join(str(s).split())
         return s if len(s) <= n else s[:n] + "..."
+
     rows: List[Tuple[str, str, str]] = []
     for line in (text or "").splitlines():
         line = line.strip()
@@ -108,15 +125,22 @@ def digest_transcript_text(text: str, asst_clip: int = 400, user_clip: int = 150
                     if isinstance(b, dict) and b.get("type") == "text":
                         rows.append((ts, "USER", clip(b.get("text", ""), user_clip)))
         elif t == "assistant":
-            for b in (content or []):
+            for b in content or []:
                 if not isinstance(b, dict):
                     continue
                 if b.get("type") == "text" and str(b.get("text", "")).strip():
                     rows.append((ts, "ASST", clip(b["text"], asst_clip)))
                 elif b.get("type") == "tool_use":
                     ti = b.get("input") or {}
-                    key = (ti.get("command") or ti.get("file_path") or ti.get("url")
-                           or ti.get("pattern") or ti.get("prompt") or ti.get("description") or "")
+                    key = (
+                        ti.get("command")
+                        or ti.get("file_path")
+                        or ti.get("url")
+                        or ti.get("pattern")
+                        or ti.get("prompt")
+                        or ti.get("description")
+                        or ""
+                    )
                     rows.append((ts, "TOOL", f"{b.get('name', '?')}: {clip(key, 160)}"))
     return rows
 
@@ -126,10 +150,14 @@ def _write_note(agent: str, title: str, body: str) -> bool:
     argv list, never shell -- the prime session's backtick lesson, standing."""
     try:
         import subprocess, sys
-        r = subprocess.run([sys.executable, "agent_cli.py", "note", agent,
-                            "--title", title, "--category", "save", "--note", body],
-                           cwd=str(Path(__file__).resolve().parent.parent),
-                           capture_output=True, text=True, timeout=120)
+
+        r = subprocess.run(
+            [sys.executable, "agent_cli.py", "note", agent, "--title", title, "--category", "save", "--note", body],
+            cwd=str(Path(__file__).resolve().parent.parent),
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
         return r.returncode == 0
     except Exception:
         return False
@@ -147,13 +175,13 @@ DEATH_DELTA_PROMPT = (
 )
 
 
-def distill(sid: str, agent: str = "claude", tail_rows: int = 120,
-            run_ask: bool = True, cause: str = "") -> dict:
+def distill(sid: str, agent: str = "claude", tail_rows: int = 120, run_ask: bool = True, cause: str = "") -> dict:
     """Digest the dead session's tail; optionally run ONE grounded ask for the
     death-delta; write the draft save point note. Returns a report dict either way
     (ask failures degrade to a mechanical-only draft -- the necropsy never blocks
     on a model)."""
     from core.eye.index import default_corpus
+
     cand = [p for p in default_corpus() if p.stem == sid]
     if not cand:
         return {"ok": False, "why": f"no transcript found for sid {sid}"}
@@ -169,8 +197,9 @@ def distill(sid: str, agent: str = "claude", tail_rows: int = 120,
             srows = digest_transcript_text(sub.read_text(encoding="utf-8", errors="replace"))
             if srows:
                 stail = srows[-30:]
-                digest += (f"\n--- SUBAGENT {sub.stem} (final {len(stail)} rows) ---\n"
-                           + "\n".join(f"[{ts}] {k}: {c}" for ts, k, c in stail))
+                digest += f"\n--- SUBAGENT {sub.stem} (final {len(stail)} rows) ---\n" + "\n".join(
+                    f"[{ts}] {k}: {c}" for ts, k, c in stail
+                )
     # n10 (the maiden calibration's law): death is invisible from inside the record.
     # The false assumption only exists in the light of how death arrived, and that
     # evidence lives OUTSIDE the dying transcript -- forensics, the guard's receipt,
@@ -182,6 +211,7 @@ def distill(sid: str, agent: str = "claude", tail_rows: int = 120,
     if run_ask:
         try:
             import core.comm.ask as _ask_mod
+
             out = _ask_mod.ask(DEATH_DELTA_PROMPT + "\n---\n" + digest)
             # ask() returns a BoundaryOutcome, ALWAYS -- detail["answer"] carries the
             # text (its docstring shouts this; the maiden run proved the subscript
@@ -194,10 +224,18 @@ def distill(sid: str, agent: str = "claude", tail_rows: int = 120,
                 delta = f"(death-delta ask returned no answer [{why}] -- mechanical draft only)"
         except Exception as e:
             delta = f"(death-delta ask unavailable: {type(e).__name__} -- mechanical draft only)"
-    body = (f"AUTO-NECROPSY DRAFT (W151b) -- session {sid[:8]}, distilled "
-            f"{time.strftime('%Y-%m-%d %H:%M')}. Ratify by superseding this note.\n\n"
-            f"{delta}\n\n--- FINAL {len(tail)} TRANSCRIPT ROWS (mechanical) ---\n{digest[-6000:]}")
+    body = (
+        f"AUTO-NECROPSY DRAFT (W151b) -- session {sid[:8]}, distilled "
+        f"{time.strftime('%Y-%m-%d %H:%M')}. Ratify by superseding this note.\n\n"
+        f"{delta}\n\n--- FINAL {len(tail)} TRANSCRIPT ROWS (mechanical) ---\n{digest[-6000:]}"
+    )
     title = f"save:{agent}:recovered-{sid[:8]}"
     wrote = _write_note(agent, title, body)
-    return {"ok": True, "sid": sid, "rows": len(rows), "note": title if wrote else "",
-            "note_written": wrote, "delta_head": delta[:200]}
+    return {
+        "ok": True,
+        "sid": sid,
+        "rows": len(rows),
+        "note": title if wrote else "",
+        "note_written": wrote,
+        "delta_head": delta[:200],
+    }

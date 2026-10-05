@@ -27,10 +27,22 @@ Silence here means "nothing has drifted", never "nothing was checked": an unmeas
 also renders silent, because a fabricated healthy number is the confident-zero disease and this
 whole arc exists to stop building those.
 """
+
 from __future__ import annotations
 
 import os
 from typing import Any, Dict
+
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+
+        return python_launcher()
+    except Exception:
+        return "py"
+
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -50,6 +62,7 @@ def _stats(n: int) -> Dict[str, Any]:
     core/coord/preregistration.py; this reader and the ship gate both import INWARD from it.
     """
     from core.coord.preregistration import audit_stats
+
     return audit_stats(n)
 
 
@@ -58,14 +71,16 @@ def boot_line(threshold: float = DEFAULT_THRESHOLD, window: int = WINDOW) -> str
     try:
         s = _stats(window)
     except Exception:
-        return ""                     # fail open, silently: a reader must never break boot
+        return ""  # fail open, silently: a reader must never break boot
     total = int(s.get("total") or 0)
     if total <= 0:
-        return ""                     # no window is not compliance -- absence is not evidence
+        return ""  # no window is not compliance -- absence is not evidence
     pct = float(s.get("pct") or 0.0)
     if pct >= float(threshold):
-        return ""                     # compliant -> silent. The absence of a line IS the signal.
+        return ""  # compliant -> silent. The absence of a line IS the signal.
     clean = int(s.get("clean") or 0)
-    return (f"method drift: M3 pre-registration {clean}/{total} clean ({pct:.0f}%) -- pins are "
-            f"landing WITH their implementation, so git holds no evidence the acceptance came "
-            f"first. Commit the RED pin alone, then the fix. (py scripts/arc_scorecard.py)")
+    return (
+        f"method drift: M3 pre-registration {clean}/{total} clean ({pct:.0f}%) -- pins are "
+        f"landing WITH their implementation, so git holds no evidence the acceptance came "
+        f"first. Commit the RED pin alone, then the fix. ({_pyl()} scripts/arc_scorecard.py)"
+    )

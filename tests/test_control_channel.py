@@ -11,6 +11,7 @@ channel:
   - it is loopback-only
   - "nobody listening" is distinguishable from "listener refused"
 """
+
 import os
 import socket
 import threading
@@ -43,9 +44,12 @@ def test_port_is_stable_across_processes():
     hash()-based port would make two processes disagree about where one agent listens. That is
     exactly the stale-mapping failure this design exists to avoid, so it must be pinned."""
     import subprocess, sys
-    src = ("import sys; sys.path.insert(0, r'%s'); "
-           "from core.comm import control_channel as cc; print(cc.port_for('kimi'))"
-           % os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+    src = (
+        "import sys; sys.path.insert(0, r'%s'); "
+        "from core.comm import control_channel as cc; print(cc.port_for('kimi'))"
+        % os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    )
     out = subprocess.run([sys.executable, "-c", src], capture_output=True, text=True, timeout=60)
     assert out.returncode == 0, out.stderr[:300]
     assert int(out.stdout.strip()) == cc.port_for("kimi"), (
@@ -133,7 +137,7 @@ def test_answers_while_the_main_thread_is_blocked(chan):
         blocked.set()
         try:
             victim.settimeout(20)
-            victim.recv(1)          # nothing will ever be sent -- this is the wedge
+            victim.recv(1)  # nothing will ever be sent -- this is the wedge
         except Exception:
             pass
 
@@ -143,7 +147,6 @@ def test_answers_while_the_main_thread_is_blocked(chan):
 
     reply = cc.send("testagent", "ping", port=chan.port)
     assert reply and reply.startswith("pong"), (
-        "the control channel went silent while another thread was blocked -- it is not "
-        "actually out-of-band"
+        "the control channel went silent while another thread was blocked -- it is not actually out-of-band"
     )
     dead.close()

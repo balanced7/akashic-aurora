@@ -18,6 +18,7 @@ curve), so the fix for that belongs in storyboard.analyse(), where the times sti
 Standalone: numpy only, no arsenal.* imports (the analysis.py rule). It reads a manifest; it
 never decodes a frame, so a stored storyboard is profiled at file-read cost.
 """
+
 from __future__ import annotations
 
 import json
@@ -83,11 +84,17 @@ def profile(manifest) -> dict:
         "so duration_ms is not by itself a violence measure -- read it beside peak_median",
     ]
     if duration is None:
-        blind.insert(0, "no segments in this manifest -- a rate over no time is not zero, it is "
-                        "unknown, and this profile reports None rather than a fake 0")
+        blind.insert(
+            0,
+            "no segments in this manifest -- a rate over no time is not zero, it is "
+            "unknown, and this profile reports None rather than a fake 0",
+        )
     elif fps:
-        blind.insert(0, f"the sampling stride is {1000.0 / fps:.0f} ms -- any change shorter than "
-                        f"that happened between two samples and was never seen at all")
+        blind.insert(
+            0,
+            f"the sampling stride is {1000.0 / fps:.0f} ms -- any change shorter than "
+            f"that happened between two samples and was never seen at all",
+        )
     return {
         "api": API,
         "source": m.get("source"),

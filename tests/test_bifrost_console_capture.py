@@ -8,6 +8,7 @@ FileLedger -- no Redis, no running server.
 
 Run: py -m pytest tests/test_bifrost_console_capture.py -q
 """
+
 import os
 import sys
 import tempfile
@@ -18,8 +19,13 @@ from core.foundation.ledger import FileLedger
 from core.events.event_log import EventLog
 from core.events.event_query import EventQuery
 from core.comm.promoter import (
-    promote_interjection, promote_control, promote_drop, console_events,
-    INTERJECTION_KIND, CONTROL_KIND, DROP_KIND,
+    promote_interjection,
+    promote_control,
+    promote_drop,
+    console_events,
+    INTERJECTION_KIND,
+    CONTROL_KIND,
+    DROP_KIND,
 )
 
 
@@ -30,8 +36,12 @@ def _log():
 def test_interjection_is_captured_and_queryable():
     el = _log()
     verdict = {"intent": "halt", "confidence": 0.92, "why": "stop / redirect signal", "source": "heuristic"}
-    assert promote_interjection("wait, that's wrong", verdict, "deepseek",
-                                paused=True, by="user", msg_id="m1", event_log=el) is True
+    assert (
+        promote_interjection(
+            "wait, that's wrong", verdict, "deepseek", paused=True, by="user", msg_id="m1", event_log=el
+        )
+        is True
+    )
     out = console_events(event_query=EventQuery(event_log=el))
     assert len(out) == 1
     ev = out[0]
@@ -64,20 +74,22 @@ def test_file_drop_is_captured_with_provenance():
 def test_console_events_filters_to_console_kinds_only():
     """console_events() returns ONLY the three console kinds -- unrelated firehose events are excluded."""
     el = _log()
-    el.capture("note", "just a note")                         # noise: not a console kind
-    el.capture("bifrost_msg", "a promoted handoff")           # noise: the OTHER projection
+    el.capture("note", "just a note")  # noise: not a console kind
+    el.capture("bifrost_msg", "a promoted handoff")  # noise: the OTHER projection
     promote_interjection("also cover nulls", {"intent": "steer", "why": "additive"}, "claude", event_log=el)
     promote_drop("dropbox/data.csv", 10, event_log=el)
     out = console_events(event_query=EventQuery(event_log=el))
     got = sorted(e["kind"] for e in out)
-    assert got == [DROP_KIND, INTERJECTION_KIND]              # note + bifrost_msg excluded
+    assert got == [DROP_KIND, INTERJECTION_KIND]  # note + bifrost_msg excluded
 
 
 def test_capture_never_raises_on_a_broken_log():
     """The console request path must survive a capture hiccup -> every helper returns False, no raise."""
+
     class Boom:
         def capture(self, *a, **k):
             raise RuntimeError("ledger down")
+
     assert promote_interjection("x", {"intent": "ask"}, "claude", event_log=Boom()) is False
     assert promote_control("pause", event_log=Boom()) is False
     assert promote_drop("dropbox/x", 1, event_log=Boom()) is False
@@ -86,14 +98,19 @@ def test_capture_never_raises_on_a_broken_log():
 def test_durable_across_a_fresh_reader():
     led = FileLedger(base_dir=tempfile.mkdtemp(prefix="console_dur_"))
     promote_control("pause", reason="durable?", by="user", event_log=EventLog(led))
-    fresh = EventQuery(event_log=EventLog(led))                # cold reader on the same ledger
+    fresh = EventQuery(event_log=EventLog(led))  # cold reader on the same ledger
     out = console_events(event_query=fresh)
     assert len(out) == 1 and out[0]["detail"]["reason"] == "durable?"
 
 
 if __name__ == "__main__":
-    for fn in [test_interjection_is_captured_and_queryable, test_control_pause_and_resume_are_captured,
-               test_file_drop_is_captured_with_provenance, test_console_events_filters_to_console_kinds_only,
-               test_capture_never_raises_on_a_broken_log, test_durable_across_a_fresh_reader]:
+    for fn in [
+        test_interjection_is_captured_and_queryable,
+        test_control_pause_and_resume_are_captured,
+        test_file_drop_is_captured_with_provenance,
+        test_console_events_filters_to_console_kinds_only,
+        test_capture_never_raises_on_a_broken_log,
+        test_durable_across_a_fresh_reader,
+    ]:
         fn()
     print("ALL CONSOLE CAPTURE TESTS PASSED")

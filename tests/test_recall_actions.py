@@ -10,6 +10,7 @@ Run: py tests/test_recall_actions.py   (or via pytest)
 Uses an injected fake learning store (the same seam test_recall_at.py uses) so it never touches
 canonical Redis; `command=` (not `path=`) keeps it off the lock/bus layer.
 """
+
 import os
 import sys
 import tempfile
@@ -24,14 +25,20 @@ from core.recall.at_action import recall_at as _engine
 class _FakeStore:
     def __init__(self, recs):
         self._recs = recs
+
     def load_all_learnings_from_store(self):
         return list(self._recs)
 
 
-_STORE = _FakeStore([
-    {"experiment_name": "spine1_unify", "success": "yes",
-     "recommendation": "the consolidator is the one seam; route every source through it"},
-])
+_STORE = _FakeStore(
+    [
+        {
+            "experiment_name": "spine1_unify",
+            "success": "yes",
+            "recommendation": "the consolidator is the one seam; route every source through it",
+        },
+    ]
+)
 
 
 def test_kill_switch_returns_empty_shape_without_error(monkeypatch):
@@ -47,13 +54,36 @@ def test_kill_switch_returns_empty_shape_without_error(monkeypatch):
 
 def test_enabled_delegates_to_engine_and_returns_contract_keys(monkeypatch):
     monkeypatch.setenv("AKASHIC_RECALL_AT_ACTION", "1")
-    monkeypatch.setattr("core.recall.actions._engine", lambda **kw: {"path": None, "command": "x", "query": "x",
-                                      "lessons": [{"text": "t", "source": "s"}], "locks": [],
-                                      "counter": None, "verbs": [], "shown": 1, "total": 1,
-                                      "faithful": True, "confidence": 1.0})
+    monkeypatch.setattr(
+        "core.recall.actions._engine",
+        lambda **kw: {
+            "path": None,
+            "command": "x",
+            "query": "x",
+            "lessons": [{"text": "t", "source": "s"}],
+            "locks": [],
+            "counter": None,
+            "verbs": [],
+            "shown": 1,
+            "total": 1,
+            "faithful": True,
+            "confidence": 1.0,
+        },
+    )
     res = recall_context("deepseek", command="x")
-    for key in ("path", "command", "query", "lessons", "locks", "counter", "verbs",
-                "shown", "total", "faithful", "confidence"):
+    for key in (
+        "path",
+        "command",
+        "query",
+        "lessons",
+        "locks",
+        "counter",
+        "verbs",
+        "shown",
+        "total",
+        "faithful",
+        "confidence",
+    ):
         assert key in res
     assert res["shown"] == 1
 
@@ -61,9 +91,11 @@ def test_enabled_delegates_to_engine_and_returns_contract_keys(monkeypatch):
 def test_session_key_maps_to_agent_id(monkeypatch):
     """session_key is a plain agent id and must be forwarded AS the engine's agent_id."""
     seen = {}
+
     def _fake_engine(**kw):
         seen.update(kw)
         return dict(_EMPTY)
+
     monkeypatch.setattr("core.recall.actions._engine", _fake_engine)
     monkeypatch.setenv("AKASHIC_RECALL_AT_ACTION", "1")
     recall_context("deepseek", command="x")
@@ -74,10 +106,10 @@ def test_missing_session_key_fails_loud_not_attrs_to_env(monkeypatch):
     """DSH identity finding: an external harness may inherit a WRONG AKASHIC_AGENT_ID (the DSH
     seat inherits Claude Code's). recall_context must NOT fall back to env -- it fails loud with
     error=MissingSessionKey so attribution never silently lands on a foreign agent."""
-    monkeypatch.setenv("AKASHIC_AGENT_ID", "claude")     # the inherited, WRONG value
+    monkeypatch.setenv("AKASHIC_AGENT_ID", "claude")  # the inherited, WRONG value
     monkeypatch.setenv("AKASHIC_RECALL_AT_ACTION", "1")
     monkeypatch.setattr("core.recall.actions._engine", None)  # engine must never be reached
-    res = recall_context(None, command="x")              # session_key explicitly missing
+    res = recall_context(None, command="x")  # session_key explicitly missing
     assert res["error"] == "MissingSessionKey"
     assert res["shown"] == 0
 
@@ -85,8 +117,10 @@ def test_missing_session_key_fails_loud_not_attrs_to_env(monkeypatch):
 def test_engine_exception_fails_open_with_error_key(monkeypatch):
     """ANY engine exception -> empty shape but WITH error/error_detail (never raises): the plugin
     must distinguish 'unavailable' from 'nothing relevant', and must never block on this call."""
+
     def _boom(**kw):
         raise RuntimeError("store down")
+
     monkeypatch.setattr("core.recall.actions._engine", _boom)
     monkeypatch.setenv("AKASHIC_RECALL_AT_ACTION", "1")
     res = recall_context("deepseek", command="x")

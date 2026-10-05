@@ -5,6 +5,7 @@ and legacy/work broadcast.  It never enumerates another seat's inbox, advances a
 cursor, registers presence, or touches a watcher.  Membership comes only from
 explicit transport/thread links; body-text resemblance is never a link.
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -16,8 +17,15 @@ from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 
 _ROOT = Path(__file__).resolve().parents[2]
 _LINK_FIELDS = (
-    "thread_id", "source_thread", "answers", "reply_id", "ask_id",
-    "redrive_of", "original_mid", "in_reply_to", "parent_id",
+    "thread_id",
+    "source_thread",
+    "answers",
+    "reply_id",
+    "ask_id",
+    "redrive_of",
+    "original_mid",
+    "in_reply_to",
+    "parent_id",
 )
 
 
@@ -71,8 +79,7 @@ def _tokens(value: Any) -> Iterable[str]:
 
 
 def _fallback_sha(fields: Mapping[str, Any]) -> str:
-    raw = "\x1f".join(_text(fields.get(k)) for k in
-                       ("frm", "to", "kind", "content", "ts", "meta", "parts"))
+    raw = "\x1f".join(_text(fields.get(k)) for k in ("frm", "to", "kind", "content", "ts", "meta", "parts"))
     return "fallback:" + hashlib.sha256(raw.encode("utf-8", "replace")).hexdigest()
 
 
@@ -123,8 +130,9 @@ def _logical_sort(row: Mapping[str, Any]) -> Tuple[str, str]:
     return (_text(row.get("ts")) or "9999", first)
 
 
-def collect_thread(subject: str, thread_ref: str, *, client: Any = None,
-                   namespace: str = "bifrost", per_stream: int = 1000) -> Dict[str, Any]:
+def collect_thread(
+    subject: str, thread_ref: str, *, client: Any = None, namespace: str = "bifrost", per_stream: int = 1000
+) -> Dict[str, Any]:
     """Return a bounded ``capture.thread.v1`` observation.
 
     ``client`` is injectable for pins.  Production obtains the existing Redis
@@ -140,24 +148,37 @@ def collect_thread(subject: str, thread_ref: str, *, client: Any = None,
     ns = _text(namespace).strip() or "bifrost"
     if client is None:
         from core.comm.bus import Bus
+
         bus = Bus(subject)
         client = bus._client
         ns = bus.ns
     if client is None:
         return {
-            "schema": "capture.thread.v1", "subject": subject,
-            "thread_ref": ref, "observed_at": _utc(), "found": False,
+            "schema": "capture.thread.v1",
+            "subject": subject,
+            "thread_ref": ref,
+            "observed_at": _utc(),
+            "found": False,
             "messages": [],
-            "bounds": {"streams_total": 4, "streams_read": 0,
-                       "streams_failed": 4, "per_stream": cap,
-                       "entries_total": None, "entries_scanned": 0,
-                       "logical_candidates": 0, "messages_matched": 0,
-                       "copies_matched": 0, "duplicates_collapsed": 0,
-                       "truncated": False,
-                       "ordering": "timestamp then stream id ascending",
-                       "stream_rows": []},
-            "blind": ["bus offline: no archive streams were readable",
-                      f"thread {ref} not found in the unreadable subject-bound archive view"],
+            "bounds": {
+                "streams_total": 4,
+                "streams_read": 0,
+                "streams_failed": 4,
+                "per_stream": cap,
+                "entries_total": None,
+                "entries_scanned": 0,
+                "logical_candidates": 0,
+                "messages_matched": 0,
+                "copies_matched": 0,
+                "duplicates_collapsed": 0,
+                "truncated": False,
+                "ordering": "timestamp then stream id ascending",
+                "stream_rows": [],
+            },
+            "blind": [
+                "bus offline: no archive streams were readable",
+                f"thread {ref} not found in the unreadable subject-bound archive view",
+            ],
             "effects": [],
         }
 
@@ -173,25 +194,29 @@ def collect_thread(subject: str, thread_ref: str, *, client: Any = None,
             scanned = len(raw_rows)
             entries_total += total
             truncated = total > scanned
-            stream_rows.append({"stream": key, "total": total, "scanned": scanned,
-                                "truncated": truncated})
+            stream_rows.append({"stream": key, "total": total, "scanned": scanned, "truncated": truncated})
             for sid, fields in raw_rows:
                 candidates.append(_entry(key, sid, fields))
         except Exception as exc:
             total_known = False
             failures[key] = f"{type(exc).__name__}: {exc}"
-            stream_rows.append({"stream": key, "total": None, "scanned": 0,
-                                "truncated": None, "error": failures[key]})
+            stream_rows.append({"stream": key, "total": None, "scanned": 0, "truncated": None, "error": failures[key]})
 
     by_sha: Dict[str, Dict[str, Any]] = {}
     for row in candidates:
         sha = row["sha"]
         if sha not in by_sha:
             by_sha[sha] = {
-                "sha": sha, "frm": row["frm"], "to": row["to"],
-                "kind": row["kind"], "content": row["content"], "ts": row["ts"],
-                "meta": row["meta"], "parts": row["parts"],
-                "links": set(row["links"]), "copies": [row["copy"]],
+                "sha": sha,
+                "frm": row["frm"],
+                "to": row["to"],
+                "kind": row["kind"],
+                "content": row["content"],
+                "ts": row["ts"],
+                "meta": row["meta"],
+                "parts": row["parts"],
+                "links": set(row["links"]),
+                "copies": [row["copy"]],
             }
         else:
             by_sha[sha]["links"].update(row["links"])
@@ -224,13 +249,20 @@ def collect_thread(subject: str, thread_ref: str, *, client: Any = None,
         row = by_sha[sha]
         copies = sorted(row["copies"], key=_copy_sort)
         copies_matched += len(copies)
-        messages.append({
-            "id": copies[0]["id"] if copies else "",
-            "sha": sha,
-            "frm": row["frm"], "to": row["to"], "kind": row["kind"],
-            "ts": row["ts"], "content": row["content"],
-            "meta": row["meta"], "parts": row["parts"], "copies": copies,
-        })
+        messages.append(
+            {
+                "id": copies[0]["id"] if copies else "",
+                "sha": sha,
+                "frm": row["frm"],
+                "to": row["to"],
+                "kind": row["kind"],
+                "ts": row["ts"],
+                "content": row["content"],
+                "meta": row["meta"],
+                "parts": row["parts"],
+                "copies": copies,
+            }
+        )
     messages.sort(key=_logical_sort)
 
     truncated_any = any(r.get("truncated") is True for r in stream_rows)
@@ -238,7 +270,9 @@ def collect_thread(subject: str, thread_ref: str, *, client: Any = None,
     for key, why in sorted(failures.items()):
         blind.append(f"archive source {key} unreadable: {why}")
     if truncated_any:
-        blind.append(f"TRUNCATED: one or more archive streams exceeded the per-stream cap {cap}; older links may be outside view")
+        blind.append(
+            f"TRUNCATED: one or more archive streams exceeded the per-stream cap {cap}; older links may be outside view"
+        )
     if not messages:
         blind.append(f"thread {ref} not found in the subject-bound archive view")
 
@@ -272,38 +306,52 @@ def collect_thread(subject: str, thread_ref: str, *, client: Any = None,
 def render_transcript(snapshot: Mapping[str, Any], *, title: str) -> str:
     bounds = snapshot.get("bounds") or {}
     lines = [
-        f"# {title}", "",
-        (f"Captured verbatim from a subject-bound archive view for "
-         f"`{snapshot.get('subject')}`. Thread membership uses explicit transport links; "
-         "body-text resemblance is excluded."), "",
+        f"# {title}",
+        "",
+        (
+            f"Captured verbatim from a subject-bound archive view for "
+            f"`{snapshot.get('subject')}`. Thread membership uses explicit transport links; "
+            "body-text resemblance is excluded."
+        ),
+        "",
         f"- thread ref: `{snapshot.get('thread_ref')}`",
         f"- observed at: {snapshot.get('observed_at')}",
-        (f"- coverage: {bounds.get('streams_read')}/{bounds.get('streams_total')} streams; "
-         f"{bounds.get('entries_scanned')} entries scanned"
-         + (f" of {bounds.get('entries_total')}" if bounds.get("entries_total") is not None else " (total unknown)")),
+        (
+            f"- coverage: {bounds.get('streams_read')}/{bounds.get('streams_total')} streams; "
+            f"{bounds.get('entries_scanned')} entries scanned"
+            + (f" of {bounds.get('entries_total')}" if bounds.get("entries_total") is not None else " (total unknown)")
+        ),
         f"- messages matched: {bounds.get('messages_matched')}",
         f"- duplicates collapsed: {bounds.get('duplicates_collapsed')}",
-        f"- truncated: {'yes' if bounds.get('truncated') else 'no'}", "",
+        f"- truncated: {'yes' if bounds.get('truncated') else 'no'}",
+        "",
     ]
     for blind in snapshot.get("blind") or []:
         lines.append(f"> BLIND: {blind}")
     if snapshot.get("blind"):
         lines.append("")
     for row in snapshot.get("messages") or []:
-        lines.extend([
-            f"## {row.get('ts') or 'time unknown'} — {row.get('frm') or '?'} → {row.get('to') or '?'} [{row.get('kind') or '?'}]",
-            "",
-            "Copies: " + ", ".join(f"`{c.get('stream')}@{c.get('id')}`" for c in row.get("copies") or []),
-            "",
-            str(row.get("content") or ""),
-            "",
-        ])
+        lines.extend(
+            [
+                f"## {row.get('ts') or 'time unknown'} — {row.get('frm') or '?'} → {row.get('to') or '?'} [{row.get('kind') or '?'}]",
+                "",
+                "Copies: " + ", ".join(f"`{c.get('stream')}@{c.get('id')}`" for c in row.get("copies") or []),
+                "",
+                str(row.get("content") or ""),
+                "",
+            ]
+        )
     return "\n".join(lines).rstrip() + "\n"
 
 
-def atom_payload(snapshot: Mapping[str, Any], *, title: str,
-                 cites: Optional[Sequence[str]] = None, type_: str = "chronicle",
-                 arc: Optional[str] = None) -> Dict[str, Any]:
+def atom_payload(
+    snapshot: Mapping[str, Any],
+    *,
+    title: str,
+    cites: Optional[Sequence[str]] = None,
+    type_: str = "chronicle",
+    arc: Optional[str] = None,
+) -> Dict[str, Any]:
     if not snapshot.get("found"):
         raise ValueError("cannot mint an atom from a thread that was not found")
     title = _text(title).strip()
@@ -338,19 +386,28 @@ def atom_payload(snapshot: Mapping[str, Any], *, title: str,
     }
 
 
-def mint_thread_atom(snapshot: Mapping[str, Any], *, title: str,
-                     cites: Optional[Sequence[str]] = None, type_: str = "chronicle",
-                     arc: Optional[str] = None, family: Any = None,
-                     render_fn: Any = None, repo_root: Optional[str] = None) -> Dict[str, Any]:
+def mint_thread_atom(
+    snapshot: Mapping[str, Any],
+    *,
+    title: str,
+    cites: Optional[Sequence[str]] = None,
+    type_: str = "chronicle",
+    arc: Optional[str] = None,
+    family: Any = None,
+    render_fn: Any = None,
+    repo_root: Optional[str] = None,
+) -> Dict[str, Any]:
     """Mint through ``AtomFamily`` and return the atom/projection receipt."""
     root = str(repo_root or _ROOT)
     payload = atom_payload(snapshot, title=title, cites=cites, type_=type_, arc=arc)
     if family is None:
         from core.foundation.store import create_store
         from core.library.atoms import AtomFamily
+
         family = AtomFamily(create_store(), repo_root=root)
     if render_fn is None:
         from core.library.projection import render_atom
+
         render_fn = render_atom
     positional = {k: payload.pop(k) for k in ("type_", "title", "body")}
     atom = family.mint(positional["type_"], positional["title"], positional["body"], **payload)
@@ -363,10 +420,15 @@ def mint_thread_atom(snapshot: Mapping[str, Any], *, title: str,
     }
 
 
-def attach_thread_atom(snapshot: Mapping[str, Any], *, title: str,
-                       cites: Optional[Sequence[str]] = None,
-                       type_: str = "chronicle", arc: Optional[str] = None,
-                       **mint_kwargs: Any) -> Dict[str, Any]:
+def attach_thread_atom(
+    snapshot: Mapping[str, Any],
+    *,
+    title: str,
+    cites: Optional[Sequence[str]] = None,
+    type_: str = "chronicle",
+    arc: Optional[str] = None,
+    **mint_kwargs: Any,
+) -> Dict[str, Any]:
     """Attach one mint receipt, or a structured refusal, to a capture result.
 
     Native MCP and ToolBox callers share this boundary so a missing thread
@@ -382,8 +444,7 @@ def attach_thread_atom(snapshot: Mapping[str, Any], *, title: str,
             "reason": "an absent or truncated-away thread cannot be minted",
         }
         return result
-    receipt = mint_thread_atom(snapshot, title=title, cites=cites,
-                               type_=type_, arc=arc, **mint_kwargs)
+    receipt = mint_thread_atom(snapshot, title=title, cites=cites, type_=type_, arc=arc, **mint_kwargs)
     result["artifact"] = receipt
     result["mint"] = {"state": "minted", "atom_id": receipt["atom_id"]}
     result["effects"].append(f"minted {receipt['atom_id']}")
@@ -394,19 +455,29 @@ def render_capture(snapshot: Mapping[str, Any]) -> str:
     bounds = snapshot.get("bounds") or {}
     lines = [
         f"# capture thread {snapshot.get('thread_ref')} for {snapshot.get('subject')}",
-        (f"  {bounds.get('messages_matched')} message(s), {bounds.get('copies_matched')} copy/copies, "
-         f"{bounds.get('duplicates_collapsed')} duplicate(s) collapsed | "
-         f"streams {bounds.get('streams_read')}/{bounds.get('streams_total')} | "
-         f"truncated={'yes' if bounds.get('truncated') else 'no'}"),
+        (
+            f"  {bounds.get('messages_matched')} message(s), {bounds.get('copies_matched')} copy/copies, "
+            f"{bounds.get('duplicates_collapsed')} duplicate(s) collapsed | "
+            f"streams {bounds.get('streams_read')}/{bounds.get('streams_total')} | "
+            f"truncated={'yes' if bounds.get('truncated') else 'no'}"
+        ),
     ]
     for row in snapshot.get("messages") or []:
-        lines.append(f"  {row.get('ts') or '?'}  {row.get('frm') or '?'} -> "
-                     f"{row.get('to') or '?'} [{row.get('kind') or '?'}] "
-                     f"{str(row.get('content') or '')[:120]}")
+        lines.append(
+            f"  {row.get('ts') or '?'}  {row.get('frm') or '?'} -> "
+            f"{row.get('to') or '?'} [{row.get('kind') or '?'}] "
+            f"{str(row.get('content') or '')[:120]}"
+        )
     for blind in snapshot.get("blind") or []:
         lines.append(f"  BLIND: {blind}")
     return "\n".join(lines)
 
 
-__all__ = ["collect_thread", "atom_payload", "mint_thread_atom", "attach_thread_atom",
-           "render_capture", "render_transcript"]
+__all__ = [
+    "collect_thread",
+    "atom_payload",
+    "mint_thread_atom",
+    "attach_thread_atom",
+    "render_capture",
+    "render_transcript",
+]

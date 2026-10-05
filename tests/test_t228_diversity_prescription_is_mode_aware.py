@@ -44,6 +44,7 @@ knows which shape they launched. True at the call site, false at `ask --get <han
 BACKGROUNDED fan (T226, shipped hours ago), where whoever reads the record may never have seen
 the command. That surface is pinned here too.
 """
+
 from __future__ import annotations
 
 import sys
@@ -54,11 +55,13 @@ sys.path.insert(0, str(REPO))
 
 
 class _Msg:
-    def __init__(self, c): self.content = c
+    def __init__(self, c):
+        self.content = c
 
 
 class _Choice:
-    def __init__(self, c): self.message, self.finish_reason = _Msg(c), "stop"
+    def __init__(self, c):
+        self.message, self.finish_reason = _Msg(c), "stop"
 
 
 class _Usage:
@@ -66,7 +69,8 @@ class _Usage:
 
 
 class _Resp:
-    def __init__(self, c): self.choices, self.usage, self.model = [_Choice(c)], _Usage(), "fake"
+    def __init__(self, c):
+        self.choices, self.usage, self.model = [_Choice(c)], _Usage(), "fake"
 
 
 def _client(answers):
@@ -77,10 +81,13 @@ def _client(answers):
             return _Resp(seq.pop(0) if seq else "x")
 
     class _Chat:
-        def __init__(self): self.completions = _Completions()
+        def __init__(self):
+            self.completions = _Completions()
 
     class _C:
-        def __init__(self): self.chat = _Chat()
+        def __init__(self):
+            self.chat = _Chat()
+
     return _C()
 
 
@@ -147,8 +154,9 @@ def test_heterogeneous_low_agreement_is_reported_as_expected_not_as_a_result():
     line = diversity_prescription("distinct", homogeneous=False, n_compared=5, score=0.06)
     low = line.lower()
     assert "expect" in low, "must say this is the null expectation, not a finding"
-    assert "genuinely differ" not in low, \
+    assert "genuinely differ" not in low, (
         "the old text read as a positive result for a fan that could not have produced another"
+    )
 
 
 def test_heterogeneous_high_agreement_is_the_alarm():
@@ -157,8 +165,9 @@ def test_heterogeneous_high_agreement_is_the_alarm():
 
     line = diversity_prescription("collapsed", homogeneous=False, n_compared=5, score=0.9)
     low = line.lower()
-    assert "boilerplate" in low or "ignor" in low, \
+    assert "boilerplate" in low or "ignor" in low, (
         "N different questions with one answer means the differences were not engaged"
+    )
 
 
 def test_homogeneous_collapse_does_not_claim_verification():
@@ -180,8 +189,7 @@ def test_nobody_is_told_to_adjudicate_answers_to_different_questions():
     from core.comm.ask import diversity_prescription
 
     line = diversity_prescription("unknown", homogeneous=False, n_compared=5, score=0.06)
-    assert "adjudicate" not in line.lower(), \
-        "there is no disagreement to settle between answers to different questions"
+    assert "adjudicate" not in line.lower(), "there is no disagreement to settle between answers to different questions"
 
 
 def test_homogeneous_unknown_may_still_offer_adjudication():
@@ -197,9 +205,17 @@ def test_the_background_record_carries_the_shape():
     """`ask --get` on a backgrounded fan: the reader may never have seen the command."""
     from core.comm.ask_bg import summarize
 
-    rec = {"handle": "h", "status": "done", "result": {
-        "n": 5, "n_ok": 5, "diversity": "distinct", "homogeneous": False,
-        "branches": [{"i": i, "ok": True, "partial": False, "answer": f"A{i}"} for i in range(5)]}}
+    rec = {
+        "handle": "h",
+        "status": "done",
+        "result": {
+            "n": 5,
+            "n_ok": 5,
+            "diversity": "distinct",
+            "homogeneous": False,
+            "branches": [{"i": i, "ok": True, "partial": False, "answer": f"A{i}"} for i in range(5)],
+        },
+    }
     nxt = summarize(rec)["next"].lower()
     assert "expect" in nxt, "the retrieved fan must not read 'branches genuinely differ' either"
 
@@ -216,7 +232,5 @@ def test_the_cli_renderer_does_not_reimplement_the_prescriptions():
     """
     src = (REPO / "agent_cli.py").read_text(encoding="utf-8", errors="replace")
     assert "diversity_next" in src, "the CLI must quote the shared prescription"
-    for stale in ("branches genuinely differ", "one answer billed",
-                  "adjudicate with one more call"):
-        assert stale not in src, \
-            f"the CLI still hardcodes a prescription ({stale!r}) -- two sources, one question"
+    for stale in ("branches genuinely differ", "one answer billed", "adjudicate with one more call"):
+        assert stale not in src, f"the CLI still hardcodes a prescription ({stale!r}) -- two sources, one question"

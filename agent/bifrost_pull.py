@@ -4,11 +4,22 @@ Bifrost pull-side helpers (System 5 read lane).
 boot() surfaces unread bus mail without consuming the cursor; promoted() reads durable
 salient messages from the Ledger (B2). Presence is refreshed on boot.
 """
+
 from __future__ import annotations
 
 import json
 import os
 from typing import Any, Dict, List, Optional
+
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+
+        return python_launcher()
+    except Exception:
+        return "py"
 
 
 def _clip(s: Any, n: int = 220) -> str:
@@ -43,6 +54,7 @@ def register_presence(agent_id: str) -> Dict[str, Any]:
     """
     try:
         from core.comm.bus import Bus
+
         b = Bus(str(agent_id or "unknown"))
         registered = b.register() if b.online else False
         live = b.presence() if b.online else []
@@ -51,9 +63,10 @@ def register_presence(agent_id: str) -> Dict[str, Any]:
         for n in names:
             try:
                 from core.comm.liveness import attendance
+
                 state = attendance(n).state
             except Exception:
-                state = "UNKNOWN"          # a broken probe never promotes to "online"
+                state = "UNKNOWN"  # a broken probe never promotes to "online"
             (attended if state == "ATTENDED" else unattended).append(n)
         return {
             "online": b.online,
@@ -63,8 +76,13 @@ def register_presence(agent_id: str) -> Dict[str, Any]:
             "agents_registered_unattended": unattended,
         }
     except Exception:
-        return {"online": False, "registered": False, "pending": 0,
-                "agents_online": [], "agents_registered_unattended": []}
+        return {
+            "online": False,
+            "registered": False,
+            "pending": 0,
+            "agents_online": [],
+            "agents_registered_unattended": [],
+        }
 
 
 def peek_inbox(agent_id: str, limit: int = 10) -> List[Dict[str, Any]]:
@@ -79,6 +97,7 @@ def peek_inbox(agent_id: str, limit: int = 10) -> List[Dict[str, Any]]:
     can present a window as the whole inbox."""
     try:
         from core.comm.bus import Bus
+
         b = Bus(str(agent_id or "unknown"))
         if not b.online:
             return []
@@ -98,6 +117,7 @@ def peek_inbox(agent_id: str, limit: int = 10) -> List[Dict[str, Any]]:
         try:
             from core.comm import packet_spec as _ps
             from core.comm.bus import sid8 as _sid8
+
             cur = b._read_cursor()
             sid8 = b._my_sid8()
             streams = [(b._inbox_key(str(agent_id)), cur.get("inbox", "0"), False)]
@@ -141,7 +161,7 @@ def peek_inbox(agent_id: str, limit: int = 10) -> List[Dict[str, Any]]:
         capped = len(raw) >= cap
         if total > want:
             k_old = max(1, want // 4)
-            head, tail = merged[:k_old], merged[-(want - k_old):]
+            head, tail = merged[:k_old], merged[-(want - k_old) :]
             hidden = total - len(head) - len(tail)
             windowed = True
         else:
@@ -165,12 +185,22 @@ def peek_inbox(agent_id: str, limit: int = 10) -> List[Dict[str, Any]]:
         if hidden > 0:
             # display_only + kind outside every salient/flaggable/ackable set: the gap row
             # is un-actionable BY CONSTRUCTION (kimi finding 2), not by empty-id accident.
-            out.append({"gap": True, "display_only": True, "id": "", "frm": "backlog",
-                        "to": str(agent_id), "kind": "gap", "ts": "",
-                        "pending_at_least": total, "pending_capped": capped,
-                        "content": f"(... {hidden} older unread hidden between oldest and "
-                                   f"newest -- the cursor is behind; --consume or drain "
-                                   f"to clear)"})
+            out.append(
+                {
+                    "gap": True,
+                    "display_only": True,
+                    "id": "",
+                    "frm": "backlog",
+                    "to": str(agent_id),
+                    "kind": "gap",
+                    "ts": "",
+                    "pending_at_least": total,
+                    "pending_capped": capped,
+                    "content": f"(... {hidden} older unread hidden between oldest and "
+                    f"newest -- the cursor is behind; --consume or drain "
+                    f"to clear)",
+                }
+            )
         out.extend(_row(m) for m in tail)
         return out
     except Exception:
@@ -183,24 +213,27 @@ def _session_holder_token() -> str:
     twins collapse to a single holder, a pre-acknowledged v1 bound; every Claude Code
     session carries the env var, so the twin incident class is covered)."""
     from core.comm import runner_lock
+
     return runner_lock.session_holder_token() or "session:anon-cli"
 
 
 def _seat_teach(agent_id: str, info: Dict[str, Any], ttl: int, *, fenced: bool = False) -> str:
-    mode = ("fenced MID-DRAIN (a successor claimed the seat during this read)"
-            if fenced else "held")
+    mode = "fenced MID-DRAIN (a successor claimed the seat during this read)" if fenced else "held"
     age = ""
     try:
         import time as _t
+
         then = _t.mktime(_t.strptime(str(info.get("ts", "")), "%Y-%m-%dT%H:%M:%S"))
         age = f"claimed {int(_t.time() - then)}s ago, "
     except Exception:
         pass
-    return (f"CONSUMER SEAT {mode.upper()} for '{agent_id}': holder {info.get('token', '?')} "
-            f"({age}ttl {ttl}s) -- read degraded to PEEK (cursor unmoved, nothing consumed). "
-            f"One session consumes per agent id; a dead holder frees by TTL alone (<= {ttl}s). "
-            f"If this is a live twin, wind it down; durable doors (task ledger, notes, "
-            f"promoted) are never blocked.")
+    return (
+        f"CONSUMER SEAT {mode.upper()} for '{agent_id}': holder {info.get('token', '?')} "
+        f"({age}ttl {ttl}s) -- read degraded to PEEK (cursor unmoved, nothing consumed). "
+        f"One session consumes per agent id; a dead holder frees by TTL alone (<= {ttl}s). "
+        f"If this is a live twin, wind it down; durable doors (task ledger, notes, "
+        f"promoted) are never blocked."
+    )
 
 
 def consume_inbox(agent_id: str, limit: int = 20) -> Dict[str, Any]:
@@ -214,18 +247,26 @@ def consume_inbox(agent_id: str, limit: int = 20) -> Dict[str, Any]:
     try:
         from core.comm.bus import Bus
         from core.comm import runner_lock
+
         # S3 INVALID SESSION, named (pin P2): a tombstoned self must hear "you ended", never
         # the contention teach that blames a phantom holder. Ends the masquerade.
         try:
             from core.comm import wake_seat as _ws
+
             _sid = _session_holder_token()
-            _sid = _sid[len("session:"):] if _sid.startswith("session:") else _sid
+            _sid = _sid[len("session:") :] if _sid.startswith("session:") else _sid
             if _sid and _sid != "anon-cli" and _ws.is_tombstoned(_sid):
-                return {"seat_held": True, "invalid_session": True, "consumed": [],
-                        "teach": ("INVALID SESSION -- this session ENDED BY RECORD "
-                                  "(tombstone, T086 S1). Boot fresh (K2-tail seed); this "
-                                  "seat must not consume, arm, or re-arm. The successor "
-                                  "owns the seat.")}
+                return {
+                    "seat_held": True,
+                    "invalid_session": True,
+                    "consumed": [],
+                    "teach": (
+                        "INVALID SESSION -- this session ENDED BY RECORD "
+                        "(tombstone, T086 S1). Boot fresh (K2-tail seed); this "
+                        "seat must not consume, arm, or re-arm. The successor "
+                        "owns the seat."
+                    ),
+                }
         except Exception:
             pass
         b = Bus(str(agent_id or "unknown"))
@@ -248,33 +289,42 @@ def consume_inbox(agent_id: str, limit: int = 20) -> Dict[str, Any]:
             teach = _seat_teach(str(agent_id), info, ttl)
             if rescue.get("reason"):
                 teach += f" [holder liveness: {rescue['reason']}]"
-            return {"seat_held": True, "holder": info.get("token"), "since": info.get("ts"),
-                    "ttl": ttl, "teach": teach,
-                    "peeked": [m.to_dict() if hasattr(m, "to_dict") else {} for m in peek]}
+            return {
+                "seat_held": True,
+                "holder": info.get("token"),
+                "since": info.get("ts"),
+                "ttl": ttl,
+                "teach": teach,
+                "peeked": [m.to_dict() if hasattr(m, "to_dict") else {} for m in peek],
+            }
         status: Dict[str, str] = {}
         from core.comm.bifrost_api import BifrostAPI
+
         if BifrostAPI.consume_lane_enabled():
             # T045 stage 2 session-door cutover (fence Q3: same-slice): same RB-21 seat,
             # same generation fence, but reads ride work_drain and advances hit the LANE hash.
             api = BifrostAPI(str(agent_id))
             api.bus.lane_flip_if_migrating()
             nxt: Dict[str, str] = {}
-            msgs = api.work_drain(timeout_ms=1, limit=max(1, limit), since_out=nxt,
-                                  generation=gen)
+            msgs = api.work_drain(timeout_ms=1, limit=max(1, limit), since_out=nxt, generation=gen)
             if nxt.get("inbox") or nxt.get("bc"):
                 status["status"] = api.bus.advance_to(
-                    inbox=nxt.get("inbox"), bc=nxt.get("bc"), generation=gen,
-                    cursor_key=api.bus.lane_cursor_key())
+                    inbox=nxt.get("inbox"), bc=nxt.get("bc"), generation=gen, cursor_key=api.bus.lane_cursor_key()
+                )
         else:
-            msgs = b.inbox(limit=max(1, limit), advance=True, generation=gen,
-                           commit_status_out=status)
+            msgs = b.inbox(limit=max(1, limit), advance=True, generation=gen, commit_status_out=status)
         if status.get("status") == "STALE_GENERATION":
             # A successor fenced us between claim and commit: the cursor did NOT move for
             # us -- show what we read as a PEEK; the successor redelivers (at-least-once).
             info2 = runner_lock.holder(str(agent_id)) or {}
-            return {"seat_held": True, "holder": info2.get("token"), "since": info2.get("ts"),
-                    "ttl": ttl, "teach": _seat_teach(str(agent_id), info2, ttl, fenced=True),
-                    "peeked": [m.to_dict() if hasattr(m, "to_dict") else {} for m in msgs]}
+            return {
+                "seat_held": True,
+                "holder": info2.get("token"),
+                "since": info2.get("ts"),
+                "ttl": ttl,
+                "teach": _seat_teach(str(agent_id), info2, ttl, fenced=True),
+                "peeked": [m.to_dict() if hasattr(m, "to_dict") else {} for m in msgs],
+            }
         # S0-gamma-b: stale-gate + auto-park at the CLI consume path (deepseek's build,
         # claude-fenced; mirror of bifrost_runner_deepseek.py's D2 block, S0-beta). The
         # cursor already advanced at drain time, so park is the only backstop: stale asks
@@ -288,43 +338,50 @@ def consume_inbox(agent_id: str, limit: int = 20) -> Dict[str, Any]:
             try:
                 import time as _time
                 from core.comm import packet_spec
+
                 now_ms = int(_time.time() * 1000)
                 fresh, stale_asks, stale_skips = packet_spec.partition_stale(
-                    msgs, now_ms=now_ms, stale_ms=packet_spec.stale_gate_ms())
+                    msgs, now_ms=now_ms, stale_ms=packet_spec.stale_gate_ms()
+                )
                 if stale_skips:
-                    stale_notice_txt += (f"  skipped {len(stale_skips)} stale "
-                                         f"inform(s)/trace(s) (no bench pollution)\n")
+                    stale_notice_txt += f"  skipped {len(stale_skips)} stale inform(s)/trace(s) (no bench pollution)\n"
                 if stale_asks:
-                    stale_notice_txt += packet_spec.stale_notice(
-                        stale_asks, now_ms=now_ms) + "\n"
+                    stale_notice_txt += packet_spec.stale_notice(stale_asks, now_ms=now_ms) + "\n"
                     for stale in stale_asks:
                         try:
                             from core.comm import triage_park
-                            age_h = (packet_spec.msg_age_ms(
-                                stale, now_ms) or 0) / 3600000.0
+
+                            age_h = (packet_spec.msg_age_ms(stale, now_ms) or 0) / 3600000.0
                             triage_park.park(
                                 str(agent_id),
-                                {"id": getattr(stale, "id", ""),
-                                 "frm": getattr(stale, "frm", ""),
-                                 "to": getattr(stale, "to", ""),
-                                 "kind": getattr(stale, "kind", ""),
-                                 "content": getattr(stale, "content", ""),
-                                 "ts": getattr(stale, "ts", "")},
+                                {
+                                    "id": getattr(stale, "id", ""),
+                                    "frm": getattr(stale, "frm", ""),
+                                    "to": getattr(stale, "to", ""),
+                                    "kind": getattr(stale, "kind", ""),
+                                    "content": getattr(stale, "content", ""),
+                                    "ts": getattr(stale, "ts", ""),
+                                },
                                 reason=f"stale {age_h:.1f}h (CLI consume auto-triage)",
-                                by=f"{agent_id}-cli")
+                                by=f"{agent_id}-cli",
+                            )
                             parked_n += 1
                         except Exception:
-                            pass                     # park is best-effort (G3)
-                    stale_notice_txt += (f"  parked {parked_n} stale ask(s) to durable "
-                                         f"bench (bottomed, never dropped; "
-                                         f"py agent_cli.py bench {agent_id})\n")
+                            pass  # park is best-effort (G3)
+                    stale_notice_txt += (
+                        f"  parked {parked_n} stale ask(s) to durable "
+                        f"bench (bottomed, never dropped; "
+                        f"{_pyl()} agent_cli.py bench {agent_id})\n"
+                    )
                 msgs = fresh
             except Exception:
-                pass                                 # gate is best-effort; fresh-path intact
-        return {"seat_held": False,
-                "stale_notice": stale_notice_txt.strip() or None,
-                "stale_asks_parked": parked_n,
-                "consumed": [m.to_dict() if hasattr(m, "to_dict") else {} for m in msgs]}
+                pass  # gate is best-effort; fresh-path intact
+        return {
+            "seat_held": False,
+            "stale_notice": stale_notice_txt.strip() or None,
+            "stale_asks_parked": parked_n,
+            "consumed": [m.to_dict() if hasattr(m, "to_dict") else {} for m in msgs],
+        }
     except Exception:
         return {"seat_held": False, "consumed": []}
 
@@ -348,22 +405,24 @@ def steer_facts_lines(agent_id: str, nudge=None, drain: bool = True) -> list:
 
     Fail-open, inheriting nudge.steer_drain's own contract ('never wedge the loop'): a broken
     backend costs the facts, never the seat's turn."""
-    if nudge is None:                       # injected in pins so they never touch the LIVE queue
+    if nudge is None:  # injected in pins so they never touch the LIVE queue
         from core.comm import nudge as nudge
     try:
         if int(nudge.steer_pending(agent_id) or 0) <= 0:
-            return []                       # silence is honest only when nothing moved (W65)
+            return []  # silence is honest only when nothing moved (W65)
         facts = nudge.steer_drain(agent_id) if drain else None
-        if facts is None:                   # peek: render without eating another turn's mail
+        if facts is None:  # peek: render without eating another turn's mail
             facts = [f"({int(nudge.steer_pending(agent_id))} queued -- peek, not drained)"]
-    except Exception:                                                   # noqa: BLE001
+    except Exception:  # noqa: BLE001
         return []
     if not facts:
         return []
     out = [f"## STEER FACTS folded at this turn boundary ({len(facts)})"]
     out.extend(f"  {f}" for f in facts)
-    out.append("  (a session seat folds at TURN boundaries, not between tool ROUNDS as a runner "
-               "does -- a steer that landed mid-turn waited for this one)")
+    out.append(
+        "  (a session seat folds at TURN boundaries, not between tool ROUNDS as a runner "
+        "does -- a steer that landed mid-turn waited for this one)"
+    )
     return out
 
 
@@ -387,8 +446,10 @@ def stale_notice_lines(res: Dict[str, Any], agent_id: str) -> List[str]:
         return []
     out = [notice]
     if not (res.get("consumed") or []):
-        out.append(f"# no NEW mail surfaced for {agent_id} -- but the cursor ADVANCED past "
-                   f"the entries above (bench: py agent_cli.py bench {agent_id})")
+        out.append(
+            f"# no NEW mail surfaced for {agent_id} -- but the cursor ADVANCED past "
+            f"the entries above (bench: {_pyl()} agent_cli.py bench {agent_id})"
+        )
     return out
 
 
@@ -396,6 +457,7 @@ def peek_locks(agent_id: str) -> List[Dict[str, Any]]:
     """Advisory path-locks currently held (C2 awareness). Never raises."""
     try:
         from core.comm.locks import LockManager
+
         return LockManager(str(agent_id or "viewer")).list_locks()
     except Exception:
         return []
@@ -412,23 +474,26 @@ def collect_boot_bifrost(agent_id: str, limit: int = 8) -> Dict[str, Any]:
     try:
         from core.comm import roster as _roster
         from core.comm.bus import NS as _DEFAULT_NS
+
         _ns = os.environ.get("BIFROST_NAMESPACE", _DEFAULT_NS)
-        _sid = (os.environ.get("BIFROST_INCARNATION")
-                or os.environ.get("CLAUDE_CODE_SESSION_ID") or "")
+        _sid = os.environ.get("BIFROST_INCARNATION") or os.environ.get("CLAUDE_CODE_SESSION_ID") or ""
         if _sid:
             _hb = _roster.heartbeat(_ns, str(agent_id), _sid, phase="sync")
             _gap = (_hb or {}).get("resumed_after_s") if isinstance(_hb, dict) else None
             if _gap:
                 # S3, the Discord marker: replay and live are different states; say which.
-                resume_line = (f"RESUMED after {int(_gap // 60)}m{int(_gap % 60)}s away -- "
-                               f"the unread below accumulated while away; replay ends here, "
-                               f"now live")
+                resume_line = (
+                    f"RESUMED after {int(_gap // 60)}m{int(_gap % 60)}s away -- "
+                    f"the unread below accumulated while away; replay ends here, "
+                    f"now live"
+                )
     except Exception:
         pass
     msgs = peek_inbox(agent_id, limit=limit)
     pause_line = ""
     try:
         from core.comm.control import format_pause_line, pause_status
+
         pause_line = format_pause_line(pause_status())
     except Exception:
         pass
@@ -437,6 +502,7 @@ def collect_boot_bifrost(agent_id: str, limit: int = 8) -> Dict[str, Any]:
         # RB-29 (T030 L4): the render-time expectation sweep -- redrive overdue asks,
         # declare the exhausted ones DEAD loudly. No daemon; this pull floor IS the clock.
         from core.comm.expectations import format_sweep_lines, sweep
+
         expect_lines = format_sweep_lines(sweep(agent_id))
     except Exception:
         pass
@@ -446,8 +512,7 @@ def collect_boot_bifrost(agent_id: str, limit: int = 8) -> Dict[str, Any]:
         "agents_online": pres["agents_online"],
         # Honest count: when the peek is WINDOWED, pending_at_least (the true unread depth)
         # beats len(msgs) -- the perpetual "8 unread" whisper all night was this exact lie.
-        "pending": (max((int(m.get("pending_at_least", 0)) for m in msgs), default=0)
-                    or len(msgs)),
+        "pending": (max((int(m.get("pending_at_least", 0)) for m in msgs), default=0) or len(msgs)),
         "messages": msgs,
         "locks": peek_locks(agent_id),
         "pause_line": pause_line,
@@ -492,8 +557,10 @@ def clip_pointer(msg: Any, *, clipped: bool = True) -> str:
         return f"  [full body: mailbox <you> --open {sha[:10]}]"
     if mid:
         return f"  [full body: bifrost-fetch --get {mid}]"
-    return "  [NO ADDRESS -- the rest of this body is not addressable from this render; " \
-           "ask the SENDER, who wrote it to a file before sending (W138)]"
+    return (
+        "  [NO ADDRESS -- the rest of this body is not addressable from this render; "
+        "ask the SENDER, who wrote it to a file before sending (W138)]"
+    )
 
 
 def format_inbox_line(msg: Dict[str, Any], max_len: int = 2000) -> str:
@@ -518,6 +585,7 @@ def _is_trace_class(msg) -> bool:
     fold real mail out of sight."""
     try:
         from core.comm.packet_spec import is_trace_kind
+
         if is_trace_kind(_mget(msg, "kind")):
             return True
     except Exception:
@@ -543,7 +611,7 @@ def kind_summary(messages) -> Dict[str, int]:
     """W02: bucket unread by what the seat must DO -- asks (need a reply), fyi (read
     only), traces (telemetry/control). Unknown kinds -> fyi (fail toward showing)."""
     out = {"asks": 0, "fyi": 0, "traces": 0}
-    for m in (messages or []):
+    for m in messages or []:
         k = str(_mget(m, "kind", "")).lower()
         if k in _NEEDS_ATTENTION_KINDS:
             out["asks"] += 1
@@ -578,7 +646,7 @@ def render_collapsed(messages, *, show_traces: bool = False, max_len: int = 2000
     carry no state across peeks). The journald failure mode (silent suppression) is designed out:
     the fold is reversible (show_traces expands, in original order), lossless (nothing dropped),
     and explicit (states the count).
-    
+
     W84 (07-28, deepseek): DUAL-WRITE TWIN DEDUP. T039a/T044 dual-write means every message
     exists on TWO streams. Before rendering, near-identical messages (same frm+kind+
     content_prefix) collapse to one line with a '[N copies]' marker. The match is over the
@@ -594,7 +662,7 @@ def render_collapsed(messages, *, show_traces: bool = False, max_len: int = 2000
     genuine follow-up with different content is never collapsed. Sha/reply_id dedup is stronger
     but requires envelope access; the prefix heuristic catches the dual-write case (identical
     content on two streams) without false positives on real follow-ups.
-    
+
     Accepts dict OR Message-object messages; returns a line list."""
     msgs = list(messages or [])
 
@@ -604,18 +672,17 @@ def render_collapsed(messages, *, show_traces: bool = False, max_len: int = 2000
         # site would repeat T219 (a correction that reached one of two callers).
         full = _content_str(_mget(m, "content"))
         tail = clip_pointer(m, clipped=len(full) > max_len)
-        return (f"[{str(_mget(m, 'kind', '?'))}] from {str(_mget(m, 'frm', '?'))}: "
-                f"{_clip(full, max_len)}{tail}")
-    
+        return f"[{str(_mget(m, 'kind', '?'))}] from {str(_mget(m, 'frm', '?'))}: {_clip(full, max_len)}{tail}"
+
     def _twin_key(m):
         """W84: logical identity for dual-write twin detection. (frm, kind, first 200 chars
         of content). Two copies of the same message on different streams share these three
         fields. A genuine follow-up from the same sender with different content won't match."""
-        content = _content_str(_mget(m, 'content'))
-        return (str(_mget(m, 'frm', '?')), str(_mget(m, 'kind', '?')), content[:200])
+        content = _content_str(_mget(m, "content"))
+        return (str(_mget(m, "frm", "?")), str(_mget(m, "kind", "?")), content[:200])
 
     if show_traces:
-        return [_line(m) for m in msgs]     # full, original order -- the reversible expand
+        return [_line(m) for m in msgs]  # full, original order -- the reversible expand
 
     work_lines, trace_lines = [], []
     seen_twins = {}  # W84: twin_key -> first occurrence index in work_lines
@@ -635,21 +702,23 @@ def render_collapsed(messages, *, show_traces: bool = False, max_len: int = 2000
                 i += 1
                 continue
             seen_twins[tk] = len(work_lines)
-            work_lines.append(_line(m))     # verbatim; breaks any trace run
+            work_lines.append(_line(m))  # verbatim; breaks any trace run
             i += 1
             continue
         kind = str(_mget(m, "kind", "?"))
         frm = str(_mget(m, "frm", "?"))
         run_start = i
-        while (i < len(msgs) and _is_trace_class(msgs[i])
-               and str(_mget(msgs[i], "kind", "?")) == kind
-               and str(_mget(msgs[i], "frm", "?")) == frm):
+        while (
+            i < len(msgs)
+            and _is_trace_class(msgs[i])
+            and str(_mget(msgs[i], "kind", "?")) == kind
+            and str(_mget(msgs[i], "frm", "?")) == frm
+        ):
             i += 1
         run_count = i - run_start
         trace_lines.append(_line(msgs[run_start]))
         if run_count > 1:
-            trace_lines.append(f"  └─ {run_count - 1} more {kind}(s) from {frm} "
-                               f"-- --traces to expand")
+            trace_lines.append(f"  └─ {run_count - 1} more {kind}(s) from {frm} -- --traces to expand")
 
     # W84: expand twin-count lines: "[kind] from X: ..." -> "[kind] from X: ... [2 copies]"
     out = []
@@ -671,7 +740,7 @@ def format_digest_line(msg: Dict[str, Any]) -> str:
     The full body is one drill away (`bifrost-sync` without --digest, or --json)."""
     frm = msg.get("frm", "?")
     kind = msg.get("kind", "?")
-    ts = (msg.get("ts") or "")[11:16]   # HH:MM
+    ts = (msg.get("ts") or "")[11:16]  # HH:MM
     teaser = _clip(_content_str(msg.get("content")), 64)
     return f"  {ts} [{kind}] {frm}> {teaser}"
 
@@ -679,11 +748,11 @@ def format_digest_line(msg: Dict[str, Any]) -> str:
 def print_boot_bifrost_section(block: Dict[str, Any], show_traces: bool = False) -> None:
     print("\n## UNREAD BIFROST (live bus)")
     if block.get("pause_line"):
-        print(f"  {block['pause_line']}")   # RB-30: a frozen fleet announces itself first
+        print(f"  {block['pause_line']}")  # RB-30: a frozen fleet announces itself first
     if block.get("resume_line"):
         print(f"  {block['resume_line']}")  # S3: the Resumed marker (Discord semantics)
     for ln in block.get("expect_lines") or []:
-        print(f"  {ln}")                     # RB-29: redrives + dead expectations, loud
+        print(f"  {ln}")  # RB-29: redrives + dead expectations, loud
     if not block.get("bus_online"):
         print("  (bus OFFLINE -- Redis unreachable; durable mail still in promoted() / events)")
         return
@@ -703,6 +772,7 @@ def print_boot_bifrost_section(block: Dict[str, Any], show_traces: bool = False)
     # whisper' stops confusing -- the peek reads the legacy cursor (all lanes during dual-write).
     try:
         from core.comm.bifrost_api import BifrostAPI
+
         scope = "work-lane" if BifrostAPI.consume_lane_enabled() else "all lanes"
     except Exception:
         scope = "legacy peek"
@@ -710,16 +780,16 @@ def print_boot_bifrost_section(block: Dict[str, Any], show_traces: bool = False)
     summary_tag = f" [{summary}]" if summary else ""
     # kimi fence-lite finding 2: when the over-read hit its cap, `pending` is a FLOOR --
     # render "N+" so a capped window can never read as the whole depth.
-    capped = any(m.get("pending_capped") for m in (block.get("messages") or [])
-                 if isinstance(m, dict))
-    print(f"  {pending}{'+' if capped else ''} unread ({scope}, peek -- use bifrost_inbox or "
-          f"`py agent_cli.py bifrost-sync --consume` to ack):{summary_tag}")
+    capped = any(m.get("pending_capped") for m in (block.get("messages") or []) if isinstance(m, dict))
+    print(
+        f"  {pending}{'+' if capped else ''} unread ({scope}, peek -- use bifrost_inbox or "
+        f"`{_pyl()} agent_cli.py bifrost-sync --consume` to ack):{summary_tag}"
+    )
     for ln in render_collapsed(block.get("messages") or [], show_traces=show_traces):
-        print(f"  {ln}")   # W4: trace-class telemetry folded (--traces to expand)
+        print(f"  {ln}")  # W4: trace-class telemetry folded (--traces to expand)
 
 
-def standby(agent_id: str, session_id: str = "", *, listen=None,
-            limit: int = 20) -> Dict[str, Any]:
+def standby(agent_id: str, session_id: str = "", *, listen=None, limit: int = 20) -> Dict[str, Any]:
     """T084-CL-2: the turn-end ritual as ONE decision function -- drain (if the seat is ours to
     take), report seat state, then hand off to the LISTENER (injected callable) only when it is
     safe and non-redundant to listen. Encodes tonight's hard-won ordering laws:
@@ -740,8 +810,10 @@ def standby(agent_id: str, session_id: str = "", *, listen=None,
     if res.get("seat_held"):
         teach = str(res.get("teach") or "consumer seat held")
         rep.append(f"seat: HELD by {res.get('holder')} -- {teach}")
-        rep.append(f"standby: NOT listening (live twin is the wakeable seat-holder; "
-                   f"{len(res.get('peeked') or [])} msg(s) visible as peek)")
+        rep.append(
+            f"standby: NOT listening (live twin is the wakeable seat-holder; "
+            f"{len(res.get('peeked') or [])} msg(s) visible as peek)"
+        )
         out["decision"] = "twin-holds-seat"
         return out
     msgs = res.get("consumed") or []
@@ -749,7 +821,7 @@ def standby(agent_id: str, session_id: str = "", *, listen=None,
     rep.append(f"drained: {len(msgs)} message(s)" if msgs else "drained: inbox already clean")
     for ln in render_collapsed(msgs)[:12]:
         rep.append(f"  {ln}")
-    try:   # expectations sweep state rides the report (RB-29 visibility)
+    try:  # expectations sweep state rides the report (RB-29 visibility)
         blk = collect_boot_bifrost(agent_id, limit=1)
         for ln in blk.get("expect_lines") or []:
             rep.append(f"  {ln}")
@@ -793,7 +865,7 @@ def format_promoted_events(events: List[Dict[str, Any]], *, json_out: bool = Fal
         lines.append(f"    {body}")
         if ref:
             lines.append(f"    ref: {ref}")
-    lines.append("\nDrill: py agent_cli.py events --get <ref>")
+    lines.append(f"\nDrill: {_pyl()} agent_cli.py events --get <ref>")
     return "\n".join(lines)
 
 
@@ -810,14 +882,14 @@ def format_console_events(events: List[Dict[str, Any]], *, json_out: bool = Fals
         at = (ev.get("at") or "")[:19]
         ref = ev.get("_ref") or ev.get("id") or ""
         if kind == "interjection":
-            head = f"  [interjection:{d.get('intent','?')}] user -> {d.get('to','?')}  {at}"
+            head = f"  [interjection:{d.get('intent', '?')}] user -> {d.get('to', '?')}  {at}"
             body = _clip(_content_str(d.get("text")), 200)
         elif kind == "bus_control":
-            head = f"  [control] {d.get('by','user')} {d.get('action','?')}  {at}"
+            head = f"  [control] {d.get('by', 'user')} {d.get('action', '?')}  {at}"
             body = _clip(_content_str(d.get("reason", "")), 200) or "(no reason)"
         elif kind == "file_drop":
-            head = f"  [file_drop] {d.get('by','user')} shared  {at}"
-            body = f"{d.get('path','?')} ({d.get('bytes','?')} bytes)"
+            head = f"  [file_drop] {d.get('by', 'user')} shared  {at}"
+            body = f"{d.get('path', '?')} ({d.get('bytes', '?')} bytes)"
         else:
             head = f"  [{kind}]  {at}"
             body = _clip(_content_str(ev.get("summary", "")), 200)
@@ -825,5 +897,5 @@ def format_console_events(events: List[Dict[str, Any]], *, json_out: bool = Fals
         lines.append(f"    {body}")
         if ref:
             lines.append(f"    ref: {ref}")
-    lines.append("\nDrill: py agent_cli.py events --get <ref>")
+    lines.append(f"\nDrill: {_pyl()} agent_cli.py events --get <ref>")
     return "\n".join(lines)

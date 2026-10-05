@@ -10,6 +10,7 @@ exact printed form AND the raw id identically (its own command must round-trip).
 (An ORDER NOTE once lived here -- T069 fixed the singleton isolation root cause and this
 file now runs green in ANY order. tests/test_t069_singleton_isolation.py pins it.)
 """
+
 import os
 import sys
 import types
@@ -23,7 +24,9 @@ import agent_cli
 def test_r1_boot_header_carries_constraint_pack():
     head = agent_cli._orientation_header("claude")
     assert "# LIVE CONSTRAINTS" in head, "the constraint pack block must render in the head"
-    assert "RB-26" in head and "RB-29" in head, "the crash-redelivery and note-settle rules are non-negotiable head content"
+    assert "RB-26" in head and "RB-29" in head, (
+        "the crash-redelivery and note-settle rules are non-negotiable head content"
+    )
     assert "docs/LIVE_CONSTRAINTS.md" in head, "the block must cite its curated source doc"
 
 
@@ -32,7 +35,7 @@ def test_r1_bullets_capped_and_below_the_four_questions():
     hlines = head.splitlines()
     idx = next(i for i, ln in enumerate(hlines) if ln.startswith("# LIVE CONSTRAINTS"))
     block = []
-    for ln in hlines[idx + 1:]:
+    for ln in hlines[idx + 1 :]:
         if not ln.startswith("#   "):
             break
         block.append(ln)

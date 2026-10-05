@@ -27,6 +27,7 @@ UNKNOWN IS A REAL STATE. A capability report that guesses is worse than no repor
 gets trusted. Any plane whose probe could not run reports UNKNOWN with the reason, never a
 hopeful PRESENT.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -39,7 +40,7 @@ STATUS_ORDER = {"absent": 0, "partial": 1, "unknown": 2, "present": 3}
 @dataclass(frozen=True)
 class PlaneStatus:
     plane: str
-    status: str            # absent | partial | unknown | present
+    status: str  # absent | partial | unknown | present
     detail: str
     #: What this MEANS for work you might attempt. A status without a consequence is a fact
     #: rather than an answer, and the whole point here is to stop a human planning work the
@@ -47,14 +48,16 @@ class PlaneStatus:
     consequence: str
 
 
-def assess(root: str,
-           secrets_count: Optional[int],
-           state_count: Optional[int],
-           head_sha: Optional[str],
-           source_dirty: Optional[int],
-           seeded_from: Optional[str] = None,
-           is_source: bool = False,
-           tracked_state_present: Optional[bool] = None) -> List[PlaneStatus]:
+def assess(
+    root: str,
+    secrets_count: Optional[int],
+    state_count: Optional[int],
+    head_sha: Optional[str],
+    source_dirty: Optional[int],
+    seeded_from: Optional[str] = None,
+    is_source: bool = False,
+    tracked_state_present: Optional[bool] = None,
+) -> List[PlaneStatus]:
     """Report each plane. Counts are passed in rather than probed so this stays pure and
     the CLI owns every filesystem and git call -- the module can then be pinned without
     a repo, and the probe can be world-scoped by its caller."""
@@ -62,21 +65,40 @@ def assess(root: str,
 
     # --- code -----------------------------------------------------------
     if head_sha is None or source_dirty is None:
-        out.append(PlaneStatus("code", "unknown",
-                               "could not read the source's HEAD or working-tree state",
-                               "cannot tell how far this twin lags the source; treat suite "
-                               "differences as unexplained rather than inherited"))
+        out.append(
+            PlaneStatus(
+                "code",
+                "unknown",
+                "could not read the source's HEAD or working-tree state",
+                "cannot tell how far this twin lags the source; treat suite "
+                "differences as unexplained rather than inherited",
+            )
+        )
     elif source_dirty:
-        out.append(PlaneStatus(
-            "code", "partial", f"source carries {source_dirty} uncommitted tracked file(s)",
-            f"this twin cannot contain those {source_dirty} edits -- each one can surface "
-            f"here as a real-looking failure that does not exist in the source"))
+        out.append(
+            PlaneStatus(
+                "code",
+                "partial",
+                f"source carries {source_dirty} uncommitted tracked file(s)",
+                f"this twin cannot contain those {source_dirty} edits -- each one can surface "
+                f"here as a real-looking failure that does not exist in the source",
+            )
+        )
     elif is_source:
-        out.append(PlaneStatus("code", "present", f"at {head_sha}, this IS the source",
-                               "nothing upstream to lag; this checkout defines the code"))
+        out.append(
+            PlaneStatus(
+                "code",
+                "present",
+                f"at {head_sha}, this IS the source",
+                "nothing upstream to lag; this checkout defines the code",
+            )
+        )
     else:
-        out.append(PlaneStatus("code", "present", f"at {head_sha}, source tree clean",
-                               "this twin and its source agree on code"))
+        out.append(
+            PlaneStatus(
+                "code", "present", f"at {head_sha}, source tree clean", "this twin and its source agree on code"
+            )
+        )
 
     # --- memory ---------------------------------------------------------
     # Read from the seed manifest rather than asserted. The first cut hardcoded "seeded
@@ -84,18 +106,31 @@ def assess(root: str,
     # memory is native and was never seeded by anyone. The organ built to report honestly
     # was itself responding without answering.
     if seeded_from:
-        out.append(PlaneStatus(
-            "memory", "present", f"seeded from {seeded_from}; transport deliberately refused",
-            "recall, notes and lessons behave like the source; the bus does NOT -- no "
-            "inherited cursors or presence, which is the point"))
+        out.append(
+            PlaneStatus(
+                "memory",
+                "present",
+                f"seeded from {seeded_from}; transport deliberately refused",
+                "recall, notes and lessons behave like the source; the bus does NOT -- no "
+                "inherited cursors or presence, which is the point",
+            )
+        )
     elif is_source:
-        out.append(PlaneStatus("memory", "present", "native knowledge plane",
-                               "this store is the original; nothing here was inherited"))
+        out.append(
+            PlaneStatus(
+                "memory", "present", "native knowledge plane", "this store is the original; nothing here was inherited"
+            )
+        )
     else:
-        out.append(PlaneStatus(
-            "memory", "unknown", "no seed manifest found",
-            "this checkout's memory is either native or was populated by some other door -- "
-            "nothing on record can say which"))
+        out.append(
+            PlaneStatus(
+                "memory",
+                "unknown",
+                "no seed manifest found",
+                "this checkout's memory is either native or was populated by some other door -- "
+                "nothing on record can say which",
+            )
+        )
 
     # --- file plane -----------------------------------------------------
     # MEASURED 2026-08-14, and it corrected this module's own earlier claim. A raw entry
@@ -112,38 +147,66 @@ def assess(root: str,
     # So the honest question is not "how many entries" but "are the TRACKED ones here".
     if tracked_state_present is None:
         if state_count is None:
-            out.append(PlaneStatus("file", "unknown", "could not read state/",
-                                   "untracked runtime state may or may not be here"))
+            out.append(
+                PlaneStatus(
+                    "file", "unknown", "could not read state/", "untracked runtime state may or may not be here"
+                )
+            )
         else:
-            out.append(PlaneStatus("file", "unknown",
-                                   f"state/ holds {state_count} entr(y|ies), tracked set unchecked",
-                                   "cannot say whether the load-bearing files are present"))
+            out.append(
+                PlaneStatus(
+                    "file",
+                    "unknown",
+                    f"state/ holds {state_count} entr(y|ies), tracked set unchecked",
+                    "cannot say whether the load-bearing files are present",
+                )
+            )
     elif tracked_state_present:
-        out.append(PlaneStatus(
-            "file", "present", f"tracked state/ files present ({state_count} entries total)",
-            "the ledger, defer queue and suite baseline ride with the clone; the rest is "
-            "untracked residue, and the identity parts of it (daemon pids, ask records) "
-            "must NOT ride"))
+        out.append(
+            PlaneStatus(
+                "file",
+                "present",
+                f"tracked state/ files present ({state_count} entries total)",
+                "the ledger, defer queue and suite baseline ride with the clone; the rest is "
+                "untracked residue, and the identity parts of it (daemon pids, ask records) "
+                "must NOT ride",
+            )
+        )
     else:
-        out.append(PlaneStatus(
-            "file", "partial", "tracked state/ files are MISSING",
-            "the task ledger or suite baseline did not arrive -- anything reading them will "
-            "behave differently here, and that IS a real fidelity gap"))
+        out.append(
+            PlaneStatus(
+                "file",
+                "partial",
+                "tracked state/ files are MISSING",
+                "the task ledger or suite baseline did not arrive -- anything reading them will "
+                "behave differently here, and that IS a real fidelity gap",
+            )
+        )
 
     # --- credentials ----------------------------------------------------
     if secrets_count is None:
-        out.append(PlaneStatus("credentials", "unknown", "could not read .secrets/",
-                               "credentialed doors may or may not work here"))
+        out.append(
+            PlaneStatus(
+                "credentials", "unknown", "could not read .secrets/", "credentialed doors may or may not work here"
+            )
+        )
     elif secrets_count == 0:
-        out.append(PlaneStatus(
-            "credentials", "absent", ".secrets/ is empty (gitignored, so a clone carries none)",
-            "EVERY credentialed door is CLOSED here and will refuse as a configuration state: "
-            "model asks (ask/fan), web search, any external API. Run those from the source, "
-            "which is safe when the work is read-only"))
+        out.append(
+            PlaneStatus(
+                "credentials",
+                "absent",
+                ".secrets/ is empty (gitignored, so a clone carries none)",
+                "EVERY credentialed door is CLOSED here and will refuse as a configuration state: "
+                "model asks (ask/fan), web search, any external API. Run those from the source, "
+                "which is safe when the work is read-only",
+            )
+        )
     else:
-        out.append(PlaneStatus("credentials", "present",
-                               f".secrets/ holds {secrets_count} file(s)",
-                               "credentialed doors are available"))
+        out.append(
+            PlaneStatus(
+                "credentials", "present", f".secrets/ holds {secrets_count} file(s)", "credentialed doors are available"
+            )
+        )
     return out
 
 
@@ -155,6 +218,8 @@ def render(rows: List[PlaneStatus], world: str) -> str:
         out.append(f"  [{tag:>8}] {r.plane:<12} {r.detail}")
         out.append(f"             {'':<12} -> {r.consequence}")
     if any(r.plane == "credentials" and r.status == "absent" for r in rows):
-        out.append("  NOTE: this report does not copy secrets into a twin and will not offer "
-                   "to -- a twin that can spend money is no longer cheap to discard.")
+        out.append(
+            "  NOTE: this report does not copy secrets into a twin and will not offer "
+            "to -- a twin that can spend money is no longer cheap to discard."
+        )
     return "\n".join(out)

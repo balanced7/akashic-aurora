@@ -25,6 +25,7 @@ operator message still fires it instantly, and NOTHING IS CONSUMED.
   T7  the floor CONFESSES what it held -- a floor that hid its own suppression would be the
       silence-reads-as-absence defect rebuilt inside the fix for it
 """
+
 import os
 import sys
 from types import SimpleNamespace
@@ -47,8 +48,9 @@ def _tier(m, agent="claude", incarnation=""):
 
 # ------------------------------------------------------------------ T1 / T2 operator
 def test_t1_a_directed_operator_message_is_tier_zero():
-    assert _tier(_m(kind="chat", frm="daniil", to="claude")) == wt.OPERATOR, \
+    assert _tier(_m(kind="chat", frm="daniil", to="claude")) == wt.OPERATOR, (
         "T1: the four lost Discord messages were exactly this shape -- to=claude, kind=chat"
+    )
 
 
 def test_t2_the_undirected_lounge_broadcast_stays_ambient():
@@ -73,8 +75,7 @@ def test_t4_a_broadcast_is_never_an_obligation():
     """broadcast-visibility is not directed-ownership: a to=* message opens no obligation on
     any one seat, so it cannot outrank directed mail whatever its kind."""
     for kind in ("request", "handoff", "reply", "question"):
-        assert _tier(_m(kind=kind, frm="deepseek", to="*")) == wt.AMBIENT, \
-            f"T4: a broadcast {kind} must stay ambient"
+        assert _tier(_m(kind=kind, frm="deepseek", to="*")) == wt.AMBIENT, f"T4: a broadcast {kind} must stay ambient"
 
 
 # ------------------------------------------------------------------ T5 THE INCIDENT
@@ -86,11 +87,11 @@ def test_t5_a_floor_survives_a_backlog_and_still_wakes_for_the_operator():
     operator = _m(kind="chat", frm="daniil", to="claude")
 
     fired = [x for x in backlog if wt.admits(_tier(x), wt.DIRECTED_ASK)]
-    assert fired == [], \
-        "T5: 400 informational messages must not fire a watcher armed at the directed-ask floor"
+    assert fired == [], "T5: 400 informational messages must not fire a watcher armed at the directed-ask floor"
 
-    assert wt.admits(_tier(operator), wt.DIRECTED_ASK), \
+    assert wt.admits(_tier(operator), wt.DIRECTED_ASK), (
         "T5: the operator must still get through the same floor -- otherwise the cure is the disease"
+    )
 
     # and the strictest floor still admits the operator, which is the whole point of tier 0
     assert wt.admits(_tier(operator), wt.OPERATOR)
@@ -99,14 +100,18 @@ def test_t5_a_floor_survives_a_backlog_and_still_wakes_for_the_operator():
 # ------------------------------------------------------------------ T6 strangler
 def test_t6_the_default_floor_changes_nothing():
     """AMBIENT is the default, so importing this module alters no existing behaviour."""
-    for m in (_m(kind="note", frm="kimi"), _m(kind="reply", frm="sol"),
-              _m(kind="chat", frm="daniil", to="*"), _m(kind="request", frm="deepseek")):
-        assert wt.admits(_tier(m), wt.AMBIENT), \
-            "T6: at the default floor every tier is admitted -- no silent narrowing"
+    for m in (
+        _m(kind="note", frm="kimi"),
+        _m(kind="reply", frm="sol"),
+        _m(kind="chat", frm="daniil", to="*"),
+        _m(kind="request", frm="deepseek"),
+    ):
+        assert wt.admits(_tier(m), wt.AMBIENT), "T6: at the default floor every tier is admitted -- no silent narrowing"
     # the contract, not an implementation detail: watch() must DEFAULT to the ambient floor,
     # so an existing caller that knows nothing about tiers keeps its exact behaviour
-    assert bw.watch.__kwdefaults__.get("min_tier") == wt.AMBIENT, \
+    assert bw.watch.__kwdefaults__.get("min_tier") == wt.AMBIENT, (
         "T6: the default floor must be AMBIENT, or landing tiers silently narrows every seat"
+    )
 
 
 # ------------------------------------------------------------------ T7 the floor confesses
@@ -114,10 +119,10 @@ def test_t7_the_watcher_names_its_floor_in_plain_words():
     """A floor that suppressed silently would rebuild tonight's defect inside tonight's fix."""
     assert wt.tier_name(wt.OPERATOR) == "operator"
     assert wt.tier_name(wt.DIRECTED_ASK) == "directed-ask"
-    assert bw.wake_tiers_name(wt.OPERATOR) == "operator", \
-        "T7: the watcher's report helper must resolve the same names"
-    assert bw.wake_tiers_name(99) == "ambient", \
+    assert bw.wake_tiers_name(wt.OPERATOR) == "operator", "T7: the watcher's report helper must resolve the same names"
+    assert bw.wake_tiers_name(99) == "ambient", (
         "T7: an unknown tier resolves, never raises -- totality, per kinds.py's own law"
+    )
 
 
 # ------------------------------------------------------------------ totality

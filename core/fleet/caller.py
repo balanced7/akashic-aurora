@@ -11,6 +11,7 @@ stdlib-only (urllib + json). Hermetic under test: `opener` is injectable, so no 
 Unlike the fail-soft READS in roster, a call RAISES on failure -- a subtask that asks for a result must
 never get a silent "" it could mistake for the answer.
 """
+
 from __future__ import annotations
 
 import json
@@ -29,9 +30,18 @@ class FleetCallError(RuntimeError):
 _CTX_FLOOR = 32000
 
 
-def call(tag: str, prompt: str, *, system: Optional[str] = None, max_tokens: int = 512,
-         temperature: float = 0.2, fmt: Any = None, timeout: float = 120.0,
-         host: Optional[str] = None, opener: Any = None) -> str:
+def call(
+    tag: str,
+    prompt: str,
+    *,
+    system: Optional[str] = None,
+    max_tokens: int = 512,
+    temperature: float = 0.2,
+    fmt: Any = None,
+    timeout: float = 120.0,
+    host: Optional[str] = None,
+    opener: Any = None,
+) -> str:
     """Run `prompt` through the local model `tag` and return its text.
 
     - num_ctx is pinned from the roster spec (falls back to a safe floor) so even a one-shot call
@@ -52,16 +62,16 @@ def call(tag: str, prompt: str, *, system: Optional[str] = None, max_tokens: int
     if system:
         payload["system"] = system
     if fmt is not None:
-        payload["format"] = fmt   # "json" or a JSON-schema dict, per Ollama's structured-output API
+        payload["format"] = fmt  # "json" or a JSON-schema dict, per Ollama's structured-output API
 
     url = resolved_host.rstrip("/") + "/api/generate"
     try:
         import urllib.request
+
         opener = opener or urllib.request.urlopen
         req = urllib.request.Request(
-            url, method="POST",
-            data=json.dumps(payload).encode("utf-8"),
-            headers={"Content-Type": "application/json"})
+            url, method="POST", data=json.dumps(payload).encode("utf-8"), headers={"Content-Type": "application/json"}
+        )
         with opener(req, timeout=timeout) as resp:
             body = resp.read().decode("utf-8")
     except Exception as e:
@@ -76,6 +86,7 @@ def call(tag: str, prompt: str, *, system: Optional[str] = None, max_tokens: int
     if text is None:
         # Ollama surfaces model/loading errors in an 'error' field with HTTP 200.
         err = data.get("error")
-        raise FleetCallError(f"call to {tag} returned no 'response'"
-                             + (f" (ollama error: {err})" if err else f": {str(data)[:200]}"))
+        raise FleetCallError(
+            f"call to {tag} returned no 'response'" + (f" (ollama error: {err})" if err else f": {str(data)[:200]}")
+        )
     return text

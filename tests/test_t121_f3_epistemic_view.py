@@ -16,6 +16,7 @@ before a renderer sees it, while preserving independent, receipt-backed axes.
 These probes intentionally land before ``core.primitives.epistemic`` exists.
 RED is the acceptance authority for the implementation commit that follows.
 """
+
 from __future__ import annotations
 
 import json
@@ -91,15 +92,11 @@ def test_axes_are_independent_and_every_strong_value_names_its_basis():
     payload = view.to_dict()
     assert payload["claim_kind"] == {
         "value": "inferred",
-        "basis": [
-            {"ref": "claim:author-stamp:42", "status": "recorded"}
-        ],
+        "basis": [{"ref": "claim:author-stamp:42", "status": "recorded"}],
     }
     assert payload["currency"] == {
         "value": "current",
-        "basis": [
-            {"ref": "lifecycle:active:v3", "status": "recorded"}
-        ],
+        "basis": [{"ref": "lifecycle:active:v3", "status": "recorded"}],
         "checked_at": "2026-07-28T22:00:00Z",
         "valid_until": "2026-07-28T22:05:00Z",
     }
@@ -227,4 +224,3 @@ def test_invalid_axis_value_fails_closed_without_poisoning_other_axes():
 
     assert view.claim_kind.value is ClaimKind.UNKNOWN
     assert view.risk.value is Risk.ORDINARY
-

@@ -27,6 +27,7 @@ Four consumers, one tiny module:
 Fail-open everywhere: this module makes ergonomics, never wedges. Kill switch
 for the hook path: AKASHIC_DAEMON_WAKE=0 (checked by the caller, ruling 4).
 """
+
 from __future__ import annotations
 
 import os
@@ -35,7 +36,18 @@ import tempfile
 import time
 from typing import Any, Callable, Dict, List, Optional
 
-MARKER_MAX_AGE_S = 24 * 3600         # ruling R1: age gate
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+
+        return python_launcher()
+    except Exception:
+        return "py"
+
+
+MARKER_MAX_AGE_S = 24 * 3600  # ruling R1: age gate
 REARM_SUFFIX = ".rearm"
 
 
@@ -48,6 +60,7 @@ def _client(c=None):
         return c
     try:
         from core.comm.bus import get_bus
+
         return get_bus("control")._client
     except Exception:
         return None
@@ -101,15 +114,16 @@ def relaunch_hint(agent: str, runner_script: Optional[str] = None) -> str:
     daemon_spawn_runner_hardcodes_deepseek_script), so any other runner names its own; the
     lane flag rides along because a resurrected daemon without it spawns runners whose cursors
     diverge from the drilled work-lane config (revive.py, page-proven)."""
-    cmd = f"py scripts/bifrost_daemon.py --agent {agent} --spawn-runner"
+    cmd = f"{_pyl()} scripts/bifrost_daemon.py --agent {agent} --spawn-runner"
     script = str(runner_script or "").strip()
     if script and script != "bifrost_runner_deepseek.py":
         cmd += f" --runner-script {script}"
     return cmd + " --runner-consume-lane work"
 
 
-def standalone_warning(agent: str, c=None, ns: Optional[str] = None,
-                       runner_script: Optional[str] = None) -> Optional[str]:
+def standalone_warning(
+    agent: str, c=None, ns: Optional[str] = None, runner_script: Optional[str] = None
+) -> Optional[str]:
     """One LOUD line for a runner that just took bifrost:runner:<agent> with no daemon over
     it; None when <ns>:daemon:<agent> is live (a managed child, or a W102 idle-watcher that
     holds its own lock, keeps the pump beat and reclaims when this runner's lock frees).
@@ -128,19 +142,24 @@ def standalone_warning(agent: str, c=None, ns: Optional[str] = None,
     services = "; ".join(RUNNER_DAEMON_SERVICES)
     tail = f"Supervised relaunch: {hint}  (flagless = alpha mode, which REFUSES under this runner)"
     if present is None:
-        return (f"[STANDALONE?] cannot tell whether a daemon holds {key} (bus unanswerable) -- "
-                f"if none does, '{agent}' runs WITHOUT its daemon's services: {services}. {tail}")
+        return (
+            f"[STANDALONE?] cannot tell whether a daemon holds {key} (bus unanswerable) -- "
+            f"if none does, '{agent}' runs WITHOUT its daemon's services: {services}. {tail}"
+        )
     fleet = _any_daemon_live(cli, nsp)
     if fleet is True:
         pump = "another seat's daemon is live, so the discord outbound pump still has a host"
     elif fleet is False:
-        pump = (f"NO {nsp}:daemon:* key is live anywhere -- the discord outbound pump has NO HOST "
-                f"(Discord goes silent while every liveness signal stays green)")
+        pump = (
+            f"NO {nsp}:daemon:* key is live anywhere -- the discord outbound pump has NO HOST "
+            f"(Discord goes silent while every liveness signal stays green)"
+        )
     else:
-        pump = (f"could not enumerate {nsp}:daemon:* -- whether the discord outbound pump "
-                f"has a host is UNKNOWN")
-    return (f"[STANDALONE] no daemon holds {key} -- '{agent}' runs WITHOUT its daemon's "
-            f"services: {services}. Fleet: {pump}. {tail}")
+        pump = f"could not enumerate {nsp}:daemon:* -- whether the discord outbound pump has a host is UNKNOWN"
+    return (
+        f"[STANDALONE] no daemon holds {key} -- '{agent}' runs WITHOUT its daemon's "
+        f"services: {services}. Fleet: {pump}. {tail}"
+    )
 
 
 # ---------------------------------------------------------------- rearm triggers
@@ -187,13 +206,15 @@ def rearm_backlog_state(agent, tmp=None, tolerance_s=REARM_STALE_S):
     import os as _os
     import time as _time
     import tempfile as _tempfile
+
     base = tmp or _tempfile.gettempdir()
     try:
         names = _os.listdir(base)
-    except Exception as e:                                              # noqa: BLE001
-        return "unknown", ("cannot read %s (%s) -- claiming neither direction rather than "
-                           "reporting a health this probe did not observe"
-                           % (base, type(e).__name__))
+    except Exception as e:  # noqa: BLE001
+        return "unknown", (
+            "cannot read %s (%s) -- claiming neither direction rather than "
+            "reporting a health this probe did not observe" % (base, type(e).__name__)
+        )
     prefix = "bifrost_wake_"
     agent_parts = str(agent).split("_")
     now = _time.time()
@@ -203,12 +224,12 @@ def rearm_backlog_state(agent, tmp=None, tolerance_s=REARM_STALE_S):
             continue
         # EXACT-component boundary, mirroring wake_seat.iter_seats: a raw prefix made agent
         # 'codex' enumerate codex_root's files and parse another agent's session id as its own.
-        parts = name[len(prefix):-len(REARM_SUFFIX)].split("_")
+        parts = name[len(prefix) : -len(REARM_SUFFIX)].split("_")
         if len(parts) != len(agent_parts) + 1 or parts[:-1] != agent_parts:
             continue
         try:
             age = now - _os.path.getmtime(_os.path.join(base, name))
-        except Exception:                                               # noqa: BLE001
+        except Exception:  # noqa: BLE001
             continue
         if age > tolerance_s:
             stale.append((parts[-1], age))
@@ -220,11 +241,11 @@ def rearm_backlog_state(agent, tmp=None, tolerance_s=REARM_STALE_S):
         "%d rearm trigger(s) for %s unconsumed past %.0fs -- oldest is session %s at %.0fs. "
         "The daemon process may be perfectly alive; it is not doing its job. Remedy is a "
         "RESTART, not a spawn (a spawn beside a wedged daemon breeds duplicates)."
-        % (len(stale), agent, tolerance_s, oldest_sid, oldest_age))
+        % (len(stale), agent, tolerance_s, oldest_sid, oldest_age)
+    )
 
 
-def consume_rearms(agent: str, spawn_fn: Callable[[str], bool],
-                   tmp: Optional[str] = None) -> int:
+def consume_rearms(agent: str, spawn_fn: Callable[[str], bool], tmp: Optional[str] = None) -> int:
     """Daemon-side: for each of OWN agent's .rearm triggers, call spawn_fn(sid);
     truthy result clears the trigger, falsy/raising leaves it for the next tick.
     Returns the number of successful consumes."""
@@ -238,7 +259,7 @@ def consume_rearms(agent: str, spawn_fn: Callable[[str], bool],
     for name in names:
         if not (name.startswith(prefix) and name.endswith(REARM_SUFFIX)):
             continue
-        sid = name[len(prefix):-len(REARM_SUFFIX)]
+        sid = name[len(prefix) : -len(REARM_SUFFIX)]
         try:
             ok = bool(spawn_fn(sid))
         except Exception as e:
@@ -253,8 +274,13 @@ def consume_rearms(agent: str, spawn_fn: Callable[[str], bool],
                 # fail-open-without-silence shape, and this is its first production consumer --
                 # deliberately the exact boundary where the silence cost us the wake autopilot.
                 from core.outcome import BoundaryOutcome
-                print(f"[rearm] {BoundaryOutcome.caught(e, where=f'spawn({agent})', ref=sid).line()}"
-                      f" -- trigger left for the next tick", file=sys.stderr, flush=True)
+
+                print(
+                    f"[rearm] {BoundaryOutcome.caught(e, where=f'spawn({agent})', ref=sid).line()}"
+                    f" -- trigger left for the next tick",
+                    file=sys.stderr,
+                    flush=True,
+                )
             except Exception:
                 pass
         if ok:
@@ -267,13 +293,14 @@ def consume_rearms(agent: str, spawn_fn: Callable[[str], bool],
 
 
 # ---------------------------------------------------------------- marker janitor (R1)
-def sweep_stale_markers(agent: str, tmp: Optional[str] = None,
-                        now: Optional[float] = None,
-                        max_age_s: int = MARKER_MAX_AGE_S) -> int:
+def sweep_stale_markers(
+    agent: str, tmp: Optional[str] = None, now: Optional[float] = None, max_age_s: int = MARKER_MAX_AGE_S
+) -> int:
     """Remove OWN agent's .alive markers that are BOTH seatless and older than
     the age gate. Never touches a marker whose sid still holds a .pid seat
     (idle-but-alive sessions keep their sibling visibility -- ruling R1)."""
     from core.comm import wake_seat
+
     base = tmp or tempfile.gettempdir()
     prefix = f"bifrost_wake_{agent}_"
     now_f = float(now if now is not None else time.time())
@@ -285,13 +312,13 @@ def sweep_stale_markers(agent: str, tmp: Optional[str] = None,
     for name in names:
         if not (name.startswith(prefix) and name.endswith(".alive")):
             continue
-        sid = name[len(prefix):-len(".alive")]
+        sid = name[len(prefix) : -len(".alive")]
         path = os.path.join(base, name)
         try:
             if os.path.exists(wake_seat.seat_path(agent, sid, base)):
-                continue                      # seated = alive somewhere; keep
+                continue  # seated = alive somewhere; keep
             if (now_f - os.path.getmtime(path)) <= max_age_s:
-                continue                      # young enough to matter; keep
+                continue  # young enough to matter; keep
             os.remove(path)
             removed += 1
         except Exception:
@@ -303,8 +330,7 @@ def rearm_trigger_path(agent: str, session_id: str = "", tmp: Optional[str] = No
     """Mirror of bifrost_wake.rearm_trigger_path -- one shape, two readers (T380: never
     compute one shared derived key twice from different inputs)."""
     base = tmp or tempfile.gettempdir()
-    name = (f"bifrost_wake_{agent}_{session_id}.rearm" if session_id
-            else f"bifrost_wake_{agent}.rearm")
+    name = f"bifrost_wake_{agent}_{session_id}.rearm" if session_id else f"bifrost_wake_{agent}.rearm"
     return os.path.join(base, name)
 
 
@@ -334,6 +360,7 @@ def rearm_orphaned_sessions(agent: str, tmp: Optional[str] = None) -> int:
     job of an out-of-band durable expected-up roster (Wake Doctrine T1/S1, operator-gated).
     """
     from core.comm import wake_seat
+
     base = tmp or tempfile.gettempdir()
     prefix = f"bifrost_wake_{agent}_"
     armed = 0
@@ -344,24 +371,26 @@ def rearm_orphaned_sessions(agent: str, tmp: Optional[str] = None) -> int:
     for name in sorted(names):
         if not (name.startswith(prefix) and name.endswith(".alive")):
             continue
-        sid = name[len(prefix):-len(".alive")]
+        sid = name[len(prefix) : -len(".alive")]
         if not sid:
             continue
         try:
             if os.path.exists(wake_seat.seat_path(agent, sid, base)):
-                continue                    # still seated -> live watcher; never double-arm
+                continue  # still seated -> live watcher; never double-arm
             trig = rearm_trigger_path(agent, sid, base)
             if os.path.exists(trig):
-                continue                    # already requested; idempotent on re-run
-            stamp = time.strftime('%Y-%m-%d %H:%M:%S')
-            note = (f"[{stamp}] daemon startup: re-arming a session orphaned by the daemon's "
-                    f"own restart (no deadline cycle occurred, so the listener left no "
-                    f"trigger of its own)")
+                continue  # already requested; idempotent on re-run
+            stamp = time.strftime("%Y-%m-%d %H:%M:%S")
+            note = (
+                f"[{stamp}] daemon startup: re-arming a session orphaned by the daemon's "
+                f"own restart (no deadline cycle occurred, so the listener left no "
+                f"trigger of its own)"
+            )
             with open(trig, "w", encoding="utf-8") as fh:
                 fh.write(note + "\n")
             armed += 1
         except Exception:
-            continue                        # best-effort: never block daemon startup
+            continue  # best-effort: never block daemon startup
     return armed
 
 
@@ -371,9 +400,9 @@ def _nag_latch_path(agent: str, session_id: str, tmp: Optional[str] = None) -> s
     return os.path.join(base, f"bifrost_wake_{agent}_{session_id}.daemon_nag")
 
 
-def stop_hook_wake_verdict(agent: str, session_id: str, c=None,
-                           ns: Optional[str] = None,
-                           tmp: Optional[str] = None) -> Dict[str, Any]:
+def stop_hook_wake_verdict(
+    agent: str, session_id: str, c=None, ns: Optional[str] = None, tmp: Optional[str] = None
+) -> Dict[str, Any]:
     """The A1 predicate the stop hook consults BEFORE its legacy wake logic.
 
     {"pass": True, "line": ...}         daemon live -> never block; a missing
@@ -381,13 +410,18 @@ def stop_hook_wake_verdict(agent: str, session_id: str, c=None,
     {"pass": False, "nag": bool, ...}   daemon down -> legacy path decides;
                                         nag is True exactly once per session."""
     from core.comm import wake_seat
+
     if daemon_is_live(agent, c=c, ns=ns):
         seated = os.path.exists(wake_seat.seat_path(agent, session_id, tmp))
         if not seated:
             write_rearm_trigger(agent, session_id, tmp)
-        return {"pass": True,
-                "line": (f"[stop-hook] daemon owns wakeability for {agent} "
-                         f"({'listener seated' if seated else 'rearm trigger left'}) -- pass")}
+        return {
+            "pass": True,
+            "line": (
+                f"[stop-hook] daemon owns wakeability for {agent} "
+                f"({'listener seated' if seated else 'rearm trigger left'}) -- pass"
+            ),
+        }
     latch = _nag_latch_path(agent, session_id, tmp)
     nag = not os.path.exists(latch)
     if nag:
@@ -396,15 +430,21 @@ def stop_hook_wake_verdict(agent: str, session_id: str, c=None,
                 f.write(str(time.time()))
         except Exception:
             nag = False
-    return {"pass": False, "nag": nag,
-            # 9e1bc7ce78: the nag names the MODE. consume_rearms runs ONLY under
-            # --manage-listener (bifrost_daemon.py gates it on manage_listener); a flagless
-            # launch is alpha mode, which answers no .rearm trigger and retires nothing.
-            "line": ("[stop-hook] daemon not running -- start it once: "
-                     f"py scripts/bifrost_daemon.py --agent {agent} --manage-listener "
-                     "(retires the arm chore; ONLY the listener-manager mode answers .rearm "
-                     "triggers -- a flagless launch is alpha mode and retires nothing)")
-            if nag else ""}
+    return {
+        "pass": False,
+        "nag": nag,
+        # 9e1bc7ce78: the nag names the MODE. consume_rearms runs ONLY under
+        # --manage-listener (bifrost_daemon.py gates it on manage_listener); a flagless
+        # launch is alpha mode, which answers no .rearm trigger and retires nothing.
+        "line": (
+            "[stop-hook] daemon not running -- start it once: "
+            f"{_pyl()} scripts/bifrost_daemon.py --agent {agent} --manage-listener "
+            "(retires the arm chore; ONLY the listener-manager mode answers .rearm "
+            "triggers -- a flagless launch is alpha mode and retires nothing)"
+        )
+        if nag
+        else "",
+    }
 
 
 # ---------------------------------------------------------------- card runtimes (P5)

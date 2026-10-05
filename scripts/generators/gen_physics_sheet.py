@@ -10,10 +10,22 @@ drills and are explicitly out of scope here (charter M2b, benchmark half).
 Run:  py scripts/generators/gen_physics_sheet.py            # writes docs/PHYSICS.md
       py scripts/generators/gen_physics_sheet.py --check    # exit 1 if the file is stale (for CI/pre-ship)
 """
+
 import os
 import re
 import subprocess
 import sys
+
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+
+        return python_launcher()
+    except Exception:
+        return "py"
+
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # T104-M1 depth
 OUT = os.path.join(ROOT, "docs", "PHYSICS.md")
@@ -28,20 +40,57 @@ SKIP_DIRS = {
     # checked anywhere but the machine that wrote it. (lesson: repo_presentation_cleanup --
     # audit what a visitor sees, not what is local.)
     "scratch",
-    ".git", ".claude", "__pycache__", ".venv", "venv", "node_modules", "backups", "assets",
-    "model_cache", "ollama_data", "rocm-lib", ".pytest_cache", ".mypy_cache",
-    "blobs", "dist", "build", "models", "dockerized-ai", "_archive", "ComfyUI-Zluda",
+    ".git",
+    ".claude",
+    "__pycache__",
+    ".venv",
+    "venv",
+    "node_modules",
+    "backups",
+    "assets",
+    "model_cache",
+    "ollama_data",
+    "rocm-lib",
+    ".pytest_cache",
+    ".mypy_cache",
+    "blobs",
+    "dist",
+    "build",
+    "models",
+    "dockerized-ai",
+    "_archive",
+    "ComfyUI-Zluda",
     # tests/ hold FIXTURE constants (a drill's NOW=, GATE=), not machinery physics -- scanning
     # them made the sheet churn on every new test. The sheet is the MACHINERY's constraints.
     "tests",
 }
 
 # A numeric module constant counts as a BOUND when its name says so.
-_BOUND_WORDS = ("MAX", "MIN", "LIMIT", "TIMEOUT", "TTL", "CAP", "LEN", "BYTES",
-                "CHARS", "_MS", "SEC", "FLOOR", "BUDGET", "INTERVAL", "WINDOW",
-                "DEPTH", "RETR", "STALE", "THRESH")
+_BOUND_WORDS = (
+    "MAX",
+    "MIN",
+    "LIMIT",
+    "TIMEOUT",
+    "TTL",
+    "CAP",
+    "LEN",
+    "BYTES",
+    "CHARS",
+    "_MS",
+    "SEC",
+    "FLOOR",
+    "BUDGET",
+    "INTERVAL",
+    "WINDOW",
+    "DEPTH",
+    "RETR",
+    "STALE",
+    "THRESH",
+)
 
-_FLAG_RE = re.compile(r"""(?:os\.getenv|os\.environ\.get|_int_env|_bool_env)\(\s*["']([A-Z][A-Z0-9_]+)["']\s*(?:,\s*([^)\n]{0,60}))?""")
+_FLAG_RE = re.compile(
+    r"""(?:os\.getenv|os\.environ\.get|_int_env|_bool_env)\(\s*["']([A-Z][A-Z0-9_]+)["']\s*(?:,\s*([^)\n]{0,60}))?"""
+)
 _BOUND_RE = re.compile(r"""^\s*(_?[A-Z][A-Z0-9_]*)\s*=\s*(\d[\d_]*)\s*(?:#\s*(.*))?$""")
 
 
@@ -60,9 +109,9 @@ def _py_files():
     actually has. (lesson: repo_presentation_cleanup -- audit git ls-files, not ls.)
     """
     import subprocess
+
     try:
-        res = subprocess.run(["git", "-C", ROOT, "ls-files", "*.py"],
-                             capture_output=True, text=True, timeout=30)
+        res = subprocess.run(["git", "-C", ROOT, "ls-files", "*.py"], capture_output=True, text=True, timeout=30)
         if res.returncode == 0:
             for rel in sorted(ln.strip() for ln in res.stdout.splitlines() if ln.strip()):
                 parts = rel.split("/")
@@ -74,8 +123,11 @@ def _py_files():
             return
     except (OSError, subprocess.SubprocessError):
         pass
-    print("[warn] git unavailable -- walking the filesystem instead. This sheet may cite "
-          "local-only files and will not reproduce on a fresh clone.", file=sys.stderr)
+    print(
+        "[warn] git unavailable -- walking the filesystem instead. This sheet may cite "
+        "local-only files and will not reproduce on a fresh clone.",
+        file=sys.stderr,
+    )
     for dirpath, dirnames, filenames in os.walk(ROOT):
         dirnames[:] = sorted(d for d in dirnames if d not in SKIP_DIRS)
         for f in sorted(filenames):
@@ -91,7 +143,7 @@ def scan(root_files=None):
     """One walk, two censuses: flags {NAME: [(site, default)]} and bounds
     [(name, value, site, note)]. Pure over file contents -- deterministic by sort."""
     flags, bounds = {}, []
-    for path in (root_files or _py_files()):
+    for path in root_files or _py_files():
         rel = _rel(path)
         try:
             text = open(path, encoding="utf-8", errors="replace").read()
@@ -114,8 +166,7 @@ def scan(root_files=None):
                 flags.setdefault(name, []).append((rel, default))
             m = _BOUND_RE.match(line)
             if m and any(w in m.group(1).upper() for w in _BOUND_WORDS):
-                bounds.append((m.group(1), int(m.group(2).replace("_", "")),
-                               rel, (m.group(3) or "").strip()))
+                bounds.append((m.group(1), int(m.group(2).replace("_", "")), rel, (m.group(3) or "").strip()))
     # Dedupe repeated reads of one flag within one file; keep first-seen default.
     for name, sites in flags.items():
         seen, uniq = set(), []
@@ -129,8 +180,12 @@ def scan(root_files=None):
 
 def _head_sha():
     try:
-        return subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=ROOT,
-                              capture_output=True, text=True, timeout=10).stdout.strip() or "?"
+        return (
+            subprocess.run(
+                ["git", "rev-parse", "--short", "HEAD"], cwd=ROOT, capture_output=True, text=True, timeout=10
+            ).stdout.strip()
+            or "?"
+        )
     except Exception:
         return "?"
 
@@ -142,7 +197,7 @@ def render(flags, bounds, sha):
         "Status: current",
         "Class: reference",
         "",
-        "> Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.",
+        f"> Do NOT edit by hand. Regenerate with `{_pyl()} scripts/generators/gen_physics_sheet.py`.",
         f"> Derived at {sha}. A bound you discover by collision is not awareness -- this sheet",
         "> exists so every clip, cap, timeout and flag is READABLE before it is HIT.",
         "> Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require",
@@ -178,12 +233,15 @@ def main():
         try:
             old = open(OUT, encoding="utf-8").read()
         except OSError:
-            print("PHYSICS.md missing -- regenerate"); return 1
+            print("PHYSICS.md missing -- regenerate")
+            return 1
         # compare bodies minus the derived-at line (sha churn is not staleness)
         strip = lambda t: "\n".join(l for l in t.splitlines() if not l.startswith("> Derived at "))
         if strip(old) != strip(text):
-            print("PHYSICS.md STALE vs code -- regenerate (py scripts/generators/gen_physics_sheet.py)"); return 1
-        print("PHYSICS.md current"); return 0
+            print(f"PHYSICS.md STALE vs code -- regenerate ({_pyl()} scripts/generators/gen_physics_sheet.py)")
+            return 1
+        print("PHYSICS.md current")
+        return 0
     with open(OUT, "w", encoding="utf-8", newline="\n") as fh:
         fh.write(text)
     print(f"wrote {os.path.relpath(OUT, ROOT)}: {len(flags)} flags, {len(bounds)} bounds")

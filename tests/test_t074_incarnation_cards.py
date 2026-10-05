@@ -14,6 +14,7 @@ BUILD REFINEMENTS (flagged, T073 precedent):
   R12  refresh_card on a MISSING card self-heals by publishing fresh (a Redis outage
        window must not leave a session cardless until restart).
 """
+
 import fnmatch
 import json
 import os
@@ -70,7 +71,7 @@ def test_w11_refresh_preserves_started_resets_ttl():
     inc.publish_card("claude", SID, claims=["T074"], c=c)
     key = _key("claude", SID)
     started = json.loads(c.kv[key])["started"]
-    c.ex[key] = 60                       # simulate an aged TTL
+    c.ex[key] = 60  # simulate an aged TTL
     assert inc.refresh_card("claude", SID, c=c) is True
     card = json.loads(c.kv[key])
     assert card["started"] == started, "refresh keeps the birth stamp"
@@ -114,15 +115,16 @@ def _touch_marker(tmp, agent, sid, age_s=0.0):
 def test_r10_cards_merge_with_markers_cards_win(tmp_path):
     c = FakeRedis()
     tmp = str(tmp_path)
-    inc.publish_card("claude", SID, claims=["T074"], c=c)      # card + marker for SID
+    inc.publish_card("claude", SID, claims=["T074"], c=c)  # card + marker for SID
     _touch_marker(tmp, "claude", SID, age_s=60)
-    _touch_marker(tmp, "claude", SID2, age_s=60)               # marker-only sibling (pre-P3 session)
+    _touch_marker(tmp, "claude", SID2, age_s=60)  # marker-only sibling (pre-P3 session)
     out = inc.live_incarnations("claude", tmp=tmp, c=c)
     sids = {o["session_id"] for o in out}
     assert sids == {SID, SID2}, "R10: the migration window keeps marker-only sessions visible"
     carded = next(o for o in out if o["session_id"] == SID)
-    assert carded.get("status") == "active" and carded.get("claims") == ["T074"], \
+    assert carded.get("status") == "active" and carded.get("claims") == ["T074"], (
         "R10: where both exist, the CARD's richer fields win"
+    )
 
 
 def test_r10_own_session_excluded_from_cards(tmp_path):

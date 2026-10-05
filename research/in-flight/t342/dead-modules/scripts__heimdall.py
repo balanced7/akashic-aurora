@@ -13,15 +13,17 @@ wakeable) and clears it on exit. Re-arm by launching it again.
   py scripts/heimdall.py            # watch for 'claude' (default)
   py scripts/heimdall.py deepseek   # watch for any agent -> the onboarding template
 """
+
 import sys, os, json, time, tempfile
+
 REPO = r"E:\AI-Setup"
 sys.path.insert(0, REPO)
 os.chdir(REPO)
 from core.comm.bus import Bus
 
-TOTAL_DEADLINE_S = 1800                    # 30 min, then re-arm even if idle
-INNER_BLOCK_MS = 120_000                   # 2-min inner blocks; loop if a batch is all noise
-SKIP_KINDS = {"trace", "reply", "steer"}   # noise / non-reply kinds -> keep waiting
+TOTAL_DEADLINE_S = 1800  # 30 min, then re-arm even if idle
+INNER_BLOCK_MS = 120_000  # 2-min inner blocks; loop if a batch is all noise
+SKIP_KINDS = {"trace", "reply", "steer"}  # noise / non-reply kinds -> keep waiting
 
 AGENT = (sys.argv[1] if len(sys.argv) > 1 else "claude").strip() or "claude"
 HEARTBEAT = os.path.join(tempfile.gettempdir(), f"heimdall_{AGENT}.pid")
@@ -50,7 +52,8 @@ def watch():
         try:
             msgs = b.wait(timeout_ms=INNER_BLOCK_MS, advance=True)
         except Exception as e:
-            print("HEIMDALL_ERROR: " + str(e)); return
+            print("HEIMDALL_ERROR: " + str(e))
+            return
         for m in msgs:
             frm = str(getattr(m, "frm", "?"))
             kind = str(getattr(m, "kind", "?"))
@@ -59,8 +62,8 @@ def watch():
                 continue
             out.append({"frm": frm, "kind": kind, "text": str(getattr(m, "content", "") or "")[:2000]})
     if out:
-        print(f"GJALLARHORN -- messages for {AGENT}:")   # the wake signal
-        print(json.dumps(out, indent=1))                  # ensure_ascii=True -> cp1252-safe stdout on Windows
+        print(f"GJALLARHORN -- messages for {AGENT}:")  # the wake signal
+        print(json.dumps(out, indent=1))  # ensure_ascii=True -> cp1252-safe stdout on Windows
     else:
         print(f"QUIET 30min for {AGENT} (saw: " + ", ".join(seen[-12:]) + ")")
 

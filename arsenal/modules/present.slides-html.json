@@ -108,7 +108,7 @@
         "slides": 22,
         "files": 23
       },
-      "how": "py -m pytest tests/test_present_family.py -q from E:/AI-Setup; the scene is scratchpad deck/v2/scene.json or tests/fixtures/present/mail-and-wake-v2.scene.json"
+      "how": "py -m pytest tests/test_present_family.py -q from the repo root; the scene is scratchpad deck/v2/scene.json or tests/fixtures/present/mail-and-wake-v2.scene.json"
     },
     {
       "at": "2026-09-29",

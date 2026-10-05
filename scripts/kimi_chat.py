@@ -27,6 +27,7 @@ Key: env KIMI_API_KEY else .secrets/kimi.key. OpenAI-compatible chat completions
 https://api.moonshot.ai/v1 (tool calling verified live 2026-07-18; the /anthropic door exists
 for harness sessions and is NOT this transport).
 """
+
 from __future__ import annotations
 
 import json
@@ -45,11 +46,11 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 BASE_URL = "https://api.moonshot.ai/v1"
 K3, K27_CODE, K27_FAST, K26 = "kimi-k3", "kimi-k2.7-code", "kimi-k2.7-code-highspeed", "kimi-k2.6"
 DEFAULT_MODEL = os.getenv("KIMI_MODEL", K3)
-DEFAULT_EFFORT = os.getenv("KIMI_EFFORT", "max")     # only API level today; param-ready
+DEFAULT_EFFORT = os.getenv("KIMI_EFFORT", "max")  # only API level today; param-ready
 # Thinking rides INSIDE completion tokens (probe-verified) -- cap generously or get empty answers.
 MAX_COMPLETION_TOKENS = int(os.getenv("KIMI_RUNNER_MAX_TOKENS", "8000"))
 KIMI_CONNECT_TIMEOUT = float(os.getenv("KIMI_CONNECT_TIMEOUT", "15"))
-KIMI_READ_TIMEOUT = float(os.getenv("KIMI_READ_TIMEOUT", "180"))   # thinking turns run long
+KIMI_READ_TIMEOUT = float(os.getenv("KIMI_READ_TIMEOUT", "180"))  # thinking turns run long
 KIMI_MAX_RETRIES = int(os.getenv("KIMI_MAX_RETRIES", "1"))
 
 # $/M tokens: (input cache-MISS, input cache-HIT, output). k3 firm (official pricing page);
@@ -57,16 +58,16 @@ KIMI_MAX_RETRIES = int(os.getenv("KIMI_MAX_RETRIES", "1"))
 PRICES = {
     K3: (3.00, 0.30, 15.00),
 }
-FALLBACK_PRICE = PRICES[K3]                     # unknown model -> most expensive known (conservative)
+FALLBACK_PRICE = PRICES[K3]  # unknown model -> most expensive known (conservative)
 STARTING_BUDGET = float(os.getenv("KIMI_BUDGET_USD", "105.0"))
-WARN_AT = float(os.getenv("KIMI_SPEND_WARN", "80.0"))      # $ spent (ACL reason: warn-$80)
+WARN_AT = float(os.getenv("KIMI_SPEND_WARN", "80.0"))  # $ spent (ACL reason: warn-$80)
 REFUSE_AT = float(os.getenv("KIMI_SPEND_REFUSE", "95.0"))  # $ spent (ACL reason: refuse-$95)
 # The grant these two thresholds were written against. They are RATIOS of this basis, not
 # absolute dollars -- SpendMeter._scale() re-derives the effective line from the CURRENT budget,
 # so a provider credit buys real runway instead of a bigger number next to a stuck gate.
 GRANT_BASIS = float(os.getenv("KIMI_GRANT_BASIS_USD", "105.0"))
 SPEND_FILE = Path(os.getenv("KIMI_SPEND_FILE", str(REPO_ROOT / "state" / "kimi_spend.json")))
-RECONCILE_DRIFT_USD = 0.50                       # deepseek contract: snap to balance beyond this
+RECONCILE_DRIFT_USD = 0.50  # deepseek contract: snap to balance beyond this
 
 
 def load_key() -> str | None:
@@ -82,16 +83,20 @@ def load_key() -> str | None:
 
 def make_client(api_key=None, base_url=BASE_URL):
     """Kimi wrap of the shared hardening factory (K0): kimi owns only its env conventions."""
-    return make_openai_compat_client(api_key or load_key(), base_url,
-                                     connect_timeout=KIMI_CONNECT_TIMEOUT,
-                                     read_timeout=KIMI_READ_TIMEOUT,
-                                     max_retries=KIMI_MAX_RETRIES)
+    return make_openai_compat_client(
+        api_key or load_key(),
+        base_url,
+        connect_timeout=KIMI_CONNECT_TIMEOUT,
+        read_timeout=KIMI_READ_TIMEOUT,
+        max_retries=KIMI_MAX_RETRIES,
+    )
 
 
 def fetch_balance(timeout=20):
     """Ground truth: GET /users/me/balance -> float USD available, or None (fail-soft).
     COARSE/lazily-updated upstream (probe-verified) -- reconciliation input, never a per-turn meter."""
     import urllib.request
+
     key = load_key()
     if not key:
         return None
@@ -112,16 +117,25 @@ class SpendMeter:
 
     def __init__(self, path: Path = SPEND_FILE, budget: float = STARTING_BUDGET):
         import threading
+
         self.path = Path(path)
-        self._lock = threading.Lock()   # B1 rider: responder thread + heartbeat reconcile interleave
-        self.state = {"spent_usd": 0.0, "turns": 0, "prompt_tokens": 0, "cached_tokens": 0,
-                      "completion_tokens": 0, "last_reconcile_ts": 0.0, "last_balance": None,
-                      "seeded": False, "budget": budget}
+        self._lock = threading.Lock()  # B1 rider: responder thread + heartbeat reconcile interleave
+        self.state = {
+            "spent_usd": 0.0,
+            "turns": 0,
+            "prompt_tokens": 0,
+            "cached_tokens": 0,
+            "completion_tokens": 0,
+            "last_reconcile_ts": 0.0,
+            "last_balance": None,
+            "seeded": False,
+            "budget": budget,
+        }
         try:
             if self.path.exists():
                 self.state.update(json.loads(self.path.read_text(encoding="utf-8")))
         except Exception:
-            pass   # unreadable sidecar -> fresh state; the boot reconcile re-seeds truth
+            pass  # unreadable sidecar -> fresh state; the boot reconcile re-seeds truth
         # Budget PERSISTS (claude rider on the deepseek sketch): provider credits raise it, and
         # a restart must not forget the raised runway. Grant floor: never below the constructor's.
         self.budget = max(float(self.state.get("budget") or budget), budget)
@@ -135,14 +149,16 @@ class SpendMeter:
                 tmp.write_text(json.dumps(self.state, indent=2), encoding="utf-8")
                 os.replace(tmp, self.path)
         except Exception:
-            pass   # metering must never break the seat; reconcile re-grounds later
+            pass  # metering must never break the seat; reconcile re-grounds later
 
     @staticmethod
     def _cached_tokens(usage) -> int:
         """Both reporting dialects checked (anthropic door: top-level cached_tokens; OpenAI
         style: prompt_tokens_details.cached_tokens). Absent -> 0 -> bills full price."""
-        for probe in (lambda u: u.get("cached_tokens"),
-                      lambda u: (u.get("prompt_tokens_details") or {}).get("cached_tokens")):
+        for probe in (
+            lambda u: u.get("cached_tokens"),
+            lambda u: (u.get("prompt_tokens_details") or {}).get("cached_tokens"),
+        ):
             try:
                 v = probe(usage)
                 if v:
@@ -159,8 +175,7 @@ class SpendMeter:
             try:
                 usage = usage.model_dump()
             except Exception:
-                usage = {k: getattr(usage, k, 0) for k in
-                         ("prompt_tokens", "completion_tokens", "total_tokens")}
+                usage = {k: getattr(usage, k, 0) for k in ("prompt_tokens", "completion_tokens", "total_tokens")}
         prompt = int(usage.get("prompt_tokens") or 0)
         completion = int(usage.get("completion_tokens") or 0)
         cached = min(self._cached_tokens(usage), prompt)
@@ -198,19 +213,22 @@ class SpendMeter:
                     # than the wallet lost, correct UPWARD (conservative); reconcile never
                     # reduces spent_usd -- credits are the only downward force and they raise
                     # the BUDGET, not lower the spend.
-                    fine_delta = round(self.state["spent_usd"]
-                                       - float(self.state.get("spent_at_reconcile") or 0.0), 6)
+                    fine_delta = round(self.state["spent_usd"] - float(self.state.get("spent_at_reconcile") or 0.0), 6)
                     under = delta - fine_delta
                     if under > RECONCILE_DRIFT_USD:
                         self.state["spent_usd"] = round(self.state["spent_usd"] + under, 6)
-                        print(f"[kimi-spend] AUDIT: wallet lost ${delta:.2f} vs metered "
-                              f"${fine_delta:.2f} this window -- spent corrected +${under:.2f}")
+                        print(
+                            f"[kimi-spend] AUDIT: wallet lost ${delta:.2f} vs metered "
+                            f"${fine_delta:.2f} this window -- spent corrected +${under:.2f}"
+                        )
                 elif delta < 0:
                     credit = -delta
                     self.budget = round(self.budget + credit, 6)
                     self.state["budget"] = self.budget
-                    print(f"[kimi-spend] PROVIDER CREDIT: ${credit:.2f} -- "
-                          f"budget raised to ${self.budget:.2f} (free money is an event)")
+                    print(
+                        f"[kimi-spend] PROVIDER CREDIT: ${credit:.2f} -- "
+                        f"budget raised to ${self.budget:.2f} (free money is an event)"
+                    )
             self.state["last_balance"] = bal
             self.state["spent_at_reconcile"] = self.state["spent_usd"]
         self._save()
@@ -256,10 +274,12 @@ class SpendMeter:
 
     def status_line(self) -> str:
         b = self.state.get("last_balance")
-        return (f"kimi spend ${self.spent():.2f} of ${self.budget:.0f} "
-                f"(warn {self.warn_at():.0f} / refuse {self.refuse_at():.0f}; "
-                f"cached {self.state['cached_tokens']:,}/{self.state['prompt_tokens']:,} in-tok; "
-                f"balance {'?' if b is None else f'${b:.2f}'})")
+        return (
+            f"kimi spend ${self.spent():.2f} of ${self.budget:.0f} "
+            f"(warn {self.warn_at():.0f} / refuse {self.refuse_at():.0f}; "
+            f"cached {self.state['cached_tokens']:,}/{self.state['prompt_tokens']:,} in-tok; "
+            f"balance {'?' if b is None else f'${b:.2f}'})"
+        )
 
 
 class KimiAgent:
@@ -274,26 +294,43 @@ class KimiAgent:
     is [system] + history + tools, byte-stable at the front. Violating this multiplies input
     cost ~10x, so treat any prefix mutation as a defect, not a style choice."""
 
-    def __init__(self, *, instructions, model=DEFAULT_MODEL, effort=DEFAULT_EFFORT,
-                 max_completion_tokens=MAX_COMPLETION_TOKENS, tools_schemas=None, dispatch=None,
-                 interrupt=None, inject=None, on_trace=None, on_activity=None, max_hops=None,
-                 client=None, meter: SpendMeter | None = None,
-                 temperature=None, top_p=None):
+    def __init__(
+        self,
+        *,
+        instructions,
+        model=DEFAULT_MODEL,
+        effort=DEFAULT_EFFORT,
+        max_completion_tokens=MAX_COMPLETION_TOKENS,
+        tools_schemas=None,
+        dispatch=None,
+        interrupt=None,
+        inject=None,
+        on_trace=None,
+        on_activity=None,
+        max_hops=None,
+        client=None,
+        meter: SpendMeter | None = None,
+        temperature=None,
+        top_p=None,
+    ):
         if temperature is not None or top_p is not None:
-            print("[kimi] WARN: temperature/top_p are FIXED server-side (1.0/0.95) -- "
-                  "ignoring the requested values (delta 2)", flush=True)
+            print(
+                "[kimi] WARN: temperature/top_p are FIXED server-side (1.0/0.95) -- "
+                "ignoring the requested values (delta 2)",
+                flush=True,
+            )
         self.model, self.effort = model, effort
         self.max_completion_tokens = max_completion_tokens
-        self._system = str(instructions)                    # frozen (cache contract)
-        self._tools = tuple(tools_schemas) if tools_schemas else None   # frozen
+        self._system = str(instructions)  # frozen (cache contract)
+        self._tools = tuple(tools_schemas) if tools_schemas else None  # frozen
         self.dispatch = dispatch
         self.interrupt, self.inject = interrupt, inject
         self.on_trace, self.on_activity = on_trace, on_activity
         self.max_hops = int(os.getenv("KIMI_MAX_HOPS", "30")) if max_hops is None else max_hops
-        self.history: list = []                             # append-only (cache contract)
+        self.history: list = []  # append-only (cache contract)
         self.input_tokens = self.output_tokens = 0
         self.meter = meter or SpendMeter()
-        self._client = client                               # injectable for pins
+        self._client = client  # injectable for pins
         self.last_response = None
 
     @property
@@ -322,9 +359,11 @@ class KimiAgent:
     def request_kwargs(self):
         """Exact create() kwargs -- split out so pins assert the shape (incl. prefix stability)
         offline. reasoning_effort rides extra_body only when it differs from the server default."""
-        kw = {"model": self.model,
-              "messages": [{"role": "system", "content": self._system}] + self.history,
-              "max_completion_tokens": self.max_completion_tokens}
+        kw = {
+            "model": self.model,
+            "messages": [{"role": "system", "content": self._system}] + self.history,
+            "max_completion_tokens": self.max_completion_tokens,
+        }
         if self._tools:
             kw["tools"] = list(self._tools)
         if self.effort and self.effort != "max":
@@ -348,9 +387,13 @@ class KimiAgent:
             if self.interrupt and self.interrupt():
                 return "[kimi paused mid-task by interjection -- resume to continue]"
             if self.inject:
-                for fact in (self.inject() or []):
-                    self.history.append({"role": "user",
-                        "content": f"[STEER -- new fact to fold into the live task, keep going]: {fact}"})
+                for fact in self.inject() or []:
+                    self.history.append(
+                        {
+                            "role": "user",
+                            "content": f"[STEER -- new fact to fold into the live task, keep going]: {fact}",
+                        }
+                    )
             self._activity("thinking", f"hop {hop}")
             resp = self.client.chat.completions.create(**self.request_kwargs())
             self.last_response = resp
@@ -363,16 +406,20 @@ class KimiAgent:
             thinking = getattr(msg, "reasoning_content", None)
             if thinking:
                 for i in range(0, len(thinking), 700):
-                    self._trace("think", thinking[i:i + 700])
-            text = (msg.content or "").strip()               # delta 5: content ONLY
+                    self._trace("think", thinking[i : i + 700])
+            text = (msg.content or "").strip()  # delta 5: content ONLY
             calls = list(getattr(msg, "tool_calls", None) or [])
             # chat round-trip: echo the assistant turn (sans reasoning) then each tool result
             echo = {"role": "assistant", "content": msg.content or ""}
             if calls:
                 echo["tool_calls"] = [
-                    {"id": c.id, "type": "function",
-                     "function": {"name": c.function.name, "arguments": c.function.arguments}}
-                    for c in calls]
+                    {
+                        "id": c.id,
+                        "type": "function",
+                        "function": {"name": c.function.name, "arguments": c.function.arguments},
+                    }
+                    for c in calls
+                ]
             self.history.append(echo)
             if not calls:
                 return text or "(kimi produced no final text)"
@@ -385,10 +432,13 @@ class KimiAgent:
                 self._trace("tool", f"{c.function.name}({json.dumps(args)[:200]})")
                 self._activity("tool", c.function.name)
                 out = self._run_tool(c.function.name, args)
-                self.history.append({"role": "tool", "tool_call_id": c.id,
-                                     "content": f"[hop {hop}/{self.max_hops}] {out}"[:20000]})
-        return (f"{partial}\n[kimi tool budget exhausted at {self.max_hops} hops -- "
-                f"partial answer above; re-ask to continue]").strip()
+                self.history.append(
+                    {"role": "tool", "tool_call_id": c.id, "content": f"[hop {hop}/{self.max_hops}] {out}"[:20000]}
+                )
+        return (
+            f"{partial}\n[kimi tool budget exhausted at {self.max_hops} hops -- "
+            f"partial answer above; re-ask to continue]"
+        ).strip()
 
 
 if __name__ == "__main__":
@@ -397,16 +447,21 @@ if __name__ == "__main__":
         meter = SpendMeter()
         meter.reconcile(force=True)
         print("pre :", meter.status_line())
-        ag = KimiAgent(instructions="You are kimi, smoke-testing your seat transport.",
-                       meter=meter)
+        ag = KimiAgent(instructions="You are kimi, smoke-testing your seat transport.", meter=meter)
         print("text=", repr(ag.send("Reply with exactly: KIMI TRANSPORT LIVE")))
-        calc = [{"type": "function", "function": {"name": "calc",
-                 "description": "evaluate arithmetic",
-                 "parameters": {"type": "object",
-                                "properties": {"expr": {"type": "string"}},
-                                "required": ["expr"]}}}]
-        ag2 = KimiAgent(instructions="Use tools when asked.", tools_schemas=calc,
-                        dispatch=lambda n, a: "42", meter=meter)
+        calc = [
+            {
+                "type": "function",
+                "function": {
+                    "name": "calc",
+                    "description": "evaluate arithmetic",
+                    "parameters": {"type": "object", "properties": {"expr": {"type": "string"}}, "required": ["expr"]},
+                },
+            }
+        ]
+        ag2 = KimiAgent(
+            instructions="Use tools when asked.", tools_schemas=calc, dispatch=lambda n, a: "42", meter=meter
+        )
         print("tool round-trip:", repr(ag2.send("What is 6*7? Use the calc tool, then answer.")))
         u = ag2.last_response.usage
         print("last usage:", u.model_dump() if hasattr(u, "model_dump") else u)

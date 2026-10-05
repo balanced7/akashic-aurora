@@ -16,6 +16,7 @@ survivable, and they are written to run offline with no network, no peer and no 
             7 existed. On 2026-09-04 our door shut and thirteen days of mail was refused at the wire;
             nothing on either side could tell. That silence is what these pins outlaw.
 """
+
 import base64
 import json
 
@@ -35,8 +36,13 @@ def bob():
     return seal.generate_identity()
 
 
-INNER = {"id": "vandor-test-1", "frm": "vandor", "kind": "handoff",
-         "content": "the playbook is unfetchable while your door is shut", "sent_at": 1789700000}
+INNER = {
+    "id": "vandor-test-1",
+    "frm": "vandor",
+    "kind": "handoff",
+    "content": "the playbook is unfetchable while your door is shut",
+    "sent_at": 1789700000,
+}
 
 
 def _sealed(alice, bob, **kw):
@@ -69,7 +75,7 @@ def test_a_rewritten_seq_is_refused(alice, bob):
     """THE pin. Box authenticates the body and says nothing about the header; the detached
     signature is what stops a midpoint from editing routing it must be able to read."""
     env = _sealed(alice, bob, seq=7)
-    env["seq"] = 6                                        # a midpoint erasing a gap it caused
+    env["seq"] = 6  # a midpoint erasing a gap it caused
     with pytest.raises(seal.SealRefused):
         seal.unseal(env, recipient=bob, sender_public=alice["verify_public"], me="serge")
 
@@ -94,25 +100,42 @@ def test_tampered_ciphertext_is_refused(alice, bob):
 def test_a_stranger_cannot_forge_and_the_wrong_recipient_cannot_open(alice, bob):
     mallory = seal.generate_identity()
     env = _sealed(alice, bob)
-    with pytest.raises(seal.SealRefused):                  # signed by alice, claimed as mallory
+    with pytest.raises(seal.SealRefused):  # signed by alice, claimed as mallory
         seal.unseal(env, recipient=bob, sender_public=mallory["verify_public"], me="serge")
-    with pytest.raises(seal.SealRefused):                  # sealed to bob, opened by mallory
+    with pytest.raises(seal.SealRefused):  # sealed to bob, opened by mallory
         seal.unseal(env, recipient=mallory, sender_public=alice["verify_public"], me="serge")
 
 
 def test_replay_outside_the_window_is_refused(alice, bob):
     env = _sealed(alice, bob, created_at=1_000_000)
     with pytest.raises(seal.SealRefused):
-        seal.unseal(env, recipient=bob, sender_public=alice["verify_public"], me="serge",
-                    now=1_000_000 + 10_000, within_s=300)
+        seal.unseal(
+            env, recipient=bob, sender_public=alice["verify_public"], me="serge", now=1_000_000 + 10_000, within_s=300
+        )
 
 
 def test_ciphertext_is_padded_into_buckets(alice, bob):
     """The midpoint learns a size bucket, not a length — the one thing it can genuinely observe."""
-    short = seal.seal({**INNER, "content": "hi"}, sender=alice, recipient_public=bob["seal_public"],
-                      to="serge", frm="daniil", seq=1, prev="", epoch="e1")
-    longer = seal.seal({**INNER, "content": "x" * 900}, sender=alice,
-                       recipient_public=bob["seal_public"], to="serge", frm="daniil", seq=2, prev="", epoch="e1")
+    short = seal.seal(
+        {**INNER, "content": "hi"},
+        sender=alice,
+        recipient_public=bob["seal_public"],
+        to="serge",
+        frm="daniil",
+        seq=1,
+        prev="",
+        epoch="e1",
+    )
+    longer = seal.seal(
+        {**INNER, "content": "x" * 900},
+        sender=alice,
+        recipient_public=bob["seal_public"],
+        to="serge",
+        frm="daniil",
+        seq=2,
+        prev="",
+        epoch="e1",
+    )
     assert len(base64.b64decode(short["ct"])) == len(base64.b64decode(longer["ct"]))
     assert len(base64.b64decode(short["ct"])) in seal.PAD_BUCKETS_CT
 
@@ -120,8 +143,16 @@ def test_ciphertext_is_padded_into_buckets(alice, bob):
 def test_a_control_verb_never_crosses_even_sealed(alice, bob):
     """The allowlist moves inside the ciphertext; it does not stop applying there."""
     with pytest.raises(seal.SealRefused):
-        seal.seal({**INNER, "kind": "halt"}, sender=alice, recipient_public=bob["seal_public"],
-                  to="serge", frm="daniil", seq=1, prev="", epoch="e1")
+        seal.seal(
+            {**INNER, "kind": "halt"},
+            sender=alice,
+            recipient_public=bob["seal_public"],
+            to="serge",
+            frm="daniil",
+            seq=1,
+            prev="",
+            epoch="e1",
+        )
 
 
 # --------------------------------------------------------------------------------------- 2. chain
@@ -155,7 +186,7 @@ def test_a_gap_is_reported_not_silently_tolerated(tmp_path):
 def test_out_of_order_arrival_is_not_a_false_gap(tmp_path):
     c = seal.Chain(tmp_path / "chain.json")
     c.observe_in("serge", seq=1, mid="m1", prev="", epoch="e1", verified=True)
-    c.observe_in("serge", seq=3, mid="m3", prev="m2", epoch="e1", verified=True)   # reports [2]
+    c.observe_in("serge", seq=3, mid="m3", prev="m2", epoch="e1", verified=True)  # reports [2]
     assert c.observe_in("serge", seq=2, mid="m2", prev="m1", epoch="e1", verified=True)["missing"] == []
     assert c.missing("serge") == [], "2 arrived late; it is no longer missing"
 

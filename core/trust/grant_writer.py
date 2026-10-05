@@ -25,6 +25,7 @@ therefore validated in memory, written to a temp file in the same directory, and
 os.replace -- and the original is restored if anything raises. "Corrupt the file" must never be
 an available primitive, for an attacker OR for a full disk.
 """
+
 from __future__ import annotations
 
 import json
@@ -48,8 +49,10 @@ def _read_doc() -> dict:
     path = registry.acl_path()
     doc = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(doc.get("grants"), list):
-        raise ValueError(f"{path} has no grants[] array -- refusing to write a file "
-                         f"whose shape is not the one this module understands")
+        raise ValueError(
+            f"{path} has no grants[] array -- refusing to write a file "
+            f"whose shape is not the one this module understands"
+        )
     return doc
 
 
@@ -62,7 +65,7 @@ def _write_doc(doc: dict) -> None:
     """
     path = registry.acl_path()
     payload = json.dumps(doc, indent=2, ensure_ascii=False) + "\n"
-    json.loads(payload)                       # parse what we are about to write, not what we meant
+    json.loads(payload)  # parse what we are about to write, not what we meant
 
     d = os.path.dirname(str(path)) or "."
     fd, tmp = tempfile.mkstemp(dir=d, prefix=".acl-", suffix=".tmp")
@@ -70,15 +73,15 @@ def _write_doc(doc: dict) -> None:
         with os.fdopen(fd, "w", encoding="utf-8") as f:
             f.write(payload)
             f.flush()
-            os.fsync(f.fileno())              # the swap is only atomic if the bytes are durable
+            os.fsync(f.fileno())  # the swap is only atomic if the bytes are durable
         os.replace(tmp, str(path))
     except Exception:
         try:
-            os.unlink(tmp)                    # a failed write leaves NOTHING behind, not even litter
+            os.unlink(tmp)  # a failed write leaves NOTHING behind, not even litter
         except OSError:
             pass
         raise
-    registry._CACHE["mtime"] = None           # the in-process cache must not serve the old answer
+    registry._CACHE["mtime"] = None  # the in-process cache must not serve the old answer
 
 
 def _granter(by: str):
@@ -90,7 +93,8 @@ def _granter(by: str):
         raise PermissionError(
             f"'{by}' resolves to role '{g.role}', which does not hold {Cap.ADMIN_GRANT.value}. "
             f"Only a super-admin mints grants. (This door refuses; it does not authenticate -- "
-            f"see the module docstring.)")
+            f"see the module docstring.)"
+        )
     return g
 
 
@@ -98,18 +102,24 @@ def _bounded_by_granter(granter, caps: set, path_scope: list) -> None:
     """No granting what you do not hold. Caps AND scope, because scope is a capability too."""
     extra = {c.value for c in caps} - {c.value for c in granter.caps}
     if extra:
-        raise PermissionError(
-            f"'{granter.agent_id}' cannot grant capabilities it does not hold: {sorted(extra)}")
+        raise PermissionError(f"'{granter.agent_id}' cannot grant capabilities it does not hold: {sorted(extra)}")
     if path_scope and "*" not in granter.path_scope:
         outside = [s for s in path_scope if s not in granter.path_scope]
         if outside:
-            raise PermissionError(
-                f"'{granter.agent_id}' cannot grant a path scope wider than its own: {outside}")
+            raise PermissionError(f"'{granter.agent_id}' cannot grant a path scope wider than its own: {outside}")
 
 
-def grant(agent_id: str, role: str, by: str, reason: str,
-          hours: float = None, permanent: bool = False,
-          caps=None, path_scope=None, request_ref: str = None) -> dict:
+def grant(
+    agent_id: str,
+    role: str,
+    by: str,
+    reason: str,
+    hours: float = None,
+    permanent: bool = False,
+    caps=None,
+    path_scope=None,
+    request_ref: str = None,
+) -> dict:
     """Write one grant. Returns the record written. Raises rather than half-writing.
 
     Time-boxed by default: pass `hours`, or say `permanent=True` out loud. 10 of the 11 grants
@@ -119,8 +129,10 @@ def grant(agent_id: str, role: str, by: str, reason: str,
     if not agent_id:
         raise ValueError("grant needs an agent_id")
     if not str(reason or "").strip():
-        raise ValueError("grant needs a reason -- an unexplained grant is the one nobody can "
-                         "safely revoke later, because no one knows what it was for")
+        raise ValueError(
+            "grant needs a reason -- an unexplained grant is the one nobody can "
+            "safely revoke later, because no one knows what it was for"
+        )
     if role not in ROLE_TEMPLATES:
         raise ValueError(f"unknown role '{role}' (known: {sorted(ROLE_TEMPLATES)})")
     if permanent and hours:
@@ -130,7 +142,8 @@ def grant(agent_id: str, role: str, by: str, reason: str,
             raise ValueError(
                 "a grant must be time-boxed (--hours N) or explicitly --permanent. T151: an "
                 "OBSERVED time box is a deadline; the danger was never the expiry, it was that "
-                "nothing rendered it.")
+                "nothing rendered it."
+            )
         if hours <= 0 or hours > MAX_HOURS:
             raise ValueError(f"--hours must be in (0, {MAX_HOURS}]")
 
@@ -138,7 +151,8 @@ def grant(agent_id: str, role: str, by: str, reason: str,
     if agent_id == by:
         raise PermissionError(
             f"'{by}' may not grant to itself. Self-escalation through this file is the primitive "
-            f"core/comm/toolbox.py:862 names by name; a second party mints your authority.")
+            f"core/comm/toolbox.py:862 names by name; a second party mints your authority."
+        )
 
     tmpl = ROLE_TEMPLATES[role]
     eff_caps = caps_from(caps) if caps is not None else set(tmpl["caps"])
@@ -147,8 +161,7 @@ def grant(agent_id: str, role: str, by: str, reason: str,
 
     expires_at = None
     if not permanent:
-        expires_at = (datetime.now(timezone.utc)
-                      + timedelta(hours=float(hours))).strftime("%Y-%m-%dT%H:%M:%SZ")
+        expires_at = (datetime.now(timezone.utc) + timedelta(hours=float(hours))).strftime("%Y-%m-%dT%H:%M:%SZ")
 
     rec = {
         "agent_id": agent_id,
@@ -186,16 +199,23 @@ def revoke(agent_id: str, by: str, reason: str) -> dict:
         raise ValueError(f"no grant for '{agent_id}' to revoke")
     doc["grants"] = [g for g in doc["grants"] if g.get("agent_id") != agent_id]
     _write_doc(doc)
-    return {"agent_id": agent_id, "removed": before - len(doc["grants"]),
-            "was": removed[0], "revoked_by": by, "reason": reason, "at": _now_iso()}
+    return {
+        "agent_id": agent_id,
+        "removed": before - len(doc["grants"]),
+        "was": removed[0],
+        "revoked_by": by,
+        "reason": reason,
+        "at": _now_iso(),
+    }
 
 
 def listing() -> list:
     """Every stored grant as a plain dict, newest-expiring first. Read-only."""
     doc = _read_doc()
-    return sorted(doc.get("grants", []),
-                  key=lambda g: (g.get("expires_at") is None, str(g.get("expires_at") or ""),
-                                 str(g.get("agent_id"))))
+    return sorted(
+        doc.get("grants", []),
+        key=lambda g: (g.get("expires_at") is None, str(g.get("expires_at") or ""), str(g.get("agent_id"))),
+    )
 
 
 def bootstrap(by: str = "operator") -> dict:
@@ -209,29 +229,35 @@ def bootstrap(by: str = "operator") -> dict:
     must never mint an empty authority file from nothing. Grants are NOT minted here, so no
     granter guard applies; the event journal records who ran it."""
     import socket
+
     try:
-        doc = _read_doc()                               # raises on missing/corrupt -- the refusal
+        doc = _read_doc()  # raises on missing/corrupt -- the refusal
     except FileNotFoundError:
         raise ValueError(
             "no ACL file to bootstrap -- bootstrap preserves THIS instance's grants, it never "
-            "mints a fresh authority file from nothing; mint grants with `grant` first")
+            "mints a fresh authority file from nothing; mint grants with `grant` first"
+        )
     before = list(doc.get("grants", []))
     doc["_instance"] = {
         "hostname": socket.gethostname(),
         "bootstrapped_at": _now_iso(),
         "note": "instance-local marker (t384-acl-instance-split): makes the peer's pull "
-                "conflict LOUD. Grants above are untouched.",
+        "conflict LOUD. Grants above are untouched.",
     }
     _write_doc(doc)
     try:
         from core.events.event_log import capture_event
-        capture_event("acl_bootstrap",
-                      f"ACL bootstrapped for instance {doc['_instance']['hostname']} "
-                      f"({len(before)} grants preserved)",
-                      agent_id=by, detail={"hostname": doc["_instance"]["hostname"],
-                                           "grants_preserved": len(before)})
+
+        capture_event(
+            "acl_bootstrap",
+            f"ACL bootstrapped for instance {doc['_instance']['hostname']} ({len(before)} grants preserved)",
+            agent_id=by,
+            detail={"hostname": doc["_instance"]["hostname"], "grants_preserved": len(before)},
+        )
     except Exception:
-        pass   # the journal is audit, never the gate
-    return {"hostname": doc["_instance"]["hostname"],
-            "bootstrapped_at": doc["_instance"]["bootstrapped_at"],
-            "grants_preserved": len(before)}
+        pass  # the journal is audit, never the gate
+    return {
+        "hostname": doc["_instance"]["hostname"],
+        "bootstrapped_at": doc["_instance"]["bootstrapped_at"],
+        "grants_preserved": len(before),
+    }

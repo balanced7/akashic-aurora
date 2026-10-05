@@ -3,6 +3,7 @@
 Fast and independent of any other arsenal file: builds its own synthetic clips in
 tmp_path and loads analysis.py directly if arsenal/__init__.py isn't there yet.
 """
+
 from __future__ import annotations
 
 import importlib.util
@@ -19,11 +20,10 @@ _ARSENAL_DIR = Path(__file__).resolve().parent.parent / "arsenal"
 def _load_analysis():
     try:
         from arsenal import analysis  # type: ignore
+
         return analysis
     except ImportError:
-        spec = importlib.util.spec_from_file_location(
-            "arsenal_analysis_standalone", _ARSENAL_DIR / "analysis.py"
-        )
+        spec = importlib.util.spec_from_file_location("arsenal_analysis_standalone", _ARSENAL_DIR / "analysis.py")
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)  # type: ignore[union-attr]
         return module
@@ -72,7 +72,7 @@ def _make_clip(path: Path, *, with_audio: bool) -> None:
         chunk = 1024
         apts = 0
         for start in range(0, stereo.shape[1], chunk):
-            block = stereo[:, start:start + chunk]
+            block = stereo[:, start : start + chunk]
             if block.shape[1] == 0:
                 continue
             aframe = av.AudioFrame.from_ndarray(block, format="fltp", layout="stereo")
@@ -104,6 +104,7 @@ def clip_no_audio(tmp_path) -> Path:
 # ---------------------------------------------------------------------------
 # probe
 # ---------------------------------------------------------------------------
+
 
 def test_probe_video_and_audio_fields(clip_with_audio):
     result = analysis.probe(str(clip_with_audio))
@@ -149,6 +150,7 @@ def test_probe_no_audio_stream_is_null(clip_no_audio):
 # hw_decode_evidence -- must not need hardware; shape + never-raises only
 # ---------------------------------------------------------------------------
 
+
 def test_hw_decode_evidence_shape_and_never_raises(clip_with_audio):
     result = analysis.hw_decode_evidence(
         str(clip_with_audio), devices=("d3d12va", "d3d11va", "not_a_real_device"), frames=5
@@ -187,6 +189,7 @@ def test_hw_decode_evidence_missing_file_never_raises(tmp_path):
 # audio_features
 # ---------------------------------------------------------------------------
 
+
 def test_audio_features_shape(clip_with_audio):
     result = analysis.audio_features(str(clip_with_audio))
 
@@ -219,8 +222,8 @@ def test_audio_features_bass_then_high(clip_with_audio):
         idx = round((seconds * SR - start) / hop)
         return frames[idx]
 
-    early = row_at(0.4)   # inside the 60 Hz second
-    late = row_at(2.0)    # inside the 5 kHz stretch
+    early = row_at(0.4)  # inside the 60 Hz second
+    late = row_at(2.0)  # inside the 5 kHz stretch
 
     assert early[bass_i] > early[high_i]
     assert late[high_i] > late[bass_i]

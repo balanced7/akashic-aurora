@@ -18,6 +18,7 @@ explicit intent -- twin-sync pings ride kind=chat).
 
 Run: py -m pytest tests/test_t073_wake_phase12.py -q
 """
+
 import os
 import sys
 import uuid
@@ -32,12 +33,12 @@ MY = "f9207c90"
 
 
 def _m(kind="handoff", frm="deepseek", to="claude", meta=None):
-    return SimpleNamespace(kind=kind, frm=frm, to=to, meta=meta or {},
-                           id="1-0", content="x")
+    return SimpleNamespace(kind=kind, frm=frm, to=to, meta=meta or {}, id="1-0", content="x")
 
 
 def _worthy(m, agent="claude", incarnation=MY):
     from scripts.bifrost_wake import wake_worthy
+
     return wake_worthy(m, agent=agent, incarnation=incarnation)
 
 
@@ -57,8 +58,9 @@ def test_p3_cross_agent_mail_delivered():
 
 
 def test_p4_unknown_kind_silent_by_default():
-    assert not _worthy(_m(kind="zz_test", frm="deepseek")), \
+    assert not _worthy(_m(kind="zz_test", frm="deepseek")), (
         "a NEW kind must be silent until explicitly allowlisted (the ratchet)"
+    )
     assert not _worthy(_m(kind="trace", frm="deepseek"))
     assert not _worthy(_m(kind="status", frm="deepseek"))
 
@@ -69,8 +71,9 @@ def test_p5_wake_worthy_kinds_deliver_including_nudge():
 
 
 def test_p5b_broadcast_reply_still_room_chatter():
-    assert not _worthy(_m(kind="reply", frm="deepseek", to="*")), \
+    assert not _worthy(_m(kind="reply", frm="deepseek", to="*")), (
         "broadcast replies never wake (deepseek red-team F5 preserved)"
+    )
 
 
 def test_p11_other_incarnations_mail_skipped():
@@ -79,31 +82,40 @@ def test_p11_other_incarnations_mail_skipped():
 
 
 def test_p10_sends_stamp_frm_incarnation():
-    from core.foundation.redis_connection import (
-        connect_to_redis_with_fail_fast, DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT)
-    if connect_to_redis_with_fail_fast(host=DEFAULT_REDIS_HOST, port=DEFAULT_REDIS_PORT,
-                                       timeout_seconds=3, decode_responses=True) is None:
+    from core.foundation.redis_connection import connect_to_redis_with_fail_fast, DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT
+
+    if (
+        connect_to_redis_with_fail_fast(
+            host=DEFAULT_REDIS_HOST, port=DEFAULT_REDIS_PORT, timeout_seconds=3, decode_responses=True
+        )
+        is None
+    ):
         pytest.skip("redis not available")
     import json
     from core.comm.bus import Bus
+
     ns = f"bifrost_t073_{uuid.uuid4().hex[:8]}"
     b = Bus("deepseek", namespace=ns)
     b.send("claude", "handoff", "take this")
     b.send_reply("claude", "the answer")
-    for eid, fields in b._client.xrange(f"{ns}:work:inbox:claude") + \
-                       b._client.xrange(f"{ns}:inbox:claude"):
+    for eid, fields in b._client.xrange(f"{ns}:work:inbox:claude") + b._client.xrange(f"{ns}:inbox:claude"):
         meta = json.loads(dict(fields).get("meta", "{}"))
         assert meta.get("frm_incarnation"), "every send stamps its incarnation (best-effort id)"
 
 
 def test_to_incarnation_flag_reaches_meta():
-    from core.foundation.redis_connection import (
-        connect_to_redis_with_fail_fast, DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT)
-    if connect_to_redis_with_fail_fast(host=DEFAULT_REDIS_HOST, port=DEFAULT_REDIS_PORT,
-                                       timeout_seconds=3, decode_responses=True) is None:
+    from core.foundation.redis_connection import connect_to_redis_with_fail_fast, DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT
+
+    if (
+        connect_to_redis_with_fail_fast(
+            host=DEFAULT_REDIS_HOST, port=DEFAULT_REDIS_PORT, timeout_seconds=3, decode_responses=True
+        )
+        is None
+    ):
         pytest.skip("redis not available")
     import json
     from core.comm.bus import Bus
+
     ns = f"bifrost_t073_{uuid.uuid4().hex[:8]}"
     b = Bus("claude", namespace=ns)
     b.send("claude", "chat", "[twin-sync] ping", meta={"to_incarnation": "b0b7771d"})
@@ -124,18 +136,19 @@ def test_operator_sender_wakes_regardless_of_kind(monkeypatch):
     not a kind: the ratchet's silent-by-default law for agent kinds stands."""
     import scripts.bifrost_wake as bw
     from types import SimpleNamespace
+
     m = SimpleNamespace(kind="inform", frm="user", to="*", meta={})
-    assert bw.wake_worthy(m, agent="claude", incarnation="sess0000"), \
-        "operator inform must wake"
+    assert bw.wake_worthy(m, agent="claude", incarnation="sess0000"), "operator inform must wake"
     m2 = SimpleNamespace(kind="chat", frm="daniel", to="claude", meta={})
-    assert bw.wake_worthy(m2, agent="claude", incarnation="sess0000"), \
-        "operator chat must wake"
+    assert bw.wake_worthy(m2, agent="claude", incarnation="sess0000"), "operator chat must wake"
     m3 = SimpleNamespace(kind="inform", frm="deepseek", to="*", meta={})
-    assert not bw.wake_worthy(m3, agent="claude", incarnation="sess0000"), \
+    assert not bw.wake_worthy(m3, agent="claude", incarnation="sess0000"), (
         "agent inform stays quiet (the ratchet is untouched)"
+    )
     monkeypatch.setenv("AKASHIC_OPERATOR_IDS", "")
-    assert not bw.wake_worthy(m, agent="claude", incarnation="sess0000"), \
+    assert not bw.wake_worthy(m, agent="claude", incarnation="sess0000"), (
         "empty operator set disables the override (drill hatch)"
+    )
 
 
 # ------------------------------------------------------ operator carve-out (2026-08-31)
@@ -148,12 +161,16 @@ def test_operator_ambient_chat_broadcast_does_not_wake_everyone():
     every OTHER operator broadcast kind (inform, etc.) is untouched."""
     import scripts.bifrost_wake as bw
     from types import SimpleNamespace
+
     lounge = SimpleNamespace(kind="chat", frm="daniil", to="*", meta={})
-    assert not bw.wake_worthy(lounge, agent="claude", incarnation="sess0000"), \
+    assert not bw.wake_worthy(lounge, agent="claude", incarnation="sess0000"), (
         "ambient lounge chat is read-only -- it must not wake an idle seat"
+    )
     directed = SimpleNamespace(kind="chat", frm="daniil", to="claude", meta={})
-    assert bw.wake_worthy(directed, agent="claude", incarnation="sess0000"), \
+    assert bw.wake_worthy(directed, agent="claude", incarnation="sess0000"), (
         "a DIRECTED operator chat (seat lane / @mention / @everyone fan-out) still wakes"
+    )
     other_kind = SimpleNamespace(kind="inform", frm="daniil", to="*", meta={})
-    assert bw.wake_worthy(other_kind, agent="claude", incarnation="sess0000"), \
+    assert bw.wake_worthy(other_kind, agent="claude", incarnation="sess0000"), (
         "a non-chat operator broadcast (the 2026-07-15 'I'm back!' shape) is untouched"
+    )

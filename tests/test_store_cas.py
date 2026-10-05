@@ -7,6 +7,7 @@ mechanism that converges Redis/File in HybridStore. Tested hermetically on FileS
 
 Run: py -m pytest tests/test_store_cas.py -q
 """
+
 import os
 import sys
 import uuid
@@ -25,8 +26,8 @@ def store(tmp_path):
 
 # ------------------------------------------------------------------- basic CAS
 def test_cas_from_absent_then_value(store):
-    assert store.cas("k", None, "v1") is True          # create-if-absent
-    assert store.cas("k", None, "v2") is False          # already exists
+    assert store.cas("k", None, "v1") is True  # create-if-absent
+    assert store.cas("k", None, "v2") is False  # already exists
     assert store.get("k") == "v1"
 
 
@@ -34,7 +35,7 @@ def test_cas_matches_expected(store):
     store.set("k", "a")
     assert store.cas("k", "a", "b") is True
     assert store.get("k") == "b"
-    assert store.cas("k", "a", "c") is False            # stale expected -> rejected
+    assert store.cas("k", "a", "c") is False  # stale expected -> rejected
     assert store.get("k") == "b"
 
 
@@ -83,19 +84,20 @@ def test_hybrid_cas_uses_file_when_redis_down(tmp_path):
     h = HybridStore(None, FileStore(path=str(tmp_path / "h.json")))
     assert h.cas("k", None, "v1") is True
     assert h.cas("k", "v1", "v2") is True
-    assert h.cas("k", "v1", "v3") is False              # stale -> rejected
+    assert h.cas("k", "v1", "v3") is False  # stale -> rejected
     assert h.get("k") == "v2"
 
 
 # ----------------------------------------------------- live Redis (isolated test DB 15)
 def test_redis_cas_atomic_lua_path():
     from redis_test_helpers import fresh_test_store
-    rs = fresh_test_store()          # db 15, flushed -- NEVER canonical db 0
+
+    rs = fresh_test_store()  # db 15, flushed -- NEVER canonical db 0
     if rs is None:
         pytest.skip("Redis not available")
     key = f"test:cas:{uuid.uuid4().hex}"
-    assert rs.cas(key, None, "v1") is True          # NX create
+    assert rs.cas(key, None, "v1") is True  # NX create
     assert rs.cas(key, None, "v2") is False
-    assert rs.cas(key, "v1", "v2") is True           # Lua compare
-    assert rs.cas(key, "v1", "v3") is False          # stale
+    assert rs.cas(key, "v1", "v2") is True  # Lua compare
+    assert rs.cas(key, "v1", "v3") is False  # stale
     assert rs.get(key) == "v2"

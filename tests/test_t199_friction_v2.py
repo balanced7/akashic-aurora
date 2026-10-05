@@ -29,6 +29,7 @@ read as "attended peers never answer" on a single data point.
 
 Run: py -m pytest tests/test_t199_friction_v2.py -q
 """
+
 import os
 import sys
 
@@ -37,8 +38,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from core.comm import friction  # noqa: E402
 
 
-def _ev(kind, ask_id, peer, *, at_ask=None, at_death=None, created=1000.0,
-        at="2026-08-06T00:00:10Z"):
+def _ev(kind, ask_id, peer, *, at_ask=None, at_death=None, created=1000.0, at="2026-08-06T00:00:10Z"):
     d = {"to": peer, "kind": "request", "created": created}
     if kind == "expectation_dead":
         d["attempts"] = 3
@@ -63,9 +63,15 @@ def _dead(ask_id, peer, **kw):
 # by_peer -- one fleet number hides which peer is actually broken.
 # --------------------------------------------------------------------------------------
 
+
 def test_by_peer_splits_the_fleet_number():
-    events = [_answered("a1", "deepseek"), _answered("a2", "deepseek"),
-              _dead("a3", "deepseek"), _dead("a4", "kimi"), _dead("a5", "kimi")]
+    events = [
+        _answered("a1", "deepseek"),
+        _answered("a2", "deepseek"),
+        _dead("a3", "deepseek"),
+        _dead("a4", "kimi"),
+        _dead("a5", "kimi"),
+    ]
     by = friction.fold(events, {}, now=2000.0)["agg"]["by_peer"]
     assert by["deepseek"]["n_answered"] == 2 and by["deepseek"]["n_dead"] == 1
     assert by["kimi"]["n_answered"] == 0 and by["kimi"]["n_dead"] == 2
@@ -85,8 +91,7 @@ def test_by_peer_counts_open_episodes_too():
 def test_by_peer_is_sorted_by_pain_not_alphabet():
     """The reader's job is to put the broken peer first. Ordering by dead count then
     name keeps it stable AND useful; alphabetical would bury the failure."""
-    events = [_dead("a1", "zeta"), _dead("a2", "zeta"), _dead("a3", "zeta"),
-              _answered("a4", "alpha")]
+    events = [_dead("a1", "zeta"), _dead("a2", "zeta"), _dead("a3", "zeta"), _answered("a4", "alpha")]
     order = list(friction.fold(events, {}, now=2000.0)["agg"]["by_peer"].keys())
     assert order[0] == "zeta"
 
@@ -102,12 +107,15 @@ def test_unknown_peer_never_becomes_a_bucket_named_none():
 # presence_effect -- the instrument that can falsify T197's own premise.
 # --------------------------------------------------------------------------------------
 
+
 def test_presence_effect_answers_the_arcs_question():
-    events = [_answered("a1", "deepseek", at_ask="ATTENDED"),
-              _answered("a2", "deepseek", at_ask="ATTENDED"),
-              _dead("a3", "deepseek", at_ask="ATTENDED", at_death="ATTENDED"),
-              _dead("a4", "kimi", at_ask="UNATTENDED", at_death="UNATTENDED"),
-              _dead("a5", "kimi", at_ask="UNATTENDED", at_death="UNATTENDED")]
+    events = [
+        _answered("a1", "deepseek", at_ask="ATTENDED"),
+        _answered("a2", "deepseek", at_ask="ATTENDED"),
+        _dead("a3", "deepseek", at_ask="ATTENDED", at_death="ATTENDED"),
+        _dead("a4", "kimi", at_ask="UNATTENDED", at_death="UNATTENDED"),
+        _dead("a5", "kimi", at_ask="UNATTENDED", at_death="UNATTENDED"),
+    ]
     pe = friction.fold(events, {}, now=2000.0)["agg"]["presence_effect"]
     assert pe["ATTENDED"]["n"] == 3 and pe["ATTENDED"]["n_answered"] == 2
     assert abs(pe["ATTENDED"]["answer_rate"] - 2 / 3) < 1e-9
@@ -118,8 +126,9 @@ def test_presence_effect_answers_the_arcs_question():
 def test_a_rate_over_zero_asks_is_none_not_zero():
     """The law that bites hardest here: with no ATTENDED episodes yet, 0.0 would read
     as 'attended peers never answer' -- a fabricated finding from an empty cell."""
-    pe = friction.fold([_dead("a1", "kimi", at_ask="UNATTENDED", at_death="UNATTENDED")],
-                       {}, now=2000.0)["agg"]["presence_effect"]
+    pe = friction.fold([_dead("a1", "kimi", at_ask="UNATTENDED", at_death="UNATTENDED")], {}, now=2000.0)["agg"][
+        "presence_effect"
+    ]
     assert pe["ATTENDED"]["n"] == 0
     assert pe["ATTENDED"]["answer_rate"] is None
 
@@ -138,9 +147,14 @@ def test_presence_effect_ignores_echo_episodes():
     """A T076c echo settled from ledger state, with no message anywhere. It says
     nothing about whether a present peer answers mail, so it must not inflate either
     numerator or denominator."""
-    events = [{"kind": "expectation_settled_done_task", "at": "2026-08-06T00:00:10Z",
-               "refs": ["e1"], "detail": {"to": "deepseek", "created": 1000.0,
-                                          "peer_at_ask": "ATTENDED"}}]
+    events = [
+        {
+            "kind": "expectation_settled_done_task",
+            "at": "2026-08-06T00:00:10Z",
+            "refs": ["e1"],
+            "detail": {"to": "deepseek", "created": 1000.0, "peer_at_ask": "ATTENDED"},
+        }
+    ]
     pe = friction.fold(events, {}, now=2000.0)["agg"]["presence_effect"]
     assert pe["ATTENDED"]["n"] == 0
 
@@ -148,9 +162,11 @@ def test_presence_effect_ignores_echo_episodes():
 def test_totals_still_reconcile_with_v1():
     """v2 adds views, never changes the headline. A breakdown that disagrees with the
     total it breaks down is worse than no breakdown."""
-    events = [_answered("a1", "deepseek", at_ask="ATTENDED"),
-              _dead("a2", "kimi", at_ask="UNATTENDED", at_death="UNATTENDED"),
-              _dead("a3", "kimi")]
+    events = [
+        _answered("a1", "deepseek", at_ask="ATTENDED"),
+        _dead("a2", "kimi", at_ask="UNATTENDED", at_death="UNATTENDED"),
+        _dead("a3", "kimi"),
+    ]
     agg = friction.fold(events, {}, now=2000.0)["agg"]
     assert agg["n_answered"] == 1 and agg["n_dead"] == 2 and agg["n_closed"] == 3
     assert sum(p["n_closed"] for p in agg["by_peer"].values()) == agg["n_closed"]

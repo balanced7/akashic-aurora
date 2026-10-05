@@ -18,6 +18,7 @@ Bars:
 Redis-backed pins use the real Redis in a throwaway namespace (skip if down); pure pins
 need no Redis.  Run: py -m pytest tests/test_t039a_lane_router.py -q
 """
+
 import os
 import sys
 import uuid
@@ -34,10 +35,11 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def _client():
-    from core.foundation.redis_connection import (
-        connect_to_redis_with_fail_fast, DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT)
-    c = connect_to_redis_with_fail_fast(host=DEFAULT_REDIS_HOST, port=DEFAULT_REDIS_PORT,
-                                        timeout_seconds=3, decode_responses=True)
+    from core.foundation.redis_connection import connect_to_redis_with_fail_fast, DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT
+
+    c = connect_to_redis_with_fail_fast(
+        host=DEFAULT_REDIS_HOST, port=DEFAULT_REDIS_PORT, timeout_seconds=3, decode_responses=True
+    )
     if c is None:
         pytest.skip("redis not available")
     return c
@@ -49,8 +51,19 @@ def _ns():
 
 # --------------------------------------------------------------- B1: router table pins
 CONTROL_KINDS = ["halt", "interrupt", "pause", "nudge", "steer"]
-WORK_KINDS = ["handoff", "reply", "request", "question", "chat", "inform", "note",
-              "answer", "dispatch", "status", "completion"]
+WORK_KINDS = [
+    "handoff",
+    "reply",
+    "request",
+    "question",
+    "chat",
+    "inform",
+    "note",
+    "answer",
+    "dispatch",
+    "status",
+    "completion",
+]
 TRACE_KINDS = ["trace", "thinking", "tool", "narration", "ledger_update", "resolved", "hint"]
 
 
@@ -149,11 +162,18 @@ def test_lane_key_shapes():
 
 # ------------------------------------------------------------- B6: reader census (A3)
 def test_reader_census_documented():
-    p = os.path.join(REPO, "docs", "library", "design",
-                     "20260701_t039-purpose-keyed-lanes-latches-governi_7bc135.md")  # migrated at P3
+    p = os.path.join(
+        REPO, "docs", "library", "design", "20260701_t039-purpose-keyed-lanes-latches-governi_7bc135.md"
+    )  # migrated at P3
     doc = open(p, encoding="utf-8").read()
-    for reader in ("bifrost_api", "wake listener", "core/comm/doctor.py",
-                   "scripts/bifrost_ui.py", "scripts/bifrost_console.py", "bifrost_pull"):
+    for reader in (
+        "bifrost_api",
+        "wake listener",
+        "core/comm/doctor.py",
+        "scripts/bifrost_ui.py",
+        "scripts/bifrost_console.py",
+        "bifrost_pull",
+    ):
         assert reader in doc, f"census table must name reader: {reader}"
 
 

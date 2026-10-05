@@ -7,6 +7,7 @@ a fresh reader on the same File ledger (Redis-restart-survivable). Isolated File
 
 Run: py -m pytest tests/test_bifrost_promoter.py -q
 """
+
 import os
 import sys
 import tempfile
@@ -62,15 +63,19 @@ def test_durable_across_a_fresh_reader():
     """The whole point: a promoted record survives -- a brand-new EventLog/EventQuery on the same
     File ledger still finds it (Redis could have restarted)."""
     led = FileLedger(base_dir=tempfile.mkdtemp(prefix="promo_dur_"))
-    promote("claude", "cursor", "handoff", "durable?", "m9", "2026-06-28T20:04:00",
-            event_log=EventLog(led))
-    fresh = EventQuery(event_log=EventLog(led))      # cold reader on the same ledger
+    promote("claude", "cursor", "handoff", "durable?", "m9", "2026-06-28T20:04:00", event_log=EventLog(led))
+    fresh = EventQuery(event_log=EventLog(led))  # cold reader on the same ledger
     out = promoted(event_query=fresh)
     assert len(out) == 1 and out[0]["detail"]["content"] == "durable?"
 
 
 if __name__ == "__main__":
-    for fn in [test_is_salient, test_salient_is_promoted_and_queryable, test_ephemeral_is_not_promoted,
-               test_only_salient_appears_among_mixed, test_durable_across_a_fresh_reader]:
+    for fn in [
+        test_is_salient,
+        test_salient_is_promoted_and_queryable,
+        test_ephemeral_is_not_promoted,
+        test_only_salient_appears_among_mixed,
+        test_durable_across_a_fresh_reader,
+    ]:
         fn()
     print("ALL B2 PROMOTER TESTS PASSED")

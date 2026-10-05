@@ -33,6 +33,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # Pin 1 -- both spellings resolve. He says "Sunshine"; the ledger says "sol".
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.parametrize("word", ["sunshine", "Sunshine", "SUNSHINE", "sol", "  sol  ", "`sol`"])
 def test_p1_both_spellings_resolve_to_one_seat(word):
     rec = SL.resolve_seat(word)
@@ -45,20 +46,26 @@ def test_p1_both_spellings_resolve_to_one_seat(word):
 # Pin 2 -- a SENTENCE is still a task, never a launch. The strictness is the fix.
 # ---------------------------------------------------------------------------
 
-@pytest.mark.parametrize("phrase", [
-    "sunshine and check the ui",
-    "ask sunshine about the contract",
-    "sol, are you there",
-])
+
+@pytest.mark.parametrize(
+    "phrase",
+    [
+        "sunshine and check the ui",
+        "ask sunshine about the contract",
+        "sol, are you there",
+    ],
+)
 def test_p2_a_sentence_is_a_task_not_a_launch(phrase):
     assert SL.resolve_seat(phrase) is None, (
         f"{phrase!r} must stay a task -- loosening resolution reintroduces the 2026-08-24 defect "
-        "from the other direction")
+        "from the other direction"
+    )
 
 
 # ---------------------------------------------------------------------------
 # Pin 3 -- he launches with HIS OWN runner script, never the deepseek one.
 # ---------------------------------------------------------------------------
+
 
 def test_p3_launches_the_sol_runner_not_the_shared_deepseek_script():
     rec = SL.resolve_seat("sunshine")
@@ -68,7 +75,8 @@ def test_p3_launches_the_sol_runner_not_the_shared_deepseek_script():
     assert "bifrost_runner_sol.py" in joined, argv
     assert "bifrost_runner_deepseek.py" not in joined, (
         "the daemon hardcodes the deepseek runner for --spawn-runner; handing sol that script is "
-        "the daemon_spawn_runner_hardcodes_deepseek_script lesson repeating")
+        "the daemon_spawn_runner_hardcodes_deepseek_script lesson repeating"
+    )
     assert "--agent" in argv and "sol" in argv, argv
     assert cwd == ROOT, cwd
 
@@ -84,32 +92,37 @@ def test_p3_launches_the_sol_runner_not_the_shared_deepseek_script():
 # line too -- this pin fails if a future edit adds it without a fresh authorization.
 # ---------------------------------------------------------------------------
 
+
 def test_p3b_launches_agentic_with_exec_but_not_write():
     rec = SL.resolve_seat("sunshine")
     argv, _, _ = SL.launch_argv(rec, root=ROOT)
 
     assert "--agentic" in argv, (
         f"without --agentic sol boots the toolless one-shot bridge -- read/search/git/kb "
-        f"tools never exist for this seat regardless of its ACL grant: {argv}")
+        f"tools never exist for this seat regardless of its ACL grant: {argv}"
+    )
     assert "--allow-exec" in argv, (
         f"sol's ACL grant (security/acl.json) carries 'exec' since 2026-08-27, but a "
-        f"capability that never reaches the launch line is not a capability: {argv}")
+        f"capability that never reaches the launch line is not a capability: {argv}"
+    )
     assert "--allow-write" not in argv, (
         f"sol's ACL grant does NOT carry 'write' -- adding --allow-write here would be inert "
         f"(core/comm/toolbox.py._prewrite still refuses on the ACL check) but claims a "
-        f"posture nobody authorized: {argv}")
+        f"posture nobody authorized: {argv}"
+    )
 
 
 # ---------------------------------------------------------------------------
 # Pin 4 -- identity is STATED, never inherited. The module's own law.
 # ---------------------------------------------------------------------------
 
+
 def test_p4_env_states_its_own_identity():
     rec = SL.resolve_seat("sol")
     _, env, _ = SL.launch_argv(rec, root=ROOT)
     assert env.get("AKASHIC_AGENT_ID") == "sol", (
-        f"every seat states its own identity; inheriting it is how a seat wakes up as someone "
-        f"else: {env}")
+        f"every seat states its own identity; inheriting it is how a seat wakes up as someone else: {env}"
+    )
     assert env.get("BIFROST_CONSUME_LANE") == "work", env
 
 
@@ -117,10 +130,12 @@ def test_p4_env_states_its_own_identity():
 # Pin 5 -- the runner script must actually exist, and the lever must refuse if not.
 # ---------------------------------------------------------------------------
 
+
 def test_p5_refuses_loudly_when_the_script_is_absent():
     rec = SL.resolve_seat("sunshine")
     assert os.path.isfile(os.path.join(ROOT, "scripts", "bifrost_runner_sol.py")), (
-        "precondition: sol has a runner script")
+        "precondition: sol has a runner script"
+    )
 
     with pytest.raises(RuntimeError, match="no runner script"):
         SL.launch_argv(rec, root=os.path.join(ROOT, "does-not-exist"))
@@ -129,6 +144,7 @@ def test_p5_refuses_loudly_when_the_script_is_absent():
 # ---------------------------------------------------------------------------
 # Pin 6 -- an UNDRILLED lever must not read like a drilled one.
 # ---------------------------------------------------------------------------
+
 
 def test_p6_launch_note_confesses_when_the_lever_is_not_drilled():
     rec = SL.resolve_seat("sunshine")
@@ -141,18 +157,26 @@ def test_p6_launch_note_confesses_when_the_lever_is_not_drilled():
     else:
         assert "NOT yet drilled" in note, (
             f"a wired-but-unproven lever must say so; a recovery path without an executed drill "
-            f"and a dated receipt is presumed broken: {note}")
+            f"and a dated receipt is presumed broken: {note}"
+        )
 
 
 # ---------------------------------------------------------------------------
 # Pin 7 -- adding Sunshine must not disturb the seats already registered.
 # ---------------------------------------------------------------------------
 
-@pytest.mark.parametrize("word,seat", [
-    ("rill", "dsh_agent"), ("dsh_agent", "dsh_agent"),
-    ("heimdall", "deepseek"), ("deepseek", "deepseek"),
-    ("navi", "kimi"), ("kimi", "kimi"),
-])
+
+@pytest.mark.parametrize(
+    "word,seat",
+    [
+        ("rill", "dsh_agent"),
+        ("dsh_agent", "dsh_agent"),
+        ("heimdall", "deepseek"),
+        ("deepseek", "deepseek"),
+        ("navi", "kimi"),
+        ("kimi", "kimi"),
+    ],
+)
 def test_p7_existing_seats_are_untouched(word, seat):
     rec = SL.resolve_seat(word)
     assert rec is not None and rec["seat"] == seat, (word, rec)

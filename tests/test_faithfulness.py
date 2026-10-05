@@ -10,6 +10,7 @@ characterize the critic's behavior on the signals it claims to judge:
   - it REGRESSION-guards the old paren bug (a source containing ')'),
   - low grounding overlap is SOFT (reported, never fails the verdict -- the ROUGE/FP trap).
 """
+
 import os
 import sys
 import tempfile
@@ -23,12 +24,19 @@ from core.primitives.faithfulness import faithfulness_critic, faithfulness_repor
 
 # Representative real records (mirrors the learning/memory items consolidation projects).
 _ITEMS = [
-    Consolidator.item(text="probe reachability first; a filtered port hangs connect for 48s",
-                      source="learn:experiment:redis_probe", importance=4),
-    Consolidator.item(text="use the node manager to install custom nodes",
-                      source="mem:exp:comfyui_install", importance=3),
-    Consolidator.item(text="memoization gave a 52% speedup; loop unrolling only 2%",
-                      source="learn:experiment:perf(prior art)", importance=4),  # source HAS parens
+    Consolidator.item(
+        text="probe reachability first; a filtered port hangs connect for 48s",
+        source="learn:experiment:redis_probe",
+        importance=4,
+    ),
+    Consolidator.item(
+        text="use the node manager to install custom nodes", source="mem:exp:comfyui_install", importance=3
+    ),
+    Consolidator.item(
+        text="memoization gave a 52% speedup; loop unrolling only 2%",
+        source="learn:experiment:perf(prior art)",
+        importance=4,
+    ),  # source HAS parens
 ]
 
 
@@ -54,8 +62,9 @@ def test_source_with_parens_resolves():
     skeleton = _real_skeleton()
     rep = faithfulness_report(_ITEMS, skeleton)
     paren_lines = [p for p in rep["per_line"] if p.get("src", "").endswith("(prior art)")]
-    assert paren_lines and all(p["resolves"] for p in paren_lines), \
+    assert paren_lines and all(p["resolves"] for p in paren_lines), (
         f"paren source was truncated/unresolved: {paren_lines}"
+    )
     print("--- paren-safe ---\n  source containing ')' resolves whole OK")
 
 

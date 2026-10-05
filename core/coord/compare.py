@@ -27,6 +27,7 @@ been run, and "fixed" invites a re-record that would have deleted them. So a dif
 against an incomplete side is UNRELIABLE and says so, and two empty sides prove nothing at
 all.
 """
+
 from __future__ import annotations
 
 import os
@@ -56,7 +57,8 @@ def _norm_path(k: str) -> str:
 #: key_type -> how to compare two of them. A type with no normalizer compares literally,
 #: which is a decision the type is making rather than an omission.
 NORMALIZERS: Dict[str, Callable[[str], str]] = {
-    "verb": _norm_verb, "path": _norm_path,
+    "verb": _norm_verb,
+    "path": _norm_path,
 }
 
 
@@ -67,6 +69,7 @@ class KeySet:
     `complete` is the load-bearing field: a KeySet that could not fully collect must not
     let a downstream difference read as a discovery.
     """
+
     name: str
     key_type: str
     keys: Set[str] = field(default_factory=set)
@@ -79,8 +82,13 @@ class KeySet:
             self.complete = False
 
     def view(self) -> Dict[str, Any]:
-        return {"name": self.name, "key_type": self.key_type, "n": len(self.keys),
-                "complete": self.complete, "failed": dict(self.failed)}
+        return {
+            "name": self.name,
+            "key_type": self.key_type,
+            "n": len(self.keys),
+            "complete": self.complete,
+            "failed": dict(self.failed),
+        }
 
 
 def diff(a: KeySet, b: KeySet) -> Dict[str, Any]:
@@ -90,14 +98,27 @@ def diff(a: KeySet, b: KeySet) -> Dict[str, Any]:
     CLI but not on MCP" is tracked debt, while "on MCP but not in the CLI" is a rogue
     door. Collapsing them into one count loses the diagnosis.
     """
-    base = {"a": a.view(), "b": b.view(), "key_type": a.key_type,
-            "only_a": [], "only_b": [], "both": [], "identical": False}
+    base = {
+        "a": a.view(),
+        "b": b.view(),
+        "key_type": a.key_type,
+        "only_a": [],
+        "only_b": [],
+        "both": [],
+        "identical": False,
+    }
 
     if a.key_type != b.key_type:
-        return {**base, "ok": False, "reliable": False,
-                "why": (f"refusing to compare '{a.name}' ({a.key_type}) with '{b.name}' "
-                        f"({b.key_type}) -- different kinds of key, so any difference "
-                        f"would be large, confident and meaningless")}
+        return {
+            **base,
+            "ok": False,
+            "reliable": False,
+            "why": (
+                f"refusing to compare '{a.name}' ({a.key_type}) with '{b.name}' "
+                f"({b.key_type}) -- different kinds of key, so any difference "
+                f"would be large, confident and meaningless"
+            ),
+        }
 
     # Normalize per key TYPE before differencing, or the result measures the two systems'
     # formatting as much as their contents. Originals are kept so a finding is reported
@@ -123,23 +144,35 @@ def diff(a: KeySet, b: KeySet) -> Dict[str, Any]:
     if not a.keys and not b.keys:
         # 0 minus 0 = 0 is arithmetically true and diagnostically empty. Reporting it as
         # "no debt" when both collectors returned nothing is the confident-zero lie.
-        reasons.append("both sides are EMPTY -- that proves nothing about the world, "
-                       "only that nothing was collected")
+        reasons.append("both sides are EMPTY -- that proves nothing about the world, only that nothing was collected")
 
-    return {**base, "ok": True, "only_a": only_a, "only_b": only_b, "both": both,
-            "identical": identical, "reliable": not reasons,
-            "why": ("; ".join(reasons) + " -- every uncollected element of the incomplete "
-                    "side surfaces as a false finding on the other" if reasons else "")}
+    return {
+        **base,
+        "ok": True,
+        "only_a": only_a,
+        "only_b": only_b,
+        "both": both,
+        "identical": identical,
+        "reliable": not reasons,
+        "why": (
+            "; ".join(reasons) + " -- every uncollected element of the incomplete "
+            "side surfaces as a false finding on the other"
+            if reasons
+            else ""
+        ),
+    }
 
 
 # ----------------------------------------------------------------- domain collectors
 def _verbs_cli(**_) -> Set[str]:
     from agent_cli import list_verbs
+
     return {n for n, _h in list_verbs(None)}
 
 
 def _verbs_mcp(**_) -> Set[str]:
     import ast
+
     with open(os.path.join(_ROOT, "ai_setup_mcp.py"), encoding="utf-8") as fh:
         tree = ast.parse(fh.read())
     out = set()
@@ -153,8 +186,9 @@ def _verbs_mcp(**_) -> Set[str]:
 
 
 def _files_tracked(**_) -> Set[str]:
-    r = subprocess.run(["git", "ls-files"], cwd=_ROOT, capture_output=True, text=True,
-                       timeout=60, stdin=subprocess.DEVNULL)
+    r = subprocess.run(
+        ["git", "ls-files"], cwd=_ROOT, capture_output=True, text=True, timeout=60, stdin=subprocess.DEVNULL
+    )
     if r.returncode != 0:
         raise RuntimeError((r.stderr or "git ls-files failed").strip()[:200])
     return {ln.strip() for ln in (r.stdout or "").splitlines() if ln.strip()}
@@ -162,15 +196,18 @@ def _files_tracked(**_) -> Set[str]:
 
 def _files_touched(since: Optional[float] = None, **_) -> Set[str]:
     from core.coord.timeline import _file_rows
+
     return {r["summary"] for r in _file_rows(since=since)}
 
 
 def _lessons_all(**_) -> Set[str]:
     from core.learning.store import get_learning_store_instance
+
     store = get_learning_store_instance()
-    return {str(getattr(x, "experiment_name", None) or x.get("experiment_name", ""))
-            for x in (store.list_experiments() if hasattr(store, "list_experiments")
-                      else [])} - {""}
+    return {
+        str(getattr(x, "experiment_name", None) or x.get("experiment_name", ""))
+        for x in (store.list_experiments() if hasattr(store, "list_experiments") else [])
+    } - {""}
 
 
 #: name -> (collector, key_type). The key_type is what makes a comparison legal; two
@@ -190,16 +227,17 @@ def select(domain: str, **kw) -> KeySet:
     unreliable rather than silently reading an outage as absence."""
     entry = DOMAINS.get(domain)
     if entry is None:
-        return KeySet(name=domain, key_type="?", keys=set(),
-                      failed={"unknown-domain": f"no collector registered for "
-                                                f"'{domain}' (have: "
-                                                f"{', '.join(sorted(DOMAINS))})"})
+        return KeySet(
+            name=domain,
+            key_type="?",
+            keys=set(),
+            failed={"unknown-domain": f"no collector registered for '{domain}' (have: {', '.join(sorted(DOMAINS))})"},
+        )
     fn, key_type = entry
     try:
         return KeySet(name=domain, key_type=key_type, keys=set(fn(**kw) or set()))
     except Exception as e:
-        return KeySet(name=domain, key_type=key_type, keys=set(),
-                      failed={"collect": f"{e.__class__.__name__}: {e}"})
+        return KeySet(name=domain, key_type=key_type, keys=set(), failed={"collect": f"{e.__class__.__name__}: {e}"})
 
 
 def run(a_domain: str, b_domain: str, **kw) -> Dict[str, Any]:

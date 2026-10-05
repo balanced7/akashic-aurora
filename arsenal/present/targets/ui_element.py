@@ -9,6 +9,7 @@ one <style> is scoped to the panel's own id (border-box sizing and margin resets
 browser needs to show the subset the way the slides page does). Connectors are drawn in the
 diagram's <svg>, since a plain browser draws no <x-connector>.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -23,8 +24,9 @@ MODULE_ID = "present.ui-element"
 DEFAULT_WIDTH = 400
 
 
-def fragment(scene: dict, slide: dict, width: int = DEFAULT_WIDTH, tk: Optional[dict] = None,
-             prefix: str = "present") -> str:
+def fragment(
+    scene: dict, slide: dict, width: int = DEFAULT_WIDTH, tk: Optional[dict] = None, prefix: str = "present"
+) -> str:
     """The panel for one slide at `width` logical units wide (height follows 16:9)."""
     if not isinstance(width, (int, float)) or width <= 0:
         raise ValueError(f"width must be a positive number of CSS pixels, got {width!r}")
@@ -33,20 +35,23 @@ def fragment(scene: dict, slide: dict, width: int = DEFAULT_WIDTH, tk: Optional[
     height = round(width * sc.CANVAS["h"] / sc.CANVAS["w"])
     pid = f"{prefix}-{slide['id']}"
     note = C.note_of(slide)
-    inner = slides_html.section_html(scene, slide, tk, mode="browser", tag="div", elem_id=pid,
-                                     cues=C.cue_map(slide), aside=False)
+    inner = slides_html.section_html(
+        scene, slide, tk, mode="browser", tag="div", elem_id=pid, cues=C.cue_map(slide), aside=False
+    )
     title = f' title="{esc(note.get("script"))}"' if note else ""
     reset = C.browser_reset_css(f"#{pid}")
     # The fonts travel with the fragment (a <link> in body is honoured by every browser and is
     # fetched once however many panels a page holds); without it the panel fell back to
     # Verdana / Courier New, a degrade no manifest had declared.
     fonts = f'<link rel="stylesheet" href="{esc(tk["href"])}">\n' if tk.get("href") else ""
-    return ('<meta charset="utf-8">\n'                      # harmless when embedded; right when opened alone
-            + fonts
-            + f'<div{title} style="position:relative; width:{width:g}px; height:{height}px; overflow:hidden">\n'
-            f"<style>\n{reset}</style>\n"
-            f'<div style="position:absolute; left:0; top:0; width:{sc.CANVAS["w"]}px; height:{sc.CANVAS["h"]}px; '
-            f'transform-origin:0 0; transform: scale({k:.6g})">\n{inner}\n</div>\n</div>')
+    return (
+        '<meta charset="utf-8">\n'  # harmless when embedded; right when opened alone
+        + fonts
+        + f'<div{title} style="position:relative; width:{width:g}px; height:{height}px; overflow:hidden">\n'
+        f"<style>\n{reset}</style>\n"
+        f'<div style="position:absolute; left:0; top:0; width:{sc.CANVAS["w"]}px; height:{sc.CANVAS["h"]}px; '
+        f'transform-origin:0 0; transform: scale({k:.6g})">\n{inner}\n</div>\n</div>'
+    )
 
 
 def render(scene: dict, out_dir, width: int = DEFAULT_WIDTH, slide: Optional[str] = None, **opts) -> List[Path]:

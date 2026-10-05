@@ -33,6 +33,7 @@ the first live run on the REAL seat-zero fixture forced four amendments, all pin
     a second kimi file (a correction round) would clobber the first's verdicts. Now
     merges per q-id (later file wins per q-id -- a restatement updates, a sibling keeps).
 """
+
 from __future__ import annotations
 
 import json
@@ -41,8 +42,23 @@ import re
 from typing import Any, Dict, List, Optional
 
 # verdict vocabulary (case-insensitive); first match after the q-id anchor wins.
-_VERDICTS = ("KEEP", "AMEND", "KILL", "ADOPT", "GREEN", "REJECT", "DEFER", "AGREE",
-            "DISAGREE", "CONFIRM", "PARTIAL", "DONE", "VERIFIED", "YES", "NO")
+_VERDICTS = (
+    "KEEP",
+    "AMEND",
+    "KILL",
+    "ADOPT",
+    "GREEN",
+    "REJECT",
+    "DEFER",
+    "AGREE",
+    "DISAGREE",
+    "CONFIRM",
+    "PARTIAL",
+    "DONE",
+    "VERIFIED",
+    "YES",
+    "NO",
+)
 _VERDICT_RE = re.compile(r"\b(" + "|".join(_VERDICTS) + r")\b", re.I)
 # an anchored q-id at the START of a line's content (after markdown bullet/bold noise).
 # the (?!') guard: a possessive ("B4's baseline). Recommendation: adopt W38") is PROSE,
@@ -121,11 +137,11 @@ def extract_positions(text: str) -> Dict[str, str]:
         if not m:
             continue
         qid = m.group(1).upper()
-        rest = raw[m.end():]
+        rest = raw[m.end() :]
         # title-trap: if a colon follows the q-id, the verdict lives AFTER it (the slice
         # title before the colon may carry a vocab word we must ignore).
         colon = rest.find(":")
-        scan = rest[colon + 1:] if colon != -1 else rest
+        scan = rest[colon + 1 :] if colon != -1 else rest
         v = _VERDICT_RE.search(scan)
         if v:
             out[qid] = v.group(1).upper()
@@ -138,7 +154,7 @@ def matrix(opening_path: str, counter_paths: List[str]) -> Dict[str, Any]:
     opening but carried no verdict lines). ONE-VOICE-NEVER-AGREE enforced."""
     authors: List[str] = []
     mentions: List[str] = []
-    positions: Dict[str, Dict[str, str]] = {}     # author -> {qid: verdict}
+    positions: Dict[str, Dict[str, str]] = {}  # author -> {qid: verdict}
     for cp in counter_paths:
         try:
             with open(cp, encoding="utf-8", errors="replace") as f:
@@ -163,8 +179,7 @@ def matrix(opening_path: str, counter_paths: List[str]) -> Dict[str, Any]:
             seed = set(_qids(f.read()))
     except Exception:
         seed = set()
-    rows = sorted(seed | {q for pos in positions.values() for q in pos},
-                  key=lambda q: (q[0], int(q[1:])))
+    rows = sorted(seed | {q for pos in positions.values() for q in pos}, key=lambda q: (q[0], int(q[1:])))
     cells: Dict[str, Dict[str, str]] = {}
     status: Dict[str, str] = {}
     for q in rows:
@@ -173,21 +188,26 @@ def matrix(opening_path: str, counter_paths: List[str]) -> Dict[str, Any]:
         verdicts = set(row.values())
         n = len(row)
         if n == 0:
-            status[q] = "open"                 # an opening row no counter has addressed yet
+            status[q] = "open"  # an opening row no counter has addressed yet
         elif n < 2 or n < len(authors):
-            status[q] = "partial"              # one voice, or some author silent -- never consensus
+            status[q] = "partial"  # one voice, or some author silent -- never consensus
         elif len(verdicts) == 1:
             status[q] = "AGREE"
         else:
             status[q] = "CONFLICT"
-    return {"opening": os.path.basename(str(opening_path)), "authors": authors,
-            "rows": rows, "cells": cells, "status": status, "mentions": mentions}
+    return {
+        "opening": os.path.basename(str(opening_path)),
+        "authors": authors,
+        "rows": rows,
+        "cells": cells,
+        "status": status,
+        "mentions": mentions,
+    }
 
 
 def render(m: Dict[str, Any]) -> str:
     authors = m["authors"]
-    lines = [f"# tally: {m['opening']}  ({len(authors)} counter(s): "
-             f"{', '.join(authors) or 'none'})"]
+    lines = [f"# tally: {m['opening']}  ({len(authors)} counter(s): {', '.join(authors) or 'none'})"]
     if m["rows"]:
         w = max(4, *(len(q) for q in m["rows"]))
         header = "  " + "q".ljust(w) + "  " + "  ".join(a[:8].ljust(8) for a in authors) + "  = status"
@@ -199,13 +219,11 @@ def render(m: Dict[str, Any]) -> str:
     conflict = sum(1 for s in m["status"].values() if s == "CONFLICT")
     partial = sum(1 for s in m["status"].values() if s == "partial")
     open_ = sum(1 for s in m["status"].values() if s == "open")
-    lines.append(f"  -- {agree} agree / {conflict} conflict / {partial} partial"
-                 f" / {open_} open")
+    lines.append(f"  -- {agree} agree / {conflict} conflict / {partial} partial / {open_} open")
     if 0 < len(authors) < 2:
         lines.append("  -- ONE VOICE: no consensus claim (2-of-3 needs >= 2 counters)")
     if m["mentions"]:
-        lines.append(f"  (mentions, not counters: "
-                     f"{', '.join(os.path.basename(x) for x in m['mentions'])})")
+        lines.append(f"  (mentions, not counters: {', '.join(os.path.basename(x) for x in m['mentions'])})")
     return "\n".join(lines)
 
 
@@ -214,6 +232,9 @@ def run(opening_path: str, *, research_dir: str = "research", as_json: bool = Fa
         raise ValueError("tally needs the opening file to reconcile counters against")
     m = matrix(opening_path, find_counters(opening_path, research_dir))
     if as_json:
-        return json.dumps({k: v for k, v in m.items() if k != "mentions"} |
-                          {"mentions": [os.path.basename(x) for x in m["mentions"]]}, indent=1)
+        return json.dumps(
+            {k: v for k, v in m.items() if k != "mentions"}
+            | {"mentions": [os.path.basename(x) for x in m["mentions"]]},
+            indent=1,
+        )
     return render(m)

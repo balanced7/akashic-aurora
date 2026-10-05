@@ -5,6 +5,7 @@ The scene is tests/fixtures/present/mail-and-wake-v2.scene.json (PRESENT_SCENE=<
 for a live deck), so the pins hold on any checkout and never name a session's temp directory. Pure Python, no
 network (the three.js CDN URL is pinned, not fetched), no browser.
 """
+
 from __future__ import annotations
 
 import json
@@ -122,7 +123,7 @@ def test_slides_html_obeys_the_artifact_subset(rendered, slide_ids):
         assert "padding:128px" in html, sid
         body = html.strip()
         assert body.startswith(f'<section id="{sid}"') and body.endswith("</section>")
-        assert body[:-len("</section>")].rstrip().endswith("</aside>"), f"{sid}: the note is the last child"
+        assert body[: -len("</section>")].rstrip().endswith("</aside>"), f"{sid}: the note is the last child"
         assert html.count("<aside>") == 1
         for host in re.findall(r'<div style="position:relative; width:1664px; height:700px">(.*?)\n</div>', html, re.S):
             pinned = host.count("position:absolute") + host.count("<x-connector")
@@ -147,7 +148,7 @@ def test_diagram_connectors_start_at_box_edges(scene):
     diagram = next(a for a in rill["atoms"] if a["kind"] == "diagram")
     g = _core.diagram_geometry(diagram)
     bus = [c for c in g["connectors"] if c["kind"] == "bus"]
-    assert len(bus) == 4                       # drop, bar, two stubs (a bus turned on its side)
+    assert len(bus) == 4  # drop, bar, two stubs (a bus turned on its side)
     drop, bar, stub_k1, stub_k2 = bus
     assert (drop["x1"], drop["y1"]) == (380, 350) and drop["x2"] == 538 and drop["head"] == "none"
     assert bar["x1"] == bar["x2"] == 538 and (bar["y1"], bar["y2"]) == (190, 510)
@@ -210,6 +211,7 @@ def test_print_refuses_a_note_its_footnote_cannot_hold(scene, tmp_path):
     """A footnote that ends mid-sentence is a drop no manifest declared: past the floor the render
     refuses, names the slide, and points at --no-footnotes (which drops the note openly)."""
     import copy
+
     big = copy.deepcopy(scene)
     slide = _core.ordered_slides(big)[3]
     _core.note_of(slide)["script"] = "word " * 900
@@ -218,7 +220,7 @@ def test_print_refuses_a_note_its_footnote_cannot_hold(scene, tmp_path):
     with pytest.raises(RuntimeError, match="present.pdf refuses: slide " + slide["id"]):
         print_html.render(big, tmp_path)
     assert not (tmp_path / "print.html").exists()
-    assert print_html.render(big, tmp_path, footnotes=False)[0].exists()   # the open drop still renders
+    assert print_html.render(big, tmp_path, footnotes=False)[0].exists()  # the open drop still renders
 
 
 def test_print_without_footnotes_is_full_bleed(scene, tmp_path):
@@ -239,10 +241,11 @@ def test_three_js_page_loads_one_pinned_script(rendered):
     page = _read(paths[0])
     scripts = re.findall(r'<script src="([^"]+)"', page)
     assert len(scripts) == 1
-    assert scripts[0].startswith("https://cdnjs.cloudflare.com/ajax/libs/three.js/") or \
-        scripts[0].startswith("https://cdn.jsdelivr.net/npm/three@")
+    assert scripts[0].startswith("https://cdnjs.cloudflare.com/ajax/libs/three.js/") or scripts[0].startswith(
+        "https://cdn.jsdelivr.net/npm/three@"
+    )
     assert scripts[0].endswith("/three.min.js") and scripts[0] == three_js.cdn_url()
-    assert page.count("<script") == 2                       # the CDN script and the page's own
+    assert page.count("<script") == 2  # the CDN script and the page's own
     assert paths[0].stat().st_size < three_js.SIZE_LIMIT
     assert "http://" not in page.replace("http://www.w3.org", "")
     deck = _deck_json(page)
@@ -281,6 +284,7 @@ def test_three_js_draws_code_indentation(rendered, tmp_path):
     which the texture used to draw flush left, 2026-09-29); a line the wrap opens still drops
     the space it wrapped on."""
     import subprocess
+
     page = _read(rendered["present.three-js"][1][0])
     start, end = page.index("  function fontFor("), page.index("  function head(")
     script = tmp_path / "drawtext.js"
@@ -288,10 +292,10 @@ def test_three_js_draws_code_indentation(rendered, tmp_path):
     out = subprocess.run(["node", str(script)], capture_output=True, text=True, timeout=30)
     assert out.returncode == 0, out.stderr
     calls = json.loads(out.stdout)
-    assert calls["code"][:2] == [["    ", 0], ["if", 40]], calls["code"]          # indentation drawn, first line
-    assert ["        ", 0] in calls["code"] and ["return", 80] in calls["code"]   # and after a forced break
+    assert calls["code"][:2] == [["    ", 0], ["if", 40]], calls["code"]  # indentation drawn, first line
+    assert ["        ", 0] in calls["code"] and ["return", 80] in calls["code"]  # and after a forced break
     words = [c for c in calls["prose"] if c[0].strip()]
-    assert words == [["aaaa", 0], ["bbbb", 50], ["cccc", 0]], calls["prose"]     # the wrapped line starts flush
+    assert words == [["aaaa", 0], ["bbbb", 50], ["cccc", 0]], calls["prose"]  # the wrapped line starts flush
 
 
 # ---------------------------------------------------------------- manifests and the door
@@ -312,8 +316,9 @@ def test_manifests_declare_what_the_renderers_do():
     print footnote never carried cues; a texture has no alt text, no selectable text and flat
     table cells; a slide's title is shown by the HUD alone."""
     reg = load_registry()
-    ui, pdf, three, page = (reg.get(m)["atoms"] for m in
-                            ("present.ui-element", "present.pdf", "present.three-js", "present.slides-html"))
+    ui, pdf, three, page = (
+        reg.get(m)["atoms"] for m in ("present.ui-element", "present.pdf", "present.three-js", "present.slides-html")
+    )
     assert "strong" in ui["statement"]["degrades"] and "plain text" in ui["table"]["degrades"]
     assert "italic" in ui["quote"]["degrades"] and "accent" in ui["number"]["degrades"]
     assert "spaces" in ui["code"]["degrades"] and "for" in ui["diagram"]["degrades"]
@@ -330,7 +335,9 @@ def test_manifests_declare_what_the_renderers_do():
 
 
 def test_door_renders_and_writes_a_take(tmp_path, capsys):
-    rc = present_main(["render", str(SCENE_PATH), "--to", "ui", "--out", str(tmp_path), "--width", "1200", "--slide", "cover"])
+    rc = present_main(
+        ["render", str(SCENE_PATH), "--to", "ui", "--out", str(tmp_path), "--width", "1200", "--slide", "cover"]
+    )
     assert rc == 0
     assert (tmp_path / "ui" / "cover.html").exists()
     takes = list((tmp_path / "takes").glob("*-present.ui-element.json"))

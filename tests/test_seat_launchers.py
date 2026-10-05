@@ -11,6 +11,7 @@ then pins itself OBSERVE-ONLY by its own identity check (index.js:135). Get this
 Rill comes up present, beating, listed on every dial, and deaf. That is the failure mode
 this whole day has been about, and here it is one environment variable wide.
 """
+
 from __future__ import annotations
 
 import os
@@ -27,12 +28,20 @@ def _which_ok(name):
 
 
 # ------------------------------------------------------------------ resolution
-@pytest.mark.parametrize("word,seat", [
-    ("rill", "dsh_agent"), ("Rill", "dsh_agent"), ("dsh_agent", "dsh_agent"),
-    ("heimdall", "deepseek"), ("DeepSeek", "deepseek"),
-    ("navi", "kimi"), ("kimi", "kimi"),
-    ("  navi  ", "kimi"), ("`rill`", "dsh_agent"),
-])
+@pytest.mark.parametrize(
+    "word,seat",
+    [
+        ("rill", "dsh_agent"),
+        ("Rill", "dsh_agent"),
+        ("dsh_agent", "dsh_agent"),
+        ("heimdall", "deepseek"),
+        ("DeepSeek", "deepseek"),
+        ("navi", "kimi"),
+        ("kimi", "kimi"),
+        ("  navi  ", "kimi"),
+        ("`rill`", "dsh_agent"),
+    ],
+)
 def test_a_bare_seat_name_resolves_by_callsign_or_agent_id(word, seat):
     """He says 'rill', the ledger says 'dsh_agent', and neither is wrong."""
     rec = sl.resolve_seat(word)
@@ -44,11 +53,19 @@ def test_a_bare_seat_name_resolves_by_callsign_or_agent_id(word, seat):
 # `!spawn vandor` to launch the app and a seat, so the bare word now resolves BY
 # INSTRUCTION. The invariant it was protecting is unchanged and still pinned below —
 # a SENTENCE beginning with a seat name is still a task, vandor included.
-@pytest.mark.parametrize("word", [
-    "rill and check the ui", "fix the wedge", "", "   ",
-    "boot and take the watch", "spawn a seat to audit the gate",
-    "vandor and take the watch", "vandor please drain the lane",
-])
+@pytest.mark.parametrize(
+    "word",
+    [
+        "rill and check the ui",
+        "fix the wedge",
+        "",
+        "   ",
+        "boot and take the watch",
+        "spawn a seat to audit the gate",
+        "vandor and take the watch",
+        "vandor please drain the lane",
+    ],
+)
 def test_a_sentence_is_a_TASK_and_must_not_be_hijacked_into_a_launch(word):
     """The historical behaviour must stay reachable for everything that is not exactly a
     seat name. A lever that sometimes swallows your sentence because it began with a name
@@ -69,8 +86,7 @@ def test_rill_states_its_own_identity_and_does_not_inherit_the_launchers():
     assert cwd == r"C:\dsh"
 
 
-@pytest.mark.parametrize("word,seat", [("rill", "dsh_agent"), ("heimdall", "deepseek"),
-                                       ("navi", "kimi")])
+@pytest.mark.parametrize("word,seat", [("rill", "dsh_agent"), ("heimdall", "deepseek"), ("navi", "kimi")])
 def test_EVERY_seat_states_its_own_identity(word, seat):
     """Not just Rill. No seat may inherit the launching process's id — that is how a
     launched seat gets mis-attributed or silently muted."""
@@ -185,8 +201,7 @@ def test_a_flagged_SENTENCE_is_still_a_task():
 
 # --------------------------------------------------------- options, not surprises
 def _plan(**kw):
-    base = dict(app_healthy=False, app_repairable=True, app_detail="status Modified",
-                live_seats=0, flags=set())
+    base = dict(app_healthy=False, app_repairable=True, app_detail="status Modified", live_seats=0, flags=set())
     base.update(kw)
     return sl.claude_seat_plan(**base)
 

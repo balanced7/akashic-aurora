@@ -51,9 +51,20 @@ from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
 from stack_manager import (
-    SERVICES, resolve_tiers, check_health, launch_service, wait_for_healthy,
-    PortManager, RoutingTable, ResourceTracker, MemoryMonitor,
-    _run_wsl, _run_ps, _run_cmd, c, log,
+    SERVICES,
+    resolve_tiers,
+    check_health,
+    launch_service,
+    wait_for_healthy,
+    PortManager,
+    RoutingTable,
+    ResourceTracker,
+    MemoryMonitor,
+    _run_wsl,
+    _run_ps,
+    _run_cmd,
+    c,
+    log,
 )
 
 # ──────────────────────────────────────────────────────────────
@@ -82,6 +93,7 @@ memory_mon = MemoryMonitor()
 # taking down the whole API response
 # ──────────────────────────────────────────────────────────────
 
+
 def safe_call(func, default=None):
     """Wrap a subsystem call; returns default on failure."""
     try:
@@ -94,6 +106,7 @@ def safe_call(func, default=None):
 # ══════════════════════════════════════════════════════════════
 # PANEL 1: DASHBOARD — overview, quick status, resource gauges
 # ══════════════════════════════════════════════════════════════
+
 
 @app.get("/api/dashboard")
 async def api_dashboard():
@@ -133,6 +146,7 @@ def _get_tier(name: str) -> int:
 # ══════════════════════════════════════════════════════════════
 # PANEL 2: LAUNCHER — start/stop/restart, dependency viz
 # ══════════════════════════════════════════════════════════════
+
 
 @app.get("/api/launcher/tiers")
 async def api_launcher_tiers():
@@ -224,7 +238,13 @@ async def api_start_all():
             results[name] = healthy
             if cfg.get("endpoint"):
                 ep = cfg["endpoint"]
-                routes_tbl.register(name, ep.get("host", "127.0.0.1"), ep.get("port", 0), ep.get("protocol", "tcp"), status="healthy" if healthy else "failed")
+                routes_tbl.register(
+                    name,
+                    ep.get("host", "127.0.0.1"),
+                    ep.get("port", 0),
+                    ep.get("protocol", "tcp"),
+                    status="healthy" if healthy else "failed",
+                )
     ports_mgr.sync_to_redis()
     return {"results": results}
 
@@ -232,6 +252,7 @@ async def api_start_all():
 # ══════════════════════════════════════════════════════════════
 # PANEL 3: METRICS — memory, CPU, health history
 # ══════════════════════════════════════════════════════════════
+
 
 @app.get("/api/metrics/memory")
 async def api_metrics_memory():
@@ -287,6 +308,7 @@ async def api_metrics_resources():
 # PANEL 4: TROUBLESHOOT — logs, health runner, dep graph
 # ══════════════════════════════════════════════════════════════
 
+
 @app.get("/api/troubleshoot/logs/{name}")
 async def api_troubleshoot_logs(name: str, lines: int = 30):
     """Get recent logs for a service."""
@@ -330,14 +352,16 @@ async def api_troubleshoot_dep_graph():
     edges = []
     for name, cfg in SERVICES.items():
         healthy = safe_call(lambda n=name, c=cfg: check_health(n, c), default=False)
-        nodes.append({
-            "id": name,
-            "label": name,
-            "description": cfg["description"],
-            "healthy": healthy,
-            "tier": _get_tier(name),
-            "ports": cfg.get("ports", []),
-        })
+        nodes.append(
+            {
+                "id": name,
+                "label": name,
+                "description": cfg["description"],
+                "healthy": healthy,
+                "tier": _get_tier(name),
+                "ports": cfg.get("ports", []),
+            }
+        )
         for dep in cfg.get("depends", []):
             edges.append({"from": dep, "to": name})
 
@@ -347,6 +371,7 @@ async def api_troubleshoot_dep_graph():
 # ══════════════════════════════════════════════════════════════
 # PANEL 5: MODERATION — manual controls, overrides, maintenance
 # ══════════════════════════════════════════════════════════════
+
 
 @app.get("/api/moderation/config")
 async def api_moderation_config():
@@ -404,6 +429,7 @@ async def api_moderation_status():
 # ══════════════════════════════════════════════════════════════
 
 _redis_conn = None
+
 
 def _redis():
     global _redis_conn
@@ -919,8 +945,10 @@ async def serve_stack_dashboard():
 # ENTRY POINT
 # ──────────────────────────────────────────────────────────────
 
+
 def main():
     import argparse
+
     parser = argparse.ArgumentParser(description="Stack Manager GUI Server")
     parser.add_argument("--port", type=int, default=8090, help="Server port (default: 8090)")
     parser.add_argument("--host", type=str, default="127.0.0.1", help="Bind host (default: 127.0.0.1)")
@@ -938,6 +966,7 @@ def main():
 
     if not args.no_browser:
         import webbrowser
+
         threading.Timer(1.5, lambda: webbrowser.open(f"http://{args.host}:{args.port}")).start()
 
     uvicorn.run(app, host=args.host, port=args.port, log_level="warning")

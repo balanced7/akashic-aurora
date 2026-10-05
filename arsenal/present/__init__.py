@@ -29,6 +29,7 @@ Layout of the package:
   Render targets are arsenal.module/v0 manifests in arsenal/modules/present.*.json; the
   family spec is docs/presentation-primitives.md.
 """
+
 from __future__ import annotations
 
 SCHEMA = "present.scene.v1"
@@ -44,5 +45,4 @@ from .scene import (  # noqa: E402  (re-exported for convenience; scene.py stays
     validate,
 )
 
-__all__ = ["SCHEMA", "ATOM_KINDS", "TEMPLATES", "TOKEN_ROLES", "coverage", "lint", "load",
-           "used_kinds", "validate"]
+__all__ = ["SCHEMA", "ATOM_KINDS", "TEMPLATES", "TOKEN_ROLES", "coverage", "lint", "load", "used_kinds", "validate"]

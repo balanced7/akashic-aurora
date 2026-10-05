@@ -30,6 +30,7 @@ what he meant, while claude could only send words back about pictures Daniil cou
     py scripts/vfx_render.py say "that read as glow because round turns tile area into gap"
     py scripts/vfx_render.py ingest --name tunnel --file shadertoy.txt
 """
+
 from __future__ import annotations
 
 import argparse
@@ -39,12 +40,24 @@ import time
 import urllib.error
 import urllib.request
 
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+
+        return python_launcher()
+    except Exception:
+        return "py"
+
+
 BASE = "http://127.0.0.1:8787"
 
 
 def _post(path, payload):
-    req = urllib.request.Request(BASE + path, data=json.dumps(payload).encode("utf-8"),
-                                 headers={"Content-Type": "application/json"})
+    req = urllib.request.Request(
+        BASE + path, data=json.dumps(payload).encode("utf-8"), headers={"Content-Type": "application/json"}
+    )
     return json.load(urllib.request.urlopen(req, timeout=10))
 
 
@@ -126,7 +139,7 @@ def submit(op, args, wait=90):
         job = _post("/vfx/job", {"op": op, "args": args})
     except urllib.error.URLError as exc:
         print("the console is not running on %s (%s)" % (BASE, exc), file=sys.stderr)
-        print("start it:  py scripts/bifrost_ui.py --port 8787", file=sys.stderr)
+        print(f"start it:  {_pyl()} scripts/bifrost_ui.py --port 8787", file=sys.stderr)
         return 2
 
     jid = job.get("id")
@@ -164,17 +177,17 @@ def submit(op, args, wait=90):
     if r.get("attached") and not r.get("visible"):
         print("the /vfx tab is HIDDEN, so it cannot render: bring it to the front", file=sys.stderr)
     elif r.get("attached"):
-        print("a renderer is attached (%s) but took no job in %ss -- reload %s/vfx"
-              % (r.get("worker", "?"), wait, BASE), file=sys.stderr)
+        print(
+            "a renderer is attached (%s) but took no job in %ss -- reload %s/vfx" % (r.get("worker", "?"), wait, BASE),
+            file=sys.stderr,
+        )
     else:
-        print("no renderer attached: open %s/vfx in a browser and leave the tab open" % BASE,
-              file=sys.stderr)
+        print("no renderer attached: open %s/vfx in a browser and leave the tab open" % BASE, file=sys.stderr)
     return 3
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description=__doc__,
-                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="op", required=True)
 
     p = sub.add_parser("state", help="render one avatar state")
@@ -251,8 +264,7 @@ def main() -> int:
     p.add_argument("--from", dest="from_", type=float, default=0.0)
     p.add_argument("--to", type=float, default=6.0)
     p.add_argument("--t", type=float, default=1.0, help="time for a single still")
-    p.add_argument("--no-preview", dest="no_preview", action="store_true",
-                   help="store it without rendering")
+    p.add_argument("--no-preview", dest="no_preview", action="store_true", help="store it without rendering")
 
     p = sub.add_parser("say", help="narrate into the open bench, with no render")
     p.add_argument("text", nargs="+")

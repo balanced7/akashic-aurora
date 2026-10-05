@@ -38,21 +38,18 @@ app.add_middleware(
 # Store connected clients
 connected_clients = set()
 conversation_history = []
-voice_settings = {
-    "engine": "kokoro",
-    "voice": "af_heart", 
-    "speed": 1.0,
-    "interrupt_enabled": True
-}
+voice_settings = {"engine": "kokoro", "voice": "af_heart", "speed": 1.0, "interrupt_enabled": True}
 
 # ============================================================================
 # HTTP ENDPOINTS
 # ============================================================================
 
+
 @app.get("/", response_class=HTMLResponse)
 async def get_ui():
     """Serve the GUI"""
     return HTMLResponse(content=get_gui_html(), media_type="text/html")
+
 
 @app.get("/health")
 async def health_check():
@@ -61,11 +58,12 @@ async def health_check():
         "status": "ok",
         "services": {
             "llm": "ready",
-            "stt": "ready", 
+            "stt": "ready",
             "tts": "ready",
         },
-        "timestamp": datetime.now().isoformat()
+        "timestamp": datetime.now().isoformat(),
     }
+
 
 @app.get("/voices")
 async def list_voices():
@@ -73,208 +71,184 @@ async def list_voices():
     voices = tts_processor.list_voices()
     return {"voices": voices, "current": voice_settings}
 
+
 @app.post("/voices")
 async def set_voice(engine: str = Form("kokoro"), voice: str = Form("af_heart"), speed: float = Form(1.0)):
     """Set voice settings"""
     voice_settings["engine"] = engine
     voice_settings["voice"] = voice
     voice_settings["speed"] = speed
-    
+
     tts_processor.set_engine(engine)
     tts_processor.set_voice(voice)
-    
+
     return {"success": True, "settings": voice_settings}
+
 
 @app.post("/upload")
 async def upload_file(file: UploadFile = File(...)):
     """Upload and analyze a file"""
     content = await file.read()
-    
+
     # Analyze file
     result = await file_analyzer.analyze(content, file.filename)
-    
+
     return result
 
+
 @app.post("/chat")
-async def chat_message(
-    message: str = Form(...),
-    files: list[UploadFile] = File(None)
-):
+async def chat_message(message: str = Form(...), files: list[UploadFile] = File(None)):
     """Text chat (non-voice)"""
     files_data = []
-    
+
     # Process uploaded files
     if files:
         for f in files:
             content = await f.read()
             result = await file_analyzer.analyze(content, f.filename)
             files_data.append(result)
-    
+
     # Get conversation history for context
     context = "\n".join([f"USER: {m['user']}\nGEMMA: {m['gemma']}" for m in conversation_history[-3:]])
-    
+
     # Stream response
     response_text = ""
     async for token in llm.chat(message, context=context, files=files_data):
         response_text += token
-    
+
     # Save to history
-    conversation_history.append({
-        "user": message,
-        "gemma": response_text,
-        "timestamp": datetime.now().isoformat()
-    })
-    
+    conversation_history.append({"user": message, "gemma": response_text, "timestamp": datetime.now().isoformat()})
+
     # Generate TTS audio
     audio = await tts_processor.speak(response_text)
     audio_b64 = base64.b64encode(audio).decode() if audio else None
-    
-    return {
-        "response": response_text,
-        "audio": audio_b64,
-        "timestamp": datetime.now().isoformat()
-    }
+
+    return {"response": response_text, "audio": audio_b64, "timestamp": datetime.now().isoformat()}
+
 
 # ============================================================================
-# WEBSOCKET ENDPOINTS  
+# WEBSOCKET ENDPOINTS
 # ============================================================================
+
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     """WebSocket for real-time voice"""
     await websocket.accept()
     connected_clients.add(websocket)
-    
+
     print(f"[WS] Client connected. Total: {len(connected_clients)}")
-    
+
     buffer = bytearray()
     is_recording = False
     current_response = ""
-    
+
     try:
         while True:
             data = await websocket.receive_json()
-            
+
             msg_type = data.get("type")
-            
+
             if msg_type == "audio":
                 # Receive audio chunk
                 audio_b64 = data.get("data", "")
                 audio_bytes = base64.b64decode(audio_b64)
                 buffer.extend(audio_bytes)
-                
+
                 # Check VAD
                 if voice_settings.get("interrupt_enabled"):
                     is_speaking = audio_handler.vad.is_speaking(audio_bytes)
-                    
+
                     # If we were generating and user speaks, interrupt
                     if is_speaking and llm.is_generating:
                         interrupt_result = await llm.interrupt()
-                        
-                        await websocket.send_json({
-                            "type": "interrupt",
-                            "partial": interrupt_result.get("partial_response", ""),
-                            "intent": interrupt_result.get("intent", "stop")
-                        })
-            
+
+                        await websocket.send_json(
+                            {
+                                "type": "interrupt",
+                                "partial": interrupt_result.get("partial_response", ""),
+                                "intent": interrupt_result.get("intent", "stop"),
+                            }
+                        )
+
             elif msg_type == "transcribe":
                 # Force transcription of buffered audio
                 if buffer:
                     text = await stt_processor.transcribe(bytes(buffer))
                     buffer.clear()
-                    
+
                     if text:
-                        await websocket.send_json({
-                            "type": "transcript", 
-                            "text": text
-                        })
-            
+                        await websocket.send_json({"type": "transcript", "text": text})
+
             elif msg_type == "text":
                 # Direct text message
                 message = data.get("text", "")
-                
+
                 if message:
                     # Get context
-                    context = "\n".join([
-                        f"USER: {m['user']}\nGEMMA: {m['gemma']}" 
-                        for m in conversation_history[-3:]
-                    ])
-                    
+                    context = "\n".join([f"USER: {m['user']}\nGEMMA: {m['gemma']}" for m in conversation_history[-3:]])
+
                     # Stream response
                     current_response = ""
-                    
+
                     async for token in llm.chat(message, context=context):
                         current_response += token
-                        
+
                         # Send text token
-                        await websocket.send_json({
-                            "type": "text",
-                            "token": token,
-                            "partial": current_response
-                        })
-                        
+                        await websocket.send_json({"type": "text", "token": token, "partial": current_response})
+
                         # Stream audio for completed sentences
-                        if token.rstrip().endswith(('.', '!', '?')):
+                        if token.rstrip().endswith((".", "!", "?")):
                             audio = await tts_processor.speak(token)
                             if audio:
-                                await websocket.send_json({
-                                    "type": "audio",
-                                    "data": base64.b64encode(audio).decode()
-                                })
-                    
+                                await websocket.send_json({"type": "audio", "data": base64.b64encode(audio).decode()})
+
                     # Save to history
-                    conversation_history.append({
-                        "user": message,
-                        "gemma": current_response,
-                        "timestamp": datetime.now().isoformat()
-                    })
-                    
+                    conversation_history.append(
+                        {"user": message, "gemma": current_response, "timestamp": datetime.now().isoformat()}
+                    )
+
                     # Final audio
                     audio = await tts_processor.speak(current_response)
                     if audio:
-                        await websocket.send_json({
-                            "type": "audio",
-                            "data": base64.b64encode(audio).decode()
-                        })
-                    
-                    await websocket.send_json({
-                        "type": "done",
-                        "response": current_response
-                    })
-            
+                        await websocket.send_json({"type": "audio", "data": base64.b64encode(audio).decode()})
+
+                    await websocket.send_json({"type": "done", "response": current_response})
+
             elif msg_type == "interrupt":
                 # User interrupted
                 interrupt_result = await llm.interrupt()
-                
+
                 # If intent is modify, ask user what they want
                 if interrupt_result.get("intent") == "modify":
-                    await websocket.send_json({
-                        "type": "ask",
-                        "question": "You interrupted me. Did you want me to:\nA) Stop completely\nB) Continue from where I was\nC) Say something different?"
-                    })
-            
+                    await websocket.send_json(
+                        {
+                            "type": "ask",
+                            "question": "You interrupted me. Did you want me to:\nA) Stop completely\nB) Continue from where I was\nC) Say something different?",
+                        }
+                    )
+
             elif msg_type == "video_choice":
                 # Handle video analysis choice
                 filename = data.get("filename")
                 choice = data.get("choice")
-                
+
                 result = await file_analyzer.ask_video_choice(filename, choice)
-                await websocket.send_json({
-                    "type": "video_result",
-                    "result": result
-                })
-    
+                await websocket.send_json({"type": "video_result", "result": result})
+
     except WebSocketDisconnect:
         print("[WS] Client disconnected")
     finally:
         connected_clients.discard(websocket)
 
+
 # ============================================================================
 # GUI HTML
 # ============================================================================
 
+
 def get_gui_html() -> str:
-    return '''<!DOCTYPE html>
+    return """<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -550,25 +524,28 @@ def get_gui_html() -> str:
         };
     </script>
 </body>
-</html>'''
+</html>"""
+
 
 # ============================================================================
 # MAIN
 # ============================================================================
 
+
 @app.on_event("startup")
 async def startup():
     """Initialize all components"""
     print("[System] Starting...")
-    
+
     await init_audio()
     await init_stt()
     await init_tts()
     await init_llm()
     await init_analyzer()
-    
+
     print("[System] All services ready!")
     print("[System] GUI available at http://localhost:5000")
+
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=5000)

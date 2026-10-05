@@ -1,5 +1,6 @@
 """T090 pins: sol_chat transport shape -- OFFLINE (no network, no key). Receipts these encode:
 docs/library/design/20260717_sol-gpt-5-6-live-api-probe-receipts-2026_ae0409.md (params) + the C3-1-style injection seams."""
+
 import sys
 from pathlib import Path
 
@@ -17,15 +18,14 @@ def test_effort_ladder_matches_api_receipt():
 
 
 def test_tool_conversion_chat_nested_to_flat():
-    flat = to_responses_tools([{"type": "function", "function": {
-        "name": "calc", "description": "d", "parameters": {"type": "object"}}}])
-    assert flat == [{"type": "function", "name": "calc", "description": "d",
-                     "parameters": {"type": "object"}}]
+    flat = to_responses_tools(
+        [{"type": "function", "function": {"name": "calc", "description": "d", "parameters": {"type": "object"}}}]
+    )
+    assert flat == [{"type": "function", "name": "calc", "description": "d", "parameters": {"type": "object"}}]
 
 
 def test_tool_conversion_flat_passthrough_and_hosted_untouched():
-    src = [{"type": "function", "name": "calc", "description": "", "parameters": {}},
-           {"type": "web_search"}]
+    src = [{"type": "function", "name": "calc", "description": "", "parameters": {}}, {"type": "web_search"}]
     assert to_responses_tools(src) == src
     assert to_responses_tools(None) is None
 
@@ -62,24 +62,28 @@ def test_preview_401_retry_exhausts_loudly():
 
 def test_transport_validates_knobs():
     with pytest.raises(ValueError):
-        SolTransport(effort="max")        # aggregator fiction must fail loud
+        SolTransport(effort="max")  # aggregator fiction must fail loud
     with pytest.raises(ValueError):
         SolTransport(verbosity="terse")
 
 
 def test_request_kwargs_shape_is_the_probe_verified_shape():
-    t = SolTransport(model="gpt-5.6-sol", effort="low", verbosity="low",
-                     max_output_tokens=1234, service_tier="flex", client=object())
-    kw = t.request_kwargs("SYS", [{"role": "user", "content": "hi"}],
-                          tools=[{"type": "function", "function": {"name": "f", "parameters": {}}}])
-    assert kw["store"] is False                      # RB-26: substrate owns conversation truth
-    assert kw["max_output_tokens"] == 1234           # max_tokens is DEAD on this model
+    t = SolTransport(
+        model="gpt-5.6-sol", effort="low", verbosity="low", max_output_tokens=1234, service_tier="flex", client=object()
+    )
+    kw = t.request_kwargs(
+        "SYS",
+        [{"role": "user", "content": "hi"}],
+        tools=[{"type": "function", "function": {"name": "f", "parameters": {}}}],
+    )
+    assert kw["store"] is False  # RB-26: substrate owns conversation truth
+    assert kw["max_output_tokens"] == 1234  # max_tokens is DEAD on this model
     assert kw["reasoning"] == {"effort": "low"}
     assert kw["text"] == {"verbosity": "low"}
     assert kw["service_tier"] == "flex"
     assert kw["instructions"] == "SYS"
     assert kw["tools"][0]["name"] == "f"
-    assert "temperature" not in kw                   # locked at 1 -- never send it
+    assert "temperature" not in kw  # locked at 1 -- never send it
 
 
 def test_extract_pairs_calls_for_stateless_resend():
@@ -93,8 +97,8 @@ def test_extract_pairs_calls_for_stateless_resend():
 
     text, calls, reasoning, items = SolTransport.extract(Resp())
     assert calls == [{"call_id": "c1", "name": "calc", "arguments": {"expr": "6*7"}}]
-    assert items and items[0].call_id == "c1"        # raw items preserved for history
-    assert reasoning is None                          # no reasoning item -> None, never a phantom
+    assert items and items[0].call_id == "c1"  # raw items preserved for history
+    assert reasoning is None  # no reasoning item -> None, never a phantom
 
 
 def test_extract_surfaces_reasoning_item():
@@ -111,5 +115,5 @@ def test_extract_surfaces_reasoning_item():
         output_text = "final answer"
 
     text, calls, reasoning, items = SolTransport.extract(Resp())
-    assert reasoning == "i should use a tool"         # summary surfaced (operator reads sol's mind)
-    assert calls == []                                # reasoning item is not a tool call
+    assert reasoning == "i should use a tool"  # summary surfaced (operator reads sol's mind)
+    assert calls == []  # reasoning item is not a tool call

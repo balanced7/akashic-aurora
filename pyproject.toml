@@ -1,0 +1,497 @@
+# Lets `uv run` resolve Aurora's dependencies with nothing installed beforehand:
+#   uv run agent_cli.py boot me --task "..."   (Python: .python-version)
+# requirements.txt (+ requirements/gemini-web.txt) are GENERATED from this file and uv.lock for
+# `pip install -r requirements.txt` (the Windows `py` setup, CI): `uv run poe lock` relocks and
+# rewrites them, `uv run poe lock-check` fails when either is stale. Never edit them by hand.
+#
+# Nothing here needs a separately installed service: the Bifrost bus runs on an embedded,
+# SQLite-persisted Redis (core/foundation/embedded_redis.py) when no Redis server is present.
+[project]
+name = "akashic-aurora"
+version = "0.0.0"
+requires-python = ">=3.11"
+dependencies = [
+    # the store and the bus
+    "redis>=5,<9",
+    "fakeredis>=2.30",
+    "lupa>=2",
+    # fleet health
+    "psutil>=5",
+    # the MCP door (ai_setup_mcp.py)
+    "mcp>=1,<2",          # ai_setup_mcp.py uses the 1.x FastMCP API (renamed in 2.x)
+    "anyio>=4",
+    # model runners and helper doors (DeepSeek / OpenAI-compatible, Gemini, Discord)
+    "openai>=1,<3",       # 3.x double-wraps an httpx.Timeout passed as timeout= (runner_lib)
+    "httpx>=0.27",
+    "requests>=2.31",
+    "google-genai>=1",
+    "discord.py>=2.3",
+    "pynacl>=1.5",
+    # the web and manuals doors
+    "beautifulsoup4>=4.12",
+    "markdownify>=0.12",
+    "pypdf>=4",
+    "pymupdf>=1.24",
+    "trafilatura>=1.8",
+    # arsenal (media analysis), screen space, transcripts
+    "numpy>=1.26",
+    "av>=12",
+    "pillow>=10",
+    "mss>=9",
+    "imageio-ffmpeg>=0.5",
+    "zstandard>=0.22",
+    # the console
+    "rich>=13",
+    "prompt_toolkit>=3",
+    # Windows-only UI automation (core/screenspace); absent elsewhere by design
+    "uiautomation>=2; sys_platform == 'win32'",
+]
+
+[dependency-groups]
+# Semantic embeddings and punctuation restoration pull in PyTorch (gigabytes); both features are
+# OFF by default and fall back to the deterministic pipeline. `uv sync --group ml` to enable.
+ml = [
+    "sentence-transformers>=3",
+    "deepmultilingualpunctuation>=1.0",
+]
+# Browser automation for the Gemini web door; also needs `playwright install chromium`.
+browser = [
+    "playwright>=1.44",
+    "patchright>=1.44",
+    "playwright-stealth>=1.0",
+]
+# Development tools (plan G1.P1). `uv sync` installs this group by default ([tool.uv]
+# default-groups), which matters: runtime code shells out to pytest (agent_cli.py
+# suite-baseline, scripts/ship_gate.py, scripts/check_fresh_clone.py, core/comm/toolbox.py).
+# prek replaces pre-commit as the hook-config runner.
+dev = [
+    "basedpyright>=1.40.1",
+    "deptry>=0.25.1",
+    "poethepoet>=0.48.0",
+    "prek>=0.5.4",
+    "pytest>=9.1.1",
+    "pytest-cov>=7.1.0",
+    "pytest-randomly>=5.0.0",
+    "pytest-xdist>=3.8.0",
+    "ruff>=0.16.9",
+    "ty>=0.0.84",
+]
+
+[tool.uv]
+package = false
+required-version = ">=0.12"
+# Supply-chain cooldown: resolve only releases at least 7 days old.
+exclude-newer = "7 days"
+default-groups = ["dev"]
+
+# Fallback (plan G1): these locked versions were younger than 7 days when the cooldown arrived
+# (2026-10-01), and without an override uv would downgrade them. Each line admits releases up to
+# that day for one package, so the lock the G0 oracle measured stays as it is. Delete each line
+# on its date: the locked version is then old enough for the global setting alone.
+[tool.uv.exclude-newer-package]
+av = "2026-10-01T12:00:00Z"                    # keeps 19.0.0; remove on or after 2026-10-07
+"charset-normalizer" = "2026-10-01T12:00:00Z"  # keeps 3.5.2; remove on or after 2026-10-08
+coverage = "2026-10-01T12:00:00Z"              # keeps 7.16.2; remove on or after 2026-10-05
+cryptography = "2026-10-01T12:00:00Z"          # keeps 50.0.2; remove on or after 2026-10-08
+filelock = "2026-10-01T12:00:00Z"              # keeps 4.0.7; remove on or after 2026-10-07
+"google-auth" = "2026-10-01T12:00:00Z"         # keeps 2.59.1; remove on or after 2026-10-08
+prek = "2026-10-01T12:00:00Z"                  # keeps 0.5.4; remove on or after 2026-10-06
+pyjwt = "2026-10-01T12:00:00Z"                 # keeps 2.15.1; remove on or after 2026-10-06
+regex = "2026-10-01T12:00:00Z"                 # keeps 2026.9.29; remove on or after 2026-10-07
+ruff = "2026-10-01T12:00:00Z"                  # keeps 0.16.9; remove on or after 2026-10-02
+"sse-starlette" = "2026-10-01T12:00:00Z"       # keeps 3.5.0; remove on or after 2026-10-06
+torch = "2026-10-01T12:00:00Z"                 # keeps 2.14.1; remove on or after 2026-10-08
+transformers = "2026-10-01T12:00:00Z"          # keeps 5.18.0; remove on or after 2026-10-08
+uvicorn = "2026-10-01T12:00:00Z"               # keeps 0.54.0; remove on or after 2026-10-03
+
+[tool.ruff]
+# Plan G2.P1. target-version = the G1 floor (requires-python >=3.11). line-length chosen by data:
+# ruff format would change 1,324 files at 100 and 1,318 at 120 (G0.P4); within 5%, so 120.
+# extend-exclude = exactly the ARCHIVAL files of tooling-upgrade/inventory.json (T2): 261 files,
+# as 4 whole directories plus 243 single files. No formatter panic files (ADV-005: the panic is
+# in the `full` diagnostic renderer, the formatter itself handles every file).
+target-version = "py311"
+# Python files only: Ruff 0.16 would also format code blocks in Markdown and pyproject.toml,
+# and non-Python files stay unchanged (I8).
+include = ["*.py", "*.pyi"]
+line-length = 120
+extend-exclude = [
+    "docs/_archive/pre-library/legacy/stack_manager/",
+    "research/in-flight/piano-spectacle-2026-09-13/",
+    "research/in-flight/t358_stdout/",
+    "research/reviewed/origin-prelog-2026-04-11/",
+    "docs/_archive/pre-library/legacy/agent_logger.py",
+    "docs/_archive/pre-library/legacy/gemma_realtime/document_implementation.py",
+    "docs/_archive/pre-library/legacy/gemma_realtime/document_state.py",
+    "docs/_archive/pre-library/legacy/gemma_realtime/test_components.py",
+    "docs/_archive/pre-library/legacy/gemma_realtime/test_gpu.py",
+    "docs/_archive/pre-library/legacy/project_context.py",
+    "docs/_archive/pre-library/legacy/services/port_manager.py",
+    "docs/_archive/pre-library/legacy/services/redis_manager.py",
+    "docs/_archive/pre-library/legacy/session_logger.py",
+    "docs/_archive/pre-library/legacy/session_summarizer.py",
+    "docs/_archive/pre-library/python_old/add_milestone.py",
+    "docs/_archive/pre-library/python_old/agentic_automation.py",
+    "docs/_archive/pre-library/python_old/ai_helper.py",
+    "docs/_archive/pre-library/python_old/ai_setup_mcp.py",
+    "docs/_archive/pre-library/python_old/architecture.py",
+    "docs/_archive/pre-library/python_old/auto_capture.py",
+    "docs/_archive/pre-library/python_old/auto_logger.py",
+    "docs/_archive/pre-library/python_old/bulk_compress.py",
+    "docs/_archive/pre-library/python_old/catchup.py",
+    "docs/_archive/pre-library/python_old/check_active.py",
+    "docs/_archive/pre-library/python_old/check_new.py",
+    "docs/_archive/pre-library/python_old/chronicle.py",
+    "docs/_archive/pre-library/python_old/diagnosis.py",
+    "docs/_archive/pre-library/python_old/fast_ocr.py",
+    "docs/_archive/pre-library/python_old/florence_vision_setup.py",
+    "docs/_archive/pre-library/python_old/gemma_voice_service.py",
+    "docs/_archive/pre-library/python_old/health_check_session_pipeline.py",
+    "docs/_archive/pre-library/python_old/init_agent.py",
+    "docs/_archive/pre-library/python_old/journey_dump.py",
+    "docs/_archive/pre-library/python_old/log.py",
+    "docs/_archive/pre-library/python_old/log_analysis.py",
+    "docs/_archive/pre-library/python_old/migrate_logs.py",
+    "docs/_archive/pre-library/python_old/migrate_sessions.py",
+    "docs/_archive/pre-library/python_old/monitor_turbo_launch.py",
+    "docs/_archive/pre-library/python_old/operational_alerts.py",
+    "docs/_archive/pre-library/python_old/origin_story.py",
+    "docs/_archive/pre-library/python_old/patch_log.py",
+    "docs/_archive/pre-library/python_old/persist_semantic_learnings.py",
+    "docs/_archive/pre-library/python_old/populate_chronicle.py",
+    "docs/_archive/pre-library/python_old/primer.py",
+    "docs/_archive/pre-library/python_old/redis_failover_sync.py",
+    "docs/_archive/pre-library/python_old/redis_helper.py",
+    "docs/_archive/pre-library/python_old/redis_sync_admin.py",
+    "docs/_archive/pre-library/python_old/session_canonical.py",
+    "docs/_archive/pre-library/python_old/session_compare.py",
+    "docs/_archive/pre-library/python_old/session_logger_fallback.py",
+    "docs/_archive/pre-library/python_old/session_manager.py",
+    "docs/_archive/pre-library/python_old/sessions.py",
+    "docs/_archive/pre-library/python_old/signal_counter.py",
+    "docs/_archive/pre-library/python_old/smart_log.py",
+    "docs/_archive/pre-library/python_old/stack_analysis.py",
+    "docs/_archive/pre-library/python_old/system_summary.py",
+    "docs/_archive/pre-library/python_old/task_context.py",
+    "docs/_archive/pre-library/python_old/test_bootstrap_api_no_docs.py",
+    "docs/_archive/pre-library/python_old/test_documentation_depth.py",
+    "docs/_archive/pre-library/python_old/test_fast_cache.py",
+    "docs/_archive/pre-library/python_old/test_imports.py",
+    "docs/_archive/pre-library/python_old/test_opencode_init.py",
+    "docs/_archive/pre-library/python_old/test_opencode_progress.py",
+    "docs/_archive/pre-library/python_old/test_phase1_simple.py",
+    "docs/_archive/pre-library/python_old/test_phase1_validation.py",
+    "docs/_archive/pre-library/python_old/test_phase_1_5_real_world.py",
+    "docs/_archive/pre-library/python_old/test_redis_cache.py",
+    "docs/_archive/pre-library/python_old/test_startup.py",
+    "docs/_archive/pre-library/python_old/ui_scout.py",
+    "docs/_archive/pre-library/python_old/update_port_registry.py",
+    "docs/_archive/pre-library/python_old/verify_agent_initialization.py",
+    "docs/_archive/pre-library/python_old/vision_engine.py",
+    "docs/_archive/pre-library/python_old/vision_engine_comfy.py",
+    "docs/_archive/pre-library/python_old/vision_scan_windows.py",
+    "docs/_archive/pre-library/python_old/work_context.py",
+    "research/in-flight/_m4_target_extract.py",
+    "research/in-flight/navi_verb_census.py",
+    "research/in-flight/t342/dead-modules/_archive__legacy__agent_logger.py",
+    "research/in-flight/t342/dead-modules/_archive__legacy__gemma_realtime__audio_handler.py",
+    "research/in-flight/t342/dead-modules/_archive__legacy__gemma_realtime__document_implementation.py",
+    "research/in-flight/t342/dead-modules/_archive__legacy__gemma_realtime__document_state.py",
+    "research/in-flight/t342/dead-modules/_archive__legacy__gemma_realtime__file_analyzer.py",
+    "research/in-flight/t342/dead-modules/_archive__legacy__gemma_realtime__llm_wrapper.py",
+    "research/in-flight/t342/dead-modules/_archive__legacy__gemma_realtime__server.py",
+    "research/in-flight/t342/dead-modules/_archive__legacy__gemma_realtime__stt_processor.py",
+    "research/in-flight/t342/dead-modules/_archive__legacy__gemma_realtime__test_components.py",
+    "research/in-flight/t342/dead-modules/_archive__legacy__gemma_realtime__test_gpu.py",
+    "research/in-flight/t342/dead-modules/_archive__legacy__gemma_realtime__tts_processor.py",
+    "research/in-flight/t342/dead-modules/_archive__legacy__project_context.py",
+    "research/in-flight/t342/dead-modules/_archive__legacy__services__port_manager.py",
+    "research/in-flight/t342/dead-modules/_archive__legacy__session_logger.py",
+    "research/in-flight/t342/dead-modules/_archive__legacy__session_summarizer.py",
+    "research/in-flight/t342/dead-modules/_archive__legacy__stack_manager____init__.py",
+    "research/in-flight/t342/dead-modules/_archive__legacy__stack_manager____main__.py",
+    "research/in-flight/t342/dead-modules/_archive__legacy__stack_manager__cli.py",
+    "research/in-flight/t342/dead-modules/_archive__legacy__stack_manager__config.py",
+    "research/in-flight/t342/dead-modules/_archive__legacy__stack_manager__dag.py",
+    "research/in-flight/t342/dead-modules/_archive__legacy__stack_manager__health.py",
+    "research/in-flight/t342/dead-modules/_archive__legacy__stack_manager__launcher.py",
+    "research/in-flight/t342/dead-modules/_archive__legacy__stack_manager__memory.py",
+    "research/in-flight/t342/dead-modules/_archive__legacy__stack_manager__ports.py",
+    "research/in-flight/t342/dead-modules/_archive__legacy__stack_manager__redis_util.py",
+    "research/in-flight/t342/dead-modules/_archive__legacy__stack_manager__resources.py",
+    "research/in-flight/t342/dead-modules/_archive__legacy__stack_manager__routing.py",
+    "research/in-flight/t342/dead-modules/_archive__python_old__add_milestone.py",
+    "research/in-flight/t342/dead-modules/_archive__python_old__agentic_automation.py",
+    "research/in-flight/t342/dead-modules/_archive__python_old__ai_helper.py",
+    "research/in-flight/t342/dead-modules/_archive__python_old__ai_setup_mcp.py",
+    "research/in-flight/t342/dead-modules/_archive__python_old__architecture.py",
+    "research/in-flight/t342/dead-modules/_archive__python_old__auto_capture.py",
+    "research/in-flight/t342/dead-modules/_archive__python_old__auto_logger.py",
+    "research/in-flight/t342/dead-modules/_archive__python_old__bulk_compress.py",
+    "research/in-flight/t342/dead-modules/_archive__python_old__catchup.py",
+    "research/in-flight/t342/dead-modules/_archive__python_old__check_active.py",
+    "research/in-flight/t342/dead-modules/_archive__python_old__check_new.py",
+    "research/in-flight/t342/dead-modules/_archive__python_old__chronicle.py",
+    "research/in-flight/t342/dead-modules/_archive__python_old__diagnosis.py",
+    "research/in-flight/t342/dead-modules/_archive__python_old__fast_ocr.py",
+    "research/in-flight/t342/dead-modules/_archive__python_old__florence_vision_setup.py",
+    "research/in-flight/t342/dead-modules/_archive__python_old__init_agent.py",
+    "research/in-flight/t342/dead-modules/_archive__python_old__journey_dump.py",
+    "research/in-flight/t342/dead-modules/_archive__python_old__log.py",
+    "research/in-flight/t342/dead-modules/_archive__python_old__log_analysis.py",
+    "research/in-flight/t342/dead-modules/_archive__python_old__migrate_logs.py",
+    "research/in-flight/t342/dead-modules/_archive__python_old__migrate_sessions.py",
+    "research/in-flight/t342/dead-modules/_archive__python_old__monitor_turbo_launch.py",
+    "research/in-flight/t342/dead-modules/_archive__python_old__operational_alerts.py",
+    "research/in-flight/t342/dead-modules/_archive__python_old__origin_story.py",
+    "research/in-flight/t342/dead-modules/_archive__python_old__patch_log.py",
+    "research/in-flight/t342/dead-modules/_archive__python_old__persist_semantic_learnings.py",
+    "research/in-flight/t342/dead-modules/_archive__python_old__populate_chronicle.py",
+    "research/in-flight/t342/dead-modules/_archive__python_old__port_registry.py",
+    "research/in-flight/t342/dead-modules/_archive__python_old__primer.py",
+    "research/in-flight/t342/dead-modules/_archive__python_old__redis_failover_sync.py",
+    "research/in-flight/t342/dead-modules/_archive__python_old__redis_helper.py",
+    "research/in-flight/t342/dead-modules/_archive__python_old__redis_sync_admin.py",
+    "research/in-flight/t342/dead-modules/_archive__python_old__session_canonical.py",
+    "research/in-flight/t342/dead-modules/_archive__python_old__session_compare.py",
+    "research/in-flight/t342/dead-modules/_archive__python_old__session_logger_fallback.py",
+    "research/in-flight/t342/dead-modules/_archive__python_old__session_manager.py",
+    "research/in-flight/t342/dead-modules/_archive__python_old__session_supervisor.py",
+    "research/in-flight/t342/dead-modules/_archive__python_old__sessions.py",
+    "research/in-flight/t342/dead-modules/_archive__python_old__signal_counter.py",
+    "research/in-flight/t342/dead-modules/_archive__python_old__stack_analysis.py",
+    "research/in-flight/t342/dead-modules/_archive__python_old__stack_manager.py",
+    "research/in-flight/t342/dead-modules/_archive__python_old__system_summary.py",
+    "research/in-flight/t342/dead-modules/_archive__python_old__task_context.py",
+    "research/in-flight/t342/dead-modules/_archive__python_old__test_bootstrap_api_no_docs.py",
+    "research/in-flight/t342/dead-modules/_archive__python_old__test_documentation_depth.py",
+    "research/in-flight/t342/dead-modules/_archive__python_old__test_fast_cache.py",
+    "research/in-flight/t342/dead-modules/_archive__python_old__test_imports.py",
+    "research/in-flight/t342/dead-modules/_archive__python_old__test_opencode_init.py",
+    "research/in-flight/t342/dead-modules/_archive__python_old__test_opencode_progress.py",
+    "research/in-flight/t342/dead-modules/_archive__python_old__test_phase1_simple.py",
+    "research/in-flight/t342/dead-modules/_archive__python_old__test_phase1_validation.py",
+    "research/in-flight/t342/dead-modules/_archive__python_old__test_phase_1_5_real_world.py",
+    "research/in-flight/t342/dead-modules/_archive__python_old__test_redis_cache.py",
+    "research/in-flight/t342/dead-modules/_archive__python_old__test_startup.py",
+    "research/in-flight/t342/dead-modules/_archive__python_old__ui_scout.py",
+    "research/in-flight/t342/dead-modules/_archive__python_old__update_port_registry.py",
+    "research/in-flight/t342/dead-modules/_archive__python_old__verify_agent_initialization.py",
+    "research/in-flight/t342/dead-modules/_archive__python_old__vision_scan_windows.py",
+    "research/in-flight/t342/dead-modules/_archive__python_old__work_context.py",
+    "research/in-flight/t342/dead-modules/agent_comm_helper.py",
+    "research/in-flight/t342/dead-modules/agent_dashboard.py",
+    "research/in-flight/t342/dead-modules/assets_manager.py",
+    "research/in-flight/t342/dead-modules/auto_catchup.py",
+    "research/in-flight/t342/dead-modules/bifrost_cache.py",
+    "research/in-flight/t342/dead-modules/browser_errors.py",
+    "research/in-flight/t342/dead-modules/cache_update_checker.py",
+    "research/in-flight/t342/dead-modules/catch_up.py",
+    "research/in-flight/t342/dead-modules/check_kb.py",
+    "research/in-flight/t342/dead-modules/check_screen.py",
+    "research/in-flight/t342/dead-modules/close_extra.py",
+    "research/in-flight/t342/dead-modules/close_tab.py",
+    "research/in-flight/t342/dead-modules/compliance_logger.py",
+    "research/in-flight/t342/dead-modules/context____init__.py",
+    "research/in-flight/t342/dead-modules/context__aggregator.py",
+    "research/in-flight/t342/dead-modules/context__arch_loader.py",
+    "research/in-flight/t342/dead-modules/context__blocker_loader.py",
+    "research/in-flight/t342/dead-modules/context__briefing_loader.py",
+    "research/in-flight/t342/dead-modules/context__decision_loader.py",
+    "research/in-flight/t342/dead-modules/context__narrative_loader.py",
+    "research/in-flight/t342/dead-modules/context__project_context.py",
+    "research/in-flight/t342/dead-modules/context_cache.py",
+    "research/in-flight/t342/dead-modules/conversation_logger.py",
+    "research/in-flight/t342/dead-modules/core__signals__coordinator_service.py",
+    "research/in-flight/t342/dead-modules/core__state__redis_sync_coordinator.py",
+    "research/in-flight/t342/dead-modules/core__state__sync_reconciler.py",
+    "research/in-flight/t342/dead-modules/debug_vision.py",
+    "research/in-flight/t342/dead-modules/desktop_automation.py",
+    "research/in-flight/t342/dead-modules/eagle_eye_test.py",
+    "research/in-flight/t342/dead-modules/escalate_review.py",
+    "research/in-flight/t342/dead-modules/infrastructure____init__.py",
+    "research/in-flight/t342/dead-modules/infrastructure__health_check.py",
+    "research/in-flight/t342/dead-modules/init_ai.py",
+    "research/in-flight/t342/dead-modules/keepalive_ollama.py",
+    "research/in-flight/t342/dead-modules/launch_brave_remote.py",
+    "research/in-flight/t342/dead-modules/launch_dashboard.py",
+    "research/in-flight/t342/dead-modules/launch_opencode_crash_safe.py",
+    "research/in-flight/t342/dead-modules/launch_opencode_primed.py",
+    "research/in-flight/t342/dead-modules/launch_opencode_zen.py",
+    "research/in-flight/t342/dead-modules/launch_paired_agents.py",
+    "research/in-flight/t342/dead-modules/launch_verifier.py",
+    "research/in-flight/t342/dead-modules/list_windows.py",
+    "research/in-flight/t342/dead-modules/log_gpu_fix.py",
+    "research/in-flight/t342/dead-modules/log_oversight.py",
+    "research/in-flight/t342/dead-modules/mcp_servers__agent_comm____init__.py",
+    "research/in-flight/t342/dead-modules/mcp_servers__agent_comm__server.py",
+    "research/in-flight/t342/dead-modules/multi_instance_launcher.py",
+    "research/in-flight/t342/dead-modules/quick_launch.py",
+    "research/in-flight/t342/dead-modules/redis_backup.py",
+    "research/in-flight/t342/dead-modules/redis_backup_fast.py",
+    "research/in-flight/t342/dead-modules/reprime.py",
+    "research/in-flight/t342/dead-modules/restore_redis.py",
+    "research/in-flight/t342/dead-modules/robust_catchup.py",
+    "research/in-flight/t342/dead-modules/save_dashboard_fix.py",
+    "research/in-flight/t342/dead-modules/save_diagnostic.py",
+    "research/in-flight/t342/dead-modules/save_gpu_fix.py",
+    "research/in-flight/t342/dead-modules/save_gpu_status.py",
+    "research/in-flight/t342/dead-modules/save_keepalive.py",
+    "research/in-flight/t342/dead-modules/screen_monitor.py",
+    "research/in-flight/t342/dead-modules/screen_ocr.py",
+    "research/in-flight/t342/dead-modules/scripts___wait_reply.py",
+    "research/in-flight/t342/dead-modules/scripts__hooks____init__.py",
+    "research/in-flight/t342/dead-modules/scripts__hooks__cursor_beforeshell.py",
+    "research/in-flight/t342/dead-modules/scripts__hooks__cursor_pretooluse.py",
+    "research/in-flight/t342/dead-modules/scripts__hooks__cursor_sessionend.py",
+    "research/in-flight/t342/dead-modules/scripts__hooks__cursor_sessionstart.py",
+    "research/in-flight/t342/dead-modules/scripts__hooks__install_git_hooks.py",
+    "research/in-flight/t342/dead-modules/scripts__hooks__mojibake_signatures.py",
+    "research/in-flight/t342/dead-modules/scripts__hooks__pre_commit.py",
+    "research/in-flight/t342/dead-modules/session_context.py",
+    "research/in-flight/t342/dead-modules/start_comm_service.py",
+    "research/in-flight/t342/dead-modules/system_diagnostic.py",
+    "research/in-flight/t342/dead-modules/test_js_gemini.py",
+    "research/in-flight/t342/dead-modules/test_js_gemini2.py",
+    "research/in-flight/t342/dead-modules/test_js_gemini3.py",
+    "research/in-flight/t342/dead-modules/test_qwen_ocr.py",
+    "research/in-flight/t342/dead-modules/test_qwen_taskmgr.py",
+    "research/in-flight/t342/dead-modules/test_video_keyframes.py",
+    "research/in-flight/t342/dead-modules/test_vision_timing.py",
+    "research/in-flight/t342/dead-modules/tests__test_coordinator_foundation.py",
+    "research/in-flight/t342/dead-modules/tests__test_fixes_quick.py",
+    "research/in-flight/t342/dead-modules/unified_agent.py",
+    "research/in-flight/t342/dead-modules/universal_cache.py",
+    "research/in-flight/t342/dead-modules/window_monitor.py",
+]
+
+[tool.ruff.format]
+quote-style = "double"
+docstring-code-format = true
+
+[tool.pytest.ini_options]
+# The standard test runner for this repo:  uv run pytest   (Windows fallback without uv:
+# py -m pytest). Collects both styles (pytest test_* functions AND the older banner-style
+# files, whose test_* functions pytest discovers automatically). Moved from pytest.ini in G1.P7
+# with the same meaning, plus --strict-markers and --strict-config.
+testpaths = ["tests"]
+# pytest-randomly is installed with the dev tools (G1) but stays off until the G5.P1
+# experiment adopts it on evidence: -p no:randomly keeps today's file order and seeding.
+addopts = ["-q", "-p", "no:randomly", "--strict-markers", "--strict-config"]
+# A test that `return`s a value (instead of asserting) is almost always a mistake;
+# make it an error so the convention stays clean going forward.
+filterwarnings = ["error::pytest.PytestReturnNotNoneWarning"]
+
+[tool.deptry]
+# Scope (plan G1.P1): [project].dependencies must equal what RUNTIME and SCRIPT code imports.
+# tests/ stays out (deptry's default exclude: test code imports dev tools). docs/ and research/
+# are history trees: every ARCHIVAL file lives there, and their remaining scripts import retired
+# stacks (torch, fastapi, selenium, flask, cv2, ...) that no deployment of this checkout ever
+# installed (g0 O3: those modules already fail to import; every module outside them imports OK).
+extend_exclude = ["^docs/", "^research/"]
+# Sibling modules imported through a sys.path entry (scripts/, scripts/generators/,
+# scripts/checkers/, scripts/githooks/, scripts/quiet/, core/toolbelt/, agent/harness/,
+# tooling-upgrade/), which deptry cannot see as first-party.
+known_first_party = [
+    "_tracked", "ask_deepseek", "ask_gpt", "bifrost_runner_deepseek", "check_preregistration",
+    "check_reconciliation_gate", "coauthor", "deepseek_chat", "gemini_chat", "gemini_web",
+    "gen_arch_index", "gen_doors", "gen_library", "gen_master_map", "gen_physics_sheet",
+    "gen_prior_art_register", "gen_report_scaffold", "hooks", "kimi_chat", "mirror", "oracle",
+    "piano_roll_pack", "sitecustomize", "sol_chat", "toast", "vfx_ingest",
+]
+
+[tool.deptry.per_rule_ignores]
+DEP001 = [
+    "flvfx",     # provided by FL Studio's VFX Script host; guarded import (arsenal/fl/vfx)
+    "bifrost",   # optional bifrost.api in scripts/bifrost_ui.py; guarded, answers 500 when absent
+]
+DEP002 = [
+    "lupa",      # loaded by fakeredis to run the bus's Lua scripts (dynamic, never imported)
+]
+DEP004 = [
+    # optional groups (ml, browser): imported lazily inside functions with a fallback or a
+    # hint, so every module imports without them (g0 O3: all OK)
+    "sentence_transformers", "deepmultilingualpunctuation",
+    "playwright", "patchright", "playwright_stealth",
+]
+
+# ---- Task runner (plan G1.P6): `uv run poe <task>`; `uv run poe -d <task>` prints the command.
+# Ruff and basedpyright always get their config explicitly (one config home: pyproject.toml).
+# `gate` runs the tasks that can be green today, in plan order, and stops at the first failure.
+# The others join it in the goal that makes them green (recorded in tooling-upgrade/checks/):
+# fmt-check joined in G2; lint-check joins in G3, types in G4, ci-lint in G5.
+
+[tool.poe.tasks.deps]
+help = "Dependency truth: deptry over RUNTIME and SCRIPT code (config: [tool.deptry])"
+cmd = "deptry . --config pyproject.toml"
+
+[tool.poe.tasks.lock]
+help = "Relock (uv lock), then regenerate the pip requirement files from the lock"
+sequence = [
+    { cmd = "uv lock" },
+    { cmd = "python scripts/generators/gen_requirements.py" },
+]
+
+[tool.poe.tasks.lock-check]
+help = "Fail if uv.lock is stale for pyproject.toml or a requirement file differs from the lock"
+sequence = [
+    { cmd = "uv lock --check" },
+    { cmd = "python scripts/generators/gen_requirements.py --check" },
+]
+
+[tool.poe.tasks.fmt]
+help = "Format every in-scope file with ruff"
+cmd = "ruff format --config pyproject.toml"
+
+[tool.poe.tasks.fmt-check]
+help = "Fail if any in-scope file is not ruff-formatted (changes nothing)"
+cmd = "ruff format --check --config pyproject.toml"
+
+[tool.poe.tasks.lint]
+help = "Lint with ruff and apply its safe fixes"
+cmd = "ruff check --fix --config pyproject.toml"
+
+[tool.poe.tasks.lint-check]
+help = "Fail on any ruff finding (changes nothing)"
+cmd = "ruff check --config pyproject.toml"
+
+[tool.poe.tasks.types]
+help = "Type-check with basedpyright"
+cmd = "basedpyright -p pyproject.toml"
+
+[tool.poe.tasks.types-ty]
+help = "Type-check with ty (advisory second opinion)"
+cmd = "ty check"
+
+
+
+[tool.poe.tasks.ci-lint]
+help = "Workflow lint: zizmor (security), actionlint (syntax), every uses: pinned to a SHA"
+sequence = [
+    { cmd = "uvx zizmor@1.30.1 --offline .github/workflows" },
+    { cmd = "uvx --from actionlint-py==1.7.12.25 actionlint" },
+    { cmd = "python tooling-upgrade/certify.py assert-sha-pins" },
+]
+
+[tool.poe.tasks.guardrails]
+help = "Every scripts/checkers/* with its documented arguments; none may exit worse than at g0"
+cmd = "python tooling-upgrade/oracle.py guardrails"
+
+[tool.poe.tasks.test]
+help = "Full suite in a throwaway worktree (REDIS_DB=15); writes the suite record snapshots/suite/O1.json"
+cmd = "python tooling-upgrade/oracle.py snapshot suite --components O1 --runs 1"
+
+[tool.poe.tasks.test-fast]
+help = "Smoke set + tests impacted by uncommitted changes (REDIS_DB=15), well under 3 minutes"
+cmd = "python tooling-upgrade/oracle.py test-fast"
+
+[tool.poe.tasks.oracle]
+help = "Full behavioural oracle: snapshot HEAD, then compare it with the g0 baseline"
+sequence = [
+    { cmd = "python tooling-upgrade/oracle.py snapshot head --runs 1" },
+    { cmd = "python tooling-upgrade/oracle.py compare g0 head" },
+]
+
+[tool.poe.tasks.gate]
+help = "The local gate: fmt-check, lock-check, deps, guardrails, test-fast; stops at the first failure"
+sequence = ["fmt-check", "lock-check", "deps", "guardrails", "test-fast"]

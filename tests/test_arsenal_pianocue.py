@@ -3,6 +3,7 @@
 The event-stream client here speaks raw HTTP over a socket, so every byte of the protocol is checked. Nothing here
 reads Daniel's practice log: replay runs on a synthetic session in a temporary store.
 """
+
 import http.client
 import http.server
 import io
@@ -127,8 +128,17 @@ def test_two_listeners_get_the_same_cue_with_defaults(server):
         before = int(time.time() * 1000)
         status, reply = _post_cue(server.port, {"type": "play", "notes": [67, 60, 64, 60], "label": "C"})
         assert (status, reply) == (200, {"id": 1, "listeners": 2})
-        want = {"type": "play", "notes": [60, 64, 67], "velocity": 80, "hold_ms": 2500, "arpeggio_ms": 0,
-                "sound": True, "label": "C", "detail": None, "source": "claude"}
+        want = {
+            "type": "play",
+            "notes": [60, 64, 67],
+            "velocity": 80,
+            "hold_ms": 2500,
+            "arpeggio_ms": 0,
+            "sound": True,
+            "label": "C",
+            "detail": None,
+            "source": "claude",
+        }
         for listener in (a, b):
             got = listener.cue()
             assert got["id"] == 1 and got["cue"] == want
@@ -160,8 +170,11 @@ def test_deck_and_jam_frames_share_the_id_sequence_and_the_ring(server):
         _post_cue(server.port, {"type": "clear"})
         assert hub.publish_event("jam", {"op": "mark", "text": "a synthetic mark"})["id"] == 3
         blocks = [listener.block() for _ in range(3)]
-        assert [tuple(b.split("\n")[:2]) for b in blocks] == [("id: 1", "event: deck"), ("id: 2", "event: cue"),
-                                                             ("id: 3", "event: jam")]
+        assert [tuple(b.split("\n")[:2]) for b in blocks] == [
+            ("id: 1", "event: deck"),
+            ("id: 2", "event: cue"),
+            ("id: 3", "event: jam"),
+        ]
         first = json.loads(blocks[0].split("\n")[2][6:])
         assert set(first) == {"id", "deck", "sent_at"} and first["deck"] == {"op": "open", "card_id": "lydian-four"}
     finally:
@@ -212,7 +225,7 @@ def test_last_event_id_replays_newer_cues_once_and_fresh_pages_get_none(server):
 def test_ring_keeps_the_last_fifty_and_a_restart_id_replays_all_young(server):
     for n in range(60):
         _post_cue(server.port, {"type": "hover", "notes": [21 + n]})
-    for last in (0, 10 ** 9):  # 10**9: an id from before a server restart
+    for last in (0, 10**9):  # 10**9: an id from before a server restart
         listener = SSE(server.port, last_event_id=last)
         try:
             assert [listener.cue()["id"] for _ in range(50)] == list(range(11, 61))
@@ -359,8 +372,10 @@ BAD = [
     ({"cue": {"type": "hover", "notes": [60], "sound": True}}, "a hover never sounds"),
     ({"cue": {"type": "play", "notes": [60], "source": "someone"}}, "source must be one of"),
     ({"cue": {"type": "sequence"}}, "a sequence needs steps"),
-    ({"cue": {"type": "sequence", "steps": [{"at_ms": 0, "type": "play", "notes": [60], "sound": False}]}},
-     "steps[0].unknown field 'sound'"),
+    (
+        {"cue": {"type": "sequence", "steps": [{"at_ms": 0, "type": "play", "notes": [60], "sound": False}]}},
+        "steps[0].unknown field 'sound'",
+    ),
     ({"cue": {"type": "sequence", "steps": [{"at_ms": -5, "type": "play", "notes": [60]}]}}, "steps[0].at_ms"),
     ({"cue": {"type": "sequence", "steps": [{"at_ms": 0, "type": "clear", "notes": [60]}]}}, "play or hover"),
     ({"cue": {"type": "clear", "notes": [60]}}, "a clear cue has unknown field 'notes'"),
@@ -374,18 +389,26 @@ def test_malformed_cues_answer_400_and_keep_the_connection(server, body, message
     try:
         status, reply = _request(server.port, "POST", "/api/piano/cue", body, conn=conn)
         assert status == 400 and message in reply["error"], reply
-        assert _request(server.port, "GET", "/api/piano/cues/status", conn=conn) == \
-            (200, {"listeners": 0, "last_id": 0, "caps": {"jam1": 0, "deck1": 0}, "pages": []})
+        assert _request(server.port, "GET", "/api/piano/cues/status", conn=conn) == (
+            200,
+            {"listeners": 0, "last_id": 0, "caps": {"jam1": 0, "deck1": 0}, "pages": []},
+        )
     finally:
         conn.close()
 
 
 def test_cross_site_pages_cannot_send_cues(server):
-    status, reply = _request(server.port, "POST", "/api/piano/cue", {"cue": {"type": "clear"}},
-                             headers={"Origin": "https://example.com"})
+    status, reply = _request(
+        server.port, "POST", "/api/piano/cue", {"cue": {"type": "clear"}}, headers={"Origin": "https://example.com"}
+    )
     assert status == 403 and "this machine" in reply["error"]
-    status, _ = _request(server.port, "POST", "/api/piano/cue", {"cue": {"type": "clear"}},
-                         headers={"Origin": f"http://127.0.0.1:{server.port}"})
+    status, _ = _request(
+        server.port,
+        "POST",
+        "/api/piano/cue",
+        {"cue": {"type": "clear"}},
+        headers={"Origin": f"http://127.0.0.1:{server.port}"},
+    )
     assert status == 200
 
 
@@ -397,14 +420,40 @@ def test_existing_routes_still_answer(server):
 
 # ------------------------------------------------------------------------------------------ validation
 def test_sequence_steps_are_sorted_and_inherit_the_cue_defaults():
-    cue = validate_cue({"type": "sequence", "velocity": 60, "hold_ms": 900, "source": "replay", "steps": [
-        {"at_ms": 500, "type": "hover", "notes": [64]},
-        {"at_ms": 0, "type": "play", "notes": [60, 48], "velocity": 100, "label": "C/C"}]})
+    cue = validate_cue(
+        {
+            "type": "sequence",
+            "velocity": 60,
+            "hold_ms": 900,
+            "source": "replay",
+            "steps": [
+                {"at_ms": 500, "type": "hover", "notes": [64]},
+                {"at_ms": 0, "type": "play", "notes": [60, 48], "velocity": 100, "label": "C/C"},
+            ],
+        }
+    )
     assert cue["steps"] == [
-        {"at_ms": 0, "type": "play", "notes": [48, 60], "velocity": 100, "hold_ms": 900, "arpeggio_ms": 0,
-         "label": "C/C", "detail": None},
-        {"at_ms": 500, "type": "hover", "notes": [64], "velocity": 60, "hold_ms": 900, "arpeggio_ms": 0,
-         "label": None, "detail": None}]
+        {
+            "at_ms": 0,
+            "type": "play",
+            "notes": [48, 60],
+            "velocity": 100,
+            "hold_ms": 900,
+            "arpeggio_ms": 0,
+            "label": "C/C",
+            "detail": None,
+        },
+        {
+            "at_ms": 500,
+            "type": "hover",
+            "notes": [64],
+            "velocity": 60,
+            "hold_ms": 900,
+            "arpeggio_ms": 0,
+            "label": None,
+            "detail": None,
+        },
+    ]
     assert cue["source"] == "replay" and cue["sound"] is True
     assert validate_cue({"type": "hover", "notes": [60]})["sound"] is False
     assert validate_cue({"type": "play", "notes": [60], "sound": False, "hold_ms": 0})["hold_ms"] == 0
@@ -423,14 +472,24 @@ def _session_events(with_sound_end=True):
         {"t_ms": 1600, "kind": "off", "note": 64},
         {"t_ms": 4000, "kind": "pedal", "down": False, "value": 0},
         {"t_ms": 5000, "kind": "on", "note": 63, "vel": 90},
-        {"t_ms": 5002, "kind": "chord", "chord": "Cm", "notes": ["C4", "Eb4", "G4"], "key": "C minor",
-         "detect_kind": "chord", "nns": "1m", "nns_key": "C minor"},
+        {
+            "t_ms": 5002,
+            "kind": "chord",
+            "chord": "Cm",
+            "notes": ["C4", "Eb4", "G4"],
+            "key": "C minor",
+            "detect_kind": "chord",
+            "nns": "1m",
+            "nns_key": "C minor",
+        },
         {"t_ms": 5500, "kind": "off", "note": 63},
     ]
     if with_sound_end:
-        events += [{"t_ms": 4000, "kind": "sound_end", "note": 60, "by": "pedal"},
-                   {"t_ms": 4000, "kind": "sound_end", "note": 64, "by": "pedal"},
-                   {"t_ms": 5500, "kind": "sound_end", "note": 63, "by": "release"}]
+        events += [
+            {"t_ms": 4000, "kind": "sound_end", "note": 60, "by": "pedal"},
+            {"t_ms": 4000, "kind": "sound_end", "note": 64, "by": "pedal"},
+            {"t_ms": 5500, "kind": "sound_end", "note": 63, "by": "release"},
+        ]
     return events
 
 
@@ -439,9 +498,9 @@ def test_replay_holds_pedalled_notes_until_their_sound_ended(with_sound_end):
     cue = build_replay_cue(_session_events(with_sound_end), start_ms=1400, seconds=4)
     assert cue["type"] == "sequence" and cue["source"] == "replay" and cue["label"] == "you, at 0:01"
     assert [(s["at_ms"], s["notes"], s["hold_ms"], s["velocity"]) for s in cue["steps"]] == [
-        (0, [60], 2600, 70),       # struck before the window, still ringing under the pedal
-        (100, [64], 2500, 50),     # key up at 1600, the pedal held it to 4000
-        (3600, [63], 400, 90),     # clipped at the window's end (5400)
+        (0, [60], 2600, 70),  # struck before the window, still ringing under the pedal
+        (100, [64], 2500, 50),  # key up at 1600, the pedal held it to 4000
+        (3600, [63], 400, 90),  # clipped at the window's end (5400)
     ]
     assert cue["steps"][0]["detail"] == "already sounding at 0:01"
     assert (cue["steps"][2]["label"], cue["steps"][2]["detail"]) == ("Cm", "1m in C minor")
@@ -471,14 +530,26 @@ def _voice(items, **kw):
 @needs_node
 def test_the_suffix_reader_agrees_with_every_template():
     import subprocess
+
     out = subprocess.run([NODE, str(pianocue.BRIDGE), "--check"], capture_output=True, text=True, timeout=60)
     reply = json.loads(out.stdout)
     assert reply["templates"] >= 30 and reply["problems"] == []
     assert reply["page_spelling"] == "piano.js spellForKey", reply  # labels follow the page's own function
 
 
-DANIEL = ["Abmaj9#11", "Ebmaj9#11", "Bb7sus4/Eb", "Bb11/Ab", "Dbmaj9", "Abm", "Cbmaj7", "Gbmaj7/F", "Ebm(add9)/Bb",
-          "Cm11/Bb", "Fm9/Ab"]
+DANIEL = [
+    "Abmaj9#11",
+    "Ebmaj9#11",
+    "Bb7sus4/Eb",
+    "Bb11/Ab",
+    "Dbmaj9",
+    "Abm",
+    "Cbmaj7",
+    "Gbmaj7/F",
+    "Ebm(add9)/Bb",
+    "Cm11/Bb",
+    "Fm9/Ab",
+]
 
 
 @needs_node
@@ -513,12 +584,19 @@ def test_numbers_and_notes():
 
 
 @needs_node
-@pytest.mark.parametrize("key,items,names", [
-    # b6 in Eb major is spelled Cb from the key, but the page never shows a Cb root off the key's scale: it shows B
-    ("Eb major", ["1", "4", "5", "6m", "b3", "b6", "b7maj9", "#4m7b5"], ["Eb", "Ab", "Bb", "Cm", "Gb", "Cb", "Dbmaj9", "Am7b5"]),
-    ("C minor", ["1", "1m", "b3", "4", "5", "b6", "b7"], ["C", "Cm", "Eb", "F", "G", "Ab", "Bb"]),
-    ("A minor", ["1m", "b3", "4m", "5"], ["Am", "C", "Dm", "E"]),
-])
+@pytest.mark.parametrize(
+    "key,items,names",
+    [
+        # b6 in Eb major is spelled Cb from the key, but the page never shows a Cb root off the key's scale: it shows B
+        (
+            "Eb major",
+            ["1", "4", "5", "6m", "b3", "b6", "b7maj9", "#4m7b5"],
+            ["Eb", "Ab", "Bb", "Cm", "Gb", "Cb", "Dbmaj9", "Am7b5"],
+        ),
+        ("C minor", ["1", "1m", "b3", "4", "5", "b6", "b7"], ["C", "Cm", "Eb", "F", "G", "Ab", "Bb"]),
+        ("A minor", ["1m", "b3", "4m", "5"], ["Am", "C", "Dm", "E"]),
+    ],
+)
 def test_plain_and_flat_numbers_are_numbers_not_notes(key, items, names):
     results = _voice(items, key=key)
     assert [r.get("error") for r in results] == [None] * len(items), results
@@ -542,7 +620,7 @@ LIL = {1: 52, 2: 51, 3: 48, 4: 46, 5: 45, 6: 46, 7: 34}  # the bridge's low-inte
 
 
 def _crowding(notes):
-    return sum(1 for i, a in enumerate(notes) for b in notes[i + 1:] if 1 <= b - a <= 7 and a < LIL[b - a])
+    return sum(1 for i, a in enumerate(notes) for b in notes[i + 1 :] if 1 <= b - a <= 7 and a < LIL[b - a])
 
 
 def _match_cost(a, b):
@@ -556,8 +634,20 @@ def _match_cost(a, b):
     return best
 
 
-CYCLE = ["Cmaj7", "Fmaj7", "Bbmaj7", "Ebmaj7", "Abmaj7", "Dbmaj7", "Gbmaj7", "Bmaj7", "Emaj7", "Amaj7", "Dmaj7",
-         "Gmaj7"] * 2
+CYCLE = [
+    "Cmaj7",
+    "Fmaj7",
+    "Bbmaj7",
+    "Ebmaj7",
+    "Abmaj7",
+    "Dbmaj7",
+    "Gbmaj7",
+    "Bmaj7",
+    "Emaj7",
+    "Amaj7",
+    "Dmaj7",
+    "Gmaj7",
+] * 2
 LEAD_PROGRESSIONS = [
     (None, CYCLE),
     (None, ["C7", "B7", "Bb7", "A7", "Ab7", "G7", "Gb7", "F7", "E7", "Eb7", "D7", "Db7", "C7"]),
@@ -591,8 +681,20 @@ def test_voice_leading_never_moves_more_than_the_plain_voicing_and_keeps_its_reg
 @needs_node
 @pytest.mark.parametrize("style", ["close", "open", "drop2", "shell"])
 def test_slash_basses_sit_at_c2_or_above_with_room_above_them(style):
-    chords = ["F/A", "G/B", "Fmaj7/E", "Gbmaj7/F", "Bb11/Ab", "F#aug/D", "F#dim7/D#", "F/C", "Ab/C", "E7/G#",
-              "Bb7sus4/Eb", "Fm9/Ab"]
+    chords = [
+        "F/A",
+        "G/B",
+        "Fmaj7/E",
+        "Gbmaj7/F",
+        "Bb11/Ab",
+        "F#aug/D",
+        "F#dim7/D#",
+        "F/C",
+        "Ab/C",
+        "E7/G#",
+        "Bb7sus4/Eb",
+        "Fm9/Ab",
+    ]
     for r in _voice(chords, key="Eb major", voicing=style):
         n = r["notes"]
         assert n[0] >= 36 and n[1] - n[0] >= 5 and _crowding(n[:2]) == 0, (style, r["name"], r["names"])
@@ -631,18 +733,18 @@ PCS = "C Db D Eb E F Gb G Ab A Bb B".split()
 def test_drop2_triads_double_the_root_on_top_over_a_root_bass():
     names = ["C", "Cm", "Csus4", "Csus2", "C5", "C7", "Cmaj7", "Bdim"]
     got = {r["input"]: r["notes"] for r in _voice(names, voicing="drop2")}
-    assert got["C"] == [48, 55, 60, 64, 72]        # C3 | G3 C4 E4 C5: the C7 shape with the octave for the 7th
+    assert got["C"] == [48, 55, 60, 64, 72]  # C3 | G3 C4 E4 C5: the C7 shape with the octave for the 7th
     assert got["Cm"] == [48, 55, 60, 63, 72]
     assert got["Csus4"] == [48, 55, 60, 65, 72] and got["Csus2"] == [48, 55, 60, 62, 72]
-    assert got["C5"] == [48, 55, 60, 72]           # C3 | G3 C4 C5
+    assert got["C5"] == [48, 55, 60, 72]  # C3 | G3 C4 C5
     assert got["C7"] == [48, 55, 60, 64, 70] and got["Cmaj7"] == [48, 55, 60, 64, 71]  # seventh chords unchanged
     assert got["Bdim"] == [47, 53, 59, 62, 71]
     for suffix, upper_count in (("", 4), ("m", 4), ("dim", 4), ("aug", 4), ("sus2", 4), ("sus4", 4), ("5", 3)):
         for r in _voice([root + suffix for root in PCS], voicing="drop2"):
-            n, root = r["notes"], PCS.index(r["input"][:-len(suffix)] if suffix else r["input"])
+            n, root = r["notes"], PCS.index(r["input"][: -len(suffix)] if suffix else r["input"])
             upper = n[1:]
-            assert n[0] % 12 == root and 41 <= n[0] <= 52, r                  # a root bass between F2 and E3
-            assert len(upper) == upper_count and upper[-1] % 12 == root, r      # the doubled root on top
+            assert n[0] % 12 == root and 41 <= n[0] <= 52, r  # a root bass between F2 and E3
+            assert len(upper) == upper_count and upper[-1] % 12 == root, r  # the doubled root on top
             # not an octave too high: the top root is F4..E5, except where the bass's tritone would crowd (Fdim..Adim
             # over F2..A2 lift the upper voices an octave, as a m7b5 drop 2 there does)
             assert upper[0] - n[0] >= 5 and upper[-1] - upper[0] <= 18, r
@@ -651,15 +753,18 @@ def test_drop2_triads_double_the_root_on_top_over_a_root_bass():
 
 
 @needs_node
-@pytest.mark.parametrize("key,items,names", [
-    # TN2 shared speller (piano/spell.js; tn1-rulings.md "the spelling ruling for TN2"): a chord is spelled by the fewest
-    # accidentals counted against the key, so a flat key's b6/b7/b2 keep their degree letters (Cb, Fb) instead of sharps.
-    ("Eb major", ["b6", "b2", "b5", "#4", "b3", "b7maj9"], ["Cb", "E", "A", "A", "Gb", "Dbmaj9"]),
-    ("Db major", ["b3", "b7", "b6m", "4"], ["E", "Cb", "Am", "Gb"]),
-    ("Gb major", ["4", "b7", "b3"], ["Cb", "Fb", "A"]),      # Fb major (Fb Ab Cb) beats E major (E G# B) in Gb
-    ("Eb minor", ["b6", "b2", "b3"], ["Cb", "Fb", "Gb"]),    # and in Eb minor
-    ("C major", ["#1m", "b1"], ["C#m", "B"]),                # C#m (C# E G#) beats Dbm (Db Fb Ab)
-])
+@pytest.mark.parametrize(
+    "key,items,names",
+    [
+        # TN2 shared speller (piano/spell.js; tn1-rulings.md "the spelling ruling for TN2"): a chord is spelled by the fewest
+        # accidentals counted against the key, so a flat key's b6/b7/b2 keep their degree letters (Cb, Fb) instead of sharps.
+        ("Eb major", ["b6", "b2", "b5", "#4", "b3", "b7maj9"], ["Cb", "E", "A", "A", "Gb", "Dbmaj9"]),
+        ("Db major", ["b3", "b7", "b6m", "4"], ["E", "Cb", "Am", "Gb"]),
+        ("Gb major", ["4", "b7", "b3"], ["Cb", "Fb", "A"]),  # Fb major (Fb Ab Cb) beats E major (E G# B) in Gb
+        ("Eb minor", ["b6", "b2", "b3"], ["Cb", "Fb", "Gb"]),  # and in Eb minor
+        ("C major", ["#1m", "b1"], ["C#m", "B"]),  # C#m (C# E G#) beats Dbm (Db Fb Ab)
+    ],
+)
 def test_numbers_are_named_as_the_page_names_them(key, items, names):
     rs = _voice(items, key=key)
     assert [r["name"] for r in rs] == names, rs
@@ -669,8 +774,10 @@ def test_numbers_are_named_as_the_page_names_them(key, items, names):
 @needs_node
 def test_no_number_in_any_page_key_gets_a_name_the_page_would_not_show():
     import re
-    keys = [f"{k} major" for k in PCS[:6] + ["F#"] + PCS[7:]] + \
-           [f"{k} minor" for k in "C C# D Eb E F F# G G# A Bb B".split()]
+
+    keys = [f"{k} major" for k in PCS[:6] + ["F#"] + PCS[7:]] + [
+        f"{k} minor" for k in "C C# D Eb E F F# G G# A Bb B".split()
+    ]
     items = [acc + str(d) + sfx for acc in ("", "b", "#") for d in range(1, 8) for sfx in ("", "m", "^7", "/5")]
     root_of = lambda name: re.match(r"[A-G](#{1,2}|b{1,2})?", name or "").group(0) if name else None  # noqa: E731
     checked = 0
@@ -682,8 +789,15 @@ def test_no_number_in_any_page_key_gets_a_name_the_page_would_not_show():
                 assert r["name"] == rt["page_name"], (key, r["input"], r["name"], rt)
             # An odd root must be the page's own spelling when the page reads the SAME chord (exact or enharmonic);
             # an "equivalent" roundtrip is the same notes read as another chord (Cb/Ab against the page's Abm7), whose root differs.
-            if rt["match"] in ("exact", "enharmonic") and (re.search(r"[A-G](bb|##)", r["name"]) or root in ("E#", "B#", "Cb", "Fb")):
-                assert root_of(rt["page_name"]) == root, (key, r["input"], r["name"], rt)  # F## in G# minor: the page's own
+            if rt["match"] in ("exact", "enharmonic") and (
+                re.search(r"[A-G](bb|##)", r["name"]) or root in ("E#", "B#", "Cb", "Fb")
+            ):
+                assert root_of(rt["page_name"]) == root, (
+                    key,
+                    r["input"],
+                    r["name"],
+                    rt,
+                )  # F## in G# minor: the page's own
             checked += 1
     assert checked == len(keys) * len(items)
 
@@ -691,8 +805,14 @@ def test_no_number_in_any_page_key_gets_a_name_the_page_would_not_show():
 @needs_node
 def test_dash_minor_chords_and_a_lone_two_digit_midi_note():
     rs = _voice(["C-7", "Bb-7", "F-9", "Eb-", "C-(maj7)", "C-^7"], key="Eb major")
-    assert [(r["kind"], r["name"]) for r in rs] == [("chord", "Cm7"), ("chord", "Bbm7"), ("chord", "Fm9"), ("chord", "Ebm"),
-                                                    ("chord", "Cm(maj7)"), ("chord", "Cm7")]
+    assert [(r["kind"], r["name"]) for r in rs] == [
+        ("chord", "Cm7"),
+        ("chord", "Bbm7"),
+        ("chord", "Fm9"),
+        ("chord", "Ebm"),
+        ("chord", "Cm(maj7)"),
+        ("chord", "Cm7"),
+    ]
     assert _voice(["Bb-7"])[0]["name"] == "Bbm7"  # no key needed
     keyed, bare = _voice(["57"], key="Eb major")[0], _voice(["57"])[0]
     assert keyed["kind"] == "notes" and keyed["notes"] == [57]
@@ -703,6 +823,7 @@ def test_dash_minor_chords_and_a_lone_two_digit_midi_note():
 
 def _root_pc(name):
     import re
+
     m = re.match(r"([A-G])(#{1,2}|b{1,2})?", name)
     acc = 0 if not m.group(2) else (len(m.group(2)) if m.group(2)[0] == "#" else -len(m.group(2)))
     return ("C D EF G A B".index(m.group(1)) + acc) % 12
@@ -713,9 +834,19 @@ def _root_pc(name):
 def test_a_number_whose_suffix_starts_with_an_accidental_keeps_its_root_and_tones(key, tonic):
     # (round 6: "5b9" was glued into the text "Gb9" and read back as a G-flat 9th; 4122 of 5040 such numbers had the
     # wrong root across the 24 page keys)
-    want = {"1b5": (0, {0, 4, 6}), "5b9": (7, {7, 11, 2, 8}), "4#11": (5, {5, 9, 0, 11}), "5#5": (7, {7, 11, 3}),
-            "5^b9": (7, {7, 11, 2, 8}), "b7b5": (10, {10, 2, 4}), "5^7b9": (7, {7, 11, 2, 5, 8}),
-            "1^7#9": (0, {0, 4, 7, 10, 3}), "6b13": (9, {9, 1, 4, 5}), "2m7b5": (2, {2, 5, 8, 0}), "7b5/1": (11, {11, 3, 5, 0})}
+    want = {
+        "1b5": (0, {0, 4, 6}),
+        "5b9": (7, {7, 11, 2, 8}),
+        "4#11": (5, {5, 9, 0, 11}),
+        "5#5": (7, {7, 11, 3}),
+        "5^b9": (7, {7, 11, 2, 8}),
+        "b7b5": (10, {10, 2, 4}),
+        "5^7b9": (7, {7, 11, 2, 5, 8}),
+        "1^7#9": (0, {0, 4, 7, 10, 3}),
+        "6b13": (9, {9, 1, 4, 5}),
+        "2m7b5": (2, {2, 5, 8, 0}),
+        "7b5/1": (11, {11, 3, 5, 0}),
+    }
     if key.endswith("minor"):
         want = {k: v for k, v in want.items() if k != "7b5/1"}
     rs = {r["input"]: r for r in _voice(list(want), key=key)}
@@ -724,11 +855,21 @@ def test_a_number_whose_suffix_starts_with_an_accidental_keeps_its_root_and_tone
         assert not r.get("error"), r
         assert _root_pc(r["name"]) == (tonic + root) % 12, (key, item, r["name"], r["names"])
         pcs, full = {n % 12 for n in r["notes"]}, {(tonic + t) % 12 for t in tones}
-        assert pcs <= full and full - pcs <= {(tonic + root + 7) % 12}, (key, item, r["names"])  # (a natural 5th may be left out)
+        assert pcs <= full and full - pcs <= {(tonic + root + 7) % 12}, (
+            key,
+            item,
+            r["names"],
+        )  # (a natural 5th may be left out)
         assert not any("reads back as" in w for w in r["warnings"]), (key, item, r["warnings"])
     if key == "C major":
-        assert [rs[i]["name"] for i in ("5b9", "1b5", "4#11", "5#5", "6b13", "5^7b9")] == \
-            ["G(b9)", "C(b5)", "F(#11)", "Gaug", "A(b13)", "G7b9"]
+        assert [rs[i]["name"] for i in ("5b9", "1b5", "4#11", "5#5", "6b13", "5^7b9")] == [
+            "G(b9)",
+            "C(b5)",
+            "F(#11)",
+            "Gaug",
+            "A(b13)",
+            "G7b9",
+        ]
         assert rs["7b5/1"]["notes"][0] % 12 == 0 and rs["7b5/1"]["name"] == "B(b5)/C", rs["7b5/1"]
         assert any("no name for b9" in w for w in rs["5b9"]["warnings"]), rs["5b9"]
     if key == "Eb major":
@@ -836,13 +977,14 @@ process.exit(0);
 @needs_node
 def test_cue_player_never_bursts_after_a_freeze_or_a_pagehide_and_a_replay_keeps_its_caption():
     script = PLAYER_SCRIPT % {"url": json.dumps((ROOT / "arsenal" / "web" / "piano" / "cues.js").as_uri())}
-    proc = subprocess.run([NODE, "--input-type=module", "-"], input=script, capture_output=True, text=True,
-                          encoding="utf-8", timeout=60)
+    proc = subprocess.run(
+        [NODE, "--input-type=module", "-"], input=script, capture_output=True, text=True, encoding="utf-8", timeout=60
+    )
     assert proc.returncode == 0, proc.stderr
     out = json.loads(proc.stdout)
 
     freeze = out["freeze"]
-    assert freeze["before"] == 5 and freeze["burst"] <= 2, freeze          # at most one step's worth, never ten at once
+    assert freeze["before"] == 5 and freeze["burst"] <= 2, freeze  # at most one step's worth, never ten at once
     assert freeze["state"]["lateDropped"] == 10 and freeze["ons"] == 24 - 10, freeze
     assert max(freeze["late"]) <= 250 and freeze["state"]["pending"] == 0, freeze
 
@@ -852,10 +994,20 @@ def test_cue_player_never_bursts_after_a_freeze_or_a_pagehide_and_a_replay_keeps
     assert ph["after_dispose"] == 0  # a disposed player stops listening
 
     # replay: the sequence caption stays on top from 0 to its end, and the newest step's caption sits under it
-    assert out["replay"] == [[0, "you, at 0:30", "Cm"], [500, "you, at 0:30", "Ab"], [800, "you, at 0:30", "Cm"],
-                             [1000, "you, at 0:30", None], [1400, None, None]], out["replay"]
-    assert out["claude"] == [[0, "Cm", None], [500, "Ab", None], [800, "Cm", None], [1000, "you, at 0:30", None],
-                             [1400, None, None]], out["claude"]
+    assert out["replay"] == [
+        [0, "you, at 0:30", "Cm"],
+        [500, "you, at 0:30", "Ab"],
+        [800, "you, at 0:30", "Cm"],
+        [1000, "you, at 0:30", None],
+        [1400, None, None],
+    ], out["replay"]
+    assert out["claude"] == [
+        [0, "Cm", None],
+        [500, "Ab", None],
+        [800, "Cm", None],
+        [1000, "you, at 0:30", None],
+        [1400, None, None],
+    ], out["claude"]
 
 
 TIMING_SCRIPT = r"""
@@ -1035,8 +1187,9 @@ process.exit(0);
 @needs_node
 def test_cue_player_spaces_cues_that_arrive_together_and_only_drops_steps_something_overtook():
     script = TIMING_SCRIPT % {"url": json.dumps((ROOT / "arsenal" / "web" / "piano" / "cues.js").as_uri())}
-    proc = subprocess.run([NODE, "--input-type=module", "-"], input=script, capture_output=True, text=True,
-                          encoding="utf-8", timeout=60)
+    proc = subprocess.run(
+        [NODE, "--input-type=module", "-"], input=script, capture_output=True, text=True, encoding="utf-8", timeout=60
+    )
     assert proc.returncode == 0, proc.stderr
     out = json.loads(proc.stdout)
 
@@ -1050,28 +1203,54 @@ def test_cue_player_spaces_cues_that_arrive_together_and_only_drops_steps_someth
     assert c["offs"] == [] and c["sounding"] == [50, 53, 57] and c["clears"] == 1 and c["after"] == [], c
     through, hidden = out["clears"]  # two clears among a backlog, each at once; then the same with a pagehide at 800 ms
     assert through == {"clears": 2, "ons": [[64, 50]], "offs": [], "sounding": [52], "pending": 0}, through
-    assert hidden == {"clears": 2, "before": 0, "hidden": 0, "ons": [[64, 50]], "offs": [[64, 800, "pagehide"]],
-                      "sounding": [], "pending": 0}, hidden
+    assert hidden == {
+        "clears": 2,
+        "before": 0,
+        "hidden": 0,
+        "ons": [[64, 50]],
+        "offs": [[64, 800, "pagehide"]],
+        "sounding": [],
+        "pending": 0,
+    }, hidden
 
-    assert out["jank"] == {"late": {"chord 1": [0] * 5, "chord 2": [0] * 5, "chord 3": [270] * 5, "chord 4": [0] * 5},
-                           "lateDropped": 0}, out["jank"]
+    assert out["jank"] == {
+        "late": {"chord 1": [0] * 5, "chord 2": [0] * 5, "chord 3": [270] * 5, "chord 4": [0] * 5},
+        "lateDropped": 0,
+    }, out["jank"]
 
     s = out["stall"]
     assert s["walkAtResume"] <= 2 and s["padAtResume"] == 3 and s["lateDropped"] >= 14, s
 
     d = out["double"]
     assert d["first"][:2] == [["on", 36, 100, False, 1], ["on", 48, 50, True, 2]], d  # the bass, then its octave
-    assert [c[1] for c in d["first"] if c[0] == "on"] == [36, 48, 52, 55, 60] and ["release", 1] in d["first"] \
-        and ["release", 2] in d["first"], d
+    assert (
+        [c[1] for c in d["first"] if c[0] == "on"] == [36, 48, 52, 55, 60]
+        and ["release", 1] in d["first"]
+        and ["release", 2] in d["first"]
+    ), d
     assert d["none"] == 0, d  # the octave already there, two notes, a bass at C3 or above: no double
-    assert sum(1 for c in d["cleared"] if c[0] == "on" and c[3]) == 1 and len([c for c in d["cleared"] if c[0] == "release"]) == 4, d
-    assert d["off"] == 0 and d["keys"] == [36, 52, 55, 60] and d["doubled"] == 2, d  # the octave is never a key; off stops it
+    assert (
+        sum(1 for c in d["cleared"] if c[0] == "on" and c[3]) == 1
+        and len([c for c in d["cleared"] if c[0] == "release"]) == 4
+    ), d
+    assert d["off"] == 0 and d["keys"] == [36, 52, 55, 60] and d["doubled"] == 2, (
+        d
+    )  # the octave is never a key; off stops it
 
     st = out["stream"]  # the first live cue drops the two backlog cues still waiting; every live cue starts on arrival
     assert st == {"backlog": [50, None, None], "live": [50] * 6, "dropped": 2, "spaced": 2, "sounding": []}, st
     cn = out["clearNow"]  # a clear right after a backlog silences at once, and nothing that waited plays
-    assert cn == {"at": 100, "offs": [100], "reasons": ["clear"], "ons": [[90, 50]] * 3, "sounding": [], "pending": 0}, cn
-    ad = out["admit"]  # the voice hears of each sounding cue as it arrives (not a hover), and every strike carries its key
+    assert cn == {
+        "at": 100,
+        "offs": [100],
+        "reasons": ["clear"],
+        "ons": [[90, 50]] * 3,
+        "sounding": [],
+        "pending": 0,
+    }, cn
+    ad = out[
+        "admit"
+    ]  # the voice hears of each sounding cue as it arrives (not a hover), and every strike carries its key
     assert ad["admitted"] == [101, 103], ad
     assert sorted(ad["seen"]) == [[48, "k103"], [50, "k103"], [60, "k101"], [64, "k101"]], ad
 
@@ -1189,8 +1368,9 @@ process.exit(0);
 @needs_node
 def test_only_one_tab_sounds_claudes_voice_and_a_frozen_page_closes_its_stream():
     script = TABS_SCRIPT % {"url": json.dumps((ROOT / "arsenal" / "web" / "piano" / "cues.js").as_uri())}
-    proc = subprocess.run([NODE, "--input-type=module", "-"], input=script, capture_output=True, text=True,
-                          encoding="utf-8", timeout=60)
+    proc = subprocess.run(
+        [NODE, "--input-type=module", "-"], input=script, capture_output=True, text=True, encoding="utf-8", timeout=60
+    )
     assert proc.returncode == 0, proc.stderr
     out = json.loads(proc.stdout)
     assert out["newest"] == [False, True] and out["clicked"] == [True, False] and out["visible"] == [False, True], out
@@ -1267,12 +1447,18 @@ process.exit(0);
 
 @needs_node
 # the bridge runs spellForKey out of piano.js (its copy stands in); minor: the page's arsenal.piano.minor pref
-@pytest.mark.parametrize("own_spelling,minor", [(False, "tonic"), (True, "tonic"), (False, "relative"), (True, "relative")])
+@pytest.mark.parametrize(
+    "own_spelling,minor", [(False, "tonic"), (True, "tonic"), (False, "relative"), (True, "relative")]
+)
 def test_labels_in_a_key_match_the_pages_real_spellforkey(own_spelling, minor):
-    script = LABELS_SCRIPT % {"root": json.dumps(str(ROOT / "arsenal").replace("\\", "/") + "/"),
-                              "own": json.dumps("1" if own_spelling else "0"), "minor": json.dumps(minor)}
-    proc = subprocess.run([NODE, "--input-type=module", "-"], input=script, capture_output=True, text=True,
-                          encoding="utf-8", timeout=300)
+    script = LABELS_SCRIPT % {
+        "root": json.dumps(str(ROOT / "arsenal").replace("\\", "/") + "/"),
+        "own": json.dumps("1" if own_spelling else "0"),
+        "minor": json.dumps(minor),
+    }
+    proc = subprocess.run(
+        [NODE, "--input-type=module", "-"], input=script, capture_output=True, text=True, encoding="utf-8", timeout=300
+    )
     assert proc.returncode == 0, proc.stderr
     out = json.loads(proc.stdout)
     assert out["notes"] == out["keys"] * 12 * 14 and out["chords"] > out["keys"] * 100, out
@@ -1292,7 +1478,9 @@ def test_typed_chords_notes_and_power_chords_are_labelled_as_the_page_shows_them
         assert not r.get("error") and r["warnings"] == [] and r["roundtrip"]["match"] == "exact", r
     shell = {r["input"]: r for r in _voice(["C7#11", "C7b9", "C9sus4", "Cmaj7"], voicing="shell")}
     assert any("reads this shell voicing as C7b5" in w and "close" in w for w in shell["C7#11"]["warnings"]), shell
-    assert any("not C7b9" in w for w in shell["C7b9"]["warnings"]) and any("not C9sus4" in w for w in shell["C9sus4"]["warnings"])
+    assert any("not C7b9" in w for w in shell["C7b9"]["warnings"]) and any(
+        "not C9sus4" in w for w in shell["C9sus4"]["warnings"]
+    )
     assert not any("reads this" in w for w in shell["Cmaj7"]["warnings"]), shell["Cmaj7"]
     assert "an octave lower" in pianocue.build_parser()._subparsers._group_actions[0].choices["play"].format_help()
 
@@ -1309,13 +1497,39 @@ def test_play_hover_clear_and_status(server, capsys):
     port = str(server.port)
     listener = SSE(server.port)
     try:
-        code, out, _ = _run(["play", "Dbmaj9", "--key", "Eb major", "--voicing", "spread", "--port", port,
-                             "--arp", "40", "--hold", "1.5", "--vel", "90"], capsys)
+        code, out, _ = _run(
+            [
+                "play",
+                "Dbmaj9",
+                "--key",
+                "Eb major",
+                "--voicing",
+                "spread",
+                "--port",
+                port,
+                "--arp",
+                "40",
+                "--hold",
+                "1.5",
+                "--vel",
+                "90",
+            ],
+            capsys,
+        )
         assert code == 0 and "sent cue #1 to 1 listener" in out and "b7maj9" in out
         cue = listener.cue()["cue"]
         expected = _voice(["Dbmaj9"], key="Eb major", voicing="spread")[0]["notes"]
-        assert cue == {"type": "play", "notes": expected, "velocity": 90, "hold_ms": 1500, "arpeggio_ms": 40,
-                       "sound": True, "label": "Dbmaj9", "detail": "b7maj9 in Eb major", "source": "claude"}
+        assert cue == {
+            "type": "play",
+            "notes": expected,
+            "velocity": 90,
+            "hold_ms": 1500,
+            "arpeggio_ms": 40,
+            "sound": True,
+            "label": "Dbmaj9",
+            "detail": "b7maj9 in Eb major",
+            "source": "claude",
+        }
 
         assert _run(["play", "C4", "E4", "G4", "--silent", "--label", "C, quietly", "--port", port], capsys)[0] == 0
         cue = listener.cue()["cue"]
@@ -1341,7 +1555,10 @@ def test_details_carry_the_typed_number_and_what_explicit_notes_read_as(server, 
     try:
         assert _run(["play", "#4", "--key", "Eb major", "--port", port], capsys)[0] == 0
         cue = listener.cue()["cue"]
-        assert (cue["label"], cue["detail"]) == ("A", "#4 in Eb major")  # the page numbers it b5; the typed number stays
+        assert (cue["label"], cue["detail"]) == (
+            "A",
+            "#4 in Eb major",
+        )  # the page numbers it b5; the typed number stays
 
         code, out, _ = _run(["hover", "57", "--key", "Eb major", "--port", port], capsys)
         assert code == 0 and "read as the MIDI note A3" in out
@@ -1350,7 +1567,9 @@ def test_details_carry_the_typed_number_and_what_explicit_notes_read_as(server, 
         notes = "Ab2 C4 Eb4 G4 Bb4 D5"
         r = _voice([notes], key="Eb major")[0]
         assert r["kind"] == "notes" and r["number"]
-        assert _run(["play", *notes.split(), "--label", "Abmaj9#11", "--key", "Eb major", "--port", port], capsys)[0] == 0
+        assert (
+            _run(["play", *notes.split(), "--label", "Abmaj9#11", "--key", "Eb major", "--port", port], capsys)[0] == 0
+        )
         cue = listener.cue()["cue"]
         assert cue["label"] == "Abmaj9#11" and cue["detail"] == f"{r['name']} · {r['number']} in Eb major", cue
         assert _run(["play", *notes.split(), "--key", "Eb major", "--port", port], capsys)[0] == 0
@@ -1390,18 +1609,28 @@ def test_split_progression_splits_chords_inside_a_bar_and_keeps_notes_grouped():
     pg = ap._subparsers._group_actions[0].choices["progression"]
     text = " ".join((ap.format_help() + pg.format_help()).split())
     examples = re.findall(r'"([^"]*\|[^"]*)"', text)
-    assert {ex: len(sp(ex)) for ex in examples} == {"Abmaj9#11 | Bb7sus4/Eb | Ebmaj9": 3, "4maj9#11 | 5^7sus4/1:2 | 1": 3,
-                                                     "1 4 | 5 1": 4, "Dm7 G7 | Cmaj7": 3,
-                                                     "Ab2 Eb3 G3 | Bb2 F3 Ab3": 2}, examples
+    assert {ex: len(sp(ex)) for ex in examples} == {
+        "Abmaj9#11 | Bb7sus4/Eb | Ebmaj9": 3,
+        "4maj9#11 | 5^7sus4/1:2 | 1": 3,
+        "1 4 | 5 1": 4,
+        "Dm7 G7 | Cmaj7": 3,
+        "Ab2 Eb3 G3 | Bb2 F3 Ab3": 2,
+    }, examples
 
 
 @needs_node
 def test_progression_bars_of_chords_that_look_like_notes_voice_as_those_chords(server, capsys):
     listener = SSE(server.port)
     try:
-        for text, labels in (("Dm7 G7 | Cmaj7", ["Dm7", "G7", "Cmaj7"]), ("C7 F7 | Bb7", ["C7", "F7", "Bb7"]),
-                             ("E7 A7 | D", ["E7", "A7", "D"]), ("Cmaj7 | G7 C", ["Cmaj7", "G7", "C"])):
-            code, out, err = _run(["progression", text, "--bpm", "120", "--beats", "2", "--port", str(server.port)], capsys)
+        for text, labels in (
+            ("Dm7 G7 | Cmaj7", ["Dm7", "G7", "Cmaj7"]),
+            ("C7 F7 | Bb7", ["C7", "F7", "Bb7"]),
+            ("E7 A7 | D", ["E7", "A7", "D"]),
+            ("Cmaj7 | G7 C", ["Cmaj7", "G7", "C"]),
+        ):
+            code, out, err = _run(
+                ["progression", text, "--bpm", "120", "--beats", "2", "--port", str(server.port)], capsys
+            )
             assert code == 0 and "cannot" not in err, (text, out, err)
             assert [s["label"] for s in listener.cue()["cue"]["steps"]] == labels, text
         code, out, err = _run(["progression", "Ab2 Eb3 G3 | Bb2 F3 Ab3", "--port", str(server.port)], capsys)
@@ -1421,23 +1650,32 @@ def test_play_and_hover_several_chords_go_one_after_another(server, capsys):
             cue = listener.cue()["cue"]
             assert cue["type"] == "sequence" and cue["label"] == "F#m7b5 | Bbmaj7#11", cue
             assert [(s["at_ms"], s["hold_ms"], s["type"], s["label"]) for s in cue["steps"]] == [
-                (0, 2500, "hover", "F#m7b5"), (2500, 2500, "hover", "Bbmaj7#11")]  # a hover holds to the next: no blink
+                (0, 2500, "hover", "F#m7b5"),
+                (2500, 2500, "hover", "Bbmaj7#11"),
+            ]  # a hover holds to the next: no blink
             assert cue["steps"][0]["notes"] == _voice(["F#m7b5"], voicing="spread")[0]["notes"]
 
-        code, out, err = _run(["play", "Dm7", "G7", "Cmaj7", "--hold", "2", "--vel", "50", "--key", "C major", "--port", port],
-                              capsys)
+        code, out, err = _run(
+            ["play", "Dm7", "G7", "Cmaj7", "--hold", "2", "--vel", "50", "--key", "C major", "--port", port], capsys
+        )
         assert code == 0, (out, err)
         cue = listener.cue()["cue"]
         assert cue["type"] == "sequence" and cue["sound"] is True and cue["detail"] == "in C major"
         assert [(s["at_ms"], s["hold_ms"], s["type"], s["velocity"], s["detail"]) for s in cue["steps"]] == [
-            (0, 1960, "play", 50, "2m7 in C major"), (2000, 1960, "play", 50, "5^7 in C major"),
-            (4000, 1960, "play", 50, "1maj7 in C major")]
+            (0, 1960, "play", 50, "2m7 in C major"),
+            (2000, 1960, "play", 50, "5^7 in C major"),
+            (4000, 1960, "play", 50, "1maj7 in C major"),
+        ]
 
         code, out, err = _run(["hover", "F#m7b5", "Bbmaj7#11", "--hold", "0", "--port", port], capsys)
         assert code == 2 and "each needs a length" in err and 'progression "F#m7b5 | Bbmaj7#11" --hover' in err, err
 
         # notes stay one chord: a voicing, MIDI numbers, notes in octave 5
-        for argv, notes in ((["Ab3", "Eb4", "G4"], [56, 63, 67]), (["60 64 67"], [60, 64, 67]), (["C5", "E5", "G5"], [72, 76, 79])):
+        for argv, notes in (
+            (["Ab3", "Eb4", "G4"], [56, 63, 67]),
+            (["60 64 67"], [60, 64, 67]),
+            (["C5", "E5", "G5"], [72, 76, 79]),
+        ):
             assert _run(["hover", *argv, "--port", port], capsys)[0] == 0
             cue = listener.cue()["cue"]
             assert cue["type"] == "hover" and cue["notes"] == notes, (argv, cue)
@@ -1449,23 +1687,49 @@ def test_play_and_hover_several_chords_go_one_after_another(server, capsys):
 def test_progression_timing_and_hover(server, capsys):
     listener = SSE(server.port)
     try:
-        code, out, _ = _run(["progression", "Ebmaj9 | Abmaj9#11:2 | 5^7sus4/1", "--key", "Eb major", "--bpm", "60",
-                             "--beats", "4", "--hover", "--voice-lead", "--port", str(server.port)], capsys)
+        code, out, _ = _run(
+            [
+                "progression",
+                "Ebmaj9 | Abmaj9#11:2 | 5^7sus4/1",
+                "--key",
+                "Eb major",
+                "--bpm",
+                "60",
+                "--beats",
+                "4",
+                "--hover",
+                "--voice-lead",
+                "--port",
+                str(server.port),
+            ],
+            capsys,
+        )
         assert code == 0, out
         cue = listener.cue()["cue"]
         assert cue["type"] == "sequence" and cue["label"] == "Ebmaj9 | Abmaj9#11 | Bb7sus4/Eb"
         assert [(s["at_ms"], s["hold_ms"], s["type"]) for s in cue["steps"]] == [
-            (0, 4000, "hover"), (4000, 2000, "hover"), (6000, 4000, "hover")]  # hovers hold to the next: no blink
-        assert [s["detail"] for s in cue["steps"]] == ["1maj9 in Eb major", "4maj9#11 in Eb major",
-                                                        "5^7sus4/1 in Eb major"]
+            (0, 4000, "hover"),
+            (4000, 2000, "hover"),
+            (6000, 4000, "hover"),
+        ]  # hovers hold to the next: no blink
+        assert [s["detail"] for s in cue["steps"]] == [
+            "1maj9 in Eb major",
+            "4maj9#11 in Eb major",
+            "5^7sus4/1 in Eb major",
+        ]
 
-        code, out, _ = _run(["progression", "1 4 5 1", "--key", "Eb major", "--bpm", "90", "--port",
-                             str(server.port)], capsys)
+        code, out, _ = _run(
+            ["progression", "1 4 5 1", "--key", "Eb major", "--bpm", "90", "--port", str(server.port)], capsys
+        )
         assert code == 0, out
         cue = listener.cue()["cue"]
         assert [s["label"] for s in cue["steps"]] == ["Eb", "Ab", "Bb", "Eb"]
         assert [(s["at_ms"], s["hold_ms"], s["type"]) for s in cue["steps"]] == [
-            (0, 2627, "play"), (2667, 2626, "play"), (5333, 2627, "play"), (8000, 2627, "play")]  # 2666.7 ms rounded
+            (0, 2627, "play"),
+            (2667, 2626, "play"),
+            (5333, 2627, "play"),
+            (8000, 2627, "play"),
+        ]  # 2666.7 ms rounded
     finally:
         listener.close()
 
@@ -1473,9 +1737,27 @@ def test_progression_timing_and_hover(server, capsys):
 @needs_node
 def test_a_non_ascii_label_through_a_pipe_does_not_crash_after_sending(server):
     env = {k: v for k, v in os.environ.items() if k not in ("PYTHONIOENCODING", "PYTHONUTF8")}
-    proc = subprocess.run([sys.executable, "-m", "arsenal.pianocue", "play", "C4", "E4", "G4", "--label",
-                           "D♭maj9 · the ♭7", "--detail", "4maj9♯11 — the Lydian 4", "--port", str(server.port)],
-                          capture_output=True, cwd=str(ROOT), env=env, timeout=120)
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "arsenal.pianocue",
+            "play",
+            "C4",
+            "E4",
+            "G4",
+            "--label",
+            "D♭maj9 · the ♭7",
+            "--detail",
+            "4maj9♯11 — the Lydian 4",
+            "--port",
+            str(server.port),
+        ],
+        capture_output=True,
+        cwd=str(ROOT),
+        env=env,
+        timeout=120,
+    )
     out, err = proc.stdout.decode("utf-8"), proc.stderr.decode("utf-8")
     assert proc.returncode == 3, (out, err)  # nobody listening: the check after the print still runs
     assert "sent cue #1 to 0 listeners" in out and "D♭maj9 · the ♭7" in out and "no piano page is listening" in err
@@ -1494,16 +1776,30 @@ def test_replay_verb_on_a_synthetic_session(server, tmp_path, capsys):
     store.append(session, _session_events())
     listener = SSE(server.port)
     try:
-        code, out, _ = _run(["replay", "latest", "0:01.4", "--seconds", "4", "--root", str(tmp_path / "sessions"),
-                             "--port", str(server.port)], capsys)
+        code, out, _ = _run(
+            [
+                "replay",
+                "latest",
+                "0:01.4",
+                "--seconds",
+                "4",
+                "--root",
+                str(tmp_path / "sessions"),
+                "--port",
+                str(server.port),
+            ],
+            capsys,
+        )
         assert code == 0, out
         cue = listener.cue()["cue"]
         assert cue["source"] == "replay" and cue["label"] == "you, at 0:01.4" and len(cue["steps"]) == 3
         assert session in cue["detail"]
     finally:
         listener.close()
-    assert _run(["replay", session, "9:00", "--root", str(tmp_path / "sessions"), "--port", str(server.port)],
-                capsys)[0] == 2
+    assert (
+        _run(["replay", session, "9:00", "--root", str(tmp_path / "sessions"), "--port", str(server.port)], capsys)[0]
+        == 2
+    )
 
 
 def test_no_server_and_an_old_server(capsys):

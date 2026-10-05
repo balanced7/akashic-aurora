@@ -32,35 +32,35 @@ class IntakeError(RuntimeError):
 #: The vault's vocabulary. A name not in this table is refused BEFORE any path math —
 #: path traversal is not blocked here, it is UNREPRESENTABLE here.
 TARGETS: Dict[str, str] = {
-    "discord_bot.token":         "Discord bot token (Developer Portal -> Bot -> Reset Token)",
-    "discord_operator_id":       "Daniil's numeric Discord user id — the R1 allowlist",
-    "discord_webhook.url":       "the #aurora global-feed webhook (pipe 1 of the pool)",
-    "discord_webhook_2.url":     "an ADDITIONAL webhook on the SAME #aurora channel -- "
-                                 "a second independent rate-limit bucket, pooled with pipe 1",
-    "discord_webhook_3.url":     "pool pipe 3 -- same channel, its own bucket",
-    "discord_webhook_4.url":     "pool pipe 4 -- same channel, its own bucket",
+    "discord_bot.token": "Discord bot token (Developer Portal -> Bot -> Reset Token)",
+    "discord_operator_id": "Daniil's numeric Discord user id — the R1 allowlist",
+    "discord_webhook.url": "the #aurora global-feed webhook (pipe 1 of the pool)",
+    "discord_webhook_2.url": "an ADDITIONAL webhook on the SAME #aurora channel -- "
+    "a second independent rate-limit bucket, pooled with pipe 1",
+    "discord_webhook_3.url": "pool pipe 3 -- same channel, its own bucket",
+    "discord_webhook_4.url": "pool pipe 4 -- same channel, its own bucket",
     "discord_forum_webhook.url": "the #aurora-rooms forum webhook",
-    "discord_channel_vandor.url":   "the #vandor seat-channel webhook (his lane with claude)",
+    "discord_channel_vandor.url": "the #vandor seat-channel webhook (his lane with claude)",
     "discord_channel_heimdall.url": "the #heimdall seat-channel webhook (his lane with deepseek)",
-    "discord_channel_navi.url":     "the #navi seat-channel webhook (his lane with kimi)",
-    "discord_channel_rill.url":     "the #rill seat-channel webhook (his lane with dsh_agent)",
-    "discord_channel_sol.url":      "the #sol seat-channel webhook (Daniil's lane with sol)",
-    "remote_bridge_outbound.key":   "HMAC secret we use to push INTO a remote peer's relay "
-                                    "(outbound direction; remote-bridge v0)",
-    "chronos_inbound.key":          "HMAC secret CHRONOS uses to push into our relay -- its "
-                                    "own key so its mail resolves to remote:chronos instead "
-                                    "of collapsing into another peer's identity",
-    "chronos_outbound.key":         "HMAC secret we use to push INTO Chronos's relay",
-    "remote_bridge_inbound.key":    "HMAC secret a remote peer uses to push into OUR relay "
-                                    "(inbound direction; remote-bridge v1 only)",
-    "openai.key":                "OpenAI API key",
-    "deepseek.key":              "DeepSeek API key",
-    "kimi.key":                  "Kimi/Moonshot API key",
-    "gemini.key":                "Gemini API key",
-    "cursor.key":                "Cursor API key",
-    "claude_oauth.token":        "long-lived Claude Code OAuth token (claude setup-token) — "
-                                 "the credential !spawn hands a fresh seat, so resuscitation "
-                                 "stops dying with the interactive session",
+    "discord_channel_navi.url": "the #navi seat-channel webhook (his lane with kimi)",
+    "discord_channel_rill.url": "the #rill seat-channel webhook (his lane with dsh_agent)",
+    "discord_channel_sol.url": "the #sol seat-channel webhook (Daniil's lane with sol)",
+    "remote_bridge_outbound.key": "HMAC secret we use to push INTO a remote peer's relay "
+    "(outbound direction; remote-bridge v0)",
+    "chronos_inbound.key": "HMAC secret CHRONOS uses to push into our relay -- its "
+    "own key so its mail resolves to remote:chronos instead "
+    "of collapsing into another peer's identity",
+    "chronos_outbound.key": "HMAC secret we use to push INTO Chronos's relay",
+    "remote_bridge_inbound.key": "HMAC secret a remote peer uses to push into OUR relay "
+    "(inbound direction; remote-bridge v1 only)",
+    "openai.key": "OpenAI API key",
+    "deepseek.key": "DeepSeek API key",
+    "kimi.key": "Kimi/Moonshot API key",
+    "gemini.key": "Gemini API key",
+    "cursor.key": "Cursor API key",
+    "claude_oauth.token": "long-lived Claude Code OAuth token (claude setup-token) — "
+    "the credential !spawn hands a fresh seat, so resuscitation "
+    "stops dying with the interactive session",
 }
 
 
@@ -73,23 +73,27 @@ def save_secret(target: str, value: str) -> Dict[str, Any]:
     if target not in TARGETS:
         raise IntakeError(
             f"unknown target {target!r} — the vault takes an allowlisted NAME, never a "
-            f"path. Known: {', '.join(sorted(TARGETS))}")
+            f"path. Known: {', '.join(sorted(TARGETS))}"
+        )
     raw = str(value or "")
     if "﻿" in raw:
         raise IntakeError(
             f"{target!r} arrived carrying a byte-order mark — a shell pipe added it "
             f"(PowerShell 5.1 does this), and str.strip() does not count U+FEFF as "
             f"whitespace, so it would sail into the file and inflate the receipt. "
-            f"Refusing; pipe through a UTF-8 writer, or paste into the window")
+            f"Refusing; pipe through a UTF-8 writer, or paste into the window"
+        )
     cleaned = raw.strip()
     if not cleaned:
         raise IntakeError(
             f"empty paste for {target!r} — refusing; a blank credential file "
-            f"authenticates as garbage, absence at least refuses loudly")
+            f"authenticates as garbage, absence at least refuses loudly"
+        )
     if "\n" in cleaned or "\r" in cleaned:
         raise IntakeError(
             f"{target!r} expects a single line and the paste holds several — "
-            f"probably a copy that grabbed extra; try again")
+            f"probably a copy that grabbed extra; try again"
+        )
     inner = next((i for i, c in enumerate(cleaned) if c.isspace()), None)
     if inner is not None:
         # 2026-08-19: his token reached the vault as 79 chars + a SPACE + 29 chars, twice,
@@ -104,7 +108,8 @@ def save_secret(target: str, value: str) -> Dict[str, Any]:
             f"{len(cleaned)} chars) — nothing in this vault legitimately contains a space, "
             f"so the copy wrapped somewhere. Re-copy without the line break, or join it "
             f"before it reaches the door. Refusing, because a credential that looks saved "
-            f"and cannot authenticate is precisely the day this door exists to prevent")
+            f"and cannot authenticate is precisely the day this door exists to prevent"
+        )
     d = secrets_dir()
     d.mkdir(parents=True, exist_ok=True)
     path = d / target
@@ -118,7 +123,9 @@ def inventory() -> Dict[str, Any]:
     out: Dict[str, Any] = {}
     for name, desc in sorted(TARGETS.items()):
         p = d / name
-        out[name] = {"desc": desc,
-                     "present": p.exists() and p.stat().st_size > 0,
-                     "bytes": (p.stat().st_size if p.exists() else 0)}
+        out[name] = {
+            "desc": desc,
+            "present": p.exists() and p.stat().st_size > 0,
+            "bytes": (p.stat().st_size if p.exists() else 0),
+        }
     return out

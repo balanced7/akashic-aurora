@@ -30,6 +30,7 @@ THE DISCIPLINE THESE PINS ENCODE
 Pin 4 is a pin that must STAY green, not go green -- it passes vacuously today and its whole job
 is to fail the day the verb channel gets chatty.
 """
+
 import os
 import sys
 import tempfile
@@ -42,6 +43,7 @@ from core.recall.at_action import recall_at, render
 
 class _FakeStore:
     """Injected so these pins never touch canonical Redis (test_recall_at.py precedent)."""
+
     def __init__(self, recs):
         self._recs = recs
 
@@ -49,10 +51,15 @@ class _FakeStore:
         return list(self._recs)
 
 
-_STORE = _FakeStore([
-    {"experiment_name": "unrelated_lesson", "success": "yes",
-     "recommendation": "this lesson exists only so the lesson channel is non-empty"},
-])
+_STORE = _FakeStore(
+    [
+        {
+            "experiment_name": "unrelated_lesson",
+            "success": "yes",
+            "recommendation": "this lesson exists only so the lesson channel is non-empty",
+        },
+    ]
+)
 
 
 def _verbs_from(res):
@@ -63,23 +70,25 @@ def _verbs_from(res):
 def test_youtube_trigger_surfaces_the_captions_verb():
     """The exact 2026-08-15 failure, made falsifiable."""
     res = recall_at(
-        command="fetch https://www.youtube.com/watch?v=p1DviQ9mva0 to read the transcript",
-        learning_store=_STORE)
+        command="fetch https://www.youtube.com/watch?v=p1DviQ9mva0 to read the transcript", learning_store=_STORE
+    )
     verbs = _verbs_from(res)
     assert "captions" in verbs, (
         f"expected the captions verb to be pushed at a youtube trigger, got {verbs}. "
-        "This is the failure that motivated T311: the seat grepped for a script instead.")
+        "This is the failure that motivated T311: the seat grepped for a script instead."
+    )
 
 
 def test_felt_friction_surfaces_the_friction_or_wish_verb():
     """The operator has a standing directive to log friction the moment it is felt; the same
     session felt it four times and filed lessons instead, because neither organ was reachable."""
     res = recall_at(
-        command="this door is awkward and cost me three attempts, log the ergonomic friction",
-        learning_store=_STORE)
+        command="this door is awkward and cost me three attempts, log the ergonomic friction", learning_store=_STORE
+    )
     verbs = _verbs_from(res)
     assert ("friction" in verbs) or ("wish" in verbs), (
-        f"expected the friction or wish organ to surface at felt friction, got {verbs}")
+        f"expected the friction or wish organ to surface at felt friction, got {verbs}"
+    )
 
 
 def test_flag_shipped_capability_is_reachable():
@@ -91,14 +100,16 @@ def test_flag_shipped_capability_is_reachable():
     except ImportError as e:
         raise AssertionError(
             "verb_index() does not exist yet -- T311 must expose a parser-derived index "
-            f"that includes flag help strings, not only verb names ({e})")
+            f"that includes flag help strings, not only verb names ({e})"
+        )
     idx = verb_index()
     hay = " ".join(
-        f"{e.get('verb', '')} {e.get('purpose', '')} {' '.join(e.get('flags', []) or [])}"
-        for e in idx).lower()
+        f"{e.get('verb', '')} {e.get('purpose', '')} {' '.join(e.get('flags', []) or [])}" for e in idx
+    ).lower()
     assert "resident" in hay, (
         "expected flag-level capabilities (e.g. ask's --as-resident) to be indexed; "
-        "a verb-name-only index reproduces exactly what discover already cannot see")
+        "a verb-name-only index reproduces exactly what discover already cannot see"
+    )
 
 
 def test_index_is_derived_from_the_parser_not_a_snapshot():
@@ -113,23 +124,24 @@ def test_index_is_derived_from_the_parser_not_a_snapshot():
     for known in ("captions", "discover", "recall-at", "wish"):
         assert known in names, (
             f"{known!r} missing from the parser-derived verb index -- got {len(names)} verbs. "
-            "If this index came from a snapshot file it is already the wrong design.")
+            "If this index came from a snapshot file it is already the wrong design."
+        )
 
 
 def test_noise_floor_unrelated_trigger_surfaces_no_verbs():
     """MUST STAY GREEN. Passes vacuously before the build; its job is to fail the day the verb
     channel becomes chatty. Silence beats noise on this surface, by stated design."""
     res = recall_at(command="run the bbbbb qqqqq zzzzz widget", learning_store=_STORE)
-    assert _verbs_from(res) == [], (
-        f"an unrelated trigger must surface ZERO verbs, got {_verbs_from(res)}")
+    assert _verbs_from(res) == [], f"an unrelated trigger must surface ZERO verbs, got {_verbs_from(res)}"
 
 
 def test_verbs_are_capped_and_never_displace_lessons():
     """The lesson channel is the proven one. Verbs ride along; they do not take its seats."""
     res = recall_at(
         command="fetch https://www.youtube.com/watch?v=p1DviQ9mva0 transcript and log the friction "
-                "and discover what else the door can do and note it and learn from it",
-        learning_store=_STORE)
+        "and discover what else the door can do and note it and learn from it",
+        learning_store=_STORE,
+    )
     verbs = _verbs_from(res)
     assert len(verbs) <= 2, f"verb channel must cap at 2, got {len(verbs)}: {verbs}"
     assert "lessons" in res, "the lesson channel must survive the addition of verbs"
@@ -140,11 +152,10 @@ def test_render_includes_verbs_without_breaking_empty_case():
     empty = recall_at(command="qqqqq zzzzz bbbbb", learning_store=_STORE)
     assert render(empty) == "", "empty result must still render as the empty string"
     res = recall_at(
-        command="fetch https://www.youtube.com/watch?v=p1DviQ9mva0 for the transcript",
-        learning_store=_STORE)
+        command="fetch https://www.youtube.com/watch?v=p1DviQ9mva0 for the transcript", learning_store=_STORE
+    )
     out = render(res)
-    assert "captions" in out, (
-        f"the rendered surface must name the verb the agent should reach for, got: {out!r}")
+    assert "captions" in out, f"the rendered surface must name the verb the agent should reach for, got: {out!r}"
 
 
 if __name__ == "__main__":

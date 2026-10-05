@@ -24,6 +24,7 @@ Chord names, Nashville numbers and voicings come from arsenal/pianocue_voicing.m
 of arsenal/web/piano.js and arsenal/web/piano/nashville.js, so the names and numbers match the page's. --minor relative
 follows a page whose minor-key numbering (arsenal.piano.minor) is set to relative.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -41,6 +42,17 @@ from collections import deque
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+
+        return python_launcher()
+    except Exception:
+        return "py"
+
+
 PACKAGE = Path(__file__).resolve().parent
 BRIDGE = PACKAGE / "pianocue_voicing.mjs"
 DEFAULT_PORT = 8793
@@ -51,7 +63,7 @@ SOURCES = ("claude", "replay")
 NOTE_MIN, NOTE_MAX = 21, 108
 MAX_NOTES = 88
 MAX_STEPS = 4000
-MAX_MS = 30 * 60 * 1000        # no hold, stagger or step lands more than 30 minutes out
+MAX_MS = 30 * 60 * 1000  # no hold, stagger or step lands more than 30 minutes out
 MAX_TEXT = 500
 DEFAULTS = {"velocity": 80, "hold_ms": 2500, "arpeggio_ms": 0}
 CUE_KEYS = {"type", "notes", "velocity", "hold_ms", "arpeggio_ms", "sound", "label", "detail", "steps", "source"}
@@ -62,8 +74,8 @@ HEARTBEAT_S = 15.0
 MAX_CUE_BODY = 2 * 1024 * 1024
 
 NO_LISTENER = "no piano page is listening - open http://127.0.0.1:{port}/piano"
-EVENT_KINDS = ("cue", "deck", "jam")          # named events on the one stream (jam-spec 6)
-KNOWN_CAPS = ("jam1", "deck1")                # what a jam page announces: /api/piano/cues?caps=jam1,deck1&page=<id>
+EVENT_KINDS = ("cue", "deck", "jam")  # named events on the one stream (jam-spec 6)
+KNOWN_CAPS = ("jam1", "deck1")  # what a jam page announces: /api/piano/cues?caps=jam1,deck1&page=<id>
 CAP_RE = re.compile(r"[a-z][a-z0-9]{0,15}")
 PAGE_RE = re.compile(r"[A-Za-z0-9_.:-]{1,80}")
 
@@ -112,8 +124,10 @@ def _notes_field(obj: dict, where: str) -> List[int]:
 def _unknown(obj: dict, allowed: set, where: str) -> None:
     extra = sorted(set(obj) - allowed)
     if extra:
-        raise CueError(f"{where}unknown field{'s' if len(extra) > 1 else ''} {', '.join(map(repr, extra))}; "
-                       f"expected some of {', '.join(sorted(allowed))}")
+        raise CueError(
+            f"{where}unknown field{'s' if len(extra) > 1 else ''} {', '.join(map(repr, extra))}; "
+            f"expected some of {', '.join(sorted(allowed))}"
+        )
 
 
 def validate_cue(cue) -> dict:
@@ -134,8 +148,12 @@ def validate_cue(cue) -> dict:
         source = "claude"
     if source not in SOURCES:
         raise CueError(f"source must be one of {', '.join(SOURCES)} (got {source!r})")
-    out = {"type": kind, "label": _text_field(cue, "label", ""), "detail": _text_field(cue, "detail", ""),
-           "source": source}
+    out = {
+        "type": kind,
+        "label": _text_field(cue, "label", ""),
+        "detail": _text_field(cue, "detail", ""),
+        "source": source,
+    }
     if kind == "clear":
         _unknown(cue, {"type", "source", "label", "detail"}, "a clear cue has ")
         return out
@@ -152,8 +170,13 @@ def validate_cue(cue) -> dict:
             raise CueError(f"a {kind} cue has no steps; send type sequence for timed steps")
         if kind == "hover" and sound:
             raise CueError("a hover never sounds; send type play (with sound true) to hear it")
-        out.update(notes=_notes_field(cue, ""), velocity=velocity, hold_ms=hold_ms, arpeggio_ms=arpeggio_ms,
-                   sound=kind == "play" and sound is not False)
+        out.update(
+            notes=_notes_field(cue, ""),
+            velocity=velocity,
+            hold_ms=hold_ms,
+            arpeggio_ms=arpeggio_ms,
+            sound=kind == "play" and sound is not False,
+        )
         return out
 
     # sequence
@@ -176,14 +199,20 @@ def validate_cue(cue) -> dict:
         at_ms = step.get("at_ms")
         if not _is_int(at_ms) or not 0 <= at_ms <= MAX_MS:
             raise CueError(f"{where}at_ms must be an integer 0..{MAX_MS} (got {at_ms!r})")
-        clean.append({"at_ms": at_ms, "type": step_type, "notes": _notes_field(step, where),
-                      "velocity": _int_field(step, "velocity", where, 1, 127, velocity),
-                      "hold_ms": _int_field(step, "hold_ms", where, 0, MAX_MS, hold_ms),
-                      "arpeggio_ms": _int_field(step, "arpeggio_ms", where, 0, MAX_MS, arpeggio_ms),
-                      "label": _text_field(step, "label", where), "detail": _text_field(step, "detail", where)})
+        clean.append(
+            {
+                "at_ms": at_ms,
+                "type": step_type,
+                "notes": _notes_field(step, where),
+                "velocity": _int_field(step, "velocity", where, 1, 127, velocity),
+                "hold_ms": _int_field(step, "hold_ms", where, 0, MAX_MS, hold_ms),
+                "arpeggio_ms": _int_field(step, "arpeggio_ms", where, 0, MAX_MS, arpeggio_ms),
+                "label": _text_field(step, "label", where),
+                "detail": _text_field(step, "detail", where),
+            }
+        )
     clean.sort(key=lambda s: s["at_ms"])
-    out.update(steps=clean, velocity=velocity, hold_ms=hold_ms, arpeggio_ms=arpeggio_ms,
-               sound=sound is not False)
+    out.update(steps=clean, velocity=velocity, hold_ms=hold_ms, arpeggio_ms=arpeggio_ms, sound=sound is not False)
     return out
 
 
@@ -199,8 +228,14 @@ class CueHub:
     new server has issued too, and a Last-Event-ID below id_base is known to come from an earlier server.
     """
 
-    def __init__(self, ring: int = RING, replay_max_age_s: float = REPLAY_MAX_AGE_S,
-                 heartbeat_s: float = HEARTBEAT_S, clock=time.monotonic, id_base: Optional[int] = None):
+    def __init__(
+        self,
+        ring: int = RING,
+        replay_max_age_s: float = REPLAY_MAX_AGE_S,
+        heartbeat_s: float = HEARTBEAT_S,
+        clock=time.monotonic,
+        id_base: Optional[int] = None,
+    ):
         self.replay_max_age_s = replay_max_age_s
         self.heartbeat_s = heartbeat_s
         self._clock = clock
@@ -237,8 +272,9 @@ class CueHub:
                 q.put(frame)
             return {"id": cue_id, "listeners": len(self._listeners)}
 
-    def subscribe(self, last_event_id: Optional[int] = None, caps=(), page_id: Optional[str] = None
-                  ) -> Tuple[int, "queue.SimpleQueue", List[bytes]]:
+    def subscribe(
+        self, last_event_id: Optional[int] = None, caps=(), page_id: Optional[str] = None
+    ) -> Tuple[int, "queue.SimpleQueue", List[bytes]]:
         """Register a listener. Returns (token, queue, backlog): the backlog holds the replayed frames.
 
         Nothing is replayed without a Last-Event-ID (a freshly opened page must not play old cues). An id below this
@@ -248,8 +284,9 @@ class CueHub:
         token, q, backlog, _ = self._subscribe(last_event_id, caps, page_id)
         return token, q, backlog
 
-    def open_stream(self, last_event_id: Optional[int] = None, caps=(), page_id: Optional[str] = None
-                    ) -> Tuple[int, "queue.SimpleQueue", bytes]:
+    def open_stream(
+        self, last_event_id: Optional[int] = None, caps=(), page_id: Optional[str] = None
+    ) -> Tuple[int, "queue.SimpleQueue", bytes]:
         """subscribe() for an event stream: returns (token, queue, preamble), the bytes to write before live frames.
 
         The preamble is "retry: 1000" with an "id:" line, then the replayed frames. The id is the cursor just before
@@ -267,15 +304,20 @@ class CueHub:
             if self._closed:
                 q.put(None)
             self._listeners[token] = q
-            self._meta[token] = {"caps": tuple(dict.fromkeys(c for c in caps if CAP_RE.fullmatch(str(c)))),
-                                 "page_id": page_id if page_id and PAGE_RE.fullmatch(str(page_id)) else None,
-                                 "since": int(time.time() * 1000)}
+            self._meta[token] = {
+                "caps": tuple(dict.fromkeys(c for c in caps if CAP_RE.fullmatch(str(c)))),
+                "page_id": page_id if page_id and PAGE_RE.fullmatch(str(page_id)) else None,
+                "since": int(time.time() * 1000),
+            }
             entries = []
             if last_event_id is not None:
                 now = self._clock()
                 foreign = last_event_id < self.id_base or last_event_id > self._last_id
-                entries = [(cue_id, frame) for cue_id, t, frame in self._ring
-                           if (foreign or cue_id > last_event_id) and now - t < self.replay_max_age_s]
+                entries = [
+                    (cue_id, frame)
+                    for cue_id, t, frame in self._ring
+                    if (foreign or cue_id > last_event_id) and now - t < self.replay_max_age_s
+                ]
             cursor = entries[0][0] - 1 if entries else self._last_id
             return token, q, [frame for _, frame in entries], cursor
 
@@ -294,12 +336,17 @@ class CueHub:
                 for c in meta["caps"]:
                     caps[c] = caps.get(c, 0) + 1
                 if meta["page_id"]:
-                    page = pages.setdefault(meta["page_id"], {"page_id": meta["page_id"], "caps": [],
-                                                              "since": meta["since"]})
+                    page = pages.setdefault(
+                        meta["page_id"], {"page_id": meta["page_id"], "caps": [], "since": meta["since"]}
+                    )
                     page["caps"] = sorted(set(page["caps"]) | set(meta["caps"]))
                     page["since"] = min(page["since"], meta["since"])
-            return {"listeners": len(self._listeners), "last_id": self._last_id, "caps": caps,
-                    "pages": sorted(pages.values(), key=lambda p: (p["since"], p["page_id"]))}
+            return {
+                "listeners": len(self._listeners),
+                "last_id": self._last_id,
+                "caps": caps,
+                "pages": sorted(pages.values(), key=lambda p: (p["since"], p["page_id"])),
+            }
 
     def close(self) -> None:
         """Wake every stream so its thread ends (server shutdown, tests)."""
@@ -311,7 +358,7 @@ class CueHub:
 
 # ====================================================================================================== replay
 def parse_clock(text: str) -> int:
-    """"5:22" -> 322000 ms; also "1:02:03", "5:22.5" and plain seconds ("322")."""
+    """ "5:22" -> 322000 ms; also "1:02:03", "5:22.5" and plain seconds ("322")."""
     t = str(text).strip()
     m = re.fullmatch(r"(?:(\d+):)?(\d+):(\d{1,2}(?:\.\d+)?)", t)
     if m:
@@ -333,8 +380,8 @@ def _note_spans(events: List[dict]) -> List[dict]:
     evs = sorted(events, key=lambda e: e["t_ms"])
     end_ms = max((e["t_ms"] for e in evs), default=0)
     spans: List[dict] = []
-    open_by_note: Dict[int, dict] = {}     # note -> the span still waiting for its end
-    held: Dict[int, bool] = {}              # note -> key still down (for sessions without sound_end)
+    open_by_note: Dict[int, dict] = {}  # note -> the span still waiting for its end
+    held: Dict[int, bool] = {}  # note -> key still down (for sessions without sound_end)
     pedal_down = False
     has_sound_end = any(e["kind"] == "sound_end" for e in evs)
 
@@ -377,12 +424,20 @@ def _note_spans(events: List[dict]) -> List[dict]:
 
 
 def _chord_marks(events: List[dict]) -> List[dict]:
-    return sorted((e for e in events if e["kind"] == "chord" and e.get("chord") and e.get("detect_kind") == "chord"),
-                  key=lambda e: e["t_ms"])
+    return sorted(
+        (e for e in events if e["kind"] == "chord" and e.get("chord") and e.get("detect_kind") == "chord"),
+        key=lambda e: e["t_ms"],
+    )
 
 
-def build_replay_cue(events: List[dict], start_ms: int, seconds: float = 8.0, speed: float = 1.0,
-                     at_text: Optional[str] = None, session: Optional[str] = None) -> dict:
+def build_replay_cue(
+    events: List[dict],
+    start_ms: int,
+    seconds: float = 8.0,
+    speed: float = 1.0,
+    at_text: Optional[str] = None,
+    session: Optional[str] = None,
+) -> dict:
     """A sequence cue rebuilt from logged note events: one play step per strike inside the window, each held until
     its sound ended (pedal-held notes too), clipped to the window's end. Notes still sounding at the window's start
     open the sequence at 0 ms. Steps carry the chord the page named at that moment, when it named one."""
@@ -396,6 +451,7 @@ def build_replay_cue(events: List[dict], start_ms: int, seconds: float = 8.0, sp
 
     def chord_at(t: int) -> Optional[dict]:
         from bisect import bisect_right
+
         i = bisect_right(mark_times, t + 25) - 1  # the page logs the chord a few ms after the strike
         return marks[i] if i >= 0 and t - marks[i]["t_ms"] < 4000 else None
 
@@ -408,11 +464,22 @@ def build_replay_cue(events: List[dict], start_ms: int, seconds: float = 8.0, sp
             at = int(round((span["t_ms"] - start_ms) / speed))
             hold = int(round((min(span["end_ms"], end_ms) - span["t_ms"]) / speed))
             mark = chord_at(span["t_ms"])
-            steps.append({"at_ms": at, "type": "play", "notes": [span["note"]], "velocity": max(1, min(127, span["vel"])),
-                          "hold_ms": max(1, hold), "arpeggio_ms": 0,
-                          "label": mark["chord"] if mark else None,
-                          "detail": (f"{mark['nns']} in {mark['nns_key']}" if mark and mark.get("nns") and mark.get("nns_key")
-                                     else None)})
+            steps.append(
+                {
+                    "at_ms": at,
+                    "type": "play",
+                    "notes": [span["note"]],
+                    "velocity": max(1, min(127, span["vel"])),
+                    "hold_ms": max(1, hold),
+                    "arpeggio_ms": 0,
+                    "label": mark["chord"] if mark else None,
+                    "detail": (
+                        f"{mark['nns']} in {mark['nns_key']}"
+                        if mark and mark.get("nns") and mark.get("nns_key")
+                        else None
+                    ),
+                }
+            )
     at_text = at_text or clock_text(start_ms)
     if carried:
         by_end: Dict[int, List[dict]] = {}
@@ -420,11 +487,18 @@ def build_replay_cue(events: List[dict], start_ms: int, seconds: float = 8.0, sp
             by_end.setdefault(min(span["end_ms"], end_ms), []).append(span)
         mark = chord_at(start_ms)
         for end, group in sorted(by_end.items()):
-            steps.append({"at_ms": 0, "type": "play", "notes": sorted({s["note"] for s in group}),
-                          "velocity": max(1, min(127, round(sum(s["vel"] for s in group) / len(group)))),
-                          "hold_ms": max(1, int(round((end - start_ms) / speed))), "arpeggio_ms": 0,
-                          "label": mark["chord"] if mark else None,
-                          "detail": f"already sounding at {at_text}"})
+            steps.append(
+                {
+                    "at_ms": 0,
+                    "type": "play",
+                    "notes": sorted({s["note"] for s in group}),
+                    "velocity": max(1, min(127, round(sum(s["vel"] for s in group) / len(group)))),
+                    "hold_ms": max(1, int(round((end - start_ms) / speed))),
+                    "arpeggio_ms": 0,
+                    "label": mark["chord"] if mark else None,
+                    "detail": f"already sounding at {at_text}",
+                }
+            )
     if not steps:
         raise ValueError(f"nothing sounds between {clock_text(start_ms)} and {clock_text(end_ms)}")
     steps.sort(key=lambda s: s["at_ms"])
@@ -439,18 +513,31 @@ class VoicingError(RuntimeError):
     pass
 
 
-def voice(items: List[str], key: Optional[str] = None, voicing: str = "close", octave: Optional[int] = None,
-          voice_lead: bool = False, minor: str = "tonic") -> List[dict]:
+def voice(
+    items: List[str],
+    key: Optional[str] = None,
+    voicing: str = "close",
+    octave: Optional[int] = None,
+    voice_lead: bool = False,
+    minor: str = "tonic",
+) -> List[dict]:
     """Run arsenal/pianocue_voicing.mjs on a batch. Each result has input, name, number, notes (MIDI), names,
     roundtrip {detected, match, page_name, page_number}, warnings; or error. minor: "tonic" (the page's default) or
     "relative" (minor keys numbered from their relative major, as the page's arsenal.piano.minor pref can be)."""
     node = shutil.which("node")
     if not node:
         raise VoicingError("node is not on PATH; the voicing bridge runs arsenal/pianocue_voicing.mjs with it")
-    request = {"items": items, "key": key, "voicing": voicing, "octave": octave, "voice_lead": voice_lead,
-               "minor": minor}
-    proc = subprocess.run([node, str(BRIDGE)], input=json.dumps(request), capture_output=True, text=True,
-                          encoding="utf-8", timeout=60)
+    request = {
+        "items": items,
+        "key": key,
+        "voicing": voicing,
+        "octave": octave,
+        "voice_lead": voice_lead,
+        "minor": minor,
+    }
+    proc = subprocess.run(
+        [node, str(BRIDGE)], input=json.dumps(request), capture_output=True, text=True, encoding="utf-8", timeout=60
+    )
     if proc.returncode != 0 and not proc.stdout.strip():
         raise VoicingError(f"the voicing bridge failed: {proc.stderr.strip() or proc.returncode}")
     try:
@@ -483,7 +570,7 @@ def _token_readings(token: str) -> Tuple[bool, bool]:
     root = _ROOT.match(t)
     if not root:
         return False, False
-    rest = t[root.end():]
+    rest = t[root.end() :]
     suffix = re.sub(r"/[A-Ga-g](?:#{1,2}|b{1,2})?$", "", rest)
     chord = suffix in _CHORD_DIGITS if re.fullmatch(r"\d+", suffix) else bool(_SUFFIX.fullmatch(suffix))
     return bool(re.fullmatch(r"\d", rest)), chord
@@ -530,8 +617,9 @@ class ServerError(RuntimeError):
 def _request(port: int, method: str, path: str, body: Optional[dict] = None, timeout: float = 10.0):
     url = f"http://127.0.0.1:{port}{path}"
     data = json.dumps(body).encode("utf-8") if body is not None else None
-    req = urllib.request.Request(url, data=data, method=method,
-                                 headers={"Content-Type": "application/json"} if data is not None else {})
+    req = urllib.request.Request(
+        url, data=data, method=method, headers={"Content-Type": "application/json"} if data is not None else {}
+    )
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             return resp.status, json.loads(resp.read() or b"null")
@@ -542,12 +630,16 @@ def _request(port: int, method: str, path: str, body: Optional[dict] = None, tim
         except ValueError:
             payload = {"error": raw.decode("utf-8", "replace")[:300]}
         if err.code == 404 and "no route" in str((payload or {}).get("error", "")):
-            raise ServerError(f"the server on 127.0.0.1:{port} has no piano cue channel; it predates it - restart "
-                              f"py -m arsenal serve --port {port}")
+            raise ServerError(
+                f"the server on 127.0.0.1:{port} has no piano cue channel; it predates it - restart "
+                f"{_pyl()} -m arsenal serve --port {port}"
+            )
         return err.code, payload
     except (urllib.error.URLError, ConnectionError, TimeoutError, OSError) as err:
-        raise ServerError(f"no arsenal server answers on 127.0.0.1:{port} ({getattr(err, 'reason', err)}) - start it "
-                          f"with py -m arsenal serve --port {port}")
+        raise ServerError(
+            f"no arsenal server answers on 127.0.0.1:{port} ({getattr(err, 'reason', err)}) - start it "
+            f"with {_pyl()} -m arsenal serve --port {port}"
+        )
 
 
 def send_cue(port: int, cue: dict) -> dict:
@@ -571,9 +663,11 @@ def _format_result(r: dict, key: Optional[str]) -> List[str]:
     head = r["name"] or r["input"]
     if r.get("number"):
         head += f"   {r['number']} in {r.get('key') or key}"
-    lines = [f"  {head}   ({r.get('voicing')} voicing)",
-             f"    notes  {' '.join(r['names'])}",
-             f"    midi   {' '.join(str(n) for n in r['notes'])}"]
+    lines = [
+        f"  {head}   ({r.get('voicing')} voicing)",
+        f"    notes  {' '.join(r['names'])}",
+        f"    midi   {' '.join(str(n) for n in r['notes'])}",
+    ]
     rt = r.get("roundtrip") or {}
     if rt:
         page = rt.get("page_name") or rt.get("detected")
@@ -610,8 +704,9 @@ def _finish(sent: dict, port: int, out) -> int:
 
 def _voiced(args, items: List[str], voice_lead: bool = False) -> Optional[List[dict]]:
     try:
-        results = voice(items, key=args.key, voicing=args.voicing, octave=args.octave, voice_lead=voice_lead,
-                        minor=args.minor)
+        results = voice(
+            items, key=args.key, voicing=args.voicing, octave=args.octave, voice_lead=voice_lead, minor=args.minor
+        )
     except VoicingError as exc:
         print(f"voicing failed: {exc}", file=sys.stderr)
         return None
@@ -632,10 +727,13 @@ def _cmd_play(args, hover: bool, out) -> int:
     if results is None:
         return 2
     r = results[0]
-    cue = {"type": "hover" if hover else "play", "notes": r["notes"],
-           "label": args.label if args.label is not None else r["name"],
-           "detail": args.detail if args.detail is not None else _chord_detail(r, args.key, args.label is not None),
-           "source": "claude"}
+    cue = {
+        "type": "hover" if hover else "play",
+        "notes": r["notes"],
+        "label": args.label if args.label is not None else r["name"],
+        "detail": args.detail if args.detail is not None else _chord_detail(r, args.key, args.label is not None),
+        "source": "claude",
+    }
     if args.vel is not None:
         cue["velocity"] = args.vel
     if args.hold is not None:
@@ -646,8 +744,11 @@ def _cmd_play(args, hover: bool, out) -> int:
         cue["sound"] = not args.silent
     cue = validate_cue(cue)
     sent = send_cue(args.port, cue)
-    print(f"{cue['type']}{'' if cue.get('sound', True) or hover else ' (silent)'}: label {cue['label']!r}"
-          f"{', detail ' + repr(cue['detail']) if cue['detail'] else ''}", file=out)
+    print(
+        f"{cue['type']}{'' if cue.get('sound', True) or hover else ' (silent)'}: label {cue['label']!r}"
+        f"{', detail ' + repr(cue['detail']) if cue['detail'] else ''}",
+        file=out,
+    )
     for line in _format_result(r, args.key):
         print(line, file=out)
     return _finish(sent, args.port, out)
@@ -659,9 +760,12 @@ def _cmd_play_several(args, items: List[str], hover: bool, out) -> int:
     length, so it is refused with the progression to send instead."""
     verb = "hover" if hover else "play"
     if args.hold is not None and args.hold <= 0:
-        print(f"{verb} got {len(items)} chords ({', '.join(items)}): each needs a length, so give --hold in seconds "
-              f"(not 0), or send them as a progression: py -m arsenal.pianocue progression \"{' | '.join(items)}\""
-              f"{' --hover' if hover else ''}", file=sys.stderr)
+        print(
+            f"{verb} got {len(items)} chords ({', '.join(items)}): each needs a length, so give --hold in seconds "
+            f'(not 0), or send them as a progression: {_pyl()} -m arsenal.pianocue progression "{" | ".join(items)}"'
+            f"{' --hover' if hover else ''}",
+            file=sys.stderr,
+        )
         return 2
     results = _voiced(args, items)
     if results is None:
@@ -669,22 +773,35 @@ def _cmd_play_several(args, items: List[str], hover: bool, out) -> int:
     each = int(round(args.hold * 1000)) if args.hold is not None else DEFAULTS["hold_ms"]
     steps = []
     for i, r in enumerate(results):
-        step = {"at_ms": i * each, "type": verb, "notes": r["notes"], "hold_ms": each if hover else max(1, each - 40),
-                "label": r["name"], "detail": _chord_detail(r, args.key)}
+        step = {
+            "at_ms": i * each,
+            "type": verb,
+            "notes": r["notes"],
+            "hold_ms": each if hover else max(1, each - 40),
+            "label": r["name"],
+            "detail": _chord_detail(r, args.key),
+        }
         if args.vel is not None:
             step["velocity"] = args.vel
         if args.arp is not None:
             step["arpeggio_ms"] = args.arp
         steps.append(step)
-    cue = {"type": "sequence", "steps": steps, "source": "claude",
-           "label": args.label if args.label is not None else " | ".join(r["name"] for r in results),
-           "detail": args.detail if args.detail is not None else (f"in {args.key}" if args.key else None)}
+    cue = {
+        "type": "sequence",
+        "steps": steps,
+        "source": "claude",
+        "label": args.label if args.label is not None else " | ".join(r["name"] for r in results),
+        "detail": args.detail if args.detail is not None else (f"in {args.key}" if args.key else None),
+    }
     if not hover:
         cue["sound"] = not args.silent
     cue = validate_cue(cue)
     sent = send_cue(args.port, cue)
-    print(f"{verb}{' (silent)' if not hover and args.silent else ''}: {len(steps)} chords one after another, "
-          f"{each / 1000:g} s each: label {cue['label']!r}", file=out)
+    print(
+        f"{verb}{' (silent)' if not hover and args.silent else ''}: {len(steps)} chords one after another, "
+        f"{each / 1000:g} s each: label {cue['label']!r}",
+        file=out,
+    )
     for step, r in zip(cue["steps"], results):
         print(f"  @{step['at_ms']:>6} ms  hold {step['hold_ms']:>5}", file=out)
         for line in _format_result(r, args.key):
@@ -720,20 +837,36 @@ def _cmd_progression(args, out) -> int:
             hold = max(1, length)  # a hover lasts until the next begins, so the ghost keys never blink between chords
         else:
             hold = max(1, length - 40)  # a breath before the next strike
-        step = {"at_ms": starts[i], "type": "hover" if args.hover else "play", "notes": r["notes"],
-                "hold_ms": hold, "label": r["name"], "detail": _chord_detail(r, args.key)}
+        step = {
+            "at_ms": starts[i],
+            "type": "hover" if args.hover else "play",
+            "notes": r["notes"],
+            "hold_ms": hold,
+            "label": r["name"],
+            "detail": _chord_detail(r, args.key),
+        }
         if args.vel is not None:
             step["velocity"] = args.vel
         if args.arp is not None:
             step["arpeggio_ms"] = args.arp
         steps.append(step)
-    cue = validate_cue({"type": "sequence", "steps": steps, "source": "claude",
-                        "label": args.label if args.label is not None else " | ".join(r["name"] for r in results),
-                        "detail": args.detail if args.detail is not None else
-                        (f"in {args.key}, {args.bpm:g} bpm" if args.key else f"{args.bpm:g} bpm")})
+    cue = validate_cue(
+        {
+            "type": "sequence",
+            "steps": steps,
+            "source": "claude",
+            "label": args.label if args.label is not None else " | ".join(r["name"] for r in results),
+            "detail": args.detail
+            if args.detail is not None
+            else (f"in {args.key}, {args.bpm:g} bpm" if args.key else f"{args.bpm:g} bpm"),
+        }
+    )
     sent = send_cue(args.port, cue)
-    print(f"sequence of {len(steps)} {'hovers' if args.hover else 'chords'} at {args.bpm:g} bpm "
-          f"({'voice-led ' if args.voice_lead else ''}{args.voicing}), {at / 1000:.2f} s:", file=out)
+    print(
+        f"sequence of {len(steps)} {'hovers' if args.hover else 'chords'} at {args.bpm:g} bpm "
+        f"({'voice-led ' if args.voice_lead else ''}{args.voicing}), {at / 1000:.2f} s:",
+        file=out,
+    )
     for step, r in zip(cue["steps"], results):
         print(f"  @{step['at_ms']:>6} ms  hold {step['hold_ms']:>5}", file=out)
         for line in _format_result(r, args.key):
@@ -747,6 +880,7 @@ def _cmd_progression(args, out) -> int:
 
 def _cmd_replay(args, out) -> int:
     from .performance import PerformanceError, PerformanceStore
+
     store = PerformanceStore(args.root)
     session = store.latest() if args.session == "latest" else args.session
     if not session:
@@ -755,20 +889,26 @@ def _cmd_replay(args, out) -> int:
     try:
         events = store.events(session)  # read only
         start_ms = parse_clock(args.at)
-        cue = validate_cue(build_replay_cue(events, start_ms, args.seconds, args.speed, at_text=args.at,
-                                            session=session))
+        cue = validate_cue(
+            build_replay_cue(events, start_ms, args.seconds, args.speed, at_text=args.at, session=session)
+        )
     except (PerformanceError, ValueError) as exc:
         print(f"cannot replay: {exc}", file=sys.stderr)
         return 2
     sent = send_cue(args.port, cue)
-    print(f"replay {session} at {args.at} for {args.seconds:g} s (speed {args.speed:g}): {len(cue['steps'])} steps, "
-          f"label {cue['label']!r}", file=out)
+    print(
+        f"replay {session} at {args.at} for {args.seconds:g} s (speed {args.speed:g}): {len(cue['steps'])} steps, "
+        f"label {cue['label']!r}",
+        file=out,
+    )
     names = "C Db D Eb E F F# G Ab A Bb B".split()
     for step in cue["steps"]:
         notes = " ".join(f"{names[n % 12]}{n // 12 - 1}" for n in step["notes"])
         tag = f"  {step['label']}" if step["label"] else ""
         tag += f"  ({step['detail']})" if step["detail"] else ""
-        print(f"  @{step['at_ms']:>6} ms  {notes:<16} vel {step['velocity']:>3}  hold {step['hold_ms']:>5}{tag}", file=out)
+        print(
+            f"  @{step['at_ms']:>6} ms  {notes:<16} vel {step['velocity']:>3}  hold {step['hold_ms']:>5}{tag}", file=out
+        )
     return _finish(sent, args.port, out)
 
 
@@ -790,8 +930,10 @@ def _cmd_voicing(args, out) -> int:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    ap = argparse.ArgumentParser(prog="py -m arsenal.pianocue",
-                                 description="Claude's hand on the piano page: play, hover, replay and clear chords")
+    ap = argparse.ArgumentParser(
+        prog=f"{_pyl()} -m arsenal.pianocue",
+        description="Claude's hand on the piano page: play, hover, replay and clear chords",
+    )
     sub = ap.add_subparsers(dest="verb", required=True)
 
     def port(p):
@@ -800,18 +942,28 @@ def build_parser() -> argparse.ArgumentParser:
     def chord_opts(p, voicing_default="spread"):
         p.add_argument("--key", help='a key for numbers and spelling, e.g. "Eb major", "C# minor"')
         p.add_argument("--voicing", choices=("close", "open", "spread", "drop2", "shell"), default=voicing_default)
-        p.add_argument("--octave", type=int,
-                       help="the octave of the chord's root (spread: of the bass); a slash bass goes below it, and "
-                            "drop2's dropped voice and bass land an octave lower (drop2 C --octave 3: C2 G2 C3 E3 C4; "
-                            "C/G: G2 C3 E3 C4, the dropped G is the bass); default by style")
-        p.add_argument("--minor", choices=("tonic", "relative"), default="tonic",
-                       help="how a minor key is numbered, as the page's minor setting: tonic (Am in A minor is 1m, the "
-                            "page's default) or relative (from the relative major: Am is 6m)")
+        p.add_argument(
+            "--octave",
+            type=int,
+            help="the octave of the chord's root (spread: of the bass); a slash bass goes below it, and "
+            "drop2's dropped voice and bass land an octave lower (drop2 C --octave 3: C2 G2 C3 E3 C4; "
+            "C/G: G2 C3 E3 C4, the dropped G is the bass); default by style",
+        )
+        p.add_argument(
+            "--minor",
+            choices=("tonic", "relative"),
+            default="tonic",
+            help="how a minor key is numbered, as the page's minor setting: tonic (Am in A minor is 1m, the "
+            "page's default) or relative (from the relative major: Am is 6m)",
+        )
 
     for verb, hover in (("play", False), ("hover", True)):
-        p = sub.add_parser(verb, help=("sound and show" if not hover else "show without sound") +
-                           ' a chord name, a Nashville number with --key, or notes ("Ab3 Eb4 G4" or MIDI numbers); '
-                           'several chords ("F#m7b5 Bbmaj7#11") go one after another, --hold s each')
+        p = sub.add_parser(
+            verb,
+            help=("sound and show" if not hover else "show without sound")
+            + ' a chord name, a Nashville number with --key, or notes ("Ab3 Eb4 G4" or MIDI numbers); '
+            'several chords ("F#m7b5 Bbmaj7#11") go one after another, --hold s each',
+        )
         p.add_argument("chord", nargs="+")
         chord_opts(p)
         p.add_argument("--arp", type=int, help="stagger bottom-up, ms between notes")
@@ -823,23 +975,30 @@ def build_parser() -> argparse.ArgumentParser:
             p.add_argument("--silent", action="store_true", help="show the keys pressed, without sound")
         port(p)
 
-    pg = sub.add_parser("progression", help='a timed sequence: "Abmaj9#11 | Bb7sus4/Eb | Ebmaj9" (item:beats allowed)',
-                        description='A timed sequence of chords, one per --beats: "Abmaj9#11 | Bb7sus4/Eb | Ebmaj9", or '
-                                    'with --key "4maj9#11 | 5^7sus4/1:2 | 1" (item:beats sets one chord\'s length). '
-                                    'Chords may also be separated by spaces, inside a bar too ("1 4 | 5 1", '
-                                    '"Dm7 G7 | Cmaj7"). Notes grouped between bars are one chord each ("Ab2 Eb3 G3 | '
-                                    'Bb2 F3 Ab3"). A bar whose every token reads as a chord is chords, though C7 or G5 '
-                                    'is also a note; a bar all in octave 5 or 6 ("C5 E5 G5") stays notes.')
+    pg = sub.add_parser(
+        "progression",
+        help='a timed sequence: "Abmaj9#11 | Bb7sus4/Eb | Ebmaj9" (item:beats allowed)',
+        description='A timed sequence of chords, one per --beats: "Abmaj9#11 | Bb7sus4/Eb | Ebmaj9", or '
+        'with --key "4maj9#11 | 5^7sus4/1:2 | 1" (item:beats sets one chord\'s length). '
+        'Chords may also be separated by spaces, inside a bar too ("1 4 | 5 1", '
+        '"Dm7 G7 | Cmaj7"). Notes grouped between bars are one chord each ("Ab2 Eb3 G3 | '
+        'Bb2 F3 Ab3"). A bar whose every token reads as a chord is chords, though C7 or G5 '
+        'is also a note; a bar all in octave 5 or 6 ("C5 E5 G5") stays notes.',
+    )
     pg.add_argument("chords")
     chord_opts(pg)
     pg.add_argument("--bpm", type=float, default=72.0)
     pg.add_argument("--beats", type=float, default=4.0, help="beats per chord (default 4)")
     pg.add_argument("--hover", action="store_true", help="show the chords without sound")
-    pg.add_argument("--voice-lead", action="store_true",
-                    help="voice each chord with the least movement from the previous one, keeping the bass")
+    pg.add_argument(
+        "--voice-lead",
+        action="store_true",
+        help="voice each chord with the least movement from the previous one, keeping the bass",
+    )
     pg.add_argument("--arp", type=int)
-    pg.add_argument("--hold", type=float,
-                    help="seconds each chord holds (default: its length minus 40 ms; a hover its full length)")
+    pg.add_argument(
+        "--hold", type=float, help="seconds each chord holds (default: its length minus 40 ms; a hover its full length)"
+    )
     pg.add_argument("--vel", type=int)
     pg.add_argument("--label")
     pg.add_argument("--detail")
@@ -865,8 +1024,10 @@ def build_parser() -> argparse.ArgumentParser:
     port(st)
 
     from .replay import add_verb as add_replay_link
+
     add_replay_link(sub)
     from .jam import cli as jam_cli  # the jam verbs: card, deck, loop, try, jam, template (jam-spec 7)
+
     jam_cli.add_verbs(sub)
     return ap
 
@@ -889,8 +1050,10 @@ def main(argv=None, out=None) -> int:
     args = build_parser().parse_args(argv)
     if args.verb == "replay-link":
         from .replay import run_link
+
         return run_link(args, out)
     from .jam import cli as jam_cli
+
     if args.verb in jam_cli.VERBS:
         return jam_cli.run(args, out)
     try:

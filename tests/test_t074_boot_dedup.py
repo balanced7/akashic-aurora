@@ -20,6 +20,7 @@ BUILD REFINEMENTS (flagged, T073 precedent):
        head now carries the FULL body -- in-boot duplication is the same disease as
        whisper/boot duplication).
 """
+
 import os
 import subprocess
 import sys
@@ -36,6 +37,7 @@ _REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 def _fake_mem(monkeypatch, wwa_chars=500):
     import tempfile
+
     mem = am.AgentMemory(store=FileStore(os.path.join(tempfile.mkdtemp(), "m.json")))
     mem.decide("where-we-are", "RESUME ANCHOR " + ("x" * wwa_chars), curated=True)
     mem.decide("next-focus", "the directive")
@@ -49,8 +51,9 @@ def test_w13_primer_aware_head_carries_full_where_we_are(monkeypatch):
     head = agent_cli._orientation_header("claude", primer_aware=True)
     wwa_lines = [l for l in head.splitlines() if "where-we-are" in l.lower()]
     assert wwa_lines, "head must still carry where-we-are"
-    assert sum(len(l) for l in wwa_lines) > 300, \
+    assert sum(len(l) for l in wwa_lines) > 300, (
         "W13: primer-aware head carries the FULL body (resume anchor), not the 120-clip"
+    )
 
 
 def test_w13_legacy_head_keeps_the_one_liner(monkeypatch):
@@ -62,8 +65,9 @@ def test_w13_legacy_head_keeps_the_one_liner(monkeypatch):
 
 def test_w13_primer_aware_head_names_siblings(monkeypatch):
     _fake_mem(monkeypatch)
-    monkeypatch.setattr(agent_cli, "_boot_siblings_line",
-                        lambda agent_id: "# siblings: claude#b0b7771d (idle 45m, claims: T068)")
+    monkeypatch.setattr(
+        agent_cli, "_boot_siblings_line", lambda agent_id: "# siblings: claude#b0b7771d (idle 45m, claims: T068)"
+    )
     head = agent_cli._orientation_header("claude", primer_aware=True)
     assert "siblings:" in head, "W13: sibling details join the primer-aware head"
 
@@ -78,11 +82,13 @@ def test_w13_own_session_is_not_its_own_sibling(monkeypatch):
         return []
 
     import core.comm.incarnation as inc
+
     monkeypatch.setattr(inc, "live_incarnations", fake_live)
     monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", "self-sid-1234")
     agent_cli._boot_siblings_line("claude")
-    assert seen.get("my_session") == "self-sid-1234", \
+    assert seen.get("my_session") == "self-sid-1234", (
         "the caller's own incarnation must be excluded from its sibling line"
+    )
 
 
 # ---------------------------------------------------------------- W13 section skips (integration)
@@ -93,8 +99,14 @@ def _boot(env_extra):
     env.pop("AKASHIC_BOOT_FULL", None)
     env["_AISETUP_TEST_ISOLATED"] = "1"
     env.update(env_extra)
-    out = subprocess.run([sys.executable, "agent_cli.py", "boot", "w13-probe"],
-                        capture_output=True, text=True, timeout=120, cwd=_REPO, env=env)
+    out = subprocess.run(
+        [sys.executable, "agent_cli.py", "boot", "w13-probe"],
+        capture_output=True,
+        text=True,
+        timeout=120,
+        cwd=_REPO,
+        env=env,
+    )
     return out.stdout
 
 
@@ -114,8 +126,9 @@ def test_w13_bare_terminal_keeps_full_boot():
     # each section is individually fail-open (its data source may be down in the
     # isolated env -- a T070-class flake caught 2026-07-15); ANY of them rendering
     # proves the guards did not fire
-    assert any(s in out for s in _WHISPER_COVERED), \
+    assert any(s in out for s in _WHISPER_COVERED), (
         f"legacy boot rendered NONE of the whisper-covered sections: {out[:400]}"
+    )
 
 
 def test_w13_boot_full_hatch_forces_legacy():

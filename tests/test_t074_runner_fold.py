@@ -26,6 +26,7 @@ Pins:
   W14-P6  Budget: the continuity header is compact (~5 lines; ~300 chars) -- it
           competes sensibly with the 6000-char onboarding budget (T071 doctrine).
 """
+
 import os
 import sys
 import tempfile
@@ -40,17 +41,27 @@ from scripts import bifrost_runner_deepseek as runner
 # ---------------------------------------------------------------- helpers
 def _dec(title, body, hours_ago=2.0, curated=None):
     from core.learning.agent_memory import Decision
+
     created = (datetime.now() - timedelta(hours=hours_ago)).isoformat()
-    return Decision(id=f"ADR_test_{title}", title=title, status="accepted", context="",
-                    decision=body, rationale=[], alternatives=[],
-                    consequences={"positive": [], "negative": []},
-                    created_at=created, curated=curated)
+    return Decision(
+        id=f"ADR_test_{title}",
+        title=title,
+        status="accepted",
+        context="",
+        decision=body,
+        rationale=[],
+        alternatives=[],
+        consequences={"positive": [], "negative": []},
+        created_at=created,
+        curated=curated,
+    )
 
 
 # ---------------------------------------------------------------- W14-P1 DIRECTIVE
 def test_p1_directive_from_next_focus_with_age(monkeypatch):
     from core.learning import agent_memory as am
     from core.foundation.store import FileStore
+
     mem = am.AgentMemory(store=FileStore(os.path.join(tempfile.mkdtemp(), "m.json")))
     mem.decide("next-focus", "T074 Phase 4 runner fold", curated=True)
     monkeypatch.setattr(am, "get_agent_memory", lambda: mem)
@@ -63,6 +74,7 @@ def test_p1_directive_from_next_focus_with_age(monkeypatch):
 def test_p1_directive_fallback_when_no_next_focus(monkeypatch):
     from core.learning import agent_memory as am
     from core.foundation.store import FileStore
+
     mem = am.AgentMemory(store=FileStore(os.path.join(tempfile.mkdtemp(), "m.json")))
     monkeypatch.setattr(am, "get_agent_memory", lambda: mem)
     line = runner._directive_line("deepseek")
@@ -74,22 +86,22 @@ def test_p1_directive_survives_broken_store(monkeypatch):
     # _directive_line does `from core.learning.agent_memory import get_agent_memory`
     # locally -- patch the source module so the local import gets the broken version.
     import core.learning.agent_memory as am
-    monkeypatch.setattr(am, "get_agent_memory",
-                        lambda: (_ for _ in ()).throw(RuntimeError("db down")))
+
+    monkeypatch.setattr(am, "get_agent_memory", lambda: (_ for _ in ()).throw(RuntimeError("db down")))
     line = runner._directive_line("deepseek")
     assert "DIRECTIVE: " in line, "P1 fail-soft: a broken store still produces a directive line"
 
 
 # ---------------------------------------------------------------- W14-P2 SIBLINGS
 def test_p2_siblings_solo(monkeypatch):
-    monkeypatch.setattr(runner, "_siblings_for_runner",
-                        lambda agent_id: "SIBLINGS: solo")
+    monkeypatch.setattr(runner, "_siblings_for_runner", lambda agent_id: "SIBLINGS: solo")
     assert runner._siblings_for_runner("deepseek") == "SIBLINGS: solo"
 
 
 def test_p2_siblings_live(tmp_path, monkeypatch):
     # Plant an activity marker (the marker path is always available)
     from core.comm.incarnation import live_incarnations
+
     tmp = str(tmp_path)
     sid = "bbbbcccc-1111-2222-3333-444455556666"
     marker = os.path.join(tmp, f"bifrost_wake_claude_{sid}.alive")
@@ -99,6 +111,7 @@ def test_p2_siblings_live(tmp_path, monkeypatch):
     assert len(out) == 1, "marker-only path must work"
     # Now test the runner wrapper (it delegates to incarnation)
     from core.comm.incarnation import siblings_line
+
     line = siblings_line("claude", out)
     assert "1 live sibling" in line
 
@@ -107,11 +120,10 @@ def test_p2_siblings_live(tmp_path, monkeypatch):
 def test_p3_private_notes_carry_age_stamps(monkeypatch):
     from core.learning import agent_memory as am
     from core.foundation.store import FileStore
+
     mem = am.AgentMemory(store=FileStore(os.path.join(tempfile.mkdtemp(), "m.json")))
-    mem.decide("scratch:deepseek:ergonomics-retro", "Retro note body text here", session_id="",
-               curated=None)
-    mem.decide("scratch:deepseek:first-note", "First note content", session_id="",
-               curated=None)
+    mem.decide("scratch:deepseek:ergonomics-retro", "Retro note body text here", session_id="", curated=None)
+    mem.decide("scratch:deepseek:first-note", "First note content", session_id="", curated=None)
     monkeypatch.setattr(am, "get_agent_memory", lambda: mem)
     block = runner._age_stamped_private_notes("deepseek")
     assert "ago" in block, f"P3: age stamps must appear on note lines, got: {block[:200]}"
@@ -123,6 +135,7 @@ def test_p3_private_notes_carry_age_stamps(monkeypatch):
 def test_p3_age_stamps_survive_empty_store(monkeypatch):
     from core.learning import agent_memory as am
     from core.foundation.store import FileStore
+
     mem = am.AgentMemory(store=FileStore(os.path.join(tempfile.mkdtemp(), "m.json")))
     monkeypatch.setattr(am, "get_agent_memory", lambda: mem)
     block = runner._age_stamped_private_notes("deepseek")
@@ -135,14 +148,15 @@ def test_p4_header_precedes_onboarding():
     header = runner._runner_continuity_header(
         "deepseek",
         directive_override="DIRECTIVE: T074 Phase 4 runner fold (2h ago)",
-        siblings_override="SIBLINGS: 1 live sibling (claude#09f7ad79, 1m idle)")
+        siblings_override="SIBLINGS: 1 live sibling (claude#09f7ad79, 1m idle)",
+    )
     assert "DIRECTIVE:" in header
-    assert header.index("DIRECTIVE:") < header.index("SIBLINGS:"), \
-        "P4: DIRECTIVE must be the FIRST line"
+    assert header.index("DIRECTIVE:") < header.index("SIBLINGS:"), "P4: DIRECTIVE must be the FIRST line"
     assert "SIBLINGS:" in header
     # F2: notes must NOT appear in the header (fold_private_notes owns them)
-    assert "PRIVATE NOTES" not in header, \
+    assert "PRIVATE NOTES" not in header, (
         "F2: header owns DIRECTIVE+SIBLINGS only; private notes ride fold_private_notes"
+    )
 
 
 # ---------------------------------------------------------------- W14-P5 FAIL-SOFT
@@ -150,7 +164,8 @@ def test_p5_all_sources_broken_still_produces_header():
     header = runner._runner_continuity_header(
         "deepseek",
         directive_override="DIRECTIVE: none active -- check the ledger",
-        siblings_override="SIBLINGS: (unavailable)")
+        siblings_override="SIBLINGS: (unavailable)",
+    )
     assert "DIRECTIVE:" in header and "SIBLINGS:" in header
     # the header is non-empty even when every source is degraded
 
@@ -169,7 +184,8 @@ def test_p6_header_stays_compact():
     header = runner._runner_continuity_header(
         "deepseek",
         directive_override="DIRECTIVE: A somewhat long directive that describes the next task in reasonable detail (3h ago)",
-        siblings_override="SIBLINGS: 1 live sibling (claude#09f7ad79, 1m idle, unseated)")
+        siblings_override="SIBLINGS: 1 live sibling (claude#09f7ad79, 1m idle, unseated)",
+    )
     lines = header.splitlines()
     assert 0 < len(lines) <= 8, f"P6: header compact ({len(lines)} lines) -- a primer, not a wall"
     assert len(header) < 600, f"P6: header under 600 chars ({len(header)})"

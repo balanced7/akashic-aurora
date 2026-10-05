@@ -45,14 +45,26 @@ Exit codes: 0 done (or --dry-run) | 1 git, guard or push failure | 2 nothing to 
 or the no-flag dry run | 3 refused: not Daniel or the claude seat | 4 refused: the push
 would publish other authors' commits | 5 refused: the push was not confirmed
 """
+
 import argparse
 import os
 import subprocess
 import sys
 from datetime import datetime
 
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+
+        return python_launcher()
+    except Exception:
+        return "py"
+
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-ENV = {**os.environ, "GIT_TERMINAL_PROMPT": "0"}   # never hang on a credential prompt
+ENV = {**os.environ, "GIT_TERMINAL_PROMPT": "0"}  # never hang on a credential prompt
 
 PUBLISHER_SEAT = "claude"
 # PUBLISH SEATS (Daniil 2026-09-24, verbatim on Discord: "Let's amend the design, I want
@@ -82,8 +94,9 @@ EXIT_USAGE, EXIT_SEAT, EXIT_OTHERS, EXIT_UNCONFIRMED = 2, 3, 4, 5
 
 
 def git(*args, check=True):
-    r = subprocess.run(["git", *args], cwd=ROOT, env=ENV, capture_output=True, text=True,
-                       encoding="utf-8", errors="replace")
+    r = subprocess.run(
+        ["git", *args], cwd=ROOT, env=ENV, capture_output=True, text=True, encoding="utf-8", errors="replace"
+    )
     if check and r.returncode != 0:
         sys.stderr.write((r.stdout or "") + (r.stderr or ""))
         sys.exit(r.returncode)
@@ -116,8 +129,10 @@ def runner_refusal(environ=None, push=False):
     door = (env.get("AKASHIC_SEAT_DOOR") or "").strip().lower()
 
     def _toolbox(why_seat):
-        return (f"this process runs inside the unattended toolbox door (AKASHIC_SEAT_DOOR=toolbox, "
-                f"AKASHIC_AGENT_ID={why_seat or '(unset)'})")
+        return (
+            f"this process runs inside the unattended toolbox door (AKASHIC_SEAT_DOOR=toolbox, "
+            f"AKASHIC_AGENT_ID={why_seat or '(unset)'})"
+        )
 
     if push:
         # The publish leg. An authorised RUNNER seat may publish through the toolbox door --
@@ -129,8 +144,10 @@ def runner_refusal(environ=None, push=False):
         if door == "toolbox" and (seat == PUBLISHER_SEAT or seat not in PUBLISH_SEATS):
             return _toolbox(seat)
         if seat and seat not in PUBLISH_SEATS:
-            return (f"this process is the {seat!r} seat (AKASHIC_AGENT_ID={seat}); publishing is "
-                    f"{'/'.join(sorted(PUBLISH_SEATS))}/Daniel's call")
+            return (
+                f"this process is the {seat!r} seat (AKASHIC_AGENT_ID={seat}); publishing is "
+                f"{'/'.join(sorted(PUBLISH_SEATS))}/Daniel's call"
+            )
         return None
 
     # LOCAL COMMIT leg.
@@ -148,15 +165,17 @@ def runner_refusal(environ=None, push=False):
 
 
 def _print_refusal(why):
-    print("[mirror] REFUSED: scripts/mirror.py is the PUBLISH door. It commits files and, with\n"
-          "  --push, publishes them to the PUBLIC GitHub repo balanced7/akashic-aurora. It does\n"
-          "  not count lines, read files or inspect anything.\n"
-          f"  {why}.\n"
-          "  Nothing was staged, committed or pushed.\n"
-          "  To get work committed: commit your own named paths with --commit (no push), or\n"
-          "  send Vandor (claude) the explicit paths and a commit message to publish.\n"
-          "  (2026-09-15: run as a line counter, it committed 'count-plus-lines' and published\n"
-          "  every unpushed commit since 2026-09-13.)")
+    print(
+        "[mirror] REFUSED: scripts/mirror.py is the PUBLISH door. It commits files and, with\n"
+        "  --push, publishes them to the PUBLIC GitHub repo balanced7/akashic-aurora. It does\n"
+        "  not count lines, read files or inspect anything.\n"
+        f"  {why}.\n"
+        "  Nothing was staged, committed or pushed.\n"
+        "  To get work committed: commit your own named paths with --commit (no push), or\n"
+        "  send Vandor (claude) the explicit paths and a commit message to publish.\n"
+        "  (2026-09-15: run as a line counter, it committed 'count-plus-lines' and published\n"
+        "  every unpushed commit since 2026-09-13.)"
+    )
 
 
 def _seat_author_env():
@@ -174,15 +193,16 @@ def _seat_author_env():
         try:
             sys.path.insert(0, ROOT)
             from core.comm.seat_identity import git_identity_env
+
             env = git_identity_env(seat)
         except Exception:
-            env = {}   # a missing authority must not wedge a commit; pre_commit still gates
+            env = {}  # a missing authority must not wedge a commit; pre_commit still gates
         if env:
             ENV["GIT_AUTHOR_NAME"] = env["GIT_AUTHOR_NAME"]
             ENV["GIT_AUTHOR_EMAIL"] = env["GIT_AUTHOR_EMAIL"]
 
 
-_OPERATOR = []   # [(user.name, user.email)] once read
+_OPERATOR = []  # [(user.name, user.email)] once read
 
 
 def stdin_is_terminal():
@@ -195,6 +215,7 @@ def stdin_is_terminal():
             return True
         import ctypes
         import msvcrt
+
         mode = ctypes.c_ulong()
         handle = msvcrt.get_osfhandle(sys.stdin.fileno())
         return bool(ctypes.windll.kernel32.GetConsoleMode(handle, ctypes.byref(mode)))
@@ -220,12 +241,13 @@ def _seat_owns(sha, seat):
     try:
         sys.path.insert(0, str(ROOT))
         from scripts.authorship_ledger import seat_for
+
         # seat_for returns the ROW, not a name, and the ledger keys on a 12-char sha while
         # unpushed() yields the full 40. Both were wrong in the first cut of this function.
         row = seat_for(str(sha)[:12])
         return bool(row) and (row.get("seat") or "") == seat
     except Exception:
-        return False        # the plane could not answer -> not proven yours
+        return False  # the plane could not answer -> not proven yours
 
 
 def _is_own(name, email, sha=""):
@@ -238,8 +260,12 @@ def _is_own(name, email, sha=""):
             return True
         return bool(sha) and _seat_owns(sha, seat)
     if not _OPERATOR:
-        _OPERATOR.append((git("config", "user.name", check=False).stdout.strip(),
-                          git("config", "user.email", check=False).stdout.strip()))
+        _OPERATOR.append(
+            (
+                git("config", "user.name", check=False).stdout.strip(),
+                git("config", "user.email", check=False).stdout.strip(),
+            )
+        )
     me_name, me_email = _OPERATOR[0]
     return (bool(me_email) and email == me_email) or (bool(me_name) and name == me_name)
 
@@ -270,10 +296,8 @@ def _foreign(rows):
 
 def _refuse_foreign(foreign, committed_locally=False):
     authors = sorted({r[1] for r in foreign})
-    print(f"[mirror] REFUSED: {len(foreign)} of those commit(s) were authored by someone else "
-          f"({', '.join(authors)}).")
-    print("  Publishing them is their author's call, or Daniel's. If that is settled, rerun with "
-          "--include-others.")
+    print(f"[mirror] REFUSED: {len(foreign)} of those commit(s) were authored by someone else ({', '.join(authors)}).")
+    print("  Publishing them is their author's call, or Daniel's. If that is settled, rerun with --include-others.")
     if committed_locally:
         print("  Your commit is saved locally; nothing was pushed.")
     return EXIT_OTHERS
@@ -301,25 +325,31 @@ def _print_plan(args, branch):
         _print_publish_list(rows, branch)
     else:
         print(f"  no unpushed commits on {branch}")
-    print('  To act: --commit (local only), or --push --yes (commit, then publish).')
+    print("  To act: --commit (local only), or --push --yes (commit, then publish).")
 
 
 def build_parser():
     p = argparse.ArgumentParser(
         prog="mirror.py",
         description="The PUBLISH door: commit named paths and push them to the PUBLIC GitHub repo "
-                    "balanced7/akashic-aurora. Not a utility -- it counts and inspects nothing. "
-                    "Without --commit or --push it only prints what it would do. Only Daniel and "
-                    "the claude seat may run it.")
+        "balanced7/akashic-aurora. Not a utility -- it counts and inspects nothing. "
+        "Without --commit or --push it only prints what it would do. Only Daniel and "
+        "the claude seat may run it.",
+    )
     p.add_argument("message", nargs="?", help="commit message")
     p.add_argument("paths", nargs="*", help="the EXPLICIT paths to stage and commit")
     p.add_argument("--commit", action="store_true", help="stage the named paths and commit locally; never pushes")
-    p.add_argument("--push", action="store_true",
-                   help="publish unpushed commits to origin (commits first when a message is given)")
-    p.add_argument("--yes", action="store_true",
-                   help="confirm --push without a prompt (required when stdin is not a terminal)")
-    p.add_argument("--include-others", action="store_true",
-                   help="allow publishing commits authored by someone other than the invoking seat")
+    p.add_argument(
+        "--push", action="store_true", help="publish unpushed commits to origin (commits first when a message is given)"
+    )
+    p.add_argument(
+        "--yes", action="store_true", help="confirm --push without a prompt (required when stdin is not a terminal)"
+    )
+    p.add_argument(
+        "--include-others",
+        action="store_true",
+        help="allow publishing commits authored by someone other than the invoking seat",
+    )
     p.add_argument("--all", action="store_true", help="with --commit: stage the WHOLE working tree")
     p.add_argument("--dry-run", action="store_true", help="print the plan and exit 0")
     p.add_argument("--push-only", action="store_true", help="old spelling of --push with no message")
@@ -359,10 +389,8 @@ def _commit(args):
         # per <=150 files stays far under it at any corpus size.
         hook = os.path.join(ROOT, "scripts", "githooks", "mojibake_signatures.py")
         for i in range(0, len(md_files), 150):
-            chunk = md_files[i:i + 150]
-            r = subprocess.run(
-                [sys.executable, hook, *chunk],
-                cwd=ROOT, env=ENV, capture_output=True, text=True)
+            chunk = md_files[i : i + 150]
+            r = subprocess.run([sys.executable, hook, *chunk], cwd=ROOT, env=ENV, capture_output=True, text=True)
             if r.returncode != 0:
                 print(r.stdout.strip())
                 print(r.stderr.strip() if r.stderr else "")
@@ -384,22 +412,24 @@ def _commit(args):
             # ~32K argv cap.
             staged13 = [f for f in staged.strip().split("\n") if f.endswith(".md")]
             for i in range(0, len(staged13), 150):
-                chunk13 = staged13[i:i + 150]
-                r13 = subprocess.run([sys.executable, hook13, *chunk13],
-                                     cwd=ROOT, env=ENV, capture_output=True, text=True)
+                chunk13 = staged13[i : i + 150]
+                r13 = subprocess.run(
+                    [sys.executable, hook13, *chunk13], cwd=ROOT, env=ENV, capture_output=True, text=True
+                )
                 if (r13.stdout or "").strip():
                     print(r13.stdout.strip())
                 if r13.returncode != 0:
-                    print("[mirror] rule-13 birth guard REFUSED commit — born-through-the-door: "
-                          "py agent_cli.py doc new (or --draft), or fix the path.")
+                    print(
+                        "[mirror] rule-13 birth guard REFUSED commit — born-through-the-door: "
+                        f"{_pyl()} agent_cli.py doc new (or --draft), or fix the path."
+                    )
                     return 1
     if staged:
         if paths and not add_all:
             git("commit", "-m", msg, "--", *paths)
         else:
             git("commit", "-m", msg)
-        committed = git("diff-tree", "--no-commit-id", "--name-only", "-r",
-                        "HEAD").stdout.strip() or staged
+        committed = git("diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD").stdout.strip() or staged
         print(f"[mirror] committed {len(committed.splitlines())} file(s): {msg}")
         _emit_commit_beat(msg, committed.splitlines())
         return None
@@ -408,7 +438,7 @@ def _commit(args):
         # refuse to silently do nothing on a dirty tree -- teach the agent
         print("[mirror] nothing staged -- refusing to blanket-commit a shared tree.")
         print("  Name what's YOURS:")
-        print('    py scripts/mirror.py "msg" path1 path2 --commit   (stage + commit those)')
+        print(f'    {_pyl()} scripts/mirror.py "msg" path1 path2 --commit   (stage + commit those)')
         print("  or stage first (git add <path>), or --all --commit to sweep everything.")
         print("  Dirty files:")
         print(dirty)
@@ -430,13 +460,16 @@ def _push(args, branch, committed):
         return _refuse_foreign(foreign, committed_locally=committed)
     if not args.yes:
         try:
-            answer = input(f'[mirror] Type the branch name "{branch}" to publish {len(rows)} commit(s) '
-                           "to the PUBLIC repo: ")
+            answer = input(
+                f'[mirror] Type the branch name "{branch}" to publish {len(rows)} commit(s) to the PUBLIC repo: '
+            )
         except EOFError:
             answer = ""
         if answer.strip() != branch:
-            print("[mirror] not confirmed -- nothing was pushed"
-                  + (" (your commit is saved locally)." if committed else "."))
+            print(
+                "[mirror] not confirmed -- nothing was pushed"
+                + (" (your commit is saved locally)." if committed else ".")
+            )
             return EXIT_UNCONFIRMED
     # Push the listed commit, not the branch: a commit that lands while the prompt waits
     # must not ride along unlisted.
@@ -452,7 +485,7 @@ def _push(args, branch, committed):
 
 def main(argv=None):
     try:
-        sys.stdout.reconfigure(errors="replace")   # commit subjects can carry characters a cp1252 console lacks
+        sys.stdout.reconfigure(errors="replace")  # commit subjects can carry characters a cp1252 console lacks
     except AttributeError:
         pass
     parser = build_parser()
@@ -480,7 +513,7 @@ def main(argv=None):
         return 0 if args.dry_run else EXIT_USAGE
 
     if args.commit and not args.message:
-        parser.error('--commit needs a message: py scripts/mirror.py "msg" <paths> --commit')
+        parser.error(f'--commit needs a message: {_pyl()} scripts/mirror.py "msg" <paths> --commit')
     if (args.all or args.paths) and not args.message:
         parser.error("paths and --all need a commit message")
     if args.push:
@@ -488,8 +521,10 @@ def main(argv=None):
             print("[mirror] refusing to push a detached HEAD -- check out a branch first.")
             return EXIT_USAGE
         if not args.yes and not stdin_is_terminal():
-            print("[mirror] REFUSED: --push publishes to the PUBLIC repo and needs --yes when stdin is "
-                  "not a terminal. Nothing was staged, committed or pushed.")
+            print(
+                "[mirror] REFUSED: --push publishes to the PUBLIC repo and needs --yes when stdin is "
+                "not a terminal. Nothing was staged, committed or pushed."
+            )
             return EXIT_UNCONFIRMED
         # Refuse before committing when the waiting commits already fail the author check.
         waiting = unpushed()
@@ -517,17 +552,24 @@ def _emit_commit_beat(msg, files):
         sys.path.insert(0, ROOT)
         from core.narrative.beat_log import get_beat_log
         from core.narrative.track_router import RouteHint
+
         sha = git("rev-parse", "HEAD", check=False).stdout.strip()[:12]
         salient = msg.lower().startswith(("feat", "fix")) or any(f.startswith("core/") for f in files)
-        get_beat_log().emit("commit", summary=msg, source=f"git:{sha}", weight=4 if salient else 2,
-                            hint=RouteHint(paths=files))
+        get_beat_log().emit(
+            "commit", summary=msg, source=f"git:{sha}", weight=4 if salient else 2, hint=RouteHint(paths=files)
+        )
         # Auto-logger (Slice 2): the commit is also a RAW event -- full file list as the
         # drill-down detail beneath the salient Beat. Best-effort; never blocks the commit.
         try:
             from core.events.event_log import capture_event
-            capture_event("command", f"git commit: {msg}", agent_id="mirror",
-                          refs=[f"git:{sha}"],
-                          detail={"sha": sha, "message": msg, "files": files})
+
+            capture_event(
+                "command",
+                f"git commit: {msg}",
+                agent_id="mirror",
+                refs=[f"git:{sha}"],
+                detail={"sha": sha, "message": msg, "files": files},
+            )
         except Exception:
             pass
     except Exception:

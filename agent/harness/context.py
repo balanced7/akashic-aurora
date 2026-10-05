@@ -28,6 +28,7 @@ Age stamps mark PROVENANCE (curated/auto/unflagged -- the flag beats inference; 
 unflagged note claims nothing) and AGE, so a seat can tell a live signal from a note
 that may have outlived its truth.
 """
+
 import os
 import time
 from datetime import datetime
@@ -35,12 +36,23 @@ from typing import Dict, List, Optional
 
 from agent.harness.scope import repo_root, session_in_scope
 
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+
+        return python_launcher()
+    except Exception:
+        return "py"
+
+
 _DRAFT_FRESH_SECS = 2 * 86400
-_STALE_DAYS = 7                      # W5: note-derived lines gain [STALE] at this age
-_THEMES_MAX_DAYS = 30                # R2: themes older than this stay off the whisper
-_LINE_CLAMP = 150                    # per-line payload clamp (budget spirit, not a wall)
-_DEFAULT_BUDGET_LINES = 12           # W6; AKASHIC_WHISPER_LINES overrides (R6)
-_NOTE_WINDOW_DAYS = 60               # one store pull feeds every note-derived section
+_STALE_DAYS = 7  # W5: note-derived lines gain [STALE] at this age
+_THEMES_MAX_DAYS = 30  # R2: themes older than this stay off the whisper
+_LINE_CLAMP = 150  # per-line payload clamp (budget spirit, not a wall)
+_DEFAULT_BUDGET_LINES = 12  # W6; AKASHIC_WHISPER_LINES overrides (R6)
+_NOTE_WINDOW_DAYS = 60  # one store pull feeds every note-derived section
 
 # W6 drop order under budget pressure: bottom-up, orienting core last (recon contract).
 _DROP_ORDER = ("boot", "funnel", "draft", "mail", "themes", "delta")
@@ -51,16 +63,19 @@ def _fetch_notes() -> list:
     """ONE decisions pull feeds DIRECTIVE + WHERE + THEMES (frugality: the whisper
     runs at every session start)."""
     from core.learning.agent_memory import get_agent_memory
+
     return get_agent_memory().get_decisions(days=_NOTE_WINDOW_DAYS)
 
 
 def _live_siblings(agent_id: str, my_session: str = "") -> List[Dict]:
     from core.comm.incarnation import live_incarnations
+
     return live_incarnations(agent_id, my_session=my_session or None)
 
 
 def _funnel_line() -> str:
     from core.recall.funnel import snapshot, summary_line
+
     return "funnel: " + summary_line(snapshot(hours=7 * 24))
 
 
@@ -91,20 +106,20 @@ def _unread_count(agent_id: str) -> int:
     untouched by this function.
     """
     from agent.bifrost_pull import collect_boot_bifrost
+
     try:
         data = collect_boot_bifrost(agent_id, limit=8) or {}
     except Exception:
-        return 0                                  # fail-soft: the whisper never breaks a turn
+        return 0  # fail-soft: the whisper never breaks a turn
     pending = int(data.get("pending", 0) or 0)
     msgs = data.get("messages")
     if not isinstance(msgs, list):
-        return pending                            # no rendered list -> cannot filter; say the raw truth
+        return pending  # no rendered list -> cannot filter; say the raw truth
     try:
         from core.comm.packet_spec import is_trace_kind
     except Exception:
         return pending
-    actionable = sum(1 for m in msgs
-                     if not is_trace_kind((m or {}).get("kind")))
+    actionable = sum(1 for m in msgs if not is_trace_kind((m or {}).get("kind")))
     # The peek is capped, so anything beyond it was never classified. Count it.
     return actionable + max(0, pending - len(msgs))
 
@@ -121,6 +136,7 @@ def _delta_count(agent_id: str) -> int:
     """T052 delta door count. The whisper NEVER commits the mark -- only delivered
     full boots do, per the mark-lag contract."""
     from agent.harness.delta import DeltaMark, current_positions, _moved, FIELDS
+
     mk = DeltaMark(agent_id).read()
     if not mk:
         return 0
@@ -136,7 +152,7 @@ def _journey_latest() -> str:
     try:
         with open(path, encoding="utf-8", errors="replace") as f:
             for line in f:
-                if line.startswith("## 20"):            # dated entries only
+                if line.startswith("## 20"):  # dated entries only
                     latest = line[3:].strip()
     except Exception:
         return ""
@@ -183,7 +199,6 @@ def _find_note(notes: list, title: str):
     return None
 
 
-
 def _reach_line(agent_id: str) -> str:
     """Is this seat REACHABLE, or only alive? Two different facts, and boot never said which.
 
@@ -209,21 +224,28 @@ def _reach_line(agent_id: str) -> str:
     """
     try:
         from core.comm import wake_seat
+
         state = wake_seat.any_armed(agent_id)
     except Exception as exc:
-        return (f"reach: UNKNOWN -- could not read wake state ({type(exc).__name__}). "
-                f"That is not 'armed'; assume the operator cannot reach you until you check.")
+        return (
+            f"reach: UNKNOWN -- could not read wake state ({type(exc).__name__}). "
+            f"That is not 'armed'; assume the operator cannot reach you until you check."
+        )
 
-    arm = (f"arm it (must be harness-tracked -- a detached one fires into nothing): "
-           f"py scripts/bifrost_wake.py --agent {agent_id} --min-tier 0")
+    arm = (
+        f"arm it (must be harness-tracked -- a detached one fires into nothing): "
+        f"{_pyl()} scripts/bifrost_wake.py --agent {agent_id} --min-tier 0"
+    )
     if state == "armed":
         return "reach: watcher ARMED -- the operator can wake you; re-arm after it fires (firing consumes it)"
     if state == "unarmed":
         return f"reach: NO WATCHER ARMED -- you are UNREACHABLE from Discord (T398). {arm}"
     if state == "dead-seat":
-        return (f"reach: seat file present but its process is DEAD -- nothing is listening, "
-                f"and the stale file makes it look otherwise. {arm}")
-    return (f"reach: wake state is {state!r} -- undetermined, which is NOT armed. {arm}")
+        return (
+            f"reach: seat file present but its process is DEAD -- nothing is listening, "
+            f"and the stale file makes it look otherwise. {arm}"
+        )
+    return f"reach: wake state is {state!r} -- undetermined, which is NOT armed. {arm}"
 
 
 def _mailbox_line(agent_id: str) -> str:
@@ -241,6 +263,7 @@ def _mailbox_line(agent_id: str) -> str:
     try:
         from core.comm import mailbox
         from core.comm.bus import Bus
+
         if not mailbox.enabled():
             return ""
         bus = Bus("boot-mailbox", promote=False)
@@ -255,8 +278,10 @@ def _mailbox_line(agent_id: str) -> str:
         # Body availability is deliberately NOT counted here: it needs a read per entry, which is
         # the cost this rewrite removed. It is reported per-message by --open/--state instead.
         # Omitting a field is honest; asserting one cheaply and wrongly would not be.
-        return (f"mailbox: {unopened} unopened | {undeclared} read-but-undeclared -> "
-                f"py agent_cli.py mailbox {agent_id} --state <sha> | --open <sha>")
+        return (
+            f"mailbox: {unopened} unopened | {undeclared} read-but-undeclared -> "
+            f"{_pyl()} agent_cli.py mailbox {agent_id} --state <sha> | --open <sha>"
+        )
     except Exception:
         return ""
 
@@ -287,14 +312,16 @@ def build_autoboot_context(cwd: str, agent_id: str, session_id: str = "") -> str
 
     if not home_or_repo:
         if not unread and not fresh_draft:
-            return ""   # unrelated project, nothing new -> full silence
+            return ""  # unrelated project, nothing new -> full silence
         bits = []
         if unread:
             bits.append(f"{unread} unread bus msg(s)")
         if fresh_draft:
             bits.append("a fresh last-session draft")
-        return (f"[akashic] {' and '.join(bits)} waiting -- "
-                f"py agent_cli.py boot {agent_id} --task \"...\"  (repo: {repo_root()})")
+        return (
+            f"[akashic] {' and '.join(bits)} waiting -- "
+            f'{_pyl()} agent_cli.py boot {agent_id} --task "..."  (repo: {repo_root()})'
+        )
 
     notes: list = []
     try:
@@ -323,7 +350,7 @@ def build_autoboot_context(cwd: str, agent_id: str, session_id: str = "") -> str
     if themes is not None:
         _, t_days = _age_parts(getattr(themes, "created_at", ""))
         if t_days is None or t_days >= _THEMES_MAX_DAYS:
-            themes = None                                  # R2: an old vibe is noise
+            themes = None  # R2: an old vibe is noise
 
     # Silence rule (v1-compatible): no real signal anywhere -> say nothing at all.
     if not any((directive, where, themes, siblings, unread, fresh_draft, delta_n, funnel)):
@@ -335,30 +362,37 @@ def build_autoboot_context(cwd: str, agent_id: str, session_id: str = "") -> str
     if directive is not None:
         d_line = _note_line("DIRECTIVE", directive, body_clip=110)
     else:
-        d_line = "DIRECTIVE: none active -- check the ledger: py agent_cli.py task list"
+        d_line = f"DIRECTIVE: none active -- check the ledger: {_pyl()} agent_cli.py task list"
     sections.append(("directive", [d_line]))
 
     if where is not None:
         cur = getattr(where, "curated", None)
         flag = "curated, " if cur is True else ("auto, " if cur is False else "")
         w_lines = [_note_line("WHERE", where, body_clip=_LINE_CLAMP, flag=flag)]
-        rest = _one_line(getattr(where, "decision", ""))[_LINE_CLAMP - 3:]
-        if len(rest) > 40:                                  # a second line only when it earns itself
+        rest = _one_line(getattr(where, "decision", ""))[_LINE_CLAMP - 3 :]
+        if len(rest) > 40:  # a second line only when it earns itself
             w_lines.append("  " + _clip(rest, _LINE_CLAMP))
     else:
-        w_lines = ["WHERE: (no where-we-are note yet -- record one: "
-                   f"py agent_cli.py note {agent_id} --title where-we-are)"]
+        w_lines = [
+            "WHERE: (no where-we-are note yet -- record one: "
+            f"{_pyl()} agent_cli.py note {agent_id} --title where-we-are)"
+        ]
     sections.append(("where", w_lines))
 
     try:
         from core.comm.incarnation import siblings_line
+
         sections.append(("siblings", [f"SIBLINGS: {siblings_line(agent_id, siblings)}"]))
     except Exception:
         pass
 
     if delta_n:
-        sections.append(("delta", [f"delta: {delta_n} source(s) moved since your last boot -> "
-                                   f"py agent_cli.py delta {agent_id}"]))
+        sections.append(
+            (
+                "delta",
+                [f"delta: {delta_n} source(s) moved since your last boot -> {_pyl()} agent_cli.py delta {agent_id}"],
+            )
+        )
     if themes is not None:
         sections.append(("themes", [_note_line("THEMES", themes, body_clip=120)]))
     # REACHABILITY BEFORE MAIL, deliberately. Unread mail tells a seat what arrived; this tells
@@ -374,11 +408,11 @@ def build_autoboot_context(cwd: str, agent_id: str, session_id: str = "") -> str
         # stops asking "why 8 here vs 10 in sync?" -- they measure different things.
         try:
             from core.comm.bifrost_api import BifrostAPI
+
             scope = "work-lane" if BifrostAPI.consume_lane_enabled() else "all lanes"
         except Exception:
             scope = "legacy peek"
-        sections.append(("mail", [f"mail: {unread} unread ({scope}) -> "
-                                  f"py agent_cli.py bifrost-sync {agent_id}"]))
+        sections.append(("mail", [f"mail: {unread} unread ({scope}) -> {_pyl()} agent_cli.py bifrost-sync {agent_id}"]))
     # T095-M1: the mailbox becomes INHABITED here. The verbs shipped wired to a door, but a door
     # nobody walks through is not a mailbox -- a seat only benefits if the state reaches the place
     # it already looks. `read_but_undeclared` is the load-bearing count: mail a PRIOR incarnation
@@ -388,12 +422,20 @@ def build_autoboot_context(cwd: str, agent_id: str, session_id: str = "") -> str
     if mbx_line:
         sections.append(("mailbox", [mbx_line]))
     if fresh_draft:
-        sections.append(("draft", ["draft: chronicles/last-session-draft.md -> review; promote with "
-                                   "`py agent_cli.py wrap --commit`"]))
+        sections.append(
+            (
+                "draft",
+                [
+                    "draft: chronicles/last-session-draft.md -> review; promote with "
+                    f"`{_pyl()} agent_cli.py wrap --commit`"
+                ],
+            )
+        )
     if funnel:
         sections.append(("funnel", [funnel]))
-    sections.append(("boot", [f"boot: py agent_cli.py boot {agent_id} --task \"<this slice>\"  "
-                              "(full context, one hop)"]))
+    sections.append(
+        ("boot", [f'boot: {_pyl()} agent_cli.py boot {agent_id} --task "<this slice>"  (full context, one hop)'])
+    )
 
     # ---- budget: drop bottom-up, orienting core last (W6) -------------------------
     budget = _budget_lines()
@@ -402,7 +444,7 @@ def build_autoboot_context(cwd: str, agent_id: str, session_id: str = "") -> str
         if total() <= budget:
             break
         sections = [(k, b) for k, b in sections if k != key]
-    if total() > budget and len(w_lines) > 1:               # last resort: WHERE folds to 1 line
+    if total() > budget and len(w_lines) > 1:  # last resort: WHERE folds to 1 line
         sections = [(k, (b[:1] if k == "where" else b)) for k, b in sections]
 
     # ---- STORY spill (R3): rides along only when the budget has room --------------

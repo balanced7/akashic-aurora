@@ -1,6 +1,7 @@
 """JIT learn-nudge tests (friction audit D5): a FAIL->SUCCESS flip is the moment a lesson was just
 earned -- resolve_action_outcome reports it + logs it, the PostToolUse hook nudges ONCE (rate-limited,
 kill-switchable), and the wrap draft turns logged flips into pre-filled candidate `learn` commands."""
+
 import io
 import json
 import os
@@ -11,6 +12,9 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import core.recall.at_action as aa
 from agent.harness.hooks import claude_posttooluse as hook
 import agent_cli
+from core.paths import python_launcher as _python_launcher  # noqa: E402
+
+_PYL = _python_launcher()  # `py` on Windows, `uv run` elsewhere
 
 
 def _patch_state_dirs(monkeypatch, tmp_path):
@@ -23,12 +27,14 @@ def _patch_state_dirs(monkeypatch, tmp_path):
 
 # --- core: the full-report resolver + flip log -----------------------------------------------------
 
+
 def test_resolve_action_outcome_reports_and_logs_flip(tmp_path, monkeypatch):
     _patch_state_dirs(monkeypatch, tmp_path)
     sid, tgt = "nudge-core", "c:py failing_probe.py"
     aa.mark_impression(sid, tgt, ["learn:experiment:a", "learn:experiment:b"])
-    assert aa.resolve_action_outcome(sid, tgt, True) == {"flipped": False, "credited": 0, "sources": []}, \
+    assert aa.resolve_action_outcome(sid, tgt, True) == {"flipped": False, "credited": 0, "sources": []}, (
         "first-try success must not flip"
+    )
     aa.resolve_action_outcome(sid, tgt, False)
     rep = aa.resolve_action_outcome(sid, tgt, True)
     assert rep["flipped"] is True and rep["credited"] == 2
@@ -64,6 +70,7 @@ def test_recent_flips_window(tmp_path, monkeypatch):
     # a stale flip (2h old, injected -- NOT a real-clock zero-width window, which flakes on
     # Windows tick granularity) must fall outside a 1h window
     import time as _t
+
     stale = {"t": "c:stale", "credited": 0, "s": [], "at": _t.time() - 7200}
     with open(os.path.join(aa._FLIP_DIR, "s3.jsonl"), "w", encoding="utf-8") as f:
         f.write(json.dumps(stale) + "\n")
@@ -73,9 +80,10 @@ def test_recent_flips_window(tmp_path, monkeypatch):
 
 # --- core: nudge text + pre-filled command ---------------------------------------------------------
 
+
 def test_learn_command_prefills_slug_and_agent():
     cmd = aa.learn_command_for("c:py -m pytest tests/test_ranker.py", agent_id="claude")
-    assert cmd.startswith("py agent_cli.py learn claude --experiment fix_")
+    assert cmd.startswith(f"{_PYL} agent_cli.py learn claude --experiment fix_")
     assert "--tried" in cmd and "--result" in cmd
 
 
@@ -99,8 +107,7 @@ def test_build_learn_nudge_gap_vs_credited():
     gap = aa.build_learn_nudge("c:py probe.py", 0, [], agent_id="claude")
     assert "[flip]" in gap and "learn claude" in gap
     assert "corpus gap" not in gap, "claimed a gap with no probe -- the 2026-07-25 defect"
-    probed_empty = aa.build_learn_nudge("c:py probe.py", 0, [], agent_id="claude",
-                                        probe=lambda _t: [])
+    probed_empty = aa.build_learn_nudge("c:py probe.py", 0, [], agent_id="claude", probe=lambda _t: [])
     assert "corpus gap" in probed_empty, "a probe that RAN and found nothing may claim a gap"
     credited = aa.build_learn_nudge("c:py probe.py", 2, ["learn:experiment:a"], agent_id="claude")
     assert "2 stored lesson(s)" in credited and "corpus gap" not in credited
@@ -108,6 +115,7 @@ def test_build_learn_nudge_gap_vs_credited():
 
 
 # --- hook: rate limiting ----------------------------------------------------------------------------
+
 
 def test_nudge_once_per_target_and_capped(tmp_path, monkeypatch):
     monkeypatch.setattr(hook, "_NUDGE_DIR", str(tmp_path))
@@ -129,15 +137,22 @@ def test_nudge_kill_switch(tmp_path, monkeypatch):
 
 # --- hook e2e: a flip emits ONE PostToolUse additionalContext nudge --------------------------------
 
+
 def _bash_payload(command, sid):
-    return {"session_id": sid, "transcript_path": "missing.jsonl", "cwd": "C:\\Elsewhere",
-            "hook_event_name": "PostToolUse", "tool_name": "Bash",
-            "tool_input": {"command": command},
-            "tool_response": {"stdout": "ok", "stderr": "", "interrupted": False}}
+    return {
+        "session_id": sid,
+        "transcript_path": "missing.jsonl",
+        "cwd": "C:\\Elsewhere",
+        "hook_event_name": "PostToolUse",
+        "tool_name": "Bash",
+        "tool_input": {"command": command},
+        "tool_response": {"stdout": "ok", "stderr": "", "interrupted": False},
+    }
 
 
 def _run_hook(monkeypatch, payload, capsys):
     import core.events.event_log as ev
+
     monkeypatch.setattr(ev, "capture_event", lambda *a, **k: None)
     monkeypatch.setattr(sys, "stdin", io.StringIO(json.dumps(payload)))
     assert hook.main() == 0
@@ -146,7 +161,7 @@ def _run_hook(monkeypatch, payload, capsys):
 
 def test_hook_emits_nudge_on_flip_then_goes_quiet(tmp_path, monkeypatch, capsys):
     _patch_state_dirs(monkeypatch, tmp_path)
-    cmd = "py agent_cli.py boot probe && exit 0"   # 'agent_cli.py' keeps it in scope, cwd elsewhere
+    cmd = "py agent_cli.py boot probe && exit 0"  # 'agent_cli.py' keeps it in scope, cwd elsewhere
     sid = "nudge-e2e"
     tgt = aa.normalize_target(None, cmd)
     aa.mark_impression(sid, tgt, ["learn:experiment:a"])
@@ -175,11 +190,12 @@ def test_hook_flip_without_nudge_budget_stays_silent(tmp_path, monkeypatch, caps
 
 # --- wrap draft: flips become pre-filled candidate lessons -----------------------------------------
 
+
 def test_session_draft_includes_candidate_lessons():
     flips = [{"t": "c:py -m pytest tests/test_x.py", "credited": 1, "s": ["learn:experiment:a"], "at": 1.0}]
     d = agent_cli.build_session_draft([], [], [], flips=flips)
     assert "Candidate lessons" in d
-    assert "py agent_cli.py learn" in d and "--experiment fix_" in d
+    assert f"{_PYL} agent_cli.py learn" in d and "--experiment fix_" in d
 
 
 def test_session_draft_no_flips_no_section():
@@ -188,11 +204,13 @@ def test_session_draft_no_flips_no_section():
 
 
 def test_session_draft_dedupes_repeated_flip_target():
-    flips = [{"t": "c:py probe.py", "credited": 0, "s": [], "at": 1.0},
-             {"t": "c:py probe.py", "credited": 2, "s": ["learn:experiment:a"], "at": 2.0},
-             {"t": "p:/other.py", "credited": 0, "s": [], "at": 3.0}]
+    flips = [
+        {"t": "c:py probe.py", "credited": 0, "s": [], "at": 1.0},
+        {"t": "c:py probe.py", "credited": 2, "s": ["learn:experiment:a"], "at": 2.0},
+        {"t": "p:/other.py", "credited": 0, "s": [], "at": 3.0},
+    ]
     d = agent_cli.build_session_draft([], [], [], flips=flips)
     assert d.count("command: py probe.py") == 1, "one candidate per target, not one per retry"
     assert "c:py probe.py" not in d, "the raw join key never reaches the human draft"
     assert "(credited: 2)" in d, "the LAST flip's credited count wins"
-    assert d.count("py agent_cli.py learn") == 2
+    assert d.count(f"{_PYL} agent_cli.py learn") == 2

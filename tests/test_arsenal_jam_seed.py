@@ -15,6 +15,7 @@
 Merging moments uses synthetic sessions dated 2030. Nothing here reads Daniel's practice log or the git-ignored moments
 file (state/arsenal/jam/seed/moments-v1.json).
 """
+
 import copy
 import functools
 import json
@@ -31,9 +32,21 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from arsenal.jam import SEED_API, SEED_MOMENTS_API  # noqa: E402
-from arsenal.jam.schemas import (BACKINGS_V1, CARD_WORDING_FORBIDDEN, GROOVES_V1, JamSchemaError,  # noqa: E402
-                                 card_settings, card_texts, chord_count, line_beats, pair_problems, validate_card,
-                                 validate_seed, validate_seed_moments, wording_problems)
+from arsenal.jam.schemas import (
+    BACKINGS_V1,
+    CARD_WORDING_FORBIDDEN,
+    GROOVES_V1,
+    JamSchemaError,  # noqa: E402
+    card_settings,
+    card_texts,
+    chord_count,
+    line_beats,
+    pair_problems,
+    validate_card,
+    validate_seed,
+    validate_seed_moments,
+    wording_problems,
+)
 
 SEED = ROOT / "arsenal" / "jam" / "seed" / "deck-v1.json"
 SPEC = ROOT / "research" / "in-flight" / "piano-jam-2026-09-14" / "jam-spec.md"
@@ -44,14 +57,45 @@ needs_spec = pytest.mark.skipif(not SPEC.is_file(), reason="jam-spec.md is not o
 
 DOC = json.loads(SEED.read_text(encoding="utf-8"))
 CARDS = {card["id"]: card for card in DOC["cards"]}
-IDS = ["lydian-four", "gospel-five-over-four", "one-note-apart", "blooming-chord", "half-step-slide", "lament-bass",
-       "minor-third-drop", "borrowed-four-minor", "borrowed-b6-b7-home", "float-or-pull", "lush-two-five-one",
-       "sunrise-ending", "db-opening", "held-sus-five", "open-ending-b7", "white-keys", "dorian-vamp"]
-MOMENT_COUNTS = {"lydian-four": 3, "gospel-five-over-four": 4, "one-note-apart": 2, "blooming-chord": 3,
-                 "half-step-slide": 2, "lament-bass": 2, "minor-third-drop": 2, "borrowed-four-minor": 2,
-                 "borrowed-b6-b7-home": 3, "float-or-pull": 2, "lush-two-five-one": 1, "sunrise-ending": 2,
-                 "db-opening": 1, "held-sus-five": 1, "open-ending-b7": 1, "white-keys": 0, "dorian-vamp": 0}
-PAIRS = {("held-sus-five", "float-or-pull"), ("open-ending-b7", "borrowed-b6-b7-home")}   # (question, answer)
+IDS = [
+    "lydian-four",
+    "gospel-five-over-four",
+    "one-note-apart",
+    "blooming-chord",
+    "half-step-slide",
+    "lament-bass",
+    "minor-third-drop",
+    "borrowed-four-minor",
+    "borrowed-b6-b7-home",
+    "float-or-pull",
+    "lush-two-five-one",
+    "sunrise-ending",
+    "db-opening",
+    "held-sus-five",
+    "open-ending-b7",
+    "white-keys",
+    "dorian-vamp",
+]
+MOMENT_COUNTS = {
+    "lydian-four": 3,
+    "gospel-five-over-four": 4,
+    "one-note-apart": 2,
+    "blooming-chord": 3,
+    "half-step-slide": 2,
+    "lament-bass": 2,
+    "minor-third-drop": 2,
+    "borrowed-four-minor": 2,
+    "borrowed-b6-b7-home": 3,
+    "float-or-pull": 2,
+    "lush-two-five-one": 1,
+    "sunrise-ending": 2,
+    "db-opening": 1,
+    "held-sus-five": 1,
+    "open-ending-b7": 1,
+    "white-keys": 0,
+    "dorian-vamp": 0,
+}
+PAIRS = {("held-sus-five", "float-or-pull"), ("open-ending-b7", "borrowed-b6-b7-home")}  # (question, answer)
 
 # Where the deck departs from section 12's words, and why. Each fix applies only while the spec still has the old text.
 ERRATA = [
@@ -66,8 +110,25 @@ ERRATA = [
 LETTERS = "CDEFGAB"
 LETTER_PC = {"C": 0, "D": 2, "E": 4, "F": 5, "G": 7, "A": 9, "B": 11}
 MAJOR_STEPS = (0, 2, 4, 5, 7, 9, 11)
-ROLE_SEMIS = {"1": 0, "b3": 3, "3": 4, "4": 5, "#4": 6, "5": 7, "b6": 8, "6": 9, "b7": 10, "7": 11, "b9": 1, "9": 2,
-              "#9": 3, "11": 5, "#11": 6, "b13": 8, "13": 9}
+ROLE_SEMIS = {
+    "1": 0,
+    "b3": 3,
+    "3": 4,
+    "4": 5,
+    "#4": 6,
+    "5": 7,
+    "b6": 8,
+    "6": 9,
+    "b7": 10,
+    "7": 11,
+    "b9": 1,
+    "9": 2,
+    "#9": 3,
+    "11": 5,
+    "#11": 6,
+    "b13": 8,
+    "13": 9,
+}
 KEY_RE = re.compile(r"^([A-G])(#{1,2}|b{1,2})? (major|minor)$")
 DEGREE_RE = re.compile(r"^(#{1,2}|b{1,2})?([1-7]) (major|minor)$")
 NUMBER_RE = re.compile(r"^(#{1,2}|b{1,2})?([1-7])(.*?)(?:/(#{1,2}|b{1,2})?([1-7]))?$")
@@ -177,14 +238,20 @@ def strings(obj, path=""):
 
 
 # ============================================================================================================= spec
-TEXT_BULLETS = {"Meaning": "meaning", "Theory name": "theory_name", "Explanation": "explanation",
-                "Why it matters": "why", "Try this": "try", "Listen for": "listen_for"}
+TEXT_BULLETS = {
+    "Meaning": "meaning",
+    "Theory name": "theory_name",
+    "Explanation": "explanation",
+    "Why it matters": "why",
+    "Try this": "try",
+    "Listen for": "listen_for",
+}
 
 
 @functools.lru_cache(maxsize=1)
 def spec_section() -> str:
     text = SPEC.read_text(encoding="utf-8")
-    return text[text.index("## 12. The seed deck"):text.index("## 13. Build plan")]
+    return text[text.index("## 12. The seed deck") : text.index("## 13. Build plan")]
 
 
 @functools.lru_cache(maxsize=1)
@@ -197,9 +264,16 @@ def spec_rows() -> dict:
         _num, cid, group, kind, key, bpm, bars, groove_backing, line = cells
         groove, backing = [x.strip() for x in groove_backing.split("/")]
         main = re.match(r"^`([^`]+)`", line)
-        rows[cid.strip("`")] = {"group": group, "kind": kind, "key": key, "bpm": int(bpm),
-                                "bars": None if bars == "var." else int(bars), "groove": groove, "backing": backing,
-                                "line": main.group(1) if main else None}
+        rows[cid.strip("`")] = {
+            "group": group,
+            "kind": kind,
+            "key": key,
+            "bpm": int(bpm),
+            "bars": None if bars == "var." else int(bars),
+            "groove": groove,
+            "backing": backing,
+            "line": main.group(1) if main else None,
+        }
     return rows
 
 
@@ -209,7 +283,7 @@ def spec_cards() -> dict:
     heads = list(re.finditer(r"^### 12\.\d+ (.+?) \(`([a-z0-9-]+)`\)\s*$", sec, re.M))
     cards = {}
     for i, head in enumerate(heads):
-        body = sec[head.end():heads[i + 1].start() if i + 1 < len(heads) else len(sec)]
+        body = sec[head.end() : heads[i + 1].start() if i + 1 < len(heads) else len(sec)]
         bullets, says, variants = {}, [], {}
         for raw in body.splitlines():
             top = re.match(r"^- \*\*(.+?):\*\* (.*)$", raw)
@@ -221,13 +295,22 @@ def spec_cards() -> dict:
             if var:
                 ticks = [t for t in re.findall(r"`([^`]+)`", var.group(3)) if re.search(r":\d", t)]
                 vkey = re.search(r"variant key `([^`]+)`", var.group(3))
-                variants[var.group(1)] = {"label": var.group(2), "line": ticks[0] if ticks else None,
-                                          "key": vkey.group(1) if vkey else None}
+                variants[var.group(1)] = {
+                    "label": var.group(2),
+                    "line": ticks[0] if ticks else None,
+                    "key": vkey.group(1) if vkey else None,
+                }
         tail = re.search(r"\*\*Tags:\*\* (.+?)\. \*\*Related:\*\* (.+?)\. \*\*Moments:\*\* (\d+)\.", body)
-        cards[head.group(2)] = {"title": head.group(1), "body": body, "bullets": bullets, "says": says,
-                                "variants": variants, "tags": [t.strip() for t in tail.group(1).split(",")],
-                                "related": [t.strip() for t in tail.group(2).split(",")],
-                                "moments": int(tail.group(3))}
+        cards[head.group(2)] = {
+            "title": head.group(1),
+            "body": body,
+            "bullets": bullets,
+            "says": says,
+            "variants": variants,
+            "tags": [t.strip() for t in tail.group(1).split(",")],
+            "related": [t.strip() for t in tail.group(2).split(",")],
+            "moments": int(tail.group(3)),
+        }
     return cards
 
 
@@ -253,8 +336,13 @@ def test_seed_file_is_the_seventeen_cards():
 def test_card_validates_as_the_store_holds_it(cid):
     card = CARDS[cid]
     assert validate_card(card) == card
-    stored = {**copy.deepcopy(card), "rev": 1, "created_at": "2030-01-01T00:00:00.000+00:00",
-              "updated_at": "2030-01-01T00:00:00.000+00:00", "updated_by": "claude"}
+    stored = {
+        **copy.deepcopy(card),
+        "rev": 1,
+        "created_at": "2030-01-01T00:00:00.000+00:00",
+        "updated_at": "2030-01-01T00:00:00.000+00:00",
+        "updated_by": "claude",
+    }
     assert validate_card(stored, stored=True) == stored
     settings = card_settings(card)
     assert settings["groove"] in GROOVES_V1 and settings["backing"] in BACKINGS_V1
@@ -338,25 +426,40 @@ B_NOTES = "Ab2 Eb3 C4 D4 F4 Bb4"
 HANDS = "Bb3 Ab4 C5 Db5 Eb5 F5"
 CLOUD = "Gb2 Db3 Gb3 Ab3 Bb3 Db4 F4 Bb4 Eb5 F5 Ab5 C6"
 EXACT = {  # (card, variant, slot from 1): notes, as section 12 writes them
-    ("one-note-apart", "a", 1): A_NOTES, ("one-note-apart", "b", 1): B_NOTES,
-    ("one-note-apart", "c", 1): A_NOTES, ("one-note-apart", "c", 2): B_NOTES,
-    ("blooming-chord", None, 1): "Ab2 Eb3 Bb3 Eb4", ("blooming-chord", None, 2): "Ab2 Eb3 Bb3 C4 Eb4",
-    ("blooming-chord", None, 3): "Ab2 Eb3 G3 Bb3 C4 Eb4", ("blooming-chord", None, 4): "Ab2 Eb3 G3 Bb3 C4 Eb4 D5 F5",
-    ("half-step-slide", "a", 1): "A2 F3 Eb4 G4 C5", ("half-step-slide", "a", 2): "Ab2 F3 Eb4 G4 C5",
-    ("half-step-slide", "b", 1): "Bb2 F3 G3 Bb3 D4", ("half-step-slide", "b", 2): "Bb2 F3 Gb3 Bb3 Db4",
-    ("lament-bass", None, 1): "Bb2 " + HANDS, ("lament-bass", None, 2): "Ab2 " + HANDS,
-    ("lament-bass", None, 3): "Gb2 " + HANDS, ("lament-bass", None, 4): "F2 " + HANDS,
+    ("one-note-apart", "a", 1): A_NOTES,
+    ("one-note-apart", "b", 1): B_NOTES,
+    ("one-note-apart", "c", 1): A_NOTES,
+    ("one-note-apart", "c", 2): B_NOTES,
+    ("blooming-chord", None, 1): "Ab2 Eb3 Bb3 Eb4",
+    ("blooming-chord", None, 2): "Ab2 Eb3 Bb3 C4 Eb4",
+    ("blooming-chord", None, 3): "Ab2 Eb3 G3 Bb3 C4 Eb4",
+    ("blooming-chord", None, 4): "Ab2 Eb3 G3 Bb3 C4 Eb4 D5 F5",
+    ("half-step-slide", "a", 1): "A2 F3 Eb4 G4 C5",
+    ("half-step-slide", "a", 2): "Ab2 F3 Eb4 G4 C5",
+    ("half-step-slide", "b", 1): "Bb2 F3 G3 Bb3 D4",
+    ("half-step-slide", "b", 2): "Bb2 F3 Gb3 Bb3 Db4",
+    ("lament-bass", None, 1): "Bb2 " + HANDS,
+    ("lament-bass", None, 2): "Ab2 " + HANDS,
+    ("lament-bass", None, 3): "Gb2 " + HANDS,
+    ("lament-bass", None, 4): "F2 " + HANDS,
     ("float-or-pull", "a", 2): "Eb2 Eb3 Eb4 F4 Ab4 Bb4",
-    ("float-or-pull", "c", 2): "Bb2 F3 Ab3 Eb4", ("float-or-pull", "c", 3): "Bb2 F3 Ab3 D4",
-    ("lush-two-five-one", None, 1): "F2 Eb3 Ab3 C4 G4", ("lush-two-five-one", None, 2): "Bb2 D3 Ab3 C4 G4",
+    ("float-or-pull", "c", 2): "Bb2 F3 Ab3 Eb4",
+    ("float-or-pull", "c", 3): "Bb2 F3 Ab3 D4",
+    ("lush-two-five-one", None, 1): "F2 Eb3 Ab3 C4 G4",
+    ("lush-two-five-one", None, 2): "Bb2 D3 Ab3 C4 G4",
     ("lush-two-five-one", None, 3): "Eb2 D3 G3 Bb3 F4",
-    ("db-opening", None, 2): CLOUD, ("db-opening", None, 4): CLOUD,
+    ("db-opening", None, 2): CLOUD,
+    ("db-opening", None, 4): CLOUD,
     ("held-sus-five", None, 1): "Eb2 Eb3 Eb4 F4 Ab4 Bb4",
     ("open-ending-b7", None, 1): "Db3 Ab3 Eb4 F4 Ab4 C5 Db5 F5 Ab5",
 }
-NAMES = {("one-note-apart", "a", 1): "Abmaj13#11", ("one-note-apart", "c", 1): "Abmaj13#11",
-         ("blooming-chord", None, 4): "Abmaj13#11", ("db-opening", None, 2): "Gbmaj13#11",
-         ("db-opening", None, 4): "Gbmaj13#11"}
+NAMES = {
+    ("one-note-apart", "a", 1): "Abmaj13#11",
+    ("one-note-apart", "c", 1): "Abmaj13#11",
+    ("blooming-chord", None, 4): "Abmaj13#11",
+    ("db-opening", None, 2): "Gbmaj13#11",
+    ("db-opening", None, 4): "Gbmaj13#11",
+}
 
 
 def chord_fields():
@@ -411,20 +514,30 @@ def pointers():
     for cid in IDS:
         card = CARDS[cid]
         for chk in card.get("checks", []):
-            out.append((cid, f"check {chk['id']}", chk.get("variant"), chk["slot"], chk["role"],
-                        chk.get("relative_to", "root"), chk["say"]))
+            out.append(
+                (
+                    cid,
+                    f"check {chk['id']}",
+                    chk.get("variant"),
+                    chk["slot"],
+                    chk["role"],
+                    chk.get("relative_to", "root"),
+                    chk["say"],
+                )
+            )
         landing = card.get("landing")
         if landing:
             variant = landing.get("variant")
             slot = landing.get("slot", chord_count(line_of(card, variant)) - 1)
-            out.append((cid, "landing", variant, slot, landing["role"], landing.get("relative_to", "root"),
-                        landing["pull"]))
+            out.append(
+                (cid, "landing", variant, slot, landing["role"], landing.get("relative_to", "root"), landing["pull"])
+            )
     return out
 
 
 def test_every_check_and_landing_names_the_note_its_role_points_at():
     found = pointers()
-    assert len(found) == 19      # 11 checks, 8 landings
+    assert len(found) == 19  # 11 checks, 8 landings
     for cid, what, variant, slot, role, relative_to, text in found:
         pc, key = role_pc(CARDS[cid], variant, slot, role, relative_to)
         m = (SAY_NOTE if what.startswith("check") else PULL_NOTE).match(text)
@@ -435,8 +548,16 @@ def test_every_check_and_landing_names_the_note_its_role_points_at():
 
 def test_landings_are_on_the_cards_that_leave_a_note_hanging():
     landed = {cid for cid in IDS if CARDS[cid].get("landing")}
-    assert landed == {"lydian-four", "gospel-five-over-four", "borrowed-four-minor", "borrowed-b6-b7-home",
-                      "float-or-pull", "held-sus-five", "open-ending-b7", "white-keys"}
+    assert landed == {
+        "lydian-four",
+        "gospel-five-over-four",
+        "borrowed-four-minor",
+        "borrowed-b6-b7-home",
+        "float-or-pull",
+        "held-sus-five",
+        "open-ending-b7",
+        "white-keys",
+    }
 
 
 def test_question_and_answer_pairs_close():
@@ -461,8 +582,15 @@ def synthetic_moments() -> dict:
     for i, cid in enumerate(IDS):
         entry = {}
         if MOMENT_COUNTS[cid]:
-            entry["moments"] = [{"session": f"20300101-0000{i:02d}-0000000{k}", "at": f"{k}:00", "until": f"{k}:30",
-                                 "label": f"synthetic moment {k + 1}"} for k in range(MOMENT_COUNTS[cid])]
+            entry["moments"] = [
+                {
+                    "session": f"20300101-0000{i:02d}-0000000{k}",
+                    "at": f"{k}:00",
+                    "until": f"{k}:30",
+                    "label": f"synthetic moment {k + 1}",
+                }
+                for k in range(MOMENT_COUNTS[cid])
+            ]
         if CARDS[cid]["kind"] == "moment":
             entry["replay"] = {"session": entry["moments"][0]["session"], "at": "0:00", "seconds": 12, "speed": 1}
         if entry:
@@ -476,8 +604,14 @@ def test_moments_merge_by_card_id():
     assert set(moments["cards"]) <= set(CARDS)
     for cid in IDS:
         entry = moments["cards"].get(cid, {})
-        merged = {**copy.deepcopy(CARDS[cid]), **entry, "rev": 1, "created_at": "2030-01-01T00:00:00.000+00:00",
-                  "updated_at": "2030-01-01T00:00:00.000+00:00", "updated_by": "claude"}
+        merged = {
+            **copy.deepcopy(CARDS[cid]),
+            **entry,
+            "rev": 1,
+            "created_at": "2030-01-01T00:00:00.000+00:00",
+            "updated_at": "2030-01-01T00:00:00.000+00:00",
+            "updated_by": "claude",
+        }
         assert validate_card(merged, stored=True) == merged
         assert wording_problems(merged) == []
         assert len(merged.get("moments", [])) == MOMENT_COUNTS[cid]
@@ -491,33 +625,51 @@ def test_moments_merge_by_card_id():
 
 
 # =========================================================================================================== bridge
-CLOUD_LETTERS = "Gb Db Ab Bb F Eb C"     # the Db pedal cloud has no chord name on the page, only its letters
+CLOUD_LETTERS = "Gb Db Ab Bb F Eb C"  # the Db pedal cloud has no chord name on the page, only its letters
 READS = {  # (card, variant, slot from 0): the page's name for the exact notes, as section 12 says
-    ("one-note-apart", "a", 0): "Cm11/Ab", ("one-note-apart", "b", 0): "Bb11/Ab",
-    ("one-note-apart", "c", 0): "Cm11/Ab", ("one-note-apart", "c", 1): "Bb11/Ab",
-    ("blooming-chord", None, 0): "Absus2", ("blooming-chord", None, 1): "Abadd9",
-    ("blooming-chord", None, 2): "Abmaj9", ("blooming-chord", None, 3): "Cm11/Ab",
-    ("half-step-slide", "a", 0): "F9/A", ("half-step-slide", "a", 1): "Fm9/Ab",
-    ("half-step-slide", "b", 0): "Bb6", ("half-step-slide", "b", 1): "Gbmaj7/Bb",
-    ("lament-bass", None, 0): "Bbm11", ("lament-bass", None, 1): "Bbm11/Ab",
-    ("lament-bass", None, 2): "Bbm11/Gb", ("lament-bass", None, 3): "Bbm11/F",
-    ("float-or-pull", "a", 1): "Bb7sus4/Eb", ("float-or-pull", "c", 1): "Bb7sus4", ("float-or-pull", "c", 2): "Bb7",
-    ("lush-two-five-one", None, 0): "Fm9", ("lush-two-five-one", None, 1): "Bb13",
+    ("one-note-apart", "a", 0): "Cm11/Ab",
+    ("one-note-apart", "b", 0): "Bb11/Ab",
+    ("one-note-apart", "c", 0): "Cm11/Ab",
+    ("one-note-apart", "c", 1): "Bb11/Ab",
+    ("blooming-chord", None, 0): "Absus2",
+    ("blooming-chord", None, 1): "Abadd9",
+    ("blooming-chord", None, 2): "Abmaj9",
+    ("blooming-chord", None, 3): "Cm11/Ab",
+    ("half-step-slide", "a", 0): "F9/A",
+    ("half-step-slide", "a", 1): "Fm9/Ab",
+    ("half-step-slide", "b", 0): "Bb6",
+    ("half-step-slide", "b", 1): "Gbmaj7/Bb",
+    ("lament-bass", None, 0): "Bbm11",
+    ("lament-bass", None, 1): "Bbm11/Ab",
+    ("lament-bass", None, 2): "Bbm11/Gb",
+    ("lament-bass", None, 3): "Bbm11/F",
+    ("float-or-pull", "a", 1): "Bb7sus4/Eb",
+    ("float-or-pull", "c", 1): "Bb7sus4",
+    ("float-or-pull", "c", 2): "Bb7",
+    ("lush-two-five-one", None, 0): "Fm9",
+    ("lush-two-five-one", None, 1): "Bb13",
     ("lush-two-five-one", None, 2): "Ebmaj9",
-    ("db-opening", None, 1): CLOUD_LETTERS, ("db-opening", None, 3): CLOUD_LETTERS,
-    ("held-sus-five", None, 0): "Bb7sus4/Eb", ("open-ending-b7", None, 0): "Dbmaj9",
+    ("db-opening", None, 1): CLOUD_LETTERS,
+    ("db-opening", None, 3): CLOUD_LETTERS,
+    ("held-sus-five", None, 0): "Bb7sus4/Eb",
+    ("open-ending-b7", None, 0): "Dbmaj9",
 }
 SPELLED = {  # numbers whose page spelling section 12 names
-    ("borrowed-b6-b7-home", None, 0): "Bmaj9", ("sunrise-ending", None, 2): "Bmaj7#11",
-    ("minor-third-drop", "b", 0): "Cbmaj9", ("borrowed-four-minor", None, 2): "Abm(add9)",
+    ("borrowed-b6-b7-home", None, 0): "Bmaj9",
+    ("sunrise-ending", None, 2): "Bmaj7#11",
+    ("minor-third-drop", "b", 0): "Cbmaj9",
+    ("borrowed-four-minor", None, 2): "Abm(add9)",
 }
-EXTRA_KEYS = {"lydian-four": ["Gb major"]}     # 12.1 also names Gb (enharmonic)
-A4_NAMES = [("lydian-four", "Db major", ["Dbmaj9", "Gbmaj7#11"]), ("lydian-four", "F major", ["Fmaj9", "Bbmaj7#11"]),
-            ("gospel-five-over-four", "D major", ["Gmaj9", "A11/G", "D/F#", "Dmaj9"]),
-            ("lament-bass", "Eb major", ["Cm11", "Cm11/Bb", "Cm11/Ab", "Cm11/G"]),
-            ("borrowed-b6-b7-home", "F major", ["Dbmaj9", "Ebmaj9", "Fmaj9"]),
-            ("dorian-vamp", "E minor", ["Em11", "A13"]),
-            ("sunrise-ending", "F major", ["Fm11", "Fm11", "Dbmaj7#11"])]
+EXTRA_KEYS = {"lydian-four": ["Gb major"]}  # 12.1 also names Gb (enharmonic)
+A4_NAMES = [
+    ("lydian-four", "Db major", ["Dbmaj9", "Gbmaj7#11"]),
+    ("lydian-four", "F major", ["Fmaj9", "Bbmaj7#11"]),
+    ("gospel-five-over-four", "D major", ["Gmaj9", "A11/G", "D/F#", "Dmaj9"]),
+    ("lament-bass", "Eb major", ["Cm11", "Cm11/Bb", "Cm11/Ab", "Cm11/G"]),
+    ("borrowed-b6-b7-home", "F major", ["Dbmaj9", "Ebmaj9", "Fmaj9"]),
+    ("dorian-vamp", "E minor", ["Em11", "A13"]),
+    ("sunrise-ending", "F major", ["Fm11", "Fm11", "Dbmaj7#11"]),
+]
 
 
 def notes_text(notes) -> str:
@@ -526,8 +678,9 @@ def notes_text(notes) -> str:
 
 def bridge(key: str, style: str, items) -> dict:
     request = json.dumps({"items": list(items), "key": key, "voicing": style, "voice_lead": False})
-    res = subprocess.run([NODE, str(BRIDGE)], input=request, capture_output=True, text=True, encoding="utf-8",
-                         cwd=str(ROOT), timeout=120)
+    res = subprocess.run(
+        [NODE, str(BRIDGE)], input=request, capture_output=True, text=True, encoding="utf-8", cwd=str(ROOT), timeout=120
+    )
     doc = json.loads(res.stdout)
     assert doc.get("ok"), doc
     return dict(zip(items, doc["results"]))
@@ -571,7 +724,7 @@ def test_every_chord_reads_the_way_section_12_says():
         where = (cid, vid, slot)
         number = results[(section, style)][item["n"]]
         assert reads_back(number), (where, key, number)
-        if "notes" not in item:     # Play voices the number, so the page names it as itself
+        if "notes" not in item:  # Play voices the number, so the page names it as itself
             assert number["roundtrip"]["match"] in ("exact", "enharmonic"), (where, key, number["roundtrip"])
         if key != CARDS[cid]["key"]:
             continue
@@ -605,7 +758,7 @@ def test_play_voicing_holds_every_check_and_landing_note():
 def test_a4_names_twenty_of_twenty():
     hits = 0
     for cid, key, names in A4_NAMES:
-        line = slots(CARDS[cid], None, key)[:len(names)]
+        line = slots(CARDS[cid], None, key)[: len(names)]
         got = bridge(plain_key(line[0][1]), "spread", [item["n"] for _slot, _section, item in line])
         assert [got[item["n"]]["name"] for _s, _k, item in line] == names, (cid, key)
         hits += len(names)
@@ -618,7 +771,7 @@ def test_every_number_resolves_in_all_twelve_keys():
     for cid in IDS:
         card = CARDS[cid]
         _letter, _acc_text, mode = KEY_RE.match(card["key"]).groups()
-        for tonic in (MAJOR_TONICS if mode == "major" else MINOR_TONICS):
+        for tonic in MAJOR_TONICS if mode == "major" else MINOR_TONICS:
             key = f"{tonic} {mode}"
             for vid, _line in lines(card):
                 for slot, section, item in slots(card, vid, key):
@@ -626,7 +779,10 @@ def test_every_number_resolves_in_all_twelve_keys():
                     groups.setdefault((section, "spread"), set()).add(item["n"])
                     plan.append((cid, key, vid, slot, section, item["n"]))
     results = read_all(groups)
-    problems = [(cid, key, vid, slot, n, results[(section, "spread")][n].get("error"))
-                for cid, key, vid, slot, section, n in plan if not reads_back(results[(section, "spread")][n])]
+    problems = [
+        (cid, key, vid, slot, n, results[(section, "spread")][n].get("error"))
+        for cid, key, vid, slot, section, n in plan
+        if not reads_back(results[(section, "spread")][n])
+    ]
     assert len(plan) == 1224
     assert problems == []

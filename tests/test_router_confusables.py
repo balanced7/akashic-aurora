@@ -8,6 +8,7 @@ by tests/test_track_router.py::test_meets_acceptance_bar (must stay green = no r
 These are the worst-case confusables the substring matcher got wrong (probe A) plus the
 positive cases that MUST still match.  Run: py -m pytest tests/test_router_confusables.py -q
 """
+
 import os
 import sys
 
@@ -33,16 +34,17 @@ def _themes(text):
 def test_confusables_do_not_false_route():
     """Substring false positives the old matcher produced -- now must NOT fire a keyword."""
     confusables = [
-        "comfy sweater knitting notes",      # 'comfy' (dropped) -- was vision
-        "the restore button was grey",       # 'store' inside 'restore' -- was ai-setup
-        "paperwork for the taxes",           # 'paper' inside 'paperwork' -- was research
-        "the speaker plays at 50 watts",     # 'tts' inside 'watts' -- was voice
-        "a vocalist practiced scales",       # 'vocals' not a word here -- was stemroller
+        "comfy sweater knitting notes",  # 'comfy' (dropped) -- was vision
+        "the restore button was grey",  # 'store' inside 'restore' -- was ai-setup
+        "paperwork for the taxes",  # 'paper' inside 'paperwork' -- was research
+        "the speaker plays at 50 watts",  # 'tts' inside 'watts' -- was voice
+        "a vocalist practiced scales",  # 'vocals' not a word here -- was stemroller
     ]
     for text in confusables:
         res = _route(text)
-        assert res.basis in ("persist", "unknown"), \
+        assert res.basis in ("persist", "unknown"), (
             f"'{text}' should NOT match a keyword, got {res.track} via {res.basis}"
+        )
 
 
 def test_whole_word_keywords_still_match():
@@ -50,15 +52,16 @@ def test_whole_word_keywords_still_match():
     cases = [
         ("running stemroller to split vocals", "stemroller", "strong"),
         ("comfyui workflow crashed", "vision", "strong"),
-        ("a comfy ui workflow note", "vision", "strong"),      # the phrase form
+        ("a comfy ui workflow note", "vision", "strong"),  # the phrase form
         ("stem separation pipeline", "stemroller", "strong"),
         ("read a paper on raptor indexing", "research", "generic"),
         ("the redis store keeps state", "ai-setup", "generic"),
     ]
     for text, track, basis in cases:
         res = _route(text)
-        assert res.track == track and res.basis == basis, \
+        assert res.track == track and res.basis == basis, (
             f"'{text}' -> expected {track}/{basis}, got {res.track}/{res.basis}"
+        )
 
 
 def test_phrase_keywords_keep_internal_spaces():
@@ -71,14 +74,18 @@ def test_phrase_keywords_keep_internal_spaces():
 
 def test_theme_word_boundary():
     """ThemeAssigner is multi-label but also word-boundary: 'store' must not fire on 'restore'."""
-    assert "memory" in _themes("the memory store keeps recall fast")     # whole word
+    assert "memory" in _themes("the memory store keeps recall fast")  # whole word
     assert "memory" not in _themes("please restore the earlier version")  # 'store' inside 'restore'
-    assert "narrative" in _themes("the story spine and its atlas")        # whole words
-    assert _themes("just some unrelated text") == []                      # no keyword -> no theme
+    assert "narrative" in _themes("the story spine and its atlas")  # whole words
+    assert _themes("just some unrelated text") == []  # no keyword -> no theme
 
 
 if __name__ == "__main__":
-    for fn in [test_confusables_do_not_false_route, test_whole_word_keywords_still_match,
-               test_phrase_keywords_keep_internal_spaces, test_theme_word_boundary]:
+    for fn in [
+        test_confusables_do_not_false_route,
+        test_whole_word_keywords_still_match,
+        test_phrase_keywords_keep_internal_spaces,
+        test_theme_word_boundary,
+    ]:
         fn()
     print("ALL D2 CONFUSABLE TESTS PASSED")

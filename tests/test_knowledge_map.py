@@ -13,6 +13,7 @@ walk, the reverse walk (edges persist one-directional new->existing, so the trav
 must go both ways to see the whole neighborhood), currency honesty (retired/superseded
 records land in archive, never surface), and empty/robust inputs.
 """
+
 import os
 import sys
 
@@ -23,18 +24,29 @@ from core.recall.knowledge_map import build_map
 
 
 def _lesson(name, text, edges=None, status="current"):
-    return {"kind": "lesson", "id": name, "text": text,
-            "source": f"learn:experiment:{name}", "timestamp": "2026-07-14T00:00:00",
-            "importance": 1 if status == "benched" else 3, "status": status,
-            "drill": f"recall --full learn:experiment:{name}",
-            "edges": [{"to": t, "type": "related_to", "matched": ["problem", "root_cause"]}
-                      for t in (edges or [])]}
+    return {
+        "kind": "lesson",
+        "id": name,
+        "text": text,
+        "source": f"learn:experiment:{name}",
+        "timestamp": "2026-07-14T00:00:00",
+        "importance": 1 if status == "benched" else 3,
+        "status": status,
+        "drill": f"recall --full learn:experiment:{name}",
+        "edges": [{"to": t, "type": "related_to", "matched": ["problem", "root_cause"]} for t in (edges or [])],
+    }
 
 
 def _note(nid, title, body, status="current"):
-    return {"text": f"{title}\n{body}", "source": f"mem:decision:{nid}",
-            "timestamp": "2026-07-14T00:00:00", "importance": 3 if status == "current" else 1,
-            "layer": "notes", "status": status, "drill": f"notes --all (id {nid})"}
+    return {
+        "text": f"{title}\n{body}",
+        "source": f"mem:decision:{nid}",
+        "timestamp": "2026-07-14T00:00:00",
+        "importance": 3 if status == "current" else 1,
+        "layer": "notes",
+        "status": status,
+        "drill": f"notes --all (id {nid})",
+    }
 
 
 def _ids(nodes):
@@ -44,27 +56,27 @@ def _ids(nodes):
 def test_forward_walk_reaches_edge_only_lesson():
     """A matches the topic; B is reachable ONLY via A's related_to edge (no 'wedge' in B).
     B must surface in the neighborhood with the edge annotated -- lookback could never do this."""
-    a = _lesson("cursor_wedge_detect", "wedge detection for a stuck agent worker",
-                edges=["launcher_singleton_lock"])
+    a = _lesson("cursor_wedge_detect", "wedge detection for a stuck agent worker", edges=["launcher_singleton_lock"])
     b = _lesson("launcher_singleton_lock", "singleton lock TTL token per runner")
     m = build_map("wedge", [a, b], [], [], relevance_fn=keyword_relevance, min_relevance=0.01)
 
     assert "cursor_wedge_detect" in _ids(m["surface"]), "the topic hit must be on the surface"
-    assert "launcher_singleton_lock" not in _ids(m["surface"]), \
+    assert "launcher_singleton_lock" not in _ids(m["surface"]), (
         "B has zero topic relevance -- it must NOT reach the surface by ranking"
+    )
     nb = {n["id"]: n for n in m["neighborhood"]}
     assert "launcher_singleton_lock" in nb, "B must be WALKED to via the edge (the whole point)"
     via = nb["launcher_singleton_lock"]["via"]
-    assert via["from"] == "cursor_wedge_detect" and via["type"] == "related_to" \
-        and via["direction"] == "out", f"edge must be annotated out from A, got {via}"
+    assert via["from"] == "cursor_wedge_detect" and via["type"] == "related_to" and via["direction"] == "out", (
+        f"edge must be annotated out from A, got {via}"
+    )
     print("--- forward walk ---\n  edge-only lesson reached + annotated OK")
 
 
 def test_reverse_walk_traverses_the_one_directional_edge():
     """Edges persist one-directional (new record -> existing). B matches the topic; A points
     AT B. Seeing A requires traversing the edge BACKWARD -- else half the neighborhood is invisible."""
-    a = _lesson("cursor_wedge_detect", "wedge detection for a stuck agent worker",
-                edges=["launcher_singleton_lock"])
+    a = _lesson("cursor_wedge_detect", "wedge detection for a stuck agent worker", edges=["launcher_singleton_lock"])
     b = _lesson("launcher_singleton_lock", "singleton lock TTL token per runner")
     m = build_map("singleton", [a, b], [], [], relevance_fn=keyword_relevance, min_relevance=0.01)
 
@@ -92,11 +104,11 @@ def test_adapter_status_contract_timestamps_not_booleans():
     never booleans. The adapter must read them through the store's canonical predicates --
     a truthy-string compare read all four live benched lessons as current (2026-07-14)."""
     from core.recall.knowledge_map import _lesson_status, ARCHIVE_STATUS
+
     assert _lesson_status({"benched": "2026-07-08T05:38:53.822519"}) == "benched"
     assert _lesson_status({"graduated": "2026-07-12T10:00:00"}) == "graduated"
     assert _lesson_status({"benched": "", "graduated": ""}) == "current"
-    assert {"benched", "graduated"} <= ARCHIVE_STATUS, \
-        "both retirement flavors must route to the archive layer"
+    assert {"benched", "graduated"} <= ARCHIVE_STATUS, "both retirement flavors must route to the archive layer"
     print("--- adapter status contract ---\n  timestamp flags -> benched/graduated OK")
 
 
@@ -106,8 +118,7 @@ def test_benched_and_graduated_lessons_land_in_archive():
     live = _lesson("live_wedge", "wedge live guidance")
     ben = _lesson("old_wedge_bench", "wedge advice benched long ago", status="benched")
     grad = _lesson("wedge_rule_enforced", "wedge rule now enforced by a hook", status="graduated")
-    m = build_map("wedge", [live, ben, grad], [], [], relevance_fn=keyword_relevance,
-                  min_relevance=0.01)
+    m = build_map("wedge", [live, ben, grad], [], [], relevance_fn=keyword_relevance, min_relevance=0.01)
     assert "live_wedge" in _ids(m["surface"])
     assert "old_wedge_bench" not in _ids(m["surface"]), "benched must not read as live"
     assert "wedge_rule_enforced" not in _ids(m["surface"]), "graduated must not read as live"
@@ -128,10 +139,10 @@ def test_walk_is_input_order_invariant():
         lessons.append(_lesson(f"hub_{s}", coverage[s] + f" pattern {s}", edges=targets))
         lessons += [_lesson(t, f"unrelated payload {t}") for t in targets]
     a = build_map(topic, lessons, [], [], relevance_fn=keyword_relevance, min_relevance=0.01)
-    b = build_map(topic, list(reversed(lessons)), [], [], relevance_fn=keyword_relevance,
-                  min_relevance=0.01)
-    assert [n["id"] for n in a["neighborhood"]] == [n["id"] for n in b["neighborhood"]], \
+    b = build_map(topic, list(reversed(lessons)), [], [], relevance_fn=keyword_relevance, min_relevance=0.01)
+    assert [n["id"] for n in a["neighborhood"]] == [n["id"] for n in b["neighborhood"]], (
         "the cap's survivors flipped with input order"
+    )
     assert a["counts"]["neighborhood"] == 12, "cap itself must still bind (3x8 candidates)"
     print("--- walk determinism ---\n  survivors invariant to input order OK")
 
@@ -140,8 +151,7 @@ def test_empty_and_robust():
     """Empty topic -> empty map, no crash; malformed items must not brick the walk."""
     assert build_map("", [_lesson("x", "y")], [], [])["surface"] == []
     junk = [{"kind": "lesson", "id": "j", "text": "wedge", "edges": [{"to": None}], "status": "current"}]
-    m = build_map("wedge", junk, [{}], [{"status": "current"}], relevance_fn=keyword_relevance,
-                  min_relevance=0.01)
+    m = build_map("wedge", junk, [{}], [{"status": "current"}], relevance_fn=keyword_relevance, min_relevance=0.01)
     assert "j" in _ids(m["surface"]), "a valid hit survives alongside malformed neighbors"
     print("--- empty + robust ---\n  empty topic empty map; malformed items tolerated OK")
 

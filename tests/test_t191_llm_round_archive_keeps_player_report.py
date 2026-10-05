@@ -17,6 +17,7 @@ No model call, worktree, key write, or filesystem archive occurs in this pin.
 
 Run: py -m pytest tests/test_t191_llm_round_archive_keeps_player_report.py -q
 """
+
 import os
 import sys
 

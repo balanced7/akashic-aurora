@@ -5,6 +5,7 @@ Codex hook contract documented on 2026-08-26; the adapter also captures bounded 
 under ``%TEMP%/akashic_recall/codex_payloads`` so a fresh-task drill can promote observed shapes
 to fixtures later.  The distinction is load-bearing: configured is not observed.
 """
+
 from __future__ import annotations
 
 import io
@@ -129,9 +130,7 @@ def test_posttool_resolves_direct_failure_for_the_same_command(monkeypatch):
     monkeypatch.setattr(post, "capture_failure", lambda *_args: None)
     monkeypatch.setattr("sys.stdin", io.StringIO(json.dumps(payload)))
     assert post.main() == 0
-    assert calls == [
-        ("codex-docs-session", common.action_targets(payload)[0], False, "sol")
-    ]
+    assert calls == [("codex-docs-session", common.action_targets(payload)[0], False, "sol")]
 
 
 def test_repo_hooks_are_codex_native_and_single_handler_per_event():

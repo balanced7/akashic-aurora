@@ -16,6 +16,7 @@ writes a take: <out>/takes/<timestamp>-<target>.json with the scene's sha256, th
 version, the files written, and per slide what was preserved, degraded and dropped. --dry
 prints that table and executes nothing.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -29,37 +30,65 @@ from typing import Dict, List
 from . import scene as scene_mod
 
 
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+
+        return python_launcher()
+    except Exception:
+        return "py"
+
+
 def _cmd_check(args) -> int:
     scene = scene_mod.load(args.scene)
     refusals = scene_mod.validate(scene)
     warnings = scene_mod.lint(scene) if not refusals else []
     if args.json:
-        print(json.dumps({"schema": scene.get("schema"), "slides": len(scene.get("slides") or []),
-                          "refusals": refusals, "warnings": warnings}, indent=1))
+        print(
+            json.dumps(
+                {
+                    "schema": scene.get("schema"),
+                    "slides": len(scene.get("slides") or []),
+                    "refusals": refusals,
+                    "warnings": warnings,
+                },
+                indent=1,
+            )
+        )
     else:
         for line in refusals:
             print(f"REFUSED {line}")
         for line in warnings:
             print(f"note: {line}")
         n = len(scene.get("slides") or [])
-        print(f"{'REFUSED' if refusals else 'ok'}: {n} slide(s), {len(refusals)} refusal(s), {len(warnings)} warning(s)")
+        print(
+            f"{'REFUSED' if refusals else 'ok'}: {n} slide(s), {len(refusals)} refusal(s), {len(warnings)} warning(s)"
+        )
     return 1 if refusals else 0
 
 
 def _present_manifests() -> Dict[str, dict]:
     from arsenal.registry import load_registry  # a door may reach the registry; scene.py may not
+
     reg = load_registry()
     return {mid: reg.get(mid) for mid in reg.ids() if mid.startswith("present.")}
 
 
 def _cmd_targets(args) -> int:
     from .targets import TARGETS
+
     scene = scene_mod.load(args.scene) if args.scene else None
     rows = []
     for mid, m in _present_manifests().items():
-        row = {"id": mid, "engine": m.get("engine"), "status": m.get("status", "unknown"),
-               "receipts": len(m.get("receipts") or []), "built": mid in TARGETS,
-               "atoms": sorted((m.get("atoms") or {}).keys())}
+        row = {
+            "id": mid,
+            "engine": m.get("engine"),
+            "status": m.get("status", "unknown"),
+            "receipts": len(m.get("receipts") or []),
+            "built": mid in TARGETS,
+            "atoms": sorted((m.get("atoms") or {}).keys()),
+        }
         if scene is not None:
             row["coverage"] = scene_mod.coverage(scene, m)
         rows.append(row)
@@ -102,12 +131,15 @@ def _drop_only(scene: dict, manifest: dict) -> List[str]:
     for kind in sorted(scene_mod.used_kinds(scene)):
         spec = table.get(kind) or {}
         if spec.get("drops") and not (spec.get("preserves") or spec.get("degrades")):
-            out.append(f"{manifest.get('id')} drops every {kind} atom ({spec['drops']}); pass --allow-drops to render without them")
+            out.append(
+                f"{manifest.get('id')} drops every {kind} atom ({spec['drops']}); pass --allow-drops to render without them"
+            )
     return out
 
 
 def _cmd_render(args) -> int:
     from .targets import SUBDIR, TARGETS, resolve
+
     try:
         target = resolve(args.to)
     except ValueError as e:
@@ -136,9 +168,11 @@ def _cmd_render(args) -> int:
     if args.dry:
         print(f"{target} (manifest {manifest.get('version')}), dry: nothing written")
         for sid, row in per_slide.items():
-            print(f"  {sid:<14} preserved {', '.join(row['preserved']) or '-'}"
-                  + (f" | degraded {', '.join(row['degraded'])}" if row["degraded"] else "")
-                  + (f" | dropped {', '.join(row['dropped'])}" if row["dropped"] else ""))
+            print(
+                f"  {sid:<14} preserved {', '.join(row['preserved']) or '-'}"
+                + (f" | degraded {', '.join(row['degraded'])}" if row["degraded"] else "")
+                + (f" | dropped {', '.join(row['dropped'])}" if row["dropped"] else "")
+            )
         return 0
     out_root = Path(args.out) if args.out else scene_path.parent / "render"
     out_dir = out_root / SUBDIR[target]
@@ -156,12 +190,23 @@ def _cmd_render(args) -> int:
     t0 = time.perf_counter()
     written = TARGETS[target](scene, out_dir, **opts)
     elapsed_ms = round((time.perf_counter() - t0) * 1000, 1)
-    take = {"take": "present.render/v0", "at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-            "target": target, "module_version": manifest.get("version"),
-            "scene": {"path": str(scene_path), "sha256": hashlib.sha256(scene_path.read_bytes()).hexdigest(),
-                      "title": scene.get("title"), "slides": len(scene.get("slides") or [])},
-            "opts": opts, "elapsed_ms": elapsed_ms, "written": [str(p) for p in written],
-            "per_slide": per_slide, "warnings": warnings}
+    take = {
+        "take": "present.render/v0",
+        "at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "target": target,
+        "module_version": manifest.get("version"),
+        "scene": {
+            "path": str(scene_path),
+            "sha256": hashlib.sha256(scene_path.read_bytes()).hexdigest(),
+            "title": scene.get("title"),
+            "slides": len(scene.get("slides") or []),
+        },
+        "opts": opts,
+        "elapsed_ms": elapsed_ms,
+        "written": [str(p) for p in written],
+        "per_slide": per_slide,
+        "warnings": warnings,
+    }
     takes = out_root / "takes"
     takes.mkdir(parents=True, exist_ok=True)
     take_path = takes / f"{time.strftime('%Y%m%d-%H%M%S', time.gmtime())}-{target}.json"
@@ -175,12 +220,14 @@ def _cmd_render(args) -> int:
 
 
 def main(argv=None) -> int:
-    ap = argparse.ArgumentParser(prog="py -m arsenal.present", description="present.scene.v1 tools")
+    ap = argparse.ArgumentParser(prog=f"{_pyl()} -m arsenal.present", description="present.scene.v1 tools")
     sub = ap.add_subparsers(dest="cmd", required=True)
     c = sub.add_parser("check", help="validate + lint a scene; exit 1 on any refusal")
     c.add_argument("scene")
     c.add_argument("--json", action="store_true")
-    t = sub.add_parser("targets", help="list present.* render targets with status; with --scene, check each one's atom coverage")
+    t = sub.add_parser(
+        "targets", help="list present.* render targets with status; with --scene, check each one's atom coverage"
+    )
     t.add_argument("--scene")
     t.add_argument("--json", action="store_true")
     r = sub.add_parser("render", help="render a scene to one target; writes a take")
@@ -192,8 +239,12 @@ def main(argv=None) -> int:
     r.add_argument("--no-footnotes", action="store_true", help="pdf: full-bleed pages, notes dropped")
     r.add_argument("--autoplay", action="store_true", help="3d: advance by duration_s")
     r.add_argument("--verify-cdn", action="store_true", help="3d: HEAD-check the three.js URL (network)")
-    r.add_argument("--allow-drops", action="store_true", help="render even where the target only drops a kind the deck uses")
-    r.add_argument("--dry", action="store_true", help="print per slide what is preserved, degraded and dropped; write nothing")
+    r.add_argument(
+        "--allow-drops", action="store_true", help="render even where the target only drops a kind the deck uses"
+    )
+    r.add_argument(
+        "--dry", action="store_true", help="print per slide what is preserved, degraded and dropped; write nothing"
+    )
     args = ap.parse_args(argv)
     return {"check": _cmd_check, "targets": _cmd_targets, "render": _cmd_render}[args.cmd](args)
 

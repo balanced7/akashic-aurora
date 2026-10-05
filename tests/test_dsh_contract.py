@@ -12,6 +12,7 @@ drill found the wired plugin violating this: its JS pre-joined `path | command` 
 passed it as --target, while normalize_target emits p:<abspath> / c:<lowercased
 command> -- so flips could never credit. This file pins the fixed contract.
 """
+
 import argparse
 import json
 import os
@@ -46,24 +47,40 @@ def test_capture_pair_target_join_law():
     for case in pair["cases"]:
         surface = normalize_target(case.get("path"), case.get("command"))
         outcome = bridge.derive_target(case.get("path"), case.get("command"), None)
-        assert outcome == surface, (
-            f"join evaporates: surface={surface!r} outcome={outcome!r} for {case}")
+        assert outcome == surface, f"join evaporates: surface={surface!r} outcome={outcome!r} for {case}"
 
 
 def test_outcome_door_derives_from_path_command_over_stale_target():
     """--target is only an already-normalized override; path/command win (V27)."""
-    a = argparse.Namespace(target="stale | joined", path="E:\\AI-Setup\\docs\\WISHLIST.md",
-                           command=None, session_key="dsh_agent", seen_key="s", success=1)
+    a = argparse.Namespace(
+        target="stale | joined",
+        path="E:\\AI-Setup\\docs\\WISHLIST.md",
+        command=None,
+        session_key="dsh_agent",
+        seen_key="s",
+        success=1,
+    )
     assert bridge.derive_target(a.path, a.command, a.target) == normalize_target(
-        "E:\\AI-Setup\\docs\\WISHLIST.md", None)
+        "E:\\AI-Setup\\docs\\WISHLIST.md", None
+    )
 
 
 def test_outcome_argparse_accepts_path_command():
     """The resolve door must ACCEPT --path/--command (the fixed wiring shape)."""
     a = argparse.Namespace()
     bridge._build_outcome_parser().parse_args(
-        ["--session-key", "dsh_agent", "--path", "E:\\AI-Setup\\docs\\WISHLIST.md",
-         "--command", "py agent_cli.py status", "--success", "1"], namespace=a)
+        [
+            "--session-key",
+            "dsh_agent",
+            "--path",
+            "E:\\AI-Setup\\docs\\WISHLIST.md",
+            "--command",
+            "py agent_cli.py status",
+            "--success",
+            "1",
+        ],
+        namespace=a,
+    )
     assert a.path == "E:\\AI-Setup\\docs\\WISHLIST.md"
     assert a.command == "py agent_cli.py status"
     assert a.target is None
@@ -84,12 +101,13 @@ def test_plugin_pins_generation_freshness_probe():
     loaded is LOUD with a named remedy, never silent. The bug becomes its own detector."""
     src = (REPO / "agent" / "harness" / "dsh_plugin" / "lib" / "index.js").read_text(encoding="utf-8")
     assert "LOADED_MTIME" in src
-    assert "statSync(fileURLToPath(import.meta.url))" in src   # module-scope stamp
-    assert "restart the server" in src                        # remedy, named for foreign readers
-    assert "freshness-drift" in src                           # durable capture, not console-only
+    assert "statSync(fileURLToPath(import.meta.url))" in src  # module-scope stamp
+    assert "restart the server" in src  # remedy, named for foreign readers
+    assert "freshness-drift" in src  # durable capture, not console-only
 
 
 # --- T3 injection contract (the one-beat-late delivery seam, 2026-08-24) ---
+
 
 def test_t3_injection_rides_decision_additional_contexts():
     """The injection seam, pinned against the harness contract: PostToolDecision.
@@ -98,9 +116,9 @@ def test_t3_injection_rides_decision_additional_contexts():
     the model's NEXT step. attachContext must append to THAT field, never a sibling."""
     src = (REPO / "agent" / "harness" / "dsh_plugin" / "lib" / "index.js").read_text(encoding="utf-8")
     assert "additionalContexts" in src
-    assert "decision.additionalContexts" in src               # the field, not a sibling
+    assert "decision.additionalContexts" in src  # the field, not a sibling
     assert "return { ...decision, additionalContexts" in src  # enrich, never replace
-    assert "attachContext(decision" in src                   # both post-execute branches use it
+    assert "attachContext(decision" in src  # both post-execute branches use it
 
 
 def test_t3_injection_message_shape_is_user_contract():
@@ -111,10 +129,11 @@ def test_t3_injection_message_shape_is_user_contract():
     assert "role: 'user'" in src
     assert "content: [{ type: 'text', text }]" in src
     assert "kind: 'plugin'" in src and "form: 'recall'" in src
-    assert "id:" in src and "akashic-" in src                # id + stable prefix
+    assert "id:" in src and "akashic-" in src  # id + stable prefix
 
 
 # --- MCP door tools (the typed-tools finish, 2026-08-24) ---
+
 
 def test_plugin_hosts_persistent_mcp_door():
     """The typed-tools design: ONE persistent `py ai_setup_mcp.py` child + runtime
@@ -125,7 +144,7 @@ def test_plugin_hosts_persistent_mcp_door():
     assert "tools/list" in src
     assert "ctx.tools.register" in src
     assert "defineTool" in src
-    assert "export const inject = ['tools']" in src          # satisfiable in the web bundle
+    assert "export const inject = ['tools']" in src  # satisfiable in the web bundle
     assert "doorHandshake" in src
 
 
@@ -137,10 +156,12 @@ def test_door_verbs_never_spawn_per_call():
     assert "doorCall" in src
     door_block = src.split("MCP DOOR CLIENT", 1)[-1].split("export const name", 1)[0]
     assert "spawnBridge" not in door_block, (
-        "a door verb must never spawn per call -- that is the pathology being retired")
+        "a door verb must never spawn per call -- that is the pathology being retired"
+    )
 
 
 # --- T6 DSH session-end shim (auto-handoff flagship, 2026-08-24) ---
+
 
 def test_dsh_parse_calls_pairs_real_session_records():
     """parse_dsh_calls pairs the REAL tool/call <-> tool/result shapes (callId rides
@@ -152,8 +173,8 @@ def test_dsh_parse_calls_pairs_real_session_records():
     read = next(c for c in calls if c["tool"] == "read")
     pwsh = next(c for c in calls if c["tool"] == "pwsh")
     assert read["target"] == normalize_target("E:\\AI-Setup\\.env", None)
-    assert pwsh["target"].startswith("c:")   # command target, surface-shaped
-    assert read["ok"] is False               # the data.error record
+    assert pwsh["target"].startswith("c:")  # command target, surface-shaped
+    assert read["ok"] is False  # the data.error record
     assert pwsh["ok"] is True
     assert all("at" in c and "target" in c for c in calls)
 
@@ -171,6 +192,7 @@ def test_dsh_session_log_location_matches_real_layout():
 
 
 # --- draft keepalive (Stop-hook + DSH turn-seam wiring, RED 2026-08-26) ---
+
 
 def test_bridge_exposes_draft_keepalive_subcommand():
     """The bridge must ACCEPT `draft-keepalive` -- the DSH analog of the Stop-hook
@@ -202,6 +224,7 @@ def test_plugin_wires_draft_keepalive_on_post_execute_fire_and_forget():
 
 # --- door self-heal (persistent MCP child respawn, RED 2026-08-26) ---
 
+
 def test_door_child_respawns_after_exit_with_backoff():
     """A long-lived door child of a long-lived host must not make the host's tools
     die with it (Vandor's reboot receipt: a 21h-old child served yesterday's server
@@ -212,11 +235,11 @@ def test_door_child_respawns_after_exit_with_backoff():
     persists them and REFUSES a duplicate, so the respawn is handshake-only --
     registerDoorTools exists for the apply path, never the respawn path."""
     src = (REPO / "agent" / "harness" / "dsh_plugin" / "lib" / "index.js").read_text(encoding="utf-8")
-    assert "'door-exit'" in src                  # the exit observation exists
-    assert "door-respawn" in src                 # the respawn attempt is captured, never silent
-    assert "RESPAWN_MAX" in src                  # a hard cap -- the loop-guard law
-    assert "registerDoorTools" in src            # the one-time registration path exists
-    assert "door-respawn-ok" in src              # a successful respawn is captured, greppable
+    assert "'door-exit'" in src  # the exit observation exists
+    assert "door-respawn" in src  # the respawn attempt is captured, never silent
+    assert "RESPAWN_MAX" in src  # a hard cap -- the loop-guard law
+    assert "registerDoorTools" in src  # the one-time registration path exists
+    assert "door-respawn-ok" in src  # a successful respawn is captured, greppable
 
 
 def test_door_respawn_exhaustion_is_loud_not_silent():
@@ -243,10 +266,10 @@ def test_disposed_session_stops_the_recurring_beat():
     on the absence of the fix, not merely on unrelated drift.
     """
     src = (REPO / "agent" / "harness" / "dsh_plugin" / "lib" / "index.js").read_text(encoding="utf-8")
-    assert "stopPresenceBeat" in src            # the stop seam must exist
-    assert "clearInterval(beatTimer)" in src    # the interval must be cleared, not just abandoned
-    assert "beatTimer = null" in src            # ...so a later startPresenceBeat can re-arm cleanly
-    assert "lastSid = ''" in src                # a stale id must never re-beat the key alive
+    assert "stopPresenceBeat" in src  # the stop seam must exist
+    assert "clearInterval(beatTimer)" in src  # the interval must be cleared, not just abandoned
+    assert "beatTimer = null" in src  # ...so a later startPresenceBeat can re-arm cleanly
+    assert "lastSid = ''" in src  # a stale id must never re-beat the key alive
 
 
 def test_flush_is_a_checkpoint_and_never_declares_offline():
@@ -258,8 +281,8 @@ def test_flush_is_a_checkpoint_and_never_declares_offline():
     source must contain EXACTLY ONE offline declaration, and no flush listener may
     remain. Source-string pin, same shape as its disposed-beat sibling."""
     src = (REPO / "agent" / "harness" / "dsh_plugin" / "lib" / "index.js").read_text(encoding="utf-8")
-    assert "DURABILITY CHECKPOINT" in src            # the ruling must be recorded in-place
-    assert "ctx.on('session/flush'" not in src       # no flush listener may remain
+    assert "DURABILITY CHECKPOINT" in src  # the ruling must be recorded in-place
+    assert "ctx.on('session/flush'" not in src  # no flush listener may remain
     assert src.count("firePresence('offline')") == 1  # disposed is the ONLY departure declaration
 
 
@@ -268,22 +291,24 @@ def test_presence_offline_declares_departure_not_a_beat():
     that renders OFFLINE in the roster -- never heartbeat the key alive (the old
     placeholder defect that kept ended sessions rendering LIVE)."""
     import uuid
+
     ns = "t383pre" + uuid.uuid4().hex[:6]
     old = os.environ.get("BIFROST_NAMESPACE")
     old_agent = os.environ.get("AKASHIC_AGENT_ID")
     os.environ["BIFROST_NAMESPACE"] = ns
-    os.environ["AKASHIC_AGENT_ID"] = "dsh_agent"   # pin the seat id: the door reads
+    os.environ["AKASHIC_AGENT_ID"] = "dsh_agent"  # pin the seat id: the door reads
     # ambient env, and a runner's own id must not silently re-target the pin (T069 class)
     try:
         a = argparse.Namespace(phase="offline", session_id="seat-0001")
         assert bridge.cmd_presence(a) == 0
         from core.comm import roster
+
         rows = roster.roster(ns)
         mine = [r for r in rows if r.get("seat") == "dsh_agent#seat-000"]
-        assert mine and mine[0]["state"] == "OFFLINE", (
-            f"presence offline must render OFFLINE via go_offline: {mine}")
+        assert mine and mine[0]["state"] == "OFFLINE", f"presence offline must render OFFLINE via go_offline: {mine}"
         assert not [r for r in rows if r.get("state") == "LIVE"], (
-            f"an offline declaration must not leave a LIVE row behind: {rows}")
+            f"an offline declaration must not leave a LIVE row behind: {rows}"
+        )
     finally:
         if old is None:
             os.environ.pop("BIFROST_NAMESPACE", None)

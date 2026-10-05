@@ -12,6 +12,7 @@ Mechanism under pin (defer suite:test_audit_spend_founding_live_kimi):
 Each pin runs a FRESH interpreter via subprocess so no earlier import in this pytest
 process can warm `audit` and hide the cycle.
 """
+
 import os
 import subprocess
 import sys
@@ -22,17 +23,17 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 def _fresh(code: str) -> subprocess.CompletedProcess:
     return subprocess.run(
         [sys.executable, "-c", code],
-        cwd=ROOT, capture_output=True, text=True, timeout=120,
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        timeout=120,
     )
 
 
 def test_audit_spend_imports_first_in_fresh_interpreter():
     """`import core.toolbelt.audit_spend` as the FIRST toolbelt import must succeed."""
     p = _fresh("import core.toolbelt.audit_spend as m; print(m.SpendDomain.__name__)")
-    assert p.returncode == 0, (
-        "audit_spend cannot be imported first (import cycle with audit.py):\n"
-        + p.stderr[-2000:]
-    )
+    assert p.returncode == 0, "audit_spend cannot be imported first (import cycle with audit.py):\n" + p.stderr[-2000:]
     assert "SpendDomain" in p.stdout
 
 
@@ -41,12 +42,15 @@ def test_audit_spend_run_resolves_row_when_imported_first(tmp_path):
     audit.Row at RUNTIME (a TYPE_CHECKING-only import would pass the pin above and
     NameError here). Injected config/meter so the pin needs no instance-local state."""
     cfg = tmp_path / "kimi_chat.py"
-    cfg.write_text('WARN_AT = float(os.getenv("KIMI_SPEND_WARN", "80.0"))\n'
-                   'REFUSE_AT = float(os.getenv("KIMI_SPEND_REFUSE", "95.0"))\n',
-                   encoding="utf-8")
+    cfg.write_text(
+        'WARN_AT = float(os.getenv("KIMI_SPEND_WARN", "80.0"))\n'
+        'REFUSE_AT = float(os.getenv("KIMI_SPEND_REFUSE", "95.0"))\n',
+        encoding="utf-8",
+    )
     meter = tmp_path / "kimi_spend.json"
-    meter.write_text('{"spent_usd": 1.0, "budget": 124.58, "seeded": true, '
-                     '"last_reconcile_ts": 4102444800}', encoding="utf-8")
+    meter.write_text(
+        '{"spent_usd": 1.0, "budget": 124.58, "seeded": true, "last_reconcile_ts": 4102444800}', encoding="utf-8"
+    )
     code = (
         "import core.toolbelt.audit_spend as m\n"
         f"d = m.SpendDomain(meter_path={str(meter)!r}, config_path={str(cfg)!r}, "

@@ -18,9 +18,10 @@ def git_veto(command: str) -> str:
         return ""
     try:
         from agent.policy.git_guard import check_git_command
+
         allowed, reason = check_git_command(command)
     except Exception:
-        return ""   # policy unavailable -> allow
+        return ""  # policy unavailable -> allow
     return "" if allowed else (reason or "")
 
 
@@ -34,13 +35,16 @@ def lock_veto(path: str, agent_id: str, id_hint: str) -> str:
         return ""
     try:
         from core.comm.locks import path_conflict
+
         c = path_conflict(path, agent_id or "(unidentified)")
     except Exception:
-        return ""   # lock layer unavailable -> allow (advisory)
+        return ""  # lock layer unavailable -> allow (advisory)
     if not c.get("conflict"):
         return ""
     if not agent_id:
-        return (f"AKASHIC_AGENT_ID is not set, so lock ownership can't be verified and this path is "
-                f"locked by {c.get('held_by')}. Set AKASHIC_AGENT_ID=<your agent id> "
-                f"({id_hint}) so the peer-lock guard can tell your edits from a peer's.")
+        return (
+            f"AKASHIC_AGENT_ID is not set, so lock ownership can't be verified and this path is "
+            f"locked by {c.get('held_by')}. Set AKASHIC_AGENT_ID=<your agent id> "
+            f"({id_hint}) so the peer-lock guard can tell your edits from a peer's."
+        )
     return c.get("reason", "")

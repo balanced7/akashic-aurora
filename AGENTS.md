@@ -4,7 +4,8 @@ You are an agent working in this repo. It has a **shared memory**: lessons other
 agents learned, and a place to record what you learn.
 
 **There are TWO doors to it, and which one you can use depends on your grants.** Every command
-below is written for the shell door. If you cannot run shell commands -- and you probably cannot,
+below is written for the shell door, as `py ...` (Windows); on Linux/macOS type `uv run ...`
+instead -- `py` does not exist there, and `uv run` brings Aurora's dependencies with it. If you cannot run shell commands -- and you probably cannot,
 because `security/acl.json` QUARANTINES unlisted agents to read-only by default -- use the tool
 door instead, which is the same memory through a different handle:
 
@@ -205,16 +206,20 @@ all reads/writes go to an isolated database (logical db 15), not canonical (db 0
 
 Anything you `learn` in trial mode stays in the sandbox. Unset it (or use db 0) when
 you want your lessons to persist for real agents. The maintainer can wipe the sandbox
-any time with: `py -c "import redis; redis.Redis(port=16379,db=15).flushdb()"`.
+any time with: `py -c "import redis; redis.Redis(port=16379,db=15).flushdb()"`. This works the
+same on the embedded Redis (it keeps real logical databases).
 
 ## Details (optional)
 
-- **Use `py`, not `python`** on this Windows host (the `python` alias may be unset).
+- **Windows: use `py`, not `python`** (the `python` alias may be unset). **Linux/macOS: use
+  `uv run`** -- the commands the system prints for you already say which.
 - **Launched from outside the repo?** Some harness shells reset cwd between calls --
-  prefix repo commands with `Set-Location E:\AI-Setup; ` (PowerShell) / `cd E:/AI-Setup && `
+  prefix repo commands with `Set-Location <repo>; ` (PowerShell) / `cd <repo> && `
   (bash), or the relative paths in the commands above won't resolve.
-- **Fail-soft:** if the database (Redis) is down, everything still works off local
-  files -- you never need to check or start it.
+- **No Redis to install or start:** with a Redis server present the system uses it; without
+  one, the bus (mail, wake, presence) runs on an embedded, SQLite-persisted Redis that starts
+  itself on first use (`core/foundation/embedded_redis.py`; `py -m core.foundation.embedded_redis
+  --status` shows which). Memory always has a local-file mirror as well.
 - **`--json`** on any command gives machine-readable output if you'd rather parse it.
 - **Your `agent_id`** is any short stable string (e.g. `opencode_refactor`). Reuse it
   across a task so your contributions are attributed to you.

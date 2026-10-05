@@ -33,6 +33,7 @@ WHAT IT WILL NOT DO: it will not consume, delete or modify the parked record (th
 audit trail), will not relay anything accept() did not already admit, and will not act on a
 single word it carries. It moves mail. It never obeys it.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -76,18 +77,17 @@ def remember(ids: set) -> None:
 def drain_once(bus_agent: str = "bridge-relay", dry: bool = False) -> int:
     RR._reset_cache()
     done = relayed_ids()
-    rows = [r for r in RR._read_jsonl(RR.inbox_path())
-            if str(r.get("frm", "")).startswith("remote:")]
+    rows = [r for r in RR._read_jsonl(RR.inbox_path()) if str(r.get("frm", "")).startswith("remote:")]
     fresh = [r for r in rows if str(r.get("id")) not in done]
     if not fresh:
         return 0
 
     try:
         from core.comm.bus import Bus
+
         bus = Bus(bus_agent)
-    except Exception as e:                                        # noqa: BLE001
-        print(f"  bus unavailable ({type(e).__name__}: {e}) — nothing relayed, nothing lost",
-              flush=True)
+    except Exception as e:  # noqa: BLE001
+        print(f"  bus unavailable ({type(e).__name__}: {e}) — nothing relayed, nothing lost", flush=True)
         return 0
 
     sent = 0
@@ -95,14 +95,19 @@ def drain_once(bus_agent: str = "bridge-relay", dry: bool = False) -> int:
         kind = str(r.get("kind") or "")
         mid = str(r.get("id"))
         if kind not in RELAY_KINDS:
-            print(f"  REFUSED {mid}: kind {kind!r} may cross the bridge but may not be "
-                  f"spoken to a seat", flush=True)
-            done.add(mid)                     # refused is decided, not pending
+            print(f"  REFUSED {mid}: kind {kind!r} may cross the bridge but may not be spoken to a seat", flush=True)
+            done.add(mid)  # refused is decided, not pending
             continue
         body = f"[remote {r.get('frm')}] {r.get('content')}"
-        meta = {"source": "remote-bridge", "remote": True, "authority": "none",
-                "route": r.get("frm"), "claimed_frm": r.get("claimed_frm"),
-                "bridge_id": mid, "idempotency_key": f"bridge:{mid}"}
+        meta = {
+            "source": "remote-bridge",
+            "remote": True,
+            "authority": "none",
+            "route": r.get("frm"),
+            "claimed_frm": r.get("claimed_frm"),
+            "bridge_id": mid,
+            "idempotency_key": f"bridge:{mid}",
+        }
         if dry:
             print(f"  WOULD relay {mid} ({kind}): {body[:70]}", flush=True)
         else:
@@ -125,12 +130,13 @@ def main(argv=None) -> int:
     a = ap.parse_args(argv)
 
     if not (a.loop or a.once or a.dry_run):
-        ap.error("say --once, --loop or --dry-run out loud. This relay puts another fleet's "
-                 "words on your live bus; it does not start by accident.")
+        ap.error(
+            "say --once, --loop or --dry-run out loud. This relay puts another fleet's "
+            "words on your live bus; it does not start by accident."
+        )
 
     print(f"bridge relay — inbox {RR.inbox_path()}", flush=True)
-    print(f"  relay kinds: {sorted(RELAY_KINDS)}   posture: authority=none, no levers",
-          flush=True)
+    print(f"  relay kinds: {sorted(RELAY_KINDS)}   posture: authority=none, no levers", flush=True)
     n = drain_once(a.agent, dry=a.dry_run)
     print(f"  {n} relayed", flush=True)
     if not a.loop:
@@ -139,7 +145,7 @@ def main(argv=None) -> int:
         time.sleep(a.poll_sec)
         try:
             drain_once(a.agent)
-        except Exception as e:                                    # noqa: BLE001
+        except Exception as e:  # noqa: BLE001
             print(f"  tick error ({type(e).__name__}: {e}) — relay continues", flush=True)
 
 

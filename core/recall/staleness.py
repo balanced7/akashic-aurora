@@ -28,6 +28,7 @@ THE HONEST DIRECTION OF ITS ERRORS: an unreachable artifact returns UNCHECKABLE,
 "stale". Absence of evidence is not evidence of staleness -- the confident-zero disease in
 detector form.
 """
+
 from __future__ import annotations
 
 import re
@@ -39,18 +40,37 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 # Shapes that assert a NEGATIVE about a named artifact. Each pattern must capture enough to
 # name the artifact, because a claim we cannot re-locate is not checkable -- it is a rumour.
 _ABSENCE_PATTERNS = [
-    re.compile(r"\b(?P<artifact>[A-Z][A-Za-z_./]{2,40}(?:\.md|\.py|\.json)?)\s+holds?\s+"
-               r"\d[\d,]*\s+[a-z ]{0,30}?and\s+(?:not one|none|zero)\b", re.I),
-    re.compile(r"\b(?:not one|none|zero|no)\s+(?:open\s+)?(?P<noun>[a-z]{3,20})s?\s+"
-               r"(?:in|of|under)\s+(?P<artifact>[A-Za-z_./]{3,60})", re.I),
-    re.compile(r"\b(?P<artifact>[A-Za-z_./]{3,60}\.(?:md|py|json))\s+(?:has|holds|contains)"
-               r"\s+(?:no|zero)\b", re.I),
+    re.compile(
+        r"\b(?P<artifact>[A-Z][A-Za-z_./]{2,40}(?:\.md|\.py|\.json)?)\s+holds?\s+"
+        r"\d[\d,]*\s+[a-z ]{0,30}?and\s+(?:not one|none|zero)\b",
+        re.I,
+    ),
+    re.compile(
+        r"\b(?:not one|none|zero|no)\s+(?:open\s+)?(?P<noun>[a-z]{3,20})s?\s+"
+        r"(?:in|of|under)\s+(?P<artifact>[A-Za-z_./]{3,60})",
+        re.I,
+    ),
+    re.compile(
+        r"\b(?P<artifact>[A-Za-z_./]{3,60}\.(?:md|py|json))\s+(?:has|holds|contains)"
+        r"\s+(?:no|zero)\b",
+        re.I,
+    ),
 ]
 
 # Words that mark a sentence as judgement rather than fact-about-an-artifact. Their presence
 # disqualifies the sentence even if a pattern matches -- precision over recall, on purpose.
-_JUDGEMENT = ("skill", "rather than", "most people", "i think", "seems", "feels",
-              "probably", "arguably", "better than", "worse than")
+_JUDGEMENT = (
+    "skill",
+    "rather than",
+    "most people",
+    "i think",
+    "seems",
+    "feels",
+    "probably",
+    "arguably",
+    "better than",
+    "worse than",
+)
 
 
 def extract_checkable_claims(text: str) -> List[Dict[str, Any]]:
@@ -72,14 +92,16 @@ def extract_checkable_claims(text: str) -> List[Dict[str, Any]]:
             if not artifact:
                 continue
             # the needle is the thing claimed absent: the trailing subject of the clause
-            tail = s[m.end():].strip(" -.,")
+            tail = s[m.end() :].strip(" -.,")
             needle = " ".join(tail.split()[:4]) or (gd.get("noun") or "")
-            out.append({
-                "kind": "absence",
-                "artifact": artifact,
-                "needle": needle,
-                "quote": s[:200],
-            })
+            out.append(
+                {
+                    "kind": "absence",
+                    "artifact": artifact,
+                    "needle": needle,
+                    "quote": s[:200],
+                }
+            )
             break
     return out
 
@@ -112,17 +134,18 @@ def recheck_claim(claim: Dict[str, Any]) -> Dict[str, Any]:
     needle = " ".join(str(claim.get("needle", "")).lower().split())
     path = _resolve_artifact(artifact)
     if path is None:
-        return {"checked": False, "still_holds": None, "evidence": "",
-                "why": f"artifact {artifact!r} is unreachable at HEAD -- unevaluable, "
-                       "which is not the same as refuted"}
+        return {
+            "checked": False,
+            "still_holds": None,
+            "evidence": "",
+            "why": f"artifact {artifact!r} is unreachable at HEAD -- unevaluable, which is not the same as refuted",
+        }
     if not needle:
-        return {"checked": False, "still_holds": None, "evidence": "",
-                "why": "the claim names no needle to search for"}
+        return {"checked": False, "still_holds": None, "evidence": "", "why": "the claim names no needle to search for"}
     try:
         text = path.read_text(encoding="utf-8", errors="replace")
-    except Exception as e:                                   # pragma: no cover - io guard
-        return {"checked": False, "still_holds": None, "evidence": "",
-                "why": f"could not read {path.name}: {e}"}
+    except Exception as e:  # pragma: no cover - io guard
+        return {"checked": False, "still_holds": None, "evidence": "", "why": f"could not read {path.name}: {e}"}
 
     words = [w for w in re.findall(r"[a-z0-9]+", needle) if len(w) > 3]
     hits: List[str] = []
@@ -133,11 +156,19 @@ def recheck_claim(claim: Dict[str, Any]) -> Dict[str, Any]:
         if len(hits) >= 3:
             break
     if hits:
-        return {"checked": True, "still_holds": False, "evidence": hits,
-                "why": f"the claimed-absent subject appears in {path.name} -- the absence "
-                       "claim no longer holds; re-read the lesson before citing it"}
-    return {"checked": True, "still_holds": True, "evidence": [],
-            "why": f"searched {path.name} at HEAD; the subject is still absent"}
+        return {
+            "checked": True,
+            "still_holds": False,
+            "evidence": hits,
+            "why": f"the claimed-absent subject appears in {path.name} -- the absence "
+            "claim no longer holds; re-read the lesson before citing it",
+        }
+    return {
+        "checked": True,
+        "still_holds": True,
+        "evidence": [],
+        "why": f"searched {path.name} at HEAD; the subject is still absent",
+    }
 
 
 def sweep(limit: int = 50, corpus: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
@@ -156,40 +187,48 @@ def sweep(limit: int = 50, corpus: Optional[List[Dict[str, Any]]] = None) -> Dic
         # means nothing (ask_the_detector_for_its_POPULATION_not_only_its_predicate).
         try:
             from core.learning.learning_store import get_learning_store_instance
+
             rows = get_learning_store_instance().get_all_learnings()
             source = "LearningStore.get_all_learnings()"
-        except Exception as e:                               # pragma: no cover - io guard
-            return {"examined": 0, "checkable": 0, "stale": [],
-                    "scope": f"UNREACHABLE: could not read the lesson store ({e}) -- this "
-                             "is not a clean bill, it is a failure to look"}
+        except Exception as e:  # pragma: no cover - io guard
+            return {
+                "examined": 0,
+                "checkable": 0,
+                "stale": [],
+                "scope": f"UNREACHABLE: could not read the lesson store ({e}) -- this "
+                "is not a clean bill, it is a failure to look",
+            }
     rows = list(rows)
     total = len(rows)
-    rows = rows[-int(limit):] if limit else rows
+    rows = rows[-int(limit) :] if limit else rows
 
     examined = checkable = 0
     stale: List[Dict[str, Any]] = []
     for r in rows:
         examined += 1
-        blob = " ".join(str(r.get(f, "")) for f in
-                        ("actual", "recommendation", "what_tried", "result"))
+        blob = " ".join(str(r.get(f, "")) for f in ("actual", "recommendation", "what_tried", "result"))
         for claim in extract_checkable_claims(blob):
             checkable += 1
             v = recheck_claim(claim)
             if v["checked"] and v["still_holds"] is False:
-                stale.append({
-                    "lesson": r.get("experiment_name") or r.get("source") or "?",
-                    "claim": claim["quote"],
-                    "artifact": claim["artifact"],
-                    "evidence": v["evidence"],
-                    "why": v["why"],
-                })
+                stale.append(
+                    {
+                        "lesson": r.get("experiment_name") or r.get("source") or "?",
+                        "claim": claim["quote"],
+                        "artifact": claim["artifact"],
+                        "evidence": v["evidence"],
+                        "why": v["why"],
+                    }
+                )
     return {
         "examined": examined,
         "checkable": checkable,
         "stale": stale,
         "population": total,
         "source": source,
-        "scope": (f"{examined} of {total} lesson record(s) from {source}; count/absence "
-                  "claims only -- judgement claims are out of scope by design, and "
-                  "unreachable artifacts report UNCHECKABLE, never stale"),
+        "scope": (
+            f"{examined} of {total} lesson record(s) from {source}; count/absence "
+            "claims only -- judgement claims are out of scope by design, and "
+            "unreachable artifacts report UNCHECKABLE, never stale"
+        ),
     }

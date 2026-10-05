@@ -6,6 +6,7 @@ We test build_plan (pure: ordered steps, no side effects) rather than executing 
 The discipline that must hold: the GATE comes before the commit; the commit uses EXPLICIT paths;
 flags add/remove the right steps.
 """
+
 import os
 import sys
 from argparse import Namespace
@@ -17,9 +18,19 @@ import ship
 
 
 def _args(**over):
-    base = dict(message="msg", paths=["a.py", "b.py"], agent="claude", learn_exp=None,
-                tried="", result="", recommend="", anti_pattern="", no_test=False,
-                no_snapshot=False, dry_run=False)
+    base = dict(
+        message="msg",
+        paths=["a.py", "b.py"],
+        agent="claude",
+        learn_exp=None,
+        tried="",
+        result="",
+        recommend="",
+        anti_pattern="",
+        no_test=False,
+        no_snapshot=False,
+        dry_run=False,
+    )
     base.update(over)
     return Namespace(**base)
 
@@ -35,7 +46,7 @@ def test_full_plan_order():
     # door-parity / wiring) -- assert the fixed anchors + that every guard runs before the tests+commit.
     assert labels[0] == "guard: boundaries" and labels[1] == "guard: doc-freshness", labels
     assert labels[-3:] == ["tests (full suite)", "commit + push", "snapshot"], labels
-    assert all("guard" in l for l in labels[:labels.index("tests (full suite)")]), labels
+    assert all("guard" in l for l in labels[: labels.index("tests (full suite)")]), labels
     commit = dict(plan)["commit + push"]
     assert "scripts/mirror.py" in commit and "a.py" in commit and "b.py" in commit, commit
     assert "msg" in commit, "commit message is passed to mirror"

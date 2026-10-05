@@ -45,6 +45,7 @@ things in singlethreaded ways."
 
 Run: py -m pytest tests/test_t157_wire_sharded_async.py -q
 """
+
 import json
 import os
 import sys
@@ -60,6 +61,7 @@ sys.path.insert(0, ROOT)
 def _wj():
     import importlib
     from scripts import wire_journal
+
     return importlib.reload(wire_journal)
 
 
@@ -70,12 +72,14 @@ def _mk(tmp_path, agent, **kw):
 
 # --------------------------------------------------------------------------- P1
 
+
 def test_p1_records_shard_by_agent(tmp_path):
     a = _mk(tmp_path, "alice")
     b = _mk(tmp_path, "bob")
     a.record(status=200, model="m")
     b.record(status=200, model="m")
-    a.flush(); b.flush()
+    a.flush()
+    b.flush()
 
     files = a.files()
     assert files, "nothing was written"
@@ -85,12 +89,13 @@ def test_p1_records_shard_by_agent(tmp_path):
         owners[p] = {r.get("agent") for r in rows}
 
     assert not any(len(v) > 1 for v in owners.values()), (
-        f"a single file holds records from more than one agent -- not sharded: {owners}")
-    assert len({frozenset(v) for v in owners.values()}) >= 2, (
-        f"both agents' records landed in the same shard: {owners}")
+        f"a single file holds records from more than one agent -- not sharded: {owners}"
+    )
+    assert len({frozenset(v) for v in owners.values()}) >= 2, f"both agents' records landed in the same shard: {owners}"
 
 
 # --------------------------------------------------------------------------- P2
+
 
 def test_p2_rotation_is_per_shard(tmp_path):
     """A runaway agent must not be able to delete another agent's history.
@@ -106,7 +111,7 @@ def test_p2_rotation_is_per_shard(tmp_path):
 
     old_files, old_bytes = WJ.MAX_FILES, WJ.MAX_BYTES
     try:
-        WJ.MAX_FILES, WJ.MAX_BYTES = 2, 200          # force the loud agent to roll and evict
+        WJ.MAX_FILES, WJ.MAX_BYTES = 2, 200  # force the loud agent to roll and evict
         loud = WJ.WireJournal(journal_dir=str(tmp_path), agent="loud")
         for _ in range(60):
             loud.record(status=200, model="m", error="x" * 200)
@@ -117,10 +122,12 @@ def test_p2_rotation_is_per_shard(tmp_path):
     still = [p for p in quiet.files() if "quiet" in p]
     assert still, (
         "the loud agent's rotation deleted the quiet agent's history -- rotation is still global, "
-        "so one runaway player can blind every other player")
+        "so one runaway player can blind every other player"
+    )
 
 
 # --------------------------------------------------------------------------- P3
+
 
 def test_p3_the_caller_no_longer_does_the_work(tmp_path):
     """Relative to the synchronous writer, measured in the same process on the same machine."""
@@ -150,17 +157,19 @@ def test_p3_the_caller_no_longer_does_the_work(tmp_path):
     sync_mean = bench("sync", "s")
     async_mean = bench("async", "a")
     assert async_mean * 5 < sync_mean, (
-        f"the enqueue is not buying the caller anything: async {async_mean*1e6:.1f}us vs sync "
-        f"{sync_mean*1e6:.1f}us. The convoy is the caller doing the write on the request thread; "
-        f"if this ratio collapses, the work moved back onto that thread.")
+        f"the enqueue is not buying the caller anything: async {async_mean * 1e6:.1f}us vs sync "
+        f"{sync_mean * 1e6:.1f}us. The convoy is the caller doing the write on the request thread; "
+        f"if this ratio collapses, the work moved back onto that thread."
+    )
 
 
 # --------------------------------------------------------------------------- P4
 
+
 def test_p4_backpressure_drops_and_counts(tmp_path):
     """Never block an API call. Never raise. But never drop SILENTLY either."""
     j = _mk(tmp_path, "flood", queue_size=4)
-    j.pause()                                   # hold the writer so the queue must fill
+    j.pause()  # hold the writer so the queue must fill
     try:
         t0 = time.perf_counter()
         for _ in range(400):
@@ -171,13 +180,16 @@ def test_p4_backpressure_drops_and_counts(tmp_path):
 
     assert elapsed < 2.0, (
         f"record() blocked for {elapsed:.2f}s against a full queue -- backpressure is reaching "
-        f"the caller, which is the API thread")
+        f"the caller, which is the API thread"
+    )
     assert j.dropped > 0, (
         "the queue was capped at 4 and 400 records were pushed against a paused writer, yet "
-        "nothing was counted as dropped -- a silent drop renders as a measured zero")
+        "nothing was counted as dropped -- a silent drop renders as a measured zero"
+    )
 
 
 # --------------------------------------------------------------------------- P5
+
 
 def test_p5_nothing_is_lost_in_normal_operation(tmp_path):
     j = _mk(tmp_path, "seat")
@@ -193,6 +205,7 @@ def test_p5_nothing_is_lost_in_normal_operation(tmp_path):
 
 # --------------------------------------------------------------------------- P6
 
+
 def test_p6_the_seam_restores_the_shipped_behaviour(tmp_path, monkeypatch):
     """One env var, no revert. The operator's standing requirement for risky work."""
     monkeypatch.setenv("AKASHIC_WIRE_WRITER", "sync")
@@ -203,8 +216,8 @@ def test_p6_the_seam_restores_the_shipped_behaviour(tmp_path, monkeypatch):
     j.record(status=200, model="m", response_id="r1")
     # synchronous means it is on disk the instant record() returns, with no flush
     assert any(r.get("response_id") == "r1" for r in j.read_all()), (
-        "the sync writer did not write through -- the seam does not actually restore the "
-        "shipped behaviour")
+        "the sync writer did not write through -- the seam does not actually restore the shipped behaviour"
+    )
 
     monkeypatch.setenv("AKASHIC_WIRE_WRITER", "async")
     WJ2 = _wj()
@@ -213,42 +226,44 @@ def test_p6_the_seam_restores_the_shipped_behaviour(tmp_path, monkeypatch):
 
 # --------------------------------------------------------------------------- P7
 
+
 def test_p7_legacy_journals_stay_readable(tmp_path):
     """Files written by the pre-T157 flat writer must not vanish on upgrade."""
     day = time.strftime("%Y%m%d")
     legacy = tmp_path / f"wire-{day}-001.jsonl"
-    legacy.write_text(json.dumps({"ts": 1, "agent": "old", "status": 200}) + "\n",
-                      encoding="utf-8")
+    legacy.write_text(json.dumps({"ts": 1, "agent": "old", "status": 200}) + "\n", encoding="utf-8")
 
     j = _mk(tmp_path, "new")
     j.record(status=201, model="m")
     j.flush()
 
-    assert str(legacy) in [os.path.abspath(p) for p in j.files()], (
-        "files() no longer returns pre-T157 segments")
+    assert str(legacy) in [os.path.abspath(p) for p in j.files()], "files() no longer returns pre-T157 segments"
     agents = {r.get("agent") for r in j.read_all()}
-    assert "old" in agents and "new" in agents, (
-        f"legacy records became unreadable after the shard migration: {agents}")
+    assert "old" in agents and "new" in agents, f"legacy records became unreadable after the shard migration: {agents}"
 
 
 # --------------------------------------------------------------------------- P8
 
+
 def test_p8_agent_read_is_a_selection_and_still_verifies(tmp_path):
     """Sanitisation can collide; the in-record agent field is authoritative."""
-    a = _mk(tmp_path, "team/one")               # sanitises to something safe
-    b = _mk(tmp_path, "team:one")               # may sanitise to the SAME thing
+    a = _mk(tmp_path, "team/one")  # sanitises to something safe
+    b = _mk(tmp_path, "team:one")  # may sanitise to the SAME thing
     a.record(status=200, model="m", response_id="A")
     b.record(status=200, model="m", response_id="B")
-    a.flush(); b.flush()
+    a.flush()
+    b.flush()
 
     rows = a.read_all(agent="team/one")
     assert rows, "the scoped read returned nothing"
     assert {r.get("response_id") for r in rows} == {"A"}, (
         f"a scoped read leaked another agent's rows through a sanitisation collision: "
-        f"{[(r.get('agent'), r.get('response_id')) for r in rows]}")
+        f"{[(r.get('agent'), r.get('response_id')) for r in rows]}"
+    )
 
 
 # --------------------------------------------------------------------------- P9
+
 
 def test_p9_async_io_failure_is_counted_even_though_record_returned_true(tmp_path):
     """The coverage B1/B2 give up when they pin the sync writer, regained on the async side.
@@ -265,20 +280,23 @@ def test_p9_async_io_failure_is_counted_even_though_record_returned_true(tmp_pat
     assert j.dropped == 0
 
     j._journal_dir = "\x00::impossible::"
-    for sh in list(j._shards.values()):          # point the live shard at the impossible path
+    for sh in list(j._shards.values()):  # point the live shard at the impossible path
         sh.dir = os.path.join("\x00::impossible::", sh.name)
 
     accepted = j.record(status=200, model="m")
     j.flush()
     assert accepted is True, (
         "on the async path record() reports ACCEPTANCE, not durability -- if this ever returns "
-        "False the writer became synchronous again and the convoy is back")
+        "False the writer became synchronous again and the convoy is back"
+    )
     assert j.dropped >= 1, (
         "the write failed on the writer thread and nothing counted it -- a silent drop in a "
-        "forensic store is worse than a loud crash")
+        "forensic store is worse than a loud crash"
+    )
 
 
 # --------------------------------------------------------------------------- P10
+
 
 def test_p10_unbounded_agent_ids_cannot_spawn_unbounded_threads(tmp_path):
     """Raised as CRITICAL by the design fence, and it is the right thing to be scared of.
@@ -302,18 +320,20 @@ def test_p10_unbounded_agent_ids_cannot_spawn_unbounded_threads(tmp_path):
 
     assert len(j._shards) <= WJ.MAX_SHARDS + 1, (
         f"{len(j._shards)} shards for {WJ.MAX_SHARDS * 4} distinct agent ids -- the cap is not "
-        f"holding, and each shard costs a thread")
+        f"holding, and each shard costs a thread"
+    )
     grew = threading.active_count() - before
     assert grew <= WJ.MAX_SHARDS + 2, (
-        f"{grew} new threads from {WJ.MAX_SHARDS * 4} agent ids -- thread growth is unbounded "
-        f"in the telemetry path")
+        f"{grew} new threads from {WJ.MAX_SHARDS * 4} agent ids -- thread growth is unbounded in the telemetry path"
+    )
     assert WJ.OVERFLOW_SHARD in j._shards, "past the cap, records must land in the overflow shard"
 
 
 # --------------------------------------------------------------------------- P11
 
+
 def test_p11_drops_are_attributable_to_a_shard(tmp_path):
-    """"Some telemetry was lost" is not a finding. "player07 lost 412 records" is.
+    """ "Some telemetry was lost" is not a finding. "player07 lost 412 records" is.
 
     A player can flood its OWN queue to drop its OWN traffic -- the cheapest attack on a
     telemetry store. Per-agent sharding already stops it from dropping ANYONE ELSE's records;
@@ -332,11 +352,12 @@ def test_p11_drops_are_attributable_to_a_shard(tmp_path):
     drops = j.drops_by_shard()
     assert drops.get("flooder", 0) > 0, f"the flooder's losses were not attributed: {drops}"
     assert drops.get("quiet", 0) == 0, (
-        f"a flooding agent caused drops in another agent's shard -- the isolation claim is "
-        f"false: {drops}")
+        f"a flooding agent caused drops in another agent's shard -- the isolation claim is false: {drops}"
+    )
 
 
 # --------------------------------------------------------------------------- P12
+
 
 def test_p12_two_journals_on_one_shard_do_not_tear_the_file(tmp_path):
     """Found as a FLAKE: P8 passed alone and failed inside a suite, which is a race announcing
@@ -354,13 +375,15 @@ def test_p12_two_journals_on_one_shard_do_not_tear_the_file(tmp_path):
     a = WJ.WireJournal(journal_dir=str(tmp_path), agent="shared")
     b = WJ.WireJournal(journal_dir=str(tmp_path), agent="shared")
     assert a._shard_for("shared").lock is b._shard_for("shared").lock, (
-        "two journals on one shard hold different locks -- they can interleave mid-line")
+        "two journals on one shard hold different locks -- they can interleave mid-line"
+    )
 
     N = 300
     for i in range(N):
         a.record(status=200, model="m", response_id=f"a{i:04d}")
         b.record(status=200, model="m", response_id=f"b{i:04d}")
-    a.flush(); b.flush()
+    a.flush()
+    b.flush()
 
     raw = "".join(open(p, encoding="utf-8").read() for p in a.files())
     bad = [ln for ln in raw.splitlines() if ln.strip() and not _parses(ln)]

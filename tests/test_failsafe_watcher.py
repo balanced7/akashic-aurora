@@ -38,8 +38,13 @@ import failsafe_watcher as W  # noqa: E402
 from core.comm import failsafe as F  # noqa: E402
 
 NOW = 1_787_240_000.0
-LIVE = {"active": True, "declared_by": "claude#06528775", "what": "door arc pass 2",
-        "checkpoint_at": NOW - 60, "grace_s": 1800}
+LIVE = {
+    "active": True,
+    "declared_by": "claude#06528775",
+    "what": "door arc pass 2",
+    "checkpoint_at": NOW - 60,
+    "grace_s": 1800,
+}
 
 
 # ------------------------------------------------------------------ silence is the default

@@ -31,9 +31,11 @@ from collections import defaultdict, Counter
 # Root DERIVED, never hardcoded: this file previously pinned one machine's absolute
 # path, so a copy of the repo anywhere else resolved every path under it to nothing.
 from core.paths import repo_root as _repo_root  # noqa: E402
+
 BASE_DIR = _repo_root()
 SESSION_LOGS_DIR = BASE_DIR / "session_logs"
 SESSION_STATE_FILE = BASE_DIR / "blackboard_data" / "session_state.json"
+
 
 class SessionRecovery:
     """
@@ -71,12 +73,12 @@ class SessionRecovery:
                 continue
 
             try:
-                with open(filepath, 'r') as f:
+                with open(filepath, "r") as f:
                     lines = f.readlines()
                     for line in lines:
                         try:
                             entry = json.loads(line)
-                            session_id = entry.get('session', 'unknown')
+                            session_id = entry.get("session", "unknown")
                             self.sessions[session_id].append(entry)
                         except json.JSONDecodeError:
                             continue
@@ -101,7 +103,7 @@ class SessionRecovery:
         summary_files = list(self.logs_dir.glob("SESSION_SUMMARY_*.md"))
         for filepath in summary_files:
             try:
-                with open(filepath, 'r') as f:
+                with open(filepath, "r") as f:
                     content = f.read()
                     session_name = filepath.stem.replace("SESSION_SUMMARY_", "")
                     self.summaries[session_name] = content[:500] + "..."
@@ -125,7 +127,7 @@ class SessionRecovery:
             return {}
 
         try:
-            with open(SESSION_STATE_FILE, 'r') as f:
+            with open(SESSION_STATE_FILE, "r") as f:
                 return json.load(f)
         except (OSError, json.JSONDecodeError):
             return {}
@@ -154,9 +156,9 @@ class SessionRecovery:
                 # Find latest timestamp
                 latest_time = None
                 for entry in reversed(entries):
-                    if 'timestamp' in entry:
+                    if "timestamp" in entry:
                         try:
-                            latest_time = datetime.fromisoformat(entry['timestamp'])
+                            latest_time = datetime.fromisoformat(entry["timestamp"])
                             break
                         except (ValueError, TypeError):
                             pass
@@ -197,38 +199,40 @@ class SessionRecovery:
             "topics": Counter(),
             "first_timestamp": None,
             "last_timestamp": None,
-            "messages": []
+            "messages": [],
         }
 
         for entry in entries:
-            entry_type = entry.get('type', 'unknown')
+            entry_type = entry.get("type", "unknown")
 
-            if entry_type == 'chat':
-                summary['message_count'] += 1
-                role = entry.get('role', 'unknown')
-                summary['participants'].add(role)
-                msg = entry.get('message', '')
-                summary['messages'].append({
-                    'role': role,
-                    'content': msg[:100] + "..." if len(msg) > 100 else msg,
-                    'timestamp': entry.get('timestamp')
-                })
-            elif entry_type == 'action':
-                summary['action_count'] += 1
-                action = entry.get('action', 'unknown')
-                summary['topics'][action] += 1
-            elif entry_type == 'error':
-                summary['error_count'] += 1
+            if entry_type == "chat":
+                summary["message_count"] += 1
+                role = entry.get("role", "unknown")
+                summary["participants"].add(role)
+                msg = entry.get("message", "")
+                summary["messages"].append(
+                    {
+                        "role": role,
+                        "content": msg[:100] + "..." if len(msg) > 100 else msg,
+                        "timestamp": entry.get("timestamp"),
+                    }
+                )
+            elif entry_type == "action":
+                summary["action_count"] += 1
+                action = entry.get("action", "unknown")
+                summary["topics"][action] += 1
+            elif entry_type == "error":
+                summary["error_count"] += 1
 
             # Track timestamps
-            if 'timestamp' in entry:
-                ts = entry['timestamp']
-                if not summary['first_timestamp']:
-                    summary['first_timestamp'] = ts
-                summary['last_timestamp'] = ts
+            if "timestamp" in entry:
+                ts = entry["timestamp"]
+                if not summary["first_timestamp"]:
+                    summary["first_timestamp"] = ts
+                summary["last_timestamp"] = ts
 
-        summary['participants'] = list(summary['participants'])
-        summary['topics'] = dict(summary['topics'].most_common(5))
+        summary["participants"] = list(summary["participants"])
+        summary["topics"] = dict(summary["topics"].most_common(5))
 
         return summary
 
@@ -279,13 +283,13 @@ class SessionRecovery:
             print(f"  Participants: {', '.join(summary['participants'])}")
             print(f"  Duration: {summary['first_timestamp']} to {summary['last_timestamp']}")
 
-            if summary['topics']:
+            if summary["topics"]:
                 print(f"  Top Topics/Actions:")
-                for topic, count in summary['topics'].items():
+                for topic, count in summary["topics"].items():
                     print(f"    - {topic} ({count}x)")
 
             print(f"\n  Recent Messages:")
-            for msg in summary['messages'][-3:]:
+            for msg in summary["messages"][-3:]:
                 role_str = f"[{msg['role'].upper()}]"
                 print(f"    {role_str} {msg['content']}")
 
@@ -303,7 +307,7 @@ class SessionRecovery:
         print("  1. Session history is SAFE - all data in local files")
         print("  2. File-based logging is ACTIVE")
         print("  3. To enable Redis, start Docker and run:")
-        print("     cd E:\\AI-Setup\\dockerized-ai\\redis")
+        print(f"     cd {BASE_DIR / 'dockerized-ai' / 'redis'}")
         print("     docker compose -f docker-compose-ha.yml up -d")
 
         print("\n" + "=" * 70)
@@ -321,5 +325,6 @@ def main():
 
     return recovery
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     recovery = main()

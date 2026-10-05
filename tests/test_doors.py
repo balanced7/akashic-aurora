@@ -1,6 +1,7 @@
 """DOORS.md v0 pins (master-map M2): the CLI door reference is grounded in the real parser,
 truthful about inputs, and deterministic. Run: py -m pytest tests/test_doors.py -q
 """
+
 from scripts.generators.gen_doors import cli_verbs, render
 
 
@@ -16,6 +17,6 @@ def test_known_verbs_present_with_inputs():
 
 def test_render_is_deterministic_and_stamped():
     one = render(cli_verbs())
-    assert one == render(cli_verbs())          # same parser -> same doors
-    assert "Status: current" in one            # doc-currency law
-    assert "CLI door" in one and "KNOWN GAP" in one   # honest about what v0 does not cover
+    assert one == render(cli_verbs())  # same parser -> same doors
+    assert "Status: current" in one  # doc-currency law
+    assert "CLI door" in one and "KNOWN GAP" in one  # honest about what v0 does not cover

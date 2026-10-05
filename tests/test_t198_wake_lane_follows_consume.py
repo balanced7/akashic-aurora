@@ -13,6 +13,7 @@ An outside reviewer cannot see your working tree, which is precisely why they ca
 class -- every probe run from inside was clean.
 Run: py -m pytest tests/test_t198_wake_lane_follows_consume.py -q
 """
+
 import pytest
 
 from core.comm import bifrost_api as API
@@ -32,7 +33,8 @@ def test_the_wake_lane_follows_the_consume_lane_when_unset(monkeypatch):
     monkeypatch.setenv("BIFROST_CONSUME_LANE", "work")
     assert API.wake_lane() == "work", (
         "a seat that consumes the work lane must be WOKEN by the work lane, or detection "
-        "and draining are about different mail")
+        "and draining are about different mail"
+    )
 
 
 def test_neither_set_is_legacy_shaped_not_a_crash(monkeypatch):
@@ -45,4 +47,5 @@ def test_whitespace_and_case_do_not_silently_disable_the_lane(monkeypatch):
     monkeypatch.delenv("BIFROST_WAKE_LANE", raising=False)
     monkeypatch.setenv("BIFROST_CONSUME_LANE", " work ")
     assert API.wake_lane() == "work", (
-        "a stray space in an env var must not silently route the watcher at the wrong lane")
+        "a stray space in an env var must not silently route the watcher at the wrong lane"
+    )

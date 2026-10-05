@@ -8,6 +8,7 @@ a PINNED request (we passed --model, so we know) from an UNPINNED default (the C
 and naming a guess would be the confabulated-receipt class). Never render a guess as a fact.
 Run: py -m pytest tests/test_seat_model.py -q
 """
+
 import pytest
 
 from core.fleet import seat_model as SM
@@ -25,8 +26,7 @@ def test_unpinned_passes_no_model_flag_and_says_so(store):
     assert st["pinned"] is False
     assert SM.model_flag() == [], "an unpinned seat must inherit the CLI default, not a guess"
     assert "default" in st["label"].lower()
-    assert "claude-" not in st["label"], \
-        "naming a specific model while unpinned would render a guess as a fact"
+    assert "claude-" not in st["label"], "naming a specific model while unpinned would render a guess as a fact"
 
 
 def test_pin_by_alias_resolves_to_a_real_model_id(store):
@@ -101,6 +101,7 @@ def test_render_lists_the_choices_when_asked(store):
 
 class FakeRedis:
     """Enough Redis for the report plane: set/get/scan_iter with a TTL we ignore."""
+
     def __init__(self):
         self.kv = {}
 
@@ -112,6 +113,7 @@ class FakeRedis:
 
     def scan_iter(self, match=None):
         import fnmatch
+
         return [k for k in self.kv if match is None or fnmatch.fnmatch(k, match)]
 
 
@@ -121,8 +123,7 @@ def test_report_and_running_round_trip(store):
     self-report plane could be — and briefly was — dead code that never wrote anything
     while every other pin stayed green (the fail_open_plus_monkeypatched_pins lesson)."""
     c = FakeRedis()
-    assert SM.report("claude", "b70dad06", "claude-fable-5",
-                     harness="claude-code interactive", c=c) is True
+    assert SM.report("claude", "b70dad06", "claude-fable-5", harness="claude-code interactive", c=c) is True
     rows = SM.running("claude", c=c)
     assert len(rows) == 1
     assert rows[0]["model"] == "claude-fable-5"

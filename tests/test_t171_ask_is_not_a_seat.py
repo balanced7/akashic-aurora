@@ -22,6 +22,7 @@ addressed ASYNCHRONOUSLY and survive without the caller. A synchronous ask needs
 
 Run: py -m pytest tests/test_t171_ask_is_not_a_seat.py -q
 """
+
 import ast
 import os
 import sys
@@ -34,14 +35,13 @@ from core.comm import ask as A  # noqa: E402
 
 class _Resp:
     def __init__(self, text, finish="stop", pt=100, ct=50):
-        self.choices = [type("C", (), {
-            "message": type("M", (), {"content": text})(),
-            "finish_reason": finish})()]
+        self.choices = [type("C", (), {"message": type("M", (), {"content": text})(), "finish_reason": finish})()]
         self.usage = type("U", (), {"prompt_tokens": pt, "completion_tokens": ct})()
 
 
 class _Client:
     """Minimal OpenAI-compatible stand-in."""
+
     def __init__(self, resp=None, exc=None):
         self._resp, self._exc = resp, exc
         outer = self
@@ -89,7 +89,7 @@ def test_k5_no_key_is_a_configuration_failure_that_says_so(monkeypatch):
     # needed a sys.path.insert, which was a real boundary violation). Key resolution is now
     # core-local, so _load_key is what a keyless door patches. K5's claim is unchanged.
     monkeypatch.setattr(A, "_load_key", lambda: None)
-    o = A.ask("hello")            # no client -> takes the real construction path
+    o = A.ask("hello")  # no client -> takes the real construction path
     assert o.ok is False
     assert "key" in o.why.lower()
 
@@ -105,10 +105,13 @@ def _stateless_only(tree):
     only the stateless code. Module-level statements are KEPT: a top-level seat import would
     still be a violation no matter which function it was for."""
     return ast.Module(
-        body=[n for n in tree.body
-              if not (isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))
-                      and n.name in _DURABLE_FUNCS)],
-        type_ignores=[])
+        body=[
+            n
+            for n in tree.body
+            if not (isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)) and n.name in _DURABLE_FUNCS)
+        ],
+        type_ignores=[],
+    )
 
 
 def test_k6_ask_touches_no_seat_machinery():
@@ -140,8 +143,18 @@ def test_k6_ask_touches_no_seat_machinery():
     tree = ast.parse(open(os.path.join(ROOT, "core", "comm", "ask.py"), encoding="utf-8").read())
     tree = _stateless_only(tree)
 
-    forbidden = {"runner_lock", "seed_cursor", "roster", "mailbox", "worklive",
-                 "acquire", "bifrost_send", "heartbeat", "role_queue", "expectations"}
+    forbidden = {
+        "runner_lock",
+        "seed_cursor",
+        "roster",
+        "mailbox",
+        "worklive",
+        "acquire",
+        "bifrost_send",
+        "heartbeat",
+        "role_queue",
+        "expectations",
+    }
 
     referenced = set()
     for node in ast.walk(tree):
@@ -160,7 +173,8 @@ def test_k6_ask_touches_no_seat_machinery():
     hits = sorted(forbidden & referenced)
     assert not hits, (
         f"ask.py references seat machinery {hits} as CODE -- it is becoming a seat, which is the "
-        f"one thing this design exists to avoid")
+        f"one thing this design exists to avoid"
+    )
 
 
 def test_k7_spend_is_reported_and_an_unpriced_model_says_none():
@@ -169,4 +183,5 @@ def test_k7_spend_is_reported_and_an_unpriced_model_says_none():
     u = A.ask("hi", model="model-that-has-no-rate", client=_Client(_Resp("yo")))
     assert u.detail["usd"] is None, (
         "an unpriced model must report None, never borrow another vendor's rate -- the designed "
-        "state runner_token_journal's own comment insists on")
+        "state runner_token_journal's own comment insists on"
+    )

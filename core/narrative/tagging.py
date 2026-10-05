@@ -14,21 +14,22 @@ This makes successive cleanup runs structurally non-destructive (invariants I3 a
 I4 reversible): the worst a bad re-tag can do is sit in the history and lose the current()
 ranking. G1 adds the confidence-gated write path on top of this.
 """
+
 import math
 from dataclasses import dataclass, field, asdict
 from typing import Any, Dict, List, Optional
 
 # Router basis (and other sources) -> a confidence in [0,1]. Higher = more trustworthy.
 BASIS_CONFIDENCE = {
-    "human": 1.0,       # an explicit human/agent confirmation -- the strongest
-    "path": 0.95,       # a commit's touched files -- unambiguous
-    "strong": 0.85,     # a strong domain keyword
+    "human": 1.0,  # an explicit human/agent confirmation -- the strongest
+    "path": 0.95,  # a commit's touched files -- unambiguous
+    "strong": 0.85,  # a strong domain keyword
     "embedding": 0.75,  # Tier-1 embedding nearest-track (Slice 6)
-    "category": 0.6,    # a learning/decision category
-    "generic": 0.4,     # a weak topic keyword
-    "persist": 0.3,     # inherited active track (no signal)
-    "rollback": 0.3,    # re-asserted prior value (recency wins the tie, not confidence)
-    "unknown": 0.1,     # no signal at all
+    "category": 0.6,  # a learning/decision category
+    "generic": 0.4,  # a weak topic keyword
+    "persist": 0.3,  # inherited active track (no signal)
+    "rollback": 0.3,  # re-asserted prior value (recency wins the tie, not confidence)
+    "unknown": 0.1,  # no signal at all
 }
 
 
@@ -55,11 +56,11 @@ def _as_unit_confidence(c: Any) -> Optional[float]:
 
 @dataclass
 class TagEntry:
-    value: str                 # the tag (a track id, or later a theme)
-    confidence: float          # [0,1]
-    source: str = ""           # path|strong|embedding|category|generic|persist|human|rollback|unknown
-    at: str = ""               # iso timestamp (iso8601 sorts lexically = chronologically)
-    confirmed: bool = False    # a human/agent pin -- auto-processes must never override
+    value: str  # the tag (a track id, or later a theme)
+    confidence: float  # [0,1]
+    source: str = ""  # path|strong|embedding|category|generic|persist|human|rollback|unknown
+    at: str = ""  # iso timestamp (iso8601 sorts lexically = chronologically)
+    confirmed: bool = False  # a human/agent pin -- auto-processes must never override
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -80,17 +81,31 @@ class TagHistory:
         self.entries.append(entry)
         return entry
 
-    def add(self, value: str, *, source: str = "unknown", at: str = "",
-            confidence: Optional[float] = None, confirmed: bool = False) -> TagEntry:
+    def add(
+        self,
+        value: str,
+        *,
+        source: str = "unknown",
+        at: str = "",
+        confidence: Optional[float] = None,
+        confirmed: bool = False,
+    ) -> TagEntry:
         if confirmed:
             conf = 1.0
         else:
             raw = confidence if confidence is not None else confidence_for(source)
             conf = _as_unit_confidence(raw)
-            if conf is None:            # caller passed inf/nan -> untrusted; use the basis default
+            if conf is None:  # caller passed inf/nan -> untrusted; use the basis default
                 conf = confidence_for(source)
-        return self.append(TagEntry(value=value, confidence=float(conf),
-                                    source=("human" if confirmed else source), at=at, confirmed=confirmed))
+        return self.append(
+            TagEntry(
+                value=value,
+                confidence=float(conf),
+                source=("human" if confirmed else source),
+                at=at,
+                confirmed=confirmed,
+            )
+        )
 
     def rollback_to(self, value: str, *, at: str) -> Optional[TagEntry]:
         """Re-assert a PRIOR value so it becomes current again -- by APPENDING (the older
@@ -101,8 +116,7 @@ class TagHistory:
         prior = [e for e in self.entries if e.value == value]
         if not prior:
             return None
-        return self.append(TagEntry(value=value, confidence=1.0,
-                                    source="rollback", at=at, confirmed=True))
+        return self.append(TagEntry(value=value, confidence=1.0, source="rollback", at=at, confirmed=True))
 
     # --- reads (derived) ---
     def current(self) -> Optional[TagEntry]:
@@ -132,10 +146,10 @@ class TagHistory:
             try:
                 e = d if isinstance(d, TagEntry) else TagEntry(**d)
             except (TypeError, ValueError):
-                continue                 # robustness: a structurally corrupt entry is skipped
+                continue  # robustness: a structurally corrupt entry is skipped
             clean = _as_unit_confidence(e.confidence)
             if clean is None:
-                continue                 # D3: drop a non-finite/non-numeric confidence (no vote)
-            e.confidence = clean         # persist the clamp so [0,1] holds downstream
+                continue  # D3: drop a non-finite/non-numeric confidence (no vote)
+            e.confidence = clean  # persist the clamp so [0,1] holds downstream
             out.append(e)
         return cls(out)

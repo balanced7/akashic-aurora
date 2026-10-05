@@ -30,6 +30,7 @@ document rather than deciding anything clever.
   C5  an unknown id refuses loudly rather than silently doing nothing
   C6  a duplicated id refuses, because the ledger's id space has COLLIDED (W00, W57..W69)
 """
+
 import os
 import sys
 
@@ -70,8 +71,7 @@ def _apply(doc, wid, action, **kw):
 
 # ------------------------------------------------------------------ C1 decline
 def test_c1_decline_moves_to_declined_with_its_reason():
-    out, msg = _apply(DOC, "W05", "decline", reason="superseded by the atlas rebuild",
-                      seat="claude", today="09-23")
+    out, msg = _apply(DOC, "W05", "decline", reason="superseded by the atlas rebuild", seat="claude", today="09-23")
     assert "- [ ] W05" not in out, "C1: it must leave Open"
     assert "[~] W05" in out, "C1: it must land marked declined"
     assert "superseded by the atlas rebuild" in out, "C1: the reason is the whole point"
@@ -83,14 +83,12 @@ def test_c1_decline_moves_to_declined_with_its_reason():
 
 def test_c4_decline_preserves_the_original_text_verbatim():
     out, _ = _apply(DOC, "W05", "decline", reason="r", seat="claude", today="09-23")
-    assert "re-derive triggers when source docs retract" in out, \
-        "C4: never delete -- declined wishes teach too"
+    assert "re-derive triggers when source docs retract" in out, "C4: never delete -- declined wishes teach too"
 
 
 def test_c4_multiline_wishes_survive_intact():
     out, _ = _apply(DOC, "W159", "decline", reason="r", seat="claude", today="09-23")
-    assert "Second line of the same wish." in out, \
-        "C4: a wish is a BLOCK, not a line; a curator must not truncate it"
+    assert "Second line of the same wish." in out, "C4: a wish is a BLOCK, not a line; a curator must not truncate it"
 
 
 # ------------------------------------------------------------------ C2 fold
@@ -108,8 +106,7 @@ def test_c2_fold_without_a_task_refuses():
 
 # ------------------------------------------------------------------ C3 keep
 def test_c3_keep_stays_open_but_stops_being_silent():
-    out, msg = _apply(DOC, "W05", "keep", reason="still wanted, waiting on the eye slice",
-                      seat="claude", today="09-23")
+    out, msg = _apply(DOC, "W05", "keep", reason="still wanted, waiting on the eye slice", seat="claude", today="09-23")
     assert "- [ ] W05" in out, "C3: keep means KEEP -- it stays open"
     assert "still wanted, waiting on the eye slice" in out
     assert "09-23" in out, "C3: a dated why-still is what makes 'open' a decision"

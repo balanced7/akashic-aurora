@@ -15,6 +15,7 @@ After this slice: 0 stranded citations, 8 accepted-with-reasons.
 
 These pins hold the properties that make recovery trustworthy rather than merely present.
 """
+
 import json
 import os
 import subprocess
@@ -28,9 +29,9 @@ sys.path.insert(0, str(ROOT))
 
 from core.git import rewrite_map as rm  # noqa: E402
 
-A = "a" * 40          # original
-B = "b" * 40          # after rewrite one
-C = "c" * 40          # after rewrite two -- the live commit
+A = "a" * 40  # original
+B = "b" * 40  # after rewrite one
+C = "c" * 40  # after rewrite two -- the live commit
 D = "d" * 40
 
 
@@ -65,8 +66,8 @@ def test_it_prefers_a_live_endpoint_over_a_dead_end(tmp_path):
     that no longer exists in the repository at all -- while a third map held the live
     continuation. A resolver must SEARCH and prefer a chain that ends somewhere fetchable."""
     maps = [
-        _map(tmp_path, "dead", [(A, D)]),      # offered first, and D is gone
-        _map(tmp_path, "live", [(A, C)]),      # the answer
+        _map(tmp_path, "dead", [(A, D)]),  # offered first, and D is gone
+        _map(tmp_path, "live", [(A, C)]),  # the answer
     ]
     res = rm.Resolver(maps=maps, remote={C}).resolve(A)
     assert res.sha == C, f"took the dead branch: {res}"
@@ -129,7 +130,7 @@ def test_a_chain_we_cannot_verify_is_not_reported_as_translated(tmp_path):
     absence-reads-as-success defect this module's own docstring lectures about, committed
     inside it."""
     m = _map(tmp_path, "one", [(A, B)])
-    res = rm.Resolver(maps=[m], repo=tmp_path).resolve(A)   # not a repo: the probe fails
+    res = rm.Resolver(maps=[m], repo=tmp_path).resolve(A)  # not a repo: the probe fails
     assert res.status == rm.UNVERIFIED, res
     assert res.ok is False, "an unverified endpoint must never read as ok"
     assert res.sha == B, "the candidate is still worth reporting -- just not as a success"
@@ -140,7 +141,7 @@ def test_an_empty_remote_set_is_not_a_failed_probe(tmp_path):
     which is a MEASUREMENT; a probe that could not run is an ABSENCE of one. Only the second
     may produce UNVERIFIED."""
     m = _map(tmp_path, "one", [(A, B)])
-    res = rm.Resolver(maps=[m], remote=set()).resolve(A)    # checked; nothing is pushed
+    res = rm.Resolver(maps=[m], remote=set()).resolve(A)  # checked; nothing is pushed
     assert res.status == rm.TRANSLATED, res
     assert "no clone can fetch" in res.note, res.note
 
@@ -153,9 +154,6 @@ def test_a_failed_probe_is_not_cached_as_empty(tmp_path):
     assert r.remote_set() is None
     assert r._remote is None, "a failure was cached, so no retry can ever happen"
     assert r._probe_failures == 1, "failures must be counted, or the retry is unbounded"
-
-
-
 
 
 def test_an_inferred_hop_never_reads_as_a_record(tmp_path):
@@ -190,8 +188,8 @@ def test_an_archived_map_is_preferred_and_not_duplicated(tmp_path):
 # ------------------------------------------------- reconstruction must be corroborated
 def _rr():
     import importlib.util
-    spec = importlib.util.spec_from_file_location(
-        "_rr", str(Path(ROOT, "scripts", "rewrite_recover.py")))
+
+    spec = importlib.util.spec_from_file_location("_rr", str(Path(ROOT, "scripts", "rewrite_recover.py")))
     m = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(m)
     return m
@@ -205,7 +203,7 @@ def test_a_name_only_match_is_not_corroborated():
     # (tree, author-date, author-email, subject, oid)
     o = ("t1", "100", "a@x", "same subject", "o1")
     n = ("t2", "100", "b@x", "same subject", "n1")
-    parents = {"o1": ("po",), "n1": ("pn",)}          # parents correspond to nothing
+    parents = {"o1": ("po",), "n1": ("pn",)}  # parents correspond to nothing
     assert rr.corroborate(o, n, parents, {}) == set(), "a bare name match claimed support"
 
 
@@ -243,7 +241,7 @@ def test_a_differing_parent_count_corroborates_nothing():
     o = ("t1", "100", "a@x", "s", "o1")
     n = ("t1", "100", "a@x", "s", "n1")
     sig = rr.corroborate(o, n, {"o1": ("p1", "p2"), "n1": ("p1",)}, {})
-    assert sig == {"tree"}, sig            # the tree still agrees; the parents must not
+    assert sig == {"tree"}, sig  # the tree still agrees; the parents must not
 
 
 def test_every_committed_inferred_row_is_corroborated():
@@ -252,6 +250,7 @@ def test_every_committed_inferred_row_is_corroborated():
     one-row cited-gap map WAS name-only until the parent lookup learned to see commits that sit
     on no branch, which is the case a git gc deletes."""
     import json
+
     rr = _rr()
     for d in sorted((ROOT / "state" / "rewrites").iterdir()):
         if not d.is_dir():
@@ -265,27 +264,30 @@ def test_every_committed_inferred_row_is_corroborated():
         info = rr.commit_rows(ROOT, "--all")
         want = [s for pair in pairs for s in pair if s not in info]
         for i in range(0, len(want), 200):
-            info.update(rr.commit_rows(ROOT, "--no-walk", *want[i:i + 200]))
+            info.update(rr.commit_rows(ROOT, "--no-walk", *want[i : i + 200]))
         parents = rr.parents_for(ROOT, [s for pair in pairs for s in pair])
         keys = {k: (v[1], v[3]) for k, v in info.items()}
         pwant = [q for ps in parents.values() for q in ps if q not in keys]
         for i in range(0, len(pwant), 200):
-            for k, v in rr.commit_rows(ROOT, "--no-walk", *pwant[i:i + 200]).items():
+            for k, v in rr.commit_rows(ROOT, "--no-walk", *pwant[i : i + 200]).items():
                 keys[k] = (v[1], v[3])
         bad = []
         for a, b in pairs:
             if a not in info or b not in info:
-                continue                       # an unreadable side cannot be judged here
-            if not rr.corroborate(info[a], info[b], parents, dict(pairs),
-                                  key_of=lambda sha: keys.get(sha)):
+                continue  # an unreadable side cannot be judged here
+            if not rr.corroborate(info[a], info[b], parents, dict(pairs), key_of=lambda sha: keys.get(sha)):
                 bad.append(a[:12])
         assert not bad, f"{d.name} holds name-only rows: {bad}"
 
 
 # ----------------------------------------------------------- the durability property itself
 def _git(*a):
-    return subprocess.run(["git", "-C", str(ROOT), *a], capture_output=True, text=True,
-                          encoding="utf-8", errors="replace").stdout or ""
+    return (
+        subprocess.run(
+            ["git", "-C", str(ROOT), *a], capture_output=True, text=True, encoding="utf-8", errors="replace"
+        ).stdout
+        or ""
+    )
 
 
 def test_the_maps_are_actually_IN_git():
@@ -294,8 +296,7 @@ def test_the_maps_are_actually_IN_git():
     negation -- and a resolver whose maps are untracked is theatre. Same argument as the
     state/drills negation, one plane over."""
     tracked = set(_git("ls-files", "state/rewrites/").split())
-    on_disk = {p.relative_to(ROOT).as_posix()
-               for p in (ROOT / "state" / "rewrites").rglob("*") if p.is_file()}
+    on_disk = {p.relative_to(ROOT).as_posix() for p in (ROOT / "state" / "rewrites").rglob("*") if p.is_file()}
     assert on_disk, "no maps on disk at all"
     missing = sorted(on_disk - tracked)
     assert not missing, f"rewrite artifacts exist but git cannot see them: {missing}"
@@ -324,8 +325,9 @@ def test_every_accepted_waiver_states_a_reason():
     for sha, why in json.loads(p.read_text(encoding="utf-8"))["unresolvable"].items():
         assert len(sha) == 40, f"{sha} is not a full oid"
         assert isinstance(why, str) and len(why.strip()) > 30, f"{sha[:12]} has no real reason"
-        assert _git("cat-file", "-t", sha).strip() == "commit", \
+        assert _git("cat-file", "-t", sha).strip() == "commit", (
             f"{sha[:12]} does not name a commit in this repo -- a guessed hash waives nothing"
+        )
 
 
 def test_a_bad_waiver_key_is_caught_at_the_GATE_not_only_here(tmp_path):
@@ -336,11 +338,13 @@ def test_a_bad_waiver_key_is_caught_at_the_GATE_not_only_here(tmp_path):
     import json
     import scripts.checkers.check_rewrite_maps as chk
 
-    bad = {"unresolvable": {
-        "b18ff3870b71": "a 12-char prefix -- the shape that actually slipped through",
-        "z" * 40: "forty characters, but not hex",
-        "0" * 40: "well-formed and names no commit in this repo",
-    }}
+    bad = {
+        "unresolvable": {
+            "b18ff3870b71": "a 12-char prefix -- the shape that actually slipped through",
+            "z" * 40: "forty characters, but not hex",
+            "0" * 40: "well-formed and names no commit in this repo",
+        }
+    }
     path = tmp_path / "accepted_unresolvable.json"
     path.write_text(json.dumps(bad), encoding="utf-8")
     orig = chk.ACCEPTED
@@ -364,7 +368,10 @@ def test_unpushed_work_is_not_confused_with_lost_history():
     assert local, "no local commits at all -- the helper cannot be exercised here"
     backup = _git("rev-parse", "--verify", "-q", "refs/heads/pre-rewrite-backup").strip()
     if backup:
-        assert backup not in local,             "pre-rewrite-backup's tip counts as unpushed work, so rewrite orphans would be "             "silently reclassified and the gate would stop reporting them"
+        assert backup not in local, (
+            "pre-rewrite-backup's tip counts as unpushed work, so rewrite orphans would be "
+            "silently reclassified and the gate would stop reporting them"
+        )
     head = _git("rev-parse", "HEAD").strip()
     assert head in local, "HEAD is not reachable from a local branch -- the helper is broken"
 
@@ -386,4 +393,5 @@ def test_the_verb_exists_on_all_three_doors():
 
 if __name__ == "__main__":
     import pytest
+
     raise SystemExit(pytest.main([__file__, "-q"]))

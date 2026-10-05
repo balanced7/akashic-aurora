@@ -13,6 +13,7 @@ The three properties enforced:
   R3 — robust (at-least-once): a message carries a STABLE id (dedupe address), a failed
        post does NOT advance anything, and the envelope is HMAC-signed + replay-windowed.
 """
+
 from __future__ import annotations
 
 import base64
@@ -120,7 +121,8 @@ def test_message_carries_a_stable_id():
 def test_idless_message_gets_content_derived_address():
     """A message with no id still gets a STABLE (content-derived) address — never randomized,
     else redelivery could not be deduped."""
-    m = _msg(); del m["id"]
+    m = _msg()
+    del m["id"]
     a = json.loads(base64.b64decode(RR.build_envelope(m, SECRET)["body"]))
     b = json.loads(base64.b64decode(RR.build_envelope(m, SECRET)["body"]))
     assert a["id"].startswith("h:") and a["id"] == b["id"]
@@ -129,8 +131,7 @@ def test_idless_message_gets_content_derived_address():
 def test_failed_push_does_not_pretend_success():
     """T149 law carried over: a network failure returns a failed BoundaryOutcome naming the
     exception — it does NOT silently drop and does NOT claim done."""
-    out = RR.push(_msg(kind="chat"), secret=SECRET, url="https://peer/xfer",
-                  post=FakePost(fail=True))
+    out = RR.push(_msg(kind="chat"), secret=SECRET, url="https://peer/xfer", post=FakePost(fail=True))
     assert not out.ok
     assert "network failure" in out.why
 
@@ -139,9 +140,9 @@ def test_verify_rejects_stale_payload():
     """Replay protection: a payload older than the skew window fails verification even with
     the right HMAC."""
     import time as _t
+
     now = int(_t.time())
-    stale = {"v": 1, "id": "m-1", "frm": "claude", "kind": "chat",
-             "content": "x", "sent_at": now - 100000}
+    stale = {"v": 1, "id": "m-1", "frm": "claude", "kind": "chat", "content": "x", "sent_at": now - 100000}
     body = json.dumps(stale, sort_keys=True, separators=(",", ":")).encode("utf-8")
     body_b64 = base64.b64encode(body).decode("ascii")
     sig = RR.sign(body, SECRET)

@@ -30,6 +30,7 @@ violation. Do not add a seat, a model or a vendor here.
 Fail-open by construction: any error returns None and the commit proceeds. A credit line is
 not worth bricking a commit over.
 """
+
 from __future__ import annotations
 
 import re
@@ -47,8 +48,7 @@ _TRAILER_RE = re.compile(r"^\s*co-authored-by:\s*(.+)$", re.IGNORECASE | re.MULT
 def author_email(run=subprocess.run) -> str:
     """The effective author of the commit being written, lowercased ('' if unknowable)."""
     try:
-        out = run(["git", "var", "GIT_AUTHOR_IDENT"], capture_output=True, text=True,
-                  timeout=15)
+        out = run(["git", "var", "GIT_AUTHOR_IDENT"], capture_output=True, text=True, timeout=15)
         m = re.search(r"<([^>]+)>", out.stdout or "")
         return (m.group(1) if m else "").strip().lower()
     except Exception:
@@ -89,7 +89,7 @@ def ensure_operator_coauthor(msg_path, *, run=subprocess.run) -> str | None:
         if not joined.endswith("\n"):
             joined += "\n"
         if not joined.rstrip("\n").endswith(">"):
-            joined += "\n"          # a blank line before a trailer block
+            joined += "\n"  # a blank line before a trailer block
         joined += f"Co-authored-by: {OPERATOR}\n"
         p.write_text(joined + "".join(comments), encoding="utf-8")
         return "commit-msg: credited the operator as co-author (t384 keeps the seat as author)"

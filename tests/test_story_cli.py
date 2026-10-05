@@ -4,6 +4,7 @@ acceptance bar (right chapter/beat reachable in <=2 drills).
 
 Run: py tests/test_story_cli.py
 """
+
 import json
 import os
 import sys
@@ -15,8 +16,14 @@ from core.foundation.store import FileStore
 from core.narrative.beat_log import BeatLog, TIMELINE
 from core.narrative.chronicler import Chronicler
 from core.narrative.schema import (
-    Beat, Chapter, Track, Atlas, Edge,
-    beat_key, chapter_key, track_key,
+    Beat,
+    Chapter,
+    Track,
+    Atlas,
+    Edge,
+    beat_key,
+    chapter_key,
+    track_key,
     STORY_FORMAT_VERSION,
 )
 from core.primitives.ranker import Ranker
@@ -30,19 +37,18 @@ def _setup_story():
     s = FileStore(os.path.join(tempfile.mkdtemp(), "s.json"))
     cdir = tempfile.mkdtemp()
     c = Chronicler(
-        beat_log=BeatLog(s), store=s, chronicle_dir=cdir,
-        ranker=Ranker(), distiller=Distiller(max_chars_per_entry=170),
+        beat_log=BeatLog(s),
+        store=s,
+        chronicle_dir=cdir,
+        ranker=Ranker(),
+        distiller=Distiller(max_chars_per_entry=170),
     )
-    c.beat_log.emit("note", "first beat", "ledger:1",
-                    at="2026-06-27T10:00:00")
-    c.beat_log.emit("commit", "fix core bug", "git:a1",
-                    at="2026-06-27T10:30:00",
-                    hint=RouteHint(paths=["core/"]))
-    c.beat_log.emit("learning", "prior art RAPTOR", "learn:exp:1",
-                    at="2026-06-28T09:00:00",
-                    hint=RouteHint(category="research"))
-    c.beat_log.emit("decision", "use Ranker+Distiller", "ledger:d1",
-                    at="2026-06-28T10:00:00", weight=5)
+    c.beat_log.emit("note", "first beat", "ledger:1", at="2026-06-27T10:00:00")
+    c.beat_log.emit("commit", "fix core bug", "git:a1", at="2026-06-27T10:30:00", hint=RouteHint(paths=["core/"]))
+    c.beat_log.emit(
+        "learning", "prior art RAPTOR", "learn:exp:1", at="2026-06-28T09:00:00", hint=RouteHint(category="research")
+    )
+    c.beat_log.emit("decision", "use Ranker+Distiller", "ledger:d1", at="2026-06-28T10:00:00", weight=5)
     c.chronicle_all(now="2026-06-28T12:00:00")
     return s, cdir
 
@@ -51,8 +57,10 @@ def _run_cli(args, store=None):
     """Simulate `py agent_cli.py story <args>` and return (stdout, returncode)."""
     import io
     from agent_cli import cmd_story
+
     class FakeArgs:
         pass
+
     fa = FakeArgs()
     fa.chronicle = "--chronicle" in args
     fa.session_end = "--session-end" in args
@@ -270,7 +278,7 @@ def test_story_bad_track():
 
 def test_story_drill_pointer():
     """Drill pointers resolve: chapter -> beat, beat -> chapter.
-    
+
     Acceptance bar: the right chapter/beat is reachable in <=2 drills.
     """
     s, cdir = _setup_story()

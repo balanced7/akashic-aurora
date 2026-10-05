@@ -4,6 +4,7 @@ An observation is evidence about one named subject at one instant.  It carries
 the boundary needed to keep a sample from masquerading as a total and records
 its effects so a reader can distinguish looking from acting.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -75,8 +76,7 @@ class Snapshot:
         for row in rows:
             if row.subject != self.subject:
                 raise ValueError(
-                    f"observation subject {row.subject!r} does not match snapshot "
-                    f"subject {self.subject!r}"
+                    f"observation subject {row.subject!r} does not match snapshot subject {self.subject!r}"
                 )
         object.__setattr__(self, "observations", rows)
         if not self.effects:

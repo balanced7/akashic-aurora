@@ -11,6 +11,7 @@ default-safe action line. Claim-inference is v2.
   P3  loud render: teaches mirror WITH explicit paths (the IR-4 form), never a sweep
   P4  clean tree stays silent
 """
+
 import os
 import sys
 
@@ -38,28 +39,34 @@ def test_p1_bucket_math():
 
 
 def test_p2_soft_render_safe_default(capsys):
-    status = {"ok": True, "dirty": 7, "ahead": 2, "branch": "master",
-              "summary": "", "lines": PORCELAIN}
+    status = {"ok": True, "dirty": 7, "ahead": 2, "branch": "master", "summary": "", "lines": PORCELAIN}
     assert agent_cli._warn_unmirrored(soft=True, status=status)
     out = capsys.readouterr().out
     assert "2 modified" in out and "5 untracked" in out
     assert "research 2" in out and "tests 2" in out
     assert "sibling" in out and "task list" in out, "the safe-default teaches claims"
-    assert 'run `py scripts/mirror.py "msg"`' not in out, \
+    assert 'run `py scripts/mirror.py "msg"`' not in out, (
         "the unqualified sweep imperative is DEAD (kimi Q4: the 80% is the verb)"
+    )
 
 
 def test_p3_loud_render_explicit_paths(capsys):
-    status = {"ok": True, "dirty": 7, "ahead": 0, "branch": "master",
-              "summary": "core/comm/toolbox.py", "lines": PORCELAIN}
+    status = {
+        "ok": True,
+        "dirty": 7,
+        "ahead": 0,
+        "branch": "master",
+        "summary": "core/comm/toolbox.py",
+        "lines": PORCELAIN,
+    }
     assert agent_cli._warn_unmirrored(soft=False, status=status)
     out = capsys.readouterr().out
-    assert "<explicit paths>" in out or "explicit" in out.lower(), \
+    assert "<explicit paths>" in out or "explicit" in out.lower(), (
         "loud form teaches the IR-4 explicit-paths mirror, never a sweep"
+    )
 
 
 def test_p4_clean_tree_silent(capsys):
-    status = {"ok": True, "dirty": 0, "ahead": 0, "branch": "master",
-              "summary": "", "lines": []}
+    status = {"ok": True, "dirty": 0, "ahead": 0, "branch": "master", "summary": "", "lines": []}
     assert not agent_cli._warn_unmirrored(soft=True, status=status)
     assert capsys.readouterr().out == ""

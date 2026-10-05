@@ -24,8 +24,9 @@ def _fresh_memory(d):
 def test_decisions():
     with tempfile.TemporaryDirectory() as d:
         mem = _fresh_memory(d)
-        dec_id = mem.decide(title="Use Sentinel", decision="Redis HA via Sentinel",
-                            rationale=["auto failover"], context="HA needed")
+        dec_id = mem.decide(
+            title="Use Sentinel", decision="Redis HA via Sentinel", rationale=["auto failover"], context="HA needed"
+        )
         assert dec_id, "decide should return an id"
         decisions = mem.get_decisions(days=30)
         assert len(decisions) == 1 and decisions[0].title == "Use Sentinel"
@@ -49,11 +50,13 @@ def test_reflections_capped():
     with tempfile.TemporaryDirectory() as d:
         mem = _fresh_memory(d)
         for i in range(55):
-            mem.reflect(task=f"task {i}", what_went_wrong="x", what_would_help="y",
-                       confidence=0.9 if i % 2 == 0 else 0.3)
+            mem.reflect(
+                task=f"task {i}", what_went_wrong="x", what_would_help="y", confidence=0.9 if i % 2 == 0 else 0.3
+            )
         # index must be capped at MAX_REFLECTIONS
-        assert mem.store.zcard(mem.KEY_REFLECTION_INDEX) == mem.MAX_REFLECTIONS, \
+        assert mem.store.zcard(mem.KEY_REFLECTION_INDEX) == mem.MAX_REFLECTIONS, (
             "reflection index should be trimmed to the newest 50"
+        )
         insights = mem.get_insights(min_confidence=0.6)
         assert insights and all(r["confidence"] >= 0.6 for r in insights)
         print("\n--- reflections (Reflexion) ---\n  reflect/cap-at-50/get_insights OK")
@@ -75,9 +78,13 @@ def test_log_failure_and_context():
         mem = _fresh_memory(d)
         mem.decide(title="d1", decision="x")
         mem.record(task="t1", success=True)
-        exp_id = mem.log_failure(title="redis timeout", root_cause="port filtered",
-                                fix_applied="raw socket probe", component="infrastructure",
-                                learnings=["fail-fast probe"])
+        exp_id = mem.log_failure(
+            title="redis timeout",
+            root_cause="port filtered",
+            fix_applied="raw socket probe",
+            component="infrastructure",
+            learnings=["fail-fast probe"],
+        )
         assert exp_id, "log_failure should return the experience id"
         stats = mem.get_stats()
         assert stats["recent_failures"] >= 1 and stats["reflections"] >= 1

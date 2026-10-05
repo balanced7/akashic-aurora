@@ -19,6 +19,7 @@ Consensus laws (claude opening + kimi counter, night-run 2026-07-21):
     agent) are invisible here; the ACL gates the render, the seat self-selects live.
   CAPPED SECTION (kimi d) — boot shows at most BOOT_CAP items + "+M more".
 """
+
 from __future__ import annotations
 
 import json
@@ -27,6 +28,17 @@ import uuid
 from typing import Any, Dict, List, Optional, Set
 
 from core.foundation.timeutil import now_iso
+
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+
+        return python_launcher()
+    except Exception:
+        return "py"
+
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # state/coord/ is the ledger's own git-TRACKED home (state/*.json at top level is
@@ -63,10 +75,17 @@ def add(by: str, cmd: str, *, needs: str = "exec", why: str = "") -> Dict[str, A
     cmd = str(cmd or "").strip()
     if not cmd:
         raise ValueError("defer needs the command itself (what should the capable seat run?)")
-    item = {"id": uuid.uuid4().hex[:10], "by": str(by), "cmd": cmd,
-            "needs": str(needs or "exec"), "why": str(why or ""),
-            "filed_at": now_iso(),   # T119: the one clock (aware UTC)
-            "done_by": "", "done_at": "", "receipt": ""}
+    item = {
+        "id": uuid.uuid4().hex[:10],
+        "by": str(by),
+        "cmd": cmd,
+        "needs": str(needs or "exec"),
+        "why": str(why or ""),
+        "filed_at": now_iso(),  # T119: the one clock (aware UTC)
+        "done_by": "",
+        "done_at": "",
+        "receipt": "",
+    }
     doc = _load()
     doc["items"].append(item)
     _save(doc)
@@ -81,13 +100,14 @@ def mark_done(item_id: str, *, seat: str, receipt: str) -> Dict[str, Any]:
     """Discharge with a receipt (REQUIRED): what happened when the capable seat ran it.
     The item stays in the file forever — the queue is also the discharge ledger."""
     if not str(receipt or "").strip():
-        raise ValueError("discharge needs a receipt (what happened?) -- a stampless done "
-                         "turns the queue into a graveyard")
+        raise ValueError(
+            "discharge needs a receipt (what happened?) -- a stampless done turns the queue into a graveyard"
+        )
     doc = _load()
     for i in doc["items"]:
         if i["id"] == str(item_id) and not i.get("done_by"):
             i["done_by"] = str(seat)
-            i["done_at"] = now_iso()   # T119: the one clock (aware UTC)
+            i["done_at"] = now_iso()  # T119: the one clock (aware UTC)
             i["receipt"] = str(receipt).strip()
             _save(doc)
             return i
@@ -103,13 +123,15 @@ def render_boot_section(*, agent_caps: Set[str]) -> str:
     runnable = [i for i in items if i["needs"] in agent_caps]
     if not runnable:
         needs = sorted({i["needs"] for i in items})
-        return (f"# deferred: {len(items)} command(s) await a seat with "
-                f"{'/'.join(needs)} -- not you; a capable seat discharges via "
-                f"`defer <it> --list`")
+        return (
+            f"# deferred: {len(items)} command(s) await a seat with "
+            f"{'/'.join(needs)} -- not you; a capable seat discharges via "
+            f"`defer <it> --list`"
+        )
     lines = [f"# DEFERRED FOR YOU ({len(runnable)} runnable -- discharge with a receipt):"]
     for i in runnable[:BOOT_CAP]:
         why = f"  ({i['why']})" if i.get("why") else ""
         lines.append(f"#   [{i['id']}] {i['cmd']}{why}  <- {i['by']}, {i['filed_at'][:10]}")
     if len(runnable) > BOOT_CAP:
-        lines.append(f"#   ...+{len(runnable) - BOOT_CAP} more: py agent_cli.py defer <you> --list")
+        lines.append(f"#   ...+{len(runnable) - BOOT_CAP} more: {_pyl()} agent_cli.py defer <you> --list")
     return "\n".join(lines)

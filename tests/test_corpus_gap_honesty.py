@@ -26,6 +26,7 @@ cannot run, say NOTHING about gaps rather than guessing. Same discipline as the 
 NOTHING-CHECKED line, the FileStore preservation-failure branch, and the anchor resolver's
 STARVED state -- report what was checked, never imply what was not.
 """
+
 from pathlib import Path
 import sys
 
@@ -63,8 +64,10 @@ def test_no_probe_means_no_gap_claim_at_all():
 
 def test_a_broken_probe_is_survivable_and_still_silent_on_gaps():
     """Hot path: a probe fault must never break the nudge, and never license a gap claim."""
+
     def boom(_t):
         raise RuntimeError("probe exploded")
+
     out = build_learn_nudge("p:x", 0, [], probe=boom)
     assert out, "the nudge must still render"
     assert "corpus gap" not in out
@@ -73,6 +76,5 @@ def test_a_broken_probe_is_survivable_and_still_silent_on_gaps():
 def test_the_learn_command_survives_every_branch():
     """Whatever it says about gaps, the capture affordance must remain."""
     for probe in (None, (lambda _t: []), (lambda _t: ["x"])):
-        out = build_learn_nudge("p:x", 0, [], probe=probe) if probe else \
-              build_learn_nudge("p:x", 0, [])
+        out = build_learn_nudge("p:x", 0, [], probe=probe) if probe else build_learn_nudge("p:x", 0, [])
         assert "learn" in out, "the pre-filled capture command must always be offered"

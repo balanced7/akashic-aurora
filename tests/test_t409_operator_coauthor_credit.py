@@ -15,6 +15,7 @@ A Co-authored-by trailer is counted for every co-author GitHub can resolve. It i
 t384 is untouched, the seat stays the author. These pins hold the four properties that make
 it safe to run on EVERY commit.
 """
+
 import os
 import sys
 import tempfile
@@ -30,6 +31,7 @@ from scripts.githooks import coauthor  # noqa: E402
 def _fake_run(email):
     class _Out:
         stdout = f"seat Name <{email}> 1790000000 -0400"
+
     return lambda *a, **k: _Out()
 
 
@@ -73,8 +75,10 @@ def test_it_never_raises_and_never_blocks(tmp_path):
 
     Two ways this hook could brick every commit in the repo: the author probe throwing, and
     the message file being unreadable. Both must degrade to None, never to an exception."""
+
     def boom(*a, **k):
         raise RuntimeError("git is not available")
+
     p = _msg(tmp_path, "some work\n")
     assert coauthor.ensure_operator_coauthor(p, run=boom) is None
     assert coauthor.ensure_operator_coauthor(tmp_path / "does-not-exist") is None
@@ -103,4 +107,5 @@ def test_the_carve_out_is_documented(tmp_path):
 
 if __name__ == "__main__":
     import pytest
+
     raise SystemExit(pytest.main([__file__, "-q"]))

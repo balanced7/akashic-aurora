@@ -15,6 +15,7 @@ it from becoming one, and to hold the two properties that would fail SILENTLY:
 
 Run: py -m pytest tests/test_report_kit.py -q
 """
+
 import os
 import re
 import subprocess
@@ -30,8 +31,7 @@ KIT = os.path.join(ROOT, "design", "report-kit.css")
 def gen(*args, timeout=90):
     env = os.environ.copy()
     env["PYTHONIOENCODING"] = "utf-8"
-    r = subprocess.run([sys.executable, GEN, *args], cwd=ROOT, env=env,
-                       capture_output=True, text=True, timeout=timeout)
+    r = subprocess.run([sys.executable, GEN, *args], cwd=ROOT, env=env, capture_output=True, text=True, timeout=timeout)
     return r.returncode, (r.stdout or "") + (r.stderr or "")
 
 
@@ -42,25 +42,28 @@ def test_p1_the_kit_is_inlined_and_nothing_is_fetched():
     # STRIP COMMENTS FIRST. The first draft of this pin matched the kit's own comment
     # explaining why we never <link> -- it flagged the WARNING as the violation, which is
     # location-matching rather than meaning-matching, the same error check_ports v1 made.
-    live = re.sub(r"/\*.*?\*/", "", out, flags=re.S)          # css comments
-    live = re.sub(r"<!--.*?-->", "", live, flags=re.S)        # html comments
+    live = re.sub(r"/\*.*?\*/", "", out, flags=re.S)  # css comments
+    live = re.sub(r"<!--.*?-->", "", live, flags=re.S)  # html comments
     for external in ("<link", "http://", "https://", "@import", "url("):
-        assert external not in live, \
-            f"a published artifact blocks every external host -- found {external!r} in LIVE " \
+        assert external not in live, (
+            f"a published artifact blocks every external host -- found {external!r} in LIVE "
             f"markup, which would fall back to unstyled and look like a styling bug"
+        )
 
 
 def test_p2_both_themes_are_defined_and_the_override_wins_both_ways():
     css = open(KIT, encoding="utf-8").read()
     assert "prefers-color-scheme: light" in css, "the OS signal must be honoured"
-    assert ':root[data-theme="dark"]' in css and ':root[data-theme="light"]' in css, \
+    assert ':root[data-theme="dark"]' in css and ':root[data-theme="light"]' in css, (
         "the viewer's toggle must be able to win in BOTH directions, not just one"
+    )
     # Components must style through tokens, never inside the media query -- otherwise the
     # data-theme override cannot reach them.
     media = css.split("@media (prefers-color-scheme: light)", 1)[1].split("}\n}", 1)[0]
-    assert ".card" not in media and ".tile" not in media, \
-        "components must style through TOKENS; redefining them inside the media query makes " \
+    assert ".card" not in media and ".tile" not in media, (
+        "components must style through TOKENS; redefining them inside the media query makes "
         "the data-theme override unreachable"
+    )
 
 
 def test_p3_the_kit_lives_in_exactly_one_file():
@@ -83,22 +86,21 @@ def test_p4_every_primitive_in_the_kit_is_documented_in_the_crib():
     css = open(KIT, encoding="utf-8").read()
     # Structural class selectors the kit defines (skip state/modifier and element helpers).
     defined = set(re.findall(r"^\.([a-z][a-z0-9-]+)\s*(?:\{|,)", css, re.M))
-    skip = {"go", "hold", "stop", "num", "prose", "wrap", "ok", "no", "cl", "mo", "a", "b",
-            "scroll", "v", "n", "rule"}
+    skip = {"go", "hold", "stop", "num", "prose", "wrap", "ok", "no", "cl", "mo", "a", "b", "scroll", "v", "n", "rule"}
     for cls in sorted(defined - skip):
-        assert cls in crib, \
-            f"'.{cls}' is defined in the kit but absent from the crib -- every primitive " \
+        assert cls in crib, (
+            f"'.{cls}' is defined in the kit but absent from the crib -- every primitive "
             f"must say what it is FOR, or it becomes decoration"
+        )
 
 
 def test_p5_an_empty_scaffold_is_still_valid_html():
     rc, out = gen("--title", "Empty")
     assert rc == 0
-    assert out.count("<div class=\"wrap\">") == 1 and out.rstrip().endswith("</div>")
+    assert out.count('<div class="wrap">') == 1 and out.rstrip().endswith("</div>")
     assert "<title>Empty</title>" in out, "the title names the tab and the gallery card"
     for tag in ("<!doctype", "<html", "<head>", "<body>"):
-        assert tag not in out.lower(), \
-            f"the publisher supplies the skeleton -- {tag} would be nested inside it"
+        assert tag not in out.lower(), f"the publisher supplies the skeleton -- {tag} would be nested inside it"
 
 
 def test_p6_a_missing_title_refuses_loudly():
@@ -111,5 +113,6 @@ def test_p7_the_scaffold_says_it_is_a_system_not_a_template():
     """The instruction that keeps the next report from copying the last one's shape."""
     rc, out = gen("--title", "Shape")
     assert "system, not a template" in out.lower()
-    assert "verified against the tree" in out.lower(), \
+    assert "verified against the tree" in out.lower(), (
         "the numbers rule must ride the scaffold, where it is read at composing time"
+    )

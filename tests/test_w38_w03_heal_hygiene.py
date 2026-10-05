@@ -14,6 +14,7 @@ the FRESH SEAT's task when it is fleet-hygiene about shared Redis/File divergenc
   P3  a genuinely-unknown key still lands LOUD in UNKNOWN (no over-broad silencing)
   P4  every heal line carries a [fleet-hygiene] scope tag (W03: not the seat's task)
 """
+
 import os
 import sys
 
@@ -31,25 +32,27 @@ def test_p1_mailbox_family_is_ephemeral():
 
 
 def test_p2_mailbox_keys_render_quiet():
-    orphans = ["bifrost:mailbox:answered", "bifrost:mailbox:msg:claude:aaa",
-               "bifrost:mailbox:pos:claude"]
+    orphans = ["bifrost:mailbox:answered", "bifrost:mailbox:msg:claude:aaa", "bifrost:mailbox:pos:claude"]
     lines = HybridStore._render_orphans(orphans, file_fams=set())
     joined = "\n".join(lines)
     assert "UNKNOWN" not in joined, "a regenerable projection is never the loud signal"
-    assert any("transport/control/telemetry" in l and "mailbox" in l for l in lines), \
+    assert any("transport/control/telemetry" in l and "mailbox" in l for l in lines), (
         "mailbox keys land in the quiet ephemeral line"
+    )
 
 
 def test_p3_genuine_unknown_still_loud():
     orphans = ["bifrost:mailbox:answered", "bifrost:genuinely_new_thing:x"]
     lines = HybridStore._render_orphans(orphans, file_fams=set())
     joined = "\n".join(lines)
-    assert "1 UNKNOWN" in joined and "genuinely_new_thing" in joined, \
+    assert "1 UNKNOWN" in joined and "genuinely_new_thing" in joined, (
         "registering mailbox must not silence a real orphan"
+    )
 
 
 def test_p4_heal_lines_carry_scope_tag():
     orphans = ["bifrost:genuinely_new_thing:x", "bifrost:mailbox:answered"]
     lines = HybridStore._render_orphans(orphans, file_fams=set())
-    assert lines and all("[fleet-hygiene]" in l for l in lines), \
+    assert lines and all("[fleet-hygiene]" in l for l in lines), (
         "W03: heal lines are fleet-hygiene, never the fresh seat's task"
+    )

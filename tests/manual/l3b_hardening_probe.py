@@ -1,14 +1,18 @@
 """L3b-auto hardening proof: armed set PERSISTS in Redis (survives restart + shared), storm-disarm
 persists, jitter doesn't break the flow. _bus_note mocked so no test notes hit the live bus."""
+
 import os, ast, sys, time
 
 # Root DERIVED from this file, never hardcoded: the literal pinned one machine's disk,
 # so a copy of the repo anywhere else resolved every path under it to nothing.
 import os as _os, pathlib as _pl
+
 _here = _pl.Path(__file__).resolve()
-ROOT = str(next((p for p in (_here, *_here.parents)
-                 if (p / 'agent_cli.py').exists() and (p / 'core').is_dir()), _here.parent))
-ast.parse(open(os.path.join(ROOT, "core/comm/launcher.py"), encoding="utf-8").read()); print("parse OK: launcher.py")
+ROOT = str(
+    next((p for p in (_here, *_here.parents) if (p / "agent_cli.py").exists() and (p / "core").is_dir()), _here.parent)
+)
+ast.parse(open(os.path.join(ROOT, "core/comm/launcher.py"), encoding="utf-8").read())
+print("parse OK: launcher.py")
 
 sys.path.insert(0, ROOT)
 import core.comm.launcher as LM
@@ -18,7 +22,8 @@ r = _bus_redis()
 for k in ("deepseek", "l3bh_probe"):
     r.srem(AUTO_REVIVE_KEY, k)
 
-L = Launcher(); L._bus_note = lambda *a, **k: None
+L = Launcher()
+L._bus_note = lambda *a, **k: None
 
 # arm persists to Redis
 assert L.arm_revive("deepseek", True)["auto_revive"] is True
@@ -37,11 +42,15 @@ assert "deepseek" not in Launcher()._armed_set()
 print("[PASS] disarm persists")
 
 # storm-disarm persists to Redis (not just in-memory)
-LM.RESTART_MAX_ATTEMPTS = 2; LM.RESTART_BACKOFF_BASE = 0.01; LM.AUTO_REVIVE_JITTER = 0
+LM.RESTART_MAX_ATTEMPTS = 2
+LM.RESTART_BACKOFF_BASE = 0.01
+LM.AUTO_REVIVE_JITTER = 0
 tag = aid = "l3bh_probe"
 L._specs[tag] = AgentSpec(agent_id=aid, runtime="python_runner", description="t", command=["x"])
 L._reload = lambda: None
-L._set_armed(aid, True); L._auto_attempts.pop(aid, None); L._auto_last.pop(aid, None)
+L._set_armed(aid, True)
+L._auto_attempts.pop(aid, None)
+L._auto_last.pop(aid, None)
 revives = []
 L.revive = lambda t, reason="manual": (revives.append(t), {"ok": True})[1]
 for _ in range(4):
@@ -52,10 +61,16 @@ assert aid not in L._armed_set(), "storm-disarm must PERSIST (removed from the s
 print(f"[PASS] storm-disarm persists: {len(revives)} revives then disarmed in Redis")
 
 # jitter applied, revive still fires (flow not broken)
-LM.AUTO_REVIVE_JITTER = 0.1; LM.RESTART_MAX_ATTEMPTS = 5
-L._set_armed(aid, True); L._auto_attempts.pop(aid, None); L._auto_last.pop(aid, None); revives.clear()
+LM.AUTO_REVIVE_JITTER = 0.1
+LM.RESTART_MAX_ATTEMPTS = 5
+L._set_armed(aid, True)
+L._auto_attempts.pop(aid, None)
+L._auto_last.pop(aid, None)
+revives.clear()
 L._reviving.discard(aid)
-t0 = time.time(); L._auto_revive_run(tag, aid, {"phase": "thinking", "stuck_seconds": 400}); dt = time.time() - t0
+t0 = time.time()
+L._auto_revive_run(tag, aid, {"phase": "thinking", "stuck_seconds": 400})
+dt = time.time() - t0
 assert len(revives) == 1 and dt < 5, (revives, dt)
 print(f"[PASS] jitter applied, revive still fires (dt={dt:.2f}s)")
 

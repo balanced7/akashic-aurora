@@ -27,6 +27,7 @@ After: 1.03s, and the line says the manifest could not be read.
 These are the same defect class one layer apart -- a guard opted out of, and an error swallowed --
 and both were invisible until two of three worlds went away.
 """
+
 import os
 import sys
 import tempfile
@@ -36,8 +37,8 @@ os.environ.setdefault("AI_SETUP", tempfile.mkdtemp())
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-DEAD_PORT = 16381          # alpha, retired 2026-09-27
-BUDGET_S = 15.0            # generous: the fix measures 1.03s, the defect measured 48.98s
+DEAD_PORT = 16381  # alpha, retired 2026-09-27
+BUDGET_S = 15.0  # generous: the fix measures 1.03s, the defect measured 48.98s
 
 
 def test_read_manifest_raises_on_an_unreachable_store():
@@ -62,10 +63,11 @@ def test_read_manifest_raises_on_an_unreachable_store():
     try:
         read_manifest(Unreachable())
     except redis.exceptions.ConnectionError:
-        return                                  # raising IS the contract
+        return  # raising IS the contract
     raise AssertionError(
         "read_manifest swallowed a ConnectionError instead of letting it escape -- "
-        "'no manifest' and 'no store' are indistinguishable again")
+        "'no manifest' and 'no store' are indistinguishable again"
+    )
 
 
 def test_read_manifest_returns_none_for_a_reachable_store_with_no_manifest():
@@ -117,7 +119,8 @@ def test_a_dead_world_boot_line_is_fast():
     assert line, "the twin world rendered no line at all"
     assert elapsed < BUDGET_S, (
         f"a dead-world boot line took {elapsed:.1f}s (budget {BUDGET_S}s). The raw redis client "
-        f"has stopped paying the fail-fast probe -- socket_timeout does NOT bound a connect.")
+        f"has stopped paying the fail-fast probe -- socket_timeout does NOT bound a connect."
+    )
 
 
 def test_a_dead_world_boot_line_never_asserts_provenance_it_could_not_verify():
@@ -139,10 +142,8 @@ def test_a_dead_world_boot_line_never_asserts_provenance_it_could_not_verify():
             os.environ["AKASHIC_WORLD"] = prev
         world_mod._cached = None
 
-    assert "could not be read" in line, (
-        f"an unreachable store did not produce the honest line: {line!r}")
-    assert "either native or" not in line, (
-        f"the line asserts provenance it never verified: {line!r}")
+    assert "could not be read" in line, f"an unreachable store did not produce the honest line: {line!r}"
+    assert "either native or" not in line, f"the line asserts provenance it never verified: {line!r}"
 
 
 def test_the_repo_probe_is_faster_than_a_raw_connect_and_that_is_why_it_exists():
@@ -168,9 +169,10 @@ def test_both_raw_client_sites_now_preflight():
     for rel in ("agent_cli.py", "scripts/world_fidelity.py"):
         src = Path(ROOT, rel).read_text(encoding="utf-8")
         for match in re.finditer(r"read_manifest\(", src):
-            window = src[max(0, match.start() - 1200):match.start()]
+            window = src[max(0, match.start() - 1200) : match.start()]
             if "def read_manifest" in window:
                 continue
             assert "probe_redis_reachable" in window, (
                 f"{rel} calls read_manifest without a reachability preflight -- that site will "
-                f"pay a ~49s SYN stall against a retired world")
+                f"pay a ~49s SYN stall against a retired world"
+            )

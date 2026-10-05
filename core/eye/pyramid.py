@@ -14,6 +14,7 @@ An exchange = one operator turn + everything until the next operator turn (the g
 law: every exchange opens with the operator's voice). Levels above L2 (arc/era) ride the
 narrative spine and land in a later slice.
 """
+
 from __future__ import annotations
 
 import json
@@ -32,8 +33,8 @@ def _first_sentence(text: str, cap: int = 220) -> str:
     head = t[:cap]
     m = max(head.rfind(". "), head.rfind("? "), head.rfind("! "))
     if m > cap * 0.35:
-        return head[:m + 1]
-    return head[:head.rfind(" ")] + " …"
+        return head[: m + 1]
+    return head[: head.rfind(" ")] + " …"
 
 
 def _ensure_schema(con) -> None:
@@ -52,14 +53,15 @@ def build(db_path: Optional[Path] = None) -> Dict[str, Any]:
     now = time.time()
     built_l1 = built_l2 = 0
     try:
-        sessions = [r[0] for r in con.execute(
-            "SELECT DISTINCT session FROM events").fetchall()]
+        sessions = [r[0] for r in con.execute("SELECT DISTINCT session FROM events").fetchall()]
         con.execute("DELETE FROM pyramid")
         for s in sessions:
-            evs = [{"event_id": r[0], "voice": r[1], "text": r[2], "tokens": r[3]}
-                   for r in con.execute(
-                       "SELECT event_id, voice, text, tokens FROM events "
-                       "WHERE session=? ORDER BY line", (s,)).fetchall()]
+            evs = [
+                {"event_id": r[0], "voice": r[1], "text": r[2], "tokens": r[3]}
+                for r in con.execute(
+                    "SELECT event_id, voice, text, tokens FROM events WHERE session=? ORDER BY line", (s,)
+                ).fetchall()
+            ]
             # Group into exchanges. An exchange = a run of operator turn(s) + the replies
             # until the NEXT operator run. A new exchange opens on an operator event ONLY
             # after an agent has replied -- because the harness records one operator turn
@@ -97,8 +99,8 @@ def build(db_path: Optional[Path] = None) -> Dict[str, Any]:
                 con.execute(
                     "INSERT INTO pyramid(node_id, level, session, seq, text, refs, "
                     "built_at, tokens) VALUES(?,?,?,?,?,?,?,?)",
-                    (nid, "L1", s, i, text, json.dumps(refs), now,
-                     max(1, len(text) // 4)))
+                    (nid, "L1", s, i, text, json.dumps(refs), now, max(1, len(text) // 4)),
+                )
                 child_ids.append(nid)
                 built_l1 += 1
 
@@ -118,26 +120,38 @@ def build(db_path: Optional[Path] = None) -> Dict[str, Any]:
             con.execute(
                 "INSERT INTO pyramid(node_id, level, session, seq, text, refs, built_at, "
                 "tokens) VALUES(?,?,?,?,?,?,?,?)",
-                (f"{s}/L2", "L2", s, 0, digest,
-                 json.dumps(all_refs[:50]), now, max(1, len(digest) // 4)))
+                (f"{s}/L2", "L2", s, 0, digest, json.dumps(all_refs[:50]), now, max(1, len(digest) // 4)),
+            )
             built_l2 += 1
         con.commit()
     finally:
         con.close()
-    return {"sessions": len(sessions), "l1_nodes": built_l1, "l2_nodes": built_l2,
-            "built_at": round(now, 2)}
+    return {"sessions": len(sessions), "l1_nodes": built_l1, "l2_nodes": built_l2, "built_at": round(now, 2)}
 
 
 def nodes(db_path: Optional[Path] = None) -> List[Dict[str, Any]]:
     con = _connect(db_path)
     _ensure_schema(con)
     try:
-        rows = con.execute("SELECT node_id, level, session, seq, text, refs, built_at, "
-                           "tokens FROM pyramid ORDER BY session, level, seq").fetchall()
+        rows = con.execute(
+            "SELECT node_id, level, session, seq, text, refs, built_at, "
+            "tokens FROM pyramid ORDER BY session, level, seq"
+        ).fetchall()
     finally:
         con.close()
-    return [{"node_id": r[0], "level": r[1], "session": r[2], "seq": r[3], "text": r[4],
-             "refs": json.loads(r[5]), "built_at": r[6], "tokens": r[7]} for r in rows]
+    return [
+        {
+            "node_id": r[0],
+            "level": r[1],
+            "session": r[2],
+            "seq": r[3],
+            "text": r[4],
+            "refs": json.loads(r[5]),
+            "built_at": r[6],
+            "tokens": r[7],
+        }
+        for r in rows
+    ]
 
 
 def zoom(addr: str, db_path: Optional[Path] = None) -> Dict[str, Any]:
@@ -147,24 +161,38 @@ def zoom(addr: str, db_path: Optional[Path] = None) -> Dict[str, Any]:
     _ensure_schema(con)
     try:
         node_id = addr if "/L" in addr else f"{addr}/L2"
-        r = con.execute("SELECT node_id, level, session, seq, text, refs, built_at, "
-                        "tokens FROM pyramid WHERE node_id=?", (node_id,)).fetchone()
+        r = con.execute(
+            "SELECT node_id, level, session, seq, text, refs, built_at, tokens FROM pyramid WHERE node_id=?", (node_id,)
+        ).fetchone()
         if not r:
             raise ValueError(
                 f"no pyramid node at {addr!r} -- zoom takes a session name or an L1 id "
-                f"(<session>/L1:NNN); build with the eye door first if the pyramid is empty")
+                f"(<session>/L1:NNN); build with the eye door first if the pyramid is empty"
+            )
         # staleness: any event in this session the build never saw (fog, never silence)
         stale_row = con.execute(
             "SELECT COUNT(*) FROM events WHERE session=? AND (ts IS NULL OR ts > ?) "
             "AND event_id NOT IN (SELECT value FROM json_each(?))",
-            (r[2], r[6], r[5])).fetchone()
+            (r[2], r[6], r[5]),
+        ).fetchone()
         children = []
         if r[1] == "L2":
-            children = [x[0] for x in con.execute(
-                "SELECT node_id FROM pyramid WHERE session=? AND level='L1' "
-                "ORDER BY node_id", (r[2],)).fetchall()]
+            children = [
+                x[0]
+                for x in con.execute(
+                    "SELECT node_id FROM pyramid WHERE session=? AND level='L1' ORDER BY node_id", (r[2],)
+                ).fetchall()
+            ]
     finally:
         con.close()
-    return {"node_id": r[0], "level": r[1], "session": r[2], "text": r[4],
-            "refs": json.loads(r[5]), "built_at": r[6], "tokens": r[7],
-            "children": children, "is_stale": bool(stale_row and stale_row[0])}
+    return {
+        "node_id": r[0],
+        "level": r[1],
+        "session": r[2],
+        "text": r[4],
+        "refs": json.loads(r[5]),
+        "built_at": r[6],
+        "tokens": r[7],
+        "children": children,
+        "is_stale": bool(stale_row and stale_row[0]),
+    }

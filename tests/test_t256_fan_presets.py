@@ -18,6 +18,7 @@ it parses, so a change to one is a change to both.
 The slice is deliberately narrow: one preset (`findings`) and lens plumbing. That pair covers
 four of the five fans run today.
 """
+
 import pytest
 
 from core.comm import presets
@@ -60,8 +61,7 @@ def test_the_findings_contract_carries_the_clauses_that_earned_their_place():
     c = presets.get("findings").contract.lower()
     assert "wrong" in c, "must demand the cheapest disproof"
     assert "blind" in c, "must demand what the evidence cannot show"
-    assert any(w in c for w in ("unclear", "abstention", "abstain")), \
-        "must make abstention explicitly acceptable"
+    assert any(w in c for w in ("unclear", "abstention", "abstain")), "must make abstention explicitly acceptable"
     assert "descriptive" in c or "not recommend" in c, "must steer away from normative answers"
 
 
@@ -103,8 +103,10 @@ def test_an_answer_that_ignores_the_contract_is_UNPARSED_not_dropped():
 
 def test_parse_is_lenient_about_shape_but_strict_about_presence():
     """Models bullet, bold and number inconsistently. That must not lose a finding."""
-    messy = ("FINDINGS\n- **first** thing at a.py:1\n* second thing at b.py:2\n\n"
-             "REASONING\nbecause\n\nCHECK\nrun it\n\nBLIND\nnothing")
+    messy = (
+        "FINDINGS\n- **first** thing at a.py:1\n* second thing at b.py:2\n\n"
+        "REASONING\nbecause\n\nCHECK\nrun it\n\nBLIND\nnothing"
+    )
     out = presets.get("findings").parse(messy)
     assert out["ok"] is True and len(out["findings"]) == 2, out
 
@@ -120,8 +122,7 @@ def test_lenses_become_one_branch_each_with_the_contract_appended():
 
 def test_lens_file_ignores_blanks_and_comments(tmp_path):
     f = tmp_path / "lenses.txt"
-    f.write_text("# the surface\nwhat does it promise\n\n  \n# the mechanism\nwhat does it do\n",
-                 encoding="utf-8")
+    f.write_text("# the surface\nwhat does it promise\n\n  \n# the mechanism\nwhat does it do\n", encoding="utf-8")
     assert presets.read_lens_file(str(f)) == ["what does it promise", "what does it do"]
 
 

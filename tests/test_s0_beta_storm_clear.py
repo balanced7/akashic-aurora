@@ -23,6 +23,7 @@ Laws pinned (RED before core/comm/storm_detect.py exists):
 
 Run: py -m pytest tests/test_s0_beta_storm_clear.py -q
 """
+
 import os
 import sys
 import uuid
@@ -40,39 +41,42 @@ def _ns_env(monkeypatch):
 
 def _online():
     from core.comm.bus import Bus
+
     return Bus("t-storm").online
 
 
 # --- L1: storm detection (pure, no Redis needed) ---------------------------
 
+
 def test_lane_depth_spike_detected():
     """Three consecutive samples at threshold 50 fire a lane_depth_spike."""
     from core.comm.storm_detect import StormDetector
+
     d = StormDetector(depth_threshold=50, depth_window=3)
     assert d.feed(60, []) is None, "sample 1: window not full"
     assert d.feed(55, []) is None, "sample 2: window not full"
     sig = d.feed(70, [])
-    assert sig is not None and sig["kind"] == "lane_depth_spike", \
-        "sample 3: window full, all >= threshold => spike"
+    assert sig is not None and sig["kind"] == "lane_depth_spike", "sample 3: window full, all >= threshold => spike"
     assert sig["window"] == [60, 55, 70]
 
 
 def test_repeat_delivery_storm_detected():
     """Five consecutive same ids fire a repeat_delivery_storm."""
     from core.comm.storm_detect import StormDetector
+
     d = StormDetector(repeat_threshold=5)
     assert d.feed(0, ["a", "a"]) is None
     assert d.feed(0, ["a"]) is None
     assert d.feed(0, ["a"]) is None
     sig = d.feed(0, ["a"])
-    assert sig is not None and sig["kind"] == "repeat_delivery_storm", \
-        "5 consecutive 'a' ids => repeat storm"
+    assert sig is not None and sig["kind"] == "repeat_delivery_storm", "5 consecutive 'a' ids => repeat storm"
     assert sig["id"] == "a" and sig["count"] == 5
 
 
 def test_below_threshold_silent():
     """Depths below threshold never fire, even with a full window."""
     from core.comm.storm_detect import StormDetector
+
     d = StormDetector(depth_threshold=50, depth_window=3)
     assert d.feed(10, []) is None
     assert d.feed(20, []) is None
@@ -84,19 +88,22 @@ def test_healthy_drain_stays_silent():
     HEALTHY boot-drain under the batch cap, not a storm -- it must never fire.
     (Without the guard, any >=150 backlog guaranteed a false ceremony: 300->250->200.)"""
     from core.comm.storm_detect import StormDetector
+
     d = StormDetector(depth_threshold=50, depth_window=3)
     assert d.feed(300, []) is None
     assert d.feed(250, []) is None
     assert d.feed(200, []) is None, "draining despite depth => silent (progress guard)"
     # flat/rising flood still fires -- refill >= consumption at depth IS the storm
     d2 = StormDetector(depth_threshold=50, depth_window=3)
-    d2.feed(60, []); d2.feed(62, [])
+    d2.feed(60, [])
+    d2.feed(62, [])
     assert d2.feed(61, []) is not None, "no net drain across the window => fires"
 
 
 def test_empty_batch_silent():
     """An empty message batch never fires repeat-delivery."""
     from core.comm.storm_detect import StormDetector
+
     d = StormDetector(repeat_threshold=5)
     for _ in range(10):
         assert d.feed(0, []) is None, "no ids => never a repeat storm"
@@ -105,6 +112,7 @@ def test_empty_batch_silent():
 def test_reset_clears_windows():
     """After reset, a fresh feed starts from empty windows."""
     from core.comm.storm_detect import StormDetector
+
     d = StormDetector(depth_threshold=50, depth_window=3, repeat_threshold=3)
     d.feed(80, [])
     d.feed(80, [])
@@ -121,12 +129,14 @@ def test_work_backlog_is_cursor_relative(monkeypatch):
     fired the ceremony on 289 entries of pure history). work_backlog falls to 0 as the
     lane cursor advances; XLEN would not."""
     import uuid as _uuid
+
     ns = f"t-s0b-wb-{_uuid.uuid4().hex[:8]}"
     monkeypatch.setenv("BIFROST_NAMESPACE", ns)
     if not _online():
         pytest.skip("redis not available")
     from core.comm.bus import Bus
     from core.comm import lane_depths
+
     agent = f"t-wb-{_uuid.uuid4().hex[:6]}"
     b = Bus(agent)
     key = f"{ns}:work:inbox:{agent}"
@@ -135,13 +145,16 @@ def test_work_backlog_is_cursor_relative(monkeypatch):
     assert lane_depths.work_backlog(agent) == 4, "virgin cursor: all entries pending"
     tail = b._client.xrevrange(key, count=1)[0][0]
     b._client.hset(b.lane_cursor_key(), "inbox", str(tail))
-    assert lane_depths.work_backlog(agent) == 0, \
+    assert lane_depths.work_backlog(agent) == 0, (
         "cursor at tail -> backlog 0 (XLEN would still read 4: the storm-refire class)"
-    assert lane_depths.lane_depths(agent)["work"] == 4, \
+    )
+    assert lane_depths.lane_depths(agent)["work"] == 4, (
         "XLEN stays 4 -- proving the two gauges measure different things"
+    )
 
 
 # --- L2: storm clear ceremony (needs Redis; test-namespaced control plane) --
+
 
 def test_storm_clear_pause_skip_resume_with_receipt(monkeypatch):
     """Full ceremony: pause → skip-to-now → resume + broadcast receipt."""
@@ -150,26 +163,26 @@ def test_storm_clear_pause_skip_resume_with_receipt(monkeypatch):
         pytest.skip("redis not available")
     from core.comm import control, cursor_admin
     from core.comm.bus import Bus
+
     agent = f"t-storm-clr-{uuid.uuid4().hex[:6]}"
     control.resume()
-    ok_pause = control.pause(reason="storm-auto-clear: lane_depth_spike",
-                             by=f"{agent}-runner", ttl=120)
+    ok_pause = control.pause(reason="storm-auto-clear: lane_depth_spike", by=f"{agent}-runner", ttl=120)
     assert ok_pause, "pause succeeded"
     assert control.is_paused(), "pause flag is set"
-    result = cursor_admin.skip_to_now(agent, by=f"{agent}-runner",
-                                      reason="storm-auto-clear: lane_depth_spike")
+    result = cursor_admin.skip_to_now(agent, by=f"{agent}-runner", reason="storm-auto-clear: lane_depth_spike")
     assert result["ok"], f"skip-to-now succeeded: {result.get('refused', '')}"
     control.resume()
     assert not control.is_paused(), "resume cleared the pause"
     b = Bus(agent)
-    b.broadcast("note",
-                f"[storm-clear] {agent}-runner auto-cleared storm "
-                f"(lane_depth_spike): pause->skip->resume. Receipt: standby-hard graduates.",
-                meta={"via": "storm-auto-clear", "display_only": True})
+    b.broadcast(
+        "note",
+        f"[storm-clear] {agent}-runner auto-cleared storm "
+        f"(lane_depth_spike): pause->skip->resume. Receipt: standby-hard graduates.",
+        meta={"via": "storm-auto-clear", "display_only": True},
+    )
     # Fence amendment A3: the broadcast streams are {ns}:broadcast (legacy) +
     # {ns}:work:broadcast (lane) -- not {ns}:bc as the original pin guessed.
-    tail = (b._client.xrevrange(f"{ns}:work:broadcast", count=3)
-            + b._client.xrevrange(f"{ns}:broadcast", count=3))
+    tail = b._client.xrevrange(f"{ns}:work:broadcast", count=3) + b._client.xrevrange(f"{ns}:broadcast", count=3)
     joined = " ".join(str(f) for _sid, f in tail)
     assert "storm-clear" in joined, "receipt broadcast landed"
 
@@ -181,9 +194,8 @@ def test_storm_clear_fails_open_on_broken_bus(monkeypatch):
     if not _online():
         pytest.skip("redis not available")
     from core.comm import control, cursor_admin
+
     control.resume()
-    result = cursor_admin.skip_to_now("nonexistent-agent-xyz-123",
-                                      by="test", reason="test")
+    result = cursor_admin.skip_to_now("nonexistent-agent-xyz-123", by="test", reason="test")
     assert not result["ok"], "skip on nonexistent agent returns ok=False, not an exception"
-    assert "refused" in result or not result["ok"], \
-        "fail-open: runner continues even if clear is degraded"
+    assert "refused" in result or not result["ok"], "fail-open: runner continues even if clear is degraded"

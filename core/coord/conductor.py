@@ -22,6 +22,7 @@ CLI:
   py core/coord/conductor.py list                             # the read-state-first view
   py core/coord/conductor.py next                             # the single claimable task, or none
 """
+
 from __future__ import annotations
 
 import argparse
@@ -30,7 +31,7 @@ import sys
 import time
 from datetime import datetime, timezone
 
-from core.coord import task_ledger as TL   # import as a module (py -m core.coord.conductor) -- no sys.path hack
+from core.coord import task_ledger as TL  # import as a module (py -m core.coord.conductor) -- no sys.path hack
 
 
 def _now() -> str:
@@ -64,7 +65,7 @@ def _apply(op, client="auto", path=None):
             return op(_ledger(client, path))
         except TL.LedgerConflict as e:
             last = e
-            time.sleep(0.02 * (attempt + 1))   # let the peer's mirror/announce land first
+            time.sleep(0.02 * (attempt + 1))  # let the peer's mirror/announce land first
     raise last
 
 
@@ -72,6 +73,7 @@ def _broadcast(kind: str, text: str, meta: dict) -> None:
     """One patchable bus-exit for conductor announcements. Best-effort; the ledger is the
     real authority, so a bus failure never blocks a transition (tests monkeypatch THIS)."""
     from core.comm.bus import Bus
+
     Bus("conductor").broadcast(kind, text, meta=meta)
 
 
@@ -80,8 +82,10 @@ def _emit_resolved(tid: str, title: str, commit: str) -> None:
     is the real authority, so a bus failure never blocks the close."""
     try:
         _broadcast(
-            "resolved", f"RESOLVED {tid}: {title} @ {commit} -- CLOSED, do not redo.",
-            meta={"via": "conductor", "hops": 0, "task": tid, "commit": commit, "display_only": True})
+            "resolved",
+            f"RESOLVED {tid}: {title} @ {commit} -- CLOSED, do not redo.",
+            meta={"via": "conductor", "hops": 0, "task": tid, "commit": commit, "display_only": True},
+        )
     except Exception:
         pass
 
@@ -101,8 +105,8 @@ def _emit_ledger_update(task: dict, to_status: str, by: str = "") -> None:
         _broadcast(
             "ledger_update",
             f"LEDGER {tid} {frm}->{to_status}: {title[:120]}" + (f"  ({by})" if by else ""),
-            meta={"via": "conductor", "hops": 0, "task": tid, "frm_status": frm,
-                  "to": to_status, "display_only": True})
+            meta={"via": "conductor", "hops": 0, "task": tid, "frm_status": frm, "to": to_status, "display_only": True},
+        )
     except Exception:
         pass
 
@@ -110,8 +114,11 @@ def _emit_ledger_update(task: dict, to_status: str, by: str = "") -> None:
 # --- the propose/approve/claim/... verbs (each stamps time; done emits the marker) -------------
 # path/client default to production (the real git ledger + live Redis); tests pass a tmp path + None.
 def propose(title, *, owner="", deps=None, files=None, acceptance="", by="claude", client="auto", path=None):
-    t = _apply(lambda led: led.propose(title, owner=owner, deps=deps, files=files,
-                                       acceptance=acceptance, by=by, at=_now()), client, path)
+    t = _apply(
+        lambda led: led.propose(title, owner=owner, deps=deps, files=files, acceptance=acceptance, by=by, at=_now()),
+        client,
+        path,
+    )
     _emit_ledger_update(t, "proposed", by)
     return t
 
@@ -132,8 +139,9 @@ def start(tid, *, by="", client="auto", path=None, pauses="", operator_ruling=""
     # Ruling 369243: a THIRD watch opens only with pauses=<what stops> or the operator's
     # recorded word. Threaded through rather than defaulted here -- agent_cli surfaces THIS
     # parser (same law as done()'s reviewed_by threading).
-    t = _apply(lambda led: TL.start(led, tid, by=by, at=_now(), pauses=pauses,
-                                    operator_ruling=operator_ruling), client, path)
+    t = _apply(
+        lambda led: TL.start(led, tid, by=by, at=_now(), pauses=pauses, operator_ruling=operator_ruling), client, path
+    )
     _emit_ledger_update(t, "in_progress", by)
     return t
 
@@ -144,14 +152,24 @@ def verify(tid, *, by="", client="auto", path=None):
     return t
 
 
-def done(tid, commit, verified_by, *, by="", client="auto", path=None,
-         reviewed_by="", self_verified=""):
+def done(tid, commit, verified_by, *, by="", client="auto", path=None, reviewed_by="", self_verified=""):
     # T248: reviewed_by is WHO, verified_by is the EVIDENCE, self_verified is a recorded
     # override. Threaded through rather than defaulted here -- agent_cli surfaces THIS parser,
     # so a default set at one door would be the only door that had it.
-    t = _apply(lambda led: TL.done(led, tid, commit=commit, verified_by=verified_by, by=by,
-                                   at=_now(), reviewed_by=reviewed_by,
-                                   self_verified=self_verified), client, path)
+    t = _apply(
+        lambda led: TL.done(
+            led,
+            tid,
+            commit=commit,
+            verified_by=verified_by,
+            by=by,
+            at=_now(),
+            reviewed_by=reviewed_by,
+            self_verified=self_verified,
+        ),
+        client,
+        path,
+    )
     _emit_resolved(tid, t["title"], commit)
     _emit_ledger_update(t, "done", by)
     return t
@@ -167,8 +185,9 @@ def abandon(tid, reason, *, by="", client="auto", path=None, operator_ruling="")
     """P5 (T025): the explicit verdict for parked intent -- terminal, with a recorded reason
     (a proposal that decays without one is exactly the ambiguity the decay flag exists to end).
     T352: abandoning a DONE row additionally requires operator_ruling (recorded in history)."""
-    t = _apply(lambda led: TL.abandon(led, tid, reason, by=by, at=_now(),
-                                      operator_ruling=operator_ruling), client, path)
+    t = _apply(
+        lambda led: TL.abandon(led, tid, reason, by=by, at=_now(), operator_ruling=operator_ruling), client, path
+    )
     _emit_ledger_update(t, "abandoned", by)
     return t
 
@@ -183,8 +202,9 @@ def park(tid, reason, *, by="", client="auto", path=None):
 
 def unpark(tid, *, by="", client="auto", path=None, pauses="", operator_ruling=""):
     """T083-C5-1: resume a parked wave -- re-enters through the same two-watch gate."""
-    t = _apply(lambda led: TL.unpark(led, tid, by=by, at=_now(), pauses=pauses,
-                                     operator_ruling=operator_ruling), client, path)
+    t = _apply(
+        lambda led: TL.unpark(led, tid, by=by, at=_now(), pauses=pauses, operator_ruling=operator_ruling), client, path
+    )
     _emit_ledger_update(t, "in_progress", by)
     return t
 
@@ -194,7 +214,7 @@ def next_task(client="auto", path=None):
     verifying all occupy the sequential slot -- TL.ACTIVE law, W15 header contract), else the
     first APPROVED task whose deps are all DONE. Returns a dict or None."""
     v = TL.state_view(path or TL.LEDGER_PATH, client)
-    if v["in_progress"]:   # state_view buckets every ACTIVE status here, not just IN_PROGRESS
+    if v["in_progress"]:  # state_view buckets every ACTIVE status here, not just IN_PROGRESS
         return None
     return v["next"][0] if v["next"] else None
 
@@ -208,43 +228,85 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description="Conductor for the governed task ledger.")
     sub = ap.add_subparsers(dest="cmd", required=True)
 
-    p = sub.add_parser("propose"); p.add_argument("title"); p.add_argument("--owner", default="")
-    p.add_argument("--deps", default=""); p.add_argument("--files", default=""); p.add_argument("--acc", default="")
+    p = sub.add_parser("propose")
+    p.add_argument("title")
+    p.add_argument("--owner", default="")
+    p.add_argument("--deps", default="")
+    p.add_argument("--files", default="")
+    p.add_argument("--acc", default="")
     p.add_argument("--by", default="claude")
     for name in ("approve", "verify"):
-        q = sub.add_parser(name); q.add_argument("tid"); q.add_argument("--by", default="")
-    q = sub.add_parser("start"); q.add_argument("tid"); q.add_argument("--by", default="")
-    q.add_argument("--pauses", default="",
-                   help="ruling 369243: a THIRD open watch requires naming what stops")
-    q.add_argument("--operator-ruling", default="", dest="operator_ruling",
-                   help="the operator's recorded word -- the cap never refuses him")
-    q = sub.add_parser("claim"); q.add_argument("tid"); q.add_argument("--by", required=True)
-    q = sub.add_parser("done"); q.add_argument("tid"); q.add_argument("--commit", required=True)
-    q.add_argument("--verified-by", required=True, dest="verified_by"); q.add_argument("--by", default="")
+        q = sub.add_parser(name)
+        q.add_argument("tid")
+        q.add_argument("--by", default="")
+    q = sub.add_parser("start")
+    q.add_argument("tid")
+    q.add_argument("--by", default="")
+    q.add_argument("--pauses", default="", help="ruling 369243: a THIRD open watch requires naming what stops")
+    q.add_argument(
+        "--operator-ruling",
+        default="",
+        dest="operator_ruling",
+        help="the operator's recorded word -- the cap never refuses him",
+    )
+    q = sub.add_parser("claim")
+    q.add_argument("tid")
+    q.add_argument("--by", required=True)
+    q = sub.add_parser("done")
+    q.add_argument("tid")
+    q.add_argument("--commit", required=True)
+    q.add_argument("--verified-by", required=True, dest="verified_by")
+    q.add_argument("--by", default="")
     # T248. --verified-by is the EVIDENCE; --reviewed-by is WHO, and must not be the closer.
-    q.add_argument("--reviewed-by", default="", dest="reviewed_by",
-                   help="who INDEPENDENTLY reviewed this (not you). Required for paths in "
-                        "task_ledger.LOAD_BEARING unless --self-verified is given.")
-    q.add_argument("--self-verified", default="", dest="self_verified",
-                   help="close a load-bearing task WITHOUT independent review, recording why. "
-                        "Counted, not hidden -- the total shows in the `task list` summary.")
-    q = sub.add_parser("block"); q.add_argument("tid"); q.add_argument("--reason", required=True); q.add_argument("--by", default="")
-    q = sub.add_parser("abandon"); q.add_argument("tid"); q.add_argument("--reason", required=True); q.add_argument("--by", default="")
-    q.add_argument("--operator-ruling", default="", dest="operator_ruling",
-                   help="T352: required to abandon a DONE row -- the operator's words, recorded in history")
-    q = sub.add_parser("park"); q.add_argument("tid"); q.add_argument("--reason", required=True); q.add_argument("--by", default="")
-    q = sub.add_parser("unpark"); q.add_argument("tid"); q.add_argument("--by", default="")
-    q.add_argument("--pauses", default="",
-                   help="ruling 369243: resuming as a THIRD watch requires naming what stops")
-    q.add_argument("--operator-ruling", default="", dest="operator_ruling",
-                   help="the operator's recorded word -- the cap never refuses him")
-    sub.add_parser("list"); sub.add_parser("next")
+    q.add_argument(
+        "--reviewed-by",
+        default="",
+        dest="reviewed_by",
+        help="who INDEPENDENTLY reviewed this (not you). Required for paths in "
+        "task_ledger.LOAD_BEARING unless --self-verified is given.",
+    )
+    q.add_argument(
+        "--self-verified",
+        default="",
+        dest="self_verified",
+        help="close a load-bearing task WITHOUT independent review, recording why. "
+        "Counted, not hidden -- the total shows in the `task list` summary.",
+    )
+    q = sub.add_parser("block")
+    q.add_argument("tid")
+    q.add_argument("--reason", required=True)
+    q.add_argument("--by", default="")
+    q = sub.add_parser("abandon")
+    q.add_argument("tid")
+    q.add_argument("--reason", required=True)
+    q.add_argument("--by", default="")
+    q.add_argument(
+        "--operator-ruling",
+        default="",
+        dest="operator_ruling",
+        help="T352: required to abandon a DONE row -- the operator's words, recorded in history",
+    )
+    q = sub.add_parser("park")
+    q.add_argument("tid")
+    q.add_argument("--reason", required=True)
+    q.add_argument("--by", default="")
+    q = sub.add_parser("unpark")
+    q.add_argument("tid")
+    q.add_argument("--by", default="")
+    q.add_argument("--pauses", default="", help="ruling 369243: resuming as a THIRD watch requires naming what stops")
+    q.add_argument(
+        "--operator-ruling",
+        default="",
+        dest="operator_ruling",
+        help="the operator's recorded word -- the cap never refuses him",
+    )
+    sub.add_parser("list")
+    sub.add_parser("next")
     a = ap.parse_args(argv)
 
     try:
         if a.cmd == "propose":
-            t = propose(a.title, owner=a.owner, deps=_csv(a.deps), files=_csv(a.files),
-                        acceptance=a.acc, by=a.by)
+            t = propose(a.title, owner=a.owner, deps=_csv(a.deps), files=_csv(a.files), acceptance=a.acc, by=a.by)
             print(f"proposed {t['id']}: {t['title']}")
         elif a.cmd == "approve":
             print(f"approved {approve(a.tid, by=a.by or 'user')['id']}")
@@ -257,8 +319,7 @@ def main(argv=None) -> int:
         elif a.cmd == "verify":
             print(f"verifying {verify(a.tid, by=a.by)['id']}")
         elif a.cmd == "done":
-            t = done(a.tid, a.commit, a.verified_by, by=a.by,
-                     reviewed_by=a.reviewed_by, self_verified=a.self_verified)
+            t = done(a.tid, a.commit, a.verified_by, by=a.by, reviewed_by=a.reviewed_by, self_verified=a.self_verified)
             print(f"DONE {t['id']} @ {a.commit} -- RESOLVED marker emitted")
         elif a.cmd == "block":
             print(f"blocked {block(a.tid, a.reason, by=a.by)['id']}: {a.reason}")
@@ -271,11 +332,15 @@ def main(argv=None) -> int:
             print(f"UNPARKED {t['id']} (now IN_PROGRESS)")
         elif a.cmd == "list":
             import time
+
             print(TL.format_state(now=time.time()))
         elif a.cmd == "next":
             n = next_task()
-            print(f"NEXT: {n['id']} - {n['title']}" if n else
-                  "NEXT: none (a task is already in progress, or nothing is claimable)")
+            print(
+                f"NEXT: {n['id']} - {n['title']}"
+                if n
+                else "NEXT: none (a task is already in progress, or nothing is claimable)"
+            )
     except TL.LedgerError as e:
         print(f"BLOCKED: {e}", file=sys.stderr)
         return 1

@@ -1,4 +1,5 @@
 """Hermetic CLI pins for the structured awareness snapshot."""
+
 import argparse
 import io
 import json

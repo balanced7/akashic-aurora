@@ -23,6 +23,7 @@ V1 IS NOTIFY-ONLY by decision. Auto-recovery (spawning a fresh seat) is feasible
 make a stillborn spawn visible, but this house has scars from thundering-herd spawns, so that half
 waits on Daniil's ruling. A zero-blast-radius watcher that reliably speaks is most of the value.
 """
+
 from __future__ import annotations
 
 import json
@@ -39,8 +40,7 @@ DEFAULT_COOLDOWN_S = 1800.0
 
 def default_path() -> str:
     here = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    return os.getenv("AKASHIC_RUN_EXPECTATION") or os.path.join(
-        here, "state", "expect", "run-active.json")
+    return os.getenv("AKASHIC_RUN_EXPECTATION") or os.path.join(here, "state", "expect", "run-active.json")
 
 
 # ---------------------------------------------------------------- the decidable half (pinned)
@@ -53,29 +53,33 @@ def verdict(expectation: Any, *, now: Optional[float] = None) -> Optional[str]:
     if not isinstance(expectation, dict):
         return None
     if not expectation.get("active"):
-        return None                      # stood down, or never declared: quiet is correct
+        return None  # stood down, or never declared: quiet is correct
     stamped = expectation.get("checkpoint_at")
     if not isinstance(stamped, (int, float)) or isinstance(stamped, bool):
-        return None                      # cannot tell -> say nothing, never a false alarm
+        return None  # cannot tell -> say nothing, never a false alarm
     grace = expectation.get("grace_s")
-    grace = float(grace) if isinstance(grace, (int, float)) and not isinstance(grace, bool) \
-        else DEFAULT_GRACE_S
+    grace = float(grace) if isinstance(grace, (int, float)) and not isinstance(grace, bool) else DEFAULT_GRACE_S
     silent_for = now - float(stamped)
     if silent_for <= grace:
         return None
     last = expectation.get("last_alarm_at")
     if isinstance(last, (int, float)) and not isinstance(last, bool):
         cooldown = expectation.get("cooldown_s")
-        cooldown = float(cooldown) if isinstance(cooldown, (int, float)) \
-            and not isinstance(cooldown, bool) else DEFAULT_COOLDOWN_S
+        cooldown = (
+            float(cooldown)
+            if isinstance(cooldown, (int, float)) and not isinstance(cooldown, bool)
+            else DEFAULT_COOLDOWN_S
+        )
         if now - float(last) < cooldown:
-            return None                  # already said it recently; do not become wallpaper
+            return None  # already said it recently; do not become wallpaper
     who = str(expectation.get("declared_by") or "an undeclared seat")
     what = str(expectation.get("what") or "an unnamed run")
     mins = int(silent_for // 60)
-    return (f"FAILSAFE: {who} declared a run active ({what}) and has not checkpointed for "
-            f"{mins} min, past its {int(grace // 60)} min grace. The seat may be down, "
-            f"529'd, or stalled -- nothing has moved.")
+    return (
+        f"FAILSAFE: {who} declared a run active ({what}) and has not checkpointed for "
+        f"{mins} min, past its {int(grace // 60)} min grace. The seat may be down, "
+        f"529'd, or stalled -- nothing has moved."
+    )
 
 
 # ---------------------------------------------------------------- the file half
@@ -93,17 +97,27 @@ def _write(path: Any, doc: Dict[str, Any]) -> Dict[str, Any]:
     tmp = p + ".tmp"
     with open(tmp, "w", encoding="utf-8") as fh:
         json.dump(doc, fh, indent=1)
-    os.replace(tmp, p)                   # atomic on the same volume
+    os.replace(tmp, p)  # atomic on the same volume
     return doc
 
 
-def declare(path: Any, *, who: str, what: str, grace_s: float = DEFAULT_GRACE_S,
-            now: Optional[float] = None) -> Dict[str, Any]:
+def declare(
+    path: Any, *, who: str, what: str, grace_s: float = DEFAULT_GRACE_S, now: Optional[float] = None
+) -> Dict[str, Any]:
     """Open an expectation. From here until stand_down, silence is a finding."""
     now = float(now if now is not None else time.time())
-    return _write(path, {"active": True, "declared_by": str(who), "what": str(what),
-                         "declared_at": now, "checkpoint_at": now,
-                         "grace_s": float(grace_s), "cooldown_s": DEFAULT_COOLDOWN_S})
+    return _write(
+        path,
+        {
+            "active": True,
+            "declared_by": str(who),
+            "what": str(what),
+            "declared_at": now,
+            "checkpoint_at": now,
+            "grace_s": float(grace_s),
+            "cooldown_s": DEFAULT_COOLDOWN_S,
+        },
+    )
 
 
 def checkpoint(path: Any, *, now: Optional[float] = None) -> Optional[Dict[str, Any]]:

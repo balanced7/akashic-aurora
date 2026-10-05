@@ -8,6 +8,7 @@ agent acts under, fail-closed to QUARANTINED for anything unknown, unverified, o
 Storage is a git-tracked JSON file. A small in-process mtime cache avoids re-reading on every check; a
 Redis cache layer is a later optimization (the file is always the fallback truth).
 """
+
 from __future__ import annotations
 
 import json
@@ -20,6 +21,17 @@ from typing import Optional
 
 from core.trust.capabilities import Cap, ROLE_TEMPLATES, DEFAULT_ROLE, caps_from
 
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+
+        return python_launcher()
+    except Exception:
+        return "py"
+
+
 _DEFAULT_ACL = Path(__file__).resolve().parent.parent.parent / "security" / "acl.json"
 # T163: overridable so the grant WRITER can be exercised against a copy. Before this there was no
 # writer at all, so nothing ever needed to point elsewhere -- and a test that must edit the real
@@ -31,6 +43,7 @@ def acl_path() -> Path:
     """The ACL in force. Read through this rather than the module constant: a long-lived process
     that imported before the override was set would otherwise hold a frozen path."""
     return Path(os.getenv("AKASHIC_ACL_PATH") or _DEFAULT_ACL)
+
 
 # Code-level bootstrap: the trusted CORE agents keep these roles even if security/acl.json is missing or
 # corrupt. This is the availability guarantee -- DeepSeek's admin does NOT depend on the file surviving,
@@ -45,14 +58,15 @@ BOOTSTRAP_ROLES = {
 @dataclass
 class Grant:
     """One agent's effective permissions. Source of truth is security/acl.json."""
+
     agent_id: str
     role: str
-    caps: set = field(default_factory=set)          # set[Cap]
+    caps: set = field(default_factory=set)  # set[Cap]
     path_scope: list = field(default_factory=list)  # glob prefixes for WRITE ([]=none, ["*"]=full)
-    bus_send_kinds: Optional[set] = None            # None = all kinds; a set = allowlist
+    bus_send_kinds: Optional[set] = None  # None = all kinds; a set = allowlist
     granted_by: str = "root"
     granted_at: str = ""
-    expires_at: Optional[str] = None                # ISO ts; None = permanent
+    expires_at: Optional[str] = None  # ISO ts; None = permanent
     reason: str = ""
     request_ref: Optional[str] = None
 
@@ -66,6 +80,7 @@ class Grant:
         if "*" in self.path_scope:
             return True
         import fnmatch
+
         return any(fnmatch.fnmatch(rel_path, s) for s in self.path_scope)
 
     def can_send_kind(self, kind: str) -> bool:
@@ -76,10 +91,15 @@ class Grant:
 
 def _template_grant(agent_id: str, role: str) -> Grant:
     t = ROLE_TEMPLATES.get(role, ROLE_TEMPLATES[DEFAULT_ROLE])
-    return Grant(agent_id=agent_id, role=role, caps=set(t["caps"]),
-                 path_scope=list(t["path_scope"]), bus_send_kinds=(set(t["bus_send_kinds"])
-                 if t["bus_send_kinds"] is not None else None),
-                 granted_by="template", reason=f"role template: {role}")
+    return Grant(
+        agent_id=agent_id,
+        role=role,
+        caps=set(t["caps"]),
+        path_scope=list(t["path_scope"]),
+        bus_send_kinds=(set(t["bus_send_kinds"]) if t["bus_send_kinds"] is not None else None),
+        granted_by="template",
+        reason=f"role template: {role}",
+    )
 
 
 def role_template(role: str) -> Grant:
@@ -96,8 +116,8 @@ _CACHE: dict = {"mtime": None, "grants": {}}
 # elevated role with nothing saying so. Same trapdoor shape T151 fixed for grant expiry.
 # The POLICY stays (the floor is the availability guarantee); only the silence goes: the fault is
 # recorded here, resolve() says so ONCE per process on stderr, and acl_status() feeds doctor.
-_ACL_FAULT: Optional[dict] = None     # {"kind": "missing"|"unreadable"|"corrupt", "path", "detail"}
-_FLOOR_WARNED = False                 # once per process; re-armed when a later _load() succeeds
+_ACL_FAULT: Optional[dict] = None  # {"kind": "missing"|"unreadable"|"corrupt", "path", "detail"}
+_FLOOR_WARNED = False  # once per process; re-armed when a later _load() succeeds
 
 
 def _acl_readable() -> None:
@@ -112,8 +132,11 @@ def _acl_fault(kind: str, path, exc: BaseException) -> None:
     'missing' carries no detail -- the path says it all; corrupt/unreadable keep the parser's
     or the OS's own words (position info, permission), which is what the operator drills on."""
     global _ACL_FAULT
-    _ACL_FAULT = {"kind": kind, "path": str(path),
-                  "detail": "" if kind == "missing" else f"{type(exc).__name__}: {exc}"[:160]}
+    _ACL_FAULT = {
+        "kind": kind,
+        "path": str(path),
+        "detail": "" if kind == "missing" else f"{type(exc).__name__}: {exc}"[:160],
+    }
 
 
 def _floor_notice(agent_id: str) -> None:
@@ -129,13 +152,16 @@ def _floor_notice(agent_id: str) -> None:
         fault = _ACL_FAULT or {"kind": "unreadable", "path": str(acl_path()), "detail": ""}
         roles = " ".join(f"{a}={r}" for a, r in BOOTSTRAP_ROLES.items())
         detail = f" [{fault['detail']}]" if fault.get("detail") else ""
-        print(f"[trust] ACL {fault['kind']} at {fault['path']} -- BOOTSTRAP FLOOR in force: {roles}, "
-              f"every other id QUARANTINED (first asked: '{agent_id}'){detail}; restore per "
-              f"security/ACL-MOVED-READ-ME.md: restore your LAST acl.json (git show <last-commit>:"
-              f"security/acl.json > security/acl.json); on a fresh instance copy "
-              f"security/acl.example.json AND add your own root/super_admin record by hand -- "
-              f"an EMPTY valid acl.json quarantines EVERY seat, claude and deepseek included, "
-              f"and is narrower than this floor; then py agent_cli.py grant --bootstrap", file=sys.stderr)
+        print(
+            f"[trust] ACL {fault['kind']} at {fault['path']} -- BOOTSTRAP FLOOR in force: {roles}, "
+            f"every other id QUARANTINED (first asked: '{agent_id}'){detail}; restore per "
+            f"security/ACL-MOVED-READ-ME.md: restore your LAST acl.json (git show <last-commit>:"
+            f"security/acl.json > security/acl.json); on a fresh instance copy "
+            f"security/acl.example.json AND add your own root/super_admin record by hand -- "
+            f"an EMPTY valid acl.json quarantines EVERY seat, claude and deepseek included, "
+            f"and is narrower than this floor; then {_pyl()} agent_cli.py grant --bootstrap",
+            file=sys.stderr,
+        )
     except Exception:
         pass
 
@@ -150,7 +176,7 @@ def _load():
         mtime = os.path.getmtime(path)
     except OSError as e:
         _acl_fault("missing" if isinstance(e, FileNotFoundError) else "unreadable", path, e)
-        return None                                   # file missing -> signal total failure
+        return None  # file missing -> signal total failure
     # T163: the cache key includes the PATH. Keyed on mtime alone, pointing the process at a
     # different ACL could serve the previous file's grants whenever the two mtimes matched --
     # a stale-authority answer, which is the one kind this module must never give.
@@ -166,16 +192,20 @@ def _load():
                 continue
             bsk = rec.get("bus_send_kinds", None)
             out[aid] = Grant(
-                agent_id=aid, role=rec.get("role", DEFAULT_ROLE),
+                agent_id=aid,
+                role=rec.get("role", DEFAULT_ROLE),
                 caps=caps_from(rec.get("caps", [])),
                 path_scope=list(rec.get("path_scope", [])),
                 bus_send_kinds=(set(bsk) if bsk is not None else None),
-                granted_by=rec.get("granted_by", "root"), granted_at=rec.get("granted_at", ""),
-                expires_at=rec.get("expires_at"), reason=rec.get("reason", ""),
-                request_ref=rec.get("request_ref"))
+                granted_by=rec.get("granted_by", "root"),
+                granted_at=rec.get("granted_at", ""),
+                expires_at=rec.get("expires_at"),
+                reason=rec.get("reason", ""),
+                request_ref=rec.get("request_ref"),
+            )
     except Exception as e:
         _acl_fault("corrupt", path, e)
-        return None                                   # malformed file -> signal total failure
+        return None  # malformed file -> signal total failure
     _CACHE["mtime"], _CACHE["grants"] = (str(path), mtime), out
     _acl_readable()
     return out
@@ -216,6 +246,7 @@ def expiring_grants(within_h: float = 48.0, grants=None) -> list:
             recs = list(recs.values())
     except Exception:
         return []
+
     def _field(rec, name):
         """Records arrive in TWO shapes and both are legitimate: raw dicts (the file, and pins that
         inject fixtures) and Grant dataclasses (what _load returns). Reading only one shape is how
@@ -231,20 +262,26 @@ def expiring_grants(within_h: float = 48.0, grants=None) -> list:
             raw = _field(rec, "expires_at")
             agent = _field(rec, "agent_id")
             if not raw or not agent:
-                continue                      # permanent, or nothing to name
+                continue  # permanent, or nothing to name
             try:
                 exp = datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
                 if exp.tzinfo is None:
                     exp = exp.replace(tzinfo=timezone.utc)
                 hours_left = (exp - now).total_seconds() / 3600.0
             except Exception:
-                out.append({"agent_id": agent, "expires_at": str(raw),
-                            "hours_left": None, "expired": True})   # matches _expired's fail-closed
+                out.append(
+                    {"agent_id": agent, "expires_at": str(raw), "hours_left": None, "expired": True}
+                )  # matches _expired's fail-closed
                 continue
             if hours_left <= float(within_h):
-                out.append({"agent_id": agent, "expires_at": str(raw),
-                            "hours_left": round(hours_left, 1),
-                            "expired": hours_left <= 0})
+                out.append(
+                    {
+                        "agent_id": agent,
+                        "expires_at": str(raw),
+                        "hours_left": round(hours_left, 1),
+                        "expired": hours_left <= 0,
+                    }
+                )
         except Exception:
             continue
     return sorted(out, key=lambda r: (not r["expired"], r["agent_id"]))
@@ -263,17 +300,25 @@ def acl_status() -> dict:
         loaded = _load()
         floor = loaded is None
         fault = (_ACL_FAULT or {}) if floor else {}
-        return {"ok": not floor,
-                "fault_kind": (fault.get("kind") or "unreadable") if floor else None,
-                "path": str(acl_path()),
-                "floor_in_force": floor,
-                "floor_roles": dict(BOOTSTRAP_ROLES),
-                "detail": fault.get("detail") if floor else None,
-                "grants": 0 if floor else len(loaded)}
-    except Exception as e:                            # a broken probe is itself a floor condition
-        return {"ok": False, "fault_kind": "error", "path": "?", "floor_in_force": True,
-                "floor_roles": dict(BOOTSTRAP_ROLES),
-                "detail": f"{type(e).__name__}: {e}"[:160], "grants": 0}
+        return {
+            "ok": not floor,
+            "fault_kind": (fault.get("kind") or "unreadable") if floor else None,
+            "path": str(acl_path()),
+            "floor_in_force": floor,
+            "floor_roles": dict(BOOTSTRAP_ROLES),
+            "detail": fault.get("detail") if floor else None,
+            "grants": 0 if floor else len(loaded),
+        }
+    except Exception as e:  # a broken probe is itself a floor condition
+        return {
+            "ok": False,
+            "fault_kind": "error",
+            "path": "?",
+            "floor_in_force": True,
+            "floor_roles": dict(BOOTSTRAP_ROLES),
+            "detail": f"{type(e).__name__}: {e}"[:160],
+            "grants": 0,
+        }
 
 
 def _expired(expires_at: Optional[str]) -> bool:
@@ -285,7 +330,7 @@ def _expired(expires_at: Optional[str]) -> bool:
             exp = exp.replace(tzinfo=timezone.utc)
         return datetime.now(timezone.utc) >= exp
     except Exception:
-        return True                                   # unparseable expiry -> treat as expired (fail closed)
+        return True  # unparseable expiry -> treat as expired (fail closed)
 
 
 def grants() -> list:
@@ -316,28 +361,31 @@ def may_run_runner(agent_id: str) -> bool:
         return resolve(agent_id).role != "quarantined"
     except Exception as e:
         import sys
+
         # What resolve() would have returned had it caught this itself (its corrupt-file
         # path already lapses here); never blanket-allow on the ungated infrastructure lane.
         grant = _bootstrap_or_quarantine(agent_id)
         allowed = grant.role != "quarantined"
-        print(f"[trust] may_run_runner: resolve() threw {type(e).__name__} for '{agent_id}' "
-              f"-- bootstrap floor {'allowed' if allowed else 'REFUSED'} (role={grant.role})",
-              file=sys.stderr)
+        print(
+            f"[trust] may_run_runner: resolve() threw {type(e).__name__} for '{agent_id}' "
+            f"-- bootstrap floor {'allowed' if allowed else 'REFUSED'} (role={grant.role})",
+            file=sys.stderr,
+        )
         return allowed
 
 
 def resolve(agent_id: str, *, verified: bool = True) -> Grant:
     """The EFFECTIVE grant `agent_id` acts under -- the single door-check entry. Fail-closed:
-      - unverified identity or empty id  -> quarantined (identity-first);
-      - ACL file missing/corrupt         -> BOOTSTRAP_ROLES for core agents, quarantined for the rest
-                                            (availability floor: DeepSeek stays admin through file loss);
-      - agent absent from a VALID file   -> quarantined (a deliberate removal is honored);
-      - grant present but expired         -> quarantined (temporary escalations lapse to the role floor)."""
+    - unverified identity or empty id  -> quarantined (identity-first);
+    - ACL file missing/corrupt         -> BOOTSTRAP_ROLES for core agents, quarantined for the rest
+                                          (availability floor: DeepSeek stays admin through file loss);
+    - agent absent from a VALID file   -> quarantined (a deliberate removal is honored);
+    - grant present but expired         -> quarantined (temporary escalations lapse to the role floor)."""
     if not verified or not agent_id:
         return _template_grant(agent_id or "<unknown>", DEFAULT_ROLE)
     loaded = _load()
-    if loaded is None:                                # file unreadable -> code-level bootstrap floor
-        _floor_notice(agent_id)                       # cf6fe59a4d: a floor wider than the file is LOUD
+    if loaded is None:  # file unreadable -> code-level bootstrap floor
+        _floor_notice(agent_id)  # cf6fe59a4d: a floor wider than the file is LOUD
         return _bootstrap_or_quarantine(agent_id)
     g = loaded.get(agent_id)
     if g is None or _expired(g.expires_at):

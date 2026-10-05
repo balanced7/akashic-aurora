@@ -9,12 +9,23 @@ T084 S1 starts with ``verb:<name>``.  S3 adds the deliberately explicit
 ``seat:<id> --continuity`` form without overloading a bare word or allowing
 continuity evidence to become an identity verdict.
 """
+
 from __future__ import annotations
 
 import argparse
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Tuple
+
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+
+        return python_launcher()
+    except Exception:
+        return "py"
 
 
 _ROOT = Path(__file__).resolve().parents[2]
@@ -52,8 +63,16 @@ def _norm(value: str) -> str:
     return str(value or "").strip().lower().replace("-", "_")
 
 
-def _rung(name: str, state: str, claim: str, source: str, observed_at: str,
-          *, details: Optional[Mapping[str, Any]] = None, drill: str) -> Dict[str, Any]:
+def _rung(
+    name: str,
+    state: str,
+    claim: str,
+    source: str,
+    observed_at: str,
+    *,
+    details: Optional[Mapping[str, Any]] = None,
+    drill: str,
+) -> Dict[str, Any]:
     if name not in _RUNG_ORDER:
         raise ValueError(f"unknown evidence rung {name!r}")
     if state not in _STATES:
@@ -98,9 +117,13 @@ def _surface_inventory() -> Dict[str, Any]:
         from scripts.checkers import check_door_parity as dp
     except Exception as exc:
         why = f"{type(exc).__name__}: {exc}"
-        return {"manifest": {}, "aliases": {}, "exempt": {},
-                "doors": {"cli": set(), "mcp": set(), "toolbox": set()},
-                "errors": {"door_parity": why}}
+        return {
+            "manifest": {},
+            "aliases": {},
+            "exempt": {},
+            "doors": {"cli": set(), "mcp": set(), "toolbox": set()},
+            "errors": {"door_parity": why},
+        }
 
     def _read(label: str, fn) -> set:
         try:
@@ -178,9 +201,9 @@ def _wired_rows(doors: Mapping[str, Mapping[str, Any]]) -> Tuple[Dict[str, Any],
     if cli_row["present"]:
         try:
             import agent_cli
+
             parser = agent_cli.build_parser()
-            subs = next(a for a in parser._actions
-                        if isinstance(a, argparse._SubParsersAction))
+            subs = next(a for a in parser._actions if isinstance(a, argparse._SubParsersAction))
             choice = next((p for raw, p in subs.choices.items() if _norm(raw) == cli_row["address"]), None)
             fn = choice.get_default("fn") if choice is not None else None
             cli_row["wired"] = callable(fn)
@@ -196,6 +219,7 @@ def _wired_rows(doors: Mapping[str, Mapping[str, Any]]) -> Tuple[Dict[str, Any],
     if mcp_row["present"]:
         try:
             import ai_setup_mcp
+
             fn = getattr(ai_setup_mcp, mcp_row["address"], None)
             mcp_row["wired"] = callable(fn)
             mcp_row["handler"] = getattr(fn, "__name__", "") if callable(fn) else ""
@@ -208,6 +232,7 @@ def _wired_rows(doors: Mapping[str, Mapping[str, Any]]) -> Tuple[Dict[str, Any],
     if tb_row["present"]:
         try:
             from core.comm.toolbox import TOOLS, ToolBox
+
             fn = getattr(ToolBox, tb_row["address"], None)
             advertised = {r.get("function", {}).get("name") for r in TOOLS}
             tb_row["method_callable"] = callable(fn)
@@ -224,6 +249,7 @@ def _grant_details(name: str, subject: str, doors: Mapping[str, Mapping[str, Any
     errors = ""
     try:
         from core.trust import registry
+
         grant = registry.resolve(subject)
         caps = sorted(getattr(c, "value", str(c)) for c in grant.caps)
         role = grant.role
@@ -243,8 +269,7 @@ def _grant_details(name: str, subject: str, doors: Mapping[str, Mapping[str, Any
     opens = set(_OPEN_READ_DOORS.get(name, ()))
     for door in ("cli", "mcp", "toolbox"):
         if not doors[door]["present"]:
-            per_door[door] = {"state": "absent", "required_caps": [],
-                              "claim": "no address on this door"}
+            per_door[door] = {"state": "absent", "required_caps": [], "claim": "no address on this door"}
             continue
         required = list(reqs.get(door, ()))
         required_union.update(required)
@@ -255,14 +280,16 @@ def _grant_details(name: str, subject: str, doors: Mapping[str, Mapping[str, Any
             missing = sorted(set(required) - set(caps))
             missing_union.update(missing)
             state = "refused" if missing else "observed"
-            claim = (f"effective grant lacks {', '.join(missing)}" if missing
-                     else "effective grant satisfies the observed gate")
+            claim = (
+                f"effective grant lacks {', '.join(missing)}"
+                if missing
+                else "effective grant satisfies the observed gate"
+            )
         else:
             state = "unknown"
             claim = "no mechanically mapped subject capability gate for this door"
         known_states.append(state)
-        per_door[door] = {"state": state, "required_caps": required,
-                          "missing_caps": missing, "claim": claim}
+        per_door[door] = {"state": state, "required_caps": required, "missing_caps": missing, "claim": claim}
 
     if errors:
         aggregate = "unknown"
@@ -292,7 +319,7 @@ def _grant_details(name: str, subject: str, doors: Mapping[str, Mapping[str, Any
 def _test_references(name: str, *, cap_files: int = 500, cap_hits: int = 20) -> Dict[str, Any]:
     tests_dir = _ROOT / "tests"
     files = sorted(tests_dir.glob("test_*.py")) if tests_dir.exists() else []
-    scanned = files[:max(0, int(cap_files))]
+    scanned = files[: max(0, int(cap_files))]
     needles = {name, name.replace("_", "-")}
     hits: List[str] = []
     failed: Dict[str, str] = {}
@@ -328,10 +355,9 @@ def ground(target: str, *, subject: str, continuity: bool = False) -> Dict[str, 
         if not continuity:
             raise ValueError("seat grounding requires the explicit --continuity mode")
         if subject != name:
-            raise ValueError(
-                f"seat target must match the bound subject: target={name!r}, subject={subject!r}"
-            )
+            raise ValueError(f"seat target must match the bound subject: target={name!r}, subject={subject!r}")
         from core.coord import continuity as _continuity
+
         return _continuity.build_profile(name)
     if continuity:
         raise ValueError("--continuity is valid only for seat:<id>")
@@ -391,41 +417,78 @@ def ground(target: str, *, subject: str, continuity: bool = False) -> Dict[str, 
     refs = _test_references(name)
     if refs["references_total"]:
         exercised_state = "partial"
-        exercised_claim = (f"{refs['references_total']} test file(s) reference the verb; "
-                            "this scan does not establish that they ran or passed")
+        exercised_claim = (
+            f"{refs['references_total']} test file(s) reference the verb; "
+            "this scan does not establish that they ran or passed"
+        )
     else:
         exercised_state = "unknown"
         exercised_claim = "bounded lexical scan found no test reference; absence is not proof of no exercise"
 
     source_base = "scripts/checkers/check_door_parity.py (live manifest and AST census)"
     rungs = [
-        _rung("declared", declared_state, declared_claim, source_base, observed_at,
-              details={"classification": classification, "manifest_entry": name,
-                       "reader_errors": inv.get("errors") or {}},
-              drill="py scripts/checkers/check_door_parity.py --report"),
-        _rung("reachable", reachable_state, reachable_claim, source_base, observed_at,
-              details={"doors": doors, "expected_doors": list(expected)},
-              drill="py scripts/checkers/check_door_parity.py --report"),
-        _rung("authorized", auth_state,
-              ("effective grant and per-door gate observations disagree or are incomplete"
-               if auth_state == "partial" else
-               "effective grant was compared only where a subject gate is mechanically known"),
-              "security/acl.json via core.trust.registry.resolve + door implementations",
-              observed_at, details=auth_details,
-              drill=f"py agent_cli.py ground verb:{name} --agent {subject} --json"),
-        _rung("wired", wired_state, wired_claim,
-              "live parser defaults + MCP callables + ToolBox method/schema", observed_at,
-              details={"doors": wired, "reader_errors": wired_errors},
-              drill="py scripts/checkers/check_wiring.py"),
-        _rung("exercised", exercised_state, exercised_claim,
-              "tests/test_*.py bounded lexical reference scan (not execution)", observed_at,
-              details=refs,
-              drill=f"py -m pytest -q -k {name}"),
-        _rung("proven", "unknown",
-              "no canonical fresh runtime receipt resolver currently maps this verb to a successful execution",
-              "canonical runtime receipt resolver: unavailable", observed_at,
-              details={"receipt": None, "freshness": "unknown"},
-              drill=f"exercise verb:{name} through the intended door and record an independent receipt"),
+        _rung(
+            "declared",
+            declared_state,
+            declared_claim,
+            source_base,
+            observed_at,
+            details={
+                "classification": classification,
+                "manifest_entry": name,
+                "reader_errors": inv.get("errors") or {},
+            },
+            drill=f"{_pyl()} scripts/checkers/check_door_parity.py --report",
+        ),
+        _rung(
+            "reachable",
+            reachable_state,
+            reachable_claim,
+            source_base,
+            observed_at,
+            details={"doors": doors, "expected_doors": list(expected)},
+            drill=f"{_pyl()} scripts/checkers/check_door_parity.py --report",
+        ),
+        _rung(
+            "authorized",
+            auth_state,
+            (
+                "effective grant and per-door gate observations disagree or are incomplete"
+                if auth_state == "partial"
+                else "effective grant was compared only where a subject gate is mechanically known"
+            ),
+            "security/acl.json via core.trust.registry.resolve + door implementations",
+            observed_at,
+            details=auth_details,
+            drill=f"{_pyl()} agent_cli.py ground verb:{name} --agent {subject} --json",
+        ),
+        _rung(
+            "wired",
+            wired_state,
+            wired_claim,
+            "live parser defaults + MCP callables + ToolBox method/schema",
+            observed_at,
+            details={"doors": wired, "reader_errors": wired_errors},
+            drill=f"{_pyl()} scripts/checkers/check_wiring.py",
+        ),
+        _rung(
+            "exercised",
+            exercised_state,
+            exercised_claim,
+            "tests/test_*.py bounded lexical reference scan (not execution)",
+            observed_at,
+            details=refs,
+            drill=f"{_pyl()} -m pytest -q -k {name}",
+        ),
+        _rung(
+            "proven",
+            "unknown",
+            "no canonical fresh runtime receipt resolver currently maps this verb to a successful execution",
+            "canonical runtime receipt resolver: unavailable",
+            observed_at,
+            details={"receipt": None, "freshness": "unknown"},
+            drill=f"exercise verb:{name} through the intended door and record an independent receipt",
+        ),
     ]
 
     blind = ["fresh runtime proof: no canonical verb-to-receipt resolver"]
@@ -463,13 +526,15 @@ def render(result: Mapping[str, Any]) -> str:
     """Compact human rendering; JSON remains the full-fidelity surface."""
     if result.get("mode") == "continuity":
         from core.coord.continuity import render_profile
+
         return render_profile(result)
     target = result.get("target") or {}
-    lines = [f"# ground {target.get('kind')}:{target.get('name')} for {result.get('subject')}",
-             f"  observed {result.get('observed_at')} | effects: none"]
+    lines = [
+        f"# ground {target.get('kind')}:{target.get('name')} for {result.get('subject')}",
+        f"  observed {result.get('observed_at')} | effects: none",
+    ]
     for row in result.get("rungs") or []:
-        lines.append(f"  {str(row.get('name')).upper():<11} {str(row.get('state')).upper():<8} "
-                     f"{row.get('claim')}")
+        lines.append(f"  {str(row.get('name')).upper():<11} {str(row.get('state')).upper():<8} {row.get('claim')}")
         lines.append(f"              source: {row.get('source')}")
     for item in result.get("blind") or []:
         lines.append(f"  BLIND: {item}")

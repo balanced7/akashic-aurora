@@ -31,6 +31,7 @@ PATTERN, not an accident." Two seats saved by the same lesson is a signal the cu
 weight (bench_reason's killer: credit × distinct voices). Also the fence-seat's native act:
 I verify, I second, I contest -- in both directions.
 """
+
 from __future__ import annotations
 
 import time
@@ -42,7 +43,7 @@ try:
 except Exception:  # pragma: no cover - toast is a sibling module; same package in prod
     from toast import verify_receipt, note_title, NOTE_TITLE_PREFIX  # type: ignore
 
-MAX_BODY = 240          # a second voice is shorter than the first; chorus, not solo.
+MAX_BODY = 240  # a second voice is shorter than the first; chorus, not solo.
 
 
 def render_contest_line(frm: str, to: str, receipt: str, hops: str, tier: str) -> str:
@@ -52,21 +53,28 @@ def render_contest_line(frm: str, to: str, receipt: str, hops: str, tier: str) -
     return f"{tag} {body} (same receipt: {receipt.strip()})"
 
 
-def render_contest_verse(frm: str, hops: str, tier: str, found_by: str,
-                         when: Optional[str] = None) -> str:
+def render_contest_verse(frm: str, hops: str, tier: str, found_by: str, when: Optional[str] = None) -> str:
     """One appended verse for the durable note -- the chorus line."""
-    return (f"\ncontested ({tier}) -- {when or time.strftime('%Y-%m-%d %H:%M')}\n"
-            f"  by: {frm}\n"
-            f"  credit: {hops.strip()}\n"
-            f"  verification: {tier} ({found_by})")
+    return (
+        f"\ncontested ({tier}) -- {when or time.strftime('%Y-%m-%d %H:%M')}\n"
+        f"  by: {frm}\n"
+        f"  credit: {hops.strip()}\n"
+        f"  verification: {tier} ({found_by})"
+    )
 
 
-def send(frm: str, to: str, receipt: str, hops: str, *,
-         force: bool = False,
-         bus_send: Optional[Callable[[str, str, str], Any]] = None,
-         note_read: Optional[Callable[[str], Optional[str]]] = None,
-         note_write: Optional[Callable[[str, str], Any]] = None,
-         store: Optional[Any] = None) -> Dict[str, Any]:
+def send(
+    frm: str,
+    to: str,
+    receipt: str,
+    hops: str,
+    *,
+    force: bool = False,
+    bus_send: Optional[Callable[[str, str, str], Any]] = None,
+    note_read: Optional[Callable[[str], Optional[str]]] = None,
+    note_write: Optional[Callable[[str, str], Any]] = None,
+    store: Optional[Any] = None,
+) -> Dict[str, Any]:
     """One contest: prove, append, ping. Refuses loudly on an unproven receipt unless forced.
 
     bus_send(to, kind, text) -- the live ping.
@@ -78,46 +86,68 @@ def send(frm: str, to: str, receipt: str, hops: str, *,
     if frm == to:
         raise ValueError("contest is a chorus, not a solo: you cannot second your own toast")
     if not str(hops or "").strip():
-        raise ValueError("contest needs the credit (what did the same lesson save YOU?) -- "
-                         "a second voice without its own receipt-detail is an echo")
+        raise ValueError(
+            "contest needs the credit (what did the same lesson save YOU?) -- "
+            "a second voice without its own receipt-detail is an echo"
+        )
     hops = str(hops).strip()
     if len(hops) > MAX_BODY:
-        raise ValueError(f"contest credit clipped at {MAX_BODY} chars ({len(hops)} given) -- "
-                         "chorus is shorter than solo; longer wants a fresh toast")
+        raise ValueError(
+            f"contest credit clipped at {MAX_BODY} chars ({len(hops)} given) -- "
+            "chorus is shorter than solo; longer wants a fresh toast"
+        )
 
     # (a) PROVE -- the contester's claim verifies for THEM (agent-attributed, like toast).
     ok, found_by = verify_receipt(to, receipt, store=store)
     tier = "VERIFIED" if ok else "GUESS"
     if not ok and not force:
-        raise ValueError(f"contest REFUSED: receipt does not verify ({found_by}). "
-                         "Re-check the experiment name, or pass force=True to second it "
-                         "honestly labeled GUESS.")
+        raise ValueError(
+            f"contest REFUSED: receipt does not verify ({found_by}). "
+            "Re-check the experiment name, or pass force=True to second it "
+            "honestly labeled GUESS."
+        )
 
     title = note_title(to, receipt)
     line = render_contest_line(frm, to, receipt, hops, tier)
     verse = render_contest_verse(frm, hops, tier, found_by)
-    res: Dict[str, Any] = {"tier": tier, "found_by": found_by, "line": line,
-                           "note_title": title, "bus": "skipped", "note": "skipped"}
+    res: Dict[str, Any] = {
+        "tier": tier,
+        "found_by": found_by,
+        "line": line,
+        "note_title": title,
+        "bus": "skipped",
+        "note": "skipped",
+    }
 
     # (b) APPEND -- read the existing toast note (CAS re-read), append the verse, write back.
     if note_read is None:
+
         def note_read(_title: str) -> Optional[str]:
             from core.learning.agent_memory import get_agent_memory
+
             mem = get_agent_memory()
-            try:                                  # latest-by-title; None when absent
+            try:  # latest-by-title; None when absent
                 cur = mem.latest(_title)
                 return cur.get("decision") if cur else None
             except Exception:
                 return None
+
     if note_write is None:
+
         def note_write(_title: str, body: str) -> Any:
             from core.learning.agent_memory import get_agent_memory
+
             return get_agent_memory().decide_with_retry(_title, body, curated=True)
+
     try:
         prior = note_read(title)
-        body = (prior.rstrip() + "\n" + verse) if prior else (
-            f"TOAST-THREAD ({tier}) -- opened by a contest (no prior toast found)\n"
-            f"receipt: {receipt}\n" + verse.lstrip("\n")
+        body = (
+            (prior.rstrip() + "\n" + verse)
+            if prior
+            else (
+                f"TOAST-THREAD ({tier}) -- opened by a contest (no prior toast found)\n"
+                f"receipt: {receipt}\n" + verse.lstrip("\n")
+            )
         )
         note_write(title, body)
         res["note"] = "appended" if prior else "opened (no prior toast; contest stands alone)"
@@ -126,9 +156,12 @@ def send(frm: str, to: str, receipt: str, hops: str, *,
 
     # (c) PING -- the live chorus sound; fail-soft, the durable note is the credit.
     if bus_send is None:
+
         def bus_send(_to: str, kind: str, text: str) -> Any:
             from core.comm.bifrost import get_bus
+
             return get_bus().send(frm, _to, kind, text)
+
     try:
         bus_send(to, "note", line)
         res["bus"] = "sent"
@@ -139,7 +172,9 @@ def send(frm: str, to: str, receipt: str, hops: str, *,
 
 
 def render_result(res: Dict[str, Any]) -> str:
-    return (f"contest [{res['tier']}] ({res['found_by']})\n"
-            f"  bus : {res['bus']}\n"
-            f"  note: {res['note']} -> {res['note_title']}\n"
-            f"  line: {res['line']}")
+    return (
+        f"contest [{res['tier']}] ({res['found_by']})\n"
+        f"  bus : {res['bus']}\n"
+        f"  note: {res['note']} -> {res['note_title']}\n"
+        f"  line: {res['line']}"
+    )

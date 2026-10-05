@@ -39,6 +39,7 @@ And the recovery oracle is OUTSIDE the instrument. `verify_recovered` launches t
 app and confirms it stays up -- it never re-reads the status field it just wrote,
 because asking the gauge how it is feeling is how the fleet certified a dead seat.
 """
+
 from __future__ import annotations
 
 import base64
@@ -73,6 +74,7 @@ class PayloadProof:
     separately from `files`/`blocks` (what was actually read and hashed). The gap
     between them is the whole point: a verification that covered 9000 of 11411 blocks
     found no mismatch in the 9000 and says NOTHING about the other 2411."""
+
     files: int
     blocks: int
     bytes: int
@@ -85,10 +87,13 @@ class PayloadProof:
     @property
     def complete(self) -> bool:
         """Did the check cover everything the map declared? Positive counts only."""
-        return (self.error is None
-                and self.declared_blocks > 0 and self.declared_files > 0
-                and self.blocks == self.declared_blocks
-                and self.files == self.declared_files)
+        return (
+            self.error is None
+            and self.declared_blocks > 0
+            and self.declared_files > 0
+            and self.blocks == self.declared_blocks
+            and self.files == self.declared_files
+        )
 
 
 def proof_receipt(proof: PayloadProof) -> str:
@@ -97,17 +102,20 @@ def proof_receipt(proof: PayloadProof) -> str:
     if proof.error:
         return f"UNVERIFIABLE: payload read failed ({proof.error})"
     if proof.declared_blocks <= 0 or proof.declared_files <= 0:
-        return ("UNVERIFIABLE: the block map declared 0 files / 0 blocks -- an empty "
-                "proof is a failed read, not an intact payload")
+        return (
+            "UNVERIFIABLE: the block map declared 0 files / 0 blocks -- an empty "
+            "proof is a failed read, not an intact payload"
+        )
     verb = "verified" if proof.complete and not proof.mismatches else "INCOMPLETE"
-    return (f"{verb} {proof.files}/{proof.declared_files} files, "
-            f"{proof.blocks}/{proof.declared_blocks} blocks, {proof.bytes} bytes, "
-            f"{len(proof.mismatches)} mismatch(es) (SHA-256)")
+    return (
+        f"{verb} {proof.files}/{proof.declared_files} files, "
+        f"{proof.blocks}/{proof.declared_blocks} blocks, {proof.bytes} bytes, "
+        f"{len(proof.mismatches)} mismatch(es) (SHA-256)"
+    )
 
 
 # ------------------------------------------------------------------- THE DOOR
-def clear_refusals(pkg: Optional[Dict[str, Any]], proof: PayloadProof,
-                   *, elevated: bool) -> List[str]:
+def clear_refusals(pkg: Optional[Dict[str, Any]], proof: PayloadProof, *, elevated: bool) -> List[str]:
     """Every reason NOT to clear `PackageStatus.Modified`, named. Empty list == may
     proceed.
 
@@ -118,60 +126,72 @@ def clear_refusals(pkg: Optional[Dict[str, Any]], proof: PayloadProof,
 
     # -- the package itself ---------------------------------------------------
     if not pkg:
-        out.append(f"no package found matching {PACKAGE_NAME!r} -- there is nothing "
-                   f"to repair, and 'no mismatches over no package' is not a pass")
-        return out                      # everything below would be about a ghost
+        out.append(
+            f"no package found matching {PACKAGE_NAME!r} -- there is nothing "
+            f"to repair, and 'no mismatches over no package' is not a pass"
+        )
+        return out  # everything below would be about a ghost
 
     status = str(pkg.get("status") or "").strip()
     tokens = {t.strip().lower() for t in status.replace(",", " ").split() if t.strip()}
     if not tokens:
-        out.append("the package status could not be read -- an unreadable status is a "
-                   "refusal, not a healthy package")
+        out.append("the package status could not be read -- an unreadable status is a refusal, not a healthy package")
     elif tokens == {"ok"}:
-        out.append("package status is Ok -- healthy; this rung does not 'repair' a "
-                   "working package")
+        out.append("package status is Ok -- healthy; this rung does not 'repair' a working package")
     else:
         unhandled = tokens - HANDLED_STATUS_TOKENS - {"ok"}
         if unhandled:
-            out.append(f"package status {status!r} contains state(s) this rung has no "
-                       f"lever for: {', '.join(sorted(unhandled))} -- refusing to treat "
-                       f"an unknown bad state as the one bad state we can fix")
+            out.append(
+                f"package status {status!r} contains state(s) this rung has no "
+                f"lever for: {', '.join(sorted(unhandled))} -- refusing to treat "
+                f"an unknown bad state as the one bad state we can fix"
+            )
         elif "modified" not in tokens:
-            out.append(f"package status {status!r} does not include Modified -- "
-                       f"nothing for ClearPackageStatus(Modified) to clear")
+            out.append(
+                f"package status {status!r} does not include Modified -- "
+                f"nothing for ClearPackageStatus(Modified) to clear"
+            )
 
     # -- the authority --------------------------------------------------------
     # An unelevated ClearPackageStatus fails without raising in some shells. A silent
     # no-op that hands back a green receipt is the exact failure this arc is about.
     if not elevated:
-        out.append("not elevated -- ClearPackageStatus requires administrator; "
-                   "refusing rather than attempting a clear that can no-op silently "
-                   "and be reported as success")
+        out.append(
+            "not elevated -- ClearPackageStatus requires administrator; "
+            "refusing rather than attempting a clear that can no-op silently "
+            "and be reported as success"
+        )
 
     # -- the payload ----------------------------------------------------------
     if proof.error:
-        out.append(f"payload verification failed to run ({proof.error}) -- a failed "
-                   f"read is not a clean payload")
+        out.append(f"payload verification failed to run ({proof.error}) -- a failed read is not a clean payload")
     if proof.declared_blocks <= 0:
-        out.append("the block map declared ZERO blocks -- empty is a failed read, not "
-                   "an intact payload; 'zero mismatches' over zero blocks is a pass "
-                   "produced by absence")
+        out.append(
+            "the block map declared ZERO blocks -- empty is a failed read, not "
+            "an intact payload; 'zero mismatches' over zero blocks is a pass "
+            "produced by absence"
+        )
     if proof.declared_files <= 0:
-        out.append("the block map declared ZERO files -- see above; this rung asserts "
-                   "positive counts, never the absence of failures")
+        out.append(
+            "the block map declared ZERO files -- see above; this rung asserts "
+            "positive counts, never the absence of failures"
+        )
     if proof.declared_files > 0 and proof.files != proof.declared_files:
-        out.append(f"incomplete verification: read {proof.files} file(s) against a "
-                   f"declared {proof.declared_files}")
+        out.append(f"incomplete verification: read {proof.files} file(s) against a declared {proof.declared_files}")
     if proof.declared_blocks > 0 and proof.blocks != proof.declared_blocks:
-        out.append(f"incomplete verification: hashed {proof.blocks} block(s) against a "
-                   f"declared {proof.declared_blocks} -- no mismatch in the part read "
-                   f"says nothing about the part skipped")
+        out.append(
+            f"incomplete verification: hashed {proof.blocks} block(s) against a "
+            f"declared {proof.declared_blocks} -- no mismatch in the part read "
+            f"says nothing about the part skipped"
+        )
     if proof.mismatches:
         shown = "; ".join(proof.mismatches[:3])
         more = f" (+{len(proof.mismatches) - 3} more)" if len(proof.mismatches) > 3 else ""
-        out.append(f"payload MISMATCH in {len(proof.mismatches)} block(s): {shown}{more} "
-                   f"-- the package is damaged; clearing the status would launch a "
-                   f"corrupt app. Repair or replace it instead")
+        out.append(
+            f"payload MISMATCH in {len(proof.mismatches)} block(s): {shown}{more} "
+            f"-- the package is damaged; clearing the status would launch a "
+            f"corrupt app. Repair or replace it instead"
+        )
 
     return out
 
@@ -179,30 +199,36 @@ def clear_refusals(pkg: Optional[Dict[str, Any]], proof: PayloadProof,
 # ------------------------------------------------------------------- the probes
 def _ps(script: str, timeout: int = 60) -> str:
     try:
-        r = subprocess.run(_PS + [script], capture_output=True, text=True,
-                           timeout=timeout, encoding="utf-8", errors="replace")
+        r = subprocess.run(
+            _PS + [script], capture_output=True, text=True, timeout=timeout, encoding="utf-8", errors="replace"
+        )
         return r.stdout or ""
-    except Exception as e:                                              # noqa: BLE001
+    except Exception as e:  # noqa: BLE001
         return f"__ERROR__{type(e).__name__}: {e}"
 
 
 def is_elevated() -> bool:
     """Fails toward NOT elevated: an unreadable answer must refuse, not proceed."""
-    out = _ps("$p = New-Object Security.Principal.WindowsPrincipal("
-              "[Security.Principal.WindowsIdentity]::GetCurrent()); "
-              "$p.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)",
-              timeout=30).strip()
+    out = _ps(
+        "$p = New-Object Security.Principal.WindowsPrincipal("
+        "[Security.Principal.WindowsIdentity]::GetCurrent()); "
+        "$p.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)",
+        timeout=30,
+    ).strip()
     return out.lower().startswith("true")
 
 
 def query_package(name: str = PACKAGE_NAME) -> Optional[Dict[str, Any]]:
     """The installed package, or None. None means ABSENT and is treated as a refusal
     upstream -- never as 'nothing wrong'."""
-    out = _ps(f"$p = Get-AppxPackage | Where-Object {{ $_.Name -like '*{name}*' }} | "
-              f"Select-Object -First 1; if ($null -ne $p) {{ [pscustomobject]@{{"
-              f"name=$p.Name; full_name=$p.PackageFullName; status=[string]$p.Status; "
-              f"install_location=$p.InstallLocation; version=[string]$p.Version "
-              f"}} | ConvertTo-Json -Compress }}", timeout=60)
+    out = _ps(
+        f"$p = Get-AppxPackage | Where-Object {{ $_.Name -like '*{name}*' }} | "
+        f"Select-Object -First 1; if ($null -ne $p) {{ [pscustomobject]@{{"
+        f"name=$p.Name; full_name=$p.PackageFullName; status=[string]$p.Status; "
+        f"install_location=$p.InstallLocation; version=[string]$p.Version "
+        f"}} | ConvertTo-Json -Compress }}",
+        timeout=60,
+    )
     if out.startswith("__ERROR__") or not out.strip():
         return None
     try:
@@ -212,8 +238,7 @@ def query_package(name: str = PACKAGE_NAME) -> Optional[Dict[str, Any]]:
     return rec if isinstance(rec, dict) else None
 
 
-def verify_payload(install_location: str,
-                   max_seconds: float = 600.0) -> PayloadProof:
+def verify_payload(install_location: str, max_seconds: float = 600.0) -> PayloadProof:
     """Hash every block the AppxBlockMap declares and compare to its declared SHA-256.
 
     Returns a PayloadProof whose `declared_*` fields come from the map and whose
@@ -227,18 +252,22 @@ def verify_payload(install_location: str,
         return PayloadProof(0, 0, 0, error=f"no AppxBlockMap.xml at {bm_path!r}")
     try:
         root = ET.parse(bm_path).getroot()
-    except Exception as e:                                              # noqa: BLE001
+    except Exception as e:  # noqa: BLE001
         return PayloadProof(0, 0, 0, error=f"block map unparseable: {type(e).__name__}")
 
     ns = {"b": "http://schemas.microsoft.com/appx/2010/blockmap"}
     decl_files = root.findall("b:File", ns) or root.findall("File")
     declared_files = len(decl_files)
-    declared_blocks = sum(len(f.findall("b:Block", ns) or f.findall("Block"))
-                          for f in decl_files)
+    declared_blocks = sum(len(f.findall("b:Block", ns) or f.findall("Block")) for f in decl_files)
     if declared_files == 0 or declared_blocks == 0:
-        return PayloadProof(0, 0, 0, declared_files=declared_files,
-                            declared_blocks=declared_blocks,
-                            error="block map declared no files/blocks")
+        return PayloadProof(
+            0,
+            0,
+            0,
+            declared_files=declared_files,
+            declared_blocks=declared_blocks,
+            error="block map declared no files/blocks",
+        )
 
     deadline = time.time() + max_seconds
     files = blocks = total_bytes = 0
@@ -246,9 +275,15 @@ def verify_payload(install_location: str,
 
     for fel in decl_files:
         if time.time() > deadline:
-            return PayloadProof(files, blocks, total_bytes, mismatches,
-                                declared_files, declared_blocks,
-                                error="verification exceeded its deadline")
+            return PayloadProof(
+                files,
+                blocks,
+                total_bytes,
+                mismatches,
+                declared_files,
+                declared_blocks,
+                error="verification exceeded its deadline",
+            )
         rel = (fel.get("Name") or "").replace("\\", os.sep)
         path = os.path.join(install_location, rel)
         decl_blocks = fel.findall("b:Block", ns) or fel.findall("Block")
@@ -269,8 +304,7 @@ def verify_payload(install_location: str,
             continue
         files += 1
 
-    return PayloadProof(files, blocks, total_bytes, mismatches,
-                        declared_files, declared_blocks)
+    return PayloadProof(files, blocks, total_bytes, mismatches, declared_files, declared_blocks)
 
 
 # ------------------------------------------------------------------ the levers
@@ -285,14 +319,14 @@ def clear_modified_status(full_name: str) -> tuple:
         "$pm = [Activator]::CreateInstance($t); "
         f"$pm.ClearPackageStatus('{full_name}', "
         "[Windows.Management.Deployment.PackageStatus]::Modified); 'CLEARED'",
-        timeout=120)
+        timeout=120,
+    )
     if out.startswith("__ERROR__"):
-        return False, out[len("__ERROR__"):]
+        return False, out[len("__ERROR__") :]
     return ("CLEARED" in out), out.strip()[:200]
 
 
-def verify_recovered(full_name: str, *, settle_s: float = 20.0,
-                     process_name: str = "claude.exe") -> tuple:
+def verify_recovered(full_name: str, *, settle_s: float = 20.0, process_name: str = "claude.exe") -> tuple:
     """THE ORACLE, and it is deliberately OUTSIDE the instrument we just wrote to.
 
     Sol's step 6 was a real launch. If this function re-read the status field that
@@ -303,21 +337,22 @@ def verify_recovered(full_name: str, *, settle_s: float = 20.0,
 
     Returns (recovered, detail).
     """
-    launched = _ps(f"Start-Process 'shell:AppsFolder\\{full_name}!Claude'; 'LAUNCHED'",
-                   timeout=90)
+    launched = _ps(f"Start-Process 'shell:AppsFolder\\{full_name}!Claude'; 'LAUNCHED'", timeout=90)
     if launched.startswith("__ERROR__"):
-        return False, f"launch call failed: {launched[len('__ERROR__'):]}"
+        return False, f"launch call failed: {launched[len('__ERROR__') :]}"
     time.sleep(settle_s)
-    alive = _ps(f"@(Get-Process -Name "
-                f"'{process_name.replace('.exe', '')}' -ErrorAction SilentlyContinue)"
-                f".Count", timeout=30).strip()
+    alive = _ps(
+        f"@(Get-Process -Name '{process_name.replace('.exe', '')}' -ErrorAction SilentlyContinue).Count", timeout=30
+    ).strip()
     try:
         n = int(alive.splitlines()[0]) if alive.splitlines() else 0
     except ValueError:
         return False, f"could not count processes after launch (got {alive!r})"
     if n <= 0:
-        return False, (f"launched, but no {process_name} process survived {settle_s:.0f}s "
-                       f"-- the clear did not restore a runnable app")
+        return False, (
+            f"launched, but no {process_name} process survived {settle_s:.0f}s "
+            f"-- the clear did not restore a runnable app"
+        )
     return True, f"launched and {n} {process_name} process(es) still up after {settle_s:.0f}s"
 
 
@@ -325,17 +360,42 @@ def verify_recovered(full_name: str, *, settle_s: float = 20.0,
 def observe_app(name: str = PACKAGE_NAME) -> Dict[str, Any]:
     """The revive-ladder observation for this rung. Cheap: status only, no hashing --
     the 629 MB verification is part of the HEAL, not the every-few-minutes probe."""
+    import os
+
+    if os.name != "nt":
+        # MSIX packaging is Windows-only: there is no package to be broken here, and a rung
+        # that reports "cannot prove healthy" forever on another OS is noise, not caution.
+        return {
+            "healthy": True,
+            "repairable": False,
+            "pkg": None,
+            "detail": "not applicable on this OS (MSIX packages are Windows-only)",
+        }
     pkg = query_package(name)
     if not pkg:
-        return {"healthy": False, "repairable": False, "pkg": None,
-                "detail": f"no {name!r} package found (not installed, or the query "
-                          f"failed -- either way this rung cannot prove it healthy)"}
+        return {
+            "healthy": False,
+            "repairable": False,
+            "pkg": None,
+            "detail": f"no {name!r} package found (not installed, or the query "
+            f"failed -- either way this rung cannot prove it healthy)",
+        }
     status = str(pkg.get("status") or "")
     tokens = {t.strip().lower() for t in status.replace(",", " ").split() if t.strip()}
     healthy = tokens == {"ok"}
     repairable = "modified" in tokens and not (tokens - HANDLED_STATUS_TOKENS - {"ok"})
-    return {"healthy": healthy, "repairable": repairable, "pkg": pkg,
-            "detail": (f"{pkg.get('name')} {pkg.get('version')} status={status or '?'}"
-                       + ("" if healthy else
-                          " -- REPAIRABLE (verify-then-clear)" if repairable else
-                          " -- unhealthy and NOT repairable by this rung"))}
+    return {
+        "healthy": healthy,
+        "repairable": repairable,
+        "pkg": pkg,
+        "detail": (
+            f"{pkg.get('name')} {pkg.get('version')} status={status or '?'}"
+            + (
+                ""
+                if healthy
+                else " -- REPAIRABLE (verify-then-clear)"
+                if repairable
+                else " -- unhealthy and NOT repairable by this rung"
+            )
+        ),
+    }

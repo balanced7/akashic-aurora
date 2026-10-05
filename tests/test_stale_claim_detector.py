@@ -22,6 +22,7 @@ never retracts a lesson (instrument_proposes_never_self_ratifies).
 
 Run: py -m pytest tests/test_stale_claim_detector.py -q
 """
+
 from __future__ import annotations
 
 import os
@@ -38,8 +39,10 @@ from core.recall import staleness as S  # noqa: E402
 def test_p1_absence_claims_are_detected_with_their_artifact():
     """The claim must be located AND the artifact it speaks about named, or a reviewer
     cannot re-check it."""
-    text = ("WISHLIST holds 130 open wishes and NOT ONE is about naming coherence -- "
-            "the organ built to catch friction has never been pointed at it.")
+    text = (
+        "WISHLIST holds 130 open wishes and NOT ONE is about naming coherence -- "
+        "the organ built to catch friction has never been pointed at it."
+    )
     claims = S.extract_checkable_claims(text)
     assert claims, "an explicit count-plus-absence claim was not detected"
     c = claims[0]
@@ -50,32 +53,37 @@ def test_p1_absence_claims_are_detected_with_their_artifact():
 def test_p1b_judgement_claims_are_left_alone():
     """A detector that flags opinions will be turned off within a week. Only mechanically
     re-checkable shapes qualify."""
-    text = ("He root-causes twice, and that is an epistemologist's skill rather than a "
-            "manager's -- most people stop at the first why.")
+    text = (
+        "He root-causes twice, and that is an epistemologist's skill rather than a "
+        "manager's -- most people stop at the first why."
+    )
     assert S.extract_checkable_claims(text) == []
 
 
 # ---------------------------------------------------------------- P2: the live case
 def test_p2_the_receipt_case_is_flagged_stale():
     """The exact lesson that nearly cost us: anchors resolve, claim is false."""
-    verdict = S.recheck_claim({
-        "kind": "absence",
-        "artifact": "docs/WISHLIST.md",
-        "needle": "naming coherence",
-        "quote": "NOT ONE is about naming coherence",
-    })
-    assert verdict["still_holds"] is False, (
-        "W133 has been in WISHLIST since 2026-08-07 -- the absence claim is refuted")
+    verdict = S.recheck_claim(
+        {
+            "kind": "absence",
+            "artifact": "docs/WISHLIST.md",
+            "needle": "naming coherence",
+            "quote": "NOT ONE is about naming coherence",
+        }
+    )
+    assert verdict["still_holds"] is False, "W133 has been in WISHLIST since 2026-08-07 -- the absence claim is refuted"
     assert verdict["evidence"], "a refutation must carry the line that refutes it"
 
 
 def test_p2b_a_claim_that_still_holds_says_so_affirmatively():
-    verdict = S.recheck_claim({
-        "kind": "absence",
-        "artifact": "docs/WISHLIST.md",
-        "needle": "zzz_a_phrase_that_appears_nowhere_zzz",
-        "quote": "nothing about zzz",
-    })
+    verdict = S.recheck_claim(
+        {
+            "kind": "absence",
+            "artifact": "docs/WISHLIST.md",
+            "needle": "zzz_a_phrase_that_appears_nowhere_zzz",
+            "quote": "nothing about zzz",
+        }
+    )
     assert verdict["still_holds"] is True
     assert verdict["checked"] is True, "an affirmative all-clear, distinguishable from a skip"
 
@@ -84,10 +92,14 @@ def test_p2b_a_claim_that_still_holds_says_so_affirmatively():
 def test_p3_a_missing_artifact_is_unevaluable_not_stale():
     """Absence of evidence is not evidence of staleness -- the confident-zero disease in
     detector form. A vanished artifact means UNCHECKABLE."""
-    verdict = S.recheck_claim({
-        "kind": "absence", "artifact": "docs/THIS_FILE_IS_GONE.md",
-        "needle": "anything", "quote": "nothing about anything",
-    })
+    verdict = S.recheck_claim(
+        {
+            "kind": "absence",
+            "artifact": "docs/THIS_FILE_IS_GONE.md",
+            "needle": "anything",
+            "quote": "nothing about anything",
+        }
+    )
     assert verdict["checked"] is False
     assert verdict["still_holds"] is None, "unknown is not False"
     assert "unreachable" in verdict["why"].lower() or "missing" in verdict["why"].lower()
@@ -99,6 +111,7 @@ def test_p4_the_detector_has_no_write_path():
     this house have landed on instrument_proposes_never_self_ratifies."""
     import ast
     import inspect
+
     tree = ast.parse(inspect.getsource(S))
     imported = set()
     for node in ast.walk(tree):
@@ -123,5 +136,6 @@ def test_p5_the_sweep_reports_its_own_scope():
     assert rep["examined"] >= 0
     assert "scope" in rep, "a coverage claim must state what it globbed (the frame law)"
     for item in rep.get("stale", []):
-        assert item.get("lesson") and item.get("evidence"), \
+        assert item.get("lesson") and item.get("evidence"), (
             "every flagged lesson names itself and the line that refutes it"
+        )

@@ -30,6 +30,7 @@ must be different renders, or this becomes a faster way to make my worst mistake
 
 Run: py -m pytest tests/test_t210_semantic_discover.py -q
 """
+
 import os
 import sys
 
@@ -47,8 +48,11 @@ class FakeOutcome:
 
 
 def test_a_clear_hit_reports_exists_with_its_pointer(monkeypatch):
-    monkeypatch.setattr(CS, "_ask", lambda *a, **k: FakeOutcome(
-        answer="EXISTS: yes\nWHAT: suite-baseline verb\nGAP: none\nNEAREST MISS: audit"))
+    monkeypatch.setattr(
+        CS,
+        "_ask",
+        lambda *a, **k: FakeOutcome(answer="EXISTS: yes\nWHAT: suite-baseline verb\nGAP: none\nNEAREST MISS: audit"),
+    )
     r = CS.find("is this test failure pre-existing")
     assert r["exists"] == "yes"
     assert "suite-baseline" in r["what"]
@@ -59,8 +63,9 @@ def test_a_model_failure_is_UNKNOWN_never_no(monkeypatch):
     """THE LOAD-BEARING PIN. This tool exists because I infer absence without checking.
     If a dead key, a timeout, or an empty answer rendered as 'no such capability', it
     would industrialise my worst error instead of fixing it."""
-    monkeypatch.setattr(CS, "_ask", lambda *a, **k: FakeOutcome(
-        ok=False, why="no DEEPSEEK_API_KEY -- the door is closed"))
+    monkeypatch.setattr(
+        CS, "_ask", lambda *a, **k: FakeOutcome(ok=False, why="no DEEPSEEK_API_KEY -- the door is closed")
+    )
     r = CS.find("anything")
     assert r["exists"] == "UNKNOWN"
     assert r["exists"] != "no"
@@ -69,8 +74,9 @@ def test_a_model_failure_is_UNKNOWN_never_no(monkeypatch):
 
 def test_a_partial_answer_is_not_promoted_to_confident(monkeypatch):
     """A truncated answer may have been about to say 'actually it exists'."""
-    monkeypatch.setattr(CS, "_ask", lambda *a, **k: FakeOutcome(
-        partial=True, why="cut at the ceiling", answer="EXISTS: no\nWHAT:"))
+    monkeypatch.setattr(
+        CS, "_ask", lambda *a, **k: FakeOutcome(partial=True, why="cut at the ceiling", answer="EXISTS: no\nWHAT:")
+    )
     r = CS.find("anything")
     assert r["confident"] is False
 
@@ -78,8 +84,9 @@ def test_a_partial_answer_is_not_promoted_to_confident(monkeypatch):
 def test_an_unparseable_answer_is_unknown_not_no(monkeypatch):
     """The model wandered off the format. That is a parsing failure, and a parsing
     failure must not become a claim about the world."""
-    monkeypatch.setattr(CS, "_ask", lambda *a, **k: FakeOutcome(
-        answer="Well, it depends on what you mean by capability..."))
+    monkeypatch.setattr(
+        CS, "_ask", lambda *a, **k: FakeOutcome(answer="Well, it depends on what you mean by capability...")
+    )
     r = CS.find("anything")
     assert r["exists"] == "UNKNOWN"
 
@@ -88,8 +95,11 @@ def test_a_genuine_no_is_still_reportable(monkeypatch):
     """It must be ABLE to say no -- a tool that can only say yes or unknown is not an
     instrument, it is a cheerleader. The bar is that `no` requires a well-formed answer
     from a healthy call."""
-    monkeypatch.setattr(CS, "_ask", lambda *a, **k: FakeOutcome(
-        answer="EXISTS: no\nWHAT: nothing in the list\nGAP: n/a\nNEAREST MISS: recall"))
+    monkeypatch.setattr(
+        CS,
+        "_ask",
+        lambda *a, **k: FakeOutcome(answer="EXISTS: no\nWHAT: nothing in the list\nGAP: n/a\nNEAREST MISS: recall"),
+    )
     r = CS.find("time travel")
     assert r["exists"] == "no" and r["confident"] is True
 
@@ -98,8 +108,7 @@ def test_the_answer_is_labelled_as_a_model_read_not_a_lookup(monkeypatch):
     """Provenance. A substring hit is a FACT about the verb table; this is a model's
     reading of it. Rendering them identically would let an inference inherit a lookup's
     authority -- the laundering the 07-30 plane design forbids one level up."""
-    monkeypatch.setattr(CS, "_ask", lambda *a, **k: FakeOutcome(
-        answer="EXISTS: yes\nWHAT: x\nGAP: y\nNEAREST MISS: z"))
+    monkeypatch.setattr(CS, "_ask", lambda *a, **k: FakeOutcome(answer="EXISTS: yes\nWHAT: x\nGAP: y\nNEAREST MISS: z"))
     r = CS.find("q")
     assert r["source"] == "model"
     assert r.get("model")
@@ -107,8 +116,9 @@ def test_the_answer_is_labelled_as_a_model_read_not_a_lookup(monkeypatch):
 
 def test_cost_is_reported(monkeypatch):
     """It spends money. Spending that is invisible gets distrusted or over-used."""
-    monkeypatch.setattr(CS, "_ask", lambda *a, **k: FakeOutcome(
-        answer="EXISTS: yes\nWHAT: x\nGAP: -\nNEAREST MISS: -", usd=0.0069))
+    monkeypatch.setattr(
+        CS, "_ask", lambda *a, **k: FakeOutcome(answer="EXISTS: yes\nWHAT: x\nGAP: -\nNEAREST MISS: -", usd=0.0069)
+    )
     assert CS.find("q")["usd"] == 0.0069
 
 
@@ -131,6 +141,7 @@ def test_inputs_are_the_substrate_not_the_model_s_memory(monkeypatch):
 def test_never_raises(monkeypatch):
     def boom(*a, **k):
         raise RuntimeError("everything is on fire")
+
     monkeypatch.setattr(CS, "_ask", boom)
     r = CS.find("q")
     assert r["exists"] == "UNKNOWN"

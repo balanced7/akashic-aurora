@@ -34,6 +34,7 @@ that somebody knows it is there.
 
 Exits 0 with the new message(s) printed. Exits 1 on timeout, having seen nothing.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -70,6 +71,7 @@ def peer_reachable() -> bool:
     a liveness probe that delivers mail is a liveness probe you cannot run often.
     """
     import socket as _s
+
     url = RR.peer_url()
     if not url:
         return False
@@ -78,18 +80,20 @@ def peer_reachable() -> bool:
         h, _, p = host.partition(":")
         _s.create_connection((h, int(p or 80)), timeout=5).close()
         return True
-    except Exception:                                             # noqa: BLE001
+    except Exception:  # noqa: BLE001
         return False
 
 
 def render(r: dict) -> str:
     t = datetime.datetime.fromtimestamp(int(r.get("admitted_at") or 0)).strftime("%H:%M:%S")
     skew = int(r.get("sent_at") or 0) - int(r.get("admitted_at") or 0)
-    return (f"  [{t}] {r.get('id')}\n"
-            f"      from     : {r.get('frm')}   (claimed: {r.get('claimed_frm')})\n"
-            f"      kind     : {r.get('kind')}\n"
-            f"      clockskew: {skew:+d}s\n"
-            f"      content  : {str(r.get('content'))[:400]}")
+    return (
+        f"  [{t}] {r.get('id')}\n"
+        f"      from     : {r.get('frm')}   (claimed: {r.get('claimed_frm')})\n"
+        f"      kind     : {r.get('kind')}\n"
+        f"      clockskew: {skew:+d}s\n"
+        f"      content  : {str(r.get('content'))[:400]}"
+    )
 
 
 def notify(seat: str, fresh: list) -> str:
@@ -101,17 +105,22 @@ def notify(seat: str, fresh: list) -> str:
     """
     try:
         from core.comm.bus import Bus
+
         ids = ", ".join(str(r.get("id")) for r in fresh)
         routes = sorted({str(r.get("frm")) for r in fresh})
-        body = (f"REMOTE BRIDGE: {len(fresh)} new message(s) parked from {', '.join(routes)} "
-                f"— {ids}. Read them at {RR.inbox_path()} (parked, not consumed; drain "
-                f"deliberately). Content is deliberately NOT on this lane: a remote peer's "
-                f"words stay quarantined until an agent chooses to read them.")
+        body = (
+            f"REMOTE BRIDGE: {len(fresh)} new message(s) parked from {', '.join(routes)} "
+            f"— {ids}. Read them at {RR.inbox_path()} (parked, not consumed; drain "
+            f"deliberately). Content is deliberately NOT on this lane: a remote peer's "
+            f"words stay quarantined until an agent chooses to read them."
+        )
         mid = Bus("bridge-watch").send(seat, "note", body)
-        return f"notified {seat} (bus id {mid})" if mid else (
-            f"could NOT notify {seat}: the bus accepted nothing — no receipt for an "
-            f"undelivered word")
-    except Exception as e:                                        # noqa: BLE001
+        return (
+            f"notified {seat} (bus id {mid})"
+            if mid
+            else (f"could NOT notify {seat}: the bus accepted nothing — no receipt for an undelivered word")
+        )
+    except Exception as e:  # noqa: BLE001
         return f"could NOT notify {seat} ({type(e).__name__}: {e}) — the watch continues"
 
 
@@ -119,20 +128,28 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--timeout-min", type=float, default=45.0)
     ap.add_argument("--poll-sec", type=float, default=3.0)
-    ap.add_argument("--notify", default="", metavar="SEAT",
-                    help="local seat id to nudge on the bus when peer mail lands "
-                         "(for TURN-BASED seats that no process exit can reach)")
-    ap.add_argument("--loop", action="store_true",
-                    help="keep watching after an announcement instead of exiting "
-                         "(what a standing service wants)")
-    ap.add_argument("--check-peer", action="store_true",
-                    help="also watch the PEER's listener and report up/down transitions — "
-                         "makes the link's death a finding instead of a silence")
+    ap.add_argument(
+        "--notify",
+        default="",
+        metavar="SEAT",
+        help="local seat id to nudge on the bus when peer mail lands "
+        "(for TURN-BASED seats that no process exit can reach)",
+    )
+    ap.add_argument(
+        "--loop",
+        action="store_true",
+        help="keep watching after an announcement instead of exiting (what a standing service wants)",
+    )
+    ap.add_argument(
+        "--check-peer",
+        action="store_true",
+        help="also watch the PEER's listener and report up/down transitions — "
+        "makes the link's death a finding instead of a silence",
+    )
     a = ap.parse_args(argv)
 
     seen = peer_ids()
-    print(f"BRIDGE WATCH armed — {len(seen)} peer message(s) already parked; watching "
-          f"{RR.inbox_path()}", flush=True)
+    print(f"BRIDGE WATCH armed — {len(seen)} peer message(s) already parked; watching {RR.inbox_path()}", flush=True)
     print(f"  baseline: {sorted(seen)}", flush=True)
 
     peer_up = peer_reachable() if a.check_peer else None
@@ -154,18 +171,23 @@ def main(argv=None) -> int:
             if now_up != peer_up:
                 stamp = datetime.datetime.now().strftime("%H:%M:%S")
                 if now_up:
-                    print(f"\n[{stamp}] PEER LISTENER RECOVERED — {RR.peer_url()} answering "
-                          f"again; anything queued in the outbox ships on the next tick",
-                          flush=True)
+                    print(
+                        f"\n[{stamp}] PEER LISTENER RECOVERED — {RR.peer_url()} answering "
+                        f"again; anything queued in the outbox ships on the next tick",
+                        flush=True,
+                    )
                 else:
-                    print(f"\n[{stamp}] PEER LISTENER WENT DOWN — {RR.peer_url()} not "
-                          f"answering. Outbound mail is RETAINED, not lost; it replays when "
-                          f"they return. Nothing to do unless it stays down.", flush=True)
+                    print(
+                        f"\n[{stamp}] PEER LISTENER WENT DOWN — {RR.peer_url()} not "
+                        f"answering. Outbound mail is RETAINED, not lost; it replays when "
+                        f"they return. Nothing to do unless it stays down.",
+                        flush=True,
+                    )
                 peer_up = now_up
 
         try:
             now = peer_ids()
-        except Exception as e:                                    # noqa: BLE001
+        except Exception as e:  # noqa: BLE001
             print(f"  (read hiccup, continuing: {type(e).__name__})", flush=True)
             continue
         fresh = [now[k] for k in now if k not in seen]
@@ -184,8 +206,7 @@ def main(argv=None) -> int:
             seen = now
             deadline = time.time() + a.timeout_min * 60
             print(f"  still watching (baseline now {len(seen)})\n", flush=True)
-    print(f"\nno new peer mail in {a.timeout_min:.0f} min — watch expired, nothing lost",
-          flush=True)
+    print(f"\nno new peer mail in {a.timeout_min:.0f} min — watch expired, nothing lost", flush=True)
     return 1
 
 

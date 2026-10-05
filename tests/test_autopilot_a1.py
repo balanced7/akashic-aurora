@@ -19,6 +19,7 @@ Pins (deepseek's A1-P* numbering, amended by rulings R1/R2):
 
 Run: py -m pytest tests/test_autopilot_a1.py -q   (no live Redis needed)
 """
+
 import os
 import sys
 import time
@@ -36,22 +37,25 @@ from core.comm import wake_seat
 
 
 def _built():
-    assert ds is not None, \
-        "A1 build target core/comm/daemon_state.py does not exist yet (RED until built)"
+    assert ds is not None, "A1 build target core/comm/daemon_state.py does not exist yet (RED until built)"
 
 
 class FakeRedis:
     def __init__(self):
         self.kv = {}
+
     def set(self, k, v, ex=None, nx=False):
         if nx and k in self.kv:
             return None
         self.kv[k] = v
         return True
+
     def get(self, k):
         return self.kv.get(k)
+
     def delete(self, k):
         self.kv.pop(k, None)
+
     def exists(self, k):
         return 1 if k in self.kv else 0
 
@@ -79,16 +83,18 @@ def test_p2_fast_path_predicate_daemon_live(tmp_path):
     verdict = ds.stop_hook_wake_verdict(AGENT, SID, c=c, ns="bifrost", tmp=str(tmp_path))
     assert verdict["pass"] is True, "P2: live daemon means the hook never blocks"
     assert "daemon" in verdict["line"].lower()
-    assert os.path.exists(ds.rearm_path(AGENT, SID, tmp=str(tmp_path))), \
+    assert os.path.exists(ds.rearm_path(AGENT, SID, tmp=str(tmp_path))), (
         "P2: absent listener seat -> the hook leaves a .rearm trigger for the daemon"
+    )
     # seat present -> no duplicate trigger needed
     with open(wake_seat.seat_path(AGENT, SID, str(tmp_path)), "w") as f:
         f.write("123")
     os.remove(ds.rearm_path(AGENT, SID, tmp=str(tmp_path)))
     verdict2 = ds.stop_hook_wake_verdict(AGENT, SID, c=c, ns="bifrost", tmp=str(tmp_path))
     assert verdict2["pass"] is True
-    assert not os.path.exists(ds.rearm_path(AGENT, SID, tmp=str(tmp_path))), \
+    assert not os.path.exists(ds.rearm_path(AGENT, SID, tmp=str(tmp_path))), (
         "P2: a seated listener needs no rearm trigger"
+    )
 
 
 def test_p2_daemon_down_legacy_with_latched_nag(tmp_path):
@@ -106,22 +112,22 @@ def test_p3_rearm_write_consume_clear(tmp_path):
     _built()
     tmp = str(tmp_path)
     ds.write_rearm_trigger(AGENT, SID, tmp=tmp)
-    ds.write_rearm_trigger("otheragent", SID, tmp=tmp)   # foreign trigger stays
+    ds.write_rearm_trigger("otheragent", SID, tmp=tmp)  # foreign trigger stays
     spawned = []
     n = ds.consume_rearms(AGENT, lambda sid: spawned.append(sid) or True, tmp=tmp)
     assert n == 1 and spawned == [SID], "P3: exactly own agent's triggers consumed"
     assert not os.path.exists(ds.rearm_path(AGENT, SID, tmp=tmp)), "P3: consumed -> cleared"
-    assert os.path.exists(ds.rearm_path("otheragent", SID, tmp=tmp)), \
-        "P3: another agent's trigger untouched"
+    assert os.path.exists(ds.rearm_path("otheragent", SID, tmp=tmp)), "P3: another agent's trigger untouched"
 
 
 def test_p3_failed_spawn_keeps_trigger(tmp_path):
     _built()
     tmp = str(tmp_path)
     ds.write_rearm_trigger(AGENT, SID, tmp=tmp)
-    ds.consume_rearms(AGENT, lambda sid: False, tmp=tmp)   # spawn refused
-    assert os.path.exists(ds.rearm_path(AGENT, SID, tmp=tmp)), \
+    ds.consume_rearms(AGENT, lambda sid: False, tmp=tmp)  # spawn refused
+    assert os.path.exists(ds.rearm_path(AGENT, SID, tmp=tmp)), (
         "P3: a failed spawn leaves the trigger for the next tick (crash-safe)"
+    )
 
 
 # --------------------------------------------------------------- P4 (ruling R1)
@@ -142,17 +148,20 @@ def test_p4_marker_sweep_seat_aware_and_age_gated(tmp_path):
     removed = ds.sweep_stale_markers(AGENT, tmp=tmp)
     assert removed == 1, f"P4: exactly the seatless 25h marker goes (got {removed})"
     assert not os.path.exists(wake_seat.activity_marker_path(AGENT, "dead0000-sid", tmp))
-    assert os.path.exists(wake_seat.activity_marker_path(AGENT, "idle0000-sid", tmp)), \
+    assert os.path.exists(wake_seat.activity_marker_path(AGENT, "idle0000-sid", tmp)), (
         "P4/R1: stale-with-seat = idle-but-alive session, NEVER swept"
+    )
     assert os.path.exists(wake_seat.activity_marker_path(AGENT, "fresh000-sid", tmp))
 
 
 # --------------------------------------------------------------- P5
 def test_p5_runtimes_card_field():
     _built()
+
     class Child:
         def __init__(self, alive, tripped=False):
             self.alive, self.tripped = alive, tripped
+
     r = ds.build_runtimes({"runner": Child(True), "listener": Child(False)})
     assert r == {"runner": "live", "listener": "down"}
     r2 = ds.build_runtimes({"runner": Child(False, tripped=True)})

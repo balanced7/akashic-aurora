@@ -11,6 +11,7 @@ tests/test_t030_l3_pipe_immunity.py:
 
 Spec: docs/library/design/20260701_agent-liveness-tier-stuck-lost-agent-fai_8c0d79.md FINAL SLICE LIST L3.
 """
+
 from __future__ import annotations
 
 import sys
@@ -30,7 +31,7 @@ class _PipeImmune:
             return len(s)
         try:
             return self._s.write(s)
-        except (OSError, ValueError):     # closed pipe / closed file object
+        except (OSError, ValueError):  # closed pipe / closed file object
             self._dead = True
             return len(s)
 
@@ -42,7 +43,7 @@ class _PipeImmune:
         except (OSError, ValueError):
             self._dead = True
 
-    def __getattr__(self, name):          # encoding/isatty/fileno/... delegate through
+    def __getattr__(self, name):  # encoding/isatty/fileno/... delegate through
         return getattr(self._s, name)
 
 
@@ -64,5 +65,5 @@ def self_bless_stdout() -> None:
         try:
             s.reconfigure(encoding="utf-8", errors="replace", line_buffering=True)
         except Exception:
-            pass                           # non-reconfigurable stream: immunity still applies
+            pass  # non-reconfigurable stream: immunity still applies
         setattr(sys, name, pipe_immune(s))

@@ -1,4 +1,5 @@
 """Vandor's tests for the Play Night preset bank: header parsing, format rules, and the route."""
+
 import json
 import sys
 import threading
@@ -54,7 +55,10 @@ def test_each_format_rule_names_its_problem(tmp_path):
         (VALID.replace('"id": "demo-one"', '"id": "other"', 1), "must equal the file name"),
         (VALID.replace('"author": "Vandor"', '"author": ""', 1), "non-empty author"),
         (VALID.replace("uniform vec2 u_res;", "uniform float u_res;", 1), "must be vec2"),
-        (VALID.replace("in vec2 v_uv;", "in vec2 v_uv;\nuniform float u_nope;", 1), "not in the Play Night uniform list"),
+        (
+            VALID.replace("in vec2 v_uv;", "in vec2 v_uv;\nuniform float u_nope;", 1),
+            "not in the Play Night uniform list",
+        ),
         (VALID.replace("precision highp float;", "precision highp float;\nprecision mediump int;", 1), "highp only"),
         (VALID.replace("i < 4", "i < int(u_k1 * 8.0)", 1), "loop bound uses a uniform"),
         (VALID.replace("out vec4 outColor;", "out vec4 fragColor;", 1), "outColor"),

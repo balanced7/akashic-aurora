@@ -10,6 +10,7 @@ drives a process (the launcher scripts still own the environment) and never bloc
 Pure-local and hermetic by default: models()/get()/select() read a bundled JSON file and touch no
 network. Live availability (probe_availability) is opt-in and the only function that talks to Ollama.
 """
+
 from __future__ import annotations
 
 import json
@@ -47,8 +48,7 @@ def models(*, status: Optional[str] = None, capability: Optional[str] = None) ->
         rows = [m for m in rows if m.get("status") == status]
     if capability is not None:
         rows = [m for m in rows if capability in (m.get("capabilities") or [])]
-    rows.sort(key=lambda m: (_STATUS_RANK.get(m.get("status"), 9),
-                             -(m.get("throughput_toks") or 0)))
+    rows.sort(key=lambda m: (_STATUS_RANK.get(m.get("status"), 9), -(m.get("throughput_toks") or 0)))
     return rows
 
 
@@ -62,8 +62,13 @@ def get(tag: str) -> Optional[Dict[str, Any]]:
     return None
 
 
-def select(capability: Optional[str] = None, *, status: str = "active",
-           max_vram: Optional[float] = None, min_context: Optional[int] = None) -> Optional[Dict[str, Any]]:
+def select(
+    capability: Optional[str] = None,
+    *,
+    status: str = "active",
+    max_vram: Optional[float] = None,
+    min_context: Optional[int] = None,
+) -> Optional[Dict[str, Any]]:
     """Pick the best model for a job by declared capability + hard constraints. Deterministic (ranks by
     throughput among those that fit), NOT learned -- a value-optimized router is future work gated on
     the R016 capability map + usage data (the F2 Goodhart caution). Fail-soft: None when nothing fits.
@@ -96,6 +101,7 @@ def probe_availability(host: Optional[str] = None, *, opener: Any = None, timeou
     present: set = set()
     try:
         import urllib.request
+
         opener = opener or urllib.request.urlopen
         req = urllib.request.Request(host.rstrip("/") + "/api/tags", method="GET")
         with opener(req, timeout=timeout) as resp:
@@ -104,9 +110,13 @@ def probe_availability(host: Optional[str] = None, *, opener: Any = None, timeou
             name = m.get("name") or m.get("model")
             if name:
                 present.add(name)
-                present.add(name.split(":")[0])   # bare family too, so 'qwen3-8b' matches 'qwen3-8b:latest'
+                present.add(name.split(":")[0])  # bare family too, so 'qwen3-8b' matches 'qwen3-8b:latest'
     except Exception:
         return {"ok": False, "host": host, "present": []}
     declared = {m.get("tag") for m in _load().get("models", [])}
-    return {"ok": True, "host": host, "present": sorted(present),
-            "declared_present": sorted(t for t in declared if t in present or t.split(":")[0] in present)}
+    return {
+        "ok": True,
+        "host": host,
+        "present": sorted(present),
+        "declared_present": sorted(t for t in declared if t in present or t.split(":")[0] in present),
+    }

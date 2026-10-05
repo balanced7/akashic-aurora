@@ -57,8 +57,12 @@ def test_silent_when_nothing_is_queued():
 
 
 def test_renders_every_fact_and_names_its_sender():
-    fake = _FakeNudge(["[from deepseek] rooms board is mine, do not mint a ninth clipper",
-                       "[from kimi] capture rows will carry provenance"])
+    fake = _FakeNudge(
+        [
+            "[from deepseek] rooms board is mine, do not mint a ninth clipper",
+            "[from kimi] capture rows will carry provenance",
+        ]
+    )
     lines = BP.steer_facts_lines("claude", nudge=fake)
     body = "\n".join(lines)
     assert "deepseek" in body and "kimi" in body, body
@@ -93,6 +97,7 @@ def test_peek_mode_does_not_consume():
 def test_fail_open_never_wedges_the_sync():
     """steer_drain is fail-open by contract (nudge.py: 'never wedge the loop'). The renderer
     inherits that: a broken backend costs the facts, not the seat's turn."""
+
     class _Broken:
         def steer_pending(self, agent):
             raise RuntimeError("redis is having a night")

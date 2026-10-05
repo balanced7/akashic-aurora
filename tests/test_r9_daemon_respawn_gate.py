@@ -7,6 +7,7 @@ lock and counted as a crash, the breaker tripped and re-armed every ~6.5 min, an
 foreign_holder_after_exit() is the gate the daemon's child-poll site now applies: a foreign live holder means idle
 (W102's reclaim probe spawns when the lock frees), never a respawn.
 """
+
 import sys
 from pathlib import Path
 
@@ -46,6 +47,7 @@ def test_a_free_lock_is_not_foreign(monkeypatch):
 def test_an_unreadable_lock_never_blocks_the_daemon_loop(monkeypatch):
     def boom(agent):
         raise RuntimeError("redis down")
+
     monkeypatch.setattr(runner_lock, "holder", boom)
     assert bd.foreign_holder_after_exit("kimi", exited_pid=1) is None
 

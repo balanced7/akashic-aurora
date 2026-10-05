@@ -12,6 +12,7 @@ T382 -- the !revive control word: pins (the R3 amendment made executable).
 
 Run: py -m pytest tests/test_t382_revive_controlword.py -q
 """
+
 import os
 import sys
 
@@ -26,10 +27,14 @@ PLAIN_OP = "999888777666555444"
 
 
 def _cfg():
-    return {"operator_id": ROOT_ID,
-            "roots": {ROOT_ID: {"agent": "daniil"}},
-            "people": {ROOT_ID: {"agent": "daniil", "tier": "operator"},
-                       PLAIN_OP: {"agent": "guestop", "tier": "operator"}}}
+    return {
+        "operator_id": ROOT_ID,
+        "roots": {ROOT_ID: {"agent": "daniil"}},
+        "people": {
+            ROOT_ID: {"agent": "daniil", "tier": "operator"},
+            PLAIN_OP: {"agent": "guestop", "tier": "operator"},
+        },
+    }
 
 
 class _Bus:
@@ -49,15 +54,21 @@ def _call(text, author=ROOT_ID, reviver="unset"):
     elif reviver is not None:
         kwargs["reviver"] = reviver
     out = discord_inbound.handle_message(
-        _cfg(), author_id=author, author_name="x", channel_id="c1",
-        content=text, bus=_Bus(), react=reacts.append, **kwargs)
+        _cfg(),
+        author_id=author,
+        author_name="x",
+        channel_id="c1",
+        content=text,
+        bus=_Bus(),
+        react=reacts.append,
+        **kwargs,
+    )
     return out, calls, reacts
 
 
 def test_p1_root_pulls_the_lever():
     out, calls, reacts = _call("!revive")
-    assert out.get("acted") and out["revive"] == {"target": None,
-                                                  "observe_only": False}
+    assert out.get("acted") and out["revive"] == {"target": None, "observe_only": False}
     assert calls == [(None, False)]
     assert "🚑" in reacts
     out, calls, _ = _call("!revive daemon")
@@ -87,5 +98,11 @@ def test_p4_status_deep_is_the_dry_lever():
 def test_p5_missing_reviver_raises():
     with pytest.raises(RuntimeError):
         discord_inbound.handle_message(
-            _cfg(), author_id=ROOT_ID, author_name="x", channel_id="c1",
-            content="!revive", bus=_Bus(), react=lambda e: None)
+            _cfg(),
+            author_id=ROOT_ID,
+            author_name="x",
+            channel_id="c1",
+            content="!revive",
+            bus=_Bus(),
+            react=lambda e: None,
+        )

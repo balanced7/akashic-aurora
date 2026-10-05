@@ -21,9 +21,21 @@ New design/plan docs belong in docs/; retired docs belong in _archive/. The root
 
 Run: py scripts/checkers/check_doc_freshness.py        (exit 0 = clean root, 1 = an unlisted root doc)
 """
+
 import os
 import sys
 from pathlib import Path
+
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+
+        return python_launcher()
+    except Exception:
+        return "py"
+
 
 # W161 (2026-08-14): DERIVED, not defaulted. This read the AI_SETUP env var with a hardcoded
 # fallback -- the exact pattern core/paths.py exists to delete, and whose docstring already
@@ -35,11 +47,13 @@ from pathlib import Path
 # instance of this class in one arc, after core/paths.py itself and snapshot_knowledge.py.
 try:
     import sys as _sys
+
     _sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
     from core.paths import repo_root as _rr
+
     ROOT = _rr()
 except Exception:
-    ROOT = Path(os.getenv("AI_SETUP", r"E:\AI-Setup"))
+    ROOT = Path(__file__).resolve().parents[2]
 
 # The ONLY *.md files allowed at the repo root -- the agent's designated entry points.
 ALLOWED_ROOT_MD = {"README.md", "AGENTS.md", "bootstrap.md", "CONTRIBUTING.md"}
@@ -52,7 +66,7 @@ def check() -> int:
     print("DOC-FRESHNESS CHECK (root allowlist)")
     print("=" * 60)
     print("Allowed at root: " + ", ".join(sorted(ALLOWED_ROOT_MD)))
-    print("Generated truth: `py agent_cli.py status` | `story` | `git log` | docs/ROADMAP.md\n")
+    print(f"Generated truth: `{_pyl()} agent_cli.py status` | `story` | `git log` | docs/ROADMAP.md\n")
 
     if offenders:
         print(f"UNLISTED ROOT DOCS ({len(offenders)}):")

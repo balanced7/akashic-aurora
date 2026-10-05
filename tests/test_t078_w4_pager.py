@@ -16,6 +16,7 @@ Pins:
 
 Run: py -m pytest tests/test_t078_w4_pager.py -q
 """
+
 import os
 import sys
 
@@ -36,14 +37,18 @@ def _built():
 class FakeRedis:
     def __init__(self):
         self.lists = {}
+
     def lpush(self, k, v):
         self.lists.setdefault(k, []).insert(0, v)
         return len(self.lists[k])
+
     def ltrim(self, k, a, b):
-        self.lists[k] = self.lists.get(k, [])[a:b + 1]
+        self.lists[k] = self.lists.get(k, [])[a : b + 1]
+
     def lrange(self, k, a, b):
         L = self.lists.get(k, [])
-        return L[a:] if b == -1 else L[a:b + 1]
+        return L[a:] if b == -1 else L[a : b + 1]
+
     def delete(self, k):
         self.lists.pop(k, None)
 

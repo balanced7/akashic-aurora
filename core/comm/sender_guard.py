@@ -19,6 +19,7 @@ The rule: an agent id is a SLUG. Letters, digits, hyphen, underscore, dot. No wh
 no sentence punctuation, and never empty. Deliberately NOT a length police: self-registered
 seats legitimately look like `codex_frontier_019f6e7e`, so shape decides, not size.
 """
+
 from __future__ import annotations
 
 import re
@@ -34,9 +35,11 @@ def check_sender(agent_id: Optional[str]) -> Optional[str]:
     Returns DATA, never raises: every caller is a door that must print one honest line and
     exit non-zero, not hand the operator a traceback."""
     if agent_id is None or not str(agent_id).strip():
-        return ("refusing to send with an EMPTY sender -- the first positional argument is "
-                "WHO IS SENDING (e.g. `claude`), not the message. Shape: "
-                "bifrost-send --to <peer> --kind <kind> --text-file <path> <sender>")
+        return (
+            "refusing to send with an EMPTY sender -- the first positional argument is "
+            "WHO IS SENDING (e.g. `claude`), not the message. Shape: "
+            "bifrost-send --to <peer> --kind <kind> --text-file <path> <sender>"
+        )
     raw = str(agent_id)
     if _ID_RE.match(raw):
         return None
@@ -44,13 +47,17 @@ def check_sender(agent_id: Optional[str]) -> Optional[str]:
     looks_like_prose = (" " in raw) or len(raw) > 64
     head = raw.strip().replace("\n", " ")[:60]
     if looks_like_prose:
-        return (f"refusing to send: the sender slot holds what looks like a MESSAGE, not a "
-                f"seat id -- it starts {head!r} ({len(raw)} chars).\n"
-                f"This is the argv-ordering trap: options, then SENDER, then text --\n"
-                f"  bifrost-send --to <peer> --kind chat --text-file <path> <sender>\n"
-                f"Put every real body in --text-file (house rule, unconditional): a long or "
-                f"flag-bearing message in argv misparses, and a message in the sender slot "
-                f"is posted as a webhook USERNAME, which Discord rejects with HTTP 400 -- "
-                f"silently, from the operator's side.")
-    return (f"refusing to send: {head!r} is not a valid seat id (letters, digits, dot, "
-            f"hyphen, underscore; no whitespace). The first positional is the SENDER.")
+        return (
+            f"refusing to send: the sender slot holds what looks like a MESSAGE, not a "
+            f"seat id -- it starts {head!r} ({len(raw)} chars).\n"
+            f"This is the argv-ordering trap: options, then SENDER, then text --\n"
+            f"  bifrost-send --to <peer> --kind chat --text-file <path> <sender>\n"
+            f"Put every real body in --text-file (house rule, unconditional): a long or "
+            f"flag-bearing message in argv misparses, and a message in the sender slot "
+            f"is posted as a webhook USERNAME, which Discord rejects with HTTP 400 -- "
+            f"silently, from the operator's side."
+        )
+    return (
+        f"refusing to send: {head!r} is not a valid seat id (letters, digits, dot, "
+        f"hyphen, underscore; no whitespace). The first positional is the SENDER."
+    )

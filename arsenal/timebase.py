@@ -5,6 +5,7 @@ Fraction of a second per tick, so nothing here ever passes through a float. The 
 on seek, loop, source replacement or device reset: a value from before a seek can never be
 compared with, or mistaken for, a value after it.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -12,8 +13,17 @@ from fractions import Fraction
 from typing import List, Tuple
 
 __all__ = [
-    "ClockMismatch", "StaleEpoch", "tb", "parse_tb", "format_tb", "TimeRef", "TimeSpan",
-    "Clock", "ClockMap", "CLOCK_DOMAINS", "MASTER_BY_MODE",
+    "ClockMismatch",
+    "StaleEpoch",
+    "tb",
+    "parse_tb",
+    "format_tb",
+    "TimeRef",
+    "TimeSpan",
+    "Clock",
+    "ClockMap",
+    "CLOCK_DOMAINS",
+    "MASTER_BY_MODE",
 ]
 
 
@@ -52,8 +62,10 @@ def _as_timebase(value) -> Fraction:
         # Nothing in media ticks slower than once a second, so this is a rate passed where a
         # timebase belongs (48000 for 1/48000). Refuse it loudly rather than keep a wrong time.
         n, d = value.numerator, value.denominator
-        raise ValueError(f"a timebase is seconds per tick, and {n}/{d} would be over a second per tick; "
-                         f"for a rate of {n}/{d} per second use tb({d}, {n})")
+        raise ValueError(
+            f"a timebase is seconds per tick, and {n}/{d} would be over a second per tick; "
+            f"for a rate of {n}/{d} per second use tb({d}, {n})"
+        )
     return value
 
 
@@ -105,7 +117,8 @@ class TimeRef:
             if exact:
                 raise ValueError(
                     f"{self.ticks} ticks at {format_tb(self.timebase)} is not exactly "
-                    f"representable at {format_tb(target)}")
+                    f"representable at {format_tb(target)}"
+                )
             q = Fraction(round(q))  # Fraction rounding is half to even
         return TimeRef(self.clock, self.epoch, int(q), target)
 
@@ -148,8 +161,7 @@ class TimeRef:
         return TimeRef(self.clock, self.epoch, self.ticks + other, self.timebase)
 
     def to_json(self) -> dict:
-        return {"clock": self.clock, "epoch": self.epoch, "ticks": self.ticks,
-                "timebase": format_tb(self.timebase)}
+        return {"clock": self.clock, "epoch": self.epoch, "ticks": self.ticks, "timebase": format_tb(self.timebase)}
 
     @classmethod
     def from_json(cls, d: dict) -> "TimeRef":

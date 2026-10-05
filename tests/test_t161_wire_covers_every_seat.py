@@ -28,6 +28,7 @@ records attributable, so the extension is now safe and worth having.
 
 Run: py -m pytest tests/test_t161_wire_covers_every_seat.py -q
 """
+
 import glob
 import os
 import re
@@ -47,6 +48,7 @@ SEATS = ("deepseek", "kimi", "gemini", "sol")
 def _lib():
     import importlib
     from core.comm import runner_lib
+
     return importlib.reload(runner_lib)
 
 
@@ -61,15 +63,18 @@ def _is_recording(client) -> bool:
 
 # --------------------------------------------------------------------------- E1
 
+
 def test_e1_the_shared_factory_instruments_by_default():
     lib = _lib()
     c = lib.make_openai_compat_client("k", "https://example.invalid/v1")
     assert _is_recording(c), (
         "the shared factory returns an uninstrumented client, so kimi and gemini -- which both "
-        "reach the wire only through this seam -- stay blind")
+        "reach the wire only through this seam -- stay blind"
+    )
 
 
 # --------------------------------------------------------------------------- E2
+
 
 def test_e2_instrumenting_does_not_drop_the_anti_wedge_timeout():
     """The regression this slice is most likely to cause, so it is pinned before the code.
@@ -80,25 +85,25 @@ def test_e2_instrumenting_does_not_drop_the_anti_wedge_timeout():
     every test still passes.
     """
     lib = _lib()
-    c = lib.make_openai_compat_client("k", "https://example.invalid/v1",
-                                      connect_timeout=3.0, read_timeout=7.0)
+    c = lib.make_openai_compat_client("k", "https://example.invalid/v1", connect_timeout=3.0, read_timeout=7.0)
     http = getattr(c, "_client", None)
     assert http is not None
     to = http.timeout
     assert to.read == pytest.approx(7.0), (
         f"read timeout is {to.read!r}, not 7.0 -- instrumenting silently discarded the anti-wedge "
-        f"hardening, and a wedged seat is worse than a blind one")
+        f"hardening, and a wedged seat is worse than a blind one"
+    )
     assert to.connect == pytest.approx(3.0), f"connect timeout is {to.connect!r}, not 3.0"
 
 
 # --------------------------------------------------------------------------- E3 / E4
 
+
 def test_e3_instrumentation_can_be_declined_per_call():
     lib = _lib()
     c = lib.make_openai_compat_client("k", "https://example.invalid/v1", record_wire=False)
     assert not _is_recording(c)
-    assert c._client.timeout.read == pytest.approx(120.0), (
-        "the uninstrumented path lost its default timeout")
+    assert c._client.timeout.read == pytest.approx(120.0), "the uninstrumented path lost its default timeout"
 
 
 def test_e4_a_global_off_switch_exists(monkeypatch):
@@ -109,6 +114,7 @@ def test_e4_a_global_off_switch_exists(monkeypatch):
 
 
 # --------------------------------------------------------------------------- E5
+
 
 def test_e5_every_seat_builds_an_instrumented_client():
     """Structural, over the seat FAMILY -- a new seat is covered the day it lands."""
@@ -126,10 +132,12 @@ def test_e5_every_seat_builds_an_instrumented_client():
             missing.append(f"{seat}_chat.py")
     assert not missing, (
         f"{len(missing)} seat(s) build a model client with no wire capture, so their traffic is "
-        f"invisible -- including system_fingerprint, the silent model-swap detector: {missing}")
+        f"invisible -- including system_fingerprint, the silent model-swap detector: {missing}"
+    )
 
 
 # --------------------------------------------------------------------------- E6
+
 
 def test_e6_a_broken_recorder_never_blocks_a_launch(monkeypatch):
     lib = _lib()
@@ -138,10 +146,12 @@ def test_e6_a_broken_recorder_never_blocks_a_launch(monkeypatch):
         raise RuntimeError("recorder is broken")
 
     import scripts.wire_journal as WJ
+
     monkeypatch.setattr(WJ, "recording_http_client", boom)
 
     c = lib.make_openai_compat_client("k", "https://example.invalid/v1")
     assert c is not None, "a broken recorder prevented a client from being built"
     assert not _is_recording(c)
     assert c._client.timeout.read == pytest.approx(120.0), (
-        "the fallback path lost the anti-wedge timeout as well -- the failure mode compounded")
+        "the fallback path lost the anti-wedge timeout as well -- the failure mode compounded"
+    )

@@ -10,6 +10,7 @@ one monitor tick; the flag clears at exit flush; a timed-out flush is recorded.
 
 Run: py -m pytest tests/test_launcher_drainer_liveness.py -q
 """
+
 import os
 import sys
 import threading
@@ -74,17 +75,16 @@ def test_exit_flush_timeout_is_recorded(monkeypatch):
     proc = AgentProcess(agent_id="x", drainers=[_stuck_thread(evt)])
     l._flush_drainers(proc)
     evt.set()
-    assert proc.drain_flush_timeout is True, \
+    assert proc.drain_flush_timeout is True, (
         "a flush that outlives the join window is recorded -- the exit tail may be partial"
+    )
 
 
 def test_registry_surfaces_drainer_state(monkeypatch):
     l, _ = _quiet_launcher(monkeypatch)
     monkeypatch.setattr(l, "_reload", lambda: None)
     monkeypatch.setattr(l, "_armed_set", lambda: set())
-    l._specs = {"x": AgentSpec(agent_id="x", runtime="python_runner",
-                               description="", command=["py"])}
-    l._procs = {"x": AgentProcess(agent_id="x", status="running",
-                                  drainer_dead=True, drain_flush_timeout=True)}
+    l._specs = {"x": AgentSpec(agent_id="x", runtime="python_runner", description="", command=["py"])}
+    l._procs = {"x": AgentProcess(agent_id="x", status="running", drainer_dead=True, drain_flush_timeout=True)}
     row = next(r for r in l.registry() if r["agent_id"] == "x")
     assert row["drainer_dead"] is True and row["drain_flush_timeout"] is True

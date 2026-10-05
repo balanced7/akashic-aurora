@@ -7,6 +7,7 @@ what feed gap detection, so a midpoint could withhold 2,3,4, deposit three tombs
 and `missing()` came back empty. The property the whole design exists to provide, handed to the
 attacker by the retirement path.
 """
+
 import base64
 import json
 import math
@@ -70,31 +71,49 @@ def test_is_retired_never_raises_a_foreign_type(bad):
 @pytest.mark.parametrize("bad", ["abc", float("inf"), float("-inf"), float("nan"), [1], {"a": 1}])
 def test_unseal_refuses_uniformly_on_a_poisoned_created_at(alice, bob, bad):
     env = _env(alice, bob)
-    env["created_at"] = bad                       # after a VALID signature, per the review
+    env["created_at"] = bad  # after a VALID signature, per the review
     with pytest.raises(seal.SealRefused):
         seal.unseal(env, recipient=bob, sender_public=alice["verify_public"], me="serge")
 
 
-@pytest.mark.parametrize("kw", [{"seq": "abc"}, {"seq": None}, {"created_at": float("nan")},
-                                {"expires_at": float("inf")}])
+@pytest.mark.parametrize(
+    "kw", [{"seq": "abc"}, {"seq": None}, {"created_at": float("nan")}, {"expires_at": float("inf")}]
+)
 def test_seal_refuses_uniformly(alice, bob, kw):
     with pytest.raises(seal.SealRefused):
         _env(alice, bob, **kw)
 
 
 def test_seal_refuses_a_broken_identity(bob):
-    for ident in ({"seal_public": "x"}, {"sign_secret": "!!not-b64!!", "seal_public": "a",
-                                         "seal_secret": "a", "verify_public": "a"}):
+    for ident in (
+        {"seal_public": "x"},
+        {"sign_secret": "!!not-b64!!", "seal_public": "a", "seal_secret": "a", "verify_public": "a"},
+    ):
         with pytest.raises(seal.SealRefused):
-            seal.seal(INNER, sender=ident, recipient_public=bob["seal_public"],
-                      to="serge", frm="daniil", seq=1, prev="", epoch="e1")
+            seal.seal(
+                INNER,
+                sender=ident,
+                recipient_public=bob["seal_public"],
+                to="serge",
+                frm="daniil",
+                seq=1,
+                prev="",
+                epoch="e1",
+            )
 
 
 def test_seal_refuses_an_unserialisable_inner(alice, bob):
     with pytest.raises(seal.SealRefused):
-        seal.seal({**INNER, "content": {1, 2, 3}}, sender=alice,
-                  recipient_public=bob["seal_public"], to="serge", frm="daniil",
-                  seq=1, prev="", epoch="e1")
+        seal.seal(
+            {**INNER, "content": {1, 2, 3}},
+            sender=alice,
+            recipient_public=bob["seal_public"],
+            to="serge",
+            frm="daniil",
+            seq=1,
+            prev="",
+            epoch="e1",
+        )
 
 
 # --------------------------------------------------------------------- 4,14 bounded seq and state
@@ -102,14 +121,14 @@ def test_an_absurd_seq_is_refused_rather_than_materialised(tmp_path):
     c = seal.Chain(tmp_path / "c.json")
     c.observe_in("serge", seq=1, mid="m1", prev="", epoch="e1", verified=True)
     with pytest.raises(seal.SealRefused):
-        c.observe_in("serge", seq=2 ** 70, mid="m", prev="m1", epoch="e1", verified=True)
+        c.observe_in("serge", seq=2**70, mid="m", prev="m1", epoch="e1", verified=True)
     assert c.missing("serge") == []
 
 
 def test_state_stays_small_over_a_long_run(tmp_path):
     c = seal.Chain(tmp_path / "c.json")
     for s in range(1, 2001):
-        c.observe_in("serge", seq=s, mid=f"m{s}", prev=f"m{s-1}", epoch="e1", verified=True)
+        c.observe_in("serge", seq=s, mid=f"m{s}", prev=f"m{s - 1}", epoch="e1", verified=True)
     assert c.missing("serge") == []
     assert (tmp_path / "c.json").stat().st_size < 8000, "in-order arrivals must not accumulate state"
 
@@ -119,7 +138,7 @@ def test_a_corrupt_chain_file_refuses_instead_of_forgetting(tmp_path):
     p = tmp_path / "c.json"
     c = seal.Chain(p)
     c.observe_in("serge", seq=1, mid="m1", prev="", epoch="e1", verified=True)
-    p.write_text('{"out": {"serge": {"seq": 4', encoding="utf-8")      # truncated write
+    p.write_text('{"out": {"serge": {"seq": 4', encoding="utf-8")  # truncated write
     with pytest.raises(seal.ChainCorrupt):
         seal.Chain(p)
 
@@ -131,6 +150,7 @@ def test_an_absent_chain_file_is_a_fresh_start_not_an_error(tmp_path):
 # --------------------------------------------------------------------------- 6 no duplicate seqs
 def test_concurrent_claims_never_hand_out_the_same_seq(tmp_path):
     import threading
+
     p = tmp_path / "c.json"
     seen, lock, errors = [], threading.Lock(), []
 
@@ -140,7 +160,7 @@ def test_concurrent_claims_never_hand_out_the_same_seq(tmp_path):
                 s = seal.Chain(p).next_out("serge")["seq"]
                 with lock:
                     seen.append(s)
-        except Exception as e:                                    # noqa: BLE001
+        except Exception as e:  # noqa: BLE001
             errors.append(e)
 
     threads = [threading.Thread(target=claim) for _ in range(4)]
@@ -153,7 +173,7 @@ def test_concurrent_claims_never_hand_out_the_same_seq(tmp_path):
 # ------------------------------------------------------------- 7,8,9,10,11 strictness at the door
 def test_an_unsigned_extra_field_is_refused(alice, bob):
     env = _env(alice, bob)
-    env["retired"] = True                                         # outside _HEADER_FIELDS
+    env["retired"] = True  # outside _HEADER_FIELDS
     with pytest.raises(seal.SealRefused):
         seal.unseal(env, recipient=bob, sender_public=alice["verify_public"], me="serge")
 
@@ -207,16 +227,25 @@ def test_a_sender_side_chain_reset_is_visible_not_swallowed(tmp_path):
 def test_default_str_no_longer_corrupts_the_inner_message(alice, bob):
     """A set used to ship as the string '{1, 2, 3}' with no error on either side."""
     with pytest.raises(seal.SealRefused):
-        seal.seal({**INNER, "extra": {1, 2}}, sender=alice, recipient_public=bob["seal_public"],
-                  to="serge", frm="daniil", seq=1, prev="", epoch="e1")
+        seal.seal(
+            {**INNER, "extra": {1, 2}},
+            sender=alice,
+            recipient_public=bob["seal_public"],
+            to="serge",
+            frm="daniil",
+            seq=1,
+            prev="",
+            epoch="e1",
+        )
 
 
 # ------------------------------------------------------------------------------- 18 expiry is real
 def test_an_expired_envelope_does_not_unseal(alice, bob):
     env = _env(alice, bob, created_at=1789700000, expires_at=1789700001)
     with pytest.raises(seal.SealRefused):
-        seal.unseal(env, recipient=bob, sender_public=alice["verify_public"], me="serge",
-                    now=1789700500, within_s=100000)
+        seal.unseal(
+            env, recipient=bob, sender_public=alice["verify_public"], me="serge", now=1789700500, within_s=100000
+        )
 
 
 # ------------------------------------------------------------------------------- 19 type confusion
@@ -234,16 +263,14 @@ def test_a_withheld_tail_is_invisible_to_the_chain_alone(tmp_path):
     """The hole this exists to close — asserted, so nobody 'fixes' the advert away later."""
     c = seal.Chain(tmp_path / "c.json")
     for s in (1, 2, 3):
-        c.observe_in("serge", seq=s, mid=f"m{s}", prev=f"m{s-1}" if s > 1 else "",
-                     epoch="e1", verified=True)
+        c.observe_in("serge", seq=s, mid=f"m{s}", prev=f"m{s - 1}" if s > 1 else "", epoch="e1", verified=True)
     assert c.missing("serge") == [], "a withheld tail leaves no hole behind it — that is the problem"
 
 
 def test_a_signed_advert_reveals_the_withheld_tail(alice, bob, tmp_path):
     c = seal.Chain(tmp_path / "c.json")
     for s in (1, 2, 3):
-        c.observe_in("serge", seq=s, mid=f"m{s}", prev=f"m{s-1}" if s > 1 else "",
-                     epoch="e1", verified=True)
+        c.observe_in("serge", seq=s, mid=f"m{s}", prev=f"m{s - 1}" if s > 1 else "", epoch="e1", verified=True)
     adv = seal.head(sender=alice, to="serge", frm="daniil", epoch="e1", seq=6, last_id="m6")
     got = seal.verify_head(adv, sender_public=alice["verify_public"], me="serge")
     out = c.check_head("serge", got, verified=True)
@@ -252,7 +279,7 @@ def test_a_signed_advert_reveals_the_withheld_tail(alice, bob, tmp_path):
 
 def test_the_midpoint_cannot_forge_an_advert(alice, bob, tmp_path):
     adv = seal.head(sender=alice, to="serge", frm="daniil", epoch="e1", seq=6, last_id="m6")
-    forged = {**adv, "seq": 9}                     # inventing a tail to make us chase it
+    forged = {**adv, "seq": 9}  # inventing a tail to make us chase it
     with pytest.raises(seal.SealRefused):
         seal.verify_head(forged, sender_public=alice["verify_public"], me="serge")
     mallory = seal.generate_identity()
@@ -270,10 +297,9 @@ def test_a_stale_advert_is_refusable_but_staleness_is_the_callers_call(alice):
     """The residual limit, pinned honestly: a midpoint can STALL an advert, so 'cannot lie forward'
     is the guarantee — not 'cannot withhold'. Only the caller knows if this peer should be chatty."""
     adv = seal.head(sender=alice, to="serge", frm="daniil", epoch="e1", seq=6, created_at=1_000_000)
-    seal.verify_head(adv, sender_public=alice["verify_public"], me="serge")      # no max_age: fine
+    seal.verify_head(adv, sender_public=alice["verify_public"], me="serge")  # no max_age: fine
     with pytest.raises(seal.SealRefused):
-        seal.verify_head(adv, sender_public=alice["verify_public"], me="serge",
-                         now=1_000_000 + 99_999, max_age_s=3600)
+        seal.verify_head(adv, sender_public=alice["verify_public"], me="serge", now=1_000_000 + 99_999, max_age_s=3600)
 
 
 def test_an_advert_for_another_fleet_is_refused(alice):

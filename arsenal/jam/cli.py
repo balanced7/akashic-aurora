@@ -15,6 +15,7 @@ CARD is an id or a unique id prefix. CARD|CHORDS also takes a chord line in the 
 Exit codes: 0 done; 2 bad input (the message names the flag); 3 no jam page; 4 no server, an old server, or the
 voicing bridge unavailable; 5 conflict (the card or run changed underneath: run it again).
 """
+
 from __future__ import annotations
 
 import argparse
@@ -30,17 +31,49 @@ from urllib.parse import parse_qs, quote, urlencode
 from arsenal.jam import schemas as S
 from arsenal.jam.resolve import midi_name, parse_line, parse_notes
 
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+
+        return python_launcher()
+    except Exception:
+        return "py"
+
+
 VERBS = ("card", "deck", "loop", "try", "jam", "template")
 DEFAULT_PORT = 8793
 OK, BAD_INPUT, NO_PAGE, NO_SERVER, CONFLICT = 0, 2, 3, 4, 5
 NO_LISTENER = "no piano page is listening - open http://127.0.0.1:{port}/piano"
 RELOAD = "the piano page is open but predates the jam space - reload the piano page"
-FIELD_FLAGS = {"title": "--title", "meaning": "--meaning", "group": "--group", "kind": "--kind", "key": "--key",
-               "chords": "--chords", "explanation": "--explain", "why": "--why", "try": "--try",
-               "listen_for": "--listen-for", "tempo": "--bpm", "bars": "--bars", "checks": "--check",
-               "moments": "--moment", "replay": "--replay", "tags": "--tag", "related": "--related",
-               "variants": "--variant", "voicing": "--voicing", "playback": "--vel", "theory_name": "--theory-name",
-               "also_in": "--also-in", "style": "--style", "groove": "--groove", "backing": "--backing"}
+FIELD_FLAGS = {
+    "title": "--title",
+    "meaning": "--meaning",
+    "group": "--group",
+    "kind": "--kind",
+    "key": "--key",
+    "chords": "--chords",
+    "explanation": "--explain",
+    "why": "--why",
+    "try": "--try",
+    "listen_for": "--listen-for",
+    "tempo": "--bpm",
+    "bars": "--bars",
+    "checks": "--check",
+    "moments": "--moment",
+    "replay": "--replay",
+    "tags": "--tag",
+    "related": "--related",
+    "variants": "--variant",
+    "voicing": "--voicing",
+    "playback": "--vel",
+    "theory_name": "--theory-name",
+    "also_in": "--also-in",
+    "style": "--style",
+    "groove": "--groove",
+    "backing": "--backing",
+}
 
 
 class CliError(Exception):
@@ -61,15 +94,17 @@ class Client:
         self.err = err or sys.stderr
         self._api = None
 
-    def call(self, method: str, path: str, body: Optional[dict] = None, query: Optional[dict] = None
-             ) -> Tuple[int, dict]:
+    def call(
+        self, method: str, path: str, body: Optional[dict] = None, query: Optional[dict] = None
+    ) -> Tuple[int, dict]:
         query = {k: v for k, v in (query or {}).items() if v is not None}
         if self.offline:
             return self._local(method, path, body, query)
         url = f"http://127.0.0.1:{self.port}{path}" + (f"?{urlencode(query)}" if query else "")
         data = json.dumps(body).encode("utf-8") if body is not None else None
-        req = urllib.request.Request(url, data=data, method=method,
-                                     headers={"Content-Type": "application/json"} if data is not None else {})
+        req = urllib.request.Request(
+            url, data=data, method=method, headers={"Content-Type": "application/json"} if data is not None else {}
+        )
         try:
             with urllib.request.urlopen(req, timeout=30) as resp:
                 return resp.status, json.loads(resp.read() or b"null")
@@ -80,23 +115,33 @@ class Client:
             except ValueError:
                 payload = {"error": raw.decode("utf-8", "replace")[:300]}
             if exc.code == 404 and "no route" in str((payload or {}).get("error", "")):
-                raise CliError(f"the server on 127.0.0.1:{self.port} predates the jam routes - restart "
-                               f"py -m arsenal serve --port {self.port}", NO_SERVER)
+                raise CliError(
+                    f"the server on 127.0.0.1:{self.port} predates the jam routes - restart "
+                    f"{_pyl()} -m arsenal serve --port {self.port}",
+                    NO_SERVER,
+                )
             return exc.code, payload or {}
         except (urllib.error.URLError, ConnectionError, TimeoutError, OSError) as exc:
             if not self.offline_ok:
-                raise CliError(f"no arsenal server answers on 127.0.0.1:{self.port} "
-                               f"({getattr(exc, 'reason', exc)}) - start it with py -m arsenal serve --port "
-                               f"{self.port}", NO_SERVER)
+                raise CliError(
+                    f"no arsenal server answers on 127.0.0.1:{self.port} "
+                    f"({getattr(exc, 'reason', exc)}) - start it with {_pyl()} -m arsenal serve --port "
+                    f"{self.port}",
+                    NO_SERVER,
+                )
             self.offline = True
             from arsenal.jam.cards import DEFAULT_ROOT
-            print(f"no server on 127.0.0.1:{self.port}: writing the files under {self.jam_root or DEFAULT_ROOT} "
-                  f"directly", file=self.err)
+
+            print(
+                f"no server on 127.0.0.1:{self.port}: writing the files under {self.jam_root or DEFAULT_ROOT} directly",
+                file=self.err,
+            )
             return self._local(method, path, body, query)
 
     def _local(self, method, path, body, query):
         if self._api is None:
             from arsenal.jam.runs import JamApi
+
             self._api = JamApi(root=self.jam_root)
         return self._api.handle(method, path, {k: [str(v)] for k, v in query.items()}, body)
 
@@ -162,7 +207,7 @@ def _target(client: Client, text: str, key: Optional[str]) -> dict:
     except ValueError as exc:
         raise CliError(f"{text!r} is no card and no chord line: {exc}")
     if not key:
-        raise CliError(f"{text!r} is a chord line, which needs --key (e.g. --key \"Eb major\")")
+        raise CliError(f'{text!r} is a chord line, which needs --key (e.g. --key "Eb major")')
     return {"chords": items, "key": key}
 
 
@@ -193,14 +238,15 @@ def _slot_rows(d: dict, backing: Optional[str] = None, loop: bool = False) -> Li
         if s["upper_same"]:
             reads = "(upper same)"
         elif pr.get("name") and pr.get("name") != s["name"]:
-            reads = f"page reads {pr['name']}" + (f" ({pr['number']})" if pr.get("number") else "") + \
-                f": {pr['match']}"
+            reads = f"page reads {pr['name']}" + (f" ({pr['number']})" if pr.get("number") else "") + f": {pr['match']}"
         else:
             reads = f"page reads {pr.get('name') or s['name']}"
         notes = s["voicings"][show] if loop else s["voicings"]["play"]
         label = f"{show} " if loop else ""
-        rows.append(f"  {where:<11} {s['name'] or '':<{name_w}}  {s['n'] or 'notes':<{num_w}}  "
-                    f"{label}{_names(notes):<24}  {reads}")
+        rows.append(
+            f"  {where:<11} {s['name'] or '':<{name_w}}  {s['n'] or 'notes':<{num_w}}  "
+            f"{label}{_names(notes):<24}  {reads}"
+        )
         for w in s["warnings"]:
             rows.append(f"              note: {w}")
     return rows
@@ -210,11 +256,18 @@ def _print_card(client: Client, card: dict, out, key=None, variant=None, backing
     kind, ckey = card["kind"], card["key"]
     tempo = S.card_settings(card)["tempo"]
     bars = S.card_settings(card)["bars"]
-    print(f"card {card['id']} rev {card['rev']} ({kind}, {key or ckey}, {tempo['bpm']:g} bpm"
-          + (f", {bars} bars" if bars else "") + f"): {card['title']}", file=out)
+    print(
+        f"card {card['id']} rev {card['rev']} ({kind}, {key or ckey}, {tempo['bpm']:g} bpm"
+        + (f", {bars} bars" if bars else "")
+        + f"): {card['title']}",
+        file=out,
+    )
     print(f"  {card['meaning']}", file=out)
-    lines = [variant] if variant not in (None, "all") else \
-        ([None] if card.get("chords") else []) + [v["id"] for v in card.get("variants") or []]
+    lines = (
+        [variant]
+        if variant not in (None, "all")
+        else ([None] if card.get("chords") else []) + [v["id"] for v in card.get("variants") or []]
+    )
     if variant == "all":
         lines = [v["id"] for v in card.get("variants") or []] or [None]
     for v in lines:
@@ -249,8 +302,7 @@ def _check_flag(text: str, i: int) -> dict:
     check = {}
     for part in head.split():
         if "=" not in part:
-            raise CliError(f"--check takes key=value parts, like \"slot=2 role=#11 want=present say=...\" "
-                           f"(got {part!r})")
+            raise CliError(f'--check takes key=value parts, like "slot=2 role=#11 want=present say=..." (got {part!r})')
         k, v = part.split("=", 1)
         if k == "slot":
             check["slot"] = _one_based(v, "--check slot")
@@ -304,6 +356,7 @@ def _apply_line_flags(chords: List[dict], args) -> None:
 
 def _names_line(text: str, key: Optional[str]) -> List[dict]:
     from arsenal import nashville
+
     if not key:
         raise CliError("--names needs --key to number the chords")
     items = []
@@ -325,10 +378,22 @@ def _names_line(text: str, key: Optional[str]) -> List[dict]:
 
 def _card_from_flags(args, base: Optional[dict] = None) -> dict:
     card = dict(base or {})
-    for flag, field in (("id", "id"), ("title", "title"), ("meaning", "meaning"), ("theory_name", "theory_name"),
-                        ("group", "group"), ("kind", "kind"), ("key", "key"), ("style", "style"),
-                        ("explain", "explanation"), ("why", "why"), ("try_text", "try"), ("listen_for", "listen_for"),
-                        ("groove", "groove"), ("backing", "backing")):
+    for flag, field in (
+        ("id", "id"),
+        ("title", "title"),
+        ("meaning", "meaning"),
+        ("theory_name", "theory_name"),
+        ("group", "group"),
+        ("kind", "kind"),
+        ("key", "key"),
+        ("style", "style"),
+        ("explain", "explanation"),
+        ("why", "why"),
+        ("try_text", "try"),
+        ("listen_for", "listen_for"),
+        ("groove", "groove"),
+        ("backing", "backing"),
+    ):
         value = getattr(args, flag, None)
         if value is not None:
             card[field] = value
@@ -422,15 +487,30 @@ def _cmd_card(args, client: Client, out) -> int:
         reply = _check(*client.call("POST", "/api/piano/deck/cards", {"card": card, "by": args.by}))
         return _report_card(client, reply, args, out)
     if verb == "list":
-        doc = _check(*client.call("GET", "/api/piano/deck", query={
-            "group": args.group, "kind": args.kind, "tag": args.tag, "by": args.author,
-            "archived": "1" if args.archived else None}))
+        doc = _check(
+            *client.call(
+                "GET",
+                "/api/piano/deck",
+                query={
+                    "group": args.group,
+                    "kind": args.kind,
+                    "tag": args.tag,
+                    "by": args.author,
+                    "archived": "1" if args.archived else None,
+                },
+            )
+        )
         return _print_deck(doc, args, out)
     if verb == "info":
         card = _card(client, args.card)
         if args.json:
-            d = _check(*client.call("GET", f"/api/piano/deck/cards/{card['id']}/resolve",
-                                    query={"key": args.key, "variant": args.variant, "backing": args.backing}))
+            d = _check(
+                *client.call(
+                    "GET",
+                    f"/api/piano/deck/cards/{card['id']}/resolve",
+                    query={"key": args.key, "variant": args.variant, "backing": args.backing},
+                )
+            )
             print(json.dumps({"card": card, "def": d["def"]}, indent=2, ensure_ascii=False), file=out)
             return OK
         _print_card(client, card, out, args.key, args.variant, args.backing)
@@ -482,12 +562,17 @@ def _cmd_card(args, client: Client, out) -> int:
     if verb == "open":
         card = _card(client, args.card)
         reply = _check(*client.call("POST", "/api/piano/deck/open", {"card_id": card["id"], "by": args.by}))
-        print(f"opened the deck on {card['id']} for {reply['listeners']} deck page"
-              f"{'s' if reply['listeners'] != 1 else ''}", file=out)
+        print(
+            f"opened the deck on {card['id']} for {reply['listeners']} deck page"
+            f"{'s' if reply['listeners'] != 1 else ''}",
+            file=out,
+        )
         if reply["listeners"] == 0:
             status, st = client.call("GET", "/api/piano/cues/status")
-            print(RELOAD if status == 200 and st.get("listeners") else NO_LISTENER.format(port=client.port),
-                  file=sys.stderr)
+            print(
+                RELOAD if status == 200 and st.get("listeners") else NO_LISTENER.format(port=client.port),
+                file=sys.stderr,
+            )
             return NO_PAGE
         return OK
     raise CliError(f"card {verb}?")
@@ -531,8 +616,12 @@ def _edit_patch(card: dict, args) -> dict:
             patch[field] = json.loads(raw)
         except ValueError:
             patch[field] = raw
-    for flag, field, value in (("favorite", "favorite", True), ("unfavorite", "favorite", False),
-                               ("archive", "archived", True), ("unarchive", "archived", False)):
+    for flag, field, value in (
+        ("favorite", "favorite", True),
+        ("unfavorite", "favorite", False),
+        ("archive", "archived", True),
+        ("unarchive", "archived", False),
+    ):
         if getattr(args, flag, False):
             patch[field] = value
     return patch
@@ -555,12 +644,16 @@ def _print_deck(doc: dict, args, out) -> int:
         return OK
     cards = doc["cards"]
     by_claude = sum(1 for c in cards if c["created_by"] == "claude")
-    print(f"deck rev {doc['rev']}: {len(cards)} card{'s' if len(cards) != 1 else ''} ({by_claude} by claude, "
-          f"{len(cards) - by_claude} by daniel)", file=out)
+    print(
+        f"deck rev {doc['rev']}: {len(cards)} card{'s' if len(cards) != 1 else ''} ({by_claude} by claude, "
+        f"{len(cards) - by_claude} by daniel)",
+        file=out,
+    )
     for c in cards:
         numbers = c["numbers"] or " ".join(c["variants"])
-        print(f"  {c['group']:<6} {c['kind']:<12} {c['id']:<28} {c['key']:<9} {numbers[:34]:<34} {c['title']}",
-              file=out)
+        print(
+            f"  {c['group']:<6} {c['kind']:<12} {c['id']:<28} {c['key']:<9} {numbers[:34]:<34} {c['title']}", file=out
+        )
     return OK
 
 
@@ -569,9 +662,20 @@ def _start(args, client: Client, out, mode: str) -> int:
     _jam_page(client)
     body = _target(client, args.target, args.key)
     body.update(mode=mode, by="claude")
-    for flag, field in (("variant", "variant"), ("bpm", "bpm"), ("count_in", "count_in"), ("passes", "passes"),
-                        ("groove", "groove"), ("humanize", "humanize"), ("seed", "seed"), ("walk", "walk"),
-                        ("level", "level"), ("voicing", "voicing"), ("arp", "arp_ms"), ("vel", "velocity")):
+    for flag, field in (
+        ("variant", "variant"),
+        ("bpm", "bpm"),
+        ("count_in", "count_in"),
+        ("passes", "passes"),
+        ("groove", "groove"),
+        ("humanize", "humanize"),
+        ("seed", "seed"),
+        ("walk", "walk"),
+        ("level", "level"),
+        ("voicing", "voicing"),
+        ("arp", "arp_ms"),
+        ("vel", "velocity"),
+    ):
         value = getattr(args, flag, None)
         if value is not None:
             body[field] = int(value) if isinstance(value, float) and value.is_integer() else value
@@ -584,8 +688,10 @@ def _start(args, client: Client, out, mode: str) -> int:
         body["backing"] = args.backing
     if args.now:
         body["now"] = True
-    reply = _check(*client.call("POST", "/api/piano/jam/start", body),
-                   {**FIELD_FLAGS, "card_id": "CARD", "count_in": "--count-in", "try_backing": "--backing"})
+    reply = _check(
+        *client.call("POST", "/api/piano/jam/start", body),
+        {**FIELD_FLAGS, "card_id": "CARD", "count_in": "--count-in", "try_backing": "--backing"},
+    )
     d = reply["def"]
     title = d["card"]["title"] if d["card"] else "chords"
     bars = d["cycle_beats"] // d["beats_per_bar"]
@@ -600,8 +706,11 @@ def _start(args, client: Client, out, mode: str) -> int:
         extra += f", {passes} passes" if passes else ", until stopped"
     elif mode == "try":
         extra = f", {body['try_backing']} backing, {body['passes']} passes"
-    print(f"run {reply['run']}: {what} \"{title}\" in {d['key']}, {reply['bpm']:g} bpm, {bars} bar"
-          f"{'s' if bars != 1 else ''}{extra}", file=out)
+    print(
+        f'run {reply["run"]}: {what} "{title}" in {d["key"]}, {reply["bpm"]:g} bpm, {bars} bar'
+        f"{'s' if bars != 1 else ''}{extra}",
+        file=out,
+    )
     for row in _slot_rows(d, loop=mode != "play"):
         print(row, file=out)
     for w in d["warnings"]:
@@ -609,17 +718,23 @@ def _start(args, client: Client, out, mode: str) -> int:
     pages = reply.get("jam_pages", 0)
     owner = f" (owner {reply['owner']})" if reply.get("owner") else ""
     if reply["state"] == "pending":
-        print(f"waiting for Daniel's pause on {pages} jam page{'s' if pages != 1 else ''}{owner}; --now skips the wait",
-              file=out)
+        print(
+            f"waiting for Daniel's pause on {pages} jam page{'s' if pages != 1 else ''}{owner}; --now skips the wait",
+            file=out,
+        )
     else:
         lead = (reply["start_epoch_ms"] - _now_ms()) / 1000
-        print(f"starts in {max(0.0, lead):.1f} s on {pages} jam page{'s' if pages != 1 else ''}{owner}"
-              + (f", on the bar where {reply['swapped_from']} stops" if reply.get("swapped_from") else ""), file=out)
+        print(
+            f"starts in {max(0.0, lead):.1f} s on {pages} jam page{'s' if pages != 1 else ''}{owner}"
+            + (f", on the bar where {reply['swapped_from']} stops" if reply.get("swapped_from") else ""),
+            file=out,
+        )
     return OK
 
 
 def _now_ms() -> float:
     import time
+
     return time.time() * 1000
 
 
@@ -627,10 +742,16 @@ def _show(args, client: Client, out) -> int:
     target = _target(client, args.target, args.key)
     slot = _one_based(args.slot, "--slot") if args.slot is not None else 0
     if "card_id" in target:
-        d = _check(*client.call("GET", f"/api/piano/deck/cards/{target['card_id']}/resolve",
-                                query={"key": args.key, "variant": args.variant, "slot": slot}))["def"]
+        d = _check(
+            *client.call(
+                "GET",
+                f"/api/piano/deck/cards/{target['card_id']}/resolve",
+                query={"key": args.key, "variant": args.variant, "slot": slot},
+            )
+        )["def"]
     else:
         from arsenal.jam.resolve import BridgeUnavailable, ResolveError, Resolver
+
         try:
             d = Resolver().resolve_chords(target["chords"], target["key"], slot=slot)
         except ResolveError as exc:
@@ -638,12 +759,20 @@ def _show(args, client: Client, out) -> int:
         except BridgeUnavailable as exc:
             raise CliError(str(exc), NO_SERVER)
     s = d["slots"][0]
-    cue = {"type": "hover", "notes": s["voicings"]["play"], "label": s["name"],
-           "detail": f"{s['n']} in {s['key']}" if s["n"] else s["key"], "source": "claude",
-           "hold_ms": int(round((args.hold or 0) * 1000))}
+    cue = {
+        "type": "hover",
+        "notes": s["voicings"]["play"],
+        "label": s["name"],
+        "detail": f"{s['n']} in {s['key']}" if s["n"] else s["key"],
+        "source": "claude",
+        "hold_ms": int(round((args.hold or 0) * 1000)),
+    }
     reply = _check(*client.call("POST", "/api/piano/cue", {"cue": cue}))
-    print(f"show {s['name']} ({_names(s['voicings']['play'])}): cue #{reply['id']} to {reply['listeners']} "
-          f"listener{'s' if reply['listeners'] != 1 else ''}", file=out)
+    print(
+        f"show {s['name']} ({_names(s['voicings']['play'])}): cue #{reply['id']} to {reply['listeners']} "
+        f"listener{'s' if reply['listeners'] != 1 else ''}",
+        file=out,
+    )
     if reply["listeners"] == 0:
         print(NO_LISTENER.format(port=client.port), file=sys.stderr)
         return NO_PAGE
@@ -659,9 +788,10 @@ def _running(client: Client) -> dict:
 
 
 def _control(client: Client, run: dict, body: dict, out, verb: str) -> int:
-    reply = _check(*client.call("POST", f"/api/piano/jam/runs/{run['run']}/control", body),
-                   {"bpm": "BPM", "at": "--at", "settings": "--groove", "card_id": "CARD", "key": "--key",
-                    "variant": "--variant"})
+    reply = _check(
+        *client.call("POST", f"/api/piano/jam/runs/{run['run']}/control", body),
+        {"bpm": "BPM", "at": "--at", "settings": "--groove", "card_id": "CARD", "key": "--key", "variant": "--variant"},
+    )
     wait = (reply["epoch_ms"] - _now_ms()) / 1000
     where = f"bar {reply['effective_bar']}" if reply.get("effective_bar") is not None else "now"
     print(f"version {reply['version']}: {verb} from {where} (in {max(0.0, wait):.1f} s)", file=out)
@@ -682,8 +812,9 @@ def _cmd_loop(args, client: Client, out) -> int:
     if verb == "tempo":
         value = args.bpm
         bpm = value if re.fullmatch(r"[+-]\d+(\.\d+)?", value) else _float(value, "BPM")
-        return _control(client, run, {"op": "tempo", "bpm": bpm, "at": args.at or "bar", "by": "claude"}, out,
-                        f"tempo {value}")
+        return _control(
+            client, run, {"op": "tempo", "bpm": bpm, "at": args.at or "bar", "by": "claude"}, out, f"tempo {value}"
+        )
     if verb == "next":
         body = {"op": "next", "by": "claude"}
         if args.target:
@@ -696,12 +827,20 @@ def _cmd_loop(args, client: Client, out) -> int:
             body["at"] = args.at
         return _control(client, run, body, out, "next")
     if verb == "set":
-        settings = {k: getattr(args, k) for k in ("groove", "backing", "humanize", "walk", "level")
-                    if getattr(args, k) is not None}
+        settings = {
+            k: getattr(args, k)
+            for k in ("groove", "backing", "humanize", "walk", "level")
+            if getattr(args, k) is not None
+        }
         if not settings:
             raise CliError("loop set: give --groove, --backing, --humanize, --walk or --level")
-        return _control(client, run, {"op": "set", "settings": settings, "at": args.at or "bar", "by": "claude"},
-                        out, "set " + " ".join(f"{k}={v}" for k, v in settings.items()))
+        return _control(
+            client,
+            run,
+            {"op": "set", "settings": settings, "at": args.at or "bar", "by": "claude"},
+            out,
+            "set " + " ".join(f"{k}={v}" for k, v in settings.items()),
+        )
     return _control(client, run, {"op": verb, "by": "claude"}, out, verb)
 
 
@@ -738,44 +877,64 @@ def _cmd_jam(args, client: Client, out) -> int:
     deck = _check(*client.call("GET", "/api/piano/deck"))
     runs = _check(*client.call("GET", "/api/piano/jam/runs", query={"limit": args.runs}))["runs"]
     if args.json:
-        print(json.dumps({"jam": st, "cues": cues, "deck": {"rev": deck["rev"], "cards": len(deck["cards"])},
-                          "runs": runs}, indent=2, ensure_ascii=False), file=out)
+        print(
+            json.dumps(
+                {"jam": st, "cues": cues, "deck": {"rev": deck["rev"], "cards": len(deck["cards"])}, "runs": runs},
+                indent=2,
+                ensure_ascii=False,
+            ),
+            file=out,
+        )
         return OK
     owner = st.get("owner")
     lease = f", lease {max(0, (owner['lease_until_epoch_ms'] - st['now_epoch_ms']) / 1000):.0f} s" if owner else ""
-    print(f"pages  {cues['listeners']} listening ({cues.get('caps', {}).get('jam1', 0)} with jam1), sound owner "
-          f"{owner['page_id'] if owner else 'none'}{lease}", file=out)
+    print(
+        f"pages  {cues['listeners']} listening ({cues.get('caps', {}).get('jam1', 0)} with jam1), sound owner "
+        f"{owner['page_id'] if owner else 'none'}{lease}",
+        file=out,
+    )
     run = st.get("run")
     if run:
         d = st.get("def") or {}
         p = st.get("position")
         title = (run.get("card") or {}).get("title") or "chords"
         bpm = p["bpm"] if p else (run["segments"][0]["bpm"] if run["segments"] else "?")  # the tempo sounding now
-        print(f"{run['mode']:<6} {run['run']}  \"{title}\", {d.get('key', run['key'])}, {bpm} bpm, "
-              f"version {run['last_version']}, {run['state']}", file=out)
+        print(
+            f'{run["mode"]:<6} {run["run"]}  "{title}", {d.get("key", run["key"])}, {bpm} bpm, '
+            f"version {run['last_version']}, {run['state']}",
+            file=out,
+        )
         if p:
             slot = d["slots"][p["slot"]] if p.get("slot") is not None and d.get("slots") else None
-            print(f"       bar {p['bar']} beat {int(p['beat']) + 1} (pass {p['pass'] + 1}"
-                  + (f", slot {p['slot'] + 1}: {slot['name']}" if slot else "") + ")"
-                  + (" counting in" if p.get("counting_in") else ""), file=out)
+            print(
+                f"       bar {p['bar']} beat {int(p['beat']) + 1} (pass {p['pass'] + 1}"
+                + (f", slot {p['slot'] + 1}: {slot['name']}" if slot else "")
+                + ")"
+                + (" counting in" if p.get("counting_in") else ""),
+                file=out,
+            )
         if run["closed"]:
             print(f"       stops at bar {run['stop_bar']} ({run['stop_reason']})", file=out)
     else:
         print("run    none", file=out)
     for waiting in st.get("pending") or []:
         title = (waiting.get("card") or {}).get("title") or "chords"
-        print(f"knock  {waiting['mode']} {waiting['run']}  \"{title}\", waiting for Daniel's pause", file=out)
+        print(f'knock  {waiting["mode"]} {waiting["run"]}  "{title}", waiting for Daniel\'s pause', file=out)
     print(f"deck   {len(deck['cards'])} cards, rev {deck['rev']}", file=out)
     if runs:
-        print("runs   " + " | ".join(f"{(r.get('card') or {}).get('id') or 'chords'} ({r['mode']}, {r['state']})"
-                                     for r in runs), file=out)
+        print(
+            "runs   "
+            + " | ".join(f"{(r.get('card') or {}).get('id') or 'chords'} ({r['mode']}, {r['state']})" for r in runs),
+            file=out,
+        )
     return OK
 
 
 def _run_line(run: dict) -> str:
     title = (run.get("card") or {}).get("title") or "chords"
-    return f"{run['run']}  {run['mode']:<5} {run['state']:<8} {title} ({run['key']})" + \
-        (f", stopped: {run['stop_reason']}" if run.get("stop_reason") else "")
+    return f"{run['run']}  {run['mode']:<5} {run['state']:<8} {title} ({run['key']})" + (
+        f", stopped: {run['stop_reason']}" if run.get("stop_reason") else ""
+    )
 
 
 def _cmd_deck(args, client: Client, out) -> int:
@@ -806,8 +965,11 @@ def _cmd_deck(args, client: Client, out) -> int:
         print(json.dumps(reply, indent=2), file=out)
         return OK
     head = "would install" if args.dry_run else "installed"
-    print(f"seed: {head} {len(reply['installed'])}, updated {len(reply['updated'])}, kept {len(reply['kept'])}"
-          f" ({reply['moments']} moment links)", file=out)
+    print(
+        f"seed: {head} {len(reply['installed'])}, updated {len(reply['updated'])}, kept {len(reply['kept'])}"
+        f" ({reply['moments']} moment links)",
+        file=out,
+    )
     for label in ("installed", "updated", "kept"):
         if reply[label]:
             print(f"  {label}: {', '.join(reply[label])}", file=out)
@@ -816,6 +978,7 @@ def _cmd_deck(args, client: Client, out) -> int:
 
 def _cmd_template(args, client: Client, out) -> int:
     from arsenal.performance import PerformanceError, PerformanceStore
+
     store = PerformanceStore(args.root)
     session = args.session if getattr(args, "session", "latest") != "latest" else store.latest()
     if args.template_verb == "save-last":
@@ -823,8 +986,14 @@ def _cmd_template(args, client: Client, out) -> int:
     if not session:
         raise CliError(f"no practice sessions under {store.root}")
     try:
-        moment = moment_from_log(store, session, getattr(args, "at", None), getattr(args, "until", None),
-                                 getattr(args, "key", "auto"), last=args.template_verb == "save-last")
+        moment = moment_from_log(
+            store,
+            session,
+            getattr(args, "at", None),
+            getattr(args, "until", None),
+            getattr(args, "key", "auto"),
+            last=args.template_verb == "save-last",
+        )
     except PerformanceError as exc:
         raise CliError(f"cannot read session {session}: {exc}")
     except ValueError as exc:
@@ -842,14 +1011,16 @@ def _cmd_template(args, client: Client, out) -> int:
     return _report_card(client, reply, args, out)
 
 
-def moment_from_log(store, session: str, at: Optional[str], until: Optional[str], key: str = "auto",
-                    last: bool = False) -> dict:
+def moment_from_log(
+    store, session: str, at: Optional[str], until: Optional[str], key: str = "auto", last: bool = False
+) -> dict:
     """The harmonic window at AT (or the longest overlapping AT..UNTIL, or the last one) read into a moment: the
     distinct MIDI notes heard for at least half the window, none below its main bass note, at most 16 (DATA 2.10)."""
     from arsenal import practice
     from arsenal.jam.cards import TEMPLATE_MAX_NOTES
     from arsenal.jam.resolve import note_midi
     from arsenal.pianocue import parse_clock
+
     events, _problems = practice.read_events(store, session)
     if not events:
         raise ValueError(f"session {session} has no notes")
@@ -864,8 +1035,11 @@ def moment_from_log(store, session: str, at: Optional[str], until: Optional[str]
         start = parse_clock(at)
         if until:
             end = parse_clock(until)
-            overlap = [(min(r["end_ms"], end) - max(r["start_ms"], start), r) for r in rows
-                       if r["start_ms"] < end and r["end_ms"] > start]
+            overlap = [
+                (min(r["end_ms"], end) - max(r["start_ms"], start), r)
+                for r in rows
+                if r["start_ms"] < end and r["end_ms"] > start
+            ]
             if not overlap:
                 raise ValueError(f"no harmonic window between {at} and {until}")
             row = max(overlap, key=lambda x: x[0])[1]
@@ -893,11 +1067,18 @@ def moment_from_log(store, session: str, at: Optional[str], until: Optional[str]
     if not notes:
         raise ValueError(f"nothing sounds for half of the window at {practice.clock(w0)}")
     if len(notes) > TEMPLATE_MAX_NOTES:
-        keep = sorted(notes[1:], key=lambda n: (-heard[n], -n))[:TEMPLATE_MAX_NOTES - 1]
+        keep = sorted(notes[1:], key=lambda n: (-heard[n], -n))[: TEMPLATE_MAX_NOTES - 1]
         notes = sorted([notes[0]] + keep)
-    return {"session": session, "at_ms": int(w0), "until_ms": int(w1), "notes": notes,
-            "name": row.get("analysed_as") or row.get("name"), "number": row.get("number"),
-            "key": row.get("key") if key in (None, "auto") else key, "beats": 4}
+    return {
+        "session": session,
+        "at_ms": int(w0),
+        "until_ms": int(w1),
+        "notes": notes,
+        "name": row.get("analysed_as") or row.get("name"),
+        "number": row.get("number"),
+        "key": row.get("key") if key in (None, "auto") else key,
+        "beats": 4,
+    }
 
 
 # ================================================================================================= parser
@@ -979,8 +1160,11 @@ def add_verbs(sub) -> None:
         p.add_argument(flag, action="store_true")
     p.add_argument("--if-rev", type=int)
     common(p, True)
-    for name, helptext in (("rm", "move a card to the trash"), ("restore", "bring back a trashed card"),
-                           ("keep", "copy a card into Kept")):
+    for name, helptext in (
+        ("rm", "move a card to the trash"),
+        ("restore", "bring back a trashed card"),
+        ("keep", "copy a card into Kept"),
+    ):
         p = cs.add_parser(name, help=helptext)
         p.add_argument("card")
         if name == "rm":
@@ -1108,8 +1292,9 @@ def add_verbs(sub) -> None:
 
 def run(args, out=None) -> int:
     out = out or sys.stdout
-    offline = args.verb in ("card", "deck", "template") and \
-        not (args.verb == "card" and args.card_verb in ("play", "show", "open"))
+    offline = args.verb in ("card", "deck", "template") and not (
+        args.verb == "card" and args.card_verb in ("play", "show", "open")
+    )
     client = Client(args.port, getattr(args, "jam_root", None), offline=offline)
     try:
         if args.verb == "card":

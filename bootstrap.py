@@ -23,6 +23,17 @@ import shutil
 import argparse
 from datetime import datetime
 
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+
+        return python_launcher()
+    except Exception:
+        return "py"
+
+
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 
@@ -42,34 +53,44 @@ def emit_agent_init():
     host, port, reachable, lessons = "localhost", None, False, None
     try:
         from core.foundation.redis_connection import (
-            connect_to_redis_with_fail_fast, DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT)
+            connect_to_redis_with_fail_fast,
+            DEFAULT_REDIS_HOST,
+            DEFAULT_REDIS_PORT,
+        )
+
         host, port = DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT
         c = connect_to_redis_with_fail_fast(host=host, port=port, timeout_seconds=2)
         reachable = c is not None
         lessons = len(c.keys("learn:experiment:*")) if c else None
     except Exception:
         pass
-    print(json.dumps({
-        "you_are": "an agent connecting to the AI-Setup shared-memory system",
-        "init_command": f'{py} agent_cli.py boot <your_agent_id> --task "<what you are doing>"',
-        "commands": {
-            "boot":   f'{py} agent_cli.py boot <id> --task "..."   (load ranked context)',
-            "learn":  f'{py} agent_cli.py learn <id> --experiment NAME --tried "..." --result "..."',
-            "recall": f'{py} agent_cli.py recall "<query>"   (or: {py} agent_cli.py list)',
-            "status": f'{py} agent_cli.py status',
-        },
-        "contract_doc": "AGENTS.md",
-        "python_cmd": py,
-        "redis": {"host": host, "port": port, "reachable": reachable},
-        "lessons_stored": lessons,
-        "trial_mode": "set REDIS_DB=15 to sandbox your writes (never touches canonical db 0)",
-        "data_backed_up_by": f"{py} scripts/ops/snapshot_knowledge.py snapshot",
-    }, indent=2))
+    print(
+        json.dumps(
+            {
+                "you_are": "an agent connecting to the AI-Setup shared-memory system",
+                "init_command": f'{py} agent_cli.py boot <your_agent_id> --task "<what you are doing>"',
+                "commands": {
+                    "boot": f'{py} agent_cli.py boot <id> --task "..."   (load ranked context)',
+                    "learn": f'{py} agent_cli.py learn <id> --experiment NAME --tried "..." --result "..."',
+                    "recall": f'{py} agent_cli.py recall "<query>"   (or: {py} agent_cli.py list)',
+                    "status": f"{py} agent_cli.py status",
+                },
+                "contract_doc": "AGENTS.md",
+                "python_cmd": py,
+                "redis": {"host": host, "port": port, "reachable": reachable},
+                "lessons_stored": lessons,
+                "trial_mode": "set REDIS_DB=15 to sandbox your writes (never touches canonical db 0)",
+                "data_backed_up_by": f"{py} scripts/ops/snapshot_knowledge.py snapshot",
+            },
+            indent=2,
+        )
+    )
 
-GREEN, RED, YELLOW, CYAN, RESET = '\033[92m', '\033[91m', '\033[93m', '\033[96m', '\033[0m'
+
+GREEN, RED, YELLOW, CYAN, RESET = "\033[92m", "\033[91m", "\033[93m", "\033[96m", "\033[0m"
 
 
-def log(msg, color=''):
+def log(msg, color=""):
     print(f"{color}{msg}{RESET}")
 
 
@@ -77,12 +98,18 @@ def check_redis():
     """Redis reachable via the fail-fast connector? Returns (ok, detail)."""
     try:
         from core.foundation.redis_connection import (
-            connect_to_redis_with_fail_fast, DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT)
-        client = connect_to_redis_with_fail_fast(
-            host=DEFAULT_REDIS_HOST, port=DEFAULT_REDIS_PORT, timeout_seconds=3)
+            connect_to_redis_with_fail_fast,
+            DEFAULT_REDIS_HOST,
+            DEFAULT_REDIS_PORT,
+        )
+
+        client = connect_to_redis_with_fail_fast(host=DEFAULT_REDIS_HOST, port=DEFAULT_REDIS_PORT, timeout_seconds=3)
         if client is None:
             return False, f"not reachable at {DEFAULT_REDIS_HOST}:{DEFAULT_REDIS_PORT} (File fallback active)"
-        return True, f"{DEFAULT_REDIS_HOST}:{DEFAULT_REDIS_PORT} ({client.info().get('used_memory_human', 'connected')})"
+        return (
+            True,
+            f"{DEFAULT_REDIS_HOST}:{DEFAULT_REDIS_PORT} ({client.info().get('used_memory_human', 'connected')})",
+        )
     except Exception as e:
         return False, f"{type(e).__name__}: {e}"
 
@@ -91,6 +118,7 @@ def check_foundation():
     """Are the Pillar 0 primitives importable? Returns (ok, detail)."""
     try:
         from core.foundation import Store, Ledger, create_store, create_ledger  # noqa: F401
+
         return True, "Store + Ledger present"
     except Exception as e:
         return False, f"{type(e).__name__}: {e}"
@@ -100,6 +128,7 @@ def check_context():
     """Does the project context load? (Currently needs Redis until Context pillar Wave 1.)"""
     try:
         from core.context.project_context import get_project_context_manager_instance
+
         ctx = get_project_context_manager_instance().derive_full_context_for_agent_repriming()
         if isinstance(ctx, dict) and "error" not in ctx:
             return True, "loaded"
@@ -112,15 +141,18 @@ def report_memory_counts():
     """Count what's actually stored, in the real namespaces (learn: / mem:)."""
     try:
         from core.foundation.redis_connection import (
-            connect_to_redis_with_fail_fast, DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT)
-        client = connect_to_redis_with_fail_fast(
-            host=DEFAULT_REDIS_HOST, port=DEFAULT_REDIS_PORT, timeout_seconds=3)
+            connect_to_redis_with_fail_fast,
+            DEFAULT_REDIS_HOST,
+            DEFAULT_REDIS_PORT,
+        )
+
+        client = connect_to_redis_with_fail_fast(host=DEFAULT_REDIS_HOST, port=DEFAULT_REDIS_PORT, timeout_seconds=3)
         if client is None:
             return None
         return {
-            "learnings (learn:)": len(client.keys('learn:*')),
-            "agent memory (mem:)": len(client.keys('mem:*')),
-            "total keys": len(client.keys('*')),
+            "learnings (learn:)": len(client.keys("learn:*")),
+            "agent memory (mem:)": len(client.keys("mem:*")),
+            "total keys": len(client.keys("*")),
         }
     except Exception:
         return None
@@ -128,13 +160,18 @@ def report_memory_counts():
 
 def build_parser():
     parser = argparse.ArgumentParser(description="Stack bootstrap & status check (read-only)")
-    parser.add_argument('--brief', action='store_true', help='Status only, no extras')
-    parser.add_argument('--agent-init', action='store_true',
-                        help='Emit machine-readable agent orientation (JSON) and exit')
-    parser.add_argument('--start-session', action='store_true', dest='start_session',
-                        help='ALSO open a narrative session (closes + chronicles any still-open '
-                             'prior session FLEET-WIDE). Was the implicit default; mutation is '
-                             'opt-in per lesson bootstrap_status_is_stateful')
+    parser.add_argument("--brief", action="store_true", help="Status only, no extras")
+    parser.add_argument(
+        "--agent-init", action="store_true", help="Emit machine-readable agent orientation (JSON) and exit"
+    )
+    parser.add_argument(
+        "--start-session",
+        action="store_true",
+        dest="start_session",
+        help="ALSO open a narrative session (closes + chronicles any still-open "
+        "prior session FLEET-WIDE). Was the implicit default; mutation is "
+        "opt-in per lesson bootstrap_status_is_stateful",
+    )
     return parser
 
 
@@ -185,6 +222,7 @@ def run(args):
     if args.start_session:
         try:
             from core.narrative.session import start_session
+
             rep = start_session()
             if rep.get("closed_prior"):
                 log("[*] Prior session closed + chronicled; new session started", CYAN)
@@ -194,6 +232,7 @@ def run(args):
             # events into Beats. Rate-limited + deduped. Best-effort: never crash boot.
             try:
                 from core.narrative.event_promoter import promote_salient
+
                 pr = promote_salient()
                 if pr.get("promoted"):
                     log(f"[*] Consolidated {pr['promoted']} salient raw event(s) into the story", CYAN)
@@ -212,18 +251,18 @@ def run(args):
     print()
     if not args.brief:
         print("  IF YOU ARE AN AGENT, start here (read AGENTS.md, then use the CLI):")
-        print('    py agent_cli.py boot <your_agent_id> --task "<what you are doing>"')
-        print('    py agent_cli.py learn <your_agent_id> --experiment NAME --tried "..." --result "..."')
-        print("    py agent_cli.py list            # see all lessons")
+        print(f'    {_pyl()} agent_cli.py boot <your_agent_id> --task "<what you are doing>"')
+        print(f'    {_pyl()} agent_cli.py learn <your_agent_id> --experiment NAME --tried "..." --result "..."')
+        print(f"    {_pyl()} agent_cli.py list            # see all lessons")
         print("    -> full contract: AGENTS.md")
         print()
         print("  Humans / maintainers:")
         print("    docs/ROADMAP.md                 - the plan + current wave")
         print("    docs/LEXICON.md                 - the vocabulary")
         print("    docs/BACKUP_AND_RECOVERY.md     - how code + knowledge are backed up")
-        print("    py scripts/checkers/check_boundaries.py  - verify architectural boundaries")
-        print("    py scripts/checkers/check_doc_freshness.py - flag stale hand-written status docs")
-        print("    py scripts/ops/snapshot_knowledge.py snapshot   - back up the knowledge store")
+        print(f"    {_pyl()} scripts/checkers/check_boundaries.py  - verify architectural boundaries")
+        print(f"    {_pyl()} scripts/checkers/check_doc_freshness.py - flag stale hand-written status docs")
+        print(f"    {_pyl()} scripts/ops/snapshot_knowledge.py snapshot   - back up the knowledge store")
         print()
 
 

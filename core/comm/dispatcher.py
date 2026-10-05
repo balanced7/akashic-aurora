@@ -10,6 +10,7 @@ The triage (`should_escalate` / `handle_notice`) is pure and unit-tested without
 the live loop. `note`/`chat` never escalate (low-token: they're seen on the next natural boot);
 only actionable kinds or high importance spawn a turn.
 """
+
 from __future__ import annotations
 
 import json
@@ -34,6 +35,7 @@ def _default_peek(agent: str) -> List[str]:
     """Non-consuming digest peek (cursor unchanged) -> compact lines. Never raises."""
     try:
         from agent.bifrost_pull import peek_inbox, format_digest_line
+
         return [format_digest_line(m) for m in peek_inbox(agent, limit=8)]
     except Exception:
         return []
@@ -43,13 +45,19 @@ class Dispatcher:
     """Wakes the agents it manages when actionable mail arrives. `invoker(agent, digest, notice)`
     is the per-runtime turn-starter (W3); the default is a no-op recorder (observe, don't spawn)."""
 
-    def __init__(self, agents: Iterable[str], *, invoker: Optional[Callable] = None,
-                 peek: Optional[Callable] = None, client: Optional[Any] = None):
+    def __init__(
+        self,
+        agents: Iterable[str],
+        *,
+        invoker: Optional[Callable] = None,
+        peek: Optional[Callable] = None,
+        client: Optional[Any] = None,
+    ):
         self.agents = set(agents)
         self._invoker = invoker or (lambda agent, digest, notice: None)
         self._peek = peek or _default_peek
-        self._client = client                      # redis client for pub/sub; None -> connect on run()
-        self.woke: List[Dict[str, Any]] = []       # audit trail of dispatch decisions
+        self._client = client  # redis client for pub/sub; None -> connect on run()
+        self.woke: List[Dict[str, Any]] = []  # audit trail of dispatch decisions
 
     def _targets(self, notice: Dict[str, Any]) -> List[str]:
         """Which of MY agents this notice is for (broadcast = all but the sender; direct = the recipient)."""
@@ -96,7 +104,7 @@ class Dispatcher:
                     if once:
                         break
                 elif once and msg is None:
-                    break                          # once + nothing within the timeout
+                    break  # once + nothing within the timeout
         finally:
             try:
                 ps.close()

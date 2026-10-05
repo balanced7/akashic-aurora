@@ -33,6 +33,7 @@ verified line by line. These are their pins, written RED before the fixes.
 
 Run: py -m pytest tests/test_oom_leak_fixes_2026_08_26_pins.py -q
 """
+
 from __future__ import annotations
 
 import json
@@ -65,8 +66,7 @@ def test_deepseek_clips_tool_results_like_its_siblings():
 
     assert len(clipped) < len(huge), "an oversized tool result must shrink"
     # Room for a short truncation notice, but nothing like the original payload.
-    assert len(clipped) <= limit + 200, (
-        f"clipped result is {len(clipped)} chars, bound is {limit}")
+    assert len(clipped) <= limit + 200, f"clipped result is {len(clipped)} chars, bound is {limit}"
     assert "x" * 100 in clipped, "the head of the result must survive the clip"
 
 
@@ -99,8 +99,11 @@ def test_decide_refuses_to_spawn_a_gateway_it_cannot_see():
         "redis": {"healthy": True},
         "daemon": {"healthy": True},
         "runners": {"healthy": True},
-        "gateway": {"healthy": False, "repairable": False,
-                    "detail": "process probe unreadable -- cannot prove absence"},
+        "gateway": {
+            "healthy": False,
+            "repairable": False,
+            "detail": "process probe unreadable -- cannot prove absence",
+        },
     }
     plan = revive.decide(observed, target="gateway")
     assert plan == [], f"a blind probe must not plan a spawn, got: {plan}"
@@ -119,7 +122,8 @@ def test_decide_still_spawns_a_gateway_that_is_genuinely_absent():
     }
     plan = revive.decide(observed, target="gateway")
     assert len(plan) == 1 and plan[0]["organ"] == "gateway", (
-        f"a genuinely dead gateway must still be planned, got: {plan}")
+        f"a genuinely dead gateway must still be planned, got: {plan}"
+    )
 
 
 def test_observe_marks_process_rungs_unrepairable_when_the_probe_is_blind(monkeypatch):
@@ -131,8 +135,7 @@ def test_observe_marks_process_rungs_unrepairable_when_the_probe_is_blind(monkey
 
     for organ in ("gateway", "daemon", "runners"):
         row = observed.get(organ) or {}
-        assert row.get("repairable") is False, (
-            f"{organ} must be unrepairable when the probe is blind, got {row}")
+        assert row.get("repairable") is False, f"{organ} must be unrepairable when the probe is blind, got {row}"
 
 
 def test_observe_reports_a_real_zero_as_repairable(monkeypatch):
@@ -144,8 +147,7 @@ def test_observe_reports_a_real_zero_as_repairable(monkeypatch):
 
     gw = observed.get("gateway") or {}
     assert gw.get("healthy") is False
-    assert gw.get("repairable") is True, (
-        f"an answered probe finding zero gateways is repairable, got {gw}")
+    assert gw.get("repairable") is True, f"an answered probe finding zero gateways is repairable, got {gw}"
 
 
 # --------------------------------------------- P3: the read-modify-write that drops
@@ -167,7 +169,7 @@ def test_concurrent_appends_do_not_drop_rows(tmp_path):
         try:
             barrier.wait(timeout=10)
             remote_relay._append_row(path, {"id": f"msg-{i}", "content": f"body {i}"})
-        except Exception as exc:                                        # noqa: BLE001
+        except Exception as exc:  # noqa: BLE001
             errors.append(exc)
 
     threads = [threading.Thread(target=_append, args=(i,)) for i in range(n)]

@@ -42,6 +42,7 @@ The --pause-at flag makes the script PAUSE after sending that many messages, pri
 clear signal so the operator (claude) can TASKKILL the target runner mid-burst. Press
 Enter to resume.
 """
+
 import argparse
 import json
 import os
@@ -58,24 +59,24 @@ STORM_KINDS = [
     # (kind, count, to_target, description)
     # S1 material: directed requests that MUST be answered (runner targets)
     ("request", 12, "runner", "directed request to deepseek runner"),
-    ("request", 8,  "target", "directed request to second runner"),
+    ("request", 8, "target", "directed request to second runner"),
     # S2 material: trace/steer flood that must NOT wake the watcher
-    ("trace",   8,  "broadcast", "display-only trace broadcast"),
-    ("steer",   5,  "runner", "soft steer to deepseek runner"),
-    ("trace",   3,  "broadcast", "more trace noise"),
+    ("trace", 8, "broadcast", "display-only trace broadcast"),
+    ("steer", 5, "runner", "soft steer to deepseek runner"),
+    ("trace", 3, "broadcast", "more trace noise"),
     # S5 material: handoffs exercise the reply-sent sentinel / duplicate discipline
-    ("handoff", 2,  "runner", "handoff to deepseek runner"),
+    ("handoff", 2, "runner", "handoff to deepseek runner"),
     # S1 remainder: more directed requests to both runners
-    ("request", 4,  "runner", "more directed requests to deepseek runner"),
-    ("request", 3,  "target", "more directed requests to second runner"),
+    ("request", 4, "runner", "more directed requests to deepseek runner"),
+    ("request", 3, "target", "more directed requests to second runner"),
     # chat noise (tolerated duplicates per S5)
-    ("chat",    2,  "runner", "casual chat to deepseek runner"),
-    ("chat",    1,  "target", "casual chat to second runner"),
+    ("chat", 2, "runner", "casual chat to deepseek runner"),
+    ("chat", 1, "target", "casual chat to second runner"),
     # S2: one more steer for good measure
-    ("steer",   1,  "runner", "final steer"),
+    ("steer", 1, "runner", "final steer"),
     # S1: final directed request to both
-    ("request", 1,  "runner", "final request to deepseek runner"),
-    ("request", 1,  "target", "final request to second runner"),
+    ("request", 1, "runner", "final request to deepseek runner"),
+    ("request", 1, "target", "final request to second runner"),
 ]
 
 # Total: 12+8+8+5+3+2+4+3+2+1+1+1+1 = 51 messages (>= 40 ✓)
@@ -97,16 +98,29 @@ def main():
     parser.add_argument("--runner", required=True, help="DeepSeek runner agent id")
     parser.add_argument("--target", required=True, help="Second runner agent id")
     parser.add_argument("--watcher", required=True, help="Watcher agent id (for the ledger)")
-    parser.add_argument("--namespace", default="rb25drill3",
-                        help="Redis namespace for the drill (default: rb25drill3 — isolated from live bifrost)")
-    parser.add_argument("--count", type=int, default=None,
-                        help="Override total message count (default: use the frozen STORM_KINDS total)")
-    parser.add_argument("--pause-at", type=int, default=None,
-                        help="Pause after N messages for the mid-burst TASKKILL (press Enter to resume)")
-    parser.add_argument("--ledger", default=None,
-                        help="Path for the send-time ledger JSON (default: research/reviewed/rb25-drill3-ledger.json)")
-    parser.add_argument("--dry-run", action="store_true",
-                        help="Print the message plan without sending anything")
+    parser.add_argument(
+        "--namespace",
+        default="rb25drill3",
+        help="Redis namespace for the drill (default: rb25drill3 — isolated from live bifrost)",
+    )
+    parser.add_argument(
+        "--count",
+        type=int,
+        default=None,
+        help="Override total message count (default: use the frozen STORM_KINDS total)",
+    )
+    parser.add_argument(
+        "--pause-at",
+        type=int,
+        default=None,
+        help="Pause after N messages for the mid-burst TASKKILL (press Enter to resume)",
+    )
+    parser.add_argument(
+        "--ledger",
+        default=None,
+        help="Path for the send-time ledger JSON (default: research/reviewed/rb25-drill3-ledger.json)",
+    )
+    parser.add_argument("--dry-run", action="store_true", help="Print the message plan without sending anything")
     args = parser.parse_args()
 
     runner_id = args.runner
@@ -133,22 +147,23 @@ def main():
                 content = f"[drill-3 chat] {content_tag}: hello from the storm"
             else:
                 content = f"[drill-3] {content_tag}: {desc}"
-            plan.append({
-                "seq": seq,
-                "kind": kind,
-                "to": to_agent,
-                "content_tag": content_tag,
-                "content": content,
-                "desc": desc,
-            })
+            plan.append(
+                {
+                    "seq": seq,
+                    "kind": kind,
+                    "to": to_agent,
+                    "content_tag": content_tag,
+                    "content": content,
+                    "desc": desc,
+                }
+            )
 
     total = len(plan)
     if args.count is not None:
-        plan = plan[:args.count]
+        plan = plan[: args.count]
         total = len(plan)
     if total < 40:
-        print(f"ERROR: burst count {total} < 40 minimum. Increase --count or fix STORM_KINDS.",
-              file=sys.stderr)
+        print(f"ERROR: burst count {total} < 40 minimum. Increase --count or fix STORM_KINDS.", file=sys.stderr)
         sys.exit(2)
 
     if args.dry_run:
@@ -166,8 +181,7 @@ def main():
         sys.exit(3)
 
     # --- PRE-SEED the ledger ---
-    ledger_path = args.ledger or os.path.join(
-        REPO, "research", "reviewed", "rb25-drill3-ledger.json")
+    ledger_path = args.ledger or os.path.join(REPO, "research", "reviewed", "rb25-drill3-ledger.json")
     os.makedirs(os.path.dirname(ledger_path), exist_ok=True)
 
     ledger = {
@@ -186,8 +200,10 @@ def main():
     }
 
     # --- Execute the burst ---
-    print(f"STORM {storm_id}: {total} messages in namespace '{args.namespace}' "
-          f"(runner={runner_id}, target={target_id}, watcher={watcher_id})")
+    print(
+        f"STORM {storm_id}: {total} messages in namespace '{args.namespace}' "
+        f"(runner={runner_id}, target={target_id}, watcher={watcher_id})"
+    )
     if args.pause_at:
         print(f"  WILL PAUSE after message {args.pause_at} for TASKKILL")
     print(f"  ledger: {ledger_path}")
@@ -217,7 +233,7 @@ def main():
         ledger["messages"].append(entry)
 
         status = "✓" if mid else "✗ LOST (bus returned None)"
-        print(f"  [{m['seq']:03d}/{total-1}] {m['kind']:8s} -> {m['to']:25s}  {status}  {mid or 'NO_MID'}")
+        print(f"  [{m['seq']:03d}/{total - 1}] {m['kind']:8s} -> {m['to']:25s}  {status}  {mid or 'NO_MID'}")
 
         sent_count += 1
 
@@ -250,8 +266,7 @@ def main():
         json.dump(ledger, f, indent=2)
 
     print("---")
-    print(f"STORM COMPLETE: {sent_count} sent, {ledger['lost_count']} lost, "
-          f"ledger -> {ledger_path}")
+    print(f"STORM COMPLETE: {sent_count} sent, {ledger['lost_count']} lost, ledger -> {ledger_path}")
     print("Post-storm verification (operator):")
     print(f"  S1: check every request mid in the ledger has a reply or is unconsumed")
     print(f"  S2: check watcher stdout -- trace/steer flood must NOT produce DETECTED exit")

@@ -63,6 +63,7 @@ def receipt():
 
 # ---------------------------------------------------------------- top-level identity
 
+
 def test_receipt_api_and_lane(receipt):
     assert receipt["api"] == "arsenal.receipt/v0"
     assert receipt["lane"] == "B.1"
@@ -74,6 +75,7 @@ def test_receipt_has_verdict_summary_calibration(receipt):
 
 
 # ---------------------------------------------------------------- 4. the gated count is named
+
 
 def test_verdict_names_its_gated_count(receipt):
     v = receipt["verdict"]
@@ -92,6 +94,7 @@ def test_verdict_reasons_quote_a_rate_not_a_claim(receipt):
 
 
 # ---------------------------------------------------------------- 1+2. per-source drops + sink conditions
+
 
 def test_summary_drops_by_source_is_fully_qualified(receipt):
     by_source = receipt["summary"]["drops"]["by_source"]
@@ -128,6 +131,7 @@ def test_total_dropped_consistent_with_sources(receipt):
 
 
 # ---------------------------------------------------------------- 3. calibration is its own record
+
 
 def test_top_level_calibration_keys(receipt):
     assert set(receipt["calibration"].keys()) >= CALIBRATION_KEYS
@@ -176,6 +180,7 @@ def test_verdict_calibration_mirrors_top_level(receipt):
 
 # ---------------------------------------------------------------- 5. the audit trail
 
+
 def test_amendments_present(receipt):
     assert "amendments" in receipt and receipt["amendments"]
 
@@ -205,6 +210,7 @@ def test_current_verdict_gated_count_unchanged_by_amendment(receipt):
 
 
 # ---------------------------------------------------------------- memory domain claim
+
 
 def test_receipt_states_memory_domain_at_sink(receipt):
     # the claim "D3D12Memory reached the sink" must be backed by a 4/4 assertion, not absent

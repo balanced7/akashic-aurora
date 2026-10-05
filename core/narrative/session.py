@@ -20,10 +20,11 @@ A single marker key tracks the open session:
 
 Best-effort throughout: a hiccup here must never block boot or any CLI command.
 """
+
 from typing import Optional
 
 from core.foundation.store import Store, create_store
-from core.foundation.timeutil import now_iso as _now_iso   # aliased: locals below are named now_iso
+from core.foundation.timeutil import now_iso as _now_iso  # aliased: locals below are named now_iso
 from core.narrative.beat_log import BeatLog
 from core.narrative.track_router import RouteHint
 
@@ -35,6 +36,7 @@ def _capture_session(summary: str, ref: str, *, at: str, detail: Optional[dict] 
     full-fidelity timeline shows session spans too. Best-effort -- never blocks the session."""
     try:
         from core.events.event_log import capture_event
+
         capture_event("session", summary, agent_id="system", at=at, refs=[ref], detail=detail)
     except Exception:
         pass
@@ -44,16 +46,17 @@ def _chronicle(store: Store, bl: BeatLog, now: str) -> None:
     """Re-distill the spine (best-effort). Imported lazily to avoid a heavy import
     on the hot boot path when chronicling is disabled."""
     from core.narrative.health import bump
+
     try:
         from core.narrative.chronicler import Chronicler
+
         Chronicler(beat_log=bl, store=store).chronicle_all(now=now)
         bump(store, "chronicle:run")
     except Exception:
-        bump(store, "chronicle:error")     # the story stopped refreshing -- make it visible
+        bump(store, "chronicle:error")  # the story stopped refreshing -- make it visible
 
 
-def start_session(store: Optional[Store] = None, *, now: Optional[str] = None,
-                  chronicle: bool = True) -> dict:
+def start_session(store: Optional[Store] = None, *, now: Optional[str] = None, chronicle: bool = True) -> dict:
     """Open a session, auto-closing any prior open one first.
 
     Returns a small report: ``{"closed_prior": bool, "start": iso}``. Never raises.
@@ -62,21 +65,27 @@ def start_session(store: Optional[Store] = None, *, now: Optional[str] = None,
     try:
         store = store if store is not None else create_store()
         bl = BeatLog(store)
-        now_iso = now or _now_iso()   # T119: aware UTC (to_epoch reads both eras)
+        now_iso = now or _now_iso()  # T119: aware UTC (to_epoch reads both eras)
 
         prior = store.get(SESSION_OPEN_KEY)
         if prior:
-            bl.emit("session", "Session ended", "session:end", at=now_iso,
-                    hint=RouteHint(category="meta", task="session"))
-            _capture_session("Session ended (auto-closed on boot)", "session:end", at=now_iso,
-                             detail={"start": prior, "end": now_iso})
+            bl.emit(
+                "session", "Session ended", "session:end", at=now_iso, hint=RouteHint(category="meta", task="session")
+            )
+            _capture_session(
+                "Session ended (auto-closed on boot)",
+                "session:end",
+                at=now_iso,
+                detail={"start": prior, "end": now_iso},
+            )
             store.delete(SESSION_OPEN_KEY)
             report["closed_prior"] = True
             if chronicle:
                 _chronicle(store, bl, now_iso)
 
-        bl.emit("session", "Session started", "session:start", at=now_iso,
-                hint=RouteHint(category="meta", task="session"))
+        bl.emit(
+            "session", "Session started", "session:start", at=now_iso, hint=RouteHint(category="meta", task="session")
+        )
         _capture_session("Session started", "session:start", at=now_iso)
         store.set(SESSION_OPEN_KEY, now_iso)
         report["start"] = now_iso
@@ -85,8 +94,9 @@ def start_session(store: Optional[Store] = None, *, now: Optional[str] = None,
         # open one. Best-effort -- a bookend hiccup never blocks boot.
         try:
             from core.narrative.episode import close_episode, open_episode, _load_open
+
             if _load_open(store):
-                close_episode(store, now=now_iso)      # drafts prior span + opens the next episode
+                close_episode(store, now=now_iso)  # drafts prior span + opens the next episode
             else:
                 open_episode(store, now=now_iso)
         except Exception:
@@ -96,8 +106,7 @@ def start_session(store: Optional[Store] = None, *, now: Optional[str] = None,
     return report
 
 
-def end_session(store: Optional[Store] = None, *, now: Optional[str] = None,
-                chronicle: bool = True) -> dict:
+def end_session(store: Optional[Store] = None, *, now: Optional[str] = None, chronicle: bool = True) -> dict:
     """Explicitly close the current session and re-chronicle.
 
     Idempotent: emits the session-end Beat only when a session is actually open, so
@@ -109,7 +118,7 @@ def end_session(store: Optional[Store] = None, *, now: Optional[str] = None,
     try:
         store = store if store is not None else create_store()
         bl = BeatLog(store)
-        now_iso = now or _now_iso()   # T119: aware UTC (to_epoch reads both eras)
+        now_iso = now or _now_iso()  # T119: aware UTC (to_epoch reads both eras)
 
         if store.get(SESSION_OPEN_KEY):
             # Session bookends: resolve the open episode BEFORE the session ends, with no fresh
@@ -118,11 +127,13 @@ def end_session(store: Optional[Store] = None, *, now: Optional[str] = None,
             # is cleared instead of drafted into a phantom 'Untitled' chapter (the 189h-episode bug).
             try:
                 from core.narrative.episode import close_open_episode_for_session_end
+
                 close_open_episode_for_session_end(store, now=now_iso)
             except Exception:
                 pass
-            bl.emit("session", "Session ended", "session:end", at=now_iso,
-                    hint=RouteHint(category="meta", task="session"))
+            bl.emit(
+                "session", "Session ended", "session:end", at=now_iso, hint=RouteHint(category="meta", task="session")
+            )
             _capture_session("Session ended", "session:end", at=now_iso)
             store.delete(SESSION_OPEN_KEY)
             report["closed"] = True

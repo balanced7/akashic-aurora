@@ -17,11 +17,30 @@ import re
 # --- (ledger authority) · CATEGORY = aboutness (this roster). 1-3 per atom, PRIMARY first.
 
 CATEGORY_ROSTER: tuple[str, ...] = (
-    "substrate", "migration", "library", "recall", "memory", "bus",
-    "coordination", "agent-lifecycle", "identity", "security", "method",
-    "conducting", "governance", "audit", "testing", "tooling",
-    "ergonomics", "ui", "wiki", "voice", "optics", "performance",
-    "frontier", "narrative",
+    "substrate",
+    "migration",
+    "library",
+    "recall",
+    "memory",
+    "bus",
+    "coordination",
+    "agent-lifecycle",
+    "identity",
+    "security",
+    "method",
+    "conducting",
+    "governance",
+    "audit",
+    "testing",
+    "tooling",
+    "ergonomics",
+    "ui",
+    "wiki",
+    "voice",
+    "optics",
+    "performance",
+    "frontier",
+    "narrative",
 )
 
 CATEGORY_CAP_PER_ATOM = 3
@@ -29,11 +48,22 @@ CATEGORY_CAP_PER_ATOM = 3
 # Census/legacy terms resolve through these folds (reconciliation section 1) so the
 # 184-file census and older headers classify without inventing roster entries.
 CATEGORY_FOLDS: dict[str, str] = {
-    "reasoning": "memory", "knowledge-stack": "memory", "resilience": "agent-lifecycle",
-    "ops": "agent-lifecycle", "backup": "substrate", "secrets": "security",
-    "mcp": "tooling", "search": "wiki", "fleet": "bus", "story": "narrative",
-    "design-methodology": "method", "research": "frontier", "spend": "performance",
-    "bench": "performance", "visualgen": "ui", "wishlist": "ergonomics",
+    "reasoning": "memory",
+    "knowledge-stack": "memory",
+    "resilience": "agent-lifecycle",
+    "ops": "agent-lifecycle",
+    "backup": "substrate",
+    "secrets": "security",
+    "mcp": "tooling",
+    "search": "wiki",
+    "fleet": "bus",
+    "story": "narrative",
+    "design-methodology": "method",
+    "research": "frontier",
+    "spend": "performance",
+    "bench": "performance",
+    "visualgen": "ui",
+    "wishlist": "ergonomics",
     "onboarding": "ergonomics",
 }
 
@@ -70,13 +100,13 @@ def detect_body_type(body: str) -> str:
     if not b:
         return "markdown"
     lines = [ln for ln in b.split("\n") if ln.strip()]
-    speakerish = sum(1 for ln in lines[:40]
-                     if re.match(r"^[a-z][\w\-]{1,15}:\s+\S", ln.strip(), re.IGNORECASE))
+    speakerish = sum(1 for ln in lines[:40] if re.match(r"^[a-z][\w\-]{1,15}:\s+\S", ln.strip(), re.IGNORECASE))
     if lines and speakerish >= max(3, int(0.5 * min(len(lines), 40))):
         return "transcript"
     if b[0] in "[{" and b[-1] in "]}":
         try:
             import json as _json
+
             _json.loads(b)
             return "json"
         except Exception:
@@ -87,11 +117,15 @@ def detect_body_type(body: str) -> str:
     fence_lines = sum(1 for ln in lines if ln.strip().startswith("```"))
     if fence_lines >= 2 and (fence_lines / max(1, len(lines))) < 0.2:
         pass  # fenced blocks INSIDE prose stay markdown
-    codeish = sum(1 for ln in lines[:60] if re.match(
-        r"^\s*(def |class |import |from \w+ import |function |const |let |var |#include|package )", ln))
+    codeish = sum(
+        1
+        for ln in lines[:60]
+        if re.match(r"^\s*(def |class |import |from \w+ import |function |const |let |var |#include|package )", ln)
+    )
     if lines and codeish >= max(3, int(0.3 * min(len(lines), 60))):
         return "code"
     return "markdown"
+
 
 # --- Conversation-atom provenance (kimi's authority law: authority derives from
 # --- (type, origin, settled) -- never from prose confidence).

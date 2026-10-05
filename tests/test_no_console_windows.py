@@ -24,6 +24,7 @@ The fix is sitecustomize.py at the repo root plus the repo root on PYTHONPATH. P
 an ENVIRONMENT variable, so it is inherited transitively and every descendant at any depth
 auto-imports the patch. These pins hold that property at the depth that actually broke.
 """
+
 from __future__ import annotations
 
 import os
@@ -33,18 +34,22 @@ import sys
 import pytest
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-WIN_ONLY = pytest.mark.skipif(sys.platform != "win32",
-                              reason="console windows are a Windows-only phenomenon")
+WIN_ONLY = pytest.mark.skipif(sys.platform != "win32", reason="console windows are a Windows-only phenomenon")
 
-_PROBE = (
-    "import subprocess,sys;"
-    "print(getattr(subprocess.Popen.__init__,'_akashic_quiet',False))"
-)
+_PROBE = "import subprocess,sys;print(getattr(subprocess.Popen.__init__,'_akashic_quiet',False))"
 
 
 def _run(code_or_args, env=None):
-    return subprocess.run(code_or_args, capture_output=True, text=True, cwd=ROOT,
-                          env=env, stdin=subprocess.DEVNULL, close_fds=True, timeout=90)
+    return subprocess.run(
+        code_or_args,
+        capture_output=True,
+        text=True,
+        cwd=ROOT,
+        env=env,
+        stdin=subprocess.DEVNULL,
+        close_fds=True,
+        timeout=90,
+    )
 
 
 @WIN_ONLY
@@ -52,7 +57,8 @@ def test_c1_sitecustomize_exists_and_is_importable_from_the_repo_root():
     """The mechanism's foundation: a file Python auto-imports at interpreter startup."""
     assert os.path.exists(os.path.join(ROOT, "scripts", "quiet", "sitecustomize.py")), (
         "sitecustomize.py is missing from the repo root -- grandchildren lose the no-window "
-        "patch entirely and the flashing returns")
+        "patch entirely and the flashing returns"
+    )
 
 
 @WIN_ONLY
@@ -65,7 +71,8 @@ def test_c2_conftest_exports_the_repo_root_on_pythonpath():
     quiet = os.path.join(ROOT, "scripts", "quiet")
     pp = os.environ.get("PYTHONPATH", "")
     assert quiet in pp.split(os.pathsep), (
-        f"scripts/quiet not on PYTHONPATH ({pp!r}) -- descendants cannot find sitecustomize")
+        f"scripts/quiet not on PYTHONPATH ({pp!r}) -- descendants cannot find sitecustomize"
+    )
 
 
 @WIN_ONLY
@@ -85,8 +92,8 @@ def test_c4_the_patch_is_active_in_a_GRANDCHILD():
     )
     r = _run([sys.executable, "-c", chain])
     assert r.stdout.strip() == "True", (
-        f"GRANDCHILD unpatched -- every spawn it makes opens a console window. "
-        f"got {r.stdout!r} / {r.stderr[:200]!r}")
+        f"GRANDCHILD unpatched -- every spawn it makes opens a console window. got {r.stdout!r} / {r.stderr[:200]!r}"
+    )
 
 
 @WIN_ONLY
@@ -111,8 +118,7 @@ def test_c6_escape_hatch_restores_windows_for_debugging():
     switch is how a debuggable failure becomes an undebuggable one."""
     env = dict(os.environ, AKASHIC_SHOW_CONSOLES="1")
     r = _run([sys.executable, "-c", _PROBE], env=env)
-    assert r.stdout.strip() == "False", (
-        f"AKASHIC_SHOW_CONSOLES=1 did not restore visible windows: {r.stdout!r}")
+    assert r.stdout.strip() == "False", f"AKASHIC_SHOW_CONSOLES=1 did not restore visible windows: {r.stdout!r}"
 
 
 @WIN_ONLY
@@ -135,8 +141,7 @@ def test_c8_pythonpath_does_not_grow_across_generations():
     r = _run([sys.executable, "-c", chain])
     entries = [e for e in r.stdout.strip().split(os.pathsep) if e.strip()]
     norm = [os.path.normcase(os.path.normpath(e)) for e in entries]
-    assert len(norm) == len(set(norm)), (
-        f"PYTHONPATH accumulated duplicate entries across a spawn chain: {entries}")
+    assert len(norm) == len(set(norm)), f"PYTHONPATH accumulated duplicate entries across a spawn chain: {entries}"
 
 
 @WIN_ONLY
@@ -162,4 +167,5 @@ def test_c7_explicit_console_intent_is_never_overridden():
     r = _run([sys.executable, "-c", probe])
     assert r.stdout.strip() == "0", (
         f"DETACHED_PROCESS got CREATE_NO_WINDOW OR-ed in -- that combination fails the spawn "
-        f"outright in Win32. got {r.stdout!r} / {r.stderr[:200]!r}")
+        f"outright in Win32. got {r.stdout!r} / {r.stderr[:200]!r}"
+    )

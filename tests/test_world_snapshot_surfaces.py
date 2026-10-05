@@ -4,6 +4,7 @@ The MCP half runs in a fresh child process.  Importing ``ai_setup_mcp`` while
 pytest capture owns stdio can cache fixture streams in the MCP runtime and
 contaminate unrelated transport tests on Windows.
 """
+
 from __future__ import annotations
 
 import json
@@ -20,9 +21,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_glance_parser_names_the_projection_and_bounds():
-    args = agent_cli.build_parser().parse_args(
-        ["glance", "program", "--brief", "--max-items", "3", "--compact"]
-    )
+    args = agent_cli.build_parser().parse_args(["glance", "program", "--brief", "--max-items", "3", "--compact"])
 
     assert args.fn is agent_cli.cmd_glance
     assert args.glance_projection == "program"
@@ -82,6 +81,7 @@ def test_mcp_glance_twin_emits_the_same_semantic_contract_in_fresh_process():
 
 def test_stdio_mcp_advertises_and_calls_glance_end_to_end():
     """Prove the real stdio membrane, not only the delegated Python wrapper."""
+
     async def flow():
         import asyncio
         from mcp import ClientSession, StdioServerParameters

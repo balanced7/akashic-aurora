@@ -34,8 +34,20 @@ PRIVATE_SHELF = "private"
 
 # Frontmatter keys we surface as facets. Anything else in the header rides along in
 # `extra` rather than being dropped -- a schema that grows should not lose fields here.
-_FACETS = ("status", "type", "arc", "date", "title", "gist", "visibility",
-           "body_type", "category", "seats", "settled", "origin")
+_FACETS = (
+    "status",
+    "type",
+    "arc",
+    "date",
+    "title",
+    "gist",
+    "visibility",
+    "body_type",
+    "category",
+    "seats",
+    "settled",
+    "origin",
+)
 
 
 def private_root() -> Path:
@@ -45,6 +57,7 @@ def private_root() -> Path:
 
 
 # --------------------------------------------------------------------------- parsing
+
 
 def parse_frontmatter(text: str) -> tuple[Dict[str, Any], str]:
     """Split a projection file into (header, body).
@@ -60,7 +73,7 @@ def parse_frontmatter(text: str) -> tuple[Dict[str, Any], str]:
     if end == -1:
         return {}, text
     head_raw = text[3:end].strip("\n")
-    body = text[end + 4:].lstrip("\n")
+    body = text[end + 4 :].lstrip("\n")
     header: Dict[str, Any] = {}
     for line in head_raw.splitlines():
         if not line.strip() or line.lstrip().startswith("#"):
@@ -91,7 +104,7 @@ def _scalar(val: str) -> Any:
             inner = val[1:-1].strip()
             if not inner:
                 return []
-            return [p.strip().strip('"\'') for p in inner.split(",") if p.strip()]
+            return [p.strip().strip("\"'") for p in inner.split(",") if p.strip()]
         return val.strip('"')
     if re.fullmatch(r"-?\d+", val):
         return int(val)
@@ -100,8 +113,8 @@ def _scalar(val: str) -> Any:
 
 # --------------------------------------------------------------------------- shaping
 
-def summarize(atom_or_header: Dict[str, Any], *, shelf: str, body: str = "",
-              atom_id: str = "") -> Dict[str, Any]:
+
+def summarize(atom_or_header: Dict[str, Any], *, shelf: str, body: str = "", atom_id: str = "") -> Dict[str, Any]:
     """The card shape the UI lists. Small on purpose: a list view must not carry bodies."""
     header = atom_or_header.get("header", atom_or_header)
     ident = atom_id or atom_or_header.get("id") or header.get("akashic_id") or ""
@@ -131,6 +144,7 @@ def summarize(atom_or_header: Dict[str, Any], *, shelf: str, body: str = "",
 
 # --------------------------------------------------------------------------- shelves
 
+
 def _fleet_cards(family) -> List[Dict[str, Any]]:
     atoms = family.find(type_="report")
     out = []
@@ -159,8 +173,9 @@ def _private_cards(root: Optional[Path] = None) -> List[Dict[str, Any]]:
             header.setdefault("title", m.group(1).strip() if m else path.stem)
             header.setdefault("date", _date_from_name(path.name))
             body = body or text
-        card = summarize(header, shelf=PRIVATE_SHELF, body=body,
-                         atom_id=header.get("akashic_id") or f"priv_{path.stem}")
+        card = summarize(
+            header, shelf=PRIVATE_SHELF, body=body, atom_id=header.get("akashic_id") or f"priv_{path.stem}"
+        )
         card["path"] = str(path)
         out.append(card)
     return out
@@ -173,10 +188,19 @@ def _date_from_name(name: str) -> str:
 
 # --------------------------------------------------------------------------- the API
 
-def list_reports(family=None, *, shelf: Optional[str] = None, category: Optional[str] = None,
-                 arc: Optional[str] = None, status: Optional[str] = "current",
-                 q: Optional[str] = None, limit: int = 200, offset: int = 0,
-                 private_dir: Optional[Path] = None) -> Dict[str, Any]:
+
+def list_reports(
+    family=None,
+    *,
+    shelf: Optional[str] = None,
+    category: Optional[str] = None,
+    arc: Optional[str] = None,
+    status: Optional[str] = "current",
+    q: Optional[str] = None,
+    limit: int = 200,
+    offset: int = 0,
+    private_dir: Optional[Path] = None,
+) -> Dict[str, Any]:
     """Cards for the list view, newest first, both shelves merged.
 
     `shelf` filters to one shelf; None means both. `status=None` includes superseded
@@ -204,7 +228,7 @@ def list_reports(family=None, *, shelf: Optional[str] = None, category: Optional
         "total": total,
         "offset": offset,
         "limit": limit,
-        "reports": cards[offset:offset + limit],
+        "reports": cards[offset : offset + limit],
         "facets": _facets(cards),
     }
 
@@ -213,11 +237,16 @@ def _matches(card: Dict[str, Any], q: str) -> bool:
     needle = q.strip().lower()
     if not needle:
         return True
-    hay = " ".join([
-        str(card.get("title") or ""), str(card.get("gist") or ""),
-        " ".join(card.get("category") or []), " ".join(card.get("seats") or []),
-        str(card.get("arc") or ""), str(card.get("id") or ""),
-    ]).lower()
+    hay = " ".join(
+        [
+            str(card.get("title") or ""),
+            str(card.get("gist") or ""),
+            " ".join(card.get("category") or []),
+            " ".join(card.get("seats") or []),
+            str(card.get("arc") or ""),
+            str(card.get("id") or ""),
+        ]
+    ).lower()
     return all(tok in hay for tok in needle.split())
 
 
@@ -238,8 +267,7 @@ def _facets(cards: Iterable[Dict[str, Any]]) -> Dict[str, Any]:
     }
 
 
-def get_report(family=None, atom_id: str = "", *,
-               private_dir: Optional[Path] = None) -> Optional[Dict[str, Any]]:
+def get_report(family=None, atom_id: str = "", *, private_dir: Optional[Path] = None) -> Optional[Dict[str, Any]]:
     """One report, body included. Looks on both shelves; fleet wins on an id collision."""
     if family is not None and atom_id and not atom_id.startswith("priv_"):
         atom = family.get(atom_id)
@@ -256,16 +284,18 @@ def get_report(family=None, atom_id: str = "", *,
             text = path.read_text(encoding="utf-8", errors="replace")
             header, body = parse_frontmatter(text)
             if atom_id in (stem_id, header.get("akashic_id")):
-                card = summarize(header or {"title": path.stem}, shelf=PRIVATE_SHELF,
-                                 body=body or text, atom_id=atom_id)
+                card = summarize(
+                    header or {"title": path.stem}, shelf=PRIVATE_SHELF, body=body or text, atom_id=atom_id
+                )
                 card["body"] = body or text
                 card["path"] = str(path)
                 return card
     return None
 
 
-def compare(family=None, left_id: str = "", right_id: str = "", *,
-            private_dir: Optional[Path] = None) -> Dict[str, Any]:
+def compare(
+    family=None, left_id: str = "", right_id: str = "", *, private_dir: Optional[Path] = None
+) -> Dict[str, Any]:
     """Two reports side by side: which facets agree, which diverge, how they relate.
 
     This is the verb the shelf exists for. It deliberately does NOT diff prose --

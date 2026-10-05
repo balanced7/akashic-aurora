@@ -4,6 +4,7 @@ A preset opens with `#version 300 es` on line 1, because GLSL ES requires it the
 `//! {json}` header on line 2. PLAY-NIGHT-SPEC.md defines the format, the uniforms and the floors.
 Problems are reported, never raised, so the page can list a broken preset instead of hiding it.
 """
+
 from __future__ import annotations
 
 import json
@@ -16,12 +17,24 @@ ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]{1,40}$")
 
 #: Uniforms v1 and their required types.
 UNIFORMS = {
-    "u_video": "sampler2D", "u_prev": "sampler2D", "u_audio": "sampler2D",
-    "u_res": "vec2", "u_video_res": "vec2",
-    "u_time": "float", "u_media_time": "float", "u_frame": "float", "u_has_video": "float",
-    "u_pulse": "float", "u_beat": "float", "u_level": "float",
-    "u_bass": "float", "u_mid": "float", "u_high": "float", "u_flux": "float",
-    "u_hue": "float", "u_intensity": "float",
+    "u_video": "sampler2D",
+    "u_prev": "sampler2D",
+    "u_audio": "sampler2D",
+    "u_res": "vec2",
+    "u_video_res": "vec2",
+    "u_time": "float",
+    "u_media_time": "float",
+    "u_frame": "float",
+    "u_has_video": "float",
+    "u_pulse": "float",
+    "u_beat": "float",
+    "u_level": "float",
+    "u_bass": "float",
+    "u_mid": "float",
+    "u_high": "float",
+    "u_flux": "float",
+    "u_hue": "float",
+    "u_intensity": "float",
     **{f"u_k{i}": "float" for i in range(1, 9)},
 }
 
@@ -41,8 +54,16 @@ def _strip_comments(text: str) -> str:
 def parse_preset(path) -> dict:
     path = Path(path)
     problems: List[str] = []
-    info = {"id": path.stem, "file": path.name, "url": f"/web/presets/{path.name}", "name": path.stem,
-            "author": "", "tags": [], "params": [], "problems": problems}
+    info = {
+        "id": path.stem,
+        "file": path.name,
+        "url": f"/web/presets/{path.name}",
+        "name": path.stem,
+        "author": "",
+        "tags": [],
+        "params": [],
+        "problems": problems,
+    }
     if not ID_RE.match(path.stem):
         problems.append(f"file name {path.stem!r} must use lowercase letters, digits and dashes (2 to 41 characters)")
     try:
@@ -166,7 +187,7 @@ def coupling(path) -> dict:
     """
     path = Path(path)
     text = path.read_text(encoding="utf-8")
-    body = _UNIFORM_DECL.sub("", _strip_comments(text))      # a declaration is never a use
+    body = _UNIFORM_DECL.sub("", _strip_comments(text))  # a declaration is never a use
     used = {}
     for name in AUDIO_UNIFORMS:
         count = len(re.findall(rf"\b{name}\b", body))
@@ -175,8 +196,7 @@ def coupling(path) -> dict:
     references = sum(used.values())
     distinct = len(used)
     glow_lines = [ln for ln in body.splitlines() if _GLOW_IDIOM.search(ln)]
-    glow_refs = sum(len(re.findall(r"\bu_(?:pulse|beat|level|bass|mid|high|flux)\b", ln))
-                    for ln in glow_lines)
+    glow_refs = sum(len(re.findall(r"\bu_(?:pulse|beat|level|bass|mid|high|flux)\b", ln)) for ln in glow_lines)
     glow_only = references > 0 and glow_refs == references
     if references == 0:
         verdict = "silent"
@@ -188,8 +208,15 @@ def coupling(path) -> dict:
         verdict = "cosmetic"
     else:
         verdict = "listening"
-    return {"id": path.stem, "file": path.name, "distinct": distinct, "references": references,
-            "used": used, "glow_references": glow_refs, "verdict": verdict}
+    return {
+        "id": path.stem,
+        "file": path.name,
+        "distinct": distinct,
+        "references": references,
+        "used": used,
+        "glow_references": glow_refs,
+        "verdict": verdict,
+    }
 
 
 def coupling_table(directory=None) -> List[dict]:

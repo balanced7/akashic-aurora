@@ -30,6 +30,7 @@ def _consumed(handoff: Dict[str, Any], agent: str, learning_store: Any = None) -
     try:
         if learning_store is None:
             from core.learning.learning_store import get_learning_store
+
             learning_store = get_learning_store()
         for rec in learning_store.load_learnings_contributed_by_agent(agent):
             if str(rec.get("timestamp") or "") > ts:
@@ -57,6 +58,7 @@ def load_briefing_from_previous_handoff(
     """
     if signal_ledger is None:
         from core.signals.agent_signal_ledger import AgentSignalLedger
+
         signal_ledger = AgentSignalLedger()
 
     latest = None

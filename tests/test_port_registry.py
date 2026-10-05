@@ -31,6 +31,7 @@ with a hole, because it is trusted.
 
 Run: py -m pytest tests/test_port_registry.py -q
 """
+
 import os
 import subprocess
 import sys
@@ -46,41 +47,48 @@ CHECKER = os.path.join(ROOT, "scripts", "checkers", "check_ports.py")
 def run_checker(*args, timeout=180):
     env = os.environ.copy()
     env["PYTHONIOENCODING"] = "utf-8"
-    r = subprocess.run([sys.executable, CHECKER, *args],
-                       cwd=ROOT, env=env, capture_output=True, text=True, timeout=timeout)
+    r = subprocess.run(
+        [sys.executable, CHECKER, *args], cwd=ROOT, env=env, capture_output=True, text=True, timeout=timeout
+    )
     return r.returncode, (r.stdout or "") + (r.stderr or "")
 
 
 # ------------------------------------------------------------------ the registry is DATA
+
 
 def test_p1_the_registry_is_data_not_prose():
     """A map maintained by hand is the map that drifts. Every other map here -- PHYSICS,
     DOORS, MAP, MODULE_INDEX, PRIOR_ART -- is generated from state by pre-commit; PORTS.md
     was the one hand-written one, and it is the one that went stale."""
     import config
+
     reg = getattr(config, "PORT_REGISTRY", None)
     assert isinstance(reg, dict) and reg, "config.PORT_REGISTRY must exist and be non-empty"
     for port, entry in reg.items():
         assert isinstance(port, int), f"registry keys are ports, got {port!r}"
         for field in ("world", "what", "bound_by"):
-            assert entry.get(field), f"port {port} is missing '{field}' -- an entry that does " \
-                                     f"not say WHO binds it does not stop the guessing"
+            assert entry.get(field), (
+                f"port {port} is missing '{field}' -- an entry that does "
+                f"not say WHO binds it does not stop the guessing"
+            )
 
 
 def test_p2_the_container_plane_is_registered():
     """THE MEASURED GAP. These are listening right now and were absent from the map."""
     import config
+
     reg = config.PORT_REGISTRY
-    for port, who in ((11434, "ollama"), (8888, "searxng"),
-                      (3000, "open-webui"), (5000, "voice")):
+    for port, who in ((11434, "ollama"), (8888, "searxng"), (3000, "open-webui"), (5000, "voice")):
         assert port in reg, f"{port} ({who}) is bound by a container and must be registered"
-        assert reg[port].get("bound_by") == "container", \
+        assert reg[port].get("bound_by") == "container", (
             f"{port} must be marked container-bound -- the plane the old registry could not see"
+        )
 
 
 def test_p3_the_canonical_app_ports_survive_verbatim():
     """This slice extends the schema's REACH. It must not redesign the bands."""
     import config
+
     reg = config.PORT_REGISTRY
     assert reg.get(config.PORT_UI, {}).get("world") == "prod"
     assert reg.get(config.REDIS_PORT, {}).get("world") == "prod"
@@ -98,6 +106,7 @@ def test_p3_the_canonical_app_ports_survive_verbatim():
 
 # ------------------------------------------------------------------ the checker's contract
 
+
 def test_p4_the_checker_exists_and_reports_a_map():
     rc, out = run_checker("--report")
     assert rc == 0, f"--report is a READ and must always exit 0: {out[:400]}"
@@ -111,18 +120,21 @@ def test_p5_a_declared_port_that_is_not_listening_renders_UNKNOWN_never_stale():
     listening, so this case is live on every run."""
     rc, out = run_checker("--report")
     low = out.lower()
-    assert "unknown" in low, \
-        "a registered-but-silent port must render UNKNOWN -- 'down' and 'stale' are " \
+    assert "unknown" in low, (
+        "a registered-but-silent port must render UNKNOWN -- 'down' and 'stale' are "
         "indistinguishable from here and the map must say so"
-    assert "stale" not in low.split("unknown")[0][-400:], \
+    )
+    assert "stale" not in low.split("unknown")[0][-400:], (
         "and must not be called stale, which claims knowledge the checker does not have"
+    )
 
 
 def test_p6_an_unregistered_listener_is_reported_not_silently_passed():
     rc, out = run_checker("--report")
-    assert "unregistered" in out.lower() or "UNREGISTERED" in out, \
-        "the report must have a section for listeners nobody declared -- that absence is " \
+    assert "unregistered" in out.lower() or "UNREGISTERED" in out, (
+        "the report must have a section for listeners nobody declared -- that absence is "
         "exactly what made 'which containers do we need?' unanswerable"
+    )
 
 
 def test_p7_the_gate_ratchets_like_check_wiring():
@@ -139,8 +151,9 @@ def test_p8_no_docker_degrades_to_report_only(monkeypatch):
     env = os.environ.copy()
     env["PYTHONIOENCODING"] = "utf-8"
     env["AKASHIC_PORTS_NO_DOCKER"] = "1"
-    r = subprocess.run([sys.executable, CHECKER, "--report"], cwd=ROOT, env=env,
-                       capture_output=True, text=True, timeout=180)
+    r = subprocess.run(
+        [sys.executable, CHECKER, "--report"], cwd=ROOT, env=env, capture_output=True, text=True, timeout=180
+    )
     out = (r.stdout or "") + (r.stderr or "")
     assert r.returncode == 0, f"must not error without docker: {out[:300]}"
     assert "unknown" in out.lower(), "the container plane must render UNKNOWN, never empty"

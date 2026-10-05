@@ -43,6 +43,7 @@ has not yet demonstrated it can see anything.
 
 REPORT BY DEFAULT. `--gate` opts into failing the build.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -63,8 +64,15 @@ PY = sys.executable
 def run(*args, timeout=180):
     """A verb call. Returns (rc, combined output). Never raises -- a crashed organ is a finding."""
     try:
-        p = subprocess.run([PY, *args], cwd=str(ROOT), capture_output=True, text=True,
-                           encoding="utf-8", errors="replace", timeout=timeout)
+        p = subprocess.run(
+            [PY, *args],
+            cwd=str(ROOT),
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=timeout,
+        )
         return p.returncode, (p.stdout or "") + (p.stderr or "")
     except subprocess.TimeoutExpired:
         return -1, f"TIMEOUT after {timeout}s"
@@ -98,8 +106,9 @@ def canary_lookback():
     if rc < 0:
         return UNCHECKED, f"lookback did not run: {out[:160]}"
     if "nothing above the relevance floor" in out.lower():
-        return DEAD, ("returned nothing for a question whose answer is in lessons, docs, "
-                      "state/drills/ AND commit messages (T412)")
+        return DEAD, (
+            "returned nothing for a question whose answer is in lessons, docs, state/drills/ AND commit messages (T412)"
+        )
     if not out.strip():
         return DEAD, "returned no output at all"
     return ALIVE, f"answered ({len(out.splitlines())} lines)"
@@ -116,7 +125,7 @@ def canary_events_kind_filter():
     if rc < 0:
         return UNCHECKED, f"events did not run: {out[:160]}"
     try:
-        payload = json.loads(out[out.index("["):out.rindex("]") + 1])
+        payload = json.loads(out[out.index("[") : out.rindex("]") + 1])
     except Exception:
         try:
             payload = json.loads(out)
@@ -128,8 +137,10 @@ def canary_events_kind_filter():
     wrong = [r.get("kind") for r in rows if r.get("kind") != want]
     if wrong:
         seen = sorted(set(k for k in wrong if k))[:6]
-        return DEAD, (f"--kind {want} returned {len(wrong)} of {len(rows)} rows of other kinds "
-                      f"({', '.join(seen)}) -- the filter does not filter (T413)")
+        return DEAD, (
+            f"--kind {want} returned {len(wrong)} of {len(rows)} rows of other kinds "
+            f"({', '.join(seen)}) -- the filter does not filter (T413)"
+        )
     return ALIVE, f"all {len(rows)} rows are kind={want}"
 
 
@@ -153,9 +164,11 @@ def canary_connectome_has_edges():
     except Exception as exc:
         return UNCHECKED, f"could not read the index: {type(exc).__name__}: {exc}"
     if events and not edges:
-        return DEAD, (f"0 edges beside {events:,} indexed events -- the typed connectome is "
-                      f"empty, so `eye trace` cannot walk and 5 of its 8 edge kinds have no "
-                      f"writer at all")
+        return DEAD, (
+            f"0 edges beside {events:,} indexed events -- the typed connectome is "
+            f"empty, so `eye trace` cannot walk and 5 of its 8 edge kinds have no "
+            f"writer at all"
+        )
     if not events:
         return UNCHECKED, "the index holds no events; a canary here would measure nothing"
     return ALIVE, f"{edges:,} edges over {events:,} events"
@@ -179,8 +192,9 @@ def canary_ledger_receipts_resolve():
     terminal = [r for r in rows if r.get("status") == "done"]
     if not terminal:
         return UNCHECKED, "no done rows to judge"
-    reach = set(subprocess.run(["git", "-C", str(ROOT), "rev-list", "HEAD"],
-                               capture_output=True, text=True).stdout.split())
+    reach = set(
+        subprocess.run(["git", "-C", str(ROOT), "rev-list", "HEAD"], capture_output=True, text=True).stdout.split()
+    )
     prefixes = {s[:12] for s in reach}
     bad = []
     for r in terminal:
@@ -193,10 +207,11 @@ def canary_ledger_receipts_resolve():
         if not any(p.startswith(c.lower()) or c.lower().startswith(p) for p in prefixes):
             bad.append((r.get("id"), c))
     if bad:
-        return DEAD, (f"{len(bad)} of {len(terminal)} done rows name a commit that is not "
-                      f"reachable from HEAD (placeholders, literal HEAD, or orphaned by a "
-                      f"history rewrite) -- e.g. " +
-                      ", ".join(f"{i}:{c[:10]}" for i, c in bad[:4]))
+        return DEAD, (
+            f"{len(bad)} of {len(terminal)} done rows name a commit that is not "
+            f"reachable from HEAD (placeholders, literal HEAD, or orphaned by a "
+            f"history rewrite) -- e.g. " + ", ".join(f"{i}:{c[:10]}" for i, c in bad[:4])
+        )
     return ALIVE, f"all {len(terminal)} done rows name reachable code"
 
 
@@ -209,6 +224,7 @@ def canary_approved_rows_age():
     task". This canary does not ask the ledger to be tidy -- it asks the SURFACE to show age.
     """
     import time
+
     try:
         from core.coord.task_ledger import state_view
     except Exception as exc:
@@ -232,10 +248,12 @@ def canary_approved_rows_age():
     if aged == len(nxt):
         return ALIVE, f"all {len(nxt)} NEXT rows carry an age"
     p_aged = sum(1 for r in proposed if r.get("age_days") is not None)
-    return DEAD, (f"{len(nxt) - aged} of {len(nxt)} NEXT rows carry NO age_days while "
-                  f"{p_aged}/{len(proposed)} proposed rows do -- staleness is computed only for "
-                  f"PROPOSED (task_ledger.py:699), so a ratified intention is rendered to every "
-                  f"seat's boot as indistinguishable from fresh work")
+    return DEAD, (
+        f"{len(nxt) - aged} of {len(nxt)} NEXT rows carry NO age_days while "
+        f"{p_aged}/{len(proposed)} proposed rows do -- staleness is computed only for "
+        f"PROPOSED (task_ledger.py:699), so a ratified intention is rendered to every "
+        f"seat's boot as indistinguishable from fresh work"
+    )
 
 
 #: organ -> (callable, retire_when)
@@ -281,9 +299,11 @@ def _baseline():
     returns EMPTY, which makes the gate stricter rather than looser -- absence must never read
     as permission."""
     import json as _json
+
     try:
-        p = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
-                         *BASELINE.split("/"))
+        p = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), *BASELINE.split("/")
+        )
         return dict((_json.load(open(p, encoding="utf-8")) or {}).get("dead") or {})
     except Exception:
         return {}
@@ -329,15 +349,16 @@ def report(gate=False, only=None):
         if dead:
             print(NL + f"[organ-canaries] {len(dead)} organ(s) dead, all RECORDED -- no new debt.")
         if unchecked:
-            print(f"\n[organ-canaries] GATE FAIL -- {len(unchecked)} canary could not run; an "
-                  f"unrunnable canary is an unwatched organ.")
+            print(
+                f"\n[organ-canaries] GATE FAIL -- {len(unchecked)} canary could not run; an "
+                f"unrunnable canary is an unwatched organ."
+            )
             return 1
         # Say what actually happened. 'every organ answered' while five do not is the same
         # confident-zero this checker exists to catch, and a gate that misreports its own
         # verdict is worse than no gate at all.
         if dead:
-            print(NL + f"[organ-canaries] gate ok -- no NEW debt "
-                       f"({len(alive)} alive, {len(dead)} dead and recorded).")
+            print(NL + f"[organ-canaries] gate ok -- no NEW debt ({len(alive)} alive, {len(dead)} dead and recorded).")
         else:
             print(NL + f"[organ-canaries] gate ok -- all {len(alive)} organ(s) answered.")
     return 0
@@ -357,8 +378,7 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--gate", action="store_true", help="fail on a dead or unrunnable organ")
     ap.add_argument("--only", help="run canaries whose name contains this substring")
-    ap.add_argument("--registry", action="store_true",
-                    help="check the registry's own invariant and exit")
+    ap.add_argument("--registry", action="store_true", help="check the registry's own invariant and exit")
     args = ap.parse_args(argv)
     if args.registry:
         return self_test()

@@ -10,6 +10,7 @@ keys now follow BIFROST_NAMESPACE like Bus.ns does.
 Uses throwaway namespaces ('test_ctrl_a'/'test_ctrl_b') only -- it never reads or writes
 the real 'bifrost' control keys, so running it cannot disturb a live fleet.
 """
+
 import os
 
 import pytest
@@ -30,10 +31,12 @@ pytestmark = pytest.mark.skipif(not _bus_online(), reason="bus/Redis offline")
 @pytest.fixture(autouse=True)
 def _clean_env_and_keys(monkeypatch):
     """Scrub both throwaway namespaces before and after each test; leave the real bus alone."""
+
     def _wipe():
         for ns in (NS_A, NS_B):
             monkeypatch.setenv("BIFROST_NAMESPACE", ns)
-            control.resume()          # clears the global pause AND every per-agent halt in this ns
+            control.resume()  # clears the global pause AND every per-agent halt in this ns
+
     _wipe()
     yield
     _wipe()
@@ -43,7 +46,7 @@ def _clean_env_and_keys(monkeypatch):
 def test_key_names_follow_namespace(monkeypatch):
     """_pause_key/_halt_prefix/_narration_key derive from BIFROST_NAMESPACE (default 'bifrost')."""
     monkeypatch.delenv("BIFROST_NAMESPACE", raising=False)
-    assert control._pause_key() == "bifrost:control:paused"     # default preserved (no regression)
+    assert control._pause_key() == "bifrost:control:paused"  # default preserved (no regression)
     assert control._halt_prefix() == "bifrost:control:halt:"
     monkeypatch.setenv("BIFROST_NAMESPACE", NS_A)
     assert control._pause_key() == f"{NS_A}:control:paused"
@@ -80,8 +83,8 @@ def test_is_halted_is_namespace_isolated(monkeypatch):
     assert control.is_halted(agent) is True
     monkeypatch.setenv("BIFROST_NAMESPACE", NS_A)
     # A still only has its global pause; B's targeted halt is invisible here
-    assert control.is_halted("some-other-agent") is True   # A's global pause still applies to A
+    assert control.is_halted("some-other-agent") is True  # A's global pause still applies to A
     control.resume()
-    assert control.is_halted("some-other-agent") is False   # A cleared; B's targeted halt untouched
+    assert control.is_halted("some-other-agent") is False  # A cleared; B's targeted halt untouched
     monkeypatch.setenv("BIFROST_NAMESPACE", NS_B)
     assert control.is_halted(agent) is True, "clearing A wiped B's targeted halt -- NOT isolated"

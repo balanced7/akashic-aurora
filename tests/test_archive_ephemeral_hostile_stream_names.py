@@ -9,6 +9,7 @@ Two laws pinned:
 2. One stream's failure is a loud line in the report -- never an abort of the
    remaining streams, and never a lost cursor save.
 """
+
 from __future__ import annotations
 
 import json

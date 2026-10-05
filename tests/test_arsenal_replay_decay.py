@@ -10,6 +10,7 @@ than 40 dB below its strike is silent and faded; ages are taken at the densest i
 arpeggio's later notes are not "fresh" by construction. Notes carried into an excerpt bring their real age
 (replay.carried_at). Synthetic events only.
 """
+
 import math
 import sys
 from pathlib import Path
@@ -19,13 +20,23 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "tests"))
 
 from arsenal import pianocue, replay  # noqa: E402
-from arsenal.replay_harmony import (DECAY_T60_S, SILENT_DB, VOICE_FLOOR, VOICE_LEVEL, amplitude_at,  # noqa: E402
-                                    densest_instant, harmony, peak_of, t60_s, velocity_for_peak)
+from arsenal.replay_harmony import (
+    DECAY_T60_S,
+    SILENT_DB,
+    VOICE_FLOOR,
+    VOICE_LEVEL,
+    amplitude_at,  # noqa: E402
+    densest_instant,
+    harmony,
+    peak_of,
+    t60_s,
+    velocity_for_peak,
+)
 from test_arsenal_replay import take  # noqa: E402,F401  (the fixture: a synthetic store)
 
-BASS, TREBLE = 36, 86            # C2 and D6, struck at 0 under the pedal and left to ring. D6, because the namer
-                                 # represents each pitch class once: a G5 would fold into the chord's own G4
-CHORD = (64, 67, 71)             # E4 G4 B4, struck at 8 s over them, under the same pedal
+BASS, TREBLE = 36, 86  # C2 and D6, struck at 0 under the pedal and left to ring. D6, because the namer
+# represents each pitch class once: a G5 would fold into the chord's own G4
+CHORD = (64, 67, 71)  # E4 G4 B4, struck at 8 s over them, under the same pedal
 
 
 def events():
@@ -33,8 +44,11 @@ def events():
     for note in (BASS, TREBLE):
         ev += [{"kind": "on", "t_ms": 0, "note": note, "vel": 80}, {"kind": "off", "t_ms": 200, "note": note}]
     for note in CHORD:
-        ev += [{"kind": "on", "t_ms": 8000, "note": note, "vel": 80}, {"kind": "off", "t_ms": 14000, "note": note},
-               {"kind": "sound_end", "t_ms": 14000, "note": note, "by": "release"}]
+        ev += [
+            {"kind": "on", "t_ms": 8000, "note": note, "vel": 80},
+            {"kind": "off", "t_ms": 14000, "note": note},
+            {"kind": "sound_end", "t_ms": 14000, "note": note, "by": "release"},
+        ]
     for note in (BASS, TREBLE):
         ev.append({"kind": "sound_end", "t_ms": 14000, "note": note, "by": "pedal"})
     ev.append({"kind": "pedal", "t_ms": 14000, "down": False, "value": 0})
@@ -105,13 +119,19 @@ def test_notes_carried_into_an_excerpt_bring_their_real_age():
     with_age = window_from(harmony(cue, 1, None, "notes", carried), 3000)
     assert abs(without["db"][BASS] - db_of(amplitude_at(3000, BASS))) < 0.05, "the cue alone thinks the bass is 3 s old"
     assert abs(with_age["db"][BASS] - db_of(amplitude_at(8000, BASS))) < 0.05, "with its real age it is 8 s old"
-    assert without["velocities"][BASS] > 20 and with_age["velocities"][BASS] == 1, "3 s old plays; 8 s old is at the floor"
+    assert without["velocities"][BASS] > 20 and with_age["velocities"][BASS] == 1, (
+        "3 s old plays; 8 s old is at the floor"
+    )
     assert TREBLE in with_age["faded"]
 
 
 def test_densest_instant_prefers_the_first_moment_of_maximum_sound():
-    sounding = [{"on_ms": 0, "end_ms": 3000}, {"on_ms": 400, "end_ms": 3000}, {"on_ms": 800, "end_ms": 1000},
-                {"on_ms": 2000, "end_ms": 3000}]
+    sounding = [
+        {"on_ms": 0, "end_ms": 3000},
+        {"on_ms": 400, "end_ms": 3000},
+        {"on_ms": 800, "end_ms": 1000},
+        {"on_ms": 2000, "end_ms": 3000},
+    ]
     assert densest_instant(sounding, 0, 3000) == 800, "three sound at 800; only two again at 2000"
 
 

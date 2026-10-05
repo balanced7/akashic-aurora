@@ -28,6 +28,7 @@ the real problem; saying "this one needs a texture you do not have" is one sente
 Every ingest returns `notes` (what was done) and `warnings` (what will not work), because a
 translation you cannot inspect is a translation you have to debug by bisecting a stranger's code.
 """
+
 from __future__ import annotations
 
 import re
@@ -82,9 +83,13 @@ def rewrite(src, name=""):
 
     # Refuse the shader TYPES this bench has no surface for, by name, before touching the text.
     if _MAIN_SOUND.search(raw):
-        return {"ok": False, "error": "this is a Shadertoy SOUND shader (mainSound) -- the bench "
-                                      "renders images, so there is nothing here to draw",
-                "notes": [], "warnings": []}
+        return {
+            "ok": False,
+            "error": "this is a Shadertoy SOUND shader (mainSound) -- the bench "
+            "renders images, so there is nothing here to draw",
+            "notes": [],
+            "warnings": [],
+        }
 
     body = raw
     # A pasted shader sometimes arrives with a #version already on it (copied from a port rather
@@ -99,12 +104,13 @@ def rewrite(src, name=""):
     out_names = _OUT_DECL.findall(body)
     if out_names:
         body = _OUT_DECL.sub("", body)
-        notes.append("removed a duplicate out declaration (%s); the bench writes outColor"
-                     % ", ".join(out_names))
+        notes.append("removed a duplicate out declaration (%s); the bench writes outColor" % ", ".join(out_names))
 
     if _CHANNEL.search(body):
-        warnings.append("uses iChannel textures, which this bench does not wire up -- it will not "
-                        "compile until those reads are removed or replaced")
+        warnings.append(
+            "uses iChannel textures, which this bench does not wire up -- it will not "
+            "compile until those reads are removed or replaced"
+        )
     if _MAIN_VR.search(body):
         warnings.append("declares mainVR; it is ignored, the flat mainImage is what renders")
 
@@ -114,12 +120,19 @@ def rewrite(src, name=""):
     # verb whose whole purpose is to accept whatever you paste.
     if not has_main_image:
         if _BENCH_MAIN.search(body) and "outColor" in body:
-            return {"ok": True, "src": raw, "kind": "passthrough",
-                    "notes": ["already a complete bench shader -- stored unchanged"],
-                    "warnings": warnings}
-        return {"ok": False, "error": "no mainImage(out vec4, in vec2) and no bench main() -- this "
-                                      "does not look like a fragment shader",
-                "notes": notes, "warnings": warnings}
+            return {
+                "ok": True,
+                "src": raw,
+                "kind": "passthrough",
+                "notes": ["already a complete bench shader -- stored unchanged"],
+                "warnings": warnings,
+            }
+        return {
+            "ok": False,
+            "error": "no mainImage(out vec4, in vec2) and no bench main() -- this does not look like a fragment shader",
+            "notes": notes,
+            "warnings": warnings,
+        }
 
     shim = "\n".join("#define %s %s" % (k, v) for k, v in SHIMS)
     used = [k for k, _ in SHIMS if re.search(r"\b%s\b" % k, body)]
@@ -128,8 +141,15 @@ def rewrite(src, name=""):
     notes.append("wrapped mainImage in a main() that writes outColor")
 
     tag = ("// ingested: %s\n" % name) if name else ""
-    out = (PREAMBLE + "\n" + tag + shim + "\n\n" + body.strip() +
-           "\n\nvoid main(){ mainImage(outColor, gl_FragCoord.xy); }\n")
+    out = (
+        PREAMBLE
+        + "\n"
+        + tag
+        + shim
+        + "\n\n"
+        + body.strip()
+        + "\n\nvoid main(){ mainImage(outColor, gl_FragCoord.xy); }\n"
+    )
     return {"ok": True, "src": out, "kind": "shadertoy", "notes": notes, "warnings": warnings}
 
 

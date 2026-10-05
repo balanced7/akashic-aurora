@@ -15,6 +15,7 @@ from being a remote control").
 Idempotency: a reply id that already posted never posts again (RB-26 one plane up -- the
 runner lane redelivers on crash; a guest must not receive the same answer twice).
 """
+
 from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
@@ -26,9 +27,16 @@ MAX_POST_CHARS = 1900
 #: in this set may be posted; a seat's reply/chat/inform is an answer, these are steering.
 #: Membership is the bus plane's control family (halt/interrupt/pause/resume/nudge/steer),
 #: registered in check_kind_policy PLANES -- one home, no second taxonomy.
-CONTROL_KINDS = frozenset({
-    "halt", "interrupt", "pause", "resume", "nudge", "steer",
-})
+CONTROL_KINDS = frozenset(
+    {
+        "halt",
+        "interrupt",
+        "pause",
+        "resume",
+        "nudge",
+        "steer",
+    }
+)
 
 
 class GuestReplyTracker:
@@ -61,17 +69,15 @@ class GuestReplyTracker:
             reply_to = str(meta.get("reply_id") or meta.get("answers") or "")
             chan = self._tracked.get(reply_to)
             if chan is None:
-                continue                       # not answering a guest we admitted -- ambient
+                continue  # not answering a guest we admitted -- ambient
             if str(m.get("kind") or "") in CONTROL_KINDS:
-                continue                       # answered, never steered -- the tier's law, outbound
+                continue  # answered, never steered -- the tier's law, outbound
             if rid and rid in self._posted:
-                continue                       # crash redelivery -- post once, ever
+                continue  # crash redelivery -- post once, ever
             text = str(m.get("text") or "").strip()
             if not text:
                 continue
-            ops.append({"channel_key": chan,
-                        "frm": str(m.get("frm") or "seat"),
-                        "text": text[:MAX_POST_CHARS]})
+            ops.append({"channel_key": chan, "frm": str(m.get("frm") or "seat"), "text": text[:MAX_POST_CHARS]})
             if rid:
                 self._posted.add(rid)
         return ops

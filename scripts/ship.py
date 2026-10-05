@@ -14,10 +14,22 @@ Encodes the whole slice ritual so the conventions can't be forgotten or half-don
   4. snapshot the knowledge store (knowledge DATA is not in git).
 Fail-fast: if a step exits non-zero, ship stops and reports; nothing past it runs.
 """
+
 import argparse
 import os
 import subprocess
 import sys
+
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+
+        return python_launcher()
+    except Exception:
+        return "py"
+
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PY = sys.executable or "py"
@@ -29,23 +41,39 @@ def build_plan(args):
     if not args.no_test:
         steps.append(("guard: boundaries", [PY, "scripts/checkers/check_boundaries.py"]))
         steps.append(("guard: doc-freshness", [PY, "scripts/checkers/check_doc_freshness.py"]))
-        steps.append(("guard: doc-currency (no dead law in docs/)",
-                      [PY, "scripts/checkers/check_doc_currency.py", *args.paths]))
-        steps.append(("guard: comprehensibility (map matches code)", [PY, "scripts/checkers/check_comprehensibility.py"]))
+        steps.append(
+            ("guard: doc-currency (no dead law in docs/)", [PY, "scripts/checkers/check_doc_currency.py", *args.paths])
+        )
+        steps.append(
+            ("guard: comprehensibility (map matches code)", [PY, "scripts/checkers/check_comprehensibility.py"])
+        )
         steps.append(("guard: door parity (no new verb-surface drift)", [PY, "scripts/checkers/check_door_parity.py"]))
         steps.append(("guard: wiring (no new built-but-unwired module)", [PY, "scripts/checkers/check_wiring.py"]))
         # A dead organ passes every guard above: it imports, it is wired, its door matches its
         # parity table, and it returns nothing. This is the only guard that asks an organ a
         # question whose answer we already know. Ratcheted against
         # state/ci/organ_canary_baseline.json, so it fails on a NEW death, not the recorded ones.
-        steps.append(("guard: organ canaries (no NEWLY dead organ)",
-                      [PY, "scripts/checkers/check_organ_canaries.py", "--gate"]))
-        steps.append(("guard: reconciliation gate (substrate ships cite their spec, M1)",
-                      [PY, "scripts/checkers/check_reconciliation_gate.py", args.message, *args.paths]))
-        steps.append(("guard: pre-registration (pins never born with impl, M3)",
-                      [PY, "scripts/checkers/check_preregistration.py", args.message, *args.paths]))
-        steps.append(("guard: verbatim citation (GATE decisions cite their record, M6)",
-                      [PY, "scripts/checkers/check_verbatim_citation.py", args.message]))
+        steps.append(
+            ("guard: organ canaries (no NEWLY dead organ)", [PY, "scripts/checkers/check_organ_canaries.py", "--gate"])
+        )
+        steps.append(
+            (
+                "guard: reconciliation gate (substrate ships cite their spec, M1)",
+                [PY, "scripts/checkers/check_reconciliation_gate.py", args.message, *args.paths],
+            )
+        )
+        steps.append(
+            (
+                "guard: pre-registration (pins never born with impl, M3)",
+                [PY, "scripts/checkers/check_preregistration.py", args.message, *args.paths],
+            )
+        )
+        steps.append(
+            (
+                "guard: verbatim citation (GATE decisions cite their record, M6)",
+                [PY, "scripts/checkers/check_verbatim_citation.py", args.message],
+            )
+        )
         # The suite gate is a RATCHET, not a raw pass/fail. Raw `pytest -q` here made ship.py
         # ABORT ALWAYS while the tree carried pre-existing failures, so the disciplined door was
         # impassable and every seat routed around it with raw `git commit` -- which is why the
@@ -93,22 +121,34 @@ def main():
     p.add_argument("--tried", default="")
     p.add_argument("--result", default="")
     p.add_argument("--recommend", default="")
-    p.add_argument("--anti-pattern", dest="anti_pattern", default="",
-                   help="tag the recorded lesson as a reusable known-bad (recall's dissent-finder warns on it)")
+    p.add_argument(
+        "--anti-pattern",
+        dest="anti_pattern",
+        default="",
+        help="tag the recorded lesson as a reusable known-bad (recall's dissent-finder warns on it)",
+    )
     p.add_argument("--no-test", action="store_true", help="skip the gate (rare; e.g. a docs-only fixup)")
     p.add_argument("--no-snapshot", action="store_true")
     p.add_argument("--dry-run", action="store_true", help="print the plan and exit")
-    p.add_argument("--yes", action="store_true",
-                   help="confirm the push to the PUBLIC repo without a prompt (needed without a terminal)")
-    p.add_argument("--include-others", dest="include_others", action="store_true",
-                   help="let the push publish commits authored by other seats (see mirror.py)")
+    p.add_argument(
+        "--yes",
+        action="store_true",
+        help="confirm the push to the PUBLIC repo without a prompt (needed without a terminal)",
+    )
+    p.add_argument(
+        "--include-others",
+        dest="include_others",
+        action="store_true",
+        help="let the push publish commits authored by other seats (see mirror.py)",
+    )
     args = p.parse_args()
 
     if not args.paths:
         print("ERROR: name the EXPLICIT paths you're shipping (ship never `git add -A` in a shared tree).")
-        print('Example: py scripts/ship.py "fix X" core/foo.py tests/test_foo.py')
+        print(f'Example: {_pyl()} scripts/ship.py "fix X" core/foo.py tests/test_foo.py')
         return 2
-    from mirror import stdin_is_terminal   # scripts/ is sys.path[0]; NUL reads as a tty on Windows
+    from mirror import stdin_is_terminal  # scripts/ is sys.path[0]; NUL reads as a tty on Windows
+
     if not args.dry_run and not args.yes and not stdin_is_terminal():
         # Fail before the gate: the full suite is long, and mirror.py would refuse the push anyway.
         print("ERROR: ship ends in a push to the PUBLIC repo. Without a terminal, pass --yes to confirm it.")
@@ -125,8 +165,7 @@ def main():
         if not _run(label, cmd):
             print(f"\n[ship] ABORTED at: {label} (exit non-zero). Nothing past this step ran.")
             return 1
-    print("\n[ship] done -- gated green, committed, pushed" +
-          ("" if args.no_snapshot else ", snapshotted") + ".")
+    print("\n[ship] done -- gated green, committed, pushed" + ("" if args.no_snapshot else ", snapshotted") + ".")
     return 0
 
 

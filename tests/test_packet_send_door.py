@@ -12,6 +12,7 @@ pure pins need no Redis.
 
 Run: py -m pytest tests/test_packet_send_door.py -q   (or: py tests/test_packet_send_door.py)
 """
+
 import io
 import os
 import sys
@@ -21,7 +22,7 @@ from contextlib import redirect_stderr
 
 import pytest
 
-os.environ.setdefault("_AISETUP_TEST_ISOLATED", "1")   # keep integrity events off the canonical firehose
+os.environ.setdefault("_AISETUP_TEST_ISOLATED", "1")  # keep integrity events off the canonical firehose
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.comm import packet_spec as ps
@@ -30,10 +31,11 @@ from core.comm.bus import Bus
 
 # --------------------------------------------------------------------------- helpers
 def _client():
-    from core.foundation.redis_connection import (
-        connect_to_redis_with_fail_fast, DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT)
-    c = connect_to_redis_with_fail_fast(host=DEFAULT_REDIS_HOST, port=DEFAULT_REDIS_PORT,
-                                        timeout_seconds=3, decode_responses=True)
+    from core.foundation.redis_connection import connect_to_redis_with_fail_fast, DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT
+
+    c = connect_to_redis_with_fail_fast(
+        host=DEFAULT_REDIS_HOST, port=DEFAULT_REDIS_PORT, timeout_seconds=3, decode_responses=True
+    )
     if c is None:
         pytest.skip("redis not available")
     return c
@@ -100,11 +102,17 @@ def test_pin2_len_catches_truncation():
         a = _bus("a", c, ns)
         b = _bus("b", c, ns)
         # stamp a legit envelope, then TAMPER: shorten content but keep the stamped len/sha
-        env = {"frm": "a", "to": "b", "kind": "chat",
-               "content": '"the full original body here padded padded padded"',
-               "ts": "2026-07-13T00:00:00Z", "meta": "{}", "parts": "[]"}
+        env = {
+            "frm": "a",
+            "to": "b",
+            "kind": "chat",
+            "content": '"the full original body here padded padded padded"',
+            "ts": "2026-07-13T00:00:00Z",
+            "meta": "{}",
+            "parts": "[]",
+        }
         ps.stamp(env)
-        env["content"] = '"short"'                          # truncated on the wire, len now lies
+        env["content"] = '"short"'  # truncated on the wire, len now lies
         c.xadd(f"{ns}:inbox:b", env)
         buf = io.StringIO()
         with redirect_stderr(buf):
@@ -121,8 +129,15 @@ def test_pin3_sha_catches_corruption():
     c, ns = _client(), _ns()
     try:
         b = _bus("b", c, ns)
-        env = {"frm": "a", "to": "b", "kind": "chat", "content": '"hello world"',
-               "ts": "2026-07-13T00:00:00Z", "meta": "{}", "parts": "[]"}
+        env = {
+            "frm": "a",
+            "to": "b",
+            "kind": "chat",
+            "content": '"hello world"',
+            "ts": "2026-07-13T00:00:00Z",
+            "meta": "{}",
+            "parts": "[]",
+        }
         ps.stamp(env)
         # flip ONE char in content, keep the same byte length so len passes but sha fails
         env["content"] = '"hEllo world"'
@@ -142,20 +157,29 @@ def test_pin4_integrity_killswitch():
     c, ns = _client(), _ns()
     try:
         b = _bus("b", c, ns)
-        env = {"frm": "a", "to": "b", "kind": "chat", "content": '"hello world"',
-               "ts": "2026-07-13T00:00:00Z", "meta": "{}", "parts": "[]"}
+        env = {
+            "frm": "a",
+            "to": "b",
+            "kind": "chat",
+            "content": '"hello world"',
+            "ts": "2026-07-13T00:00:00Z",
+            "meta": "{}",
+            "parts": "[]",
+        }
         ps.stamp(env)
-        env["content"] = '"HELLO world"'                    # corrupt
+        env["content"] = '"HELLO world"'  # corrupt
         c.xadd(f"{ns}:inbox:b", env)
         # kill-switch OFF -> the corrupt packet is DELIVERED, degraded, but LOUDLY (not silent)
         os.environ["PACKET_INTEGRITY_ENABLED"] = "false"
         buf = io.StringIO()
         with redirect_stderr(buf):
             got = b.inbox()
-        assert len(got) == 1 and got[0].content == "HELLO world", \
+        assert len(got) == 1 and got[0].content == "HELLO world", (
             "with integrity disabled, delivery is degraded (not dropped)"
-        assert "DEGRADED" in buf.getvalue() and "UNVERIFIED" in buf.getvalue(), \
+        )
+        assert "DEGRADED" in buf.getvalue() and "UNVERIFIED" in buf.getvalue(), (
             "degraded mode must be LOUD, never silent (deepseek GATE RED fix, defect 1)"
+        )
         os.environ["PACKET_INTEGRITY_ENABLED"] = "true"
     finally:
         _reset_dials()
@@ -171,27 +195,34 @@ def test_frag_reassembly_survives_restart_loud_timeout():
     os.environ["FRAG_REASSEMBLY_TTL"] = "0"
     c, ns = _client(), _ns()
     try:
-        env = {"frm": "a", "to": "b", "kind": "handoff",
-               "content": '"' + ("y" * 200_000) + '"', "ts": "2026-07-13T00:00:00Z",
-               "meta": "{}", "parts": "[]"}
+        env = {
+            "frm": "a",
+            "to": "b",
+            "kind": "handoff",
+            "content": '"' + ("y" * 200_000) + '"',
+            "ts": "2026-07-13T00:00:00Z",
+            "meta": "{}",
+            "parts": "[]",
+        }
         frags = ps.fragment(env)
         assert len(frags) >= 4
-        a = _bus("b", c, ns)                          # instance A
+        a = _bus("b", c, ns)  # instance A
         for i, fr in enumerate(frags):
             if i == 3:
-                continue                              # the never-arriving fragment
+                continue  # the never-arriving fragment
             c.xadd(f"{ns}:inbox:b", fr)
-        assert a.inbox() == []                        # buffers 0,1,2 -> persisted to Redis
+        assert a.inbox() == []  # buffers 0,1,2 -> persisted to Redis
         assert c.hlen(f"{ns}:reasm:b") == 1, "an in-flight partial must be persisted for crash recovery"
         # 'restart': a brand-new Bus (fresh in-memory buffer) rehydrates the partial from Redis
         b2 = _bus("b", c, ns)
         buf = io.StringIO()
         with redirect_stderr(buf):
             time.sleep(0.02)
-            b2.inbox()                                # idle drain on the NEW instance -> sweep fires
+            b2.inbox()  # idle drain on the NEW instance -> sweep fires
         out = buf.getvalue()
-        assert "fragment_timeout" in out and "3" in out, \
+        assert "fragment_timeout" in out and "3" in out, (
             f"after restart the partial must time out LOUD, not vanish silently: {out!r}"
+        )
         assert c.hlen(f"{ns}:reasm:b") == 0, "the timed-out durable slot is cleaned up"
     finally:
         _reset_dials()
@@ -214,16 +245,33 @@ def test_rehydrate_skips_completed_slot_no_double_delivery():
 
     r = ps.Reassembler(persist=persist)
     # a COMPLETE slot (3 of 3) as it might linger if the completion-delete was lost
-    r.rehydrate({"WHOLE1": {"of": 3, "pieces": {"0": "a", "1": "b", "2": "c"}, "first": 0.0,
-                            "whole_len": None, "whole_sha": None}})
-    assert r.add({"frm": "a", "to": "b", "kind": "chat", "content": "c", "ts": "t",
-                  "meta": "{}", "parts": "[]",
-                  "frag": '{"seq":2,"of":3,"whole_id":"WHOLE1"}'}, now=1.0) == (None, None), \
-        "a dup fragment of a completed whole must NOT re-deliver after restart"
+    r.rehydrate(
+        {
+            "WHOLE1": {
+                "of": 3,
+                "pieces": {"0": "a", "1": "b", "2": "c"},
+                "first": 0.0,
+                "whole_len": None,
+                "whole_sha": None,
+            }
+        }
+    )
+    assert r.add(
+        {
+            "frm": "a",
+            "to": "b",
+            "kind": "chat",
+            "content": "c",
+            "ts": "t",
+            "meta": "{}",
+            "parts": "[]",
+            "frag": '{"seq":2,"of":3,"whole_id":"WHOLE1"}',
+        },
+        now=1.0,
+    ) == (None, None), "a dup fragment of a completed whole must NOT re-deliver after restart"
     assert "WHOLE1" in deleted, "the orphaned complete slot must be cleaned up"
     # a genuinely INCOMPLETE slot IS resurrected (it still owes a timeout)
-    r.rehydrate({"WHOLE2": {"of": 3, "pieces": {"0": "a"}, "first": 0.0,
-                            "whole_len": None, "whole_sha": None}})
+    r.rehydrate({"WHOLE2": {"of": 3, "pieces": {"0": "a"}, "first": 0.0, "whole_len": None, "whole_sha": None}})
     assert r.sweep_expired(now=ps.frag_reassembly_ttl() + 1), "incomplete slot must still time out loud"
 
 
@@ -250,29 +298,36 @@ def test_pin5_frag_roundtrip():
 # ============================================================== PIN 6: missing fragment -> timeout
 def test_pin6_missing_fragment_times_out_naming_seq():
     _reset_dials()
-    os.environ["FRAG_REASSEMBLY_TTL"] = "0"                  # any elapsed time expires a partial set
+    os.environ["FRAG_REASSEMBLY_TTL"] = "0"  # any elapsed time expires a partial set
     c, ns = _client(), _ns()
     try:
         b = _bus("b", c, ns)
         # build 4 fragments, inject only 3 (drop seq 2)
-        env = {"frm": "a", "to": "b", "kind": "handoff",
-               "content": '"' + ("y" * 200_000) + '"', "ts": "2026-07-13T00:00:00Z",
-               "meta": "{}", "parts": "[]"}
+        env = {
+            "frm": "a",
+            "to": "b",
+            "kind": "handoff",
+            "content": '"' + ("y" * 200_000) + '"',
+            "ts": "2026-07-13T00:00:00Z",
+            "meta": "{}",
+            "parts": "[]",
+        }
         frags = ps.fragment(env)
         assert len(frags) >= 4
         for i, fr in enumerate(frags):
             if i == 2:
-                continue                                    # the missing fragment
+                continue  # the missing fragment
             c.xadd(f"{ns}:inbox:b", fr)
         buf = io.StringIO()
         with redirect_stderr(buf):
-            first = b.inbox()                               # buffers the partial set
-            time.sleep(0.02)                                # let the TTL(=0) elapse
-            second = b.inbox()                              # sweep fires the timeout
+            first = b.inbox()  # buffers the partial set
+            time.sleep(0.02)  # let the TTL(=0) elapse
+            second = b.inbox()  # sweep fires the timeout
         assert first == [] and second == [], "an incomplete whole is never delivered"
         out = buf.getvalue()
-        assert "fragment_timeout" in out and "missing seq" in out and "2" in out, \
+        assert "fragment_timeout" in out and "missing seq" in out and "2" in out, (
             f"timeout must NAME the missing seq: {out!r}"
+        )
     finally:
         _reset_dials()
         _cleanup(c, ns)
@@ -282,8 +337,15 @@ def test_pin6_missing_fragment_times_out_naming_seq():
 def test_pin7_reassembly_ttl_boundary():
     _reset_dials()
     os.environ["FRAG_REASSEMBLY_TTL"] = "300"
-    env = {"frm": "a", "to": "b", "kind": "handoff", "content": '"' + ("y" * 120_000) + '"',
-           "ts": "2026-07-13T00:00:00Z", "meta": "{}", "parts": "[]"}
+    env = {
+        "frm": "a",
+        "to": "b",
+        "kind": "handoff",
+        "content": '"' + ("y" * 120_000) + '"',
+        "ts": "2026-07-13T00:00:00Z",
+        "meta": "{}",
+        "parts": "[]",
+    }
     frags = ps.fragment(env)
     # TTL-1 still holds the partial (not swept); TTL+1 sweeps it as timed-out
     r = ps.Reassembler()
@@ -312,27 +374,45 @@ def test_pin8_runner_tool_bridge_refuses_oversize_args():
 def test_pin9_corrupt_reply_never_clears_expectation():
     _reset_dials()
     from core.comm import expectations as ex
+
     c, ns = _client(), _ns()
     old_ns = os.environ.get("BIFROST_NAMESPACE")
-    os.environ["BIFROST_NAMESPACE"] = ns                    # expectations builds its own Bus(sender)
+    os.environ["BIFROST_NAMESPACE"] = ns  # expectations builds its own Bus(sender)
     try:
         sender, resp = "asker", "answerer"
-        orig_id = c.xadd(f"{ns}:inbox:{resp}", {"frm": sender, "to": resp, "kind": "request",
-                                                 "content": '"do X"', "ts": "t", "meta": "{}", "parts": "[]"})
+        orig_id = c.xadd(
+            f"{ns}:inbox:{resp}",
+            {"frm": sender, "to": resp, "kind": "request", "content": '"do X"', "ts": "t", "meta": "{}", "parts": "[]"},
+        )
         armed = ex.arm(sender, str(orig_id), resp, "request", "do X", within_s=3600)
         assert armed
         # inject a CORRUPT reply into the asker's inbox (valid stamp then tampered sha)
-        reply = {"frm": resp, "to": sender, "kind": "reply", "content": '"here is X"',
-                 "ts": "t2", "meta": '{"answers": "%s"}' % orig_id, "parts": "[]"}
+        reply = {
+            "frm": resp,
+            "to": sender,
+            "kind": "reply",
+            "content": '"here is X"',
+            "ts": "t2",
+            "meta": '{"answers": "%s"}' % orig_id,
+            "parts": "[]",
+        }
         ps.stamp(reply)
-        reply["content"] = '"HERE is X"'                    # corrupt -> consume door drops it
+        reply["content"] = '"HERE is X"'  # corrupt -> consume door drops it
         c.xadd(f"{ns}:inbox:{sender}", reply)
         res = ex.sweep(sender)
-        assert str(orig_id) not in res.get("cleared", []), \
+        assert str(orig_id) not in res.get("cleared", []), (
             "a corrupt reply must NOT clear an armed expectation (RB-29 extension)"
+        )
         # sanity: a CLEAN reply DOES clear it
-        good = {"frm": resp, "to": sender, "kind": "reply", "content": '"here is X"',
-                "ts": "t3", "meta": '{"answers": "%s"}' % orig_id, "parts": "[]"}
+        good = {
+            "frm": resp,
+            "to": sender,
+            "kind": "reply",
+            "content": '"here is X"',
+            "ts": "t3",
+            "meta": '{"answers": "%s"}' % orig_id,
+            "parts": "[]",
+        }
         ps.stamp(good)
         c.xadd(f"{ns}:inbox:{sender}", good)
         res2 = ex.sweep(sender)
@@ -351,14 +431,22 @@ def test_pin10_unknown_envelope_keys_preserved():
     c, ns = _client(), _ns()
     try:
         b = _bus("b", c, ns)
-        env = {"frm": "a", "to": "b", "kind": "chat", "content": '"hi from the future"',
-               "ts": "2026-07-13T00:00:00Z", "meta": "{}", "parts": "[]"}
+        env = {
+            "frm": "a",
+            "to": "b",
+            "kind": "chat",
+            "content": '"hi from the future"',
+            "ts": "2026-07-13T00:00:00Z",
+            "meta": "{}",
+            "parts": "[]",
+        }
         ps.stamp(env)
-        env["v3_future_field"] = "some-v3-thing"             # a field this consumer never heard of
+        env["v3_future_field"] = "some-v3-thing"  # a field this consumer never heard of
         sid = c.xadd(f"{ns}:inbox:b", env)
         got = b.inbox()
-        assert len(got) == 1 and got[0].content == "hi from the future", \
+        assert len(got) == 1 and got[0].content == "hi from the future", (
             "an unknown envelope key must NOT cause the message to be dropped (forward-compat floor)"
+        )
         raw = c.xrange(f"{ns}:inbox:b", sid, sid)[0][1]
         assert raw.get("v3_future_field") == "some-v3-thing", "the unknown key is preserved on the wire"
     finally:
@@ -376,7 +464,7 @@ def test_drill_three_real_clip_payloads_zero_silent_loss():
         a = _bus("a", c, ns)
         b = _bus("b", c, ns)
         payloads = {
-            "append_2a_2c": "APPEND " + ("section body. " * 9000),        # ~120KB edit_file append
+            "append_2a_2c": "APPEND " + ("section body. " * 9000),  # ~120KB edit_file append
             "knowledge_note_body": "note: " + ("insight line. " * 9000),  # ~120KB note body
             "oversized_handoff": "handoff: " + ("context para. " * 9000),  # ~130KB handoff
         }

@@ -81,10 +81,12 @@ def seat_channel_url(agent: str) -> str:
     base = str(agent or "").split("#", 1)[0].lower()
     try:
         from core.fleet import residents as _R
+
         cs = str((_R.get(base) or {}).get("callsign") or "").strip().lower()
-    except Exception:                                                   # noqa: BLE001
+    except Exception:  # noqa: BLE001
         cs = ""
     from core.comm.secret_intake import TARGETS, secrets_dir
+
     candidates = [f"discord_channel_{base}.url"]
     if cs:
         candidates.append(f"discord_channel_{cs}.url")
@@ -104,11 +106,10 @@ def _streams(bus: Any) -> List[str]:
     keys = [f"{bus.ns}:broadcast"]
     try:
         agents = sorted(bus.known_agents())
-    except Exception:                                                   # noqa: BLE001
+    except Exception:  # noqa: BLE001
         agents = []
     keys.extend(bus._inbox_key(a) for a in agents)
-    keys.extend(bus._inbox_key(op) for op in _OPERATOR_INBOXES
-                if bus._inbox_key(op) not in keys)
+    keys.extend(bus._inbox_key(op) for op in _OPERATOR_INBOXES if bus._inbox_key(op) not in keys)
     return keys
 
 
@@ -118,19 +119,26 @@ def _post_failure_loud(path: str, msg: Dict[str, Any], mid: str, exc: Exception)
     died on which path. Never raises (the pump's beat survives the confession)."""
     try:
         import sys as _sys
-        print(f"[discord-feed] POST FAILED ({path}) mid={mid} "
-              f"frm={msg.get('frm')} to={msg.get('to')} "
-              f"({type(exc).__name__}: {str(exc)[:120]})", file=_sys.stderr)
-    except Exception:                                                   # noqa: BLE001
+
+        print(
+            f"[discord-feed] POST FAILED ({path}) mid={mid} "
+            f"frm={msg.get('frm')} to={msg.get('to')} "
+            f"({type(exc).__name__}: {str(exc)[:120]})",
+            file=_sys.stderr,
+        )
+    except Exception:  # noqa: BLE001
         pass
     try:
         from core.events.event_log import capture_event
-        capture_event("discord_feed_post_failed",
-                      f"{path} post failed for {msg.get('frm')}->{msg.get('to')}",
-                      agent_id="discord", refs=[str(mid)],
-                      detail={"path": path, "frm": str(msg.get("frm")),
-                              "error": f"{type(exc).__name__}: {str(exc)[:200]}"})
-    except Exception:                                                   # noqa: BLE001
+
+        capture_event(
+            "discord_feed_post_failed",
+            f"{path} post failed for {msg.get('frm')}->{msg.get('to')}",
+            agent_id="discord",
+            refs=[str(mid)],
+            detail={"path": path, "frm": str(msg.get("frm")), "error": f"{type(exc).__name__}: {str(exc)[:200]}"},
+        )
+    except Exception:  # noqa: BLE001
         pass
 
 
@@ -154,10 +162,11 @@ def _forward_global(msg: Dict[str, Any]) -> bool:
         who = ROOMS.persona(str(msg.get("frm") or ""))
         for part in ROOMS.render_room_parts(msg):
             DB.post_via_pool(
-                urls, part,
-                lambda u, c, w=who: ROOMS._default_post(
-                    u, c, username=w["username"], avatar_url=w["avatar_url"]))
-    except Exception as exc:                                            # noqa: BLE001
+                urls,
+                part,
+                lambda u, c, w=who: ROOMS._default_post(u, c, username=w["username"], avatar_url=w["avatar_url"]),
+            )
+    except Exception as exc:  # noqa: BLE001
         # same incident class as the seat-lane swallow: the beat survives, but
         # the failure is loud and journaled instead of impersonating success
         _post_failure_loud("global", msg, str(msg.get("id") or "?"), exc)
@@ -165,19 +174,22 @@ def _forward_global(msg: Dict[str, Any]) -> bool:
     return True
 
 
-def pump(bus: Any, *, post: Optional[Callable[..., Any]] = None,
-         room_post: Optional[Callable[..., Any]] = None) -> BoundaryOutcome:
+def pump(
+    bus: Any, *, post: Optional[Callable[..., Any]] = None, room_post: Optional[Callable[..., Any]] = None
+) -> BoundaryOutcome:
     """One feed beat: forward everything new on the legacy plane, then advance."""
     if not configured():
         return BoundaryOutcome.failed(
             "discord feed not configured — no webhook on either channel; a state, "
-            "not a failure (the pump costs one check and exits)")
+            "not a failure (the pump costs one check and exits)"
+        )
     client = bus._client
     try:
-        cursors = {k.decode() if isinstance(k, bytes) else str(k):
-                   (v.decode() if isinstance(v, bytes) else str(v))
-                   for k, v in (client.hgetall(CURSOR_KEY) or {}).items()}
-    except Exception as e:                                              # noqa: BLE001
+        cursors = {
+            k.decode() if isinstance(k, bytes) else str(k): (v.decode() if isinstance(v, bytes) else str(v))
+            for k, v in (client.hgetall(CURSOR_KEY) or {}).items()
+        }
+    except Exception as e:  # noqa: BLE001
         return BoundaryOutcome.failed(f"feed cursor read failed ({type(e).__name__}: {e})")
 
     forwarded = 0
@@ -188,7 +200,7 @@ def pump(bus: Any, *, post: Optional[Callable[..., Any]] = None,
             if key not in cursors:
                 # FIRST CONTACT: tail-init, forward nothing. The archive stays home.
                 last = client.xrevrange(key, count=1)
-                tail_id = (last[0][0] if last else "0-0")
+                tail_id = last[0][0] if last else "0-0"
                 tail_id = tail_id.decode() if isinstance(tail_id, bytes) else str(tail_id)
                 client.hset(CURSOR_KEY, key, tail_id)
                 cursors[key] = tail_id
@@ -199,7 +211,7 @@ def pump(bus: Any, *, post: Optional[Callable[..., Any]] = None,
                 mid_s = mid.decode() if isinstance(mid, bytes) else str(mid)
                 try:
                     msg = _decode(fields)
-                except Exception as exc:                                # noqa: BLE001
+                except Exception as exc:  # noqa: BLE001
                     # Defense-in-depth for the S1 class (2026-09-02). NOTE: the
                     # audit's proposed vehicle (list-typed content) does NOT raise
                     # in current _decode -- its isinstance guard passes non-strings
@@ -208,8 +220,7 @@ def pump(bus: Any, *, post: Optional[Callable[..., Any]] = None,
                     # silent retry-forever the outer except used to produce. (This
                     # is the display plane; the durable mailbox keeps the record.)
                     failed += 1
-                    _post_failure_loud(
-                        "decode", {"frm": fields.get("frm"), "to": key}, mid_s, exc)
+                    _post_failure_loud("decode", {"frm": fields.get("frm"), "to": key}, mid_s, exc)
                     client.hset(CURSOR_KEY, key, mid_s)
                     continue
                 msg.setdefault("id", mid_s)
@@ -218,8 +229,7 @@ def pump(bus: Any, *, post: Optional[Callable[..., Any]] = None,
                 # pumped back TO Discord, or every phone line returns to its sender
                 # wearing the fleet's face. Cursor still advances — skipped is
                 # handled, not pending.
-                if isinstance(msg.get("meta"), dict) and \
-                        msg["meta"].get("source") == "discord":
+                if isinstance(msg.get("meta"), dict) and msg["meta"].get("source") == "discord":
                     client.hset(CURSOR_KEY, key, mid_s)
                     continue
                 # SEAT LANE: a message addressed TO the operator posts in his
@@ -233,10 +243,8 @@ def pump(bus: Any, *, post: Optional[Callable[..., Any]] = None,
                         try:
                             who = ROOMS.persona(str(msg.get("frm") or ""))
                             for part in ROOMS.render_room_parts(msg):
-                                ROOMS._default_post(lane, part,
-                                                    username=who["username"],
-                                                    avatar_url=who["avatar_url"])
-                        except Exception as exc:                        # noqa: BLE001
+                                ROOMS._default_post(lane, part, username=who["username"], avatar_url=who["avatar_url"])
+                        except Exception as exc:  # noqa: BLE001
                             # 2026-08-23 incident (root-caused by the vandor
                             # sprout, spawn-1787516635): this except used to
                             # `pass` AND count the post as forwarded -- a dead
@@ -254,28 +262,32 @@ def pump(bus: Any, *, post: Optional[Callable[..., Any]] = None,
                         continue
                 gok = (post or _forward_global)(msg)
                 (room_post or ROOMS.post_to_room)(msg)
-                client.hset(CURSOR_KEY, key, mid_s)      # advance AFTER the attempt
+                client.hset(CURSOR_KEY, key, mid_s)  # advance AFTER the attempt
                 if gok is False:
                     # S2: the global post died and said so; the receipt agrees
                     # with the confession instead of claiming a delivery.
                     failed += 1
                 else:
                     forwarded += 1
-        except Exception as exc:                                        # noqa: BLE001
+        except Exception as exc:  # noqa: BLE001
             # one bad stream must not starve the rest of the beat -- but a caught
             # exception is a FINDING, never a shrug (S1, 2026-09-02): confess to
             # stderr so 'zero errors anywhere' can only mean zero errors.
             try:
                 import sys as _sys
-                print(f"[discord-feed] STREAM BEAT FAILED (confessed, contained) "
-                      f"{key}: {type(exc).__name__}: {str(exc)[:160]}",
-                      file=_sys.stderr, flush=True)
-            except Exception:                                           # noqa: BLE001
+
+                print(
+                    f"[discord-feed] STREAM BEAT FAILED (confessed, contained) "
+                    f"{key}: {type(exc).__name__}: {str(exc)[:160]}",
+                    file=_sys.stderr,
+                    flush=True,
+                )
+            except Exception:  # noqa: BLE001
                 pass
             continue
-    return BoundaryOutcome.done(ref=f"forwarded={forwarded} failed={failed}",
-                                forwarded=forwarded, initialized=initialized,
-                                failed=failed)
+    return BoundaryOutcome.done(
+        ref=f"forwarded={forwarded} failed={failed}", forwarded=forwarded, initialized=initialized, failed=failed
+    )
 
 
 #: shared across every seat's daemon -- ONE key, not one per agent, because the resource
@@ -287,8 +299,9 @@ _PUMP_LOCK_KEY = "discord-pump"
 _PUMP_LOCK_TTL = 8
 
 
-def pump_if_owner(bus: Any, *, post: Optional[Callable[..., Any]] = None,
-                  room_post: Optional[Callable[..., Any]] = None) -> BoundaryOutcome:
+def pump_if_owner(
+    bus: Any, *, post: Optional[Callable[..., Any]] = None, room_post: Optional[Callable[..., Any]] = None
+) -> BoundaryOutcome:
     """`pump()`, but only for whichever daemon wins a short-lived election this beat.
 
     THE COORDINATION GAP THIS CLOSES (2026-09-03 reachability incident). Every seat's
@@ -305,18 +318,17 @@ def pump_if_owner(bus: Any, *, post: Optional[Callable[..., Any]] = None,
     to them, and to every agent, which never touched Discord at all.
     """
     from core.comm import runner_lock
+
     token = runner_lock.instance_token(_PUMP_LOCK_KEY)
     if not runner_lock.acquire(_PUMP_LOCK_KEY, token, ttl=_PUMP_LOCK_TTL):
-        return BoundaryOutcome.done(ref="not-owner-this-beat",
-                                    forwarded=0, initialized=0, failed=0)
+        return BoundaryOutcome.done(ref="not-owner-this-beat", forwarded=0, initialized=0, failed=0)
     try:
         return pump(bus, post=post, room_post=room_post)
     finally:
         runner_lock.release(_PUMP_LOCK_KEY, token)
 
 
-def send_target(agent: str, *, seat_url: Optional[str] = None,
-                global_url: Optional[str] = None) -> tuple:
+def send_target(agent: str, *, seat_url: Optional[str] = None, global_url: Optional[str] = None) -> tuple:
     """Where a MANUAL `discord send` from `agent` should post: (url, source, note).
 
     THE DEFECT THIS RETIRES (2026-08-25). The manual verb resolved its target as the
@@ -342,11 +354,21 @@ def send_target(agent: str, *, seat_url: Optional[str] = None,
     if lane:
         return lane, f"{seat}'s own seat lane", ""
     if glob:
-        return glob, "the GLOBAL channel", (
-            f"no seat lane resolved for {seat!r} -- falling back to the GLOBAL channel. "
-            f"If this was meant for his lane with this seat, that lane is missing "
-            f"(discord_channel_<callsign>.url); saying so rather than posting quietly "
-            f"into the wrong room.")
-    return "", "", (
-        "discord is not configured -- no seat lane and no global webhook. Nothing was "
-        "sent, and this is a configuration state rather than a delivery failure.")
+        return (
+            glob,
+            "the GLOBAL channel",
+            (
+                f"no seat lane resolved for {seat!r} -- falling back to the GLOBAL channel. "
+                f"If this was meant for his lane with this seat, that lane is missing "
+                f"(discord_channel_<callsign>.url); saying so rather than posting quietly "
+                f"into the wrong room."
+            ),
+        )
+    return (
+        "",
+        "",
+        (
+            "discord is not configured -- no seat lane and no global webhook. Nothing was "
+            "sent, and this is a configuration state rather than a delivery failure."
+        ),
+    )

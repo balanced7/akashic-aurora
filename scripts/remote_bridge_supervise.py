@@ -34,6 +34,7 @@ WHAT IT WILL NOT DO: it will not choose your bind address or your peer name. Tho
 decisions, and a supervisor that guesses them would rebind the door somewhere nobody chose —
 the same reason bridge_status.restart_listener stops rather than relaunches. Pass them.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -74,7 +75,7 @@ def door_open(host: str, port: int, timeout: float = 3.0) -> bool:
     try:
         socket.create_connection((host, port), timeout=timeout).close()
         return True
-    except Exception:                                             # noqa: BLE001
+    except Exception:  # noqa: BLE001
         return False
 
 
@@ -84,17 +85,25 @@ def main(argv=None) -> int:
     ap.add_argument("--port", type=int, default=8791)
     ap.add_argument("--peer", default="", help="route name for provenance")
     ap.add_argument("--poll-sec", type=float, default=5.0)
-    ap.add_argument("--child-log", default=None,
-                    help="file the listener's output tail is APPENDED to on every exit "
-                         "(default: state/logs/remote-bridge-listener.log under the repo — "
-                         "the file peer_connect gives the listener as stdout, so the name "
-                         "stays true whichever way the listener was launched)")
+    ap.add_argument(
+        "--child-log",
+        default=None,
+        help="file the listener's output tail is APPENDED to on every exit "
+        "(default: state/logs/remote-bridge-listener.log under the repo — "
+        "the file peer_connect gives the listener as stdout, so the name "
+        "stays true whichever way the listener was launched)",
+    )
     a = ap.parse_args(argv)
-    child_log = Path(a.child_log) if a.child_log else (
-        REPO / "state" / "logs" / "remote-bridge-listener.log")
+    child_log = Path(a.child_log) if a.child_log else (REPO / "state" / "logs" / "remote-bridge-listener.log")
 
-    args = [sys.executable, str(REPO / "scripts" / "remote_bridge_listener.py"),
-            "--host", a.host, "--port", str(a.port)]
+    args = [
+        sys.executable,
+        str(REPO / "scripts" / "remote_bridge_listener.py"),
+        "--host",
+        a.host,
+        "--port",
+        str(a.port),
+    ]
     if a.peer:
         args += ["--peer", a.peer]
 
@@ -113,12 +122,14 @@ def main(argv=None) -> int:
         lines = tail.splitlines()
         last["code"], last["tail"] = code, tail
         pid = f" (pid {child.pid})" if child.pid else ""
-        verdict = ("DELIBERATE stop, exit 0 — NOT respawned (N1)" if code == 0
-                   else "crash — ManagedChild schedules the respawn/backoff/breaker")
+        verdict = (
+            "DELIBERATE stop, exit 0 — NOT respawned (N1)"
+            if code == 0
+            else "crash — ManagedChild schedules the respawn/backoff/breaker"
+        )
         print(f"[{_stamp()}] LISTENER EXITED code={code}{pid}: {verdict}", flush=True)
         if lines:
-            full = (f" — the ring holds {_RING_LINES}, so OLDER LINES WERE DROPPED"
-                    if len(lines) >= _RING_LINES else "")
+            full = f" — the ring holds {_RING_LINES}, so OLDER LINES WERE DROPPED" if len(lines) >= _RING_LINES else ""
             print(f"  last {len(lines)} line(s) of its output{full}:", flush=True)
             for ln in lines:
                 print(f"  | {ln}", flush=True)
@@ -127,68 +138,77 @@ def main(argv=None) -> int:
         try:
             child_log.parent.mkdir(parents=True, exist_ok=True)
             with open(child_log, "a", encoding="utf-8") as f:
-                f.write(f"==== {_datestamp()} supervised listener exited code={code}{pid}; "
-                        f"{len(lines)} line(s) of its output follow ====\n")
+                f.write(
+                    f"==== {_datestamp()} supervised listener exited code={code}{pid}; "
+                    f"{len(lines)} line(s) of its output follow ====\n"
+                )
                 f.write((tail + "\n") if tail else "(no output captured)\n")
             last["tee"], last["tee_err"] = str(child_log), ""
             print(f"  (appended to {child_log})", flush=True)
-        except Exception as e:                                    # noqa: BLE001
+        except Exception as e:  # noqa: BLE001
             last["tee"], last["tee_err"] = None, f"{type(e).__name__}: {e}"
-            print(f"  WARNING: could not append to {child_log} ({last['tee_err']}) — the copy "
-                  f"printed above is the ONLY record of this exit", flush=True)
+            print(
+                f"  WARNING: could not append to {child_log} ({last['tee_err']}) — the copy "
+                f"printed above is the ONLY record of this exit",
+                flush=True,
+            )
 
     child.on_exit = _on_child_exit
 
     print(f"[{_stamp()}] supervising the bridge door on {a.host}:{a.port}", flush=True)
-    print(f"  backoff + circuit breaker via ManagedChild; exit 0 is a DELIBERATE stop and is "
-          f"NOT respawned", flush=True)
-    print(f"  the listener's output tail is printed here on every exit and appended to "
-          f"{child_log}", flush=True)
+    print(f"  backoff + circuit breaker via ManagedChild; exit 0 is a DELIBERATE stop and is NOT respawned", flush=True)
+    print(f"  the listener's output tail is printed here on every exit and appended to {child_log}", flush=True)
 
     child.spawn()
     was_open = None
     while True:
         time.sleep(a.poll_sec)
         try:
-            child.poll()                       # drives restart/backoff/breaker internally
+            child.poll()  # drives restart/backoff/breaker internally
 
             # TRANSITIONS ONLY. A supervisor that narrates every quiet tick gets muted, and a
             # muted supervisor is the same silence by a longer road.
             now_open = door_open(a.host, a.port)
             if now_open != was_open:
                 if now_open:
-                    print(f"[{_stamp()}] DOOR OPEN — {a.host}:{a.port} answering"
-                          f"{f' (pid {child.pid})' if child.pid else ''}", flush=True)
+                    print(
+                        f"[{_stamp()}] DOOR OPEN — {a.host}:{a.port} answering"
+                        f"{f' (pid {child.pid})' if child.pid else ''}",
+                        flush=True,
+                    )
                 else:
-                    print(f"[{_stamp()}] DOOR SHUT — {a.host}:{a.port} not answering. Peers are "
-                          f"being REFUSED right now; their outboxes retain and replay, so "
-                          f"nothing is lost, but nothing is staged either.", flush=True)
+                    print(
+                        f"[{_stamp()}] DOOR SHUT — {a.host}:{a.port} not answering. Peers are "
+                        f"being REFUSED right now; their outboxes retain and replay, so "
+                        f"nothing is lost, but nothing is staged either.",
+                        flush=True,
+                    )
                 was_open = now_open
 
             if child.tripped:
                 # The breaker is the honest end of the line: say so loudly, stop pretending
                 # supervision is happening, and put the evidence BESIDE the verdict — naming
                 # only a sink that actually received it.
-                print(f"[{_stamp()}] BREAKER TRIPPED — the listener failed repeatedly and is "
-                      f"NOT being respawned. This is a real fault, not a flap.", flush=True)
+                print(
+                    f"[{_stamp()}] BREAKER TRIPPED — the listener failed repeatedly and is "
+                    f"NOT being respawned. This is a real fault, not a flap.",
+                    flush=True,
+                )
                 if last["tee"]:
                     where = f"appended to {last['tee']}, and printed here"
                 elif last["tee_err"]:
                     where = f"printed here ONLY — appending to {child_log} failed: {last['tee_err']}"
                 else:
                     where = f"printed here ONLY — no exit ever reported a tail to {child_log}"
-                print(f"  last output of the listener before its final death ({where}):",
-                      flush=True)
-                for ln in (last["tail"].splitlines()
-                           or ["(no output captured — it died before printing anything)"]):
+                print(f"  last output of the listener before its final death ({where}):", flush=True)
+                for ln in last["tail"].splitlines() or ["(no output captured — it died before printing anything)"]:
                     print(f"  | {ln}", flush=True)
                 return 1
         except KeyboardInterrupt:
             print(f"\n[{_stamp()}] stopping supervisor (listener left as-is)", flush=True)
             return 0
-        except Exception as e:                                    # noqa: BLE001
-            print(f"[{_stamp()}] supervisor tick error ({type(e).__name__}: {e}) — continuing",
-                  flush=True)
+        except Exception as e:  # noqa: BLE001
+            print(f"[{_stamp()}] supervisor tick error ({type(e).__name__}: {e}) — continuing", flush=True)
 
 
 if __name__ == "__main__":

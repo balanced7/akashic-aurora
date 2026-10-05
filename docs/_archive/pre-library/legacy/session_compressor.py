@@ -80,8 +80,7 @@ class SessionCompressor:
         try:
             prompt = (
                 "Summarize this session log in 2-3 sentences. "
-                "Focus on decisions, outcomes, and key learnings.\n\n"
-                + log_text[:15000]
+                "Focus on decisions, outcomes, and key learnings.\n\n" + log_text[:15000]
             )
             resp = requests.post(
                 f"{GEMMA_URL}/api/chat",
@@ -200,9 +199,7 @@ class SessionCompressor:
                     deadline.pop(sid, None)
 
             try:
-                out = self.wsl_redis.xread(
-                    {SESSION_EVENTS_STREAM: last_id}, count=80, block=STREAM_XREAD_MS
-                )
+                out = self.wsl_redis.xread({SESSION_EVENTS_STREAM: last_id}, count=80, block=STREAM_XREAD_MS)
             except RedisError as e:
                 logger.warning("XREAD stall: %s", e)
                 time.sleep(1)
@@ -272,11 +269,7 @@ class SessionCompressor:
                 channel = ""
 
             raw_key = msg.get("data")
-            key = (
-                raw_key.decode()
-                if isinstance(raw_key, (bytes, bytearray))
-                else str(raw_key or "")
-            )
+            key = raw_key.decode() if isinstance(raw_key, (bytes, bytearray)) else str(raw_key or "")
 
             trigger = ":set" in channel or ":rpush" in channel
             if not trigger:
@@ -295,10 +288,7 @@ class SessionCompressor:
 if __name__ == "__main__":
     c = SessionCompressor()
     if "--test" in sys.argv:
-        test_log = (
-            "Started Redis HA, installed redis-stack, created text indexes. "
-            "Session log compression working."
-        )
+        test_log = "Started Redis HA, installed redis-stack, created text indexes. Session log compression working."
         c.wsl_redis.set("session:test_001:log", test_log)
         c.compress_session("test_001")
         print("\nSearch test:")

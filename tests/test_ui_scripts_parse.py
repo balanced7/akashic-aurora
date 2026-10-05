@@ -15,6 +15,7 @@ homemade lexer: the first draft's delimiter-balance fallback false-positived on 
 literals containing backticks (PAGE line 15, /`([^`\n]+)`/g) -- regex-vs-division needs a
 real parser, and a gate that cries wolf on valid code teaches people to ignore it.
 """
+
 import ast
 import os
 import re
@@ -62,8 +63,10 @@ def _inline_scripts(html):
 
 def _parse_check(src, label, tmp_path):
     if not NODE:
-        pytest.skip("node not on PATH -- the C10-1 parse gate CANNOT verify the console "
-                    "without it; install node (the CI runners ship it)")
+        pytest.skip(
+            "node not on PATH -- the C10-1 parse gate CANNOT verify the console "
+            "without it; install node (the CI runners ship it)"
+        )
     js = tmp_path / (re.sub(r"[^\w.-]", "_", label) + ".js")
     js.write_text(src, encoding="utf-8")
     r = subprocess.run([NODE, "--check", str(js)], capture_output=True, text=True)

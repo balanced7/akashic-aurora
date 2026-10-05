@@ -12,6 +12,7 @@ it knows where it came from. Formats:
   * PDF -- text per page via pypdf (BSD); the outline (bookmarks) names the section a page
     belongs to when the PDF has one, otherwise pages are labelled "page N".
 """
+
 from __future__ import annotations
 
 import json
@@ -25,10 +26,10 @@ SUPPORTED = {".md", ".markdown", ".txt", ".json", ".html", ".htm", ".pdf"}
 
 @dataclass
 class Section:
-    path: Tuple[str, ...]          # (document title, heading, subheading, ...)
+    path: Tuple[str, ...]  # (document title, heading, subheading, ...)
     text: str
-    anchor: Optional[str] = None   # fragment for the source url, when the format has one
-    page: Optional[int] = None     # 1-based, PDFs only
+    anchor: Optional[str] = None  # fragment for the source url, when the format has one
+    page: Optional[int] = None  # 1-based, PDFs only
 
 
 @dataclass
@@ -47,13 +48,13 @@ def to_document(path, url: Optional[str] = None, html_selector: Optional[str] = 
             return from_docc(data, url=url)
         raise ValueError(f"{p.name}: JSON that is not DocC render JSON")
     if ext in (".html", ".htm"):
-        return from_html(p.read_text(encoding="utf-8", errors="replace"), url=url,
-                         fallback_title=p.stem, selector=html_selector)
+        return from_html(
+            p.read_text(encoding="utf-8", errors="replace"), url=url, fallback_title=p.stem, selector=html_selector
+        )
     if ext == ".pdf":
         return from_pdf(p, url=url)
     if ext in (".md", ".markdown", ".txt"):
-        return from_markdown(p.read_text(encoding="utf-8", errors="replace"), url=url,
-                             fallback_title=p.stem)
+        return from_markdown(p.read_text(encoding="utf-8", errors="replace"), url=url, fallback_title=p.stem)
     raise ValueError(f"{p.name}: unsupported format {ext!r}")
 
 
@@ -107,6 +108,7 @@ def from_markdown(text: str, url: Optional[str] = None, fallback_title: str = "U
 
 # ---- DocC render JSON ----------------------------------------------------------------
 
+
 def is_docc(data: Any) -> bool:
     return isinstance(data, dict) and "primaryContentSections" in data and "metadata" in data
 
@@ -121,15 +123,14 @@ def _inline(items: List[Dict[str, Any]], refs: Dict[str, Any]) -> str:
             out.append(it.get("code", ""))
         elif t == "reference":
             ref = refs.get(it.get("identifier", ""), {})
-            out.append(it.get("overridingTitle") or ref.get("title")
-                       or it.get("identifier", "").rsplit("/", 1)[-1])
+            out.append(it.get("overridingTitle") or ref.get("title") or it.get("identifier", "").rsplit("/", 1)[-1])
         elif t == "link":
             out.append(it.get("title") or it.get("destination", ""))
         elif t == "image":
             alt = (refs.get(it.get("identifier", ""), {}) or {}).get("alt")
             if alt:
                 out.append(f"[{alt}]")
-        elif "inlineContent" in it:           # emphasis, strong, newTerm, superscript, ...
+        elif "inlineContent" in it:  # emphasis, strong, newTerm, superscript, ...
             out.append(_inline(it["inlineContent"], refs))
     return "".join(out)
 
@@ -160,17 +161,20 @@ def _block(b: Dict[str, Any], refs: Dict[str, Any]) -> str:
     if t == "codeListing":
         return "```\n" + "\n".join(b.get("code", [])) + "\n```"
     if t == "termList":
-        return "\n".join(f"- {_inline(i.get('term', {}).get('inlineContent', []), refs)}: "
-                         f"{_blocks(i.get('definition', {}).get('content', []), refs)}"
-                         for i in b.get("items", []))
-    if t == "heading":                         # a heading nested inside a container
+        return "\n".join(
+            f"- {_inline(i.get('term', {}).get('inlineContent', []), refs)}: "
+            f"{_blocks(i.get('definition', {}).get('content', []), refs)}"
+            for i in b.get("items", [])
+        )
+    if t == "heading":  # a heading nested inside a container
         return b.get("text", "")
     if t == "tabNavigator":
-        return "\n".join(f"{tab.get('title', '')}: {_blocks(tab.get('content', []), refs)}"
-                         for tab in b.get("tabs", []))
+        return "\n".join(
+            f"{tab.get('title', '')}: {_blocks(tab.get('content', []), refs)}" for tab in b.get("tabs", [])
+        )
     if t == "row":
         return "\n".join(_blocks(col.get("content", []), refs) for col in b.get("columns", []))
-    if t == "links":                           # a hub page's card grid: title plus its summary
+    if t == "links":  # a hub page's card grid: title plus its summary
         lines = []
         for ident in b.get("items", []):
             ref = refs.get(ident, {}) or {}
@@ -180,9 +184,9 @@ def _block(b: Dict[str, Any], refs: Dict[str, Any]) -> str:
     if t in ("image", "video"):
         alt = (refs.get(b.get("identifier", ""), {}) or {}).get("alt")
         return f"[{t.title()}: {alt}]" if alt else ""
-    if isinstance(b.get("inlineContent"), list):   # small print and other inline-bearing blocks
+    if isinstance(b.get("inlineContent"), list):  # small print and other inline-bearing blocks
         return _inline(b["inlineContent"], refs)
-    for key in ("content", "items"):           # unknown containers: keep their text
+    for key in ("content", "items"):  # unknown containers: keep their text
         if isinstance(b.get(key), list):
             return _blocks(b[key], refs)
     return ""
@@ -220,8 +224,7 @@ def from_docc(data: Dict[str, Any], url: Optional[str] = None) -> Document:
     def flush():
         body = "\n".join(x for x in buf if x.strip()).strip()
         if body:
-            sections.append(Section(path=tuple(ancestors) + tuple(h for _, h in stack),
-                                    text=body, anchor=anchor))
+            sections.append(Section(path=tuple(ancestors) + tuple(h for _, h in stack), text=body, anchor=anchor))
         buf.clear()
 
     abstract = _inline(data.get("abstract") or [], refs)
@@ -244,12 +247,12 @@ def from_docc(data: Dict[str, Any], url: Optional[str] = None) -> Document:
 
 # ---- HTML ------------------------------------------------------------------------
 
-_CHROME = ["script", "style", "noscript", "template", "svg", "nav", "footer", "aside", "form",
-           "button", "iframe"]
+_CHROME = ["script", "style", "noscript", "template", "svg", "nav", "footer", "aside", "form", "button", "iframe"]
 
 
-def from_html(html: str, url: Optional[str] = None, fallback_title: str = "Untitled",
-              selector: Optional[str] = None) -> Document:
+def from_html(
+    html: str, url: Optional[str] = None, fallback_title: str = "Untitled", selector: Optional[str] = None
+) -> Document:
     from bs4 import BeautifulSoup
     from markdownify import markdownify
 
@@ -261,7 +264,7 @@ def from_html(html: str, url: Optional[str] = None, fallback_title: str = "Untit
     chrome = list(_CHROME)
     if root is None:
         root = soup.body or soup
-        chrome.append("header")               # outside a main container, header is site chrome
+        chrome.append("header")  # outside a main container, header is site chrome
     for tag in root.find_all(chrome):
         tag.decompose()
     for img in root.find_all("img"):
@@ -274,13 +277,14 @@ def from_html(html: str, url: Optional[str] = None, fallback_title: str = "Untit
 
 # ---- PDF -------------------------------------------------------------------------
 
+
 def from_pdf(path, url: Optional[str] = None) -> Document:
     from pypdf import PdfReader
 
     reader = PdfReader(str(path))
     meta_title = getattr(reader.metadata, "title", None) if reader.metadata else None
     title = (meta_title or Path(path).stem).strip()
-    marks: List[Tuple[int, int, str]] = []    # (page_index, level, title)
+    marks: List[Tuple[int, int, str]] = []  # (page_index, level, title)
 
     def walk(items, level):
         for it in items:

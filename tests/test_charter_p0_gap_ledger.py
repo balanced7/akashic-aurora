@@ -13,6 +13,7 @@ absence-reads-as-success law), expanded when gapped. Persistence and correctness
 measured separately, per the charter invariant: a plane that LOADED a fragment
 reports partial, not loaded.
 """
+
 from core.context.gap_ledger import GapLedger
 
 
@@ -35,7 +36,7 @@ def test_g2_failures_render_with_their_why():
     assert "RECOVERED WITH GAPS" in line
     assert "badge FAILED (ConnectionError: store down)" in line
     assert "save absent" in line
-    assert "1/3" in line          # loaded count is honest: absent and failed both gap
+    assert "1/3" in line  # loaded count is honest: absent and failed both gap
 
 
 def test_g3_partial_is_not_loaded():
@@ -60,9 +61,9 @@ def test_g4_empty_ledger_confesses_instrumentation_absence():
 
 def test_g5_reporting_never_raises_and_render_is_single_block():
     g = GapLedger()
-    g.report("", "loaded")                      # nameless plane: tolerated
-    g.report("x", "unknown-status")             # bad status: coerced to failed, honestly
+    g.report("", "loaded")  # nameless plane: tolerated
+    g.report("x", "unknown-status")  # bad status: coerced to failed, honestly
     g.report("y", "failed", why="a\nmultiline\twhy")
     line = g.render()
     assert "\t" not in line
-    assert line.count("# ") == len(line.splitlines())   # every line head-formatted
+    assert line.count("# ") == len(line.splitlines())  # every line head-formatted

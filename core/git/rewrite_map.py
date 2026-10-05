@@ -22,6 +22,7 @@ answer, not a failure), AMBIGUOUS (an abbreviation matching two successors; refu
 only honest move) and UNKNOWN (no map covers it). A resolver that guessed would be worse than
 one that says it cannot tell, because a wrong successor rewrites history a second time.
 """
+
 from __future__ import annotations
 
 import os
@@ -30,7 +31,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 ZERO = "0" * 40
-MAX_HOPS = 12                # three rewrites so far; a cap that can never loop forever
+MAX_HOPS = 12  # three rewrites so far; a cap that can never loop forever
 
 CURRENT = "current"
 TRANSLATED = "translated"
@@ -41,8 +42,8 @@ UNKNOWN = "unknown"
 # confirms the endpoint is fetchable. NOT ok: an unverified claim must never wear a
 # success label.
 UNVERIFIED = "unverified"
-_PROBE_LIMIT = 3          # retries before this Resolver gives up asking git
-_VISIT_BUDGET = 4096      # DFS node visits; a pathological map graph must not hang a verb
+_PROBE_LIMIT = 3  # retries before this Resolver gives up asking git
+_VISIT_BUDGET = 4096  # DFS node visits; a pathological map graph must not hang a verb
 
 
 @dataclass
@@ -51,8 +52,8 @@ class RewriteMap:
 
     label: str
     path: Path
-    durable: bool                 # committed, so it reaches every clone
-    method: str = "recorded"      # "recorded" by the rewrite tool, or "reconstructed" after
+    durable: bool  # committed, so it reaches every clone
+    method: str = "recorded"  # "recorded" by the rewrite tool, or "reconstructed" after
     rows: dict = field(default_factory=dict)
     dropped: set = field(default_factory=set)
     _prefix: dict = field(default_factory=dict, repr=False)
@@ -94,15 +95,14 @@ def _parse(path, label, durable, method="recorded"):
     for line in text.splitlines():
         parts = line.split()
         if len(parts) != 2 or len(parts[0]) != 40 or len(parts[1]) != 40:
-            continue        # filter-repo writes a header line; skip anything that is not a pair
+            continue  # filter-repo writes a header line; skip anything that is not a pair
         if parts[1] == ZERO:
             dropped.add(parts[0])
         else:
             rows[parts[0]] = parts[1]
     if not rows and not dropped:
         return None
-    return RewriteMap(label=label, path=Path(path), durable=durable, method=method,
-                      rows=rows, dropped=dropped).index()
+    return RewriteMap(label=label, path=Path(path), durable=durable, method=method, rows=rows, dropped=dropped).index()
 
 
 def _method_of(meta_path):
@@ -110,6 +110,7 @@ def _method_of(meta_path):
     when a meta file is absent -- an unreadable meta is treated as unknown provenance."""
     try:
         import json
+
         return str(json.loads(meta_path.read_text(encoding="utf-8")).get("method", "recorded"))
     except FileNotFoundError:
         return "recorded"
@@ -118,8 +119,7 @@ def _method_of(meta_path):
 
 
 def repo_root(repo=None):
-    return Path(repo or os.environ.get("AKASHIC_REPO")
-                or Path(__file__).resolve().parents[2])
+    return Path(repo or os.environ.get("AKASHIC_REPO") or Path(__file__).resolve().parents[2])
 
 
 def load_maps(repo=None):
@@ -136,8 +136,7 @@ def load_maps(repo=None):
     archive = root / "state" / "rewrites"
     if archive.is_dir():
         for d in sorted(p for p in archive.iterdir() if p.is_dir()):
-            m = _parse(d / "commit-map", label=d.name, durable=True,
-                       method=_method_of(d / "meta.json"))
+            m = _parse(d / "commit-map", label=d.name, durable=True, method=_method_of(d / "meta.json"))
             if m:
                 found.append(m)
     volatile = root / ".git" / "filter-repo" / "commit-map"
@@ -205,8 +204,9 @@ class Resolver:
         if self._probe_failures >= _PROBE_LIMIT:
             return None
         try:
-            p = subprocess.run(["git", "-C", str(self.repo), "rev-list", "--remotes"],
-                               capture_output=True, text=True, timeout=180)
+            p = subprocess.run(
+                ["git", "-C", str(self.repo), "rev-list", "--remotes"], capture_output=True, text=True, timeout=180
+            )
             if p.returncode != 0:
                 self._probe_failures += 1
                 return None
@@ -259,9 +259,11 @@ class Resolver:
             # function was added and the decision below still used the boolean.
             hits = self.live_matches(sha)
             if hits and hits > 1:
-                return Resolution(sha, AMBIGUOUS,
-                                  note="this abbreviation names more than one commit a clone "
-                                       "can see; cite more characters")
+                return Resolution(
+                    sha,
+                    AMBIGUOUS,
+                    note="this abbreviation names more than one commit a clone can see; cite more characters",
+                )
             if hits == 1:
                 return Resolution(sha, CURRENT, sha=sha, note="a clone can see this commit")
 
@@ -270,19 +272,23 @@ class Resolver:
         for m in self.maps:
             _new, status = m.lookup(sha)
             if status == DROPPED:
-                return Resolution(sha, DROPPED,
-                                  note=f"removed from history by the {m.shown} rewrite")
+                return Resolution(sha, DROPPED, note=f"removed from history by the {m.shown} rewrite")
             if status == AMBIGUOUS:
-                return Resolution(sha, AMBIGUOUS,
-                                  note=f"the abbreviation matches several successors in "
-                                       f"{m.shown}; cite more characters")
+                return Resolution(
+                    sha,
+                    AMBIGUOUS,
+                    note=f"the abbreviation matches several successors in {m.shown}; cite more characters",
+                )
 
         ends, truncated = self._endpoints(sha)
         if not ends:
             if check_remote and self.remote_set() is None:
-                return Resolution(sha, UNKNOWN,
-                                  note="no map covers it, and the clone-visible set could not "
-                                       "be read -- this is 'could not check', not 'clean'")
+                return Resolution(
+                    sha,
+                    UNKNOWN,
+                    note="no map covers it, and the clone-visible set could not "
+                    "be read -- this is 'could not check', not 'clean'",
+                )
             return Resolution(sha, UNKNOWN, note="no map covers it")
 
         # RANK THE ENDPOINTS; DO NOT TAKE THE FIRST VISIBLE ONE. Returning on the first visible
@@ -302,14 +308,21 @@ class Resolver:
         tip, path, inferred = max(ends, key=rank)
         vis = self.visible(tip) if check_remote else None
         if check_remote and vis is None:
-            return Resolution(sha, UNVERIFIED, sha=tip, hops=path,
-                              note="the chain ends here, but the clone-visible set could not be "
-                                   "read, so nothing confirms this commit is fetchable -- could "
-                                   "not check, NOT clean")
+            return Resolution(
+                sha,
+                UNVERIFIED,
+                sha=tip,
+                hops=path,
+                note="the chain ends here, but the clone-visible set could not be "
+                "read, so nothing confirms this commit is fetchable -- could "
+                "not check, NOT clean",
+            )
         note = ""
         if check_remote and not vis:
-            note = ("chain ends on a commit no clone can fetch -- a later rewrite moved it and "
-                    "left no map (try: rewrite_recover.py reconstruct)")
+            note = (
+                "chain ends on a commit no clone can fetch -- a later rewrite moved it and "
+                "left no map (try: rewrite_recover.py reconstruct)"
+            )
         elif truncated:
             note = "search budget reached; a longer chain may exist"
         return Resolution(sha, TRANSLATED, sha=tip, hops=path, note=note)
@@ -344,11 +357,15 @@ class Resolver:
                 # without recording a hop, so the chain shows only real rewrites -- and so a
                 # spurious hop cannot inflate a path's length in the ranking.
                 expansion = len(cur) < 40 and new.startswith(cur)
-                stack.append((new, path if expansion else path + [(cur, new, m.shown)],
-                              seen | {new},
-                              inferred + (0 if expansion or m.method == "recorded" else 1)))
+                stack.append(
+                    (
+                        new,
+                        path if expansion else path + [(cur, new, m.shown)],
+                        seen | {new},
+                        inferred + (0 if expansion or m.method == "recorded" else 1),
+                    )
+                )
         return out, visits >= _VISIT_BUDGET
-
 
 
 def resolve(sha, repo=None, check_remote=True):

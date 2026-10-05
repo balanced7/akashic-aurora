@@ -2,6 +2,7 @@
 in security/acl.json). Commit autonomy through OUR door -- canonical scripts/mirror.py,
 repo root only, explicit repo-relative paths, no flags, trust surfaces excluded; raw git
 stays refused. Pattern: t067 (_exec_family called directly on a trusted ToolBox)."""
+
 import os
 import sys
 
@@ -15,8 +16,9 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def _tb():
-    return dc.ToolBox(Path(REPO), allow_exec=True, trust=True, allow_secrets=False,
-                      confirm=lambda *_: False)   # trusted path never prompts
+    return dc.ToolBox(
+        Path(REPO), allow_exec=True, trust=True, allow_secrets=False, confirm=lambda *_: False
+    )  # trusted path never prompts
 
 
 def _family(cmd):
@@ -25,7 +27,10 @@ def _family(cmd):
 
 def test_mirror_happy_path_allowed():
     argv, env, why = _family('py scripts/mirror.py "T086-S5 daemon slice" core/comm/daemon_state.py tests/test_s5.py')
-    assert why is None and argv[:2] == ["py", "scripts/mirror.py"]
+    # `py` on Windows; elsewhere the running interpreter (py does not exist there).
+    from core.comm.toolbox import _is_python
+
+    assert why is None and _is_python(argv[0]) and argv[1] == "scripts/mirror.py"
 
 
 def test_mirror_without_paths_refused():
@@ -57,7 +62,7 @@ def test_mirror_absolute_or_dotdot_paths_refused():
 
 def test_shadow_mirror_script_refused():
     argv, _, why = _family('py evil/mirror.py "msg" core/x.py')
-    assert argv is None                       # not the canonical scripts/mirror.py
+    assert argv is None  # not the canonical scripts/mirror.py
 
 
 def test_mirror_working_dir_override_refused():

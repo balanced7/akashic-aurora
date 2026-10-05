@@ -16,6 +16,7 @@ Fail-open doctrine everywhere: a broken resolver, a store hiccup, or the kill sw
 reply is the worse bug. The caller owns the two-cycle retry-then-send-anyway policy;
 this module only reports. Pure text-in, findings-out: testable without a runner.
 """
+
 from __future__ import annotations
 
 import os
@@ -25,14 +26,12 @@ from typing import List, Optional, Tuple
 
 # path/with/slashes.ext:line -- the fence_workspace citation shape, line REQUIRED
 # (a bare path has no bounds to verify; prose mentions of files stay unflagged).
-_CITE_RE = re.compile(
-    r"\b((?:[A-Za-z0-9_.-]+/)+[A-Za-z0-9_.-]+\.[A-Za-z0-9]{1,6}):(\d{1,6})\b")
+_CITE_RE = re.compile(r"\b((?:[A-Za-z0-9_.-]+/)+[A-Za-z0-9_.-]+\.[A-Za-z0-9]{1,6}):(\d{1,6})\b")
 # event:<anything>:<ms>-<seq> -- resolve() owns the exact ref grammar
 _EVENT_RE = re.compile(r"\bevent:[A-Za-z0-9_.:-]*?(\d{6,}-\d+)\b")
 _CLOSURE_RE = re.compile(r"\b(fixed|resolved|shipped|built|closes|done)\b", re.IGNORECASE)
 # pins (P1/B2/R3...), task ids, commit hashes, test paths -- any ONE satisfies A3
-_EVIDENCE_RE = re.compile(
-    r"\b[PBQRSFK]\d{1,2}\b|\bT\d{2,3}\b|\b[0-9a-f]{7,40}\b|\btests?/[\w./-]+\.py\b")
+_EVIDENCE_RE = re.compile(r"\b[PBQRSFK]\d{1,2}\b|\bT\d{2,3}\b|\b[0-9a-f]{7,40}\b|\btests?/[\w./-]+\.py\b")
 
 
 def _root(root: Optional[str] = None) -> Path:
@@ -53,10 +52,9 @@ def check_file_line_cites(text: str, root: Optional[str] = None) -> List[str]:
             with open(p, "rb") as fh:
                 n = sum(1 for _ in fh)
             if line < 1 or line > n:
-                failures.append(f"{rel}:{line_s} -> file has {n} lines, "
-                                f"line {line_s} is out of bounds")
+                failures.append(f"{rel}:{line_s} -> file has {n} lines, line {line_s} is out of bounds")
         except Exception:
-            continue                     # fail-open per finding: a parser edge never holds
+            continue  # fail-open per finding: a parser edge never holds
     return failures
 
 
@@ -64,12 +62,15 @@ def check_event_cites(text: str) -> List[str]:
     """A2: every event citation resolves in the event store. A resolver ERROR is
     fail-open (skip); only a clean not-found is a fabrication finding."""
     failures: List[str] = []
-    refs = ["event:" + m.split("event:", 1)[-1] if False else m
-            for m in (mm.group(0) for mm in _EVENT_RE.finditer(str(text or "")))]
+    refs = [
+        "event:" + m.split("event:", 1)[-1] if False else m
+        for m in (mm.group(0) for mm in _EVENT_RE.finditer(str(text or "")))
+    ]
     if not refs:
         return failures
     try:
         from core.events.event_query import get_event_query
+
         eq = get_event_query()
     except Exception:
         return failures
@@ -88,8 +89,10 @@ def check_closure_evidence(text: str) -> List[str]:
     path so the recipient can verify the claim."""
     t = str(text or "")
     if _CLOSURE_RE.search(t) and not _EVIDENCE_RE.search(t):
-        return ["reply claims closure ('fixed'/'shipped'/...) but names no pin, task, "
-                "commit, or test -- add a reference (e.g. 'pins P1-P3 green, T068')"]
+        return [
+            "reply claims closure ('fixed'/'shipped'/...) but names no pin, task, "
+            "commit, or test -- add a reference (e.g. 'pins P1-P3 green, T068')"
+        ]
     return []
 
 
@@ -104,7 +107,7 @@ def run_preflight(text: str, root: Optional[str] = None) -> Tuple[bool, str, str
         a2 = check_event_cites(text)
         a3 = check_closure_evidence(text)
     except Exception:
-        return False, "", ""             # the gate itself failing must never hold a reply
+        return False, "", ""  # the gate itself failing must never hold a reply
     held = bool(a1 or a2)
     feedback = ""
     if held:

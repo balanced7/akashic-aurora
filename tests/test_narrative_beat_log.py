@@ -5,6 +5,7 @@ Isolated: injects a temp FileStore, so it never touches Redis or canonical data.
 
 Run: py tests/test_narrative_beat_log.py
 """
+
 import os
 import sys
 import tempfile
@@ -22,8 +23,7 @@ def _log():
 
 def test_emit_and_count():
     log = _log()
-    b = log.emit("learning", "memoization beat +52%", "learn:experiment:perf",
-                 at="2026-06-27T10:00:00")
+    b = log.emit("learning", "memoization beat +52%", "learn:experiment:perf", at="2026-06-27T10:00:00")
     assert b is not None and b.kind == "learning" and b.weight == 4  # default for learning
     assert log.count() == 1
     print("  emit + count OK")
@@ -60,8 +60,13 @@ def test_weight_defaults_and_override():
 
 def test_roundtrip_with_edges():
     log = _log()
-    b = log.emit("learning", "themed", "learn:experiment:x",
-                 themes=["local-first"], relates=[Edge("member_of", "narr:theme:local-first")])
+    b = log.emit(
+        "learning",
+        "themed",
+        "learn:experiment:x",
+        themes=["local-first"],
+        relates=[Edge("member_of", "narr:theme:local-first")],
+    )
     loaded = log.recent(1)[0]
     assert loaded.themes == ["local-first"]
     assert loaded.relates[0].type == "member_of" and isinstance(loaded.relates[0], Edge)

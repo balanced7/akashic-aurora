@@ -7,6 +7,7 @@ probe exposed). Strict no-regression: all-naive data behaves exactly as before.
 
 Run: py -m pytest tests/test_chronicler_tz.py -q
 """
+
 import json
 import os
 import sys
@@ -39,7 +40,7 @@ def test_to_epoch_naive_is_utc_deterministic():
     assert to_epoch("2026-01-01T00:00:00") == to_epoch("2026-01-01T00:00:00+00:00")
     # a -05:00 instant is LATER than the same wall-clock read as UTC -- string sort gets this wrong
     assert to_epoch("2026-01-01T10:00:00-05:00") > to_epoch("2026-01-01T12:00:00")
-    assert "2026-01-01T10:00:00-05:00" < "2026-01-01T12:00:00"     # the WRONG string order, for contrast
+    assert "2026-01-01T10:00:00-05:00" < "2026-01-01T12:00:00"  # the WRONG string order, for contrast
     assert to_epoch("garbage") == 0.0
 
 
@@ -53,11 +54,12 @@ def test_boundary_detected_across_mixed_tz_gap():
     """A >min_gap gap between a naive and a tz-aware beat MUST cut a chapter (was silently missed)."""
     bd = BoundaryDetector(min_gap_hours=4.0)
     assert bd.detect([_beat("2026-01-01T10:00:00"), _beat("2026-01-01T16:00:00+00:00")]) == [0, 1]  # 6h
-    assert bd.detect([_beat("2026-01-01T10:00:00"), _beat("2026-01-01T11:00:00+00:00")]) == [0]     # 1h
+    assert bd.detect([_beat("2026-01-01T10:00:00"), _beat("2026-01-01T11:00:00+00:00")]) == [0]  # 1h
 
 
 def test_chronicle_segments_mixed_tz_correctly():
-    store = _store(); bl = BeatLog(store)
+    store = _store()
+    bl = BeatLog(store)
     bl.emit("commit", "morning", "git:a", at="2026-01-01T10:00:00", hint=RouteHint(paths=["core/x.py"]))
     bl.emit("commit", "evening", "git:b", at="2026-01-01T16:00:00+00:00", hint=RouteHint(paths=["core/x.py"]))
     rep = _chronicler(bl, store).chronicle_all(now="2026-01-02T00:00:00")
@@ -67,7 +69,8 @@ def test_chronicle_segments_mixed_tz_correctly():
 
 def test_all_naive_unchanged_regression():
     """The fix must not alter all-naive behavior (the offset cancels in sorts and gaps)."""
-    store = _store(); bl = BeatLog(store)
+    store = _store()
+    bl = BeatLog(store)
     bl.emit("commit", "a", "git:a", at="2026-01-01T10:00:00", hint=RouteHint(paths=["core/x.py"]))
     bl.emit("commit", "b", "git:b", at="2026-01-01T10:30:00", hint=RouteHint(paths=["core/x.py"]))  # 30m
     rep = _chronicler(bl, store).chronicle_all(now="2026-01-02T00:00:00")
@@ -77,7 +80,8 @@ def test_all_naive_unchanged_regression():
 def test_out_of_order_mixed_tz_sorts_by_instant():
     """Beats handed in the wrong order, with different offsets, chronicle in true-instant order.
     10:00-05:00 == 15:00Z, which is AFTER 12:00Z(naive). 3h apart -> one chapter, ordered."""
-    store = _store(); bl = BeatLog(store)
+    store = _store()
+    bl = BeatLog(store)
     bl.emit("commit", "later", "git:late", at="2026-01-01T10:00:00-05:00", hint=RouteHint(paths=["core/x.py"]))
     bl.emit("commit", "earlier", "git:early", at="2026-01-01T12:00:00", hint=RouteHint(paths=["core/x.py"]))
     chron = _chronicler(bl, store)
@@ -88,8 +92,13 @@ def test_out_of_order_mixed_tz_sorts_by_instant():
 
 
 if __name__ == "__main__":
-    for fn in [test_to_epoch_naive_is_utc_deterministic, test_hours_between_is_tz_safe_not_zero,
-               test_boundary_detected_across_mixed_tz_gap, test_chronicle_segments_mixed_tz_correctly,
-               test_all_naive_unchanged_regression, test_out_of_order_mixed_tz_sorts_by_instant]:
+    for fn in [
+        test_to_epoch_naive_is_utc_deterministic,
+        test_hours_between_is_tz_safe_not_zero,
+        test_boundary_detected_across_mixed_tz_gap,
+        test_chronicle_segments_mixed_tz_correctly,
+        test_all_naive_unchanged_regression,
+        test_out_of_order_mixed_tz_sorts_by_instant,
+    ]:
         fn()
     print("ALL D4 TZ TESTS PASSED")

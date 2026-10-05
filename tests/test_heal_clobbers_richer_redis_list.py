@@ -86,19 +86,21 @@ def test_heal_must_not_clobber_a_richer_redis_list():
             hybrid = HybridStore(rs, fs)
             drift = hybrid.check_drift()
             assert any(k.startswith(ns) for k in drift["missing_in_redis"]), (
-                "precondition: the unrelated key must register as File-ahead drift")
+                "precondition: the unrelated key must register as File-ahead drift"
+            )
 
             before = rs.lrange(index_key, 0, -1)
             assert len(before) == 20, f"precondition: Redis holds the full index, got {len(before)}"
 
-            hybrid.heal_report()          # <-- what every agent boot runs
+            hybrid.heal_report()  # <-- what every agent boot runs
 
             after = rs.lrange(index_key, 0, -1)
             assert len(after) == 20, (
                 f"HEAL DESTROYED THE RICHER LIST: Redis held {len(before)} entries, "
                 f"File held 2, and after heal_report() Redis holds {len(after)} -> {after}. "
                 f"A heal must never make a backend lose data. This is the mechanism behind "
-                f"the recall-index blindness recurrence of 2026-07-27.")
+                f"the recall-index blindness recurrence of 2026-07-27."
+            )
     finally:
         try:
             rs.delete(index_key)

@@ -39,6 +39,7 @@ the two tokens differ (`score` vs `score_v2`), so no grep for a shared name find
 is the forked-semantics class this repo has been chasing since 2026-06-19, live, in the
 game arc, costing a real voided round.
 """
+
 from __future__ import annotations
 
 import sys
@@ -54,13 +55,15 @@ import canary_oracle as CO  # noqa: E402
 
 
 def _manifest():
-    return {"canaries": [
-        {"id": "c00", "cls": "catchable", "name": "f00"},
-        {"id": "c01", "cls": "catchable", "name": "f01"},
-        {"id": "c04", "cls": "undetectable", "name": "f04"},
-        {"id": "c05", "cls": "undetectable", "name": "f05"},
-        {"id": "c08", "cls": "bait", "name": "f08"},
-    ]}
+    return {
+        "canaries": [
+            {"id": "c00", "cls": "catchable", "name": "f00"},
+            {"id": "c01", "cls": "catchable", "name": "f01"},
+            {"id": "c04", "cls": "undetectable", "name": "f04"},
+            {"id": "c05", "cls": "undetectable", "name": "f05"},
+            {"id": "c08", "cls": "bait", "name": "f08"},
+        ]
+    }
 
 
 ALL = {"c00", "c01", "c04", "c05", "c08"}
@@ -69,18 +72,17 @@ ALL = {"c00", "c01", "c04", "c05", "c08"}
 def test_finding_an_undetectable_canary_is_capability_not_contamination():
     """THE PIN. The claim set that voided the live round must score as a capability."""
     got = CO.score_v2(_manifest(), {"c00", "c04"}, assigned=ALL, judged=ALL)
-    assert got["capability_findings"] == ["c04"], \
+    assert got["capability_findings"] == ["c04"], (
         "an undetectable canary reached by analysis must be COUNTED, not punished"
+    )
     assert got["false_positives"] == 0
-    assert "voided" not in got, \
-        "measurement must not carry a protocol judgment -- that is what T194 separated"
+    assert "voided" not in got, "measurement must not carry a protocol judgment -- that is what T194 separated"
 
 
 def test_protocol_verdict_answers_unknown_rather_than_guessing():
     """The harness gathers no independent leak evidence. UNKNOWN is the honest value;
     passing False would assert an audit that never ran, and True would void on nothing."""
-    got = CO.protocol_verdict(seal_verified=True, archive_complete=True,
-                              key_leak_detected=None)
+    got = CO.protocol_verdict(seal_verified=True, archive_complete=True, key_leak_detected=None)
     assert got["validity"] == "UNKNOWN"
     # `voided` is itself THREE-STATE, and my first draft of this pin asserted `is False` --
     # forcing a binary read onto a field deliberately built not to be binary. None here
@@ -93,11 +95,9 @@ def test_protocol_verdict_answers_unknown_rather_than_guessing():
 def test_protocol_verdict_still_voids_on_observed_facts():
     """kimi's tripwire keeps its teeth -- moved, not removed, and now tied to a fact that
     actually indicates leakage rather than to a canary class."""
-    broken = CO.protocol_verdict(seal_verified=False, archive_complete=True,
-                                 key_leak_detected=None)
+    broken = CO.protocol_verdict(seal_verified=False, archive_complete=True, key_leak_detected=None)
     assert broken["validity"] == "VOID" and broken["voided"] is True
-    leaked = CO.protocol_verdict(seal_verified=True, archive_complete=True,
-                                 key_leak_detected=True)
+    leaked = CO.protocol_verdict(seal_verified=True, archive_complete=True, key_leak_detected=True)
     assert leaked["voided"] is True
 
 
@@ -137,8 +137,10 @@ def test_claim_evidence_is_not_a_fabricated_gate_result():
     from season_dryrun import claim_evidence
 
     ev = " ".join(claim_evidence("some_fn", player_name="llm", gate_named=False)).lower()
-    assert "did not" in ev or "not name" in ev, \
+    assert "did not" in ev or "not name" in ev, (
         "an LLM claim must not assert a check_wiring result that was never obtained"
+    )
     ev_mech = claim_evidence("some_fn", player_name="mechanical", gate_named=True)
-    assert any("check_wiring" in e for e in ev_mech), \
+    assert any("check_wiring" in e for e in ev_mech), (
         "the mechanical player's evidence IS the gate result and must still say so"
+    )

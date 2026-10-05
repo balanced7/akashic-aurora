@@ -20,6 +20,7 @@ strong claim we cannot back would be the same failure genus as everything else t
 
 Run: py scripts/generators/gen_prior_art_register.py
 """
+
 from __future__ import annotations
 
 import json
@@ -34,13 +35,39 @@ ROOT = Path(__file__).resolve().parents[2]
 # was inflated by 10 untracked files, which is what made PRIOR_ART.md read stale in CI.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _tracked import tracked_py_count, is_tracked_dir  # noqa: E402
+
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+
+        return python_launcher()
+    except Exception:
+        return "py"
+
+
 REGISTER = ROOT / "data" / "prior-art" / "register.json"
 OUT = ROOT / "docs" / "PRIOR_ART.md"
 
 # Mirrors gen_master_map's AREAS so the two documents cannot disagree about what exists.
-CORE_ORDER = ["foundation", "events", "signals", "comm", "coord", "learning", "recall",
-              "primitives", "renew", "narrative", "trust", "fleet", "state", "codex",
-              "perspectives"]
+CORE_ORDER = [
+    "foundation",
+    "events",
+    "signals",
+    "comm",
+    "coord",
+    "learning",
+    "recall",
+    "primitives",
+    "renew",
+    "narrative",
+    "trust",
+    "fleet",
+    "state",
+    "codex",
+    "perspectives",
+]
 AREAS = [f"core/{a}" for a in CORE_ORDER] + ["agent/harness", "agent"]
 # Subsystems that are real but are not python packages under core/. Named explicitly rather
 # than globbed, so adding one is a deliberate act that shows up in review.
@@ -92,7 +119,7 @@ def render(rows) -> str:
         "Status: current",
         "Class: reference",
         "",
-        "> Do NOT edit by hand. Regenerate with `py scripts/generators/gen_prior_art_register.py`.",
+        f"> Do NOT edit by hand. Regenerate with `{_pyl()} scripts/generators/gen_prior_art_register.py`.",
         "> INVENTORY is derived from live code and cannot rot. PRIOR ART is authored in",
         "> `data/prior-art/register.json`. COVERAGE is derived: **GAP** = no entry, **DRIFT** =",
         "> the subsystem changed size since it was surveyed. DRIFT does NOT claim the research",
@@ -101,9 +128,9 @@ def render(rows) -> str:
         "",
         "## Why this file exists",
         "",
-        "Daniel, 2026-07-26: *\"We keep finding gold when we do this but we rarely do it so I",
+        'Daniel, 2026-07-26: *"We keep finding gold when we do this but we rarely do it so I',
         "want a full comprehensive suite so we can actually start making informed decisions",
-        "instead of stepping on every rake as it comes along.\"*",
+        'instead of stepping on every rake as it comes along."*',
         "",
         "The claim is empirical, not aspirational. In one night, five sweeps each paid:",
         "oxlint gave confidence-tiered gating; ruff already implemented a lint we were about to",
@@ -112,8 +139,7 @@ def render(rows) -> str:
         "statements where ATMS dies around 100 beliefs. The cost of NOT sweeping is measured in",
         "rebuilt wheels and dead ends, so the sweep is now a standing artifact rather than a mood.",
         "",
-        f"## Coverage: {len(covered)} current, {len(drift)} drift, {len(gaps)} gap "
-        f"(of {len(rows)} subsystems)",
+        f"## Coverage: {len(covered)} current, {len(drift)} drift, {len(gaps)} gap (of {len(rows)} subsystems)",
         "",
     ]
 
@@ -125,8 +151,7 @@ def render(rows) -> str:
     if drift:
         L += ["**DRIFT -- surveyed, but the subsystem has changed size since:**", ""]
         for r in drift:
-            L.append(f"- `{r['area']}` -- {r['state']}, reviewed "
-                     f"{(r['entry'] or {}).get('reviewed_at', '?')}")
+            L.append(f"- `{r['area']}` -- {r['state']}, reviewed {(r['entry'] or {}).get('reviewed_at', '?')}")
         L.append("")
 
     L += ["---", ""]
@@ -169,8 +194,10 @@ def main() -> int:
     OUT.write_text(render(rows), encoding="utf-8")
     gaps = sum(1 for r in rows if r["state"] == "GAP")
     drift = sum(1 for r in rows if r["state"].startswith("DRIFT"))
-    print(f"wrote {OUT.relative_to(ROOT)}: {len(rows)} subsystems "
-          f"({len(rows) - gaps - drift} current, {drift} drift, {gaps} gap)")
+    print(
+        f"wrote {OUT.relative_to(ROOT)}: {len(rows)} subsystems "
+        f"({len(rows) - gaps - drift} current, {drift} drift, {gaps} gap)"
+    )
     return 0
 
 

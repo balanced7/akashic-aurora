@@ -14,6 +14,7 @@ Pins:
 
 Run: py -m pytest tests/test_t048_recall_surfaces.py -q
 """
+
 import json
 import os
 import sys
@@ -32,8 +33,8 @@ import deepseek_chat as dc
 def _repo_root():
     """Derived: the old literal pinned one machine."""
     from core.paths import repo_root
-    return repo_root()
 
+    return repo_root()
 
 
 def _result(lessons, total=None):
@@ -41,8 +42,13 @@ def _result(lessons, total=None):
 
 
 def _lesson(source="learn:experiment:x", use=None, success="yes"):
-    return {"text": "use when testing, do the thing", "source": source,
-            "success": success, "agent_id": "claude", "_use": use or {}}
+    return {
+        "text": "use when testing, do the thing",
+        "source": source,
+        "success": success,
+        "agent_id": "claude",
+        "_use": use or {},
+    }
 
 
 # ---------------------------------------------------------------- H1: hint styles
@@ -79,8 +85,15 @@ def test_new_tools_registered():
 
 
 def _toolbox(boot_text=""):
-    return dc.ToolBox(_repo_root(), allow_exec=False, trust=False, allow_secrets=False,
-                      confirm=lambda _p: False, agent_id="testagent", boot_text=boot_text)
+    return dc.ToolBox(
+        _repo_root(),
+        allow_exec=False,
+        trust=False,
+        allow_secrets=False,
+        confirm=lambda _p: False,
+        agent_id="testagent",
+        boot_text=boot_text,
+    )
 
 
 # ---------------------------------------------------------------- T2: recall_at mapping

@@ -17,6 +17,7 @@ packets.  One combined fan interleaves the arms so provider time is shared.
 RED command:
   py -m pytest tests/test_t195_replication_vs_positional_sharding.py -q
 """
+
 import json
 import os
 import sys
@@ -31,27 +32,34 @@ from scripts import season_fan_calibration as F  # noqa: E402
 
 
 def _fixture():
-    classes = (["catchable"] * 11 + ["undetectable"] * 11 + ["bait"] * 10)
+    classes = ["catchable"] * 11 + ["undetectable"] * 11 + ["bait"] * 10
     manifest, candidates = {"canaries": []}, []
     for i, cls in enumerate(classes):
         name = f"neutral_fn_{i:02d}"
-        manifest["canaries"].append({
-            "id": f"secret_{i:02d}", "name": name, "cls": cls, "shape": "fixture",
-        })
-        candidates.append({
-            "name": name,
-            "file": f"core/neutral_{i:02d}.py",
-            "line": i + 1,
-            "window": f"def {name}():\n    return {i}\n" + (" " * (i * 7)),
-        })
+        manifest["canaries"].append(
+            {
+                "id": f"secret_{i:02d}",
+                "name": name,
+                "cls": cls,
+                "shape": "fixture",
+            }
+        )
+        candidates.append(
+            {
+                "name": name,
+                "file": f"core/neutral_{i:02d}.py",
+                "line": i + 1,
+                "window": f"def {name}():\n    return {i}\n" + (" " * (i * 7)),
+            }
+        )
     return manifest, candidates
 
 
 def _packets():
     manifest, candidates = _fixture()
     return manifest, F.make_packets(
-        candidates, manifest, packet_count=4, packet_size=8,
-        snippet_chars=600, seed=20260805)
+        candidates, manifest, packet_count=4, packet_size=8, snippet_chars=600, seed=20260805
+    )
 
 
 def _correct_answer(packet, manifest):
@@ -59,8 +67,7 @@ def _correct_answer(packet, manifest):
     lines = []
     for item in packet:
         verdict = "LIVE" if cls[item["_canary_id"]] == "bait" else "DEAD"
-        lines.append(json.dumps({"item": item["item_id"], "verdict": verdict,
-                                 "why": "fixture judgment"}))
+        lines.append(json.dumps({"item": item["item_id"], "verdict": verdict, "why": "fixture judgment"}))
     return "\n".join(lines)
 
 
@@ -68,18 +75,20 @@ def _branches(plan, manifest, *, fail_index=None):
     out = []
     for i, call in enumerate(plan):
         ok = i != fail_index
-        out.append({
-            "i": i,
-            "ok": ok,
-            "partial": not ok,
-            "why": "" if ok else "finish_reason=length",
-            "answer": _correct_answer(call["packet"], manifest),
-            "usd": 0.01,
-            "prompt_tokens": 1000,
-            "completion_tokens": 500,
-            "elapsed_s": 2.0,
-            "model": "deepseek-v4-pro",
-        })
+        out.append(
+            {
+                "i": i,
+                "ok": ok,
+                "partial": not ok,
+                "why": "" if ok else "finish_reason=length",
+                "answer": _correct_answer(call["packet"], manifest),
+                "usd": 0.01,
+                "prompt_tokens": 1000,
+                "completion_tokens": 500,
+                "elapsed_s": 2.0,
+                "model": "deepseek-v4-pro",
+            }
+        )
     return out
 
 
@@ -88,10 +97,14 @@ def test_k1_k2_anchor_is_identical_and_only_shards_traverse_siblings():
     plan = F.build_call_plan(packets)
 
     assert [(c["arm"], c["position"]) for c in plan] == [
-        ("replication", 0), ("sharding", 0),
-        ("replication", 1), ("sharding", 1),
-        ("replication", 2), ("sharding", 2),
-        ("replication", 3), ("sharding", 3),
+        ("replication", 0),
+        ("sharding", 0),
+        ("replication", 1),
+        ("sharding", 1),
+        ("replication", 2),
+        ("sharding", 2),
+        ("replication", 3),
+        ("sharding", 3),
     ]
     replication = [c for c in plan if c["arm"] == "replication"]
     sharding = [c for c in plan if c["arm"] == "sharding"]
@@ -100,21 +113,18 @@ def test_k1_k2_anchor_is_identical_and_only_shards_traverse_siblings():
     assert len({c["prompt"] for c in sharding}) == 4
 
     shard_sets = [{i["_canary_id"] for i in c["packet"]} for c in sharding]
-    assert all(a.isdisjoint(b) for i, a in enumerate(shard_sets)
-               for b in shard_sets[i + 1:])
+    assert all(a.isdisjoint(b) for i, a in enumerate(shard_sets) for b in shard_sets[i + 1 :])
     assert len(set().union(*shard_sets)) == 32
 
 
 def test_k3_packet_shape_and_prompt_volume_are_matched():
     _manifest, packets = _packets()
     plan = F.build_call_plan(packets)
-    by_arm = {arm: [c for c in plan if c["arm"] == arm]
-              for arm in ("replication", "sharding")}
+    by_arm = {arm: [c for c in plan if c["arm"] == arm] for arm in ("replication", "sharding")}
 
     assert {len(c["packet"]) for c in plan} == {8}
     assert {len(by_arm[arm]) for arm in by_arm} == {4}
-    chars = {arm: sum(len(c["prompt"]) for c in calls)
-             for arm, calls in by_arm.items()}
+    chars = {arm: sum(len(c["prompt"]) for c in calls) for arm, calls in by_arm.items()}
     assert F.relative_gap(chars["replication"], chars["sharding"]) <= 0.05
 
 
@@ -123,20 +133,21 @@ def test_k4_the_answer_key_does_not_enter_prompts():
     prompt = "\n".join(c["prompt"] for c in F.build_call_plan(packets))
 
     assert all(c["id"] not in prompt for c in manifest["canaries"])
-    assert not any(label in prompt.lower()
-                   for label in ("catchable", "undetectable", "bait"))
+    assert not any(label in prompt.lower() for label in ("catchable", "undetectable", "bait"))
 
 
 def test_k5_missing_unknown_and_conflicting_lines_are_not_judgments():
     _manifest, packets = _packets()
     packet = packets[0]
     a, b = packet[0]["item_id"], packet[1]["item_id"]
-    answer = "\n".join([
-        json.dumps({"item": a, "verdict": "DEAD", "why": "first"}),
-        json.dumps({"item": a, "verdict": "LIVE", "why": "conflict"}),
-        json.dumps({"item": b, "verdict": "LIVE", "why": "settled"}),
-        json.dumps({"item": "not_assigned", "verdict": "DEAD", "why": "unknown"}),
-    ])
+    answer = "\n".join(
+        [
+            json.dumps({"item": a, "verdict": "DEAD", "why": "first"}),
+            json.dumps({"item": a, "verdict": "LIVE", "why": "conflict"}),
+            json.dumps({"item": b, "verdict": "LIVE", "why": "settled"}),
+            json.dumps({"item": "not_assigned", "verdict": "DEAD", "why": "unknown"}),
+        ]
+    )
     got = F.parse_answer(answer, packet)
 
     assert got["conflicts"] == [a]
@@ -209,22 +220,30 @@ def test_run_uses_one_combined_fan_with_matched_controls(tmp_path, monkeypatch):
 
     def fake_ask(prompts, **kwargs):
         calls.append((list(prompts), dict(kwargs)))
-        packets = F.make_packets(candidates, manifest, packet_count=4, packet_size=8,
-                                 snippet_chars=600, seed=20260805)
+        packets = F.make_packets(candidates, manifest, packet_count=4, packet_size=8, snippet_chars=600, seed=20260805)
         plan = F.build_call_plan(packets)
         return SimpleNamespace(detail={"branches": _branches(plan, manifest)})
 
-    monkeypatch.setattr(F, "prepare_field", lambda **_kw: {
-        "manifest": manifest,
-        "candidates": candidates,
-        "key_path": str(tmp_path / "key.json"),
-        "key_sha256": "a" * 64,
-        "seal_verified": True,
-        "shadow": str(tmp_path / "shadow"),
-    })
+    monkeypatch.setattr(
+        F,
+        "prepare_field",
+        lambda **_kw: {
+            "manifest": manifest,
+            "candidates": candidates,
+            "key_path": str(tmp_path / "key.json"),
+            "key_sha256": "a" * 64,
+            "seal_verified": True,
+            "shadow": str(tmp_path / "shadow"),
+        },
+    )
     got = F.run(
-        seed=20260805, snippet_chars=600, max_tokens=9000, workers=8,
-        ask_fn=fake_ask, archive_dir=str(tmp_path / "archive"))
+        seed=20260805,
+        snippet_chars=600,
+        max_tokens=9000,
+        workers=8,
+        ask_fn=fake_ask,
+        archive_dir=str(tmp_path / "archive"),
+    )
 
     assert len(calls) == 1 and len(calls[0][0]) == 8
     assert calls[0][1]["system"] == F.SYSTEM
@@ -235,4 +254,5 @@ def test_run_uses_one_combined_fan_with_matched_controls(tmp_path, monkeypatch):
     assert os.path.isfile(got["archive_path"])
     rendered = json.dumps(got, sort_keys=True)
     assert all(c["id"] not in rendered for c in manifest["canaries"]), (
-        "the external archive keeps identities, but CLI/terminal output is a retrieval plane")
+        "the external archive keeps identities, but CLI/terminal output is a retrieval plane"
+    )

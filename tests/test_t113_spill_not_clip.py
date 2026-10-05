@@ -52,7 +52,7 @@ from core.comm import packet_spec
 from core.comm.blobs import get_blob_store
 
 LIMIT = packet_spec.TOOL_SEND_TEXT_MAX
-BIG = ("CENSUS CASE DETAIL. " * 900)[:LIMIT * 2]        # ~2x the door
+BIG = ("CENSUS CASE DETAIL. " * 900)[: LIMIT * 2]  # ~2x the door
 assert len(BIG) > LIMIT
 
 
@@ -74,7 +74,8 @@ def test_p2_over_the_bound_keeps_every_byte():
     assert recovered.decode("utf-8") == BIG, (
         "THE TAIL WAS LOST. This is the defect: deepseek's census detail past case 30 "
         "went into the confession instead of into the store. Every byte the sender said "
-        "must be recoverable, or the bound is a shredder with an apology attached.")
+        "must be recoverable, or the bound is a shredder with an apology attached."
+    )
 
 
 # --------------------------------------------------------------- P3
@@ -82,7 +83,8 @@ def test_p3_the_wire_stays_small():
     out, _ = packet_spec.spill_tool_text(BIG)
     assert len(out) <= LIMIT, (
         f"the delivered text grew to {len(out)}; the bound exists to protect the "
-        f"recipient's turn and spilling must not defeat it")
+        f"recipient's turn and spilling must not defeat it"
+    )
 
 
 # --------------------------------------------------------------- P4
@@ -90,8 +92,7 @@ def test_p4_the_pointer_is_visible_in_the_body():
     """A model reads the BODY. A retrieval handle that lives only in envelope meta is
     exactly the lookback battery's disease -- content preserved, handle unreachable."""
     out, meta = packet_spec.spill_tool_text(BIG)
-    assert str(meta["spill_ref"]) in out, (
-        f"the ref must appear in the text the reader actually sees: {out[-300:]!r}")
+    assert str(meta["spill_ref"]) in out, f"the ref must appear in the text the reader actually sees: {out[-300:]!r}"
 
 
 # --------------------------------------------------------------- P5
@@ -101,10 +102,8 @@ def test_p5_the_confession_says_fetchable_not_lost():
     by our own error message."""
     out, _ = packet_spec.spill_tool_text(BIG)
     tail = out[-400:].lower()
-    assert "did not send" not in tail, (
-        f"the confession still claims the content was lost: {tail!r}")
-    assert "fetch" in tail or "retriev" in tail, (
-        f"the confession must tell the reader HOW to get the rest: {tail!r}")
+    assert "did not send" not in tail, f"the confession still claims the content was lost: {tail!r}"
+    assert "fetch" in tail or "retriev" in tail, f"the confession must tell the reader HOW to get the rest: {tail!r}"
     assert str(len(BIG)) in out, "say how much there is, so the reader can judge"
 
 
@@ -112,13 +111,13 @@ def test_p5_the_confession_says_fetchable_not_lost():
 def test_p6_meta_carries_the_spill_facts():
     _, meta = packet_spec.spill_tool_text(BIG)
     assert meta.get("spilled") is True
-    assert int(meta.get("spill_len", 0)) == len(BIG), (
-        f"the TRUE length must ride the envelope durably: {meta}")
+    assert int(meta.get("spill_len", 0)) == len(BIG), f"the TRUE length must ride the envelope durably: {meta}"
 
 
 # --------------------------------------------------------------- P7
 def test_p7_a_blob_failure_degrades_to_the_old_clip(monkeypatch):
     """Degrade to today's behaviour, never to a dropped message."""
+
     class _Broken:
         def put(self, data):
             raise RuntimeError("blob store down")
@@ -127,8 +126,7 @@ def test_p7_a_blob_failure_degrades_to_the_old_clip(monkeypatch):
     out, meta = packet_spec.spill_tool_text(BIG)
     assert len(out) <= LIMIT and out, "a broken blob store must still deliver a message"
     assert not (meta or {}).get("spill_ref"), "no ref may be advertised when none was stored"
-    assert "clipped" in out.lower(), (
-        f"falling back must still CONFESS -- RB-5 holds in every branch: {out[-200:]!r}")
+    assert "clipped" in out.lower(), f"falling back must still CONFESS -- RB-5 holds in every branch: {out[-200:]!r}"
 
 
 # --------------------------------------------------------------- P8 the door must exist
@@ -153,12 +151,18 @@ def test_p8_the_retrieval_door_we_advertise_actually_exists():
     with open(os.path.join(root, "agent_cli.py"), encoding="utf-8") as f:
         tree = ast.parse(f.read())
     registered = {
-        n.args[0].value for n in ast.walk(tree)
-        if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
-        and n.func.attr == "add_parser" and n.args
-        and isinstance(n.args[0], ast.Constant) and isinstance(n.args[0].value, str)}
+        n.args[0].value
+        for n in ast.walk(tree)
+        if isinstance(n, ast.Call)
+        and isinstance(n.func, ast.Attribute)
+        and n.func.attr == "add_parser"
+        and n.args
+        and isinstance(n.args[0], ast.Constant)
+        and isinstance(n.args[0].value, str)
+    }
     assert verb in registered, (
         f"DEAD HANDLE: the spill notice tells the reader to run `agent_cli.py {verb}`, "
         f"which is not a registered subcommand. A pointer nobody can follow is worse "
         f"than a clip that admits the loss -- it looks like the data is reachable. "
-        f"Registered verbs: {sorted(registered)[:12]}...")
+        f"Registered verbs: {sorted(registered)[:12]}..."
+    )

@@ -8,6 +8,7 @@ demultiplexes request responses and notifications for every caller.
 Starting the host and creating a thread do not start a model turn.  A model is
 invoked only by :meth:`CodexAppServer.run_turn`.
 """
+
 from __future__ import annotations
 
 from collections import deque
@@ -74,9 +75,7 @@ def resolve_codex_binary(explicit: Optional[os.PathLike[str] | str] = None) -> P
     found = shutil.which("codex")
     if found:
         return Path(found).resolve()
-    raise CodexAppServerError(
-        "Could not resolve Codex. Set AKASHIC_CODEX_BINARY or install/open Codex Desktop."
-    )
+    raise CodexAppServerError("Could not resolve Codex. Set AKASHIC_CODEX_BINARY or install/open Codex Desktop.")
 
 
 def default_command(*, trust_vetted_hooks: bool = True) -> List[str]:
@@ -98,9 +97,7 @@ class CodexAppServer:
         env: Optional[Mapping[str, str]] = None,
         request_timeout: float = 30.0,
         notification_limit: int = 2048,
-        request_handlers: Optional[
-            Mapping[str, Callable[[Dict[str, Any]], Mapping[str, Any]]]
-        ] = None,
+        request_handlers: Optional[Mapping[str, Callable[[Dict[str, Any]], Mapping[str, Any]]]] = None,
         experimental_api: bool = False,
     ) -> None:
         self.command = list(command) if command is not None else default_command()
@@ -176,9 +173,7 @@ class CodexAppServer:
         self._started = True
 
         try:
-            initialize_params: Dict[str, Any] = {
-                "clientInfo": {"name": "akashic-bifrost-wake", "version": "1.0"}
-            }
+            initialize_params: Dict[str, Any] = {"clientInfo": {"name": "akashic-bifrost-wake", "version": "1.0"}}
             if self.experimental_api:
                 initialize_params["capabilities"] = {"experimentalApi": True}
             self.request(
@@ -226,8 +221,7 @@ class CodexAppServer:
         if process.poll() is not None:
             detail = " | ".join(self.stderr_tail)
             raise CodexAppServerError(
-                f"Codex App Server exited rc={process.returncode}"
-                + (f": {detail}" if detail else "")
+                f"Codex App Server exited rc={process.returncode}" + (f": {detail}" if detail else "")
             )
         line = json.dumps(dict(payload), ensure_ascii=False, separators=(",", ":")) + "\n"
         with self._write_lock:
@@ -255,13 +249,9 @@ class CodexAppServer:
         try:
             self._send({"id": request_id, "method": method, "params": dict(params or {})})
             try:
-                response = response_queue.get(
-                    timeout=self.request_timeout if timeout is None else float(timeout)
-                )
+                response = response_queue.get(timeout=self.request_timeout if timeout is None else float(timeout))
             except queue.Empty as exc:
-                raise CodexAppServerError(
-                    f"Timed out waiting for App Server response to {method!r}"
-                ) from exc
+                raise CodexAppServerError(f"Timed out waiting for App Server response to {method!r}") from exc
             if isinstance(response, BaseException):
                 raise response
             if response.get("error") is not None:
@@ -270,9 +260,7 @@ class CodexAppServer:
                 )
             result = response.get("result")
             if not isinstance(result, dict):
-                raise CodexAppServerError(
-                    f"App Server {method!r} returned a non-object result: {result!r}"
-                )
+                raise CodexAppServerError(f"App Server {method!r} returned a non-object result: {result!r}")
             return result
         finally:
             with self._pending_lock:
@@ -375,9 +363,7 @@ class CodexAppServer:
                         }
                     )
                 except Exception as send_exc:
-                    self.protocol_noise.append(
-                        f"server request {method!r} reply failed: {send_exc!r}"
-                    )
+                    self.protocol_noise.append(f"server request {method!r} reply failed: {send_exc!r}")
 
         threading.Thread(
             target=answer,
@@ -428,9 +414,7 @@ class CodexAppServer:
             return [
                 item.params
                 for item in self._notifications
-                if item.seq > after
-                and item.method == method
-                and (predicate is None or predicate(item.params))
+                if item.seq > after and item.method == method and (predicate is None or predicate(item.params))
             ]
 
     def wait_notification(
@@ -445,23 +429,16 @@ class CodexAppServer:
         with self._notification_condition:
             while True:
                 for item in self._notifications:
-                    if (
-                        item.seq > after
-                        and item.method == method
-                        and (predicate is None or predicate(item.params))
-                    ):
+                    if item.seq > after and item.method == method and (predicate is None or predicate(item.params)):
                         return item.params
                 if self._dead.is_set():
                     detail = " | ".join(self.stderr_tail)
                     raise CodexAppServerError(
-                        "Codex App Server closed before notification"
-                        + (f": {detail}" if detail else "")
+                        "Codex App Server closed before notification" + (f": {detail}" if detail else "")
                     )
                 remaining = deadline - time.monotonic()
                 if remaining <= 0:
-                    raise CodexAppServerError(
-                        f"Timed out waiting for App Server notification {method!r}"
-                    )
+                    raise CodexAppServerError(f"Timed out waiting for App Server notification {method!r}")
                 self._notification_condition.wait(timeout=remaining)
 
     # ------------------------------------------------------------------ v2 convenience API
@@ -478,9 +455,7 @@ class CodexAppServer:
         dynamic_tools: Optional[Sequence[Mapping[str, Any]]] = None,
     ) -> ThreadHandle:
         if dynamic_tools and not self.experimental_api:
-            raise CodexAppServerError(
-                "dynamic_tools require experimental_api=True during App Server initialization"
-            )
+            raise CodexAppServerError("dynamic_tools require experimental_api=True during App Server initialization")
         params: Dict[str, Any] = {
             "ephemeral": bool(ephemeral),
             "sandbox": sandbox,
@@ -528,9 +503,7 @@ class CodexAppServer:
         if not requested_id:
             raise CodexAppServerError("thread/resume requires a non-empty thread id")
         if dynamic_tools and not self.experimental_api:
-            raise CodexAppServerError(
-                "dynamic_tools require experimental_api=True during App Server initialization"
-            )
+            raise CodexAppServerError("dynamic_tools require experimental_api=True during App Server initialization")
         params: Dict[str, Any] = {
             "threadId": requested_id,
             "sandbox": sandbox,
@@ -556,9 +529,7 @@ class CodexAppServer:
                 f"thread/resume response has no thread id: {json.dumps(result, ensure_ascii=False)}"
             )
         if str(resumed_id) != requested_id:
-            raise CodexAppServerError(
-                f"thread/resume returned {resumed_id!r} for requested thread {requested_id!r}"
-            )
+            raise CodexAppServerError(f"thread/resume returned {resumed_id!r} for requested thread {requested_id!r}")
         return ThreadHandle(requested_id, result)
 
     def fork_thread(
@@ -584,9 +555,7 @@ class CodexAppServer:
         if last_turn_id is not None:
             bounded_turn = str(last_turn_id).strip()
             if not bounded_turn:
-                raise CodexAppServerError(
-                    "thread/fork last_turn_id must be non-empty when supplied"
-                )
+                raise CodexAppServerError("thread/fork last_turn_id must be non-empty when supplied")
             params["lastTurnId"] = bounded_turn
         result = self.request("thread/fork", params)
         thread = result.get("thread")
@@ -597,9 +566,7 @@ class CodexAppServer:
             )
         forked_from = thread.get("forkedFromId") if isinstance(thread, dict) else None
         if forked_from is not None and str(forked_from) != source_id:
-            raise CodexAppServerError(
-                f"thread/fork returned source {forked_from!r} for requested {source_id!r}"
-            )
+            raise CodexAppServerError(f"thread/fork returned source {forked_from!r} for requested {source_id!r}")
         return ThreadHandle(str(forked_id), result)
 
     def run_turn(
@@ -624,8 +591,7 @@ class CodexAppServer:
             params["model"] = model
         if additional_context:
             params["additionalContext"] = {
-                str(key): {"kind": "application", "value": str(value)}
-                for key, value in additional_context.items()
+                str(key): {"kind": "application", "value": str(value)} for key, value in additional_context.items()
             }
         if sandbox_policy:
             params["sandboxPolicy"] = dict(sandbox_policy)
@@ -634,9 +600,7 @@ class CodexAppServer:
         turn = started.get("turn")
         turn_id = turn.get("id") if isinstance(turn, dict) else None
         if not turn_id:
-            raise CodexAppServerError(
-                f"turn/start response has no turn id: {json.dumps(started, ensure_ascii=False)}"
-            )
+            raise CodexAppServerError(f"turn/start response has no turn id: {json.dumps(started, ensure_ascii=False)}")
         tid = str(turn_id)
 
         def same_turn(value: Dict[str, Any]) -> bool:
@@ -646,20 +610,14 @@ class CodexAppServer:
                 event_tid = nested.get("id")
             return str(event_tid or "") == tid
 
-        completed = self.wait_notification(
-            "turn/completed", after=cursor, predicate=same_turn, timeout=timeout
-        )
-        item_events = self.notifications(
-            "item/completed", after=cursor, predicate=same_turn
-        )
+        completed = self.wait_notification("turn/completed", after=cursor, predicate=same_turn, timeout=timeout)
+        item_events = self.notifications("item/completed", after=cursor, predicate=same_turn)
         texts = []
         for event in item_events:
             item = event.get("item")
             if isinstance(item, dict) and item.get("type") == "agentMessage" and item.get("text"):
                 texts.append(str(item["text"]))
-        usage_events = self.notifications(
-            "thread/tokenUsage/updated", after=cursor, predicate=same_turn
-        )
+        usage_events = self.notifications("thread/tokenUsage/updated", after=cursor, predicate=same_turn)
         usage = usage_events[-1].get("tokenUsage", {}) if usage_events else {}
         completed_turn = completed.get("turn")
         status = completed_turn.get("status") if isinstance(completed_turn, dict) else None

@@ -15,6 +15,7 @@ lesson bodies "unreachable".
   Q4  the rebuilt index is newest-first (the list's documented semantic)
   Q5  search actually finds a lesson once its name is back in the index
 """
+
 import os
 import sys
 
@@ -35,9 +36,16 @@ def ls():
     store = DictStore()
     s = LearningStore(store=store)
     for i, name in enumerate(("alpha_lesson", "beta_lesson", "gamma_lesson")):
-        s.record_learning({"experiment_name": name, "what_tried": f"tried {i}",
-                           "actual": f"result {i}", "recommendation": f"recommend {i}",
-                           "agent_id": "claude", "success": "yes"})
+        s.record_learning(
+            {
+                "experiment_name": name,
+                "what_tried": f"tried {i}",
+                "actual": f"result {i}",
+                "recommendation": f"recommend {i}",
+                "agent_id": "claude",
+                "success": "yes",
+            }
+        )
     return s
 
 
@@ -83,8 +91,7 @@ def test_q4_rebuilt_index_is_newest_first(ls):
     _starve(ls, [])
     _cur, _found, _missing, union = rli.plan(ls)
     stamps = [rli._ts(ls, n) for n in union]
-    assert stamps == sorted(stamps, reverse=True), \
-        "learning_store.py:19 documents this list as newest-first"
+    assert stamps == sorted(stamps, reverse=True), "learning_store.py:19 documents this list as newest-first"
 
 
 def test_q5_search_finds_a_lesson_once_reindexed(ls):
@@ -95,5 +102,6 @@ def test_q5_search_finds_a_lesson_once_reindexed(ls):
     ls.store.delete(rli.INDEX)
     ls.store.rpush(rli.INDEX, *union)
     hits = ls.search_learnings_by_keyword("gamma_lesson")
-    assert hits and any(h.get("id") == "gamma_lesson" or h.get("experiment_name") == "gamma_lesson"
-                        for h in hits), "findable by its own name after repair"
+    assert hits and any(h.get("id") == "gamma_lesson" or h.get("experiment_name") == "gamma_lesson" for h in hits), (
+        "findable by its own name after repair"
+    )

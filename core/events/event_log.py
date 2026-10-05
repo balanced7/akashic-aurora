@@ -29,6 +29,7 @@ CoordinatorService switches on by `signal_type`.
 Best-effort by design: capture() never raises into the caller's main flow, so hooking it
 into hot paths (commits, CLI verbs, sessions) can never break them.
 """
+
 import os
 import json
 import logging
@@ -41,14 +42,14 @@ from core.outcome import BoundaryOutcome
 logger = logging.getLogger("event_log")
 
 RAW_STREAM = "events:raw"
-CANONICAL_MAXLEN = 100_000        # the firehose: deep but bounded
-PER_AGENT_MAXLEN = 10_000         # per-agent: a shallower convenience index
+CANONICAL_MAXLEN = 100_000  # the firehose: deep but bounded
+PER_AGENT_MAXLEN = 10_000  # per-agent: a shallower convenience index
 
 # Starter kinds (OPEN vocabulary -- a new kind is just a new string, no schema change).
 EVENT_KINDS = ("tool_call", "file_edit", "command", "observation", "message", "note")
 
 _MAX_SUMMARY = 500
-_MAX_DETAIL_CHARS = 8000          # raw is rich, but a single payload is still bounded
+_MAX_DETAIL_CHARS = 8000  # raw is rich, but a single payload is still bounded
 _READ_BATCH = 1000
 
 
@@ -68,6 +69,7 @@ def _id_precedes(a: str, b: str) -> bool:
     """True when id `a` is strictly older than id `b` on the same stream (RB-7). Handles
     both backends' shapes -- FileLedger monotonic ints and Redis '<ms>-<seq>'. An
     unparseable id returns False: aging is only ever CLAIMED when it can be shown."""
+
     def parse(s):
         s = str(s)
         try:
@@ -79,6 +81,7 @@ def _id_precedes(a: str, b: str) -> bool:
             return (int(head), int(tail or 0))
         except ValueError:
             return None
+
     pa, pb = parse(a), parse(b)
     return pa is not None and pb is not None and pa < pb
 
@@ -99,16 +102,24 @@ class EventLog:
         if store is not None:
             try:
                 from core.events.event_index import EventIndex
+
                 self.index = EventIndex(store, maxlen=CANONICAL_MAXLEN)
             except Exception:
                 self.index = None
 
     # --------------------------------------------------------------- capture (write)
-    def capture(self, kind: str, summary: str, *,
-                detail: Optional[Dict[str, Any]] = None,
-                agent_id: Optional[str] = None, session_id: str = "",
-                refs: Optional[List[str]] = None, track: Optional[str] = None,
-                at: Optional[str] = None) -> BoundaryOutcome:
+    def capture(
+        self,
+        kind: str,
+        summary: str,
+        *,
+        detail: Optional[Dict[str, Any]] = None,
+        agent_id: Optional[str] = None,
+        session_id: str = "",
+        refs: Optional[List[str]] = None,
+        track: Optional[str] = None,
+        at: Optional[str] = None,
+    ) -> BoundaryOutcome:
         """Append one raw event to events:raw (+ the per-agent stream).
 
         THREE STATES, because the situation has three (T179):
@@ -137,7 +148,7 @@ class EventLog:
         try:
             agent = self._clean(agent_id) or "unknown"
             event = {
-                "at": at or now_iso(),   # T119: aware UTC (to_epoch reads both eras)
+                "at": at or now_iso(),  # T119: aware UTC (to_epoch reads both eras)
                 "agent_id": agent,
                 "session_id": self._clean(session_id),
                 "kind": str(kind) if kind else "note",
@@ -175,8 +186,7 @@ class EventLog:
                 behind.append(f"time index ({type(e).__name__}: {e})")
 
         if behind:
-            why = ("event IS on the canonical firehose; convenience index(es) behind -- "
-                   + "; ".join(behind))
+            why = "event IS on the canonical firehose; convenience index(es) behind -- " + "; ".join(behind)
             logger.warning(f"capture partial: {why}")
             return BoundaryOutcome.partially(why, ref=out["_ref"], **out)
         return BoundaryOutcome.done(ref=out["_ref"], **out)
@@ -186,7 +196,7 @@ class EventLog:
         """The newest `limit` raw events (firehose, or one agent's stream), newest-first."""
         stream = per_agent_stream(agent) if agent else RAW_STREAM
         events = self._read_all(stream)
-        return list(reversed(events))[:max(0, limit)]
+        return list(reversed(events))[: max(0, limit)]
 
     def count(self, *, agent: Optional[str] = None) -> int:
         """How many raw events are on the firehose (or one agent's stream)."""
@@ -238,9 +248,11 @@ class EventLog:
             # Honesty has a bound of its own: FileLedger ids are dense (1..n), so
             # below-oldest = certainly evicted; Redis ids are sparse ms-seq, where a
             # below-oldest id may also simply never have been minted. Say both.
-            return None, (f"payload aged out -- {stream} is bounded and keeps nothing "
-                          f"older than id {oldest}; id {eid} predates every survivor "
-                          f"(evicted if it ever existed)")
+            return None, (
+                f"payload aged out -- {stream} is bounded and keeps nothing "
+                f"older than id {oldest}; id {eid} predates every survivor "
+                f"(evicted if it ever existed)"
+            )
         return None, f"no event {eid} on {stream} (never existed, or the stream was reset)"
 
     # --------------------------------------------------------------- internals
@@ -276,7 +288,7 @@ class EventLog:
         s = str(ref or "")
         if not s.startswith("event:"):
             return None, None
-        body = s[len("event:"):]
+        body = s[len("event:") :]
         if ":" not in body:
             return None, None
         stream, _, eid = body.rpartition(":")
@@ -310,7 +322,7 @@ class EventLog:
         if len(blob) > _MAX_DETAIL_CHARS:
             return {"_truncated": True, "_repr": blob[:_MAX_DETAIL_CHARS]}
         try:
-            return json.loads(blob)   # pure str/int/float/list/dict -- backend-safe
+            return json.loads(blob)  # pure str/int/float/list/dict -- backend-safe
         except Exception:
             return {"_repr": blob[:_MAX_DETAIL_CHARS]}
 
@@ -364,6 +376,7 @@ def get_event_log(ledger: Optional[Ledger] = None) -> EventLog:
         # falls back to the Ledger scan, so this can never block event capture.
         try:
             from core.foundation.store import create_store
+
             _INSTANCE = EventLog(store=create_store())
         except Exception:
             _INSTANCE = EventLog()

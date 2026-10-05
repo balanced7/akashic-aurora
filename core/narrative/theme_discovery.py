@@ -19,6 +19,7 @@ Shape (measured, not assumed -- see tests/test_theme_discovery.py ablation gate)
 Deterministic & fail-soft: if the model is unavailable the exemplars don't embed and
 `assign` returns keyword-only (== the baseline). tau is frozen by the V6c ablation sweep.
 """
+
 from __future__ import annotations
 
 import math
@@ -33,16 +34,47 @@ from core.primitives.embedder import Embedder, get_embedder
 _TOKEN = re.compile(r"[a-z][a-z0-9_]{2,}")
 # generic words that shouldn't become theme labels (c-TF-IDF already downweights cross-cluster
 # words; this just drops obvious noise so tiny corpora still label cleanly)
-_STOP = {"the", "and", "for", "with", "into", "from", "that", "this", "was", "are", "but",
-         "not", "you", "your", "our", "its", "has", "have", "had", "will", "can", "onto",
-         "per", "via", "add", "fix", "use", "using", "new", "get", "set", "run", "ran"}
+_STOP = {
+    "the",
+    "and",
+    "for",
+    "with",
+    "into",
+    "from",
+    "that",
+    "this",
+    "was",
+    "are",
+    "but",
+    "not",
+    "you",
+    "your",
+    "our",
+    "its",
+    "has",
+    "have",
+    "had",
+    "will",
+    "can",
+    "onto",
+    "per",
+    "via",
+    "add",
+    "fix",
+    "use",
+    "using",
+    "new",
+    "get",
+    "set",
+    "run",
+    "ran",
+}
 
 
 def _ctfidf_terms(clusters_texts: Sequence[Sequence[str]], topk: int = 3) -> List[List[str]]:
     """Class-based TF-IDF (BERTopic-style, no LLM): the words that distinguish each CLUSTER
     from the others. Returns the top-k distinctive terms per cluster."""
-    toks = [[w for w in _TOKEN.findall(" ".join(ts).lower()) if w not in _STOP]
-            for ts in clusters_texts]
+    toks = [[w for w in _TOKEN.findall(" ".join(ts).lower()) if w not in _STOP] for ts in clusters_texts]
     if not toks:
         return []
     global_freq: Dict[str, int] = {}
@@ -60,36 +92,76 @@ def _ctfidf_terms(clusters_texts: Sequence[Sequence[str]], topk: int = 3) -> Lis
         out.append(sorted(weights, key=lambda w: (-weights[w], w))[:topk])
     return out
 
+
 # tau frozen by the V6c ablation sweep on the gold fixture (F1 peak on a wide 0.38-0.46 plateau).
 DEFAULT_TAU = 0.44
 
 # Several SHORT exemplar phrases per theme; a beat's theme score is the MAX cosine over them
 # (short exemplars match short beat summaries far better than one long multi-concept phrase).
 EXEMPLARS: Dict[str, List[str]] = {
-    "routing": ["track routing", "which domain does this belong to", "switching the active track",
-                "conversation disentanglement", "domain inference for a beat"],
-    "logging": ["event logging", "the beat log", "emitting events and hooks",
-                "mirroring commits into the ledger", "recording what happened"],
-    "evaluation": ["testing and benchmarks", "metrics and acceptance bars", "test fixtures",
-                   "verifying correctness", "regression tests", "measuring quality"],
-    "design": ["design methodology", "refactoring strategy", "naming and architecture decisions",
-               "schema on read", "deprecation strategy", "design principles and notes"],
-    "memory": ["persistent storage", "the Store and Redis", "snapshot and restore of state",
-               "caching", "single source of truth for data", "recall of saved knowledge"],
-    "narrative": ["the narrative spine", "chapters and the atlas", "the story over the record",
-                  "narrative structure", "chronicling beats into chapters"],
+    "routing": [
+        "track routing",
+        "which domain does this belong to",
+        "switching the active track",
+        "conversation disentanglement",
+        "domain inference for a beat",
+    ],
+    "logging": [
+        "event logging",
+        "the beat log",
+        "emitting events and hooks",
+        "mirroring commits into the ledger",
+        "recording what happened",
+    ],
+    "evaluation": [
+        "testing and benchmarks",
+        "metrics and acceptance bars",
+        "test fixtures",
+        "verifying correctness",
+        "regression tests",
+        "measuring quality",
+    ],
+    "design": [
+        "design methodology",
+        "refactoring strategy",
+        "naming and architecture decisions",
+        "schema on read",
+        "deprecation strategy",
+        "design principles and notes",
+    ],
+    "memory": [
+        "persistent storage",
+        "the Store and Redis",
+        "snapshot and restore of state",
+        "caching",
+        "single source of truth for data",
+        "recall of saved knowledge",
+    ],
+    "narrative": [
+        "the narrative spine",
+        "chapters and the atlas",
+        "the story over the record",
+        "narrative structure",
+        "chronicling beats into chapters",
+    ],
 }
 
 
 def _cos(a: Sequence[float], b: Sequence[float]) -> float:
-    return float(np.array(a, dtype=float) @ np.array(b, dtype=float))   # unit vectors -> dot = cosine
+    return float(np.array(a, dtype=float) @ np.array(b, dtype=float))  # unit vectors -> dot = cosine
 
 
 class ThemeDiscoverer:
     """Hybrid multi-label theme assignment: keyword themes UNION confident embedding themes."""
 
-    def __init__(self, embedder: Optional[Embedder] = None, *, tau: float = DEFAULT_TAU,
-                 seeds: Optional[Dict[str, List[str]]] = None, keyword_assigner=None):
+    def __init__(
+        self,
+        embedder: Optional[Embedder] = None,
+        *,
+        tau: float = DEFAULT_TAU,
+        seeds: Optional[Dict[str, List[str]]] = None,
+        keyword_assigner=None,
+    ):
         self.embedder = embedder or get_embedder()
         self.tau = tau
         self.seeds = {t: list(xs) for t, xs in (seeds or EXEMPLARS).items()}
@@ -98,7 +170,8 @@ class ThemeDiscoverer:
         flat_t, flat_x = [], []
         for t, xs in self.seeds.items():
             for x in xs:
-                flat_t.append(t); flat_x.append(x)
+                flat_t.append(t)
+                flat_x.append(x)
         vecs = self.embedder.embed_many(flat_x)
         self._theme_vecs: Dict[str, List[List[float]]] = {t: [] for t in self.seeds}
         for t, v in zip(flat_t, vecs):
@@ -114,6 +187,7 @@ class ThemeDiscoverer:
     def _kw_assigner(self):
         if self._kw is None:
             from core.narrative.theme_assigner import get_theme_assigner
+
             self._kw = get_theme_assigner()
         return self._kw
 
@@ -134,6 +208,7 @@ class ThemeDiscoverer:
         """Multi-label theme ids = keyword themes UNION confident embedding themes. Falls back to
         keyword-only when the embedding model is unavailable (== the baseline; never loses theming)."""
         from core.narrative.theme_assigner import ThemeAssigner
+
         kw = self._kw_assigner().assign(beat, hint)
         if not self._ok:
             return kw
@@ -149,19 +224,26 @@ class ThemeDiscoverer:
             return []
         residual = [it for it in items if not self.route(str(it.get("text", "")))]
         if len(residual) < min_residual:
-            return []                                   # cold-start guard
+            return []  # cold-start guard
         from core.primitives.clusterer import get_clusterer
+
         clustering = get_clusterer(self.embedder).cluster(
-            [{"id": it["id"], "text": it.get("text", ""), "importance": it.get("importance", 1)}
-             for it in residual])
+            [{"id": it["id"], "text": it.get("text", ""), "importance": it.get("importance", 1)} for it in residual]
+        )
         text_by_id = {it["id"]: str(it.get("text", "")) for it in residual}
         cl_texts = [[text_by_id[a] for a in c.atom_ids] for c in clustering.clusters]
         term_lists = _ctfidf_terms(cl_texts)
         out: List[Dict[str, Any]] = []
         for c, terms in zip(clustering.clusters, term_lists):
-            out.append({"label": " / ".join(terms) if terms else c.label[:40], "terms": terms,
-                        "beat_ids": c.atom_ids, "size": len(c.atom_ids),
-                        "cohesion": round(c.cohesion, 3)})
+            out.append(
+                {
+                    "label": " / ".join(terms) if terms else c.label[:40],
+                    "terms": terms,
+                    "beat_ids": c.atom_ids,
+                    "size": len(c.atom_ids),
+                    "cohesion": round(c.cohesion, 3),
+                }
+            )
         return out
 
 
@@ -187,6 +269,7 @@ def select_theme_assigner(embedder: Optional[Embedder] = None):
     A consolidation re-theme pass (off the hot path) is the way to upgrade an existing corpus
     regardless of the flag -- that's the clean batch path; this seam is the per-write choice."""
     from core.narrative.theme_assigner import get_theme_assigner
+
     if os.getenv("AKASHIC_EMBED_THEMES", "").lower() not in ("1", "true", "yes", "on"):
         return get_theme_assigner()
     emb = embedder or get_embedder()

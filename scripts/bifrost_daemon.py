@@ -26,6 +26,7 @@ so every real-seat usage below carries its mode flag (defer 9e1bc7ce78).
   py scripts/bifrost_daemon.py --agent claude --manage-listener      # wake-listener supervisor (revive DAEMON_MODE)
   py scripts/bifrost_daemon.py --agent t075drill --max-runtime 5     # drill hatch (flagless = alpha: holds runner_lock itself)
 """
+
 from __future__ import annotations
 
 # --- windowless (2026-09-05 fleet cmd-spam fix): load the tree's console-suppression
@@ -34,6 +35,7 @@ from __future__ import annotations
 # launch env -- that missing wiring was the original gap. Idempotent; honors
 # AKASHIC_SHOW_CONSOLES (the sitecustomize's own escape hatch). ---
 import os as _os, sys as _sys
+
 _qd = _os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))), "scripts", "quiet")
 if _os.path.isdir(_qd):
     if _qd not in _sys.path:
@@ -60,6 +62,17 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from core.comm.seat_identity import git_identity_env as _GIT_ID  # noqa: E402  (t384: author=seat)
 from core.comm import discord_feed as _DFEED  # noqa: E402
 from core.comm import self_restart as _SELF_RESTART  # noqa: E402  (t376 S2: daemon stale-code arm)
+
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+
+        return python_launcher()
+    except Exception:
+        return "py"
+
 
 _STOP = {"flag": False, "reason": ""}
 
@@ -93,6 +106,7 @@ def _install_signals() -> None:
     def _handle(signum, _frame):
         _STOP["flag"] = True
         _STOP["reason"] = "sigint" if signum == getattr(signal, "SIGINT", None) else f"signal-{signum}"
+
     # SIGBREAK is the Windows CTRL_BREAK path (how a drill stops a console child);
     # SIGTERM registers harmlessly where the platform supports it.
     for name in ("SIGINT", "SIGTERM", "SIGBREAK"):
@@ -166,17 +180,34 @@ def build_parser() -> argparse.ArgumentParser:
     """Build the daemon CLI; extracted so launch posture is offline-testable."""
     ap = argparse.ArgumentParser(
         description="Continuous-presence daemon (M1-alpha + M1-delta): lock + presence "
-                    "+ heartbeat + bus-loss guard + managed-runner child.")
+        "+ heartbeat + bus-loss guard + managed-runner child."
+    )
     ap.add_argument("--agent", required=True, help="agent id whose presence this daemon holds")
-    ap.add_argument("--ttl", type=int, default=None,
-                    help="lock TTL seconds (default: env AKASHIC_DAEMON_LOCK_TTL_S raw, else scaled 60)")
-    ap.add_argument("--hb", type=int, default=None,
-                    help="heartbeat seconds (default: env AKASHIC_DAEMON_HB_S raw, else scaled 8; clamped < ttl)")
-    ap.add_argument("--max-runtime", type=float, default=0.0, dest="max_runtime",
-                    help="exit cleanly after N RAW seconds (drill hatch; 0 = run forever)")
-    ap.add_argument("--spawn-runner", action="store_true", dest="spawn_runner",
-                    help="M1-delta: spawn the selected Bifrost runner as a managed child "
-                         "(circuit breaker + summary injection)")
+    ap.add_argument(
+        "--ttl",
+        type=int,
+        default=None,
+        help="lock TTL seconds (default: env AKASHIC_DAEMON_LOCK_TTL_S raw, else scaled 60)",
+    )
+    ap.add_argument(
+        "--hb",
+        type=int,
+        default=None,
+        help="heartbeat seconds (default: env AKASHIC_DAEMON_HB_S raw, else scaled 8; clamped < ttl)",
+    )
+    ap.add_argument(
+        "--max-runtime",
+        type=float,
+        default=0.0,
+        dest="max_runtime",
+        help="exit cleanly after N RAW seconds (drill hatch; 0 = run forever)",
+    )
+    ap.add_argument(
+        "--spawn-runner",
+        action="store_true",
+        dest="spawn_runner",
+        help="M1-delta: spawn the selected Bifrost runner as a managed child (circuit breaker + summary injection)",
+    )
     ap.add_argument(
         "--runner-script",
         default="bifrost_runner_deepseek.py",
@@ -191,10 +222,7 @@ def build_parser() -> argparse.ArgumentParser:
         action="append",
         default=[],
         dest="runner_arg",
-        help=(
-            "extra child argument, repeatable; use --runner-arg=--flag when the value "
-            "begins with a dash"
-        ),
+        help=("extra child argument, repeatable; use --runner-arg=--flag when the value begins with a dash"),
     )
     ap.add_argument(
         "--runner-consume-lane",
@@ -222,11 +250,19 @@ def build_parser() -> argparse.ArgumentParser:
             "launching a detached stale-code successor"
         ),
     )
-    ap.add_argument("--manage-listener", action="store_true", dest="manage_listener",
-                    help="Autopilot A1: answer .rearm triggers by spawning wake listeners "
-                         "as managed children + sweep stale markers")
-    ap.add_argument("--summary-file", default=None, dest="summary_file",
-                    help="path to runner's exit summary (default: state/runner_<agent>_last.json)")
+    ap.add_argument(
+        "--manage-listener",
+        action="store_true",
+        dest="manage_listener",
+        help="Autopilot A1: answer .rearm triggers by spawning wake listeners "
+        "as managed children + sweep stale markers",
+    )
+    ap.add_argument(
+        "--summary-file",
+        default=None,
+        dest="summary_file",
+        help="path to runner's exit summary (default: state/runner_<agent>_last.json)",
+    )
     return ap
 
 
@@ -240,12 +276,7 @@ def managed_runner_argv(
 ):
     """Construct one full-door managed child command without changing legacy defaults."""
     name = str(runner_script or "").strip()
-    if (
-        not name
-        or name != os.path.basename(name)
-        or not name.startswith("bifrost_runner_")
-        or not name.endswith(".py")
-    ):
+    if not name or name != os.path.basename(name) or not name.startswith("bifrost_runner_") or not name.endswith(".py"):
         raise ValueError(f"invalid managed runner basename: {runner_script!r}")
     script = os.path.join(os.path.dirname(os.path.abspath(__file__)), name)
     if not os.path.isfile(script):
@@ -280,6 +311,7 @@ def foreign_holder_after_exit(agent: str, exited_pid) -> "Optional[dict]":
     raises: an unreadable lock reads as "no foreign holder", the same as before this gate existed."""
     try:
         from core.comm import runner_lock
+
         h = runner_lock.holder(agent)
     except Exception:
         return None
@@ -332,8 +364,10 @@ def main(argv=None) -> int:
 
     bus = Bus(agent, promote=False)
     if not (bus.online and bus.probe()):
-        _say(f"[daemon] bus OFFLINE at launch agent={agent} -- exiting 2 "
-             f"(the host supervisor owns backoff; a presence daemon with no bus has nothing to hold)")
+        _say(
+            f"[daemon] bus OFFLINE at launch agent={agent} -- exiting 2 "
+            f"(the host supervisor owns backoff; a presence daemon with no bus has nothing to hold)"
+        )
         return 2
 
     c = bus._client
@@ -341,8 +375,8 @@ def main(argv=None) -> int:
     manage_listener = bool(args.manage_listener)
 
     # ---- A1 listener management state -------------------------------------------
-    listeners: Dict[str, ManagedChild] = {}     # sid[:8] -> ManagedChild
-    next_marker_sweep: float = 0.0              # boot + hourly
+    listeners: Dict[str, ManagedChild] = {}  # sid[:8] -> ManagedChild
+    next_marker_sweep: float = 0.0  # boot + hourly
 
     def _spawn_listener(sid: str, ns: _Opt[str] = None) -> bool:
         """Spawn a wake listener ManagedChild for sid. Reuses existing child if
@@ -363,9 +397,14 @@ def main(argv=None) -> int:
         if ns:
             _env["BIFROST_NAMESPACE"] = str(ns)
         lch = ManagedChild(
-            [sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                          "bifrost_wake.py"),
-             "--agent", agent, "--session", sid],
+            [
+                sys.executable,
+                os.path.join(os.path.dirname(os.path.abspath(__file__)), "bifrost_wake.py"),
+                "--agent",
+                agent,
+                "--session",
+                sid,
+            ],
             env=_env,
             cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
             breaker_window_s=300,
@@ -382,8 +421,8 @@ def main(argv=None) -> int:
     dlock = None
     idle_mode = False  # W102: daemon alive but runner spawning deferred
     summary_file = args.summary_file or os.path.join(
-        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-        "state", f"runner_{agent}_last.json")
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "state", f"runner_{agent}_last.json"
+    )
     last_summary_text = ""
 
     if spawn_runner or manage_listener:
@@ -397,13 +436,17 @@ def main(argv=None) -> int:
                 if rec.get("token") != dlock.token:
                     if not args.external_supervisor:
                         refusal_code = int(args.refusal_exit_code)
-                        _say(f"[daemon] refused agent={agent}: another daemon pid={rec.get('pid')} "
-                              f"holds the daemon lock -- exiting {refusal_code}")
+                        _say(
+                            f"[daemon] refused agent={agent}: another daemon pid={rec.get('pid')} "
+                            f"holds the daemon lock -- exiting {refusal_code}"
+                        )
                         return refusal_code
                     waited_for_lock = True
-                    _say(f"[daemon] waiting agent={agent}: prior daemon pid={rec.get('pid')} "
-                          "holds the lease; external supervisor keeps this process "
-                          "anchored until the TTL handoff")
+                    _say(
+                        f"[daemon] waiting agent={agent}: prior daemon pid={rec.get('pid')} "
+                        "holds the lease; external supervisor keeps this process "
+                        "anchored until the TTL handoff"
+                    )
             except Exception:
                 pass
         if not acquire_daemon_lock(
@@ -412,12 +455,10 @@ def main(argv=None) -> int:
             retry_s=min(max(float(hb), 1.0), 5.0),
         ):
             refusal_code = int(args.refusal_exit_code)
-            _say(f"[daemon] refused agent={agent}: daemon lock held by another process "
-                  f"-- exiting {refusal_code}")
+            _say(f"[daemon] refused agent={agent}: daemon lock held by another process -- exiting {refusal_code}")
             return refusal_code
         if waited_for_lock:
-            _say(f"[daemon] acquired agent={agent}: prior daemon lease released; "
-                 "scheduler-owned process retained")
+            _say(f"[daemon] acquired agent={agent}: prior daemon lease released; scheduler-owned process retained")
         # Coexistence: spawn-runner inspects the runner lock BEFORE spawning.
         # manage-listener-only NEVER touches runner_lock -- it coexists with a
         # consuming session (session:<sid> token, RB-21) and with a bare runner.
@@ -431,23 +472,29 @@ def main(argv=None) -> int:
                 # releases -- then it reclaims and spawns. This closes the gap the
                 # half-fix (28c5bcd) discovered: the hard-refuse left the seat
                 # daemon-less until the takeover chain broke.
-                _say(f"[daemon] idle agent={agent}: a foreign runner pid={rh.get('pid')} "
-                     f"holds the runner lock (token prefix: {str(rh.get('token', ''))[:20]}...) "
-                     f"-- daemon alive, spawning deferred; will reclaim when lock frees "
-                     f"(W102 idle-watcher)")
+                _say(
+                    f"[daemon] idle agent={agent}: a foreign runner pid={rh.get('pid')} "
+                    f"holds the runner lock (token prefix: {str(rh.get('token', ''))[:20]}...) "
+                    f"-- daemon alive, spawning deferred; will reclaim when lock frees "
+                    f"(W102 idle-watcher)"
+                )
                 idle_mode = True
 
         # ---- blocker callback (M1-P9 circuit breaker) ------------------------------
         def _send_blocker():
             try:
-                bus.broadcast("blocker",
-                              f"[blocker] runner child for '{agent}' unstable: "
-                              f"{child._breaker_max} crashes in "
-                              f"{int(child._breaker_window_s)}s -- restarting stopped. "
-                              f"Daemon presence still held. Restart the daemon to reset.",
-                              meta={"via": f"{agent}-daemon", "kind": "blocker"})
-                _say(f"[daemon] BLOCKER broadcast agent={agent}: circuit breaker tripped "
-                     f"({child._breaker_max} crashes in {int(child._breaker_window_s)}s)")
+                bus.broadcast(
+                    "blocker",
+                    f"[blocker] runner child for '{agent}' unstable: "
+                    f"{child._breaker_max} crashes in "
+                    f"{int(child._breaker_window_s)}s -- restarting stopped. "
+                    f"Daemon presence still held. Restart the daemon to reset.",
+                    meta={"via": f"{agent}-daemon", "kind": "blocker"},
+                )
+                _say(
+                    f"[daemon] BLOCKER broadcast agent={agent}: circuit breaker tripped "
+                    f"({child._breaker_max} crashes in {int(child._breaker_window_s)}s)"
+                )
             except Exception:
                 pass
 
@@ -491,15 +538,19 @@ def main(argv=None) -> int:
 
             child.on_exit = _on_runner_exit
             if not child.spawn():
-                _say(f"[daemon] runner spawn blocked agent={agent} (circuit breaker pre-tripped?) "
-                     f"-- daemon still alive, restart to reset")
+                _say(
+                    f"[daemon] runner spawn blocked agent={agent} (circuit breaker pre-tripped?) "
+                    f"-- daemon still alive, restart to reset"
+                )
             else:
                 _say(f"[daemon] runner spawned agent={agent} pid={child.pid}")
-        _say(f"[daemon] up agent={agent} ns={bus.ns} daemon-token={dlock.token[:20]}... "
-             f"ttl={ttl}s hb={hb}s pid={os.getpid()}"
-             + (" mode=runner-manager" if (spawn_runner and not idle_mode) else "")
-             + (" mode=listener-manager" if manage_listener else "")
-             + (" mode=idle-watcher" if idle_mode else ""))
+        _say(
+            f"[daemon] up agent={agent} ns={bus.ns} daemon-token={dlock.token[:20]}... "
+            f"ttl={ttl}s hb={hb}s pid={os.getpid()}"
+            + (" mode=runner-manager" if (spawn_runner and not idle_mode) else "")
+            + (" mode=listener-manager" if manage_listener else "")
+            + (" mode=idle-watcher" if idle_mode else "")
+        )
         # 2026-09-06 incident: this daemon owns its wake listener as a MANAGED CHILD, so its
         # own restart KILLS that listener -- and a killed listener writes no .rearm trigger
         # (R18 writes one only on a deadline self-cycle). consume_rearms then has no input and
@@ -509,39 +560,56 @@ def main(argv=None) -> int:
             try:
                 _armed = _ds.rearm_orphaned_sessions(agent, tmp=tempfile.gettempdir())
                 if _armed:
-                    _say(f"[daemon] startup re-arm agent={agent} sessions={_armed} "
-                         f"(orphaned by this daemon's restart; no deadline cycle occurred)")
+                    _say(
+                        f"[daemon] startup re-arm agent={agent} sessions={_armed} "
+                        f"(orphaned by this daemon's restart; no deadline cycle occurred)"
+                    )
             except Exception as _e:
-                _say(f"[daemon] startup re-arm FAILED agent={agent}: "
-                     f"{type(_e).__name__}: {_e} -- listeners may need a manual arm")
+                _say(
+                    f"[daemon] startup re-arm FAILED agent={agent}: "
+                    f"{type(_e).__name__}: {_e} -- listeners may need a manual arm"
+                )
     else:
         # ---- alpha path: daemon holds the runner lock directly ---------------------
         h = runner_lock.holder(agent)
         if h and h.get("token") == token and int(h.get("pid") or -1) != os.getpid():
-            _say(f"[daemon] refused agent={agent}: live twin pid={h.get('pid')} holds MY token "
-                 f"(delete ~/.akashic/daemon_{agent}.id to fork identity; a crashed twin expires "
-                 f"within ttl={ttl}s) -- exiting 0")
+            _say(
+                f"[daemon] refused agent={agent}: live twin pid={h.get('pid')} holds MY token "
+                f"(delete ~/.akashic/daemon_{agent}.id to fork identity; a crashed twin expires "
+                f"within ttl={ttl}s) -- exiting 0"
+            )
             return 0
         if not runner_lock.acquire(agent, token, ttl=ttl):
             h = runner_lock.holder(agent) or {}
-            _say(f"[daemon] refused agent={agent}: held by pid={h.get('pid', '?')} "
-                 f"token8={str(h.get('token', ''))[-8:]} (M1-P11 coexistence -- no steal; "
-                 f"stop the holder or wait out its TTL) -- exiting 0")
+            _say(
+                f"[daemon] refused agent={agent}: held by pid={h.get('pid', '?')} "
+                f"token8={str(h.get('token', ''))[-8:]} (M1-P11 coexistence -- no steal; "
+                f"stop the holder or wait out its TTL) -- exiting 0"
+            )
             return 0
         gen = runner_lock.generation_of(token)
-        _say(f"[daemon] up agent={agent} ns={bus.ns} token={token} gen={gen} "
-             f"ttl={ttl}s hb={hb}s pid={os.getpid()} mode=alpha")
+        _say(
+            f"[daemon] up agent={agent} ns={bus.ns} token={token} gen={gen} "
+            f"ttl={ttl}s hb={hb}s pid={os.getpid()} mode=alpha"
+        )
 
     # ---- shared: presence card + heartbeat loop -----------------------------------
-    card = {"runtime_class": "daemon", "wake_mode": "supervisor",
-            "door": "scripts/bifrost_daemon.py",
-            "slice": ("M1-delta" if (spawn_runner and not idle_mode or manage_listener)
-                      else "W102-idle" if idle_mode
-                      else "M1-alpha"),
-            "pid": os.getpid(),
-            "token8": (dlock.token[-8:] if (spawn_runner or manage_listener) else token[-8:]),
-            "gen": 0 if (spawn_runner or manage_listener) else runner_lock.generation_of(token),
-            "runtimes": {}}
+    card = {
+        "runtime_class": "daemon",
+        "wake_mode": "supervisor",
+        "door": "scripts/bifrost_daemon.py",
+        "slice": (
+            "M1-delta"
+            if (spawn_runner and not idle_mode or manage_listener)
+            else "W102-idle"
+            if idle_mode
+            else "M1-alpha"
+        ),
+        "pid": os.getpid(),
+        "token8": (dlock.token[-8:] if (spawn_runner or manage_listener) else token[-8:]),
+        "gen": 0 if (spawn_runner or manage_listener) else runner_lock.generation_of(token),
+        "runtimes": {},
+    }
     if spawn_runner and last_summary_text:
         card["summary"] = last_summary_text
     bus.register(card=card)
@@ -582,7 +650,7 @@ def main(argv=None) -> int:
                         # tick independently -- the election makes them ONE logical
                         # pump instead of four racing the same cursor + webhook.
                         _DFEED.pump_if_owner(bus)
-                except Exception:                                       # noqa: BLE001
+                except Exception:  # noqa: BLE001
                     pass
 
             # ---- t376 S2: the daemon's stale-code arm (its own metabolism) --------
@@ -597,19 +665,20 @@ def main(argv=None) -> int:
             if now >= next_self_restart_check:
                 next_self_restart_check = now + guard_every
                 try:
-                    _in_flight = bool(child is not None and child.alive) or \
-                                 any(lch.alive for lch in listeners.values())
+                    _in_flight = bool(child is not None and child.alive) or any(lch.alive for lch in listeners.values())
                     _reason = daemon_self_restart_reason(
                         agent,
                         in_flight=_in_flight,
                         external_supervisor=args.external_supervisor,
                     )
                     if _reason:
-                        _say(f"[daemon] self-restart agent={agent}: {_reason} -- "
-                             f"successor launched; standing down (respawn-before-exit-0)")
+                        _say(
+                            f"[daemon] self-restart agent={agent}: {_reason} -- "
+                            f"successor launched; standing down (respawn-before-exit-0)"
+                        )
                         reason = _reason
                         break
-                except Exception:                                       # noqa: BLE001
+                except Exception:  # noqa: BLE001
                     pass
 
             # ---- child poll -------------------------------------------------------
@@ -621,9 +690,11 @@ def main(argv=None) -> int:
                     # loop. Go idle; the W102 reclaim probe below spawns the moment the lock frees.
                     fh = foreign_holder_after_exit(agent, exited_pid)
                     if fh is not None:
-                        _say(f"[daemon] handover agent={agent}: runner lock held by foreign pid={fh.get('pid')} "
-                             f"token={str(fh.get('token', ''))[:24]} -- cause not cleared, no respawn; "
-                             f"idle-watch (W102) reclaims when it frees")
+                        _say(
+                            f"[daemon] handover agent={agent}: runner lock held by foreign pid={fh.get('pid')} "
+                            f"token={str(fh.get('token', ''))[:24]} -- cause not cleared, no respawn; "
+                            f"idle-watch (W102) reclaims when it frees"
+                        )
                         child = None
                         idle_mode = True
                         runner_down_since = None
@@ -641,12 +712,13 @@ def main(argv=None) -> int:
                 try:
                     rh = runner_lock.holder(agent)
                     if rh is None:
-                        _say(f"[daemon] reclaim agent={agent}: runner lock freed -- "
-                             f"spawning runner child (W102)")
+                        _say(f"[daemon] reclaim agent={agent}: runner lock freed -- spawning runner child (W102)")
                         idle_mode = False
                     elif str(rh.get("token", "")).startswith("daemon:"):
-                        _say(f"[daemon] reclaim agent={agent}: runner lock now held by "
-                             f"a daemon token -- spawning runner child (W102)")
+                        _say(
+                            f"[daemon] reclaim agent={agent}: runner lock now held by "
+                            f"a daemon token -- spawning runner child (W102)"
+                        )
                         idle_mode = False
                     if not idle_mode:
                         # Re-run the spawn block with the same explicit runner contract.
@@ -676,21 +748,19 @@ def main(argv=None) -> int:
                         )
                         child.on_exit = _on_runner_exit
                         if not child.spawn():
-                            _say(f"[daemon] reclaim spawn BLOCKED agent={agent} "
-                                 f"(circuit breaker pre-tripped?) -- daemon still alive")
+                            _say(
+                                f"[daemon] reclaim spawn BLOCKED agent={agent} "
+                                f"(circuit breaker pre-tripped?) -- daemon still alive"
+                            )
                         else:
-                            _say(f"[daemon] runner spawned agent={agent} pid={child.pid} "
-                                 f"(reclaimed from idle, W102)")
+                            _say(f"[daemon] runner spawned agent={agent} pid={child.pid} (reclaimed from idle, W102)")
                             card["slice"] = "M1-delta"
                 except Exception as e:
-                    _say(f"[daemon] reclaim probe error agent={agent}: "
-                         f"{type(e).__name__}: {e} -- will retry")
+                    _say(f"[daemon] reclaim probe error agent={agent}: {type(e).__name__}: {e} -- will retry")
 
             # ---- A1: consume rearm triggers + marker sweep -----------------------
             if manage_listener:
-                _ds.consume_rearms(agent,
-                    lambda sid: _spawn_listener(sid, bus.ns),
-                    tmp=tempfile.gettempdir())
+                _ds.consume_rearms(agent, lambda sid: _spawn_listener(sid, bus.ns), tmp=tempfile.gettempdir())
                 if now >= next_marker_sweep:
                     swept = _ds.sweep_stale_markers(agent, tmp=tempfile.gettempdir())
                     if swept:
@@ -718,16 +788,20 @@ def main(argv=None) -> int:
                 # every re-escalation window.
                 try:
                     from core.comm import runner_lock as _rl
+
                     seat_held = bool(_rl.holder(agent))
                 except Exception:
-                    seat_held = False        # unknowable lock: keep legacy behavior
+                    seat_held = False  # unknowable lock: keep legacy behavior
                 if seat_held:
                     if runner_down_since is not None:
-                        _say(f"[daemon] child down but '{agent}' seat lock is HELD -- "
-                             f"foreign/self-restarted runner has the seat; standing "
-                             f"down the escalation and retracting the page (W102)")
+                        _say(
+                            f"[daemon] child down but '{agent}' seat lock is HELD -- "
+                            f"foreign/self-restarted runner has the seat; standing "
+                            f"down the escalation and retracting the page (W102)"
+                        )
                         try:
                             from core.comm import pager
+
                             pager.clear_key(f"{agent}:runner_down")
                         except Exception:
                             pass
@@ -736,35 +810,46 @@ def main(argv=None) -> int:
                     if runner_down_since is None:
                         runner_down_since = now
                     down_s = int(now - runner_down_since)
-                    if runner_state == "down" and down_s >= RE_ESCALATION_S \
-                            and (now - runner_last_escalation) >= RE_ESCALATION_S:
+                    if (
+                        runner_state == "down"
+                        and down_s >= RE_ESCALATION_S
+                        and (now - runner_last_escalation) >= RE_ESCALATION_S
+                    ):
                         try:
                             # First edge only mints a wake-worthy mid. Recounts refresh the
                             # pager (stable key `{agent}:runner_down`) so doctor/PAGE stay
                             # current without a 10-minute wake metronome. Admit-side
                             # (bifrost_wake.outage_key) is the belt; this is the braces.
                             if runner_last_escalation == 0.0:
-                                bus.broadcast("blocker",
-                                              f"[blocker] runner for '{agent}' down {int(down_s/60)}min — "
-                                              f"daemon presence held. Check: py agent_cli.py doctor {agent}",
-                                              meta={"via": f"{agent}-daemon", "kind": "blocker"})
-                                _say(f"[daemon] re-escalation broadcast agent={agent}: "
-                                     f"runner down {int(down_s/60)}min")
+                                bus.broadcast(
+                                    "blocker",
+                                    f"[blocker] runner for '{agent}' down {int(down_s / 60)}min — "
+                                    f"daemon presence held. Check: {_pyl()} agent_cli.py doctor {agent}",
+                                    meta={"via": f"{agent}-daemon", "kind": "blocker"},
+                                )
+                                _say(
+                                    f"[daemon] re-escalation broadcast agent={agent}: runner down {int(down_s / 60)}min"
+                                )
                             else:
-                                _say(f"[daemon] re-escalation page-only agent={agent}: "
-                                     f"runner down {int(down_s/60)}min (no new wake mid)")
+                                _say(
+                                    f"[daemon] re-escalation page-only agent={agent}: "
+                                    f"runner down {int(down_s / 60)}min (no new wake mid)"
+                                )
                             runner_last_escalation = now
-                            try:   # T078-W4: page-grade -> the pager surface (a live
+                            try:  # T078-W4: page-grade -> the pager surface (a live
                                 #    seat relays via PushNotification; hook injects [PAGE])
                                 from core.comm import pager
+
                                 # KEYED so this page can be RETRACTED when the runner comes
                                 # back. A keyless page has no retraction path and renders
                                 # forever (2026-07-27: a resolved lane_stall shouted into
                                 # every prompt for nine hours). Same key shape the doctor
                                 # uses -- "<agent>:<state>".
-                                pager.page(agent, f"runner down {int(down_s/60)}m -- "
-                                                  f"daemon holding presence; doctor {agent}",
-                                           key=f"{agent}:runner_down")
+                                pager.page(
+                                    agent,
+                                    f"runner down {int(down_s / 60)}m -- daemon holding presence; doctor {agent}",
+                                    key=f"{agent}:runner_down",
+                                )
                             except Exception:
                                 pass
                         except Exception:
@@ -784,13 +869,14 @@ def main(argv=None) -> int:
             if not bus.probe():
                 if dark_since is None:
                     dark_since = now
-                    _say(f"[daemon] bus lost agent={agent} -- guard engaged "
-                         f"(probe every {guard_every}s; tenure survives)")
+                    _say(
+                        f"[daemon] bus lost agent={agent} -- guard engaged "
+                        f"(probe every {guard_every}s; tenure survives)"
+                    )
                 next_dark_probe = now + guard_every
                 continue
             if dark_since is not None:
-                _say(f"[daemon] bus back agent={agent} after {int(now - dark_since)}s "
-                     f"-- presence re-registered")
+                _say(f"[daemon] bus back agent={agent} after {int(now - dark_since)}s -- presence re-registered")
                 dark_since = None
 
             # ---- lock heartbeat ---------------------------------------------------

@@ -33,6 +33,7 @@ Run::
 
     py -m pytest tests/test_t108_u1_seat_stream_under_lane.py -q
 """
+
 from __future__ import annotations
 
 import os
@@ -48,9 +49,10 @@ sys.path.insert(0, str(ROOT))
 NS = "test-u1seat"
 pytestmark = pytest.mark.xfail(
     reason="T108 U1 CONTRACT, not yet implemented: work_drain does not read the seat "
-           "stream (bus.py:806 disables it whenever `streams` is passed). Committed RED "
-           "as a pre-registered acceptance; remove this marker with the fix.",
-    strict=True)
+    "stream (bus.py:806 disables it whenever `streams` is passed). Committed RED "
+    "as a pre-registered acceptance; remove this marker with the fix.",
+    strict=True,
+)
 
 
 def _api(agent, incarnation):
@@ -58,6 +60,7 @@ def _api(agent, incarnation):
     os.environ["BIFROST_INCARNATION"] = incarnation
     os.environ["BIFROST_CONSUME_LANE"] = "work"
     from core.comm.bifrost_api import BifrostAPI
+
     return BifrostAPI(agent)
 
 
@@ -65,6 +68,7 @@ def test_directed_mail_reaches_its_incarnation_under_lane_consume():
     """THE DEFECT. A packet addressed to seat A must be readable by A while A consumes
     in lane mode -- the only mode production runs."""
     from core.comm.bus import Bus
+
     sender = Bus("sender", namespace=NS)
     a = _api("worker", "aaaaaaaa")
     sender.send("worker", "handoff", "for A only", meta={"to_incarnation": "aaaaaaaa"})
@@ -74,7 +78,8 @@ def test_directed_mail_reaches_its_incarnation_under_lane_consume():
     bodies = [str(getattr(m, "content", "")) for m in got]
     assert any("for A only" in b for b in bodies), (
         "directed mail invisible under CONSUME_LANE=work -- the seat stream holds it and "
-        "the production consume path never reads it (bus.py:806)")
+        "the production consume path never reads it (bus.py:806)"
+    )
 
 
 def test_seat_sourced_mail_is_labelled_seat():
@@ -83,6 +88,7 @@ def test_seat_sourced_mail_is_labelled_seat():
     a FOURTH source and must be distinguishable, or a consumer will advance the wrong
     cursor and either lose mail or replay it."""
     from core.comm.bus import Bus
+
     sender = Bus("sender", namespace=NS)
     a = _api("worker2", "bbbbbbbb")
     sender.send("worker2", "handoff", "seat labelled", meta={"to_incarnation": "bbbbbbbb"})
@@ -90,7 +96,9 @@ def test_seat_sourced_mail_is_labelled_seat():
     got = a.work_drain(timeout_ms=50, limit=10)
     seat_msgs = [m for m in got if (getattr(m, "meta", {}) or {}).get("_lane_src") == "seat"]
 
-    assert seat_msgs, f"no message carried _lane_src=seat; got {[(getattr(m,'meta',{}) or {}).get('_lane_src') for m in got]}"
+    assert seat_msgs, (
+        f"no message carried _lane_src=seat; got {[(getattr(m, 'meta', {}) or {}).get('_lane_src') for m in got]}"
+    )
 
 
 def test_a_twin_cannot_starve_the_seat():
@@ -99,17 +107,19 @@ def test_a_twin_cannot_starve_the_seat():
     A must still receive it -- its own seat stream is untouched and is precisely the
     recovery path T108 slice 1 was built to provide."""
     from core.comm.bus import Bus
+
     sender = Bus("sender", namespace=NS)
     a = _api("worker3", "cccccccc")
     sender.send("worker3", "handoff", "addressed to A", meta={"to_incarnation": "cccccccc"})
 
-    b = _api("worker3", "dddddddd")      # the twin
-    b.work_drain(timeout_ms=50, limit=10)          # B sweeps the shared lane cursor forward
+    b = _api("worker3", "dddddddd")  # the twin
+    b.work_drain(timeout_ms=50, limit=10)  # B sweeps the shared lane cursor forward
 
     got = a.work_drain(timeout_ms=50, limit=10)
     assert any("addressed to A" in str(getattr(m, "content", "")) for m in got), (
         "a twin advancing the shared cursor STARVED the addressee -- delivery ownership "
-        "failed even though the incarnation filter prevented content theft")
+        "failed even though the incarnation filter prevented content theft"
+    )
 
 
 def test_seat_cursor_advances_only_after_processing():
@@ -119,6 +129,7 @@ def test_seat_cursor_advances_only_after_processing():
     redelivers forever, which is the wake-loop class. Draining twice without an explicit
     advance must therefore return the packet BOTH times."""
     from core.comm.bus import Bus
+
     sender = Bus("sender", namespace=NS)
     a = _api("worker4", "eeeeeeee")
     sender.send("worker4", "handoff", "redeliver me", meta={"to_incarnation": "eeeeeeee"})
@@ -132,4 +143,5 @@ def test_seat_cursor_advances_only_after_processing():
     assert has(first), "first drain did not deliver"
     assert has(second), (
         "the seat cursor auto-advanced on read -- a crash between read and processing "
-        "would lose the message (RB-26 requires commit-after-processing)")
+        "would lose the message (RB-26 requires commit-after-processing)"
+    )

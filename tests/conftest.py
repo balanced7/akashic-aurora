@@ -11,6 +11,7 @@ Backend isolation (Redis db 15 + temp AI_SETUP) stays opt-in per-test via
 ``import isolate_canonical`` so suites that intentionally exercise the real backends are
 unaffected. Recall SCRATCH state is the one universal exception (see below).
 """
+
 import os
 import sys
 import tempfile
@@ -28,8 +29,7 @@ for _p in (_ROOT, _TESTS):
 # live recall then serves [] until the TTL heals it (found 2026-07-02 by dogfooding: 64 green
 # unit tests + a blank production cache). Unlike backend isolation, NO test ever legitimately
 # wants the real recall scratch, so this one is unconditional.
-os.environ.setdefault("AKASHIC_RECALL_STATE_DIR",
-                      tempfile.mkdtemp(prefix="akashic_recall_test_"))
+os.environ.setdefault("AKASHIC_RECALL_STATE_DIR", tempfile.mkdtemp(prefix="akashic_recall_test_"))
 
 # ---------------------------------------------------------------------------
 # T070: BACKEND ISOLATION IS NOW UNIVERSAL TOO (2026-07-25).
@@ -59,8 +59,10 @@ if not os.environ.get("AKASHIC_TEST_USE_CANONICAL"):
 else:
     # Deliberate operator override, e.g. reproducing a canonical-state incident. Loud, so
     # nobody discovers afterwards that a run touched real data.
-    print("[conftest] AKASHIC_TEST_USE_CANONICAL set -- tests will touch REAL backends. "
-          "Run scripts/repair_learning_index.py --check afterwards.")
+    print(
+        "[conftest] AKASHIC_TEST_USE_CANONICAL set -- tests will touch REAL backends. "
+        "Run scripts/repair_learning_index.py --check afterwards."
+    )
 
 # ---------------------------------------------------------------------------
 # WINDOWS: CHILD PROCESSES RUN WITHOUT POPPING A CONSOLE WINDOW (2026-07-25, Daniel-asked).
@@ -125,8 +127,7 @@ if sys.platform == "win32" and not os.environ.get("AKASHIC_TEST_SHOW_CONSOLES"):
     # every top-level module here on the import path of every python process that inherits the
     # env, which is a shadowing hazard traded for a cosmetic fix. scripts/quiet/ holds exactly
     # one file and nothing else can be shadowed by it.
-    _quiet = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                          "scripts", "quiet")
+    _quiet = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts", "quiet")
     _pp = os.environ.get("PYTHONPATH", "")
     if _quiet not in _pp.split(os.pathsep):
         os.environ["PYTHONPATH"] = (_quiet + os.pathsep + _pp) if _pp else _quiet
@@ -154,8 +155,8 @@ import pytest as _pytest
 def _isolate_conductor_gate_provenance(tmp_path_factory, monkeypatch):
     try:
         from core.comm.conductor_gate import PROVENANCE_ENV, _reset_heartbeat
-    except Exception:                                                   # noqa: BLE001
-        return                      # gate absent/renamed: nothing to isolate
+    except Exception:  # noqa: BLE001
+        return  # gate absent/renamed: nothing to isolate
     d = tmp_path_factory.mktemp("conductor_gate_prov")
     monkeypatch.setenv(PROVENANCE_ENV, str(d / "conductor_gate.provenance.log"))
-    _reset_heartbeat()              # rate-limit state must not leak between tests
+    _reset_heartbeat()  # rate-limit state must not leak between tests

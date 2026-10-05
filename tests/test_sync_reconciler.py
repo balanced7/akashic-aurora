@@ -41,6 +41,7 @@ def test_reconcile_backfill_if_redis():
         print("\n--- reconcile backfill ---\n  SKIPPED (Redis not running)")
         return
     import time
+
     ns = f"recon:{int(time.time())}"
     with tempfile.TemporaryDirectory() as d:
         fs = FileStore(os.path.join(d, "s.json"))
@@ -77,9 +78,11 @@ def main():
 
 def _teardown():
     import shutil
+
     try:
         from redis_test_helpers import fresh_test_store
-        fresh_test_store()   # flushes db 15 (no-op if Redis down)
+
+        fresh_test_store()  # flushes db 15 (no-op if Redis down)
     except Exception:
         pass
     shutil.rmtree(_TMP_AI_SETUP, ignore_errors=True)

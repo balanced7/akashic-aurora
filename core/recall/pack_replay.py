@@ -33,6 +33,7 @@ Case-sets, verbatim from research/in-flight/r2-slice1-reconciled-bar-2026-07-28.
                                          the bar's clause 3 binds the gate, and the
                                          baseline shows what the floor already does)
 """
+
 from __future__ import annotations
 
 import os
@@ -40,8 +41,7 @@ import re
 import tempfile
 from typing import Any, Dict, List, Optional
 
-PACK_PATH = os.path.join("research", "in-flight",
-                         "demand-census-fresh-pack-seed2-2026-07-28.md")
+PACK_PATH = os.path.join("research", "in-flight", "demand-census-fresh-pack-seed2-2026-07-28.md")
 
 SHAPE_CATCHABLE = {3, 6, 10, 15, 17, 22, 27}
 INTERSECTION_HIT = {4, 18, 24}
@@ -57,7 +57,7 @@ def parse_pack(text: str) -> List[Dict[str, Any]]:
     out: List[Dict[str, Any]] = []
     matches = list(_CASE_RE.finditer(text))
     for i, m in enumerate(matches):
-        block = text[m.end(): matches[i + 1].start() if i + 1 < len(matches) else len(text)]
+        block = text[m.end() : matches[i + 1].start() if i + 1 < len(matches) else len(text)]
         am = re.search(r"^ACTION:\s*(.+?)(?=^\s*\d+:[a-z]\s|\Z)", block, re.M | re.S)
         action = " ".join((am.group(1) if am else "").split())
         out.append({"case": int(m.group(1)), "kind": m.group(2), "action": action})
@@ -87,39 +87,53 @@ def replay(pack_path: str = PACK_PATH, *, root: Optional[str] = None) -> Dict[st
         cases = parse_pack(f.read())
 
     saved = A._OUTCOME_DIR
-    A._OUTCOME_DIR = tempfile.mkdtemp(prefix="r2replay_")   # hermetic: never pollute the live sink
+    A._OUTCOME_DIR = tempfile.mkdtemp(prefix="r2replay_")  # hermetic: never pollute the live sink
     rows: List[Dict[str, Any]] = []
     try:
         for c in cases:
             kw = {"command": c["action"]} if c["kind"] == "command" else {"path": c["action"]}
             r = A.recall_at(**kw)
             fired = bool(r.get("lessons"))
-            rows.append({**c, "bucket": classify(c["case"]), "fired": fired,
-                         "n_items": len(r.get("lessons") or []),
-                         "error": r.get("error") or ""})
+            rows.append(
+                {
+                    **c,
+                    "bucket": classify(c["case"]),
+                    "fired": fired,
+                    "n_items": len(r.get("lessons") or []),
+                    "error": r.get("error") or "",
+                }
+            )
     finally:
         A._OUTCOME_DIR = saved
 
     def _tally(bucket: str) -> Dict[str, int]:
         sub = [r for r in rows if r["bucket"] == bucket]
-        return {"cases": len(sub), "fired": sum(r["fired"] for r in sub),
-                "silent": sum(not r["fired"] for r in sub)}
+        return {"cases": len(sub), "fired": sum(r["fired"] for r in sub), "silent": sum(not r["fired"] for r in sub)}
 
     return {
         "cases": rows,
-        "tally": {b: _tally(b) for b in ("shape_catchable_none_needed", "intersection_hit",
-                                         "contested_plane", "floor_business", "should_surface")},
+        "tally": {
+            b: _tally(b)
+            for b in (
+                "shape_catchable_none_needed",
+                "intersection_hit",
+                "contested_plane",
+                "floor_business",
+                "should_surface",
+            )
+        },
         "errors": [r["case"] for r in rows if r["error"]],
     }
 
 
 def render(result: Dict[str, Any]) -> str:
-    lines = ["# R2 pack replay -- TODAY'S pipeline vs the reconciled bar's case-sets",
-             "# (baseline: no gate exists; silence here is the existing floor's doing)"]
+    lines = [
+        "# R2 pack replay -- TODAY'S pipeline vs the reconciled bar's case-sets",
+        "# (baseline: no gate exists; silence here is the existing floor's doing)",
+    ]
     for b, t in result["tally"].items():
         lines.append(f"  {b:28} cases={t['cases']:2}  fired={t['fired']:2}  silent={t['silent']:2}")
-    hits_silent = [r["case"] for r in result["cases"]
-                   if r["bucket"] == "intersection_hit" and not r["fired"]]
+    hits_silent = [r["case"] for r in result["cases"] if r["bucket"] == "intersection_hit" and not r["fired"]]
     if hits_silent:
         lines.append(f"  !! INTERSECTION-HIT ALREADY SILENT TODAY (floor defect, pre-gate): {hits_silent}")
     if result["errors"]:

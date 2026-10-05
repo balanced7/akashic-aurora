@@ -51,13 +51,13 @@ def _pack_cases():
 
 # --------------------------------------------------------------- A1 anti-fitting
 def test_a1_the_module_names_no_case_numbers():
-    src = io.open(os.path.join(ROOT, "core", "recall", "gate_rules.py"),
-                  encoding="utf-8").read()
+    src = io.open(os.path.join(ROOT, "core", "recall", "gate_rules.py"), encoding="utf-8").read()
     hits = re.findall(r"\bcase[ _]?(\d+)\b", src, re.I)
     assert not hits, (
         f"FITTING SURFACE: the rule module references census case number(s) {hits}. "
         f"A principle that cannot be stated without a case number is a fit -- kimi's "
-        f"Q1 rejection rule, enforced structurally.")
+        f"Q1 rejection rule, enforced structurally."
+    )
 
 
 # --------------------------------------------------------------- A2 the floor's case
@@ -68,14 +68,14 @@ def test_a2_the_relevance_judgment_case_matches_no_rule():
         f"RULE STRETCHED INTO THE FLOOR'S TERRITORY: the relevance-judgment case "
         f"matched {verdict!r}. The moment a shape rule catches it, the table has "
         f"learned the pack (kimi Q2-b): editing a source file is a real edit, and "
-        f"whether its lessons are tangential is the FLOOR's judgment, not a shape's.")
+        f"whether its lessons are tangential is the FLOOR's judgment, not a shape's."
+    )
 
 
 # --------------------------------------------------------------- A3 the receipt hash
 def test_a3_the_table_exposes_a_stable_hash():
     h1, h2 = G.table_hash(), G.table_hash()
-    assert h1 and h1 == h2 and len(h1) >= 12, (
-        "sol's receipt needs rule_table_hash -- a name alone is mutable semantics")
+    assert h1 and h1 == h2 and len(h1) >= 12, "sol's receipt needs rule_table_hash -- a name alone is mutable semantics"
 
 
 # --------------------------------------------------------------- B1/B2/B3 the bar
@@ -91,34 +91,39 @@ def test_b1_shape_catchable_cases_match():
     safety must come from the parse, never a broader denylist. Original collision
     text preserved in git history at the ADJUDICATION-PENDING commit."""
     cases = _pack_cases()
-    matched = [n for n in sorted(P.SHAPE_CATCHABLE)
-               if G.match(query_shape=cases[n]["kind"], action=cases[n]["action"])]
-    assert len(matched) >= 3, (
-        f"below even the SAFE ceiling: got {len(matched)}: {matched}")
+    matched = [n for n in sorted(P.SHAPE_CATCHABLE) if G.match(query_shape=cases[n]["kind"], action=cases[n]["action"])]
+    assert len(matched) >= 3, f"below even the SAFE ceiling: got {len(matched)}: {matched}"
     assert matched == [10, 17, 22], (
         f"the RULED clause-1 set is exactly the grammar's survivors; a different set "
-        f"means the grammar moved and the bar must be re-examined WITH it: {matched}")
+        f"means the grammar moved and the bar must be re-examined WITH it: {matched}"
+    )
 
 
 def test_b2_intersection_hits_never_match():
     cases = _pack_cases()
-    hits = [n for n in sorted(P.INTERSECTION_HIT)
-            if G.match(query_shape=cases[n]["kind"], action=cases[n]["action"])]
+    hits = [n for n in sorted(P.INTERSECTION_HIT) if G.match(query_shape=cases[n]["kind"], action=cases[n]["action"])]
     assert not hits, (
         f"HARD ZERO VIOLATED AT THE TABLE: intersection-HIT case(s) {hits} match a "
-        f"silence rule. Both blind judges said these lessons change the action.")
+        f"silence rule. Both blind judges said these lessons change the action."
+    )
 
 
 def test_b3_should_surface_never_matches():
     cases = _pack_cases()
-    ss = [n for n in cases
-          if n not in P.SHAPE_CATCHABLE and n not in P.INTERSECTION_HIT
-          and n not in P.CONTESTED and n not in P.FLOOR_BUSINESS]
+    ss = [
+        n
+        for n in cases
+        if n not in P.SHAPE_CATCHABLE
+        and n not in P.INTERSECTION_HIT
+        and n not in P.CONTESTED
+        and n not in P.FLOOR_BUSINESS
+    ]
     bad = [n for n in ss if G.match(query_shape=cases[n]["kind"], action=cases[n]["action"])]
     assert not bad, (
         f"clause 3 (kimi's strongest attack): the gate may ONLY silence NONE-NEEDED. "
         f"should-surface case(s) {bad} matched a rule -- adding silence to planes the "
-        f"census says are already too dark.")
+        f"census says are already too dark."
+    )
 
 
 # --------------------------------------------------------------- B4 no raw text
@@ -131,7 +136,8 @@ def test_b4_matched_features_carry_no_raw_command():
         feats = str(v.get("matched_features"))
         assert cases[n]["action"][:40] not in feats, (
             f"RAW COMMAND IN THE RECEIPT (case {n}): secrets ride argv; the receipt "
-            f"records structural facts, never the text (sol Q4): {feats[:120]}")
+            f"records structural facts, never the text (sol Q4): {feats[:120]}"
+        )
 
 
 # --------------------------------------------------------------- C-pins: sol's s1a NO-GO
@@ -140,32 +146,32 @@ def test_c1_a_write_verb_through_a_door_prefix_never_matches():
     It WRITES (a vote mutates the funnel). The write-verb exclusion must be the
     principle 'any mutating segment kills the match', not an enumerated list that
     rots as verbs are added."""
-    v = G.match(query_shape="command",
-                action="cd /e/ai-setup && py agent_cli.py recall-feedback claude "
-                       "--source learn:experiment:x --vote useful")
+    v = G.match(
+        query_shape="command",
+        action="cd /e/ai-setup && py agent_cli.py recall-feedback claude --source learn:experiment:x --vote useful",
+    )
     assert v is None, f"a WRITE through the knowledge door matched a silence rule: {v}"
 
 
 def test_c2_mutation_then_measurement_never_matches():
     """A compound command that MUTATES then counts is an action with effects; the
     count sink at the tail must not silence the mutation at the head."""
-    v = G.match(query_shape="command",
-                action="cd /e/ai-setup && rm -rf build && ls build 2>/dev/null | wc -l")
+    v = G.match(query_shape="command", action="cd /e/ai-setup && rm -rf build && ls build 2>/dev/null | wc -l")
     assert v is None, f"mutate-then-measure matched: {v}"
 
 
 def test_c3_commit_then_count_never_matches():
-    v = G.match(query_shape="command",
-                action="cd /e/ai-setup && git add x.py && git commit -q -m done && "
-                       "git log --oneline | wc -l")
+    v = G.match(
+        query_shape="command",
+        action="cd /e/ai-setup && git add x.py && git commit -q -m done && git log --oneline | wc -l",
+    )
     assert v is None, f"a commit wearing a count suffix matched: {v}"
 
 
 def test_c4_a_door_read_piped_to_a_writer_never_matches():
     """Reading status is inert; MATERIALIZING it somewhere is an action whose
     destination a lesson can absolutely change."""
-    v = G.match(query_shape="command",
-                action="py agent_cli.py status | Set-Content -Path state/snapshot.txt")
+    v = G.match(query_shape="command", action="py agent_cli.py status | Set-Content -Path state/snapshot.txt")
     assert v is None, f"door-read piped to a writer matched: {v}"
 
 
@@ -174,11 +180,12 @@ def test_c5_table_hash_covers_every_decision_affecting_structure(monkeypatch):
     receipt field failed its one job (a silence stays explainable after edits).
     Everything that can flip a verdict must be digested."""
     import re as _re
+
     h1 = G.table_hash()
     monkeypatch.setattr(G, "_PREFIX", _re.compile(r"^something-else", _re.I))
     assert G.table_hash() != h1, (
-        "changing _PREFIX changes decisions but not the hash -- receipts would "
-        "attribute new behaviour to the old table")
+        "changing _PREFIX changes decisions but not the hash -- receipts would attribute new behaviour to the old table"
+    )
 
 
 # --------------------------------------------------------------- D-pins: the inversion
@@ -200,7 +207,8 @@ def test_d1_an_unknown_program_never_matches_even_wearing_a_count_suffix():
         assert v is None, (
             f"UNKNOWN/MUTATING SEGMENT SILENCED: {action!r} -> {v}. A denylist fails "
             f"toward SILENCING when the unknown mutator wears a known sink; the "
-            f"allowlist grammar fails toward FIRING, which is the bar's law.")
+            f"allowlist grammar fails toward FIRING, which is the bar's law."
+        )
 
 
 # --------------------------------------------------------------- E-pins: the instrument stop
@@ -213,11 +221,14 @@ def test_e1_the_pack_renderer_never_clips_an_action():
     the whole action or says LOUDLY that it could not."""
     import inspect
     from core.recall import precision_audit as PA
+
     src = inspect.getsource(PA)
     import re as _re
+
     assert not _re.search(r"\[\s*:\s*300\s*\]", src), (
         "the silent [:300] clip is still in the renderer -- every pack drawn from it "
-        "trains judges and rules on partial evidence")
+        "trains judges and rules on partial evidence"
+    )
 
 
 def test_e2_inline_transform_is_dead():
@@ -227,5 +238,5 @@ def test_e2_inline_transform_is_dead():
     dies entirely: not reachable, not digested, not resurrectable by a future
     refactor that consults the tuple."""
     assert not hasattr(G, "_INLINE_TRANSFORM"), (
-        "_INLINE_TRANSFORM still exists -- it classified open(p,'wb').write(out) "
-        "as a read-only count")
+        "_INLINE_TRANSFORM still exists -- it classified open(p,'wb').write(out) as a read-only count"
+    )

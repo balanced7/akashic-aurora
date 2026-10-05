@@ -9,6 +9,7 @@ Ranker's designed relevance_fn seam), reference-class doc exclusion, and fail-so
 
 Run: py -m pytest tests/test_lookback.py -q   (integration probes need the real repo corpus)
 """
+
 import os
 import sys
 
@@ -17,30 +18,54 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from core.recall.lookback import REFERENCE_DOCS, _stem_relevance, lookback
 
 BATTERY = [
-    ("C1", "why is the bifrost bus ephemeral instead of durable",
-     ["comms-pillar-synthesis", "coordination-plan-synthesis"]),
-    ("C2", "why is there no permanent per-agent file ownership",
-     ["AGENTS.md", "master-directive-list"]),
-    ("C3", "why are project notes write-once and corrected by superseding instead of editing",
-     ["d6153c2", "memory.md", "notes supersession"]),
-    ("C4", "why does the lesson forge gate edits behind a replay audit",
-     ["lesson-forge-design", "forge-f0-audit"]),
-    ("C5", "what happened to the GPT experiment-pivot analysis from early july",
-     ["experiment-pivot-gpt-analysis", "SAVE THIS", "1783256159"]),
-    ("C6", "why does the wake listener detect messages without consuming them",
-     ["p0-wake-detect-design", "deepseek-p0-design-review", "d925d6b"]),
-    ("D1", "why is the bus ephemeral and not a durable message queue",
-     ["claude-comms-pillar-fenced", "comms-pillar-synthesis"]),
-    ("D2", "why were CRDTs and consensus rejected for agent coordination",
-     ["claude-comms-pillar-fenced", "coordination-plan-synthesis"]),
-    ("D3", "why is the task ledger the coordination substrate instead of the message stream",
-     ["coordination-plan-synthesis"]),
-    ("D4", "what governs which bus messages survive a restart and why those kinds",
-     ["comms-pillar-synthesis", "bifrost:"]),
-    ("D5", "where did the forge blind the optimizer to its own contexts rule come from",
-     ["74d6e0d", "5562014"]),
-    ("D6", "why is the where-we-are note write-once superseded by re-noting the same title",
-     ["comms-pillar-status", "where-we-are", "mem:decision"]),
+    (
+        "C1",
+        "why is the bifrost bus ephemeral instead of durable",
+        ["comms-pillar-synthesis", "coordination-plan-synthesis"],
+    ),
+    ("C2", "why is there no permanent per-agent file ownership", ["AGENTS.md", "master-directive-list"]),
+    (
+        "C3",
+        "why are project notes write-once and corrected by superseding instead of editing",
+        ["d6153c2", "memory.md", "notes supersession"],
+    ),
+    ("C4", "why does the lesson forge gate edits behind a replay audit", ["lesson-forge-design", "forge-f0-audit"]),
+    (
+        "C5",
+        "what happened to the GPT experiment-pivot analysis from early july",
+        ["experiment-pivot-gpt-analysis", "SAVE THIS", "1783256159"],
+    ),
+    (
+        "C6",
+        "why does the wake listener detect messages without consuming them",
+        ["p0-wake-detect-design", "deepseek-p0-design-review", "d925d6b"],
+    ),
+    (
+        "D1",
+        "why is the bus ephemeral and not a durable message queue",
+        ["claude-comms-pillar-fenced", "comms-pillar-synthesis"],
+    ),
+    (
+        "D2",
+        "why were CRDTs and consensus rejected for agent coordination",
+        ["claude-comms-pillar-fenced", "coordination-plan-synthesis"],
+    ),
+    (
+        "D3",
+        "why is the task ledger the coordination substrate instead of the message stream",
+        ["coordination-plan-synthesis"],
+    ),
+    (
+        "D4",
+        "what governs which bus messages survive a restart and why those kinds",
+        ["comms-pillar-synthesis", "bifrost:"],
+    ),
+    ("D5", "where did the forge blind the optimizer to its own contexts rule come from", ["74d6e0d", "5562014"]),
+    (
+        "D6",
+        "why is the where-we-are note write-once superseded by re-noting the same title",
+        ["comms-pillar-status", "where-we-are", "mem:decision"],
+    ),
 ]
 
 
@@ -50,14 +75,21 @@ def test_the_preregistered_battery_passes():
     (same hermeticity lesson as the P2 cold-start drill, inverted)."""
     import json
     import subprocess
+
     repo = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    env = {**os.environ, "AI_SETUP": repo, "REDIS_DB": "0",
-           "AKASHIC_LOOKBACK_NO_COUNT": "1"}
+    env = {**os.environ, "AI_SETUP": repo, "REDIS_DB": "0", "AKASHIC_LOOKBACK_NO_COUNT": "1"}
     failures = []
     for tag, q, expects in BATTERY:
-        p = subprocess.run([sys.executable, "agent_cli.py", "lookback", *q.split(), "--json"],
-                           cwd=repo, capture_output=True, text=True, encoding="utf-8",
-                           errors="replace", timeout=120, env=env)
+        p = subprocess.run(
+            [sys.executable, "agent_cli.py", "lookback", *q.split(), "--json"],
+            cwd=repo,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=120,
+            env=env,
+        )
         try:
             hits = json.loads(p.stdout or "[]")
         except ValueError:
@@ -80,18 +112,22 @@ def test_stem_relevance_about_beats_mentions():
     Coverage alone tied them; concentration separates about-X from mentions-X."""
     q = "why is the bifrost bus ephemeral"
     filler = "lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod " * 60
-    catalog = f"bifrost ephemeral {filler}"                       # one mention each, ~4.3KB
-    discussion = ("the bifrost bus stays ephemeral because durable state belongs to the "
-                  "ledger; bifrost transports, the store remembers. ephemeral streams trim; "
-                  "the bus is a doorbell. bifrost ephemeral bus, not a database. ") * 12 + filler
-    assert _stem_relevance(discussion, q) > _stem_relevance(catalog, q), \
+    catalog = f"bifrost ephemeral {filler}"  # one mention each, ~4.3KB
+    discussion = (
+        "the bifrost bus stays ephemeral because durable state belongs to the "
+        "ledger; bifrost transports, the store remembers. ephemeral streams trim; "
+        "the bus is a doorbell. bifrost ephemeral bus, not a database. "
+    ) * 12 + filler
+    assert _stem_relevance(discussion, q) > _stem_relevance(catalog, q), (
         "repeated on-topic use must outrank one-mention cataloging in long texts"
+    )
 
 
 def test_doc_class_parses_tolerantly():
     """S5 residual fix, mechanism 3: the optional Class header (rationale|plan|test|
     reference), tolerant like the Status parse; anything else = unclassed = neutral."""
     from core.recall.lookback import _doc_class
+
     assert _doc_class("# Title\nStatus: current\nClass: rationale\n") == "rationale"
     assert _doc_class("**Class:** plan\n") == "plan"
     assert _doc_class("class: TEST extras ignored\n") == "test"
@@ -104,23 +140,27 @@ def test_match_excerpt_shows_the_matching_passage():
     doc's title block -- a top-3 hit must SHOW why it hit (C3's last displacement was
     the right doc excerpting its headline)."""
     from core.recall.lookback import _match_excerpt
+
     filler = "unrelated filler words all through this document body here " * 40
-    text = f"# Grand Title Of The Document\n{filler}\nthe notes supersession rationale: write-once beats editing\n{filler}"
+    text = (
+        f"# Grand Title Of The Document\n{filler}\nthe notes supersession rationale: write-once beats editing\n{filler}"
+    )
     out = _match_excerpt(text, "why are notes write-once and superseding instead of editing")
-    assert "supersession" in out and out.startswith("..."), \
+    assert "supersession" in out and out.startswith("..."), (
         "excerpt centers the deep matching passage, flagged as mid-doc"
+    )
     assert "Grand Title" not in out
-    assert _match_excerpt("no relevant terms here at all", "zebra query") \
-        .startswith("no relevant terms"), "no match -> head fallback"
+    assert _match_excerpt("no relevant terms here at all", "zebra query").startswith("no relevant terms"), (
+        "no match -> head fallback"
+    )
 
 
 def test_stem_relevance_short_text_single_mention_keeps_full_weight():
     """S5 must NOT tax short corpora (commits, notes, promoted excerpts): under one
     TF_LEN_UNIT a single mention is a full-weight match -- pre-S5 behavior exactly."""
-    assert _stem_relevance("notes supersession wired", "why superseding notes") == \
-        _stem_relevance("notes supersession wired supersession supersession",
-                        "why superseding notes"), \
-        "short texts: concentration is saturated at one occurrence"
+    assert _stem_relevance("notes supersession wired", "why superseding notes") == _stem_relevance(
+        "notes supersession wired supersession supersession", "why superseding notes"
+    ), "short texts: concentration is saturated at one occurrence"
 
 
 def test_reference_docs_never_appear():

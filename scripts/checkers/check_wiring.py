@@ -12,6 +12,7 @@ computed importlib name won't be seen; add it to EXCEPTIONS with a note if so.
 Run:  py scripts/checkers/check_wiring.py            # gate (exit 1 on a NEW unwired core/ module)
       py scripts/checkers/check_wiring.py --report   # print reachable vs unwired
 """
+
 import ast
 import json
 import os
@@ -22,9 +23,14 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 
 # The production call paths -- what actually RUNS in production.
 ENTRY_POINTS = [
-    "agent_cli.py", "ai_setup_mcp.py", "bootstrap.py", "config.py",
+    "agent_cli.py",
+    "ai_setup_mcp.py",
+    "bootstrap.py",
+    "config.py",
     "scripts/bifrost_runner.py",
-    "scripts/bifrost_ui.py", "scripts/bifrost_wake.py", "scripts/deepseek_chat.py",
+    "scripts/bifrost_ui.py",
+    "scripts/bifrost_wake.py",
+    "scripts/deepseek_chat.py",
     # W156 (2026-08-14): a real CLI door -- argparse + __main__, run by a human to seed a
     # twin's memory from a higher world. Added BY NAME, which is the discipline this file
     # warns against three lines below, and deliberately so: the general fix is to enumerate
@@ -38,13 +44,13 @@ ENTRY_POINTS = [
     # correctly refused core/fleet/app_package.py as unwired, and the module WAS wired,
     # to a door the gate could not see. A small instance of the mode the same day's
     # sketch named: the register was accurate and had stopped being about anything.
-    "scripts/revive.py",            # the recovery reconciler (!revive + OS watchdog)
-    "scripts/seed_world.py",        # W156: seeds a twin's memory from a higher world
-    "scripts/world_diff.py",        # W159: the at-a-glance world comparison
-    "scripts/world_savepoint.py",   # W160: a world's restore point (code + memory)
-    "scripts/world_fidelity.py",    # W163: what a checkout can and cannot do
-    "scripts/dawe_census.py",       # W164: verbs whose answer nobody outside can check
-    "scripts/lens_ledger.py",       # W168: score fan lenses by what survived
+    "scripts/revive.py",  # the recovery reconciler (!revive + OS watchdog)
+    "scripts/seed_world.py",  # W156: seeds a twin's memory from a higher world
+    "scripts/world_diff.py",  # W159: the at-a-glance world comparison
+    "scripts/world_savepoint.py",  # W160: a world's restore point (code + memory)
+    "scripts/world_fidelity.py",  # W163: what a checkout can and cannot do
+    "scripts/dawe_census.py",  # W164: verbs whose answer nobody outside can check
+    "scripts/lens_ledger.py",  # W168: score fan lenses by what survived
     # 2026-08-18: the SUPERVISOR was never an entry point -- the process that runs 24/7,
     # spawns runners and owns wake was invisible to this walk, so core/comm/discord_feed.py
     # (called from the daemon's own loop) reported built-not-wired while being precisely
@@ -68,14 +74,17 @@ ENTRY_POINTS = [
 # Same enumerate-don't-list discipline the hook dirs below already use.
 _rd = os.path.join(ROOT, "scripts")
 if os.path.isdir(_rd):
-    ENTRY_POINTS += [f"scripts/{r}" for r in sorted(os.listdir(_rd))
-                     if r.startswith("bifrost_runner_") and r.endswith(".py")]
+    ENTRY_POINTS += [
+        f"scripts/{r}" for r in sorted(os.listdir(_rd)) if r.startswith("bifrost_runner_") and r.endswith(".py")
+    ]
 # T104-M2 (2026-07-24): hooks split by owner-facet -- harness adapters live in
 # agent/harness/hooks/, commit guards in scripts/githooks/. Enumerate BOTH live
 # dirs; the transitional scripts/hooks/ session-continuity copies are NOT entry
 # points (deleted at next session start) and are deliberately not walked.
-for _hd, _prefix in ((os.path.join(ROOT, "agent", "harness", "hooks"), "agent/harness/hooks"),
-                     (os.path.join(ROOT, "scripts", "githooks"), "scripts/githooks")):
+for _hd, _prefix in (
+    (os.path.join(ROOT, "agent", "harness", "hooks"), "agent/harness/hooks"),
+    (os.path.join(ROOT, "scripts", "githooks"), "scripts/githooks"),
+):
     if os.path.isdir(_hd):
         ENTRY_POINTS += [f"{_prefix}/{h}" for h in sorted(os.listdir(_hd)) if h.endswith(".py")]
 
@@ -85,28 +94,28 @@ for _hd, _prefix in ((os.path.join(ROOT, "agent", "harness", "hooks"), "agent/ha
 EXCEPTIONS = {
     # built-ahead -- capability built before its production consumer; wire it when that lands
     "core/comm/wedge_discriminator.py": "KEEP built-ahead: T376 S5 decision core (half_a section 2.3 "
-        "verbatim, 8 pins green in tests/test_t376_s5_wedge_discriminator.py, authored deepseek); the "
-        "production consumer is the doctor/OOB py-spy executor which needs a live runner PID -- lands "
-        "at the S6 drill (F004's own dies_when). Wire it there, then remove this entry.",
+    "verbatim, 8 pins green in tests/test_t376_s5_wedge_discriminator.py, authored deepseek); the "
+    "production consumer is the doctor/OOB py-spy executor which needs a live runner PID -- lands "
+    "at the S6 drill (F004's own dies_when). Wire it there, then remove this entry.",
     # P2 investigate-before-delete verdicts (arch-triage 2026-07-07): DeepSeek's blind triage said
     # DELETE codex/*+fast_cache+session_recovery; code investigation KEEPS codex (paused tested
     # roadmap), CONSOLIDATES session_recovery (dup-class, not dead), and confirms only fast_cache dead.
     "core/codex/lifecycle.py": "KEEP built-ahead: Codex Wave-2 (docs/library/design/20260709_the-codex-a-self-curating-knowledge-laye_302fc9.md) C2 DONE, C3+ paused; "
-        "TESTED by tests/test_codex_resource.py -- NOT superseded, do not delete (verified P2 2026-07-07)",
+    "TESTED by tests/test_codex_resource.py -- NOT superseded, do not delete (verified P2 2026-07-07)",
     "core/codex/schema.py": "KEEP built-ahead: Codex Wave-2 (docs/library/design/20260709_the-codex-a-self-curating-knowledge-laye_302fc9.md) C2 DONE, C3+ paused; "
-        "TESTED by tests/test_codex_resource.py -- NOT superseded, do not delete (verified P2 2026-07-07)",
+    "TESTED by tests/test_codex_resource.py -- NOT superseded, do not delete (verified P2 2026-07-07)",
     "core/comm/dispatcher.py": "built-ahead: mesh doorbell->wake. BLOCKED on the W3 wake-adapter "
-        "'invoker' registry (does not exist yet; Dispatcher.run() has no production caller) AND an "
-        "architecture choice vs the live bifrost_wake mechanism -- wire when W3 lands (arch-triage 2026-07-07)",
+    "'invoker' registry (does not exist yet; Dispatcher.run() has no production caller) AND an "
+    "architecture choice vs the live bifrost_wake mechanism -- wire when W3 lands (arch-triage 2026-07-07)",
     "core/comm/interject.py": "built-ahead: human-interjection router; not wired yet",
     "core/comm/bridge_seal.py": "built-ahead (2026-09-17, claude/Vandor): the sealed envelope "
-        "+ chain for the midpoint mail cache (design research/in-flight/bridge-midpoint-cache-"
-        "2026-09-17/design.md; 14 pins green in tests/test_bridge_seal_red.py). Steps 1-2 of a "
-        "strangler rollout -- step 3 wires it into remote_relay behind a flag, off by default. "
-        "UNWIRE-WHEN: remote_relay seals an outbound envelope. That waits on Serge's fleet "
-        "countering the schema AND sending their verify key, because sealing stays off until "
-        "both halves exist. NOT wired blind on purpose: a wire format committed before the "
-        "other endpoint has answered is a format we would then have to break. Owner: claude.",
+    "+ chain for the midpoint mail cache (design research/in-flight/bridge-midpoint-cache-"
+    "2026-09-17/design.md; 14 pins green in tests/test_bridge_seal_red.py). Steps 1-2 of a "
+    "strangler rollout -- step 3 wires it into remote_relay behind a flag, off by default. "
+    "UNWIRE-WHEN: remote_relay seals an outbound envelope. That waits on Serge's fleet "
+    "countering the schema AND sending their verify key, because sealing stays off until "
+    "both halves exist. NOT wired blind on purpose: a wire format committed before the "
+    "other endpoint has answered is a format we would then have to break. Owner: claude.",
     # Added 2026-07-25 while clearing a CI that had been RED for over a day -- the boundary
     # guard failed FIRST and skipped every gate behind it, including the whole test suite,
     # so these two never surfaced. Both are kimi-lane builds from arcs still in flight, not
@@ -118,8 +127,8 @@ EXCEPTIONS = {
     # reached from scripts/bifrost_runner_kimi.py:52. The entry asked to be deleted rather than
     # renewed when its slice landed; this is that deletion.
     "core/toolbelt/contest.py": "built-ahead (28ffd5b): the chorus door, kimi's build, "
-        "claude-run green. UNWIRE-WHEN: a production caller invokes contest -- today only "
-        "its pins exercise it. Owner: kimi lane / T099 self-tooling.",
+    "claude-run green. UNWIRE-WHEN: a production caller invokes contest -- today only "
+    "its pins exercise it. Owner: kimi lane / T099 self-tooling.",
     "core/coord/experiment.py": "built-ahead: Stage-3 coordination evidence engine",
     "core/coord/metrics.py": "built-ahead: coordination metrics watchdog",
     # core/coord/shift_loop.py -- ENTRY REMOVED 2026-09-07 (suite:test_t159_oracle_field_of_view
@@ -153,31 +162,31 @@ EXCEPTIONS = {
     # neither can recur. These three are library modules with no consumer yet: genuinely
     # built-ahead, each naming what clears it.
     "core/comm/role_queue.py": "built-ahead (3919731, T108 S1): the role work queue. Design "
-        "settled by the T108 fence and gated by Daniil 2026-07-28. VERIFIED NEVER RUN "
-        "2026-08-01 -- bifrost:role:*, *rolefence*, *rolegen* all hold ZERO keys and no "
-        "production module imports it; the reaper still routes around it (reaper.py:228 strips "
-        "to_incarnation, :239 re-sends onto the shared inbox). UNWIRE-WHEN: the T108 migration "
-        "routes directed/role mail through it. Owner: T108.",
+    "settled by the T108 fence and gated by Daniil 2026-07-28. VERIFIED NEVER RUN "
+    "2026-08-01 -- bifrost:role:*, *rolefence*, *rolegen* all hold ZERO keys and no "
+    "production module imports it; the reaper still routes around it (reaper.py:228 strips "
+    "to_incarnation, :239 re-sends onto the shared inbox). UNWIRE-WHEN: the T108 migration "
+    "routes directed/role mail through it. Owner: T108.",
     "core/recall/gate_rules.py": "built-ahead (dc8584e, R2 slice 1a): the silence-gate rules, "
-        "written deliberately BEFORE the gate that consumes them -- its own docstring says so, "
-        "because a rule stated by pointing at the census sample would be a fit rather than a "
-        "principle. UNWIRE-WHEN: the silence gate lands and imports them. Owner: recall-heuristics.",
+    "written deliberately BEFORE the gate that consumes them -- its own docstring says so, "
+    "because a rule stated by pointing at the census sample would be a fit rather than a "
+    "principle. UNWIRE-WHEN: the silence gate lands and imports them. Owner: recall-heuristics.",
     "core/recall/shadow_shelf.py": {
         "reason": "KEEP built-ahead, intentionally offline (T370 Slice 0; RED gate f9d77b69): "
-            "the isolated observation/judgment substrate has 37 preregistered pins but the pilot "
-            "explicitly forbids a production caller, live hook, resident watcher, model call, or "
-            "canonical writer until replay, resource, kill/restart, and independent-review gates "
-            "clear. Wiring it merely to satisfy this checker would violate the safety boundary. "
-            "UNWIRE-WHEN: the separately reviewed T370 live adapter asks the real detector seam and "
-            "hands terminal slots to this module; remove this entry then, or delete the module if "
-            "the pilot is rejected. Owner: Sunshine; independent reconciler: Vandor.",
+        "the isolated observation/judgment substrate has 37 preregistered pins but the pilot "
+        "explicitly forbids a production caller, live hook, resident watcher, model call, or "
+        "canonical writer until replay, resource, kill/restart, and independent-review gates "
+        "clear. Wiring it merely to satisfy this checker would violate the safety boundary. "
+        "UNWIRE-WHEN: the separately reviewed T370 live adapter asks the real detector seam and "
+        "hands terminal slots to this module; remove this entry then, or delete the module if "
+        "the pilot is rejected. Owner: Sunshine; independent reconciler: Vandor.",
         "expires": "2026-09-30",
     },
     "core/recall/precision_audit.py": "built-ahead (52db9b5): the retrieval-accuracy instrument "
-        "kimi named as the hole every 2026-07-27 architecture position argued around without a "
-        "single accuracy number. Exercised by 3 test files, no production caller yet. "
-        "UNWIRE-WHEN: a door or scheduled audit invokes it -- an instrument nobody runs measures "
-        "nothing. Owner: recall lane.",
+    "kimi named as the hole every 2026-07-27 architecture position argued around without a "
+    "single accuracy number. Exercised by 3 test files, no production caller yet. "
+    "UNWIRE-WHEN: a door or scheduled audit invokes it -- an instrument nobody runs measures "
+    "nothing. Owner: recall lane.",
     # T386 screenspace observe organ (2026-09-23, kimi + Heimdall): the five modules of the
     # OBSERVE half only -- capture (pixel substrate), engine (digest facade), foreground
     # (WinEventHook source, §1.1), shadow (L0 pulse, F2-open), canary (§1 amended-ruling
@@ -193,42 +202,42 @@ EXCEPTIONS = {
     # by renewing the date.
     "core/screenspace/capture.py": {
         "reason": "built-ahead: T386 observe pixel substrate (mss one-shot -> ScreenFrame), "
-            "fail-soft on headless hosts. UNWIRE-WHEN the observe door's production facade lands "
-            "behind the Sunshine --allow-gui unlock. Owner: kimi/Heimdall.",
+        "fail-soft on headless hosts. UNWIRE-WHEN the observe door's production facade lands "
+        "behind the Sunshine --allow-gui unlock. Owner: kimi/Heimdall.",
         "expires": "2026-10-15",
     },
     "core/screenspace/engine.py": {
         "reason": "built-ahead: T386 observe digest facade (peek/delta/refs/read_text), the "
-            "verbs the observe door will call. UNWIRE-WHEN that door lands. Owner: kimi/Heimdall.",
+        "verbs the observe door will call. UNWIRE-WHEN that door lands. Owner: kimi/Heimdall.",
         "expires": "2026-10-15",
     },
     "core/screenspace/foreground.py": {
         "reason": "built-ahead: T386 §1.1 WinEventHook foreground source (ForegroundTracker). "
-            "UNWIRE-WHEN the observe door lands. Owner: kimi/Heimdall.",
+        "UNWIRE-WHEN the observe door lands. Owner: kimi/Heimdall.",
         "expires": "2026-10-15",
     },
     "core/screenspace/shadow.py": {
         "reason": "built-ahead: T386 L0 pulse model, F2-open v1-by-construction (cache-first "
-            "pulse reads the WinEventHook tracker; no per-call poll). UNWIRE-WHEN the observe "
-            "door lands. Owner: kimi/Heimdall.",
+        "pulse reads the WinEventHook tracker; no per-call poll). UNWIRE-WHEN the observe "
+        "door lands. Owner: kimi/Heimdall.",
         "expires": "2026-10-15",
     },
     "core/screenspace/canary.py": {
         "reason": "built-ahead: T386 §1 amended-ruling POSITIVE CANARY READ (uia_available / "
-            "CanaryState — actually reads the foreground window rather than inferring context). "
-            "Imported only by the other excepted screenspace modules, so it is unwired while the "
-            "door is gated on step 0. UNWIRE-WHEN the observe door lands. Owner: kimi/Heimdall.",
+        "CanaryState — actually reads the foreground window rather than inferring context). "
+        "Imported only by the other excepted screenspace modules, so it is unwired while the "
+        "door is gated on step 0. UNWIRE-WHEN the observe door lands. Owner: kimi/Heimdall.",
         "expires": "2026-10-15",
     },
     # unwired diagnostic -- kept, not on a runtime path (name-collision cleanup pending)
     "core/state/session_recovery.py": "unwired but KEPT (P2 2026-07-07): session-HISTORY recovery from "
-        "local files, distinct from session_checkpoint's crash-resume. Class-name collision RESOLVED "
-        "(checkpoint's helper renamed CheckpointRecovery). Still unwired (exported by __init__, no live "
-        "consumer) -- wire when a session-history consumer lands, or retire then. "
-        "RE-CONFIRMED UNWIRED 2026-08-03 (T134b): this entry read STALE for two days because "
-        "self_invoking_modules absolved it on a two-line `recovery = main()` stub. Traced -- no "
-        "importer, no shell caller. The gate was wrong, not the entry; see tests/"
-        "test_t134_self_invoking_is_not_a_library.py.",
+    "local files, distinct from session_checkpoint's crash-resume. Class-name collision RESOLVED "
+    "(checkpoint's helper renamed CheckpointRecovery). Still unwired (exported by __init__, no live "
+    "consumer) -- wire when a session-history consumer lands, or retire then. "
+    "RE-CONFIRMED UNWIRED 2026-08-03 (T134b): this entry read STALE for two days because "
+    "self_invoking_modules absolved it on a two-line `recovery = main()` stub. Traced -- no "
+    "importer, no shell caller. The gate was wrong, not the entry; see tests/"
+    "test_t134_self_invoking_is_not_a_library.py.",
 }
 
 # ---------------------------------------------------------------- EXPIRY (2026-08-24)
@@ -266,6 +275,7 @@ def exception_expired(path, entry, today=None):
     if not raw:
         return False
     import datetime
+
     today = today or datetime.date.today()
     try:
         due = datetime.date.fromisoformat(raw)
@@ -275,12 +285,13 @@ def exception_expired(path, entry, today=None):
 
 
 def exception_expiry_message(path, entry):
-    raw = (entry.get("expires", "") if isinstance(entry, dict) else "")
-    return (f"FAIL: built-not-wired exemption EXPIRED for '{path}' (expired {raw}) -> "
-            f"re-verify the module is still legitimately unwired and RENEW the date, or "
-            f"wire it, or remove the entry. Reason on file: "
-            f"{exception_reason(entry)[:120]}")
-
+    raw = entry.get("expires", "") if isinstance(entry, dict) else ""
+    return (
+        f"FAIL: built-not-wired exemption EXPIRED for '{path}' (expired {raw}) -> "
+        f"re-verify the module is still legitimately unwired and RENEW the date, or "
+        f"wire it, or remove the entry. Reason on file: "
+        f"{exception_reason(entry)[:120]}"
+    )
 
 
 def _dotted(rel):
@@ -347,12 +358,12 @@ def _is_reexported(rel, root=ROOT) -> bool:
         with open(init, encoding="utf-8", errors="replace") as fh:
             tree = ast.parse(fh.read())
     except (OSError, SyntaxError, ValueError):
-        return False                      # fail open: an unreadable __init__ re-exports nothing
+        return False  # fail open: an unreadable __init__ re-exports nothing
     for node in ast.walk(tree):
         if isinstance(node, ast.ImportFrom):
-            if node.module and node.module.rsplit(".", 1)[-1] == mod:   # from .mod import X
+            if node.module and node.module.rsplit(".", 1)[-1] == mod:  # from .mod import X
                 return True
-            if any(a.name == mod for a in node.names):                  # from . import mod
+            if any(a.name == mod for a in node.names):  # from . import mod
                 return True
         elif isinstance(node, ast.Import):
             if any(a.name.rsplit(".", 1)[-1] == mod for a in node.names):
@@ -412,6 +423,7 @@ def shell_invoked_modules(dirs=None) -> set:
     hide a genuinely dead module.
     """
     import re as _re
+
     roots = dirs if dirs is not None else [os.path.join(ROOT, d) for d in SHELL_DIRS]
     dash_m = _re.compile(r"-m\s+([A-Za-z_][A-Za-z0-9_.]*)")
     by_path = _re.compile(r"\b((?:scripts|core|agent)/[A-Za-z0-9_\-./]+\.py)\b")
@@ -421,8 +433,7 @@ def shell_invoked_modules(dirs=None) -> set:
             for dirpath, _dirnames, filenames in os.walk(root):
                 for fn in filenames:
                     try:
-                        text = open(os.path.join(dirpath, fn), encoding="utf-8",
-                                    errors="replace").read()
+                        text = open(os.path.join(dirpath, fn), encoding="utf-8", errors="replace").read()
                     except OSError:
                         continue
                     for mod in dash_m.findall(text):
@@ -430,7 +441,7 @@ def shell_invoked_modules(dirs=None) -> set:
                     for rel in by_path.findall(text):
                         found.add(rel.replace("\\", "/"))
         except Exception:
-            continue                      # fail open: never crash the guard on a bad read
+            continue  # fail open: never crash the guard on a bad read
     return found
 
 
@@ -461,8 +472,7 @@ def shell_invoked_modules(dirs=None) -> set:
 # Python identifier, and cannot corrupt the source the way a control character would.
 STRLIT = "STRLIT::"
 
-BASELINE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                             "wiring_function_baseline.json")
+BASELINE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "wiring_function_baseline.json")
 
 
 # T146: there is deliberately NO container list here any more. The T143 fix enumerated
@@ -511,12 +521,12 @@ def public_defs(rel, root=ROOT):
         """
         found = []
         for _f, val in ast.iter_fields(node):
-            for item in (val if isinstance(val, list) else [val]):
+            for item in val if isinstance(val, list) else [val]:
                 if isinstance(item, ast.stmt):
                     found.append(item)
-                elif isinstance(item, ast.AST):        # ExceptHandler, match_case, ...
+                elif isinstance(item, ast.AST):  # ExceptHandler, match_case, ...
                     for _f2, val2 in ast.iter_fields(item):
-                        for it2 in (val2 if isinstance(val2, list) else [val2]):
+                        for it2 in val2 if isinstance(val2, list) else [val2]:
                             if isinstance(it2, ast.stmt):
                                 found.append(it2)
         return found
@@ -524,9 +534,9 @@ def public_defs(rel, root=ROOT):
     def _walk(stmts, in_class=False):
         for node in stmts:
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                _take(node, in_class)                  # do NOT descend: nested defs stay private
+                _take(node, in_class)  # do NOT descend: nested defs stay private
             elif isinstance(node, ast.ClassDef):
-                _walk(node.body, in_class=True)        # inner classes are still public surface
+                _walk(node.body, in_class=True)  # inner classes are still public surface
             else:
                 _walk(_nested(node), in_class=in_class)
 
@@ -567,7 +577,7 @@ def reference_sites(rel, root=ROOT):
         elif isinstance(node, ast.Attribute):
             out.append((node.attr, ln))
         elif isinstance(node, ast.Constant) and isinstance(node.value, str):
-            if ln not in _all_lines:                  # T145: __all__ is a manifest, not a use
+            if ln not in _all_lines:  # T145: __all__ is a manifest, not a use
                 out.append((STRLIT + node.value, ln))  # T144: tagged, weighed differently below
         elif isinstance(node, ast.keyword) and node.arg:
             out.append((node.arg, ln))
@@ -596,7 +606,7 @@ def unwired_functions(candidate_mods, production_files, root=ROOT):
     for p in production_files:
         for name, ln in reference_sites(p, root=root):
             if name.startswith(STRLIT):
-                strsites.setdefault(name[len(STRLIT):], []).append((p, ln))
+                strsites.setdefault(name[len(STRLIT) :], []).append((p, ln))
             else:
                 sites.setdefault(name, []).append((p, ln))
     out = []
@@ -621,8 +631,7 @@ def stale_function_baseline(baseline, candidate_mods, production_files, root=ROO
     The module gate is currently reporting two of its own stale entries, which is the property
     worth copying: an exemption list that can only grow stops being a backlog.
     """
-    live = {f"{m}::{n}" for m, n, _lo in
-            unwired_functions(candidate_mods, production_files, root=root)}
+    live = {f"{m}::{n}" for m, n, _lo in unwired_functions(candidate_mods, production_files, root=root)}
     return sorted(e for e in baseline if e not in live)
 
 
@@ -631,7 +640,7 @@ def load_baseline(path=BASELINE_PATH):
         with open(path, encoding="utf-8") as fh:
             return set(json.load(fh).get("entries", []))
     except (OSError, ValueError):
-        return set()          # fail open: a missing baseline freezes nothing, it does not crash
+        return set()  # fail open: a missing baseline freezes nothing, it does not crash
 
 
 def _script_files():
@@ -686,9 +695,13 @@ def candidate_modules(reachable=None, core_universe=None):
 def function_level(reachable, core_universe):
     """-> (candidate_mods, production_files, orphans, stale) for the gate and the report."""
     cand = candidate_modules(reachable, core_universe)
-    prod = sorted({p for p in (set(ENTRY_POINTS) | _script_files()
-                               | {r for r in reachable if r.endswith(".py")})
-                   if os.path.exists(os.path.join(ROOT, p))})
+    prod = sorted(
+        {
+            p
+            for p in (set(ENTRY_POINTS) | _script_files() | {r for r in reachable if r.endswith(".py")})
+            if os.path.exists(os.path.join(ROOT, p))
+        }
+    )
     orphans = unwired_functions(cand, prod)
     stale = stale_function_baseline(sorted(load_baseline()), cand, prod)
     return cand, prod, orphans, stale
@@ -698,8 +711,7 @@ def analyze():
     modmap = module_map()
     # __init__.py are package markers (implicitly loaded on submodule import); the static graph can't
     # see that, so exclude them -- they are not capability modules.
-    core_universe = {rel for rel in modmap.values()
-                     if rel.startswith("core/") and not rel.endswith("__init__.py")}
+    core_universe = {rel for rel in modmap.values() if rel.startswith("core/") and not rel.endswith("__init__.py")}
     # BFS from the entry points over the import graph
     reachable, frontier = set(), list(ENTRY_POINTS)
     seen = set(ENTRY_POINTS)
@@ -707,7 +719,8 @@ def analyze():
         f = frontier.pop()
         for dep in imports_of(f, modmap):
             if dep not in seen:
-                seen.add(dep); frontier.append(dep)
+                seen.add(dep)
+                frontier.append(dep)
             reachable.add(dep)
     # Shell hooks and CI are production entry points too -- the strictest ones, since they gate
     # the push. Union them in as wiring evidence so a module invoked via `py -m` is not reported
@@ -741,8 +754,10 @@ def main():
 
     report = "--report" in sys.argv
     if report:
-        print(f"core/ modules: {len(core_universe)}  |  reachable from production: "
-              f"{len(core_universe & reachable)}  |  unwired: {len(unwired)}\n")
+        print(
+            f"core/ modules: {len(core_universe)}  |  reachable from production: "
+            f"{len(core_universe & reachable)}  |  unwired: {len(unwired)}\n"
+        )
         print("UNWIRED (built, not on a production call path):")
         for u in unwired:
             print(f"  {u}{'   [exception]' if u in EXCEPTIONS else ''}")
@@ -754,16 +769,20 @@ def main():
     for s in stale:
         print(f"WARN: '{s}' is in EXCEPTIONS but is now wired (or gone) -> remove the stale entry")
     for u in new_unwired:
-        print(f"FAIL: '{u}' exists but is NOT reachable from any production entry point "
-              f"(built != wired) -> wire it, delete it, or add to EXCEPTIONS with a reason")
+        print(
+            f"FAIL: '{u}' exists but is NOT reachable from any production entry point "
+            f"(built != wired) -> wire it, delete it, or add to EXCEPTIONS with a reason"
+        )
 
     # T134: the same question one level down -- a wired module can still hold dead capability.
     _cand, _prod, orphans, fn_stale = function_level(reachable, core_universe)
     baseline = load_baseline()
     new_orphans = [(m, n, lo) for m, n, lo in orphans if f"{m}::{n}" not in baseline]
     if report or "--functions" in sys.argv:
-        print(f"\npublic core/ functions unwired: {len(orphans)}  "
-              f"|  frozen backlog: {len(baseline)}  |  new: {len(new_orphans)}\n")
+        print(
+            f"\npublic core/ functions unwired: {len(orphans)}  "
+            f"|  frozen backlog: {len(baseline)}  |  new: {len(new_orphans)}\n"
+        )
         cur = None
         for m, n, lo in orphans:
             if m != cur:
@@ -771,12 +790,13 @@ def main():
                 cur = m
             print(f"      {n}  (:{lo}){'' if f'{m}::{n}' in baseline else '   [NEW]'}")
     for s in fn_stale:
-        print(f"WARN: '{s}' is in the function backlog but is now wired (or gone) "
-              f"-> remove the stale entry")
+        print(f"WARN: '{s}' is in the function backlog but is now wired (or gone) -> remove the stale entry")
     for m, n, lo in new_orphans:
-        print(f"FAIL: '{m}::{n}' (:{lo}) is public but NO production entry point ever calls it "
-              f"(built != wired, one level down) -> wire it, delete it, or add it to "
-              f"{os.path.relpath(BASELINE_PATH, ROOT).replace(os.sep, '/')} with a reason")
+        print(
+            f"FAIL: '{m}::{n}' (:{lo}) is public but NO production entry point ever calls it "
+            f"(built != wired, one level down) -> wire it, delete it, or add it to "
+            f"{os.path.relpath(BASELINE_PATH, ROOT).replace(os.sep, '/')} with a reason"
+        )
 
     # An EXPIRED exemption fails the gate. Printing 'FAIL:' while exiting 0 is the
     # amnesty this whole change exists to remove -- and it is what this function did
@@ -784,15 +804,18 @@ def main():
     # while fixing it.
     if new_unwired or new_orphans or expired:
         if new_unwired:
-            print(f"\n{len(new_unwired)} NEW unwired core/ module(s). "
-                  f"Latent capability must not accumulate.")
+            print(f"\n{len(new_unwired)} NEW unwired core/ module(s). Latent capability must not accumulate.")
         if new_orphans:
-            print(f"\n{len(new_orphans)} NEW unwired public function(s). A capability nothing "
-                  f"calls runs nowhere, however green its tests are.")
+            print(
+                f"\n{len(new_orphans)} NEW unwired public function(s). A capability nothing "
+                f"calls runs nowhere, however green its tests are."
+            )
         return 1
-    print(f"\nPASS: every core/ module is wired to a production path "
-          f"({len(EXCEPTIONS)} known-standalone exception(s)); no NEW unwired public function "
-          f"({len(baseline)} on the frozen backlog).")
+    print(
+        f"\nPASS: every core/ module is wired to a production path "
+        f"({len(EXCEPTIONS)} known-standalone exception(s)); no NEW unwired public function "
+        f"({len(baseline)} on the frozen backlog)."
+    )
     return 0
 
 

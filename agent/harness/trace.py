@@ -13,9 +13,10 @@ encrypted `signature`, `thinking` is ""), and no hook receives thinking text -- 
 `think` trace is not passively recoverable the way it is for DeepSeek's own stream. The tool
 `description` field (Claude's stated intent for the action) is the honest proxy we surface instead.
 """
+
 import os
 
-_PREFIX = {"tool": "\U0001f527", "think": "\U0001f4ad"}   # 🔧 / 💭  -- match the DeepSeek runner
+_PREFIX = {"tool": "\U0001f527", "think": "\U0001f4ad"}  # 🔧 / 💭  -- match the DeepSeek runner
 
 
 def emit(kind: str, text: str, *, agent_id: str = None) -> bool:
@@ -28,10 +29,13 @@ def emit(kind: str, text: str, *, agent_id: str = None) -> bool:
         return False
     try:
         from core.comm.bus import Bus
+
         aid = agent_id or os.getenv("AKASHIC_AGENT_ID") or "claude"
         mid = Bus(aid).broadcast(
-            "trace", f"{_PREFIX.get(kind, '·')} {text}",
-            meta={"via": f"{aid}-hook", "hops": 0, "trace": kind, "display_only": True})
+            "trace",
+            f"{_PREFIX.get(kind, '·')} {text}",
+            meta={"via": f"{aid}-hook", "hops": 0, "trace": kind, "display_only": True},
+        )
         return mid is not None
     except Exception:
         return False
@@ -53,6 +57,7 @@ def narrate(text: str, *, level: str = "key", agent_id: str = None) -> bool:
         return False
     try:
         from core.comm.control import get_narration_level
+
         cur = get_narration_level()
     except Exception:
         cur = "key"

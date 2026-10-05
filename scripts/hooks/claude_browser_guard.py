@@ -13,6 +13,7 @@ claude-in-chrome tools drive Daniil's real Chrome -- a GPU crash there kills a C
 not the app. Deny is BY URL, fail-open on any parse trouble: a guard that wedges an
 unrelated preview costs more trust than it saves.
 """
+
 import json
 import re
 import sys
@@ -21,27 +22,36 @@ BLOCK = re.compile(
     r"shadertoy\.com|glslsandbox\.com|vertexshaderart\.com|shdr\.bkcore\.com"
     r"|webglsamples\.org|threejs\.org/examples|playground\.babylonjs\.com"
     r"|webglreport\.com|chrome://gpu",
-    re.I)
+    re.I,
+)
 
 
 def main():
     try:
         payload = json.loads(sys.stdin.read().lstrip("﻿"))
     except Exception:
-        return                             # fail-open: never wedge on bad stdin
+        return  # fail-open: never wedge on bad stdin
     ti = payload.get("tool_input") or {}
     url = str(ti.get("url") or "") if isinstance(ti, dict) else ""
     if url and BLOCK.search(url):
-        print(json.dumps({"hookSpecificOutput": {
-            "hookEventName": "PreToolUse",
-            "permissionDecision": "deny",
-            "permissionDecisionReason": (
-                "BLOCKED: GPU-heavy page in the EMBEDDED browser. Receipt 2026-08-12: "
-                "Shadertoy in the preview pane killed the Electron GPU child and bricked "
-                "the whole app (zombie process, forced reinstall, session lost -- twice "
-                "now). Read the page with WebFetch, or use the claude-in-chrome tools "
-                "(real Chrome: a crash there costs a tab, not the app). Lesson: "
-                "claude_embedded_preview_crash_trigger_2026_08_12")}}))
+        print(
+            json.dumps(
+                {
+                    "hookSpecificOutput": {
+                        "hookEventName": "PreToolUse",
+                        "permissionDecision": "deny",
+                        "permissionDecisionReason": (
+                            "BLOCKED: GPU-heavy page in the EMBEDDED browser. Receipt 2026-08-12: "
+                            "Shadertoy in the preview pane killed the Electron GPU child and bricked "
+                            "the whole app (zombie process, forced reinstall, session lost -- twice "
+                            "now). Read the page with WebFetch, or use the claude-in-chrome tools "
+                            "(real Chrome: a crash there costs a tab, not the app). Lesson: "
+                            "claude_embedded_preview_crash_trigger_2026_08_12"
+                        ),
+                    }
+                }
+            )
+        )
 
 
 if __name__ == "__main__":

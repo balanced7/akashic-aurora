@@ -16,6 +16,7 @@ Pure text: no server, no GPU, no browser.
 
 Run: py -m pytest tests/test_vfx_ingest.py -q
 """
+
 import os
 import re
 import sys
@@ -60,8 +61,7 @@ def test_it_wraps_rather_than_edits():
 
 
 def test_an_identifier_that_merely_starts_with_itime_is_not_mangled():
-    src = SHADERTOY.replace("float t = iTime * 0.5;",
-                            "float iTimeout = 3.0; float t = iTime * 0.5 + iTimeout;")
+    src = SHADERTOY.replace("float t = iTime * 0.5;", "float iTimeout = 3.0; float t = iTime * 0.5 + iTimeout;")
     r = V.rewrite(src)
     assert r["ok"]
     assert "float iTimeout = 3.0;" in r["src"], "find/replace would have corrupted this"
@@ -93,16 +93,14 @@ def test_a_duplicate_out_declaration_is_removed():
     assert r["ok"]
     # Precisely: the DECLARATION goes, and the identically-spelled PARAMETER in mainImage's
     # signature stays. Counting the substring conflates the two and fails on a correct rewrite.
-    assert not re.search(r"^\s*out\s+vec4\s+fragColor\s*;", r["src"], re.M), \
-        "two fragment outputs is a link error"
+    assert not re.search(r"^\s*out\s+vec4\s+fragColor\s*;", r["src"], re.M), "two fragment outputs is a link error"
     assert r["src"].count("out vec4 outColor;") == 1
     assert "out vec4 fragColor, in vec2 fragCoord" in r["src"], "the signature must survive"
     assert any("out declaration" in n for n in r["notes"])
 
 
 def test_texture_channels_are_warned_about_not_silently_broken():
-    src = SHADERTOY.replace("fragColor = vec4(uv, sin(t), 1.0);",
-                            "fragColor = texture(iChannel0, uv);")
+    src = SHADERTOY.replace("fragColor = vec4(uv, sin(t), 1.0);", "fragColor = texture(iChannel0, uv);")
     r = V.rewrite(src)
     assert r["ok"], "still store it -- the user may want to strip the texture read by hand"
     assert any("iChannel" in w for w in r["warnings"])
@@ -116,9 +114,11 @@ def test_a_sound_shader_is_refused_by_name():
 def test_a_bench_shader_passes_through_untouched():
     """Ingest must be safe to point at anything, including a .frag this bench wrote. Wrapping one
     would add a second main() and fail."""
-    bench = ("#version 300 es\nprecision highp float;\nout vec4 outColor;\n"
-             "uniform vec2 u_res;\nuniform float u_time;\n"
-             "void main(){ outColor = vec4(u_time); }\n")
+    bench = (
+        "#version 300 es\nprecision highp float;\nout vec4 outColor;\n"
+        "uniform vec2 u_res;\nuniform float u_time;\n"
+        "void main(){ outColor = vec4(u_time); }\n"
+    )
     r = V.rewrite(bench)
     assert r["ok"] and r["kind"] == "passthrough"
     assert r["src"] == bench, "passthrough must mean passthrough"
@@ -133,9 +133,11 @@ def test_empty_and_nonsense_are_refused_with_a_reason():
 
 
 def test_whitespace_variants_of_the_signature_are_recognised():
-    for sig in ["void mainImage(out vec4 c, in vec2 f)",
-                "void  mainImage ( out vec4 c , in vec2 f )",
-                "void mainImage(\n    out vec4 c,\n    in vec2 f)"]:
+    for sig in [
+        "void mainImage(out vec4 c, in vec2 f)",
+        "void  mainImage ( out vec4 c , in vec2 f )",
+        "void mainImage(\n    out vec4 c,\n    in vec2 f)",
+    ]:
         src = sig + "{ c = vec4(1.0); }"
         assert V.rewrite(src)["ok"] is True, "rejected a legal signature: " + sig
 

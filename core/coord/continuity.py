@@ -9,12 +9,23 @@ failure modes.
 Every default source is read-only.  No cursor, presence key, watcher, session,
 resident record, lesson, note, atom, or event is written by this view.
 """
+
 from __future__ import annotations
 
 from dataclasses import asdict, is_dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional
+
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+
+        return python_launcher()
+    except Exception:
+        return "py"
 
 
 _ROOT = Path(__file__).resolve().parents[2]
@@ -36,14 +47,15 @@ _AUTHORITIES = {
     "movement": "telemetry_attribution_not_identity",
 }
 _DRILLS = {
-    "designation": "py agent_cli.py resident show {subject}",
-    "lessons": "py agent_cli.py recall \"identity continuity\" --agent {subject} --json",
+    "designation": f"{_pyl()} agent_cli.py resident show {{subject}}",
+    "lessons": f'{_pyl()} agent_cli.py recall "identity continuity" --agent {{subject}} --json',
     "notes": "use the bound ToolBox memory_recall door for {subject}",
-    "handoffs": ("inbound: py agent_cli.py handoff {subject} --list --to {subject} --json; "
-                 "outbound has no dedicated CLI reader, so use this grounded region"),
-    "artifacts": ("no dedicated exact atom read door; use the atom:<id> source shown by "
-                  "this region"),
-    "movement": "py agent_cli.py events --agent {subject} --limit 25 --json",
+    "handoffs": (
+        f"inbound: {_pyl()} agent_cli.py handoff {{subject}} --list --to {{subject}} --json; "
+        "outbound has no dedicated CLI reader, so use this grounded region"
+    ),
+    "artifacts": ("no dedicated exact atom read door; use the atom:<id> source shown by this region"),
+    "movement": f"{_pyl()} agent_cli.py events --agent {{subject}} --limit 25 --json",
 }
 _CURRENCY = {
     "designation": "current resident projection at read time; registry history is append-only",
@@ -81,10 +93,16 @@ def _clip(value: Any, limit: int = 360) -> str:
     return text[:limit].rstrip() + f" ... [{len(text) - limit} chars omitted]"
 
 
-def _source_batch(items: Iterable[Any], source: str, *, total: Optional[int] = None,
-                  scanned: Optional[int] = None, truncated: bool = False,
-                  ordering: str = "source order", blind: Optional[Iterable[str]] = None
-                  ) -> Dict[str, Any]:
+def _source_batch(
+    items: Iterable[Any],
+    source: str,
+    *,
+    total: Optional[int] = None,
+    scanned: Optional[int] = None,
+    truncated: bool = False,
+    ordering: str = "source order",
+    blind: Optional[Iterable[str]] = None,
+) -> Dict[str, Any]:
     rows = [_mapping(item) for item in items]
     return {
         "items": rows,
@@ -148,8 +166,7 @@ def _read_handoffs(_subject: str) -> Dict[str, Any]:
         item.setdefault("_cursor_id", str(cursor_id))
         rows.append(item)
     at_cap = len(rows) >= cap
-    blind = ([f"canonical signal replay reached its {cap}-row cap; older handoffs may be outside view"]
-             if at_cap else [])
+    blind = [f"canonical signal replay reached its {cap}-row cap; older handoffs may be outside view"] if at_cap else []
     return _source_batch(
         rows,
         f"AgentSignalLedger canonical replay (cap {cap})",
@@ -176,8 +193,11 @@ def _read_movement(subject: str) -> Dict[str, Any]:
 
     rows = get_event_log().scan(agent=subject)
     at_cap = len(rows) >= PER_AGENT_MAXLEN
-    blind = ([f"per-agent event stream is at its {PER_AGENT_MAXLEN}-row retention cap; older movement may be gone"]
-             if at_cap else [])
+    blind = (
+        [f"per-agent event stream is at its {PER_AGENT_MAXLEN}-row retention cap; older movement may be gone"]
+        if at_cap
+        else []
+    )
     return _source_batch(
         rows,
         f"EventLog per-agent stream events:{subject}:raw",
@@ -198,8 +218,7 @@ def _default_sources() -> Dict[str, Callable[[str], Mapping[str, Any]]]:
     }
 
 
-def _read_source(name: str, provider: Callable[[str], Mapping[str, Any]],
-                 subject: str) -> Dict[str, Any]:
+def _read_source(name: str, provider: Callable[[str], Mapping[str, Any]], subject: str) -> Dict[str, Any]:
     try:
         raw = dict(provider(subject) or {})
         rows = [_mapping(item) for item in (raw.get("items") or [])]
@@ -215,7 +234,10 @@ def _read_source(name: str, provider: Callable[[str], Mapping[str, Any]],
         }
     except Exception as exc:
         return {
-            "items": [], "total": 0, "scanned": 0, "truncated": False,
+            "items": [],
+            "total": 0,
+            "scanned": 0,
+            "truncated": False,
             "source": f"{name} provider",
             "ordering": "unavailable",
             "blind": [f"source unavailable: {type(exc).__name__}: {exc}"],
@@ -226,11 +248,11 @@ def _read_source(name: str, provider: Callable[[str], Mapping[str, Any]],
 def _sort(rows: Iterable[Dict[str, Any]], *fields: str) -> List[Dict[str, Any]]:
     def key(row: Mapping[str, Any]):
         return tuple(str(row.get(field) or "") for field in fields)
+
     return sorted(rows, key=key, reverse=True)
 
 
-def _designation_rows(rows: Iterable[Dict[str, Any]], subject: str
-                      ) -> tuple[List[Dict[str, Any]], List[str]]:
+def _designation_rows(rows: Iterable[Dict[str, Any]], subject: str) -> tuple[List[Dict[str, Any]], List[str]]:
     own = [row for row in rows if _same_subject(row.get("agent_id"), subject)]
     ratified = [row for row in own if str(row.get("state") or "").lower() == "ratified"]
     blind: List[str] = []
@@ -271,17 +293,25 @@ def _lesson_rows(rows: Iterable[Dict[str, Any]], subject: str) -> List[Dict[str,
     for row in own:
         ident = str(row.get("id") or row.get("experiment") or "")
         experiment = str(row.get("experiment") or ident)
-        gist = (row.get("recommendation") or row.get("recommend") or row.get("result")
-                or row.get("what_tried") or row.get("tried") or "")
-        out.append({
-            "id": ident or experiment,
-            "experiment": experiment,
-            "timestamp": row.get("timestamp") or row.get("updated_at") or "",
-            "category": row.get("category") or "",
-            "success": row.get("success") or "",
-            "gist": _clip(gist),
-            "source": f"learn:experiment:{experiment}",
-        })
+        gist = (
+            row.get("recommendation")
+            or row.get("recommend")
+            or row.get("result")
+            or row.get("what_tried")
+            or row.get("tried")
+            or ""
+        )
+        out.append(
+            {
+                "id": ident or experiment,
+                "experiment": experiment,
+                "timestamp": row.get("timestamp") or row.get("updated_at") or "",
+                "category": row.get("category") or "",
+                "success": row.get("success") or "",
+                "gist": _clip(gist),
+                "source": f"learn:experiment:{experiment}",
+            }
+        )
     return out
 
 
@@ -292,16 +322,18 @@ def _note_rows(rows: Iterable[Dict[str, Any]], subject: str) -> List[Dict[str, A
     out = []
     for row in own:
         body = str(row.get("decision") or "")
-        out.append({
-            "id": str(row.get("id") or ""),
-            "title": str(row.get("title") or ""),
-            "note": _clip(body),
-            "note_chars": len(body),
-            "clipped": len(body) > 360,
-            "created_at": row.get("created_at") or "",
-            "curated": row.get("curated"),
-            "source": f"mem:decision:{row.get('id') or ''}",
-        })
+        out.append(
+            {
+                "id": str(row.get("id") or ""),
+                "title": str(row.get("title") or ""),
+                "note": _clip(body),
+                "note_chars": len(body),
+                "clipped": len(body) > 360,
+                "created_at": row.get("created_at") or "",
+                "curated": row.get("curated"),
+                "source": f"mem:decision:{row.get('id') or ''}",
+            }
+        )
     return out
 
 
@@ -317,17 +349,19 @@ def _handoff_rows(rows: Iterable[Dict[str, Any]], subject: str) -> List[Dict[str
         direction = "self" if inbound and outbound else ("inbound" if inbound else "outbound")
         context = row.get("context") if isinstance(row.get("context"), Mapping) else {}
         ident = str(row.get("signal_id") or row.get("_cursor_id") or "")
-        matched.append({
-            "id": ident,
-            "direction": direction,
-            "from": frm,
-            "to": to,
-            "task": _clip(row.get("task"), 500),
-            "note": _clip(context.get("note"), 360),
-            "blockers": [_clip(item, 240) for item in (row.get("blockers") or [])[:5]],
-            "timestamp": row.get("timestamp") or row.get("at") or "",
-            "source": f"agent-signal:{ident}",
-        })
+        matched.append(
+            {
+                "id": ident,
+                "direction": direction,
+                "from": frm,
+                "to": to,
+                "task": _clip(row.get("task"), 500),
+                "note": _clip(context.get("note"), 360),
+                "blockers": [_clip(item, 240) for item in (row.get("blockers") or [])[:5]],
+                "timestamp": row.get("timestamp") or row.get("at") or "",
+                "source": f"agent-signal:{ident}",
+            }
+        )
     return _sort(matched, "timestamp", "id")
 
 
@@ -339,18 +373,20 @@ def _artifact_rows(rows: Iterable[Dict[str, Any]], subject: str) -> List[Dict[st
         if not any(_same_subject(seat, subject) for seat in seats):
             continue
         ident = str(row.get("id") or "")
-        matched.append({
-            "id": ident,
-            "title": header.get("title") or ident,
-            "type": header.get("type") or "",
-            "date": header.get("date") or "",
-            "status": header.get("status") or "",
-            "arc": header.get("arc"),
-            "gist": _clip(header.get("gist"), 300),
-            "seats": seats,
-            "origin": row.get("origin") or "",
-            "source": f"atom:{ident}",
-        })
+        matched.append(
+            {
+                "id": ident,
+                "title": header.get("title") or ident,
+                "type": header.get("type") or "",
+                "date": header.get("date") or "",
+                "status": header.get("status") or "",
+                "arc": header.get("arc"),
+                "gist": _clip(header.get("gist"), 300),
+                "seats": seats,
+                "origin": row.get("origin") or "",
+                "source": f"atom:{ident}",
+            }
+        )
     return _sort(matched, "date", "id")
 
 
@@ -360,14 +396,16 @@ def _movement_rows(rows: Iterable[Dict[str, Any]], subject: str) -> List[Dict[st
         if not _same_subject(row.get("agent_id"), subject):
             continue
         ident = str(row.get("id") or "")
-        matched.append({
-            "id": ident,
-            "kind": row.get("kind") or "",
-            "summary": _clip(row.get("summary"), 360),
-            "at": row.get("at") or "",
-            "refs": [str(ref) for ref in (row.get("refs") or [])[:5]],
-            "source": row.get("_ref") or f"event:events:{subject}:raw:{ident}",
-        })
+        matched.append(
+            {
+                "id": ident,
+                "kind": row.get("kind") or "",
+                "summary": _clip(row.get("summary"), 360),
+                "at": row.get("at") or "",
+                "refs": [str(ref) for ref in (row.get("refs") or [])[:5]],
+                "source": row.get("_ref") or f"event:events:{subject}:raw:{ident}",
+            }
+        )
     return _sort(matched, "at", "id")
 
 
@@ -375,8 +413,10 @@ def _claim(name: str, *, present: bool, incomplete: bool) -> str:
     if name == "designation":
         if present:
             return "ratified resident designation observed; this is the only region allowed to state a callsign"
-        return ("no ratified resident designation observed in the authoritative read; "
-                "this does not claim that the seat or its history does not exist")
+        return (
+            "no ratified resident designation observed in the authoritative read; "
+            "this does not claim that the seat or its history does not exist"
+        )
     claims = {
         "lessons": "exact subject-authored lessons; these are self-receipts, not a designation",
         "notes": "subject-scoped scratch notes are continuity hints; their prefix does not prove authorship",
@@ -390,10 +430,16 @@ def _claim(name: str, *, present: bool, incomplete: bool) -> str:
     return base + ("; source view is incomplete" if incomplete else "")
 
 
-def _region(name: str, batch: Mapping[str, Any], rows: List[Dict[str, Any]], *,
-            limit: int, observed_at: str, extra_blind: Optional[Iterable[str]] = None
-            ) -> Dict[str, Any]:
-    shown = rows[:max(0, limit)]
+def _region(
+    name: str,
+    batch: Mapping[str, Any],
+    rows: List[Dict[str, Any]],
+    *,
+    limit: int,
+    observed_at: str,
+    extra_blind: Optional[Iterable[str]] = None,
+) -> Dict[str, Any]:
+    shown = rows[: max(0, limit)]
     source_incomplete = bool(batch.get("truncated"))
     display_incomplete = len(rows) > len(shown)
     blind = list(batch.get("blind") or []) + [str(item) for item in (extra_blind or [])]
@@ -432,16 +478,19 @@ def _region(name: str, batch: Mapping[str, Any], rows: List[Dict[str, Any]], *,
 def _drill(name: str, subject: str, shown: List[Mapping[str, Any]]) -> str:
     """One bounded escape hatch; never expand a whole archive when an exact ref exists."""
     if name == "lessons" and shown:
-        return f"py agent_cli.py recall --full {shown[0].get('source')} --json"
+        return f"{_pyl()} agent_cli.py recall --full {shown[0].get('source')} --json"
     if name == "movement" and shown:
-        return f"py agent_cli.py events --get {shown[0].get('source')} --json"
+        return f"{_pyl()} agent_cli.py events --get {shown[0].get('source')} --json"
     return _DRILLS[name].format(subject=subject)
 
 
-def build_profile(subject: str, *,
-                  sources: Optional[Mapping[str, Callable[[str], Mapping[str, Any]]]] = None,
-                  limits: Optional[Mapping[str, int]] = None,
-                  observed_at: Optional[str] = None) -> Dict[str, Any]:
+def build_profile(
+    subject: str,
+    *,
+    sources: Optional[Mapping[str, Callable[[str], Mapping[str, Any]]]] = None,
+    limits: Optional[Mapping[str, int]] = None,
+    observed_at: Optional[str] = None,
+) -> Dict[str, Any]:
     """Assemble one seat's bounded continuity profile without deciding who it is."""
     subject = str(subject or "").strip()
     if not subject:
@@ -469,8 +518,7 @@ def build_profile(subject: str, *,
     regions = []
     for name in _REGION_ORDER:
         extra = designation_blind if name == "designation" else []
-        region = _region(name, batches[name], rows[name], limit=caps[name],
-                         observed_at=when, extra_blind=extra)
+        region = _region(name, batches[name], rows[name], limit=caps[name], observed_at=when, extra_blind=extra)
         region["drill"] = _drill(name, subject, region["items"])
         regions.append(region)
 
@@ -492,8 +540,10 @@ def build_profile(subject: str, *,
         "observed_at": when,
         "identity_verdict": {
             "state": "not_computed",
-            "claim": ("continuity evidence is not an identity verdict; only the ratified resident registry "
-                      "may supply a designation, and no region can nominate or ratify one"),
+            "claim": (
+                "continuity evidence is not an identity verdict; only the ratified resident registry "
+                "may supply a designation, and no region can nominate or ratify one"
+            ),
         },
         "regions": regions,
         "bounds": {
@@ -529,9 +579,11 @@ def _item_line(name: str, item: Mapping[str, Any]) -> str:
 def render_profile(result: Mapping[str, Any]) -> str:
     """Compact human view; JSON retains every bound and blind spot."""
     target = result.get("target") or {}
-    lines = [f"# ground seat:{target.get('name')} --continuity",
-             f"  observed {result.get('observed_at')} | effects: none",
-             f"  IDENTITY VERDICT: NOT COMPUTED -- {(result.get('identity_verdict') or {}).get('claim')}"]
+    lines = [
+        f"# ground seat:{target.get('name')} --continuity",
+        f"  observed {result.get('observed_at')} | effects: none",
+        f"  IDENTITY VERDICT: NOT COMPUTED -- {(result.get('identity_verdict') or {}).get('claim')}",
+    ]
     for region in result.get("regions") or []:
         bounds = region.get("bounds") or {}
         lines.append(

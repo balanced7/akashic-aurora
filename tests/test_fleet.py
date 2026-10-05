@@ -4,6 +4,7 @@ Hermetic: the caller and the availability probe take an injectable `opener`, so 
 network. The roster reads the bundled models.json (local file), so it needs no injection. Design:
 docs/library/design/20260709_fleet-dispatch-an-intelligent-easy-struc_303d15.md.
 """
+
 import json
 import os
 import sys
@@ -37,12 +38,14 @@ def _opener(body, capture=None):
             capture["url"] = req.full_url
             capture["payload"] = json.loads(req.data.decode("utf-8")) if getattr(req, "data", None) else None
         return _FakeResp(body)
+
     return _open
 
 
 def _raising_opener(exc):
     def _open(req, timeout=None):
         raise exc
+
     return _open
 
 
@@ -65,7 +68,7 @@ def test_get_returns_spec_or_none():
 
 
 def test_select_picks_active_by_capability_and_skips_gated():
-    pick = roster.select("tool-use")            # default status=active
+    pick = roster.select("tool-use")  # default status=active
     assert pick and pick["tag"] == "glm-4.7-flash"
     # gpt-oss has 'reasoning' but is GATED -> never selected even when it's the only match
     assert roster.select("reasoning") is None
@@ -98,6 +101,7 @@ def test_probe_availability_injected():
 
 def test_probe_availability_fail_soft():
     import urllib.error
+
     out = roster.probe_availability(opener=_raising_opener(urllib.error.URLError("down")))
     assert out["ok"] is False and out["present"] == []
 
@@ -125,14 +129,20 @@ def test_call_unknown_tag_uses_safe_ctx_floor():
 
 def test_call_fmt_json_and_system_are_wired():
     cap = {}
-    call("qwen3.5:4b", "extract", system="be terse", fmt="json",
-         opener=_opener(json.dumps({"response": "{}"}), capture=cap))
+    call(
+        "qwen3.5:4b",
+        "extract",
+        system="be terse",
+        fmt="json",
+        opener=_opener(json.dumps({"response": "{}"}), capture=cap),
+    )
     assert cap["payload"]["format"] == "json"
     assert cap["payload"]["system"] == "be terse"
 
 
 def test_call_raises_on_network_error():
     import urllib.error
+
     with pytest.raises(FleetCallError):
         call("glm-4.7-flash", "hi", opener=_raising_opener(urllib.error.URLError("boom")))
 

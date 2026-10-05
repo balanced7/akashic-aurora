@@ -12,6 +12,7 @@ Swap a Map (how the territory is wired) or a Lens (what matters on it) over the 
 substrate -> a different surfaced view. Everything validates against the REAL 66-type
 vocabulary (no invented relation names). See docs/library/design/20260709_perspectives-maps-build-plan-the-interpr_5a5e0a.md.
 """
+
 from dataclasses import dataclass, field, asdict
 from typing import Any, Dict, List, Optional
 
@@ -24,8 +25,12 @@ VALID_DOMAINS = {rt.value.domain for rt in RelationshipType}
 FACTORS = ("relevance", "importance", "recency", "strength")
 
 
-def lens_key(name: str) -> str: return f"persp:lens:{name}"
-def map_key(name: str) -> str: return f"persp:map:{name}"
+def lens_key(name: str) -> str:
+    return f"persp:lens:{name}"
+
+
+def map_key(name: str) -> str:
+    return f"persp:map:{name}"
 
 
 def valid_relationship(short_name: str) -> bool:
@@ -35,10 +40,11 @@ def valid_relationship(short_name: str) -> bool:
 @dataclass
 class Lens:
     """A value-set tuning what gets surfaced. Reuses the Ranker; never mutates data."""
+
     name: str
-    factor_weights: Dict[str, float] = field(default_factory=dict)   # relevance/importance/recency/strength
+    factor_weights: Dict[str, float] = field(default_factory=dict)  # relevance/importance/recency/strength
     relation_weights: Dict[str, float] = field(default_factory=dict)  # short_name -> weight
-    seed: Optional[str] = None     # focus node id (personalization, for spreading activation later)
+    seed: Optional[str] = None  # focus node id (personalization, for spreading activation later)
     goal: str = ""
 
     def validate(self) -> List[str]:
@@ -54,19 +60,22 @@ class Lens:
                 problems.append(f"relation '{rel}' is not a real relationship short-name")
         return problems
 
-    def to_dict(self) -> Dict[str, Any]: return asdict(self)
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
 
     @classmethod
-    def from_dict(cls, d: Dict[str, Any]) -> "Lens": return cls(**dict(d))
+    def from_dict(cls, d: Dict[str, Any]) -> "Lens":
+        return cls(**dict(d))
 
 
 @dataclass
 class Map:
     """A structural projection: which relationship-type domains form the traversed graph."""
+
     name: str
-    relation_domains: List[str] = field(default_factory=list)   # subset of VALID_DOMAINS
-    node_kinds: List[str] = field(default_factory=list)         # beat kinds to include ([] = all)
-    direction: str = "both"                                     # forward | backward | both
+    relation_domains: List[str] = field(default_factory=list)  # subset of VALID_DOMAINS
+    node_kinds: List[str] = field(default_factory=list)  # beat kinds to include ([] = all)
+    direction: str = "both"  # forward | backward | both
 
     def validate(self) -> List[str]:
         problems = []
@@ -77,25 +86,34 @@ class Map:
             problems.append(f"direction '{self.direction}' invalid")
         return problems
 
-    def to_dict(self) -> Dict[str, Any]: return asdict(self)
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
 
     @classmethod
-    def from_dict(cls, d: Dict[str, Any]) -> "Map": return cls(**dict(d))
+    def from_dict(cls, d: Dict[str, Any]) -> "Map":
+        return cls(**dict(d))
 
 
 # --- a FEW concrete built-ins (not a config sea -- rule of three) ---
 BUILTIN_LENSES = {
-    "causal": Lens("causal", {"relevance": 0.3, "importance": 0.3, "recency": 0.1, "strength": 0.3},
-                   {"causes": 1.0, "prevents": 1.0, "influences": 0.8, "develops_into": 0.8},
-                   goal="why did this happen / what unblocked what"),
-    "recency": Lens("recency", {"relevance": 0.2, "importance": 0.2, "recency": 0.6, "strength": 0.0},
-                    goal="what's hot right now"),
-    "thematic": Lens("thematic", {"relevance": 0.3, "importance": 0.2, "recency": 0.1, "strength": 0.4},
-                     {"member_of": 1.0, "instance_of": 1.0, "related_to": 0.8, "similar_to": 0.8},
-                     goal="this idea across domains"),
+    "causal": Lens(
+        "causal",
+        {"relevance": 0.3, "importance": 0.3, "recency": 0.1, "strength": 0.3},
+        {"causes": 1.0, "prevents": 1.0, "influences": 0.8, "develops_into": 0.8},
+        goal="why did this happen / what unblocked what",
+    ),
+    "recency": Lens(
+        "recency", {"relevance": 0.2, "importance": 0.2, "recency": 0.6, "strength": 0.0}, goal="what's hot right now"
+    ),
+    "thematic": Lens(
+        "thematic",
+        {"relevance": 0.3, "importance": 0.2, "recency": 0.1, "strength": 0.4},
+        {"member_of": 1.0, "instance_of": 1.0, "related_to": 0.8, "similar_to": 0.8},
+        goal="this idea across domains",
+    ),
 }
 BUILTIN_MAPS = {
     "narrative": Map("narrative", ["temporal", "structural"]),
     "causal": Map("causal", ["causal"]),
-    "dependency": Map("dependency", ["associative"]),     # depends_on / requires / supports
+    "dependency": Map("dependency", ["associative"]),  # depends_on / requires / supports
 }
