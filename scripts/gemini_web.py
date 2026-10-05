@@ -34,6 +34,15 @@ import urllib.parse
 from pathlib import Path
 from typing import Literal
 
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+        return python_launcher()
+    except Exception:
+        return "py"
+
 # Windows consoles/pipes default to cp1252; Gemini answers routinely carry
 # zero-width/typographic Unicode. Force UTF-8 (replace, never crash) so a
 # successful fetch cannot die at the final print (root cause of the 2026-07-17
@@ -205,9 +214,9 @@ def _needs_playwright() -> bool:
 def _install_hint() -> str:
     return (
         "BROWSER_DRIVER_MISSING: run once:\n"
-        "  py -m pip install playwright patchright playwright-stealth\n"
-        "  py -m playwright install chrome\n"
-        "  py -m patchright install chrome"
+        f"  {_pyl()} -m pip install playwright patchright playwright-stealth\n"
+        f"  {_pyl()} -m playwright install chrome\n"
+        f"  {_pyl()} -m patchright install chrome"
     )
 
 
@@ -355,7 +364,7 @@ def _login_hint() -> str:
     return (
         "LOGIN_REQUIRED: no saved Google session for the web UI.\n"
         "Run once (browser opens — sign in as your Google account):\n"
-        "  py scripts/gemini_web.py --login\n"
+        f"  {_pyl()} scripts/gemini_web.py --login\n"
         f"Profile dir: {PROFILE}"
     )
 

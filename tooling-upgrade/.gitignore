@@ -1,0 +1,7 @@
+# Raw logs stay local; each snapshot's meta.json carries their sha256 digests instead (G0.P4).
+snapshots/*/raw/
+# Only the baselines are committed. head/, trial and self-test captures are working records.
+snapshots/*
+!snapshots/g0/
+!snapshots/final/
+__pycache__/

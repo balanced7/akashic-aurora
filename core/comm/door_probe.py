@@ -50,6 +50,15 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+        return python_launcher()
+    except Exception:
+        return "py"
+
 ROOT = Path(__file__).resolve().parents[2]
 SERVER = ROOT / "ai_setup_mcp.py"
 CACHE = ROOT / "state" / "door" / "last_probe.json"
@@ -228,7 +237,7 @@ def _child_flow(timeout_s: float) -> dict:
                             RED, stage, time.time() - t0, "boot_render_broken",
                             f"boot returned {len(text)} chars without its CONTEXT header",
                             "The door answered but boot's render is wrong. Compare against "
-                            "`py agent_cli.py boot <you>`, which shares the code path.")
+                            f"`{_pyl()} agent_cli.py boot <you>`, which shares the code path.")
 
                     el = time.time() - t0
                     if el > SLOW_BUDGET_S:
@@ -251,7 +260,7 @@ def _child_flow(timeout_s: float) -> dict:
                 return _verdict(
                     RED, stage, el, "response_path_hang",
                     f"handshake succeeded; boot did not answer within {timeout_s}s",
-                    "DO NOT USE MCP. Boot via CLI: py agent_cli.py boot <you>. This is the "
+                    f"DO NOT USE MCP. Boot via CLI: {_pyl()} agent_cli.py boot <you>. This is the "
                     "C7-4 class (a tool's reply parked behind an inherited handle). Run "
                     "tests/test_subprocess_stdin_sever.py -- S3 names the offending "
                     "file:line. If it passes, your SERVER IS STALE: restart it, because an "
@@ -265,7 +274,7 @@ def _child_flow(timeout_s: float) -> dict:
             return _verdict(
                 UNKNOWN, stage, time.time() - t0, f"{type(e).__name__}", str(e),
                 "The probe itself failed -- this is NOT a verdict about the door. "
-                f"Reproduce with: py -m core.comm.door_probe --json")
+                f"Reproduce with: {_pyl()} -m core.comm.door_probe --json")
 
     return asyncio.new_event_loop().run_until_complete(flow())
 
@@ -300,11 +309,11 @@ def probe(timeout_s: float = DEFAULT_TIMEOUT_S, cache: bool = True) -> dict:
             v = _verdict(UNKNOWN, "child", time.time() - t0, "unreadable_child_output",
                          (r.stderr or r.stdout or "")[-400:],
                          "The probe child produced no verdict. Run it directly: "
-                         "py -m core.comm.door_probe --child")
+                         f"{_pyl()} -m core.comm.door_probe --child")
     except subprocess.TimeoutExpired:
         v = _verdict(RED, "boot", time.time() - t0, "response_path_hang",
                      f"the probe child had to be killed at {timeout_s * 1.5:.0f}s",
-                     "DO NOT USE MCP. Boot via CLI: py agent_cli.py boot <you>. Then run "
+                     f"DO NOT USE MCP. Boot via CLI: {_pyl()} agent_cli.py boot <you>. Then run "
                      "tests/test_subprocess_stdin_sever.py; if it passes, restart your "
                      "server -- it is running pre-fix code.")
     except Exception as e:

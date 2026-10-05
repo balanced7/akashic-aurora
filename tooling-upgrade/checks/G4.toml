@@ -1,0 +1,35 @@
+# G4 -- types to zero (class D). Registered in G0. Append-only.
+goal = "G4"
+required_drills = ["D04", "D07"]
+
+[[check]]
+id = "G4.types"
+phase = "G4.P2"
+cmd = ["uv", "run", "--frozen", "poe", "types"]
+expect = 0
+
+[[check]]
+id = "G4.latent-bug-regressions"
+phase = "G4.P2"
+cmd = ["{python}", "tooling-upgrade/certify.py", "assert-latent-regressions"]
+expect = 0
+timeout_s = 7200
+
+[[check]]
+id = "G4.suppressions-report"
+phase = "G4.P2"
+cmd = ["{python}", "tooling-upgrade/certify.py", "suppressions"]
+expect = 0
+
+[[check]]
+id = "G4.oracle"
+phase = "G4.P2"
+cmd = ["{python}", "tooling-upgrade/oracle.py", "compare", "g0", "head"]
+expect = 0
+expect_stdout = "^ORACLE: 10/10 EQUAL$"
+
+[[check]]
+id = "G4.head-has-two-suite-runs"
+phase = "G4.P2"
+cmd = ["{python}", "tooling-upgrade/oracle.py", "verify-snapshot", "head", "--suite-runs", "2"]
+expect = 0

@@ -39,6 +39,15 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, NamedTuple, Optional, Sequence, Tuple
 
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+        return python_launcher()
+    except Exception:
+        return "py"
+
 TARGET_W, TARGET_H = 1080, 1920
 VIDEO_SUFFIXES = (".mp4", ".mkv", ".mov")
 OUTPUT_TAG = " tiktok"
@@ -107,7 +116,7 @@ class TikTokError(Exception):
 # =================================================================================================
 
 NO_FFMPEG = ("no ffmpeg found. Fix it one of three ways: install the bundled copy with "
-             "'py -m pip install imageio-ffmpeg', put ffmpeg.exe on PATH, or set "
+             f"'{_pyl()} -m pip install imageio-ffmpeg', put ffmpeg.exe on PATH, or set "
              f"{FFMPEG_ENV} to the full path of ffmpeg.exe")
 
 
@@ -867,7 +876,7 @@ def default_folder() -> Path:
     except Exception as exc:  # serve.py is busy shared code: a broken import is a sentence, not a traceback
         raise TikTokError("could not find the default recordings folder, because arsenal/serve.py did not "
                           f"load ({type(exc).__name__}: {exc}). Say where the recordings are with --folder, "
-                          "for example: py -m arsenal tiktok --latest --folder \"D:\\my recordings\"") from exc
+                          f"for example: {_pyl()} -m arsenal tiktok --latest --folder \"D:\\my recordings\"") from exc
     return Path(root).resolve()
 
 
@@ -1388,7 +1397,7 @@ def run_cli(args) -> int:
         problems.append("--folder only goes with --latest")
     if not args.latest and not args.videos:
         problems.append("give one or more videos, or --latest for the newest recording "
-                        "(example: py -m arsenal tiktok --latest)")
+                        f"(example: {_pyl()} -m arsenal tiktok --latest)")
     if problems:
         for problem in problems:
             _say(f"tiktok: {problem}", sys.stderr)

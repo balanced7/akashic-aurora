@@ -8,6 +8,8 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from agent.harness.hooks import claude_userpromptsubmit as hook
+from core.paths import python_launcher as _python_launcher  # noqa: E402
+_PYL = _python_launcher()   # `py` on Windows, `uv run` elsewhere
 
 
 def _wire(monkeypatch, lessons, seen=None, seen_log=None, inj_log=None, unread=0):
@@ -91,7 +93,7 @@ def test_bus_line_composes_after_recall(monkeypatch, capsys):
 def test_bus_line_alone_when_no_lessons(monkeypatch, capsys):
     _wire(monkeypatch, [], unread=3)
     ctx = _main_ctx(monkeypatch, capsys)
-    assert ctx == "[akashic] mail: 3 unread bus msg(s) -> py agent_cli.py bifrost-sync claude"
+    assert ctx == f"[akashic] mail: 3 unread bus msg(s) -> {_PYL} agent_cli.py bifrost-sync claude"
 
 
 def test_bus_silent_at_zero_and_recall_kill_leaves_mail_cue(monkeypatch, capsys):

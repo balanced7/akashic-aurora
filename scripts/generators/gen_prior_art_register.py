@@ -34,6 +34,15 @@ ROOT = Path(__file__).resolve().parents[2]
 # was inflated by 10 untracked files, which is what made PRIOR_ART.md read stale in CI.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _tracked import tracked_py_count, is_tracked_dir  # noqa: E402
+
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+        return python_launcher()
+    except Exception:
+        return "py"
 REGISTER = ROOT / "data" / "prior-art" / "register.json"
 OUT = ROOT / "docs" / "PRIOR_ART.md"
 
@@ -92,7 +101,7 @@ def render(rows) -> str:
         "Status: current",
         "Class: reference",
         "",
-        "> Do NOT edit by hand. Regenerate with `py scripts/generators/gen_prior_art_register.py`.",
+        f"> Do NOT edit by hand. Regenerate with `{_pyl()} scripts/generators/gen_prior_art_register.py`.",
         "> INVENTORY is derived from live code and cannot rot. PRIOR ART is authored in",
         "> `data/prior-art/register.json`. COVERAGE is derived: **GAP** = no entry, **DRIFT** =",
         "> the subsystem changed size since it was surveyed. DRIFT does NOT claim the research",

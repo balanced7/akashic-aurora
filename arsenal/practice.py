@@ -63,6 +63,15 @@ from typing import Dict, List, Optional, Tuple
 from . import nashville
 from .performance import PerformanceError, PerformanceStore, estimate_key
 
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+        return python_launcher()
+    except Exception:
+        return "py"
+
 API = "arsenal.practice/v0"
 HERE = Path(__file__).resolve().parent
 BRIDGE = HERE / "practice_theory.mjs"
@@ -5181,7 +5190,7 @@ def main(argv=None) -> int:
     argv = sys.argv[1:] if argv is None else list(argv)
     if argv[:1] == ["riff"]:  # riff analysis over a jam run: arsenal/practice_riff.py (jam-spec section 11)
         return __import__(f"{__package__}.practice_riff", fromlist=["main"]).main(argv[1:])
-    parser = argparse.ArgumentParser(prog="py -m arsenal.practice",
+    parser = argparse.ArgumentParser(prog=f"{_pyl()} -m arsenal.practice",
                                      description="Harmony verbs over the piano practice log (read only).")
     sub = parser.add_subparsers(dest="verb", required=True)
 
@@ -5310,7 +5319,7 @@ def main(argv=None) -> int:
             payloads.append(payload)
             texts.append(text)
     except PerformanceError as exc:
-        print(f"{exc}; try: py -m arsenal.practice sessions", file=sys.stderr)
+        print(f"{exc}; try: {_pyl()} -m arsenal.practice sessions", file=sys.stderr)
         return 2
     except ValueError as exc:
         print(exc, file=sys.stderr)

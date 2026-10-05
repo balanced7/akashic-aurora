@@ -303,7 +303,7 @@ class SessionRecovery:
         print("  1. Session history is SAFE - all data in local files")
         print("  2. File-based logging is ACTIVE")
         print("  3. To enable Redis, start Docker and run:")
-        print("     cd E:\\AI-Setup\\dockerized-ai\\redis")
+        print(f"     cd {BASE_DIR / 'dockerized-ai' / 'redis'}")
         print("     docker compose -f docker-compose-ha.yml up -d")
 
         print("\n" + "=" * 70)

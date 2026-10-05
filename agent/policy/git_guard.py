@@ -17,6 +17,15 @@ import re
 import shlex
 from typing import Tuple
 
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+        return python_launcher()
+    except Exception:
+        return "py"
+
 # args to `git add` that stage indiscriminately
 _ADD_BLANKET = {"-A", "--all", ".", ":/", ":"}
 
@@ -25,8 +34,8 @@ _REASON = (
     "bundles the OTHER agent's unreviewed changes into your commit and pushes them "
     "(the FM1 failure, 2026-06-28). Stage what is YOURS explicitly:\n"
     "  git add <path...>   then commit\n"
-    '  or  py scripts/mirror.py "msg" <path...> --commit   (claude seat or Daniel)\n'
-    "Need to sweep everything anyway? `py scripts/mirror.py \"msg\" --all --commit` is the "
+    f'  or  {_pyl()} scripts/mirror.py "msg" <path...> --commit   (claude seat or Daniel)\n'
+    f"Need to sweep everything anyway? `{_pyl()} scripts/mirror.py \"msg\" --all --commit` is the "
     "explicit opt-in. See docs/library/design/20260709_concurrent-agents-reinforcing-two-peers_5f6723.md (Layer 2 / C0)."
 )
 

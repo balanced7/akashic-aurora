@@ -36,6 +36,15 @@ import os
 import time
 from typing import Any, Dict, List, Optional
 
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+        return python_launcher()
+    except Exception:
+        return "py"
+
 #: consecutive misses before the first nudge, and between repeats. Generous on purpose: reading
 #: around a problem legitimately wanders, and a detector that fires during exploration is noise.
 MISS_BEFORE_NUDGE = 14
@@ -263,8 +272,8 @@ def drift_note(session_id: str) -> Optional[str]:
         return (f"[focus] {st['streak']} calls in a row have not touched {tid}'s files "
                 f"({', '.join(declared[:3])}{'...' if len(declared) > 3 else ''}). "
                 f"{tid} \"{str(t.get('title',''))[:60]}\" was focused {age_d}d ago. "
-                f"If you have moved on: `py agent_cli.py focus --clear` (or --set T###). "
-                f"If this is still the task: `py agent_cli.py focus --quiet`, "
+                f"If you have moved on: `{_pyl()} agent_cli.py focus --clear` (or --set T###). "
+                f"If this is still the task: `{_pyl()} agent_cli.py focus --quiet`, "
                 f"or `--dismiss` to wave this one off.")
     except Exception:
         return None

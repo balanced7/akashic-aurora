@@ -38,6 +38,15 @@ from pathlib import Path
 from typing import Callable, List, Optional, Tuple
 
 
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+        return python_launcher()
+    except Exception:
+        return "py"
+
+
 #: Tracked paths this repo REWRITES as a side effect of being operated -- generator output
 #: and derived projections. Measured 2026-08-14: a clean checkout goes dirty within one
 #: commit, because docs/MAP.md and docs/DOORS.md declare themselves auto-generated and the
@@ -126,7 +135,7 @@ class Savepoint:
         recovery does not depend on the recoverer.
         """
         return (f"git checkout {self.git_sha} && "
-                f"py scripts/ops/snapshot_knowledge.py restore {self.knowledge_snapshot}")
+                f"{_pyl()} scripts/ops/snapshot_knowledge.py restore {self.knowledge_snapshot}")
 
     def render(self) -> str:
         flag = "" if self.complete else "  [PARTIAL] " + self.caveat

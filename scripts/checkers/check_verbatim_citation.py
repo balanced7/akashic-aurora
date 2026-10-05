@@ -17,6 +17,15 @@ import subprocess
 import sys
 import os
 
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+        return python_launcher()
+    except Exception:
+        return "py"
+
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # T104-M1 depth
 GATE_RE = re.compile(
     r"\bGATE\s*:?\s*(GREEN|RED)\b|\bAFFIRM(?:ED)?\b|\bverify\s+(?:record|verdict)\b",
@@ -39,7 +48,7 @@ def _check(message: str) -> int:
         return 0
     print("FAIL: this ship message carries a GATE decision with no verbatim record cited "
           "(method baseline M6 -- decisions never rest on bus-stream/chat-scroll evidence).")
-    print("Fix: mint the peer verdict as a report atom (py agent_cli.py doc new --type report "
+    print(f"Fix: mint the peer verdict as a report atom ({_pyl()} agent_cli.py doc new --type report "
           "...) and cite its projection path (docs/library/report/...) or atom id in the message.")
     return 1
 

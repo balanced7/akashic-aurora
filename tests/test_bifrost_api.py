@@ -15,6 +15,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.comm.bus import Bus
 from core.comm.bifrost_api import BifrostAPI
+from core.paths import python_launcher as _python_launcher  # noqa: E402
+_PYL = _python_launcher()   # `py` on Windows, `uv run` elsewhere
 
 
 def _online_or_skip(api):
@@ -85,7 +87,7 @@ def test_presence_and_who():
 
 def test_wake_cmd_is_the_arm_string():
     api = BifrostAPI("claude")
-    assert api.wake_cmd == "py scripts/bifrost_wake.py --agent claude"
+    assert api.wake_cmd == f"{_PYL} scripts/bifrost_wake.py --agent claude"
 
 
 def test_coordination_intent_lifecycle():

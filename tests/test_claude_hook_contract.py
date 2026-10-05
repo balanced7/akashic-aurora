@@ -208,7 +208,7 @@ def test_first_try_success_emits_no_fail_label(tmp_path, monkeypatch):
 def test_main_out_of_scope_is_silent(tmp_path, monkeypatch):
     data = _load("posttooluse_bash_success.json")
     data["tool_input"]["command"] = "echo unrelated"
-    data["cwd"] = "C:\\Somewhere\\Else"
+    data["cwd"] = "C:\\Somewhere\\Else" if os.name == "nt" else "/somewhere/else"   # absolute on this OS
     calls = []
     _run_main(monkeypatch, data, calls, tmp_path)
     assert calls == []
@@ -246,7 +246,7 @@ def test_main_powershell_flip_credits_like_bash(tmp_path, monkeypatch):
 
 def test_main_powershell_out_of_scope_is_silent(tmp_path, monkeypatch):
     data = _powershell_payload_for("echo unrelated")
-    data["cwd"] = "C:\\Somewhere\\Else"
+    data["cwd"] = "C:\\Somewhere\\Else" if os.name == "nt" else "/somewhere/else"   # absolute on this OS
     calls = []
     _run_main(monkeypatch, data, calls, tmp_path)
     assert calls == []

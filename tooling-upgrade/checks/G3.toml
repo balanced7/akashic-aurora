@@ -1,0 +1,47 @@
+# G3 -- lint to zero (classes C then D). Registered in G0. Append-only.
+goal = "G3"
+required_drills = ["D02", "D03", "D06", "D14"]
+
+[[check]]
+id = "G3.ruff-zero"
+phase = "G3.P4"
+cmd = ["uv", "run", "--frozen", "ruff", "check", "--config", "pyproject.toml"]
+expect = 0
+
+[[check]]
+id = "G3.lint-check-task"
+phase = "G3.P4"
+cmd = ["uv", "run", "--frozen", "poe", "lint-check"]
+expect = 0
+
+[[check]]
+id = "G3.mechanical-commits-replay"
+phase = "G3.P4"
+cmd = ["{python}", "tooling-upgrade/certify.py", "assert-mechanical-commits"]
+expect = 0
+timeout_s = 7200
+
+[[check]]
+id = "G3.stretch-ratchet"
+phase = "G3.P4"
+cmd = ["{python}", "tooling-upgrade/certify.py", "assert-ratchet", "G3"]
+expect = 0
+
+[[check]]
+id = "G3.suppressions-report"
+phase = "G3.P4"
+cmd = ["{python}", "tooling-upgrade/certify.py", "suppressions"]
+expect = 0
+
+[[check]]
+id = "G3.oracle-two-runs"
+phase = "G3.P4"
+cmd = ["{python}", "tooling-upgrade/oracle.py", "compare", "g0", "head"]
+expect = 0
+expect_stdout = "^ORACLE: 10/10 EQUAL$"
+
+[[check]]
+id = "G3.head-has-two-suite-runs"
+phase = "G3.P4"
+cmd = ["{python}", "tooling-upgrade/oracle.py", "verify-snapshot", "head", "--suite-runs", "2"]
+expect = 0

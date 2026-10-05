@@ -24,6 +24,15 @@ from typing import Any, Dict, List, Optional, Tuple
 from core.comm.bus import Bus
 from core.comm import control, nudge
 
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+        return python_launcher()
+    except Exception:
+        return "py"
+
 _log = logging.getLogger("bifrost")
 
 
@@ -430,7 +439,7 @@ class BifrostAPI:
                         "if you see this line again the pending set is not clearing and RE-ARMING "
                         "WILL NOT REDUCE IT (the watcher is fine either way). Detection PEEKED the "
                         "%s cursor family (the one this seat's consumer advances), so drain THAT "
-                        "one: BIFROST_CONSUME_LANE=%s py agent_cli.py bifrost-sync %s --consume",
+                        f"one: BIFROST_CONSUME_LANE=%s {_pyl()} agent_cli.py bifrost-sync %s --consume",
                         len(live),
                         ",".join(sorted({str(getattr(m, "kind", "?")) for m in live})),
                         family, family,
@@ -771,7 +780,7 @@ class BifrostAPI:
     def wake_cmd(self) -> str:
         """The command to arm this agent's wake listener (run it as a background task so its completion
         re-invokes an idle, turn-based agent). Onboarding: 'give an agent its wake_cmd and it's reachable'."""
-        return f"py scripts/bifrost_wake.py --agent {self.agent}"
+        return f"{_pyl()} scripts/bifrost_wake.py --agent {self.agent}"
 
     # ---- presence ----
     def online(self, card: Optional[Dict[str, Any]] = None) -> bool:

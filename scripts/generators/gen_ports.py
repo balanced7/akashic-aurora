@@ -25,6 +25,15 @@ sys.path.insert(0, ROOT)
 
 import config  # noqa: E402
 
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+        return python_launcher()
+    except Exception:
+        return "py"
+
 OUT = os.path.join(ROOT, "docs", "PORTS.md")
 
 _WORLD_ORDER = {"prod": 0, "sandbox": 1, "test": 2, "external": 3}
@@ -37,14 +46,14 @@ def render() -> str:
     L.append("")
     L.append("Status: current  ·  **GENERATED — do not edit by hand.**")
     L.append("Source of truth: `config.PORT_REGISTRY`. Regenerate with "
-             "`py scripts/generators/gen_ports.py`.")
+             f"`{_pyl()} scripts/generators/gen_ports.py`.")
     L.append("")
     L.append("This file is the DECLARED plane only, so it is reproducible on any machine. For "
              "what is actually")
     L.append("listening right now — and what nobody declared — run:")
     L.append("")
     L.append("```")
-    L.append("py scripts/checkers/check_ports.py --report")
+    L.append(f"{_pyl()} scripts/checkers/check_ports.py --report")
     L.append("```")
     L.append("")
     L.append("## The bands — the digits tell you the world")
@@ -125,7 +134,7 @@ def main():
         except Exception:
             cur = ""
         if cur.strip() != new.strip():
-            print("FAIL: docs/PORTS.md is stale -- run py scripts/generators/gen_ports.py")
+            print(f"FAIL: docs/PORTS.md is stale -- run {_pyl()} scripts/generators/gen_ports.py")
             return 1
         print("PASS: docs/PORTS.md matches config.PORT_REGISTRY")
         return 0

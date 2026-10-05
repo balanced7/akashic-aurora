@@ -30,6 +30,15 @@ from urllib.parse import parse_qs, quote, urlencode
 from arsenal.jam import schemas as S
 from arsenal.jam.resolve import midi_name, parse_line, parse_notes
 
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+        return python_launcher()
+    except Exception:
+        return "py"
+
 VERBS = ("card", "deck", "loop", "try", "jam", "template")
 DEFAULT_PORT = 8793
 OK, BAD_INPUT, NO_PAGE, NO_SERVER, CONFLICT = 0, 2, 3, 4, 5
@@ -81,12 +90,12 @@ class Client:
                 payload = {"error": raw.decode("utf-8", "replace")[:300]}
             if exc.code == 404 and "no route" in str((payload or {}).get("error", "")):
                 raise CliError(f"the server on 127.0.0.1:{self.port} predates the jam routes - restart "
-                               f"py -m arsenal serve --port {self.port}", NO_SERVER)
+                               f"{_pyl()} -m arsenal serve --port {self.port}", NO_SERVER)
             return exc.code, payload or {}
         except (urllib.error.URLError, ConnectionError, TimeoutError, OSError) as exc:
             if not self.offline_ok:
                 raise CliError(f"no arsenal server answers on 127.0.0.1:{self.port} "
-                               f"({getattr(exc, 'reason', exc)}) - start it with py -m arsenal serve --port "
+                               f"({getattr(exc, 'reason', exc)}) - start it with {_pyl()} -m arsenal serve --port "
                                f"{self.port}", NO_SERVER)
             self.offline = True
             from arsenal.jam.cards import DEFAULT_ROOT

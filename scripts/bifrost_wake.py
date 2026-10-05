@@ -26,6 +26,15 @@ import sys
 import tempfile
 import time
 
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+        return python_launcher()
+    except Exception:
+        return "py"
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # T050 Q6: core.comm imports are LAZY (inside functions) so main() can write the wake seat
@@ -231,7 +240,7 @@ def write_rearm_trigger(agent: str, session_id: str = "", tmp: str = None) -> No
     try:
         with open(rearm_trigger_path(agent, session_id, tmp), "w", encoding="utf-8") as f:
             f.write(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] deadline self-cycle: re-arm the "
-                    f"watcher ONCE -- BIFROST_WAKE_LANE=work py scripts/bifrost_wake.py "
+                    f"watcher ONCE -- BIFROST_WAKE_LANE=work {_pyl()} scripts/bifrost_wake.py "
                     f"--agent {agent}" + (f" --session {session_id}" if session_id else "") +
                     " (run_in_background; it stays armed for hours)")
     except Exception:

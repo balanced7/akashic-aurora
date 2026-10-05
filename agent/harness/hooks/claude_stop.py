@@ -27,6 +27,15 @@ Both checks fail OPEN (never wedge the session).
 """
 import json, os, re, subprocess, sys, tempfile, time
 
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+        return python_launcher()
+    except Exception:
+        return "py"
+
 # LEGACY, no-session paths only (below). Session-scoped paths resolve via _seat().
 # Default is NOT a peer name: a session with no env previously wrote bifrost_wake_claude.pid
 # on a SHARED path, i.e. it impersonated the conductor on disk. Unknown is honest and unshared.
@@ -395,7 +404,7 @@ def main():
                 open(guard, "w").write(str(now))
             except Exception:
                 pass
-            arm_cmd = f"BIFROST_WAKE_LANE=work py scripts/bifrost_wake.py --agent {AGENT}" + (
+            arm_cmd = f"BIFROST_WAKE_LANE=work {_pyl()} scripts/bifrost_wake.py --agent {AGENT}" + (
                 f" --session {session_id}" if session_id else "")   # T045: lane-mode watch
             # T073 P3: this block is the BACKSTOP, not a per-turn chore -- the watcher is
             # long-lived (hours). Distinguish a planned deadline cycle from a death.

@@ -90,6 +90,22 @@ def _pid_alive_tristate(pid: int) -> Optional[bool]:
     timeout is the exact over-claim W149 exists to end (fence dissent, 2026-08-13:
     deepseek's half reused the stop hook's fail-open probe and would have rendered
     wakeable on probe failure, violating its own A4)."""
+    if os.name != "nt":
+        # No tasklist off Windows: psutil answers the same question with the same tristate
+        # (a zombie is dead -- it can never listen again; any probe error is cannot-tell).
+        try:
+            import psutil
+            if not psutil.pid_exists(pid):
+                return False
+            return psutil.Process(pid).status() != psutil.STATUS_ZOMBIE
+        except Exception as e:
+            try:
+                import psutil
+                if isinstance(e, psutil.NoSuchProcess):
+                    return False
+            except Exception:
+                pass
+            return None
     try:
         out = subprocess.run(["tasklist", "/FI", f"PID eq {pid}", "/NH"],
                              capture_output=True, text=True, timeout=6,
@@ -272,7 +288,28 @@ def append_provenance(agent: str, line: str, tmp: Optional[str] = None, keep: in
 
 # ---------------------------------------------------------------- process evidence
 def process_snapshot(timeout_s: int = 10) -> Optional[Dict[int, Dict]]:
-    """One WMI pass -> {pid: {ppid, name, cmdline, created_ms}}. None on any failure (K8)."""
+    """One WMI pass -> {pid: {ppid, name, cmdline, created_ms}}. None on any failure (K8).
+
+    Off Windows there is no WMI: psutil yields the same shape (cmdline re-joined with
+    Windows-style quoting so _argv_tokens parses it identically, created in epoch ms)."""
+    if os.name != "nt":
+        try:
+            import psutil
+            snap_: Dict[int, Dict] = {}
+            for pr in psutil.process_iter(["pid", "ppid", "name", "cmdline", "create_time"]):
+                info = pr.info
+                try:
+                    snap_[int(info["pid"])] = {
+                        "ppid": int(info.get("ppid") or 0),
+                        "name": str(info.get("name") or ""),
+                        "cmdline": subprocess.list2cmdline(info.get("cmdline") or []),
+                        "created": int((info.get("create_time") or 0) * 1000) or None,
+                    }
+                except Exception:
+                    continue
+            return snap_ or None
+        except Exception:
+            return None
     try:
         out = subprocess.run(
             ["powershell", "-NoProfile", "-NonInteractive", "-Command",
@@ -498,6 +535,13 @@ def taskkill(pid: int) -> bool:
     claiming those as kills let the janitor remove the seat file of a LIVE
     watcher, leaving it running but invisible -- the caller keeps the seat on
     False so the next pass retries with evidence intact."""
+    if os.name != "nt":
+        try:
+            import signal
+            os.kill(pid, signal.SIGTERM)        # same contract: True only if the signal landed
+            return True
+        except Exception:
+            return False
     try:
         r = subprocess.run(["taskkill", "/PID", str(pid), "/F"],
                            capture_output=True, timeout=5, creationflags=_NO_WINDOW)

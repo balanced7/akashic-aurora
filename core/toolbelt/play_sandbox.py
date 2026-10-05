@@ -28,6 +28,15 @@ import sys
 import time
 import traceback
 
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+        return python_launcher()
+    except Exception:
+        return "py"
+
 HERE = os.path.dirname
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 PLAY = os.path.join(ROOT, "data", "play")
@@ -161,13 +170,13 @@ def render_list(agent: str | None = None) -> str:
                 recs = [f for f in os.listdir(runs) if f.startswith(f"{t}-") and f.endswith(".json")]
             n = len(recs)
             rows.append(f"    {t:<20}  {size:>5}B  {n} receipt(s)")
-    rows.append(f"\n  run one: py agent_cli.py tool run <agent>/<tool>")
+    rows.append(f"\n  run one: {_pyl()} agent_cli.py tool run <agent>/<tool>")
     return "\n".join(rows)
 
 
 # ---------------------------------------------------------------- standalone mode
 if __name__ == "__main__":
-    """Entry point when the families gate launches: py core/toolbelt/play_sandbox.py <agent>/<tool> [args]"""
+    f"""Entry point when the families gate launches: {_pyl()} core/toolbelt/play_sandbox.py <agent>/<tool> [args]"""
     if len(sys.argv) < 2:
         print(render_list())
         sys.exit(0)

@@ -50,6 +50,15 @@ import sys
 import time
 from pathlib import Path
 
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+        return python_launcher()
+    except Exception:
+        return "py"
+
 KEY_FILE = Path(__file__).resolve().parent.parent / ".secrets" / "deepseek.key"
 REPO_ROOT = Path(__file__).resolve().parent.parent
 BASE_URL = "https://api.deepseek.com"
@@ -641,7 +650,7 @@ def main() -> int:
     try:
         from openai import OpenAI
     except Exception:
-        print("MISSING_DEP: py -m pip install openai", file=sys.stderr); return 2
+        print(f"MISSING_DEP: {_pyl()} -m pip install openai", file=sys.stderr); return 2
 
     root = Path(args.root).resolve()
 

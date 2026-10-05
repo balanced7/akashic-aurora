@@ -41,6 +41,15 @@ from collections import deque
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+        return python_launcher()
+    except Exception:
+        return "py"
+
 PACKAGE = Path(__file__).resolve().parent
 BRIDGE = PACKAGE / "pianocue_voicing.mjs"
 DEFAULT_PORT = 8793
@@ -543,11 +552,11 @@ def _request(port: int, method: str, path: str, body: Optional[dict] = None, tim
             payload = {"error": raw.decode("utf-8", "replace")[:300]}
         if err.code == 404 and "no route" in str((payload or {}).get("error", "")):
             raise ServerError(f"the server on 127.0.0.1:{port} has no piano cue channel; it predates it - restart "
-                              f"py -m arsenal serve --port {port}")
+                              f"{_pyl()} -m arsenal serve --port {port}")
         return err.code, payload
     except (urllib.error.URLError, ConnectionError, TimeoutError, OSError) as err:
         raise ServerError(f"no arsenal server answers on 127.0.0.1:{port} ({getattr(err, 'reason', err)}) - start it "
-                          f"with py -m arsenal serve --port {port}")
+                          f"with {_pyl()} -m arsenal serve --port {port}")
 
 
 def send_cue(port: int, cue: dict) -> dict:
@@ -660,7 +669,7 @@ def _cmd_play_several(args, items: List[str], hover: bool, out) -> int:
     verb = "hover" if hover else "play"
     if args.hold is not None and args.hold <= 0:
         print(f"{verb} got {len(items)} chords ({', '.join(items)}): each needs a length, so give --hold in seconds "
-              f"(not 0), or send them as a progression: py -m arsenal.pianocue progression \"{' | '.join(items)}\""
+              f"(not 0), or send them as a progression: {_pyl()} -m arsenal.pianocue progression \"{' | '.join(items)}\""
               f"{' --hover' if hover else ''}", file=sys.stderr)
         return 2
     results = _voiced(args, items)
@@ -790,7 +799,7 @@ def _cmd_voicing(args, out) -> int:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    ap = argparse.ArgumentParser(prog="py -m arsenal.pianocue",
+    ap = argparse.ArgumentParser(prog=f"{_pyl()} -m arsenal.pianocue",
                                  description="Claude's hand on the piano page: play, hover, replay and clear chords")
     sub = ap.add_subparsers(dest="verb", required=True)
 

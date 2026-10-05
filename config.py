@@ -111,13 +111,13 @@ PORT_REGISTRY = {
                          "owner": "akashic-redis"},
     PORT_UI_BETA:       {"world": "beta",     "bound_by": "app",
                          "what": "beta console (was: sandbox)",
-                         "owner": "E:/AI-Setup-Beta scripts/bifrost_ui.py"},
+                         "owner": "<beta checkout>/scripts/bifrost_ui.py"},
     REDIS_PORT_BETA:    {"world": "beta",     "bound_by": "container",
                          "what": "beta Redis, isolated from prod and alpha",
                          "owner": "akashic-redis-beta"},
     PORT_UI_ALPHA:      {"world": "alpha",    "bound_by": "app",
                          "what": "alpha console",
-                         "owner": "E:/AI-Setup-Alpha scripts/bifrost_ui.py"},
+                         "owner": "<alpha checkout>/scripts/bifrost_ui.py"},
     REDIS_PORT_ALPHA:   {"world": "alpha",    "bound_by": "container",
                          "what": "alpha Redis, isolated from prod and beta",
                          "owner": "akashic-redis-alpha"},
@@ -145,6 +145,10 @@ PORT_REGISTRY = {
     47100:              {"world": "prod",     "bound_by": "app",
                          "what": "runner control-channel BASE; each seat takes base+n on "
                                  "loopback, so the exact port is dynamic by design",
+                         "owner": "core/comm/control_channel.py"},
+    27100:              {"world": "prod",     "bound_by": "app",
+                         "what": "runner control-channel BASE where 47100 falls inside the OS's "
+                                 "ephemeral range (Linux); base+n on loopback, dynamic by design",
                          "owner": "core/comm/control_channel.py"},
 }
 
@@ -194,10 +198,13 @@ BACKUP_DIR.mkdir(parents=True, exist_ok=True)
 #
 # Deliberately OUTSIDE the repo: these are UNREDACTED transcripts and the repo is public. Separate
 # PHYSICAL disks on purpose -- two copies on one drive is one failure domain wearing a disguise.
-TRANSCRIPT_ARCHIVE_ROOTS = [
-    Path(r"E:\Akashic Aurora\transcripts\rolling"),
-    Path(r"F:\Akashic Aurora\transcripts\rolling"),
-]
+# Which disks those are is a fact about ONE machine, so it lives in the environment, not here:
+#   AKASHIC_TRANSCRIPT_ARCHIVE_ROOTS   absolute paths, ';'-separated on Windows, ':' elsewhere
+# Unset -> [] and the archiver REFUSES to run (a backup with nowhere to go is not a clean run).
+# These were drive-letter literals; on Linux a literal like that is a RELATIVE path, so the
+# archiver would have mkdir'd it inside the cwd -- unredacted transcripts in the public repo.
+from core.paths import env_paths as _env_paths  # noqa: E402
+TRANSCRIPT_ARCHIVE_ROOTS = _env_paths("AKASHIC_TRANSCRIPT_ARCHIVE_ROOTS")
 
 # T406: the DSH plane. Rill (dsh_agent) runs on the DSH/cordis harness, which keeps its
 # transcripts here -- one directory per session, each holding a zstd-compressed session.jsonl.
