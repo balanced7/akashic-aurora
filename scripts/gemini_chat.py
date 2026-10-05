@@ -374,8 +374,10 @@ class GeminiAgent:
                 self._trace("tool", f"{c.function.name}({json.dumps(args)[:200]})")
                 self._activity("tool", c.function.name)
                 out = self._run_tool(c.function.name, args)
+                from core.comm.toolbox import recall_tool_request
+                rendered = f"[hop {hop}/{self.max_hops}] {out}"
                 self.history.append({"role": "tool", "tool_call_id": c.id,
-                                     "content": f"[hop {hop}/{self.max_hops}] {out}"[:20000]})
+                                     "content": rendered if recall_tool_request(c.function.name, args) else rendered[:20000]})
         return (f"{partial}\n[gemini tool budget exhausted at {self.max_hops} hops -- "
                 f"partial answer above; re-ask to continue]").strip()
 
@@ -386,7 +388,7 @@ if __name__ == "__main__":
         meter = SpendMeter()
         meter.reconcile(force=True)
         print("pre :", meter.status_line())
-        ag = geminiAgent(instructions="You are gemini, smoke-testing your seat transport.",
+        ag = GeminiAgent(instructions="You are gemini, smoke-testing your seat transport.",
                        meter=meter)
         print("text=", repr(ag.send("Reply with exactly: gemini TRANSPORT LIVE")))
         calc = [{"type": "function", "function": {"name": "calc",
@@ -394,7 +396,7 @@ if __name__ == "__main__":
                  "parameters": {"type": "object",
                                 "properties": {"expr": {"type": "string"}},
                                 "required": ["expr"]}}}]
-        ag2 = geminiAgent(instructions="Use tools when asked.", tools_schemas=calc,
+        ag2 = GeminiAgent(instructions="Use tools when asked.", tools_schemas=calc,
                         dispatch=lambda n, a: "42", meter=meter)
         print("tool round-trip:", repr(ag2.send("What is 6*7? Use the calc tool, then answer.")))
         u = ag2.last_response.usage

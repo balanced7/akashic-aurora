@@ -1907,6 +1907,11 @@ def _continuity_drift(notes=None) -> str:
     try:
         from datetime import datetime as _dt
         if notes is None:
+            # The import was MISSING, so this branch -- the only one the sole production
+            # caller (line ~2214, no args) takes -- raised NameError into this function's
+            # own `except Exception: return ""` and the drift line never rendered once.
+            # All four tests in tests/test_continuity_drift.py pass notes= and skip it.
+            from core.learning.agent_memory import get_agent_memory
             notes = get_agent_memory().get_decisions(days=90)
         stale = []
         for title in ("where-we-are", "next-focus", "grounding-pointer"):
@@ -2416,6 +2421,10 @@ def _wish_curate_run(path, args, _re):
     path.write_text(new_doc, encoding="utf-8")
     print(msg)
     try:
+        # Import was missing; the NameError went into the `except Exception: pass` below, so
+        # no wish-curation ever reached the events spine. Measured 2026-10-05: 0 events with
+        # kind='wish' across 11,242 events in 58 streams, against 254 wishes in the ledger.
+        from core.events.event_log import capture_event
         capture_event("wish", "%s curated %s: %s" % (args.agent_id, args.wish_id, action),
                       agent_id=args.agent_id,
                       detail={"wish": args.wish_id, "action": action,
@@ -2498,6 +2507,7 @@ def _wish_write(path, body, args, _re, _dt):
     path.write_text(text, encoding="utf-8")
     print(f"[wish] filed W{n:02d} ({args.agent_id}) -> {path.name} -- cite W{n:02d} at the next gate curation")
     try:
+        from core.events.event_log import capture_event   # was missing -- see _wish_curate_run
         capture_event("wish", f"{args.agent_id} filed W{n:02d}: {body[:120]}",
                       agent_id=args.agent_id, detail={"wish": f"W{n:02d}", "body": body[:500]})
     except Exception:
@@ -6198,6 +6208,7 @@ def cmd_season_score(args):
 
     claims, verifications, uptime, fixed = [], [], {}, set()
     if args.round_file:
+        import io          # was missing -- a hard NameError, so --round-file never worked
         doc = json.loads(io.open(args.round_file, encoding="utf-8").read())
         claims = doc.get("claims", [])
         verifications = doc.get("verifications", [])
@@ -7953,7 +7964,11 @@ def cmd_locks(args):
         why = f"  why: {lk.get('note')}" if lk.get("note") else ""
         age = ""
         try:
+            import time
             from core.foundation.timeutil import to_epoch
+            # `time` was unbound, so this raised into the `except Exception: pass` below and
+            # `age` stayed "" -- lock age and TTL have never displayed. That is the field
+            # that tells a seat whether a peer's advisory lock is stale.
             secs = max(0, int(time.time() - to_epoch(lk.get("ts"))))
             ttl = int(lk.get("ttl") or 0)
             age = f"  [{secs}s old, ttl {ttl}s]"
@@ -10237,7 +10252,12 @@ def cmd_tool_list(args):
 
 def cmd_tool_run(args):
     """Play-tier sandbox: run one draft tool with sandbox bounds + receipt."""
-    from core.toolbelt.play_sandbox import find_tool, sandboxed_run, DEFAULT_TIMEOUT_S
+    # ROOT is the same root sandboxed_run uses as its cwd (play_sandbox.py:81), so the
+    # --no-sandbox override runs the tool from the same place the sandboxed path would.
+    # It was referenced here as the undefined name `REPO`: the override printed its
+    # reassuring "running UNSANDBOXED" line and THEN died on NameError, so the operator
+    # escape hatch has never once worked.
+    from core.toolbelt.play_sandbox import find_tool, sandboxed_run, DEFAULT_TIMEOUT_S, ROOT
     try:
         agent, tool, path = find_tool(args.ref)
     except (ValueError, FileNotFoundError) as e:
@@ -10247,7 +10267,7 @@ def cmd_tool_run(args):
     if args.no_sandbox:
         print(f"[tool] running {args.ref} UNSANDBOXED (operator override -- caveat emptor)")
         import subprocess as sp
-        r = sp.run([sys.executable, path] + (args.args or []), cwd=REPO)
+        r = sp.run([sys.executable, path] + (args.args or []), cwd=ROOT)
         print(f"[tool] exit {r.returncode} (unsandboxed — no receipt)")
         return r.returncode
     rec = sandboxed_run(agent, tool, path, args=args.args, timeout_s=timeout)

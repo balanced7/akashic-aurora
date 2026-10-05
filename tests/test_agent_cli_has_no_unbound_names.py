@@ -78,18 +78,35 @@ UNBOUND = [
 ]
 
 
-# ------------------------------------------------------------------ the namespace, at runtime
-@pytest.mark.parametrize("name", sorted({n for n, _ in UNBOUND}))
-def test_the_name_resolves_in_agent_cli_at_runtime(name):
-    """THE PIN, stated at the plane that actually decides: the imported module's namespace.
+# ------------------------------------------------------------- the name resolves IN ITS SCOPE
+#
+# THE FIRST VERSION OF THIS SECTION PINNED THE WRONG THING, and the record belongs here
+# because it would have forced a worse design. It asserted `hasattr(agent_cli, name)` -- a
+# MODULE-LEVEL attribute. But this file's established idiom is the function-local import
+# (lines 166, 294, 314, 327, 444, 703, 1453 ...), which is correct here: it avoids import
+# cycles through core.* and keeps CLI startup cheap. The fix uses that idiom, so the six
+# names are now bound inside their own functions and `hasattr` on the module is STILL False.
+#
+# Had I kept those pins, the only way to make them green would have been to hoist six
+# imports to module scope to satisfy a test, which is the tail wagging the dog. The contract
+# that actually matters is NOT "the module carries the name" but "the name resolves wherever
+# it is read" -- so these pin scope resolution per site, at the granularity of the defect.
+@pytest.mark.parametrize("name,where", UNBOUND, ids=[f"{n}:{w}" for n, w in UNBOUND])
+def test_the_name_resolves_in_the_function_that_reads_it(name, where):
+    sys.path.insert(0, str(ROOT / "scripts" / "checkers"))
+    import check_unbound_names as C
 
-    Not a grep and not a docstring check -- `hasattr` on the live module. A name the module
-    does not carry raises NameError the moment a function body reaches it.
-    """
-    assert hasattr(A, name), (
-        "agent_cli does not carry `%s`, so every site that reads it raises NameError. "
-        "Where the site sits inside a fail-soft `except Exception`, it raises SILENTLY and "
-        "the organ reports a false zero." % name)
+    tree = ast.parse((ROOT / "agent_cli.py").read_text(encoding="utf-8-sig"))
+    r = C._Resolver(tree, lazy_annotations=False)
+    for st in tree.body:
+        r.visit(st)
+
+    hits = [(ln, nm, w) for ln, nm, w in r.violations if nm == name and w == where]
+    assert not hits, (
+        "`%s` resolves in no scope inside %s (line %d). It raises NameError when reached; "
+        "where the site sits inside a fail-soft `except Exception` it raises SILENTLY and "
+        "the organ reports a false zero."
+        % (name, where, hits[0][0]))
 
 
 # --------------------------------------------------------- the class, closed by scope analysis
@@ -135,7 +152,7 @@ def test_no_function_in_agent_cli_reads_a_name_nothing_binds():
 
 
 # -------------------------------------------------- the production call shape, stated as a pin
-def test_the_drift_line_is_reached_through_the_shape_the_only_caller_uses():
+def test_the_drift_line_is_reached_through_the_shape_the_only_caller_uses(monkeypatch):
     """THE LESSON PIN. agent_cli.py:2214 calls `_continuity_drift()` with NO arguments.
 
     All four tests in tests/test_continuity_drift.py pass `notes=` and are green; none of them
@@ -146,28 +163,51 @@ def test_the_drift_line_is_reached_through_the_shape_the_only_caller_uses():
     asserts the no-argument path does not die on an unbound name, by checking the one thing
     that path needs and does not have.
     """
-    assert hasattr(A, "get_agent_memory"), (
-        "the ONLY production call shape -- _continuity_drift() with no notes -- reaches an "
-        "unbound `get_agent_memory` at agent_cli.py:1910, raises NameError, and the "
-        "function's own `except Exception: return ''` converts it into 'no drift'. The four "
-        "existing tests all pass notes= and never reach this line.")
+    import core.learning.agent_memory as AM
 
-    out = A._continuity_drift()
+    reached = []
+    real = AM.get_decisions if hasattr(AM, "get_decisions") else None   # noqa: F841
+
+    class _Mem:
+        def get_decisions(self, days=90):
+            reached.append(days)
+            return []
+
+    monkeypatch.setattr(AM, "get_agent_memory", lambda *a, **k: _Mem())
+
+    out = A._continuity_drift()          # <- NO ARGUMENTS. The production shape, exactly.
+
     assert isinstance(out, str), out
+    assert reached, (
+        "_continuity_drift() with no notes never reached the memory layer. Its own "
+        "`except Exception: return ''` swallowed a NameError on the unbound "
+        "`get_agent_memory`, so the drift line has never rendered and its absence is "
+        "indistinguishable from 'no drift'. The four tests in test_continuity_drift.py all "
+        "pass notes= and never take this path.")
+    assert reached == [90], "the production path asked for a different window: %r" % reached
 
 
-def test_the_wish_door_can_emit_its_event(monkeypatch):
-    """The wish door builds a careful `detail` payload and hands it to an unbound name inside
-    `except Exception: pass`. 254 wishes filed, 0 events on the spine.
+def test_the_wish_door_reaches_a_real_capture_event():
+    """The wish door builds a careful `detail` payload and hands it to `capture_event` inside
+    `except Exception: pass`. Measured: 254 wishes filed, 0 events with kind='wish'.
 
-    Pinned by substituting a recorder for `capture_event`: if the name cannot be patched onto
-    the module, the door was never calling anything reachable.
+    Pinned at the import this file actually performs, and on the callable being real -- not
+    on a module attribute, for the reason given above the parametrised pins. An import that
+    resolves to nothing callable would be the same defect wearing a successful import.
     """
-    assert hasattr(A, "capture_event"), (
-        "agent_cli has no `capture_event`, so both wish write-sites (2419, 2501) raise "
-        "NameError inside `except Exception: pass`. That is why docs/WISHLIST.md holds 254 "
-        "wishes and the events spine holds 0 with kind='wish'.")
+    from core.events.event_log import capture_event
+    assert callable(capture_event)
 
-    seen = []
-    monkeypatch.setattr(A, "capture_event", lambda kind, summary, **kw: seen.append(kind))
-    assert A.capture_event("wish", "probe") is not None or seen == ["wish"]
+    src = (ROOT / "agent_cli.py").read_text(encoding="utf-8-sig")
+    tree = ast.parse(src)
+    for fn in [n for n in ast.walk(tree)
+               if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))
+               and n.name in ("_wish_write", "_wish_curate_run")]:
+        imports_it = any(
+            isinstance(n, ast.ImportFrom) and n.module == "core.events.event_log"
+            and any(a.name == "capture_event" for a in n.names)
+            for n in ast.walk(fn))
+        assert imports_it, (
+            "%s calls capture_event without importing it, so the call raises NameError into "
+            "its own `except Exception: pass` and the wish never reaches the events spine."
+            % fn.name)
