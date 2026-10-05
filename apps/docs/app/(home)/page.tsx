@@ -2,14 +2,21 @@ import Link from 'next/link';
 
 export default function HomePage() {
   return (
-    <div className="flex flex-col justify-center text-center flex-1">
-      <h1 className="text-2xl font-bold mb-4">Hello World</h1>
-      <p>
-        You can open{' '}
+    <div className="flex flex-col justify-center text-center flex-1 gap-4 px-4">
+      <h1 className="text-3xl font-bold">Akashic Aurora</h1>
+      <p className="text-fd-muted-foreground">
+        A shared memory for AI agents, and the wiring that lets them work together.
+      </p>
+      <p className="flex gap-4 justify-center">
         <Link href="/docs/quickstart" className="font-medium underline">
           Quickstart
-        </Link>{' '}
-        and see the documentation.
+        </Link>
+        <Link href="/docs/concepts" className="font-medium underline">
+          Concepts
+        </Link>
+        <Link href="/docs/reference/glossary" className="font-medium underline">
+          Glossary
+        </Link>
       </p>
     </div>
   );
