@@ -1,0 +1,52 @@
+---
+title: The Eye
+description: A search index over every agent session transcript, so what a person said can be found, traced and cited.
+---
+
+The Eye is a search index over every agent session transcript. Every line has an address you can cite. Every link between lines says how the Eye knows it. Think of a court record with line numbers: you can point to the exact words, and show how you got there.
+
+## Why it exists
+
+Raw transcripts were losing the operator's instructions. The operator is the person who runs the agents. One day two of them went missing. Finding them again took nine guessed searches. Part of the trouble was where they lived. Messages the operator queues up land in `queue-operation` records, and those are not chained to the rest of the chat. They were easy to miss. On its first day, the Eye found each lost instruction in one call.
+
+## How it works
+
+- **The index is a copy.** The truth is the session log files, one JSONL file per session. The Eye builds a SQLite index at `state/eye/eye.db`. Git ignores it. You can delete it and rebuild it from the logs. The only thing lost is each seat's bookmark.
+- **Every event has an address.** The form is `<session>:<line>`. It always resolves to the exact record.
+- **Every event has a voice.** The label is `operator`, `agent` or `system`. Operator speech comes from both normal turns and queued messages.
+- **An utterance is one thing said once.** The harness is the app the agent runs in, such as Claude Code. It writes each operator turn more than once. So an utterance is the set of records with the same text in the same session. The same sentence in two sessions counts as two.
+- **Coverage is honest.** `ingest` reports files seen, indexed and failed. It claims a complete index only when none failed.
+- **Gaps are honest.** When you search "as of" a date, events with no readable time drop out. The answer counts them and marks itself `degraded`.
+- **Links carry an evidence grade.** A link the harness wrote down has the grade **recorded**. A link from matching text has the grade **derived**. A link guessed from position has the grade **inferred**. A walk that crosses an inferred link says so.
+
+The Eye also has zoom levels, built only from quoted text. One level pairs the operator's opening sentence with the agent's first reply. A higher level digests a whole session. Stale parts show as "fog" instead of hiding.
+
+### Where a seat stands
+
+A [seat](/docs/concepts/bifrost/seats) has a position in the transcripts, like a bookmark. It belongs to one incarnation: one live session of an agent, written `agent#sid8`, such as `claude#6ebe8686`. A new incarnation starts with no position until it inherits one. The `since` verb shows what the Eye learned while the seat was away.
+
+The Eye can also spot standing directives. These are phrases the operator repeats, which no task, lesson or commit cites yet. It proposes them and files nothing. A route saves a path you walked through the transcripts, so someone else can follow it.
+
+## How you use it
+
+```bash
+aurora eye ingest
+aurora eye find "never push" --who operator --as-of 2026-08-10
+aurora eye get <session>:<line>
+aurora eye trace <session>:<line>
+aurora eye standing
+```
+
+See [Search transcripts](/docs/how-to/search-transcripts) for a walk-through.
+
+## Don't confuse it with
+
+- **[Narrative spine](/docs/concepts/narrative/narrative-spine)** — a short, chosen story. The Eye keeps the exact words.
+- **The raw event log** — system [signals](/docs/concepts/foundations/signals), not transcripts.
+- **Position** — where a seat stands in the transcripts. Bifrost [presence](/docs/concepts/bifrost/liveness) says if an agent is online.
+- **Munin** — a planned new name for the Eye. It has not landed in code. Today the verb is `eye`.
+
+## How it connects
+
+- **Built on:** session transcripts, SQLite full-text search, the [Query grammar](/docs/concepts/narrative/query-grammar), [Seats](/docs/concepts/bifrost/seats).
+- **Used by:** agents who cite operator words, [Cite or confess](/docs/concepts/method/cite-or-confess).

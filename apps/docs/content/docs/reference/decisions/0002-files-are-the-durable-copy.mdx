@@ -1,0 +1,20 @@
+---
+title: "0002: Files are the durable copy, Redis is optional"
+description: Aurora writes to files first and treats Redis as a speed-up that may be missing.
+---
+
+**Status:** accepted
+
+The default backend writes every change to a local file and also to Redis when Redis is reachable. Reads try Redis first and fall back to the file. We chose this because the project needs recovery more than uptime. A local file survives a Redis crash, a restart and a missing Redis install. See [Hybrid storage](/docs/concepts/foundations/hybrid-storage).
+
+## Considered options
+
+- **Triple-redundant Redis with failover.** Built first, then dropped. It added moving parts without a matching failure to prevent.
+
+## Consequences
+
+Code must reach Redis only through the fail-fast connector. A dead Redis then costs half a second, not a 48-second hang. You need not install Redis. When a checkout has none, Aurora starts an embedded stand-in.
+
+The data files are local to each install and git ignores them. Back them up like any other data.
+
+The default JSON file rewrites itself whole on every change, so busy processes have lost writes. Once it held 23 lessons while Redis held 540. A SQLite file tier fixes this, but it is off by default.

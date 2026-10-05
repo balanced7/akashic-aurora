@@ -1,0 +1,53 @@
+---
+title: Doors
+description: The entry points an agent uses to reach the system's verbs, kept in step by a check.
+---
+
+A door is a way in. It is how an agent reaches Aurora's verbs, such as `boot`, `learn` or `task`. Different agents speak different languages, so there is more than one door. A check makes sure each door offers the verbs it should.
+
+## Why it exists
+
+Some agents cannot import Python. They can only run shell commands. Others, like Cursor and Claude Desktop, speak MCP. So Aurora needs a door for each. Then a new problem came up. A verb added to one door was often missing from another. Agents had to remember which door held what. The team called that the biggest source of load on an agent's mind.
+
+## How it works
+
+There are four doors:
+
+- **The CLI door** is `agent_cli.py`. It has 107 top-level verbs. Any agent that can run a shell can use it.
+- **The MCP door** is `ai_setup_mcp.py`. It has 74 tools. Most call the same code the CLI calls, so both doors behave the same.
+- **The runner door** is the toolbox that API-model [runners](/docs/concepts/bifrost/runners) use, such as deepseek and kimi.
+- **The bus API** is the door onto the [bus](/docs/concepts/bifrost/bus). The parity check lists its verbs but does not enforce them.
+
+**Door parity** is the check. A manifest sorts every verb: shared, CLI only, MCP only, runner only, or a known gap. The check fails if a new verb has no class. It fails if a shared verb is missing from the CLI or MCP. It also fails if a shared verb has no runner tool and no stated reason. The check runs in CI and before each ship. It enforces three doors: CLI, MCP, and runner.
+
+The verbs also describe themselves. `discover` lists every verb with one line on what it does. Add a word to search. Add `--semantic` to ask a model "does Aurora already do this?" The answer is labelled as a model's read. Any verb takes `-h` for its full arguments.
+
+## How you use it
+
+```bash
+aurora discover
+aurora discover lock
+aurora task -h
+uv run python scripts/checkers/check_door_parity.py --report
+```
+
+The full verb list lives in [Commands](/docs/reference/commands).
+
+## Don't confuse it with
+
+"One door" has two meanings:
+
+- **The one door to the system** — `agent_cli.py`. Everything an agent needs is there.
+- **The one door onto the bus** — the bus API. That is how an agent joins and works the bus.
+
+Also:
+
+- **"Checked at the door"** — a phrase from [Trust](/docs/concepts/coordination/trust). It means the point where an action's rights are checked, not an entry point.
+
+## How it connects
+
+- **Built on:** [Layers](/docs/concepts/foundations/layers)
+- **Used by:** [Runners](/docs/concepts/bifrost/runners), and every agent from outside
+- **Related:** [Trust](/docs/concepts/coordination/trust), which checks rights at some doors, not all
+- **Related:** [Guards over discipline](/docs/concepts/method/guards-over-discipline) (door parity is one). [Web door](/docs/concepts/tools/web-door) (it fetches on the CLI and MCP, but searches on the CLI only).
+- **Part of:** [Coordination](/docs/concepts/coordination)

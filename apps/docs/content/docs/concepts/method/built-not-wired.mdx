@@ -1,0 +1,52 @@
+---
+title: Built, not wired
+description: A module that exists and passes its tests, but that nothing real ever imports, so it never runs.
+---
+
+A module can exist, pass every test and still never run. If no real entry point imports it, it does nothing in production. We call that built but not wired. A script, `check_wiring.py`, walks the code and counts these modules. Tests are not enough here: a test can reach a module that real use never does. This page also covers the partner habit: write the failing test before the code.
+
+<Callout type="warn" title="Blocks at ship, soft in CI">The check blocks a change only in `scripts/ship.py`. CI only stops it from getting worse than an old baseline. The check can also fail on its own when an exemption's date passes.</Callout>
+
+## Why it exists
+
+Code built ahead of need piles up without a sound. It costs upkeep and runs nowhere. The first run of the check found 18 core modules that nothing reached. Fourteen came early, made before anyone needed them. Four were leftovers from old work. The script froze that list as a backlog.
+
+## How it works
+
+The script starts from the real entry points. These include `agent_cli.py`, `bootstrap.py`, the runners, the hooks and a few named scripts. From each one it follows every import, even imports inside functions. Any `core/` module it never reaches counts as unwired.
+
+The check is a ratchet. Each known standalone module sits on an exemption list with a reason. Newer entries also carry an end date. Eighteen older ones have no date, and that count may only shrink. A new unwired module fails the check. So does an exemption past its date. A second list tracks public functions that nothing calls.
+
+The script has a blind spot. It cannot see a module loaded by a name built at run time.
+
+The check runs in two places, with different force:
+
+- **`scripts/ship.py`** runs it before each commit and stops the ship on failure. This is the hard gate.
+- **CI** runs it too, but only asks it to do no worse than a saved baseline. The check already failed in that baseline. So in CI, one more unwired module does not fail the build.
+
+## Pin first: RED, then GREEN
+
+A pin is a test that fixes how the code should behave. Here the pin comes first. It lands in a commit titled `RED: …`, and it fails. Then the code that makes it pass lands in a commit titled `GREEN: …`. Dozens of commits start with each word, and hundreds mention a RED pin.
+
+A guard backs this up. Say a test file's header calls it "pre-registered". `check_preregistration.py` then fails a ship that adds that test in the same commit as the code. Like the wiring check, it bites in `ship.py`. In CI it gets no commit message, so it passes without checking.
+
+## How you use it
+
+```bash
+uv run scripts/checkers/check_wiring.py --report
+uv run scripts/checkers/check_preregistration.py --audit 50
+uv run scripts/ship.py "GREEN: wire the thing" core/x.py tests/test_x.py
+```
+
+## Don't confuse it with
+
+- **Dead code** — code no one wants. We keep a built-ahead module on purpose, with a dated reason.
+- **Organ canaries** — a guard that asks each wired module a question with a known answer. It catches modules that run but return nothing.
+- **Door parity** — a guard that the shell and tool [doors](/docs/concepts/coordination/doors) offer the same verbs.
+
+## How it connects
+
+- **Built on:** [Guards over discipline](/docs/concepts/method/guards-over-discipline)
+- **Used by:** [Verification](/docs/concepts/method/verification) (pins are the usual evidence)
+- **Examples today:** [Perspectives](/docs/concepts/narrative/perspectives), [Screenspace](/docs/concepts/tools/screenspace), the drift check in the [narrative spine](/docs/concepts/narrative/narrative-spine)
+- **Part of:** [The method](/docs/concepts/method)

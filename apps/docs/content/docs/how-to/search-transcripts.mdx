@@ -1,0 +1,32 @@
+---
+title: Search transcripts
+description: Find, quote and trace what anyone said in a past agent session.
+---
+
+[The Eye](/docs/concepts/narrative/the-eye) indexes every session transcript on this machine. It has no language model in its path. It only returns what the transcripts hold.
+
+## Build or refresh the index
+
+```bash
+aurora eye ingest
+```
+
+Ingest is incremental. Its report says how many files it saw, indexed and failed. If any failed, it will not claim the index is complete.
+
+## Search
+
+```bash
+aurora eye find "embedded redis" --who operator --as-of 2026-09-30
+```
+
+Filters combine with AND. `--who` takes `operator`, `agent` or `system`. Each hit has an address like `<session>:<line>`.
+
+## Quote and trace
+
+```bash
+aurora eye get <session>:<line>     # the verbatim record
+aurora eye trace <session>:<line>   # how it links to other records
+aurora eye freq "pause the fleet"   # how often, and in which sessions
+```
+
+If an answer says `degraded`, part of the transcripts was out of view. Treat that answer as partial. See [Query grammar](/docs/concepts/narrative/query-grammar).

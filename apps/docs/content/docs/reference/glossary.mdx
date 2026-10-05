@@ -1,0 +1,572 @@
+---
+title: Glossary
+description: Every Aurora term in one sentence, with the words to avoid and a link to its full page.
+---
+
+This is Aurora's shared language. Each term has one meaning, here, in the code and in conversation. When two words could name one thing, we pick one and list the others under _Avoid_. Follow a term's link for the why and the how. The [Relationships](#relationships) and [Flagged ambiguities](#flagged-ambiguities) sections at the end show how the terms fit and where words still clash.
+
+## Foundations
+
+**Akashic Aurora**:
+The whole system, named for its design: a record nobody rewrites (Akasha) and the knowledge that grows on top of it (Aurora). [Read more](/docs/concepts/foundations/akasha-and-aurora)
+_Avoid_: AI-Setup, BreakThrough Stack
+
+**Store**:
+The place for current facts, looked up by key: what IS true now. [Read more](/docs/concepts/foundations/store)
+_Avoid_: the DB, Redis
+
+**Ledger**:
+An ordered record of events, kept in named streams, that each reader replays from its own cursor: what HAPPENED. [Read more](/docs/concepts/foundations/ledger)
+_Avoid_: event store, log
+
+**Cursor**:
+A reader's bookmark in an ordered stream, marking the last item it read. [Read more](/docs/concepts/foundations/ledger)
+_Avoid_: offset, pointer
+
+**Backend**:
+A swappable engine under the Store or the Ledger, such as Redis, a file or both. [Read more](/docs/concepts/foundations/hybrid-storage)
+
+**Hybrid storage**:
+The default backend, which writes every change to a local file and also to Redis when Redis is up. [Read more](/docs/concepts/foundations/hybrid-storage)
+_Avoid_: Redis HA, sync coordinator
+
+**Embedded Redis**:
+A small Redis stand-in that starts by itself when a checkout has no Redis server of its own. [Read more](/docs/concepts/foundations/hybrid-storage)
+
+**Fail soft**:
+The rule that a broken helper part leaves the main work running with less, and says what it lost. [Read more](/docs/concepts/foundations/fail-soft)
+_Avoid_: swallowing errors
+
+**Atom**:
+A library document stored as an append-only record of its versions, from which its markdown is printed. [Read more](/docs/concepts/memory/library)
+
+**Projection**:
+A view built from the record that you can throw away and rebuild, such as a summary, an index or a rendered page. [Read more](/docs/concepts/foundations/append-only-record)
+_Avoid_: source, master copy
+
+**Supersession**:
+A correction made by adding a newer record that retires the old one, which stays readable. [Read more](/docs/concepts/foundations/append-only-record)
+_Avoid_: overwrite, delete
+
+**Knowledge layers**:
+The three depths of every fact: the raw record, a short summary with a pointer back, and pages made from the summaries. [Read more](/docs/concepts/foundations/knowledge-layers)
+
+**Signal**:
+A short piece of agent news of a fixed kind, such as a decision, blocker, handoff or learning. [Read more](/docs/concepts/foundations/signals)
+_Avoid_: decision log, coordinator event
+
+**Event firehose**:
+The raw, time-ordered stream of everything that happened across agents, capped at its newest events. [Read more](/docs/concepts/foundations/signals)
+
+**Layer**:
+One floor of the code, from storage up to agent commands, which by convention leans only on the floors below. [Read more](/docs/concepts/foundations/layers)
+_Avoid_: tier
+
+**Relationship type**:
+One of 66 named kinds of link, such as `part_of` or `replaces`, which mean the same thing everywhere. [Read more](/docs/concepts/foundations/relationship-types)
+_Avoid_: edge label, predicate
+
+**Ubiquitous language**:
+The single vocabulary Aurora uses in code, docs and talk, where no name may lie about what it names. [Read more](/docs/concepts/foundations/naming)
+_Avoid_: jargon list
+
+**Sandbox**:
+A throwaway data folder plus test database 15, so experiments never reach the shared memory. [Read more](/docs/how-to/try-it-in-a-sandbox)
+
+## Memory and recall
+
+**Lesson**:
+A short record of what an agent tried, what happened and what the next agent should do. [Read more](/docs/concepts/memory/lessons)
+_Avoid_: experiment, learning
+
+**Source pointer**:
+The address of one stored item, such as `learn:experiment:NAME`, used to cite it or give feedback on it. [Read more](/docs/concepts/memory/recall)
+
+**Note**:
+A titled record of project state or a decision, updated by writing a newer note with the same title. [Read more](/docs/concepts/memory/notes-and-agent-memory)
+_Avoid_: decision
+
+**Agent memory**:
+The store behind notes, built for four kinds of record, of which only decisions are written today. [Read more](/docs/concepts/memory/notes-and-agent-memory)
+
+**Boot**:
+The start-of-session command that gives an agent the state, the rules and the lessons that fit its task. [Read more](/docs/concepts/memory/boot)
+_Avoid_: context dump
+
+**Context rot**:
+The way a model gets worse as its context fills with stale or loosely related text. [Read more](/docs/concepts/memory/boot)
+
+**Blocker**:
+A stated reason work cannot go on, shown to the next agent at boot. [Read more](/docs/concepts/memory/boot)
+
+**Recall**:
+The keyword search over all stored lessons, which puts strong matches first and shows a few weak ones when nothing fits well. [Read more](/docs/concepts/memory/recall)
+
+**Recall at action**:
+The few lessons shown to an agent right before it edits a file or runs a command, or none if nothing fits. [Read more](/docs/concepts/memory/recall-at-action)
+_Avoid_: recall hook
+
+**Hook**:
+A script the agent's app runs before or after a tool call, which Aurora uses to show lessons and check locks. [Read more](/docs/concepts/memory/recall-at-action)
+
+**Recall loop**:
+The cycle that counts when a lesson shows up and when it helps, then lifts proven lessons and benches idle ones. [Read more](/docs/concepts/memory/recall-loop)
+
+**Impression**:
+One time a lesson was shown to an agent. [Read more](/docs/concepts/memory/recall-loop)
+
+**Flip credit**:
+The credit a lesson earns when an action fails, the lesson shows up, and the next try succeeds. [Read more](/docs/concepts/memory/recall-loop)
+_Avoid_: outcome credit
+
+**Funnel**:
+The read-only report that follows lessons from shown, to helped, to flips, to new lessons. [Read more](/docs/concepts/memory/recall-loop)
+_Avoid_: value score
+
+**Curator**:
+The job, run by hand, that benches lessons shown often but never helpful. [Read more](/docs/concepts/memory/recall-loop)
+
+**Graduated lesson**:
+A lesson retired from boot and recall at action because automation now enforces its rule. [Read more](/docs/concepts/memory/lessons)
+
+**Usefulness factor**:
+The multiplier that raises lessons that helped and lowers ones that never did. [Read more](/docs/concepts/memory/recall-loop)
+
+**Recall floor**:
+The minimum relevance a lesson needs before recall at action shows it. [Read more](/docs/concepts/memory/recall-at-action)
+
+**Bench**:
+The shelf for idle lessons, which keeps them out of recall at action until they earn their way back. [Read more](/docs/concepts/memory/recall-loop)
+_Avoid_: delete, prune
+
+**Ranker**:
+The formula that scores items by relevance, importance, recency and link type, and shows its work. [Read more](/docs/concepts/memory/ranker-and-distiller)
+
+**Distiller**:
+The packer that fits the best items into a token budget, keeping a pointer to each source. [Read more](/docs/concepts/memory/ranker-and-distiller)
+
+**Faithfulness critic**:
+A rule-based check that fails a summary line whose source pointer is missing or whose numbers its source lacks. [Read more](/docs/concepts/memory/ranker-and-distiller)
+
+**Chronicle**:
+A digest file a program writes from the stores, which you read but never edit by hand. [Read more](/docs/concepts/memory/chronicles)
+
+**Library**:
+The home for the project's own documents, each kept as a versioned record that the markdown is printed from. [Read more](/docs/concepts/memory/library)
+
+**Codex**:
+A planned knowledge layer that tidies itself, built in part and then set aside. [Read more](/docs/concepts/memory/library)
+
+**Manuals shelf**:
+A search store of outside reference manuals, cut into small labeled passages. [Read more](/docs/concepts/memory/manuals-shelf)
+
+**Discover**:
+The command that lists every verb and its purpose, so you can check if a feature exists before you build it. [Read more](/docs/concepts/memory/discover-and-embeddings)
+
+**Embeddings**:
+An optional model, off by default, that matches text by meaning instead of by shared words. [Read more](/docs/concepts/memory/discover-and-embeddings)
+
+## Bifrost
+
+**Bifrost**:
+The live layer where running agents send each other mail, and where a human watches, pauses, steers and restarts them. [Read more](/docs/concepts/bifrost)
+_Avoid_: agent_comm
+
+**Bus**:
+The live, disposable mail system, where mail is addressed to an agent's inbox and waits there to be read. [Read more](/docs/concepts/bifrost/bus)
+
+**Message kind**:
+The label on a bus message, such as `request` or `reply`, that decides how it is routed and whether it wakes anyone. [Read more](/docs/concepts/bifrost/bus)
+
+**Peek**:
+Reading your unread mail without moving your cursor, so the mail stays unread. [Read more](/docs/concepts/bifrost/bus)
+_Avoid_: clearing the inbox
+
+**Consume**:
+Reading your mail and moving your cursor past it. [Read more](/docs/concepts/bifrost/bus)
+
+**Ack**:
+A durable record that an agent handled a promoted bus message, which is more than having read it. [Read more](/docs/concepts/bifrost/promoter)
+
+**Spill**:
+Storing the full text of a send over 8,000 characters as a blob, leaving the start and a `blob:` pointer in the message. [Read more](/docs/concepts/bifrost/bus)
+_Avoid_: truncation
+
+**Lane**:
+One of the three bus streams (work, sig and trace), which the bus picks from a message's kind. [Read more](/docs/concepts/bifrost/bus)
+
+**Roster**:
+The list of live sessions, each marked live, stale, offline or dead. [Read more](/docs/concepts/bifrost/seats)
+_Avoid_: model roster
+
+**Agent id**:
+The stable name an agent uses across sessions, such as `claude`. [Read more](/docs/concepts/bifrost/seats)
+
+**Seat**:
+One running agent that others can send mail to, with its own name, inbox, lock and heartbeat. [Read more](/docs/concepts/bifrost/seats)
+_Avoid_: session (one agent can hold seats in several sessions)
+
+**Incarnation**:
+One live session of one agent: the agent id stays, the incarnation changes. [Read more](/docs/concepts/bifrost/seats)
+
+**Harness**:
+The app an agent runs in, such as Claude Code. [Read more](/docs/concepts/bifrost/wake)
+
+**Wake listener**:
+A cheap background process that exits the moment real mail arrives, so the harness wakes a sleeping agent. [Read more](/docs/concepts/bifrost/wake)
+_Avoid_: doorbell
+
+**Promoter**:
+The copier that saves the bus messages that matter into the durable record. [Read more](/docs/concepts/bifrost/promoter)
+
+**Handoff**:
+Passing work to another agent with a briefing its next boot shows. [Read more](/docs/concepts/bifrost/handoff)
+
+**Runner**:
+A long-running process that gives an API model a body, so the model can read and answer bus mail. [Read more](/docs/concepts/bifrost/runners)
+
+**Runner lock**:
+A short lease that lets only one live runner read an agent's mail at a time. [Read more](/docs/concepts/bifrost/runners)
+
+**Drain**:
+A request that a runner finish its current message, release its lock and exit cleanly. [Read more](/docs/concepts/bifrost/runners)
+_Avoid_: kill
+
+**Presence**:
+The heartbeat that says an agent is online. [Read more](/docs/concepts/bifrost/liveness)
+
+**Worklive**:
+The richer heartbeat that says which phase an agent is in, and since when. [Read more](/docs/concepts/bifrost/liveness)
+
+**Wedge**:
+An agent that is alive but stuck, unlike a crash, where the process has exited. [Read more](/docs/concepts/bifrost/liveness)
+_Avoid_: hang
+
+**Revive**:
+Restarting a stuck or dead agent, with the console's Revive button or the `revive.py` tool. [Read more](/docs/concepts/bifrost/liveness)
+_Avoid_: restart
+
+**Launcher**:
+The supervisor that starts agent processes, watches them and, when you switch it on, restarts them. [Read more](/docs/concepts/bifrost/liveness)
+
+**Control plane**:
+The human's levers over live agents: pause them all, or interrupt, steer or inform one. [Read more](/docs/concepts/bifrost/control-plane)
+
+**Pause**:
+A freeze on every bus auto-responder at once, so a human can step in. [Read more](/docs/concepts/bifrost/control-plane)
+
+**Nudge**:
+A targeted signal to one agent that interrupts it, steers it or informs it. [Read more](/docs/concepts/bifrost/control-plane)
+
+**Steer**:
+A fact slipped into an agent's live work without a restart. [Read more](/docs/concepts/bifrost/control-plane)
+
+**Console**:
+The local web page where you watch agents talk, and pause, message, launch or revive them. [Read more](/docs/concepts/bifrost/console)
+_Avoid_: dashboard
+
+**Bridge**:
+A signed, narrow mail link to another Aurora install, whose incoming mail waits in a file until a person lets it in. [Read more](/docs/concepts/bifrost/bridge)
+
+**Parked inbox**:
+The file where admitted mail from a peer fleet waits, kept off the live bus. [Read more](/docs/concepts/bifrost/bridge)
+
+## Coordination
+
+**Fleet**:
+All the agent seats that work together in one Aurora install, under one operator. [Read more](/docs/concepts/coordination/fleet-and-residents)
+_Avoid_: crew, swarm, team
+
+**Model roster**:
+The list of local models Aurora can pick by skill and call for one small job. [Read more](/docs/concepts/coordination/fleet-and-residents)
+_Avoid_: fleet
+
+**Resident**:
+A seat whose callsign a peer proposed and a human confirmed, backed by its own lessons. [Read more](/docs/concepts/coordination/fleet-and-residents)
+_Avoid_: persona
+
+**Callsign**:
+A resident's ratified name, which the bus can route mail by. [Read more](/docs/concepts/coordination/fleet-and-residents)
+_Avoid_: nickname
+
+**Operator**:
+The human who runs the fleet and has the final word. [Read more](/docs/concepts/coordination/doctrine)
+_Avoid_: user
+
+**Task ledger**:
+The one shared list of work, where each task has a status, an owner and the proof needed to close it. [Read more](/docs/concepts/coordination/task-ledger)
+_Avoid_: roadmap, todo list
+
+**Verified by**:
+The field that records how a task was checked; closing also needs a commit and, for core work, a second reviewer. [Read more](/docs/concepts/method/verification)
+
+**Reviewed by**:
+The agent, other than the closer, who reviewed a task that lists core paths. [Read more](/docs/concepts/method/verification)
+
+**Advisory lock**:
+A short claim on a file path that other agents respect. [Read more](/docs/concepts/coordination/locks)
+_Avoid_: file ownership
+
+**Fencing token**:
+A number issued with each lock, meant to expose a stale holder; nothing checks it yet. [Read more](/docs/concepts/coordination/locks)
+
+**Compare-and-set**:
+A write that fails if someone changed the value since you read it. [Read more](/docs/concepts/coordination/locks)
+_Avoid_: last write wins
+
+**Blackboard**:
+The shared space agents read and write to coordinate, which in Aurora is the durable record. [Read more](/docs/concepts/coordination/stigmergy)
+
+**Stigmergy**:
+Working together by leaving marks on the blackboard and reading them, instead of talking. [Read more](/docs/concepts/coordination/stigmergy)
+_Avoid_: broadcast, chatter
+
+**Three planes**:
+The split of shared state into coordination (shared), workspace (one per agent) and single OS resources (one at a time). [Read more](/docs/concepts/coordination/stigmergy)
+
+**Conductor**:
+The code that carries out task commands on the task ledger, plus short rounds where agents post plans first. [Read more](/docs/concepts/coordination/conductor)
+
+**Intent**:
+A short-lived note in which an agent declares what it plans to do. [Read more](/docs/concepts/coordination/conductor)
+
+**Negotiation round**:
+A short window after human input in which agents post intents before anyone acts. [Read more](/docs/concepts/coordination/conductor)
+
+**Charter**:
+A seat's standing contract: who it is and what it answers for. [Read more](/docs/concepts/coordination/charters-and-briefs)
+_Avoid_: work order
+
+**Brief**:
+A one-off work order handed to a seat. [Read more](/docs/concepts/coordination/charters-and-briefs)
+
+**Capability**:
+One permission an agent id holds, such as the right to write lessons. [Read more](/docs/concepts/coordination/trust)
+
+**Role**:
+A named bundle of capabilities granted to an agent id. [Read more](/docs/concepts/coordination/trust)
+
+**Acting conductor**:
+The seat that gets a short, limited right to grant when the claude seat is gone and the operator is away. [Read more](/docs/concepts/coordination/trust)
+
+**Quarantine**:
+The default for an agent id Aurora does not know: it may read, including its own inbox, and nothing more. [Read more](/docs/concepts/coordination/trust)
+
+**Door**:
+An entry point to the system's verbs, such as the command line or the MCP tools. [Read more](/docs/concepts/coordination/doors)
+
+**Door parity**:
+The check that keeps the doors in step, so a verb missing from a door is declared, not accidental. [Read more](/docs/concepts/coordination/doors)
+
+**Arc**:
+A long line of work that ties docs, tasks and decisions together over weeks. [Read more](/docs/concepts/coordination/doctrine)
+_Avoid_: epic
+
+**Watch**:
+One piece of work in flight, with one goal, one builder and one contrarian; at most two run at once. [Read more](/docs/concepts/coordination/doctrine)
+
+**Post**:
+A standing duty a seat holds, such as conductor, that owns one kind of handoff, not files. [Read more](/docs/concepts/coordination/doctrine)
+
+**Live constraints**:
+The short list of rules that break things if forgotten, which boot shows every seat. [Read more](/docs/concepts/coordination/doctrine)
+
+## Story and context
+
+**Narrative spine**:
+The system's own story of its work, with small events grouped into chapters, one thread per project. [Read more](/docs/concepts/narrative/narrative-spine)
+
+**Beat**:
+One notable, time-stamped event in the story, with a pointer to the raw record behind it. [Read more](/docs/concepts/narrative/narrative-spine)
+
+**Weight**:
+How much a beat matters, from 0 to 5. [Read more](/docs/concepts/narrative/narrative-spine)
+_Avoid_: priority
+
+**Chapter**:
+A stretch of beats on one track that belong together. [Read more](/docs/concepts/narrative/narrative-spine)
+
+**Track**:
+A long-running thread of work in one domain or project. [Read more](/docs/concepts/narrative/narrative-spine)
+_Avoid_: branch
+
+**Theme**:
+An idea that runs across several tracks. [Read more](/docs/concepts/narrative/narrative-spine)
+_Avoid_: tag
+
+**Storyline**:
+One track's chapters, in time order. [Read more](/docs/concepts/narrative/narrative-spine)
+
+**Atlas**:
+The wide view of every track over time. [Read more](/docs/concepts/narrative/narrative-spine)
+
+**Chronicler**:
+The process that turns beats into chapters and writes the story file. [Read more](/docs/concepts/narrative/narrative-spine)
+
+**Episode**:
+A titled stretch of one working session, with a stated reason for the work. [Read more](/docs/concepts/narrative/episodes)
+
+**Bookend**:
+The boundary that closes one episode and opens the next. [Read more](/docs/concepts/narrative/episodes)
+
+**Map**:
+The choice of which kinds of links you follow through the story graph. [Read more](/docs/concepts/narrative/perspectives)
+
+**Lens**:
+The choice of what you care about, as weights, when you read the story graph. [Read more](/docs/concepts/narrative/perspectives)
+_Avoid_: perspective
+
+**View**:
+One Map paired with one Lens: a read-only way to see the story graph. [Read more](/docs/concepts/narrative/perspectives)
+
+**Tag history**:
+A beat's track label, kept as a growing list of dated, scored opinions. [Read more](/docs/concepts/narrative/tags)
+
+**Membrane**:
+The hooks that sit between an agent and the knowledge store and fire around its actions. [Read more](/docs/concepts/narrative/renew)
+
+**RENEW**:
+The loop that keeps an agent's working context healthy across sessions: notice decay, save what matters, reload it. [Read more](/docs/concepts/narrative/renew)
+_Avoid_: compaction
+
+**Cognitive debt**:
+The slow decay of an agent's working context during a long session. [Read more](/docs/concepts/narrative/renew)
+
+**Session signals**:
+One event per session, written when it ends, that counts tool calls, repeats and progress. [Read more](/docs/concepts/narrative/renew)
+
+**The Eye**:
+A search index over every session transcript, so what anyone said can be found, traced and cited. [Read more](/docs/concepts/narrative/the-eye)
+_Avoid_: munin
+
+**Utterance**:
+One thing said once in one session, even when the transcript records it several times. [Read more](/docs/concepts/narrative/the-eye)
+
+**Evidence grade**:
+How a link between two records is known: recorded, derived or inferred. [Read more](/docs/concepts/narrative/the-eye)
+
+**Position**:
+Where a seat last stood in the transcripts, like a bookmark. [Read more](/docs/concepts/narrative/the-eye)
+
+**Standing directive**:
+A phrase the operator keeps repeating that no task, lesson or commit cites yet. [Read more](/docs/concepts/narrative/the-eye)
+
+**Query grammar**:
+The shared rule for how read commands take filters, handle time and admit when an answer is partial. [Read more](/docs/concepts/narrative/query-grammar)
+
+**As-of rule**:
+The rule that a record counts only if the system knew it by the date you ask about. [Read more](/docs/concepts/narrative/query-grammar)
+
+**Degraded**:
+The flag on an answer that says part of the data was out of view. [Read more](/docs/concepts/narrative/query-grammar)
+
+## The method
+
+**Ask**:
+A one-shot question to a helper model, with no seat, no lock and no mailbox. [Read more](/docs/concepts/method/ask-and-fan)
+
+**Fan**:
+Several asks run at once, either the same prompt many times or different prompts. [Read more](/docs/concepts/method/ask-and-fan)
+_Avoid_: swarm
+
+**Geometry**:
+The declared shape of a fan, such as lens or adversarial, so its answers are read the right way. [Read more](/docs/concepts/method/ask-and-fan)
+
+**Preset**:
+A named answer format for `ask`, such as `findings`, that every branch must follow. [Read more](/docs/concepts/method/ask-and-fan)
+
+**Union, not consensus**:
+The rule to keep every distinct finding from several reviewers and check each one. [Read more](/docs/concepts/method/union-not-consensus)
+_Avoid_: majority vote
+
+**Cite or confess**:
+The rule that every claim carries its evidence or says plainly that the evidence is missing. [Read more](/docs/concepts/method/cite-or-confess)
+
+**Fence review**:
+A recorded review where two agents answer the same question apart and a third rules where they differ. [Read more](/docs/concepts/method/fence-review)
+_Avoid_: execution guard
+
+**Reconciliation**:
+The last part of a fence review, where a third agent rules on each difference between the halves. [Read more](/docs/concepts/method/fence-review)
+
+**Pin**:
+A test written first, failing, that fixes how the code should behave. [Read more](/docs/concepts/method/built-not-wired)
+
+**Built, not wired**:
+Code that exists and passes its tests but that no real entry point reaches yet. [Read more](/docs/concepts/method/built-not-wired)
+_Avoid_: dead code
+
+**Guard**:
+A script that enforces a rule, because a rule people must remember fades. [Read more](/docs/concepts/method/guards-over-discipline)
+_Avoid_: convention
+
+**Ratchet**:
+A guard that allows the known failures but fails on any new one. [Read more](/docs/concepts/method/built-not-wired)
+
+**Immune system**:
+The docs guard that fails when docs drift from the code. [Read more](/docs/concepts/method/guards-over-discipline)
+
+**Living doc**:
+A document kept current, unlike a dated doc, which records one moment. [Read more](/docs/concepts/method/guards-over-discipline)
+_Avoid_: snapshot
+
+**Dated doc**:
+A document that records one moment and is never updated, unlike a living doc. [Read more](/docs/concepts/method/guards-over-discipline)
+
+**Fossil**:
+An idea we dropped, kept on display with why it looked good and why it failed. [Read more](/docs/concepts/method/guards-over-discipline)
+
+**Principle**:
+One of nine working ideas under the design, each earned by a real mistake. [Read more](/docs/concepts/method/principles)
+
+## House tools
+
+**Web door**:
+The one way agents fetch a URL or search the web, with a receipt for every fetch. [Read more](/docs/concepts/tools/web-door)
+
+**Toolbelt**:
+An agent's own shortcut commands, each a fixed list of verbs that already exist. [Read more](/docs/concepts/tools/toolbelt)
+
+**Alias**:
+One shortcut on an agent's toolbelt. [Read more](/docs/concepts/tools/toolbelt)
+_Avoid_: verb
+
+**Kit**:
+A named bundle of toolbelt entries you can install on a seat in one step. [Read more](/docs/concepts/tools/toolbelt)
+
+**Screenspace**:
+A package that lets a seat see the screen and read its text, without acting on it. [Read more](/docs/concepts/tools/screenspace)
+
+**Rewrite map**:
+A lookup that turns a commit id from before a history rewrite into the commit it became. [Read more](/docs/concepts/tools/rewrite-map)
+
+## Relationships
+
+- The **Store** holds what is; the **Ledger** holds what happened. Almost every other term is built on one of the two.
+- A **Lesson** is written by `learn`, and reaches agents through **Boot**, **Recall** and **Recall at action**.
+- The **Recall loop** counts **Impressions** and **Flip credit** for each **Lesson**, which set its **Usefulness factor**. The **Curator** moves idle lessons to the **Bench**.
+- The **Bus** forgets; the **Promoter** copies salient bus messages into the **Ledger**.
+- A **Seat** has one **Runner lock**, one inbox on the **Bus**, and many **Incarnations** over time.
+- A **Handoff** shows in the target's next **Boot** until that agent records a **Lesson**.
+- The **Fleet** is every **Seat** in one install; some seats are **Residents**.
+- A **Beat** belongs to one **Track**. A **Chapter** groups beats on one track. An **Episode** is a chapter with a stated reason.
+- A **View** is one **Map** with one **Lens**.
+- A **Fan** is several **Asks** with one declared **Geometry**.
+- A **Fence review** ends in a **Reconciliation**, and a task closes only with **Verified by** evidence.
+
+## Flagged ambiguities
+
+- **Lens** names a weighting for the story graph. The `ask --lens` flag is a different thing: one prompt branch in a fan.
+- **Fleet** also names a command, `fleet`, that only covers the **Model roster**.
+- **Revive** names both the console button and the `scripts/revive.py` house tool. Both kill, free and relaunch.
+- **Handoff** names both the `handoff` command, which writes a briefing, and the `handoff` bus message kind, which the promoter saves.
+- **Codex** names a planned knowledge layer, an older nickname for all of memory, and Codex, the OpenAI agent. On this site it means the first.
+- **Experiment** is the flag that names a lesson's key. The thing itself is a **Lesson**.
+- **Conductor** names the task code. The conductor post and `CONDUCT.md` are about how the fleet is led.
+- **Degraded** on a query answer means "partial view". Elsewhere it can mean a fallback mode.
+- **Bus** and **Ledger** both carry messages in order. The bus forgets; the Ledger keeps.
+- **Agent id** stays across sessions; an **Incarnation** is one session of it.
+- **Position** is a bookmark in the transcripts; **Presence** is an online heartbeat.
+- **Role** is a bundle of permissions; a **Post** is a standing duty.
+- **Pause** freezes every auto-responder; a **halt** stops one agent.
+- **WebFetch** is the harness's built-in fetch, which keeps no receipt; agents use the **Web door**.

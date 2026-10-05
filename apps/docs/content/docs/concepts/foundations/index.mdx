@@ -1,0 +1,28 @@
+---
+title: Foundations
+description: "The ground floor of Aurora: where facts live, where events live, and the rules that keep both honest."
+---
+
+Every part of Aurora rests on two questions. What IS true right now? And what HAPPENED, in what order? The [Store](/docs/concepts/foundations/store) answers the first. The [Ledger](/docs/concepts/foundations/ledger) answers the second. Hold on to that split. The rest of the docs lean on it.
+
+The project's name says the same thing. [Akasha and Aurora](/docs/concepts/foundations/akasha-and-aurora) are the record and the knowledge built on top of it.
+
+Both parts save their data through [hybrid storage](/docs/concepts/foundations/hybrid-storage): files always, Redis when it is up. When a helper part breaks, the work goes on. That rule is [fail soft](/docs/concepts/foundations/fail-soft).
+
+One rule governs history: the [append-only record](/docs/concepts/foundations/append-only-record). Nobody rewrites an event. A fix is a new record that retires the old one. The [knowledge layers](/docs/concepts/foundations/knowledge-layers) keep each fact at three depths. [Signals](/docs/concepts/foundations/signals) are the trails agents leave on the Ledger.
+
+Three last pages cover order and words. The [layers](/docs/concepts/foundations/layers) stack the code in floors. [Relationship types](/docs/concepts/foundations/relationship-types) name the links between things. [Naming](/docs/concepts/foundations/naming) keeps every word honest.
+
+<Cards>
+  <Card title="Akasha and Aurora" href="/docs/concepts/foundations/akasha-and-aurora" description="The name states the design: Akasha is the record nobody rewrites, and Aurora is the knowledge built on top of it." />
+  <Card title="Store" href="/docs/concepts/foundations/store" description="The place for current facts, looked up by name: what IS the value of this right now?" />
+  <Card title="Ledger" href="/docs/concepts/foundations/ledger" description="The ordered record of what HAPPENED: you add events at the end and read them back from a bookmark." />
+  <Card title="Hybrid storage" href="/docs/concepts/foundations/hybrid-storage" description="Every write goes to a file first and to Redis when it is up, so data survives and reads stay fast." />
+  <Card title="Fail soft" href="/docs/concepts/foundations/fail-soft" description="When a helper part breaks, the main work carries on with less and says what it lost." />
+  <Card title="Append-only record" href="/docs/concepts/foundations/append-only-record" description="The history only grows: nobody rewrites an event or an atom, and a fix is a new record that retires the old." />
+  <Card title="Knowledge layers" href="/docs/concepts/foundations/knowledge-layers" description="Each fact is kept at three depths: the raw record, a short summary with a pointer back, and pages made from it." />
+  <Card title="Signals" href="/docs/concepts/foundations/signals" description="Two trails of agent activity: a raw firehose of everything, and a signal ledger of a few fixed kinds of news." />
+  <Card title="Layers" href="/docs/concepts/foundations/layers" description="The code sits in floors, from storage up to agent commands, and by convention a floor leans only on floors below." />
+  <Card title="Relationship types" href="/docs/concepts/foundations/relationship-types" description="A fixed list of 66 named kinds of link, such as part_of and replaces, so a link means one thing everywhere." />
+  <Card title="Naming" href="/docs/concepts/foundations/naming" description="One shared vocabulary for code, docs and talk, where no name may lie about what it names." />
+</Cards>

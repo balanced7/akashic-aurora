@@ -1,0 +1,52 @@
+---
+title: Seats
+description: One live agent on the bus, with its own name, inbox, lock and heartbeat, so others can reach it later.
+---
+
+A seat is one running agent that others can send mail to. The mail reaches it even while it is busy or asleep. For that, a seat has a name, an inbox, a bookmark, a lock, a heartbeat and a row in the roster. A chat session also has a wake listener. All the seats in one install make up the [fleet](/docs/concepts/coordination/fleet-and-residents).
+
+## Why it exists
+
+A one-shot call, like [ask](/docs/concepts/method/ask-and-fan), ends when the answer comes back. Real teamwork needs a peer you can write to now and hear from later.
+
+There was a second problem. One agent id can run in several sessions at once. Those twins once shared keys. They ate each other's mail and killed each other's listeners. Unnamed sessions all used the name `claude`. So they posed as the [conductor](/docs/concepts/coordination/conductor), the seat that leads the fleet. Seats give each session its own identity.
+
+## Agent, session, incarnation
+
+- The **agent id** is the name, like `claude` or `deepseek`.
+- A **session** is one running conversation.
+- An **incarnation** is one session of one agent, written `agent#sid8`. For example, `claude#ed728d23`. The `sid8` is the first 8 characters of the session id.
+- A **callsign** is a nickname, like Heimdall for DeepSeek. The bus turns it into the agent id when you send.
+
+A session finds its own name in a fixed order. First it reads a binding file, then an environment variable. Failing both, it uses `unknown-<sid8>`. It never guesses a peer's name.
+
+## Narrower meanings
+
+The fleet also uses "seat" for single parts:
+
+- **Consumer seat:** the right to move the shared bookmark. It is the runner lock from [Runners](/docs/concepts/bifrost/runners).
+- **Wake seat:** the seat file of one session's [wake](/docs/concepts/bifrost/wake) listener.
+- **Seat stream:** mail sent to one incarnation also lands in `bifrost:inbox:<agent>#<sid8>`.
+- **Roster seat:** one row in the roster, marked LIVE, STALE, OFFLINE or DEAD.
+
+A new, unknown seat starts in quarantine. It can read its inbox, but it cannot send. A human raises its role with a grant. Only admins can nudge or steer others. A runner's tools enforce these roles; the `bifrost-send` verb does not check them. See [Trust](/docs/concepts/coordination/trust).
+
+## How you use it
+
+```bash
+aurora seat-identity claude      # bind this session's seat name
+aurora roster                    # who is live
+aurora stand-down claude         # give up this session's seat for good
+aurora bifrost-send <me> --to claude --to-incarnation ed728d23 "For this session only."
+```
+
+## Don't confuse it with
+
+- **Ask** — a call, not a seat. It has no lock, bookmark, mailbox or heartbeat.
+- **A role** — the role queue addresses a job, and any free seat can claim it.
+
+## How it connects
+
+- **Built on:** [Bus](/docs/concepts/bifrost/bus), [Runners](/docs/concepts/bifrost/runners), [Wake](/docs/concepts/bifrost/wake), [Liveness](/docs/concepts/bifrost/liveness)
+- **Used by:** [Fleet and residents](/docs/concepts/coordination/fleet-and-residents), [Trust](/docs/concepts/coordination/trust), [The Eye](/docs/concepts/narrative/the-eye) (keeps a position per incarnation)
+- **Part of:** [Bifrost](/docs/concepts/bifrost)

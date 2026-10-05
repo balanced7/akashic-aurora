@@ -1,0 +1,60 @@
+---
+title: Layers
+description: The code sits in floors, from storage up to agent commands, and by convention a floor leans only on floors below.
+---
+
+Aurora's code is a stack of floors, numbered System 0 to System 5. Storage sits at the bottom. The commands agents type sit at the top. The rule: a floor may lean on floors below it, never on floors above. Agents touch only the top floor.
+
+A building works the same way. Upper floors rest on lower ones. The foundation never hangs from the roof.
+
+<Callout type="warn" title="A convention, not a check">No tool checks import direction today. The rule holds through review, and a few imports break it.</Callout>
+
+## Why it exists
+
+A clean stack lets you change the bottom without touching the top. Swap a storage engine, and nothing above notices. Agents only use the top floor, so everything below can change freely.
+
+## How it works
+
+| System | What lives there | Where |
+| --- | --- | --- |
+| 0 | Foundation: Store and Ledger | `core/foundation/` |
+| 1 to 3 | Domain: learning, signals, events, bus, coordination | `core/` |
+| 4 | Context: context assembly, narrative spine, perspectives | `core/context/`, `core/narrative/` |
+| 5 | Interface: the CLI, the MCP server, Bifrost UI and runners | `agent_cli.py`, `ai_setup_mcp.py`, `scripts/` |
+
+System 0 is also called "Pillar 0". It holds the [Store](/docs/concepts/foundations/store) and the [Ledger](/docs/concepts/foundations/ledger).
+
+Some modules state the rule in their own header. The event query module, for one, does not import the story code. A bridge on System 4 joins the two.
+
+### What the checker does check
+
+`scripts/checkers/check_boundaries.py` guards `core/`. It has seven rules, and none is about floors:
+
+- only the Redis connector imports `redis`;
+- no bare `except:`;
+- no `sys.path` hacks;
+- one class name, one definition;
+- one module file name across `core/`;
+- a cached singleton must respect test isolation;
+- a Bifrost module that makes a new Redis key family must register it.
+
+Known debt sits in an allowlist, each item with a reason. Some docs say this checker enforces floor order. It does not. A few foundation files import from higher floors today. The Store's own file, `store.py`, reaches up into Bifrost code.
+
+## How you use it
+
+```bash
+uv run python scripts/checkers/check_boundaries.py   # exit 0 = clean, 1 = a new violation
+```
+
+When you add an import, ask which floor each file lives on. Point down, never up.
+
+## Don't confuse it with
+
+- **[Knowledge layers](/docs/concepts/foundations/knowledge-layers)** — copies of data at three depths. These layers are floors of code.
+- **Other numbering** — the README says "five layers". The architecture doc adds unnamed tiers such as Substrate. They all describe the same stack.
+
+## How it connects
+
+- **Contains:** the [Store](/docs/concepts/foundations/store) and the [Ledger](/docs/concepts/foundations/ledger), on System 0
+- **Used by:** every import you write; the top floor is the [doors](/docs/concepts/coordination/doors)
+- **Part of:** [Foundations](/docs/concepts/foundations); a [guard](/docs/concepts/method/guards-over-discipline) would make it a check

@@ -1,3 +1,10 @@
 {
-  "pages": ["quickstart", "..."]
+  "pages": [
+    "index",
+    "quickstart",
+    "tutorial",
+    "how-to",
+    "reference",
+    "concepts"
+  ]
 }
