@@ -57,6 +57,15 @@ from typing import Any, Dict, List, Optional
 
 from core.foundation.store import create_store
 
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+        return python_launcher()
+    except Exception:
+        return "py"
+
 #: One list per resident, oldest-first. Every nomination and ratification appends; nothing is
 #: ever rewritten in place, so `formerly:` is derivable rather than maintained.
 _LOG_KEY = "residents:log:{agent}"
@@ -417,7 +426,7 @@ def place(*, agent: str, family: str = "", team: str = "", number: Optional[int]
     if get(agent) is None:
         raise ValueError(
             f"refused: '{agent}' is not a resident (no ratified designation), so there is "
-            f"nowhere to post them. Run the ceremony first: py agent_cli.py resident nominate "
+            f"nowhere to post them. Run the ceremony first: {_pyl()} agent_cli.py resident nominate "
             f"{agent} --callsign <name> --receipt <their lesson> --by <peer>"
         )
     # VENDOR IS SETTABLE HERE, and that is the substrate-change path the design promised. The
@@ -540,7 +549,7 @@ def assign(*, agent: str, role: str, side: str = "", exercise: str = "",
     if get(agent) is None:
         raise ValueError(
             f"refused: '{agent}' is not a resident (no ratified designation), so there is no "
-            f"identity sheet to carry a role. Run the ceremony first: py agent_cli.py resident "
+            f"identity sheet to carry a role. Run the ceremony first: {_pyl()} agent_cli.py resident "
             f"nominate {agent} --callsign <name> --receipt <their lesson> --by <peer>"
         )
     rec = {
@@ -638,7 +647,7 @@ def boot_block(agent_id: str, lesson_lookup=None) -> str:
             except Exception:
                 pass                       # slug alone; one bad slug breaks nothing
             lines.append(line)
-        lines.append("#   (drill any of them: py agent_cli.py recall --full learn:experiment:<name>)")
+        lines.append(f"#   (drill any of them: {_pyl()} agent_cli.py recall --full learn:experiment:<name>)")
     if rec.get("formerly"):
         lines.append("#   formerly: " + ", ".join(rec["formerly"]))
     # T259: the situational half of the sheet -- what this resident is DOING right now, beside

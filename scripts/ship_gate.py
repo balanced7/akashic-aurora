@@ -42,6 +42,15 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.coord import suite_baseline as sb   # noqa: E402
 
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+        return python_launcher()
+    except Exception:
+        return "py"
+
 DEFAULT_STALE_S = 48 * 3600          # announce: the list is getting old
 
 # THE TTL IS WHAT MAKES THIS A DEFERRAL INSTEAD OF AN AMNESTY (deepseek's counter, 2026-07-27,
@@ -154,8 +163,8 @@ def evaluate(current_nodes: List[str], *, now: Optional[float] = None,
         lines.append("NO BASELINE -- failing closed; every failure blocks. Record one: "
                      # `;` not `&&`: a suite WITH failures exits nonzero, so && would skip
                      # the record exactly when a baseline is most needed.
-                     "py -m pytest -q > suite.txt; "
-                     "py agent_cli.py suite-baseline <you> --from-file suite.txt")
+                     f"{_pyl()} -m pytest -q > suite.txt; "
+                     f"{_pyl()} agent_cli.py suite-baseline <you> --from-file suite.txt")
     elif age is not None and age > float(stale_after_s):
         lines.append(f"baseline is STALE ({int(age / 3600)}h old, seat={rec.get('seat', '?')}) "
                      f"-- an inherited list nobody refreshes is how a red becomes furniture")

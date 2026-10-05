@@ -159,7 +159,7 @@ def test_p8_the_pre_push_gate_actually_runs_this_scanner():
     hook = (Path(__file__).resolve().parents[1] / "scripts" / "githooks" / "pre-push")
     body = hook.read_text(encoding="utf-8", errors="replace")
     assert "check_secrets.py" in body, "the pre-push gate does not run the secret scanner"
-    assert "if ! py scripts/checkers/check_secrets.py" in body, (
+    assert "if ! pyrun scripts/checkers/check_secrets.py" in body, (
         "present but not GATING -- it must block the push, not merely be mentioned")
     assert "exit 1" in body.split("check_secrets.py", 1)[1][:600], (
         "the scanner runs but its failure does not stop the push")

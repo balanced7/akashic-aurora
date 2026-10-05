@@ -39,6 +39,15 @@ import time
 import urllib.error
 import urllib.request
 
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+        return python_launcher()
+    except Exception:
+        return "py"
+
 BASE = "http://127.0.0.1:8787"
 
 
@@ -126,7 +135,7 @@ def submit(op, args, wait=90):
         job = _post("/vfx/job", {"op": op, "args": args})
     except urllib.error.URLError as exc:
         print("the console is not running on %s (%s)" % (BASE, exc), file=sys.stderr)
-        print("start it:  py scripts/bifrost_ui.py --port 8787", file=sys.stderr)
+        print(f"start it:  {_pyl()} scripts/bifrost_ui.py --port 8787", file=sys.stderr)
         return 2
 
     jid = job.get("id")

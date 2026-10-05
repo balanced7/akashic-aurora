@@ -1,0 +1,2334 @@
+{
+ "_meta": {
+  "commit": "d5f0615decac5f2449c59b18e3e3a3c6effe823c",
+  "created": "2026-10-01T11:46:23+0200",
+  "digest": "b520b97aa258ae904c082f2da8f7adea7d9d4e41cca8855cda6459f6376ac164",
+  "dirty": false,
+  "partial_modules": null,
+  "select": []
+ },
+ "modules": {
+  "_scratch_edges_heimdall": {
+   "file": "_scratch_edges_heimdall.py",
+   "status": "SKIPPED(top-level call print())"
+  },
+  "agent": {
+   "file": "agent/__init__.py",
+   "status": "OK"
+  },
+  "agent.bifrost_pull": {
+   "file": "agent/bifrost_pull.py",
+   "status": "OK"
+  },
+  "agent.harness": {
+   "file": "agent/harness/__init__.py",
+   "status": "OK"
+  },
+  "agent.harness.actions": {
+   "file": "agent/harness/actions.py",
+   "status": "OK"
+  },
+  "agent.harness.capture": {
+   "file": "agent/harness/capture.py",
+   "status": "OK"
+  },
+  "agent.harness.codex_app_server": {
+   "file": "agent/harness/codex_app_server.py",
+   "status": "OK"
+  },
+  "agent.harness.codex_bifrost_wake": {
+   "file": "agent/harness/codex_bifrost_wake.py",
+   "status": "OK"
+  },
+  "agent.harness.context": {
+   "file": "agent/harness/context.py",
+   "status": "OK"
+  },
+  "agent.harness.delta": {
+   "file": "agent/harness/delta.py",
+   "status": "OK"
+  },
+  "agent.harness.draft_keepalive": {
+   "file": "agent/harness/draft_keepalive.py",
+   "status": "OK"
+  },
+  "agent.harness.dsh_plugin.bridge": {
+   "file": "agent/harness/dsh_plugin/bridge.py",
+   "status": "OK"
+  },
+  "agent.harness.guards": {
+   "file": "agent/harness/guards.py",
+   "status": "OK"
+  },
+  "agent.harness.hooks": {
+   "file": "agent/harness/hooks/__init__.py",
+   "status": "OK"
+  },
+  "agent.harness.hooks._activity": {
+   "file": "agent/harness/hooks/_activity.py",
+   "status": "OK"
+  },
+  "agent.harness.hooks.claude_posttooluse": {
+   "file": "agent/harness/hooks/claude_posttooluse.py",
+   "status": "OK"
+  },
+  "agent.harness.hooks.claude_pretooluse": {
+   "file": "agent/harness/hooks/claude_pretooluse.py",
+   "status": "OK"
+  },
+  "agent.harness.hooks.claude_sessionend": {
+   "file": "agent/harness/hooks/claude_sessionend.py",
+   "status": "OK"
+  },
+  "agent.harness.hooks.claude_sessionstart": {
+   "file": "agent/harness/hooks/claude_sessionstart.py",
+   "status": "OK"
+  },
+  "agent.harness.hooks.claude_stop": {
+   "file": "agent/harness/hooks/claude_stop.py",
+   "status": "OK"
+  },
+  "agent.harness.hooks.claude_trace": {
+   "file": "agent/harness/hooks/claude_trace.py",
+   "status": "OK"
+  },
+  "agent.harness.hooks.claude_userpromptsubmit": {
+   "file": "agent/harness/hooks/claude_userpromptsubmit.py",
+   "status": "OK"
+  },
+  "agent.harness.hooks.cursor_beforeshell": {
+   "file": "agent/harness/hooks/cursor_beforeshell.py",
+   "status": "OK"
+  },
+  "agent.harness.hooks.cursor_posttooluse": {
+   "file": "agent/harness/hooks/cursor_posttooluse.py",
+   "status": "OK"
+  },
+  "agent.harness.hooks.cursor_pretooluse": {
+   "file": "agent/harness/hooks/cursor_pretooluse.py",
+   "status": "OK"
+  },
+  "agent.harness.hooks.cursor_sessionend": {
+   "file": "agent/harness/hooks/cursor_sessionend.py",
+   "status": "OK"
+  },
+  "agent.harness.hooks.cursor_sessionstart": {
+   "file": "agent/harness/hooks/cursor_sessionstart.py",
+   "status": "OK"
+  },
+  "agent.harness.nudge": {
+   "file": "agent/harness/nudge.py",
+   "status": "OK"
+  },
+  "agent.harness.registry": {
+   "file": "agent/harness/registry.py",
+   "status": "OK"
+  },
+  "agent.harness.scope": {
+   "file": "agent/harness/scope.py",
+   "status": "OK"
+  },
+  "agent.harness.seen": {
+   "file": "agent/harness/seen.py",
+   "status": "OK"
+  },
+  "agent.harness.trace": {
+   "file": "agent/harness/trace.py",
+   "status": "OK"
+  },
+  "agent.initializer": {
+   "file": "agent/initializer.py",
+   "status": "OK"
+  },
+  "agent.policy": {
+   "file": "agent/policy/__init__.py",
+   "status": "OK"
+  },
+  "agent.policy.git_guard": {
+   "file": "agent/policy/git_guard.py",
+   "status": "OK"
+  },
+  "agent_cli": {
+   "file": "agent_cli.py",
+   "status": "SKIPPED(top-level For block)"
+  },
+  "ai_setup_mcp": {
+   "file": "ai_setup_mcp.py",
+   "status": "OK"
+  },
+  "arsenal": {
+   "file": "arsenal/__init__.py",
+   "status": "OK"
+  },
+  "arsenal.__main__": {
+   "file": "arsenal/__main__.py",
+   "status": "OK"
+  },
+  "arsenal.analysis": {
+   "file": "arsenal/analysis.py",
+   "status": "OK"
+  },
+  "arsenal.band": {
+   "file": "arsenal/band.py",
+   "status": "OK"
+  },
+  "arsenal.boost": {
+   "file": "arsenal/boost.py",
+   "status": "OK"
+  },
+  "arsenal.conversation": {
+   "file": "arsenal/conversation.py",
+   "status": "OK"
+  },
+  "arsenal.fl.vfx.arsenal_band": {
+   "file": "arsenal/fl/vfx/arsenal_band.py",
+   "status": "OK"
+  },
+  "arsenal.fl.vfx.arsenal_patterns": {
+   "file": "arsenal/fl/vfx/arsenal_patterns.py",
+   "status": "OK"
+  },
+  "arsenal.fl.vfx.flvfx_mock": {
+   "file": "arsenal/fl/vfx/flvfx_mock.py",
+   "status": "OK"
+  },
+  "arsenal.fl.vfx.generated.arsenal_patterns": {
+   "file": "arsenal/fl/vfx/generated/arsenal_patterns.py",
+   "status": "OK"
+  },
+  "arsenal.floors": {
+   "file": "arsenal/floors.py",
+   "status": "OK"
+  },
+  "arsenal.graph": {
+   "file": "arsenal/graph.py",
+   "status": "OK"
+  },
+  "arsenal.jam": {
+   "file": "arsenal/jam/__init__.py",
+   "status": "OK"
+  },
+  "arsenal.jam.align": {
+   "file": "arsenal/jam/align.py",
+   "status": "OK"
+  },
+  "arsenal.jam.cards": {
+   "file": "arsenal/jam/cards.py",
+   "status": "OK"
+  },
+  "arsenal.jam.cli": {
+   "file": "arsenal/jam/cli.py",
+   "status": "OK"
+  },
+  "arsenal.jam.resolve": {
+   "file": "arsenal/jam/resolve.py",
+   "status": "SKIPPED(top-level call SCALE_NAMES.update())"
+  },
+  "arsenal.jam.runs": {
+   "file": "arsenal/jam/runs.py",
+   "status": "OK"
+  },
+  "arsenal.jam.schemas": {
+   "file": "arsenal/jam/schemas.py",
+   "status": "OK"
+  },
+  "arsenal.jam.tempomap": {
+   "file": "arsenal/jam/tempomap.py",
+   "status": "OK"
+  },
+  "arsenal.lanes": {
+   "file": "arsenal/lanes/__init__.py",
+   "status": "OK"
+  },
+  "arsenal.lanes.gst_d3d12_soak": {
+   "file": "arsenal/lanes/gst_d3d12_soak.py",
+   "status": "OK"
+  },
+  "arsenal.lanes.hwdecode_soak": {
+   "file": "arsenal/lanes/hwdecode_soak.py",
+   "status": "OK"
+  },
+  "arsenal.mediatypes": {
+   "file": "arsenal/mediatypes.py",
+   "status": "OK"
+  },
+  "arsenal.motion": {
+   "file": "arsenal/motion.py",
+   "status": "OK"
+  },
+  "arsenal.nashville": {
+   "file": "arsenal/nashville.py",
+   "status": "OK"
+  },
+  "arsenal.performance": {
+   "file": "arsenal/performance.py",
+   "status": "OK"
+  },
+  "arsenal.pianocue": {
+   "file": "arsenal/pianocue.py",
+   "status": "OK"
+  },
+  "arsenal.pianolooks": {
+   "file": "arsenal/pianolooks.py",
+   "status": "OK"
+  },
+  "arsenal.plan": {
+   "file": "arsenal/plan.py",
+   "status": "OK"
+  },
+  "arsenal.practice": {
+   "file": "arsenal/practice.py",
+   "status": "OK"
+  },
+  "arsenal.practice_riff": {
+   "file": "arsenal/practice_riff.py",
+   "status": "OK"
+  },
+  "arsenal.present": {
+   "file": "arsenal/present/__init__.py",
+   "status": "OK"
+  },
+  "arsenal.present.__main__": {
+   "file": "arsenal/present/__main__.py",
+   "status": "OK"
+  },
+  "arsenal.present.scene": {
+   "file": "arsenal/present/scene.py",
+   "status": "OK"
+  },
+  "arsenal.present.targets": {
+   "file": "arsenal/present/targets/__init__.py",
+   "status": "OK"
+  },
+  "arsenal.present.targets._core": {
+   "file": "arsenal/present/targets/_core.py",
+   "status": "OK"
+  },
+  "arsenal.present.targets._paint": {
+   "file": "arsenal/present/targets/_paint.py",
+   "status": "OK"
+  },
+  "arsenal.present.targets.print_html": {
+   "file": "arsenal/present/targets/print_html.py",
+   "status": "OK"
+  },
+  "arsenal.present.targets.slides_html": {
+   "file": "arsenal/present/targets/slides_html.py",
+   "status": "OK"
+  },
+  "arsenal.present.targets.three_js": {
+   "file": "arsenal/present/targets/three_js.py",
+   "status": "OK"
+  },
+  "arsenal.present.targets.ui_element": {
+   "file": "arsenal/present/targets/ui_element.py",
+   "status": "OK"
+  },
+  "arsenal.presets": {
+   "file": "arsenal/presets.py",
+   "status": "OK"
+  },
+  "arsenal.registry": {
+   "file": "arsenal/registry.py",
+   "status": "OK"
+  },
+  "arsenal.replay": {
+   "file": "arsenal/replay.py",
+   "status": "OK"
+  },
+  "arsenal.replay_harmony": {
+   "file": "arsenal/replay_harmony.py",
+   "status": "OK"
+  },
+  "arsenal.roll": {
+   "file": "arsenal/roll.py",
+   "status": "OK"
+  },
+  "arsenal.serve": {
+   "file": "arsenal/serve.py",
+   "status": "OK"
+  },
+  "arsenal.storyboard": {
+   "file": "arsenal/storyboard.py",
+   "status": "OK"
+  },
+  "arsenal.take": {
+   "file": "arsenal/take.py",
+   "status": "OK"
+  },
+  "arsenal.tiktok": {
+   "file": "arsenal/tiktok.py",
+   "status": "OK"
+  },
+  "arsenal.timebase": {
+   "file": "arsenal/timebase.py",
+   "status": "OK"
+  },
+  "arsenal.tools.qm": {
+   "file": "arsenal/tools/qm.py",
+   "status": "OK"
+  },
+  "bootstrap": {
+   "file": "bootstrap.py",
+   "status": "OK"
+  },
+  "bridge_doctor": {
+   "file": "bridge_doctor.py",
+   "status": "OK"
+  },
+  "config": {
+   "file": "config.py",
+   "status": "SKIPPED(top-level call SESSION_LOG_DIR.mkdir())"
+  },
+  "core": {
+   "file": "core/__init__.py",
+   "status": "SKIPPED(top-level call _quiet_bootstrap())"
+  },
+  "core.codex": {
+   "file": "core/codex/__init__.py",
+   "status": "OK"
+  },
+  "core.codex.lifecycle": {
+   "file": "core/codex/lifecycle.py",
+   "status": "OK"
+  },
+  "core.codex.schema": {
+   "file": "core/codex/schema.py",
+   "status": "OK"
+  },
+  "core.comm": {
+   "file": "core/comm/__init__.py",
+   "status": "OK"
+  },
+  "core.comm.ask": {
+   "file": "core/comm/ask.py",
+   "status": "OK"
+  },
+  "core.comm.ask_bg": {
+   "file": "core/comm/ask_bg.py",
+   "status": "OK"
+  },
+  "core.comm.ask_state": {
+   "file": "core/comm/ask_state.py",
+   "status": "OK"
+  },
+  "core.comm.assertions": {
+   "file": "core/comm/assertions.py",
+   "status": "OK"
+  },
+  "core.comm.awareness": {
+   "file": "core/comm/awareness.py",
+   "status": "OK"
+  },
+  "core.comm.bifrost_api": {
+   "file": "core/comm/bifrost_api.py",
+   "status": "OK"
+  },
+  "core.comm.blobs": {
+   "file": "core/comm/blobs.py",
+   "status": "OK"
+  },
+  "core.comm.bridge_seal": {
+   "file": "core/comm/bridge_seal.py",
+   "status": "OK"
+  },
+  "core.comm.bridge_status": {
+   "file": "core/comm/bridge_status.py",
+   "status": "OK"
+  },
+  "core.comm.bus": {
+   "file": "core/comm/bus.py",
+   "status": "OK"
+  },
+  "core.comm.conductor_gate": {
+   "file": "core/comm/conductor_gate.py",
+   "status": "OK"
+  },
+  "core.comm.context_hints": {
+   "file": "core/comm/context_hints.py",
+   "status": "OK"
+  },
+  "core.comm.control": {
+   "file": "core/comm/control.py",
+   "status": "OK"
+  },
+  "core.comm.control_channel": {
+   "file": "core/comm/control_channel.py",
+   "status": "OK"
+  },
+  "core.comm.cursor_admin": {
+   "file": "core/comm/cursor_admin.py",
+   "status": "OK"
+  },
+  "core.comm.daemon_state": {
+   "file": "core/comm/daemon_state.py",
+   "status": "OK"
+  },
+  "core.comm.discord_bridge": {
+   "file": "core/comm/discord_bridge.py",
+   "status": "OK"
+  },
+  "core.comm.discord_feed": {
+   "file": "core/comm/discord_feed.py",
+   "status": "OK"
+  },
+  "core.comm.discord_guest_reply": {
+   "file": "core/comm/discord_guest_reply.py",
+   "status": "OK"
+  },
+  "core.comm.discord_inbound": {
+   "file": "core/comm/discord_inbound.py",
+   "status": "OK"
+  },
+  "core.comm.discord_ladder": {
+   "file": "core/comm/discord_ladder.py",
+   "status": "OK"
+  },
+  "core.comm.discord_rooms": {
+   "file": "core/comm/discord_rooms.py",
+   "status": "OK"
+  },
+  "core.comm.dispatcher": {
+   "file": "core/comm/dispatcher.py",
+   "status": "OK"
+  },
+  "core.comm.doctor": {
+   "file": "core/comm/doctor.py",
+   "status": "OK"
+  },
+  "core.comm.door_probe": {
+   "file": "core/comm/door_probe.py",
+   "status": "OK"
+  },
+  "core.comm.engine_vitals": {
+   "file": "core/comm/engine_vitals.py",
+   "status": "OK"
+  },
+  "core.comm.expectations": {
+   "file": "core/comm/expectations.py",
+   "status": "OK"
+  },
+  "core.comm.failsafe": {
+   "file": "core/comm/failsafe.py",
+   "status": "OK"
+  },
+  "core.comm.failure_class": {
+   "file": "core/comm/failure_class.py",
+   "status": "OK"
+  },
+  "core.comm.fence_phase": {
+   "file": "core/comm/fence_phase.py",
+   "status": "OK"
+  },
+  "core.comm.flow_trace": {
+   "file": "core/comm/flow_trace.py",
+   "status": "OK"
+  },
+  "core.comm.friction": {
+   "file": "core/comm/friction.py",
+   "status": "OK"
+  },
+  "core.comm.incarnation": {
+   "file": "core/comm/incarnation.py",
+   "status": "OK"
+  },
+  "core.comm.interject": {
+   "file": "core/comm/interject.py",
+   "status": "OK"
+  },
+  "core.comm.kinds": {
+   "file": "core/comm/kinds.py",
+   "status": "OK"
+  },
+  "core.comm.lane_depths": {
+   "file": "core/comm/lane_depths.py",
+   "status": "OK"
+  },
+  "core.comm.launcher": {
+   "file": "core/comm/launcher.py",
+   "status": "OK"
+  },
+  "core.comm.liveness": {
+   "file": "core/comm/liveness.py",
+   "status": "OK"
+  },
+  "core.comm.locks": {
+   "file": "core/comm/locks.py",
+   "status": "OK"
+  },
+  "core.comm.mailbox": {
+   "file": "core/comm/mailbox.py",
+   "status": "OK"
+  },
+  "core.comm.nudge": {
+   "file": "core/comm/nudge.py",
+   "status": "OK"
+  },
+  "core.comm.operator_reply": {
+   "file": "core/comm/operator_reply.py",
+   "status": "OK"
+  },
+  "core.comm.packet_spec": {
+   "file": "core/comm/packet_spec.py",
+   "status": "OK"
+  },
+  "core.comm.pager": {
+   "file": "core/comm/pager.py",
+   "status": "OK"
+  },
+  "core.comm.peer_ready": {
+   "file": "core/comm/peer_ready.py",
+   "status": "OK"
+  },
+  "core.comm.presets": {
+   "file": "core/comm/presets.py",
+   "status": "SKIPPED(top-level call register())"
+  },
+  "core.comm.promoter": {
+   "file": "core/comm/promoter.py",
+   "status": "OK"
+  },
+  "core.comm.reaper": {
+   "file": "core/comm/reaper.py",
+   "status": "OK"
+  },
+  "core.comm.remote_relay": {
+   "file": "core/comm/remote_relay.py",
+   "status": "OK"
+  },
+  "core.comm.role_queue": {
+   "file": "core/comm/role_queue.py",
+   "status": "OK"
+  },
+  "core.comm.room_feed": {
+   "file": "core/comm/room_feed.py",
+   "status": "OK"
+  },
+  "core.comm.roster": {
+   "file": "core/comm/roster.py",
+   "status": "OK"
+  },
+  "core.comm.router": {
+   "file": "core/comm/router.py",
+   "status": "OK"
+  },
+  "core.comm.runner_lib": {
+   "file": "core/comm/runner_lib.py",
+   "status": "OK"
+  },
+  "core.comm.runner_lock": {
+   "file": "core/comm/runner_lock.py",
+   "status": "OK"
+  },
+  "core.comm.runtime_age": {
+   "file": "core/comm/runtime_age.py",
+   "status": "OK"
+  },
+  "core.comm.seat_identity": {
+   "file": "core/comm/seat_identity.py",
+   "status": "OK"
+  },
+  "core.comm.secret_intake": {
+   "file": "core/comm/secret_intake.py",
+   "status": "OK"
+  },
+  "core.comm.self_restart": {
+   "file": "core/comm/self_restart.py",
+   "status": "OK"
+  },
+  "core.comm.sender_guard": {
+   "file": "core/comm/sender_guard.py",
+   "status": "OK"
+  },
+  "core.comm.session_exit": {
+   "file": "core/comm/session_exit.py",
+   "status": "OK"
+  },
+  "core.comm.session_state": {
+   "file": "core/comm/session_state.py",
+   "status": "OK"
+  },
+  "core.comm.shift_turn": {
+   "file": "core/comm/shift_turn.py",
+   "status": "OK"
+  },
+  "core.comm.storm_detect": {
+   "file": "core/comm/storm_detect.py",
+   "status": "OK"
+  },
+  "core.comm.thread_capture": {
+   "file": "core/comm/thread_capture.py",
+   "status": "OK"
+  },
+  "core.comm.timescale": {
+   "file": "core/comm/timescale.py",
+   "status": "OK"
+  },
+  "core.comm.toolbox": {
+   "file": "core/comm/toolbox.py",
+   "status": "OK"
+  },
+  "core.comm.triage_park": {
+   "file": "core/comm/triage_park.py",
+   "status": "OK"
+  },
+  "core.comm.turn_metrics": {
+   "file": "core/comm/turn_metrics.py",
+   "status": "OK"
+  },
+  "core.comm.wake_seat": {
+   "file": "core/comm/wake_seat.py",
+   "status": "OK"
+  },
+  "core.comm.wake_tiers": {
+   "file": "core/comm/wake_tiers.py",
+   "status": "OK"
+  },
+  "core.comm.wedge_discriminator": {
+   "file": "core/comm/wedge_discriminator.py",
+   "status": "OK"
+  },
+  "core.context": {
+   "file": "core/context/__init__.py",
+   "status": "OK"
+  },
+  "core.context.aggregator": {
+   "file": "core/context/aggregator.py",
+   "status": "OK"
+  },
+  "core.context.arch_loader": {
+   "file": "core/context/arch_loader.py",
+   "status": "OK"
+  },
+  "core.context.blocker_loader": {
+   "file": "core/context/blocker_loader.py",
+   "status": "OK"
+  },
+  "core.context.briefing_loader": {
+   "file": "core/context/briefing_loader.py",
+   "status": "OK"
+  },
+  "core.context.decision_loader": {
+   "file": "core/context/decision_loader.py",
+   "status": "OK"
+  },
+  "core.context.gap_ledger": {
+   "file": "core/context/gap_ledger.py",
+   "status": "OK"
+  },
+  "core.context.learning_loader": {
+   "file": "core/context/learning_loader.py",
+   "status": "OK"
+  },
+  "core.context.narrative_loader": {
+   "file": "core/context/narrative_loader.py",
+   "status": "OK"
+  },
+  "core.context.project_context": {
+   "file": "core/context/project_context.py",
+   "status": "OK"
+  },
+  "core.context.relevance_budget": {
+   "file": "core/context/relevance_budget.py",
+   "status": "OK"
+  },
+  "core.context.world_snapshot": {
+   "file": "core/context/world_snapshot.py",
+   "status": "OK"
+  },
+  "core.coord": {
+   "file": "core/coord/__init__.py",
+   "status": "OK"
+  },
+  "core.coord.capability_search": {
+   "file": "core/coord/capability_search.py",
+   "status": "OK"
+  },
+  "core.coord.cognitive_metrics": {
+   "file": "core/coord/cognitive_metrics.py",
+   "status": "OK"
+  },
+  "core.coord.compare": {
+   "file": "core/coord/compare.py",
+   "status": "OK"
+  },
+  "core.coord.conductor": {
+   "file": "core/coord/conductor.py",
+   "status": "OK"
+  },
+  "core.coord.continuity": {
+   "file": "core/coord/continuity.py",
+   "status": "OK"
+  },
+  "core.coord.dawe_census": {
+   "file": "core/coord/dawe_census.py",
+   "status": "OK"
+  },
+  "core.coord.defer_queue": {
+   "file": "core/coord/defer_queue.py",
+   "status": "OK"
+  },
+  "core.coord.experiment": {
+   "file": "core/coord/experiment.py",
+   "status": "OK"
+  },
+  "core.coord.fence_workspace": {
+   "file": "core/coord/fence_workspace.py",
+   "status": "OK"
+  },
+  "core.coord.forecast_registry": {
+   "file": "core/coord/forecast_registry.py",
+   "status": "OK"
+  },
+  "core.coord.ground": {
+   "file": "core/coord/ground.py",
+   "status": "OK"
+  },
+  "core.coord.intent": {
+   "file": "core/coord/intent.py",
+   "status": "OK"
+  },
+  "core.coord.intent_shadow": {
+   "file": "core/coord/intent_shadow.py",
+   "status": "OK"
+  },
+  "core.coord.lens_ledger": {
+   "file": "core/coord/lens_ledger.py",
+   "status": "OK"
+  },
+  "core.coord.method_drift": {
+   "file": "core/coord/method_drift.py",
+   "status": "OK"
+  },
+  "core.coord.metrics": {
+   "file": "core/coord/metrics.py",
+   "status": "OK"
+  },
+  "core.coord.negotiation": {
+   "file": "core/coord/negotiation.py",
+   "status": "OK"
+  },
+  "core.coord.observations": {
+   "file": "core/coord/observations.py",
+   "status": "OK"
+  },
+  "core.coord.orient": {
+   "file": "core/coord/orient.py",
+   "status": "OK"
+  },
+  "core.coord.preregistration": {
+   "file": "core/coord/preregistration.py",
+   "status": "OK"
+  },
+  "core.coord.session_focus": {
+   "file": "core/coord/session_focus.py",
+   "status": "OK"
+  },
+  "core.coord.shift_loop": {
+   "file": "core/coord/shift_loop.py",
+   "status": "OK"
+  },
+  "core.coord.sift": {
+   "file": "core/coord/sift.py",
+   "status": "OK"
+  },
+  "core.coord.suite_baseline": {
+   "file": "core/coord/suite_baseline.py",
+   "status": "OK"
+  },
+  "core.coord.task_costs": {
+   "file": "core/coord/task_costs.py",
+   "status": "OK"
+  },
+  "core.coord.task_ledger": {
+   "file": "core/coord/task_ledger.py",
+   "status": "OK"
+  },
+  "core.coord.terms": {
+   "file": "core/coord/terms.py",
+   "status": "SKIPPED(top-level call register())"
+  },
+  "core.coord.timeline": {
+   "file": "core/coord/timeline.py",
+   "status": "OK"
+  },
+  "core.coord.world_diff": {
+   "file": "core/coord/world_diff.py",
+   "status": "OK"
+  },
+  "core.coord.world_fidelity": {
+   "file": "core/coord/world_fidelity.py",
+   "status": "OK"
+  },
+  "core.coord.world_savepoint": {
+   "file": "core/coord/world_savepoint.py",
+   "status": "OK"
+  },
+  "core.events": {
+   "file": "core/events/__init__.py",
+   "status": "OK"
+  },
+  "core.events.event_index": {
+   "file": "core/events/event_index.py",
+   "status": "OK"
+  },
+  "core.events.event_log": {
+   "file": "core/events/event_log.py",
+   "status": "OK"
+  },
+  "core.events.event_query": {
+   "file": "core/events/event_query.py",
+   "status": "OK"
+  },
+  "core.eye": {
+   "file": "core/eye/__init__.py",
+   "status": "OK"
+  },
+  "core.eye.connectome": {
+   "file": "core/eye/connectome.py",
+   "status": "OK"
+  },
+  "core.eye.directives": {
+   "file": "core/eye/directives.py",
+   "status": "OK"
+  },
+  "core.eye.index": {
+   "file": "core/eye/index.py",
+   "status": "OK"
+  },
+  "core.eye.position": {
+   "file": "core/eye/position.py",
+   "status": "OK"
+  },
+  "core.eye.pyramid": {
+   "file": "core/eye/pyramid.py",
+   "status": "OK"
+  },
+  "core.eye.routes": {
+   "file": "core/eye/routes.py",
+   "status": "OK"
+  },
+  "core.fleet": {
+   "file": "core/fleet/__init__.py",
+   "status": "OK"
+  },
+  "core.fleet.app_package": {
+   "file": "core/fleet/app_package.py",
+   "status": "OK"
+  },
+  "core.fleet.caller": {
+   "file": "core/fleet/caller.py",
+   "status": "OK"
+  },
+  "core.fleet.model_roster": {
+   "file": "core/fleet/model_roster.py",
+   "status": "OK"
+  },
+  "core.fleet.residents": {
+   "file": "core/fleet/residents.py",
+   "status": "OK"
+  },
+  "core.fleet.scout": {
+   "file": "core/fleet/scout.py",
+   "status": "OK"
+  },
+  "core.fleet.seat_launchers": {
+   "file": "core/fleet/seat_launchers.py",
+   "status": "SKIPPED(top-level call _ALIASES.update())"
+  },
+  "core.fleet.seat_model": {
+   "file": "core/fleet/seat_model.py",
+   "status": "OK"
+  },
+  "core.fleet.verdicts": {
+   "file": "core/fleet/verdicts.py",
+   "status": "OK"
+  },
+  "core.foundation": {
+   "file": "core/foundation/__init__.py",
+   "status": "OK"
+  },
+  "core.foundation.durable_reconcile": {
+   "file": "core/foundation/durable_reconcile.py",
+   "status": "OK"
+  },
+  "core.foundation.embedded_redis": {
+   "file": "core/foundation/embedded_redis.py",
+   "status": "OK"
+  },
+  "core.foundation.filelock": {
+   "file": "core/foundation/filelock.py",
+   "status": "OK"
+  },
+  "core.foundation.ledger": {
+   "file": "core/foundation/ledger.py",
+   "status": "OK"
+  },
+  "core.foundation.migrate_to_sqlite": {
+   "file": "core/foundation/migrate_to_sqlite.py",
+   "status": "OK"
+  },
+  "core.foundation.redis_connection": {
+   "file": "core/foundation/redis_connection.py",
+   "status": "OK"
+  },
+  "core.foundation.relationship_types": {
+   "file": "core/foundation/relationship_types.py",
+   "status": "OK"
+  },
+  "core.foundation.sqlite_store": {
+   "file": "core/foundation/sqlite_store.py",
+   "status": "OK"
+  },
+  "core.foundation.store": {
+   "file": "core/foundation/store.py",
+   "status": "OK"
+  },
+  "core.foundation.streams": {
+   "file": "core/foundation/streams.py",
+   "status": "OK"
+  },
+  "core.foundation.timeutil": {
+   "file": "core/foundation/timeutil.py",
+   "status": "OK"
+  },
+  "core.git": {
+   "file": "core/git/__init__.py",
+   "status": "OK"
+  },
+  "core.git.rewrite_map": {
+   "file": "core/git/rewrite_map.py",
+   "status": "OK"
+  },
+  "core.infrastructure": {
+   "file": "core/infrastructure/__init__.py",
+   "status": "OK"
+  },
+  "core.infrastructure.health_check": {
+   "file": "core/infrastructure/health_check.py",
+   "status": "SKIPPED(top-level call log_dir.mkdir())"
+  },
+  "core.learning": {
+   "file": "core/learning/__init__.py",
+   "status": "OK"
+  },
+  "core.learning.agent_memory": {
+   "file": "core/learning/agent_memory.py",
+   "status": "OK"
+  },
+  "core.learning.consolidation": {
+   "file": "core/learning/consolidation.py",
+   "status": "OK"
+  },
+  "core.learning.domains": {
+   "file": "core/learning/domains.py",
+   "status": "OK"
+  },
+  "core.learning.learning_store": {
+   "file": "core/learning/learning_store.py",
+   "status": "OK"
+  },
+  "core.learning.vfx_chunk_lessons": {
+   "file": "core/learning/vfx_chunk_lessons.py",
+   "status": "OK"
+  },
+  "core.library": {
+   "file": "core/library/__init__.py",
+   "status": "OK"
+  },
+  "core.library.atoms": {
+   "file": "core/library/atoms.py",
+   "status": "OK"
+  },
+  "core.library.college": {
+   "file": "core/library/college.py",
+   "status": "OK"
+  },
+  "core.library.legacy_map": {
+   "file": "core/library/legacy_map.py",
+   "status": "OK"
+  },
+  "core.library.projection": {
+   "file": "core/library/projection.py",
+   "status": "OK"
+  },
+  "core.library.reports": {
+   "file": "core/library/reports.py",
+   "status": "OK"
+  },
+  "core.library.taxonomy": {
+   "file": "core/library/taxonomy.py",
+   "status": "OK"
+  },
+  "core.manuals": {
+   "file": "core/manuals/__init__.py",
+   "status": "OK"
+  },
+  "core.manuals.chunk": {
+   "file": "core/manuals/chunk.py",
+   "status": "OK"
+  },
+  "core.manuals.convert": {
+   "file": "core/manuals/convert.py",
+   "status": "OK"
+  },
+  "core.manuals.shelf": {
+   "file": "core/manuals/shelf.py",
+   "status": "OK"
+  },
+  "core.narrative": {
+   "file": "core/narrative/__init__.py",
+   "status": "OK"
+  },
+  "core.narrative.beat_log": {
+   "file": "core/narrative/beat_log.py",
+   "status": "OK"
+  },
+  "core.narrative.chapter_lifecycle": {
+   "file": "core/narrative/chapter_lifecycle.py",
+   "status": "OK"
+  },
+  "core.narrative.chronicler": {
+   "file": "core/narrative/chronicler.py",
+   "status": "OK"
+  },
+  "core.narrative.drift": {
+   "file": "core/narrative/drift.py",
+   "status": "OK"
+  },
+  "core.narrative.episode": {
+   "file": "core/narrative/episode.py",
+   "status": "OK"
+  },
+  "core.narrative.episode_suggester": {
+   "file": "core/narrative/episode_suggester.py",
+   "status": "OK"
+  },
+  "core.narrative.event_bridge": {
+   "file": "core/narrative/event_bridge.py",
+   "status": "OK"
+  },
+  "core.narrative.event_promoter": {
+   "file": "core/narrative/event_promoter.py",
+   "status": "OK"
+  },
+  "core.narrative.health": {
+   "file": "core/narrative/health.py",
+   "status": "OK"
+  },
+  "core.narrative.schema": {
+   "file": "core/narrative/schema.py",
+   "status": "OK"
+  },
+  "core.narrative.session": {
+   "file": "core/narrative/session.py",
+   "status": "OK"
+  },
+  "core.narrative.tag_audit": {
+   "file": "core/narrative/tag_audit.py",
+   "status": "OK"
+  },
+  "core.narrative.tag_governance": {
+   "file": "core/narrative/tag_governance.py",
+   "status": "OK"
+  },
+  "core.narrative.tagging": {
+   "file": "core/narrative/tagging.py",
+   "status": "OK"
+  },
+  "core.narrative.theme_assigner": {
+   "file": "core/narrative/theme_assigner.py",
+   "status": "OK"
+  },
+  "core.narrative.theme_discovery": {
+   "file": "core/narrative/theme_discovery.py",
+   "status": "OK"
+  },
+  "core.narrative.track_router": {
+   "file": "core/narrative/track_router.py",
+   "status": "OK"
+  },
+  "core.outcome": {
+   "file": "core/outcome.py",
+   "status": "OK"
+  },
+  "core.paths": {
+   "file": "core/paths.py",
+   "status": "OK"
+  },
+  "core.perspectives": {
+   "file": "core/perspectives/__init__.py",
+   "status": "OK"
+  },
+  "core.perspectives.reinforce": {
+   "file": "core/perspectives/reinforce.py",
+   "status": "OK"
+  },
+  "core.perspectives.schema": {
+   "file": "core/perspectives/schema.py",
+   "status": "OK"
+  },
+  "core.primitives": {
+   "file": "core/primitives/__init__.py",
+   "status": "OK"
+  },
+  "core.primitives.clusterer": {
+   "file": "core/primitives/clusterer.py",
+   "status": "OK"
+  },
+  "core.primitives.consolidator": {
+   "file": "core/primitives/consolidator.py",
+   "status": "OK"
+  },
+  "core.primitives.distiller": {
+   "file": "core/primitives/distiller.py",
+   "status": "OK"
+  },
+  "core.primitives.embedder": {
+   "file": "core/primitives/embedder.py",
+   "status": "OK"
+  },
+  "core.primitives.epistemic": {
+   "file": "core/primitives/epistemic.py",
+   "status": "OK"
+  },
+  "core.primitives.faithfulness": {
+   "file": "core/primitives/faithfulness.py",
+   "status": "OK"
+  },
+  "core.primitives.ranker": {
+   "file": "core/primitives/ranker.py",
+   "status": "OK"
+  },
+  "core.primitives.supersession": {
+   "file": "core/primitives/supersession.py",
+   "status": "OK"
+  },
+  "core.recall": {
+   "file": "core/recall/__init__.py",
+   "status": "OK"
+  },
+  "core.recall.actions": {
+   "file": "core/recall/actions.py",
+   "status": "OK"
+  },
+  "core.recall.anchors": {
+   "file": "core/recall/anchors.py",
+   "status": "OK"
+  },
+  "core.recall.at_action": {
+   "file": "core/recall/at_action.py",
+   "status": "OK"
+  },
+  "core.recall.curator": {
+   "file": "core/recall/curator.py",
+   "status": "OK"
+  },
+  "core.recall.dissent": {
+   "file": "core/recall/dissent.py",
+   "status": "OK"
+  },
+  "core.recall.forge": {
+   "file": "core/recall/forge.py",
+   "status": "OK"
+  },
+  "core.recall.forge_optimizer": {
+   "file": "core/recall/forge_optimizer.py",
+   "status": "OK"
+  },
+  "core.recall.funnel": {
+   "file": "core/recall/funnel.py",
+   "status": "OK"
+  },
+  "core.recall.gate_rules": {
+   "file": "core/recall/gate_rules.py",
+   "status": "OK"
+  },
+  "core.recall.knowledge_map": {
+   "file": "core/recall/knowledge_map.py",
+   "status": "OK"
+  },
+  "core.recall.lookback": {
+   "file": "core/recall/lookback.py",
+   "status": "OK"
+  },
+  "core.recall.pack_replay": {
+   "file": "core/recall/pack_replay.py",
+   "status": "OK"
+  },
+  "core.recall.precision_audit": {
+   "file": "core/recall/precision_audit.py",
+   "status": "OK"
+  },
+  "core.recall.prevention": {
+   "file": "core/recall/prevention.py",
+   "status": "OK"
+  },
+  "core.recall.replay": {
+   "file": "core/recall/replay.py",
+   "status": "OK"
+  },
+  "core.recall.shadow_shelf": {
+   "file": "core/recall/shadow_shelf.py",
+   "status": "OK"
+  },
+  "core.recall.staleness": {
+   "file": "core/recall/staleness.py",
+   "status": "OK"
+  },
+  "core.recall.surface": {
+   "file": "core/recall/surface.py",
+   "status": "OK"
+  },
+  "core.reentry": {
+   "file": "core/reentry.py",
+   "status": "OK"
+  },
+  "core.renew": {
+   "file": "core/renew/__init__.py",
+   "status": "OK"
+  },
+  "core.renew.session_signals": {
+   "file": "core/renew/session_signals.py",
+   "status": "OK"
+  },
+  "core.screenspace": {
+   "file": "core/screenspace/__init__.py",
+   "status": "OK"
+  },
+  "core.screenspace.canary": {
+   "file": "core/screenspace/canary.py",
+   "status": "OK"
+  },
+  "core.screenspace.capture": {
+   "file": "core/screenspace/capture.py",
+   "status": "SKIPPED(top-level call _declare_dpi_awareness())"
+  },
+  "core.screenspace.engine": {
+   "file": "core/screenspace/engine.py",
+   "status": "OK"
+  },
+  "core.screenspace.foreground": {
+   "file": "core/screenspace/foreground.py",
+   "status": "OK"
+  },
+  "core.screenspace.shadow": {
+   "file": "core/screenspace/shadow.py",
+   "status": "OK"
+  },
+  "core.season": {
+   "file": "core/season/__init__.py",
+   "status": "OK"
+  },
+  "core.season.scoring": {
+   "file": "core/season/scoring.py",
+   "status": "OK"
+  },
+  "core.signals": {
+   "file": "core/signals/__init__.py",
+   "status": "OK"
+  },
+  "core.signals.agent_signal_ledger": {
+   "file": "core/signals/agent_signal_ledger.py",
+   "status": "OK"
+  },
+  "core.signals.coordinator_api": {
+   "file": "core/signals/coordinator_api.py",
+   "status": "OK"
+  },
+  "core.state": {
+   "file": "core/state/__init__.py",
+   "status": "OK"
+  },
+  "core.state.session_checkpoint": {
+   "file": "core/state/session_checkpoint.py",
+   "status": "SKIPPED(top-level call log_dir.mkdir())"
+  },
+  "core.state.session_recovery": {
+   "file": "core/state/session_recovery.py",
+   "status": "OK"
+  },
+  "core.toolbelt": {
+   "file": "core/toolbelt/__init__.py",
+   "status": "OK"
+  },
+  "core.toolbelt.audit": {
+   "file": "core/toolbelt/audit.py",
+   "status": "OK"
+  },
+  "core.toolbelt.audit_spend": {
+   "file": "core/toolbelt/audit_spend.py",
+   "status": "OK"
+  },
+  "core.toolbelt.clobber_scan": {
+   "file": "core/toolbelt/clobber_scan.py",
+   "status": "OK"
+  },
+  "core.toolbelt.contest": {
+   "file": "core/toolbelt/contest.py",
+   "status": "OK"
+  },
+  "core.toolbelt.followup": {
+   "file": "core/toolbelt/followup.py",
+   "status": "OK"
+  },
+  "core.toolbelt.kit": {
+   "file": "core/toolbelt/kit.py",
+   "status": "OK"
+  },
+  "core.toolbelt.lexicon_bindings": {
+   "file": "core/toolbelt/lexicon_bindings.py",
+   "status": "OK"
+  },
+  "core.toolbelt.play_sandbox": {
+   "file": "core/toolbelt/play_sandbox.py",
+   "status": "OK"
+  },
+  "core.toolbelt.registry": {
+   "file": "core/toolbelt/registry.py",
+   "status": "OK"
+  },
+  "core.toolbelt.tally": {
+   "file": "core/toolbelt/tally.py",
+   "status": "OK"
+  },
+  "core.toolbelt.toast": {
+   "file": "core/toolbelt/toast.py",
+   "status": "OK"
+  },
+  "core.tools.everything": {
+   "file": "core/tools/everything.py",
+   "status": "OK"
+  },
+  "core.trust": {
+   "file": "core/trust/__init__.py",
+   "status": "OK"
+  },
+  "core.trust.action_authority": {
+   "file": "core/trust/action_authority.py",
+   "status": "OK"
+  },
+  "core.trust.capabilities": {
+   "file": "core/trust/capabilities.py",
+   "status": "OK"
+  },
+  "core.trust.grant_writer": {
+   "file": "core/trust/grant_writer.py",
+   "status": "OK"
+  },
+  "core.trust.private_plane": {
+   "file": "core/trust/private_plane.py",
+   "status": "OK"
+  },
+  "core.trust.registry": {
+   "file": "core/trust/registry.py",
+   "status": "OK"
+  },
+  "core.web": {
+   "file": "core/web/__init__.py",
+   "status": "OK"
+  },
+  "core.web.door": {
+   "file": "core/web/door.py",
+   "status": "OK"
+  },
+  "core.world": {
+   "file": "core/world.py",
+   "status": "OK"
+  },
+  "core.world_seed": {
+   "file": "core/world_seed.py",
+   "status": "OK"
+  },
+  "data.play.claude.campfire": {
+   "file": "data/play/claude/campfire.py",
+   "status": "SKIPPED(top-level call sys.stdout.reconfigure())"
+  },
+  "data.play.claude.verbthread": {
+   "file": "data/play/claude/verbthread.py",
+   "status": "SKIPPED(top-level call sys.stdout.reconfigure())"
+  },
+  "data.play.kimi.premonition": {
+   "file": "data/play/kimi/premonition.py",
+   "status": "SKIPPED(top-level call sys.stdout.reconfigure())"
+  },
+  "docs/_archive/pre-library/legacy/gemma_realtime/audio_handler.py": {
+   "detail": "torch",
+   "file": "docs/_archive/pre-library/legacy/gemma_realtime/audio_handler.py",
+   "status": "ImportError(optional-dep)"
+  },
+  "docs/_archive/pre-library/legacy/gemma_realtime/file_analyzer.py": {
+   "detail": "torch",
+   "file": "docs/_archive/pre-library/legacy/gemma_realtime/file_analyzer.py",
+   "status": "ImportError(optional-dep)"
+  },
+  "docs/_archive/pre-library/legacy/gemma_realtime/llm_wrapper.py": {
+   "file": "docs/_archive/pre-library/legacy/gemma_realtime/llm_wrapper.py",
+   "status": "OK"
+  },
+  "docs/_archive/pre-library/legacy/gemma_realtime/server.py": {
+   "file": "docs/_archive/pre-library/legacy/gemma_realtime/server.py",
+   "status": "SKIPPED(top-level call app.add_middleware())"
+  },
+  "docs/_archive/pre-library/legacy/gemma_realtime/stt_processor.py": {
+   "detail": "torch",
+   "file": "docs/_archive/pre-library/legacy/gemma_realtime/stt_processor.py",
+   "status": "ImportError(optional-dep)"
+  },
+  "docs/_archive/pre-library/legacy/gemma_realtime/tts_processor.py": {
+   "file": "docs/_archive/pre-library/legacy/gemma_realtime/tts_processor.py",
+   "status": "OK"
+  },
+  "docs/_archive/pre-library/legacy/services/background_monitor.py": {
+   "file": "docs/_archive/pre-library/legacy/services/background_monitor.py",
+   "status": "SKIPPED(top-level call os.makedirs())"
+  },
+  "docs/_archive/pre-library/legacy/services/redis_ha_manager.py": {
+   "file": "docs/_archive/pre-library/legacy/services/redis_ha_manager.py",
+   "status": "OK"
+  },
+  "docs/_archive/pre-library/legacy/services/redis_sync.py": {
+   "file": "docs/_archive/pre-library/legacy/services/redis_sync.py",
+   "status": "OK"
+  },
+  "docs/_archive/pre-library/legacy/services/session_monitor.py": {
+   "file": "docs/_archive/pre-library/legacy/services/session_monitor.py",
+   "status": "OK"
+  },
+  "docs/_archive/pre-library/legacy/session_compressor.py": {
+   "detail": "session_canonical",
+   "file": "docs/_archive/pre-library/legacy/session_compressor.py",
+   "status": "error:ModuleNotFoundError"
+  },
+  "docs/_archive/pre-library/python_old/ai_watchdog.py": {
+   "file": "docs/_archive/pre-library/python_old/ai_watchdog.py",
+   "status": "OK"
+  },
+  "docs/_archive/pre-library/python_old/escalation.py": {
+   "file": "docs/_archive/pre-library/python_old/escalation.py",
+   "status": "SKIPPED(top-level call os.makedirs())"
+  },
+  "docs/_archive/pre-library/python_old/launch_ai_stack.py": {
+   "detail": "tkinter",
+   "file": "docs/_archive/pre-library/python_old/launch_ai_stack.py",
+   "status": "ImportError(optional-dep)"
+  },
+  "docs/_archive/pre-library/python_old/port_registry.py": {
+   "file": "docs/_archive/pre-library/python_old/port_registry.py",
+   "status": "SKIPPED(top-level call print())"
+  },
+  "docs/_archive/pre-library/python_old/session_supervisor.py": {
+   "file": "docs/_archive/pre-library/python_old/session_supervisor.py",
+   "status": "OK"
+  },
+  "docs/_archive/pre-library/python_old/stack_gui.py": {
+   "file": "docs/_archive/pre-library/python_old/stack_gui.py",
+   "status": "SKIPPED(top-level call app.add_middleware())"
+  },
+  "docs/_archive/pre-library/python_old/stack_manager.py": {
+   "file": "docs/_archive/pre-library/python_old/stack_manager.py",
+   "status": "OK"
+  },
+  "peer_connect": {
+   "file": "peer_connect.py",
+   "status": "OK"
+  },
+  "research/drafts/t097-s1-progress-stamp-draft.py": {
+   "file": "research/drafts/t097-s1-progress-stamp-draft.py",
+   "status": "OK"
+  },
+  "research/in-flight/t342/dead-modules/_archive__legacy__services__background_monitor.py": {
+   "file": "research/in-flight/t342/dead-modules/_archive__legacy__services__background_monitor.py",
+   "status": "SKIPPED(top-level call os.makedirs())"
+  },
+  "research/in-flight/t342/dead-modules/_archive__legacy__services__redis_ha_manager.py": {
+   "file": "research/in-flight/t342/dead-modules/_archive__legacy__services__redis_ha_manager.py",
+   "status": "OK"
+  },
+  "research/in-flight/t342/dead-modules/_archive__legacy__services__redis_manager.py": {
+   "file": "research/in-flight/t342/dead-modules/_archive__legacy__services__redis_manager.py",
+   "status": "SKIPPED(top-level For block)"
+  },
+  "research/in-flight/t342/dead-modules/_archive__legacy__services__redis_sync.py": {
+   "file": "research/in-flight/t342/dead-modules/_archive__legacy__services__redis_sync.py",
+   "status": "OK"
+  },
+  "research/in-flight/t342/dead-modules/_archive__legacy__services__session_monitor.py": {
+   "file": "research/in-flight/t342/dead-modules/_archive__legacy__services__session_monitor.py",
+   "status": "OK"
+  },
+  "research/in-flight/t342/dead-modules/_archive__legacy__session_compressor.py": {
+   "detail": "session_canonical",
+   "file": "research/in-flight/t342/dead-modules/_archive__legacy__session_compressor.py",
+   "status": "error:ModuleNotFoundError"
+  },
+  "research/in-flight/t342/dead-modules/_archive__python_old__ai_watchdog.py": {
+   "file": "research/in-flight/t342/dead-modules/_archive__python_old__ai_watchdog.py",
+   "status": "OK"
+  },
+  "research/in-flight/t342/dead-modules/_archive__python_old__escalation.py": {
+   "file": "research/in-flight/t342/dead-modules/_archive__python_old__escalation.py",
+   "status": "SKIPPED(top-level call os.makedirs())"
+  },
+  "research/in-flight/t342/dead-modules/_archive__python_old__gemma_voice_service.py": {
+   "file": "research/in-flight/t342/dead-modules/_archive__python_old__gemma_voice_service.py",
+   "status": "SKIPPED(top-level call CORS())"
+  },
+  "research/in-flight/t342/dead-modules/_archive__python_old__health_check_session_pipeline.py": {
+   "file": "research/in-flight/t342/dead-modules/_archive__python_old__health_check_session_pipeline.py",
+   "status": "OK"
+  },
+  "research/in-flight/t342/dead-modules/_archive__python_old__launch_ai_stack.py": {
+   "detail": "tkinter",
+   "file": "research/in-flight/t342/dead-modules/_archive__python_old__launch_ai_stack.py",
+   "status": "ImportError(optional-dep)"
+  },
+  "research/in-flight/t342/dead-modules/_archive__python_old__smart_log.py": {
+   "file": "research/in-flight/t342/dead-modules/_archive__python_old__smart_log.py",
+   "status": "SKIPPED(top-level call ARCHIVE_DIR.mkdir())"
+  },
+  "research/in-flight/t342/dead-modules/_archive__python_old__stack_gui.py": {
+   "file": "research/in-flight/t342/dead-modules/_archive__python_old__stack_gui.py",
+   "status": "SKIPPED(top-level call app.add_middleware())"
+  },
+  "research/in-flight/t342/dead-modules/_archive__python_old__vision_engine.py": {
+   "file": "research/in-flight/t342/dead-modules/_archive__python_old__vision_engine.py",
+   "status": "SKIPPED(top-level call os.makedirs())"
+  },
+  "research/in-flight/t342/dead-modules/_archive__python_old__vision_engine_comfy.py": {
+   "file": "research/in-flight/t342/dead-modules/_archive__python_old__vision_engine_comfy.py",
+   "status": "SKIPPED(top-level call os.makedirs())"
+  },
+  "research/in-flight/t342/dead-modules/agent_comm_service.py": {
+   "file": "research/in-flight/t342/dead-modules/agent_comm_service.py",
+   "status": "SKIPPED(top-level For block)"
+  },
+  "research/in-flight/t342/dead-modules/agent_coordinator.py": {
+   "file": "research/in-flight/t342/dead-modules/agent_coordinator.py",
+   "status": "SKIPPED(top-level For block)"
+  },
+  "research/in-flight/t342/dead-modules/agent_coordinator_v2.py": {
+   "file": "research/in-flight/t342/dead-modules/agent_coordinator_v2.py",
+   "status": "SKIPPED(top-level call os.makedirs())"
+  },
+  "research/in-flight/t342/dead-modules/blackboard.py": {
+   "file": "research/in-flight/t342/dead-modules/blackboard.py",
+   "status": "OK"
+  },
+  "research/in-flight/t342/dead-modules/context__learning_loader.py": {
+   "file": "research/in-flight/t342/dead-modules/context__learning_loader.py",
+   "status": "OK"
+  },
+  "research/in-flight/t342/dead-modules/context__relevance_budget.py": {
+   "file": "research/in-flight/t342/dead-modules/context__relevance_budget.py",
+   "status": "OK"
+  },
+  "research/in-flight/t342/dead-modules/core__foundation__fast_cache.py": {
+   "file": "research/in-flight/t342/dead-modules/core__foundation__fast_cache.py",
+   "status": "SKIPPED(top-level call os.makedirs())"
+  },
+  "research/in-flight/t342/dead-modules/crash_recovery.py": {
+   "file": "research/in-flight/t342/dead-modules/crash_recovery.py",
+   "status": "OK"
+  },
+  "research/in-flight/t342/dead-modules/deploy_vllm.py": {
+   "file": "research/in-flight/t342/dead-modules/deploy_vllm.py",
+   "status": "OK"
+  },
+  "research/in-flight/t342/dead-modules/deployment_framework.py": {
+   "file": "research/in-flight/t342/dead-modules/deployment_framework.py",
+   "status": "OK"
+  },
+  "research/in-flight/t342/dead-modules/directives_checker.py": {
+   "file": "research/in-flight/t342/dead-modules/directives_checker.py",
+   "status": "OK"
+  },
+  "research/in-flight/t342/dead-modules/enterprise_web_fetch.py": {
+   "file": "research/in-flight/t342/dead-modules/enterprise_web_fetch.py",
+   "status": "SKIPPED(top-level call os.makedirs())"
+  },
+  "research/in-flight/t342/dead-modules/error_documentation.py": {
+   "file": "research/in-flight/t342/dead-modules/error_documentation.py",
+   "status": "OK"
+  },
+  "research/in-flight/t342/dead-modules/fast_agent_comm.py": {
+   "file": "research/in-flight/t342/dead-modules/fast_agent_comm.py",
+   "status": "OK"
+  },
+  "research/in-flight/t342/dead-modules/gemini_bridge.py": {
+   "file": "research/in-flight/t342/dead-modules/gemini_bridge.py",
+   "status": "OK"
+  },
+  "research/in-flight/t342/dead-modules/gemini_bridge_monitor.py": {
+   "detail": "selenium",
+   "file": "research/in-flight/t342/dead-modules/gemini_bridge_monitor.py",
+   "status": "error:ModuleNotFoundError"
+  },
+  "research/in-flight/t342/dead-modules/harness_enforcer.py": {
+   "file": "research/in-flight/t342/dead-modules/harness_enforcer.py",
+   "status": "SKIPPED(top-level call os.makedirs())"
+  },
+  "research/in-flight/t342/dead-modules/init_session.py": {
+   "file": "research/in-flight/t342/dead-modules/init_session.py",
+   "status": "OK"
+  },
+  "research/in-flight/t342/dead-modules/knowledge_base.py": {
+   "file": "research/in-flight/t342/dead-modules/knowledge_base.py",
+   "status": "OK"
+  },
+  "research/in-flight/t342/dead-modules/launch.py": {
+   "file": "research/in-flight/t342/dead-modules/launch.py",
+   "status": "OK"
+  },
+  "research/in-flight/t342/dead-modules/master.py": {
+   "detail": "blackboard",
+   "file": "research/in-flight/t342/dead-modules/master.py",
+   "status": "error:ModuleNotFoundError"
+  },
+  "research/in-flight/t342/dead-modules/model_lifecycle.py": {
+   "detail": "torch",
+   "file": "research/in-flight/t342/dead-modules/model_lifecycle.py",
+   "status": "ImportError(optional-dep)"
+  },
+  "research/in-flight/t342/dead-modules/multi_agent.py": {
+   "file": "research/in-flight/t342/dead-modules/multi_agent.py",
+   "status": "OK"
+  },
+  "research/in-flight/t342/dead-modules/screenshot_logger.py": {
+   "file": "research/in-flight/t342/dead-modules/screenshot_logger.py",
+   "status": "SKIPPED(top-level call os.makedirs())"
+  },
+  "research/in-flight/t342/dead-modules/scripts__heimdall.py": {
+   "file": "research/in-flight/t342/dead-modules/scripts__heimdall.py",
+   "status": "SKIPPED(top-level call os.chdir())"
+  },
+  "research/in-flight/t342/dead-modules/scripts__hooks__birth_guard.py": {
+   "file": "research/in-flight/t342/dead-modules/scripts__hooks__birth_guard.py",
+   "status": "OK"
+  },
+  "research/in-flight/t342/dead-modules/scripts__hooks__cursor_posttooluse.py": {
+   "file": "research/in-flight/t342/dead-modules/scripts__hooks__cursor_posttooluse.py",
+   "status": "OK"
+  },
+  "research/in-flight/t342/dead-modules/test_gpu_pytorch.py": {
+   "file": "research/in-flight/t342/dead-modules/test_gpu_pytorch.py",
+   "status": "SKIPPED(top-level call print())"
+  },
+  "research/in-flight/t342/dead-modules/test_torch.py": {
+   "file": "research/in-flight/t342/dead-modules/test_torch.py",
+   "status": "SKIPPED(top-level call print())"
+  },
+  "research/in-flight/t342/dead-modules/vector_store.py": {
+   "file": "research/in-flight/t342/dead-modules/vector_store.py",
+   "status": "SKIPPED(top-level call os.makedirs())"
+  },
+  "research/in-flight/t342/dead-modules/vision_engine.py": {
+   "file": "research/in-flight/t342/dead-modules/vision_engine.py",
+   "status": "SKIPPED(top-level call os.makedirs())"
+  },
+  "research/in-flight/wire-capture-deepseek-2026-08-02/probes.py": {
+   "file": "research/in-flight/wire-capture-deepseek-2026-08-02/probes.py",
+   "status": "SKIPPED(top-level call OUT.mkdir())"
+  },
+  "research/reviewed/success-sweep-raw-2026-08-10/extract_daniil_success_talk.py": {
+   "file": "research/reviewed/success-sweep-raw-2026-08-10/extract_daniil_success_talk.py",
+   "status": "SKIPPED(top-level For block)"
+  },
+  "scripts": {
+   "file": "scripts/__init__.py",
+   "status": "OK"
+  },
+  "scripts.arc_scorecard": {
+   "file": "scripts/arc_scorecard.py",
+   "status": "OK"
+  },
+  "scripts.arc_thread": {
+   "file": "scripts/arc_thread.py",
+   "status": "OK"
+  },
+  "scripts.ask_deepseek": {
+   "file": "scripts/ask_deepseek.py",
+   "status": "OK"
+  },
+  "scripts.ask_gemini": {
+   "file": "scripts/ask_gemini.py",
+   "status": "OK"
+  },
+  "scripts.ask_gemini_vision": {
+   "file": "scripts/ask_gemini_vision.py",
+   "status": "OK"
+  },
+  "scripts.ask_gpt": {
+   "file": "scripts/ask_gpt.py",
+   "status": "OK"
+  },
+  "scripts.ask_kimi": {
+   "file": "scripts/ask_kimi.py",
+   "status": "OK"
+  },
+  "scripts.ask_panel": {
+   "file": "scripts/ask_panel.py",
+   "status": "OK"
+  },
+  "scripts.ask_vision": {
+   "file": "scripts/ask_vision.py",
+   "status": "OK"
+  },
+  "scripts.authorship_ledger": {
+   "file": "scripts/authorship_ledger.py",
+   "status": "OK"
+  },
+  "scripts.bifrost_child": {
+   "file": "scripts/bifrost_child.py",
+   "status": "OK"
+  },
+  "scripts.bifrost_console": {
+   "file": "scripts/bifrost_console.py",
+   "status": "OK"
+  },
+  "scripts.bifrost_daemon": {
+   "file": "scripts/bifrost_daemon.py",
+   "status": "OK"
+  },
+  "scripts.bifrost_reports": {
+   "file": "scripts/bifrost_reports.py",
+   "status": "OK"
+  },
+  "scripts.bifrost_runner": {
+   "file": "scripts/bifrost_runner.py",
+   "status": "OK"
+  },
+  "scripts.bifrost_runner_deepseek": {
+   "file": "scripts/bifrost_runner_deepseek.py",
+   "status": "OK"
+  },
+  "scripts.bifrost_runner_discord": {
+   "file": "scripts/bifrost_runner_discord.py",
+   "status": "SKIPPED(top-level For block)"
+  },
+  "scripts.bifrost_runner_gemini": {
+   "file": "scripts/bifrost_runner_gemini.py",
+   "status": "OK"
+  },
+  "scripts.bifrost_runner_kimi": {
+   "file": "scripts/bifrost_runner_kimi.py",
+   "status": "OK"
+  },
+  "scripts.bifrost_runner_sol": {
+   "file": "scripts/bifrost_runner_sol.py",
+   "status": "OK"
+  },
+  "scripts.bifrost_ui": {
+   "file": "scripts/bifrost_ui.py",
+   "status": "OK"
+  },
+  "scripts.bifrost_wake": {
+   "file": "scripts/bifrost_wake.py",
+   "status": "OK"
+  },
+  "scripts.canary_oracle": {
+   "file": "scripts/canary_oracle.py",
+   "status": "OK"
+  },
+  "scripts.capture_apple_hig": {
+   "file": "scripts/capture_apple_hig.py",
+   "status": "OK"
+  },
+  "scripts.check_fresh_clone": {
+   "file": "scripts/check_fresh_clone.py",
+   "status": "OK"
+  },
+  "scripts.checkers.check_advertised_tools": {
+   "file": "scripts/checkers/check_advertised_tools.py",
+   "status": "OK"
+  },
+  "scripts.checkers.check_advertised_verbs": {
+   "file": "scripts/checkers/check_advertised_verbs.py",
+   "status": "OK"
+  },
+  "scripts.checkers.check_boundaries": {
+   "file": "scripts/checkers/check_boundaries.py",
+   "status": "OK"
+  },
+  "scripts.checkers.check_bus_atom_pointers": {
+   "file": "scripts/checkers/check_bus_atom_pointers.py",
+   "status": "OK"
+  },
+  "scripts.checkers.check_comprehensibility": {
+   "file": "scripts/checkers/check_comprehensibility.py",
+   "status": "OK"
+  },
+  "scripts.checkers.check_doc_currency": {
+   "file": "scripts/checkers/check_doc_currency.py",
+   "status": "OK"
+  },
+  "scripts.checkers.check_doc_freshness": {
+   "file": "scripts/checkers/check_doc_freshness.py",
+   "status": "OK"
+  },
+  "scripts.checkers.check_door_parity": {
+   "file": "scripts/checkers/check_door_parity.py",
+   "status": "OK"
+  },
+  "scripts.checkers.check_dual_authority": {
+   "file": "scripts/checkers/check_dual_authority.py",
+   "status": "OK"
+  },
+  "scripts.checkers.check_durability": {
+   "file": "scripts/checkers/check_durability.py",
+   "status": "OK"
+  },
+  "scripts.checkers.check_field_parity": {
+   "file": "scripts/checkers/check_field_parity.py",
+   "status": "OK"
+  },
+  "scripts.checkers.check_kind_policy": {
+   "file": "scripts/checkers/check_kind_policy.py",
+   "status": "OK"
+  },
+  "scripts.checkers.check_organ_canaries": {
+   "file": "scripts/checkers/check_organ_canaries.py",
+   "status": "OK"
+  },
+  "scripts.checkers.check_pointer_promises": {
+   "file": "scripts/checkers/check_pointer_promises.py",
+   "status": "OK"
+  },
+  "scripts.checkers.check_ports": {
+   "file": "scripts/checkers/check_ports.py",
+   "status": "OK"
+  },
+  "scripts.checkers.check_preregistration": {
+   "file": "scripts/checkers/check_preregistration.py",
+   "status": "OK"
+  },
+  "scripts.checkers.check_reconciliation_gate": {
+   "file": "scripts/checkers/check_reconciliation_gate.py",
+   "status": "OK"
+  },
+  "scripts.checkers.check_rewrite_maps": {
+   "file": "scripts/checkers/check_rewrite_maps.py",
+   "status": "OK"
+  },
+  "scripts.checkers.check_secrets": {
+   "file": "scripts/checkers/check_secrets.py",
+   "status": "OK"
+  },
+  "scripts.checkers.check_ui_contract": {
+   "file": "scripts/checkers/check_ui_contract.py",
+   "status": "OK"
+  },
+  "scripts.checkers.check_verbatim_citation": {
+   "file": "scripts/checkers/check_verbatim_citation.py",
+   "status": "OK"
+  },
+  "scripts.checkers.check_wiring": {
+   "file": "scripts/checkers/check_wiring.py",
+   "status": "SKIPPED(top-level For block)"
+  },
+  "scripts.codex_bifrost_wake": {
+   "file": "scripts/codex_bifrost_wake.py",
+   "status": "OK"
+  },
+  "scripts.corpus_digests": {
+   "file": "scripts/corpus_digests.py",
+   "status": "OK"
+  },
+  "scripts.dawe_census": {
+   "file": "scripts/dawe_census.py",
+   "status": "OK"
+  },
+  "scripts.deepseek_chat": {
+   "file": "scripts/deepseek_chat.py",
+   "status": "OK"
+  },
+  "scripts.discord_setup": {
+   "file": "scripts/discord_setup.py",
+   "status": "OK"
+  },
+  "scripts.enrich_corpus": {
+   "file": "scripts/enrich_corpus.py",
+   "status": "OK"
+  },
+  "scripts.g_recall_at_seed": {
+   "file": "scripts/g_recall_at_seed.py",
+   "status": "SKIPPED(top-level call random.seed())"
+  },
+  "scripts.gemini_chat": {
+   "file": "scripts/gemini_chat.py",
+   "status": "OK"
+  },
+  "scripts.gemini_web": {
+   "file": "scripts/gemini_web.py",
+   "status": "SKIPPED(top-level For block)"
+  },
+  "scripts.generators._tracked": {
+   "file": "scripts/generators/_tracked.py",
+   "status": "OK"
+  },
+  "scripts.generators.gen_arch_index": {
+   "file": "scripts/generators/gen_arch_index.py",
+   "status": "OK"
+  },
+  "scripts.generators.gen_avatars": {
+   "file": "scripts/generators/gen_avatars.py",
+   "status": "OK"
+  },
+  "scripts.generators.gen_datasheet": {
+   "file": "scripts/generators/gen_datasheet.py",
+   "status": "OK"
+  },
+  "scripts.generators.gen_doors": {
+   "file": "scripts/generators/gen_doors.py",
+   "status": "OK"
+  },
+  "scripts.generators.gen_library": {
+   "file": "scripts/generators/gen_library.py",
+   "status": "OK"
+  },
+  "scripts.generators.gen_master_map": {
+   "file": "scripts/generators/gen_master_map.py",
+   "status": "OK"
+  },
+  "scripts.generators.gen_physics_sheet": {
+   "file": "scripts/generators/gen_physics_sheet.py",
+   "status": "OK"
+  },
+  "scripts.generators.gen_ports": {
+   "file": "scripts/generators/gen_ports.py",
+   "status": "OK"
+  },
+  "scripts.generators.gen_prior_art_register": {
+   "file": "scripts/generators/gen_prior_art_register.py",
+   "status": "OK"
+  },
+  "scripts.generators.gen_report_scaffold": {
+   "file": "scripts/generators/gen_report_scaffold.py",
+   "status": "OK"
+  },
+  "scripts.githooks": {
+   "file": "scripts/githooks/__init__.py",
+   "status": "OK"
+  },
+  "scripts.githooks.birth_guard": {
+   "file": "scripts/githooks/birth_guard.py",
+   "status": "OK"
+  },
+  "scripts.githooks.coauthor": {
+   "file": "scripts/githooks/coauthor.py",
+   "status": "OK"
+  },
+  "scripts.githooks.commit_msg": {
+   "file": "scripts/githooks/commit_msg.py",
+   "status": "OK"
+  },
+  "scripts.githooks.install_git_hooks": {
+   "file": "scripts/githooks/install_git_hooks.py",
+   "status": "OK"
+  },
+  "scripts.githooks.mojibake_signatures": {
+   "file": "scripts/githooks/mojibake_signatures.py",
+   "status": "OK"
+  },
+  "scripts.githooks.post_commit": {
+   "file": "scripts/githooks/post_commit.py",
+   "status": "OK"
+  },
+  "scripts.githooks.pre_commit": {
+   "file": "scripts/githooks/pre_commit.py",
+   "status": "OK"
+  },
+  "scripts.harmonize_knowledge": {
+   "file": "scripts/harmonize_knowledge.py",
+   "status": "OK"
+  },
+  "scripts.hooks.claude_browser_guard": {
+   "file": "scripts/hooks/claude_browser_guard.py",
+   "status": "OK"
+  },
+  "scripts.hooks.claude_posttooluse": {
+   "file": "scripts/hooks/claude_posttooluse.py",
+   "status": "OK"
+  },
+  "scripts.hooks.claude_pretooluse": {
+   "file": "scripts/hooks/claude_pretooluse.py",
+   "status": "OK"
+  },
+  "scripts.hooks.claude_sessionend": {
+   "file": "scripts/hooks/claude_sessionend.py",
+   "status": "OK"
+  },
+  "scripts.hooks.claude_sessionstart": {
+   "file": "scripts/hooks/claude_sessionstart.py",
+   "status": "OK"
+  },
+  "scripts.hooks.claude_stop": {
+   "file": "scripts/hooks/claude_stop.py",
+   "status": "OK"
+  },
+  "scripts.hooks.claude_trace": {
+   "file": "scripts/hooks/claude_trace.py",
+   "status": "OK"
+  },
+  "scripts.hooks.claude_userpromptsubmit": {
+   "file": "scripts/hooks/claude_userpromptsubmit.py",
+   "status": "OK"
+  },
+  "scripts.install_dsh_plugin": {
+   "file": "scripts/install_dsh_plugin.py",
+   "status": "OK"
+  },
+  "scripts.kimi_chat": {
+   "file": "scripts/kimi_chat.py",
+   "status": "OK"
+  },
+  "scripts.kimi_walk_narrator": {
+   "file": "scripts/kimi_walk_narrator.py",
+   "status": "OK"
+  },
+  "scripts.lens_ledger": {
+   "file": "scripts/lens_ledger.py",
+   "status": "OK"
+  },
+  "scripts.local.anonymize_bakeoff": {
+   "file": "scripts/local/anonymize_bakeoff.py",
+   "status": "OK"
+  },
+  "scripts.local.preflight_local_model": {
+   "file": "scripts/local/preflight_local_model.py",
+   "status": "OK"
+  },
+  "scripts.local.websearch": {
+   "file": "scripts/local/websearch.py",
+   "status": "OK"
+  },
+  "scripts.look": {
+   "file": "scripts/look.py",
+   "status": "OK"
+  },
+  "scripts.map_generator": {
+   "file": "scripts/map_generator.py",
+   "status": "OK"
+  },
+  "scripts.mcp_register": {
+   "file": "scripts/mcp_register.py",
+   "status": "OK"
+  },
+  "scripts.migrate_time_scores": {
+   "file": "scripts/migrate_time_scores.py",
+   "status": "OK"
+  },
+  "scripts.mirror": {
+   "file": "scripts/mirror.py",
+   "status": "OK"
+  },
+  "scripts.necropsy": {
+   "file": "scripts/necropsy.py",
+   "status": "OK"
+  },
+  "scripts.ops.archive_ephemeral": {
+   "file": "scripts/ops/archive_ephemeral.py",
+   "status": "OK"
+  },
+  "scripts.ops.archive_transcripts": {
+   "file": "scripts/ops/archive_transcripts.py",
+   "status": "OK"
+  },
+  "scripts.ops.failsafe_watcher": {
+   "file": "scripts/ops/failsafe_watcher.py",
+   "status": "OK"
+  },
+  "scripts.ops.mem_watch": {
+   "file": "scripts/ops/mem_watch.py",
+   "status": "OK"
+  },
+  "scripts.ops.redact": {
+   "file": "scripts/ops/redact.py",
+   "status": "OK"
+  },
+  "scripts.ops.reheal_durable_tier": {
+   "file": "scripts/ops/reheal_durable_tier.py",
+   "status": "OK"
+  },
+  "scripts.ops.snapshot_knowledge": {
+   "file": "scripts/ops/snapshot_knowledge.py",
+   "status": "OK"
+  },
+  "scripts.ops.sweep_drill_keys": {
+   "file": "scripts/ops/sweep_drill_keys.py",
+   "status": "OK"
+  },
+  "scripts.piano_follow_frames": {
+   "file": "scripts/piano_follow_frames.py",
+   "status": "OK"
+  },
+  "scripts.piano_roll_pack": {
+   "file": "scripts/piano_roll_pack.py",
+   "status": "OK"
+  },
+  "scripts.piano_roll_render": {
+   "file": "scripts/piano_roll_render.py",
+   "status": "OK"
+  },
+  "scripts.quiet.sitecustomize": {
+   "file": "scripts/quiet/sitecustomize.py",
+   "status": "OK"
+  },
+  "scripts.rb25_storm_burst": {
+   "file": "scripts/rb25_storm_burst.py",
+   "status": "OK"
+  },
+  "scripts.remote_bridge_fetch": {
+   "file": "scripts/remote_bridge_fetch.py",
+   "status": "OK"
+  },
+  "scripts.remote_bridge_listener": {
+   "file": "scripts/remote_bridge_listener.py",
+   "status": "OK"
+  },
+  "scripts.remote_bridge_relay": {
+   "file": "scripts/remote_bridge_relay.py",
+   "status": "OK"
+  },
+  "scripts.remote_bridge_supervise": {
+   "file": "scripts/remote_bridge_supervise.py",
+   "status": "OK"
+  },
+  "scripts.remote_bridge_watch": {
+   "file": "scripts/remote_bridge_watch.py",
+   "status": "OK"
+  },
+  "scripts.repair_learning_index": {
+   "file": "scripts/repair_learning_index.py",
+   "status": "OK"
+  },
+  "scripts.revive": {
+   "file": "scripts/revive.py",
+   "status": "OK"
+  },
+  "scripts.rewrite_recover": {
+   "file": "scripts/rewrite_recover.py",
+   "status": "OK"
+  },
+  "scripts.round_archive": {
+   "file": "scripts/round_archive.py",
+   "status": "OK"
+  },
+  "scripts.run_job": {
+   "file": "scripts/run_job.py",
+   "status": "OK"
+  },
+  "scripts.runner_token_journal": {
+   "file": "scripts/runner_token_journal.py",
+   "status": "OK"
+  },
+  "scripts.runners.renew_bus_recorder": {
+   "file": "scripts/runners/renew_bus_recorder.py",
+   "status": "OK"
+  },
+  "scripts.runners.renew_deepseek_solo": {
+   "file": "scripts/runners/renew_deepseek_solo.py",
+   "status": "SKIPPED(top-level For block)"
+  },
+  "scripts.season_dryrun": {
+   "file": "scripts/season_dryrun.py",
+   "status": "OK"
+  },
+  "scripts.season_fan_calibration": {
+   "file": "scripts/season_fan_calibration.py",
+   "status": "OK"
+  },
+  "scripts.season_llm_player": {
+   "file": "scripts/season_llm_player.py",
+   "status": "OK"
+  },
+  "scripts.seed_narrative": {
+   "file": "scripts/seed_narrative.py",
+   "status": "OK"
+  },
+  "scripts.seed_world": {
+   "file": "scripts/seed_world.py",
+   "status": "OK"
+  },
+  "scripts.shift_daemon": {
+   "file": "scripts/shift_daemon.py",
+   "status": "OK"
+  },
+  "scripts.ship": {
+   "file": "scripts/ship.py",
+   "status": "OK"
+  },
+  "scripts.ship_gate": {
+   "file": "scripts/ship_gate.py",
+   "status": "OK"
+  },
+  "scripts.snapshot": {
+   "file": "scripts/snapshot.py",
+   "status": "OK"
+  },
+  "scripts.sol_chat": {
+   "file": "scripts/sol_chat.py",
+   "status": "OK"
+  },
+  "scripts.trader_archivist": {
+   "file": "scripts/trader_archivist.py",
+   "status": "OK"
+  },
+  "scripts.ui_shot": {
+   "file": "scripts/ui_shot.py",
+   "status": "OK"
+  },
+  "scripts.vfx_ingest": {
+   "file": "scripts/vfx_ingest.py",
+   "status": "OK"
+  },
+  "scripts.vfx_probe_chroma": {
+   "file": "scripts/vfx_probe_chroma.py",
+   "status": "OK"
+  },
+  "scripts.vfx_probe_metrics": {
+   "file": "scripts/vfx_probe_metrics.py",
+   "status": "OK"
+  },
+  "scripts.vfx_render": {
+   "file": "scripts/vfx_render.py",
+   "status": "OK"
+  },
+  "scripts.web_door": {
+   "file": "scripts/web_door.py",
+   "status": "OK"
+  },
+  "scripts.wire_journal": {
+   "file": "scripts/wire_journal.py",
+   "status": "OK"
+  },
+  "scripts.worktree": {
+   "file": "scripts/worktree.py",
+   "status": "OK"
+  },
+  "scripts.world_diff": {
+   "file": "scripts/world_diff.py",
+   "status": "OK"
+  },
+  "scripts.world_fidelity": {
+   "file": "scripts/world_fidelity.py",
+   "status": "OK"
+  },
+  "scripts.world_savepoint": {
+   "file": "scripts/world_savepoint.py",
+   "status": "OK"
+  },
+  "scripts.yt_captions": {
+   "file": "scripts/yt_captions.py",
+   "status": "OK"
+  },
+  "seat_topology": {
+   "file": "seat_topology.py",
+   "status": "OK"
+  },
+  "state.coord._register_f004": {
+   "file": "state/coord/_register_f004.py",
+   "status": "SKIPPED(top-level call print())"
+  }
+ }
+}

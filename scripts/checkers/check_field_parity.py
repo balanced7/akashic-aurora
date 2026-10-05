@@ -121,8 +121,11 @@ def _records():
     out = {}
     try:
         import redis
-        r = redis.Redis(host=os.environ.get("AKASHIC_REDIS_HOST", "localhost"),
-                        port=int(os.environ.get("AKASHIC_REDIS_PORT", 16379)),
+        from core.foundation.redis_connection import ensure_redis_server
+        _host = os.environ.get("AKASHIC_REDIS_HOST", "localhost")
+        _port = int(os.environ.get("AKASHIC_REDIS_PORT", 16379))
+        ensure_redis_server(_host, _port)          # starts the embedded server if that is ours
+        r = redis.Redis(host=_host, port=_port,
                         decode_responses=True, socket_connect_timeout=3)
         r.ping()
     except Exception as e:

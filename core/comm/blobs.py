@@ -50,8 +50,18 @@ class BlobStore:
 
     @staticmethod
     def _sha_of_ref(ref: str) -> Optional[str]:
+        """The hash a ref names -- or None unless it is EXACTLY what put() mints (_SHA_LEN lowercase
+        hex). Everything after `blob:` used to be joined onto the store's base unvalidated, so
+        `blob:../../../../etc/passwd` read /etc/passwd through the signed /blob door (it only
+        looked safe on Windows because that file does not exist there). A ref that cannot be a
+        hash is now refused before any path is built."""
         s = str(ref or "")
-        return s[len(PREFIX):] if s.startswith(PREFIX) else None
+        if not s.startswith(PREFIX):
+            return None
+        sha = s[len(PREFIX):]
+        if len(sha) != _SHA_LEN or any(c not in "0123456789abcdef" for c in sha):
+            return None
+        return sha
 
     def put(self, data) -> str:
         """Store bytes (or a str, utf-8 encoded). Returns a `blob:<sha>` ref. Idempotent (dedup),

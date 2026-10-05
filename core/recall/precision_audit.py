@@ -59,10 +59,13 @@ from __future__ import annotations
 import glob
 import json
 import os
+import tempfile
 import random
 from typing import Any, Dict, List, Optional
 
-_DEFAULT_IMP = os.path.join(os.environ.get("TEMP", "/tmp"), "akashic_recall", "imp")
+# Same root the recall hooks WRITE to (agent/harness/*): a reader on a different temp dir reads nothing.
+_DEFAULT_IMP = os.path.join(os.getenv("AKASHIC_RECALL_STATE_DIR")
+                            or os.path.join(tempfile.gettempdir(), "akashic_recall"), "imp")
 
 PRECISION_OK = 0.80
 PRECISION_BROKEN = 0.60

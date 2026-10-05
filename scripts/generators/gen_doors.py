@@ -14,6 +14,15 @@ import argparse
 import os
 import sys
 
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+        return python_launcher()
+    except Exception:
+        return "py"
+
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # T104-M1 depth
 OUT = os.path.join(ROOT, "docs", "DOORS.md")
 sys.path.insert(0, ROOT)
@@ -56,12 +65,12 @@ def render(verbs):
         "Status: current",
         "Class: reference",
         "",
-        "> Do NOT edit by hand. Regenerate with `py scripts/generators/gen_doors.py`.",
+        f"> Do NOT edit by hand. Regenerate with `{_pyl()} scripts/generators/gen_doors.py`.",
         "> What goes IN each door and what it is FOR, derived from the door's own declaration",
         "> (argparse). Companion to MAP.md (modules), PHYSICS.md (bounds/flags). Guarded by",
         "> check_comprehensibility so it cannot silently rot.",
         "",
-        f"## CLI door -- `py agent_cli.py <verb>` ({len(verbs)} verbs)",
+        f"## CLI door -- `{_pyl()} agent_cli.py <verb>` ({len(verbs)} verbs)",
         "",
         "The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepted values.",
         "",
@@ -109,7 +118,7 @@ def main():
                 print("DOORS.md current"); return 0
         except OSError:
             pass
-        print("DOORS.md STALE vs code -- regenerate (py scripts/generators/gen_doors.py)"); return 1
+        print(f"DOORS.md STALE vs code -- regenerate ({_pyl()} scripts/generators/gen_doors.py)"); return 1
     with open(OUT, "w", encoding="utf-8", newline="\n") as fh:
         fh.write(text)
     print(f"wrote docs/DOORS.md: {len(verbs)} CLI verbs")

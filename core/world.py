@@ -181,6 +181,38 @@ def _from_name(leaf: str) -> Optional[str]:
     return None
 
 
+def checkout_of(world: str, root: Optional[Path] = None,
+                env: Optional[Mapping[str, str]] = None) -> Path:
+    """Where `world`'s checkout lives, DERIVED from this one rather than pinned to a drive.
+
+    The worlds are sibling checkouts sharing one base name: AI-Setup / AI-Setup-Beta /
+    AI-Setup-Alpha on the original box, aurora / aurora-Beta / aurora-Alpha elsewhere. Strip
+    this checkout's own world suffix to find the base, then add the one asked for. An
+    existing sibling wins over the canonical spelling, so a lowercase clone is still found on
+    a case-sensitive filesystem. AKASHIC_CHECKOUT_<WORLD> overrides for a layout that is not
+    siblings -- a fine thing to have and a terrible thing to depend on (core/paths.py).
+    """
+    env = os.environ if env is None else env
+    world = ALIASES.get(world, world)
+    override = (env.get(f"AKASHIC_CHECKOUT_{world.upper()}") or "").strip()
+    if override:
+        return Path(override)
+    root = Path(root) if root is not None else repo_root()
+    leaf = root.name
+    base = leaf
+    for w in (*WORLDS, *ALIASES):
+        if w == "prod":
+            continue
+        for sep in ("-", "_"):
+            if leaf.lower().endswith(f"{sep}{w}"):
+                base = leaf[: -len(w) - 1]
+    if world == "prod":
+        return root.parent / base
+    candidates = [root.parent / f"{base}{sep}{name}"
+                  for sep in ("-", "_") for name in (world.capitalize(), world)]
+    return next((c for c in candidates if c.is_dir()), candidates[0])
+
+
 def resolve(root: Optional[Path] = None,
             env: Optional[Mapping[str, str]] = None) -> World:
     """Resolve the world. Never raises -- an unresolvable checkout gets UNKNOWN."""

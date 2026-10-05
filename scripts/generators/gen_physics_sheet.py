@@ -15,6 +15,15 @@ import re
 import subprocess
 import sys
 
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+        return python_launcher()
+    except Exception:
+        return "py"
+
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # T104-M1 depth
 OUT = os.path.join(ROOT, "docs", "PHYSICS.md")
 
@@ -142,7 +151,7 @@ def render(flags, bounds, sha):
         "Status: current",
         "Class: reference",
         "",
-        "> Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.",
+        f"> Do NOT edit by hand. Regenerate with `{_pyl()} scripts/generators/gen_physics_sheet.py`.",
         f"> Derived at {sha}. A bound you discover by collision is not awareness -- this sheet",
         "> exists so every clip, cap, timeout and flag is READABLE before it is HIT.",
         "> Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require",
@@ -182,7 +191,7 @@ def main():
         # compare bodies minus the derived-at line (sha churn is not staleness)
         strip = lambda t: "\n".join(l for l in t.splitlines() if not l.startswith("> Derived at "))
         if strip(old) != strip(text):
-            print("PHYSICS.md STALE vs code -- regenerate (py scripts/generators/gen_physics_sheet.py)"); return 1
+            print(f"PHYSICS.md STALE vs code -- regenerate ({_pyl()} scripts/generators/gen_physics_sheet.py)"); return 1
         print("PHYSICS.md current"); return 0
     with open(OUT, "w", encoding="utf-8", newline="\n") as fh:
         fh.write(text)

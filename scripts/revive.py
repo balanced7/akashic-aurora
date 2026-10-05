@@ -77,6 +77,15 @@ class ReviveLocked(RuntimeError):
 
 
 # ------------------------------------------------------------------- observe
+def _embedded_backend() -> bool:
+    """True when this checkout's bus runs on the embedded Redis (no Redis server here)."""
+    try:
+        from core.foundation.embedded_redis import configured_backend
+        return configured_backend() == "embedded"
+    except Exception:                                                   # noqa: BLE001
+        return False
+
+
 def _procs() -> List[str]:
     try:
         r = subprocess.run(["tasklist", "/FO", "CSV", "/V"], capture_output=True,
@@ -100,7 +109,21 @@ def _cmdlines() -> Optional[str]:
     minutes and put four concurrent gateways up before the 2026-08-26 exhaustion.
 
     An empty STRING still means a genuine zero -- the probe answered and found nothing.
+
+    Outside Windows there is no CIM: psutil reads the same command lines (one per line, the
+    shape every consumer below already parses), with the same None-means-unreadable contract.
     """
+    if os.name != "nt":
+        try:
+            import psutil
+            lines = []
+            for p in psutil.process_iter(["name", "cmdline"]):
+                cmd = p.info.get("cmdline") or []
+                if cmd and "python" in (p.info.get("name") or os.path.basename(cmd[0])).lower():
+                    lines.append(" ".join(cmd))
+            return "\n".join(lines)
+        except Exception:                                               # noqa: BLE001
+            return None
     try:
         r = subprocess.run(
             ["powershell", "-NoProfile", "-Command",
@@ -254,9 +277,14 @@ def decide(observed: Dict[str, Dict[str, Any]],
             plan.append({"organ": "app", "kind": "msix-repair",
                          "pkg": row.get("pkg")})
         elif organ == "redis":
-            plan.append({"organ": "redis",
-                         "cmd": ["docker", "start", REDIS_CONTAINER],
-                         "kind": "docker-start"})
+            if _embedded_backend():
+                # No Redis server installed: the bus runs on the embedded server, and
+                # healing it means starting that, not a Docker container that is not there.
+                plan.append({"organ": "redis", "kind": "embedded-start"})
+            else:
+                plan.append({"organ": "redis",
+                             "cmd": ["docker", "start", REDIS_CONTAINER],
+                             "kind": "docker-start"})
         elif organ == "daemon":
             # HEAL-ONLY-THE-DEAD (Sol audit R2): observed carries `dead` per agent
             # (observe() populates it from _live()). Looping over every DAEMON_AGENTS
@@ -385,6 +413,10 @@ def _heal_step(step: Dict[str, Any]) -> bool:
     try:
         if kind == "msix-repair":
             return _heal_app(step)
+        if kind == "embedded-start":
+            from core.foundation.embedded_redis import ensure_running
+            from core.foundation.redis_connection import DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT
+            return ensure_running(DEFAULT_REDIS_HOST, DEFAULT_REDIS_PORT)
         if kind == "docker-start":
             r = subprocess.run(step["cmd"], capture_output=True, text=True,
                                timeout=60, creationflags=_NO_WINDOW)
@@ -395,11 +427,15 @@ def _heal_step(step: Dict[str, Any]) -> bool:
                 ROOT, "state", "logs",
                 f"revive-{step['organ']}-{int(time.time())}.log"),
                 "a", encoding="utf-8")
-            flags = 0x00000008 | 0x00000200      # DETACHED | NEW_PROCESS_GROUP
             env = dict(os.environ)
             env.setdefault("BIFROST_CONSUME_LANE", "work")
-            subprocess.Popen(step["cmd"], stdout=log, stderr=log, cwd=ROOT,
-                             creationflags=flags, env=env)
+            if os.name == "nt":
+                flags = 0x00000008 | 0x00000200      # DETACHED | NEW_PROCESS_GROUP
+                subprocess.Popen(step["cmd"], stdout=log, stderr=log, cwd=ROOT,
+                                 creationflags=flags, env=env)
+            else:                                    # POSIX: its own session outlives us
+                subprocess.Popen(step["cmd"], stdout=log, stderr=log, cwd=ROOT,
+                                 start_new_session=True, env=env)
             return True
     except Exception:                                                   # noqa: BLE001
         return False

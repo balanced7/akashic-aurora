@@ -18,6 +18,15 @@ a runtime actually does (e.g. on Cursor a lesson can only arrive one beat late, 
 should not expect pre-action warnings there).
 """
 
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+        return python_launcher()
+    except Exception:
+        return "py"
+
 TIERS = ("T0", "T1", "T2", "T3", "T4", "T5", "T6")
 
 HARNESSES = {
@@ -40,7 +49,7 @@ HARNESSES = {
         "adapters": "out-of-tree dsh-posttool (cordis) plugin -> "
                     "core/recall/actions.py::recall_context (importable contract)",
         "tiers": {
-            "T0": "yes -- exec proven: the dsh seat drives the house CLI (py agent_cli.py) "
+            "T0": f"yes -- exec proven: the dsh seat drives the house CLI ({_pyl()} agent_cli.py) "
                   "and messages peers over the Bifrost bus",
             "T1": "yes -- $DSH_HOME/.env user-env layer (dsh-launch-environment) stamps "
                   "AKASHIC_AGENT_ID=dsh_agent + AKASHIC_REPO; verified live 2026-08-24: "
@@ -86,13 +95,13 @@ HARNESSES = {
         "default_agent_id": None,   # any agent id; set AKASHIC_AGENT_ID yourself
         "adapters": "none -- the AGENTS.md contract, followed manually",
         "tiers": {
-            "T0": "yes -- py agent_cli.py (the one door)",
+            "T0": f"yes -- {_pyl()} agent_cli.py (the one door)",
             "T1": "manual -- export AKASHIC_AGENT_ID before working",
-            "T2": "manual -- py agent_cli.py boot <id> --task ...",
-            "T3": "manual -- py agent_cli.py recall-at --path/--command before acting",
-            "T4": "manual -- py agent_cli.py learn / recall-feedback",
+            "T2": f"manual -- {_pyl()} agent_cli.py boot <id> --task ...",
+            "T3": f"manual -- {_pyl()} agent_cli.py recall-at --path/--command before acting",
+            "T4": f"manual -- {_pyl()} agent_cli.py learn / recall-feedback",
             "T5": "unavailable -- no per-prompt seam exists",
-            "T6": "manual -- py agent_cli.py wrap --commit",
+            "T6": f"manual -- {_pyl()} agent_cli.py wrap --commit",
         },
     },
 }

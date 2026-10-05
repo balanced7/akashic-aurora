@@ -34,6 +34,15 @@ import json
 import os
 import sys
 
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+        return python_launcher()
+    except Exception:
+        return "py"
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
 
 
@@ -70,7 +79,7 @@ def build_bus_line(agent_id: str) -> str:
         return ""
     if not n:
         return ""
-    return f"[akashic] mail: {n} unread bus msg(s) -> py agent_cli.py bifrost-sync {agent_id}"
+    return f"[akashic] mail: {n} unread bus msg(s) -> {_pyl()} agent_cli.py bifrost-sync {agent_id}"
 
 
 def build_page_lines() -> list:

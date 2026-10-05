@@ -151,3 +151,47 @@ def env_override_is_wrong() -> Optional[str]:
         missing = [m for m in _MARKERS if not (p / m).exists()]
         return f"AI_SETUP={env!r} is not a repo root (missing: {', '.join(missing)})"
     return None
+
+
+def env_paths(name: str) -> "list[Path]":
+    """Absolute paths from the env var `name`, separated by os.pathsep (';' on Windows, ':'
+    elsewhere). For locations that are genuinely MACHINE-SPECIFIC -- a second physical disk,
+    a tool installed somewhere odd -- and so cannot be derived the way repo_root() is.
+
+    A relative entry is DROPPED with a warning, never resolved: 'E:\\x' on Linux is a relative
+    path, and resolving it against the cwd is how a Windows literal became a stray folder
+    inside the repo. Unset or empty -> [] (the caller decides what "not configured" means).
+    """
+    import sys
+    out = []
+    for part in (os.environ.get(name) or "").split(os.pathsep):
+        part = part.strip().strip('"')
+        if not part:
+            continue
+        p = Path(os.path.expanduser(part))
+        if p.is_absolute():
+            out.append(p)
+        else:
+            print(f"[paths] {name}: ignoring {part!r} -- not an absolute path on this OS",
+                  file=sys.stderr)
+    return out
+
+
+def python_launcher() -> str:
+    """The command prefix that runs Aurora's Python on THIS machine, for commands shown to (or
+    run by) an agent: `<launcher> scripts/x.py`, `<launcher> -m pytest`, `<launcher> agent_cli.py`.
+
+    One launcher on every OS: `uv run` when uv and the repo's pyproject are present -- it brings
+    Aurora's locked dependencies with it. Without uv, Windows falls back to the `py` launcher
+    and everything else to plain `python3` (`py` does not exist there). AKASHIC_PYTHON
+    overrides for any other setup. scripts/githooks/pyrun is the same chain for shell scripts.
+    """
+    override = (os.getenv("AKASHIC_PYTHON") or "").strip()
+    if override:
+        return override
+    import shutil
+    if shutil.which("uv") and (repo_root() / "pyproject.toml").exists():
+        return "uv run"
+    if os.name == "nt":
+        return "py"
+    return "python3"

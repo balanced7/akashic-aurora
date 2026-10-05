@@ -28,6 +28,15 @@ from typing import Any, Dict, List, Optional, Set
 
 from core.foundation.timeutil import now_iso
 
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+        return python_launcher()
+    except Exception:
+        return "py"
+
 _ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # state/coord/ is the ledger's own git-TRACKED home (state/*.json at top level is
 # gitignored -- kimi's amendment (c) requires git-durable, so the queue lives here).
@@ -111,5 +120,5 @@ def render_boot_section(*, agent_caps: Set[str]) -> str:
         why = f"  ({i['why']})" if i.get("why") else ""
         lines.append(f"#   [{i['id']}] {i['cmd']}{why}  <- {i['by']}, {i['filed_at'][:10]}")
     if len(runnable) > BOOT_CAP:
-        lines.append(f"#   ...+{len(runnable) - BOOT_CAP} more: py agent_cli.py defer <you> --list")
+        lines.append(f"#   ...+{len(runnable) - BOOT_CAP} more: {_pyl()} agent_cli.py defer <you> --list")
     return "\n".join(lines)

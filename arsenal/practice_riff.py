@@ -62,6 +62,15 @@ from .jam import tempomap as tm
 from .jam.resolve import tone_name
 from .performance import PerformanceError, PerformanceStore
 
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+        return python_launcher()
+    except Exception:
+        return "py"
+
 HERE = Path(__file__).resolve().parent
 DEFAULT_JAM_ROOT = HERE.parent / "state" / "arsenal" / "jam"
 GROOVE_BRIDGE = HERE / "groove_bridge.mjs"
@@ -247,11 +256,11 @@ def _degree(number: Optional[str]) -> Optional[str]:
 
 
 def replay_command(session: str, t_ms: float, seconds: float) -> str:
-    return f"py -m arsenal.pianocue replay {session} {pr.clock(max(0.0, t_ms))} --seconds {_fmt(seconds)}"
+    return f"{_pyl()} -m arsenal.pianocue replay {session} {pr.clock(max(0.0, t_ms))} --seconds {_fmt(seconds)}"
 
 
 def save_command(session: str, t_ms: float) -> str:
-    return f"py -m arsenal.pianocue template save-from-moment {session} {pr.clock(t_ms)}"
+    return f"{_pyl()} -m arsenal.pianocue template save-from-moment {session} {pr.clock(t_ms)}"
 
 
 # ========================================================================================= chord facts
@@ -2208,7 +2217,7 @@ def _parse_bars(text: str) -> Tuple[int, int]:
 
 
 def main(argv=None) -> int:
-    parser = argparse.ArgumentParser(prog="py -m arsenal.practice riff",
+    parser = argparse.ArgumentParser(prog=f"{_pyl()} -m arsenal.practice riff",
                                      description="His notes against a jam run's bars and chords (read only).")
     parser.add_argument("run", nargs="?", default=None,
                         help="a run id or latest (the default; with --session alone, every run in that session)")
@@ -2248,7 +2257,7 @@ def main(argv=None) -> int:
         print(exc, file=sys.stderr)
         return exc.code
     except PerformanceError as exc:
-        print(f"{exc}; try: py -m arsenal.practice sessions", file=sys.stderr)
+        print(f"{exc}; try: {_pyl()} -m arsenal.practice sessions", file=sys.stderr)
         return 2
     except ValueError as exc:
         print(exc, file=sys.stderr)

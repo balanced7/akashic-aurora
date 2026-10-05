@@ -1,0 +1,16 @@
+# G6 -- packaging and layout (class E; only if PF4 is ticked). Registered in G0. Append-only.
+goal = "G6"
+required_drills = []
+
+[[check]]
+id = "G6.decision-recorded"
+phase = "G6.P1"
+cmd = ["{python}", "tooling-upgrade/certify.py", "assert-ledger-entry", "G6"]
+expect = 0
+
+[[check]]
+id = "G6.oracle"
+phase = "G6.P1"
+cmd = ["{python}", "tooling-upgrade/oracle.py", "compare", "g0", "head"]
+expect = 0
+expect_stdout = "^ORACLE: 10/10 EQUAL$"

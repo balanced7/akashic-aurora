@@ -1,0 +1,25 @@
+#!/bin/sh
+# pyrun -- run Aurora's Python with its dependencies, the same way on every OS (plan G1.P5).
+#
+#   sh scripts/githooks/pyrun <script.py | -m module | -c code> [args...]
+#
+# Resolution order, first hit wins:
+#   1. $AKASHIC_PYTHON            an explicit interpreter or launcher for any other setup
+#   2. uv run --frozen --quiet    the project's locked environment (the primary path)
+#   3. py                         the Windows launcher: the documented fallback without uv
+#   4. python3                    anything else
+# Sourcing this file (`. scripts/githooks/pyrun`) defines the pyrun function without running it.
+pyrun() {
+    if [ -n "${AKASHIC_PYTHON:-}" ]; then
+        $AKASHIC_PYTHON "$@"
+    elif command -v uv >/dev/null 2>&1; then
+        uv run --frozen --quiet python "$@"
+    elif command -v py >/dev/null 2>&1; then py "$@"     # the documented Windows fallback
+    else
+        python3 "$@"
+    fi
+}
+
+case "${0##*/}" in
+    pyrun) pyrun "$@" ;;
+esac

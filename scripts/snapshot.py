@@ -6,13 +6,22 @@ import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from core.comm.session_state import save, list_snapshots
 
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+        return python_launcher()
+    except Exception:
+        return "py"
+
 label = sys.argv[1] if len(sys.argv) > 1 else ""
 result = save(label=label)
 if result["ok"]:
     print(f"💾 SAVED: {result['path']}")
     print(f"   Running agents: {result['running']}")
     print(f"   Online agents:  {result['online']}")
-    print(f"\n   Resume tomorrow with: py scripts/snapshot.py --resume")
+    print(f"\n   Resume tomorrow with: {_pyl()} scripts/snapshot.py --resume")
     print(f"   Or from the Bifrost UI: click 🔄 Resume")
 else:
     print(f"❌ FAILED: {result.get('error', 'unknown')}")

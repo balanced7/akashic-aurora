@@ -28,6 +28,15 @@ import re
 from pathlib import Path
 from typing import Any, Callable, Dict, Optional
 
+
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+        return python_launcher()
+    except Exception:
+        return "py"
+
 _ROOT = Path(__file__).resolve().parents[2]
 
 #: The R1 allowlist file — one line, all digits. env override is for pins only.
@@ -263,7 +272,7 @@ def spawn_credential_refusal(vault_token: str,
         return ("no credential for a fresh seat: the CLI reports logged out and the vault "
                 "holds no claude_oauth.token. Either `claude auth login` to restore the "
                 "session, or `claude setup-token` and vault it with "
-                "`py agent_cli.py secret claude_oauth.token` for one that outlives it")
+                f"`{_pyl()} agent_cli.py secret claude_oauth.token` for one that outlives it")
     return None
 
 

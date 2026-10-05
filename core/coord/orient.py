@@ -21,6 +21,15 @@ from typing import Any, Callable, Dict, Mapping, Optional
 from core.primitives.epistemic import derive_epistemic_view
 
 
+def _pyl() -> str:
+    """How to invoke Aurora's Python here: `py` on Windows, else core.paths.python_launcher()."""
+    try:
+        from core.paths import python_launcher
+        return python_launcher()
+    except Exception:
+        return "py"
+
+
 SCHEMA = "orient.scene.v1"
 _DENSITY_NEARBY = {"compact": 1, "standard": 3, "wide": 4}
 _DEPTHS = {"surface", "evidence"}
@@ -140,10 +149,10 @@ def _focus_drill(target: Mapping[str, str], result: Mapping[str, Any], subject: 
         if drill:
             return drill
     if target["kind"] == "thread":
-        return (f"py agent_cli.py capture --thread {target['name']} --agent {subject} "
+        return (f"{_pyl()} agent_cli.py capture --thread {target['name']} --agent {subject} "
                 f"--per-stream {per_stream} --json")
     continuity = " --continuity" if target["kind"] == "seat" else ""
-    return (f"py agent_cli.py ground {target['address']} --agent {subject}"
+    return (f"{_pyl()} agent_cli.py ground {target['address']} --agent {subject}"
             f"{continuity} --json")
 
 

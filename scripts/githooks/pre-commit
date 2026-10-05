@@ -1,4 +1,8 @@
 #!/bin/sh
 # Concurrency design C4 -- tracked, shared across worktrees via core.hooksPath.
 # Delegates to the Python backstop (rejects staging a peer's advisory-locked file).
-exec py scripts/githooks/pre_commit.py
+# Python runs through pyrun, the chain of scripts/githooks/pyrun inlined so this shim also
+# works alone: $AKASHIC_PYTHON, else uv run --frozen --quiet (Aurora's locked dependencies come
+# with it), else the Windows `py` launcher, else python3.
+pyrun() { if [ -n "${AKASHIC_PYTHON:-}" ]; then $AKASHIC_PYTHON "$@"; elif command -v uv >/dev/null 2>&1; then uv run --frozen --quiet python "$@"; elif command -v py >/dev/null 2>&1; then py "$@"; else python3 "$@"; fi; }
+pyrun scripts/githooks/pre_commit.py
