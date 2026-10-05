@@ -6,7 +6,8 @@
     "build": "next build",
     "dev": "next dev",
     "start": "next start",
-    "types:check": "next typegen && tsc --noEmit"
+    "types:check": "next typegen && tsc --noEmit",
+    "check:docs": "node scripts/check-docs.mjs"
   },
   "dependencies": {
     "cn": "^0.3.0",
