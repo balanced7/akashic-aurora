@@ -77,6 +77,12 @@ dev = [
     "ty>=0.0.84",
 ]
 
+[tool.turbo]
+name = "aurora"
+
+[tool.uv.workspace]
+members = ["tooling-upgrade"]
+
 [tool.uv]
 package = false
 required-version = ">=0.12"
@@ -1071,6 +1077,20 @@ sequence = [
 [tool.poe.tasks.test-fast]
 help = "Smoke set + tests impacted by uncommitted changes (REDIS_DB=15), well under 3 minutes"
 cmd = "python tooling-upgrade/oracle.py test-fast"
+
+[tool.poe.tasks.cached-gate]
+help = "`gate` through Turborepo (turbo.json): each member task runs in parallel and is cached on its inputs, so an unchanged tree replays in well under a second"
+cmd = "npx --yes turbo@2.11.7 run gate --filter=aurora"
+
+[tool.poe.tasks.cached-test]
+help = "`test` through Turborepo: the full suite, cached on the whole tree; refuses to run on a dirty tree (clean-tree), since `test` measures HEAD"
+cmd = "npx --yes turbo@2.11.7 run test --filter=aurora"
+
+[tool.poe.tasks.clean-tree]
+help = "Fail unless the working tree equals HEAD (no tracked edits, no untracked unignored files). `poe test` measures HEAD in a throwaway worktree, while Turborepo keys its cache on the working tree: this guard keeps the two the same, so a cached result is never replayed for untested edits"
+expr = "not subprocess.run(['git', 'status', '--porcelain', '--untracked-files=all'], capture_output=True, text=True, check=True).stdout.strip()"
+imports = ["subprocess"]
+assert = true
 
 [tool.poe.tasks.oracle]
 help = "Full behavioural oracle: snapshot HEAD, then compare it with the g0 baseline"

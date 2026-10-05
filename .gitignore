@@ -265,3 +265,6 @@ charters/daniel/*
 # above is not enough -- the ledger needs its own negation or it stays invisible. This
 # is the third distinct way tonight that a durable record nearly ended up untracked.
 !state/authorship/*.jsonl
+
+# Turborepo local cache and logs (turbo.json); also kept out of turbo's own input hashes
+.turbo/

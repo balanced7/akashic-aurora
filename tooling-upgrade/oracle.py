@@ -91,6 +91,7 @@ O8_ALLOWLIST = (
     "pytest.ini",
     ".github/**",
     ".pre-commit-config.yaml",
+    "turbo.json",  # Turborepo task cache over the uv workspace (added after G7)
     ".git-blame-ignore-revs",
     ".mcp.json",
     ".claude/settings.json",

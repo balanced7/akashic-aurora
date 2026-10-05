@@ -28,6 +28,12 @@ torch = "2026-10-01T12:00:00Z"
 transformers = "2026-10-01T12:00:00Z"
 uvicorn = "2026-10-01T12:00:00Z"
 
+[manifest]
+members = [
+    "akashic-aurora",
+    "aurora-tooling-upgrade",
+]
+
 [[package]]
 name = "aiohappyeyeballs"
 version = "2.7.1"
@@ -383,6 +389,11 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/72/bb/b4608537e9ffcb86449091939d52d24a055216a36a8bf66b936af8c3e7ac/audioop_lts-0.2.2-cp314-cp314t-win_amd64.whl", hash = "sha256:a5bf613e96f49712073de86f20dbdd4014ca18efd4d34ed18c75bd808337851b", size = 31697, upload-time = "2025-08-05T16:43:15.193Z" },
     { url = "https://files.pythonhosted.org/packages/f6/22/91616fe707a5c5510de2cac9b046a30defe7007ba8a0c04f9c08f27df312/audioop_lts-0.2.2-cp314-cp314t-win_arm64.whl", hash = "sha256:b492c3b040153e68b9fdaff5913305aaaba5bb433d8a7f73d5cf6a64ed3cc1dd", size = 25206, upload-time = "2025-08-05T16:43:16.444Z" },
 ]
+
+[[package]]
+name = "aurora-tooling-upgrade"
+version = "0.0.0"
+source = { virtual = "tooling-upgrade" }
 
 [[package]]
 name = "av"
