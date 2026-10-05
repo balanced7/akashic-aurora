@@ -676,7 +676,20 @@ def _trigger_aware_relevance(by_text: Dict[str, Dict[str, Any]]):
 
     def fn(text: str, query: str) -> float:
         it = by_text.get(text)
-        prose = _damped_overlap(text, query, weights)
+        # THE MATCH SURFACE, and this is the seam that scores (2026-10-05). `match_text` spans
+        # all three lesson text fields; `text` is the single provenance-tagged field the reader
+        # is shown. The Ranker hands this fn only (text, query) and `by_text` is keyed by the
+        # DISPLAY text, so the wide surface has to be fetched from the item here.
+        #
+        # Shipped wrong on 2026-10-03: match_text was added to the item and wired into
+        # `_item_tokens`, which is called in exactly one place -- `_idf_weights` -- so it
+        # widened the IDF CORPUS and not what anything could MATCH. The commit claimed "the
+        # ranker now matches 1.87M characters instead of 795k" and the ranker went on matching
+        # 795k. Navi's half_b caught it: her live-HEAD bench was identical to the pre-change
+        # bench, same three unmatchable ids, while her controlled proxy showed +4/+4/-5.
+        # Nothing had changed live because nothing about matching had changed.
+        prose_src = (it.get("match_text") if it else "") or text
+        prose = _damped_overlap(prose_src, query, weights)
         if not it:
             return prose
         trig = " ".join(filter(None, [it.get("trigger") or "",

@@ -157,3 +157,65 @@ def test_item_tokens_reads_the_match_surface():
     assert "match_text" in code, (
         "_item_tokens does not READ match_text (its docstring may still mention it) -- the "
         "field would be inert, which is the 'looks adopted but is not load-bearing' failure")
+
+
+# =============================================================================================
+# THE SEAM THE PINS ABOVE MISSED, added 2026-10-05 after Navi's half_b exposed it.
+#
+# Everything above is true and none of it made retrieval wider. `_item_tokens` is called in
+# exactly ONE place -- `_idf_weights` (at_action.py:634) -- which computes IDF document
+# frequencies. It is NOT the matcher. Scoring runs through `_trigger_aware_relevance`, whose
+# inner fn receives the Ranker's `text` (the single display field, because `by_text` is keyed
+# by it at at_action.py:1565) and hands THAT to `_damped_overlap`.
+#
+# So `match_text` widened the IDF CORPUS and not the MATCH SURFACE, and the commit that
+# shipped it claimed "the ranker now matches 1.87M characters instead of 795k", which was
+# false. The pins above all passed because they pinned the seam I believed in rather than the
+# seam that scores.
+#
+# THE EVIDENCE WAS IN HAND AND I EXPLAINED IT AWAY. Navi's half_b reported live-HEAD at
+# HIT@1 4 / HIT@5 5 / unmatchable {M1, M2, N8} -- identical to the pre-change bench, same three
+# ids -- against her controlled A/B showing +4/+4/-5. She tagged it [UNCERTAIN] and named three
+# confounds rather than resolving it. I privately decided her control was more broken than
+# reality. The honest reading was the simple one: nothing changed live because nothing about
+# matching changed.
+#
+# These pins are BEHAVIOURAL. A token that exists only in `what_tried` must produce a non-zero
+# relevance from the function the Ranker actually calls.
+# =============================================================================================
+
+
+def _relevance_fn(items):
+    by_text = {str(i.get("text") or ""): i for i in items}
+    return A._trigger_aware_relevance(by_text), by_text
+
+
+def test_the_RANKER_scores_a_token_that_lives_only_in_what_tried():
+    """THE REAL PIN. 'narwhal' appears only in what_tried. If the scorer cannot see it, the
+    whole match_text change is inert for retrieval however green the IDF pins are."""
+    items = A._project_items([dict(REC), {"experiment_name": "filler_one",
+                                          "recommendation": "something unrelated about pipelines",
+                                          "success": "yes"}])
+    fn, by_text = _relevance_fn(items)
+    target = next(i for i in items if i["source"].endswith("a_lesson_with_all_three_fields"))
+    score = fn(target["text"], "narwhal probe")
+    assert score > 0.0, (
+        "the Ranker's own relevance_fn scores 0 for a token carried in what_tried -- "
+        "match_text is feeding IDF only, so retrieval never widened")
+
+
+def test_the_RANKER_scores_a_token_that_lives_only_in_actual():
+    items = A._project_items([dict(REC), {"experiment_name": "filler_two",
+                                          "recommendation": "unrelated prose about budgets",
+                                          "success": "yes"}])
+    fn, _ = _relevance_fn(items)
+    target = next(i for i in items if i["source"].endswith("a_lesson_with_all_three_fields"))
+    assert fn(target["text"], "quokka counter") > 0.0, (
+        "a token carried only in `actual` -- 726,002 characters of the corpus -- is unmatchable")
+
+
+def test_display_is_still_untouched_by_the_wider_matching():
+    """RATCHET, restated at the real seam: widening what SCORES must not widen what SHOWS."""
+    it = _only([dict(REC)])
+    assert it["text"] == REC["recommendation"]
+    assert "narwhal" not in it["text"] and "quokka" not in it["text"]
