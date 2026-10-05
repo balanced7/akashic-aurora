@@ -1399,6 +1399,26 @@ THE HONEST CAVEAT: his ledger "starts mostly empty" by his own admission, and hi
 
 Trigger: reading Mnemosyne 2026-10-03 at Daniel's ask, against our own 225. Land: an evidentiary standard on promotion, never on capture.
   STILL OPEN 10-03 (claude): CORRECTION 2026-10-03, same day. This wish credits Serge with earned-requirements discipline and calls it stronger than anything we have. FALSE. Aurora's M3 pre-registration has been a RATIFIED METHOD CONTRACT since 2026-07-11 (docs/method-baseline-2026-07.md:182-193, commit f52d104d) with a mechanical checker since 2026-07-23 (scripts/checkers/check_preregistration.py, b0089152), and the lesson dual_blind_preregistration predates both at 2026-07-09. Serge's first commit is 2026-09-25. We had it 78 days earlier, ratified and enforced, not merely written down. WHAT SURVIVES, AND IT IS NARROWER BUT STILL REAL: our pre-registration governs PINS and FORECASTS. It does not govern WISHES. The 225-item backlog has no evidentiary standard at promotion, and that specific gap is genuine and is the actual want here. Serge's contribution is applying a discipline we already had to a plane we never applied it to. That is worth something and it is not authorship. KEEPING: the gap is real, the credit was wrong.
+- [ ] W251 (10-05, claude) — A PEER'S RUNNER BUDGET IS INVISIBLE AT THE MOMENT YOU SIZE AN ASK, AND A TIMEOUT IS ONLY EPHEMERAL BUS NOISE. Both halves cost a day today.
+
+RECEIPT, 2026-10-04/05. I fenced a design to three seats. Navi got the half that needed the recall bench run A/B -- correct on capability, she owns the only instrument in the house that can answer it. Her runner timed out at 600s, the API call was abandoned, and she came back on a new incarnation. She had already done the work: four artifacts on disk and the full numbers reported to me in her own words. The deliverable died in the harness, not in the thinking.
+
+I then waited on that silence for most of a day, read it as deliberation, and nudged the OTHER idle seat instead.
+
+TWO DISTINCT GAPS, and the second is the one that made the first expensive.
+
+1. NO BUDGET SURFACE AT ASK TIME. Nothing tells a seat what another seat's runner can afford before the work is handed over. `roster` shows LIVE/STALE/DEAD, phase, beat age, seq and have-cursors -- liveness, never capacity. So an ask is sized against the peer's SKILL, which is visible, and never against their BUDGET, which is not. A task needing N expensive iterations inside one bounded call is not "hard for them", it is impossible for them, and I had no way to notice.
+
+2. A TIMEOUT IS NOT A FIRST-CLASS EVENT. `(kimi runner timed out after 600s -- the API call was abandoned)` appeared as an ephemeral `note` on the live bus. It is not on the events spine: I grepped events:raw for kimi timeouts and got three hits, all from August and September, none of them this one. So the single fact that explains a day of silence is in the one plane that scrolls away, while the planes that persist know nothing about it. A seat that drains its lane at the wrong moment never learns why its peer went quiet.
+
+WHY THE SILENCE IS THE EXPENSIVE PART. A runner timeout, a peer deliberating, a peer disagreeing, and a peer never having started all present identically: nothing arrives. Three of those four want patience and one wants a re-scoped ask, and the house currently offers no way to tell them apart. That is the zero-is-not-no law on the collaboration plane -- absence is reported, never typed.
+
+WANT, smallest useful version first:
+(a) A runner timeout EMITS a durable event (kind `runner_timeout`, carrying agent, incarnation, the ask id if there is one, and the budget it hit) so the fact outlives the lane. Then `roster` can render "last ask ABANDONED at 600s" beside the seat, and a waiting peer sees the difference between quiet and dropped.
+(b) `roster` carries a BUDGET column -- whatever each runner's bound actually is -- so an ask can be sized against it. A number per seat is enough; it does not need to be live.
+(c) The fence and ask surfaces say the quiet part out loud: a PARTIAL deliverable with stated bounds is acceptable. A peer under budget pressure keeps reaching for the complete artifact and lands nothing.
+
+Trigger: a day of waiting on a half that had already been computed and could not be written. Land: make the harness's refusal as visible as the harness's work.
 
 ## Folded (exemplars — the loop works)
 
