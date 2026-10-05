@@ -31,6 +31,28 @@ uv run poe types                 # basedpyright + the suppression policy (below)
 uv run prek run --all-files      # the .pre-commit-config.yaml hooks over the whole tree
 ```
 
+### Cached runs (Turborepo)
+
+`turbo.json` puts the gate and the suite behind Turborepo's uv workspace support (experimental:
+`futureFlags.experimentalPythonWorkspaces`). Each gate step is a task with its own inputs, the
+steps run in parallel, and a task whose inputs have not changed replays its cached result instead
+of running again: an unchanged tree goes from minutes to well under a second.
+
+```bash
+uv run poe cached-gate           # = npx --yes turbo@2.11.7 run gate --filter=aurora
+uv run poe cached-test           # = ... run test: the full suite, cached on the whole tree
+```
+
+- Inputs are explicit per task in `turbo.json` (for example `ci-lint` hashes only `.github/**`,
+  the certifier and the lock; `guardrails`, `test-fast` and `test` hash every tracked and
+  untracked, unignored file). A failing task is never cached.
+- `poe test` measures HEAD in a throwaway worktree, so `cached-test` refuses to run on a dirty
+  tree (`poe clean-tree`); commit first. The gate tasks measure the working tree and need no guard.
+- The cache lives in `.turbo/` (git-ignored) and is shared by this repository's worktrees.
+- Turborepo discovers the uv workspace through `[tool.turbo]` and `[tool.uv.workspace]` in
+  `pyproject.toml`; the workspace's one member is `tooling-upgrade/` (stdlib-only, virtual), since
+  discovery needs at least one member. Needs Node (for `npx`) and uv on `PATH`.
+
 Run anything else with `uv run <script>` or `uv run python ...`. Tool configuration (ruff,
 basedpyright, ty, pytest, coverage, the poe tasks, deptry) lives **only** in `pyproject.toml`: no
 `ruff.toml`, `pyrightconfig.json`, `setup.cfg`, `tox.ini`, `pytest.ini` or `.coveragerc`.
