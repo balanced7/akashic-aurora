@@ -1,0 +1,31 @@
+{
+  "ran_at": "2026-10-05T08:20:57.595858+00:00",
+  "verified": [
+    "half_a: core/comm/promoter.py:49",
+    "half_a: core/comm/toolbox.py:1479",
+    "half_a: core/coord/preregistration.py:60",
+    "half_a: core/coord/target.py",
+    "half_a: core/coord/target.py:64",
+    "half_a: core/events/event_index.py:88",
+    "half_a: core/events/touch.py:225",
+    "half_a: core/git/rewrite_map.py",
+    "half_a: core/recall/at_action.py",
+    "half_a: core/recall/at_action.py:370",
+    "half_a: core/recall/at_action.py:932",
+    "half_a: core/toolbelt/registry.py",
+    "half_a: research/reviewed/knowledge-plane-census-2026-10-03.md",
+    "half_a: scripts/hooks/claude_posttooluse.py",
+    "half_b: core/recall/at_action.py:1616",
+    "half_b: core/recall/at_action.py:368",
+    "half_b: research/in-flight/filing-schema-navi-bench-out.json:2",
+    "half_b: research/in-flight/filing-schema-navi-bench-out.json:342",
+    "half_b: research/in-flight/filing-schema-navi-bench-out.json:5",
+    "half_b: research/in-flight/filing-schema-navi-bench-out.json:661",
+    "half_b: research/in-flight/filing-schema-navi-bench.py:8",
+    "half_b: research/in-flight/filing-schema-navi-livebench.json:2",
+    "half_b: research/in-flight/filing-schema-navi-livebench.json:9",
+    "half_b: research/in-flight/filing-schema-navi-livebench.py:1",
+    "half_b: tests/fixtures/recall_eval/moments.json:7"
+  ],
+  "missing": []
+}
