@@ -8062,6 +8062,22 @@ def cmd_screen(args):
               "text positionally", file=sys.stderr)
         return 2
 
+    if args.show:
+        # Read before you paste. Resolving --handoff can inline a spilled note, so the brief that
+        # would go out is not always the one a caller thinks they assembled -- and a brief is the
+        # one artifact in this verb that nothing downstream can validate for you.
+        nonce = _combo.make_nonce(text)
+        body = text.rstrip() + _combo.RECEIPT_TEMPLATE.format(nonce=nonce)
+        if args.json:
+            print(_json.dumps({"chars": len(body), "nonce": nonce, "text": body}, indent=2))
+        else:
+            print(f"[screen prompt --show] {len(body)} chars, receipt nonce {nonce}, "
+                  f"NOTHING SENT")
+            print("-" * 72)
+            print(body)
+            print("-" * 72)
+        return 0
+
     res = _combo.new_session_prompt(text, submit=args.submit, window_title=args.window,
                                     hwnd=args.hwnd, agent_id=seat, timeout_s=args.timeout)
     if args.json:
@@ -8069,6 +8085,52 @@ def cmd_screen(args):
     else:
         print(res.render())
     return 0 if res.ok or res.status == "unverified" else 1
+
+
+def _resolve_handoff_spill(text: str) -> str:
+    """Inline a spilled handoff note's FULL body in place of its retrieval pointer.
+
+    `handoff` caps its --note field at 1000 chars and spills the remainder to a durable note,
+    leaving a pointer that leads with the retrieval command (agent_cli.py:167). That is the right
+    design for a field a seat READS at boot, and the wrong thing to PASTE into a fresh session:
+    a brief whose substance is one command away is a brief the new seat has to go fetch, which is
+    precisely the hop the combo verb exists to remove. So the pointer is resolved here, at the
+    moment the text becomes a message rather than a record.
+
+    Degrades to the original text, pointer and all, if the note cannot be read -- a pointer is a
+    worse brief than the body, but a far better one than silence.
+    """
+    import re as _re
+    m = _re.search(r"handoff-spill:[A-Za-z0-9_.:-]+", text or "")
+    if not m:
+        return text
+    title = m.group(0).rstrip(".,;)")
+    try:
+        from core.learning.agent_memory import get_agent_memory, normalize_title
+        mem = get_agent_memory()
+        pool = mem.get_decisions(days=3650, include_superseded=True)
+        dec = next((d for d in pool if d.id == title), None)
+        if dec is None:
+            live = [d for d in pool if not d.superseded
+                    and normalize_title(d.title) == normalize_title(title)]
+            dec = live[0] if live else None
+        # The note's prose lives on `decision`: notes are stored as ADR-shaped records
+        # (id/title/status/context/decision/rationale/...), so `body` and `content` -- the names
+        # a reader naturally reaches for -- are both absent, and reaching for them fails SILENTLY
+        # into the pointer. Checked in that order with `decision` first, and verified against a
+        # real spilled note rather than assumed.
+        body = ""
+        if dec is not None:
+            for attr in ("decision", "body", "content", "context"):
+                v = str(getattr(dec, attr, "") or "")
+                if v.strip():
+                    body = v
+                    break
+        if body.strip():
+            return body.strip()
+    except Exception:  # noqa: BLE001
+        pass
+    return text
 
 
 def _latest_handoff_text(agent_id: str) -> str:
@@ -8096,10 +8158,11 @@ def _latest_handoff_text(agent_id: str) -> str:
     ctx = h.get("context") or {}
     if isinstance(ctx, dict) and ctx:
         lines.append("CONTEXT")
-        lines += [f"  {k}: {v}" for k, v in ctx.items()]
+        for k, v in ctx.items():
+            lines.append(f"  {k}: {_resolve_handoff_spill(str(v))}")
         lines.append("")
     elif ctx:
-        lines += ["CONTEXT", str(ctx).strip(), ""]
+        lines += ["CONTEXT", _resolve_handoff_spill(str(ctx)).strip(), ""]
     if h.get("blockers"):
         lines.append("BLOCKERS")
         lines += [f"  - {b}" for b in h["blockers"]]
@@ -9664,6 +9727,9 @@ def build_parser():
     scr.add_argument("--handoff", default="",
                      help="prompt: use the newest unconsumed handoff addressed to this agent, "
                           "rendered from the same briefing surface a `boot` reads")
+    scr.add_argument("--show", action="store_true",
+                     help="prompt: print the exact brief that WOULD be sent (spilled handoff "
+                          "notes resolved) and exit without touching the desktop")
     scr.add_argument("--submit", action="store_true",
                      help="prompt: actually SEND it. Default is to stage the brief in a new "
                           "session and stop -- submitting is a separate, explicit decision")

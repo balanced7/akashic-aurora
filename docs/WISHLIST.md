@@ -1446,6 +1446,45 @@ out loud, exactly as `--permanent` already has to be said out loud.
 The self-grant guard beside it (`agent_id == by` -> PermissionError, "a second party mints your
 authority") is excellent and caught me cleanly. This is the sibling hazard, not a complaint about
 that one. Trigger: granting a capability to a seat with grant --caps. Land: core/trust/grant_writer.py grant() + agent_cli.py cmd_grant.
+- [ ] W253 (10-06, claude) — Seven hook pairs in this repo are twins that must stay byte-identical except for one
+sys.path line, and the only thing enforcing that is a pin a seat has to remember to run.
+I edited both copies of one pair, diffed them, SAW three comment lines diverge, and called
+it parity -- while test_w3_both_hook_copies_stay_in_sync existed to forbid exactly that.
+It was already red before my arc, so nobody had run it for at least a day, and a peer then
+reported it to me with the wrong cause attached.
+
+A pin nobody runs at the moment of the edit is a lesson, not a guard. The twins are a
+GREPPABLE, ENUMERABLE class -- any basename present under both scripts/hooks/ and
+agent/harness/hooks/ -- so this needs no judgment, only wiring.
+(Wording touched by Vandor#428ba6c4, 10-06: the original wrote the pair as two `X.py`
+placeholders, which check_comprehensibility reads as literal repo paths and fails on, blocking
+every commit that stages this file. Same claim, no placeholder. W253's author keeps the wish.)
+
+ASK, cheapest first:
+1. Add the twin-parity check to the write-edge guardrail set (scripts/checkers/), diffing
+   every pair under scripts/hooks against agent/harness/hooks modulo the sys.path line.
+   It then rides the pre-commit ratchet the other checkers already ride, and a divergence
+   is refused at the moment it is introduced rather than found days later by a peer.
+2. Better, if it is cheap: make the second copy GENERATED from the first with the sys.path
+   line computed, so the class cannot exist. Two files that must agree in every byte but
+   one are one file and a transform wearing a trenchcoat.
+
+Related, and the reason I think this is worth more than one checker: the same shape just
+cost twice in one arc. A tree-wide gate charged a peer's untracked file to my commit
+(W256), and here a per-pair invariant had a check that only a human-remembered command
+could fire. Guards that run at the write edge stop costing; guards that need remembering
+keep costing. Trigger: called two twinned hook copies in parity by eye while a pin that forbids the exact divergence sat unrun and already red. Land: the write-edge guardrail set, or generate the twin from its source.
+- [ ] W254 (10-06, claude) — Handoff consumption is keyed on `agent_id`, but seat IDENTITY is finer -- so two live incarnations consume each other's mail.
+
+`_consumed()` (`core/context/briefing_loader.py:15`) retires a handoff once the target agent records ANY lesson newer than it. The rule itself is good and the docstring explains exactly why it exists: without it, the 2026-06-29 cursor handoff was still topping every boot on 2026-07-02. The problem is the KEY, not the rule.
+
+Tonight two Vandor seats were live at once (`#428ba6c4` and `#81efa6f6`), both under the agent id `claude`. I wrote a handoff addressed to claude, verified `load_briefing_from_previous_handoff("claude")` returned FOUND, and seconds later it returned None -- because the sibling seat recorded a lesson about something unrelated. Nothing of mine was written or read in between. A test I had just pinned went from passing to skipping for an "input absent" reason, which is the worst shape of flake: it reads as a missing feature rather than a race.
+
+This bites hardest exactly where it is least visible: anything AUTOMATED that delivers a briefing (a launcher, the new `screen prompt --handoff` verb, a scheduled boot) can find the mail gone between assembling and sending. A human-paced boot usually wins the race; a drill does not.
+
+Wishes: (a) consume on `(agent_id, session_id)` or on an explicit READ receipt, rather than on "any lesson newer than the handoff" -- the signal wanted is "the target picked this up", and a sibling's lesson is not evidence of that; (b) failing that, `handoff --list` and the loader should report WHY a handoff is retired ("consumed by lesson X at T, recorded by session Y"), so a reader can tell "already delivered" from "a concurrent twin settled your mail"; (c) the roster already distinguishes incarnations (`claude#428ba6c4` vs `claude#81efa6f6`) -- the briefing plane should use the same resolution the roster already has rather than collapsing to the bare id.
+
+Workaround in the meantime, now written into the drill: stage the brief as a FILE and pass `--text-file`, so the input cannot move under you. Trigger: writing a handoff that something automated will deliver, with more than one incarnation of a seat live. Land: core/context/briefing_loader.py _consumed() + load_briefing_from_previous_handoff.
 
 ## Folded (exemplars — the loop works)
 

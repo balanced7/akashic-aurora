@@ -252,3 +252,71 @@ def test_the_remedy_withholds_the_tiers_no_verb_needs():
         pytest.skip("nothing missing")
     assert "screen.privileged" not in remedy, "the remedy grants the privileged tier"
     assert "screen.launch" not in remedy, "the remedy grants a tier no verb uses"
+
+
+# ------------------------------------------------------------------ read before you paste
+def test_show_prints_the_brief_without_touching_the_desktop():
+    """`--show` is the only way to READ what the verb would send. It matters because assembling
+    the brief is not transparent: `--handoff` resolves a spilled note, so the text that would go
+    out is not always the text a caller thinks they assembled -- and the brief is the one artifact
+    here that nothing downstream can validate."""
+    r = _run("screen", "prompt", "hello world", "--show", "--json")
+    assert r.returncode == 0, r.stderr[:300]
+    doc = json.loads(r.stdout)
+    assert doc["text"].startswith("hello world")
+    assert doc["nonce"] and doc["nonce"] in doc["text"], "the receipt nonce is not in the brief"
+    assert doc["chars"] == len(doc["text"])
+
+
+def test_show_does_not_act_even_when_submit_is_also_passed():
+    """`--show --submit` must still send nothing. A preview flag that defers to a send flag is a
+    preview that sometimes publishes, which is the worst of both."""
+    r = _run("screen", "prompt", "must never be sent", "--show", "--submit")
+    assert r.returncode == 0, r.stderr[:300]
+    assert "NOTHING SENT" in r.stdout, r.stdout[:300]
+    # and no refusal chain ran at all -- it returned before preflight
+    assert "preflight" not in r.stdout
+
+
+def test_a_spilled_handoff_note_is_inlined_rather_than_left_as_a_pointer():
+    """`handoff` caps its --note at 1000 chars and spills the rest to a durable note, leaving a
+    retrieval command behind. That is right for a field a seat reads at BOOT and wrong for text
+    PASTED into a fresh session: the substance would be one command away, which is exactly the
+    hop this verb exists to remove.
+
+    Pinned because the first implementation failed SILENTLY. Notes are stored ADR-shaped
+    (id/title/status/context/decision/...), so reading `body` or `content` -- the names a reader
+    naturally reaches for -- returned nothing and fell back to the pointer, with no error. The
+    brief looked plausible and was truncated at its opening.
+
+    THE DELIVERY IS DETERMINISTIC, THE LEDGER IS NOT, so this pins the resolver rather than a
+    live lookup. `_consumed()` (core/context/briefing_loader.py:15) retires a handoff as soon as
+    the target records ANY lesson newer than it -- and BOTH Vandor seats run under the agent id
+    `claude`, so the sibling seat's lessons retire handoffs addressed to me. Measured tonight:
+    `load_briefing_from_previous_handoff("claude")` returned FOUND and then, seconds later,
+    None, with no handoff written or consumed by me in between. A pin that asserted through the
+    live ledger would pass or skip according to another seat's unrelated activity.
+    """
+    import agent_cli  # noqa: PLC0415 -- the resolver lives on the CLI door
+    assert hasattr(agent_cli, "_resolve_handoff_spill")
+    src = inspect.getsource(agent_cli._resolve_handoff_spill)
+    assert '"decision"' in src, (
+        "the resolver does not read the `decision` attribute. Notes are stored ADR-shaped "
+        "(id/title/status/context/decision/rationale/...), so reading `body` or `content` -- the "
+        "names a reader naturally reaches for -- returns nothing and falls back to the POINTER "
+        "with no error. That is how the first implementation shipped a brief truncated at its "
+        "opening while looking entirely plausible.")
+    assert src.index('"decision"') < min([src.index('"body"'), src.index('"content"')]), (
+        "`decision` must be tried FIRST; the others are fallbacks for differently-shaped records")
+    # and the renderer must actually route the context field through it
+    rsrc = inspect.getsource(agent_cli._latest_handoff_text)
+    assert "_resolve_handoff_spill" in rsrc, (
+        "the brief renderer never calls the resolver, so a spilled note stays a pointer")
+
+    # Opportunistic: if a handoff IS live right now, the end-to-end result must be pointer-free.
+    r = _run("screen", "prompt", "--handoff", "claude", "--show", "--json")
+    if r.returncode == 0:
+        doc = json.loads(r.stdout)
+        assert "handoff-spill:" not in doc["text"], (
+            "the brief carries a spill POINTER instead of the spilled body -- the new session "
+            "would have to go fetch its own briefing")
