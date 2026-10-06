@@ -3,7 +3,7 @@
   "generated_by": "T134, claude",
   "what_this_is": "A frozen CENSUS of public functions in WIRED core/ modules that no production entry point names, taken the day the function-level gate landed. It is a BACKLOG, not an amnesty -- the same contract as EXCEPTIONS in check_wiring.py. A NEW orphan FAILS the gate; these are the ones that already existed. Deliberately NOT annotated with 117 hand-written reasons: inventing a justification per entry would read as 117 considered decisions when it is one measurement. Drain it in slices, with a real reason per slice, and delete entries as they are wired or removed. stale_function_baseline() reports entries that became wired, so this list can shrink -- an exemption list that can only grow stops being a backlog.",
   "how_to_read": "module::function -- see py scripts/checkers/check_wiring.py --functions",
-  "count": 125,
+  "count": 126,
   "entries": [
     "core/comm/bifrost_api.py::council",
     "core/comm/bifrost_api.py::covers",
@@ -15,6 +15,8 @@
     "core/comm/bus.py::json_part",
     "core/comm/bus.py::media_part",
     "core/comm/bus.py::text_part",
+    "core/comm/conductor_gate.py::acting_conduct_grant",
+    "core/comm/conductor_gate.py::acting_conductor_approve",
     "core/comm/context_hints.py::clear_all",
     "core/comm/context_hints.py::pending_count",
     "core/comm/door_probe.py::read_verdict",
@@ -25,6 +27,11 @@
     "core/comm/nudge.py::nudge_status",
     "core/comm/pager.py::ack_pages",
     "core/comm/promoter.py::promote_interjection",
+    "core/comm/remote_relay.py::admitted_count",
+    "core/comm/remote_relay.py::enqueue",
+    "core/comm/remote_relay.py::file_announcement",
+    "core/comm/remote_relay.py::last_admitted",
+    "core/comm/remote_relay.py::render_file_announcement",
     "core/context/project_context.py::add_blocker",
     "core/context/project_context.py::add_milestone",
     "core/context/project_context.py::add_task",
@@ -52,6 +59,7 @@
     "core/coord/cognitive_metrics.py::record_reasoning",
     "core/coord/cognitive_metrics.py::record_tool_call",
     "core/coord/intent.py::clear_round",
+    "core/coord/shift_loop.py::shift_state_is_complete",
     "core/coord/task_ledger.py::sync_redis_from_git",
     "core/events/event_log.py::rebuild_index",
     "core/events/event_log.py::reset_event_log_singleton",
@@ -103,6 +111,7 @@
     "core/recall/at_action.py::prevention_rate",
     "core/recall/at_action.py::prevention_rate_durable",
     "core/recall/at_action.py::session_flips",
+    "core/screenspace/foreground.py::subscribe",
     "core/signals/coordinator_api.py::get_bootstrap_info",
     "core/signals/coordinator_api.py::get_context_summary",
     "core/signals/coordinator_api.py::get_next_action_suggestion",
@@ -121,15 +130,7 @@
     "core/state/session_checkpoint.py::print_recovery_summary",
     "core/state/session_checkpoint.py::save_checkpoint",
     "core/trust/registry.py::role_template",
-    "core/world.py::assert_may_write",
-    "core/comm/conductor_gate.py::acting_conduct_grant",
-    "core/comm/conductor_gate.py::acting_conductor_approve",
-    "core/comm/remote_relay.py::admitted_count",
-    "core/comm/remote_relay.py::enqueue",
-    "core/comm/remote_relay.py::file_announcement",
-    "core/comm/remote_relay.py::last_admitted",
-    "core/comm/remote_relay.py::render_file_announcement",
-    "core/coord/shift_loop.py::shift_state_is_complete"
+    "core/world.py::assert_may_write"
   ],
   "history": [
     {
@@ -182,6 +183,15 @@
         "core/comm/remote_relay.py::render_file_announcement",
         "core/coord/shift_loop.py::shift_state_is_complete"
       ]
+    },
+    {
+      "date": "2026-10-06",
+      "change": "125 -> 126",
+      "why": "THE BACKLOG ROSE, which this ratchet normally forbids, and the reason is a SCOPE EXPANSION rather than new debt -- recorded here because a silently rising backlog is the exact failure the ratchet exists to prevent. Wiring the screenspace ACTUATOR (core/screenspace/act.py + combo.py, reached by `py agent_cli.py screen status|locate|prompt`) made the five observe-half modules reachable, so their module-level EXCEPTIONS entries were deleted by their own UNWIRE-WHEN condition. Graduating a module moves it from the COARSE module gate to the FINE function gate, and the finer gate immediately found a hole one level down that the coarse gate could never report: ForegroundTracker.subscribe. That function is not new and was not newly orphaned -- it became newly VISIBLE. This is test_t159 K14's invariant working in the intended direction (every module examined by one surface or the other), so the honest bookkeeping is to raise the count and name the cause, not to re-add a module exception that would hide it again.",
+      "added": [
+        "core/screenspace/foreground.py::subscribe"
+      ],
+      "added_reason": "ForegroundTracker.subscribe is the tested PURE SEAM of the T386 sec.1.2 foreground model (subscribe -> on_foreground_change -> focus+gen), pinned by tests/test_screenspace_fg_tracker_red.py F-1/F-2. Its CONSUMER has not landed: nothing yet needs a push notification of focus changes, because the actuator polls foreground synchronously inside act.verify() instead. FROZEN rather than wired, because wiring a seam to no consumer is fake integration that rots, and rather than deleted, because it is a load-bearing part of another seat's design (owner: kimi/Heimdall). UNWIRE-WHEN: a watcher verb (design sec.3 `watch(scope, until, timeout)`) or the shadow pulse's push path subscribes to it."
     }
   ]
 }

@@ -7978,6 +7978,132 @@ def cmd_focus(args):
     return 0
 
 
+def cmd_screen(args):
+    """The door for the screenspace ACTUATOR (core/screenspace/act.py + combo.py).
+
+    Thin by policy: every decision, refusal and post-condition lives in the tested modules, and
+    this function only parses, dispatches and prints. The actuator is gated per call against the
+    house ACL (Cap.SCREEN_*, in no role template), so this door cannot grant what the grant
+    ledger has not.
+    """
+    import json as _json
+    from core.screenspace import act as _act
+    from core.screenspace import combo as _combo
+
+    action = args.action
+    seat = (getattr(args, "agent", "") or "").strip() or None
+
+    if action == "status":
+        st = _combo.status(window_title=args.window, agent_id=seat)
+        if args.json:
+            print(_json.dumps(st, indent=2, default=str))
+            return 0
+        print(f"[screen status] seat={st['seat']} uia={st['uia']} "
+              f"locked={st['workstation_locked']} foreground_hwnd={st['foreground_hwnd']}")
+        if not st["windows"]:
+            print(f"  no visible window matching {args.window!r}")
+        for w in st["windows"]:
+            print("  hwnd=%-8s pid=%-7s dpi=%-4s iconic=%-5s foreground=%-5s %r"
+                  % (w["hwnd"], w["pid"], w["dpi"], w["iconic"], w["is_foreground"],
+                     w["title"]))
+        if st.get("ambiguous"):
+            print("  AMBIGUOUS: " + st["ambiguous"])
+        print(f"  transcripts: {st['session_count']} in {st['session_dir']}")
+        held = [v for v, c in st["caps"].items() if c["allowed"]]
+        missing = [v for v, c in st["caps"].items() if not c["allowed"]]
+        print("  verbs permitted: %s" % (", ".join(held) or "NONE"))
+        if missing:
+            print("  verbs refused  : %s" % ", ".join(missing))
+            print("  %s" % st["caps"][missing[0]]["why"])
+        return 0
+
+    if action == "locate":
+        got = _act.locate(name=(args.name or None), role=(args.role or None),
+                          window_title=args.window, hwnd=args.hwnd, ttl_s=args.ttl,
+                          agent_id=seat)
+        if args.json:
+            print(_json.dumps(got.to_dict(), indent=2, default=str))
+            return 0 if got.ok else 1
+        if got.ok:
+            t = got.target
+            print(f"[screen locate] OK in {got.elapsed_ms:.0f} ms -- {got.detail}")
+            print("  hwnd=%s pid=%s exe=%s dpi=%s bounds=%s" % (t.hwnd, t.pid, t.exe, t.dpi,
+                                                               list(t.bounds)))
+            print("  frame_hash=%s over rect %s  ttl=%.1fs" % (t.frame_hash[:16],
+                                                              list(t.hash_rect), t.ttl_s))
+            return 0
+        print(f"[screen locate] REFUSED {got.refusal.value if got.refusal else '?'} -- "
+              f"{got.detail}")
+        for c in got.candidates:
+            print("    candidate: %s" % c)
+        return 1
+
+    # ---- prompt: the compound verb (Ctrl+N -> stage a brief -> verify -> optionally send)
+    text = ""
+    if args.text_file:
+        try:
+            text = Path(args.text_file).read_text(encoding="utf-8")
+        except OSError as e:
+            print(f"[screen prompt] --text-file unreadable ({e})", file=sys.stderr)
+            return 2
+    elif args.text:
+        text = " ".join(args.text)
+    elif args.handoff:
+        text = _latest_handoff_text(args.handoff)
+        if not text:
+            print(f"[screen prompt] no unconsumed handoff addressed to {args.handoff!r} -- "
+                  f"write one with `py agent_cli.py handoff`, or pass --text-file",
+                  file=sys.stderr)
+            return 2
+    if not text.strip():
+        print("[screen prompt] nothing to send: pass --text-file PATH, --handoff AGENT, or "
+              "text positionally", file=sys.stderr)
+        return 2
+
+    res = _combo.new_session_prompt(text, submit=args.submit, window_title=args.window,
+                                    hwnd=args.hwnd, agent_id=seat, timeout_s=args.timeout)
+    if args.json:
+        print(_json.dumps(res.to_dict(), indent=2, default=str))
+    else:
+        print(res.render())
+    return 0 if res.ok or res.status == "unverified" else 1
+
+
+def _latest_handoff_text(agent_id: str) -> str:
+    """The newest unconsumed handoff addressed to ``agent_id``, rendered as a brief.
+
+    Reuses the house's own briefing surface (core/context/briefing_loader.py, the same one a
+    `boot` reads) rather than inventing a second notion of "the latest handoff" -- two readers
+    of one ledger drift, and a seat launched with a DIFFERENT briefing than its boot would show
+    it is the identity bug this house takes most seriously.
+
+    Best-effort and quiet: a missing briefing is an empty string the caller reports, never an
+    exception, because "no handoff" is a normal answer.
+    """
+    try:
+        from core.context.briefing_loader import load_briefing_from_previous_handoff
+        h = load_briefing_from_previous_handoff(agent_id)
+    except Exception:  # noqa: BLE001
+        return ""
+    if not isinstance(h, dict):
+        return ""
+    lines = [f"Handoff for {agent_id}, from {h.get('from_agent') or 'unknown'} "
+             f"(source {h.get('source') or '?'}).", ""]
+    if h.get("task"):
+        lines += ["TASK", str(h["task"]).strip(), ""]
+    ctx = h.get("context") or {}
+    if isinstance(ctx, dict) and ctx:
+        lines.append("CONTEXT")
+        lines += [f"  {k}: {v}" for k, v in ctx.items()]
+        lines.append("")
+    elif ctx:
+        lines += ["CONTEXT", str(ctx).strip(), ""]
+    if h.get("blockers"):
+        lines.append("BLOCKERS")
+        lines += [f"  - {b}" for b in h["blockers"]]
+    return "\n".join(lines).strip()
+
+
 def cmd_recall_audit(args):
     """The door for core/recall/precision_audit.py -- IS RECALL ACCURATE?
 
@@ -9511,6 +9637,40 @@ def build_parser():
                      help="score: coverage denominator (default: computed from the ledger)")
     rau.add_argument("--json", action="store_true")
     rau.set_defaults(fn=cmd_recall_audit)
+
+    scr = sub.add_parser("screen", help="screenspace ACTUATOR: see the desktop, open a new "
+                                        "session, hand it a brief -- refusal-first")
+    # POSITIONAL CHOICES, not add_subparsers -- same convention as `fence` and `recall-audit`:
+    # the door-parity checker reads subparsers as separate VERBS, which is how `recall-audit`
+    # first arrived as three phantom ones.
+    scr.add_argument("action", choices=["status", "locate", "prompt"])
+    scr.add_argument("text", nargs="*", help="prompt: the brief, inline (prefer --text-file for "
+                                             "anything long or flag-shaped)")
+    scr.add_argument("--window", default="Claude",
+                     help="substring of the target window title (default: Claude)")
+    scr.add_argument("--hwnd", type=int, default=None,
+                     help="disambiguate when more than one window matches -- the remedy for an "
+                          "AMBIGUOUS_TARGET refusal")
+    scr.add_argument("--name", default="", help="locate: the control's UIA Name (the ADDRESS -- "
+                                                "name-first beats a tree walk 17-24x here)")
+    scr.add_argument("--role", default="", help="locate: control type, e.g. Button, Document")
+    scr.add_argument("--ttl", type=float, default=5.0,
+                     help="locate: token lifetime in seconds (default 5)")
+    scr.add_argument("--text-file", default="",
+                     help="prompt: read the brief from PATH (use this for anything long or "
+                          "containing flags)")
+    scr.add_argument("--handoff", default="",
+                     help="prompt: use the newest unconsumed handoff addressed to this agent, "
+                          "rendered from the same briefing surface a `boot` reads")
+    scr.add_argument("--submit", action="store_true",
+                     help="prompt: actually SEND it. Default is to stage the brief in a new "
+                          "session and stop -- submitting is a separate, explicit decision")
+    scr.add_argument("--timeout", type=float, default=8.0,
+                     help="prompt: seconds to wait for each post-condition (default 8)")
+    scr.add_argument("--agent", default="",
+                     help="act as this seat (default: ambient). The ACL decides, not this flag")
+    scr.add_argument("--json", action="store_true")
+    scr.set_defaults(fn=cmd_screen)
 
     lks = sub.add_parser("locks", help="show who holds which advisory path-locks")
     lks.add_argument("agent_id", nargs="?", default=""); lks.add_argument("--json", action="store_true")

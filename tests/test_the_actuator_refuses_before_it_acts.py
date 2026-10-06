@@ -173,7 +173,7 @@ def test_act_refuses_when_the_target_is_not_the_foreground_window():
     A typing verb must therefore either refuse with not_foreground, or focus the target FIRST
     and verify it took. It must never type blind.
     """
-    fake = act.Target(hwnd=67692, pid=24836, exe="claude.exe", bounds=(-11, -11, 3851, 2171),
+    fake = act.TargetToken(hwnd=67692, pid=24836, exe="claude.exe", bounds=(-11, -11, 3851, 2171),
                       dpi=144, gen=1, frame_hash="deadbeef", name="New", role="Button",
                       minted_at=0.0, ttl_s=5.0)
     r = act.act(fake, "type", "hello", require_foreground=True)
@@ -186,7 +186,7 @@ def test_act_refuses_when_the_target_is_not_the_foreground_window():
 def test_act_refuses_a_token_whose_window_is_gone():
     """Handle reuse is real: Windows recycles HWNDs. A token bound to a dead handle must refuse
     on window_gone or pid_changed, never act on whatever now answers to that number."""
-    dead = act.Target(hwnd=0x7FFFFFFE, pid=999999, exe="claude.exe", bounds=(0, 0, 10, 10),
+    dead = act.TargetToken(hwnd=0x7FFFFFFE, pid=999999, exe="claude.exe", bounds=(0, 0, 10, 10),
                       dpi=96, gen=1, frame_hash="x", name="New", role="Button",
                       minted_at=0.0, ttl_s=60.0)
     r = act.act(dead, "focus")
@@ -198,7 +198,7 @@ def test_act_refuses_a_token_whose_window_is_gone():
 def test_act_refuses_an_expired_token():
     """`minted_at=0.0` is 1970. A token with a TTL that does not expire is not short-lived, and
     'short-lived' is the entire reason the token is safer than a coordinate."""
-    stale = act.Target(hwnd=67692, pid=24836, exe="claude.exe", bounds=(-11, -11, 3851, 2171),
+    stale = act.TargetToken(hwnd=67692, pid=24836, exe="claude.exe", bounds=(-11, -11, 3851, 2171),
                        dpi=144, gen=1, frame_hash="x", name="New", role="Button",
                        minted_at=0.0, ttl_s=5.0)
     r = act.act(stale, "focus")
@@ -255,7 +255,7 @@ def test_no_role_template_grants_the_act_tiers_by_default():
 
 def test_act_refuses_when_the_seat_lacks_the_cap():
     """Deny-by-default, checked at the act() door rather than trusted to the caller."""
-    t = act.Target(hwnd=67692, pid=24836, exe="claude.exe", bounds=(-11, -11, 3851, 2171),
+    t = act.TargetToken(hwnd=67692, pid=24836, exe="claude.exe", bounds=(-11, -11, 3851, 2171),
                    dpi=144, gen=1, frame_hash="x", name="New", role="Button",
                    minted_at=0.0, ttl_s=5.0)
     r = act.act(t, "type", "hello", agent_id="quarantined-nobody")

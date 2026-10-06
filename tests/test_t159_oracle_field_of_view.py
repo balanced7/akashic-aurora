@@ -111,13 +111,26 @@ def test_k10_the_field_of_view_excludes_the_blind_region():
     assert blind, "expected a non-empty blind region (17 modules when T159 was filed)"
     assert not (cand & blind), "candidate set leaked a module the gate cannot report on"
 
-    # the specific module T159 was filed against, named so the ticket stays refutable
+    # The specific module T159 was filed against, named so the ticket stays refutable.
+    #
+    # RE-DERIVED 2026-10-06, under this pin's own instruction ("if that ever becomes true this
+    # pin must be re-derived rather than deleted"). It became true: `py agent_cli.py recall-audit
+    # pack|score` now invokes core/recall/precision_audit.py, so the module is REACHABLE and its
+    # EXCEPTIONS entry was removed the same day. The ticket's claim has therefore flipped, and
+    # the honest pin is the mirror image rather than the deletion -- a module that gains a door
+    # must LEAVE the blind region and ENTER the function gate, or the narrowing K14 forbids has
+    # simply moved somewhere quieter.
     t = "core/recall/precision_audit.py"
     if t in core_universe:
-        assert t not in reachable, (
-            "T159 asserted this module IS reachable; if that ever becomes true this pin must be "
-            "re-derived rather than deleted")
-        assert t not in cand
+        assert t in reachable, (
+            "core/recall/precision_audit.py was wired to the `recall-audit` verb on 2026-10-06 "
+            "and must be reachable. If it is unreachable again, the door was removed -- restore "
+            "it or re-file T159, but do not re-add an EXCEPTIONS entry, which is what dropped "
+            "this module into the gap between the two gates in the first place.")
+        assert t not in blind, "a module with a production door is not in the blind region"
+        assert t in cand, (
+            "the function gate does not examine a reachable, non-excepted module -- which is "
+            "exactly the blind spot K14 forbids")
 
 
 # --------------------------------------------------------------------------- K11

@@ -4,16 +4,16 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at 0c51836b. A bound you discover by collision is not awareness -- this sheet
+> Derived at 9a51f695. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
 
-## Configuration flags (271 names)
+## Configuration flags (272 names)
 
 | Flag | Default (as written) | Read sites |
 |---|---|---|
-| `AGENT_ID` | `"unknown"` | core/comm/bus.py |
+| `AGENT_ID` | `"unknown"` | core/comm/bus.py, core/screenspace/act.py |
 | `AI_SETUP` | `"E:\\AI-Setup"` | agent_cli.py, core/comm/blobs.py, core/foundation/durable_reconcile.py +13 |
 | `AI_SETUP_ROOT` | `` | research/in-flight/t342/dead-modules/_archive__python_old__launch_ai_stack.py |
 | `AI_STACK_CHAT_URL` | `"http://127.0.0.1:3000"` | research/in-flight/t342/dead-modules/_archive__python_old__launch_ai_stack.py |
@@ -23,7 +23,7 @@ Class: reference
 | `AKASHIC_ACK_UNHANDLED_HOURS` | `UNHANDLED_HOURS` | core/comm/promoter.py |
 | `AKASHIC_ACL_PATH` | `` | core/trust/registry.py |
 | `AKASHIC_ADJUDICATORS` | `""` | core/fleet/verdicts.py |
-| `AKASHIC_AGENT_ID` | `"dsh_agent"` | agent/harness/actions.py, agent/harness/dsh_plugin/bridge.py, agent/harness/hooks/_activity.py +35 |
+| `AKASHIC_AGENT_ID` | `"dsh_agent"` | agent/harness/actions.py, agent/harness/dsh_plugin/bridge.py, agent/harness/hooks/_activity.py +36 |
 | `AKASHIC_ALLOW_HARMONIZE` | `` | scripts/harmonize_knowledge.py |
 | `AKASHIC_APP_PACKAGE` | `"Claude"` | core/fleet/app_package.py |
 | `AKASHIC_ASK_BASE_URL` | `"https://api.deepseek.com"` | core/comm/ask.py |
@@ -96,6 +96,7 @@ Class: reference
 | `AKASHIC_RECALL_AT_ACTION` | `"1"` | agent/harness/actions.py, agent/harness/hooks/claude_posttooluse.py, agent/harness/hooks/cursor_posttooluse.py +2 |
 | `AKASHIC_RECALL_CACHE_TTL` | `"120"` | core/recall/at_action.py |
 | `AKASHIC_RECALL_FLOOR` | `"0.20"` | core/recall/at_action.py |
+| `AKASHIC_RECALL_REL_FLOOR` | `"0"` | core/recall/at_action.py |
 | `AKASHIC_RECALL_SELF_ECHO_H` | `"2"` | core/recall/at_action.py |
 | `AKASHIC_RECALL_STATE_DIR` | `` | agent/harness/actions.py, agent/harness/hooks/claude_posttooluse.py, agent/harness/hooks/claude_sessionend.py +15 |
 | `AKASHIC_RECENT_INBOX_S` | `str(12 * 3600` | core/comm/doctor.py |

@@ -268,9 +268,11 @@
 - `convert.py` — convert -- a document in, titled Sections out. Pure and local: nothing here fetches.
 - `shelf.py` — shelf -- labelled chunks in SQLite with an FTS5 index; incremental ingest; honest search.
 
-## core/screenspace/  (5 modules)  ⚠️ NOT in ARCHITECTURE.md layer order — add it there
+## core/screenspace/  (7 modules)  ⚠️ NOT in ARCHITECTURE.md layer order — add it there
+- `act.py` — Screenspace ACTUATOR — the act half (T386 sec.6 steps 1 and 3), refusal-first.
 - `canary.py` — Screenspace UIA availability — POSITIVE CANARY READ, not a context inference.
 - `capture.py` — Screenspace capture substrate — mss one-shot -> ScreenFrame (T386 §1.3, §2, §4.3).
+- `combo.py` — The compound verb: hand a brief to a NEW Claude Desktop session (T386 sec.6 step 5).
 - `engine.py` — Screenspace engine facade — digest verdicts (T386 §1, §2, §3, §4).
 - `foreground.py` — Screenspace foreground source — WinEventHook tracker (§1.1, the v1 shadow-model spine).
 - `shadow.py` — Screenspace shadow model — L0 pulse (T386 §1.1, F2-gated).

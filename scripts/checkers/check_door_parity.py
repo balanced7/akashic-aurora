@@ -261,6 +261,13 @@ MANIFEST = {
     # would become a tool any seat can call while naming itself the granter, which widens the
     # surface for exactly nothing, since the operator is the intended user. Administrative door,
     # operator-facing, stays here.
+    "screen": "cli_only",        # screenspace ACTUATOR: drives the OPERATOR'S physical
+                                 # desktop (focus/keystrokes/clicks). Deliberately not
+                                 # self-service over MCP: design sec.6 step 7 puts fleet
+                                 # doors behind per-door ACL enforcement, and until that
+                                 # lands the only door is the one an operator types at.
+                                 # Already fail-closed either way (Cap.SCREEN_* sit in no
+                                 # role template), so this is about blast radius, not trust.
     "grant": "cli_only",           # S-3 ACL write door: mint/revoke/list grants (atomic, audited)
     # T165. Adjudicator-side, not player-side: a player must never be able to score its own round,
     # and putting this on MCP would hand every seat the scorer. Operator surface, CLI only.

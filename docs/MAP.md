@@ -225,7 +225,7 @@ Class: reference
 |---|---|---|---|---|
 | `actions.py` | The importable recall-at-action contract for EXTERNAL consumers (deepseek harness posttool / | tests/test_harness_actions.py | docs/library/design/20260805_t196-ask-transaction-spec_b59657.md |  |
 | `anchors.py` | Lesson anchor resolver -- does a lesson's premise still hold? | tests/test_lesson_anchors.py | GAP |  |
-| `at_action.py` | Recall-at-action (`core/recall`) — read the right knowledge AT THE MOMENT of action. | GAP | GAP | `AKASHIC_AGENT_ID`, `AKASHIC_BENCH_PROBE_DAYS`, `AKASHIC_BENCH_PROBE_MAX`, `AKASHIC_RECALL_CACHE_TTL`, `AKASHIC_RECALL_FLOOR`, `AKASHIC_RECALL_SELF_ECHO_H`, `AKASHIC_RECALL_STATE_DIR`, `AKASHIC_STALE_CUE_DAYS`, `AKASHIC_VERB_FLOOR` |
+| `at_action.py` | Recall-at-action (`core/recall`) — read the right knowledge AT THE MOMENT of action. | GAP | GAP | `AKASHIC_AGENT_ID`, `AKASHIC_BENCH_PROBE_DAYS`, `AKASHIC_BENCH_PROBE_MAX`, `AKASHIC_RECALL_CACHE_TTL`, `AKASHIC_RECALL_FLOOR`, `AKASHIC_RECALL_REL_FLOOR`, `AKASHIC_RECALL_SELF_ECHO_H`, `AKASHIC_RECALL_STATE_DIR`, `AKASHIC_STALE_CUE_DAYS`, `AKASHIC_VERB_FLOOR` |
 | `bench.py` | W0.3 -- recall-bench: the first number recall has ever been judged on. | tests/test_recall_bench_reports_its_ceiling.py | docs/library/brief/20260822_semi-trader-case-bench_1b4dfc.md |  |
 | `curator.py` | Recall curator (vNext loop 1) -- the funnel's triage made an ACTOR, not a report. | GAP | GAP |  |
 | `dissent.py` | Dissent-finder (`core/recall`) — surface the strongest genuine COUNTER to a recalled lesson. | tests/test_dissent_capture.py | docs/library/report/20260718_kimi-fresh-eyes-dissent-round-t094-recal_71a6f9.md |  |

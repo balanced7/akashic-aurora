@@ -8,7 +8,7 @@ Class: reference
 > (argparse). Companion to MAP.md (modules), PHYSICS.md (bounds/flags). Guarded by
 > check_comprehensibility so it cannot silently rot.
 
-## CLI door -- `py agent_cli.py <verb>` (111 verbs)
+## CLI door -- `py agent_cli.py <verb>` (112 verbs)
 
 The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepted values.
 
@@ -97,6 +97,7 @@ The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepte
 | `roster` | S2 lobby: per-seat worklive (LIVE/STALE proven by beat freshness, never key-existence) + have-summaries | `--json` `--reap` `--by-agent` |
 | `run` | execute a toolbelt alias: run <agent> <name> (explicit door -- a real verb can never be shadowed) | `<agent_id>*` `<name>*` `<args>` `--dry` |
 | `scout` | read-only pre-flight: 'is a seat mid-flight here / has this been done' -- answers cite ledger ids, locks and the role's own verdicts; files itself as an unadjudicated verdict | `<text>*` `--wearer` `--by` `--blind` `--shape` `--json` |
+| `screen` | screenspace ACTUATOR: see the desktop, open a new session, hand it a brief -- refusal-first | `<action>* {status,locate,prompt}` `<text>*` `--window` `--hwnd` `--name` `--role` `--ttl` `--text-file` `--handoff` `--submit` `--timeout` `--agent` `--json` |
 | `season-score` | T165: score a Season 1 round, or --compare the two rule sets over the same claims | `--round-file` `--policy` `--compare` `--policies` `--json` |
 | `seat-identity` | declare/show THIS session's seat id (binding beats the shared env) | `<agent_id>` `--session` `--clear` |
 | `secret` | the vault door: capture a credential via a popup window -- paste lands in .secrets/<target>, never in any transcript. Bare `secret` lists targets. Receipts count bytes they never show. | `<target>` `--stdin` |
