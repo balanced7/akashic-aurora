@@ -252,7 +252,8 @@
 ## core/git/  (1 modules)  ⚠️ NOT in ARCHITECTURE.md layer order — add it there
 - `rewrite_map.py` — Turn a pre-rewrite commit SHA back into the commit it became.
 
-## core/infrastructure/  (1 modules)  ⚠️ NOT in ARCHITECTURE.md layer order — add it there
+## core/infrastructure/  (2 modules)  ⚠️ NOT in ARCHITECTURE.md layer order — add it there
+- `background_stdio.py` — Repair stdout/stderr for a process launched with no console — the windowed-task blind spot.
 - `health_check.py` — Startup Diagnostics: Report on initialization health
 
 ## core/library/  (6 modules)  ⚠️ NOT in ARCHITECTURE.md layer order — add it there

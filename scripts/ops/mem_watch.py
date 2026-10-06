@@ -352,6 +352,18 @@ def write_snapshot(directory: str, snap: dict, keep: int) -> str:
 
 
 def main() -> int:
+    # This script is a WINDOWED scheduled task (launched by `pyw`, i.e. pythonw.exe), so it runs
+    # with NO console and NO inherited handles: sys.stdout and sys.stderr are None and every
+    # print() below is silently discarded. Measured 2026-10-06; fixes item 0 of the
+    # affordance-layer fence. Must be the FIRST statement in main(), before argument parsing.
+    import sys as _sys
+    from pathlib import Path as _Path
+    _root = str(_Path(__file__).resolve().parents[2])   # this script does not add the repo root
+    if _root not in _sys.path:                          # to sys.path at module level, and the
+        _sys.path.insert(0, _root)                      # repair lives in core/.
+    from core.infrastructure.background_stdio import repair_background_stdio
+    repair_background_stdio("mem-watch")
+
     ap = argparse.ArgumentParser(description="host + per-process memory black box")
     ap.add_argument("--interval", type=int, default=30, help="seconds between samples")
     ap.add_argument("--log", default=DEFAULT_LOG, help="durable JSONL path (must survive reboot)")

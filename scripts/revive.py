@@ -543,6 +543,13 @@ def converge(target: Optional[str] = None,
 
 
 def main() -> int:
+    # This script is a WINDOWED scheduled task (launched by `pyw`, i.e. pythonw.exe), so it runs
+    # with NO console and NO inherited handles: sys.stdout and sys.stderr are None and every
+    # print() below is silently discarded. Measured 2026-10-06; fixes item 0 of the
+    # affordance-layer fence. Must be the FIRST statement in main(), before argument parsing.
+    from core.infrastructure.background_stdio import repair_background_stdio
+    repair_background_stdio("daemon-watchdog")
+
     import argparse
     ap = argparse.ArgumentParser(description="the house's recovery reconciler")
     ap.add_argument("--observe", action="store_true",

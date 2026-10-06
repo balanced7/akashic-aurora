@@ -243,6 +243,13 @@ def _render(rep: Dict[str, Any]) -> None:
 
 
 def main(argv: Optional[List[str]] = None) -> int:
+    # This script is a WINDOWED scheduled task (launched by `pyw`, i.e. pythonw.exe), so it runs
+    # with NO console and NO inherited handles: sys.stdout and sys.stderr are None and every
+    # print() below is silently discarded. Measured 2026-10-06; fixes item 0 of the
+    # affordance-layer fence. Must be the FIRST statement in main(), before argument parsing.
+    from core.infrastructure.background_stdio import repair_background_stdio
+    repair_background_stdio("archive-transcripts")
+
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--source-dir", default="", help="transcript root (default: the "
                                                      "harness projects dir)")
