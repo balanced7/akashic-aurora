@@ -696,7 +696,23 @@ def _trigger_aware_relevance(by_text: Dict[str, Dict[str, Any]]):
                                       " ".join(it.get("trigger_terms") or [])]))
         if not trig.strip():
             return prose
-        return 0.6 * _damped_overlap(trig, query, weights) + 0.4 * prose
+        # A TRIGGER MAY ONLY HELP, NEVER COST (2026-10-06). The blend alone made obeying the
+        # doctrine a penalty: AGENTS.md tells every agent to write "Use when <symptom>...",
+        # and a trigger names ONE situation, so at every other moment it earns ~0 and the
+        # compliant lesson scored 0.4x beside a non-compliant one at 1.0x.
+        #
+        # Measured over 400 harvested impressions replayed through this very function:
+        #     trigger HELPED 0 | HURT 16 | no change 7     (275 lessons carry no trigger)
+        #     worst 0.333 -> 0.233, 0.312 -> 0.200; a perfect 1.0 prose match became 0.4.
+        # And structurally, 0.6t + 0.4p can never exceed p when p is strong -- so a trigger
+        # could not help a good prose match even when perfectly on-topic. It could only fail
+        # to hurt.
+        #
+        # The blend is KEPT, not deleted: a trigger that genuinely names the moment must still
+        # win, and it does whenever it outscores the prose. max() removes the penalty and
+        # preserves the signal. Deleting the term instead would have thrown away the thing the
+        # doctrine exists to create.
+        return max(prose, 0.6 * _damped_overlap(trig, query, weights) + 0.4 * prose)
     return fn
 
 
