@@ -1017,9 +1017,55 @@ def normalize_target(path: Optional[str] = None, command: Optional[str] = None) 
 # credit would trade one blindness for a quieter one.
 _SHELL_OPS = {">", ">>", "<", "|", "||", "&", "&&", ";", "2>&1", "1>&2", "&>",
               "2>/dev/null", ">/dev/null", "2>nul", ">nul"}
-_STMT_SPLIT_RE = re.compile(r"\s*(?:&&|\|\||;)\s*")
 _CD_RE = re.compile(r"^cd(\s|$)")
 _EXT_RE = re.compile(r"\.\w{1,6}$")
+
+
+def _iter_unquoted(s: str):
+    """Yield (index, char) for every character OUTSIDE single/double quotes.
+
+    Shell structure only counts unquoted. A regex split on `;|&&` read the `;` inside
+    `py -c "import io; io.open(1)"` as a statement separator and invented a second
+    'action' out of a string literal; the same blindness mangled `-match 'a|b'`.
+    """
+    q = ""
+    for i, ch in enumerate(s):
+        if q:
+            if ch == q:
+                q = ""
+            continue
+        if ch in "'\"":
+            q = ch
+            continue
+        yield i, ch
+
+
+def _split_statements(s: str) -> List[str]:
+    """Split on `;`, `&&` and `||` that are outside quotes."""
+    out, prev = [], 0
+    skip_to = 0
+    for i, ch in _iter_unquoted(s):
+        if i < skip_to:
+            continue
+        width = 0
+        if ch == ";":
+            width = 1
+        elif ch in "&|" and s[i:i + 2] in ("&&", "||"):
+            width = 2
+        if width:
+            out.append(s[prev:i])
+            prev = i + width
+            skip_to = i + width
+    out.append(s[prev:])
+    return [x.strip() for x in out if x.strip()]
+
+
+def _pipeline_head(s: str) -> str:
+    """Everything before the first UNQUOTED pipe -- the command that owns the action."""
+    for i, ch in _iter_unquoted(s):
+        if ch == "|":
+            return s[:i]
+    return s
 
 
 def _looks_pathy(tok: str) -> bool:
@@ -1038,21 +1084,26 @@ def _coarse_command(payload: str) -> str:
     """
     cut = payload.find("<<")                       # a 40-line heredoc body is not an identity
     s = payload[:cut] if cut >= 0 else payload
-    stmts = [st.strip() for st in _STMT_SPLIT_RE.split(s) if st.strip()]
-    stmts = [st for st in stmts if not _CD_RE.match(st)]      # navigation is not the action
-    if not stmts:
-        return ""
-    toks = [t.strip("'\"") for t in stmts[0].split("|")[0].split()]
-    toks = [t for t in toks if t and t not in _SHELL_OPS]
-    if not toks:
-        return ""
-    kept, seen_flag = [toks[0]], False
-    for t in toks[1:]:
-        if t.startswith("-"):
-            seen_flag = True                       # the flag AND its value are both noise
+    stmts = [st for st in _split_statements(s) if not _CD_RE.match(st)]   # nav is not the action
+    # EVERY STATEMENT, NOT JUST THE FIRST. Measured on the live stream: keying a compound
+    # command on its first statement produced `k:$t = get-date` for
+    # `$t = get-date; node tests/score_export.test.mjs ...` -- a timing preamble, under
+    # which three genuinely different actions (node vs py, different test files) all
+    # collapsed into one key. A compound command's identity is all of its statements.
+    kept: List[str] = []
+    for stmt in stmts:
+        toks = [t.strip("'\"") for t in _pipeline_head(stmt).split()]
+        toks = [t for t in toks if t and t not in _SHELL_OPS]
+        if not toks:
             continue
-        if not seen_flag or _looks_pathy(t):
-            kept.append(t)
+        kept.append(toks[0])
+        seen_flag = False
+        for t in toks[1:]:
+            if t.startswith("-"):
+                seen_flag = True                   # the flag AND its value are both noise
+                continue
+            if not seen_flag or _looks_pathy(t):
+                kept.append(t)
     return " ".join(kept).replace("\\", "/")
 
 
@@ -1077,14 +1128,15 @@ def coarse_target(target: str) -> str:
     key = _coarse_command(payload)
     if not key:
         return ""
-    # THE EXECUTABLE ALONE IS A CATEGORY, NOT AN IDENTITY. Found by dogfooding this very
-    # slice: `py -c "<script>"` carries its whole payload inside a flag VALUE, so dropping
-    # flags leaves bare "py" -- and the live hook then credited six unrelated lessons for a
-    # one-off script being fixed. A single-token key is only trustworthy when NOTHING was
-    # dropped to get there (a genuinely minimal command like `pytest`, where there is one
-    # spelling and a fail-then-succeed really is the same action). Reduced-to-one-token
-    # means the identity lived in the flags, and joining on it is a false-credit machine.
-    if " " not in key and key != payload:
+    # THE EXECUTABLE ALONE IS A CATEGORY, NOT AN IDENTITY, and the floor is DISTINCT
+    # tokens rather than token count. Two findings, both from live data:
+    #   `py -c "<script>"`  -> "py"     (dogfooding: credited six unrelated lessons)
+    #   `py -m a --help; py -m a moment X` -> "py py"  (measure_credit_join sample)
+    # The second slips any length-based floor while carrying no more identity than the
+    # first. A key is trustworthy only if it names something beyond the program being
+    # run -- or if NOTHING had to be dropped to get it (a genuinely minimal command like
+    # `pytest`, where there is one spelling and fail-then-succeed is the same action).
+    if len(set(key.split())) < 2 and key != payload:
         return ""
     return "k:" + key
 

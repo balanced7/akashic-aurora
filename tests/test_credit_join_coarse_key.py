@@ -207,6 +207,11 @@ def test_j9_a_command_whose_identity_is_a_flag_value_gets_no_axis(monkeypatch):
         "the interpreter name alone must never be a join key"
     assert at_action.coarse_target(_c("pytest -q")) == "", \
         "reduced to one token by dropping flags -- the identity was in the flags"
+    # ...and the floor is DISTINCT tokens, not token COUNT: this one slips any length
+    # test while naming nothing but the interpreter, twice. From the live sample.
+    assert at_action.coarse_target(
+        _c("py -m arsenal.practice --help; py -m arsenal.practice moment 20260915")) == "", \
+        "'py py' is two tokens and still only names the program being run"
     assert at_action.coarse_target(_c("py -c 'a'")) == at_action.coarse_target(_c("py -c 'b'")) == ""
 
     monkeypatch.setattr(at_action, "record_feedback", lambda *a, **k: True)
@@ -216,6 +221,31 @@ def test_j9_a_command_whose_identity_is_a_flag_value_gets_no_axis(monkeypatch):
     res = at_action.resolve_action_outcome(sid, _c('py -c "a totally different script"'), True)
     assert res["flipped"] is False and res["credited"] == 0, \
         "fixing an unrelated one-off script must not credit anything"
+
+
+def test_j10_a_shared_setup_preamble_does_not_collapse_distinct_actions(monkeypatch):
+    """FOUND BY MEASUREMENT (scripts/measure_credit_join.py), on the live stream.
+
+    Keying a compound command on its FIRST statement produced `k:$t = get-date` for
+    `$t = get-date; node tests/score_export.test.mjs ...` -- a timing preamble. Three
+    different actions in the sample (node vs py, different test files) all keyed to it.
+    A compound command's identity is EVERY statement, not the first one.
+    """
+    a = at_action.coarse_target(_c("$t = get-date; node tests/score_export.test.mjs --sessions"))
+    b = at_action.coarse_target(_c("$t = get-date; py tests/test_score_export.py --sessions"))
+    assert a and b and a != b, f"preamble collapsed two actions: {a!r} == {b!r}"
+    assert "score_export.test.mjs" in a and "node" in a, f"the real action must survive: {a!r}"
+
+    # ...and the navigation prefix is still dropped, so the two spellings still agree.
+    assert at_action.coarse_target(_c("cd e:/ai-setup; git log --oneline -3")) \
+        == at_action.coarse_target(_c("git log --oneline -5"))
+
+    monkeypatch.setattr(at_action, "record_feedback", lambda *a, **k: True)
+    sid = _sid()
+    at_action.mark_impression(sid, _c("$t = get-date; node tests/a.mjs"), ["learn:experiment:l"])
+    at_action.resolve_action_outcome(sid, _c("$t = get-date; node tests/a.mjs"), False)
+    res = at_action.resolve_action_outcome(sid, _c("$t = get-date; py tests/b.py"), True)
+    assert res["flipped"] is False, "a shared preamble is not a shared action"
 
 
 if __name__ == "__main__":

@@ -350,6 +350,7 @@
 - `look.py` — look -- the visual plane for a seat that has none: capture -> describe -> record.
 - `map_generator.py` — T381 M1 -- the living map's first render (c-map-design reconciled).
 - `mcp_register.py` — T081-W2: make the akashic-aurora MCP door attach from ANY launch cwd.
+- `measure_credit_join.py` — Measure how much of the credit sensor's blindness the COARSE JOIN AXIS recovers.
 - `measure_lesson_fields.py` — What the lesson plane actually carries, and which of it anything reads.
 - `measure_target_join.py` — Measure whether the touch plane and the outcome plane can join on a target key.
 - `migrate_time_scores.py` — One-time migration (S5): re-score the persisted time-zsets with the unified `to_epoch`.
