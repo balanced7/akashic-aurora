@@ -124,12 +124,20 @@ def _tail_lines(path: str):
 
 
 def _latest_failure_id(transcript_path: str, target: str):
-    """tool_use_id of the NEWEST failed (is_error) tool call whose normalized target == `target`,
-    or None. Pairs assistant tool_use blocks (id -> target) with user tool_result blocks."""
+    """tool_use_id of the NEWEST failed (is_error) tool call matching `target`, or None.
+    Pairs assistant tool_use blocks (id -> target) with user tool_result blocks.
+
+    MATCHES ON THE COARSE AXIS TOO (at_action.coarse_target). This scan is the ONLY way a
+    FAIL reaches the engine for any tool without a PostToolUseFailure fast path (that
+    event is Bash/Write only, per #24908), so an exact-only match here meant the
+    fix-your-own-command case could not be observed even in principle: the success asks
+    about the fixed spelling and the transcript only holds the broken one.
+    """
     if not transcript_path or not target:
         return None
     try:
-        from core.recall.at_action import normalize_target
+        from core.recall.at_action import normalize_target, coarse_target
+        want_coarse = coarse_target(target)
         uses = {}
         latest = None
         for line in _tail_lines(transcript_path):
@@ -150,11 +158,30 @@ def _latest_failure_id(transcript_path: str, target: str):
                     if tgt:
                         uses[b.get("id")] = tgt
                 elif bt == "tool_result" and b.get("is_error") is True:
-                    if uses.get(b.get("tool_use_id")) == target:
+                    seen = uses.get(b.get("tool_use_id"))
+                    if seen and (seen == target or
+                                 (want_coarse and coarse_target(seen) == want_coarse)):
                         latest = b.get("tool_use_id")
         return latest
     except Exception:
         return None
+
+
+def _wm_key(target: str) -> str:
+    """The watermark key for 'this failure has been backfilled': the COARSE key when there
+    is one, else the target itself.
+
+    Load-bearing for exactly-once. The watermark is a dict of key -> tool_use_id, so if it
+    were keyed by the exact target, one failure could be backfilled once per spelling that
+    later succeeds -- and every extra backfill is a phantom FAIL that corrupts the
+    first-try/prevention arithmetic. Keying by the coarse key gives every spelling of a
+    command one shared slot, which is exactly the "accounted for" semantics intended.
+    """
+    try:
+        from core.recall.at_action import coarse_target
+        return coarse_target(target) or target
+    except Exception:
+        return target
 
 
 def _safe(session_id: str) -> str:
@@ -386,22 +413,24 @@ def main() -> int:
             # watermark its tool_use_id so the transcript scan never double-processes this failure.
             if target:
                 fid = data.get("tool_use_id")
-                fresh = not (fid and _failure_processed(sid, target, fid))
+                wm = _wm_key(target)
+                fresh = not (fid and _failure_processed(sid, wm, fid))
                 resolve_action_outcome(sid, target, False)
                 if fresh:
                     _capture_fail(target, tool)   # durable degraded-output label (RENEW A'), exactly-once
                 if fid:
-                    _mark_failure_processed(sid, target, fid)
+                    _mark_failure_processed(sid, wm, fid)
             return 0
         ok = _is_success(data)
         if ok and target:
             # Backfill the FAIL the hook never received (see module docstring), exactly once per
             # failure, BEFORE resolving the current success -- the engine then sees FAIL->SUCCESS.
             fid = _latest_failure_id(data.get("transcript_path") or "", target)
-            if fid and not _failure_processed(sid, target, fid):
+            wm = _wm_key(target)
+            if fid and not _failure_processed(sid, wm, fid):
                 resolve_action_outcome(sid, target, False)
                 _capture_fail(target, tool)       # durable degraded-output label (RENEW A'), exactly-once
-                _mark_failure_processed(sid, target, fid)
+                _mark_failure_processed(sid, wm, fid)
         rep = resolve_action_outcome(sid, target, ok)
         if rep.get("flipped"):
             try:   # durable funnel signal (flips observed vs lessons recorded) -- best-effort

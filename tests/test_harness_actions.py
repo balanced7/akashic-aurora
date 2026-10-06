@@ -204,7 +204,10 @@ def test_resolve_action_outcome_stage_record_prefers_explicit_agent(monkeypatch,
     explicit param over env; without the param, env (today's behavior) is preserved."""
     import core.recall.at_action as at
     monkeypatch.setattr(at, "_STAGE_DIR", str(tmp_path))
-    monkeypatch.setattr(at, "_impressions_for", lambda sid, t: [])
+    # **kw absorbs the coarse= join axis. NOTE: resolve_action_outcome is fail-soft, so a
+    # stub with a stale signature raises TypeError INSIDE the try and the whole outcome
+    # record silently vanishes -- this pin only caught it as a missing file.
+    monkeypatch.setattr(at, "_impressions_for", lambda sid, t, **kw: [])
     monkeypatch.setattr(at, "_get_outcome", lambda sid, t: None)
     monkeypatch.setattr(at, "_set_outcome", lambda sid, t, v: None)
     monkeypatch.setenv("AKASHIC_AGENT_ID", "claude")

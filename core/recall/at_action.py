@@ -999,6 +999,96 @@ def normalize_target(path: Optional[str] = None, command: Optional[str] = None) 
     return ""
 
 
+# --------------------------------------------------------------------------------------
+# THE SECOND JOIN AXIS (2026-10-06). `normalize_target` keys a command on its WHOLE
+# literal string, and the credit loop joins on that key by exact equality. So the one
+# event worth observing -- an agent fixing its own command -- can never close the loop:
+# the FAIL is filed under the broken spelling and the SUCCESS asks about the fixed one.
+# Measured: 17,606 of 18,024 distinct outcome keys (97.7%) are command keys, so this is
+# ~98% of the sensor's surface, not an edge case.
+#
+# WHY NOT JUST COARSEN `normalize_target`. `replay.parse_target` INVERTS it to replay a
+# historical target through the live matcher, and tests/test_forge_replay.py pins that
+# inversion; a coarser primary key would hand the replay bench truncated commands while
+# reporting success. Twenty-odd other call sites share the key shape too. So this is an
+# ADDITIONAL axis, and `resolve_action_outcome` stamps every credit with the axis that
+# won it -- coarsening raises recall AND raises false joins, and credit here is already
+# assigned with no causal check (core/recall/prevention.py), so an unstamped coarse
+# credit would trade one blindness for a quieter one.
+_SHELL_OPS = {">", ">>", "<", "|", "||", "&", "&&", ";", "2>&1", "1>&2", "&>",
+              "2>/dev/null", ">/dev/null", "2>nul", ">nul"}
+_STMT_SPLIT_RE = re.compile(r"\s*(?:&&|\|\||;)\s*")
+_CD_RE = re.compile(r"^cd(\s|$)")
+_EXT_RE = re.compile(r"\.\w{1,6}$")
+
+
+def _looks_pathy(tok: str) -> bool:
+    """A file argument is the strongest identity a command has -- keep it even past a flag."""
+    return "/" in tok or "\\" in tok or _EXT_RE.search(tok) is not None
+
+
+def _coarse_command(payload: str) -> str:
+    """Reduce a command to its ACTION: executable, subcommand words, and file arguments.
+
+    Dropped: heredoc bodies, the house's `cd <repo> &&` prefix, pipeline tails, shell
+    redirections, and every flag together with its value. Kept: the first token, every
+    bare word before the first flag, and any path-like token anywhere -- so
+    `grep -n foo file.py` and `grep -n bar file.py` agree (same file, same action) while
+    `py a.py` and `py b.py` never do.
+    """
+    cut = payload.find("<<")                       # a 40-line heredoc body is not an identity
+    s = payload[:cut] if cut >= 0 else payload
+    stmts = [st.strip() for st in _STMT_SPLIT_RE.split(s) if st.strip()]
+    stmts = [st for st in stmts if not _CD_RE.match(st)]      # navigation is not the action
+    if not stmts:
+        return ""
+    toks = [t.strip("'\"") for t in stmts[0].split("|")[0].split()]
+    toks = [t for t in toks if t and t not in _SHELL_OPS]
+    if not toks:
+        return ""
+    kept, seen_flag = [toks[0]], False
+    for t in toks[1:]:
+        if t.startswith("-"):
+            seen_flag = True                       # the flag AND its value are both noise
+            continue
+        if not seen_flag or _looks_pathy(t):
+            kept.append(t)
+    return " ".join(kept).replace("\\", "/")
+
+
+def coarse_target(target: str) -> str:
+    """The second join axis for a `normalize_target` key, or "" when there is no second axis.
+
+    "" is reserved for keys that need no axis: a `p:` path key already joins exactly, and
+    an unparseable key has nothing to offer.
+
+    A COMMAND ALWAYS GETS AN AXIS, EVEN WHEN NOTHING WAS DROPPED, and that asymmetry is
+    load-bearing -- it is the bug test_j2 caught. The fix for a broken command is often
+    the MINIMAL spelling of it, so suppressing the axis for minimal commands means
+    `cd /repo && py x.py --bad` (axis "k:py x.py") could never be joined by plain
+    `py x.py` (no axis), which is precisely the fix-your-own-command case. The "k:" tag
+    keeps the coarse key in its own namespace, so filing both costs one dict entry and
+    can never collide with a "c:" key.
+    """
+    t = str(target or "")
+    if not t.startswith("c:") or len(t) <= 2:
+        return ""
+    payload = t[2:]
+    key = _coarse_command(payload)
+    if not key:
+        return ""
+    # THE EXECUTABLE ALONE IS A CATEGORY, NOT AN IDENTITY. Found by dogfooding this very
+    # slice: `py -c "<script>"` carries its whole payload inside a flag VALUE, so dropping
+    # flags leaves bare "py" -- and the live hook then credited six unrelated lessons for a
+    # one-off script being fixed. A single-token key is only trustworthy when NOTHING was
+    # dropped to get there (a genuinely minimal command like `pytest`, where there is one
+    # spelling and a fail-then-succeed really is the same action). Reduced-to-one-token
+    # means the identity lived in the flags, and joining on it is a false-credit machine.
+    if " " not in key and key != payload:
+        return ""
+    return "k:" + key
+
+
 def mark_impression(session_id: str, target: str, sources) -> None:
     """Record that `sources` were surfaced for `target` this session (the outcome-join key)."""
     srcs = [s for s in (sources or []) if s]
@@ -1012,14 +1102,25 @@ def mark_impression(session_id: str, target: str, sources) -> None:
         pass
 
 
-def _impressions_for(session_id: str, target: str) -> list:
+def _imp_match(stored_t: str, target: str, coarse: str) -> bool:
+    """One matcher for both readers below, so read and clear can never disagree.
+
+    The coarse side is computed from the STORED key rather than written alongside it, so
+    impression rows already on disk from before this slice retro-join without migration.
+    """
+    if stored_t == target:
+        return True
+    return bool(coarse) and coarse_target(stored_t) == coarse
+
+
+def _impressions_for(session_id: str, target: str, *, coarse: str = "") -> list:
     out = []
     try:
         with open(os.path.join(_IMP_DIR, _safe_id(session_id) + ".jsonl"), encoding="utf-8") as f:
             for line in f:
                 try:
                     rec = json.loads(line)
-                    if rec.get("t") == target:
+                    if _imp_match(rec.get("t") or "", target, coarse):
                         out += rec.get("s", [])
                 except Exception:
                     pass
@@ -1028,14 +1129,14 @@ def _impressions_for(session_id: str, target: str) -> list:
     return list(dict.fromkeys(out))   # dedup, order-stable
 
 
-def _clear_impressions(session_id: str, target: str) -> None:
+def _clear_impressions(session_id: str, target: str, *, coarse: str = "") -> None:
     try:
         p = os.path.join(_IMP_DIR, _safe_id(session_id) + ".jsonl")
         kept = []
         with open(p, encoding="utf-8") as f:
             for line in f:
                 try:
-                    if json.loads(line).get("t") != target:
+                    if not _imp_match(json.loads(line).get("t") or "", target, coarse):
                         kept.append(line)
                 except Exception:
                     pass
@@ -1082,27 +1183,39 @@ def resolve_action_outcome(session_id: str, target: str, success: bool, *, store
     was just earned, so it is the raw material for the JIT learn nudge and the wrap-time candidate
     lessons (friction audit D5). Returns {"flipped", "credited", "sources"}; best-effort + fail-soft
     -- a first-try success credits and logs nothing (the contrastive gate)."""
-    out: Dict[str, Any] = {"flipped": False, "credited": 0, "sources": []}
+    out: Dict[str, Any] = {"flipped": False, "credited": 0, "sources": [], "join": None}
     if not session_id or not target:
         return out
     try:
+        # The second axis (coarse_target). "" when the target needs none, which keeps
+        # every path key and every already-minimal command on exactly the old behaviour.
+        coarse = coarse_target(target)
         # Read impressions ONCE, before any clear -- the outcome stage needs to know a
         # lesson was surfaced even when nothing flipped (that is the prevention case).
-        srcs_now = _impressions_for(session_id, target)
-        if success and _get_outcome(session_id, target) == "FAIL":
+        srcs_now = _impressions_for(session_id, target, coarse=coarse)
+        if success:
+            # EXACT FIRST, ALWAYS. The coarse axis is the fallback, never the primary, so
+            # a target that already joined keeps crediting through the pre-existing path.
+            if _get_outcome(session_id, target) == "FAIL":
+                out["join"] = "exact"
+            elif coarse and _get_outcome(session_id, coarse) == "FAIL":
+                out["join"] = "coarse"
+        if out["join"]:
             out["flipped"] = True
             out["sources"] = srcs_now
             for src in out["sources"]:
                 if record_feedback(src, "helped", store=store):
                     out["credited"] += 1
-            _clear_impressions(session_id, target)
-            _log_flip(session_id, target, out["credited"], out["sources"])
+            _clear_impressions(session_id, target, coarse=coarse)
+            _log_flip(session_id, target, out["credited"], out["sources"], join=out["join"])
         # Stage separation: record EVERY resolution, flipped or not. Purely additive --
         # the flip path above is byte-for-byte unchanged, and nothing here steers ranking.
         _log_outcome_stage(session_id, target, success, surfaced_sources=srcs_now,
                            flipped=out["flipped"], credited=out["credited"],
-                           agent_id=agent_id)
+                           agent_id=agent_id, join=out["join"])
         _set_outcome(session_id, target, "SUCCESS" if success else "FAIL")
+        if coarse:
+            _set_outcome(session_id, coarse, "SUCCESS" if success else "FAIL")
     except Exception:
         pass
     return out
@@ -1113,10 +1226,12 @@ def resolve_outcome(session_id: str, target: str, success: bool, *, store=None) 
     return resolve_action_outcome(session_id, target, success, store=store)["credited"]
 
 
-def _log_flip(session_id: str, target: str, credited: int, sources) -> None:
+def _log_flip(session_id: str, target: str, credited: int, sources,
+              join: Optional[str] = None) -> None:
     try:
         os.makedirs(_FLIP_DIR, exist_ok=True)
-        rec = {"t": target, "credited": credited, "s": list(sources or []), "at": time.time()}
+        rec = {"t": target, "credited": credited, "s": list(sources or []), "at": time.time(),
+               "join": join or "exact"}
         with open(os.path.join(_FLIP_DIR, _safe_id(session_id) + ".jsonl"), "a", encoding="utf-8") as f:
             f.write(json.dumps(rec) + "\n")
     except Exception:
@@ -1125,7 +1240,8 @@ def _log_flip(session_id: str, target: str, credited: int, sources) -> None:
 
 def _log_outcome_stage(session_id: str, target: str, success: bool, *,
                        surfaced_sources, flipped: bool, credited: int,
-                       agent_id: Optional[str] = None) -> None:
+                       agent_id: Optional[str] = None,
+                       join: Optional[str] = None) -> None:
     """Record the OUTCOME stage for EVERY resolution -- not only for flips.
 
     STAGE SEPARATION (the 2026-07-25 four-seat debate's unanimous result). "surfaced",
@@ -1160,6 +1276,10 @@ def _log_outcome_stage(session_id: str, target: str, success: bool, *,
     rec = {"at": time.time(), "t": str(target or ""), "ok": bool(success),
            "surfaced": bool(srcs), "s": srcs,
            "flipped": bool(flipped), "credited": int(credited or 0),
+           # WHICH AXIS WON THE JOIN -- "exact", "coarse", or None for no flip. The
+           # coarse axis buys reach at the cost of false joins, so its share must stay
+           # auditable forever; a credit that cannot name its axis cannot be audited.
+           "join": join,
            # t383 identity thread: the explicit param beats env — a harness seat that
            # INHERITS a foreign AKASHIC_AGENT_ID (the DSH-under-Claude-Code case) must
            # not stamp its outcome rows with the parent's identity.

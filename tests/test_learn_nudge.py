@@ -27,8 +27,9 @@ def test_resolve_action_outcome_reports_and_logs_flip(tmp_path, monkeypatch):
     _patch_state_dirs(monkeypatch, tmp_path)
     sid, tgt = "nudge-core", "c:py failing_probe.py"
     aa.mark_impression(sid, tgt, ["learn:experiment:a", "learn:experiment:b"])
-    assert aa.resolve_action_outcome(sid, tgt, True) == {"flipped": False, "credited": 0, "sources": []}, \
-        "first-try success must not flip"
+    assert aa.resolve_action_outcome(sid, tgt, True) == {
+        "flipped": False, "credited": 0, "sources": [], "join": None}, \
+        "first-try success must not flip ('join' names the axis a flip won on; None = no flip)"
     aa.resolve_action_outcome(sid, tgt, False)
     rep = aa.resolve_action_outcome(sid, tgt, True)
     assert rep["flipped"] is True and rep["credited"] == 2

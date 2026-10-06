@@ -70,12 +70,26 @@ def test_j1_flags_and_their_values_are_dropped():
     assert good.endswith("boot claude"), f"the action survives coarsening: {good!r}"
 
 
-def test_j2_cd_prefix_and_pipeline_tail_are_dropped():
-    """`cd /e/AI-Setup && real-command | head -40` is the house's own idiom."""
+def test_j2_cd_prefix_and_pipeline_tail_are_dropped(monkeypatch):
+    """`cd /e/AI-Setup && real-command | head -40` is the house's own idiom.
+
+    This pin also covers the ASYMMETRIC case, which is the one that bites: the fix for a
+    broken command is often its MINIMAL spelling, so a minimal command must still carry a
+    coarse axis or it can never reach the record its dressed failure left behind.
+    """
     plain = at_action.coarse_target(_c("py scripts/measure_target_join.py"))
     dressed = at_action.coarse_target(
         _c("cd /e/AI-Setup && py scripts/measure_target_join.py --json | tail -40"))
     assert plain and plain == dressed, f"{plain!r} != {dressed!r}"
+
+    monkeypatch.setattr(at_action, "record_feedback", lambda *a, **k: True)
+    sid = _sid()
+    at_action.mark_impression(sid, _c("cd /e/AI-Setup && py x.py --bad | tail -5"),
+                              ["learn:experiment:l"])
+    at_action.resolve_action_outcome(sid, _c("cd /e/AI-Setup && py x.py --bad | tail -5"), False)
+    res = at_action.resolve_action_outcome(sid, _c("py x.py"), True)
+    assert res["flipped"] is True and res["credited"] == 1, \
+        "a minimal fix must join its own dressed failure"
 
 
 def test_j3_heredoc_bodies_are_dropped():
@@ -85,24 +99,41 @@ def test_j3_heredoc_bodies_are_dropped():
     assert ca and ca == cb, "the heredoc BODY is payload, not identity"
 
 
-def test_j4_identity_is_preserved_different_actions_never_join():
+def test_j4_identity_is_preserved_different_actions_never_join(monkeypatch):
     """The false-credit guard. Coarsening that collapses real actions is worse than
-    blindness, because a false join credits a lesson for a success it never caused."""
-    assert at_action.coarse_target(_c("py scripts/a.py")) \
-        != at_action.coarse_target(_c("py scripts/b.py")), "different file args"
-    assert at_action.coarse_target(_c("py agent_cli.py boot claude")) \
-        != at_action.coarse_target(_c("py agent_cli.py learn claude")), "different subcommand"
-    assert at_action.coarse_target(_c("pytest tests/x.py")) \
-        != at_action.coarse_target(_c("py tests/x.py")), "different executable"
+    blindness, because a false join credits a lesson for a success it never caused.
+
+    Each pair carries flags so BOTH sides genuinely have a coarse axis -- comparing two
+    axis-less keys would pass vacuously on "" == "" and prove nothing.
+    """
+    assert at_action.coarse_target(_c("py scripts/a.py --v 1")) \
+        != at_action.coarse_target(_c("py scripts/b.py --v 1")), "different file args"
+    assert at_action.coarse_target(_c("py agent_cli.py boot claude --j")) \
+        != at_action.coarse_target(_c("py agent_cli.py learn claude --j")), "different subcommand"
+    assert at_action.coarse_target(_c("pytest tests/x.py -q")) \
+        != at_action.coarse_target(_c("py tests/x.py -q")), "different executable"
+
+    # ...and the behaviour that actually matters: no flip across different actions.
+    monkeypatch.setattr(at_action, "record_feedback", lambda *a, **k: True)
+    sid = _sid()
+    at_action.mark_impression(sid, _c("py scripts/a.py --v 1"), ["learn:experiment:l"])
+    at_action.resolve_action_outcome(sid, _c("py scripts/a.py --v 1"), False)
+    res = at_action.resolve_action_outcome(sid, _c("py scripts/b.py --v 1"), True)
+    assert res["flipped"] is False and res["credited"] == 0, \
+        "succeeding at a DIFFERENT action must never credit the failed one's lesson"
 
 
-def test_j5_no_second_axis_when_one_is_not_needed():
-    """Empty string means "no coarse axis" -- paths already join exactly, and a command
-    with nothing to drop must not be filed twice under two identical keys."""
-    assert at_action.coarse_target(at_action.normalize_target(path=__file__)) == ""
-    assert at_action.coarse_target(_c("pytest")) == ""
+def test_j5_only_keys_that_need_no_axis_get_none():
+    """"" means "no second axis". It is for keys that already join exactly (paths) or
+    that cannot be parsed -- NOT for minimal commands: suppressing the axis there was the
+    bug test_j2 caught, because the fix for a broken command is often the minimal form."""
+    assert at_action.coarse_target(at_action.normalize_target(path=__file__)) == "", \
+        "a path key already joins exactly"
     assert at_action.coarse_target("") == ""
     assert at_action.coarse_target("garbage-with-no-tag") == ""
+    assert at_action.coarse_target("c:") == ""
+    assert at_action.coarse_target(_c("pytest")) == "k:pytest", \
+        "a minimal command still needs an axis so a dressed sibling can reach it"
 
 
 # ---------------------------------------------------------------- the loop closing
@@ -159,6 +190,32 @@ def test_j8_consume_on_credit_holds_across_the_axes(monkeypatch):
     at_action.resolve_action_outcome(sid, _c("py z.py --a 3"), False)
     at_action.resolve_action_outcome(sid, _c("py z.py --a 4"), True)
     assert calls == ["learn:experiment:l"], f"credited more than once: {calls}"
+
+
+def test_j9_a_command_whose_identity_is_a_flag_value_gets_no_axis(monkeypatch):
+    """FOUND BY DOGFOODING, not by thinking. While building this slice the live hook
+    reported `[flip] FAIL->SUCCESS on: c:py -c "..."` and credited SIX unrelated lessons
+    for a one-off throwaway script being fixed.
+
+    `py -c "<script>"` carries its entire identity inside a flag VALUE, so dropping flags
+    leaves bare "py" -- a CATEGORY, under which any failure joins any later success of the
+    same interpreter. test_j4 passed vacuously here because every pair it compares has a
+    path argument. A reduced-to-one-token key is refused; a genuinely minimal command,
+    where nothing had to be dropped, still gets its axis (see test_j5).
+    """
+    assert at_action.coarse_target(_c('py -c "import io; io.open(1)"')) == "", \
+        "the interpreter name alone must never be a join key"
+    assert at_action.coarse_target(_c("pytest -q")) == "", \
+        "reduced to one token by dropping flags -- the identity was in the flags"
+    assert at_action.coarse_target(_c("py -c 'a'")) == at_action.coarse_target(_c("py -c 'b'")) == ""
+
+    monkeypatch.setattr(at_action, "record_feedback", lambda *a, **k: True)
+    sid = _sid()
+    at_action.mark_impression(sid, _c('py -c "first script"'), ["learn:experiment:l"])
+    at_action.resolve_action_outcome(sid, _c('py -c "first script"'), False)
+    res = at_action.resolve_action_outcome(sid, _c('py -c "a totally different script"'), True)
+    assert res["flipped"] is False and res["credited"] == 0, \
+        "fixing an unrelated one-off script must not credit anything"
 
 
 if __name__ == "__main__":
