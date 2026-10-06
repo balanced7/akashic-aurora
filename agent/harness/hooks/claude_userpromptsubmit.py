@@ -73,6 +73,31 @@ def build_bus_line(agent_id: str) -> str:
     return f"[akashic] mail: {n} unread bus msg(s) -> py agent_cli.py bifrost-sync {agent_id}"
 
 
+def build_wake_line(agent_id: str, session_id: str = "") -> str:
+    """One line naming WHO woke this seat, "" otherwise. Consumed on read (fire-once).
+
+    Daniel, 2026-10-05: "Instead of checking what fired it, how do you get notified what woke
+    you? so you know exactly what came and from whom". The listener exits on mail, the harness
+    reports only `Background command completed (exit code 0)`, and the sender/kind/body it held
+    went to a task log the seat had to `tail`. Fourteen wakes on that session cost fourteen
+    tail calls. The listener now leaves a one-shot note; this renders it at the top of the
+    very next turn.
+
+    Fail-soft like its siblings: an unreadable note means no line, never a broken hook. Silent
+    on an ordinary typed turn, or the line becomes wallpaper.
+    """
+    try:
+        import importlib.util as _ilu
+        import os as _os
+        _p = _os.path.join(_os.path.dirname(_os.path.dirname(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))), "scripts", "bifrost_wake.py")
+        _spec = _ilu.spec_from_file_location("_bw_wake_note", _p)
+        _bw = _ilu.module_from_spec(_spec)
+        _spec.loader.exec_module(_bw)
+        return _bw.render_wake_note(_bw.read_wake_note(agent_id, session_id or ""))
+    except Exception:
+        return ""
+
+
 def build_page_lines() -> list:
     """T078-W4: page-grade findings reach the live seat every turn. The seat's
     doctrine (rendered in each line) is to relay via PushNotification when
@@ -98,7 +123,11 @@ def main() -> int:
                 print(f"[plan-recall] out of scope: cwd={cwd!r}", file=sys.stderr)
             return 0   # unrelated project -> full silence
         agent_id = _seat(str(data.get("session_id") or ""))
-        pieces = [build_plan_recall(data.get("prompt") or "",
+        # WOKE-BY FIRST. If this turn exists because mail woke the seat, the single most
+        # useful thing to say is who called -- before recall, before the unread count. It is
+        # the answer to the question the seat would otherwise spend a tool call on.
+        pieces = [build_wake_line(agent_id, str(data.get("session_id") or "")),
+                  build_plan_recall(data.get("prompt") or "",
                                     data.get("session_id") or "", agent_id),
                   build_bus_line(agent_id)] + build_page_lines()
         ctx = "\n".join(p for p in pieces if p)

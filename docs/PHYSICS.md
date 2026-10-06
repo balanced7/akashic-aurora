@@ -4,7 +4,7 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at d4a05967. A bound you discover by collision is not awareness -- this sheet
+> Derived at b10a1116. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
@@ -285,7 +285,7 @@ Class: reference
 | `TEMP` | `"/tmp"` | core/recall/precision_audit.py, scripts/ops/archive_transcripts.py |
 | `USERPROFILE` | `` | core/tools/everything.py |
 
-## Mechanical bounds (331 numeric constants)
+## Mechanical bounds (332 numeric constants)
 
 | Constant | Value | Site | Note |
 |---|---|---|---|
@@ -582,6 +582,7 @@ Class: reference
 | `VFX_MAX_NOTES` | 4,096 | arsenal/band.py | arsenal/fl/vfx/arsenal_band.py MAX_NOTES_PER_LANE |
 | `VFX_MAX_PATTERNS` | 64 | arsenal/band.py | arsenal/fl/vfx/arsenal_band.py MAX_PATTERNS |
 | `WAKE_FLOOR_DEFAULT` | 2 | agent_cli.py |  |
+| `WAKE_NOTE_CAP` | 4 | scripts/bifrost_wake.py | messages named in the note; beyond this the line says "+N more" |
 | `WALK_STEP_MAX_MS` | 1,000 | arsenal/practice.py | ...and back-to-back windows this short, each on a new bass note under the same notes, are |
 | `WARNING_MAX` | 300 | arsenal/jam/schemas.py |  |
 | `WATCH_CAP` | 2 | core/coord/task_ledger.py |  |

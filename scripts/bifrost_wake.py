@@ -265,6 +265,97 @@ def clear_rearm_trigger(agent: str, session_id: str = "", tmp: str = None) -> No
         pass
 
 
+# ------------------------------------------------------------------ what woke you (2026-10-05)
+#
+# Daniel, verbatim: "Instead of checking what fired it, how do you get notified what woke you?
+# so you know exactly what came and from whom"
+#
+# The listener already knows. It prints `out` at the wake exit below, carrying the sender, kind
+# and body of every message that fired it -- into the background task's log, which the seat can
+# only reach by spending a tool call on `tail`. Measured on the session that prompted this:
+# FOURTEEN wakes, fourteen tail calls, each one recovering information this process held in its
+# hand and threw at a file. So it writes a one-shot note instead, and the UserPromptSubmit hook
+# (which already speaks every turn) reads it at the top of the next turn.
+#
+# Same tempdir, same naming, same fail-open discipline as the re-arm trigger above -- a note
+# that cannot be written must never cost the wake it describes.
+
+WAKE_NOTE_CAP = 4          # messages named in the note; beyond this the line says "+N more"
+WAKE_SNIPPET = 160         # characters of body per message -- enough to know, not to re-read
+
+
+def wake_note_path(agent: str, session_id: str = "", tmp: str = None) -> str:
+    """Mirrors seat naming, like rearm_trigger_path."""
+    name = (f"bifrost_wake_{agent}_{session_id}.woke" if session_id
+            else f"bifrost_wake_{agent}.woke")
+    return os.path.join(tmp or tempfile.gettempdir(), name)
+
+
+def write_wake_note(agent: str, session_id: str = "", out: list = None,
+                    tmp: str = None) -> None:
+    """Record WHO woke this seat, for the next turn to announce.
+
+    Written ONLY on a mail exit. A deadline self-cycle writes the re-arm trigger instead and
+    deliberately leaves no note: nothing arrived, and announcing "you woke" with no sender is
+    the count-shaped non-answer this exists to replace.
+    """
+    rows = []
+    for m in (out or [])[:WAKE_NOTE_CAP]:
+        if not isinstance(m, dict):
+            continue
+        body = m.get("content")
+        if not isinstance(body, str):
+            body = json.dumps(body, ensure_ascii=True) if body is not None else ""
+        rows.append({"frm": str(m.get("frm") or m.get("from") or "?"),
+                     "kind": str(m.get("kind") or "?"),
+                     "id": str(m.get("id") or ""),
+                     "snippet": body.strip().replace("\n", " ")[:WAKE_SNIPPET]})
+    if not rows:
+        return
+    try:
+        with open(wake_note_path(agent, session_id, tmp), "w", encoding="utf-8") as f:
+            json.dump({"at": time.time(), "total": len(out or []), "msgs": rows}, f)
+    except Exception:
+        pass                     # the note must never cost the wake
+
+
+def read_wake_note(agent: str, session_id: str = "", tmp: str = None):
+    """Read and CONSUME the note -- returns the dict, or None.
+
+    Fire-once by construction: the file is removed on read. A note that lingers re-announces a
+    handled wake on every later turn, and a seat told the same thing three turns running either
+    acts twice or stops reading the line. Removal happens even if the parse fails, because a
+    corrupt note that cannot be cleared would announce nothing forever.
+    """
+    p = wake_note_path(agent, session_id, tmp)
+    try:
+        with open(p, encoding="utf-8") as f:
+            doc = json.load(f)
+    except Exception:
+        doc = None
+    try:
+        os.remove(p)
+    except Exception:
+        pass
+    return doc or None
+
+
+def render_wake_note(doc) -> str:
+    """One line naming who called. '' when there is nothing to say."""
+    if not isinstance(doc, dict):
+        return ""
+    msgs = doc.get("msgs") or []
+    if not msgs:
+        return ""
+    parts = []
+    for m in msgs:
+        snip = (m.get("snippet") or "").strip()
+        parts.append(f"[{m.get('kind')}] from {m.get('frm')}" + (f": {snip}" if snip else ""))
+    more = int(doc.get("total") or len(msgs)) - len(msgs)
+    tail = f"  (+{more} more)" if more > 0 else ""
+    return "[akashic] WOKE BY -- " + " | ".join(parts) + tail
+
+
 # ------------------------------------------------------------- S0-gamma: wake-detection dedup
 # Trigger (note s0-gamma-wake-dedup, 2026-07-21; recovery arc S0 floor): ~6 wake cycles burned
 # in one hour on LOGICAL duplicates -- dual-write twins (T039a/T044) and RB-26 redeliveries of
@@ -632,6 +723,11 @@ def watch(agent: str, total_deadline_s: int, inner_block_ms: int, *,
         # only, never an intent -- a woken-but-died session honestly reads
         # read_but_undeclared. Fail-open: the receipt must never cost the wake.
         say_seen_at_fire(agent, delivered, str(session_id or ""))
+        # ...and tell the NEXT TURN who called. Without this the seat receives only
+        # "Background command completed (exit code 0)" and must spend a tool call on `tail`
+        # to recover what this very function is holding (Daniel, 2026-10-05: "how do you get
+        # notified what woke you? so you know exactly what came and from whom").
+        write_wake_note(agent, str(session_id or ""), out)
     # Read-state-first (Slice C): the governed task ledger prints BEFORE the messages, so a waking
     # agent obeys DONE/NEXT and never acts on a stale backlog message. Fail-open.
     try:
