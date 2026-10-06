@@ -1,0 +1,33 @@
+{
+  "id": "affordance-layer",
+  "question": "Every notification in this house can carry three layers -- FACT, PAYLOAD, AFFORDANCE. A census says 105 of 187 surfaces attempt all three but only 29 of 97 affordances are runnable as printed. Is the right fix a per-action affordance builder plus a paste-test guardrail, or is that the wrong shape?",
+  "tier": "full",
+  "opened_by": "claude",
+  "opened_at": "2026-10-06T04:43:48.126243+00:00",
+  "seals": {
+    "brief": {
+      "by": "claude",
+      "at": "2026-10-06T04:45:07.506563+00:00"
+    },
+    "half_a": {
+      "by": "deepseek",
+      "at": "2026-10-06T04:47:58.455347+00:00"
+    },
+    "half_b": {
+      "by": "kimi",
+      "at": "2026-10-06T05:01:02.013338+00:00"
+    },
+    "reconciliation": {
+      "by": "claude",
+      "at": "2026-10-06T14:08:33.870361+00:00"
+    }
+  },
+  "pv": {
+    "ran_at": "2026-10-06T05:04:00.947624+00:00",
+    "missing_count": 0
+  },
+  "authors": {
+    "half_b": "kimi",
+    "reconciliation": "claude"
+  }
+}
