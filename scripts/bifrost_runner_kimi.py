@@ -84,7 +84,10 @@ CARD = {
 ANSWERABLE = frozenset({"chat", "request", "question", "handoff", "nudge", "inform"})
 
 REPLY_TIMEOUT_SEC = _scaled(600)   # thinking turns run long; drill-shrinkable
-KIMI_MAX_HOPS = int(os.getenv("KIMI_MAX_HOPS", "30"))
+# ONE source for the tool budget: kimi_chat owns it (Daniil 2026-10-06, "no max
+# toolcalls"). Re-reading the env here is how a default drifts from its sibling --
+# this file said 30 and deepseek_chat said UNLIMITED for six weeks.
+from kimi_chat import MAX_TOOL_HOPS as KIMI_MAX_HOPS, _HOPS_CAPPED
 BUDGET_EXEMPT_SENDERS = frozenset({"user", "daniel"})   # directed human asks always answer
 
 DEFAULT_SYSTEM = ("You are kimi (kimi-k3), operating as an agentic technical partner on "
@@ -271,7 +274,7 @@ def make_kimi_replier(model: str, system: str, effort: str, root: Path, agent_id
     # T050 Q3+Q4: capabilities declared UP FRONT -- no hop wasted discovering what a session can do.
     system = (f"[session capabilities] write_mode: "
               f"{'ENABLED (guarded write_file/edit_file live; locks self-release at reply)' if allow_write else 'READ-ONLY -- write_file/edit_file will refuse; investigate and report'}"
-              f" | tool budget: {KIMI_MAX_HOPS} hops per task, running counter [hop N] rides every result"
+              f" | tool budget: {('%d hops per task' % KIMI_MAX_HOPS) if _HOPS_CAPPED else 'UNLIMITED (Daniil 2026-10-06)'}, running counter [hop N] rides every result"
               f" | reasoning: always-on (kimi-k3), thinking streams to the bus | recall-at: off\n"
               + system)
     toolbox = ToolBox(root, allow_exec=allow_exec, trust=allow_exec, allow_secrets=False,

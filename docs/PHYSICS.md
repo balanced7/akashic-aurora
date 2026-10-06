@@ -4,7 +4,7 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at 2dfa2c3d. A bound you discover by collision is not awareness -- this sheet
+> Derived at 5dc7edb5. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
@@ -235,7 +235,7 @@ Class: reference
 | `KIMI_CONNECT_TIMEOUT` | `"15"` | scripts/kimi_chat.py |
 | `KIMI_EFFORT` | `"max"` | scripts/kimi_chat.py |
 | `KIMI_GRANT_BASIS_USD` | `"105.0"` | scripts/kimi_chat.py |
-| `KIMI_MAX_HOPS` | `"30"` | scripts/bifrost_runner_kimi.py, scripts/kimi_chat.py |
+| `KIMI_MAX_HOPS` | `"0"` | scripts/kimi_chat.py |
 | `KIMI_MAX_RETRIES` | `"1"` | scripts/kimi_chat.py |
 | `KIMI_MODEL` | `K3` | scripts/kimi_chat.py |
 | `KIMI_READ_TIMEOUT` | `"180"` | core/comm/ask.py, scripts/kimi_chat.py |

@@ -46,6 +46,20 @@ BASE_URL = "https://api.moonshot.ai/v1"
 K3, K27_CODE, K27_FAST, K26 = "kimi-k3", "kimi-k2.7-code", "kimi-k2.7-code-highspeed", "kimi-k2.6"
 DEFAULT_MODEL = os.getenv("KIMI_MODEL", K3)
 DEFAULT_EFFORT = os.getenv("KIMI_EFFORT", "max")     # only API level today; param-ready
+
+# Daniil 2026-10-06: "why max it out at 30 tool calls ... no max toolcalls" -- the same ruling
+# he gave for Heimdall on 2026-08-24 ("remove heimdalls toolcall limits and turn limits, I
+# don't want him to get cut off in the middle of a high value run"), which landed in
+# deepseek_chat.py:113 and NEVER REACHED HERE. Navi ran capped at 30 hops for six weeks while
+# her sibling ran uncapped, and I made it worse: when she told me the cap I treated it as
+# physics and SIZED AN ASK AROUND IT ("pick ONE of the two, do not attempt both") instead of
+# asking why a config was deciding how much thinking a peer was allowed.
+#
+# Same mechanism as deepseek on purpose -- default UNLIMITED via the 10**9 sentinel (which
+# keeps range() lazy and honest), and KIMI_MAX_HOPS re-caps for a drill. The exhaustion cliff
+# at the bottom of send() then guards that cap exactly as before.
+MAX_TOOL_HOPS = int(os.getenv("KIMI_MAX_HOPS", "0")) or 10**9
+_HOPS_CAPPED = MAX_TOOL_HOPS < 10**9
 # Thinking rides INSIDE completion tokens (probe-verified) -- cap generously or get empty answers.
 MAX_COMPLETION_TOKENS = int(os.getenv("KIMI_RUNNER_MAX_TOKENS", "8000"))
 KIMI_CONNECT_TIMEOUT = float(os.getenv("KIMI_CONNECT_TIMEOUT", "15"))
@@ -289,7 +303,7 @@ class KimiAgent:
         self.dispatch = dispatch
         self.interrupt, self.inject = interrupt, inject
         self.on_trace, self.on_activity = on_trace, on_activity
-        self.max_hops = int(os.getenv("KIMI_MAX_HOPS", "30")) if max_hops is None else max_hops
+        self.max_hops = MAX_TOOL_HOPS if max_hops is None else max_hops
         self.history: list = []                             # append-only (cache contract)
         self.input_tokens = self.output_tokens = 0
         self.meter = meter or SpendMeter()
@@ -385,8 +399,11 @@ class KimiAgent:
                 self._trace("tool", f"{c.function.name}({json.dumps(args)[:200]})")
                 self._activity("tool", c.function.name)
                 out = self._run_tool(c.function.name, args)
+                from core.comm.toolbox import recall_tool_request
+                _budget = f"/{self.max_hops}" if self.max_hops < 10**9 else ""
+                rendered = f"[hop {hop}{_budget}] {out}"
                 self.history.append({"role": "tool", "tool_call_id": c.id,
-                                     "content": f"[hop {hop}/{self.max_hops}] {out}"[:20000]})
+                                     "content": rendered if recall_tool_request(c.function.name, args) else rendered[:20000]})
         return (f"{partial}\n[kimi tool budget exhausted at {self.max_hops} hops -- "
                 f"partial answer above; re-ask to continue]").strip()
 
