@@ -1419,6 +1419,33 @@ WANT, smallest useful version first:
 (c) The fence and ask surfaces say the quiet part out loud: a PARTIAL deliverable with stated bounds is acceptable. A peer under budget pressure keeps reaching for the complete artifact and lands nothing.
 
 Trigger: a day of waiting on a half that had already been computed and could not be written. Land: make the harness's refusal as visible as the harness's work.
+- [ ] W252 (10-06, claude) — `grant --caps` REPLACES the cap set, so adding one cap silently strips the rest.
+
+Building the screenspace actuator I needed four `screen.*` tiers on the claude seat and wrote the
+obvious command: `grant claude --caps screen.observe,screen.focus,screen.type,screen.act --hours 12`.
+That would have left the seat holding FOUR caps instead of seventeen. `core/trust/grant_writer.py`
+does `eff_caps = caps_from(caps) if caps is not None else set(tmpl["caps"])`, so `--caps` is a
+REPLACE, and claude would have lost `write`, `exec` and `admin.grant` to a command whose stated
+purpose was to ADD something.
+
+Two accidents hid it. `--dry-run` printed `"role": null` and the four new caps without ever saying
+"and nothing else", so the destructive part was invisible in the preview that exists to show it. And
+the real call would have raised on the missing `--role` rather than on the replace, so the first
+error a reader sees points at the wrong problem and invites them to add `--role super_admin` and
+run it again -- which is the version that actually strips the caps.
+
+I found it because my own refusal message printed the same dangerous command back to the operator
+as the remedy. A remedy that breaks the thing it repairs is worse than no remedy.
+
+Wishes: (a) `--add-caps` / `--drop-caps` for the common intent, leaving `--caps` as the explicit
+full-set replace; (b) the dry-run DIFFS against the current grant ("caps 13 -> 4, REMOVING
+admin.grant, exec, write") rather than printing the new set alone, because a replace is only legible
+beside what it replaces; (c) a replace that drops caps the seat currently holds must say `--replace`
+out loud, exactly as `--permanent` already has to be said out loud.
+
+The self-grant guard beside it (`agent_id == by` -> PermissionError, "a second party mints your
+authority") is excellent and caught me cleanly. This is the sibling hazard, not a complaint about
+that one. Trigger: granting a capability to a seat with grant --caps. Land: core/trust/grant_writer.py grant() + agent_cli.py cmd_grant.
 
 ## Folded (exemplars — the loop works)
 

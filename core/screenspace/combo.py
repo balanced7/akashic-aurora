@@ -326,4 +326,39 @@ def status(window_title: str = "Claude", agent_id: Optional[str] = None) -> dict
         out["ambiguous"] = ("%d windows match %r -- pass --hwnd to disambiguate; picking the "
                             "first would be a coin flip over which live session gets the input."
                             % (len(wins), window_title))
+    out["remedy"] = _remedy(agent_id)
     return out
+
+
+def _remedy(agent_id: Optional[str]) -> Optional[str]:
+    """ONE grant command covering every missing tier, or None when nothing is missing.
+
+    Synthesised here rather than left to the per-verb refusal, because six refusals each naming
+    one cap invite six sequential grants -- and since `grant --caps` REPLACES the set, running
+    them one at a time would leave the seat holding only the last one. The whole point of a
+    remedy is that following it literally works.
+
+    Withholds screen.launch and screen.privileged: no verb maps to them (see act.VERB_CAPS), and
+    the design reserves privileged for authenticated daniil. A remedy should grant what is
+    needed and not a tier more.
+    """
+    try:
+        from core.trust import registry
+        from core.trust.capabilities import Cap
+        seat = agent_id or A.ambient_agent_id()
+        grant = registry.resolve(seat)
+        if grant is None:
+            return None
+        need = {Cap(v) for v in set(A.VERB_CAPS.values())}
+        missing = sorted(c.value for c in need - set(grant.caps))
+        if not missing:
+            return None
+        full = sorted({c.value for c in grant.caps} | set(missing))
+        return ("A SECOND PARTY must grant %s (self-grant raises PermissionError). One command, "
+                "restating existing caps because --caps REPLACES them:\n"
+                "  py agent_cli.py grant %s --role %s --by daniil --hours 12 \\\n"
+                "    --caps %s \\\n"
+                "    --reason 'screenspace actuator drill: Ctrl+N + handoff combo'"
+                % (", ".join(missing), seat, grant.role, ",".join(full)))
+    except Exception:  # noqa: BLE001
+        return None

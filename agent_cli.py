@@ -8014,7 +8014,9 @@ def cmd_screen(args):
         print("  verbs permitted: %s" % (", ".join(held) or "NONE"))
         if missing:
             print("  verbs refused  : %s" % ", ".join(missing))
-            print("  %s" % st["caps"][missing[0]]["why"])
+        if st.get("remedy"):
+            for line in str(st["remedy"]).splitlines():
+                print("  " + line)
         return 0
 
     if action == "locate":

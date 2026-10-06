@@ -479,9 +479,22 @@ def _capable(agent_id: Optional[str], verb: str) -> Tuple[bool, str]:
         if grant.has(Cap(want)):
             return (True, "%s holds %s (role=%s, expires=%s)"
                           % (seat, want, grant.role, grant.expires_at or "never"))
-        return (False, "seat %r (role=%s) does not hold %s -- grant it time-boxed: "
-                       "py agent_cli.py grant %s --caps %s --hours <n> --by daniil "
-                       "--reason '<why>'" % (seat, grant.role, want, seat, want))
+        # The remedy must RESTATE the seat's existing caps. `grant --caps` REPLACES the set
+        # (core/trust/grant_writer.py: `eff_caps = caps_from(caps) if caps is not None else ...`),
+        # so the obvious command -- naming only the new cap -- would silently strip the other
+        # thirteen and cost this seat its write, exec and admin.grant authority. A remedy that
+        # breaks the thing it repairs is worse than no remedy, so it is spelled out in full.
+        # Also: the granter must be a SECOND PARTY. grant() raises PermissionError on
+        # agent_id == by ("a second party mints your authority"), so a seat cannot hand itself
+        # the desktop -- which is correct, and is why this prints a command rather than running one.
+        full = sorted({c.value for c in grant.caps} | {want})
+        return (False, "seat %r (role=%s) does not hold %s. A SECOND PARTY must grant it "
+                       "(self-grant raises PermissionError), time-boxed, restating the existing "
+                       "caps because --caps REPLACES them:\n"
+                       "  py agent_cli.py grant %s --role %s --by daniil --hours 12 \\\n"
+                       "    --caps %s \\\n"
+                       "    --reason '<why>'"
+                       % (seat, grant.role, want, seat, grant.role, ",".join(full)))
     except Exception as exc:  # noqa: BLE001 -- an unreadable ACL is a REFUSAL, never a pass
         return (False, "ACL unreadable (%s: %s) -- refusing" % (type(exc).__name__, exc))
 

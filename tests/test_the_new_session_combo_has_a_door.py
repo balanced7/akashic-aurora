@@ -194,3 +194,61 @@ def test_text_is_staged_through_the_clipboard_not_through_sendkeys():
     for ch in "{}()":
         assert ("{%s}" % ch) in out or ("{{}" in out and "{}}" in out), out
     assert "{%}" in out and "{^}" in out and "{!}" in out and "{+}" in out, out
+
+
+# ------------------------------------------------------------------ the remedy must WORK
+def test_the_remedy_restates_existing_caps_rather_than_stripping_them():
+    """A remedy that breaks the thing it repairs is worse than no remedy.
+
+    `grant --caps` REPLACES the cap set (core/trust/grant_writer.py: ``eff_caps = caps_from(caps)
+    if caps is not None else set(tmpl["caps"])``). So the obvious remedy -- naming only the
+    missing cap -- would strip the claude seat's other THIRTEEN, costing it write, exec and
+    admin.grant. Measured: claude holds 13 caps as super_admin, so the printed command must name
+    17, not 4.
+    """
+    r = _run("screen", "status", "--json")
+    doc = json.loads(r.stdout)
+    remedy = doc.get("remedy")
+    missing = [v for v, c in doc["caps"].items() if not c["allowed"]]
+    if not missing:
+        assert remedy is None, "caps are all held but a remedy was printed anyway"
+        pytest.skip("the seat already holds every screen tier")
+    assert remedy, "verbs are refused but no remedy is offered -- a refusal with no path forward"
+    assert "--role" in remedy, (
+        "the remedy omits --role, which grant_writer REQUIRES (it raises on an unknown role) -- "
+        "following it literally would fail")
+    from core.trust import registry
+    g = registry.resolve(doc["seat"])
+    for held in sorted(c.value for c in g.caps):
+        assert held in remedy, (
+            f"the remedy does not restate the seat's existing cap {held!r}; running it would "
+            f"STRIP that cap, because --caps replaces rather than adds")
+
+
+def test_the_remedy_names_a_second_party_because_self_grant_is_refused():
+    """core/trust/grant_writer.py raises PermissionError when agent_id == by: "a second party
+    mints your authority". A remedy that reads as something the seat can run on itself sends the
+    reader into a guard, and worse, implies an actuator could self-authorise onto the desktop."""
+    r = _run("screen", "status", "--json")
+    doc = json.loads(r.stdout)
+    remedy = doc.get("remedy")
+    if not remedy:
+        pytest.skip("nothing missing")
+    low = remedy.lower()
+    assert "second party" in low or "--by daniil" in low, (
+        "the remedy does not say who may run it; self-granting raises PermissionError")
+    assert "--hours" in remedy or "--permanent" in remedy, (
+        "the remedy is not time-boxed, and grant_writer refuses an untimed, non-permanent grant")
+
+
+def test_the_remedy_withholds_the_tiers_no_verb_needs():
+    """screen.launch and screen.privileged map to NO verb (act.VERB_CAPS), and the design
+    reserves privileged for authenticated daniil. A remedy should grant what is needed and not a
+    tier more -- over-granting is how a time-boxed drill becomes standing desktop control."""
+    r = _run("screen", "status", "--json")
+    doc = json.loads(r.stdout)
+    remedy = doc.get("remedy") or ""
+    if not remedy:
+        pytest.skip("nothing missing")
+    assert "screen.privileged" not in remedy, "the remedy grants the privileged tier"
+    assert "screen.launch" not in remedy, "the remedy grants a tier no verb uses"
