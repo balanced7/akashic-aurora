@@ -1015,10 +1015,54 @@ def normalize_target(path: Optional[str] = None, command: Optional[str] = None) 
 # won it -- coarsening raises recall AND raises false joins, and credit here is already
 # assigned with no causal check (core/recall/prevention.py), so an unstamped coarse
 # credit would trade one blindness for a quieter one.
-_SHELL_OPS = {">", ">>", "<", "|", "||", "&", "&&", ";", "2>&1", "1>&2", "&>",
+# Redirection ARROWS are deliberately NOT here: `cat > f` (write), `cat >> f` (append) and
+# `cat f` (read) are three different actions on one path, and dropping the arrow made them
+# one key -- a failed write joined by a successful read mints credit. Only the noise forms
+# (stream duplication, discards) are dropped.
+_SHELL_OPS = {"|", "||", "&", "&&", ";", "2>&1", "1>&2", "&>",
               "2>/dev/null", ">/dev/null", "2>nul", ">nul"}
-_CD_RE = re.compile(r"^cd(\s|$)")
+# PREAMBLE tokens carry no identity: an env assignment, a wrapper, or a wrapper's numeric
+# argument. They must not COUNT toward the identity floor, which is how `PYTHONUTF8=1 py`
+# and `timeout 600 py` each bought a key the floor would otherwise have refused. Dropping
+# them also earns a real join: `PYTHONUTF8=1 py x.py` and `py x.py` are the same action.
+_PREAMBLE = {"export", "env", "timeout", "time", "sudo", "nice", "command", "exec",
+             "builtin", "setx", "set-variable", "measure-command"}
+# PowerShell's nav verbs are nav too. `cd` was dropped and `Set-Location` was not, so the
+# house's own PowerShell idiom CREATED a bypass of the identity floor (2 live false flips).
+_CD_RE = re.compile(r"^(cd|set-location|sl|pushd|popd)(\s|$)")
+# `$t = get-date;` / `d="state/x";` -- a statement that only binds a variable is a preamble,
+# not an action, and leaving it in supplied the second token the identity floor wanted.
+# ANCHORED AT BOTH ENDS: the value must be the last thing in the statement. Without the
+# tail anchor this also swallowed the inline-env form `PYTHONUTF8=1 py scripts/x.py`, whose
+# statement merely STARTS with an assignment and then performs a real action.
+_ASSIGN_ONLY_RE = re.compile(r"^[\$\w:.\[\]]+\s*=\s*\S*$")
 _EXT_RE = re.compile(r"\.\w{1,6}$")
+_DRIVE_RE = re.compile(r"^/([a-z])/")
+# A line continuation is not a path. `_looks_pathy("\\")` was True, so a trailing backslash
+# became a phantom "/" token that satisfied the floor on its own.
+_LINE_CONT = {"\\", "`"}
+# When the program is passed IN AN ARGUMENT, the argument is the identity -- and it is
+# exactly what this function drops. Scoped to real interpreters because `-c` means "count"
+# to grep and "commit" to others; only these treat it as "here is the program".
+_INTERPRETERS = {"py", "py3", "python", "python3", "python3.11", "node", "nodejs", "deno",
+                 "bun", "perl", "ruby", "sh", "bash", "zsh", "pwsh", "powershell"}
+_INLINE_PROG = {"-c", "-e", "--eval", "--command", "-command", "-encodedcommand"}
+_REPO_ROOT_KEY = os.path.normcase(os.path.dirname(os.path.dirname(
+    os.path.dirname(os.path.abspath(__file__))))).replace("\\", "/").rstrip("/")
+
+
+def _same_tree(target: str) -> bool:
+    """Is this `cd` target the repo we are already in?
+
+    `cd <repo root> &&` is the house idiom for "be where we already are", and dropping it
+    earns a join between a dressed command and its bare sibling. `cd <anywhere else>` is
+    IDENTITY: this box has a sandbox clone, persistent worktrees and three sibling repos,
+    so `cd /e/AI-Setup && npm run build` and `cd /e/akashiclabs-site && npm run build`
+    are different actions that were landing on one key.
+    """
+    t = os.path.normcase(target.strip().strip("'\"")).replace("\\", "/").rstrip("/")
+    t = _DRIVE_RE.sub(r"\1:/", t)                  # /e/ai-setup (git bash) -> e:/ai-setup
+    return t == _REPO_ROOT_KEY
 
 
 def _iter_unquoted(s: str):
@@ -1068,6 +1112,11 @@ def _pipeline_head(s: str) -> str:
     return s
 
 
+def _is_preamble(tok: str) -> bool:
+    """An env assignment, a wrapper verb, or a wrapper's numeric argument -- never identity."""
+    return tok in _PREAMBLE or "=" in tok or tok.isdigit()
+
+
 def _looks_pathy(tok: str) -> bool:
     """A file argument is the strongest identity a command has -- keep it even past a flag."""
     return "/" in tok or "\\" in tok or _EXT_RE.search(tok) is not None
@@ -1083,28 +1132,71 @@ def _coarse_command(payload: str) -> str:
     `py a.py` and `py b.py` never do.
     """
     cut = payload.find("<<")                       # a 40-line heredoc body is not an identity
-    s = payload[:cut] if cut >= 0 else payload
-    stmts = [st for st in _split_statements(s) if not _CD_RE.match(st)]   # nav is not the action
+    had_heredoc = cut >= 0
+    s = payload[:cut] if had_heredoc else payload
     # EVERY STATEMENT, NOT JUST THE FIRST. Measured on the live stream: keying a compound
     # command on its first statement produced `k:$t = get-date` for
     # `$t = get-date; node tests/score_export.test.mjs ...` -- a timing preamble, under
     # which three genuinely different actions (node vs py, different test files) all
     # collapsed into one key. A compound command's identity is all of its statements.
     kept: List[str] = []
-    for stmt in stmts:
+    has_path = False
+    # Did we drop anything that COULD have been identity? Only then is a one-token key
+    # suspicious. Navigation and a pipeline tail are not identity; a flag, a heredoc body
+    # and an inline program are. Without this distinction the floor refused `cd <repo> &&
+    # pytest` while allowing bare `pytest` -- punishing the dressed spelling of a command
+    # that lost nothing, which is the missed join test_j5 promises not to create.
+    dropped_identity = had_heredoc
+    for stmt in _split_statements(s):
+        if _CD_RE.match(stmt):
+            parts = stmt.split(None, 1)
+            if len(parts) == 1 or _same_tree(parts[1]):
+                continue                           # being where we already are
+            kept.append("cd")                      # a DIFFERENT tree is the action
+            kept.append(os.path.normcase(parts[1].strip().strip("'\"")).replace("\\", "/"))
+            has_path = True
+            continue
+        if _ASSIGN_ONLY_RE.match(stmt):
+            continue                               # binds a variable, performs nothing
         toks = [t.strip("'\"") for t in _pipeline_head(stmt).split()]
-        toks = [t for t in toks if t and t not in _SHELL_OPS]
+        toks = [t for t in toks if t and t not in _SHELL_OPS and t not in _LINE_CONT
+                and not _is_preamble(t)]
         if not toks:
             continue
+        if toks[0] in _INTERPRETERS and any(t.lower() in _INLINE_PROG for t in toks[1:]):
+            # THE PROGRAM IS IN AN ARGUMENT WE JUST DROPPED. `py -c "<script>"` has no
+            # identity left, and the floor could not see that because a quoted path INSIDE
+            # the script text reads as a file argument -- which is how the live hook
+            # credited six unrelated lessons and why that key was STILL non-empty after the
+            # first two fixes. There is nothing to join two different programs on.
+            return ""
         kept.append(toks[0])
         seen_flag = False
         for t in toks[1:]:
-            if t.startswith("-"):
+            if t.startswith("-") and t != "-":
                 seen_flag = True                   # the flag AND its value are both noise
+                dropped_identity = True
                 continue
-            if not seen_flag or _looks_pathy(t):
+            if _looks_pathy(t):
+                # A FILE ARGUMENT RESTARTS THE IDENTITY SPACE. Without this reset a flag
+                # before the program erased the subcommand: `py -3.11 agent_cli.py
+                # bifrost-send --help` keyed as `py agent_cli.py`, collapsing the whole
+                # CLI -- including a mailbox WRITE -- into one key.
                 kept.append(t)
-    return " ".join(kept).replace("\\", "/")
+                has_path = True
+                seen_flag = False
+            elif not seen_flag:
+                kept.append(t)
+    key = " ".join(kept).replace("\\", "/")
+    # A HEREDOC MOVES THE PROGRAM INTO THE BODY, and the body is exactly what was dropped.
+    # `py - <<PY` therefore keys on the interpreter alone; measured on the live stream, one
+    # such key collided with 105 distinct later successes and minted two false credits. If
+    # nothing survived the cut but the program being run, there is no identity to join on.
+    if had_heredoc and not has_path:
+        return ""
+    if len(set(key.split())) < 2 and dropped_identity:
+        return ""
+    return key
 
 
 def coarse_target(target: str) -> str:
@@ -1124,21 +1216,15 @@ def coarse_target(target: str) -> str:
     t = str(target or "")
     if not t.startswith("c:") or len(t) <= 2:
         return ""
-    payload = t[2:]
-    key = _coarse_command(payload)
-    if not key:
-        return ""
-    # THE EXECUTABLE ALONE IS A CATEGORY, NOT AN IDENTITY, and the floor is DISTINCT
-    # tokens rather than token count. Two findings, both from live data:
+    # THE IDENTITY FLOOR LIVES IN `_coarse_command`, which is the only place that knows
+    # WHAT was dropped to produce the key. Two findings drove it there, both from live data:
     #   `py -c "<script>"`  -> "py"     (dogfooding: credited six unrelated lessons)
     #   `py -m a --help; py -m a moment X` -> "py py"  (measure_credit_join sample)
     # The second slips any length-based floor while carrying no more identity than the
-    # first. A key is trustworthy only if it names something beyond the program being
-    # run -- or if NOTHING had to be dropped to get it (a genuinely minimal command like
-    # `pytest`, where there is one spelling and fail-then-succeed is the same action).
-    if len(set(key.split())) < 2 and key != payload:
-        return ""
-    return "k:" + key
+    # first. Deciding it out here, on `key != payload`, ALSO refused `cd <repo> && pytest`
+    # while allowing bare `pytest` -- the dressed spelling lost nothing but navigation.
+    key = _coarse_command(t[2:])
+    return "k:" + key if key else ""
 
 
 def mark_impression(session_id: str, target: str, sources) -> None:
@@ -1767,8 +1853,21 @@ def _lessons(query: str, now: Optional[float], limit: int, min_relevance: float,
     cands: List = []
     seen = set()
     ranker = Ranker(relevance_fn=_trigger_aware_relevance(by_text))
-    for s in ranker.rank(items, query=query, now=now):   # Ranker excludes superseded (is_active)
-        if s.components.get("relevance", 0.0) <= min_relevance:
+    ranked = list(ranker.rank(items, query=query, now=now))   # Ranker excludes superseded (is_active)
+    # RELATIVE FLOOR (off by default; AKASHIC_RECALL_REL_FLOOR=0.5 to arm it). A per-query
+    # SHAPE statistic rather than a second absolute number: when one lesson clearly wins,
+    # do not pad the surface with a weak tail. `max()` means it can only ever be STRICTER
+    # than the calibrated absolute floor, never looser, so arming it cannot un-silence a
+    # call. Pre-registered as F-relfloor-2026-10-06 with its own dies-when BEFORE being
+    # measured, because a threshold tuned on the labels you already hold is fitted, not
+    # measured.
+    cut = min_relevance
+    ratio = _rel_floor_ratio()
+    if ratio > 0.0 and ranked:
+        best_rel = max(s.components.get("relevance", 0.0) for s in ranked)
+        cut = max(min_relevance, best_rel * ratio)
+    for s in ranked:
+        if s.components.get("relevance", 0.0) <= cut:
             continue   # SHOW-NOTHING floor (T_min): must actually match this path/command; never pad to `limit`
         # R2 s0 P8 (sol's fence): count the stages so the outcome row can tell
         # "nothing cleared the floor" apart from "cleared, then withheld". A mixed
@@ -1819,6 +1918,16 @@ def _floor_default() -> float:
         return float(os.getenv("AKASHIC_RECALL_FLOOR", "0.20"))
     except Exception:
         return 0.20
+
+
+# RELATIVE floor ratio, as a fraction of the best relevance in THIS call. 0 = off, which is
+# the shipped default: the absolute floor above is calibrated against historical credits and
+# this is an experiment beside it, not a replacement for it.
+def _rel_floor_ratio() -> float:
+    try:
+        return float(os.getenv("AKASHIC_RECALL_REL_FLOOR", "0") or 0)
+    except Exception:
+        return 0.0
 
 
 # --- T311 capability-recall: the verb channel -------------------------------------------------

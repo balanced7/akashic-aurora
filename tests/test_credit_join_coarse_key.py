@@ -248,5 +248,151 @@ def test_j10_a_shared_setup_preamble_does_not_collapse_distinct_actions(monkeypa
     assert res["flipped"] is False, "a shared preamble is not a shared action"
 
 
+def test_j11_a_heredoc_moves_the_program_into_the_body_so_there_is_nothing_to_join(monkeypatch):
+    """FOUND BY A PEER'S HAND-LABELLED PRECISION PASS over the live stream, 2026-10-06.
+    Seven of its nine FALSE joins were this one class, and it minted TWO of the only eight
+    coarse-only credits that had a lesson surfaced.
+
+    `payload.find("<<")` drops the heredoc body -- which for `py - <<PY` is the ENTIRE
+    PROGRAM. What survives is an interpreter, and a PREAMBLE token then satisfies the
+    distinct-token floor: `PYTHONUTF8=1 py`, `export PYTHONIOENCODING=utf-8 py`,
+    `timeout 600 py`. Measured collision breadth of those keys on one sample: 105, 72 and
+    60 distinct later successes. The floor's own docstring names `py -c "<script>"` as the
+    case it refuses; every one of these routes around it with a prefix.
+    """
+    for cmd in ("PYTHONUTF8=1 py - <<PY",
+                "export PYTHONIOENCODING=utf-8 && py - <<EOF",
+                "timeout 600 py - <<py"):
+        assert at_action.coarse_target(_c(cmd)) == "", f"preamble bought a key: {cmd!r}"
+
+    # An env prefix is not identity, so stripping it EARNS a join rather than losing one.
+    assert at_action.coarse_target(_c("PYTHONUTF8=1 py scripts/x.py")) \
+        == at_action.coarse_target(_c("py scripts/x.py")) != ""
+    # A heredoc whose command still names a FILE keeps its identity (see test_j3).
+    assert at_action.coarse_target(_c("cat > notes.txt <<'EOF'\nbody\nEOF")) != ""
+
+    monkeypatch.setattr(at_action, "record_feedback", lambda *a, **k: True)
+    sid = _sid()
+    at_action.mark_impression(sid, _c("PYTHONUTF8=1 py - <<PY\nprobe a\nPY"),
+                              ["learn:experiment:l"])
+    at_action.resolve_action_outcome(sid, _c("PYTHONUTF8=1 py - <<PY\nprobe a\nPY"), False)
+    res = at_action.resolve_action_outcome(sid, _c("PYTHONUTF8=1 py - <<PY\nunrelated\nPY"), True)
+    assert res["flipped"] is False and res["credited"] == 0, \
+        "two unrelated heredoc programs must not credit each other"
+
+
+def test_j12_a_flag_before_the_program_must_not_erase_the_subcommand():
+    """Class B from the same pass. `seen_flag` latched on the INTERPRETER flag, after which
+    only path-like tokens survived -- so the subcommand died while the script path lived:
+    `py -3.11 agent_cli.py bifrost-send --help` keyed as `k:py agent_cli.py`, collapsing
+    the entire CLI into one key. In the sample that key gathered seven distinct later
+    successes, one of them a mailbox WRITE. A file argument restarts the identity space."""
+    send = at_action.coarse_target(_c("py -3.11 agent_cli.py bifrost-send --help"))
+    mail = at_action.coarse_target(_c("py -3.11 agent_cli.py mailbox claude --as act --note x"))
+    assert send and mail and send != mail, f"the CLI collapsed: {send!r} == {mail!r}"
+    assert "bifrost-send" in send and "mailbox" in mail
+    # ...and the flag's own VALUE is still not identity (test_j1 must keep holding).
+    assert at_action.coarse_target(_c('py agent_cli.py boot claude --task "memory reach"')) \
+        == at_action.coarse_target(_c('py agent_cli.py boot claude --task "other thing"'))
+
+
+def test_j13_redirection_direction_is_part_of_the_action():
+    """Latent class from the same pass: `>`, `>>` and `<` were all dropped as shell noise,
+    so writing, appending and READING one path were a single key -- a failed write joined
+    by a successful read would mint credit."""
+    write = at_action.coarse_target(_c("cat > notes.txt <<MSG\nx\nMSG"))
+    append = at_action.coarse_target(_c("cat >> notes.txt <<MSG\nx\nMSG"))
+    read = at_action.coarse_target(_c("cat notes.txt"))
+    assert len({write, append, read}) == 3, \
+        f"write/append/read collapsed: {write!r} {append!r} {read!r}"
+
+
+def test_j14_an_inline_program_has_no_identity_left_to_join_on(monkeypatch):
+    """THE ONE THAT WAS STILL LIVE AFTER TWO FIXES. An adversarial replay of the whole
+    stream (23,636 distinct command keys) found the 6-lesson false credit's key was STILL
+    non-empty at HEAD: `k:py p='tests/fixtures/.../transcript_fail_then_success.jsonl`.
+
+    Mechanism: tokens after `-c` are dropped unless they look pathy -- and a quoted path
+    INSIDE the Python source looks pathy, so the script's own text supplied the identity
+    the floor was asking for. One such live key held 23 distinct throwaway scripts. When
+    the program arrives in an argument, that argument IS the identity and we drop it, so
+    there is nothing left to join two different programs on.
+    """
+    for cmd in ('py -c "import json; p=\'state/coord/tasks.json\'; print(p)"',
+                'py -c "import io; io.open(1)"',
+                'node -e "require(\'./scripts/a.js\')"',
+                'pwsh -Command "Get-ChildItem e:/ai-setup"'):
+        assert at_action.coarse_target(_c(cmd)) == "", f"inline program kept a key: {cmd!r}"
+
+    # ...but `-c` is NOT an inline program to everything: grep counts with it.
+    assert at_action.coarse_target(_c("grep -c error logs/app.log")) != ""
+
+    monkeypatch.setattr(at_action, "record_feedback", lambda *a, **k: True)
+    sid = _sid()
+    a = _c("""py -c "p='tests/fixtures/x.jsonl'; print(open(p).read())" """)
+    b = _c("""py -c "import shutil; shutil.rmtree('build')" """)
+    at_action.mark_impression(sid, a, ["learn:experiment:l"])
+    at_action.resolve_action_outcome(sid, a, False)
+    res = at_action.resolve_action_outcome(sid, b, True)
+    assert res["flipped"] is False and res["credited"] == 0, \
+        "reading a fixture and deleting a build dir are not one action"
+
+
+def test_j15_which_tree_is_part_of_the_action(monkeypatch):
+    """`cd` was dropped wholesale, so `cd /e/AI-Setup && X` and `cd /e/AI-Setup-Sandbox && X`
+    were one key. This box HAS a sandbox clone (redis 16380, UI 8790), persistent worktrees
+    and sibling repos, and live groups were measured mixing them: one key spanned
+    `worktrees/sunshine-discord-split` and `/e/ai-setup`, another `/e/ai-setup` and
+    `/e/aurora-strings`. Navigating to where we already are stays free."""
+    here = at_action.coarse_target(_c("cd /e/AI-Setup && npm run build"))
+    sandbox = at_action.coarse_target(_c("cd /e/AI-Setup-Sandbox && npm run build"))
+    sibling = at_action.coarse_target(_c("cd /e/akashiclabs-site && npm run build"))
+    assert len({here, sandbox, sibling}) == 3, \
+        f"three trees, one key: {here!r} {sandbox!r} {sibling!r}"
+    # cd to the repo root is a no-op and must still join the bare spelling, in BOTH the
+    # git-bash and the Windows spelling of the same directory.
+    bare = at_action.coarse_target(_c("npm run build"))
+    assert here == bare != ""
+    assert at_action.coarse_target(_c("cd E:\\AI-Setup && npm run build")) == bare
+
+    monkeypatch.setattr(at_action, "record_feedback", lambda *a, **k: True)
+    sid = _sid()
+    at_action.mark_impression(sid, _c("cd /e/AI-Setup-Sandbox && py agent_cli.py boot claude"),
+                              ["learn:experiment:l"])
+    at_action.resolve_action_outcome(
+        sid, _c("cd /e/AI-Setup-Sandbox && py agent_cli.py boot claude"), False)
+    res = at_action.resolve_action_outcome(
+        sid, _c("cd /e/AI-Setup && py agent_cli.py boot claude"), True)
+    assert res["flipped"] is False, "the sandbox and the live repo are different actions"
+
+
+def test_j16_powershell_nav_and_line_continuations_are_not_identity():
+    """Two one-line holes from the same replay. `Set-Location` was not in the nav set, so
+    PowerShell's own idiom created the bypass `cd` was dropped to prevent (2 live false
+    flips). And `_looks_pathy("\\\\")` was True, so a trailing line-continuation became a
+    phantom `/` token that satisfied the identity floor by itself."""
+    assert at_action.coarse_target(_c("Set-Location e:\\ai-setup; py -c \"import os\"")) == "", \
+        "Set-Location must be nav, exactly as cd is"
+    assert at_action.coarse_target(_c("$env:PYTHONUTF8='1'; py -c \"import os\"")) == "", \
+        "an assignment-only statement performs nothing"
+    assert at_action.coarse_target(_c("$t = Get-Date; py -c \"import os\"")) == ""
+    assert at_action.coarse_target(_c('py -c "import os" \\\n 2>&1')) == "", \
+        "a line continuation is not a path"
+
+
+def test_j17_a_dressed_minimal_command_still_joins_its_bare_sibling():
+    """The missed join test_j5 promises not to create. The old floor decided on
+    `key != payload`, so `cd <repo> && pytest` was refused while bare `pytest` was allowed
+    -- punishing the dressed spelling of a command that had lost nothing but navigation.
+    The floor now asks what was DROPPED, not whether the string changed."""
+    bare = at_action.coarse_target(_c("pytest"))
+    assert bare == "k:pytest"
+    assert at_action.coarse_target(_c("cd /e/AI-Setup && pytest")) == bare
+    assert at_action.coarse_target(_c("pytest | tail -40")) == bare, \
+        "a pipeline tail is not identity either"
+    # ...while a dropped FLAG still refuses, because that is identity we cannot see.
+    assert at_action.coarse_target(_c("pytest -q")) == ""
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([os.path.abspath(__file__), "-q"]))
