@@ -88,10 +88,21 @@ def test_defer_refuses_an_unknown_seat_instead_of_reporting_empty():
     unsubstituted token silently reads a phantom queue and reports nothing waiting. A door that
     answers a malformed address with a cheerful negative manufactures false confidence -- the
     eye_get_says_no_event_when_it_means_bad_address lesson, on a different door."""
-    roster = _run("doctor", "--json")
-    if "discord" not in roster.stdout and "claude" not in roster.stdout:
-        pytest.skip("no live fleet roster in this environment -- the roster HINT is untestable "
-                    "here; the roster-free invariant is covered by the sibling pin below")
+    # PRECONDITION, probed directly rather than by proxy. This used to grep `doctor --json` for
+    # "claude"/"discord" as a stand-in for "a live roster exists" -- and that proxy is satisfied
+    # even when the roster is EMPTY, because doctor names seats in output that is not the roster.
+    # So the skip never fired, the roster-dependent branch could never run, and this pin sat in
+    # state/coord/suite_baseline.json as a known failure from 2026-09-09 onward: permanently red
+    # for an environmental reason, which is indistinguishable in a baseline from a real defect.
+    #
+    # tests/conftest.py isolates to Redis db 15 and flushes it, so `known_agents()` returns ZERO
+    # here (measured) and no roster hint is reachable. Ask the function the door asks.
+    from core.comm.doctor import known_agents
+    if not list(known_agents()):
+        pytest.skip("no live fleet roster in this environment (known_agents() is empty -- "
+                    "conftest isolates to db 15 and flushes it), so the roster HINT is "
+                    "untestable here; the roster-free invariant is covered by the sibling pin "
+                    "below. Run with AKASHIC_TEST_USE_CANONICAL=1 to exercise this branch.")
     out = _run("defer", "totally-not-an-agent-xyz", "--list")
     combined = (out.stdout + out.stderr).lower()
     assert out.returncode != 0 or "unknown" in combined or "no such" in combined, (

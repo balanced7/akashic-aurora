@@ -109,5 +109,16 @@ def render(agent: str) -> str:
         rows.append(f"  {e['parked_id']}  [{m.get('kind', '?')}] from {m.get('frm', '?')} "
                     f"({e.get('reason', '?')}, parked {e.get('parked_at', '?')})")
         rows.append(f"      {str(m.get('content', ''))[:110]}")
-    rows.append(f"  return one: py agent_cli.py bench {agent} unpark <parked_id>")
+    # A placeholder is correct when the reader must CHOOSE among the ids listed above -- but when
+    # exactly one thing is parked there is nothing to choose, and `<parked_id>` is pure friction:
+    # the reader copies the line, gets an error or a literal, and goes back to read the id off the
+    # row above. One parked item is also the common case. Measured during the affordance-layer
+    # fence: this is the only member of the "placeholder for a value the emitter holds" class that
+    # survived inspection -- the rest are reader-dependent (`<you>`, `<why>`) and belong to
+    # per-reader rendering, not substitution.
+    if len(bench) == 1:
+        rows.append(f"  return it: py agent_cli.py bench {agent} unpark {bench[0]['parked_id']}")
+    else:
+        rows.append(f"  return one: py agent_cli.py bench {agent} unpark <parked_id>  "
+                    f"(ids above; e.g. {bench[0]['parked_id']})")
     return "\n".join(rows)

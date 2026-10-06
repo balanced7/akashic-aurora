@@ -11011,25 +11011,35 @@ def cmd_defer(args):
         return 0
     if getattr(args, "list", False):
         items = dq.pending()
+        # ABSENCE AND NONEXISTENCE MUST NOT RENDER IDENTICALLY. Until 2026-08-20 an unknown seat's
+        # queue printed the same cheerful "queue empty" as a real one, so an unsubstituted $SELF$
+        # (or a plain typo) read a phantom queue and reported nothing waiting while the real queue
+        # filled. Same class as eye_get_says_no_event_when_it_means_bad_address, on another door.
+        # We teach rather than refuse: a brand-new seat legitimately has no queue yet, so an
+        # unknown id is a HINT, not a wall.
+        #
+        # HOISTED 2026-10-06, out of the `if not items` branch it used to live in. The queue is
+        # GLOBAL by design (core/coord/defer_queue.py: a mini-registry the capable seat
+        # self-selects from, so `pending()` takes no agent and `agent_id` here means WHO YOU ARE,
+        # not whose queue to read). So the guard only ever fired while the queue happened to be
+        # empty -- and the moment a real item was filed, a typo'd or unsubstituted seat id got the
+        # full list plus a discharge command naming itself, and `mark_done(seat=...)` would stamp
+        # a permanent receipt under a seat that does not exist. Identity validity does not depend
+        # on queue contents, so it is not checked inside a branch about queue contents. The pin
+        # test_defer_refuses_an_unknown_seat_instead_of_reporting_empty went red today for exactly
+        # this reason: the global queue became non-empty, not because the door changed.
+        try:
+            from core.comm.doctor import known_agents
+            roster = set(known_agents())
+        except Exception:                                           # noqa: BLE001
+            roster = set()              # cannot tell -> say nothing extra, never a false alarm
+        if roster and args.agent_id not in roster:
+            print(f"[defer] {args.agent_id!r} is UNKNOWN to the fleet roster -- not a seat that "
+                  f"can discharge anything, so nothing below would be attributable. "
+                  f"Known: {', '.join(sorted(roster)[:8])}"
+                  f"{' ...' if len(roster) > 8 else ''}")
+            return 0
         if not items:
-            # ABSENCE AND NONEXISTENCE MUST NOT RENDER IDENTICALLY. Until 2026-08-20 an unknown
-            # seat's queue printed the same cheerful "queue empty" as a real one, so an
-            # unsubstituted $SELF$ (or a plain typo) read a phantom queue and reported nothing
-            # waiting while the real queue filled. Same class as
-            # eye_get_says_no_event_when_it_means_bad_address, on a different door. We teach
-            # rather than refuse: a brand-new seat legitimately has no queue yet, so an unknown
-            # id is a HINT, not a wall.
-            try:
-                from core.comm.doctor import known_agents
-                roster = set(known_agents())
-            except Exception:                                           # noqa: BLE001
-                roster = set()          # cannot tell -> say nothing extra, never a false alarm
-            if roster and args.agent_id not in roster:
-                print(f"[defer] no queue for {args.agent_id!r} -- and that id is UNKNOWN to the "
-                      f"fleet roster. Empty because the seat does not exist, not because nothing "
-                      f"awaits. Known: {', '.join(sorted(roster)[:8])}"
-                      f"{' ...' if len(roster) > 8 else ''}")
-                return 0
             # NAME THE SUBJECT OF THE ANSWER. Roster-free and therefore honest in every
             # environment: a reader seeing an id they did not intend spots the typo without any
             # fleet lookup. The roster hint above is an ENHANCEMENT when context exists, never
@@ -11040,8 +11050,16 @@ def cmd_defer(args):
             why = f"  ({i['why']})" if i.get("why") else ""
             print(f"  [{i['id']}] needs {i['needs']}: {i['cmd']}{why}  <- {i['by']}, "
                   f"{i['filed_at'][:10]}")
-        print(f"[defer] discharge: py agent_cli.py defer {args.agent_id} --done <id> "
-              f"--receipt \"what happened\"")
+        # Concrete when there is nothing to choose. With one deferred item `<id>` is pure friction:
+        # the reader copies the line, gets a literal, and goes back to read the id off the row
+        # above. `--receipt` stays prose because only the reader knows what happened -- that one is
+        # reader-dependent, not a value this process holds.
+        if len(items) == 1:
+            print(f"[defer] discharge: py agent_cli.py defer {args.agent_id} "
+                  f"--done {items[0]['id']} --receipt \"what happened\"")
+        else:
+            print(f"[defer] discharge: py agent_cli.py defer {args.agent_id} --done <id> "
+                  f"--receipt \"what happened\"   (ids above; e.g. {items[0]['id']})")
         return 0
     text = " ".join(args.cmd_text) if isinstance(args.cmd_text, list) else str(args.cmd_text or "")
     try:
