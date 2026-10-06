@@ -7978,6 +7978,89 @@ def cmd_focus(args):
     return 0
 
 
+def cmd_recall_audit(args):
+    """The door for core/recall/precision_audit.py -- IS RECALL ACCURATE?
+
+    The module was built 52db9b5, tested, and never run, because it had no door:
+    check_wiring.py:179 grants it a "built-ahead" exception, which is precisely why it stayed
+    dead. Measured 2026-10-06: harvest() returns 1,564 impressions that have been accumulating
+    all along -- "the audit corpus already existed, it just had no reader".
+
+    WHY IT MATTERS NOW. Navi measured 988,282 chars of injected memory per credited lesson in
+    one session (1,157 distinct lessons to credit ONE). That number cannot be acted on until we
+    know WHICH half is broken, and the module's own docstring says why we do not know: "We have
+    never demonstrated a ranking failure BECAUSE WE HAVE NEVER MEASURED RANKING." Low precision
+    means ranking is the constraint; misses mean selection is. Opposite fixes.
+
+    Two subcommands, because the instrument is human-in-the-loop by design:
+      pack  -- harvest -> sample -> render a BLIND labelling pack (stdout, or --out FILE)
+      score -- take labels from one or more labellers and report precision/recall/agreement
+
+    THE DOOR ADDS NOTHING TO THE PACK. render_pack deliberately omits usefulness counters,
+    credit history and seat identity; enriching it here would make the audit measure our own
+    agreement with ourselves. Pins in tests/test_recall_audit_has_a_door.py assert that.
+    """
+    from core.recall import precision_audit as pa
+
+    if args.action == "pack":
+        items = pa.harvest(limit=args.limit or 0)
+        if not items:
+            print("[recall-audit] no impressions harvested -- the ledger is empty. That is a "
+                  "state, not a score: nothing has been surfaced to audit.", file=sys.stderr)
+            return 1
+        drawn = pa.sample(items, n=args.n, seed=args.seed)
+        pack = pa.render_pack(drawn)
+        if args.out:
+            Path(args.out).write_text(pack, encoding="utf-8")
+            print(f"[recall-audit] {len(drawn)} case(s) of {len(items)} impression(s) "
+                  f"-> {args.out}  (seed {args.seed}; same seed re-draws the same sample)")
+        else:
+            print(pack)
+        return 0
+
+    # score
+    raw = args.labels or ""
+    if args.labels_file:
+        raw = Path(args.labels_file).read_text(encoding="utf-8")
+    try:
+        labels = json.loads(raw) if raw.strip() else {}
+    except ValueError as e:
+        print(f"[recall-audit] --labels is not JSON ({e}). Expected "
+              '{"<labeller>": {"<case>:<slot>": "on|off|skip"}}', file=sys.stderr)
+        return 2
+    misses = {}
+    if args.misses:
+        try:
+            misses = json.loads(args.misses)
+        except ValueError as e:
+            print(f"[recall-audit] --misses is not JSON ({e})", file=sys.stderr)
+            return 2
+    total = args.total_surfaced or 0
+    if not total:
+        try:
+            total = sum(len(i.get("surfaced") or []) for i in pa.harvest())
+        except Exception:                                                  # noqa: BLE001
+            total = 0
+    res = pa.score(labels, total_surfaced=total, misses=misses)
+    if args.json:
+        print(json.dumps(res, indent=2, default=str))
+        return 0
+    print(f"# recall precision audit -- status: {res.get('status')}")
+    for k in ("precision", "recall", "labelled", "label_coverage", "agreement",
+              "misses_named"):
+        if k in res:
+            print(f"  {k:<16} {res.get(k)}")
+    disputed = res.get("disputed") or []
+    if disputed:
+        # N-version blind review only pays if the DISAGREEMENT reaches the reader; averaging
+        # two labellers into one number hides exactly the item worth looking at.
+        print(f"  disputed ({len(disputed)}): {disputed}")
+    if res.get("verdict"):
+        print("")
+        print(f"  {res['verdict']}")
+    return 0
+
+
 def cmd_locks(args):
     """Awareness: who holds what right now (across both agents)."""
     from core.comm.locks import LockManager
@@ -9405,6 +9488,29 @@ def build_parser():
     fcs.add_argument("--session", default="", help="override the session id (default: this session)")
     fcs.add_argument("--json", action="store_true")
     fcs.set_defaults(fn=cmd_focus)
+
+    rau = sub.add_parser("recall-audit", help="is recall ACCURATE? blind labelling pack + "
+                                              "precision/recall/agreement score")
+    # POSITIONAL CHOICES, not add_subparsers -- `fence` sets the house convention
+    # (agent_cli.py:9213) and the door-parity checker reads subparsers as separate VERBS,
+    # which is how this verb first arrived as three phantom ones (pack/score/recall_audit).
+    rau.add_argument("action", choices=["pack", "score"])
+    rau.add_argument("--n", type=int, default=30, help="pack: cases to draw (default 30)")
+    rau.add_argument("--seed", type=int, default=1,
+                     help="pack: deterministic draw; a published number that cannot be "
+                          "re-drawn cannot be audited")
+    rau.add_argument("--limit", type=int, default=0, help="pack: cap impressions harvested")
+    rau.add_argument("--out", default="", help="pack: write to a file instead of stdout")
+    rau.add_argument("--labels", default="",
+                     help='score: JSON {"<labeller>": {"<case>:<slot>": "on|off|skip"}}')
+    rau.add_argument("--labels-file", default="", help="score: read the labels JSON from a file")
+    rau.add_argument("--misses", default="",
+                     help='score: JSON {"<labeller>": {"<case>": ["source-or-desc", ...]}} -- '
+                          "the recall arm: what SHOULD have surfaced and did not")
+    rau.add_argument("--total-surfaced", type=int, default=0,
+                     help="score: coverage denominator (default: computed from the ledger)")
+    rau.add_argument("--json", action="store_true")
+    rau.set_defaults(fn=cmd_recall_audit)
 
     lks = sub.add_parser("locks", help="show who holds which advisory path-locks")
     lks.add_argument("agent_id", nargs="?", default=""); lks.add_argument("--json", action="store_true")

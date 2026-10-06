@@ -295,6 +295,15 @@ MANIFEST = {
     "mailbox": "shared",              # T095 M0 shadow mailbox: CLI+MCP twins both exist
     "roster": "shared",               # T108 S2 seat directory: CLI only; agents need an MCP read twin
     "stand_down": "gap",           # T086 session yield: CLI only; no MCP lifecycle twin yet
+    # recall-audit (2026-10-06): the retrieval-accuracy instrument, doored tonight after
+    # being built-ahead at 52db9b5 and never run. GAP, not cli_only, and the distinction
+    # is the point: `score` takes labels from MULTIPLE labellers and reports their
+    # AGREEMENT, so the instrument wants a fleet labelling one blind pack -- N-version
+    # blind review, which is exactly what the tool door exists to let a no-exec seat join.
+    # Marking it cli_only would hide a debt we intend to pay; `gap` records it where the
+    # next membrane slice will see it. (`pack` reads a machine-local ledger under %TEMP%,
+    # so the MCP twin is a real slice, not a rename.)
+    "recall_audit": "gap",
     "new": "cli_only",             # subcommand of `doc`
     "arc": "cli_only",             # subcommand of `doc`: relabel an atom's arc in place (curation, like `new`)
     # ``college`` is the shared capability. These are its ergonomic argparse
