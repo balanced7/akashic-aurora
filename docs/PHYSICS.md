@@ -4,7 +4,7 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at 42ef87b6. A bound you discover by collision is not awareness -- this sheet
+> Derived at 6f5a30e6. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
@@ -201,7 +201,7 @@ Class: reference
 | `DEEPSEEK_RUNNER_MAX_TOKENS` | `"8000"` | scripts/bifrost_runner_deepseek.py |
 | `DOC_CURRENCY_STALE_DAYS` | `"45"` | scripts/checkers/check_doc_currency.py |
 | `DSH_HOME` | `` | agent/harness/dsh_plugin/bridge.py, core/fleet/seat_launchers.py, scripts/install_dsh_plugin.py |
-| `DSH_SESSION_ID` | `` | seat_topology.py |
+| `DSH_SESSION_ID` | `` | agent_cli.py, core/coord/session_id.py, seat_topology.py |
 | `EMBED_MODEL` | `DEFAULT_MODEL` | core/primitives/embedder.py |
 | `ENABLE_X` | `` | scripts/checkers/check_wiring.py |
 | `ES_EXE` | `` | core/tools/everything.py |

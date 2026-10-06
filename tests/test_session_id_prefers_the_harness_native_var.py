@@ -108,11 +108,14 @@ def test_the_source_names_WHICH_VAR_won(monkeypatch):
     """
     monkeypatch.setenv("DSH_SESSION_ID", RILL_REAL)
     monkeypatch.setenv("CLAUDE_CODE_SESSION_ID", RILL_INHERITED)
+    # The SOURCE STRING stays "env" deliberately -- agent_cli.py:7364 compares it by equality
+    # and that contract crosses other seats' runners. The provenance lives beside it instead.
     _, src = S.ambient_session_id()
-    assert "DSH_SESSION_ID" in src, (
-        "the source is %r -- it says a variable answered but not which one, so a seat carrying "
-        "an inherited id alongside its own cannot tell a correct resolution from the bug this "
-        "file exists for" % (src,))
+    assert src == S.ENV, "the source contract moved; agent_cli.py:7364 compares it by equality"
+    assert S.ambient_session_var() == "DSH_SESSION_ID", (
+        "ambient_session_var() says %r -- a seat carrying an inherited id alongside its own "
+        "cannot tell a correct resolution from the bug this file exists for without it"
+        % (S.ambient_session_var(),))
 
 
 def test_dsh_is_declared_in_the_resolver_not_patched_at_a_call_site():

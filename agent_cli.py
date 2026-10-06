@@ -7364,6 +7364,23 @@ def cmd_seat_identity(args) -> int:
     elif src == "env":
         print("  NOTE: from the shared process env, not a per-session binding. If another seat "
               "runs in this process profile it resolves identically. Declare to make it yours.")
+    # WHICH VARIABLE NAMED THIS SESSION. A seat launched from another seat's shell inherits
+    # that shell's CLAUDE_CODE_SESSION_ID and carries two ids at once -- Rill was LIVE in the
+    # roster and could not read his own mail for days because the answer was right-shaped and
+    # came from the wrong authority (DSH_SESSION_ID=session-45421d78 beside a tombstoned
+    # CLAUDE_CODE_SESSION_ID=bb86400e-a609). `seat-identity` is where a seat asks who it is,
+    # so it is where the authority belongs; this line is what would have shown him the bug.
+    try:
+        from core.coord.session_id import ambient_session_var
+        _var = ambient_session_var()
+        if _var:
+            print(f"  session id came from: {_var}")
+            if _var != "DSH_SESSION_ID" and os.environ.get("DSH_SESSION_ID"):
+                print("  WARNING: DSH_SESSION_ID is also set. This process looks like a DSH "
+                      "seat resolving to an id it did not choose -- the inherited-shell defect "
+                      "(fixed in core/coord/session_id.py ENV_VARS order; report this).")
+    except Exception:
+        pass
     return 0
 
 def cmd_lock(args):
