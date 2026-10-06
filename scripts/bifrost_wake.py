@@ -303,9 +303,26 @@ def write_wake_note(agent: str, session_id: str = "", out: list = None,
     for m in (out or [])[:WAKE_NOTE_CAP]:
         if not isinstance(m, dict):
             continue
-        body = m.get("content")
+        # "text" FIRST, because that is the key the producer writes: the wake exit builds
+        # `out.append({"frm": frm, "kind": kind, "text": ...})` fifty lines below. The first
+        # version of this read "content" -- the key the WIRE envelope uses -- so every note
+        # rendered "[chat] from daniil" with an empty snippet: the right sender, the right
+        # kind, and nothing about what was said, which is most of what the line exists for.
+        # Measured live on the first real wake it ever handled. "content" is kept as a
+        # fallback so a caller passing raw envelopes still renders.
+        body = m.get("text")
+        if body is None:
+            body = m.get("content")
         if not isinstance(body, str):
             body = json.dumps(body, ensure_ascii=True) if body is not None else ""
+        body = body.strip()
+        if len(body) >= 2 and body[0] == '"' and body[-1] == '"':
+            try:                       # the wire double-encodes: '"Test 2"' -> Test 2
+                body = json.loads(body)
+            except Exception:
+                pass
+        if not isinstance(body, str):
+            body = str(body)
         rows.append({"frm": str(m.get("frm") or m.get("from") or "?"),
                      "kind": str(m.get("kind") or "?"),
                      "id": str(m.get("id") or ""),

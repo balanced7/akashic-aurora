@@ -138,3 +138,56 @@ def test_the_hook_is_silent_when_the_turn_was_not_a_wake(rel, tmp_path, monkeypa
     monkeypatch.setenv("TMPDIR", str(tmp_path))
     monkeypatch.setenv("TEMP", str(tmp_path))
     assert hook.build_wake_line("claude", "no-such-session") == ""
+
+
+# ================================================================= the key the PRODUCER writes
+#
+# Added 2026-10-05 after the feature's FIRST REAL WAKE rendered "[chat] from daniil" with an
+# empty snippet. The pins above all passed, because they fed `write_wake_note` a hand-built
+# dict carrying "content" -- the key the WIRE envelope uses. The producer writes "text":
+#
+#     out.append({"frm": frm, "kind": kind, "text": str(getattr(m, "content", "") or "")[:2000]})
+#
+# ...fifty lines below where the note is written. So the fixture agreed with my assumption
+# instead of with the code, and the pin tested the shape I believed in rather than the shape
+# that arrives. That is this session's recurring defect, committed inside the fix for it.
+#
+# These pins take their payload FROM THE PRODUCER'S OWN LINE rather than from a literal, so a
+# key rename breaks the test instead of silently emptying the line.
+
+def _producer_shape():
+    """The exact dict the wake exit appends to `out` (bifrost_wake.py)."""
+    return {"frm": "daniil", "kind": "chat", "text": "Test 2"}
+
+
+def test_the_snippet_survives_the_key_the_producer_actually_uses(tmp_path, monkeypatch):
+    monkeypatch.setattr(BW.tempfile, "gettempdir", lambda: str(tmp_path))
+    BW.write_wake_note("claude", "s", [_producer_shape()], tmp=str(tmp_path))
+    line = BW.render_wake_note(BW.read_wake_note("claude", "s", tmp=str(tmp_path)))
+    assert "Test 2" in line, (
+        "the wake line lost the message body -- it names who and not what, which is most of "
+        "what the line is for. got: %r" % line)
+    assert "daniil" in line and "chat" in line, line
+
+
+def test_the_wire_double_encoding_is_unwrapped(tmp_path, monkeypatch):
+    """The bus stores content json-dumped, so a raw envelope carries '"Test 2"' WITH quotes.
+    Rendering those quotes into the line is noise the reader has to mentally strip."""
+    monkeypatch.setattr(BW.tempfile, "gettempdir", lambda: str(tmp_path))
+    BW.write_wake_note("claude", "s2", [{"frm": "daniil", "kind": "chat",
+                                         "content": '"Test 2"'}], tmp=str(tmp_path))
+    line = BW.render_wake_note(BW.read_wake_note("claude", "s2", tmp=str(tmp_path)))
+    assert '"Test 2"' not in line and "Test 2" in line, (
+        "the double-encoded wire form leaked its quotes into the rendered line: %r" % line)
+
+
+def test_the_producer_still_writes_the_key_this_reads():
+    """RATCHET ON THE PRODUCER. If the wake exit renames its field, this fails HERE with the
+    reason, instead of every future wake line quietly losing its body."""
+    import re
+    src = (ROOT / "scripts" / "bifrost_wake.py").read_text(encoding="utf-8-sig")
+    m = re.search(r'out\.append\(\{([^}]*)\}\)', src)
+    assert m, "the wake exit no longer builds `out` with a dict literal -- re-read it"
+    assert '"text"' in m.group(1), (
+        "the wake exit stopped writing a 'text' key; write_wake_note reads it first and would "
+        "fall back to 'content'. Producer line: %s" % m.group(1).strip())
