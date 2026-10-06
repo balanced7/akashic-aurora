@@ -249,12 +249,25 @@ OUTCOME_STREAM = "recall:outcome"
 OUTCOME_MAXLEN = 20000
 
 
+# The convention is "Use when ...", and the parser accepted ONLY that spelling, so a lesson
+# that opened "When ..." or "Before ..." forfeited its trigger weight to a wording choice.
+# Measured on the live corpus (1,489 lessons): 997 lead "use when" and 95 lead an
+# alternative -- when 66, before 20, on 4, after 3, use for 2. Hand-checked, 95 of 95 are
+# genuinely trigger-shaped imperatives, not narrative openers, so there is no false-trigger
+# population to trade against. Only the spellings actually present are listed: adding
+# unmeasured ones would be speculation, and a WRONG trigger can still boost a lesson onto
+# the wrong query even though a MISSING one no longer costs it anything (1b1f5a6e).
+_TRIGGER_RE = re.compile(
+    r"\s*(?:use\s+when|use\s+for|when|before|after|on)\s+(.{3,240}?)(?::|\.\s|$)",
+    re.IGNORECASE)
+
+
 def _parse_trigger(text: str) -> str:
     """The lesson convention encodes its own firing condition: 'Use when <symptom>, before
     <action>: <advice>'. Return that leading trigger clause ('' when absent) so matching can
     weight the DESIGNED trigger over incidental prose -- the vNext precision fix for lessons
     firing on generic tokens like 'continue working' (docs/library/design/20260701_recall-vnext-closing-the-four-loops-2026_b93539.md loop 2)."""
-    m = re.match(r"\s*use\s+when\s+(.{3,240}?)(?::|\.\s|$)", str(text or ""), re.IGNORECASE)
+    m = _TRIGGER_RE.match(str(text or ""))
     return m.group(1).strip() if m else ""
 
 

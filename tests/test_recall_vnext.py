@@ -262,3 +262,32 @@ def test_wrap_draft_has_recall_review_and_gap_sections():
     assert "2x hit" in draft
     assert "recall-feedback --source learn:experiment:hit" in draft
     assert "--noise" in draft
+
+
+def test_the_trigger_parser_accepts_every_spelling_the_corpus_actually_uses():
+    """The convention is "Use when ...", and the parser accepted ONLY that spelling -- so a
+    lesson opening "When ..." or "Before ..." forfeited its trigger weight to a wording
+    choice its author never knew was load-bearing.
+
+    MEASURED on the live corpus (1,489 lessons) before the change: 997 lead "use when", 95
+    lead an alternative (when 66, before 20, on 4, after 3, use for 2), and 95 of 95 of
+    those are genuinely trigger-shaped imperatives rather than narrative openers -- so there
+    is no false-trigger population being traded in. Widening restored 75 of them (the rest
+    carry no clause terminator or exceed the 240-char bound, which is a separate question).
+
+    Deliberately NOT widened to spellings the corpus does not use ("if", "whenever"):
+    a MISSING trigger no longer costs a lesson anything (1b1f5a6e), but a WRONG one can
+    still boost a lesson onto a query it has no business answering.
+    """
+    from core.recall.at_action import _parse_trigger
+
+    assert _parse_trigger("Use when X happens, before Y: do Z") == "X happens, before Y"
+    for lead in ("When", "Before", "After", "On"):
+        got = _parse_trigger(f"{lead} the probe fails, read the branch that runs: do Z")
+        assert got == "the probe fails, read the branch that runs", f"{lead!r} -> {got!r}"
+    assert _parse_trigger("Use for any Fable seat in this house: do Z") == \
+        "any Fable seat in this house"
+    # A lesson with no trigger convention still reports no trigger -- the parser must not
+    # manufacture one out of ordinary prose.
+    assert _parse_trigger("The ranker is the bottleneck and nothing triggers here") == ""
+    assert _parse_trigger("") == ""
