@@ -217,16 +217,56 @@ def _child_flow(timeout_s: float) -> dict:
                             "@mcp.tool() registrations in ai_setup_mcp.py and .mcp.json.")
 
                     # The one that matters: a verb whose body spawns a child.
+                    #
+                    # BOOT AS THE BOUND SEAT, NOT AS A SYNTHETIC NAME. This asked for
+                    # {"agent": "door-probe"} until 2026-10-07, and T418's identity gate -- which
+                    # landed 2026-10-01 and is correct -- refuses to hand any session another
+                    # resident's packet. The probe got a REFUSED string, failed to find its
+                    # hardcoded header in it, and reported boot_render_broken against a door that
+                    # renders 16,300 healthy characters for its own seat.
+                    #
+                    # The cost was not cosmetic: the door gate blocks `mirror.py --push`, so the
+                    # last successful push was 2026-09-30, the day BEFORE T418 landed, and 173
+                    # commits sat dammed behind a false RED for seven days. Neither organ was
+                    # misbehaving -- a health probe that impersonates a fake identity simply stops
+                    # working the moment identity becomes real.
+                    #
+                    # Booting as the real seat is also the more faithful probe: it exercises the
+                    # path an actual MCP seat takes, rather than one no seat ever takes. The
+                    # AKASHIC_BOOT_AS_OTHER escape hatch is deliberately NOT used -- a health check
+                    # should not be the one caller in the tree that routes around the identity gate.
                     stage = "boot"
+                    probe_agent = ""
+                    try:
+                        from core.comm import seat_identity as _si
+                        from core.coord.session_id import ambient_session_id
+                        # The SANCTIONED resolver (core/coord/session_id.py), not a hand-rolled
+                        # env chain. My first version read CLAUDE_CODE_SESSION_ID directly and the
+                        # check_session_resolvers ratchet refused the commit at 12 -> 13: four
+                        # places once resolved "which session is this" four different ways, one of
+                        # them truncating to 8 chars so the id could never join a full-length one.
+                        # Adding a fifth spelling inside a fix for an identity bug would have been
+                        # its own joke.
+                        _sid, _ = ambient_session_id()
+                        probe_agent = _si.resolve(_sid)
+                    except Exception:                                      # noqa: BLE001
+                        probe_agent = ""
+                    # resolve() NEVER raises; with no binding and no env it returns `unknown-<sid8>`,
+                    # which the identity gate refuses exactly as it refused 'door-probe'. Falling
+                    # back only on the exception would have left the same false RED in any
+                    # environment without a session id -- a cron run, a bare shell, CI. Caught by
+                    # this slice's own pin running in pytest, where no session id exists.
+                    if not probe_agent or str(probe_agent).startswith("unknown-"):
+                        probe_agent = (os.environ.get("AKASHIC_AGENT_ID") or "claude").strip()
                     out = await asyncio.wait_for(
-                        s.call_tool("boot", {"agent": "door-probe",
+                        s.call_tool("boot", {"agent": probe_agent,
                                              "task": "door probe -- single-frame response check"}),
                         timeout=timeout_s)
                     text = "".join(getattr(c, "text", "") for c in out.content)
-                    if "# CONTEXT for door-probe" not in text:
+                    if ("# CONTEXT for %s" % probe_agent) not in text:
                         return _verdict(
                             RED, stage, time.time() - t0, "boot_render_broken",
-                            f"boot returned {len(text)} chars without its CONTEXT header",
+                            f"boot as {probe_agent!r} returned {len(text)} chars without its CONTEXT header",
                             "The door answered but boot's render is wrong. Compare against "
                             "`py agent_cli.py boot <you>`, which shares the code path.")
 

@@ -95,7 +95,19 @@ def test_the_boot_the_probe_asks_for_is_one_the_gate_allows():
                     if getattr(k, "value", None) == "agent" and isinstance(v, ast.Constant):
                         asked = v.value
     if asked is None:
-        pytest.skip("the probe no longer passes a literal agent to boot (likely already fixed)")
+        # The literal is gone, which is the fix -- but a SKIP is not a PASS, and a pin that stops
+        # asserting the moment its subject changes shape is how a defect comes back. Resolve the
+        # identity the probe NOW uses and hold that to the same standard: whoever it boots as, the
+        # gate must not refuse them.
+        from core.comm import seat_identity as _si
+        sid = os.environ.get("CLAUDE_CODE_SESSION_ID") or os.environ.get("BIFROST_INCARNATION") or ""
+        asked = _si.resolve(sid)
+        if not asked or asked.startswith("unknown-"):
+            # mirror the probe's own fallback chain exactly
+            asked = (os.environ.get("AKASHIC_AGENT_ID") or "claude").strip()
+        assert asked and not asked.startswith("unknown-"), (
+            "the probe resolves its boot identity to %r, which the gate will refuse just as it "
+            "refused 'door-probe'" % (asked,))
 
     env = dict(os.environ)
     env.pop("AKASHIC_BOOT_AS_OTHER", None)
@@ -104,7 +116,13 @@ def test_the_boot_the_probe_asks_for_is_one_the_gate_allows():
                        capture_output=True, text=True, encoding="utf-8", errors="replace",
                        cwd=str(ROOT), timeout=300, env=env)
     out = r.stdout + r.stderr
-    assert "REFUSED" not in out, (
+    # ASSERT THE POSITIVE. A first draft of this checked `"REFUSED" not in out` and went red
+    # against a WORKING boot, because the 16 KB render legitimately contains the word inside a
+    # recalled lesson. Searching a document for a vocabulary item says nothing about what the
+    # document IS -- the same mistake this file is about, one layer up. The header is the thing
+    # the probe itself keys on, so it is the thing to require.
+    refused_here = out.lstrip().startswith("REFUSED")
+    assert ("# CONTEXT for %s" % asked) in out and not refused_here, (
         "the probe boots as %r and the identity gate REFUSES it, so the health check reports "
         "boot_render_broken against a door that is fine. `py agent_cli.py boot claude` renders "
         "16,300 chars with its CONTEXT header. Last successful push 2026-09-30; T418 landed "
