@@ -26,6 +26,19 @@ from typing import Optional
 
 ROOT = Path(__file__).resolve().parent.parent.parent  # T104-M1 depth
 
+# ONE insert, at module scope, before anything can need it. Until 2026-10-07 this file added ROOT to
+# sys.path in THREE places (lines 123, 453, 550), every one of them lazily inside a function that
+# happened to import from `core`. The default `walk_docs()` path needs none of those, so the
+# private-plane filter -- which runs at the entry point, before all three -- was the first code to
+# try `from core.trust import private_plane` and the first to get ModuleNotFoundError: run by path,
+# `sys.path[0]` is this script's own directory, not the repo root. The filter caught the exception
+# and returned the entries unfiltered, which is how a private-plane marker reached docs/SHELVES.md
+# with the guard installed and nothing printed. Lazy inserts made correctness depend on call order;
+# one eager insert makes it depend on nothing. The three lazy copies are kept where they are: they
+# are idempotent, and deleting them is a separate change from making this one correct.
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
 SCAN_DIRS = ["docs", "research", "chronicles", "charters"]
 SKIP_PREFIXES = [".git", "__pycache__", "node_modules", ".venv", "backups",
                  "dropbox", "data", "state", "sessions", ".claude", ".secrets",
@@ -43,6 +56,11 @@ _RE_SEATS = re.compile(r"^Seats:\s*(.+)$", re.IGNORECASE | re.MULTILINE)
 _RE_DATE = re.compile(r"^Date:\s*(\d{4}-\d{2}-\d{2})", re.IGNORECASE | re.MULTILINE)
 _RE_SUPERSEDED = re.compile(r"(?:superseded by|superseded-by)\s*:?\s*(.+)", re.IGNORECASE)
 _RE_HEADING = re.compile(r"^#\s+(.+)$", re.MULTILINE)
+
+
+#: The provenance line this generator stamps into everything it writes. Its PRESENCE is the only
+#: honest answer to "is this file mine to replace?" -- see the zone-README write loop.
+STAMP = "Source:** `scripts/generators/gen_library.py`"
 
 
 def _safe_read(path: Path) -> Optional[str]:
@@ -157,11 +175,94 @@ _STATUS_ORDER = {"current": 0, "unmarked": 5}
 _BADGE = {"current": "🟢", "superseded": "🟠", "fossil": "⚫",
           "unmarked": "⚪", "unreadable": "🔴"}
 
+class LeakGuardUnavailable(RuntimeError):
+    """Raised when the private-plane guard cannot run. Named rather than generic so a caller can
+    distinguish "the guard refused" from "the generator crashed" -- the first is the guard working.
+    """
+
+
+def _drop_private_plane(entries):
+    """Remove private-plane records before ANY catalog is built. Returns (kept, dropped_count).
+
+    core/trust/private_plane.py names this generator's exact class in its own docstring: "any
+    generator that walks the merged atom stream and writes to docs/ or store/ becomes an egress
+    point", and the sharper half, "existence metadata is a leak" -- a catalog can publish private
+    TITLES and IDS while publishing no body at all. Its conclusion is the reason this filter is
+    here and not downstream: "THE LEAK PATH IS REGENERATION, NOT AUTHORING."
+
+    Caught live on 2026-10-07: refreshing the 75-day-stale census wrote a private-plane slug into
+    both docs/SHELVES.md and research/reviewed/README.md, and the commit gate refused -- correctly,
+    and with the right instruction ("regenerate it with the private records excluded ... do NOT
+    hand-edit the marker out -- the generator will put it back on the next run").
+
+    Markers are DERIVED from whatever actually lives in private/, never declared, so this needs no
+    maintenance as the plane grows. Filtering at the single point where entries enter means every
+    downstream catalog -- SHELVES, ARCS, the zone READMEs -- inherits it without each one
+    remembering to.
+
+    AND IT FAILS CLOSED, which the first version of this function did not. It opened with
+    ``except Exception: return list(entries), 0`` under a comment reading "never fail open loudly",
+    and that is exactly what it did -- quietly. Measured hours later: the generator catalogued 1,764
+    files, excluded 0, printed nothing, and put a private-plane marker into docs/SHELVES.md,
+    docs/ARCS.md and research/reviewed/README.md, because `sys.path[0]` is this script's directory
+    when it is run by path and the import raised ModuleNotFoundError. Both failure paths now raise
+    `LeakGuardUnavailable` before any catalog is written. See
+    tests/test_the_leak_guard_does_not_fail_open.py.
+    """
+    try:
+        from core.trust import private_plane as _pp
+        marks = _pp.markers()
+    except Exception as exc:                                              # noqa: BLE001
+        # FAIL CLOSED. The previous line here was `return list(entries), 0`, with a comment reading
+        # "never fail open loudly" -- which is precisely what it did, quietly. An unimportable leak
+        # guard is not evidence of a clean corpus; it is no evidence at all, and the two must never
+        # render identically. Raising stops the regeneration before a single catalog is written,
+        # which is the cheap direction to be wrong in: a stale census costs a reader a day, a
+        # published private title cannot be recalled.
+        raise LeakGuardUnavailable(
+            "the private-plane guard could not be loaded (%s: %s), so NO catalog was written. "
+            "This is deliberate: a guard that cannot run must not look like a corpus with nothing "
+            "to hide. Fix the import, then re-run -- do not work around it by hand-editing the "
+            "catalogs, because the next regeneration puts every marker back."
+            % (type(exc).__name__, exc)) from exc
+    if not marks:
+        # Zero markers is ALSO a refusal, not a clean sweep. markers() derives everything it knows
+        # from what actually lives in private/; an empty result means either the plane is genuinely
+        # empty or the derivation broke, and this function cannot tell those apart. Same reasoning
+        # as the except path above: typed absence, never a silent pass.
+        raise LeakGuardUnavailable(
+            "the private-plane guard loaded but derived ZERO markers, so it would match nothing and "
+            "NO catalog was written. Either private/ is empty (then say so deliberately) or the "
+            "derivation in core/trust/private_plane.py broke. 70 markers on 2026-10-07.")
+    kept, dropped = [], 0
+    for p, h in entries:
+        hay = f"{_relpath(p)} {h.get('title') or ''} {h.get('arc') or ''}".lower()
+        if any(m.lower() in hay for m in marks):
+            dropped += 1
+            continue
+        kept.append((p, h))
+    return kept, dropped
+
+
 # ---------------------------------------------------------------- SHELVES (v1, unchanged)
+#: lowercased group key -> the first spelling actually seen, so headings render as authored.
+_type_display: dict[str, str] = {}
+
+
 def build_census(entries):
     by_type: dict[str, list] = {}
+    _type_display.clear()
     for p, h in entries:
-        by_type.setdefault(h["type"].lower(), []).append((p, h))
+        # GROUP case-insensitively, but keep the FIRST SPELLING SEEN for display. A prose-header
+        # Type: line can carry a parenthetical containing a path -- docs/WORKING-METHOD.md (a
+        # RATIFIED contract) reads "Type: contract (companion to `docs/CONDUCT.md`, not a peer of
+        # it)" -- and lowercasing the whole value emitted `docs/conduct.md`, a path git cannot
+        # resolve because its index is case-sensitive even where Windows is not. That tripped
+        # check_comprehensibility on a file nobody had mis-typed. Grouping does not need the
+        # display string flattened.
+        _tkey = h["type"].lower()
+        _type_display.setdefault(_tkey, h["type"])
+        by_type.setdefault(_tkey, []).append((p, h))
     for t in by_type:
         # stable-sort cascade: path asc, then date DESC, then status asc (primary last)
         by_type[t].sort(key=lambda x: _relpath(x[0]))
@@ -181,7 +282,7 @@ def render_shelves(by_type):
     ]
     for typ in sorted(by_type):
         entries = by_type[typ]
-        lines.append(f"## {typ} ({len(entries)})")
+        lines.append(f"## {_type_display.get(typ, typ)} ({len(entries)})")
         lines.append("")
         for p, h in entries:
             rel = _relpath(p)
@@ -402,12 +503,29 @@ def _verify_projections() -> int:
     from core.library.projection import projection_relpath
     fam = AtomFamily(create_store(), repo_root=str(ROOT))
     atoms = fam.find()
+    import hashlib as _hashlib
     sha_re = re.compile(r"^akashic_sha:\s*\"?([0-9a-f]{12})\"?\s*$", re.MULTILINE)
     drift: list[str] = []
-    checked = skipped = 0
+    corrupt: list[str] = []
+    missing: list[str] = []
+    checked = skipped = rehashed = 0
     known_ids: set[str] = set()
     for a in atoms:
         known_ids.add(a["id"])
+        # STORE INTEGRITY, the check this function was missing entirely. Everything below compares
+        # a RECORDED sha to another RECORDED sha -- belief against belief -- so a body edited
+        # outside the atom door passes while hashing to neither. This recomputes from the body,
+        # which fam.find() has been returning all along, and is the only line here that can
+        # actually detect corruption. Counted separately so a CLEAN verdict names what it hashed:
+        # a check that cannot distinguish a healthy corpus from an unverified one is reporting
+        # silence, not health.
+        _body = a.get("body")
+        if _body is not None:
+            rehashed += 1
+            _calc = _hashlib.sha256(_body.encode("utf-8", "replace")).hexdigest()[:12]
+            if _calc != a.get("body_sha"):
+                corrupt.append(f"CORRUPT  {a['id']}  (body hashes {_calc}, recorded "
+                               f"{a.get('body_sha')})")
         if a["header"].get("visibility") == "local":
             skipped += 1        # P3b redaction: no public projection by design
             continue
@@ -415,7 +533,7 @@ def _verify_projections() -> int:
         checked += 1
         p = ROOT / rel
         if not p.is_file():
-            drift.append(f"MISSING  {rel}  (atom {a['id']})")
+            missing.append(f"MISSING  {rel}  (atom {a['id']})")
             continue
         text = _safe_read(p) or ""      # frontmatter rides the top -- the 8k cap is fine
         m = sha_re.search(text)
@@ -431,13 +549,25 @@ def _verify_projections() -> int:
                 continue
             if f"art_{fp.stem}" not in known_ids:
                 orphans.append(_relpath(fp))
+    for row in corrupt:
+        print(f"[verify] {row}")
+    for row in missing:
+        print(f"[verify] {row}")
     for row in drift:
         print(f"[verify] {row}")
     for o in orphans:
         print(f"[verify] ORPHAN   {o}  (no atom in the store)")
-    verdict = "CLEAN" if not (drift or orphans) else "DRIFT"
+    verdict = "CLEAN" if not (corrupt or missing or drift or orphans) else "FINDINGS"
+    # EACH KIND COUNTED BY ITS OWN NAME. The previous line called every row "drift row(s)", so a
+    # run with 0 sha drift and 8 absent projections reported "8 drift row(s)" -- and those have
+    # opposite remedies: a missing projection is a regeneration, a corrupt body is a restore.
     print(f"[gen_library] --verify {verdict}: {checked} projection(s) cross-read, "
-          f"{skipped} local-redacted skipped, {len(drift)} drift row(s), {len(orphans)} orphan(s)")
+          f"{rehashed} body/bodies REHASHED from source, {skipped} local-redacted skipped, "
+          f"{len(corrupt)} corrupt, {len(missing)} missing, {len(drift)} sha-drift, "
+          f"{len(orphans)} orphan(s)")
+    if not rehashed:
+        print("[verify] WARNING: 0 bodies were rehashed -- this run compared recorded shas only "
+              "and cannot distinguish a healthy corpus from an unverified one")
     return 0 if verdict == "CLEAN" else 1
 
 
@@ -479,6 +609,18 @@ def main(argv=None) -> int:
         return 0
 
     entries = _atoms_as_entries() if args.from_store else walk_docs()
+    try:
+        entries, _plane_dropped = _drop_private_plane(entries)
+    except LeakGuardUnavailable as exc:
+        # A refusal, not a crash: one readable line and a non-zero exit, no traceback for the
+        # operator to decode, and -- the point -- nothing written. Exit 3 is distinct from 2 (a
+        # missing atom) so a caller can tell "the guard stopped me" from "the input was wrong".
+        print(f"[gen_library] REFUSED: {exc}")
+        return 3
+    if _plane_dropped:
+        # Counted, never named: printing the titles would be the leak the filter just prevented.
+        print(f"[gen_library] private-plane: {_plane_dropped} record(s) excluded from every "
+              f"catalog (titles withheld by design)")
     now_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
 
     # 1) SHELVES.md (type census)
@@ -496,15 +638,35 @@ def main(argv=None) -> int:
     # 2) Zone READMEs
     by_zone = _build_zone_census(entries)
     written = 0
+    kept: list[str] = []
     for zone, zone_entries in sorted(by_zone.items()):
         zone_out = _render_zone_readme(zone, zone_entries, now_str)
         zone_dir = ROOT / zone
         if not zone_dir.exists():
             os.makedirs(str(zone_dir), exist_ok=True)
         readme_path = zone_dir / "README.md"
+        # ONLY REPLACE WHAT THIS GENERATOR WROTE. Until 2026-10-07 this write was unconditional and
+        # it destroyed 86 lines of hand-written doctrine in research/README.md -- the Research day
+        # economics, the loop, the layout table, and the full-fidelity preservation rule -- in a
+        # run whose only intent was to refresh a stale catalog. Nothing failed and nothing warned;
+        # the loss was visible only in the diff.
+        #
+        # The stamp below is written into every file this generator produces, so "is this mine to
+        # replace?" is answerable from the file's own contents. Stamped: regenerate. Unstamped: a
+        # human wrote it, and overwriting is data loss rather than regeneration.
+        if readme_path.is_file():
+            existing = _safe_read(readme_path) or ""
+            if STAMP not in existing:
+                kept.append(zone)
+                continue
         readme_path.write_text(zone_out, encoding="utf-8")
         written += 1
     print(f"[gen_library] READMEs -> {written} zone(s)")
+    # A SILENT SKIP IS THE SAME DEFECT WEARING MANNERS: a protected zone and a stale one must not
+    # look identical in the output.
+    for z in kept:
+        print(f"[gen_library] KEPT     {z}/README.md  (hand-written: no generator stamp, not "
+              f"overwritten -- adopt it or add the stamp to have it regenerated)")
 
     # 3) ARCS.md
     by_arc = _build_arc_census(entries)

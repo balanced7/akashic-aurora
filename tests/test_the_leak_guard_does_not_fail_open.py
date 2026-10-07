@@ -73,6 +73,29 @@ def _src() -> str:
     return GEN.read_text(encoding="utf-8", errors="replace")
 
 
+def _code_of(func_name: str) -> str:
+    """The function's EXECUTABLE source, with its docstring removed.
+
+    Needed because of a trap these very pins fell into. The fix's docstring quotes the defect
+    verbatim -- ``except Exception: return list(entries), 0`` -- to record what was wrong and why.
+    A pin that scans raw source then matches the *explanation* instead of the *code*, and the two
+    assertions below went red against a correct implementation for exactly that reason. Prose about
+    a defect is not the defect. Parsing and dropping the docstring is the only way to ask about
+    behaviour; grepping a file can only ever ask about text.
+    """
+    import ast
+    tree = ast.parse(_src())
+    for node in ast.walk(tree):
+        if isinstance(node, ast.FunctionDef) and node.name == func_name:
+            body = node.body
+            if (body and isinstance(body[0], ast.Expr)
+                    and isinstance(getattr(body[0], "value", None), ast.Constant)
+                    and isinstance(body[0].value.value, str)):
+                body = body[1:]          # drop the docstring
+            return "\n".join(ast.unparse(stmt) for stmt in body)
+    raise AssertionError("no function named %r in %s" % (func_name, GEN))
+
+
 # ------------------------------------------------------------------ defect 1: the path
 def test_the_guard_actually_loads_in_the_real_invocation():
     """THE PIN. Measure the real thing, not a simulation of it.
@@ -114,10 +137,8 @@ def test_the_filter_does_not_fail_open():
     it and prints nothing. The whole point of this filter is that this is the expensive direction to
     be wrong in.
     """
-    src = _src()
-    i = src.index("def _drop_private_plane")
-    block = src[i:i + 3000]
-    assert "return list(entries), 0" not in block, (
+    code = _code_of("_drop_private_plane")
+    assert "return list(entries), 0" not in code, (
         "the filter returns the UNFILTERED entries when its own import fails, so a guard that "
         "cannot load is indistinguishable from a corpus with nothing to hide")
 
@@ -133,14 +154,17 @@ def test_an_unavailable_guard_is_announced_and_blocks_the_write():
     choosing a token that the broken code already contains. A pin must assert STRUCTURE, not
     vocabulary. So: the except path must ``raise``. Returning anything at all from a failed leak
     guard is the defect, whatever it prints on the way out.
+
+    It then went red a SECOND time against the CORRECT fix, by the same mechanism in reverse: the
+    fix's docstring quotes the old defect to record it, so ``block.index("except")`` found the word
+    inside that account before it found the real handler. Hence ``_code_of()``, which parses the
+    function and drops the docstring. Twice in one file, in a file about this exact mistake.
     """
-    src = _src()
-    i = src.index("def _drop_private_plane")
-    block = src[i:i + 3000]
-    body = block[block.index("except"):] if "except" in block else ""
-    assert body, "the filter no longer has an except path -- re-read this pin before deleting it"
-    first_stmt = body[:400]
-    assert "raise" in first_stmt, (
+    code = _code_of("_drop_private_plane")
+    assert "except" in code, (
+        "the filter no longer has an except path -- re-read this pin before deleting it")
+    handler = code[code.index("except"):]
+    assert "raise" in handler[:600], (
         "the filter's except path does not raise. A leak guard that cannot load must stop the "
         "regeneration, not hand back the unfiltered entries with a warning attached -- the catalogs "
         "get written either way, and written is what leaks.")
