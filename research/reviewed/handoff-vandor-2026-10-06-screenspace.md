@@ -32,6 +32,19 @@ between. For a drill you want an input that cannot move under you.
   `Popen(DETACHED_PROCESS)` both *inherit* and give a false all-clear. 5 of 12 windowed tasks were
   already fixed by someone who hit this before; the repair is now
   `core/infrastructure/background_stdio.py` and applied to the other six.
+- `ddc0e734` — **`find --sort` and every `--preset` were silently inert.** The flag reached es.exe
+  correctly and then `_rank_exact_first` re-sorted the results in Python by
+  `(basename != query, len(path))`, discarding the requested order at four call sites. Fixed in one
+  place with a `sorted_by` no-op and a `key` extractor. A second defect was hiding behind it: a
+  **bare es.exe sort key is DESCENDING**, so `--preset oldest` returned newest and `--preset
+  smallest` returned biggest. Both now say `-ascending` out loud. 9 pins.
+- `f80ad49e` — **`delta --disk`**, the disk plane of the T052 delta door
+  (`core/provenance/delta.py`, 15 pins). Reports what moved that no Aurora plane recorded:
+  uncommitted work, anything outside the repo, and per-file attribution from the touch stream.
+  Classifies every change `repo` / `private` / **`volatile`** and renders volatile first, because
+  it is the only losable class. Metadata only — it is pointed at a tree holding tax returns.
+  Honest denominators: roots scanned/skipped, files examined, and `touch.drops()` (214).
+  **Run `py agent_cli.py delta claude --disk --hours 24` at wake.**
 - `9bf0d994` — **item 1 of that spec was wrong**, and the addendum says why
   (`fences/affordance-layer/addendum-item1-does-not-survive.md`). Also fixes a real defect found on
   the way: `defer <seat> --list` ran its unknown-seat guard *inside* the empty-queue branch, so once
