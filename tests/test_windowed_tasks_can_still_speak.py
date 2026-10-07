@@ -78,6 +78,8 @@ DIRECT_WINDOWED_TASK_SCRIPTS = (
     "scripts/ops/mem_watch.py",               # AkashicAurora-MemWatch
     "scripts/checkers/check_secrets.py",      # AkashicAurora-SecretScan-HistoryWeekly
     "scripts/ops/archive_transcripts.py",     # AkashicAurora-TranscriptArchive-{Daily,VerifyWeekly}
+    "scripts/ops/eye_ingest_task.py",         # AkashicAurora-EyeIngest-Daily (2026-10-07)
+    "scripts/bifrost_daemon.py",              # AkashicAurora-WakeDaemon (2026-10-07)
 )
 
 #: The one that already had its own correct copy. Pinned for AGREEMENT, not folded into the helper:
