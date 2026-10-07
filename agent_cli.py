@@ -6343,7 +6343,10 @@ def cmd_grant(args):
             print(f"[grant] REVOKED {args.agent_id} (was {out['was'].get('role')}) by {args.by}")
             return 0
 
-        caps = [c.strip() for c in args.caps.split(",") if c.strip()] if args.caps else None
+        _csv = lambda v: [x.strip() for x in v.split(",") if x.strip()] if v else None
+        caps = _csv(args.caps)
+        add_caps = _csv(getattr(args, "add_caps", None))
+        drop_caps = _csv(getattr(args, "drop_caps", None))
         scope = ([s.strip() for s in args.path_scope.split(",") if s.strip()]
                  if args.path_scope else None)
 
@@ -6353,15 +6356,45 @@ def cmd_grant(args):
             # be worse than no preview, so this prints the intent and names its own limit.
             print(json.dumps({"agent_id": args.agent_id, "role": args.role, "by": args.by,
                               "hours": args.hours, "permanent": bool(args.permanent),
-                              "caps": caps, "path_scope": scope,
+                              "caps": caps, "add_caps": add_caps, "drop_caps": drop_caps,
+                              "path_scope": scope,
                               "reason": args.reason}, indent=2))
+            # THE DIFF, W252. This used to print the new set alone, which answers "what will it
+            # be" when the reader is asking "what will CHANGE" -- and for a REPLACE those are
+            # different questions and only one of them is dangerous. The preview whose whole job
+            # is to make the destructive half visible was the place it was invisible.
+            try:
+                from core.trust import registry as _reg
+                _held = {getattr(c, "value", c) for c in (_reg.resolve(args.agent_id).caps or [])}
+                if caps is not None:
+                    _after = set(caps)
+                elif add_caps or drop_caps:
+                    _after = (_held | set(add_caps or [])) - set(drop_caps or [])
+                else:
+                    _after = None          # role template: resolved by the writer, not here
+                if _after is not None:
+                    _lost, _gained = sorted(_held - _after), sorted(_after - _held)
+                    print(f"[grant] caps {len(_held)} -> {len(_after)}")
+                    if _gained:
+                        print("        ADDING  : " + ", ".join(_gained))
+                    if _lost:
+                        print("        REMOVING: " + ", ".join(_lost))
+                        print("        ^ the real call REFUSES this without --replace (W252)")
+                    if not _gained and not _lost:
+                        print("        (no cap change)")
+            except Exception as _e:                                        # noqa: BLE001
+                # Never let the preview's own failure read as "nothing changes".
+                print(f"[grant] could not diff against the current grant ({type(_e).__name__}) "
+                      f"-- the cap change above is UNVERIFIED, not empty")
             print("[grant] DRY RUN -- nothing written. Authority guards run on the real call.")
             return 0
 
         rec = grant_writer.grant(args.agent_id, role=args.role, by=args.by,
                                  reason=args.reason or "", hours=args.hours,
                                  permanent=bool(args.permanent), caps=caps, path_scope=scope,
-                                 request_ref=args.request_ref)
+                                 request_ref=args.request_ref,
+                                 add_caps=add_caps, drop_caps=drop_caps,
+                                 replace=bool(getattr(args, "replace", False)))
         if args.json:
             return _emit(rec)
         print(f"[grant] {rec['agent_id']} -> {rec['role']} "
@@ -9396,7 +9429,16 @@ def build_parser():
                                                               "time box is a deadline)")
     gr.add_argument("--permanent", action="store_true", help="explicitly permanent (10 of the "
                                                              "11 original grants are)")
-    gr.add_argument("--caps", default=None, help="comma-separated cap override (default: role template)")
+    gr.add_argument("--caps", default=None,
+                    help="comma-separated FULL SET (a REPLACE; refuses if it drops a held cap "
+                         "unless --replace)")
+    gr.add_argument("--add-caps", default=None, dest="add_caps",
+                    help="W252: add these to what the seat ALREADY holds (the usual intent)")
+    gr.add_argument("--drop-caps", default=None, dest="drop_caps",
+                    help="W252: remove these from what the seat already holds")
+    gr.add_argument("--replace", action="store_true",
+                    help="say out loud that --caps may DROP caps the seat holds, the way "
+                         "--permanent has to be said out loud")
     gr.add_argument("--path-scope", default=None, help="comma-separated globs (default: role template)")
     gr.add_argument("--request-ref", default=None, help="the ask this grant answers")
     gr.add_argument("--revoke", action="store_true", help="remove the grant (the undo path)")
