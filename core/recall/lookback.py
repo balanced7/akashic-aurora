@@ -605,9 +605,24 @@ def lookback(question: str, *, per_layer: int = PER_LAYER,
                     continue
                 it = sc.item
                 text = str(it.get("text", ""))
+                # BOTH NUMBERS, each named for what it is. Until 2026-10-07 this published the
+                # relevance COMPONENT as `score` while `ranker.rank` ordered rows by the weighted
+                # COMPOSITE of relevance, importance and recency -- so the printed figure did not
+                # explain the printed order. Two cold readers hit it independently while measuring
+                # something else: one reported "ordering is not monotonic ... do not treat position
+                # as confidence", the other nearly trusted an ARCHIVED roadmap because it carried the
+                # highest number in the output (0.934).
+                #
+                # `rank` is the sort key, so the order is now auditable from the row. `relevance` is
+                # kept and not replaced, because it is the only number that answers "why did this
+                # match" -- the composite cannot, and a reader spotting a bad query needs it.
                 hits.append({"layer": name, "source": it.get("source", ""),
                              "status": it.get("status", ""),
-                             "score": round(sc.components.get("relevance", 0.0), 3),
+                             # `score` IS the sort key now, so the headline number explains the
+                             # order. `relevance` carries the component it used to hold.
+                             "score": round(getattr(sc, "score", 0.0), 3),
+                             "rank": round(getattr(sc, "score", 0.0), 3),
+                             "relevance": round(sc.components.get("relevance", 0.0), 3),
                              "excerpt": _match_excerpt(text, q),
                              "drill": it.get("drill", it.get("source", ""))})
                 kept += 1

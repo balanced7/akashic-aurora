@@ -5970,7 +5970,12 @@ def cmd_lookback(args):
         if h["layer"] != current_layer:
             current_layer = h["layer"]
             print(f"\n## {current_layer}")
-        print(f"  [{h['status']}] {h['source']}  (rel {h['score']})")
+        # Headline number = the SORT KEY, so position and figure agree; relevance beside it, named,
+        # because it is the one that says why the row matched. Printing only the component used to
+        # make a correctly-ordered list look unsorted (measured 0.382, 0.215, 0.248 in one layer).
+        _rel = h.get("relevance")
+        _why = f", rel {_rel}" if _rel is not None and _rel != h.get("score") else ""
+        print(f"  [{h['status']}] {h['source']}  (rank {h['score']}{_why})")
         print(f"      {h['excerpt']}")
         print(f"      drill: {h['drill']}")
     return 0
