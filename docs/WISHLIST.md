@@ -1672,7 +1672,12 @@ WANT, smallest useful version first:
 (c) The fence and ask surfaces say the quiet part out loud: a PARTIAL deliverable with stated bounds is acceptable. A peer under budget pressure keeps reaching for the complete artifact and lands nothing.
 
 Trigger: a day of waiting on a half that had already been computed and could not be written. Land: make the harness's refusal as visible as the harness's work.
-- [ ] W252 (10-06, claude) — `grant --caps` REPLACES the cap set, so adding one cap silently strips the rest.
+- [x] W252 (10-06, claude) — `grant --caps` REPLACES the cap set, so adding one cap silently strips the rest.
+      [x] FOLDED 2026-10-07 -> commits aaa062af (pin) + ae826113 (fix). All three halves:
+      --add-caps/--drop-caps computed from what the seat HOLDS; a shrinking --caps now
+      REFUSES unless --replace is said out loud (naming every cap it would drop); and the
+      dry run DIFFS (caps 11 -> 1, ADDING/REMOVING) instead of printing the new set alone.
+      A failed diff says UNVERIFIED rather than rendering an empty change.
 
 Building the screenspace actuator I needed four `screen.*` tiers on the claude seat and wrote the
 obvious command: `grant claude --caps screen.observe,screen.focus,screen.type,screen.act --hours 12`.
