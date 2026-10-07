@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Crystal studies — three expressions of a grand</title>
+  <link rel="stylesheet" href="./piano-crystal-studies.css">
+  <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.186.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.186.0/examples/jsm/"}}</script>
+</head>
+<body>
+  <canvas id="stage" aria-label="Animated crystal grand piano. Drag to orbit; scroll to move closer."></canvas>
+  <div class="vignette" aria-hidden="true"></div>
+  <header>
+    <a class="brand" href="./piano-crystal-studies.html"><span class="mark">◇</span> CRYSTAL STUDIES <span class="edition">/ VOL. I</span></a>
+    <div class="top-actions"><span id="render-status">Preparing the studio…</span><button id="fullscreen" aria-label="Enter fullscreen">⤢</button></div>
+  </header>
+  <main>
+    <section class="intro" aria-live="polite">
+      <div class="eyebrow"><span id="study-number">01</span> / THREE EXPRESSIONS OF A GRAND</div>
+      <h1 id="study-name">Aether</h1>
+      <p class="tagline" id="study-subtitle">Light, suspended.</p>
+      <p class="description" id="study-description">Prismatic crystal · platinum action · flowing spectral ribbons</p>
+      <section id="canopy-controls" class="canopy-controls" aria-label="Solstice overhead lights" hidden>
+        <label for="canopy-form">OVERHEAD LIGHTS</label>
+        <select id="canopy-form" aria-label="Overhead light shape">
+          <option value="ribbons">Layered ribbons</option>
+          <option value="fan">Radial fan</option>
+          <option value="halo">Halo bands</option>
+          <option value="sails">Original opal sails</option>
+        </select>
+        <div id="light-legend">
+          <p>Three layers. Twelve pitch classes.<br>Octaves share a column.</p>
+          <div id="light-matrix" class="light-matrix" role="img" aria-label="Light map: columns C through B; rows attack, finger-held notes and pedal-only sustain."></div>
+          <p id="light-caption" class="light-caption">Front / low: attack · middle: held<br>Back / high: pedal-only sustain</p>
+          <button id="light-demo">Show how the lights respond <span>↗</span></button>
+          <span id="light-cue" role="status"></span>
+        </div>
+      </section>
+    </section>
+    <aside class="performance" aria-label="Performance information">
+      <span class="eyebrow" id="source">GENERATIVE PERFORMANCE</span>
+      <strong id="harmony">D♭ 6/9</strong>
+      <div class="resonance"><i id="energy"></i></div>
+      <span id="sustain">88 keys · physical action</span>
+    </aside>
+    <div id="loading" role="status">Lighting the crystal…</div>
+    <div id="error" role="alert" hidden></div>
+    <section id="settings" class="settings" hidden aria-label="Studio controls">
+      <div class="settings-head"><span>Studio controls</span><button id="close-settings" aria-label="Close studio controls">×</button></div>
+      <label>Render resolution <select id="resolution"><option value="native">Native display pixels</option><option value="4k">4K · 3840 × 2160</option><option value="1440">1440p · 2560 × 1440</option></select></label>
+      <label>Camera <select id="camera"><option value="drift">Slow drift</option><option value="follow">Follow the performance</option><option value="detail">Inside the mechanism</option><option value="orbit">Free orbit</option></select></label>
+      <label class="check"><input id="smoothing" type="checkbox" checked> Antialiasing · 4× MSAA + SMAA</label>
+      <label class="check"><input id="motion" type="checkbox" checked> Ornamental motion</label>
+      <p class="hint">Drag to orbit. A S D F G H J K play the white keys; W E T Y U play the black keys. Space holds sustain. The demo is silent.</p>
+      <button id="measure">Measure 15 seconds</button>
+      <p id="measure-status" role="status">Measures visible frame intervals after a 3-second warmup.</p>
+      <pre id="metrics">Waiting for a measurement.</pre>
+    </section>
+  </main>
+  <footer>
+    <div class="toolbar">
+      <div class="transport"><button id="demo" aria-pressed="true"><span id="play-icon">Ⅱ</span> <span id="demo-label">Pause performance</span></button><button id="midi">Connect MIDI</button></div>
+      <span class="orbit-hint">DRAG TO EXPLORE <span>↗</span></span>
+      <button id="settings-button" aria-expanded="false" aria-controls="settings">Studio controls <span>⚙</span></button>
+    </div>
+    <nav class="studies" aria-label="Choose a crystal grand">
+      <button class="study active" data-study="aether" aria-pressed="true"><span class="study-index">01</span><span class="study-text"><strong>Aether</strong><small>PRISM / PLATINUM / LIGHT</small></span><span class="swatch aether"></span></button>
+      <button class="study" data-study="solstice" aria-pressed="false"><span class="study-index">02</span><span class="study-text"><strong>Solstice</strong><small>OPAL / BRASS / WARMTH</small></span><span class="swatch solstice"></span></button>
+      <button class="study" data-study="nocturne" aria-pressed="false"><span class="study-index">03</span><span class="study-text"><strong>Nocturne</strong><small>SMOKE / TITANIUM / AURORA</small></span><span class="swatch nocturne"></span></button>
+    </nav>
+    <div class="footnote"><span>ONE INSTRUMENT. THREE ATMOSPHERES.</span><span>REAL-TIME CRYSTAL / EXPERIMENTAL EDITION</span></div>
+  </footer>
+  <script type="module" src="./piano-crystal-studies.js"></script>
+</body>
+</html>

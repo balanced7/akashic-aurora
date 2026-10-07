@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark">
+<title>Violet Aero — light meets form</title><link rel="stylesheet" href="./piano-wind.css">
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.186.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.186.0/examples/jsm/"}}</script></head>
+<body>
+<header><a href="./piano-gyre.html">↖ LIGHT STUDIES</a><span>VIOLET / AERO</span><div><button id="pause" aria-pressed="false">Pause render</button><button id="fullscreen" aria-label="Enter fullscreen">⛶</button></div></header>
+<main>
+<section id="viewport" aria-label="Interactive supercar wind sculpture"><canvas id="stage" aria-label="Violet light flowing around a concept supercar. Drag to orbit, scroll to zoom."></canvas>
+<div class="title"><span class="eyebrow">LIGHT MEETS FORM / 03</span><h1>Air, made visible<span>.</span></h1><p>A violet current. A sculpted silhouette.</p></div>
+<div id="loading" role="status">Bringing the bodywork into the light…</div><div id="error" role="alert" hidden></div>
+<div class="scene-note"><span>CONCEPT / 004</span><small>Geometry-guided light · artistic airflow</small></div>
+<div class="views" aria-label="Camera views"><button data-view="hero" aria-pressed="true">Portrait</button><button data-view="side">Profile</button><button data-view="top">Above</button><button data-view="wake">The wake</button><button id="orbit" aria-pressed="false">Orbit</button></div>
+</section>
+<aside aria-label="Airflow controls">
+<div class="panel-heading"><span class="eyebrow">SHAPE THE CURRENT</span><h2>Flow studies</h2></div>
+<div class="looks"><button data-look="violet" aria-pressed="true"><i></i>Violet silk<small>Fine light, long contours</small></button><button data-look="ion"><i></i>Ion storm<small>A restless, sparkling wake</small></button><button data-look="hush"><i></i>Afterglow<small>Slow, quiet, weightless</small></button></div>
+<label>Flow speed <output id="speed-value"></output><input id="speed" type="range" min=".2" max="2.5" step=".01"></label>
+<label>Trail length <output id="trail-value"></output><input id="trail" type="range" min=".15" max="1" step=".01"></label>
+<label>Surface clearance <output id="clearance-value"></output><input id="clearance" type="range" min=".06" max=".65" step=".01"></label>
+<label>Wake curl <output id="wake-value"></output><input id="wake" type="range" min="0" max="1.8" step=".01"></label>
+<div class="duo"><label>Streams<select id="density"><option>48</option><option selected>72</option><option>108</option></select></label><label>Light<select id="style"><option value="mixed">Silk + sparks</option><option value="silk">Silk</option><option value="sparks">Sparks</option></select></label></div>
+<label class="paint-label">Body finish<select id="paint"><option value="pearl">Moonlit pearl</option><option value="graphite">Violet graphite</option></select></label>
+<button id="copy" class="wide">Copy this look’s link <span>↗</span></button><p id="message" aria-live="polite">Drag the scene to explore its contours.</p>
+<details><summary>About the model & flow</summary><p>Car Concept by Eric Chadwick / Darmstadt Graphics Group, from Khronos’s glTF collection. <a href="https://github.com/KhronosGroup/glTF-Sample-Assets/tree/main/Models/CarConcept" target="_blank" rel="noopener">Model & credits ↗</a> · <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>.</p><p>Materials and lighting adapted for this study. The light follows a conservative envelope of the mesh and an authored wake. It does not calculate pressure, drag or engineering aerodynamics.</p></details>
+</aside></main>
+<footer><label>Resolution <select id="resolution"><option value="native">Native</option><option value="4k">4K fit</option></select></label><span id="status">Loading model</span><span id="measurement"></span><button id="measure">Measure 10s</button></footer>
+<script type="module" src="./piano-wind.js"></script></body></html>

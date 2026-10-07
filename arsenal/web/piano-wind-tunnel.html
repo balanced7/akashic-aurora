@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark">
+<title>Violet Aero — the wind tunnel</title><link rel="stylesheet" href="./piano-wind.css">
+<style>.solver-info{font-size:10px;line-height:1.7;border-top:1px solid #ffffff12;padding:14px 0;color:#a899b7}.solver-info strong{display:block;color:#d2b5eb;font-weight:400}.solver-info small{font-size:9px;color:#80738e}.looks{margin-bottom:15px}.capture{border-top:1px solid #ffffff18;padding-top:18px;margin-top:20px}.capture h3{font:400 20px Georgia,serif;margin:9px 0 13px}.capture input[type=text]{width:100%;color:#e5d8f0;background:#11131d;border:1px solid #ffffff20;border-radius:6px;padding:9px;margin-top:8px}.capture .duo button{flex:1;font-size:10px;padding:9px 6px}.capture .duo{margin:8px 0}.capture p{font-size:10px;line-height:1.6;color:#a495b4}.capture input:disabled{opacity:.4}.capture [hidden]{display:none}.capture select{font-size:10px}.capture .file-label{display:inline-block;cursor:pointer;margin:0;padding:9px;border:1px solid #ffffff20;border-radius:7px;color:#d7c2e5;font-size:10px}</style>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.186.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.186.0/examples/jsm/"}}</script></head>
+<body data-flow="fluid">
+<header><a href="./piano-wind.html">↖ ORIGINAL STUDY</a><span>VIOLET / WIND TUNNEL</span><div><button id="pause" aria-pressed="false">Pause render</button><button id="fullscreen" aria-label="Enter fullscreen">⛶</button></div></header>
+<main>
+<section id="viewport" aria-label="Interactive supercar fluid study"><canvas id="stage" aria-label="Violet streamlines following simulated air around a concept supercar. Drag to orbit, scroll to zoom."></canvas>
+<div class="title"><span class="eyebrow">LIGHT MEETS MOTION / 04</span><h1>The shape of air<span>.</span></h1><p>A sculpted body. A living current.</p></div>
+<div id="loading" role="status">Finding the surface. Solving the first current…</div><div id="error" role="alert" hidden></div>
+<div class="scene-note"><span>VIOLET / WIND TUNNEL</span><small>Simulated flow · illuminated streamlines</small></div>
+<div class="views" aria-label="Camera views"><button data-view="hero" aria-pressed="true">Portrait</button><button data-view="side">Profile</button><button data-view="top">Above</button><button data-view="wake">The wake</button><button id="orbit" aria-pressed="false">Orbit</button></div>
+</section>
+<aside aria-label="Airflow controls">
+<div class="panel-heading"><span class="eyebrow">SHAPE THE CURRENT</span><h2>Wind studies</h2></div>
+<div class="looks"><button data-look="violet" aria-pressed="true"><i></i>Violet silk<small>Fine light, living contours</small></button><button data-look="ion"><i></i>Ion storm<small>A stirred, sparkling wake</small></button><button data-look="hush"><i></i>Afterglow<small>Slow, quiet, weightless</small></button></div>
+<label>Light travel <output id="speed-value"></output><input id="speed" type="range" min=".2" max="2.5" step=".01"></label>
+<label>Trail length <output id="trail-value"></output><input id="trail" type="range" min=".15" max="1" step=".01"></label>
+<label>Surface spacing <output id="clearance-value"></output><input id="clearance" type="range" min=".06" max=".65" step=".01"></label>
+<label>Wake stirring <output id="wake-value"></output><input id="wake" type="range" min="0" max="1.8" step=".01"></label>
+<label>Wind direction <output id="yaw-value">0°</output><input id="yaw" type="range" min="-25" max="25" step="1" value="0"></label>
+<div class="duo"><label>Streams<select id="density"><option>48</option><option selected>72</option><option>108</option></select></label><label>Light<select id="style"><option value="mixed">Silk + sparks</option><option value="silk">Silk</option><option value="sparks">Sparks</option></select></label></div>
+<div class="duo"><label>Body finish<select id="paint"><option value="pearl">Moonlit pearl</option><option value="graphite">Violet graphite</option></select></label><label>Colour<select id="flow-colour"><option value="violet">Violet & rose</option><option value="speed">Air speed</option></select></label></div>
+<button id="copy" class="wide">Copy this look’s link <span>↗</span></button><p id="message" aria-live="polite">Drag to orbit. Follow the current over the roof.</p>
+<div class="solver-info"><strong id="solver-status">Preparing the flow…</strong><small id="solver-detail"></small></div>
+<section class="capture" aria-label="Record and replay flow">
+<span class="eyebrow">KEEP THE MOTION</span><h3>Flow recordings</h3>
+<label>Take name<input id="take-name" type="text" value="Violet current" maxlength="64"></label>
+<label>Record length<select id="take-duration"><option value="8">8 seconds</option><option value="16" selected>16 seconds</option><option value="24">24 seconds</option></select></label>
+<div class="duo"><button id="take-record" disabled>Record flow</button><button id="take-cancel" hidden>Cancel</button><button id="take-live" disabled>Live flow</button></div>
+<p id="take-status" role="status">Save the motion in 3D, then replay it without the solver.</p>
+<label>Saved takes<select id="take-library"><option value="">Choose a recording…</option></select></label>
+<div class="duo"><button id="take-replay" disabled>Replay take</button><button id="take-export" disabled>Save file</button><label class="file-label">Load file<input id="take-import" type="file" accept=".flowclip" hidden></label></div>
+<div id="take-player" hidden>
+<label>Playhead <output id="take-time">0.0 s</output><input id="take-seek" type="range" min="0" max="1" step=".001" value="0"></label>
+<div class="duo"><label>Playback rate<select id="take-rate"><option value=".25">¼ speed</option><option value=".5">½ speed</option><option value="1" selected>Original pace</option><option value="2">2× speed</option></select></label><label>Repeat<select id="take-loop"><option value="bounce" selected>Back & forth</option><option value="once">Forward once</option></select></label></div>
+<p>Orbit and restyle the light during playback. Flow settings belong to the recording.</p>
+</div>
+</section>
+<details><summary>About the model & simulation</summary><p>Car Concept by Eric Chadwick / Darmstadt Graphics Group, from Khronos’s glTF collection. <a href="https://github.com/KhronosGroup/glTF-Sample-Assets/tree/main/Models/CarConcept" target="_blank" rel="noopener">Model & credits ↗</a> · <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>.</p><p>A 3D incompressible flow solver transports velocity and solves pressure around a sealed exterior approximation of the car. Fine surface distances guide the light close to the mesh. Optional wake stirring is an artistic force.</p><p>These are evolving instantaneous streamlines. Light travel and tail length control their illumination; the worker advances simulation at its own pace. Air speed colours run from indigo (slow) through violet to warm pearl (fast). This prototype does not predict drag, lift, or resolve turbulent boundary layers.</p></details>
+</aside></main>
+<footer><label>Resolution <select id="resolution"><option value="native">Native</option><option value="4k">4K fit</option></select></label><span id="status">Loading model</span><span id="measurement"></span><button id="measure">Measure 10s</button></footer>
+<script type="module" src="./piano-wind.js"></script></body></html>

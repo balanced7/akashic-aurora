@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Arbor — a living chord in three dimensions</title>
+  <link rel="stylesheet" href="./piano-chord-tree.css">
+  <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.186.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.186.0/examples/jsm/"}}</script>
+</head>
+<body>
+  <header><a href="./piano-crystal-studies.html?study=solstice&resolution=native&canopy=ribbons">◇ <span>CRYSTAL STUDIES</span></a><span class="edition">HARMONIC FORMS / 01</span><button id="pause-render" aria-pressed="false">Pause render</button><button id="fullscreen" aria-label="Enter fullscreen">⤢</button></header>
+  <main>
+    <aside class="controls" aria-label="Build a chord">
+      <div class="intro"><span class="eyebrow">A FAMILY OF LIGHT</span><h1>Arbor<span>.</span></h1><p>One root. One color.<br>Every addition, a new limb.</p></div>
+      <section><div class="section-label">01 <span>ROOT / HUE</span><output id="root-name">C</output></div><div id="roots" class="roots" role="group" aria-label="Root note"></div></section>
+      <section><div class="section-label">02 <span>CHARACTER / FORM</span></div>
+        <div class="fields"><label>Foundation<select id="quality"><option value="major">Major</option><option value="minor">Minor</option><option value="sus2">Suspended 2nd</option><option value="sus4">Suspended 4th</option><option value="dim">Diminished</option><option value="aug">Augmented</option></select></label>
+        <label>Seventh<select id="seventh"><option value="none">None</option><option value="minor">Minor 7th</option><option value="major" selected>Major 7th</option><option value="dim">Diminished 7th</option></select></label></div>
+        <p id="modifier" class="modifier">Open branches · major third</p>
+      </section>
+      <section><div class="section-label">03 <span>EXTENSIONS / SHADE</span></div><div class="extensions"><label><input type="checkbox" id="nine" checked><span>9</span><small>NINTH</small></label><label><input type="checkbox" id="eleven"><span>11</span><small>ELEVENTH</small></label><label><input type="checkbox" id="thirteen"><span>13</span><small>THIRTEENTH</small></label></div><label class="check"><input type="checkbox" id="sharp-eleven"> Raise the 11th · spiral tip</label></section>
+      <section class="voicing"><div class="chord-line" aria-live="polite" aria-atomic="true"><strong id="chord-name">Cmaj9</strong><span id="chord-notes">C · E · G · B · D</span></div><div id="tones" class="tones" role="group" aria-label="Chord tones"></div><p id="tone-detail" class="tone-detail">Select a tone to trace its branch.</p></section>
+      <p class="smallprint">Labelled limbs are chord tones.<br>Twigs and leaves are ornament.</p>
+    </aside>
+    <section class="scene-frame" id="scene-frame" aria-label="Three dimensional chord tree">
+      <canvas id="stage" aria-label="3D chord tree. Drag to orbit and scroll to zoom. Tone buttons identify its branches."></canvas>
+      <div id="labels" class="labels"></div>
+      <div class="scene-title"><span class="eyebrow">ROOTED IN</span><span id="scene-root">C</span><span id="scene-quality">MAJOR NINTH</span></div>
+      <div id="loading" role="status">Growing the first branches…</div><div id="error" role="alert" hidden></div>
+      <div id="pause-notice" role="status" hidden>Rendering paused · ready when you are</div>
+      <div class="scene-bottom"><span>DRAG TO ORBIT <i>↗</i><br><small>SCROLL TO EXPLORE</small></span><div><button id="orbit" aria-pressed="true">Pause orbit</button><button id="home">Home view</button></div></div>
+    </section>
+  </main>
+  <footer><div class="render-controls"><label class="check"><input type="checkbox" id="show-labels" checked> Tone labels</label><label class="resolution-label">Resolution <select id="resolution"><option value="native">Native</option><option value="4k">4K</option></select></label><span id="render-status" role="status">Preparing light…</span></div><div class="measure"><button id="measure">Measure 10s</button><output id="measurement" aria-live="polite"></output></div></footer>
+  <script type="module" src="./piano-chord-tree.js"></script>
+</body>
+</html>
