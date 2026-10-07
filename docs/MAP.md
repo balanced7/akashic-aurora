@@ -183,7 +183,7 @@ Class: reference
 | `experiment.py` | Coordination experiment harness -- the Stage-3 evidence engine. | tests/test_coord_experiment.py | docs/library/contract/20260923_sonnet-scaffolding-experiment-sealed-pre_a36df6.md |  |
 | `fence_workspace.py` | Fence workspace (R2 / T053) -- the fence as a first-class object, not a naming convention. | tests/test_fence_workspace.py | GAP | `AKASHIC_FENCE_ROOT` |
 | `forecast_registry.py` | T375 -- the engineering forecast registry (append-only, fold-not-table). | tests/test_t375_forecast_registry.py | GAP |  |
-| `ground.py` | Truthful evidence ladders for Aurora subjects. | tests/test_t084_ground_seat_continuity.py | docs/library/chronicle/20260721_session-reflection-the-grounding-point-f_aa816c.md |  |
+| `ground.py` | Truthful evidence ladders for Aurora subjects. | tests/test_screenspace_foreground_smoke.py | docs/library/chronicle/20260721_session-reflection-the-grounding-point-f_aa816c.md |  |
 | `intent.py` | Intent declaration -- Policy 0 of the coordination layer. | tests/test_boot_intent_surface.py | docs/library/report/20260711_claude-s-diagnosis-half-the-boot-intent_794515.md | `BIFROST_NAMESPACE` |
 | `intent_shadow.py` | Deterministic, renderer-neutral previews of proposed Aurora actions. | GAP | GAP |  |
 | `lens_ledger.py` | lens_ledger -- score fan lenses by what SURVIVED, not by whether the model replied. | tests/test_w168_lens_ledger.py | GAP | `AKASHIC_LENS_LEDGER` |
