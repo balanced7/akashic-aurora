@@ -563,6 +563,13 @@ def cmd_delta(args):
     the seen mark to current positions (the explicit commit surface; boot auto-commits)."""
     from agent.harness.delta import render_full, delta_boot_block
     print(render_full(args.agent_id))
+    if getattr(args, "disk", False):
+        # The GAP, never the overlap: T052 just rendered the planes above, so this adds only what
+        # those planes structurally cannot see. core/provenance/delta.py never calls render_full.
+        from core.provenance import delta as _disk
+        print()
+        print(_disk.render(_disk.since(hours=float(getattr(args, "hours", 12.0) or 12.0),
+                                       roots=getattr(args, "scope", None))))
     if getattr(args, "ack", False):
         _t, commit = delta_boot_block(args.agent_id)
         print("[delta] mark advanced to current positions" if commit()
@@ -8548,6 +8555,20 @@ def build_parser():
     dl.add_argument("agent_id")
     dl.add_argument("--ack", action="store_true",
                     help="advance the seen mark to current positions after reading")
+    # THE DISK PLANE, added 2026-10-07 as a plane on this door rather than a second verb: T052
+    # answers "what moved since I was here" for git/ledger/notes/promoted, and the filesystem gap
+    # is the SAME continuity question on a plane it structurally cannot see (uncommitted work,
+    # anything outside the repo, and per-file attribution -- every seat commits as one git author).
+    # A separate verb would mint a second writer for one transition, which is the rival assembler
+    # touch.py warns about.
+    dl.add_argument("--disk", action="store_true",
+                    help="also report what moved ON DISK that no plane recorded: repo / private / "
+                         "VOLATILE, with per-file attribution from the touch stream")
+    dl.add_argument("--hours", type=float, default=12.0,
+                    help="--disk: how far back to look (default 12)")
+    dl.add_argument("--scope", action="append", default=None,
+                    help="--disk: restrict to this root (repeatable); default is the house roots "
+                         "minus test debris, plus the private and volatile trees")
     dl.set_defaults(fn=cmd_delta)
 
     cmp_p = sub.add_parser("compare", help="what does one domain have that another does "

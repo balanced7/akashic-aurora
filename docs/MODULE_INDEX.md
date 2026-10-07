@@ -269,6 +269,9 @@
 - `convert.py` — convert -- a document in, titled Sections out. Pure and local: nothing here fetches.
 - `shelf.py` — shelf -- labelled chunks in SQLite with an FTS5 index; incremental ingest; honest search.
 
+## core/provenance/  (1 modules)  ⚠️ NOT in ARCHITECTURE.md layer order — add it there
+- `delta.py` — The DISK plane of the delta door -- what moved that no Aurora plane recorded.
+
 ## core/screenspace/  (7 modules)  ⚠️ NOT in ARCHITECTURE.md layer order — add it there
 - `act.py` — Screenspace ACTUATOR — the act half (T386 sec.6 steps 1 and 3), refusal-first.
 - `canary.py` — Screenspace UIA availability — POSITIVE CANARY READ, not a context inference.

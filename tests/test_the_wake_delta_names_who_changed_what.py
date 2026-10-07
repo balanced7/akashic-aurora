@@ -281,10 +281,25 @@ def test_the_delta_never_reads_file_CONTENTS():
 
 
 # ------------------------------------------------------------------ determinism
-def test_the_same_window_gives_the_same_answer():
-    """A delta that cannot be re-run is a delta that cannot be audited -- the same rule
-    recall-audit's seeded sample already follows."""
-    a = delta.since(hours=0.01, roots=[str(ROOT)])
-    b = delta.since(hours=0.01, roots=[str(ROOT)])
-    assert [getattr(x, "path", x) for x in a] == [getattr(x, "path", x) for x in b], (
-        "two identical queries returned different results")
+def test_an_anchored_window_is_re_derivable():
+    """A delta that cannot be re-run cannot be audited -- the rule recall-audit's seed already
+    follows.
+
+    AMENDED, and the first version was wrong in an instructive way. It called since(hours=0.01)
+    twice and demanded identical output, which is unachievable BY CONSTRUCTION: without an anchor
+    the window slides with the wall clock, so two calls a second apart genuinely cover different
+    spans. Worse, it failed under pytest specifically, because pytest's own __pycache__ writes
+    landed inside the window -- the instrument was perturbing its own measurement, and outside
+    pytest the same two calls agreed exactly.
+
+    So the module gained what the property actually needs (an explicit `now` anchor, plus noise
+    filtering so a human-facing report is not mostly bytecode), and the pin now tests
+    RE-DERIVABILITY, which is the thing worth guaranteeing.
+    """
+    anchor = 1_760_000_000.0
+    a = delta.since(hours=24, roots=[str(ROOT)], now=anchor, attribute_changes=False)
+    b = delta.since(hours=24, roots=[str(ROOT)], now=anchor, attribute_changes=False)
+    assert [c.path for c in a] == [c.path for c in b], (
+        "the same anchored window returned different results -- the report cannot be re-derived")
+    assert all(not delta.is_noise(c.path) for c in a), (
+        "derived artifacts (.pyc, __pycache__) are in a human-facing change list")

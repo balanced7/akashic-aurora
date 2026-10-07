@@ -83,6 +83,13 @@ Swapping a backend changes nothing above. Also here: `redis_connection.py` (fail
 - **`core/signals/`** — the older domain layer: `AgentSignalLedger` (the canonical signal firehose)
   + `SignalEmitter` (agents announce work). Its reactive coordinator was retired 2026-07-07 —
   reaction/coordination now lives in Bifrost (bus + promoter + handoff).
+- **`core/provenance/`** — the gap *underneath* the records above: `delta.py` reconciles what the
+  planes believe happened against what the disk shows. It is the `--disk` plane of the T052 delta
+  door, never a second one — it reports only what git/ledger/notes/promoted structurally cannot
+  see (uncommitted work, anything outside the repo, and per-file attribution, since every seat
+  commits under one git author). Classifies every change `repo` / `private` / **`volatile`**, and
+  volatile is the only losable class so it renders first. Metadata only, never file contents: it
+  is pointed at a directory holding tax returns and identity documents.
 
 ## Bifrost — the agent nervous system (`core/comm/`)
 How live agents talk, are steered, and are kept alive.

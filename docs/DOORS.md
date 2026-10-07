@@ -38,7 +38,7 @@ The agent's shell door. `*` marks a required argument; `{a,b}` shows the accepte
 | `console-log` | durable console events (interjection/bus_control/file_drop) | `--limit` `--since` `--until` `--json` |
 | `context` | W0.5/W0.6: one anchor, every plane -- or `--stats` to meter the stream | `<anchor>` `--level` `--stats` `--hours` `--limit` `--json` |
 | `defer` | the capability-gated standing queue (W33): file a command awaiting an exec/write seat; boot surfaces it; discharge with a receipt | `<agent_id>*` `<cmd_text>` `--needs` `--why` `--list` `--done` `--receipt` |
-| `delta` | what changed since this agent's last boot (T052 delta door) | `<agent_id>*` `--ack` |
+| `delta` | what changed since this agent's last boot (T052 delta door) | `<agent_id>*` `--ack` `--disk` `--hours` `--scope` |
 | `discord` | watch the fleet from your phone (T223, OUTBOUND ONLY). A webhook URL is write-only, so this opens no command channel -- inbound needs an identity gate and does not ship until it exists | `<action> {status,test,send}` `--text` `--kind` `--json` |
 | `discover` | list every verb + its purpose (the self-describing door) | `<query>` `--json` `--semantic` |
 | `doc` | seed a new doc with its header contract (library door) | `<sub> {new,adopt,arc}` |
