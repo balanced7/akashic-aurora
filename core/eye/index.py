@@ -153,10 +153,48 @@ def utterance_key(session: str, text: str) -> Tuple[str, str]:
     return (session, " ".join((text or "").split()))
 
 
-# Basenames that identify a FILE but not a SESSION. A harness that writes one directory per
-# session under a constant filename puts the session's identity in the DIRECTORY, and reading
-# the stem instead collapses every session onto one id.
-_GENERIC_TRANSCRIPT_STEMS = {"session", "transcript", "conversation", "chat"}
+# What an IDENTIFIER looks like. Not a list of names that are not identifiers.
+#
+# This replaced `_GENERIC_TRANSCRIPT_STEMS = {"session","transcript","conversation","chat"}` on
+# 2026-10-07. That set was four basenames someone had already been bitten by, and it could not know
+# the fifth: `journal.jsonl`, written once per workflow run, resolved to the stem "journal" for all
+# 90 of them, so 89 were discarded by the corpus dedup and 870 agent verdicts (13.12 MB) were
+# unsearchable while every instrument reported a healthy corpus. core/trust/private_plane.py states
+# the rule the set violated -- "MARKERS ARE DERIVED, NEVER DECLARED ... A hand-maintained denylist
+# rots the moment someone adds a file."
+#
+# Inverting the question removes the maintenance. A transcript whose filename carries a long hex run
+# is named after something; a UUID always ends in a 12-hex group, and `agent-a3a48adec9ffa13b0`
+# carries 17. A plain word like `journal`, `session`, `transcript`, `conversation` or `chat` carries
+# none, so all four of the old entries are covered by the predicate rather than by being listed.
+#
+# MEASURED on the live 1,997-file corpus: distinct addresses 1515 -> 1604 (the 89 journals), and
+# ZERO files that already have rows in `events` change their address, so the 55,470 rows keep
+# resolving and no migration is owed.
+#
+# THE FIRST VERSION OF THIS WAS WRONG AND tests/test_t278_s0_eye_indexer.py CAUGHT IT. Asking only
+# "is the STEM an identifier?" and falling back to the directory otherwise treats a readable but
+# genuinely unique name as generic: the fixture's `corpus/session_alpha.jsonl` and
+# `corpus/session_beta.jsonl` both collapsed onto `corpus`, merging two distinct sessions and taking
+# events_total from 11 to 7. That is a worse failure than the one being fixed -- the journal bug lost
+# a plane the eye never had, this would have lost sessions it already held. The ratchet earned its
+# keep.
+#
+# So the question is asked of the PATH, in order, and the directory is only consulted when the
+# filename has already declined to identify anything:
+#
+#   1. stem is an identifier            -> the file is named for its session   (UUIDs, agent-<hex>)
+#   2. else parent directory is one     -> the directory is the session        (wf_<id>/journal,
+#                                                                              <uuid>/session.zstd)
+#   3. else                             -> the stem, unchanged                 (session_alpha)
+#
+# Step 3 is deliberately conservative: when neither name looks like an id, the old behaviour is
+# correct and changing it would re-key rows for no gain. The threshold is looser for a directory
+# than for a stem because a session directory is named after its run (`wf_61d2fb44-7de`, 8 hex)
+# while a stem that identifies a session is a full id (a UUID's last group is 12,
+# `agent-a3a48adec9ffa13b0` is 17).
+_IDENTIFIER_RUN = re.compile(r"[0-9a-f]{12,}", re.IGNORECASE)
+_DIR_IDENTIFIER_RUN = re.compile(r"[0-9a-f]{8,}", re.IGNORECASE)
 
 
 def session_id_for(path: Any) -> str:
@@ -172,7 +210,20 @@ def session_id_for(path: Any) -> str:
     logging, and without moving any counter the report prints.
 
     Claude Code ids are unchanged by construction -- their stems are not generic -- so the
-    44,525 rows already indexed keep resolving."""
+    44,525 rows already indexed keep resolving.
+
+    2026-10-07: the genericness test is now a POSITIVE test for identifier shape rather than
+    membership in a hand-written set of four names, which is what let `journal.jsonl` through. The
+    principle is the one the fence settled on: **an address must be a pure function of the file**,
+    not of what other files happen to exist today and not of what the database has seen before. A
+    key derived from the corpus can move when the corpus grows, and a key that moves re-writes
+    `event_id = "<session>:<line>"` under 55,470 rows with `INSERT OR IGNORE` swallowing the
+    casualties. This function therefore reads one path and nothing else.
+
+    (The fence's literal proposal -- `rel.parts == 1 ? stem : rel.parent` -- was measured against the
+    real tree and rejected: under `.claude/projects` no transcript is ever one part deep, so every
+    file took the parent branch and 1,457 files collapsed to 115 addresses. Its *principle* is what
+    is implemented here; `fences/eye-journal-plane/reconciliation.md` records both.)"""
     p = Path(path)
     name = p.name
     for suffix in _COMPRESSED_SUFFIXES:
@@ -180,9 +231,17 @@ def session_id_for(path: Any) -> str:
             name = name[: -len(suffix)]
             break
     stem = name[:-6] if name.lower().endswith(".jsonl") else Path(name).stem
-    if stem.lower() in _GENERIC_TRANSCRIPT_STEMS:
-        # The filename names the file; the directory names the session.
-        return p.parent.name or stem
+    if _IDENTIFIER_RUN.search(stem):
+        # The filename names the session: a UUID, or an agent id. Return it unchanged -- this is the
+        # branch every already-indexed row depends on.
+        return stem
+    parent = p.parent.name
+    if parent and _DIR_IDENTIFIER_RUN.search(parent):
+        # The filename names the FILE and the DIRECTORY names the session: `wf_<id>/journal.jsonl`,
+        # `<uuid>/session.jsonl.zstd`.
+        return parent
+    # Neither name is an id. The stem is as good an address as exists, and it is the one already in
+    # use -- see the `corpus/session_alpha.jsonl` case in the comment above this function's regex.
     return stem
 
 
@@ -249,8 +308,16 @@ def default_corpus() -> List[Path]:
     return sorted(p for _label, _base, files in _corpus_roots() for p in files)
 
 
-def _corpus_roots() -> List[Any]:
+def _corpus_roots(with_drops: bool = False) -> Any:
     """(label, files) per root, deduped by filename, in precedence order.
+
+    ``with_drops=True`` additionally returns the files this function THREW AWAY. Added 2026-10-07
+    because the dedup below was a silent subtraction: 89 of 90 workflow journals share the session
+    id ``"journal"``, every one after the first was removed from the list here, and no number
+    anywhere downstream moved. The lesson this function already cites
+    (``a_coverage_contract_must_state_the_scope_it_globs_not_just_the_files_it_read``) was recorded
+    about a narrow GLOB; the same principle governs a narrow dedup, and it took a second instance to
+    notice that. Found-vs-taken, or the report is a tautology: "every file I kept, I kept."
 
     T313. Three faults fixed here, all of the same family -- a reader that could not see what a
     writer produced:
@@ -272,7 +339,10 @@ def _corpus_roots() -> List[Any]:
     Dedup is by FILENAME and precedence is live > archive > rescued: the live copy is the one
     still being appended to, so an archived copy of the same session must never shadow it."""
     roots: List[Any] = []
-    seen: set = set()
+    seen: dict = {}
+    #: Every file the globs FOUND and the dedup then removed, with the path that kept the id. A
+    #: list rather than a counter so a shortfall can be read as "which files", not just "how many".
+    drops: List[Any] = []
 
     def _take(label: str, base: Path, files) -> None:
         # T406: dedup by SESSION, not by filename. The intent was always "the live copy of a
@@ -284,8 +354,28 @@ def _corpus_roots() -> List[Any]:
         for p in sorted(files):
             sid = session_id_for(p)
             if sid in seen:
+                # RECORDED, not skipped. `seen` holds the winner so a drop can name what shadowed
+                # it, and -- the part that matters -- whether the drop was INTENDED.
+                #
+                # Two drops look identical and mean opposite things. If the winner sits under a
+                # DIFFERENT base, this is the precedence rule working: the live copy of a session
+                # shadows its archived copy, the E: archive shadows the F: mirror, rolling shadows
+                # recovered. Nothing is lost; the same session exists twice on purpose.
+                #
+                # If the winner sits under the SAME base, two DISTINCT files in one tree are
+                # claiming one address, and one of them is being deleted from the corpus. Measured
+                # 2026-10-07: 392 intended, 90 collisions -- every collision under
+                # .claude/projects, and 89 of them the workflow-journal plane.
+                #
+                # Collapsing the two into one "dropped" figure would be a new misleading number
+                # replacing the old silence, so the distinction is drawn here, where the winner's
+                # base is still in hand.
+                win_base, win_path = seen[sid]
+                drops.append({"label": label, "path": str(p), "session": sid,
+                              "shadowed_by": str(win_path),
+                              "kind": "collision" if win_base == str(base) else "shadowed"})
                 continue
-            seen.add(sid)
+            seen[sid] = (str(base), p)
             picked.append(p)
         roots.append((label, str(base), picked))
 
@@ -313,7 +403,8 @@ def _corpus_roots() -> List[Any]:
         b = Path(base)
         if b.is_dir():
             _take(f"seat:{seat}", b, b.rglob(_TRANSCRIPT_GLOB))
-    return [(lbl, base, files) for lbl, base, files in roots]
+    rows = [(lbl, base, files) for lbl, base, files in roots]
+    return (rows, drops) if with_drops else rows
 
 
 def corpus_coverage() -> Dict[str, Any]:
@@ -322,13 +413,33 @@ def corpus_coverage() -> Dict[str, Any]:
     Lesson a_coverage_contract_must_state_the_scope_it_globs_not_just_the_files_it_read, whose own
     example is THE EYE printing "83/83 manifest_complete" while globbing one level and seeing 82
     of 443 files on disk. A count without its frame is not a coverage claim."""
-    rows = _corpus_roots()
+    rows, drops = _corpus_roots(with_drops=True)
     subagent = sum(1 for _l, _b, files in rows for p in files if is_subagent_path(p))
     total = sum(len(files) for _l, _b, files in rows)
+    # FOUND vs TAKEN. `total` is what survived; `found` is what the globs actually matched. Until
+    # 2026-10-07 only the first existed, so a plane deleted by an id collision was indistinguishable
+    # from a plane that does not exist on this box -- measured at 90 files, 870 agent verdicts.
+    #
+    # The two kinds are reported separately on purpose. `shadowed` is the precedence rule working
+    # and should be large and boring; `dropped_to_collision` is loss and should be zero. It also
+    # explains two rows in `roots` that read as broken and are not: the F: archive mirror and the
+    # rescued root both show 0 files because every one of their sessions was shadowed by a
+    # higher-precedence copy, which is a healthy mirror, not an empty directory.
+    collisions = [d for d in drops if d.get("kind") == "collision"]
+    by_session: Dict[str, int] = {}
+    for d in collisions:
+        by_session[d["session"]] = by_session.get(d["session"], 0) + 1
     return {
         "roots": [{"label": lbl, "path": base, "files": len(files)}
                   for lbl, base, files in rows],
         "total": total,
+        "found": total + len(drops),
+        "shadowed": len(drops) - len(collisions),
+        "dropped_to_collision": len(collisions),
+        # The worst colliders, named. A bare count tells you something is wrong; this tells you
+        # WHICH address is eating files, which is the only form of the number you can act on.
+        "collisions": sorted(({"session": s, "files_dropped": n} for s, n in by_session.items()),
+                             key=lambda r: -r["files_dropped"])[:10],
         "subagent_transcripts": subagent,
         "operator_bearing": total - subagent,
         # Restated for T406/T407: this line said "by filename" while the code deduped by
@@ -478,6 +589,42 @@ def _dsh_event(obj: Dict[str, Any], typ: str) -> Tuple[str, str]:
     return "", "system"
 
 
+def _workflow_journal_event(obj: Dict[str, Any], typ: str) -> Any:
+    """A workflow journal record -> (text, voice).
+
+    Only `result` carries anything worth finding. Its payload is whatever the agent returned: a
+    string for a prose stage, or the validated object when the stage declared a schema -- and those
+    objects are where the gold is, carrying `gist`, `settled`, `themes` and often a literal `gold`
+    field. The payload is rendered rather than summarised so the FTS index reaches the prose inside
+    it; a summary here would be a second lossy layer over a record that is already a summary.
+
+    `started` is skipped on purpose. Its only fields are a cache `key` (a sha256) and an `agentId`,
+    neither of which anyone will ever search for, and indexing two hashes per agent would add 870
+    rows of noise to buy nothing. The pairing is recoverable from the result rows' agentIds.
+
+    voice is `agent` because that is whose words these are. They must never read as operator speech:
+    the eye's whole operator axis depends on that separation, and the measured failure mode when it
+    slips is that naive sampling concludes Daniel is verbose when he is terse.
+    """
+    if typ != "result":
+        return "", "agent"
+    payload = obj.get("result")
+    if payload is None:
+        return "", "agent"
+    if isinstance(payload, str):
+        text = payload
+    else:
+        try:
+            text = json.dumps(payload, ensure_ascii=False, sort_keys=True)
+        except Exception:                                                  # noqa: BLE001
+            text = str(payload)
+    agent_id = str(obj.get("agentId") or "")
+    # The agent id is prepended rather than dropped so a row can be traced back to the
+    # agent-<id>.jsonl transcript that produced it -- the journal says what was concluded, that
+    # file says how, and the join between them is this id.
+    return (f"[workflow agent {agent_id}] {text}" if agent_id else text), "agent"
+
+
 def _event_from(obj: Dict[str, Any], seat: Optional[str] = None) -> Optional[Dict[str, Any]]:
     """One JSONL record -> one event dict (or None when it carries no text).
 
@@ -511,6 +658,21 @@ def _event_from(obj: Dict[str, Any], seat: Optional[str] = None) -> Optional[Dic
         msg = obj.get("message") or {}
         text = _texts_from_content(msg.get("content"))
         voice = "agent"
+    elif typ in ("started", "result") and "agentId" in obj:
+        # The WORKFLOW JOURNAL dialect, 2026-10-07. A workflow run writes
+        # <session>/subagents/workflows/wf_<id>/journal.jsonl as `started`/`result` pairs, where
+        # `result` is the agent's actual return value -- the record of what a fanned-out agent
+        # CONCLUDED, as opposed to what it said on the way there. 90 journals, 870 results, 13.12 MB
+        # of verdict text, and until this branch existed every one of them parsed cleanly and
+        # yielded nothing, which `unparsed 0` reported as success.
+        #
+        # Gated on `agentId` as well as the type string, because "result" is a plain enough word
+        # that another dialect could use it; the pair is what identifies this one.
+        text, voice = _workflow_journal_event(obj, typ)
+        # Namespaced for storage, following the "<noun>/<verb>" convention the DSH plane already
+        # uses. A bare `result` row would be indistinguishable from any other dialect's `result`,
+        # and `by kind` in `eye stats` is one of the few places a new plane announces itself.
+        typ = "workflow/" + typ
     elif "/" in typ:
         # T406: the DSH plane names its records "<noun>/<verb>" -- a namespace Claude Code
         # never uses, so the two dialects cannot collide on a type string.
@@ -554,10 +716,19 @@ def ingest(paths: Optional[List[Path]] = None,
     manifest = [Path(p) for p in (paths if paths is not None else default_corpus())]
     con = _connect(db_path)
     files_indexed, files_failed = 0, []
+    #: Files that opened, parsed cleanly, and produced NO events. Distinct from files_failed
+    #: (could not be read) and invisible to lines_unparsed (nothing failed to parse). This is
+    #: the gap that hid the workflow-journal plane: journal.jsonl was recorded in ingest_state
+    #: with lines=26 and contributed 0 rows, inside a report that said "unparsed 0".
+    files_barren: List[Any] = []
     events_new = lines_unparsed = events_backfilled = 0
     # One known_at for the whole run: every event this pass makes knowable became knowable
     # together, and a per-row clock would let a long ingest straddle a reader's mark.
     run_started = time.time()
+    # Sessions that already have at least one row. Used to distinguish "indexed and unchanged"
+    # from "stamped as done while yielding nothing" -- see the skip below. One query, not one
+    # per file.
+    with_events = {r[0] for r in con.execute("SELECT DISTINCT session FROM events")}
     try:
         for f in manifest:
             try:
@@ -578,12 +749,29 @@ def ingest(paths: Optional[List[Path]] = None,
                 done_lines = int(cur[1]) if cur else 0
                 if cur and float(cur[0]) == st.st_mtime and done_lines >= 0:
                     # unchanged since last run -> nothing to read
-                    if st.st_mtime == float(cur[0]):
+                    #
+                    # UNLESS IT PRODUCED NOTHING. A file recorded as done with zero events was
+                    # recorded as done by a parser that could not read it, and the mtime skip then
+                    # makes that permanent: teaching the parser a new dialect does not bring the
+                    # file back, because nothing about the FILE changed. Measured 2026-10-07 --
+                    # after the workflow-journal dialect landed, 857 of 870 results indexed, and the
+                    # missing 13 were the single journal already stamped `lines=26` from the run
+                    # that understood none of it. The skip was hiding the one file that most needed
+                    # re-reading.
+                    #
+                    # `with_events` is read once before the loop, so this costs a set lookup rather
+                    # than a query per file.
+                    if st.st_mtime == float(cur[0]) and session in with_events:
                         files_indexed += 1
                         # still need to detect appended lines when mtime unchanged is
                         # impossible (append changes mtime), so skip is safe
                         continue
+                    if session not in with_events:
+                        # Re-read from the top: `done_lines` describes how far a parser that
+                        # understood nothing got, which is not progress.
+                        done_lines = 0
                 n_line = 0
+                produced = 0
                 with open_transcript(f) as fh:
                     for n_line, raw in enumerate(fh, start=1):
                         if n_line <= done_lines:
@@ -609,6 +797,7 @@ def ingest(paths: Optional[List[Path]] = None,
                         ev = _event_from(obj, seat=seat)
                         if ev is None:
                             continue
+                        produced += 1
                         eid = f"{session}:{n_line}"
                         got = con.execute(
                             "INSERT OR IGNORE INTO events(event_id, session, line, ts, "
@@ -633,6 +822,12 @@ def ingest(paths: Optional[List[Path]] = None,
                                 "WHERE event_id=? AND uuid IS NULL",
                                 (ev["uuid"], ev["parent_uuid"], eid))
                             events_backfilled += fixed.rowcount or 0
+                if n_line > done_lines and produced == 0:
+                    # Read, understood as JSON, and meaningless to this reader. Recorded by
+                    # NAME because the actionable question is "which format can the eye not
+                    # read?", and a count cannot answer it.
+                    files_barren.append({"path": str(f), "lines_read": n_line - done_lines,
+                                         "session": session})
                 con.execute(
                     "INSERT INTO ingest_state(path, mtime, lines) VALUES(?,?,?) "
                     "ON CONFLICT(path) DO UPDATE SET mtime=excluded.mtime, "
@@ -649,6 +844,8 @@ def ingest(paths: Optional[List[Path]] = None,
             "files_failed": files_failed, "events_total": int(total),
             "events_new": events_new, "events_backfilled": events_backfilled,
             "lines_unparsed": lines_unparsed,
+            "files_yielded_nothing": len(files_barren),
+            "barren": files_barren[:20],
             "manifest_complete": not files_failed,
             "ran_at": round(time.time(), 2)}
 

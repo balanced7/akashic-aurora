@@ -1504,6 +1504,7 @@ The re-rank is there for a good reason and the comment at :595 states it: es.exe
 Wishes: (a) when `sort` is set (or a preset supplied one), rank for the truncation window and then RESTORE the requested order before returning -- or skip `_rank_exact_first` entirely and let es.exe's order stand; (b) failing that, apply exact-basename as a TIEBREAK within the requested sort rather than as the primary key; (c) a pin that asserts `--sort date-modified-descending` actually returns descending dates, because this is the kind of defect that is invisible until someone reads the dates, and "find the newest X" is the single most common search intent the verb serves.
 
 Found while looking for files downloaded minutes earlier: the verb ranked them 7th, 8th and 10th behind files from 2013, which reads as "it did not find them.". Trigger: asking find for the most recent or largest match. Land: core/tools/everything.py:628 and :747 (_rank_exact_first overriding the -sort order).
+- [ ] W256 (10-07, claude) — eye ingest costs 39-85s even when only 1-3 events are new, because _CONN.build() rebuilds all 42,540 connectome edges every pass regardless of what changed. The read path is incremental; the rebuild is total. So the practical cadence of the scheduled ingest is set by the rebuild cost rather than by how much work happened. Trigger: measured 85s for a 3-event pass while sizing the scheduled ingest. Land: eye / connectome incremental build.
 
 ## Folded (exemplars — the loop works)
 

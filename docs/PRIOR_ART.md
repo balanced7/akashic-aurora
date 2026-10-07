@@ -40,7 +40,7 @@ rebuilt wheels and dead ends, so the sweep is now a standing artifact rather tha
 - `scripts/hooks` -- DRIFT (7->8), reviewed 2026-07-26
 - `scripts/checkers` -- DRIFT (12->24), reviewed 2026-07-26
 - `scripts/generators` -- DRIFT (6->11), reviewed 2026-07-26
-- `scripts/ops` -- DRIFT (2->8), reviewed 2026-07-26
+- `scripts/ops` -- DRIFT (2->9), reviewed 2026-07-26
 - `tests` -- DRIFT (331->798), reviewed 2026-07-26
 
 ---
@@ -495,7 +495,7 @@ _Reviewed 2026-07-26 by claude._
 
 _Reviewed 2026-07-26 by claude._
 
-## `scripts/ops` -- 8 modules  ·  DRIFT (2->8)
+## `scripts/ops` -- 9 modules  ·  DRIFT (2->9)
 
 **What it does.** Operator tools for the knowledge substrate: snapshot_knowledge.py (snapshot / list / restore / verify across Redis, the file tier and chronicles, keeping the last 20) and reheal_durable_tier.py (backfill the durable tier FROM Redis, added 2026-07-26).
 

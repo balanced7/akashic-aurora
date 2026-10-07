@@ -2753,6 +2753,28 @@ def cmd_eye(args):
             + f" = {_cov['total']} file(s)"
             + f"  ({_cov['operator_bearing']} operator-bearing, "
               f"{_cov['subagent_transcripts']} subagent)")
+        # FOUND vs TAKEN, 2026-10-07. The line above counts files that SURVIVED dedup, so until this
+        # one existed a plane deleted at enumeration was indistinguishable from a plane that does not
+        # exist -- measured at 90 files and 870 agent verdicts. `shadowed` is the precedence rule
+        # working (the live copy of a session shadows its archived copy, the E: archive shadows the
+        # F: mirror) and should be large and dull; a collision is two DISTINCT files claiming one
+        # address, and is loss. It also explains the roots that read `0` above: a fully shadowed
+        # mirror, not an empty directory.
+        if _cov.get("found", _cov["total"]) != _cov["total"]:
+            print(f"[eye] found {_cov['found']} file(s): {_cov['total']} taken, "
+                  f"{_cov.get('shadowed', 0)} shadowed by a higher-precedence copy, "
+                  f"{_cov.get('dropped_to_collision', 0)} LOST to an address collision")
+            for c in _cov.get("collisions", [])[:3]:
+                print(f"    collision: {c['files_dropped']} file(s) claim the address "
+                      f"'{c['session']}'")
+        # Parsed cleanly, meant nothing. Distinct from files_failed (unreadable) and invisible to
+        # `unparsed` (nothing failed to parse). This is what hid the journal plane: a file stamped
+        # done with 26 lines and 0 rows, inside a report that said "unparsed 0".
+        if rep.get("files_yielded_nothing"):
+            print(f"[eye] {rep['files_yielded_nothing']} file(s) parsed and yielded NO events "
+                  f"-- a format this index cannot read, or a run that produced nothing:")
+            for b in rep.get("barren", [])[:5]:
+                print(f"    {b['session']}  ({b['lines_read']} line(s))  {b['path']}")
         if not rep["manifest_complete"]:
             print(f"[eye] COVERAGE GAP -- the index may NOT be read as whole:")
             for f in rep["files_failed"]:

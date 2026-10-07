@@ -222,16 +222,46 @@ def test_every_workflow_journal_is_reachable_by_a_distinct_address():
 
 
 # ------------------------------------------------------------------ ratchets: keep what works
-def test_the_four_known_generic_stems_still_resolve_by_directory():
+def test_the_dsh_plane_still_resolves_to_one_address_per_session():
     """RATCHET. T406's fix is real and must survive: DSH names all 25 of its transcripts
-    `session.jsonl.zstd`, and resolving those by stem would collapse them to one."""
+    `session.jsonl.zstd`, and resolving those by stem would collapse them to one.
+
+    THIS PIN'S FIRST DRAFT ASSERTED A FIXTURE AND THE FIXTURE WAS THE WRONG SHAPE. It built
+    `/tmp/dsh-run-7/session.jsonl` and demanded the directory be used -- but every real DSH session
+    directory is a UUID (`session-7968a54a-40ff-...`, `1c6f4c4a-34da-...`), and `dsh-run-7` is a name
+    I invented. When the fix landed, the pin failed and the live plane was fine: I had pinned my
+    guess about the plane instead of the plane. Measuring the 25 real files is both stronger and
+    cheaper, and it cannot drift from what DSH actually writes.
+    """
     from core.eye.index import session_id_for
-    for stem in ("session", "transcript", "conversation", "chat"):
-        p = Path("/tmp/a-real-session-dir/%s.jsonl" % stem)
-        got = session_id_for(p)
-        assert got == "a-real-session-dir", (
-            "session_id_for(%s) -> %r; a generic stem must resolve to its DIRECTORY, which is what "
-            "keeps DSH's 25 transcripts from colliding into one" % (p, got))
+    files = sorted(glob.glob(str(Path.home() / ".dsh" / "sessions" / "**" / "session.jsonl*"),
+                             recursive=True))
+    if not files:
+        pytest.skip("no DSH plane on this box (measured 25 transcripts on 2026-10-07)")
+    ids = {session_id_for(p) for p in files}
+    assert len(ids) == len(files), (
+        "%d DSH transcripts collapse to %d address(es). They are all named session.jsonl.zstd, so "
+        "resolving them by stem makes line 12 of one session and line 12 of another the same row."
+        % (len(files), len(ids)))
+
+
+def test_a_readable_but_unique_stem_is_not_treated_as_generic():
+    """RATCHET, added because the fix's FIRST version broke this and tests/test_t278_s0_eye_indexer.py
+    caught it.
+
+    Asking only "is the stem an identifier?" and using the directory otherwise collapsed the
+    indexer fixture's `corpus/session_alpha.jsonl` and `corpus/session_beta.jsonl` onto `corpus`,
+    merging two distinct sessions and taking events_total from 11 to 7. A readable name can still be
+    a unique one, and a rule that cannot tell those apart loses sessions the eye already holds --
+    strictly worse than the plane it was fixing. Guarded here so the three-step order (stem-is-id ->
+    parent-is-id -> stem) cannot quietly collapse back to two steps.
+    """
+    from core.eye.index import session_id_for
+    a = session_id_for(Path("/tmp/corpus/session_alpha.jsonl"))
+    b = session_id_for(Path("/tmp/corpus/session_beta.jsonl"))
+    assert a == "session_alpha" and b == "session_beta" and a != b, (
+        "two distinct readable session names resolved to %r and %r -- a non-id directory must not "
+        "become the address, or distinct sessions merge" % (a, b))
 
 
 def test_claude_code_uuid_stems_are_unchanged():
@@ -247,8 +277,50 @@ def test_claude_code_uuid_stems_are_unchanged():
 
 
 def test_the_compressed_suffix_handling_survives():
-    """RATCHET. DSH's files end `.jsonl.zstd`; the suffix strip is what lets the generic-stem check
-    see 'session' at all."""
+    """RATCHET. DSH's files end `.jsonl.zstd`; the suffix strip is what lets the stem be recognised
+    as a non-identifier at all. Uses a UUID directory because that is what DSH actually writes --
+    the lesson from the pin above."""
     from core.eye.index import session_id_for
-    got = session_id_for(Path("/tmp/dsh-run-7/session.jsonl.zstd"))
-    assert got == "dsh-run-7", "compressed-suffix handling regressed: got %r" % got
+    got = session_id_for(Path("/tmp/session-7968a54a-40ff-4256-90e8-6173d40aa338/session.jsonl.zstd"))
+    assert got == "session-7968a54a-40ff-4256-90e8-6173d40aa338", (
+        "compressed-suffix handling regressed: got %r" % got)
+
+
+def test_no_existing_address_moves():
+    """THE MIGRATION RATCHET, and the constraint the fence named as non-negotiable.
+
+    `event_id = "<session>:<line>"` over 55,470 rows. If a fix changes the address of a session that
+    already has rows, `INSERT OR IGNORE` re-files its events under a new key and says nothing. This
+    compares every file in the corpus against the OLD rule -- reimplemented here rather than
+    imported, so deleting the old code cannot make the pin vacuous -- and requires that no file
+    which already has rows resolves differently. Measured 0 of 1,997 when the fix landed.
+    """
+    import sqlite3
+    from core.eye.index import session_id_for, _corpus_roots
+    db = ROOT / "state" / "eye" / "eye.db"
+    if not db.is_file():
+        pytest.skip("no eye.db on this box")
+    rows, drops = _corpus_roots(with_drops=True)
+    files = [Path(d["path"]) for d in drops] + [p for _l, _b, f in rows for p in f]
+    con = sqlite3.connect(str(db))
+    try:
+        known = {r[0] for r in con.execute("SELECT DISTINCT session FROM events")}
+    finally:
+        con.close()
+
+    legacy_generic = {"session", "transcript", "conversation", "chat"}
+
+    def old_rule(p: Path) -> str:
+        name = p.name
+        for suf in (".zstd", ".zst"):
+            if name.lower().endswith(suf):
+                name = name[: -len(suf)]
+                break
+        stem = name[:-6] if name.lower().endswith(".jsonl") else Path(name).stem
+        return (p.parent.name or stem) if stem.lower() in legacy_generic else stem
+
+    moved = [(old_rule(p), session_id_for(p)) for p in files
+             if old_rule(p) in known and session_id_for(p) != old_rule(p)]
+    assert not moved, (
+        "%d file(s) with rows already in `events` would resolve to a NEW address, re-keying their "
+        "history silently. First few: %r" % (len(moved), moved[:5]))
