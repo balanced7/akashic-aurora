@@ -4,7 +4,7 @@ Status: current
 Class: reference
 
 > Do NOT edit by hand. Regenerate with `py scripts/generators/gen_physics_sheet.py`.
-> Derived at 7ac1f23e. A bound you discover by collision is not awareness -- this sheet
+> Derived at 43387612. A bound you discover by collision is not awareness -- this sheet
 > exists so every clip, cap, timeout and flag is READABLE before it is HIT.
 > Dynamic envelopes (throughput, latency, limits-under-load) are NOT here: they require
 > measurement, not grep -- see the master-map charter M2b (benchmark half).
@@ -23,7 +23,7 @@ Class: reference
 | `AKASHIC_ACK_UNHANDLED_HOURS` | `UNHANDLED_HOURS` | core/comm/promoter.py |
 | `AKASHIC_ACL_PATH` | `` | core/trust/registry.py |
 | `AKASHIC_ADJUDICATORS` | `""` | core/fleet/verdicts.py |
-| `AKASHIC_AGENT_ID` | `"dsh_agent"` | agent/harness/actions.py, agent/harness/dsh_plugin/bridge.py, agent/harness/hooks/_activity.py +38 |
+| `AKASHIC_AGENT_ID` | `"dsh_agent"` | agent/harness/actions.py, agent/harness/dsh_plugin/bridge.py, agent/harness/hooks/_activity.py +37 |
 | `AKASHIC_ALLOW_HARMONIZE` | `` | scripts/harmonize_knowledge.py |
 | `AKASHIC_APP_PACKAGE` | `"Claude"` | core/fleet/app_package.py |
 | `AKASHIC_ASK_BASE_URL` | `"https://api.deepseek.com"` | core/comm/ask.py |

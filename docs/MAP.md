@@ -118,7 +118,7 @@ Class: reference
 | `discord_rooms.py` | Outbound room router — each ask/breakout becomes a Discord thread. | tests/test_discord_rooms_pins.py | GAP | `AKASHIC_DISCORD_BOT_TOKEN`, `AKASHIC_DISCORD_FORUM_WEBHOOK`, `AKASHIC_DISCORD_ROOMS_REGISTRY`, `AKASHIC_DISCORD_SEATS_REGISTRY` |
 | `dispatcher.py` | Dispatcher (Bifrost Mesh W2): one resident process that turns doorbell notices into wakes. | GAP | GAP |  |
 | `doctor.py` | Fleet doctor (L2 / RB-27b) -- the missing READER of the liveness signals: progress, | tests/test_doctor_dead_runner_visibility.py | GAP | `AKASHIC_LANE_STALL_PAGE_S`, `AKASHIC_LANE_STALL_WARN_S`, `AKASHIC_RECENT_INBOX_S`, `AKASHIC_STALL_HYSTERESIS_S`, `BIFROST_NAMESPACE`, `BIFROST_UI_PORT` |
-| `door_probe.py` | door_probe -- does the MCP door actually answer, right now, in THIS environment? | tests/test_door_probe.py | research/reviewed/deepseek-door-probe-attack-2026-07-26.md | `AKASHIC_AGENT_ID` |
+| `door_probe.py` | door_probe -- does the MCP door actually answer, right now, in THIS environment? | tests/test_door_probe.py | research/reviewed/deepseek-door-probe-attack-2026-07-26.md |  |
 | `engine_vitals.py` | engine_vitals -- gauge_snapshot(), the engine room's pulse (T079-E1). | tests/test_t079_e1_engine_vitals.py | GAP | `BIFROST_NAMESPACE` |
 | `expectations.py` | expectations -- sender-side reply deadlines + redrive (T030 L4 / RB-29). | tests/test_t030_l4_expectations.py | GAP | `AKASHIC_EXPECT_TASK_SETTLE`, `BIFROST_NAMESPACE` |
 | `failsafe.py` | The failsafe deadman -- an out-of-band watcher that survives the bus it watches. | tests/test_failsafe_watcher.py | GAP | `AKASHIC_RUN_EXPECTATION` |
