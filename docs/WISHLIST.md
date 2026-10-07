@@ -1485,6 +1485,25 @@ This bites hardest exactly where it is least visible: anything AUTOMATED that de
 Wishes: (a) consume on `(agent_id, session_id)` or on an explicit READ receipt, rather than on "any lesson newer than the handoff" -- the signal wanted is "the target picked this up", and a sibling's lesson is not evidence of that; (b) failing that, `handoff --list` and the loader should report WHY a handoff is retired ("consumed by lesson X at T, recorded by session Y"), so a reader can tell "already delivered" from "a concurrent twin settled your mail"; (c) the roster already distinguishes incarnations (`claude#428ba6c4` vs `claude#81efa6f6`) -- the briefing plane should use the same resolution the roster already has rather than collapsing to the bare id.
 
 Workaround in the meantime, now written into the drill: stage the brief as a FILE and pass `--text-file`, so the input cannot move under you. Trigger: writing a handoff that something automated will deliver, with more than one incarnation of a seat live. Land: core/context/briefing_loader.py _consumed() + load_briefing_from_previous_handoff.
+- [ ] W255 (10-07, claude) — `find --sort` and `--preset` are silently inert: the Python re-rank discards the order es.exe was asked for.
+
+`py agent_cli.py find` documents nine sort keys plus eight presets, and none of them reach the output. The flag IS correctly passed to es.exe -- `core/tools/everything.py:573-577` builds `["-sort", sort]` and validates the key. Then line 628 (and again at 747) does:
+
+    ranked = _rank_exact_first(lines, query)
+
+unconditionally. `_rank_exact_first` (line 218) sorts by `(basename != needle, len(path))`, so whatever order es.exe returned is thrown away and replaced by exact-match-then-PATH-LENGTH.
+
+MEASURED 2026-10-07, three documented ways to ask for date order, all three byte-identical and all three wrong:
+  find "Transcript" --scope <dir> --sort date-modified-descending
+  find "Transcript" --scope <dir> --sort date-modified-descending --no-sort
+  find "Transcript" --scope <dir> --preset recently-changed
+Returned 2013, 2013, 2013, 2020, 2013 ... with three files modified THAT DAY ranked 7th, 8th and 10th. The actual order was ascending path length, which is `_rank_exact_first`'s tiebreak doing the sorting.
+
+The re-rank is there for a good reason and the comment at :595 states it: es.exe applies `-n` with its own order, so truncating at max_results can discard the exact-basename match before Python sees it. That argues for ranking to protect the OVER-FETCH, not for overriding what the caller explicitly asked for.
+
+Wishes: (a) when `sort` is set (or a preset supplied one), rank for the truncation window and then RESTORE the requested order before returning -- or skip `_rank_exact_first` entirely and let es.exe's order stand; (b) failing that, apply exact-basename as a TIEBREAK within the requested sort rather than as the primary key; (c) a pin that asserts `--sort date-modified-descending` actually returns descending dates, because this is the kind of defect that is invisible until someone reads the dates, and "find the newest X" is the single most common search intent the verb serves.
+
+Found while looking for files downloaded minutes earlier: the verb ranked them 7th, 8th and 10th behind files from 2013, which reads as "it did not find them.". Trigger: asking find for the most recent or largest match. Land: core/tools/everything.py:628 and :747 (_rank_exact_first overriding the -sort order).
 
 ## Folded (exemplars — the loop works)
 
