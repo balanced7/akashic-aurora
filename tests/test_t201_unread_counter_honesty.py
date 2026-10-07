@@ -51,7 +51,13 @@ def _m(kind, frm="conductor", content="x"):
 def fake_collect(monkeypatch):
     """Swap the bus read so the counter is tested on constructed evidence, never live."""
     def _install(pending, messages):
-        def fake(agent_id, limit=8):
+        # **kw added 2026-10-07 (W132). The real collect_boot_bifrost grew a `with_locks`
+        # keyword so the once-per-turn counter stops paying 3.8s to enumerate zero locks.
+        # A fake that pins an OLD signature turns a caller's new keyword into a TypeError,
+        # which _unread_count's fail-soft `except Exception: return 0` then swallows into a
+        # confident zero -- the exact shape these tests exist to forbid. Accept and ignore
+        # extra keywords so this fixture tests the COUNTING, not the signature.
+        def fake(agent_id, limit=8, **kw):
             return {"pending": pending, "messages": messages}
         monkeypatch.setattr("agent.bifrost_pull.collect_boot_bifrost", fake)
     return _install
@@ -108,7 +114,7 @@ def test_no_third_filter_is_invented():
 def test_counter_never_raises_into_the_hook(fake_collect, monkeypatch):
     """The whisper is fail-soft by contract: an unreachable bus means no line, never a
     broken turn."""
-    def boom(agent_id, limit=8):
+    def boom(agent_id, limit=8, **kw):
         raise RuntimeError("bus down")
     monkeypatch.setattr("agent.bifrost_pull.collect_boot_bifrost", boom)
     assert ctx._unread_count("claude") == 0
@@ -117,7 +123,7 @@ def test_counter_never_raises_into_the_hook(fake_collect, monkeypatch):
 def test_missing_messages_key_falls_back_to_pending(fake_collect):
     """An older/partial payload without a rendered list must not silently report 0 --
     absence of the list is not evidence of absence of mail."""
-    def fake(agent_id, limit=8):
+    def fake(agent_id, limit=8, **kw):
         return {"pending": 5}
     import agent.bifrost_pull as bp
     orig = bp.collect_boot_bifrost

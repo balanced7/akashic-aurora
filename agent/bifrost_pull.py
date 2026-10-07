@@ -401,9 +401,18 @@ def peek_locks(agent_id: str) -> List[Dict[str, Any]]:
         return []
 
 
-def collect_boot_bifrost(agent_id: str, limit: int = 8) -> Dict[str, Any]:
+def collect_boot_bifrost(agent_id: str, limit: int = 8,
+                         with_locks: bool = True) -> Dict[str, Any]:
     """Presence + unread peek + held locks for boot() / bifrost-sync.
-    RB-30: a leftover pause is surfaced LOUDLY here (the pull floor every turn touches)."""
+    RB-30: a leftover pause is surfaced LOUDLY here (the pull floor every turn touches).
+
+    `with_locks=False` skips the lock enumeration for callers that want only the counts.
+    Added 2026-10-07 (W132): `_unread_count` wants ONE INTEGER and runs in the
+    UserPromptSubmit hook, i.e. on every user turn, and it was paying for a full lock
+    peek it then discarded -- 72% of a 5.2s call. Making the scan fast (locks.py:157,
+    same slice) takes that to milliseconds, but a counter should not be buying locks at
+    all: the fast version would still be the wrong shape, just cheaper to be wrong in.
+    The key stays PRESENT as [] so no reader has to learn a new shape."""
     pres = register_presence(agent_id)
     # S2: every sync/boot BEATS this seat's per-incarnation worklive -- the roster's (and
     # the future reaper's) sensor. Zero-cost, never raises; claude seats heartbeat for the
@@ -449,7 +458,7 @@ def collect_boot_bifrost(agent_id: str, limit: int = 8) -> Dict[str, Any]:
         "pending": (max((int(m.get("pending_at_least", 0)) for m in msgs), default=0)
                     or len(msgs)),
         "messages": msgs,
-        "locks": peek_locks(agent_id),
+        "locks": peek_locks(agent_id) if with_locks else [],
         "pause_line": pause_line,
         "expect_lines": expect_lines,
         "resume_line": resume_line,

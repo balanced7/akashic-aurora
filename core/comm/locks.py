@@ -154,7 +154,16 @@ class LockManager:
             return []
         out: List[Dict[str, Any]] = []
         try:
-            for key in self._client.scan_iter(f"{NS}:lock:*"):
+            # count=1000: SCAN's default is TEN KEYS PER ROUND TRIP, so this walked a 66,700-key
+            # keyspace in 6,503 requests to answer a question about (measured) zero locks -- 3.96s,
+            # paid on every user turn because _unread_count sits in the UserPromptSubmit hook.
+            # The same scan with count=1000 takes 0.05s: 73x, one keyword, identical results.
+            #
+            # The cost was O(KEYSPACE) and independent of how many locks exist; it would have cost
+            # the same four seconds if the lock feature were deleted. COUNT is a hint about work per
+            # round trip, never a limit on results, so nothing is lost -- scan_iter still walks to
+            # cursor 0. Measured 2026-10-07 (W132).
+            for key in self._client.scan_iter(f"{NS}:lock:*", count=1000):
                 if key.endswith(":_seq"):
                     continue
                 v = self._client.get(key)
