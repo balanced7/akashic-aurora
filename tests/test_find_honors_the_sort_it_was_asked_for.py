@@ -201,3 +201,46 @@ def test_the_default_search_still_puts_the_exact_match_first():
         pytest.skip("no hits for agent_cli.py on this host")
     assert os.path.basename(lines[0]).lower() == "agent_cli.py", (
         "the exact basename is no longer ranked first with no explicit sort: %r" % (lines[:3],))
+
+
+# ------------------------------------------------------------------ the SECOND defect, found by play
+def test_a_bare_sort_key_is_descending_in_es_so_ascending_presets_must_say_so():
+    """RED #2, found by exercising the verb after the first fix landed -- which is the argument
+    for playing with a thing rather than declaring it fixed.
+
+    es.exe's help reads ``-sort <name[-ascending|-descending]>``, and the natural reading is
+    that a bare name means ascending. IT DOES NOT. Measured directly against es.exe:
+
+        es Transcript -sort date-created            -> 10/7, 10/7, 10/7, 10/6   (DESCENDING)
+        es Transcript -sort date-created-ascending  -> 11/1/2025, 11/9/2025 ... (ascending)
+
+    So a bare key is DESCENDING, and the two presets whose whole intent is ascending were
+    silently inverted -- they returned exactly the opposite of their names:
+
+        oldest    -> {"sort": "date-created"}  ->  NEWEST first
+        smallest  -> {"sort": "size"}          ->  BIGGEST first  (measured: 16.3 MB, 16.3 MB, 2.3 MB)
+
+    This was invisible until the first fix landed, because while the Python re-rank was
+    discarding every order, no preset produced its own order anyway.
+    """
+    assert E.resolve_preset("oldest")["sort"].endswith("-ascending"), (
+        "preset 'oldest' is %r -- a bare es.exe key, which sorts DESCENDING, so 'oldest' "
+        "returns the newest files" % (E.resolve_preset("oldest")["sort"],))
+    assert E.resolve_preset("smallest")["sort"].endswith("-ascending"), (
+        "preset 'smallest' is %r -- a bare es.exe key, which sorts DESCENDING, so 'smallest' "
+        "returns the biggest files" % (E.resolve_preset("smallest")["sort"],))
+    # and the validator must admit the suffix the fix depends on
+    assert E.is_valid_sort_key("date-created-ascending")
+    assert E.is_valid_sort_key("size-ascending")
+
+
+@pytest.mark.skipif(not _have_everything(), reason="Everything/es.exe not installed on this host")
+def test_preset_smallest_actually_returns_the_smallest():
+    """End-to-end on the inverted preset. Sizes render with thousands separators."""
+    r = _run("find", "Transcript", "--preset", "smallest", "--columns", "size", "--limit", "6")
+    assert r.returncode == 0, r.stderr[:300]
+    sizes = [int(m.replace(",", "")) for m in re.findall(r"^\s*([\d,]+)\s+[A-Za-z]:", r.stdout, re.M)]
+    if len(sizes) < 3:
+        pytest.skip("fewer than 3 sized rows to compare on this host")
+    assert sizes == sorted(sizes), (
+        "--preset smallest returned %r -- that is largest-first, the opposite of its name" % (sizes,))
